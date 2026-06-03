@@ -4,13 +4,11 @@ package org.higherkindedj.hkt.either;
 
 import static org.higherkindedj.hkt.assertions.EitherAssert.assertThatEither;
 import static org.higherkindedj.hkt.either.EitherKindHelper.EITHER;
-import static org.higherkindedj.hkt.instances.Witnesses.*;
+import static org.higherkindedj.hkt.instances.Witnesses.either;
 
 import java.util.function.Function;
-import java.util.stream.Stream;
 import org.higherkindedj.hkt.Applicative;
 import org.higherkindedj.hkt.Kind;
-import org.higherkindedj.hkt.MonadError;
 import org.higherkindedj.hkt.function.Function3;
 import org.higherkindedj.hkt.function.Function4;
 import org.higherkindedj.hkt.instances.Instances;
@@ -20,65 +18,53 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 
 @DisplayName("EitherApplicative")
 class EitherApplicativeTest extends EitherTestBase {
 
-  private MonadError<EitherKind.Witness<String>, String> applicative;
-  private Applicative<EitherKind.Witness<String>> applicativeTyped;
+  private Applicative<EitherKind.Witness<String>> applicative;
 
   @BeforeEach
   void setUpApplicative() {
     applicative = Instances.monadError(either());
-    applicativeTyped = applicative;
     validateApplicativeFixtures();
   }
+
+  // No separate Applicative contract smoke: this instance is the Either MonadError, so its
+  // map/ap/map2 null-argument validation and exception propagation are already covered by the
+  // contract in EitherMonadTest. A dedicated Applicative contract would only duplicate it.
 
   @Nested
   @DisplayName("Laws")
   class Laws {
 
     @ParameterizedTest(name = "identity holds on {0}")
-    @MethodSource("fixtures")
+    @MethodSource("org.higherkindedj.hkt.either.EitherLawFixtures#kinds")
     void identity(String label, Kind<EitherKind.Witness<String>, Integer> v) {
-      ApplicativeLaws.assertIdentity(applicativeTyped, v, equalityChecker);
+      ApplicativeLaws.assertIdentity(applicative, v, equalityChecker);
     }
 
     @ParameterizedTest(name = "homomorphism holds on value {0}")
-    @MethodSource("values")
+    @MethodSource("org.higherkindedj.hkt.either.EitherLawFixtures#values")
     void homomorphism(Integer value) {
-      ApplicativeLaws.assertHomomorphism(applicativeTyped, value, validMapper, equalityChecker);
+      ApplicativeLaws.assertHomomorphism(applicative, value, validMapper, equalityChecker);
     }
 
     @ParameterizedTest(name = "interchange holds on value {0}")
-    @MethodSource("values")
+    @MethodSource("org.higherkindedj.hkt.either.EitherLawFixtures#values")
     void interchange(Integer value) {
-      ApplicativeLaws.assertInterchange(
-          applicativeTyped, validFunctionKind, value, equalityChecker);
+      ApplicativeLaws.assertInterchange(applicative, validFunctionKind, value, equalityChecker);
     }
 
     @ParameterizedTest(name = "composition holds on {0}")
-    @MethodSource("fixtures")
+    @MethodSource("org.higherkindedj.hkt.either.EitherLawFixtures#kinds")
     void composition(String label, Kind<EitherKind.Witness<String>, Integer> w) {
       Kind<EitherKind.Witness<String>, Function<String, String>> u =
-          EITHER.widen(Either.<String, Function<String, String>>right(s -> "u(" + s + ")"));
+          EITHER.widen(Either.right(s -> "u(" + s + ")"));
       Kind<EitherKind.Witness<String>, Function<Integer, String>> v =
-          EITHER.widen(Either.<String, Function<Integer, String>>right(i -> "v" + i));
-      ApplicativeLaws.assertComposition(applicativeTyped, u, v, w, equalityChecker);
-    }
-
-    static Stream<Arguments> fixtures() {
-      return Stream.of(
-          Arguments.of("Right(0)", EITHER.widen(Either.<String, Integer>right(0))),
-          Arguments.of("Right(42)", EITHER.widen(Either.<String, Integer>right(42))),
-          Arguments.of("Right(-1)", EITHER.widen(Either.<String, Integer>right(-1))),
-          Arguments.of("Left(\"err\")", EITHER.widen(Either.<String, Integer>left("err"))));
-    }
-
-    static Stream<Arguments> values() {
-      return Stream.of(Arguments.of(0), Arguments.of(42), Arguments.of(-1));
+          EITHER.widen(Either.right(i -> "v" + i));
+      ApplicativeLaws.assertComposition(applicative, u, v, w, equalityChecker);
     }
   }
 
@@ -95,7 +81,7 @@ class EitherApplicativeTest extends EitherTestBase {
 
       var result = applicative.ap(funcKind, valueKind);
 
-      assertThatEither(narrowToEither(result)).isRight().hasRight("value:42");
+      assertThatEither(result).isRight().hasRight("value:42");
     }
 
     @Test
@@ -107,9 +93,7 @@ class EitherApplicativeTest extends EitherTestBase {
 
       var result = applicative.ap(funcKind, valueKind);
 
-      assertThatEither(narrowToEither(result))
-          .isLeft()
-          .hasLeft(TestErrorType.FUNCTION_ERROR.message());
+      assertThatEither(result).isLeft().hasLeft(TestErrorType.FUNCTION_ERROR.message());
     }
 
     @Test
@@ -120,7 +104,7 @@ class EitherApplicativeTest extends EitherTestBase {
 
       var result = applicative.map2(r1, r2, (i, s) -> s + ":" + i);
 
-      assertThatEither(narrowToEither(result)).isRight().hasRight("test:10");
+      assertThatEither(result).isRight().hasRight("test:10");
     }
 
     @Test
@@ -135,7 +119,7 @@ class EitherApplicativeTest extends EitherTestBase {
 
       var result = applicative.map3(r1, r2, r3, combiner);
 
-      assertThatEither(narrowToEither(result)).isRight().hasRight("test:1:3.14");
+      assertThatEither(result).isRight().hasRight("test:1:3.14");
     }
 
     @Test
@@ -151,7 +135,7 @@ class EitherApplicativeTest extends EitherTestBase {
 
       var result = applicative.map4(r1, r2, r3, r4, combiner);
 
-      assertThatEither(narrowToEither(result)).isRight().hasRight("test:1:3.14:true");
+      assertThatEither(result).isRight().hasRight("test:1:3.14:true");
     }
   }
 
@@ -165,11 +149,11 @@ class EitherApplicativeTest extends EitherTestBase {
       var rightNull = applicative.of(null);
       var rightValue = applicative.of("test");
 
-      var result =
-          applicative.map2(
-              rightNull, rightValue, (i, s) -> (i == null ? "null" : i.toString()) + ":" + s);
+      // String concatenation stringifies a null left value as "null", proving map2 passes it
+      // through to the combiner rather than short-circuiting on it.
+      var result = applicative.map2(rightNull, rightValue, (i, s) -> i + ":" + s);
 
-      assertThatEither(narrowToEither(result)).isRight().hasRight("null:test");
+      assertThatEither(result).isRight().hasRight("null:test");
     }
 
     @Test
@@ -179,10 +163,11 @@ class EitherApplicativeTest extends EitherTestBase {
       Kind<EitherKind.Witness<String>, String> l2 = leftKind(TestErrorType.ERROR_2);
       Kind<EitherKind.Witness<String>, Double> l3 = leftKind(TestErrorType.ERROR_3);
 
-      Function3<Integer, String, Double, String> combiner = (i, s, d) -> "result";
+      // All three are Left, so map3 short-circuits and never invokes the combiner.
+      Function3<Integer, String, Double, String> combiner = (_, _, _) -> "result";
 
       Kind<EitherKind.Witness<String>, String> result = applicative.map3(l1, l2, l3, combiner);
-      assertThatEither(narrowToEither(result)).isLeft().hasLeft(TestErrorType.ERROR_1.message());
+      assertThatEither(result).isLeft().hasLeft(TestErrorType.ERROR_1.message());
     }
 
     @Test
@@ -196,7 +181,7 @@ class EitherApplicativeTest extends EitherTestBase {
       var partialFunc = applicative.ap(nestedFunc, intKind);
       var result = applicative.ap(partialFunc, stringKind);
 
-      assertThatEither(narrowToEither(result)).isRight().hasRight("test:42");
+      assertThatEither(result).isRight().hasRight("test:42");
     }
   }
 }

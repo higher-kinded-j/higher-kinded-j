@@ -10,6 +10,7 @@ import java.util.function.Function;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.test.fixtures.TestFunctions;
 import org.higherkindedj.hkt.test.fixtures.TypeClassTestBase;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Base class for Either type class tests.
@@ -127,7 +128,7 @@ abstract class EitherTestBase
    * @param value The value to wrap in a Right
    * @return A Right Kind containing the specified value
    */
-  protected <R> Kind<EitherKind.Witness<String>, R> rightKind(R value) {
+  protected <R> Kind<EitherKind.Witness<String>, R> rightKind(@Nullable R value) {
     return EITHER.widen(Either.right(value));
   }
 
@@ -148,21 +149,6 @@ abstract class EitherTestBase
    */
   protected <R> Kind<EitherKind.Witness<String>, R> leftKind(TestErrorType errorType) {
     return EITHER.widen(Either.left(errorType.message()));
-  }
-
-  /**
-   * Converts a Kind to an Either instance.
-   *
-   * <p>This is a convenience method to make test code more readable by avoiding repeated
-   * EITHER.narrow() calls.
-   *
-   * @param <L> The type of the Left value
-   * @param <R> The type of the Right value
-   * @param kind The Kind to convert
-   * @return The underlying Either instance
-   */
-  protected <L, R> Either<L, R> narrowToEither(Kind<EitherKind.Witness<L>, R> kind) {
-    return EITHER.narrow(kind);
   }
 
   @Override

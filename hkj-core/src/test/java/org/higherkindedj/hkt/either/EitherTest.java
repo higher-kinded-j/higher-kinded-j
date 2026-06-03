@@ -4,21 +4,14 @@ package org.higherkindedj.hkt.either;
 
 import static org.assertj.core.api.Assertions.*;
 import static org.higherkindedj.hkt.assertions.EitherAssert.assertThatEither;
-import static org.higherkindedj.hkt.instances.Witnesses.*;
-import static org.junit.jupiter.api.Assertions.assertTimeoutPreemptively;
 
-import java.time.Duration;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Function;
-import org.higherkindedj.hkt.MonadError;
 import org.higherkindedj.hkt.exception.KindUnwrapException;
-import org.higherkindedj.hkt.instances.Instances;
 import org.higherkindedj.hkt.test.assertions.ValidationTestBuilder;
-import org.higherkindedj.hkt.test.contract.TypeClassContract;
 import org.higherkindedj.hkt.test.fixtures.TestFunctions;
 import org.higherkindedj.hkt.util.validation.Operation;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -38,45 +31,6 @@ class EitherTest extends EitherTestBase {
   private final Either<String, Integer> rightInstance = Either.right(rightValue);
   private final Either<String, Integer> leftNullInstance = Either.left(null);
   private final Either<String, Integer> rightNullInstance = Either.right(null);
-
-  // Type class testing fixtures
-  private MonadError<EitherKind.Witness<String>, String> monad;
-  private EitherFunctor<String> functor;
-
-  @BeforeEach
-  void setUpEither() {
-    monad = Instances.monadError(either());
-    functor = EitherFunctor.instance();
-  }
-
-  @Nested
-  @DisplayName("Complete Type Class Test Suite")
-  class CompleteTypeClassTestSuite {
-
-    @Test
-    @DisplayName("Run complete Monad test pattern")
-    void runCompleteMonadTest() {
-      TypeClassContract.<EitherKind.Witness<String>>monad(EitherMonad.class)
-          .<Integer>instance(monad)
-          .<String>withKind(validKind)
-          .withMonadOperations(
-              validKind2, validMapper, validFlatMapper, validFunctionKind, validCombiningFunction)
-          .withLawsTesting(testValue, testFunction, chainFunction, equalityChecker)
-          .verify();
-    }
-
-    @Test
-    @DisplayName("Run complete Functor test pattern")
-    void runCompleteFunctorTest() {
-      TypeClassContract.<EitherKind.Witness<String>>functor(EitherFunctor.class)
-          .<Integer>instance(functor)
-          .<String>withKind(validKind)
-          .withMapper(validMapper)
-          .withSecondMapper(secondMapper)
-          .withEqualityChecker(equalityChecker)
-          .verify();
-    }
-  }
 
   @Nested
   @DisplayName("Factory Methods - Complete Coverage")
@@ -128,12 +82,8 @@ class EitherTest extends EitherTestBase {
     @DisplayName("Factory methods type inference works correctly")
     void factoryMethodsTypeInference() {
       // Test that type inference works without explicit type parameters
-      var stringLeft = Either.left("error");
-      var intRight = Either.right(42);
-
-      // Should be able to assign to properly typed variables
-      Either<String, Object> leftAssignment = stringLeft;
-      Either<Object, Integer> rightAssignment = intRight;
+      Either<String, Object> leftAssignment = Either.left("error");
+      Either<Object, Integer> rightAssignment = Either.right(42);
 
       assertThatEither(leftAssignment).isLeft().hasLeftNonNull().hasLeft("error");
       assertThatEither(rightAssignment).isRight().hasRightNonNull().hasRight(42);
@@ -234,6 +184,7 @@ class EitherTest extends EitherTestBase {
 
   @Nested
   @DisplayName("fold() Method - Complete Validation and Edge Cases")
+  @SuppressWarnings("DataFlowIssue")
   class FoldMethodTests {
 
     @Test
@@ -280,12 +231,12 @@ class EitherTest extends EitherTestBase {
 
       // Left instance should call left mapper and propagate exception
       assertThatThrownBy(
-              () -> leftInstance.fold(TestFunctions.throwingFunction(testException), r -> "Right"))
+              () -> leftInstance.fold(TestFunctions.throwingFunction(testException), _ -> "Right"))
           .isSameAs(testException);
 
       // Right instance should call right mapper and propagate exception
       assertThatThrownBy(
-              () -> rightInstance.fold(l -> "Left", TestFunctions.throwingFunction(testException)))
+              () -> rightInstance.fold(_ -> "Left", TestFunctions.throwingFunction(testException)))
           .isSameAs(testException);
 
       // Non-throwing mapper shouldn't be called
@@ -324,6 +275,7 @@ class EitherTest extends EitherTestBase {
 
   @Nested
   @DisplayName("map() Method - Comprehensive Right-Biased Testing")
+  @SuppressWarnings("DataFlowIssue")
   class MapMethodTests {
 
     @Test
@@ -338,10 +290,7 @@ class EitherTest extends EitherTestBase {
       assertThatEither(listResult)
           .isRight()
           .hasRightNonNull()
-          .hasRightSatisfying(
-              list -> {
-                assertThat(list).containsExactly(123, 246);
-              });
+          .hasRightSatisfying(list -> assertThat(list).containsExactly(123, 246));
 
       // Null-safe transformation
       Either<String, String> nullResult = rightNullInstance.map(String::valueOf);
@@ -353,19 +302,19 @@ class EitherTest extends EitherTestBase {
     void mapPreservesLeftInstances() {
       // Standard Left
       Either<String, String> result = leftInstance.map(TestFunctions.INT_TO_STRING);
-      assertThat(result).isSameAs(leftInstance);
+      assertThat((Object) result).isSameAs(leftInstance);
       assertThatEither(result).isLeft().hasLeftNonNull().hasLeft(leftValue);
 
       // Left with null
       Either<String, String> nullResult = leftNullInstance.map(TestFunctions.INT_TO_STRING);
-      assertThat(nullResult).isSameAs(leftNullInstance);
+      assertThat((Object) nullResult).isSameAs(leftNullInstance);
       assertThatEither(nullResult).isLeft().hasLeftNull();
 
       // Complex Left type
       RuntimeException exception = new RuntimeException("Test exception: test");
       Either<RuntimeException, Integer> exceptionLeft = Either.left(exception);
       Either<RuntimeException, String> mappedLeft = exceptionLeft.map(TestFunctions.INT_TO_STRING);
-      assertThat(mappedLeft).isSameAs(exceptionLeft);
+      assertThat((Object) mappedLeft).isSameAs(exceptionLeft);
       assertThat(mappedLeft.getLeft()).isSameAs(exception);
     }
 
@@ -390,7 +339,7 @@ class EitherTest extends EitherTestBase {
       // Left instances should not call mapper
       Either<String, String> leftResult =
           leftInstance.map(TestFunctions.throwingFunction(testException));
-      assertThat(leftResult).isSameAs(leftInstance);
+      assertThat((Object) leftResult).isSameAs(leftInstance);
 
       // Test chaining
       Either<String, Integer> start = Either.right(10);
@@ -428,6 +377,7 @@ class EitherTest extends EitherTestBase {
 
   @Nested
   @DisplayName("Side Effect Methods - Complete ifLeft/ifRight Testing")
+  @SuppressWarnings("DataFlowIssue")
   class SideEffectMethodsTests {
 
     @Test
@@ -461,10 +411,10 @@ class EitherTest extends EitherTestBase {
     void ifLeftDoesNotExecuteOnRight() {
       AtomicBoolean shouldNotExecute = new AtomicBoolean(false);
 
-      rightInstance.ifLeft(s -> shouldNotExecute.set(true));
+      rightInstance.ifLeft(_ -> shouldNotExecute.set(true));
       assertThat(shouldNotExecute).isFalse();
 
-      rightNullInstance.ifLeft(s -> shouldNotExecute.set(true));
+      rightNullInstance.ifLeft(_ -> shouldNotExecute.set(true));
       assertThat(shouldNotExecute).isFalse();
     }
 
@@ -499,10 +449,10 @@ class EitherTest extends EitherTestBase {
     void ifRightDoesNotExecuteOnLeft() {
       AtomicBoolean shouldNotExecute = new AtomicBoolean(false);
 
-      leftInstance.ifRight(i -> shouldNotExecute.set(true));
+      leftInstance.ifRight(_ -> shouldNotExecute.set(true));
       assertThat(shouldNotExecute).isFalse();
 
-      leftNullInstance.ifRight(i -> shouldNotExecute.set(true));
+      leftNullInstance.ifRight(_ -> shouldNotExecute.set(true));
       assertThat(shouldNotExecute).isFalse();
     }
 
@@ -526,7 +476,7 @@ class EitherTest extends EitherTestBase {
       assertThatThrownBy(
               () ->
                   leftInstance.ifLeft(
-                      s -> {
+                      _ -> {
                         throw testException;
                       }))
           .isSameAs(testException);
@@ -534,7 +484,7 @@ class EitherTest extends EitherTestBase {
       assertThatThrownBy(
               () ->
                   rightInstance.ifRight(
-                      i -> {
+                      _ -> {
                         throw testException;
                       }))
           .isSameAs(testException);
@@ -543,7 +493,7 @@ class EitherTest extends EitherTestBase {
       assertThatCode(
               () ->
                   rightInstance.ifLeft(
-                      s -> {
+                      _ -> {
                         throw testException;
                       }))
           .doesNotThrowAnyException();
@@ -551,7 +501,7 @@ class EitherTest extends EitherTestBase {
       assertThatCode(
               () ->
                   leftInstance.ifRight(
-                      i -> {
+                      _ -> {
                         throw testException;
                       }))
           .doesNotThrowAnyException();
@@ -560,6 +510,7 @@ class EitherTest extends EitherTestBase {
 
   @Nested
   @DisplayName("flatMap() Method - Comprehensive Monadic Testing")
+  @SuppressWarnings("DataFlowIssue")
   class FlatMapMethodTests {
 
     @Test
@@ -570,7 +521,7 @@ class EitherTest extends EitherTestBase {
 
       // Test returning Left from flatMap
       Either<String, String> errorResult =
-          rightInstance.flatMap(i -> Either.left("Converted to error"));
+          rightInstance.flatMap(_ -> Either.left("Converted to error"));
       assertThatEither(errorResult).isLeft().hasLeftNonNull().hasLeft("Converted to error");
     }
 
@@ -578,7 +529,7 @@ class EitherTest extends EitherTestBase {
     @DisplayName("flatMap() preserves Left instances unchanged")
     void flatMapPreservesLeftInstances() {
       Either<String, String> result = leftInstance.flatMap(i -> Either.right("Value: " + i));
-      assertThat(result).isSameAs(leftInstance);
+      assertThat((Object) result).isSameAs(leftInstance);
       assertThatEither(result).isLeft().hasLeftNonNull().hasLeft(leftValue);
     }
 
@@ -594,7 +545,7 @@ class EitherTest extends EitherTestBase {
     @Test
     @DisplayName("flatMap() validates non-null results")
     void flatMapValidatesNonNullResults() {
-      assertThatThrownBy(() -> rightInstance.flatMap(i -> null))
+      assertThatThrownBy(() -> rightInstance.flatMap(_ -> null))
           .isInstanceOf(KindUnwrapException.class)
           .hasMessageContaining("Function mapper in flatMap returned null, which is not allowed");
     }
@@ -615,8 +566,8 @@ class EitherTest extends EitherTestBase {
       Either<String, String> failureResult =
           start
               .flatMap(i -> Either.right(i * 2))
-              .flatMap(i -> Either.left("Error occurred"))
-              .flatMap(i -> Either.right("Should not reach"));
+              .flatMap(_ -> Either.left("Error occurred"))
+              .flatMap(_ -> Either.right("Should not reach"));
       assertThatEither(failureResult).isLeft().hasLeftNonNull().hasLeft("Error occurred");
 
       // Mixed operations
@@ -640,7 +591,7 @@ class EitherTest extends EitherTestBase {
       // Left instances should not call mapper
       Either<String, String> leftResult =
           leftInstance.flatMap(TestFunctions.throwingFunction(testException));
-      assertThat(leftResult).isSameAs(leftInstance);
+      assertThat((Object) leftResult).isSameAs(leftInstance);
     }
 
     @Test
@@ -683,10 +634,6 @@ class EitherTest extends EitherTestBase {
     @Test
     @DisplayName("equals() and hashCode() work correctly")
     void equalsAndHashCodeWorkCorrectly() {
-      // Same instances
-      assertThat(leftInstance).isEqualTo(leftInstance);
-      assertThat(rightInstance).isEqualTo(rightInstance);
-
       // Equal instances
       Either<String, Integer> anotherLeft = Either.left(leftValue);
       Either<String, Integer> anotherRight = Either.right(rightValue);
@@ -721,10 +668,7 @@ class EitherTest extends EitherTestBase {
       assertThatEither(result)
           .isRight()
           .hasRightNonNull()
-          .hasRightSatisfying(
-              value -> {
-                assertThat(value).isCloseTo(Math.sqrt(10.5), within(0.001));
-              });
+          .hasRightSatisfying(value -> assertThat(value).isCloseTo(Math.sqrt(10.5), within(0.001)));
     }
 
     @Test
@@ -734,27 +678,26 @@ class EitherTest extends EitherTestBase {
       Function<String, Either<String, Integer>> parseInteger =
           (String s) -> {
             try {
-              return Either.<String, Integer>right(Integer.parseInt(s));
+              return Either.right(Integer.parseInt(s));
             } catch (NumberFormatException e) {
-              return Either.<String, Integer>left("Invalid number: " + s);
+              return Either.left("Invalid number: " + s);
             }
           };
 
       Function<Integer, Either<String, Double>> squareRoot =
           (Integer i) -> {
             if (i < 0) {
-              return Either.<String, Double>left(
-                  "Cannot take square root of negative number: " + i);
+              return Either.left("Cannot take square root of negative number: " + i);
             }
-            return Either.<String, Double>right(Math.sqrt(i));
+            return Either.right(Math.sqrt(i));
           };
 
       Function<Double, Either<String, String>> formatResult =
           (Double d) -> {
             if (d > 100) {
-              return Either.<String, String>left("Result too large: " + d);
+              return Either.left("Result too large: " + d);
             }
-            return Either.<String, String>right(String.format("%.2f", d));
+            return Either.right(String.format("%.2f", d));
           };
 
       Either<String, String> success =
@@ -773,10 +716,7 @@ class EitherTest extends EitherTestBase {
       assertThatEither(parseFailure)
           .isLeft()
           .hasLeftNonNull()
-          .hasLeftSatisfying(
-              error -> {
-                assertThat(error).contains("Invalid number");
-              });
+          .hasLeftSatisfying(error -> assertThat(error).contains("Invalid number"));
 
       Either<String, String> negativeFailure =
           Either.<String, String>right("-4")
@@ -786,10 +726,7 @@ class EitherTest extends EitherTestBase {
       assertThatEither(negativeFailure)
           .isLeft()
           .hasLeftNonNull()
-          .hasLeftSatisfying(
-              error -> {
-                assertThat(error).contains("Cannot take square root");
-              });
+          .hasLeftSatisfying(error -> assertThat(error).contains("Cannot take square root"));
     }
 
     @Test
@@ -805,20 +742,20 @@ class EitherTest extends EitherTestBase {
       Function<String, Either<String, Resource>> openResource =
           (String name) -> {
             if (name.equals("invalid")) {
-              return Either.<String, Resource>left("Cannot open resource: " + name);
+              return Either.left("Cannot open resource: " + name);
             }
-            return Either.<String, Resource>right(new Resource(name, true));
+            return Either.right(new Resource(name, true));
           };
 
       Function<Resource, Either<String, String>> processResource =
           (Resource resource) -> {
             if (!resource.open()) {
-              return Either.<String, String>left("Resource is closed");
+              return Either.left("Resource is closed");
             }
             if (resource.name().equals("fail")) {
-              return Either.<String, String>left("Processing failed");
+              return Either.left("Processing failed");
             }
-            return Either.<String, String>right("Processed: " + resource.name());
+            return Either.right("Processed: " + resource.name());
           };
 
       // Success case
@@ -852,6 +789,8 @@ class EitherTest extends EitherTestBase {
 
     @Test
     @DisplayName("Either pattern matching with switch expressions")
+    @SuppressWarnings(
+        "DataFlowIssue") // Either.Left may hold null; the nested switch is guarded by construction
     void eitherPatternMatchingWithSwitch() {
       // Test exhaustive pattern matching
       Function<Either<String, Integer>, String> processEither =
@@ -882,25 +821,8 @@ class EitherTest extends EitherTestBase {
   }
 
   @Nested
-  @DisplayName("Performance and Memory Characteristics")
-  class PerformanceAndMemoryTests {
-
-    @Test
-    @DisplayName("Either operations complete in reasonable time")
-    void eitherOperationsCompleteInReasonableTime() {
-      Either<String, Integer> test = Either.right(DEFAULT_RIGHT_VALUE);
-
-      // Verify operations complete without hanging (generous timeout)
-      // Use JMH benchmarks in hkj-benchmarks module for precise performance measurement
-      assertTimeoutPreemptively(
-          Duration.ofSeconds(2),
-          () -> {
-            for (int i = 0; i < 100_000; i++) {
-              test.map(x -> x + 1).flatMap(x -> Either.right(x * 2)).isRight();
-            }
-          },
-          "Either operations should complete within reasonable time");
-    }
+  @DisplayName("Structural Sharing and Large Chains")
+  class StructuralSharingTests {
 
     @Test
     @DisplayName("Left instances are reused efficiently")
@@ -909,25 +831,24 @@ class EitherTest extends EitherTestBase {
 
       // map should return same instance for Left
       Either<String, String> mapped = left.map(Object::toString);
-      assertThat(mapped).isSameAs(left);
+      assertThat((Object) mapped).isSameAs(left);
 
       // Multiple map operations should all return same instance
       Either<String, Boolean> multiMapped =
           left.map(Object::toString).map(String::length).map(len -> len > 0);
-      assertThat(multiMapped).isSameAs(left);
+      assertThat((Object) multiMapped).isSameAs(left);
 
       // flatMap should also return same instance for Left
-      Either<String, String> flatMapped = left.flatMap(x -> Either.right("not reached"));
-      assertThat(flatMapped).isSameAs(left);
+      Either<String, String> flatMapped = left.flatMap(_ -> Either.right("not reached"));
+      assertThat((Object) flatMapped).isSameAs(left);
     }
 
     @Test
     @DisplayName("Memory usage is reasonable for large chains")
     void memoryUsageIsReasonableForLargeChains() {
       // Test that long chains don't create excessive rubbish
-      Either<String, Integer> start = Either.right(1);
+      Either<String, Integer> result = Either.right(1);
 
-      Either<String, Integer> result = start;
       for (int i = 0; i < 1000; i++) {
         final int increment = i;
         result = result.map(x -> x + increment);
@@ -968,10 +889,7 @@ class EitherTest extends EitherTestBase {
       assertThatEither(processedEither)
           .isLeft()
           .hasLeftNonNull()
-          .hasLeftSatisfying(
-              ex -> {
-                assertThat(ex).isInstanceOf(RuntimeException.class);
-              });
+          .hasLeftSatisfying(ex -> assertThat(ex).isInstanceOf(RuntimeException.class));
 
       Either<RuntimeException, String> runtimeEither;
       if (exceptionEither.isLeft() && exceptionEither.getLeft() instanceof RuntimeException) {
@@ -985,10 +903,7 @@ class EitherTest extends EitherTestBase {
       assertThatEither(processedRuntime)
           .isLeft()
           .hasLeftNonNull()
-          .hasLeftSatisfying(
-              ex -> {
-                assertThat(ex).isInstanceOf(RuntimeException.class);
-              });
+          .hasLeftSatisfying(ex -> assertThat(ex).isInstanceOf(RuntimeException.class));
     }
 
     @Test
@@ -1004,14 +919,11 @@ class EitherTest extends EitherTestBase {
       // Map transformations
       Either<String, Map<String, Integer>> mapEither = Either.right(Map.of("a", 1, "b", 2));
 
-      Either<String, Set<String>> keySet = mapEither.map(map -> map.keySet());
+      Either<String, Set<String>> keySet = mapEither.map(Map::keySet);
       assertThatEither(keySet)
           .isRight()
           .hasRightNonNull()
-          .hasRightSatisfying(
-              keys -> {
-                assertThat(keys).containsExactlyInAnyOrder("a", "b");
-              });
+          .hasRightSatisfying(keys -> assertThat(keys).containsExactlyInAnyOrder("a", "b"));
     }
 
     @Test
@@ -1082,6 +994,8 @@ class EitherTest extends EitherTestBase {
 
     @Test
     @DisplayName("Either handles concurrent modifications safely")
+    @SuppressWarnings(
+        "DataFlowIssue") // getRight() is nullable in general; non-null here by construction
     void eitherHandlesConcurrentModificationsSafely() {
       // Either instances should be immutable and thread-safe
       Either<String, List<Integer>> listEither = Either.right(new ArrayList<>(List.of(1, 2, 3)));

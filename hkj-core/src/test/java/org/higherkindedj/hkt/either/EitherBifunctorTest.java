@@ -7,19 +7,27 @@ import static org.higherkindedj.hkt.either.EitherKindHelper.EITHER;
 
 import java.util.function.BiPredicate;
 import java.util.function.Function;
+import java.util.stream.Stream;
 import org.higherkindedj.hkt.Kind2;
+import org.higherkindedj.hkt.laws.BifunctorLaws;
 import org.higherkindedj.hkt.test.contract.Category;
 import org.higherkindedj.hkt.test.contract.TypeClassContract;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
 
-/** Comprehensive test suite for {@link EitherBifunctor}. */
-@DisplayName("EitherBifunctor Complete Test Suite")
+/** Test suite for {@link EitherBifunctor}. */
+@DisplayName("EitherBifunctor")
 class EitherBifunctorTest {
 
   private EitherBifunctor bifunctor;
+
+  private final BiPredicate<Kind2<EitherKind2.Witness, ?, ?>, Kind2<EitherKind2.Witness, ?, ?>>
+      equalityChecker = (k1, k2) -> EITHER.narrow2(k1).equals(EITHER.narrow2(k2));
 
   @BeforeEach
   void setUp() {
@@ -27,75 +35,66 @@ class EitherBifunctorTest {
   }
 
   @Nested
-  @DisplayName("Complete Type Class Test Suite")
-  class CompleteTypeClassTestSuite {
+  @DisplayName("Laws")
+  class Laws {
 
-    @Test
-    @DisplayName("Run complete Bifunctor test pattern")
-    void runCompleteBifunctorTest() {
-      Kind2<EitherKind2.Witness, String, Integer> validEither = EITHER.widen2(Either.right(42));
-      Kind2<EitherKind2.Witness, String, Integer> leftEither = EITHER.widen2(Either.left("error"));
-      Kind2<EitherKind2.Witness, String, Integer> rightEither = EITHER.widen2(Either.right(42));
-      Function<String, Integer> firstMapper = String::length;
-      Function<Integer, String> secondMapper = n -> "Value:" + n;
-      Function<Integer, String> compositionFirstMapper = i -> "#" + i;
-      Function<String, String> compositionSecondMapper = s -> s + "!";
-      BiPredicate<Kind2<EitherKind2.Witness, ?, ?>, Kind2<EitherKind2.Witness, ?, ?>>
-          equalityChecker = (k1, k2) -> EITHER.narrow2(k1).equals(EITHER.narrow2(k2));
+    @ParameterizedTest(name = "identity holds on {0}")
+    @MethodSource("kind2Fixtures")
+    void identity(String label, Kind2<EitherKind2.Witness, String, Integer> fab) {
+      BifunctorLaws.assertIdentity(bifunctor, fab, equalityChecker);
+    }
 
-      TypeClassContract.<EitherKind2.Witness>bifunctor(EitherBifunctor.class)
-          .<String, Integer>instance(bifunctor)
-          .withKind2(validEither)
-          .withFirstMapper(firstMapper)
-          .withSecondMapper(secondMapper)
-          .withCompositionFirstMapper(compositionFirstMapper)
-          .withCompositionSecondMapper(compositionSecondMapper)
-          .withEqualityChecker(equalityChecker)
-          .withFirstExceptionKind(leftEither)
-          .withSecondExceptionKind(rightEither)
-          .verify();
+    @ParameterizedTest(name = "composition holds on {0}")
+    @MethodSource("kind2Fixtures")
+    void composition(String label, Kind2<EitherKind2.Witness, String, Integer> fab) {
+      Function<String, Integer> f1 = String::length;
+      Function<Integer, String> f2 = i -> "#" + i;
+      Function<Integer, String> g1 = n -> "Value:" + n;
+      Function<String, String> g2 = s -> s + "!";
+      BifunctorLaws.assertComposition(bifunctor, fab, f1, f2, g1, g2, equalityChecker);
+    }
+
+    @ParameterizedTest(name = "first-consistency holds on {0}")
+    @MethodSource("kind2Fixtures")
+    void firstConsistency(String label, Kind2<EitherKind2.Witness, String, Integer> fab) {
+      Function<String, String> f = s -> s + "!";
+      BifunctorLaws.assertFirstConsistency(bifunctor, fab, f, equalityChecker);
+    }
+
+    @ParameterizedTest(name = "second-consistency holds on {0}")
+    @MethodSource("kind2Fixtures")
+    void secondConsistency(String label, Kind2<EitherKind2.Witness, String, Integer> fab) {
+      Function<Integer, String> g = n -> "Value:" + n;
+      BifunctorLaws.assertSecondConsistency(bifunctor, fab, g, equalityChecker);
+    }
+
+    /** Both inhabitants, so {@code bimap}/{@code first}/{@code second} exercise each channel. */
+    static Stream<Arguments> kind2Fixtures() {
+      return Stream.of(
+          Arguments.of("Left(\"error\")", EITHER.widen2(Either.<String, Integer>left("error"))),
+          Arguments.of("Right(42)", EITHER.widen2(Either.<String, Integer>right(42))));
     }
   }
 
-  @Nested
-  @DisplayName("Individual Component Tests")
-  class IndividualComponents {
+  @Test
+  @DisplayName("Bifunctor contract — operations, validations & exceptions (laws verified above)")
+  void bifunctorContract() {
+    Kind2<EitherKind2.Witness, String, Integer> left = EITHER.widen2(Either.left("error"));
+    Kind2<EitherKind2.Witness, String, Integer> right = EITHER.widen2(Either.right(42));
 
-    @Test
-    @DisplayName("Test operations only")
-    void testOperationsOnly() {
-      Kind2<EitherKind2.Witness, String, Integer> validEither = EITHER.widen2(Either.right(42));
-
-      TypeClassContract.<EitherKind2.Witness>bifunctor(EitherBifunctor.class)
-          .<String, Integer>instance(bifunctor)
-          .withKind2(validEither)
-          .withFirstMapper(String::length)
-          .withSecondMapper(n -> "Value:" + n)
-          .verifyOnly(Category.OPERATIONS);
-    }
-
-    @Test
-    @DisplayName("Test laws only")
-    void testLawsOnly() {
-      Kind2<EitherKind2.Witness, String, Integer> validEither = EITHER.widen2(Either.right(42));
-      BiPredicate<Kind2<EitherKind2.Witness, ?, ?>, Kind2<EitherKind2.Witness, ?, ?>>
-          equalityChecker = (k1, k2) -> EITHER.narrow2(k1).equals(EITHER.narrow2(k2));
-
-      TypeClassContract.<EitherKind2.Witness>bifunctor(EitherBifunctor.class)
-          .<String, Integer>instance(bifunctor)
-          .withKind2(validEither)
-          .withFirstMapper(String::length)
-          .withSecondMapper(n -> "Value:" + n)
-          .withCompositionFirstMapper(i -> "#" + i)
-          .withCompositionSecondMapper(s -> s + "!")
-          .withEqualityChecker(equalityChecker)
-          .verifyOnly(Category.LAWS);
-    }
+    TypeClassContract.<EitherKind2.Witness>bifunctor(EitherBifunctor.class)
+        .<String, Integer>instance(bifunctor)
+        .withKind2(right)
+        .withFirstMapper(String::length)
+        .withSecondMapper(n -> "Value:" + n)
+        .withFirstExceptionKind(left)
+        .withSecondExceptionKind(right)
+        .verifyOnly(Category.OPERATIONS, Category.VALIDATIONS, Category.EXCEPTIONS);
   }
 
   @Nested
-  @DisplayName("Bifunctor Operation Tests")
-  class BifunctorOperationTests {
+  @DisplayName("Operations")
+  class Operations {
 
     @Test
     @DisplayName("bimap() transforms both Left and Right")
@@ -116,153 +115,30 @@ class EitherBifunctorTest {
     }
 
     @Test
-    @DisplayName("first() transforms only Left channel")
+    @DisplayName("first() transforms only the Left channel")
     void firstTransformsOnlyLeftChannel() {
       Kind2<EitherKind2.Witness, String, Integer> leftEither = EITHER.widen2(Either.left("hello"));
       Kind2<EitherKind2.Witness, String, Integer> rightEither = EITHER.widen2(Either.right(42));
 
       Function<String, Integer> leftMapper = String::length;
 
-      Either<Integer, Integer> transformedLeft =
-          EITHER.narrow2(bifunctor.first(leftMapper, leftEither));
-      Either<Integer, Integer> transformedRight =
-          EITHER.narrow2(bifunctor.first(leftMapper, rightEither));
-
-      assertThat(transformedLeft).isEqualTo(Either.left(5));
-      assertThat(transformedRight).isEqualTo(Either.right(42)); // Unchanged
+      assertThat(EITHER.narrow2(bifunctor.first(leftMapper, leftEither))).isEqualTo(Either.left(5));
+      assertThat(EITHER.narrow2(bifunctor.first(leftMapper, rightEither)))
+          .isEqualTo(Either.right(42)); // Unchanged
     }
 
     @Test
-    @DisplayName("second() transforms only Right channel")
+    @DisplayName("second() transforms only the Right channel")
     void secondTransformsOnlyRightChannel() {
       Kind2<EitherKind2.Witness, String, Integer> leftEither = EITHER.widen2(Either.left("error"));
       Kind2<EitherKind2.Witness, String, Integer> rightEither = EITHER.widen2(Either.right(42));
 
       Function<Integer, String> rightMapper = n -> "Value:" + n;
 
-      Either<String, String> transformedLeft =
-          EITHER.narrow2(bifunctor.second(rightMapper, leftEither));
-      Either<String, String> transformedRight =
-          EITHER.narrow2(bifunctor.second(rightMapper, rightEither));
-
-      assertThat(transformedLeft).isEqualTo(Either.left("error")); // Unchanged
-      assertThat(transformedRight).isEqualTo(Either.right("Value:42"));
-    }
-  }
-
-  @Nested
-  @DisplayName("Bifunctor Law Tests")
-  class BifunctorLawTests {
-
-    private final BiPredicate<Kind2<EitherKind2.Witness, ?, ?>, Kind2<EitherKind2.Witness, ?, ?>>
-        equalityChecker = (k1, k2) -> EITHER.narrow2(k1).equals(EITHER.narrow2(k2));
-
-    @Test
-    @DisplayName("Identity Law: bimap(id, id, fab) == fab (Left)")
-    void identityLawLeft() {
-      Kind2<EitherKind2.Witness, String, Integer> leftEither = EITHER.widen2(Either.left("error"));
-
-      Kind2<EitherKind2.Witness, String, Integer> result =
-          bifunctor.bimap(Function.identity(), Function.identity(), leftEither);
-
-      assertThat(equalityChecker.test(result, leftEither))
-          .as("Identity law should hold for Left")
-          .isTrue();
-    }
-
-    @Test
-    @DisplayName("Identity Law: bimap(id, id, fab) == fab (Right)")
-    void identityLawRight() {
-      Kind2<EitherKind2.Witness, String, Integer> rightEither = EITHER.widen2(Either.right(42));
-
-      Kind2<EitherKind2.Witness, String, Integer> result =
-          bifunctor.bimap(Function.identity(), Function.identity(), rightEither);
-
-      assertThat(equalityChecker.test(result, rightEither))
-          .as("Identity law should hold for Right")
-          .isTrue();
-    }
-
-    @Test
-    @DisplayName("Composition Law: bimap(f2∘f1, g2∘g1, fab) == bimap(f2, g2, bimap(f1, g1, fab))")
-    void compositionLaw() {
-      Kind2<EitherKind2.Witness, String, Integer> rightEither = EITHER.widen2(Either.right(42));
-
-      Function<String, Integer> f1 = String::length;
-      Function<Integer, String> f2 = i -> "#" + i;
-      Function<Integer, String> g1 = n -> "Value:" + n;
-      Function<String, String> g2 = s -> s + "!";
-
-      // Left side: bimap(f2∘f1, g2∘g1, fab)
-      Function<String, String> composedF = s -> f2.apply(f1.apply(s));
-      Function<Integer, String> composedG = i -> g2.apply(g1.apply(i));
-      Kind2<EitherKind2.Witness, String, String> leftSide =
-          bifunctor.bimap(composedF, composedG, rightEither);
-
-      // Right side: bimap(f2, g2, bimap(f1, g1, fab))
-      Kind2<EitherKind2.Witness, Integer, String> intermediate =
-          bifunctor.bimap(f1, g1, rightEither);
-      Kind2<EitherKind2.Witness, String, String> rightSide = bifunctor.bimap(f2, g2, intermediate);
-
-      assertThat(equalityChecker.test(leftSide, rightSide))
-          .as("Composition law should hold")
-          .isTrue();
-    }
-
-    @Test
-    @DisplayName("First Consistency Law: first(f, fab) == bimap(f, id, fab) (Left)")
-    void firstConsistencyLawLeft() {
-      Kind2<EitherKind2.Witness, String, Integer> leftEither = EITHER.widen2(Either.left("error"));
-      Function<String, String> f = s -> s + "!";
-
-      assertThat(
-              equalityChecker.test(
-                  bifunctor.first(f, leftEither),
-                  bifunctor.bimap(f, Function.identity(), leftEither)))
-          .as("First consistency law should hold for Left")
-          .isTrue();
-    }
-
-    @Test
-    @DisplayName("First Consistency Law: first(f, fab) == bimap(f, id, fab) (Right)")
-    void firstConsistencyLawRight() {
-      Kind2<EitherKind2.Witness, String, Integer> rightEither = EITHER.widen2(Either.right(42));
-      Function<String, String> f = s -> s + "!";
-
-      assertThat(
-              equalityChecker.test(
-                  bifunctor.first(f, rightEither),
-                  bifunctor.bimap(f, Function.identity(), rightEither)))
-          .as("First consistency law should hold for Right")
-          .isTrue();
-    }
-
-    @Test
-    @DisplayName("Second Consistency Law: second(g, fab) == bimap(id, g, fab) (Left)")
-    void secondConsistencyLawLeft() {
-      Kind2<EitherKind2.Witness, String, Integer> leftEither = EITHER.widen2(Either.left("error"));
-      Function<Integer, String> g = n -> "Value:" + n;
-
-      assertThat(
-              equalityChecker.test(
-                  bifunctor.second(g, leftEither),
-                  bifunctor.bimap(Function.identity(), g, leftEither)))
-          .as("Second consistency law should hold for Left")
-          .isTrue();
-    }
-
-    @Test
-    @DisplayName("Second Consistency Law: second(g, fab) == bimap(id, g, fab) (Right)")
-    void secondConsistencyLawRight() {
-      Kind2<EitherKind2.Witness, String, Integer> rightEither = EITHER.widen2(Either.right(42));
-      Function<Integer, String> g = n -> "Value:" + n;
-
-      assertThat(
-              equalityChecker.test(
-                  bifunctor.second(g, rightEither),
-                  bifunctor.bimap(Function.identity(), g, rightEither)))
-          .as("Second consistency law should hold for Right")
-          .isTrue();
+      assertThat(EITHER.narrow2(bifunctor.second(rightMapper, leftEither)))
+          .isEqualTo(Either.left("error")); // Unchanged
+      assertThat(EITHER.narrow2(bifunctor.second(rightMapper, rightEither)))
+          .isEqualTo(Either.right("Value:42"));
     }
   }
 }

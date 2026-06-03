@@ -21,7 +21,12 @@ import org.higherkindedj.hkt.assertions.KindEquivalence;
 import org.higherkindedj.hkt.instances.Instances;
 import org.higherkindedj.hkt.laws.MonadLaws;
 
-/** Property-based Monad-law verification for the Maybe monad, sharing the laws spec with POC 1. */
+/**
+ * Property-based Monad-law verification for the Maybe monad, sharing the spec with MaybeMonadTest.
+ */
+// jqwik invokes the @Provide methods reflectively via @ForAll(name); IntelliJ cannot see those
+// uses.
+@SuppressWarnings("unused")
 class MaybeMonadPropertyTest {
 
   private final MonadError<MaybeKind.Witness, Unit> monad = Instances.monadError(maybe());
@@ -31,10 +36,7 @@ class MaybeMonadPropertyTest {
 
   @Provide
   Arbitrary<Kind<MaybeKind.Witness, Integer>> maybeKinds() {
-    return Arbitraries.integers()
-        .between(-100, 100)
-        .injectNull(0.15)
-        .map(i -> i == null ? MAYBE.<Integer>widen(Maybe.nothing()) : MAYBE.widen(Maybe.just(i)));
+    return MaybeArbitraries.maybeKinds(100, 0.15);
   }
 
   @Provide

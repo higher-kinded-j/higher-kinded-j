@@ -6,7 +6,6 @@ import static org.higherkindedj.hkt.maybe.MaybeKindHelper.MAYBE;
 
 import java.util.function.BiPredicate;
 import java.util.function.Function;
-import net.jqwik.api.Arbitraries;
 import net.jqwik.api.Arbitrary;
 import net.jqwik.api.ForAll;
 import net.jqwik.api.Label;
@@ -19,6 +18,9 @@ import org.higherkindedj.hkt.assertions.KindEquivalence;
 import org.higherkindedj.hkt.laws.SelectiveLaws;
 
 /** Property-based Selective-law verification for Maybe. */
+// jqwik invokes the @Provide methods reflectively via @ForAll(name); IntelliJ cannot see those
+// uses.
+@SuppressWarnings("unused")
 class MaybeSelectivePropertyTest {
 
   private final MaybeSelective selective = MaybeSelective.INSTANCE;
@@ -28,7 +30,7 @@ class MaybeSelectivePropertyTest {
 
   @Provide
   Arbitrary<Function<Integer, String>> intToString() {
-    return Arbitraries.of(i -> "v:" + i, i -> String.valueOf(i * 2), Object::toString);
+    return MaybeArbitraries.intToString();
   }
 
   @Property(tries = 50)
@@ -36,8 +38,7 @@ class MaybeSelectivePropertyTest {
   void leftPure(
       @ForAll @IntRange(min = -50, max = 50) int value,
       @ForAll("intToString") Function<Integer, String> f) {
-    SelectiveLaws.<MaybeKind.Witness, Integer, String>assertLeftPure(
-        selective, value, selective.of(f), eq);
+    SelectiveLaws.assertLeftPure(selective, value, selective.of(f), eq);
   }
 
   @Property(tries = 50)
@@ -45,7 +46,6 @@ class MaybeSelectivePropertyTest {
   void rightPure(
       @ForAll @StringLength(max = 5) String value,
       @ForAll("intToString") Function<Integer, String> f) {
-    SelectiveLaws.<MaybeKind.Witness, Integer, String>assertRightPure(
-        selective, value, selective.of(f), eq);
+    SelectiveLaws.assertRightPure(selective, value, selective.of(f), eq);
   }
 }

@@ -4,11 +4,9 @@ package org.higherkindedj.hkt.validated;
 
 import static org.higherkindedj.hkt.validated.ValidatedKindHelper.VALIDATED;
 
-import java.util.ArrayList;
 import java.util.List;
 import java.util.function.BiPredicate;
 import java.util.function.Function;
-import net.jqwik.api.Arbitraries;
 import net.jqwik.api.Arbitrary;
 import net.jqwik.api.ForAll;
 import net.jqwik.api.Label;
@@ -17,25 +15,21 @@ import net.jqwik.api.Provide;
 import net.jqwik.api.constraints.IntRange;
 import net.jqwik.api.constraints.StringLength;
 import org.higherkindedj.hkt.Kind;
-import org.higherkindedj.hkt.Semigroup;
 import org.higherkindedj.hkt.assertions.KindEquivalence;
 import org.higherkindedj.hkt.laws.SelectiveLaws;
 
 /**
- * Property-based Selective-law verification for Validated, using a {@code Semigroup<List<String>>}
- * for error accumulation (matching the pattern in {@code ValidatedApplicativePropertyTest}).
+ * Property-based Selective-law verification for Validated, using the error-accumulating {@code
+ * Semigroup<List<String>>} from {@link ValidatedArbitraries} (matching the pattern in {@code
+ * ValidatedApplicativePropertyTest}).
  */
+// jqwik invokes the @Provide methods reflectively via @ForAll(name); IntelliJ cannot see those
+// uses.
+@SuppressWarnings("unused")
 class ValidatedSelectivePropertyTest {
 
-  private final Semigroup<List<String>> listSemigroup =
-      (a, b) -> {
-        List<String> combined = new ArrayList<>(a);
-        combined.addAll(b);
-        return combined;
-      };
-
   private final ValidatedSelective<List<String>> selective =
-      ValidatedSelective.instance(listSemigroup);
+      ValidatedSelective.instance(ValidatedArbitraries.LIST_SEMIGROUP);
 
   private final BiPredicate<
           Kind<ValidatedKind.Witness<List<String>>, ?>,
@@ -44,7 +38,7 @@ class ValidatedSelectivePropertyTest {
 
   @Provide
   Arbitrary<Function<Integer, String>> intToString() {
-    return Arbitraries.of(i -> "v:" + i, i -> String.valueOf(i * 2), Object::toString);
+    return ValidatedArbitraries.intToString();
   }
 
   @Property(tries = 50)
@@ -52,8 +46,7 @@ class ValidatedSelectivePropertyTest {
   void leftPure(
       @ForAll @IntRange(min = -50, max = 50) int value,
       @ForAll("intToString") Function<Integer, String> f) {
-    SelectiveLaws.<ValidatedKind.Witness<List<String>>, Integer, String>assertLeftPure(
-        selective, value, selective.of(f), eq);
+    SelectiveLaws.assertLeftPure(selective, value, selective.of(f), eq);
   }
 
   @Property(tries = 50)
@@ -61,7 +54,6 @@ class ValidatedSelectivePropertyTest {
   void rightPure(
       @ForAll @StringLength(max = 5) String value,
       @ForAll("intToString") Function<Integer, String> f) {
-    SelectiveLaws.<ValidatedKind.Witness<List<String>>, Integer, String>assertRightPure(
-        selective, value, selective.of(f), eq);
+    SelectiveLaws.assertRightPure(selective, value, selective.of(f), eq);
   }
 }

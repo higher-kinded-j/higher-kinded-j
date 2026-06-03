@@ -522,10 +522,69 @@ KindHelperLaws.assertRoundTrip(myValue, MY_HELPER::widen, MY_HELPER::narrow);
 
 #### `TypeClassTestBase` — the fixture base
 
-`org.higherkindedj.hkt.test.base.TypeClassTestBase` is a shared fixture base providing
+`org.higherkindedj.hkt.test.fixtures.TypeClassTestBase` is a shared fixture base providing
 `protected` fixtures (`validKind`, `validMapper`, `equalityChecker`, `testValue`, …) via overridable
 `createX()` factories. Type tests extend it and feed those fixtures into the `*Laws` / contracts
 rather than re-declaring them per test.
+
+### Canonical per-type-class test layout
+
+Every core type's test package (see `org.higherkindedj.hkt.either` as the reference implementation)
+follows one uniform layout so the **generic scaffolding stays minimal and identical across packages**
+and the hand-written tests can concentrate on what is **genuinely specific to that type**.
+
+**Per type-class file** (`XFunctorTest`, `XMonadTest`, `XBifunctorTest`, …):
+
+```java
+class XFunctorTest extends XTestBase {
+
+  // 1. Laws — the single source of law truth. Parameterised over the shipped *Laws helper and
+  //    the shared fixtures, so the law names print per fixture ("identity holds on Left(err)").
+  @Nested @DisplayName("Laws")
+  class Laws {
+    @ParameterizedTest(name = "identity holds on {0}")
+    @MethodSource("org.higherkindedj.hkt.x.XLawFixtures#kinds")
+    void identity(String label, Kind<XKind.Witness, Integer> fa) {
+      FunctorLaws.assertIdentity(functor, fa, equalityChecker);
+    }
+    // composition, …
+  }
+
+  // 2. Contract smoke — owns ONLY what the *Laws cannot reach: instance-level null-argument
+  //    validation, exception propagation and an operation smoke. verifyOnly(...) deliberately
+  //    omits LAWS so the laws are not re-run (the Laws block above already covers them).
+  @Test
+  @DisplayName("Functor contract — operations, validations & exceptions (laws verified above)")
+  void functorContract() {
+    TypeClassContract.<XKind.Witness>functor(XFunctor.class)
+        .<Integer>instance(functor).<String>withKind(validKind).withMapper(validMapper)
+        .verifyOnly(Category.OPERATIONS, Category.VALIDATIONS, Category.EXCEPTIONS);
+  }
+
+  // 3. Type-specific behaviour — the interesting focus (Right-bias, short-circuiting, audit-issue
+  //    regression guards, pattern matching, …). Prefer assertThatX(kind) directly over narrow-then-assert.
+  @Nested @DisplayName("Operations") class Operations { /* … */ }
+  @Nested @DisplayName("Edge Cases") class EdgeCases { /* … */ }
+}
+```
+
+Conventions that keep this uniform:
+
+- **Laws block owns laws; contract owns the rest.** Use `verifyOnly(OPERATIONS, VALIDATIONS,
+  EXCEPTIONS)` for the contract smoke so laws run once. (Exceptions: **Foldable** has no laws, so use
+  `.verify()`; **MonadError** adds no laws beyond Monad, so it has no Laws block and relies on the
+  Monad laws in `XMonadTest`.)
+- **Shared fixtures, not copy-paste.** Hoist the law fixture streams into `XLawFixtures`
+  (referenced by a fully-qualified `@MethodSource`) and the jqwik generators into `XArbitraries`
+  (the per-test `@Provide` methods delegate to it). One generator, defined once.
+- **Assert on the `Kind`.** The `assertThatX(...)` helpers accept a `Kind` and narrow internally —
+  pass the result straight in rather than `assertThatX(HELPER.narrow(result))`.
+- **No redundant contract variants.** A single contract call covers every category; do not add a
+  parallel `verifyOnly(Category.X)` test per category — that re-runs a subset for no extra coverage.
+- **No test-delegation wrappers.** A `@Test` must not call another `@Test`'s method (e.g. `new
+  FooTests().bar()`); it double-runs and bypasses the JUnit lifecycle.
+- **Performance belongs in `hkj-benchmarks`.** Functional tests over large inputs are fine but should
+  be named honestly (not "Performance Tests"); drop wall-clock timeouts and giant iteration counts.
 
 ## Optics Law Testing
 

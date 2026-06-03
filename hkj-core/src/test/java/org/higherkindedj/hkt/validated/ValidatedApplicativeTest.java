@@ -4,80 +4,66 @@ package org.higherkindedj.hkt.validated;
 
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.higherkindedj.hkt.assertions.ValidatedAssert.assertThatValidated;
-import static org.higherkindedj.hkt.instances.Witnesses.*;
 import static org.higherkindedj.hkt.validated.ValidatedKindHelper.VALIDATED;
 
 import java.util.function.Function;
-import java.util.stream.Stream;
 import org.higherkindedj.hkt.Applicative;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Semigroup;
 import org.higherkindedj.hkt.instances.Instances;
 import org.higherkindedj.hkt.laws.ApplicativeLaws;
-import org.higherkindedj.hkt.test.contract.Category;
-import org.higherkindedj.hkt.test.contract.TypeClassContract;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 
 @DisplayName("ValidatedApplicative")
 class ValidatedApplicativeTest extends ValidatedTestBase {
 
   private Applicative<ValidatedKind.Witness<String>> applicative;
-  private Semigroup<String> stringSemigroup;
 
   @BeforeEach
   void setUpApplicative() {
-    stringSemigroup = (a, b) -> a + ", " + b;
-    applicative = Instances.validated(stringSemigroup);
+    // Accumulating semigroup so ap/mapN combine errors rather than short-circuit.
+    applicative = Instances.validated(createDefaultSemigroup());
   }
+
+  // No separate Applicative contract smoke: Instances.validated(...) returns the MonadError, whose
+  // operations, validations and exceptions are already verified by the contract in
+  // ValidatedMonadTest. The applicative laws are verified in the Laws block below.
 
   @Nested
   @DisplayName("Laws")
   class Laws {
 
     @ParameterizedTest(name = "identity holds on {0}")
-    @MethodSource("fixtures")
+    @MethodSource("org.higherkindedj.hkt.validated.ValidatedLawFixtures#kinds")
     void identity(String label, Kind<ValidatedKind.Witness<String>, Integer> v) {
       ApplicativeLaws.assertIdentity(applicative, v, equalityChecker);
     }
 
     @ParameterizedTest(name = "homomorphism holds on value {0}")
-    @MethodSource("values")
+    @MethodSource("org.higherkindedj.hkt.validated.ValidatedLawFixtures#values")
     void homomorphism(Integer value) {
       ApplicativeLaws.assertHomomorphism(applicative, value, validMapper, equalityChecker);
     }
 
     @ParameterizedTest(name = "interchange holds on value {0}")
-    @MethodSource("values")
+    @MethodSource("org.higherkindedj.hkt.validated.ValidatedLawFixtures#values")
     void interchange(Integer value) {
       ApplicativeLaws.assertInterchange(applicative, validFunctionKind, value, equalityChecker);
     }
 
     @ParameterizedTest(name = "composition holds on {0}")
-    @MethodSource("fixtures")
+    @MethodSource("org.higherkindedj.hkt.validated.ValidatedLawFixtures#kinds")
     void composition(String label, Kind<ValidatedKind.Witness<String>, Integer> w) {
       Kind<ValidatedKind.Witness<String>, Function<String, String>> u =
-          VALIDATED.widen(Validated.<String, Function<String, String>>valid(s -> "u(" + s + ")"));
+          VALIDATED.widen(Validated.valid(s -> "u(" + s + ")"));
       Kind<ValidatedKind.Witness<String>, Function<Integer, String>> v =
-          VALIDATED.widen(Validated.<String, Function<Integer, String>>valid(i -> "v" + i));
+          VALIDATED.widen(Validated.valid(i -> "v" + i));
       ApplicativeLaws.assertComposition(applicative, u, v, w, equalityChecker);
-    }
-
-    static Stream<Arguments> fixtures() {
-      return Stream.of(
-          Arguments.of("Valid(0)", VALIDATED.widen(Validated.<String, Integer>valid(0))),
-          Arguments.of("Valid(42)", VALIDATED.widen(Validated.<String, Integer>valid(42))),
-          Arguments.of("Valid(-1)", VALIDATED.widen(Validated.<String, Integer>valid(-1))),
-          Arguments.of("Invalid(\"e\")", VALIDATED.widen(Validated.<String, Integer>invalid("e"))));
-    }
-
-    static Stream<Arguments> values() {
-      return Stream.of(Arguments.of(0), Arguments.of(42), Arguments.of(-1));
     }
   }
 
@@ -89,9 +75,7 @@ class ValidatedApplicativeTest extends ValidatedTestBase {
     @DisplayName("Of wraps value in Valid")
     void ofWrapsValueInValid() {
       Kind<ValidatedKind.Witness<String>, Integer> result = applicative.of(DEFAULT_VALID_VALUE);
-
-      Validated<String, Integer> validated = narrowToValidated(result);
-      assertThatValidated(validated).isValid().hasValue(DEFAULT_VALID_VALUE);
+      assertThatValidated(result).isValid().hasValue(DEFAULT_VALID_VALUE);
     }
 
     @Test
@@ -103,9 +87,7 @@ class ValidatedApplicativeTest extends ValidatedTestBase {
       Kind<ValidatedKind.Witness<String>, Integer> valueKind = validKind(DEFAULT_VALID_VALUE);
 
       Kind<ValidatedKind.Witness<String>, String> result = applicative.ap(fnKind, valueKind);
-
-      Validated<String, String> validated = narrowToValidated(result);
-      assertThatValidated(validated).isValid().hasValue("Value: 42");
+      assertThatValidated(result).isValid().hasValue("Value: 42");
     }
 
     @Test
@@ -116,9 +98,7 @@ class ValidatedApplicativeTest extends ValidatedTestBase {
       Kind<ValidatedKind.Witness<String>, Integer> valueKind = invalidKind("error2");
 
       Kind<ValidatedKind.Witness<String>, String> result = applicative.ap(fnKind, valueKind);
-
-      Validated<String, String> validated = narrowToValidated(result);
-      assertThatValidated(validated).isInvalid().hasError("error1, error2");
+      assertThatValidated(result).isInvalid().hasError("error1, error2");
     }
 
     @Test
@@ -129,9 +109,7 @@ class ValidatedApplicativeTest extends ValidatedTestBase {
       Kind<ValidatedKind.Witness<String>, Integer> valueKind = validKind(DEFAULT_VALID_VALUE);
 
       Kind<ValidatedKind.Witness<String>, String> result = applicative.ap(fnKind, valueKind);
-
-      Validated<String, String> validated = narrowToValidated(result);
-      assertThatValidated(validated).isInvalid().hasError(DEFAULT_ERROR);
+      assertThatValidated(result).isInvalid().hasError(DEFAULT_ERROR);
     }
 
     @Test
@@ -143,9 +121,7 @@ class ValidatedApplicativeTest extends ValidatedTestBase {
       Kind<ValidatedKind.Witness<String>, Integer> valueKind = invalidKind(DEFAULT_ERROR);
 
       Kind<ValidatedKind.Witness<String>, String> result = applicative.ap(fnKind, valueKind);
-
-      Validated<String, String> validated = narrowToValidated(result);
-      assertThatValidated(validated).isInvalid().hasError(DEFAULT_ERROR);
+      assertThatValidated(result).isInvalid().hasError(DEFAULT_ERROR);
     }
 
     @Test
@@ -156,9 +132,7 @@ class ValidatedApplicativeTest extends ValidatedTestBase {
 
       Kind<ValidatedKind.Witness<String>, String> result =
           applicative.map2(kind1, kind2, (a, b) -> a + "+" + b);
-
-      Validated<String, String> validated = narrowToValidated(result);
-      assertThatValidated(validated).isValid().hasValue("10+20");
+      assertThatValidated(result).isValid().hasValue("10+20");
     }
 
     @Test
@@ -169,70 +143,7 @@ class ValidatedApplicativeTest extends ValidatedTestBase {
 
       Kind<ValidatedKind.Witness<String>, String> result =
           applicative.map2(kind1, kind2, (a, b) -> a + "+" + b);
-
-      Validated<String, String> validated = narrowToValidated(result);
-      assertThatValidated(validated).isInvalid().hasError("error1, error2");
-    }
-  }
-
-  @Nested
-  @DisplayName("Individual Component Tests")
-  class IndividualComponentTests {
-
-    @Test
-    @DisplayName("Test operations only")
-    void testOperationsOnly() {
-      TypeClassContract.<ValidatedKind.Witness<String>>applicative(ValidatedMonad.class)
-          .<Integer>instance(applicative)
-          .<String>withKind(validKind)
-          .withOperations(validKind2, validMapper, validFunctionKind, validCombiningFunction)
-          .verifyOnly(Category.OPERATIONS);
-    }
-
-    @Test
-    @DisplayName("Test validations only")
-    void testValidationsOnly() {
-      TypeClassContract.<ValidatedKind.Witness<String>>applicative(ValidatedMonad.class)
-          .<Integer>instance(applicative)
-          .<String>withKind(validKind)
-          .withOperations(validKind2, validMapper, validFunctionKind, validCombiningFunction)
-          .verifyOnly(Category.VALIDATIONS);
-    }
-
-    @Test
-    @DisplayName("Test exception propagation only")
-    void testExceptionPropagationOnly() {
-      TypeClassContract.<ValidatedKind.Witness<String>>applicative(ValidatedMonad.class)
-          .<Integer>instance(applicative)
-          .<String>withKind(validKind)
-          .withOperations(validKind2, validMapper, validFunctionKind, validCombiningFunction)
-          .verifyOnly(Category.EXCEPTIONS);
-    }
-
-    @Test
-    @DisplayName("Test laws only")
-    void testLawsOnly() {
-      TypeClassContract.<ValidatedKind.Witness<String>>applicative(ValidatedMonad.class)
-          .<Integer>instance(applicative)
-          .<String>withKind(validKind)
-          .withOperations(validKind2, validMapper, validFunctionKind, validCombiningFunction)
-          .withLawsTesting(DEFAULT_VALID_VALUE, validMapper, equalityChecker)
-          .verifyOnly(Category.LAWS);
-    }
-  }
-
-  @Nested
-  @DisplayName("Validation Configuration Tests")
-  class ValidationConfigurationTests {
-
-    @Test
-    @DisplayName("Test with inheritance-based validation")
-    void testWithInheritanceBasedValidation() {
-      TypeClassContract.<ValidatedKind.Witness<String>>applicative(ValidatedMonad.class)
-          .<Integer>instance(applicative)
-          .<String>withKind(validKind)
-          .withOperations(validKind2, validMapper, validFunctionKind, validCombiningFunction)
-          .verifyOnly(Category.VALIDATIONS);
+      assertThatValidated(result).isInvalid().hasError("error1, error2");
     }
   }
 
@@ -249,9 +160,7 @@ class ValidatedApplicativeTest extends ValidatedTestBase {
 
       Kind<ValidatedKind.Witness<String>, String> result =
           applicative.map3(kind1, kind2, kind3, (a, b, c) -> a + "+" + b + "+" + c);
-
-      Validated<String, String> validated = narrowToValidated(result);
-      assertThatValidated(validated).isInvalid().hasError("error1, error2, error3");
+      assertThatValidated(result).isInvalid().hasError("error1, error2, error3");
     }
 
     @Test
@@ -265,9 +174,7 @@ class ValidatedApplicativeTest extends ValidatedTestBase {
       Kind<ValidatedKind.Witness<String>, String> result =
           applicative.map4(
               kind1, kind2, kind3, kind4, (a, b, c, d) -> a + "+" + b + "+" + c + "+" + d);
-
-      Validated<String, String> validated = narrowToValidated(result);
-      assertThatValidated(validated).isInvalid().hasError("error1, error2, error3, error4");
+      assertThatValidated(result).isInvalid().hasError("error1, error2, error3, error4");
     }
 
     @Test
@@ -281,9 +188,7 @@ class ValidatedApplicativeTest extends ValidatedTestBase {
 
       Kind<ValidatedKind.Witness<String>, Integer> result =
           applicative.map5(kind1, kind2, kind3, kind4, kind5, (a, b, c, d, e) -> a + b + c + d + e);
-
-      Validated<String, Integer> validated = narrowToValidated(result);
-      assertThatValidated(validated).isValid().hasValue(15);
+      assertThatValidated(result).isValid().hasValue(15);
     }
   }
 
@@ -312,9 +217,7 @@ class ValidatedApplicativeTest extends ValidatedTestBase {
 
       Kind<ValidatedKind.Witness<String>, String> result =
           reverseApplicative.map2(kind1, kind2, (a, b) -> a + "+" + b);
-
-      Validated<String, String> validated = narrowToValidated(result);
-      assertThatValidated(validated).isInvalid().hasError("error2, error1");
+      assertThatValidated(result).isInvalid().hasError("error2, error1");
     }
   }
 }

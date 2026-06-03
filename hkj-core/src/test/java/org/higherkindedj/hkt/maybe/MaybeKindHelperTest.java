@@ -123,7 +123,7 @@ class MaybeKindHelperTest extends MaybeTestBase {
       maybeKindHelper(nothing1).test();
       maybeKindHelper(nothing2).test();
 
-      assertThat(nothing1).isSameAs(nothing2);
+      assertThat((Object) nothing1).isSameAs(nothing2);
     }
 
     @Test
@@ -153,18 +153,13 @@ class MaybeKindHelperTest extends MaybeTestBase {
   @DisplayName("Edge Cases and Corner Cases")
   class EdgeCasesTests {
     @Test
-    @DisplayName("All combinations of Maybe states")
-    void testAllMaybeStates() {
-      List<Maybe<String>> allStates =
-          List.of(
-              Maybe.just("success"),
-              Maybe.just(""),
-              Maybe.nothing(),
-              Maybe.fromNullable("value"),
-              Maybe.fromNullable(null));
+    @DisplayName("All combinations of null and empty values")
+    void testNullAndEmptyValueCombinations() {
+      List<Maybe<String>> edgeInstances =
+          List.of(Maybe.fromNullable(null), Maybe.just(""), Maybe.nothing());
 
-      for (Maybe<String> state : allStates) {
-        maybeKindHelper(state).test();
+      for (Maybe<String> instance : edgeInstances) {
+        maybeKindHelper(instance).test();
       }
     }
 

@@ -2,6 +2,7 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.hkt.maybe;
 
+import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.higherkindedj.hkt.assertions.MaybeAssert.assertThatMaybe;
 import static org.higherkindedj.hkt.instances.Witnesses.maybe;
@@ -14,6 +15,8 @@ import org.higherkindedj.hkt.MonadError;
 import org.higherkindedj.hkt.Unit;
 import org.higherkindedj.hkt.instances.Instances;
 import org.higherkindedj.hkt.laws.MonadLaws;
+import org.higherkindedj.hkt.test.contract.Category;
+import org.higherkindedj.hkt.test.contract.TypeClassContract;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -38,34 +41,33 @@ class MaybeMonadTest extends MaybeTestBase {
   class Laws {
 
     @ParameterizedTest(name = "left identity holds on value {0}")
-    @MethodSource("values")
+    @MethodSource("org.higherkindedj.hkt.maybe.MaybeLawFixtures#values")
     void leftIdentity(Integer value) {
       MonadLaws.assertLeftIdentity(monad, value, testFunction, equalityChecker);
     }
 
     @ParameterizedTest(name = "right identity holds on {0}")
-    @MethodSource("fixtures")
+    @MethodSource("org.higherkindedj.hkt.maybe.MaybeLawFixtures#kinds")
     void rightIdentity(String label, Kind<MaybeKind.Witness, Integer> ma) {
       MonadLaws.assertRightIdentity(monad, ma, equalityChecker);
     }
 
     @ParameterizedTest(name = "associativity holds on {0}")
-    @MethodSource("fixtures")
+    @MethodSource("org.higherkindedj.hkt.maybe.MaybeLawFixtures#kinds")
     void associativity(String label, Kind<MaybeKind.Witness, Integer> ma) {
       MonadLaws.assertAssociativity(monad, ma, testFunction, chainFunction, equalityChecker);
     }
+  }
 
-    static Stream<Arguments> fixtures() {
-      return Stream.of(
-          Arguments.of("Just(0)", MAYBE.widen(Maybe.just(0))),
-          Arguments.of("Just(42)", MAYBE.widen(Maybe.just(42))),
-          Arguments.of("Just(-1)", MAYBE.widen(Maybe.just(-1))),
-          Arguments.of("Nothing", MAYBE.<Integer>widen(Maybe.nothing())));
-    }
-
-    static Stream<Arguments> values() {
-      return Stream.of(Arguments.of(0), Arguments.of(42), Arguments.of(-1));
-    }
+  @Test
+  @DisplayName("Monad contract — operations, validations & exceptions (laws verified above)")
+  void monadContract() {
+    TypeClassContract.<MaybeKind.Witness>monad(MaybeMonad.class)
+        .<Integer>instance(monad)
+        .<String>withKind(validKind)
+        .withMonadOperations(
+            validKind2, validMapper, validFlatMapper, validFunctionKind, validCombiningFunction)
+        .verifyOnly(Category.OPERATIONS, Category.VALIDATIONS, Category.EXCEPTIONS);
   }
 
   @Nested
@@ -80,7 +82,7 @@ class MaybeMonadTest extends MaybeTestBase {
 
     @Test
     void flatMapOnJustCanReturnNothing() {
-      Function<Integer, Kind<MaybeKind.Witness, String>> nothingMapper = i -> nothingKind();
+      Function<Integer, Kind<MaybeKind.Witness, String>> nothingMapper = _ -> nothingKind();
       Kind<MaybeKind.Witness, String> result = monad.flatMap(nothingMapper, validKind);
       assertThatMaybe(result).isNothing();
     }
@@ -180,8 +182,7 @@ class MaybeMonadTest extends MaybeTestBase {
       Kind<MaybeKind.Witness, Integer> result = justKind(1);
       for (int i = 0; i < 10; i++) {
         final int index = i;
-        result =
-            monad.flatMap(x -> index == 5 ? this.<Integer>nothing() : monad.of(x + index), result);
+        result = monad.flatMap(x -> index == 5 ? this.nothing() : monad.of(x + index), result);
       }
       assertThatMaybe(result).isNothing();
     }
@@ -191,9 +192,7 @@ class MaybeMonadTest extends MaybeTestBase {
       Kind<MaybeKind.Witness, Integer> start = justKind(10);
       Kind<MaybeKind.Witness, String> result =
           monad.flatMap(
-              i ->
-                  monad.map(
-                      str -> str.toUpperCase(), monad.map(x -> "value:" + x, monad.of(i * 2))),
+              i -> monad.map(String::toUpperCase, monad.map(x -> "value:" + x, monad.of(i * 2))),
               start);
       assertThatMaybe(result).isJust().hasValue("VALUE:20");
     }
@@ -203,7 +202,16 @@ class MaybeMonadTest extends MaybeTestBase {
       Kind<MaybeKind.Witness, Kind<MaybeKind.Witness, Integer>> nested =
           justKind(justKind(DEFAULT_JUST_VALUE));
       Kind<MaybeKind.Witness, Integer> flattened = monad.flatMap(inner -> inner, nested);
-      assertThatMaybe(narrowToMaybe(flattened)).isJust().hasValue(DEFAULT_JUST_VALUE);
+      assertThatMaybe(flattened).isJust().hasValue(DEFAULT_JUST_VALUE);
+    }
+
+    @Test
+    void flatMapWithThrowingMapperOnNothingDoesNotRun() {
+      Function<Integer, Kind<MaybeKind.Witness, String>> throwing =
+          _ -> {
+            throw new AssertionError("flatMap function must not run on Nothing");
+          };
+      assertThatCode(() -> monad.flatMap(throwing, this.nothing())).doesNotThrowAnyException();
     }
 
     @ParameterizedTest(name = "flatMap rejects null {0} parameter")

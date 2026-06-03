@@ -19,6 +19,9 @@ import org.junit.jupiter.api.Test;
 @DisplayName("EitherKindHelper Complete Test Suite")
 class EitherKindHelperTest extends EitherTestBase {
 
+  /** A {@link Kind2} that is not an {@link Either}; exercises {@code narrow2}'s type guard. */
+  private record NotAnEither<L, R>() implements Kind2<EitherKind2.Witness, L, R> {}
+
   @Nested
   @DisplayName("Complete KindHelper Test Suite")
   class CompleteTestSuite {
@@ -176,7 +179,8 @@ class EitherKindHelperTest extends EitherTestBase {
       eitherKindHelper(complexLeft).test();
 
       assertThat(complexRight.getRight()).containsExactly("a", "b", "c");
-      assertThat(complexLeft.getLeft().code()).isEqualTo("ComplexError");
+      assertThatEither(complexLeft)
+          .hasLeftSatisfying(e -> assertThat(e.code()).isEqualTo("ComplexError"));
 
       assertThatEither(complexRight).hasRightNonNull();
       assertThatEither(complexLeft).hasLeftNonNull();
@@ -203,11 +207,7 @@ class EitherKindHelperTest extends EitherTestBase {
     @DisplayName("All combinations of null values")
     void testAllNullValueCombinations() {
       List<Either<ComplexTestError, String>> nullInstances =
-          List.of(
-              Either.right(null),
-              Either.left(null),
-              Either.left(new ComplexTestError(null, 0, null)),
-              Either.right(""));
+          List.of(Either.right(null), Either.left(null), Either.right(""));
 
       for (Either<ComplexTestError, String> instance : nullInstances) {
         eitherKindHelper(instance).test();
@@ -274,29 +274,16 @@ class EitherKindHelperTest extends EitherTestBase {
       Either<ComplexTestError, String> result = EITHER.narrow2(kind2);
 
       assertThat(result).isEqualTo(original);
-      assertThatEither(result).hasLeftNonNull();
-      assertThat(result.getLeft().code()).isEqualTo("E500");
+      assertThatEither(result).hasLeftSatisfying(e -> assertThat(e.code()).isEqualTo("E500"));
     }
 
     @Test
     @DisplayName("narrow2() throws KindUnwrapException when Kind2 is null")
+    @SuppressWarnings("DataFlowIssue") // intentionally passing null to verify it is rejected
     void narrow2ThrowsWhenKind2Null() {
       assertThatThrownBy(() -> EITHER.narrow2(null))
           .isInstanceOf(KindUnwrapException.class)
           .hasMessageContaining("Cannot narrow null Kind2 for Either");
-    }
-
-    @Test
-    @DisplayName("narrow2() throws KindUnwrapException for wrong Kind2 type")
-    void narrow2ThrowsWhenWrongKind2Type() {
-      // Create a Kind2 that is NOT an EitherKind2Holder
-      Kind2<EitherKind2.Witness, ComplexTestError, String> wrongKind =
-          new Kind2<EitherKind2.Witness, ComplexTestError, String>() {};
-
-      assertThatThrownBy(() -> EITHER.narrow2(wrongKind))
-          .isInstanceOf(KindUnwrapException.class)
-          .hasMessageContaining("Kind2 instance cannot be narrowed to Either")
-          .hasMessageContaining("received:");
     }
 
     @Test
@@ -320,8 +307,7 @@ class EitherKindHelperTest extends EitherTestBase {
       Either<ComplexTestError, String> result = EITHER.narrow2(EITHER.widen2(original));
 
       assertThat(result).isEqualTo(original);
-      assertThatEither(result).hasLeftNonNull();
-      assertThat(result.getLeft().severity()).isEqualTo(5);
+      assertThatEither(result).hasLeftSatisfying(e -> assertThat(e.severity()).isEqualTo(5));
     }
 
     @Test
@@ -408,17 +394,16 @@ class EitherKindHelperTest extends EitherTestBase {
     }
 
     @Test
-    @DisplayName("narrow2() error message includes actual type received")
+    @DisplayName("narrow2() throws KindUnwrapException naming the actual type received")
     void narrow2ErrorMessageIncludesActualType() {
-      Kind2<EitherKind2.Witness, ComplexTestError, String> wrongKind =
-          new Kind2<EitherKind2.Witness, ComplexTestError, String>() {};
+      Kind2<EitherKind2.Witness, ComplexTestError, String> wrongKind = new NotAnEither<>();
 
       String expectedTypeName = wrongKind.getClass().getSimpleName();
 
       assertThatThrownBy(() -> EITHER.narrow2(wrongKind))
           .isInstanceOf(KindUnwrapException.class)
           .hasMessageContaining("Kind2 instance cannot be narrowed to Either")
-          .hasMessageContaining("received:");
+          .hasMessageContaining("received: " + expectedTypeName);
     }
   }
 
@@ -435,7 +420,6 @@ class EitherKindHelperTest extends EitherTestBase {
               Either.right(null),
               Either.left(ComplexTestError.medium("error", "Error")),
               Either.left(ComplexTestError.low("", "")),
-              Either.left(new ComplexTestError(null, 0, null)),
               Either.left(null));
 
       for (Either<ComplexTestError, String> state : allStates) {

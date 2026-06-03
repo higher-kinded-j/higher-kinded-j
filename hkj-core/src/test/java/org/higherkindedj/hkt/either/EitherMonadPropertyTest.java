@@ -21,6 +21,9 @@ import org.higherkindedj.hkt.instances.Instances;
 import org.higherkindedj.hkt.laws.MonadLaws;
 
 /** Property-based Monad-law verification for Either, sharing the laws spec with EitherMonadTest. */
+// jqwik invokes the @Provide methods reflectively via @ForAll(name); IntelliJ cannot see those
+// uses.
+@SuppressWarnings("unused")
 class EitherMonadPropertyTest {
 
   private final MonadError<EitherKind.Witness<String>, String> monad =
@@ -32,20 +35,7 @@ class EitherMonadPropertyTest {
 
   @Provide
   Arbitrary<Kind<EitherKind.Witness<String>, Integer>> eitherKinds() {
-    return Arbitraries.integers()
-        .between(-100, 100)
-        .injectNull(0.15)
-        .flatMap(
-            i -> {
-              if (i == null) {
-                return Arbitraries.just(EITHER.widen(Either.<String, Integer>left("null value")));
-              }
-              if (i % 5 == 0) {
-                return Arbitraries.of("err: a", "err: b", "err: c")
-                    .map(s -> EITHER.widen(Either.<String, Integer>left(s)));
-              }
-              return Arbitraries.just(EITHER.widen(Either.<String, Integer>right(i)));
-            });
+    return EitherArbitraries.eitherKinds(100);
   }
 
   @Provide

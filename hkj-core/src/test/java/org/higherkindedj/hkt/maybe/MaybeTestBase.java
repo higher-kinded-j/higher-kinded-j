@@ -25,19 +25,6 @@ import org.higherkindedj.hkt.test.fixtures.TypeClassTestBase;
  * <ul>
  *   <li>{@link #DEFAULT_JUST_VALUE} - The primary test value (42)
  *   <li>{@link #ALTERNATIVE_JUST_VALUE} - A secondary test value (24)
- *   <li>{@link #DEFAULT_INT_VALUE} - Default integer for Selective tests (100)
- * </ul>
- *
- * <h2>String-based Fixtures</h2>
- *
- * <p>Since {@link MaybeTest} uses String as its primary type, this base class provides String-based
- * fixtures alongside the Integer-based fixtures from the parent class:
- *
- * <ul>
- *   <li>{@link #stringKind(String)} - Creates a Just Kind with a String value
- *   <li>{@link #stringToIntMapper()} - Maps String to Integer (String::length)
- *   <li>{@link #stringToIntFlatMapper()} - FlatMaps String to Kind&lt;Maybe, Integer&gt;
- *   <li>{@link #stringCombiningFunction()} - Combines two Strings into an Integer
  * </ul>
  */
 abstract class MaybeTestBase extends TypeClassTestBase<MaybeKind.Witness, Integer, String> {
@@ -51,58 +38,6 @@ abstract class MaybeTestBase extends TypeClassTestBase<MaybeKind.Witness, Intege
 
   /** Alternative value for Just instances when testing with multiple values. */
   protected static final Integer ALTERNATIVE_JUST_VALUE = 24;
-
-  /** Default integer value for Selective tests. */
-  protected static final Integer DEFAULT_INT_VALUE = 100;
-
-  // ============================================================================
-  // String-based Fixtures for MaybeTest
-  // ============================================================================
-
-  /** String-based Just Kind for tests that work with String values. */
-  protected Kind<MaybeKind.Witness, String> stringKind(String value) {
-    return MAYBE.widen(Maybe.just(value));
-  }
-
-  /** Mapper from String to Integer (String::length). */
-  protected Function<String, Integer> stringToIntMapper() {
-    return String::length;
-  }
-
-  /** FlatMapper from String to Kind&lt;Maybe, Integer&gt;. */
-  protected Function<String, Kind<MaybeKind.Witness, Integer>> stringToIntFlatMapper() {
-    return s -> MAYBE.widen(Maybe.just(s.length()));
-  }
-
-  /** Function Kind for String to Integer mapping. */
-  protected Kind<MaybeKind.Witness, Function<String, Integer>> stringToIntFunctionKind() {
-    return MAYBE.widen(Maybe.just(String::length));
-  }
-
-  /** Combining function for two Strings producing Integer. */
-  protected BiFunction<String, String, Integer> stringCombiningFunction() {
-    return (s1, s2) -> s1.length() + s2.length();
-  }
-
-  /** Second mapper from Integer to Integer for composition testing. */
-  protected Function<Integer, Integer> intToIntMapper() {
-    return i -> i * 2;
-  }
-
-  /** Second mapper from Integer to String for Functor composition testing. */
-  protected Function<Integer, String> intToStringMapper() {
-    return i -> "Value:" + i;
-  }
-
-  /** Test function from String to Kind&lt;Maybe, Integer&gt;. */
-  protected Function<String, Kind<MaybeKind.Witness, Integer>> stringTestFunction() {
-    return s -> MAYBE.widen(Maybe.just(s.length()));
-  }
-
-  /** Chain function from Integer to Kind&lt;Maybe, Integer&gt;. */
-  protected Function<Integer, Kind<MaybeKind.Witness, Integer>> intChainFunction() {
-    return i -> MAYBE.widen(Maybe.just(i * 2));
-  }
 
   // ============================================================================
   // Helper Methods

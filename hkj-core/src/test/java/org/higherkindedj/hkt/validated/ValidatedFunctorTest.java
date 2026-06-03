@@ -4,13 +4,9 @@ package org.higherkindedj.hkt.validated;
 
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.higherkindedj.hkt.assertions.ValidatedAssert.assertThatValidated;
-import static org.higherkindedj.hkt.instances.Witnesses.*;
-import static org.higherkindedj.hkt.validated.ValidatedKindHelper.VALIDATED;
 
-import java.util.stream.Stream;
 import org.higherkindedj.hkt.Functor;
 import org.higherkindedj.hkt.Kind;
-import org.higherkindedj.hkt.Semigroup;
 import org.higherkindedj.hkt.Semigroups;
 import org.higherkindedj.hkt.exception.KindUnwrapException;
 import org.higherkindedj.hkt.instances.Instances;
@@ -22,19 +18,16 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 
 @DisplayName("ValidatedFunctor")
 class ValidatedFunctorTest extends ValidatedTestBase {
 
   private Functor<ValidatedKind.Witness<String>> functor;
-  private Semigroup<String> stringSemigroup;
 
   @BeforeEach
   void setUpFunctor() {
-    stringSemigroup = Semigroups.first();
-    functor = Instances.validated(stringSemigroup);
+    functor = Instances.validated(Semigroups.first());
   }
 
   @Nested
@@ -42,24 +35,26 @@ class ValidatedFunctorTest extends ValidatedTestBase {
   class Laws {
 
     @ParameterizedTest(name = "identity holds on {0}")
-    @MethodSource("fixtures")
+    @MethodSource("org.higherkindedj.hkt.validated.ValidatedLawFixtures#kinds")
     void identity(String label, Kind<ValidatedKind.Witness<String>, Integer> fa) {
       FunctorLaws.assertIdentity(functor, fa, equalityChecker);
     }
 
     @ParameterizedTest(name = "composition holds on {0}")
-    @MethodSource("fixtures")
+    @MethodSource("org.higherkindedj.hkt.validated.ValidatedLawFixtures#kinds")
     void composition(String label, Kind<ValidatedKind.Witness<String>, Integer> fa) {
       FunctorLaws.assertComposition(functor, fa, validMapper, secondMapper, equalityChecker);
     }
+  }
 
-    static Stream<Arguments> fixtures() {
-      return Stream.of(
-          Arguments.of("Valid(0)", VALIDATED.widen(Validated.<String, Integer>valid(0))),
-          Arguments.of("Valid(42)", VALIDATED.widen(Validated.<String, Integer>valid(42))),
-          Arguments.of("Valid(-1)", VALIDATED.widen(Validated.<String, Integer>valid(-1))),
-          Arguments.of("Invalid(\"e\")", VALIDATED.widen(Validated.<String, Integer>invalid("e"))));
-    }
+  @Test
+  @DisplayName("Functor contract — operations, validations & exceptions (laws verified above)")
+  void functorContract() {
+    TypeClassContract.<ValidatedKind.Witness<String>>functor(ValidatedMonad.class)
+        .<Integer>instance(functor)
+        .<String>withKind(validKind)
+        .withMapper(validMapper)
+        .verifyOnly(Category.OPERATIONS, Category.VALIDATIONS, Category.EXCEPTIONS);
   }
 
   @Nested
@@ -69,28 +64,19 @@ class ValidatedFunctorTest extends ValidatedTestBase {
     @Test
     @DisplayName("Map transforms Valid value")
     void mapTransformsValidValue() {
-      Validated<String, Integer> valid = Validated.valid(DEFAULT_VALID_VALUE);
-      Kind<ValidatedKind.Witness<String>, Integer> kind = VALIDATED.widen(valid);
+      Kind<ValidatedKind.Witness<String>, Integer> kind = validKind(DEFAULT_VALID_VALUE);
 
       Kind<ValidatedKind.Witness<String>, String> result = functor.map(validMapper, kind);
-
-      Validated<String, String> narrowed = narrowToValidated(result);
-      assertThatValidated(narrowed).isValid().hasValue("42").hasValueOfType(String.class);
+      assertThatValidated(result).isValid().hasValue("42").hasValueOfType(String.class);
     }
 
     @Test
     @DisplayName("Map preserves Invalid unchanged")
     void mapPreservesInvalidUnchanged() {
-      Validated<String, Integer> invalid = Validated.invalid(DEFAULT_ERROR);
-      Kind<ValidatedKind.Witness<String>, Integer> kind = VALIDATED.widen(invalid);
+      Kind<ValidatedKind.Witness<String>, Integer> kind = invalidKind(DEFAULT_ERROR);
 
       Kind<ValidatedKind.Witness<String>, String> result = functor.map(validMapper, kind);
-
-      Validated<String, String> narrowed = narrowToValidated(result);
-      assertThatValidated(narrowed)
-          .isInvalid()
-          .hasError(DEFAULT_ERROR)
-          .hasErrorOfType(String.class);
+      assertThatValidated(result).isInvalid().hasError(DEFAULT_ERROR).hasErrorOfType(String.class);
     }
 
     @Test
@@ -100,71 +86,7 @@ class ValidatedFunctorTest extends ValidatedTestBase {
 
       Kind<ValidatedKind.Witness<String>, Integer> step1 = functor.map(n -> n * 2, kind);
       Kind<ValidatedKind.Witness<String>, String> step2 = functor.map(validMapper, step1);
-
-      Validated<String, String> result = narrowToValidated(step2);
-      assertThatValidated(result).isValid().hasValue("84");
-    }
-  }
-
-  @Nested
-  @DisplayName("Individual Component Tests")
-  class IndividualComponentTests {
-
-    @Test
-    @DisplayName("Test operations only")
-    void testOperationsOnly() {
-      TypeClassContract.<ValidatedKind.Witness<String>>functor(ValidatedMonad.class)
-          .<Integer>instance(functor)
-          .<String>withKind(validKind)
-          .withMapper(validMapper)
-          .verifyOnly(Category.OPERATIONS);
-    }
-
-    @Test
-    @DisplayName("Test validations only")
-    void testValidationsOnly() {
-      TypeClassContract.<ValidatedKind.Witness<String>>functor(ValidatedMonad.class)
-          .<Integer>instance(functor)
-          .<String>withKind(validKind)
-          .withMapper(validMapper)
-          .verifyOnly(Category.VALIDATIONS);
-    }
-
-    @Test
-    @DisplayName("Test exception propagation only")
-    void testExceptionPropagationOnly() {
-      TypeClassContract.<ValidatedKind.Witness<String>>functor(ValidatedMonad.class)
-          .<Integer>instance(functor)
-          .<String>withKind(validKind)
-          .withMapper(validMapper)
-          .verifyOnly(Category.EXCEPTIONS);
-    }
-
-    @Test
-    @DisplayName("Test laws only")
-    void testLawsOnly() {
-      TypeClassContract.<ValidatedKind.Witness<String>>functor(ValidatedMonad.class)
-          .<Integer>instance(functor)
-          .<String>withKind(validKind)
-          .withMapper(validMapper)
-          .withSecondMapper(secondMapper)
-          .withEqualityChecker(equalityChecker)
-          .verifyOnly(Category.LAWS);
-    }
-  }
-
-  @Nested
-  @DisplayName("Validation Configuration Tests")
-  class ValidationConfigurationTests {
-
-    @Test
-    @DisplayName("Test with standard validation")
-    void testWithStandardValidation() {
-      TypeClassContract.<ValidatedKind.Witness<String>>functor(ValidatedMonad.class)
-          .<Integer>instance(functor)
-          .<String>withKind(validKind)
-          .withMapper(validMapper)
-          .verifyOnly(Category.VALIDATIONS);
+      assertThatValidated(step2).isValid().hasValue("84");
     }
   }
 
@@ -178,7 +100,7 @@ class ValidatedFunctorTest extends ValidatedTestBase {
       Kind<ValidatedKind.Witness<String>, Integer> kind = validKind(DEFAULT_VALID_VALUE);
 
       // Valid.map validates that the function doesn't return null
-      assertThatThrownBy(() -> functor.map(n -> null, kind))
+      assertThatThrownBy(() -> functor.map(_ -> null, kind))
           .isInstanceOf(KindUnwrapException.class)
           .hasMessageContaining("Function fn in map returned null");
     }
@@ -186,13 +108,10 @@ class ValidatedFunctorTest extends ValidatedTestBase {
     @Test
     @DisplayName("Map preserves Invalid with different error types")
     void mapPreservesInvalidWithDifferentErrorTypes() {
-      Validated<String, Integer> invalid = Validated.invalid("original-error");
-      Kind<ValidatedKind.Witness<String>, Integer> kind = VALIDATED.widen(invalid);
+      Kind<ValidatedKind.Witness<String>, Integer> kind = invalidKind("original-error");
 
       Kind<ValidatedKind.Witness<String>, String> result = functor.map(validMapper, kind);
-
-      Validated<String, String> narrowed = narrowToValidated(result);
-      assertThatValidated(narrowed).isInvalid().hasError("original-error");
+      assertThatValidated(result).isInvalid().hasError("original-error");
     }
   }
 }

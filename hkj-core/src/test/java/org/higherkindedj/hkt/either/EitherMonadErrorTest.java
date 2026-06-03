@@ -17,7 +17,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
-@DisplayName("EitherMonad Error Handling Complete Test Suite")
+@DisplayName("EitherMonad — error handling")
 class EitherMonadErrorTest extends EitherTestBase {
 
   private MonadError<EitherKind.Witness<String>, String> monadError;
@@ -27,49 +27,26 @@ class EitherMonadErrorTest extends EitherTestBase {
   @BeforeEach
   void setUpMonadError() {
     monadError = Instances.monadError(either());
-    validHandler = err -> monadError.of(-1);
+    validHandler = _ -> monadError.of(-1);
     validFallback = monadError.of(-999);
     validateMonadFixtures();
   }
 
-  @Nested
-  @DisplayName("Complete Test Suite Using New API")
-  class CompleteTestSuite {
-
-    @Test
-    @DisplayName("Run complete MonadError test pattern")
-    void runCompleteMonadErrorTest() {
-      TypeClassContract.<EitherKind.Witness<String>, String>monadError(EitherMonad.class)
-          .<Integer>instance(monadError)
-          .<String>withKind(validKind)
-          .withMonadOperations(validMapper, validFlatMapper, validFunctionKind)
-          .withErrorHandling(validHandler, validFallback)
-          .withLawsTesting(testValue, testFunction, chainFunction, equalityChecker)
-          .verify();
-    }
-
-    @Test
-    @DisplayName("Selective testing - operations and laws only")
-    void selectiveTestingOperationsAndLaws() {
-      TypeClassContract.<EitherKind.Witness<String>, String>monadError(EitherMonad.class)
-          .<Integer>instance(monadError)
-          .<String>withKind(validKind)
-          .withMonadOperations(validMapper, validFlatMapper, validFunctionKind)
-          .withErrorHandling(validHandler, validFallback)
-          .withLawsTesting(testValue, testFunction, chainFunction, equalityChecker)
-          .verifyOnly(Category.OPERATIONS, Category.LAWS);
-    }
-
-    @Test
-    @DisplayName("Quick smoke test - operations only")
-    void quickSmokeTest() {
-      TypeClassContract.<EitherKind.Witness<String>, String>monadError(EitherMonad.class)
-          .<Integer>instance(monadError)
-          .<String>withKind(validKind)
-          .withMonadOperations(validMapper, validFlatMapper, validFunctionKind)
-          .withErrorHandling(validHandler, validFallback)
-          .verifyOnly(Category.OPERATIONS, Category.VALIDATIONS);
-    }
+  /**
+   * Operations, null-argument validation and exception propagation on the MonadError instance, in a
+   * single pass. The Monad/MonadError laws are verified parameterised in {@link EitherMonadTest},
+   * so this contract deliberately omits {@link Category#LAWS} rather than re-running them.
+   */
+  @Test
+  @DisplayName(
+      "MonadError contract — operations, validations & exceptions (Monad laws in EitherMonadTest)")
+  void monadErrorContract() {
+    TypeClassContract.<EitherKind.Witness<String>, String>monadError(EitherMonad.class)
+        .<Integer>instance(monadError)
+        .<String>withKind(validKind)
+        .withMonadOperations(validMapper, validFlatMapper, validFunctionKind)
+        .withErrorHandling(validHandler, validFallback)
+        .verifyOnly(Category.OPERATIONS, Category.VALIDATIONS, Category.EXCEPTIONS);
   }
 
   @Nested
@@ -79,101 +56,36 @@ class EitherMonadErrorTest extends EitherTestBase {
     @Test
     @DisplayName("handleErrorWith() recovers from Left")
     void handleErrorWithRecoversFromLeft() {
-      Kind<EitherKind.Witness<String>, Integer> leftValue = leftKind();
-
-      Kind<EitherKind.Witness<String>, Integer> result =
-          monadError.handleErrorWith(leftValue, validHandler);
-
-      assertThatEither(narrowToEither(result)).isRight().hasRight(-1);
+      var result = monadError.handleErrorWith(leftKind(), validHandler);
+      assertThatEither(result).isRight().hasRight(-1);
     }
 
     @Test
     @DisplayName("handleErrorWith() passes through Right")
     void handleErrorWithPassesThroughRight() {
-      Kind<EitherKind.Witness<String>, Integer> result =
-          monadError.handleErrorWith(validKind, validHandler);
-
-      assertThatEither(narrowToEither(result)).isRight().hasRight(DEFAULT_RIGHT_VALUE);
+      var result = monadError.handleErrorWith(validKind, validHandler);
+      assertThatEither(result).isRight().hasRight(DEFAULT_RIGHT_VALUE);
     }
 
     @Test
     @DisplayName("raiseError() creates Left")
     void raiseErrorCreatesLeft() {
-      Kind<EitherKind.Witness<String>, Integer> result =
-          monadError.raiseError(TestErrorType.VALIDATION.message());
-
-      assertThatEither(narrowToEither(result)).isLeft().hasLeft(TestErrorType.VALIDATION.message());
+      var result = monadError.raiseError(TestErrorType.VALIDATION.message());
+      assertThatEither(result).isLeft().hasLeft(TestErrorType.VALIDATION.message());
     }
 
     @Test
     @DisplayName("recoverWith() uses fallback on Left")
     void recoverWithUsesFallbackOnLeft() {
-      Kind<EitherKind.Witness<String>, Integer> leftValue = leftKind();
-
-      Kind<EitherKind.Witness<String>, Integer> result =
-          monadError.recoverWith(leftValue, validFallback);
-
-      assertThatEither(narrowToEither(result)).isRight().hasRight(-999);
+      var result = monadError.recoverWith(leftKind(), validFallback);
+      assertThatEither(result).isRight().hasRight(-999);
     }
 
     @Test
     @DisplayName("recover() uses value on Left")
     void recoverUsesValueOnLeft() {
-      Kind<EitherKind.Witness<String>, Integer> leftValue = leftKind();
-
-      Kind<EitherKind.Witness<String>, Integer> result = monadError.recover(leftValue, 100);
-
-      assertThatEither(narrowToEither(result)).isRight().hasRight(100);
-    }
-  }
-
-  @Nested
-  @DisplayName("Individual Components")
-  class IndividualComponents {
-
-    @Test
-    @DisplayName("Test operations only")
-    void testOperationsOnly() {
-      TypeClassContract.<EitherKind.Witness<String>, String>monadError(EitherMonad.class)
-          .<Integer>instance(monadError)
-          .<String>withKind(validKind)
-          .withMonadOperations(validMapper, validFlatMapper, validFunctionKind)
-          .withErrorHandling(validHandler, validFallback)
-          .verifyOnly(Category.OPERATIONS);
-    }
-
-    @Test
-    @DisplayName("Test validations only")
-    void testValidationsOnly() {
-      TypeClassContract.<EitherKind.Witness<String>, String>monadError(EitherMonad.class)
-          .<Integer>instance(monadError)
-          .<String>withKind(validKind)
-          .withMonadOperations(validMapper, validFlatMapper, validFunctionKind)
-          .withErrorHandling(validHandler, validFallback)
-          .verifyOnly(Category.VALIDATIONS);
-    }
-
-    @Test
-    @DisplayName("Test exception propagation only")
-    void testExceptionPropagationOnly() {
-      TypeClassContract.<EitherKind.Witness<String>, String>monadError(EitherMonad.class)
-          .<Integer>instance(monadError)
-          .<String>withKind(validKind)
-          .withMonadOperations(validMapper, validFlatMapper, validFunctionKind)
-          .withErrorHandling(validHandler, validFallback)
-          .verifyOnly(Category.EXCEPTIONS);
-    }
-
-    @Test
-    @DisplayName("Test laws only")
-    void testLawsOnly() {
-      TypeClassContract.<EitherKind.Witness<String>, String>monadError(EitherMonad.class)
-          .<Integer>instance(monadError)
-          .<String>withKind(validKind)
-          .withMonadOperations(validMapper, validFlatMapper, validFunctionKind)
-          .withErrorHandling(validHandler, validFallback)
-          .withLawsTesting(testValue, testFunction, chainFunction, equalityChecker)
-          .verifyOnly(Category.LAWS);
+      var result = monadError.recover(leftKind(), 100);
+      assertThatEither(result).isRight().hasRight(100);
     }
   }
 
@@ -184,15 +96,15 @@ class EitherMonadErrorTest extends EitherTestBase {
     @Test
     @DisplayName("Error handling with null error values")
     void errorHandlingWithNullErrors() {
-      Kind<EitherKind.Witness<String>, Integer> nullError = monadError.raiseError(null);
+      Kind<EitherKind.Witness<String>, String> nullError = monadError.raiseError(null);
 
-      Function<String, Kind<EitherKind.Witness<String>, Integer>> handler =
-          err -> monadError.of(err == null ? 0 : -1);
+      // The null error flows through to the handler, which stringifies it as "null".
+      Function<String, Kind<EitherKind.Witness<String>, String>> handler =
+          err -> monadError.of("recovered:" + err);
 
-      Kind<EitherKind.Witness<String>, Integer> result =
-          monadError.handleErrorWith(nullError, handler);
+      var result = monadError.handleErrorWith(nullError, handler);
 
-      assertThatEither(narrowToEither(result)).isRight().hasRight(0);
+      assertThatEither(result).isRight().hasRight("recovered:null");
     }
 
     @Test
@@ -200,7 +112,7 @@ class EitherMonadErrorTest extends EitherTestBase {
     void chainedErrorRecovery() {
       Kind<EitherKind.Witness<String>, Integer> start = leftKind(TestErrorType.RECOVERABLE);
 
-      Kind<EitherKind.Witness<String>, Integer> result =
+      var result =
           monadError.handleErrorWith(
               start,
               err -> {
@@ -210,7 +122,7 @@ class EitherMonadErrorTest extends EitherTestBase {
                 return leftKind(TestErrorType.UNRECOVERABLE);
               });
 
-      assertThatEither(narrowToEither(result)).isRight().hasRight(999);
+      assertThatEither(result).isRight().hasRight(999);
     }
 
     @Test
@@ -220,7 +132,7 @@ class EitherMonadErrorTest extends EitherTestBase {
       RuntimeException testException = new RuntimeException("Handler exception");
 
       Function<String, Kind<EitherKind.Witness<String>, Integer>> throwingHandler =
-          err -> {
+          _ -> {
             throw testException;
           };
 
@@ -261,13 +173,13 @@ class EitherMonadErrorTest extends EitherTestBase {
     @DisplayName("Real-world scenario: error recovery with fallback")
     void errorRecoveryWithFallback() {
       Function<String, Either<String, String>> primarySource =
-          id -> Either.left(TestErrorType.RESOURCE_UNAVAILABLE.message());
+          _ -> Either.left(TestErrorType.RESOURCE_UNAVAILABLE.message());
 
-      Function<String, Either<String, String>> fallbackSource = id -> Either.right("fallback-data");
+      Function<String, Either<String, String>> fallbackSource = _ -> Either.right("fallback-data");
 
       String id = "user-123";
       Either<String, String> result =
-          primarySource.apply(id).fold(err -> fallbackSource.apply(id), Either::right);
+          primarySource.apply(id).fold(_ -> fallbackSource.apply(id), Either::right);
 
       assertThatEither(result).isRight().hasRight("fallback-data");
     }
