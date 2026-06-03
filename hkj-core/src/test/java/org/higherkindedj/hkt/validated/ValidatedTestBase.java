@@ -39,18 +39,6 @@ import org.higherkindedj.hkt.test.fixtures.TypeClassTestBase;
  *   <li>{@link #createDefaultSemigroup()} - Returns a string concatenation semigroup with ", "
  *       delimiter
  * </ul>
- *
- * <h2>String-based Fixtures</h2>
- *
- * <p>Since {@link ValidatedTest} uses String as its primary type, this base class provides
- * String-based fixtures alongside the Integer-based fixtures from the parent class:
- *
- * <ul>
- *   <li>{@link #stringKind(String)} - Creates a Valid Kind with a String value
- *   <li>{@link #stringToIntMapper()} - Maps String to Integer (String::length)
- *   <li>{@link #stringToIntFlatMapper()} - FlatMaps String to Kind&lt;Validated, Integer&gt;
- *   <li>{@link #stringCombiningFunction()} - Combines two Strings into an Integer
- * </ul>
  */
 abstract class ValidatedTestBase
     extends TypeClassTestBase<ValidatedKind.Witness<String>, Integer, String> {
@@ -87,59 +75,8 @@ abstract class ValidatedTestBase
   }
 
   // ============================================================================
-  // String-based Fixtures for ValidatedTest
+  // Kind Factories
   // ============================================================================
-
-  /**
-   * String-based Valid Kind for tests that work with String values.
-   *
-   * @param value The string value to wrap in a Valid
-   * @return A Valid Kind containing the specified string
-   */
-  protected Kind<ValidatedKind.Witness<String>, String> stringKind(String value) {
-    return VALIDATED.widen(Validated.valid(value));
-  }
-
-  /** Mapper from String to Integer (String::length). */
-  protected Function<String, Integer> stringToIntMapper() {
-    return String::length;
-  }
-
-  /** FlatMapper from String to Kind&lt;Validated, Integer&gt;. */
-  protected Function<String, Kind<ValidatedKind.Witness<String>, Integer>> stringToIntFlatMapper() {
-    return s -> VALIDATED.widen(Validated.valid(s.length()));
-  }
-
-  /** Function Kind for String to Integer mapping. */
-  protected Kind<ValidatedKind.Witness<String>, Function<String, Integer>>
-      stringToIntFunctionKind() {
-    return VALIDATED.widen(Validated.valid(String::length));
-  }
-
-  /** Combining function for two Strings producing Integer. */
-  protected BiFunction<String, String, Integer> stringCombiningFunction() {
-    return (s1, s2) -> s1.length() + s2.length();
-  }
-
-  /** Second mapper from Integer to Integer for composition testing. */
-  protected Function<Integer, Integer> intToIntMapper() {
-    return i -> i * 2;
-  }
-
-  /** Second mapper from Integer to String for Functor composition testing. */
-  protected Function<Integer, String> intToStringMapper() {
-    return i -> "Value:" + i;
-  }
-
-  /** Test function from String to Kind&lt;Validated, Integer&gt;. */
-  protected Function<String, Kind<ValidatedKind.Witness<String>, Integer>> stringTestFunction() {
-    return s -> VALIDATED.widen(Validated.valid(s.length()));
-  }
-
-  /** Chain function from Integer to Kind&lt;Validated, Integer&gt;. */
-  protected Function<Integer, Kind<ValidatedKind.Witness<String>, Integer>> intChainFunction() {
-    return i -> VALIDATED.widen(Validated.valid(i * 2));
-  }
 
   /**
    * Creates a Valid Kind with the specified value.
@@ -168,21 +105,6 @@ abstract class ValidatedTestBase
    */
   protected <A> Kind<ValidatedKind.Witness<String>, A> invalidKind() {
     return invalidKind(DEFAULT_ERROR);
-  }
-
-  /**
-   * Converts a Kind to a Validated instance.
-   *
-   * <p>This is a convenience method to make test code more readable by avoiding repeated
-   * VALIDATED.narrow() calls.
-   *
-   * @param <A> The type of the value
-   * @param kind The Kind to convert
-   * @return The underlying Validated instance
-   */
-  protected <A> Validated<String, A> narrowToValidated(
-      Kind<ValidatedKind.Witness<String>, A> kind) {
-    return VALIDATED.narrow(kind);
   }
 
   // ============================================================================

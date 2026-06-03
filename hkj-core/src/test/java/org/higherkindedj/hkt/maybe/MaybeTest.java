@@ -4,8 +4,6 @@ package org.higherkindedj.hkt.maybe;
 
 import static org.assertj.core.api.Assertions.*;
 import static org.higherkindedj.hkt.assertions.MaybeAssert.assertThatMaybe;
-import static org.higherkindedj.hkt.instances.Witnesses.*;
-import static org.higherkindedj.hkt.maybe.MaybeKindHelper.MAYBE;
 import static org.higherkindedj.hkt.util.validation.Operation.FLAT_MAP;
 import static org.higherkindedj.hkt.util.validation.Operation.OR_ELSE_GET;
 import static org.junit.jupiter.api.Assertions.assertTimeoutPreemptively;
@@ -15,15 +13,9 @@ import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Function;
 import java.util.function.Supplier;
-import org.higherkindedj.hkt.Kind;
-import org.higherkindedj.hkt.MonadError;
-import org.higherkindedj.hkt.Unit;
 import org.higherkindedj.hkt.either.Either;
 import org.higherkindedj.hkt.exception.KindUnwrapException;
-import org.higherkindedj.hkt.instances.Instances;
 import org.higherkindedj.hkt.test.assertions.ValidationTestBuilder;
-import org.higherkindedj.hkt.test.contract.Category;
-import org.higherkindedj.hkt.test.contract.TypeClassContract;
 import org.higherkindedj.hkt.test.fixtures.TestFunctions;
 import org.higherkindedj.hkt.util.validation.Operation;
 import org.junit.jupiter.api.DisplayName;
@@ -42,145 +34,10 @@ class MaybeTest extends MaybeTestBase {
   private final String justValue = "Present Value";
   private final Maybe<String> justInstance = Maybe.just(justValue);
   private final Maybe<String> nothingInstance = Maybe.nothing();
-  private final MonadError<MaybeKind.Witness, Unit> MONAD = Instances.monadError(maybe());
-
-  @Nested
-  @DisplayName("Complete Type Class Test Suite")
-  class CompleteTypeClassTestSuite {
-
-    @Test
-    @DisplayName("Run complete Monad test pattern")
-    void runCompleteMonadTest() {
-      Kind<MaybeKind.Witness, String> stringKind = MAYBE.widen(justInstance);
-      Kind<MaybeKind.Witness, String> stringKind2 = MAYBE.widen(Maybe.just("Another"));
-
-      TypeClassContract.<MaybeKind.Witness>monad(MaybeMonad.class)
-          .<String>instance(MONAD)
-          .<Integer>withKind(stringKind)
-          .withMonadOperations(
-              stringKind2,
-              stringToIntMapper(),
-              stringToIntFlatMapper(),
-              stringToIntFunctionKind(),
-              stringCombiningFunction())
-          .withLawsTesting(justValue, stringTestFunction(), intChainFunction(), equalityChecker)
-          .verify();
-    }
-
-    @Test
-    @DisplayName("Run complete Functor test pattern")
-    void runCompleteFunctorTest() {
-      Kind<MaybeKind.Witness, String> stringKind = MAYBE.widen(justInstance);
-
-      TypeClassContract.<MaybeKind.Witness>functor(MaybeFunctor.class)
-          .<String>instance(MONAD)
-          .<Integer>withKind(stringKind)
-          .withMapper(stringToIntMapper())
-          .withSecondMapper(intToStringMapper())
-          .withEqualityChecker(equalityChecker)
-          .verify();
-    }
-  }
-
-  @Nested
-  @DisplayName("Individual Type Class Components")
-  class IndividualTypeClassComponents {
-
-    @Test
-    @DisplayName("Test Functor operations only")
-    void testFunctorOperationsOnly() {
-      Kind<MaybeKind.Witness, String> stringKind = MAYBE.widen(justInstance);
-
-      TypeClassContract.<MaybeKind.Witness>functor(MaybeFunctor.class)
-          .<String>instance(MONAD)
-          .<Integer>withKind(stringKind)
-          .withMapper(stringToIntMapper())
-          .verifyOnly(Category.OPERATIONS);
-    }
-
-    @Test
-    @DisplayName("Test Functor exception propagation only")
-    void testFunctorExceptionPropagationOnly() {
-      RuntimeException testException = new RuntimeException("Test exception: functor test");
-      Function<String, Integer> throwingMapper = TestFunctions.throwingFunction(testException);
-
-      Kind<MaybeKind.Witness, String> stringKind = MAYBE.widen(justInstance);
-      assertThatThrownBy(() -> MONAD.map(throwingMapper, stringKind)).isSameAs(testException);
-
-      Kind<MaybeKind.Witness, String> nothingKind = MAYBE.widen(nothingInstance);
-      assertThatCode(() -> MONAD.map(throwingMapper, nothingKind)).doesNotThrowAnyException();
-    }
-
-    @Test
-    @DisplayName("Test Functor laws only")
-    void testFunctorLawsOnly() {
-      Kind<MaybeKind.Witness, String> stringKind = MAYBE.widen(justInstance);
-
-      TypeClassContract.<MaybeKind.Witness>functor(MaybeFunctor.class)
-          .<String>instance(MONAD)
-          .<Integer>withKind(stringKind)
-          .withMapper(stringToIntMapper())
-          .withSecondMapper(intToStringMapper())
-          .withEqualityChecker(equalityChecker)
-          .verifyOnly(Category.LAWS);
-    }
-
-    @Test
-    @DisplayName("Test Monad operations only")
-    void testMonadOperationsOnly() {
-      Kind<MaybeKind.Witness, String> stringKind = MAYBE.widen(justInstance);
-      Kind<MaybeKind.Witness, String> stringKind2 = MAYBE.widen(Maybe.just("Another"));
-
-      TypeClassContract.<MaybeKind.Witness>monad(MaybeMonad.class)
-          .<String>instance(MONAD)
-          .<Integer>withKind(stringKind)
-          .withMonadOperations(
-              stringKind2,
-              stringToIntMapper(),
-              stringToIntFlatMapper(),
-              stringToIntFunctionKind(),
-              stringCombiningFunction())
-          .verifyOnly(Category.OPERATIONS);
-    }
-
-    @Test
-    @DisplayName("Test Monad exception propagation only")
-    void testMonadExceptionPropagationOnly() {
-      RuntimeException testException = new RuntimeException("Test exception: monad test");
-      Function<String, Kind<MaybeKind.Witness, Integer>> throwingFlatMapper =
-          TestFunctions.throwingFunction(testException);
-
-      Kind<MaybeKind.Witness, String> stringKind = MAYBE.widen(justInstance);
-      assertThatThrownBy(() -> MONAD.flatMap(throwingFlatMapper, stringKind))
-          .isSameAs(testException);
-
-      Kind<MaybeKind.Witness, String> nothingKind = MAYBE.widen(nothingInstance);
-      assertThatCode(() -> MONAD.flatMap(throwingFlatMapper, nothingKind))
-          .doesNotThrowAnyException();
-    }
-
-    @Test
-    @DisplayName("Test Monad laws only")
-    void testMonadLawsOnly() {
-      Kind<MaybeKind.Witness, String> stringKind = MAYBE.widen(justInstance);
-      Kind<MaybeKind.Witness, String> stringKind2 = MAYBE.widen(Maybe.just("Another"));
-
-      TypeClassContract.<MaybeKind.Witness>monad(MaybeMonad.class)
-          .<String>instance(MONAD)
-          .<Integer>withKind(stringKind)
-          .withMonadOperations(
-              stringKind2,
-              stringToIntMapper(),
-              stringToIntFlatMapper(),
-              stringToIntFunctionKind(),
-              stringCombiningFunction())
-          .withLawsTesting(justValue, stringTestFunction(), intChainFunction(), equalityChecker)
-          .verifyOnly(Category.LAWS);
-    }
-  }
 
   @Nested
   @DisplayName("Factory Methods - Complete Coverage")
+  @SuppressWarnings("DataFlowIssue") // null passed to @NonNull just() to verify rejection
   class FactoryMethods {
 
     @Test
@@ -210,7 +67,7 @@ class MaybeTest extends MaybeTestBase {
       assertThatMaybe(nothingInstance).isNothing();
 
       Maybe<Integer> nothingInt = Maybe.nothing();
-      assertThat(nothingInstance).isSameAs(nothingInt);
+      assertThat((Object) nothingInstance).isSameAs(nothingInt);
     }
 
     @Test
@@ -274,6 +131,7 @@ class MaybeTest extends MaybeTestBase {
 
   @Nested
   @DisplayName("orElse / orElseGet - Complete Validation")
+  @SuppressWarnings("DataFlowIssue") // null passed to @NonNull orElse/orElseGet to verify handling
   class OrElseTests {
 
     private final String defaultValue = "Default";
@@ -342,6 +200,7 @@ class MaybeTest extends MaybeTestBase {
 
   @Nested
   @DisplayName("Map Method - Comprehensive Testing")
+  @SuppressWarnings("DataFlowIssue") // null mapper / null-returning mapper exercise map's handling
   class MapMethodTests {
 
     @Test
@@ -356,7 +215,7 @@ class MaybeTest extends MaybeTestBase {
           .isJust()
           .hasValueSatisfying(l -> assertThat(l).hasSize(justValue.length()));
 
-      Maybe<String> nullResult = justInstance.map(s -> null);
+      Maybe<String> nullResult = justInstance.map(_ -> null);
       assertThatMaybe(nullResult).isNothing();
     }
 
@@ -364,10 +223,10 @@ class MaybeTest extends MaybeTestBase {
     @DisplayName("map() preserves Nothing instances unchanged")
     void mapPreservesNothingInstances() {
       Maybe<Integer> result = nothingInstance.map(String::length);
-      assertThat(result).isSameAs(nothingInstance);
+      assertThat((Object) result).isSameAs(nothingInstance);
 
       Maybe<List<String>> complexResult = nothingInstance.map(s -> List.of(s, s.toUpperCase()));
-      assertThat(complexResult).isSameAs(nothingInstance);
+      assertThat((Object) complexResult).isSameAs(nothingInstance);
     }
 
     @Test
@@ -388,7 +247,7 @@ class MaybeTest extends MaybeTestBase {
       assertThatThrownBy(() -> justInstance.map(throwingMapper)).isSameAs(testException);
 
       Maybe<Integer> nothingResult = nothingInstance.map(throwingMapper);
-      assertThat(nothingResult).isSameAs(nothingInstance);
+      assertThat((Object) nothingResult).isSameAs(nothingInstance);
 
       Maybe<String> start = Maybe.just("hello");
       Maybe<String> chainResult =
@@ -412,6 +271,8 @@ class MaybeTest extends MaybeTestBase {
 
   @Nested
   @DisplayName("FlatMap Method - Comprehensive Monadic Testing")
+  @SuppressWarnings(
+      "DataFlowIssue") // null mapper / null-returning mapper exercise flatMap handling
   class FlatMapMethodTests {
 
     @Test
@@ -421,7 +282,7 @@ class MaybeTest extends MaybeTestBase {
       Maybe<Integer> result = justInstance.flatMap(mapper);
       assertThatMaybe(result).isJust().hasValue(justValue.length());
 
-      Function<String, Maybe<Integer>> nothingMapper = s -> Maybe.nothing();
+      Function<String, Maybe<Integer>> nothingMapper = _ -> Maybe.nothing();
       Maybe<Integer> nothingResult = justInstance.flatMap(nothingMapper);
       assertThatMaybe(nothingResult).isNothing();
     }
@@ -431,7 +292,7 @@ class MaybeTest extends MaybeTestBase {
     void flatMapPreservesNothingInstances() {
       Function<String, Maybe<Integer>> mapper = s -> Maybe.just(s.length());
       Maybe<Integer> result = nothingInstance.flatMap(mapper);
-      assertThat(result).isSameAs(nothingInstance);
+      assertThat((Object) result).isSameAs(nothingInstance);
     }
 
     @Test
@@ -446,7 +307,7 @@ class MaybeTest extends MaybeTestBase {
     @Test
     @DisplayName("flatMap() validates non-null results")
     void flatMapValidatesNonNullResults() {
-      Function<String, Maybe<Integer>> nullReturningMapper = s -> null;
+      Function<String, Maybe<Integer>> nullReturningMapper = _ -> null;
       assertThatThrownBy(() -> justInstance.flatMap(nullReturningMapper))
           .isInstanceOf(KindUnwrapException.class)
           .hasMessageContaining("flatMap returned null");
@@ -466,8 +327,8 @@ class MaybeTest extends MaybeTestBase {
       Maybe<String> failureResult =
           start
               .flatMap(i -> Maybe.just(i * 2))
-              .flatMap(i -> Maybe.nothing())
-              .flatMap(i -> Maybe.just("Should not reach"));
+              .flatMap(_ -> Maybe.nothing())
+              .flatMap(_ -> Maybe.just("Should not reach"));
       assertThatMaybe(failureResult).isNothing();
 
       Maybe<Integer> mixedResult =
@@ -485,12 +346,13 @@ class MaybeTest extends MaybeTestBase {
       assertThatThrownBy(() -> justInstance.flatMap(throwingMapper)).isSameAs(testException);
 
       Maybe<Integer> nothingResult = nothingInstance.flatMap(throwingMapper);
-      assertThat(nothingResult).isSameAs(nothingInstance);
+      assertThat((Object) nothingResult).isSameAs(nothingInstance);
     }
   }
 
   @Nested
   @DisplayName("toEither Method - Conversion Testing")
+  @SuppressWarnings("DataFlowIssue") // null supplier passed to toEither to verify rejection
   class ToEitherMethodTests {
 
     private final String errorMessage = "Value was not present";
@@ -514,8 +376,7 @@ class MaybeTest extends MaybeTestBase {
     @Test
     @DisplayName("toEither(L) allows null left value")
     void toEitherAllowsNullLeftValue() {
-      String nullValue = null;
-      Either<String, String> result = nothingInstance.toEither(nullValue);
+      Either<String, String> result = nothingInstance.toEither((String) null);
       assertThat(result.isLeft()).isTrue();
       assertThat(result.getLeft()).isNull();
     }
@@ -562,6 +423,7 @@ class MaybeTest extends MaybeTestBase {
 
     @Test
     @DisplayName("toEither(Supplier) does not validate null supplier for Just")
+    @SuppressWarnings("RedundantCast") // cast disambiguates toEither(L) vs toEither(Supplier<L>)
     void toEitherSupplierDoesNotValidateNullSupplierForJust() {
       // For Just, supplier is never called, so null is allowed (consistent with orElseGet)
       assertThatCode(() -> justInstance.toEither((Supplier<String>) null))
@@ -627,9 +489,6 @@ class MaybeTest extends MaybeTestBase {
     @Test
     @DisplayName("equals() and hashCode() work correctly")
     void equalsAndHashCodeWorkCorrectly() {
-      assertThat(justInstance).isEqualTo(justInstance);
-      assertThat(nothingInstance).isEqualTo(nothingInstance);
-
       Maybe<String> anotherJust = Maybe.just(justValue);
       assertThat(justInstance).isEqualTo(anotherJust);
       assertThat(justInstance.hashCode()).isEqualTo(anotherJust.hashCode());
@@ -700,7 +559,7 @@ class MaybeTest extends MaybeTestBase {
           maybe ->
               switch (maybe) {
                 case Just<Integer>(var value) -> "Just: " + value;
-                case Nothing<Integer> n -> "Nothing";
+                case Nothing<Integer> _ -> "Nothing";
               };
 
       assertThat(processMaybe.apply(Maybe.just(42))).isEqualTo("Just: 42");
@@ -712,9 +571,9 @@ class MaybeTest extends MaybeTestBase {
             case Just<Maybe<Integer>>(var inner) ->
                 switch (inner) {
                   case Just<Integer>(var value) -> "Nested value: " + value;
-                  case Nothing<Integer> n -> "Inner nothing";
+                  case Nothing<Integer> _ -> "Inner nothing";
                 };
-            case Nothing<Maybe<Integer>> n -> "Outer nothing";
+            case Nothing<Maybe<Integer>> _ -> "Outer nothing";
           };
       assertThat(nestedResult).isEqualTo("Nested value: 42");
     }
@@ -747,21 +606,19 @@ class MaybeTest extends MaybeTestBase {
       Maybe<String> nothing = Maybe.nothing();
 
       Maybe<Integer> mapped = nothing.map(String::length);
-      assertThat(mapped).isSameAs(nothing);
+      assertThat((Object) mapped).isSameAs(nothing);
 
       Maybe<Boolean> multiMapped = nothing.map(String::length).map(len -> len > 0).map(b -> !b);
-      assertThat(multiMapped).isSameAs(nothing);
+      assertThat((Object) multiMapped).isSameAs(nothing);
 
       Maybe<Integer> flatMapped = nothing.flatMap(s -> Maybe.just(s.length()));
-      assertThat(flatMapped).isSameAs(nothing);
+      assertThat((Object) flatMapped).isSameAs(nothing);
     }
 
     @Test
     @DisplayName("Memory usage is reasonable for large chains")
     void memoryUsageIsReasonableForLargeChains() {
-      Maybe<Integer> start = Maybe.just(1);
-
-      Maybe<Integer> result = start;
+      Maybe<Integer> result = Maybe.just(1);
       for (int i = 0; i < 1000; i++) {
         final int increment = i;
         result = result.map(x -> x + increment);

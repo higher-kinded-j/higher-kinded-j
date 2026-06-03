@@ -4,7 +4,6 @@ package org.higherkindedj.hkt.validated;
 
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.higherkindedj.hkt.assertions.ValidatedAssert.assertThatValidated;
-import static org.higherkindedj.hkt.instances.Witnesses.*;
 import static org.higherkindedj.hkt.validated.ValidatedKindHelper.VALIDATED;
 
 import java.util.List;
@@ -15,9 +14,6 @@ import org.higherkindedj.hkt.MonadError;
 import org.higherkindedj.hkt.Semigroup;
 import org.higherkindedj.hkt.Semigroups;
 import org.higherkindedj.hkt.exception.KindUnwrapException;
-import org.higherkindedj.hkt.function.Function3;
-import org.higherkindedj.hkt.function.Function4;
-import org.higherkindedj.hkt.function.Function5;
 import org.higherkindedj.hkt.instances.Instances;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -31,100 +27,69 @@ import org.junit.jupiter.params.provider.MethodSource;
 class ValidatedMapNTest {
 
   private MonadError<ValidatedKind.Witness<String>, String> monad;
-  private Semigroup<String> semigroup;
 
   @BeforeEach
   void setUp() {
-    semigroup = Semigroups.string(", ");
-    monad = Instances.validated(semigroup);
+    monad = Instances.validated(Semigroups.string(", "));
   }
 
   @Nested
   @DisplayName("map2 Tests")
   class Map2Tests {
 
-    @Test
-    @DisplayName("map2 combines two Valid values")
-    void map2CombinesTwoValidValues() {
-      Kind<ValidatedKind.Witness<String>, Integer> v1 = VALIDATED.valid(10);
-      Kind<ValidatedKind.Witness<String>, Integer> v2 = VALIDATED.valid(20);
+    private static Stream<Arguments> map2CombinationProvider() {
+      return Stream.of(
+          Arguments.of(true, true, "10+20", true),
+          Arguments.of(false, true, "E1", false),
+          Arguments.of(true, false, "E2", false),
+          Arguments.of(false, false, "E1, E2", false));
+    }
+
+    @ParameterizedTest(name = "map2 with v1={0}, v2={1}")
+    @MethodSource("map2CombinationProvider")
+    @DisplayName("map2 handles all Valid/Invalid combinations")
+    void map2HandlesAllCombinations(
+        boolean v1Valid, boolean v2Valid, String expected, boolean shouldBeValid) {
+      Kind<ValidatedKind.Witness<String>, Integer> v1 =
+          v1Valid ? VALIDATED.valid(10) : VALIDATED.invalid("E1");
+      Kind<ValidatedKind.Witness<String>, Integer> v2 =
+          v2Valid ? VALIDATED.valid(20) : VALIDATED.invalid("E2");
 
       Kind<ValidatedKind.Witness<String>, String> result =
           monad.map2(v1, v2, (a, b) -> a + "+" + b);
-
-      Validated<String, String> validated = VALIDATED.narrow(result);
-      assertThatValidated(validated).isValid().hasValue("10+20");
+      if (shouldBeValid) {
+        assertThatValidated(result).isValid().hasValue(expected);
+      } else {
+        assertThatValidated(result).isInvalid().hasError(expected);
+      }
     }
 
-    @Test
-    @DisplayName("map2 accumulates two errors")
-    void map2AccumulatesTwoErrors() {
-      Kind<ValidatedKind.Witness<String>, Integer> v1 = VALIDATED.invalid("error1");
-      Kind<ValidatedKind.Witness<String>, Integer> v2 = VALIDATED.invalid("error2");
-
-      Kind<ValidatedKind.Witness<String>, String> result =
-          monad.map2(v1, v2, (a, b) -> a + "+" + b);
-
-      Validated<String, String> validated = VALIDATED.narrow(result);
-      assertThatValidated(validated).isInvalid().hasError("error1, error2");
+    private static Stream<Arguments> map2NullParameterProvider() {
+      Kind<ValidatedKind.Witness<String>, Integer> valid = VALIDATED.valid(10);
+      return Stream.of(Arguments.of(null, valid, "first"), Arguments.of(valid, null, "second"));
     }
 
-    @Test
-    @DisplayName("map2 propagates first Invalid when second is Valid")
-    void map2PropagatesFirstInvalidWhenSecondIsValid() {
-      Kind<ValidatedKind.Witness<String>, Integer> v1 = VALIDATED.invalid("error");
-      Kind<ValidatedKind.Witness<String>, Integer> v2 = VALIDATED.valid(20);
-
-      Kind<ValidatedKind.Witness<String>, String> result =
-          monad.map2(v1, v2, (a, b) -> a + "+" + b);
-
-      Validated<String, String> validated = VALIDATED.narrow(result);
-      assertThatValidated(validated).isInvalid().hasError("error");
-    }
-
-    @Test
-    @DisplayName("map2 propagates second Invalid when first is Valid")
-    void map2PropagatesSecondInvalidWhenFirstIsValid() {
-      Kind<ValidatedKind.Witness<String>, Integer> v1 = VALIDATED.valid(10);
-      Kind<ValidatedKind.Witness<String>, Integer> v2 = VALIDATED.invalid("error");
-
-      Kind<ValidatedKind.Witness<String>, String> result =
-          monad.map2(v1, v2, (a, b) -> a + "+" + b);
-
-      Validated<String, String> validated = VALIDATED.narrow(result);
-      assertThatValidated(validated).isInvalid().hasError("error");
-    }
-
-    @Test
-    @DisplayName("map2 validates first Kind is non-null")
-    void map2ValidatesFirstKindIsNonNull() {
-      Kind<ValidatedKind.Witness<String>, Integer> v2 = VALIDATED.valid(20);
-
-      assertThatThrownBy(() -> monad.map2(null, v2, (a, b) -> a + "+" + b))
+    @ParameterizedTest(name = "map2 validates {2} parameter is non-null")
+    @MethodSource("map2NullParameterProvider")
+    @DisplayName("map2 validates all parameters are non-null")
+    void map2ValidatesParametersAreNonNull(
+        Kind<ValidatedKind.Witness<String>, Integer> v1,
+        Kind<ValidatedKind.Witness<String>, Integer> v2,
+        String paramName) {
+      assertThatThrownBy(() -> monad.map2(v1, v2, (a, b) -> a + "+" + b))
           .isInstanceOf(NullPointerException.class)
-          .hasMessageContaining("first")
-          .hasMessageContaining("map2");
-    }
-
-    @Test
-    @DisplayName("map2 validates second Kind is non-null")
-    void map2ValidatesSecondKindIsNonNull() {
-      Kind<ValidatedKind.Witness<String>, Integer> v1 = VALIDATED.valid(10);
-
-      assertThatThrownBy(() -> monad.map2(v1, null, (a, b) -> a + "+" + b))
-          .isInstanceOf(NullPointerException.class)
-          .hasMessageContaining("second")
+          .hasMessageContaining(paramName)
           .hasMessageContaining("map2");
     }
 
     @Test
     @DisplayName("map2 validates combining function is non-null")
+    @SuppressWarnings("DataFlowIssue") // deliberately passing a null function to verify rejection
     void map2ValidatesCombiningFunctionIsNonNull() {
       Kind<ValidatedKind.Witness<String>, Integer> v1 = VALIDATED.valid(10);
       Kind<ValidatedKind.Witness<String>, Integer> v2 = VALIDATED.valid(20);
 
-      BiFunction<Integer, Integer, String> nullFunction = null;
-      assertThatThrownBy(() -> monad.map2(v1, v2, nullFunction))
+      assertThatThrownBy(() -> monad.map2(v1, v2, (BiFunction<Integer, Integer, String>) null))
           .isInstanceOf(NullPointerException.class)
           .hasMessageContaining("combining function")
           .hasMessageContaining("map2");
@@ -136,7 +101,7 @@ class ValidatedMapNTest {
       Kind<ValidatedKind.Witness<String>, Integer> v1 = VALIDATED.valid(10);
       Kind<ValidatedKind.Witness<String>, Integer> v2 = VALIDATED.valid(20);
 
-      assertThatThrownBy(() -> monad.map2(v1, v2, (a, b) -> null))
+      assertThatThrownBy(() -> monad.map2(v1, v2, (_, _) -> null))
           .isInstanceOf(KindUnwrapException.class)
           .hasMessageContaining("combining function")
           .hasMessageContaining("map2")
@@ -151,9 +116,7 @@ class ValidatedMapNTest {
 
       Kind<ValidatedKind.Witness<String>, String> result =
           monad.map2(v1, v2, (num, str) -> num + "-" + str);
-
-      Validated<String, String> validated = VALIDATED.narrow(result);
-      assertThatValidated(validated).isValid().hasValue("10-test");
+      assertThatValidated(result).isValid().hasValue("10-test");
     }
   }
 
@@ -161,20 +124,16 @@ class ValidatedMapNTest {
   @DisplayName("map3 Tests")
   class Map3Tests {
 
-    // Parameterised test for all 8 combinations of Valid/Invalid for 3 arguments
+    // All 8 combinations of Valid/Invalid for 3 arguments.
     private static Stream<Arguments> map3CombinationProvider() {
       return Stream.of(
-          // All valid
           Arguments.of(true, true, true, "10+20+30", true),
-          // One invalid
           Arguments.of(false, true, true, "E1", false),
           Arguments.of(true, false, true, "E2", false),
           Arguments.of(true, true, false, "E3", false),
-          // Two invalid
           Arguments.of(false, false, true, "E1, E2", false),
           Arguments.of(false, true, false, "E1, E3", false),
           Arguments.of(true, false, false, "E2, E3", false),
-          // All invalid
           Arguments.of(false, false, false, "E1, E2, E3", false));
     }
 
@@ -192,16 +151,13 @@ class ValidatedMapNTest {
 
       Kind<ValidatedKind.Witness<String>, String> result =
           monad.map3(v1, v2, v3, (a, b, c) -> a + "+" + b + "+" + c);
-
-      Validated<String, String> validated = VALIDATED.narrow(result);
       if (shouldBeValid) {
-        assertThatValidated(validated).isValid().hasValue(expected);
+        assertThatValidated(result).isValid().hasValue(expected);
       } else {
-        assertThatValidated(validated).isInvalid().hasError(expected);
+        assertThatValidated(result).isInvalid().hasError(expected);
       }
     }
 
-    // Parameterised test for null parameter validations
     private static Stream<Arguments> map3NullParameterProvider() {
       Kind<ValidatedKind.Witness<String>, Integer> valid = VALIDATED.valid(10);
       return Stream.of(
@@ -218,7 +174,7 @@ class ValidatedMapNTest {
         Kind<ValidatedKind.Witness<String>, Integer> v2,
         Kind<ValidatedKind.Witness<String>, Integer> v3,
         String paramName) {
-      assertThatThrownBy(() -> monad.map3(v1, v2, v3, (a, b, c) -> "test"))
+      assertThatThrownBy(() -> monad.map3(v1, v2, v3, (_, _, _) -> "test"))
           .isInstanceOf(NullPointerException.class)
           .hasMessageContaining(paramName)
           .hasMessageContaining("map3");
@@ -226,13 +182,13 @@ class ValidatedMapNTest {
 
     @Test
     @DisplayName("map3 validates function is non-null")
+    @SuppressWarnings("DataFlowIssue") // deliberately passing a null function to verify rejection
     void map3ValidatesFunctionIsNonNull() {
       Kind<ValidatedKind.Witness<String>, Integer> v1 = VALIDATED.valid(10);
       Kind<ValidatedKind.Witness<String>, Integer> v2 = VALIDATED.valid(20);
       Kind<ValidatedKind.Witness<String>, Integer> v3 = VALIDATED.valid(30);
 
-      Function3<Integer, Integer, Integer, String> nullFunction = null;
-      assertThatThrownBy(() -> monad.map3(v1, v2, v3, nullFunction))
+      assertThatThrownBy(() -> monad.map3(v1, v2, v3, null))
           .isInstanceOf(NullPointerException.class)
           .hasMessageContaining("f")
           .hasMessageContaining("map3");
@@ -245,7 +201,7 @@ class ValidatedMapNTest {
       Kind<ValidatedKind.Witness<String>, Integer> v2 = VALIDATED.valid(20);
       Kind<ValidatedKind.Witness<String>, Integer> v3 = VALIDATED.valid(30);
 
-      assertThatThrownBy(() -> monad.map3(v1, v2, v3, (a, b, c) -> null))
+      assertThatThrownBy(() -> monad.map3(v1, v2, v3, (_, _, _) -> null))
           .isInstanceOf(KindUnwrapException.class)
           .hasMessageContaining("f")
           .hasMessageContaining("map3")
@@ -257,29 +213,24 @@ class ValidatedMapNTest {
   @DisplayName("map4 Tests")
   class Map4Tests {
 
-    // Parameterised test for all 16 combinations of Valid/Invalid for 4 arguments
+    // All 16 combinations of Valid/Invalid for 4 arguments.
     private static Stream<Arguments> map4CombinationProvider() {
       return Stream.of(
-          // All valid
           Arguments.of(true, true, true, true, 100, true),
-          // One invalid
           Arguments.of(false, true, true, true, "E1", false),
           Arguments.of(true, false, true, true, "E2", false),
           Arguments.of(true, true, false, true, "E3", false),
           Arguments.of(true, true, true, false, "E4", false),
-          // Two invalid
           Arguments.of(false, false, true, true, "E1, E2", false),
           Arguments.of(false, true, false, true, "E1, E3", false),
           Arguments.of(false, true, true, false, "E1, E4", false),
           Arguments.of(true, false, false, true, "E2, E3", false),
           Arguments.of(true, false, true, false, "E2, E4", false),
           Arguments.of(true, true, false, false, "E3, E4", false),
-          // Three invalid
           Arguments.of(false, false, false, true, "E1, E2, E3", false),
           Arguments.of(false, false, true, false, "E1, E2, E4", false),
           Arguments.of(false, true, false, false, "E1, E3, E4", false),
           Arguments.of(true, false, false, false, "E2, E3, E4", false),
-          // All invalid
           Arguments.of(false, false, false, false, "E1, E2, E3, E4", false));
     }
 
@@ -305,17 +256,14 @@ class ValidatedMapNTest {
       if (shouldBeValid) {
         Kind<ValidatedKind.Witness<String>, Integer> result =
             monad.map4(v1, v2, v3, v4, (a, b, c, d) -> a + b + c + d);
-        Validated<String, Integer> validated = VALIDATED.narrow(result);
-        assertThatValidated(validated).isValid().hasValue((Integer) expected);
+        assertThatValidated(result).isValid().hasValue((Integer) expected);
       } else {
         Kind<ValidatedKind.Witness<String>, String> result =
-            monad.map4(v1, v2, v3, v4, (a, b, c, d) -> "test");
-        Validated<String, String> validated = VALIDATED.narrow(result);
-        assertThatValidated(validated).isInvalid().hasError((String) expected);
+            monad.map4(v1, v2, v3, v4, (_, _, _, _) -> "test");
+        assertThatValidated(result).isInvalid().hasError((String) expected);
       }
     }
 
-    // Parameterised test for null parameter validations
     private static Stream<Arguments> map4NullParameterProvider() {
       Kind<ValidatedKind.Witness<String>, Integer> valid = VALIDATED.valid(10);
       return Stream.of(
@@ -334,7 +282,7 @@ class ValidatedMapNTest {
         Kind<ValidatedKind.Witness<String>, Integer> v3,
         Kind<ValidatedKind.Witness<String>, Integer> v4,
         String paramName) {
-      assertThatThrownBy(() -> monad.map4(v1, v2, v3, v4, (a, b, c, d) -> "test"))
+      assertThatThrownBy(() -> monad.map4(v1, v2, v3, v4, (_, _, _, _) -> "test"))
           .isInstanceOf(NullPointerException.class)
           .hasMessageContaining(paramName)
           .hasMessageContaining("map4");
@@ -342,14 +290,14 @@ class ValidatedMapNTest {
 
     @Test
     @DisplayName("map4 validates function is non-null")
+    @SuppressWarnings("DataFlowIssue") // deliberately passing a null function to verify rejection
     void map4ValidatesFunctionIsNonNull() {
       Kind<ValidatedKind.Witness<String>, Integer> v1 = VALIDATED.valid(10);
       Kind<ValidatedKind.Witness<String>, Integer> v2 = VALIDATED.valid(20);
       Kind<ValidatedKind.Witness<String>, Integer> v3 = VALIDATED.valid(30);
       Kind<ValidatedKind.Witness<String>, Integer> v4 = VALIDATED.valid(40);
 
-      Function4<Integer, Integer, Integer, Integer, String> nullFunction = null;
-      assertThatThrownBy(() -> monad.map4(v1, v2, v3, v4, nullFunction))
+      assertThatThrownBy(() -> monad.map4(v1, v2, v3, v4, null))
           .isInstanceOf(NullPointerException.class)
           .hasMessageContaining("f")
           .hasMessageContaining("map4");
@@ -363,7 +311,7 @@ class ValidatedMapNTest {
       Kind<ValidatedKind.Witness<String>, Integer> v3 = VALIDATED.valid(30);
       Kind<ValidatedKind.Witness<String>, Integer> v4 = VALIDATED.valid(40);
 
-      assertThatThrownBy(() -> monad.map4(v1, v2, v3, v4, (a, b, c, d) -> null))
+      assertThatThrownBy(() -> monad.map4(v1, v2, v3, v4, (_, _, _, _) -> null))
           .isInstanceOf(KindUnwrapException.class)
           .hasMessageContaining("f")
           .hasMessageContaining("map4")
@@ -375,28 +323,22 @@ class ValidatedMapNTest {
   @DisplayName("map5 Tests")
   class Map5Tests {
 
-    // Parameterised test for selected combinations (testing all 32 would be excessive)
+    // Selected combinations (testing all 32 would be excessive).
     private static Stream<Arguments> map5CombinationProvider() {
       return Stream.of(
-          // All valid
           Arguments.of(true, true, true, true, true, 15, true),
-          // One invalid (test each position)
           Arguments.of(false, true, true, true, true, "E1", false),
           Arguments.of(true, false, true, true, true, "E2", false),
           Arguments.of(true, true, false, true, true, "E3", false),
           Arguments.of(true, true, true, false, true, "E4", false),
           Arguments.of(true, true, true, true, false, "E5", false),
-          // Two invalid (test key combinations)
           Arguments.of(false, false, true, true, true, "E1, E2", false),
           Arguments.of(true, true, true, false, false, "E4, E5", false),
           Arguments.of(false, true, false, true, false, "E1, E3, E5", false),
-          // Three invalid
           Arguments.of(false, false, false, true, true, "E1, E2, E3", false),
           Arguments.of(true, true, false, false, false, "E3, E4, E5", false),
-          // Four invalid
           Arguments.of(false, false, false, false, true, "E1, E2, E3, E4", false),
           Arguments.of(true, false, false, false, false, "E2, E3, E4, E5", false),
-          // All invalid
           Arguments.of(false, false, false, false, false, "E1, E2, E3, E4, E5", false));
     }
 
@@ -425,17 +367,14 @@ class ValidatedMapNTest {
       if (shouldBeValid) {
         Kind<ValidatedKind.Witness<String>, Integer> result =
             monad.map5(v1, v2, v3, v4, v5, (a, b, c, d, e) -> a + b + c + d + e);
-        Validated<String, Integer> validated = VALIDATED.narrow(result);
-        assertThatValidated(validated).isValid().hasValue((Integer) expected);
+        assertThatValidated(result).isValid().hasValue((Integer) expected);
       } else {
         Kind<ValidatedKind.Witness<String>, String> result =
-            monad.map5(v1, v2, v3, v4, v5, (a, b, c, d, e) -> "test");
-        Validated<String, String> validated = VALIDATED.narrow(result);
-        assertThatValidated(validated).isInvalid().hasError((String) expected);
+            monad.map5(v1, v2, v3, v4, v5, (_, _, _, _, _) -> "test");
+        assertThatValidated(result).isInvalid().hasError((String) expected);
       }
     }
 
-    // Parameterised test for null parameter validations
     private static Stream<Arguments> map5NullParameterProvider() {
       Kind<ValidatedKind.Witness<String>, Integer> valid = VALIDATED.valid(1);
       return Stream.of(
@@ -456,7 +395,7 @@ class ValidatedMapNTest {
         Kind<ValidatedKind.Witness<String>, Integer> v4,
         Kind<ValidatedKind.Witness<String>, Integer> v5,
         String paramName) {
-      assertThatThrownBy(() -> monad.map5(v1, v2, v3, v4, v5, (a, b, c, d, e) -> "test"))
+      assertThatThrownBy(() -> monad.map5(v1, v2, v3, v4, v5, (_, _, _, _, _) -> "test"))
           .isInstanceOf(NullPointerException.class)
           .hasMessageContaining(paramName)
           .hasMessageContaining("map5");
@@ -464,6 +403,7 @@ class ValidatedMapNTest {
 
     @Test
     @DisplayName("map5 validates function is non-null")
+    @SuppressWarnings("DataFlowIssue") // deliberately passing a null function to verify rejection
     void map5ValidatesFunctionIsNonNull() {
       Kind<ValidatedKind.Witness<String>, Integer> v1 = VALIDATED.valid(1);
       Kind<ValidatedKind.Witness<String>, Integer> v2 = VALIDATED.valid(2);
@@ -471,8 +411,7 @@ class ValidatedMapNTest {
       Kind<ValidatedKind.Witness<String>, Integer> v4 = VALIDATED.valid(4);
       Kind<ValidatedKind.Witness<String>, Integer> v5 = VALIDATED.valid(5);
 
-      Function5<Integer, Integer, Integer, Integer, Integer, String> nullFunction = null;
-      assertThatThrownBy(() -> monad.map5(v1, v2, v3, v4, v5, nullFunction))
+      assertThatThrownBy(() -> monad.map5(v1, v2, v3, v4, v5, null))
           .isInstanceOf(NullPointerException.class)
           .hasMessageContaining("f")
           .hasMessageContaining("map5");
@@ -487,78 +426,11 @@ class ValidatedMapNTest {
       Kind<ValidatedKind.Witness<String>, Integer> v4 = VALIDATED.valid(4);
       Kind<ValidatedKind.Witness<String>, Integer> v5 = VALIDATED.valid(5);
 
-      assertThatThrownBy(() -> monad.map5(v1, v2, v3, v4, v5, (a, b, c, d, e) -> null))
+      assertThatThrownBy(() -> monad.map5(v1, v2, v3, v4, v5, (_, _, _, _, _) -> null))
           .isInstanceOf(KindUnwrapException.class)
           .hasMessageContaining("f")
           .hasMessageContaining("map5")
           .hasMessageContaining("null");
-    }
-  }
-
-  @Nested
-  @DisplayName("Error Accumulation Order Tests")
-  class ErrorAccumulationOrderTests {
-
-    @Test
-    @DisplayName("map2 error accumulation respects semigroup order")
-    void map2ErrorAccumulationRespectsSemigroupOrder() {
-      Semigroup<String> reverseSemigroup = (a, b) -> b + " before " + a;
-      MonadError<ValidatedKind.Witness<String>, String> reverseMonad =
-          Instances.validated(reverseSemigroup);
-
-      Kind<ValidatedKind.Witness<String>, Integer> v1 = VALIDATED.invalid("first");
-      Kind<ValidatedKind.Witness<String>, Integer> v2 = VALIDATED.invalid("second");
-
-      Kind<ValidatedKind.Witness<String>, String> result =
-          reverseMonad.map2(v1, v2, (a, b) -> "test");
-
-      Validated<String, String> validated = VALIDATED.narrow(result);
-      assertThatValidated(validated).isInvalid().hasError("second before first");
-    }
-
-    @Test
-    @DisplayName("map3 error accumulation respects order")
-    void map3ErrorAccumulationRespectsOrder() {
-      Kind<ValidatedKind.Witness<String>, Integer> v1 = VALIDATED.invalid("A");
-      Kind<ValidatedKind.Witness<String>, Integer> v2 = VALIDATED.invalid("B");
-      Kind<ValidatedKind.Witness<String>, Integer> v3 = VALIDATED.invalid("C");
-
-      Kind<ValidatedKind.Witness<String>, String> result =
-          monad.map3(v1, v2, v3, (a, b, c) -> "test");
-
-      Validated<String, String> validated = VALIDATED.narrow(result);
-      assertThatValidated(validated).isInvalid().hasError("A, B, C");
-    }
-
-    @Test
-    @DisplayName("map4 preserves error order")
-    void map4PreservesErrorOrder() {
-      Kind<ValidatedKind.Witness<String>, Integer> v1 = VALIDATED.invalid("E1");
-      Kind<ValidatedKind.Witness<String>, Integer> v2 = VALIDATED.valid(2);
-      Kind<ValidatedKind.Witness<String>, Integer> v3 = VALIDATED.invalid("E3");
-      Kind<ValidatedKind.Witness<String>, Integer> v4 = VALIDATED.invalid("E4");
-
-      Kind<ValidatedKind.Witness<String>, String> result =
-          monad.map4(v1, v2, v3, v4, (a, b, c, d) -> "test");
-
-      Validated<String, String> validated = VALIDATED.narrow(result);
-      assertThatValidated(validated).isInvalid().hasError("E1, E3, E4");
-    }
-
-    @Test
-    @DisplayName("map5 preserves error order with interspersed valid values")
-    void map5PreservesErrorOrderWithInterspersedValidValues() {
-      Kind<ValidatedKind.Witness<String>, Integer> v1 = VALIDATED.invalid("E1");
-      Kind<ValidatedKind.Witness<String>, Integer> v2 = VALIDATED.valid(2);
-      Kind<ValidatedKind.Witness<String>, Integer> v3 = VALIDATED.invalid("E3");
-      Kind<ValidatedKind.Witness<String>, Integer> v4 = VALIDATED.valid(4);
-      Kind<ValidatedKind.Witness<String>, Integer> v5 = VALIDATED.invalid("E5");
-
-      Kind<ValidatedKind.Witness<String>, String> result =
-          monad.map5(v1, v2, v3, v4, v5, (a, b, c, d, e) -> "test");
-
-      Validated<String, String> validated = VALIDATED.narrow(result);
-      assertThatValidated(validated).isInvalid().hasError("E1, E3, E5");
     }
   }
 
@@ -572,16 +444,14 @@ class ValidatedMapNTest {
       Kind<ValidatedKind.Witness<String>, Integer> v1 = VALIDATED.valid(10);
       Kind<ValidatedKind.Witness<String>, Integer> v2 = VALIDATED.valid(20);
 
-      Kind<ValidatedKind.Witness<String>, Integer> combined = monad.map2(v1, v2, (a, b) -> a + b);
+      Kind<ValidatedKind.Witness<String>, Integer> combined = monad.map2(v1, v2, Integer::sum);
 
       Kind<ValidatedKind.Witness<String>, Integer> v3 = VALIDATED.valid(30);
       Kind<ValidatedKind.Witness<String>, Integer> v4 = VALIDATED.valid(40);
 
       Kind<ValidatedKind.Witness<String>, Integer> result =
           monad.map3(combined, v3, v4, (a, b, c) -> a + b + c);
-
-      Validated<String, Integer> validated = VALIDATED.narrow(result);
-      assertThatValidated(validated).isValid().hasValue(100);
+      assertThatValidated(result).isValid().hasValue(100);
     }
 
     @Test
@@ -593,35 +463,32 @@ class ValidatedMapNTest {
       Kind<ValidatedKind.Witness<String>, Integer> age = VALIDATED.valid(30);
 
       Kind<ValidatedKind.Witness<String>, Person> result = monad.map2(name, age, Person::new);
-
-      Validated<String, Person> validated = VALIDATED.narrow(result);
-      assertThatValidated(validated)
+      assertThatValidated(result)
           .isValid()
           .hasValueSatisfying(
               person -> person.name().equals("Alice") && person.age() == 30,
               "Person has correct name and age");
     }
-
-    @Test
-    @DisplayName("map5 with all same error produces single accumulated error")
-    void map5WithAllSameErrorProducesSingleAccumulatedError() {
-      Kind<ValidatedKind.Witness<String>, Integer> v1 = VALIDATED.invalid("error");
-      Kind<ValidatedKind.Witness<String>, Integer> v2 = VALIDATED.invalid("error");
-      Kind<ValidatedKind.Witness<String>, Integer> v3 = VALIDATED.invalid("error");
-      Kind<ValidatedKind.Witness<String>, Integer> v4 = VALIDATED.invalid("error");
-      Kind<ValidatedKind.Witness<String>, Integer> v5 = VALIDATED.invalid("error");
-
-      Kind<ValidatedKind.Witness<String>, String> result =
-          monad.map5(v1, v2, v3, v4, v5, (a, b, c, d, e) -> "test");
-
-      Validated<String, String> validated = VALIDATED.narrow(result);
-      assertThatValidated(validated).isInvalid().hasError("error, error, error, error, error");
-    }
   }
 
   @Nested
-  @DisplayName("Semigroup Behavior Tests")
-  class SemigroupBehaviorTests {
+  @DisplayName("Semigroup Behaviour Tests")
+  class SemigroupBehaviourTests {
+
+    @Test
+    @DisplayName("map2 error accumulation respects semigroup order")
+    void map2ErrorAccumulationRespectsSemigroupOrder() {
+      Semigroup<String> reverseSemigroup = (a, b) -> b + " before " + a;
+      MonadError<ValidatedKind.Witness<String>, String> reverseMonad =
+          Instances.validated(reverseSemigroup);
+
+      Kind<ValidatedKind.Witness<String>, Integer> v1 = VALIDATED.invalid("first");
+      Kind<ValidatedKind.Witness<String>, Integer> v2 = VALIDATED.invalid("second");
+
+      Kind<ValidatedKind.Witness<String>, String> result =
+          reverseMonad.map2(v1, v2, (_, _) -> "test");
+      assertThatValidated(result).isInvalid().hasError("second before first");
+    }
 
     @Test
     @DisplayName("List semigroup accumulates errors into lists")
@@ -636,10 +503,8 @@ class ValidatedMapNTest {
           VALIDATED.widen(Validated.invalid(List.of("error2")));
 
       Kind<ValidatedKind.Witness<List<String>>, String> result =
-          listMonad.map2(v1, v2, (a, b) -> "test");
-
-      Validated<List<String>, String> validated = VALIDATED.narrow(result);
-      assertThatValidated(validated)
+          listMonad.map2(v1, v2, (_, _) -> "test");
+      assertThatValidated(result)
           .isInvalid()
           .hasErrorSatisfying(
               errors -> errors.containsAll(List.of("error1", "error2")), "contains both errors");
@@ -657,10 +522,8 @@ class ValidatedMapNTest {
       Kind<ValidatedKind.Witness<String>, Integer> v3 = VALIDATED.invalid("error3");
 
       Kind<ValidatedKind.Witness<String>, String> result =
-          firstMonad.map3(v1, v2, v3, (a, b, c) -> "test");
-
-      Validated<String, String> validated = VALIDATED.narrow(result);
-      assertThatValidated(validated).isInvalid().hasError("error1");
+          firstMonad.map3(v1, v2, v3, (_, _, _) -> "test");
+      assertThatValidated(result).isInvalid().hasError("error1");
     }
 
     @Test
@@ -676,17 +539,15 @@ class ValidatedMapNTest {
       Kind<ValidatedKind.Witness<String>, Integer> v4 = VALIDATED.invalid("error4");
 
       Kind<ValidatedKind.Witness<String>, String> result =
-          lastMonad.map4(v1, v2, v3, v4, (a, b, c, d) -> "test");
-
-      Validated<String, String> validated = VALIDATED.narrow(result);
-      assertThatValidated(validated).isInvalid().hasError("error4");
+          lastMonad.map4(v1, v2, v3, v4, (_, _, _, _) -> "test");
+      assertThatValidated(result).isInvalid().hasError("error4");
     }
 
     @Test
     @DisplayName("Custom semigroup works with map5")
     void customSemigroupWorksWithMap5() {
       Semigroup<String> countingSemigroup =
-          new Semigroup<String>() {
+          new Semigroup<>() {
             private int count = 0;
 
             @Override
@@ -704,10 +565,8 @@ class ValidatedMapNTest {
       Kind<ValidatedKind.Witness<String>, Integer> v5 = VALIDATED.invalid("E");
 
       Kind<ValidatedKind.Witness<String>, String> result =
-          customMonad.map5(v1, v2, v3, v4, v5, (a, b, c, d, e) -> "test");
-
-      Validated<String, String> validated = VALIDATED.narrow(result);
-      assertThatValidated(validated)
+          customMonad.map5(v1, v2, v3, v4, v5, (_, _, _, _, _) -> "test");
+      assertThatValidated(result)
           .isInvalid()
           .hasErrorSatisfying(
               error ->

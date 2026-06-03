@@ -11,7 +11,6 @@ import org.higherkindedj.hkt.Foldable;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Monoid;
 import org.higherkindedj.hkt.Monoids;
-import org.higherkindedj.hkt.test.contract.Category;
 import org.higherkindedj.hkt.test.contract.TypeClassContract;
 import org.higherkindedj.hkt.test.fixtures.TestFunctions;
 import org.junit.jupiter.api.BeforeEach;
@@ -19,7 +18,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
-@DisplayName("MaybeTraverse Foldable Operations Complete Test Suite")
+@DisplayName("MaybeTraverse — Foldable")
 class MaybeFoldableTest extends MaybeTestBase {
 
   private Foldable<MaybeKind.Witness> foldable;
@@ -38,19 +37,14 @@ class MaybeFoldableTest extends MaybeTestBase {
     validateRequiredFixtures();
   }
 
-  @Nested
-  @DisplayName("Complete Foldable Test Suite")
-  class CompleteFoldableTestSuite {
-
-    @Test
-    @DisplayName("Run complete Foldable test pattern")
-    void runCompleteFoldableTest() {
-      TypeClassContract.<MaybeKind.Witness>foldable(MaybeTraverse.class)
-          .<Integer>instance(foldable)
-          .withKind(justKind)
-          .withOperations(validMonoid, validFoldMapFunction)
-          .verify();
-    }
+  @Test
+  @DisplayName("Foldable contract — operations, validations & exceptions (Foldable has no laws)")
+  void foldableContract() {
+    TypeClassContract.<MaybeKind.Witness>foldable(MaybeTraverse.class)
+        .<Integer>instance(foldable)
+        .withKind(justKind)
+        .withOperations(validMonoid, validFoldMapFunction)
+        .verify();
   }
 
   @Nested
@@ -106,41 +100,6 @@ class MaybeFoldableTest extends MaybeTestBase {
       Function<Integer, Boolean> isNegative = i -> i < 0;
       Boolean orResult = foldable.foldMap(orMonoid, isNegative, justKind);
       assertThat(orResult).isFalse();
-    }
-  }
-
-  @Nested
-  @DisplayName("Individual Test Components")
-  class IndividualComponents {
-
-    @Test
-    @DisplayName("Test operations only")
-    void testOperationsOnly() {
-      TypeClassContract.<MaybeKind.Witness>foldable(MaybeTraverse.class)
-          .<Integer>instance(foldable)
-          .withKind(justKind)
-          .withOperations(validMonoid, validFoldMapFunction)
-          .verifyOnly(Category.OPERATIONS);
-    }
-
-    @Test
-    @DisplayName("Test validations only")
-    void testValidationsOnly() {
-      TypeClassContract.<MaybeKind.Witness>foldable(MaybeTraverse.class)
-          .<Integer>instance(foldable)
-          .withKind(justKind)
-          .withOperations(validMonoid, validFoldMapFunction)
-          .verifyOnly(Category.VALIDATIONS);
-    }
-
-    @Test
-    @DisplayName("Test exception propagation only")
-    void testExceptionPropagationOnly() {
-      TypeClassContract.<MaybeKind.Witness>foldable(MaybeTraverse.class)
-          .<Integer>instance(foldable)
-          .withKind(justKind)
-          .withOperations(validMonoid, validFoldMapFunction)
-          .verifyOnly(Category.EXCEPTIONS);
     }
   }
 
@@ -223,18 +182,19 @@ class MaybeFoldableTest extends MaybeTestBase {
   }
 
   @Nested
-  @DisplayName("Performance Tests")
-  class PerformanceTests {
+  @DisplayName("Short-Circuit Tests")
+  class ShortCircuitTests {
 
     @Test
-    @DisplayName("foldMap() efficient with Nothing values")
-    void foldMapEfficientWithNothingValues() {
-      // Nothing values should not execute function, so even expensive functions are safe
-      Function<Integer, String> expensiveFunc = i -> "expensive:" + i;
+    @DisplayName("foldMap() does not run the function on Nothing")
+    void foldMapDoesNotRunFunctionOnNothing() {
+      Function<Integer, String> throwingFunc =
+          _ -> {
+            throw new AssertionError("function must not run on Nothing");
+          };
 
-      String result = foldable.foldMap(validMonoid, expensiveFunc, nothingKind);
+      String result = foldable.foldMap(validMonoid, throwingFunc, nothingKind);
 
-      // Should complete quickly without calling expensive function
       assertThat(result).isEqualTo(validMonoid.empty());
     }
   }

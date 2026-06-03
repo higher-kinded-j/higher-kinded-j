@@ -12,7 +12,6 @@ import java.util.stream.Stream;
 import org.higherkindedj.hkt.Choice;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Selective;
-import org.higherkindedj.hkt.Semigroup;
 import org.higherkindedj.hkt.Semigroups;
 import org.higherkindedj.hkt.Unit;
 import org.higherkindedj.hkt.laws.SelectiveLaws;
@@ -25,20 +24,16 @@ import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 
 /**
- * Comprehensive tests for {@link ValidatedSelective} with enhanced coverage matching
- * EitherSelective patterns.
+ * Comprehensive tests for {@link ValidatedSelective}, mirroring the EitherSelective coverage.
  *
- * <p>This test class provides complete coverage of all Selective operations including: - Core
- * select() operation with error accumulation - Branch operation with both handlers and error
- * accumulation - WhenS operation with Unit semantics and error accumulation - IfS conditional
- * operation with error accumulation - Error accumulation advantage over Either - Integration
- * scenarios - Performance tests
+ * <p>Where Either short-circuits on the first error, Validated's Selective <em>accumulates</em>
+ * errors from every Invalid source via the configured {@link org.higherkindedj.hkt.Semigroup} —
+ * that accumulation is the behaviour these tests exist to pin down.
  */
 @DisplayName("ValidatedSelective Complete Test Suite")
 class ValidatedSelectiveTest extends ValidatedTestBase {
 
   private ValidatedSelective<String> selective;
-  private Semigroup<String> stringSemigroup;
 
   // Selective-specific test data
   private Kind<ValidatedKind.Witness<String>, Choice<Integer, String>> choiceLeftKind;
@@ -54,13 +49,9 @@ class ValidatedSelectiveTest extends ValidatedTestBase {
 
   @BeforeEach
   void setUpSelective() {
-    stringSemigroup = Semigroups.string(", ");
-    selective = ValidatedSelective.instance(stringSemigroup);
+    selective = ValidatedSelective.instance(Semigroups.string(", "));
     validateMonadFixtures();
-    setUpSelectiveFixtures();
-  }
 
-  private void setUpSelectiveFixtures() {
     // Create Choice instances
     choiceLeftKind = VALIDATED.widen(Validated.valid(Selective.left(DEFAULT_VALID_VALUE)));
     choiceRightKind = VALIDATED.widen(Validated.valid(Selective.right("right-value")));
@@ -91,7 +82,7 @@ class ValidatedSelectiveTest extends ValidatedTestBase {
   class Laws {
 
     @ParameterizedTest(name = "left-pure holds on value {0}")
-    @MethodSource("values")
+    @MethodSource("org.higherkindedj.hkt.validated.ValidatedLawFixtures#values")
     void leftPure(Integer value) {
       SelectiveLaws.assertLeftPure(selective, value, selective.of(validMapper), equalityChecker);
     }
@@ -99,12 +90,7 @@ class ValidatedSelectiveTest extends ValidatedTestBase {
     @ParameterizedTest(name = "right-pure holds on value \"{0}\"")
     @MethodSource("strings")
     void rightPure(String value) {
-      SelectiveLaws.<ValidatedKind.Witness<String>, Integer, String>assertRightPure(
-          selective, value, selective.of(validMapper), equalityChecker);
-    }
-
-    static Stream<Arguments> values() {
-      return Stream.of(Arguments.of(0), Arguments.of(42));
+      SelectiveLaws.assertRightPure(selective, value, selective.of(validMapper), equalityChecker);
     }
 
     static Stream<Arguments> strings() {
@@ -116,38 +102,6 @@ class ValidatedSelectiveTest extends ValidatedTestBase {
   @DisplayName("Operation Tests")
   class OperationTests {
 
-    @Test
-    @DisplayName("All select operations work correctly")
-    void testSelectOperations() {
-      // Delegate to the detailed select tests
-      new SelectOperationTests().selectAppliesFunctionToLeftValue();
-      new SelectOperationTests().selectReturnsRightValue();
-    }
-
-    @Test
-    @DisplayName("All branch operations work correctly")
-    void testBranchOperations() {
-      // Delegate to the detailed branch tests
-      new BranchOperationTests().branchAppliesLeftHandler();
-      new BranchOperationTests().branchAppliesRightHandler();
-    }
-
-    @Test
-    @DisplayName("All whenS operations work correctly")
-    void testWhenSOperations() {
-      // Delegate to the detailed whenS tests
-      new WhenSOperationTests().whenSExecutesEffectWhenTrue();
-      new WhenSOperationTests().whenSSkipsEffectWhenFalse();
-    }
-
-    @Test
-    @DisplayName("All ifS operations work correctly")
-    void testIfSOperations() {
-      // Delegate to the detailed ifS tests
-      new IfSOperationTests().ifSReturnsThenBranchWhenTrue();
-      new IfSOperationTests().ifSReturnsElseBranchWhenFalse();
-    }
-
     @Nested
     @DisplayName("Select Operation Tests")
     class SelectOperationTests {
@@ -157,9 +111,7 @@ class ValidatedSelectiveTest extends ValidatedTestBase {
       void selectAppliesFunctionToLeftValue() {
         Kind<ValidatedKind.Witness<String>, String> result =
             selective.select(choiceLeftKind, selectFunctionKind);
-
-        Validated<String, String> validated = VALIDATED.narrow(result);
-        assertThatValidated(validated).isValid().hasValue("selected:" + DEFAULT_VALID_VALUE);
+        assertThatValidated(result).isValid().hasValue("selected:" + DEFAULT_VALID_VALUE);
       }
 
       @Test
@@ -167,9 +119,7 @@ class ValidatedSelectiveTest extends ValidatedTestBase {
       void selectReturnsRightValue() {
         Kind<ValidatedKind.Witness<String>, String> result =
             selective.select(choiceRightKind, selectFunctionKind);
-
-        Validated<String, String> validated = VALIDATED.narrow(result);
-        assertThatValidated(validated).isValid().hasValue("right-value");
+        assertThatValidated(result).isValid().hasValue("right-value");
       }
 
       @Test
@@ -180,9 +130,7 @@ class ValidatedSelectiveTest extends ValidatedTestBase {
 
         Kind<ValidatedKind.Witness<String>, String> result =
             selective.select(errorChoice, selectFunctionKind);
-
-        Validated<String, String> validated = VALIDATED.narrow(result);
-        assertThatValidated(validated).isInvalid().hasError(DEFAULT_ERROR);
+        assertThatValidated(result).isInvalid().hasError(DEFAULT_ERROR);
       }
 
       @Test
@@ -193,9 +141,7 @@ class ValidatedSelectiveTest extends ValidatedTestBase {
 
         Kind<ValidatedKind.Witness<String>, String> result =
             selective.select(choiceLeftKind, errorFunc);
-
-        Validated<String, String> validated = VALIDATED.narrow(result);
-        assertThatValidated(validated).isInvalid().hasError("function-error");
+        assertThatValidated(result).isInvalid().hasError("function-error");
       }
 
       @Test
@@ -208,9 +154,7 @@ class ValidatedSelectiveTest extends ValidatedTestBase {
 
         Kind<ValidatedKind.Witness<String>, String> result =
             selective.select(errorChoice, errorFunc);
-
-        Validated<String, String> validated = VALIDATED.narrow(result);
-        assertThatValidated(validated).isInvalid().hasError("error1, error2");
+        assertThatValidated(result).isInvalid().hasError("error1, error2");
       }
 
       @Test
@@ -221,10 +165,8 @@ class ValidatedSelectiveTest extends ValidatedTestBase {
 
         Kind<ValidatedKind.Witness<String>, String> result =
             selective.select(choiceRightKind, errorFunc);
-
-        Validated<String, String> validated = VALIDATED.narrow(result);
         // Should return the right value, not the function error
-        assertThatValidated(validated).isValid().hasValue("right-value");
+        assertThatValidated(result).isValid().hasValue("right-value");
       }
     }
 
@@ -237,9 +179,7 @@ class ValidatedSelectiveTest extends ValidatedTestBase {
       void branchAppliesLeftHandler() {
         Kind<ValidatedKind.Witness<String>, String> result =
             selective.branch(choiceLeftKind, leftHandlerKind, rightHandlerKind);
-
-        Validated<String, String> validated = VALIDATED.narrow(result);
-        assertThatValidated(validated).isValid().hasValue("left:" + DEFAULT_VALID_VALUE);
+        assertThatValidated(result).isValid().hasValue("left:" + DEFAULT_VALID_VALUE);
       }
 
       @Test
@@ -247,9 +187,7 @@ class ValidatedSelectiveTest extends ValidatedTestBase {
       void branchAppliesRightHandler() {
         Kind<ValidatedKind.Witness<String>, String> result =
             selective.branch(choiceRightKind, leftHandlerKind, rightHandlerKind);
-
-        Validated<String, String> validated = VALIDATED.narrow(result);
-        assertThatValidated(validated).isValid().hasValue("right:right-value");
+        assertThatValidated(result).isValid().hasValue("right:right-value");
       }
 
       @Test
@@ -260,9 +198,7 @@ class ValidatedSelectiveTest extends ValidatedTestBase {
 
         Kind<ValidatedKind.Witness<String>, String> result =
             selective.branch(errorChoice, leftHandlerKind, rightHandlerKind);
-
-        Validated<String, String> validated = VALIDATED.narrow(result);
-        assertThatValidated(validated).isInvalid().hasError(DEFAULT_ERROR);
+        assertThatValidated(result).isInvalid().hasError(DEFAULT_ERROR);
       }
 
       @Test
@@ -277,9 +213,7 @@ class ValidatedSelectiveTest extends ValidatedTestBase {
 
         Kind<ValidatedKind.Witness<String>, String> result =
             selective.branch(errorChoice, errorLeftHandler, errorRightHandler);
-
-        Validated<String, String> validated = VALIDATED.narrow(result);
-        assertThatValidated(validated).isInvalid().hasError("error1, error2, error3");
+        assertThatValidated(result).isInvalid().hasError("error1, error2, error3");
       }
 
       @Test
@@ -291,9 +225,7 @@ class ValidatedSelectiveTest extends ValidatedTestBase {
 
         Kind<ValidatedKind.Witness<String>, String> leftResult =
             selective.branch(choiceLeftKind, errorLeftHandler, rightHandlerKind);
-
-        Validated<String, String> leftValidated = VALIDATED.narrow(leftResult);
-        assertThatValidated(leftValidated).isInvalid().hasError("left-error");
+        assertThatValidated(leftResult).isInvalid().hasError("left-error");
 
         // When choice is right, only right handler error should accumulate
         Kind<ValidatedKind.Witness<String>, Function<String, String>> errorRightHandler =
@@ -301,9 +233,7 @@ class ValidatedSelectiveTest extends ValidatedTestBase {
 
         Kind<ValidatedKind.Witness<String>, String> rightResult =
             selective.branch(choiceRightKind, leftHandlerKind, errorRightHandler);
-
-        Validated<String, String> rightValidated = VALIDATED.narrow(rightResult);
-        assertThatValidated(rightValidated).isInvalid().hasError("right-error");
+        assertThatValidated(rightResult).isInvalid().hasError("right-error");
       }
     }
 
@@ -316,9 +246,7 @@ class ValidatedSelectiveTest extends ValidatedTestBase {
       void whenSExecutesEffectWhenTrue() {
         Kind<ValidatedKind.Witness<String>, Unit> result =
             selective.whenS(conditionTrue, unitEffectKind);
-
-        Validated<String, Unit> validated = VALIDATED.narrow(result);
-        assertThatValidated(validated).isValid().hasValue(Unit.INSTANCE);
+        assertThatValidated(result).isValid().hasValue(Unit.INSTANCE);
       }
 
       @Test
@@ -326,9 +254,7 @@ class ValidatedSelectiveTest extends ValidatedTestBase {
       void whenSSkipsEffectWhenFalse() {
         Kind<ValidatedKind.Witness<String>, Unit> result =
             selective.whenS(conditionFalse, unitEffectKind);
-
-        Validated<String, Unit> validated = VALIDATED.narrow(result);
-        assertThatValidated(validated).isValid().hasValue(Unit.INSTANCE);
+        assertThatValidated(result).isValid().hasValue(Unit.INSTANCE);
       }
 
       @Test
@@ -338,9 +264,7 @@ class ValidatedSelectiveTest extends ValidatedTestBase {
 
         Kind<ValidatedKind.Witness<String>, Unit> result =
             selective.whenS(errorCondition, unitEffectKind);
-
-        Validated<String, Unit> validated = VALIDATED.narrow(result);
-        assertThatValidated(validated).isInvalid().hasError(DEFAULT_ERROR);
+        assertThatValidated(result).isInvalid().hasError(DEFAULT_ERROR);
       }
 
       @Test
@@ -351,9 +275,7 @@ class ValidatedSelectiveTest extends ValidatedTestBase {
 
         Kind<ValidatedKind.Witness<String>, Unit> result =
             selective.whenS(errorCondition, errorEffect);
-
-        Validated<String, Unit> validated = VALIDATED.narrow(result);
-        assertThatValidated(validated).isInvalid().hasError("error1, error2");
+        assertThatValidated(result).isInvalid().hasError("error1, error2");
       }
 
       @Test
@@ -363,10 +285,8 @@ class ValidatedSelectiveTest extends ValidatedTestBase {
 
         Kind<ValidatedKind.Witness<String>, Unit> result =
             selective.whenS(conditionFalse, errorEffect);
-
-        Validated<String, Unit> validated = VALIDATED.narrow(result);
         // Should return Valid(Unit), not accumulate the effect error
-        assertThatValidated(validated).isValid().hasValue(Unit.INSTANCE);
+        assertThatValidated(result).isValid().hasValue(Unit.INSTANCE);
       }
     }
 
@@ -379,11 +299,8 @@ class ValidatedSelectiveTest extends ValidatedTestBase {
       void ifSReturnsThenBranchWhenTrue() {
         Kind<ValidatedKind.Witness<String>, Integer> result =
             selective.ifS(conditionTrue, thenBranch, elseBranch);
-
-        Validated<String, Integer> validated = VALIDATED.narrow(result);
-        assertThatValidated(validated).isValid().hasValue(DEFAULT_VALID_VALUE);
-
-        assertThat(validated).isSameAs(VALIDATED.narrow(thenBranch));
+        assertThatValidated(result).isValid().hasValue(DEFAULT_VALID_VALUE);
+        assertThat(result).isSameAs(thenBranch);
       }
 
       @Test
@@ -391,11 +308,8 @@ class ValidatedSelectiveTest extends ValidatedTestBase {
       void ifSReturnsElseBranchWhenFalse() {
         Kind<ValidatedKind.Witness<String>, Integer> result =
             selective.ifS(conditionFalse, thenBranch, elseBranch);
-
-        Validated<String, Integer> validated = VALIDATED.narrow(result);
-        assertThatValidated(validated).isValid().hasValue(ALTERNATIVE_VALID_VALUE);
-
-        assertThat(validated).isSameAs(VALIDATED.narrow(elseBranch));
+        assertThatValidated(result).isValid().hasValue(ALTERNATIVE_VALID_VALUE);
+        assertThat(result).isSameAs(elseBranch);
       }
 
       @Test
@@ -405,9 +319,7 @@ class ValidatedSelectiveTest extends ValidatedTestBase {
 
         Kind<ValidatedKind.Witness<String>, Integer> result =
             selective.ifS(errorCondition, thenBranch, elseBranch);
-
-        Validated<String, Integer> validated = VALIDATED.narrow(result);
-        assertThatValidated(validated).isInvalid().hasError(DEFAULT_ERROR);
+        assertThatValidated(result).isInvalid().hasError(DEFAULT_ERROR);
       }
 
       @Test
@@ -419,9 +331,7 @@ class ValidatedSelectiveTest extends ValidatedTestBase {
 
         Kind<ValidatedKind.Witness<String>, Integer> result =
             selective.ifS(errorCondition, errorThen, errorElse);
-
-        Validated<String, Integer> validated = VALIDATED.narrow(result);
-        assertThatValidated(validated).isInvalid().hasError("error1, error2, error3");
+        assertThatValidated(result).isInvalid().hasError("error1, error2, error3");
       }
 
       @Test
@@ -432,25 +342,17 @@ class ValidatedSelectiveTest extends ValidatedTestBase {
 
         Kind<ValidatedKind.Witness<String>, Integer> thenResult =
             selective.ifS(conditionTrue, errorThen, elseBranch);
-
-        Validated<String, Integer> thenValidated = VALIDATED.narrow(thenResult);
-        assertThatValidated(thenValidated).isInvalid().hasError("then-error");
+        assertThatValidated(thenResult).isInvalid().hasError("then-error");
 
         // When condition is false, only else branch error should accumulate
         Kind<ValidatedKind.Witness<String>, Integer> errorElse = invalidKind("else-error");
 
         Kind<ValidatedKind.Witness<String>, Integer> elseResult =
             selective.ifS(conditionFalse, thenBranch, errorElse);
-
-        Validated<String, Integer> elseValidated = VALIDATED.narrow(elseResult);
-        assertThatValidated(elseValidated).isInvalid().hasError("else-error");
+        assertThatValidated(elseResult).isInvalid().hasError("else-error");
       }
     }
   }
-
-  @Nested
-  @DisplayName("Individual Components (removed — replaced by Laws nested class)")
-  class IndividualComponents {}
 
   @Nested
   @DisplayName("Edge Cases Tests")
@@ -465,9 +367,7 @@ class ValidatedSelectiveTest extends ValidatedTestBase {
 
       Kind<ValidatedKind.Witness<String>, Integer> doubled = selective.map(i -> i * 2, start);
       Kind<ValidatedKind.Witness<String>, Unit> result = selective.whenS_(condition, doubled);
-
-      Validated<String, Unit> validated = VALIDATED.narrow(result);
-      assertThatValidated(validated).isValid().hasValue(Unit.INSTANCE);
+      assertThatValidated(result).isValid().hasValue(Unit.INSTANCE);
     }
 
     @Test
@@ -478,26 +378,7 @@ class ValidatedSelectiveTest extends ValidatedTestBase {
 
       Kind<ValidatedKind.Witness<String>, Integer> outerResult =
           selective.ifS(conditionTrue, innerResult, elseBranch);
-
-      Validated<String, Integer> validated = VALIDATED.narrow(outerResult);
-      assertThatValidated(validated).isValid().hasValue(DEFAULT_VALID_VALUE);
-    }
-
-    @Test
-    @DisplayName("Select with null value in Choice")
-    void selectWithNullValueInChoice() {
-      Choice<Integer, String> choiceWithNull = Selective.left(null);
-      Kind<ValidatedKind.Witness<String>, Choice<Integer, String>> choiceKind =
-          VALIDATED.widen(Validated.valid(choiceWithNull));
-
-      Function<Integer, String> nullSafeFunc = i -> i == null ? "null-value" : "value:" + i;
-      Kind<ValidatedKind.Witness<String>, Function<Integer, String>> funcKind =
-          VALIDATED.widen(Validated.valid(nullSafeFunc));
-
-      Kind<ValidatedKind.Witness<String>, String> result = selective.select(choiceKind, funcKind);
-
-      Validated<String, String> validated = VALIDATED.narrow(result);
-      assertThatValidated(validated).isValid().hasValue("null-value");
+      assertThatValidated(outerResult).isValid().hasValue(DEFAULT_VALID_VALUE);
     }
 
     @Test
@@ -510,9 +391,7 @@ class ValidatedSelectiveTest extends ValidatedTestBase {
 
       Kind<ValidatedKind.Witness<String>, String> result =
           selective.select(errorChoice, errorFunc1);
-
-      Validated<String, String> validated = VALIDATED.narrow(result);
-      assertThatValidated(validated)
+      assertThatValidated(result)
           .isInvalid()
           .hasErrorSatisfying(
               error -> error.contains("error1") && error.contains("error2"),
@@ -552,9 +431,7 @@ class ValidatedSelectiveTest extends ValidatedTestBase {
 
       Kind<ValidatedKind.Witness<String>, Integer> result =
           selective.ifS(needsRangeCheck, rangeChecked, validated);
-
-      Validated<String, Integer> resultValidated = VALIDATED.narrow(result);
-      assertThatValidated(resultValidated).isValid();
+      assertThatValidated(result).isValid();
     }
 
     @Test
@@ -597,9 +474,7 @@ class ValidatedSelectiveTest extends ValidatedTestBase {
 
       Kind<ValidatedKind.Witness<String>, Integer> result =
           selective.ifS(invalidCondition, invalidThen, invalidElse);
-
-      Validated<String, Integer> validated = VALIDATED.narrow(result);
-      assertThatValidated(validated)
+      assertThatValidated(result)
           .isInvalid()
           .hasErrorSatisfying(
               error ->
@@ -624,13 +499,11 @@ class ValidatedSelectiveTest extends ValidatedTestBase {
       // This should accumulate all errors
       Kind<ValidatedKind.Witness<String>, Integer> combined =
           selective.flatMap(
-              b1 -> selective.flatMap(b2 -> selective.ifS(condition1, step2, step3), condition2),
+              _ -> selective.flatMap(_ -> selective.ifS(condition1, step2, step3), condition2),
               condition1);
-
-      Validated<String, Integer> result = VALIDATED.narrow(combined);
-      assertThatValidated(result).isInvalid();
-      // Verify that errors were accumulated
-      assertThat(result.getError()).contains("step1-error");
+      assertThatValidated(combined)
+          .isInvalid()
+          .hasErrorSatisfying(error -> error.contains("step1-error"), "contains step1 error");
     }
   }
 
@@ -645,9 +518,7 @@ class ValidatedSelectiveTest extends ValidatedTestBase {
 
       Kind<ValidatedKind.Witness<String>, Unit> result =
           selective.whenS(conditionTrue, errorEffect);
-
-      Validated<String, Unit> validated = VALIDATED.narrow(result);
-      assertThatValidated(validated).isInvalid().hasError("effect-error");
+      assertThatValidated(result).isInvalid().hasError("effect-error");
     }
 
     @Test
@@ -658,9 +529,7 @@ class ValidatedSelectiveTest extends ValidatedTestBase {
 
       Kind<ValidatedKind.Witness<String>, String> result =
           selective.select(errorChoice, selectFunctionKind);
-
-      Validated<String, String> validated = VALIDATED.narrow(result);
-      assertThatValidated(validated).isInvalid().hasError("choice-error");
+      assertThatValidated(result).isInvalid().hasError("choice-error");
     }
 
     @Test
@@ -675,12 +544,14 @@ class ValidatedSelectiveTest extends ValidatedTestBase {
 
       Kind<ValidatedKind.Witness<String>, String> result =
           selective.branch(errorChoice, errorLeft, errorRight);
-
-      Validated<String, String> validated = VALIDATED.narrow(result);
-      String error = validated.getError();
-      assertThat(error).contains("choice-error");
-      assertThat(error).contains("left-error");
-      assertThat(error).contains("right-error");
+      assertThatValidated(result)
+          .isInvalid()
+          .hasErrorSatisfying(
+              error ->
+                  error.contains("choice-error")
+                      && error.contains("left-error")
+                      && error.contains("right-error"),
+              "accumulates choice and both handler errors");
     }
 
     @Test
@@ -692,12 +563,14 @@ class ValidatedSelectiveTest extends ValidatedTestBase {
 
       Kind<ValidatedKind.Witness<String>, Integer> result =
           selective.ifS(errorCondition, errorThen, errorElse);
-
-      Validated<String, Integer> validated = VALIDATED.narrow(result);
-      String error = validated.getError();
-      assertThat(error).contains("condition-error");
-      assertThat(error).contains("then-error");
-      assertThat(error).contains("else-error");
+      assertThatValidated(result)
+          .isInvalid()
+          .hasErrorSatisfying(
+              error ->
+                  error.contains("condition-error")
+                      && error.contains("then-error")
+                      && error.contains("else-error"),
+              "accumulates condition and both branch errors");
     }
   }
 }

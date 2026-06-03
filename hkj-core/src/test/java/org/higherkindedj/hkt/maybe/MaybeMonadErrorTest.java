@@ -4,6 +4,7 @@ package org.higherkindedj.hkt.maybe;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.higherkindedj.hkt.assertions.MaybeAssert.assertThatMaybe;
 import static org.higherkindedj.hkt.instances.Witnesses.*;
 
 import java.util.function.Function;
@@ -18,12 +19,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
-/**
- * MaybeMonad Error Handling Test Suite using new TypeClassTest API.
- *
- * <p>Demonstrates migration to the new fluent API whilst maintaining full test coverage.
- */
-@DisplayName("MaybeMonad Error Handling Complete Test Suite")
+@DisplayName("MaybeMonad — error handling")
 class MaybeMonadErrorTest extends MaybeTestBase {
 
   private MonadError<MaybeKind.Witness, Unit> monadError;
@@ -33,49 +29,26 @@ class MaybeMonadErrorTest extends MaybeTestBase {
   @BeforeEach
   void setUpMonadError() {
     monadError = Instances.monadError(maybe());
-    validHandler = unit -> monadError.of(-1);
+    validHandler = _ -> monadError.of(-1);
     validFallback = monadError.of(-999);
     validateMonadFixtures();
   }
 
-  @Nested
-  @DisplayName("Complete Test Suite Using New API")
-  class CompleteTestSuite {
-
-    @Test
-    @DisplayName("Run complete MonadError test pattern")
-    void runCompleteMonadErrorTest() {
-      TypeClassContract.<MaybeKind.Witness, Unit>monadError(MaybeMonad.class)
-          .<Integer>instance(monadError)
-          .<String>withKind(validKind)
-          .withMonadOperations(validMapper, validFlatMapper, validFunctionKind)
-          .withErrorHandling(validHandler, validFallback)
-          .withLawsTesting(testValue, testFunction, chainFunction, equalityChecker)
-          .verify();
-    }
-
-    @Test
-    @DisplayName("Selective testing - operations and laws only")
-    void selectiveTestingOperationsAndLaws() {
-      TypeClassContract.<MaybeKind.Witness, Unit>monadError(MaybeMonad.class)
-          .<Integer>instance(monadError)
-          .<String>withKind(validKind)
-          .withMonadOperations(validMapper, validFlatMapper, validFunctionKind)
-          .withErrorHandling(validHandler, validFallback)
-          .withLawsTesting(testValue, testFunction, chainFunction, equalityChecker)
-          .verifyOnly(Category.OPERATIONS, Category.LAWS);
-    }
-
-    @Test
-    @DisplayName("Quick smoke test - operations only")
-    void quickSmokeTest() {
-      TypeClassContract.<MaybeKind.Witness, Unit>monadError(MaybeMonad.class)
-          .<Integer>instance(monadError)
-          .<String>withKind(validKind)
-          .withMonadOperations(validMapper, validFlatMapper, validFunctionKind)
-          .withErrorHandling(validHandler, validFallback)
-          .verifyOnly(Category.OPERATIONS, Category.VALIDATIONS);
-    }
+  /**
+   * Operations, null-argument validation and exception propagation on the MonadError instance, in a
+   * single pass. The Monad/MonadError laws are verified parameterised in {@link MaybeMonadTest}, so
+   * this contract deliberately omits {@link Category#LAWS} rather than re-running them.
+   */
+  @Test
+  @DisplayName(
+      "MonadError contract — operations, validations & exceptions (Monad laws in MaybeMonadTest)")
+  void monadErrorContract() {
+    TypeClassContract.<MaybeKind.Witness, Unit>monadError(MaybeMonad.class)
+        .<Integer>instance(monadError)
+        .<String>withKind(validKind)
+        .withMonadOperations(validMapper, validFlatMapper, validFunctionKind)
+        .withErrorHandling(validHandler, validFallback)
+        .verifyOnly(Category.OPERATIONS, Category.VALIDATIONS, Category.EXCEPTIONS);
   }
 
   @Nested
@@ -85,170 +58,82 @@ class MaybeMonadErrorTest extends MaybeTestBase {
     @Test
     @DisplayName("handleErrorWith() recovers from Nothing")
     void handleErrorWithRecoversFromNothing() {
-      Kind<MaybeKind.Witness, Integer> nothingValue = nothingKind();
-
-      Kind<MaybeKind.Witness, Integer> result =
-          monadError.handleErrorWith(nothingValue, validHandler);
-
-      Maybe<Integer> maybe = narrowToMaybe(result);
-      assertThat(maybe.isJust()).isTrue();
-      assertThat(maybe.get()).isEqualTo(-1);
+      var result = monadError.handleErrorWith(nothingKind(), validHandler);
+      assertThatMaybe(result).isJust().hasValue(-1);
     }
 
     @Test
     @DisplayName("handleErrorWith() passes through Just")
     void handleErrorWithPassesThroughJust() {
-      Kind<MaybeKind.Witness, Integer> result = monadError.handleErrorWith(validKind, validHandler);
-
+      var result = monadError.handleErrorWith(validKind, validHandler);
       assertThat(result).isSameAs(validKind);
-      Maybe<Integer> maybe = narrowToMaybe(result);
-      assertThat(maybe.isJust()).isTrue();
-      assertThat(maybe.get()).isEqualTo(DEFAULT_JUST_VALUE);
+      assertThatMaybe(result).isJust().hasValue(DEFAULT_JUST_VALUE);
     }
 
     @Test
     @DisplayName("raiseError() creates Nothing")
     void raiseErrorCreatesNothing() {
-      Kind<MaybeKind.Witness, Integer> result = monadError.raiseError(Unit.INSTANCE);
-
-      Maybe<Integer> maybe = narrowToMaybe(result);
-      assertThat(maybe.isNothing()).isTrue();
+      var result = monadError.raiseError(Unit.INSTANCE);
+      assertThatMaybe(result).isNothing();
     }
 
     @Test
     @DisplayName("raiseError() with null Unit still creates Nothing")
     void raiseErrorWithNullCreatesNothing() {
-      Kind<MaybeKind.Witness, Integer> result = monadError.raiseError(null);
-
-      Maybe<Integer> maybe = narrowToMaybe(result);
-      assertThat(maybe.isNothing()).isTrue();
+      var result = monadError.raiseError(null);
+      assertThatMaybe(result).isNothing();
     }
 
     @Test
     @DisplayName("recoverWith() uses fallback on Nothing")
     void recoverWithUsesFallbackOnNothing() {
-      Kind<MaybeKind.Witness, Integer> nothingValue = nothingKind();
-
-      Kind<MaybeKind.Witness, Integer> result = monadError.recoverWith(nothingValue, validFallback);
-
+      var result = monadError.recoverWith(nothingKind(), validFallback);
       assertThat(result).isSameAs(validFallback);
-      Maybe<Integer> maybe = narrowToMaybe(result);
-      assertThat(maybe.isJust()).isTrue();
-      assertThat(maybe.get()).isEqualTo(-999);
+      assertThatMaybe(result).isJust().hasValue(-999);
     }
 
     @Test
     @DisplayName("recoverWith() passes through Just")
     void recoverWithPassesThroughJust() {
-      Kind<MaybeKind.Witness, Integer> result = monadError.recoverWith(validKind, validFallback);
-
+      var result = monadError.recoverWith(validKind, validFallback);
       assertThat(result).isSameAs(validKind);
     }
 
     @Test
     @DisplayName("recover() uses value on Nothing")
     void recoverUsesValueOnNothing() {
-      Kind<MaybeKind.Witness, Integer> nothingValue = nothingKind();
-
-      Kind<MaybeKind.Witness, Integer> result = monadError.recover(nothingValue, 100);
-
-      Maybe<Integer> maybe = narrowToMaybe(result);
-      assertThat(maybe.isJust()).isTrue();
-      assertThat(maybe.get()).isEqualTo(100);
+      var result = monadError.recover(nothingKind(), 100);
+      assertThatMaybe(result).isJust().hasValue(100);
     }
 
     @Test
     @DisplayName("recover() passes through Just")
     void recoverPassesThroughJust() {
-      Kind<MaybeKind.Witness, Integer> result = monadError.recover(validKind, 100);
-
-      // recover uses handleError which creates a new Maybe
-      Maybe<Integer> maybe = narrowToMaybe(result);
-      assertThat(maybe.isJust()).isTrue();
-      assertThat(maybe.get()).isEqualTo(DEFAULT_JUST_VALUE);
+      // recover uses handleError, which creates a new Maybe rather than reusing the input
+      var result = monadError.recover(validKind, 100);
+      assertThatMaybe(result).isJust().hasValue(DEFAULT_JUST_VALUE);
     }
 
     @Test
-    @DisplayName("recover() with null value creates Just(null)")
-    void recoverWithNullValueCreatesJustNull() {
-      Kind<MaybeKind.Witness, Integer> nothingValue = nothingKind();
-
-      Kind<MaybeKind.Witness, Integer> result = monadError.recover(nothingValue, null);
-
-      Maybe<Integer> maybe = narrowToMaybe(result);
-      assertThat(maybe.isNothing()).isTrue(); // fromNullable(null) creates Nothing
+    @DisplayName("recover() with null value creates Nothing (fromNullable semantics)")
+    void recoverWithNullValueCreatesNothing() {
+      var result = monadError.recover(nothingKind(), null);
+      assertThatMaybe(result).isNothing();
     }
 
     @Test
     @DisplayName("handleError() transforms error to value")
     void handleErrorTransformsErrorToValue() {
-      Kind<MaybeKind.Witness, Integer> nothingValue = nothingKind();
-
-      Function<Unit, Integer> errorHandler = unit -> 999;
-      Kind<MaybeKind.Witness, Integer> result = monadError.handleError(nothingValue, errorHandler);
-
-      Maybe<Integer> maybe = narrowToMaybe(result);
-      assertThat(maybe.isJust()).isTrue();
-      assertThat(maybe.get()).isEqualTo(999);
+      Function<Unit, Integer> errorHandler = _ -> 999;
+      var result = monadError.handleError(nothingKind(), errorHandler);
+      assertThatMaybe(result).isJust().hasValue(999);
     }
 
     @Test
     @DisplayName("zero() returns Nothing")
     void zeroReturnsNothing() {
-      Kind<MaybeKind.Witness, Integer> zero = Instances.monadZero(maybe()).zero();
-
-      Maybe<Integer> maybe = narrowToMaybe(zero);
-      assertThat(maybe.isNothing()).isTrue();
-    }
-  }
-
-  @Nested
-  @DisplayName("Individual Components")
-  class IndividualComponents {
-
-    @Test
-    @DisplayName("Test operations only")
-    void testOperationsOnly() {
-      TypeClassContract.<MaybeKind.Witness, Unit>monadError(MaybeMonad.class)
-          .<Integer>instance(monadError)
-          .<String>withKind(validKind)
-          .withMonadOperations(validMapper, validFlatMapper, validFunctionKind)
-          .withErrorHandling(validHandler, validFallback)
-          .verifyOnly(Category.OPERATIONS);
-    }
-
-    @Test
-    @DisplayName("Test validations only")
-    void testValidationsOnly() {
-      TypeClassContract.<MaybeKind.Witness, Unit>monadError(MaybeMonad.class)
-          .<Integer>instance(monadError)
-          .<String>withKind(validKind)
-          .withMonadOperations(validMapper, validFlatMapper, validFunctionKind)
-          .withErrorHandling(validHandler, validFallback)
-          .verifyOnly(Category.VALIDATIONS);
-    }
-
-    @Test
-    @DisplayName("Test exception propagation only")
-    void testExceptionPropagationOnly() {
-      TypeClassContract.<MaybeKind.Witness, Unit>monadError(MaybeMonad.class)
-          .<Integer>instance(monadError)
-          .<String>withKind(validKind)
-          .withMonadOperations(validMapper, validFlatMapper, validFunctionKind)
-          .withErrorHandling(validHandler, validFallback)
-          .verifyOnly(Category.EXCEPTIONS);
-    }
-
-    @Test
-    @DisplayName("Test laws only")
-    void testLawsOnly() {
-      TypeClassContract.<MaybeKind.Witness, Unit>monadError(MaybeMonad.class)
-          .<Integer>instance(monadError)
-          .<String>withKind(validKind)
-          .withMonadOperations(validMapper, validFlatMapper, validFunctionKind)
-          .withErrorHandling(validHandler, validFallback)
-          .withLawsTesting(testValue, testFunction, chainFunction, equalityChecker)
-          .verifyOnly(Category.LAWS);
+      var zero = Instances.monadZero(maybe()).zero();
+      assertThatMaybe(zero).isNothing();
     }
   }
 
@@ -260,56 +145,45 @@ class MaybeMonadErrorTest extends MaybeTestBase {
     @DisplayName("Error handling with Unit.INSTANCE")
     void errorHandlingWithUnitInstance() {
       Kind<MaybeKind.Witness, Integer> nothing = monadError.raiseError(Unit.INSTANCE);
-
-      Function<Unit, Kind<MaybeKind.Witness, Integer>> handler = unit -> monadError.of(0);
+      Function<Unit, Kind<MaybeKind.Witness, Integer>> handler = _ -> monadError.of(0);
 
       Kind<MaybeKind.Witness, Integer> result = monadError.handleErrorWith(nothing, handler);
-
-      Maybe<Integer> maybe = narrowToMaybe(result);
-      assertThat(maybe.isJust()).isTrue();
-      assertThat(maybe.get()).isEqualTo(0);
+      assertThatMaybe(result).isJust().hasValue(0);
     }
 
     @Test
     @DisplayName("Chained error recovery")
     void chainedErrorRecovery() {
-      Kind<MaybeKind.Witness, Integer> start = nothingKind();
-
       Kind<MaybeKind.Witness, Integer> result =
           monadError.handleErrorWith(
-              start,
-              unit -> {
+              nothingKind(),
+              _ -> {
                 // First recovery attempt - also fails
                 Kind<MaybeKind.Witness, Integer> firstAttempt =
                     monadError.raiseError(Unit.INSTANCE);
                 // Second recovery - succeeds
-                return monadError.handleErrorWith(firstAttempt, u -> monadError.of(999));
+                return monadError.handleErrorWith(firstAttempt, _ -> monadError.of(999));
               });
-
-      Maybe<Integer> maybe = narrowToMaybe(result);
-      assertThat(maybe.isJust()).isTrue();
-      assertThat(maybe.get()).isEqualTo(999);
+      assertThatMaybe(result).isJust().hasValue(999);
     }
 
     @Test
     @DisplayName("Exception propagation in handleErrorWith handler")
     void exceptionPropagationInHandler() {
-      Kind<MaybeKind.Witness, Integer> nothingValue = nothingKind();
       RuntimeException testException = new RuntimeException("Handler exception");
-
       Function<Unit, Kind<MaybeKind.Witness, Integer>> throwingHandler =
-          unit -> {
+          _ -> {
             throw testException;
           };
 
-      assertThatThrownBy(() -> monadError.handleErrorWith(nothingValue, throwingHandler))
+      assertThatThrownBy(() -> monadError.handleErrorWith(nothingKind(), throwingHandler))
           .isSameAs(testException);
     }
 
     @Test
     @DisplayName("Mixing map, flatMap, and error recovery")
     void mixingMapFlatMapAndErrorRecovery() {
-      Kind<MaybeKind.Witness, Integer> start = justKind(10);
+      var start = justKind(10);
 
       Kind<MaybeKind.Witness, String> result =
           monadError.flatMap(
@@ -320,71 +194,53 @@ class MaybeMonadErrorTest extends MaybeTestBase {
                 return monadError.map(x -> "Value:" + x, monadError.of(i * 2));
               },
               start);
+      result = monadError.handleErrorWith(result, _ -> monadError.of("Recovered"));
 
-      result = monadError.handleErrorWith(result, unit -> monadError.of("Recovered"));
-
-      Maybe<String> maybe = narrowToMaybe(result);
-      assertThat(maybe.isJust()).isTrue();
-      assertThat(maybe.get()).isEqualTo("Value:20");
+      assertThatMaybe(result).isJust().hasValue("Value:20");
     }
 
     @Test
     @DisplayName("Deep error recovery chain")
     void deepErrorRecoveryChain() {
-      Kind<MaybeKind.Witness, Integer> start = nothingKind();
-
-      Kind<MaybeKind.Witness, Integer> result = start;
+      Kind<MaybeKind.Witness, Integer> result = nothingKind();
       for (int i = 0; i < 10; i++) {
         final int index = i;
         result =
             monadError.handleErrorWith(
                 result,
-                unit -> {
+                _ -> {
                   if (index < 9) {
                     return monadError.raiseError(Unit.INSTANCE); // Keep failing
                   }
                   return monadError.of(100); // Finally succeed
                 });
       }
-
-      Maybe<Integer> maybe = narrowToMaybe(result);
-      assertThat(maybe.isJust()).isTrue();
-      assertThat(maybe.get()).isEqualTo(100);
+      assertThatMaybe(result).isJust().hasValue(100);
     }
 
     @Test
     @DisplayName("recoverWith with Nothing fallback")
     void recoverWithNothingFallback() {
-      Kind<MaybeKind.Witness, Integer> nothingValue = nothingKind();
       Kind<MaybeKind.Witness, Integer> nothingFallback = nothingKind();
 
       Kind<MaybeKind.Witness, Integer> result =
-          monadError.recoverWith(nothingValue, nothingFallback);
-
+          monadError.recoverWith(nothingKind(), nothingFallback);
       assertThat(result).isSameAs(nothingFallback);
-      Maybe<Integer> maybe = narrowToMaybe(result);
-      assertThat(maybe.isNothing()).isTrue();
+      assertThatMaybe(result).isNothing();
     }
 
     @Test
     @DisplayName("Multiple error recovery strategies")
     void multipleErrorRecoveryStrategies() {
-      Kind<MaybeKind.Witness, Integer> nothingValue = nothingKind();
-
-      // Strategy 1: handleErrorWith
       Kind<MaybeKind.Witness, Integer> strategy1 =
-          monadError.handleErrorWith(nothingValue, unit -> monadError.of(1));
-
-      // Strategy 2: recoverWith
+          monadError.handleErrorWith(nothingKind(), _ -> monadError.of(1));
       Kind<MaybeKind.Witness, Integer> strategy2 =
-          monadError.recoverWith(nothingValue, monadError.of(2));
+          monadError.recoverWith(nothingKind(), monadError.of(2));
+      Kind<MaybeKind.Witness, Integer> strategy3 = monadError.recover(nothingKind(), 3);
 
-      // Strategy 3: recover
-      Kind<MaybeKind.Witness, Integer> strategy3 = monadError.recover(nothingValue, 3);
-
-      assertThat(narrowToMaybe(strategy1).get()).isEqualTo(1);
-      assertThat(narrowToMaybe(strategy2).get()).isEqualTo(2);
-      assertThat(narrowToMaybe(strategy3).get()).isEqualTo(3);
+      assertThatMaybe(strategy1).isJust().hasValue(1);
+      assertThatMaybe(strategy2).isJust().hasValue(2);
+      assertThatMaybe(strategy3).isJust().hasValue(3);
     }
   }
 
@@ -397,30 +253,22 @@ class MaybeMonadErrorTest extends MaybeTestBase {
     void validationPipeline() {
       Function<Integer, Maybe<Integer>> validatePositive =
           i -> i > 0 ? Maybe.just(i) : Maybe.nothing();
-
       Function<Integer, Maybe<Integer>> validateRange =
           i -> i <= 100 ? Maybe.just(i) : Maybe.nothing();
-
       Function<Integer, Maybe<String>> format = i -> Maybe.just("Valid: " + i);
 
-      // Success case
       Maybe<String> success = validatePositive.apply(50).flatMap(validateRange).flatMap(format);
+      assertThatMaybe(success).isJust().hasValue("Valid: 50");
 
-      assertThat(success.isJust()).isTrue();
-      assertThat(success.get()).isEqualTo("Valid: 50");
-
-      // Failure case
       Maybe<String> failure = validatePositive.apply(-5).flatMap(validateRange).flatMap(format);
-
-      assertThat(failure.isNothing()).isTrue();
+      assertThatMaybe(failure).isNothing();
     }
 
     @Test
     @DisplayName("Real-world scenario: error recovery with fallback")
     void errorRecoveryWithFallback() {
-      Function<String, Maybe<String>> primarySource = id -> Maybe.nothing();
-
-      Function<String, Maybe<String>> fallbackSource = id -> Maybe.just("fallback-data");
+      Function<String, Maybe<String>> primarySource = _ -> Maybe.nothing();
+      Function<String, Maybe<String>> fallbackSource = _ -> Maybe.just("fallback-data");
 
       String id = "user-123";
       Maybe<String> result =
@@ -429,52 +277,7 @@ class MaybeMonadErrorTest extends MaybeTestBase {
               .map(Maybe::just) // If primary succeeds
               .orElseGet(() -> fallbackSource.apply(id)); // If primary fails, try fallback
 
-      assertThat(result.get()).isEqualTo("fallback-data");
-    }
-
-    @Test
-    @DisplayName("Real-world scenario: optional chaining")
-    void optionalChaining() {
-      record User(String name, Maybe<String> email) {}
-      record Email(String address) {}
-
-      User userWithEmail = new User("Alice", Maybe.just("alice@example.com"));
-      User userWithoutEmail = new User("Bob", Maybe.nothing());
-
-      Function<User, Maybe<Email>> getEmail = user -> user.email().map(Email::new);
-
-      Maybe<Email> aliceEmail = getEmail.apply(userWithEmail);
-      Maybe<Email> bobEmail = getEmail.apply(userWithoutEmail);
-
-      assertThat(aliceEmail.isJust()).isTrue();
-      assertThat(aliceEmail.get().address()).isEqualTo("alice@example.com");
-      assertThat(bobEmail.isNothing()).isTrue();
-    }
-
-    @Test
-    @DisplayName("Real-world scenario: safe division")
-    void safeDivision() {
-      Function<Integer, Function<Integer, Maybe<Integer>>> safeDivide =
-          divisor ->
-              dividend -> {
-                if (divisor == 0) {
-                  return Maybe.nothing();
-                }
-                return Maybe.just(dividend / divisor);
-              };
-
-      // Success case
-      Maybe<Integer> result1 = safeDivide.apply(2).apply(10);
-      assertThat(result1.isJust()).isTrue();
-      assertThat(result1.get()).isEqualTo(5);
-
-      // Failure case - division by zero
-      Maybe<Integer> result2 = safeDivide.apply(0).apply(10);
-      assertThat(result2.isNothing()).isTrue();
-
-      // Recovery
-      Integer finalResult = result2.orElseGet(() -> safeDivide.apply(1).apply(10).orElse(-1));
-      assertThat(finalResult).isEqualTo(10);
+      assertThatMaybe(result).isJust().hasValue("fallback-data");
     }
   }
 
@@ -485,15 +288,12 @@ class MaybeMonadErrorTest extends MaybeTestBase {
     @Test
     @DisplayName("zero() is consistent with raiseError()")
     void zeroIsConsistentWithRaiseError() {
-      Kind<MaybeKind.Witness, Integer> zero = Instances.monadZero(maybe()).zero();
-      Kind<MaybeKind.Witness, Integer> raised = monadError.raiseError(Unit.INSTANCE);
+      var zero = Instances.monadZero(maybe()).zero();
+      var raised = monadError.raiseError(Unit.INSTANCE);
 
-      Maybe<Integer> zeroMaybe = narrowToMaybe(zero);
-      Maybe<Integer> raisedMaybe = narrowToMaybe(raised);
-
-      assertThat(zeroMaybe.isNothing()).isTrue();
-      assertThat(raisedMaybe.isNothing()).isTrue();
-      assertThat(zeroMaybe).isEqualTo(raisedMaybe);
+      assertThatMaybe(zero).isNothing();
+      assertThatMaybe(raised).isNothing();
+      assertThat(narrowToMaybe(zero)).isEqualTo(narrowToMaybe(raised));
     }
 
     @Test
@@ -501,12 +301,8 @@ class MaybeMonadErrorTest extends MaybeTestBase {
     void zeroCanBeRecovered() {
       Kind<MaybeKind.Witness, Integer> zero = Instances.monadZero(maybe()).zero();
 
-      Kind<MaybeKind.Witness, Integer> recovered =
-          monadError.handleErrorWith(zero, unit -> monadError.of(0));
-
-      Maybe<Integer> maybe = narrowToMaybe(recovered);
-      assertThat(maybe.isJust()).isTrue();
-      assertThat(maybe.get()).isEqualTo(0);
+      var recovered = monadError.handleErrorWith(zero, _ -> monadError.of(0));
+      assertThatMaybe(recovered).isJust().hasValue(0);
     }
   }
 }

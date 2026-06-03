@@ -19,6 +19,9 @@ import org.higherkindedj.hkt.laws.FunctorLaws;
 /**
  * Property-based Functor-law verification for Either, sharing the laws spec with EitherFunctorTest.
  */
+// jqwik invokes the @Provide methods reflectively via @ForAll(name); IntelliJ cannot see those
+// uses.
+@SuppressWarnings("unused")
 class EitherFunctorPropertyTest {
 
   private final EitherFunctor<String> functor = EitherFunctor.instance();
@@ -29,25 +32,12 @@ class EitherFunctorPropertyTest {
 
   @Provide
   Arbitrary<Kind<EitherKind.Witness<String>, Integer>> eitherKinds() {
-    return Arbitraries.integers()
-        .between(-1000, 1000)
-        .injectNull(0.15)
-        .flatMap(
-            i -> {
-              if (i == null) {
-                return Arbitraries.just(EITHER.widen(Either.<String, Integer>left("null value")));
-              }
-              if (i % 5 == 0) {
-                return Arbitraries.of("error: a", "error: b", "error: c")
-                    .map(s -> EITHER.widen(Either.<String, Integer>left(s)));
-              }
-              return Arbitraries.just(EITHER.widen(Either.<String, Integer>right(i)));
-            });
+    return EitherArbitraries.eitherKinds(1000);
   }
 
   @Provide
   Arbitrary<Function<Integer, String>> intToString() {
-    return Arbitraries.of(i -> "v:" + i, i -> String.valueOf(i * 2), Object::toString);
+    return EitherArbitraries.intToString();
   }
 
   @Provide

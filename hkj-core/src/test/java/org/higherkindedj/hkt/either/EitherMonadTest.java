@@ -7,17 +7,17 @@ import static org.higherkindedj.hkt.either.EitherKindHelper.EITHER;
 import static org.higherkindedj.hkt.instances.Witnesses.either;
 
 import java.util.function.Function;
-import java.util.stream.Stream;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.MonadError;
 import org.higherkindedj.hkt.instances.Instances;
 import org.higherkindedj.hkt.laws.MonadLaws;
+import org.higherkindedj.hkt.test.contract.Category;
+import org.higherkindedj.hkt.test.contract.TypeClassContract;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 
 @DisplayName("EitherMonad")
@@ -36,34 +36,33 @@ class EitherMonadTest extends EitherTestBase {
   class Laws {
 
     @ParameterizedTest(name = "left identity holds on value {0}")
-    @MethodSource("values")
+    @MethodSource("org.higherkindedj.hkt.either.EitherLawFixtures#values")
     void leftIdentity(Integer value) {
       MonadLaws.assertLeftIdentity(monad, value, testFunction, equalityChecker);
     }
 
     @ParameterizedTest(name = "right identity holds on {0}")
-    @MethodSource("fixtures")
+    @MethodSource("org.higherkindedj.hkt.either.EitherLawFixtures#kinds")
     void rightIdentity(String label, Kind<EitherKind.Witness<String>, Integer> ma) {
       MonadLaws.assertRightIdentity(monad, ma, equalityChecker);
     }
 
     @ParameterizedTest(name = "associativity holds on {0}")
-    @MethodSource("fixtures")
+    @MethodSource("org.higherkindedj.hkt.either.EitherLawFixtures#kinds")
     void associativity(String label, Kind<EitherKind.Witness<String>, Integer> ma) {
       MonadLaws.assertAssociativity(monad, ma, testFunction, chainFunction, equalityChecker);
     }
+  }
 
-    static Stream<Arguments> fixtures() {
-      return Stream.of(
-          Arguments.of("Right(0)", EITHER.widen(Either.<String, Integer>right(0))),
-          Arguments.of("Right(42)", EITHER.widen(Either.<String, Integer>right(42))),
-          Arguments.of("Right(-1)", EITHER.widen(Either.<String, Integer>right(-1))),
-          Arguments.of("Left(\"err\")", EITHER.widen(Either.<String, Integer>left("err"))));
-    }
-
-    static Stream<Arguments> values() {
-      return Stream.of(Arguments.of(0), Arguments.of(42), Arguments.of(-1));
-    }
+  @Test
+  @DisplayName("Monad contract — operations, validations & exceptions (laws verified above)")
+  void monadContract() {
+    TypeClassContract.<EitherKind.Witness<String>>monad(EitherMonad.class)
+        .<Integer>instance(monad)
+        .<String>withKind(validKind)
+        .withMonadOperations(
+            validKind2, validMapper, validFlatMapper, validFunctionKind, validCombiningFunction)
+        .verifyOnly(Category.OPERATIONS, Category.VALIDATIONS, Category.EXCEPTIONS);
   }
 
   @Nested
@@ -80,7 +79,7 @@ class EitherMonadTest extends EitherTestBase {
     void flatMapOnRightCanReturnLeft() {
       var result =
           monad.flatMap(
-              i -> EITHER.widen(Either.<String, String>left(TestErrorType.VALIDATION.message())),
+              _ -> EITHER.widen(Either.<String, String>left(TestErrorType.VALIDATION.message())),
               validKind);
       assertThatEither(result).isLeft().hasLeft(TestErrorType.VALIDATION.message());
     }

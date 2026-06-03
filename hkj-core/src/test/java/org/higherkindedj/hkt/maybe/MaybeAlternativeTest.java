@@ -3,6 +3,7 @@
 package org.higherkindedj.hkt.maybe;
 
 import static org.assertj.core.api.Assertions.*;
+import static org.higherkindedj.hkt.assertions.MaybeAssert.assertThatMaybe;
 import static org.higherkindedj.hkt.instances.Witnesses.*;
 
 import java.util.ArrayList;
@@ -17,7 +18,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
-@DisplayName("MaybeMonad Alternative Operations Test Suite")
+@DisplayName("MaybeMonad — Alternative operations")
 class MaybeAlternativeTest extends MaybeTestBase {
 
   private Alternative<MaybeKind.Witness> alternative;
@@ -35,9 +36,7 @@ class MaybeAlternativeTest extends MaybeTestBase {
     @DisplayName("empty() returns Nothing")
     void emptyReturnsNothing() {
       Kind<MaybeKind.Witness, Integer> empty = alternative.empty();
-
-      Maybe<Integer> maybe = narrowToMaybe(empty);
-      assertThat(maybe.isNothing()).isTrue();
+      assertThatMaybe(empty).isNothing();
     }
 
     @Test
@@ -46,8 +45,8 @@ class MaybeAlternativeTest extends MaybeTestBase {
       Kind<MaybeKind.Witness, String> emptyString = alternative.empty();
       Kind<MaybeKind.Witness, Integer> emptyInt = alternative.empty();
 
-      assertThat(narrowToMaybe(emptyString).isNothing()).isTrue();
-      assertThat(narrowToMaybe(emptyInt).isNothing()).isTrue();
+      assertThatMaybe(emptyString).isNothing();
+      assertThatMaybe(emptyInt).isNothing();
     }
   }
 
@@ -62,10 +61,7 @@ class MaybeAlternativeTest extends MaybeTestBase {
       Kind<MaybeKind.Witness, Integer> fallback = alternative.of(10);
 
       Kind<MaybeKind.Witness, Integer> result = alternative.orElse(just, () -> fallback);
-
-      Maybe<Integer> maybe = narrowToMaybe(result);
-      assertThat(maybe.isJust()).isTrue();
-      assertThat(maybe.get()).isEqualTo(42);
+      assertThatMaybe(result).isJust().hasValue(42);
     }
 
     @Test
@@ -75,10 +71,7 @@ class MaybeAlternativeTest extends MaybeTestBase {
       Kind<MaybeKind.Witness, Integer> fallback = alternative.of(10);
 
       Kind<MaybeKind.Witness, Integer> result = alternative.orElse(nothing, () -> fallback);
-
-      Maybe<Integer> maybe = narrowToMaybe(result);
-      assertThat(maybe.isJust()).isTrue();
-      assertThat(maybe.get()).isEqualTo(10);
+      assertThatMaybe(result).isJust().hasValue(10);
     }
 
     @Test
@@ -88,9 +81,7 @@ class MaybeAlternativeTest extends MaybeTestBase {
       Kind<MaybeKind.Witness, Integer> nothing2 = alternative.empty();
 
       Kind<MaybeKind.Witness, Integer> result = alternative.orElse(nothing1, () -> nothing2);
-
-      Maybe<Integer> maybe = narrowToMaybe(result);
-      assertThat(maybe.isNothing()).isTrue();
+      assertThatMaybe(result).isNothing();
     }
 
     @Test
@@ -107,8 +98,7 @@ class MaybeAlternativeTest extends MaybeTestBase {
                 return alternative.of(10);
               });
 
-      Maybe<Integer> maybe = narrowToMaybe(result);
-      assertThat(maybe.get()).isEqualTo(42);
+      assertThatMaybe(result).isJust().hasValue(42);
       assertThat(evaluated[0]).isFalse();
     }
 
@@ -126,8 +116,7 @@ class MaybeAlternativeTest extends MaybeTestBase {
                 return alternative.of(10);
               });
 
-      Maybe<Integer> maybe = narrowToMaybe(result);
-      assertThat(maybe.get()).isEqualTo(10);
+      assertThatMaybe(result).isJust().hasValue(10);
       assertThat(evaluated[0]).isTrue();
     }
   }
@@ -140,19 +129,14 @@ class MaybeAlternativeTest extends MaybeTestBase {
     @DisplayName("guard(true) returns Just(Unit)")
     void guardTrueReturnsJustUnit() {
       Kind<MaybeKind.Witness, Unit> result = alternative.guard(true);
-
-      Maybe<Unit> maybe = narrowToMaybe(result);
-      assertThat(maybe.isJust()).isTrue();
-      assertThat(maybe.get()).isEqualTo(Unit.INSTANCE);
+      assertThatMaybe(result).isJust().hasValue(Unit.INSTANCE);
     }
 
     @Test
     @DisplayName("guard(false) returns Nothing")
     void guardFalseReturnsNothing() {
       Kind<MaybeKind.Witness, Unit> result = alternative.guard(false);
-
-      Maybe<Unit> maybe = narrowToMaybe(result);
-      assertThat(maybe.isNothing()).isTrue();
+      assertThatMaybe(result).isNothing();
     }
   }
 
@@ -162,6 +146,7 @@ class MaybeAlternativeTest extends MaybeTestBase {
 
     @Test
     @DisplayName("orElseAll() returns first Just")
+    @SuppressWarnings("unchecked") // generic varargs call to orElseAll
     void orElseAllReturnsFirstJust() {
       Kind<MaybeKind.Witness, Integer> nothing1 = alternative.empty();
       Kind<MaybeKind.Witness, Integer> just = alternative.of(42);
@@ -169,14 +154,12 @@ class MaybeAlternativeTest extends MaybeTestBase {
 
       Kind<MaybeKind.Witness, Integer> result =
           alternative.orElseAll(nothing1, () -> just, () -> nothing2);
-
-      Maybe<Integer> maybe = narrowToMaybe(result);
-      assertThat(maybe.isJust()).isTrue();
-      assertThat(maybe.get()).isEqualTo(42);
+      assertThatMaybe(result).isJust().hasValue(42);
     }
 
     @Test
     @DisplayName("orElseAll() with multiple fallbacks")
+    @SuppressWarnings("unchecked") // generic varargs call to orElseAll
     void orElseAllWithMultipleFallbacks() {
       Kind<MaybeKind.Witness, Integer> nothing1 = alternative.empty();
       Kind<MaybeKind.Witness, Integer> nothing2 = alternative.empty();
@@ -185,10 +168,7 @@ class MaybeAlternativeTest extends MaybeTestBase {
 
       Kind<MaybeKind.Witness, Integer> result =
           alternative.orElseAll(nothing1, () -> nothing2, () -> nothing3, () -> fallback);
-
-      Maybe<Integer> maybe = narrowToMaybe(result);
-      assertThat(maybe.isJust()).isTrue();
-      assertThat(maybe.get()).isEqualTo(99);
+      assertThatMaybe(result).isJust().hasValue(99);
     }
   }
 
@@ -200,7 +180,7 @@ class MaybeAlternativeTest extends MaybeTestBase {
     @DisplayName("orElseAll(empty iterable) returns empty()")
     void orElseAllEmptyIterableReturnsEmpty() {
       Kind<MaybeKind.Witness, Integer> result = alternative.orElseAll(List.of());
-      assertThat(narrowToMaybe(result).isNothing()).isTrue();
+      assertThatMaybe(result).isNothing();
     }
 
     @Test
@@ -210,10 +190,7 @@ class MaybeAlternativeTest extends MaybeTestBase {
           Arrays.asList(alternative.empty(), alternative.of(42), alternative.of(7));
 
       Kind<MaybeKind.Witness, Integer> result = alternative.orElseAll(candidates);
-
-      Maybe<Integer> maybe = narrowToMaybe(result);
-      assertThat(maybe.isJust()).isTrue();
-      assertThat(maybe.get()).isEqualTo(42);
+      assertThatMaybe(result).isJust().hasValue(42);
     }
 
     @Test
@@ -223,8 +200,7 @@ class MaybeAlternativeTest extends MaybeTestBase {
           Arrays.asList(alternative.empty(), alternative.empty(), alternative.empty());
 
       Kind<MaybeKind.Witness, Integer> result = alternative.orElseAll(candidates);
-
-      assertThat(narrowToMaybe(result).isNothing()).isTrue();
+      assertThatMaybe(result).isNothing();
     }
 
     @Test
@@ -233,8 +209,7 @@ class MaybeAlternativeTest extends MaybeTestBase {
       Kind<MaybeKind.Witness, Integer> just = alternative.of(99);
 
       Kind<MaybeKind.Witness, Integer> result = alternative.orElseAll(List.of(just));
-
-      assertThat(narrowToMaybe(result).get()).isEqualTo(99);
+      assertThatMaybe(result).isJust().hasValue(99);
     }
 
     @Test
@@ -246,12 +221,12 @@ class MaybeAlternativeTest extends MaybeTestBase {
       Iterable<Kind<MaybeKind.Witness, Integer>> iter = backing::iterator;
 
       Kind<MaybeKind.Witness, Integer> result = alternative.orElseAll(iter);
-
-      assertThat(narrowToMaybe(result).get()).isEqualTo(123);
+      assertThatMaybe(result).isJust().hasValue(123);
     }
 
     @Test
     @DisplayName("orElseAll(null iterable) throws NullPointerException")
+    @SuppressWarnings("DataFlowIssue") // deliberately passing null to verify rejection
     void orElseAllNullIterableThrows() {
       assertThatNullPointerException()
           .isThrownBy(
@@ -261,6 +236,7 @@ class MaybeAlternativeTest extends MaybeTestBase {
 
     @Test
     @DisplayName("orElseAll(iterable with null element) throws NullPointerException")
+    @SuppressWarnings("DataFlowIssue") // deliberately adding null element to verify rejection
     void orElseAllNullElementThrows() {
       List<Kind<MaybeKind.Witness, Integer>> candidates = new ArrayList<>();
       candidates.add(alternative.empty());
@@ -281,7 +257,7 @@ class MaybeAlternativeTest extends MaybeTestBase {
       Kind<MaybeKind.Witness, Integer> fa = alternative.of(42);
       Kind<MaybeKind.Witness, Integer> result = alternative.orElse(alternative.empty(), () -> fa);
 
-      assertThat(narrowToMaybe(result).get()).isEqualTo(narrowToMaybe(fa).get());
+      assertThat(narrowToMaybe(result)).isEqualTo(narrowToMaybe(fa));
     }
 
     @Test
@@ -290,7 +266,7 @@ class MaybeAlternativeTest extends MaybeTestBase {
       Kind<MaybeKind.Witness, Integer> fa = alternative.of(42);
       Kind<MaybeKind.Witness, Integer> result = alternative.orElse(fa, alternative::empty);
 
-      assertThat(narrowToMaybe(result).get()).isEqualTo(narrowToMaybe(fa).get());
+      assertThat(narrowToMaybe(result)).isEqualTo(narrowToMaybe(fa));
     }
 
     @Test
@@ -307,7 +283,7 @@ class MaybeAlternativeTest extends MaybeTestBase {
       Kind<MaybeKind.Witness, Integer> right =
           alternative.orElse(alternative.orElse(fa, () -> fb), () -> fc);
 
-      assertThat(narrowToMaybe(left).get()).isEqualTo(narrowToMaybe(right).get());
+      assertThat(narrowToMaybe(left)).isEqualTo(narrowToMaybe(right));
     }
   }
 }

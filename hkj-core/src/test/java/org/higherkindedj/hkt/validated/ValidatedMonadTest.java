@@ -2,17 +2,13 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.hkt.validated;
 
-import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.higherkindedj.hkt.assertions.ValidatedAssert.assertThatValidated;
-import static org.higherkindedj.hkt.instances.Witnesses.*;
 import static org.higherkindedj.hkt.validated.ValidatedKindHelper.VALIDATED;
-import static org.junit.jupiter.api.Assertions.assertThrowsExactly;
 
 import java.util.function.Function;
-import java.util.stream.Stream;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.MonadError;
-import org.higherkindedj.hkt.Semigroup;
 import org.higherkindedj.hkt.exception.KindUnwrapException;
 import org.higherkindedj.hkt.instances.Instances;
 import org.higherkindedj.hkt.laws.MonadLaws;
@@ -23,19 +19,17 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 
 @DisplayName("ValidatedMonad")
 class ValidatedMonadTest extends ValidatedTestBase {
 
   private MonadError<ValidatedKind.Witness<String>, String> monad;
-  private Semigroup<String> stringSemigroup;
 
   @BeforeEach
   void setUpMonad() {
-    stringSemigroup = (a, b) -> a + ", " + b;
-    monad = Instances.validated(stringSemigroup);
+    // Accumulating semigroup so ap still combines errors even though flatMap short-circuits.
+    monad = Instances.validated(createDefaultSemigroup());
   }
 
   @Nested
@@ -43,34 +37,33 @@ class ValidatedMonadTest extends ValidatedTestBase {
   class Laws {
 
     @ParameterizedTest(name = "left identity holds on value {0}")
-    @MethodSource("values")
+    @MethodSource("org.higherkindedj.hkt.validated.ValidatedLawFixtures#values")
     void leftIdentity(Integer value) {
       MonadLaws.assertLeftIdentity(monad, value, testFunction, equalityChecker);
     }
 
     @ParameterizedTest(name = "right identity holds on {0}")
-    @MethodSource("fixtures")
+    @MethodSource("org.higherkindedj.hkt.validated.ValidatedLawFixtures#kinds")
     void rightIdentity(String label, Kind<ValidatedKind.Witness<String>, Integer> ma) {
       MonadLaws.assertRightIdentity(monad, ma, equalityChecker);
     }
 
     @ParameterizedTest(name = "associativity holds on {0}")
-    @MethodSource("fixtures")
+    @MethodSource("org.higherkindedj.hkt.validated.ValidatedLawFixtures#kinds")
     void associativity(String label, Kind<ValidatedKind.Witness<String>, Integer> ma) {
       MonadLaws.assertAssociativity(monad, ma, testFunction, chainFunction, equalityChecker);
     }
+  }
 
-    static Stream<Arguments> fixtures() {
-      return Stream.of(
-          Arguments.of("Valid(0)", VALIDATED.widen(Validated.<String, Integer>valid(0))),
-          Arguments.of("Valid(42)", VALIDATED.widen(Validated.<String, Integer>valid(42))),
-          Arguments.of("Valid(-1)", VALIDATED.widen(Validated.<String, Integer>valid(-1))),
-          Arguments.of("Invalid(\"e\")", VALIDATED.widen(Validated.<String, Integer>invalid("e"))));
-    }
-
-    static Stream<Arguments> values() {
-      return Stream.of(Arguments.of(0), Arguments.of(42), Arguments.of(-1));
-    }
+  @Test
+  @DisplayName("Monad contract — operations, validations & exceptions (laws verified above)")
+  void monadContract() {
+    TypeClassContract.<ValidatedKind.Witness<String>>monad(ValidatedMonad.class)
+        .<Integer>instance(monad)
+        .<String>withKind(validKind)
+        .withMonadOperations(
+            validKind2, validMapper, validFlatMapper, validFunctionKind, validCombiningFunction)
+        .verifyOnly(Category.OPERATIONS, Category.VALIDATIONS, Category.EXCEPTIONS);
   }
 
   @Nested
@@ -85,9 +78,7 @@ class ValidatedMonadTest extends ValidatedTestBase {
           n -> VALIDATED.widen(Validated.valid("Value: " + n));
 
       Kind<ValidatedKind.Witness<String>, String> result = monad.flatMap(fn, kind);
-
-      Validated<String, String> validated = narrowToValidated(result);
-      assertThatValidated(validated).isValid().hasValue("Value: 42");
+      assertThatValidated(result).isValid().hasValue("Value: 42");
     }
 
     @Test
@@ -98,9 +89,7 @@ class ValidatedMonadTest extends ValidatedTestBase {
           n -> VALIDATED.widen(Validated.valid("Value: " + n));
 
       Kind<ValidatedKind.Witness<String>, String> result = monad.flatMap(fn, kind);
-
-      Validated<String, String> validated = narrowToValidated(result);
-      assertThatValidated(validated).isInvalid().hasError("source-error");
+      assertThatValidated(result).isInvalid().hasError("source-error");
     }
 
     @Test
@@ -108,12 +97,10 @@ class ValidatedMonadTest extends ValidatedTestBase {
     void flatMapUsesResultFromFunctionOnValid() {
       Kind<ValidatedKind.Witness<String>, Integer> kind = validKind(DEFAULT_VALID_VALUE);
       Function<Integer, Kind<ValidatedKind.Witness<String>, String>> fn =
-          n -> VALIDATED.widen(Validated.invalid("function-error"));
+          _ -> VALIDATED.widen(Validated.invalid("function-error"));
 
       Kind<ValidatedKind.Witness<String>, String> result = monad.flatMap(fn, kind);
-
-      Validated<String, String> validated = narrowToValidated(result);
-      assertThatValidated(validated).isInvalid().hasError("function-error");
+      assertThatValidated(result).isInvalid().hasError("function-error");
     }
 
     @Test
@@ -127,126 +114,7 @@ class ValidatedMonadTest extends ValidatedTestBase {
           monad.flatMap(n -> validKind(n + 5), step1);
       Kind<ValidatedKind.Witness<String>, String> step3 =
           monad.flatMap(n -> VALIDATED.widen(Validated.valid("Result: " + n)), step2);
-
-      Validated<String, String> result = narrowToValidated(step3);
-      assertThatValidated(result).isValid().hasValue("Result: 25");
-    }
-  }
-
-  @Nested
-  @DisplayName("Individual Component Tests")
-  class IndividualComponentTests {
-
-    @Test
-    @DisplayName("Test operations only")
-    void testOperationsOnly() {
-      TypeClassContract.<ValidatedKind.Witness<String>>monad(ValidatedMonad.class)
-          .<Integer>instance(monad)
-          .<String>withKind(validKind)
-          .withMonadOperations(
-              validKind2, validMapper, validFlatMapper, validFunctionKind, validCombiningFunction)
-          .verifyOnly(Category.OPERATIONS);
-    }
-
-    @Test
-    @DisplayName("Test validations only")
-    void testValidationsOnly() {
-      TypeClassContract.<ValidatedKind.Witness<String>>monad(ValidatedMonad.class)
-          .<Integer>instance(monad)
-          .<String>withKind(validKind)
-          .withMonadOperations(
-              validKind2, validMapper, validFlatMapper, validFunctionKind, validCombiningFunction)
-          .verifyOnly(Category.VALIDATIONS);
-    }
-
-    @Test
-    @DisplayName("Test exception propagation only")
-    void testExceptionPropagationOnly() {
-      TypeClassContract.<ValidatedKind.Witness<String>>monad(ValidatedMonad.class)
-          .<Integer>instance(monad)
-          .<String>withKind(validKind)
-          .withMonadOperations(
-              validKind2, validMapper, validFlatMapper, validFunctionKind, validCombiningFunction)
-          .verifyOnly(Category.EXCEPTIONS);
-    }
-
-    @Test
-    @DisplayName("Test laws only")
-    void testLawsOnly() {
-      TypeClassContract.<ValidatedKind.Witness<String>>monad(ValidatedMonad.class)
-          .<Integer>instance(monad)
-          .<String>withKind(validKind)
-          .withMonadOperations(
-              validKind2, validMapper, validFlatMapper, validFunctionKind, validCombiningFunction)
-          .withLawsTesting(testValue, testFunction, chainFunction, equalityChecker)
-          .verifyOnly(Category.LAWS);
-    }
-  }
-
-  @Nested
-  @DisplayName("Validation Configuration Tests")
-  class ValidationConfigurationTests {
-
-    @Test
-    @DisplayName("Test with inheritance-based validation")
-    void testWithInheritanceBasedValidation() {
-      TypeClassContract.<ValidatedKind.Witness<String>>monad(ValidatedMonad.class)
-          .<Integer>instance(monad)
-          .<String>withKind(validKind)
-          .withMonadOperations(
-              validKind2, validMapper, validFlatMapper, validFunctionKind, validCombiningFunction)
-          .verifyOnly(Category.VALIDATIONS);
-    }
-  }
-
-  @Nested
-  @DisplayName("Law Verification Tests")
-  class LawVerificationTests {
-
-    @Test
-    @DisplayName("Left identity law holds")
-    void leftIdentityLawHolds() {
-      Integer value = DEFAULT_VALID_VALUE;
-      Function<Integer, Kind<ValidatedKind.Witness<String>, String>> fn =
-          n -> VALIDATED.widen(Validated.valid("Value: " + n));
-
-      Kind<ValidatedKind.Witness<String>, Integer> ofValue = monad.of(value);
-      Kind<ValidatedKind.Witness<String>, String> leftSide = monad.flatMap(fn, ofValue);
-      Kind<ValidatedKind.Witness<String>, String> rightSide = fn.apply(value);
-
-      assertThat(equalityChecker.test(leftSide, rightSide)).isTrue();
-    }
-
-    @Test
-    @DisplayName("Right identity law holds")
-    void rightIdentityLawHolds() {
-      Kind<ValidatedKind.Witness<String>, Integer> kind = validKind(DEFAULT_VALID_VALUE);
-      Function<Integer, Kind<ValidatedKind.Witness<String>, Integer>> ofFunc = monad::of;
-
-      Kind<ValidatedKind.Witness<String>, Integer> result = monad.flatMap(ofFunc, kind);
-
-      assertThat(equalityChecker.test(result, kind)).isTrue();
-    }
-
-    @Test
-    @DisplayName("Associativity law holds")
-    void associativityLawHolds() {
-      Kind<ValidatedKind.Witness<String>, Integer> kind = validKind(10);
-      Function<Integer, Kind<ValidatedKind.Witness<String>, String>> f =
-          n -> VALIDATED.widen(Validated.valid("Step1: " + n));
-      Function<String, Kind<ValidatedKind.Witness<String>, String>> g =
-          s -> VALIDATED.widen(Validated.valid(s + " Step2"));
-
-      // Left side: flatMap(flatMap(m, f), g)
-      Kind<ValidatedKind.Witness<String>, String> innerFlatMap = monad.flatMap(f, kind);
-      Kind<ValidatedKind.Witness<String>, String> leftSide = monad.flatMap(g, innerFlatMap);
-
-      // Right side: flatMap(m, a -> flatMap(f(a), g))
-      Function<Integer, Kind<ValidatedKind.Witness<String>, String>> composed =
-          n -> monad.flatMap(g, f.apply(n));
-      Kind<ValidatedKind.Witness<String>, String> rightSide = monad.flatMap(composed, kind);
-
-      assertThat(equalityChecker.test(leftSide, rightSide)).isTrue();
+      assertThatValidated(step3).isValid().hasValue("Result: 25");
     }
   }
 
@@ -256,13 +124,13 @@ class ValidatedMonadTest extends ValidatedTestBase {
 
     @Test
     @DisplayName("FlatMap with function returning null Kind fails appropriately")
+    @SuppressWarnings("DataFlowIssue") // function deliberately returns null to verify rejection
     void flatMapWithFunctionReturningNullKindFailsAppropriately() {
       Kind<ValidatedKind.Witness<String>, Integer> kind = validKind(DEFAULT_VALID_VALUE);
-      Function<Integer, Kind<ValidatedKind.Witness<String>, String>> nullReturningFn = n -> null;
+      Function<Integer, Kind<ValidatedKind.Witness<String>, String>> nullReturningFn = _ -> null;
 
-      var _ =
-          assertThrowsExactly(
-              KindUnwrapException.class, () -> monad.flatMap(nullReturningFn, kind));
+      assertThatThrownBy(() -> monad.flatMap(nullReturningFn, kind))
+          .isInstanceOf(KindUnwrapException.class);
     }
 
     @Test
@@ -273,9 +141,7 @@ class ValidatedMonadTest extends ValidatedTestBase {
       Kind<ValidatedKind.Witness<String>, Integer> valueKind = invalidKind("error2");
 
       Kind<ValidatedKind.Witness<String>, String> result = monad.ap(fnKind, valueKind);
-
-      Validated<String, String> validated = narrowToValidated(result);
-      assertThatValidated(validated).isInvalid().hasError("error1, error2");
+      assertThatValidated(result).isInvalid().hasError("error1, error2");
     }
   }
 }

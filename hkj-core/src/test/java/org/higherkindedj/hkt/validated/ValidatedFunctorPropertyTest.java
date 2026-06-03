@@ -4,7 +4,6 @@ package org.higherkindedj.hkt.validated;
 
 import static org.higherkindedj.hkt.validated.ValidatedKindHelper.VALIDATED;
 
-import java.util.ArrayList;
 import java.util.List;
 import java.util.function.BiPredicate;
 import java.util.function.Function;
@@ -16,22 +15,17 @@ import net.jqwik.api.Property;
 import net.jqwik.api.Provide;
 import org.higherkindedj.hkt.Functor;
 import org.higherkindedj.hkt.Kind;
-import org.higherkindedj.hkt.Semigroup;
 import org.higherkindedj.hkt.assertions.KindEquivalence;
 import org.higherkindedj.hkt.laws.FunctorLaws;
 
 /** Property-based Functor-law verification for Validated. */
+// jqwik invokes the @Provide methods reflectively via @ForAll(name); IntelliJ cannot see those
+// uses.
+@SuppressWarnings("unused")
 class ValidatedFunctorPropertyTest {
 
-  private final Semigroup<List<String>> listSemigroup =
-      (a, b) -> {
-        List<String> combined = new ArrayList<>(a);
-        combined.addAll(b);
-        return combined;
-      };
-
   private final Functor<ValidatedKind.Witness<List<String>>> functor =
-      ValidatedMonad.instance(listSemigroup);
+      ValidatedMonad.instance(ValidatedArbitraries.LIST_SEMIGROUP);
 
   private final BiPredicate<
           Kind<ValidatedKind.Witness<List<String>>, ?>,
@@ -40,22 +34,12 @@ class ValidatedFunctorPropertyTest {
 
   @Provide
   Arbitrary<Kind<ValidatedKind.Witness<List<String>>, Integer>> validatedKinds() {
-    return Arbitraries.integers()
-        .between(-100, 100)
-        .injectNull(0.15)
-        .map(
-            i ->
-                i == null
-                    ? VALIDATED.<List<String>, Integer>widen(Validated.invalid(List.of("null")))
-                    : (i % 5 == 0
-                        ? VALIDATED.<List<String>, Integer>widen(
-                            Validated.invalid(List.of("err:" + i)))
-                        : VALIDATED.<List<String>, Integer>widen(Validated.valid(i))));
+    return ValidatedArbitraries.validatedKinds();
   }
 
   @Provide
   Arbitrary<Function<Integer, String>> intToString() {
-    return Arbitraries.of(i -> "v:" + i, i -> String.valueOf(i * 2), Object::toString);
+    return ValidatedArbitraries.intToString();
   }
 
   @Provide

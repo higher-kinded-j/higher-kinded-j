@@ -6,15 +6,15 @@ import static org.higherkindedj.hkt.assertions.EitherAssert.assertThatEither;
 import static org.higherkindedj.hkt.either.EitherKindHelper.EITHER;
 
 import java.util.function.Function;
-import java.util.stream.Stream;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.laws.FunctorLaws;
+import org.higherkindedj.hkt.test.contract.Category;
+import org.higherkindedj.hkt.test.contract.TypeClassContract;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 
 @DisplayName("EitherFunctor")
@@ -24,7 +24,7 @@ class EitherFunctorTest extends EitherTestBase {
 
   @BeforeEach
   void setUp() {
-    functor = new EitherFunctor<>();
+    functor = EitherFunctor.instance();
   }
 
   @Nested
@@ -32,24 +32,26 @@ class EitherFunctorTest extends EitherTestBase {
   class Laws {
 
     @ParameterizedTest(name = "identity holds on {0}")
-    @MethodSource("fixtures")
+    @MethodSource("org.higherkindedj.hkt.either.EitherLawFixtures#kinds")
     void identity(String label, Kind<EitherKind.Witness<String>, Integer> fa) {
       FunctorLaws.assertIdentity(functor, fa, equalityChecker);
     }
 
     @ParameterizedTest(name = "composition holds on {0}")
-    @MethodSource("fixtures")
+    @MethodSource("org.higherkindedj.hkt.either.EitherLawFixtures#kinds")
     void composition(String label, Kind<EitherKind.Witness<String>, Integer> fa) {
       FunctorLaws.assertComposition(functor, fa, validMapper, secondMapper, equalityChecker);
     }
+  }
 
-    static Stream<Arguments> fixtures() {
-      return Stream.of(
-          Arguments.of("Right(0)", EITHER.widen(Either.<String, Integer>right(0))),
-          Arguments.of("Right(42)", EITHER.widen(Either.<String, Integer>right(42))),
-          Arguments.of("Right(-1)", EITHER.widen(Either.<String, Integer>right(-1))),
-          Arguments.of("Left(\"err\")", EITHER.widen(Either.<String, Integer>left("err"))));
-    }
+  @Test
+  @DisplayName("Functor contract — operations, validations & exceptions (laws verified above)")
+  void functorContract() {
+    TypeClassContract.<EitherKind.Witness<String>>functor(EitherFunctor.class)
+        .<Integer>instance(functor)
+        .<String>withKind(validKind)
+        .withMapper(validMapper)
+        .verifyOnly(Category.OPERATIONS, Category.VALIDATIONS, Category.EXCEPTIONS);
   }
 
   @Nested
@@ -71,8 +73,8 @@ class EitherFunctorTest extends EitherTestBase {
 
     @Test
     void mapWithNullValuesInRight() {
-      Kind<EitherKind.Witness<String>, Integer> rightNull = rightKind((Integer) null);
-      var result = functor.map(i -> String.valueOf(i), rightNull);
+      Kind<EitherKind.Witness<String>, Integer> rightNull = rightKind(null);
+      var result = functor.map(String::valueOf, rightNull);
       assertThatEither(result).isRight().hasRight("null");
     }
   }
@@ -95,7 +97,7 @@ class EitherFunctorTest extends EitherTestBase {
 
     @Test
     void worksWithDifferentErrorTypes() {
-      EitherFunctor<ComplexTestError> complexFunctor = new EitherFunctor<>();
+      EitherFunctor<ComplexTestError> complexFunctor = EitherFunctor.instance();
       var complexKind = EITHER.widen(Either.<ComplexTestError, Integer>right(100));
       var result = complexFunctor.map(validMapper, complexKind);
       assertThatEither(result).isRight().hasRight("100");

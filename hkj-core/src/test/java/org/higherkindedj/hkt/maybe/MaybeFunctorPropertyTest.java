@@ -17,27 +17,27 @@ import org.higherkindedj.hkt.assertions.KindEquivalence;
 import org.higherkindedj.hkt.laws.FunctorLaws;
 
 /**
- * Property-based Functor-law verification for {@link MaybeFunctor}, sharing the laws spec with POC
- * 1.
+ * Property-based Functor-law verification for {@link MaybeFunctor}, sharing the laws spec with
+ * MaybeFunctorTest.
  */
+// jqwik invokes the @Provide methods reflectively via @ForAll(name); IntelliJ cannot see those
+// uses.
+@SuppressWarnings("unused")
 class MaybeFunctorPropertyTest {
 
-  private final MaybeFunctor functor = new MaybeFunctor();
+  private final MaybeFunctor functor = MaybeFunctor.INSTANCE;
 
   private final BiPredicate<Kind<MaybeKind.Witness, ?>, Kind<MaybeKind.Witness, ?>> eq =
       KindEquivalence.byEqualsAfter(MAYBE::narrow);
 
   @Provide
   Arbitrary<Kind<MaybeKind.Witness, Integer>> maybeKinds() {
-    return Arbitraries.integers()
-        .between(-1000, 1000)
-        .injectNull(0.1)
-        .map(i -> i == null ? MAYBE.<Integer>widen(Maybe.nothing()) : MAYBE.widen(Maybe.just(i)));
+    return MaybeArbitraries.maybeKinds(1000, 0.1);
   }
 
   @Provide
   Arbitrary<Function<Integer, String>> intToString() {
-    return Arbitraries.of(i -> "v:" + i, i -> String.valueOf(i * 2), Object::toString);
+    return MaybeArbitraries.intToString();
   }
 
   @Provide
