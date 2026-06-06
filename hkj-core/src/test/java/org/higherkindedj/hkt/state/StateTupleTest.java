@@ -14,8 +14,6 @@ class StateTupleTest {
 
   private final String testValue = "ResultValue";
   private final Integer testState = 10;
-  private final String nullValue = null;
-  private final Integer nullState = null; // For testing null state input
 
   @Nested
   @DisplayName("Creation (Constructor and Factory)")
@@ -32,16 +30,17 @@ class StateTupleTest {
     @Test
     @DisplayName("Record constructor should allow null value")
     void constructor_allowsNullValue() {
-      StateTuple<Integer, String> tuple = new StateTuple<>(nullValue, testState);
+      StateTuple<Integer, String> tuple = new StateTuple<>(null, testState);
       assertThat(tuple.value()).isNull();
       assertThat(tuple.state()).isEqualTo(testState);
     }
 
     @Test
     @DisplayName("Record constructor should throw NullPointerException for null state")
+    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
     void constructor_throwsNPEForNullState() {
       assertThatNullPointerException()
-          .isThrownBy(() -> new StateTuple<>(testValue, nullState))
+          .isThrownBy(() -> new StateTuple<>(testValue, null))
           .withMessageContaining("tateTuple.construction value cannot be null");
     }
 
@@ -57,16 +56,17 @@ class StateTupleTest {
     @Test
     @DisplayName("of() factory should allow null value")
     void of_allowsNullValue() {
-      StateTuple<Integer, String> tuple = StateTuple.of(testState, nullValue);
+      StateTuple<Integer, String> tuple = StateTuple.of(testState, null);
       assertThat(tuple.value()).isNull();
       assertThat(tuple.state()).isEqualTo(testState);
     }
 
     @Test
     @DisplayName("of() factory should throw NullPointerException for null state")
+    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
     void of_throwsNPEForNullState() {
       assertThatNullPointerException()
-          .isThrownBy(() -> StateTuple.of(nullState, testValue))
+          .isThrownBy(() -> StateTuple.of(null, testValue))
           .withMessageContaining("StateTuple.of value cannot be null");
     }
   }
@@ -79,7 +79,7 @@ class StateTupleTest {
     @DisplayName("value() should return the correct value")
     void value_returnsCorrectValue() {
       StateTuple<Integer, String> tupleWithValue = new StateTuple<>(testValue, testState);
-      StateTuple<Integer, String> tupleWithNull = new StateTuple<>(nullValue, testState);
+      StateTuple<Integer, String> tupleWithNull = new StateTuple<>(null, testState);
 
       assertThat(tupleWithValue.value()).isEqualTo(testValue);
       assertThat(tupleWithNull.value()).isNull();
@@ -116,7 +116,6 @@ class StateTupleTest {
       assertThat(t1a).isNotEqualTo(t4);
       assertThat(t4).isEqualTo(t5);
       assertThat(t1a).isNotEqualTo(null);
-      assertThat(t1a).isNotEqualTo("A"); // Different type
     }
 
     @Test

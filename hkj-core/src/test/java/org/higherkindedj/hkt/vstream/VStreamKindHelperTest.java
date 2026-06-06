@@ -33,6 +33,7 @@ class VStreamKindHelperTest {
 
     @Test
     @DisplayName("widen() throws for null input")
+    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
     void widenThrowsForNullInput() {
       assertThatThrownBy(() -> VSTREAM.widen(null))
           .isInstanceOf(NullPointerException.class)
@@ -89,7 +90,7 @@ class VStreamKindHelperTest {
     @DisplayName("narrow() throws for unknown Kind type")
     void narrowThrowsForUnknownKindType() {
       // Create a dummy VStreamKind that is not a VStream
-      VStreamKind<String> unknownKind = new VStreamKind<String>() {};
+      VStreamKind<String> unknownKind = new VStreamKind<>() {};
 
       assertThatThrownBy(() -> VSTREAM.narrow(unknownKind))
           .isInstanceOf(KindUnwrapException.class)

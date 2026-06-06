@@ -28,7 +28,7 @@ class OptionalSelectiveTest extends OptionalTestBase {
   class Laws {
 
     @ParameterizedTest(name = "left-pure holds on value {0}")
-    @MethodSource("values")
+    @MethodSource("org.higherkindedj.hkt.optional.OptionalLawFixtures#values")
     void leftPure(Integer value) {
       SelectiveLaws.assertLeftPure(selective, value, selective.of(validMapper), equalityChecker);
     }
@@ -36,16 +36,11 @@ class OptionalSelectiveTest extends OptionalTestBase {
     @ParameterizedTest(name = "right-pure holds on value \"{0}\"")
     @MethodSource("strings")
     void rightPure(String value) {
-      SelectiveLaws.<OptionalKind.Witness, Integer, String>assertRightPure(
-          selective, value, selective.of(validMapper), equalityChecker);
-    }
-
-    static Stream<Arguments> values() {
-      return Stream.of(Arguments.of(0), Arguments.of(42));
+      SelectiveLaws.assertRightPure(selective, value, selective.of(validMapper), equalityChecker);
     }
 
     static Stream<Arguments> strings() {
-      return Stream.of(Arguments.of("a"), Arguments.of("hello"));
+      return Stream.of(Arguments.of("a"), Arguments.of("hello"), Arguments.of(""));
     }
   }
 
@@ -62,7 +57,7 @@ class OptionalSelectiveTest extends OptionalTestBase {
 
       // Function should not be used
       Function<String, String> shouldNotBeCalled =
-          s -> {
+          _ -> {
             throw new AssertionError("Function should not be called for Right choice");
           };
       Kind<OptionalKind.Witness, Function<String, String>> ff = presentOf(shouldNotBeCalled);
@@ -128,13 +123,14 @@ class OptionalSelectiveTest extends OptionalTestBase {
 
     @Test
     @DisplayName("select with function returning null should return empty")
+    @SuppressWarnings("DataFlowIssue") // null-returning function exercises Optional.ofNullable
     void select_withFunctionReturningNull_shouldReturnEmpty() {
       // Given: A Left choice
       Choice<String, String> leftChoice = Selective.left("input");
       Kind<OptionalKind.Witness, Choice<String, String>> fab = presentOf(leftChoice);
 
       // Function that returns null
-      Function<String, String> returnsNull = s -> null;
+      Function<String, String> returnsNull = _ -> null;
       Kind<OptionalKind.Witness, Function<String, String>> ff = presentOf(returnsNull);
 
       // When
@@ -162,7 +158,7 @@ class OptionalSelectiveTest extends OptionalTestBase {
 
       // Right handler: should not be called
       Function<String, String> rightHandler =
-          s -> {
+          _ -> {
             throw new AssertionError("Right handler should not be called");
           };
       Kind<OptionalKind.Witness, Function<String, String>> fr = presentOf(rightHandler);
@@ -183,7 +179,7 @@ class OptionalSelectiveTest extends OptionalTestBase {
 
       // Left handler: should not be called
       Function<Integer, String> leftHandler =
-          i -> {
+          _ -> {
             throw new AssertionError("Left handler should not be called");
           };
       Kind<OptionalKind.Witness, Function<Integer, String>> fl = presentOf(leftHandler);
@@ -557,6 +553,7 @@ class OptionalSelectiveTest extends OptionalTestBase {
 
   @Nested
   @DisplayName("Select Right Null Handling (audit issue #14)")
+  @SuppressWarnings("DataFlowIssue") // Choice.right(null) is intentionally null to verify handling
   class SelectRightNullTests {
 
     @Test

@@ -43,11 +43,9 @@ class VStreamReactiveTest {
 
       publisher.subscribe(
           new Flow.Subscriber<>() {
-            private Flow.Subscription subscription;
 
             @Override
             public void onSubscribe(Flow.Subscription subscription) {
-              this.subscription = subscription;
               subscription.request(Long.MAX_VALUE);
             }
 
@@ -962,16 +960,12 @@ class VStreamReactiveTest {
       // This exercises the finally block's recursive drain() call (line 275).
       // A stream element whose pull() is slow, giving time for demand to arrive
       VStream<Integer> slowElement =
-          new VStream<>() {
-            @Override
-            public VTask<Step<Integer>> pull() {
-              return VTask.of(
+          () ->
+              VTask.of(
                   () -> {
                     Thread.sleep(200);
-                    return new Step.Emit<>(2, VStream.of(3));
+                    return new VStream.Step.Emit<>(2, VStream.of(3));
                   });
-            }
-          };
       VStream<Integer> stream = VStream.of(1).concat(slowElement);
 
       Flow.Publisher<Integer> publisher = VStreamReactive.toPublisher(stream);
@@ -1133,17 +1127,13 @@ class VStreamReactiveTest {
 
       // Stream whose first pull signals the test, waits for cancel, then throws
       VStream<Integer> stream =
-          new VStream<>() {
-            @Override
-            public VTask<Step<Integer>> pull() {
-              return VTask.of(
+          () ->
+              VTask.of(
                   () -> {
                     pullStarted.countDown();
                     assertThat(cancelDone.await(5, TimeUnit.SECONDS)).isTrue();
                     throw new RuntimeException("error after cancel");
                   });
-            }
-          };
 
       Flow.Publisher<Integer> publisher = VStreamReactive.toPublisher(stream);
 
@@ -1220,6 +1210,10 @@ class VStreamReactiveTest {
 
     @Test
     @DisplayName("toPublisher() validates non-null stream")
+    @SuppressWarnings({
+      "DataFlowIssue",
+      "ResultOfMethodCallIgnored"
+    }) // null verifies rejection; unused
     void toPublisherValidatesNonNull() {
       assertThatNullPointerException()
           .isThrownBy(() -> VStreamReactive.toPublisher(null))
@@ -1228,6 +1222,7 @@ class VStreamReactiveTest {
 
     @Test
     @DisplayName("fromPublisher() validates non-null publisher")
+    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
     void fromPublisherValidatesNonNull() {
       assertThatNullPointerException()
           .isThrownBy(() -> VStreamReactive.fromPublisher(null, 16))
@@ -1237,11 +1232,11 @@ class VStreamReactiveTest {
     @Test
     @DisplayName("fromPublisher() validates positive buffer size")
     void fromPublisherValidatesPositiveBufferSize() {
-      SubmissionPublisher<String> publisher = new SubmissionPublisher<>();
-
-      assertThatIllegalArgumentException()
-          .isThrownBy(() -> VStreamReactive.fromPublisher(publisher, 0))
-          .withMessageContaining("bufferSize must be positive");
+      try (SubmissionPublisher<String> publisher = new SubmissionPublisher<>()) {
+        assertThatIllegalArgumentException()
+            .isThrownBy(() -> VStreamReactive.fromPublisher(publisher, 0))
+            .withMessageContaining("bufferSize must be positive");
+      }
     }
   }
 

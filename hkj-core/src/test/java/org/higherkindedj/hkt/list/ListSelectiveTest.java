@@ -7,7 +7,6 @@ import static org.higherkindedj.hkt.assertions.ListAssert.assertThatList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.function.Function;
-import java.util.stream.Stream;
 import org.higherkindedj.hkt.Choice;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Selective;
@@ -17,7 +16,6 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 
 @DisplayName("ListSelective Tests")
@@ -30,24 +28,15 @@ class ListSelectiveTest extends ListTestBase {
   class Laws {
 
     @ParameterizedTest(name = "left-pure holds on value {0}")
-    @MethodSource("values")
+    @MethodSource("org.higherkindedj.hkt.list.ListLawFixtures#values")
     void leftPure(Integer value) {
       SelectiveLaws.assertLeftPure(selective, value, selective.of(validMapper), equalityChecker);
     }
 
     @ParameterizedTest(name = "right-pure holds on value \"{0}\"")
-    @MethodSource("strings")
+    @MethodSource("org.higherkindedj.hkt.list.ListLawFixtures#strings")
     void rightPure(String value) {
-      SelectiveLaws.<ListKind.Witness, Integer, String>assertRightPure(
-          selective, value, selective.of(validMapper), equalityChecker);
-    }
-
-    static Stream<Arguments> values() {
-      return Stream.of(Arguments.of(0), Arguments.of(42));
-    }
-
-    static Stream<Arguments> strings() {
-      return Stream.of(Arguments.of("a"), Arguments.of("hello"));
+      SelectiveLaws.assertRightPure(selective, value, selective.of(validMapper), equalityChecker);
     }
   }
 
@@ -65,7 +54,7 @@ class ListSelectiveTest extends ListTestBase {
 
       // Functions (should not be used)
       Function<String, String> shouldNotBeCalled =
-          s -> {
+          _ -> {
             throw new AssertionError("Function should not be called for Right choices");
           };
       Kind<ListKind.Witness, Function<String, String>> ff = singletonList(shouldNotBeCalled);
@@ -179,7 +168,7 @@ class ListSelectiveTest extends ListTestBase {
 
       // Right handler (should not be used)
       Function<String, String> shouldNotBeCalled =
-          s -> {
+          _ -> {
             throw new AssertionError("Right handler should not be called");
           };
       Kind<ListKind.Witness, Function<String, String>> fr = singletonList(shouldNotBeCalled);
@@ -201,7 +190,7 @@ class ListSelectiveTest extends ListTestBase {
 
       // Left handler (should not be used)
       Function<Integer, String> shouldNotBeCalled =
-          i -> {
+          _ -> {
             throw new AssertionError("Left handler should not be called");
           };
       Kind<ListKind.Witness, Function<Integer, String>> fl = singletonList(shouldNotBeCalled);

@@ -8,7 +8,9 @@ import static org.higherkindedj.hkt.instances.Witnesses.*;
 import static org.higherkindedj.hkt.io.IOKindHelper.IO_OP;
 
 import java.util.function.Function;
+import org.higherkindedj.hkt.Applicative;
 import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.Monad;
 import org.higherkindedj.hkt.Natural;
 import org.higherkindedj.hkt.free.test.Identity;
 import org.higherkindedj.hkt.free.test.IdentityKind;
@@ -17,61 +19,134 @@ import org.higherkindedj.hkt.free.test.IdentityMonad;
 import org.higherkindedj.hkt.instances.Instances;
 import org.higherkindedj.hkt.io.IO;
 import org.higherkindedj.hkt.io.IOKind;
+import org.higherkindedj.hkt.laws.ApplicativeLaws;
+import org.higherkindedj.hkt.laws.FunctorLaws;
+import org.higherkindedj.hkt.laws.MonadLaws;
 import org.higherkindedj.hkt.test.contract.Category;
 import org.higherkindedj.hkt.test.contract.TypeClassContract;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.MethodSource;
 
-@DisplayName("FreeMonad Complete Test Suite")
+/**
+ * Tests for {@link FreeMonad}.
+ *
+ * <p>{@code FreeMonad} is a plain {@link Monad}, not a {@code MonadError}: error recovery is a
+ * separate {@link Free#handleError} node (exercised in {@link FreeHandleErrorTest}), so the
+ * contract is the Monad contract. The Functor/Applicative/Monad laws are driven by the shipped
+ * {@link FunctorLaws}/{@link ApplicativeLaws}/{@link MonadLaws} over {@link FreeLawFixtures}.
+ */
+@DisplayName("FreeMonad Tests")
 class FreeMonadTest extends FreeTestBase {
 
   private FreeMonad<IdentityKind.Witness> monad;
+  private Applicative<FreeKind.Witness<IdentityKind.Witness>> applicative;
 
   @BeforeEach
   void setUpMonad() {
     monad = new FreeMonad<>();
+    applicative = monad;
     validateMonadFixtures();
   }
 
+  /**
+   * {@link Category#EXCEPTIONS} is omitted: the generic contract asserts that {@code map}/{@code
+   * flatMap} <em>propagate</em> a thrown function exception immediately, but {@code Free} is a free
+   * monad — both only build {@code FlatMapped} structure, so a thrown function surfaces solely at
+   * {@code foldMap} interpretation time (verified in {@link FreeMonadSpecificTests}). The
+   * Functor/Applicative/Monad laws are verified in the {@code Laws} block below.
+   */
+  @Test
+  @DisplayName("Monad contract — operations & validations")
+  void monadContract() {
+    TypeClassContract.<FreeKind.Witness<IdentityKind.Witness>>monad(FreeMonad.class)
+        .<Integer>instance(monad)
+        .<String>withKind(validKind)
+        .withMonadOperations(
+            validKind2, validMapper, validFlatMapper, validFunctionKind, validCombiningFunction)
+        .verifyOnly(Category.OPERATIONS, Category.VALIDATIONS);
+  }
+
   @Nested
-  @DisplayName("Complete Monad Test Suite")
-  class CompleteMonadTestSuite {
+  @DisplayName("Functor Laws")
+  class FunctorLawTests {
 
-    @Test
-    @DisplayName("Run complete Monad test pattern")
-    void runCompleteMonadTest() {
-      // Note: We skip exception propagation tests (.testExceptions()) because
-      // Free monad is lazy - it builds program structures without executing them.
-      // Exceptions are only thrown during interpretation (foldMap), not during
-      // program construction (map/flatMap), which is the correct behavior for
-      // lazy evaluation.
+    @ParameterizedTest(name = "identity holds on {0}")
+    @MethodSource("org.higherkindedj.hkt.free.FreeLawFixtures#kinds")
+    void identity(String label, Kind<FreeKind.Witness<IdentityKind.Witness>, Integer> fa) {
+      FunctorLaws.assertIdentity(monad, fa, FreeLawFixtures.EQ);
+    }
 
-      // Test operations
-      TypeClassContract.<FreeKind.Witness<IdentityKind.Witness>>monad(FreeMonad.class)
-          .<Integer>instance(monad)
-          .<String>withKind(validKind)
-          .withMonadOperations(
-              validKind2, validMapper, validFlatMapper, validFunctionKind, validCombiningFunction)
-          .verifyOnly(Category.OPERATIONS);
+    @ParameterizedTest(name = "composition holds on {0}")
+    @MethodSource("org.higherkindedj.hkt.free.FreeLawFixtures#kinds")
+    void composition(String label, Kind<FreeKind.Witness<IdentityKind.Witness>, Integer> fa) {
+      FunctorLaws.assertComposition(monad, fa, i -> "v:" + i, String::length, FreeLawFixtures.EQ);
+    }
+  }
 
-      // Test validations
-      TypeClassContract.<FreeKind.Witness<IdentityKind.Witness>>monad(FreeMonad.class)
-          .<Integer>instance(monad)
-          .<String>withKind(validKind)
-          .withMonadOperations(
-              validKind2, validMapper, validFlatMapper, validFunctionKind, validCombiningFunction)
-          .verifyOnly(Category.VALIDATIONS);
+  @Nested
+  @DisplayName("Applicative Laws")
+  class ApplicativeLawTests {
 
-      // Test laws
-      TypeClassContract.<FreeKind.Witness<IdentityKind.Witness>>monad(FreeMonad.class)
-          .<Integer>instance(monad)
-          .<String>withKind(validKind)
-          .withMonadOperations(
-              validKind2, validMapper, validFlatMapper, validFunctionKind, validCombiningFunction)
-          .withLawsTesting(testValue, testFunction, chainFunction, equalityChecker)
-          .verifyOnly(Category.LAWS);
+    @ParameterizedTest(name = "identity holds on {0}")
+    @MethodSource("org.higherkindedj.hkt.free.FreeLawFixtures#kinds")
+    void identity(String label, Kind<FreeKind.Witness<IdentityKind.Witness>, Integer> v) {
+      ApplicativeLaws.assertIdentity(applicative, v, FreeLawFixtures.EQ);
+    }
+
+    @ParameterizedTest(name = "homomorphism holds on value {0}")
+    @MethodSource("org.higherkindedj.hkt.free.FreeLawFixtures#values")
+    void homomorphism(Integer value) {
+      ApplicativeLaws.assertHomomorphism(applicative, value, i -> "v:" + i, FreeLawFixtures.EQ);
+    }
+
+    @ParameterizedTest(name = "interchange holds on value {0}")
+    @MethodSource("org.higherkindedj.hkt.free.FreeLawFixtures#values")
+    void interchange(Integer value) {
+      Kind<FreeKind.Witness<IdentityKind.Witness>, Function<Integer, String>> u =
+          applicative.of(i -> "v:" + i);
+      ApplicativeLaws.assertInterchange(applicative, u, value, FreeLawFixtures.EQ);
+    }
+
+    @ParameterizedTest(name = "composition holds on {0}")
+    @MethodSource("org.higherkindedj.hkt.free.FreeLawFixtures#kinds")
+    void composition(String label, Kind<FreeKind.Witness<IdentityKind.Witness>, Integer> w) {
+      Kind<FreeKind.Witness<IdentityKind.Witness>, Function<String, Integer>> u =
+          applicative.of(String::length);
+      Kind<FreeKind.Witness<IdentityKind.Witness>, Function<Integer, String>> v =
+          applicative.of(i -> "v:" + i);
+      ApplicativeLaws.assertComposition(applicative, u, v, w, FreeLawFixtures.EQ);
+    }
+  }
+
+  @Nested
+  @DisplayName("Monad Laws")
+  class MonadLawTests {
+
+    private final Function<Integer, Kind<FreeKind.Witness<IdentityKind.Witness>, Integer>>
+        testFunction = x -> monad.of(x * 2);
+    private final Function<Integer, Kind<FreeKind.Witness<IdentityKind.Witness>, Integer>>
+        chainFunction = x -> monad.of(x + 10);
+
+    @ParameterizedTest(name = "left identity holds on value {0}")
+    @MethodSource("org.higherkindedj.hkt.free.FreeLawFixtures#values")
+    void leftIdentity(Integer value) {
+      MonadLaws.assertLeftIdentity(monad, value, testFunction, FreeLawFixtures.EQ);
+    }
+
+    @ParameterizedTest(name = "right identity holds on {0}")
+    @MethodSource("org.higherkindedj.hkt.free.FreeLawFixtures#kinds")
+    void rightIdentity(String label, Kind<FreeKind.Witness<IdentityKind.Witness>, Integer> ma) {
+      MonadLaws.assertRightIdentity(monad, ma, FreeLawFixtures.EQ);
+    }
+
+    @ParameterizedTest(name = "associativity holds on {0}")
+    @MethodSource("org.higherkindedj.hkt.free.FreeLawFixtures#kinds")
+    void associativity(String label, Kind<FreeKind.Witness<IdentityKind.Witness>, Integer> ma) {
+      MonadLaws.assertAssociativity(monad, ma, testFunction, chainFunction, FreeLawFixtures.EQ);
     }
   }
 
@@ -142,13 +217,10 @@ class FreeMonadTest extends FreeTestBase {
     @Test
     @DisplayName("Deep flatMap chaining is stack-safe")
     void deepFlatMapChainingIsStackSafe() {
-      Kind<FreeKind.Witness<IdentityKind.Witness>, Integer> start = monad.of(0);
-
       // Create a very deep chain of flatMaps
-      Kind<FreeKind.Witness<IdentityKind.Witness>, Integer> result = start;
+      Kind<FreeKind.Witness<IdentityKind.Witness>, Integer> result = monad.of(0);
       for (int i = 0; i < 10000; i++) {
-        final int increment = 1;
-        result = monad.flatMap(x -> monad.of(x + increment), result);
+        result = monad.flatMap(x -> monad.of(x + 1), result);
       }
 
       // This should not cause StackOverflowError
@@ -159,10 +231,8 @@ class FreeMonadTest extends FreeTestBase {
     @Test
     @DisplayName("Deep map chaining is stack-safe")
     void deepMapChainingIsStackSafe() {
-      Kind<FreeKind.Witness<IdentityKind.Witness>, Integer> start = monad.of(0);
-
       // Create a very deep chain of maps
-      Kind<FreeKind.Witness<IdentityKind.Witness>, Integer> result = start;
+      Kind<FreeKind.Witness<IdentityKind.Witness>, Integer> result = monad.of(0);
       for (int i = 0; i < 10000; i++) {
         result = monad.map(x -> x + 1, result);
       }
@@ -226,7 +296,7 @@ class FreeMonadTest extends FreeTestBase {
       Free<IdentityKind.Witness, String> program =
           Free.<IdentityKind.Witness, Integer>pure(42)
               .map(
-                  i -> {
+                  _ -> {
                     throw testException;
                   });
 
@@ -268,10 +338,7 @@ class FreeMonadTest extends FreeTestBase {
                                       .flatMap(
                                           z ->
                                               Free.<IdentityKind.Witness, Integer>pure(z + 1)
-                                                  .flatMap(
-                                                      w ->
-                                                          Free.<IdentityKind.Witness, Integer>pure(
-                                                              w + 1)))));
+                                                  .flatMap(w -> Free.pure(w + 1)))));
 
       Integer result = runFree(program);
       assertThat(result).isEqualTo(5);
@@ -284,59 +351,13 @@ class FreeMonadTest extends FreeTestBase {
       Kind<IdentityKind.Witness, Free<IdentityKind.Witness, Integer>> wrapped =
           IdentityKindHelper.IDENTITY.widen(
               new Identity<>(
-                  Free.<IdentityKind.Witness, Integer>pure(5)
-                      .flatMap(x -> Free.<IdentityKind.Witness, Integer>pure(x * 2))));
+                  Free.<IdentityKind.Witness, Integer>pure(5).flatMap(x -> Free.pure(x * 2))));
 
       Free<IdentityKind.Witness, Integer> suspend = Free.suspend(wrapped);
-      Free<IdentityKind.Witness, Integer> program =
-          suspend.flatMap(x -> Free.<IdentityKind.Witness, Integer>pure(x + 3));
+      Free<IdentityKind.Witness, Integer> program = suspend.flatMap(x -> Free.pure(x + 3));
 
       Integer result = runFree(program);
       assertThat(result).isEqualTo(13); // (5 * 2) + 3
-    }
-  }
-
-  @Nested
-  @DisplayName("Individual Components")
-  class IndividualComponents {
-
-    @Test
-    @DisplayName("Test operations only")
-    void testOperationsOnly() {
-      TypeClassContract.<FreeKind.Witness<IdentityKind.Witness>>monad(FreeMonad.class)
-          .<Integer>instance(monad)
-          .<String>withKind(validKind)
-          .withMonadOperations(
-              validKind2, validMapper, validFlatMapper, validFunctionKind, validCombiningFunction)
-          .verifyOnly(Category.OPERATIONS);
-    }
-
-    @Test
-    @DisplayName("Test validations only")
-    void testValidationsOnly() {
-      TypeClassContract.<FreeKind.Witness<IdentityKind.Witness>>monad(FreeMonad.class)
-          .<Integer>instance(monad)
-          .<String>withKind(validKind)
-          .withMonadOperations(
-              validKind2, validMapper, validFlatMapper, validFunctionKind, validCombiningFunction)
-          .verifyOnly(Category.VALIDATIONS);
-    }
-
-    // Exception propagation tests are not applicable to Free monad because it's lazy.
-    // Free monad builds program structures without executing functions, so exceptions
-    // are only thrown during interpretation (foldMap), not during construction.
-    // This is the correct and expected behavior for lazy evaluation.
-
-    @Test
-    @DisplayName("Test laws only")
-    void testLawsOnly() {
-      TypeClassContract.<FreeKind.Witness<IdentityKind.Witness>>monad(FreeMonad.class)
-          .<Integer>instance(monad)
-          .<String>withKind(validKind)
-          .withMonadOperations(
-              validKind2, validMapper, validFlatMapper, validFunctionKind, validCombiningFunction)
-          .withLawsTesting(testValue, testFunction, chainFunction, equalityChecker)
-          .verifyOnly(Category.LAWS);
     }
   }
 
@@ -444,7 +465,7 @@ class FreeMonadTest extends FreeTestBase {
       Kind<IdentityKind.Witness, Free<IdentityKind.Witness, Integer>> suspended =
           IDENTITY.widen(new Identity<>(Free.pure(10)));
       Free<IdentityKind.Witness, Integer> program =
-          Free.<IdentityKind.Witness, Integer>suspend(suspended).flatMap(n -> Free.pure(n * 2));
+          Free.suspend(suspended).flatMap(n -> Free.pure(n * 2));
 
       Integer result = runFreeViaIO(program);
       assertThat(result).isEqualTo(20);
@@ -456,7 +477,7 @@ class FreeMonadTest extends FreeTestBase {
       Kind<IdentityKind.Witness, Free<IdentityKind.Witness, Integer>> suspended =
           IDENTITY.widen(new Identity<>(Free.pure(10)));
       Free<IdentityKind.Witness, Integer> program =
-          Free.<IdentityKind.Witness, Integer>suspend(suspended).flatMap(n -> Free.pure(n * 2));
+          Free.suspend(suspended).flatMap(n -> Free.pure(n * 2));
 
       Integer result = runFreeViaIONatural(program);
       assertThat(result).isEqualTo(20);

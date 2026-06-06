@@ -5,12 +5,11 @@ package org.higherkindedj.hkt.free;
 import static org.higherkindedj.hkt.free.FreeKindHelper.FREE;
 import static org.higherkindedj.hkt.free.test.IdentityKindHelper.IDENTITY;
 
-import java.util.Objects;
 import java.util.function.BiFunction;
 import java.util.function.BiPredicate;
 import java.util.function.Function;
 import org.higherkindedj.hkt.Kind;
-import org.higherkindedj.hkt.free.test.Identity;
+import org.higherkindedj.hkt.Natural;
 import org.higherkindedj.hkt.free.test.IdentityKind;
 import org.higherkindedj.hkt.free.test.IdentityMonad;
 import org.higherkindedj.hkt.test.fixtures.TypeClassTestBase;
@@ -19,7 +18,8 @@ import org.higherkindedj.hkt.test.fixtures.TypeClassTestBase;
  * Base class for Free monad tests.
  *
  * <p>Provides common fixtures and helper methods for testing the Free monad using Identity as the
- * underlying functor.
+ * underlying functor. The Monad-law equality is delegated to the shared {@link FreeLawFixtures#EQ},
+ * which interprets both programs through the same Identity interpreter.
  */
 abstract class FreeTestBase
     extends TypeClassTestBase<FreeKind.Witness<IdentityKind.Witness>, Integer, String> {
@@ -35,13 +35,6 @@ abstract class FreeTestBase
     return FREE.widen(Free.pure(value));
   }
 
-  /** Creates a Free monad with a suspended Identity computation. */
-  protected <A> Kind<FreeKind.Witness<IdentityKind.Witness>, A> suspendKind(A value) {
-    Kind<IdentityKind.Witness, Free<IdentityKind.Witness, A>> identityOfFree =
-        IDENTITY.widen(new Identity<>(Free.pure(value)));
-    return FREE.widen(Free.suspend(identityOfFree));
-  }
-
   /** Narrows a Kind to a concrete Free instance. */
   protected <A> Free<IdentityKind.Witness, A> narrowToFree(
       Kind<FreeKind.Witness<IdentityKind.Witness>, A> kind) {
@@ -50,8 +43,7 @@ abstract class FreeTestBase
 
   /** Interprets a Free program into Identity. */
   protected <A> A runFree(Free<IdentityKind.Witness, A> free) {
-    Function<Kind<IdentityKind.Witness, ?>, Kind<IdentityKind.Witness, ?>> transform =
-        kind -> kind; // Identity transformation
+    Natural<IdentityKind.Witness, IdentityKind.Witness> transform = Natural.identity();
     Kind<IdentityKind.Witness, A> result = free.foldMap(transform, IdentityMonad.INSTANCE);
     return IDENTITY.narrow(result).value();
   }
@@ -117,15 +109,6 @@ abstract class FreeTestBase
           Kind<FreeKind.Witness<IdentityKind.Witness>, ?>,
           Kind<FreeKind.Witness<IdentityKind.Witness>, ?>>
       createEqualityChecker() {
-    return (k1, k2) -> {
-      Free<IdentityKind.Witness, ?> free1 = FREE.narrow(k1);
-      Free<IdentityKind.Witness, ?> free2 = FREE.narrow(k2);
-
-      // Run both programs and compare results
-      Object result1 = runFree((Free<IdentityKind.Witness, Object>) free1);
-      Object result2 = runFree((Free<IdentityKind.Witness, Object>) free2);
-
-      return Objects.equals(result1, result2);
-    };
+    return FreeLawFixtures.EQ;
   }
 }

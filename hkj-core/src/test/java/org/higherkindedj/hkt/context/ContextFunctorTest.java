@@ -5,28 +5,68 @@ package org.higherkindedj.hkt.context;
 import static org.assertj.core.api.Assertions.*;
 import static org.higherkindedj.hkt.context.ContextKindHelper.CONTEXT;
 
-import java.util.function.Function;
 import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.laws.FunctorLaws;
+import org.higherkindedj.hkt.test.contract.Category;
+import org.higherkindedj.hkt.test.contract.TypeClassContract;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.MethodSource;
 
 /**
- * Comprehensive test suite for {@link ContextFunctor}.
+ * Test suite for {@link ContextFunctor}.
  *
- * <p>Coverage includes singleton pattern, map operations, null handling, and functor laws.
+ * <p>Verifies the Functor operations and laws; the laws are driven by the shipped {@link
+ * FunctorLaws} over {@link ContextLawFixtures}.
  */
-@DisplayName("ContextFunctor<R> Complete Test Suite")
+@DisplayName("ContextFunctor<R> Tests")
 class ContextFunctorTest {
 
-  private static final ScopedValue<String> STRING_KEY = ScopedValue.newInstance();
+  private static final ScopedValue<String> STRING_KEY = ContextLawFixtures.STRING_KEY;
 
   private ContextFunctor<String> functor;
 
   @BeforeEach
   void setUp() {
     functor = ContextFunctor.instance();
+  }
+
+  @Nested
+  @DisplayName("Laws")
+  class Laws {
+
+    @ParameterizedTest(name = "identity holds on {0}")
+    @MethodSource("org.higherkindedj.hkt.context.ContextLawFixtures#kinds")
+    void identity(String label, Kind<ContextKind.Witness<String>, String> fa) {
+      FunctorLaws.assertIdentity(functor, fa, ContextLawFixtures.EQ);
+    }
+
+    @ParameterizedTest(name = "composition holds on {0}")
+    @MethodSource("org.higherkindedj.hkt.context.ContextLawFixtures#kinds")
+    void composition(String label, Kind<ContextKind.Witness<String>, String> fa) {
+      FunctorLaws.assertComposition(
+          functor, fa, String::toUpperCase, String::length, ContextLawFixtures.EQ);
+    }
+  }
+
+  /**
+   * {@code Context} is lazy — {@code map} only wraps the mapper, which is applied at {@link
+   * Context#run()} time — so {@link Category#EXCEPTIONS} is omitted (a thrown mapper does not
+   * surface until the context is run). That deferral is covered explicitly in {@code
+   * ContextTest}/{@code ContextExceptionTest}. The Functor laws are verified in the {@code Laws}
+   * block above.
+   */
+  @Test
+  @DisplayName("Functor contract — operations & validations (laws verified above)")
+  void functorContract() {
+    TypeClassContract.<ContextKind.Witness<String>>functor(ContextFunctor.class)
+        .<String>instance(functor)
+        .<Integer>withKind(CONTEXT.succeed("seed"))
+        .withMapper(String::length)
+        .verifyOnly(Category.OPERATIONS, Category.VALIDATIONS);
   }
 
   @Nested
@@ -59,7 +99,7 @@ class ContextFunctorTest {
 
     @Test
     @DisplayName("map() should transform value in Kind wrapper")
-    void map_shouldTransformValue() throws Exception {
+    void map_shouldTransformValue() {
       Kind<ContextKind.Witness<String>, String> kindA = CONTEXT.ask(STRING_KEY);
 
       Kind<ContextKind.Witness<String>, Integer> kindB = functor.map(String::length, kindA);
@@ -84,20 +124,6 @@ class ContextFunctorTest {
     }
 
     @Test
-    @DisplayName("map() should throw NullPointerException for null function")
-    void map_shouldThrowForNullFunction() {
-      Kind<ContextKind.Witness<String>, String> kindA = CONTEXT.succeed("test");
-
-      assertThatNullPointerException().isThrownBy(() -> functor.map(null, kindA));
-    }
-
-    @Test
-    @DisplayName("map() should throw for null Kind")
-    void map_shouldThrowForNullKind() {
-      assertThatNullPointerException().isThrownBy(() -> functor.map(s -> s, null));
-    }
-
-    @Test
     @DisplayName("map() should preserve failure")
     void map_shouldPreserveFailure() {
       RuntimeException error = new RuntimeException("test error");
@@ -111,51 +137,12 @@ class ContextFunctorTest {
   }
 
   @Nested
-  @DisplayName("Functor Laws via Kind")
-  class FunctorLawsViaKind {
-
-    @Test
-    @DisplayName("Identity law: map(identity, fa) == fa")
-    void identityLaw() throws Exception {
-      Kind<ContextKind.Witness<String>, String> fa = CONTEXT.ask(STRING_KEY);
-
-      Kind<ContextKind.Witness<String>, String> mapped = functor.map(s -> s, fa);
-
-      String value = "test";
-      String faResult = ScopedValue.where(STRING_KEY, value).call(() -> CONTEXT.narrow(fa).run());
-      String mappedResult =
-          ScopedValue.where(STRING_KEY, value).call(() -> CONTEXT.narrow(mapped).run());
-
-      assertThat(mappedResult).isEqualTo(faResult);
-    }
-
-    @Test
-    @DisplayName("Composition law: map(g, map(f, fa)) == map(g.compose(f), fa)")
-    void compositionLaw() throws Exception {
-      Kind<ContextKind.Witness<String>, String> fa = CONTEXT.ask(STRING_KEY);
-
-      Function<String, String> f = String::toUpperCase;
-      Function<String, Integer> g = String::length;
-
-      Kind<ContextKind.Witness<String>, Integer> left = functor.map(g, functor.map(f, fa));
-      Kind<ContextKind.Witness<String>, Integer> right = functor.map(f.andThen(g), fa);
-
-      String value = "test";
-      Integer leftResult =
-          ScopedValue.where(STRING_KEY, value).call(() -> CONTEXT.narrow(left).run());
-      Integer rightResult =
-          ScopedValue.where(STRING_KEY, value).call(() -> CONTEXT.narrow(right).run());
-
-      assertThat(leftResult).isEqualTo(rightResult);
-    }
-  }
-
-  @Nested
   @DisplayName("Edge Cases")
   class EdgeCases {
 
     @Test
     @DisplayName("map() should handle null values in Context")
+    @SuppressWarnings("ConstantValue") // succeed(null) feeds a null value the mapper must handle
     void map_shouldHandleNullValues() {
       Kind<ContextKind.Witness<String>, String> kindA = CONTEXT.succeed(null);
 
@@ -170,10 +157,11 @@ class ContextFunctorTest {
 
     @Test
     @DisplayName("map() should handle mapper returning null")
+    @SuppressWarnings("DataFlowIssue") // mapper deliberately returns null to verify pass-through
     void map_shouldHandleMapperReturningNull() {
       Kind<ContextKind.Witness<String>, String> kindA = CONTEXT.succeed("test");
 
-      Kind<ContextKind.Witness<String>, String> kindB = functor.map(s -> null, kindA);
+      Kind<ContextKind.Witness<String>, String> kindB = functor.map(_ -> null, kindA);
 
       Context<String, String> ctx = CONTEXT.narrow(kindB);
       String result = ctx.run();

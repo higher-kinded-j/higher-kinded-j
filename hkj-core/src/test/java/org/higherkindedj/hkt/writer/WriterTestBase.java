@@ -12,6 +12,7 @@ import org.higherkindedj.hkt.Monoid;
 import org.higherkindedj.hkt.Unit;
 import org.higherkindedj.hkt.test.fixtures.TypeClassTestBase;
 import org.higherkindedj.hkt.typeclass.StringMonoid;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Base class for Writer type class tests.
@@ -45,8 +46,6 @@ import org.higherkindedj.hkt.typeclass.StringMonoid;
  *   <li>{@link #valueWriter(Object)} - Creates a Writer with an empty log
  *   <li>{@link #tellWriter(String)} - Creates a Writer with only a log (Unit value)
  *   <li>{@link #narrowToWriter(Kind)} - Converts a Kind to a Writer instance
- *   <li>{@link #runWriter(Kind)} - Extracts the value from a Writer Kind
- *   <li>{@link #execWriter(Kind)} - Extracts the log from a Writer Kind
  * </ul>
  */
 abstract class WriterTestBase
@@ -83,7 +82,8 @@ abstract class WriterTestBase
    * @param value The value to include
    * @return A new Writer instance
    */
-  protected <A> Writer<String, A> writerOf(String log, A value) {
+  @SuppressWarnings("NullableProblems") // Writer value is @Nullable, so the diamond infers nullable
+  protected <A> Writer<String, A> writerOf(String log, @Nullable A value) {
     return new Writer<>(log, value);
   }
 
@@ -94,7 +94,7 @@ abstract class WriterTestBase
    * @param value The value to include
    * @return A new Writer instance with an empty log
    */
-  protected <A> Writer<String, A> valueWriter(A value) {
+  protected <A> Writer<String, A> valueWriter(@Nullable A value) {
     return Writer.value(STRING_MONOID, value);
   }
 
@@ -122,28 +122,6 @@ abstract class WriterTestBase
     return WRITER.narrow(kind);
   }
 
-  /**
-   * Extracts the value from a Writer Kind.
-   *
-   * @param <A> The type of the value
-   * @param kind The Kind wrapping the Writer
-   * @return The value from the Writer
-   */
-  protected <A> A runWriter(Kind<WriterKind.Witness<String>, A> kind) {
-    return WRITER.run(kind);
-  }
-
-  /**
-   * Extracts the log from a Writer Kind.
-   *
-   * @param <A> The type of the value (ignored)
-   * @param kind The Kind wrapping the Writer
-   * @return The log from the Writer
-   */
-  protected <A> String execWriter(Kind<WriterKind.Witness<String>, A> kind) {
-    return WRITER.exec(kind);
-  }
-
   // ============================================================================
   // Convenience Methods for Common Writer Patterns
   // ============================================================================
@@ -158,30 +136,12 @@ abstract class WriterTestBase
   }
 
   /**
-   * Creates a Writer with an alternative log and value.
-   *
-   * @return A Writer with ALTERNATIVE_LOG and ALTERNATIVE_VALUE
-   */
-  protected Writer<String, Integer> alternativeWriter() {
-    return writerOf(ALTERNATIVE_LOG, ALTERNATIVE_VALUE);
-  }
-
-  /**
    * Creates a Kind wrapping a Writer with the default log and value.
    *
    * @return A Kind wrapping the default Writer
    */
   protected Kind<WriterKind.Witness<String>, Integer> defaultKind() {
     return WRITER.widen(defaultWriter());
-  }
-
-  /**
-   * Creates a Kind wrapping a Writer with an alternative log and value.
-   *
-   * @return A Kind wrapping the alternative Writer
-   */
-  protected Kind<WriterKind.Witness<String>, Integer> alternativeKind() {
-    return WRITER.widen(alternativeWriter());
   }
 
   // ============================================================================
@@ -241,10 +201,6 @@ abstract class WriterTestBase
   @Override
   protected BiPredicate<Kind<WriterKind.Witness<String>, ?>, Kind<WriterKind.Witness<String>, ?>>
       createEqualityChecker() {
-    return (k1, k2) -> {
-      Writer<String, ?> w1 = WRITER.narrow(k1);
-      Writer<String, ?> w2 = WRITER.narrow(k2);
-      return w1.equals(w2);
-    };
+    return WriterLawFixtures.EQ;
   }
 }

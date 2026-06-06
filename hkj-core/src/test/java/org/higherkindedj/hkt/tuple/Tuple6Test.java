@@ -34,6 +34,7 @@ class Tuple6Test {
 
     @Test
     @DisplayName("Constructor accepts null elements")
+    @SuppressWarnings("DataFlowIssue") // Tuple6 permits null elements; nulls passed deliberately
     void constructorAcceptsNullElements() {
       Tuple6<String, Integer, Boolean, Double, Character, Long> tuple =
           new Tuple6<>(null, null, null, null, null, null);
@@ -108,6 +109,7 @@ class Tuple6Test {
 
     @Test
     @DisplayName("map() throws NullPointerException when any mapper is null")
+    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
     void mapThrowsWhenMapperNull() {
       Tuple6<String, Integer, Boolean, Double, Character, Long> tuple =
           new Tuple6<>("Alice", 30, true, 5.5, 'A', 100L);
@@ -290,6 +292,7 @@ class Tuple6Test {
 
     @Test
     @DisplayName("Individual map methods throw NullPointerException when mapper is null")
+    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
     void mapThrowsWhenMapperNull() {
       assertThatNullPointerException().isThrownBy(() -> tuple.mapFirst(null));
       assertThatNullPointerException().isThrownBy(() -> tuple.mapSecond(null));

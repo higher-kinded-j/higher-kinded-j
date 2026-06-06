@@ -249,7 +249,7 @@ Deep integration between optics and state-threaded comprehensions:
 - `modifyVia`: modify a field through an Iso conversion
 - `updateVia`: set a field through an Iso conversion
 - `through(Iso)`: convert a bound value via Iso in a For comprehension
-- Combined workflows chaining multiple Phase 6 operations
+- Combined workflows chaining multiple operations
 
 ## Solutions
 

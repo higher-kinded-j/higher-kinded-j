@@ -33,7 +33,7 @@ class ReaderTKindHelperTest {
   }
 
   private <A> ReaderT<OptionalKind.Witness, String, A> createReaderT(A value) {
-    return ReaderT.reader(outerMonad, env -> value);
+    return ReaderT.reader(outerMonad, _ -> value);
   }
 
   @Nested
@@ -64,6 +64,7 @@ class ReaderTKindHelperTest {
 
     @Test
     @DisplayName("widen should throw NullPointerException when given null")
+    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
     void widen_nullReaderT_shouldThrowNullPointerException() {
       assertThatThrownBy(() -> READER_T.widen(null))
           .isInstanceOf(NullPointerException.class)
@@ -168,7 +169,8 @@ class ReaderTKindHelperTest {
     }
   }
 
-  // Dummy Kind for testing invalid type unwrap - witness is the class itself with wildcard
+  // Dummy Kind for testing invalid type unwrap - witness is the class itself with wildcard.
+  @SuppressWarnings("unused") // type params mirror ReaderT but are unused here
   private static class OtherKindWitness<F_Witness, R> implements WitnessArity<TypeArity.Unary> {}
 
   private static class OtherKind<F_Witness, R, A>

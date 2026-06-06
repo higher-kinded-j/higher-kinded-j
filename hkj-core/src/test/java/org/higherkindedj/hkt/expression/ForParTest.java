@@ -51,7 +51,7 @@ class ForParTest {
     void par4_combineFour() {
       Kind<IdKind.Witness, String> result =
           For.par(idMonad, Id.of(1), Id.of("b"), Id.of(3.0), Id.of(true))
-              .yield((a, b, c, d) -> "" + a + b + c + d);
+              .yield((a, b, c, d) -> a + b + c + d);
       assertThat(IdKindHelper.ID.unwrap(result)).isEqualTo("1b3.0true");
     }
 
@@ -60,7 +60,7 @@ class ForParTest {
     void par5_combineFive() {
       Kind<IdKind.Witness, String> result =
           For.par(idMonad, Id.of(1), Id.of("b"), Id.of(3.0), Id.of(true), Id.of('e'))
-              .yield((a, b, c, d, e) -> "" + a + b + c + d + e);
+              .yield((a, b, c, d, e) -> a + b + c + d + e);
       assertThat(IdKindHelper.ID.unwrap(result)).isEqualTo("1b3.0truee");
     }
 
@@ -127,7 +127,7 @@ class ForParTest {
       Kind<MaybeKind.Witness, Integer> result =
           For.par(maybeMonad, MAYBE.widen(Maybe.just(3)), MAYBE.widen(Maybe.just(4)))
               .when(t -> t._1() + t._2() > 10)
-              .yield((a, b) -> a + b);
+              .yield(Integer::sum);
       assertThat(MAYBE.narrow(result)).isEqualTo(Maybe.nothing());
     }
 
@@ -198,7 +198,7 @@ class ForParTest {
                   a -> Id.of(a * 100),
                   a -> Id.of(a * 1000),
                   a -> Id.of(a * 10000))
-              .yield((a, b, c, d, e) -> "" + a + ":" + b + ":" + c + ":" + d + ":" + e);
+              .yield((a, b, c, d, e) -> a + ":" + b + ":" + c + ":" + d + ":" + e);
       assertThat(IdKindHelper.ID.unwrap(result)).isEqualTo("1:10:100:1000:10000");
     }
   }
@@ -226,7 +226,7 @@ class ForParTest {
       Kind<MaybeKind.Witness, String> result =
           For.from(maybeMonad, MAYBE.widen(Maybe.just(10)))
               .par(
-                  a -> MAYBE.widen(Maybe.<Integer>nothing()), a -> MAYBE.widen(Maybe.just(a + "!")))
+                  _ -> MAYBE.widen(Maybe.<Integer>nothing()), a -> MAYBE.widen(Maybe.just(a + "!")))
               .yield((a, b, c) -> a + ":" + b + ":" + c);
       assertThat(MAYBE.narrow(result)).isEqualTo(Maybe.nothing());
     }
@@ -254,7 +254,7 @@ class ForParTest {
                   a -> MAYBE.widen(Maybe.just(a * 100)),
                   a -> MAYBE.widen(Maybe.just(a * 1000)),
                   a -> MAYBE.widen(Maybe.just(a * 10000)))
-              .yield((a, b, c, d, e) -> "" + a + ":" + b + ":" + c + ":" + d + ":" + e);
+              .yield((a, b, c, d, e) -> a + ":" + b + ":" + c + ":" + d + ":" + e);
       assertThat(MAYBE.narrow(result)).isEqualTo(Maybe.just("1:10:100:1000:10000"));
     }
   }

@@ -8,6 +8,7 @@ import java.util.function.Function;
 import org.higherkindedj.hkt.Applicative;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.util.validation.Validation;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Implements the {@link Applicative} type class for {@link IO}, using {@link IOKind.Witness} as the
@@ -46,7 +47,10 @@ public class IOApplicative extends IOFunctor implements Applicative<IOKind.Witne
    *     value}. Never null.
    */
   @Override
-  public <A> Kind<IOKind.Witness, A> of(A value) {
+  // IO legitimately carries null (see contract above); the thunk simply returns the @Nullable
+  // value.
+  @SuppressWarnings("DataFlowIssue")
+  public <A> Kind<IOKind.Witness, A> of(@Nullable A value) {
     // 'of'/'pure' captures a pure value, delaying its evaluation until unsafeRunSync
     return IO_OP.widen(IO.delay(() -> value));
   }

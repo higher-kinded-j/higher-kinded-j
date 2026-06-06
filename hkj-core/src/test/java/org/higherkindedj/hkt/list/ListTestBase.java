@@ -4,7 +4,6 @@ package org.higherkindedj.hkt.list;
 
 import static org.higherkindedj.hkt.list.ListKindHelper.LIST;
 
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
@@ -39,7 +38,6 @@ import org.higherkindedj.hkt.test.fixtures.TypeClassTestBase;
  *   <li>{@link #listOf(Object...)} - Creates a List Kind from varargs
  *   <li>{@link #emptyList()} - Creates an empty List Kind
  *   <li>{@link #singletonList(Object)} - Creates a List Kind with one element
- *   <li>{@link #narrowToList(Kind)} - Converts a Kind back to a List
  * </ul>
  */
 abstract class ListTestBase extends TypeClassTestBase<ListKind.Witness, Integer, String> {
@@ -92,20 +90,6 @@ abstract class ListTestBase extends TypeClassTestBase<ListKind.Witness, Integer,
    */
   protected <A> Kind<ListKind.Witness, A> singletonList(A element) {
     return LIST.widen(Collections.singletonList(element));
-  }
-
-  /**
-   * Converts a List Kind to a standard Java List.
-   *
-   * <p>This is a convenience method to make test code more readable by avoiding repeated
-   * LIST.narrow() calls.
-   *
-   * @param <A> The type of elements
-   * @param kind The Kind to convert
-   * @return The underlying List instance
-   */
-  protected <A> List<A> narrowToList(Kind<ListKind.Witness, A> kind) {
-    return LIST.narrow(kind);
   }
 
   // ============================================================================
@@ -165,7 +149,7 @@ abstract class ListTestBase extends TypeClassTestBase<ListKind.Witness, Integer,
   @Override
   protected BiPredicate<Kind<ListKind.Witness, ?>, Kind<ListKind.Witness, ?>>
       createEqualityChecker() {
-    return (k1, k2) -> LIST.narrow(k1).equals(LIST.narrow(k2));
+    return ListLawFixtures.EQ;
   }
 
   // ============================================================================
@@ -181,22 +165,5 @@ abstract class ListTestBase extends TypeClassTestBase<ListKind.Witness, Integer,
    */
   protected <A> Kind<ListKind.Witness, A> wrapList(List<A> list) {
     return LIST.widen(list);
-  }
-
-  /**
-   * Creates a List Kind containing elements from start (inclusive) to end (exclusive).
-   *
-   * <p>Example: {@code rangeList(1, 4)} produces a list [1, 2, 3]
-   *
-   * @param start The starting value (inclusive)
-   * @param end The ending value (exclusive)
-   * @return A List Kind containing the range
-   */
-  protected Kind<ListKind.Witness, Integer> rangeList(int start, int end) {
-    List<Integer> range = new ArrayList<>();
-    for (int i = start; i < end; i++) {
-      range.add(i);
-    }
-    return LIST.widen(range);
   }
 }

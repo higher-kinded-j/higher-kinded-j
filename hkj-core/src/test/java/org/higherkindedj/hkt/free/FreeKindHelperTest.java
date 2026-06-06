@@ -7,7 +7,6 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.higherkindedj.hkt.free.FreeKindHelper.FREE;
 
 import org.higherkindedj.hkt.Kind;
-import org.higherkindedj.hkt.WitnessArity;
 import org.higherkindedj.hkt.exception.KindUnwrapException;
 import org.higherkindedj.hkt.maybe.MaybeKind;
 import org.junit.jupiter.api.DisplayName;
@@ -44,15 +43,10 @@ class FreeKindHelperTest {
 
     @Test
     @DisplayName("narrow(wrong type) should throw KindUnwrapException")
-    @SuppressWarnings("unchecked")
     void narrow_wrongType_shouldThrowKindUnwrapException() {
       // Create a Kind with the wrong runtime type
-      Kind<FreeKind.Witness<MaybeKind.Witness>, String> fakeKind =
-          (Kind<FreeKind.Witness<MaybeKind.Witness>, String>) (Kind<?, ?>) new FakeKind<>();
+      Kind<FreeKind.Witness<MaybeKind.Witness>, String> fakeKind = new Kind<>() {};
       assertThatThrownBy(() -> FREE.narrow(fakeKind)).isInstanceOf(KindUnwrapException.class);
     }
   }
-
-  /** A fake Kind implementation used to test type checking in narrow(). */
-  private static final class FakeKind<F extends WitnessArity<?>, A> implements Kind<F, A> {}
 }

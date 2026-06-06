@@ -3,11 +3,12 @@
 package org.higherkindedj.hkt.list;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.higherkindedj.hkt.instances.Witnesses.maybe;
 import static org.higherkindedj.hkt.list.ListKindHelper.LIST;
+import static org.higherkindedj.hkt.maybe.MaybeKindHelper.MAYBE;
 
 import java.util.Arrays;
 import java.util.Collections;
-import java.util.Optional;
 import java.util.function.Function;
 import org.higherkindedj.hkt.Applicative;
 import org.higherkindedj.hkt.Foldable;
@@ -15,103 +16,51 @@ import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Monoid;
 import org.higherkindedj.hkt.Monoids;
 import org.higherkindedj.hkt.Traverse;
-import org.higherkindedj.hkt.TypeArity;
-import org.higherkindedj.hkt.WitnessArity;
-import org.jspecify.annotations.NonNull;
+import org.higherkindedj.hkt.instances.Instances;
+import org.higherkindedj.hkt.laws.TraverseLaws;
+import org.higherkindedj.hkt.maybe.Maybe;
+import org.higherkindedj.hkt.maybe.MaybeKind;
+import org.higherkindedj.hkt.test.contract.Category;
+import org.higherkindedj.hkt.test.contract.TypeClassContract;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.MethodSource;
 
 @DisplayName("ListTraverse Tests")
-class ListTraverseTest {
+class ListTraverseTest extends ListTestBase {
 
   private final Traverse<ListKind.Witness> listTraverse = ListTraverse.INSTANCE;
   private final Foldable<ListKind.Witness> listFoldable = ListTraverse.INSTANCE;
 
-  // --- Mock/Simple Optional HKT for Testing Traverse ---
+  // The applicative effect threaded through traverse is the real Maybe (its just/nothing
+  // short-circuit semantics are exactly what traverse must respect), matching every other
+  // *TraverseTest in the codebase.
+  private final Applicative<MaybeKind.Witness> maybeApplicative = Instances.monadError(maybe());
 
-  /** HKT marker for TestOptional. Made non-generic. */
-  static final class TestOptionalKindWitness implements WitnessArity<TypeArity.Unary> {
-    private TestOptionalKindWitness() {}
-  }
+  @Nested
+  @DisplayName("Laws")
+  class Laws {
 
-  /**
-   * HKT interface for our test Optional. Now uses the non-generic TestOptionalKindWitness marker.
-   */
-  interface TestOptional<A> extends Kind<TestOptionalKindWitness, A> {
-    Optional<A> getOptional();
-
-    static <A> TestOptional<A> narrow(Kind<TestOptionalKindWitness, A> kind) {
-      return (TestOptional<A>) kind;
-    }
-
-    static <A> TestOptional<A> some(A value) {
-      return new Some<>(value);
-    }
-
-    static <A> TestOptional<A> none() {
-      return None.instance();
+    @ParameterizedTest(name = "identity holds on {0}")
+    @MethodSource("org.higherkindedj.hkt.list.ListLawFixtures#kinds")
+    void identity(String label, Kind<ListKind.Witness, Integer> fa) {
+      TraverseLaws.assertIdentity(listTraverse, fa, equalityChecker);
     }
   }
 
-  record Some<A>(A value) implements TestOptional<A> {
-    @Override
-    public Optional<A> getOptional() {
-      return Optional.ofNullable(value);
-    }
+  @Test
+  @DisplayName("Traverse contract — operations, validations & exceptions (laws verified above)")
+  void traverseContract() {
+    TypeClassContract.<ListKind.Witness>traverse(ListTraverse.class)
+        .<Integer>instance(listTraverse)
+        .<String>withKind(validKind)
+        .withMapper(validMapper)
+        .withApplicative(maybeApplicative, i -> MAYBE.widen(Maybe.just("v" + i)))
+        .withFoldable(Monoids.string(), Object::toString)
+        .verifyOnly(Category.OPERATIONS, Category.VALIDATIONS, Category.EXCEPTIONS);
   }
-
-  static final class None<A> implements TestOptional<A> {
-    private static final None<?> INSTANCE = new None<>();
-
-    private None() {}
-
-    @SuppressWarnings("unchecked")
-    public static <A> None<A> instance() {
-      return (None<A>) INSTANCE;
-    }
-
-    @Override
-    public Optional<A> getOptional() {
-      return Optional.empty();
-    }
-  }
-
-  /**
-   * Applicative instance for TestOptional. Now uses the non-generic TestOptionalKindWitness marker.
-   */
-  static class TestOptionalApplicative implements Applicative<TestOptionalKindWitness> {
-    public static final TestOptionalApplicative INSTANCE = new TestOptionalApplicative();
-
-    private TestOptionalApplicative() {}
-
-    @Override
-    public <A> @NonNull Kind<TestOptionalKindWitness, A> of(A value) {
-      return TestOptional.some(value);
-    }
-
-    @Override
-    public <A, B> @NonNull Kind<TestOptionalKindWitness, B> map(
-        @NonNull Function<? super A, ? extends B> f, @NonNull Kind<TestOptionalKindWitness, A> fa) {
-      return TestOptional.narrow(fa)
-          .getOptional()
-          .map(f)
-          .map(TestOptional::some)
-          .orElseGet(TestOptional::none);
-    }
-
-    @Override
-    public <A, B> @NonNull Kind<TestOptionalKindWitness, B> ap(
-        @NonNull Kind<TestOptionalKindWitness, ? extends Function<A, B>> ff,
-        @NonNull Kind<TestOptionalKindWitness, A> fa) {
-      Optional<? extends Function<A, B>> optFunc = TestOptional.narrow(ff).getOptional();
-      Optional<A> optVal = TestOptional.narrow(fa).getOptional();
-
-      return optFunc.flatMap(optVal::map).map(TestOptional::some).orElseGet(TestOptional::none);
-    }
-  }
-
-  // --- End of Mock Optional HKT ---
 
   @Nested
   @DisplayName("map method")
@@ -134,51 +83,45 @@ class ListTraverseTest {
   @Nested
   @DisplayName("traverse method")
   class TraverseTests {
-    private final Applicative<TestOptionalKindWitness> optionalApplicative =
-        TestOptionalApplicative.INSTANCE;
 
-    Function<Integer, Kind<TestOptionalKindWitness, String>> intToOptionalStringKind =
-        i -> TestOptional.some("v" + i);
+    private final Function<Integer, Kind<MaybeKind.Witness, String>> intToJustString =
+        i -> MAYBE.widen(Maybe.just("v" + i));
 
-    Function<Integer, Kind<TestOptionalKindWitness, Integer>> intToOptionalIntSometimesNoneKind =
-        i -> (i % 2 == 0) ? TestOptional.none() : TestOptional.some(i * 3);
+    private final Function<Integer, Kind<MaybeKind.Witness, Integer>> intToMaybeSometimesNothing =
+        i -> (i % 2 == 0) ? MAYBE.widen(Maybe.nothing()) : MAYBE.widen(Maybe.just(i * 3));
 
     @Test
     void traverse_emptyList_shouldReturnApplicativeOfEmptyListKind() {
       Kind<ListKind.Witness, Integer> emptyListKind = LIST.widen(Collections.emptyList());
 
-      Kind<TestOptionalKindWitness, Kind<ListKind.Witness, String>> resultKind =
-          listTraverse.traverse(optionalApplicative, intToOptionalStringKind, emptyListKind);
+      Kind<MaybeKind.Witness, Kind<ListKind.Witness, String>> resultKind =
+          listTraverse.traverse(maybeApplicative, intToJustString, emptyListKind);
 
-      Optional<Kind<ListKind.Witness, String>> resultOptional =
-          TestOptional.narrow(resultKind).getOptional();
-      assertThat(resultOptional).isPresent();
-      assertThat(LIST.narrow(resultOptional.get())).isEmpty();
+      Maybe<Kind<ListKind.Witness, String>> maybe = MAYBE.narrow(resultKind);
+      assertThat(maybe.isJust()).isTrue();
+      assertThat(LIST.narrow(maybe.get())).isEmpty();
     }
 
     @Test
     void traverse_allEffectsSucceed_shouldReturnApplicativeOfListOfResults() {
       Kind<ListKind.Witness, Integer> inputList = LIST.widen(Arrays.asList(1, 2, 3));
 
-      Kind<TestOptionalKindWitness, Kind<ListKind.Witness, String>> resultKind =
-          listTraverse.traverse(optionalApplicative, intToOptionalStringKind, inputList);
+      Kind<MaybeKind.Witness, Kind<ListKind.Witness, String>> resultKind =
+          listTraverse.traverse(maybeApplicative, intToJustString, inputList);
 
-      Optional<Kind<ListKind.Witness, String>> resultOptional =
-          TestOptional.narrow(resultKind).getOptional();
-      assertThat(resultOptional).isPresent();
-      assertThat(LIST.narrow(resultOptional.get())).containsExactly("v1", "v2", "v3");
+      Maybe<Kind<ListKind.Witness, String>> maybe = MAYBE.narrow(resultKind);
+      assertThat(maybe.isJust()).isTrue();
+      assertThat(LIST.narrow(maybe.get())).containsExactly("v1", "v2", "v3");
     }
 
     @Test
-    void traverse_oneEffectFails_shouldReturnApplicativeOfNone() {
+    void traverse_oneEffectFails_shouldReturnApplicativeOfNothing() {
       Kind<ListKind.Witness, Integer> inputList = LIST.widen(Arrays.asList(1, 2, 3));
 
-      Kind<TestOptionalKindWitness, Kind<ListKind.Witness, Integer>> resultKind =
-          listTraverse.traverse(optionalApplicative, intToOptionalIntSometimesNoneKind, inputList);
+      Kind<MaybeKind.Witness, Kind<ListKind.Witness, Integer>> resultKind =
+          listTraverse.traverse(maybeApplicative, intToMaybeSometimesNothing, inputList);
 
-      Optional<Kind<ListKind.Witness, Integer>> resultOptional =
-          TestOptional.narrow(resultKind).getOptional();
-      assertThat(resultOptional).isEmpty();
+      assertThat(MAYBE.narrow(resultKind).isNothing()).isTrue();
     }
   }
 

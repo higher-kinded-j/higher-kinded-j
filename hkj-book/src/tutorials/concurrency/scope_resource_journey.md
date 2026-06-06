@@ -15,7 +15,7 @@
 ~~~admonish tip title="Where This Fits in the Bigger Picture"
 `Scope` and `Resource` are the structured-concurrency primitives that let us compose async work safely. They sit between [VTask](vtask_journey.md) (the deferred-effect type) and the [Resilience Patterns](../resilience/resilience_journey.md) journey (which builds on top of them). When the production version of [One Line, Six Layers](../../hkts/one_line_six_layers.md) opens a connection pool or runs N requests in parallel, these are the primitives doing the work.
 
-This journey adopts the Phase 2 chapter template: each tutorial opens with a Pain → Promise header showing the imperative-Java pain (manual ExecutorService, try-with-resources that doesn't compose) it replaces, and ends with a diagnostic exercise drawn from the most common stumble.
+Each tutorial opens with a Pain → Promise header showing the imperative-Java pain (manual ExecutorService, try-with-resources that doesn't compose) it replaces, and ends with a diagnostic exercise drawn from the most common stumble.
 ~~~
 
 ## Journey Overview

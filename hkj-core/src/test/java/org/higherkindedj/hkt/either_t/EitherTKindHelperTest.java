@@ -67,6 +67,7 @@ class EitherTKindHelperTest {
 
     @Test
     @DisplayName("widen should throw NullPointerException when given null")
+    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
     void widen_nullEitherT_shouldThrowNullPointerException() {
       assertThatThrownBy(() -> EITHER_T.widen(null))
           .isInstanceOf(NullPointerException.class)
@@ -177,5 +178,6 @@ class EitherTKindHelperTest {
   // Dummy Kind for testing invalid type unwrap
   private interface OtherWitness extends WitnessArity<TypeArity.Unary> {}
 
+  @SuppressWarnings("unused") // type params mirror EitherT but are unused here
   private static class OtherKind<F_Witness, L, R> implements Kind<OtherWitness, R> {}
 }

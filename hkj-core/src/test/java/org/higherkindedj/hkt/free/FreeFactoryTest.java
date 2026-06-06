@@ -12,6 +12,7 @@ import org.higherkindedj.hkt.id.Id;
 import org.higherkindedj.hkt.id.IdKind;
 import org.higherkindedj.hkt.id.IdKindHelper;
 import org.higherkindedj.hkt.instances.Instances;
+import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -110,6 +111,7 @@ class FreeFactoryTest {
 
     @Test
     @DisplayName("pure() with null value")
+    @SuppressWarnings("DataFlowIssue") // Free may legitimately hold a null value
     void pureWithNullValue() {
       Free<IdKind.Witness, String> result = factory.pure(null);
 
@@ -237,7 +239,7 @@ class FreeFactoryTest {
   }
 
   /** Helper method to interpret a Free program using the identity transformation. */
-  private <A> A interpret(Free<IdKind.Witness, A> free) {
+  private <A> @Nullable A interpret(Free<IdKind.Witness, A> free) {
     Kind<IdKind.Witness, A> result = free.foldMap(Natural.identity(), idMonad);
     return IdKindHelper.ID.narrow(result).value();
   }

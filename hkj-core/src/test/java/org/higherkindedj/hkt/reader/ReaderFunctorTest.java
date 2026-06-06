@@ -4,19 +4,18 @@ package org.higherkindedj.hkt.reader;
 
 import static org.assertj.core.api.Assertions.*;
 import static org.higherkindedj.hkt.assertions.ReaderAssert.assertThatReader;
-import static org.higherkindedj.hkt.reader.ReaderKindHelper.READER;
 
 import java.util.function.Function;
-import java.util.stream.Stream;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.laws.FunctorLaws;
 import org.higherkindedj.hkt.test.api.KindHelperTests;
+import org.higherkindedj.hkt.test.contract.Category;
+import org.higherkindedj.hkt.test.contract.TypeClassContract;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 
 @DisplayName("ReaderFunctor")
@@ -34,24 +33,34 @@ class ReaderFunctorTest extends ReaderTestBase {
   class Laws {
 
     @ParameterizedTest(name = "identity holds on {0}")
-    @MethodSource("fixtures")
+    @MethodSource("org.higherkindedj.hkt.reader.ReaderLawFixtures#kinds")
     void identity(String label, Kind<ReaderKind.Witness<TestConfig>, Integer> fa) {
       FunctorLaws.assertIdentity(functor, fa, equalityChecker);
     }
 
     @ParameterizedTest(name = "composition holds on {0}")
-    @MethodSource("fixtures")
+    @MethodSource("org.higherkindedj.hkt.reader.ReaderLawFixtures#kinds")
     void composition(String label, Kind<ReaderKind.Witness<TestConfig>, Integer> fa) {
       FunctorLaws.assertComposition(functor, fa, validMapper, secondMapper, equalityChecker);
     }
+  }
 
-    static Stream<Arguments> fixtures() {
-      return Stream.of(
-          Arguments.of("reader(url length)", READER.reader((TestConfig cfg) -> cfg.url().length())),
-          Arguments.of("pure(42)", READER.reader((TestConfig cfg) -> 42)),
-          Arguments.of(
-              "reader(maxConnections)", READER.reader((TestConfig cfg) -> cfg.maxConnections())));
-    }
+  /**
+   * {@link Category#EXCEPTIONS} is omitted: the generic contract asserts that {@code map}
+   * <em>propagates</em> a thrown mapper exception immediately, but a Reader is lazy — the exception
+   * surfaces only when the result is run. That deferral is exercised by {@link
+   * ExceptionPropagationTests}.
+   */
+  @Test
+  @DisplayName(
+      "Functor contract — operations & validations (laws verified above; Reader defers the mapper"
+          + " exception, verified below)")
+  void functorContract() {
+    TypeClassContract.<ReaderKind.Witness<TestConfig>>functor(ReaderFunctor.class)
+        .<Integer>instance(functor)
+        .<String>withKind(validKind)
+        .withMapper(validMapper)
+        .verifyOnly(Category.OPERATIONS, Category.VALIDATIONS);
   }
 
   @Nested
@@ -127,7 +136,7 @@ class ReaderFunctorTest extends ReaderTestBase {
     void mapPropagatesExceptionsWhenRun() {
       RuntimeException testException = new RuntimeException("Test exception: map");
       Function<Integer, String> throwingMapper =
-          i -> {
+          _ -> {
             throw testException;
           };
 
@@ -150,7 +159,7 @@ class ReaderFunctorTest extends ReaderTestBase {
       RuntimeException testException = new RuntimeException("Test exception: source reader");
       Reader<TestConfig, Integer> throwingReader =
           Reader.of(
-              cfg -> {
+              _ -> {
                 throw testException;
               });
 
@@ -170,7 +179,7 @@ class ReaderFunctorTest extends ReaderTestBase {
     void composedMapOperationsPropagateExceptionsLazily() {
       RuntimeException testException = new RuntimeException("Test exception: composed");
       Function<String, String> throwingSecondMapper =
-          s -> {
+          _ -> {
             throw testException;
           };
 
@@ -195,8 +204,9 @@ class ReaderFunctorTest extends ReaderTestBase {
 
     @Test
     @DisplayName("map() handles null results correctly")
+    @SuppressWarnings("DataFlowIssue") // null-returning mapper exercises the Reader's null handling
     void mapHandlesNullResultsCorrectly() {
-      Function<Integer, String> nullReturningMapper = i -> null;
+      Function<Integer, String> nullReturningMapper = _ -> null;
 
       Kind<ReaderKind.Witness<TestConfig>, String> result =
           functor.map(nullReturningMapper, validKind);

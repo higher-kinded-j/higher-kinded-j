@@ -8,7 +8,6 @@ import static org.higherkindedj.hkt.reader.ReaderKindHelper.READER;
 
 import java.util.function.BiFunction;
 import java.util.function.Function;
-import java.util.stream.Stream;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.laws.ApplicativeLaws;
 import org.higherkindedj.hkt.test.api.KindHelperTests;
@@ -17,63 +16,52 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 
 @DisplayName("ReaderApplicative")
 class ReaderApplicativeTest extends ReaderTestBase {
 
   private ReaderApplicative<TestConfig> applicative;
-  private ReaderFunctor<TestConfig> functor;
 
   @BeforeEach
   void setUpApplicative() {
     applicative = new ReaderApplicative<>();
-    functor = new ReaderFunctor<>();
   }
+
+  // No separate Applicative contract smoke: the Reader Monad extends this Applicative, so its
+  // of/ap/map2 null-argument validation and (deferred) exception behaviour are already covered by
+  // the contract in ReaderMonadTest. A dedicated Applicative contract would only duplicate it.
 
   @Nested
   @DisplayName("Laws")
   class Laws {
 
     @ParameterizedTest(name = "identity holds on {0}")
-    @MethodSource("fixtures")
+    @MethodSource("org.higherkindedj.hkt.reader.ReaderLawFixtures#kinds")
     void identity(String label, Kind<ReaderKind.Witness<TestConfig>, Integer> v) {
       ApplicativeLaws.assertIdentity(applicative, v, equalityChecker);
     }
 
     @ParameterizedTest(name = "homomorphism holds on value {0}")
-    @MethodSource("values")
+    @MethodSource("org.higherkindedj.hkt.reader.ReaderLawFixtures#values")
     void homomorphism(Integer value) {
       ApplicativeLaws.assertHomomorphism(applicative, value, validMapper, equalityChecker);
     }
 
     @ParameterizedTest(name = "interchange holds on value {0}")
-    @MethodSource("values")
+    @MethodSource("org.higherkindedj.hkt.reader.ReaderLawFixtures#values")
     void interchange(Integer value) {
       ApplicativeLaws.assertInterchange(applicative, validFunctionKind, value, equalityChecker);
     }
 
     @ParameterizedTest(name = "composition holds on {0}")
-    @MethodSource("fixtures")
+    @MethodSource("org.higherkindedj.hkt.reader.ReaderLawFixtures#kinds")
     void composition(String label, Kind<ReaderKind.Witness<TestConfig>, Integer> w) {
       Kind<ReaderKind.Witness<TestConfig>, Function<String, String>> u =
-          READER.reader((TestConfig cfg) -> s -> "u(" + s + ")");
+          READER.reader((TestConfig _) -> s -> "u(" + s + ")");
       Kind<ReaderKind.Witness<TestConfig>, Function<Integer, String>> v =
-          READER.reader((TestConfig cfg) -> i -> "v" + i);
+          READER.reader((TestConfig _) -> i -> "v" + i);
       ApplicativeLaws.assertComposition(applicative, u, v, w, equalityChecker);
-    }
-
-    static Stream<Arguments> fixtures() {
-      return Stream.of(
-          Arguments.of("reader(url length)", READER.reader((TestConfig cfg) -> cfg.url().length())),
-          Arguments.of("pure(42)", READER.reader((TestConfig cfg) -> 42)),
-          Arguments.of(
-              "reader(maxConnections)", READER.reader((TestConfig cfg) -> cfg.maxConnections())));
-    }
-
-    static Stream<Arguments> values() {
-      return Stream.of(Arguments.of(0), Arguments.of(42), Arguments.of(-1));
     }
   }
 
@@ -147,10 +135,8 @@ class ReaderApplicativeTest extends ReaderTestBase {
       BiFunction<String, Integer, String> combiner =
           (url, maxConns) -> url + " with maxConnections " + maxConns;
 
-      @SuppressWarnings("unchecked")
       Kind<ReaderKind.Witness<TestConfig>, String> result =
-          (Kind<ReaderKind.Witness<TestConfig>, String>)
-              (Kind<?, ?>) applicative.map2(urlReaderKind, maxConnectionsReaderKind, combiner);
+          applicative.map2(urlReaderKind, maxConnectionsReaderKind, combiner);
 
       Reader<TestConfig, String> reader = narrowToReader(result);
       assertThatReader(reader)
@@ -169,7 +155,7 @@ class ReaderApplicativeTest extends ReaderTestBase {
       RuntimeException testException = new RuntimeException("Test exception: function reader");
       Reader<TestConfig, Function<Integer, String>> throwingFuncReader =
           Reader.of(
-              cfg -> {
+              _ -> {
                 throw testException;
               });
 
@@ -190,7 +176,7 @@ class ReaderApplicativeTest extends ReaderTestBase {
       RuntimeException testException = new RuntimeException("Test exception: value reader");
       Reader<TestConfig, Integer> throwingValueReader =
           Reader.of(
-              cfg -> {
+              _ -> {
                 throw testException;
               });
 
@@ -211,7 +197,7 @@ class ReaderApplicativeTest extends ReaderTestBase {
     void apPropagatesAppliedFunctionExceptionsWhenRun() {
       RuntimeException testException = new RuntimeException("Test exception: applied function");
       Function<Integer, String> throwingFunc =
-          i -> {
+          _ -> {
             throw testException;
           };
 
@@ -232,7 +218,7 @@ class ReaderApplicativeTest extends ReaderTestBase {
       RuntimeException testException = new RuntimeException("Test exception: first reader");
       Reader<TestConfig, Integer> throwingReader =
           Reader.of(
-              cfg -> {
+              _ -> {
                 throw testException;
               });
 
@@ -254,7 +240,7 @@ class ReaderApplicativeTest extends ReaderTestBase {
       RuntimeException testException = new RuntimeException("Test exception: second reader");
       Reader<TestConfig, Integer> throwingReader =
           Reader.of(
-              cfg -> {
+              _ -> {
                 throw testException;
               });
 
@@ -275,7 +261,7 @@ class ReaderApplicativeTest extends ReaderTestBase {
     void map2PropagatesCombiningFunctionExceptionsWhenRun() {
       RuntimeException testException = new RuntimeException("Test exception: combining function");
       BiFunction<Integer, Integer, String> throwingCombiner =
-          (i1, i2) -> {
+          (_, _) -> {
             throw testException;
           };
 

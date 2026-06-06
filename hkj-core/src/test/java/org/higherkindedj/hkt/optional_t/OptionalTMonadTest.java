@@ -14,18 +14,20 @@ import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Monad;
 import org.higherkindedj.hkt.MonadError;
 import org.higherkindedj.hkt.Unit;
-import org.higherkindedj.hkt.assertions.KindEquivalence;
 import org.higherkindedj.hkt.instances.Instances;
 import org.higherkindedj.hkt.laws.ApplicativeLaws;
 import org.higherkindedj.hkt.laws.FunctorLaws;
 import org.higherkindedj.hkt.laws.MonadLaws;
 import org.higherkindedj.hkt.optional.OptionalKind;
-import org.jspecify.annotations.NonNull;
+import org.higherkindedj.hkt.test.contract.Category;
+import org.higherkindedj.hkt.test.contract.TypeClassContract;
 import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.MethodSource;
 
 @DisplayName("OptionalTMonad Tests")
 // (F=OptionalKind.Witness)
@@ -34,23 +36,14 @@ class OptionalTMonadTest {
   private final Monad<OptionalKind.Witness> outerMonad = Instances.monadError(optional());
   private MonadError<OptionalTKind.Witness<OptionalKind.Witness>, Unit> optionalTMonad;
 
-  private final String successValue = "SUCCESS";
   private final Integer initialValue = 123;
-
-  private <A> Optional<Optional<A>> unwrapKindToOptionalOptional(
-      Kind<OptionalTKind.Witness<OptionalKind.Witness>, A> kind) {
-    OptionalT<OptionalKind.Witness, A> optionalT = OPTIONAL_T.narrow(kind);
-    Kind<OptionalKind.Witness, Optional<A>> outerKind = optionalT.value();
-    return OPTIONAL.narrow(outerKind);
-  }
 
   private <A> Optional<Optional<A>> unwrapOuterOptional(
       Kind<OptionalKind.Witness, Optional<A>> kind) {
     return OPTIONAL.narrow(kind);
   }
 
-  private <A extends @NonNull Object> Kind<OptionalTKind.Witness<OptionalKind.Witness>, A> someT(
-      @NonNull A value) {
+  private <A> Kind<OptionalTKind.Witness<OptionalKind.Witness>, A> someT(A value) {
     OptionalT<OptionalKind.Witness, A> ot = OptionalT.some(outerMonad, value);
     return OPTIONAL_T.widen(ot);
   }
@@ -75,15 +68,50 @@ class OptionalTMonadTest {
     optionalTMonad = new OptionalTMonad<>(outerMonad);
   }
 
+  // Shared law equality: run/unwrap to Optional<Optional<·>> and compare.
+  private final BiPredicate<
+          Kind<OptionalTKind.Witness<OptionalKind.Witness>, ?>,
+          Kind<OptionalTKind.Witness<OptionalKind.Witness>, ?>>
+      eq = OptionalTLawFixtures.EQ;
+
+  /**
+   * OptionalT over the eager {@code Optional} inner monad <em>propagates</em> a thrown function
+   * exception, so the contract includes {@link Category#EXCEPTIONS}. {@link Category#VALIDATIONS}
+   * is omitted because, like {@code Optional}/{@code Try}, {@code OptionalTMonad} inherits the
+   * default {@code recoverWith} (no eager null-fallback check); the error type is {@link Unit}, and
+   * the MonadError-specific behaviour is exercised by {@link MonadErrorTests}.
+   */
+  @Test
+  @DisplayName(
+      "MonadError contract — operations & exceptions (laws verified in the *LawTests below)")
+  void monadErrorContract() {
+    Kind<OptionalTKind.Witness<OptionalKind.Witness>, Integer> validKind = someT(10);
+    Function<Integer, String> validMapper = Object::toString;
+    Function<Integer, Kind<OptionalTKind.Witness<OptionalKind.Witness>, String>> validFlatMapper =
+        i -> someT("v" + i);
+    Kind<OptionalTKind.Witness<OptionalKind.Witness>, Function<Integer, String>> validFunctionKind =
+        someT(Object::toString);
+    Function<Unit, Kind<OptionalTKind.Witness<OptionalKind.Witness>, Integer>> validHandler =
+        _ -> someT(0);
+    Kind<OptionalTKind.Witness<OptionalKind.Witness>, Integer> validFallback = someT(-1);
+    TypeClassContract.<OptionalTKind.Witness<OptionalKind.Witness>, Unit>monadError(
+            OptionalTMonad.class)
+        .<Integer>instance(optionalTMonad)
+        .<String>withKind(validKind)
+        .withMonadOperations(validMapper, validFlatMapper, validFunctionKind)
+        .withErrorHandling(validHandler, validFallback)
+        .verifyOnly(Category.OPERATIONS, Category.EXCEPTIONS);
+  }
+
   @Nested
   @DisplayName("Applicative 'of' tests")
   class OfTests {
     @Test
     void of_shouldWrapValueAsSomeInOptional() {
-      Kind<OptionalTKind.Witness<OptionalKind.Witness>, String> kind = ofT(successValue);
+      Kind<OptionalTKind.Witness<OptionalKind.Witness>, String> kind = ofT("SUCCESS");
       assertThatOptionalT(kind, OptionalTMonadTest.this::unwrapOuterOptional)
           .isPresentSome()
-          .hasSomeValue(successValue);
+          .hasSomeValue("SUCCESS");
     }
 
     @Test
@@ -129,10 +157,10 @@ class OptionalTMonadTest {
     }
 
     @Test
-    void map_shouldHandleMappingToNullAsNone() { // Renamed for clarity based on Optional.map
-      // behaviour
+    @SuppressWarnings("NullableProblems") // the mapper deliberately returns null
+    void map_shouldHandleMappingToNullAsNone() {
       Kind<OptionalTKind.Witness<OptionalKind.Witness>, Integer> initialKind = someT(initialValue);
-      Function<Integer, @Nullable String> toNull = x -> null;
+      Function<Integer, @Nullable String> toNull = _ -> null;
       Kind<OptionalTKind.Witness<OptionalKind.Witness>, String> mappedKind =
           optionalTMonad.map(toNull, initialKind);
       // Optional.map(x -> null) results in Optional.empty()
@@ -150,7 +178,7 @@ class OptionalTMonadTest {
     Kind<OptionalTKind.Witness<OptionalKind.Witness>, Function<Integer, String>>
         funcKindOuterEmpty = outerEmptyT();
     Kind<OptionalTKind.Witness<OptionalKind.Witness>, Function<Integer, @Nullable String>>
-        funcKindSomeToNull = someT(x -> null);
+        funcKindSomeToNull = someT(_ -> null);
 
     Kind<OptionalTKind.Witness<OptionalKind.Witness>, Integer> valKindSome = someT(42);
     Kind<OptionalTKind.Witness<OptionalKind.Witness>, Integer> valKindNone = noneT();
@@ -166,6 +194,7 @@ class OptionalTMonadTest {
     }
 
     @Test
+    @SuppressWarnings("NullableProblems") // funcKindSomeToNull deliberately yields null -> None
     void ap_someFuncReturningNull_someVal_shouldResultInNone() {
       Kind<OptionalTKind.Witness<OptionalKind.Witness>, String> result =
           optionalTMonad.ap(funcKindSomeToNull, valKindSome);
@@ -214,9 +243,9 @@ class OptionalTMonadTest {
     Function<Integer, Kind<OptionalTKind.Witness<OptionalKind.Witness>, String>> intToSomeStringT =
         i -> someT("V" + i);
     Function<Integer, Kind<OptionalTKind.Witness<OptionalKind.Witness>, String>> intToNoneStringT =
-        i -> noneT();
+        _ -> noneT();
     Function<Integer, Kind<OptionalTKind.Witness<OptionalKind.Witness>, String>>
-        intToOuterEmptyStringT = i -> outerEmptyT();
+        intToOuterEmptyStringT = _ -> outerEmptyT();
 
     Kind<OptionalTKind.Witness<OptionalKind.Witness>, Integer> initialSome = someT(5);
     Kind<OptionalTKind.Witness<OptionalKind.Witness>, Integer> initialNone = noneT();
@@ -285,7 +314,7 @@ class OptionalTMonadTest {
     @DisplayName("handleErrorWith should recover from inner None")
     void handleErrorWith_recoversNone() {
       Function<Unit, Kind<OptionalTKind.Witness<OptionalKind.Witness>, Integer>> handler =
-          err -> someT(0);
+          _ -> someT(0);
       Kind<OptionalTKind.Witness<OptionalKind.Witness>, Integer> recovered =
           optionalTMonad.handleErrorWith(mNone, handler);
       assertThatOptionalT(recovered, OptionalTMonadTest.this::unwrapOuterOptional)
@@ -297,7 +326,7 @@ class OptionalTMonadTest {
     @DisplayName("handleErrorWith should NOT change outer empty; it should propagate outer empty")
     void handleErrorWith_propagatesOuterEmpty() {
       Function<Unit, Kind<OptionalTKind.Witness<OptionalKind.Witness>, Integer>> handler =
-          err -> someT(0);
+          _ -> someT(0);
       Kind<OptionalTKind.Witness<OptionalKind.Witness>, Integer> recovered =
           optionalTMonad.handleErrorWith(mOuterEmpty, handler);
       assertThatOptionalT(recovered, OptionalTMonadTest.this::unwrapOuterOptional).isEmpty();
@@ -307,7 +336,7 @@ class OptionalTMonadTest {
     @DisplayName("handleErrorWith should not affect present value (Some)")
     void handleErrorWith_ignoresSome() {
       Function<Unit, Kind<OptionalTKind.Witness<OptionalKind.Witness>, Integer>> handler =
-          err -> someT(-1); // Should not be called
+          _ -> someT(-1); // Should not be called
       Kind<OptionalTKind.Witness<OptionalKind.Witness>, Integer> notRecovered =
           optionalTMonad.handleErrorWith(mValue, handler);
       assertOptionalTEquals(notRecovered, mValue);
@@ -317,64 +346,51 @@ class OptionalTMonadTest {
   @Nested
   @DisplayName("Functor Laws")
   class FunctorLawTests {
-    final Kind<OptionalTKind.Witness<OptionalKind.Witness>, Integer> mVal = someT(5);
     final Function<Integer, String> f = Object::toString;
     final Function<String, String> g = s -> s + "!";
-    final BiPredicate<
-            Kind<OptionalTKind.Witness<OptionalKind.Witness>, ?>,
-            Kind<OptionalTKind.Witness<OptionalKind.Witness>, ?>>
-        eq = KindEquivalence.byEqualsAfter(OptionalTMonadTest.this::unwrapKindToOptionalOptional);
 
-    @Test
-    @DisplayName("Identity holds for Some, None, and empty-outer fixtures")
-    void identity() {
-      FunctorLaws.assertIdentity(optionalTMonad, mVal, eq);
-      FunctorLaws.assertIdentity(optionalTMonad, noneT(), eq);
-      FunctorLaws.assertIdentity(optionalTMonad, outerEmptyT(), eq);
+    @ParameterizedTest(name = "identity holds on {0}")
+    @MethodSource("org.higherkindedj.hkt.optional_t.OptionalTLawFixtures#kinds")
+    void identity(String label, Kind<OptionalTKind.Witness<OptionalKind.Witness>, Integer> fa) {
+      FunctorLaws.assertIdentity(optionalTMonad, fa, eq);
     }
 
-    @Test
-    @DisplayName("Composition: map(g∘f, fa) == map(g, map(f, fa))")
-    void composition() {
-      FunctorLaws.assertComposition(optionalTMonad, mVal, f, g, eq);
+    @ParameterizedTest(name = "composition holds on {0}")
+    @MethodSource("org.higherkindedj.hkt.optional_t.OptionalTLawFixtures#kinds")
+    void composition(String label, Kind<OptionalTKind.Witness<OptionalKind.Witness>, Integer> fa) {
+      FunctorLaws.assertComposition(optionalTMonad, fa, f, g, eq);
     }
   }
 
   @Nested
   @DisplayName("Applicative Laws")
   class ApplicativeLawTests {
-    final int value = 5;
     final Function<Integer, String> f = Object::toString;
     final Function<String, String> g = s -> s + "!";
     final Kind<OptionalTKind.Witness<OptionalKind.Witness>, Function<Integer, String>> u = someT(f);
     final Kind<OptionalTKind.Witness<OptionalKind.Witness>, Function<String, String>> uG = someT(g);
-    final Kind<OptionalTKind.Witness<OptionalKind.Witness>, Integer> w = someT(value);
-    final BiPredicate<
-            Kind<OptionalTKind.Witness<OptionalKind.Witness>, ?>,
-            Kind<OptionalTKind.Witness<OptionalKind.Witness>, ?>>
-        eq = KindEquivalence.byEqualsAfter(OptionalTMonadTest.this::unwrapKindToOptionalOptional);
 
-    @Test
-    @DisplayName("Identity: ap(of(id), v) == v")
-    void identity() {
+    @ParameterizedTest(name = "identity holds on {0}")
+    @MethodSource("org.higherkindedj.hkt.optional_t.OptionalTLawFixtures#kinds")
+    void identity(String label, Kind<OptionalTKind.Witness<OptionalKind.Witness>, Integer> w) {
       ApplicativeLaws.assertIdentity(optionalTMonad, w, eq);
     }
 
-    @Test
-    @DisplayName("Homomorphism: ap(of(f), of(x)) == of(f(x))")
-    void homomorphism() {
+    @ParameterizedTest(name = "homomorphism holds on value {0}")
+    @MethodSource("org.higherkindedj.hkt.optional_t.OptionalTLawFixtures#values")
+    void homomorphism(Integer value) {
       ApplicativeLaws.assertHomomorphism(optionalTMonad, value, f, eq);
     }
 
-    @Test
-    @DisplayName("Interchange: ap(u, of(y)) == ap(of(f -> f(y)), u)")
-    void interchange() {
+    @ParameterizedTest(name = "interchange holds on value {0}")
+    @MethodSource("org.higherkindedj.hkt.optional_t.OptionalTLawFixtures#values")
+    void interchange(Integer value) {
       ApplicativeLaws.assertInterchange(optionalTMonad, u, value, eq);
     }
 
-    @Test
-    @DisplayName("Composition")
-    void composition() {
+    @ParameterizedTest(name = "composition holds on {0}")
+    @MethodSource("org.higherkindedj.hkt.optional_t.OptionalTLawFixtures#kinds")
+    void composition(String label, Kind<OptionalTKind.Witness<OptionalKind.Witness>, Integer> w) {
       ApplicativeLaws.assertComposition(optionalTMonad, uG, u, w, eq);
     }
   }
@@ -382,45 +398,36 @@ class OptionalTMonadTest {
   @Nested
   @DisplayName("Monad Laws")
   class MonadLawTests {
-    final int value = 5;
-    final Kind<OptionalTKind.Witness<OptionalKind.Witness>, Integer> mVal = someT(value);
-    final Kind<OptionalTKind.Witness<OptionalKind.Witness>, Integer> mValNone = noneT();
-    final Kind<OptionalTKind.Witness<OptionalKind.Witness>, Integer> mValOuterEmpty = outerEmptyT();
-
     final Function<Integer, Kind<OptionalTKind.Witness<OptionalKind.Witness>, String>> fLaw =
         i -> someT("v" + i);
     final Function<String, Kind<OptionalTKind.Witness<OptionalKind.Witness>, String>> gLaw =
         s -> someT(s + "!");
 
-    final BiPredicate<
-            Kind<OptionalTKind.Witness<OptionalKind.Witness>, ?>,
-            Kind<OptionalTKind.Witness<OptionalKind.Witness>, ?>>
-        eq = KindEquivalence.byEqualsAfter(OptionalTMonadTest.this::unwrapKindToOptionalOptional);
+    @ParameterizedTest(name = "left identity holds on value {0}")
+    @MethodSource("org.higherkindedj.hkt.optional_t.OptionalTLawFixtures#values")
+    void leftIdentity(Integer value) {
+      MonadLaws.assertLeftIdentity(optionalTMonad, value, fLaw, eq);
+    }
 
     @Test
-    @DisplayName("Left Identity: flatMap(of(a), f) == f(a)")
-    void leftIdentity() {
-      MonadLaws.assertLeftIdentity(optionalTMonad, value, fLaw, eq);
-
+    @DisplayName("Left Identity holds for a null value (mapped to None)")
+    @SuppressWarnings({"ConstantValue", "DataFlowIssue"}) // OptionalT may legitimately hold null
+    void leftIdentityNull() {
       Function<Integer, Kind<OptionalTKind.Witness<OptionalKind.Witness>, String>> fLawHandlesNull =
           i -> (i == null) ? noneT() : someT("v" + i);
       MonadLaws.assertLeftIdentity(optionalTMonad, null, fLawHandlesNull, eq);
     }
 
-    @Test
-    @DisplayName("Right Identity holds for Some, None, and empty-outer fixtures")
-    void rightIdentity() {
-      MonadLaws.assertRightIdentity(optionalTMonad, mVal, eq);
-      MonadLaws.assertRightIdentity(optionalTMonad, mValNone, eq);
-      MonadLaws.assertRightIdentity(optionalTMonad, mValOuterEmpty, eq);
+    @ParameterizedTest(name = "right identity holds on {0}")
+    @MethodSource("org.higherkindedj.hkt.optional_t.OptionalTLawFixtures#kinds")
+    void rightIdentity(String label, Kind<OptionalTKind.Witness<OptionalKind.Witness>, Integer> m) {
+      MonadLaws.assertRightIdentity(optionalTMonad, m, eq);
     }
 
-    @Test
-    @DisplayName("Associativity holds for Some, None, and empty-outer fixtures")
-    void associativity() {
-      MonadLaws.assertAssociativity(optionalTMonad, mVal, fLaw, gLaw, eq);
-      MonadLaws.assertAssociativity(optionalTMonad, mValNone, fLaw, gLaw, eq);
-      MonadLaws.assertAssociativity(optionalTMonad, mValOuterEmpty, fLaw, gLaw, eq);
+    @ParameterizedTest(name = "associativity holds on {0}")
+    @MethodSource("org.higherkindedj.hkt.optional_t.OptionalTLawFixtures#kinds")
+    void associativity(String label, Kind<OptionalTKind.Witness<OptionalKind.Witness>, Integer> m) {
+      MonadLaws.assertAssociativity(optionalTMonad, m, fLaw, gLaw, eq);
     }
   }
 }

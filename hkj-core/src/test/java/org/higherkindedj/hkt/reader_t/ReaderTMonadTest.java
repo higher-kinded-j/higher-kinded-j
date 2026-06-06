@@ -19,11 +19,16 @@ import org.higherkindedj.hkt.laws.ApplicativeLaws;
 import org.higherkindedj.hkt.laws.FunctorLaws;
 import org.higherkindedj.hkt.laws.MonadLaws;
 import org.higherkindedj.hkt.optional.OptionalKind;
+import org.higherkindedj.hkt.test.contract.Category;
+import org.higherkindedj.hkt.test.contract.TypeClassContract;
 import org.higherkindedj.hkt.test.fixtures.TypeClassTestBase;
+import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.MethodSource;
 
 @DisplayName("ReaderTMonad Complete Test Suite ")
 // (Outer: OptionalKind.Witness, Environment: String)
@@ -44,14 +49,13 @@ class ReaderTMonadTest
 
   private <A> Optional<A> unwrapKindToOptional(
       Kind<ReaderTKind.Witness<OptionalKind.Witness, String>, A> kind) {
-    if (kind == null) return Optional.empty();
     var readerT = READER_T.narrow(kind);
     Kind<OptionalKind.Witness, A> outerKind = readerT.run().apply(testEnvironment);
     return OPTIONAL.narrow(outerKind);
   }
 
   private <A> Kind<ReaderTKind.Witness<OptionalKind.Witness, String>, A> readerT(A value) {
-    return READER_T.widen(ReaderT.reader(outerMonad, env -> value));
+    return READER_T.widen(ReaderT.reader(outerMonad, _ -> value));
   }
 
   private <A> Kind<ReaderTKind.Witness<OptionalKind.Witness, String>, A> emptyT() {
@@ -85,7 +89,7 @@ class ReaderTMonadTest
           Kind<ReaderTKind.Witness<OptionalKind.Witness, String>, ?>,
           Kind<ReaderTKind.Witness<OptionalKind.Witness, String>, ?>>
       createEqualityChecker() {
-    return (k1, k2) -> unwrapKindToOptional(k1).equals(unwrapKindToOptional(k2));
+    return ReaderTLawFixtures.EQ;
   }
 
   @Override
@@ -122,20 +126,23 @@ class ReaderTMonadTest
     return s -> readerT(s + "!");
   }
 
-  @Nested
-  @DisplayName("Complete Test Suite")
-  class CompleteTestSuite {
-
-    @Test
-    @DisplayName("Verify all test categories are covered")
-    void verifyCompleteCoverage() {
-      // Verify that all nested test classes exist and have tests
-      assertThat(FunctorOperationTests.class).isNotNull();
-      assertThat(ApplicativeOperationTests.class).isNotNull();
-      assertThat(MonadOperationTests.class).isNotNull();
-      assertThat(MonadLawTests.class).isNotNull();
-      assertThat(EdgeCaseTests.class).isNotNull();
-    }
+  /**
+   * {@link Category#EXCEPTIONS} is omitted: the generic contract asserts that {@code map}/{@code
+   * flatMap} <em>propagate</em> a thrown function exception immediately, but a {@code ReaderT} is
+   * lazy — the exception surfaces only when the reader is run against an environment. That deferral
+   * is exercised by the type-specific {@code flatMap_withThrowingFunction} test.
+   */
+  @Test
+  @DisplayName(
+      "Monad contract — operations & validations (laws verified in the *LawTests below; ReaderT"
+          + " defers exceptions)")
+  void monadContract() {
+    TypeClassContract.<ReaderTKind.Witness<OptionalKind.Witness, String>>monad(ReaderTMonad.class)
+        .<Integer>instance(readerTMonad)
+        .<String>withKind(validKind)
+        .withMonadOperations(
+            validKind2, validMapper, validFlatMapper, validFunctionKind, validCombiningFunction)
+        .verifyOnly(Category.OPERATIONS, Category.VALIDATIONS);
   }
 
   @Nested
@@ -283,7 +290,7 @@ class ReaderTMonadTest
     void flatMap_shouldHandleFunctionReturningEmpty() {
       var initial = readerT(10);
       Function<Integer, Kind<ReaderTKind.Witness<OptionalKind.Witness, String>, String>> func =
-          i -> emptyT();
+          _ -> emptyT();
 
       var result = readerTMonad.flatMap(func, initial);
 
@@ -321,18 +328,18 @@ class ReaderTMonadTest
   @DisplayName("Functor Laws")
   class FunctorLawTests {
 
-    @Test
-    @DisplayName("Identity holds for valid and empty-outer fixtures")
-    void identity() {
-      FunctorLaws.assertIdentity(readerTMonad, validKind, equalityChecker);
-      FunctorLaws.assertIdentity(readerTMonad, emptyT(), equalityChecker);
+    @ParameterizedTest(name = "identity holds on {0}")
+    @MethodSource("org.higherkindedj.hkt.reader_t.ReaderTLawFixtures#kinds")
+    void identity(
+        String label, Kind<ReaderTKind.Witness<OptionalKind.Witness, String>, Integer> fa) {
+      FunctorLaws.assertIdentity(readerTMonad, fa, equalityChecker);
     }
 
-    @Test
-    @DisplayName("Composition: map(g∘f, fa) == map(g, map(f, fa))")
-    void composition() {
-      FunctorLaws.assertComposition(
-          readerTMonad, validKind, validMapper, secondMapper, equalityChecker);
+    @ParameterizedTest(name = "composition holds on {0}")
+    @MethodSource("org.higherkindedj.hkt.reader_t.ReaderTLawFixtures#kinds")
+    void composition(
+        String label, Kind<ReaderTKind.Witness<OptionalKind.Witness, String>, Integer> fa) {
+      FunctorLaws.assertComposition(readerTMonad, fa, validMapper, secondMapper, equalityChecker);
     }
   }
 
@@ -340,32 +347,32 @@ class ReaderTMonadTest
   @DisplayName("Applicative Laws")
   class ApplicativeLawTests {
 
-    @Test
-    @DisplayName("Identity: ap(of(id), v) == v")
-    void identity() {
-      ApplicativeLaws.assertIdentity(readerTMonad, validKind, equalityChecker);
+    @ParameterizedTest(name = "identity holds on {0}")
+    @MethodSource("org.higherkindedj.hkt.reader_t.ReaderTLawFixtures#kinds")
+    void identity(
+        String label, Kind<ReaderTKind.Witness<OptionalKind.Witness, String>, Integer> w) {
+      ApplicativeLaws.assertIdentity(readerTMonad, w, equalityChecker);
     }
 
-    @Test
-    @DisplayName("Homomorphism: ap(of(f), of(x)) == of(f(x))")
-    void homomorphism() {
-      ApplicativeLaws.assertHomomorphism(readerTMonad, testValue, validMapper, equalityChecker);
+    @ParameterizedTest(name = "homomorphism holds on value {0}")
+    @MethodSource("org.higherkindedj.hkt.reader_t.ReaderTLawFixtures#values")
+    void homomorphism(Integer value) {
+      ApplicativeLaws.assertHomomorphism(readerTMonad, value, validMapper, equalityChecker);
     }
 
-    @Test
-    @DisplayName("Interchange: ap(u, of(y)) == ap(of(f -> f(y)), u)")
-    void interchange() {
-      ApplicativeLaws.assertInterchange(
-          readerTMonad, validFunctionKind, testValue, equalityChecker);
+    @ParameterizedTest(name = "interchange holds on value {0}")
+    @MethodSource("org.higherkindedj.hkt.reader_t.ReaderTLawFixtures#values")
+    void interchange(Integer value) {
+      ApplicativeLaws.assertInterchange(readerTMonad, validFunctionKind, value, equalityChecker);
     }
 
-    @Test
-    @DisplayName("Composition")
-    void composition() {
+    @ParameterizedTest(name = "composition holds on {0}")
+    @MethodSource("org.higherkindedj.hkt.reader_t.ReaderTLawFixtures#kinds")
+    void composition(
+        String label, Kind<ReaderTKind.Witness<OptionalKind.Witness, String>, Integer> w) {
       Kind<ReaderTKind.Witness<OptionalKind.Witness, String>, Function<String, String>> u =
           readerT(secondMapper);
-      ApplicativeLaws.assertComposition(
-          readerTMonad, u, validFunctionKind, validKind, equalityChecker);
+      ApplicativeLaws.assertComposition(readerTMonad, u, validFunctionKind, w, equalityChecker);
     }
   }
 
@@ -373,24 +380,24 @@ class ReaderTMonadTest
   @DisplayName("Monad Laws")
   class MonadLawTests {
 
-    @Test
-    @DisplayName("Left Identity: flatMap(of(a), f) == f(a)")
-    void leftIdentity() {
-      MonadLaws.assertLeftIdentity(readerTMonad, testValue, testFunction, equalityChecker);
+    @ParameterizedTest(name = "left identity holds on value {0}")
+    @MethodSource("org.higherkindedj.hkt.reader_t.ReaderTLawFixtures#values")
+    void leftIdentity(Integer value) {
+      MonadLaws.assertLeftIdentity(readerTMonad, value, testFunction, equalityChecker);
     }
 
-    @Test
-    @DisplayName("Right Identity holds for valid and empty-outer fixtures")
-    void rightIdentity() {
-      MonadLaws.assertRightIdentity(readerTMonad, validKind, equalityChecker);
-      MonadLaws.assertRightIdentity(readerTMonad, emptyT(), equalityChecker);
+    @ParameterizedTest(name = "right identity holds on {0}")
+    @MethodSource("org.higherkindedj.hkt.reader_t.ReaderTLawFixtures#kinds")
+    void rightIdentity(
+        String label, Kind<ReaderTKind.Witness<OptionalKind.Witness, String>, Integer> m) {
+      MonadLaws.assertRightIdentity(readerTMonad, m, equalityChecker);
     }
 
-    @Test
-    @DisplayName("Associativity: flatMap(g, flatMap(f, m)) == flatMap(a -> flatMap(g, f(a)), m)")
-    void associativity() {
-      MonadLaws.assertAssociativity(
-          readerTMonad, validKind, testFunction, chainFunction, equalityChecker);
+    @ParameterizedTest(name = "associativity holds on {0}")
+    @MethodSource("org.higherkindedj.hkt.reader_t.ReaderTLawFixtures#kinds")
+    void associativity(
+        String label, Kind<ReaderTKind.Witness<OptionalKind.Witness, String>, Integer> m) {
+      MonadLaws.assertAssociativity(readerTMonad, m, testFunction, chainFunction, equalityChecker);
     }
   }
 
@@ -408,8 +415,9 @@ class ReaderTMonadTest
 
     @Test
     @DisplayName("map with null-returning function returns empty Optional")
+    @SuppressWarnings("NullableProblems") // the mapper deliberately returns null
     void map_withNullReturningFunction() {
-      Function<Integer, String> nullFunc = i -> null;
+      Function<Integer, @Nullable String> nullFunc = _ -> null;
       Kind<ReaderTKind.Witness<OptionalKind.Witness, String>, String> result =
           readerTMonad.map(nullFunc, validKind);
       assertThat(unwrapKindToOptional(result)).isEmpty();
@@ -421,7 +429,7 @@ class ReaderTMonadTest
       RuntimeException testEx = new RuntimeException("Test exception");
       Function<Integer, Kind<ReaderTKind.Witness<OptionalKind.Witness, String>, String>>
           throwingFunc =
-              i -> {
+              _ -> {
                 throw testEx;
               };
 
@@ -437,10 +445,6 @@ class ReaderTMonadTest
     @Test
     @DisplayName("environment can be different types")
     void environment_canBeDifferentTypes() {
-      // Create ReaderTMonad with Integer environment
-      Monad<ReaderTKind.Witness<OptionalKind.Witness, Integer>> intEnvMonad =
-          Instances.readerT(outerMonad);
-
       Kind<ReaderTKind.Witness<OptionalKind.Witness, Integer>, String> readerTWithIntEnv =
           READER_T.widen(ReaderT.reader(outerMonad, (Integer env) -> "Length:" + env));
 

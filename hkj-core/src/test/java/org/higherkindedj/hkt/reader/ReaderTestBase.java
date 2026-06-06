@@ -244,13 +244,6 @@ abstract class ReaderTestBase
   protected BiPredicate<
           Kind<ReaderKind.Witness<TestConfig>, ?>, Kind<ReaderKind.Witness<TestConfig>, ?>>
       createEqualityChecker() {
-    return (k1, k2) -> {
-      // For Reader, we compare results when run with the test environment
-      Object result1 = READER.runReader(k1, TEST_CONFIG);
-      Object result2 = READER.runReader(k2, TEST_CONFIG);
-      if (result1 == null && result2 == null) return true;
-      if (result1 == null || result2 == null) return false;
-      return result1.equals(result2);
-    };
+    return ReaderLawFixtures.EQ;
   }
 }

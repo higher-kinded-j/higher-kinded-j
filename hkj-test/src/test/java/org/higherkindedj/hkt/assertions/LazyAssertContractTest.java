@@ -16,6 +16,7 @@ class LazyAssertContractTest extends AssertContract<Supplier<Lazy<Integer>>, Laz
   // (forcing one Lazy mutates its state and would taint subsequent rows).
   private static final Supplier<Lazy<Integer>> NOW = () -> Lazy.now(42);
   private static final Supplier<Lazy<Integer>> NOW_99 = () -> Lazy.now(99);
+  private static final Supplier<Lazy<Integer>> NOW_NULL = () -> Lazy.now(null);
   private static final Supplier<Lazy<Integer>> DEFERRED = () -> Lazy.defer(() -> 42);
   private static final Supplier<Lazy<Integer>> DEFERRED_99 = () -> Lazy.defer(() -> 99);
   private static final Supplier<Lazy<Integer>> DEFERRED_FAILS =
@@ -46,6 +47,7 @@ class LazyAssertContractTest extends AssertContract<Supplier<Lazy<Integer>>, Laz
         row("isEvaluated", NOW, DEFERRED, LazyAssert::isEvaluated),
         row("isNotEvaluated", DEFERRED, NOW, LazyAssert::isNotEvaluated),
         row("hasValue match", NOW, NOW_99, a -> a.hasValue(42)),
+        row("hasNullValue", NOW_NULL, NOW, LazyAssert::hasNullValue),
         row("whenForcedHasValue match", DEFERRED, DEFERRED_99, a -> a.whenForcedHasValue(42)),
         passOnly(
             "whenForcedHasValueSatisfying passes",

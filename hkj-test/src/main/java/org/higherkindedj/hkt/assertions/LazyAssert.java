@@ -87,6 +87,15 @@ public class LazyAssert<T> extends AbstractAssert<LazyAssert<T>, Lazy<T>> {
     return this;
   }
 
+  /** Verifies that the actual Lazy is evaluated and contains a {@code null} value. */
+  public LazyAssert<T> hasNullValue() throws Throwable {
+    isEvaluated();
+    Assertions.assertThat(actual.force())
+        .withFailMessage(() -> "Expected Lazy to contain <null> but contained <" + actual + ">")
+        .isNull();
+    return this;
+  }
+
   /** Verifies that forcing throws an exception of the expected type. */
   public LazyAssert<T> whenForcedThrows(Class<? extends Throwable> expectedExceptionType) {
     isNotNull();

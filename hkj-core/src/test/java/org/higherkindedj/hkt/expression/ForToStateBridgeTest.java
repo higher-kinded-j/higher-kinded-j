@@ -61,6 +61,7 @@ class ForToStateBridgeTest {
 
     @Test
     @DisplayName("should construct state from single value and apply lens operations")
+    @SuppressWarnings("DataFlowIssue") // non-null in this fixture
     void toState_fromStep1() {
       Kind<IdKind.Witness, Dashboard> result =
           For.from(idMonad, Id.of("Alice"))
@@ -89,6 +90,7 @@ class ForToStateBridgeTest {
 
     @Test
     @DisplayName("should reject null constructor")
+    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
     void toState_nullConstructor() {
       assertThatNullPointerException()
           .isThrownBy(() -> For.from(idMonad, Id.of(1)).toState(null))
@@ -106,10 +108,11 @@ class ForToStateBridgeTest {
 
     @Test
     @DisplayName("should construct state from two accumulated values (spread-style)")
+    @SuppressWarnings("DataFlowIssue") // non-null in this fixture
     void toState_spread() {
       Kind<IdKind.Witness, Dashboard> result =
           For.from(idMonad, Id.of("Bob"))
-              .from(name -> Id.of(5))
+              .from(_ -> Id.of(5))
               .toState((name, count) -> new Dashboard(name, count, false))
               .update(readyLens, true)
               .yield();
@@ -122,10 +125,11 @@ class ForToStateBridgeTest {
 
     @Test
     @DisplayName("should construct state from two accumulated values (tuple-style)")
+    @SuppressWarnings("DataFlowIssue") // non-null in this fixture
     void toState_tuple() {
       Kind<IdKind.Witness, Dashboard> result =
           For.from(idMonad, Id.of("Carol"))
-              .from(name -> Id.of(10))
+              .from(_ -> Id.of(10))
               .toState(t -> new Dashboard(t._1(), t._2(), false))
               .update(readyLens, true)
               .yield();
@@ -138,12 +142,13 @@ class ForToStateBridgeTest {
 
     @Test
     @DisplayName("should reject null constructor (spread)")
+    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
     void toState_nullSpread() {
       assertThatNullPointerException()
           .isThrownBy(
               () ->
                   For.from(idMonad, Id.of("x"))
-                      .from(x -> Id.of(1))
+                      .from(_ -> Id.of(1))
                       .toState((BiFunction<String, Integer, Dashboard>) null))
           .withMessageContaining("constructor must not be null");
     }
@@ -159,12 +164,13 @@ class ForToStateBridgeTest {
 
     @Test
     @DisplayName("should construct state from three accumulated values (spread-style)")
+    @SuppressWarnings("DataFlowIssue") // non-null in this fixture
     void toState_spread() {
       Kind<IdKind.Witness, Dashboard> result =
           For.from(idMonad, Id.of("Dave"))
-              .from(name -> Id.of(3))
+              .from(_ -> Id.of(3))
               .let(t -> t._1().length() > 3)
-              .toState((name, count, ready) -> new Dashboard(name, count, ready))
+              .toState(Dashboard::new)
               .yield();
 
       Dashboard dashboard = IdKindHelper.ID.unwrap(result);
@@ -178,7 +184,7 @@ class ForToStateBridgeTest {
     void toState_tuple() {
       Kind<IdKind.Witness, String> result =
           For.from(idMonad, Id.of("Eve"))
-              .from(name -> Id.of(7))
+              .from(_ -> Id.of(7))
               .let(t -> t._2() * 2)
               .toState(t -> new Summary(t._1(), t._2() + t._3()))
               .yield(s -> s.label() + ":" + s.total());
@@ -226,6 +232,7 @@ class ForToStateBridgeTest {
 
     @Test
     @DisplayName("should reject null constructor")
+    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
     void toState_nullConstructor() {
       assertThatNullPointerException()
           .isThrownBy(() -> For.from(maybeMonad, MAYBE.just(1)).toState(null))
@@ -246,7 +253,7 @@ class ForToStateBridgeTest {
     void toState_spread() {
       Kind<MaybeKind.Witness, Dashboard> result =
           For.from(maybeMonad, MAYBE.just("Grace"))
-              .from(name -> MAYBE.just(8))
+              .from(_ -> MAYBE.just(8))
               .toState((name, count) -> new Dashboard(name, count, false))
               .when(d -> d.count() > 5)
               .update(readyLens, true)
@@ -263,7 +270,7 @@ class ForToStateBridgeTest {
     void toState_tuple() {
       Kind<MaybeKind.Witness, Dashboard> result =
           For.from(maybeMonad, MAYBE.just("Hank"))
-              .from(name -> MAYBE.just(2))
+              .from(_ -> MAYBE.just(2))
               .toState(t -> new Dashboard(t._1(), t._2(), false))
               .when(d -> d.count() > 5)
               .yield();
@@ -328,7 +335,7 @@ class ForToStateBridgeTest {
           For.from(idMonad, Id.of("data"))
               .from(d -> Id.of(d.length()))
               .let(t -> t._1() + ":" + t._2())
-              .toState((data, len, label) -> new Dashboard(label, len, false))
+              .toState((_, len, label) -> new Dashboard(label, len, false))
               .modify(countLens, c -> c * 10)
               .update(readyLens, true)
               .yield(d -> d.user() + "|" + d.count() + "|" + d.ready());

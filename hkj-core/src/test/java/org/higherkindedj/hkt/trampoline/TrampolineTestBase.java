@@ -28,9 +28,6 @@ abstract class TrampolineTestBase {
   /** Alternative integer value for testing different scenarios. */
   protected static final Integer ALTERNATIVE_VALUE = 24;
 
-  /** Default string value for testing. */
-  protected static final String DEFAULT_STRING_VALUE = "hello";
-
   // ============================================================================
   // Helper Methods
   // ============================================================================

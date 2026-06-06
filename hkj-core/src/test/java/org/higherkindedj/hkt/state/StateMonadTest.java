@@ -3,24 +3,22 @@
 package org.higherkindedj.hkt.state;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatNullPointerException;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.higherkindedj.hkt.assertions.StateAssert.assertThatStateTuple;
 import static org.higherkindedj.hkt.state.StateKindHelper.STATE;
 
 import java.util.function.Function;
-import java.util.stream.Stream;
 import org.higherkindedj.hkt.Kind;
-import org.higherkindedj.hkt.Monad;
 import org.higherkindedj.hkt.Unit;
 import org.higherkindedj.hkt.laws.MonadLaws;
 import org.higherkindedj.hkt.test.api.KindHelperTests;
+import org.higherkindedj.hkt.test.contract.Category;
+import org.higherkindedj.hkt.test.contract.TypeClassContract;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 
 @DisplayName("StateMonad")
@@ -39,39 +37,41 @@ class StateMonadTest extends StateTestBase<Integer> {
   class Laws {
 
     @ParameterizedTest(name = "left identity holds on value {0}")
-    @MethodSource("values")
+    @MethodSource("org.higherkindedj.hkt.state.StateLawFixtures#values")
     void leftIdentity(Integer value) {
-      Monad<StateKind.Witness<Integer>> m = monad;
-      MonadLaws.assertLeftIdentity(m, value, testFunction, equalityChecker);
+      MonadLaws.assertLeftIdentity(monad, value, testFunction, equalityChecker);
     }
 
     @ParameterizedTest(name = "right identity holds on {0}")
-    @MethodSource("fixtures")
+    @MethodSource("org.higherkindedj.hkt.state.StateLawFixtures#kinds")
     void rightIdentity(String label, Kind<StateKind.Witness<Integer>, Integer> ma) {
-      Monad<StateKind.Witness<Integer>> m = monad;
-      MonadLaws.assertRightIdentity(m, ma, equalityChecker);
+      MonadLaws.assertRightIdentity(monad, ma, equalityChecker);
     }
 
     @ParameterizedTest(name = "associativity holds on {0}")
-    @MethodSource("fixtures")
+    @MethodSource("org.higherkindedj.hkt.state.StateLawFixtures#kinds")
     void associativity(String label, Kind<StateKind.Witness<Integer>, Integer> ma) {
-      Monad<StateKind.Witness<Integer>> m = monad;
-      MonadLaws.assertAssociativity(m, ma, testFunction, chainFunction, equalityChecker);
+      MonadLaws.assertAssociativity(monad, ma, testFunction, chainFunction, equalityChecker);
     }
+  }
 
-    static Stream<Arguments> fixtures() {
-      return Stream.of(
-          Arguments.of(
-              "State(s -> (s, 42))",
-              STATE.widen(State.<Integer, Integer>of(s -> new StateTuple<>(s, 42)))),
-          Arguments.of(
-              "State(s -> (s+1, s))",
-              STATE.widen(State.<Integer, Integer>of(s -> new StateTuple<>(s + 1, s)))));
-    }
-
-    static Stream<Arguments> values() {
-      return Stream.of(Arguments.of(0), Arguments.of(42), Arguments.of(-1));
-    }
+  /**
+   * {@link Category#EXCEPTIONS} is omitted: the generic contract asserts that {@code map}/{@code
+   * flatMap} <em>propagate</em> a thrown function exception immediately, but a State is lazy — the
+   * exception surfaces only when the computation is run. That deferral is exercised by the
+   * type-specific lazy-evaluation tests.
+   */
+  @Test
+  @DisplayName(
+      "Monad contract — operations & validations (laws verified above; State defers exceptions,"
+          + " verified below)")
+  void monadContract() {
+    TypeClassContract.<StateKind.Witness<Integer>>monad(StateMonad.class)
+        .<Integer>instance(monad)
+        .<String>withKind(validKind)
+        .withMonadOperations(
+            validKind2, validMapper, validFlatMapper, validFunctionKind, validCombiningFunction)
+        .verifyOnly(Category.OPERATIONS, Category.VALIDATIONS);
   }
 
   @Nested
@@ -164,8 +164,7 @@ class StateMonadTest extends StateTestBase<Integer> {
       Kind<StateKind.Witness<Integer>, Unit> incState = STATE.modify((Integer i) -> i + 1);
 
       Kind<StateKind.Witness<Integer>, Integer> getStateAndInc =
-          monad.flatMap(
-              originalState -> monad.map(voidResult -> originalState, incState), getState);
+          monad.flatMap(originalState -> monad.map(_ -> originalState, incState), getState);
 
       Function<Integer, Kind<StateKind.Witness<Integer>, String>> processValueAndAdd10 =
           originalStateValue ->
@@ -206,25 +205,10 @@ class StateMonadTest extends StateTestBase<Integer> {
   class MonadValidations {
 
     @Test
-    @DisplayName("flatMap should validate mapper is non-null")
-    void flatMapShouldValidateMapperIsNonNull() {
-      assertThatNullPointerException()
-          .isThrownBy(() -> monad.flatMap(null, validKind))
-          .withMessageContaining("f for flatMap cannot be null");
-    }
-
-    @Test
-    @DisplayName("flatMap should validate Kind is non-null")
-    void flatMapShouldValidateKindIsNonNull() {
-      assertThatNullPointerException()
-          .isThrownBy(() -> monad.flatMap(validFlatMapper, null))
-          .withMessageContaining("Kind for flatMap cannot be null");
-    }
-
-    @Test
     @DisplayName("flatMap should throw if mapper returns null")
+    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
     void flatMapShouldThrowIfMapperReturnsNull() {
-      Function<Integer, Kind<StateKind.Witness<Integer>, String>> nullReturningMapper = i -> null;
+      Function<Integer, Kind<StateKind.Witness<Integer>, String>> nullReturningMapper = _ -> null;
       Kind<StateKind.Witness<Integer>, String> result =
           monad.flatMap(nullReturningMapper, validKind);
 
@@ -245,7 +229,7 @@ class StateMonadTest extends StateTestBase<Integer> {
 
       // Test map exception propagation
       Function<Integer, String> throwingMapper =
-          i -> {
+          _ -> {
             throw testException;
           };
       Kind<StateKind.Witness<Integer>, String> mappedResult = monad.map(throwingMapper, validKind);
@@ -255,7 +239,7 @@ class StateMonadTest extends StateTestBase<Integer> {
 
       // Test flatMap exception propagation
       Function<Integer, Kind<StateKind.Witness<Integer>, String>> throwingFlatMapper =
-          i -> {
+          _ -> {
             throw testException;
           };
       Kind<StateKind.Witness<Integer>, String> flatMappedResult =
@@ -268,7 +252,7 @@ class StateMonadTest extends StateTestBase<Integer> {
       Kind<StateKind.Witness<Integer>, Function<Integer, String>> throwingFuncKind =
           STATE.widen(
               State.of(
-                  (Integer s) -> {
+                  (Integer _) -> {
                     throw testException;
                   }));
       Kind<StateKind.Witness<Integer>, String> apResult = monad.ap(throwingFuncKind, validKind);
@@ -315,9 +299,9 @@ class StateMonadTest extends StateTestBase<Integer> {
       State<Integer, Integer> getInitial = State.get();
       State<Integer, String> threadedState =
           getInitial
-              .flatMap(s -> State.pure("value"))
-              .flatMap(v -> State.set(getInitialState()))
-              .flatMap(u -> State.get())
+              .flatMap(_ -> State.pure("value"))
+              .flatMap(_ -> State.set(getInitialState()))
+              .flatMap(_ -> State.get())
               .map(Object::toString);
 
       Kind<StateKind.Witness<Integer>, String> widened = STATE.widen(threadedState);
@@ -362,7 +346,7 @@ class StateMonadTest extends StateTestBase<Integer> {
     void mapPropagatesExceptionsDuringExecution() {
       RuntimeException testException = new RuntimeException("Test exception: map test");
       Function<Integer, String> throwingMapper =
-          i -> {
+          _ -> {
             throw testException;
           };
 
@@ -379,7 +363,7 @@ class StateMonadTest extends StateTestBase<Integer> {
     void flatMapPropagatesExceptionsDuringExecution() {
       RuntimeException testException = new RuntimeException("Test exception: flatMap test");
       Function<Integer, Kind<StateKind.Witness<Integer>, String>> throwingFlatMapper =
-          i -> {
+          _ -> {
             throw testException;
           };
 
@@ -400,7 +384,7 @@ class StateMonadTest extends StateTestBase<Integer> {
       Kind<StateKind.Witness<Integer>, Function<Integer, String>> throwingFuncKind =
           STATE.widen(
               State.of(
-                  (Integer s) -> {
+                  (Integer _) -> {
                     throw testException;
                   }));
 

@@ -2,14 +2,14 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.hkt.optional;
 
-import static org.assertj.core.api.Assertions.*;
-import static org.higherkindedj.hkt.instances.Witnesses.*;
-import static org.higherkindedj.hkt.optional.OptionalKindHelper.OPTIONAL;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatNullPointerException;
+import static org.higherkindedj.hkt.assertions.OptionalKindAssert.assertThatOptionalKind;
+import static org.higherkindedj.hkt.instances.Witnesses.optional;
 
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
-import java.util.Optional;
 import org.higherkindedj.hkt.Alternative;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Unit;
@@ -19,8 +19,8 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
-@DisplayName("OptionalMonad Alternative Operations Test Suite")
-class OptionalAlternativeTest {
+@DisplayName("OptionalMonad — Alternative operations")
+class OptionalAlternativeTest extends OptionalTestBase {
 
   private Alternative<OptionalKind.Witness> alternative;
 
@@ -34,12 +34,10 @@ class OptionalAlternativeTest {
   class EmptyTests {
 
     @Test
-    @DisplayName("empty() returns Optional.empty()")
-    void emptyReturnsOptionalEmpty() {
+    @DisplayName("empty() returns empty")
+    void emptyReturnsEmpty() {
       Kind<OptionalKind.Witness, Integer> empty = alternative.empty();
-
-      Optional<Integer> optional = OPTIONAL.narrow(empty);
-      assertThat(optional).isEmpty();
+      assertThatOptionalKind(empty).isEmpty();
     }
 
     @Test
@@ -48,8 +46,8 @@ class OptionalAlternativeTest {
       Kind<OptionalKind.Witness, String> emptyString = alternative.empty();
       Kind<OptionalKind.Witness, Integer> emptyInt = alternative.empty();
 
-      assertThat(OPTIONAL.narrow(emptyString)).isEmpty();
-      assertThat(OPTIONAL.narrow(emptyInt)).isEmpty();
+      assertThatOptionalKind(emptyString).isEmpty();
+      assertThatOptionalKind(emptyInt).isEmpty();
     }
   }
 
@@ -64,10 +62,7 @@ class OptionalAlternativeTest {
       Kind<OptionalKind.Witness, Integer> fallback = alternative.of(10);
 
       Kind<OptionalKind.Witness, Integer> result = alternative.orElse(present, () -> fallback);
-
-      Optional<Integer> optional = OPTIONAL.narrow(result);
-      assertThat(optional).isPresent();
-      assertThat(optional.get()).isEqualTo(42);
+      assertThatOptionalKind(result).isPresent().contains(42);
     }
 
     @Test
@@ -77,10 +72,7 @@ class OptionalAlternativeTest {
       Kind<OptionalKind.Witness, Integer> fallback = alternative.of(10);
 
       Kind<OptionalKind.Witness, Integer> result = alternative.orElse(empty, () -> fallback);
-
-      Optional<Integer> optional = OPTIONAL.narrow(result);
-      assertThat(optional).isPresent();
-      assertThat(optional.get()).isEqualTo(10);
+      assertThatOptionalKind(result).isPresent().contains(10);
     }
 
     @Test
@@ -90,9 +82,7 @@ class OptionalAlternativeTest {
       Kind<OptionalKind.Witness, Integer> empty2 = alternative.empty();
 
       Kind<OptionalKind.Witness, Integer> result = alternative.orElse(empty1, () -> empty2);
-
-      Optional<Integer> optional = OPTIONAL.narrow(result);
-      assertThat(optional).isEmpty();
+      assertThatOptionalKind(result).isEmpty();
     }
 
     @Test
@@ -109,8 +99,7 @@ class OptionalAlternativeTest {
                 return alternative.of(10);
               });
 
-      Optional<Integer> optional = OPTIONAL.narrow(result);
-      assertThat(optional.get()).isEqualTo(42);
+      assertThatOptionalKind(result).isPresent().contains(42);
       assertThat(evaluated[0]).isFalse();
     }
 
@@ -128,8 +117,7 @@ class OptionalAlternativeTest {
                 return alternative.of(10);
               });
 
-      Optional<Integer> optional = OPTIONAL.narrow(result);
-      assertThat(optional.get()).isEqualTo(10);
+      assertThatOptionalKind(result).isPresent().contains(10);
       assertThat(evaluated[0]).isTrue();
     }
   }
@@ -139,22 +127,17 @@ class OptionalAlternativeTest {
   class GuardTests {
 
     @Test
-    @DisplayName("guard(true) returns Optional.of(Unit)")
-    void guardTrueReturnsOptionalOfUnit() {
+    @DisplayName("guard(true) returns present(Unit)")
+    void guardTrueReturnsPresentUnit() {
       Kind<OptionalKind.Witness, Unit> result = alternative.guard(true);
-
-      Optional<Unit> optional = OPTIONAL.narrow(result);
-      assertThat(optional).isPresent();
-      assertThat(optional.get()).isEqualTo(Unit.INSTANCE);
+      assertThatOptionalKind(result).isPresent().contains(Unit.INSTANCE);
     }
 
     @Test
-    @DisplayName("guard(false) returns Optional.empty()")
-    void guardFalseReturnsOptionalEmpty() {
+    @DisplayName("guard(false) returns empty")
+    void guardFalseReturnsEmpty() {
       Kind<OptionalKind.Witness, Unit> result = alternative.guard(false);
-
-      Optional<Unit> optional = OPTIONAL.narrow(result);
-      assertThat(optional).isEmpty();
+      assertThatOptionalKind(result).isEmpty();
     }
   }
 
@@ -164,6 +147,7 @@ class OptionalAlternativeTest {
 
     @Test
     @DisplayName("orElseAll() returns first present")
+    @SuppressWarnings("unchecked") // generic varargs call to orElseAll
     void orElseAllReturnsFirstPresent() {
       Kind<OptionalKind.Witness, Integer> empty1 = alternative.empty();
       Kind<OptionalKind.Witness, Integer> present = alternative.of(42);
@@ -171,14 +155,12 @@ class OptionalAlternativeTest {
 
       Kind<OptionalKind.Witness, Integer> result =
           alternative.orElseAll(empty1, () -> present, () -> empty2);
-
-      Optional<Integer> optional = OPTIONAL.narrow(result);
-      assertThat(optional).isPresent();
-      assertThat(optional.get()).isEqualTo(42);
+      assertThatOptionalKind(result).isPresent().contains(42);
     }
 
     @Test
     @DisplayName("orElseAll() with multiple fallbacks")
+    @SuppressWarnings("unchecked") // generic varargs call to orElseAll
     void orElseAllWithMultipleFallbacks() {
       Kind<OptionalKind.Witness, Integer> empty1 = alternative.empty();
       Kind<OptionalKind.Witness, Integer> empty2 = alternative.empty();
@@ -187,10 +169,7 @@ class OptionalAlternativeTest {
 
       Kind<OptionalKind.Witness, Integer> result =
           alternative.orElseAll(empty1, () -> empty2, () -> empty3, () -> fallback);
-
-      Optional<Integer> optional = OPTIONAL.narrow(result);
-      assertThat(optional).isPresent();
-      assertThat(optional.get()).isEqualTo(99);
+      assertThatOptionalKind(result).isPresent().contains(99);
     }
   }
 
@@ -199,10 +178,10 @@ class OptionalAlternativeTest {
   class OrElseAllIterableTests {
 
     @Test
-    @DisplayName("orElseAll(empty iterable) returns Optional.empty()")
+    @DisplayName("orElseAll(empty iterable) returns empty()")
     void orElseAllEmptyIterableReturnsEmpty() {
       Kind<OptionalKind.Witness, Integer> result = alternative.orElseAll(List.of());
-      assertThat(OPTIONAL.narrow(result)).isEmpty();
+      assertThatOptionalKind(result).isEmpty();
     }
 
     @Test
@@ -212,21 +191,17 @@ class OptionalAlternativeTest {
           Arrays.asList(alternative.empty(), alternative.of(42), alternative.of(7));
 
       Kind<OptionalKind.Witness, Integer> result = alternative.orElseAll(candidates);
-
-      Optional<Integer> optional = OPTIONAL.narrow(result);
-      assertThat(optional).isPresent();
-      assertThat(optional.get()).isEqualTo(42);
+      assertThatOptionalKind(result).isPresent().contains(42);
     }
 
     @Test
-    @DisplayName("orElseAll(Iterable) returns Optional.empty() when all empty")
+    @DisplayName("orElseAll(Iterable) returns empty() when all empty")
     void orElseAllIterableAllEmpty() {
       List<Kind<OptionalKind.Witness, Integer>> candidates =
           Arrays.asList(alternative.empty(), alternative.empty(), alternative.empty());
 
       Kind<OptionalKind.Witness, Integer> result = alternative.orElseAll(candidates);
-
-      assertThat(OPTIONAL.narrow(result)).isEmpty();
+      assertThatOptionalKind(result).isEmpty();
     }
 
     @Test
@@ -235,12 +210,24 @@ class OptionalAlternativeTest {
       Kind<OptionalKind.Witness, Integer> present = alternative.of(99);
 
       Kind<OptionalKind.Witness, Integer> result = alternative.orElseAll(List.of(present));
+      assertThatOptionalKind(result).isPresent().contains(99);
+    }
 
-      assertThat(OPTIONAL.narrow(result).get()).isEqualTo(99);
+    @Test
+    @DisplayName("orElseAll(Iterable) accepts an arbitrary Iterable, not just List")
+    void orElseAllAcceptsArbitraryIterable() {
+      List<Kind<OptionalKind.Witness, Integer>> backing = new ArrayList<>();
+      backing.add(alternative.empty());
+      backing.add(alternative.of(123));
+      Iterable<Kind<OptionalKind.Witness, Integer>> iter = backing::iterator;
+
+      Kind<OptionalKind.Witness, Integer> result = alternative.orElseAll(iter);
+      assertThatOptionalKind(result).isPresent().contains(123);
     }
 
     @Test
     @DisplayName("orElseAll(null iterable) throws NullPointerException")
+    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
     void orElseAllNullIterableThrows() {
       assertThatNullPointerException()
           .isThrownBy(
@@ -250,10 +237,12 @@ class OptionalAlternativeTest {
 
     @Test
     @DisplayName("orElseAll(iterable with null element) throws NullPointerException")
+    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
     void orElseAllNullElementThrows() {
       List<Kind<OptionalKind.Witness, Integer>> candidates = new ArrayList<>();
       candidates.add(alternative.empty());
       candidates.add(null);
+      candidates.add(alternative.of(1));
 
       assertThatNullPointerException().isThrownBy(() -> alternative.orElseAll(candidates));
     }
@@ -269,8 +258,7 @@ class OptionalAlternativeTest {
       Kind<OptionalKind.Witness, Integer> fa = alternative.of(42);
       Kind<OptionalKind.Witness, Integer> result =
           alternative.orElse(alternative.empty(), () -> fa);
-
-      assertThat(OPTIONAL.narrow(result).get()).isEqualTo(OPTIONAL.narrow(fa).get());
+      assertThat(narrowToOptional(result)).isEqualTo(narrowToOptional(fa));
     }
 
     @Test
@@ -278,8 +266,7 @@ class OptionalAlternativeTest {
     void rightIdentityLaw() {
       Kind<OptionalKind.Witness, Integer> fa = alternative.of(42);
       Kind<OptionalKind.Witness, Integer> result = alternative.orElse(fa, alternative::empty);
-
-      assertThat(OPTIONAL.narrow(result).get()).isEqualTo(OPTIONAL.narrow(fa).get());
+      assertThat(narrowToOptional(result)).isEqualTo(narrowToOptional(fa));
     }
 
     @Test
@@ -296,7 +283,7 @@ class OptionalAlternativeTest {
       Kind<OptionalKind.Witness, Integer> right =
           alternative.orElse(alternative.orElse(fa, () -> fb), () -> fc);
 
-      assertThat(OPTIONAL.narrow(left).get()).isEqualTo(OPTIONAL.narrow(right).get());
+      assertThat(narrowToOptional(left)).isEqualTo(narrowToOptional(right));
     }
   }
 }

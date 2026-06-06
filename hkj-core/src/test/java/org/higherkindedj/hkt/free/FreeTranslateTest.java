@@ -160,7 +160,7 @@ class FreeTranslateTest {
     void translatePreservesHandleError() {
       Free<IdentityKind.Witness, String> program =
           Free.<IdentityKind.Witness, String>pure("test")
-              .handleError(RuntimeException.class, e -> Free.pure("recovered"));
+              .handleError(RuntimeException.class, _ -> Free.pure("recovered"));
 
       Free<IdentityKind.Witness, String> translated =
           Free.translate(program, Natural.identity(), identityMonad);
@@ -169,7 +169,7 @@ class FreeTranslateTest {
 
       Kind<IdentityKind.Witness, String> result =
           translated.foldMap(Natural.identity(), identityMonad);
-      assertThat(IDENTITY.<String>narrow(result).value()).isEqualTo("test");
+      assertThat(IDENTITY.narrow(result).value()).isEqualTo("test");
     }
   }
 
@@ -202,6 +202,7 @@ class FreeTranslateTest {
 
     @Test
     @DisplayName("translate rejects null program")
+    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
     void translateRejectsNullProgram() {
       assertThatThrownBy(() -> Free.translate(null, Natural.identity(), identityMonad))
           .isInstanceOf(NullPointerException.class);
@@ -209,6 +210,7 @@ class FreeTranslateTest {
 
     @Test
     @DisplayName("translate rejects null natural transformation")
+    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
     void translateRejectsNullNat() {
       Free<IdentityKind.Witness, String> program = Free.pure("test");
       assertThatThrownBy(() -> Free.translate(program, null, identityMonad))
@@ -217,6 +219,7 @@ class FreeTranslateTest {
 
     @Test
     @DisplayName("translate rejects null functor")
+    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
     void translateRejectsNullFunctor() {
       Free<IdentityKind.Witness, String> program = Free.pure("test");
       assertThatThrownBy(() -> Free.translate(program, Natural.identity(), null))

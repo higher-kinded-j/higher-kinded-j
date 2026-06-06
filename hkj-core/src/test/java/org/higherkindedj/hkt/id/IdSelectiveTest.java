@@ -41,18 +41,14 @@ class IdSelectiveTest extends IdTestBase {
   private Kind<IdKind.Witness, Integer> elseBranch;
 
   // Test functions
-  private Function<Integer, String> selectFunction = i -> "selected:" + i;
-  private Function<Integer, String> leftHandler = i -> "left:" + i;
-  private Function<String, String> rightHandler = s -> "right:" + s;
-  private Function<Integer, String> validMapper = Object::toString;
+  private final Function<Integer, String> selectFunction = i -> "selected:" + i;
+  private final Function<Integer, String> leftHandler = i -> "left:" + i;
+  private final Function<String, String> rightHandler = s -> "right:" + s;
 
   @BeforeEach
   void setUpSelective() {
     selective = IdSelective.instance();
-    setUpTestData();
-  }
 
-  private void setUpTestData() {
     // Create Choice instances
     Choice<Integer, String> choiceLeft = Selective.left(DEFAULT_VALUE);
     Choice<Integer, String> choiceRight = Selective.right(TEST_RESULT);
@@ -81,7 +77,7 @@ class IdSelectiveTest extends IdTestBase {
   class Laws {
 
     @ParameterizedTest(name = "left-pure holds on value {0}")
-    @MethodSource("values")
+    @MethodSource("org.higherkindedj.hkt.id.IdLawFixtures#values")
     void leftPure(Integer value) {
       SelectiveLaws.assertLeftPure(selective, value, selective.of(validMapper), equalityChecker);
     }
@@ -89,21 +85,17 @@ class IdSelectiveTest extends IdTestBase {
     @ParameterizedTest(name = "right-pure holds on value \"{0}\"")
     @MethodSource("strings")
     void rightPure(String value) {
-      SelectiveLaws.<IdKind.Witness, Integer, String>assertRightPure(
-          selective, value, selective.of(validMapper), equalityChecker);
-    }
-
-    static Stream<Arguments> values() {
-      return Stream.of(Arguments.of(0), Arguments.of(42));
+      SelectiveLaws.assertRightPure(selective, value, selective.of(validMapper), equalityChecker);
     }
 
     static Stream<Arguments> strings() {
-      return Stream.of(Arguments.of("a"), Arguments.of("hello"));
+      return Stream.of(Arguments.of("a"), Arguments.of("hello"), Arguments.of(""));
     }
   }
 
   @Nested
   @DisplayName("Operation Tests")
+  @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
   class OperationTests {
 
     @Nested
@@ -277,6 +269,7 @@ class IdSelectiveTest extends IdTestBase {
 
   @Nested
   @DisplayName("Edge Cases Tests")
+  @SuppressWarnings({"DataFlowIssue", "ConstantValue"}) // Id may legitimately hold a null value
   class EdgeCasesTests {
 
     @Test

@@ -20,7 +20,6 @@ import org.junit.jupiter.api.Test;
 class VStreamTest {
 
   private static final int TEST_VALUE = 42;
-  private static final String TEST_STRING = "hello";
 
   // ===== Factory Methods =====
 
@@ -56,6 +55,7 @@ class VStreamTest {
 
     @Test
     @DisplayName("of(varargs) with null array throws NullPointerException")
+    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
     void ofVarargsWithNullThrows() {
       assertThatThrownBy(() -> VStream.of((Integer[]) null))
           .isInstanceOf(NullPointerException.class);
@@ -75,6 +75,7 @@ class VStreamTest {
 
     @Test
     @DisplayName("fromList() with null throws NullPointerException")
+    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
     void fromListNullThrows() {
       assertThatThrownBy(() -> VStream.fromList(null)).isInstanceOf(NullPointerException.class);
     }
@@ -88,6 +89,7 @@ class VStreamTest {
 
     @Test
     @DisplayName("fromStream() with null throws NullPointerException")
+    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
     void fromStreamNullThrows() {
       assertThatThrownBy(() -> VStream.fromStream(null)).isInstanceOf(NullPointerException.class);
     }
@@ -108,6 +110,7 @@ class VStreamTest {
 
     @Test
     @DisplayName("fail() with null throws NullPointerException")
+    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
     void failNullThrows() {
       assertThatThrownBy(() -> VStream.fail(null)).isInstanceOf(NullPointerException.class);
     }
@@ -121,6 +124,7 @@ class VStreamTest {
 
     @Test
     @DisplayName("iterate() with null function throws NullPointerException")
+    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
     void iterateNullFunctionThrows() {
       assertThatThrownBy(() -> VStream.iterate(0, null)).isInstanceOf(NullPointerException.class);
     }
@@ -141,6 +145,7 @@ class VStreamTest {
 
     @Test
     @DisplayName("unfold() with null function throws NullPointerException")
+    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
     void unfoldNullFunctionThrows() {
       assertThatThrownBy(() -> VStream.unfold(0, null)).isInstanceOf(NullPointerException.class);
     }
@@ -155,6 +160,7 @@ class VStreamTest {
 
     @Test
     @DisplayName("generate() with null supplier throws NullPointerException")
+    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
     void generateNullSupplierThrows() {
       assertThatThrownBy(() -> VStream.generate(null)).isInstanceOf(NullPointerException.class);
     }
@@ -197,6 +203,7 @@ class VStreamTest {
 
     @Test
     @DisplayName("defer() with null supplier throws NullPointerException")
+    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
     void deferNullThrows() {
       assertThatThrownBy(() -> VStream.defer(null)).isInstanceOf(NullPointerException.class);
     }
@@ -211,6 +218,7 @@ class VStreamTest {
 
     @Test
     @DisplayName("concat() with null arguments throws NullPointerException")
+    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
     void concatNullThrows() {
       assertThatThrownBy(() -> VStream.concat(null, VStream.empty()))
           .isInstanceOf(NullPointerException.class);
@@ -257,6 +265,7 @@ class VStreamTest {
 
     @Test
     @DisplayName("map() with null function throws NullPointerException")
+    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
     void mapNullFunctionThrows() {
       assertThatThrownBy(() -> VStream.of(1).map(null)).isInstanceOf(NullPointerException.class);
     }
@@ -284,6 +293,7 @@ class VStreamTest {
 
     @Test
     @DisplayName("flatMap() with null function throws NullPointerException")
+    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
     void flatMapNullFunctionThrows() {
       assertThatThrownBy(() -> VStream.of(1).flatMap(null))
           .isInstanceOf(NullPointerException.class);
@@ -305,6 +315,7 @@ class VStreamTest {
 
     @Test
     @DisplayName("mapTask() with null function throws NullPointerException")
+    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
     void mapTaskNullFunctionThrows() {
       assertThatThrownBy(() -> VStream.of(1).mapTask(null))
           .isInstanceOf(NullPointerException.class);
@@ -338,6 +349,7 @@ class VStreamTest {
 
     @Test
     @DisplayName("filter() with null predicate throws NullPointerException")
+    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
     void filterNullPredicateThrows() {
       assertThatThrownBy(() -> VStream.of(1).filter(null)).isInstanceOf(NullPointerException.class);
     }
@@ -490,8 +502,9 @@ class VStreamTest {
 
     @Test
     @DisplayName("zipWith() with null arguments throws NullPointerException")
+    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
     void zipWithNullThrows() {
-      assertThatThrownBy(() -> VStream.of(1).zipWith(null, (a, b) -> a))
+      assertThatThrownBy(() -> VStream.of(1).zipWith(null, (a, _) -> a))
           .isInstanceOf(NullPointerException.class);
       assertThatThrownBy(() -> VStream.of(1).zipWith(VStream.of(1), null))
           .isInstanceOf(NullPointerException.class);
@@ -519,6 +532,7 @@ class VStreamTest {
 
     @Test
     @DisplayName("interleave() with null throws NullPointerException")
+    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
     void interleaveNullThrows() {
       assertThatThrownBy(() -> VStream.of(1).interleave(null))
           .isInstanceOf(NullPointerException.class);
@@ -547,6 +561,7 @@ class VStreamTest {
 
     @Test
     @DisplayName("toList() returns unmodifiable list")
+    @SuppressWarnings("DataFlowIssue") // non-null in this fixture
     void toListReturnsUnmodifiable() {
       List<Integer> result = VStream.of(1, 2, 3).toList().run();
       assertThatThrownBy(() -> result.add(4)).isInstanceOf(UnsupportedOperationException.class);
@@ -718,6 +733,7 @@ class VStreamTest {
 
     @Test
     @DisplayName("peek() with null action throws NullPointerException")
+    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
     void peekNullActionThrows() {
       assertThatThrownBy(() -> VStream.of(1).peek(null)).isInstanceOf(NullPointerException.class);
     }
@@ -740,6 +756,7 @@ class VStreamTest {
 
     @Test
     @DisplayName("onComplete() with null action throws NullPointerException")
+    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
     void onCompleteNullActionThrows() {
       assertThatThrownBy(() -> VStream.of(1).onComplete(null))
           .isInstanceOf(NullPointerException.class);
@@ -756,19 +773,20 @@ class VStreamTest {
     @DisplayName("recover() replaces failed pull with value")
     void recoverReplacesFailedPull() {
       VStream<String> stream =
-          VStream.<String>fail(new RuntimeException("error")).recover(e -> "recovered");
+          VStream.<String>fail(new RuntimeException("error")).recover(_ -> "recovered");
       assertThatVStream(stream).producesElements("recovered");
     }
 
     @Test
     @DisplayName("recover() does not affect successful pulls")
     void recoverDoesNotAffectSuccess() {
-      VStream<Integer> stream = VStream.of(1, 2, 3).recover(e -> -1);
+      VStream<Integer> stream = VStream.of(1, 2, 3).recover(_ -> -1);
       assertThatVStream(stream).producesElements(1, 2, 3);
     }
 
     @Test
     @DisplayName("recover() with null function throws NullPointerException")
+    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
     void recoverNullThrows() {
       assertThatThrownBy(() -> VStream.of(1).recover(null))
           .isInstanceOf(NullPointerException.class);
@@ -779,19 +797,20 @@ class VStreamTest {
     void recoverWithReplacesFailedPull() {
       VStream<String> stream =
           VStream.<String>fail(new RuntimeException("error"))
-              .recoverWith(e -> VStream.of("a", "b"));
+              .recoverWith(_ -> VStream.of("a", "b"));
       assertThatVStream(stream).producesElements("a", "b");
     }
 
     @Test
     @DisplayName("recoverWith() does not affect successful pulls")
     void recoverWithDoesNotAffectSuccess() {
-      VStream<Integer> stream = VStream.of(1, 2).recoverWith(e -> VStream.of(-1));
+      VStream<Integer> stream = VStream.of(1, 2).recoverWith(_ -> VStream.of(-1));
       assertThatVStream(stream).producesElements(1, 2);
     }
 
     @Test
     @DisplayName("recoverWith() with null function throws NullPointerException")
+    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
     void recoverWithNullThrows() {
       assertThatThrownBy(() -> VStream.of(1).recoverWith(null))
           .isInstanceOf(NullPointerException.class);
@@ -808,6 +827,7 @@ class VStreamTest {
 
     @Test
     @DisplayName("mapError() with null function throws NullPointerException")
+    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
     void mapErrorNullThrows() {
       assertThatThrownBy(() -> VStream.of(1).mapError(null))
           .isInstanceOf(NullPointerException.class);
@@ -826,6 +846,7 @@ class VStreamTest {
 
     @Test
     @DisplayName("onError() with null action throws NullPointerException")
+    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
     void onErrorNullThrows() {
       assertThatThrownBy(() -> VStream.of(1).onError(null))
           .isInstanceOf(NullPointerException.class);
@@ -843,7 +864,7 @@ class VStreamTest {
     @DisplayName("recover() handles Skip steps by propagating recovery through tail")
     void recoverHandlesSkipSteps() {
       // filter() produces Skip steps; recover should handle them
-      VStream<Integer> stream = VStream.of(1, 2, 3, 4, 5).filter(n -> n % 2 == 0).recover(e -> -1);
+      VStream<Integer> stream = VStream.of(1, 2, 3, 4, 5).filter(n -> n % 2 == 0).recover(_ -> -1);
 
       List<Integer> result = stream.toList().run();
 
@@ -863,7 +884,7 @@ class VStreamTest {
                     }
                     return VTask.succeed("val-" + n);
                   })
-              .recover(e -> "recovered");
+              .recover(_ -> "recovered");
 
       List<String> result = stream.toList().run();
 
@@ -877,7 +898,7 @@ class VStreamTest {
       // VStream.fail does not attach a StreamTailMarker, so the false branch
       // of the instanceof check is exercised
       VStream<String> stream =
-          VStream.<String>fail(new RuntimeException("no marker")).recover(e -> "recovered");
+          VStream.<String>fail(new RuntimeException("no marker")).recover(_ -> "recovered");
 
       List<String> result = stream.toList().run();
 
@@ -892,7 +913,7 @@ class VStreamTest {
       RuntimeException error = new RuntimeException("main error");
       error.addSuppressed(new RuntimeException("other suppressed"));
 
-      VStream<String> stream = VStream.<String>fail(error).recover(e -> "recovered");
+      VStream<String> stream = VStream.<String>fail(error).recover(_ -> "recovered");
 
       List<String> result = stream.toList().run();
 
@@ -1123,9 +1144,9 @@ class VStreamTest {
       VStream<String> stream =
           VStream.<String>fail(new RuntimeException("primary failed"))
               .recoverWith(
-                  e ->
+                  _ ->
                       VStream.<String>fail(new RuntimeException("secondary failed"))
-                          .recoverWith(e2 -> VStream.of("fallback")));
+                          .recoverWith(_ -> VStream.of("fallback")));
 
       assertThatVStream(stream).producesElements("fallback");
     }
@@ -1157,6 +1178,7 @@ class VStreamTest {
 
     @Test
     @DisplayName("runSafe() captures error in Try")
+    @SuppressWarnings("DataFlowIssue") // non-null in this fixture
     void runSafeCapturesError() {
       var tryResult = VStream.<Integer>fail(new RuntimeException("test error")).runSafe().run();
       assertThat(tryResult.isFailure()).isTrue();
@@ -1179,6 +1201,7 @@ class VStreamTest {
 
     @Test
     @DisplayName("runSafe() returns Try.Success on successful stream")
+    @SuppressWarnings("DataFlowIssue") // non-null in this fixture
     void runSafeReturnsSuccessOnSuccess() {
       var result = VStream.of(1, 2, 3).runSafe().run();
       assertThat(result.isSuccess()).isTrue();
@@ -1187,6 +1210,7 @@ class VStreamTest {
 
     @Test
     @DisplayName("runSafe() returns Try.Failure on failed stream")
+    @SuppressWarnings("DataFlowIssue") // non-null in this fixture
     void runSafeReturnsFailureOnFailure() {
       var result = VStream.<Integer>fail(new RuntimeException("fail")).runSafe().run();
       assertThat(result.isFailure()).isTrue();
@@ -1201,6 +1225,7 @@ class VStreamTest {
 
     @Test
     @DisplayName("fromIterator() with null throws NullPointerException")
+    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
     void fromIteratorNullThrows() {
       assertThatThrownBy(() -> VStream.fromIterator(null)).isInstanceOf(NullPointerException.class);
     }

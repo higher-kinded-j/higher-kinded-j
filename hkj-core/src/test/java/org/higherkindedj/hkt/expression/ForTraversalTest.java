@@ -37,8 +37,6 @@ class ForTraversalTest {
 
   record Player(String name, int score) {}
 
-  record Team(String name, List<Player> players) {}
-
   // --- Common Test Fixtures ---
 
   private Monad<IdKind.Witness> idMonad;
@@ -73,6 +71,7 @@ class ForTraversalTest {
 
     @Test
     @DisplayName("over() should throw on null traversal")
+    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
     void overThrowsOnNullTraversal() {
       assertThatThrownBy(() -> ForTraversal.over(null, List.of(), idMonad))
           .isInstanceOf(NullPointerException.class)
@@ -81,6 +80,7 @@ class ForTraversalTest {
 
     @Test
     @DisplayName("over() should throw on null source")
+    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
     void overThrowsOnNullSource() {
       assertThatThrownBy(() -> ForTraversal.over(playersTraversal, null, idMonad))
           .isInstanceOf(NullPointerException.class)
@@ -89,6 +89,7 @@ class ForTraversalTest {
 
     @Test
     @DisplayName("over() should throw on null applicative")
+    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
     void overThrowsOnNullApplicative() {
       assertThatThrownBy(() -> ForTraversal.over(playersTraversal, List.of(), null))
           .isInstanceOf(NullPointerException.class)
@@ -165,6 +166,7 @@ class ForTraversalTest {
 
     @Test
     @DisplayName("modify() should throw on null lens")
+    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
     void modifyThrowsOnNullLens() {
       List<Player> players = List.of(new Player("Alice", 100));
 
@@ -176,6 +178,7 @@ class ForTraversalTest {
 
     @Test
     @DisplayName("modify() should throw on null modifier")
+    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
     void modifyThrowsOnNullModifier() {
       List<Player> players = List.of(new Player("Alice", 100));
 
@@ -206,6 +209,7 @@ class ForTraversalTest {
 
     @Test
     @DisplayName("set() should throw on null lens")
+    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
     void setThrowsOnNullLens() {
       List<Player> players = List.of(new Player("Alice", 100));
 
@@ -240,6 +244,7 @@ class ForTraversalTest {
 
     @Test
     @DisplayName("filter() should throw on null predicate")
+    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
     void filterThrowsOnNullPredicate() {
       List<Player> players = List.of(new Player("Alice", 100));
 

@@ -30,9 +30,9 @@ import org.pcollections.TreePVector;
  * ./gradlew :hkj-examples:run -PmainClass=org.higherkindedj.example.basic.pcollections.PCollectionsExample
  * }</pre>
  *
- * <p>Phase 1 caveat: although a {@link PVector} or {@link PStack} can be widened directly into
- * {@link ListKind}, operations like {@code map} and {@code flatMap} return a JDK {@link List}.
- * Preserving the persistent type end-to-end is the subject of later phases.
+ * <p>Although a {@link PVector} or {@link PStack} can be widened directly into {@link ListKind},
+ * operations like {@code map} and {@code flatMap} return a JDK {@link List}. Preserving the
+ * persistent type end-to-end is the subject of later phases.
  */
 public final class PCollectionsExample {
 

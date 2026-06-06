@@ -4,17 +4,13 @@ package org.higherkindedj.hkt.free_ap;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.higherkindedj.hkt.free_ap.FreeApKindHelper.FREE_AP;
-import static org.higherkindedj.hkt.instances.Witnesses.*;
 import static org.higherkindedj.hkt.maybe.MaybeKindHelper.MAYBE;
 
-import java.util.Objects;
 import java.util.function.BiFunction;
-import java.util.function.BiPredicate;
 import java.util.function.Function;
 import org.higherkindedj.hkt.Applicative;
 import org.higherkindedj.hkt.Kind;
-import org.higherkindedj.hkt.Natural;
-import org.higherkindedj.hkt.instances.Instances;
+import org.higherkindedj.hkt.laws.ApplicativeLaws;
 import org.higherkindedj.hkt.maybe.MaybeKind;
 import org.higherkindedj.hkt.test.contract.Category;
 import org.higherkindedj.hkt.test.contract.TypeClassContract;
@@ -22,30 +18,35 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.MethodSource;
 
 /**
- * Test suite for {@link FreeApApplicative} using the TypeClassTest API.
+ * Test suite for {@link FreeApApplicative}.
  *
- * <p>Tests verify that FreeApApplicative satisfies all Applicative laws and operations.
+ * <p>Verifies the Applicative operations and laws. {@code FreeAp} is a <em>free</em> applicative:
+ * {@code map}/{@code ap}/{@code map2} build up a {@code Pure}/{@code Lift}/{@code Ap} structure and
+ * never apply their functions — those run only later under a {@code foldMap}/{@code analyse} pass.
+ * Because the functions are never invoked at build time, map/ap cannot throw a function exception,
+ * so the contract omits {@link Category#EXCEPTIONS}. The laws are driven by the shipped {@link
+ * ApplicativeLaws} over {@link FreeApLawFixtures}, whose {@code EQ} interprets both sides into
+ * {@code Maybe}.
  */
 @DisplayName("FreeApApplicative Tests")
 class FreeApApplicativeTest {
 
   private FreeApApplicative<MaybeKind.Witness> applicative;
+  private Applicative<FreeApKind.Witness<MaybeKind.Witness>> applicativeTyped;
   private Kind<FreeApKind.Witness<MaybeKind.Witness>, Integer> validKind;
   private Kind<FreeApKind.Witness<MaybeKind.Witness>, Integer> validKind2;
   private Function<Integer, String> mapper;
   private Kind<FreeApKind.Witness<MaybeKind.Witness>, Function<Integer, String>> functionKind;
   private BiFunction<Integer, Integer, String> combiningFunction;
 
-  private static final Applicative<MaybeKind.Witness> MAYBE_APPLICATIVE =
-      Instances.monadError(maybe());
-  private static final Natural<MaybeKind.Witness, MaybeKind.Witness> IDENTITY_NAT =
-      Natural.identity();
-
   @BeforeEach
   void setUp() {
     applicative = new FreeApApplicative<>();
+    applicativeTyped = applicative;
     validKind = FREE_AP.widen(FreeAp.lift(MAYBE.just(42)));
     validKind2 = FREE_AP.widen(FreeAp.lift(MAYBE.just(10)));
     mapper = x -> "value:" + x;
@@ -53,11 +54,29 @@ class FreeApApplicativeTest {
     combiningFunction = (a, b) -> a + "+" + b;
   }
 
-  // Helper to interpret and compare FreeAp values
+  // Interpret a FreeAp into Maybe and extract the Just value.
   private <A> A interpret(Kind<FreeApKind.Witness<MaybeKind.Witness>, A> kind) {
-    FreeAp<MaybeKind.Witness, A> freeAp = FREE_AP.narrow(kind);
-    Kind<MaybeKind.Witness, A> result = freeAp.foldMap(IDENTITY_NAT, MAYBE_APPLICATIVE);
+    Kind<MaybeKind.Witness, A> result =
+        FREE_AP
+            .narrow(kind)
+            .foldMap(FreeApLawFixtures.IDENTITY_NAT, FreeApLawFixtures.MAYBE_APPLICATIVE);
     return MAYBE.narrow(result).get();
+  }
+
+  /**
+   * {@code FreeAp} builds structure rather than applying its functions (they run only at {@code
+   * foldMap}/{@code analyse} time), so a thrown mapper cannot surface at build time — {@link
+   * Category#EXCEPTIONS} is omitted. The Applicative laws are verified in the {@code Laws} block
+   * below.
+   */
+  @Test
+  @DisplayName("Applicative contract — operations & validations")
+  void applicativeContract() {
+    TypeClassContract.<FreeApKind.Witness<MaybeKind.Witness>>applicative(FreeApApplicative.class)
+        .<Integer>instance(applicativeTyped)
+        .<String>withKind(validKind)
+        .withOperations(validKind2, mapper, functionKind, combiningFunction)
+        .verifyOnly(Category.OPERATIONS, Category.VALIDATIONS);
   }
 
   @Nested
@@ -102,135 +121,35 @@ class FreeApApplicativeTest {
 
   @Nested
   @DisplayName("Applicative Laws")
-  class ApplicativeLawsTests {
+  class Laws {
 
-    private BiPredicate<
-            Kind<FreeApKind.Witness<MaybeKind.Witness>, ?>,
-            Kind<FreeApKind.Witness<MaybeKind.Witness>, ?>>
-        equalityChecker;
-
-    @BeforeEach
-    void setUpEquality() {
-      equalityChecker =
-          (k1, k2) -> {
-            FreeAp<MaybeKind.Witness, ?> f1 = FREE_AP.narrow(k1);
-            FreeAp<MaybeKind.Witness, ?> f2 = FREE_AP.narrow(k2);
-
-            var r1 = MAYBE.narrow(f1.foldMap(IDENTITY_NAT, MAYBE_APPLICATIVE));
-            var r2 = MAYBE.narrow(f2.foldMap(IDENTITY_NAT, MAYBE_APPLICATIVE));
-
-            if (r1.isNothing() && r2.isNothing()) {
-              return true;
-            }
-            if (r1.isJust() && r2.isJust()) {
-              return Objects.equals(r1.get(), r2.get());
-            }
-            return false;
-          };
+    @ParameterizedTest(name = "identity holds on {0}")
+    @MethodSource("org.higherkindedj.hkt.free_ap.FreeApLawFixtures#kinds")
+    void identity(String label, Kind<FreeApKind.Witness<MaybeKind.Witness>, Integer> v) {
+      ApplicativeLaws.assertIdentity(applicativeTyped, v, FreeApLawFixtures.EQ);
     }
 
-    @Test
-    @DisplayName("Identity law: pure(id).ap(fa) == fa")
-    void identityLaw() {
-      Kind<FreeApKind.Witness<MaybeKind.Witness>, Function<Integer, Integer>> pureId =
-          applicative.of(Function.identity());
-
-      Kind<FreeApKind.Witness<MaybeKind.Witness>, Integer> result =
-          applicative.ap(pureId, validKind);
-
-      assertThat(equalityChecker.test(validKind, result)).isTrue();
+    @ParameterizedTest(name = "homomorphism holds on value {0}")
+    @MethodSource("org.higherkindedj.hkt.free_ap.FreeApLawFixtures#values")
+    void homomorphism(int value) {
+      ApplicativeLaws.assertHomomorphism(applicativeTyped, value, mapper, FreeApLawFixtures.EQ);
     }
 
-    @Test
-    @DisplayName("Homomorphism law: pure(f).ap(pure(x)) == pure(f(x))")
-    void homomorphismLaw() {
-      Function<Integer, String> f = Object::toString;
-      Integer x = 42;
-
-      Kind<FreeApKind.Witness<MaybeKind.Witness>, Function<Integer, String>> pureF =
-          applicative.of(f);
-      Kind<FreeApKind.Witness<MaybeKind.Witness>, Integer> pureX = applicative.of(x);
-
-      Kind<FreeApKind.Witness<MaybeKind.Witness>, String> left = applicative.ap(pureF, pureX);
-      Kind<FreeApKind.Witness<MaybeKind.Witness>, String> right = applicative.of(f.apply(x));
-
-      assertThat(equalityChecker.test(left, right)).isTrue();
+    @ParameterizedTest(name = "interchange holds on value {0}")
+    @MethodSource("org.higherkindedj.hkt.free_ap.FreeApLawFixtures#values")
+    void interchange(int value) {
+      ApplicativeLaws.assertInterchange(
+          applicativeTyped, functionKind, value, FreeApLawFixtures.EQ);
     }
 
-    @Test
-    @DisplayName("Interchange law: ff.ap(pure(x)) == pure(f -> f(x)).ap(ff)")
-    void interchangeLaw() {
-      Integer x = 42;
-      Kind<FreeApKind.Witness<MaybeKind.Witness>, Function<Integer, String>> ff =
-          applicative.of(Object::toString);
-
-      Kind<FreeApKind.Witness<MaybeKind.Witness>, String> left =
-          applicative.ap(ff, applicative.of(x));
-
-      Function<Function<Integer, String>, String> applyToX = f -> f.apply(x);
-      Kind<FreeApKind.Witness<MaybeKind.Witness>, Function<Function<Integer, String>, String>>
-          pureApply = applicative.of(applyToX);
-      Kind<FreeApKind.Witness<MaybeKind.Witness>, String> right = applicative.ap(pureApply, ff);
-
-      assertThat(equalityChecker.test(left, right)).isTrue();
-    }
-  }
-
-  @Nested
-  @DisplayName("TypeClassTest Integration")
-  class TypeClassTestIntegration {
-
-    @Test
-    @DisplayName("Passes Applicative operations test")
-    void passesApplicativeOperationsTest() {
-      TypeClassContract.<FreeApKind.Witness<MaybeKind.Witness>>applicative(FreeApApplicative.class)
-          .<Integer>instance(applicative)
-          .<String>withKind(validKind)
-          .withOperations(validKind2, mapper, functionKind, combiningFunction)
-          .verifyOnly(Category.OPERATIONS);
-    }
-
-    @Test
-    @DisplayName("Passes Applicative validations test")
-    void passesApplicativeValidationsTest() {
-      TypeClassContract.<FreeApKind.Witness<MaybeKind.Witness>>applicative(FreeApApplicative.class)
-          .<Integer>instance(applicative)
-          .<String>withKind(validKind)
-          .withOperations(validKind2, mapper, functionKind, combiningFunction)
-          .verifyOnly(Category.VALIDATIONS);
-    }
-
-    @Test
-    @DisplayName("Passes Applicative laws test")
-    void passesApplicativeLawsTest() {
-      BiPredicate<
-              Kind<FreeApKind.Witness<MaybeKind.Witness>, ?>,
-              Kind<FreeApKind.Witness<MaybeKind.Witness>, ?>>
-          eqChecker =
-              (k1, k2) -> {
-                FreeAp<MaybeKind.Witness, ?> f1 = FREE_AP.narrow(k1);
-                FreeAp<MaybeKind.Witness, ?> f2 = FREE_AP.narrow(k2);
-
-                var r1 = MAYBE.narrow(f1.foldMap(IDENTITY_NAT, MAYBE_APPLICATIVE));
-                var r2 = MAYBE.narrow(f2.foldMap(IDENTITY_NAT, MAYBE_APPLICATIVE));
-
-                if (r1.isNothing() && r2.isNothing()) {
-                  return true;
-                }
-                if (r1.isJust() && r2.isJust()) {
-                  return Objects.equals(r1.get(), r2.get());
-                }
-                return false;
-              };
-
-      Function<String, String> secondMapper = s -> s + "!";
-
-      TypeClassContract.<FreeApKind.Witness<MaybeKind.Witness>>applicative(FreeApApplicative.class)
-          .<Integer>instance(applicative)
-          .<String>withKind(validKind)
-          .withOperations(validKind2, mapper, functionKind, combiningFunction)
-          .withLawsTesting(42, mapper, eqChecker)
-          .verifyOnly(Category.LAWS);
+    @ParameterizedTest(name = "composition holds on {0}")
+    @MethodSource("org.higherkindedj.hkt.free_ap.FreeApLawFixtures#kinds")
+    void composition(String label, Kind<FreeApKind.Witness<MaybeKind.Witness>, Integer> w) {
+      Kind<FreeApKind.Witness<MaybeKind.Witness>, Function<String, Integer>> u =
+          applicativeTyped.of(String::length);
+      Kind<FreeApKind.Witness<MaybeKind.Witness>, Function<Integer, String>> v =
+          applicativeTyped.of(Object::toString);
+      ApplicativeLaws.assertComposition(applicativeTyped, u, v, w, FreeApLawFixtures.EQ);
     }
   }
 }

@@ -5,21 +5,20 @@ package org.higherkindedj.hkt.lazy;
 import static org.assertj.core.api.Assertions.*;
 import static org.higherkindedj.hkt.assertions.LazyAssert.assertThatLazy;
 import static org.higherkindedj.hkt.instances.Witnesses.*;
-import static org.higherkindedj.hkt.lazy.LazyKindHelper.*;
 
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Function;
-import java.util.stream.Stream;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Monad;
 import org.higherkindedj.hkt.instances.Instances;
 import org.higherkindedj.hkt.laws.FunctorLaws;
+import org.higherkindedj.hkt.test.contract.Category;
+import org.higherkindedj.hkt.test.contract.TypeClassContract;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 
 @DisplayName("LazyFunctor")
@@ -39,23 +38,34 @@ class LazyFunctorTest extends LazyTestBase {
   class Laws {
 
     @ParameterizedTest(name = "identity holds on {0}")
-    @MethodSource("fixtures")
+    @MethodSource("org.higherkindedj.hkt.lazy.LazyLawFixtures#kinds")
     void identity(String label, Kind<LazyKind.Witness, Integer> fa) {
       FunctorLaws.assertIdentity(functor, fa, equalityChecker);
     }
 
     @ParameterizedTest(name = "composition holds on {0}")
-    @MethodSource("fixtures")
+    @MethodSource("org.higherkindedj.hkt.lazy.LazyLawFixtures#kinds")
     void composition(String label, Kind<LazyKind.Witness, Integer> fa) {
       FunctorLaws.assertComposition(functor, fa, validMapper, secondMapper, equalityChecker);
     }
+  }
 
-    static Stream<Arguments> fixtures() {
-      return Stream.of(
-          Arguments.of("Lazy.defer(0)", LAZY.widen(Lazy.defer(() -> 0))),
-          Arguments.of("Lazy.defer(42)", LAZY.widen(Lazy.defer(() -> 42))),
-          Arguments.of("Lazy.defer(-1)", LAZY.widen(Lazy.defer(() -> -1))));
-    }
+  /**
+   * {@link Category#EXCEPTIONS} is omitted: the generic contract asserts that {@code map}
+   * <em>propagates</em> a thrown mapper exception immediately, but {@code Lazy.map} is lazy — the
+   * exception surfaces only when the result is forced. That deferral is exercised by {@link
+   * MapOperations#mapShouldPropagateExceptionsFromMapperFunction()}.
+   */
+  @Test
+  @DisplayName(
+      "Functor contract — operations & validations (laws verified above; Lazy defers the mapper"
+          + " exception, verified below)")
+  void functorContract() {
+    TypeClassContract.<LazyKind.Witness>functor(LazyMonad.class)
+        .<Integer>instance(functor)
+        .<String>withKind(validKind)
+        .withMapper(validMapper)
+        .verifyOnly(Category.OPERATIONS, Category.VALIDATIONS);
   }
 
   @Nested
@@ -124,7 +134,7 @@ class LazyFunctorTest extends LazyTestBase {
       Kind<LazyKind.Witness, Integer> kind = nowKind(DEFAULT_LAZY_VALUE);
 
       Function<Integer, String> throwingMapper =
-          i -> {
+          _ -> {
             throw mapperException;
           };
 
@@ -136,35 +146,15 @@ class LazyFunctorTest extends LazyTestBase {
 
     @Test
     @DisplayName("map should handle null results correctly")
+    @SuppressWarnings("DataFlowIssue") // null-returning mapper exercises Lazy.map's null handling
     void mapShouldHandleNullResultsCorrectly() throws Throwable {
       Kind<LazyKind.Witness, Integer> kind = nowKind(DEFAULT_LAZY_VALUE);
-      Function<Integer, String> nullMapper = i -> null;
+      Function<Integer, String> nullMapper = _ -> null;
 
       Kind<LazyKind.Witness, String> mapped = functor.map(nullMapper, kind);
       Lazy<String> result = narrowToLazy(mapped);
 
       assertThat(result.force()).isNull();
-    }
-  }
-
-  @Nested
-  @DisplayName("Validation Tests")
-  class ValidationTests {
-
-    @Test
-    @DisplayName("map should throw NPE for null mapper")
-    void mapShouldThrowNPEForNullMapper() {
-      assertThatNullPointerException()
-          .isThrownBy(() -> functor.map(null, validKind))
-          .withMessageContaining("f for map cannot be null");
-    }
-
-    @Test
-    @DisplayName("map should throw NPE for null Kind")
-    void mapShouldThrowNPEForNullKind() {
-      assertThatNullPointerException()
-          .isThrownBy(() -> functor.map(validMapper, null))
-          .withMessageContaining("Kind for map cannot be null");
     }
   }
 
@@ -220,12 +210,12 @@ class LazyFunctorTest extends LazyTestBase {
       Kind<LazyKind.Witness, String> mapped = functor.map(validMapper, failingKind);
       Lazy<String> result = narrowToLazy(mapped);
 
-      // Force multiple times
-      catchThrowable(result::force);
-      catchThrowable(result::force);
-      catchThrowable(result::force);
+      // Force multiple times — the exception is thrown (and memoised) each time
+      for (int i = 0; i < 3; i++) {
+        assertThatThrownBy(result::force).isInstanceOf(RuntimeException.class);
+      }
 
-      // Exception should be thrown and memoised
+      // The original computation should have run exactly once
       assertThat(exceptionCounter.get()).isEqualTo(1);
     }
   }
@@ -268,7 +258,7 @@ class LazyFunctorTest extends LazyTestBase {
       Kind<LazyKind.Witness, Integer> kind = deferKind(() -> DEFAULT_LAZY_VALUE);
 
       Kind<LazyKind.Witness, String> mapped1 = functor.map(validMapper, kind);
-      Kind<LazyKind.Witness, String> mapped2 = functor.map(s -> s.toUpperCase(), mapped1);
+      Kind<LazyKind.Witness, String> mapped2 = functor.map(String::toUpperCase, mapped1);
       Kind<LazyKind.Witness, Integer> mapped3 = functor.map(String::length, mapped2);
 
       Lazy<Integer> result = narrowToLazy(mapped3);

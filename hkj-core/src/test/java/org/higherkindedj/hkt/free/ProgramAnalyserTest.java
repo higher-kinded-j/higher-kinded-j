@@ -117,6 +117,7 @@ class ProgramAnalyserTest {
 
     @Test
     @DisplayName("should reject null program")
+    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
     void rejectsNull() {
       assertThatNullPointerException().isThrownBy(() -> ProgramAnalyser.analyse(null));
     }
@@ -173,6 +174,7 @@ class ProgramAnalyserTest {
 
     @Test
     @DisplayName("combine should reject null")
+    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
     void combineRejectsNull() {
       ProgramAnalysis a = new ProgramAnalysis(1, 0, 0, 0, false);
 

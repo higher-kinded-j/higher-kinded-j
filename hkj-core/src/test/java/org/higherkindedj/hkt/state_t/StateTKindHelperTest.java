@@ -26,7 +26,7 @@ import org.junit.jupiter.api.Test;
 
 @DisplayName("StateTKindHelper Tests ")
 // (F=OptionalKind.Witness)
-@SuppressWarnings({"deprecation", "removal"})
+@SuppressWarnings("removal") // exercises deprecated-for-removal accessors
 class StateTKindHelperTest {
 
   private static final String TYPE_NAME = "StateT";
@@ -77,6 +77,7 @@ class StateTKindHelperTest {
 
     @Test
     @DisplayName("widen should throw NullPointerException when given null")
+    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
     void widen_nullStateT_shouldThrowNullPointerException() {
       assertThatThrownBy(() -> STATE_T.widen(null))
           .isInstanceOf(NullPointerException.class)
@@ -195,6 +196,7 @@ class StateTKindHelperTest {
 
     @Test
     @DisplayName("stateT should throw when function is null")
+    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
     void stateT_nullFunction_shouldThrow() {
       assertThatThrownBy(() -> STATE_T.stateT(null, outerMonad))
           .isInstanceOf(NullPointerException.class)
@@ -204,6 +206,7 @@ class StateTKindHelperTest {
 
     @Test
     @DisplayName("stateT should throw when monad is null")
+    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
     void stateT_nullMonad_shouldThrow() {
       Function<String, Kind<OptionalKind.Witness, StateTuple<String, Integer>>> runFn =
           s -> outerMonad.of(StateTuple.of(s, 42));
@@ -239,6 +242,7 @@ class StateTKindHelperTest {
 
     @Test
     @DisplayName("liftF validations")
+    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
     void liftF_validations() {
       Kind<OptionalKind.Witness, Integer> fa = outerMonad.of(42);
 
@@ -295,6 +299,7 @@ class StateTKindHelperTest {
 
     @Test
     @DisplayName("runStateT should throw when Kind is null")
+    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
     void runStateT_nullKind_shouldThrow() {
       assertThatThrownBy(() -> STATE_T.runStateT(null, "initial"))
           .isInstanceOf(NullPointerException.class)
@@ -304,6 +309,7 @@ class StateTKindHelperTest {
 
     @Test
     @DisplayName("evalStateT should throw when Kind is null")
+    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
     void evalStateT_nullKind_shouldThrow() {
       assertThatThrownBy(() -> STATE_T.evalStateT(null, "initial"))
           .isInstanceOf(NullPointerException.class)
@@ -313,6 +319,7 @@ class StateTKindHelperTest {
 
     @Test
     @DisplayName("execStateT should throw when Kind is null")
+    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
     void execStateT_nullKind_shouldThrow() {
       assertThatThrownBy(() -> STATE_T.execStateT(null, "initial"))
           .isInstanceOf(NullPointerException.class)
@@ -342,6 +349,7 @@ class StateTKindHelperTest {
 
     @Test
     @DisplayName("evalStateT(kind, state, monad) should throw when Kind is null")
+    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
     void evalStateTWithExplicitMonad_nullKind_shouldThrow() {
       assertThatThrownBy(() -> STATE_T.evalStateT(null, "initial", outerMonad))
           .isInstanceOf(NullPointerException.class)
@@ -351,6 +359,7 @@ class StateTKindHelperTest {
 
     @Test
     @DisplayName("execStateT(kind, state, monad) should throw when Kind is null")
+    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
     void execStateTWithExplicitMonad_nullKind_shouldThrow() {
       assertThatThrownBy(() -> STATE_T.execStateT(null, "initial", outerMonad))
           .isInstanceOf(NullPointerException.class)
@@ -360,6 +369,7 @@ class StateTKindHelperTest {
 
     @Test
     @DisplayName("evalStateT(kind, state, monad) should throw when monad is null")
+    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
     void evalStateTWithExplicitMonad_nullMonad_shouldThrow() {
       Kind<StateTKind.Witness<String, OptionalKind.Witness>, Integer> kind = STATE_T.widen(stateT);
       assertThatThrownBy(() -> STATE_T.evalStateT(kind, "initial", null))
@@ -370,6 +380,7 @@ class StateTKindHelperTest {
 
     @Test
     @DisplayName("execStateT(kind, state, monad) should throw when monad is null")
+    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
     void execStateTWithExplicitMonad_nullMonad_shouldThrow() {
       Kind<StateTKind.Witness<String, OptionalKind.Witness>, Integer> kind = STATE_T.widen(stateT);
       assertThatThrownBy(() -> STATE_T.execStateT(kind, "initial", null))

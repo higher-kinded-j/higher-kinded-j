@@ -24,7 +24,7 @@ import org.junit.jupiter.api.Test;
 
 @DisplayName("StateT Core Type Tests ")
 // (Outer: OptionalKind.Witness)
-@SuppressWarnings({"deprecation", "removal"})
+@SuppressWarnings("removal") // exercises deprecated-for-removal accessors
 class StateTTest {
 
   private Monad<OptionalKind.Witness> outerMonad;
@@ -33,15 +33,9 @@ class StateTTest {
   private final String initialState = "initial";
   private final String updatedState = "updated";
 
-  private Kind<OptionalKind.Witness, StateTuple<String, Integer>> wrappedResult;
-  private Kind<OptionalKind.Witness, StateTuple<String, Integer>> wrappedEmpty;
-
   @BeforeEach
   void setUp() {
     outerMonad = Instances.monadError(optional());
-
-    wrappedResult = OPTIONAL.widen(Optional.of(StateTuple.of(updatedState, initialValue)));
-    wrappedEmpty = OPTIONAL.widen(Optional.empty());
   }
 
   private <A> Optional<StateTuple<String, A>> unwrapT(
@@ -58,7 +52,7 @@ class StateTTest {
     @DisplayName("create should wrap state transition function")
     void create_wrapsFunction() {
       Function<String, Kind<OptionalKind.Witness, StateTuple<String, Integer>>> runFn =
-          s -> outerMonad.of(StateTuple.of(updatedState, initialValue));
+          _ -> outerMonad.of(StateTuple.of(updatedState, initialValue));
 
       StateT<String, OptionalKind.Witness, Integer> stateT = StateT.create(runFn, outerMonad);
 
@@ -91,7 +85,7 @@ class StateTTest {
     @BeforeEach
     void setUp() {
       Function<String, Kind<OptionalKind.Witness, StateTuple<String, Integer>>> runFn =
-          s -> outerMonad.of(StateTuple.of(updatedState, initialValue));
+          _ -> outerMonad.of(StateTuple.of(updatedState, initialValue));
       stateT = StateT.create(runFn, outerMonad);
     }
 
@@ -127,11 +121,12 @@ class StateTTest {
 
     @Test
     @DisplayName("runStateT should handle null initial state")
+    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
     void runStateT_handlesNullState() {
       // Create a StateT that accepts null state and returns a valid StateTuple
       // The state in the tuple can be null, but we need to handle it properly
       Function<String, Kind<OptionalKind.Witness, StateTuple<String, Integer>>> runFn =
-          s -> outerMonad.of(StateTuple.of("non-null-state", 42));
+          _ -> outerMonad.of(StateTuple.of("non-null-state", 42));
       StateT<String, OptionalKind.Witness, Integer> nullStateT = StateT.create(runFn, outerMonad);
 
       Kind<OptionalKind.Witness, StateTuple<String, Integer>> result =
@@ -145,10 +140,11 @@ class StateTTest {
 
     @Test
     @DisplayName("evalStateT should work with null initial state")
+    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
     void evalStateT_worksWithNullState() {
       // Create a StateT that accepts null state and returns a valid StateTuple
       Function<String, Kind<OptionalKind.Witness, StateTuple<String, Integer>>> runFn =
-          s -> outerMonad.of(StateTuple.of("non-null-state", 42));
+          _ -> outerMonad.of(StateTuple.of("non-null-state", 42));
       StateT<String, OptionalKind.Witness, Integer> nullStateT = StateT.create(runFn, outerMonad);
 
       Kind<OptionalKind.Witness, Integer> result = nullStateT.evalStateT(null);
@@ -159,9 +155,10 @@ class StateTTest {
 
     @Test
     @DisplayName("execStateT should work with null initial state")
+    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
     void execStateT_worksWithNullState() {
       Function<String, Kind<OptionalKind.Witness, StateTuple<String, Integer>>> runFn =
-          s -> outerMonad.of(StateTuple.of(updatedState, 42)); // Use 42 instead of initialValue
+          _ -> outerMonad.of(StateTuple.of(updatedState, 42)); // Use 42 instead of initialValue
       StateT<String, OptionalKind.Witness, Integer> nullStateT = StateT.create(runFn, outerMonad);
 
       Kind<OptionalKind.Witness, String> result = nullStateT.execStateT(null);
@@ -190,6 +187,7 @@ class StateTTest {
 
     @Test
     @DisplayName("evalStateT(state, monad) should reject null monad")
+    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
     void evalStateTWithExplicitMonad_rejectsNullMonad() {
       assertThatThrownBy(() -> stateT.evalStateT(initialState, null))
           .isInstanceOf(NullPointerException.class)
@@ -199,6 +197,7 @@ class StateTTest {
 
     @Test
     @DisplayName("execStateT(state, monad) should reject null monad")
+    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
     void execStateTWithExplicitMonad_rejectsNullMonad() {
       assertThatThrownBy(() -> stateT.execStateT(initialState, null))
           .isInstanceOf(NullPointerException.class)
@@ -234,6 +233,11 @@ class StateTTest {
 
   @Nested
   @DisplayName("Object Methods")
+  @SuppressWarnings({
+    "EqualsWithItself",
+    "EqualsBetweenInconvertibleTypes",
+    "ConstantValue"
+  }) // deliberate equals contract checks: self/null/cross-type
   class ObjectMethodTests {
 
     Function<String, Kind<OptionalKind.Witness, StateTuple<String, Integer>>> runFn1;
@@ -246,9 +250,9 @@ class StateTTest {
 
     @BeforeEach
     void setUpObjectTests() {
-      runFn1 = s -> outerMonad.of(StateTuple.of("state1", 1));
-      runFn2 = s -> outerMonad.of(StateTuple.of("state1", 1));
-      runFn3 = s -> outerMonad.of(StateTuple.of("state2", 2));
+      runFn1 = _ -> outerMonad.of(StateTuple.of("state1", 1));
+      runFn2 = _ -> outerMonad.of(StateTuple.of("state1", 1));
+      runFn3 = _ -> outerMonad.of(StateTuple.of("state2", 2));
 
       stateT1 = StateT.create(runFn1, outerMonad);
       stateT2 = StateT.create(runFn2, outerMonad);
@@ -265,7 +269,7 @@ class StateTTest {
       // Different function references
       assertThat(stateT1).isNotEqualTo(stateT3);
       assertThat(stateT1).isNotEqualTo(null);
-      assertThat(stateT1).isNotEqualTo(runFn1);
+      // Cross-type inequality is asserted directly in equals_differentTypeComparison().
     }
 
     @Test
@@ -313,7 +317,7 @@ class StateTTest {
     @DisplayName("Edge case: function that returns empty outer monad")
     void edgeCase_emptyOuterMonad() {
       Function<String, Kind<OptionalKind.Witness, StateTuple<String, Integer>>> emptyFn =
-          s -> OPTIONAL.widen(Optional.empty());
+          _ -> OPTIONAL.widen(Optional.empty());
       StateT<String, OptionalKind.Witness, Integer> emptyStateT =
           StateT.create(emptyFn, outerMonad);
 
@@ -369,7 +373,7 @@ class StateTTest {
     @DisplayName("Edge case: state transition with null value")
     void edgeCase_nullValue() {
       Function<String, Kind<OptionalKind.Witness, StateTuple<String, Integer>>> nullValueFn =
-          s -> outerMonad.of(StateTuple.of(updatedState, null));
+          _ -> outerMonad.of(StateTuple.of(updatedState, null));
       StateT<String, OptionalKind.Witness, Integer> nullValueStateT =
           StateT.create(nullValueFn, outerMonad);
 
@@ -430,7 +434,7 @@ class StateTTest {
     @DisplayName("mapT with identity should return equivalent StateT")
     void mapT_identity() {
       Function<String, Kind<OptionalKind.Witness, StateTuple<String, Integer>>> runFn =
-          s -> outerMonad.of(StateTuple.of(updatedState, initialValue));
+          _ -> outerMonad.of(StateTuple.of(updatedState, initialValue));
       StateT<String, OptionalKind.Witness, Integer> st = StateT.create(runFn, outerMonad);
 
       StateT<String, OptionalKind.Witness, Integer> result =
@@ -444,6 +448,7 @@ class StateTTest {
 
     @Test
     @DisplayName("mapT should transform outer monad to a different type")
+    @SuppressWarnings("DataFlowIssue") // non-null in this fixture
     void mapT_crossMonad() {
       Function<String, Kind<OptionalKind.Witness, StateTuple<String, Integer>>> runFn =
           s -> outerMonad.of(StateTuple.of(s + "_done", 99));
@@ -485,7 +490,7 @@ class StateTTest {
     @DisplayName("mapT should preserve empty outer monad")
     void mapT_preservesEmpty() {
       Function<String, Kind<OptionalKind.Witness, StateTuple<String, Integer>>> emptyFn =
-          s -> OPTIONAL.widen(Optional.empty());
+          _ -> OPTIONAL.widen(Optional.empty());
       StateT<String, OptionalKind.Witness, Integer> st = StateT.create(emptyFn, outerMonad);
 
       StateT<String, OptionalKind.Witness, Integer> result =
@@ -497,18 +502,20 @@ class StateTTest {
 
     @Test
     @DisplayName("mapT should reject null function")
+    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
     void mapT_rejectsNullFunction() {
       Function<String, Kind<OptionalKind.Witness, StateTuple<String, Integer>>> runFn =
-          s -> outerMonad.of(StateTuple.of(updatedState, initialValue));
+          _ -> outerMonad.of(StateTuple.of(updatedState, initialValue));
       StateT<String, OptionalKind.Witness, Integer> st = StateT.create(runFn, outerMonad);
       assertThatThrownBy(() -> st.mapT(outerMonad, null)).isInstanceOf(NullPointerException.class);
     }
 
     @Test
     @DisplayName("mapT should reject null monad")
+    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
     void mapT_rejectsNullMonad() {
       Function<String, Kind<OptionalKind.Witness, StateTuple<String, Integer>>> runFn =
-          s -> outerMonad.of(StateTuple.of(updatedState, initialValue));
+          _ -> outerMonad.of(StateTuple.of(updatedState, initialValue));
       StateT<String, OptionalKind.Witness, Integer> st = StateT.create(runFn, outerMonad);
       assertThatThrownBy(() -> st.mapT(null, Function.identity()))
           .isInstanceOf(NullPointerException.class);

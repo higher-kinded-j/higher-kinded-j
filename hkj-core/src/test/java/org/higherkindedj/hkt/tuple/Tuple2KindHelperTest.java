@@ -45,6 +45,7 @@ class Tuple2KindHelperTest {
 
     @Test
     @DisplayName("widen2() throws NullPointerException when tuple is null")
+    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
     void widen2ThrowsWhenTupleNull() {
       assertThatNullPointerException()
           .isThrownBy(() -> TUPLE2.widen2(null))
@@ -54,6 +55,7 @@ class Tuple2KindHelperTest {
 
     @Test
     @DisplayName("widen2() works with null elements inside tuple")
+    @SuppressWarnings("DataFlowIssue") // Tuple2 permits null elements; nulls passed deliberately
     void widen2WorksWithNullElements() {
       Tuple2<String, Integer> tuple = new Tuple2<>(null, null);
 
@@ -85,6 +87,7 @@ class Tuple2KindHelperTest {
 
     @Test
     @DisplayName("narrow2() throws KindUnwrapException when Kind2 is null")
+    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
     void narrow2ThrowsWhenKindNull() {
       assertThatThrownBy(() -> TUPLE2.narrow2(null))
           .isInstanceOf(KindUnwrapException.class)
@@ -95,8 +98,7 @@ class Tuple2KindHelperTest {
     @DisplayName("narrow2() throws KindUnwrapException for wrong Kind2 type")
     void narrow2ThrowsWhenWrongKindType() {
       // Create a Kind2 that is NOT a Tuple2Kind2Holder
-      Kind2<Tuple2Kind2.Witness, String, Integer> wrongKind =
-          new Kind2<Tuple2Kind2.Witness, String, Integer>() {};
+      Kind2<Tuple2Kind2.Witness, String, Integer> wrongKind = new Kind2<>() {};
 
       assertThatThrownBy(() -> TUPLE2.narrow2(wrongKind))
           .isInstanceOf(KindUnwrapException.class)
@@ -132,6 +134,7 @@ class Tuple2KindHelperTest {
 
     @Test
     @DisplayName("Tuple2Kind2Holder validates non-null tuple")
+    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
     void holderValidatesNonNull() {
       assertThatNullPointerException()
           .isThrownBy(() -> new Tuple2KindHelper.Tuple2Kind2Holder<String, Integer>(null))
@@ -184,7 +187,6 @@ class Tuple2KindHelperTest {
     @DisplayName("Singleton enum instance is accessible")
     void singletonEnumInstanceAccessible() {
       assertThat(TUPLE2).isNotNull();
-      assertThat(TUPLE2).isSameAs(Tuple2KindHelper.TUPLE2);
     }
 
     @Test

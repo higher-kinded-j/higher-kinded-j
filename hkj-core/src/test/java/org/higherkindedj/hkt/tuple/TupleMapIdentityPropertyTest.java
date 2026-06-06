@@ -13,6 +13,7 @@ import net.jqwik.api.*;
  * <p>Verifies that mapping identity functions over each Tuple preserves equality, providing more
  * comprehensive coverage than example-based tests alone.
  */
+@SuppressWarnings("DataFlowIssue") // jqwik samples are non-null despite the nullable typing
 @Label("Tuple6-12 Map Identity Property Tests")
 class TupleMapIdentityPropertyTest {
 

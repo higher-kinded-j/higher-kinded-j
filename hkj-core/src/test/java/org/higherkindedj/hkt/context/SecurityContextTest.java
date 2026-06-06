@@ -23,10 +23,8 @@ import org.junit.jupiter.api.Test;
 class SecurityContextTest {
 
   private final Principal testPrincipal = () -> "testuser@example.com";
-  private final Principal adminPrincipal = () -> "admin@example.com";
   private final Set<String> userRoles = Set.of("USER");
   private final Set<String> adminRoles = Set.of("USER", "ADMIN");
-  private final Set<String> allRoles = Set.of("USER", "ADMIN", "MANAGER");
   private final Set<String> userPermissions = Set.of("document:read");
   private final Set<String> adminPermissions =
       Set.of("document:read", "document:write", "user:delete");
@@ -84,7 +82,7 @@ class SecurityContextTest {
 
       @Test
       @DisplayName("isAuthenticated() should return true when principal is present")
-      void isAuthenticated_shouldReturnTrueWhenPrincipalPresent() throws Exception {
+      void isAuthenticated_shouldReturnTrueWhenPrincipalPresent() {
         Context<Principal, Boolean> ctx = SecurityContext.isAuthenticated();
 
         Boolean result = ScopedValue.where(SecurityContext.PRINCIPAL, testPrincipal).call(ctx::run);
@@ -94,7 +92,8 @@ class SecurityContextTest {
 
       @Test
       @DisplayName("isAuthenticated() should return false when principal is null")
-      void isAuthenticated_shouldReturnFalseWhenPrincipalNull() throws Exception {
+      @SuppressWarnings("DataFlowIssue") // null is bound/passed deliberately to verify behaviour
+      void isAuthenticated_shouldReturnFalseWhenPrincipalNull() {
         Context<Principal, Boolean> ctx = SecurityContext.isAuthenticated();
 
         Boolean result = ScopedValue.where(SecurityContext.PRINCIPAL, null).call(ctx::run);
@@ -109,7 +108,7 @@ class SecurityContextTest {
 
       @Test
       @DisplayName("requireAuthenticated() should return principal when authenticated")
-      void requireAuthenticated_shouldReturnPrincipalWhenAuthenticated() throws Exception {
+      void requireAuthenticated_shouldReturnPrincipalWhenAuthenticated() {
         Context<Principal, Principal> ctx = SecurityContext.requireAuthenticated();
 
         Principal result =
@@ -121,7 +120,8 @@ class SecurityContextTest {
       @Test
       @DisplayName(
           "requireAuthenticated() should throw UnauthenticatedException when principal is null")
-      void requireAuthenticated_shouldThrowWhenPrincipalNull() throws Exception {
+      @SuppressWarnings("DataFlowIssue") // null is bound/passed deliberately to verify behaviour
+      void requireAuthenticated_shouldThrowWhenPrincipalNull() {
         Context<Principal, Principal> ctx = SecurityContext.requireAuthenticated();
 
         assertThatThrownBy(() -> ScopedValue.where(SecurityContext.PRINCIPAL, null).call(ctx::run))
@@ -136,7 +136,8 @@ class SecurityContextTest {
 
       @Test
       @DisplayName("principalIfPresent() should return Just when authenticated")
-      void principalIfPresent_shouldReturnJustWhenAuthenticated() throws Exception {
+      @SuppressWarnings("DataFlowIssue") // ScopedValue.call() is @Nullable; result is non-null here
+      void principalIfPresent_shouldReturnJustWhenAuthenticated() {
         Context<Principal, Maybe<Principal>> ctx = SecurityContext.principalIfPresent();
 
         Maybe<Principal> result =
@@ -148,7 +149,8 @@ class SecurityContextTest {
 
       @Test
       @DisplayName("principalIfPresent() should return Nothing when principal is null")
-      void principalIfPresent_shouldReturnNothingWhenPrincipalNull() throws Exception {
+      @SuppressWarnings("DataFlowIssue") // null is bound/passed deliberately to verify behaviour
+      void principalIfPresent_shouldReturnNothingWhenPrincipalNull() {
         Context<Principal, Maybe<Principal>> ctx = SecurityContext.principalIfPresent();
 
         Maybe<Principal> result = ScopedValue.where(SecurityContext.PRINCIPAL, null).call(ctx::run);
@@ -168,7 +170,7 @@ class SecurityContextTest {
 
       @Test
       @DisplayName("hasRole() should return true when user has role")
-      void hasRole_shouldReturnTrueWhenUserHasRole() throws Exception {
+      void hasRole_shouldReturnTrueWhenUserHasRole() {
         Context<Set<String>, Boolean> ctx = SecurityContext.hasRole("USER");
 
         Boolean result = ScopedValue.where(SecurityContext.ROLES, userRoles).call(ctx::run);
@@ -178,7 +180,7 @@ class SecurityContextTest {
 
       @Test
       @DisplayName("hasRole() should return false when user lacks role")
-      void hasRole_shouldReturnFalseWhenUserLacksRole() throws Exception {
+      void hasRole_shouldReturnFalseWhenUserLacksRole() {
         Context<Set<String>, Boolean> ctx = SecurityContext.hasRole("ADMIN");
 
         Boolean result = ScopedValue.where(SecurityContext.ROLES, userRoles).call(ctx::run);
@@ -188,7 +190,8 @@ class SecurityContextTest {
 
       @Test
       @DisplayName("hasRole() should return false when roles is null")
-      void hasRole_shouldReturnFalseWhenRolesNull() throws Exception {
+      @SuppressWarnings("DataFlowIssue") // null is bound/passed deliberately to verify behaviour
+      void hasRole_shouldReturnFalseWhenRolesNull() {
         Context<Set<String>, Boolean> ctx = SecurityContext.hasRole("USER");
 
         Boolean result = ScopedValue.where(SecurityContext.ROLES, null).call(ctx::run);
@@ -198,6 +201,7 @@ class SecurityContextTest {
 
       @Test
       @DisplayName("hasRole() should throw NullPointerException for null role")
+      @SuppressWarnings("DataFlowIssue") // null is bound/passed deliberately to verify behaviour
       void hasRole_shouldThrowForNullRole() {
         assertThatNullPointerException()
             .isThrownBy(() -> SecurityContext.hasRole(null))
@@ -211,7 +215,7 @@ class SecurityContextTest {
 
       @Test
       @DisplayName("hasAnyRole() should return true when user has any of the roles")
-      void hasAnyRole_shouldReturnTrueWhenUserHasAny() throws Exception {
+      void hasAnyRole_shouldReturnTrueWhenUserHasAny() {
         Context<Set<String>, Boolean> ctx = SecurityContext.hasAnyRole("ADMIN", "SUPERUSER");
 
         Boolean result = ScopedValue.where(SecurityContext.ROLES, adminRoles).call(ctx::run);
@@ -221,7 +225,7 @@ class SecurityContextTest {
 
       @Test
       @DisplayName("hasAnyRole() should return false when user has none of the roles")
-      void hasAnyRole_shouldReturnFalseWhenUserHasNone() throws Exception {
+      void hasAnyRole_shouldReturnFalseWhenUserHasNone() {
         Context<Set<String>, Boolean> ctx = SecurityContext.hasAnyRole("SUPERUSER", "ROOT");
 
         Boolean result = ScopedValue.where(SecurityContext.ROLES, userRoles).call(ctx::run);
@@ -231,7 +235,8 @@ class SecurityContextTest {
 
       @Test
       @DisplayName("hasAnyRole() should return false when userRoles is null")
-      void hasAnyRole_shouldReturnFalseWhenUserRolesNull() throws Exception {
+      @SuppressWarnings("DataFlowIssue") // null is bound/passed deliberately to verify behaviour
+      void hasAnyRole_shouldReturnFalseWhenUserRolesNull() {
         Context<Set<String>, Boolean> ctx = SecurityContext.hasAnyRole("USER", "ADMIN");
 
         Boolean result = ScopedValue.where(SecurityContext.ROLES, null).call(ctx::run);
@@ -241,6 +246,7 @@ class SecurityContextTest {
 
       @Test
       @DisplayName("hasAnyRole() should throw NullPointerException for null roles")
+      @SuppressWarnings("DataFlowIssue") // null is bound/passed deliberately to verify behaviour
       void hasAnyRole_shouldThrowForNullRoles() {
         assertThatNullPointerException()
             .isThrownBy(() -> SecurityContext.hasAnyRole((String[]) null))
@@ -254,7 +260,7 @@ class SecurityContextTest {
 
       @Test
       @DisplayName("hasAllRoles() should return true when user has all roles")
-      void hasAllRoles_shouldReturnTrueWhenUserHasAll() throws Exception {
+      void hasAllRoles_shouldReturnTrueWhenUserHasAll() {
         Context<Set<String>, Boolean> ctx = SecurityContext.hasAllRoles("USER", "ADMIN");
 
         Boolean result = ScopedValue.where(SecurityContext.ROLES, adminRoles).call(ctx::run);
@@ -264,7 +270,7 @@ class SecurityContextTest {
 
       @Test
       @DisplayName("hasAllRoles() should return false when user lacks some roles")
-      void hasAllRoles_shouldReturnFalseWhenUserLacksSome() throws Exception {
+      void hasAllRoles_shouldReturnFalseWhenUserLacksSome() {
         Context<Set<String>, Boolean> ctx =
             SecurityContext.hasAllRoles("USER", "ADMIN", "SUPERUSER");
 
@@ -275,7 +281,8 @@ class SecurityContextTest {
 
       @Test
       @DisplayName("hasAllRoles() should return false when userRoles is null")
-      void hasAllRoles_shouldReturnFalseWhenUserRolesNull() throws Exception {
+      @SuppressWarnings("DataFlowIssue") // null is bound/passed deliberately to verify behaviour
+      void hasAllRoles_shouldReturnFalseWhenUserRolesNull() {
         Context<Set<String>, Boolean> ctx = SecurityContext.hasAllRoles("USER", "ADMIN");
 
         Boolean result = ScopedValue.where(SecurityContext.ROLES, null).call(ctx::run);
@@ -285,6 +292,7 @@ class SecurityContextTest {
 
       @Test
       @DisplayName("hasAllRoles() should throw NullPointerException for null roles")
+      @SuppressWarnings("DataFlowIssue") // null is bound/passed deliberately to verify behaviour
       void hasAllRoles_shouldThrowForNullRoles() {
         assertThatNullPointerException()
             .isThrownBy(() -> SecurityContext.hasAllRoles((String[]) null))
@@ -298,7 +306,7 @@ class SecurityContextTest {
 
       @Test
       @DisplayName("requireRole() should return Unit when user has role")
-      void requireRole_shouldReturnUnitWhenUserHasRole() throws Exception {
+      void requireRole_shouldReturnUnitWhenUserHasRole() {
         Context<Set<String>, Unit> ctx = SecurityContext.requireRole("USER");
 
         Unit result = ScopedValue.where(SecurityContext.ROLES, userRoles).call(ctx::run);
@@ -308,7 +316,7 @@ class SecurityContextTest {
 
       @Test
       @DisplayName("requireRole() should throw UnauthorisedException when user lacks role")
-      void requireRole_shouldThrowWhenUserLacksRole() throws Exception {
+      void requireRole_shouldThrowWhenUserLacksRole() {
         Context<Set<String>, Unit> ctx = SecurityContext.requireRole("ADMIN");
 
         assertThatThrownBy(() -> ScopedValue.where(SecurityContext.ROLES, userRoles).call(ctx::run))
@@ -318,6 +326,7 @@ class SecurityContextTest {
 
       @Test
       @DisplayName("requireRole() should throw NullPointerException for null role")
+      @SuppressWarnings("DataFlowIssue") // null is bound/passed deliberately to verify behaviour
       void requireRole_shouldThrowForNullRole() {
         assertThatNullPointerException()
             .isThrownBy(() -> SecurityContext.requireRole(null))
@@ -331,7 +340,7 @@ class SecurityContextTest {
 
       @Test
       @DisplayName("requireAnyRole() should return Unit when user has any role")
-      void requireAnyRole_shouldReturnUnitWhenUserHasAny() throws Exception {
+      void requireAnyRole_shouldReturnUnitWhenUserHasAny() {
         Context<Set<String>, Unit> ctx = SecurityContext.requireAnyRole("ADMIN", "SUPERUSER");
 
         Unit result = ScopedValue.where(SecurityContext.ROLES, adminRoles).call(ctx::run);
@@ -341,7 +350,7 @@ class SecurityContextTest {
 
       @Test
       @DisplayName("requireAnyRole() should throw UnauthorisedException when user has none")
-      void requireAnyRole_shouldThrowWhenUserHasNone() throws Exception {
+      void requireAnyRole_shouldThrowWhenUserHasNone() {
         Context<Set<String>, Unit> ctx = SecurityContext.requireAnyRole("SUPERUSER", "ROOT");
 
         assertThatThrownBy(() -> ScopedValue.where(SecurityContext.ROLES, userRoles).call(ctx::run))
@@ -351,6 +360,7 @@ class SecurityContextTest {
 
       @Test
       @DisplayName("requireAnyRole() should throw NullPointerException for null roles")
+      @SuppressWarnings("DataFlowIssue") // null is bound/passed deliberately to verify behaviour
       void requireAnyRole_shouldThrowForNullRoles() {
         assertThatNullPointerException()
             .isThrownBy(() -> SecurityContext.requireAnyRole((String[]) null))
@@ -364,7 +374,7 @@ class SecurityContextTest {
 
       @Test
       @DisplayName("requireAllRoles() should return Unit when user has all roles")
-      void requireAllRoles_shouldReturnUnitWhenUserHasAll() throws Exception {
+      void requireAllRoles_shouldReturnUnitWhenUserHasAll() {
         Context<Set<String>, Unit> ctx = SecurityContext.requireAllRoles("USER", "ADMIN");
 
         Unit result = ScopedValue.where(SecurityContext.ROLES, adminRoles).call(ctx::run);
@@ -374,7 +384,7 @@ class SecurityContextTest {
 
       @Test
       @DisplayName("requireAllRoles() should throw UnauthorisedException when user lacks some")
-      void requireAllRoles_shouldThrowWhenUserLacksSome() throws Exception {
+      void requireAllRoles_shouldThrowWhenUserLacksSome() {
         Context<Set<String>, Unit> ctx =
             SecurityContext.requireAllRoles("USER", "ADMIN", "SUPERUSER");
 
@@ -386,6 +396,7 @@ class SecurityContextTest {
 
       @Test
       @DisplayName("requireAllRoles() should throw NullPointerException for null roles")
+      @SuppressWarnings("DataFlowIssue") // null is bound/passed deliberately to verify behaviour
       void requireAllRoles_shouldThrowForNullRoles() {
         assertThatNullPointerException()
             .isThrownBy(() -> SecurityContext.requireAllRoles((String[]) null))
@@ -404,7 +415,7 @@ class SecurityContextTest {
 
       @Test
       @DisplayName("hasPermission() should return true when user has permission")
-      void hasPermission_shouldReturnTrueWhenUserHasPermission() throws Exception {
+      void hasPermission_shouldReturnTrueWhenUserHasPermission() {
         Context<Set<String>, Boolean> ctx = SecurityContext.hasPermission("document:read");
 
         Boolean result =
@@ -415,7 +426,7 @@ class SecurityContextTest {
 
       @Test
       @DisplayName("hasPermission() should return false when user lacks permission")
-      void hasPermission_shouldReturnFalseWhenUserLacksPermission() throws Exception {
+      void hasPermission_shouldReturnFalseWhenUserLacksPermission() {
         Context<Set<String>, Boolean> ctx = SecurityContext.hasPermission("document:write");
 
         Boolean result =
@@ -426,7 +437,8 @@ class SecurityContextTest {
 
       @Test
       @DisplayName("hasPermission() should return false when permissions is null")
-      void hasPermission_shouldReturnFalseWhenPermissionsNull() throws Exception {
+      @SuppressWarnings("DataFlowIssue") // null is bound/passed deliberately to verify behaviour
+      void hasPermission_shouldReturnFalseWhenPermissionsNull() {
         Context<Set<String>, Boolean> ctx = SecurityContext.hasPermission("document:read");
 
         Boolean result = ScopedValue.where(SecurityContext.PERMISSIONS, null).call(ctx::run);
@@ -436,6 +448,7 @@ class SecurityContextTest {
 
       @Test
       @DisplayName("hasPermission() should throw NullPointerException for null permission")
+      @SuppressWarnings("DataFlowIssue") // null is bound/passed deliberately to verify behaviour
       void hasPermission_shouldThrowForNullPermission() {
         assertThatNullPointerException()
             .isThrownBy(() -> SecurityContext.hasPermission(null))
@@ -449,7 +462,7 @@ class SecurityContextTest {
 
       @Test
       @DisplayName("requirePermission() should return Unit when user has permission")
-      void requirePermission_shouldReturnUnitWhenUserHasPermission() throws Exception {
+      void requirePermission_shouldReturnUnitWhenUserHasPermission() {
         Context<Set<String>, Unit> ctx = SecurityContext.requirePermission("document:read");
 
         Unit result =
@@ -461,7 +474,7 @@ class SecurityContextTest {
       @Test
       @DisplayName(
           "requirePermission() should throw UnauthorisedException when user lacks permission")
-      void requirePermission_shouldThrowWhenUserLacksPermission() throws Exception {
+      void requirePermission_shouldThrowWhenUserLacksPermission() {
         Context<Set<String>, Unit> ctx = SecurityContext.requirePermission("user:delete");
 
         assertThatThrownBy(
@@ -473,6 +486,7 @@ class SecurityContextTest {
 
       @Test
       @DisplayName("requirePermission() should throw NullPointerException for null permission")
+      @SuppressWarnings("DataFlowIssue") // null is bound/passed deliberately to verify behaviour
       void requirePermission_shouldThrowForNullPermission() {
         assertThatNullPointerException()
             .isThrownBy(() -> SecurityContext.requirePermission(null))
@@ -491,6 +505,7 @@ class SecurityContextTest {
 
       @Test
       @DisplayName("UnauthenticatedException should extend RuntimeException")
+      @SuppressWarnings("ConstantValue") // statically always true; documents the type relationship
       void unauthenticatedException_shouldExtendRuntimeException() {
         assertThat(
                 RuntimeException.class.isAssignableFrom(
@@ -514,6 +529,7 @@ class SecurityContextTest {
 
       @Test
       @DisplayName("UnauthorisedException should extend RuntimeException")
+      @SuppressWarnings("ConstantValue") // statically always true; documents the type relationship
       void unauthorisedException_shouldExtendRuntimeException() {
         assertThat(
                 RuntimeException.class.isAssignableFrom(
@@ -556,7 +572,7 @@ class SecurityContextTest {
 
     @Test
     @DisplayName("Multiple security ScopedValues can be bound together")
-    void multipleScopedValuesCanBeBoundTogether() throws Exception {
+    void multipleScopedValuesCanBeBoundTogether() {
       String result =
           ScopedValue.where(SecurityContext.PRINCIPAL, testPrincipal)
               .where(SecurityContext.ROLES, adminRoles)

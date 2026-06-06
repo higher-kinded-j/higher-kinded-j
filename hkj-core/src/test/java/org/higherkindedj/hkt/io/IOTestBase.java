@@ -4,13 +4,13 @@ package org.higherkindedj.hkt.io;
 
 import static org.higherkindedj.hkt.io.IOKindHelper.IO_OP;
 
-import java.util.Objects;
 import java.util.function.BiFunction;
 import java.util.function.BiPredicate;
 import java.util.function.Function;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.test.fixtures.TestFunctions;
 import org.higherkindedj.hkt.test.fixtures.TypeClassTestBase;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Base class for IO type class tests.
@@ -29,15 +29,12 @@ import org.higherkindedj.hkt.test.fixtures.TypeClassTestBase;
  *
  * <h2>Fixture Methods</h2>
  *
- * <p>This base class provides fixtures for both Integer-based and String-based tests, allowing
- * flexibility in test implementations:
+ * <p>This base class provides the shared fixtures the IO type-class tests build on:
  *
  * <ul>
  *   <li>{@link #ioKind(Object)} - Creates an IO Kind with any value
- *   <li>{@link #stringIOKind(String)} - Creates an IO Kind with a String value
  *   <li>{@link #failingIO(RuntimeException)} - Creates an IO that throws an exception
- *   <li>{@link #stringToIntMapper()} - Maps String to Integer (String::length)
- *   <li>{@link #stringToIntFlatMapper()} - FlatMaps String to Kind&lt;IO, Integer&gt;
+ *   <li>{@link #narrowToIO(Kind)} / {@link #executeIO(Kind)} - Unwrap and run an IO Kind
  * </ul>
  *
  * <h2>Lazy Evaluation Handling</h2>
@@ -64,7 +61,8 @@ abstract class IOTestBase extends TypeClassTestBase<IOKind.Witness, Integer, Str
    * @param value The value to wrap in an IO
    * @return An IO Kind containing the specified value
    */
-  protected <A> Kind<IOKind.Witness, A> ioKind(A value) {
+  @SuppressWarnings("DataFlowIssue") // an IO may legitimately hold a null value
+  protected <A> Kind<IOKind.Witness, A> ioKind(@Nullable A value) {
     return IO_OP.widen(IO.delay(() -> value));
   }
 
@@ -110,79 +108,6 @@ abstract class IOTestBase extends TypeClassTestBase<IOKind.Witness, Integer, Str
    */
   protected <A> A executeIO(Kind<IOKind.Witness, A> kind) {
     return IO_OP.unsafeRunSync(kind);
-  }
-
-  /**
-   * Creates an IO Kind with a String value.
-   *
-   * @param value The String value to wrap in an IO
-   * @return An IO Kind containing the specified String
-   */
-  protected Kind<IOKind.Witness, String> stringIOKind(String value) {
-    return IO_OP.widen(IO.delay(() -> value));
-  }
-
-  /**
-   * Mapper from String to Integer (String::length).
-   *
-   * @return A function that maps String to its length
-   */
-  protected Function<String, Integer> stringToIntMapper() {
-    return String::length;
-  }
-
-  /**
-   * FlatMapper from String to Kind&lt;IO, Integer&gt;.
-   *
-   * @return A function that flatmaps String to an IO containing its length
-   */
-  protected Function<String, Kind<IOKind.Witness, Integer>> stringToIntFlatMapper() {
-    return s -> IO_OP.widen(IO.delay(() -> s.length()));
-  }
-
-  /**
-   * Function Kind for String to Integer mapping.
-   *
-   * @return An IO Kind containing a function from String to Integer
-   */
-  protected Kind<IOKind.Witness, Function<String, Integer>> stringToIntFunctionKind() {
-    return IO_OP.widen(IO.delay(() -> String::length));
-  }
-
-  /**
-   * Combining function for two Strings producing Integer.
-   *
-   * @return A BiFunction that combines two Strings by summing their lengths
-   */
-  protected BiFunction<String, String, Integer> stringCombiningFunction() {
-    return (s1, s2) -> s1.length() + s2.length();
-  }
-
-  /**
-   * Second mapper from Integer to String for composition testing.
-   *
-   * @return A function that maps Integer to String
-   */
-  protected Function<Integer, String> intToStringMapper() {
-    return i -> "Value:" + i;
-  }
-
-  /**
-   * Test function from String to Kind&lt;IO, Integer&gt;.
-   *
-   * @return A function for testing monad operations
-   */
-  protected Function<String, Kind<IOKind.Witness, Integer>> stringTestFunction() {
-    return s -> IO_OP.widen(IO.delay(() -> s.length()));
-  }
-
-  /**
-   * Chain function from Integer to Kind&lt;IO, Integer&gt;.
-   *
-   * @return A function for testing monad chaining
-   */
-  protected Function<Integer, Kind<IOKind.Witness, Integer>> intChainFunction() {
-    return i -> IO_OP.widen(IO.delay(() -> i * 2));
   }
 
   // ============================================================================
@@ -241,27 +166,6 @@ abstract class IOTestBase extends TypeClassTestBase<IOKind.Witness, Integer, Str
 
   @Override
   protected BiPredicate<Kind<IOKind.Witness, ?>, Kind<IOKind.Witness, ?>> createEqualityChecker() {
-    // IO equality checker that executes both IOs and compares their results
-    return (k1, k2) -> {
-      // Execute both IOs and compare their results using Object.equals()
-      Object v1 = IO_OP.narrow(castKind(k1)).unsafeRunSync();
-      Object v2 = IO_OP.narrow(castKind(k2)).unsafeRunSync();
-      return Objects.equals(v1, v2);
-    };
-  }
-
-  /**
-   * Helper method to safely cast Kind wildcards.
-   *
-   * <p>This is needed because the equality checker receives {@code Kind<IOKind.Witness, ?>} but we
-   * need to narrow it to {@code IO<?>}.
-   *
-   * @param <A> The type of the value
-   * @param kind The Kind to cast
-   * @return The cast Kind
-   */
-  @SuppressWarnings("unchecked")
-  private static <A> Kind<IOKind.Witness, A> castKind(Kind<IOKind.Witness, ?> kind) {
-    return (Kind<IOKind.Witness, A>) kind;
+    return IOLawFixtures.EQ;
   }
 }

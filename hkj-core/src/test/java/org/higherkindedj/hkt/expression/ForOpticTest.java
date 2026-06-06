@@ -79,7 +79,7 @@ class ForOpticTest {
       userAddressLens = Lens.of(User::address, (u, a) -> new User(u.name(), a));
       addressCityLens = Lens.of(Address::city, (a, c) -> new Address(a.street(), c));
       addressStreetLens = Lens.of(Address::street, (a, s) -> new Address(s, a.city()));
-      streetNameLens = Lens.of(Street::name, (s, n) -> new Street(n));
+      streetNameLens = Lens.of(Street::name, (_, n) -> new Street(n));
     }
 
     @Test
@@ -88,7 +88,7 @@ class ForOpticTest {
       User user = new User("Alice", new Address(new Street("Main"), "NYC"));
 
       Kind<IdKind.Witness, String> result =
-          For.from(idMonad, Id.of(user)).focus(userAddressLens).yield((u, addr) -> addr.city());
+          For.from(idMonad, Id.of(user)).focus(userAddressLens).yield((_, addr) -> addr.city());
 
       assertThat(IdKindHelper.ID.unwrap(result)).isEqualTo("NYC");
     }
@@ -102,7 +102,7 @@ class ForOpticTest {
           For.from(idMonad, Id.of(user))
               .focus(userAddressLens)
               .focus(t -> addressStreetLens.get(t._2()))
-              .yield((u, addr, street) -> street.name());
+              .yield((_, _, street) -> street.name());
 
       assertThat(IdKindHelper.ID.unwrap(result)).isEqualTo("Oak");
     }
@@ -127,7 +127,7 @@ class ForOpticTest {
       Lens<User, String> userCityLens = userAddressLens.andThen(addressCityLens);
 
       Kind<IdKind.Witness, String> result =
-          For.from(idMonad, Id.of(user)).focus(userCityLens).yield((u, city) -> city.toUpperCase());
+          For.from(idMonad, Id.of(user)).focus(userCityLens).yield((_, city) -> city.toUpperCase());
 
       assertThat(IdKindHelper.ID.unwrap(result)).isEqualTo("BOSTON");
     }
@@ -141,7 +141,7 @@ class ForOpticTest {
           For.from(idMonad, Id.of(user))
               .focus(userAddressLens)
               .from(t -> Id.of(t._2().city().length()))
-              .yield((u, addr, len) -> u.name() + "'s city has " + len + " chars");
+              .yield((u, _, len) -> u.name() + "'s city has " + len + " chars");
 
       assertThat(IdKindHelper.ID.unwrap(result)).isEqualTo("Eve's city has 6 chars");
     }
@@ -155,13 +155,14 @@ class ForOpticTest {
           For.from(idMonad, Id.of(user))
               .focus(userAddressLens)
               .let(t -> t._2().city().toUpperCase())
-              .yield((u, addr, upperCity) -> u.name() + " is in " + upperCity);
+              .yield((u, _, upperCity) -> u.name() + " is in " + upperCity);
 
       assertThat(IdKindHelper.ID.unwrap(result)).isEqualTo("Frank is in MIAMI");
     }
 
     @Test
     @DisplayName("should throw NullPointerException when lens is null")
+    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
     void focusWithNullLensThrows() {
       assertThatThrownBy(() -> For.from(idMonad, Id.of("test")).focus(null))
           .isInstanceOf(NullPointerException.class)
@@ -177,7 +178,7 @@ class ForOpticTest {
           For.from(idMonad, Id.of(user))
               .from(u -> Id.of(u.address()))
               .focus(t -> addressCityLens.get(t._2()))
-              .yield((u, addr, city) -> city);
+              .yield((_, _, city) -> city);
 
       assertThat(IdKindHelper.ID.unwrap(result)).isEqualTo("Portland");
     }
@@ -192,7 +193,7 @@ class ForOpticTest {
               .focus(userAddressLens)
               .focus(t -> addressStreetLens.get(t._2()))
               .focus(t -> streetNameLens.get(t._3()))
-              .yield((u, addr, street, name) -> name);
+              .yield((_, _, _, name) -> name);
 
       assertThat(IdKindHelper.ID.unwrap(result)).isEqualTo("Willow");
     }
@@ -206,12 +207,10 @@ class ForOpticTest {
     private final MonadZero<ListKind.Witness> listMonad = Instances.monadZero(list());
 
     private Lens<User, Address> userAddressLens;
-    private Lens<Address, String> addressCityLens;
 
     @BeforeEach
     void setUp() {
       userAddressLens = Lens.of(User::address, (u, a) -> new User(u.name(), a));
-      addressCityLens = Lens.of(Address::city, (a, c) -> new Address(a.street(), c));
     }
 
     @Test
@@ -225,7 +224,7 @@ class ForOpticTest {
       Kind<ListKind.Witness, String> result =
           For.from(listMonad, LIST.widen(users))
               .focus(userAddressLens)
-              .yield((user, addr) -> addr.city());
+              .yield((_, addr) -> addr.city());
 
       assertThat(LIST.narrow(result)).containsExactly("NYC", "LA");
     }
@@ -243,7 +242,7 @@ class ForOpticTest {
           For.from(listMonad, LIST.widen(users))
               .focus(userAddressLens)
               .when(t -> t._2().city().equals("NYC"))
-              .yield((user, addr) -> user.name());
+              .yield((user, _) -> user.name());
 
       assertThat(LIST.narrow(result)).containsExactly("Alice", "Charlie");
     }
@@ -256,7 +255,7 @@ class ForOpticTest {
       Kind<ListKind.Witness, String> result =
           For.from(listMonad, LIST.widen(users))
               .focus(userAddressLens)
-              .yield((user, addr) -> addr.city());
+              .yield((_, addr) -> addr.city());
 
       assertThat(LIST.narrow(result)).isEmpty();
     }
@@ -284,7 +283,7 @@ class ForOpticTest {
       Kind<MaybeKind.Witness, String> result =
           For.from(maybeMonad, MAYBE.just(user))
               .focus(userAddressLens)
-              .yield((u, addr) -> addr.city());
+              .yield((_, addr) -> addr.city());
 
       assertThat(MAYBE.narrow(result)).isEqualTo(Maybe.just("NYC"));
     }
@@ -295,7 +294,7 @@ class ForOpticTest {
       Kind<MaybeKind.Witness, String> result =
           For.from(maybeMonad, MAYBE.<User>nothing())
               .focus(userAddressLens)
-              .yield((u, addr) -> addr.city());
+              .yield((_, addr) -> addr.city());
 
       assertThat(MAYBE.narrow(result)).isEqualTo(Maybe.nothing());
     }
@@ -309,7 +308,7 @@ class ForOpticTest {
           For.from(maybeMonad, MAYBE.just(user))
               .focus(userAddressLens)
               .when(t -> t._2().city().equals("NYC"))
-              .yield((u, addr) -> "Found NYC user");
+              .yield((_, _) -> "Found NYC user");
 
       assertThat(MAYBE.narrow(result)).isEqualTo(Maybe.nothing());
     }
@@ -323,14 +322,11 @@ class ForOpticTest {
     private final MonadZero<MaybeKind.Witness> maybeMonad = Instances.monadZero(maybe());
 
     private Prism<Result, Success> successPrism;
-    private Prism<Result, Failure> failurePrism;
 
     @BeforeEach
     void setUp() {
       successPrism =
           Prism.of(r -> r instanceof Success s ? Optional.of(s) : Optional.empty(), s -> s);
-      failurePrism =
-          Prism.of(r -> r instanceof Failure f ? Optional.of(f) : Optional.empty(), f -> f);
     }
 
     @Test
@@ -341,7 +337,7 @@ class ForOpticTest {
       Kind<MaybeKind.Witness, String> output =
           For.from(maybeMonad, MAYBE.just(result))
               .match(successPrism)
-              .yield((original, success) -> success.value().toUpperCase());
+              .yield((_, success) -> success.value().toUpperCase());
 
       assertThat(MAYBE.narrow(output)).isEqualTo(Maybe.just("DATA"));
     }
@@ -354,7 +350,7 @@ class ForOpticTest {
       Kind<MaybeKind.Witness, String> output =
           For.from(maybeMonad, MAYBE.just(result))
               .match(successPrism)
-              .yield((original, success) -> "should not reach");
+              .yield((_, _) -> "should not reach");
 
       assertThat(MAYBE.narrow(output)).isEqualTo(Maybe.nothing());
     }
@@ -365,7 +361,7 @@ class ForOpticTest {
       Kind<MaybeKind.Witness, String> output =
           For.from(maybeMonad, MAYBE.<Result>nothing())
               .match(successPrism)
-              .yield((original, success) -> "should not reach");
+              .yield((_, _) -> "should not reach");
 
       assertThat(MAYBE.narrow(output)).isEqualTo(Maybe.nothing());
     }
@@ -379,7 +375,7 @@ class ForOpticTest {
           For.from(maybeMonad, MAYBE.just(result))
               .match(successPrism)
               .when(t -> t._2().value().startsWith("important"))
-              .yield((original, success) -> success.value());
+              .yield((_, success) -> success.value());
 
       assertThat(MAYBE.narrow(output)).isEqualTo(Maybe.just("important-data"));
 
@@ -389,13 +385,14 @@ class ForOpticTest {
           For.from(maybeMonad, MAYBE.just(result2))
               .match(successPrism)
               .when(t -> t._2().value().startsWith("important"))
-              .yield((original, success) -> success.value());
+              .yield((_, success) -> success.value());
 
       assertThat(MAYBE.narrow(output2)).isEqualTo(Maybe.nothing());
     }
 
     @Test
     @DisplayName("should throw NullPointerException when prism is null")
+    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
     void matchWithNullPrismThrows() {
       assertThatThrownBy(() -> For.from(maybeMonad, MAYBE.just(new Success("test"))).match(null))
           .isInstanceOf(NullPointerException.class)
@@ -412,7 +409,6 @@ class ForOpticTest {
 
     private Prism<Result, Success> successPrism;
     private Prism<JsonValue, JsonString> jsonStringPrism;
-    private Prism<JsonValue, JsonNumber> jsonNumberPrism;
 
     @BeforeEach
     void setUp() {
@@ -420,8 +416,6 @@ class ForOpticTest {
           Prism.of(r -> r instanceof Success s ? Optional.of(s) : Optional.empty(), s -> s);
       jsonStringPrism =
           Prism.of(j -> j instanceof JsonString s ? Optional.of(s) : Optional.empty(), s -> s);
-      jsonNumberPrism =
-          Prism.of(j -> j instanceof JsonNumber n ? Optional.of(n) : Optional.empty(), n -> n);
     }
 
     @Test
@@ -431,7 +425,7 @@ class ForOpticTest {
           List.of(new Success("a"), new Failure("err1"), new Success("b"), new Failure("err2"));
 
       Kind<ListKind.Witness, String> successes =
-          For.from(listMonad, LIST.widen(results)).match(successPrism).yield((r, s) -> s.value());
+          For.from(listMonad, LIST.widen(results)).match(successPrism).yield((_, s) -> s.value());
 
       assertThat(LIST.narrow(successes)).containsExactly("a", "b");
     }
@@ -445,7 +439,7 @@ class ForOpticTest {
       Kind<ListKind.Witness, String> strings =
           For.from(listMonad, LIST.widen(values))
               .match(jsonStringPrism)
-              .yield((j, s) -> s.value().toUpperCase());
+              .yield((_, s) -> s.value().toUpperCase());
 
       assertThat(LIST.narrow(strings)).containsExactly("HELLO", "WORLD");
     }
@@ -456,7 +450,7 @@ class ForOpticTest {
       List<Result> results = List.of(new Failure("err1"), new Failure("err2"));
 
       Kind<ListKind.Witness, String> successes =
-          For.from(listMonad, LIST.widen(results)).match(successPrism).yield((r, s) -> s.value());
+          For.from(listMonad, LIST.widen(results)).match(successPrism).yield((_, s) -> s.value());
 
       assertThat(LIST.narrow(successes)).isEmpty();
     }
@@ -467,7 +461,7 @@ class ForOpticTest {
       List<Result> results = List.of();
 
       Kind<ListKind.Witness, String> successes =
-          For.from(listMonad, LIST.widen(results)).match(successPrism).yield((r, s) -> s.value());
+          For.from(listMonad, LIST.widen(results)).match(successPrism).yield((_, s) -> s.value());
 
       assertThat(LIST.narrow(successes)).isEmpty();
     }
@@ -486,7 +480,7 @@ class ForOpticTest {
           For.from(listMonad, LIST.widen(values))
               .match(jsonStringPrism)
               .when(t -> t._2().value().length() > 10)
-              .yield((j, s) -> s.value());
+              .yield((_, s) -> s.value());
 
       assertThat(LIST.narrow(longStrings)).containsExactly("a longer string", "medium text");
     }
@@ -507,7 +501,7 @@ class ForOpticTest {
 
     @BeforeEach
     void setUp() {
-      containerResultLens = Lens.of(Container::result, (c, r) -> new Container(r));
+      containerResultLens = Lens.of(Container::result, (_, r) -> new Container(r));
       successPrism =
           Prism.of(r -> r instanceof Success s ? Optional.of(s) : Optional.empty(), s -> s);
     }
@@ -521,7 +515,7 @@ class ForOpticTest {
           For.from(maybeMonad, MAYBE.just(container))
               .focus(containerResultLens)
               .match(t -> successPrism.getOptional(t._2()))
-              .yield((c, r, s) -> s.value());
+              .yield((_, _, s) -> s.value());
 
       assertThat(MAYBE.narrow(output)).isEqualTo(Maybe.just("data"));
     }
@@ -535,7 +529,7 @@ class ForOpticTest {
           For.from(maybeMonad, MAYBE.just(container))
               .focus(containerResultLens)
               .match(t -> successPrism.getOptional(t._2()))
-              .yield((c, r, s) -> "should not reach");
+              .yield((_, _, _) -> "should not reach");
 
       assertThat(MAYBE.narrow(output)).isEqualTo(Maybe.nothing());
     }
@@ -553,7 +547,7 @@ class ForOpticTest {
           For.from(listMonad, LIST.widen(containers))
               .focus(containerResultLens)
               .match(t -> successPrism.getOptional(t._2()))
-              .yield((c, r, s) -> s.value());
+              .yield((_, _, s) -> s.value());
 
       assertThat(LIST.narrow(successes)).containsExactly("a", "b");
     }
@@ -581,10 +575,10 @@ class ForOpticTest {
 
     @BeforeEach
     void setUp() {
-      l1l2 = Lens.of(Level1::l2, (l1, l2) -> new Level1(l2));
-      l2l3 = Lens.of(Level2::l3, (l2, l3) -> new Level2(l3));
-      l3l4 = Lens.of(Level3::l4, (l3, l4) -> new Level3(l4));
-      l4val = Lens.of(Level4::value, (l4, v) -> new Level4(v));
+      l1l2 = Lens.of(Level1::l2, (_, l2) -> new Level1(l2));
+      l2l3 = Lens.of(Level2::l3, (_, l3) -> new Level2(l3));
+      l3l4 = Lens.of(Level3::l4, (_, l4) -> new Level3(l4));
+      l4val = Lens.of(Level4::value, (_, v) -> new Level4(v));
     }
 
     @Test
@@ -598,7 +592,7 @@ class ForOpticTest {
               .focus(t -> l2l3.get(t._2()))
               .focus(t -> l3l4.get(t._3()))
               .focus(t -> l4val.get(t._4()))
-              .yield((l1, l2, l3, l4, val) -> val.toUpperCase());
+              .yield((_, _, _, _, val) -> val.toUpperCase());
 
       assertThat(IdKindHelper.ID.unwrap(result)).isEqualTo("DEEP");
     }
@@ -615,7 +609,7 @@ class ForOpticTest {
               .focus(t -> l3l4.get(t._3()))
               .focus(t -> l4val.get(t._4()))
               .focus(t -> t._5().length())
-              .yield((l1, l2, l3, l4, val, len) -> val + "(" + len + ")");
+              .yield((_, _, _, _, val, len) -> val + "(" + len + ")");
 
       assertThat(IdKindHelper.ID.unwrap(result)).isEqualTo("deep(4)");
     }
@@ -633,7 +627,7 @@ class ForOpticTest {
               .focus(t -> l4val.get(t._4()))
               .focus(t -> t._5().length())
               .focus(t -> t._5().toUpperCase())
-              .yield((l1, l2, l3, l4, val, len, upper) -> upper + "(" + len + ")");
+              .yield((_, _, _, _, _, len, upper) -> upper + "(" + len + ")");
 
       assertThat(IdKindHelper.ID.unwrap(result)).isEqualTo("DEEP(4)");
     }
@@ -652,7 +646,7 @@ class ForOpticTest {
               .focus(t -> t._5().length())
               .focus(t -> t._5().toUpperCase())
               .focus(t -> t._7().charAt(0))
-              .yield((l1, l2, l3, l4, val, len, upper, ch) -> "" + ch + ":" + upper + ":" + len);
+              .yield((_, _, _, _, _, len, upper, ch) -> ch + ":" + upper + ":" + len);
 
       assertThat(IdKindHelper.ID.unwrap(result)).isEqualTo("D:DEEP:4");
     }
@@ -672,7 +666,7 @@ class ForOpticTest {
               .focus(t -> t._5().toUpperCase())
               .focus(t -> t._7().charAt(0))
               .focus(t -> t._5().charAt(1))
-              .yield((l1, l2, l3, l4, val, len, upper, ch, ch2) -> "" + ch + ch2 + ":" + upper);
+              .yield((_, _, _, _, _, _, upper, ch, ch2) -> "" + ch + ch2 + ":" + upper);
 
       assertThat(IdKindHelper.ID.unwrap(result)).isEqualTo("De:DEEP");
     }
@@ -693,9 +687,7 @@ class ForOpticTest {
               .focus(t -> t._7().charAt(0))
               .focus(t -> t._5().charAt(1))
               .focus(t -> t._5().substring(0, 2))
-              .yield(
-                  (l1, l2, l3, l4, val, len, upper, ch, ch2, sub) ->
-                      sub + "-" + upper + "(" + len + ")");
+              .yield((_, _, _, _, _, len, upper, _, _, sub) -> sub + "-" + upper + "(" + len + ")");
 
       assertThat(IdKindHelper.ID.unwrap(result)).isEqualTo("de-DEEP(4)");
     }
@@ -718,7 +710,7 @@ class ForOpticTest {
               .focus(t -> t._5().substring(0, 2))
               .focus(t -> t._10().length())
               .yield(
-                  (l1, l2, l3, l4, val, len, upper, ch, ch2, sub, subLen) ->
+                  (_, _, _, _, _, _, upper, _, _, sub, subLen) ->
                       sub + "[" + subLen + "]=" + upper);
 
       assertThat(IdKindHelper.ID.unwrap(result)).isEqualTo("de[2]=DEEP");
@@ -743,7 +735,7 @@ class ForOpticTest {
               .focus(t -> t._10().length())
               .focus(t -> t._5().contains("ee"))
               .yield(
-                  (l1, l2, l3, l4, val, len, upper, ch, ch2, sub, subLen, hasEE) ->
+                  (_, _, _, _, _, _, upper, _, _, _, subLen, hasEE) ->
                       upper + ":" + hasEE + ":" + subLen);
 
       assertThat(IdKindHelper.ID.unwrap(result)).isEqualTo("DEEP:true:2");
@@ -790,7 +782,7 @@ class ForOpticTest {
           For.from(listMonad, LIST.widen(outers))
               .match(outerAPrism)
               .match(t -> innerXPrism.getOptional(t._2().inner()))
-              .yield((o, a, x) -> x.value());
+              .yield((_, _, x) -> x.value());
 
       assertThat(LIST.narrow(result)).containsExactly("found");
     }
@@ -814,18 +806,19 @@ class ForOpticTest {
           For.from(listMonad, LIST.widen(names))
               .from(name -> LIST.widen(List.of(name.length())))
               .focus(t -> t._1().toUpperCase() + ":" + t._2())
-              .yield((name, len, formatted) -> formatted);
+              .yield((_, _, formatted) -> formatted);
 
       assertThat(LIST.narrow(result)).containsExactly("ALICE:5", "BOB:3");
     }
 
     @Test
     @DisplayName("focus() should throw NullPointerException when extractor is null")
+    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
     void focusThrowsOnNullExtractor() {
       assertThatThrownBy(
               () ->
                   For.from(listMonad, LIST.widen(List.of("test")))
-                      .from(s -> LIST.widen(List.of(1)))
+                      .from(_ -> LIST.widen(List.of(1)))
                       .focus(null))
           .isInstanceOf(NullPointerException.class)
           .hasMessageContaining("extractor");
@@ -841,18 +834,19 @@ class ForOpticTest {
           For.from(listMonad, LIST.widen(items))
               .from(item -> LIST.widen(List.of(item.value())))
               .match(t -> t._2() > 0 ? Optional.of(t._2() * 2) : Optional.empty())
-              .yield((item, val, doubled) -> item.name() + "=" + doubled);
+              .yield((item, _, doubled) -> item.name() + "=" + doubled);
 
       assertThat(LIST.narrow(result)).containsExactly("apple=20", "cherry=40");
     }
 
     @Test
     @DisplayName("match() should throw NullPointerException when matcher is null")
+    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
     void matchThrowsOnNullMatcher() {
       assertThatThrownBy(
               () ->
                   For.from(listMonad, LIST.widen(List.of("test")))
-                      .from(s -> LIST.widen(List.of(1)))
+                      .from(_ -> LIST.widen(List.of(1)))
                       .match(null))
           .isInstanceOf(NullPointerException.class)
           .hasMessageContaining("matcher");
@@ -866,8 +860,8 @@ class ForOpticTest {
       Kind<ListKind.Witness, String> result =
           For.from(listMonad, LIST.widen(numbers))
               .from(n -> LIST.widen(List.of(n * 10)))
-              .match(t -> Optional.<String>empty()) // Always empty
-              .yield((n, times10, matched) -> "never reached");
+              .match(_ -> Optional.<String>empty()) // Always empty
+              .yield((_, _, _) -> "never reached");
 
       assertThat(LIST.narrow(result)).isEmpty();
     }
@@ -882,7 +876,7 @@ class ForOpticTest {
               .from(w -> LIST.widen(List.of(w.length())))
               .focus(t -> t._1().charAt(0))
               .when(t -> t._3() == 'h')
-              .yield((word, len, firstChar) -> len);
+              .yield((_, len, _) -> len);
 
       assertThat(LIST.narrow(result)).containsExactly(5);
     }
@@ -907,19 +901,20 @@ class ForOpticTest {
               .from(p -> LIST.widen(List.of(p.category())))
               .from(t -> LIST.widen(List.of(t._1().price())))
               .focus(t -> t._1().name() + " in " + t._2() + " costs $" + t._3())
-              .yield((prod, cat, price, summary) -> summary);
+              .yield((_, _, _, summary) -> summary);
 
       assertThat(LIST.narrow(result)).containsExactly("Laptop in Electronics costs $1000");
     }
 
     @Test
     @DisplayName("focus() should throw NullPointerException when extractor is null")
+    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
     void focusThrowsOnNullExtractor() {
       assertThatThrownBy(
               () ->
                   For.from(listMonad, LIST.widen(List.of("a")))
-                      .from(s -> LIST.widen(List.of(1)))
-                      .from(t -> LIST.widen(List.of(2)))
+                      .from(_ -> LIST.widen(List.of(1)))
+                      .from(_ -> LIST.widen(List.of(2)))
                       .focus(null))
           .isInstanceOf(NullPointerException.class)
           .hasMessageContaining("extractor");
@@ -935,7 +930,7 @@ class ForOpticTest {
               .from(x -> LIST.widen(List.of(x * 2)))
               .from(t -> LIST.widen(List.of(t._2() + 1)))
               .match(t -> t._3() > 5 ? Optional.of(t._1() + t._2() + t._3()) : Optional.empty())
-              .yield((x, doubled, plusOne, sum) -> sum);
+              .yield((_, _, _, sum) -> sum);
 
       // x=2: doubled=4, plusOne=5, 5 > 5 is false -> filtered
       // x=3: doubled=6, plusOne=7, 7 > 5 is true -> sum = 3+6+7 = 16
@@ -944,12 +939,13 @@ class ForOpticTest {
 
     @Test
     @DisplayName("match() should throw NullPointerException when matcher is null")
+    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
     void matchThrowsOnNullMatcher() {
       assertThatThrownBy(
               () ->
                   For.from(listMonad, LIST.widen(List.of("a")))
-                      .from(s -> LIST.widen(List.of(1)))
-                      .from(t -> LIST.widen(List.of(2)))
+                      .from(_ -> LIST.widen(List.of(1)))
+                      .from(_ -> LIST.widen(List.of(2)))
                       .match(null))
           .isInstanceOf(NullPointerException.class)
           .hasMessageContaining("matcher");
@@ -966,7 +962,7 @@ class ForOpticTest {
               .from(t -> LIST.widen(List.of(t._1().toUpperCase())))
               .match(t -> t._2() >= 3 ? Optional.of(t._3()) : Optional.empty())
               .when(t -> t._4().startsWith("D"))
-              .yield((s, len, upper, matched) -> matched);
+              .yield((_, _, _, matched) -> matched);
 
       assertThat(LIST.narrow(result)).containsExactly("DEFGH");
     }
@@ -990,20 +986,21 @@ class ForOpticTest {
               .from(t -> LIST.widen(List.of(t._2() * 2)))
               .from(t -> LIST.widen(List.of(t._3() * 2)))
               .focus(t -> t._1() + "-" + t._2() + "-" + t._3() + "-" + t._4())
-              .yield((a, b, c, d, chain) -> chain);
+              .yield((_, _, _, _, chain) -> chain);
 
       assertThat(LIST.narrow(result)).containsExactly("2-4-8-16");
     }
 
     @Test
     @DisplayName("focus() should throw NullPointerException when extractor is null")
+    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
     void focusThrowsOnNullExtractor() {
       assertThatThrownBy(
               () ->
                   For.from(listMonad, LIST.widen(List.of(1)))
-                      .from(n -> LIST.widen(List.of(2)))
-                      .from(t -> LIST.widen(List.of(3)))
-                      .from(t -> LIST.widen(List.of(4)))
+                      .from(_ -> LIST.widen(List.of(2)))
+                      .from(_ -> LIST.widen(List.of(3)))
+                      .from(_ -> LIST.widen(List.of(4)))
                       .focus(null))
           .isInstanceOf(NullPointerException.class)
           .hasMessageContaining("extractor");
@@ -1024,7 +1021,7 @@ class ForOpticTest {
                       (t._1() + t._2() + t._3() + t._4()) > 15
                           ? Optional.of(t._4())
                           : Optional.empty())
-              .yield((a, b, c, d, matched) -> matched);
+              .yield((_, _, _, _, matched) -> matched);
 
       // x=3: 3+4+5+6 = 18 > 15 -> matched = 6
       // x=4: 4+5+6+7 = 22 > 15 -> matched = 7
@@ -1033,13 +1030,14 @@ class ForOpticTest {
 
     @Test
     @DisplayName("match() should throw NullPointerException when matcher is null")
+    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
     void matchThrowsOnNullMatcher() {
       assertThatThrownBy(
               () ->
                   For.from(listMonad, LIST.widen(List.of(1)))
-                      .from(n -> LIST.widen(List.of(2)))
-                      .from(t -> LIST.widen(List.of(3)))
-                      .from(t -> LIST.widen(List.of(4)))
+                      .from(_ -> LIST.widen(List.of(2)))
+                      .from(_ -> LIST.widen(List.of(3)))
+                      .from(_ -> LIST.widen(List.of(4)))
                       .match(null))
           .isInstanceOf(NullPointerException.class)
           .hasMessageContaining("matcher");
@@ -1055,8 +1053,8 @@ class ForOpticTest {
               .from(s -> LIST.widen(List.of(s + "1")))
               .from(t -> LIST.widen(List.of(t._2() + "2")))
               .from(t -> LIST.widen(List.of(t._3() + "3")))
-              .match(t -> Optional.<String>empty())
-              .yield((a, b, c, d, matched) -> "never reached");
+              .match(_ -> Optional.<String>empty())
+              .yield((_, _, _, _, _) -> "never reached");
 
       assertThat(LIST.narrow(result)).isEmpty();
     }
@@ -1073,7 +1071,7 @@ class ForOpticTest {
               .from(t -> LIST.widen(List.of(t._3() - 2)))
               .focus(t -> t._1() + t._2() + t._3() + t._4())
               .when(t -> t._5() > 50)
-              .yield((a, b, c, d, sum) -> sum);
+              .yield((_, _, _, _, sum) -> sum);
 
       // n=1: 1 + 10 + 15 + 13 = 39 <= 50 -> filtered
       // n=2: 2 + 20 + 25 + 23 = 70 > 50 -> included
@@ -1090,9 +1088,9 @@ class ForOpticTest {
           For.from(listMonad, LIST.widen(nums))
               .from(n -> LIST.widen(List.of(n - 3)))
               .from(t -> LIST.widen(List.of(t._1() + t._2())))
-              .from(t -> LIST.widen(List.of("val")))
+              .from(_ -> LIST.widen(List.of("val")))
               .match(t -> t._3() > 10 ? Optional.of(t._3() * 2) : Optional.empty())
-              .yield((a, b, c, d, doubled) -> "Result: " + doubled);
+              .yield((_, _, _, _, doubled) -> "Result: " + doubled);
 
       // n=5: sum = 5 + 2 = 7 <= 10 -> filtered
       // n=10: sum = 10 + 7 = 17 > 10 -> doubled = 34
@@ -1120,7 +1118,7 @@ class ForOpticTest {
               .from(t -> LIST.widen(List.of(t._3() * 4)))
               .from(t -> LIST.widen(List.of(t._4() * 5)))
               .focus(t -> t._1() + t._2() + t._3() + t._4() + t._5())
-              .yield((a, b, c, d, e, sum) -> "sum=" + sum);
+              .yield((_, _, _, _, _, sum) -> "sum=" + sum);
 
       // 1 + 2 + 6 + 24 + 120 = 153
       assertThat(LIST.narrow(result)).containsExactly("sum=153");
@@ -1135,10 +1133,10 @@ class ForOpticTest {
           For.from(listMonad, LIST.widen(xs))
               .from(x -> LIST.widen(List.of(x * 10)))
               .from(t -> LIST.widen(List.of(t._1() + t._2())))
-              .from(t -> LIST.widen(List.of(0)))
-              .from(t -> LIST.widen(List.of(0)))
+              .from(_ -> LIST.widen(List.of(0)))
+              .from(_ -> LIST.widen(List.of(0)))
               .match(t -> t._3() > 20 ? Optional.of(t._3()) : Optional.empty())
-              .yield((a, b, c, d, e, matched) -> matched);
+              .yield((_, _, _, _, _, matched) -> matched);
 
       // x=1: sum=1+10=11, 11 > 20 false -> filtered
       // x=2: sum=2+20=22, 22 > 20 true -> matched=22
@@ -1155,11 +1153,11 @@ class ForOpticTest {
           For.from(listMonad, LIST.widen(nums))
               .from(n -> LIST.widen(List.of(n * 10)))
               .from(t -> LIST.widen(List.of(t._2() + 5)))
-              .from(t -> LIST.widen(List.of(0)))
-              .from(t -> LIST.widen(List.of(0)))
+              .from(_ -> LIST.widen(List.of(0)))
+              .from(_ -> LIST.widen(List.of(0)))
               .focus(t -> t._1() + t._2() + t._3())
               .when(t -> t._6() > 30)
-              .yield((a, b, c, d, e, sum) -> sum);
+              .yield((_, _, _, _, _, sum) -> sum);
 
       // n=1: sum=1+10+15=26, 26>30 false -> filtered
       // n=2: sum=2+20+25=47, 47>30 true -> included
@@ -1182,13 +1180,13 @@ class ForOpticTest {
 
       Kind<ListKind.Witness, String> result =
           For.from(listMonad, LIST.widen(nums))
-              .from(n -> LIST.widen(List.of(2)))
-              .from(t -> LIST.widen(List.of(3)))
-              .from(t -> LIST.widen(List.of(4)))
-              .from(t -> LIST.widen(List.of(5)))
-              .from(t -> LIST.widen(List.of(6)))
+              .from(_ -> LIST.widen(List.of(2)))
+              .from(_ -> LIST.widen(List.of(3)))
+              .from(_ -> LIST.widen(List.of(4)))
+              .from(_ -> LIST.widen(List.of(5)))
+              .from(_ -> LIST.widen(List.of(6)))
               .focus(t -> "" + t._1() + t._2() + t._3() + t._4() + t._5() + t._6())
-              .yield((a, b, c, d, e, f, concat) -> concat);
+              .yield((_, _, _, _, _, _, concat) -> concat);
 
       assertThat(LIST.narrow(result)).containsExactly("123456");
     }
@@ -1201,12 +1199,12 @@ class ForOpticTest {
       Kind<ListKind.Witness, Integer> result =
           For.from(listMonad, LIST.widen(xs))
               .from(x -> LIST.widen(List.of(x * 2)))
-              .from(t -> LIST.widen(List.of(0)))
-              .from(t -> LIST.widen(List.of(0)))
-              .from(t -> LIST.widen(List.of(0)))
-              .from(t -> LIST.widen(List.of(0)))
+              .from(_ -> LIST.widen(List.of(0)))
+              .from(_ -> LIST.widen(List.of(0)))
+              .from(_ -> LIST.widen(List.of(0)))
+              .from(_ -> LIST.widen(List.of(0)))
               .match(t -> t._2() > 3 ? Optional.of(t._2()) : Optional.empty())
-              .yield((a, b, c, d, e, f, matched) -> matched);
+              .yield((_, _, _, _, _, _, matched) -> matched);
 
       // x=1: x*2=2, 2>3 false -> filtered
       // x=2: x*2=4, 4>3 true -> matched=4
@@ -1222,13 +1220,13 @@ class ForOpticTest {
       Kind<ListKind.Witness, String> result =
           For.from(listMonad, LIST.widen(words))
               .from(w -> LIST.widen(List.of(w.length())))
-              .from(t -> LIST.widen(List.of(0)))
-              .from(t -> LIST.widen(List.of(0)))
-              .from(t -> LIST.widen(List.of(0)))
-              .from(t -> LIST.widen(List.of(0)))
+              .from(_ -> LIST.widen(List.of(0)))
+              .from(_ -> LIST.widen(List.of(0)))
+              .from(_ -> LIST.widen(List.of(0)))
+              .from(_ -> LIST.widen(List.of(0)))
               .focus(t -> t._1().toUpperCase())
               .when(t -> t._2() > 5)
-              .yield((w, len, c, d, e, f, upper) -> upper);
+              .yield((_, _, _, _, _, _, upper) -> upper);
 
       assertThat(LIST.narrow(result)).containsExactly("LONGER WORD");
     }
@@ -1248,14 +1246,14 @@ class ForOpticTest {
 
       Kind<ListKind.Witness, String> result =
           For.from(listMonad, LIST.widen(nums))
-              .from(n -> LIST.widen(List.of(2)))
-              .from(t -> LIST.widen(List.of(3)))
-              .from(t -> LIST.widen(List.of(4)))
-              .from(t -> LIST.widen(List.of(5)))
-              .from(t -> LIST.widen(List.of(6)))
-              .from(t -> LIST.widen(List.of(7)))
+              .from(_ -> LIST.widen(List.of(2)))
+              .from(_ -> LIST.widen(List.of(3)))
+              .from(_ -> LIST.widen(List.of(4)))
+              .from(_ -> LIST.widen(List.of(5)))
+              .from(_ -> LIST.widen(List.of(6)))
+              .from(_ -> LIST.widen(List.of(7)))
               .focus(t -> t._1() + t._2() + t._3() + t._4() + t._5() + t._6() + t._7())
-              .yield((a, b, c, d, e, f, g, sum) -> "sum=" + sum);
+              .yield((_, _, _, _, _, _, _, sum) -> "sum=" + sum);
 
       assertThat(LIST.narrow(result)).containsExactly("sum=28");
     }
@@ -1268,13 +1266,13 @@ class ForOpticTest {
       Kind<ListKind.Witness, Integer> result =
           For.from(listMonad, LIST.widen(xs))
               .from(x -> LIST.widen(List.of(x * 3)))
-              .from(t -> LIST.widen(List.of(0)))
-              .from(t -> LIST.widen(List.of(0)))
-              .from(t -> LIST.widen(List.of(0)))
-              .from(t -> LIST.widen(List.of(0)))
-              .from(t -> LIST.widen(List.of(0)))
+              .from(_ -> LIST.widen(List.of(0)))
+              .from(_ -> LIST.widen(List.of(0)))
+              .from(_ -> LIST.widen(List.of(0)))
+              .from(_ -> LIST.widen(List.of(0)))
+              .from(_ -> LIST.widen(List.of(0)))
               .match(t -> t._2() > 5 ? Optional.of(t._2()) : Optional.empty())
-              .yield((a, b, c, d, e, f, g, matched) -> matched);
+              .yield((_, _, _, _, _, _, _, matched) -> matched);
 
       // x=1: x*3=3, 3>5 false -> filtered
       // x=2: x*3=6, 6>5 true -> matched=6

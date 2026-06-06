@@ -42,6 +42,7 @@ class FreeApAnalyzerTest {
   // ============================================================================
 
   /** Simple test operation sealed interface. */
+  @SuppressWarnings("unused") // A is a phantom result type, used only at the implements site
   sealed interface TestOp<A> {
     record Read(String key) implements TestOp<String> {}
 
@@ -159,6 +160,7 @@ class FreeApAnalyzerTest {
 
     @Test
     @DisplayName("throws NullPointerException for null program")
+    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
     void throwsForNullProgram() {
       assertThatThrownBy(() -> FreeApAnalyzer.countOperations(null))
           .isInstanceOf(NullPointerException.class)
@@ -192,7 +194,7 @@ class FreeApAnalyzerTest {
       List<Kind<TestOpKind.Witness, ?>> operations = FreeApAnalyzer.collectOperations(program);
 
       assertThat(operations).hasSize(1);
-      TestOp<?> op = TestOpHelper.TEST_OP.narrow(operations.get(0));
+      TestOp<?> op = TestOpHelper.TEST_OP.narrow(operations.getFirst());
       assertThat(op).isInstanceOf(TestOp.Read.class);
       assertThat(((TestOp.Read) op).key()).isEqualTo("key1");
     }
@@ -209,7 +211,10 @@ class FreeApAnalyzerTest {
 
       // Extract and verify each operation
       List<Class<?>> opClasses =
-          operations.stream().map(TestOpHelper.TEST_OP::narrow).map(Object::getClass).toList();
+          operations.stream()
+              .map(TestOpHelper.TEST_OP::narrow)
+              .<Class<?>>map(Object::getClass)
+              .toList();
 
       assertThat(opClasses)
           .containsExactlyInAnyOrder(TestOp.Read.class, TestOp.Write.class, TestOp.Delete.class);
@@ -217,6 +222,7 @@ class FreeApAnalyzerTest {
 
     @Test
     @DisplayName("throws NullPointerException for null program")
+    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
     void throwsForNullProgram() {
       assertThatThrownBy(() -> FreeApAnalyzer.collectOperations(null))
           .isInstanceOf(NullPointerException.class)
@@ -289,6 +295,7 @@ class FreeApAnalyzerTest {
 
     @Test
     @DisplayName("throws NullPointerException for null program")
+    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
     void throwsForNullProgram() {
       assertThatThrownBy(() -> FreeApAnalyzer.containsOperation(null, _ -> true))
           .isInstanceOf(NullPointerException.class)
@@ -297,6 +304,7 @@ class FreeApAnalyzerTest {
 
     @Test
     @DisplayName("throws NullPointerException for null predicate")
+    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
     void throwsForNullPredicate() {
       FreeAp<TestOpKind.Witness, String> program = read("key1");
 
@@ -370,6 +378,7 @@ class FreeApAnalyzerTest {
 
     @Test
     @DisplayName("throws NullPointerException for null program")
+    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
     void throwsForNullProgram() {
       assertThatThrownBy(
               () ->
@@ -381,6 +390,7 @@ class FreeApAnalyzerTest {
 
     @Test
     @DisplayName("throws NullPointerException for null narrow function")
+    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
     void throwsForNullNarrowFunction() {
       FreeAp<TestOpKind.Witness, String> program = read("key1");
 
@@ -458,6 +468,7 @@ class FreeApAnalyzerTest {
 
     @Test
     @DisplayName("throws NullPointerException for null program")
+    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
     void throwsForNullProgram() {
       Monoid<Integer> intAddition = Monoids.integerAddition();
 
@@ -468,6 +479,7 @@ class FreeApAnalyzerTest {
 
     @Test
     @DisplayName("throws NullPointerException for null natural transformation")
+    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
     void throwsForNullNaturalTransformation() {
       FreeAp<TestOpKind.Witness, String> program = read("key1");
       Monoid<Integer> intAddition = Monoids.integerAddition();
@@ -479,6 +491,7 @@ class FreeApAnalyzerTest {
 
     @Test
     @DisplayName("throws NullPointerException for null monoid")
+    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
     void throwsForNullMonoid() {
       FreeAp<TestOpKind.Witness, String> program = read("key1");
 
@@ -555,8 +568,8 @@ class FreeApAnalyzerTest {
       List<Kind<TestOpKind.Witness, ?>> allOps = FreeApAnalyzer.collectOperations(program);
       long writeCount =
           allOps.stream()
-              .map(k -> TestOpHelper.TEST_OP.narrow(k))
-              .filter(op -> TestOp.Write.class.isInstance(op))
+              .map(TestOpHelper.TEST_OP::narrow)
+              .filter(TestOp.Write.class::isInstance)
               .count();
 
       assertThat(totalOps).isEqualTo(5);

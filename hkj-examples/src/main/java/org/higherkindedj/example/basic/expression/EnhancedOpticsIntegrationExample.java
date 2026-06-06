@@ -24,11 +24,10 @@ import org.higherkindedj.optics.Traversal;
 import org.higherkindedj.optics.util.Traversals;
 
 /**
- * Demonstrates Phase 6 Enhanced Optics Integration features in a realistic Department Management
- * System scenario.
+ * Demonstrates Enhanced Optics Integration features in a realistic Department Management System
+ * scenario.
  *
- * <p>This example showcases the following ForState and For comprehension capabilities introduced in
- * Phase 6:
+ * <p>This example showcases the following ForState and For comprehension capabilities:
  *
  * <ul>
  *   <li>{@code traverseOver} - Effectful traversal directly over state elements
@@ -36,7 +35,7 @@ import org.higherkindedj.optics.util.Traversals;
  *   <li>{@code modifyVia} - Modify a field through an Iso conversion
  *   <li>{@code updateVia} - Set a field through an Iso conversion
  *   <li>{@code through(Iso)} - For comprehension type conversion via Iso
- *   <li>Combined workflows using multiple Phase 6 features together
+ *   <li>Combined workflows using multiple features together
  * </ul>
  */
 public class EnhancedOpticsIntegrationExample {
@@ -97,7 +96,7 @@ public class EnhancedOpticsIntegrationExample {
   // --- Main ---
 
   public static void main(String[] args) {
-    System.out.println("=== Phase 6: Enhanced Optics Integration ===");
+    System.out.println("=== Enhanced Optics Integration ===");
     System.out.println("=== Department Management System ===\n");
 
     demonstrateTraverseOver();
@@ -295,7 +294,7 @@ public class EnhancedOpticsIntegrationExample {
   }
 
   /**
-   * Example 7: Combined workflow using multiple Phase 6 features.
+   * Example 7: Combined workflow using multiple features.
    *
    * <p>Demonstrates a realistic scenario: rename the department, give employees a raise using
    * modifyThrough, increase the budget via modifyVia, and produce a summary report.

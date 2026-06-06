@@ -6,7 +6,6 @@ import static org.higherkindedj.hkt.id.IdKindHelper.ID;
 
 import java.util.function.BiPredicate;
 import java.util.function.Function;
-import net.jqwik.api.Arbitraries;
 import net.jqwik.api.Arbitrary;
 import net.jqwik.api.ForAll;
 import net.jqwik.api.Label;
@@ -19,6 +18,7 @@ import org.higherkindedj.hkt.assertions.KindEquivalence;
 import org.higherkindedj.hkt.laws.SelectiveLaws;
 
 /** Property-based Selective-law verification for Id. */
+@SuppressWarnings("unused") // referenced reflectively by jqwik
 class IdSelectivePropertyTest {
 
   private final IdSelective selective = IdSelective.instance();
@@ -28,7 +28,7 @@ class IdSelectivePropertyTest {
 
   @Provide
   Arbitrary<Function<Integer, String>> intToString() {
-    return Arbitraries.of(i -> "v:" + i, i -> String.valueOf(i * 2), Object::toString);
+    return IdArbitraries.intToString();
   }
 
   @Property(tries = 50)
@@ -36,8 +36,7 @@ class IdSelectivePropertyTest {
   void leftPure(
       @ForAll @IntRange(min = -50, max = 50) int value,
       @ForAll("intToString") Function<Integer, String> f) {
-    SelectiveLaws.<IdKind.Witness, Integer, String>assertLeftPure(
-        selective, value, selective.of(f), eq);
+    SelectiveLaws.assertLeftPure(selective, value, selective.of(f), eq);
   }
 
   @Property(tries = 50)
@@ -45,7 +44,6 @@ class IdSelectivePropertyTest {
   void rightPure(
       @ForAll @StringLength(max = 5) String value,
       @ForAll("intToString") Function<Integer, String> f) {
-    SelectiveLaws.<IdKind.Witness, Integer, String>assertRightPure(
-        selective, value, selective.of(f), eq);
+    SelectiveLaws.assertRightPure(selective, value, selective.of(f), eq);
   }
 }

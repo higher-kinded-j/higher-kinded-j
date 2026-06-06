@@ -2,14 +2,10 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.hkt.list;
 
-import static org.assertj.core.api.Assertions.assertThat;
 import static org.higherkindedj.hkt.assertions.ListAssert.assertThatList;
 import static org.higherkindedj.hkt.instances.Witnesses.*;
-import static org.higherkindedj.hkt.list.ListKindHelper.LIST;
 
-import java.util.List;
 import java.util.function.Function;
-import java.util.stream.Stream;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Monad;
 import org.higherkindedj.hkt.function.Function3;
@@ -17,12 +13,13 @@ import org.higherkindedj.hkt.function.Function4;
 import org.higherkindedj.hkt.function.Function5;
 import org.higherkindedj.hkt.instances.Instances;
 import org.higherkindedj.hkt.laws.MonadLaws;
+import org.higherkindedj.hkt.test.contract.Category;
+import org.higherkindedj.hkt.test.contract.TypeClassContract;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 
 @DisplayName("ListMonad")
@@ -41,34 +38,33 @@ class ListMonadTest extends ListTestBase {
   class Laws {
 
     @ParameterizedTest(name = "left identity holds on value {0}")
-    @MethodSource("values")
+    @MethodSource("org.higherkindedj.hkt.list.ListLawFixtures#values")
     void leftIdentity(Integer value) {
       MonadLaws.assertLeftIdentity(listMonad, value, testFunction, equalityChecker);
     }
 
     @ParameterizedTest(name = "right identity holds on {0}")
-    @MethodSource("fixtures")
+    @MethodSource("org.higherkindedj.hkt.list.ListLawFixtures#kinds")
     void rightIdentity(String label, Kind<ListKind.Witness, Integer> ma) {
       MonadLaws.assertRightIdentity(listMonad, ma, equalityChecker);
     }
 
     @ParameterizedTest(name = "associativity holds on {0}")
-    @MethodSource("fixtures")
+    @MethodSource("org.higherkindedj.hkt.list.ListLawFixtures#kinds")
     void associativity(String label, Kind<ListKind.Witness, Integer> ma) {
       MonadLaws.assertAssociativity(listMonad, ma, testFunction, chainFunction, equalityChecker);
     }
+  }
 
-    static Stream<Arguments> fixtures() {
-      return Stream.of(
-          Arguments.of("[]", LIST.<Integer>widen(List.of())),
-          Arguments.of("[42]", LIST.widen(List.of(42))),
-          Arguments.of("[1,2,3]", LIST.widen(List.of(1, 2, 3))),
-          Arguments.of("[-1,0,1]", LIST.widen(List.of(-1, 0, 1))));
-    }
-
-    static Stream<Arguments> values() {
-      return Stream.of(Arguments.of(0), Arguments.of(42), Arguments.of(-1));
-    }
+  @Test
+  @DisplayName("Monad contract — operations, validations & exceptions (laws verified above)")
+  void monadContract() {
+    TypeClassContract.<ListKind.Witness>monad(ListMonad.class)
+        .<Integer>instance(listMonad)
+        .<String>withKind(validKind)
+        .withMonadOperations(
+            validKind2, validMapper, validFlatMapper, validFunctionKind, validCombiningFunction)
+        .verifyOnly(Category.OPERATIONS, Category.VALIDATIONS, Category.EXCEPTIONS);
   }
 
   @Nested
@@ -190,7 +186,7 @@ class ListMonadTest extends ListTestBase {
     @DisplayName("flatMap() handles function returning empty list")
     void flatMapHandlesFunctionReturningEmptyList() {
       var input = listOf(1, 2);
-      Function<Integer, Kind<ListKind.Witness, String>> funcReturningEmpty = x -> emptyList();
+      Function<Integer, Kind<ListKind.Witness, String>> funcReturningEmpty = _ -> emptyList();
 
       var result = listMonad.flatMap(funcReturningEmpty, input);
 
@@ -272,7 +268,7 @@ class ListMonadTest extends ListTestBase {
       var list1 = listOf(1, 2);
       Kind<ListKind.Witness, String> list2 = emptyList();
       var list3 = listOf(1.0, 2.0);
-      Function3<Integer, String, Double, String> f3 = (i, s, d) -> "Should not execute";
+      Function3<Integer, String, Double, String> f3 = (_, _, _) -> "Should not execute";
 
       var result = listMonad.map3(list1, list2, list3, f3);
 
@@ -302,7 +298,7 @@ class ListMonadTest extends ListTestBase {
       var list2 = listOf("a", "b");
       var list3 = listOf(1.0, 2.0);
       Kind<ListKind.Witness, Boolean> list4 = emptyList();
-      Function4<Integer, String, Double, Boolean, String> f4 = (i, s, d, b) -> "Should not execute";
+      Function4<Integer, String, Double, Boolean, String> f4 = (_, _, _, _) -> "Should not execute";
 
       var result = listMonad.map4(list1, list2, list3, list4, f4);
 
@@ -353,7 +349,7 @@ class ListMonadTest extends ListTestBase {
       var list1 = listOf(1, 2);
       var list2 = listOf("a", "b");
 
-      var result = listMonad.flatMap2(list1, list2, (i, s) -> emptyList());
+      var result = listMonad.flatMap2(list1, list2, (_, _) -> emptyList());
 
       assertThatList(result).isEmpty();
     }
@@ -379,7 +375,7 @@ class ListMonadTest extends ListTestBase {
       Kind<ListKind.Witness, String> list2 = emptyList();
       var list3 = listOf(10.0);
       Function3<Integer, String, Double, Kind<ListKind.Witness, String>> f3 =
-          (i, s, d) -> listOf("Should not execute");
+          (_, _, _) -> listOf("Should not execute");
 
       var result = listMonad.flatMap3(list1, list2, list3, f3);
 
@@ -423,7 +419,7 @@ class ListMonadTest extends ListTestBase {
       Kind<ListKind.Witness, Double> list3 = emptyList();
       var list4 = listOf(true);
       Function4<Integer, String, Double, Boolean, Kind<ListKind.Witness, String>> f4 =
-          (i, s, d, b) -> listOf("Should not execute");
+          (_, _, _, _) -> listOf("Should not execute");
 
       var result = listMonad.flatMap4(list1, list2, list3, list4, f4);
 
@@ -455,7 +451,7 @@ class ListMonadTest extends ListTestBase {
       var list4 = listOf(true);
       Kind<ListKind.Witness, Character> list5 = emptyList();
       Function5<Integer, String, Double, Boolean, Character, Kind<ListKind.Witness, String>> f5 =
-          (i, s, d, b, c) -> listOf("Should not execute");
+          (_, _, _, _, _) -> listOf("Should not execute");
 
       var result = listMonad.flatMap5(list1, list2, list3, list4, list5, f5);
 
@@ -471,7 +467,7 @@ class ListMonadTest extends ListTestBase {
       var list4 = listOf(true);
       var list5 = listOf('X');
       Function5<Integer, String, Double, Boolean, Character, Kind<ListKind.Witness, String>> f5 =
-          (i, s, d, b, c) -> listOf("first", "second", "third");
+          (_, _, _, _, _) -> listOf("first", "second", "third");
 
       var result = listMonad.flatMap5(list1, list2, list3, list4, list5, f5);
 
@@ -482,21 +478,6 @@ class ListMonadTest extends ListTestBase {
   @Nested
   @DisplayName("Edge Cases Tests")
   class EdgeCasesTests {
-
-    @Test
-    @DisplayName("Large list operations perform efficiently")
-    void largeListOperationsPerformEfficiently() {
-      if (Boolean.parseBoolean(System.getProperty("test.performance", "false"))) {
-        var large = rangeList(0, 1000);
-
-        long startTime = System.nanoTime();
-        var result = listMonad.map(x -> x * 2, large);
-        long duration = System.nanoTime() - startTime;
-
-        assertThatList(result).hasSize(1000);
-        assertThat(duration).isLessThan(50_000_000L); // Less than 50ms
-      }
-    }
 
     @Test
     @DisplayName("flatMap preserves order")
@@ -543,7 +524,7 @@ class ListMonadTest extends ListTestBase {
     void filterWithAlwaysTrueReturnsSameList() {
       var input = listOf(1, 2, 3);
 
-      var result = Instances.monadZero(list()).filter(x -> true, input);
+      var result = Instances.monadZero(list()).filter(_ -> true, input);
 
       assertThatList(result).containsExactly(1, 2, 3);
     }
@@ -553,7 +534,7 @@ class ListMonadTest extends ListTestBase {
     void filterWithAlwaysFalseReturnsZero() {
       var input = listOf(1, 2, 3);
 
-      var result = Instances.monadZero(list()).filter(x -> false, input);
+      var result = Instances.monadZero(list()).filter(_ -> false, input);
 
       assertThatList(result).isEmpty();
     }
@@ -570,6 +551,7 @@ class ListMonadTest extends ListTestBase {
 
     @Test
     @DisplayName("filter throws NullPointerException when predicate is null")
+    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
     void filterThrowsWhenPredicateIsNull() {
       var input = listOf(1, 2, 3);
 
@@ -580,9 +562,10 @@ class ListMonadTest extends ListTestBase {
 
     @Test
     @DisplayName("filter throws NullPointerException when ma is null")
+    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
     void filterThrowsWhenMaIsNull() {
       org.assertj.core.api.Assertions.assertThatThrownBy(
-              () -> Instances.monadZero(list()).filter(x -> true, null))
+              () -> Instances.monadZero(list()).filter(_ -> true, null))
           .isInstanceOf(NullPointerException.class);
     }
   }

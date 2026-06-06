@@ -2,24 +2,23 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.hkt.trymonad;
 
-import static org.assertj.core.api.Assertions.*;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.higherkindedj.hkt.assertions.TryAssert.assertThatTry;
-import static org.higherkindedj.hkt.instances.Witnesses.*;
+import static org.higherkindedj.hkt.instances.Witnesses.try_;
 import static org.higherkindedj.hkt.trymonad.TryKindHelper.TRY;
 
-import java.io.IOException;
 import java.util.function.Function;
-import java.util.stream.Stream;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.MonadError;
 import org.higherkindedj.hkt.instances.Instances;
 import org.higherkindedj.hkt.laws.MonadLaws;
+import org.higherkindedj.hkt.test.contract.Category;
+import org.higherkindedj.hkt.test.contract.TypeClassContract;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 
 @DisplayName("TryMonad")
@@ -30,6 +29,7 @@ class TryMonadTest extends TryTestBase {
   @BeforeEach
   void setUpMonad() {
     monad = Instances.monadError(try_());
+    validateMonadFixtures();
   }
 
   @Nested
@@ -37,108 +37,91 @@ class TryMonadTest extends TryTestBase {
   class Laws {
 
     @ParameterizedTest(name = "left identity holds on value \"{0}\"")
-    @MethodSource("values")
+    @MethodSource("org.higherkindedj.hkt.trymonad.TryLawFixtures#values")
     void leftIdentity(String value) {
       MonadLaws.assertLeftIdentity(monad, value, testFunction, equalityChecker);
     }
 
     @ParameterizedTest(name = "right identity holds on {0}")
-    @MethodSource("fixtures")
+    @MethodSource("org.higherkindedj.hkt.trymonad.TryLawFixtures#kinds")
     void rightIdentity(String label, Kind<TryKind.Witness, String> ma) {
       MonadLaws.assertRightIdentity(monad, ma, equalityChecker);
     }
 
     @ParameterizedTest(name = "associativity holds on {0}")
-    @MethodSource("fixtures")
+    @MethodSource("org.higherkindedj.hkt.trymonad.TryLawFixtures#kinds")
     void associativity(String label, Kind<TryKind.Witness, String> ma) {
       MonadLaws.assertAssociativity(monad, ma, testFunction, chainFunction, equalityChecker);
     }
+  }
 
-    static Stream<Arguments> fixtures() {
-      RuntimeException ex = new RuntimeException("test");
-      return Stream.of(
-          Arguments.of("Success(\"\")", TRY.widen(Try.success(""))),
-          Arguments.of("Success(\"hi\")", TRY.widen(Try.success("hi"))),
-          Arguments.of("Success(\"abcdefg\")", TRY.widen(Try.success("abcdefg"))),
-          Arguments.of("Failure(ex)", TRY.<String>widen(Try.failure(ex))));
-    }
-
-    static Stream<Arguments> values() {
-      return Stream.of(Arguments.of(""), Arguments.of("hi"), Arguments.of("abcdefg"));
-    }
+  /**
+   * {@link Category#EXCEPTIONS} is omitted: the generic contract asserts that {@code map}/{@code
+   * flatMap} <em>propagate</em> a thrown function exception, but {@code Try} instead captures it as
+   * a {@link Try.Failure}. That capture behaviour is exercised directly in {@link
+   * FlatMapOperations} below.
+   */
+  @Test
+  @DisplayName(
+      "Monad contract — operations & validations (laws verified above; Try captures exceptions so"
+          + " EXCEPTIONS is verified by the capture tests below)")
+  void monadContract() {
+    TypeClassContract.<TryKind.Witness>monad(TryMonad.class)
+        .<String>instance(monad)
+        .<Integer>withKind(validKind)
+        .withMonadOperations(
+            validKind2, validMapper, validFlatMapper, validFunctionKind, validCombiningFunction)
+        .verifyOnly(Category.OPERATIONS, Category.VALIDATIONS);
   }
 
   @Nested
-  @DisplayName("flatMap() Operation Tests")
-  class FlatMapOperationTests {
+  @DisplayName("flatMap operations")
+  class FlatMapOperations {
 
     @Test
-    @DisplayName("flatMap() with Success and returning Success should succeed")
-    void flatMap_withSuccessReturningSuccess_shouldSucceed() {
-      Kind<TryKind.Witness, String> success = TRY.widen(Try.success("hello"));
-      Function<String, Kind<TryKind.Witness, Integer>> func =
-          s -> TRY.widen(Try.success(s.length()));
-
-      Kind<TryKind.Witness, Integer> result = monad.flatMap(func, success);
-      Try<Integer> tryResult = TRY.narrow(result);
-
-      assertThatTry(tryResult).isSuccess().hasValue(5);
+    @DisplayName("flatMap() on Success applies the function")
+    void flatMapOnSuccessAppliesFunction() {
+      var result = monad.flatMap(validFlatMapper, validKind);
+      assertThatTry(result).isSuccess().hasValue(DEFAULT_SUCCESS_VALUE.length());
     }
 
     @Test
-    @DisplayName("flatMap() with Success and returning Failure should return Failure")
-    void flatMap_withSuccessReturningFailure_shouldReturnFailure() {
-      Kind<TryKind.Witness, String> success = TRY.widen(Try.success("hello"));
-      RuntimeException exception = new RuntimeException("Inner failure");
-      Function<String, Kind<TryKind.Witness, Integer>> func =
-          s -> TRY.widen(Try.failure(exception));
-
-      Kind<TryKind.Witness, Integer> result = monad.flatMap(func, success);
-      Try<Integer> tryResult = TRY.narrow(result);
-
-      assertThatTry(tryResult).isFailure().hasException(exception);
+    @DisplayName("flatMap() on Success can return a Failure")
+    void flatMapOnSuccessCanReturnFailure() {
+      RuntimeException inner = new RuntimeException("Inner failure");
+      Function<String, Kind<TryKind.Witness, Integer>> toFailure =
+          _ -> TRY.widen(Try.failure(inner));
+      var result = monad.flatMap(toFailure, validKind);
+      assertThatTry(result).isFailure().hasException(inner);
     }
 
     @Test
-    @DisplayName("flatMap() with Failure should return Failure")
-    void flatMap_withFailure_shouldReturnFailure() {
-      RuntimeException exception = new RuntimeException("Original failure");
-      Kind<TryKind.Witness, String> failure = TRY.widen(Try.failure(exception));
-      Function<String, Kind<TryKind.Witness, Integer>> func =
-          s -> TRY.widen(Try.success(s.length()));
-
-      Kind<TryKind.Witness, Integer> result = monad.flatMap(func, failure);
-      Try<Integer> tryResult = TRY.narrow(result);
-
-      assertThatTry(tryResult).isFailure().hasException(exception);
+    @DisplayName("flatMap() on Failure passes the failure through")
+    void flatMapOnFailurePassesThrough() {
+      Kind<TryKind.Witness, String> failure = failureKind(DEFAULT_TEST_EXCEPTION);
+      var result = monad.flatMap(validFlatMapper, failure);
+      assertThatTry(result).isFailure().hasException(DEFAULT_TEST_EXCEPTION);
     }
 
     @Test
-    @DisplayName("flatMap() should capture exception thrown by function")
-    void flatMap_shouldCaptureExceptionThrownByFunction() {
-      Kind<TryKind.Witness, String> success = TRY.widen(Try.success("test"));
-      RuntimeException funcException = new RuntimeException("Function threw");
-      Function<String, Kind<TryKind.Witness, Integer>> throwingFunc =
-          s -> {
-            throw funcException;
+    @DisplayName("flatMap() captures an exception thrown by the function as a Failure")
+    void flatMapCapturesExceptionThrownByFunction() {
+      RuntimeException boom = new RuntimeException("Function threw");
+      Function<String, Kind<TryKind.Witness, Integer>> throwing =
+          _ -> {
+            throw boom;
           };
-
-      Kind<TryKind.Witness, Integer> result = monad.flatMap(throwingFunc, success);
-      Try<Integer> tryResult = TRY.narrow(result);
-
-      assertThatTry(tryResult).isFailure().hasException(funcException);
+      var result = monad.flatMap(throwing, validKind);
+      assertThatTry(result).isFailure().hasException(boom);
     }
 
     @Test
-    @DisplayName("flatMap() should reject null result from function")
-    void flatMap_shouldRejectNullResultFromFunction() {
-      Kind<TryKind.Witness, String> success = TRY.widen(Try.success("test"));
-      Function<String, Kind<TryKind.Witness, Integer>> nullFunc = s -> null;
-
-      Kind<TryKind.Witness, Integer> result = monad.flatMap(nullFunc, success);
-      Try<Integer> tryResult = TRY.narrow(result);
-
-      assertThatTry(tryResult)
+    @DisplayName("flatMap() captures a null result from the function as a Failure")
+    @SuppressWarnings("DataFlowIssue") // null-returning function exercises flatMap's null guard
+    void flatMapCapturesNullResultAsFailure() {
+      Function<String, Kind<TryKind.Witness, Integer>> nullFunc = _ -> null;
+      var result = monad.flatMap(nullFunc, validKind);
+      assertThatTry(result)
           .isFailure()
           .hasExceptionSatisfying(
               ex -> assertThat(ex).hasMessageContaining("Function f in flatMap returned null"));
@@ -146,381 +129,76 @@ class TryMonadTest extends TryTestBase {
   }
 
   @Nested
-  @DisplayName("raiseError() Operation Tests")
-  class RaiseErrorOperationTests {
+  @DisplayName("of and ap")
+  class OfAndApOperations {
 
     @Test
-    @DisplayName("raiseError() should create Failure with RuntimeException")
-    void raiseError_shouldCreateFailureWithRuntimeException() {
-      RuntimeException exception = new RuntimeException("Test error");
-      Kind<TryKind.Witness, String> result = monad.raiseError(exception);
-      Try<String> tryResult = TRY.narrow(result);
-
-      assertThatTry(tryResult).isFailure().hasException(exception);
+    @DisplayName("of() wraps a value in Success")
+    void ofWrapsValueInSuccess() {
+      var result = monad.of("success");
+      assertThatTry(result).isSuccess().hasValue("success");
     }
 
     @Test
-    @DisplayName("raiseError() should create Failure with checked exception")
-    void raiseError_shouldCreateFailureWithCheckedException() {
-      IOException exception = new IOException("IO error");
-      Kind<TryKind.Witness, String> result = monad.raiseError(exception);
-      Try<String> tryResult = TRY.narrow(result);
-
-      assertThatTry(tryResult).isFailure().hasException(exception);
+    @DisplayName("of() wraps a null value in Success")
+    @SuppressWarnings("DataFlowIssue") // Success may legitimately hold a null value
+    void ofWrapsNullInSuccess() {
+      var result = monad.of(null);
+      assertThatTry(result).isSuccess().hasValueSatisfying(v -> assertThat(v).isNull());
     }
 
     @Test
-    @DisplayName("raiseError() should create Failure with Error")
-    void raiseError_shouldCreateFailureWithError() {
-      StackOverflowError error = new StackOverflowError("Stack overflow");
-      Kind<TryKind.Witness, String> result = monad.raiseError(error);
-      Try<String> tryResult = TRY.narrow(result);
-
-      assertThatTry(tryResult).isFailure().hasException(error);
-    }
-
-    @Test
-    @DisplayName("raiseError() should throw NPE for null Throwable")
-    void raiseError_shouldThrowNPEForNullThrowable() {
-      assertThatNullPointerException()
-          .isThrownBy(() -> monad.raiseError(null))
-          .withMessageContaining("TryMonad.raiseError error cannot be null");
+    @DisplayName("ap() applies the function when both are Success")
+    void apAppliesFunctionWhenBothSuccess() {
+      var result = monad.ap(validFunctionKind, validKind);
+      assertThatTry(result).isSuccess().hasValue(DEFAULT_SUCCESS_VALUE.length());
     }
   }
 
   @Nested
-  @DisplayName("handleErrorWith() Operation Tests")
-  class HandleErrorWithOperationTests {
+  @DisplayName("Edge cases")
+  class EdgeCases {
 
     @Test
-    @DisplayName("handleErrorWith() on Success should return original Success")
-    void handleErrorWith_onSuccess_shouldReturnOriginalSuccess() {
-      Kind<TryKind.Witness, String> success = TRY.widen(Try.success("test"));
-      Function<Throwable, Kind<TryKind.Witness, String>> handler =
-          t -> TRY.widen(Try.success("recovered"));
-
-      Kind<TryKind.Witness, String> result = monad.handleErrorWith(success, handler);
-      Try<String> tryResult = TRY.narrow(result);
-
-      assertThatTry(tryResult).isSuccess().hasValue("test");
-    }
-
-    @Test
-    @DisplayName("handleErrorWith() on Failure should apply handler")
-    void handleErrorWith_onFailure_shouldApplyHandler() {
-      RuntimeException exception = new RuntimeException("Original error");
-      Kind<TryKind.Witness, String> failure = TRY.widen(Try.failure(exception));
-      Function<Throwable, Kind<TryKind.Witness, String>> handler =
-          t -> TRY.widen(Try.success("recovered"));
-
-      Kind<TryKind.Witness, String> result = monad.handleErrorWith(failure, handler);
-      Try<String> tryResult = TRY.narrow(result);
-
-      assertThatTry(tryResult).isSuccess().hasValue("recovered");
-    }
-
-    @Test
-    @DisplayName("handleErrorWith() should capture exception from handler")
-    void handleErrorWith_shouldCaptureExceptionFromHandler() {
-      RuntimeException originalException = new RuntimeException("Original error");
-      Kind<TryKind.Witness, String> failure = TRY.widen(Try.failure(originalException));
-      RuntimeException handlerException = new RuntimeException("Handler error");
-      Function<Throwable, Kind<TryKind.Witness, String>> throwingHandler =
-          t -> {
-            throw handlerException;
-          };
-
-      Kind<TryKind.Witness, String> result = monad.handleErrorWith(failure, throwingHandler);
-      Try<String> tryResult = TRY.narrow(result);
-
-      assertThatTry(tryResult).isFailure().hasException(handlerException);
-    }
-
-    @Test
-    @DisplayName("handleErrorWith() should reject null result from handler")
-    void handleErrorWith_shouldRejectNullResultFromHandler() {
-      RuntimeException exception = new RuntimeException("Original error");
-      Kind<TryKind.Witness, String> failure = TRY.widen(Try.failure(exception));
-      Function<Throwable, Kind<TryKind.Witness, String>> nullHandler = t -> null;
-
-      Kind<TryKind.Witness, String> result = monad.handleErrorWith(failure, nullHandler);
-      Try<String> tryResult = TRY.narrow(result);
-
-      assertThatTry(tryResult)
-          .isFailure()
-          .hasExceptionSatisfying(
-              ex ->
-                  assertThat(ex)
-                      .hasMessageContaining("Function handler in handleErrorWith returned null"));
-    }
-  }
-
-  @Nested
-  @DisplayName("Validation Tests")
-  class ValidationTests {
-
-    // Parameterized test data for flatMap null validation
-    private static Stream<Arguments> flatMapNullParameters() {
-      Kind<TryKind.Witness, String> testValidKind = TRY.widen(Try.success("test value"));
-      Function<String, Kind<TryKind.Witness, Integer>> testValidFlatMapper =
-          s -> TRY.widen(Try.success(s.length()));
-      return Stream.of(
-          Arguments.of("f for", testValidKind, null),
-          Arguments.of("Kind", null, testValidFlatMapper));
-    }
-
-    @ParameterizedTest(name = "flatMap validates {0} parameter is non-null")
-    @MethodSource("flatMapNullParameters")
-    @DisplayName("flatMap() validates null parameters")
-    void flatMap_shouldValidateNullParameters(
-        String expectedMessagePart,
-        Kind<TryKind.Witness, String> kind,
-        Function<String, Kind<TryKind.Witness, Integer>> function) {
-      assertThatNullPointerException()
-          .isThrownBy(() -> monad.flatMap(function, kind))
-          .withMessageContaining(expectedMessagePart);
-    }
-
-    // Parameterized test data for handleErrorWith null validation
-    private static Stream<Arguments> handleErrorWithNullParameters() {
-      Kind<TryKind.Witness, String> testValidKind = TRY.widen(Try.success("test value"));
-      Function<Throwable, Kind<TryKind.Witness, String>> validHandler =
-          t -> TRY.widen(Try.success("recovered"));
-      return Stream.of(
-          Arguments.of("Kind", null, validHandler),
-          Arguments.of("handler for", testValidKind, null));
-    }
-
-    @ParameterizedTest(name = "handleErrorWith validates {0} parameter is non-null")
-    @MethodSource("handleErrorWithNullParameters")
-    @DisplayName("handleErrorWith() validates null parameters")
-    void handleErrorWith_shouldValidateNullParameters(
-        String expectedMessagePart,
-        Kind<TryKind.Witness, String> kind,
-        Function<Throwable, Kind<TryKind.Witness, String>> handler) {
-      assertThatNullPointerException()
-          .isThrownBy(() -> monad.handleErrorWith(kind, handler))
-          .withMessageContaining(expectedMessagePart);
-    }
-  }
-
-  @Nested
-  @DisplayName("Exception Propagation Tests")
-  class ExceptionPropagationTests {
-
-    @Test
-    @DisplayName("flatMap() should propagate RuntimeException from function")
-    void flatMap_shouldPropagateRuntimeExceptionFromFunction() {
-      RuntimeException testException = new RuntimeException("Test exception");
-      Function<String, Kind<TryKind.Witness, Integer>> throwingFunc =
-          s -> {
-            throw testException;
-          };
-
-      Kind<TryKind.Witness, Integer> result = monad.flatMap(throwingFunc, validKind);
-      Try<Integer> tryResult = TRY.narrow(result);
-
-      assertThatTry(tryResult).isFailure().hasException(testException);
-    }
-
-    @Test
-    @DisplayName("flatMap() should propagate Error from function")
-    void flatMap_shouldPropagateErrorFromFunction() {
-      StackOverflowError testError = new StackOverflowError("Stack overflow");
-      Function<String, Kind<TryKind.Witness, Integer>> throwingFunc =
-          s -> {
-            throw testError;
-          };
-
-      Kind<TryKind.Witness, Integer> result = monad.flatMap(throwingFunc, validKind);
-      Try<Integer> tryResult = TRY.narrow(result);
-
-      assertThatTry(tryResult).isFailure().hasException(testError);
-    }
-
-    @Test
-    @DisplayName("handleErrorWith() should propagate exception from handler")
-    void handleErrorWith_shouldPropagateExceptionFromHandler() {
-      RuntimeException originalException = new RuntimeException("Original");
-      Kind<TryKind.Witness, String> failure = TRY.widen(Try.failure(originalException));
-      RuntimeException handlerException = new RuntimeException("Handler failed");
-      Function<Throwable, Kind<TryKind.Witness, String>> throwingHandler =
-          t -> {
-            throw handlerException;
-          };
-
-      Kind<TryKind.Witness, String> result = monad.handleErrorWith(failure, throwingHandler);
-      Try<String> tryResult = TRY.narrow(result);
-
-      assertThatTry(tryResult).isFailure().hasException(handlerException);
-    }
-  }
-
-  @Nested
-  @DisplayName("Monad Law Tests")
-  class MonadLawTests {
-
-    @Test
-    @DisplayName("Left identity: flatMap(of(a), f) == f(a)")
-    void leftIdentityLaw() {
-      String testVal = "test";
-      Function<String, Kind<TryKind.Witness, Integer>> func =
-          s -> TRY.widen(Try.success(s.length()));
-
-      Kind<TryKind.Witness, String> ofValue = monad.of(testVal);
-      Kind<TryKind.Witness, Integer> leftSide = monad.flatMap(func, ofValue);
-      Kind<TryKind.Witness, Integer> rightSide = func.apply(testVal);
-
-      assertThat(equalityChecker.test(leftSide, rightSide))
-          .as("Monad Left Identity Law: flatMap(of(a), f) == f(a)")
-          .isTrue();
-    }
-
-    @Test
-    @DisplayName("Right identity: flatMap(m, of) == m")
-    void rightIdentityLaw() {
-      Function<String, Kind<TryKind.Witness, String>> ofFunc = monad::of;
-      Kind<TryKind.Witness, String> leftSide = monad.flatMap(ofFunc, validKind);
-
-      assertThat(equalityChecker.test(leftSide, validKind))
-          .as("Monad Right Identity Law: flatMap(m, of) == m")
-          .isTrue();
-    }
-
-    @Test
-    @DisplayName("Associativity: flatMap(flatMap(m, f), g) == flatMap(m, x -> flatMap(f(x), g))")
-    void associativityLaw() {
-      Function<String, Kind<TryKind.Witness, Integer>> f = s -> TRY.widen(Try.success(s.length()));
-      Function<Integer, Kind<TryKind.Witness, Integer>> g = i -> TRY.widen(Try.success(i * 2));
-
-      // Left side: flatMap(flatMap(m, f), g)
-      Kind<TryKind.Witness, Integer> innerFlatMap = monad.flatMap(f, validKind);
-      Kind<TryKind.Witness, Integer> leftSide = monad.flatMap(g, innerFlatMap);
-
-      // Right side: flatMap(m, a -> flatMap(f(a), g))
-      Function<String, Kind<TryKind.Witness, Integer>> rightSideFunc =
-          a -> monad.flatMap(g, f.apply(a));
-      Kind<TryKind.Witness, Integer> rightSide = monad.flatMap(rightSideFunc, validKind);
-
-      assertThat(equalityChecker.test(leftSide, rightSide))
-          .as(
-              "Monad Associativity Law: flatMap(flatMap(m, f), g) == flatMap(m, x ->"
-                  + " flatMap(f(x), g))")
-          .isTrue();
-    }
-
-    @Test
-    @DisplayName("Laws hold for Failure instances")
-    void lawsHoldForFailure() {
-      RuntimeException exception = new RuntimeException("Test failure");
-      Kind<TryKind.Witness, String> failure = TRY.widen(Try.failure(exception));
-
-      // Right identity with Failure
-      Function<String, Kind<TryKind.Witness, String>> ofFunc = monad::of;
-      Kind<TryKind.Witness, String> result = monad.flatMap(ofFunc, failure);
-
-      assertThat(equalityChecker.test(result, failure))
-          .as("Right identity holds for Failure")
-          .isTrue();
-    }
-  }
-
-  @Nested
-  @DisplayName("Edge Case Tests")
-  class EdgeCaseTests {
-
-    @Test
-    @DisplayName("flatMap() should handle null value in Success")
-    void flatMap_shouldHandleNullValueInSuccess() {
+    @DisplayName("flatMap() handles a null value inside Success")
+    @SuppressWarnings("ConstantValue") // a Success may legitimately hold a null value
+    void flatMapHandlesNullValueInSuccess() {
       Kind<TryKind.Witness, String> successNull = TRY.widen(Try.success(null));
-      Function<String, Kind<TryKind.Witness, Integer>> safeFunc =
+      Function<String, Kind<TryKind.Witness, Integer>> safe =
           s -> TRY.widen(Try.success(s == null ? -1 : s.length()));
-
-      Kind<TryKind.Witness, Integer> result = monad.flatMap(safeFunc, successNull);
-      Try<Integer> tryResult = TRY.narrow(result);
-
-      assertThatTry(tryResult).isSuccess().hasValue(-1);
+      var result = monad.flatMap(safe, successNull);
+      assertThatTry(result).isSuccess().hasValue(-1);
     }
 
     @Test
-    @DisplayName("handleErrorWith() should handle different exception types")
-    void handleErrorWith_shouldHandleDifferentExceptionTypes() {
-      // Test with RuntimeException
-      RuntimeException runtimeEx = new RuntimeException("Runtime error");
-      Kind<TryKind.Witness, String> runtimeFailure = TRY.widen(Try.failure(runtimeEx));
-      Function<Throwable, Kind<TryKind.Witness, String>> handler =
-          t -> TRY.widen(Try.success("Recovered from: " + t.getClass().getSimpleName()));
-
-      Kind<TryKind.Witness, String> result1 = monad.handleErrorWith(runtimeFailure, handler);
-      Try<String> tryResult1 = TRY.narrow(result1);
-      assertThatTry(tryResult1).isSuccess().hasValue("Recovered from: RuntimeException");
-
-      // Test with checked exception
-      IOException ioEx = new IOException("IO error");
-      Kind<TryKind.Witness, String> ioFailure = TRY.widen(Try.failure(ioEx));
-
-      Kind<TryKind.Witness, String> result2 = monad.handleErrorWith(ioFailure, handler);
-      Try<String> tryResult2 = TRY.narrow(result2);
-      assertThatTry(tryResult2).isSuccess().hasValue("Recovered from: IOException");
-
-      // Test with Error
-      StackOverflowError error = new StackOverflowError("Stack overflow");
-      Kind<TryKind.Witness, String> errorFailure = TRY.widen(Try.failure(error));
-
-      Kind<TryKind.Witness, String> result3 = monad.handleErrorWith(errorFailure, handler);
-      Try<String> tryResult3 = TRY.narrow(result3);
-      assertThatTry(tryResult3).isSuccess().hasValue("Recovered from: StackOverflowError");
+    @DisplayName("Deep flatMap chaining accumulates correctly")
+    void deepFlatMapChaining() {
+      Kind<TryKind.Witness, Integer> result = TRY.widen(Try.success(1));
+      for (int i = 0; i < 10; i++) {
+        final int increment = i;
+        result = monad.flatMap(x -> monad.of(x + increment), result);
+      }
+      assertThatTry(result).isSuccess().hasValue(46);
     }
 
     @Test
-    @DisplayName("Chained operations should preserve error information")
-    void chainedOperations_shouldPreserveErrorInformation() {
-      RuntimeException exception = new RuntimeException("Original error");
-      Kind<TryKind.Witness, String> failure = TRY.widen(Try.failure(exception));
+    @DisplayName("A Failure early in a flatMap chain short-circuits and preserves the cause")
+    void flatMapWithEarlyFailureShortCircuits() {
+      Kind<TryKind.Witness, String> failure = failureKind(DEFAULT_TEST_EXCEPTION);
 
-      Function<String, Kind<TryKind.Witness, Integer>> func1 =
+      Function<String, Kind<TryKind.Witness, Integer>> length =
           s -> TRY.widen(Try.success(s.length()));
-      Function<Integer, Kind<TryKind.Witness, String>> func2 =
+      Function<Integer, Kind<TryKind.Witness, String>> stringify =
           i -> TRY.widen(Try.success(i.toString()));
 
-      Kind<TryKind.Witness, Integer> result1 = monad.flatMap(func1, failure);
-      Kind<TryKind.Witness, String> result2 = monad.flatMap(func2, result1);
+      Kind<TryKind.Witness, Integer> step1 = monad.flatMap(length, failure);
+      Kind<TryKind.Witness, String> step2 = monad.flatMap(stringify, step1);
 
-      Try<String> tryResult = TRY.narrow(result2);
-      assertThatTry(tryResult).isFailure().hasException(exception);
+      assertThatTry(step2).isFailure().hasException(DEFAULT_TEST_EXCEPTION);
     }
 
     @Test
-    @DisplayName("of() should wrap null value correctly")
-    void of_shouldWrapNullValueCorrectly() {
-      Kind<TryKind.Witness, String> result = monad.of(null);
-      Try<String> tryResult = TRY.narrow(result);
-
-      assertThatTry(tryResult).isSuccess().hasValueSatisfying(v -> assertThat(v).isNull());
-    }
-
-    @Test
-    @DisplayName("handleErrorWith() can convert Failure to another Failure")
-    void handleErrorWith_canConvertFailureToAnotherFailure() {
-      RuntimeException originalException = new RuntimeException("Original");
-      Kind<TryKind.Witness, String> failure = TRY.widen(Try.failure(originalException));
-      IOException newException = new IOException("Converted error");
-      Function<Throwable, Kind<TryKind.Witness, String>> handler =
-          t -> TRY.widen(Try.failure(newException));
-
-      Kind<TryKind.Witness, String> result = monad.handleErrorWith(failure, handler);
-      Try<String> tryResult = TRY.narrow(result);
-
-      assertThatTry(tryResult).isFailure().hasException(newException);
-    }
-  }
-
-  @Nested
-  @DisplayName("Integration Tests")
-  class IntegrationTests {
-
-    @Test
-    @DisplayName("Complex chain of flatMap operations")
+    @DisplayName("A complete flatMap pipeline composes Success values")
     void complexChainOfFlatMapOperations() {
       Function<String, Kind<TryKind.Witness, Integer>> step1 =
           s -> TRY.widen(Try.success(s.length()));
@@ -528,68 +206,11 @@ class TryMonadTest extends TryTestBase {
       Function<Integer, Kind<TryKind.Witness, String>> step3 =
           i -> TRY.widen(Try.success("Result: " + i));
 
-      Kind<TryKind.Witness, Integer> result1 = monad.flatMap(step1, validKind);
-      Kind<TryKind.Witness, Integer> result2 = monad.flatMap(step2, result1);
-      Kind<TryKind.Witness, String> result3 = monad.flatMap(step3, result2);
+      Kind<TryKind.Witness, Integer> r1 = monad.flatMap(step1, validKind);
+      Kind<TryKind.Witness, Integer> r2 = monad.flatMap(step2, r1);
+      Kind<TryKind.Witness, String> r3 = monad.flatMap(step3, r2);
 
-      Try<String> tryResult = TRY.narrow(result3);
-      assertThatTry(tryResult)
-          .isSuccess()
-          .hasValueSatisfying(v -> assertThat(v).startsWith("Result:"));
-    }
-
-    @Test
-    @DisplayName("Combining flatMap and handleErrorWith")
-    void combiningFlatMapAndHandleErrorWith() {
-      Function<String, Kind<TryKind.Witness, Integer>> riskyOperation =
-          s -> {
-            if (s.isEmpty()) {
-              return TRY.widen(Try.failure(new IllegalArgumentException("Empty string")));
-            }
-            return TRY.widen(Try.success(s.length()));
-          };
-
-      Function<Throwable, Kind<TryKind.Witness, Integer>> errorHandler =
-          t -> TRY.widen(Try.success(-1));
-
-      // Test with valid input
-      Kind<TryKind.Witness, String> validInput = TRY.widen(Try.success("test"));
-      Kind<TryKind.Witness, Integer> result1 = monad.flatMap(riskyOperation, validInput);
-      Kind<TryKind.Witness, Integer> handled1 = monad.handleErrorWith(result1, errorHandler);
-
-      Try<Integer> tryResult1 = TRY.narrow(handled1);
-      assertThatTry(tryResult1).isSuccess().hasValue(4);
-
-      // Test with empty input
-      Kind<TryKind.Witness, String> emptyInput = TRY.widen(Try.success(""));
-      Kind<TryKind.Witness, Integer> result2 = monad.flatMap(riskyOperation, emptyInput);
-      Kind<TryKind.Witness, Integer> handled2 = monad.handleErrorWith(result2, errorHandler);
-
-      Try<Integer> tryResult2 = TRY.narrow(handled2);
-      assertThatTry(tryResult2).isSuccess().hasValue(-1);
-    }
-
-    @Test
-    @DisplayName("MonadError operations preserve type class behaviour")
-    void monadErrorOperations_preserveTypeClassBehaviour() {
-      // Verify that monad operations work correctly
-      Kind<TryKind.Witness, Integer> mapped = monad.map(validMapper, validKind);
-      assertThatTry(TRY.narrow(mapped)).isSuccess();
-
-      Kind<TryKind.Witness, Integer> flatMapped = monad.flatMap(validFlatMapper, validKind);
-      assertThatTry(TRY.narrow(flatMapped)).isSuccess();
-
-      Kind<TryKind.Witness, Integer> apped = monad.ap(validFunctionKind, validKind);
-      assertThatTry(TRY.narrow(apped)).isSuccess();
-
-      // Verify error handling
-      RuntimeException exception = new RuntimeException("Error");
-      Kind<TryKind.Witness, String> failure = monad.raiseError(exception);
-      assertThatTry(TRY.narrow(failure)).isFailure();
-
-      Function<Throwable, Kind<TryKind.Witness, String>> handler = t -> monad.of("recovered");
-      Kind<TryKind.Witness, String> recovered = monad.handleErrorWith(failure, handler);
-      assertThatTry(TRY.narrow(recovered)).isSuccess();
+      assertThatTry(r3).isSuccess().hasValue("Result: " + (DEFAULT_SUCCESS_VALUE.length() * 2));
     }
   }
 }

@@ -30,6 +30,7 @@ class Tuple3Test {
 
     @Test
     @DisplayName("Constructor accepts null elements")
+    @SuppressWarnings("DataFlowIssue") // Tuple3 permits null elements; nulls passed deliberately
     void constructorAcceptsNullElements() {
       Tuple3<String, Integer, Boolean> tuple = new Tuple3<>(null, null, null);
 
@@ -69,6 +70,7 @@ class Tuple3Test {
 
     @Test
     @DisplayName("map() throws NullPointerException when firstMapper is null")
+    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
     void mapThrowsWhenFirstMapperNull() {
       Tuple3<String, Integer, Boolean> tuple = new Tuple3<>("Alice", 30, true);
 
@@ -80,6 +82,7 @@ class Tuple3Test {
 
     @Test
     @DisplayName("map() throws NullPointerException when secondMapper is null")
+    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
     void mapThrowsWhenSecondMapperNull() {
       Tuple3<String, Integer, Boolean> tuple = new Tuple3<>("Alice", 30, true);
 
@@ -91,6 +94,7 @@ class Tuple3Test {
 
     @Test
     @DisplayName("map() throws NullPointerException when thirdMapper is null")
+    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
     void mapThrowsWhenThirdMapperNull() {
       Tuple3<String, Integer, Boolean> tuple = new Tuple3<>("Alice", 30, true);
 
@@ -129,6 +133,7 @@ class Tuple3Test {
 
     @Test
     @DisplayName("mapFirst() throws NullPointerException when mapper is null")
+    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
     void mapFirstThrowsWhenMapperNull() {
       Tuple3<String, Integer, Boolean> tuple = new Tuple3<>("Alice", 30, true);
 
@@ -167,6 +172,7 @@ class Tuple3Test {
 
     @Test
     @DisplayName("mapSecond() throws NullPointerException when mapper is null")
+    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
     void mapSecondThrowsWhenMapperNull() {
       Tuple3<String, Integer, Boolean> tuple = new Tuple3<>("Alice", 30, true);
 
@@ -205,6 +211,7 @@ class Tuple3Test {
 
     @Test
     @DisplayName("mapThird() throws NullPointerException when mapper is null")
+    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
     void mapThirdThrowsWhenMapperNull() {
       Tuple3<String, Integer, Boolean> tuple = new Tuple3<>("Alice", 30, true);
 

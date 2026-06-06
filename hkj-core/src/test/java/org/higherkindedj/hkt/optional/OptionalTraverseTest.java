@@ -3,212 +3,260 @@
 package org.higherkindedj.hkt.optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.higherkindedj.hkt.instances.Witnesses.*;
+import static org.higherkindedj.hkt.assertions.OptionalKindAssert.assertThatOptionalKind;
+import static org.higherkindedj.hkt.instances.Witnesses.maybe;
 import static org.higherkindedj.hkt.maybe.MaybeKindHelper.MAYBE;
-import static org.higherkindedj.hkt.optional.OptionalKindHelper.OPTIONAL;
 
-import java.util.Optional;
 import java.util.function.Function;
 import org.higherkindedj.hkt.Applicative;
-import org.higherkindedj.hkt.Foldable;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Monoid;
 import org.higherkindedj.hkt.Monoids;
+import org.higherkindedj.hkt.Traverse;
 import org.higherkindedj.hkt.instances.Instances;
+import org.higherkindedj.hkt.laws.TraverseLaws;
 import org.higherkindedj.hkt.maybe.Maybe;
 import org.higherkindedj.hkt.maybe.MaybeKind;
+import org.higherkindedj.hkt.test.contract.Category;
+import org.higherkindedj.hkt.test.contract.TypeClassContract;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.MethodSource;
 
-public class OptionalTraverseTest {
+@DisplayName("OptionalTraverse")
+class OptionalTraverseTest extends OptionalTestBase {
 
-  private final OptionalTraverse traverse = OptionalTraverse.INSTANCE;
-  private final Foldable<OptionalKind.Witness> foldable = OptionalTraverse.INSTANCE;
-  private final Applicative<MaybeKind.Witness> maybeApplicative = Instances.monadError(maybe());
+  private Traverse<OptionalKind.Witness> traverse;
+  private Applicative<MaybeKind.Witness> maybeApplicative;
+  private Kind<OptionalKind.Witness, Integer> presentKind;
+  private Kind<OptionalKind.Witness, Integer> emptyKind;
+  private Function<Integer, Kind<MaybeKind.Witness, String>> validTraverseFunction;
+  private Monoid<String> validMonoid;
+  private Function<Integer, String> validFoldMapFunction;
 
-  // A test function that "validates" an integer, returning a Maybe.
-  // It returns Nothing for non-positive numbers.
-  private final Function<Integer, Kind<MaybeKind.Witness, String>> validatePositive =
-      i -> {
-        if (i > 0) {
-          return MAYBE.widen(Maybe.just("Positive: " + i));
-        } else {
-          return MAYBE.widen(Maybe.nothing());
-        }
-      };
+  @BeforeEach
+  void setUpTraverse() {
+    traverse = OptionalTraverse.INSTANCE;
+    maybeApplicative = Instances.monadError(maybe());
+    presentKind = validKind;
+    emptyKind = emptyOptional();
+    validTraverseFunction = i -> MAYBE.widen(Maybe.just("Traversed:" + i));
+    validMonoid = Monoids.string();
+    validFoldMapFunction = validMapper;
 
-  @Nested
-  @DisplayName("map method")
-  class MapTests {
-    @Test
-    @DisplayName("map should apply a function to a present Optional")
-    void mapPresent() {
-      // Given a present Optional
-      Kind<OptionalKind.Witness, Integer> input = OPTIONAL.widen(Optional.of(10));
-
-      // When we map over it
-      Kind<OptionalKind.Witness, Integer> result = traverse.map(i -> i * 2, input);
-
-      // Then the result is a present Optional with the new value
-      assertThat(OPTIONAL.narrow(result)).isEqualTo(Optional.of(20));
-    }
-
-    @Test
-    @DisplayName("map should do nothing to an empty Optional")
-    void mapEmpty() {
-      // Given an empty Optional
-      Kind<OptionalKind.Witness, Integer> input = OPTIONAL.widen(Optional.empty());
-
-      // When we map over it
-      Kind<OptionalKind.Witness, Integer> result = traverse.map(i -> i * 2, input);
-
-      // Then the result is an empty Optional
-      assertThat(OPTIONAL.narrow(result)).isEqualTo(Optional.empty());
-    }
+    validateRequiredFixtures();
   }
 
   @Nested
-  @DisplayName("traverse method")
-  class TraverseTests {
+  @DisplayName("Laws")
+  class Laws {
+
+    @ParameterizedTest(name = "identity holds on {0}")
+    @MethodSource("org.higherkindedj.hkt.optional.OptionalLawFixtures#kinds")
+    void identity(String label, Kind<OptionalKind.Witness, Integer> fa) {
+      TraverseLaws.assertIdentity(traverse, fa, equalityChecker);
+    }
+  }
+
+  @Test
+  @DisplayName("Traverse contract — operations, validations & exceptions (laws verified above)")
+  void traverseContract() {
+    TypeClassContract.<OptionalKind.Witness>traverse(OptionalTraverse.class)
+        .<Integer>instance(traverse)
+        .<String>withKind(presentKind)
+        .withMapper(validMapper)
+        .withApplicative(maybeApplicative, validTraverseFunction)
+        .withFoldable(validMonoid, validFoldMapFunction)
+        .verifyOnly(Category.OPERATIONS, Category.VALIDATIONS, Category.EXCEPTIONS);
+  }
+
+  @Nested
+  @DisplayName("Operation Tests")
+  class OperationTests {
+
     @Test
-    @DisplayName("traverse should map a function over a present Optional")
-    void traversePresentSucceeds() {
-      // Given a present Optional
-      Kind<OptionalKind.Witness, Integer> input = OPTIONAL.widen(Optional.of(123));
-
-      // When we traverse it with a function that returns a Just
+    @DisplayName("traverse() on a present value with a successful function")
+    void traversePresentSuccessful() {
       Kind<MaybeKind.Witness, Kind<OptionalKind.Witness, String>> result =
-          traverse.traverse(maybeApplicative, validatePositive, input);
+          traverse.traverse(maybeApplicative, validTraverseFunction, presentKind);
 
-      // Then the result is a Just containing a present Optional of the new value
-      Maybe<Kind<OptionalKind.Witness, String>> maybeResult = MAYBE.narrow(result);
-      assertThat(maybeResult.isJust()).isTrue();
-      assertThat(OPTIONAL.narrow(maybeResult.get())).isEqualTo(Optional.of("Positive: 123"));
+      Maybe<Kind<OptionalKind.Witness, String>> maybe = MAYBE.narrow(result);
+      assertThat(maybe.isJust()).isTrue();
+      assertThatOptionalKind(maybe.get())
+          .isPresent()
+          .contains("Traversed:" + DEFAULT_PRESENT_VALUE);
     }
 
     @Test
-    @DisplayName("traverse should return Nothing when the function fails on a present Optional")
-    void traversePresentFails() {
-      // Given a present Optional with a value that will cause the function to fail
-      Kind<OptionalKind.Witness, Integer> input = OPTIONAL.widen(Optional.of(-1));
+    @DisplayName("traverse() on a present value with a failing function")
+    void traversePresentFailing() {
+      Function<Integer, Kind<MaybeKind.Witness, String>> failingFunc =
+          _ -> MAYBE.widen(Maybe.nothing());
 
-      // When we traverse it with a function that returns Nothing
       Kind<MaybeKind.Witness, Kind<OptionalKind.Witness, String>> result =
-          traverse.traverse(maybeApplicative, validatePositive, input);
+          traverse.traverse(maybeApplicative, failingFunc, presentKind);
 
-      // Then the result is Nothing
       assertThat(MAYBE.narrow(result).isNothing()).isTrue();
     }
 
     @Test
-    @DisplayName("traverse should do nothing to an empty Optional")
-    void traverseEmpty() {
-      // Given an empty Optional
-      Kind<OptionalKind.Witness, Integer> input = OPTIONAL.widen(Optional.empty());
-
-      // When we traverse it
+    @DisplayName("traverse() on empty lifts empty into the applicative context")
+    void traverseEmptyLiftsEmpty() {
       Kind<MaybeKind.Witness, Kind<OptionalKind.Witness, String>> result =
-          traverse.traverse(maybeApplicative, validatePositive, input);
+          traverse.traverse(maybeApplicative, validTraverseFunction, emptyKind);
 
-      // Then the result is a Just containing an empty Optional
-      Maybe<Kind<OptionalKind.Witness, String>> maybeResult = MAYBE.narrow(result);
-      assertThat(maybeResult.isJust()).isTrue();
-      assertThat(OPTIONAL.narrow(maybeResult.get())).isEqualTo(Optional.empty());
-    }
-  }
-
-  @Nested
-  @DisplayName("sequenceA method")
-  class SequenceATests {
-    @Test
-    @DisplayName("sequenceA should turn Optional<Just<A>> into Just<Optional<A>>")
-    void sequencePresentSucceeds() {
-      // Given an Optional containing a Just
-      final Kind<MaybeKind.Witness, Integer> maybeKind = MAYBE.widen(Maybe.just(42));
-      final Kind<OptionalKind.Witness, Kind<MaybeKind.Witness, Integer>> input =
-          OPTIONAL.widen(Optional.of(maybeKind));
-
-      // When we sequence it
-      Kind<MaybeKind.Witness, Kind<OptionalKind.Witness, Integer>> result =
-          traverse.sequenceA(maybeApplicative, input);
-
-      // Then the result is a Just containing an Optional
-      Maybe<Kind<OptionalKind.Witness, Integer>> maybeResult = MAYBE.narrow(result);
-      assertThat(maybeResult.isJust()).isTrue();
-      assertThat(OPTIONAL.narrow(maybeResult.get())).isEqualTo(Optional.of(42));
+      Maybe<Kind<OptionalKind.Witness, String>> maybe = MAYBE.narrow(result);
+      assertThat(maybe.isJust()).isTrue();
+      assertThatOptionalKind(maybe.get()).isEmpty();
     }
 
     @Test
-    @DisplayName("sequenceA should turn Optional<Nothing> into Nothing")
-    void sequencePresentFails() {
-      // Given an Optional containing a Nothing
-      final Kind<MaybeKind.Witness, Integer> maybeKind = MAYBE.widen(Maybe.nothing());
-      final Kind<OptionalKind.Witness, Kind<MaybeKind.Witness, Integer>> input =
-          OPTIONAL.widen(Optional.of(maybeKind));
-
-      // When we sequence it
-      Kind<MaybeKind.Witness, Kind<OptionalKind.Witness, Integer>> result =
-          traverse.sequenceA(maybeApplicative, input);
-
-      // Then the result is Nothing
-      assertThat(MAYBE.narrow(result).isNothing()).isTrue();
+    @DisplayName("foldMap() on a present value applies the function")
+    void foldMapOnPresentAppliesFunction() {
+      String result = traverse.foldMap(Monoids.string(), i -> "Value:" + i, presentKind);
+      assertThat(result).isEqualTo("Value:" + DEFAULT_PRESENT_VALUE);
     }
 
     @Test
-    @DisplayName("sequenceA should do nothing to an empty Optional")
-    void sequenceEmpty() {
-      // Given an empty Optional
-      final Kind<OptionalKind.Witness, Kind<MaybeKind.Witness, Integer>> input =
-          OPTIONAL.widen(Optional.empty());
-
-      // When we sequence it
-      Kind<MaybeKind.Witness, Kind<OptionalKind.Witness, Integer>> result =
-          traverse.sequenceA(maybeApplicative, input);
-
-      // Then the result is a Just containing an empty Optional
-      Maybe<Kind<OptionalKind.Witness, Integer>> maybeResult = MAYBE.narrow(result);
-      assertThat(maybeResult.isJust()).isTrue();
-      assertThat(OPTIONAL.narrow(maybeResult.get()).isEmpty()).isTrue();
-    }
-  }
-
-  @Nested
-  @DisplayName("foldMap method")
-  class FoldMapTests {
-    @Test
-    @DisplayName("foldMap on a present Optional should apply the function")
-    void foldMap_onPresent_shouldApplyFunction() {
-      Kind<OptionalKind.Witness, Integer> present = OPTIONAL.widen(Optional.of(5));
-      Monoid<Integer> sumMonoid = Monoids.integerAddition();
-
-      Integer result = foldable.foldMap(sumMonoid, i -> i * 10, present);
-
-      assertThat(result).isEqualTo(50);
-    }
-
-    @Test
-    @DisplayName("foldMap on an empty Optional should return the monoid's empty value")
-    void foldMap_onEmpty_shouldReturnMonoidEmpty() {
-      Kind<OptionalKind.Witness, Integer> empty = OPTIONAL.widen(Optional.empty());
-      Monoid<Integer> sumMonoid = Monoids.integerAddition();
-
-      Integer result = foldable.foldMap(sumMonoid, i -> i * 10, empty);
-
-      assertThat(result).isEqualTo(sumMonoid.empty());
-      assertThat(result).isZero();
-    }
-
-    @Test
-    @DisplayName("foldMap on an empty Optional with String monoid should return empty string")
-    void foldMap_onEmpty_withStringMonoid_shouldReturnEmptyString() {
-      Kind<OptionalKind.Witness, Integer> empty = OPTIONAL.widen(Optional.empty());
+    @DisplayName("foldMap() on empty returns monoid empty")
+    void foldMapOnEmptyReturnsEmpty() {
       Monoid<String> stringMonoid = Monoids.string();
-
-      String result = foldable.foldMap(stringMonoid, Object::toString, empty);
-
+      String result = traverse.foldMap(stringMonoid, i -> "Value:" + i, emptyKind);
       assertThat(result).isEqualTo(stringMonoid.empty());
       assertThat(result).isEmpty();
+    }
+
+    @Test
+    @DisplayName("map() applies the function to a present value")
+    void mapAppliesFunctionToPresent() {
+      Kind<OptionalKind.Witness, String> result = traverse.map(validMapper, presentKind);
+      assertThatOptionalKind(result).isPresent().contains(DEFAULT_PRESENT_VALUE.toString());
+    }
+
+    @Test
+    @DisplayName("map() preserves empty unchanged")
+    void mapPreservesEmpty() {
+      Kind<OptionalKind.Witness, String> result = traverse.map(validMapper, emptyKind);
+      assertThatOptionalKind(result).isEmpty();
+    }
+  }
+
+  @Nested
+  @DisplayName("Edge Cases Tests")
+  class EdgeCasesTests {
+
+    @Test
+    @DisplayName("traverse() with a conditional function")
+    void traverseWithConditionalFunction() {
+      Function<Integer, Kind<MaybeKind.Witness, String>> conditionalFunc =
+          i -> i > 50 ? MAYBE.widen(Maybe.just(i.toString())) : MAYBE.widen(Maybe.nothing());
+
+      // Should fail because DEFAULT_PRESENT_VALUE (42) <= 50
+      Kind<MaybeKind.Witness, Kind<OptionalKind.Witness, String>> failResult =
+          traverse.traverse(maybeApplicative, conditionalFunc, presentKind);
+      assertThat(MAYBE.narrow(failResult).isNothing()).isTrue();
+
+      // Should succeed with value > 50
+      Kind<OptionalKind.Witness, Integer> bigPresent = presentOf(100);
+      Kind<MaybeKind.Witness, Kind<OptionalKind.Witness, String>> successResult =
+          traverse.traverse(maybeApplicative, conditionalFunc, bigPresent);
+
+      Maybe<Kind<OptionalKind.Witness, String>> maybe = MAYBE.narrow(successResult);
+      assertThat(maybe.isJust()).isTrue();
+      assertThatOptionalKind(maybe.get()).isPresent().contains("100");
+    }
+
+    @Test
+    @DisplayName("foldMap() with different monoids")
+    void foldMapWithDifferentMonoids() {
+      Monoid<Integer> intAddition = Monoids.integerAddition();
+      assertThat(traverse.foldMap(intAddition, i -> i * 2, presentKind))
+          .isEqualTo(DEFAULT_PRESENT_VALUE * 2);
+      assertThat(traverse.foldMap(intAddition, i -> i * 2, emptyKind))
+          .isEqualTo(intAddition.empty());
+
+      Monoid<Boolean> andMonoid = Monoids.booleanAnd();
+      assertThat(traverse.foldMap(andMonoid, i -> i > 0, presentKind)).isTrue();
+    }
+
+    @Test
+    @DisplayName("sequenceA() turns present(Just<A>) into Just(present(A))")
+    void sequencePresentJustToJustPresent() {
+      Kind<MaybeKind.Witness, Integer> maybeKind = MAYBE.widen(Maybe.just(DEFAULT_PRESENT_VALUE));
+      Kind<OptionalKind.Witness, Kind<MaybeKind.Witness, Integer>> input = presentOf(maybeKind);
+
+      Kind<MaybeKind.Witness, Kind<OptionalKind.Witness, Integer>> result =
+          traverse.sequenceA(maybeApplicative, input);
+
+      Maybe<Kind<OptionalKind.Witness, Integer>> maybe = MAYBE.narrow(result);
+      assertThat(maybe.isJust()).isTrue();
+      assertThatOptionalKind(maybe.get()).isPresent().contains(DEFAULT_PRESENT_VALUE);
+    }
+
+    @Test
+    @DisplayName("sequenceA() turns present(Nothing) into Nothing")
+    void sequencePresentNothingToNothing() {
+      Kind<MaybeKind.Witness, Integer> maybeKind = MAYBE.widen(Maybe.nothing());
+      Kind<OptionalKind.Witness, Kind<MaybeKind.Witness, Integer>> input = presentOf(maybeKind);
+
+      Kind<MaybeKind.Witness, Kind<OptionalKind.Witness, Integer>> result =
+          traverse.sequenceA(maybeApplicative, input);
+
+      assertThat(MAYBE.narrow(result).isNothing()).isTrue();
+    }
+
+    @Test
+    @DisplayName("sequenceA() preserves empty values")
+    void sequenceEmptyPreservesEmpty() {
+      Kind<OptionalKind.Witness, Kind<MaybeKind.Witness, Integer>> emptyInput = emptyOptional();
+
+      Kind<MaybeKind.Witness, Kind<OptionalKind.Witness, Integer>> result =
+          traverse.sequenceA(maybeApplicative, emptyInput);
+
+      Maybe<Kind<OptionalKind.Witness, Integer>> maybe = MAYBE.narrow(result);
+      assertThat(maybe.isJust()).isTrue();
+      assertThatOptionalKind(maybe.get()).isEmpty();
+    }
+  }
+
+  @Nested
+  @DisplayName("Integration Tests")
+  class IntegrationTests {
+
+    @Test
+    @DisplayName("traverse() integrates with map")
+    void traverseIntegratesWithMap() {
+      Kind<OptionalKind.Witness, String> mapped = traverse.map(i -> "mapped:" + i, presentKind);
+
+      Function<String, Kind<MaybeKind.Witness, String>> traverseFunc =
+          s -> MAYBE.widen(Maybe.just(s.toUpperCase()));
+
+      Kind<MaybeKind.Witness, Kind<OptionalKind.Witness, String>> result =
+          traverse.traverse(maybeApplicative, traverseFunc, mapped);
+
+      Maybe<Kind<OptionalKind.Witness, String>> maybe = MAYBE.narrow(result);
+      assertThatOptionalKind(maybe.get()).isPresent().contains("MAPPED:" + DEFAULT_PRESENT_VALUE);
+    }
+
+    @Test
+    @DisplayName("traverse() integrates with foldMap")
+    void traverseIntegratesWithFoldMap() {
+      String folded = traverse.foldMap(Monoids.string(), i -> "fold:" + i, presentKind);
+      Kind<OptionalKind.Witness, String> foldedKind = presentOf(folded);
+
+      Function<String, Kind<MaybeKind.Witness, String>> traverseFunc =
+          s -> MAYBE.widen(Maybe.just("traversed:" + s));
+
+      Kind<MaybeKind.Witness, Kind<OptionalKind.Witness, String>> result =
+          traverse.traverse(maybeApplicative, traverseFunc, foldedKind);
+
+      Maybe<Kind<OptionalKind.Witness, String>> maybe = MAYBE.narrow(result);
+      assertThatOptionalKind(maybe.get())
+          .isPresent()
+          .contains("traversed:fold:" + DEFAULT_PRESENT_VALUE);
     }
   }
 }

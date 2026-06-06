@@ -192,7 +192,7 @@ class StreamMonadTest extends StreamTestBase {
     @Test
     @DisplayName("flatMap() handles function returning empty stream")
     void flatMapHandlesFunctionReturningEmptyStream() {
-      Function<Integer, Kind<StreamKind.Witness, String>> funcReturningEmpty = x -> emptyStream();
+      Function<Integer, Kind<StreamKind.Witness, String>> funcReturningEmpty = _ -> emptyStream();
       var input = streamOf(1, 2);
       var result = streamMonad.flatMap(funcReturningEmpty, input);
 
@@ -483,7 +483,7 @@ class StreamMonadTest extends StreamTestBase {
       var stream1 = streamOf(1, 2);
       Kind<StreamKind.Witness, String> emptyStreamString = emptyStream();
       var stream3 = STREAM.widen(Stream.of(1.0, 2.0));
-      Function3<Integer, String, Double, String> f3 = (i, s, d) -> "Should not execute";
+      Function3<Integer, String, Double, String> f3 = (_, _, _) -> "Should not execute";
 
       var result = streamMonad.map3(stream1, emptyStreamString, stream3, f3);
 
@@ -512,7 +512,7 @@ class StreamMonadTest extends StreamTestBase {
       var stream2 = STREAM.widen(Stream.of("a", "b"));
       var stream3 = STREAM.widen(Stream.of(1.0, 2.0));
       Kind<StreamKind.Witness, Boolean> emptyStreamBool = emptyStream();
-      Function4<Integer, String, Double, Boolean, String> f4 = (i, s, d, b) -> "Should not execute";
+      Function4<Integer, String, Double, Boolean, String> f4 = (_, _, _, _) -> "Should not execute";
 
       var result = streamMonad.map4(stream1, stream2, stream3, emptyStreamBool, f4);
 
@@ -546,7 +546,7 @@ class StreamMonadTest extends StreamTestBase {
     void filterWithAlwaysTrueIsIdentity() {
       Kind<StreamKind.Witness, Integer> input = streamOf(1, 2, 3);
 
-      var result = streamMonad.filter(x -> true, input);
+      var result = streamMonad.filter(_ -> true, input);
 
       assertThatStream(result).containsExactly(1, 2, 3);
     }
@@ -556,7 +556,7 @@ class StreamMonadTest extends StreamTestBase {
     void filterWithAlwaysFalseYieldsZero() {
       Kind<StreamKind.Witness, Integer> input = streamOf(1, 2, 3);
 
-      var result = streamMonad.filter(x -> false, input);
+      var result = streamMonad.filter(_ -> false, input);
 
       assertThatStream(result).isEmpty();
     }
@@ -596,6 +596,7 @@ class StreamMonadTest extends StreamTestBase {
 
     @Test
     @DisplayName("filter throws NullPointerException when predicate is null")
+    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
     void filterThrowsWhenPredicateIsNull() {
       Kind<StreamKind.Witness, Integer> input = streamOf(1, 2, 3);
 
@@ -605,8 +606,9 @@ class StreamMonadTest extends StreamTestBase {
 
     @Test
     @DisplayName("filter throws NullPointerException when ma is null")
+    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
     void filterThrowsWhenMaIsNull() {
-      org.assertj.core.api.Assertions.assertThatThrownBy(() -> streamMonad.filter(x -> true, null))
+      org.assertj.core.api.Assertions.assertThatThrownBy(() -> streamMonad.filter(_ -> true, null))
           .isInstanceOf(NullPointerException.class);
     }
   }

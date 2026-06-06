@@ -4,10 +4,11 @@ package org.higherkindedj.hkt.stream;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.higherkindedj.hkt.assertions.StreamAssert.assertThatStream;
+import static org.higherkindedj.hkt.instances.Witnesses.maybe;
+import static org.higherkindedj.hkt.maybe.MaybeKindHelper.MAYBE;
 import static org.higherkindedj.hkt.stream.StreamKindHelper.STREAM;
 
 import java.util.List;
-import java.util.Optional;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -17,10 +18,9 @@ import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Monoid;
 import org.higherkindedj.hkt.Monoids;
 import org.higherkindedj.hkt.Traverse;
-import org.higherkindedj.hkt.TypeArity;
-import org.higherkindedj.hkt.WitnessArity;
-import org.jspecify.annotations.NonNull;
-import org.junit.jupiter.api.BeforeEach;
+import org.higherkindedj.hkt.instances.Instances;
+import org.higherkindedj.hkt.maybe.Maybe;
+import org.higherkindedj.hkt.maybe.MaybeKind;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -28,99 +28,13 @@ import org.junit.jupiter.api.Test;
 @DisplayName("StreamTraverse Complete Test Suite")
 class StreamTraverseTest extends StreamTestBase {
 
-  private Traverse<StreamKind.Witness> streamTraverse;
-  private Foldable<StreamKind.Witness> streamFoldable;
+  private final Traverse<StreamKind.Witness> streamTraverse = StreamTraverse.INSTANCE;
+  private final Foldable<StreamKind.Witness> streamFoldable = StreamTraverse.INSTANCE;
 
-  @BeforeEach
-  void setUpTraverse() {
-    streamTraverse = StreamTraverse.INSTANCE;
-    streamFoldable = StreamTraverse.INSTANCE;
-  }
-
-  // --- Mock/Simple Optional HKT for Testing Traverse ---
-
-  /** HKT marker for TestOptional. Made non-generic. */
-  static final class TestOptionalKindWitness implements WitnessArity<TypeArity.Unary> {
-    private TestOptionalKindWitness() {}
-  }
-
-  /**
-   * HKT interface for our test Optional. Now uses the non-generic TestOptionalKindWitness marker.
-   */
-  interface TestOptional<A> extends Kind<TestOptionalKindWitness, A> {
-    Optional<A> getOptional();
-
-    static <A> TestOptional<A> narrow(Kind<TestOptionalKindWitness, A> kind) {
-      return (TestOptional<A>) kind;
-    }
-
-    static <A> TestOptional<A> some(A value) {
-      return new Some<>(value);
-    }
-
-    static <A> TestOptional<A> none() {
-      return None.instance();
-    }
-  }
-
-  record Some<A>(A value) implements TestOptional<A> {
-    @Override
-    public Optional<A> getOptional() {
-      return Optional.ofNullable(value);
-    }
-  }
-
-  static final class None<A> implements TestOptional<A> {
-    private static final None<?> INSTANCE = new None<>();
-
-    private None() {}
-
-    @SuppressWarnings("unchecked")
-    public static <A> None<A> instance() {
-      return (None<A>) INSTANCE;
-    }
-
-    @Override
-    public Optional<A> getOptional() {
-      return Optional.empty();
-    }
-  }
-
-  /**
-   * Applicative instance for TestOptional. Now uses the non-generic TestOptionalKindWitness marker.
-   */
-  static class TestOptionalApplicative implements Applicative<TestOptionalKindWitness> {
-    public static final TestOptionalApplicative INSTANCE = new TestOptionalApplicative();
-
-    private TestOptionalApplicative() {}
-
-    @Override
-    public <A> @NonNull Kind<TestOptionalKindWitness, A> of(A value) {
-      return TestOptional.some(value);
-    }
-
-    @Override
-    public <A, B> @NonNull Kind<TestOptionalKindWitness, B> map(
-        @NonNull Function<? super A, ? extends B> f, @NonNull Kind<TestOptionalKindWitness, A> fa) {
-      return TestOptional.narrow(fa)
-          .getOptional()
-          .map(f)
-          .map(TestOptional::some)
-          .orElseGet(TestOptional::none);
-    }
-
-    @Override
-    public <A, B> @NonNull Kind<TestOptionalKindWitness, B> ap(
-        @NonNull Kind<TestOptionalKindWitness, ? extends Function<A, B>> ff,
-        @NonNull Kind<TestOptionalKindWitness, A> fa) {
-      Optional<? extends Function<A, B>> optFunc = TestOptional.narrow(ff).getOptional();
-      Optional<A> optVal = TestOptional.narrow(fa).getOptional();
-
-      return optFunc.flatMap(optVal::map).map(TestOptional::some).orElseGet(TestOptional::none);
-    }
-  }
-
-  // --- End of Mock Optional HKT ---
+  // The applicative effect threaded through traverse is the real Maybe (its just/nothing
+  // short-circuit semantics are exactly what traverse must respect), matching every other
+  // *TraverseTest in the codebase.
+  private final Applicative<MaybeKind.Witness> maybeApplicative = Instances.monadError(maybe());
 
   @Nested
   @DisplayName("map method")
@@ -159,27 +73,22 @@ class StreamTraverseTest extends StreamTestBase {
   @Nested
   @DisplayName("traverse method")
   class TraverseTests {
-    private final Applicative<TestOptionalKindWitness> optionalApplicative =
-        TestOptionalApplicative.INSTANCE;
+    private final Function<Integer, Kind<MaybeKind.Witness, String>> intToJustString =
+        i -> MAYBE.widen(Maybe.just("v" + i));
 
-    Function<Integer, Kind<TestOptionalKindWitness, String>> intToOptionalStringKind =
-        i -> TestOptional.some("v" + i);
-
-    Function<Integer, Kind<TestOptionalKindWitness, Integer>> intToOptionalIntSometimesNoneKind =
-        i -> (i % 2 == 0) ? TestOptional.none() : TestOptional.some(i * 3);
+    private final Function<Integer, Kind<MaybeKind.Witness, Integer>> intToMaybeSometimesNothing =
+        i -> (i % 2 == 0) ? MAYBE.widen(Maybe.nothing()) : MAYBE.widen(Maybe.just(i * 3));
 
     @Test
     @DisplayName("traverse() on empty stream returns applicative of empty stream")
     void traverseEmptyStreamReturnsApplicativeOfEmptyStream() {
       Kind<StreamKind.Witness, Integer> emptyStreamKind = emptyStream();
 
-      var resultKind =
-          streamTraverse.traverse(optionalApplicative, intToOptionalStringKind, emptyStreamKind);
+      var resultKind = streamTraverse.traverse(maybeApplicative, intToJustString, emptyStreamKind);
 
-      Optional<Kind<StreamKind.Witness, String>> resultOptional =
-          TestOptional.narrow(resultKind).getOptional();
-      assertThat(resultOptional).isPresent();
-      assertThatStream(resultOptional.get()).isEmpty();
+      Maybe<Kind<StreamKind.Witness, String>> maybe = MAYBE.narrow(resultKind);
+      assertThat(maybe.isJust()).isTrue();
+      assertThatStream(maybe.get()).isEmpty();
     }
 
     @Test
@@ -187,28 +96,23 @@ class StreamTraverseTest extends StreamTestBase {
     void traverseAllEffectsSucceedReturnsStreamOfResults() {
       var inputStream = streamOf(1, 2, 3);
 
-      var resultKind =
-          streamTraverse.traverse(optionalApplicative, intToOptionalStringKind, inputStream);
+      var resultKind = streamTraverse.traverse(maybeApplicative, intToJustString, inputStream);
 
-      Optional<Kind<StreamKind.Witness, String>> resultOptional =
-          TestOptional.narrow(resultKind).getOptional();
-      assertThat(resultOptional).isPresent();
-      assertThatStream(resultOptional.get()).containsExactly("v1", "v2", "v3");
+      Maybe<Kind<StreamKind.Witness, String>> maybe = MAYBE.narrow(resultKind);
+      assertThat(maybe.isJust()).isTrue();
+      assertThatStream(maybe.get()).containsExactly("v1", "v2", "v3");
     }
 
     @Test
-    @DisplayName("traverse() with one effect failing returns none")
-    void traverseOneEffectFailsReturnsNone() {
+    @DisplayName("traverse() with one effect failing returns nothing")
+    void traverseOneEffectFailsReturnsNothing() {
       var inputStream = streamOf(1, 2, 3);
 
       var resultKind =
-          streamTraverse.traverse(
-              optionalApplicative, intToOptionalIntSometimesNoneKind, inputStream);
+          streamTraverse.traverse(maybeApplicative, intToMaybeSometimesNothing, inputStream);
 
-      Optional<Kind<StreamKind.Witness, Integer>> resultOptional =
-          TestOptional.narrow(resultKind).getOptional();
-      // Should be None because element 2 fails
-      assertThat(resultOptional).isEmpty();
+      // Should be Nothing because element 2 fails
+      assertThat(MAYBE.narrow(resultKind).isNothing()).isTrue();
     }
 
     @Test
@@ -217,13 +121,8 @@ class StreamTraverseTest extends StreamTestBase {
       Stream<Integer> stream = Stream.of(1, 2, 3);
       Kind<StreamKind.Witness, Integer> streamKind = STREAM.widen(stream);
 
-      // Traverse consumes the stream
-      streamTraverse.traverse(optionalApplicative, intToOptionalStringKind, streamKind);
-
-      // Attempting to use the original stream should fail
-      // Note: We can't directly test this with the wrapped stream, but we can verify
-      // that a second traverse would fail if we tried to reuse it
-      // This is more of a documentation point than a test
+      // Traverse consumes the stream; this documents the single-consumption semantics.
+      streamTraverse.traverse(maybeApplicative, intToJustString, streamKind);
     }
 
     @Test
@@ -233,13 +132,11 @@ class StreamTraverseTest extends StreamTestBase {
       Kind<StreamKind.Witness, Integer> limitedInfinite =
           STREAM.widen(Stream.iterate(1, n -> n + 1).limit(10));
 
-      var resultKind =
-          streamTraverse.traverse(optionalApplicative, intToOptionalStringKind, limitedInfinite);
+      var resultKind = streamTraverse.traverse(maybeApplicative, intToJustString, limitedInfinite);
 
-      Optional<Kind<StreamKind.Witness, String>> resultOptional =
-          TestOptional.narrow(resultKind).getOptional();
-      assertThat(resultOptional).isPresent();
-      assertThatStream(resultOptional.get())
+      Maybe<Kind<StreamKind.Witness, String>> maybe = MAYBE.narrow(resultKind);
+      assertThat(maybe.isJust()).isTrue();
+      assertThatStream(maybe.get())
           .hasSize(10)
           .containsExactly("v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8", "v9", "v10");
     }
@@ -248,52 +145,47 @@ class StreamTraverseTest extends StreamTestBase {
   @Nested
   @DisplayName("sequenceA method")
   class SequenceATests {
-    private final Applicative<TestOptionalKindWitness> optionalApplicative =
-        TestOptionalApplicative.INSTANCE;
 
     @Test
     @DisplayName("sequenceA() on empty stream returns applicative of empty stream")
     void sequenceAEmptyStreamReturnsApplicativeOfEmptyStream() {
-      Kind<StreamKind.Witness, Kind<TestOptionalKindWitness, String>> emptyStreamOfOptionals =
-          emptyStream();
+      Kind<StreamKind.Witness, Kind<MaybeKind.Witness, String>> emptyStreamOfMaybes = emptyStream();
 
-      var result = streamTraverse.sequenceA(optionalApplicative, emptyStreamOfOptionals);
+      var result = streamTraverse.sequenceA(maybeApplicative, emptyStreamOfMaybes);
 
-      Optional<Kind<StreamKind.Witness, String>> resultOptional =
-          TestOptional.narrow(result).getOptional();
-      assertThat(resultOptional).isPresent();
-      assertThatStream(resultOptional.get()).isEmpty();
+      Maybe<Kind<StreamKind.Witness, String>> maybe = MAYBE.narrow(result);
+      assertThat(maybe.isJust()).isTrue();
+      assertThatStream(maybe.get()).isEmpty();
     }
 
     @Test
-    @DisplayName("sequenceA() with all some returns some of stream")
-    void sequenceAAllSomeReturnsSomeOfStream() {
-      Stream<Kind<TestOptionalKindWitness, Integer>> stream =
-          Stream.of(TestOptional.some(1), TestOptional.some(2), TestOptional.some(3));
-      Kind<StreamKind.Witness, Kind<TestOptionalKindWitness, Integer>> streamOfOptionals =
+    @DisplayName("sequenceA() with all just returns just of stream")
+    void sequenceAAllJustReturnsJustOfStream() {
+      Stream<Kind<MaybeKind.Witness, Integer>> stream =
+          Stream.of(
+              MAYBE.widen(Maybe.just(1)), MAYBE.widen(Maybe.just(2)), MAYBE.widen(Maybe.just(3)));
+      Kind<StreamKind.Witness, Kind<MaybeKind.Witness, Integer>> streamOfMaybes =
           STREAM.widen(stream);
 
-      var result = streamTraverse.sequenceA(optionalApplicative, streamOfOptionals);
+      var result = streamTraverse.sequenceA(maybeApplicative, streamOfMaybes);
 
-      Optional<Kind<StreamKind.Witness, Integer>> resultOptional =
-          TestOptional.narrow(result).getOptional();
-      assertThat(resultOptional).isPresent();
-      assertThatStream(resultOptional.get()).containsExactly(1, 2, 3);
+      Maybe<Kind<StreamKind.Witness, Integer>> maybe = MAYBE.narrow(result);
+      assertThat(maybe.isJust()).isTrue();
+      assertThatStream(maybe.get()).containsExactly(1, 2, 3);
     }
 
     @Test
-    @DisplayName("sequenceA() with none returns none")
-    void sequenceAContainsNoneReturnsNone() {
-      Stream<Kind<TestOptionalKindWitness, Integer>> stream =
-          Stream.of(TestOptional.some(1), TestOptional.none(), TestOptional.some(3));
-      Kind<StreamKind.Witness, Kind<TestOptionalKindWitness, Integer>> streamOfOptionals =
+    @DisplayName("sequenceA() with nothing returns nothing")
+    void sequenceAContainsNothingReturnsNothing() {
+      Stream<Kind<MaybeKind.Witness, Integer>> stream =
+          Stream.of(
+              MAYBE.widen(Maybe.just(1)), MAYBE.widen(Maybe.nothing()), MAYBE.widen(Maybe.just(3)));
+      Kind<StreamKind.Witness, Kind<MaybeKind.Witness, Integer>> streamOfMaybes =
           STREAM.widen(stream);
 
-      var result = streamTraverse.sequenceA(optionalApplicative, streamOfOptionals);
+      var result = streamTraverse.sequenceA(maybeApplicative, streamOfMaybes);
 
-      Optional<Kind<StreamKind.Witness, Integer>> resultOptional =
-          TestOptional.narrow(result).getOptional();
-      assertThat(resultOptional).isEmpty();
+      assertThat(MAYBE.narrow(result).isNothing()).isTrue();
     }
   }
 
@@ -365,19 +257,25 @@ class StreamTraverseTest extends StreamTestBase {
       Kind<StreamKind.Witness, Integer> streamKind = STREAM.widen(stream);
       Monoid<Integer> sumMonoid = Monoids.integerAddition();
 
-      // First fold
+      // First fold consumes the stream; this documents the single-consumption semantics.
       streamFoldable.foldMap(sumMonoid, Function.identity(), streamKind);
-
-      // Stream is consumed, can't be reused
-      // (This is a documentation point - the stream is already consumed)
     }
   }
 
   @Nested
   @DisplayName("Integration tests")
   class IntegrationTests {
-    private final Applicative<TestOptionalKindWitness> optionalApplicative =
-        TestOptionalApplicative.INSTANCE;
+
+    private Function<String, Kind<MaybeKind.Witness, Integer>> validateAndParse() {
+      return str -> {
+        try {
+          int value = Integer.parseInt(str);
+          return value > 0 ? MAYBE.widen(Maybe.just(value)) : MAYBE.widen(Maybe.nothing());
+        } catch (NumberFormatException e) {
+          return MAYBE.widen(Maybe.nothing());
+        }
+      };
+    }
 
     @Test
     @DisplayName("Real-world example: validate and process stream pipeline")
@@ -386,29 +284,16 @@ class StreamTraverseTest extends StreamTestBase {
       Stream<String> userInputs = Stream.of("10", "20", "30", "40");
       Kind<StreamKind.Witness, String> inputStream = STREAM.widen(userInputs);
 
-      // Validation function that parses and validates
-      Function<String, Kind<TestOptionalKindWitness, Integer>> validateAndParse =
-          str -> {
-            try {
-              int value = Integer.parseInt(str);
-              return value > 0 ? TestOptional.some(value) : TestOptional.none();
-            } catch (NumberFormatException e) {
-              return TestOptional.none();
-            }
-          };
-
       // Traverse: validate all inputs
-      var validated = streamTraverse.traverse(optionalApplicative, validateAndParse, inputStream);
+      var validated = streamTraverse.traverse(maybeApplicative, validateAndParse(), inputStream);
 
-      // All valid, should get Some(stream of integers)
-      Optional<Kind<StreamKind.Witness, Integer>> resultOptional =
-          TestOptional.narrow(validated).getOptional();
-      assertThat(resultOptional).isPresent();
+      // All valid, should get Just(stream of integers)
+      Maybe<Kind<StreamKind.Witness, Integer>> maybe = MAYBE.narrow(validated);
+      assertThat(maybe.isJust()).isTrue();
 
       // Now fold the validated stream
-      Kind<StreamKind.Witness, Integer> validatedStream = resultOptional.get();
       Monoid<Integer> sumMonoid = Monoids.integerAddition();
-      Integer sum = streamFoldable.foldMap(sumMonoid, Function.identity(), validatedStream);
+      Integer sum = streamFoldable.foldMap(sumMonoid, Function.identity(), maybe.get());
 
       assertThat(sum).isEqualTo(100); // 10 + 20 + 30 + 40
     }
@@ -420,22 +305,10 @@ class StreamTraverseTest extends StreamTestBase {
       Stream<String> userInputs = Stream.of("10", "abc", "30");
       Kind<StreamKind.Witness, String> inputStream = STREAM.widen(userInputs);
 
-      Function<String, Kind<TestOptionalKindWitness, Integer>> validateAndParse =
-          str -> {
-            try {
-              int value = Integer.parseInt(str);
-              return value > 0 ? TestOptional.some(value) : TestOptional.none();
-            } catch (NumberFormatException e) {
-              return TestOptional.none();
-            }
-          };
-
-      var validated = streamTraverse.traverse(optionalApplicative, validateAndParse, inputStream);
+      var validated = streamTraverse.traverse(maybeApplicative, validateAndParse(), inputStream);
 
       // Should fail due to "abc"
-      Optional<Kind<StreamKind.Witness, Integer>> resultOptional =
-          TestOptional.narrow(validated).getOptional();
-      assertThat(resultOptional).isEmpty();
+      assertThat(MAYBE.narrow(validated).isNothing()).isTrue();
     }
   }
 }

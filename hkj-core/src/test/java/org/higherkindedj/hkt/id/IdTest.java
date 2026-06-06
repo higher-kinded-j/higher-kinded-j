@@ -31,6 +31,7 @@ class IdTest {
 
   @Test
   @DisplayName("flatMap rejects a null function")
+  @SuppressWarnings({"DataFlowIssue", "ConstantValue"}) // null passed to verify rejection
   void flatMapRejectsNullFunction() {
     Function<Integer, Id<String>> nullFn = null;
     assertThatThrownBy(() -> Id.of(1).flatMap(nullFn)).isInstanceOf(NullPointerException.class);
@@ -38,8 +39,9 @@ class IdTest {
 
   @Test
   @DisplayName("flatMap rejects a function that returns a null Id")
+  @SuppressWarnings("DataFlowIssue") // the mapper deliberately returns null
   void flatMapRejectsNullResult() {
-    Function<Integer, Id<String>> nullReturning = i -> null;
+    Function<Integer, Id<String>> nullReturning = _ -> null;
     assertThatThrownBy(() -> Id.of(1).flatMap(nullReturning))
         .isInstanceOf(KindUnwrapException.class)
         .hasMessageContaining("returned null");

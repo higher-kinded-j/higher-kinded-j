@@ -6,10 +6,9 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.higherkindedj.hkt.coyoneda.CoyonedaKindHelper.COYONEDA;
 import static org.higherkindedj.hkt.maybe.MaybeKindHelper.MAYBE;
 
-import java.util.Objects;
-import java.util.function.BiPredicate;
 import java.util.function.Function;
 import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.laws.FunctorLaws;
 import org.higherkindedj.hkt.maybe.MaybeFunctor;
 import org.higherkindedj.hkt.maybe.MaybeKind;
 import org.higherkindedj.hkt.test.contract.Category;
@@ -18,26 +17,44 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.MethodSource;
 
 /**
- * Test suite for {@link CoyonedaFunctor} using the TypeClassTest API.
+ * Test suite for {@link CoyonedaFunctor}.
  *
- * <p>Tests verify that CoyonedaFunctor satisfies all Functor laws and operations.
+ * <p>Verifies the Functor operations and laws; the laws are driven by the shipped {@link
+ * FunctorLaws} over {@link CoyonedaLawFixtures}.
  */
 @DisplayName("CoyonedaFunctor Tests")
 class CoyonedaFunctorTest {
 
+  private static final MaybeFunctor MAYBE_FUNCTOR = MaybeFunctor.INSTANCE;
+
   private CoyonedaFunctor<MaybeKind.Witness> functor;
   private Kind<CoyonedaKind.Witness<MaybeKind.Witness>, Integer> validKind;
   private Function<Integer, String> mapper;
-
-  private static final MaybeFunctor MAYBE_FUNCTOR = MaybeFunctor.INSTANCE;
 
   @BeforeEach
   void setUp() {
     functor = new CoyonedaFunctor<>();
     validKind = COYONEDA.lift(MAYBE.just(42));
     mapper = x -> "value:" + x;
+  }
+
+  /**
+   * Coyoneda fuses maps — the mapper is only applied at {@code lower()} time — so {@link
+   * Category#EXCEPTIONS} is omitted (a thrown mapper does not surface until the value is lowered).
+   * The Functor laws are verified in the {@code FunctorLawTests} block below.
+   */
+  @Test
+  @DisplayName("Functor contract — operations & validations")
+  void functorContract() {
+    TypeClassContract.<CoyonedaKind.Witness<MaybeKind.Witness>>functor(CoyonedaFunctor.class)
+        .<Integer>instance(functor)
+        .<String>withKind(validKind)
+        .withMapper(mapper)
+        .verifyOnly(Category.OPERATIONS, Category.VALIDATIONS);
   }
 
   @Nested
@@ -86,114 +103,20 @@ class CoyonedaFunctorTest {
 
   @Nested
   @DisplayName("Functor Laws")
-  class FunctorLawsTests {
+  class FunctorLawTests {
+    final Function<Integer, String> f = Object::toString;
+    final Function<String, String> g = s -> s + "!";
 
-    private BiPredicate<
-            Kind<CoyonedaKind.Witness<MaybeKind.Witness>, ?>,
-            Kind<CoyonedaKind.Witness<MaybeKind.Witness>, ?>>
-        equalityChecker;
-
-    @BeforeEach
-    void setUpEquality() {
-      equalityChecker =
-          (k1, k2) -> {
-            Coyoneda<MaybeKind.Witness, ?> c1 = COYONEDA.narrow(k1);
-            Coyoneda<MaybeKind.Witness, ?> c2 = COYONEDA.narrow(k2);
-
-            var r1 = MAYBE.narrow(c1.lower(MAYBE_FUNCTOR));
-            var r2 = MAYBE.narrow(c2.lower(MAYBE_FUNCTOR));
-
-            if (r1.isNothing() && r2.isNothing()) {
-              return true;
-            }
-            if (r1.isJust() && r2.isJust()) {
-              return Objects.equals(r1.get(), r2.get());
-            }
-            return false;
-          };
+    @ParameterizedTest(name = "identity holds on {0}")
+    @MethodSource("org.higherkindedj.hkt.coyoneda.CoyonedaLawFixtures#kinds")
+    void identity(String label, Kind<CoyonedaKind.Witness<MaybeKind.Witness>, Integer> fa) {
+      FunctorLaws.assertIdentity(functor, fa, CoyonedaLawFixtures.EQ);
     }
 
-    @Test
-    @DisplayName("Identity law: map(id, fa) == fa")
-    void identityLaw() {
-      Kind<CoyonedaKind.Witness<MaybeKind.Witness>, Integer> mapped =
-          functor.map(Function.identity(), validKind);
-
-      assertThat(equalityChecker.test(validKind, mapped)).isTrue();
-    }
-
-    @Test
-    @DisplayName("Composition law: map(g, map(f, fa)) == map(g.compose(f), fa)")
-    void compositionLaw() {
-      Function<Integer, Integer> f = x -> x + 1;
-      Function<Integer, String> g = Object::toString;
-
-      Kind<CoyonedaKind.Witness<MaybeKind.Witness>, String> chained =
-          functor.map(g, functor.map(f, validKind));
-
-      Kind<CoyonedaKind.Witness<MaybeKind.Witness>, String> composed =
-          functor.map(f.andThen(g), validKind);
-
-      assertThat(equalityChecker.test(chained, composed)).isTrue();
-    }
-  }
-
-  @Nested
-  @DisplayName("TypeClassTest Integration")
-  class TypeClassTestIntegration {
-
-    @Test
-    @DisplayName("Passes Functor operations test")
-    void passesFunctorOperationsTest() {
-      TypeClassContract.<CoyonedaKind.Witness<MaybeKind.Witness>>functor(CoyonedaFunctor.class)
-          .<Integer>instance(functor)
-          .<String>withKind(validKind)
-          .withMapper(mapper)
-          .verifyOnly(Category.OPERATIONS);
-    }
-
-    @Test
-    @DisplayName("Passes Functor validations test")
-    void passesFunctorValidationsTest() {
-      TypeClassContract.<CoyonedaKind.Witness<MaybeKind.Witness>>functor(CoyonedaFunctor.class)
-          .<Integer>instance(functor)
-          .<String>withKind(validKind)
-          .withMapper(mapper)
-          .verifyOnly(Category.VALIDATIONS);
-    }
-
-    @Test
-    @DisplayName("Passes Functor laws test")
-    void passesFunctorLawsTest() {
-      BiPredicate<
-              Kind<CoyonedaKind.Witness<MaybeKind.Witness>, ?>,
-              Kind<CoyonedaKind.Witness<MaybeKind.Witness>, ?>>
-          eqChecker =
-              (k1, k2) -> {
-                Coyoneda<MaybeKind.Witness, ?> c1 = COYONEDA.narrow(k1);
-                Coyoneda<MaybeKind.Witness, ?> c2 = COYONEDA.narrow(k2);
-
-                var r1 = MAYBE.narrow(c1.lower(MAYBE_FUNCTOR));
-                var r2 = MAYBE.narrow(c2.lower(MAYBE_FUNCTOR));
-
-                if (r1.isNothing() && r2.isNothing()) {
-                  return true;
-                }
-                if (r1.isJust() && r2.isJust()) {
-                  return Objects.equals(r1.get(), r2.get());
-                }
-                return false;
-              };
-
-      Function<String, String> secondMapper = s -> s + "!";
-
-      TypeClassContract.<CoyonedaKind.Witness<MaybeKind.Witness>>functor(CoyonedaFunctor.class)
-          .<Integer>instance(functor)
-          .<String>withKind(validKind)
-          .withMapper(mapper)
-          .withSecondMapper(secondMapper)
-          .withEqualityChecker(eqChecker)
-          .verifyOnly(Category.LAWS);
+    @ParameterizedTest(name = "composition holds on {0}")
+    @MethodSource("org.higherkindedj.hkt.coyoneda.CoyonedaLawFixtures#kinds")
+    void composition(String label, Kind<CoyonedaKind.Witness<MaybeKind.Witness>, Integer> fa) {
+      FunctorLaws.assertComposition(functor, fa, f, g, CoyonedaLawFixtures.EQ);
     }
   }
 }

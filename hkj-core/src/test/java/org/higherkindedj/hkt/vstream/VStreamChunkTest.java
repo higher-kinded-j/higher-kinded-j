@@ -96,7 +96,7 @@ class VStreamChunkTest {
       AtomicInteger pullCount = new AtomicInteger(0);
 
       VStream<Integer> stream =
-          VStream.iterate(1, n -> n + 1).peek(n -> pullCount.incrementAndGet());
+          VStream.iterate(1, n -> n + 1).peek(_ -> pullCount.incrementAndGet());
 
       // Take 2 chunks of size 3, so we should pull exactly 6 elements
       VStream<List<Integer>> chunked = stream.chunk(3).take(2);
@@ -256,6 +256,7 @@ class VStreamChunkTest {
 
     @Test
     @DisplayName("chunkWhile() with null predicate throws NullPointerException")
+    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
     void chunkWhileWithNullPredicateThrows() {
       VStream<Integer> stream = VStream.of(1, 2, 3);
 
@@ -334,6 +335,7 @@ class VStreamChunkTest {
 
     @Test
     @DisplayName("mapChunked() with null function throws NullPointerException")
+    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
     void mapChunkedWithNullFunctionThrows() {
       VStream<Integer> stream = VStream.of(1, 2, 3);
 

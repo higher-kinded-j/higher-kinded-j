@@ -59,12 +59,14 @@ class EitherFTest {
 
     @Test
     @DisplayName("left() with null throws NullPointerException")
+    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
     void leftWithNullThrows() {
       assertThatThrownBy(() -> EitherF.left(null)).isInstanceOf(NullPointerException.class);
     }
 
     @Test
     @DisplayName("right() with null throws NullPointerException")
+    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
     void rightWithNullThrows() {
       assertThatThrownBy(() -> EitherF.right(null)).isInstanceOf(NullPointerException.class);
     }
@@ -133,21 +135,23 @@ class EitherFTest {
 
     @Test
     @DisplayName("fold() with null onLeft throws NullPointerException")
+    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
     void foldWithNullOnLeftThrows() {
       EitherF<IdentityKind.Witness, MaybeKind.Witness, String> eitherF =
           EitherF.left(identityOp("test"));
 
-      assertThatThrownBy(() -> eitherF.fold(null, right -> "right"))
+      assertThatThrownBy(() -> eitherF.fold(null, _ -> "right"))
           .isInstanceOf(NullPointerException.class);
     }
 
     @Test
     @DisplayName("fold() with null onRight throws NullPointerException")
+    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
     void foldWithNullOnRightThrows() {
       EitherF<IdentityKind.Witness, MaybeKind.Witness, String> eitherF =
           EitherF.left(identityOp("test"));
 
-      assertThatThrownBy(() -> eitherF.fold(left -> "left", null))
+      assertThatThrownBy(() -> eitherF.fold(_ -> "left", null))
           .isInstanceOf(NullPointerException.class);
     }
   }
@@ -213,6 +217,7 @@ class EitherFTest {
 
     @Test
     @DisplayName("widen(null) throws NullPointerException")
+    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
     void widenNullThrows() {
       assertThatThrownBy(() -> EitherFKindHelper.EITHERF.widen(null))
           .isInstanceOf(NullPointerException.class);
@@ -220,6 +225,7 @@ class EitherFTest {
 
     @Test
     @DisplayName("narrow(null) throws NullPointerException")
+    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
     void narrowNullThrows() {
       assertThatThrownBy(
               () ->

@@ -7,6 +7,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.higherkindedj.hkt.instances.Witnesses.*;
 import static org.higherkindedj.hkt.writer_t.WriterTKindHelper.WRITER_T;
 
+import java.util.function.BiFunction;
 import java.util.function.BiPredicate;
 import java.util.function.Function;
 import org.higherkindedj.hkt.Kind;
@@ -23,26 +24,19 @@ import org.higherkindedj.hkt.instances.Instances;
 import org.higherkindedj.hkt.laws.ApplicativeLaws;
 import org.higherkindedj.hkt.laws.FunctorLaws;
 import org.higherkindedj.hkt.laws.MonadLaws;
+import org.higherkindedj.hkt.test.contract.Category;
+import org.higherkindedj.hkt.test.contract.TypeClassContract;
+import org.higherkindedj.hkt.typeclass.StringMonoid;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.MethodSource;
 
 @DisplayName("WriterTMonad Test Suite")
 class WriterTMonadTest {
 
-  /** String monoid with concatenation. */
-  private static final Monoid<String> STRING_MONOID =
-      new Monoid<>() {
-        @Override
-        public String empty() {
-          return "";
-        }
-
-        @Override
-        public String combine(String a, String b) {
-          return a + b;
-        }
-      };
+  private static final Monoid<String> STRING_MONOID = new StringMonoid();
 
   private final Monad<IdKind.Witness> idMonad = Instances.monad(id());
   private final MonadWriter<WriterTKind.Witness<IdKind.Witness, String>, String> writerMonad =
@@ -53,6 +47,36 @@ class WriterTMonadTest {
     WriterT<IdKind.Witness, String, A> writerT = WRITER_T.narrow(kind);
     Id<Pair<A, String>> id = IdKindHelper.ID.narrow(writerT.run());
     return id.value();
+  }
+
+  // Shared law equality: run/unwrap to Id<Pair<value, log>> and compare.
+  private final BiPredicate<
+          Kind<WriterTKind.Witness<IdKind.Witness, String>, ?>,
+          Kind<WriterTKind.Witness<IdKind.Witness, String>, ?>>
+      eq = KindEquivalence.byEqualsAfter(this::run);
+
+  /**
+   * WriterT over the eager {@code Id} inner monad applies functions eagerly and <em>propagates</em>
+   * a thrown function exception, so the contract includes all three categories (laws themselves are
+   * verified in the {@code *LawTests} blocks below).
+   */
+  @Test
+  @DisplayName("Monad contract — operations, validations & exceptions")
+  void monadContract() {
+    Kind<WriterTKind.Witness<IdKind.Witness, String>, Integer> validKind = writerMonad.of(10);
+    Kind<WriterTKind.Witness<IdKind.Witness, String>, Integer> validKind2 = writerMonad.of(20);
+    Function<Integer, String> validMapper = Object::toString;
+    Function<Integer, Kind<WriterTKind.Witness<IdKind.Witness, String>, String>> validFlatMapper =
+        i -> writerMonad.of("v" + i);
+    Kind<WriterTKind.Witness<IdKind.Witness, String>, Function<Integer, String>> validFunctionKind =
+        writerMonad.of(validMapper);
+    BiFunction<Integer, Integer, String> validCombiningFunction = (a, b) -> a + "+" + b;
+    TypeClassContract.<WriterTKind.Witness<IdKind.Witness, String>>monad(WriterTMonad.class)
+        .<Integer>instance(writerMonad)
+        .<String>withKind(validKind)
+        .withMonadOperations(
+            validKind2, validMapper, validFlatMapper, validFunctionKind, validCombiningFunction)
+        .verifyOnly(Category.OPERATIONS, Category.VALIDATIONS, Category.EXCEPTIONS);
   }
 
   @Nested
@@ -70,6 +94,7 @@ class WriterTMonadTest {
 
     @Test
     @DisplayName("of with null should work")
+    @SuppressWarnings("DataFlowIssue") // of(null) deliberately wraps a null value
     void of_withNull() {
       var result = writerMonad.of(null);
       var pair = run(result);
@@ -140,10 +165,9 @@ class WriterTMonadTest {
     @Test
     @DisplayName("ap should apply function and combine output")
     void ap_shouldApplyAndCombine() {
+      Function<Integer, String> vFunc = x -> "v" + x;
       Kind<WriterTKind.Witness<IdKind.Witness, String>, Function<Integer, String>> ff =
-          writerMonad.flatMap(
-              _ -> writerMonad.of((Function<Integer, String>) (x -> "v" + x)),
-              writerMonad.tell("func,"));
+          writerMonad.flatMap(_ -> writerMonad.of(vFunc), writerMonad.tell("func,"));
       var fa = writerMonad.flatMap(_ -> writerMonad.of(42), writerMonad.tell("arg,"));
 
       var result = writerMonad.ap(ff, fa);
@@ -299,23 +323,18 @@ class WriterTMonadTest {
   @Nested
   @DisplayName("Functor Laws")
   class FunctorLawTests {
-    final Kind<WriterTKind.Witness<IdKind.Witness, String>, Integer> fa = writerMonad.of(5);
     final Function<Integer, String> f = Object::toString;
     final Function<String, String> g = s -> s + "!";
-    final BiPredicate<
-            Kind<WriterTKind.Witness<IdKind.Witness, String>, ?>,
-            Kind<WriterTKind.Witness<IdKind.Witness, String>, ?>>
-        eq = KindEquivalence.byEqualsAfter(WriterTMonadTest.this::run);
 
-    @Test
-    @DisplayName("Identity: map(id, fa) == fa")
-    void identity() {
+    @ParameterizedTest(name = "identity holds on {0}")
+    @MethodSource("org.higherkindedj.hkt.writer_t.WriterTLawFixtures#kinds")
+    void identity(String label, Kind<WriterTKind.Witness<IdKind.Witness, String>, Integer> fa) {
       FunctorLaws.assertIdentity(writerMonad, fa, eq);
     }
 
-    @Test
-    @DisplayName("Composition: map(g∘f, fa) == map(g, map(f, fa))")
-    void composition() {
+    @ParameterizedTest(name = "composition holds on {0}")
+    @MethodSource("org.higherkindedj.hkt.writer_t.WriterTLawFixtures#kinds")
+    void composition(String label, Kind<WriterTKind.Witness<IdKind.Witness, String>, Integer> fa) {
       FunctorLaws.assertComposition(writerMonad, fa, f, g, eq);
     }
   }
@@ -323,40 +342,34 @@ class WriterTMonadTest {
   @Nested
   @DisplayName("Applicative Laws")
   class ApplicativeLawTests {
-    final int value = 5;
     final Function<Integer, String> f = Object::toString;
     final Function<String, String> g = s -> s + "!";
     final Kind<WriterTKind.Witness<IdKind.Witness, String>, Function<Integer, String>> u =
         writerMonad.of(f);
     final Kind<WriterTKind.Witness<IdKind.Witness, String>, Function<String, String>> uG =
         writerMonad.of(g);
-    final Kind<WriterTKind.Witness<IdKind.Witness, String>, Integer> w = writerMonad.of(value);
-    final BiPredicate<
-            Kind<WriterTKind.Witness<IdKind.Witness, String>, ?>,
-            Kind<WriterTKind.Witness<IdKind.Witness, String>, ?>>
-        eq = KindEquivalence.byEqualsAfter(WriterTMonadTest.this::run);
 
-    @Test
-    @DisplayName("Identity: ap(of(id), v) == v")
-    void identity() {
+    @ParameterizedTest(name = "identity holds on {0}")
+    @MethodSource("org.higherkindedj.hkt.writer_t.WriterTLawFixtures#kinds")
+    void identity(String label, Kind<WriterTKind.Witness<IdKind.Witness, String>, Integer> w) {
       ApplicativeLaws.assertIdentity(writerMonad, w, eq);
     }
 
-    @Test
-    @DisplayName("Homomorphism: ap(of(f), of(x)) == of(f(x))")
-    void homomorphism() {
+    @ParameterizedTest(name = "homomorphism holds on value {0}")
+    @MethodSource("org.higherkindedj.hkt.writer_t.WriterTLawFixtures#values")
+    void homomorphism(Integer value) {
       ApplicativeLaws.assertHomomorphism(writerMonad, value, f, eq);
     }
 
-    @Test
-    @DisplayName("Interchange: ap(u, of(y)) == ap(of(f -> f(y)), u)")
-    void interchange() {
+    @ParameterizedTest(name = "interchange holds on value {0}")
+    @MethodSource("org.higherkindedj.hkt.writer_t.WriterTLawFixtures#values")
+    void interchange(Integer value) {
       ApplicativeLaws.assertInterchange(writerMonad, u, value, eq);
     }
 
-    @Test
-    @DisplayName("Composition")
-    void composition() {
+    @ParameterizedTest(name = "composition holds on {0}")
+    @MethodSource("org.higherkindedj.hkt.writer_t.WriterTLawFixtures#kinds")
+    void composition(String label, Kind<WriterTKind.Witness<IdKind.Witness, String>, Integer> w) {
       ApplicativeLaws.assertComposition(writerMonad, uG, u, w, eq);
     }
   }
@@ -364,38 +377,27 @@ class WriterTMonadTest {
   @Nested
   @DisplayName("Monad Laws")
   class MonadLawTests {
+    final Function<Integer, Kind<WriterTKind.Witness<IdKind.Witness, String>, String>> f =
+        x -> writerMonad.flatMap(_ -> writerMonad.of("v:" + x), writerMonad.tell("f,"));
+    final Function<String, Kind<WriterTKind.Witness<IdKind.Witness, String>, String>> g =
+        s -> writerMonad.flatMap(_ -> writerMonad.of(s + "!"), writerMonad.tell("g,"));
 
-    final BiPredicate<
-            Kind<WriterTKind.Witness<IdKind.Witness, String>, ?>,
-            Kind<WriterTKind.Witness<IdKind.Witness, String>, ?>>
-        eq = KindEquivalence.byEqualsAfter(WriterTMonadTest.this::run);
-
-    @Test
-    @DisplayName("Left Identity: flatMap(f, of(a)) == f(a)")
-    void leftIdentity() {
-      Function<Integer, Kind<WriterTKind.Witness<IdKind.Witness, String>, String>> f =
-          x -> {
-            var told = writerMonad.tell("f(" + x + ")");
-            return writerMonad.flatMap(_ -> writerMonad.of("result:" + x), told);
-          };
-      MonadLaws.assertLeftIdentity(writerMonad, 5, f, eq);
+    @ParameterizedTest(name = "left identity holds on value {0}")
+    @MethodSource("org.higherkindedj.hkt.writer_t.WriterTLawFixtures#values")
+    void leftIdentity(Integer value) {
+      MonadLaws.assertLeftIdentity(writerMonad, value, f, eq);
     }
 
-    @Test
-    @DisplayName("Right Identity: flatMap(of, m) == m")
-    void rightIdentity() {
-      var m = writerMonad.flatMap(_ -> writerMonad.of(42), writerMonad.tell("log"));
+    @ParameterizedTest(name = "right identity holds on {0}")
+    @MethodSource("org.higherkindedj.hkt.writer_t.WriterTLawFixtures#kinds")
+    void rightIdentity(String label, Kind<WriterTKind.Witness<IdKind.Witness, String>, Integer> m) {
       MonadLaws.assertRightIdentity(writerMonad, m, eq);
     }
 
-    @Test
-    @DisplayName("Associativity")
-    void associativity() {
-      Function<Integer, Kind<WriterTKind.Witness<IdKind.Witness, String>, String>> f =
-          x -> writerMonad.flatMap(_ -> writerMonad.of("s" + x), writerMonad.tell("f,"));
-      Function<String, Kind<WriterTKind.Witness<IdKind.Witness, String>, String>> g =
-          s -> writerMonad.flatMap(_ -> writerMonad.of(s + "!"), writerMonad.tell("g,"));
-      MonadLaws.assertAssociativity(writerMonad, writerMonad.of(5), f, g, eq);
+    @ParameterizedTest(name = "associativity holds on {0}")
+    @MethodSource("org.higherkindedj.hkt.writer_t.WriterTLawFixtures#kinds")
+    void associativity(String label, Kind<WriterTKind.Witness<IdKind.Witness, String>, Integer> m) {
+      MonadLaws.assertAssociativity(writerMonad, m, f, g, eq);
     }
   }
 
@@ -430,6 +432,7 @@ class WriterTMonadTest {
 
   @Nested
   @DisplayName("Null Tests")
+  @SuppressWarnings("DataFlowIssue") // All cases pass null deliberately to verify rejection
   class NullTests {
 
     @Test
@@ -452,19 +455,7 @@ class WriterTMonadTest {
       assertThatThrownBy(() -> writerMonad.tell(null)).isInstanceOf(NullPointerException.class);
     }
 
-    @Test
-    @DisplayName("map should reject null function")
-    void map_shouldRejectNullFunction() {
-      assertThatThrownBy(() -> writerMonad.map(null, writerMonad.of(1)))
-          .isInstanceOf(NullPointerException.class);
-    }
-
-    @Test
-    @DisplayName("flatMap should reject null function")
-    void flatMap_shouldRejectNullFunction() {
-      assertThatThrownBy(() -> writerMonad.flatMap(null, writerMonad.of(1)))
-          .isInstanceOf(NullPointerException.class);
-    }
+    // map/flatMap null-function rejection is owned by the monad contract's VALIDATIONS category.
 
     @Test
     @DisplayName("WriterT.fromKind should reject null")

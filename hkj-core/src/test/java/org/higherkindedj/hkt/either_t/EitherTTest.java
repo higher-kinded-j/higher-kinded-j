@@ -89,7 +89,7 @@ class EitherTTest {
     @Test
     @DisplayName("right should lift null value to EitherT(F<Right(null)>)")
     void right_liftsNullValue() {
-      EitherT<OptionalKind.Witness, String, String> et = EitherT.right(outerMonad, (String) null);
+      EitherT<OptionalKind.Witness, String, String> et = EitherT.right(outerMonad, null);
       assertThat(unwrapT(et)).isPresent().contains(Either.right(null));
     }
 
@@ -146,6 +146,11 @@ class EitherTTest {
 
   @Nested
   @DisplayName("Object Methods")
+  @SuppressWarnings({
+    "EqualsWithItself",
+    "EqualsBetweenInconvertibleTypes",
+    "ConstantValue"
+  }) // deliberate equals contract checks: self/null/cross-type
   class ObjectMethodTests {
 
     Kind<OptionalKind.Witness, Either<String, String>> wrappedRight1 =
@@ -173,7 +178,8 @@ class EitherTTest {
       assertThat(et1).isNotEqualTo(etLeft);
       assertThat(et1).isNotEqualTo(etEmpty);
       assertThat(et1).isNotEqualTo(null);
-      assertThat(et1).isNotEqualTo(wrappedRight1);
+      // Cross-type inequality (EitherT vs wrapped Kind) is asserted directly in
+      // equals_differentTypeComparison.
     }
 
     @Test
@@ -333,6 +339,7 @@ class EitherTTest {
 
     @Test
     @DisplayName("mapT should reject null function")
+    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
     void mapT_rejectsNull() {
       EitherT<OptionalKind.Witness, String, String> et = EitherT.right(outerMonad, rightValue);
       assertThatThrownBy(() -> et.mapT(null)).isInstanceOf(NullPointerException.class);

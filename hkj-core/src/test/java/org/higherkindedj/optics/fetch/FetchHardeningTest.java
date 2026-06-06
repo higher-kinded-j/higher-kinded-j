@@ -23,14 +23,11 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
 /**
- * Phase 0 substrate-hardening specification, written test-first.
- *
- * <p>These tests encode the definition of done for Phase 0 of the effectful-optic batching delivery
- * plan: stack safety (B1), the missing-key policy (B2), and the contract checks and Kind-narrowing
- * robustness. The applicative laws (M4) are exercised separately by {@code
- * FetchApplicativeLawsTestFactory}.
+ * Hardening tests for the effectful-optic batching substrate: stack safety, the missing-key policy,
+ * null-argument contract checks, and Kind-narrowing robustness. The applicative laws are exercised
+ * separately by {@code FetchApplicativeLawsTestFactory}.
  */
-@DisplayName("Phase 0 substrate hardening: TDD spec")
+@DisplayName("Fetch substrate hardening")
 class FetchHardeningTest {
 
   /** A resolver that echoes every requested key as {@code "val:" + key}. */
@@ -46,14 +43,13 @@ class FetchHardeningTest {
   }
 
   @Nested
-  @DisplayName("B1: stack safety")
+  @DisplayName("stack safety")
   class StackSafety {
 
     /**
-     * Stack usage of the trampolined resolution is constant in N, so passing well above the
-     * empirically-confirmed failure point (StackOverflow at N=25,000 before the fix) is conclusive
-     * proof of stack safety. Million-element throughput/memory is a benchmark concern, not a unit
-     * test.
+     * Stack usage of the trampolined resolution is constant in N, so 200,000 elements — well above
+     * the ~25,000 at which a non-trampolined traversal overflows — is conclusive proof of stack
+     * safety. Million-element throughput and memory are benchmark concerns, not a unit test.
      */
     @Test
     @DisplayName("a 200,000-element optic traversal resolves without StackOverflowError")
@@ -72,7 +68,7 @@ class FetchHardeningTest {
   }
 
   @Nested
-  @DisplayName("B2: missing-key policy")
+  @DisplayName("missing-key policy")
   class MissingKeyPolicy {
 
     private static final List<String> ABC = List.of("a", "b", "c");
@@ -125,7 +121,7 @@ class FetchHardeningTest {
   }
 
   @Nested
-  @DisplayName("m1: contract checks")
+  @DisplayName("contract checks")
   class ContractChecks {
 
     @Test

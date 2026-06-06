@@ -27,7 +27,6 @@ import org.junit.jupiter.api.Test;
 class ContextTest {
 
   private static final ScopedValue<String> STRING_KEY = ScopedValue.newInstance();
-  private static final ScopedValue<Integer> INT_KEY = ScopedValue.newInstance();
 
   @Nested
   @DisplayName("Factory Methods")
@@ -39,7 +38,7 @@ class ContextTest {
 
       @Test
       @DisplayName("ask() should create a Context that reads from ScopedValue")
-      void ask_shouldReadFromScopedValue() throws Exception {
+      void ask_shouldReadFromScopedValue() {
         Context<String, String> ctx = Context.ask(STRING_KEY);
 
         String result = ScopedValue.where(STRING_KEY, "test-value").call(ctx::run);
@@ -49,6 +48,7 @@ class ContextTest {
 
       @Test
       @DisplayName("ask() should throw NullPointerException for null key")
+      @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
       void ask_shouldThrowForNullKey() {
         assertThatNullPointerException()
             .isThrownBy(() -> Context.ask(null))
@@ -70,7 +70,7 @@ class ContextTest {
 
       @Test
       @DisplayName("asks() should create a Context that reads and transforms ScopedValue")
-      void asks_shouldReadAndTransform() throws Exception {
+      void asks_shouldReadAndTransform() {
         Context<String, Integer> ctx = Context.asks(STRING_KEY, String::length);
 
         Integer result = ScopedValue.where(STRING_KEY, "hello").call(ctx::run);
@@ -80,6 +80,7 @@ class ContextTest {
 
       @Test
       @DisplayName("asks() should throw NullPointerException for null key")
+      @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
       void asks_shouldThrowForNullKey() {
         assertThatNullPointerException()
             .isThrownBy(() -> Context.asks(null, String::length))
@@ -88,6 +89,7 @@ class ContextTest {
 
       @Test
       @DisplayName("asks() should throw NullPointerException for null function")
+      @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
       void asks_shouldThrowForNullFunction() {
         assertThatNullPointerException()
             .isThrownBy(() -> Context.asks(STRING_KEY, null))
@@ -135,6 +137,7 @@ class ContextTest {
 
       @Test
       @DisplayName("fail() should throw NullPointerException for null error")
+      @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
       void fail_shouldThrowForNullError() {
         assertThatNullPointerException()
             .isThrownBy(() -> Context.fail(null))
@@ -166,7 +169,7 @@ class ContextTest {
 
       @Test
       @DisplayName("map2() should combine two contexts")
-      void map2_shouldCombineTwoContexts() throws Exception {
+      void map2_shouldCombineTwoContexts() {
         Context<String, String> ca = Context.ask(STRING_KEY);
         Context<String, Integer> cb = Context.succeed(42);
 
@@ -202,22 +205,25 @@ class ContextTest {
 
       @Test
       @DisplayName("map2() should throw for null first context")
+      @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
       void map2_shouldThrowForNullFirstContext() {
         assertThatNullPointerException()
-            .isThrownBy(() -> Context.map2(null, Context.succeed(1), (a, b) -> a))
+            .isThrownBy(() -> Context.map2(null, Context.succeed(1), (a, _) -> a))
             .withMessageContaining("ca cannot be null");
       }
 
       @Test
       @DisplayName("map2() should throw for null second context")
+      @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
       void map2_shouldThrowForNullSecondContext() {
         assertThatNullPointerException()
-            .isThrownBy(() -> Context.map2(Context.succeed("a"), null, (a, b) -> a))
+            .isThrownBy(() -> Context.map2(Context.succeed("a"), null, (a, _) -> a))
             .withMessageContaining("cb cannot be null");
       }
 
       @Test
       @DisplayName("map2() should throw for null function")
+      @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
       void map2_shouldThrowForNullFunction() {
         assertThatNullPointerException()
             .isThrownBy(() -> Context.map2(Context.succeed("a"), Context.succeed(1), null))
@@ -231,7 +237,7 @@ class ContextTest {
 
       @Test
       @DisplayName("map3() should combine three contexts")
-      void map3_shouldCombineThreeContexts() throws Exception {
+      void map3_shouldCombineThreeContexts() {
         Context<String, String> ca = Context.ask(STRING_KEY);
         Context<String, Integer> cb = Context.succeed(42);
         Context<String, Boolean> cc = Context.succeed(true);
@@ -259,21 +265,22 @@ class ContextTest {
 
       @Test
       @DisplayName("map3() should throw for null arguments")
+      @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
       void map3_shouldThrowForNullArguments() {
         assertThatNullPointerException()
             .isThrownBy(
-                () -> Context.map3(null, Context.succeed(1), Context.succeed(true), (a, b, c) -> a))
+                () -> Context.map3(null, Context.succeed(1), Context.succeed(true), (a, _, _) -> a))
             .withMessageContaining("ca cannot be null");
 
         assertThatNullPointerException()
             .isThrownBy(
                 () ->
-                    Context.map3(Context.succeed("a"), null, Context.succeed(true), (a, b, c) -> a))
+                    Context.map3(Context.succeed("a"), null, Context.succeed(true), (a, _, _) -> a))
             .withMessageContaining("cb cannot be null");
 
         assertThatNullPointerException()
             .isThrownBy(
-                () -> Context.map3(Context.succeed("a"), Context.succeed(1), null, (a, b, c) -> a))
+                () -> Context.map3(Context.succeed("a"), Context.succeed(1), null, (a, _, _) -> a))
             .withMessageContaining("cc cannot be null");
 
         assertThatNullPointerException()
@@ -296,7 +303,7 @@ class ContextTest {
 
       @Test
       @DisplayName("map() should transform result value")
-      void map_shouldTransformResult() throws Exception {
+      void map_shouldTransformResult() {
         Context<String, String> ctx = Context.ask(STRING_KEY);
         Context<String, Integer> mapped = ctx.map(String::length);
 
@@ -307,6 +314,7 @@ class ContextTest {
 
       @Test
       @DisplayName("map() should throw NullPointerException for null function")
+      @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
       void map_shouldThrowForNullFunction() {
         Context<String, String> ctx = Context.succeed("value");
 
@@ -317,9 +325,9 @@ class ContextTest {
 
       @Test
       @DisplayName("map() should compose multiple transformations")
-      void map_shouldComposeTransformations() throws Exception {
+      void map_shouldComposeTransformations() {
         Context<String, String> ctx =
-            Context.<String>ask(STRING_KEY).map(String::toUpperCase).map(s -> "[" + s + "]");
+            Context.ask(STRING_KEY).map(String::toUpperCase).map(s -> "[" + s + "]");
 
         String result = ScopedValue.where(STRING_KEY, "test").call(ctx::run);
 
@@ -333,9 +341,9 @@ class ContextTest {
 
       @Test
       @DisplayName("flatMap() should sequence context computations")
-      void flatMap_shouldSequenceComputations() throws Exception {
+      void flatMap_shouldSequenceComputations() {
         Context<String, String> ctx =
-            Context.<String>ask(STRING_KEY).flatMap(s -> Context.succeed("Result: " + s));
+            Context.ask(STRING_KEY).flatMap(s -> Context.succeed("Result: " + s));
 
         String result = ScopedValue.where(STRING_KEY, "input").call(ctx::run);
 
@@ -344,6 +352,7 @@ class ContextTest {
 
       @Test
       @DisplayName("flatMap() should throw NullPointerException for null function")
+      @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
       void flatMap_shouldThrowForNullFunction() {
         Context<String, String> ctx = Context.succeed("value");
 
@@ -354,8 +363,9 @@ class ContextTest {
 
       @Test
       @DisplayName("flatMap() should throw if function returns null context")
+      @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
       void flatMap_shouldThrowIfFunctionReturnsNull() {
-        Context<String, String> ctx = Context.<String, String>succeed("value").flatMap(s -> null);
+        Context<String, String> ctx = Context.<String, String>succeed("value").flatMap(_ -> null);
 
         assertThatNullPointerException()
             .isThrownBy(ctx::run)
@@ -371,7 +381,7 @@ class ContextTest {
         Context<String, String> ctx =
             Context.<String, String>fail(error)
                 .flatMap(
-                    s -> {
+                    _ -> {
                       wasCalled.set(true);
                       return Context.succeed("should not reach");
                     });
@@ -386,7 +396,7 @@ class ContextTest {
         RuntimeException error = new RuntimeException("next error");
 
         Context<String, String> ctx =
-            Context.<String, String>succeed("value").flatMap(s -> Context.fail(error));
+            Context.<String, String>succeed("value").flatMap(_ -> Context.fail(error));
 
         assertThatThrownBy(ctx::run).isSameAs(error);
       }
@@ -412,7 +422,7 @@ class ContextTest {
       @DisplayName("recover() should pass through success")
       void recover_shouldPassThroughSuccess() {
         Context<String, String> ctx =
-            Context.<String, String>succeed("success").recover(e -> "recovered");
+            Context.<String, String>succeed("success").recover(_ -> "recovered");
 
         String result = ctx.run();
 
@@ -421,6 +431,7 @@ class ContextTest {
 
       @Test
       @DisplayName("recover() should throw NullPointerException for null function")
+      @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
       void recover_shouldThrowForNullFunction() {
         Context<String, String> ctx = Context.succeed("value");
 
@@ -472,7 +483,7 @@ class ContextTest {
       void recoverWith_shouldPassThroughSuccess() {
         Context<String, String> ctx =
             Context.<String, String>succeed("success")
-                .recoverWith(e -> Context.succeed("recovered"));
+                .recoverWith(_ -> Context.succeed("recovered"));
 
         String result = ctx.run();
 
@@ -481,6 +492,7 @@ class ContextTest {
 
       @Test
       @DisplayName("recoverWith() should throw NullPointerException for null function")
+      @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
       void recoverWith_shouldThrowForNullFunction() {
         Context<String, String> ctx = Context.succeed("value");
 
@@ -512,9 +524,10 @@ class ContextTest {
 
       @Test
       @DisplayName("recoverWith() should throw if recovery returns null")
+      @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
       void recoverWith_shouldThrowIfRecoveryReturnsNull() {
         Context<String, String> ctx =
-            Context.<String, String>fail(new RuntimeException("error")).recoverWith(e -> null);
+            Context.<String, String>fail(new RuntimeException("error")).recoverWith(_ -> null);
 
         assertThatNullPointerException()
             .isThrownBy(ctx::run)
@@ -543,7 +556,7 @@ class ContextTest {
       void mapError_shouldPassThroughSuccess() {
         Context<String, String> ctx =
             Context.<String, String>succeed("success")
-                .mapError(e -> new IllegalArgumentException("should not be called"));
+                .mapError(_ -> new IllegalArgumentException("should not be called"));
 
         String result = ctx.run();
 
@@ -552,6 +565,7 @@ class ContextTest {
 
       @Test
       @DisplayName("mapError() should throw NullPointerException for null function")
+      @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
       void mapError_shouldThrowForNullFunction() {
         Context<String, String> ctx = Context.succeed("value");
 
@@ -588,7 +602,7 @@ class ContextTest {
 
         Context<String, String> ctx =
             Context.<String, String>fail(new RuntimeException("original"))
-                .mapError(e -> mappedChecked);
+                .mapError(_ -> mappedChecked);
 
         assertThatThrownBy(ctx::run).isInstanceOf(ContextException.class).hasCause(mappedChecked);
       }
@@ -605,7 +619,7 @@ class ContextTest {
 
       @Test
       @DisplayName("toVTask() should convert successful context to VTask")
-      void toVTask_shouldConvertSuccessToVTask() throws Exception {
+      void toVTask_shouldConvertSuccessToVTask() {
         Context<String, String> ctx = Context.ask(STRING_KEY);
         VTask<String> task = ctx.toVTask();
 
@@ -635,7 +649,7 @@ class ContextTest {
 
       @Test
       @DisplayName("toMaybe() should convert successful non-null result to Just")
-      void toMaybe_shouldConvertSuccessToJust() throws Exception {
+      void toMaybe_shouldConvertSuccessToJust() {
         Context<String, String> ctx = Context.ask(STRING_KEY);
 
         Maybe<String> result = ScopedValue.where(STRING_KEY, "value").call(ctx::toMaybe);
@@ -671,7 +685,7 @@ class ContextTest {
 
       @Test
       @DisplayName("asUnit() should discard result and return Unit")
-      void asUnit_shouldReturnUnit() throws Exception {
+      void asUnit_shouldReturnUnit() {
         Context<String, String> ctx = Context.ask(STRING_KEY);
         Context<String, Unit> unitCtx = ctx.asUnit();
 
@@ -703,7 +717,7 @@ class ContextTest {
       @Test
       @DisplayName("Ask record should have valid components")
       void ask_shouldHaveValidComponents() {
-        Context.Ask<String, String> ask = new Context.Ask<>(STRING_KEY, s -> s.toUpperCase());
+        Context.Ask<String, String> ask = new Context.Ask<>(STRING_KEY, String::toUpperCase);
 
         assertThat(ask.key()).isSameAs(STRING_KEY);
         assertThat(ask.transform()).isNotNull();
@@ -711,6 +725,7 @@ class ContextTest {
 
       @Test
       @DisplayName("Ask record should reject null key")
+      @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
       void ask_shouldRejectNullKey() {
         assertThatNullPointerException()
             .isThrownBy(() -> new Context.Ask<>(null, s -> s))
@@ -719,6 +734,7 @@ class ContextTest {
 
       @Test
       @DisplayName("Ask record should reject null transform")
+      @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
       void ask_shouldRejectNullTransform() {
         assertThatNullPointerException()
             .isThrownBy(() -> new Context.Ask<>(STRING_KEY, null))
@@ -741,6 +757,7 @@ class ContextTest {
 
       @Test
       @DisplayName("Pure record should allow null value")
+      @SuppressWarnings("ConstantValue") // Pure(null).run() is intentionally null
       void pure_shouldAllowNullValue() {
         Context.Pure<String, Integer> pure = new Context.Pure<>(null);
 
@@ -755,7 +772,7 @@ class ContextTest {
 
       @Test
       @DisplayName("FlatMapped record should compose computations")
-      void flatMapped_shouldComposeComputations() throws Exception {
+      void flatMapped_shouldComposeComputations() {
         Context<String, String> source = Context.ask(STRING_KEY);
         Context.FlatMapped<String, String, Integer> flatMapped =
             new Context.FlatMapped<>(source, s -> Context.succeed(s.length()));
@@ -767,14 +784,16 @@ class ContextTest {
 
       @Test
       @DisplayName("FlatMapped record should reject null source")
+      @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
       void flatMapped_shouldRejectNullSource() {
         assertThatNullPointerException()
-            .isThrownBy(() -> new Context.FlatMapped<>(null, s -> Context.succeed(s)))
+            .isThrownBy(() -> new Context.FlatMapped<>(null, Context::succeed))
             .withMessageContaining("source cannot be null");
       }
 
       @Test
       @DisplayName("FlatMapped record should reject null function")
+      @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
       void flatMapped_shouldRejectNullFunction() {
         assertThatNullPointerException()
             .isThrownBy(() -> new Context.FlatMapped<>(Context.succeed("x"), null))
@@ -820,6 +839,7 @@ class ContextTest {
 
       @Test
       @DisplayName("Failed record should reject null error")
+      @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
       void failed_shouldRejectNullError() {
         assertThatNullPointerException()
             .isThrownBy(() -> new Context.Failed<>(null))
@@ -836,7 +856,7 @@ class ContextTest {
       void recovered_shouldRecoverFromFailure() {
         Context<String, String> source = Context.fail(new RuntimeException("error"));
         Context.Recovered<String, String> recovered =
-            new Context.Recovered<>(source, e -> "recovered");
+            new Context.Recovered<>(source, _ -> "recovered");
 
         String result = recovered.run();
 
@@ -845,14 +865,16 @@ class ContextTest {
 
       @Test
       @DisplayName("Recovered record should reject null source")
+      @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
       void recovered_shouldRejectNullSource() {
         assertThatNullPointerException()
-            .isThrownBy(() -> new Context.Recovered<>(null, e -> "x"))
+            .isThrownBy(() -> new Context.Recovered<>(null, _ -> "x"))
             .withMessageContaining("source cannot be null");
       }
 
       @Test
       @DisplayName("Recovered record should reject null recovery function")
+      @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
       void recovered_shouldRejectNullRecoveryFunction() {
         assertThatNullPointerException()
             .isThrownBy(() -> new Context.Recovered<>(Context.succeed("x"), null))
@@ -869,7 +891,7 @@ class ContextTest {
       void recoveredWith_shouldRecoverWithContext() {
         Context<String, String> source = Context.fail(new RuntimeException("error"));
         Context.RecoveredWith<String, String> recovered =
-            new Context.RecoveredWith<>(source, e -> Context.succeed("recovered"));
+            new Context.RecoveredWith<>(source, _ -> Context.succeed("recovered"));
 
         String result = recovered.run();
 
@@ -878,14 +900,16 @@ class ContextTest {
 
       @Test
       @DisplayName("RecoveredWith record should reject null source")
+      @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
       void recoveredWith_shouldRejectNullSource() {
         assertThatNullPointerException()
-            .isThrownBy(() -> new Context.RecoveredWith<>(null, e -> Context.succeed("x")))
+            .isThrownBy(() -> new Context.RecoveredWith<>(null, _ -> Context.succeed("x")))
             .withMessageContaining("source cannot be null");
       }
 
       @Test
       @DisplayName("RecoveredWith record should reject null recovery function")
+      @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
       void recoveredWith_shouldRejectNullRecoveryFunction() {
         assertThatNullPointerException()
             .isThrownBy(() -> new Context.RecoveredWith<>(Context.succeed("x"), null))
@@ -902,7 +926,7 @@ class ContextTest {
       void errorMapped_shouldTransformError() {
         Context<String, String> source = Context.fail(new RuntimeException("original"));
         Context.ErrorMapped<String, String> errorMapped =
-            new Context.ErrorMapped<>(source, e -> new IllegalArgumentException("mapped"));
+            new Context.ErrorMapped<>(source, _ -> new IllegalArgumentException("mapped"));
 
         assertThatThrownBy(errorMapped::run)
             .isInstanceOf(IllegalArgumentException.class)
@@ -916,7 +940,7 @@ class ContextTest {
         Context<String, String> source = Context.fail(new RuntimeException("original"));
         Exception checkedException = new Exception("mapped checked exception");
         Context.ErrorMapped<String, String> errorMapped =
-            new Context.ErrorMapped<>(source, e -> checkedException);
+            new Context.ErrorMapped<>(source, _ -> checkedException);
 
         assertThatThrownBy(errorMapped::run)
             .isInstanceOf(ContextException.class)
@@ -929,7 +953,7 @@ class ContextTest {
         Context<String, String> source = Context.succeed("success value");
         Context.ErrorMapped<String, String> errorMapped =
             new Context.ErrorMapped<>(
-                source, e -> new IllegalArgumentException("should not be called"));
+                source, _ -> new IllegalArgumentException("should not be called"));
 
         String result = errorMapped.run();
 
@@ -938,6 +962,7 @@ class ContextTest {
 
       @Test
       @DisplayName("ErrorMapped record should reject null source")
+      @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
       void errorMapped_shouldRejectNullSource() {
         assertThatNullPointerException()
             .isThrownBy(() -> new Context.ErrorMapped<>(null, e -> e))
@@ -946,6 +971,7 @@ class ContextTest {
 
       @Test
       @DisplayName("ErrorMapped record should reject null error mapper")
+      @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
       void errorMapped_shouldRejectNullErrorMapper() {
         assertThatNullPointerException()
             .isThrownBy(() -> new Context.ErrorMapped<>(Context.succeed("x"), null))
@@ -973,7 +999,7 @@ class ContextTest {
 
     @Test
     @DisplayName("Right identity: m.flatMap(succeed) == m")
-    void rightIdentity() throws Exception {
+    void rightIdentity() {
       Context<String, String> m = Context.ask(STRING_KEY);
 
       Context<String, String> left = m.flatMap(Context::succeed);
@@ -987,11 +1013,11 @@ class ContextTest {
 
     @Test
     @DisplayName("Associativity: m.flatMap(f).flatMap(g) == m.flatMap(a -> f(a).flatMap(g))")
-    void associativity() throws Exception {
+    void associativity() {
       Context<String, String> m = Context.ask(STRING_KEY);
 
       Context<String, Integer> left =
-          m.flatMap(s -> Context.<String, String>succeed(s.toUpperCase()))
+          m.flatMap(s -> Context.succeed(s.toUpperCase()))
               .flatMap(s -> Context.succeed(s.length()));
 
       Context<String, Integer> right =
@@ -1014,7 +1040,7 @@ class ContextTest {
 
     @Test
     @DisplayName("Identity: m.map(identity) == m")
-    void identity() throws Exception {
+    void identity() {
       Context<String, String> m = Context.ask(STRING_KEY);
       Context<String, String> mapped = m.map(s -> s);
 
@@ -1027,7 +1053,7 @@ class ContextTest {
 
     @Test
     @DisplayName("Composition: m.map(f).map(g) == m.map(f.andThen(g))")
-    void composition() throws Exception {
+    void composition() {
       Context<String, String> m = Context.ask(STRING_KEY);
 
       Context<String, Integer> left = m.map(String::toUpperCase).map(String::length);
@@ -1092,10 +1118,10 @@ class ContextTest {
       Context<String, Integer> ctx = Context.fail(new RuntimeException("initial"));
       for (int i = 0; i < depth; i++) {
         final int value = i;
-        ctx = ctx.recoverWith(e -> Context.fail(new RuntimeException("error-" + value)));
+        ctx = ctx.recoverWith(_ -> Context.fail(new RuntimeException("error-" + value)));
       }
       // Final recovery to get a value
-      ctx = ctx.recoverWith(e -> Context.succeed(depth));
+      ctx = ctx.recoverWith(_ -> Context.succeed(depth));
 
       Integer result = ctx.run();
 
@@ -1111,7 +1137,7 @@ class ContextTest {
       for (int i = 0; i < depth; i++) {
         ctx =
             ctx.flatMap(n -> Context.succeed(n + 1))
-                .recoverWith(e -> Context.succeed(-1)); // Should never be used
+                .recoverWith(_ -> Context.succeed(-1)); // Should never be used
       }
 
       Integer result = ctx.run();
@@ -1124,12 +1150,12 @@ class ContextTest {
     void recoveryChain() {
       Context<String, String> ctx =
           Context.<String, String>fail(new RuntimeException("error1"))
-              .recover(e -> "recovered1")
+              .recover(_ -> "recovered1")
               .<String>map(
-                  s -> {
+                  _ -> {
                     throw new RuntimeException("error2");
                   })
-              .recover(e -> "recovered2");
+              .recover(_ -> "recovered2");
 
       String result = ctx.run();
 
@@ -1150,7 +1176,7 @@ class ContextTest {
           Context.<String, Integer>succeed(1)
               .flatMap(n -> Context.succeed(n + 1))
               .flatMap(n -> Context.succeed(n + 1))
-              .flatMap(n -> Context.<String, Integer>fail(originalError));
+              .flatMap(_ -> Context.fail(originalError));
 
       assertThatThrownBy(ctx::run).isSameAs(originalError).hasMessage("original error");
     }
@@ -1169,8 +1195,8 @@ class ContextTest {
           Context.<String, Integer>succeed(1)
               .flatMap(n -> Context.succeed(n + 1))
               .flatMap(n -> Context.succeed(n + 1))
-              .flatMap(n -> Context.<String, Integer>fail(error))
-              .recoverWith(e -> Context.succeed(-1)); // This wraps and catches the error
+              .flatMap(_ -> Context.<String, Integer>fail(error))
+              .recoverWith(_ -> Context.succeed(-1)); // This wraps and catches the error
 
       Integer result = ctx.run();
 
@@ -1202,7 +1228,7 @@ class ContextTest {
 
       Context<String, Integer> ctx =
           Context.<String, Integer>succeed(1)
-              .flatMap(n -> Context.<String, Integer>fail(error))
+              .flatMap(_ -> Context.<String, Integer>fail(error))
               .mapError(e -> new IllegalArgumentException("mapped: " + e.getMessage()));
 
       assertThatThrownBy(ctx::run)
@@ -1218,7 +1244,7 @@ class ContextTest {
       Context<String, Integer> ctx =
           Context.<String, Integer>succeed(1)
               .flatMap(n -> Context.succeed(n + 1))
-              .flatMap(n -> Context.<String, Integer>fail(checked));
+              .flatMap(_ -> Context.fail(checked));
 
       assertThatThrownBy(ctx::run).isInstanceOf(ContextException.class).hasCause(checked);
     }
@@ -1232,7 +1258,7 @@ class ContextTest {
 
       Context<String, Integer> ctx =
           Context.<String, Integer>succeed(1)
-              .flatMap(n -> Context.<String, Integer>fail(checked))
+              .flatMap(_ -> Context.<String, Integer>fail(checked))
               .recoverWith(
                   e -> {
                     receivedError.set(e);

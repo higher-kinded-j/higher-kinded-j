@@ -49,12 +49,11 @@ class ForTraverseTest {
     void traverseListWithId() {
       Kind<IdKind.Witness, String> result =
           For.from(idMonad, Id.of(Arrays.asList(1, 2, 3)))
-              .traverse(
-                  listTraverse, list -> LIST.widen(list), (Integer i) -> Id.<Integer>of(i * 10))
+              .traverse(listTraverse, LIST::widen, (Integer i) -> Id.of(i * 10))
               .yield(
                   (original, traversed) -> {
                     List<Integer> list = LIST.narrow(traversed);
-                    return original.toString() + " -> " + list.toString();
+                    return original + " -> " + list;
                   });
       assertThat(IdKindHelper.ID.unwrap(result)).isEqualTo("[1, 2, 3] -> [10, 20, 30]");
     }
@@ -64,11 +63,8 @@ class ForTraverseTest {
     void traverseWithExtractor() {
       Kind<IdKind.Witness, List<String>> result =
           For.from(idMonad, Id.of(Arrays.asList("a", "b", "c")))
-              .traverse(
-                  listTraverse,
-                  list -> LIST.widen(list),
-                  (String s) -> Id.<String>of(s.toUpperCase()))
-              .yield((original, traversed) -> LIST.narrow(traversed));
+              .traverse(listTraverse, LIST::widen, (String s) -> Id.of(s.toUpperCase()))
+              .yield((_, traversed) -> LIST.narrow(traversed));
       assertThat(IdKindHelper.ID.unwrap(result)).containsExactly("A", "B", "C");
     }
 
@@ -77,25 +73,24 @@ class ForTraverseTest {
     void traverseEmptyList() {
       Kind<IdKind.Witness, List<Integer>> result =
           For.from(idMonad, Id.of(List.<Integer>of()))
-              .traverse(
-                  listTraverse, list -> LIST.widen(list), (Integer i) -> Id.<Integer>of(i * 10))
-              .yield((original, traversed) -> LIST.narrow(traversed));
+              .traverse(listTraverse, LIST::widen, (Integer i) -> Id.of(i * 10))
+              .yield((_, traversed) -> LIST.narrow(traversed));
       assertThat(IdKindHelper.ID.unwrap(result)).isEmpty();
     }
 
     @Test
     @DisplayName("traverse: should reject null traversable")
+    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
     void traverseNullTraversable() {
       assertThatThrownBy(
-              () ->
-                  For.from(idMonad, Id.of(List.of(1)))
-                      .traverse(null, list -> LIST.widen(list), (Integer i) -> Id.of(i)))
+              () -> For.from(idMonad, Id.of(List.of(1))).traverse(null, LIST::widen, Id::of))
           .isInstanceOf(NullPointerException.class)
           .hasMessageContaining("traversable");
     }
 
     @Test
     @DisplayName("traverse: should reject null extractor")
+    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
     void traverseNullExtractor() {
       assertThatThrownBy(
               () ->
@@ -107,11 +102,10 @@ class ForTraverseTest {
 
     @Test
     @DisplayName("traverse: should reject null function")
+    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
     void traverseNullFunction() {
       assertThatThrownBy(
-              () ->
-                  For.from(idMonad, Id.of(List.of(1)))
-                      .traverse(listTraverse, list -> LIST.widen(list), null))
+              () -> For.from(idMonad, Id.of(List.of(1))).traverse(listTraverse, LIST::widen, null))
           .isInstanceOf(NullPointerException.class)
           .hasMessageContaining("function");
     }
@@ -132,7 +126,7 @@ class ForTraverseTest {
       Kind<IdKind.Witness, List<Integer>> result =
           For.from(idMonad, Id.of(kindList))
               .sequence(listTraverse, Function.identity())
-              .yield((original, sequenced) -> LIST.narrow(sequenced));
+              .yield((_, sequenced) -> LIST.narrow(sequenced));
 
       assertThat(IdKindHelper.ID.unwrap(result)).containsExactly(1, 2, 3);
     }
@@ -153,10 +147,9 @@ class ForTraverseTest {
               .flatTraverse(
                   listTraverse,
                   listMonad,
-                  list -> LIST.widen(list),
-                  (Integer i) ->
-                      Id.<Kind<ListKind.Witness, Integer>>of(LIST.widen(Arrays.asList(i, i * 10))))
-              .yield((original, traversed) -> LIST.narrow(traversed));
+                  LIST::widen,
+                  (Integer i) -> Id.of(LIST.widen(Arrays.asList(i, i * 10))))
+              .yield((_, traversed) -> LIST.narrow(traversed));
       assertThat(IdKindHelper.ID.unwrap(result)).containsExactly(1, 10, 2, 20, 3, 30);
     }
   }
@@ -172,8 +165,8 @@ class ForTraverseTest {
     void traverseAllJust() {
       Kind<MaybeKind.Witness, List<Integer>> result =
           For.from(maybeMonad, MAYBE.just(Arrays.asList(1, 2, 3)))
-              .traverse(listTraverse, list -> LIST.widen(list), (Integer i) -> MAYBE.just(i * 2))
-              .yield((original, traversed) -> LIST.narrow(traversed));
+              .traverse(listTraverse, LIST::widen, (Integer i) -> MAYBE.just(i * 2))
+              .yield((_, traversed) -> LIST.narrow(traversed));
       Maybe<List<Integer>> maybe = MAYBE.narrow(result);
       assertThat(maybe.isJust()).isTrue();
       assertThat(maybe.get()).containsExactly(2, 4, 6);
@@ -186,9 +179,9 @@ class ForTraverseTest {
           For.from(maybeMonad, MAYBE.just(Arrays.asList(1, 2, 3)))
               .traverse(
                   listTraverse,
-                  list -> LIST.widen(list),
-                  (Integer i) -> i == 2 ? MAYBE.<Integer>nothing() : MAYBE.just(i * 2))
-              .yield((original, traversed) -> LIST.narrow(traversed));
+                  LIST::widen,
+                  (Integer i) -> i == 2 ? MAYBE.nothing() : MAYBE.just(i * 2))
+              .yield((_, traversed) -> LIST.narrow(traversed));
       Maybe<List<Integer>> maybe = MAYBE.narrow(result);
       assertThat(maybe.isJust()).isFalse();
     }
@@ -198,8 +191,8 @@ class ForTraverseTest {
     void traverseWithNothingInitial() {
       Kind<MaybeKind.Witness, List<Integer>> result =
           For.from(maybeMonad, MAYBE.<List<Integer>>nothing())
-              .traverse(listTraverse, list -> LIST.widen(list), (Integer i) -> MAYBE.just(i * 2))
-              .yield((original, traversed) -> LIST.narrow(traversed));
+              .traverse(listTraverse, LIST::widen, (Integer i) -> MAYBE.just(i * 2))
+              .yield((_, traversed) -> LIST.narrow(traversed));
       Maybe<List<Integer>> maybe = MAYBE.narrow(result);
       assertThat(maybe.isJust()).isFalse();
     }
@@ -222,11 +215,9 @@ class ForTraverseTest {
               .flatTraverse(
                   listTraverse,
                   listMonad,
-                  list -> LIST.widen(list),
-                  (Integer i) ->
-                      MAYBE.<Kind<ListKind.Witness, Integer>>just(
-                          LIST.widen(Arrays.asList(i, i * 10))))
-              .yield((original, traversed) -> LIST.narrow(traversed));
+                  LIST::widen,
+                  (Integer i) -> MAYBE.just(LIST.widen(Arrays.asList(i, i * 10))))
+              .yield((_, traversed) -> LIST.narrow(traversed));
       Maybe<List<Integer>> maybe = MAYBE.narrow(result);
       assertThat(maybe.isJust()).isTrue();
       assertThat(maybe.get()).containsExactly(1, 10, 2, 20, 3, 30);
@@ -234,6 +225,7 @@ class ForTraverseTest {
 
     @Test
     @DisplayName("flatTraverse: should reject null innerMonad")
+    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
     void flatTraverseNullInnerMonad() {
       assertThatThrownBy(
               () ->
@@ -241,7 +233,7 @@ class ForTraverseTest {
                       .flatTraverse(
                           listTraverse,
                           null,
-                          list -> LIST.widen(list),
+                          LIST::widen,
                           (Integer i) -> MAYBE.just(LIST.widen(List.of(i)))))
           .isInstanceOf(NullPointerException.class)
           .hasMessageContaining("innerMonad");
@@ -259,9 +251,9 @@ class ForTraverseTest {
     void traverseMaybeJust() {
       Kind<IdKind.Witness, String> result =
           For.from(idMonad, Id.of(MAYBE.just(42)))
-              .traverse(maybeTraverse, Function.identity(), (Integer i) -> Id.<String>of("v" + i))
+              .traverse(maybeTraverse, Function.identity(), (Integer i) -> Id.of("v" + i))
               .yield(
-                  (original, traversed) -> {
+                  (_, traversed) -> {
                     Maybe<String> m = MAYBE.narrow(traversed);
                     return m.isJust() ? m.get() : "nothing";
                   });
@@ -273,9 +265,9 @@ class ForTraverseTest {
     void traverseMaybeNothing() {
       Kind<IdKind.Witness, String> result =
           For.from(idMonad, Id.of(MAYBE.<Integer>nothing()))
-              .traverse(maybeTraverse, Function.identity(), (Integer i) -> Id.<String>of("v" + i))
+              .traverse(maybeTraverse, Function.identity(), (Integer i) -> Id.of("v" + i))
               .yield(
-                  (original, traversed) -> {
+                  (_, traversed) -> {
                     Maybe<String> m = MAYBE.narrow(traversed);
                     return m.isJust() ? m.get() : "nothing";
                   });
@@ -294,8 +286,8 @@ class ForTraverseTest {
     void traverseOnMonadicSteps1() {
       Kind<MaybeKind.Witness, List<Integer>> result =
           For.from(maybeMonad, MAYBE.just(Arrays.asList(1, 2, 3)))
-              .traverse(listTraverse, list -> LIST.widen(list), (Integer i) -> MAYBE.just(i * 2))
-              .yield((original, traversed) -> LIST.narrow(traversed));
+              .traverse(listTraverse, LIST::widen, (Integer i) -> MAYBE.just(i * 2))
+              .yield((_, traversed) -> LIST.narrow(traversed));
       Maybe<List<Integer>> maybe = MAYBE.narrow(result);
       assertThat(maybe.isJust()).isTrue();
       assertThat(maybe.get()).containsExactly(2, 4, 6);
@@ -311,7 +303,7 @@ class ForTraverseTest {
       Kind<MaybeKind.Witness, List<Integer>> result =
           For.from(maybeMonad, MAYBE.just(kindList))
               .sequence(listTraverse, Function.identity())
-              .yield((original, sequenced) -> LIST.narrow(sequenced));
+              .yield((_, sequenced) -> LIST.narrow(sequenced));
       Maybe<List<Integer>> maybe = MAYBE.narrow(result);
       assertThat(maybe.isJust()).isTrue();
       assertThat(maybe.get()).containsExactly(1, 2, 3);
@@ -325,11 +317,9 @@ class ForTraverseTest {
               .flatTraverse(
                   listTraverse,
                   Instances.monadZero(list()),
-                  list -> LIST.widen(list),
-                  (Integer i) ->
-                      MAYBE.<Kind<ListKind.Witness, Integer>>just(
-                          LIST.widen(Arrays.asList(i, i * 100))))
-              .yield((original, traversed) -> LIST.narrow(traversed));
+                  LIST::widen,
+                  (Integer i) -> MAYBE.just(LIST.widen(Arrays.asList(i, i * 100))))
+              .yield((_, traversed) -> LIST.narrow(traversed));
       Maybe<List<Integer>> maybe = MAYBE.narrow(result);
       assertThat(maybe.isJust()).isTrue();
       assertThat(maybe.get()).containsExactly(1, 100, 2, 200);
@@ -348,9 +338,9 @@ class ForTraverseTest {
       Kind<IdKind.Witness, String> result =
           For.from(idMonad, Id.of(10))
               .from(a -> Id.of(Arrays.asList(a, a + 1, a + 2)))
-              .traverse(listTraverse, t -> LIST.widen(t._2()), (Integer i) -> Id.<Integer>of(i * 2))
+              .traverse(listTraverse, t -> LIST.widen(t._2()), (Integer i) -> Id.of(i * 2))
               .yield(
-                  (a, list, traversed) -> {
+                  (a, _, traversed) -> {
                     List<Integer> tList = LIST.narrow(traversed);
                     return a + ":" + tList;
                   });
@@ -370,8 +360,8 @@ class ForTraverseTest {
     void filterableTraverse() {
       Kind<MaybeKind.Witness, List<Integer>> result =
           For.from(maybeMonad, MAYBE.just(Arrays.asList(1, 2, 3)))
-              .traverse(listTraverse, list -> LIST.widen(list), (Integer i) -> MAYBE.just(i * 2))
-              .yield((original, traversed) -> LIST.narrow(traversed));
+              .traverse(listTraverse, LIST::widen, (Integer i) -> MAYBE.just(i * 2))
+              .yield((_, traversed) -> LIST.narrow(traversed));
       Maybe<List<Integer>> maybe = MAYBE.narrow(result);
       assertThat(maybe.isJust()).isTrue();
       assertThat(maybe.get()).containsExactly(2, 4, 6);
@@ -384,19 +374,20 @@ class ForTraverseTest {
           For.from(maybeMonad, MAYBE.just(Arrays.asList(1, 2, 3)))
               .traverse(
                   listTraverse,
-                  list -> LIST.widen(list),
-                  (Integer i) -> i == 2 ? MAYBE.<Integer>nothing() : MAYBE.just(i * 2))
-              .yield((original, traversed) -> LIST.narrow(traversed));
+                  LIST::widen,
+                  (Integer i) -> i == 2 ? MAYBE.nothing() : MAYBE.just(i * 2))
+              .yield((_, traversed) -> LIST.narrow(traversed));
       assertThat(MAYBE.narrow(result).isJust()).isFalse();
     }
 
     @Test
     @DisplayName("traverse: should reject null arguments")
+    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
     void filterableTraverseNullArgs() {
       assertThatThrownBy(
               () ->
                   For.from(maybeMonad, MAYBE.just(List.of(1)))
-                      .traverse(null, list -> LIST.widen(list), (Integer i) -> MAYBE.just(i)))
+                      .traverse(null, LIST::widen, MAYBE::just))
           .isInstanceOf(NullPointerException.class)
           .hasMessageContaining("traversable");
       assertThatThrownBy(
@@ -408,7 +399,7 @@ class ForTraverseTest {
       assertThatThrownBy(
               () ->
                   For.from(maybeMonad, MAYBE.just(List.of(1)))
-                      .traverse(listTraverse, list -> LIST.widen(list), null))
+                      .traverse(listTraverse, LIST::widen, null))
           .isInstanceOf(NullPointerException.class)
           .hasMessageContaining("function");
     }
@@ -423,7 +414,7 @@ class ForTraverseTest {
       Kind<MaybeKind.Witness, List<Integer>> result =
           For.from(maybeMonad, MAYBE.just(kindList))
               .sequence(listTraverse, Function.identity())
-              .yield((original, sequenced) -> LIST.narrow(sequenced));
+              .yield((_, sequenced) -> LIST.narrow(sequenced));
 
       Maybe<List<Integer>> maybe = MAYBE.narrow(result);
       assertThat(maybe.isJust()).isTrue();
@@ -432,6 +423,7 @@ class ForTraverseTest {
 
     @Test
     @DisplayName("sequence: should reject null arguments")
+    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
     void filterableSequenceNullArgs() {
       assertThatThrownBy(
               () ->
@@ -455,9 +447,9 @@ class ForTraverseTest {
               .flatTraverse(
                   listTraverse,
                   listMonad,
-                  list -> LIST.widen(list),
+                  LIST::widen,
                   (Integer i) -> MAYBE.just(LIST.widen(Arrays.asList(i, i * 10))))
-              .yield((original, traversed) -> LIST.narrow(traversed));
+              .yield((_, traversed) -> LIST.narrow(traversed));
       Maybe<List<Integer>> maybe = MAYBE.narrow(result);
       assertThat(maybe.isJust()).isTrue();
       assertThat(maybe.get()).containsExactly(1, 10, 2, 20, 3, 30);
@@ -465,8 +457,9 @@ class ForTraverseTest {
 
     @Test
     @DisplayName("flatTraverse: should reject null arguments")
+    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
     void filterableFlatTraverseNullArgs() {
-      Function<List<Integer>, Kind<ListKind.Witness, Integer>> extractor = list -> LIST.widen(list);
+      Function<List<Integer>, Kind<ListKind.Witness, Integer>> extractor = LIST::widen;
       Function<Integer, Kind<MaybeKind.Witness, Kind<ListKind.Witness, Integer>>> f =
           i -> MAYBE.just(LIST.widen(List.of(i)));
       assertThatThrownBy(

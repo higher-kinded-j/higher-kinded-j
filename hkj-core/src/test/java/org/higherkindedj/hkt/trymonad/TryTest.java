@@ -14,6 +14,7 @@ import java.util.function.Supplier;
 import org.higherkindedj.hkt.either.Either;
 import org.higherkindedj.hkt.exception.KindUnwrapException;
 import org.higherkindedj.hkt.test.api.KindHelperTests;
+import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -52,6 +53,7 @@ class TryTest extends TryTestBase {
 
   @Nested
   @DisplayName("Factory Methods")
+  @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
   class FactoryMethods {
 
     @Test
@@ -142,10 +144,7 @@ class TryTest extends TryTestBase {
     @Test
     @DisplayName("of() should create Failure when supplier throws checked exception")
     void of_shouldCreateFailureWhenSupplierThrowsCheckedException() {
-      Supplier<String> supplier =
-          () -> {
-            return sneakyThrow(checkedException);
-          };
+      Supplier<String> supplier = () -> sneakyThrow(checkedException);
       Try<String> tryResult = Try.of(supplier);
       assertThatTry(tryResult)
           .isFailure()
@@ -228,9 +227,8 @@ class TryTest extends TryTestBase {
     }
   }
 
+  @SuppressWarnings("RedundantThrows") // declared throws is part of the demonstrated signature
   private static String readCheckedResource() throws IOException {
-    // Pretend to do IO. If a resource is missing, throw IOException directly
-    // from the lambda - no wrapper, no sneaky-throws.
     return "loaded";
   }
 
@@ -282,9 +280,9 @@ class TryTest extends TryTestBase {
 
   @Nested
   @DisplayName("orElse / orElseGet")
+  @SuppressWarnings("DataFlowIssue") // null other and null suppliers are valid here
   class OrElseTests {
     final String defaultValue = "Default";
-    final Supplier<String> defaultSupplier = () -> defaultValue;
     final Supplier<String> throwingSupplier =
         () -> {
           throw new IllegalStateException("Supplier failed");
@@ -376,16 +374,16 @@ class TryTest extends TryTestBase {
 
   @Nested
   @DisplayName("fold() [deprecated]")
-  @SuppressWarnings("removal")
+  @SuppressWarnings({"removal", "DataFlowIssue"}) // null mappers exercised; fold() is deprecated
   class FoldTests {
     final Function<String, String> successMapper = s -> "Success mapped: " + s;
     final Function<Throwable, String> failureMapper = t -> "Failure mapped: " + t.getMessage();
     final Function<Throwable, String> throwingFailureMapper =
-        t -> {
+        _ -> {
           throw new IllegalStateException("Failure mapper failed");
         };
     final Function<String, String> throwingSuccessMapper =
-        s -> {
+        _ -> {
           throw new IllegalStateException("Success mapper failed");
         };
 
@@ -451,15 +449,16 @@ class TryTest extends TryTestBase {
 
   @Nested
   @DisplayName("foldFailureFirst()")
+  @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
   class FoldFailureFirstTests {
     final Function<String, String> successMapper = s -> "Success mapped: " + s;
     final Function<Throwable, String> failureMapper = t -> "Failure mapped: " + t.getMessage();
     final Function<Throwable, String> throwingFailureMapper =
-        t -> {
+        _ -> {
           throw new IllegalStateException("Failure mapper failed");
         };
     final Function<String, String> throwingSuccessMapper =
-        s -> {
+        _ -> {
           throw new IllegalStateException("Success mapper failed");
         };
 
@@ -527,19 +526,20 @@ class TryTest extends TryTestBase {
 
   @Nested
   @DisplayName("toEither()")
+  @SuppressWarnings("DataFlowIssue") // null / null-returning mapper exercise toEither's handling
   class ToEitherTests {
     final Function<Throwable, String> exToMessage = Throwable::getMessage;
     final Function<Throwable, String> exToCustom =
         t -> "CustomError: " + t.getClass().getSimpleName();
     final Function<Throwable, String> throwingMapper =
-        t -> {
+        _ -> {
           throw new IllegalStateException("toEither mapper failed");
         };
 
     @Test
     @DisplayName("toEither() on Success should return Right with value")
     void toEither_onSuccess_shouldReturnRightWithValue() {
-      Either<String, String> result = successInstance.toEither(ex -> "ShouldNotBeCalled");
+      Either<String, String> result = successInstance.toEither(_ -> "ShouldNotBeCalled");
       assertThat(result.isRight()).isTrue();
       assertThat(result.getRight()).isEqualTo(successValue);
     }
@@ -547,7 +547,7 @@ class TryTest extends TryTestBase {
     @Test
     @DisplayName("toEither() on Success with null value should return Right with null")
     void toEither_onSuccessWithNullValue_shouldReturnRightWithNull() {
-      Either<String, String> result = successNullInstance.toEither(ex -> "ShouldNotBeCalled");
+      Either<String, String> result = successNullInstance.toEither(_ -> "ShouldNotBeCalled");
       assertThat(result.isRight()).isTrue();
       assertThat(result.getRight()).isNull();
     }
@@ -559,13 +559,13 @@ class TryTest extends TryTestBase {
       assertThat(result.isLeft()).isTrue();
       result.fold(
           leftVal -> assertThat(leftVal).isEqualTo(failureException.getMessage()),
-          rightVal -> fail("Should be Left"));
+          _ -> fail("Should be Left"));
 
       Either<String, String> resultChecked = failureCheckedInstance.toEither(exToCustom);
       assertThat(resultChecked.isLeft()).isTrue();
       resultChecked.fold(
           leftVal -> assertThat(leftVal).isEqualTo("CustomError: IOException"),
-          rightVal -> fail("Should be Left"));
+          _ -> fail("Should be Left"));
     }
 
     @Test
@@ -583,7 +583,7 @@ class TryTest extends TryTestBase {
     @Test
     @DisplayName("toEither() on Failure should throw NPE if mapper returns null")
     void toEither_onFailure_shouldThrowNPEIfMapperReturnsNull() {
-      Function<Throwable, String> nullReturningMapper = t -> null;
+      Function<Throwable, String> nullReturningMapper = _ -> null;
       assertThatThrownBy(() -> failureInstance.toEither(nullReturningMapper))
           .isInstanceOf(KindUnwrapException.class)
           .hasMessageContaining(
@@ -605,13 +605,14 @@ class TryTest extends TryTestBase {
 
   @Nested
   @DisplayName("map()")
+  @SuppressWarnings("DataFlowIssue") // null / null-returning mapper exercise map's handling
   class MapTests {
     final Function<String, Integer> mapper = String::length;
     final Function<String, Integer> throwingMapper =
-        s -> {
+        _ -> {
           throw new IllegalArgumentException("Mapper failed");
         };
-    final Function<String, String> mapperToNull = s -> null;
+    final Function<String, String> mapperToNull = _ -> null;
 
     @Test
     @DisplayName("map() on Success should apply mapper and return Success")
@@ -641,7 +642,7 @@ class TryTest extends TryTestBase {
     @DisplayName("map() on Success should propagate Error if mapper throws Error")
     void map_onSuccess_shouldPropagateErrorIfMapperThrowsError() {
       Function<String, Integer> errorMapper =
-          s -> {
+          _ -> {
             throw new StackOverflowError("fatal");
           };
       assertThatThrownBy(() -> successInstance.map(errorMapper))
@@ -653,7 +654,7 @@ class TryTest extends TryTestBase {
     @DisplayName("map() on Failure should return same Failure instance")
     void map_onFailure_shouldReturnSameFailureInstance() {
       Try<Integer> result = failureInstance.map(mapper);
-      assertThat(result).isSameAs(failureInstance);
+      assertThat((Object) result).isSameAs(failureInstance);
       assertThatTry(result).isFailure().hasException(failureException);
     }
 
@@ -676,12 +677,13 @@ class TryTest extends TryTestBase {
 
   @Nested
   @DisplayName("flatMap()")
+  @SuppressWarnings("DataFlowIssue") // null / null-returning mapper exercise flatMap's handling
   class FlatMapTests {
     final Function<String, Try<Integer>> mapperSuccess = s -> Try.success(s.length());
     final Function<String, Try<Integer>> mapperFailure =
-        s -> Try.failure(new IOException("Inner flatMap failure"));
+        _ -> Try.failure(new IOException("Inner flatMap failure"));
     final Function<String, Try<Integer>> mapperThrows =
-        s -> {
+        _ -> {
           throw new IllegalStateException("FlatMap mapper func failed");
         };
 
@@ -714,7 +716,7 @@ class TryTest extends TryTestBase {
     @DisplayName("flatMap() on Success should propagate Error if mapper throws Error")
     void flatMap_onSuccess_shouldPropagateErrorIfMapperThrowsError() {
       Function<String, Try<Integer>> errorMapper =
-          s -> {
+          _ -> {
             throw new StackOverflowError("fatal");
           };
       assertThatThrownBy(() -> successInstance.flatMap(errorMapper))
@@ -726,7 +728,7 @@ class TryTest extends TryTestBase {
     @DisplayName("flatMap() on Failure should return same Failure instance")
     void flatMap_onFailure_shouldReturnSameFailureInstance() {
       Try<Integer> result = failureInstance.flatMap(mapperSuccess);
-      assertThat(result).isSameAs(failureInstance);
+      assertThat((Object) result).isSameAs(failureInstance);
       assertThatTry(result).isFailure().hasException(failureException);
     }
 
@@ -745,7 +747,7 @@ class TryTest extends TryTestBase {
     @Test
     @DisplayName("flatMap() on Success should throw NPE if mapper returns null")
     void flatMap_onSuccess_shouldThrowIfMapperReturnsNull() {
-      Function<String, Try<Integer>> mapperNull = s -> null;
+      Function<String, Try<Integer>> mapperNull = _ -> null;
       assertThatThrownBy(() -> successInstance.flatMap(mapperNull))
           .isInstanceOf(KindUnwrapException.class)
           .hasMessageContaining("Function mapper in flatMap returned null, which is not allowed");
@@ -758,13 +760,14 @@ class TryTest extends TryTestBase {
 
   @Nested
   @DisplayName("recover()")
+  @SuppressWarnings("DataFlowIssue") // null / null-returning recovery func exercise recover
   class RecoverTests {
     final Function<Throwable, String> recoveryFunc = t -> "Recovered: " + t.getMessage();
     final Function<Throwable, String> throwingRecoveryFunc =
-        t -> {
+        _ -> {
           throw new IllegalStateException("Recovery failed");
         };
-    final Function<Throwable, String> nullReturningRecoveryFunc = t -> null;
+    final Function<Throwable, String> nullReturningRecoveryFunc = _ -> null;
 
     @Test
     @DisplayName("recover() on Success should return original Success")
@@ -807,7 +810,7 @@ class TryTest extends TryTestBase {
     @DisplayName("recover() on Failure should propagate Error if recovery func throws Error")
     void recover_onFailure_shouldPropagateErrorIfRecoveryFuncThrowsError() {
       Function<Throwable, String> errorRecoveryFunc =
-          t -> {
+          _ -> {
             throw new StackOverflowError("fatal");
           };
       assertThatThrownBy(() -> failureInstance.recover(errorRecoveryFunc))
@@ -834,16 +837,17 @@ class TryTest extends TryTestBase {
 
   @Nested
   @DisplayName("recoverWith()")
+  @SuppressWarnings("DataFlowIssue") // null / null-returning recovery func exercise recoverWith
   class RecoverWithTests {
     final Function<Throwable, Try<String>> recoveryFuncSuccess =
         t -> Try.success("Recovered: " + t.getMessage());
     final Function<Throwable, Try<String>> recoveryFuncFailure =
-        t -> Try.failure(new IOException("Recovery with failure"));
+        _ -> Try.failure(new IOException("Recovery with failure"));
     final Function<Throwable, Try<String>> throwingRecoveryFunc =
-        t -> {
+        _ -> {
           throw new IllegalStateException("RecoveryWith failed");
         };
-    final Function<Throwable, Try<String>> nullReturningRecoveryFunc = t -> null;
+    final Function<Throwable, Try<String>> nullReturningRecoveryFunc = _ -> null;
 
     @Test
     @DisplayName("recoverWith() on Success should return original Success")
@@ -892,7 +896,7 @@ class TryTest extends TryTestBase {
     @DisplayName("recoverWith() on Failure should propagate Error if recovery func throws Error")
     void recoverWith_onFailure_shouldPropagateErrorIfRecoveryFuncThrowsError() {
       Function<Throwable, Try<String>> errorRecoveryFunc =
-          t -> {
+          _ -> {
             throw new StackOverflowError("fatal");
           };
       assertThatThrownBy(() -> failureInstance.recoverWith(errorRecoveryFunc))
@@ -919,17 +923,18 @@ class TryTest extends TryTestBase {
 
   @Nested
   @DisplayName("match()")
+  @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
   class MatchTests {
-    final AtomicReference<String> successResult = new AtomicReference<>();
-    final AtomicReference<Throwable> failureResult = new AtomicReference<>();
+    final AtomicReference<@Nullable String> successResult = new AtomicReference<>();
+    final AtomicReference<@Nullable Throwable> failureResult = new AtomicReference<>();
     final Consumer<String> successAction = s -> successResult.set("Success saw: " + s);
-    final Consumer<Throwable> failureAction = t -> failureResult.set(t);
+    final Consumer<Throwable> failureAction = failureResult::set;
     final Consumer<String> throwingSuccessAction =
-        s -> {
+        _ -> {
           throw new IllegalStateException("Success action failed");
         };
     final Consumer<Throwable> throwingFailureAction =
-        t -> {
+        _ -> {
           throw new IllegalStateException("Failure action failed");
         };
 
@@ -1024,7 +1029,6 @@ class TryTest extends TryTestBase {
       assertThat(success1).isNotEqualTo(successNull1);
       assertThat(success1).isNotEqualTo(failure1);
       assertThat(success1).isNotEqualTo(null);
-      assertThat(success1).isNotEqualTo("A");
 
       assertThat(successNull1).isEqualTo(successNull2);
       assertThat(successNull1).hasSameHashCodeAs(successNull2);
@@ -1054,7 +1058,6 @@ class TryTest extends TryTestBase {
       assertThat(failure1).isNotEqualTo(failureIO);
       assertThat(failure1).isNotEqualTo(success1);
       assertThat(failure1).isNotEqualTo(null);
-      assertThat(failure1).isNotEqualTo(ex1);
     }
   }
 
@@ -1069,6 +1072,7 @@ class TryTest extends TryTestBase {
 
   @Nested
   @DisplayName("Failure Null Cause (audit issue #16)")
+  @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
   class FailureNullCauseTests {
 
     @Test

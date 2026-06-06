@@ -41,19 +41,6 @@ class InterpretersTest {
         }
       };
 
-  private Kind<EitherFKind.Witness<IdentityKind.Witness, MaybeKind.Witness>, String> leftIdentity(
-      String value) {
-    Kind<IdentityKind.Witness, String> inner =
-        IdentityKindHelper.IDENTITY.widen(new Identity<>(value));
-    return EitherFKindHelper.EITHERF.widen(EitherF.left(inner));
-  }
-
-  private Kind<EitherFKind.Witness<IdentityKind.Witness, MaybeKind.Witness>, String> rightMaybe(
-      String value) {
-    Kind<MaybeKind.Witness, String> inner = MaybeKindHelper.MAYBE.widen(Maybe.just(value));
-    return EitherFKindHelper.EITHERF.widen(EitherF.right(inner));
-  }
-
   @Nested
   @DisplayName("combine(2)")
   class CombineTwo {
@@ -64,7 +51,12 @@ class InterpretersTest {
       Natural<EitherFKind.Witness<IdentityKind.Witness, MaybeKind.Witness>, IdentityKind.Witness>
           combined = Interpreters.combine(identityInterp, maybeInterp);
 
-      Kind<IdentityKind.Witness, String> result = combined.apply(leftIdentity("hello"));
+      Kind<IdentityKind.Witness, String> leftInner =
+          IdentityKindHelper.IDENTITY.widen(new Identity<>("hello"));
+      Kind<EitherFKind.Witness<IdentityKind.Witness, MaybeKind.Witness>, String> leftKind =
+          EitherFKindHelper.EITHERF.widen(EitherF.left(leftInner));
+
+      Kind<IdentityKind.Witness, String> result = combined.apply(leftKind);
 
       Identity<String> id = IdentityKindHelper.IDENTITY.narrow(result);
       assertThat(id.value()).isEqualTo("hello");
@@ -76,7 +68,11 @@ class InterpretersTest {
       Natural<EitherFKind.Witness<IdentityKind.Witness, MaybeKind.Witness>, IdentityKind.Witness>
           combined = Interpreters.combine(identityInterp, maybeInterp);
 
-      Kind<IdentityKind.Witness, String> result = combined.apply(rightMaybe("world"));
+      Kind<MaybeKind.Witness, String> rightInner = MaybeKindHelper.MAYBE.widen(Maybe.just("world"));
+      Kind<EitherFKind.Witness<IdentityKind.Witness, MaybeKind.Witness>, String> rightKind =
+          EitherFKindHelper.EITHERF.widen(EitherF.right(rightInner));
+
+      Kind<IdentityKind.Witness, String> result = combined.apply(rightKind);
 
       Identity<String> id = IdentityKindHelper.IDENTITY.narrow(result);
       assertThat(id.value()).isEqualTo("world");
@@ -90,15 +86,13 @@ class InterpretersTest {
     @Test
     @DisplayName("Dispatches to correct interpreter in three-way composition")
     void dispatchesToCorrectInterpreterInThreeWay() {
-      // Third effect: also Identity (reusing for simplicity)
-      Natural<IdentityKind.Witness, IdentityKind.Witness> thirdInterp = identityInterp;
-
+      // Third effect: also Identity (reusing identityInterp for simplicity)
       Natural<
               EitherFKind.Witness<
                   IdentityKind.Witness,
                   EitherFKind.Witness<MaybeKind.Witness, IdentityKind.Witness>>,
               IdentityKind.Witness>
-          combined = Interpreters.combine(identityInterp, maybeInterp, thirdInterp);
+          combined = Interpreters.combine(identityInterp, maybeInterp, identityInterp);
 
       // Test: inject into the leftmost position
       Kind<IdentityKind.Witness, String> leftOp =
@@ -133,14 +127,13 @@ class InterpretersTest {
     @Test
     @DisplayName("Dispatches to third (rightmost) interpreter in three-way composition")
     void dispatchesToThirdInterpreter() {
-      Natural<IdentityKind.Witness, IdentityKind.Witness> thirdInterp = identityInterp;
-
+      // Third effect: also Identity (reusing identityInterp for simplicity)
       Natural<
               EitherFKind.Witness<
                   IdentityKind.Witness,
                   EitherFKind.Witness<MaybeKind.Witness, IdentityKind.Witness>>,
               IdentityKind.Witness>
-          combined = Interpreters.combine(identityInterp, maybeInterp, thirdInterp);
+          combined = Interpreters.combine(identityInterp, maybeInterp, identityInterp);
 
       // Inject into the rightmost position (right, then right)
       Kind<IdentityKind.Witness, String> rightOp =
@@ -195,8 +188,7 @@ class InterpretersTest {
                       left(firstOp));
 
       Kind<IdentityKind.Witness, String> firstResult = combined.apply(firstKind);
-      assertThat(IdentityKindHelper.IDENTITY.<String>narrow(firstResult).value())
-          .isEqualTo("first");
+      assertThat(IdentityKindHelper.IDENTITY.narrow(firstResult).value()).isEqualTo("first");
 
       // Test fourth position (Right, Right, Right)
       Kind<IdentityKind.Witness, String> fourthOp =
@@ -220,13 +212,13 @@ class InterpretersTest {
                       right(inner2));
 
       Kind<IdentityKind.Witness, String> fourthResult = combined.apply(fourthKind);
-      assertThat(IdentityKindHelper.IDENTITY.<String>narrow(fourthResult).value())
-          .isEqualTo("fourth");
+      assertThat(IdentityKindHelper.IDENTITY.narrow(fourthResult).value()).isEqualTo("fourth");
     }
   }
 
   @Nested
   @DisplayName("Null Validation")
+  @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
   class NullValidation {
 
     @Test

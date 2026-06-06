@@ -93,7 +93,7 @@ class ForPathFreePathTest {
     @DisplayName("from() chains to Steps2")
     void fromChainsToSteps2() {
       FreePath<MaybeKind.Witness, Integer> result =
-          ForPath.from(just(5)).from(a -> just(a * 2)).yield((a, b) -> a + b);
+          ForPath.from(just(5)).from(a -> just(a * 2)).yield(Integer::sum);
 
       assertThat(interpret(result)).isEqualTo(Maybe.just(15));
     }
@@ -113,7 +113,7 @@ class ForPathFreePathTest {
       User user = new User("Alice", new Address("NYC", "USA"));
 
       FreePath<MaybeKind.Witness, String> result =
-          ForPath.from(just(user)).focus(addressFocus).yield((u, addr) -> addr.city());
+          ForPath.from(just(user)).focus(addressFocus).yield((_, addr) -> addr.city());
 
       assertThat(interpret(result)).isEqualTo(Maybe.just("NYC"));
     }
@@ -127,7 +127,7 @@ class ForPathFreePathTest {
     @DisplayName("three generators chain correctly")
     void threeGenerators() {
       FreePath<MaybeKind.Witness, Integer> result =
-          ForPath.from(just(1)).from(a -> just(2)).from(t -> just(3)).yield((a, b, c) -> a + b + c);
+          ForPath.from(just(1)).from(_ -> just(2)).from(_ -> just(3)).yield((a, b, c) -> a + b + c);
 
       assertThat(interpret(result)).isEqualTo(Maybe.just(6));
     }
@@ -137,8 +137,8 @@ class ForPathFreePathTest {
     void nothingInMiddleShortCircuits() {
       FreePath<MaybeKind.Witness, Integer> result =
           ForPath.from(just(1))
-              .<Integer>from(a -> nothing())
-              .from(t -> just(3))
+              .<Integer>from(_ -> nothing())
+              .from(_ -> just(3))
               .yield((a, b, c) -> a + b + c);
 
       assertThat(interpret(result).isNothing()).isTrue();
@@ -150,7 +150,7 @@ class ForPathFreePathTest {
       FreePath<MaybeKind.Witness, String> result =
           ForPath.from(just(5))
               .let(a -> a * 10)
-              .from(t -> just("hello"))
+              .from(_ -> just("hello"))
               .yield((a, b, c) -> c + ":" + a + "+" + b);
 
       assertThat(interpret(result)).isEqualTo(Maybe.just("hello:5+50"));
@@ -163,7 +163,7 @@ class ForPathFreePathTest {
           ForPath.from(just(3))
               .from(a -> just(a + 7))
               .from(t -> just(t._1() * t._2()))
-              .yield((a, b, c) -> c);
+              .yield((_, _, c) -> c);
 
       // a=3, b=10, c=3*10=30
       assertThat(interpret(result)).isEqualTo(Maybe.just(30));
@@ -178,7 +178,7 @@ class ForPathFreePathTest {
     @DisplayName("yield with tuple function on Steps2")
     void yieldWithTupleSteps2() {
       FreePath<MaybeKind.Witness, String> result =
-          ForPath.from(just(5)).from(a -> just(10)).yield(t -> "sum=" + (t._1() + t._2()));
+          ForPath.from(just(5)).from(_ -> just(10)).yield(t -> "sum=" + (t._1() + t._2()));
 
       assertThat(interpret(result)).isEqualTo(Maybe.just("sum=15"));
     }
@@ -188,8 +188,8 @@ class ForPathFreePathTest {
     void yieldWithTupleSteps3() {
       FreePath<MaybeKind.Witness, Integer> result =
           ForPath.from(just(1))
-              .from(a -> just(2))
-              .from(t -> just(3))
+              .from(_ -> just(2))
+              .from(_ -> just(3))
               .yield(t -> t._1() + t._2() + t._3());
 
       assertThat(interpret(result)).isEqualTo(Maybe.just(6));
@@ -202,6 +202,7 @@ class ForPathFreePathTest {
 
     @Test
     @DisplayName("ForPath.from(null) throws NullPointerException")
+    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
     void fromNullThrows() {
       assertThatNullPointerException()
           .isThrownBy(() -> ForPath.from((FreePath<MaybeKind.Witness, ?>) null))
@@ -210,9 +211,10 @@ class ForPathFreePathTest {
 
     @Test
     @DisplayName("yield with null result throws NullPointerException")
+    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
     void yieldNullResultThrows() {
       FreePath<MaybeKind.Witness, Object> path =
-          ForPath.from(just(5)).from(a -> just(10)).yield((a, b) -> null);
+          ForPath.from(just(5)).from(_ -> just(10)).yield((_, _) -> null);
 
       // Null yields are caught by the generated code's Objects.requireNonNull
       assertThatNullPointerException().isThrownBy(() -> interpret(path));
@@ -228,9 +230,9 @@ class ForPathFreePathTest {
     void fourBindings() {
       FreePath<MaybeKind.Witness, Integer> result =
           ForPath.from(just(1))
-              .from(a -> just(2))
-              .from(t -> just(3))
-              .from(t -> just(4))
+              .from(_ -> just(2))
+              .from(_ -> just(3))
+              .from(_ -> just(4))
               .yield((a, b, c, d) -> a + b + c + d);
 
       assertThat(interpret(result)).isEqualTo(Maybe.just(10));
@@ -242,9 +244,9 @@ class ForPathFreePathTest {
       FreePath<MaybeKind.Witness, String> result =
           ForPath.from(just(1))
               .let(a -> a * 2)
-              .from(t -> just("x"))
+              .from(_ -> just("x"))
               .let(t -> t._3().toUpperCase())
-              .from(t -> just(100))
+              .from(_ -> just(100))
               .yield((a, b, c, d, e) -> a + "," + b + "," + c + "," + d + "," + e);
 
       assertThat(interpret(result)).isEqualTo(Maybe.just("1,2,x,X,100"));
@@ -259,7 +261,7 @@ class ForPathFreePathTest {
     @DisplayName("par(a, b) combines two independent FreePaths")
     void parTwoTopLevel() {
       FreePath<MaybeKind.Witness, Integer> result =
-          ForPath.par(just(10), just(20)).yield((a, b) -> a + b);
+          ForPath.par(just(10), just(20)).yield(Integer::sum);
 
       assertThat(interpret(result)).isEqualTo(Maybe.just(30));
     }
@@ -277,7 +279,7 @@ class ForPathFreePathTest {
     @DisplayName("top-level par short-circuits on nothing")
     void parTopLevelShortCircuits() {
       FreePath<MaybeKind.Witness, Integer> result =
-          ForPath.par(just(10), ForPathFreePathTest.<Integer>nothing()).yield((a, b) -> a + b);
+          ForPath.par(just(10), ForPathFreePathTest.<Integer>nothing()).yield(Integer::sum);
 
       assertThat(interpret(result).isNothing()).isTrue();
     }
@@ -292,8 +294,8 @@ class ForPathFreePathTest {
     void parTwoComputations() {
       FreePath<MaybeKind.Witness, Integer> result =
           ForPath.from(just(1))
-              .from(a -> just(2))
-              .<Integer, Integer>par(t -> just(t._1() * 10), t -> just(t._2() * 10))
+              .from(_ -> just(2))
+              .par(t -> just(t._1() * 10), t -> just(t._2() * 10))
               .yield((a, b, c, d) -> a + b + c + d);
 
       // a=1, b=2, c=10, d=20
@@ -305,8 +307,8 @@ class ForPathFreePathTest {
     void parShortCircuitsOnNothing() {
       FreePath<MaybeKind.Witness, Integer> result =
           ForPath.from(just(1))
-              .from(a -> just(2))
-              .<Integer, Integer>par(t -> just(t._1() * 10), t -> nothing())
+              .from(_ -> just(2))
+              .<Integer, Integer>par(t -> just(t._1() * 10), _ -> nothing())
               .yield((a, b, c, d) -> a + b + c + d);
 
       assertThat(interpret(result).isNothing()).isTrue();
@@ -317,8 +319,8 @@ class ForPathFreePathTest {
     void parThreeComputations() {
       FreePath<MaybeKind.Witness, Integer> result =
           ForPath.from(just(1))
-              .from(a -> just(2))
-              .<Integer, Integer, Integer>par(t -> just(10), t -> just(20), t -> just(30))
+              .from(_ -> just(2))
+              .par(_ -> just(10), _ -> just(20), _ -> just(30))
               .yield((a, b, c, d, e) -> a + b + c + d + e);
 
       assertThat(interpret(result)).isEqualTo(Maybe.just(63));
@@ -333,7 +335,7 @@ class ForPathFreePathTest {
     @DisplayName("FreePath via() chains work within ForPath from()")
     void viaChains() {
       FreePath<MaybeKind.Witness, Integer> result =
-          ForPath.from(just(5)).from(a -> just(a).via(x -> just(x * 2))).yield((a, b) -> a + b);
+          ForPath.from(just(5)).from(a -> just(a).via(x -> just(x * 2))).yield(Integer::sum);
 
       // a=5, b=5*2=10
       assertThat(interpret(result)).isEqualTo(Maybe.just(15));
@@ -354,7 +356,7 @@ class ForPathFreePathTest {
       FreePath<MaybeKind.Witness, String> result =
           ForPath.from(just(42))
               .from(a -> FreePath.pure("answer=" + a, FUNCTOR))
-              .yield((a, b) -> b);
+              .yield((_, b) -> b);
 
       assertThat(interpret(result)).isEqualTo(Maybe.just("answer=42"));
     }
@@ -373,9 +375,9 @@ class ForPathFreePathTest {
           ForPath.from(just(Arrays.asList(1, 2, 3)))
               .traverse(
                   listTraverse,
-                  list -> LIST.widen(list),
+                  LIST::widen,
                   (Integer i) -> FreePath.liftF(MAYBE.just(i * 2), FUNCTOR).runKind())
-              .yield((original, traversed) -> LIST.narrow(traversed));
+              .yield((_, traversed) -> LIST.narrow(traversed));
 
       assertThat(interpret(result)).isEqualTo(Maybe.just(List.of(2, 4, 6)));
     }
@@ -391,7 +393,7 @@ class ForPathFreePathTest {
       FreePath<MaybeKind.Witness, List<Integer>> result =
           ForPath.from(just(kindList))
               .sequence(listTraverse, Function.identity())
-              .yield((original, sequenced) -> LIST.narrow(sequenced));
+              .yield((_, sequenced) -> LIST.narrow(sequenced));
 
       assertThat(interpret(result)).isEqualTo(Maybe.just(List.of(10, 20, 30)));
     }
@@ -404,12 +406,11 @@ class ForPathFreePathTest {
               .flatTraverse(
                   listTraverse,
                   Instances.monadZero(list()),
-                  list -> LIST.widen(list),
+                  LIST::widen,
                   (Integer i) ->
-                      FreePath.<MaybeKind.Witness, Kind<ListKind.Witness, Integer>>liftF(
-                              MAYBE.just(LIST.widen(Arrays.asList(i, i * 10))), FUNCTOR)
+                      FreePath.liftF(MAYBE.just(LIST.widen(Arrays.asList(i, i * 10))), FUNCTOR)
                           .runKind())
-              .yield((original, traversed) -> LIST.narrow(traversed));
+              .yield((_, traversed) -> LIST.narrow(traversed));
 
       assertThat(interpret(result)).isEqualTo(Maybe.just(List.of(1, 10, 2, 20, 3, 30)));
     }
@@ -426,7 +427,7 @@ class ForPathFreePathTest {
       Kind<FreeKind.Witness<MaybeKind.Witness>, Integer> kind = path.runKind();
 
       // Narrow back and verify the round-trip
-      var free = FreeKindHelper.FREE.<MaybeKind.Witness, Integer>narrow(kind);
+      var free = FreeKindHelper.FREE.narrow(kind);
       assertThat(free).isEqualTo(path.toFree());
     }
 
@@ -436,7 +437,7 @@ class ForPathFreePathTest {
       FreePath<MaybeKind.Witness, String> path = FreePath.pure("hello", FUNCTOR);
       Kind<FreeKind.Witness<MaybeKind.Witness>, String> kind = path.runKind();
 
-      var free = FreeKindHelper.FREE.<MaybeKind.Witness, String>narrow(kind);
+      var free = FreeKindHelper.FREE.narrow(kind);
       // Interpret and verify the value
       Maybe<String> result = MAYBE.narrow(free.foldMap(ID_NAT, MONAD));
       assertThat(result).isEqualTo(Maybe.just("hello"));

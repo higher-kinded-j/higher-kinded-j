@@ -56,7 +56,7 @@ abstract class ConstTestBase
 
   /** Sum monoid for integers: (0, +) */
   protected final Monoid<Integer> sumMonoid =
-      new Monoid<Integer>() {
+      new Monoid<>() {
         @Override
         public Integer empty() {
           return 0;
@@ -70,7 +70,7 @@ abstract class ConstTestBase
 
   /** Product monoid for integers: (1, *) */
   protected final Monoid<Integer> productMonoid =
-      new Monoid<Integer>() {
+      new Monoid<>() {
         @Override
         public Integer empty() {
           return 1;
@@ -84,7 +84,7 @@ abstract class ConstTestBase
 
   /** String concatenation monoid: ("", ++) */
   protected final Monoid<String> stringMonoid =
-      new Monoid<String>() {
+      new Monoid<>() {
         @Override
         public String empty() {
           return "";
@@ -204,41 +204,5 @@ abstract class ConstTestBase
       Const<Integer, ?> const2 = CONST.narrow(k2);
       return Objects.equals(const1.value(), const2.value());
     };
-  }
-
-  // ============================================================================
-  // Helper Methods
-  // ============================================================================
-
-  /**
-   * Narrows a Kind to its concrete Const type.
-   *
-   * @param kind The Kind to narrow
-   * @param <A> The phantom type parameter
-   * @return The narrowed Const
-   */
-  protected <A> Const<Integer, A> narrowToConst(Kind<ConstKind.Witness<Integer>, A> kind) {
-    return CONST.narrow(kind);
-  }
-
-  /**
-   * Creates a Const Kind with a specific accumulated value.
-   *
-   * @param value The accumulated value
-   * @param <A> The phantom type parameter
-   * @return A Const Kind
-   */
-  protected <A> Kind<ConstKind.Witness<Integer>, A> constKind(Integer value) {
-    return CONST.widen(new Const<>(value));
-  }
-
-  /**
-   * Creates a Const Kind with the default value.
-   *
-   * @param <A> The phantom type parameter
-   * @return A Const Kind with the default accumulated value
-   */
-  protected <A> Kind<ConstKind.Witness<Integer>, A> defaultConstKind() {
-    return constKind(DEFAULT_VALUE);
   }
 }

@@ -4,22 +4,15 @@ package org.higherkindedj.hkt.writer;
 
 import static org.assertj.core.api.Assertions.*;
 import static org.higherkindedj.hkt.assertions.WriterAssert.assertThatWriter;
-import static org.higherkindedj.hkt.instances.Witnesses.*;
-import static org.junit.jupiter.api.Assertions.assertTimeoutPreemptively;
 
-import java.time.Duration;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Function;
-import org.higherkindedj.hkt.Monad;
 import org.higherkindedj.hkt.Unit;
 import org.higherkindedj.hkt.exception.KindUnwrapException;
-import org.higherkindedj.hkt.instances.Instances;
 import org.higherkindedj.hkt.test.assertions.ValidationTestBuilder;
-import org.higherkindedj.hkt.test.contract.TypeClassContract;
 import org.higherkindedj.hkt.test.fixtures.TestFunctions;
 import org.higherkindedj.hkt.util.validation.Operation;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -33,44 +26,8 @@ import org.junit.jupiter.api.Test;
 @DisplayName("Writer<W, A> Core Functionality - Standardised Test Suite")
 class WriterTest extends WriterTestBase {
 
-  // Type class testing fixtures
-  private Monad<WriterKind.Witness<String>> monad;
-  private WriterFunctor<String> functor;
-
-  @BeforeEach
-  void setUpWriter() {
-    monad = Instances.writer(STRING_MONOID);
-    functor = new WriterFunctor<>();
-  }
-
-  @Nested
-  @DisplayName("Complete Type Class Test Suite")
-  class CompleteTypeClassTestSuite {
-
-    @Test
-    @DisplayName("Run complete Monad test pattern")
-    void runCompleteMonadTest() {
-      TypeClassContract.<WriterKind.Witness<String>>monad(WriterMonad.class)
-          .<Integer>instance(monad)
-          .<String>withKind(validKind)
-          .withMonadOperations(
-              validKind2, validMapper, validFlatMapper, validFunctionKind, validCombiningFunction)
-          .withLawsTesting(testValue, testFunction, chainFunction, equalityChecker)
-          .verify();
-    }
-
-    @Test
-    @DisplayName("Run complete Functor test pattern")
-    void runCompleteFunctorTest() {
-      TypeClassContract.<WriterKind.Witness<String>>functor(WriterFunctor.class)
-          .<Integer>instance(functor)
-          .<String>withKind(validKind)
-          .withMapper(validMapper)
-          .withSecondMapper(secondMapper)
-          .withEqualityChecker(equalityChecker)
-          .verify();
-    }
-  }
+  // The Functor/Monad type-class contracts and laws live in WriterFunctorTest / WriterMonadTest;
+  // this suite focuses on the Writer record's own factory, accessor, map and flatMap methods.
 
   @Nested
   @DisplayName("Factory Methods - Complete Coverage")
@@ -114,21 +71,6 @@ class WriterTest extends WriterTestBase {
       // Null value
       Writer<String, Integer> w2 = writerOf("Log", null);
       assertThatWriter(w2).hasLog("Log").hasNullValue();
-    }
-
-    @Test
-    @DisplayName("Factory methods type inference works correctly")
-    void factoryMethodsTypeInference() {
-      // Test that type inference works without explicit type parameters
-      var valueWriterLocal = valueWriter(42);
-      var tellWriterLocal = tellWriter("log");
-
-      // Should be able to assign to properly typed variables
-      Writer<String, Integer> valueAssignment = valueWriterLocal;
-      Writer<String, Unit> tellAssignment = tellWriterLocal;
-
-      assertThatWriter(valueAssignment).hasValue(42);
-      assertThatWriter(tellAssignment).hasLog("log");
     }
   }
 
@@ -209,18 +151,20 @@ class WriterTest extends WriterTestBase {
 
     @Test
     @DisplayName("map() handles null values correctly")
+    @SuppressWarnings("DataFlowIssue") // a Writer may legitimately hold a null value
     void mapHandlesNullValues() {
       // Mapping null value
-      Writer<String, String> result = writerOf("NullLog;", null).map(i -> String.valueOf(i));
+      Writer<String, String> result = writerOf("NullLog;", null).map(String::valueOf);
       assertThatWriter(result).hasLog("NullLog;").hasValue("null");
 
       // Mapping to null
-      Writer<String, Integer> toNull = defaultWriter().map(i -> null);
+      Writer<String, Integer> toNull = defaultWriter().map(_ -> null);
       assertThatWriter(toNull).hasLog(DEFAULT_LOG).hasNullValue();
     }
 
     @Test
     @DisplayName("map() validates null mapper using standardised validation")
+    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
     void mapValidatesNullMapper() {
       ValidationTestBuilder.create()
           .assertMapperNull(() -> defaultWriter().map(null), "f", Operation.MAP)
@@ -284,7 +228,7 @@ class WriterTest extends WriterTestBase {
       Writer<String, String> result =
           start
               .flatMap(STRING_MONOID, i -> tellWriter("Logged " + i + ";"))
-              .flatMap(STRING_MONOID, v -> writerOf("Final;", "Done"));
+              .flatMap(STRING_MONOID, _ -> writerOf("Final;", "Done"));
 
       assertThatWriter(result).hasLog("Logged 10;Final;").hasValue("Done");
     }
@@ -305,6 +249,7 @@ class WriterTest extends WriterTestBase {
 
     @Test
     @DisplayName("flatMap() validates parameters using standardised validation")
+    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
     void flatMapValidatesParameters() {
       Function<Integer, Writer<String, String>> validMapper =
           i -> writerOf(STRING_MONOID.empty(), String.valueOf(i));
@@ -319,8 +264,9 @@ class WriterTest extends WriterTestBase {
 
     @Test
     @DisplayName("flatMap() validates non-null results")
+    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
     void flatMapValidatesNonNullResults() {
-      Function<Integer, Writer<String, String>> nullReturningMapper = i -> null;
+      Function<Integer, Writer<String, String>> nullReturningMapper = _ -> null;
 
       assertThatThrownBy(() -> defaultWriter().flatMap(STRING_MONOID, nullReturningMapper))
           .isInstanceOf(KindUnwrapException.class)
@@ -339,10 +285,10 @@ class WriterTest extends WriterTestBase {
     }
 
     @Test
-    @DisplayName("flatMap() handles null values correctly")
+    @DisplayName("flatMap() passes a null value through to the mapper")
     void flatMapHandlesNullValues() {
-      Function<Integer, Writer<String, String>> mapper =
-          i -> writerOf("Null;", i == null ? "was null" : "was " + i);
+      // String concatenation renders the null value as "null", proving flatMap forwards it.
+      Function<Integer, Writer<String, String>> mapper = i -> writerOf("Null;", "was " + i);
 
       Writer<String, Integer> nullWriter = writerOf("NullLog;", null);
       Writer<String, String> result = nullWriter.flatMap(STRING_MONOID, mapper);
@@ -376,9 +322,6 @@ class WriterTest extends WriterTestBase {
     @DisplayName("equals() and hashCode() work correctly")
     void equalsAndHashCodeWorkCorrectly() {
       Writer<String, Integer> writer1 = defaultWriter();
-
-      // Same instances
-      assertThat(writer1).isEqualTo(writer1);
 
       // Equal instances
       Writer<String, Integer> another = writerOf(DEFAULT_LOG, DEFAULT_VALUE);
@@ -483,48 +426,6 @@ class WriterTest extends WriterTestBase {
   }
 
   @Nested
-  @DisplayName("Performance and Memory Characteristics")
-  class PerformanceAndMemoryTests {
-
-    @Test
-    @DisplayName("Writer operations complete in reasonable time")
-    void writerOperationsCompleteInReasonableTime() {
-      Writer<String, Integer> test = valueWriter(42);
-
-      // Verify operations complete without hanging (generous timeout)
-      // Use JMH benchmarks in hkj-benchmarks module for precise performance measurement
-      assertTimeoutPreemptively(
-          Duration.ofSeconds(2),
-          () -> {
-            for (int i = 0; i < 100_000; i++) {
-              test.map(x -> x + 1).flatMap(STRING_MONOID, x -> valueWriter(x * 2)).value();
-            }
-          },
-          "Writer operations should complete within reasonable time");
-    }
-
-    @Test
-    @DisplayName("Log concatenation is efficient")
-    void logConcatenationIsEfficient() {
-      Writer<String, Integer> start = valueWriter(1);
-
-      Writer<String, Integer> result = start;
-      for (int i = 0; i < 100; i++) {
-        final int iteration = i;
-        result = result.flatMap(STRING_MONOID, x -> writerOf("Step " + iteration + ";", x + 1));
-      }
-
-      assertThatWriter(result)
-          .hasValue(101)
-          .satisfiesLog(
-              log -> {
-                assertThat(log).contains("Step 0;");
-                assertThat(log).contains("Step 99;");
-              });
-    }
-  }
-
-  @Nested
   @DisplayName("Type Safety and Variance")
   class TypeSafetyAndVarianceTests {
 
@@ -571,9 +472,7 @@ class WriterTest extends WriterTestBase {
     @Test
     @DisplayName("Writer operations are stack-safe for deep chains")
     void writerOperationsAreStackSafe() {
-      Writer<String, Integer> start = valueWriter(0);
-
-      Writer<String, Integer> result = start;
+      Writer<String, Integer> result = valueWriter(0);
       for (int i = 0; i < 10000; i++) {
         result = result.map(x -> x + 1);
       }

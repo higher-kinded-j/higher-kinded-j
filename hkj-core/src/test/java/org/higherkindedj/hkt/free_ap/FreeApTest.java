@@ -69,6 +69,7 @@ class FreeApTest {
 
     @Test
     @DisplayName("pure allows null values")
+    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify it is accepted
     void pureAllowsNull() {
       FreeAp<MaybeKind.Witness, String> freeAp = FreeAp.pure(null);
 
@@ -107,6 +108,7 @@ class FreeApTest {
 
     @Test
     @DisplayName("lift throws for null")
+    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
     void liftThrowsForNull() {
       assertThatThrownBy(() -> FreeAp.lift(null))
           .isInstanceOf(NullPointerException.class)
@@ -168,6 +170,7 @@ class FreeApTest {
 
     @Test
     @DisplayName("map throws for null function")
+    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
     void mapThrowsForNullFunction() {
       FreeAp<MaybeKind.Witness, Integer> freeAp = FreeAp.pure(42);
 
@@ -224,6 +227,7 @@ class FreeApTest {
 
     @Test
     @DisplayName("ap throws for null function FreeAp")
+    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
     void apThrowsForNullFunction() {
       FreeAp<MaybeKind.Witness, Integer> value = FreeAp.pure(10);
 
@@ -318,6 +322,7 @@ class FreeApTest {
 
     @Test
     @DisplayName("foldMap throws for null transform")
+    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
     void foldMapThrowsForNullTransform() {
       FreeAp<MaybeKind.Witness, Integer> freeAp = FreeAp.pure(42);
 
@@ -327,6 +332,7 @@ class FreeApTest {
 
     @Test
     @DisplayName("foldMap throws for null applicative")
+    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
     void foldMapThrowsForNullApplicative() {
       FreeAp<MaybeKind.Witness, Integer> freeAp = FreeAp.pure(42);
 
@@ -510,12 +516,14 @@ class FreeApTest {
 
     @Test
     @DisplayName("narrow throws for null")
+    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
     void narrowThrowsForNull() {
       assertThatThrownBy(() -> FREE_AP.narrow(null)).isInstanceOf(KindUnwrapException.class);
     }
 
     @Test
     @DisplayName("widen throws for null")
+    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
     void widenThrowsForNull() {
       assertThatThrownBy(() -> FREE_AP.widen(null)).isInstanceOf(NullPointerException.class);
     }
@@ -524,10 +532,7 @@ class FreeApTest {
     @DisplayName("narrow throws for invalid kind type")
     void narrowThrowsForInvalidKindType() {
       // Create a mock Kind that is not a FreeApHolder
-      @SuppressWarnings("unchecked")
-      Kind<FreeApKind.Witness<MaybeKind.Witness>, Integer> invalidKind =
-          (Kind<FreeApKind.Witness<MaybeKind.Witness>, Integer>)
-              new FreeApKind<MaybeKind.Witness, Integer>() {};
+      Kind<FreeApKind.Witness<MaybeKind.Witness>, Integer> invalidKind = new FreeApKind<>() {};
 
       assertThatThrownBy(() -> FREE_AP.narrow(invalidKind))
           .isInstanceOf(KindUnwrapException.class)

@@ -34,6 +34,7 @@ import org.pcollections.TreePVector;
  * <p>This is the property-test counterpart to {@link PCollectionsListIntegrationTest}: it exercises
  * the same compatibility hypothesis across many randomised inputs.
  */
+@SuppressWarnings("unused") // referenced reflectively by jqwik
 class PCollectionsListPropertyTest {
 
   private final MonadZero<ListKind.Witness> monad = Instances.monadZero(list());
@@ -55,27 +56,24 @@ class PCollectionsListPropertyTest {
 
   @Provide
   Arbitrary<Function<Integer, Integer>> intToInt() {
-    return Arbitraries.of(
-        i -> i + 1, i -> i * 2, i -> -i, i -> i % 7, Function.<Integer>identity());
+    return Arbitraries.of(i -> i + 1, i -> i * 2, i -> -i, i -> i % 7, Function.identity());
   }
 
   @Provide
   Arbitrary<Function<Integer, Kind<ListKind.Witness, Integer>>> intToKindList() {
     return Arbitraries.of(
-        (Function<Integer, Kind<ListKind.Witness, Integer>>)
-            i -> LIST.widen(TreePVector.from(List.of(i, i + 1))),
+        i -> LIST.widen(TreePVector.from(List.of(i, i + 1))),
         i -> LIST.widen(TreePVector.from(List.of(i * 10))),
-        i -> LIST.widen(TreePVector.<Integer>empty()),
+        _ -> LIST.widen(TreePVector.empty()),
         i -> LIST.widen(TreePVector.from(List.of(i, -i, i * i))));
   }
 
   @Provide
   Arbitrary<Function<Integer, Kind<ListKind.Witness, Integer>>> intToKindListSecondary() {
     return Arbitraries.of(
-        (Function<Integer, Kind<ListKind.Witness, Integer>>)
-            i -> LIST.widen(TreePVector.from(List.of(i + 100))),
+        i -> LIST.widen(TreePVector.from(List.of(i + 100))),
         i -> LIST.widen(TreePVector.from(List.of(i, i))),
-        i -> LIST.widen(TreePVector.<Integer>empty()));
+        _ -> LIST.widen(TreePVector.empty()));
   }
 
   // ---------------------------------------------------------------------
@@ -124,10 +122,11 @@ class PCollectionsListPropertyTest {
 
   @Property
   @Label("Monad right identity: flatMap(pv, of) = pv")
+  @SuppressWarnings("Convert2MethodRef") // equivalent method ref is rejected by IntelliJ inference
   void rightIdentity(@ForAll("pvectorInts") PVector<Integer> pv) {
     Kind<ListKind.Witness, Integer> kind = LIST.widen(pv);
 
-    Kind<ListKind.Witness, Integer> result = monad.flatMap(monad::of, kind);
+    Kind<ListKind.Witness, Integer> result = monad.flatMap(x -> monad.of(x), kind);
 
     assertThat(LIST.narrow(result)).containsExactlyElementsOf(pv);
   }

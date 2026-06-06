@@ -23,7 +23,7 @@ import org.higherkindedj.optics.util.Traversals;
  * Comprehensive example demonstrating validation-aware modification operations using {@link
  * OpticOps}.
  *
- * <p>This example showcases Phase 2 of the optics core types integration, demonstrating:
+ * <p>This example showcases optics core types integration, demonstrating:
  *
  * <ul>
  *   <li>Single-field validation with {@code modifyEither} (short-circuiting)

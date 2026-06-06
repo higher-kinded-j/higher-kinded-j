@@ -36,13 +36,14 @@ class ReaderKindHelperTest extends ReaderTestBase {
 
     @Test
     @DisplayName("Complete test suite with multiple Reader types")
+    @SuppressWarnings("DataFlowIssue") // a null-valued Reader is intentional here
     void completeTestSuiteWithMultipleTypes() {
       List<Reader<TestConfig, String>> testInstances =
           List.of(
               Reader.of(TestConfig::url),
               Reader.constant("constant-value"),
               Reader.<TestConfig>ask().map(TestConfig::url),
-              Reader.of(env -> null));
+              Reader.of(_ -> null));
 
       for (Reader<TestConfig, String> instance : testInstances) {
         readerKindHelper(instance).test();
@@ -134,8 +135,9 @@ class ReaderKindHelperTest extends ReaderTestBase {
 
     @Test
     @DisplayName("Null values in Reader are preserved")
+    @SuppressWarnings("DataFlowIssue") // a null-valued Reader is intentional here
     void testNullValuesPreserved() {
-      Reader<TestConfig, String> nullReader = Reader.of(env -> null);
+      Reader<TestConfig, String> nullReader = Reader.of(_ -> null);
       Reader<TestConfig, String> constantNull = Reader.constant(null);
 
       readerKindHelper(nullReader).test();
@@ -196,10 +198,11 @@ class ReaderKindHelperTest extends ReaderTestBase {
 
     @Test
     @DisplayName("All combinations of null values")
+    @SuppressWarnings("DataFlowIssue") // a null-valued Reader is intentional here
     void testAllNullValueCombinations() {
-      Reader<TestConfig, String> nullFromFunction = Reader.of(env -> null);
+      Reader<TestConfig, String> nullFromFunction = Reader.of(_ -> null);
       Reader<TestConfig, String> nullFromConstant = Reader.constant(null);
-      Reader<TestConfig, String> nullFromMap = Reader.<TestConfig>ask().map(env -> (String) null);
+      Reader<TestConfig, String> nullFromMap = Reader.<TestConfig>ask().map(_ -> null);
 
       List<Reader<TestConfig, String>> nullInstances =
           List.of(nullFromFunction, nullFromConstant, nullFromMap);
@@ -240,16 +243,17 @@ class ReaderKindHelperTest extends ReaderTestBase {
 
     @Test
     @DisplayName("Stress test with complex scenarios")
+    @SuppressWarnings("DataFlowIssue") // a null-valued Reader is intentional here
     void testComplexStressScenarios() {
       // Create readers separately with explicit types to avoid type inference issues
       Reader<TestConfig, Object> simpleString = Reader.constant("simple_string");
       Reader<TestConfig, Object> simpleInt = Reader.constant(42);
       Reader<TestConfig, Object> simpleList = Reader.constant(List.of(1, 2, 3));
       Reader<TestConfig, Object> simpleMap = Reader.constant(Map.of("key", "value"));
-      Reader<TestConfig, Object> fromValue = Reader.of(env -> (Object) env.url());
-      Reader<TestConfig, Object> fromAsk = Reader.<TestConfig>ask().map(env -> (Object) env);
+      Reader<TestConfig, Object> fromValue = Reader.of(TestConfig::url);
+      Reader<TestConfig, Object> fromAsk = Reader.<TestConfig>ask().map(env -> env);
       Reader<TestConfig, Object> constantNull = Reader.constant(null);
-      Reader<TestConfig, Object> functionNull = Reader.of(env -> null);
+      Reader<TestConfig, Object> functionNull = Reader.of(_ -> null);
 
       List<Reader<TestConfig, Object>> complexInstances =
           List.of(
@@ -274,15 +278,16 @@ class ReaderKindHelperTest extends ReaderTestBase {
 
     @Test
     @DisplayName("All Reader types and states")
+    @SuppressWarnings("DataFlowIssue") // a null-valued Reader is intentional here
     void testAllReaderTypesAndStates() {
       List<Reader<TestConfig, String>> allStates =
           List.of(
               Reader.of(TestConfig::url),
               Reader.constant("constant"),
               Reader.<TestConfig>ask().map(TestConfig::url),
-              Reader.of(env -> ""),
+              Reader.of(_ -> ""),
               Reader.constant(""),
-              Reader.of(env -> null),
+              Reader.of(_ -> null),
               Reader.constant(null));
 
       for (Reader<TestConfig, String> state : allStates) {
@@ -367,6 +372,7 @@ class ReaderKindHelperTest extends ReaderTestBase {
 
     @Test
     @DisplayName("runReader() validates null Kind")
+    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
     void testRunReaderValidatesNullKind() {
       assertThatThrownBy(() -> READER.runReader(null, TEST_CONFIG))
           .isInstanceOf(NullPointerException.class);
@@ -379,6 +385,7 @@ class ReaderKindHelperTest extends ReaderTestBase {
 
     @Test
     @DisplayName("widen() validates null input")
+    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
     void testWidenValidatesNull() {
       assertThatThrownBy(() -> READER.widen(null))
           .isInstanceOf(NullPointerException.class)
@@ -394,14 +401,14 @@ class ReaderKindHelperTest extends ReaderTestBase {
     @Test
     @DisplayName("narrow() validates invalid Kind type")
     void testNarrowValidatesInvalidType() {
-      Kind<ReaderKind.Witness<TestConfig>, String> invalidKind =
-          new Kind<ReaderKind.Witness<TestConfig>, String>() {};
+      Kind<ReaderKind.Witness<TestConfig>, String> invalidKind = new Kind<>() {};
 
       assertThatThrownBy(() -> READER.narrow(invalidKind)).hasMessageContaining("Reader");
     }
 
     @Test
     @DisplayName("reader() factory validates null function")
+    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
     void testReaderFactoryValidatesNull() {
       assertThatThrownBy(() -> READER.reader(null))
           .isInstanceOf(NullPointerException.class)

@@ -195,12 +195,10 @@ abstract class StateTestBase<S> extends TypeClassTestBase<StateKind.Witness<S>, 
   }
 
   @Override
+  @SuppressWarnings("unchecked") // every concrete State test fixes S = Integer
   protected BiPredicate<Kind<StateKind.Witness<S>, ?>, Kind<StateKind.Witness<S>, ?>>
       createEqualityChecker() {
-    return (k1, k2) -> {
-      StateTuple<S, ?> result1 = STATE.runState(k1, getInitialState());
-      StateTuple<S, ?> result2 = STATE.runState(k2, getInitialState());
-      return result1.equals(result2);
-    };
+    return (BiPredicate<Kind<StateKind.Witness<S>, ?>, Kind<StateKind.Witness<S>, ?>>)
+        (BiPredicate<?, ?>) StateLawFixtures.EQ;
   }
 }

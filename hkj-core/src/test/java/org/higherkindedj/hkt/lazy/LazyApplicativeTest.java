@@ -10,7 +10,6 @@ import static org.higherkindedj.hkt.lazy.LazyKindHelper.*;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.BiFunction;
 import java.util.function.Function;
-import java.util.stream.Stream;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Monad;
 import org.higherkindedj.hkt.instances.Instances;
@@ -20,19 +19,16 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 
 @DisplayName("Lazy Applicative Complete Test Suite")
 class LazyApplicativeTest extends LazyTestBase {
 
   private Monad<LazyKind.Witness> applicative;
-  private static final AtomicInteger COUNTER = new AtomicInteger(0);
 
   @BeforeEach
   void setUpApplicative() {
     applicative = Instances.monad(lazy());
-    COUNTER.set(0);
   }
 
   @Nested
@@ -40,44 +36,38 @@ class LazyApplicativeTest extends LazyTestBase {
   class Laws {
 
     @ParameterizedTest(name = "identity holds on {0}")
-    @MethodSource("fixtures")
+    @MethodSource("org.higherkindedj.hkt.lazy.LazyLawFixtures#kinds")
     void identity(String label, Kind<LazyKind.Witness, Integer> v) {
       ApplicativeLaws.assertIdentity(applicative, v, equalityChecker);
     }
 
     @ParameterizedTest(name = "homomorphism holds on value {0}")
-    @MethodSource("values")
+    @MethodSource("org.higherkindedj.hkt.lazy.LazyLawFixtures#values")
     void homomorphism(Integer value) {
       ApplicativeLaws.assertHomomorphism(applicative, value, validMapper, equalityChecker);
     }
 
     @ParameterizedTest(name = "interchange holds on value {0}")
-    @MethodSource("values")
+    @MethodSource("org.higherkindedj.hkt.lazy.LazyLawFixtures#values")
     void interchange(Integer value) {
       ApplicativeLaws.assertInterchange(applicative, validFunctionKind, value, equalityChecker);
     }
 
     @ParameterizedTest(name = "composition holds on {0}")
-    @MethodSource("fixtures")
+    @MethodSource("org.higherkindedj.hkt.lazy.LazyLawFixtures#kinds")
     void composition(String label, Kind<LazyKind.Witness, Integer> w) {
       Kind<LazyKind.Witness, Function<String, String>> u =
-          LAZY.widen(Lazy.defer(() -> (Function<String, String>) s -> "u(" + s + ")"));
+          LAZY.widen(Lazy.defer(() -> s -> "u(" + s + ")"));
       Kind<LazyKind.Witness, Function<Integer, String>> v =
-          LAZY.widen(Lazy.defer(() -> (Function<Integer, String>) i -> "v" + i));
+          LAZY.widen(Lazy.defer(() -> i -> "v" + i));
       ApplicativeLaws.assertComposition(applicative, u, v, w, equalityChecker);
     }
-
-    static Stream<Arguments> fixtures() {
-      return Stream.of(
-          Arguments.of("Lazy.defer(0)", LAZY.widen(Lazy.defer(() -> 0))),
-          Arguments.of("Lazy.defer(42)", LAZY.widen(Lazy.defer(() -> 42))),
-          Arguments.of("Lazy.defer(-1)", LAZY.widen(Lazy.defer(() -> -1))));
-    }
-
-    static Stream<Arguments> values() {
-      return Stream.of(Arguments.of(0), Arguments.of(42), Arguments.of(-1));
-    }
   }
+
+  // No separate Applicative contract smoke: this instance is the Lazy Monad, so its map/ap/map2
+  // null-argument validation is already covered by the contract in LazyMonadTest. (EXCEPTIONS does
+  // not apply to Lazy at all — exceptions surface only when a result is forced, which the deferred
+  // ap/map2 exception tests below exercise.)
 
   @Nested
   @DisplayName("Of Operation")
@@ -100,16 +90,6 @@ class LazyApplicativeTest extends LazyTestBase {
       Lazy<Integer> lazy = narrowToLazy(kind);
 
       assertThat(lazy.force()).isNull();
-    }
-
-    @Test
-    @DisplayName("of should not trigger side effects")
-    void ofShouldNotTriggerSideEffects() {
-      AtomicInteger sideEffect = new AtomicInteger(0);
-      Kind<LazyKind.Witness, Integer> kind = applicative.of(DEFAULT_LAZY_VALUE);
-
-      // Creating the Kind should not cause evaluation
-      assertThat(sideEffect.get()).isZero();
     }
   }
 
@@ -197,7 +177,7 @@ class LazyApplicativeTest extends LazyTestBase {
     void apShouldPropagateExceptionsFromFunctionApplication() {
       RuntimeException applyException = new RuntimeException("Apply failure");
       Function<Integer, String> throwingFunc =
-          i -> {
+          _ -> {
             throw applyException;
           };
 
@@ -302,7 +282,7 @@ class LazyApplicativeTest extends LazyTestBase {
       Kind<LazyKind.Witness, Integer> kind2 = nowKind(ALTERNATIVE_LAZY_VALUE);
 
       BiFunction<Integer, Integer, String> throwingCombiner =
-          (i1, i2) -> {
+          (_, _) -> {
             throw combinerException;
           };
 
@@ -310,56 +290,6 @@ class LazyApplicativeTest extends LazyTestBase {
       Lazy<String> lazy = narrowToLazy(result);
 
       assertThatLazy(lazy).whenForcedThrows(RuntimeException.class);
-    }
-  }
-
-  @Nested
-  @DisplayName("Validation Tests")
-  class ValidationTests {
-
-    @Test
-    @DisplayName("ap should throw NPE for null function Kind")
-    void apShouldThrowNPEForNullFunctionKind() {
-      assertThatNullPointerException()
-          .isThrownBy(() -> applicative.ap(null, validKind))
-          .withMessageContaining("Kind for ap")
-          .withMessageContaining("function");
-    }
-
-    @Test
-    @DisplayName("ap should throw NPE for null argument Kind")
-    void apShouldThrowNPEForNullArgumentKind() {
-      assertThatNullPointerException()
-          .isThrownBy(() -> applicative.ap(validFunctionKind, null))
-          .withMessageContaining("Kind for ap (argument) cannot be null");
-    }
-
-    @Test
-    @DisplayName("map2 should throw NPE for null first Kind")
-    void map2ShouldThrowNPEForNullFirstKind() {
-      assertThatNullPointerException()
-          .isThrownBy(() -> applicative.map2(null, validKind2, validCombiningFunction))
-          .withMessageContaining("Kind<F, A> fa for map2 cannot be null");
-    }
-
-    @Test
-    @DisplayName("map2 should throw NPE for null second Kind")
-    void map2ShouldThrowNPEForNullSecondKind() {
-      assertThatNullPointerException()
-          .isThrownBy(() -> applicative.map2(validKind, null, validCombiningFunction))
-          .withMessageContaining("Kind<F, B> fb for map2 cannot be null");
-    }
-
-    @Test
-    @DisplayName("map2 should throw NPE for null combining function")
-    void map2ShouldThrowNPEForNullCombiningFunction() {
-      assertThatNullPointerException()
-          .isThrownBy(
-              () ->
-                  applicative.map2(
-                      validKind, validKind2, (BiFunction<Integer, Integer, String>) null))
-          .withMessageContaining("combining function")
-          .withMessageContaining("map2");
     }
   }
 

@@ -8,14 +8,12 @@ import static org.higherkindedj.hkt.future.CompletableFutureKindHelper.*;
 import static org.higherkindedj.hkt.instances.Witnesses.*;
 
 import java.io.IOException;
-import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BiFunction;
-import java.util.function.BiPredicate;
 import java.util.function.Function;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.MonadError;
@@ -25,22 +23,19 @@ import org.higherkindedj.hkt.instances.Instances;
 import org.higherkindedj.hkt.laws.ApplicativeLaws;
 import org.higherkindedj.hkt.laws.FunctorLaws;
 import org.higherkindedj.hkt.laws.MonadLaws;
+import org.higherkindedj.hkt.test.contract.Category;
+import org.higherkindedj.hkt.test.contract.TypeClassContract;
+import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.MethodSource;
 
 class CompletableFutureMonadTest {
 
   private final MonadError<CompletableFutureKind.Witness, Throwable> futureMonad =
       Instances.monadError(completableFuture());
-
-  /**
-   * Equality on Kind&lt;CF, ?&gt; by joining both sides and comparing the values. Used for law
-   * verification on completed futures.
-   */
-  private final BiPredicate<
-          Kind<CompletableFutureKind.Witness, ?>, Kind<CompletableFutureKind.Witness, ?>>
-      eq = (k1, k2) -> Objects.equals(FUTURE.join(k1), FUTURE.join(k2));
 
   // --- Helper Functions ---
   private <A> CompletableFuture<A> unwrapFuture(Kind<CompletableFutureKind.Witness, A> kind) {
@@ -66,6 +61,7 @@ class CompletableFutureMonadTest {
     return FUTURE.widen(future);
   }
 
+  @SuppressWarnings("SameParameterValue") // delayMillis kept for symmetry with delayedSuccess
   private <A> Kind<CompletableFutureKind.Witness, A> delayedFailure(
       Throwable error, long delayMillis) {
     CompletableFuture<A> future =
@@ -82,6 +78,50 @@ class CompletableFutureMonadTest {
               throw new CompletionException(error);
             });
     return FUTURE.widen(future);
+  }
+
+  // --- MonadError contract inputs (see monadErrorContract) ---
+  private final Kind<CompletableFutureKind.Witness, Integer> validKind = futureMonad.of(42);
+  private final Function<Integer, String> validMapper = i -> "v" + i;
+  private final Function<Integer, Kind<CompletableFutureKind.Witness, String>> validFlatMapper =
+      i -> futureMonad.of("flat:" + i);
+  private final Kind<CompletableFutureKind.Witness, Function<Integer, String>> validFunctionKind =
+      futureMonad.of(i -> "v" + i);
+  private final Function<Throwable, Kind<CompletableFutureKind.Witness, Integer>> validHandler =
+      _ -> futureMonad.of(0);
+  private final Kind<CompletableFutureKind.Witness, Integer> validFallback = futureMonad.of(-1);
+
+  /**
+   * Operation smoke for {@code map}/{@code flatMap}/{@code ap}/{@code handleErrorWith}/{@code
+   * recoverWith} on the MonadError instance. The Functor/Applicative/Monad laws are verified
+   * parameterised in the {@code *LawTests} blocks below, so this contract omits {@link
+   * Category#LAWS}.
+   *
+   * <p>Only {@link Category#OPERATIONS} is run:
+   *
+   * <ul>
+   *   <li>{@link Category#EXCEPTIONS} is omitted because the generic contract asserts that {@code
+   *       map}/{@code flatMap} <em>propagate</em> a thrown function exception, whereas a {@code
+   *       CompletableFuture} <em>captures</em> it as an exceptionally-completed future (exercised
+   *       by the {@code map_shouldFailIfFunctionThrows} / {@code ap}/{@code flatMap} failure tests
+   *       below).
+   *   <li>{@link Category#VALIDATIONS} is omitted because, like {@code Try}, {@code
+   *       CompletableFutureMonad} inherits the default {@code recoverWith}, which does not eagerly
+   *       reject a null fallback against a success. The MonadError-specific null-argument
+   *       validation is covered by {@link
+   *       MonadErrorTests#handleErrorWith_shouldFailWhenHandlerIsNull}.
+   * </ul>
+   */
+  @Test
+  @DisplayName("MonadError contract — operations (laws verified in the *LawTests blocks below)")
+  void monadErrorContract() {
+    TypeClassContract.<CompletableFutureKind.Witness, Throwable>monadError(
+            CompletableFutureMonad.class)
+        .<Integer>instance(futureMonad)
+        .<String>withKind(validKind)
+        .withMonadOperations(validMapper, validFlatMapper, validFunctionKind)
+        .withErrorHandling(validHandler, validFallback)
+        .verifyOnly(Category.OPERATIONS);
   }
 
   @Nested
@@ -123,7 +163,7 @@ class CompletableFutureMonadTest {
       Kind<CompletableFutureKind.Witness, Integer> input = futureMonad.of(10);
       Kind<CompletableFutureKind.Witness, String> result =
           futureMonad.map(
-              i -> {
+              _ -> {
                 throw mapEx;
               },
               input);
@@ -147,7 +187,7 @@ class CompletableFutureMonadTest {
         futureMonad.raiseError(funcException);
     Kind<CompletableFutureKind.Witness, Function<Integer, String>> funcKindThrows =
         futureMonad.of(
-            i -> {
+            _ -> {
               throw applyException;
             });
 
@@ -219,9 +259,9 @@ class CompletableFutureMonadTest {
     Function<Integer, Kind<CompletableFutureKind.Witness, String>> fSuccess =
         i -> futureMonad.of("Flat" + i);
     Function<Integer, Kind<CompletableFutureKind.Witness, String>> fFailure =
-        i -> futureMonad.raiseError(innerException);
+        _ -> futureMonad.raiseError(innerException);
     Function<Integer, Kind<CompletableFutureKind.Witness, String>> fThrows =
-        i -> {
+        _ -> {
           throw funcApplyException;
         };
 
@@ -325,7 +365,7 @@ class CompletableFutureMonadTest {
 
     @Test
     void handleErrorWith_shouldHandleFailureWithSuccessHandler() {
-      AtomicReference<Throwable> caught = new AtomicReference<>();
+      AtomicReference<@Nullable Throwable> caught = new AtomicReference<>();
       Function<Throwable, Kind<CompletableFutureKind.Witness, Integer>> handler =
           err -> {
             caught.set(err);
@@ -340,7 +380,7 @@ class CompletableFutureMonadTest {
 
     @Test
     void handleErrorWith_shouldHandleFailureWithFailedHandler() {
-      AtomicReference<Throwable> caught = new AtomicReference<>();
+      AtomicReference<@Nullable Throwable> caught = new AtomicReference<>();
       Function<Throwable, Kind<CompletableFutureKind.Witness, Integer>> handler =
           err -> {
             caught.set(err);
@@ -357,7 +397,7 @@ class CompletableFutureMonadTest {
 
     @Test
     void handleErrorWith_shouldHandleFailureWhenHandlerThrows() {
-      AtomicReference<Throwable> caught = new AtomicReference<>();
+      AtomicReference<@Nullable Throwable> caught = new AtomicReference<>();
       Function<Throwable, Kind<CompletableFutureKind.Witness, Integer>> handler =
           err -> {
             caught.set(err);
@@ -373,6 +413,7 @@ class CompletableFutureMonadTest {
     }
 
     @Test
+    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
     void handleErrorWith_shouldFailWhenHandlerIsNull() {
       assertThatThrownBy(() -> futureMonad.handleErrorWith(failedKind, null))
           .isInstanceOf(NullPointerException.class)
@@ -382,7 +423,7 @@ class CompletableFutureMonadTest {
 
     @Test
     void handleErrorWith_shouldHandleErrorSubclass() {
-      AtomicReference<Throwable> caughtError = new AtomicReference<>();
+      AtomicReference<@Nullable Throwable> caughtError = new AtomicReference<>();
       Function<Throwable, Kind<CompletableFutureKind.Witness, Integer>> handler =
           err -> {
             caughtError.set(err);
@@ -397,7 +438,7 @@ class CompletableFutureMonadTest {
 
     @Test
     void handleErrorWith_shouldHandleCheckedException() {
-      AtomicReference<Throwable> caughtError = new AtomicReference<>();
+      AtomicReference<@Nullable Throwable> caughtError = new AtomicReference<>();
       Function<Throwable, Kind<CompletableFutureKind.Witness, Integer>> handler =
           err -> {
             caughtError.set(err);
@@ -415,7 +456,7 @@ class CompletableFutureMonadTest {
       IOException ioCause = new IOException("Underlying IO failure");
       Kind<CompletableFutureKind.Witness, Integer> failedKindWithCause =
           FUTURE.widen(CompletableFuture.failedFuture(new CompletionException(ioCause)));
-      AtomicReference<Throwable> caughtError = new AtomicReference<>();
+      AtomicReference<@Nullable Throwable> caughtError = new AtomicReference<>();
 
       Function<Throwable, Kind<CompletableFutureKind.Witness, Integer>> handler =
           err -> {
@@ -436,7 +477,7 @@ class CompletableFutureMonadTest {
 
       Kind<CompletableFutureKind.Witness, Integer> failedKindWithCause =
           FUTURE.widen(internalFailure);
-      AtomicReference<Throwable> caughtError = new AtomicReference<>();
+      AtomicReference<@Nullable Throwable> caughtError = new AtomicReference<>();
 
       Function<Throwable, Kind<CompletableFutureKind.Witness, Integer>> handler =
           err -> {
@@ -456,7 +497,7 @@ class CompletableFutureMonadTest {
           new CompletionException("Failed Future No Cause", null);
       Kind<CompletableFutureKind.Witness, Integer> failedKindNoCause =
           futureMonad.raiseError(completionExNoCause);
-      AtomicReference<Throwable> caughtError = new AtomicReference<>();
+      AtomicReference<@Nullable Throwable> caughtError = new AtomicReference<>();
 
       Function<Throwable, Kind<CompletableFutureKind.Witness, Integer>> handler =
           err -> {
@@ -478,7 +519,7 @@ class CompletableFutureMonadTest {
 
       Kind<CompletableFutureKind.Witness, Integer> failedKindNoCause =
           FUTURE.widen(internalFailure);
-      AtomicReference<Throwable> caughtError = new AtomicReference<>();
+      AtomicReference<@Nullable Throwable> caughtError = new AtomicReference<>();
 
       Function<Throwable, Kind<CompletableFutureKind.Witness, Integer>> handler =
           err -> {
@@ -494,7 +535,7 @@ class CompletableFutureMonadTest {
     @Test
     void handleErrorWith_shouldHandleFailureWithDelayedRecovery() {
       Function<Throwable, Kind<CompletableFutureKind.Witness, Integer>> handler =
-          err -> delayedSuccess(0, 30);
+          _ -> delayedSuccess(0, 30);
 
       Kind<CompletableFutureKind.Witness, Integer> result =
           futureMonad.handleErrorWith(failedKind, handler);
@@ -504,7 +545,7 @@ class CompletableFutureMonadTest {
     @Test
     void handleErrorWith_shouldIgnoreSuccess() {
       Function<Throwable, Kind<CompletableFutureKind.Witness, Integer>> handler =
-          err -> futureMonad.of(-1);
+          _ -> futureMonad.of(-1);
 
       Kind<CompletableFutureKind.Witness, Integer> result =
           futureMonad.handleErrorWith(successKind, handler);
@@ -518,7 +559,7 @@ class CompletableFutureMonadTest {
 
       AtomicBoolean handlerCalled = new AtomicBoolean(false);
       Function<Throwable, Kind<CompletableFutureKind.Witness, Integer>> handler =
-          err -> {
+          _ -> {
             handlerCalled.set(true);
             return futureMonad.of(-1);
           };
@@ -537,7 +578,7 @@ class CompletableFutureMonadTest {
 
       AtomicBoolean handlerCalled = new AtomicBoolean(false);
       Function<Throwable, Kind<CompletableFutureKind.Witness, Integer>> handler =
-          err -> {
+          _ -> {
             handlerCalled.set(true);
             return futureMonad.of(-1);
           };
@@ -560,7 +601,7 @@ class CompletableFutureMonadTest {
 
       AtomicBoolean handlerCalled = new AtomicBoolean(false);
       Function<Throwable, Kind<CompletableFutureKind.Witness, String>> handler =
-          err -> {
+          _ -> {
             handlerCalled.set(true);
             return futureMonad.of("Recovered?");
           };
@@ -578,7 +619,7 @@ class CompletableFutureMonadTest {
       RuntimeException directError = new IllegalStateException("Direct Failure");
       Kind<CompletableFutureKind.Witness, Integer> failedKindDirect =
           futureMonad.raiseError(directError);
-      AtomicReference<Throwable> caughtError = new AtomicReference<>();
+      AtomicReference<@Nullable Throwable> caughtError = new AtomicReference<>();
 
       Function<Throwable, Kind<CompletableFutureKind.Witness, Integer>> handler =
           err -> {
@@ -599,7 +640,7 @@ class CompletableFutureMonadTest {
       Kind<CompletableFutureKind.Witness, Integer> failedKind = futureMonad.raiseError(testError);
 
       Function<Throwable, Kind<CompletableFutureKind.Witness, Integer>> handler =
-          err -> {
+          _ -> {
             throw handlerException;
           };
 
@@ -612,7 +653,7 @@ class CompletableFutureMonadTest {
 
     @Test
     void handleError_shouldHandleFailureWithPureValue() {
-      Function<Throwable, Integer> handler = err -> -99;
+      Function<Throwable, Integer> handler = _ -> -99;
       Kind<CompletableFutureKind.Witness, Integer> result =
           futureMonad.handleError(failedKind, handler);
       assertThat(joinFuture(result)).isEqualTo(-99);
@@ -621,7 +662,7 @@ class CompletableFutureMonadTest {
     @Test
     void handleError_shouldHandleFailureWhenPureHandlerThrows() {
       Function<Throwable, Integer> handler =
-          err -> {
+          _ -> {
             throw handlerApplyError;
           };
       Kind<CompletableFutureKind.Witness, Integer> result =
@@ -633,7 +674,7 @@ class CompletableFutureMonadTest {
 
     @Test
     void handleError_shouldIgnoreSuccess() {
-      Function<Throwable, Integer> handler = err -> -1;
+      Function<Throwable, Integer> handler = _ -> -1;
       Kind<CompletableFutureKind.Witness, Integer> result =
           futureMonad.handleError(successKind, handler);
       assertThat(joinFuture(result)).isEqualTo(100);
@@ -732,54 +773,52 @@ class CompletableFutureMonadTest {
   @Nested
   @DisplayName("Functor Laws")
   class FunctorLawTests {
-    final Kind<CompletableFutureKind.Witness, Integer> fa = futureMonad.of(10);
 
-    @Test
-    @DisplayName("Identity: map(id, fa) == fa")
-    void identity() {
-      FunctorLaws.assertIdentity(futureMonad, fa, eq);
+    @ParameterizedTest(name = "identity holds on {0}")
+    @MethodSource("org.higherkindedj.hkt.future.FutureLawFixtures#kinds")
+    void identity(String label, Kind<CompletableFutureKind.Witness, Integer> fa) {
+      FunctorLaws.assertIdentity(futureMonad, fa, FutureLawFixtures.EQ);
     }
 
-    @Test
-    @DisplayName("Composition: map(g∘f, fa) == map(g, map(f, fa))")
-    void composition() {
-      FunctorLaws.assertComposition(futureMonad, fa, i -> "v" + i, (String s) -> s + "!", eq);
+    @ParameterizedTest(name = "composition holds on {0}")
+    @MethodSource("org.higherkindedj.hkt.future.FutureLawFixtures#kinds")
+    void composition(String label, Kind<CompletableFutureKind.Witness, Integer> fa) {
+      FunctorLaws.assertComposition(
+          futureMonad, fa, i -> "v" + i, (String s) -> s + "!", FutureLawFixtures.EQ);
     }
   }
 
   @Nested
   @DisplayName("Applicative Laws")
   class ApplicativeLawTests {
-    final int x = 5;
     final Function<Integer, String> f_func = i -> "f" + i;
-    final Kind<CompletableFutureKind.Witness, Integer> v = futureMonad.of(x);
     final Kind<CompletableFutureKind.Witness, Function<Integer, String>> fKind =
         futureMonad.of(f_func);
 
-    @Test
-    @DisplayName("Identity: ap(of(id), v) == v")
-    void identity() {
-      ApplicativeLaws.assertIdentity(futureMonad, v, eq);
+    @ParameterizedTest(name = "identity holds on {0}")
+    @MethodSource("org.higherkindedj.hkt.future.FutureLawFixtures#kinds")
+    void identity(String label, Kind<CompletableFutureKind.Witness, Integer> v) {
+      ApplicativeLaws.assertIdentity(futureMonad, v, FutureLawFixtures.EQ);
     }
 
-    @Test
-    @DisplayName("Homomorphism: ap(of(f), of(x)) == of(f(x))")
-    void homomorphism() {
-      ApplicativeLaws.assertHomomorphism(futureMonad, x, f_func, eq);
+    @ParameterizedTest(name = "homomorphism holds on value {0}")
+    @MethodSource("org.higherkindedj.hkt.future.FutureLawFixtures#values")
+    void homomorphism(Integer value) {
+      ApplicativeLaws.assertHomomorphism(futureMonad, value, f_func, FutureLawFixtures.EQ);
     }
 
-    @Test
-    @DisplayName("Interchange: ap(u, of(y)) == ap(of(f -> f(y)), u)")
-    void interchange() {
-      ApplicativeLaws.assertInterchange(futureMonad, fKind, 10, eq);
+    @ParameterizedTest(name = "interchange holds on value {0}")
+    @MethodSource("org.higherkindedj.hkt.future.FutureLawFixtures#values")
+    void interchange(Integer value) {
+      ApplicativeLaws.assertInterchange(futureMonad, fKind, value, FutureLawFixtures.EQ);
     }
 
-    @Test
-    @DisplayName("Composition")
-    void composition() {
+    @ParameterizedTest(name = "composition holds on {0}")
+    @MethodSource("org.higherkindedj.hkt.future.FutureLawFixtures#kinds")
+    void composition(String label, Kind<CompletableFutureKind.Witness, Integer> v) {
       Kind<CompletableFutureKind.Witness, Function<String, String>> gKind =
           futureMonad.of(s -> s + "g");
-      ApplicativeLaws.assertComposition(futureMonad, gKind, fKind, v, eq);
+      ApplicativeLaws.assertComposition(futureMonad, gKind, fKind, v, FutureLawFixtures.EQ);
     }
   }
 
@@ -820,29 +859,27 @@ class CompletableFutureMonadTest {
   @Nested
   @DisplayName("Monad Laws")
   class MonadLawTests {
-    final int value = 5;
-    final Kind<CompletableFutureKind.Witness, Integer> mValue = futureMonad.of(value);
     final Function<Integer, Kind<CompletableFutureKind.Witness, String>> f_law =
         i -> futureMonad.of("v" + i);
     final Function<String, Kind<CompletableFutureKind.Witness, String>> g_law =
         s -> futureMonad.of(s + "!");
 
-    @Test
-    @DisplayName("Left Identity: flatMap(f, of(a)) == f(a)")
-    void leftIdentity() {
-      MonadLaws.assertLeftIdentity(futureMonad, value, f_law, eq);
+    @ParameterizedTest(name = "left identity holds on value {0}")
+    @MethodSource("org.higherkindedj.hkt.future.FutureLawFixtures#values")
+    void leftIdentity(Integer value) {
+      MonadLaws.assertLeftIdentity(futureMonad, value, f_law, FutureLawFixtures.EQ);
     }
 
-    @Test
-    @DisplayName("Right Identity: flatMap(of, m) == m")
-    void rightIdentity() {
-      MonadLaws.assertRightIdentity(futureMonad, mValue, eq);
+    @ParameterizedTest(name = "right identity holds on {0}")
+    @MethodSource("org.higherkindedj.hkt.future.FutureLawFixtures#kinds")
+    void rightIdentity(String label, Kind<CompletableFutureKind.Witness, Integer> mValue) {
+      MonadLaws.assertRightIdentity(futureMonad, mValue, FutureLawFixtures.EQ);
     }
 
-    @Test
-    @DisplayName("Associativity: flatMap(g, flatMap(f, m)) == flatMap(a -> flatMap(g, f(a)), m)")
-    void associativity() {
-      MonadLaws.assertAssociativity(futureMonad, mValue, f_law, g_law, eq);
+    @ParameterizedTest(name = "associativity holds on {0}")
+    @MethodSource("org.higherkindedj.hkt.future.FutureLawFixtures#kinds")
+    void associativity(String label, Kind<CompletableFutureKind.Witness, Integer> mValue) {
+      MonadLaws.assertAssociativity(futureMonad, mValue, f_law, g_law, FutureLawFixtures.EQ);
     }
   }
 
@@ -860,8 +897,8 @@ class CompletableFutureMonadTest {
     @Test
     @DisplayName("flatMap propagates the source failure")
     void flatMapPropagatesFailure() {
-      Function<Integer, Kind<CompletableFutureKind.Witness, Integer>> ofFunc = futureMonad::of;
-      assertThatThrownBy(() -> joinFuture(futureMonad.flatMap(ofFunc, mValueFail)))
+      // The source future is failed, so the kleisli is never invoked; f_law just supplies one.
+      assertThatThrownBy(() -> joinFuture(futureMonad.flatMap(f_law, mValueFail)))
           .isInstanceOf(RuntimeException.class)
           .isSameAs(mException);
     }
@@ -924,7 +961,7 @@ class CompletableFutureMonadTest {
     @Test
     void map2_functionThrows() {
       BiFunction<Integer, String, String> f2_func =
-          (i, s) -> {
+          (_, _) -> {
             throw testException_mapN;
           };
       Kind<CompletableFutureKind.Witness, String> result = futureMonad.map2(fut1, fut2, f2_func);
@@ -944,7 +981,7 @@ class CompletableFutureMonadTest {
 
     @Test
     void map3_middleFails() {
-      Function3<Integer, String, Double, String> f3_func = (i, s, d) -> "Should not execute";
+      Function3<Integer, String, Double, String> f3_func = (_, _, _) -> "Should not execute";
       Kind<CompletableFutureKind.Witness, String> result =
           futureMonad.map3(fut1, futureMonad.raiseError(testException_mapN), fut3, f3_func);
       assertThatThrownBy(() -> joinFuture(result))
@@ -955,7 +992,7 @@ class CompletableFutureMonadTest {
     @Test
     void map3_functionThrows() {
       Function3<Integer, String, Double, String> f3_func =
-          (i, s, d) -> {
+          (_, _, _) -> {
             throw testException_mapN;
           };
       Kind<CompletableFutureKind.Witness, String> result =
@@ -977,7 +1014,7 @@ class CompletableFutureMonadTest {
     @Test
     void map4_lastFails() {
       Function4<Integer, String, Double, Boolean, String> f4_func =
-          (i, s, d, b) -> "Should not execute";
+          (_, _, _, _) -> "Should not execute";
       Kind<CompletableFutureKind.Witness, String> result =
           futureMonad.map4(fut1, fut2, fut3, futureMonad.raiseError(testException_mapN), f4_func);
       assertThatThrownBy(() -> joinFuture(result))
@@ -988,7 +1025,7 @@ class CompletableFutureMonadTest {
     @Test
     void map4_functionThrows() {
       Function4<Integer, String, Double, Boolean, String> f4_func =
-          (i, s, d, b) -> {
+          (_, _, _, _) -> {
             throw testException_mapN;
           };
       Kind<CompletableFutureKind.Witness, String> result =
@@ -1013,6 +1050,7 @@ class CompletableFutureMonadTest {
   class EdgeCaseTests {
 
     @Test
+    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
     void flatMap_shouldThrowNullPointerExceptionForNullFunction() {
       Kind<CompletableFutureKind.Witness, Integer> input = futureMonad.of(1);
       assertThatThrownBy(() -> futureMonad.flatMap(null, input))
@@ -1034,7 +1072,7 @@ class CompletableFutureMonadTest {
       alreadyFailed.completeExceptionally(testException);
 
       Kind<CompletableFutureKind.Witness, Integer> failedKind = FUTURE.widen(alreadyFailed);
-      AtomicReference<Throwable> caught = new AtomicReference<>();
+      AtomicReference<@Nullable Throwable> caught = new AtomicReference<>();
       Function<Throwable, Kind<CompletableFutureKind.Witness, Integer>> handler =
           err -> {
             caught.set(err);

@@ -33,6 +33,7 @@ class Tuple5Test {
 
     @Test
     @DisplayName("Constructor accepts null elements")
+    @SuppressWarnings("DataFlowIssue") // Tuple5 permits null elements; nulls passed deliberately
     void constructorAcceptsNullElements() {
       Tuple5<String, Integer, Boolean, Double, Character> tuple =
           new Tuple5<>(null, null, null, null, null);
@@ -61,7 +62,7 @@ class Tuple5Test {
               age -> age + " years",
               active -> active ? "yes" : "no",
               Double::intValue,
-              c -> c.toString());
+              Object::toString);
 
       assertThat(result._1()).isEqualTo(5);
       assertThat(result._2()).isEqualTo("30 years");
@@ -89,6 +90,7 @@ class Tuple5Test {
 
     @Test
     @DisplayName("map() throws NullPointerException when firstMapper is null")
+    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
     void mapThrowsWhenFirstMapperNull() {
       Tuple5<String, Integer, Boolean, Double, Character> tuple =
           new Tuple5<>("Alice", 30, true, 5.5, 'A');
@@ -101,13 +103,14 @@ class Tuple5Test {
                       age -> age + 1,
                       active -> !active,
                       d -> d + 1.0,
-                      c -> Character.toLowerCase(c)))
+                      Character::toLowerCase))
           .withMessageContaining("firstMapper")
           .withMessageContaining("map");
     }
 
     @Test
     @DisplayName("map() throws NullPointerException when secondMapper is null")
+    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
     void mapThrowsWhenSecondMapperNull() {
       Tuple5<String, Integer, Boolean, Double, Character> tuple =
           new Tuple5<>("Alice", 30, true, 5.5, 'A');
@@ -120,13 +123,14 @@ class Tuple5Test {
                       null,
                       active -> !active,
                       d -> d + 1.0,
-                      c -> Character.toLowerCase(c)))
+                      Character::toLowerCase))
           .withMessageContaining("secondMapper")
           .withMessageContaining("map");
     }
 
     @Test
     @DisplayName("map() throws NullPointerException when thirdMapper is null")
+    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
     void mapThrowsWhenThirdMapperNull() {
       Tuple5<String, Integer, Boolean, Double, Character> tuple =
           new Tuple5<>("Alice", 30, true, 5.5, 'A');
@@ -135,17 +139,14 @@ class Tuple5Test {
           .isThrownBy(
               () ->
                   tuple.map(
-                      String::length,
-                      age -> age + 1,
-                      null,
-                      d -> d + 1.0,
-                      c -> Character.toLowerCase(c)))
+                      String::length, age -> age + 1, null, d -> d + 1.0, Character::toLowerCase))
           .withMessageContaining("thirdMapper")
           .withMessageContaining("map");
     }
 
     @Test
     @DisplayName("map() throws NullPointerException when fourthMapper is null")
+    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
     void mapThrowsWhenFourthMapperNull() {
       Tuple5<String, Integer, Boolean, Double, Character> tuple =
           new Tuple5<>("Alice", 30, true, 5.5, 'A');
@@ -158,13 +159,14 @@ class Tuple5Test {
                       age -> age + 1,
                       active -> !active,
                       null,
-                      c -> Character.toLowerCase(c)))
+                      Character::toLowerCase))
           .withMessageContaining("fourthMapper")
           .withMessageContaining("map");
     }
 
     @Test
     @DisplayName("map() throws NullPointerException when fifthMapper is null")
+    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
     void mapThrowsWhenFifthMapperNull() {
       Tuple5<String, Integer, Boolean, Double, Character> tuple =
           new Tuple5<>("Alice", 30, true, 5.5, 'A');
@@ -211,6 +213,7 @@ class Tuple5Test {
 
     @Test
     @DisplayName("mapFirst() throws NullPointerException when mapper is null")
+    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
     void mapFirstThrowsWhenMapperNull() {
       Tuple5<String, Integer, Boolean, Double, Character> tuple =
           new Tuple5<>("Alice", 30, true, 5.5, 'A');
@@ -256,6 +259,7 @@ class Tuple5Test {
 
     @Test
     @DisplayName("mapSecond() throws NullPointerException when mapper is null")
+    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
     void mapSecondThrowsWhenMapperNull() {
       Tuple5<String, Integer, Boolean, Double, Character> tuple =
           new Tuple5<>("Alice", 30, true, 5.5, 'A');
@@ -301,6 +305,7 @@ class Tuple5Test {
 
     @Test
     @DisplayName("mapThird() throws NullPointerException when mapper is null")
+    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
     void mapThirdThrowsWhenMapperNull() {
       Tuple5<String, Integer, Boolean, Double, Character> tuple =
           new Tuple5<>("Alice", 30, true, 5.5, 'A');
@@ -346,6 +351,7 @@ class Tuple5Test {
 
     @Test
     @DisplayName("mapFourth() throws NullPointerException when mapper is null")
+    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
     void mapFourthThrowsWhenMapperNull() {
       Tuple5<String, Integer, Boolean, Double, Character> tuple =
           new Tuple5<>("Alice", 30, true, 5.5, 'A');
@@ -390,6 +396,7 @@ class Tuple5Test {
 
     @Test
     @DisplayName("mapFifth() throws NullPointerException when mapper is null")
+    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
     void mapFifthThrowsWhenMapperNull() {
       Tuple5<String, Integer, Boolean, Double, Character> tuple =
           new Tuple5<>("Alice", 30, true, 5.5, 'A');

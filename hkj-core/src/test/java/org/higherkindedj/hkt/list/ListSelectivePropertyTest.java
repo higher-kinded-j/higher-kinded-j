@@ -6,7 +6,6 @@ import static org.higherkindedj.hkt.list.ListKindHelper.LIST;
 
 import java.util.function.BiPredicate;
 import java.util.function.Function;
-import net.jqwik.api.Arbitraries;
 import net.jqwik.api.Arbitrary;
 import net.jqwik.api.ForAll;
 import net.jqwik.api.Label;
@@ -20,6 +19,7 @@ import org.higherkindedj.hkt.assertions.KindEquivalence;
 import org.higherkindedj.hkt.laws.SelectiveLaws;
 
 /** Property-based Selective-law verification for List. */
+@SuppressWarnings("unused") // referenced reflectively by jqwik
 class ListSelectivePropertyTest {
 
   private final Selective<ListKind.Witness> selective = ListSelective.INSTANCE;
@@ -29,7 +29,7 @@ class ListSelectivePropertyTest {
 
   @Provide
   Arbitrary<Function<Integer, String>> intToString() {
-    return Arbitraries.of(i -> "v:" + i, i -> String.valueOf(i * 2), Object::toString);
+    return ListArbitraries.intToString();
   }
 
   @Property(tries = 50)
@@ -37,8 +37,7 @@ class ListSelectivePropertyTest {
   void leftPure(
       @ForAll @IntRange(min = -50, max = 50) int value,
       @ForAll("intToString") Function<Integer, String> f) {
-    SelectiveLaws.<ListKind.Witness, Integer, String>assertLeftPure(
-        selective, value, selective.of(f), eq);
+    SelectiveLaws.assertLeftPure(selective, value, selective.of(f), eq);
   }
 
   @Property(tries = 50)
@@ -46,7 +45,6 @@ class ListSelectivePropertyTest {
   void rightPure(
       @ForAll @StringLength(max = 5) String value,
       @ForAll("intToString") Function<Integer, String> f) {
-    SelectiveLaws.<ListKind.Witness, Integer, String>assertRightPure(
-        selective, value, selective.of(f), eq);
+    SelectiveLaws.assertRightPure(selective, value, selective.of(f), eq);
   }
 }

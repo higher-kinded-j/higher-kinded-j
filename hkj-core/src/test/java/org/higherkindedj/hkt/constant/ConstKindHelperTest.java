@@ -46,6 +46,7 @@ class ConstKindHelperTest {
 
     @Test
     @DisplayName("widen2() throws NullPointerException when const is null")
+    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
     void widen2ThrowsWhenConstNull() {
       assertThatNullPointerException()
           .isThrownBy(() -> CONST.widen2(null))
@@ -55,6 +56,7 @@ class ConstKindHelperTest {
 
     @Test
     @DisplayName("widen2() works with null constant value")
+    @SuppressWarnings("DataFlowIssue") // a Const may legitimately hold a null constant value
     void widen2WorksWithNullConstantValue() {
       Const<String, Integer> const_ = new Const<>(null);
 
@@ -84,6 +86,7 @@ class ConstKindHelperTest {
 
     @Test
     @DisplayName("narrow2() throws KindUnwrapException when Kind2 is null")
+    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
     void narrow2ThrowsWhenKindNull() {
       assertThatThrownBy(() -> CONST.narrow2(null))
           .isInstanceOf(KindUnwrapException.class)
@@ -94,8 +97,7 @@ class ConstKindHelperTest {
     @DisplayName("narrow2() throws KindUnwrapException for wrong Kind2 type")
     void narrow2ThrowsWhenWrongKindType() {
       // Create a Kind2 that is NOT a ConstKind2Holder
-      Kind2<ConstKind2.Witness, String, Integer> wrongKind =
-          new Kind2<ConstKind2.Witness, String, Integer>() {};
+      Kind2<ConstKind2.Witness, String, Integer> wrongKind = new Kind2<>() {};
 
       assertThatThrownBy(() -> CONST.narrow2(wrongKind))
           .isInstanceOf(KindUnwrapException.class)
@@ -131,6 +133,7 @@ class ConstKindHelperTest {
 
     @Test
     @DisplayName("ConstKind2Holder validates non-null const")
+    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
     void holderValidatesNonNull() {
       assertThatNullPointerException()
           .isThrownBy(() -> new ConstKindHelper.ConstKind2Holder<String, Integer>(null))
@@ -177,6 +180,7 @@ class ConstKindHelperTest {
 
     @Test
     @DisplayName("widen() throws NullPointerException when const is null")
+    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
     void widenThrowsWhenConstNull() {
       assertThatNullPointerException()
           .isThrownBy(() -> CONST.widen(null))
@@ -186,6 +190,7 @@ class ConstKindHelperTest {
 
     @Test
     @DisplayName("widen() works with null constant value")
+    @SuppressWarnings("DataFlowIssue") // a Const may legitimately hold a null constant value
     void widenWorksWithNullConstantValue() {
       Const<String, Integer> const_ = new Const<>(null);
 
@@ -215,6 +220,7 @@ class ConstKindHelperTest {
 
     @Test
     @DisplayName("narrow() throws KindUnwrapException when Kind is null")
+    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
     void narrowThrowsWhenKindNull() {
       assertThatThrownBy(() -> CONST.narrow(null))
           .isInstanceOf(KindUnwrapException.class)
@@ -225,8 +231,7 @@ class ConstKindHelperTest {
     @DisplayName("narrow() throws KindUnwrapException for wrong Kind type")
     void narrowThrowsWhenWrongKindType() {
       // Create a Kind that is NOT a ConstKindHolder
-      Kind<ConstKind.Witness<Integer>, String> wrongKind =
-          new Kind<ConstKind.Witness<Integer>, String>() {};
+      Kind<ConstKind.Witness<Integer>, String> wrongKind = new Kind<>() {};
 
       assertThatThrownBy(() -> CONST.narrow(wrongKind))
           .isInstanceOf(KindUnwrapException.class)
@@ -262,6 +267,7 @@ class ConstKindHelperTest {
 
     @Test
     @DisplayName("ConstKindHolder validates non-null const")
+    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
     void holderValidatesNonNull() {
       assertThatNullPointerException()
           .isThrownBy(() -> new ConstKindHelper.ConstKindHolder<Integer, String>(null))
@@ -313,7 +319,7 @@ class ConstKindHelperTest {
     @DisplayName("Singleton enum instance is accessible")
     void singletonEnumInstanceAccessible() {
       assertThat(CONST).isNotNull();
-      assertThat(CONST).isSameAs(ConstKindHelper.CONST);
+      assertThat(ConstKindHelper.valueOf("CONST")).isSameAs(CONST);
     }
 
     @Test

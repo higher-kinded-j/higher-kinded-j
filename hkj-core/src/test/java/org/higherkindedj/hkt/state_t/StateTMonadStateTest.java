@@ -23,15 +23,15 @@ import org.junit.jupiter.api.Test;
 @DisplayName("StateTMonadState Test Suite")
 class StateTMonadStateTest {
 
-  private Monad<IdKind.Witness> idMonad;
   private MonadState<StateTKind.Witness<Integer, IdKind.Witness>, Integer> monadState;
 
   @BeforeEach
   void setUp() {
-    idMonad = Instances.monad(id());
+    Monad<IdKind.Witness> idMonad = Instances.monad(id());
     monadState = new StateTMonadState<>(idMonad);
   }
 
+  @SuppressWarnings("DataFlowIssue") // the StateTuple is non-null in this fixture
   private <A> StateTuple<Integer, A> runState(
       Kind<StateTKind.Witness<Integer, IdKind.Witness>, A> kind, int initialState) {
     StateT<Integer, IdKind.Witness, A> stateT = StateTKind.narrow(kind);
@@ -221,6 +221,7 @@ class StateTMonadStateTest {
 
     @Test
     @DisplayName("constructor should reject null monadF")
+    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
     void constructor_shouldRejectNullMonad() {
       assertThatThrownBy(() -> new StateTMonadState<Integer, IdKind.Witness>(null))
           .isInstanceOf(NullPointerException.class);
