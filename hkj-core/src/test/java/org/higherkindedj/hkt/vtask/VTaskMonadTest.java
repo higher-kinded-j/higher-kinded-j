@@ -15,16 +15,58 @@ import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.MonadError;
 import org.higherkindedj.hkt.instances.Instances;
 import org.higherkindedj.hkt.laws.MonadLaws;
+import org.higherkindedj.hkt.test.contract.Category;
+import org.higherkindedj.hkt.test.contract.TypeClassContract;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.MethodSource;
 
 @DisplayName("VTaskMonad Test Suite")
 class VTaskMonadTest {
 
   private static final int TEST_VALUE = 42;
-  private static final String TEST_STRING = "hello";
   private final MonadError<VTaskKind.Witness, Throwable> monad = Instances.monadError(vtask());
+
+  // --- MonadError contract inputs (see monadErrorContract) ---
+  private final Kind<VTaskKind.Witness, Integer> validKind = VTASK.widen(VTask.succeed(TEST_VALUE));
+  private final Function<Integer, String> validMapper = i -> "v" + i;
+  private final Function<Integer, Kind<VTaskKind.Witness, String>> validFlatMapper =
+      i -> VTASK.widen(VTask.succeed("flat:" + i));
+  private final Kind<VTaskKind.Witness, Function<Integer, String>> validFunctionKind =
+      VTASK.widen(VTask.succeed(i -> "v" + i));
+  private final Function<Throwable, Kind<VTaskKind.Witness, Integer>> validHandler =
+      _ -> VTASK.widen(VTask.succeed(0));
+  private final Kind<VTaskKind.Witness, Integer> validFallback = VTASK.widen(VTask.succeed(-1));
+
+  /**
+   * Operation smoke for {@code map}/{@code flatMap}/{@code ap}/{@code handleErrorWith}/{@code
+   * recoverWith} on the MonadError instance. The Monad laws are verified parameterised in {@link
+   * Laws} below, so this contract omits {@link Category#LAWS}.
+   *
+   * <p>Only {@link Category#OPERATIONS} is run:
+   *
+   * <ul>
+   *   <li>{@link Category#EXCEPTIONS} is omitted because the generic contract asserts that {@code
+   *       map}/{@code flatMap} <em>propagate</em> a thrown function exception, whereas a VTask is
+   *       lazy and surfaces it only when run (exercised in the operation tests below).
+   *   <li>{@link Category#VALIDATIONS} is omitted because, like {@code Try}, {@code VTaskMonad}
+   *       inherits the default {@code recoverWith}, which does not eagerly reject a null fallback
+   *       against a success. The standard null-argument validations are kept in {@link
+   *       ValidationTests} below.
+   * </ul>
+   */
+  @Test
+  @DisplayName("MonadError contract — operations (laws verified in Laws below)")
+  void monadErrorContract() {
+    TypeClassContract.<VTaskKind.Witness, Throwable>monadError(VTaskMonad.class)
+        .<Integer>instance(monad)
+        .<String>withKind(validKind)
+        .withMonadOperations(validMapper, validFlatMapper, validFunctionKind)
+        .withErrorHandling(validHandler, validFallback)
+        .verifyOnly(Category.OPERATIONS);
+  }
 
   @Nested
   @DisplayName("flatMap() Operations")
@@ -82,7 +124,7 @@ class VTaskMonadTest {
       Kind<VTaskKind.Witness, Integer> ma = VTASK.widen(VTask.succeed(TEST_VALUE));
       RuntimeException exception = new RuntimeException("Function result failed");
       Function<Integer, Kind<VTaskKind.Witness, String>> f =
-          i -> VTASK.widen(VTask.fail(exception));
+          _ -> VTASK.widen(VTask.fail(exception));
 
       Kind<VTaskKind.Witness, String> result = monad.flatMap(f, ma);
 
@@ -103,7 +145,7 @@ class VTaskMonadTest {
       RuntimeException exception = new RuntimeException("Test error");
       Kind<VTaskKind.Witness, Integer> result = monad.raiseError(exception);
 
-      assertThatVTask(VTASK.<Integer>narrow(result))
+      assertThatVTask(VTASK.narrow(result))
           .fails()
           .withExceptionType(RuntimeException.class)
           .withMessage("Test error");
@@ -121,7 +163,7 @@ class VTaskMonadTest {
       RuntimeException exception = new RuntimeException("Original error");
       Kind<VTaskKind.Witness, Integer> ma = VTASK.widen(VTask.fail(exception));
       Function<Throwable, Kind<VTaskKind.Witness, Integer>> handler =
-          e -> VTASK.widen(VTask.succeed(-1));
+          _ -> VTASK.widen(VTask.succeed(-1));
 
       Kind<VTaskKind.Witness, Integer> result = monad.handleErrorWith(ma, handler);
 
@@ -134,7 +176,7 @@ class VTaskMonadTest {
     void handleErrorWithPassesThroughSuccessfulVTask() {
       Kind<VTaskKind.Witness, Integer> ma = VTASK.widen(VTask.succeed(TEST_VALUE));
       Function<Throwable, Kind<VTaskKind.Witness, Integer>> handler =
-          e -> VTASK.widen(VTask.succeed(-1));
+          _ -> VTASK.widen(VTask.succeed(-1));
 
       Kind<VTaskKind.Witness, Integer> result = monad.handleErrorWith(ma, handler);
 
@@ -166,7 +208,7 @@ class VTaskMonadTest {
 
       Kind<VTaskKind.Witness, Integer> result = monad.handleErrorWith(ma, handler);
 
-      assertThatVTask(VTASK.<Integer>narrow(result))
+      assertThatVTask(VTASK.narrow(result))
           .fails()
           .withExceptionType(IllegalStateException.class)
           .withMessageContaining("Transformed: Original");
@@ -175,6 +217,7 @@ class VTaskMonadTest {
 
   @Nested
   @DisplayName("Validation Tests")
+  @SuppressWarnings("DataFlowIssue") // null arguments are passed deliberately to verify rejection
   class ValidationTests {
 
     @Test
@@ -198,7 +241,7 @@ class VTaskMonadTest {
     @DisplayName("handleErrorWith() validates null Kind")
     void handleErrorWithValidatesNullKind() {
       Function<Throwable, Kind<VTaskKind.Witness, Integer>> handler =
-          e -> VTASK.widen(VTask.succeed(-1));
+          _ -> VTASK.widen(VTask.succeed(-1));
 
       assertThatThrownBy(() -> monad.handleErrorWith(null, handler))
           .isInstanceOf(NullPointerException.class);
@@ -226,20 +269,21 @@ class VTaskMonadTest {
     private final Function<String, Kind<VTaskKind.Witness, Integer>> g =
         s -> VTASK.widen(VTask.succeed(s.length()));
 
-    @Test
-    void leftIdentity() {
-      MonadLaws.assertLeftIdentity(monad, TEST_VALUE, f, eq);
+    @ParameterizedTest(name = "left identity holds on value {0}")
+    @MethodSource("org.higherkindedj.hkt.vtask.VTaskLawFixtures#values")
+    void leftIdentity(Integer value) {
+      MonadLaws.assertLeftIdentity(monad, value, f, eq);
     }
 
-    @Test
-    void rightIdentity() {
-      Kind<VTaskKind.Witness, Integer> ma = VTASK.widen(VTask.succeed(TEST_VALUE));
+    @ParameterizedTest(name = "right identity holds on {0}")
+    @MethodSource("org.higherkindedj.hkt.vtask.VTaskLawFixtures#kinds")
+    void rightIdentity(String label, Kind<VTaskKind.Witness, Integer> ma) {
       MonadLaws.assertRightIdentity(monad, ma, eq);
     }
 
-    @Test
-    void associativity() {
-      Kind<VTaskKind.Witness, Integer> ma = VTASK.widen(VTask.succeed(TEST_VALUE));
+    @ParameterizedTest(name = "associativity holds on {0}")
+    @MethodSource("org.higherkindedj.hkt.vtask.VTaskLawFixtures#kinds")
+    void associativity(String label, Kind<VTaskKind.Witness, Integer> ma) {
       MonadLaws.assertAssociativity(monad, ma, f, g, eq);
     }
   }

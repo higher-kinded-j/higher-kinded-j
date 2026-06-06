@@ -15,7 +15,7 @@ dependencies {
   // Optional: Java Object Layout for allocation analysis
   jmhImplementation(libs.jol.core)
 
-  // PCollections — for HKT compatibility benchmarks (Phase 1)
+  // PCollections — for HKT compatibility benchmarks
   jmhImplementation(libs.pcollections)
 
   // Test dependencies for benchmark assertions

@@ -3,14 +3,12 @@
 package org.higherkindedj.hkt.io;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.higherkindedj.hkt.assertions.IOAssert.assertThatIO;
 import static org.higherkindedj.hkt.io.IOKindHelper.IO_OP;
 
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.BiFunction;
 import java.util.function.Function;
-import java.util.stream.Stream;
 import org.higherkindedj.hkt.Applicative;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.function.Function3;
@@ -21,7 +19,6 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 
 @DisplayName("IOApplicative")
@@ -41,42 +38,31 @@ class IOApplicativeTest extends IOTestBase {
   class Laws {
 
     @ParameterizedTest(name = "identity holds on {0}")
-    @MethodSource("fixtures")
+    @MethodSource("org.higherkindedj.hkt.io.IOLawFixtures#kinds")
     void identity(String label, Kind<IOKind.Witness, Integer> v) {
       ApplicativeLaws.assertIdentity(applicativeTyped, v, equalityChecker);
     }
 
     @ParameterizedTest(name = "homomorphism holds on value {0}")
-    @MethodSource("values")
+    @MethodSource("org.higherkindedj.hkt.io.IOLawFixtures#values")
     void homomorphism(Integer value) {
       ApplicativeLaws.assertHomomorphism(applicativeTyped, value, validMapper, equalityChecker);
     }
 
     @ParameterizedTest(name = "interchange holds on value {0}")
-    @MethodSource("values")
+    @MethodSource("org.higherkindedj.hkt.io.IOLawFixtures#values")
     void interchange(Integer value) {
       ApplicativeLaws.assertInterchange(
           applicativeTyped, validFunctionKind, value, equalityChecker);
     }
 
     @ParameterizedTest(name = "composition holds on {0}")
-    @MethodSource("fixtures")
+    @MethodSource("org.higherkindedj.hkt.io.IOLawFixtures#kinds")
     void composition(String label, Kind<IOKind.Witness, Integer> w) {
       Kind<IOKind.Witness, Function<String, String>> u =
           IO_OP.widen(IO.delay(() -> s -> "u(" + s + ")"));
       Kind<IOKind.Witness, Function<Integer, String>> v = IO_OP.widen(IO.delay(() -> i -> "v" + i));
       ApplicativeLaws.assertComposition(applicativeTyped, u, v, w, equalityChecker);
-    }
-
-    static Stream<Arguments> fixtures() {
-      return Stream.of(
-          Arguments.of("IO(0)", IO_OP.widen(IO.delay(() -> 0))),
-          Arguments.of("IO(42)", IO_OP.widen(IO.delay(() -> 42))),
-          Arguments.of("IO(-1)", IO_OP.widen(IO.delay(() -> -1))));
-    }
-
-    static Stream<Arguments> values() {
-      return Stream.of(Arguments.of(0), Arguments.of(42), Arguments.of(-1));
     }
   }
 
@@ -236,6 +222,7 @@ class IOApplicativeTest extends IOTestBase {
   class EdgeCasesTests {
     @Test
     @DisplayName("mapN operations with null values")
+    @SuppressWarnings("ConstantValue") // IO can carry a null value, so the i == null branch is live
     void mapNWithNullValues() {
       Kind<IOKind.Witness, Integer> nullIO = applicative.of(null);
       Kind<IOKind.Witness, String> valueIO = applicative.of("test");
@@ -250,8 +237,9 @@ class IOApplicativeTest extends IOTestBase {
 
     @Test
     @DisplayName("ap() with function that returns null")
+    @SuppressWarnings("DataFlowIssue") // the mapper deliberately returns null
     void apWithFunctionReturningNull() {
-      Kind<IOKind.Witness, Function<Integer, String>> funcKind = applicative.of(i -> null);
+      Kind<IOKind.Witness, Function<Integer, String>> funcKind = applicative.of(_ -> null);
       Kind<IOKind.Witness, Integer> valueKind = applicative.of(DEFAULT_IO_VALUE);
 
       Kind<IOKind.Witness, String> result = applicative.ap(funcKind, valueKind);
@@ -324,48 +312,9 @@ class IOApplicativeTest extends IOTestBase {
     }
   }
 
-  @Nested
-  @DisplayName("Validation Tests")
-  class ValidationTests {
-    @Test
-    @DisplayName("ap() validates null function Kind")
-    void apValidatesNullFunctionKind() {
-      assertThatThrownBy(() -> applicative.ap(null, validKind))
-          .isInstanceOf(NullPointerException.class)
-          .hasMessageContaining("Kind")
-          .hasMessageContaining("function");
-    }
-
-    @Test
-    @DisplayName("ap() validates null argument Kind")
-    void apValidatesNullArgumentKind() {
-      assertThatThrownBy(() -> applicative.ap(validFunctionKind, null))
-          .isInstanceOf(NullPointerException.class)
-          .hasMessageContaining("Kind")
-          .hasMessageContaining("argument");
-    }
-
-    @Test
-    @DisplayName("map2() validates null arguments")
-    void map2ValidatesNullArguments() {
-      BiFunction<Integer, Integer, String> combiner = (a, b) -> a + ":" + b;
-
-      assertThatThrownBy(() -> applicative.map2(null, validKind2, combiner))
-          .isInstanceOf(NullPointerException.class)
-          .hasMessageContaining("Kind<F, A> fa for map2 cannot be null");
-
-      assertThatThrownBy(() -> applicative.map2(validKind, null, combiner))
-          .isInstanceOf(NullPointerException.class)
-          .hasMessageContaining("Kind<F, B> fb for map2 cannot be null");
-
-      assertThatThrownBy(
-              () ->
-                  applicative.map2(
-                      validKind, validKind2, (BiFunction<Integer, Integer, String>) null))
-          .isInstanceOf(NullPointerException.class)
-          .hasMessageContaining("combining function for map2 cannot be null");
-    }
-  }
+  // The standard ap/map2 null-argument validations are covered by the contract in IOMonadTest
+  // (the IO Monad extends this Applicative). IO has no Applicative-specific deferred null-check to
+  // retain here, so no dedicated validation block remains.
 
   @Nested
   @DisplayName("IOAssert Integration Tests")

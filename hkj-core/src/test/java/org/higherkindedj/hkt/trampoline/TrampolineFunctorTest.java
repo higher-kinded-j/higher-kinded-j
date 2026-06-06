@@ -5,24 +5,60 @@ package org.higherkindedj.hkt.trampoline;
 import static org.assertj.core.api.Assertions.*;
 import static org.higherkindedj.hkt.trampoline.TrampolineKindHelper.TRAMPOLINE;
 
-import java.util.Objects;
-import java.util.function.BiPredicate;
 import java.util.function.Function;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.laws.FunctorLaws;
+import org.higherkindedj.hkt.test.contract.Category;
+import org.higherkindedj.hkt.test.contract.TypeClassContract;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.MethodSource;
 
 /**
- * Comprehensive tests for {@link TrampolineFunctor}.
+ * Tests for {@link TrampolineFunctor}.
  *
- * <p>Ensures 100% coverage of the Functor instance including all validation paths and edge cases.
+ * <p>Verifies the Functor operations and laws; the laws are driven by the shipped {@link
+ * FunctorLaws} over {@link TrampolineLawFixtures}.
  */
 @DisplayName("TrampolineFunctor Tests")
 class TrampolineFunctorTest extends TrampolineTestBase {
 
   private final TrampolineFunctor functor = TrampolineFunctor.INSTANCE;
+
+  /**
+   * {@link Category#EXCEPTIONS} is omitted: the generic contract asserts that {@code map}
+   * <em>propagates</em> a thrown mapper exception immediately, but {@code Trampoline.map} defers —
+   * it builds a {@code FlatMap} structure, so the mapper only runs at {@link Trampoline#run()}
+   * time. The Functor laws are verified in the {@code Laws} block below.
+   */
+  @Test
+  @DisplayName("Functor contract — operations & validations")
+  void functorContract() {
+    TypeClassContract.<TrampolineKind.Witness>functor(TrampolineFunctor.class)
+        .<Integer>instance(functor)
+        .<String>withKind(TRAMPOLINE.widen(Trampoline.done(DEFAULT_VALUE)))
+        .withMapper(Object::toString)
+        .verifyOnly(Category.OPERATIONS, Category.VALIDATIONS);
+  }
+
+  @Nested
+  @DisplayName("Laws")
+  class Laws {
+
+    @ParameterizedTest(name = "identity holds on {0}")
+    @MethodSource("org.higherkindedj.hkt.trampoline.TrampolineLawFixtures#kinds")
+    void identity(String label, Kind<TrampolineKind.Witness, Integer> fa) {
+      FunctorLaws.assertIdentity(functor, fa, TrampolineLawFixtures.EQ);
+    }
+
+    @ParameterizedTest(name = "composition holds on {0}")
+    @MethodSource("org.higherkindedj.hkt.trampoline.TrampolineLawFixtures#kinds")
+    void composition(String label, Kind<TrampolineKind.Witness, Integer> fa) {
+      FunctorLaws.assertComposition(functor, fa, x -> x + 5, x -> x * 2, TrampolineLawFixtures.EQ);
+    }
+  }
 
   @Nested
   @DisplayName("Instance Tests")
@@ -71,6 +107,7 @@ class TrampolineFunctorTest extends TrampolineTestBase {
 
     @Test
     @DisplayName("map with null function throws NullPointerException")
+    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
     void mapWithNullFunctionThrows() {
       Kind<TrampolineKind.Witness, Integer> kind = TRAMPOLINE.widen(Trampoline.done(42));
 
@@ -79,6 +116,7 @@ class TrampolineFunctorTest extends TrampolineTestBase {
 
     @Test
     @DisplayName("map with null kind throws NullPointerException")
+    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
     void mapWithNullKindThrows() {
       assertThatThrownBy(() -> functor.map((Integer x) -> x * 2, null))
           .isInstanceOf(NullPointerException.class);
@@ -132,34 +170,14 @@ class TrampolineFunctorTest extends TrampolineTestBase {
 
     @Test
     @DisplayName("map with null result value")
+    @SuppressWarnings("DataFlowIssue") // null-returning mapper exercises Trampoline.map's null path
     void mapWithNullResultValue() {
       Kind<TrampolineKind.Witness, String> kind = TRAMPOLINE.widen(Trampoline.done("test"));
-      Kind<TrampolineKind.Witness, String> mapped = functor.map(x -> null, kind);
+      Function<String, String> nullMapper = _ -> null;
+      Kind<TrampolineKind.Witness, String> mapped = functor.map(nullMapper, kind);
 
       Trampoline<String> result = TRAMPOLINE.narrow(mapped);
       assertThat(result.run()).isNull();
-    }
-  }
-
-  @Nested
-  @DisplayName("Laws")
-  class Laws {
-
-    private final BiPredicate<Kind<TrampolineKind.Witness, ?>, Kind<TrampolineKind.Witness, ?>> eq =
-        (k1, k2) -> Objects.equals(TRAMPOLINE.narrow(k1).run(), TRAMPOLINE.narrow(k2).run());
-
-    @Test
-    void identity() {
-      Kind<TrampolineKind.Witness, Integer> fa = TRAMPOLINE.widen(Trampoline.done(42));
-      FunctorLaws.assertIdentity(functor, fa, eq);
-    }
-
-    @Test
-    void composition() {
-      Kind<TrampolineKind.Witness, Integer> fa = TRAMPOLINE.widen(Trampoline.done(10));
-      Function<Integer, Integer> f = x -> x + 5;
-      Function<Integer, Integer> g = x -> x * 2;
-      FunctorLaws.assertComposition(functor, fa, f, g, eq);
     }
   }
 

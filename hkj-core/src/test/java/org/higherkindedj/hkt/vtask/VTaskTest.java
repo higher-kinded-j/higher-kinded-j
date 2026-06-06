@@ -21,7 +21,6 @@ import org.junit.jupiter.api.Test;
 class VTaskTest {
 
   private static final int TEST_VALUE = 42;
-  private static final String TEST_STRING = "test";
 
   @Nested
   @DisplayName("Factory Methods")
@@ -36,6 +35,7 @@ class VTaskTest {
 
     @Test
     @DisplayName("of() with null callable throws NullPointerException")
+    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
     void ofWithNullCallableThrows() {
       assertThatThrownBy(() -> VTask.of(null)).isInstanceOf(NullPointerException.class);
     }
@@ -45,7 +45,7 @@ class VTaskTest {
     void delayCreatesLazyVTask() {
       AtomicInteger counter = new AtomicInteger(0);
 
-      VTask<Integer> task = VTask.delay(() -> counter.incrementAndGet());
+      VTask<Integer> task = VTask.delay(counter::incrementAndGet);
 
       // Should not have executed yet
       assertThat(counter.get()).isZero();
@@ -57,6 +57,7 @@ class VTaskTest {
 
     @Test
     @DisplayName("delay() with null supplier throws NullPointerException")
+    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
     void delayWithNullSupplierThrows() {
       assertThatThrownBy(() -> VTask.delay(null))
           .isInstanceOf(NullPointerException.class)
@@ -88,6 +89,7 @@ class VTaskTest {
 
     @Test
     @DisplayName("fail() with null throws NullPointerException")
+    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
     void failWithNullThrows() {
       assertThatThrownBy(() -> VTask.fail(null)).isInstanceOf(NullPointerException.class);
     }
@@ -96,7 +98,7 @@ class VTaskTest {
     @DisplayName("exec() creates VTask from Runnable")
     void execCreatesVTaskFromRunnable() {
       AtomicInteger counter = new AtomicInteger(0);
-      VTask<Unit> task = VTask.exec(() -> counter.incrementAndGet());
+      VTask<Unit> task = VTask.exec(counter::incrementAndGet);
 
       // Should not have executed yet
       assertThat(counter.get()).isZero();
@@ -108,6 +110,7 @@ class VTaskTest {
 
     @Test
     @DisplayName("exec() with null runnable throws NullPointerException")
+    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
     void execWithNullRunnableThrows() {
       assertThatThrownBy(() -> VTask.exec(null)).isInstanceOf(NullPointerException.class);
     }
@@ -121,6 +124,7 @@ class VTaskTest {
 
     @Test
     @DisplayName("blocking() with null callable throws NullPointerException")
+    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
     void blockingWithNullCallableThrows() {
       assertThatThrownBy(() -> VTask.blocking(null)).isInstanceOf(NullPointerException.class);
     }
@@ -303,8 +307,8 @@ class VTaskTest {
     void mapIsLazy() {
       AtomicInteger counter = new AtomicInteger(0);
 
-      VTask<Integer> task = VTask.delay(() -> counter.incrementAndGet());
-      VTask<String> mapped = task.map(Object::toString);
+      VTask<Integer> task = VTask.delay(counter::incrementAndGet);
+      task.map(Object::toString);
 
       // Should not execute yet
       assertThat(counter.get()).isZero();
@@ -312,6 +316,7 @@ class VTaskTest {
 
     @Test
     @DisplayName("map() with null mapper throws NullPointerException")
+    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
     void mapWithNullMapperThrows() {
       VTask<Integer> task = VTask.succeed(TEST_VALUE);
 
@@ -344,8 +349,8 @@ class VTaskTest {
     void flatMapIsLazy() {
       AtomicInteger counter = new AtomicInteger(0);
 
-      VTask<Integer> task = VTask.delay(() -> counter.incrementAndGet());
-      VTask<String> flatMapped = task.flatMap(i -> VTask.succeed("Value: " + i));
+      VTask<Integer> task = VTask.delay(counter::incrementAndGet);
+      task.flatMap(i -> VTask.succeed("Value: " + i));
 
       // Should not execute yet
       assertThat(counter.get()).isZero();
@@ -353,6 +358,7 @@ class VTaskTest {
 
     @Test
     @DisplayName("flatMap() with null function throws NullPointerException")
+    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
     void flatMapWithNullFunctionThrows() {
       VTask<Integer> task = VTask.succeed(TEST_VALUE);
 
@@ -373,7 +379,7 @@ class VTaskTest {
     @DisplayName("then() sequences tasks discarding first result")
     void thenSequencesTasks() {
       AtomicInteger counter = new AtomicInteger(0);
-      VTask<Integer> first = VTask.delay(() -> counter.incrementAndGet());
+      VTask<Integer> first = VTask.delay(counter::incrementAndGet);
       VTask<String> second = VTask.succeed("result");
 
       VTask<String> combined = first.then(() -> second);
@@ -384,6 +390,7 @@ class VTaskTest {
 
     @Test
     @DisplayName("then() with null next throws NullPointerException")
+    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
     void thenWithNullNextThrows() {
       VTask<Integer> task = VTask.succeed(TEST_VALUE);
 
@@ -416,6 +423,7 @@ class VTaskTest {
 
     @Test
     @DisplayName("peek() with null action throws NullPointerException")
+    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
     void peekWithNullActionThrows() {
       VTask<Integer> task = VTask.succeed(TEST_VALUE);
 
@@ -428,7 +436,7 @@ class VTaskTest {
       RuntimeException exception = new RuntimeException("Original error");
       VTask<Integer> task = VTask.fail(exception);
 
-      VTask<Integer> peeked = task.peek(v -> {});
+      VTask<Integer> peeked = task.peek(_ -> {});
 
       assertThatVTask(peeked).fails().withMessage("Original error");
     }
@@ -463,6 +471,7 @@ class VTaskTest {
 
     @Test
     @DisplayName("timeout() with null duration throws NullPointerException")
+    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
     void timeoutWithNullDurationThrows() {
       VTask<Integer> task = VTask.succeed(TEST_VALUE);
 
@@ -490,7 +499,7 @@ class VTaskTest {
       RuntimeException exception = new RuntimeException("Error");
       VTask<Integer> failing = VTask.fail(exception);
 
-      VTask<Integer> recovered = failing.recover(e -> -1);
+      VTask<Integer> recovered = failing.recover(_ -> -1);
 
       assertThat(recovered.run()).isEqualTo(-1);
     }
@@ -500,7 +509,7 @@ class VTaskTest {
     void recoverPassesThroughSuccess() {
       VTask<Integer> task = VTask.succeed(TEST_VALUE);
 
-      VTask<Integer> recovered = task.recover(e -> -1);
+      VTask<Integer> recovered = task.recover(_ -> -1);
 
       assertThat(recovered.run()).isEqualTo(TEST_VALUE);
     }
@@ -511,7 +520,7 @@ class VTaskTest {
       RuntimeException exception = new RuntimeException("Error");
       VTask<Integer> failing = VTask.fail(exception);
 
-      VTask<Integer> recovered = failing.recoverWith(e -> VTask.succeed(-1));
+      VTask<Integer> recovered = failing.recoverWith(_ -> VTask.succeed(-1));
 
       assertThat(recovered.run()).isEqualTo(-1);
     }
@@ -521,7 +530,7 @@ class VTaskTest {
     void recoverWithPassesThroughSuccess() {
       VTask<Integer> task = VTask.succeed(TEST_VALUE);
 
-      VTask<Integer> recovered = task.recoverWith(e -> VTask.succeed(-1));
+      VTask<Integer> recovered = task.recoverWith(_ -> VTask.succeed(-1));
 
       assertThat(recovered.run()).isEqualTo(TEST_VALUE);
     }
@@ -543,6 +552,7 @@ class VTaskTest {
 
     @Test
     @DisplayName("recover() with null function throws NullPointerException")
+    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
     void recoverWithNullFunctionThrows() {
       VTask<Integer> task = VTask.succeed(TEST_VALUE);
 
@@ -551,6 +561,7 @@ class VTaskTest {
 
     @Test
     @DisplayName("recoverWith() with null function throws NullPointerException")
+    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
     void recoverWithWithNullFunctionThrows() {
       VTask<Integer> task = VTask.succeed(TEST_VALUE);
 
@@ -559,6 +570,7 @@ class VTaskTest {
 
     @Test
     @DisplayName("mapError() with null function throws NullPointerException")
+    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
     void mapErrorWithNullFunctionThrows() {
       VTask<Integer> task = VTask.succeed(TEST_VALUE);
 
@@ -570,7 +582,7 @@ class VTaskTest {
     void mapErrorPassesThroughSuccess() {
       VTask<Integer> task = VTask.succeed(TEST_VALUE);
 
-      VTask<Integer> mapped = task.mapError(e -> new IllegalStateException("Wrapped"));
+      VTask<Integer> mapped = task.mapError(_ -> new IllegalStateException("Wrapped"));
 
       assertThat(mapped.run()).isEqualTo(TEST_VALUE);
     }
@@ -629,10 +641,10 @@ class VTaskTest {
     void vtaskCreationDoesNotExecute() {
       AtomicInteger counter = new AtomicInteger(0);
 
-      VTask<Integer> task1 = VTask.delay(() -> counter.incrementAndGet());
+      VTask<Integer> task1 = VTask.delay(counter::incrementAndGet);
       VTask<Integer> task2 = task1.map(i -> i * 2);
       VTask<String> task3 = task2.flatMap(i -> VTask.succeed("Value: " + i));
-      VTask<Unit> task4 = task3.asUnit();
+      task3.asUnit();
 
       // None of this should have executed
       assertThat(counter.get()).isZero();
@@ -640,6 +652,7 @@ class VTaskTest {
 
     @Test
     @DisplayName("Multiple map operations don't execute until run")
+    @SuppressWarnings("DataFlowIssue") // non-null in this fixture
     void multipleMapOperationsDontExecuteUntilRun() {
       AtomicInteger executions = new AtomicInteger(0);
 
@@ -714,8 +727,8 @@ class VTaskTest {
 
       VTask<Unit> task =
           VTask.exec(() -> log.updateAndGet(s -> s + "A"))
-              .flatMap(u -> VTask.exec(() -> log.updateAndGet(s -> s + "B")))
-              .flatMap(u -> VTask.exec(() -> log.updateAndGet(s -> s + "C")));
+              .flatMap(_ -> VTask.exec(() -> log.updateAndGet(s -> s + "B")))
+              .flatMap(_ -> VTask.exec(() -> log.updateAndGet(s -> s + "C")));
 
       assertThat(log.get()).isEmpty();
 

@@ -5,8 +5,6 @@ package org.higherkindedj.hkt.context;
 import static org.assertj.core.api.Assertions.*;
 import static org.higherkindedj.hkt.context.ContextKindHelper.CONTEXT;
 
-import java.util.Objects;
-import java.util.function.BiPredicate;
 import java.util.function.Function;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.laws.ApplicativeLaws;
@@ -14,23 +12,66 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.MethodSource;
 
 /**
- * Comprehensive test suite for {@link ContextApplicative}.
+ * Test suite for {@link ContextApplicative}.
  *
- * <p>Coverage includes singleton pattern, of() and ap() operations, null handling, and applicative
- * laws.
+ * <p>Verifies the Applicative operations and laws; the laws are driven by the shipped {@link
+ * ApplicativeLaws} over {@link ContextLawFixtures}.
  */
-@DisplayName("ContextApplicative<R> Complete Test Suite")
+@DisplayName("ContextApplicative<R> Tests")
 class ContextApplicativeTest {
 
-  private static final ScopedValue<String> STRING_KEY = ScopedValue.newInstance();
+  private static final ScopedValue<String> STRING_KEY = ContextLawFixtures.STRING_KEY;
 
   private ContextApplicative<String> applicative;
 
   @BeforeEach
   void setUp() {
     applicative = ContextApplicative.instance();
+  }
+
+  // No separate Applicative contract smoke: this is the same singleton as the Context Monad, so its
+  // of/ap/map2 null-argument validation is already covered by the contract in ContextMonadTest. A
+  // dedicated Applicative contract would only duplicate it.
+
+  @Nested
+  @DisplayName("Laws")
+  class Laws {
+
+    @ParameterizedTest(name = "identity holds on {0}")
+    @MethodSource("org.higherkindedj.hkt.context.ContextLawFixtures#kinds")
+    void identity(String label, Kind<ContextKind.Witness<String>, String> v) {
+      ApplicativeLaws.assertIdentity(applicative, v, ContextLawFixtures.EQ);
+    }
+
+    @ParameterizedTest(name = "homomorphism holds on value {0}")
+    @MethodSource("org.higherkindedj.hkt.context.ContextLawFixtures#values")
+    void homomorphism(Integer value) {
+      Function<Integer, String> f = n -> "Number: " + n;
+      ApplicativeLaws.assertHomomorphism(applicative, value, f, ContextLawFixtures.EQ);
+    }
+
+    @ParameterizedTest(name = "interchange holds on value {0}")
+    @MethodSource("org.higherkindedj.hkt.context.ContextLawFixtures#values")
+    void interchange(Integer value) {
+      Kind<ContextKind.Witness<String>, Function<Integer, String>> u =
+          CONTEXT.succeed(n -> "Result: " + n);
+      ApplicativeLaws.assertInterchange(applicative, u, value, ContextLawFixtures.EQ);
+    }
+
+    @Test
+    @DisplayName("composition holds")
+    void composition() {
+      Kind<ContextKind.Witness<String>, Function<String, Integer>> u =
+          CONTEXT.succeed(String::length);
+      Kind<ContextKind.Witness<String>, Function<Integer, String>> v =
+          CONTEXT.succeed(n -> "Result: " + n);
+      Kind<ContextKind.Witness<String>, Integer> w = CONTEXT.succeed(42);
+      ApplicativeLaws.assertComposition(applicative, u, v, w, ContextLawFixtures.EQ);
+    }
   }
 
   @Nested
@@ -95,7 +136,7 @@ class ContextApplicativeTest {
 
     @Test
     @DisplayName("ap() should apply function in Kind to value in Kind")
-    void ap_shouldApplyFunction() throws Exception {
+    void ap_shouldApplyFunction() {
       Kind<ContextKind.Witness<String>, Function<Integer, String>> ff =
           CONTEXT.succeed(n -> "Number: " + n);
       Kind<ContextKind.Witness<String>, Integer> fa = CONTEXT.succeed(42);
@@ -110,7 +151,7 @@ class ContextApplicativeTest {
 
     @Test
     @DisplayName("ap() should work with Context that reads ScopedValue")
-    void ap_shouldWorkWithScopedValueReading() throws Exception {
+    void ap_shouldWorkWithScopedValueReading() {
       Kind<ContextKind.Witness<String>, Function<String, Integer>> ff =
           CONTEXT.succeed(String::length);
       Kind<ContextKind.Witness<String>, String> fa = CONTEXT.ask(STRING_KEY);
@@ -121,23 +162,6 @@ class ContextApplicativeTest {
       Integer value = ScopedValue.where(STRING_KEY, "hello").call(ctx::run);
 
       assertThat(value).isEqualTo(5);
-    }
-
-    @Test
-    @DisplayName("ap() should throw for null ff")
-    void ap_shouldThrowForNullFf() {
-      Kind<ContextKind.Witness<String>, Integer> fa = CONTEXT.succeed(42);
-
-      assertThatNullPointerException().isThrownBy(() -> applicative.ap(null, fa));
-    }
-
-    @Test
-    @DisplayName("ap() should throw for null fa")
-    void ap_shouldThrowForNullFa() {
-      Kind<ContextKind.Witness<String>, Function<Integer, String>> ff =
-          CONTEXT.succeed(n -> "Number: " + n);
-
-      assertThatNullPointerException().isThrownBy(() -> applicative.ap(ff, null));
     }
 
     @Test
@@ -179,52 +203,6 @@ class ContextApplicativeTest {
       Context<String, String> ctx = CONTEXT.narrow(result);
 
       assertThatThrownBy(ctx::run).isSameAs(error);
-    }
-  }
-
-  @Nested
-  @DisplayName("Laws")
-  class Laws {
-
-    private final BiPredicate<
-            Kind<ContextKind.Witness<String>, ?>, Kind<ContextKind.Witness<String>, ?>>
-        eq =
-            (k1, k2) -> {
-              try {
-                return ScopedValue.where(STRING_KEY, "test")
-                    .call(() -> Objects.equals(CONTEXT.narrow(k1).run(), CONTEXT.narrow(k2).run()));
-              } catch (Exception e) {
-                throw new RuntimeException(e);
-              }
-            };
-
-    @Test
-    void identity() {
-      Kind<ContextKind.Witness<String>, Integer> v = CONTEXT.succeed(42);
-      ApplicativeLaws.assertIdentity(applicative, v, eq);
-    }
-
-    @Test
-    void homomorphism() {
-      Function<Integer, String> f = n -> "Number: " + n;
-      ApplicativeLaws.assertHomomorphism(applicative, 42, f, eq);
-    }
-
-    @Test
-    void interchange() {
-      Kind<ContextKind.Witness<String>, Function<Integer, String>> u =
-          CONTEXT.succeed(n -> "Result: " + n);
-      ApplicativeLaws.assertInterchange(applicative, u, 42, eq);
-    }
-
-    @Test
-    void composition() {
-      Kind<ContextKind.Witness<String>, Function<String, Integer>> u =
-          CONTEXT.succeed(String::length);
-      Kind<ContextKind.Witness<String>, Function<Integer, String>> v =
-          CONTEXT.succeed(n -> "Result: " + n);
-      Kind<ContextKind.Witness<String>, Integer> w = CONTEXT.succeed(42);
-      ApplicativeLaws.assertComposition(applicative, u, v, w, eq);
     }
   }
 

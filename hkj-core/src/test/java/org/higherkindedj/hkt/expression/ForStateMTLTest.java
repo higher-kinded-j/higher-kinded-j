@@ -52,8 +52,6 @@ class ForStateMTLTest {
 
   record Counter(int count, int total) {}
 
-  record PipelineContext(String input, String processed, List<String> log) {}
-
   // --- Fixtures ---
 
   private Monad<IdKind.Witness> idMonad;
@@ -100,6 +98,7 @@ class ForStateMTLTest {
 
     @Test
     @DisplayName("local() temporarily modifies environment")
+    @SuppressWarnings("DataFlowIssue") // non-null in this fixture
     void localModifiesEnvironment() {
       var env = new ReaderTMonadReader<IdKind.Witness, AppConfig>(idMonad);
       var config = new AppConfig("jdbc:pg://host/db", 3);
@@ -116,8 +115,6 @@ class ForStateMTLTest {
     void forStateWithReaderAsk() {
       var env = new ReaderTMonadReader<IdKind.Witness, AppConfig>(idMonad);
       var config = new AppConfig("jdbc:pg://host/db", 3);
-
-      Lens<String, String> selfLens = Lens.of(s -> s, (_, v) -> v);
 
       var result = ForState.withState(env, env.reader(AppConfig::dbUrl)).yield();
 
@@ -137,6 +134,7 @@ class ForStateMTLTest {
 
     @Test
     @DisplayName("get() and put() thread state through For comprehension")
+    @SuppressWarnings("DataFlowIssue") // non-null in this fixture
     void getAndPutInFor() {
       var state = new StateTMonadState<Counter, IdKind.Witness>(idMonad);
 
@@ -155,6 +153,7 @@ class ForStateMTLTest {
 
     @Test
     @DisplayName("modify() transforms state correctly")
+    @SuppressWarnings("DataFlowIssue") // non-null in this fixture
     void modifyTransformsState() {
       var state = new StateTMonadState<Counter, IdKind.Witness>(idMonad);
 
@@ -167,6 +166,7 @@ class ForStateMTLTest {
 
     @Test
     @DisplayName("gets() extracts value from current state")
+    @SuppressWarnings("DataFlowIssue") // non-null in this fixture
     void getsExtractsFromState() {
       var state = new StateTMonadState<Counter, IdKind.Witness>(idMonad);
 
@@ -181,6 +181,7 @@ class ForStateMTLTest {
 
     @Test
     @DisplayName("ForState with MonadState operations via from()")
+    @SuppressWarnings("DataFlowIssue") // non-null in this fixture
     void forStateWithMonadStateOps() {
       var state = new StateTMonadState<Counter, IdKind.Witness>(idMonad);
 
@@ -213,6 +214,7 @@ class ForStateMTLTest {
 
     @Test
     @DisplayName("tell() accumulates output in For comprehension")
+    @SuppressWarnings("DataFlowIssue") // non-null in this fixture
     void tellAccumulatesInFor() {
       var writer = Instances.writerT(idMonad, Monoids.<String>list());
 
@@ -230,6 +232,7 @@ class ForStateMTLTest {
 
     @Test
     @DisplayName("listen() observes accumulated output")
+    @SuppressWarnings("DataFlowIssue") // non-null in this fixture
     void listenObservesOutput() {
       var writer = Instances.writerT(idMonad, Monoids.<String>list());
 
@@ -247,6 +250,7 @@ class ForStateMTLTest {
 
     @Test
     @DisplayName("censor() transforms accumulated output")
+    @SuppressWarnings("DataFlowIssue") // non-null in this fixture
     void censorTransformsOutput() {
       var writer = Instances.writerT(idMonad, Monoids.<String>list());
 
@@ -292,6 +296,7 @@ class ForStateMTLTest {
 
     @Test
     @DisplayName("Polymorphic function uses MonadState and produces correct state")
+    @SuppressWarnings("DataFlowIssue") // non-null in this fixture
     void polymorphicStateFunction() {
       var state = new StateTMonadState<Counter, IdKind.Witness>(idMonad);
 
@@ -306,6 +311,7 @@ class ForStateMTLTest {
 
     @Test
     @DisplayName("Polymorphic function uses MonadWriter and accumulates output")
+    @SuppressWarnings("DataFlowIssue") // non-null in this fixture
     void polymorphicWriterFunction() {
       var writer = Instances.writerT(idMonad, Monoids.<String>list());
 
@@ -325,6 +331,7 @@ class ForStateMTLTest {
     return For.from(env, env.ask()).yield(c -> c.dbUrl() + "?retries=" + c.maxRetries());
   }
 
+  @SuppressWarnings("SameParameterValue") // helper is intentionally parameterised
   static <F extends WitnessArity<TypeArity.Unary>> Kind<F, Integer> incrementAndTotal(
       MonadState<F, Counter> state, int amount) {
     return For.from(state, state.modify(c -> new Counter(c.count() + 1, c.total() + amount)))
@@ -332,6 +339,7 @@ class ForStateMTLTest {
         .yield((_, total) -> total);
   }
 
+  @SuppressWarnings("SameParameterValue") // helper is intentionally parameterised
   static <F extends WitnessArity<TypeArity.Unary>> Kind<F, String> auditedProcess(
       MonadWriter<F, List<String>> audit, String item) {
     return For.from(audit, audit.tell(List.of("Processing " + item)))

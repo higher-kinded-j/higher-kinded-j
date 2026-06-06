@@ -18,6 +18,7 @@ import org.higherkindedj.hkt.id.IdKind;
 import org.higherkindedj.hkt.id.IdKindHelper;
 import org.higherkindedj.hkt.instances.Instances;
 import org.higherkindedj.hkt.optional.OptionalKind;
+import org.higherkindedj.hkt.typeclass.StringMonoid;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -26,18 +27,7 @@ import org.junit.jupiter.api.Test;
 @DisplayName("WriterT Core Type Tests")
 class WriterTTest {
 
-  private static final Monoid<String> STRING_MONOID =
-      new Monoid<>() {
-        @Override
-        public String empty() {
-          return "";
-        }
-
-        @Override
-        public String combine(String a, String b) {
-          return a + b;
-        }
-      };
+  private static final Monoid<String> STRING_MONOID = new StringMonoid();
 
   private Monad<OptionalKind.Witness> outerMonad;
 
@@ -205,6 +195,7 @@ class WriterTTest {
 
     @Test
     @DisplayName("mapT should reject null function")
+    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
     void mapT_rejectsNull() {
       WriterT<OptionalKind.Witness, String, Integer> wt =
           WriterT.writer(outerMonad, testValue, testOutput);

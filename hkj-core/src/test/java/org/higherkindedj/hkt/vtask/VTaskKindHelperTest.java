@@ -40,6 +40,7 @@ class VTaskKindHelperTest {
 
     @Test
     @DisplayName("widen() throws for null input")
+    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
     void widenThrowsForNullInput() {
       assertThatThrownBy(() -> VTASK.widen(null))
           .isInstanceOf(NullPointerException.class)
@@ -95,7 +96,7 @@ class VTaskKindHelperTest {
     @DisplayName("narrow() throws for unknown Kind type")
     void narrowThrowsForUnknownKindType() {
       // Create a dummy VTaskKind that is not a VTask
-      VTaskKind<String> unknownKind = new VTaskKind<String>() {};
+      VTaskKind<String> unknownKind = new VTaskKind<>() {};
 
       assertThatThrownBy(() -> VTASK.narrow(unknownKind))
           .isInstanceOf(KindUnwrapException.class)
@@ -130,6 +131,7 @@ class VTaskKindHelperTest {
 
     @Test
     @DisplayName("of() throws for null Callable")
+    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
     void ofThrowsForNullCallable() {
       assertThatThrownBy(() -> VTASK.of(null)).isInstanceOf(NullPointerException.class);
     }
@@ -146,6 +148,7 @@ class VTaskKindHelperTest {
 
     @Test
     @DisplayName("delay() throws for null Supplier")
+    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
     void delayThrowsForNullSupplier() {
       assertThatThrownBy(() -> VTASK.delay(null)).isInstanceOf(NullPointerException.class);
     }
@@ -173,7 +176,7 @@ class VTaskKindHelperTest {
 
       Kind<VTaskKind.Witness, Integer> kind = VTASK.fail(exception);
 
-      assertThatVTask(VTASK.<Integer>narrow(kind))
+      assertThatVTask(VTASK.narrow(kind))
           .fails()
           .withExceptionType(RuntimeException.class)
           .withMessage("Test error");
@@ -181,6 +184,7 @@ class VTaskKindHelperTest {
 
     @Test
     @DisplayName("fail() throws for null Throwable")
+    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
     void failThrowsForNullThrowable() {
       assertThatThrownBy(() -> VTASK.fail(null)).isInstanceOf(NullPointerException.class);
     }
@@ -270,6 +274,7 @@ class VTaskKindHelperTest {
 
     @Test
     @DisplayName("handles nested VTask types")
+    @SuppressWarnings("DataFlowIssue") // the inner VTask is non-null here; run().run() is safe
     void handlesNestedVTaskTypes() {
       VTask<VTask<Integer>> nested = VTask.succeed(VTask.succeed(TEST_VALUE));
 

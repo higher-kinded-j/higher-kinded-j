@@ -23,23 +23,23 @@ class ResourceTest {
     @Test
     @DisplayName("make() creates resource with acquire and release")
     void makeCreatesResource() {
-      AtomicBoolean released = new AtomicBoolean(false);
-
-      Resource<String> resource = Resource.make(() -> "test", s -> released.set(true));
+      Resource<String> resource = Resource.make(() -> "test", _ -> {});
 
       assertThat(resource).isNotNull();
     }
 
     @Test
     @DisplayName("make() validates non-null acquire")
+    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
     void makeValidatesNonNullAcquire() {
       assertThatNullPointerException()
-          .isThrownBy(() -> Resource.make(null, s -> {}))
+          .isThrownBy(() -> Resource.make(null, _ -> {}))
           .withMessageContaining("acquire for");
     }
 
     @Test
     @DisplayName("make() validates non-null release")
+    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
     void makeValidatesNonNullRelease() {
       assertThatNullPointerException()
           .isThrownBy(() -> Resource.make(() -> "test", null))
@@ -49,12 +49,7 @@ class ResourceTest {
     @Test
     @DisplayName("fromAutoCloseable() creates resource that auto-closes")
     void fromAutoCloseableCreatesResource() {
-      AtomicBoolean closed = new AtomicBoolean(false);
-
-      AutoCloseable closeable =
-          () -> {
-            closed.set(true);
-          };
+      AutoCloseable closeable = () -> {};
 
       Resource<AutoCloseable> resource = Resource.fromAutoCloseable(() -> closeable);
 
@@ -63,6 +58,7 @@ class ResourceTest {
 
     @Test
     @DisplayName("fromAutoCloseable() validates non-null acquire")
+    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
     void fromAutoCloseableValidatesNonNullAcquire() {
       assertThatNullPointerException()
           .isThrownBy(() -> Resource.fromAutoCloseable(null))
@@ -83,7 +79,7 @@ class ResourceTest {
       Resource<AutoCloseable> resource = Resource.fromAutoCloseable(() -> failingCloseable);
 
       // Should not throw even though close fails
-      String result = resource.useSync(c -> "success").run();
+      String result = resource.useSync(_ -> "success").run();
 
       assertThat(result).isEqualTo("success");
       assertThat(closeCalled).isTrue();
@@ -115,7 +111,7 @@ class ResourceTest {
                 events.add("acquire");
                 return "resource";
               },
-              s -> events.add("release"));
+              _ -> events.add("release"));
 
       VTask<String> task =
           resource.use(
@@ -135,11 +131,11 @@ class ResourceTest {
     void useReleasesOnException() {
       AtomicBoolean released = new AtomicBoolean(false);
 
-      Resource<String> resource = Resource.make(() -> "test", s -> released.set(true));
+      Resource<String> resource = Resource.make(() -> "test", _ -> released.set(true));
 
       VTask<String> task =
           resource.use(
-              r ->
+              _ ->
                   VTask.of(
                       () -> {
                         throw new RuntimeException("intentional error");
@@ -151,8 +147,9 @@ class ResourceTest {
 
     @Test
     @DisplayName("use() validates non-null function")
+    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
     void useValidatesNonNullFunction() {
-      Resource<String> resource = Resource.make(() -> "test", s -> {});
+      Resource<String> resource = Resource.make(() -> "test", _ -> {});
 
       assertThatNullPointerException()
           .isThrownBy(() -> resource.use(null))
@@ -161,11 +158,12 @@ class ResourceTest {
 
     @Test
     @DisplayName("use() validates function does not return null")
+    @SuppressWarnings("DataFlowIssue") // the mapper deliberately returns null
     void useValidatesFunctionReturnsNonNull() {
       AtomicBoolean released = new AtomicBoolean(false);
-      Resource<String> resource = Resource.make(() -> "test", s -> released.set(true));
+      Resource<String> resource = Resource.make(() -> "test", _ -> released.set(true));
 
-      VTask<String> task = resource.use(r -> null);
+      VTask<String> task = resource.use(_ -> null);
 
       assertThatNullPointerException().isThrownBy(task::run).withMessageContaining("returned null");
       assertThat(released).isTrue(); // Resource should still be released
@@ -173,8 +171,9 @@ class ResourceTest {
 
     @Test
     @DisplayName("useSync() validates non-null function")
+    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
     void useSyncValidatesNonNullFunction() {
-      Resource<String> resource = Resource.make(() -> "test", s -> {});
+      Resource<String> resource = Resource.make(() -> "test", _ -> {});
 
       assertThatNullPointerException()
           .isThrownBy(() -> resource.useSync(null))
@@ -186,7 +185,7 @@ class ResourceTest {
     void useSyncWorksWithSimpleFunctions() {
       AtomicBoolean released = new AtomicBoolean(false);
 
-      Resource<String> resource = Resource.make(() -> "hello", s -> released.set(true));
+      Resource<String> resource = Resource.make(() -> "hello", _ -> released.set(true));
 
       VTask<Integer> task = resource.useSync(String::length);
 
@@ -205,7 +204,7 @@ class ResourceTest {
     @DisplayName("map() transforms resource value and releases")
     void mapTransformsResourceValue() {
       AtomicBoolean released = new AtomicBoolean(false);
-      Resource<String> resource = Resource.make(() -> "hello", s -> released.set(true));
+      Resource<String> resource = Resource.make(() -> "hello", _ -> released.set(true));
 
       Resource<Integer> mapped = resource.map(String::length);
 
@@ -217,11 +216,12 @@ class ResourceTest {
 
     @Test
     @DisplayName("map() skips release when acquired resource is null")
+    @SuppressWarnings("DataFlowIssue") // the mapper deliberately returns null
     void mapSkipsReleaseWhenAcquiredResourceIsNull() {
       AtomicBoolean releaseCalled = new AtomicBoolean(false);
-      Resource<String> nullResource = Resource.make(() -> null, s -> releaseCalled.set(true));
+      Resource<String> nullResource = Resource.make(() -> null, _ -> releaseCalled.set(true));
 
-      Resource<Integer> mapped = nullResource.map(s -> 42);
+      Resource<Integer> mapped = nullResource.map(_ -> 42);
 
       Integer result = mapped.useSync(i -> i).run();
 
@@ -233,8 +233,9 @@ class ResourceTest {
 
     @Test
     @DisplayName("map() validates non-null function")
+    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
     void mapValidatesNonNullFunction() {
-      Resource<String> resource = Resource.make(() -> "test", s -> {});
+      Resource<String> resource = Resource.make(() -> "test", _ -> {});
 
       assertThatNullPointerException()
           .isThrownBy(() -> resource.map(null))
@@ -245,13 +246,13 @@ class ResourceTest {
     @DisplayName("map() releases resource even when use throws exception")
     void mapReleasesOnUseException() {
       AtomicBoolean released = new AtomicBoolean(false);
-      Resource<String> resource = Resource.make(() -> "hello", s -> released.set(true));
+      Resource<String> resource = Resource.make(() -> "hello", _ -> released.set(true));
 
       Resource<Integer> mapped = resource.map(String::length);
 
       VTask<Integer> failingTask =
           mapped.use(
-              i ->
+              _ ->
                   VTask.of(
                       () -> {
                         throw new RuntimeException("use failed");
@@ -265,7 +266,6 @@ class ResourceTest {
     @DisplayName("map() releases resource even when map function throws during acquire")
     void mapReleasesWhenMapFunctionThrows() {
       AtomicBoolean acquired = new AtomicBoolean(false);
-      AtomicBoolean released = new AtomicBoolean(false);
 
       Resource<String> resource =
           Resource.make(
@@ -273,11 +273,11 @@ class ResourceTest {
                 acquired.set(true);
                 return "hello";
               },
-              s -> released.set(true));
+              _ -> {});
 
       Resource<Integer> mapped =
           resource.map(
-              s -> {
+              _ -> {
                 throw new RuntimeException("map function failed");
               });
 
@@ -300,7 +300,7 @@ class ResourceTest {
                 events.add("acquire-first");
                 return "first";
               },
-              s -> events.add("release-first"));
+              _ -> events.add("release-first"));
 
       Resource<String> chained =
           first.flatMap(
@@ -310,7 +310,7 @@ class ResourceTest {
                         events.add("acquire-second");
                         return f + "-second";
                       },
-                      s -> events.add("release-second")));
+                      _ -> events.add("release-second")));
 
       String result = chained.useSync(s -> s).run();
 
@@ -322,14 +322,15 @@ class ResourceTest {
 
     @Test
     @DisplayName("flatMap() skips outer release when acquired resource is null")
+    @SuppressWarnings("DataFlowIssue") // the mapper deliberately returns null
     void flatMapSkipsOuterReleaseWhenAcquiredResourceIsNull() {
       AtomicBoolean outerReleaseCalled = new AtomicBoolean(false);
       AtomicBoolean innerReleased = new AtomicBoolean(false);
 
-      Resource<String> nullResource = Resource.make(() -> null, s -> outerReleaseCalled.set(true));
+      Resource<String> nullResource = Resource.make(() -> null, _ -> outerReleaseCalled.set(true));
 
       Resource<Integer> chained =
-          nullResource.flatMap(s -> Resource.make(() -> 42, i -> innerReleased.set(true)));
+          nullResource.flatMap(_ -> Resource.make(() -> 42, _ -> innerReleased.set(true)));
 
       Integer result = chained.useSync(i -> i).run();
 
@@ -342,8 +343,9 @@ class ResourceTest {
 
     @Test
     @DisplayName("flatMap() validates non-null function")
+    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
     void flatMapValidatesNonNullFunction() {
-      Resource<String> resource = Resource.make(() -> "test", s -> {});
+      Resource<String> resource = Resource.make(() -> "test", _ -> {});
 
       assertThatNullPointerException()
           .isThrownBy(() -> resource.flatMap(null))
@@ -355,16 +357,16 @@ class ResourceTest {
     void flatMapReleasesFirstIfSecondFails() {
       AtomicBoolean firstReleased = new AtomicBoolean(false);
 
-      Resource<String> first = Resource.make(() -> "first", s -> firstReleased.set(true));
+      Resource<String> first = Resource.make(() -> "first", _ -> firstReleased.set(true));
 
       Resource<String> chained =
           first.flatMap(
-              f ->
+              _ ->
                   Resource.make(
                       () -> {
                         throw new RuntimeException("second acquire failed");
                       },
-                      s -> {}));
+                      _ -> {}));
 
       assertThatThrownBy(() -> chained.useSync(s -> s).run())
           .hasMessageContaining("second acquire failed");
@@ -377,18 +379,18 @@ class ResourceTest {
       Resource<String> first =
           Resource.make(
               () -> "first",
-              s -> {
+              _ -> {
                 throw new RuntimeException("release failed");
               });
 
       Resource<String> chained =
           first.flatMap(
-              f ->
+              _ ->
                   Resource.make(
                       () -> {
                         throw new RuntimeException("second acquire failed");
                       },
-                      s -> {}));
+                      _ -> {}));
 
       assertThatThrownBy(() -> chained.useSync(s -> s).run())
           .isInstanceOf(RuntimeException.class)
@@ -402,11 +404,12 @@ class ResourceTest {
 
     @Test
     @DisplayName("flatMap() validates function does not return null")
+    @SuppressWarnings("DataFlowIssue") // the mapper deliberately returns null
     void flatMapValidatesFunctionReturnsNonNull() {
       AtomicBoolean released = new AtomicBoolean(false);
-      Resource<String> resource = Resource.make(() -> "test", s -> released.set(true));
+      Resource<String> resource = Resource.make(() -> "test", _ -> released.set(true));
 
-      Resource<String> chained = resource.flatMap(r -> null);
+      Resource<String> chained = resource.flatMap(_ -> null);
 
       assertThatNullPointerException()
           .isThrownBy(() -> chained.useSync(s -> s).run())
@@ -419,14 +422,14 @@ class ResourceTest {
     void flatMapHandlesInnerReleaseException() {
       AtomicBoolean outerReleased = new AtomicBoolean(false);
 
-      Resource<String> outer = Resource.make(() -> "outer", s -> outerReleased.set(true));
+      Resource<String> outer = Resource.make(() -> "outer", _ -> outerReleased.set(true));
 
       Resource<String> chained =
           outer.flatMap(
-              o ->
+              _ ->
                   Resource.make(
                       () -> "inner",
-                      s -> {
+                      _ -> {
                         throw new RuntimeException("inner release failed");
                       }));
 
@@ -446,12 +449,12 @@ class ResourceTest {
       Resource<String> outer =
           Resource.make(
               () -> "outer",
-              s -> {
+              _ -> {
                 throw new RuntimeException("outer release failed");
               });
 
       Resource<String> chained =
-          outer.flatMap(o -> Resource.make(() -> "inner", s -> innerReleased.set(true)));
+          outer.flatMap(_ -> Resource.make(() -> "inner", _ -> innerReleased.set(true)));
 
       assertThatThrownBy(() -> chained.useSync(s -> s).run())
           .isInstanceOf(RuntimeException.class)
@@ -467,16 +470,16 @@ class ResourceTest {
       Resource<String> outer =
           Resource.make(
               () -> "outer",
-              s -> {
+              _ -> {
                 throw new RuntimeException("outer release failed");
               });
 
       Resource<String> chained =
           outer.flatMap(
-              o ->
+              _ ->
                   Resource.make(
                       () -> "inner",
-                      s -> {
+                      _ -> {
                         throw new RuntimeException("inner release failed");
                       }));
 
@@ -499,14 +502,14 @@ class ResourceTest {
       AtomicBoolean outerReleased = new AtomicBoolean(false);
       AtomicBoolean innerReleased = new AtomicBoolean(false);
 
-      Resource<String> outer = Resource.make(() -> "outer", s -> outerReleased.set(true));
+      Resource<String> outer = Resource.make(() -> "outer", _ -> outerReleased.set(true));
 
       Resource<String> chained =
-          outer.flatMap(o -> Resource.make(() -> "inner", s -> innerReleased.set(true)));
+          outer.flatMap(_ -> Resource.make(() -> "inner", _ -> innerReleased.set(true)));
 
       VTask<String> failingTask =
           chained.use(
-              s ->
+              _ ->
                   VTask.of(
                       () -> {
                         throw new RuntimeException("use failed");
@@ -519,8 +522,9 @@ class ResourceTest {
 
     @Test
     @DisplayName("and() validates non-null other resource")
+    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
     void andValidatesNonNullOther() {
-      Resource<String> resource = Resource.make(() -> "test", s -> {});
+      Resource<String> resource = Resource.make(() -> "test", _ -> {});
 
       assertThatNullPointerException()
           .isThrownBy(() -> resource.and(null))
@@ -538,7 +542,7 @@ class ResourceTest {
                 events.add("acquire-first");
                 return "first";
               },
-              s -> events.add("release-first"));
+              _ -> events.add("release-first"));
 
       Resource<String> second =
           Resource.make(
@@ -546,7 +550,7 @@ class ResourceTest {
                 events.add("acquire-second");
                 return "second";
               },
-              s -> events.add("release-second"));
+              _ -> events.add("release-second"));
 
       Resource<Par.Tuple2<String, String>> combined = first.and(second);
 
@@ -566,7 +570,7 @@ class ResourceTest {
       Resource<String> first =
           Resource.make(
               () -> "first",
-              s -> {
+              _ -> {
                 throw new RuntimeException("first release failed");
               });
 
@@ -575,11 +579,11 @@ class ResourceTest {
               () -> {
                 throw new RuntimeException("second acquire failed");
               },
-              s -> {});
+              _ -> {});
 
       Resource<Par.Tuple2<String, String>> combined = first.and(second);
 
-      assertThatThrownBy(() -> combined.useSync(t -> "result").run())
+      assertThatThrownBy(() -> combined.useSync(_ -> "result").run())
           .isInstanceOf(RuntimeException.class)
           .hasMessageContaining("second acquire failed")
           .satisfies(
@@ -592,17 +596,17 @@ class ResourceTest {
     @Test
     @DisplayName("and() handles second release exception")
     void andHandlesSecondReleaseException() {
-      Resource<String> first = Resource.make(() -> "first", s -> {});
+      Resource<String> first = Resource.make(() -> "first", _ -> {});
       Resource<String> second =
           Resource.make(
               () -> "second",
-              s -> {
+              _ -> {
                 throw new RuntimeException("second release failed");
               });
 
       Resource<Par.Tuple2<String, String>> combined = first.and(second);
 
-      assertThatThrownBy(() -> combined.useSync(t -> t.first()).run())
+      assertThatThrownBy(() -> combined.useSync(Par.Tuple2::first).run())
           .isInstanceOf(RuntimeException.class)
           .hasMessageContaining("Failed to release resource")
           .hasCauseInstanceOf(RuntimeException.class);
@@ -614,16 +618,16 @@ class ResourceTest {
       Resource<String> first =
           Resource.make(
               () -> "first",
-              s -> {
+              _ -> {
                 throw new RuntimeException("first release failed");
               });
-      Resource<String> second = Resource.make(() -> "second", s -> {});
+      Resource<String> second = Resource.make(() -> "second", _ -> {});
 
       Resource<Par.Tuple2<String, String>> combined = first.and(second);
 
       // First release throws, second doesn't - covers the false branch of if (firstException !=
       // null)
-      assertThatThrownBy(() -> combined.useSync(t -> t.first()).run())
+      assertThatThrownBy(() -> combined.useSync(Par.Tuple2::first).run())
           .isInstanceOf(RuntimeException.class)
           .hasMessageContaining("Failed to release resource")
           .satisfies(e -> assertThat(e.getCause().getSuppressed()).isEmpty());
@@ -635,13 +639,13 @@ class ResourceTest {
       Resource<String> first =
           Resource.make(
               () -> "first",
-              s -> {
+              _ -> {
                 throw new RuntimeException("first release failed");
               });
       Resource<String> second =
           Resource.make(
               () -> "second",
-              s -> {
+              _ -> {
                 throw new RuntimeException("second release failed");
               });
 
@@ -649,7 +653,7 @@ class ResourceTest {
 
       // Second release exception is suppressed by first release exception
       // First release exception is wrapped in RuntimeException as cause
-      assertThatThrownBy(() -> combined.useSync(t -> t.first()).run())
+      assertThatThrownBy(() -> combined.useSync(Par.Tuple2::first).run())
           .isInstanceOf(RuntimeException.class)
           .hasMessageContaining("Failed to release resource")
           .satisfies(e -> assertThat(e.getCause().getSuppressed()).hasSize(1));
@@ -660,18 +664,18 @@ class ResourceTest {
     void andReleasesFirstIfSecondFails() {
       AtomicBoolean firstReleased = new AtomicBoolean(false);
 
-      Resource<String> first = Resource.make(() -> "first", s -> firstReleased.set(true));
+      Resource<String> first = Resource.make(() -> "first", _ -> firstReleased.set(true));
 
       Resource<String> second =
           Resource.make(
               () -> {
                 throw new RuntimeException("acquire failed");
               },
-              s -> {});
+              _ -> {});
 
       Resource<Par.Tuple2<String, String>> combined = first.and(second);
 
-      VTask<String> task = combined.useSync(tuple -> "should not reach");
+      VTask<String> task = combined.useSync(_ -> "should not reach");
 
       assertThatThrownBy(task::run).hasMessageContaining("acquire failed");
       assertThat(firstReleased).isTrue();
@@ -684,13 +688,13 @@ class ResourceTest {
       List<Integer> releases = new ArrayList<>();
 
       Resource<String> first =
-          Resource.make(() -> "first", s -> releases.add(releaseOrder.incrementAndGet()));
+          Resource.make(() -> "first", _ -> releases.add(releaseOrder.incrementAndGet()));
 
       Resource<String> second =
-          Resource.make(() -> "second", s -> releases.add(releaseOrder.incrementAndGet()));
+          Resource.make(() -> "second", _ -> releases.add(releaseOrder.incrementAndGet()));
 
       Resource<String> third =
-          Resource.make(() -> "third", s -> releases.add(releaseOrder.incrementAndGet()));
+          Resource.make(() -> "third", _ -> releases.add(releaseOrder.incrementAndGet()));
 
       Resource<Par.Tuple3<String, String, String>> combined = first.and(second, third);
 
@@ -706,9 +710,10 @@ class ResourceTest {
 
     @Test
     @DisplayName("and(second, third) validates non-null second")
+    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
     void andThreeValidatesNonNullSecond() {
-      Resource<String> first = Resource.make(() -> "first", s -> {});
-      Resource<String> third = Resource.make(() -> "third", s -> {});
+      Resource<String> first = Resource.make(() -> "first", _ -> {});
+      Resource<String> third = Resource.make(() -> "third", _ -> {});
 
       assertThatNullPointerException()
           .isThrownBy(() -> first.and(null, third))
@@ -717,9 +722,10 @@ class ResourceTest {
 
     @Test
     @DisplayName("and(second, third) validates non-null third")
+    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
     void andThreeValidatesNonNullThird() {
-      Resource<String> first = Resource.make(() -> "first", s -> {});
-      Resource<String> second = Resource.make(() -> "second", s -> {});
+      Resource<String> first = Resource.make(() -> "first", _ -> {});
+      Resource<String> second = Resource.make(() -> "second", _ -> {});
 
       assertThatNullPointerException()
           .isThrownBy(() -> first.and(second, null))
@@ -731,18 +737,18 @@ class ResourceTest {
     void andThreeReleasesFirstIfSecondFails() {
       AtomicBoolean firstReleased = new AtomicBoolean(false);
 
-      Resource<String> first = Resource.make(() -> "first", s -> firstReleased.set(true));
+      Resource<String> first = Resource.make(() -> "first", _ -> firstReleased.set(true));
       Resource<String> second =
           Resource.make(
               () -> {
                 throw new RuntimeException("second acquire failed");
               },
-              s -> {});
-      Resource<String> third = Resource.make(() -> "third", s -> {});
+              _ -> {});
+      Resource<String> third = Resource.make(() -> "third", _ -> {});
 
       Resource<Par.Tuple3<String, String, String>> combined = first.and(second, third);
 
-      assertThatThrownBy(() -> combined.useSync(t -> "result").run())
+      assertThatThrownBy(() -> combined.useSync(_ -> "result").run())
           .hasMessageContaining("second acquire failed");
       assertThat(firstReleased).isTrue();
     }
@@ -753,18 +759,18 @@ class ResourceTest {
       AtomicBoolean firstReleased = new AtomicBoolean(false);
       AtomicBoolean secondReleased = new AtomicBoolean(false);
 
-      Resource<String> first = Resource.make(() -> "first", s -> firstReleased.set(true));
-      Resource<String> second = Resource.make(() -> "second", s -> secondReleased.set(true));
+      Resource<String> first = Resource.make(() -> "first", _ -> firstReleased.set(true));
+      Resource<String> second = Resource.make(() -> "second", _ -> secondReleased.set(true));
       Resource<String> third =
           Resource.make(
               () -> {
                 throw new RuntimeException("third acquire failed");
               },
-              s -> {});
+              _ -> {});
 
       Resource<Par.Tuple3<String, String, String>> combined = first.and(second, third);
 
-      assertThatThrownBy(() -> combined.useSync(t -> "result").run())
+      assertThatThrownBy(() -> combined.useSync(_ -> "result").run())
           .hasMessageContaining("third acquire failed");
       assertThat(firstReleased).isTrue();
       assertThat(secondReleased).isTrue();
@@ -775,11 +781,11 @@ class ResourceTest {
     void andThreeSuppressesSecondReleaseExceptionWhenThirdFails() {
       AtomicBoolean firstReleased = new AtomicBoolean(false);
 
-      Resource<String> first = Resource.make(() -> "first", s -> firstReleased.set(true));
+      Resource<String> first = Resource.make(() -> "first", _ -> firstReleased.set(true));
       Resource<String> second =
           Resource.make(
               () -> "second",
-              s -> {
+              _ -> {
                 throw new RuntimeException("second release failed");
               });
       Resource<String> third =
@@ -787,11 +793,11 @@ class ResourceTest {
               () -> {
                 throw new RuntimeException("third acquire failed");
               },
-              s -> {});
+              _ -> {});
 
       Resource<Par.Tuple3<String, String, String>> combined = first.and(second, third);
 
-      assertThatThrownBy(() -> combined.useSync(t -> "result").run())
+      assertThatThrownBy(() -> combined.useSync(_ -> "result").run())
           .isInstanceOf(RuntimeException.class)
           .hasMessageContaining("third acquire failed")
           .satisfies(
@@ -808,7 +814,7 @@ class ResourceTest {
       Resource<String> first =
           Resource.make(
               () -> "first",
-              s -> {
+              _ -> {
                 throw new RuntimeException("first release failed");
               });
       Resource<String> second =
@@ -816,12 +822,12 @@ class ResourceTest {
               () -> {
                 throw new RuntimeException("second acquire failed");
               },
-              s -> {});
-      Resource<String> third = Resource.make(() -> "third", s -> {});
+              _ -> {});
+      Resource<String> third = Resource.make(() -> "third", _ -> {});
 
       Resource<Par.Tuple3<String, String, String>> combined = first.and(second, third);
 
-      assertThatThrownBy(() -> combined.useSync(t -> "result").run())
+      assertThatThrownBy(() -> combined.useSync(_ -> "result").run())
           .isInstanceOf(RuntimeException.class)
           .hasMessageContaining("second acquire failed")
           .satisfies(
@@ -834,18 +840,18 @@ class ResourceTest {
     @Test
     @DisplayName("and(second, third) handles third release exception")
     void andThreeHandlesThirdReleaseException() {
-      Resource<String> first = Resource.make(() -> "first", s -> {});
-      Resource<String> second = Resource.make(() -> "second", s -> {});
+      Resource<String> first = Resource.make(() -> "first", _ -> {});
+      Resource<String> second = Resource.make(() -> "second", _ -> {});
       Resource<String> third =
           Resource.make(
               () -> "third",
-              s -> {
+              _ -> {
                 throw new RuntimeException("third release failed");
               });
 
       Resource<Par.Tuple3<String, String, String>> combined = first.and(second, third);
 
-      assertThatThrownBy(() -> combined.useSync(t -> t.first()).run())
+      assertThatThrownBy(() -> combined.useSync(Par.Tuple3::first).run())
           .isInstanceOf(RuntimeException.class)
           .hasMessageContaining("Failed to release resource");
     }
@@ -853,18 +859,18 @@ class ResourceTest {
     @Test
     @DisplayName("and(second, third) handles second release exception")
     void andThreeHandlesSecondReleaseException() {
-      Resource<String> first = Resource.make(() -> "first", s -> {});
+      Resource<String> first = Resource.make(() -> "first", _ -> {});
       Resource<String> second =
           Resource.make(
               () -> "second",
-              s -> {
+              _ -> {
                 throw new RuntimeException("second release failed");
               });
-      Resource<String> third = Resource.make(() -> "third", s -> {});
+      Resource<String> third = Resource.make(() -> "third", _ -> {});
 
       Resource<Par.Tuple3<String, String, String>> combined = first.and(second, third);
 
-      assertThatThrownBy(() -> combined.useSync(t -> t.first()).run())
+      assertThatThrownBy(() -> combined.useSync(Par.Tuple3::first).run())
           .isInstanceOf(RuntimeException.class)
           .hasMessageContaining("Failed to release resource");
     }
@@ -875,17 +881,17 @@ class ResourceTest {
       Resource<String> first =
           Resource.make(
               () -> "first",
-              s -> {
+              _ -> {
                 throw new RuntimeException("first release failed");
               });
-      Resource<String> second = Resource.make(() -> "second", s -> {});
-      Resource<String> third = Resource.make(() -> "third", s -> {});
+      Resource<String> second = Resource.make(() -> "second", _ -> {});
+      Resource<String> third = Resource.make(() -> "third", _ -> {});
 
       Resource<Par.Tuple3<String, String, String>> combined = first.and(second, third);
 
       // First release throws, second and third don't - covers false branch of if (firstException !=
       // null)
-      assertThatThrownBy(() -> combined.useSync(t -> t.first()).run())
+      assertThatThrownBy(() -> combined.useSync(Par.Tuple3::first).run())
           .isInstanceOf(RuntimeException.class)
           .hasMessageContaining("Failed to release resource")
           .satisfies(e -> assertThat(e.getCause().getSuppressed()).isEmpty());
@@ -897,22 +903,22 @@ class ResourceTest {
       Resource<String> first =
           Resource.make(
               () -> "first",
-              s -> {
+              _ -> {
                 throw new RuntimeException("first release failed");
               });
       Resource<String> second =
           Resource.make(
               () -> "second",
-              s -> {
+              _ -> {
                 throw new RuntimeException("second release failed");
               });
-      Resource<String> third = Resource.make(() -> "third", s -> {});
+      Resource<String> third = Resource.make(() -> "third", _ -> {});
 
       Resource<Par.Tuple3<String, String, String>> combined = first.and(second, third);
 
       // Second release exception is suppressed by first release exception
       // First release exception is wrapped in RuntimeException as cause
-      assertThatThrownBy(() -> combined.useSync(t -> t.first()).run())
+      assertThatThrownBy(() -> combined.useSync(Par.Tuple3::first).run())
           .isInstanceOf(RuntimeException.class)
           .hasMessageContaining("Failed to release resource")
           .satisfies(e -> assertThat(e.getCause().getSuppressed()).hasSize(1));
@@ -924,19 +930,19 @@ class ResourceTest {
       Resource<String> first =
           Resource.make(
               () -> "first",
-              s -> {
+              _ -> {
                 throw new RuntimeException("first release failed");
               });
       Resource<String> second =
           Resource.make(
               () -> "second",
-              s -> {
+              _ -> {
                 throw new RuntimeException("second release failed");
               });
       Resource<String> third =
           Resource.make(
               () -> "third",
-              s -> {
+              _ -> {
                 throw new RuntimeException("third release failed");
               });
 
@@ -946,7 +952,7 @@ class ResourceTest {
       // - Third release exception is suppressed by second
       // - Second release exception (with third suppressed) is suppressed by first
       // - First release exception is wrapped in RuntimeException as cause
-      assertThatThrownBy(() -> combined.useSync(t -> t.first()).run())
+      assertThatThrownBy(() -> combined.useSync(Par.Tuple3::first).run())
           .isInstanceOf(RuntimeException.class)
           .hasMessageContaining("Failed to release resource")
           .satisfies(e -> assertThat(e.getCause().getSuppressed()).hasSize(1));
@@ -963,7 +969,7 @@ class ResourceTest {
       List<String> events = new ArrayList<>();
 
       Resource<String> resource =
-          Resource.make(() -> "test", s -> events.add("release"))
+          Resource.make(() -> "test", _ -> events.add("release"))
               .withFinalizer(() -> events.add("finalizer"));
 
       resource.useSync(s -> s).run();
@@ -979,7 +985,7 @@ class ResourceTest {
       Resource<String> resource =
           Resource.make(
                   () -> "test",
-                  s -> {
+                  _ -> {
                     throw new RuntimeException("release failed");
                   })
               .withFinalizer(() -> finalizerRan.set(true));
@@ -990,8 +996,9 @@ class ResourceTest {
 
     @Test
     @DisplayName("withFinalizer() validates non-null finalizer")
+    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
     void withFinalizerValidatesNonNull() {
-      Resource<String> resource = Resource.make(() -> "test", s -> {});
+      Resource<String> resource = Resource.make(() -> "test", _ -> {});
 
       assertThatNullPointerException()
           .isThrownBy(() -> resource.withFinalizer(null))
@@ -1000,8 +1007,9 @@ class ResourceTest {
 
     @Test
     @DisplayName("onFailure() validates non-null handler")
+    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
     void onFailureValidatesNonNull() {
-      Resource<String> resource = Resource.make(() -> "test", s -> {});
+      Resource<String> resource = Resource.make(() -> "test", _ -> {});
 
       assertThatNullPointerException()
           .isThrownBy(() -> resource.onFailure(null))
@@ -1013,9 +1021,9 @@ class ResourceTest {
     void onFailureReturnsUsableResource() {
       AtomicBoolean released = new AtomicBoolean(false);
       Resource<String> resource =
-          Resource.make(() -> "test", s -> released.set(true)).onFailure(s -> {});
+          Resource.make(() -> "test", _ -> released.set(true)).onFailure(_ -> {});
 
-      String result = resource.useSync(s -> s.toUpperCase()).run();
+      String result = resource.useSync(String::toUpperCase).run();
 
       assertThat(result).isEqualTo("TEST");
       assertThat(released).isTrue();
@@ -1040,7 +1048,7 @@ class ResourceTest {
       AtomicBoolean closed = new AtomicBoolean(false);
 
       Resource<Connection> connResource =
-          Resource.make(() -> new Connection("conn-1"), conn -> closed.set(true));
+          Resource.make(() -> new Connection("conn-1"), _ -> closed.set(true));
 
       VTask<String> query =
           connResource.use(
@@ -1068,7 +1076,7 @@ class ResourceTest {
                 events.add("acquire-outer");
                 return "outer";
               },
-              s -> events.add("release-outer"));
+              _ -> events.add("release-outer"));
 
       Resource<String> inner =
           Resource.make(
@@ -1076,7 +1084,7 @@ class ResourceTest {
                 events.add("acquire-inner");
                 return "inner";
               },
-              s -> events.add("release-inner"));
+              _ -> events.add("release-inner"));
 
       VTask<String> task = outer.use(o -> inner.use(i -> VTask.succeed(o + "+" + i)));
 

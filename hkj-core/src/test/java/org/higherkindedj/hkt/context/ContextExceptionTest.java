@@ -93,6 +93,7 @@ class ContextExceptionTest {
 
     @Test
     @DisplayName("wrap() should rethrow Error directly")
+    @SuppressWarnings("ThrowableNotThrown") // wrap() rethrows the Error rather than returning
     void wrap_shouldRethrowError() {
       OutOfMemoryError oom = new OutOfMemoryError("oom");
 
@@ -101,6 +102,7 @@ class ContextExceptionTest {
 
     @Test
     @DisplayName("wrap() should rethrow StackOverflowError directly")
+    @SuppressWarnings("ThrowableNotThrown") // wrap() rethrows the Error rather than returning
     void wrap_shouldRethrowStackOverflowError() {
       StackOverflowError soe = new StackOverflowError("stack");
 
@@ -225,7 +227,7 @@ class ContextExceptionTest {
 
     @Test
     @DisplayName("toVTask should work without compilation issues")
-    void toVTaskShouldWork() throws Exception {
+    void toVTaskShouldWork() {
       Context<String, String> ctx = Context.succeed("hello");
 
       var task = ctx.toVTask();

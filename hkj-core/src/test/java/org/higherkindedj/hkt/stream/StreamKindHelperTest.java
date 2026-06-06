@@ -39,6 +39,7 @@ class StreamKindHelperTest {
     }
 
     @Test
+    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
     void widen_shouldThrowForNullInput() {
       assertThatThrownBy(() -> STREAM.widen(null))
           .isInstanceOf(NullPointerException.class)
@@ -70,7 +71,7 @@ class StreamKindHelperTest {
       assertThat(narrowed.collect(Collectors.toList())).containsExactly(1, 2, 3);
 
       // Second use - should throw IllegalStateException
-      assertThatThrownBy(() -> narrowed.count()).isInstanceOf(IllegalStateException.class);
+      assertThatThrownBy(narrowed::count).isInstanceOf(IllegalStateException.class);
     }
 
     // Dummy Kind for testing invalid type unwrap
@@ -106,6 +107,7 @@ class StreamKindHelperTest {
     }
 
     @Test
+    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
     void narrowOr_shouldThrowNPEWhenDefaultIsNull() {
       Stream<String> stream = Stream.of("a", "b");
       Kind<StreamKind.Witness, String> kind = STREAM.widen(stream);

@@ -40,6 +40,7 @@ class ForPathTest {
 
   // Test data classes
   record User(String name, Address address, String email) {
+    @SuppressWarnings("DataFlowIssue") // null email is intentional; the field is optional
     User(String name, Address address) {
       this(name, address, null);
     }
@@ -60,6 +61,7 @@ class ForPathTest {
   static final FocusPath<Address, String> cityFocus = FocusPath.of(cityLens);
 
   // AffinePath for testing match()
+  @SuppressWarnings("OptionalOfNullableMisuse") // email is nullable, so ofNullable is intentional
   static final AffinePath<User, String> emailAffine =
       AffinePath.of(
           Affine.of(
@@ -82,7 +84,7 @@ class ForPathTest {
     @DisplayName("should short-circuit on Nothing")
     void shortCircuitsOnNothing() {
       MaybePath<Integer> result =
-          ForPath.from(Path.just(5)).<Integer>from(a -> Path.nothing()).yield((a, b) -> a + b);
+          ForPath.from(Path.just(5)).<Integer>from(_ -> Path.nothing()).yield((a, b) -> a + b);
 
       assertTrue(result.run().isNothing());
     }
@@ -114,7 +116,7 @@ class ForPathTest {
       User user = new User("Alice", new Address("NYC", "USA"));
 
       MaybePath<String> result =
-          ForPath.from(Path.just(user)).focus(addressFocus).yield((u, addr) -> addr.city());
+          ForPath.from(Path.just(user)).focus(addressFocus).yield((_, addr) -> addr.city());
 
       assertEquals(Maybe.just("NYC"), result.run());
     }
@@ -126,14 +128,12 @@ class ForPathTest {
       User userWithoutEmail = new User("Bob", new Address("LA", "USA"));
 
       MaybePath<String> result1 =
-          ForPath.from(Path.just(userWithEmail)).match(emailAffine).yield((user, email) -> email);
+          ForPath.from(Path.just(userWithEmail)).match(emailAffine).yield((_, email) -> email);
 
       assertEquals(Maybe.just("alice@example.com"), result1.run());
 
       MaybePath<String> result2 =
-          ForPath.from(Path.just(userWithoutEmail))
-              .match(emailAffine)
-              .yield((user, email) -> email);
+          ForPath.from(Path.just(userWithoutEmail)).match(emailAffine).yield((_, email) -> email);
 
       assertTrue(result2.run().isNothing());
     }
@@ -155,9 +155,9 @@ class ForPathTest {
     void supportsFourGenerators() {
       MaybePath<Integer> result =
           ForPath.from(Path.just(1))
-              .from(a -> Path.just(2))
-              .from(t -> Path.just(3))
-              .from(t -> Path.just(4))
+              .from(_ -> Path.just(2))
+              .from(_ -> Path.just(3))
+              .from(_ -> Path.just(4))
               .yield((a, b, c, d) -> a + b + c + d);
 
       assertEquals(Maybe.just(10), result.run());
@@ -168,10 +168,10 @@ class ForPathTest {
     void supportsFiveGenerators() {
       MaybePath<Integer> result =
           ForPath.from(Path.just(1))
-              .from(a -> Path.just(2))
-              .from(t -> Path.just(3))
-              .from(t -> Path.just(4))
-              .from(t -> Path.just(5))
+              .from(_ -> Path.just(2))
+              .from(_ -> Path.just(3))
+              .from(_ -> Path.just(4))
+              .from(_ -> Path.just(5))
               .yield((a, b, c, d, e) -> a + b + c + d + e);
 
       assertEquals(Maybe.just(15), result.run());
@@ -195,7 +195,7 @@ class ForPathTest {
     @DisplayName("should short-circuit on empty")
     void shortCircuitsOnEmpty() {
       OptionalPath<Integer> result =
-          ForPath.from(Path.present(5)).<Integer>from(a -> Path.absent()).yield((a, b) -> a + b);
+          ForPath.from(Path.present(5)).<Integer>from(_ -> Path.absent()).yield((a, b) -> a + b);
 
       assertTrue(result.run().isEmpty());
     }
@@ -220,7 +220,7 @@ class ForPathTest {
       User user = new User("Alice", new Address("NYC", "USA"));
 
       OptionalPath<String> result =
-          ForPath.from(Path.present(user)).focus(addressFocus).yield((u, addr) -> addr.city());
+          ForPath.from(Path.present(user)).focus(addressFocus).yield((_, addr) -> addr.city());
 
       assertEquals(Optional.of("NYC"), result.run());
     }
@@ -231,9 +231,7 @@ class ForPathTest {
       User userWithEmail = new User("Alice", new Address("NYC", "USA"), "alice@example.com");
 
       OptionalPath<String> result =
-          ForPath.from(Path.present(userWithEmail))
-              .match(emailAffine)
-              .yield((user, email) -> email);
+          ForPath.from(Path.present(userWithEmail)).match(emailAffine).yield((_, email) -> email);
 
       assertEquals(Optional.of("alice@example.com"), result.run());
     }
@@ -260,7 +258,7 @@ class ForPathTest {
     void shortCircuitsOnLeft() {
       EitherPath<String, Integer> result =
           ForPath.from(Path.<String, Integer>right(5))
-              .from(a -> Path.<String, Integer>left("Error!"))
+              .from(_ -> Path.<String, Integer>left("Error!"))
               .yield((a, b) -> a + b);
 
       assertTrue(result.run().isLeft());
@@ -272,7 +270,7 @@ class ForPathTest {
     void propagatesFirstLeft() {
       EitherPath<String, Integer> result =
           ForPath.from(Path.<String, Integer>left("First error"))
-              .from(a -> Path.<String, Integer>right(10))
+              .from(_ -> Path.<String, Integer>right(10))
               .yield((a, b) -> a + b);
 
       assertTrue(result.run().isLeft());
@@ -299,7 +297,7 @@ class ForPathTest {
       EitherPath<String, String> result =
           ForPath.from(Path.<String, User>right(user))
               .focus(addressFocus)
-              .yield((u, addr) -> addr.city());
+              .yield((_, addr) -> addr.city());
 
       assertTrue(result.run().isRight());
       assertEquals("NYC", result.run().getRight());
@@ -310,8 +308,8 @@ class ForPathTest {
     void supportsThreeGenerators() {
       EitherPath<String, Integer> result =
           ForPath.from(Path.<String, Integer>right(1))
-              .from(a -> Path.<String, Integer>right(2))
-              .from(t -> Path.<String, Integer>right(3))
+              .from(_ -> Path.<String, Integer>right(2))
+              .from(_ -> Path.<String, Integer>right(3))
               .yield((a, b, c) -> a + b + c);
 
       assertTrue(result.run().isRight());
@@ -340,7 +338,7 @@ class ForPathTest {
 
       TryPath<Integer> result =
           ForPath.from(Path.success(5))
-              .from(a -> Path.<Integer>failure(error))
+              .from(_ -> Path.<Integer>failure(error))
               .yield((a, b) -> a + b);
 
       assertTrue(result.run().isFailure());
@@ -362,7 +360,7 @@ class ForPathTest {
       User user = new User("Alice", new Address("NYC", "USA"));
 
       TryPath<String> result =
-          ForPath.from(Path.success(user)).focus(addressFocus).yield((u, addr) -> addr.city());
+          ForPath.from(Path.success(user)).focus(addressFocus).yield((_, addr) -> addr.city());
 
       assertTrue(result.run().isSuccess());
       assertEquals("NYC", result.run().orElse(null));
@@ -426,7 +424,7 @@ class ForPathTest {
       User user = new User("Alice", new Address("NYC", "USA"));
 
       IOPath<String> result =
-          ForPath.from(Path.ioPure(user)).focus(addressFocus).yield((u, addr) -> addr.city());
+          ForPath.from(Path.ioPure(user)).focus(addressFocus).yield((_, addr) -> addr.city());
 
       assertEquals("NYC", result.unsafeRun());
     }
@@ -436,8 +434,8 @@ class ForPathTest {
     void supportsThreeGenerators() {
       IOPath<Integer> result =
           ForPath.from(Path.ioPure(1))
-              .from(a -> Path.ioPure(2))
-              .from(t -> Path.ioPure(3))
+              .from(_ -> Path.ioPure(2))
+              .from(_ -> Path.ioPure(3))
               .yield((a, b, c) -> a + b + c);
 
       assertEquals(6, result.unsafeRun());
@@ -472,7 +470,7 @@ class ForPathTest {
       User user = new User("Alice", new Address("NYC", "USA"));
 
       IdPath<String> result =
-          ForPath.from(Path.id(user)).focus(addressFocus).yield((u, addr) -> addr.city());
+          ForPath.from(Path.id(user)).focus(addressFocus).yield((_, addr) -> addr.city());
 
       assertEquals("NYC", result.run().value());
     }
@@ -487,7 +485,7 @@ class ForPathTest {
     void producesCartesianProduct() {
       NonDetPath<String> result =
           ForPath.from(Path.list(1, 2))
-              .from(a -> Path.list("a", "b"))
+              .from(_ -> Path.list("a", "b"))
               .yield((num, letter) -> num + letter);
 
       assertEquals(List.of("1a", "1b", "2a", "2b"), result.run());
@@ -507,7 +505,7 @@ class ForPathTest {
     void supportsFilteringMultiGenerator() {
       NonDetPath<String> result =
           ForPath.from(Path.list(1, 2, 3))
-              .from(a -> Path.list(10, 20, 30))
+              .from(_ -> Path.list(10, 20, 30))
               .when(t -> (t._1() + t._2()) > 20)
               .yield((a, b) -> a + "+" + b);
 
@@ -528,8 +526,8 @@ class ForPathTest {
     void supportsThreeGenerators() {
       NonDetPath<String> result =
           ForPath.from(Path.list(1, 2))
-              .from(a -> Path.list("a", "b"))
-              .from(t -> Path.list(true, false))
+              .from(_ -> Path.list("a", "b"))
+              .from(_ -> Path.list(true, false))
               .yield((num, letter, bool) -> num + letter + (bool ? "!" : "?"));
 
       assertEquals(List.of("1a!", "1a?", "1b!", "1b?", "2a!", "2a?", "2b!", "2b?"), result.run());
@@ -551,7 +549,7 @@ class ForPathTest {
                       name.length() > 3 ? Path.just(name.toUpperCase()) : Path.<String>nothing())
               .let(t -> t._2().length())
               .when(t -> t._3() < 10)
-              .yield((name, upper, len) -> upper + " (" + len + " chars)");
+              .yield((_, upper, len) -> upper + " (" + len + " chars)");
 
       assertEquals(Maybe.just("ALICE (5 chars)"), result.run());
     }
@@ -565,7 +563,7 @@ class ForPathTest {
       FocusPath<User, String> userCityFocus = addressFocus.via(cityFocus);
 
       MaybePath<String> result =
-          ForPath.from(Path.just(user)).focus(userCityFocus).yield((u, city) -> city);
+          ForPath.from(Path.just(user)).focus(userCityFocus).yield((_, city) -> city);
 
       assertEquals(Maybe.just("NYC"), result.run());
     }
@@ -763,7 +761,7 @@ class ForPathTest {
           ForPath.from(Path.just(5))
               .from(a -> Path.just(a * 2))
               .let(t -> t._1() + t._2())
-              .yield((a, b, c) -> c);
+              .yield((_, _, c) -> c);
 
       assertEquals(Maybe.just(15), result.run());
     }
@@ -777,7 +775,7 @@ class ForPathTest {
           ForPath.from(Path.just(user))
               .let(u -> u.address())
               .focus(t -> t._2().city())
-              .yield((u, addr, city) -> city);
+              .yield((_, _, city) -> city);
 
       assertEquals(Maybe.just("NYC"), result.run());
     }
@@ -789,7 +787,7 @@ class ForPathTest {
           ForPath.from(Path.just(10))
               .let(a -> a * 2)
               .match(t -> t._1() > 5 ? Optional.of(t._2() * 2) : Optional.empty())
-              .yield((a, b, c) -> c);
+              .yield((_, _, c) -> c);
 
       assertEquals(Maybe.just(40), result.run());
 
@@ -798,7 +796,7 @@ class ForPathTest {
           ForPath.from(Path.just(3))
               .let(a -> a * 2)
               .match(t -> t._1() > 5 ? Optional.of(t._2() * 2) : Optional.empty())
-              .yield((a, b, c) -> c);
+              .yield((_, _, c) -> c);
 
       assertTrue(result2.run().isNothing());
     }
@@ -824,10 +822,10 @@ class ForPathTest {
     void supportsLetInSteps3() {
       MaybePath<Integer> result =
           ForPath.from(Path.just(1))
-              .from(a -> Path.just(2))
-              .from(t -> Path.just(3))
+              .from(_ -> Path.just(2))
+              .from(_ -> Path.just(3))
               .let(t -> t._1() + t._2() + t._3())
-              .yield((a, b, c, sum) -> sum);
+              .yield((_, _, _, sum) -> sum);
 
       assertEquals(Maybe.just(6), result.run());
     }
@@ -837,8 +835,8 @@ class ForPathTest {
     void supportsWhenInSteps3() {
       MaybePath<Integer> result =
           ForPath.from(Path.just(1))
-              .from(a -> Path.just(2))
-              .from(t -> Path.just(3))
+              .from(_ -> Path.just(2))
+              .from(_ -> Path.just(3))
               .when(t -> t._1() + t._2() + t._3() > 10)
               .yield((a, b, c) -> a + b + c);
 
@@ -846,8 +844,8 @@ class ForPathTest {
 
       MaybePath<Integer> result2 =
           ForPath.from(Path.just(1))
-              .from(a -> Path.just(2))
-              .from(t -> Path.just(3))
+              .from(_ -> Path.just(2))
+              .from(_ -> Path.just(3))
               .when(t -> t._1() + t._2() + t._3() > 0)
               .yield((a, b, c) -> a + b + c);
 
@@ -859,8 +857,8 @@ class ForPathTest {
     void supportsYieldWithTupleFunction() {
       MaybePath<String> result =
           ForPath.from(Path.just(1))
-              .from(a -> Path.just(2))
-              .from(t -> Path.just(3))
+              .from(_ -> Path.just(2))
+              .from(_ -> Path.just(3))
               .yield(t -> "sum=" + (t._1() + t._2() + t._3()));
 
       assertEquals(Maybe.just("sum=6"), result.run());
@@ -876,11 +874,11 @@ class ForPathTest {
     void supportsLetInSteps4() {
       MaybePath<Integer> result =
           ForPath.from(Path.just(1))
-              .from(a -> Path.just(2))
-              .from(t -> Path.just(3))
-              .from(t -> Path.just(4))
+              .from(_ -> Path.just(2))
+              .from(_ -> Path.just(3))
+              .from(_ -> Path.just(4))
               .let(t -> t._1() + t._2() + t._3() + t._4())
-              .yield((a, b, c, d, sum) -> sum);
+              .yield((_, _, _, _, sum) -> sum);
 
       assertEquals(Maybe.just(10), result.run());
     }
@@ -890,9 +888,9 @@ class ForPathTest {
     void supportsWhenInSteps4() {
       MaybePath<Integer> result =
           ForPath.from(Path.just(1))
-              .from(a -> Path.just(2))
-              .from(t -> Path.just(3))
-              .from(t -> Path.just(4))
+              .from(_ -> Path.just(2))
+              .from(_ -> Path.just(3))
+              .from(_ -> Path.just(4))
               .when(t -> t._4() > 10)
               .yield((a, b, c, d) -> a + b + c + d);
 
@@ -900,9 +898,9 @@ class ForPathTest {
 
       MaybePath<Integer> result2 =
           ForPath.from(Path.just(1))
-              .from(a -> Path.just(2))
-              .from(t -> Path.just(3))
-              .from(t -> Path.just(4))
+              .from(_ -> Path.just(2))
+              .from(_ -> Path.just(3))
+              .from(_ -> Path.just(4))
               .when(t -> t._4() < 10)
               .yield((a, b, c, d) -> a + b + c + d);
 
@@ -914,9 +912,9 @@ class ForPathTest {
     void supportsYieldWithTupleFunction() {
       MaybePath<String> result =
           ForPath.from(Path.just(1))
-              .from(a -> Path.just(2))
-              .from(t -> Path.just(3))
-              .from(t -> Path.just(4))
+              .from(_ -> Path.just(2))
+              .from(_ -> Path.just(3))
+              .from(_ -> Path.just(4))
               .yield(t -> "sum=" + (t._1() + t._2() + t._3() + t._4()));
 
       assertEquals(Maybe.just("sum=10"), result.run());
@@ -932,10 +930,10 @@ class ForPathTest {
     void supportsWhenInSteps5() {
       MaybePath<Integer> result =
           ForPath.from(Path.just(1))
-              .from(a -> Path.just(2))
-              .from(t -> Path.just(3))
-              .from(t -> Path.just(4))
-              .from(t -> Path.just(5))
+              .from(_ -> Path.just(2))
+              .from(_ -> Path.just(3))
+              .from(_ -> Path.just(4))
+              .from(_ -> Path.just(5))
               .when(t -> t._5() > 10)
               .yield((a, b, c, d, e) -> a + b + c + d + e);
 
@@ -943,10 +941,10 @@ class ForPathTest {
 
       MaybePath<Integer> result2 =
           ForPath.from(Path.just(1))
-              .from(a -> Path.just(2))
-              .from(t -> Path.just(3))
-              .from(t -> Path.just(4))
-              .from(t -> Path.just(5))
+              .from(_ -> Path.just(2))
+              .from(_ -> Path.just(3))
+              .from(_ -> Path.just(4))
+              .from(_ -> Path.just(5))
               .when(t -> t._5() < 10)
               .yield((a, b, c, d, e) -> a + b + c + d + e);
 
@@ -958,10 +956,10 @@ class ForPathTest {
     void supportsYieldWithTupleFunction() {
       MaybePath<String> result =
           ForPath.from(Path.just(1))
-              .from(a -> Path.just(2))
-              .from(t -> Path.just(3))
-              .from(t -> Path.just(4))
-              .from(t -> Path.just(5))
+              .from(_ -> Path.just(2))
+              .from(_ -> Path.just(3))
+              .from(_ -> Path.just(4))
+              .from(_ -> Path.just(5))
               .yield(t -> "sum=" + (t._1() + t._2() + t._3() + t._4() + t._5()));
 
       assertEquals(Maybe.just("sum=15"), result.run());
@@ -981,11 +979,11 @@ class ForPathTest {
     void arity6_yield() {
       MaybePath<Integer> result =
           ForPath.from(Path.just(1))
-              .from(a -> Path.just(2))
-              .from(t -> Path.just(3))
-              .from(t -> Path.just(4))
-              .from(t -> Path.just(5))
-              .from(t -> Path.just(6))
+              .from(_ -> Path.just(2))
+              .from(_ -> Path.just(3))
+              .from(_ -> Path.just(4))
+              .from(_ -> Path.just(5))
+              .from(_ -> Path.just(6))
               .yield((a, b, c, d, e, f) -> a + b + c + d + e + f);
 
       assertEquals(Maybe.just(21), result.run());
@@ -996,11 +994,11 @@ class ForPathTest {
     void arity6_yieldTuple() {
       MaybePath<String> result =
           ForPath.from(Path.just(1))
-              .from(a -> Path.just(2))
-              .from(t -> Path.just(3))
-              .from(t -> Path.just(4))
-              .from(t -> Path.just(5))
-              .from(t -> Path.just(6))
+              .from(_ -> Path.just(2))
+              .from(_ -> Path.just(3))
+              .from(_ -> Path.just(4))
+              .from(_ -> Path.just(5))
+              .from(_ -> Path.just(6))
               .yield(t -> "sum=" + (t._1() + t._2() + t._3() + t._4() + t._5() + t._6()));
 
       assertEquals(Maybe.just("sum=21"), result.run());
@@ -1011,11 +1009,11 @@ class ForPathTest {
     void arity6_when() {
       MaybePath<Integer> result =
           ForPath.from(Path.just(1))
-              .from(a -> Path.just(2))
-              .from(t -> Path.just(3))
-              .from(t -> Path.just(4))
-              .from(t -> Path.just(5))
-              .from(t -> Path.just(6))
+              .from(_ -> Path.just(2))
+              .from(_ -> Path.just(3))
+              .from(_ -> Path.just(4))
+              .from(_ -> Path.just(5))
+              .from(_ -> Path.just(6))
               .when(t -> t._6() > 10)
               .yield((a, b, c, d, e, f) -> a + b + c + d + e + f);
 
@@ -1027,12 +1025,12 @@ class ForPathTest {
     void arity6_let() {
       MaybePath<Integer> result =
           ForPath.from(Path.just(1))
-              .from(a -> Path.just(2))
-              .from(t -> Path.just(3))
-              .from(t -> Path.just(4))
-              .from(t -> Path.just(5))
+              .from(_ -> Path.just(2))
+              .from(_ -> Path.just(3))
+              .from(_ -> Path.just(4))
+              .from(_ -> Path.just(5))
               .let(t -> t._1() + t._2() + t._3() + t._4() + t._5())
-              .yield((a, b, c, d, e, sum) -> sum);
+              .yield((_, _, _, _, _, sum) -> sum);
 
       assertEquals(Maybe.just(15), result.run());
     }
@@ -1042,12 +1040,12 @@ class ForPathTest {
     void arity7_yield() {
       MaybePath<Integer> result =
           ForPath.from(Path.just(1))
-              .from(a -> Path.just(2))
-              .from(t -> Path.just(3))
-              .from(t -> Path.just(4))
-              .from(t -> Path.just(5))
-              .from(t -> Path.just(6))
-              .from(t -> Path.just(7))
+              .from(_ -> Path.just(2))
+              .from(_ -> Path.just(3))
+              .from(_ -> Path.just(4))
+              .from(_ -> Path.just(5))
+              .from(_ -> Path.just(6))
+              .from(_ -> Path.just(7))
               .yield((a, b, c, d, e, f, g) -> a + b + c + d + e + f + g);
 
       assertEquals(Maybe.just(28), result.run());
@@ -1058,13 +1056,13 @@ class ForPathTest {
     void arity8_yield() {
       MaybePath<Integer> result =
           ForPath.from(Path.just(1))
-              .from(a -> Path.just(2))
-              .from(t -> Path.just(3))
-              .from(t -> Path.just(4))
-              .from(t -> Path.just(5))
-              .from(t -> Path.just(6))
-              .from(t -> Path.just(7))
-              .from(t -> Path.just(8))
+              .from(_ -> Path.just(2))
+              .from(_ -> Path.just(3))
+              .from(_ -> Path.just(4))
+              .from(_ -> Path.just(5))
+              .from(_ -> Path.just(6))
+              .from(_ -> Path.just(7))
+              .from(_ -> Path.just(8))
               .yield((a, b, c, d, e, f, g, h) -> a + b + c + d + e + f + g + h);
 
       assertEquals(Maybe.just(36), result.run());
@@ -1075,13 +1073,13 @@ class ForPathTest {
     void arity8_shortCircuit() {
       MaybePath<Integer> result =
           ForPath.from(Path.just(1))
-              .from(a -> Path.just(2))
-              .from(t -> Path.just(3))
-              .from(t -> Path.<Integer>nothing())
-              .from(t -> Path.just(5))
-              .from(t -> Path.just(6))
-              .from(t -> Path.just(7))
-              .from(t -> Path.just(8))
+              .from(_ -> Path.just(2))
+              .from(_ -> Path.just(3))
+              .from(_ -> Path.<Integer>nothing())
+              .from(_ -> Path.just(5))
+              .from(_ -> Path.just(6))
+              .from(_ -> Path.just(7))
+              .from(_ -> Path.just(8))
               .yield((a, b, c, d, e, f, g, h) -> a + b + c + d + e + f + g + h);
 
       assertTrue(result.run().isNothing());
@@ -1092,17 +1090,17 @@ class ForPathTest {
     void arity12_yield() {
       MaybePath<Integer> result =
           ForPath.from(Path.just(1))
-              .from(a -> Path.just(2))
-              .from(t -> Path.just(3))
-              .from(t -> Path.just(4))
-              .from(t -> Path.just(5))
-              .from(t -> Path.just(6))
-              .from(t -> Path.just(7))
-              .from(t -> Path.just(8))
-              .from(t -> Path.just(9))
-              .from(t -> Path.just(10))
-              .from(t -> Path.just(11))
-              .from(t -> Path.just(12))
+              .from(_ -> Path.just(2))
+              .from(_ -> Path.just(3))
+              .from(_ -> Path.just(4))
+              .from(_ -> Path.just(5))
+              .from(_ -> Path.just(6))
+              .from(_ -> Path.just(7))
+              .from(_ -> Path.just(8))
+              .from(_ -> Path.just(9))
+              .from(_ -> Path.just(10))
+              .from(_ -> Path.just(11))
+              .from(_ -> Path.just(12))
               .yield(
                   (a, b, c, d, e, f, g, h, i, j, k, l) ->
                       a + b + c + d + e + f + g + h + i + j + k + l);
@@ -1115,17 +1113,17 @@ class ForPathTest {
     void arity12_when() {
       MaybePath<Integer> result =
           ForPath.from(Path.just(1))
-              .from(a -> Path.just(2))
-              .from(t -> Path.just(3))
-              .from(t -> Path.just(4))
-              .from(t -> Path.just(5))
-              .from(t -> Path.just(6))
-              .from(t -> Path.just(7))
-              .from(t -> Path.just(8))
-              .from(t -> Path.just(9))
-              .from(t -> Path.just(10))
-              .from(t -> Path.just(11))
-              .from(t -> Path.just(12))
+              .from(_ -> Path.just(2))
+              .from(_ -> Path.just(3))
+              .from(_ -> Path.just(4))
+              .from(_ -> Path.just(5))
+              .from(_ -> Path.just(6))
+              .from(_ -> Path.just(7))
+              .from(_ -> Path.just(8))
+              .from(_ -> Path.just(9))
+              .from(_ -> Path.just(10))
+              .from(_ -> Path.just(11))
+              .from(_ -> Path.just(12))
               .when(t -> t._12() > 100)
               .yield(
                   (a, b, c, d, e, f, g, h, i, j, k, l) ->
@@ -1144,9 +1142,9 @@ class ForPathTest {
     void arity4_yield() {
       OptionalPath<Integer> result =
           ForPath.from(Path.present(1))
-              .from(a -> Path.present(2))
-              .from(t -> Path.present(3))
-              .from(t -> Path.present(4))
+              .from(_ -> Path.present(2))
+              .from(_ -> Path.present(3))
+              .from(_ -> Path.present(4))
               .yield((a, b, c, d) -> a + b + c + d);
 
       assertEquals(Optional.of(10), result.run());
@@ -1157,11 +1155,11 @@ class ForPathTest {
     void arity6_yield() {
       OptionalPath<Integer> result =
           ForPath.from(Path.present(1))
-              .from(a -> Path.present(2))
-              .from(t -> Path.present(3))
-              .from(t -> Path.present(4))
-              .from(t -> Path.present(5))
-              .from(t -> Path.present(6))
+              .from(_ -> Path.present(2))
+              .from(_ -> Path.present(3))
+              .from(_ -> Path.present(4))
+              .from(_ -> Path.present(5))
+              .from(_ -> Path.present(6))
               .yield((a, b, c, d, e, f) -> a + b + c + d + e + f);
 
       assertEquals(Optional.of(21), result.run());
@@ -1172,11 +1170,11 @@ class ForPathTest {
     void arity6_when() {
       OptionalPath<Integer> result =
           ForPath.from(Path.present(1))
-              .from(a -> Path.present(2))
-              .from(t -> Path.present(3))
-              .from(t -> Path.present(4))
-              .from(t -> Path.present(5))
-              .from(t -> Path.present(6))
+              .from(_ -> Path.present(2))
+              .from(_ -> Path.present(3))
+              .from(_ -> Path.present(4))
+              .from(_ -> Path.present(5))
+              .from(_ -> Path.present(6))
               .when(t -> t._6() > 10)
               .yield((a, b, c, d, e, f) -> a + b + c + d + e + f);
 
@@ -1188,13 +1186,13 @@ class ForPathTest {
     void arity8_yield() {
       OptionalPath<Integer> result =
           ForPath.from(Path.present(1))
-              .from(a -> Path.present(2))
-              .from(t -> Path.present(3))
-              .from(t -> Path.present(4))
-              .from(t -> Path.present(5))
-              .from(t -> Path.present(6))
-              .from(t -> Path.present(7))
-              .from(t -> Path.present(8))
+              .from(_ -> Path.present(2))
+              .from(_ -> Path.present(3))
+              .from(_ -> Path.present(4))
+              .from(_ -> Path.present(5))
+              .from(_ -> Path.present(6))
+              .from(_ -> Path.present(7))
+              .from(_ -> Path.present(8))
               .yield((a, b, c, d, e, f, g, h) -> a + b + c + d + e + f + g + h);
 
       assertEquals(Optional.of(36), result.run());
@@ -1205,17 +1203,17 @@ class ForPathTest {
     void arity12_yield() {
       OptionalPath<Integer> result =
           ForPath.from(Path.present(1))
-              .from(a -> Path.present(2))
-              .from(t -> Path.present(3))
-              .from(t -> Path.present(4))
-              .from(t -> Path.present(5))
-              .from(t -> Path.present(6))
-              .from(t -> Path.present(7))
-              .from(t -> Path.present(8))
-              .from(t -> Path.present(9))
-              .from(t -> Path.present(10))
-              .from(t -> Path.present(11))
-              .from(t -> Path.present(12))
+              .from(_ -> Path.present(2))
+              .from(_ -> Path.present(3))
+              .from(_ -> Path.present(4))
+              .from(_ -> Path.present(5))
+              .from(_ -> Path.present(6))
+              .from(_ -> Path.present(7))
+              .from(_ -> Path.present(8))
+              .from(_ -> Path.present(9))
+              .from(_ -> Path.present(10))
+              .from(_ -> Path.present(11))
+              .from(_ -> Path.present(12))
               .yield(
                   (a, b, c, d, e, f, g, h, i, j, k, l) ->
                       a + b + c + d + e + f + g + h + i + j + k + l);
@@ -1233,9 +1231,9 @@ class ForPathTest {
     void arity4_yield() {
       EitherPath<String, Integer> result =
           ForPath.from(Path.<String, Integer>right(1))
-              .from(a -> Path.<String, Integer>right(2))
-              .from(t -> Path.<String, Integer>right(3))
-              .from(t -> Path.<String, Integer>right(4))
+              .from(_ -> Path.<String, Integer>right(2))
+              .from(_ -> Path.<String, Integer>right(3))
+              .from(_ -> Path.<String, Integer>right(4))
               .yield((a, b, c, d) -> a + b + c + d);
 
       assertTrue(result.run().isRight());
@@ -1247,11 +1245,11 @@ class ForPathTest {
     void arity6_yield() {
       EitherPath<String, Integer> result =
           ForPath.from(Path.<String, Integer>right(1))
-              .from(a -> Path.<String, Integer>right(2))
-              .from(t -> Path.<String, Integer>right(3))
-              .from(t -> Path.<String, Integer>right(4))
-              .from(t -> Path.<String, Integer>right(5))
-              .from(t -> Path.<String, Integer>right(6))
+              .from(_ -> Path.<String, Integer>right(2))
+              .from(_ -> Path.<String, Integer>right(3))
+              .from(_ -> Path.<String, Integer>right(4))
+              .from(_ -> Path.<String, Integer>right(5))
+              .from(_ -> Path.<String, Integer>right(6))
               .yield((a, b, c, d, e, f) -> a + b + c + d + e + f);
 
       assertTrue(result.run().isRight());
@@ -1263,13 +1261,13 @@ class ForPathTest {
     void arity8_yield() {
       EitherPath<String, Integer> result =
           ForPath.from(Path.<String, Integer>right(1))
-              .from(a -> Path.<String, Integer>right(2))
-              .from(t -> Path.<String, Integer>right(3))
-              .from(t -> Path.<String, Integer>right(4))
-              .from(t -> Path.<String, Integer>right(5))
-              .from(t -> Path.<String, Integer>right(6))
-              .from(t -> Path.<String, Integer>right(7))
-              .from(t -> Path.<String, Integer>right(8))
+              .from(_ -> Path.<String, Integer>right(2))
+              .from(_ -> Path.<String, Integer>right(3))
+              .from(_ -> Path.<String, Integer>right(4))
+              .from(_ -> Path.<String, Integer>right(5))
+              .from(_ -> Path.<String, Integer>right(6))
+              .from(_ -> Path.<String, Integer>right(7))
+              .from(_ -> Path.<String, Integer>right(8))
               .yield((a, b, c, d, e, f, g, h) -> a + b + c + d + e + f + g + h);
 
       assertTrue(result.run().isRight());
@@ -1281,11 +1279,11 @@ class ForPathTest {
     void arity6_shortCircuit() {
       EitherPath<String, Integer> result =
           ForPath.from(Path.<String, Integer>right(1))
-              .from(a -> Path.<String, Integer>right(2))
-              .from(t -> Path.<String, Integer>left("Error at step 3"))
-              .from(t -> Path.<String, Integer>right(4))
-              .from(t -> Path.<String, Integer>right(5))
-              .from(t -> Path.<String, Integer>right(6))
+              .from(_ -> Path.<String, Integer>right(2))
+              .from(_ -> Path.<String, Integer>left("Error at step 3"))
+              .from(_ -> Path.<String, Integer>right(4))
+              .from(_ -> Path.<String, Integer>right(5))
+              .from(_ -> Path.<String, Integer>right(6))
               .yield((a, b, c, d, e, f) -> a + b + c + d + e + f);
 
       assertTrue(result.run().isLeft());
@@ -1297,17 +1295,17 @@ class ForPathTest {
     void arity12_yield() {
       EitherPath<String, Integer> result =
           ForPath.from(Path.<String, Integer>right(1))
-              .from(a -> Path.<String, Integer>right(2))
-              .from(t -> Path.<String, Integer>right(3))
-              .from(t -> Path.<String, Integer>right(4))
-              .from(t -> Path.<String, Integer>right(5))
-              .from(t -> Path.<String, Integer>right(6))
-              .from(t -> Path.<String, Integer>right(7))
-              .from(t -> Path.<String, Integer>right(8))
-              .from(t -> Path.<String, Integer>right(9))
-              .from(t -> Path.<String, Integer>right(10))
-              .from(t -> Path.<String, Integer>right(11))
-              .from(t -> Path.<String, Integer>right(12))
+              .from(_ -> Path.<String, Integer>right(2))
+              .from(_ -> Path.<String, Integer>right(3))
+              .from(_ -> Path.<String, Integer>right(4))
+              .from(_ -> Path.<String, Integer>right(5))
+              .from(_ -> Path.<String, Integer>right(6))
+              .from(_ -> Path.<String, Integer>right(7))
+              .from(_ -> Path.<String, Integer>right(8))
+              .from(_ -> Path.<String, Integer>right(9))
+              .from(_ -> Path.<String, Integer>right(10))
+              .from(_ -> Path.<String, Integer>right(11))
+              .from(_ -> Path.<String, Integer>right(12))
               .yield(
                   (a, b, c, d, e, f, g, h, i, j, k, l) ->
                       a + b + c + d + e + f + g + h + i + j + k + l);
@@ -1326,9 +1324,9 @@ class ForPathTest {
     void arity4_yield() {
       TryPath<Integer> result =
           ForPath.from(Path.success(1))
-              .from(a -> Path.success(2))
-              .from(t -> Path.success(3))
-              .from(t -> Path.success(4))
+              .from(_ -> Path.success(2))
+              .from(_ -> Path.success(3))
+              .from(_ -> Path.success(4))
               .yield((a, b, c, d) -> a + b + c + d);
 
       assertTrue(result.run().isSuccess());
@@ -1340,11 +1338,11 @@ class ForPathTest {
     void arity6_yield() {
       TryPath<Integer> result =
           ForPath.from(Path.success(1))
-              .from(a -> Path.success(2))
-              .from(t -> Path.success(3))
-              .from(t -> Path.success(4))
-              .from(t -> Path.success(5))
-              .from(t -> Path.success(6))
+              .from(_ -> Path.success(2))
+              .from(_ -> Path.success(3))
+              .from(_ -> Path.success(4))
+              .from(_ -> Path.success(5))
+              .from(_ -> Path.success(6))
               .yield((a, b, c, d, e, f) -> a + b + c + d + e + f);
 
       assertTrue(result.run().isSuccess());
@@ -1356,13 +1354,13 @@ class ForPathTest {
     void arity8_yield() {
       TryPath<Integer> result =
           ForPath.from(Path.success(1))
-              .from(a -> Path.success(2))
-              .from(t -> Path.success(3))
-              .from(t -> Path.success(4))
-              .from(t -> Path.success(5))
-              .from(t -> Path.success(6))
-              .from(t -> Path.success(7))
-              .from(t -> Path.success(8))
+              .from(_ -> Path.success(2))
+              .from(_ -> Path.success(3))
+              .from(_ -> Path.success(4))
+              .from(_ -> Path.success(5))
+              .from(_ -> Path.success(6))
+              .from(_ -> Path.success(7))
+              .from(_ -> Path.success(8))
               .yield((a, b, c, d, e, f, g, h) -> a + b + c + d + e + f + g + h);
 
       assertTrue(result.run().isSuccess());
@@ -1374,17 +1372,17 @@ class ForPathTest {
     void arity12_yield() {
       TryPath<Integer> result =
           ForPath.from(Path.success(1))
-              .from(a -> Path.success(2))
-              .from(t -> Path.success(3))
-              .from(t -> Path.success(4))
-              .from(t -> Path.success(5))
-              .from(t -> Path.success(6))
-              .from(t -> Path.success(7))
-              .from(t -> Path.success(8))
-              .from(t -> Path.success(9))
-              .from(t -> Path.success(10))
-              .from(t -> Path.success(11))
-              .from(t -> Path.success(12))
+              .from(_ -> Path.success(2))
+              .from(_ -> Path.success(3))
+              .from(_ -> Path.success(4))
+              .from(_ -> Path.success(5))
+              .from(_ -> Path.success(6))
+              .from(_ -> Path.success(7))
+              .from(_ -> Path.success(8))
+              .from(_ -> Path.success(9))
+              .from(_ -> Path.success(10))
+              .from(_ -> Path.success(11))
+              .from(_ -> Path.success(12))
               .yield(
                   (a, b, c, d, e, f, g, h, i, j, k, l) ->
                       a + b + c + d + e + f + g + h + i + j + k + l);
@@ -1403,9 +1401,9 @@ class ForPathTest {
     void arity4_yield() {
       IOPath<Integer> result =
           ForPath.from(Path.ioPure(1))
-              .from(a -> Path.ioPure(2))
-              .from(t -> Path.ioPure(3))
-              .from(t -> Path.ioPure(4))
+              .from(_ -> Path.ioPure(2))
+              .from(_ -> Path.ioPure(3))
+              .from(_ -> Path.ioPure(4))
               .yield((a, b, c, d) -> a + b + c + d);
 
       assertEquals(10, result.unsafeRun());
@@ -1416,11 +1414,11 @@ class ForPathTest {
     void arity6_yield() {
       IOPath<Integer> result =
           ForPath.from(Path.ioPure(1))
-              .from(a -> Path.ioPure(2))
-              .from(t -> Path.ioPure(3))
-              .from(t -> Path.ioPure(4))
-              .from(t -> Path.ioPure(5))
-              .from(t -> Path.ioPure(6))
+              .from(_ -> Path.ioPure(2))
+              .from(_ -> Path.ioPure(3))
+              .from(_ -> Path.ioPure(4))
+              .from(_ -> Path.ioPure(5))
+              .from(_ -> Path.ioPure(6))
               .yield((a, b, c, d, e, f) -> a + b + c + d + e + f);
 
       assertEquals(21, result.unsafeRun());
@@ -1431,13 +1429,13 @@ class ForPathTest {
     void arity8_yield() {
       IOPath<Integer> result =
           ForPath.from(Path.ioPure(1))
-              .from(a -> Path.ioPure(2))
-              .from(t -> Path.ioPure(3))
-              .from(t -> Path.ioPure(4))
-              .from(t -> Path.ioPure(5))
-              .from(t -> Path.ioPure(6))
-              .from(t -> Path.ioPure(7))
-              .from(t -> Path.ioPure(8))
+              .from(_ -> Path.ioPure(2))
+              .from(_ -> Path.ioPure(3))
+              .from(_ -> Path.ioPure(4))
+              .from(_ -> Path.ioPure(5))
+              .from(_ -> Path.ioPure(6))
+              .from(_ -> Path.ioPure(7))
+              .from(_ -> Path.ioPure(8))
               .yield((a, b, c, d, e, f, g, h) -> a + b + c + d + e + f + g + h);
 
       assertEquals(36, result.unsafeRun());
@@ -1448,17 +1446,17 @@ class ForPathTest {
     void arity12_yield() {
       IOPath<Integer> result =
           ForPath.from(Path.ioPure(1))
-              .from(a -> Path.ioPure(2))
-              .from(t -> Path.ioPure(3))
-              .from(t -> Path.ioPure(4))
-              .from(t -> Path.ioPure(5))
-              .from(t -> Path.ioPure(6))
-              .from(t -> Path.ioPure(7))
-              .from(t -> Path.ioPure(8))
-              .from(t -> Path.ioPure(9))
-              .from(t -> Path.ioPure(10))
-              .from(t -> Path.ioPure(11))
-              .from(t -> Path.ioPure(12))
+              .from(_ -> Path.ioPure(2))
+              .from(_ -> Path.ioPure(3))
+              .from(_ -> Path.ioPure(4))
+              .from(_ -> Path.ioPure(5))
+              .from(_ -> Path.ioPure(6))
+              .from(_ -> Path.ioPure(7))
+              .from(_ -> Path.ioPure(8))
+              .from(_ -> Path.ioPure(9))
+              .from(_ -> Path.ioPure(10))
+              .from(_ -> Path.ioPure(11))
+              .from(_ -> Path.ioPure(12))
               .yield(
                   (a, b, c, d, e, f, g, h, i, j, k, l) ->
                       a + b + c + d + e + f + g + h + i + j + k + l);
@@ -1476,9 +1474,9 @@ class ForPathTest {
     void arity4_yield() {
       IdPath<Integer> result =
           ForPath.from(Path.id(1))
-              .from(a -> Path.id(2))
-              .from(t -> Path.id(3))
-              .from(t -> Path.id(4))
+              .from(_ -> Path.id(2))
+              .from(_ -> Path.id(3))
+              .from(_ -> Path.id(4))
               .yield((a, b, c, d) -> a + b + c + d);
 
       assertEquals(10, result.run().value());
@@ -1489,11 +1487,11 @@ class ForPathTest {
     void arity6_yield() {
       IdPath<Integer> result =
           ForPath.from(Path.id(1))
-              .from(a -> Path.id(2))
-              .from(t -> Path.id(3))
-              .from(t -> Path.id(4))
-              .from(t -> Path.id(5))
-              .from(t -> Path.id(6))
+              .from(_ -> Path.id(2))
+              .from(_ -> Path.id(3))
+              .from(_ -> Path.id(4))
+              .from(_ -> Path.id(5))
+              .from(_ -> Path.id(6))
               .yield((a, b, c, d, e, f) -> a + b + c + d + e + f);
 
       assertEquals(21, result.run().value());
@@ -1504,13 +1502,13 @@ class ForPathTest {
     void arity8_yield() {
       IdPath<Integer> result =
           ForPath.from(Path.id(1))
-              .from(a -> Path.id(2))
-              .from(t -> Path.id(3))
-              .from(t -> Path.id(4))
-              .from(t -> Path.id(5))
-              .from(t -> Path.id(6))
-              .from(t -> Path.id(7))
-              .from(t -> Path.id(8))
+              .from(_ -> Path.id(2))
+              .from(_ -> Path.id(3))
+              .from(_ -> Path.id(4))
+              .from(_ -> Path.id(5))
+              .from(_ -> Path.id(6))
+              .from(_ -> Path.id(7))
+              .from(_ -> Path.id(8))
               .yield((a, b, c, d, e, f, g, h) -> a + b + c + d + e + f + g + h);
 
       assertEquals(36, result.run().value());
@@ -1521,17 +1519,17 @@ class ForPathTest {
     void arity12_yield() {
       IdPath<Integer> result =
           ForPath.from(Path.id(1))
-              .from(a -> Path.id(2))
-              .from(t -> Path.id(3))
-              .from(t -> Path.id(4))
-              .from(t -> Path.id(5))
-              .from(t -> Path.id(6))
-              .from(t -> Path.id(7))
-              .from(t -> Path.id(8))
-              .from(t -> Path.id(9))
-              .from(t -> Path.id(10))
-              .from(t -> Path.id(11))
-              .from(t -> Path.id(12))
+              .from(_ -> Path.id(2))
+              .from(_ -> Path.id(3))
+              .from(_ -> Path.id(4))
+              .from(_ -> Path.id(5))
+              .from(_ -> Path.id(6))
+              .from(_ -> Path.id(7))
+              .from(_ -> Path.id(8))
+              .from(_ -> Path.id(9))
+              .from(_ -> Path.id(10))
+              .from(_ -> Path.id(11))
+              .from(_ -> Path.id(12))
               .yield(
                   (a, b, c, d, e, f, g, h, i, j, k, l) ->
                       a + b + c + d + e + f + g + h + i + j + k + l);
@@ -1549,9 +1547,9 @@ class ForPathTest {
     void arity4_yield() {
       NonDetPath<Integer> result =
           ForPath.from(Path.list(1, 2))
-              .from(a -> Path.list(10))
-              .from(t -> Path.list(100))
-              .from(t -> Path.list(1000))
+              .from(_ -> Path.list(10))
+              .from(_ -> Path.list(100))
+              .from(_ -> Path.list(1000))
               .yield((a, b, c, d) -> a + b + c + d);
 
       assertEquals(List.of(1111, 1112), result.run());
@@ -1562,11 +1560,11 @@ class ForPathTest {
     void arity6_yield() {
       NonDetPath<Integer> result =
           ForPath.from(Path.list(1, 2))
-              .from(a -> Path.list(10))
-              .from(t -> Path.list(100))
-              .from(t -> Path.list(1000))
-              .from(t -> Path.list(10000))
-              .from(t -> Path.list(100000))
+              .from(_ -> Path.list(10))
+              .from(_ -> Path.list(100))
+              .from(_ -> Path.list(1000))
+              .from(_ -> Path.list(10000))
+              .from(_ -> Path.list(100000))
               .yield((a, b, c, d, e, f) -> a + b + c + d + e + f);
 
       assertEquals(List.of(111111, 111112), result.run());
@@ -1577,11 +1575,11 @@ class ForPathTest {
     void arity6_when() {
       NonDetPath<Integer> result =
           ForPath.from(Path.list(1, 2, 3))
-              .from(a -> Path.list(10))
-              .from(t -> Path.list(100))
-              .from(t -> Path.list(1000))
-              .from(t -> Path.list(10000))
-              .from(t -> Path.list(100000))
+              .from(_ -> Path.list(10))
+              .from(_ -> Path.list(100))
+              .from(_ -> Path.list(1000))
+              .from(_ -> Path.list(10000))
+              .from(_ -> Path.list(100000))
               .when(t -> t._1() == 2)
               .yield((a, b, c, d, e, f) -> a + b + c + d + e + f);
 
@@ -1593,13 +1591,13 @@ class ForPathTest {
     void arity8_yield() {
       NonDetPath<Integer> result =
           ForPath.from(Path.list(1))
-              .from(a -> Path.list(2))
-              .from(t -> Path.list(3))
-              .from(t -> Path.list(4))
-              .from(t -> Path.list(5))
-              .from(t -> Path.list(6))
-              .from(t -> Path.list(7))
-              .from(t -> Path.list(8))
+              .from(_ -> Path.list(2))
+              .from(_ -> Path.list(3))
+              .from(_ -> Path.list(4))
+              .from(_ -> Path.list(5))
+              .from(_ -> Path.list(6))
+              .from(_ -> Path.list(7))
+              .from(_ -> Path.list(8))
               .yield((a, b, c, d, e, f, g, h) -> a + b + c + d + e + f + g + h);
 
       assertEquals(List.of(36), result.run());
@@ -1610,17 +1608,17 @@ class ForPathTest {
     void arity12_yield() {
       NonDetPath<Integer> result =
           ForPath.from(Path.list(1))
-              .from(a -> Path.list(2))
-              .from(t -> Path.list(3))
-              .from(t -> Path.list(4))
-              .from(t -> Path.list(5))
-              .from(t -> Path.list(6))
-              .from(t -> Path.list(7))
-              .from(t -> Path.list(8))
-              .from(t -> Path.list(9))
-              .from(t -> Path.list(10))
-              .from(t -> Path.list(11))
-              .from(t -> Path.list(12))
+              .from(_ -> Path.list(2))
+              .from(_ -> Path.list(3))
+              .from(_ -> Path.list(4))
+              .from(_ -> Path.list(5))
+              .from(_ -> Path.list(6))
+              .from(_ -> Path.list(7))
+              .from(_ -> Path.list(8))
+              .from(_ -> Path.list(9))
+              .from(_ -> Path.list(10))
+              .from(_ -> Path.list(11))
+              .from(_ -> Path.list(12))
               .yield(
                   (a, b, c, d, e, f, g, h, i, j, k, l) ->
                       a + b + c + d + e + f + g + h + i + j + k + l);
@@ -1638,11 +1636,11 @@ class ForPathTest {
     void arity6_yield() {
       VTaskPath<Integer> result =
           ForPath.from(Path.vtaskPure(1))
-              .from(a -> Path.vtaskPure(2))
-              .from(t -> Path.vtaskPure(3))
-              .from(t -> Path.vtaskPure(4))
-              .from(t -> Path.vtaskPure(5))
-              .from(t -> Path.vtaskPure(6))
+              .from(_ -> Path.vtaskPure(2))
+              .from(_ -> Path.vtaskPure(3))
+              .from(_ -> Path.vtaskPure(4))
+              .from(_ -> Path.vtaskPure(5))
+              .from(_ -> Path.vtaskPure(6))
               .yield((a, b, c, d, e, f) -> a + b + c + d + e + f);
 
       assertEquals(21, result.unsafeRun());
@@ -1653,13 +1651,13 @@ class ForPathTest {
     void arity8_yield() {
       VTaskPath<Integer> result =
           ForPath.from(Path.vtaskPure(1))
-              .from(a -> Path.vtaskPure(2))
-              .from(t -> Path.vtaskPure(3))
-              .from(t -> Path.vtaskPure(4))
-              .from(t -> Path.vtaskPure(5))
-              .from(t -> Path.vtaskPure(6))
-              .from(t -> Path.vtaskPure(7))
-              .from(t -> Path.vtaskPure(8))
+              .from(_ -> Path.vtaskPure(2))
+              .from(_ -> Path.vtaskPure(3))
+              .from(_ -> Path.vtaskPure(4))
+              .from(_ -> Path.vtaskPure(5))
+              .from(_ -> Path.vtaskPure(6))
+              .from(_ -> Path.vtaskPure(7))
+              .from(_ -> Path.vtaskPure(8))
               .yield((a, b, c, d, e, f, g, h) -> a + b + c + d + e + f + g + h);
 
       assertEquals(36, result.unsafeRun());
@@ -1670,13 +1668,13 @@ class ForPathTest {
     void arity8_yieldTuple() {
       VTaskPath<String> result =
           ForPath.from(Path.vtaskPure(1))
-              .from(a -> Path.vtaskPure(2))
-              .from(t -> Path.vtaskPure(3))
-              .from(t -> Path.vtaskPure(4))
-              .from(t -> Path.vtaskPure(5))
-              .from(t -> Path.vtaskPure(6))
-              .from(t -> Path.vtaskPure(7))
-              .from(t -> Path.vtaskPure(8))
+              .from(_ -> Path.vtaskPure(2))
+              .from(_ -> Path.vtaskPure(3))
+              .from(_ -> Path.vtaskPure(4))
+              .from(_ -> Path.vtaskPure(5))
+              .from(_ -> Path.vtaskPure(6))
+              .from(_ -> Path.vtaskPure(7))
+              .from(_ -> Path.vtaskPure(8))
               .yield(
                   t ->
                       "sum="
@@ -1691,17 +1689,17 @@ class ForPathTest {
     void arity12_yield() {
       VTaskPath<Integer> result =
           ForPath.from(Path.vtaskPure(1))
-              .from(a -> Path.vtaskPure(2))
-              .from(t -> Path.vtaskPure(3))
-              .from(t -> Path.vtaskPure(4))
-              .from(t -> Path.vtaskPure(5))
-              .from(t -> Path.vtaskPure(6))
-              .from(t -> Path.vtaskPure(7))
-              .from(t -> Path.vtaskPure(8))
-              .from(t -> Path.vtaskPure(9))
-              .from(t -> Path.vtaskPure(10))
-              .from(t -> Path.vtaskPure(11))
-              .from(t -> Path.vtaskPure(12))
+              .from(_ -> Path.vtaskPure(2))
+              .from(_ -> Path.vtaskPure(3))
+              .from(_ -> Path.vtaskPure(4))
+              .from(_ -> Path.vtaskPure(5))
+              .from(_ -> Path.vtaskPure(6))
+              .from(_ -> Path.vtaskPure(7))
+              .from(_ -> Path.vtaskPure(8))
+              .from(_ -> Path.vtaskPure(9))
+              .from(_ -> Path.vtaskPure(10))
+              .from(_ -> Path.vtaskPure(11))
+              .from(_ -> Path.vtaskPure(12))
               .yield(
                   (a, b, c, d, e, f, g, h, i, j, k, l) ->
                       a + b + c + d + e + f + g + h + i + j + k + l);
@@ -1720,11 +1718,11 @@ class ForPathTest {
       GenericPath<MaybeKind.Witness, Integer> result =
           ForPath.from(GenericPath.of(MaybeKindHelper.MAYBE.just(1), Instances.monadError(maybe())))
               .from(
-                  a -> GenericPath.of(MaybeKindHelper.MAYBE.just(2), Instances.monadError(maybe())))
+                  _ -> GenericPath.of(MaybeKindHelper.MAYBE.just(2), Instances.monadError(maybe())))
               .from(
-                  t -> GenericPath.of(MaybeKindHelper.MAYBE.just(3), Instances.monadError(maybe())))
+                  _ -> GenericPath.of(MaybeKindHelper.MAYBE.just(3), Instances.monadError(maybe())))
               .from(
-                  t -> GenericPath.of(MaybeKindHelper.MAYBE.just(4), Instances.monadError(maybe())))
+                  _ -> GenericPath.of(MaybeKindHelper.MAYBE.just(4), Instances.monadError(maybe())))
               .yield((a, b, c, d) -> a + b + c + d);
 
       Maybe<Integer> maybeResult = MaybeKindHelper.MAYBE.narrow(result.runKind());
@@ -1737,15 +1735,15 @@ class ForPathTest {
       GenericPath<MaybeKind.Witness, Integer> result =
           ForPath.from(GenericPath.of(MaybeKindHelper.MAYBE.just(1), Instances.monadError(maybe())))
               .from(
-                  a -> GenericPath.of(MaybeKindHelper.MAYBE.just(2), Instances.monadError(maybe())))
+                  _ -> GenericPath.of(MaybeKindHelper.MAYBE.just(2), Instances.monadError(maybe())))
               .from(
-                  t -> GenericPath.of(MaybeKindHelper.MAYBE.just(3), Instances.monadError(maybe())))
+                  _ -> GenericPath.of(MaybeKindHelper.MAYBE.just(3), Instances.monadError(maybe())))
               .from(
-                  t -> GenericPath.of(MaybeKindHelper.MAYBE.just(4), Instances.monadError(maybe())))
+                  _ -> GenericPath.of(MaybeKindHelper.MAYBE.just(4), Instances.monadError(maybe())))
               .from(
-                  t -> GenericPath.of(MaybeKindHelper.MAYBE.just(5), Instances.monadError(maybe())))
+                  _ -> GenericPath.of(MaybeKindHelper.MAYBE.just(5), Instances.monadError(maybe())))
               .from(
-                  t -> GenericPath.of(MaybeKindHelper.MAYBE.just(6), Instances.monadError(maybe())))
+                  _ -> GenericPath.of(MaybeKindHelper.MAYBE.just(6), Instances.monadError(maybe())))
               .yield((a, b, c, d, e, f) -> a + b + c + d + e + f);
 
       Maybe<Integer> maybeResult = MaybeKindHelper.MAYBE.narrow(result.runKind());
@@ -1758,19 +1756,19 @@ class ForPathTest {
       GenericPath<MaybeKind.Witness, Integer> result =
           ForPath.from(GenericPath.of(MaybeKindHelper.MAYBE.just(1), Instances.monadError(maybe())))
               .from(
-                  a -> GenericPath.of(MaybeKindHelper.MAYBE.just(2), Instances.monadError(maybe())))
+                  _ -> GenericPath.of(MaybeKindHelper.MAYBE.just(2), Instances.monadError(maybe())))
               .from(
-                  t -> GenericPath.of(MaybeKindHelper.MAYBE.just(3), Instances.monadError(maybe())))
+                  _ -> GenericPath.of(MaybeKindHelper.MAYBE.just(3), Instances.monadError(maybe())))
               .from(
-                  t -> GenericPath.of(MaybeKindHelper.MAYBE.just(4), Instances.monadError(maybe())))
+                  _ -> GenericPath.of(MaybeKindHelper.MAYBE.just(4), Instances.monadError(maybe())))
               .from(
-                  t -> GenericPath.of(MaybeKindHelper.MAYBE.just(5), Instances.monadError(maybe())))
+                  _ -> GenericPath.of(MaybeKindHelper.MAYBE.just(5), Instances.monadError(maybe())))
               .from(
-                  t -> GenericPath.of(MaybeKindHelper.MAYBE.just(6), Instances.monadError(maybe())))
+                  _ -> GenericPath.of(MaybeKindHelper.MAYBE.just(6), Instances.monadError(maybe())))
               .from(
-                  t -> GenericPath.of(MaybeKindHelper.MAYBE.just(7), Instances.monadError(maybe())))
+                  _ -> GenericPath.of(MaybeKindHelper.MAYBE.just(7), Instances.monadError(maybe())))
               .from(
-                  t -> GenericPath.of(MaybeKindHelper.MAYBE.just(8), Instances.monadError(maybe())))
+                  _ -> GenericPath.of(MaybeKindHelper.MAYBE.just(8), Instances.monadError(maybe())))
               .yield((a, b, c, d, e, f, g, h) -> a + b + c + d + e + f + g + h);
 
       Maybe<Integer> maybeResult = MaybeKindHelper.MAYBE.narrow(result.runKind());
@@ -1783,29 +1781,29 @@ class ForPathTest {
       GenericPath<MaybeKind.Witness, Integer> result =
           ForPath.from(GenericPath.of(MaybeKindHelper.MAYBE.just(1), Instances.monadError(maybe())))
               .from(
-                  a -> GenericPath.of(MaybeKindHelper.MAYBE.just(2), Instances.monadError(maybe())))
+                  _ -> GenericPath.of(MaybeKindHelper.MAYBE.just(2), Instances.monadError(maybe())))
               .from(
-                  t -> GenericPath.of(MaybeKindHelper.MAYBE.just(3), Instances.monadError(maybe())))
+                  _ -> GenericPath.of(MaybeKindHelper.MAYBE.just(3), Instances.monadError(maybe())))
               .from(
-                  t -> GenericPath.of(MaybeKindHelper.MAYBE.just(4), Instances.monadError(maybe())))
+                  _ -> GenericPath.of(MaybeKindHelper.MAYBE.just(4), Instances.monadError(maybe())))
               .from(
-                  t -> GenericPath.of(MaybeKindHelper.MAYBE.just(5), Instances.monadError(maybe())))
+                  _ -> GenericPath.of(MaybeKindHelper.MAYBE.just(5), Instances.monadError(maybe())))
               .from(
-                  t -> GenericPath.of(MaybeKindHelper.MAYBE.just(6), Instances.monadError(maybe())))
+                  _ -> GenericPath.of(MaybeKindHelper.MAYBE.just(6), Instances.monadError(maybe())))
               .from(
-                  t -> GenericPath.of(MaybeKindHelper.MAYBE.just(7), Instances.monadError(maybe())))
+                  _ -> GenericPath.of(MaybeKindHelper.MAYBE.just(7), Instances.monadError(maybe())))
               .from(
-                  t -> GenericPath.of(MaybeKindHelper.MAYBE.just(8), Instances.monadError(maybe())))
+                  _ -> GenericPath.of(MaybeKindHelper.MAYBE.just(8), Instances.monadError(maybe())))
               .from(
-                  t -> GenericPath.of(MaybeKindHelper.MAYBE.just(9), Instances.monadError(maybe())))
+                  _ -> GenericPath.of(MaybeKindHelper.MAYBE.just(9), Instances.monadError(maybe())))
               .from(
-                  t ->
+                  _ ->
                       GenericPath.of(MaybeKindHelper.MAYBE.just(10), Instances.monadError(maybe())))
               .from(
-                  t ->
+                  _ ->
                       GenericPath.of(MaybeKindHelper.MAYBE.just(11), Instances.monadError(maybe())))
               .from(
-                  t ->
+                  _ ->
                       GenericPath.of(MaybeKindHelper.MAYBE.just(12), Instances.monadError(maybe())))
               .yield(
                   (a, b, c, d, e, f, g, h, i, j, k, l) ->
@@ -1838,8 +1836,8 @@ class ForPathTest {
     void supportsFromInSteps2() {
       OptionalPath<Integer> result =
           ForPath.from(Path.present(1))
-              .from(a -> Path.present(2))
-              .from(t -> Path.present(3))
+              .from(_ -> Path.present(2))
+              .from(_ -> Path.present(3))
               .yield((a, b, c) -> a + b + c);
 
       assertEquals(Optional.of(6), result.run());
@@ -1850,9 +1848,9 @@ class ForPathTest {
     void supportsLetInSteps2() {
       OptionalPath<Integer> result =
           ForPath.from(Path.present(5))
-              .from(a -> Path.present(10))
+              .from(_ -> Path.present(10))
               .let(t -> t._1() + t._2())
-              .yield((a, b, sum) -> sum);
+              .yield((_, _, sum) -> sum);
 
       assertEquals(Optional.of(15), result.run());
     }
@@ -1862,7 +1860,7 @@ class ForPathTest {
     void supportsWhenInSteps2() {
       OptionalPath<Integer> result =
           ForPath.from(Path.present(5))
-              .from(a -> Path.present(10))
+              .from(_ -> Path.present(10))
               .when(t -> t._1() + t._2() > 20)
               .yield((a, b) -> a + b);
 
@@ -1870,7 +1868,7 @@ class ForPathTest {
 
       OptionalPath<Integer> result2 =
           ForPath.from(Path.present(5))
-              .from(a -> Path.present(10))
+              .from(_ -> Path.present(10))
               .when(t -> t._1() + t._2() > 10)
               .yield((a, b) -> a + b);
 
@@ -1882,7 +1880,7 @@ class ForPathTest {
     void supportsYieldWithTupleInSteps2() {
       OptionalPath<String> result =
           ForPath.from(Path.present(5))
-              .from(a -> Path.present(10))
+              .from(_ -> Path.present(10))
               .yield(t -> "sum=" + (t._1() + t._2()));
 
       assertEquals(Optional.of("sum=15"), result.run());
@@ -1893,8 +1891,8 @@ class ForPathTest {
     void supportsWhenInSteps3() {
       OptionalPath<Integer> result =
           ForPath.from(Path.present(1))
-              .from(a -> Path.present(2))
-              .from(t -> Path.present(3))
+              .from(_ -> Path.present(2))
+              .from(_ -> Path.present(3))
               .when(t -> t._1() + t._2() + t._3() > 10)
               .yield((a, b, c) -> a + b + c);
 
@@ -1903,8 +1901,8 @@ class ForPathTest {
       // Test success case where predicate passes
       OptionalPath<Integer> result2 =
           ForPath.from(Path.present(1))
-              .from(a -> Path.present(2))
-              .from(t -> Path.present(3))
+              .from(_ -> Path.present(2))
+              .from(_ -> Path.present(3))
               .when(t -> t._1() + t._2() + t._3() > 0)
               .yield((a, b, c) -> a + b + c);
 
@@ -1916,8 +1914,8 @@ class ForPathTest {
     void supportsYieldWithTupleInSteps3() {
       OptionalPath<String> result =
           ForPath.from(Path.present(1))
-              .from(a -> Path.present(2))
-              .from(t -> Path.present(3))
+              .from(_ -> Path.present(2))
+              .from(_ -> Path.present(3))
               .yield(t -> "sum=" + (t._1() + t._2() + t._3()));
 
       assertEquals(Optional.of("sum=6"), result.run());
@@ -1947,9 +1945,9 @@ class ForPathTest {
     void supportsLetInSteps2() {
       EitherPath<String, Integer> result =
           ForPath.from(Path.<String, Integer>right(5))
-              .from(a -> Path.<String, Integer>right(10))
+              .from(_ -> Path.<String, Integer>right(10))
               .let(t -> t._1() + t._2())
-              .yield((a, b, sum) -> sum);
+              .yield((_, _, sum) -> sum);
 
       assertTrue(result.run().isRight());
       assertEquals(15, result.run().getRight());
@@ -1960,7 +1958,7 @@ class ForPathTest {
     void supportsYieldWithTupleInSteps2() {
       EitherPath<String, String> result =
           ForPath.from(Path.<String, Integer>right(5))
-              .from(a -> Path.<String, Integer>right(10))
+              .from(_ -> Path.<String, Integer>right(10))
               .yield(t -> "sum=" + (t._1() + t._2()));
 
       assertTrue(result.run().isRight());
@@ -1972,8 +1970,8 @@ class ForPathTest {
     void supportsYieldWithTupleInSteps3() {
       EitherPath<String, String> result =
           ForPath.from(Path.<String, Integer>right(1))
-              .from(a -> Path.<String, Integer>right(2))
-              .from(t -> Path.<String, Integer>right(3))
+              .from(_ -> Path.<String, Integer>right(2))
+              .from(_ -> Path.<String, Integer>right(3))
               .yield(t -> "sum=" + (t._1() + t._2() + t._3()));
 
       assertTrue(result.run().isRight());
@@ -2003,8 +2001,8 @@ class ForPathTest {
     void supportsFromInSteps2() {
       TryPath<Integer> result =
           ForPath.from(Path.success(1))
-              .from(a -> Path.success(2))
-              .from(t -> Path.success(3))
+              .from(_ -> Path.success(2))
+              .from(_ -> Path.success(3))
               .yield((a, b, c) -> a + b + c);
 
       assertTrue(result.run().isSuccess());
@@ -2016,9 +2014,9 @@ class ForPathTest {
     void supportsLetInSteps2() {
       TryPath<Integer> result =
           ForPath.from(Path.success(5))
-              .from(a -> Path.success(10))
+              .from(_ -> Path.success(10))
               .let(t -> t._1() + t._2())
-              .yield((a, b, sum) -> sum);
+              .yield((_, _, sum) -> sum);
 
       assertTrue(result.run().isSuccess());
       assertEquals(15, result.run().orElse(null));
@@ -2029,7 +2027,7 @@ class ForPathTest {
     void supportsYieldWithTupleInSteps2() {
       TryPath<String> result =
           ForPath.from(Path.success(5))
-              .from(a -> Path.success(10))
+              .from(_ -> Path.success(10))
               .yield(t -> "sum=" + (t._1() + t._2()));
 
       assertTrue(result.run().isSuccess());
@@ -2041,8 +2039,8 @@ class ForPathTest {
     void supportsYieldWithTupleInSteps3() {
       TryPath<String> result =
           ForPath.from(Path.success(1))
-              .from(a -> Path.success(2))
-              .from(t -> Path.success(3))
+              .from(_ -> Path.success(2))
+              .from(_ -> Path.success(3))
               .yield(t -> "sum=" + (t._1() + t._2() + t._3()));
 
       assertTrue(result.run().isSuccess());
@@ -2071,9 +2069,9 @@ class ForPathTest {
     void supportsLetInSteps2() {
       IOPath<Integer> result =
           ForPath.from(Path.ioPure(5))
-              .from(a -> Path.ioPure(10))
+              .from(_ -> Path.ioPure(10))
               .let(t -> t._1() + t._2())
-              .yield((a, b, sum) -> sum);
+              .yield((_, _, sum) -> sum);
 
       assertEquals(15, result.unsafeRun());
     }
@@ -2083,7 +2081,7 @@ class ForPathTest {
     void supportsYieldWithTupleInSteps2() {
       IOPath<String> result =
           ForPath.from(Path.ioPure(5))
-              .from(a -> Path.ioPure(10))
+              .from(_ -> Path.ioPure(10))
               .yield(t -> "sum=" + (t._1() + t._2()));
 
       assertEquals("sum=15", result.unsafeRun());
@@ -2094,8 +2092,8 @@ class ForPathTest {
     void supportsYieldWithTupleInSteps3() {
       IOPath<String> result =
           ForPath.from(Path.ioPure(1))
-              .from(a -> Path.ioPure(2))
-              .from(t -> Path.ioPure(3))
+              .from(_ -> Path.ioPure(2))
+              .from(_ -> Path.ioPure(3))
               .yield(t -> "sum=" + (t._1() + t._2() + t._3()));
 
       assertEquals("sum=6", result.unsafeRun());
@@ -2123,8 +2121,8 @@ class ForPathTest {
     void supportsFromInSteps2() {
       IdPath<Integer> result =
           ForPath.from(Path.id(1))
-              .from(a -> Path.id(2))
-              .from(t -> Path.id(3))
+              .from(_ -> Path.id(2))
+              .from(_ -> Path.id(3))
               .yield((a, b, c) -> a + b + c);
 
       assertEquals(6, result.run().value());
@@ -2135,9 +2133,9 @@ class ForPathTest {
     void supportsLetInSteps2() {
       IdPath<Integer> result =
           ForPath.from(Path.id(5))
-              .from(a -> Path.id(10))
+              .from(_ -> Path.id(10))
               .let(t -> t._1() + t._2())
-              .yield((a, b, sum) -> sum);
+              .yield((_, _, sum) -> sum);
 
       assertEquals(15, result.run().value());
     }
@@ -2146,7 +2144,7 @@ class ForPathTest {
     @DisplayName("should support yield with tuple function in Steps2")
     void supportsYieldWithTupleInSteps2() {
       IdPath<String> result =
-          ForPath.from(Path.id(5)).from(a -> Path.id(10)).yield(t -> "sum=" + (t._1() + t._2()));
+          ForPath.from(Path.id(5)).from(_ -> Path.id(10)).yield(t -> "sum=" + (t._1() + t._2()));
 
       assertEquals("sum=15", result.run().value());
     }
@@ -2156,8 +2154,8 @@ class ForPathTest {
     void supportsYieldWithTupleInSteps3() {
       IdPath<String> result =
           ForPath.from(Path.id(1))
-              .from(a -> Path.id(2))
-              .from(t -> Path.id(3))
+              .from(_ -> Path.id(2))
+              .from(_ -> Path.id(3))
               .yield(t -> "sum=" + (t._1() + t._2() + t._3()));
 
       assertEquals("sum=6", result.run().value());
@@ -2177,9 +2175,9 @@ class ForPathTest {
     void supportsLetInSteps2() {
       NonDetPath<String> result =
           ForPath.from(Path.list(1, 2))
-              .from(a -> Path.list("a", "b"))
+              .from(_ -> Path.list("a", "b"))
               .let(t -> t._1() + t._2())
-              .yield((num, letter, combined) -> combined);
+              .yield((_, _, combined) -> combined);
 
       assertEquals(List.of("1a", "1b", "2a", "2b"), result.run());
     }
@@ -2189,7 +2187,7 @@ class ForPathTest {
     void supportsYieldWithTupleInSteps2() {
       NonDetPath<String> result =
           ForPath.from(Path.list(1, 2))
-              .from(a -> Path.list("a", "b"))
+              .from(_ -> Path.list("a", "b"))
               .yield(t -> t._1() + "-" + t._2());
 
       assertEquals(List.of("1-a", "1-b", "2-a", "2-b"), result.run());
@@ -2200,8 +2198,8 @@ class ForPathTest {
     void supportsWhenInSteps3() {
       NonDetPath<String> result =
           ForPath.from(Path.list(1, 2))
-              .from(a -> Path.list(10, 20))
-              .from(t -> Path.list("x", "y"))
+              .from(_ -> Path.list(10, 20))
+              .from(_ -> Path.list("x", "y"))
               .when(t -> (t._1() + t._2()) > 15)
               .yield((a, b, c) -> a + "+" + b + c);
 
@@ -2214,8 +2212,8 @@ class ForPathTest {
     void supportsYieldWithTupleInSteps3() {
       NonDetPath<String> result =
           ForPath.from(Path.list(1, 2))
-              .from(a -> Path.list("a", "b"))
-              .from(t -> Path.list(true))
+              .from(_ -> Path.list("a", "b"))
+              .from(_ -> Path.list(true))
               .yield(t -> t._1() + t._2() + (t._3() ? "!" : "?"));
 
       assertEquals(List.of("1a!", "1b!", "2a!", "2b!"), result.run());
@@ -2279,7 +2277,7 @@ class ForPathTest {
           ForPath.from(
                   GenericPath.of(MaybeKindHelper.MAYBE.just(user), Instances.monadError(maybe())))
               .focus(addressFocus)
-              .yield((u, addr) -> addr.city());
+              .yield((_, addr) -> addr.city());
 
       Maybe<String> maybeResult = MaybeKindHelper.MAYBE.narrow(result.runKind());
       assertEquals(Maybe.just("NYC"), maybeResult);
@@ -2291,9 +2289,9 @@ class ForPathTest {
       GenericPath<MaybeKind.Witness, Integer> result =
           ForPath.from(GenericPath.of(MaybeKindHelper.MAYBE.just(1), Instances.monadError(maybe())))
               .from(
-                  a -> GenericPath.of(MaybeKindHelper.MAYBE.just(2), Instances.monadError(maybe())))
+                  _ -> GenericPath.of(MaybeKindHelper.MAYBE.just(2), Instances.monadError(maybe())))
               .from(
-                  t -> GenericPath.of(MaybeKindHelper.MAYBE.just(3), Instances.monadError(maybe())))
+                  _ -> GenericPath.of(MaybeKindHelper.MAYBE.just(3), Instances.monadError(maybe())))
               .yield((a, b, c) -> a + b + c);
 
       Maybe<Integer> maybeResult = MaybeKindHelper.MAYBE.narrow(result.runKind());
@@ -2306,7 +2304,7 @@ class ForPathTest {
       GenericPath<MaybeKind.Witness, Integer> result =
           ForPath.from(GenericPath.of(MaybeKindHelper.MAYBE.just(5), Instances.monadError(maybe())))
               .from(
-                  a ->
+                  _ ->
                       GenericPath.of(MaybeKindHelper.MAYBE.just(10), Instances.monadError(maybe())))
               .yield((a, b) -> a + b);
 
@@ -2320,7 +2318,7 @@ class ForPathTest {
       GenericPath<MaybeKind.Witness, String> result =
           ForPath.from(GenericPath.of(MaybeKindHelper.MAYBE.just(5), Instances.monadError(maybe())))
               .from(
-                  a ->
+                  _ ->
                       GenericPath.of(MaybeKindHelper.MAYBE.just(10), Instances.monadError(maybe())))
               .yield(t -> "sum=" + (t._1() + t._2()));
 
@@ -2334,10 +2332,10 @@ class ForPathTest {
       GenericPath<MaybeKind.Witness, Integer> result =
           ForPath.from(GenericPath.of(MaybeKindHelper.MAYBE.just(5), Instances.monadError(maybe())))
               .from(
-                  a ->
+                  _ ->
                       GenericPath.of(MaybeKindHelper.MAYBE.just(10), Instances.monadError(maybe())))
               .let(t -> t._1() + t._2())
-              .yield((a, b, sum) -> sum);
+              .yield((_, _, sum) -> sum);
 
       Maybe<Integer> maybeResult = MaybeKindHelper.MAYBE.narrow(result.runKind());
       assertEquals(Maybe.just(15), maybeResult);
@@ -2349,9 +2347,9 @@ class ForPathTest {
       GenericPath<MaybeKind.Witness, Integer> result =
           ForPath.from(GenericPath.of(MaybeKindHelper.MAYBE.just(1), Instances.monadError(maybe())))
               .from(
-                  a -> GenericPath.of(MaybeKindHelper.MAYBE.just(2), Instances.monadError(maybe())))
+                  _ -> GenericPath.of(MaybeKindHelper.MAYBE.just(2), Instances.monadError(maybe())))
               .from(
-                  t -> GenericPath.of(MaybeKindHelper.MAYBE.just(3), Instances.monadError(maybe())))
+                  _ -> GenericPath.of(MaybeKindHelper.MAYBE.just(3), Instances.monadError(maybe())))
               .yield((a, b, c) -> a + b + c);
 
       Maybe<Integer> maybeResult = MaybeKindHelper.MAYBE.narrow(result.runKind());
@@ -2364,9 +2362,9 @@ class ForPathTest {
       GenericPath<MaybeKind.Witness, String> result =
           ForPath.from(GenericPath.of(MaybeKindHelper.MAYBE.just(1), Instances.monadError(maybe())))
               .from(
-                  a -> GenericPath.of(MaybeKindHelper.MAYBE.just(2), Instances.monadError(maybe())))
+                  _ -> GenericPath.of(MaybeKindHelper.MAYBE.just(2), Instances.monadError(maybe())))
               .from(
-                  t -> GenericPath.of(MaybeKindHelper.MAYBE.just(3), Instances.monadError(maybe())))
+                  _ -> GenericPath.of(MaybeKindHelper.MAYBE.just(3), Instances.monadError(maybe())))
               .yield(t -> "sum=" + (t._1() + t._2() + t._3()));
 
       Maybe<String> maybeResult = MaybeKindHelper.MAYBE.narrow(result.runKind());
@@ -2379,7 +2377,7 @@ class ForPathTest {
       GenericPath<MaybeKind.Witness, Integer> result =
           ForPath.from(GenericPath.of(MaybeKindHelper.MAYBE.just(5), Instances.monadError(maybe())))
               .<Integer>from(
-                  a ->
+                  _ ->
                       GenericPath.of(
                           MaybeKindHelper.MAYBE.<Integer>nothing(), Instances.monadError(maybe())))
               .yield((a, b) -> a + b);
@@ -2412,7 +2410,7 @@ class ForPathTest {
       VTaskPath<Integer> result =
           ForPath.from(Path.vtaskPure(5))
               .<Integer>from(
-                  a ->
+                  _ ->
                       Path.vtask(
                           () -> {
                             throw new RuntimeException("test error");
@@ -2437,7 +2435,7 @@ class ForPathTest {
       User user = new User("Alice", new Address("NYC", "USA"));
 
       VTaskPath<String> result =
-          ForPath.from(Path.vtaskPure(user)).focus(addressFocus).yield((u, addr) -> addr.city());
+          ForPath.from(Path.vtaskPure(user)).focus(addressFocus).yield((_, addr) -> addr.city());
 
       assertEquals("NYC", result.unsafeRun());
     }
@@ -2459,9 +2457,9 @@ class ForPathTest {
     void supportsFourGenerators() {
       VTaskPath<Integer> result =
           ForPath.from(Path.vtaskPure(1))
-              .from(a -> Path.vtaskPure(2))
-              .from(t -> Path.vtaskPure(3))
-              .from(t -> Path.vtaskPure(4))
+              .from(_ -> Path.vtaskPure(2))
+              .from(_ -> Path.vtaskPure(3))
+              .from(_ -> Path.vtaskPure(4))
               .yield((a, b, c, d) -> a + b + c + d);
 
       assertEquals(10, result.unsafeRun());
@@ -2472,10 +2470,10 @@ class ForPathTest {
     void supportsFiveGenerators() {
       VTaskPath<Integer> result =
           ForPath.from(Path.vtaskPure(1))
-              .from(a -> Path.vtaskPure(2))
-              .from(t -> Path.vtaskPure(3))
-              .from(t -> Path.vtaskPure(4))
-              .from(t -> Path.vtaskPure(5))
+              .from(_ -> Path.vtaskPure(2))
+              .from(_ -> Path.vtaskPure(3))
+              .from(_ -> Path.vtaskPure(4))
+              .from(_ -> Path.vtaskPure(5))
               .yield((a, b, c, d, e) -> a + b + c + d + e);
 
       assertEquals(15, result.unsafeRun());
@@ -2519,10 +2517,10 @@ class ForPathTest {
     void vtaskPathSteps3Let() {
       VTaskPath<String> result =
           ForPath.from(Path.vtaskPure(1))
-              .from(a -> Path.vtaskPure(2))
-              .from(t -> Path.vtaskPure(3))
+              .from(_ -> Path.vtaskPure(2))
+              .from(_ -> Path.vtaskPure(3))
               .let(t -> t._1() + t._2() + t._3())
-              .yield((a, b, c, sum) -> "1+2+3=" + sum);
+              .yield((_, _, _, sum) -> "1+2+3=" + sum);
 
       assertEquals("1+2+3=6", result.unsafeRun());
     }
@@ -2532,11 +2530,11 @@ class ForPathTest {
     void vtaskPathSteps4Let() {
       VTaskPath<String> result =
           ForPath.from(Path.vtaskPure(1))
-              .from(a -> Path.vtaskPure(2))
-              .from(t -> Path.vtaskPure(3))
-              .from(t -> Path.vtaskPure(4))
+              .from(_ -> Path.vtaskPure(2))
+              .from(_ -> Path.vtaskPure(3))
+              .from(_ -> Path.vtaskPure(4))
               .let(t -> t._1() + t._2() + t._3() + t._4())
-              .yield((a, b, c, d, sum) -> "sum=" + sum);
+              .yield((_, _, _, _, sum) -> "sum=" + sum);
 
       assertEquals("sum=10", result.unsafeRun());
     }
@@ -2546,8 +2544,8 @@ class ForPathTest {
     void vtaskPathSteps3YieldWithTupleFunction() {
       VTaskPath<String> result =
           ForPath.from(Path.vtaskPure(1))
-              .from(a -> Path.vtaskPure(2))
-              .from(t -> Path.vtaskPure(3))
+              .from(_ -> Path.vtaskPure(2))
+              .from(_ -> Path.vtaskPure(3))
               .yield(t -> "sum=" + (t._1() + t._2() + t._3()));
 
       assertEquals("sum=6", result.unsafeRun());
@@ -2558,9 +2556,9 @@ class ForPathTest {
     void vtaskPathSteps4YieldWithTupleFunction() {
       VTaskPath<String> result =
           ForPath.from(Path.vtaskPure(1))
-              .from(a -> Path.vtaskPure(2))
-              .from(t -> Path.vtaskPure(3))
-              .from(t -> Path.vtaskPure(4))
+              .from(_ -> Path.vtaskPure(2))
+              .from(_ -> Path.vtaskPure(3))
+              .from(_ -> Path.vtaskPure(4))
               .yield(t -> "sum=" + (t._1() + t._2() + t._3() + t._4()));
 
       assertEquals("sum=10", result.unsafeRun());
@@ -2571,10 +2569,10 @@ class ForPathTest {
     void vtaskPathSteps5YieldWithTupleFunction() {
       VTaskPath<String> result =
           ForPath.from(Path.vtaskPure(1))
-              .from(a -> Path.vtaskPure(2))
-              .from(t -> Path.vtaskPure(3))
-              .from(t -> Path.vtaskPure(4))
-              .from(t -> Path.vtaskPure(5))
+              .from(_ -> Path.vtaskPure(2))
+              .from(_ -> Path.vtaskPure(3))
+              .from(_ -> Path.vtaskPure(4))
+              .from(_ -> Path.vtaskPure(5))
               .yield(t -> "sum=" + (t._1() + t._2() + t._3() + t._4() + t._5()));
 
       assertEquals("sum=15", result.unsafeRun());
@@ -2603,9 +2601,9 @@ class ForPathTest {
       RuntimeException error = new RuntimeException("Step 3 failed");
       VTaskPath<Integer> result =
           ForPath.from(Path.vtaskPure(1))
-              .from(a -> Path.vtaskPure(2))
+              .from(_ -> Path.vtaskPure(2))
               .<Integer>from(
-                  t ->
+                  _ ->
                       Path.vtask(
                           () -> {
                             throw error;

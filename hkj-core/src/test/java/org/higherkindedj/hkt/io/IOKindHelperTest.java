@@ -42,6 +42,7 @@ class IOKindHelperTest extends IOTestBase {
 
     @Test
     @DisplayName("Complete test suite with multiple IO types")
+    @SuppressWarnings("DataFlowIssue") // an IO may legitimately hold a null value
     void completeTestSuiteWithMultipleTypes() {
       List<IO<String>> testInstances =
           List.of(
@@ -149,6 +150,7 @@ class IOKindHelperTest extends IOTestBase {
 
     @Test
     @DisplayName("Null values in IO are preserved")
+    @SuppressWarnings("DataFlowIssue") // an IO may legitimately hold a null value
     void testNullValuesPreserved() {
       IO<String> nullIO = IO.delay(() -> null);
 
@@ -209,6 +211,7 @@ class IOKindHelperTest extends IOTestBase {
 
     @Test
     @DisplayName("widen should throw for null input")
+    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
     void widenShouldThrowForNullInput() {
       assertThatNullPointerException()
           .isThrownBy(() -> IO_OP.widen(null))
@@ -307,6 +310,7 @@ class IOKindHelperTest extends IOTestBase {
 
     @Test
     @DisplayName("delay should throw NPE for null supplier")
+    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
     void delayShouldThrowNPEForNullSupplier() {
       assertThatNullPointerException()
           .isThrownBy(() -> IO_OP.delay(null))
@@ -358,6 +362,7 @@ class IOKindHelperTest extends IOTestBase {
 
     @Test
     @DisplayName("unsafeRunSync should throw if Kind is invalid")
+    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
     void unsafeRunSyncShouldThrowIfKindIsInvalid() {
       assertThatThrownBy(() -> IO_OP.unsafeRunSync(null))
           .isInstanceOf(KindUnwrapException.class); // Propagates unwrap exception
@@ -365,6 +370,7 @@ class IOKindHelperTest extends IOTestBase {
 
     @Test
     @DisplayName("unsafeRunSync handles null results correctly")
+    @SuppressWarnings("DataFlowIssue") // an IO may legitimately hold a null value
     void unsafeRunSyncHandlesNullResults() {
       Kind<IOKind.Witness, String> nullKind = IO_OP.delay(() -> null);
 
@@ -377,6 +383,7 @@ class IOKindHelperTest extends IOTestBase {
   class EdgeCasesTests {
     @Test
     @DisplayName("All combinations of null values")
+    @SuppressWarnings("DataFlowIssue") // an IO may legitimately hold a null value
     void testAllNullValueCombinations() {
       List<IO<String>> nullInstances = List.of(IO.delay(() -> null), IO.delay(() -> ""));
 
@@ -422,6 +429,7 @@ class IOKindHelperTest extends IOTestBase {
 
     @Test
     @DisplayName("Stress test with complex scenarios")
+    @SuppressWarnings("DataFlowIssue") // an IO may legitimately hold a null value
     void testComplexStressScenarios() {
       List<IO<Object>> complexInstances =
           List.of(
@@ -442,6 +450,7 @@ class IOKindHelperTest extends IOTestBase {
   class ComprehensiveCoverageTests {
     @Test
     @DisplayName("All IO types and states")
+    @SuppressWarnings("DataFlowIssue") // an IO may legitimately hold a null value
     void testAllIOTypesAndStates() {
       List<IO<String>> allStates =
           List.of(IO.delay(() -> "success"), IO.delay(() -> ""), IO.delay(() -> null));

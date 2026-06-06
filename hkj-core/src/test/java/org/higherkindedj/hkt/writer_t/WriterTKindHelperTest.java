@@ -27,7 +27,7 @@ class WriterTKindHelperTest {
     @DisplayName("widen should convert WriterT to Kind")
     void widen_shouldConvertToKind() {
       var innerKind = IdKindHelper.ID.widen(new Id<>(Pair.of(42, "log")));
-      var writerT = new WriterT<IdKind.Witness, String, Integer>(innerKind);
+      var writerT = new WriterT<>(innerKind);
       Kind<WriterTKind.Witness<IdKind.Witness, String>, Integer> kind = WRITER_T.widen(writerT);
       assertThat(kind).isNotNull();
       assertThat(kind).isSameAs(writerT);
@@ -35,6 +35,7 @@ class WriterTKindHelperTest {
 
     @Test
     @DisplayName("widen should reject null")
+    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
     void widen_shouldRejectNull() {
       assertThatThrownBy(() -> WRITER_T.widen(null)).isInstanceOf(NullPointerException.class);
     }
@@ -48,7 +49,7 @@ class WriterTKindHelperTest {
     @DisplayName("narrow should convert Kind back to WriterT")
     void narrow_shouldConvertToWriterT() {
       var innerKind = IdKindHelper.ID.widen(new Id<>(Pair.of(42, "log")));
-      var writerT = new WriterT<IdKind.Witness, String, Integer>(innerKind);
+      var writerT = new WriterT<>(innerKind);
       Kind<WriterTKind.Witness<IdKind.Witness, String>, Integer> kind = WRITER_T.widen(writerT);
       WriterT<IdKind.Witness, String, Integer> narrowed = WRITER_T.narrow(kind);
       assertThat(narrowed).isSameAs(writerT);
@@ -70,7 +71,7 @@ class WriterTKindHelperTest {
     @DisplayName("widen then narrow should return same instance")
     void roundTrip() {
       var innerKind = IdKindHelper.ID.widen(new Id<>(Pair.of("value", "output")));
-      var writerT = new WriterT<IdKind.Witness, String, String>(innerKind);
+      var writerT = new WriterT<>(innerKind);
       var roundTripped = WRITER_T.narrow(WRITER_T.widen(writerT));
       assertThat(roundTripped).isSameAs(writerT);
     }

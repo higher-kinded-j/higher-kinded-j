@@ -5,6 +5,7 @@ package org.higherkindedj.hkt.trampoline;
 import static org.assertj.core.api.Assertions.*;
 
 import java.math.BigInteger;
+import java.util.function.Function;
 import org.higherkindedj.hkt.exception.KindUnwrapException;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -40,6 +41,7 @@ class TrampolineTest extends TrampolineTestBase {
 
     @Test
     @DisplayName("done() accepts null values")
+    @SuppressWarnings("DataFlowIssue") // a Trampoline may legitimately hold a null value
     void doneAcceptsNull() {
       Trampoline<String> trampoline = Trampoline.done(null);
 
@@ -58,6 +60,7 @@ class TrampolineTest extends TrampolineTestBase {
 
     @Test
     @DisplayName("defer() with null supplier throws NullPointerException")
+    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
     void deferWithNullThrows() {
       assertThatThrownBy(() -> Trampoline.defer(null)).isInstanceOf(NullPointerException.class);
     }
@@ -89,6 +92,7 @@ class TrampolineTest extends TrampolineTestBase {
 
     @Test
     @DisplayName("map() with null function throws NullPointerException")
+    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
     void mapWithNullThrows() {
       Trampoline<Integer> trampoline = Trampoline.done(42);
 
@@ -135,6 +139,7 @@ class TrampolineTest extends TrampolineTestBase {
 
     @Test
     @DisplayName("flatMap() with null function throws NullPointerException")
+    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
     void flatMapWithNullFunctionThrows() {
       Trampoline<Integer> trampoline = Trampoline.done(42);
 
@@ -143,9 +148,11 @@ class TrampolineTest extends TrampolineTestBase {
 
     @Test
     @DisplayName("flatMap() with function returning null throws KindUnwrapException")
+    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
     void flatMapWithNullReturningFunctionThrows() {
       Trampoline<Integer> trampoline = Trampoline.done(42);
-      Trampoline<Integer> flatMapped = trampoline.flatMap(x -> null);
+      Function<Integer, Trampoline<Integer>> nullFunction = _ -> null;
+      Trampoline<Integer> flatMapped = trampoline.flatMap(nullFunction);
 
       assertThatThrownBy(flatMapped::run).isInstanceOf(KindUnwrapException.class);
     }
@@ -231,7 +238,7 @@ class TrampolineTest extends TrampolineTestBase {
 
       for (int i = 0; i < 100_000; i++) {
         int currentI = i;
-        trampoline = trampoline.flatMap(x -> Trampoline.defer(() -> Trampoline.done(currentI + 1)));
+        trampoline = trampoline.flatMap(_ -> Trampoline.defer(() -> Trampoline.done(currentI + 1)));
       }
 
       assertThat(trampoline.run()).isEqualTo(100_000);

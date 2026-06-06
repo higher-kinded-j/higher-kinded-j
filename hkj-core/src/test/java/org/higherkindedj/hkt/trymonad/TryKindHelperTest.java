@@ -139,6 +139,7 @@ class TryKindHelperTest extends TryTestBase {
 
     @Test
     @DisplayName("widen() should throw NPE for null Try")
+    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
     void widen_shouldThrowNPEForNullTry() {
       assertThatNullPointerException()
           .isThrownBy(() -> TRY.widen(null))
@@ -195,6 +196,7 @@ class TryKindHelperTest extends TryTestBase {
 
   @Nested
   @DisplayName("Helper Factory Methods")
+  @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
   class HelperFactoryMethods {
 
     @Test

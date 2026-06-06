@@ -104,10 +104,6 @@ class IdKindHelperTest {
   }
 
   @Nested
-  @DisplayName("Concurrency Tests")
-  class ConcurrencyTests {}
-
-  @Nested
   @DisplayName("Edge Cases")
   class EdgeCases {
 
@@ -137,44 +133,6 @@ class IdKindHelperTest {
     @DisplayName("Test multiple sequential widen/narrow operations")
     void testMultipleSequentialOperations() {
       KindHelperTests.idKindHelper(TEST_INSTANCE).skipValidations().test();
-    }
-  }
-
-  @Nested
-  @DisplayName("Validation Tests")
-  class ValidationTests {
-
-    @Test
-    @DisplayName("Test null parameter validation for widen")
-    void testWidenNullValidation() {
-      KindHelperTests.idKindHelper(TEST_INSTANCE)
-          .skipRoundTrip()
-          .skipInvalidType()
-          .skipIdempotency()
-          .skipEdgeCases()
-          .test();
-    }
-
-    @Test
-    @DisplayName("Test null parameter validation for narrow")
-    void testNarrowNullValidation() {
-      KindHelperTests.idKindHelper(TEST_INSTANCE)
-          .skipRoundTrip()
-          .skipInvalidType()
-          .skipIdempotency()
-          .skipEdgeCases()
-          .test();
-    }
-
-    @Test
-    @DisplayName("Test invalid Kind type validation")
-    void testInvalidKindTypeValidation() {
-      KindHelperTests.idKindHelper(TEST_INSTANCE)
-          .skipRoundTrip()
-          .skipValidations()
-          .skipIdempotency()
-          .skipEdgeCases()
-          .test();
     }
   }
 }

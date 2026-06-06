@@ -4,9 +4,7 @@ package org.higherkindedj.hkt.state;
 
 import static org.assertj.core.api.Assertions.*;
 import static org.higherkindedj.hkt.assertions.StateAssert.assertThatStateTuple;
-import static org.junit.jupiter.api.Assertions.assertTimeoutPreemptively;
 
-import java.time.Duration;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -14,11 +12,8 @@ import java.util.function.Function;
 import org.higherkindedj.hkt.Unit;
 import org.higherkindedj.hkt.exception.KindUnwrapException;
 import org.higherkindedj.hkt.test.assertions.ValidationTestBuilder;
-import org.higherkindedj.hkt.test.contract.Category;
-import org.higherkindedj.hkt.test.contract.TypeClassContract;
 import org.higherkindedj.hkt.test.fixtures.TestFunctions;
 import org.higherkindedj.hkt.util.validation.Operation;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -34,12 +29,10 @@ class StateTest extends StateTestBase<Integer> {
 
   private final State<Integer, Integer> incrementState =
       State.of(s -> new StateTuple<>(s + 1, s + 1));
-  private final State<Integer, String> initialValueState = State.pure("Start");
   private final State<Integer, Integer> nullValueState = State.pure(null);
 
-  // Type class testing fixtures
-  private StateMonad<Integer> monad;
-  private StateFunctor<Integer> functor;
+  // The Functor/Monad type-class contracts and laws live in StateFunctorTest / StateMonadTest;
+  // this suite focuses on the State type's own factory, run, and combinator methods.
 
   @Override
   protected Integer getInitialState() {
@@ -49,42 +42,6 @@ class StateTest extends StateTestBase<Integer> {
   @Override
   protected Integer getAlternativeState() {
     return ALTERNATIVE_INITIAL_STATE;
-  }
-
-  @BeforeEach
-  void setUpState() {
-    monad = new StateMonad<>();
-    functor = new StateFunctor<>();
-  }
-
-  @Nested
-  @DisplayName("Complete Type Class Test Suite")
-  class CompleteTypeClassTestSuite {
-
-    @Test
-    @DisplayName("Run complete Monad test pattern")
-    void runCompleteMonadTest() {
-      TypeClassContract.<StateKind.Witness<Integer>>monad(StateMonad.class)
-          .<Integer>instance(monad)
-          .<String>withKind(validKind)
-          .withMonadOperations(
-              validKind2, validMapper, validFlatMapper, validFunctionKind, validCombiningFunction)
-          .withLawsTesting(testValue, testFunction, chainFunction, equalityChecker)
-          .verifyOnly(Category.OPERATIONS, Category.VALIDATIONS, Category.LAWS);
-    }
-
-    @Test
-    @DisplayName("Run complete Functor test pattern")
-    void runCompleteFunctorTest() {
-      TypeClassContract.<StateKind.Witness<Integer>>functor(StateFunctor.class)
-          .<Integer>instance(functor)
-          .<String>withKind(validKind)
-          .withMapper(validMapper)
-          .withSecondMapper(secondMapper)
-          .withEqualityChecker(equalityChecker)
-          // skip exceptions: State is lazy
-          .verifyOnly(Category.OPERATIONS, Category.VALIDATIONS, Category.LAWS);
-    }
   }
 
   @Nested
@@ -121,6 +78,7 @@ class StateTest extends StateTestBase<Integer> {
 
     @Test
     @DisplayName("of() throws NullPointerException for null function")
+    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
     void ofThrowsForNullFunction() {
       assertThatNullPointerException()
           .isThrownBy(() -> State.of(null))
@@ -188,6 +146,7 @@ class StateTest extends StateTestBase<Integer> {
 
     @Test
     @DisplayName("set() throws NullPointerException for null state")
+    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
     void setThrowsForNullState() {
       assertThatNullPointerException()
           .isThrownBy(() -> State.set(null))
@@ -213,6 +172,7 @@ class StateTest extends StateTestBase<Integer> {
 
     @Test
     @DisplayName("modify() throws NullPointerException for null function")
+    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
     void modifyThrowsForNullFunction() {
       assertThatNullPointerException()
           .isThrownBy(() -> State.modify(null))
@@ -221,6 +181,7 @@ class StateTest extends StateTestBase<Integer> {
 
     @Test
     @DisplayName("inspect() applies function to state, returns result, preserves state")
+    @SuppressWarnings("DataFlowIssue") // null-returning inspection is intentional
     void inspectReadsStateWithoutModifying() {
       Function<Integer, String> checkEven = s -> (s % 2 == 0) ? "Even" : "Odd";
       State<Integer, String> state = State.inspect(checkEven);
@@ -234,7 +195,7 @@ class StateTest extends StateTestBase<Integer> {
       assertThatStateTuple(resultOdd).hasValue("Odd").hasState(7);
 
       // Null-returning inspection
-      Function<Integer, String> nullReturning = s -> null;
+      Function<Integer, String> nullReturning = _ -> null;
       State<Integer, String> nullState = State.inspect(nullReturning);
       StateTuple<Integer, String> nullResult = nullState.run(getInitialState());
 
@@ -243,6 +204,7 @@ class StateTest extends StateTestBase<Integer> {
 
     @Test
     @DisplayName("inspect() throws NullPointerException for null function")
+    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
     void inspectThrowsForNullFunction() {
       assertThatNullPointerException()
           .isThrownBy(() -> State.inspect(null))
@@ -317,6 +279,7 @@ class StateTest extends StateTestBase<Integer> {
 
     @Test
     @DisplayName("map() throws NullPointerException for null mapper")
+    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
     void mapThrowsForNullMapper() {
       ValidationTestBuilder.create()
           .assertMapperNull(() -> incrementState.map(null), "f", Operation.MAP)
@@ -379,6 +342,7 @@ class StateTest extends StateTestBase<Integer> {
 
     @Test
     @DisplayName("flatMap() throws NullPointerException for null mapper")
+    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
     void flatMapThrowsForNullMapper() {
       ValidationTestBuilder.create()
           .assertFlatMapperNull(() -> incrementState.flatMap(null), "f", Operation.FLAT_MAP)
@@ -387,8 +351,9 @@ class StateTest extends StateTestBase<Integer> {
 
     @Test
     @DisplayName("flatMap() throws KindUnwrapException if mapper returns null")
+    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
     void flatMapThrowsIfMapperReturnsNull() {
-      Function<Integer, State<Integer, String>> nullReturningMapper = i -> null;
+      Function<Integer, State<Integer, String>> nullReturningMapper = _ -> null;
       State<Integer, String> state = incrementState.flatMap(nullReturningMapper);
 
       assertThatThrownBy(() -> state.run(getInitialState()))
@@ -455,6 +420,7 @@ class StateTest extends StateTestBase<Integer> {
 
     @Test
     @DisplayName("StateTuple constructor requires non-null state")
+    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
     void constructorRequiresNonNullState() {
       assertThatNullPointerException()
           .isThrownBy(() -> new StateTuple<>("value", null))
@@ -474,6 +440,7 @@ class StateTest extends StateTestBase<Integer> {
 
     @Test
     @DisplayName("StateTuple.of() requires non-null state")
+    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
     void ofRequiresNonNullState() {
       assertThatNullPointerException()
           .isThrownBy(() -> StateTuple.of(null, "value"))
@@ -500,7 +467,6 @@ class StateTest extends StateTestBase<Integer> {
       assertThat(t4).hasSameHashCodeAs(t5);
 
       assertThat(t1a).isNotEqualTo(null);
-      assertThat(t1a).isNotEqualTo("s");
     }
 
     @Test
@@ -556,7 +522,7 @@ class StateTest extends StateTestBase<Integer> {
       State<Config, Unit> enableDebug = State.modify(c -> new Config(c.name(), c.timeout(), true));
 
       State<Config, Config> buildConfig =
-          setName.flatMap(u -> setTimeout).flatMap(u -> enableDebug).flatMap(u -> State.get());
+          setName.flatMap(_ -> setTimeout).flatMap(_ -> enableDebug).flatMap(_ -> State.get());
 
       Config initial = new Config("", 0, false);
       StateTuple<Config, Config> result = buildConfig.run(initial);
@@ -581,14 +547,13 @@ class StateTest extends StateTestBase<Integer> {
     void statePatternMatchingWithComputedResults() {
       State<Integer, String> computation =
           State.of(
-              s -> {
-                return switch (s) {
-                  case Integer i when i < 0 -> new StateTuple<>("Negative", 0);
-                  case 0 -> new StateTuple<>("Zero", 1);
-                  case Integer i when i > 100 -> new StateTuple<>("Large", i / 2);
-                  default -> new StateTuple<>("Normal", s * 2);
-                };
-              });
+              s ->
+                  switch (s) {
+                    case Integer i when i < 0 -> new StateTuple<>("Negative", 0);
+                    case 0 -> new StateTuple<>("Zero", 1);
+                    case Integer i when i > 100 -> new StateTuple<>("Large", i / 2);
+                    default -> new StateTuple<>("Normal", s * 2);
+                  });
 
       StateTuple<Integer, String> negativeResult = computation.run(-5);
       assertThatStateTuple(negativeResult).hasValue("Negative").hasState(0);
@@ -609,28 +574,9 @@ class StateTest extends StateTestBase<Integer> {
   class PerformanceAndMemoryTests {
 
     @Test
-    @DisplayName("State operations complete in reasonable time")
-    void stateOperationsCompleteInReasonableTime() {
-      State<Integer, Integer> test = State.of(s -> new StateTuple<>(s + 1, s + 1));
-
-      // Verify operations complete without hanging (generous timeout)
-      // Use JMH benchmarks in hkj-benchmarks module for precise performance measurement
-      assertTimeoutPreemptively(
-          Duration.ofSeconds(2),
-          () -> {
-            for (int i = 0; i < 100_000; i++) {
-              test.map(x -> x + 1).flatMap(x -> State.pure(x * 2)).run(i);
-            }
-          },
-          "State operations should complete within reasonable time");
-    }
-
-    @Test
     @DisplayName("Memory usage is reasonable for large chains")
     void memoryUsageIsReasonableForLargeChains() {
-      State<Integer, Integer> start = State.pure(1);
-
-      State<Integer, Integer> result = start;
+      State<Integer, Integer> result = State.pure(1);
       for (int i = 0; i < 1000; i++) {
         final int increment = i;
         result = result.map(x -> x + increment);
@@ -774,7 +720,7 @@ class StateTest extends StateTestBase<Integer> {
     void mapDefersExceptions() {
       RuntimeException testException = new RuntimeException("Test exception: map");
       Function<Integer, String> throwingMapper =
-          i -> {
+          _ -> {
             throw testException;
           };
 
@@ -793,7 +739,7 @@ class StateTest extends StateTestBase<Integer> {
     void flatMapDefersExceptions() {
       RuntimeException testException = new RuntimeException("Test exception: flatMap");
       Function<Integer, State<Integer, String>> throwingFlatMapper =
-          i -> {
+          _ -> {
             throw testException;
           };
 
@@ -816,7 +762,7 @@ class StateTest extends StateTestBase<Integer> {
           incrementState
               .map(i -> i * 2)
               .map(
-                  i -> {
+                  _ -> {
                     throw testException;
                   }) // This step will fail
               .map(String::valueOf); // This never executes

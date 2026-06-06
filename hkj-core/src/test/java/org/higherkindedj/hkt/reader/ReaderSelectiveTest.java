@@ -7,7 +7,6 @@ import static org.higherkindedj.hkt.reader.ReaderKindHelper.READER;
 
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Function;
-import java.util.stream.Stream;
 import org.higherkindedj.hkt.Choice;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Selective;
@@ -18,7 +17,6 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 
 @DisplayName("ReaderSelective Complete Test Suite")
@@ -42,10 +40,7 @@ class ReaderSelectiveTest extends ReaderTestBase {
   void setUpSelective() {
     selective = ReaderSelective.instance();
     validateMonadFixtures();
-    setUpSelectiveFixtures();
-  }
 
-  private void setUpSelectiveFixtures() {
     // Create Choice instances
     Choice<Integer, String> choiceLeft = Selective.left(DEFAULT_MAX_CONNECTIONS);
     Choice<Integer, String> choiceRight = Selective.right("right-value");
@@ -78,24 +73,15 @@ class ReaderSelectiveTest extends ReaderTestBase {
   class Laws {
 
     @ParameterizedTest(name = "left-pure holds on value {0}")
-    @MethodSource("values")
+    @MethodSource("org.higherkindedj.hkt.reader.ReaderLawFixtures#values")
     void leftPure(Integer value) {
       SelectiveLaws.assertLeftPure(selective, value, selective.of(validMapper), equalityChecker);
     }
 
     @ParameterizedTest(name = "right-pure holds on value \"{0}\"")
-    @MethodSource("strings")
+    @MethodSource("org.higherkindedj.hkt.reader.ReaderLawFixtures#strings")
     void rightPure(String value) {
-      SelectiveLaws.<ReaderKind.Witness<TestConfig>, Integer, String>assertRightPure(
-          selective, value, selective.of(validMapper), equalityChecker);
-    }
-
-    static Stream<Arguments> values() {
-      return Stream.of(Arguments.of(0), Arguments.of(42));
-    }
-
-    static Stream<Arguments> strings() {
-      return Stream.of(Arguments.of("a"), Arguments.of("hello"));
+      SelectiveLaws.assertRightPure(selective, value, selective.of(validMapper), equalityChecker);
     }
   }
 
@@ -364,7 +350,7 @@ class ReaderSelectiveTest extends ReaderTestBase {
 
         Reader<TestConfig, Unit> trackingEffect =
             Reader.of(
-                cfg -> {
+                _ -> {
                   effectCalls.incrementAndGet();
                   return Unit.INSTANCE;
                 });
@@ -398,7 +384,7 @@ class ReaderSelectiveTest extends ReaderTestBase {
         AtomicInteger effectCalls = new AtomicInteger(0);
         Reader<TestConfig, Unit> trackingEffect =
             Reader.of(
-                cfg -> {
+                _ -> {
                   effectCalls.incrementAndGet();
                   return Unit.INSTANCE;
                 });
@@ -570,6 +556,7 @@ class ReaderSelectiveTest extends ReaderTestBase {
 
     @Test
     @DisplayName("Select with null value in Choice")
+    @SuppressWarnings({"DataFlowIssue", "ConstantValue"}) // Choice holds a null Left value
     void selectWithNullValueInChoice() {
       Choice<Integer, String> choiceWithNull = Selective.left(null);
       Kind<ReaderKind.Witness<TestConfig>, Choice<Integer, String>> choiceKind =
@@ -626,7 +613,7 @@ class ReaderSelectiveTest extends ReaderTestBase {
       Kind<ReaderKind.Witness<TestConfig>, Choice<String, Integer>> validateKind =
           READER.widen(validateConnections);
 
-      Function<String, Integer> handleError = error -> -1;
+      Function<String, Integer> handleError = _ -> -1;
       Kind<ReaderKind.Witness<TestConfig>, Function<String, Integer>> errorHandlerKind =
           READER.widen(Reader.constant(handleError));
 

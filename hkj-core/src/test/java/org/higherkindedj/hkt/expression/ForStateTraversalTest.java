@@ -27,8 +27,8 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
 /**
- * Tests for the Phase 6 traversal and optic-composition features of {@link ForState}: {@code
- * traverseOver}, {@code modifyThrough} (both overloads), {@code modifyVia}, and {@code updateVia}.
+ * Tests for the traversal and optic-composition features of {@link ForState}: {@code traverseOver},
+ * {@code modifyThrough} (both overloads), {@code modifyVia}, and {@code updateVia}.
  */
 @DisplayName("ForState Traversal and Optic Composition Tests")
 class ForStateTraversalTest {
@@ -131,17 +131,19 @@ class ForStateTraversalTest {
 
     @Test
     @DisplayName("traverseOver throws NullPointerException when traversal is null")
+    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
     void traverseOverNullTraversalThrows() {
       assertThatThrownBy(
               () ->
                   ForState.withState(idMonad, Id.of(List.of(new Employee("Alice", 100))))
-                      .traverseOver(null, e -> Id.of(e)))
+                      .traverseOver(null, Id::of))
           .isInstanceOf(NullPointerException.class)
           .hasMessageContaining("traversal");
     }
 
     @Test
     @DisplayName("traverseOver throws NullPointerException when function is null")
+    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
     void traverseOverNullFunctionThrows() {
       assertThatThrownBy(
               () ->
@@ -159,7 +161,7 @@ class ForStateTraversalTest {
           ForState.withState(
                   maybeMonad,
                   MAYBE.just(List.of(new Employee("Alice", 1000), new Employee("Bob", 2000))))
-              .traverseOver(employeesTraversal, e -> MAYBE.just(e))
+              .traverseOver(employeesTraversal, MAYBE::just)
               .when(employees -> employees.size() == 2)
               .yield();
 
@@ -208,7 +210,7 @@ class ForStateTraversalTest {
     void modifyThroughEmptyTraversal() {
       Kind<IdKind.Witness, List<Employee>> result =
           ForState.withState(idMonad, Id.of(List.<Employee>of()))
-              .modifyThrough(employeesTraversal, e -> new Employee("CHANGED", 999))
+              .modifyThrough(employeesTraversal, _ -> new Employee("CHANGED", 999))
               .yield();
 
       List<Employee> employees = IdKindHelper.ID.unwrap(result);
@@ -217,6 +219,7 @@ class ForStateTraversalTest {
 
     @Test
     @DisplayName("modifyThrough two-arg throws NullPointerException when traversal is null")
+    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
     void modifyThroughNullTraversalThrows() {
       assertThatThrownBy(
               () ->
@@ -228,6 +231,7 @@ class ForStateTraversalTest {
 
     @Test
     @DisplayName("modifyThrough two-arg throws NullPointerException when modifier is null")
+    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
     void modifyThroughNullModifierThrows() {
       assertThatThrownBy(
               () ->
@@ -239,6 +243,7 @@ class ForStateTraversalTest {
 
     @Test
     @DisplayName("modifyThrough three-arg throws NullPointerException when traversal is null")
+    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
     void modifyThroughThreeArgNullTraversalThrows() {
       assertThatThrownBy(
               () ->
@@ -250,6 +255,7 @@ class ForStateTraversalTest {
 
     @Test
     @DisplayName("modifyThrough three-arg throws NullPointerException when lens is null")
+    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
     void modifyThroughThreeArgNullLensThrows() {
       assertThatThrownBy(
               () ->
@@ -261,11 +267,12 @@ class ForStateTraversalTest {
 
     @Test
     @DisplayName("modifyThrough three-arg throws NullPointerException when modifier is null")
+    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
     void modifyThroughThreeArgNullModifierThrows() {
       assertThatThrownBy(
               () ->
                   ForState.withState(idMonad, Id.of(List.of(new Employee("Alice", 100))))
-                      .<Employee, Integer>modifyThrough(employeesTraversal, salaryLens, null))
+                      .modifyThrough(employeesTraversal, salaryLens, null))
           .isInstanceOf(NullPointerException.class)
           .hasMessageContaining("modifier");
     }
@@ -318,7 +325,7 @@ class ForStateTraversalTest {
     void modifyThroughFilterableEmptyCollection() {
       Kind<MaybeKind.Witness, List<Employee>> result =
           ForState.withState(maybeMonad, MAYBE.just(List.<Employee>of()))
-              .modifyThrough(employeesTraversal, e -> new Employee("CHANGED", 999))
+              .modifyThrough(employeesTraversal, _ -> new Employee("CHANGED", 999))
               .yield();
 
       assertThat(MAYBE.narrow(result)).isEqualTo(Maybe.just(List.of()));
@@ -326,6 +333,7 @@ class ForStateTraversalTest {
 
     @Test
     @DisplayName("modifyThrough two-arg on FilterableSteps throws when traversal is null")
+    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
     void modifyThroughFilterableNullTraversalThrows() {
       assertThatThrownBy(
               () ->
@@ -337,6 +345,7 @@ class ForStateTraversalTest {
 
     @Test
     @DisplayName("modifyThrough two-arg on FilterableSteps throws when modifier is null")
+    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
     void modifyThroughFilterableNullModifierThrows() {
       assertThatThrownBy(
               () ->
@@ -388,6 +397,7 @@ class ForStateTraversalTest {
 
     @Test
     @DisplayName("modifyThrough three-arg on FilterableSteps throws when traversal is null")
+    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
     void modifyThroughFilterableThreeArgNullTraversalThrows() {
       assertThatThrownBy(
               () ->
@@ -399,6 +409,7 @@ class ForStateTraversalTest {
 
     @Test
     @DisplayName("modifyThrough three-arg on FilterableSteps throws when lens is null")
+    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
     void modifyThroughFilterableThreeArgNullLensThrows() {
       assertThatThrownBy(
               () ->
@@ -410,11 +421,12 @@ class ForStateTraversalTest {
 
     @Test
     @DisplayName("modifyThrough three-arg on FilterableSteps throws when modifier is null")
+    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
     void modifyThroughFilterableThreeArgNullModifierThrows() {
       assertThatThrownBy(
               () ->
                   ForState.withState(maybeMonad, MAYBE.just(List.of(new Employee("Alice", 100))))
-                      .<Employee, Integer>modifyThrough(employeesTraversal, salaryLens, null))
+                      .modifyThrough(employeesTraversal, salaryLens, null))
           .isInstanceOf(NullPointerException.class)
           .hasMessageContaining("modifier");
     }
@@ -428,6 +440,7 @@ class ForStateTraversalTest {
 
     @Test
     @DisplayName("modifyVia applies modification through an Iso conversion")
+    @SuppressWarnings("DataFlowIssue") // non-null in this fixture
     void modifyViaBasic() {
       // Budget is 10000 cents. Convert to dollars (100.0), add 50.0, convert back to cents.
       Kind<IdKind.Witness, Department> result =
@@ -441,6 +454,7 @@ class ForStateTraversalTest {
 
     @Test
     @DisplayName("modifyVia round-trip preserves original value when modifier is identity")
+    @SuppressWarnings("DataFlowIssue") // non-null in this fixture
     void modifyViaRoundTrip() {
       // Apply identity modifier through the Iso; budget should remain unchanged
       Kind<IdKind.Witness, Department> result =
@@ -454,6 +468,7 @@ class ForStateTraversalTest {
 
     @Test
     @DisplayName("modifyVia throws NullPointerException when lens is null")
+    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
     void modifyViaNullLensThrows() {
       assertThatThrownBy(
               () ->
@@ -465,6 +480,8 @@ class ForStateTraversalTest {
 
     @Test
     @DisplayName("modifyVia throws NullPointerException when iso is null")
+    // null iso forces the modifier type to be supplied explicitly so javac can type d
+    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
     void modifyViaNullIsoThrows() {
       assertThatThrownBy(
               () ->
@@ -476,11 +493,12 @@ class ForStateTraversalTest {
 
     @Test
     @DisplayName("modifyVia throws NullPointerException when modifier is null")
+    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
     void modifyViaNullModifierThrows() {
       assertThatThrownBy(
               () ->
                   ForState.withState(idMonad, Id.of(engineering))
-                      .<Integer, Double>modifyVia(budgetLens, centsToDollarsIso, null))
+                      .modifyVia(budgetLens, centsToDollarsIso, null))
           .isInstanceOf(NullPointerException.class)
           .hasMessageContaining("modifier");
     }
@@ -508,6 +526,7 @@ class ForStateTraversalTest {
 
     @Test
     @DisplayName("updateVia sets a field through an Iso conversion")
+    @SuppressWarnings("DataFlowIssue") // non-null in this fixture
     void updateViaBasic() {
       // Set budget to 250.0 dollars, which converts to 25000 cents
       Kind<IdKind.Witness, Department> result =
@@ -521,6 +540,7 @@ class ForStateTraversalTest {
 
     @Test
     @DisplayName("updateVia throws NullPointerException when lens is null")
+    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
     void updateViaNullLensThrows() {
       assertThatThrownBy(
               () ->
@@ -532,6 +552,7 @@ class ForStateTraversalTest {
 
     @Test
     @DisplayName("updateVia throws NullPointerException when iso is null")
+    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
     void updateViaNullIsoThrows() {
       assertThatThrownBy(
               () ->
@@ -571,7 +592,7 @@ class ForStateTraversalTest {
                   idMonad, Id.of(List.of(new Employee("Alice", 1000), new Employee("Bob", 2000))))
               .traverseOver(
                   employeesTraversal, e -> Id.of(new Employee(e.name(), e.salary() + 500)))
-              .modifyThrough(employeesTraversal, empNameLens, n -> n.toUpperCase())
+              .modifyThrough(employeesTraversal, empNameLens, String::toUpperCase)
               .yield();
 
       List<Employee> employees = IdKindHelper.ID.unwrap(result);
@@ -580,6 +601,7 @@ class ForStateTraversalTest {
 
     @Test
     @DisplayName("traverseOver, modifyVia, and existing modify can be mixed in a workflow")
+    @SuppressWarnings("DataFlowIssue") // non-null in this fixture
     void combinedWithExistingForStateFeatures() {
       // Complex workflow on a Department:
       // 1. Give each employee a raise via traverse (lens + traversal)

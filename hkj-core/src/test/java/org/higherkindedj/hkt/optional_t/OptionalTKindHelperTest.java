@@ -17,7 +17,6 @@ import org.higherkindedj.hkt.exception.KindUnwrapException;
 import org.higherkindedj.hkt.instances.Instances;
 import org.higherkindedj.hkt.io.IO;
 import org.higherkindedj.hkt.io.IOKind;
-import org.jspecify.annotations.NonNull;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -33,8 +32,7 @@ class OptionalTKindHelperTest {
     outerMonad = Instances.monad(io());
   }
 
-  private <A extends @NonNull Object> OptionalT<IOKind.Witness, A> createConcreteOptionalTSome(
-      @NonNull A value) {
+  private <A> OptionalT<IOKind.Witness, A> createConcreteOptionalTSome(A value) {
     return OptionalT.some(outerMonad, value);
   }
 
@@ -80,6 +78,7 @@ class OptionalTKindHelperTest {
 
     @Test
     @DisplayName("should throw NullPointerException when wrapping null")
+    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
     void widen_nullOptionalT_shouldThrowNullPointerException() {
       assertThatThrownBy(() -> OPTIONAL_T.widen(null))
           .isInstanceOf(NullPointerException.class)
@@ -138,14 +137,14 @@ class OptionalTKindHelperTest {
     }
 
     // Dummy Kind for testing invalid type unwrap
-    private static class OtherKindWitness<F_Witness> implements WitnessArity<TypeArity.Unary> {}
+    private static class OtherKindWitness implements WitnessArity<TypeArity.Unary> {}
 
-    private static class OtherKind<F_Witness, A> implements Kind<OtherKindWitness<F_Witness>, A> {}
+    private static class OtherKind<A> implements Kind<OtherKindWitness, A> {}
 
     @Test
     @DisplayName("should throw KindUnwrapException when unwrapping an incorrect Kind type")
     void narrow_incorrectKindType_shouldThrowKindUnwrapException() {
-      OtherKind<IOKind.Witness, String> incorrectKind = new OtherKind<>();
+      OtherKind<String> incorrectKind = new OtherKind<>();
 
       @SuppressWarnings({"unchecked", "rawtypes"})
       Kind<OptionalTKind.Witness<IOKind.Witness>, String> kindToTest =

@@ -126,14 +126,16 @@ class VStreamParTest {
 
     @Test
     @DisplayName("parEvalMap() with null stream throws NullPointerException")
+    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
     void parEvalMapWithNullStreamThrows() {
-      assertThatThrownBy(() -> VStreamPar.parEvalMap(null, 2, n -> VTask.succeed(n)))
+      assertThatThrownBy(() -> VStreamPar.parEvalMap(null, 2, VTask::succeed))
           .isInstanceOf(NullPointerException.class)
           .hasMessageContaining("stream");
     }
 
     @Test
     @DisplayName("parEvalMap() with null function throws NullPointerException")
+    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
     void parEvalMapWithNullFunctionThrows() {
       VStream<Integer> stream = VStream.of(1);
 
@@ -147,7 +149,7 @@ class VStreamParTest {
     void parEvalMapWithZeroConcurrencyThrows() {
       VStream<Integer> stream = VStream.of(1);
 
-      assertThatThrownBy(() -> VStreamPar.parEvalMap(stream, 0, n -> VTask.succeed(n)))
+      assertThatThrownBy(() -> VStreamPar.parEvalMap(stream, 0, VTask::succeed))
           .isInstanceOf(IllegalArgumentException.class)
           .hasMessageContaining("concurrency");
     }
@@ -157,7 +159,7 @@ class VStreamParTest {
     void parEvalMapWithNegativeConcurrencyThrows() {
       VStream<Integer> stream = VStream.of(1);
 
-      assertThatThrownBy(() -> VStreamPar.parEvalMap(stream, -1, n -> VTask.succeed(n)))
+      assertThatThrownBy(() -> VStreamPar.parEvalMap(stream, -1, VTask::succeed))
           .isInstanceOf(IllegalArgumentException.class)
           .hasMessageContaining("concurrency");
     }
@@ -181,6 +183,7 @@ class VStreamParTest {
 
     @Test
     @DisplayName("parEvalMapUnordered() contains same elements as ordered variant")
+    @SuppressWarnings("DataFlowIssue") // non-null in this fixture
     void parEvalMapUnorderedContainsSameElements() {
       VStream<Integer> stream = VStream.fromList(List.of(1, 2, 3, 4, 5));
 
@@ -255,13 +258,15 @@ class VStreamParTest {
 
     @Test
     @DisplayName("parEvalMapUnordered() with null stream throws NullPointerException")
+    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
     void parEvalMapUnorderedWithNullStreamThrows() {
-      assertThatThrownBy(() -> VStreamPar.parEvalMapUnordered(null, 2, n -> VTask.succeed(n)))
+      assertThatThrownBy(() -> VStreamPar.parEvalMapUnordered(null, 2, VTask::succeed))
           .isInstanceOf(NullPointerException.class);
     }
 
     @Test
     @DisplayName("parEvalMapUnordered() with null function throws NullPointerException")
+    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
     void parEvalMapUnorderedWithNullFunctionThrows() {
       assertThatThrownBy(() -> VStreamPar.parEvalMapUnordered(VStream.of(1), 2, null))
           .isInstanceOf(NullPointerException.class);
@@ -270,8 +275,7 @@ class VStreamParTest {
     @Test
     @DisplayName("parEvalMapUnordered() with zero concurrency throws IllegalArgumentException")
     void parEvalMapUnorderedWithZeroConcurrencyThrows() {
-      assertThatThrownBy(
-              () -> VStreamPar.parEvalMapUnordered(VStream.of(1), 0, n -> VTask.succeed(n)))
+      assertThatThrownBy(() -> VStreamPar.parEvalMapUnordered(VStream.of(1), 0, VTask::succeed))
           .isInstanceOf(IllegalArgumentException.class);
     }
   }
@@ -320,7 +324,7 @@ class VStreamParTest {
     void parEvalFlatMapHandlesEmptyInnerStreams() {
       VStream<Integer> stream = VStream.of(1, 2, 3);
 
-      VStream<Integer> result = VStreamPar.parEvalFlatMap(stream, 2, n -> VStream.empty());
+      VStream<Integer> result = VStreamPar.parEvalFlatMap(stream, 2, _ -> VStream.empty());
 
       assertThatVStream(result).isEmpty();
     }
@@ -346,13 +350,15 @@ class VStreamParTest {
 
     @Test
     @DisplayName("parEvalFlatMap() with null stream throws NullPointerException")
+    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
     void parEvalFlatMapWithNullStreamThrows() {
-      assertThatThrownBy(() -> VStreamPar.parEvalFlatMap(null, 2, n -> VStream.of(n)))
+      assertThatThrownBy(() -> VStreamPar.parEvalFlatMap(null, 2, VStream::of))
           .isInstanceOf(NullPointerException.class);
     }
 
     @Test
     @DisplayName("parEvalFlatMap() with null function throws NullPointerException")
+    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
     void parEvalFlatMapWithNullFunctionThrows() {
       assertThatThrownBy(() -> VStreamPar.parEvalFlatMap(VStream.of(1), 2, null))
           .isInstanceOf(NullPointerException.class);
@@ -361,7 +367,7 @@ class VStreamParTest {
     @Test
     @DisplayName("parEvalFlatMap() with zero concurrency throws IllegalArgumentException")
     void parEvalFlatMapWithZeroConcurrencyThrows() {
-      assertThatThrownBy(() -> VStreamPar.parEvalFlatMap(VStream.of(1), 0, n -> VStream.of(n)))
+      assertThatThrownBy(() -> VStreamPar.parEvalFlatMap(VStream.of(1), 0, VStream::of))
           .isInstanceOf(IllegalArgumentException.class);
     }
   }
@@ -483,6 +489,7 @@ class VStreamParTest {
 
     @Test
     @DisplayName("merge() with null list throws NullPointerException")
+    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
     void mergeWithNullListThrows() {
       assertThatThrownBy(() -> VStreamPar.merge((List<VStream<Integer>>) null))
           .isInstanceOf(NullPointerException.class);
@@ -490,6 +497,7 @@ class VStreamParTest {
 
     @Test
     @DisplayName("merge() with null first stream throws NullPointerException")
+    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
     void mergeWithNullFirstThrows() {
       assertThatThrownBy(() -> VStreamPar.merge(null, VStream.of(1)))
           .isInstanceOf(NullPointerException.class);
@@ -497,6 +505,7 @@ class VStreamParTest {
 
     @Test
     @DisplayName("merge() with null second stream throws NullPointerException")
+    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
     void mergeWithNullSecondThrows() {
       assertThatThrownBy(() -> VStreamPar.merge(VStream.of(1), null))
           .isInstanceOf(NullPointerException.class);
@@ -539,6 +548,7 @@ class VStreamParTest {
 
     @Test
     @DisplayName("parCollect() with null stream throws NullPointerException")
+    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
     void parCollectWithNullStreamThrows() {
       assertThatThrownBy(() -> VStreamPar.parCollect(null, 5))
           .isInstanceOf(NullPointerException.class);
@@ -656,7 +666,7 @@ class VStreamParTest {
       VStream<Integer> stream = VStream.of(1);
 
       VStream<Integer> result =
-          VStreamPar.parEvalMap(stream, 1, n -> VTask.fail(new RuntimeException(errorMessage)));
+          VStreamPar.parEvalMap(stream, 1, _ -> VTask.fail(new RuntimeException(errorMessage)));
 
       assertThatThrownBy(() -> result.toList().run())
           .isInstanceOf(RuntimeException.class)
@@ -672,7 +682,7 @@ class VStreamParTest {
           VStreamPar.parEvalMap(
               stream,
               1,
-              n ->
+              _ ->
                   VTask.of(
                       () -> {
                         throw new AssertionError("test error");
@@ -692,7 +702,7 @@ class VStreamParTest {
           VStreamPar.parEvalMap(
               stream,
               1,
-              n ->
+              _ ->
                   VTask.of(
                       () -> {
                         throw new IOException("checked exception");
@@ -712,7 +722,7 @@ class VStreamParTest {
           VStreamPar.parEvalMapUnordered(
               stream,
               1,
-              n ->
+              _ ->
                   VTask.of(
                       () -> {
                         throw new AssertionError("test error");
@@ -732,7 +742,7 @@ class VStreamParTest {
           VStreamPar.parEvalMapUnordered(
               stream,
               1,
-              n ->
+              _ ->
                   VTask.of(
                       () -> {
                         throw new IOException("checked exception");
@@ -775,7 +785,8 @@ class VStreamParTest {
 
     @Test
     @DisplayName("consumeSource cancelled flag stops iteration when another source fails")
-    void consumeSourceCancelledStopsIteration() throws InterruptedException {
+    @SuppressWarnings("ResultOfMethodCallIgnored") // best-effort await; result ignored
+    void consumeSourceCancelledStopsIteration() {
       CountDownLatch slowStarted = new CountDownLatch(1);
       CountDownLatch errorSignal = new CountDownLatch(1);
 
@@ -816,6 +827,7 @@ class VStreamParTest {
 
     @Test
     @DisplayName("consumeSource suppresses second error when first already set cancelled")
+    @SuppressWarnings("ResultOfMethodCallIgnored") // best-effort await; result ignored
     void consumeSourceSuppressesSecondError() {
       // Both sources fail — only the first error reaches the consumer.
       // The second consumeSource finds cancelled=true and skips queue.offer.
@@ -849,7 +861,7 @@ class VStreamParTest {
 
     @Test
     @DisplayName("consumeSource InterruptedException path via thread interrupt flag")
-    void consumeSourceInterruptedExceptionPath() throws InterruptedException {
+    void consumeSourceInterruptedExceptionPath() {
       // A source that sets the interrupt flag on its subtask thread.
       // The next queue.put() in consumeSource will throw InterruptedException
       // because lockInterruptibly() checks the flag before acquiring.
@@ -959,14 +971,12 @@ class VStreamParTest {
       // by interrupting the subtask (which causes scope cleanup), and observe
       // the merge stream terminates.
       CountDownLatch subtaskStarted = new CountDownLatch(1);
-      AtomicReference<Thread> subtaskThread = new AtomicReference<>();
 
       // Source that captures its subtask thread and blocks indefinitely
       VStream<Integer> blockingSource =
           () ->
               VTask.of(
                   () -> {
-                    subtaskThread.set(Thread.currentThread());
                     subtaskStarted.countDown();
                     Thread.sleep(60_000);
                     return new VStream.Step.Emit<>(1, VStream.empty());
@@ -1059,7 +1069,6 @@ class VStreamParTest {
 
     @Test
     @DisplayName("close() sets cancelled flag and clears queue")
-    @SuppressWarnings({"unchecked", "rawtypes"})
     void closeSetsCancelledFlagAndClearsQueue() {
       // Create an infinite source so the merge never completes naturally
       VStream<Integer> infinite =
@@ -1135,6 +1144,10 @@ class VStreamParTest {
 
     @Test
     @DisplayName("close() handles InterruptedException during producer.join()")
+    @SuppressWarnings({
+      "ResultOfMethodCallIgnored",
+      "DataFlowIssue"
+    }) // result ignored; step non-null
     void closeHandlesInterruptedExceptionDuringJoin() throws InterruptedException {
       CountDownLatch subtaskStarted = new CountDownLatch(1);
 
@@ -1162,38 +1175,37 @@ class VStreamParTest {
       CountDownLatch finished = new CountDownLatch(1);
 
       // Run on a worker thread so we can set the interrupt flag before take triggers close
-      Thread worker =
-          Thread.ofVirtual()
-              .start(
-                  () -> {
-                    try {
-                      // Pull the one element — take(1) will call close() internally on next pull
-                      // We need the subtask started before we interrupt
-                      VStream.Step<Integer> first = merged.pull().run();
-                      assertThat(first).isInstanceOf(VStream.Step.Emit.class);
+      Thread.ofVirtual()
+          .start(
+              () -> {
+                try {
+                  // Pull the one element — take(1) will call close() internally on next pull
+                  // We need the subtask started before we interrupt
+                  VStream.Step<Integer> first = merged.pull().run();
+                  assertThat(first).isInstanceOf(VStream.Step.Emit.class);
 
-                      // Wait for blocking subtask to start so producer thread is in join-able state
-                      subtaskStarted.await(5, TimeUnit.SECONDS);
-                      Thread.sleep(50);
+                  // Wait for blocking subtask to start so producer thread is in join-able state
+                  subtaskStarted.await(5, TimeUnit.SECONDS);
+                  Thread.sleep(50);
 
-                      // Set interrupt flag — when take(0) calls close() -> producer.join(),
-                      // join() will throw InterruptedException, exercising lines 402-403
-                      Thread.currentThread().interrupt();
+                  // Set interrupt flag — when take(0) calls close() -> producer.join(),
+                  // join() will throw InterruptedException, exercising lines 402-403
+                  Thread.currentThread().interrupt();
 
-                      // This pull triggers take's n<=0 path which calls close()
-                      VStream.Step<Integer> second =
-                          ((VStream.Step.Emit<Integer>) first).tail().pull().run();
-                      assertThat(second).isInstanceOf(VStream.Step.Done.class);
+                  // This pull triggers take's n<=0 path which calls close()
+                  VStream.Step<Integer> second =
+                      ((VStream.Step.Emit<Integer>) first).tail().pull().run();
+                  assertThat(second).isInstanceOf(VStream.Step.Done.class);
 
-                      interruptPreserved.set(Thread.currentThread().isInterrupted());
-                      closeCompleted.set(true);
-                    } catch (Exception e) {
-                      // If close threw, the interrupt was not caught properly
-                      closeCompleted.set(false);
-                    } finally {
-                      finished.countDown();
-                    }
-                  });
+                  interruptPreserved.set(Thread.currentThread().isInterrupted());
+                  closeCompleted.set(true);
+                } catch (Exception e) {
+                  // If close threw, the interrupt was not caught properly
+                  closeCompleted.set(false);
+                } finally {
+                  finished.countDown();
+                }
+              });
 
       assertThat(finished.await(10, TimeUnit.SECONDS)).isTrue();
       assertThat(closeCompleted.get()).isTrue();
@@ -1230,20 +1242,22 @@ class VStreamParTest {
 
     @Test
     @DisplayName("processBatchOrdered() throws when function returns null task")
+    @SuppressWarnings("DataFlowIssue") // the mapper deliberately returns null
     void processBatchOrderedThrowsOnNullTask() {
       VStream<Integer> stream = VStream.of(1, 2, 3);
 
-      VStream<Integer> result = VStreamPar.parEvalMap(stream, 3, n -> null);
+      VStream<Integer> result = VStreamPar.parEvalMap(stream, 3, _ -> null);
 
       assertThatThrownBy(() -> result.toList().run()).isInstanceOf(NullPointerException.class);
     }
 
     @Test
     @DisplayName("processBatchUnordered() throws when function returns null task")
+    @SuppressWarnings("DataFlowIssue") // the mapper deliberately returns null
     void processBatchUnorderedThrowsOnNullTask() {
       VStream<Integer> stream = VStream.of(1, 2, 3);
 
-      VStream<Integer> result = VStreamPar.parEvalMapUnordered(stream, 3, n -> null);
+      VStream<Integer> result = VStreamPar.parEvalMapUnordered(stream, 3, _ -> null);
 
       assertThatThrownBy(() -> result.toList().run()).isInstanceOf(NullPointerException.class);
     }
@@ -1253,7 +1267,7 @@ class VStreamParTest {
     void parEvalMapUnorderedWithNegativeConcurrencyThrows() {
       VStream<Integer> stream = VStream.of(1);
 
-      assertThatThrownBy(() -> VStreamPar.parEvalMapUnordered(stream, -1, n -> VTask.succeed(n)))
+      assertThatThrownBy(() -> VStreamPar.parEvalMapUnordered(stream, -1, VTask::succeed))
           .isInstanceOf(IllegalArgumentException.class)
           .hasMessageContaining("concurrency");
     }
@@ -1261,7 +1275,7 @@ class VStreamParTest {
     @Test
     @DisplayName("parEvalFlatMap() with negative concurrency throws IllegalArgumentException")
     void parEvalFlatMapWithNegativeConcurrencyThrows() {
-      assertThatThrownBy(() -> VStreamPar.parEvalFlatMap(VStream.of(1), -1, n -> VStream.of(n)))
+      assertThatThrownBy(() -> VStreamPar.parEvalFlatMap(VStream.of(1), -1, VStream::of))
           .isInstanceOf(IllegalArgumentException.class)
           .hasMessageContaining("concurrency");
     }
@@ -1325,7 +1339,7 @@ class VStreamParTest {
     void parEvalFlatMapEmptySource() {
       VStream<Integer> stream = VStream.empty();
 
-      VStream<Integer> result = VStreamPar.parEvalFlatMap(stream, 2, n -> VStream.of(n));
+      VStream<Integer> result = VStreamPar.parEvalFlatMap(stream, 2, VStream::of);
 
       assertThatVStream(result).isEmpty();
     }

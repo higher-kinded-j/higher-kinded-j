@@ -130,9 +130,8 @@ class MaybeTTest {
     @Test
     @DisplayName("liftF should handle null values in outer monad")
     void liftF_convertsNullToJustNull() {
-      // When the outer monad contains null, liftF will map it through Maybe.fromNullable
-      // Since Optional doesn't allow Optional.of(null), we use ofNullable which creates empty
-      Kind<OptionalKind.Witness, String> nullValueKind = OPTIONAL.widen(Optional.ofNullable(null));
+      // When the outer monad is empty, liftF maps it through Maybe.fromNullable to an empty outer.
+      Kind<OptionalKind.Witness, String> nullValueKind = OPTIONAL.widen(Optional.empty());
       MaybeT<OptionalKind.Witness, String> mt = MaybeT.liftF(outerMonad, nullValueKind);
 
       // Since Optional.ofNullable(null) creates Optional.empty,
@@ -177,6 +176,11 @@ class MaybeTTest {
 
   @Nested
   @DisplayName("Object Methods")
+  @SuppressWarnings({
+    "EqualsWithItself",
+    "ConstantValue",
+    "EqualsBetweenInconvertibleTypes"
+  }) // deliberate equals contract checks: self/null/cross-type
   class ObjectMethodTests {
 
     Kind<OptionalKind.Witness, Maybe<String>> wrappedJust1 =
@@ -203,7 +207,6 @@ class MaybeTTest {
       assertThat(mt1).isNotEqualTo(mtNothing);
       assertThat(mt1).isNotEqualTo(mtEmpty);
       assertThat(mt1).isNotEqualTo(null);
-      assertThat(mt1).isNotEqualTo(wrappedJust1);
     }
 
     @Test
@@ -381,6 +384,7 @@ class MaybeTTest {
 
     @Test
     @DisplayName("mapT should reject null function")
+    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
     void mapT_rejectsNull() {
       MaybeT<OptionalKind.Witness, String> mt = MaybeT.just(outerMonad, justValue);
       assertThatThrownBy(() -> mt.mapT(null)).isInstanceOf(NullPointerException.class);

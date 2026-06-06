@@ -13,7 +13,6 @@ import net.jqwik.api.Label;
 import net.jqwik.api.Property;
 import net.jqwik.api.Provide;
 import net.jqwik.api.constraints.IntRange;
-import net.jqwik.api.constraints.StringLength;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Monad;
 import org.higherkindedj.hkt.id.Id;
@@ -88,6 +87,7 @@ class ForStateZoomPropertyTest {
 
   @Property
   @Label("Iso zoom updates: setting the inner value round-trips through the iso")
+  @SuppressWarnings("DataFlowIssue") // non-null in this fixture
   void isoZoomUpdateRoundTripsCorrectly(
       @ForAll("counters") Counter initial,
       @ForAll @IntRange(min = -1000, max = 1000) int newValue) {
@@ -105,6 +105,7 @@ class ForStateZoomPropertyTest {
 
   @Property
   @Label("FocusPath / Lens parity: zoom(focusPath) == zoom(focusPath.toLens())")
+  @SuppressWarnings("DataFlowIssue") // non-null in this fixture
   void focusPathDelegatesToLens(
       @ForAll("counters") Counter initial,
       @ForAll @IntRange(min = -1000, max = 1000) int newValue) {
@@ -116,14 +117,14 @@ class ForStateZoomPropertyTest {
             // FocusPath<Integer, Integer> is the identity on the focused integer; we exercise
             // the inner update via a lens on the (sub-state == focused value) shape using a
             // helper Lens<Integer, Integer> that simply replaces.
-            .update(Lens.of(Function.identity(), (s, v) -> v), newValue)
+            .update(Lens.of(Function.identity(), (_, v) -> v), newValue)
             .endZoom()
             .yield();
 
     Kind<IdKind.Witness, Counter> viaLens =
         ForState.withState(idMonad, IdKindHelper.ID.widen(Id.of(initial)))
             .zoom(valuePath.toLens())
-            .update(Lens.of(Function.identity(), (s, v) -> v), newValue)
+            .update(Lens.of(Function.identity(), (_, v) -> v), newValue)
             .endZoom()
             .yield();
 
@@ -132,10 +133,10 @@ class ForStateZoomPropertyTest {
 
   @Property
   @Label("Iso / asLens parity: zoom(iso) == zoom(iso.asLens())")
+  @SuppressWarnings("DataFlowIssue") // non-null in this fixture
   void isoDelegatesToAsLens(
       @ForAll("counters") Counter initial,
-      @ForAll @IntRange(min = -1000, max = 1000) int newValue,
-      @ForAll @StringLength(min = 1, max = 10) String newLabel) {
+      @ForAll @IntRange(min = -1000, max = 1000) int newValue) {
     Kind<IdKind.Witness, Counter> viaIso =
         ForState.withState(idMonad, IdKindHelper.ID.widen(Id.of(initial)))
             .zoom(swapIso)

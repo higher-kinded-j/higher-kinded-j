@@ -135,7 +135,7 @@ class ListAlternativeTest {
 
       List<Unit> list = LIST.narrow(result);
       assertThat(list).hasSize(1);
-      assertThat(list.get(0)).isEqualTo(Unit.INSTANCE);
+      assertThat(list.getFirst()).isEqualTo(Unit.INSTANCE);
     }
 
     @Test
@@ -154,6 +154,7 @@ class ListAlternativeTest {
 
     @Test
     @DisplayName("orElseAll() concatenates all lists")
+    @SuppressWarnings("unchecked") // generic varargs of Supplier
     void orElseAllConcatenatesAll() {
       Kind<ListKind.Witness, Integer> list1 = LIST.widen(Arrays.asList(1, 2));
       Kind<ListKind.Witness, Integer> list2 = LIST.widen(Arrays.asList(3, 4));
@@ -168,6 +169,7 @@ class ListAlternativeTest {
 
     @Test
     @DisplayName("orElseAll() with some empty lists")
+    @SuppressWarnings("unchecked") // generic varargs of Supplier
     void orElseAllWithSomeEmpty() {
       Kind<ListKind.Witness, Integer> list1 = LIST.widen(Arrays.asList(1, 2));
       Kind<ListKind.Witness, Integer> empty = alternative.empty();
@@ -198,7 +200,7 @@ class ListAlternativeTest {
       List<Kind<ListKind.Witness, Integer>> lists =
           Arrays.asList(
               LIST.widen(Arrays.asList(1, 2)),
-              LIST.widen(Arrays.asList(3)),
+              LIST.widen(List.of(3)),
               LIST.widen(Arrays.asList(4, 5)));
 
       Kind<ListKind.Witness, Integer> result = alternative.orElseAll(lists);
@@ -214,7 +216,7 @@ class ListAlternativeTest {
               alternative.empty(),
               LIST.widen(Arrays.asList(1, 2)),
               alternative.empty(),
-              LIST.widen(Arrays.asList(3)),
+              LIST.widen(List.of(3)),
               alternative.empty());
 
       Kind<ListKind.Witness, Integer> result = alternative.orElseAll(lists);
@@ -237,19 +239,20 @@ class ListAlternativeTest {
     void orElseAllIterableLargeInput() {
       List<Kind<ListKind.Witness, Integer>> lists = new ArrayList<>();
       for (int i = 0; i < 10_000; i++) {
-        lists.add(LIST.widen(Arrays.asList(i)));
+        lists.add(LIST.widen(List.of(i)));
       }
 
       Kind<ListKind.Witness, Integer> result = alternative.orElseAll(lists);
 
       List<Integer> resultList = LIST.narrow(result);
       assertThat(resultList).hasSize(10_000);
-      assertThat(resultList.get(0)).isEqualTo(0);
+      assertThat(resultList.getFirst()).isEqualTo(0);
       assertThat(resultList.get(9_999)).isEqualTo(9_999);
     }
 
     @Test
     @DisplayName("orElseAll(null iterable) throws NullPointerException")
+    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
     void orElseAllNullIterableThrows() {
       assertThatNullPointerException()
           .isThrownBy(() -> alternative.orElseAll((Iterable<Kind<ListKind.Witness, Integer>>) null))
@@ -258,9 +261,10 @@ class ListAlternativeTest {
 
     @Test
     @DisplayName("orElseAll(iterable with null element) throws NullPointerException")
+    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
     void orElseAllNullElementThrows() {
       List<Kind<ListKind.Witness, Integer>> lists = new ArrayList<>();
-      lists.add(LIST.widen(Arrays.asList(1)));
+      lists.add(LIST.widen(List.of(1)));
       lists.add(null);
 
       assertThatNullPointerException().isThrownBy(() -> alternative.orElseAll(lists));

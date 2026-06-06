@@ -40,8 +40,8 @@ class VStreamBracketTest {
                     acquired.set(true);
                     return "resource";
                   }),
-              r -> VStream.of(1, 2, 3),
-              r -> VTask.exec(() -> {}));
+              _ -> VStream.of(1, 2, 3),
+              _ -> VTask.exec(() -> {}));
 
       // Not acquired yet
       assertThat(acquired).isFalse();
@@ -60,8 +60,8 @@ class VStreamBracketTest {
       VStream<Integer> stream =
           VStream.bracket(
               VTask.succeed("resource"),
-              r -> VStream.of(1, 2, 3),
-              r -> VTask.exec(() -> released.set(true)));
+              _ -> VStream.of(1, 2, 3),
+              _ -> VTask.exec(() -> released.set(true)));
 
       stream.toList().run();
 
@@ -76,8 +76,8 @@ class VStreamBracketTest {
       VStream<Integer> stream =
           VStream.bracket(
               VTask.succeed("resource"),
-              r -> VStream.<Integer>of(1).concat(VStream.fail(new RuntimeException("boom"))),
-              r -> VTask.exec(() -> released.set(true)));
+              _ -> VStream.of(1).concat(VStream.fail(new RuntimeException("boom"))),
+              _ -> VTask.exec(() -> released.set(true)));
 
       assertThatThrownBy(() -> stream.toList().run()).isInstanceOf(RuntimeException.class);
 
@@ -92,8 +92,8 @@ class VStreamBracketTest {
       VStream<Integer> stream =
           VStream.bracket(
               VTask.succeed("resource"),
-              r -> VStream.of(1, 2, 3),
-              r -> VTask.exec(releaseCount::incrementAndGet));
+              _ -> VStream.of(1, 2, 3),
+              _ -> VTask.exec(releaseCount::incrementAndGet));
 
       stream.toList().run();
 
@@ -112,15 +112,11 @@ class VStreamBracketTest {
                     events.add("acquire");
                     return "resource";
                   }),
-              r -> {
+              _ -> {
                 events.add("use");
                 return VStream.of(1, 2);
               },
-              r ->
-                  VTask.exec(
-                      () -> {
-                        events.add("release");
-                      }));
+              _ -> VTask.exec(() -> events.add("release")));
 
       stream.toList().run();
 
@@ -134,7 +130,7 @@ class VStreamBracketTest {
           VStream.bracket(
               VTask.succeed(10),
               base -> VStream.of(base, base + 1, base + 2),
-              r -> VTask.exec(() -> {}));
+              _ -> VTask.exec(() -> {}));
 
       List<Integer> result = stream.toList().run();
 
@@ -154,8 +150,8 @@ class VStreamBracketTest {
       VStream<Integer> stream =
           VStream.bracket(
               VTask.succeed("resource"),
-              r -> VStream.of(1, 2, 3, 4, 5),
-              r -> VTask.exec(() -> released.set(true)));
+              _ -> VStream.of(1, 2, 3, 4, 5),
+              _ -> VTask.exec(() -> released.set(true)));
 
       List<Integer> result = stream.take(2).toList().run();
 
@@ -166,13 +162,9 @@ class VStreamBracketTest {
     @Test
     @DisplayName("headOption() from bracketed stream releases resource")
     void headOptionReleasesResource() {
-      AtomicBoolean released = new AtomicBoolean(false);
-
       VStream<Integer> stream =
           VStream.bracket(
-              VTask.succeed("resource"),
-              r -> VStream.of(1, 2, 3),
-              r -> VTask.exec(() -> released.set(true)));
+              VTask.succeed("resource"), _ -> VStream.of(1, 2, 3), _ -> VTask.exec(() -> {}));
 
       var result = stream.headOption().run();
 
@@ -185,14 +177,13 @@ class VStreamBracketTest {
     @Test
     @DisplayName("find() short-circuit releases resource")
     void findShortCircuitReleasesResource() {
-      AtomicBoolean released = new AtomicBoolean(false);
       AtomicInteger pullCount = new AtomicInteger(0);
 
       VStream<Integer> stream =
           VStream.bracket(
               VTask.succeed("resource"),
-              r -> VStream.of(1, 2, 3, 4, 5).peek(x -> pullCount.incrementAndGet()),
-              r -> VTask.exec(() -> released.set(true)));
+              _ -> VStream.of(1, 2, 3, 4, 5).peek(_ -> pullCount.incrementAndGet()),
+              _ -> VTask.exec(() -> {}));
 
       var result = stream.find(x -> x == 3).run();
 
@@ -216,16 +207,16 @@ class VStreamBracketTest {
                     events.add("acquire-outer");
                     return "outer";
                   }),
-              outer ->
+              _ ->
                   VStream.bracket(
                       VTask.of(
                           () -> {
                             events.add("acquire-inner");
                             return "inner";
                           }),
-                      inner -> VStream.of(1, 2),
-                      inner -> VTask.exec(() -> events.add("release-inner"))),
-              outer -> VTask.exec(() -> events.add("release-outer")));
+                      _ -> VStream.of(1, 2),
+                      _ -> VTask.exec(() -> events.add("release-inner"))),
+              _ -> VTask.exec(() -> events.add("release-outer")));
 
       stream.toList().run();
 
@@ -242,12 +233,12 @@ class VStreamBracketTest {
       VStream<Integer> stream =
           VStream.bracket(
               VTask.succeed("outer"),
-              outer ->
+              _ ->
                   VStream.bracket(
                       VTask.succeed("inner"),
-                      inner -> VStream.fail(new RuntimeException("inner error")),
-                      inner -> VTask.exec(() -> innerReleased.set(true))),
-              outer -> VTask.exec(() -> outerReleased.set(true)));
+                      _ -> VStream.fail(new RuntimeException("inner error")),
+                      _ -> VTask.exec(() -> innerReleased.set(true))),
+              _ -> VTask.exec(() -> outerReleased.set(true)));
 
       assertThatThrownBy(() -> stream.toList().run()).isInstanceOf(RuntimeException.class);
 
@@ -428,14 +419,15 @@ class VStreamBracketTest {
 
     @Test
     @DisplayName("close() on bracket stream releases resource")
+    @SuppressWarnings("DataFlowIssue") // the emitted step is known to be an Emit here
     void closeOnBracketStreamReleasesResource() {
       AtomicBoolean released = new AtomicBoolean(false);
 
       VStream<Integer> stream =
           VStream.bracket(
               VTask.succeed("resource"),
-              r -> VStream.of(1, 2, 3),
-              r -> VTask.exec(() -> released.set(true)));
+              _ -> VStream.of(1, 2, 3),
+              _ -> VTask.exec(() -> released.set(true)));
 
       // Pull one element to trigger acquisition, then close the tail
       VStream.Step<Integer> step = stream.pull().run();
@@ -454,32 +446,36 @@ class VStreamBracketTest {
 
     @Test
     @DisplayName("bracket() validates non-null acquire")
+    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
     void bracketValidatesAcquire() {
       assertThatNullPointerException()
           .isThrownBy(
-              () -> VStream.bracket(null, r -> VStream.empty(), r -> VTask.succeed(Unit.INSTANCE)))
+              () -> VStream.bracket(null, _ -> VStream.empty(), _ -> VTask.succeed(Unit.INSTANCE)))
           .withMessageContaining("acquire must not be null");
     }
 
     @Test
     @DisplayName("bracket() validates non-null use")
+    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
     void bracketValidatesUse() {
       assertThatNullPointerException()
           .isThrownBy(
-              () -> VStream.bracket(VTask.succeed("r"), null, r -> VTask.succeed(Unit.INSTANCE)))
+              () -> VStream.bracket(VTask.succeed("r"), null, _ -> VTask.succeed(Unit.INSTANCE)))
           .withMessageContaining("use must not be null");
     }
 
     @Test
     @DisplayName("bracket() validates non-null release")
+    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
     void bracketValidatesRelease() {
       assertThatNullPointerException()
-          .isThrownBy(() -> VStream.bracket(VTask.succeed("r"), r -> VStream.empty(), null))
+          .isThrownBy(() -> VStream.bracket(VTask.succeed("r"), _ -> VStream.empty(), null))
           .withMessageContaining("release must not be null");
     }
 
     @Test
     @DisplayName("onFinalize() validates non-null finalizer")
+    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
     void onFinalizeValidatesFinalizer() {
       assertThatNullPointerException()
           .isThrownBy(() -> VStream.of(1).onFinalize(null))

@@ -68,6 +68,7 @@ class CoyonedaTest {
 
     @Test
     @DisplayName("lift throws NullPointerException for null Kind")
+    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
     void liftThrowsForNull() {
       assertThatThrownBy(() -> Coyoneda.lift(null))
           .isInstanceOf(NullPointerException.class)
@@ -154,6 +155,7 @@ class CoyonedaTest {
 
     @Test
     @DisplayName("map throws NullPointerException for null function")
+    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
     void mapThrowsForNullFunction() {
       Coyoneda<MaybeKind.Witness, Integer> coyo = Coyoneda.lift(MAYBE.just(42));
 
@@ -191,6 +193,7 @@ class CoyonedaTest {
       var countingFunctor =
           new MaybeFunctor() {
             @Override
+            @SuppressWarnings("NullableProblems") // mirrors MaybeFunctor's @Nullable signature
             public <A, B> Kind<MaybeKind.Witness, B> map(
                 Function<? super A, ? extends B> f, Kind<MaybeKind.Witness, A> fa) {
               mapCount.incrementAndGet();
@@ -266,6 +269,7 @@ class CoyonedaTest {
 
     @Test
     @DisplayName("lower throws NullPointerException for null functor")
+    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
     void lowerThrowsForNullFunctor() {
       Coyoneda<MaybeKind.Witness, Integer> coyo = Coyoneda.lift(MAYBE.just(42));
 
@@ -365,12 +369,14 @@ class CoyonedaTest {
 
     @Test
     @DisplayName("narrow throws for null")
+    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
     void narrowThrowsForNull() {
       assertThatThrownBy(() -> COYONEDA.narrow(null)).isInstanceOf(KindUnwrapException.class);
     }
 
     @Test
     @DisplayName("widen throws for null")
+    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
     void widenThrowsForNull() {
       assertThatThrownBy(() -> COYONEDA.widen(null)).isInstanceOf(NullPointerException.class);
     }
@@ -379,10 +385,7 @@ class CoyonedaTest {
     @DisplayName("narrow throws for invalid kind type")
     void narrowThrowsForInvalidKindType() {
       // Create a mock Kind that is not a CoyonedaHolder
-      @SuppressWarnings("unchecked")
-      Kind<CoyonedaKind.Witness<MaybeKind.Witness>, Integer> invalidKind =
-          (Kind<CoyonedaKind.Witness<MaybeKind.Witness>, Integer>)
-              new CoyonedaKind<MaybeKind.Witness, Integer>() {};
+      Kind<CoyonedaKind.Witness<MaybeKind.Witness>, Integer> invalidKind = new CoyonedaKind<>() {};
 
       assertThatThrownBy(() -> COYONEDA.narrow(invalidKind))
           .isInstanceOf(KindUnwrapException.class)

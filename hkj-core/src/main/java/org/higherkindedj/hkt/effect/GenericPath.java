@@ -34,7 +34,7 @@ import org.higherkindedj.hkt.maybe.Maybe;
  *   <li><b>Testing/prototyping</b>: Quick experiments before adding full Path support
  * </ul>
  *
- * <h2>Phase 3 Enhancements</h2>
+ * <h2>Enhancements</h2>
  *
  * <ul>
  *   <li>Optional {@link MonadError} support for error recovery

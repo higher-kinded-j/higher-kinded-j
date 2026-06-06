@@ -9,7 +9,6 @@ import static org.higherkindedj.hkt.reader.ReaderKindHelper.READER;
 
 import java.util.function.BiFunction;
 import java.util.function.Function;
-import java.util.stream.Stream;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Monad;
 import org.higherkindedj.hkt.function.Function3;
@@ -17,12 +16,13 @@ import org.higherkindedj.hkt.function.Function4;
 import org.higherkindedj.hkt.instances.Instances;
 import org.higherkindedj.hkt.laws.MonadLaws;
 import org.higherkindedj.hkt.test.api.KindHelperTests;
+import org.higherkindedj.hkt.test.contract.Category;
+import org.higherkindedj.hkt.test.contract.TypeClassContract;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 
 @DisplayName("ReaderMonad")
@@ -41,34 +41,41 @@ class ReaderMonadTest extends ReaderTestBase {
   class Laws {
 
     @ParameterizedTest(name = "left identity holds on value {0}")
-    @MethodSource("values")
+    @MethodSource("org.higherkindedj.hkt.reader.ReaderLawFixtures#values")
     void leftIdentity(Integer value) {
       MonadLaws.assertLeftIdentity(monad, value, testFunction, equalityChecker);
     }
 
     @ParameterizedTest(name = "right identity holds on {0}")
-    @MethodSource("fixtures")
+    @MethodSource("org.higherkindedj.hkt.reader.ReaderLawFixtures#kinds")
     void rightIdentity(String label, Kind<ReaderKind.Witness<TestConfig>, Integer> ma) {
       MonadLaws.assertRightIdentity(monad, ma, equalityChecker);
     }
 
     @ParameterizedTest(name = "associativity holds on {0}")
-    @MethodSource("fixtures")
+    @MethodSource("org.higherkindedj.hkt.reader.ReaderLawFixtures#kinds")
     void associativity(String label, Kind<ReaderKind.Witness<TestConfig>, Integer> ma) {
       MonadLaws.assertAssociativity(monad, ma, testFunction, chainFunction, equalityChecker);
     }
+  }
 
-    static Stream<Arguments> fixtures() {
-      return Stream.of(
-          Arguments.of("reader(url length)", READER.reader((TestConfig cfg) -> cfg.url().length())),
-          Arguments.of("pure(42)", READER.reader((TestConfig cfg) -> 42)),
-          Arguments.of(
-              "reader(maxConnections)", READER.reader((TestConfig cfg) -> cfg.maxConnections())));
-    }
-
-    static Stream<Arguments> values() {
-      return Stream.of(Arguments.of(0), Arguments.of(42), Arguments.of(-1));
-    }
+  /**
+   * {@link Category#EXCEPTIONS} is omitted: the generic contract asserts that {@code map}/{@code
+   * flatMap} <em>propagate</em> a thrown function exception immediately, but a Reader is lazy — the
+   * exception surfaces only when the result is run. That deferral is exercised throughout {@link
+   * EdgeCasesTests}.
+   */
+  @Test
+  @DisplayName(
+      "Monad contract — operations & validations (laws verified above; Reader defers exceptions,"
+          + " verified below)")
+  void monadContract() {
+    TypeClassContract.<ReaderKind.Witness<TestConfig>>monad(ReaderMonad.class)
+        .<Integer>instance(monad)
+        .<String>withKind(validKind)
+        .withMonadOperations(
+            validKind2, validMapper, validFlatMapper, validFunctionKind, validCombiningFunction)
+        .verifyOnly(Category.OPERATIONS, Category.VALIDATIONS);
   }
 
   @Nested
@@ -171,9 +178,7 @@ class ReaderMonadTest extends ReaderTestBase {
     @Test
     @DisplayName("Deep flatMap chaining")
     void deepFlatMapChaining() {
-      Kind<ReaderKind.Witness<TestConfig>, Integer> start = READER.widen(Reader.of(config -> 1));
-
-      Kind<ReaderKind.Witness<TestConfig>, Integer> result = start;
+      Kind<ReaderKind.Witness<TestConfig>, Integer> result = READER.widen(Reader.of(_ -> 1));
       for (int i = 0; i < 10; i++) {
         final int increment = i;
         result = monad.flatMap(x -> monad.of(x + increment), result);
@@ -213,7 +218,7 @@ class ReaderMonadTest extends ReaderTestBase {
     void exceptionInFunctionPropagatesThroughMap() {
       RuntimeException testException = new RuntimeException("Test exception: map test");
       Function<Integer, String> throwingMapper =
-          i -> {
+          _ -> {
             throw testException;
           };
 
@@ -228,7 +233,7 @@ class ReaderMonadTest extends ReaderTestBase {
     void exceptionInFunctionPropagatesThroughFlatMap() {
       RuntimeException testException = new RuntimeException("Test exception: flatMap test");
       Function<Integer, Kind<ReaderKind.Witness<TestConfig>, String>> throwingFlatMapper =
-          i -> {
+          _ -> {
             throw testException;
           };
 
@@ -245,7 +250,7 @@ class ReaderMonadTest extends ReaderTestBase {
       RuntimeException testException = new RuntimeException("Test exception: ap test");
       Kind<ReaderKind.Witness<TestConfig>, Function<Integer, String>> funcKind =
           monad.of(
-              i -> {
+              _ -> {
                 throw testException;
               });
 
@@ -299,10 +304,7 @@ class ReaderMonadTest extends ReaderTestBase {
           .isEqualTo(
               String.format(
                   "I:%d S:%s D:%.1f B:%b",
-                  DEFAULT_MAX_CONNECTIONS,
-                  DEFAULT_URL,
-                  DEFAULT_MAX_CONNECTIONS * 1.5,
-                  DEFAULT_URL.startsWith("jdbc")));
+                  DEFAULT_MAX_CONNECTIONS, DEFAULT_URL, DEFAULT_MAX_CONNECTIONS * 1.5, true));
     }
   }
 

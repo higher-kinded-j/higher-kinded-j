@@ -20,7 +20,6 @@ import org.junit.jupiter.api.Test;
 class ContextKindHelperTest {
 
   private static final ScopedValue<String> STRING_KEY = ScopedValue.newInstance();
-  private static final ScopedValue<Integer> INT_KEY = ScopedValue.newInstance();
 
   @Nested
   @DisplayName("widen() Operation")
@@ -39,6 +38,7 @@ class ContextKindHelperTest {
 
     @Test
     @DisplayName("widen() should throw NullPointerException for null context")
+    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
     void widen_shouldThrowForNullContext() {
       assertThatNullPointerException().isThrownBy(() -> CONTEXT.widen(null));
     }
@@ -122,7 +122,7 @@ class ContextKindHelperTest {
 
     @Test
     @DisplayName("ask() should create Kind with Ask context")
-    void ask_shouldCreateKindWithAskContext() throws Exception {
+    void ask_shouldCreateKindWithAskContext() {
       Kind<ContextKind.Witness<String>, String> kind = CONTEXT.ask(STRING_KEY);
 
       Context<String, String> ctx = CONTEXT.narrow(kind);
@@ -133,13 +133,14 @@ class ContextKindHelperTest {
 
     @Test
     @DisplayName("ask() should throw NullPointerException for null key")
+    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
     void ask_shouldThrowForNullKey() {
       assertThatNullPointerException().isThrownBy(() -> CONTEXT.ask(null));
     }
 
     @Test
     @DisplayName("asks() should create Kind with transformed Ask context")
-    void asks_shouldCreateKindWithTransformedAskContext() throws Exception {
+    void asks_shouldCreateKindWithTransformedAskContext() {
       Kind<ContextKind.Witness<String>, Integer> kind = CONTEXT.asks(STRING_KEY, String::length);
 
       Context<String, Integer> ctx = CONTEXT.narrow(kind);
@@ -150,12 +151,14 @@ class ContextKindHelperTest {
 
     @Test
     @DisplayName("asks() should throw NullPointerException for null key")
+    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
     void asks_shouldThrowForNullKey() {
       assertThatNullPointerException().isThrownBy(() -> CONTEXT.asks(null, String::length));
     }
 
     @Test
     @DisplayName("asks() should throw NullPointerException for null function")
+    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
     void asks_shouldThrowForNullFunction() {
       assertThatNullPointerException().isThrownBy(() -> CONTEXT.asks(STRING_KEY, null));
     }
@@ -195,6 +198,7 @@ class ContextKindHelperTest {
 
     @Test
     @DisplayName("fail() should throw NullPointerException for null error")
+    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
     void fail_shouldThrowForNullError() {
       assertThatNullPointerException().isThrownBy(() -> CONTEXT.fail(null));
     }
@@ -206,7 +210,7 @@ class ContextKindHelperTest {
 
     @Test
     @DisplayName("runContext() should run Context from Kind")
-    void runContext_shouldRunContextFromKind() throws Exception {
+    void runContext_shouldRunContextFromKind() {
       Kind<ContextKind.Witness<String>, String> kind = CONTEXT.ask(STRING_KEY);
 
       String result =
@@ -217,6 +221,7 @@ class ContextKindHelperTest {
 
     @Test
     @DisplayName("runContext() should throw NullPointerException for null kind")
+    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
     void runContext_shouldThrowForNullKind() {
       assertThatNullPointerException().isThrownBy(() -> CONTEXT.runContext(null));
     }
@@ -267,6 +272,7 @@ class ContextKindHelperTest {
 
     @Test
     @DisplayName("ContextHolder should throw for null context")
+    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
     void contextHolder_shouldThrowForNullContext() {
       assertThatThrownBy(() -> new ContextKindHelper.ContextHolder<>(null))
           .isInstanceOf(Exception.class);

@@ -44,6 +44,7 @@ class CompletableFutureKindHelperTest {
     }
 
     @Test
+    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
     void widen_shouldThrowForNullInput() {
       assertThatNullPointerException()
           .isThrownBy(() -> FUTURE.widen(null))
@@ -92,6 +93,7 @@ class CompletableFutureKindHelperTest {
     }
 
     @Test
+    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
     void shouldThrowForHolderWithNullFuture() {
       assertThatThrownBy(() -> new CompletableFutureHolder<>(null))
           .isInstanceOf(NullPointerException.class)
@@ -170,6 +172,7 @@ class CompletableFutureKindHelperTest {
     }
 
     @Test
+    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
     void join_shouldPropagateKindUnwrapExceptionFromFailedUnwrap() {
       assertThatThrownBy(() -> FUTURE.join(null))
           .isInstanceOf(KindUnwrapException.class)

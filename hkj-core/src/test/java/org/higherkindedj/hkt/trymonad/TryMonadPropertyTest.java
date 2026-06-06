@@ -3,11 +3,8 @@
 package org.higherkindedj.hkt.trymonad;
 
 import static org.higherkindedj.hkt.instances.Witnesses.try_;
-import static org.higherkindedj.hkt.trymonad.TryKindHelper.TRY;
 
-import java.util.function.BiPredicate;
 import java.util.function.Function;
-import net.jqwik.api.Arbitraries;
 import net.jqwik.api.Arbitrary;
 import net.jqwik.api.ForAll;
 import net.jqwik.api.Label;
@@ -16,70 +13,84 @@ import net.jqwik.api.Provide;
 import net.jqwik.api.constraints.IntRange;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.MonadError;
-import org.higherkindedj.hkt.assertions.KindEquivalence;
 import org.higherkindedj.hkt.instances.Instances;
+import org.higherkindedj.hkt.laws.FunctorLaws;
 import org.higherkindedj.hkt.laws.MonadLaws;
 
-/** Property-based Monad-law verification for Try, sharing the laws spec with TryMonadTest. */
+/**
+ * Property-based Functor- and Monad-law verification for Try, sharing the laws spec with
+ * TryFunctorTest and TryMonadTest.
+ */
+@SuppressWarnings("unused") // referenced reflectively by jqwik
 class TryMonadPropertyTest {
 
   private final MonadError<TryKind.Witness, Throwable> monad = Instances.monadError(try_());
 
-  private final BiPredicate<Kind<TryKind.Witness, ?>, Kind<TryKind.Witness, ?>> eq =
-      KindEquivalence.byEqualsAfter(TRY::narrow);
-
-  private static final RuntimeException FAIL_A = new IllegalStateException("a");
-  private static final RuntimeException FAIL_B = new ArithmeticException("b");
-
   @Provide
   Arbitrary<Kind<TryKind.Witness, Integer>> tryKinds() {
-    return Arbitraries.integers()
-        .between(-100, 100)
-        .injectNull(0.15)
-        .map(
-            i -> {
-              if (i == null) return TRY.<Integer>widen(Try.failure(FAIL_A));
-              if (i % 5 == 0) return TRY.<Integer>widen(Try.failure(FAIL_B));
-              return TRY.widen(Try.success(i));
-            });
+    return TryArbitraries.tryKinds(100);
+  }
+
+  @Provide
+  Arbitrary<Kind<TryKind.Witness, Integer>> functorTryKinds() {
+    return TryArbitraries.tryKinds(1000);
+  }
+
+  @Provide
+  Arbitrary<Function<Integer, String>> intToString() {
+    return TryArbitraries.intToString();
+  }
+
+  @Provide
+  Arbitrary<Function<String, Integer>> stringToInt() {
+    return TryArbitraries.stringToInt();
   }
 
   @Provide
   Arbitrary<Function<Integer, Kind<TryKind.Witness, String>>> intToTryString() {
-    return Arbitraries.of(
-        i -> TRY.widen(i % 2 == 0 ? Try.success("even:" + i) : Try.<String>failure(FAIL_A)),
-        i -> TRY.widen(i > 0 ? Try.success("positive:" + i) : Try.<String>failure(FAIL_B)),
-        i -> TRY.widen(Try.success("value:" + i)));
+    return TryArbitraries.intToTryString();
   }
 
   @Provide
   Arbitrary<Function<String, Kind<TryKind.Witness, String>>> stringToTryString() {
-    return Arbitraries.of(
-        s -> TRY.widen(s.isEmpty() ? Try.<String>failure(FAIL_A) : Try.success(s.toUpperCase())),
-        s -> TRY.widen(s.length() > 3 ? Try.success("long:" + s) : Try.<String>failure(FAIL_B)),
-        s -> TRY.widen(Try.success("transformed:" + s)));
+    return TryArbitraries.stringToTryString();
   }
 
-  @Property
+  @Property(tries = 50)
+  @Label("Functor identity: map(id, fa) == fa")
+  void functorIdentity(@ForAll("functorTryKinds") Kind<TryKind.Witness, Integer> fa) {
+    FunctorLaws.assertIdentity(monad, fa, TryLawFixtures.EQ);
+  }
+
+  @Property(tries = 50)
+  @Label("Functor composition: map(g∘f, fa) == map(g, map(f, fa))")
+  void functorComposition(
+      @ForAll("functorTryKinds") Kind<TryKind.Witness, Integer> fa,
+      @ForAll("intToString") Function<Integer, String> f,
+      @ForAll("stringToInt") Function<String, Integer> g) {
+    FunctorLaws.assertComposition(monad, fa, f, g, TryLawFixtures.EQ);
+  }
+
+  @Property(tries = 50)
   @Label("Monad left identity: flatMap(f, of(a)) == f(a)")
   void leftIdentity(
       @ForAll @IntRange(min = -50, max = 50) int value,
       @ForAll("intToTryString") Function<Integer, Kind<TryKind.Witness, String>> f) {
-    MonadLaws.assertLeftIdentity(monad, value, f, eq);
+    MonadLaws.assertLeftIdentity(monad, value, f, TryLawFixtures.EQ);
   }
 
-  @Property
+  @Property(tries = 50)
   @Label("Monad right identity: flatMap(of, m) == m")
   void rightIdentity(@ForAll("tryKinds") Kind<TryKind.Witness, Integer> m) {
-    MonadLaws.assertRightIdentity(monad, m, eq);
+    MonadLaws.assertRightIdentity(monad, m, TryLawFixtures.EQ);
   }
 
-  @Property
+  @Property(tries = 50)
   @Label("Monad associativity")
   void associativity(
       @ForAll("tryKinds") Kind<TryKind.Witness, Integer> m,
       @ForAll("intToTryString") Function<Integer, Kind<TryKind.Witness, String>> f,
       @ForAll("stringToTryString") Function<String, Kind<TryKind.Witness, String>> g) {
-    MonadLaws.assertAssociativity(monad, m, f, g, eq);
+    MonadLaws.assertAssociativity(monad, m, f, g, TryLawFixtures.EQ);
   }
 }

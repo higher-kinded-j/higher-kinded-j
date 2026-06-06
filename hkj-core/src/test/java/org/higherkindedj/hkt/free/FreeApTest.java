@@ -29,6 +29,7 @@ class FreeApTest {
 
     @Test
     @DisplayName("Ap rejects null applicative")
+    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
     void apRejectsNullApplicative() {
       assertThatThrownBy(() -> new Free.Ap<>(null)).isInstanceOf(NullPointerException.class);
     }
@@ -56,7 +57,7 @@ class FreeApTest {
       Kind<IdentityKind.Witness, String> result =
           program.foldMap(Natural.identity(), identityMonad);
 
-      assertThat(IDENTITY.<String>narrow(result).value()).isEqualTo("hello");
+      assertThat(IDENTITY.narrow(result).value()).isEqualTo("hello");
     }
 
     @Test
@@ -69,7 +70,7 @@ class FreeApTest {
       Kind<IdentityKind.Witness, Integer> result =
           program.foldMap(Natural.identity(), identityMonad);
 
-      assertThat(IDENTITY.<Integer>narrow(result).value()).isEqualTo(42);
+      assertThat(IDENTITY.narrow(result).value()).isEqualTo(42);
     }
 
     @Test
@@ -87,7 +88,7 @@ class FreeApTest {
       Kind<IdentityKind.Witness, Integer> result =
           program.foldMap(Natural.identity(), identityMonad);
 
-      assertThat(IDENTITY.<Integer>narrow(result).value()).isEqualTo(30);
+      assertThat(IDENTITY.narrow(result).value()).isEqualTo(30);
     }
   }
 
@@ -107,7 +108,7 @@ class FreeApTest {
 
       Kind<IdentityKind.Witness, Integer> result = program.foldMap(transform, identityMonad);
 
-      assertThat(IDENTITY.<Integer>narrow(result).value()).isEqualTo(42);
+      assertThat(IDENTITY.narrow(result).value()).isEqualTo(42);
     }
   }
 
@@ -125,7 +126,7 @@ class FreeApTest {
       Kind<IdentityKind.Witness, Integer> result =
           program.foldMap(Natural.identity(), identityMonad);
 
-      assertThat(IDENTITY.<Integer>narrow(result).value()).isEqualTo(20);
+      assertThat(IDENTITY.narrow(result).value()).isEqualTo(20);
     }
   }
 
@@ -146,7 +147,7 @@ class FreeApTest {
 
       Kind<IdentityKind.Witness, String> result =
           translated.foldMap(Natural.identity(), identityMonad);
-      assertThat(IDENTITY.<String>narrow(result).value()).isEqualTo("hello");
+      assertThat(IDENTITY.narrow(result).value()).isEqualTo("hello");
     }
 
     @Test
@@ -163,7 +164,7 @@ class FreeApTest {
 
       Kind<IdentityKind.Witness, Integer> result =
           translated.foldMap(Natural.identity(), identityMonad);
-      assertThat(IDENTITY.<Integer>narrow(result).value()).isEqualTo(42);
+      assertThat(IDENTITY.narrow(result).value()).isEqualTo(42);
     }
 
     @Test
@@ -180,7 +181,7 @@ class FreeApTest {
 
       Kind<IdentityKind.Witness, Integer> result =
           translated.foldMap(Natural.identity(), identityMonad);
-      assertThat(IDENTITY.<Integer>narrow(result).value()).isEqualTo(30);
+      assertThat(IDENTITY.narrow(result).value()).isEqualTo(30);
     }
   }
 }

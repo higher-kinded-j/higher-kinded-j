@@ -17,6 +17,7 @@ import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Monad;
 import org.higherkindedj.hkt.MonadError;
 import org.higherkindedj.hkt.Monoid;
+import org.higherkindedj.hkt.Monoids;
 import org.higherkindedj.hkt.Unit;
 import org.higherkindedj.hkt.instances.Instances;
 import org.higherkindedj.hkt.optional.OptionalKind;
@@ -215,31 +216,9 @@ class VStreamTypeClassTest {
 
     private final VStreamTraverse foldable = VStreamTraverse.INSTANCE;
 
-    private final Monoid<Integer> sumMonoid =
-        new Monoid<>() {
-          @Override
-          public Integer empty() {
-            return 0;
-          }
+    private final Monoid<Integer> sumMonoid = Monoids.integerAddition();
 
-          @Override
-          public Integer combine(Integer a, Integer b) {
-            return a + b;
-          }
-        };
-
-    private final Monoid<String> stringMonoid =
-        new Monoid<>() {
-          @Override
-          public String empty() {
-            return "";
-          }
-
-          @Override
-          public String combine(String a, String b) {
-            return a + b;
-          }
-        };
+    private final Monoid<String> stringMonoid = Monoids.string();
 
     @Test
     @DisplayName("foldMap with integer sum")
@@ -316,6 +295,7 @@ class VStreamTypeClassTest {
 
     @Test
     @DisplayName("map validates mapper is non-null")
+    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
     void mapValidatesMapperIsNonNull() {
       Kind<VStreamKind.Witness, Integer> stream = VSTREAM.widen(VStream.of(1));
 
@@ -327,6 +307,7 @@ class VStreamTypeClassTest {
 
     @Test
     @DisplayName("map validates Kind is non-null")
+    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
     void mapValidatesKindIsNonNull() {
       assertThatThrownBy(() -> traverse.map(Object::toString, null))
           .isInstanceOf(NullPointerException.class)
@@ -506,6 +487,7 @@ class VStreamTypeClassTest {
 
     @Test
     @DisplayName("orElseAll(null iterable) throws NullPointerException")
+    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
     void orElseAllNullIterableThrows() {
       assertThatNullPointerException()
           .isThrownBy(

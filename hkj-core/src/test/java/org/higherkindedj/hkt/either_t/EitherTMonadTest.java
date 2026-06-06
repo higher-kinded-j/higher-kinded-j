@@ -2,7 +2,6 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.hkt.either_t;
 
-import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.higherkindedj.hkt.assertions.EitherTAssert.assertThatEitherT;
 import static org.higherkindedj.hkt.either_t.EitherTKindHelper.EITHER_T;
@@ -22,11 +21,15 @@ import org.higherkindedj.hkt.laws.ApplicativeLaws;
 import org.higherkindedj.hkt.laws.FunctorLaws;
 import org.higherkindedj.hkt.laws.MonadLaws;
 import org.higherkindedj.hkt.optional.OptionalKind;
+import org.higherkindedj.hkt.test.contract.Category;
+import org.higherkindedj.hkt.test.contract.TypeClassContract;
 import org.higherkindedj.hkt.test.fixtures.TypeClassTestBase;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.MethodSource;
 
 @DisplayName("EitherTMonad Complete Test Suite")
 // (Outer: OptionalKind.Witness, Left: TestError)
@@ -44,14 +47,6 @@ class EitherTMonadTest
   void setUpMonad() {
     outerMonad = Instances.monadError(optional());
     eitherTMonad = Instances.eitherT(outerMonad);
-  }
-
-  private <A> Optional<Either<TestError, A>> unwrapKindToOptionalEither(
-      Kind<EitherTKind.Witness<OptionalKind.Witness, TestError>, A> kind) {
-    if (kind == null) return Optional.empty();
-    var eitherT = EITHER_T.narrow(kind);
-    Kind<OptionalKind.Witness, Either<TestError, A>> outerKind = eitherT.value();
-    return OPTIONAL.narrow(outerKind);
   }
 
   private <A> Optional<Either<TestError, A>> unwrapOuterOptional(
@@ -102,7 +97,7 @@ class EitherTMonadTest
           Kind<EitherTKind.Witness<OptionalKind.Witness, TestError>, ?>,
           Kind<EitherTKind.Witness<OptionalKind.Witness, TestError>, ?>>
       createEqualityChecker() {
-    return (k1, k2) -> unwrapKindToOptionalEither(k1).equals(unwrapKindToOptionalEither(k2));
+    return EitherTLawFixtures.EQ;
   }
 
   @Override
@@ -139,21 +134,27 @@ class EitherTMonadTest
     return s -> rightT(s + "!");
   }
 
-  @Nested
-  @DisplayName("Complete Test Suite")
-  class CompleteTestSuite {
-
-    @Test
-    @DisplayName("Verify all test categories are covered")
-    void verifyCompleteCoverage() {
-      // Just verify that all the other nested test classes exist and have tests
-      assertThat(FunctorOperationTests.class).isNotNull();
-      assertThat(ApplicativeOperationTests.class).isNotNull();
-      assertThat(MonadOperationTests.class).isNotNull();
-      assertThat(MonadErrorOperationTests.class).isNotNull();
-      assertThat(MonadLawTests.class).isNotNull();
-      assertThat(EdgeCaseTests.class).isNotNull();
-    }
+  /**
+   * EitherT over the eager {@code Optional} inner monad <em>propagates</em> a thrown function
+   * exception, so the contract includes {@link Category#EXCEPTIONS}. {@link Category#VALIDATIONS}
+   * is omitted because, like {@code Either}/{@code Try}, {@code EitherTMonad} inherits the default
+   * {@code recoverWith} (no eager null-fallback check); the {@link TestError} Left type and the
+   * MonadError-specific behaviour are exercised by {@link MonadErrorOperationTests}.
+   */
+  @Test
+  @DisplayName(
+      "MonadError contract — operations & exceptions (laws verified in the *LawTests below)")
+  void monadErrorContract() {
+    Function<TestError, Kind<EitherTKind.Witness<OptionalKind.Witness, TestError>, Integer>>
+        validHandler = _ -> rightT(0);
+    Kind<EitherTKind.Witness<OptionalKind.Witness, TestError>, Integer> validFallback = rightT(-1);
+    TypeClassContract.<EitherTKind.Witness<OptionalKind.Witness, TestError>, TestError>monadError(
+            EitherTMonad.class)
+        .<Integer>instance(eitherTMonad)
+        .<String>withKind(validKind)
+        .withMonadOperations(validMapper, validFlatMapper, validFunctionKind)
+        .withErrorHandling(validHandler, validFallback)
+        .verifyOnly(Category.OPERATIONS, Category.EXCEPTIONS);
   }
 
   @Nested
@@ -291,7 +292,7 @@ class EitherTMonadTest
     void ap_FuncRightThrows_ValRight_shouldThrowException() {
       RuntimeException ex = new RuntimeException("Function apply crashed");
       Function<Integer, String> throwingFunc =
-          i -> {
+          _ -> {
             throw ex;
           };
       Kind<EitherTKind.Witness<OptionalKind.Witness, TestError>, Function<Integer, String>> ff =
@@ -341,7 +342,7 @@ class EitherTMonadTest
     void flatMap_initialRight_funcReturnsEmptyOuter() {
       var initialRight = rightT(20);
       Function<Integer, Kind<EitherTKind.Witness<OptionalKind.Witness, TestError>, String>>
-          funcReturnsEmpty = i -> emptyT();
+          funcReturnsEmpty = _ -> emptyT();
 
       var result = eitherTMonad.flatMap(funcReturnsEmpty, initialRight);
 
@@ -355,7 +356,7 @@ class EitherTMonadTest
           leftT("InitialError");
       Function<Integer, Kind<EitherTKind.Witness<OptionalKind.Witness, TestError>, String>>
           funcShouldNotRun =
-              i -> {
+              _ -> {
                 throw new AssertionError("Function should not have been called for Left input");
               };
 
@@ -373,7 +374,7 @@ class EitherTMonadTest
           emptyT();
       Function<Integer, Kind<EitherTKind.Witness<OptionalKind.Witness, TestError>, String>>
           funcShouldNotRun =
-              i -> {
+              _ -> {
                 throw new AssertionError(
                     "Function should not have been called for empty outer input");
               };
@@ -390,7 +391,7 @@ class EitherTMonadTest
       RuntimeException runtimeEx = new RuntimeException("Error in function application!");
       Function<Integer, Kind<EitherTKind.Witness<OptionalKind.Witness, TestError>, String>>
           funcThrows =
-              i -> {
+              _ -> {
                 throw runtimeEx;
               };
 
@@ -443,7 +444,7 @@ class EitherTMonadTest
     @DisplayName("handleErrorWith should ignore Right")
     void handleErrorWith_shouldIgnoreRight() {
       Function<TestError, Kind<EitherTKind.Witness<OptionalKind.Witness, TestError>, Integer>>
-          handler = err -> rightT(-1);
+          handler = _ -> rightT(-1);
 
       var result = eitherTMonad.handleErrorWith(rightVal, handler);
       assertThatEitherT(result, EitherTMonadTest.this::unwrapOuterOptional)
@@ -454,7 +455,7 @@ class EitherTMonadTest
     @DisplayName("handleErrorWith should propagate empty")
     void handleErrorWith_shouldPropagateEmpty() {
       Function<TestError, Kind<EitherTKind.Witness<OptionalKind.Witness, TestError>, Integer>>
-          handler = err -> rightT(-1);
+          handler = _ -> rightT(-1);
 
       var result = eitherTMonad.handleErrorWith(emptyVal, handler);
       assertThatEitherT(result, EitherTMonadTest.this::unwrapOuterOptional).isEmpty();
@@ -465,19 +466,18 @@ class EitherTMonadTest
   @DisplayName("Functor Laws")
   class FunctorLawTests {
 
-    @Test
-    @DisplayName("Identity holds for Right, Left, and empty-outer fixtures")
-    void identity() {
-      FunctorLaws.assertIdentity(eitherTMonad, validKind, equalityChecker);
-      FunctorLaws.assertIdentity(eitherTMonad, leftT("E"), equalityChecker);
-      FunctorLaws.assertIdentity(eitherTMonad, emptyT(), equalityChecker);
+    @ParameterizedTest(name = "identity holds on {0}")
+    @MethodSource("org.higherkindedj.hkt.either_t.EitherTLawFixtures#kinds")
+    void identity(
+        String label, Kind<EitherTKind.Witness<OptionalKind.Witness, TestError>, Integer> fa) {
+      FunctorLaws.assertIdentity(eitherTMonad, fa, equalityChecker);
     }
 
-    @Test
-    @DisplayName("Composition: map(g∘f, fa) == map(g, map(f, fa))")
-    void composition() {
-      FunctorLaws.assertComposition(
-          eitherTMonad, validKind, validMapper, secondMapper, equalityChecker);
+    @ParameterizedTest(name = "composition holds on {0}")
+    @MethodSource("org.higherkindedj.hkt.either_t.EitherTLawFixtures#kinds")
+    void composition(
+        String label, Kind<EitherTKind.Witness<OptionalKind.Witness, TestError>, Integer> fa) {
+      FunctorLaws.assertComposition(eitherTMonad, fa, validMapper, secondMapper, equalityChecker);
     }
   }
 
@@ -485,32 +485,32 @@ class EitherTMonadTest
   @DisplayName("Applicative Laws")
   class ApplicativeLawTests {
 
-    @Test
-    @DisplayName("Identity: ap(of(id), v) == v")
-    void identity() {
-      ApplicativeLaws.assertIdentity(eitherTMonad, validKind, equalityChecker);
+    @ParameterizedTest(name = "identity holds on {0}")
+    @MethodSource("org.higherkindedj.hkt.either_t.EitherTLawFixtures#kinds")
+    void identity(
+        String label, Kind<EitherTKind.Witness<OptionalKind.Witness, TestError>, Integer> v) {
+      ApplicativeLaws.assertIdentity(eitherTMonad, v, equalityChecker);
     }
 
-    @Test
-    @DisplayName("Homomorphism: ap(of(f), of(x)) == of(f(x))")
-    void homomorphism() {
-      ApplicativeLaws.assertHomomorphism(eitherTMonad, testValue, validMapper, equalityChecker);
+    @ParameterizedTest(name = "homomorphism holds on value {0}")
+    @MethodSource("org.higherkindedj.hkt.either_t.EitherTLawFixtures#values")
+    void homomorphism(Integer value) {
+      ApplicativeLaws.assertHomomorphism(eitherTMonad, value, validMapper, equalityChecker);
     }
 
-    @Test
-    @DisplayName("Interchange: ap(u, of(y)) == ap(of(f -> f(y)), u)")
-    void interchange() {
-      ApplicativeLaws.assertInterchange(
-          eitherTMonad, validFunctionKind, testValue, equalityChecker);
+    @ParameterizedTest(name = "interchange holds on value {0}")
+    @MethodSource("org.higherkindedj.hkt.either_t.EitherTLawFixtures#values")
+    void interchange(Integer value) {
+      ApplicativeLaws.assertInterchange(eitherTMonad, validFunctionKind, value, equalityChecker);
     }
 
-    @Test
-    @DisplayName("Composition")
-    void composition() {
+    @ParameterizedTest(name = "composition holds on {0}")
+    @MethodSource("org.higherkindedj.hkt.either_t.EitherTLawFixtures#kinds")
+    void composition(
+        String label, Kind<EitherTKind.Witness<OptionalKind.Witness, TestError>, Integer> w) {
       Kind<EitherTKind.Witness<OptionalKind.Witness, TestError>, Function<String, String>> u =
           rightT(secondMapper);
-      ApplicativeLaws.assertComposition(
-          eitherTMonad, u, validFunctionKind, validKind, equalityChecker);
+      ApplicativeLaws.assertComposition(eitherTMonad, u, validFunctionKind, w, equalityChecker);
     }
   }
 
@@ -518,25 +518,24 @@ class EitherTMonadTest
   @DisplayName("Monad Laws")
   class MonadLawTests {
 
-    @Test
-    @DisplayName("Left Identity: flatMap(of(a), f) == f(a)")
-    void leftIdentity() {
-      MonadLaws.assertLeftIdentity(eitherTMonad, testValue, testFunction, equalityChecker);
+    @ParameterizedTest(name = "left identity holds on value {0}")
+    @MethodSource("org.higherkindedj.hkt.either_t.EitherTLawFixtures#values")
+    void leftIdentity(Integer value) {
+      MonadLaws.assertLeftIdentity(eitherTMonad, value, testFunction, equalityChecker);
     }
 
-    @Test
-    @DisplayName("Right Identity holds for Right, Left, and empty-outer fixtures")
-    void rightIdentity() {
-      MonadLaws.assertRightIdentity(eitherTMonad, validKind, equalityChecker);
-      MonadLaws.assertRightIdentity(eitherTMonad, leftT("E"), equalityChecker);
-      MonadLaws.assertRightIdentity(eitherTMonad, emptyT(), equalityChecker);
+    @ParameterizedTest(name = "right identity holds on {0}")
+    @MethodSource("org.higherkindedj.hkt.either_t.EitherTLawFixtures#kinds")
+    void rightIdentity(
+        String label, Kind<EitherTKind.Witness<OptionalKind.Witness, TestError>, Integer> m) {
+      MonadLaws.assertRightIdentity(eitherTMonad, m, equalityChecker);
     }
 
-    @Test
-    @DisplayName("Associativity: flatMap(g, flatMap(f, m)) == flatMap(a -> flatMap(g, f(a)), m)")
-    void associativity() {
-      MonadLaws.assertAssociativity(
-          eitherTMonad, validKind, testFunction, chainFunction, equalityChecker);
+    @ParameterizedTest(name = "associativity holds on {0}")
+    @MethodSource("org.higherkindedj.hkt.either_t.EitherTLawFixtures#kinds")
+    void associativity(
+        String label, Kind<EitherTKind.Witness<OptionalKind.Witness, TestError>, Integer> m) {
+      MonadLaws.assertAssociativity(eitherTMonad, m, testFunction, chainFunction, equalityChecker);
     }
   }
 
@@ -546,6 +545,7 @@ class EitherTMonadTest
 
     @Test
     @DisplayName("of with null value")
+    @SuppressWarnings("DataFlowIssue") // EitherT holds a null Right payload
     void of_withNullValue() {
       var result = eitherTMonad.of(null);
       assertThatEitherT(result, EitherTMonadTest.this::unwrapOuterOptional)
@@ -555,6 +555,7 @@ class EitherTMonadTest
 
     @Test
     @DisplayName("raiseError with null error")
+    @SuppressWarnings("DataFlowIssue") // EitherT lifts a null error into Left(null)
     void raiseError_withNullError() {
       Kind<EitherTKind.Witness<OptionalKind.Witness, TestError>, Integer> result =
           eitherTMonad.raiseError(null);

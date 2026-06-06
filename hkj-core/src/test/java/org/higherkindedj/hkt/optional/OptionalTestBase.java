@@ -36,7 +36,6 @@ import org.higherkindedj.hkt.test.fixtures.TypeClassTestBase;
  * <ul>
  *   <li>{@link #presentOf(Object)} - Creates an Optional Kind with a value
  *   <li>{@link #emptyOptional()} - Creates an empty Optional Kind
- *   <li>{@link #optionalOf(Object)} - Creates an Optional Kind from potentially null value
  *   <li>{@link #narrowToOptional(Kind)} - Converts a Kind back to an Optional
  * </ul>
  */
@@ -75,20 +74,6 @@ abstract class OptionalTestBase extends TypeClassTestBase<OptionalKind.Witness, 
    */
   protected <A> Kind<OptionalKind.Witness, A> emptyOptional() {
     return OPTIONAL.widen(Optional.empty());
-  }
-
-  /**
-   * Creates an Optional Kind from a potentially null value.
-   *
-   * <p>If the value is null, returns an empty Optional Kind. Otherwise, returns a present Optional
-   * Kind.
-   *
-   * @param <A> The type of the value
-   * @param value The value to wrap (may be null)
-   * @return An Optional Kind that is present if value is non-null, empty otherwise
-   */
-  protected <A> Kind<OptionalKind.Witness, A> optionalOf(A value) {
-    return OPTIONAL.widen(Optional.ofNullable(value));
   }
 
   /**
@@ -162,23 +147,12 @@ abstract class OptionalTestBase extends TypeClassTestBase<OptionalKind.Witness, 
   @Override
   protected BiPredicate<Kind<OptionalKind.Witness, ?>, Kind<OptionalKind.Witness, ?>>
       createEqualityChecker() {
-    return (k1, k2) -> OPTIONAL.narrow(k1).equals(OPTIONAL.narrow(k2));
+    return OptionalLawFixtures.EQ;
   }
 
   // ============================================================================
   // Additional Helper Methods
   // ============================================================================
-
-  /**
-   * Creates an Optional Kind from a standard Java Optional.
-   *
-   * @param <A> The type of value
-   * @param optional The optional to wrap
-   * @return An Optional Kind wrapping the provided optional
-   */
-  protected <A> Kind<OptionalKind.Witness, A> wrapOptional(Optional<A> optional) {
-    return OPTIONAL.widen(optional);
-  }
 
   /**
    * Checks if an Optional Kind is present.

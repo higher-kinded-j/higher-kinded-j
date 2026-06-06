@@ -10,19 +10,19 @@ import static org.higherkindedj.hkt.lazy.LazyKindHelper.*;
 
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Function;
-import java.util.stream.Stream;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Monad;
 import org.higherkindedj.hkt.function.Function3;
 import org.higherkindedj.hkt.function.Function4;
 import org.higherkindedj.hkt.instances.Instances;
 import org.higherkindedj.hkt.laws.MonadLaws;
+import org.higherkindedj.hkt.test.contract.Category;
+import org.higherkindedj.hkt.test.contract.TypeClassContract;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 
 @DisplayName("LazyMonad Complete Test Suite")
@@ -69,33 +69,41 @@ class LazyMonadTest extends LazyTestBase {
   class Laws {
 
     @ParameterizedTest(name = "left identity holds on value {0}")
-    @MethodSource("values")
+    @MethodSource("org.higherkindedj.hkt.lazy.LazyLawFixtures#values")
     void leftIdentity(Integer value) {
       MonadLaws.assertLeftIdentity(lazyMonad, value, testFunction, equalityChecker);
     }
 
     @ParameterizedTest(name = "right identity holds on {0}")
-    @MethodSource("fixtures")
+    @MethodSource("org.higherkindedj.hkt.lazy.LazyLawFixtures#kinds")
     void rightIdentity(String label, Kind<LazyKind.Witness, Integer> ma) {
       MonadLaws.assertRightIdentity(lazyMonad, ma, equalityChecker);
     }
 
     @ParameterizedTest(name = "associativity holds on {0}")
-    @MethodSource("fixtures")
+    @MethodSource("org.higherkindedj.hkt.lazy.LazyLawFixtures#kinds")
     void associativity(String label, Kind<LazyKind.Witness, Integer> ma) {
       MonadLaws.assertAssociativity(lazyMonad, ma, testFunction, chainFunction, equalityChecker);
     }
+  }
 
-    static Stream<Arguments> fixtures() {
-      return Stream.of(
-          Arguments.of("Lazy.defer(0)", LAZY.widen(Lazy.defer(() -> 0))),
-          Arguments.of("Lazy.defer(42)", LAZY.widen(Lazy.defer(() -> 42))),
-          Arguments.of("Lazy.defer(-1)", LAZY.widen(Lazy.defer(() -> -1))));
-    }
-
-    static Stream<Arguments> values() {
-      return Stream.of(Arguments.of(0), Arguments.of(42), Arguments.of(-1));
-    }
+  /**
+   * {@link Category#EXCEPTIONS} is omitted: the generic contract asserts that {@code map}/{@code
+   * flatMap} <em>propagate</em> a thrown function exception immediately, but {@code Lazy} is lazy —
+   * the exception surfaces only when the result is forced. That deferral is exercised throughout
+   * {@link EdgeCasesTests}.
+   */
+  @Test
+  @DisplayName(
+      "Monad contract — operations & validations (laws verified above; Lazy defers exceptions,"
+          + " verified below)")
+  void monadContract() {
+    TypeClassContract.<LazyKind.Witness>monad(LazyMonad.class)
+        .<Integer>instance(lazyMonad)
+        .<String>withKind(validKind)
+        .withMonadOperations(
+            validKind2, validMapper, validFlatMapper, validFunctionKind, validCombiningFunction)
+        .verifyOnly(Category.OPERATIONS, Category.VALIDATIONS);
   }
 
   @Nested
@@ -203,9 +211,7 @@ class LazyMonadTest extends LazyTestBase {
     @Test
     @DisplayName("Deep flatMap chaining")
     void deepFlatMapChaining() throws Throwable {
-      Kind<LazyKind.Witness, Integer> start = nowKind(1);
-
-      Kind<LazyKind.Witness, Integer> result = start;
+      Kind<LazyKind.Witness, Integer> result = nowKind(1);
       for (int i = 0; i < 10; i++) {
         final int increment = i;
         result = lazyMonad.flatMap(x -> lazyMonad.of(x + increment), result);
@@ -223,8 +229,7 @@ class LazyMonadTest extends LazyTestBase {
           lazyMonad.flatMap(
               i ->
                   lazyMonad.map(
-                      str -> str.toUpperCase(),
-                      lazyMonad.map(x -> "value:" + x, lazyMonad.of(i * 2))),
+                      String::toUpperCase, lazyMonad.map(x -> "value:" + x, lazyMonad.of(i * 2))),
               start);
 
       assertThatLazy(narrowToLazy(result)).whenForcedHasValue("VALUE:20");
@@ -232,6 +237,7 @@ class LazyMonadTest extends LazyTestBase {
 
     @Test
     @DisplayName("of() allows null value")
+    @SuppressWarnings("DataFlowIssue") // Lazy may legitimately hold a null value
     void ofAllowsNullValue() throws Throwable {
       Kind<LazyKind.Witness, String> kind = lazyMonad.of(null);
       assertThatLazy(narrowToLazy(kind)).whenForcedHasValue(null);
@@ -268,7 +274,7 @@ class LazyMonadTest extends LazyTestBase {
       Kind<LazyKind.Witness, Integer> initialKind = countingDefer("A", () -> 10);
       Kind<LazyKind.Witness, String> mappedKind =
           lazyMonad.map(
-              i -> {
+              _ -> {
                 counterF.incrementAndGet();
                 throw mapEx;
               },
@@ -331,7 +337,7 @@ class LazyMonadTest extends LazyTestBase {
           countingDefer(
               "A",
               () ->
-                  i -> {
+                  _ -> {
                     counterF.incrementAndGet();
                     throw applyEx;
                   });
@@ -355,7 +361,7 @@ class LazyMonadTest extends LazyTestBase {
                 throw exA;
               });
       Function<Integer, Kind<LazyKind.Witness, String>> f =
-          i -> {
+          _ -> {
             counterF.incrementAndGet();
             return countingDefer("B", () -> "Val");
           };
@@ -373,7 +379,7 @@ class LazyMonadTest extends LazyTestBase {
       RuntimeException fEx = new RuntimeException("FuncApplyFail");
       Kind<LazyKind.Witness, Integer> initialKind = countingDefer("A", () -> 5);
       Function<Integer, Kind<LazyKind.Witness, String>> f =
-          i -> {
+          _ -> {
             counterF.incrementAndGet();
             throw fEx;
           };
@@ -391,7 +397,7 @@ class LazyMonadTest extends LazyTestBase {
       RuntimeException exB = new RuntimeException("FailB");
       Kind<LazyKind.Witness, Integer> initialKind = countingDefer("A", () -> 5);
       Function<Integer, Kind<LazyKind.Witness, String>> f =
-          i -> {
+          _ -> {
             counterF.incrementAndGet();
             return countingDefer(
                 "B",
@@ -499,7 +505,7 @@ class LazyMonadTest extends LazyTestBase {
               () -> {
                 throw ex;
               });
-      Function3<Integer, String, Double, String> f3 = (i, s, d) -> "Won't run";
+      Function3<Integer, String, Double, String> f3 = (_, _, _) -> "Won't run";
 
       Kind<LazyKind.Witness, String> result = lazyMonad.map3(lz1, lzFail, lz3, f3);
       assertThat(counterA.get()).isZero();

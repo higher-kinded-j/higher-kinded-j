@@ -41,6 +41,7 @@ class ListKindHelperTest {
     }
 
     @Test
+    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
     void widen_shouldThrowForNullInput() {
       assertThatThrownBy(() -> LIST.widen(null))
           .isInstanceOf(NullPointerException.class)
@@ -91,6 +92,7 @@ class ListKindHelperTest {
     }
 
     @Test
+    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
     void unwrapOr_shouldThrowNPEWhenDefaultIsNull() {
       List<String> list = Arrays.asList("a", "b");
       Kind<ListKind.Witness, String> kind = LIST.widen(list);

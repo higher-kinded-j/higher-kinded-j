@@ -10,6 +10,7 @@ import java.util.function.Function;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.test.fixtures.TestFunctions;
 import org.higherkindedj.hkt.test.fixtures.TypeClassTestBase;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Base class for Id type class tests.
@@ -86,7 +87,7 @@ abstract class IdTestBase extends TypeClassTestBase<IdKind.Witness, Integer, Str
    * @param kind The Kind to extract from
    * @return The value contained in the Id
    */
-  protected <A> A extractValue(Kind<IdKind.Witness, A> kind) {
+  protected <A> @Nullable A extractValue(Kind<IdKind.Witness, A> kind) {
     return ID.narrow(kind).value();
   }
 
@@ -146,7 +147,7 @@ abstract class IdTestBase extends TypeClassTestBase<IdKind.Witness, Integer, Str
 
   @Override
   protected BiPredicate<Kind<IdKind.Witness, ?>, Kind<IdKind.Witness, ?>> createEqualityChecker() {
-    return (k1, k2) -> ID.narrow(k1).equals(ID.narrow(k2));
+    return IdLawFixtures.EQ;
   }
 
   // ============================================================================

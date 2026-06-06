@@ -40,7 +40,7 @@ class StreamOpsTest extends StreamTestBase {
     @Test
     @DisplayName("fromIterable() works with empty iterable")
     void fromIterableWorksWithEmptyIterable() {
-      List<String> empty = Arrays.asList();
+      List<String> empty = List.of();
       var stream = fromIterable(empty);
 
       assertThatStream(stream).isEmpty();
@@ -48,6 +48,7 @@ class StreamOpsTest extends StreamTestBase {
 
     @Test
     @DisplayName("fromIterable() throws for null")
+    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
     void fromIterableThrowsForNull() {
       assertThatThrownBy(() -> fromIterable(null)).isInstanceOf(NullPointerException.class);
     }
@@ -70,6 +71,7 @@ class StreamOpsTest extends StreamTestBase {
 
     @Test
     @DisplayName("fromArray() throws for null array")
+    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
     void fromArrayThrowsForNull() {
       assertThatThrownBy(() -> fromArray((Integer[]) null))
           .isInstanceOf(NullPointerException.class);
@@ -132,6 +134,7 @@ class StreamOpsTest extends StreamTestBase {
 
     @Test
     @DisplayName("toList() throws for null")
+    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
     void toListThrowsForNull() {
       assertThatThrownBy(() -> toList(null)).isInstanceOf(NullPointerException.class);
     }
@@ -156,6 +159,7 @@ class StreamOpsTest extends StreamTestBase {
 
     @Test
     @DisplayName("toSet() throws for null")
+    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
     void toSetThrowsForNull() {
       assertThatThrownBy(() -> toSet(null)).isInstanceOf(NullPointerException.class);
     }
@@ -187,14 +191,16 @@ class StreamOpsTest extends StreamTestBase {
     }
 
     @Test
+    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
     void filter_shouldThrowForNullPredicate() {
       Kind<StreamKind.Witness, Integer> stream = range(1, 5);
       assertThatThrownBy(() -> filter(null, stream)).isInstanceOf(NullPointerException.class);
     }
 
     @Test
+    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
     void filter_shouldThrowForNullStream() {
-      assertThatThrownBy(() -> filter(n -> true, null)).isInstanceOf(NullPointerException.class);
+      assertThatThrownBy(() -> filter(_ -> true, null)).isInstanceOf(NullPointerException.class);
     }
 
     @Test
@@ -225,6 +231,7 @@ class StreamOpsTest extends StreamTestBase {
     }
 
     @Test
+    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
     void take_shouldThrowForNullStream() {
       assertThatThrownBy(() -> take(5, null)).isInstanceOf(NullPointerException.class);
     }
@@ -257,6 +264,7 @@ class StreamOpsTest extends StreamTestBase {
     }
 
     @Test
+    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
     void drop_shouldThrowForNullStream() {
       assertThatThrownBy(() -> drop(5, null)).isInstanceOf(NullPointerException.class);
     }
@@ -290,12 +298,14 @@ class StreamOpsTest extends StreamTestBase {
     }
 
     @Test
+    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
     void concat_shouldThrowForNullFirstStream() {
       Kind<StreamKind.Witness, Integer> stream = range(1, 3);
       assertThatThrownBy(() -> concat(null, stream)).isInstanceOf(NullPointerException.class);
     }
 
     @Test
+    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
     void concat_shouldThrowForNullSecondStream() {
       Kind<StreamKind.Witness, Integer> stream = range(1, 3);
       assertThatThrownBy(() -> concat(stream, null)).isInstanceOf(NullPointerException.class);
@@ -352,20 +362,23 @@ class StreamOpsTest extends StreamTestBase {
     }
 
     @Test
+    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
     void zip_shouldThrowForNullFirstStream() {
       Kind<StreamKind.Witness, Integer> stream = range(1, 3);
-      assertThatThrownBy(() -> zip(null, stream, (Integer a, Integer b) -> a + b))
+      assertThatThrownBy(() -> zip(null, stream, Integer::sum))
           .isInstanceOf(NullPointerException.class);
     }
 
     @Test
+    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
     void zip_shouldThrowForNullSecondStream() {
       Kind<StreamKind.Witness, Integer> stream = range(1, 3);
-      assertThatThrownBy(() -> zip(stream, null, (Integer a, Integer b) -> a + b))
+      assertThatThrownBy(() -> zip(stream, null, Integer::sum))
           .isInstanceOf(NullPointerException.class);
     }
 
     @Test
+    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
     void zip_shouldThrowForNullCombiner() {
       Kind<StreamKind.Witness, Integer> stream1 = range(1, 3);
       Kind<StreamKind.Witness, Integer> stream2 = range(1, 3);
@@ -397,6 +410,7 @@ class StreamOpsTest extends StreamTestBase {
     }
 
     @Test
+    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
     void zipWithIndex_shouldThrowForNullStream() {
       assertThatThrownBy(() -> zipWithIndex(null)).isInstanceOf(NullPointerException.class);
     }
@@ -439,14 +453,16 @@ class StreamOpsTest extends StreamTestBase {
     }
 
     @Test
+    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
     void tap_shouldThrowForNullConsumer() {
       Kind<StreamKind.Witness, Integer> stream = range(1, 3);
       assertThatThrownBy(() -> tap(null, stream)).isInstanceOf(NullPointerException.class);
     }
 
     @Test
+    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
     void tap_shouldThrowForNullStream() {
-      assertThatThrownBy(() -> tap(x -> {}, null)).isInstanceOf(NullPointerException.class);
+      assertThatThrownBy(() -> tap(_ -> {}, null)).isInstanceOf(NullPointerException.class);
     }
 
     @Test
@@ -464,7 +480,7 @@ class StreamOpsTest extends StreamTestBase {
       Stream<Integer> original = Stream.of(1, 2, 3);
       Kind<StreamKind.Witness, Integer> stream = STREAM.widen(original);
 
-      forEach(x -> {}, stream);
+      forEach(_ -> {}, stream);
 
       // Attempting to use original stream would throw IllegalStateException
       // This documents the consumption behavior
@@ -481,14 +497,16 @@ class StreamOpsTest extends StreamTestBase {
     }
 
     @Test
+    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
     void forEach_shouldThrowForNullConsumer() {
       Kind<StreamKind.Witness, Integer> stream = range(1, 3);
       assertThatThrownBy(() -> forEach(null, stream)).isInstanceOf(NullPointerException.class);
     }
 
     @Test
+    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
     void forEach_shouldThrowForNullStream() {
-      assertThatThrownBy(() -> forEach(x -> {}, null)).isInstanceOf(NullPointerException.class);
+      assertThatThrownBy(() -> forEach(_ -> {}, null)).isInstanceOf(NullPointerException.class);
     }
   }
 
@@ -535,7 +553,7 @@ class StreamOpsTest extends StreamTestBase {
 
       Kind<StreamKind.Witness, Integer> pipeline =
           tap(
-              n -> debugLog.add(n),
+              debugLog::add,
               Instances.monadZero(stream()).map(n -> n * n, filter(n -> n > 2, range(1, 6))));
 
       List<Integer> result = toList(pipeline);

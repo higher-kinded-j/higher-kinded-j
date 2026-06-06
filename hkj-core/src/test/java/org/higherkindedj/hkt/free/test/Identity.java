@@ -2,7 +2,6 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.hkt.free.test;
 
-import java.util.Objects;
 import java.util.function.Function;
 
 /**
@@ -14,10 +13,6 @@ import java.util.function.Function;
  * @param <A> The wrapped value type
  */
 public record Identity<A>(A value) {
-
-  public Identity {
-    // Validation in compact constructor
-  }
 
   /**
    * Maps a function over the wrapped value.
@@ -39,17 +34,5 @@ public record Identity<A>(A value) {
    */
   public <B> Identity<B> flatMap(Function<? super A, Identity<B>> f) {
     return f.apply(value);
-  }
-
-  @Override
-  public boolean equals(Object obj) {
-    if (this == obj) return true;
-    if (!(obj instanceof Identity<?> other)) return false;
-    return Objects.equals(value, other.value);
-  }
-
-  @Override
-  public int hashCode() {
-    return Objects.hash(value);
   }
 }

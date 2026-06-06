@@ -4,17 +4,14 @@ package org.higherkindedj.hkt.writer;
 
 import static org.assertj.core.api.Assertions.*;
 import static org.higherkindedj.hkt.assertions.WriterAssert.assertThatWriter;
-import static org.higherkindedj.hkt.instances.Witnesses.*;
 import static org.higherkindedj.hkt.test.api.KindHelperTests.writerKindHelper;
 
 import java.time.Instant;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Kind2;
 import org.higherkindedj.hkt.Monad;
-import org.higherkindedj.hkt.Monoid;
 import org.higherkindedj.hkt.Unit;
 import org.higherkindedj.hkt.exception.KindUnwrapException;
 import org.higherkindedj.hkt.instances.Instances;
@@ -147,21 +144,6 @@ class WriterKindHelperTest extends WriterTestBase {
     void testComplexLogTypes() {
       record LogEntry(String message, Instant timestamp) {}
 
-      Monoid<List<LogEntry>> listMonoid =
-          new Monoid<>() {
-            @Override
-            public List<LogEntry> empty() {
-              return List.of();
-            }
-
-            @Override
-            public List<LogEntry> combine(List<LogEntry> a, List<LogEntry> b) {
-              var result = new ArrayList<>(a);
-              result.addAll(b);
-              return result;
-            }
-          };
-
       LogEntry entry = new LogEntry("Test", Instant.now());
       Writer<List<LogEntry>, Integer> complexWriter = new Writer<>(List.of(entry), 42);
 
@@ -232,7 +214,7 @@ class WriterKindHelperTest extends WriterTestBase {
               Writer.<String, Object>value(STRING_MONOID, List.of(1, 2, 3)),
               writerOf("Log;", Map.of("key", "value")),
               tellWriter("Tell message"),
-              Writer.<String, Object>value(STRING_MONOID, null),
+              Writer.value(STRING_MONOID, null),
               writerOf("", "empty log"));
 
       for (Writer<String, ?> instance : complexInstances) {
@@ -358,38 +340,6 @@ class WriterKindHelperTest extends WriterTestBase {
     }
 
     @Test
-    @DisplayName("exec() works with complex log types")
-    void execWorksWithComplexLogTypes() {
-      record LogEntry(String message, int level) {}
-
-      Monoid<List<LogEntry>> listMonoid =
-          new Monoid<>() {
-            @Override
-            public List<LogEntry> empty() {
-              return List.of();
-            }
-
-            @Override
-            public List<LogEntry> combine(List<LogEntry> a, List<LogEntry> b) {
-              var result = new ArrayList<>(a);
-              result.addAll(b);
-              return result;
-            }
-          };
-
-      List<LogEntry> log = List.of(new LogEntry("Error", 1), new LogEntry("Warning", 2));
-      Writer<List<LogEntry>, Integer> writer = new Writer<>(log, 42);
-      Kind<WriterKind.Witness<List<LogEntry>>, Integer> kind =
-          WriterKindHelper.WRITER.widen(writer);
-
-      List<LogEntry> result = WriterKindHelper.WRITER.exec(kind);
-
-      assertThat(result).hasSize(2);
-      assertThat(result.get(0).message()).isEqualTo("Error");
-      assertThat(result.get(1).message()).isEqualTo("Warning");
-    }
-
-    @Test
     @DisplayName("runWriter() returns complete Writer record")
     void runWriterReturnsCompleteWriterRecord() {
       Writer<String, Integer> original = writerOf("TestLog;", 42);
@@ -449,21 +399,6 @@ class WriterKindHelperTest extends WriterTestBase {
       assertThat(valueViaRun).isEqualTo(writerViaRunWriter.value());
       assertThat(logViaExec).isEqualTo(writerViaRunWriter.log());
       assertThat(writerViaRunWriter).isEqualTo(writer);
-    }
-
-    @Test
-    @DisplayName("Runner methods maintain type safety")
-    void runnerMethodsMaintainTypeSafety() {
-      Writer<String, Number> numberWriter = valueWriter((Number) 42);
-      Kind<WriterKind.Witness<String>, Number> kind = WRITER.widen(numberWriter);
-
-      Number value = WRITER.run(kind);
-      String log = WRITER.exec(kind);
-      Writer<String, Number> complete = WRITER.runWriter(kind);
-
-      assertThat(value).isInstanceOf(Number.class);
-      assertThat(log).isInstanceOf(String.class);
-      assertThatWriter(complete).hasValue(42);
     }
   }
 
@@ -530,9 +465,7 @@ class WriterKindHelperTest extends WriterTestBase {
     void runnerMethodsWorkWithDeepOperationChains() {
       Monad<WriterKind.Witness<String>> monad = Instances.writer(STRING_MONOID);
 
-      Kind<WriterKind.Witness<String>, Integer> start = monad.of(1);
-
-      Kind<WriterKind.Witness<String>, Integer> result = start;
+      Kind<WriterKind.Witness<String>, Integer> result = monad.of(1);
       for (int i = 0; i < 5; i++) {
         final int step = i;
         result = monad.flatMap(x -> WRITER.widen(writerOf("Step" + step + ";", x + step)), result);
@@ -613,6 +546,7 @@ class WriterKindHelperTest extends WriterTestBase {
 
     @Test
     @DisplayName("narrow2() throws KindUnwrapException when Kind2 is null")
+    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
     void narrow2ThrowsWhenKind2Null() {
       assertThatThrownBy(() -> WRITER.narrow2(null))
           .isInstanceOf(KindUnwrapException.class)
@@ -623,8 +557,7 @@ class WriterKindHelperTest extends WriterTestBase {
     @DisplayName("narrow2() throws KindUnwrapException for wrong Kind2 type")
     void narrow2ThrowsWhenWrongKind2Type() {
       // Create a Kind2 that is NOT a WriterKind2Holder
-      Kind2<WriterKind2.Witness, String, Integer> wrongKind =
-          new Kind2<WriterKind2.Witness, String, Integer>() {};
+      Kind2<WriterKind2.Witness, String, Integer> wrongKind = new Kind2<>() {};
 
       assertThatThrownBy(() -> WRITER.narrow2(wrongKind))
           .isInstanceOf(KindUnwrapException.class)
@@ -664,18 +597,6 @@ class WriterKindHelperTest extends WriterTestBase {
 
       assertThat(result).isEqualTo(original);
       assertThatWriter(result).hasLog("NullVal;").hasNullValue();
-    }
-
-    @Test
-    @DisplayName("narrow2() preserves null value with empty log")
-    void narrow2PreservesNullValueWithEmptyLog() {
-      Writer<String, Integer> original = valueWriter(null);
-      Kind2<WriterKind2.Witness, String, Integer> kind2 = WRITER.widen2(original);
-
-      Writer<String, Integer> result = WRITER.narrow2(kind2);
-
-      assertThat(result).isEqualTo(original);
-      assertThatWriter(result).hasEmptyLog().hasNullValue();
     }
 
     @Test
@@ -735,37 +656,6 @@ class WriterKindHelperTest extends WriterTestBase {
       assertThat(result2).isEqualTo(original);
       assertThat(result3).isEqualTo(original);
       assertThat(result1).isEqualTo(result2).isEqualTo(result3);
-    }
-
-    @Test
-    @DisplayName("narrow2() error message includes actual type received")
-    void narrow2ErrorMessageIncludesActualType() {
-      Kind2<WriterKind2.Witness, String, Integer> wrongKind =
-          new Kind2<WriterKind2.Witness, String, Integer>() {};
-
-      assertThatThrownBy(() -> WRITER.narrow2(wrongKind))
-          .isInstanceOf(KindUnwrapException.class)
-          .hasMessageContaining("Kind2 instance cannot be narrowed to Writer")
-          .hasMessageContaining("received:");
-    }
-
-    @Test
-    @DisplayName("narrow2() works with complex log types")
-    void narrow2WorksWithComplexLogTypes() {
-      record LogEntry(String message, int level) {}
-
-      List<LogEntry> log = List.of(new LogEntry("Error", 1), new LogEntry("Warning", 2));
-      Writer<List<LogEntry>, Integer> original = new Writer<>(log, 42);
-      Kind2<WriterKind2.Witness, List<LogEntry>, Integer> kind2 =
-          WriterKindHelper.WRITER.widen2(original);
-
-      Writer<List<LogEntry>, Integer> result = WriterKindHelper.WRITER.narrow2(kind2);
-
-      assertThat(result).isEqualTo(original);
-      assertThat(result.log()).hasSize(2);
-      assertThat(result.log().get(0).message()).isEqualTo("Error");
-      assertThat(result.log().get(1).message()).isEqualTo("Warning");
-      assertThat(result.value()).isEqualTo(42);
     }
   }
 }

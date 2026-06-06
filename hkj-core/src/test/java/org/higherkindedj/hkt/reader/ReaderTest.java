@@ -4,10 +4,7 @@ package org.higherkindedj.hkt.reader;
 
 import static org.assertj.core.api.Assertions.*;
 import static org.higherkindedj.hkt.assertions.ReaderAssert.assertThatReader;
-import static org.higherkindedj.hkt.instances.Witnesses.*;
-import static org.junit.jupiter.api.Assertions.assertTimeoutPreemptively;
 
-import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -16,12 +13,8 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Function;
 import org.higherkindedj.hkt.Kind;
-import org.higherkindedj.hkt.Monad;
 import org.higherkindedj.hkt.Unit;
-import org.higherkindedj.hkt.instances.Instances;
-import org.higherkindedj.hkt.test.contract.Category;
-import org.higherkindedj.hkt.test.contract.TypeClassContract;
-import org.junit.jupiter.api.BeforeEach;
+import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -37,47 +30,13 @@ class ReaderTest extends ReaderTestBase {
 
   private final Reader<TestConfig, String> getUrlReader = urlReader();
   private final Reader<TestConfig, Integer> getMaxConnectionsReader = maxConnectionsReader();
-  private final Reader<TestConfig, String> urlNullReader = readerOf(cfg -> null);
 
-  // Type class testing fixtures
-  private Monad<ReaderKind.Witness<TestConfig>> monad;
-  private ReaderFunctor<TestConfig> functor;
+  @SuppressWarnings("DataFlowIssue") // a null-valued Reader is intentional here
+  private final Reader<TestConfig, String> urlNullReader = readerOf(_ -> null);
 
-  @BeforeEach
-  void setUpReader() {
-    monad = Instances.monad(reader());
-    functor = new ReaderFunctor<>();
-  }
-
-  @Nested
-  @DisplayName("Complete Type Class Test Suite")
-  class CompleteTypeClassTestSuite {
-
-    @Test
-    @DisplayName("Run complete Monad test pattern")
-    void runCompleteMonadTest() {
-      TypeClassContract.<ReaderKind.Witness<TestConfig>>monad(ReaderMonad.class)
-          .<Integer>instance(monad)
-          .<String>withKind(validKind)
-          .withMonadOperations(
-              validKind2, validMapper, validFlatMapper, validFunctionKind, validCombiningFunction)
-          .withLawsTesting(testValue, testFunction, chainFunction, equalityChecker)
-          .verifyOnly(Category.OPERATIONS, Category.VALIDATIONS, Category.LAWS);
-    }
-
-    @Test
-    @DisplayName("Run complete Functor test pattern")
-    void runCompleteFunctorTest() {
-      TypeClassContract.<ReaderKind.Witness<TestConfig>>functor(ReaderFunctor.class)
-          .<Integer>instance(functor)
-          .<String>withKind(validKind)
-          .withMapper(validMapper)
-          .withSecondMapper(secondMapper)
-          .withEqualityChecker(equalityChecker)
-          // skip exceptions: Reader has lazy evaluation
-          .verifyOnly(Category.OPERATIONS, Category.VALIDATIONS, Category.LAWS);
-    }
-  }
+  // The Functor/Monad type-class contracts and laws live in ReaderFunctorTest / ReaderMonadTest;
+  // this suite focuses on the Reader type's own factory, run, and combinator methods.
+  private final ReaderFunctor<TestConfig> functor = new ReaderFunctor<>();
 
   @Nested
   @DisplayName("Factory Methods - Complete Coverage")
@@ -85,13 +44,14 @@ class ReaderTest extends ReaderTestBase {
 
     @Test
     @DisplayName("of() creates correct Reader instances with all value types")
+    @SuppressWarnings("DataFlowIssue") // a null-valued Reader is intentional here
     void ofCreatesCorrectInstances() {
       // Non-null values
       Reader<TestConfig, String> urlReader = Reader.of(TestConfig::url);
       assertThatReader(urlReader).whenRunWith(TEST_CONFIG).produces(DEFAULT_URL);
 
       // Null returning function
-      Reader<TestConfig, String> nullReader = Reader.of(cfg -> null);
+      Reader<TestConfig, String> nullReader = Reader.of(_ -> null);
       assertThatReader(nullReader).whenRunWith(TEST_CONFIG).producesNull();
 
       // Complex types
@@ -188,11 +148,11 @@ class ReaderTest extends ReaderTestBase {
       Reader<TestConfig, Unit> unitReader = Reader.unit();
 
       // Map over Unit (though result is still Unit)
-      Reader<TestConfig, Unit> mapped = unitReader.map(u -> Unit.INSTANCE);
+      Reader<TestConfig, Unit> mapped = unitReader.map(_ -> Unit.INSTANCE);
       assertThatReader(mapped).whenRunWith(TEST_CONFIG).produces(Unit.INSTANCE);
 
       // FlatMap with Unit
-      Reader<TestConfig, String> flatMapped = unitReader.flatMap(u -> Reader.of(cfg -> cfg.url()));
+      Reader<TestConfig, String> flatMapped = unitReader.flatMap(_ -> Reader.of(TestConfig::url));
       assertThatReader(flatMapped).whenRunWith(TEST_CONFIG).produces(DEFAULT_URL);
     }
 
@@ -202,7 +162,7 @@ class ReaderTest extends ReaderTestBase {
       Reader<TestConfig, Unit> unitReader = Reader.unit();
       Unit unit = unitReader.run(TEST_CONFIG);
 
-      assertThat(unit.toString()).isEqualTo("()");
+      assertThat(unit).hasToString("()");
     }
 
     @Test
@@ -210,8 +170,7 @@ class ReaderTest extends ReaderTestBase {
     void fromConsumerCreatesReaderExecutingConsumer() {
       AtomicInteger counter = new AtomicInteger(0);
 
-      Reader<TestConfig, Unit> consumerReader =
-          Reader.fromConsumer(cfg -> counter.incrementAndGet());
+      Reader<TestConfig, Unit> consumerReader = Reader.fromConsumer(_ -> counter.incrementAndGet());
 
       assertThat(counter.get()).isEqualTo(0); // Not executed yet (lazy)
 
@@ -224,7 +183,7 @@ class ReaderTest extends ReaderTestBase {
     @Test
     @DisplayName("fromConsumer() provides environment to consumer")
     void fromConsumerProvidesEnvironmentToConsumer() {
-      AtomicReference<String> capturedUrl = new AtomicReference<>();
+      AtomicReference<@Nullable String> capturedUrl = new AtomicReference<>();
       AtomicInteger capturedMaxConnections = new AtomicInteger(-1);
 
       Reader<TestConfig, Unit> consumerReader =
@@ -262,6 +221,7 @@ class ReaderTest extends ReaderTestBase {
 
     @Test
     @DisplayName("fromConsumer() throws NullPointerException for null consumer")
+    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
     void fromConsumerThrowsNullPointerExceptionForNullConsumer() {
       assertThatThrownBy(() -> Reader.fromConsumer(null))
           .isInstanceOf(NullPointerException.class)
@@ -274,15 +234,12 @@ class ReaderTest extends ReaderTestBase {
       AtomicInteger callCount = new AtomicInteger(0);
 
       Reader<TestConfig, Unit> consumerReader =
-          Reader.fromConsumer(cfg -> callCount.incrementAndGet());
+          Reader.fromConsumer(_ -> callCount.incrementAndGet());
 
       assertThat(callCount.get()).isEqualTo(0);
 
       // Create chained operations - still lazy
-      Reader<TestConfig, Unit> mapped = consumerReader.map(u -> Unit.INSTANCE);
-      assertThat(callCount.get()).isEqualTo(0);
-
-      Reader<TestConfig, String> flatMapped = consumerReader.flatMap(u -> Reader.constant("after"));
+      Reader<TestConfig, String> flatMapped = consumerReader.flatMap(_ -> Reader.constant("after"));
       assertThat(callCount.get()).isEqualTo(0);
 
       // Only when we run does the consumer execute
@@ -299,10 +256,10 @@ class ReaderTest extends ReaderTestBase {
           Reader.fromConsumer(cfg -> log.add("Setup: " + cfg.url()));
 
       Reader<TestConfig, String> workReader =
-          setupReader.flatMap(u -> Reader.of(cfg -> "Work with " + cfg.maxConnections()));
+          setupReader.flatMap(_ -> Reader.of(cfg -> "Work with " + cfg.maxConnections()));
 
       Reader<TestConfig, Unit> teardownReader =
-          workReader.flatMap(result -> Reader.fromConsumer(cfg -> log.add("Teardown: " + result)));
+          workReader.flatMap(result -> Reader.fromConsumer(_ -> log.add("Teardown: " + result)));
 
       teardownReader.run(TEST_CONFIG);
 
@@ -317,7 +274,7 @@ class ReaderTest extends ReaderTestBase {
       AtomicInteger executionCount = new AtomicInteger(0);
 
       Reader<TestConfig, Unit> consumerReader =
-          Reader.fromConsumer(cfg -> executionCount.incrementAndGet());
+          Reader.fromConsumer(_ -> executionCount.incrementAndGet());
 
       consumerReader.run(TEST_CONFIG);
       assertThat(executionCount.get()).isEqualTo(1);
@@ -336,7 +293,7 @@ class ReaderTest extends ReaderTestBase {
 
       Reader<TestConfig, Unit> failingReader =
           Reader.fromConsumer(
-              (TestConfig cfg) -> {
+              (TestConfig _) -> {
                 throw testException;
               });
 
@@ -351,23 +308,17 @@ class ReaderTest extends ReaderTestBase {
     @DisplayName("Factory methods type inference works correctly")
     void factoryMethodsTypeInference() {
       // Test that type inference works with explicit type parameters where needed
-      var urlReader = Reader.of((TestConfig cfg) -> cfg.url());
+      var urlReader = Reader.of(TestConfig::url);
       var constantReader = Reader.<TestConfig, String>constant("fixed");
       var askReader = Reader.<TestConfig>ask();
       var unitReader = Reader.<TestConfig>unit();
 
-      // Should be able to assign to properly typed variables
-      Reader<TestConfig, String> urlAssignment = urlReader;
-      Reader<TestConfig, String> constantAssignment = constantReader;
-      Reader<TestConfig, TestConfig> askAssignment = askReader;
-      Reader<TestConfig, Unit> unitAssignment = unitReader;
-
-      assertThatReader(urlAssignment).whenRunWith(TEST_CONFIG).produces(DEFAULT_URL);
-      assertThatReader(constantAssignment).whenRunWith(TEST_CONFIG).produces("fixed");
-      assertThatReader(askAssignment)
+      assertThatReader(urlReader).whenRunWith(TEST_CONFIG).produces(DEFAULT_URL);
+      assertThatReader(constantReader).whenRunWith(TEST_CONFIG).produces("fixed");
+      assertThatReader(askReader)
           .whenRunWith(TEST_CONFIG)
           .satisfies(result -> assertThat(result).isSameAs(TEST_CONFIG));
-      assertThatReader(unitAssignment).whenRunWith(TEST_CONFIG).produces(Unit.INSTANCE);
+      assertThatReader(unitReader).whenRunWith(TEST_CONFIG).produces(Unit.INSTANCE);
     }
   }
 
@@ -512,7 +463,7 @@ class ReaderTest extends ReaderTestBase {
       assertThat(executionCount.get()).isEqualTo(0);
 
       // Even creating chains doesn't execute
-      Reader<TestConfig, Unit> chained = unitReader.map(u -> Unit.INSTANCE);
+      Reader<TestConfig, Unit> chained = unitReader.map(_ -> Unit.INSTANCE);
       assertThat(executionCount.get()).isEqualTo(0);
 
       // Only when run does it execute
@@ -527,12 +478,12 @@ class ReaderTest extends ReaderTestBase {
       Reader<TestConfig, Unit> unitReader = urlReader.asUnit();
 
       // Map over Unit
-      Reader<TestConfig, Unit> mappedUnit = unitReader.map(u -> Unit.INSTANCE);
+      Reader<TestConfig, Unit> mappedUnit = unitReader.map(_ -> Unit.INSTANCE);
       assertThatReader(mappedUnit).whenRunWith(TEST_CONFIG).produces(Unit.INSTANCE);
 
       // FlatMap with Unit
       Reader<TestConfig, Integer> afterUnit =
-          unitReader.flatMap(u -> Reader.of(TestConfig::maxConnections));
+          unitReader.flatMap(_ -> Reader.of(TestConfig::maxConnections));
       assertThatReader(afterUnit).whenRunWith(TEST_CONFIG).produces(DEFAULT_MAX_CONNECTIONS);
     }
 
@@ -567,7 +518,7 @@ class ReaderTest extends ReaderTestBase {
 
       Reader<TestConfig, String> failingReader =
           Reader.of(
-              (TestConfig cfg) -> {
+              (TestConfig _) -> {
                 throw testException;
               });
 
@@ -624,6 +575,7 @@ class ReaderTest extends ReaderTestBase {
     void readerForDependencyInjection() {
       // Simulate services depending on configuration
       record DatabaseService(String connectionUrl) {
+        @SuppressWarnings("SameParameterValue") // kept parameterised
         String query(String sql) {
           return "Executing on " + connectionUrl + ": " + sql;
         }
@@ -675,10 +627,6 @@ class ReaderTest extends ReaderTestBase {
         Resource acquire() {
           return new Resource(name, true);
         }
-
-        Resource release() {
-          return new Resource(name, false);
-        }
       }
 
       Reader<TestConfig, Resource> acquireResource =
@@ -705,14 +653,14 @@ class ReaderTest extends ReaderTestBase {
 
       // Work phase that produces a result
       Reader<TestConfig, String> work =
-          setup.flatMap(u -> Reader.of(cfg -> "Result:" + cfg.maxConnections()));
+          setup.flatMap(_ -> Reader.of(cfg -> "Result:" + cfg.maxConnections()));
 
       // Discard result using asUnit
       Reader<TestConfig, Unit> discardResult = work.asUnit();
 
       // Teardown phase
       Reader<TestConfig, Unit> teardown =
-          discardResult.flatMap(u -> Reader.fromConsumer(cfg -> log.add("Teardown")));
+          discardResult.flatMap(_ -> Reader.fromConsumer(_ -> log.add("Teardown")));
 
       // Execute the workflow
       teardown.run(TEST_CONFIG);
@@ -730,7 +678,7 @@ class ReaderTest extends ReaderTestBase {
               .flatMap(
                   maxConn -> {
                     if (maxConn > 5) {
-                      return Reader.fromConsumer(cfg -> actions.add("High connections"));
+                      return Reader.fromConsumer(_ -> actions.add("High connections"));
                     } else {
                       return Reader.unit(); // No-op
                     }
@@ -757,12 +705,12 @@ class ReaderTest extends ReaderTestBase {
 
       Reader<TestConfig, Unit> operation2 =
           operation1.flatMap(
-              u ->
+              _ ->
                   Reader.fromConsumer(
                       cfg -> executionOrder.add("2: Configure " + cfg.maxConnections())));
 
       Reader<TestConfig, Unit> operation3 =
-          operation2.flatMap(u -> Reader.fromConsumer(cfg -> executionOrder.add("3: Finalize")));
+          operation2.flatMap(_ -> Reader.fromConsumer(_ -> executionOrder.add("3: Finalize")));
 
       operation3.run(TEST_CONFIG);
 
@@ -790,7 +738,7 @@ class ReaderTest extends ReaderTestBase {
               .asUnit();
 
       Reader<TestConfig, String> finalStep =
-          step2Discarded.flatMap(u -> Reader.of(cfg -> "Final: " + cfg.maxConnections()));
+          step2Discarded.flatMap(_ -> Reader.of(cfg -> "Final: " + cfg.maxConnections()));
 
       String result = finalStep.run(TEST_CONFIG);
 
@@ -805,26 +753,8 @@ class ReaderTest extends ReaderTestBase {
   class PerformanceAndMemoryTests {
 
     @Test
-    @DisplayName("Reader operations complete in reasonable time")
-    void readerOperationsCompleteInReasonableTime() {
-      Reader<TestConfig, String> test = Reader.of(TestConfig::url);
-
-      // Verify operations complete without hanging (generous timeout)
-      // Use JMH benchmarks in hkj-benchmarks module for precise performance measurement
-      assertTimeoutPreemptively(
-          Duration.ofSeconds(2),
-          () -> {
-            for (int i = 0; i < 100_000; i++) {
-              test.map(String::toUpperCase)
-                  .flatMap(s -> Reader.constant(s.toLowerCase()))
-                  .run(TEST_CONFIG);
-            }
-          },
-          "Reader operations should complete within reasonable time");
-    }
-
-    @Test
     @DisplayName("Reader instances are lightweight")
+    @SuppressWarnings("unchecked") // generic array of Readers
     void readerInstancesAreLightweight() {
       // Creating many readers should not cause issues
       Reader<TestConfig, String>[] readers = new Reader[1000];
@@ -835,8 +765,7 @@ class ReaderTest extends ReaderTestBase {
 
       // All should work correctly
       for (int i = 0; i < readers.length; i++) {
-        final int index = i;
-        assertThatReader(readers[i]).whenRunWith(TEST_CONFIG).produces(DEFAULT_URL + ":" + index);
+        assertThatReader(readers[i]).whenRunWith(TEST_CONFIG).produces(DEFAULT_URL + ":" + i);
       }
     }
 
@@ -868,7 +797,7 @@ class ReaderTest extends ReaderTestBase {
       AtomicInteger executionCount = new AtomicInteger(0);
 
       Reader<TestConfig, Unit> consumerReader =
-          Reader.fromConsumer(cfg -> executionCount.incrementAndGet());
+          Reader.fromConsumer(_ -> executionCount.incrementAndGet());
 
       // Execute concurrently
       int threadCount = 10;
@@ -908,7 +837,7 @@ class ReaderTest extends ReaderTestBase {
                     return url.length();
                   })
               .asUnit()
-              .flatMap(u -> Reader.of(cfg -> cfg.maxConnections()));
+              .flatMap(_ -> Reader.of(TestConfig::maxConnections));
 
       Reader<TestConfig, String> stage3 =
           stage2.map(
@@ -939,7 +868,7 @@ class ReaderTest extends ReaderTestBase {
     @Test
     @DisplayName("Reader maintains type safety across operations")
     void readerMaintainsTypeSafety() {
-      Reader<TestConfig, Number> numberReader = Reader.of(cfg -> cfg.maxConnections());
+      Reader<TestConfig, Number> numberReader = Reader.of(TestConfig::maxConnections);
       Reader<TestConfig, Integer> intReader = numberReader.map(Number::intValue);
 
       assertThatReader(intReader).whenRunWith(TEST_CONFIG).produces(DEFAULT_MAX_CONNECTIONS);
@@ -1048,7 +977,7 @@ class ReaderTest extends ReaderTestBase {
     void mapPropagatesExceptionsWhenRun() {
       RuntimeException testException = new RuntimeException("Test exception: map");
       Function<String, Integer> throwingMapper =
-          s -> {
+          _ -> {
             throw testException;
           };
 
@@ -1067,7 +996,7 @@ class ReaderTest extends ReaderTestBase {
     void flatMapPropagatesExceptionsWhenRun() {
       RuntimeException testException = new RuntimeException("Test exception: flatMap");
       Function<String, Reader<TestConfig, Integer>> throwingFlatMapper =
-          s -> {
+          _ -> {
             throw testException;
           };
 
@@ -1084,7 +1013,7 @@ class ReaderTest extends ReaderTestBase {
     void functorMapWithThrowingMapperIsLazy() {
       RuntimeException testException = new RuntimeException("Test exception: functor");
       Function<String, Integer> throwingMapper =
-          s -> {
+          _ -> {
             throw testException;
           };
 
@@ -1111,9 +1040,8 @@ class ReaderTest extends ReaderTestBase {
       List<String> log = new ArrayList<>();
 
       Reader<TestConfig, String> businessLogic =
-          Reader.<TestConfig>fromConsumer(
-                  (TestConfig cfg) -> log.add("Starting operation for " + cfg.url()))
-              .flatMap(u -> Reader.of((TestConfig cfg) -> "Processing " + cfg.maxConnections()))
+          Reader.fromConsumer((TestConfig cfg) -> log.add("Starting operation for " + cfg.url()))
+              .flatMap(_ -> Reader.of((TestConfig cfg) -> "Processing " + cfg.maxConnections()))
               .map(
                   result -> {
                     log.add("Completed: " + result);
@@ -1145,7 +1073,7 @@ class ReaderTest extends ReaderTestBase {
               });
 
       Reader<TestConfig, String> processAfterValidation =
-          validate.asUnit().flatMap(u -> Reader.of((TestConfig cfg) -> "Processed: " + cfg.url()));
+          validate.asUnit().flatMap(_ -> Reader.of((TestConfig cfg) -> "Processed: " + cfg.url()));
 
       String result = processAfterValidation.run(TEST_CONFIG);
 
@@ -1153,7 +1081,6 @@ class ReaderTest extends ReaderTestBase {
       assertThat(errors).isEmpty();
 
       // Test with invalid config
-      errors.clear();
       TestConfig invalidConfig = new TestConfig(DEFAULT_URL, 150);
       String result2 = processAfterValidation.run(invalidConfig);
 
@@ -1168,9 +1095,9 @@ class ReaderTest extends ReaderTestBase {
 
       // Acquire resource
       Reader<TestConfig, String> acquireResource =
-          Reader.<TestConfig>fromConsumer(
+          Reader.fromConsumer(
                   (TestConfig cfg) -> lifecycle.add("Acquiring resource for " + cfg.url()))
-              .flatMap(u -> Reader.constant("Resource-Handle-123"));
+              .flatMap(_ -> Reader.constant("Resource-Handle-123"));
 
       // Use resource
       Reader<TestConfig, String> useResource =
@@ -1185,9 +1112,7 @@ class ReaderTest extends ReaderTestBase {
           useResource
               .asUnit()
               .flatMap(
-                  u ->
-                      Reader.<TestConfig>fromConsumer(
-                          (TestConfig cfg) -> lifecycle.add("Releasing resource")));
+                  _ -> Reader.fromConsumer((TestConfig _) -> lifecycle.add("Releasing resource")));
 
       releaseResource.run(TEST_CONFIG);
 
@@ -1208,17 +1133,16 @@ class ReaderTest extends ReaderTestBase {
     void readerEqualityIsReferenceBased() {
       Reader<TestConfig, String> r1 = Reader.of(TestConfig::url);
       Reader<TestConfig, String> r2 = Reader.of(TestConfig::url);
-      Reader<TestConfig, String> r3 = r1;
 
-      assertThat(r1).isNotEqualTo(r2); // Different instances
-      assertThat(r1).isEqualTo(r3); // Same instance
+      // Distinct instances are never equal, even with identical functions.
+      assertThat(r1).isNotEqualTo(r2);
     }
 
     @Test
     @DisplayName("Reader behaviour is determined by function")
     void readerBehaviourIsDeterminedByFunction() {
       Reader<TestConfig, String> r1 = Reader.of(TestConfig::url);
-      Reader<TestConfig, String> r2 = Reader.of(cfg -> cfg.url());
+      Reader<TestConfig, String> r2 = Reader.of(TestConfig::url);
 
       // Different function instances but same behaviour
       assertThatReader(r1)

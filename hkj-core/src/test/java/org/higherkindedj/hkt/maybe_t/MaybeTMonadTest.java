@@ -2,7 +2,6 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.hkt.maybe_t;
 
-import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.higherkindedj.hkt.assertions.MaybeTAssert.assertThatMaybeT;
 import static org.higherkindedj.hkt.instances.Witnesses.*;
@@ -22,11 +21,15 @@ import org.higherkindedj.hkt.laws.FunctorLaws;
 import org.higherkindedj.hkt.laws.MonadLaws;
 import org.higherkindedj.hkt.maybe.Maybe;
 import org.higherkindedj.hkt.optional.OptionalKind;
+import org.higherkindedj.hkt.test.contract.Category;
+import org.higherkindedj.hkt.test.contract.TypeClassContract;
 import org.higherkindedj.hkt.test.fixtures.TypeClassTestBase;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.MethodSource;
 
 @DisplayName("MaybeTMonad Complete Test Suite")
 //   (Outer: OptionalKind.Witness)
@@ -41,14 +44,6 @@ class MaybeTMonadTest
   void setUpMonad() {
     outerMonad = Instances.monadError(optional());
     maybeTMonad = Instances.maybeT(outerMonad);
-  }
-
-  private <A> Optional<Maybe<A>> unwrapKindToOptionalMaybe(
-      Kind<MaybeTKind.Witness<OptionalKind.Witness>, A> kind) {
-    if (kind == null) return Optional.empty();
-    var maybeT = MAYBE_T.narrow(kind);
-    Kind<OptionalKind.Witness, Maybe<A>> outerKind = maybeT.value();
-    return OPTIONAL.narrow(outerKind);
   }
 
   private <A> Optional<Maybe<A>> unwrapOuterOptional(Kind<OptionalKind.Witness, Maybe<A>> kind) {
@@ -66,14 +61,6 @@ class MaybeTMonadTest
   private <R> Kind<MaybeTKind.Witness<OptionalKind.Witness>, R> emptyT() {
     Kind<OptionalKind.Witness, Maybe<R>> emptyOuter = OPTIONAL.widen(Optional.empty());
     return MAYBE_T.widen(MaybeT.fromKind(emptyOuter));
-  }
-
-  private <A, B>
-      Kind<MaybeTKind.Witness<OptionalKind.Witness>, Function<A, B>> justTWithNullFunction() {
-    // Create Optional<Maybe<Function>> where Maybe contains null function
-    Kind<OptionalKind.Witness, Maybe<Function<A, B>>> outerOptionalOfJustNullFunc =
-        OPTIONAL.widen(Optional.of(Maybe.fromNullable(null)));
-    return MAYBE_T.widen(MaybeT.fromKind(outerOptionalOfJustNullFunc));
   }
 
   // TypeClassTestBase implementations
@@ -97,7 +84,7 @@ class MaybeTMonadTest
           Kind<MaybeTKind.Witness<OptionalKind.Witness>, ?>,
           Kind<MaybeTKind.Witness<OptionalKind.Witness>, ?>>
       createEqualityChecker() {
-    return (k1, k2) -> unwrapKindToOptionalMaybe(k1).equals(unwrapKindToOptionalMaybe(k2));
+    return MaybeTLawFixtures.EQ;
   }
 
   @Override
@@ -134,21 +121,26 @@ class MaybeTMonadTest
     return s -> justT(s + "!");
   }
 
-  @Nested
-  @DisplayName("Complete Test Suite")
-  class CompleteTestSuite {
-
-    @Test
-    @DisplayName("Verify all test categories are covered")
-    void verifyCompleteCoverage() {
-      // Verify that all nested test classes exist and have tests
-      assertThat(FunctorOperationTests.class).isNotNull();
-      assertThat(ApplicativeOperationTests.class).isNotNull();
-      assertThat(MonadOperationTests.class).isNotNull();
-      assertThat(MonadErrorOperationTests.class).isNotNull();
-      assertThat(MonadLawTests.class).isNotNull();
-      assertThat(EdgeCaseTests.class).isNotNull();
-    }
+  /**
+   * MaybeT over the eager {@code Optional} inner monad <em>propagates</em> a thrown function
+   * exception, so the contract includes {@link Category#EXCEPTIONS}. {@link Category#VALIDATIONS}
+   * is omitted because, like {@code Optional}/{@code Try}, {@code MaybeTMonad} inherits the default
+   * {@code recoverWith} (no eager null-fallback check); the error type is {@link Unit}, and the
+   * MonadError-specific behaviour is exercised by {@link MonadErrorOperationTests}.
+   */
+  @Test
+  @DisplayName(
+      "MonadError contract — operations & exceptions (laws verified in the *LawTests below)")
+  void monadErrorContract() {
+    Function<Unit, Kind<MaybeTKind.Witness<OptionalKind.Witness>, Integer>> validHandler =
+        _ -> justT(0);
+    Kind<MaybeTKind.Witness<OptionalKind.Witness>, Integer> validFallback = justT(-1);
+    TypeClassContract.<MaybeTKind.Witness<OptionalKind.Witness>, Unit>monadError(MaybeTMonad.class)
+        .<Integer>instance(maybeTMonad)
+        .<String>withKind(validKind)
+        .withMonadOperations(validMapper, validFlatMapper, validFunctionKind)
+        .withErrorHandling(validHandler, validFallback)
+        .verifyOnly(Category.OPERATIONS, Category.EXCEPTIONS);
   }
 
   @Nested
@@ -186,9 +178,10 @@ class MaybeTMonadTest
 
     @Test
     @DisplayName("map should convert null result to Nothing")
+    @SuppressWarnings("DataFlowIssue") // the mapper deliberately returns null to verify Nothing
     void map_shouldConvertNullResultToNothing() {
       var input = justT(10);
-      Function<Integer, String> nullReturningMapper = i -> null;
+      Function<Integer, String> nullReturningMapper = _ -> null;
       var result = maybeTMonad.map(nullReturningMapper, input);
 
       assertThatMaybeT(result, MaybeTMonadTest.this::unwrapOuterOptional).isPresentNothing();
@@ -281,7 +274,7 @@ class MaybeTMonadTest
     void ap_FuncJustThrows_ValJust_shouldThrowException() {
       RuntimeException ex = new RuntimeException("Function apply crashed");
       Function<Integer, String> throwingFunc =
-          i -> {
+          _ -> {
             throw ex;
           };
       Kind<MaybeTKind.Witness<OptionalKind.Witness>, Function<Integer, String>> ff =
@@ -317,7 +310,7 @@ class MaybeTMonadTest
     void flatMap_initialJust_funcReturnsNothing() {
       var initialJust = justT(10);
       Function<Integer, Kind<MaybeTKind.Witness<OptionalKind.Witness>, String>> funcReturnsNothing =
-          i -> nothingT();
+          _ -> nothingT();
 
       var result = maybeTMonad.flatMap(funcReturnsNothing, initialJust);
 
@@ -329,7 +322,7 @@ class MaybeTMonadTest
     void flatMap_initialJust_funcReturnsEmptyOuter() {
       var initialJust = justT(20);
       Function<Integer, Kind<MaybeTKind.Witness<OptionalKind.Witness>, String>> funcReturnsEmpty =
-          i -> emptyT();
+          _ -> emptyT();
 
       var result = maybeTMonad.flatMap(funcReturnsEmpty, initialJust);
 
@@ -341,7 +334,7 @@ class MaybeTMonadTest
     void flatMap_initialNothing_funcNotCalled() {
       Kind<MaybeTKind.Witness<OptionalKind.Witness>, Integer> initialNothing = nothingT();
       Function<Integer, Kind<MaybeTKind.Witness<OptionalKind.Witness>, String>> funcShouldNotRun =
-          i -> {
+          _ -> {
             throw new AssertionError("Function should not have been called for Nothing input");
           };
 
@@ -355,7 +348,7 @@ class MaybeTMonadTest
     void flatMap_initialEmptyOuter_funcNotCalled() {
       Kind<MaybeTKind.Witness<OptionalKind.Witness>, Integer> initialEmptyOuter = emptyT();
       Function<Integer, Kind<MaybeTKind.Witness<OptionalKind.Witness>, String>> funcShouldNotRun =
-          i -> {
+          _ -> {
             throw new AssertionError("Function should not have been called for empty outer input");
           };
 
@@ -370,7 +363,7 @@ class MaybeTMonadTest
       var initialJust = justT(30);
       RuntimeException runtimeEx = new RuntimeException("Error in function application!");
       Function<Integer, Kind<MaybeTKind.Witness<OptionalKind.Witness>, String>> funcThrows =
-          i -> {
+          _ -> {
             throw runtimeEx;
           };
 
@@ -410,7 +403,7 @@ class MaybeTMonadTest
     @DisplayName("handleErrorWith should handle Nothing")
     void handleErrorWith_shouldHandleNothing() {
       Function<Unit, Kind<MaybeTKind.Witness<OptionalKind.Witness>, Integer>> handler =
-          err -> justT(404);
+          _ -> justT(404);
 
       var result = maybeTMonad.handleErrorWith(nothingVal, handler);
       assertThatMaybeT(result, MaybeTMonadTest.this::unwrapOuterOptional)
@@ -422,7 +415,7 @@ class MaybeTMonadTest
     @DisplayName("handleErrorWith should ignore Just")
     void handleErrorWith_shouldIgnoreJust() {
       Function<Unit, Kind<MaybeTKind.Witness<OptionalKind.Witness>, Integer>> handler =
-          err -> justT(-1);
+          _ -> justT(-1);
 
       var result = maybeTMonad.handleErrorWith(justVal, handler);
       assertThatMaybeT(result, MaybeTMonadTest.this::unwrapOuterOptional).isEqualToMaybeT(justVal);
@@ -432,7 +425,7 @@ class MaybeTMonadTest
     @DisplayName("handleErrorWith should propagate empty")
     void handleErrorWith_shouldPropagateEmpty() {
       Function<Unit, Kind<MaybeTKind.Witness<OptionalKind.Witness>, Integer>> handler =
-          err -> justT(-1);
+          _ -> justT(-1);
 
       var result = maybeTMonad.handleErrorWith(emptyVal, handler);
       assertThatMaybeT(result, MaybeTMonadTest.this::unwrapOuterOptional).isEmpty();
@@ -443,19 +436,16 @@ class MaybeTMonadTest
   @DisplayName("Functor Laws")
   class FunctorLawTests {
 
-    @Test
-    @DisplayName("Identity holds for Just, Nothing, and empty-outer fixtures")
-    void identity() {
-      FunctorLaws.assertIdentity(maybeTMonad, validKind, equalityChecker);
-      FunctorLaws.assertIdentity(maybeTMonad, nothingT(), equalityChecker);
-      FunctorLaws.assertIdentity(maybeTMonad, emptyT(), equalityChecker);
+    @ParameterizedTest(name = "identity holds on {0}")
+    @MethodSource("org.higherkindedj.hkt.maybe_t.MaybeTLawFixtures#kinds")
+    void identity(String label, Kind<MaybeTKind.Witness<OptionalKind.Witness>, Integer> fa) {
+      FunctorLaws.assertIdentity(maybeTMonad, fa, equalityChecker);
     }
 
-    @Test
-    @DisplayName("Composition: map(g∘f, fa) == map(g, map(f, fa))")
-    void composition() {
-      FunctorLaws.assertComposition(
-          maybeTMonad, validKind, validMapper, secondMapper, equalityChecker);
+    @ParameterizedTest(name = "composition holds on {0}")
+    @MethodSource("org.higherkindedj.hkt.maybe_t.MaybeTLawFixtures#kinds")
+    void composition(String label, Kind<MaybeTKind.Witness<OptionalKind.Witness>, Integer> fa) {
+      FunctorLaws.assertComposition(maybeTMonad, fa, validMapper, secondMapper, equalityChecker);
     }
   }
 
@@ -463,31 +453,30 @@ class MaybeTMonadTest
   @DisplayName("Applicative Laws")
   class ApplicativeLawTests {
 
-    @Test
-    @DisplayName("Identity: ap(of(id), v) == v")
-    void identity() {
-      ApplicativeLaws.assertIdentity(maybeTMonad, validKind, equalityChecker);
+    @ParameterizedTest(name = "identity holds on {0}")
+    @MethodSource("org.higherkindedj.hkt.maybe_t.MaybeTLawFixtures#kinds")
+    void identity(String label, Kind<MaybeTKind.Witness<OptionalKind.Witness>, Integer> v) {
+      ApplicativeLaws.assertIdentity(maybeTMonad, v, equalityChecker);
     }
 
-    @Test
-    @DisplayName("Homomorphism: ap(of(f), of(x)) == of(f(x))")
-    void homomorphism() {
-      ApplicativeLaws.assertHomomorphism(maybeTMonad, testValue, validMapper, equalityChecker);
+    @ParameterizedTest(name = "homomorphism holds on value {0}")
+    @MethodSource("org.higherkindedj.hkt.maybe_t.MaybeTLawFixtures#values")
+    void homomorphism(Integer value) {
+      ApplicativeLaws.assertHomomorphism(maybeTMonad, value, validMapper, equalityChecker);
     }
 
-    @Test
-    @DisplayName("Interchange: ap(u, of(y)) == ap(of(f -> f(y)), u)")
-    void interchange() {
-      ApplicativeLaws.assertInterchange(maybeTMonad, validFunctionKind, testValue, equalityChecker);
+    @ParameterizedTest(name = "interchange holds on value {0}")
+    @MethodSource("org.higherkindedj.hkt.maybe_t.MaybeTLawFixtures#values")
+    void interchange(Integer value) {
+      ApplicativeLaws.assertInterchange(maybeTMonad, validFunctionKind, value, equalityChecker);
     }
 
-    @Test
-    @DisplayName("Composition")
-    void composition() {
+    @ParameterizedTest(name = "composition holds on {0}")
+    @MethodSource("org.higherkindedj.hkt.maybe_t.MaybeTLawFixtures#kinds")
+    void composition(String label, Kind<MaybeTKind.Witness<OptionalKind.Witness>, Integer> w) {
       Kind<MaybeTKind.Witness<OptionalKind.Witness>, Function<String, String>> u =
           justT(secondMapper);
-      ApplicativeLaws.assertComposition(
-          maybeTMonad, u, validFunctionKind, validKind, equalityChecker);
+      ApplicativeLaws.assertComposition(maybeTMonad, u, validFunctionKind, w, equalityChecker);
     }
   }
 
@@ -495,25 +484,22 @@ class MaybeTMonadTest
   @DisplayName("Monad Laws")
   class MonadLawTests {
 
-    @Test
-    @DisplayName("Left Identity: flatMap(of(a), f) == f(a)")
-    void leftIdentity() {
-      MonadLaws.assertLeftIdentity(maybeTMonad, testValue, testFunction, equalityChecker);
+    @ParameterizedTest(name = "left identity holds on value {0}")
+    @MethodSource("org.higherkindedj.hkt.maybe_t.MaybeTLawFixtures#values")
+    void leftIdentity(Integer value) {
+      MonadLaws.assertLeftIdentity(maybeTMonad, value, testFunction, equalityChecker);
     }
 
-    @Test
-    @DisplayName("Right Identity holds for Just, Nothing, and empty-outer fixtures")
-    void rightIdentity() {
-      MonadLaws.assertRightIdentity(maybeTMonad, validKind, equalityChecker);
-      MonadLaws.assertRightIdentity(maybeTMonad, nothingT(), equalityChecker);
-      MonadLaws.assertRightIdentity(maybeTMonad, emptyT(), equalityChecker);
+    @ParameterizedTest(name = "right identity holds on {0}")
+    @MethodSource("org.higherkindedj.hkt.maybe_t.MaybeTLawFixtures#kinds")
+    void rightIdentity(String label, Kind<MaybeTKind.Witness<OptionalKind.Witness>, Integer> m) {
+      MonadLaws.assertRightIdentity(maybeTMonad, m, equalityChecker);
     }
 
-    @Test
-    @DisplayName("Associativity: flatMap(g, flatMap(f, m)) == flatMap(a -> flatMap(g, f(a)), m)")
-    void associativity() {
-      MonadLaws.assertAssociativity(
-          maybeTMonad, validKind, testFunction, chainFunction, equalityChecker);
+    @ParameterizedTest(name = "associativity holds on {0}")
+    @MethodSource("org.higherkindedj.hkt.maybe_t.MaybeTLawFixtures#kinds")
+    void associativity(String label, Kind<MaybeTKind.Witness<OptionalKind.Witness>, Integer> m) {
+      MonadLaws.assertAssociativity(maybeTMonad, m, testFunction, chainFunction, equalityChecker);
     }
   }
 

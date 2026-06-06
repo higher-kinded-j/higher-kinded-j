@@ -15,6 +15,8 @@ import org.higherkindedj.hkt.laws.ApplicativeLaws;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.MethodSource;
 
 @DisplayName("VTaskApplicative Test Suite")
 class VTaskApplicativeTest {
@@ -125,6 +127,7 @@ class VTaskApplicativeTest {
 
   @Nested
   @DisplayName("Validation Tests")
+  @SuppressWarnings("DataFlowIssue") // null arguments are passed deliberately to verify rejection
   class ValidationTests {
 
     @Test
@@ -153,33 +156,35 @@ class VTaskApplicativeTest {
     private final BiPredicate<Kind<VTaskKind.Witness, ?>, Kind<VTaskKind.Witness, ?>> eq =
         (k1, k2) -> Objects.equals(VTASK.narrow(k1).run(), VTASK.narrow(k2).run());
 
-    @Test
-    void identity() {
-      Kind<VTaskKind.Witness, Integer> fa = VTASK.widen(VTask.succeed(TEST_VALUE));
+    @ParameterizedTest(name = "identity holds on {0}")
+    @MethodSource("org.higherkindedj.hkt.vtask.VTaskLawFixtures#kinds")
+    void identity(String label, Kind<VTaskKind.Witness, Integer> fa) {
       ApplicativeLaws.assertIdentity(applicative, fa, eq);
     }
 
-    @Test
-    void homomorphism() {
+    @ParameterizedTest(name = "homomorphism holds on value {0}")
+    @MethodSource("org.higherkindedj.hkt.vtask.VTaskLawFixtures#values")
+    void homomorphism(Integer value) {
       Function<Integer, String> f = Object::toString;
-      ApplicativeLaws.assertHomomorphism(applicative, TEST_VALUE, f, eq);
+      ApplicativeLaws.assertHomomorphism(applicative, value, f, eq);
     }
 
-    @Test
-    void interchange() {
+    @ParameterizedTest(name = "interchange holds on value {0}")
+    @MethodSource("org.higherkindedj.hkt.vtask.VTaskLawFixtures#values")
+    void interchange(Integer value) {
       Function<Integer, String> f = i -> "Result:" + i;
       Kind<VTaskKind.Witness, Function<Integer, String>> u = VTASK.widen(VTask.succeed(f));
-      ApplicativeLaws.assertInterchange(applicative, u, TEST_VALUE, eq);
+      ApplicativeLaws.assertInterchange(applicative, u, value, eq);
     }
 
-    @Test
-    void composition() {
+    @ParameterizedTest(name = "composition holds on {0}")
+    @MethodSource("org.higherkindedj.hkt.vtask.VTaskLawFixtures#kinds")
+    void composition(String label, Kind<VTaskKind.Witness, Integer> w) {
       Kind<VTaskKind.Witness, Function<String, Integer>> u =
           VTASK.widen(VTask.succeed(String::length));
       Function<Integer, String> intToString = i -> "Value:" + i;
       Kind<VTaskKind.Witness, Function<Integer, String>> v =
           VTASK.widen(VTask.succeed(intToString));
-      Kind<VTaskKind.Witness, Integer> w = VTASK.widen(VTask.succeed(TEST_VALUE));
       ApplicativeLaws.assertComposition(applicative, u, v, w, eq);
     }
   }

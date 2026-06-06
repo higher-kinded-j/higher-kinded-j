@@ -112,6 +112,7 @@ class ForPathParTest {
 
   @Nested
   @DisplayName("EitherPath par()")
+  @SuppressWarnings("RedundantTypeArguments") // explicit Left type args fix EitherPath's error type
   class EitherPathParTests {
 
     @Test
@@ -119,7 +120,7 @@ class ForPathParTest {
     void par2_bothRight() {
       EitherPath<String, Integer> result =
           ForPath.par(Path.<String, Integer>right(1), Path.<String, Integer>right(2))
-              .yield((a, b) -> a + b);
+              .yield(Integer::sum);
       assertThat(result.run()).isEqualTo(Either.right(3));
     }
 
@@ -127,8 +128,7 @@ class ForPathParTest {
     @DisplayName("par(2): should short-circuit on Left")
     void par2_oneLeft() {
       EitherPath<String, Integer> result =
-          ForPath.par(Path.<String, Integer>left("error"), Path.<String, Integer>right(2))
-              .yield((a, b) -> a + b);
+          ForPath.par(Path.<String, Integer>left("error"), Path.right(2)).yield(Integer::sum);
       assertThat(result.run()).isEqualTo(Either.left("error"));
     }
 
@@ -226,6 +226,7 @@ class ForPathParTest {
 
     @Test
     @DisplayName("par(2): should truly execute in parallel (timing verification)")
+    @SuppressWarnings("DataFlowIssue") // non-null in this fixture
     void par2_actuallyParallel() {
       VTaskPath<Long> result =
           ForPath.par(

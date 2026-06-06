@@ -59,6 +59,7 @@ class ScopeJoinerTest {
 
     @Test
     @DisplayName("accumulating() validates non-null errorMapper")
+    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
     void accumulatingValidatesNonNullErrorMapper() {
       assertThatNullPointerException()
           .isThrownBy(() -> ScopeJoiner.accumulating(null))
@@ -247,7 +248,7 @@ class ScopeJoinerTest {
     @Test
     @DisplayName("result() throws on failure")
     @SuppressWarnings("preview")
-    void resultThrowsOnFailure() throws Throwable {
+    void resultThrowsOnFailure() {
       ScopeJoiner<String, String> joiner = ScopeJoiner.firstComplete();
 
       try (var scope = StructuredTaskScope.open(joiner.joiner())) {
@@ -457,7 +458,7 @@ class ScopeJoinerTest {
     @Test
     @DisplayName("returns Left on failure")
     @SuppressWarnings("preview")
-    void returnsLeftOnFailure() throws Throwable {
+    void returnsLeftOnFailure() {
       ScopeJoiner<String, List<String>> joiner = ScopeJoiner.allSucceed();
 
       try (var scope = StructuredTaskScope.open(joiner.joiner())) {
@@ -479,7 +480,7 @@ class ScopeJoinerTest {
 
     @Test
     @DisplayName("accumulating joiner resultEither returns Right with valid")
-    @SuppressWarnings("preview")
+    @SuppressWarnings({"preview", "DataFlowIssue"}) // non-null in this fixture
     void accumulatingResultEitherReturnsRightOnSuccess() throws Throwable {
       ScopeJoiner<String, Validated<List<String>, List<String>>> joiner =
           ScopeJoiner.accumulating(Throwable::getMessage);

@@ -54,6 +54,7 @@ class Tuple12Test {
 
     @Test
     @DisplayName("Constructor accepts null elements")
+    @SuppressWarnings("DataFlowIssue") // Tuple12 permits null elements; nulls passed deliberately
     void constructorAcceptsNullElements() {
       Tuple12<
               String,
@@ -160,7 +161,7 @@ class Tuple12Test {
                   Float::intValue,
                   Object::toString,
                   String::length,
-                  b -> b ? "true" : "false");
+                  Object::toString);
 
       assertThat(result._1()).isEqualTo(5);
       assertThat(result._2()).isEqualTo("30 years");
@@ -229,6 +230,7 @@ class Tuple12Test {
 
     @Test
     @DisplayName("map() throws NullPointerException when any mapper is null")
+    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
     void mapThrowsWhenMapperNull() {
       Tuple12<
               String,
@@ -374,6 +376,7 @@ class Tuple12Test {
 
     @Test
     @DisplayName("Individual map methods throw NullPointerException when mapper is null")
+    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
     void mapThrowsWhenMapperNull() {
       assertThatNullPointerException().isThrownBy(() -> tuple.mapFirst(null));
       assertThatNullPointerException().isThrownBy(() -> tuple.mapSecond(null));

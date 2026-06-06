@@ -3,22 +3,21 @@
 package org.higherkindedj.hkt.io;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.higherkindedj.hkt.assertions.IOAssert.assertThatIO;
 import static org.higherkindedj.hkt.io.IOKindHelper.IO_OP;
 
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Function;
-import java.util.stream.Stream;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.laws.FunctorLaws;
+import org.higherkindedj.hkt.test.contract.Category;
+import org.higherkindedj.hkt.test.contract.TypeClassContract;
 import org.higherkindedj.hkt.test.fixtures.TestFunctions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 
 @DisplayName("IOFunctor")
@@ -36,23 +35,34 @@ class IOFunctorTest extends IOTestBase {
   class Laws {
 
     @ParameterizedTest(name = "identity holds on {0}")
-    @MethodSource("fixtures")
+    @MethodSource("org.higherkindedj.hkt.io.IOLawFixtures#kinds")
     void identity(String label, Kind<IOKind.Witness, Integer> fa) {
       FunctorLaws.assertIdentity(functor, fa, equalityChecker);
     }
 
     @ParameterizedTest(name = "composition holds on {0}")
-    @MethodSource("fixtures")
+    @MethodSource("org.higherkindedj.hkt.io.IOLawFixtures#kinds")
     void composition(String label, Kind<IOKind.Witness, Integer> fa) {
       FunctorLaws.assertComposition(functor, fa, validMapper, secondMapper, equalityChecker);
     }
+  }
 
-    static Stream<Arguments> fixtures() {
-      return Stream.of(
-          Arguments.of("IO(0)", IO_OP.widen(IO.delay(() -> 0))),
-          Arguments.of("IO(42)", IO_OP.widen(IO.delay(() -> 42))),
-          Arguments.of("IO(-1)", IO_OP.widen(IO.delay(() -> -1))));
-    }
+  /**
+   * {@link Category#EXCEPTIONS} is omitted: the generic contract asserts that {@code map}
+   * <em>propagates</em> a thrown mapper exception immediately, but an IO is lazy — the exception
+   * surfaces only when the computation is run. That deferral is exercised by {@link
+   * EdgeCasesTests}.
+   */
+  @Test
+  @DisplayName(
+      "Functor contract — operations & validations (laws verified above; IO defers the mapper"
+          + " exception, verified below)")
+  void functorContract() {
+    TypeClassContract.<IOKind.Witness>functor(IOFunctor.class)
+        .<Integer>instance(functor)
+        .<String>withKind(validKind)
+        .withMapper(validMapper)
+        .verifyOnly(Category.OPERATIONS, Category.VALIDATIONS);
   }
 
   @Nested
@@ -94,7 +104,7 @@ class IOFunctorTest extends IOTestBase {
     @DisplayName("map() with null value in IO")
     void mapWithNullValueInIO() {
       Kind<IOKind.Witness, Integer> nullKind = ioKind(null);
-      Function<Integer, String> nullSafeMapper = i -> String.valueOf(i);
+      Function<Integer, String> nullSafeMapper = String::valueOf;
 
       Kind<IOKind.Witness, String> result = functor.map(nullSafeMapper, nullKind);
 
@@ -211,27 +221,6 @@ class IOFunctorTest extends IOTestBase {
       Kind<IOKind.Witness, Integer> result = functor.map(unwrapper, kind);
 
       assertThatIO(narrowToIO(result)).hasValue(DEFAULT_IO_VALUE);
-    }
-  }
-
-  @Nested
-  @DisplayName("Validation Tests")
-  class ValidationTests {
-    @Test
-    @DisplayName("map() validates null mapper")
-    void mapValidatesNullMapper() {
-      assertThatThrownBy(() -> functor.map(null, validKind))
-          .isInstanceOf(NullPointerException.class)
-          .hasMessageContaining("f for map cannot be null");
-    }
-
-    @Test
-    @DisplayName("map() validates null Kind")
-    void mapValidatesNullKind() {
-      assertThatThrownBy(() -> functor.map(validMapper, null))
-          .isInstanceOf(NullPointerException.class)
-          .hasMessageContaining("Kind")
-          .hasMessageContaining("map");
     }
   }
 

@@ -3,7 +3,6 @@
 package org.higherkindedj.hkt.io;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.higherkindedj.hkt.assertions.IOAssert.assertThatIO;
 import static org.higherkindedj.hkt.instances.Witnesses.*;
 import static org.higherkindedj.hkt.io.IOKindHelper.IO_OP;
@@ -11,7 +10,6 @@ import static org.higherkindedj.hkt.io.IOKindHelper.IO_OP;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.BiFunction;
 import java.util.function.Function;
-import java.util.stream.Stream;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Monad;
 import org.higherkindedj.hkt.exception.KindUnwrapException;
@@ -19,13 +17,14 @@ import org.higherkindedj.hkt.function.Function3;
 import org.higherkindedj.hkt.function.Function4;
 import org.higherkindedj.hkt.instances.Instances;
 import org.higherkindedj.hkt.laws.MonadLaws;
+import org.higherkindedj.hkt.test.contract.Category;
+import org.higherkindedj.hkt.test.contract.TypeClassContract;
 import org.higherkindedj.hkt.test.fixtures.TestFunctions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 
 @DisplayName("IOMonad")
@@ -44,33 +43,41 @@ class IOMonadTest extends IOTestBase {
   class Laws {
 
     @ParameterizedTest(name = "left identity holds on value {0}")
-    @MethodSource("values")
+    @MethodSource("org.higherkindedj.hkt.io.IOLawFixtures#values")
     void leftIdentity(Integer value) {
       MonadLaws.assertLeftIdentity(monad, value, testFunction, equalityChecker);
     }
 
     @ParameterizedTest(name = "right identity holds on {0}")
-    @MethodSource("fixtures")
+    @MethodSource("org.higherkindedj.hkt.io.IOLawFixtures#kinds")
     void rightIdentity(String label, Kind<IOKind.Witness, Integer> ma) {
       MonadLaws.assertRightIdentity(monad, ma, equalityChecker);
     }
 
     @ParameterizedTest(name = "associativity holds on {0}")
-    @MethodSource("fixtures")
+    @MethodSource("org.higherkindedj.hkt.io.IOLawFixtures#kinds")
     void associativity(String label, Kind<IOKind.Witness, Integer> ma) {
       MonadLaws.assertAssociativity(monad, ma, testFunction, chainFunction, equalityChecker);
     }
+  }
 
-    static Stream<Arguments> fixtures() {
-      return Stream.of(
-          Arguments.of("IO(0)", IO_OP.widen(IO.delay(() -> 0))),
-          Arguments.of("IO(42)", IO_OP.widen(IO.delay(() -> 42))),
-          Arguments.of("IO(-1)", IO_OP.widen(IO.delay(() -> -1))));
-    }
-
-    static Stream<Arguments> values() {
-      return Stream.of(Arguments.of(0), Arguments.of(42), Arguments.of(-1));
-    }
+  /**
+   * {@link Category#EXCEPTIONS} is omitted: the generic contract asserts that {@code map}/{@code
+   * flatMap} <em>propagate</em> a thrown function exception immediately, but an IO is lazy — the
+   * exception surfaces only when the computation is run. That deferral is exercised by the
+   * type-specific lazy-evaluation tests.
+   */
+  @Test
+  @DisplayName(
+      "Monad contract — operations & validations (laws verified above; IO defers exceptions,"
+          + " verified below)")
+  void monadContract() {
+    TypeClassContract.<IOKind.Witness>monad(IOMonad.class)
+        .<Integer>instance(monad)
+        .<String>withKind(validKind)
+        .withMonadOperations(
+            validKind2, validMapper, validFlatMapper, validFunctionKind, validCombiningFunction)
+        .verifyOnly(Category.OPERATIONS, Category.VALIDATIONS);
   }
 
   @Nested
@@ -307,7 +314,7 @@ class IOMonadTest extends IOTestBase {
     @DisplayName("flatMap() propagates exception from resulting IO")
     void flatMapPropagatesExceptionFromResultingIO() {
       RuntimeException exception = new RuntimeException("Fail2");
-      Function<Integer, Kind<IOKind.Witness, String>> failingMapper = i -> failingIO(exception);
+      Function<Integer, Kind<IOKind.Witness, String>> failingMapper = _ -> failingIO(exception);
 
       Kind<IOKind.Witness, String> result = monad.flatMap(failingMapper, validKind);
 
@@ -316,8 +323,9 @@ class IOMonadTest extends IOTestBase {
 
     @Test
     @DisplayName("flatMap() validates null result from function")
+    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
     void flatMapValidatesNullResultFromFunction() {
-      Function<Integer, Kind<IOKind.Witness, String>> nullReturningMapper = i -> null;
+      Function<Integer, Kind<IOKind.Witness, String>> nullReturningMapper = _ -> null;
 
       Kind<IOKind.Witness, String> result = monad.flatMap(nullReturningMapper, validKind);
 
@@ -328,65 +336,12 @@ class IOMonadTest extends IOTestBase {
   }
 
   @Nested
-  @DisplayName("Monad Laws Tests")
-  class MonadLawsTests {
-    // Function a -> M b (Integer -> IOKind<String>)
-    final Function<Integer, Kind<IOKind.Witness, String>> fLaw = i -> monad.of("v" + i);
-
-    // Function b -> M c (String -> IOKind<String>)
-    final Function<String, Kind<IOKind.Witness, String>> gLaw = s -> monad.of(s + "!");
-
-    @Test
-    @DisplayName("Left Identity: flatMap(of(a), f) == f(a)")
-    void leftIdentity() {
-      int value = 5;
-      Kind<IOKind.Witness, Integer> ofValue = monad.of(value);
-
-      Kind<IOKind.Witness, String> leftSide = monad.flatMap(fLaw, ofValue);
-      Kind<IOKind.Witness, String> rightSide = fLaw.apply(value);
-
-      assertThat(equalityChecker.test(leftSide, rightSide)).isTrue();
-    }
-
-    @Test
-    @DisplayName("Right Identity: flatMap(m, of) == m")
-    void rightIdentity() {
-      Kind<IOKind.Witness, Integer> mValue = IO_OP.delay(() -> 10);
-
-      Function<Integer, Kind<IOKind.Witness, Integer>> ofFunc = monad::of;
-
-      Kind<IOKind.Witness, Integer> leftSide = monad.flatMap(ofFunc, mValue);
-
-      assertThat(equalityChecker.test(leftSide, mValue)).isTrue();
-    }
-
-    @Test
-    @DisplayName("Associativity: flatMap(flatMap(m, f), g) == flatMap(m, a -> flatMap(f(a), g))")
-    void associativity() {
-      Kind<IOKind.Witness, Integer> mValue = IO_OP.delay(() -> 10);
-
-      // Left side: flatMap(flatMap(m, f), g)
-      Kind<IOKind.Witness, String> innerLeft = monad.flatMap(fLaw, mValue);
-      Kind<IOKind.Witness, String> leftSide = monad.flatMap(gLaw, innerLeft);
-
-      // Right side: flatMap(m, a -> flatMap(f(a), g))
-      Function<Integer, Kind<IOKind.Witness, String>> rightSideFunc =
-          a -> monad.flatMap(gLaw, fLaw.apply(a));
-      Kind<IOKind.Witness, String> rightSide = monad.flatMap(rightSideFunc, mValue);
-
-      assertThat(equalityChecker.test(leftSide, rightSide)).isTrue();
-    }
-  }
-
-  @Nested
   @DisplayName("Edge Cases Tests")
   class EdgeCasesTests {
     @Test
     @DisplayName("Deep flatMap chaining")
     void deepFlatMapChaining() {
-      Kind<IOKind.Witness, Integer> start = monad.of(1);
-
-      Kind<IOKind.Witness, Integer> result = start;
+      Kind<IOKind.Witness, Integer> result = monad.of(1);
       for (int i = 0; i < 10; i++) {
         final int increment = i;
         result = monad.flatMap(x -> monad.of(x + increment), result);
@@ -397,6 +352,7 @@ class IOMonadTest extends IOTestBase {
 
     @Test
     @DisplayName("flatMap with null values")
+    @SuppressWarnings("ConstantValue") // IO can carry a null value, so the i == null branch is live
     void flatMapWithNullValues() {
       Kind<IOKind.Witness, Integer> nullKind = monad.of(null);
       Function<Integer, Kind<IOKind.Witness, String>> nullSafeMapper =
@@ -428,26 +384,9 @@ class IOMonadTest extends IOTestBase {
     }
   }
 
-  @Nested
-  @DisplayName("Validation Tests")
-  class ValidationTests {
-    @Test
-    @DisplayName("flatMap() validates null function")
-    void flatMapValidatesNullFunction() {
-      assertThatThrownBy(() -> monad.flatMap(null, validKind))
-          .isInstanceOf(NullPointerException.class)
-          .hasMessageContaining("f for flatMap cannot be null");
-    }
-
-    @Test
-    @DisplayName("flatMap() validates null Kind")
-    void flatMapValidatesNullKind() {
-      assertThatThrownBy(() -> monad.flatMap(validFlatMapper, null))
-          .isInstanceOf(NullPointerException.class)
-          .hasMessageContaining("Kind")
-          .hasMessageContaining("flatMap");
-    }
-  }
+  // The standard flatMap null-function / null-Kind validations are covered by the contract above
+  // (its VALIDATIONS category). Only the IO-specific deferred null-check — flatMap returning null
+  // surfacing a KindUnwrapException on run — is retained, in ExceptionPropagationTests.
 
   @Nested
   @DisplayName("IOAssert Integration Tests")
@@ -501,7 +440,7 @@ class IOMonadTest extends IOTestBase {
     @DisplayName("IOAssert detects exceptions in flatMap chains")
     void testIOAssertDetectsExceptionsInFlatMapChains() {
       RuntimeException exception = new RuntimeException("FlatMap failure");
-      Function<Integer, Kind<IOKind.Witness, String>> failingMapper = i -> failingIO(exception);
+      Function<Integer, Kind<IOKind.Witness, String>> failingMapper = _ -> failingIO(exception);
 
       Kind<IOKind.Witness, String> result = monad.flatMap(failingMapper, validKind);
 

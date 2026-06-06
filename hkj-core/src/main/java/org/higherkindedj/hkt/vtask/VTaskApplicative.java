@@ -8,6 +8,7 @@ import java.util.function.Function;
 import org.higherkindedj.hkt.Applicative;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.util.validation.Validation;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Implements the {@link Applicative} type class for {@link VTask}, using {@link VTaskKind.Witness}
@@ -47,7 +48,7 @@ public class VTaskApplicative extends VTaskFunctor implements Applicative<VTaskK
    *     {@code value}. Never null.
    */
   @Override
-  public <A> Kind<VTaskKind.Witness, A> of(A value) {
+  public <A> Kind<VTaskKind.Witness, A> of(@Nullable A value) {
     return VTASK.widen(VTask.succeed(value));
   }
 

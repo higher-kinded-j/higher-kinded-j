@@ -17,7 +17,6 @@ import org.higherkindedj.hkt.id.Id;
 import org.higherkindedj.hkt.id.IdKind;
 import org.higherkindedj.hkt.id.IdKindHelper;
 import org.higherkindedj.hkt.instances.Instances;
-import org.higherkindedj.hkt.list.ListKind;
 import org.higherkindedj.hkt.maybe.Maybe;
 import org.higherkindedj.hkt.maybe.MaybeKind;
 import org.higherkindedj.optics.Affine;
@@ -47,6 +46,7 @@ class ForStateTest {
 
   record WorkflowContext(
       String orderId, boolean validated, boolean processed, String confirmationId) {
+    @SuppressWarnings({"SameParameterValue", "DataFlowIssue"}) // confirmationId is null here
     static WorkflowContext start(String orderId) {
       return new WorkflowContext(orderId, false, false, null);
     }
@@ -60,6 +60,7 @@ class ForStateTest {
 
     record Confirmed(String confirmationId) implements OrderStatus {}
 
+    @SuppressWarnings("unused")
     record Cancelled(String reason) implements OrderStatus {}
   }
 
@@ -74,7 +75,6 @@ class ForStateTest {
 
   private Monad<IdKind.Witness> idMonad;
   private MonadZero<MaybeKind.Witness> maybeMonad;
-  private MonadZero<ListKind.Witness> listMonad;
 
   private Lens<WorkflowContext, Boolean> validatedLens;
   private Lens<WorkflowContext, Boolean> processedLens;
@@ -94,14 +94,10 @@ class ForStateTest {
   private Lens<Address, String> cityLens;
   private Lens<Address, String> zipLens;
 
-  private Prism<OrderStatus, OrderStatus.Confirmed> confirmedPrism;
-  private Prism<OrderStatus, OrderStatus.Pending> pendingPrism;
-
   @BeforeEach
   void setUp() {
     idMonad = Instances.monad(id());
     maybeMonad = Instances.monadZero(maybe());
-    listMonad = Instances.monadZero(list());
 
     validatedLens =
         Lens.of(
@@ -142,19 +138,13 @@ class ForStateTest {
     streetLens = Lens.of(Address::street, (a, s) -> new Address(s, a.city(), a.zip()));
     cityLens = Lens.of(Address::city, (a, c) -> new Address(a.street(), c, a.zip()));
     zipLens = Lens.of(Address::zip, (a, z) -> new Address(a.street(), a.city(), z));
-
-    confirmedPrism =
-        Prism.of(
-            s -> s instanceof OrderStatus.Confirmed c ? Optional.of(c) : Optional.empty(), c -> c);
-    pendingPrism =
-        Prism.of(
-            s -> s instanceof OrderStatus.Pending p ? Optional.of(p) : Optional.empty(), p -> p);
   }
 
   // --- Basic Operations (Phase 1) ---
 
   @Nested
   @DisplayName("withState(Monad)")
+  @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
   class WithStateTests {
 
     @Test
@@ -187,6 +177,7 @@ class ForStateTest {
 
   @Nested
   @DisplayName("withState(MonadZero)")
+  @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
   class WithStateMonadZeroTests {
 
     @Test
@@ -202,6 +193,7 @@ class ForStateTest {
 
     @Test
     @DisplayName("should throw on null MonadZero")
+    @SuppressWarnings("RedundantCast") // explicit cast pins the overload under test
     void withStateMonadZeroThrowsOnNullMonad() {
       assertThatThrownBy(
               () -> ForState.withState((MonadZero<MaybeKind.Witness>) null, MAYBE.just("test")))
@@ -222,6 +214,7 @@ class ForStateTest {
 
   @Nested
   @DisplayName("yield() - Return Final State")
+  @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
   class YieldTests {
 
     @Test
@@ -298,6 +291,7 @@ class ForStateTest {
 
   @Nested
   @DisplayName("update() - Set Field Value")
+  @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
   class UpdateTests {
 
     @Test
@@ -346,6 +340,7 @@ class ForStateTest {
 
   @Nested
   @DisplayName("modify() - Transform Field Value")
+  @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
   class ModifyTests {
 
     @Test
@@ -389,6 +384,7 @@ class ForStateTest {
 
   @Nested
   @DisplayName("from() - Execute Operation Without State Change")
+  @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
   class FromTests {
 
     @Test
@@ -421,6 +417,7 @@ class ForStateTest {
 
   @Nested
   @DisplayName("fromThen() - Execute Operation and Update State")
+  @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
   class FromThenTests {
 
     @Test
@@ -444,9 +441,9 @@ class ForStateTest {
 
       Kind<IdKind.Witness, WorkflowContext> result =
           ForState.withState(idMonad, Id.of(ctx))
-              .fromThen(c -> Id.of(true), validatedLens)
-              .fromThen(c -> Id.of(true), processedLens)
-              .fromThen(c -> Id.of("CONF-456"), confirmationIdLens)
+              .fromThen(_ -> Id.of(true), validatedLens)
+              .fromThen(_ -> Id.of(true), processedLens)
+              .fromThen(_ -> Id.of("CONF-456"), confirmationIdLens)
               .yield();
 
       WorkflowContext finalCtx = IdKindHelper.ID.unwrap(result);
@@ -472,7 +469,7 @@ class ForStateTest {
       WorkflowContext ctx = WorkflowContext.start("ORD-123");
 
       assertThatThrownBy(
-              () -> ForState.withState(idMonad, Id.of(ctx)).fromThen(c -> Id.of(true), null))
+              () -> ForState.withState(idMonad, Id.of(ctx)).fromThen(_ -> Id.of(true), null))
           .isInstanceOf(NullPointerException.class)
           .hasMessageContaining("lens");
     }
@@ -519,7 +516,7 @@ class ForStateTest {
       Kind<MaybeKind.Witness, WorkflowContext> result =
           ForState.withState(maybeMonad, MAYBE.just(ctx))
               .update(validatedLens, true)
-              .fromThen(c -> MAYBE.<String>nothing(), confirmationIdLens) // Fails here
+              .fromThen(_ -> MAYBE.nothing(), confirmationIdLens) // Fails here
               .update(processedLens, true) // Never reached
               .yield();
 
@@ -531,6 +528,7 @@ class ForStateTest {
 
   @Nested
   @DisplayName("when() - Predicate Guard")
+  @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
   class WhenTests {
 
     @Test
@@ -624,7 +622,7 @@ class ForStateTest {
     void whenPropagatesNothing() {
       Kind<MaybeKind.Witness, WorkflowContext> result =
           ForState.withState(maybeMonad, MAYBE.<WorkflowContext>nothing())
-              .when(c -> true) // Nothing stays Nothing
+              .when(_ -> true) // Nothing stays Nothing
               .yield();
 
       assertThat(MAYBE.narrow(result)).isEqualTo(Maybe.nothing());
@@ -635,6 +633,7 @@ class ForStateTest {
 
   @Nested
   @DisplayName("matchThen() - Prism-Based Pattern Matching")
+  @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
   class MatchThenPrismTests {
 
     @Test
@@ -667,10 +666,10 @@ class ForStateTest {
       Prism<OrderStatus, String> confirmedIdPrism =
           Prism.of(
               s ->
-                  s instanceof OrderStatus.Confirmed c
-                      ? Optional.of(c.confirmationId())
+                  s instanceof OrderStatus.Confirmed(var confirmationId)
+                      ? Optional.of(confirmationId)
                       : Optional.empty(),
-              id -> new OrderStatus.Confirmed(id));
+              OrderStatus.Confirmed::new);
 
       Kind<MaybeKind.Witness, OrderContext> result =
           ForState.withState(maybeMonad, MAYBE.just(ctx))
@@ -693,10 +692,10 @@ class ForStateTest {
       Prism<OrderStatus, String> confirmedIdPrism =
           Prism.of(
               s ->
-                  s instanceof OrderStatus.Confirmed c
-                      ? Optional.of(c.confirmationId())
+                  s instanceof OrderStatus.Confirmed(var confirmationId)
+                      ? Optional.of(confirmationId)
                       : Optional.empty(),
-              id -> new OrderStatus.Confirmed(id));
+              OrderStatus.Confirmed::new);
 
       Kind<MaybeKind.Witness, OrderContext> result =
           ForState.withState(maybeMonad, MAYBE.just(ctx))
@@ -713,7 +712,7 @@ class ForStateTest {
       OrderContext ctx = new OrderContext("ORD-1", new OrderStatus.Pending("x"), null, List.of());
 
       Prism<OrderStatus, String> prism =
-          Prism.of(s -> Optional.empty(), id -> new OrderStatus.Confirmed(id));
+          Prism.of(_ -> Optional.empty(), OrderStatus.Confirmed::new);
 
       assertThatThrownBy(
               () ->
@@ -742,7 +741,7 @@ class ForStateTest {
       OrderContext ctx = new OrderContext("ORD-1", new OrderStatus.Pending("x"), null, List.of());
 
       Prism<OrderStatus, String> prism =
-          Prism.of(s -> Optional.empty(), id -> new OrderStatus.Confirmed(id));
+          Prism.of(_ -> Optional.empty(), OrderStatus.Confirmed::new);
 
       assertThatThrownBy(
               () ->
@@ -757,6 +756,7 @@ class ForStateTest {
 
   @Nested
   @DisplayName("matchThen() - Function-Based Extraction")
+  @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
   class MatchThenFunctionTests {
 
     @Test
@@ -769,8 +769,8 @@ class ForStateTest {
           ForState.withState(maybeMonad, MAYBE.just(ctx))
               .matchThen(
                   c ->
-                      c.status() instanceof OrderStatus.Confirmed conf
-                          ? Optional.of(conf.confirmationId())
+                      c.status() instanceof OrderStatus.Confirmed(var confirmationId)
+                          ? Optional.of(confirmationId)
                           : Optional.empty(),
                   extractedIdLens)
               .yield();
@@ -792,8 +792,8 @@ class ForStateTest {
           ForState.withState(maybeMonad, MAYBE.just(ctx))
               .matchThen(
                   c ->
-                      c.status() instanceof OrderStatus.Confirmed conf
-                          ? Optional.of(conf.confirmationId())
+                      c.status() instanceof OrderStatus.Confirmed(var confirmationId)
+                          ? Optional.of(confirmationId)
                           : Optional.empty(),
                   extractedIdLens)
               .yield();
@@ -821,7 +821,7 @@ class ForStateTest {
       assertThatThrownBy(
               () ->
                   ForState.withState(maybeMonad, MAYBE.just(ctx))
-                      .matchThen(c -> Optional.of("x"), null))
+                      .matchThen(_ -> Optional.of("x"), null))
           .isInstanceOf(NullPointerException.class)
           .hasMessageContaining("targetLens");
     }
@@ -831,6 +831,7 @@ class ForStateTest {
 
   @Nested
   @DisplayName("traverse() - Bulk Operations on Collection Fields")
+  @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
   class TraverseTests {
 
     @Test
@@ -877,7 +878,7 @@ class ForStateTest {
               .traverse(
                   tagsLens,
                   listTraversal,
-                  tag -> tag.equals("ok") ? MAYBE.just(tag + "!") : MAYBE.<String>nothing())
+                  tag -> tag.equals("ok") ? MAYBE.just(tag + "!") : MAYBE.nothing())
               .yield();
 
       assertThat(MAYBE.narrow(result))
@@ -900,7 +901,7 @@ class ForStateTest {
               .traverse(
                   tagsLens,
                   listTraversal,
-                  tag -> tag.equals("ok") ? MAYBE.just(tag) : MAYBE.<String>nothing())
+                  tag -> tag.equals("ok") ? MAYBE.just(tag) : MAYBE.nothing())
               .yield();
 
       assertThat(MAYBE.narrow(result)).isEqualTo(Maybe.nothing());
@@ -913,9 +914,7 @@ class ForStateTest {
       Traversal<List<String>, String> listTraversal = Traversals.forList();
 
       assertThatThrownBy(
-              () ->
-                  ForState.withState(idMonad, Id.of(ctx))
-                      .traverse(null, listTraversal, tag -> Id.of(tag)))
+              () -> ForState.withState(idMonad, Id.of(ctx)).traverse(null, listTraversal, Id::of))
           .isInstanceOf(NullPointerException.class)
           .hasMessageContaining("collectionLens");
     }
@@ -926,9 +925,7 @@ class ForStateTest {
       OrderContext ctx = new OrderContext("ORD-1", new OrderStatus.Pending("x"), null, List.of());
 
       assertThatThrownBy(
-              () ->
-                  ForState.withState(idMonad, Id.of(ctx))
-                      .traverse(tagsLens, null, tag -> Id.of(tag)))
+              () -> ForState.withState(idMonad, Id.of(ctx)).traverse(tagsLens, null, Id::of))
           .isInstanceOf(NullPointerException.class)
           .hasMessageContaining("traversal");
     }
@@ -971,6 +968,7 @@ class ForStateTest {
 
   @Nested
   @DisplayName("zoom() - State Scope Narrowing")
+  @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
   class ZoomTests {
 
     @Test
@@ -1131,7 +1129,7 @@ class ForStateTest {
               () ->
                   ForState.withState(idMonad, Id.of(customer))
                       .zoom(addressLens)
-                      .fromThen(addr -> Id.of("x"), null))
+                      .fromThen(_ -> Id.of("x"), null))
           .isInstanceOf(NullPointerException.class)
           .hasMessageContaining("lens");
     }
@@ -1141,6 +1139,7 @@ class ForStateTest {
 
   @Nested
   @DisplayName("FilterableSteps - Covariant Returns")
+  @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
   class FilterableStepsCovariantTests {
 
     @Test
@@ -1150,8 +1149,8 @@ class ForStateTest {
 
       Kind<MaybeKind.Witness, WorkflowContext> result =
           ForState.withState(maybeMonad, MAYBE.just(ctx))
-              .from(c -> MAYBE.just("side-effect"))
-              .when(c -> true) // Can chain when() after from()
+              .from(_ -> MAYBE.just("side-effect"))
+              .when(_ -> true) // Can chain when() after from()
               .yield();
 
       assertThat(MAYBE.narrow(result)).isEqualTo(Maybe.just(ctx));
@@ -1164,7 +1163,7 @@ class ForStateTest {
 
       Kind<MaybeKind.Witness, WorkflowContext> result =
           ForState.withState(maybeMonad, MAYBE.just(ctx))
-              .fromThen(c -> MAYBE.just(true), validatedLens)
+              .fromThen(_ -> MAYBE.just(true), validatedLens)
               .when(WorkflowContext::validated) // Can chain when() after fromThen()
               .yield();
 
@@ -1230,7 +1229,7 @@ class ForStateTest {
       assertThatThrownBy(
               () ->
                   ForState.withState(maybeMonad, MAYBE.just(ctx))
-                      .fromThen(c -> MAYBE.just(true), null))
+                      .fromThen(_ -> MAYBE.just(true), null))
           .isInstanceOf(NullPointerException.class)
           .hasMessageContaining("lens");
     }
@@ -1272,6 +1271,7 @@ class ForStateTest {
 
   @Nested
   @DisplayName("FilterableSteps traverse() null checks")
+  @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
   class FilterableTraverseNullTests {
 
     @Test
@@ -1283,7 +1283,7 @@ class ForStateTest {
       assertThatThrownBy(
               () ->
                   ForState.withState(maybeMonad, MAYBE.just(ctx))
-                      .traverse(null, listTraversal, tag -> MAYBE.just(tag)))
+                      .traverse(null, listTraversal, MAYBE::just))
           .isInstanceOf(NullPointerException.class)
           .hasMessageContaining("collectionLens");
     }
@@ -1296,7 +1296,7 @@ class ForStateTest {
       assertThatThrownBy(
               () ->
                   ForState.withState(maybeMonad, MAYBE.just(ctx))
-                      .traverse(tagsLens, null, tag -> MAYBE.just(tag)))
+                      .traverse(tagsLens, null, MAYBE::just))
           .isInstanceOf(NullPointerException.class)
           .hasMessageContaining("traversal");
     }
@@ -1320,6 +1320,7 @@ class ForStateTest {
 
   @Nested
   @DisplayName("FilterableSteps zoom()")
+  @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
   class FilterableZoomTests {
 
     @Test
@@ -1504,7 +1505,7 @@ class ForStateTest {
               () ->
                   ForState.withState(maybeMonad, MAYBE.just(customer))
                       .zoom(addressLens)
-                      .fromThen(addr -> MAYBE.just("x"), null))
+                      .fromThen(_ -> MAYBE.just("x"), null))
           .isInstanceOf(NullPointerException.class)
           .hasMessageContaining("lens");
     }
@@ -1514,6 +1515,7 @@ class ForStateTest {
 
   @Nested
   @DisplayName("Complex Workflow Scenarios")
+  @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
   class ComplexScenarios {
 
     @Test
@@ -1543,10 +1545,10 @@ class ForStateTest {
       Prism<OrderStatus, String> confirmedIdPrism =
           Prism.of(
               s ->
-                  s instanceof OrderStatus.Confirmed c
-                      ? Optional.of(c.confirmationId())
+                  s instanceof OrderStatus.Confirmed(var confirmationId)
+                      ? Optional.of(confirmationId)
                       : Optional.empty(),
-              id -> new OrderStatus.Confirmed(id));
+              OrderStatus.Confirmed::new);
 
       Traversal<List<String>, String> listTraversal = Traversals.forList();
 
@@ -1597,6 +1599,7 @@ class ForStateTest {
 
   @Nested
   @DisplayName("Optic-Polymorphic zoom() - FocusPath, Iso")
+  @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
   class OpticPolymorphicZoomTests {
 
     @Test
@@ -1838,6 +1841,7 @@ class ForStateTest {
 
   @Nested
   @DisplayName("FilterableSteps zoom(AffinePath) - Optional Sub-State")
+  @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
   class FilterableAffineZoomTests {
 
     /** Customer record with an optional address (for affine zoom tests). */
@@ -1963,7 +1967,7 @@ class ForStateTest {
       Address present = new Address("123 Main St", "Springfield", "62701");
       Affine<OptionalAddressCustomer, Address> flakyAffine =
           Affine.of(
-              c -> callCount.getAndIncrement() == 0 ? Optional.of(present) : Optional.empty(),
+              _ -> callCount.getAndIncrement() == 0 ? Optional.of(present) : Optional.empty(),
               (c, a) -> new OptionalAddressCustomer(c.name(), Optional.of(a)));
       AffinePath<OptionalAddressCustomer, Address> flakyPath = AffinePath.of(flakyAffine);
 

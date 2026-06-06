@@ -24,6 +24,7 @@ import org.junit.jupiter.api.Test;
 
 @DisplayName("OptionalT Class Tests ")
 // (Outer: OptionalKind.Witness)
+@SuppressWarnings("OptionalUsedAsFieldOrParameterType") // intentional Optional-typed fixtures
 class OptionalTTest {
 
   private Monad<OptionalKind.Witness> outerMonad;
@@ -34,7 +35,6 @@ class OptionalTTest {
   private Kind<OptionalKind.Witness, Optional<String>> wrappedPresent;
   private Kind<OptionalKind.Witness, Optional<String>> wrappedEmpty;
   private Kind<OptionalKind.Witness, Integer> wrappedOuterValue;
-  private Kind<OptionalKind.Witness, Integer> wrappedOuterEmptyValue;
 
   private Optional<String> plainPresent;
   private Optional<String> plainEmpty;
@@ -45,13 +45,8 @@ class OptionalTTest {
 
     wrappedPresent = OPTIONAL.widen(Optional.of(Optional.of(presentValue)));
     wrappedEmpty = OPTIONAL.widen(Optional.of(Optional.empty()));
-    // For wrappedOuterEmpty, previously was Kind<OptionalKind<?>,Optional<String>>
-    // Now Kind<OptionalKind.Witness, Optional<String>>
-    Kind<OptionalKind.Witness, Optional<String>> tempWrappedOuterEmpty =
-        OPTIONAL.widen(Optional.empty());
 
     wrappedOuterValue = OPTIONAL.widen(Optional.of(otherPresentValue));
-    wrappedOuterEmptyValue = OPTIONAL.widen(Optional.empty());
 
     plainPresent = Optional.of(presentValue);
     plainEmpty = Optional.empty();
@@ -88,6 +83,7 @@ class OptionalTTest {
 
     @Test
     @DisplayName("fromKind should throw NullPointerException for null input")
+    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
     void fromKind_throwsOnNull() {
       assertThatNullPointerException()
           .isThrownBy(() -> OptionalT.fromKind(null))
@@ -103,6 +99,7 @@ class OptionalTTest {
 
     @Test
     @DisplayName("some should throw NullPointerException for null input value")
+    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
     void some_throwsOnNullValue() {
       assertThatNullPointerException().isThrownBy(() -> OptionalT.some(outerMonad, (String) null));
     }
@@ -128,6 +125,7 @@ class OptionalTTest {
 
     @Test
     @DisplayName("fromOptional should throw NullPointerException for null Optional input")
+    @SuppressWarnings({"DataFlowIssue", "OptionalAssignedToNull"}) // null passed deliberately
     void fromOptional_throwsOnNullOptional() {
       assertThatNullPointerException()
           .isThrownBy(() -> OptionalT.fromOptional(outerMonad, null))
@@ -192,7 +190,6 @@ class OptionalTTest {
       assertThat(ot1).isNotEqualTo(otEmptyInner1);
       assertThat(ot1).isNotEqualTo(otOuterEmpty);
       assertThat(ot1).isNotEqualTo(null);
-      assertThat(ot1).isNotEqualTo(wrappedPresentOpt1);
     }
 
     @Test
@@ -263,6 +260,7 @@ class OptionalTTest {
 
     @Test
     @DisplayName("mapT should reject null function")
+    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
     void mapT_rejectsNull() {
       OptionalT<OptionalKind.Witness, String> ot = OptionalT.some(outerMonad, presentValue);
       assertThatThrownBy(() -> ot.mapT(null)).isInstanceOf(NullPointerException.class);

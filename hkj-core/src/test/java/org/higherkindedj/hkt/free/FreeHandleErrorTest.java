@@ -45,14 +45,16 @@ class FreeHandleErrorTest {
 
     @Test
     @DisplayName("HandleError rejects null program")
+    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
     void rejectsNullProgram() {
       assertThatThrownBy(
-              () -> new Free.HandleError<>(null, e -> Free.pure("fallback"), Throwable.class))
+              () -> new Free.HandleError<>(null, _ -> Free.pure("fallback"), Throwable.class))
           .isInstanceOf(NullPointerException.class);
     }
 
     @Test
     @DisplayName("HandleError rejects null handler")
+    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
     void rejectsNullHandler() {
       assertThatThrownBy(() -> new Free.HandleError<>(Free.pure("test"), null, Throwable.class))
           .isInstanceOf(NullPointerException.class);
@@ -60,9 +62,10 @@ class FreeHandleErrorTest {
 
     @Test
     @DisplayName("HandleError rejects null errorType")
+    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
     void rejectsNullErrorType() {
       assertThatThrownBy(
-              () -> new Free.HandleError<>(Free.pure("test"), e -> Free.pure("fallback"), null))
+              () -> new Free.HandleError<>(Free.pure("test"), _ -> Free.pure("fallback"), null))
           .isInstanceOf(NullPointerException.class);
     }
   }
@@ -76,7 +79,7 @@ class FreeHandleErrorTest {
     void handleErrorCreatesCorrectVariant() {
       Free<IdentityKind.Witness, String> program =
           Free.<IdentityKind.Witness, String>pure("test")
-              .handleError(RuntimeException.class, e -> Free.pure("fallback"));
+              .handleError(RuntimeException.class, _ -> Free.pure("fallback"));
 
       assertThatFree(program).isHandleError();
     }
@@ -86,8 +89,8 @@ class FreeHandleErrorTest {
     void nestedHandleErrorWraps() {
       Free<IdentityKind.Witness, String> program =
           Free.<IdentityKind.Witness, String>pure("inner")
-              .handleError(IllegalArgumentException.class, e -> Free.pure("inner-recovery"))
-              .handleError(RuntimeException.class, e -> Free.pure("outer-recovery"));
+              .handleError(IllegalArgumentException.class, _ -> Free.pure("inner-recovery"))
+              .handleError(RuntimeException.class, _ -> Free.pure("outer-recovery"));
 
       assertThatFree(program).isHandleError();
     }
@@ -102,12 +105,12 @@ class FreeHandleErrorTest {
     void handleErrorIgnoredForNonMonadError() {
       Free<IdentityKind.Witness, Integer> program =
           Free.<IdentityKind.Witness, Integer>pure(42)
-              .handleError(Throwable.class, e -> Free.pure(-1));
+              .handleError(Throwable.class, _ -> Free.pure(-1));
 
       Kind<IdentityKind.Witness, Integer> result =
           program.foldMap(Natural.identity(), identityMonad);
 
-      assertThat(IDENTITY.<Integer>narrow(result).value()).isEqualTo(42);
+      assertThat(IDENTITY.narrow(result).value()).isEqualTo(42);
     }
 
     @Test
@@ -115,12 +118,12 @@ class FreeHandleErrorTest {
     void handleErrorOnPurePassesThrough() {
       Free<IdentityKind.Witness, String> program =
           Free.<IdentityKind.Witness, String>pure("hello")
-              .handleError(RuntimeException.class, e -> Free.pure("recovered"));
+              .handleError(RuntimeException.class, _ -> Free.pure("recovered"));
 
       Kind<IdentityKind.Witness, String> result =
           program.foldMap(Natural.identity(), identityMonad);
 
-      assertThat(IDENTITY.<String>narrow(result).value()).isEqualTo("hello");
+      assertThat(IDENTITY.narrow(result).value()).isEqualTo("hello");
     }
   }
 
@@ -133,7 +136,7 @@ class FreeHandleErrorTest {
     void handleErrorOnSuccessReturnsOriginal() {
       Free<IdentityKind.Witness, Integer> program =
           Free.<IdentityKind.Witness, Integer>pure(42)
-              .handleError(Exception.class, e -> Free.pure(-1));
+              .handleError(Exception.class, _ -> Free.pure(-1));
 
       Kind<TryKind.Witness, Integer> result = program.foldMap(identityToTry, tryMonad);
 
@@ -180,7 +183,7 @@ class FreeHandleErrorTest {
       // Handle only IllegalArgumentException, not RuntimeException
       Free<IdentityKind.Witness, String> program =
           Free.liftF(IDENTITY.widen(new Identity<>("will-fail")), identityMonad)
-              .handleError(IllegalArgumentException.class, e -> Free.pure("should not reach"));
+              .handleError(IllegalArgumentException.class, _ -> Free.pure("should not reach"));
 
       Kind<TryKind.Witness, String> result = program.foldMap(failingInterp, tryMonad);
 

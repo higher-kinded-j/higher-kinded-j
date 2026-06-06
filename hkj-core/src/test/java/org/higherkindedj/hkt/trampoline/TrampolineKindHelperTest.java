@@ -35,6 +35,7 @@ class TrampolineKindHelperTest extends TrampolineTestBase {
 
     @Test
     @DisplayName("widen() with null throws NullPointerException")
+    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
     void widenWithNullThrows() {
       assertThatThrownBy(() -> TRAMPOLINE.widen(null)).isInstanceOf(NullPointerException.class);
     }
@@ -87,6 +88,7 @@ class TrampolineKindHelperTest extends TrampolineTestBase {
 
     @Test
     @DisplayName("done() helper accepts null values")
+    @SuppressWarnings("DataFlowIssue") // a Trampoline may legitimately hold a null value
     void doneHelperAcceptsNull() {
       Kind<TrampolineKind.Witness, String> kind = TRAMPOLINE.done(null);
 
@@ -152,23 +154,14 @@ class TrampolineKindHelperTest extends TrampolineTestBase {
     @DisplayName("TRAMPOLINE enum constant is accessible")
     void trampolineEnumConstantAccessible() {
       assertThat(TrampolineKindHelper.TRAMPOLINE).isNotNull();
-      assertThat(TrampolineKindHelper.TRAMPOLINE).isSameAs(TRAMPOLINE);
     }
 
     @Test
-    @DisplayName("Multiple references to TRAMPOLINE return same instance")
-    void multipleReferencesReturnSameInstance() {
-      TrampolineKindHelper helper1 = TrampolineKindHelper.TRAMPOLINE;
-      TrampolineKindHelper helper2 = TrampolineKindHelper.TRAMPOLINE;
-
-      assertThat(helper1).isSameAs(helper2);
-    }
-
-    @Test
-    @DisplayName("TrampolineKindHelper is an enum")
+    @DisplayName("TrampolineKindHelper is an enum singleton implementing TrampolineConverterOps")
     void trampolineKindHelperIsEnum() {
       assertThat(TRAMPOLINE).isInstanceOf(Enum.class);
       assertThat(TRAMPOLINE).isInstanceOf(TrampolineConverterOps.class);
+      assertThat(TrampolineKindHelper.values()).containsExactly(TRAMPOLINE);
     }
   }
 
@@ -225,6 +218,7 @@ class TrampolineKindHelperTest extends TrampolineTestBase {
 
     @Test
     @DisplayName("widen and narrow with null value trampolines")
+    @SuppressWarnings("DataFlowIssue") // a Trampoline may legitimately hold a null value
     void widenAndNarrowWithNullValues() {
       Trampoline<String> trampoline = Trampoline.done(null);
       Kind<TrampolineKind.Witness, String> kind = TRAMPOLINE.widen(trampoline);

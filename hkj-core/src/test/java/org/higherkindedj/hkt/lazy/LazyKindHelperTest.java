@@ -70,6 +70,7 @@ class LazyKindHelperTest extends LazyTestBase {
 
     @Test
     @DisplayName("widen should throw NPE for null input")
+    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
     void widenShouldThrowNPEForNullInput() {
       assertThatNullPointerException()
           .isThrownBy(() -> LAZY.widen(null))
@@ -111,6 +112,7 @@ class LazyKindHelperTest extends LazyTestBase {
 
     @Test
     @DisplayName("narrow should throw for null input")
+    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
     void narrowShouldThrowForNullInput() {
       assertThatThrownBy(() -> narrowToLazy(null))
           .isInstanceOf(KindUnwrapException.class)
@@ -170,6 +172,7 @@ class LazyKindHelperTest extends LazyTestBase {
 
     @Test
     @DisplayName("defer should throw NPE for null supplier")
+    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
     void deferShouldThrowNPEForNullSupplier() {
       assertThatNullPointerException()
           .isThrownBy(() -> LAZY.defer(null))
@@ -244,6 +247,7 @@ class LazyKindHelperTest extends LazyTestBase {
 
     @Test
     @DisplayName("force should throw KindUnwrapException if Kind is invalid")
+    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
     void forceShouldThrowKindUnwrapExceptionIfKindIsInvalid() {
       assertThatThrownBy(() -> LAZY.force(null)).isInstanceOf(KindUnwrapException.class);
     }

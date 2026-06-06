@@ -38,8 +38,6 @@ class ForIndexedTest {
 
   record Player(String name, int score) {}
 
-  record Item(String label, int quantity) {}
-
   // --- Common Test Fixtures ---
 
   private Monad<IdKind.Witness> idMonad;
@@ -74,6 +72,7 @@ class ForIndexedTest {
 
     @Test
     @DisplayName("overIndexed() should throw on null traversal")
+    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
     void overIndexedThrowsOnNullTraversal() {
       assertThatThrownBy(() -> ForIndexed.overIndexed(null, List.of(), idMonad))
           .isInstanceOf(NullPointerException.class)
@@ -82,6 +81,7 @@ class ForIndexedTest {
 
     @Test
     @DisplayName("overIndexed() should throw on null source")
+    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
     void overIndexedThrowsOnNullSource() {
       assertThatThrownBy(() -> ForIndexed.overIndexed(playersTraversal, null, idMonad))
           .isInstanceOf(NullPointerException.class)
@@ -90,6 +90,7 @@ class ForIndexedTest {
 
     @Test
     @DisplayName("overIndexed() should throw on null applicative")
+    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
     void overIndexedThrowsOnNullApplicative() {
       assertThatThrownBy(() -> ForIndexed.overIndexed(playersTraversal, List.of(), null))
           .isInstanceOf(NullPointerException.class)
@@ -167,19 +168,21 @@ class ForIndexedTest {
 
     @Test
     @DisplayName("modify() should throw on null lens")
+    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
     void modifyThrowsOnNullLens() {
       List<Player> players = List.of(new Player("Alice", 100));
 
       assertThatThrownBy(
               () ->
                   ForIndexed.overIndexed(playersTraversal, players, idMonad)
-                      .modify(null, (i, x) -> x))
+                      .modify(null, (_, x) -> x))
           .isInstanceOf(NullPointerException.class)
           .hasMessageContaining("lens");
     }
 
     @Test
     @DisplayName("modify() should throw on null modifier")
+    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
     void modifyThrowsOnNullModifier() {
       List<Player> players = List.of(new Player("Alice", 100));
 
@@ -226,7 +229,7 @@ class ForIndexedTest {
       Kind<IdKind.Witness, List<Player>> result =
           ForIndexed.overIndexed(playersTraversal, players, idMonad)
               .filterIndex(i -> i % 2 == 0) // Only even indices (0, 2)
-              .set(scoreLens, index -> 999)
+              .set(scoreLens, _ -> 999)
               .run();
 
       List<Player> resultList = IdKindHelper.ID.unwrap(result);
@@ -285,9 +288,9 @@ class ForIndexedTest {
 
       Kind<IdKind.Witness, List<Player>> result =
           ForIndexed.overIndexed(playersTraversal, players, idMonad)
-              .modify(scoreLens, (i, score) -> score + 1000) // First: add 1000 to all
+              .modify(scoreLens, (_, score) -> score + 1000) // First: add 1000 to all
               .filterIndex(i -> i == 1) // Then: only index 1
-              .set(scoreLens, i -> 5000) // Set index 1 to 5000
+              .set(scoreLens, _ -> 5000) // Set index 1 to 5000
               .run();
 
       List<Player> resultList = IdKindHelper.ID.unwrap(result);
@@ -306,7 +309,7 @@ class ForIndexedTest {
       Kind<IdKind.Witness, List<Player>> result =
           ForIndexed.overIndexed(playersTraversal, players, idMonad)
               .set(scoreLens, i -> i * 100) // Set scores to 0, 100, 200
-              .modify(scoreLens, (i, score) -> score + 50) // Add 50 to each
+              .modify(scoreLens, (_, score) -> score + 50) // Add 50 to each
               .run();
 
       List<Player> resultList = IdKindHelper.ID.unwrap(result);
@@ -322,7 +325,7 @@ class ForIndexedTest {
       List<Player> players = List.of();
 
       Kind<IdKind.Witness, List<Player>> result =
-          ForIndexed.overIndexed(playersTraversal, players, idMonad).set(scoreLens, i -> 999).run();
+          ForIndexed.overIndexed(playersTraversal, players, idMonad).set(scoreLens, _ -> 999).run();
 
       List<Player> resultList = IdKindHelper.ID.unwrap(result);
       assertThat(resultList).isEmpty();
@@ -373,17 +376,19 @@ class ForIndexedTest {
 
     @Test
     @DisplayName("set() should throw on null lens")
+    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
     void setThrowsOnNullLens() {
       List<Player> players = List.of(new Player("Alice", 100));
 
       assertThatThrownBy(
-              () -> ForIndexed.overIndexed(playersTraversal, players, idMonad).set(null, i -> 0))
+              () -> ForIndexed.overIndexed(playersTraversal, players, idMonad).set(null, _ -> 0))
           .isInstanceOf(NullPointerException.class)
           .hasMessageContaining("lens");
     }
 
     @Test
     @DisplayName("set() should throw on null valueFunction")
+    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
     void setThrowsOnNullValueFunction() {
       List<Player> players = List.of(new Player("Alice", 100));
 
@@ -413,7 +418,7 @@ class ForIndexedTest {
       Kind<IdKind.Witness, List<Player>> result =
           ForIndexed.overIndexed(playersTraversal, players, idMonad)
               .filterIndex(i -> i % 2 == 0) // Only even indices (0, 2)
-              .modify(scoreLens, (i, score) -> score * 2)
+              .modify(scoreLens, (_, score) -> score * 2)
               .run();
 
       List<Player> resultList = IdKindHelper.ID.unwrap(result);
@@ -432,7 +437,7 @@ class ForIndexedTest {
       Kind<IdKind.Witness, List<Player>> result =
           ForIndexed.overIndexed(playersTraversal, players, idMonad)
               .filterIndex(i -> i < 2) // First 2 elements
-              .modify(scoreLens, (i, s) -> s + 100)
+              .modify(scoreLens, (_, s) -> s + 100)
               .run();
 
       List<Player> resultList = IdKindHelper.ID.unwrap(result);
@@ -441,6 +446,7 @@ class ForIndexedTest {
 
     @Test
     @DisplayName("filterIndex() should throw on null predicate")
+    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
     void filterIndexThrowsOnNullPredicate() {
       List<Player> players = List.of(new Player("Alice", 100));
 
@@ -470,7 +476,7 @@ class ForIndexedTest {
       Kind<IdKind.Witness, List<Player>> result =
           ForIndexed.overIndexed(playersTraversal, players, idMonad)
               .filter((index, player) -> index < 3 && player.score() >= 100)
-              .modify(scoreLens, (i, s) -> s + 1000)
+              .modify(scoreLens, (_, s) -> s + 1000)
               .run();
 
       List<Player> resultList = IdKindHelper.ID.unwrap(result);
@@ -483,6 +489,7 @@ class ForIndexedTest {
 
     @Test
     @DisplayName("filter() should throw on null predicate")
+    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
     void filterThrowsOnNullPredicate() {
       List<Player> players = List.of(new Player("Alice", 100));
 
@@ -500,8 +507,8 @@ class ForIndexedTest {
       Kind<IdKind.Witness, List<Player>> result =
           ForIndexed.overIndexed(playersTraversal, players, idMonad)
               .filterIndex(i -> i > 0) // Exclude first element
-              .filter((i, p) -> p.score() >= 25) // Score >= 25
-              .modify(scoreLens, (i, s) -> s * 10)
+              .filter((_, p) -> p.score() >= 25) // Score >= 25
+              .modify(scoreLens, (_, s) -> s * 10)
               .run();
 
       List<Player> resultList = IdKindHelper.ID.unwrap(result);
@@ -605,8 +612,8 @@ class ForIndexedTest {
       Kind<IdKind.Witness, List<Player>> result =
           ForIndexed.overIndexed(playersTraversal, players, idMonad)
               .filterIndex(i -> i >= 1 && i <= 3) // Middle three
-              .filter((i, p) -> p.score() >= 25) // Score >= 25
-              .modify(nameLens, (i, n) -> n.toUpperCase())
+              .filter((_, p) -> p.score() >= 25) // Score >= 25
+              .modify(nameLens, (_, n) -> n.toUpperCase())
               .modify(scoreLens, (i, s) -> s + i * 100)
               .run();
 

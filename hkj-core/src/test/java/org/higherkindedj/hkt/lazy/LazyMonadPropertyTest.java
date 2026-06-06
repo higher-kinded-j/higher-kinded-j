@@ -3,12 +3,8 @@
 package org.higherkindedj.hkt.lazy;
 
 import static org.higherkindedj.hkt.instances.Witnesses.lazy;
-import static org.higherkindedj.hkt.lazy.LazyKindHelper.LAZY;
 
-import java.util.Objects;
-import java.util.function.BiPredicate;
 import java.util.function.Function;
-import net.jqwik.api.Arbitraries;
 import net.jqwik.api.Arbitrary;
 import net.jqwik.api.ForAll;
 import net.jqwik.api.Label;
@@ -22,55 +18,40 @@ import org.higherkindedj.hkt.laws.FunctorLaws;
 import org.higherkindedj.hkt.laws.MonadLaws;
 
 /** Property-based Functor- and Monad-law verification for Lazy. */
+@SuppressWarnings("unused") // referenced reflectively by jqwik
 class LazyMonadPropertyTest {
 
   private final Monad<LazyKind.Witness> monad = Instances.monad(lazy());
 
-  /** Forces both sides and compares — Lazy equality is value-based after evaluation. */
-  private final BiPredicate<Kind<LazyKind.Witness, ?>, Kind<LazyKind.Witness, ?>> eq =
-      (k1, k2) -> {
-        try {
-          return Objects.equals(LAZY.force(k1), LAZY.force(k2));
-        } catch (Throwable e) {
-          return false;
-        }
-      };
-
   @Provide
   Arbitrary<Kind<LazyKind.Witness, Integer>> lazyKinds() {
-    return Arbitraries.integers().between(-100, 100).map(i -> LAZY.widen(Lazy.now(i)));
+    return LazyArbitraries.lazyKinds();
   }
 
   @Provide
   Arbitrary<Function<Integer, String>> intToString() {
-    return Arbitraries.of(i -> "v:" + i, i -> String.valueOf(i * 2), Object::toString);
+    return LazyArbitraries.intToString();
   }
 
   @Provide
   Arbitrary<Function<String, Integer>> stringToInt() {
-    return Arbitraries.of(String::length, s -> s.isEmpty() ? 0 : 1, String::hashCode);
+    return LazyArbitraries.stringToInt();
   }
 
   @Provide
   Arbitrary<Function<Integer, Kind<LazyKind.Witness, String>>> intToLazyString() {
-    return Arbitraries.of(
-        i -> LAZY.widen(Lazy.now("v:" + i)),
-        i -> LAZY.widen(Lazy.defer(() -> String.valueOf(i * 2))),
-        i -> LAZY.widen(Lazy.now(Integer.toBinaryString(i))));
+    return LazyArbitraries.intToLazyString();
   }
 
   @Provide
   Arbitrary<Function<String, Kind<LazyKind.Witness, String>>> stringToLazyString() {
-    return Arbitraries.of(
-        s -> LAZY.widen(Lazy.now(s + "!")),
-        s -> LAZY.widen(Lazy.defer(s::toUpperCase)),
-        s -> LAZY.widen(Lazy.now("x:" + s)));
+    return LazyArbitraries.stringToLazyString();
   }
 
   @Property(tries = 50)
   @Label("Functor identity: map(id, fa) == fa")
   void functorIdentity(@ForAll("lazyKinds") Kind<LazyKind.Witness, Integer> fa) {
-    FunctorLaws.assertIdentity(monad, fa, eq);
+    FunctorLaws.assertIdentity(monad, fa, LazyLawFixtures.EQ);
   }
 
   @Property(tries = 50)
@@ -79,7 +60,7 @@ class LazyMonadPropertyTest {
       @ForAll("lazyKinds") Kind<LazyKind.Witness, Integer> fa,
       @ForAll("intToString") Function<Integer, String> f,
       @ForAll("stringToInt") Function<String, Integer> g) {
-    FunctorLaws.assertComposition(monad, fa, f, g, eq);
+    FunctorLaws.assertComposition(monad, fa, f, g, LazyLawFixtures.EQ);
   }
 
   @Property(tries = 50)
@@ -87,13 +68,13 @@ class LazyMonadPropertyTest {
   void leftIdentity(
       @ForAll @IntRange(min = -50, max = 50) int value,
       @ForAll("intToLazyString") Function<Integer, Kind<LazyKind.Witness, String>> f) {
-    MonadLaws.assertLeftIdentity(monad, value, f, eq);
+    MonadLaws.assertLeftIdentity(monad, value, f, LazyLawFixtures.EQ);
   }
 
   @Property(tries = 50)
   @Label("Monad right identity: flatMap(of, m) == m")
   void rightIdentity(@ForAll("lazyKinds") Kind<LazyKind.Witness, Integer> m) {
-    MonadLaws.assertRightIdentity(monad, m, eq);
+    MonadLaws.assertRightIdentity(monad, m, LazyLawFixtures.EQ);
   }
 
   @Property(tries = 50)
@@ -102,6 +83,6 @@ class LazyMonadPropertyTest {
       @ForAll("lazyKinds") Kind<LazyKind.Witness, Integer> m,
       @ForAll("intToLazyString") Function<Integer, Kind<LazyKind.Witness, String>> f,
       @ForAll("stringToLazyString") Function<String, Kind<LazyKind.Witness, String>> g) {
-    MonadLaws.assertAssociativity(monad, m, f, g, eq);
+    MonadLaws.assertAssociativity(monad, m, f, g, LazyLawFixtures.EQ);
   }
 }

@@ -31,8 +31,6 @@ class ReaderTTest {
   private final Integer resultValue = 42;
   private final String otherEnvironment = "other-env";
 
-  private record Config(String setting) {}
-
   private Kind<OptionalKind.Witness, Integer> wrappedValue;
   private Kind<OptionalKind.Witness, Integer> wrappedEmpty;
 
@@ -71,7 +69,7 @@ class ReaderTTest {
     @Test
     @DisplayName("of should handle function returning empty")
     void of_handlesEmptyResult() {
-      Function<String, Kind<OptionalKind.Witness, Integer>> emptyFunc = env -> wrappedEmpty;
+      Function<String, Kind<OptionalKind.Witness, Integer>> emptyFunc = _ -> wrappedEmpty;
       ReaderT<OptionalKind.Witness, String, Integer> rt = ReaderT.of(emptyFunc);
 
       assertThat(unwrapT(rt)).isEmpty();
@@ -107,7 +105,7 @@ class ReaderTTest {
     void reader_handlesFunctionReturningEmpty() {
       // Create a ReaderT that explicitly returns an empty Optional
       ReaderT<OptionalKind.Witness, String, Integer> rt =
-          ReaderT.of(env -> OPTIONAL.widen(Optional.empty()));
+          ReaderT.of(_ -> OPTIONAL.widen(Optional.empty()));
 
       assertThat(unwrapT(rt)).isEmpty();
     }
@@ -171,16 +169,17 @@ class ReaderTTest {
   @DisplayName("Object Methods")
   class ObjectTests {
 
-    // Add this record at the beginning of ObjectTests
+    // A distinct environment type for the equals/hashCode comparisons below.
     private record Config(String setting) {}
 
     @Test
     @DisplayName("equals/hashCode should compare based on run function instance")
+    @SuppressWarnings("EqualsBetweenInconvertibleTypes") // compares a ReaderT with a bare Function
     void equalsHashCode_comparesRunFunction() {
       // Create ONE function instance and reuse it
-      Function<Config, Kind<OptionalKind.Witness, String>> sharedFunc1 = cfg -> outerMonad.of("A");
-      Function<Config, Kind<OptionalKind.Witness, String>> sharedFunc2 = cfg -> outerMonad.of("A");
-      Function<Config, Kind<OptionalKind.Witness, String>> sharedFunc3 = cfg -> outerMonad.of("B");
+      Function<Config, Kind<OptionalKind.Witness, String>> sharedFunc1 = _ -> outerMonad.of("A");
+      Function<Config, Kind<OptionalKind.Witness, String>> sharedFunc2 = _ -> outerMonad.of("A");
+      Function<Config, Kind<OptionalKind.Witness, String>> sharedFunc3 = _ -> outerMonad.of("B");
 
       // These two ReaderT instances share the SAME function reference
       ReaderT<OptionalKind.Witness, Config, String> rt1a = ReaderT.of(sharedFunc1);
@@ -199,22 +198,25 @@ class ReaderTTest {
       assertThat(rt1a).isNotEqualTo(rt3);
 
       assertThat(rt1a).isNotEqualTo(null);
-      assertThat(rt1a).isNotEqualTo(sharedFunc1);
+      // Direct equals() keeps the instanceof-false branch covered (AssertJ flags the cross-type
+      // form).
+      assertThat(rt1a.equals(sharedFunc1)).isFalse();
     }
 
     @Test
     @DisplayName("equals should be reflexive")
+    @SuppressWarnings("EqualsWithItself") // reflexive self-comparison covers the this==obj branch
     void equals_reflexive() {
-      Function<Config, Kind<OptionalKind.Witness, String>> runFunc = cfg -> outerMonad.of("test");
+      Function<Config, Kind<OptionalKind.Witness, String>> runFunc = _ -> outerMonad.of("test");
       ReaderT<OptionalKind.Witness, Config, String> rt = ReaderT.of(runFunc);
 
-      assertThat(rt).isEqualTo(rt);
+      assertThat(rt.equals(rt)).isTrue();
     }
 
     @Test
     @DisplayName("equals should be symmetric")
     void equals_symmetric() {
-      Function<Config, Kind<OptionalKind.Witness, String>> runFunc = cfg -> outerMonad.of("test");
+      Function<Config, Kind<OptionalKind.Witness, String>> runFunc = _ -> outerMonad.of("test");
       ReaderT<OptionalKind.Witness, Config, String> rt1 = ReaderT.of(runFunc);
       ReaderT<OptionalKind.Witness, Config, String> rt2 = ReaderT.of(runFunc);
 
@@ -224,7 +226,7 @@ class ReaderTTest {
     @Test
     @DisplayName("hashCode should be consistent with equals")
     void hashCode_consistentWithEquals() {
-      Function<Config, Kind<OptionalKind.Witness, String>> runFunc = cfg -> outerMonad.of("test");
+      Function<Config, Kind<OptionalKind.Witness, String>> runFunc = _ -> outerMonad.of("test");
       ReaderT<OptionalKind.Witness, Config, String> rt1 = ReaderT.of(runFunc);
       ReaderT<OptionalKind.Witness, Config, String> rt2 = ReaderT.of(runFunc);
 
@@ -257,7 +259,7 @@ class ReaderTTest {
       // Optional doesn't support null, so of(null) would throw NPE
       // Instead we demonstrate that empty Optional is propagated
       Function<String, Kind<OptionalKind.Witness, Integer>> emptyFunc =
-          env -> OPTIONAL.widen(Optional.empty());
+          _ -> OPTIONAL.widen(Optional.empty());
       ReaderT<OptionalKind.Witness, String, Integer> rt = ReaderT.of(emptyFunc);
 
       assertThat(unwrapT(rt)).isEmpty();
@@ -347,7 +349,7 @@ class ReaderTTest {
     @DisplayName("mapT should preserve empty outer monad")
     void mapT_preservesEmpty() {
       ReaderT<OptionalKind.Witness, String, Integer> rt =
-          ReaderT.of(env -> OPTIONAL.widen(Optional.empty()));
+          ReaderT.of(_ -> OPTIONAL.widen(Optional.empty()));
       ReaderT<OptionalKind.Witness, String, Integer> result = rt.mapT(Function.identity());
 
       Optional<Integer> unwrapped = OPTIONAL.narrow(result.run().apply(environment));
@@ -356,6 +358,7 @@ class ReaderTTest {
 
     @Test
     @DisplayName("mapT should reject null function")
+    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
     void mapT_rejectsNull() {
       ReaderT<OptionalKind.Witness, String, Integer> rt =
           ReaderT.reader(outerMonad, simpleFunction);

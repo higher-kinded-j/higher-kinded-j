@@ -20,11 +20,16 @@ import org.higherkindedj.hkt.laws.FunctorLaws;
 import org.higherkindedj.hkt.laws.MonadLaws;
 import org.higherkindedj.hkt.optional.OptionalKind;
 import org.higherkindedj.hkt.state.StateTuple;
+import org.higherkindedj.hkt.test.contract.Category;
+import org.higherkindedj.hkt.test.contract.TypeClassContract;
 import org.higherkindedj.hkt.test.fixtures.TypeClassTestBase;
+import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.MethodSource;
 
 @DisplayName("StateTMonad Complete Test Suite ")
 // (Outer: OptionalKind.Witness)
@@ -43,7 +48,6 @@ class StateTMonadTest
 
   private <A> Optional<StateTuple<String, A>> unwrapKindToOptionalStateTuple(
       Kind<StateTKind.Witness<String, OptionalKind.Witness>, A> kind) {
-    if (kind == null) return Optional.empty();
     var stateT = STATE_T.narrow(kind);
     Kind<OptionalKind.Witness, StateTuple<String, A>> outerKind = stateT.runStateT("initial");
     return OPTIONAL.narrow(outerKind);
@@ -85,11 +89,7 @@ class StateTMonadTest
           Kind<StateTKind.Witness<String, OptionalKind.Witness>, ?>,
           Kind<StateTKind.Witness<String, OptionalKind.Witness>, ?>>
       createEqualityChecker() {
-    return (k1, k2) -> {
-      var opt1 = unwrapKindToOptionalStateTuple(k1);
-      var opt2 = unwrapKindToOptionalStateTuple(k2);
-      return opt1.equals(opt2);
-    };
+    return StateTLawFixtures.EQ;
   }
 
   @Override
@@ -126,20 +126,23 @@ class StateTMonadTest
     return s -> pureT(s + "!");
   }
 
-  @Nested
-  @DisplayName("Complete Test Suite")
-  class CompleteTestSuite {
-
-    @Test
-    @DisplayName("Verify all test categories are covered")
-    void verifyCompleteCoverage() {
-      // Verify that all nested test classes exist and have tests
-      assertThat(FunctorOperationTests.class).isNotNull();
-      assertThat(ApplicativeOperationTests.class).isNotNull();
-      assertThat(MonadOperationTests.class).isNotNull();
-      assertThat(MonadLawTests.class).isNotNull();
-      assertThat(EdgeCaseTests.class).isNotNull();
-    }
+  /**
+   * {@link Category#EXCEPTIONS} is omitted: the generic contract asserts that {@code map}/{@code
+   * flatMap} <em>propagate</em> a thrown function exception immediately, but a {@code StateT} is
+   * lazy — the exception surfaces only when the computation is run. That deferral is exercised by
+   * the type-specific "only thrown when run" ap/flatMap tests.
+   */
+  @Test
+  @DisplayName(
+      "Monad contract — operations & validations (laws verified in the *LawTests below; StateT"
+          + " defers exceptions)")
+  void monadContract() {
+    TypeClassContract.<StateTKind.Witness<String, OptionalKind.Witness>>monad(StateTMonad.class)
+        .<Integer>instance(stateTMonad)
+        .<String>withKind(validKind)
+        .withMonadOperations(
+            validKind2, validMapper, validFlatMapper, validFunctionKind, validCombiningFunction)
+        .verifyOnly(Category.OPERATIONS, Category.VALIDATIONS);
   }
 
   @Nested
@@ -177,9 +180,10 @@ class StateTMonadTest
 
     @Test
     @DisplayName("map should handle null result by converting to state tuple")
+    @SuppressWarnings("NullableProblems") // the mapper deliberately returns null to verify wrapping
     void map_shouldHandleNullResult() {
       Kind<StateTKind.Witness<String, OptionalKind.Witness>, Integer> input = pureT(10);
-      Function<Integer, String> nullReturningMapper = i -> null;
+      Function<Integer, @Nullable String> nullReturningMapper = _ -> null;
 
       Kind<StateTKind.Witness<String, OptionalKind.Witness>, String> result =
           stateTMonad.map(nullReturningMapper, input);
@@ -205,11 +209,10 @@ class StateTMonadTest
 
       var result = stateTMonad.ap(ff, fa);
       assertThat(unwrapKindToOptionalStateTuple(result))
-          .isPresent()
-          .satisfies(
-              opt -> {
-                assertThat(opt.get().value()).isEqualTo("Res:20");
-                assertThat(opt.get().state()).isEqualTo("initial");
+          .hasValueSatisfying(
+              tuple -> {
+                assertThat(tuple.value()).isEqualTo("Res:20");
+                assertThat(tuple.state()).isEqualTo("initial");
               });
     }
 
@@ -229,12 +232,11 @@ class StateTMonadTest
 
       var result = stateTMonad.ap(ff, fa);
       assertThat(unwrapKindToOptionalStateTuple(result))
-          .isPresent()
-          .satisfies(
-              opt -> {
-                assertThat(opt.get().value()).isEqualTo("Res:20");
+          .hasValueSatisfying(
+              tuple -> {
+                assertThat(tuple.value()).isEqualTo("Res:20");
                 // State should be threaded: initial -> initial_func -> initial_func_val
-                assertThat(opt.get().state()).isEqualTo("initial_func_val");
+                assertThat(tuple.state()).isEqualTo("initial_func_val");
               });
     }
 
@@ -243,7 +245,7 @@ class StateTMonadTest
     void ap_funcThrows_shouldThrowException() {
       RuntimeException ex = new RuntimeException("Function apply crashed");
       Function<Integer, String> throwingFunc =
-          i -> {
+          _ -> {
             throw ex;
           };
 
@@ -275,11 +277,10 @@ class StateTMonadTest
       var result = stateTMonad.flatMap(funcReturnsPure, initialPure);
 
       assertThat(unwrapKindToOptionalStateTuple(result))
-          .isPresent()
-          .satisfies(
-              opt -> {
-                assertThat(opt.get().value()).isEqualTo("Value:10");
-                assertThat(opt.get().state()).isEqualTo("initial");
+          .hasValueSatisfying(
+              tuple -> {
+                assertThat(tuple.value()).isEqualTo("Value:10");
+                assertThat(tuple.state()).isEqualTo("initial");
               });
     }
 
@@ -303,12 +304,11 @@ class StateTMonadTest
       var result = stateTMonad.flatMap(func, initial);
 
       assertThat(unwrapKindToOptionalStateTuple(result))
-          .isPresent()
-          .satisfies(
-              opt -> {
-                assertThat(opt.get().value()).isEqualTo("Value:10");
+          .hasValueSatisfying(
+              tuple -> {
+                assertThat(tuple.value()).isEqualTo("Value:10");
                 // State threaded: initial -> initial_first -> initial_first_second
-                assertThat(opt.get().state()).isEqualTo("initial_first_second");
+                assertThat(tuple.state()).isEqualTo("initial_first_second");
               });
     }
 
@@ -318,7 +318,7 @@ class StateTMonadTest
       var initialPure = pureT(30);
       RuntimeException runtimeEx = new RuntimeException("Error in function application!");
       Function<Integer, Kind<StateTKind.Witness<String, OptionalKind.Witness>, String>> funcThrows =
-          i -> {
+          _ -> {
             throw runtimeEx;
           };
 
@@ -336,17 +336,18 @@ class StateTMonadTest
   @DisplayName("Functor Laws")
   class FunctorLawTests {
 
-    @Test
-    @DisplayName("Identity: map(id, fa) == fa")
-    void identity() {
-      FunctorLaws.assertIdentity(stateTMonad, validKind, equalityChecker);
+    @ParameterizedTest(name = "identity holds on {0}")
+    @MethodSource("org.higherkindedj.hkt.state_t.StateTLawFixtures#kinds")
+    void identity(
+        String label, Kind<StateTKind.Witness<String, OptionalKind.Witness>, Integer> fa) {
+      FunctorLaws.assertIdentity(stateTMonad, fa, equalityChecker);
     }
 
-    @Test
-    @DisplayName("Composition: map(g∘f, fa) == map(g, map(f, fa))")
-    void composition() {
-      FunctorLaws.assertComposition(
-          stateTMonad, validKind, validMapper, secondMapper, equalityChecker);
+    @ParameterizedTest(name = "composition holds on {0}")
+    @MethodSource("org.higherkindedj.hkt.state_t.StateTLawFixtures#kinds")
+    void composition(
+        String label, Kind<StateTKind.Witness<String, OptionalKind.Witness>, Integer> fa) {
+      FunctorLaws.assertComposition(stateTMonad, fa, validMapper, secondMapper, equalityChecker);
     }
   }
 
@@ -354,31 +355,31 @@ class StateTMonadTest
   @DisplayName("Applicative Laws")
   class ApplicativeLawTests {
 
-    @Test
-    @DisplayName("Identity: ap(of(id), v) == v")
-    void identity() {
-      ApplicativeLaws.assertIdentity(stateTMonad, validKind, equalityChecker);
+    @ParameterizedTest(name = "identity holds on {0}")
+    @MethodSource("org.higherkindedj.hkt.state_t.StateTLawFixtures#kinds")
+    void identity(String label, Kind<StateTKind.Witness<String, OptionalKind.Witness>, Integer> w) {
+      ApplicativeLaws.assertIdentity(stateTMonad, w, equalityChecker);
     }
 
-    @Test
-    @DisplayName("Homomorphism: ap(of(f), of(x)) == of(f(x))")
-    void homomorphism() {
-      ApplicativeLaws.assertHomomorphism(stateTMonad, testValue, validMapper, equalityChecker);
+    @ParameterizedTest(name = "homomorphism holds on value {0}")
+    @MethodSource("org.higherkindedj.hkt.state_t.StateTLawFixtures#values")
+    void homomorphism(Integer value) {
+      ApplicativeLaws.assertHomomorphism(stateTMonad, value, validMapper, equalityChecker);
     }
 
-    @Test
-    @DisplayName("Interchange: ap(u, of(y)) == ap(of(f -> f(y)), u)")
-    void interchange() {
-      ApplicativeLaws.assertInterchange(stateTMonad, validFunctionKind, testValue, equalityChecker);
+    @ParameterizedTest(name = "interchange holds on value {0}")
+    @MethodSource("org.higherkindedj.hkt.state_t.StateTLawFixtures#values")
+    void interchange(Integer value) {
+      ApplicativeLaws.assertInterchange(stateTMonad, validFunctionKind, value, equalityChecker);
     }
 
-    @Test
-    @DisplayName("Composition")
-    void composition() {
+    @ParameterizedTest(name = "composition holds on {0}")
+    @MethodSource("org.higherkindedj.hkt.state_t.StateTLawFixtures#kinds")
+    void composition(
+        String label, Kind<StateTKind.Witness<String, OptionalKind.Witness>, Integer> w) {
       Kind<StateTKind.Witness<String, OptionalKind.Witness>, Function<String, String>> u =
           pureT(secondMapper);
-      ApplicativeLaws.assertComposition(
-          stateTMonad, u, validFunctionKind, validKind, equalityChecker);
+      ApplicativeLaws.assertComposition(stateTMonad, u, validFunctionKind, w, equalityChecker);
     }
   }
 
@@ -386,23 +387,24 @@ class StateTMonadTest
   @DisplayName("Monad Laws")
   class MonadLawTests {
 
-    @Test
-    @DisplayName("Left Identity: flatMap(of(a), f) == f(a)")
-    void leftIdentity() {
-      MonadLaws.assertLeftIdentity(stateTMonad, testValue, testFunction, equalityChecker);
+    @ParameterizedTest(name = "left identity holds on value {0}")
+    @MethodSource("org.higherkindedj.hkt.state_t.StateTLawFixtures#values")
+    void leftIdentity(Integer value) {
+      MonadLaws.assertLeftIdentity(stateTMonad, value, testFunction, equalityChecker);
     }
 
-    @Test
-    @DisplayName("Right Identity: flatMap(m, of) == m")
-    void rightIdentity() {
-      MonadLaws.assertRightIdentity(stateTMonad, validKind, equalityChecker);
+    @ParameterizedTest(name = "right identity holds on {0}")
+    @MethodSource("org.higherkindedj.hkt.state_t.StateTLawFixtures#kinds")
+    void rightIdentity(
+        String label, Kind<StateTKind.Witness<String, OptionalKind.Witness>, Integer> m) {
+      MonadLaws.assertRightIdentity(stateTMonad, m, equalityChecker);
     }
 
-    @Test
-    @DisplayName("Associativity: flatMap(g, flatMap(f, m)) == flatMap(a -> flatMap(g, f(a)), m)")
-    void associativity() {
-      MonadLaws.assertAssociativity(
-          stateTMonad, validKind, testFunction, chainFunction, equalityChecker);
+    @ParameterizedTest(name = "associativity holds on {0}")
+    @MethodSource("org.higherkindedj.hkt.state_t.StateTLawFixtures#kinds")
+    void associativity(
+        String label, Kind<StateTKind.Witness<String, OptionalKind.Witness>, Integer> m) {
+      MonadLaws.assertAssociativity(stateTMonad, m, testFunction, chainFunction, equalityChecker);
     }
   }
 
@@ -415,11 +417,10 @@ class StateTMonadTest
     void of_withNullValue() {
       var result = stateTMonad.of(null);
       assertThat(unwrapKindToOptionalStateTuple(result))
-          .isPresent()
-          .satisfies(
-              opt -> {
-                assertThat(opt.get().value()).isNull();
-                assertThat(opt.get().state()).isEqualTo("initial");
+          .hasValueSatisfying(
+              tuple -> {
+                assertThat(tuple.value()).isNull();
+                assertThat(tuple.state()).isEqualTo("initial");
               });
     }
 
@@ -448,11 +449,10 @@ class StateTMonadTest
       var result = stateTMonad.flatMap(func, initial);
 
       assertThat(unwrapKindToOptionalStateTuple(result))
-          .isPresent()
-          .satisfies(
-              opt -> {
-                assertThat(opt.get().value()).isEqualTo(20);
-                assertThat(opt.get().state()).isEqualTo("initial");
+          .hasValueSatisfying(
+              tuple -> {
+                assertThat(tuple.value()).isEqualTo(20);
+                assertThat(tuple.state()).isEqualTo("initial");
               });
     }
 
@@ -479,12 +479,11 @@ class StateTMonadTest
           stateTMonad.flatMap(step2, afterMap);
 
       assertThat(unwrapKindToOptionalStateTuple(result))
-          .isPresent()
-          .satisfies(
-              opt -> {
-                assertThat(opt.get().value()).isEqualTo("final:11");
+          .hasValueSatisfying(
+              tuple -> {
+                assertThat(tuple.value()).isEqualTo("final:11");
                 // State threaded through all operations
-                assertThat(opt.get().state()).isEqualTo("initial_step1_step2");
+                assertThat(tuple.state()).isEqualTo("initial_step1_step2");
               });
     }
   }

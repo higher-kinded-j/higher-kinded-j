@@ -2,94 +2,117 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.hkt.optional;
 
-import static org.assertj.core.api.Assertions.*;
-import static org.higherkindedj.hkt.optional.OptionalKindHelper.*;
-import static org.higherkindedj.hkt.optional.OptionalKindHelper.OPTIONAL;
+import static org.assertj.core.api.Assertions.assertThatNullPointerException;
+import static org.higherkindedj.hkt.test.api.KindHelperTests.optionalKindHelper;
 
+import java.util.List;
 import java.util.Optional;
-import org.higherkindedj.hkt.Kind;
-import org.higherkindedj.hkt.exception.KindUnwrapException;
+import org.higherkindedj.hkt.optional.OptionalKindHelper.OptionalHolder;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
-@DisplayName("OptionalKindHelper Tests")
-class OptionalKindHelperTest {
+@DisplayName("OptionalKindHelper Complete Test Suite")
+class OptionalKindHelperTest extends OptionalTestBase {
 
   @Nested
-  @DisplayName("OPTIONAL.widen()")
-  class WrapTests {
+  @DisplayName("Complete KindHelper Test Suite")
+  class CompleteTestSuite {
 
     @Test
-    void widen_shouldReturnHolderForPresentOptional() {
-      Optional<String> present = Optional.of("value");
-      Kind<OptionalKind.Witness, String> kind = OPTIONAL.widen(present);
-
-      assertThat(kind).isInstanceOf(OptionalHolder.class);
-      assertThat(OPTIONAL.narrow(kind)).isSameAs(present);
+    @DisplayName("Run complete KindHelper test suite for Optional")
+    void completeKindHelperTestSuite() {
+      optionalKindHelper(Optional.of("Success")).test();
     }
 
     @Test
-    void widen_shouldReturnHolderForEmptyOptional() {
-      Optional<String> empty = Optional.empty();
-      Kind<OptionalKind.Witness, String> kind = OPTIONAL.widen(empty);
-
-      assertThat(kind).isInstanceOf(OptionalHolder.class);
-      assertThat(OPTIONAL.narrow(kind)).isSameAs(empty);
-    }
-
-    @Test
-    void widen_shouldThrowForNullInput() {
-      assertThatNullPointerException()
-          .isThrownBy(() -> OPTIONAL.widen(null))
-          .withMessageContaining("Input Optional cannot be null");
+    @DisplayName("Complete test suite with present and empty Optionals")
+    void completeTestSuiteWithMultipleStates() {
+      List<Optional<String>> instances =
+          List.of(Optional.of("Success"), Optional.empty(), Optional.of(""), Optional.of("Test"));
+      for (Optional<String> instance : instances) {
+        optionalKindHelper(instance).test();
+      }
     }
   }
 
   @Nested
-  @DisplayName("OPTIONAL.narrow()")
-  class UnwrapTests {
+  @DisplayName("Individual Component Tests")
+  class IndividualComponentTests {
 
-    // --- Success Cases ---
     @Test
-    void narrow_shouldReturnOriginalPresentOptional() {
-      Optional<Integer> original = Optional.of(123);
-      Kind<OptionalKind.Witness, Integer> kind = OPTIONAL.widen(original);
-      assertThat(OPTIONAL.narrow(kind)).isSameAs(original);
+    @DisplayName("Test round-trip widen/narrow operations")
+    void testRoundTripOperations() {
+      optionalKindHelper(Optional.of("test"))
+          .skipValidations()
+          .skipInvalidType()
+          .skipIdempotency()
+          .skipEdgeCases()
+          .test();
     }
 
     @Test
-    void narrow_shouldReturnOriginalEmptyOptional() {
-      Optional<Float> original = Optional.empty();
-      Kind<OptionalKind.Witness, Float> kind = OPTIONAL.widen(original);
-      assertThat(OPTIONAL.narrow(kind)).isSameAs(original);
-    }
-
-    // --- Failure Cases ---
-    record DummyOptionalKind<A>() implements Kind<OptionalKind.Witness, A> {}
-
-    @Test
-    void narrow_shouldThrowForNullInput() {
-      assertThatThrownBy(() -> OPTIONAL.narrow(null))
-          .isInstanceOf(KindUnwrapException.class)
-          .hasMessageContaining(
-              "Cannot narrow null Kind for %s".formatted(Optional.class.getSimpleName()));
+    @DisplayName("Test null parameter validations")
+    void testNullParameterValidations() {
+      optionalKindHelper(Optional.of("test"))
+          .skipRoundTrip()
+          .skipInvalidType()
+          .skipIdempotency()
+          .skipEdgeCases()
+          .test();
     }
 
     @Test
-    void narrow_shouldThrowForUnknownKindType() {
-      Kind<OptionalKind.Witness, Integer> unknownKind = new DummyOptionalKind<>();
-      assertThatThrownBy(() -> OPTIONAL.narrow(unknownKind))
-          .isInstanceOf(KindUnwrapException.class)
-          .hasMessageContaining(
-              "Kind instance cannot be narrowed to " + Optional.class.getSimpleName());
+    @DisplayName("Test invalid Kind type handling")
+    void testInvalidKindType() {
+      optionalKindHelper(Optional.of("test"))
+          .skipRoundTrip()
+          .skipValidations()
+          .skipIdempotency()
+          .skipEdgeCases()
+          .test();
     }
 
     @Test
-    void narrow_shouldThrowForHolderWithNullOptional() {
+    @DisplayName("Test idempotency of operations")
+    void testIdempotency() {
+      optionalKindHelper(Optional.of("idempotent"))
+          .skipRoundTrip()
+          .skipValidations()
+          .skipInvalidType()
+          .skipEdgeCases()
+          .test();
+    }
+
+    @Test
+    @DisplayName("Test edge cases and boundary conditions")
+    void testEdgeCases() {
+      optionalKindHelper(Optional.of("edge"))
+          .skipRoundTrip()
+          .skipValidations()
+          .skipInvalidType()
+          .skipIdempotency()
+          .test();
+    }
+  }
+
+  @Nested
+  @DisplayName("Specific Optional Behaviour Tests")
+  class SpecificBehaviourTests {
+
+    @Test
+    @DisplayName("Both present and empty Optionals round-trip correctly")
+    void bothPresentAndEmptyRoundTrip() {
+      optionalKindHelper(Optional.of("Success")).test();
+      optionalKindHelper(Optional.<String>empty()).test();
+    }
+
+    @Test
+    @DisplayName("OptionalHolder constructor rejects a null Optional")
+    @SuppressWarnings("DataFlowIssue") // deliberately constructing a holder with null to verify
+    void holderConstructorRejectsNullOptional() {
       assertThatNullPointerException()
           .isThrownBy(() -> new OptionalHolder<>(null))
-          .isInstanceOf(NullPointerException.class)
           .withMessageContaining("Input Optional cannot be null for widen");
     }
   }

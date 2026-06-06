@@ -46,19 +46,19 @@ class FreeFunctionFoldMapTest {
     void handleErrorIgnoredViaFunction() {
       Free<IdentityKind.Witness, Integer> program =
           Free.<IdentityKind.Witness, Integer>pure(42)
-              .handleError(Throwable.class, e -> Free.pure(-1));
+              .handleError(Throwable.class, _ -> Free.pure(-1));
 
       Kind<IdentityKind.Witness, Integer> result =
           program.foldMap(identityTransform, identityMonad);
 
-      assertThat(IDENTITY.<Integer>narrow(result).value()).isEqualTo(42);
+      assertThat(IDENTITY.narrow(result).value()).isEqualTo(42);
     }
 
     @Test
     @DisplayName("HandleError recovers via function-based foldMap with MonadError")
     void handleErrorRecoversViaFunction() {
       Function<Kind<IdentityKind.Witness, ?>, Kind<TryKind.Witness, ?>> failingTransform =
-          fa -> tryMonad.raiseError(new RuntimeException("boom"));
+          _ -> tryMonad.raiseError(new RuntimeException("boom"));
 
       Free<IdentityKind.Witness, String> program =
           Free.liftF(IDENTITY.widen(new Identity<>("will-fail")), identityMonad)
@@ -75,11 +75,11 @@ class FreeFunctionFoldMapTest {
     @DisplayName("HandleError re-raises on type mismatch via function foldMap")
     void handleErrorReRaisesViaFunction() {
       Function<Kind<IdentityKind.Witness, ?>, Kind<TryKind.Witness, ?>> failingTransform =
-          fa -> tryMonad.raiseError(new RuntimeException("boom"));
+          _ -> tryMonad.raiseError(new RuntimeException("boom"));
 
       Free<IdentityKind.Witness, String> program =
           Free.liftF(IDENTITY.widen(new Identity<>("will-fail")), identityMonad)
-              .handleError(IllegalArgumentException.class, e -> Free.pure("should not reach"));
+              .handleError(IllegalArgumentException.class, _ -> Free.pure("should not reach"));
 
       Kind<TryKind.Witness, String> result = program.foldMap(failingTransform, tryMonad);
 
@@ -104,7 +104,7 @@ class FreeFunctionFoldMapTest {
       Kind<IdentityKind.Witness, Integer> result =
           program.foldMap(identityTransform, identityMonad);
 
-      assertThat(IDENTITY.<Integer>narrow(result).value()).isEqualTo(30);
+      assertThat(IDENTITY.narrow(result).value()).isEqualTo(30);
     }
   }
 

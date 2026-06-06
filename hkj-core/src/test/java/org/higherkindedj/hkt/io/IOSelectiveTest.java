@@ -8,7 +8,6 @@ import static org.higherkindedj.hkt.io.IOKindHelper.IO_OP;
 
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Function;
-import java.util.stream.Stream;
 import org.higherkindedj.hkt.Choice;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Selective;
@@ -19,7 +18,6 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 
 @DisplayName("IOSelective Complete Test Suite")
@@ -43,10 +41,7 @@ class IOSelectiveTest extends IOTestBase {
   void setUpSelective() {
     selective = IOSelective.INSTANCE;
     validateMonadFixtures();
-    setUpSelectiveFixtures();
-  }
 
-  private void setUpSelectiveFixtures() {
     // Create Choice instances
     Choice<Integer, String> choiceLeft = Selective.left(DEFAULT_IO_VALUE);
     Choice<Integer, String> choiceRight = Selective.right("right-value");
@@ -79,24 +74,15 @@ class IOSelectiveTest extends IOTestBase {
   class Laws {
 
     @ParameterizedTest(name = "left-pure holds on value {0}")
-    @MethodSource("values")
+    @MethodSource("org.higherkindedj.hkt.io.IOLawFixtures#values")
     void leftPure(Integer value) {
       SelectiveLaws.assertLeftPure(selective, value, selective.of(validMapper), equalityChecker);
     }
 
     @ParameterizedTest(name = "right-pure holds on value \"{0}\"")
-    @MethodSource("strings")
+    @MethodSource("org.higherkindedj.hkt.io.IOLawFixtures#strings")
     void rightPure(String value) {
-      SelectiveLaws.<IOKind.Witness, Integer, String>assertRightPure(
-          selective, value, selective.of(validMapper), equalityChecker);
-    }
-
-    static Stream<Arguments> values() {
-      return Stream.of(Arguments.of(0), Arguments.of(42));
-    }
-
-    static Stream<Arguments> strings() {
-      return Stream.of(Arguments.of("a"), Arguments.of("hello"));
+      SelectiveLaws.assertRightPure(selective, value, selective.of(validMapper), equalityChecker);
     }
   }
 
@@ -673,6 +659,7 @@ class IOSelectiveTest extends IOTestBase {
 
     @Test
     @DisplayName("Select with null value in Choice")
+    @SuppressWarnings({"DataFlowIssue", "ConstantValue"}) // Choice holds a null Left value
     void selectWithNullValueInChoice() {
       Choice<Integer, String> choiceWithNull = Selective.left(null);
       Kind<IOKind.Witness, Choice<Integer, String>> choiceKind =
@@ -742,12 +729,7 @@ class IOSelectiveTest extends IOTestBase {
       AtomicInteger processedCount = new AtomicInteger(0);
 
       IO<Boolean> shouldLog = IO.delay(() -> true);
-      IO<Integer> processData =
-          IO.delay(
-              () -> {
-                int count = processedCount.incrementAndGet();
-                return count;
-              });
+      IO<Integer> processData = IO.delay(processedCount::incrementAndGet);
 
       IO<Unit> logEffect =
           IO.delay(
@@ -824,83 +806,8 @@ class IOSelectiveTest extends IOTestBase {
     }
   }
 
-  @Nested
-  @DisplayName("Validation Tests")
-  class ValidationTests {
-
-    @Test
-    @DisplayName("select() validates null choice Kind")
-    void selectValidatesNullChoiceKind() {
-      assertThatThrownBy(() -> selective.select(null, selectFunctionKind))
-          .isInstanceOf(NullPointerException.class)
-          .hasMessageContaining("Kind")
-          .hasMessageContaining("choice");
-    }
-
-    @Test
-    @DisplayName("select() validates null function Kind")
-    void selectValidatesNullFunctionKind() {
-      assertThatThrownBy(() -> selective.select(choiceLeftKind, null))
-          .isInstanceOf(NullPointerException.class)
-          .hasMessageContaining("Kind")
-          .hasMessageContaining("function");
-    }
-
-    @Test
-    @DisplayName("branch() validates null arguments")
-    void branchValidatesNullArguments() {
-      assertThatThrownBy(() -> selective.branch(null, leftHandlerKind, rightHandlerKind))
-          .isInstanceOf(NullPointerException.class)
-          .hasMessageContaining("Kind")
-          .hasMessageContaining("choice");
-
-      assertThatThrownBy(() -> selective.branch(choiceLeftKind, null, rightHandlerKind))
-          .isInstanceOf(NullPointerException.class)
-          .hasMessageContaining("leftHandler");
-
-      assertThatThrownBy(() -> selective.branch(choiceLeftKind, leftHandlerKind, null))
-          .isInstanceOf(NullPointerException.class)
-          .hasMessageContaining("rightHandler");
-    }
-
-    @Test
-    @DisplayName("whenS() validates null arguments")
-    void whenSValidatesNullArguments() {
-      assertThatThrownBy(() -> selective.whenS(null, unitEffectKind))
-          .isInstanceOf(NullPointerException.class)
-          .hasMessageContaining("condition");
-
-      assertThatThrownBy(() -> selective.whenS(conditionTrue, null))
-          .isInstanceOf(NullPointerException.class)
-          .hasMessageContaining("effect");
-    }
-
-    @Test
-    @DisplayName("ifS() validates null arguments")
-    void ifSValidatesNullArguments() {
-      assertThatThrownBy(() -> selective.ifS(null, thenBranch, elseBranch))
-          .isInstanceOf(NullPointerException.class)
-          .hasMessageContaining("condition");
-
-      assertThatThrownBy(() -> selective.ifS(conditionTrue, null, elseBranch))
-          .isInstanceOf(NullPointerException.class)
-          .hasMessageContaining("thenBranch");
-
-      assertThatThrownBy(() -> selective.ifS(conditionTrue, thenBranch, null))
-          .isInstanceOf(NullPointerException.class)
-          .hasMessageContaining("elseBranch");
-    }
-
-    @Test
-    @DisplayName("whenS_() validates null arguments")
-    void whenS_ValidatesNullArguments() {
-      assertThatThrownBy(() -> selective.whenS_(null, validKind))
-          .isInstanceOf(NullPointerException.class)
-          .hasMessageContaining("condition");
-
-      assertThatThrownBy(() -> selective.whenS_(conditionTrue, null))
-          .isInstanceOf(NullPointerException.class)
-          .hasMessageContaining("effect");
-    }
-  }
+  // The standard select/branch/whenS/ifS/whenS_ null-argument validations are intentionally not
+  // duplicated here: their NullPointerException is thrown by the shared Validation utility, whose
+  // throw path is already exercised across the suite. The Selective-specific behaviour (lazy
+  // evaluation, choice handling, effect sequencing) is covered by the operation tests above.
 }

@@ -8,8 +8,6 @@ import static org.higherkindedj.hkt.state.StateKindHelper.STATE;
 
 import java.util.function.BiFunction;
 import java.util.function.Function;
-import java.util.stream.Stream;
-import org.higherkindedj.hkt.Applicative;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.laws.ApplicativeLaws;
 import org.junit.jupiter.api.BeforeEach;
@@ -17,7 +15,6 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 
 @DisplayName("StateApplicative")
@@ -30,58 +27,40 @@ class StateApplicativeTest extends StateTestBase<Integer> {
     applicative = new StateApplicative<>();
   }
 
+  // No separate Applicative contract smoke: the State Monad extends this Applicative, so its
+  // of/ap/map2 null-argument validation and (deferred) exception behaviour are already covered by
+  // the contract in StateMonadTest. A dedicated Applicative contract would only duplicate it.
+
   @Nested
   @DisplayName("Laws")
   class Laws {
 
     @ParameterizedTest(name = "identity holds on {0}")
-    @MethodSource("fixtures")
+    @MethodSource("org.higherkindedj.hkt.state.StateLawFixtures#kinds")
     void identity(String label, Kind<StateKind.Witness<Integer>, Integer> v) {
-      Applicative<StateKind.Witness<Integer>> ap = applicative;
-      ApplicativeLaws.assertIdentity(ap, v, equalityChecker);
+      ApplicativeLaws.assertIdentity(applicative, v, equalityChecker);
     }
 
     @ParameterizedTest(name = "homomorphism holds on value {0}")
-    @MethodSource("values")
+    @MethodSource("org.higherkindedj.hkt.state.StateLawFixtures#values")
     void homomorphism(Integer value) {
-      Applicative<StateKind.Witness<Integer>> ap = applicative;
-      ApplicativeLaws.assertHomomorphism(ap, value, validMapper, equalityChecker);
+      ApplicativeLaws.assertHomomorphism(applicative, value, validMapper, equalityChecker);
     }
 
     @ParameterizedTest(name = "interchange holds on value {0}")
-    @MethodSource("values")
+    @MethodSource("org.higherkindedj.hkt.state.StateLawFixtures#values")
     void interchange(Integer value) {
-      Applicative<StateKind.Witness<Integer>> ap = applicative;
-      ApplicativeLaws.assertInterchange(ap, validFunctionKind, value, equalityChecker);
+      ApplicativeLaws.assertInterchange(applicative, validFunctionKind, value, equalityChecker);
     }
 
     @ParameterizedTest(name = "composition holds on {0}")
-    @MethodSource("fixtures")
+    @MethodSource("org.higherkindedj.hkt.state.StateLawFixtures#kinds")
     void composition(String label, Kind<StateKind.Witness<Integer>, Integer> w) {
-      Applicative<StateKind.Witness<Integer>> ap = applicative;
       Kind<StateKind.Witness<Integer>, Function<String, String>> u =
-          STATE.widen(
-              State.<Integer, Function<String, String>>of(
-                  s -> new StateTuple<>((Function<String, String>) str -> "u(" + str + ")", s)));
+          STATE.widen(State.of(s -> new StateTuple<>(str -> "u(" + str + ")", s)));
       Kind<StateKind.Witness<Integer>, Function<Integer, String>> v =
-          STATE.widen(
-              State.<Integer, Function<Integer, String>>of(
-                  s -> new StateTuple<>((Function<Integer, String>) i -> "v" + i, s)));
-      ApplicativeLaws.assertComposition(ap, u, v, w, equalityChecker);
-    }
-
-    static Stream<Arguments> fixtures() {
-      return Stream.of(
-          Arguments.of(
-              "State(s -> (s, 42))",
-              STATE.widen(State.<Integer, Integer>of(s -> new StateTuple<>(s, 42)))),
-          Arguments.of(
-              "State(s -> (s+1, s))",
-              STATE.widen(State.<Integer, Integer>of(s -> new StateTuple<>(s + 1, s)))));
-    }
-
-    static Stream<Arguments> values() {
-      return Stream.of(Arguments.of(0), Arguments.of(42), Arguments.of(-1));
+          STATE.widen(State.of(s -> new StateTuple<>(i -> "v" + i, s)));
+      ApplicativeLaws.assertComposition(applicative, u, v, w, equalityChecker);
     }
   }
 
@@ -172,27 +151,12 @@ class StateApplicativeTest extends StateTestBase<Integer> {
     }
   }
 
+  // The standard ap/map2 null-argument validations are covered by the contract in StateMonadTest
+  // (the State Monad extends this Applicative). Only the State-specific deferred null-check below —
+  // a State wrapping a null function — is kept here.
   @Nested
   @DisplayName("Applicative Validations")
   class ApplicativeValidations {
-
-    @Test
-    @DisplayName("ap should validate function Kind is non-null")
-    void apShouldValidateFunctionKindIsNonNull() {
-      assertThatNullPointerException()
-          .isThrownBy(() -> applicative.ap(null, validKind))
-          .withMessageContaining("Kind for ap")
-          .withMessageContaining("function");
-    }
-
-    @Test
-    @DisplayName("ap should validate argument Kind is non-null")
-    void apShouldValidateArgumentKindIsNonNull() {
-      assertThatNullPointerException()
-          .isThrownBy(() -> applicative.ap(validFunctionKind, null))
-          .withMessageContaining("Kind for ap")
-          .withMessageContaining("argument");
-    }
 
     @Test
     @DisplayName("ap should validate function in State is non-null")
@@ -206,34 +170,6 @@ class StateApplicativeTest extends StateTestBase<Integer> {
           .isThrownBy(() -> runState(result, getInitialState()))
           .withMessageContaining("Function wrapped in State for 'ap' was null");
     }
-
-    @Test
-    @DisplayName("map2 should validate first Kind is non-null")
-    void map2ShouldValidateFirstKindIsNonNull() {
-      assertThatNullPointerException()
-          .isThrownBy(() -> applicative.map2(null, validKind2, validCombiningFunction))
-          .withMessageContaining("cannot be null");
-    }
-
-    @Test
-    @DisplayName("map2 should validate second Kind is non-null")
-    void map2ShouldValidateSecondKindIsNonNull() {
-      assertThatNullPointerException()
-          .isThrownBy(() -> applicative.map2(validKind, null, validCombiningFunction))
-          .withMessageContaining("cannot be null");
-    }
-
-    @Test
-    @DisplayName("map2 should validate combining function is non-null")
-    void map2ShouldValidateCombiningFunctionIsNonNull() {
-      assertThatNullPointerException()
-          .isThrownBy(
-              () ->
-                  applicative.map2(
-                      validKind, validKind2, (BiFunction<Integer, Integer, String>) null))
-          .withMessageContaining("combining function")
-          .withMessageContaining("map2");
-    }
   }
 
   @Nested
@@ -245,7 +181,7 @@ class StateApplicativeTest extends StateTestBase<Integer> {
     void apShouldDeferExceptions() {
       RuntimeException testException = new RuntimeException("Test exception");
       Function<Integer, String> throwingFunc =
-          i -> {
+          _ -> {
             throw testException;
           };
 
@@ -264,7 +200,7 @@ class StateApplicativeTest extends StateTestBase<Integer> {
     void map2ShouldDeferExceptions() {
       RuntimeException testException = new RuntimeException("Test exception");
       BiFunction<Integer, Integer, String> throwingCombiner =
-          (i1, i2) -> {
+          (_, _) -> {
             throw testException;
           };
 
@@ -287,7 +223,7 @@ class StateApplicativeTest extends StateTestBase<Integer> {
     @DisplayName("ap should handle stateless functions")
     void apShouldHandleStatelessFunctions() {
       State<Integer, Function<Integer, String>> funcState =
-          State.of(s -> new StateTuple<>(i -> "Constant", s));
+          State.of(s -> new StateTuple<>(_ -> "Constant", s));
       Kind<StateKind.Witness<Integer>, Function<Integer, String>> ff = STATE.widen(funcState);
 
       Kind<StateKind.Witness<Integer>, String> result = applicative.ap(ff, validKind);

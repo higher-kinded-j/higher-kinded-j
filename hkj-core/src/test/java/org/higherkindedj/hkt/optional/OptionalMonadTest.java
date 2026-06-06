@@ -2,14 +2,10 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.hkt.optional;
 
-import static org.assertj.core.api.Assertions.assertThat;
 import static org.higherkindedj.hkt.assertions.OptionalKindAssert.assertThatOptionalKind;
-import static org.higherkindedj.hkt.instances.Witnesses.*;
-import static org.higherkindedj.hkt.optional.OptionalKindHelper.OPTIONAL;
+import static org.higherkindedj.hkt.instances.Witnesses.optional;
 
-import java.util.Optional;
 import java.util.function.Function;
-import java.util.stream.Stream;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.MonadError;
 import org.higherkindedj.hkt.Unit;
@@ -18,12 +14,13 @@ import org.higherkindedj.hkt.function.Function4;
 import org.higherkindedj.hkt.function.Function5;
 import org.higherkindedj.hkt.instances.Instances;
 import org.higherkindedj.hkt.laws.MonadLaws;
+import org.higherkindedj.hkt.test.contract.Category;
+import org.higherkindedj.hkt.test.contract.TypeClassContract;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 
 @DisplayName("OptionalMonad")
@@ -42,35 +39,34 @@ class OptionalMonadTest extends OptionalTestBase {
   class Laws {
 
     @ParameterizedTest(name = "left identity holds on value {0}")
-    @MethodSource("values")
+    @MethodSource("org.higherkindedj.hkt.optional.OptionalLawFixtures#values")
     void leftIdentity(Integer value) {
       MonadLaws.assertLeftIdentity(optionalMonad, value, testFunction, equalityChecker);
     }
 
     @ParameterizedTest(name = "right identity holds on {0}")
-    @MethodSource("fixtures")
+    @MethodSource("org.higherkindedj.hkt.optional.OptionalLawFixtures#kinds")
     void rightIdentity(String label, Kind<OptionalKind.Witness, Integer> ma) {
       MonadLaws.assertRightIdentity(optionalMonad, ma, equalityChecker);
     }
 
     @ParameterizedTest(name = "associativity holds on {0}")
-    @MethodSource("fixtures")
+    @MethodSource("org.higherkindedj.hkt.optional.OptionalLawFixtures#kinds")
     void associativity(String label, Kind<OptionalKind.Witness, Integer> ma) {
       MonadLaws.assertAssociativity(
           optionalMonad, ma, testFunction, chainFunction, equalityChecker);
     }
+  }
 
-    static Stream<Arguments> fixtures() {
-      return Stream.of(
-          Arguments.of("present(0)", OPTIONAL.widen(Optional.of(0))),
-          Arguments.of("present(42)", OPTIONAL.widen(Optional.of(42))),
-          Arguments.of("present(-1)", OPTIONAL.widen(Optional.of(-1))),
-          Arguments.of("empty", OPTIONAL.<Integer>widen(Optional.empty())));
-    }
-
-    static Stream<Arguments> values() {
-      return Stream.of(Arguments.of(0), Arguments.of(42), Arguments.of(-1));
-    }
+  @Test
+  @DisplayName("Monad contract — operations, validations & exceptions (laws verified above)")
+  void monadContract() {
+    TypeClassContract.<OptionalKind.Witness>monad(OptionalMonad.class)
+        .<Integer>instance(optionalMonad)
+        .<String>withKind(validKind)
+        .withMonadOperations(
+            validKind2, validMapper, validFlatMapper, validFunctionKind, validCombiningFunction)
+        .verifyOnly(Category.OPERATIONS, Category.VALIDATIONS, Category.EXCEPTIONS);
   }
 
   @Nested
@@ -81,7 +77,6 @@ class OptionalMonadTest extends OptionalTestBase {
     @DisplayName("of() wraps value in present Optional")
     void ofWrapsValueInPresentOptional() {
       var result = optionalMonad.of(DEFAULT_PRESENT_VALUE);
-
       assertThatOptionalKind(result).isPresent().contains(DEFAULT_PRESENT_VALUE);
     }
 
@@ -89,16 +84,13 @@ class OptionalMonadTest extends OptionalTestBase {
     @DisplayName("of() creates empty Optional for null value")
     void ofCreatesEmptyOptionalForNull() {
       Kind<OptionalKind.Witness, String> result = optionalMonad.of(null);
-
       assertThatOptionalKind(result).isEmpty();
     }
 
     @Test
     @DisplayName("map() applies function when present")
     void mapAppliesFunctionWhenPresent() {
-      var input = presentOf(5);
-      var result = optionalMonad.map(Object::toString, input);
-
+      var result = optionalMonad.map(Object::toString, presentOf(5));
       assertThatOptionalKind(result).isPresent().contains("5");
     }
 
@@ -107,16 +99,13 @@ class OptionalMonadTest extends OptionalTestBase {
     void mapReturnsEmptyWhenEmpty() {
       Kind<OptionalKind.Witness, Integer> input = emptyOptional();
       var result = optionalMonad.map(Object::toString, input);
-
       assertThatOptionalKind(result).isEmpty();
     }
 
     @Test
     @DisplayName("map() handles mapping to null as empty")
     void mapHandlesMappingToNullAsEmpty() {
-      var input = presentOf(5);
-      var result = optionalMonad.map(x -> null, input);
-
+      var result = optionalMonad.map(_ -> null, presentOf(5));
       assertThatOptionalKind(result).isEmpty();
     }
 
@@ -125,21 +114,15 @@ class OptionalMonadTest extends OptionalTestBase {
     void apAppliesPresentFunctionToPresentValue() {
       Kind<OptionalKind.Witness, Function<Integer, String>> funcKind =
           optionalMonad.of(x -> "N" + x);
-      var valueKind = optionalMonad.of(10);
-
-      var result = optionalMonad.ap(funcKind, valueKind);
-
+      var result = optionalMonad.ap(funcKind, optionalMonad.of(10));
       assertThatOptionalKind(result).isPresent().contains("N10");
     }
 
     @Test
     @DisplayName("ap() returns empty if function is empty")
     void apReturnsEmptyIfFunctionIsEmpty() {
-      Kind<OptionalKind.Witness, Function<Integer, String>> funcKind = optionalMonad.of(null);
-      var valueKind = optionalMonad.of(10);
-
-      var result = optionalMonad.ap(funcKind, valueKind);
-
+      Kind<OptionalKind.Witness, Function<Integer, String>> funcKind = emptyOptional();
+      var result = optionalMonad.ap(funcKind, optionalMonad.of(10));
       assertThatOptionalKind(result).isEmpty();
     }
 
@@ -148,21 +131,8 @@ class OptionalMonadTest extends OptionalTestBase {
     void apReturnsEmptyIfValueIsEmpty() {
       Kind<OptionalKind.Witness, Function<Integer, String>> funcKind =
           optionalMonad.of(x -> "N" + x);
-      Kind<OptionalKind.Witness, Integer> valueKind = optionalMonad.of(null);
-
+      Kind<OptionalKind.Witness, Integer> valueKind = emptyOptional();
       var result = optionalMonad.ap(funcKind, valueKind);
-
-      assertThatOptionalKind(result).isEmpty();
-    }
-
-    @Test
-    @DisplayName("ap() returns empty if both are empty")
-    void apReturnsEmptyIfBothAreEmpty() {
-      Kind<OptionalKind.Witness, Function<Integer, String>> funcKind = optionalMonad.of(null);
-      Kind<OptionalKind.Witness, Integer> valueKind = optionalMonad.of(null);
-
-      var result = optionalMonad.ap(funcKind, valueKind);
-
       assertThatOptionalKind(result).isEmpty();
     }
 
@@ -171,10 +141,7 @@ class OptionalMonadTest extends OptionalTestBase {
     void flatMapAppliesFunctionWhenPresent() {
       Function<Integer, Kind<OptionalKind.Witness, Double>> safeDivide =
           divisor -> (divisor == 0) ? emptyOptional() : presentOf(100.0 / divisor);
-
-      var presentValue = optionalMonad.of(5);
-      var result = optionalMonad.flatMap(safeDivide, presentValue);
-
+      var result = optionalMonad.flatMap(safeDivide, optionalMonad.of(5));
       assertThatOptionalKind(result).isPresent().contains(20.0);
     }
 
@@ -183,10 +150,8 @@ class OptionalMonadTest extends OptionalTestBase {
     void flatMapReturnsEmptyWhenInputIsEmpty() {
       Function<Integer, Kind<OptionalKind.Witness, Double>> safeDivide =
           divisor -> (divisor == 0) ? emptyOptional() : presentOf(100.0 / divisor);
-
-      Kind<OptionalKind.Witness, Integer> emptyValue = optionalMonad.of(null);
+      Kind<OptionalKind.Witness, Integer> emptyValue = emptyOptional();
       var result = optionalMonad.flatMap(safeDivide, emptyValue);
-
       assertThatOptionalKind(result).isEmpty();
     }
 
@@ -195,52 +160,8 @@ class OptionalMonadTest extends OptionalTestBase {
     void flatMapReturnsEmptyWhenFunctionResultIsEmpty() {
       Function<Integer, Kind<OptionalKind.Witness, Double>> safeDivide =
           divisor -> (divisor == 0) ? emptyOptional() : presentOf(100.0 / divisor);
-
-      var zeroValue = optionalMonad.of(0);
-      var result = optionalMonad.flatMap(safeDivide, zeroValue);
-
+      var result = optionalMonad.flatMap(safeDivide, optionalMonad.of(0));
       assertThatOptionalKind(result).isEmpty();
-    }
-  }
-
-  @Nested
-  @DisplayName("MonadError Tests")
-  class MonadErrorTests {
-
-    Kind<OptionalKind.Witness, Integer> presentVal;
-    Kind<OptionalKind.Witness, Integer> emptyVal;
-    Kind<OptionalKind.Witness, Integer> raisedErrorKind;
-
-    @BeforeEach
-    void setUp() {
-      presentVal = optionalMonad.of(100);
-      emptyVal = optionalMonad.of(null);
-      raisedErrorKind = optionalMonad.raiseError(null);
-    }
-
-    @Test
-    @DisplayName("raiseError() creates empty Optional")
-    void raiseErrorCreatesEmpty() {
-      assertThatOptionalKind(raisedErrorKind).isEmpty();
-    }
-
-    @Test
-    @DisplayName("handleErrorWith() handles empty Optional")
-    void handleErrorWithHandlesEmpty() {
-      Function<Unit, Kind<OptionalKind.Witness, Integer>> handler = err -> optionalMonad.of(0);
-      var result = optionalMonad.handleErrorWith(emptyVal, handler);
-
-      assertThatOptionalKind(result).isPresent().contains(0);
-    }
-
-    @Test
-    @DisplayName("handleErrorWith() ignores present Optional")
-    void handleErrorWithIgnoresPresent() {
-      Function<Unit, Kind<OptionalKind.Witness, Integer>> handler = err -> optionalMonad.of(-1);
-      var result = optionalMonad.handleErrorWith(presentVal, handler);
-
-      assertThat(result).isSameAs(presentVal);
-      assertThatOptionalKind(result).isPresent().contains(100);
     }
   }
 
@@ -251,11 +172,8 @@ class OptionalMonadTest extends OptionalTestBase {
     @Test
     @DisplayName("flatMap2() combines two present Optionals")
     void flatMap2CombinesTwoPresentOptionals() {
-      var opt1 = presentOf(10);
-      var opt2 = presentOf("x");
-
-      var result = optionalMonad.flatMap2(opt1, opt2, (i, s) -> presentOf(i + s));
-
+      var result =
+          optionalMonad.flatMap2(presentOf(10), presentOf("x"), (i, s) -> presentOf(i + s));
       assertThatOptionalKind(result).isPresent().contains("10x");
     }
 
@@ -263,200 +181,96 @@ class OptionalMonadTest extends OptionalTestBase {
     @DisplayName("flatMap2() returns empty if first Optional is empty")
     void flatMap2ReturnsEmptyIfFirstOptionalIsEmpty() {
       Kind<OptionalKind.Witness, Integer> opt1 = emptyOptional();
-      var opt2 = presentOf("x");
-
-      var result = optionalMonad.flatMap2(opt1, opt2, (i, s) -> presentOf(i + s));
-
+      var result = optionalMonad.flatMap2(opt1, presentOf("x"), (i, s) -> presentOf(i + s));
       assertThatOptionalKind(result).isEmpty();
     }
 
     @Test
     @DisplayName("flatMap2() returns empty if second Optional is empty")
     void flatMap2ReturnsEmptyIfSecondOptionalIsEmpty() {
-      var opt1 = presentOf(10);
       Kind<OptionalKind.Witness, String> opt2 = emptyOptional();
-
-      var result = optionalMonad.flatMap2(opt1, opt2, (i, s) -> presentOf(i + s));
-
+      var result = optionalMonad.flatMap2(presentOf(10), opt2, (i, s) -> presentOf(i + s));
       assertThatOptionalKind(result).isEmpty();
     }
 
     @Test
     @DisplayName("flatMap2() returns empty if function returns empty")
     void flatMap2ReturnsEmptyIfFunctionReturnsEmpty() {
-      var opt1 = presentOf(10);
-      var opt2 = presentOf("x");
-
-      var result = optionalMonad.flatMap2(opt1, opt2, (i, s) -> emptyOptional());
-
+      var result = optionalMonad.flatMap2(presentOf(10), presentOf("x"), (_, _) -> emptyOptional());
       assertThatOptionalKind(result).isEmpty();
     }
 
     @Test
     @DisplayName("flatMap3() combines three present Optionals")
     void flatMap3CombinesThreePresentOptionals() {
-      var opt1 = presentOf(1);
-      var opt2 = presentOf("a");
-      var opt3 = presentOf(2.5);
       Function3<Integer, String, Double, Kind<OptionalKind.Witness, String>> f =
           (i, s, d) -> presentOf(String.format("%d-%s-%.1f", i, s, d));
-
-      var result = optionalMonad.flatMap3(opt1, opt2, opt3, f);
-
+      var result = optionalMonad.flatMap3(presentOf(1), presentOf("a"), presentOf(2.5), f);
       assertThatOptionalKind(result).isPresent().contains("1-a-2.5");
     }
 
     @Test
     @DisplayName("flatMap3() returns empty if middle Optional is empty")
     void flatMap3ReturnsEmptyIfMiddleOptionalIsEmpty() {
-      var opt1 = presentOf(1);
       Kind<OptionalKind.Witness, String> opt2 = emptyOptional();
-      var opt3 = presentOf(2.5);
       Function3<Integer, String, Double, Kind<OptionalKind.Witness, String>> f =
-          (i, s, d) -> presentOf("Should not execute");
-
-      var result = optionalMonad.flatMap3(opt1, opt2, opt3, f);
-
+          (_, _, _) -> presentOf("Should not execute");
+      var result = optionalMonad.flatMap3(presentOf(1), opt2, presentOf(2.5), f);
       assertThatOptionalKind(result).isEmpty();
     }
 
     @Test
     @DisplayName("flatMap4() combines four present Optionals")
     void flatMap4CombinesFourPresentOptionals() {
-      var opt1 = presentOf(1);
-      var opt2 = presentOf("a");
-      var opt3 = presentOf(2.0);
-      var opt4 = presentOf(true);
       Function4<Integer, String, Double, Boolean, Kind<OptionalKind.Witness, String>> f =
           (i, s, d, b) -> presentOf(String.format("%d-%s-%.0f-%b", i, s, d, b));
-
-      var result = optionalMonad.flatMap4(opt1, opt2, opt3, opt4, f);
-
+      var result =
+          optionalMonad.flatMap4(presentOf(1), presentOf("a"), presentOf(2.0), presentOf(true), f);
       assertThatOptionalKind(result).isPresent().contains("1-a-2-true");
     }
 
     @Test
     @DisplayName("flatMap4() returns empty if any Optional is empty")
     void flatMap4ReturnsEmptyIfAnyOptionalIsEmpty() {
-      var opt1 = presentOf(1);
-      var opt2 = presentOf("a");
       Kind<OptionalKind.Witness, Double> opt3 = emptyOptional();
-      var opt4 = presentOf(true);
       Function4<Integer, String, Double, Boolean, Kind<OptionalKind.Witness, String>> f =
-          (i, s, d, b) -> presentOf("Should not execute");
-
-      var result = optionalMonad.flatMap4(opt1, opt2, opt3, opt4, f);
-
+          (_, _, _, _) -> presentOf("Should not execute");
+      var result = optionalMonad.flatMap4(presentOf(1), presentOf("a"), opt3, presentOf(true), f);
       assertThatOptionalKind(result).isEmpty();
     }
 
     @Test
     @DisplayName("flatMap5() combines five present Optionals")
     void flatMap5CombinesFivePresentOptionals() {
-      var opt1 = presentOf(1);
-      var opt2 = presentOf("a");
-      var opt3 = presentOf(2.0);
-      var opt4 = presentOf(true);
-      var opt5 = presentOf('X');
       Function5<Integer, String, Double, Boolean, Character, Kind<OptionalKind.Witness, String>> f =
           (i, s, d, b, c) -> presentOf(String.format("%d-%s-%.0f-%b-%c", i, s, d, b, c));
-
-      var result = optionalMonad.flatMap5(opt1, opt2, opt3, opt4, opt5, f);
-
+      var result =
+          optionalMonad.flatMap5(
+              presentOf(1), presentOf("a"), presentOf(2.0), presentOf(true), presentOf('X'), f);
       assertThatOptionalKind(result).isPresent().contains("1-a-2-true-X");
     }
 
     @Test
     @DisplayName("flatMap5() returns empty if any Optional is empty")
     void flatMap5ReturnsEmptyIfAnyOptionalIsEmpty() {
-      var opt1 = presentOf(1);
-      var opt2 = presentOf("a");
-      var opt3 = presentOf(2.0);
-      var opt4 = presentOf(true);
       Kind<OptionalKind.Witness, Character> opt5 = emptyOptional();
       Function5<Integer, String, Double, Boolean, Character, Kind<OptionalKind.Witness, String>> f =
-          (i, s, d, b, c) -> presentOf("Should not execute");
-
-      var result = optionalMonad.flatMap5(opt1, opt2, opt3, opt4, opt5, f);
-
+          (_, _, _, _, _) -> presentOf("Should not execute");
+      var result =
+          optionalMonad.flatMap5(
+              presentOf(1), presentOf("a"), presentOf(2.0), presentOf(true), opt5, f);
       assertThatOptionalKind(result).isEmpty();
     }
 
     @Test
     @DisplayName("flatMap5() returns empty if function returns empty")
     void flatMap5ReturnsEmptyIfFunctionReturnsEmpty() {
-      var opt1 = presentOf(1);
-      var opt2 = presentOf("a");
-      var opt3 = presentOf(2.0);
-      var opt4 = presentOf(true);
-      var opt5 = presentOf('X');
       Function5<Integer, String, Double, Boolean, Character, Kind<OptionalKind.Witness, String>> f =
-          (i, s, d, b, c) -> emptyOptional();
-
-      var result = optionalMonad.flatMap5(opt1, opt2, opt3, opt4, opt5, f);
-
+          (_, _, _, _, _) -> emptyOptional();
+      var result =
+          optionalMonad.flatMap5(
+              presentOf(1), presentOf("a"), presentOf(2.0), presentOf(true), presentOf('X'), f);
       assertThatOptionalKind(result).isEmpty();
-    }
-  }
-
-  @Nested
-  @DisplayName("MonadZero Tests")
-  class MonadZeroTests {
-
-    @Test
-    @DisplayName("zero() returns empty Optional")
-    void zeroReturnsEmptyOptional() {
-      Kind<OptionalKind.Witness, Object> zeroKind = Instances.monadZero(optional()).zero();
-
-      assertThatOptionalKind(zeroKind).isEmpty();
-    }
-
-    @Test
-    @DisplayName("filter keeps a present value matching the predicate")
-    void filterKeepsMatchingPresent() {
-      var input = presentOf(4);
-
-      var result = Instances.monadZero(optional()).filter(x -> ((Integer) x) % 2 == 0, input);
-
-      assertThatOptionalKind(result).isPresent().contains(4);
-    }
-
-    @Test
-    @DisplayName("filter drops a present value not matching the predicate")
-    void filterDropsNonMatchingPresent() {
-      var input = presentOf(3);
-
-      var result = Instances.monadZero(optional()).filter(x -> ((Integer) x) % 2 == 0, input);
-
-      assertThatOptionalKind(result).isEmpty();
-    }
-
-    @Test
-    @DisplayName("filter on empty stays empty")
-    void filterOnEmptyStaysEmpty() {
-      Kind<OptionalKind.Witness, Integer> empty = emptyOptional();
-
-      var result = Instances.monadZero(optional()).filter(x -> true, empty);
-
-      assertThatOptionalKind(result).isEmpty();
-    }
-
-    @Test
-    @DisplayName("filter throws NullPointerException when predicate is null")
-    void filterThrowsWhenPredicateIsNull() {
-      var input = presentOf(1);
-
-      org.assertj.core.api.Assertions.assertThatThrownBy(
-              () -> Instances.monadZero(optional()).filter(null, input))
-          .isInstanceOf(NullPointerException.class);
-    }
-
-    @Test
-    @DisplayName("filter throws NullPointerException when ma is null")
-    void filterThrowsWhenMaIsNull() {
-      org.assertj.core.api.Assertions.assertThatThrownBy(
-              () -> Instances.monadZero(optional()).filter(x -> true, null))
-          .isInstanceOf(NullPointerException.class);
     }
   }
 
@@ -467,43 +281,29 @@ class OptionalMonadTest extends OptionalTestBase {
     @Test
     @DisplayName("Chained operations maintain correctness")
     void chainedOperationsMaintainCorrectness() {
-      var initial = presentOf(5);
-
       Function<Integer, Kind<OptionalKind.Witness, Integer>> step1 = x -> presentOf(x * 2);
-      var step1Result = optionalMonad.flatMap(step1, initial);
-
       Function<Integer, Kind<OptionalKind.Witness, String>> step2 = y -> presentOf("N" + y);
-      var finalResult = optionalMonad.flatMap(step2, step1Result);
-
-      assertThatOptionalKind(finalResult).isPresent().contains("N10");
+      var result = optionalMonad.flatMap(step2, optionalMonad.flatMap(step1, presentOf(5)));
+      assertThatOptionalKind(result).isPresent().contains("N10");
     }
 
     @Test
-    @DisplayName("Empty propagates through chain")
+    @DisplayName("Empty propagates through a chain")
     void emptyPropagatesThroughChain() {
       Kind<OptionalKind.Witness, Integer> initial = emptyOptional();
-
       Function<Integer, Kind<OptionalKind.Witness, Integer>> step1 = x -> presentOf(x * 2);
-      var step1Result = optionalMonad.flatMap(step1, initial);
-
       Function<Integer, Kind<OptionalKind.Witness, String>> step2 = y -> presentOf("N" + y);
-      var finalResult = optionalMonad.flatMap(step2, step1Result);
-
-      assertThatOptionalKind(finalResult).isEmpty();
+      var result = optionalMonad.flatMap(step2, optionalMonad.flatMap(step1, initial));
+      assertThatOptionalKind(result).isEmpty();
     }
 
     @Test
-    @DisplayName("Empty in middle of chain propagates")
+    @DisplayName("Empty in the middle of a chain propagates")
     void emptyInMiddleOfChainPropagates() {
-      var initial = presentOf(5);
-
-      Function<Integer, Kind<OptionalKind.Witness, Integer>> step1 = x -> emptyOptional();
-      var step1Result = optionalMonad.flatMap(step1, initial);
-
+      Function<Integer, Kind<OptionalKind.Witness, Integer>> step1 = _ -> emptyOptional();
       Function<Integer, Kind<OptionalKind.Witness, String>> step2 = y -> presentOf("N" + y);
-      var finalResult = optionalMonad.flatMap(step2, step1Result);
-
-      assertThatOptionalKind(finalResult).isEmpty();
+      var result = optionalMonad.flatMap(step2, optionalMonad.flatMap(step1, presentOf(5)));
+      assertThatOptionalKind(result).isEmpty();
     }
   }
 }

@@ -7,7 +7,6 @@ import static org.higherkindedj.hkt.instances.Witnesses.*;
 import static org.higherkindedj.hkt.list.ListKindHelper.LIST;
 import static org.higherkindedj.hkt.maybe.MaybeKindHelper.MAYBE;
 import static org.higherkindedj.hkt.optional.OptionalKindHelper.OPTIONAL;
-import static org.junit.jupiter.api.Assertions.*;
 
 import java.util.Arrays;
 import java.util.List;
@@ -71,8 +70,8 @@ class ForPathTraverseTest {
     void traverseListInMaybe() {
       MaybePath<List<Integer>> result =
           ForPath.from(Path.just(Arrays.asList(1, 2, 3)))
-              .traverse(listTraverse, list -> LIST.widen(list), (Integer i) -> MAYBE.just(i * 2))
-              .yield((original, traversed) -> LIST.narrow(traversed));
+              .traverse(listTraverse, LIST::widen, (Integer i) -> MAYBE.just(i * 2))
+              .yield((_, traversed) -> LIST.narrow(traversed));
       Maybe<List<Integer>> maybe = result.run();
       assertThat(maybe.isJust()).isTrue();
       assertThat(maybe.get()).containsExactly(2, 4, 6);
@@ -85,9 +84,9 @@ class ForPathTraverseTest {
           ForPath.from(Path.just(Arrays.asList(1, 2, 3)))
               .traverse(
                   listTraverse,
-                  list -> LIST.widen(list),
-                  (Integer i) -> i == 2 ? MAYBE.<Integer>nothing() : MAYBE.just(i * 2))
-              .yield((original, traversed) -> LIST.narrow(traversed));
+                  LIST::widen,
+                  (Integer i) -> i == 2 ? MAYBE.nothing() : MAYBE.just(i * 2))
+              .yield((_, traversed) -> LIST.narrow(traversed));
       assertThat(result.run().isJust()).isFalse();
     }
 
@@ -101,7 +100,7 @@ class ForPathTraverseTest {
       MaybePath<List<Integer>> result =
           ForPath.from(Path.just(kindList))
               .sequence(listTraverse, Function.identity())
-              .yield((original, sequenced) -> LIST.narrow(sequenced));
+              .yield((_, sequenced) -> LIST.narrow(sequenced));
       Maybe<List<Integer>> maybe = result.run();
       assertThat(maybe.isJust()).isTrue();
       assertThat(maybe.get()).containsExactly(10, 20, 30);
@@ -115,11 +114,9 @@ class ForPathTraverseTest {
               .flatTraverse(
                   listTraverse,
                   Instances.monadZero(list()),
-                  list -> LIST.widen(list),
-                  (Integer i) ->
-                      MAYBE.<Kind<ListKind.Witness, Integer>>just(
-                          LIST.widen(Arrays.asList(i, i * 10))))
-              .yield((original, traversed) -> LIST.narrow(traversed));
+                  LIST::widen,
+                  (Integer i) -> MAYBE.just(LIST.widen(Arrays.asList(i, i * 10))))
+              .yield((_, traversed) -> LIST.narrow(traversed));
       Maybe<List<Integer>> maybe = result.run();
       assertThat(maybe.isJust()).isTrue();
       assertThat(maybe.get()).containsExactly(1, 10, 2, 20, 3, 30);
@@ -130,8 +127,8 @@ class ForPathTraverseTest {
     void traverseNothingInitial() {
       MaybePath<List<Integer>> result =
           ForPath.from(Path.<List<Integer>>nothing())
-              .traverse(listTraverse, list -> LIST.widen(list), (Integer i) -> MAYBE.just(i * 2))
-              .yield((original, traversed) -> LIST.narrow(traversed));
+              .traverse(listTraverse, LIST::widen, (Integer i) -> MAYBE.just(i * 2))
+              .yield((_, traversed) -> LIST.narrow(traversed));
       assertThat(result.run().isJust()).isFalse();
     }
   }
@@ -146,10 +143,8 @@ class ForPathTraverseTest {
       OptionalPath<List<Integer>> result =
           ForPath.from(Path.present(Arrays.asList(1, 2, 3)))
               .traverse(
-                  listTraverse,
-                  list -> LIST.widen(list),
-                  (Integer i) -> OPTIONAL.widen(Optional.of(i * 2)))
-              .yield((original, traversed) -> LIST.narrow(traversed));
+                  listTraverse, LIST::widen, (Integer i) -> OPTIONAL.widen(Optional.of(i * 2)))
+              .yield((_, traversed) -> LIST.narrow(traversed));
       assertThat(result.run().isPresent()).isTrue();
       assertThat(result.run().get()).containsExactly(2, 4, 6);
     }
@@ -167,7 +162,7 @@ class ForPathTraverseTest {
       OptionalPath<List<Integer>> result =
           ForPath.from(Path.present(kindList))
               .sequence(listTraverse, Function.identity())
-              .yield((original, sequenced) -> LIST.narrow(sequenced));
+              .yield((_, sequenced) -> LIST.narrow(sequenced));
       assertThat(result.run().isPresent()).isTrue();
       assertThat(result.run().get()).containsExactly(10, 20, 30);
     }
@@ -180,12 +175,9 @@ class ForPathTraverseTest {
               .flatTraverse(
                   listTraverse,
                   Instances.monadZero(list()),
-                  list -> LIST.widen(list),
-                  (Integer i) ->
-                      OPTIONAL.widen(
-                          Optional.<Kind<ListKind.Witness, Integer>>of(
-                              LIST.widen(Arrays.asList(i, i * 10)))))
-              .yield((original, traversed) -> LIST.narrow(traversed));
+                  LIST::widen,
+                  (Integer i) -> OPTIONAL.widen(Optional.of(LIST.widen(Arrays.asList(i, i * 10)))))
+              .yield((_, traversed) -> LIST.narrow(traversed));
       assertThat(result.run().isPresent()).isTrue();
       assertThat(result.run().get()).containsExactly(1, 10, 2, 20, 3, 30);
     }
@@ -202,10 +194,9 @@ class ForPathTraverseTest {
           ForPath.from(Path.<String, List<Integer>>right(Arrays.asList(1, 2, 3)))
               .traverse(
                   listTraverse,
-                  list -> LIST.widen(list),
-                  (Integer i) ->
-                      EitherKindHelper.EITHER.widen(Either.<String, Integer>right(i * 2)))
-              .yield((original, traversed) -> LIST.narrow(traversed));
+                  LIST::widen,
+                  (Integer i) -> EitherKindHelper.EITHER.widen(Either.right(i * 2)))
+              .yield((_, traversed) -> LIST.narrow(traversed));
       Either<String, List<Integer>> either = result.run();
       assertThat(either.isRight()).isTrue();
       assertThat(either.getRight()).containsExactly(2, 4, 6);
@@ -218,13 +209,12 @@ class ForPathTraverseTest {
           ForPath.from(Path.<String, List<Integer>>right(Arrays.asList(1, 2, 3)))
               .traverse(
                   listTraverse,
-                  list -> LIST.widen(list),
+                  LIST::widen,
                   (Integer i) ->
                       i == 2
-                          ? EitherKindHelper.EITHER.widen(
-                              Either.<String, Integer>left("error at 2"))
-                          : EitherKindHelper.EITHER.widen(Either.<String, Integer>right(i * 2)))
-              .yield((original, traversed) -> LIST.narrow(traversed));
+                          ? EitherKindHelper.EITHER.widen(Either.left("error at 2"))
+                          : EitherKindHelper.EITHER.widen(Either.right(i * 2)))
+              .yield((_, traversed) -> LIST.narrow(traversed));
       Either<String, List<Integer>> either = result.run();
       assertThat(either.isLeft()).isTrue();
     }
@@ -234,9 +224,9 @@ class ForPathTraverseTest {
     void sequenceInEither() {
       List<Kind<EitherKind.Witness<String>, Integer>> listOfEithers =
           Arrays.asList(
-              EitherKindHelper.EITHER.widen(Either.<String, Integer>right(10)),
-              EitherKindHelper.EITHER.widen(Either.<String, Integer>right(20)),
-              EitherKindHelper.EITHER.widen(Either.<String, Integer>right(30)));
+              EitherKindHelper.EITHER.widen(Either.right(10)),
+              EitherKindHelper.EITHER.widen(Either.right(20)),
+              EitherKindHelper.EITHER.widen(Either.right(30)));
       Kind<ListKind.Witness, Kind<EitherKind.Witness<String>, Integer>> kindList =
           LIST.widen(listOfEithers);
 
@@ -246,7 +236,7 @@ class ForPathTraverseTest {
                       .<String, Kind<ListKind.Witness, Kind<EitherKind.Witness<String>, Integer>>>
                           right(kindList))
               .sequence(listTraverse, Function.identity())
-              .yield((original, sequenced) -> LIST.narrow(sequenced));
+              .yield((_, sequenced) -> LIST.narrow(sequenced));
       Either<String, List<Integer>> either = result.run();
       assertThat(either.isRight()).isTrue();
       assertThat(either.getRight()).containsExactly(10, 20, 30);
@@ -260,12 +250,11 @@ class ForPathTraverseTest {
               .flatTraverse(
                   listTraverse,
                   Instances.monadZero(list()),
-                  list -> LIST.widen(list),
+                  LIST::widen,
                   (Integer i) ->
                       EitherKindHelper.EITHER.widen(
-                          Either.<String, Kind<ListKind.Witness, Integer>>right(
-                              LIST.widen(Arrays.asList(i, i * 10)))))
-              .yield((original, traversed) -> LIST.narrow(traversed));
+                          Either.right(LIST.widen(Arrays.asList(i, i * 10)))))
+              .yield((_, traversed) -> LIST.narrow(traversed));
       Either<String, List<Integer>> either = result.run();
       assertThat(either.isRight()).isTrue();
       assertThat(either.getRight()).containsExactly(1, 10, 2, 20, 3, 30);
@@ -283,9 +272,9 @@ class ForPathTraverseTest {
           ForPath.from(Path.success(Arrays.asList(1, 2, 3)))
               .traverse(
                   listTraverse,
-                  list -> LIST.widen(list),
+                  LIST::widen,
                   (Integer i) -> TryKindHelper.TRY.widen(Try.success(i * 2)))
-              .yield((original, traversed) -> LIST.narrow(traversed));
+              .yield((_, traversed) -> LIST.narrow(traversed));
       Try<List<Integer>> tryResult = result.run();
       assertThat(tryResult.isSuccess()).isTrue();
       assertThat(tryResult.orElse(null)).containsExactly(2, 4, 6);
@@ -304,7 +293,7 @@ class ForPathTraverseTest {
       TryPath<List<Integer>> result =
           ForPath.from(Path.success(kindList))
               .sequence(listTraverse, Function.identity())
-              .yield((original, sequenced) -> LIST.narrow(sequenced));
+              .yield((_, sequenced) -> LIST.narrow(sequenced));
       Try<List<Integer>> tryResult = result.run();
       assertThat(tryResult.isSuccess()).isTrue();
       assertThat(tryResult.orElse(null)).containsExactly(10, 20, 30);
@@ -318,12 +307,10 @@ class ForPathTraverseTest {
               .flatTraverse(
                   listTraverse,
                   Instances.monadZero(list()),
-                  list -> LIST.widen(list),
+                  LIST::widen,
                   (Integer i) ->
-                      TryKindHelper.TRY.widen(
-                          Try.<Kind<ListKind.Witness, Integer>>success(
-                              LIST.widen(Arrays.asList(i, i * 10)))))
-              .yield((original, traversed) -> LIST.narrow(traversed));
+                      TryKindHelper.TRY.widen(Try.success(LIST.widen(Arrays.asList(i, i * 10)))))
+              .yield((_, traversed) -> LIST.narrow(traversed));
       Try<List<Integer>> tryResult = result.run();
       assertThat(tryResult.isSuccess()).isTrue();
       assertThat(tryResult.orElse(null)).containsExactly(1, 10, 2, 20, 3, 30);
@@ -340,10 +327,8 @@ class ForPathTraverseTest {
       IdPath<List<Integer>> result =
           ForPath.from(Path.id(Arrays.asList(1, 2, 3)))
               .traverse(
-                  listTraverse,
-                  list -> LIST.widen(list),
-                  (Integer i) -> IdKindHelper.ID.widen(Id.of(i * 2)))
-              .yield((original, traversed) -> LIST.narrow(traversed));
+                  listTraverse, LIST::widen, (Integer i) -> IdKindHelper.ID.widen(Id.of(i * 2)))
+              .yield((_, traversed) -> LIST.narrow(traversed));
       assertThat(result.run().value()).containsExactly(2, 4, 6);
     }
 
@@ -357,7 +342,7 @@ class ForPathTraverseTest {
       IdPath<List<Integer>> result =
           ForPath.from(Path.id(kindList))
               .sequence(listTraverse, Function.identity())
-              .yield((original, sequenced) -> LIST.narrow(sequenced));
+              .yield((_, sequenced) -> LIST.narrow(sequenced));
       assertThat(result.run().value()).containsExactly(10, 20, 30);
     }
 
@@ -369,12 +354,9 @@ class ForPathTraverseTest {
               .flatTraverse(
                   listTraverse,
                   Instances.monadZero(list()),
-                  list -> LIST.widen(list),
-                  (Integer i) ->
-                      IdKindHelper.ID.widen(
-                          Id.<Kind<ListKind.Witness, Integer>>of(
-                              LIST.widen(Arrays.asList(i, i * 10)))))
-              .yield((original, traversed) -> LIST.narrow(traversed));
+                  LIST::widen,
+                  (Integer i) -> IdKindHelper.ID.widen(Id.of(LIST.widen(Arrays.asList(i, i * 10)))))
+              .yield((_, traversed) -> LIST.narrow(traversed));
       assertThat(result.run().value()).containsExactly(1, 10, 2, 20, 3, 30);
     }
   }
@@ -392,7 +374,7 @@ class ForPathTraverseTest {
                   maybeTraverse,
                   val -> val,
                   (Integer i) -> LIST.widen(Arrays.asList("v" + i, "w" + i)))
-              .yield((original, traversed) -> MAYBE.narrow(traversed));
+              .yield((_, traversed) -> MAYBE.narrow(traversed));
       List<Maybe<String>> list = result.run();
       assertThat(list).hasSize(2);
       assertThat(list.get(0)).isEqualTo(Maybe.just("v42"));
@@ -410,7 +392,7 @@ class ForPathTraverseTest {
       NonDetPath<Maybe<Integer>> result =
           ForPath.from(Path.list(maybeOfList))
               .sequence(maybeTraverse, Function.identity())
-              .yield((original, sequenced) -> MAYBE.narrow(sequenced));
+              .yield((_, sequenced) -> MAYBE.narrow(sequenced));
       List<Maybe<Integer>> list = result.run();
       assertThat(list).hasSize(2);
       assertThat(list.get(0)).isEqualTo(Maybe.just(10));
@@ -427,13 +409,11 @@ class ForPathTraverseTest {
                   maybeTraverse,
                   Instances.monadError(maybe()),
                   val -> val,
-                  (Integer i) ->
-                      LIST.<Kind<MaybeKind.Witness, String>>widen(
-                          Arrays.asList(MAYBE.just("r" + i))))
-              .yield((original, traversed) -> MAYBE.narrow(traversed));
+                  (Integer i) -> LIST.widen(List.of(MAYBE.just("r" + i))))
+              .yield((_, traversed) -> MAYBE.narrow(traversed));
       List<Maybe<String>> list = result.run();
       assertThat(list).hasSize(1);
-      assertThat(list.get(0)).isEqualTo(Maybe.just("r42"));
+      assertThat(list.getFirst()).isEqualTo(Maybe.just("r42"));
     }
   }
 
@@ -449,10 +429,8 @@ class ForPathTraverseTest {
                   Path.generic(
                       IdKindHelper.ID.widen(Id.of(Arrays.asList(1, 2, 3))), Instances.monad(id())))
               .traverse(
-                  listTraverse,
-                  list -> LIST.widen(list),
-                  (Integer i) -> IdKindHelper.ID.widen(Id.of(i * 2)))
-              .yield((original, traversed) -> LIST.narrow(traversed));
+                  listTraverse, LIST::widen, (Integer i) -> IdKindHelper.ID.widen(Id.of(i * 2)))
+              .yield((_, traversed) -> LIST.narrow(traversed));
       List<Integer> list = IdKindHelper.ID.unwrap(result.runKind());
       assertThat(list).containsExactly(2, 4, 6);
     }
@@ -467,7 +445,7 @@ class ForPathTraverseTest {
       GenericPath<IdKind.Witness, List<Integer>> result =
           ForPath.from(Path.generic(IdKindHelper.ID.widen(Id.of(kindList)), Instances.monad(id())))
               .sequence(listTraverse, Function.identity())
-              .yield((original, sequenced) -> LIST.narrow(sequenced));
+              .yield((_, sequenced) -> LIST.narrow(sequenced));
       List<Integer> list = IdKindHelper.ID.unwrap(result.runKind());
       assertThat(list).containsExactly(10, 20, 30);
     }
@@ -482,12 +460,9 @@ class ForPathTraverseTest {
               .flatTraverse(
                   listTraverse,
                   Instances.monadZero(list()),
-                  list -> LIST.widen(list),
-                  (Integer i) ->
-                      IdKindHelper.ID.widen(
-                          Id.<Kind<ListKind.Witness, Integer>>of(
-                              LIST.widen(Arrays.asList(i, i * 10)))))
-              .yield((original, traversed) -> LIST.narrow(traversed));
+                  LIST::widen,
+                  (Integer i) -> IdKindHelper.ID.widen(Id.of(LIST.widen(Arrays.asList(i, i * 10)))))
+              .yield((_, traversed) -> LIST.narrow(traversed));
       List<Integer> list = IdKindHelper.ID.unwrap(result.runKind());
       assertThat(list).containsExactly(1, 10, 2, 20, 3, 30);
     }
@@ -504,9 +479,9 @@ class ForPathTraverseTest {
           ForPath.from(Path.ioPure(Arrays.asList(1, 2, 3)))
               .traverse(
                   listTraverse,
-                  list -> LIST.widen(list),
+                  LIST::widen,
                   (Integer i) -> IOKindHelper.IO_OP.widen(IO.delay(() -> i * 2)))
-              .yield((original, traversed) -> LIST.narrow(traversed));
+              .yield((_, traversed) -> LIST.narrow(traversed));
       assertThat(result.unsafeRun()).containsExactly(2, 4, 6);
     }
 
@@ -523,7 +498,7 @@ class ForPathTraverseTest {
       IOPath<List<Integer>> result =
           ForPath.from(Path.ioPure(kindList))
               .sequence(listTraverse, Function.identity())
-              .yield((original, sequenced) -> LIST.narrow(sequenced));
+              .yield((_, sequenced) -> LIST.narrow(sequenced));
       assertThat(result.unsafeRun()).containsExactly(10, 20, 30);
     }
 
@@ -535,12 +510,11 @@ class ForPathTraverseTest {
               .flatTraverse(
                   listTraverse,
                   Instances.monadZero(list()),
-                  list -> LIST.widen(list),
+                  LIST::widen,
                   (Integer i) ->
                       IOKindHelper.IO_OP.widen(
-                          IO.<Kind<ListKind.Witness, Integer>>delay(
-                              () -> LIST.widen(Arrays.asList(i, i * 10)))))
-              .yield((original, traversed) -> LIST.narrow(traversed));
+                          IO.delay(() -> LIST.widen(Arrays.asList(i, i * 10)))))
+              .yield((_, traversed) -> LIST.narrow(traversed));
       assertThat(result.unsafeRun()).containsExactly(1, 10, 2, 20, 3, 30);
     }
   }
@@ -556,9 +530,9 @@ class ForPathTraverseTest {
           ForPath.from(Path.vtaskPure(Arrays.asList(1, 2, 3)))
               .traverse(
                   listTraverse,
-                  list -> LIST.widen(list),
+                  LIST::widen,
                   (Integer i) -> VTaskKindHelper.VTASK.widen(VTask.of(() -> i * 2)))
-              .yield((original, traversed) -> LIST.narrow(traversed));
+              .yield((_, traversed) -> LIST.narrow(traversed));
       assertThat(result.unsafeRun()).containsExactly(2, 4, 6);
     }
 
@@ -575,7 +549,7 @@ class ForPathTraverseTest {
       VTaskPath<List<Integer>> result =
           ForPath.from(Path.vtaskPure(kindList))
               .sequence(listTraverse, Function.identity())
-              .yield((original, sequenced) -> LIST.narrow(sequenced));
+              .yield((_, sequenced) -> LIST.narrow(sequenced));
       assertThat(result.unsafeRun()).containsExactly(10, 20, 30);
     }
 
@@ -587,12 +561,11 @@ class ForPathTraverseTest {
               .flatTraverse(
                   listTraverse,
                   Instances.monadZero(list()),
-                  list -> LIST.widen(list),
+                  LIST::widen,
                   (Integer i) ->
                       VTaskKindHelper.VTASK.widen(
-                          VTask.<Kind<ListKind.Witness, Integer>>of(
-                              () -> LIST.widen(Arrays.asList(i, i * 10)))))
-              .yield((original, traversed) -> LIST.narrow(traversed));
+                          VTask.of(() -> LIST.widen(Arrays.asList(i, i * 10)))))
+              .yield((_, traversed) -> LIST.narrow(traversed));
       assertThat(result.unsafeRun()).containsExactly(1, 10, 2, 20, 3, 30);
     }
   }

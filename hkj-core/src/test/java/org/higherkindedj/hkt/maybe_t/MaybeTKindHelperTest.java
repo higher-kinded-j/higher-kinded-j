@@ -77,6 +77,7 @@ class MaybeTKindHelperTest {
 
     @Test
     @DisplayName("widen should throw NullPointerException when given null")
+    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
     void widen_nullMaybeT_shouldThrowNullPointerException() {
       assertThatThrownBy(() -> MAYBE_T.widen(null))
           .isInstanceOf(NullPointerException.class)
@@ -121,7 +122,7 @@ class MaybeTKindHelperTest {
     @Test
     @DisplayName("narrow should throw KindUnwrapException when given incorrect Kind type")
     void narrow_incorrectKindType_shouldThrowKindUnwrapException() {
-      OtherKind<OptionalKind.Witness, Integer> incorrectKind = new OtherKind<>();
+      OtherKind<Integer> incorrectKind = new OtherKind<>();
 
       @SuppressWarnings({"unchecked", "rawtypes"})
       Kind<MaybeTKind.Witness<OptionalKind.Witness>, Integer> kindToTest =
@@ -191,5 +192,5 @@ class MaybeTKindHelperTest {
   // Dummy Kind for testing invalid type unwrap
   private interface OtherWitness extends WitnessArity<TypeArity.Unary> {}
 
-  private static class OtherKind<F_Witness, A> implements Kind<OtherWitness, A> {}
+  private static class OtherKind<A> implements Kind<OtherWitness, A> {}
 }

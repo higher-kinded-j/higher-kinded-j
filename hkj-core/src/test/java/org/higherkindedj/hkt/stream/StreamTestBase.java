@@ -38,7 +38,6 @@ import org.higherkindedj.hkt.test.fixtures.TypeClassTestBase;
  * <ul>
  *   <li>{@link #streamOf(Object...)} - Creates a Stream Kind from varargs
  *   <li>{@link #emptyStream()} - Creates an empty Stream Kind
- *   <li>{@link #singletonStream(Object)} - Creates a Stream Kind with one element
  *   <li>{@link #narrowToList(Kind)} - Converts a Stream Kind to List for testing
  * </ul>
  *
@@ -92,17 +91,6 @@ abstract class StreamTestBase extends TypeClassTestBase<StreamKind.Witness, Inte
   }
 
   /**
-   * Creates a Stream Kind containing a single element.
-   *
-   * @param <A> The type of the element
-   * @param element The element to include
-   * @return A Stream Kind containing the single element
-   */
-  protected <A> Kind<StreamKind.Witness, A> singletonStream(A element) {
-    return STREAM.widen(Stream.of(element));
-  }
-
-  /**
    * Converts a Stream Kind to a List for testing purposes.
    *
    * <p><b>Warning:</b> This forces evaluation and consumes the stream. The stream cannot be reused
@@ -117,33 +105,6 @@ abstract class StreamTestBase extends TypeClassTestBase<StreamKind.Witness, Inte
    */
   protected <A> List<A> narrowToList(Kind<StreamKind.Witness, A> kind) {
     return STREAM.narrow(kind).collect(Collectors.toList());
-  }
-
-  /**
-   * Creates a Stream Kind from a standard Java Stream.
-   *
-   * <p>Useful when you need to create a stream from an existing source or using Stream API
-   * operations.
-   *
-   * @param <A> The type of elements
-   * @param stream The stream to wrap
-   * @return A Stream Kind wrapping the provided stream
-   */
-  protected <A> Kind<StreamKind.Witness, A> wrapStream(Stream<A> stream) {
-    return STREAM.widen(stream);
-  }
-
-  /**
-   * Creates a Stream Kind containing a range of integers from start (inclusive) to end (exclusive).
-   *
-   * <p>Example: {@code rangeStream(1, 4)} produces a stream [1, 2, 3]
-   *
-   * @param start The starting value (inclusive)
-   * @param end The ending value (exclusive)
-   * @return A Stream Kind containing the range
-   */
-  protected Kind<StreamKind.Witness, Integer> rangeStream(int start, int end) {
-    return STREAM.widen(Stream.iterate(start, n -> n < end, n -> n + 1));
   }
 
   // ============================================================================
@@ -206,55 +167,9 @@ abstract class StreamTestBase extends TypeClassTestBase<StreamKind.Witness, Inte
     // Streams must be converted to lists for equality comparison
     // This forces evaluation of both streams
     return (k1, k2) -> {
-      List<?> list1 = STREAM.narrow(k1).collect(Collectors.toList());
-      List<?> list2 = STREAM.narrow(k2).collect(Collectors.toList());
+      List<?> list1 = STREAM.narrow(k1).toList();
+      List<?> list2 = STREAM.narrow(k2).toList();
       return list1.equals(list2);
     };
-  }
-
-  // ============================================================================
-  // Additional Helper Methods for Stream-Specific Testing
-  // ============================================================================
-
-  /**
-   * Creates a finite stream for testing by limiting an infinite stream.
-   *
-   * <p>Useful for testing with potentially infinite sequences.
-   *
-   * @param seed The starting value
-   * @param next The function to generate the next value
-   * @param limit The maximum number of elements
-   * @return A Stream Kind with at most {@code limit} elements
-   */
-  protected Kind<StreamKind.Witness, Integer> finiteIteration(
-      Integer seed, Function<Integer, Integer> next, long limit) {
-    return STREAM.widen(Stream.iterate(seed, next::apply).limit(limit));
-  }
-
-  /**
-   * Creates a Stream Kind from a list for testing.
-   *
-   * <p>Useful when you have test data in a list and need to convert it to a stream.
-   *
-   * @param <A> The type of elements
-   * @param list The list to convert
-   * @return A Stream Kind containing the list elements
-   */
-  protected <A> Kind<StreamKind.Witness, A> streamFromList(List<A> list) {
-    return STREAM.widen(list.stream());
-  }
-
-  /**
-   * Validates that a stream fixture is properly configured.
-   *
-   * <p>Note: This consumes the stream, so should only be used in setup validation, not in actual
-   * test methods.
-   */
-  protected void validateStreamFixtures() {
-    // Validate that fixtures are properly initialized
-    // Note: This consumes streams, so create fresh ones for actual tests
-    assert createValidKind() != null : "validKind must not be null";
-    assert createValidMapper() != null : "validMapper must not be null";
-    assert createValidFlatMapper() != null : "validFlatMapper must not be null";
   }
 }

@@ -28,6 +28,7 @@ class ParTest {
 
     @Test
     @DisplayName("zip() combines two successful tasks")
+    @SuppressWarnings("DataFlowIssue") // non-null in this fixture
     void zipCombinesTwoSuccessfulTasks() {
       VTask<Integer> taskA = VTask.succeed(TEST_VALUE_A);
       VTask<Integer> taskB = VTask.succeed(TEST_VALUE_B);
@@ -97,6 +98,7 @@ class ParTest {
 
     @Test
     @DisplayName("zip() with null first task throws NullPointerException")
+    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
     void zipWithNullFirstTaskThrows() {
       VTask<Integer> taskB = VTask.succeed(TEST_VALUE_B);
 
@@ -105,6 +107,7 @@ class ParTest {
 
     @Test
     @DisplayName("zip() with null second task throws NullPointerException")
+    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
     void zipWithNullSecondTaskThrows() {
       VTask<Integer> taskA = VTask.succeed(TEST_VALUE_A);
 
@@ -118,6 +121,7 @@ class ParTest {
 
     @Test
     @DisplayName("zip3() combines three successful tasks")
+    @SuppressWarnings("DataFlowIssue") // non-null in this fixture
     void zip3CombinesThreeSuccessfulTasks() {
       VTask<Integer> taskA = VTask.succeed(TEST_VALUE_A);
       VTask<Integer> taskB = VTask.succeed(TEST_VALUE_B);
@@ -146,6 +150,7 @@ class ParTest {
 
     @Test
     @DisplayName("zip3() with null first task throws NullPointerException")
+    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
     void zip3WithNullFirstTaskThrows() {
       VTask<Integer> taskB = VTask.succeed(TEST_VALUE_B);
       VTask<Integer> taskC = VTask.succeed(TEST_VALUE_C);
@@ -156,6 +161,7 @@ class ParTest {
 
     @Test
     @DisplayName("zip3() with null second task throws NullPointerException")
+    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
     void zip3WithNullSecondTaskThrows() {
       VTask<Integer> taskA = VTask.succeed(TEST_VALUE_A);
       VTask<Integer> taskC = VTask.succeed(TEST_VALUE_C);
@@ -166,6 +172,7 @@ class ParTest {
 
     @Test
     @DisplayName("zip3() with null third task throws NullPointerException")
+    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
     void zip3WithNullThirdTaskThrows() {
       VTask<Integer> taskA = VTask.succeed(TEST_VALUE_A);
       VTask<Integer> taskB = VTask.succeed(TEST_VALUE_B);
@@ -230,6 +237,7 @@ class ParTest {
 
     @Test
     @DisplayName("map2() with null first task throws NullPointerException")
+    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
     void map2WithNullFirstTaskThrows() {
       VTask<Integer> taskB = VTask.succeed(20);
 
@@ -239,6 +247,7 @@ class ParTest {
 
     @Test
     @DisplayName("map2() with null second task throws NullPointerException")
+    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
     void map2WithNullSecondTaskThrows() {
       VTask<Integer> taskA = VTask.succeed(10);
 
@@ -248,6 +257,7 @@ class ParTest {
 
     @Test
     @DisplayName("map2() with null combiner throws NullPointerException")
+    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
     void map2WithNullCombinerThrows() {
       VTask<Integer> taskA = VTask.succeed(10);
       VTask<Integer> taskB = VTask.succeed(20);
@@ -288,6 +298,7 @@ class ParTest {
 
     @Test
     @DisplayName("map3() with null first task throws NullPointerException")
+    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
     void map3WithNullFirstTaskThrows() {
       VTask<Integer> taskB = VTask.succeed(20);
       VTask<Integer> taskC = VTask.succeed(30);
@@ -299,6 +310,7 @@ class ParTest {
 
     @Test
     @DisplayName("map3() with null combiner throws NullPointerException")
+    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
     void map3WithNullCombinerThrows() {
       VTask<Integer> taskA = VTask.succeed(10);
       VTask<Integer> taskB = VTask.succeed(20);
@@ -348,6 +360,7 @@ class ParTest {
 
     @Test
     @DisplayName("race() with null throws NullPointerException")
+    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
     void raceWithNullThrows() {
       assertThatThrownBy(() -> Par.race(null)).isInstanceOf(NullPointerException.class);
     }
@@ -466,6 +479,7 @@ class ParTest {
 
     @Test
     @DisplayName("all() with null list throws NullPointerException")
+    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
     void allWithNullListThrows() {
       assertThatThrownBy(() -> Par.all(null)).isInstanceOf(NullPointerException.class);
     }
@@ -538,13 +552,15 @@ class ParTest {
 
     @Test
     @DisplayName("traverse() with null items throws NullPointerException")
+    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
     void traverseWithNullItemsThrows() {
-      assertThatThrownBy(() -> Par.traverse(null, i -> VTask.succeed(i)))
+      assertThatThrownBy(() -> Par.traverse(null, VTask::succeed))
           .isInstanceOf(NullPointerException.class);
     }
 
     @Test
     @DisplayName("traverse() with null function throws NullPointerException")
+    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
     void traverseWithNullFunctionThrows() {
       List<Integer> items = List.of(1, 2, 3);
 
@@ -553,6 +569,7 @@ class ParTest {
 
     @Test
     @DisplayName("traverse() throws when function returns null task")
+    @SuppressWarnings("DataFlowIssue") // the mapper deliberately returns null
     void traverseThrowsWhenFunctionReturnsNullTask() {
       List<Integer> items = List.of(1, 2, 3);
 

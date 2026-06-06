@@ -28,7 +28,7 @@ import org.pcollections.PVector;
 import org.pcollections.TreePVector;
 
 /**
- * Phase 1 PCollections HKT compatibility benchmarks.
+ * PCollections HKT compatibility benchmarks.
  *
  * <p>Compares {@code java.util.ArrayList} (the JDK reference) against PCollections {@link PVector}
  * when both are widened into {@link ListKind} and processed through the existing HKT pipeline

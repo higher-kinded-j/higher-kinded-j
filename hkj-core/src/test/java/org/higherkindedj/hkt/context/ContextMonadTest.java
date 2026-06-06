@@ -6,38 +6,94 @@ import static org.assertj.core.api.Assertions.*;
 import static org.higherkindedj.hkt.context.ContextKindHelper.CONTEXT;
 import static org.higherkindedj.hkt.instances.Witnesses.*;
 
-import java.util.Objects;
-import java.util.function.BiPredicate;
 import java.util.function.Function;
-import java.util.stream.Stream;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Monad;
 import org.higherkindedj.hkt.exception.KindUnwrapException;
 import org.higherkindedj.hkt.instances.Instances;
 import org.higherkindedj.hkt.laws.MonadLaws;
+import org.higherkindedj.hkt.test.contract.Category;
+import org.higherkindedj.hkt.test.contract.TypeClassContract;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 
 /**
- * Comprehensive test suite for {@link ContextMonad}.
+ * Test suite for {@link ContextMonad}.
  *
- * <p>Coverage includes singleton pattern, flatMap operations, null handling, and monad laws.
+ * <p>Verifies the Monad operations and laws; the laws are driven by the shipped {@link MonadLaws}
+ * over {@link ContextLawFixtures}.
  */
-@DisplayName("ContextMonad<R> Complete Test Suite")
+@DisplayName("ContextMonad<R> Tests")
 class ContextMonadTest {
 
-  private static final ScopedValue<String> STRING_KEY = ScopedValue.newInstance();
+  private static final ScopedValue<String> STRING_KEY = ContextLawFixtures.STRING_KEY;
 
   private Monad<ContextKind.Witness<String>> monad;
 
   @BeforeEach
   void setUp() {
     monad = Instances.monad(context());
+  }
+
+  @Nested
+  @DisplayName("Laws")
+  class Laws {
+
+    private final Function<Integer, Kind<ContextKind.Witness<String>, String>> intToCtx =
+        n -> CONTEXT.succeed("Number: " + n);
+
+    private final Function<String, Kind<ContextKind.Witness<String>, String>> upper =
+        s -> CONTEXT.succeed(s.toUpperCase());
+
+    private final Function<String, Kind<ContextKind.Witness<String>, Integer>> length =
+        s -> CONTEXT.succeed(s.length());
+
+    @ParameterizedTest(name = "left identity holds on value {0}")
+    @MethodSource("org.higherkindedj.hkt.context.ContextLawFixtures#values")
+    void leftIdentity(Integer value) {
+      MonadLaws.assertLeftIdentity(monad, value, intToCtx, ContextLawFixtures.EQ);
+    }
+
+    @ParameterizedTest(name = "right identity holds on {0}")
+    @MethodSource("org.higherkindedj.hkt.context.ContextLawFixtures#kinds")
+    void rightIdentity(String label, Kind<ContextKind.Witness<String>, String> ma) {
+      MonadLaws.assertRightIdentity(monad, ma, ContextLawFixtures.EQ);
+    }
+
+    @ParameterizedTest(name = "associativity holds on {0}")
+    @MethodSource("org.higherkindedj.hkt.context.ContextLawFixtures#kinds")
+    void associativity(String label, Kind<ContextKind.Witness<String>, String> ma) {
+      MonadLaws.assertAssociativity(monad, ma, upper, length, ContextLawFixtures.EQ);
+    }
+  }
+
+  /**
+   * {@code Context} is lazy — {@code map}/{@code flatMap} only wrap the user function, which is
+   * applied at {@link Context#run()} time — so {@link Category#EXCEPTIONS} is omitted (a thrown
+   * function does not surface until the context is run). That deferral is covered explicitly in
+   * {@code ContextTest}/{@code ContextExceptionTest}. The Monad laws are verified in the {@code
+   * Laws} block above.
+   */
+  @Test
+  @DisplayName("Monad contract — operations & validations (laws verified above)")
+  void monadContract() {
+    Kind<ContextKind.Witness<String>, Integer> validKind = CONTEXT.succeed(42);
+    Kind<ContextKind.Witness<String>, Integer> validKind2 = CONTEXT.succeed(7);
+    Function<Integer, String> mapper = n -> "Number: " + n;
+    Function<Integer, Kind<ContextKind.Witness<String>, String>> flatMapper =
+        n -> CONTEXT.succeed("Number: " + n);
+    Kind<ContextKind.Witness<String>, Function<Integer, String>> functionKind =
+        CONTEXT.succeed(n -> "fn:" + n);
+
+    TypeClassContract.<ContextKind.Witness<String>>monad(ContextMonad.class)
+        .<Integer>instance(monad)
+        .<String>withKind(validKind)
+        .withMonadOperations(validKind2, mapper, flatMapper, functionKind, (a, b) -> a + ":" + b)
+        .verifyOnly(Category.OPERATIONS, Category.VALIDATIONS);
   }
 
   @Nested
@@ -89,7 +145,7 @@ class ContextMonadTest {
 
     @Test
     @DisplayName("flatMap() should work with ScopedValue reading")
-    void flatMap_shouldWorkWithScopedValueReading() throws Exception {
+    void flatMap_shouldWorkWithScopedValueReading() {
       Kind<ContextKind.Witness<String>, String> ma = CONTEXT.ask(STRING_KEY);
 
       Kind<ContextKind.Witness<String>, Integer> result =
@@ -102,26 +158,12 @@ class ContextMonadTest {
     }
 
     @Test
-    @DisplayName("flatMap() should throw for null function")
-    void flatMap_shouldThrowForNullFunction() {
-      Kind<ContextKind.Witness<String>, Integer> ma = CONTEXT.succeed(42);
-
-      assertThatNullPointerException().isThrownBy(() -> monad.flatMap(null, ma));
-    }
-
-    @Test
-    @DisplayName("flatMap() should throw for null ma")
-    void flatMap_shouldThrowForNullMa() {
-      assertThatNullPointerException()
-          .isThrownBy(() -> monad.flatMap(n -> CONTEXT.succeed("Number: " + n), null));
-    }
-
-    @Test
     @DisplayName("flatMap() should throw if function returns null")
+    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
     void flatMap_shouldThrowIfFunctionReturnsNull() {
       Kind<ContextKind.Witness<String>, Integer> ma = CONTEXT.succeed(42);
 
-      Kind<ContextKind.Witness<String>, String> result = monad.flatMap(n -> null, ma);
+      Kind<ContextKind.Witness<String>, String> result = monad.flatMap(_ -> null, ma);
       Context<String, String> ctx = CONTEXT.narrow(result);
 
       assertThatThrownBy(ctx::run).isInstanceOf(KindUnwrapException.class);
@@ -147,64 +189,10 @@ class ContextMonadTest {
       Kind<ContextKind.Witness<String>, Integer> ma = CONTEXT.succeed(42);
 
       Kind<ContextKind.Witness<String>, String> result =
-          monad.flatMap(n -> CONTEXT.fail(error), ma);
+          monad.flatMap(_ -> CONTEXT.fail(error), ma);
       Context<String, String> ctx = CONTEXT.narrow(result);
 
       assertThatThrownBy(ctx::run).isSameAs(error);
-    }
-  }
-
-  @Nested
-  @DisplayName("Laws")
-  class Laws {
-
-    private final BiPredicate<
-            Kind<ContextKind.Witness<String>, ?>, Kind<ContextKind.Witness<String>, ?>>
-        eq =
-            (k1, k2) -> {
-              try {
-                return ScopedValue.where(STRING_KEY, "test")
-                    .call(() -> Objects.equals(CONTEXT.narrow(k1).run(), CONTEXT.narrow(k2).run()));
-              } catch (Exception e) {
-                throw new RuntimeException(e);
-              }
-            };
-
-    private final Function<Integer, Kind<ContextKind.Witness<String>, String>> intToCtx =
-        n -> CONTEXT.succeed("Number: " + n);
-
-    private final Function<String, Kind<ContextKind.Witness<String>, String>> upper =
-        s -> CONTEXT.succeed(s.toUpperCase());
-
-    private final Function<String, Kind<ContextKind.Witness<String>, Integer>> length =
-        s -> CONTEXT.succeed(s.length());
-
-    @ParameterizedTest(name = "left identity holds on value {0}")
-    @MethodSource("values")
-    void leftIdentity(Integer value) {
-      MonadLaws.assertLeftIdentity(monad, value, intToCtx, eq);
-    }
-
-    @ParameterizedTest(name = "right identity holds on {0}")
-    @MethodSource("stringFixtures")
-    void rightIdentity(String label, Kind<ContextKind.Witness<String>, String> ma) {
-      MonadLaws.assertRightIdentity(monad, ma, eq);
-    }
-
-    @ParameterizedTest(name = "associativity holds on {0}")
-    @MethodSource("stringFixtures")
-    void associativity(String label, Kind<ContextKind.Witness<String>, String> ma) {
-      MonadLaws.assertAssociativity(monad, ma, upper, length, eq);
-    }
-
-    static Stream<Arguments> values() {
-      return Stream.of(Arguments.of(0), Arguments.of(42), Arguments.of(-1));
-    }
-
-    static Stream<Arguments> stringFixtures() {
-      return Stream.of(
-          Arguments.of("succeed(\"hello\")", CONTEXT.<String, String>succeed("hello")),
-          Arguments.of("ask(STRING_KEY)", CONTEXT.<String>ask(STRING_KEY)));
     }
   }
 
@@ -252,7 +240,7 @@ class ContextMonadTest {
 
     @Test
     @DisplayName("Chain of flatMap operations should work correctly")
-    void chainOfFlatMapsShouldWork() throws Exception {
+    void chainOfFlatMapsShouldWork() {
       Kind<ContextKind.Witness<String>, String> result =
           monad.flatMap(
               s ->

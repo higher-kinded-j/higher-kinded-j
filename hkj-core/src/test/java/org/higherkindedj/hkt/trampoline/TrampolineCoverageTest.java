@@ -4,6 +4,7 @@ package org.higherkindedj.hkt.trampoline;
 
 import static org.assertj.core.api.Assertions.*;
 
+import java.util.function.Function;
 import org.higherkindedj.hkt.exception.KindUnwrapException;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -144,6 +145,7 @@ class TrampolineCoverageTest extends TrampolineTestBase {
 
     @Test
     @DisplayName("More constructor with null supplier throws")
+    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
     void moreConstructorWithNullThrows() {
       // This tests the More compact constructor validation
       assertThatThrownBy(() -> Trampoline.defer(null)).isInstanceOf(NullPointerException.class);
@@ -180,6 +182,10 @@ class TrampolineCoverageTest extends TrampolineTestBase {
 
     @Test
     @DisplayName("Continuation applies to null value")
+    @SuppressWarnings({
+      "DataFlowIssue",
+      "ConstantValue"
+    }) // a Trampoline may legitimately hold a null value
     void continuationAppliesToNullValue() {
       // Create a flatMap where the first result is null
       Trampoline<String> trampoline =
@@ -194,10 +200,14 @@ class TrampolineCoverageTest extends TrampolineTestBase {
 
     @Test
     @DisplayName("Multiple flatMaps with null intermediate values")
+    @SuppressWarnings({
+      "DataFlowIssue",
+      "ConstantValue"
+    }) // a Trampoline may legitimately hold a null value
     void multipleFlatMapsWithNullValues() {
       Trampoline<String> trampoline =
           Trampoline.<String>done(null)
-              .flatMap(x -> Trampoline.done(x)) // Pass null through
+              .flatMap(Trampoline::done) // Pass null through
               .flatMap(x -> Trampoline.done(x == null ? "final" : "unexpected"));
 
       String result = trampoline.run();
@@ -309,6 +319,7 @@ class TrampolineCoverageTest extends TrampolineTestBase {
 
     @Test
     @DisplayName("map with null mapper throws")
+    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
     void mapWithNullMapperThrows() {
       Trampoline<Integer> trampoline = Trampoline.done(42);
 
@@ -317,6 +328,7 @@ class TrampolineCoverageTest extends TrampolineTestBase {
 
     @Test
     @DisplayName("flatMap with null function throws")
+    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
     void flatMapWithNullFunctionThrows() {
       Trampoline<Integer> trampoline = Trampoline.done(42);
 
@@ -325,14 +337,17 @@ class TrampolineCoverageTest extends TrampolineTestBase {
 
     @Test
     @DisplayName("flatMap with function returning null throws during run")
+    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
     void flatMapWithNullReturningFunctionThrows() {
-      Trampoline<Integer> trampoline = Trampoline.done(42).flatMap(x -> null);
+      Function<Integer, Trampoline<Integer>> nullFunction = _ -> null;
+      Trampoline<Integer> trampoline = Trampoline.done(42).flatMap(nullFunction);
 
       assertThatThrownBy(trampoline::run).isInstanceOf(KindUnwrapException.class);
     }
 
     @Test
     @DisplayName("defer with null supplier throws")
+    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
     void deferWithNullSupplierThrows() {
       assertThatThrownBy(() -> Trampoline.defer(null)).isInstanceOf(NullPointerException.class);
     }
@@ -368,12 +383,11 @@ class TrampolineCoverageTest extends TrampolineTestBase {
       Trampoline<Integer> trampoline = Trampoline.done(0);
 
       for (int i = 0; i < 100; i++) {
-        int currentI = i;
         trampoline =
             trampoline
                 .flatMap(x -> Trampoline.defer(() -> Trampoline.done(x + 1)))
                 .map(x -> x)
-                .flatMap(x -> Trampoline.done(x));
+                .flatMap(Trampoline::done);
       }
 
       assertThat(trampoline.run()).isEqualTo(100);

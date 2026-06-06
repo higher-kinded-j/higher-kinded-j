@@ -4,7 +4,6 @@ package org.higherkindedj.hkt.lazy;
 
 import static org.assertj.core.api.Assertions.*;
 import static org.higherkindedj.hkt.assertions.LazyAssert.assertThatLazy;
-import static org.higherkindedj.hkt.lazy.LazyKindHelper.*;
 
 import java.io.IOException;
 import java.lang.reflect.Field;
@@ -54,6 +53,7 @@ class LazyTest extends LazyTestBase {
 
     @Test
     @DisplayName("defer should throw NPE for null supplier")
+    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
     void deferShouldThrowNPEForNullSupplier() {
       assertThatNullPointerException()
           .isThrownBy(() -> Lazy.defer(null))
@@ -78,7 +78,7 @@ class LazyTest extends LazyTestBase {
       Lazy<String> lazy = Lazy.now(null);
 
       assertThat(COUNTER.get()).isZero();
-      assertThatLazy(lazy).hasValue(null);
+      assertThatLazy(lazy).hasNullValue();
       assertThat(COUNTER.get()).isZero();
       assertThat(lazy.toString()).isEqualTo("Lazy[null]");
     }
@@ -182,7 +182,7 @@ class LazyTest extends LazyTestBase {
     @DisplayName("hasFailed should be true after evaluation throws")
     void hasFailedShouldBeTrueAfterFailure() {
       Lazy<String> lazy = Lazy.defer(runtimeFailSupplier());
-      catchThrowable(lazy::force);
+      assertThatThrownBy(lazy::force).isInstanceOf(IllegalStateException.class);
       assertThat(lazy.hasFailed()).isTrue();
     }
   }
@@ -255,7 +255,7 @@ class LazyTest extends LazyTestBase {
       Lazy<String> lazy = Lazy.defer(successSupplier());
       Lazy<Integer> mapped =
           lazy.map(
-              s -> {
+              _ -> {
                 throw mapperEx;
               });
 
@@ -265,9 +265,10 @@ class LazyTest extends LazyTestBase {
 
     @Test
     @DisplayName("flatMap should throw exception if mapper returns null")
+    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
     void flatMapShouldThrowExceptionIfMapperReturnsNull() {
       Lazy<String> lazy = Lazy.defer(successSupplier());
-      Lazy<Integer> flatMapped = lazy.flatMap(s -> null);
+      Lazy<Integer> flatMapped = lazy.flatMap(_ -> null);
 
       assertThatThrownBy(flatMapped::force)
           .isInstanceOf(KindUnwrapException.class)
@@ -343,7 +344,7 @@ class LazyTest extends LazyTestBase {
       Lazy<String> lazyA = Lazy.defer(successSupplier());
       Lazy<Integer> flatMapped =
           lazyA.flatMap(
-              s -> {
+              _ -> {
                 throw mapperEx;
               });
 
@@ -360,7 +361,7 @@ class LazyTest extends LazyTestBase {
       Lazy<String> lazyA = Lazy.defer(successSupplier());
       Lazy<Integer> flatMapped =
           lazyA.flatMap(
-              s ->
+              _ ->
                   Lazy.defer(
                       () -> {
                         throw resultEx;
@@ -372,6 +373,7 @@ class LazyTest extends LazyTestBase {
 
     @Test
     @DisplayName("flatMap should throw NPE for null mapper")
+    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
     void flatMapShouldThrowNPEForNullMapper() {
       Lazy<String> lazy = Lazy.defer(successSupplier());
 
@@ -382,9 +384,10 @@ class LazyTest extends LazyTestBase {
 
     @Test
     @DisplayName("flatMap should throw exception if mapper returns null")
+    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
     void flatMapShouldThrowExceptionIfMapperReturnsNull() {
       Lazy<String> lazy = Lazy.defer(successSupplier());
-      Lazy<Integer> flatMapped = lazy.flatMap(s -> null);
+      Lazy<Integer> flatMapped = lazy.flatMap(_ -> null);
 
       assertThatThrownBy(flatMapped::force)
           .isInstanceOf(KindUnwrapException.class)
@@ -442,8 +445,8 @@ class LazyTest extends LazyTestBase {
                 throw new RuntimeException("Failed");
               });
 
-      catchThrowable(lazy::force);
-      catchThrowable(lazy::force);
+      assertThatThrownBy(lazy::force).isInstanceOf(RuntimeException.class);
+      assertThatThrownBy(lazy::force).isInstanceOf(RuntimeException.class);
 
       assertThat(counter.get()).isEqualTo(1);
     }
@@ -481,7 +484,7 @@ class LazyTest extends LazyTestBase {
                 throw new IllegalStateException("Test");
               });
 
-      catchThrowable(lazy::force);
+      assertThatThrownBy(lazy::force).isInstanceOf(IllegalStateException.class);
 
       assertThat(lazy.toString()).isEqualTo("Lazy[failed: IllegalStateException]");
     }
@@ -491,21 +494,17 @@ class LazyTest extends LazyTestBase {
     void lazyShouldUseReferenceEquality() {
       Lazy<String> lazy1 = Lazy.defer(() -> "a");
       Lazy<String> lazy2 = Lazy.defer(() -> "a");
-      Lazy<String> lazy1Ref = lazy1;
 
-      assertThat(lazy1).isEqualTo(lazy1Ref);
-      assertThat(lazy1).isNotEqualTo(lazy2);
-      assertThat(lazy1).isNotEqualTo(null);
-      assertThat(lazy1).isNotEqualTo("a");
+      // Distinct instances are never equal, even with identical computations.
+      assertThat(lazy1).isNotEqualTo(lazy2).isNotEqualTo(null);
     }
 
     @Test
     @DisplayName("hashCode should use reference hashCode")
     void hashCodeShouldUseReferenceHashCode() {
       Lazy<String> lazy1 = Lazy.defer(() -> "a");
-      Lazy<String> lazy1Ref = lazy1;
 
-      assertThat(lazy1.hashCode()).isEqualTo(lazy1Ref.hashCode());
+      assertThat(lazy1.hashCode()).isEqualTo(System.identityHashCode(lazy1));
     }
   }
 
@@ -515,6 +514,7 @@ class LazyTest extends LazyTestBase {
 
     @Test
     @DisplayName("Concurrent force() calls should evaluate only once")
+    @SuppressWarnings({"DataFlowIssue", "ConstantValue"}) // cross-thread arrays defeat dataflow
     void concurrentForceCallsShouldEvaluateOnlyOnce() throws Exception {
       AtomicInteger counter = new AtomicInteger(0);
       Lazy<String> lazy =
@@ -616,7 +616,8 @@ class LazyTest extends LazyTestBase {
 
     @Test
     @DisplayName("ExecutorService concurrent force() calls should evaluate only once")
-    void executorServiceConcurrentForceCallsShouldEvaluateOnlyOnce() throws Exception {
+    @SuppressWarnings("NullableProblems") // Lazy.force() is nullable, so submit() infers nullable
+    void executorServiceConcurrentForceCallsShouldEvaluateOnlyOnce() {
       AtomicInteger count = new AtomicInteger(0);
       Lazy<Integer> lazy =
           Lazy.defer(
@@ -626,8 +627,7 @@ class LazyTest extends LazyTestBase {
               });
 
       // 10 threads all force() simultaneously
-      ExecutorService executor = Executors.newFixedThreadPool(10);
-      try {
+      try (ExecutorService executor = Executors.newFixedThreadPool(10)) {
         List<Future<Integer>> futures = new ArrayList<>();
         for (int i = 0; i < 10; i++) {
           futures.add(
@@ -656,8 +656,6 @@ class LazyTest extends LazyTestBase {
 
         assertThat(results).hasSize(1); // All got same value
         assertThat(count.get()).isEqualTo(1); // Supplier called once!
-      } finally {
-        executor.shutdown();
       }
     }
   }
@@ -670,7 +668,6 @@ class LazyTest extends LazyTestBase {
   @DisplayName("Internal Computation Coverage")
   class InternalComputationTests {
 
-    @SuppressWarnings("unchecked")
     private ThrowableSupplier<?> getComputation(Lazy<?> lazy) throws Exception {
       Field field = Lazy.class.getDeclaredField("computation");
       field.setAccessible(true);

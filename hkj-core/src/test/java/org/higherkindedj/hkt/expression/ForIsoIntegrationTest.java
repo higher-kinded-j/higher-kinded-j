@@ -107,7 +107,7 @@ class ForIsoIntegrationTest {
           For.from(idMonad, Id.of(new Celsius(0.0)))
               .through(celsiusToFahrenheit)
               .from(t -> Id.of("Freezing point: " + t._2().value() + "F"))
-              .yield((celsius, fahrenheit, description) -> description);
+              .yield((_, _, description) -> description);
 
       assertThat(IdKindHelper.ID.unwrap(result)).isEqualTo("Freezing point: 32.0F");
     }
@@ -119,7 +119,7 @@ class ForIsoIntegrationTest {
           For.from(idMonad, Id.of(new Celsius(100.0)))
               .through(celsiusToFahrenheit)
               .let(t -> "Boiling: " + t._1().value() + "C / " + t._2().value() + "F")
-              .yield((celsius, fahrenheit, summary) -> summary);
+              .yield((_, _, summary) -> summary);
 
       assertThat(IdKindHelper.ID.unwrap(result)).isEqualTo("Boiling: 100.0C / 212.0F");
     }
@@ -161,7 +161,7 @@ class ForIsoIntegrationTest {
       Kind<MaybeKind.Witness, String> result =
           For.from(maybeMonad, MAYBE.<Celsius>nothing())
               .through(celsiusToFahrenheit)
-              .yield((celsius, fahrenheit) -> "should not reach");
+              .yield((_, _) -> "should not reach");
 
       assertThat(MAYBE.narrow(result)).isEqualTo(Maybe.nothing());
     }
@@ -198,6 +198,7 @@ class ForIsoIntegrationTest {
 
     @Test
     @DisplayName("should convert value via Iso on FilterableSteps1")
+    @SuppressWarnings("unchecked") // deliberate cast to reach the FilterableSteps1 overload
     void throughOnFilterableSteps() {
       // Using MonadZero entry point to get FilterableSteps1
       Kind<MaybeKind.Witness, String> result =
@@ -217,7 +218,7 @@ class ForIsoIntegrationTest {
           For.from(listMonad, LIST.widen(temperatures))
               .through(celsiusToFahrenheit)
               .when(t -> t._2().value() > 50.0)
-              .yield((celsius, fahrenheit) -> celsius.value() + "C");
+              .yield((celsius, _) -> celsius.value() + "C");
 
       // 0C=32F (filtered out), 100C=212F (kept), 37C=98.6F (kept)
       assertThat(LIST.narrow(result)).containsExactly("100.0C", "37.0C");
@@ -244,7 +245,7 @@ class ForIsoIntegrationTest {
           For.from(listMonad, LIST.widen(values))
               .through(doubleToShape)
               .match(t -> circlePrism.getOptional(t._2()))
-              .yield((d, shape, circle) -> "Circle(r=" + circle.radius() + ")");
+              .yield((_, _, circle) -> "Circle(r=" + circle.radius() + ")");
 
       // 5.0 -> Circle(5.0) -> matches, -3.0 -> Square(3.0) -> filtered, 2.5 -> Circle(2.5) ->
       // matches
@@ -262,6 +263,7 @@ class ForIsoIntegrationTest {
 
     @Test
     @DisplayName("should throw NullPointerException when iso is null on MonadicSteps1")
+    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
     void throughNullIsoThrows_monadic() {
       assertThatThrownBy(() -> For.from(idMonad, Id.of("test")).through(null))
           .isInstanceOf(NullPointerException.class)
@@ -270,6 +272,7 @@ class ForIsoIntegrationTest {
 
     @Test
     @DisplayName("should throw NullPointerException when iso is null on FilterableSteps1")
+    @SuppressWarnings({"DataFlowIssue", "unchecked"}) // null passed to verify rejection
     void throughNullIsoThrows_filterable() {
       assertThatThrownBy(
               () ->
@@ -286,7 +289,6 @@ class ForIsoIntegrationTest {
   @DisplayName("through() Composition Tests")
   class ThroughCompositionTests {
     private final Monad<IdKind.Witness> idMonad = Instances.monad(id());
-    private final MonadZero<ListKind.Witness> listMonad = Instances.monadZero(list());
 
     @Test
     @DisplayName("should combine through() then focus() for multi-step extraction")
@@ -300,8 +302,7 @@ class ForIsoIntegrationTest {
           For.from(idMonad, Id.of(new Person("Alice", new Celsius(37.0))))
               .focus(bodyTempLens)
               .let(t -> celsiusToFahrenheit.get(t._2()))
-              .yield(
-                  (person, celsius, fahrenheit) -> person.name() + ": " + fahrenheit.value() + "F");
+              .yield((person, _, fahrenheit) -> person.name() + ": " + fahrenheit.value() + "F");
 
       assertThat(IdKindHelper.ID.unwrap(result)).isEqualTo("Alice: 98.6F");
     }

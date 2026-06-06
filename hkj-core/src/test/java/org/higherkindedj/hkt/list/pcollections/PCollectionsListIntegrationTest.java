@@ -242,8 +242,8 @@ class PCollectionsListIntegrationTest {
     void selectPVectorAllRight() {
       PVector<Choice<Integer, String>> choices =
           TreePVector.<Choice<Integer, String>>empty()
-              .plus(Selective.<Integer, String>right("A"))
-              .plus(Selective.<Integer, String>right("B"));
+              .plus(Selective.right("A"))
+              .plus(Selective.right("B"));
 
       Kind<ListKind.Witness, Choice<Integer, String>> fab = LIST.widen(choices);
       Kind<ListKind.Witness, Function<Integer, String>> ff =
@@ -259,9 +259,9 @@ class PCollectionsListIntegrationTest {
     void selectPVectorMixedChoices() {
       PVector<Choice<Integer, String>> choices =
           TreePVector.<Choice<Integer, String>>empty()
-              .plus(Selective.<Integer, String>left(1))
-              .plus(Selective.<Integer, String>right("X"))
-              .plus(Selective.<Integer, String>left(2));
+              .plus(Selective.left(1))
+              .plus(Selective.right("X"))
+              .plus(Selective.left(2));
 
       Kind<ListKind.Witness, Choice<Integer, String>> fab = LIST.widen(choices);
       Kind<ListKind.Witness, Function<Integer, String>> ff =

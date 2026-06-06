@@ -23,14 +23,13 @@ import org.junit.jupiter.api.Test;
 @DisplayName("ReaderTMonadReader Test Suite")
 class ReaderTMonadReaderTest {
 
-  private Monad<OptionalKind.Witness> outerMonad;
   private MonadReader<ReaderTKind.Witness<OptionalKind.Witness, String>, String> monadReader;
 
   private final String testEnvironment = "test-env";
 
   @BeforeEach
   void setUp() {
-    outerMonad = Instances.monadError(optional());
+    Monad<OptionalKind.Witness> outerMonad = Instances.monadError(optional());
     monadReader = new ReaderTMonadReader<>(outerMonad);
   }
 
@@ -40,8 +39,7 @@ class ReaderTMonadReaderTest {
 
   private <A> Optional<A> run(
       Kind<ReaderTKind.Witness<OptionalKind.Witness, String>, A> kind, String env) {
-    if (kind == null) return Optional.empty();
-    var readerT = READER_T.<OptionalKind.Witness, String, A>narrow(kind);
+    var readerT = READER_T.narrow(kind);
     return OPTIONAL.narrow(readerT.run().apply(env));
   }
 
@@ -192,6 +190,7 @@ class ReaderTMonadReaderTest {
 
   @Nested
   @DisplayName("Null Tests")
+  @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
   class NullTests {
 
     @Test

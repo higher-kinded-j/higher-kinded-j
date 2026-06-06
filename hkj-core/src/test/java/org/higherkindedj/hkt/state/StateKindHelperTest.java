@@ -40,6 +40,7 @@ class StateKindHelperTest extends StateTestBase<Integer> {
 
     @Test
     @DisplayName("widen should throw for null input")
+    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
     void widenShouldThrowForNullInput() {
       assertThatNullPointerException()
           .isThrownBy(() -> STATE.widen(null))
@@ -165,6 +166,7 @@ class StateKindHelperTest extends StateTestBase<Integer> {
 
     @Test
     @DisplayName("runState should throw if Kind is invalid")
+    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
     void runStateShouldThrowIfKindIsInvalid() {
       assertThatThrownBy(() -> runState(null, getInitialState()))
           .isInstanceOf(NullPointerException.class);
@@ -172,6 +174,7 @@ class StateKindHelperTest extends StateTestBase<Integer> {
 
     @Test
     @DisplayName("evalState should throw if Kind is invalid")
+    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
     void evalStateShouldThrowIfKindIsInvalid() {
       assertThatThrownBy(() -> evalState(null, getInitialState()))
           .isInstanceOf(NullPointerException.class);
@@ -179,6 +182,7 @@ class StateKindHelperTest extends StateTestBase<Integer> {
 
     @Test
     @DisplayName("execState should throw if Kind is invalid")
+    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
     void execStateShouldThrowIfKindIsInvalid() {
       assertThatThrownBy(() -> execState(null, getInitialState()))
           .isInstanceOf(NullPointerException.class);

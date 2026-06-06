@@ -36,6 +36,7 @@ class SelectiveAnalyzerTest {
   // ============================================================================
 
   /** Simple test operation sealed interface. */
+  @SuppressWarnings("unused") // A is a phantom result type, used only at the implements site
   sealed interface DbOp<A> {
     record Select(String table) implements DbOp<String> {}
 
@@ -78,6 +79,7 @@ class SelectiveAnalyzerTest {
     return FreeAp.lift(DbOpHelper.DB_OP.widen(new DbOp.Insert(table, data)));
   }
 
+  @SuppressWarnings("SameParameterValue") // a single call site is sufficient for this DSL
   private static FreeAp<DbOpKind.Witness, Integer> update(String table, String data) {
     return FreeAp.lift(DbOpHelper.DB_OP.widen(new DbOp.Update(table, data)));
   }
@@ -157,6 +159,7 @@ class SelectiveAnalyzerTest {
 
     @Test
     @DisplayName("throws NullPointerException for null program")
+    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
     void throwsForNullProgram() {
       assertThatThrownBy(
               () ->
@@ -168,6 +171,7 @@ class SelectiveAnalyzerTest {
 
     @Test
     @DisplayName("throws NullPointerException for null narrow function")
+    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
     void throwsForNullNarrowFunction() {
       FreeAp<DbOpKind.Witness, String> program = selectFrom("users");
 
@@ -211,6 +215,7 @@ class SelectiveAnalyzerTest {
 
     @Test
     @DisplayName("throws NullPointerException for null program")
+    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
     void throwsForNullProgram() {
       assertThatThrownBy(() -> SelectiveAnalyzer.countMaximumEffects(null))
           .isInstanceOf(NullPointerException.class)
@@ -254,6 +259,7 @@ class SelectiveAnalyzerTest {
 
     @Test
     @DisplayName("throws NullPointerException for null program")
+    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
     void throwsForNullProgram() {
       assertThatThrownBy(() -> SelectiveAnalyzer.computeEffectBounds(null))
           .isInstanceOf(NullPointerException.class)
@@ -346,6 +352,7 @@ class SelectiveAnalyzerTest {
 
     @Test
     @DisplayName("throws NullPointerException for null program")
+    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
     void throwsForNullProgram() {
       assertThatThrownBy(
               () ->
@@ -357,6 +364,7 @@ class SelectiveAnalyzerTest {
 
     @Test
     @DisplayName("throws NullPointerException for null narrow function")
+    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
     void throwsForNullNarrowFunction() {
       FreeAp<DbOpKind.Witness, String> program = selectFrom("users");
 
@@ -382,7 +390,7 @@ class SelectiveAnalyzerTest {
 
       boolean hasDangerous =
           SelectiveAnalyzer.containsDangerousEffect(
-              program, DbOpHelper.DB_OP::narrow, op -> DbOp.Delete.class.isInstance(op));
+              program, DbOpHelper.DB_OP::narrow, DbOp.Delete.class::isInstance);
 
       assertThat(hasDangerous).isTrue();
     }
@@ -395,7 +403,7 @@ class SelectiveAnalyzerTest {
 
       boolean hasDangerous =
           SelectiveAnalyzer.containsDangerousEffect(
-              program, DbOpHelper.DB_OP::narrow, op -> DbOp.Delete.class.isInstance(op));
+              program, DbOpHelper.DB_OP::narrow, DbOp.Delete.class::isInstance);
 
       assertThat(hasDangerous).isFalse();
     }
@@ -407,36 +415,37 @@ class SelectiveAnalyzerTest {
 
       boolean hasDangerous =
           SelectiveAnalyzer.containsDangerousEffect(
-              program, DbOpHelper.DB_OP::narrow, op -> DbOp.Delete.class.isInstance(op));
+              program, DbOpHelper.DB_OP::narrow, DbOp.Delete.class::isInstance);
 
       assertThat(hasDangerous).isFalse();
     }
 
     @Test
     @DisplayName("throws NullPointerException for null program")
+    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
     void throwsForNullProgram() {
       assertThatThrownBy(
               () ->
                   SelectiveAnalyzer.containsDangerousEffect(
-                      null,
-                      (Kind<DbOpKind.Witness, ?> k) -> DbOpHelper.DB_OP.narrow(k),
-                      op -> true))
+                      null, (Kind<DbOpKind.Witness, ?> k) -> DbOpHelper.DB_OP.narrow(k), _ -> true))
           .isInstanceOf(NullPointerException.class)
           .hasMessageContaining("Program cannot be null");
     }
 
     @Test
     @DisplayName("throws NullPointerException for null narrow function")
+    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
     void throwsForNullNarrowFunction() {
       FreeAp<DbOpKind.Witness, String> program = selectFrom("users");
 
-      assertThatThrownBy(() -> SelectiveAnalyzer.containsDangerousEffect(program, null, op -> true))
+      assertThatThrownBy(() -> SelectiveAnalyzer.containsDangerousEffect(program, null, _ -> true))
           .isInstanceOf(NullPointerException.class)
           .hasMessageContaining("Narrow function cannot be null");
     }
 
     @Test
     @DisplayName("throws NullPointerException for null predicate")
+    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
     void throwsForNullPredicate() {
       FreeAp<DbOpKind.Witness, String> program = selectFrom("users");
 
@@ -469,7 +478,7 @@ class SelectiveAnalyzerTest {
       // Security check before execution
       boolean containsDelete =
           SelectiveAnalyzer.containsDangerousEffect(
-              userQuery, DbOpHelper.DB_OP::narrow, op -> DbOp.Delete.class.isInstance(op));
+              userQuery, DbOpHelper.DB_OP::narrow, DbOp.Delete.class::isInstance);
 
       assertThat(containsDelete).isTrue();
       // In real code: if (containsDelete) throw new SecurityException("Delete not allowed");

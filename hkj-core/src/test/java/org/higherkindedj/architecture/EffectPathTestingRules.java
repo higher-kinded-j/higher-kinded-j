@@ -41,14 +41,9 @@ class EffectPathTestingRules {
   private static JavaClasses productionClasses;
   private static JavaClasses testClasses;
 
-  /**
-   * Set of Effect Path class names that should have comprehensive test coverage.
-   *
-   * <p>Includes Phase 1, 2, and 3 Path implementations.
-   */
+  /** Set of Effect Path class names that should have comprehensive test coverage. */
   private static final Set<String> EFFECT_PATH_CLASSES =
       Set.of(
-          // Phase 1 & 2 Paths
           "MaybePath",
           "EitherPath",
           "TryPath",
@@ -57,7 +52,6 @@ class EffectPathTestingRules {
           "IdPath",
           "OptionalPath",
           "GenericPath",
-          // Phase 3 Paths
           "ReaderPath",
           "WriterPath",
           "WithStatePath",

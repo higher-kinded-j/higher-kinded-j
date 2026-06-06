@@ -7,7 +7,6 @@ import static org.assertj.core.api.Assertions.*;
 import java.time.Duration;
 import java.util.List;
 import java.util.concurrent.TimeoutException;
-import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.higherkindedj.hkt.either.Either;
 import org.higherkindedj.hkt.maybe.Maybe;
@@ -62,6 +61,7 @@ class ScopeTest {
 
     @Test
     @DisplayName("accumulating() validates non-null errorMapper")
+    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
     void accumulatingValidatesNonNullErrorMapper() {
       assertThatNullPointerException()
           .isThrownBy(() -> Scope.accumulating(null))
@@ -79,6 +79,7 @@ class ScopeTest {
 
     @Test
     @DisplayName("withJoiner() validates non-null joiner")
+    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
     void withJoinerValidatesNonNull() {
       assertThatNullPointerException()
           .isThrownBy(() -> Scope.withJoiner(null))
@@ -112,6 +113,7 @@ class ScopeTest {
 
     @Test
     @DisplayName("fork() validates non-null task")
+    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
     void forkValidatesNonNull() {
       Scope<String, List<String>> scope = Scope.allSucceed();
 
@@ -133,6 +135,7 @@ class ScopeTest {
 
     @Test
     @DisplayName("forkAll() validates non-null tasks list")
+    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
     void forkAllValidatesNonNullTasks() {
       Scope<String, List<String>> scope = Scope.allSucceed();
 
@@ -148,6 +151,7 @@ class ScopeTest {
 
     @Test
     @DisplayName("timeout() sets the timeout")
+    @SuppressWarnings("DataFlowIssue") // present is asserted first, so the null fallback is unused
     void timeoutSetsTimeout() {
       Scope<String, List<String>> scope = Scope.<String>allSucceed().timeout(Duration.ofSeconds(5));
 
@@ -174,6 +178,7 @@ class ScopeTest {
 
     @Test
     @DisplayName("timeout() validates non-null duration")
+    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
     void timeoutValidatesNonNull() {
       Scope<String, List<String>> scope = Scope.allSucceed();
 
@@ -377,6 +382,7 @@ class ScopeTest {
 
   @Nested
   @DisplayName("Join Operations - Accumulating")
+  @SuppressWarnings("DataFlowIssue") // non-null in this fixture
   class JoinAccumulatingTests {
 
     @Test
@@ -413,6 +419,7 @@ class ScopeTest {
 
   @Nested
   @DisplayName("Safe Join Operations")
+  @SuppressWarnings("DataFlowIssue") // non-null in this fixture
   class SafeJoinTests {
 
     @Test
@@ -509,6 +516,7 @@ class ScopeTest {
 
     @Test
     @DisplayName("validation with error accumulation")
+    @SuppressWarnings("DataFlowIssue") // non-null in this fixture
     void validationWithErrorAccumulation() {
       record ValidationError(String field, String message) {}
 
@@ -529,8 +537,6 @@ class ScopeTest {
     @Test
     @DisplayName("racing multiple service calls")
     void racingMultipleServiceCalls() {
-      AtomicBoolean slowCalled = new AtomicBoolean(false);
-
       VTask<String> result =
           Scope.<String>anySucceed()
               .fork(VTask.succeed("fast-response"))
@@ -538,7 +544,6 @@ class ScopeTest {
                   VTask.of(
                       () -> {
                         Thread.sleep(100);
-                        slowCalled.set(true);
                         return "slow-response";
                       }))
               .join();

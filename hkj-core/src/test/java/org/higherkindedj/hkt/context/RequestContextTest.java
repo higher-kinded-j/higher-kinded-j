@@ -64,7 +64,8 @@ class RequestContextTest {
     void allScopedValuesShouldBeDistinct() {
       assertThat(RequestContext.TRACE_ID).isNotSameAs(RequestContext.CORRELATION_ID);
       assertThat(RequestContext.TRACE_ID).isNotSameAs(RequestContext.TENANT_ID);
-      assertThat(RequestContext.LOCALE).isNotSameAs(RequestContext.REQUEST_TIME);
+      // LOCALE and REQUEST_TIME have different element types, so compare them as plain references.
+      assertThat((Object) RequestContext.LOCALE).isNotSameAs(RequestContext.REQUEST_TIME);
       assertThat(RequestContext.REQUEST_TIME).isNotSameAs(RequestContext.DEADLINE);
     }
   }
@@ -146,7 +147,7 @@ class RequestContextTest {
 
     @Test
     @DisplayName("getTraceIdOrDefault() should return bound value when TRACE_ID is bound")
-    void getTraceIdOrDefault_shouldReturnBoundValue() throws Exception {
+    void getTraceIdOrDefault_shouldReturnBoundValue() {
       String expected = "bound-trace-id";
 
       String result =
@@ -171,7 +172,7 @@ class RequestContextTest {
 
     @Test
     @DisplayName("getLocaleOrDefault() should return bound locale when LOCALE is bound")
-    void getLocaleOrDefault_shouldReturnBoundLocale() throws Exception {
+    void getLocaleOrDefault_shouldReturnBoundLocale() {
       Locale expected = Locale.FRANCE;
 
       Locale result =
@@ -196,7 +197,7 @@ class RequestContextTest {
 
     @Test
     @DisplayName("getTenantIdOrDefault() should return bound tenant when TENANT_ID is bound")
-    void getTenantIdOrDefault_shouldReturnBoundTenant() throws Exception {
+    void getTenantIdOrDefault_shouldReturnBoundTenant() {
       String expected = "acme-corp";
 
       String result =
@@ -229,7 +230,7 @@ class RequestContextTest {
 
     @Test
     @DisplayName("isDeadlineExceeded() should return true when deadline has passed")
-    void isDeadlineExceeded_shouldReturnTrueWhenDeadlinePassed() throws Exception {
+    void isDeadlineExceeded_shouldReturnTrueWhenDeadlinePassed() {
       Instant pastDeadline = Instant.now().minusSeconds(10);
 
       boolean result =
@@ -241,7 +242,7 @@ class RequestContextTest {
 
     @Test
     @DisplayName("isDeadlineExceeded() should return false when deadline is in future")
-    void isDeadlineExceeded_shouldReturnFalseWhenDeadlineInFuture() throws Exception {
+    void isDeadlineExceeded_shouldReturnFalseWhenDeadlineInFuture() {
       Instant futureDeadline = Instant.now().plusSeconds(60);
 
       boolean result =
@@ -258,7 +259,7 @@ class RequestContextTest {
 
     @Test
     @DisplayName("Multiple ScopedValues can be bound together")
-    void multipleScopedValuesCanBeBoundTogether() throws Exception {
+    void multipleScopedValuesCanBeBoundTogether() {
       String traceId = "trace-123";
       String tenantId = "tenant-456";
       Locale locale = Locale.FRANCE;

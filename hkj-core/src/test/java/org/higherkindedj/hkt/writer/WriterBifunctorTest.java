@@ -7,18 +7,27 @@ import static org.higherkindedj.hkt.writer.WriterKindHelper.WRITER;
 
 import java.util.function.BiPredicate;
 import java.util.function.Function;
+import java.util.stream.Stream;
 import org.higherkindedj.hkt.Kind2;
+import org.higherkindedj.hkt.laws.BifunctorLaws;
+import org.higherkindedj.hkt.test.contract.Category;
 import org.higherkindedj.hkt.test.contract.TypeClassContract;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
 
-/** Comprehensive test suite for {@link WriterBifunctor}. */
-@DisplayName("WriterBifunctor Complete Test Suite")
+/** Test suite for {@link WriterBifunctor}. */
+@DisplayName("WriterBifunctor")
 class WriterBifunctorTest {
 
   private WriterBifunctor bifunctor;
+
+  private final BiPredicate<Kind2<WriterKind2.Witness, ?, ?>, Kind2<WriterKind2.Witness, ?, ?>>
+      equalityChecker = (k1, k2) -> WRITER.narrow2(k1).equals(WRITER.narrow2(k2));
 
   @BeforeEach
   void setUp() {
@@ -26,120 +35,91 @@ class WriterBifunctorTest {
   }
 
   @Nested
-  @DisplayName("Complete Type Class Test Suite")
-  class CompleteTypeClassTestSuite {
+  @DisplayName("Laws")
+  class Laws {
 
-    @Test
-    @DisplayName("Run complete Bifunctor test pattern")
-    void runCompleteBifunctorTest() {
-      Kind2<WriterKind2.Witness, String, Integer> validWriter =
-          WRITER.widen2(new Writer<>("log", 42));
-      Function<String, Integer> firstMapper = String::length;
-      Function<Integer, String> secondMapper = n -> "Value:" + n;
-      Function<Integer, String> compositionFirstMapper = i -> "#" + i;
-      Function<String, String> compositionSecondMapper = s -> s + "!";
-      BiPredicate<Kind2<WriterKind2.Witness, ?, ?>, Kind2<WriterKind2.Witness, ?, ?>>
-          equalityChecker = (k1, k2) -> WRITER.narrow2(k1).equals(WRITER.narrow2(k2));
-
-      TypeClassContract.<WriterKind2.Witness>bifunctor(WriterBifunctor.class)
-          .<String, Integer>instance(bifunctor)
-          .withKind2(validWriter)
-          .withFirstMapper(firstMapper)
-          .withSecondMapper(secondMapper)
-          .withCompositionFirstMapper(compositionFirstMapper)
-          .withCompositionSecondMapper(compositionSecondMapper)
-          .withEqualityChecker(equalityChecker)
-          .verify();
-    }
-  }
-
-  @Nested
-  @DisplayName("Bifunctor Operation Tests")
-  class BifunctorOperationTests {
-
-    @Test
-    @DisplayName("bimap() transforms both log and value")
-    void bimapTransformsBothChannels() {
-      Kind2<WriterKind2.Witness, String, Integer> writer =
-          WRITER.widen2(new Writer<>("log entry", 42));
-
-      Function<String, Integer> logMapper = String::length;
-      Function<Integer, String> valueMapper = n -> "Value:" + n;
-
-      Writer<Integer, String> transformed =
-          WRITER.narrow2(bifunctor.bimap(logMapper, valueMapper, writer));
-
-      assertThat(transformed).isEqualTo(new Writer<>(9, "Value:42"));
+    @ParameterizedTest(name = "identity holds on {0}")
+    @MethodSource("kind2Fixtures")
+    void identity(String label, Kind2<WriterKind2.Witness, String, Integer> fab) {
+      BifunctorLaws.assertIdentity(bifunctor, fab, equalityChecker);
     }
 
-    @Test
-    @DisplayName("first() transforms only log")
-    void firstTransformsOnlyLog() {
-      Kind2<WriterKind2.Witness, String, Integer> writer =
-          WRITER.widen2(new Writer<>("log entry", 42));
-
-      Function<String, Integer> logMapper = String::length;
-
-      Writer<Integer, Integer> transformed = WRITER.narrow2(bifunctor.first(logMapper, writer));
-
-      assertThat(transformed).isEqualTo(new Writer<>(9, 42));
-    }
-
-    @Test
-    @DisplayName("second() transforms only value")
-    void secondTransformsOnlyValue() {
-      Kind2<WriterKind2.Witness, String, Integer> writer =
-          WRITER.widen2(new Writer<>("log entry", 42));
-
-      Function<Integer, String> valueMapper = n -> "Value:" + n;
-
-      Writer<String, String> transformed = WRITER.narrow2(bifunctor.second(valueMapper, writer));
-
-      assertThat(transformed).isEqualTo(new Writer<>("log entry", "Value:42"));
-    }
-  }
-
-  @Nested
-  @DisplayName("Bifunctor Law Tests")
-  class BifunctorLawTests {
-
-    private final BiPredicate<Kind2<WriterKind2.Witness, ?, ?>, Kind2<WriterKind2.Witness, ?, ?>>
-        equalityChecker = (k1, k2) -> WRITER.narrow2(k1).equals(WRITER.narrow2(k2));
-
-    @Test
-    @DisplayName("Identity Law: bimap(id, id, fab) == fab")
-    void identityLaw() {
-      Kind2<WriterKind2.Witness, String, Integer> writer =
-          WRITER.widen2(new Writer<>("log entry", 42));
-
-      Kind2<WriterKind2.Witness, String, Integer> result =
-          bifunctor.bimap(Function.identity(), Function.identity(), writer);
-
-      assertThat(equalityChecker.test(result, writer)).as("Identity law should hold").isTrue();
-    }
-
-    @Test
-    @DisplayName("Composition Law")
-    void compositionLaw() {
-      Kind2<WriterKind2.Witness, String, Integer> writer =
-          WRITER.widen2(new Writer<>("log entry", 42));
-
+    @ParameterizedTest(name = "composition holds on {0}")
+    @MethodSource("kind2Fixtures")
+    void composition(String label, Kind2<WriterKind2.Witness, String, Integer> fab) {
       Function<String, Integer> f1 = String::length;
       Function<Integer, String> f2 = i -> "#" + i;
       Function<Integer, String> g1 = n -> "Value:" + n;
       Function<String, String> g2 = s -> s + "!";
+      BifunctorLaws.assertComposition(bifunctor, fab, f1, f2, g1, g2, equalityChecker);
+    }
 
-      // Left side
-      Kind2<WriterKind2.Witness, String, String> leftSide =
-          bifunctor.bimap(s -> f2.apply(f1.apply(s)), i -> g2.apply(g1.apply(i)), writer);
+    @ParameterizedTest(name = "first-consistency holds on {0}")
+    @MethodSource("kind2Fixtures")
+    void firstConsistency(String label, Kind2<WriterKind2.Witness, String, Integer> fab) {
+      Function<String, String> f = s -> s + "!";
+      BifunctorLaws.assertFirstConsistency(bifunctor, fab, f, equalityChecker);
+    }
 
-      // Right side
-      Kind2<WriterKind2.Witness, Integer, String> intermediate = bifunctor.bimap(f1, g1, writer);
-      Kind2<WriterKind2.Witness, String, String> rightSide = bifunctor.bimap(f2, g2, intermediate);
+    @ParameterizedTest(name = "second-consistency holds on {0}")
+    @MethodSource("kind2Fixtures")
+    void secondConsistency(String label, Kind2<WriterKind2.Witness, String, Integer> fab) {
+      Function<Integer, String> g = n -> "Value:" + n;
+      BifunctorLaws.assertSecondConsistency(bifunctor, fab, g, equalityChecker);
+    }
 
-      assertThat(equalityChecker.test(leftSide, rightSide))
-          .as("Composition law should hold")
-          .isTrue();
+    /** Writer is a product, so both channels (log and value) are always exercised. */
+    static Stream<Arguments> kind2Fixtures() {
+      return Stream.of(
+          Arguments.of("Writer(\"log\", 42)", WRITER.widen2(new Writer<>("log", 42))),
+          Arguments.of("Writer(\"\", 0)", WRITER.widen2(new Writer<>("", 0))));
+    }
+  }
+
+  @Test
+  @DisplayName("Bifunctor contract — operations, validations & exceptions (laws verified above)")
+  void bifunctorContract() {
+    Kind2<WriterKind2.Witness, String, Integer> writer = WRITER.widen2(new Writer<>("log", 42));
+
+    TypeClassContract.<WriterKind2.Witness>bifunctor(WriterBifunctor.class)
+        .<String, Integer>instance(bifunctor)
+        .withKind2(writer)
+        .withFirstMapper(String::length)
+        .withSecondMapper(n -> "Value:" + n)
+        .withFirstExceptionKind(writer)
+        .withSecondExceptionKind(writer)
+        .verifyOnly(Category.OPERATIONS, Category.VALIDATIONS, Category.EXCEPTIONS);
+  }
+
+  @Nested
+  @DisplayName("Operations")
+  class Operations {
+
+    private final Kind2<WriterKind2.Witness, String, Integer> writer =
+        WRITER.widen2(new Writer<>("log entry", 42));
+
+    @Test
+    @DisplayName("bimap() transforms both the log and the value")
+    void bimapTransformsBothChannels() {
+      Writer<Integer, String> transformed =
+          WRITER.narrow2(bifunctor.bimap(String::length, n -> "Value:" + n, writer));
+      assertThat(transformed).isEqualTo(new Writer<>(9, "Value:42"));
+    }
+
+    @Test
+    @DisplayName("first() transforms only the log")
+    void firstTransformsOnlyLog() {
+      Writer<Integer, Integer> transformed =
+          WRITER.narrow2(bifunctor.first(String::length, writer));
+      assertThat(transformed).isEqualTo(new Writer<>(9, 42));
+    }
+
+    @Test
+    @DisplayName("second() transforms only the value")
+    void secondTransformsOnlyValue() {
+      Writer<String, String> transformed =
+          WRITER.narrow2(bifunctor.second(n -> "Value:" + n, writer));
+      assertThat(transformed).isEqualTo(new Writer<>("log entry", "Value:42"));
     }
   }
 }

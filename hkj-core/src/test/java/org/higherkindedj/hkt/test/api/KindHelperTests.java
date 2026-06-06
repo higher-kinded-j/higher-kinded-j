@@ -7,12 +7,14 @@ import static org.higherkindedj.hkt.id.IdKindHelper.ID;
 import static org.higherkindedj.hkt.io.IOKindHelper.IO_OP;
 import static org.higherkindedj.hkt.lazy.LazyKindHelper.LAZY;
 import static org.higherkindedj.hkt.maybe.MaybeKindHelper.MAYBE;
+import static org.higherkindedj.hkt.optional.OptionalKindHelper.OPTIONAL;
 import static org.higherkindedj.hkt.reader.ReaderKindHelper.READER;
 import static org.higherkindedj.hkt.state.StateKindHelper.STATE;
 import static org.higherkindedj.hkt.trymonad.TryKindHelper.TRY;
 import static org.higherkindedj.hkt.validated.ValidatedKindHelper.VALIDATED;
 import static org.higherkindedj.hkt.writer.WriterKindHelper.WRITER;
 
+import java.util.Optional;
 import org.higherkindedj.hkt.either.Either;
 import org.higherkindedj.hkt.either.EitherKind;
 import org.higherkindedj.hkt.id.Id;
@@ -23,6 +25,7 @@ import org.higherkindedj.hkt.lazy.Lazy;
 import org.higherkindedj.hkt.lazy.LazyKind;
 import org.higherkindedj.hkt.maybe.Maybe;
 import org.higherkindedj.hkt.maybe.MaybeKind;
+import org.higherkindedj.hkt.optional.OptionalKind;
 import org.higherkindedj.hkt.reader.Reader;
 import org.higherkindedj.hkt.reader.ReaderKind;
 import org.higherkindedj.hkt.state.State;
@@ -74,6 +77,17 @@ public final class KindHelperTests {
       Maybe<A> instance) {
     return new KindHelperTestConfig<>(
         instance, typed(Maybe.class), maybe -> MAYBE.widen(maybe), kind -> MAYBE.narrow(kind));
+  }
+
+  /**
+   * Verifies the Optional KindHelper round-trip (widen/narrow via {@code
+   * OptionalKindHelper.OPTIONAL}).
+   */
+  @SuppressWarnings("OptionalUsedAsFieldOrParameterType") // the round-trip subject is an Optional
+  public static <A> KindHelperTestConfig<Optional<A>, OptionalKind.Witness, A> optionalKindHelper(
+      Optional<A> instance) {
+    return new KindHelperTestConfig<>(
+        instance, typed(Optional.class), OPTIONAL::widen, OPTIONAL::narrow);
   }
 
   /** Verifies the IO KindHelper round-trip (widen/narrow via {@code IOKindHelper.IO_OP}). */

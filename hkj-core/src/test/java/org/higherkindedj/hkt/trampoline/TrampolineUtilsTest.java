@@ -97,7 +97,7 @@ class TrampolineUtilsTest {
 
       final List<Integer> unwrapped = ID.narrow(result).value();
       assertThat(unwrapped).hasSize(10_000);
-      assertThat(unwrapped.get(0)).isEqualTo(0);
+      assertThat(unwrapped.getFirst()).isEqualTo(0);
       assertThat(unwrapped.get(9_999)).isEqualTo(19_998);
     }
 
@@ -113,7 +113,7 @@ class TrampolineUtilsTest {
 
       final List<Integer> unwrapped = ID.narrow(result).value();
       assertThat(unwrapped).hasSize(100_000);
-      assertThat(unwrapped.get(0)).isEqualTo(1);
+      assertThat(unwrapped.getFirst()).isEqualTo(1);
       assertThat(unwrapped.get(99_999)).isEqualTo(100_000);
     }
 
@@ -204,7 +204,7 @@ class TrampolineUtilsTest {
 
       final List<Integer> unwrapped = ID.narrow(result).value();
       assertThat(unwrapped).hasSize(50_000);
-      assertThat(unwrapped.get(0)).isEqualTo(0);
+      assertThat(unwrapped.getFirst()).isEqualTo(0);
       assertThat(unwrapped.get(49_999)).isEqualTo(49_999);
     }
   }
@@ -215,6 +215,7 @@ class TrampolineUtilsTest {
 
     @Test
     @DisplayName("traverseListStackSafe should throw NPE when function encounters null")
+    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
     void traverseShouldThrowNPEWhenFunctionEncountersNull() {
       final List<Integer> listWithNulls = new ArrayList<>();
       listWithNulls.add(1);

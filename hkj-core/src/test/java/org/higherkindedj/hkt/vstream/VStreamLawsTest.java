@@ -230,6 +230,7 @@ class VStreamLawsTest {
    */
   @TestFactory
   @DisplayName("Monad Right Identity Law: flatMap(m, of) = m")
+  @SuppressWarnings("Convert2MethodRef") // monad::of trips an IntelliJ-only false error
   Stream<DynamicTest> monadRightIdentityLaw() {
     return Arrays.stream(TEST_VALUES)
         .map(
@@ -240,7 +241,8 @@ class VStreamLawsTest {
                       VStream<Integer> original = VStream.of(value);
                       Kind<VStreamKind.Witness, Integer> m = VSTREAM.widen(original);
 
-                      Kind<VStreamKind.Witness, Integer> result = monad.flatMap(monad::of, m);
+                      Kind<VStreamKind.Witness, Integer> result =
+                          monad.flatMap(i -> monad.of(i), m);
 
                       assertThat(vstreamsEqual(VSTREAM.narrow(result), original)).isTrue();
                     }));
@@ -253,6 +255,7 @@ class VStreamLawsTest {
    */
   @TestFactory
   @DisplayName("Monad Right Identity Law (multi-element): flatMap(m, of) = m")
+  @SuppressWarnings("Convert2MethodRef") // monad::of trips an IntelliJ-only false error
   Stream<DynamicTest> monadRightIdentityLawMultiElement() {
     return Stream.<List<Integer>>of(List.of(1, 2, 3), List.of(), List.of(10, 20))
         .map(
@@ -263,7 +266,8 @@ class VStreamLawsTest {
                       VStream<Integer> original = VStream.fromList(values);
                       Kind<VStreamKind.Witness, Integer> m = VSTREAM.widen(original);
 
-                      Kind<VStreamKind.Witness, Integer> result = monad.flatMap(monad::of, m);
+                      Kind<VStreamKind.Witness, Integer> result =
+                          monad.flatMap(i -> monad.of(i), m);
 
                       assertThat(VSTREAM.narrow(result).toList().run()).isEqualTo(values);
                     }));

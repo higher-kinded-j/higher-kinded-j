@@ -17,7 +17,6 @@ import org.junit.jupiter.api.Test;
 class IOTest {
 
   private static final int TEST_VALUE = 42;
-  private static final String TEST_STRING = "test";
 
   @Nested
   @DisplayName("Factory Methods")
@@ -28,7 +27,7 @@ class IOTest {
     void delayCreatesLazyIO() {
       AtomicInteger counter = new AtomicInteger(0);
 
-      IO<Integer> io = IO.delay(() -> counter.incrementAndGet());
+      IO<Integer> io = IO.delay(counter::incrementAndGet);
 
       // Should not have executed yet
       assertThat(counter.get()).isZero();
@@ -40,6 +39,7 @@ class IOTest {
 
     @Test
     @DisplayName("delay() with null supplier throws NullPointerException")
+    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
     void delayWithNullSupplierThrows() {
       assertThatThrownBy(() -> IO.delay(null))
           .isInstanceOf(NullPointerException.class)
@@ -48,6 +48,7 @@ class IOTest {
 
     @Test
     @DisplayName("delay() can create IO with null value")
+    @SuppressWarnings("DataFlowIssue") // an IO may legitimately hold a null value
     void delayCanCreateIOWithNullValue() {
       IO<String> io = IO.delay(() -> null);
 
@@ -58,7 +59,7 @@ class IOTest {
     @DisplayName("fromRunnable() creates IO from side effect")
     void fromRunnableCreatesIOFromSideEffect() {
       AtomicInteger counter = new AtomicInteger(0);
-      Runnable sideEffect = () -> counter.incrementAndGet();
+      Runnable sideEffect = counter::incrementAndGet;
 
       IO<Unit> io = IO.fromRunnable(sideEffect);
 
@@ -72,6 +73,7 @@ class IOTest {
 
     @Test
     @DisplayName("fromRunnable() with null throws NullPointerException")
+    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
     void fromRunnableWithNullThrows() {
       assertThatThrownBy(() -> IO.fromRunnable(null))
           .isInstanceOf(NullPointerException.class)
@@ -84,7 +86,7 @@ class IOTest {
     void fromRunnableIsLazy() {
       AtomicInteger counter = new AtomicInteger(0);
 
-      IO<Unit> io = IO.fromRunnable(() -> counter.incrementAndGet());
+      IO<Unit> io = IO.fromRunnable(counter::incrementAndGet);
 
       // Should not execute on creation
       assertThat(counter.get()).isZero();
@@ -121,7 +123,7 @@ class IOTest {
       IO<Unit> step2 = IO.fromRunnable(() -> log.append("B"));
       IO<Unit> step3 = IO.fromRunnable(() -> log.append("C"));
 
-      IO<Unit> sequence = step1.flatMap(u1 -> step2).flatMap(u2 -> step3);
+      IO<Unit> sequence = step1.flatMap(_ -> step2).flatMap(_ -> step3);
 
       assertThat(log.toString()).isEmpty();
 
@@ -243,7 +245,7 @@ class IOTest {
                 return "two";
               });
 
-      IO<Unit> sequence = io1.asUnit().flatMap(u -> io2.asUnit());
+      IO<Unit> sequence = io1.asUnit().flatMap(_ -> io2.asUnit());
 
       assertThat(log.toString()).isEmpty();
 
@@ -253,6 +255,7 @@ class IOTest {
 
     @Test
     @DisplayName("asUnit() with null value returns Unit")
+    @SuppressWarnings("DataFlowIssue") // an IO may legitimately hold a null value
     void asUnitWithNullValueReturnsUnit() {
       IO<String> io = IO.delay(() -> null);
 
@@ -281,7 +284,7 @@ class IOTest {
     void mapIsLazy() {
       AtomicInteger counter = new AtomicInteger(0);
 
-      IO<Integer> io = IO.delay(() -> counter.incrementAndGet());
+      IO<Integer> io = IO.delay(counter::incrementAndGet);
       IO<String> mapped = io.map(Object::toString);
 
       // Should not execute yet
@@ -294,6 +297,7 @@ class IOTest {
 
     @Test
     @DisplayName("map() with null mapper throws NullPointerException")
+    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
     void mapWithNullMapperThrows() {
       IO<Integer> io = IO.delay(() -> TEST_VALUE);
 
@@ -325,7 +329,7 @@ class IOTest {
       RuntimeException exception = new RuntimeException("Mapper error");
       IO<String> mapped =
           io.map(
-              i -> {
+              _ -> {
                 throw exception;
               });
 
@@ -362,7 +366,7 @@ class IOTest {
     void flatMapIsLazy() {
       AtomicInteger counter = new AtomicInteger(0);
 
-      IO<Integer> io = IO.delay(() -> counter.incrementAndGet());
+      IO<Integer> io = IO.delay(counter::incrementAndGet);
       IO<String> flatMapped = io.flatMap(i -> IO.delay(() -> "Value: " + i));
 
       // Should not execute yet
@@ -375,6 +379,7 @@ class IOTest {
 
     @Test
     @DisplayName("flatMap() with null function throws NullPointerException")
+    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
     void flatMapWithNullFunctionThrows() {
       IO<Integer> io = IO.delay(() -> TEST_VALUE);
 
@@ -408,7 +413,7 @@ class IOTest {
       RuntimeException exception = new RuntimeException("FlatMap error");
       IO<String> flatMapped =
           io.flatMap(
-              i -> {
+              _ -> {
                 throw exception;
               });
 
@@ -423,7 +428,7 @@ class IOTest {
       RuntimeException exception = new RuntimeException("Result error");
       IO<String> flatMapped =
           io.flatMap(
-              i ->
+              _ ->
                   IO.delay(
                       () -> {
                         throw exception;
@@ -447,12 +452,13 @@ class IOTest {
 
     @Test
     @DisplayName("flatMap() with null result IO throws NullPointerException")
+    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
     void flatMapWithNullResultIOThrows() {
       IO<Integer> io = IO.delay(() -> TEST_VALUE);
 
-      IO<String> flatMapped = io.flatMap(i -> null);
+      IO<String> flatMapped = io.flatMap(_ -> null);
 
-      assertThatThrownBy(() -> flatMapped.unsafeRunSync())
+      assertThatThrownBy(flatMapped::unsafeRunSync)
           .isInstanceOf(KindUnwrapException.class)
           .hasMessageContaining("Function f in flatMap returned null, which is not allowed");
     }
@@ -467,7 +473,7 @@ class IOTest {
     void unsafeRunSyncExecutesIO() {
       AtomicInteger counter = new AtomicInteger(0);
 
-      IO<Integer> io = IO.delay(() -> counter.incrementAndGet());
+      IO<Integer> io = IO.delay(counter::incrementAndGet);
 
       int result = io.unsafeRunSync();
 
@@ -480,7 +486,7 @@ class IOTest {
     void unsafeRunSyncCanBeCalledMultipleTimes() {
       AtomicInteger counter = new AtomicInteger(0);
 
-      IO<Integer> io = IO.delay(() -> counter.incrementAndGet());
+      IO<Integer> io = IO.delay(counter::incrementAndGet);
 
       int result1 = io.unsafeRunSync();
       int result2 = io.unsafeRunSync();
@@ -502,13 +508,14 @@ class IOTest {
                 throw exception;
               });
 
-      assertThatThrownBy(() -> failingIO.unsafeRunSync())
+      assertThatThrownBy(failingIO::unsafeRunSync)
           .isInstanceOf(RuntimeException.class)
           .hasMessage("Execution error");
     }
 
     @Test
     @DisplayName("unsafeRunSync() returns null if computation produces null")
+    @SuppressWarnings("DataFlowIssue") // an IO may legitimately hold a null value
     void unsafeRunSyncReturnsNullIfComputationProducesNull() {
       IO<String> io = IO.delay(() -> null);
 
@@ -565,7 +572,7 @@ class IOTest {
       IO<String> process = IO.delay(() -> state.get() + "-processed");
       IO<Unit> cleanup = IO.fromRunnable(() -> state.set("cleaned"));
 
-      IO<Unit> workflow = setup.flatMap(u1 -> process).flatMap(s -> cleanup);
+      IO<Unit> workflow = setup.flatMap(_ -> process).flatMap(_ -> cleanup);
 
       assertThat(state.get()).isEmpty();
 
@@ -580,8 +587,8 @@ class IOTest {
 
       IO<Unit> io =
           IO.fromRunnable(() -> log.append("A"))
-              .flatMap(u -> IO.fromRunnable(() -> log.append("B")))
-              .flatMap(u -> IO.fromRunnable(() -> log.append("C")));
+              .flatMap(_ -> IO.fromRunnable(() -> log.append("B")))
+              .flatMap(_ -> IO.fromRunnable(() -> log.append("C")));
 
       assertThat(log.toString()).isEmpty();
 
@@ -602,9 +609,9 @@ class IOTest {
           condition.flatMap(
               cond -> {
                 if (cond) {
-                  return IO.fromRunnable(() -> successCount.incrementAndGet());
+                  return IO.fromRunnable(successCount::incrementAndGet);
                 } else {
-                  return IO.fromRunnable(() -> errorCount.incrementAndGet());
+                  return IO.fromRunnable(errorCount::incrementAndGet);
                 }
               });
 
@@ -631,7 +638,7 @@ class IOTest {
       IO<Unit> commit = IO.fromRunnable(() -> log.append("COMMIT;"));
 
       IO<Unit> transaction =
-          beginTransaction.flatMap(u -> insertData.asUnit()).flatMap(u -> commit);
+          beginTransaction.flatMap(_ -> insertData.asUnit()).flatMap(_ -> commit);
 
       assertThat(log.toString()).isEmpty();
 
@@ -649,10 +656,10 @@ class IOTest {
     void ioCreationDoesNotExecute() {
       AtomicInteger counter = new AtomicInteger(0);
 
-      IO<Integer> io1 = IO.delay(() -> counter.incrementAndGet());
+      IO<Integer> io1 = IO.delay(counter::incrementAndGet);
       IO<Integer> io2 = io1.map(i -> i * 2);
       IO<String> io3 = io2.flatMap(i -> IO.delay(() -> "Value: " + i));
-      IO<Unit> io4 = io3.asUnit();
+      io3.asUnit();
 
       // None of this should have executed
       assertThat(counter.get()).isZero();
@@ -693,8 +700,8 @@ class IOTest {
     void fromRunnableDoesNotExecuteUntilRun() {
       AtomicInteger counter = new AtomicInteger(0);
 
-      IO<Unit> io1 = IO.fromRunnable(() -> counter.incrementAndGet());
-      IO<Unit> io2 = io1.flatMap(u -> IO.fromRunnable(() -> counter.incrementAndGet()));
+      IO<Unit> io1 = IO.fromRunnable(counter::incrementAndGet);
+      IO<Unit> io2 = io1.flatMap(_ -> IO.fromRunnable(counter::incrementAndGet));
 
       assertThat(counter.get()).isZero();
 
@@ -756,11 +763,11 @@ class IOTest {
       AtomicInteger counter = new AtomicInteger(0);
 
       IO<Unit> io =
-          IO.delay(() -> counter.incrementAndGet())
+          IO.delay(counter::incrementAndGet)
               .asUnit()
-              .flatMap(u -> IO.delay(() -> counter.incrementAndGet()).asUnit())
-              .flatMap(u -> IO.delay(() -> counter.incrementAndGet()).asUnit())
-              .flatMap(u -> IO.delay(() -> counter.incrementAndGet()).asUnit());
+              .flatMap(_ -> IO.delay(counter::incrementAndGet).asUnit())
+              .flatMap(_ -> IO.delay(counter::incrementAndGet).asUnit())
+              .flatMap(_ -> IO.delay(counter::incrementAndGet).asUnit());
 
       assertThat(counter.get()).isZero();
 
@@ -770,6 +777,7 @@ class IOTest {
 
     @Test
     @DisplayName("fromRunnable with checked exception wrapper")
+    @SuppressWarnings("ConstantValue") // the always-true guard simulates a checked-exception path
     void fromRunnableWithCheckedExceptionWrapper() {
       IO<Unit> io =
           IO.fromRunnable(

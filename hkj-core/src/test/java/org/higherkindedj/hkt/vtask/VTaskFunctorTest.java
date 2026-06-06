@@ -3,7 +3,6 @@
 package org.higherkindedj.hkt.vtask;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.higherkindedj.hkt.assertions.VTaskAssert.assertThatVTask;
 import static org.higherkindedj.hkt.vtask.VTaskKindHelper.VTASK;
 
@@ -12,9 +11,13 @@ import java.util.function.BiPredicate;
 import java.util.function.Function;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.laws.FunctorLaws;
+import org.higherkindedj.hkt.test.contract.Category;
+import org.higherkindedj.hkt.test.contract.TypeClassContract;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.MethodSource;
 
 @DisplayName("VTaskFunctor Test Suite")
 class VTaskFunctorTest {
@@ -23,6 +26,22 @@ class VTaskFunctorTest {
   private final VTaskFunctor functor = VTaskFunctor.INSTANCE;
   private final Function<Integer, String> intToString = Object::toString;
   private final Function<String, Integer> stringLength = String::length;
+  private final Kind<VTaskKind.Witness, Integer> validKind = VTASK.widen(VTask.succeed(TEST_VALUE));
+
+  /**
+   * {@link Category#EXCEPTIONS} is omitted: the generic contract asserts that {@code map}
+   * <em>propagates</em> a thrown mapper exception immediately, but a VTask is lazy — the exception
+   * surfaces only when the task is run. That deferral is exercised by {@link ExceptionHandling}.
+   */
+  @Test
+  @DisplayName("Functor contract — operations & validations (laws verified below)")
+  void functorContract() {
+    TypeClassContract.<VTaskKind.Witness>functor(VTaskFunctor.class)
+        .<Integer>instance(functor)
+        .<String>withKind(validKind)
+        .withMapper(intToString)
+        .verifyOnly(Category.OPERATIONS, Category.VALIDATIONS);
+  }
 
   @Nested
   @DisplayName("map() Operations")
@@ -54,7 +73,7 @@ class VTaskFunctorTest {
     @DisplayName("map() with null value in VTask")
     void mapWithNullValueInVTask() {
       Kind<VTaskKind.Witness, Integer> kind = VTASK.widen(VTask.succeed(null));
-      Function<Integer, String> nullSafeMapper = i -> String.valueOf(i);
+      Function<Integer, String> nullSafeMapper = String::valueOf;
 
       Kind<VTaskKind.Witness, String> result = functor.map(nullSafeMapper, kind);
 
@@ -101,7 +120,7 @@ class VTaskFunctorTest {
     void mapPropagatesExceptionsFromMapper() {
       Kind<VTaskKind.Witness, Integer> kind = VTASK.widen(VTask.succeed(TEST_VALUE));
       Function<Integer, String> throwingMapper =
-          i -> {
+          _ -> {
             throw new RuntimeException("Mapper failed");
           };
 
@@ -128,25 +147,8 @@ class VTaskFunctorTest {
     }
   }
 
-  @Nested
-  @DisplayName("Validation Tests")
-  class ValidationTests {
-
-    @Test
-    @DisplayName("map() validates null mapper")
-    void mapValidatesNullMapper() {
-      Kind<VTaskKind.Witness, Integer> kind = VTASK.widen(VTask.succeed(TEST_VALUE));
-
-      assertThatThrownBy(() -> functor.map(null, kind)).isInstanceOf(NullPointerException.class);
-    }
-
-    @Test
-    @DisplayName("map() validates null Kind")
-    void mapValidatesNullKind() {
-      assertThatThrownBy(() -> functor.map(intToString, null))
-          .isInstanceOf(NullPointerException.class);
-    }
-  }
+  // The standard map null-mapper / null-Kind validations are covered by functorContract's
+  // VALIDATIONS category above. The VTask-specific exception deferral is kept in ExceptionHandling.
 
   @Nested
   @DisplayName("Laws")
@@ -155,15 +157,15 @@ class VTaskFunctorTest {
     private final BiPredicate<Kind<VTaskKind.Witness, ?>, Kind<VTaskKind.Witness, ?>> eq =
         (k1, k2) -> Objects.equals(VTASK.narrow(k1).run(), VTASK.narrow(k2).run());
 
-    @Test
-    void identity() {
-      Kind<VTaskKind.Witness, Integer> fa = VTASK.widen(VTask.succeed(TEST_VALUE));
+    @ParameterizedTest(name = "identity holds on {0}")
+    @MethodSource("org.higherkindedj.hkt.vtask.VTaskLawFixtures#kinds")
+    void identity(String label, Kind<VTaskKind.Witness, Integer> fa) {
       FunctorLaws.assertIdentity(functor, fa, eq);
     }
 
-    @Test
-    void composition() {
-      Kind<VTaskKind.Witness, Integer> fa = VTASK.widen(VTask.succeed(TEST_VALUE));
+    @ParameterizedTest(name = "composition holds on {0}")
+    @MethodSource("org.higherkindedj.hkt.vtask.VTaskLawFixtures#kinds")
+    void composition(String label, Kind<VTaskKind.Witness, Integer> fa) {
       FunctorLaws.assertComposition(functor, fa, intToString, stringLength, eq);
     }
   }
