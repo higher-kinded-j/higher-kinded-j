@@ -12,7 +12,7 @@ This page documents the evolution of Higher-Kinded-J from its initial release th
 
 ## Recent Releases
 
-### v0.4.6-SNAPSHOT (unreleased)
+### v0.4.6 (7 June 2026)
 
 **Optic-Driven Request Batching**
 
@@ -39,9 +39,7 @@ The audit and safety-rail layer on top of [Optic-Driven Batching](optics/optic_b
 
 **Test-suite consolidation (internal)**
 
-Mostly an internal refactor of the hkj-core test suite — net −822 lines while preserving 100% JaCoCo coverage. The one user-visible piece is in `hkj-test`: new reusable law helpers (`FunctorLaws`, `ApplicativeLaws`, `MonadLaws`, `SelectiveLaws`) and a `KindEquivalence.byEqualsAfter` helper that downstream users can call to verify their own type-class instances. The Kind-accepting overloads on `EitherAssert` / `MaybeAssert` / `TryAssert` / `IOAssert` / `LazyAssert` / `ReaderAssert` / `ValidatedAssert` / `WriterAssert` / `VStreamAssert` / `VTaskAssert` now match the auto-narrowing pattern of `ListAssert` / `OptionalKindAssert` / `StreamAssert` / `IdAssert`.
-
-A follow-up internal pass completes this work: the remaining hand-rolled `TypeClassTest` / `CoreTypeTest` stage-and-executor scaffolding is replaced by the descriptor-driven `TypeClassContract` harness, with three further reusable `hkj-test` law helpers (`TraverseLaws`, `BifunctorLaws`, `KindHelperLaws`) added on the same pattern — a further ~24.8k lines of bespoke test infrastructure removed, 100% JaCoCo coverage held throughout. No user-facing change beyond the additional law helpers.
+Mostly an internal refactor of the hkj-core test suite The one user-visible piece is in `hkj-test`: new reusable law helpers (`FunctorLaws`, `ApplicativeLaws`, `MonadLaws`, `SelectiveLaws`) and a `KindEquivalence.byEqualsAfter` helper that downstream users can call to verify their own type-class instances. The Kind-accepting overloads on `EitherAssert` / `MaybeAssert` / `TryAssert` / `IOAssert` / `LazyAssert` / `ReaderAssert` / `ValidatedAssert` / `WriterAssert` / `VStreamAssert` / `VTaskAssert` now match the auto-narrowing pattern of `ListAssert` / `OptionalKindAssert` / `StreamAssert` / `IdAssert`.
 
 **N-ary Coupled Lenses**
 
