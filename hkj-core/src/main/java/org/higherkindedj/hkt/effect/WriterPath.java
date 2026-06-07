@@ -2,6 +2,7 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.hkt.effect;
 
+import java.util.Collection;
 import java.util.Objects;
 import java.util.function.BiFunction;
 import java.util.function.Consumer;
@@ -365,7 +366,7 @@ public final class WriterPath<W, A> implements Chainable<A> {
   public String toString() {
     W log = writer.log();
     String renderedLog =
-        log instanceof java.util.Collection<?> c ? PathToString.elements(c) : String.valueOf(log);
+        log instanceof Collection<?> c ? PathToString.elements(c) : String.valueOf(log);
     return "WriterPath(log=" + renderedLog + ", value=" + writer.value() + ")";
   }
 }

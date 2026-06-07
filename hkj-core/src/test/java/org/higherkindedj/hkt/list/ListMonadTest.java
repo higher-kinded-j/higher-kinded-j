@@ -6,6 +6,7 @@ import static org.higherkindedj.hkt.assertions.ListAssert.assertThatList;
 import static org.higherkindedj.hkt.instances.Witnesses.*;
 
 import java.util.function.Function;
+import org.assertj.core.api.Assertions;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Monad;
 import org.higherkindedj.hkt.function.Function3;
@@ -555,8 +556,7 @@ class ListMonadTest extends ListTestBase {
     void filterThrowsWhenPredicateIsNull() {
       var input = listOf(1, 2, 3);
 
-      org.assertj.core.api.Assertions.assertThatThrownBy(
-              () -> Instances.monadZero(list()).filter(null, input))
+      Assertions.assertThatThrownBy(() -> Instances.monadZero(list()).filter(null, input))
           .isInstanceOf(NullPointerException.class);
     }
 
@@ -564,8 +564,7 @@ class ListMonadTest extends ListTestBase {
     @DisplayName("filter throws NullPointerException when ma is null")
     @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
     void filterThrowsWhenMaIsNull() {
-      org.assertj.core.api.Assertions.assertThatThrownBy(
-              () -> Instances.monadZero(list()).filter(_ -> true, null))
+      Assertions.assertThatThrownBy(() -> Instances.monadZero(list()).filter(_ -> true, null))
           .isInstanceOf(NullPointerException.class);
     }
   }

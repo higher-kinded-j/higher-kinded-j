@@ -17,6 +17,7 @@ import org.higherkindedj.hkt.either_t.EitherTKind;
 import org.higherkindedj.hkt.instances.Instances;
 import org.higherkindedj.hkt.maybe.Maybe;
 import org.higherkindedj.hkt.maybe.MaybeKind;
+import org.higherkindedj.hkt.optional.OptionalKind;
 import org.higherkindedj.hkt.validated.ValidatedKind;
 import org.higherkindedj.hkt.writer.WriterKind;
 
@@ -76,10 +77,8 @@ public final class InstancesFacadeExample {
     MonadError<ValidatedKind.Witness<String>, String> validated =
         Instances.validated(Semigroups.string());
     Monad<WriterKind.Witness<String>> writer = Instances.writer(Monoids.string());
-    MonadError<
-            EitherTKind.Witness<org.higherkindedj.hkt.optional.OptionalKind.Witness, String>,
-            String>
-        eitherT = Instances.eitherT(Instances.monad(optional()));
+    MonadError<EitherTKind.Witness<OptionalKind.Witness, String>, String> eitherT =
+        Instances.eitherT(Instances.monad(optional()));
 
     System.out.println("validated: " + validated.getClass().getSimpleName());
     System.out.println("writer   : " + writer.getClass().getSimpleName());

@@ -2,6 +2,7 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.optics.fetch;
 
+import java.util.Objects;
 import java.util.Set;
 
 /**
@@ -42,7 +43,7 @@ public interface Guard<K> {
    * Compose two guards. The result calls {@code this} then {@code other}; the first to throw wins.
    */
   default Guard<K> and(Guard<K> other) {
-    java.util.Objects.requireNonNull(other, "other");
+    Objects.requireNonNull(other, "other");
     return (keys, round, calls) -> {
       check(keys, round, calls);
       other.check(keys, round, calls);

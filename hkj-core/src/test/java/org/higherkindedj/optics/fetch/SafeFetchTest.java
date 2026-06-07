@@ -12,6 +12,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeoutException;
 import java.util.function.Function;
@@ -128,7 +129,7 @@ class SafeFetchTest {
     @Test
     @DisplayName("a CompletionException with no cause is surfaced unchanged")
     void completionExceptionWithoutCauseSurfacedAsIs() throws Exception {
-      final class CauselessCompletion extends java.util.concurrent.CompletionException {
+      final class CauselessCompletion extends CompletionException {
         CauselessCompletion() {
           super("opaque failure", null);
         }

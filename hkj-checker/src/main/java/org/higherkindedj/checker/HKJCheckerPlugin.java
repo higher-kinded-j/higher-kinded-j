@@ -9,6 +9,8 @@ import com.sun.source.util.TaskListener;
 import com.sun.source.util.Trees;
 import java.util.ArrayList;
 import java.util.List;
+import javax.lang.model.util.Elements;
+import javax.lang.model.util.Types;
 
 /**
  * A javac compiler plugin that detects Path type mismatches at compile time.
@@ -65,8 +67,8 @@ public class HKJCheckerPlugin implements Plugin {
   @Override
   public void init(JavacTask task, String... args) {
     Trees trees = Trees.instance(task);
-    javax.lang.model.util.Types types = task.getTypes();
-    javax.lang.model.util.Elements elements = task.getElements();
+    Types types = task.getTypes();
+    Elements elements = task.getElements();
     CheckerConfig config = CheckerConfig.parse(args);
 
     // Build the enabled checks once, in stable dispatch order. Each check reports at

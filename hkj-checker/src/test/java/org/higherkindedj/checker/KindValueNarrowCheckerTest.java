@@ -8,6 +8,7 @@ import static com.google.testing.compile.Compiler.javac;
 import com.google.testing.compile.Compilation;
 import com.google.testing.compile.JavaFileObjects;
 import javax.tools.JavaFileObject;
+import org.assertj.core.api.Assertions;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -84,7 +85,7 @@ class KindValueNarrowCheckerTest {
                   }
                   """));
       assertThat(c).succeeded();
-      org.assertj.core.api.Assertions.assertThat(mentionsCompanion(c)).isFalse();
+      Assertions.assertThat(mentionsCompanion(c)).isFalse();
     }
 
     @Test
@@ -104,7 +105,7 @@ class KindValueNarrowCheckerTest {
                   }
                   """));
       assertThat(c).succeeded();
-      org.assertj.core.api.Assertions.assertThat(mentionsCompanion(c)).isFalse();
+      Assertions.assertThat(mentionsCompanion(c)).isFalse();
     }
   }
 
@@ -117,7 +118,7 @@ class KindValueNarrowCheckerTest {
     void disabled() {
       Compilation c = compile("disable=kind-value-narrow", BARE_KIND_VALUE);
       assertThat(c).failed(); // javac's own error is unaffected by our config
-      org.assertj.core.api.Assertions.assertThat(mentionsCompanion(c))
+      Assertions.assertThat(mentionsCompanion(c))
           .as("companion suppressed when the check is disabled")
           .isFalse();
     }

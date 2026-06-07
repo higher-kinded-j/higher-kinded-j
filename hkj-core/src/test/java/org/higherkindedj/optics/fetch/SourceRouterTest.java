@@ -13,6 +13,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Function;
+import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.either.Either;
 import org.higherkindedj.optics.Traversal;
 import org.higherkindedj.optics.focus.FocusPaths;
@@ -61,8 +62,7 @@ class SourceRouterTest {
         return "other";
       };
 
-  private static org.higherkindedj.hkt.Kind<FetchKind.Witness<String, String>, List<String>>
-      traverse(List<String> keys) {
+  private static Kind<FetchKind.Witness<String, String>, List<String>> traverse(List<String> keys) {
     Traversal<List<String>, String> ids = FocusPaths.listElements();
     return ids.modifyF(id -> FETCH.widen(Fetch.fetch(id)), keys, FetchApplicative.instance());
   }

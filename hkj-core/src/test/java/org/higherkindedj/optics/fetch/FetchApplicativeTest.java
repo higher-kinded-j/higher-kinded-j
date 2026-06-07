@@ -6,10 +6,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.higherkindedj.optics.fetch.FetchKindHelper.FETCH;
 
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executor;
@@ -35,7 +32,7 @@ class FetchApplicativeTest {
   /** A backend that can only be queried in batches; counts how many round-trips it serves. */
   static final class BatchingBackend {
     final AtomicInteger calls = new AtomicInteger();
-    final java.util.ArrayList<Set<String>> seenBatches = new java.util.ArrayList<>();
+    final ArrayList<Set<String>> seenBatches = new ArrayList<>();
 
     Map<String, String> resolve(Set<String> ids) {
       calls.incrementAndGet();

@@ -5,10 +5,7 @@ package org.higherkindedj.tutorial.optics;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.higherkindedj.optics.fetch.FetchKindHelper.FETCH;
 
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -353,13 +350,13 @@ public class Tutorial21_OpticBatching {
                   app.map(List::<Either<String, User>>of, alice),
                   ghost,
                   (l, e) -> {
-                    var n = new java.util.ArrayList<>(l);
+                    var n = new ArrayList<>(l);
                     n.add(e);
                     return List.copyOf(n);
                   }),
               cara,
               (l, e) -> {
-                var n = new java.util.ArrayList<>(l);
+                var n = new ArrayList<>(l);
                 n.add(e);
                 return List.copyOf(n);
               });

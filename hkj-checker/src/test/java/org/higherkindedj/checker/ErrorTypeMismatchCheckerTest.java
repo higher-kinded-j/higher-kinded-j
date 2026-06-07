@@ -8,6 +8,7 @@ import static com.google.testing.compile.Compiler.javac;
 import com.google.testing.compile.Compilation;
 import com.google.testing.compile.JavaFileObjects;
 import javax.tools.JavaFileObject;
+import org.assertj.core.api.Assertions;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -241,7 +242,7 @@ class ErrorTypeMismatchCheckerTest {
                   }
                   """));
       assertThat(c).succeeded();
-      org.assertj.core.api.Assertions.assertThat(mentionsMismatch(c)).isFalse();
+      Assertions.assertThat(mentionsMismatch(c)).isFalse();
     }
 
     @Test
@@ -266,7 +267,7 @@ class ErrorTypeMismatchCheckerTest {
                   }
                   """));
       assertThat(c).succeeded();
-      org.assertj.core.api.Assertions.assertThat(mentionsMismatch(c))
+      Assertions.assertThat(mentionsMismatch(c))
           .as("a String Left consumed as Object never ClassCastExceptions")
           .isFalse();
     }
@@ -292,7 +293,7 @@ class ErrorTypeMismatchCheckerTest {
                   }
                   """));
       assertThat(c).succeeded();
-      org.assertj.core.api.Assertions.assertThat(mentionsMismatch(c)).isFalse();
+      Assertions.assertThat(mentionsMismatch(c)).isFalse();
     }
 
     @Test
@@ -318,7 +319,7 @@ class ErrorTypeMismatchCheckerTest {
                   }
                   """));
       assertThat(c).succeeded();
-      org.assertj.core.api.Assertions.assertThat(mentionsMismatch(c)).isFalse();
+      Assertions.assertThat(mentionsMismatch(c)).isFalse();
     }
 
     @Test
@@ -346,7 +347,7 @@ class ErrorTypeMismatchCheckerTest {
                   }
                   """));
       assertThat(c).succeeded();
-      org.assertj.core.api.Assertions.assertThat(mentionsMismatch(c)).isFalse();
+      Assertions.assertThat(mentionsMismatch(c)).isFalse();
     }
   }
 
@@ -386,7 +387,7 @@ class ErrorTypeMismatchCheckerTest {
     void disabled() {
       Compilation c = compile("disable=error-type-mismatch", MISMATCH);
       assertThat(c).succeeded();
-      org.assertj.core.api.Assertions.assertThat(mentionsMismatch(c)).isFalse();
+      Assertions.assertThat(mentionsMismatch(c)).isFalse();
     }
   }
 }

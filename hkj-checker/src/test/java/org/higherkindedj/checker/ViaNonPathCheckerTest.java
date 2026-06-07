@@ -8,6 +8,7 @@ import static com.google.testing.compile.Compiler.javac;
 import com.google.testing.compile.Compilation;
 import com.google.testing.compile.JavaFileObjects;
 import javax.tools.JavaFileObject;
+import org.assertj.core.api.Assertions;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -109,7 +110,7 @@ class ViaNonPathCheckerTest {
                   }
                   """));
       assertThat(c).succeeded();
-      org.assertj.core.api.Assertions.assertThat(mentionsCompanion(c)).isFalse();
+      Assertions.assertThat(mentionsCompanion(c)).isFalse();
     }
 
     @Test
@@ -129,7 +130,7 @@ class ViaNonPathCheckerTest {
                   }
                   """));
       assertThat(c).failed(); // javac still rejects it
-      org.assertj.core.api.Assertions.assertThat(mentionsCompanion(c))
+      Assertions.assertThat(mentionsCompanion(c))
           .as("method refs are deliberately skipped to stay false-positive-free")
           .isFalse();
     }
@@ -151,7 +152,7 @@ class ViaNonPathCheckerTest {
                   }
                   """));
       assertThat(c).succeeded();
-      org.assertj.core.api.Assertions.assertThat(mentionsCompanion(c)).isFalse();
+      Assertions.assertThat(mentionsCompanion(c)).isFalse();
     }
   }
 
@@ -164,7 +165,7 @@ class ViaNonPathCheckerTest {
     void disabled() {
       Compilation c = compile("disable=via-non-path", VIA_PLAIN);
       assertThat(c).failed();
-      org.assertj.core.api.Assertions.assertThat(mentionsCompanion(c)).isFalse();
+      Assertions.assertThat(mentionsCompanion(c)).isFalse();
     }
 
     @Test

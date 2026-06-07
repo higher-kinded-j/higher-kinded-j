@@ -8,6 +8,7 @@ import static com.google.testing.compile.Compiler.javac;
 import com.google.testing.compile.Compilation;
 import com.google.testing.compile.JavaFileObjects;
 import javax.tools.JavaFileObject;
+import org.assertj.core.api.Assertions;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -131,7 +132,7 @@ class StateTMapTArityCheckerTest {
     void disabled() {
       Compilation c = compile("disable=state-t-mapt-arity", BAD_STATE_T);
       assertThat(c).failed(); // javac's own mapT error is unaffected by our config
-      org.assertj.core.api.Assertions.assertThat(
+      Assertions.assertThat(
               c.diagnostics().stream()
                   .anyMatch(
                       d ->
