@@ -18,6 +18,7 @@ import com.sun.source.util.Trees;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
+import javax.lang.model.element.TypeElement;
 import javax.lang.model.type.DeclaredType;
 import javax.lang.model.type.TypeKind;
 import javax.lang.model.type.TypeMirror;
@@ -146,8 +147,7 @@ public final class ErrorTypeMismatchDetectorSpikeProbe implements Plugin {
   }
 
   private static String erasedFqn(TypeMirror t) {
-    if (t instanceof DeclaredType dt
-        && dt.asElement() instanceof javax.lang.model.element.TypeElement te) {
+    if (t instanceof DeclaredType dt && dt.asElement() instanceof TypeElement te) {
       return te.getQualifiedName().toString();
     }
     return null;

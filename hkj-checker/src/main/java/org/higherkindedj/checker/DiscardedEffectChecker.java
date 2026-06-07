@@ -9,6 +9,7 @@ import com.sun.source.tree.NewClassTree;
 import com.sun.source.util.TreePath;
 import com.sun.source.util.Trees;
 import javax.lang.model.element.TypeElement;
+import javax.lang.model.type.DeclaredType;
 import javax.lang.model.type.TypeKind;
 import javax.lang.model.type.TypeMirror;
 import javax.lang.model.util.Elements;
@@ -125,7 +126,7 @@ public final class DiscardedEffectChecker implements CheckVisitor {
       return "effect";
     }
     TypeMirror erased = types.erasure(t);
-    if (erased instanceof javax.lang.model.type.DeclaredType dt) {
+    if (erased instanceof DeclaredType dt) {
       return dt.asElement().getSimpleName().toString();
     }
     return "effect";

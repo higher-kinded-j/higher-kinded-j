@@ -4,6 +4,10 @@ package org.higherkindedj.checker;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import com.google.testing.compile.Compilation;
+import com.google.testing.compile.CompilationSubject;
+import com.google.testing.compile.Compiler;
+import com.google.testing.compile.JavaFileObjects;
 import javax.tools.Diagnostic;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -131,15 +135,15 @@ class CheckerConfigSeverityTest {
   @DisplayName("integration: promoting a warn-default check breaks the build")
   class Integration {
 
-    private static final com.google.testing.compile.Compilation compileWith(String pluginArgs) {
-      return com.google.testing.compile.Compiler.javac()
+    private static final Compilation compileWith(String pluginArgs) {
+      return Compiler.javac()
           .withOptions(
               "-Xplugin:HKJChecker" + (pluginArgs.isEmpty() ? "" : " " + pluginArgs),
               "--enable-preview",
               "--release",
               "25")
           .compile(
-              com.google.testing.compile.JavaFileObjects.forSourceString(
+              JavaFileObjects.forSourceString(
                   "test.Promote",
                   """
                   package test;
@@ -161,19 +165,17 @@ class CheckerConfigSeverityTest {
     @Test
     @DisplayName("default: error-type-mismatch is a warning, build passes")
     void defaultWarn() {
-      com.google.testing.compile.Compilation c = compileWith("");
-      com.google.testing.compile.CompilationSubject.assertThat(c).succeeded();
-      com.google.testing.compile.CompilationSubject.assertThat(c)
-          .hadWarningContaining("Error type is silently mismatched");
+      Compilation c = compileWith("");
+      CompilationSubject.assertThat(c).succeeded();
+      CompilationSubject.assertThat(c).hadWarningContaining("Error type is silently mismatched");
     }
 
     @Test
     @DisplayName("severity:error-type-mismatch=error promotes it; build now fails")
     void promotedToError() {
-      com.google.testing.compile.Compilation c = compileWith("severity:error-type-mismatch=error");
-      com.google.testing.compile.CompilationSubject.assertThat(c).failed();
-      com.google.testing.compile.CompilationSubject.assertThat(c)
-          .hadErrorContaining("Error type is silently mismatched");
+      Compilation c = compileWith("severity:error-type-mismatch=error");
+      CompilationSubject.assertThat(c).failed();
+      CompilationSubject.assertThat(c).hadErrorContaining("Error type is silently mismatched");
     }
   }
 }

@@ -8,6 +8,7 @@ import static com.google.testing.compile.Compiler.javac;
 import com.google.testing.compile.Compilation;
 import com.google.testing.compile.JavaFileObjects;
 import javax.tools.JavaFileObject;
+import org.assertj.core.api.Assertions;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -84,7 +85,7 @@ class MapReturnsPathCheckerTest {
                   }
                   """));
       assertThat(c).succeeded();
-      org.assertj.core.api.Assertions.assertThat(mentionsCompanion(c)).isFalse();
+      Assertions.assertThat(mentionsCompanion(c)).isFalse();
     }
 
     @Test
@@ -104,7 +105,7 @@ class MapReturnsPathCheckerTest {
                   }
                   """));
       assertThat(c).succeeded();
-      org.assertj.core.api.Assertions.assertThat(mentionsCompanion(c)).isFalse();
+      Assertions.assertThat(mentionsCompanion(c)).isFalse();
     }
 
     @Test
@@ -128,7 +129,7 @@ class MapReturnsPathCheckerTest {
                   }
                   """));
       assertThat(c).succeeded();
-      org.assertj.core.api.Assertions.assertThat(mentionsCompanion(c)).isFalse();
+      Assertions.assertThat(mentionsCompanion(c)).isFalse();
     }
 
     @Test
@@ -149,7 +150,7 @@ class MapReturnsPathCheckerTest {
                   }
                   """));
       assertThat(c).succeeded();
-      org.assertj.core.api.Assertions.assertThat(mentionsCompanion(c))
+      Assertions.assertThat(mentionsCompanion(c))
           .as("cross-category is the ambiguous case the same-category rule excludes")
           .isFalse();
     }
@@ -172,7 +173,7 @@ class MapReturnsPathCheckerTest {
     void disabled() {
       Compilation c = compile("disable=map-nests-effect", MAP_NESTS);
       assertThat(c).succeeded();
-      org.assertj.core.api.Assertions.assertThat(mentionsCompanion(c)).isFalse();
+      Assertions.assertThat(mentionsCompanion(c)).isFalse();
     }
   }
 }

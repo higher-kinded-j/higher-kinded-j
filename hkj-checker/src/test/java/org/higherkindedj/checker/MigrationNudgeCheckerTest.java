@@ -8,6 +8,7 @@ import static com.google.testing.compile.Compiler.javac;
 import com.google.testing.compile.Compilation;
 import com.google.testing.compile.JavaFileObjects;
 import javax.tools.JavaFileObject;
+import org.assertj.core.api.Assertions;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -141,7 +142,7 @@ class MigrationNudgeCheckerTest {
                   }
                   """));
       assertThat(c).succeeded();
-      org.assertj.core.api.Assertions.assertThat(nudged(c)).isFalse();
+      Assertions.assertThat(nudged(c)).isFalse();
     }
   }
 
@@ -162,7 +163,7 @@ class MigrationNudgeCheckerTest {
     void disabled() {
       Compilation c = compile("disable=migration-nudge", RAW_FREE);
       assertThat(c).succeeded();
-      org.assertj.core.api.Assertions.assertThat(nudged(c)).isFalse();
+      Assertions.assertThat(nudged(c)).isFalse();
     }
 
     @Test

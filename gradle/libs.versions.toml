@@ -1,16 +1,16 @@
 [versions]
 # Core dependencies
 jspecify = "1.0.0"
-javapoet = "0.12.0"
+javapoet = "0.16.0"
 autoservice = "1.1.1"
-palantir-java-format = "2.89.0"
+palantir-java-format = "2.91.0"
 
 # Testing
-junit = "6.0.3"
+junit = "6.1.0"
 assertj = "3.27.7"
 awaitility = "4.3.0"
-jqwik = "1.9.3"
-archunit = "1.4.1"
+jqwik = "1.10.1"
+archunit = "1.4.2"
 compile-testing = "0.23.0"
 truth = "1.4.5"
 
@@ -18,16 +18,17 @@ truth = "1.4.5"
 jmh = "1.37"
 jol = "0.17"
 
-# Spring Boot 4.0.3 (requires Java 17+, Jakarta EE 11, Servlet 6.1)
+# Spring Boot 4.0.6 (requires Java 17+, Jakarta EE 11, Servlet 6.1)
 # Note: hkj-spring 0.2.7 supports Spring Boot 3.5.7, 0.2.8+ requires Spring Boot 4.0.1+
-spring-boot = "4.0.3"
+spring-boot = "4.0.6"
 spring-dependency-management = "1.1.7"
 
 # Jackson 3.x (group ID changed from com.fasterxml.jackson to tools.jackson in Spring Boot 4)
-jackson = "3.1.0"
+# 3.1.2 matches the tools.jackson:jackson-bom managed by Spring Boot 4.0.6
+jackson = "3.1.2"
 
 # JOOQ - Database access library (for spec interface examples)
-jooq = "3.20.11"
+jooq = "3.21.5"
 
 # Maven Plugin API (for hkj-maven-plugin)
 maven-plugin-api = "3.9.14"
@@ -40,16 +41,16 @@ google-java-format = "1.35.0"
 # Plugins
 maven-publish = "0.36.0"
 plugin-publish = "1.3.1"
-spotless = "8.3.0"
-openrewrite = "7.28.1"
+spotless = "8.6.0"
+openrewrite = "7.34.0"
 jmh-plugin = "0.7.3"
 
 # Annotation Processing
-avaje-spi = "2.16"
+avaje-spi = "2.17"
 
 # Optional library integrations
 eclipse-collections = "13.0.0"
-google-guava = "33.5.0-jre"
+google-guava = "33.6.0-jre"
 apache-commons-collections4 = "4.5.0"
 vavr = "1.0.1"
 pcollections = "5.0.0"
@@ -108,10 +109,11 @@ spring-security-oauth2-jose = { module = "org.springframework.security:spring-se
 jakarta-servlet-api = { module = "jakarta.servlet:jakarta.servlet-api" }
 
 # Jackson 3.x (Spring Boot 4.0.1+ uses Jackson 3.x with new group ID)
-# Note: jackson-annotations remains at com.fasterxml.jackson
+# Note: jackson-annotations stays on the 2.x line — Jackson 3 reuses the 2.x annotations module
+# (the jackson-bom keeps it at 2.21), so it has no 3.x release; leave its version to the Jackson/Spring BOM.
 jackson-databind = { module = "tools.jackson.core:jackson-databind", version.ref = "jackson" }
 jackson-core = { module = "tools.jackson.core:jackson-core", version.ref = "jackson" }
-jackson-annotations = { module = "com.fasterxml.jackson.core:jackson-annotations", version.ref = "jackson" }
+jackson-annotations = { module = "com.fasterxml.jackson.core:jackson-annotations" }
 
 # Micrometer
 micrometer-core = { module = "io.micrometer:micrometer-core" }

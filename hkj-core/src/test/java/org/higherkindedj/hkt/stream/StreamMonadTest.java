@@ -12,6 +12,7 @@ import java.util.function.BiFunction;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
+import org.assertj.core.api.Assertions;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.MonadZero;
 import org.higherkindedj.hkt.function.Function3;
@@ -600,7 +601,7 @@ class StreamMonadTest extends StreamTestBase {
     void filterThrowsWhenPredicateIsNull() {
       Kind<StreamKind.Witness, Integer> input = streamOf(1, 2, 3);
 
-      org.assertj.core.api.Assertions.assertThatThrownBy(() -> streamMonad.filter(null, input))
+      Assertions.assertThatThrownBy(() -> streamMonad.filter(null, input))
           .isInstanceOf(NullPointerException.class);
     }
 
@@ -608,7 +609,7 @@ class StreamMonadTest extends StreamTestBase {
     @DisplayName("filter throws NullPointerException when ma is null")
     @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
     void filterThrowsWhenMaIsNull() {
-      org.assertj.core.api.Assertions.assertThatThrownBy(() -> streamMonad.filter(_ -> true, null))
+      Assertions.assertThatThrownBy(() -> streamMonad.filter(_ -> true, null))
           .isInstanceOf(NullPointerException.class);
     }
   }

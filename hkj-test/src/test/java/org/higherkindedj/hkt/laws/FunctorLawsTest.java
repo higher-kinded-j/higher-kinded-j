@@ -6,6 +6,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.higherkindedj.hkt.maybe.MaybeKindHelper.MAYBE;
 
 import java.util.function.BiPredicate;
+import java.util.function.Function;
 import org.higherkindedj.hkt.Functor;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.assertions.KindEquivalence;
@@ -43,8 +44,7 @@ class FunctorLawsTest {
         new Functor<>() {
           @Override
           public <A, B> Kind<MaybeKind.Witness, B> map(
-              java.util.function.Function<? super A, ? extends B> f,
-              Kind<MaybeKind.Witness, A> input) {
+              Function<? super A, ? extends B> f, Kind<MaybeKind.Witness, A> input) {
             return MAYBE.widen(Maybe.nothing());
           }
         };
