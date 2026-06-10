@@ -268,7 +268,7 @@ import org.higherkindedj.hkt.writer.WriterBifunctor;
 Bifunctor<WriterKind2.Witness> bifunctor = WriterBifunctor.INSTANCE;
 
 // A Writer with a log and a result
-Writer<String, Integer> computation = new Writer<>("Calculated: ", 42);
+Writer<String, Integer> computation = Writer.of("Calculated: ", 42);
 
 // Transform the log channel
 Kind2<WriterKind2.Witness, String, Integer> uppercaseLog =

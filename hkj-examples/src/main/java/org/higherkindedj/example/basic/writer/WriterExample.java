@@ -30,15 +30,14 @@ public class WriterExample {
       x -> {
         int result = x + 10;
         String logMsg = "Added 10 to " + x + " -> " + result + "; ";
-        // Assuming direct creation with log and value if Writer.create was meant for that
-        return WRITER.widen(new Writer<>(logMsg, result));
+        return WRITER.widen(Writer.of(logMsg, result));
       };
 
   Function<Integer, Kind<WriterKind.Witness<String>, String>> multiplyAndLogToString =
       x -> {
         int result = x * 2;
         String logMsg = "Multiplied " + x + " by 2 -> " + result + "; ";
-        return WRITER.widen(new Writer<>(logMsg, "Final:" + result));
+        return WRITER.widen(Writer.of(logMsg, "Final:" + result));
       };
 
   public static void main(String[] args) {

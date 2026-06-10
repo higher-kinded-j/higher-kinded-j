@@ -206,7 +206,7 @@ public class BifunctorExample {
     Bifunctor<WriterKind2.Witness> bifunctor = WriterBifunctor.INSTANCE;
 
     // A Writer with a log and a computation result
-    Writer<String, Integer> computation = new Writer<>("Calculated: ", 42);
+    Writer<String, Integer> computation = Writer.of("Calculated: ", 42);
     Kind2<WriterKind2.Witness, String, Integer> wrappedWriter = WRITER.widen2(computation);
 
     // Transform only the log channel

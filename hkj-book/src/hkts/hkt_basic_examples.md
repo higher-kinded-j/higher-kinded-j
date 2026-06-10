@@ -331,7 +331,7 @@ Function<Integer, Kind<WriterKind.Witness<String>, Integer>> addAndLog =
     x -> {
       int result = x + 10;
       String logMsg = "Added 10 to " + x + " -> " + result + "; ";
-      return WRITER.widen(new Writer<>(logMsg, result));
+      return WRITER.widen(Writer.of(logMsg, result));
     };
 
 // The monad combines the logs from each step automatically

@@ -62,15 +62,19 @@ class WriterTest extends WriterTestBase {
     }
 
     @Test
-    @DisplayName("Constructor creates correct instances")
-    void constructorCreatesCorrectInstances() {
-      // Standard case
-      Writer<String, Integer> w1 = writerOf("Log", 10);
+    @DisplayName("of() creates correct instances with a custom log")
+    void ofCreatesCorrectInstances() {
+      // Non-null value with a custom log
+      Writer<String, Integer> w1 = Writer.of("Log", 10);
       assertThatWriter(w1).hasLog("Log").hasValue(10);
 
-      // Null value
-      Writer<String, Integer> w2 = writerOf("Log", null);
+      // Null value with a custom log
+      Writer<String, Integer> w2 = Writer.of("Log", null);
       assertThatWriter(w2).hasLog("Log").hasNullValue();
+
+      // Complex value type
+      Writer<String, String> w3 = Writer.of("Init;", "test");
+      assertThatWriter(w3).hasLog("Init;").hasValue("test");
     }
   }
 
