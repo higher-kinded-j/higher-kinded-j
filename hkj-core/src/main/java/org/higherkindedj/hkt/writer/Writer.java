@@ -29,6 +29,7 @@ import org.jspecify.annotations.Nullable;
  * <ul>
  *   <li>{@link #value(Monoid, Object)}: Creates a {@code Writer} with a pure value and an empty
  *       log.
+ *   <li>{@link #of(Object, Object)}: Creates a {@code Writer} with a custom log and value.
  *   <li>{@link #tell(Object)}: Creates a {@code Writer} that only produces a log entry, with {@link
  *       Unit#INSTANCE} as its value.
  *   <li>{@link #map(Function)}: Transforms the computed value without affecting the log.
@@ -81,6 +82,28 @@ public record Writer<W, A>(W log, @Nullable A value) {
   public static <W, A> Writer<W, A> value(Monoid<W> monoidW, @Nullable A value) {
     Validation.function().require(monoidW, "monoidW", VALUE);
     return new Writer<>(monoidW.empty(), value);
+  }
+
+  /**
+   * Creates a {@code Writer} with the given log and value.
+   *
+   * <p>The argument order {@code (log, value)} mirrors the record components and the {@code
+   * Writer<W, A>} type parameters, making this a direct, null-laundering replacement for the {@code
+   * new Writer<>(log, value)} constructor. Note that the effect-layer factory {@code
+   * WriterPath.writer} takes {@code (value, log, monoid)} — value first — instead.
+   *
+   * @param <W> The type of the log.
+   * @param <A> The type of the value.
+   * @param log The accumulated log. Must not be {@code null}.
+   * @param value The computed value. Can be {@code null} if {@code A} is a nullable type. If {@code
+   *     A} is {@link Unit}, pass {@link Unit#INSTANCE}.
+   * @return A new {@code Writer<W, A>} with the given log and value.
+   * @throws NullPointerException if {@code log} is {@code null}.
+   * @see #value(Monoid, Object)
+   * @see #tell(Object)
+   */
+  public static <W, A> Writer<W, A> of(W log, @Nullable A value) {
+    return new Writer<>(log, value);
   }
 
   /**

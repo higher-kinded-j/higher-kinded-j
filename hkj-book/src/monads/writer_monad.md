@@ -125,19 +125,19 @@ Each step returns a Writer: the result *and* a log entry. No log parameter neede
 // Each function: takes a price, returns Writer(log, newPrice)
 Function<Double, Kind<WriterKind.Witness<String>, Double>> addTax = price -> {
     var taxed = price * 1.08;
-    return WRITER.widen(new Writer<>(
+    return WRITER.widen(Writer.of(
         "Tax 8%%: $%.2f -> $%.2f; ".formatted(price, taxed), taxed));
 };
 
 Function<Double, Kind<WriterKind.Witness<String>, Double>> applyDiscount = price -> {
     var discounted = price * 0.90;
-    return WRITER.widen(new Writer<>(
+    return WRITER.widen(Writer.of(
         "Discount 10%%: $%.2f -> $%.2f; ".formatted(price, discounted), discounted));
 };
 
 Function<Double, Kind<WriterKind.Witness<String>, Double>> addShipping = price -> {
     var shipped = price + 5.00;
-    return WRITER.widen(new Writer<>(
+    return WRITER.widen(Writer.of(
         "Shipping: +$5.00 -> $%.2f; ".formatted(shipped), shipped));
 };
 ```

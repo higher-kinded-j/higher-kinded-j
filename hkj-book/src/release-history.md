@@ -12,6 +12,17 @@ This page documents the evolution of Higher-Kinded-J from its initial release th
 
 ## Recent Releases
 
+### v0.4.7-SNAPSHOT (in development)
+
+**`Writer.of(log, value)` factory**
+
+`Writer<W, A>` exposed `Writer.value(Monoid<W>, A)` (empty log) and `Writer.tell(W)` (`Unit` value) but had no factory for the common custom-log-plus-value case, leaving the raw `new Writer<>(log, value)` constructor as the only option. Because a `Writer` legitimately holds a null value, that constructor's diamond infers a `@Nullable A` type argument, which trips nullness analysis at the call site ("returning a class with nullable type arguments where not-null expected"); a static factory whose return type is the plain `Writer<W, A>` launders the nullness contract once, in production code.
+
+- `Writer.of(W log, @Nullable A value)`: New static factory returning `Writer<W, A>` with the given log and value. The argument order `(log, value)` mirrors the record components, the `log()` / `value()` accessors, and the `Writer<W, A>` type parameters, so it is a direct drop-in for the constructor. The effect-layer `WriterPath.writer(value, log, monoid)` deliberately keeps its existing value-first order — the one place in the Path API that pairs a separate log and value — and the divergence is documented on `Writer.of` itself ([#554](https://github.com/higher-kinded-j/higher-kinded-j/issues/554)).
+- Purely additive and non-breaking. The internal `WriterTestBase.writerOf` helper now delegates to `Writer.of`, which allows removing its `@SuppressWarnings("NullableProblems")` annotation.
+
+---
+
 ### v0.4.6 (7 June 2026)
 
 **Optic-Driven Request Batching**

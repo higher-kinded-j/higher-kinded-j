@@ -82,9 +82,8 @@ abstract class WriterTestBase
    * @param value The value to include
    * @return A new Writer instance
    */
-  @SuppressWarnings("NullableProblems") // Writer value is @Nullable, so the diamond infers nullable
   protected <A> Writer<String, A> writerOf(String log, @Nullable A value) {
-    return new Writer<>(log, value);
+    return Writer.of(log, value);
   }
 
   /**
