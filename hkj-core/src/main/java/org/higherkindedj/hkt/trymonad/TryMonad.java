@@ -9,6 +9,7 @@ import java.util.function.Function;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.MonadError;
 import org.higherkindedj.hkt.util.validation.Validation;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Implements the {@link MonadError} interface for the {@link Try} data type.
@@ -140,5 +141,57 @@ public class TryMonad extends TryApplicative implements MonadError<TryKind.Witne
               }
             });
     return TRY.widen(resultTry);
+  }
+
+  /**
+   * Recovers from a {@link Try.Failure} by replacing it with a pre-computed fallback {@code Try}.
+   * If {@code ma} is a {@link Try.Success}, it is returned unchanged and {@code fallback} is
+   * ignored.
+   *
+   * <p>This override mirrors {@code EitherMonad} and {@code MaybeMonad}: it rejects a null {@code
+   * fallback} eagerly and consistently, regardless of whether {@code ma} is a {@link Try.Success}
+   * or a {@link Try.Failure}. The inherited {@link MonadError} default only reads {@code fallback}
+   * on the error path, so a null would be silently ignored for a {@code Success} and surface as a
+   * misleading {@code handleErrorWith} failure for a {@code Failure}.
+   *
+   * @param <A> The type of the value.
+   * @param ma The {@code Kind<TryKind.Witness, A>} that might have failed. Must not be null.
+   * @param fallback The non-null {@code Try} to use if {@code ma} is a {@link Try.Failure}.
+   * @return Either the original success, or {@code fallback} if {@code ma} failed. Never null.
+   * @throws NullPointerException if {@code ma} or {@code fallback} is null.
+   */
+  @Override
+  public <A> Kind<TryKind.Witness, A> recoverWith(
+      final Kind<TryKind.Witness, A> ma, final Kind<TryKind.Witness, A> fallback) {
+
+    Validation.kind().requireNonNull(ma, RECOVER_WITH, "source");
+    Validation.kind().requireNonNull(fallback, RECOVER_WITH, "fallback");
+
+    return handleErrorWith(ma, _ -> fallback);
+  }
+
+  /**
+   * Recovers from a {@link Try.Failure} with a pure fallback {@code value}, lifted via {@link
+   * #of(Object)}. If {@code ma} is a {@link Try.Success}, it is returned unchanged.
+   *
+   * <p>This override exists for message consistency only: it names {@code recover} (rather than the
+   * delegated {@code handleErrorWith}) when {@code ma} is null. The behaviour is otherwise
+   * identical to the inherited {@link MonadError} default — {@code value} stays {@link Nullable},
+   * since {@code recover(failure, null)} yields a valid {@code Success(null)}.
+   *
+   * @param <A> The type of the value.
+   * @param ma The {@code Kind<TryKind.Witness, A>} that might have failed. Must not be null.
+   * @param value The fallback value to wrap in a {@link Try.Success} if {@code ma} failed.
+   * @return Either the original success, or {@code Success(value)} if {@code ma} failed. Never
+   *     null.
+   * @throws NullPointerException if {@code ma} is null.
+   */
+  @Override
+  public <A> Kind<TryKind.Witness, A> recover(
+      final Kind<TryKind.Witness, A> ma, @Nullable A value) {
+
+    Validation.kind().requireNonNull(ma, RECOVER, "source");
+
+    return handleErrorWith(ma, _ -> of(value));
   }
 }

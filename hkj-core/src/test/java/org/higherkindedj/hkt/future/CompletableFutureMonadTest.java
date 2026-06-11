@@ -92,28 +92,24 @@ class CompletableFutureMonadTest {
   private final Kind<CompletableFutureKind.Witness, Integer> validFallback = futureMonad.of(-1);
 
   /**
-   * Operation smoke for {@code map}/{@code flatMap}/{@code ap}/{@code handleErrorWith}/{@code
-   * recoverWith} on the MonadError instance. The Functor/Applicative/Monad laws are verified
-   * parameterised in the {@code *LawTests} blocks below, so this contract omits {@link
-   * Category#LAWS}.
+   * Operation smoke and null-argument validation for {@code map}/{@code flatMap}/{@code ap}/{@code
+   * handleErrorWith}/{@code recoverWith} on the MonadError instance. The Functor/Applicative/Monad
+   * laws are verified parameterised in the {@code *LawTests} blocks below, so this contract omits
+   * {@link Category#LAWS}.
    *
-   * <p>Only {@link Category#OPERATIONS} is run:
+   * <p>{@link Category#EXCEPTIONS} is omitted because the generic contract asserts that {@code
+   * map}/{@code flatMap} <em>propagate</em> a thrown function exception, whereas a {@code
+   * CompletableFuture} <em>captures</em> it as an exceptionally-completed future (exercised by the
+   * {@code map_shouldFailIfFunctionThrows} / {@code ap}/{@code flatMap} failure tests below).
    *
-   * <ul>
-   *   <li>{@link Category#EXCEPTIONS} is omitted because the generic contract asserts that {@code
-   *       map}/{@code flatMap} <em>propagate</em> a thrown function exception, whereas a {@code
-   *       CompletableFuture} <em>captures</em> it as an exceptionally-completed future (exercised
-   *       by the {@code map_shouldFailIfFunctionThrows} / {@code ap}/{@code flatMap} failure tests
-   *       below).
-   *   <li>{@link Category#VALIDATIONS} is omitted because, like {@code Try}, {@code
-   *       CompletableFutureMonad} inherits the default {@code recoverWith}, which does not eagerly
-   *       reject a null fallback against a success. The MonadError-specific null-argument
-   *       validation is covered by {@link
-   *       MonadErrorTests#handleErrorWith_shouldFailWhenHandlerIsNull}.
-   * </ul>
+   * <p>{@link Category#VALIDATIONS} <em>is</em> run: {@code CompletableFutureMonad} now overrides
+   * {@code recoverWith} to reject a null fallback eagerly (regardless of {@code ma}'s state),
+   * matching {@code Either}/{@code Maybe}. Per-method message assertions live in {@link
+   * MonadErrorTests}.
    */
   @Test
-  @DisplayName("MonadError contract — operations (laws verified in the *LawTests blocks below)")
+  @DisplayName(
+      "MonadError contract — operations & validations (laws in the *LawTests blocks below)")
   void monadErrorContract() {
     TypeClassContract.<CompletableFutureKind.Witness, Throwable>monadError(
             CompletableFutureMonad.class)
@@ -121,7 +117,7 @@ class CompletableFutureMonadTest {
         .<String>withKind(validKind)
         .withMonadOperations(validMapper, validFlatMapper, validFunctionKind)
         .withErrorHandling(validHandler, validFallback)
-        .verifyOnly(Category.OPERATIONS);
+        .verifyOnly(Category.OPERATIONS, Category.VALIDATIONS);
   }
 
   @Nested
@@ -716,6 +712,39 @@ class CompletableFutureMonadTest {
     void recover_shouldIgnoreSuccess() {
       Kind<CompletableFutureKind.Witness, Integer> result = futureMonad.recover(successKind, 0);
       assertThat(joinFuture(result)).isEqualTo(100);
+    }
+
+    @Test
+    @SuppressWarnings("DataFlowIssue") // null source exercises recoverWith's guard
+    void recoverWith_shouldRejectNullSourceEagerly() {
+      Kind<CompletableFutureKind.Witness, Integer> fallback = futureMonad.of(0);
+      assertThatThrownBy(() -> futureMonad.recoverWith(null, fallback))
+          .isInstanceOf(NullPointerException.class)
+          .hasMessageContaining("recoverWith (source)");
+    }
+
+    @Test
+    @SuppressWarnings("DataFlowIssue") // null fallback exercises recoverWith's guard
+    void recoverWith_shouldRejectNullFallbackEagerlyAgainstSuccess() {
+      assertThatThrownBy(() -> futureMonad.recoverWith(successKind, null))
+          .isInstanceOf(NullPointerException.class)
+          .hasMessageContaining("recoverWith (fallback)");
+    }
+
+    @Test
+    @SuppressWarnings("DataFlowIssue") // null fallback exercises recoverWith's guard
+    void recoverWith_shouldRejectNullFallbackEagerlyAgainstFailure() {
+      assertThatThrownBy(() -> futureMonad.recoverWith(failedKind, null))
+          .isInstanceOf(NullPointerException.class)
+          .hasMessageContaining("recoverWith (fallback)");
+    }
+
+    @Test
+    @SuppressWarnings("DataFlowIssue") // null source exercises recover's guard
+    void recover_shouldRejectNullSourceNamingRecover() {
+      assertThatThrownBy(() -> futureMonad.recover(null, 0))
+          .isInstanceOf(NullPointerException.class)
+          .hasMessageContaining("recover (source)");
     }
 
     @Test

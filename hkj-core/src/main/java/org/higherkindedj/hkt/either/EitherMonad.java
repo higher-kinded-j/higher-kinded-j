@@ -207,6 +207,17 @@ public class EitherMonad<L> extends EitherFunctor<L>
     return either.fold(handler, _ -> ma);
   }
 
+  /**
+   * Recovers from a {@code Left} by substituting the pre-computed {@code fallback}; a {@code Right}
+   * is returned unchanged. Rejects a null {@code fallback} eagerly, regardless of whether {@code
+   * ma} is a {@code Left} or a {@code Right}.
+   *
+   * @param <A> the {@code Right} value type.
+   * @param ma the value that might be a {@code Left}. Must not be null.
+   * @param fallback the non-null {@code Either} to use when {@code ma} is a {@code Left}.
+   * @return {@code ma} if a {@code Right}, otherwise {@code fallback}. Never null.
+   * @throws NullPointerException if {@code ma} or {@code fallback} is null.
+   */
   @Override
   public <A> Kind<EitherKind.Witness<L>, A> recoverWith(
       final Kind<EitherKind.Witness<L>, A> ma, final Kind<EitherKind.Witness<L>, A> fallback) {
@@ -214,15 +225,27 @@ public class EitherMonad<L> extends EitherFunctor<L>
     Validation.kind().requireNonNull(ma, RECOVER_WITH, "source");
     Validation.kind().requireNonNull(fallback, RECOVER_WITH, "fallback");
 
-    return handleErrorWith(ma, error -> fallback);
+    return handleErrorWith(ma, _ -> fallback);
   }
 
+  /**
+   * Recovers from a {@code Left} with a pure {@code value}, lifted via {@link #of(Object)}; a
+   * {@code Right} is returned unchanged. {@code value} stays {@link Nullable}, since {@code
+   * of(null)} is a valid {@code Right(null)}.
+   *
+   * @param <A> the {@code Right} value type.
+   * @param ma the value that might be a {@code Left}. Must not be null.
+   * @param value the fallback value to lift via {@link #of(Object)} when {@code ma} is a {@code
+   *     Left}.
+   * @return {@code ma} if a {@code Right}, otherwise {@code of(value)}. Never null.
+   * @throws NullPointerException if {@code ma} is null.
+   */
   @Override
   public <A> Kind<EitherKind.Witness<L>, A> recover(
       final Kind<EitherKind.Witness<L>, A> ma, @Nullable A value) {
 
     Validation.kind().requireNonNull(ma, RECOVER, "source");
 
-    return handleError(ma, _ -> value);
+    return handleErrorWith(ma, _ -> of(value));
   }
 }

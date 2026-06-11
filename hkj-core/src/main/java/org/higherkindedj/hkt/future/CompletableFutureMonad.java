@@ -164,4 +164,58 @@ public class CompletableFutureMonad extends CompletableFutureApplicative
             });
     return FUTURE.widen(recoveredFuture);
   }
+
+  /**
+   * Recovers from an exceptionally completed {@link CompletableFuture} by replacing it with a
+   * pre-computed {@code fallback}. If {@code ma} completed successfully, it is returned unchanged
+   * and {@code fallback} is ignored.
+   *
+   * <p>This override mirrors {@code EitherMonad}/{@code MaybeMonad}: it rejects a null {@code
+   * fallback} eagerly and consistently, regardless of whether {@code ma} succeeded or failed. The
+   * inherited {@link MonadError} default only reads {@code fallback} on the error path, so a null
+   * would be silently ignored for a completed future and, for a failed one, surface only when the
+   * returned future is composed — a deferred, wrapped failure naming {@code handleErrorWith}. The
+   * eager check matches the argument validation already performed by {@link #handleErrorWith}.
+   *
+   * @param <A> The type of the value.
+   * @param ma The non-null {@code Kind<CompletableFutureKind.Witness, A>} that might have failed.
+   * @param fallback The non-null future to use if {@code ma} failed.
+   * @return The original {@code ma} if it succeeded, otherwise {@code fallback}. Never null.
+   * @throws NullPointerException if {@code ma} or {@code fallback} is null.
+   */
+  @Override
+  public <A> Kind<CompletableFutureKind.Witness, A> recoverWith(
+      final Kind<CompletableFutureKind.Witness, A> ma,
+      final Kind<CompletableFutureKind.Witness, A> fallback) {
+
+    Validation.kind().requireNonNull(ma, RECOVER_WITH, "source");
+    Validation.kind().requireNonNull(fallback, RECOVER_WITH, "fallback");
+
+    return handleErrorWith(ma, _ -> fallback);
+  }
+
+  /**
+   * Recovers from an exceptionally completed {@link CompletableFuture} with a pure fallback {@code
+   * value}, lifted via {@link #of(Object)}. If {@code ma} completed successfully, it is returned
+   * unchanged.
+   *
+   * <p>This override exists for message consistency only: it names {@code recover} (rather than the
+   * delegated {@code handleErrorWith}) when {@code ma} is null. The behaviour is otherwise
+   * identical to the inherited {@link MonadError} default — {@code value} stays {@link Nullable},
+   * since {@code of(null)} yields a future already completed with {@code null}.
+   *
+   * @param <A> The type of the value.
+   * @param ma The non-null {@code Kind<CompletableFutureKind.Witness, A>} that might have failed.
+   * @param value The fallback value to lift via {@link #of(Object)} if {@code ma} failed.
+   * @return The original {@code ma} if it succeeded, otherwise {@code of(value)}. Never null.
+   * @throws NullPointerException if {@code ma} is null.
+   */
+  @Override
+  public <A> Kind<CompletableFutureKind.Witness, A> recover(
+      final Kind<CompletableFutureKind.Witness, A> ma, @Nullable A value) {
+
+    Validation.kind().requireNonNull(ma, RECOVER, "source");
+
+    return handleErrorWith(ma, _ -> of(value));
+  }
 }

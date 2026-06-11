@@ -235,4 +235,57 @@ public class EitherTMonad<F extends WitnessArity<TypeArity.Unary>, L>
             );
     return EITHER_T.widen(EitherT.fromKind(newUnderlyingValue));
   }
+
+  /**
+   * Recovers from a {@code Left} by replacing it with a pre-computed {@code fallback}. If {@code
+   * ma} is a {@code Right}, it is returned unchanged and {@code fallback} is ignored.
+   *
+   * <p>This override mirrors {@code EitherMonad}/{@code MaybeMonad}: it rejects a null {@code
+   * fallback} eagerly and consistently, regardless of whether {@code ma} is a {@code Right} or a
+   * {@code Left}. The inherited {@link MonadError} default only reads {@code fallback} on the error
+   * path, so a null would be silently ignored for a {@code Right} and surface as a misleading
+   * {@code handleErrorWith} failure for a {@code Left}. The eager check matches the argument
+   * validation already performed by {@link #handleErrorWith}.
+   *
+   * @param <R> The type of the {@code Right} value.
+   * @param ma The non-null {@code Kind<EitherTKind.Witness<F, L>, R>} that might be a {@code Left}.
+   * @param fallback The non-null {@code EitherT} to use if {@code ma} is a {@code Left}.
+   * @return The original {@code ma} if a {@code Right}, otherwise {@code fallback}. Never null.
+   * @throws NullPointerException if {@code ma} or {@code fallback} is null.
+   */
+  @Override
+  public <R> Kind<EitherTKind.Witness<F, L>, R> recoverWith(
+      final Kind<EitherTKind.Witness<F, L>, R> ma,
+      final Kind<EitherTKind.Witness<F, L>, R> fallback) {
+
+    Validation.kind().requireNonNull(ma, RECOVER_WITH, "source");
+    Validation.kind().requireNonNull(fallback, RECOVER_WITH, "fallback");
+
+    return handleErrorWith(ma, _ -> fallback);
+  }
+
+  /**
+   * Recovers from a {@code Left} with a pure fallback {@code value}, lifted via {@link
+   * #of(Object)}. If {@code ma} is a {@code Right}, it is returned unchanged.
+   *
+   * <p>This override exists for message consistency only: it names {@code recover} (rather than the
+   * delegated {@code handleErrorWith}) when {@code ma} is null. The behaviour is otherwise
+   * identical to the inherited {@link MonadError} default — {@code value} stays {@link Nullable},
+   * since {@code of(null)} yields {@code Right(null)}.
+   *
+   * @param <R> The type of the {@code Right} value.
+   * @param ma The non-null {@code Kind<EitherTKind.Witness<F, L>, R>} that might be a {@code Left}.
+   * @param value The fallback value to lift via {@link #of(Object)} if {@code ma} is a {@code
+   *     Left}.
+   * @return The original {@code ma} if a {@code Right}, otherwise {@code of(value)}. Never null.
+   * @throws NullPointerException if {@code ma} is null.
+   */
+  @Override
+  public <R> Kind<EitherTKind.Witness<F, L>, R> recover(
+      final Kind<EitherTKind.Witness<F, L>, R> ma, @Nullable R value) {
+
+    Validation.kind().requireNonNull(ma, RECOVER, "source");
+
+    return handleErrorWith(ma, _ -> of(value));
+  }
 }

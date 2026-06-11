@@ -335,6 +335,17 @@ public class ValidatedMonad<E> implements MonadError<ValidatedKind.Witness<E>, E
     return VALIDATED.valid(result);
   }
 
+  /**
+   * Recovers from an {@code Invalid} by substituting the pre-computed {@code fallback}; a {@code
+   * Valid} is returned unchanged. Rejects a null {@code fallback} eagerly, regardless of whether
+   * {@code ma} is {@code Valid} or {@code Invalid}.
+   *
+   * @param <A> the {@code Valid} value type.
+   * @param ma the value that might be {@code Invalid}. Must not be null.
+   * @param fallback the non-null {@code Validated} to use when {@code ma} is {@code Invalid}.
+   * @return {@code ma} if {@code Valid}, otherwise {@code fallback}. Never null.
+   * @throws NullPointerException if {@code ma} or {@code fallback} is null.
+   */
   @Override
   public <A> Kind<ValidatedKind.Witness<E>, A> recoverWith(
       Kind<ValidatedKind.Witness<E>, A> ma, Kind<ValidatedKind.Witness<E>, A> fallback) {
@@ -342,6 +353,11 @@ public class ValidatedMonad<E> implements MonadError<ValidatedKind.Witness<E>, E
     Validation.kind().requireNonNull(ma, RECOVER_WITH, "source");
     Validation.kind().requireNonNull(fallback, RECOVER_WITH, "fallback");
 
-    return handleErrorWith(ma, e -> fallback);
+    return handleErrorWith(ma, _ -> fallback);
   }
+
+  // recover is intentionally NOT overridden. Unlike the other MonadError instances, Validated.of
+  // rejects null (a Valid cannot hold null), so an override could not honour the MonadError.recover
+  // contract's @Nullable value. The inherited default is correct for non-null values; a null source
+  // still fails fast through handleErrorWith. See the MonadError docs for the rationale.
 }

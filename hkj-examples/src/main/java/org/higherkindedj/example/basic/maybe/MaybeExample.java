@@ -72,13 +72,11 @@ public class MaybeExample {
     System.out.println("From 'raiseError': " + MAYBE.narrow(fromRaiseError));
     System.out.println("From 'of(null)': " + MAYBE.narrow(nullInputStringKind));
 
-    Function<Unit, Kind<MaybeKind.Witness, Integer>> recoverWithDefault =
-        unitVal -> maybeMonad.of(-1);
-
-    Kind<MaybeKind.Witness, Integer> recoveredFromAbsent =
-        maybeMonad.handleErrorWith(absentIntKind, recoverWithDefault);
+    // recover substitutes a constant fallback, ignoring the error (Unit). It is the concise
+    // form of handleErrorWith(kind, unit -> maybeMonad.of(-1)).
+    Kind<MaybeKind.Witness, Integer> recoveredFromAbsent = maybeMonad.recover(absentIntKind, -1);
     Kind<MaybeKind.Witness, Integer> notRecoveredFromPresent =
-        maybeMonad.handleErrorWith(presentIntKind, recoverWithDefault);
+        maybeMonad.recover(presentIntKind, -1);
 
     System.out.println("Recovered (from Absent): " + MAYBE.narrow(recoveredFromAbsent));
     System.out.println("Recovered (from Present): " + MAYBE.narrow(notRecoveredFromPresent));

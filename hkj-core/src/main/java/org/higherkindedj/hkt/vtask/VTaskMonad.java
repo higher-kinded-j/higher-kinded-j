@@ -4,6 +4,8 @@ package org.higherkindedj.hkt.vtask;
 
 import static org.higherkindedj.hkt.util.validation.Operation.FLAT_MAP;
 import static org.higherkindedj.hkt.util.validation.Operation.HANDLE_ERROR_WITH;
+import static org.higherkindedj.hkt.util.validation.Operation.RECOVER;
+import static org.higherkindedj.hkt.util.validation.Operation.RECOVER_WITH;
 import static org.higherkindedj.hkt.vtask.VTaskKindHelper.VTASK;
 
 import java.util.function.Function;
@@ -138,5 +140,56 @@ public class VTaskMonad extends VTaskApplicative
               return VTASK.narrow(kindB);
             });
     return VTASK.widen(recovered);
+  }
+
+  /**
+   * Recovers from a failed {@link VTask} by replacing it with a pre-computed {@code fallback}. If
+   * {@code ma} succeeds, it is returned unchanged and {@code fallback} is ignored.
+   *
+   * <p>This override mirrors {@code EitherMonad}/{@code MaybeMonad}: it rejects a null {@code
+   * fallback} eagerly and consistently, regardless of whether {@code ma} succeeds or fails. The
+   * inherited {@link MonadError} default only reads {@code fallback} on the error path, so a null
+   * would be silently ignored for a success and, because {@code VTask} is lazy, only surface as a
+   * deferred, misleading {@code handleErrorWith} failure when the task is run. The eager check
+   * matches the argument validation already performed by {@link #handleErrorWith}.
+   *
+   * @param <A> The type of the value.
+   * @param ma The non-null {@code Kind<VTaskKind.Witness, A>} that might fail.
+   * @param fallback The non-null {@code VTask} to use if {@code ma} fails.
+   * @return The original {@code ma} if it succeeds, otherwise {@code fallback}. Never null.
+   * @throws NullPointerException if {@code ma} or {@code fallback} is null.
+   */
+  @Override
+  public <A> Kind<VTaskKind.Witness, A> recoverWith(
+      final Kind<VTaskKind.Witness, A> ma, final Kind<VTaskKind.Witness, A> fallback) {
+
+    Validation.kind().requireNonNull(ma, RECOVER_WITH, "source");
+    Validation.kind().requireNonNull(fallback, RECOVER_WITH, "fallback");
+
+    return handleErrorWith(ma, _ -> fallback);
+  }
+
+  /**
+   * Recovers from a failed {@link VTask} with a pure fallback {@code value}, lifted via {@link
+   * #of(Object)}. If {@code ma} succeeds, it is returned unchanged.
+   *
+   * <p>This override exists for message consistency only: it names {@code recover} (rather than the
+   * delegated {@code handleErrorWith}) when {@code ma} is null. The behaviour is otherwise
+   * identical to the inherited {@link MonadError} default — {@code value} stays {@link Nullable},
+   * since {@code of(null)} yields a {@code VTask} that succeeds with {@code null}.
+   *
+   * @param <A> The type of the value.
+   * @param ma The non-null {@code Kind<VTaskKind.Witness, A>} that might fail.
+   * @param value The fallback value to lift via {@link #of(Object)} if {@code ma} fails.
+   * @return The original {@code ma} if it succeeds, otherwise {@code of(value)}. Never null.
+   * @throws NullPointerException if {@code ma} is null.
+   */
+  @Override
+  public <A> Kind<VTaskKind.Witness, A> recover(
+      final Kind<VTaskKind.Witness, A> ma, @Nullable A value) {
+
+    Validation.kind().requireNonNull(ma, RECOVER, "source");
+
+    return handleErrorWith(ma, _ -> of(value));
   }
 }

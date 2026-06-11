@@ -248,6 +248,13 @@ void handleErrorWithExample() {
   System.out.println("HandleError (Nothing): " + MAYBE.narrow(handledNothing));
 }
 ```
+
+Because this handler ignores `Unit` and returns a constant, the [`recover`/`recoverWith` shortcuts](../functional/monad_error.md#constant-fallbacks-recover-and-recoverwith) say the same thing without the lambda:
+
+```java
+maybeMonad.recover(MAYBE.nothing(), "Recovered");        // Just("Recovered")
+maybeMonad.recoverWith(MAYBE.nothing(), MAYBE.just("Recovered"));
+```
 ~~~
 
 

@@ -190,6 +190,8 @@ This is where `CompletableFutureMonad` shines. Unlike `exceptionally` which retu
 ```
 
 The handler receives the *cause* of the failure, unwrapped from `CompletionException` when necessary. This lets you pattern-match on specific exception types and choose recovery strategies — retry, fallback, or re-raise — all within the same compositional pipeline.
+
+When you don't need the cause and just want a constant fallback, the [`recover`/`recoverWith` shortcuts](../functional/monad_error.md#constant-fallbacks-recover-and-recoverwith) are more concise — `futureMonad.recover(failedKind, "Default")`. Note `recoverWith` evaluates its fallback eagerly, so keep `handleErrorWith` when the recovery future is expensive and should only start on failure.
 ~~~
 
 ---

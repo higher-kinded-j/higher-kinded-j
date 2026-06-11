@@ -124,13 +124,14 @@ class MaybeTMonadTest
   /**
    * MaybeT over the eager {@code Optional} inner monad <em>propagates</em> a thrown function
    * exception, so the contract includes {@link Category#EXCEPTIONS}. {@link Category#VALIDATIONS}
-   * is omitted because, like {@code Optional}/{@code Try}, {@code MaybeTMonad} inherits the default
-   * {@code recoverWith} (no eager null-fallback check); the error type is {@link Unit}, and the
-   * MonadError-specific behaviour is exercised by {@link MonadErrorOperationTests}.
+   * <em>is</em> run: {@code MaybeTMonad} now overrides {@code recoverWith} to reject a null
+   * fallback eagerly (regardless of {@code ma}'s state), matching {@code Either}/{@code Maybe}. The
+   * error type is {@link Unit}, and the MonadError-specific behaviour, including per-method message
+   * assertions, is exercised by {@link MonadErrorOperationTests}.
    */
   @Test
   @DisplayName(
-      "MonadError contract — operations & exceptions (laws verified in the *LawTests below)")
+      "MonadError contract — operations, validations & exceptions (laws in the *LawTests below)")
   void monadErrorContract() {
     Function<Unit, Kind<MaybeTKind.Witness<OptionalKind.Witness>, Integer>> validHandler =
         _ -> justT(0);
@@ -140,7 +141,7 @@ class MaybeTMonadTest
         .<String>withKind(validKind)
         .withMonadOperations(validMapper, validFlatMapper, validFunctionKind)
         .withErrorHandling(validHandler, validFallback)
-        .verifyOnly(Category.OPERATIONS, Category.EXCEPTIONS);
+        .verifyOnly(Category.OPERATIONS, Category.VALIDATIONS, Category.EXCEPTIONS);
   }
 
   @Nested
@@ -429,6 +430,65 @@ class MaybeTMonadTest
 
       var result = maybeTMonad.handleErrorWith(emptyVal, handler);
       assertThatMaybeT(result, MaybeTMonadTest.this::unwrapOuterOptional).isEmpty();
+    }
+
+    @Test
+    @DisplayName("recoverWith should replace Nothing with the fallback")
+    void recoverWith_shouldReplaceNothingWithFallback() {
+      var result = maybeTMonad.recoverWith(nothingVal, justT(-1));
+      assertThatMaybeT(result, MaybeTMonadTest.this::unwrapOuterOptional)
+          .isPresentJust()
+          .hasJustValue(-1);
+    }
+
+    @Test
+    @DisplayName("recoverWith should ignore Just")
+    void recoverWith_shouldIgnoreJust() {
+      var result = maybeTMonad.recoverWith(justVal, justT(-1));
+      assertThatMaybeT(result, MaybeTMonadTest.this::unwrapOuterOptional).isEqualToMaybeT(justVal);
+    }
+
+    @Test
+    @DisplayName("recover should replace Nothing with the value")
+    void recover_shouldReplaceNothingWithValue() {
+      var result = maybeTMonad.recover(nothingVal, -7);
+      assertThatMaybeT(result, MaybeTMonadTest.this::unwrapOuterOptional)
+          .isPresentJust()
+          .hasJustValue(-7);
+    }
+
+    @Test
+    @DisplayName("recover with a null value yields Nothing (fromNullable semantics)")
+    void recover_withNullValueYieldsNothing() {
+      var result = maybeTMonad.recover(nothingVal, null);
+      assertThatMaybeT(result, MaybeTMonadTest.this::unwrapOuterOptional).isPresentNothing();
+    }
+
+    @Test
+    @DisplayName("recoverWith rejects a null source eagerly")
+    @SuppressWarnings("DataFlowIssue") // null source exercises recoverWith's guard
+    void recoverWith_rejectsNullSource() {
+      assertThatThrownBy(() -> maybeTMonad.recoverWith(null, justT(-1)))
+          .isInstanceOf(NullPointerException.class)
+          .hasMessageContaining("recoverWith (source)");
+    }
+
+    @Test
+    @DisplayName("recoverWith rejects a null fallback eagerly, even against a Just")
+    @SuppressWarnings("DataFlowIssue") // null fallback exercises recoverWith's guard
+    void recoverWith_rejectsNullFallbackAgainstJust() {
+      assertThatThrownBy(() -> maybeTMonad.recoverWith(justVal, null))
+          .isInstanceOf(NullPointerException.class)
+          .hasMessageContaining("recoverWith (fallback)");
+    }
+
+    @Test
+    @DisplayName("recover rejects a null source, naming recover")
+    @SuppressWarnings("DataFlowIssue") // null source exercises recover's guard
+    void recover_rejectsNullSource() {
+      assertThatThrownBy(() -> maybeTMonad.recover(null, 1))
+          .isInstanceOf(NullPointerException.class)
+          .hasMessageContaining("recover (source)");
     }
   }
 

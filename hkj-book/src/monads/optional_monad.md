@@ -171,6 +171,13 @@ Kind<OptionalKind.Witness, String> handledAbsent =
     optionalMonad.handleErrorWith(absent, recover);
 // OPTIONAL.narrow(handledAbsent) => Optional.of("Default Value")
 ```
+
+The recovery here ignores `Unit` and yields a constant, so it is exactly what the [`recover`/`recoverWith` shortcuts](../functional/monad_error.md#constant-fallbacks-recover-and-recoverwith) express:
+
+```java
+optionalMonad.recover(absent, "Default Value");                                    // constant value
+optionalMonad.recoverWith(absent, OPTIONAL.widen(Optional.of("Default Value")));   // constant Kind
+```
 ~~~
 
 ---

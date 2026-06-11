@@ -145,7 +145,10 @@ Kind<OptionalKind.Witness, Order> order =
 
 **Recovery Methods:**
 - `handleError(fa, Function<E,A> handler)` - recover to pure value
-- `recover(fa, A defaultValue)` - provide default value
+- `recover(fa, A defaultValue)` - constant default value (ignores the error)
+- `recoverWith(fa, Kind<F,A> fallback)` - constant fallback computation (ignores the error)
+
+> `recover`/`recoverWith` are shorthands for `handleError`/`handleErrorWith` with an error-ignoring handler. `recoverWith` evaluates its fallback eagerly, so prefer `handleErrorWith` when the fallback is expensive. `recoverWith` rejects a `null` fallback; `recover` rejects a `null` source but accepts a `null` value (lifted via `of`).
 
 **Example:**
 ```java
@@ -155,6 +158,10 @@ Kind<EitherKind.Witness<String>, Double> result =
         divideOperation,
         error -> monadError.of(0.0) // recover with default
     );
+
+// Same result, no throwaway lambda, since the fallback ignores the error:
+Kind<EitherKind.Witness<String>, Double> shorter =
+    monadError.recover(divideOperation, 0.0);
 ```
 
 **Think Of It As:** try-catch for functional programming

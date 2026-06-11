@@ -41,31 +41,27 @@ class VTaskMonadTest {
   private final Kind<VTaskKind.Witness, Integer> validFallback = VTASK.widen(VTask.succeed(-1));
 
   /**
-   * Operation smoke for {@code map}/{@code flatMap}/{@code ap}/{@code handleErrorWith}/{@code
-   * recoverWith} on the MonadError instance. The Monad laws are verified parameterised in {@link
-   * Laws} below, so this contract omits {@link Category#LAWS}.
+   * Operation smoke and null-argument validation for {@code map}/{@code flatMap}/{@code ap}/{@code
+   * handleErrorWith}/{@code recoverWith} on the MonadError instance. The Monad laws are verified
+   * parameterised in {@link Laws} below, so this contract omits {@link Category#LAWS}.
    *
-   * <p>Only {@link Category#OPERATIONS} is run:
+   * <p>{@link Category#EXCEPTIONS} is omitted because the generic contract asserts that {@code
+   * map}/{@code flatMap} <em>propagate</em> a thrown function exception, whereas a VTask is lazy
+   * and surfaces it only when run (exercised in the operation tests below).
    *
-   * <ul>
-   *   <li>{@link Category#EXCEPTIONS} is omitted because the generic contract asserts that {@code
-   *       map}/{@code flatMap} <em>propagate</em> a thrown function exception, whereas a VTask is
-   *       lazy and surfaces it only when run (exercised in the operation tests below).
-   *   <li>{@link Category#VALIDATIONS} is omitted because, like {@code Try}, {@code VTaskMonad}
-   *       inherits the default {@code recoverWith}, which does not eagerly reject a null fallback
-   *       against a success. The standard null-argument validations are kept in {@link
-   *       ValidationTests} below.
-   * </ul>
+   * <p>{@link Category#VALIDATIONS} <em>is</em> run: {@code VTaskMonad} now overrides {@code
+   * recoverWith} to reject a null fallback eagerly (regardless of {@code ma}'s state), matching
+   * {@code Either}/{@code Maybe}. Per-method message assertions live in {@link ValidationTests}.
    */
   @Test
-  @DisplayName("MonadError contract — operations (laws verified in Laws below)")
+  @DisplayName("MonadError contract — operations & validations (laws verified in Laws below)")
   void monadErrorContract() {
     TypeClassContract.<VTaskKind.Witness, Throwable>monadError(VTaskMonad.class)
         .<Integer>instance(monad)
         .<String>withKind(validKind)
         .withMonadOperations(validMapper, validFlatMapper, validFunctionKind)
         .withErrorHandling(validHandler, validFallback)
-        .verifyOnly(Category.OPERATIONS);
+        .verifyOnly(Category.OPERATIONS, Category.VALIDATIONS);
   }
 
   @Nested
@@ -213,6 +209,44 @@ class VTaskMonadTest {
           .withExceptionType(IllegalStateException.class)
           .withMessageContaining("Transformed: Original");
     }
+
+    @Test
+    @DisplayName("recoverWith() replaces a failed VTask with the fallback")
+    void recoverWithReplacesFailureWithFallback() {
+      Kind<VTaskKind.Witness, Integer> ma = VTASK.widen(VTask.fail(new RuntimeException("boom")));
+      Kind<VTaskKind.Witness, Integer> result = monad.recoverWith(ma, validFallback);
+      assertThat(VTASK.narrow(result).run()).isEqualTo(-1);
+    }
+
+    @Test
+    @DisplayName("recoverWith() passes through a successful VTask")
+    void recoverWithPassesThroughSuccess() {
+      Kind<VTaskKind.Witness, Integer> result = monad.recoverWith(validKind, validFallback);
+      assertThat(VTASK.narrow(result).run()).isEqualTo(TEST_VALUE);
+    }
+
+    @Test
+    @DisplayName("recover() replaces a failed VTask with the value")
+    void recoverReplacesFailureWithValue() {
+      Kind<VTaskKind.Witness, Integer> ma = VTASK.widen(VTask.fail(new RuntimeException("boom")));
+      Kind<VTaskKind.Witness, Integer> result = monad.recover(ma, 7);
+      assertThat(VTASK.narrow(result).run()).isEqualTo(7);
+    }
+
+    @Test
+    @DisplayName("recover() passes through a successful VTask")
+    void recoverPassesThroughSuccess() {
+      Kind<VTaskKind.Witness, Integer> result = monad.recover(validKind, 7);
+      assertThat(VTASK.narrow(result).run()).isEqualTo(TEST_VALUE);
+    }
+
+    @Test
+    @DisplayName("recover() with a null value yields a VTask succeeding with null")
+    void recoverWithNullValueYieldsSuccessOfNull() {
+      Kind<VTaskKind.Witness, Integer> ma = VTASK.widen(VTask.fail(new RuntimeException("boom")));
+      Kind<VTaskKind.Witness, Integer> result = monad.recover(ma, null);
+      assertThat(VTASK.narrow(result).run()).isNull();
+    }
   }
 
   @Nested
@@ -254,6 +288,40 @@ class VTaskMonadTest {
 
       assertThatThrownBy(() -> monad.handleErrorWith(ma, null))
           .isInstanceOf(NullPointerException.class);
+    }
+
+    @Test
+    @DisplayName("recoverWith() validates a null source eagerly")
+    void recoverWithValidatesNullSource() {
+      assertThatThrownBy(() -> monad.recoverWith(null, validFallback))
+          .isInstanceOf(NullPointerException.class)
+          .hasMessageContaining("recoverWith (source)");
+    }
+
+    @Test
+    @DisplayName("recoverWith() validates a null fallback eagerly, even against a success")
+    void recoverWithValidatesNullFallbackAgainstSuccess() {
+      assertThatThrownBy(() -> monad.recoverWith(validKind, null))
+          .isInstanceOf(NullPointerException.class)
+          .hasMessageContaining("recoverWith (fallback)");
+    }
+
+    @Test
+    @DisplayName("recoverWith() validates a null fallback eagerly against a failure too")
+    void recoverWithValidatesNullFallbackAgainstFailure() {
+      Kind<VTaskKind.Witness, Integer> failed =
+          VTASK.widen(VTask.fail(new RuntimeException("boom")));
+      assertThatThrownBy(() -> monad.recoverWith(failed, null))
+          .isInstanceOf(NullPointerException.class)
+          .hasMessageContaining("recoverWith (fallback)");
+    }
+
+    @Test
+    @DisplayName("recover() validates a null source, naming recover")
+    void recoverValidatesNullSource() {
+      assertThatThrownBy(() -> monad.recover(null, TEST_VALUE))
+          .isInstanceOf(NullPointerException.class)
+          .hasMessageContaining("recover (source)");
     }
   }
 

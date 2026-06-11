@@ -154,13 +154,12 @@ public class OptionalExample {
     System.out.println("FlatMapped (Empty): " + OPTIONAL.narrow(flatMappedEmpty));
     System.out.println("FlatMapped (Zero): " + OPTIONAL.narrow(flatMappedZero));
 
-    Function<Unit, Kind<OptionalKind.Witness, Integer>> recoverWithDefault =
-        unitVal -> optionalMonad.of(-1); // OPTIONAL.widen(Optional.of(-1)) would also work
-
+    // recover substitutes a constant fallback, ignoring the error (Unit). It is the concise
+    // form of handleErrorWith(kind, unit -> optionalMonad.of(-1)).
     Kind<OptionalKind.Witness, Integer> recoveredFromEmpty =
-        optionalMonad.handleErrorWith(emptyIntKind, recoverWithDefault);
+        optionalMonad.recover(emptyIntKind, -1);
     Kind<OptionalKind.Witness, Integer> notRecoveredFromPresent =
-        optionalMonad.handleErrorWith(presentIntKind, recoverWithDefault);
+        optionalMonad.recover(presentIntKind, -1);
 
     System.out.println("Recovered (from Empty): " + OPTIONAL.narrow(recoveredFromEmpty));
     System.out.println("Recovered (from Present): " + OPTIONAL.narrow(notRecoveredFromPresent));

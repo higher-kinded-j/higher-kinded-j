@@ -238,6 +238,57 @@ public class OptionalMonad extends OptionalFunctor
   }
 
   /**
+   * Recovers from an empty {@code OptionalKind} by replacing it with a pre-computed {@code
+   * fallback}. If {@code ma} is present, it is returned unchanged and {@code fallback} is ignored.
+   *
+   * <p>This override mirrors {@code EitherMonad} and {@code MaybeMonad}: it rejects a null {@code
+   * fallback} eagerly and consistently, regardless of whether {@code ma} is present or empty. The
+   * inherited {@link MonadError} default only reads {@code fallback} on the empty path, so a null
+   * would be silently ignored for a present value and surface as a misleading {@code
+   * handleErrorWith} failure for an empty one.
+   *
+   * @param <A> The type of the value.
+   * @param ma The non-null {@code Kind<OptionalKind.Witness, A>} that might be empty.
+   * @param fallback The non-null {@code OptionalKind} to use if {@code ma} is empty.
+   * @return The original {@code ma} if present, otherwise {@code fallback}. Never null.
+   * @throws NullPointerException if {@code ma} or {@code fallback} is null.
+   */
+  @Override
+  public <A> Kind<OptionalKind.Witness, A> recoverWith(
+      final Kind<OptionalKind.Witness, A> ma, final Kind<OptionalKind.Witness, A> fallback) {
+
+    Validation.kind().requireNonNull(ma, RECOVER_WITH, "source");
+    Validation.kind().requireNonNull(fallback, RECOVER_WITH, "fallback");
+
+    return handleErrorWith(ma, _ -> fallback);
+  }
+
+  /**
+   * Recovers from an empty {@code OptionalKind} with a pure fallback {@code value}, lifted via
+   * {@link #of(Object)}. If {@code ma} is present, it is returned unchanged.
+   *
+   * <p>This override exists for message consistency only: it names {@code recover} (rather than the
+   * delegated {@code handleErrorWith}) when {@code ma} is null. The behaviour is otherwise
+   * identical to the inherited {@link MonadError} default — {@code value} stays {@link Nullable},
+   * since {@code of(null)} (and hence {@code recover(empty, null)}) yields an empty {@code
+   * OptionalKind}.
+   *
+   * @param <A> The type of the value.
+   * @param ma The non-null {@code Kind<OptionalKind.Witness, A>} that might be empty.
+   * @param value The fallback value to lift via {@link #of(Object)} if {@code ma} is empty.
+   * @return The original {@code ma} if present, otherwise {@code of(value)}. Never null.
+   * @throws NullPointerException if {@code ma} is null.
+   */
+  @Override
+  public <A> Kind<OptionalKind.Witness, A> recover(
+      final Kind<OptionalKind.Witness, A> ma, @Nullable A value) {
+
+    Validation.kind().requireNonNull(ma, RECOVER, "source");
+
+    return handleErrorWith(ma, _ -> of(value));
+  }
+
+  /**
    * Returns the "zero" or "empty" value for this Monad, which is {@code Optional.empty()}.
    *
    * @param <T> The type parameter of the Kind.

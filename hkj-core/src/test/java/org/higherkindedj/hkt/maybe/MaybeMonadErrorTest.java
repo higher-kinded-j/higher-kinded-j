@@ -122,6 +122,15 @@ class MaybeMonadErrorTest extends MaybeTestBase {
     }
 
     @Test
+    @DisplayName("recover() rejects a null source, naming recover")
+    @SuppressWarnings("DataFlowIssue") // null source exercises recover's guard
+    void recoverRejectsNullSource() {
+      assertThatThrownBy(() -> monadError.recover(null, 1))
+          .isInstanceOf(NullPointerException.class)
+          .hasMessageContaining("recover (source)");
+    }
+
+    @Test
     @DisplayName("handleError() transforms error to value")
     void handleErrorTransformsErrorToValue() {
       Function<Unit, Integer> errorHandler = _ -> 999;
