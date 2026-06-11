@@ -77,6 +77,8 @@ chaos: decisions that don't so much get made as reluctantly emerge.
 
 ## The Railway Model
 
+<img src="../images/railway_junction.jpg" alt="A railway junction in Newcastle showing different paths" style="width: 100%;" />
+
 Functional programmers solved this problem decades ago with a simple model:
 the **railway**.
 

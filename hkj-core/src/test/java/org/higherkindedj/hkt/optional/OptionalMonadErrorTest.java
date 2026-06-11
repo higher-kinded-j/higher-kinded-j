@@ -41,24 +41,25 @@ class OptionalMonadErrorTest extends OptionalTestBase {
   }
 
   /**
-   * Operations and exception propagation on the MonadError instance. The Monad/MonadError laws are
-   * verified parameterised in {@link OptionalMonadTest}, so this contract omits {@link
-   * Category#LAWS}.
+   * Operations, null-argument validation and exception propagation on the MonadError instance. The
+   * Monad/MonadError laws are verified parameterised in {@link OptionalMonadTest}, so this contract
+   * omits {@link Category#LAWS}.
    *
-   * <p>{@link Category#VALIDATIONS} is omitted because, unlike {@code Either}/{@code Maybe}, {@code
-   * OptionalMonad} inherits the default {@code recoverWith}, which does not eagerly reject a null
-   * fallback against a present value. The MonadError-specific null-argument validation is covered
-   * by {@link OperationTests#handleErrorWithRejectsNullArguments} below.
+   * <p>{@link Category#VALIDATIONS} <em>is</em> run: {@code OptionalMonad} now overrides {@code
+   * recoverWith} to reject a null fallback eagerly (regardless of whether {@code ma} is present or
+   * empty), matching {@code Either}/{@code Maybe}. Per-method message assertions live in the
+   * operation tests below.
    */
   @Test
-  @DisplayName("MonadError contract — operations & exceptions (laws in OptionalMonadTest)")
+  @DisplayName(
+      "MonadError contract — operations, validations & exceptions (laws in OptionalMonadTest)")
   void monadErrorContract() {
     TypeClassContract.<OptionalKind.Witness, Unit>monadError(OptionalMonad.class)
         .<Integer>instance(monadError)
         .<String>withKind(validKind)
         .withMonadOperations(validMapper, validFlatMapper, validFunctionKind)
         .withErrorHandling(validHandler, validFallback)
-        .verifyOnly(Category.OPERATIONS, Category.EXCEPTIONS);
+        .verifyOnly(Category.OPERATIONS, Category.VALIDATIONS, Category.EXCEPTIONS);
   }
 
   @Nested
@@ -153,6 +154,38 @@ class OptionalMonadErrorTest extends OptionalTestBase {
           _ -> Instances.monadError(optional()).of(0);
       return Stream.of(
           Arguments.of("Kind", null, okHandler), Arguments.of("handler", okKind, null));
+    }
+
+    @ParameterizedTest(name = "recoverWith rejects null {0} argument")
+    @MethodSource("recoverWithNullArguments")
+    @DisplayName("recoverWith() rejects null arguments eagerly, regardless of source state")
+    void recoverWithRejectsNullArguments(
+        String expectedMessagePart,
+        Kind<OptionalKind.Witness, Integer> ma,
+        Kind<OptionalKind.Witness, Integer> fallback) {
+      assertThatThrownBy(() -> monadError.recoverWith(ma, fallback))
+          .isInstanceOf(NullPointerException.class)
+          .hasMessageContaining(expectedMessagePart);
+    }
+
+    static Stream<Arguments> recoverWithNullArguments() {
+      Kind<OptionalKind.Witness, Integer> present = Instances.monadError(optional()).of(42);
+      Kind<OptionalKind.Witness, Integer> empty = Instances.monadZero(optional()).zero();
+      Kind<OptionalKind.Witness, Integer> okFallback = Instances.monadError(optional()).of(-999);
+      return Stream.of(
+          Arguments.of("recoverWith (source)", null, okFallback),
+          // A null fallback must be rejected for a present value too — not just on the empty path.
+          Arguments.of("recoverWith (fallback)", present, null),
+          Arguments.of("recoverWith (fallback)", empty, null));
+    }
+
+    @Test
+    @DisplayName("recover() rejects a null source, naming recover")
+    @SuppressWarnings("DataFlowIssue") // null source exercises recover's guard
+    void recoverRejectsNullSource() {
+      assertThatThrownBy(() -> monadError.recover(null, 1))
+          .isInstanceOf(NullPointerException.class)
+          .hasMessageContaining("recover (source)");
     }
   }
 

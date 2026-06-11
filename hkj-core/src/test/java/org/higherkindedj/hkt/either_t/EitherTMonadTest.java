@@ -137,13 +137,14 @@ class EitherTMonadTest
   /**
    * EitherT over the eager {@code Optional} inner monad <em>propagates</em> a thrown function
    * exception, so the contract includes {@link Category#EXCEPTIONS}. {@link Category#VALIDATIONS}
-   * is omitted because, like {@code Either}/{@code Try}, {@code EitherTMonad} inherits the default
-   * {@code recoverWith} (no eager null-fallback check); the {@link TestError} Left type and the
-   * MonadError-specific behaviour are exercised by {@link MonadErrorOperationTests}.
+   * <em>is</em> run: {@code EitherTMonad} now overrides {@code recoverWith} to reject a null
+   * fallback eagerly (regardless of {@code ma}'s state), matching {@code Either}/{@code Maybe}. The
+   * {@link TestError} Left type and the MonadError-specific behaviour, including per-method message
+   * assertions, are exercised by {@link MonadErrorOperationTests}.
    */
   @Test
   @DisplayName(
-      "MonadError contract — operations & exceptions (laws verified in the *LawTests below)")
+      "MonadError contract — operations, validations & exceptions (laws in the *LawTests below)")
   void monadErrorContract() {
     Function<TestError, Kind<EitherTKind.Witness<OptionalKind.Witness, TestError>, Integer>>
         validHandler = _ -> rightT(0);
@@ -154,7 +155,7 @@ class EitherTMonadTest
         .<String>withKind(validKind)
         .withMonadOperations(validMapper, validFlatMapper, validFunctionKind)
         .withErrorHandling(validHandler, validFallback)
-        .verifyOnly(Category.OPERATIONS, Category.EXCEPTIONS);
+        .verifyOnly(Category.OPERATIONS, Category.VALIDATIONS, Category.EXCEPTIONS);
   }
 
   @Nested
@@ -459,6 +460,66 @@ class EitherTMonadTest
 
       var result = eitherTMonad.handleErrorWith(emptyVal, handler);
       assertThatEitherT(result, EitherTMonadTest.this::unwrapOuterOptional).isEmpty();
+    }
+
+    @Test
+    @DisplayName("recoverWith should replace Left with the fallback")
+    void recoverWith_shouldReplaceLeftWithFallback() {
+      var result = eitherTMonad.recoverWith(leftVal, rightT(-1));
+      assertThatEitherT(result, EitherTMonadTest.this::unwrapOuterOptional)
+          .isPresentRight()
+          .hasRightValue(-1);
+    }
+
+    @Test
+    @DisplayName("recoverWith should ignore Right")
+    void recoverWith_shouldIgnoreRight() {
+      var result = eitherTMonad.recoverWith(rightVal, rightT(-1));
+      assertThatEitherT(result, EitherTMonadTest.this::unwrapOuterOptional)
+          .isEqualToEitherT(rightVal);
+    }
+
+    @Test
+    @DisplayName("recover should replace Left with the value")
+    void recover_shouldReplaceLeftWithValue() {
+      var result = eitherTMonad.recover(leftVal, -7);
+      assertThatEitherT(result, EitherTMonadTest.this::unwrapOuterOptional)
+          .isPresentRight()
+          .hasRightValue(-7);
+    }
+
+    @Test
+    @DisplayName("recover with a null value yields Right(null)")
+    void recover_withNullValueYieldsRightOfNull() {
+      var result = eitherTMonad.recover(leftVal, null);
+      assertThatEitherT(result, EitherTMonadTest.this::unwrapOuterOptional).isPresentRight();
+    }
+
+    @Test
+    @DisplayName("recoverWith rejects a null source eagerly")
+    @SuppressWarnings("DataFlowIssue") // null source exercises recoverWith's guard
+    void recoverWith_rejectsNullSource() {
+      assertThatThrownBy(() -> eitherTMonad.recoverWith(null, rightT(-1)))
+          .isInstanceOf(NullPointerException.class)
+          .hasMessageContaining("recoverWith (source)");
+    }
+
+    @Test
+    @DisplayName("recoverWith rejects a null fallback eagerly, even against a Right")
+    @SuppressWarnings("DataFlowIssue") // null fallback exercises recoverWith's guard
+    void recoverWith_rejectsNullFallbackAgainstRight() {
+      assertThatThrownBy(() -> eitherTMonad.recoverWith(rightVal, null))
+          .isInstanceOf(NullPointerException.class)
+          .hasMessageContaining("recoverWith (fallback)");
+    }
+
+    @Test
+    @DisplayName("recover rejects a null source, naming recover")
+    @SuppressWarnings("DataFlowIssue") // null source exercises recover's guard
+    void recover_rejectsNullSource() {
+      assertThatThrownBy(() -> eitherTMonad.recover(null, 1))
+          .isInstanceOf(NullPointerException.class)
+          .hasMessageContaining("recover (source)");
     }
   }
 

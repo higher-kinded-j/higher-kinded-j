@@ -193,7 +193,7 @@ public final class MonadErrorContract {
       if (selected.contains(Category.VALIDATIONS)) {
         checks.add(
             new Check(
-                "null-argument validations (map, ap, flatMap, handleErrorWith, recoverWith)",
+                "null-argument validations (map, ap, flatMap, handleErrorWith, recoverWith, recover)",
                 Category.VALIDATIONS,
                 () -> {
                   ContractValidations.rejectsNull(() -> monadError.map(null, kind));
@@ -206,6 +206,10 @@ public final class MonadErrorContract {
                   ContractValidations.rejectsNull(() -> monadError.handleErrorWith(kind, null));
                   ContractValidations.rejectsNull(() -> monadError.recoverWith(null, fallback));
                   ContractValidations.rejectsNull(() -> monadError.recoverWith(kind, null));
+                  // recover's value is @Nullable (a null value is valid), so only the null
+                  // source is rejected. This also covers instances that inherit the default
+                  // recover (e.g. ValidatedMonad), which fails fast via handleErrorWith.
+                  ContractValidations.rejectsNull(() -> monadError.recover(null, null));
                 }));
       }
 

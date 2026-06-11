@@ -144,6 +144,17 @@ public class MaybeMonad extends MaybeFunctor
     return ma;
   }
 
+  /**
+   * Recovers from {@code Nothing} by substituting the pre-computed {@code fallback}; a {@code Just}
+   * is returned unchanged. Rejects a null {@code fallback} eagerly, regardless of whether {@code
+   * ma} is a {@code Just} or {@code Nothing}.
+   *
+   * @param <A> the value type.
+   * @param ma the value that might be {@code Nothing}. Must not be null.
+   * @param fallback the non-null {@code Maybe} to use when {@code ma} is {@code Nothing}.
+   * @return {@code ma} if a {@code Just}, otherwise {@code fallback}. Never null.
+   * @throws NullPointerException if {@code ma} or {@code fallback} is null.
+   */
   @Override
   public <A> Kind<MaybeKind.Witness, A> recoverWith(
       final Kind<MaybeKind.Witness, A> ma, final Kind<MaybeKind.Witness, A> fallback) {
@@ -151,7 +162,33 @@ public class MaybeMonad extends MaybeFunctor
     Validation.kind().requireNonNull(ma, RECOVER_WITH, "source");
     Validation.kind().requireNonNull(fallback, RECOVER_WITH, "fallback");
 
-    return handleErrorWith(ma, error -> fallback);
+    return handleErrorWith(ma, _ -> fallback);
+  }
+
+  /**
+   * Recovers from {@code Nothing} with a pure fallback {@code value}, lifted via {@link
+   * #of(Object)}. If {@code ma} is {@code Just}, it is returned unchanged.
+   *
+   * <p>This override exists for message consistency only: it names {@code recover} (rather than the
+   * delegated {@code handleErrorWith}) when {@code ma} is null. The behaviour is otherwise
+   * identical to the inherited {@link MonadError} default — {@code value} stays {@link Nullable},
+   * since {@code Maybe.fromNullable(null)} (and hence {@code recover(nothing, null)}) yields {@code
+   * Nothing}.
+   *
+   * @param <A> The type of the value.
+   * @param ma The non-null {@code Kind<MaybeKind.Witness, A>} that might be {@code Nothing}.
+   * @param value The fallback value to lift via {@link #of(Object)} if {@code ma} is {@code
+   *     Nothing}.
+   * @return The original {@code ma} if {@code Just}, otherwise {@code of(value)}. Never null.
+   * @throws NullPointerException if {@code ma} is null.
+   */
+  @Override
+  public <A> Kind<MaybeKind.Witness, A> recover(
+      final Kind<MaybeKind.Witness, A> ma, @Nullable A value) {
+
+    Validation.kind().requireNonNull(ma, RECOVER, "source");
+
+    return handleErrorWith(ma, _ -> of(value));
   }
 
   /**

@@ -243,6 +243,8 @@ Kind<VTaskKind.Witness, String> recovered = monad.handleErrorWith(
 
 String result = VTASK.narrow(recovered).run(); // "Default value"
 ```
+
+This handler ignores the error and returns a constant, so the type-class [`recover`/`recoverWith` shortcuts](../functional/monad_error.md#constant-fallbacks-recover-and-recoverwith) express it directly — `monad.recover(taskKind, "Default value")`. These are the generic, instance-level forms; they are distinct from the fluent `VTask.recover(fn)` / `VTask.recoverWith(fn)` methods shown earlier, which take a function of the error.
 ~~~
 
 ---

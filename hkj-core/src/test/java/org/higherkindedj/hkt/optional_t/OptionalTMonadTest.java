@@ -2,6 +2,7 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.hkt.optional_t;
 
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.higherkindedj.hkt.assertions.OptionalTAssert.assertThatOptionalT;
 import static org.higherkindedj.hkt.instances.Witnesses.*;
 import static org.higherkindedj.hkt.optional.OptionalKindHelper.OPTIONAL;
@@ -77,13 +78,14 @@ class OptionalTMonadTest {
   /**
    * OptionalT over the eager {@code Optional} inner monad <em>propagates</em> a thrown function
    * exception, so the contract includes {@link Category#EXCEPTIONS}. {@link Category#VALIDATIONS}
-   * is omitted because, like {@code Optional}/{@code Try}, {@code OptionalTMonad} inherits the
-   * default {@code recoverWith} (no eager null-fallback check); the error type is {@link Unit}, and
-   * the MonadError-specific behaviour is exercised by {@link MonadErrorTests}.
+   * <em>is</em> run: {@code OptionalTMonad} now overrides {@code recoverWith} to reject a null
+   * fallback eagerly (regardless of {@code ma}'s state), matching {@code Either}/{@code Maybe}. The
+   * error type is {@link Unit}, and the MonadError-specific behaviour, including per-method message
+   * assertions, is exercised by {@link MonadErrorTests}.
    */
   @Test
   @DisplayName(
-      "MonadError contract — operations & exceptions (laws verified in the *LawTests below)")
+      "MonadError contract — operations, validations & exceptions (laws in the *LawTests below)")
   void monadErrorContract() {
     Kind<OptionalTKind.Witness<OptionalKind.Witness>, Integer> validKind = someT(10);
     Function<Integer, String> validMapper = Object::toString;
@@ -100,7 +102,7 @@ class OptionalTMonadTest {
         .<String>withKind(validKind)
         .withMonadOperations(validMapper, validFlatMapper, validFunctionKind)
         .withErrorHandling(validHandler, validFallback)
-        .verifyOnly(Category.OPERATIONS, Category.EXCEPTIONS);
+        .verifyOnly(Category.OPERATIONS, Category.VALIDATIONS, Category.EXCEPTIONS);
   }
 
   @Nested
@@ -340,6 +342,69 @@ class OptionalTMonadTest {
       Kind<OptionalTKind.Witness<OptionalKind.Witness>, Integer> notRecovered =
           optionalTMonad.handleErrorWith(mValue, handler);
       assertOptionalTEquals(notRecovered, mValue);
+    }
+
+    @Test
+    @DisplayName("recoverWith should replace inner None with the fallback")
+    void recoverWith_replacesNoneWithFallback() {
+      Kind<OptionalTKind.Witness<OptionalKind.Witness>, Integer> result =
+          optionalTMonad.recoverWith(mNone, someT(-1));
+      assertThatOptionalT(result, OptionalTMonadTest.this::unwrapOuterOptional)
+          .isPresentSome()
+          .hasSomeValue(-1);
+    }
+
+    @Test
+    @DisplayName("recoverWith should ignore a present value (Some)")
+    void recoverWith_ignoresSome() {
+      Kind<OptionalTKind.Witness<OptionalKind.Witness>, Integer> result =
+          optionalTMonad.recoverWith(mValue, someT(-1));
+      assertOptionalTEquals(result, mValue);
+    }
+
+    @Test
+    @DisplayName("recover should replace inner None with the value")
+    void recover_replacesNoneWithValue() {
+      Kind<OptionalTKind.Witness<OptionalKind.Witness>, Integer> result =
+          optionalTMonad.recover(mNone, -7);
+      assertThatOptionalT(result, OptionalTMonadTest.this::unwrapOuterOptional)
+          .isPresentSome()
+          .hasSomeValue(-7);
+    }
+
+    @Test
+    @DisplayName("recover with a null value yields inner None (ofNullable semantics)")
+    void recover_withNullValueYieldsNone() {
+      Kind<OptionalTKind.Witness<OptionalKind.Witness>, Integer> result =
+          optionalTMonad.recover(mNone, null);
+      assertThatOptionalT(result, OptionalTMonadTest.this::unwrapOuterOptional).isPresentNone();
+    }
+
+    @Test
+    @DisplayName("recoverWith rejects a null source eagerly")
+    @SuppressWarnings("DataFlowIssue") // null source exercises recoverWith's guard
+    void recoverWith_rejectsNullSource() {
+      assertThatThrownBy(() -> optionalTMonad.recoverWith(null, someT(-1)))
+          .isInstanceOf(NullPointerException.class)
+          .hasMessageContaining("recoverWith (source)");
+    }
+
+    @Test
+    @DisplayName("recoverWith rejects a null fallback eagerly, even against a Some")
+    @SuppressWarnings("DataFlowIssue") // null fallback exercises recoverWith's guard
+    void recoverWith_rejectsNullFallbackAgainstSome() {
+      assertThatThrownBy(() -> optionalTMonad.recoverWith(mValue, null))
+          .isInstanceOf(NullPointerException.class)
+          .hasMessageContaining("recoverWith (fallback)");
+    }
+
+    @Test
+    @DisplayName("recover rejects a null source, naming recover")
+    @SuppressWarnings("DataFlowIssue") // null source exercises recover's guard
+    void recover_rejectsNullSource() {
+      assertThatThrownBy(() -> optionalTMonad.recover(null, 1))
+          .isInstanceOf(NullPointerException.class)
+          .hasMessageContaining("recover (source)");
     }
   }
 

@@ -21,6 +21,14 @@ This page documents the evolution of Higher-Kinded-J from its initial release th
 - `Writer.of(W log, @Nullable A value)`: New static factory returning `Writer<W, A>` with the given log and value. The argument order `(log, value)` mirrors the record components, the `log()` / `value()` accessors, and the `Writer<W, A>` type parameters, so it is a direct drop-in for the constructor. The effect-layer `WriterPath.writer(value, log, monoid)` deliberately keeps its existing value-first order — the one place in the Path API that pairs a separate log and value — and the divergence is documented on `Writer.of` itself ([#554](https://github.com/higher-kinded-j/higher-kinded-j/issues/554)).
 - Purely additive and non-breaking. The internal `WriterTestBase.writerOf` helper now delegates to `Writer.of`, which allows removing its `@SuppressWarnings("NullableProblems")` annotation.
 
+**Consistent `recoverWith` / `recover` null-handling across `MonadError`**
+
+`TryMonad`, `OptionalMonad`, and the `VTask` / `CompletableFuture` / `EitherT` / `MaybeT` / `OptionalT` instances inherited the `MonadError` default `recoverWith`, which never null-checks its `fallback`. A null `fallback` was therefore silently ignored when the source was a success, but surfaced as a misleading `Failure(NullPointerException: "...handler in handleErrorWith returned null...")` on the error path — a state-dependent outcome that named the wrong method, and one deferred to execution and wrapped for the async types. `EitherMonad` and `ValidatedMonad` already guarded the fallback; this release brings the rest of the family in line ([#553](https://github.com/higher-kinded-j/higher-kinded-j/issues/553)).
+
+- `recoverWith(ma, fallback)` now rejects a null `ma`/`fallback` eagerly and identically on every instance, regardless of the source's state, with a message naming the actual method (`"Kind for recoverWith (fallback) cannot be null"`).
+- `recover(ma, value)` rejects a null source but keeps `@Nullable value` (routed through `of`), so `recover(failure, null)` remains a valid `Success(null)` / `Nothing` / empty per type. `ValidatedMonad` intentionally keeps only `recoverWith`: its `of` rejects null, so a `recover` override could not honour the `@Nullable value` contract.
+- Purely additive and behaviour-preserving except on null input. The constant-fallback `recover` / `recoverWith` shortcuts are now documented on the MonadError and per-type monad pages.
+
 ---
 
 ### v0.4.6 (7 June 2026)

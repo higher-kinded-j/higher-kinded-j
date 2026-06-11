@@ -198,6 +198,30 @@ Kind<EitherKind.Witness<String>, Config> config =
 
 For longer fallback chains, [Effect Path's `recoverWith`](../effect/path_either.md) reads more naturally; the same logic, less ceremony.
 
+### Constant fallbacks: `recover` and `recoverWith`
+
+When a fallback **ignores the error** and simply substitutes a constant, two shortcuts say so directly — no throwaway `e -> …` lambda:
+
+| Long form | Shortcut |
+|-----------|----------|
+| `me.handleErrorWith(ma, e -> me.of(value))` | `me.recover(ma, value)` |
+| `me.handleErrorWith(ma, e -> fallback)` | `me.recoverWith(ma, fallback)` |
+
+In the chained example above, only the innermost layer is a constant — so just that layer collapses:
+
+```java
+// defaults is a plain value → recover; env is a computation we only want on failure → keep handleErrorWith
+Kind<EitherKind.Witness<String>, Config> config =
+    me.recover(
+        me.handleErrorWith(loadConfigFromFile(), e -> loadConfigFromEnv()),
+        Config.defaults());
+```
+
+Two things to know:
+
+- **`recoverWith` takes a value, not a lambda, so its fallback is evaluated eagerly** — even when `ma` succeeds. Reach for it only when the fallback is already built or cheap; if producing it is expensive or effectful-on-demand (like `loadConfigFromEnv()` above), keep `handleErrorWith` so it runs only on the failure path.
+- **The two methods guard different arguments.** `recoverWith` rejects a `null` *fallback* (and a `null` source) eagerly on every `MonadError` instance — a mistyped fallback fails fast at the call site instead of surfacing later from inside `handleErrorWith`. `recover` rejects a `null` *source*, but its *value* is `@Nullable` **by design**: a null value is lifted through `of`, so `recover(failure, null)` is a valid result (`Success(null)`, `Nothing`, or empty, depending on the type), not an error. (One wrinkle: `Validated` overrides `recoverWith` but not `recover`, because `Validated.of` rejects null; a null source to `Validated.recover` still fails fast, just with a message naming the underlying `handleErrorWith`.)
+
 ---
 
 ## Back to the One-Liner

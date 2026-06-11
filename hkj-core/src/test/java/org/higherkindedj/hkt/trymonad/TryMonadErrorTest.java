@@ -40,33 +40,29 @@ class TryMonadErrorTest extends TryTestBase {
   }
 
   /**
-   * Operation smoke for {@code map}/{@code flatMap}/{@code ap}/{@code handleErrorWith}/{@code
-   * recoverWith} on the MonadError instance. The Monad/MonadError laws are verified parameterised
-   * in {@link TryMonadTest}, so this contract omits {@link Category#LAWS}.
+   * Operation smoke and null-argument validation for {@code map}/{@code flatMap}/{@code ap}/{@code
+   * handleErrorWith}/{@code recoverWith} on the MonadError instance. The Monad/MonadError laws are
+   * verified parameterised in {@link TryMonadTest}, so this contract omits {@link Category#LAWS}.
    *
-   * <p>Only {@link Category#OPERATIONS} is run:
+   * <p>{@link Category#EXCEPTIONS} is omitted because the generic contract asserts that {@code
+   * map}/{@code flatMap} <em>propagate</em> a thrown function exception, whereas {@code Try}
+   * captures it as a {@link Try.Failure} (exercised in the operation tests below and in {@link
+   * TryMonadTest}).
    *
-   * <ul>
-   *   <li>{@link Category#EXCEPTIONS} is omitted because the generic contract asserts that {@code
-   *       map}/{@code flatMap} <em>propagate</em> a thrown function exception, whereas {@code Try}
-   *       captures it as a {@link Try.Failure} (exercised in the operation tests below and in
-   *       {@link TryMonadTest}).
-   *   <li>{@link Category#VALIDATIONS} is omitted because, unlike {@code Either}/{@code Maybe},
-   *       {@code TryMonad} inherits the default {@code recoverWith}, which does not eagerly reject
-   *       a null fallback against a {@code Success}. The MonadError-specific null-argument
-   *       validation is covered by {@link OperationTests#handleErrorWithRejectsNullArguments}
-   *       below.
-   * </ul>
+   * <p>{@link Category#VALIDATIONS} <em>is</em> run: {@code TryMonad} now overrides {@code
+   * recoverWith} to reject a null fallback eagerly (regardless of {@code ma}'s state), matching
+   * {@code Either}/{@code Maybe}. Per-method message assertions live in the operation tests below.
    */
   @Test
-  @DisplayName("MonadError contract — operations (laws in TryMonadTest; see Javadoc for omissions)")
+  @DisplayName(
+      "MonadError contract — operations & validations (laws in TryMonadTest; exceptions omitted)")
   void monadErrorContract() {
     TypeClassContract.<TryKind.Witness, Throwable>monadError(TryMonad.class)
         .<String>instance(monadError)
         .<Integer>withKind(validKind)
         .withMonadOperations(validMapper, validFlatMapper, validFunctionKind)
         .withErrorHandling(validHandler, validFallback)
-        .verifyOnly(Category.OPERATIONS);
+        .verifyOnly(Category.OPERATIONS, Category.VALIDATIONS);
   }
 
   @Nested
@@ -168,6 +164,77 @@ class TryMonadErrorTest extends TryTestBase {
           _ -> TRY.widen(Try.success("recovered"));
       return Stream.of(
           Arguments.of("Kind", null, okHandler), Arguments.of("handler for", okKind, null));
+    }
+
+    @Test
+    @DisplayName("recoverWith() passes through Success")
+    void recoverWithPassesThroughSuccess() {
+      var result = monadError.recoverWith(validKind, validFallback);
+      assertThatTry(result).isSuccess().hasValue(DEFAULT_SUCCESS_VALUE);
+    }
+
+    @Test
+    @DisplayName("recoverWith() uses fallback on Failure")
+    void recoverWithUsesFallbackOnFailure() {
+      Kind<TryKind.Witness, String> failure = failureKind(DEFAULT_TEST_EXCEPTION);
+      var result = monadError.recoverWith(failure, validFallback);
+      assertThatTry(result).isSuccess().hasValue("fallback");
+    }
+
+    @Test
+    @DisplayName("recover() passes through Success")
+    void recoverPassesThroughSuccess() {
+      var result = monadError.recover(validKind, "ignored");
+      assertThatTry(result).isSuccess().hasValue(DEFAULT_SUCCESS_VALUE);
+    }
+
+    @Test
+    @DisplayName("recover() uses value on Failure")
+    void recoverUsesValueOnFailure() {
+      Kind<TryKind.Witness, String> failure = failureKind(DEFAULT_TEST_EXCEPTION);
+      var result = monadError.recover(failure, "recovered");
+      assertThatTry(result).isSuccess().hasValue("recovered");
+    }
+
+    @Test
+    @DisplayName("recover() with a null value yields Success(null)")
+    @SuppressWarnings("DataFlowIssue") // Success(null) is the intended outcome; assert it is null
+    void recoverWithNullValueYieldsSuccessOfNull() {
+      Kind<TryKind.Witness, String> failure = failureKind(DEFAULT_TEST_EXCEPTION);
+      var result = monadError.recover(failure, null);
+      assertThatTry(result).isSuccess().hasValueSatisfying(v -> assertThat(v).isNull());
+    }
+
+    @ParameterizedTest(name = "recoverWith rejects null {0} argument")
+    @MethodSource("recoverWithNullArguments")
+    @DisplayName("recoverWith() rejects null arguments eagerly, regardless of source state")
+    void recoverWithRejectsNullArguments(
+        String expectedMessagePart,
+        Kind<TryKind.Witness, String> ma,
+        Kind<TryKind.Witness, String> fallback) {
+      assertThatNullPointerException()
+          .isThrownBy(() -> monadError.recoverWith(ma, fallback))
+          .withMessageContaining(expectedMessagePart);
+    }
+
+    static Stream<Arguments> recoverWithNullArguments() {
+      Kind<TryKind.Witness, String> success = TRY.widen(Try.success("ok"));
+      Kind<TryKind.Witness, String> failure = TRY.widen(Try.failure(new RuntimeException("boom")));
+      Kind<TryKind.Witness, String> okFallback = TRY.widen(Try.success("fallback"));
+      return Stream.of(
+          Arguments.of("recoverWith (source)", null, okFallback),
+          // A null fallback must be rejected for a Success too — not just on the error path.
+          Arguments.of("recoverWith (fallback)", success, null),
+          Arguments.of("recoverWith (fallback)", failure, null));
+    }
+
+    @Test
+    @DisplayName("recover() rejects a null source, naming recover")
+    @SuppressWarnings("DataFlowIssue") // null source exercises recover's guard
+    void recoverRejectsNullSource() {
+      assertThatNullPointerException()
+          .isThrownBy(() -> monadError.recover(null, "value"))
+          .withMessageContaining("recover (source)");
     }
   }
 
