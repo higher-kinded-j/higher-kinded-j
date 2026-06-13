@@ -32,7 +32,7 @@ import org.jspecify.annotations.NullMarked;
  * @param <A> The result type of the operation
  */
 @NullMarked
-public sealed interface OpticOp<S, A> {
+public sealed interface OpticOp<S, A> extends OpticOpKind<A> {
 
   /**
    * Get operation - reads a single value through a Getter or Lens.

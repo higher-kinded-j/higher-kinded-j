@@ -531,12 +531,12 @@ class FreeApTest {
     @Test
     @DisplayName("narrow throws for invalid kind type")
     void narrowThrowsForInvalidKindType() {
-      // Create a mock Kind that is not a FreeApHolder
+      // Create a mock Kind that is a FreeApKind but not a concrete FreeAp
       Kind<FreeApKind.Witness<MaybeKind.Witness>, Integer> invalidKind = new FreeApKind<>() {};
 
       assertThatThrownBy(() -> FREE_AP.narrow(invalidKind))
           .isInstanceOf(KindUnwrapException.class)
-          .hasMessageContaining("expected FreeApHolder");
+          .hasMessageContaining("cannot be narrowed to FreeAp");
     }
 
     @Test

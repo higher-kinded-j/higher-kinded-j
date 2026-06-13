@@ -5,7 +5,7 @@ package org.higherkindedj.hkt.free_ap;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.TypeArity;
 import org.higherkindedj.hkt.WitnessArity;
-import org.higherkindedj.hkt.exception.KindUnwrapException;
+import org.higherkindedj.hkt.util.validation.Validation;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -43,13 +43,11 @@ public enum FreeApKindHelper {
    * @param <F> The instruction set type
    * @param <A> The result type
    */
-  record FreeApHolder<F extends WitnessArity<TypeArity.Unary>, A>(FreeAp<F, A> freeAp)
-      implements FreeApKind<F, A> {}
-
   /**
    * Widens a concrete FreeAp type to its Kind representation.
    *
-   * <p>This allows FreeAp to be used with type classes that operate on Kind types.
+   * <p>Since {@code FreeAp} extends {@code FreeApKind}, this is a cast-free upcast: the validated
+   * {@code freeAp} is already a {@code Kind<FreeApKind.Witness<F>, A>}, with no wrapper object.
    *
    * @param freeAp The FreeAp instance to widen. Must not be null.
    * @param <F> The instruction set type
@@ -59,10 +57,8 @@ public enum FreeApKindHelper {
    */
   public <F extends WitnessArity<TypeArity.Unary>, A> Kind<FreeApKind.Witness<F>, A> widen(
       FreeAp<F, A> freeAp) {
-    if (freeAp == null) {
-      throw new NullPointerException("FreeAp to widen cannot be null");
-    }
-    return new FreeApHolder<>(freeAp);
+    Validation.kind().requireForWiden(freeAp, FreeAp.class);
+    return freeAp;
   }
 
   /**
@@ -74,19 +70,13 @@ public enum FreeApKindHelper {
    * @param <F> The instruction set type
    * @param <A> The result type
    * @return The concrete FreeAp instance
-   * @throws KindUnwrapException if kind is null or not a valid FreeApKind representation
+   * @throws org.higherkindedj.hkt.exception.KindUnwrapException if {@code kind} is {@code null} or
+   *     not an instance of {@code FreeAp}.
    */
-  @SuppressWarnings("unchecked")
+  @SuppressWarnings("unchecked") // raw Class token; runtime-checked via Class.isInstance
   public <F extends WitnessArity<TypeArity.Unary>, A> FreeAp<F, A> narrow(
       @Nullable Kind<FreeApKind.Witness<F>, A> kind) {
-    if (kind == null) {
-      throw new KindUnwrapException("Cannot narrow null Kind to FreeAp");
-    }
-    if (kind instanceof FreeApHolder<?, ?> holder) {
-      return (FreeAp<F, A>) holder.freeAp();
-    }
-    throw new KindUnwrapException(
-        "Cannot narrow Kind to FreeAp: expected FreeApHolder but got " + kind.getClass());
+    return Validation.kind().narrowWithTypeCheck(kind, FreeAp.class);
   }
 
   /**

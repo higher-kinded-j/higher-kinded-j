@@ -32,7 +32,7 @@ import org.jspecify.annotations.NullMarked;
  * @see org.higherkindedj.hkt.free.Free.HandleError
  */
 @NullMarked
-public sealed interface ErrorOp<E, A> permits ErrorOp.Raise {
+public sealed interface ErrorOp<E, A> extends ErrorOpKind<E, A> permits ErrorOp.Raise {
 
   /**
    * Raises an error of type E. This operation never produces a value of type A; it always

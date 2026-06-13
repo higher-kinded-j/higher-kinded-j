@@ -102,7 +102,7 @@ import org.higherkindedj.hkt.util.validation.Validation;
  * @see org.higherkindedj.hkt.Applicative
  * @see org.higherkindedj.hkt.free.Free
  */
-public sealed interface FreeAp<F extends WitnessArity<TypeArity.Unary>, A>
+public sealed interface FreeAp<F extends WitnessArity<TypeArity.Unary>, A> extends FreeApKind<F, A>
     permits FreeAp.Pure, FreeAp.Lift, FreeAp.Ap {
 
   /**

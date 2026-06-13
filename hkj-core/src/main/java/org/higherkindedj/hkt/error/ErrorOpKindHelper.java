@@ -2,8 +2,6 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.hkt.error;
 
-import static org.higherkindedj.hkt.util.validation.Operation.FROM_KIND;
-
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.util.validation.Validation;
 import org.jspecify.annotations.NullMarked;
@@ -20,10 +18,11 @@ public enum ErrorOpKindHelper {
   /** Singleton instance. */
   ERROR_OP;
 
-  record ErrorOpHolder<E, A>(ErrorOp<E, A> op) implements ErrorOpKind<E, A> {}
-
   /**
    * Widens a concrete {@code ErrorOp<E, A>} into its Kind representation.
+   *
+   * <p>Since {@code ErrorOp} extends {@code ErrorOpKind}, this is a cast-free upcast: the validated
+   * {@code op} is already a {@code Kind<ErrorOpKind.Witness<E>, A>}, with no wrapper object.
    *
    * @param op The concrete ErrorOp instance. Must not be null.
    * @param <E> The error type
@@ -32,7 +31,7 @@ public enum ErrorOpKindHelper {
    */
   public <E, A> Kind<ErrorOpKind.Witness<E>, A> widen(ErrorOp<E, A> op) {
     Validation.kind().requireForWiden(op, ErrorOp.class);
-    return new ErrorOpHolder<>(op);
+    return op;
   }
 
   /**
@@ -43,9 +42,8 @@ public enum ErrorOpKindHelper {
    * @param <A> The result type
    * @return The concrete ErrorOp
    */
-  @SuppressWarnings("unchecked")
+  @SuppressWarnings("unchecked") // raw Class token; runtime-checked via Class.isInstance
   public <E, A> ErrorOp<E, A> narrow(Kind<ErrorOpKind.Witness<E>, A> kind) {
-    Validation.kind().requireNonNull(kind, FROM_KIND);
-    return ((ErrorOpHolder<E, A>) kind).op();
+    return Validation.kind().narrowWithTypeCheck(kind, ErrorOp.class);
   }
 }
