@@ -34,6 +34,7 @@ import org.higherkindedj.optics.indexed.IndexedTraversal;
  * @see At
  * @see Ixed
  */
+@FunctionalInterface
 public interface EachIndexed<I, S, A> extends Each<S, A> {
 
   /**

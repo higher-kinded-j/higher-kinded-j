@@ -303,10 +303,12 @@ public final class EachInstances {
    * @return An {@code Each} instance for string characters
    */
   public static EachIndexed<Integer, String, Character> stringCharsEach() {
-    return new StringCharsEach();
+    return StringCharsEach.INSTANCE;
   }
 
   private static final class StringCharsEach implements EachIndexed<Integer, String, Character> {
+    private static final StringCharsEach INSTANCE = new StringCharsEach();
+
     @Override
     public Traversal<String, Character> each() {
       return new StringCharsTraversal();

@@ -145,13 +145,19 @@ public interface Each<S, A> {
   }
 
   /**
-   * Checks if this {@code Each} instance supports indexed traversal — i.e. whether it is an {@link
-   * EachIndexed}.
+   * Checks if this {@code Each} instance supports indexed traversal.
    *
-   * @return {@code true} if this is an {@link EachIndexed}; {@code false} otherwise
+   * <p>True for any {@link EachIndexed}. For backwards compatibility it also falls back to the
+   * deprecated {@link #eachWithIndex()} — so a legacy {@code Each} that signalled indexed support
+   * by overriding {@code eachWithIndex()} still reports {@code true} until that method is removed
+   * in 0.5.0, at which point the fallback can be dropped.
+   *
+   * @return {@code true} if this is an {@link EachIndexed}, or if its (deprecated) {@code
+   *     eachWithIndex()} returns a value; {@code false} otherwise
    */
+  @SuppressWarnings({"deprecation", "removal"}) // back-compat fallback until eachWithIndex removal
   default boolean supportsIndexed() {
-    return this instanceof EachIndexed<?, ?, ?>;
+    return this instanceof EachIndexed<?, ?, ?> || eachWithIndex().isPresent();
   }
 
   /**

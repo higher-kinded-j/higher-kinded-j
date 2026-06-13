@@ -894,12 +894,13 @@ class EachInstancesTest {
     }
 
     @Test
-    @DisplayName("stringCharsEach() should return new instances")
-    void stringCharsEachReturnsNewInstances() {
+    @DisplayName("stringCharsEach() returns the same cached instance")
+    void stringCharsEachReturnsCachedInstance() {
       Each<String, Character> first = EachInstances.stringCharsEach();
       Each<String, Character> second = EachInstances.stringCharsEach();
 
-      assertThat(first).isNotSameAs(second);
+      // StringCharsEach is stateless and non-generic, so it is cached as a singleton.
+      assertThat(first).isSameAs(second);
     }
   }
 
@@ -1366,6 +1367,30 @@ class EachInstancesTest {
           IndexedTraversals.imodify(
               indexed.orElseThrow(), (i, s) -> i + ":" + s, List.of("a", "b"));
       assertThat(modified).containsExactly("0:a", "1:b");
+    }
+
+    @Test
+    @DisplayName("supportsIndexed() honours a legacy Each that overrides eachWithIndex()")
+    void legacyEachSupportsIndexed() {
+      // A pre-EachIndexed instance signals indexed support the old way: by overriding the
+      // deprecated eachWithIndex(). supportsIndexed() must still report true for it until the
+      // method is removed in 0.5.0.
+      Each<List<String>, String> legacyEach =
+          new Each<>() {
+            @Override
+            public Traversal<List<String>, String> each() {
+              return Traversals.forList();
+            }
+
+            @Override
+            @SuppressWarnings({"unchecked", "deprecation", "removal"}) // legacy override
+            public <I> Optional<IndexedTraversal<I, List<String>, String>> eachWithIndex() {
+              IndexedTraversal<Integer, List<String>, String> indexed = IndexedTraversals.forList();
+              return Optional.of((IndexedTraversal<I, List<String>, String>) indexed);
+            }
+          };
+
+      assertThat(legacyEach.supportsIndexed()).isTrue();
     }
   }
 }
