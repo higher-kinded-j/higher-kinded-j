@@ -30,7 +30,7 @@ class ConstKindHelperTest {
       Kind2<ConstKind2.Witness, String, Integer> kind = CONST.widen2(const_);
 
       assertThat(kind).isNotNull();
-      assertThat(kind).isInstanceOf(ConstKindHelper.ConstKind2Holder.class);
+      assertThat(kind).isInstanceOf(Const.class);
     }
 
     @Test
@@ -96,7 +96,7 @@ class ConstKindHelperTest {
     @Test
     @DisplayName("narrow2() throws KindUnwrapException for wrong Kind2 type")
     void narrow2ThrowsWhenWrongKindType() {
-      // Create a Kind2 that is NOT a ConstKind2Holder
+      // Create a Kind2 that is NOT a Const
       Kind2<ConstKind2.Witness, String, Integer> wrongKind = new Kind2<>() {};
 
       assertThatThrownBy(() -> CONST.narrow2(wrongKind))
@@ -117,42 +117,6 @@ class ConstKindHelperTest {
   }
 
   @Nested
-  @DisplayName("ConstKind2Holder - Internal Implementation")
-  class ConstKind2HolderTests {
-
-    @Test
-    @DisplayName("ConstKind2Holder stores const correctly")
-    void holderStoresConst() {
-      Const<String, Integer> const_ = new Const<>("hello");
-
-      ConstKindHelper.ConstKind2Holder<String, Integer> holder =
-          new ConstKindHelper.ConstKind2Holder<>(const_);
-
-      assertThat(holder.const_()).isEqualTo(const_);
-    }
-
-    @Test
-    @DisplayName("ConstKind2Holder validates non-null const")
-    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
-    void holderValidatesNonNull() {
-      assertThatNullPointerException()
-          .isThrownBy(() -> new ConstKindHelper.ConstKind2Holder<String, Integer>(null))
-          .withMessageContaining("Const")
-          .withMessageContaining("widen");
-    }
-
-    @Test
-    @DisplayName("ConstKind2Holder implements ConstKind2 interface")
-    void holderImplementsInterface() {
-      Const<String, Integer> const_ = new Const<>("hello");
-      ConstKindHelper.ConstKind2Holder<String, Integer> holder =
-          new ConstKindHelper.ConstKind2Holder<>(const_);
-
-      assertThat(holder).isInstanceOf(ConstKind2.class);
-    }
-  }
-
-  @Nested
   @DisplayName("widen() - Convert Const to Kind (Partially-Applied)")
   class WidenTests {
 
@@ -164,7 +128,7 @@ class ConstKindHelperTest {
       Kind<ConstKind.Witness<Integer>, String> kind = CONST.widen(const_);
 
       assertThat(kind).isNotNull();
-      assertThat(kind).isInstanceOf(ConstKindHelper.ConstKindHolder.class);
+      assertThat(kind).isInstanceOf(Const.class);
     }
 
     @Test
@@ -230,7 +194,7 @@ class ConstKindHelperTest {
     @Test
     @DisplayName("narrow() throws KindUnwrapException for wrong Kind type")
     void narrowThrowsWhenWrongKindType() {
-      // Create a Kind that is NOT a ConstKindHolder
+      // Create a Kind that is NOT a Const
       Kind<ConstKind.Witness<Integer>, String> wrongKind = new Kind<>() {};
 
       assertThatThrownBy(() -> CONST.narrow(wrongKind))
@@ -247,42 +211,6 @@ class ConstKindHelperTest {
       Const<Integer, String> result = CONST.narrow(CONST.widen(original));
 
       assertThat(result).isEqualTo(original);
-    }
-  }
-
-  @Nested
-  @DisplayName("ConstKindHolder - Internal Implementation")
-  class ConstKindHolderTests {
-
-    @Test
-    @DisplayName("ConstKindHolder stores const correctly")
-    void holderStoresConst() {
-      Const<Integer, String> const_ = new Const<>(42);
-
-      ConstKindHelper.ConstKindHolder<Integer, String> holder =
-          new ConstKindHelper.ConstKindHolder<>(const_);
-
-      assertThat(holder.const_()).isEqualTo(const_);
-    }
-
-    @Test
-    @DisplayName("ConstKindHolder validates non-null const")
-    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
-    void holderValidatesNonNull() {
-      assertThatNullPointerException()
-          .isThrownBy(() -> new ConstKindHelper.ConstKindHolder<Integer, String>(null))
-          .withMessageContaining("Const")
-          .withMessageContaining("widen");
-    }
-
-    @Test
-    @DisplayName("ConstKindHolder implements ConstKind interface")
-    void holderImplementsInterface() {
-      Const<Integer, String> const_ = new Const<>(42);
-      ConstKindHelper.ConstKindHolder<Integer, String> holder =
-          new ConstKindHelper.ConstKindHolder<>(const_);
-
-      assertThat(holder).isInstanceOf(ConstKind.class);
     }
   }
 
@@ -369,17 +297,19 @@ class ConstKindHelperTest {
     }
 
     @Test
-    @DisplayName("widen() and widen2() create different wrapper types")
+    @DisplayName("widen() and widen2() return the Const itself as both Kind and Kind2")
     void widenAndWiden2CreateDifferentWrappers() {
       Const<Integer, String> const_ = new Const<>(42);
 
       Kind<ConstKind.Witness<Integer>, String> kind = CONST.widen(const_);
       Kind2<ConstKind2.Witness, Integer, String> kind2 = CONST.widen2(const_);
 
-      assertThat(kind).isInstanceOf(ConstKindHelper.ConstKindHolder.class);
-      assertThat(kind2).isInstanceOf(ConstKindHelper.ConstKind2Holder.class);
-      assertThat(kind).isNotInstanceOf(ConstKindHelper.ConstKind2Holder.class);
-      assertThat(kind2).isNotInstanceOf(ConstKindHelper.ConstKindHolder.class);
+      // Both widening forms are cast-free upcasts of the same Const instance, which implements
+      // ConstKind and ConstKind2 directly (no wrapper objects).
+      assertThat(kind).isSameAs(const_);
+      assertThat(kind2).isSameAs(const_);
+      assertThat(kind).isInstanceOf(ConstKind.class).isInstanceOf(ConstKind2.class);
+      assertThat(kind2).isInstanceOf(ConstKind.class).isInstanceOf(ConstKind2.class);
     }
 
     @Test

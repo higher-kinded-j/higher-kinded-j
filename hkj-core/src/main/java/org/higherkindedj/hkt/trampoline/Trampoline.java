@@ -88,9 +88,14 @@ import org.higherkindedj.hkt.util.validation.Validation;
  * <p>The {@link #run()} method uses an iterative algorithm with an explicit continuation stack to
  * evaluate the trampoline in constant stack space, regardless of recursion depth.
  *
+ * <p>As part of the HKT simulation, {@code Trampoline} extends {@link TrampolineKind}, so every
+ * {@code Trampoline} is already a {@code Kind<TrampolineKind.Witness, A>}. Widening via {@link
+ * TrampolineKindHelper} is therefore a cast-free, allocation-free upcast (no wrapper object).
+ *
  * @param <A> The type of the value produced when the computation completes.
  */
-public sealed interface Trampoline<A> permits Trampoline.Done, Trampoline.More, Trampoline.FlatMap {
+public sealed interface Trampoline<A> extends TrampolineKind<A>
+    permits Trampoline.Done, Trampoline.More, Trampoline.FlatMap {
 
   Class<Trampoline> TRAMPOLINE_CLASS = Trampoline.class;
 

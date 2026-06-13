@@ -30,7 +30,7 @@ class TrampolineKindHelperTest extends TrampolineTestBase {
       Kind<TrampolineKind.Witness, Integer> kind = TRAMPOLINE.widen(trampoline);
 
       assertThat(kind).isNotNull();
-      assertThat(kind).isInstanceOf(TrampolineKindHelper.TrampolineHolder.class);
+      assertThat(kind).isInstanceOf(Trampoline.class);
     }
 
     @Test
@@ -166,17 +166,17 @@ class TrampolineKindHelperTest extends TrampolineTestBase {
   }
 
   @Nested
-  @DisplayName("TrampolineHolder Tests")
-  class TrampolineHolderTests {
+  @DisplayName("Widened Trampoline as Kind Tests")
+  class WidenedTrampolineTests {
 
     @Test
-    @DisplayName("TrampolineHolder wraps trampoline correctly")
+    @DisplayName("widen returns the Trampoline itself as a Kind")
     void trampolineHolderWrapsCorrectly() {
       Trampoline<Integer> trampoline = Trampoline.done(42);
       Kind<TrampolineKind.Witness, Integer> kind = TRAMPOLINE.widen(trampoline);
 
-      // Verify it's a holder
-      assertThat(kind).isInstanceOf(TrampolineKindHelper.TrampolineHolder.class);
+      // Verify the widened Kind is the Trampoline itself
+      assertThat(kind).isInstanceOf(Trampoline.class);
 
       // Verify we can extract the original
       Trampoline<Integer> extracted = TRAMPOLINE.narrow(kind);
@@ -184,7 +184,7 @@ class TrampolineKindHelperTest extends TrampolineTestBase {
     }
 
     @Test
-    @DisplayName("TrampolineHolder implements TrampolineKind")
+    @DisplayName("widened Trampoline implements TrampolineKind")
     void trampolineHolderImplementsKind() {
       Trampoline<Integer> trampoline = Trampoline.done(42);
       Kind<TrampolineKind.Witness, Integer> kind = TRAMPOLINE.widen(trampoline);
@@ -193,7 +193,7 @@ class TrampolineKindHelperTest extends TrampolineTestBase {
     }
 
     @Test
-    @DisplayName("TrampolineHolder with different trampoline types")
+    @DisplayName("widen/narrow round-trips for different trampoline types")
     void trampolineHolderWithDifferentTypes() {
       // Test with Done
       Trampoline<Integer> done = Trampoline.done(1);

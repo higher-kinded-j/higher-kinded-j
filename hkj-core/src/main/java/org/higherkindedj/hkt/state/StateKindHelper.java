@@ -23,39 +23,24 @@ public enum StateKindHelper implements StateConverterOps {
   private static final Class<State> STATE_CLASS = State.class;
 
   /**
-   * An internal record that implements {@link StateKind}{@code <S, A>} to hold the concrete {@link
-   * State}{@code <S, A>} instance. Changed to package-private for potential test access.
-   *
-   * @param <S> The type of the state.
-   * @param <A> The type of the computed value.
-   * @param stateInstance The non-null, actual {@link State}{@code <S, A>} instance being wrapped.
-   */
-  record StateHolder<S, A>(State<S, A> stateInstance) implements StateKind<S, A> {
-    /**
-     * Constructs a {@code StateHolder}.
-     *
-     * @param stateInstance The {@link State} to hold. Must not be null.
-     * @throws NullPointerException if the provided {@code stateInstance} is null.
-     */
-    StateHolder {
-      Validation.kind().requireForWiden(stateInstance, STATE_CLASS);
-    }
-  }
-
-  /**
    * Widens a concrete {@link State}{@code <S, A>} instance into its higher-kinded representation,
    * {@link Kind<StateKind.Witness<S>, A>}. Implements {@link StateConverterOps#widen}.
+   *
+   * <p>Since {@code State} extends {@code StateKind}, this is a cast-free upcast: the validated
+   * {@code state} (a plain lambda or method reference) is already a {@code
+   * Kind<StateKind.Witness<S>, A>}, so no wrapper object is allocated.
    *
    * @param <S> The type of the state.
    * @param <A> The type of the computed value.
    * @param state The non-null, concrete {@link State}{@code <S, A>} instance to widen.
-   * @return A non-null {@link Kind<StateKind.Witness<S>, A>} representing the wrapped {@code State}
+   * @return A non-null {@link Kind<StateKind.Witness<S>, A>} representing the {@code State}
    *     computation.
    * @throws NullPointerException if {@code state} is {@code null}.
    */
   @Override
   public <S, A> Kind<StateKind.Witness<S>, A> widen(State<S, A> state) {
-    return new StateHolder<>(state);
+    Validation.kind().requireForWiden(state, STATE_CLASS);
+    return state;
   }
 
   /**
@@ -63,22 +48,17 @@ public enum StateKindHelper implements StateConverterOps {
    * StateKind}&lt;S, A&gt;) back to its concrete {@link State}{@code <S, A>} type. Implements
    * {@link StateConverterOps#narrow}.
    *
-   * <p>This implementation uses a holder-based approach with modern switch expressions for
-   * consistent pattern matching.
-   *
    * @param <S> The type of the state. This is often inferred.
    * @param <A> The type of the computed value associated with the {@code Kind}.
    * @param kind The {@code Kind<StateKind.Witness<S>, A>} instance to narrow. May be {@code null}.
    * @return The underlying, non-null {@link State}{@code <S, A>} instance.
    * @throws org.higherkindedj.hkt.exception.KindUnwrapException if the input {@code kind} is {@code
-   *     null}, or not an instance of {@link StateHolder}. The {@code StateHolder} guarantees its
-   *     internal {@code stateInstance} is non-null.
+   *     null}, or not an instance of {@code State}.
    */
   @Override
-  @SuppressWarnings({"unchecked", "rawtypes"}) // raw holder Class token; runtime-checked
+  @SuppressWarnings("unchecked") // raw Class token; runtime-checked via Class.isInstance
   public <S, A> State<S, A> narrow(@Nullable Kind<StateKind.Witness<S>, A> kind) {
-    return Validation.kind()
-        .narrowHolder(kind, STATE_CLASS, StateHolder.class, StateHolder::stateInstance);
+    return Validation.kind().narrowWithTypeCheck(kind, STATE_CLASS);
   }
 
   /**

@@ -21,22 +21,13 @@ public enum TrampolineKindHelper implements TrampolineConverterOps {
   private static final Class<Trampoline> TRAMPOLINE_CLASS = Trampoline.class;
 
   /**
-   * Internal record implementing {@link TrampolineKind} to hold the concrete {@link Trampoline}
-   * instance.
-   *
-   * @param <A> The type of the value potentially produced by the {@code trampoline}.
-   * @param trampoline The {@link Trampoline} instance being wrapped.
-   */
-  record TrampolineHolder<A>(Trampoline<A> trampoline) implements TrampolineKind<A> {
-    TrampolineHolder {
-      Validation.kind().requireForWiden(trampoline, TRAMPOLINE_CLASS);
-    }
-  }
-
-  /**
    * Widens a concrete {@link Trampoline}&lt;A&gt; instance into its HKT representation, {@link
    * Kind}&lt;{@link TrampolineKind.Witness}, A&gt;. Implements {@link
    * TrampolineConverterOps#widen}.
+   *
+   * <p>Since {@code Trampoline} extends {@code TrampolineKind}, this is a cast-free upcast: the
+   * validated {@code trampoline} is already a {@code Kind<TrampolineKind.Witness, A>}, so no
+   * wrapper object is allocated.
    *
    * @param <A> The element type of the {@code Trampoline}.
    * @param trampoline The concrete {@link Trampoline}&lt;A&gt; instance to widen. Must be non-null.
@@ -46,28 +37,24 @@ public enum TrampolineKindHelper implements TrampolineConverterOps {
    */
   @Override
   public <A> Kind<TrampolineKind.Witness, A> widen(Trampoline<A> trampoline) {
-    return new TrampolineHolder<>(trampoline);
+    Validation.kind().requireForWiden(trampoline, TRAMPOLINE_CLASS);
+    return trampoline;
   }
 
   /**
    * Narrows a {@link Kind}&lt;{@link TrampolineKind.Witness}, A&gt; back to its concrete {@link
    * Trampoline}&lt;A&gt; representation. Implements {@link TrampolineConverterOps#narrow}.
    *
-   * <p>This implementation uses a holder-based approach with modern switch expressions for
-   * consistent pattern matching.
-   *
    * @param <A> The element type of the {@code Trampoline}.
    * @param kind The {@code Kind} instance to narrow. May be {@code null}.
    * @return The underlying, non-null {@link Trampoline}&lt;A&gt; instance.
-   * @throws org.higherkindedj.hkt.exception.KindUnwrapException if {@code kind} is {@code null}, if
-   *     {@code kind} is not an instance of {@link TrampolineHolder}, or if the {@code
-   *     TrampolineHolder} internally contains a {@code null} {@link Trampoline} instance.
+   * @throws org.higherkindedj.hkt.exception.KindUnwrapException if {@code kind} is {@code null}, or
+   *     not an instance of {@code Trampoline}.
    */
   @Override
-  @SuppressWarnings({"unchecked", "rawtypes"}) // raw holder Class token; runtime-checked
+  @SuppressWarnings("unchecked") // raw Class token; runtime-checked via Class.isInstance
   public <A> Trampoline<A> narrow(@Nullable Kind<TrampolineKind.Witness, A> kind) {
-    return Validation.kind()
-        .narrowHolder(kind, TRAMPOLINE_CLASS, TrampolineHolder.class, TrampolineHolder::trampoline);
+    return Validation.kind().narrowWithTypeCheck(kind, TRAMPOLINE_CLASS);
   }
 
   /**

@@ -2,8 +2,6 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.hkt.state_op;
 
-import static org.higherkindedj.hkt.util.validation.Operation.FROM_KIND;
-
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.util.validation.Validation;
 import org.jspecify.annotations.NullMarked;
@@ -20,10 +18,12 @@ public enum StateOpKindHelper {
   /** Singleton instance. */
   STATE_OP;
 
-  record StateOpHolder<S, A>(StateOp<S, A> op) implements StateOpKind<S, A> {}
-
   /**
    * Widens a concrete {@code StateOp<S, A>} into its Kind representation.
+   *
+   * <p>Since {@code StateOp} extends {@code StateOpKind}, this is a cast-free upcast: the validated
+   * {@code op} is already a {@code Kind<StateOpKind.Witness<S>, A>}, so no wrapper object is
+   * allocated.
    *
    * @param op The concrete StateOp instance. Must not be null.
    * @param <S> The state type
@@ -32,7 +32,7 @@ public enum StateOpKindHelper {
    */
   public <S, A> Kind<StateOpKind.Witness<S>, A> widen(StateOp<S, A> op) {
     Validation.kind().requireForWiden(op, StateOp.class);
-    return new StateOpHolder<>(op);
+    return op;
   }
 
   /**
@@ -43,9 +43,8 @@ public enum StateOpKindHelper {
    * @param <A> The result type
    * @return The concrete StateOp
    */
-  @SuppressWarnings("unchecked")
+  @SuppressWarnings("unchecked") // raw Class token; runtime-checked via Class.isInstance
   public <S, A> StateOp<S, A> narrow(Kind<StateOpKind.Witness<S>, A> kind) {
-    Validation.kind().requireNonNull(kind, FROM_KIND);
-    return ((StateOpHolder<S, A>) kind).op();
+    return Validation.kind().narrowWithTypeCheck(kind, StateOp.class);
   }
 }

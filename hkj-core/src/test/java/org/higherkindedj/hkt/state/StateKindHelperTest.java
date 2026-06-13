@@ -30,10 +30,10 @@ class StateKindHelperTest extends StateTestBase<Integer> {
   @DisplayName("STATE.widen()")
   class WidenTests {
     @Test
-    @DisplayName("widen should return holder for State")
+    @DisplayName("widen should return the State itself as a Kind")
     void widenShouldReturnHolderForState() {
       Kind<StateKind.Witness<Integer>, String> kind = STATE.widen(baseState);
-      assertThat(kind).isInstanceOf(StateKindHelper.StateHolder.class);
+      assertThat(kind).isInstanceOf(State.class);
       // Unwrap to verify
       assertThat(STATE.narrow(kind)).isSameAs(baseState);
     }

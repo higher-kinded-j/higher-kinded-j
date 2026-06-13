@@ -481,7 +481,7 @@ class WriterKindHelperTest extends WriterTestBase {
     @Test
     @DisplayName("Runner methods validate invalid Kind types")
     void runnerMethodsValidateInvalidKindTypes() {
-      // Create an invalid Kind that isn't a WriterHolder
+      // Create an invalid Kind that isn't a Writer
       Kind<WriterKind.Witness<String>, Integer> invalidKind =
           new Kind<>() {
             @Override
@@ -556,7 +556,7 @@ class WriterKindHelperTest extends WriterTestBase {
     @Test
     @DisplayName("narrow2() throws KindUnwrapException for wrong Kind2 type")
     void narrow2ThrowsWhenWrongKind2Type() {
-      // Create a Kind2 that is NOT a WriterKind2Holder
+      // Create a Kind2 that is NOT a Writer
       Kind2<WriterKind2.Witness, String, Integer> wrongKind = new Kind2<>() {};
 
       assertThatThrownBy(() -> WRITER.narrow2(wrongKind))

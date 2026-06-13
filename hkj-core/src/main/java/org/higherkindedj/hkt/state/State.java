@@ -15,11 +15,17 @@ import org.jspecify.annotations.Nullable;
  * Represents a stateful computation {@code S -> (A, S)}. It wraps a function that takes an initial
  * state and returns a pair containing the computed value and the final state.
  *
+ * <p>As part of the HKT simulation, {@code State} extends {@link StateKind}, so every {@code State}
+ * (including a plain lambda) is already a {@code Kind<StateKind.Witness<S>, A>}. Widening via
+ * {@link StateKindHelper} is therefore a cast-free, allocation-free upcast. {@code State} remains a
+ * {@code @FunctionalInterface}: {@code StateKind} and its {@code Kind} supertype add no abstract
+ * methods, so {@link #run} is still the single abstract method.
+ *
  * @param <S> The type of the state. This type is expected to be non-null.
  * @param <A> The type of the computed value. This can be nullable.
  */
 @FunctionalInterface
-public interface State<S, A> {
+public interface State<S, A> extends StateKind<S, A> {
 
   Class<State> STATE_CLASS = State.class;
 

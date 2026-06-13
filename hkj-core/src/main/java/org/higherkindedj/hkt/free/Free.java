@@ -39,10 +39,15 @@ import org.higherkindedj.hkt.util.validation.Validation;
  *   <li>{@code FlatMapped} - A sequenced computation (flatMap optimization)
  * </ul>
  *
+ * <p>As part of the HKT simulation, {@code Free} extends {@link FreeKind}, so every {@code Free} is
+ * already a {@code Kind<FreeKind.Witness<F>, A>}. Widening via {@link FreeKindHelper} is therefore
+ * a cast-free, allocation-free upcast (no wrapper object), and a new {@code Free} case that forgot
+ * the relationship would be a compile error.
+ *
  * @param <F> The functor type representing the instruction set
  * @param <A> The result type
  */
-public sealed interface Free<F extends WitnessArity<TypeArity.Unary>, A>
+public sealed interface Free<F extends WitnessArity<TypeArity.Unary>, A> extends FreeKind<F, A>
     permits Free.Pure, Free.Suspend, Free.FlatMapped, Free.HandleError, Free.Ap {
 
   /**

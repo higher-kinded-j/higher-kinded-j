@@ -30,59 +30,41 @@ public enum ContextKindHelper implements ContextConverterOps {
   private static final Class<Context> CONTEXT_CLASS = Context.class;
 
   /**
-   * Internal record implementing {@link ContextKind ContextKind<R, A>} to hold the concrete {@link
-   * Context Context&lt;R, A&gt;} instance.
-   *
-   * @param <R> The scoped value type of the Context.
-   * @param <A> The result type of the Context.
-   * @param context The non-null, actual {@link Context Context&lt;R, A&gt;} instance.
-   */
-  record ContextHolder<R, A>(Context<R, A> context) implements ContextKind<R, A> {
-
-    /**
-     * Compact constructor for validation.
-     *
-     * @throws NullPointerException if the provided context is null.
-     */
-    ContextHolder {
-      Validation.kind().requireForWiden(context, CONTEXT_CLASS);
-    }
-  }
-
-  /**
    * Widens a concrete {@link Context Context&lt;R, A&gt;} instance into its higher-kinded
    * representation, {@code Kind<ContextKind.Witness<R>, A>}.
+   *
+   * <p>Since {@code Context} extends {@code ContextKind}, this is a cast-free upcast: the validated
+   * {@code context} is already a {@code Kind<ContextKind.Witness<R>, A>}, so no wrapper object is
+   * allocated.
    *
    * @param <R> The type of the scoped value.
    * @param <A> The type of the result produced by the Context.
    * @param context The concrete {@link Context Context&lt;R, A&gt;} instance to widen. Must be
    *     non-null.
-   * @return A non-null {@code Kind<ContextKind.Witness<R>, A>} representing the wrapped Context.
+   * @return A non-null {@code Kind<ContextKind.Witness<R>, A>} representing the Context.
    * @throws NullPointerException if {@code context} is null.
    */
   @Override
   public <R, A> Kind<ContextKind.Witness<R>, A> widen(Context<R, A> context) {
-    return new ContextHolder<>(context);
+    Validation.kind().requireForWiden(context, CONTEXT_CLASS);
+    return context;
   }
 
   /**
    * Narrows a {@code Kind<ContextKind.Witness<R>, A>} back to its concrete {@link Context
    * Context&lt;R, A&gt;} type.
    *
-   * <p>This implementation uses a holder-based approach with pattern matching.
-   *
    * @param <R> The type of the scoped value.
    * @param <A> The type of the result produced by the Context.
    * @param kind The {@code Kind<ContextKind.Witness<R>, A>} instance to narrow. May be null.
    * @return The underlying, non-null {@link Context Context&lt;R, A&gt;} instance.
-   * @throws org.higherkindedj.hkt.exception.KindUnwrapException if the input kind is null or not a
-   *     valid ContextHolder.
+   * @throws org.higherkindedj.hkt.exception.KindUnwrapException if the input kind is null or not an
+   *     instance of {@code Context}.
    */
   @Override
-  @SuppressWarnings({"unchecked", "rawtypes"}) // raw holder Class token; runtime-checked
+  @SuppressWarnings("unchecked") // raw Class token; runtime-checked via Class.isInstance
   public <R, A> Context<R, A> narrow(@Nullable Kind<ContextKind.Witness<R>, A> kind) {
-    return Validation.kind()
-        .narrowHolder(kind, CONTEXT_CLASS, ContextHolder.class, ContextHolder::context);
+    return Validation.kind().narrowWithTypeCheck(kind, CONTEXT_CLASS);
   }
 
   /**

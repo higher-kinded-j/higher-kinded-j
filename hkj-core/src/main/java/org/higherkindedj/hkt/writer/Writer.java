@@ -37,6 +37,11 @@ import org.jspecify.annotations.Nullable;
  *       threading the value of the first into the second.
  * </ul>
  *
+ * <p>As part of the HKT simulation, {@code Writer} implements both {@link WriterKind} and {@link
+ * WriterKind2}, so every {@code Writer} is already a {@code Kind<WriterKind.Witness<W>, A>} (and a
+ * {@code Kind2<WriterKind2.Witness, W, A>}). Widening via {@link WriterKindHelper} is therefore a
+ * cast-free, allocation-free upcast (no wrapper object).
+ *
  * @param <W> The type of the log, which must form a {@link Monoid}. This log is guaranteed to be
  *     non-null.
  * @param <A> The type of the computed value. This can be {@code null} if the type {@code A} permits
@@ -50,7 +55,8 @@ import org.jspecify.annotations.Nullable;
  * @see WriterMonad
  * @see WriterKindHelper
  */
-public record Writer<W, A>(W log, @Nullable A value) {
+public record Writer<W, A>(W log, @Nullable A value)
+    implements WriterKind<W, A>, WriterKind2<W, A> {
 
   private static final Class<Writer> WRITER_CLASS = Writer.class;
 

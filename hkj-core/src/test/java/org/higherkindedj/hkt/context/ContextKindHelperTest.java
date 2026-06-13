@@ -33,7 +33,7 @@ class ContextKindHelperTest {
       Kind<ContextKind.Witness<String>, Integer> kind = CONTEXT.widen(ctx);
 
       assertThat(kind).isNotNull();
-      assertThat(kind).isInstanceOf(ContextKindHelper.ContextHolder.class);
+      assertThat(kind).isInstanceOf(Context.class);
     }
 
     @Test
@@ -81,7 +81,7 @@ class ContextKindHelperTest {
     @Test
     @DisplayName("narrow() should throw KindUnwrapException for invalid kind type")
     void narrow_shouldThrowForInvalidKindType() {
-      // Create a mock Kind that isn't a ContextHolder
+      // Create a mock Kind that isn't a Context
       Kind<ContextKind.Witness<String>, Integer> invalidKind =
           new Kind<>() {}; // Anonymous invalid implementation
 
@@ -243,39 +243,6 @@ class ContextKindHelperTest {
       String result = CONTEXT.runContext(kind);
 
       assertThat(result).isNull();
-    }
-  }
-
-  @Nested
-  @DisplayName("ContextHolder Record")
-  class ContextHolderTests {
-
-    @Test
-    @DisplayName("ContextHolder should expose context via accessor")
-    void contextHolder_shouldExposeContext() {
-      Context<String, Integer> ctx = Context.succeed(42);
-      ContextKindHelper.ContextHolder<String, Integer> holder =
-          new ContextKindHelper.ContextHolder<>(ctx);
-
-      assertThat(holder.context()).isSameAs(ctx);
-    }
-
-    @Test
-    @DisplayName("ContextHolder should implement ContextKind")
-    void contextHolder_shouldImplementContextKind() {
-      Context<String, Integer> ctx = Context.succeed(42);
-      ContextKindHelper.ContextHolder<String, Integer> holder =
-          new ContextKindHelper.ContextHolder<>(ctx);
-
-      assertThat(holder).isInstanceOf(ContextKind.class);
-    }
-
-    @Test
-    @DisplayName("ContextHolder should throw for null context")
-    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
-    void contextHolder_shouldThrowForNullContext() {
-      assertThatThrownBy(() -> new ContextKindHelper.ContextHolder<>(null))
-          .isInstanceOf(Exception.class);
     }
   }
 

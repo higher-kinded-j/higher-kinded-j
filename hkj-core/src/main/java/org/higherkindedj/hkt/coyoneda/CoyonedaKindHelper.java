@@ -36,20 +36,13 @@ public enum CoyonedaKindHelper {
   COYONEDA;
 
   /**
-   * Holder record that wraps a Coyoneda instance and implements CoyonedaKind.
-   *
-   * <p>This enables the concrete Coyoneda type to be represented as a Kind.
-   *
-   * @param <F> The underlying type constructor
-   * @param <A> The result type
-   */
-  record CoyonedaHolder<F extends WitnessArity<TypeArity.Unary>, A>(Coyoneda<F, A> coyoneda)
-      implements CoyonedaKind<F, A> {}
-
-  /**
    * Widens a concrete Coyoneda type to its Kind representation.
    *
    * <p>This allows Coyoneda to be used with type classes that operate on Kind types.
+   *
+   * <p>Since {@code Coyoneda} extends {@code CoyonedaKind}, this is a cast-free upcast: the
+   * validated {@code coyoneda} is already a {@code Kind<CoyonedaKind.Witness<F>, A>}, so no wrapper
+   * object is allocated.
    *
    * @param coyoneda The Coyoneda instance to widen. Must not be null.
    * @param <F> The underlying type constructor
@@ -62,7 +55,7 @@ public enum CoyonedaKindHelper {
     if (coyoneda == null) {
       throw new NullPointerException("Coyoneda to widen cannot be null");
     }
-    return new CoyonedaHolder<>(coyoneda);
+    return coyoneda;
   }
 
   /**
@@ -74,7 +67,7 @@ public enum CoyonedaKindHelper {
    * @param <F> The underlying type constructor
    * @param <A> The result type
    * @return The concrete Coyoneda instance
-   * @throws KindUnwrapException if kind is null or not a valid CoyonedaKind representation
+   * @throws KindUnwrapException if kind is null or not a valid Coyoneda representation
    */
   @SuppressWarnings("unchecked")
   public <F extends WitnessArity<TypeArity.Unary>, A> Coyoneda<F, A> narrow(
@@ -82,11 +75,11 @@ public enum CoyonedaKindHelper {
     if (kind == null) {
       throw new KindUnwrapException("Cannot narrow null Kind to Coyoneda");
     }
-    if (kind instanceof CoyonedaHolder<?, ?> holder) {
-      return (Coyoneda<F, A>) holder.coyoneda();
+    if (kind instanceof Coyoneda<?, ?> coyoneda) {
+      return (Coyoneda<F, A>) coyoneda;
     }
     throw new KindUnwrapException(
-        "Cannot narrow Kind to Coyoneda: expected CoyonedaHolder but got " + kind.getClass());
+        "Cannot narrow Kind to Coyoneda: expected Coyoneda but got " + kind.getClass());
   }
 
   /**
