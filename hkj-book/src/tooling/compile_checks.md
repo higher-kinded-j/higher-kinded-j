@@ -59,6 +59,7 @@ soak.
 | `via-non-path` | `via`/`flatMap`/`then` given a function that returns a plain value instead of a Path (use `map`) | error | Companion |
 | `map-nests-effect` | `map` given a function that returns the **same** Path type — silently nests the effect; you meant `via` | **warn** | No — sole signal |
 | `migration-nudge` | `Free.liftF`/`Free.suspend` (→ FreePath/`*Ops`) and `InjectInstances.injectLeft/injectRight/injectRightThen` (→ `@ComposeEffects`) — valid code, an ergonomics nudge | **warn** | No — advisory |
+| `raw-kind` | A raw `Kind`/`Kind2` used as a type (variable, parameter, field or cast) — drops the witness type argument, the one compile-silent route to a wrong-witness `narrow()` and a runtime `KindUnwrapException` | **warn** | No — sole signal |
 
 "Companion" checks add an actionable HKJ message beside `javac`'s own
 cryptic error. "Sole signal" / "advisory" checks are the only
@@ -81,7 +82,8 @@ splits `-Xplugin` on whitespace into the plugin name and its arguments:
 - `severity=error|warn` — the global default for the error-default
   checks (default `error`). It does **not** silently promote the
   warn-default checks (`error-type-mismatch`, `map-nests-effect`,
-  `migration-nudge`) — those stay `warn` unless promoted explicitly.
+  `migration-nudge`, `raw-kind`) — those stay `warn` unless promoted
+  explicitly.
 - `severity:<id>=error|warn` — override one check. Wins over the global
   default and over a check's built-in default, so a team can promote a
   warn-default check, e.g. `severity:error-type-mismatch=error`, or

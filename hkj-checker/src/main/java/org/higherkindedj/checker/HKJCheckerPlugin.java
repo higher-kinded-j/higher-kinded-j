@@ -118,6 +118,9 @@ public class HKJCheckerPlugin implements Plugin {
           new WitnessArityChecker(
               trees, types, elements, config.severityFor(CheckerConfig.WITNESS_ARITY)));
     }
+    if (config.isEnabled(CheckerConfig.RAW_KIND)) {
+      checks.add(new RawKindChecker(trees, config.severityFor(CheckerConfig.RAW_KIND)));
+    }
     if (config.isEnabled(CheckerConfig.VIA_NON_PATH)) {
       checks.add(
           new ViaNonPathChecker(
