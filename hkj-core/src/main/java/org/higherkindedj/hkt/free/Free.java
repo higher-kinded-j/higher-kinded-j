@@ -390,85 +390,32 @@ public sealed interface Free<F extends WitnessArity<TypeArity.Unary>, A> extends
    */
   default <M extends WitnessArity<TypeArity.Unary>> Kind<M, A> foldMap(
       Function<Kind<F, ?>, Kind<M, ?>> transform, Monad<M> monad) {
-    return interpretFree(this, transform, monad).run();
+    // Adapt the raw function to a Natural and interpret through the single Natural-based path.
+    return foldMap(asNatural(transform), monad);
   }
 
   /**
-   * Internal helper that interprets a Free monad using Trampoline for stack-safe traversal.
+   * Adapts a raw {@code Function<Kind<F, ?>, Kind<M, ?>>} into a {@link Natural} so the
+   * function-based {@link #foldMap(Function, Monad)} can reuse the single type-safe interpreter.
    *
-   * @param free The Free monad to interpret
-   * @param transform The natural transformation from F to M
-   * @param monad The monad instance for M
-   * @param <F> The functor type
-   * @param <M> The target monad type
-   * @param <A> The result type
-   * @return A Trampoline that produces the interpreted result in monad M
+   * <p>This is the one place where the function overload's erased per-element correspondence is
+   * reasserted: the function promises (by contract) to map {@code Kind<F, B>} to {@code Kind<M, B>}
+   * for every {@code B}, which the {@code Natural} signature makes explicit. The unchecked cast is
+   * confined here rather than scattered across a duplicate interpreter.
+   *
+   * @param transform the raw function transformation
+   * @param <F> the source functor witness
+   * @param <M> the target monad witness
+   * @return a {@code Natural<F, M>} backed by {@code transform}
    */
-  private static <
-          F extends WitnessArity<TypeArity.Unary>, M extends WitnessArity<TypeArity.Unary>, A>
-      Trampoline<Kind<M, A>> interpretFree(
-          Free<F, A> free, Function<Kind<F, ?>, Kind<M, ?>> transform, Monad<M> monad) {
-
-    return switch (free) {
-      case Pure<F, A> pure ->
-          // Terminal case: lift the pure value into the target monad
-          Trampoline.done(monad.of(pure.value()));
-
-      case Suspend<F, A> suspend -> {
-        // Transform the suspended computation and recursively interpret
-        @SuppressWarnings("unchecked")
-        Kind<M, Free<F, A>> transformed =
-            (Kind<M, Free<F, A>>) transform.apply(suspend.computation());
-
-        // Try to extract the inner Free eagerly (works for strict monads like Identity).
-        // For strict monads, monad.map evaluates immediately, allowing us to defer
-        // the recursive interpretation through the Trampoline for stack safety.
-        // For lazy monads (IO, State), the monad's own laziness provides stack safety.
-        @SuppressWarnings("unchecked")
-        Free<F, A>[] innerFreeRef = (Free<F, A>[]) new Free<?, ?>[1];
-        boolean[] eager = {false};
-        monad.map(
-            innerFree -> {
-              innerFreeRef[0] = innerFree;
-              eager[0] = true;
-              return innerFree;
-            },
-            transformed);
-
-        if (eager[0]) {
-          // Strict monad: defer interpretation through Trampoline for stack safety
-          Free<F, A> innerFree = innerFreeRef[0];
-          yield Trampoline.defer(() -> interpretFree(innerFree, transform, monad));
-        } else {
-          // Lazy monad: use monad.flatMap (the monad's laziness provides stack safety)
-          yield Trampoline.done(
-              monad.flatMap(
-                  innerFree -> interpretFree(innerFree, transform, monad).run(), transformed));
-        }
+  private static <F extends WitnessArity<TypeArity.Unary>, M extends WitnessArity<TypeArity.Unary>>
+      Natural<F, M> asNatural(Function<Kind<F, ?>, Kind<M, ?>> transform) {
+    return new Natural<>() {
+      @Override
+      @SuppressWarnings("unchecked") // function contract: Kind<F, B> maps to Kind<M, B> for every B
+      public <B> Kind<M, B> apply(Kind<F, B> fa) {
+        return (Kind<M, B>) transform.apply(fa);
       }
-
-      case FlatMapped<F, ?, A> flatMapped -> {
-        // Handle FlatMapped by deferring the interpretation
-        @SuppressWarnings("unchecked")
-        FlatMapped<F, Object, A> fm = (FlatMapped<F, Object, A>) flatMapped;
-
-        yield Trampoline.defer(
-            () ->
-                interpretFree(fm.sub(), transform, monad)
-                    .map(
-                        kindOfX ->
-                            monad.flatMap(
-                                x -> {
-                                  Free<F, A> next = fm.continuation().apply(x);
-                                  return interpretFree(next, transform, monad).run();
-                                },
-                                kindOfX)));
-      }
-
-      case HandleError<F, ?, A> he ->
-          interpretHandleError(he, f -> interpretFree(f, transform, monad), monad);
-
-      case Ap<F, A> ap -> interpretApFunction(ap, transform, monad);
     };
   }
 
@@ -498,7 +445,12 @@ public sealed interface Free<F extends WitnessArity<TypeArity.Unary>, A> extends
         // Transform the suspended computation using the type-safe Natural transformation
         Kind<M, Free<F, A>> transformed = transform.apply(suspend.computation());
 
-        // Try to extract the inner Free eagerly (works for strict monads).
+        // Probe whether the target monad is strict by running a side-effecting map over the
+        // transformed value: a strict monad (e.g. Id-based transformers) invokes the mapper
+        // synchronously, setting eager[0] and capturing the inner Free; a lazy monad (IO, State)
+        // defers the mapper, leaving eager[0] false. This deliberately exploits map's evaluation
+        // timing to branch — it is an internal interpreter trick, not a pattern to emulate, and
+        // relies on map being called at most once per element.
         @SuppressWarnings("unchecked")
         Free<F, A>[] innerFreeRef = (Free<F, A>[]) new Free<?, ?>[1];
         boolean[] eager = {false};
@@ -511,9 +463,11 @@ public sealed interface Free<F extends WitnessArity<TypeArity.Unary>, A> extends
             transformed);
 
         if (eager[0]) {
+          // Strict monad: defer interpretation through the Trampoline for stack safety.
           Free<F, A> innerFree = innerFreeRef[0];
           yield Trampoline.defer(() -> interpretFreeNatural(innerFree, transform, monad));
         } else {
+          // Lazy monad: the monad's own laziness provides stack safety via flatMap.
           yield Trampoline.done(
               monad.flatMap(
                   innerFree -> interpretFreeNatural(innerFree, transform, monad).run(),
@@ -595,26 +549,6 @@ public sealed interface Free<F extends WitnessArity<TypeArity.Unary>, A> extends
       Trampoline<Kind<M, A>> interpretApNatural(
           Ap<F, A> ap, Natural<F, M> transform, Monad<M> monad) {
     Kind<M, A> result = ap.applicative().foldMap(transform, monad);
-    return Trampoline.done(result);
-  }
-
-  /**
-   * Interprets an Ap node using the function-based transformation. Adapts the function into a
-   * Natural for use with FreeAp.foldMap.
-   */
-  @SuppressWarnings("unchecked")
-  private static <
-          F extends WitnessArity<TypeArity.Unary>, M extends WitnessArity<TypeArity.Unary>, A>
-      Trampoline<Kind<M, A>> interpretApFunction(
-          Ap<F, A> ap, Function<Kind<F, ?>, Kind<M, ?>> transform, Monad<M> monad) {
-    Natural<F, M> adapted =
-        new Natural<>() {
-          @Override
-          public <B> Kind<M, B> apply(Kind<F, B> fa) {
-            return (Kind<M, B>) transform.apply(fa);
-          }
-        };
-    Kind<M, A> result = ap.applicative().foldMap(adapted, monad);
     return Trampoline.done(result);
   }
 }

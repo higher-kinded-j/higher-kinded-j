@@ -99,6 +99,15 @@ Free program (tree):                  foldMap walks it:
 `foldMap` converts each instruction from your DSL (`F`) into a target monad (`M`) using a natural transformation, then sequences the results. It uses Higher-Kinded-J's own `Trampoline` internally for stack safety.
 ~~~
 
+~~~admonish tip title="Prefer a type-safe `Natural` transformation"
+`foldMap` is overloaded: it takes either a type-safe `Natural<F, M>` or a raw
+`Function<Kind<F, ?>, Kind<M, ?>>`. **Prefer `Natural`** — it makes the per-instruction
+correspondence (`Kind<F, B>` maps to `Kind<M, B>` for every `B`) explicit, so a witness mismatch
+is caught at compile time instead of riding on an unchecked cast. The `Function` form (used in
+some examples below for brevity) stays for convenience and interop; internally both overloads run
+through the same `Natural`-based interpreter.
+~~~
+
 ## Building a DSL: Step by Step
 
 ### Step 1: Define Your Instruction Set

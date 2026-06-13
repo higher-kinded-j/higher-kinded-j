@@ -62,6 +62,13 @@ Two small internal-soundness cleanups ([#562](https://github.com/higher-kinded-j
 - The covariant reinterpretations in `flatMap`/`recoverWith` (e.g. casting a `Try<? extends U>` produced by the mapper to `Try<U>`) are now funnelled through a private `covary` helper on each immutable sealed type — `Try`, `Maybe`, `Either`, `Validated`, `Id` — that carries the safety proof in one place rather than repeating an inline `@SuppressWarnings` cast at each call site. (The audit found six such sites, not the dozens first estimated; the unrelated phantom-type recasts in `mapError`/`mapLeft` keep their existing inline form.) No public API change.
 - `IndexedTraversal.asIndexedFold()` in **hkj-api** replaced its raw `@SuppressWarnings("rawtypes")` identity wrapper with a typed `IdBox` record (witness modelled explicitly, mirroring the sibling `ConstForFold`), so the wrapped value is typed and only the single fundamental `narrow` cast remains. This removes the one raw-`Kind` construction from the public API module.
 
+**`Free` interpreter consolidation**
+
+`Free.foldMap` is overloaded to accept either a type-safe `Natural<F, M>` or a raw `Function<Kind<F, ?>, Kind<M, ?>>`, and each overload had its own ~100-line stack-safe interpreter — two near-identical copies of the same Trampoline traversal and strict-vs-lazy eagerness probe, differing only in one unchecked cast. They are now a single interpreter ([#563](https://github.com/higher-kinded-j/higher-kinded-j/issues/563)).
+
+- The `Function`-based `foldMap` now adapts its argument to a `Natural` through a small `asNatural` helper (the one place the function's erased per-element correspondence is reasserted) and runs through the single `Natural`-based interpreter. `interpretFree` and `interpretApFunction` are deleted — `Free.java` loses ~64 lines and three `@SuppressWarnings`, with one trust boundary instead of two.
+- Behaviour is preserved exactly (the strict/lazy probe is unchanged and now documented as the deliberate internal trick it is); the full Free / FreePath suites pass. The `Natural` form is the recommended one, now noted in the [Free Monad](monads/free_monad.md) chapter. Purely internal; no public API change.
+
 ---
 
 ### v0.4.6 (7 June 2026)
