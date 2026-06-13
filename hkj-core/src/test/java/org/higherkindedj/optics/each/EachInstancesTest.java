@@ -656,6 +656,13 @@ class EachInstancesTest {
 
       assertThat(each.supportsIndexed()).isFalse();
     }
+
+    @Test
+    @DisplayName("fromTraversal() rejects a null traversal")
+    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
+    void fromTraversalRejectsNull() {
+      assertThatThrownBy(() -> Each.fromTraversal(null)).isInstanceOf(NullPointerException.class);
+    }
   }
 
   @Nested
@@ -706,6 +713,14 @@ class EachInstancesTest {
       assertThat(pairs).hasSize(2);
       assertThat(pairs.stream().anyMatch(p -> p.first().equals("a") && p.second() == 1)).isTrue();
       assertThat(pairs.stream().anyMatch(p -> p.first().equals("b") && p.second() == 2)).isTrue();
+    }
+
+    @Test
+    @DisplayName("fromIndexedTraversal() rejects a null traversal")
+    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
+    void fromIndexedTraversalRejectsNull() {
+      assertThatThrownBy(() -> Each.fromIndexedTraversal(null))
+          .isInstanceOf(NullPointerException.class);
     }
   }
 

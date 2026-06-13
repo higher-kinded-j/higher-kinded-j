@@ -2,6 +2,7 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.optics;
 
+import java.util.Objects;
 import java.util.Optional;
 import org.higherkindedj.optics.indexed.IndexedTraversal;
 
@@ -177,6 +178,7 @@ public interface Each<S, A> {
    * @return An Each instance that delegates to the given traversal
    */
   static <S, A> Each<S, A> fromTraversal(Traversal<S, A> traversal) {
+    Objects.requireNonNull(traversal, "traversal must not be null");
     return () -> traversal;
   }
 
@@ -200,6 +202,7 @@ public interface Each<S, A> {
    */
   static <I, S, A> EachIndexed<I, S, A> fromIndexedTraversal(
       IndexedTraversal<I, S, A> indexedTraversal) {
+    Objects.requireNonNull(indexedTraversal, "indexedTraversal must not be null");
     return () -> indexedTraversal;
   }
 }
