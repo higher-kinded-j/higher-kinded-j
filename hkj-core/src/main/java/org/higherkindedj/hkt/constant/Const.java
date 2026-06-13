@@ -41,11 +41,16 @@ import org.higherkindedj.hkt.util.validation.Validation;
  * // const3.value() is 5
  * }</pre>
  *
+ * <p>As part of the HKT simulation, {@code Const} implements both {@link ConstKind} and {@link
+ * ConstKind2}, so every {@code Const} is already a {@code Kind<ConstKind.Witness<C>, A>} (and a
+ * {@code Kind2<ConstKind2.Witness, C, A>}). Widening via {@link ConstKindHelper} is therefore a
+ * cast-free, allocation-free upcast (no wrapper object).
+ *
  * @param <C> The type of the constant value.
  * @param <A> The phantom type parameter (not stored).
  * @param value The constant value held by this instance.
  */
-public record Const<C, A>(C value) {
+public record Const<C, A>(C value) implements ConstKind<C, A>, ConstKind2<C, A> {
 
   /**
    * Transforms both the constant value and the phantom type parameter.

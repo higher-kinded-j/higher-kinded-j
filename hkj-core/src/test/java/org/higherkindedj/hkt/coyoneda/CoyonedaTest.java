@@ -384,12 +384,12 @@ class CoyonedaTest {
     @Test
     @DisplayName("narrow throws for invalid kind type")
     void narrowThrowsForInvalidKindType() {
-      // Create a mock Kind that is not a CoyonedaHolder
+      // Create a mock Kind that is not a Coyoneda
       Kind<CoyonedaKind.Witness<MaybeKind.Witness>, Integer> invalidKind = new CoyonedaKind<>() {};
 
       assertThatThrownBy(() -> COYONEDA.narrow(invalidKind))
           .isInstanceOf(KindUnwrapException.class)
-          .hasMessageContaining("expected CoyonedaHolder");
+          .hasMessageContaining("cannot be narrowed to Coyoneda");
     }
   }
 

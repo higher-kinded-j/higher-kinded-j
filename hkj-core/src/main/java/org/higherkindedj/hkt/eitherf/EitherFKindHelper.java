@@ -2,12 +2,11 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.hkt.eitherf;
 
-import static org.higherkindedj.hkt.util.validation.Operation.FROM_KIND;
-
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.WitnessArity;
 import org.higherkindedj.hkt.util.validation.Validation;
 import org.jspecify.annotations.NullMarked;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Helper for converting between concrete {@link EitherF} and its HKT representation {@link
@@ -29,17 +28,11 @@ public enum EitherFKindHelper {
   EITHERF;
 
   /**
-   * Holder record that implements {@link EitherFKind}.
-   *
-   * @param <F> The witness type for the left effect algebra
-   * @param <G> The witness type for the right effect algebra
-   * @param <A> The result type
-   */
-  record EitherFHolder<F extends WitnessArity<?>, G extends WitnessArity<?>, A>(
-      EitherF<F, G, A> value) implements EitherFKind<F, G, A> {}
-
-  /**
    * Widens a concrete {@code EitherF<F, G, A>} into its Kind representation.
+   *
+   * <p>Since {@code EitherF} extends {@code EitherFKind}, this is a cast-free upcast: the validated
+   * {@code eitherF} is already a {@code Kind<EitherFKind.Witness<F, G>, A>}, with no wrapper
+   * object.
    *
    * @param eitherF The concrete EitherF instance. Must not be null.
    * @param <F> The witness type for the left effect algebra
@@ -50,7 +43,7 @@ public enum EitherFKindHelper {
   public <F extends WitnessArity<?>, G extends WitnessArity<?>, A>
       Kind<EitherFKind.Witness<F, G>, A> widen(EitherF<F, G, A> eitherF) {
     Validation.kind().requireForWiden(eitherF, EitherF.class);
-    return new EitherFHolder<>(eitherF);
+    return eitherF;
   }
 
   /**
@@ -61,13 +54,12 @@ public enum EitherFKindHelper {
    * @param <G> The witness type for the right effect algebra
    * @param <A> The result type
    * @return The concrete EitherF
-   * @throws ClassCastException if the kind is not an EitherFHolder
-   * @throws NullPointerException if kind is null
+   * @throws org.higherkindedj.hkt.exception.KindUnwrapException if {@code kind} is {@code null} or
+   *     not an instance of {@code EitherF}.
    */
-  @SuppressWarnings("unchecked")
+  @SuppressWarnings("unchecked") // raw Class token; runtime-checked via Class.isInstance
   public <F extends WitnessArity<?>, G extends WitnessArity<?>, A> EitherF<F, G, A> narrow(
-      Kind<EitherFKind.Witness<F, G>, A> kind) {
-    Validation.kind().requireNonNull(kind, FROM_KIND);
-    return ((EitherFHolder<F, G, A>) kind).value();
+      @Nullable Kind<EitherFKind.Witness<F, G>, A> kind) {
+    return Validation.kind().narrowWithTypeCheck(kind, EitherF.class);
   }
 }

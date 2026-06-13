@@ -25,71 +25,41 @@ public enum WriterKindHelper implements WriterConverterOps {
   private static final Class<Writer> WRITER_CLASS = Writer.class;
 
   /**
-   * Internal record implementing {@link WriterKind WriterKind&lt;W, A&gt;} to hold the concrete
-   * {@link Writer Writer&lt;W, A&gt;} instance. Changed to package-private for potential test
-   * access.
-   *
-   * @param <W> The log type.
-   * @param <A> The value type.
-   * @param writer The non-null {@link Writer Writer&lt;W, A&gt;} instance.
-   */
-  record WriterHolder<W, A>(Writer<W, A> writer) implements WriterKind<W, A> {
-    WriterHolder {
-      Validation.kind().requireForWiden(writer, WRITER_CLASS);
-    }
-  }
-
-  /**
-   * Internal record implementing {@link WriterKind2 WriterKind2&lt;W, A&gt;} to hold the concrete
-   * {@link Writer Writer&lt;W, A&gt;} instance for bifunctor operations.
-   *
-   * @param <W> The log type.
-   * @param <A> The value type.
-   * @param writer The non-null {@link Writer Writer&lt;W, A&gt;} instance.
-   */
-  record WriterKind2Holder<W, A>(Writer<W, A> writer) implements WriterKind2<W, A> {
-    WriterKind2Holder {
-      Validation.kind().requireForWiden(writer, WRITER_CLASS);
-    }
-  }
-
-  /**
    * Widens a concrete {@link Writer Writer&lt;W, A&gt;} instance into its higher-kinded
    * representation, {@code Kind<WriterKind.Witness<W>, A>}.
+   *
+   * <p>Since {@code Writer} implements {@code WriterKind}, this is a cast-free upcast: the
+   * validated {@code writer} is already a {@code Kind<WriterKind.Witness<W>, A>}, so no wrapper
+   * object is allocated.
    *
    * @param <W> The type of the accumulated log/output.
    * @param <A> The type of the computed value.
    * @param writer The concrete {@link Writer Writer&lt;W, A&gt;} instance to widen. Must be
    *     non-null.
-   * @return A non-null {@code Kind<WriterKind.Witness<W>, A>} representing the wrapped {@code
-   *     Writer}.
+   * @return A non-null {@code Kind<WriterKind.Witness<W>, A>} representing the {@code Writer}.
    * @throws NullPointerException if {@code writer} is null.
    */
   @Override
   public <W, A> Kind<WriterKind.Witness<W>, A> widen(Writer<W, A> writer) {
-    return new WriterHolder<>(writer);
+    Validation.kind().requireForWiden(writer, WRITER_CLASS);
+    return writer;
   }
 
   /**
    * Narrows a {@code Kind<WriterKind.Witness<W>, A>} back to its concrete {@link Writer
    * Writer&lt;W, A&gt;} type.
    *
-   * <p>This implementation uses a holder-based approach with modern switch expressions for
-   * consistent pattern matching.
-   *
    * @param <W> The type of the accumulated log/output.
    * @param <A> The type of the computed value.
    * @param kind The {@code Kind<WriterKind.Witness<W>, A>} instance to narrow. May be {@code null}.
    * @return The unwrapped, non-null {@link Writer Writer&lt;W, A&gt;} instance.
    * @throws org.higherkindedj.hkt.exception.KindUnwrapException if the input {@code kind} is null
-   *     or not an instance of {@code WriterHolder}. The {@code WriterHolder} guarantees its
-   *     internal {@code writer} is non-null.
+   *     or not an instance of {@code Writer}.
    */
   @Override
-  @SuppressWarnings({"unchecked", "rawtypes"}) // raw holder Class token; runtime-checked
+  @SuppressWarnings("unchecked") // raw Class token; runtime-checked via Class.isInstance
   public <W, A> Writer<W, A> narrow(@Nullable Kind<WriterKind.Witness<W>, A> kind) {
-    return Validation.kind()
-        .narrowHolder(kind, WRITER_CLASS, WriterHolder.class, WriterHolder::writer);
+    return Validation.kind().narrowWithTypeCheck(kind, WRITER_CLASS);
   }
 
   /**
@@ -175,17 +145,21 @@ public enum WriterKindHelper implements WriterConverterOps {
    * Widens a concrete {@link Writer Writer&lt;W, A&gt;} instance into its Kind2 representation,
    * {@code Kind2<WriterKind2.Witness, W, A>}. Implements {@link WriterConverterOps#widen2}.
    *
+   * <p>Since {@code Writer} implements {@code WriterKind2}, this is a cast-free upcast: the
+   * validated {@code writer} is already a {@code Kind2<WriterKind2.Witness, W, A>}, so no wrapper
+   * object is allocated.
+   *
    * @param <W> The type of the accumulated log/output.
    * @param <A> The type of the computed value.
    * @param writer The concrete {@link Writer Writer&lt;W, A&gt;} instance to widen. Must be
    *     non-null.
-   * @return A {@code Kind2<WriterKind2.Witness, W, A>} representing the wrapped {@code Writer}.
-   *     Never null.
+   * @return A {@code Kind2<WriterKind2.Witness, W, A>} representing the {@code Writer}. Never null.
    * @throws NullPointerException if {@code writer} is {@code null}.
    */
   @Override
   public <W, A> Kind2<WriterKind2.Witness, W, A> widen2(Writer<W, A> writer) {
-    return new WriterKind2Holder<>(writer);
+    Validation.kind().requireForWiden(writer, WRITER_CLASS);
+    return writer;
   }
 
   /**
@@ -206,13 +180,13 @@ public enum WriterKindHelper implements WriterConverterOps {
     if (kind == null) {
       throw new KindUnwrapException("Cannot narrow null Kind2 for Writer");
     }
-    if (!(kind instanceof WriterKind2Holder<?, ?>)) {
+    if (!(kind instanceof Writer<?, ?>)) {
       throw new KindUnwrapException(
           "Kind2 instance cannot be narrowed to Writer (received: "
               + kind.getClass().getSimpleName()
               + ")");
     }
-    // Safe cast due to type erasure and holder validation
-    return ((WriterKind2Holder<W, A>) kind).writer();
+    // Safe cast due to type erasure and instanceof validation
+    return (Writer<W, A>) kind;
   }
 }

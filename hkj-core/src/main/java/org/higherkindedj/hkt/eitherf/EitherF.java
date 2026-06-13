@@ -47,7 +47,7 @@ import org.jspecify.annotations.NullMarked;
  */
 @NullMarked
 public sealed interface EitherF<F extends WitnessArity<?>, G extends WitnessArity<?>, A>
-    permits EitherF.Left, EitherF.Right {
+    extends EitherFKind<F, G, A> permits EitherF.Left, EitherF.Right {
 
   /**
    * An instruction from the left effect algebra F.

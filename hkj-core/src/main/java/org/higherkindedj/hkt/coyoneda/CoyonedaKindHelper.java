@@ -6,6 +6,7 @@ import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.TypeArity;
 import org.higherkindedj.hkt.WitnessArity;
 import org.higherkindedj.hkt.exception.KindUnwrapException;
+import org.higherkindedj.hkt.util.validation.Validation;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -36,20 +37,13 @@ public enum CoyonedaKindHelper {
   COYONEDA;
 
   /**
-   * Holder record that wraps a Coyoneda instance and implements CoyonedaKind.
-   *
-   * <p>This enables the concrete Coyoneda type to be represented as a Kind.
-   *
-   * @param <F> The underlying type constructor
-   * @param <A> The result type
-   */
-  record CoyonedaHolder<F extends WitnessArity<TypeArity.Unary>, A>(Coyoneda<F, A> coyoneda)
-      implements CoyonedaKind<F, A> {}
-
-  /**
    * Widens a concrete Coyoneda type to its Kind representation.
    *
    * <p>This allows Coyoneda to be used with type classes that operate on Kind types.
+   *
+   * <p>Since {@code Coyoneda} extends {@code CoyonedaKind}, this is a cast-free upcast: the
+   * validated {@code coyoneda} is already a {@code Kind<CoyonedaKind.Witness<F>, A>}, so no wrapper
+   * object is allocated.
    *
    * @param coyoneda The Coyoneda instance to widen. Must not be null.
    * @param <F> The underlying type constructor
@@ -59,10 +53,8 @@ public enum CoyonedaKindHelper {
    */
   public <F extends WitnessArity<TypeArity.Unary>, A> Kind<CoyonedaKind.Witness<F>, A> widen(
       Coyoneda<F, A> coyoneda) {
-    if (coyoneda == null) {
-      throw new NullPointerException("Coyoneda to widen cannot be null");
-    }
-    return new CoyonedaHolder<>(coyoneda);
+    Validation.kind().requireForWiden(coyoneda, Coyoneda.class);
+    return coyoneda;
   }
 
   /**
@@ -74,19 +66,12 @@ public enum CoyonedaKindHelper {
    * @param <F> The underlying type constructor
    * @param <A> The result type
    * @return The concrete Coyoneda instance
-   * @throws KindUnwrapException if kind is null or not a valid CoyonedaKind representation
+   * @throws KindUnwrapException if kind is null or not a valid Coyoneda representation
    */
-  @SuppressWarnings("unchecked")
+  @SuppressWarnings("unchecked") // raw Class token; runtime-checked via Class.isInstance
   public <F extends WitnessArity<TypeArity.Unary>, A> Coyoneda<F, A> narrow(
       @Nullable Kind<CoyonedaKind.Witness<F>, A> kind) {
-    if (kind == null) {
-      throw new KindUnwrapException("Cannot narrow null Kind to Coyoneda");
-    }
-    if (kind instanceof CoyonedaHolder<?, ?> holder) {
-      return (Coyoneda<F, A>) holder.coyoneda();
-    }
-    throw new KindUnwrapException(
-        "Cannot narrow Kind to Coyoneda: expected CoyonedaHolder but got " + kind.getClass());
+    return Validation.kind().narrowWithTypeCheck(kind, Coyoneda.class);
   }
 
   /**

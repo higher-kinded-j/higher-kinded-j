@@ -25,19 +25,11 @@ public enum FreeKindHelper {
   FREE;
 
   /**
-   * Holder record that wraps a Free instance and implements FreeKind. This enables the concrete
-   * Free type to be represented as a Kind.
-   *
-   * @param <F> The functor type
-   * @param <A> The result type
-   */
-  record FreeHolder<F extends WitnessArity<TypeArity.Unary>, A>(Free<F, A> free)
-      implements FreeKind<F, A> {}
-
-  /**
    * Widens a concrete Free type to its Kind representation.
    *
-   * <p>This allows Free to be used with type classes that operate on Kind types.
+   * <p>Since {@code Free} extends {@code FreeKind}, this is a cast-free upcast: the validated
+   * {@code free} is already a {@code Kind<FreeKind.Witness<F>, A>}, so no wrapper object is
+   * allocated.
    *
    * @param free The Free instance to widen
    * @param <F> The functor type
@@ -46,7 +38,8 @@ public enum FreeKindHelper {
    */
   public <F extends WitnessArity<TypeArity.Unary>, A> Kind<FreeKind.Witness<F>, A> widen(
       Free<F, A> free) {
-    return new FreeHolder<>(free);
+    Validation.kind().requireForWiden(free, Free.class);
+    return free;
   }
 
   /**
@@ -58,11 +51,12 @@ public enum FreeKindHelper {
    * @param <F> The functor type
    * @param <A> The result type
    * @return The concrete Free instance
-   * @throws ClassCastException if the Kind is not a FreeHolder
+   * @throws org.higherkindedj.hkt.exception.KindUnwrapException if {@code kind} is {@code null} or
+   *     not an instance of {@code Free}.
    */
-  @SuppressWarnings({"unchecked", "rawtypes"}) // raw holder Class token; runtime-checked
+  @SuppressWarnings("unchecked") // raw Class token; runtime-checked via Class.isInstance
   public <F extends WitnessArity<TypeArity.Unary>, A> Free<F, A> narrow(
       @Nullable Kind<FreeKind.Witness<F>, A> kind) {
-    return Validation.kind().narrowHolder(kind, Free.class, FreeHolder.class, FreeHolder::free);
+    return Validation.kind().narrowWithTypeCheck(kind, Free.class);
   }
 }

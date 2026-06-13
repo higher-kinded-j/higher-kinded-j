@@ -69,12 +69,18 @@ import org.jspecify.annotations.Nullable;
  * System.out.println(testMessage); // Output: Test Greeting! You have 0 retries left.
  * }</pre>
  *
+ * <p>As part of the HKT simulation, {@code Reader} extends {@link ReaderKind}, so every {@code
+ * Reader} (including a plain lambda) is already a {@code Kind<ReaderKind.Witness<R>, A>}. Widening
+ * via {@link ReaderKindHelper} is therefore a cast-free, allocation-free upcast. {@code Reader}
+ * remains a {@code @FunctionalInterface}: {@code ReaderKind} and its {@code Kind} supertype add no
+ * abstract methods, so {@link #run} is still the single abstract method.
+ *
  * @param <R> The type of the read-only environment (e.g., configuration, context, dependencies).
  *     This environment is provided when the {@code Reader} is eventually run.
  * @param <A> The type of the value produced by the computation within the {@code Reader}.
  */
 @FunctionalInterface
-public interface Reader<R, A> {
+public interface Reader<R, A> extends ReaderKind<R, A> {
 
   /**
    * Executes the computation encapsulated by this {@code Reader} using the provided environment.

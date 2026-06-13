@@ -36,13 +36,17 @@ import org.jspecify.annotations.NullMarked;
  *   <li><b>Composability</b> — optics compose naturally
  * </ul>
  *
+ * <p>As part of the HKT simulation, {@code StateOp} extends {@link StateOpKind}, so every {@code
+ * StateOp} is already a {@code Kind<StateOpKind.Witness<S>, A>}. Widening via {@link
+ * StateOpKindHelper} is therefore a cast-free, allocation-free upcast (no wrapper object).
+ *
  * @param <S> The state type (fixed for a given program)
  * @param <A> The result type (HKT-varying parameter)
  * @see StateOpKind
  * @see StateOps
  */
 @NullMarked
-public sealed interface StateOp<S, A>
+public sealed interface StateOp<S, A> extends StateOpKind<S, A>
     permits StateOp.View,
         StateOp.Over,
         StateOp.Assign,

@@ -21,37 +21,27 @@ public enum TryKindHelper implements TryConverterOps {
   private static final Class<Try> TRY_CLASS = Try.class;
 
   /**
-   * An internal record that implements {@link TryKind}&lt;A&gt; to hold the concrete {@link
-   * Try}&lt;A&gt; instance. This serves as the carrier for {@code Try} objects within the HKT
-   * simulation.
-   */
-  record TryHolder<A>(Try<A> tryInstance) implements TryKind<A> {
-    TryHolder {
-      Validation.kind().requireForWiden(tryInstance, TRY_CLASS);
-    }
-  }
-
-  /**
    * Widens a concrete {@link Try}&lt;A&gt; instance into its HKT representation, {@link
    * Kind}&lt;{@link TryKind.Witness}, A&gt;.
    *
+   * <p>Since {@code Try} extends {@code TryKind}, this is a cast-free upcast: the validated {@code
+   * tryInstance} is already a {@code Kind<TryKind.Witness, A>}, so no wrapper object is allocated.
+   *
    * @param <A> The result type of the {@code Try} computation.
    * @param tryInstance The concrete {@link Try}&lt;A&gt; instance to widen. Must be non-null.
-   * @return A non-null {@link Kind}&lt;{@link TryKind.Witness}, A&gt; representing the wrapped
-   *     {@code Try} computation.
+   * @return A non-null {@link Kind}&lt;{@link TryKind.Witness}, A&gt; representing the {@code Try}
+   *     computation.
    * @throws NullPointerException if {@code tryInstance} is {@code null}.
    */
   @Override
   public <A> Kind<TryKind.Witness, A> widen(Try<A> tryInstance) {
-    return new TryHolder<>(tryInstance);
+    Validation.kind().requireForWiden(tryInstance, TRY_CLASS);
+    return tryInstance;
   }
 
   /**
    * Narrows a {@link Kind}&lt;{@link TryKind.Witness}, A&gt; back to its concrete {@link
    * Try}&lt;A&gt; representation.
-   *
-   * <p>This implementation uses a holder-based approach with modern switch expressions for
-   * consistent pattern matching.
    *
    * @param <A> The result type of the {@code Try} computation.
    * @param kind The {@code Kind<TryKind.Witness, A>} instance to narrow. May be {@code null}.
@@ -61,9 +51,9 @@ public enum TryKindHelper implements TryConverterOps {
    *     wrong type or invalid internal state).
    */
   @Override
-  @SuppressWarnings({"unchecked", "rawtypes"}) // raw holder Class token; runtime-checked
+  @SuppressWarnings("unchecked") // raw Class token; runtime-checked via Class.isInstance
   public <A> Try<A> narrow(@Nullable Kind<TryKind.Witness, A> kind) {
-    return Validation.kind().narrowHolder(kind, TRY_CLASS, TryHolder.class, TryHolder::tryInstance);
+    return Validation.kind().narrowWithTypeCheck(kind, TRY_CLASS);
   }
 
   /**

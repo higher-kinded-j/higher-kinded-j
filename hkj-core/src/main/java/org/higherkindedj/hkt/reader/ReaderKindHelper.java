@@ -23,63 +23,42 @@ public enum ReaderKindHelper implements ReaderConverterOps {
   private static final Class<Reader> READER_CLASS = Reader.class;
 
   /**
-   * Internal record implementing {@link ReaderKind ReaderKind&lt;R, A&gt;} to hold the concrete
-   * {@link Reader Reader&lt;R, A&gt;} instance.
-   *
-   * @param <R> The environment type of the {@code Reader}.
-   * @param <A> The value type of the {@code Reader}.
-   * @param reader The non-null, actual {@link Reader Reader&lt;R, A&gt;} instance.
-   */
-  record ReaderHolder<R, A>(Reader<R, A> reader) implements ReaderKind<R, A> {
-    /**
-     * Constructs a {@code ReaderHolder}.
-     *
-     * @param reader The {@link Reader} to hold. Must not be null.
-     * @throws NullPointerException if the provided {@code reader} instance is null.
-     */
-    ReaderHolder {
-      Validation.kind().requireForWiden(reader, READER_CLASS);
-    }
-  }
-
-  /**
    * Widens a concrete {@link Reader Reader&lt;R, A&gt;} instance into its higher-kinded
    * representation, {@code Kind<ReaderKind.Witness<R>, A>}. Implements {@link
    * ReaderConverterOps#widen}.
+   *
+   * <p>Since {@code Reader} extends {@code ReaderKind}, this is a cast-free upcast: the validated
+   * {@code reader} (a plain lambda or method reference) is already a {@code
+   * Kind<ReaderKind.Witness<R>, A>}, so no wrapper object is allocated.
    *
    * @param <R> The type of the environment required by the {@code Reader}.
    * @param <A> The type of the value produced by the {@code Reader}.
    * @param reader The concrete {@link Reader Reader&lt;R, A&gt;} instance to widen. Must be
    *     non-null.
-   * @return A non-null {@code Kind<ReaderKind.Witness<R>, A>} representing the wrapped {@code
-   *     Reader}.
+   * @return A non-null {@code Kind<ReaderKind.Witness<R>, A>} representing the {@code Reader}.
    * @throws NullPointerException if {@code reader} is {@code null}.
    */
   @Override
   public <R, A> Kind<ReaderKind.Witness<R>, A> widen(Reader<R, A> reader) {
-    return new ReaderHolder<>(reader);
+    Validation.kind().requireForWiden(reader, READER_CLASS);
+    return reader;
   }
 
   /**
    * Narrows a {@code Kind<ReaderKind.Witness<R>, A>} back to its concrete {@link Reader
    * Reader&lt;R, A&gt;} type. Implements {@link ReaderConverterOps#narrow}.
    *
-   * <p>This implementation uses a holder-based approach with modern switch expressions for
-   * consistent pattern matching.
-   *
    * @param <R> The type of the environment required by the {@code Reader}.
    * @param <A> The type of the value produced by the {@code Reader}.
    * @param kind The {@code Kind<ReaderKind.Witness<R>, A>} instance to narrow. May be {@code null}.
    * @return The underlying, non-null {@link Reader Reader&lt;R, A&gt;} instance.
    * @throws org.higherkindedj.hkt.exception.KindUnwrapException if the input {@code kind} is {@code
-   *     null}, or not an instance of {@code ReaderHolder}. The {@code ReaderHolder} guarantees its
-   *     internal {@code reader} is non-null.
+   *     null}, or not an instance of {@code Reader}.
    */
   @Override
-  @SuppressWarnings({"unchecked", "rawtypes"}) // raw holder Class token; runtime-checked
+  @SuppressWarnings("unchecked") // raw Class token; runtime-checked via Class.isInstance
   public <R, A> Reader<R, A> narrow(@Nullable Kind<ReaderKind.Witness<R>, A> kind) {
-    return Validation.kind()
-        .narrowHolder(kind, READER_CLASS, ReaderHolder.class, ReaderHolder::reader);
+    return Validation.kind().narrowWithTypeCheck(kind, READER_CLASS);
   }
 
   /**

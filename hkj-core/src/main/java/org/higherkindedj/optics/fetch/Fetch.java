@@ -37,7 +37,7 @@ import org.higherkindedj.hkt.trampoline.Trampoline;
  * @param <V> resolved value type
  * @param <A> result type
  */
-public sealed interface Fetch<K, V, A> permits Done, Blocked {
+public sealed interface Fetch<K, V, A> extends FetchKind<K, V, A> permits Done, Blocked {
 
   /** Lifts a pure value (no requests). */
   static <K, V, A> Fetch<K, V, A> done(A value) {

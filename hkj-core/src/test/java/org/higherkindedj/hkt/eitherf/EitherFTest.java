@@ -9,6 +9,7 @@ import static org.higherkindedj.hkt.instances.Witnesses.*;
 
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Natural;
+import org.higherkindedj.hkt.exception.KindUnwrapException;
 import org.higherkindedj.hkt.free.Free;
 import org.higherkindedj.hkt.free.test.Identity;
 import org.higherkindedj.hkt.free.test.IdentityKind;
@@ -224,14 +225,14 @@ class EitherFTest {
     }
 
     @Test
-    @DisplayName("narrow(null) throws NullPointerException")
+    @DisplayName("narrow(null) throws KindUnwrapException")
     @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
     void narrowNullThrows() {
       assertThatThrownBy(
               () ->
                   EitherFKindHelper.EITHERF.<IdentityKind.Witness, MaybeKind.Witness, String>narrow(
                       null))
-          .isInstanceOf(NullPointerException.class);
+          .isInstanceOf(KindUnwrapException.class);
     }
 
     @Test

@@ -58,11 +58,16 @@ import org.jspecify.annotations.Nullable;
  * // eitherFailure will be Left("Invalid input: For input string: \"xyz\"")
  * }</pre>
  *
+ * <p>As part of the HKT simulation, {@code Try} extends {@link TryKind}, so every {@code Try} is
+ * already a {@code Kind<TryKind.Witness, T>}. Widening via {@link TryKindHelper} is therefore a
+ * cast-free, allocation-free upcast (no wrapper object), and any future implementation that forgot
+ * the relationship would be a compile error.
+ *
  * @param <T> The type of the value if the computation is successful.
  * @see Success
  * @see Failure
  */
-public sealed interface Try<T> permits Try.Success, Try.Failure {
+public sealed interface Try<T> extends TryKind<T> permits Try.Success, Try.Failure {
 
   Class<Try> TRY_CLASS = Try.class;
 

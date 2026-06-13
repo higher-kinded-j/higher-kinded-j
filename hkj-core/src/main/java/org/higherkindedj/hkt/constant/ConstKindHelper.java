@@ -29,48 +29,22 @@ public enum ConstKindHelper {
   private static final Class<Const> CONST_CLASS = Const.class;
 
   /**
-   * Internal record implementing {@link ConstKind2} to hold the concrete {@link Const} instance for
-   * bifunctor operations.
-   *
-   * @param <C> The type of the constant value.
-   * @param <A> The phantom type parameter.
-   * @param const_ The non-null, actual {@link Const} instance.
-   */
-  record ConstKind2Holder<C, A>(Const<C, A> const_) implements ConstKind2<C, A> {
-
-    public ConstKind2Holder {
-      Validation.kind().requireForWiden(const_, CONST_CLASS);
-    }
-  }
-
-  /**
-   * Internal record implementing {@link ConstKind} to hold the concrete {@link Const} instance for
-   * partially-applied applicative operations.
-   *
-   * @param <M> The fixed constant value type.
-   * @param <A> The phantom type parameter.
-   * @param const_ The non-null, actual {@link Const} instance.
-   */
-  record ConstKindHolder<M, A>(Const<M, A> const_) implements ConstKind<M, A> {
-
-    public ConstKindHolder {
-      Validation.kind().requireForWiden(const_, CONST_CLASS);
-    }
-  }
-
-  /**
    * Widens a concrete {@code Const<C, A>} instance into its Kind2 representation, {@code
    * Kind2<ConstKind2.Witness, C, A>}.
+   *
+   * <p>Since {@code Const} implements {@code ConstKind2}, this is a cast-free upcast: the validated
+   * {@code const_} is already a {@code Kind2<ConstKind2.Witness, C, A>}, so no wrapper object is
+   * allocated.
    *
    * @param <C> The type of the constant value of the {@code Const}.
    * @param <A> The phantom type parameter of the {@code Const}.
    * @param const_ The concrete {@code Const<C, A>} instance to widen. Must not be null.
-   * @return A {@code Kind2<ConstKind2.Witness, C, A>} representing the wrapped {@code Const}. Never
-   *     null.
+   * @return A {@code Kind2<ConstKind2.Witness, C, A>} representing the {@code Const}. Never null.
    * @throws NullPointerException if {@code const_} is {@code null}.
    */
   public <C, A> Kind2<ConstKind2.Witness, C, A> widen2(Const<C, A> const_) {
-    return new ConstKind2Holder<>(const_);
+    Validation.kind().requireForWiden(const_, CONST_CLASS);
+    return const_;
   }
 
   /**
@@ -90,14 +64,14 @@ public enum ConstKindHelper {
     if (kind == null) {
       throw new KindUnwrapException("Cannot narrow null Kind2 for Const");
     }
-    if (!(kind instanceof ConstKind2Holder<?, ?>)) {
+    if (!(kind instanceof Const<?, ?>)) {
       throw new KindUnwrapException(
           "Kind2 instance cannot be narrowed to Const (received: "
               + kind.getClass().getSimpleName()
               + ")");
     }
-    // Safe cast due to type erasure and holder validation
-    return ((ConstKind2Holder<C, A>) kind).const_();
+    // Safe cast due to type erasure and instanceof validation
+    return (Const<C, A>) kind;
   }
 
   /**
@@ -105,16 +79,19 @@ public enum ConstKindHelper {
    * {@code Kind<ConstKind.Witness<M>, A>}.
    *
    * <p>This is used for applicative operations where the first type parameter {@code M} is fixed.
+   * Since {@code Const} implements {@code ConstKind}, this is a cast-free upcast: the validated
+   * {@code const_} is already a {@code Kind<ConstKind.Witness<M>, A>}, so no wrapper object is
+   * allocated.
    *
    * @param <M> The fixed type of the constant value.
    * @param <A> The phantom type parameter of the {@code Const}.
    * @param const_ The concrete {@code Const<M, A>} instance to widen. Must not be null.
-   * @return A {@code Kind<ConstKind.Witness<M>, A>} representing the wrapped {@code Const}. Never
-   *     null.
+   * @return A {@code Kind<ConstKind.Witness<M>, A>} representing the {@code Const}. Never null.
    * @throws NullPointerException if {@code const_} is {@code null}.
    */
   public <M, A> Kind<ConstKind.Witness<M>, A> widen(Const<M, A> const_) {
-    return new ConstKindHolder<>(const_);
+    Validation.kind().requireForWiden(const_, CONST_CLASS);
+    return const_;
   }
 
   /**
@@ -127,18 +104,8 @@ public enum ConstKindHelper {
    * @throws KindUnwrapException if the input {@code kind} is {@code null} or not a representation
    *     of a {@code Const<M,A>}.
    */
-  @SuppressWarnings("unchecked")
+  @SuppressWarnings("unchecked") // raw Class token; runtime-checked via Class.isInstance
   public <M, A> Const<M, A> narrow(@Nullable Kind<ConstKind.Witness<M>, A> kind) {
-    if (kind == null) {
-      throw new KindUnwrapException("Cannot narrow null Kind for Const");
-    }
-    if (!(kind instanceof ConstKindHolder<?, ?>)) {
-      throw new KindUnwrapException(
-          "Kind instance cannot be narrowed to Const (received: "
-              + kind.getClass().getSimpleName()
-              + ")");
-    }
-    // Safe cast due to type erasure and holder validation
-    return ((ConstKindHolder<M, A>) kind).const_();
+    return Validation.kind().narrowWithTypeCheck(kind, CONST_CLASS);
   }
 }

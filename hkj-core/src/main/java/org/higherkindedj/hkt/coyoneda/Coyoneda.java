@@ -96,12 +96,17 @@ import org.higherkindedj.hkt.WitnessArity;
  *
  * <p>These hold by construction since map simply composes functions.
  *
+ * <p>As part of the HKT simulation, {@code Coyoneda} extends {@link CoyonedaKind}, so every {@code
+ * Coyoneda} is already a {@code Kind<CoyonedaKind.Witness<F>, A>}. Widening via {@link
+ * CoyonedaKindHelper} is therefore a cast-free, allocation-free upcast (no wrapper object).
+ *
  * @param <F> The type constructor being wrapped (witness type)
  * @param <A> The "current" result type after accumulated transformations
  * @see CoyonedaFunctor
  * @see org.higherkindedj.hkt.Functor
  */
-public sealed interface Coyoneda<F extends WitnessArity<TypeArity.Unary>, A> permits Coyoneda.Impl {
+public sealed interface Coyoneda<F extends WitnessArity<TypeArity.Unary>, A>
+    extends CoyonedaKind<F, A> permits Coyoneda.Impl {
 
   /**
    * Lifts a {@code Kind<F, A>} into Coyoneda with the identity transformation.

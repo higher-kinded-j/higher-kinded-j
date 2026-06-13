@@ -47,6 +47,14 @@ The build previously surfaced no unchecked warnings at all, so a new unguarded c
 - `Id`, `IO`, `VTask` and `VStream` already extended their `Kind` interfaces and were unchanged. Holder-backed types (`Try`, `Lazy`, `State`, `Reader`, `Writer`, `Optional`, `List`, `Stream`, …) keep their holder indirection — for the JDK-wrapped ones it is fundamental, and converting the HKJ-owned ones would change widened-`Kind` identity, so it is left as a separate consideration.
 - `widen` / `narrow` remain the idiomatic, uniform boundary for every type; the structural relationship is an internal guarantee, documented in [Lifting the Hood](hkts/lifting_the_hood.md), not a reason to drop `widen` for these types. Purely internal; behaviour-preserving; the added superinterfaces are binary- and source-compatible.
 
+**Holder removal: more HKJ-owned types direct-implement their `Kind`**
+
+Following the same pattern, every HKJ-owned type that still wrapped `widen` in an internal `*Holder` record now extends its `Kind` interface directly. `widen` becomes an allocation-free upcast (no wrapper object), `narrow` is a plain type check, and seventeen `*Holder` records are deleted ([#568](https://github.com/higher-kinded-j/higher-kinded-j/issues/568)).
+
+- Converted: `Try`, `Reader`, `State`, `Writer`, `Trampoline`, `Context`, `Free`, `Coyoneda`, `StateOp`, `Const`, and the internal applicative/algebra carriers `FreeAp`, `ErrorOp`, `EitherF`, `Fetch`, `OpticOp` — including the `@FunctionalInterface` types `Reader` and `State`, which stay single-abstract-method because `Kind` is an empty marker. Each `narrow` drops its `rawtypes` suppression where it had one, and the few hand-rolled `narrow` methods now route through the shared type-checked path, so a wrong-type `Kind` fails fast with `KindUnwrapException` instead of a raw `ClassCastException`.
+- `Lazy` deliberately keeps its holder: it is a mutable memoising thunk, and the immutable holder keeps the `Kind` carrier immutable (an architecture invariant enforced by `ImmutabilityRules`). JDK-wrapped types (`Optional`, `List`, `Stream`, `CompletableFuture`) keep theirs by necessity. After this change those, plus the generated `Tuple2`, are the only holders left.
+- Behaviour-preserving for normal use: a widened `Kind` is now the value itself rather than a wrapper (`narrow(widen(x))` still round-trips). `Free.widen` additionally rejects null now, and `ErrorOp`/`EitherF`/`FreeAp`'s `narrow(null)` now raise `KindUnwrapException` rather than `NullPointerException`, matching the rest of the family. Tests that asserted the holder type or the old exceptions were updated. Purely internal; no public API change.
+
 ---
 
 ### v0.4.6 (7 June 2026)

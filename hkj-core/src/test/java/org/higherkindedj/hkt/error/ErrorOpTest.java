@@ -11,6 +11,7 @@ import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Natural;
 import org.higherkindedj.hkt.eitherf.EitherFFunctor;
 import org.higherkindedj.hkt.eitherf.EitherFKind;
+import org.higherkindedj.hkt.exception.KindUnwrapException;
 import org.higherkindedj.hkt.free.Free;
 import org.higherkindedj.hkt.free.test.IdentityKind;
 import org.higherkindedj.hkt.free.test.IdentityMonad;
@@ -117,10 +118,10 @@ class ErrorOpTest {
     }
 
     @Test
-    @DisplayName("narrow(null) throws NullPointerException")
+    @DisplayName("narrow(null) throws KindUnwrapException")
     void narrowNullThrows() {
       assertThatThrownBy(() -> ErrorOpKindHelper.ERROR_OP.<String, Integer>narrow(null))
-          .isInstanceOf(NullPointerException.class);
+          .isInstanceOf(KindUnwrapException.class);
     }
   }
 
