@@ -35,28 +35,38 @@ record IdBox<A>(A value) implements Kind<IdBox.Witness, A> {
   }
 
   /**
-   * Creates the identity {@link Applicative}: {@code of} wraps the value, {@code map} applies the
-   * function, and {@code ap} applies the wrapped function to the wrapped value.
+   * The identity {@link Applicative}: {@code of} wraps the value, {@code map} applies the function,
+   * and {@code ap} applies the wrapped function to the wrapped value.
+   *
+   * <p>Stateless and thread-safe, so it is cached as a single shared instance rather than allocated
+   * per {@link #applicative()} call (unlike the monoid-parameterised {@code ConstForFold}).
+   */
+  private static final Applicative<Witness> INSTANCE =
+      new Applicative<>() {
+        @Override
+        public <A> Kind<Witness, A> of(A value) {
+          return new IdBox<>(value);
+        }
+
+        @Override
+        public <A, B> Kind<Witness, B> map(
+            Function<? super A, ? extends B> f, Kind<Witness, A> fa) {
+          return new IdBox<>(f.apply(narrow(fa).value()));
+        }
+
+        @Override
+        public <A, B> Kind<Witness, B> ap(
+            Kind<Witness, ? extends Function<A, B>> ff, Kind<Witness, A> fa) {
+          return new IdBox<>(narrow(ff).value().apply(narrow(fa).value()));
+        }
+      };
+
+  /**
+   * Returns the shared identity {@link Applicative} for {@code IdBox.Witness}.
    *
    * @return an Applicative instance for {@code IdBox.Witness}.
    */
   static Applicative<Witness> applicative() {
-    return new Applicative<>() {
-      @Override
-      public <A> Kind<Witness, A> of(A value) {
-        return new IdBox<>(value);
-      }
-
-      @Override
-      public <A, B> Kind<Witness, B> map(Function<? super A, ? extends B> f, Kind<Witness, A> fa) {
-        return new IdBox<>(f.apply(narrow(fa).value()));
-      }
-
-      @Override
-      public <A, B> Kind<Witness, B> ap(
-          Kind<Witness, ? extends Function<A, B>> ff, Kind<Witness, A> fa) {
-        return new IdBox<>(narrow(ff).value().apply(narrow(fa).value()));
-      }
-    };
+    return INSTANCE;
   }
 }
