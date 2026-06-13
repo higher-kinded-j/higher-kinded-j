@@ -55,6 +55,13 @@ Following the same pattern, every HKJ-owned type that still wrapped `widen` in a
 - `Lazy` deliberately keeps its holder: it is a mutable memoising thunk, and the immutable holder keeps the `Kind` carrier immutable (an architecture invariant enforced by `ImmutabilityRules`). JDK-wrapped types (`Optional`, `List`, `Stream`, `CompletableFuture`) keep theirs by necessity. After this change those, plus the generated `Tuple2`, are the only holders left.
 - Behaviour-preserving for normal use: a widened `Kind` is now the value itself rather than a wrapper (`narrow(widen(x))` still round-trips). `Free.widen` additionally rejects null now, and `ErrorOp`/`EitherF`/`FreeAp`'s `narrow(null)` now raise `KindUnwrapException` rather than `NullPointerException`, matching the rest of the family. Tests that asserted the holder type or the old exceptions were updated. Purely internal; no public API change.
 
+**Audited `covary` helpers and a typed identity carrier**
+
+Two small internal-soundness cleanups ([#562](https://github.com/higher-kinded-j/higher-kinded-j/issues/562)):
+
+- The covariant reinterpretations in `flatMap`/`recoverWith` (e.g. casting a `Try<? extends U>` produced by the mapper to `Try<U>`) are now funnelled through a private `covary` helper on each immutable sealed type — `Try`, `Maybe`, `Either`, `Validated`, `Id` — that carries the safety proof in one place rather than repeating an inline `@SuppressWarnings` cast at each call site. (The audit found six such sites, not the dozens first estimated; the unrelated phantom-type recasts in `mapError`/`mapLeft` keep their existing inline form.) No public API change.
+- `IndexedTraversal.asIndexedFold()` in **hkj-api** replaced its raw `@SuppressWarnings("rawtypes")` identity wrapper with a typed `IdBox` record (witness modelled explicitly, mirroring the sibling `ConstForFold`), so the wrapped value is typed and only the single fundamental `narrow` cast remains. This removes the one raw-`Kind` construction from the public API module.
+
 ---
 
 ### v0.4.6 (7 June 2026)

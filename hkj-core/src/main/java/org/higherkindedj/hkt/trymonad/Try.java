@@ -169,6 +169,23 @@ public sealed interface Try<T> extends TryKind<T> permits Try.Success, Try.Failu
   }
 
   /**
+   * Reinterprets a {@code Try<? extends U>} as a {@code Try<U>}.
+   *
+   * <p>Safe: {@code Try} is sealed and immutable, so a value produced as {@code Try<? extends U>}
+   * can be observed as {@code Try<U>} without risk — there is no operation through which the
+   * narrowed element type could be written back. Centralises the covariant reinterpretation that
+   * {@code flatMap}/{@code recoverWith} would otherwise each cast inline.
+   *
+   * @param t the value to reinterpret; never null in practice (callers validate first)
+   * @param <U> the target element type
+   * @return {@code t} viewed as {@code Try<U>}
+   */
+  @SuppressWarnings("unchecked") // sealed + immutable: covariant reinterpretation is unobservable
+  private static <U> Try<U> covary(Try<? extends U> t) {
+    return (Try<U>) t;
+  }
+
+  /**
    * Checks if this {@code Try} instance represents a successful computation (i.e., is a {@link
    * Success}).
    *
@@ -443,9 +460,7 @@ public sealed interface Try<T> extends TryKind<T> permits Try.Success, Try.Failu
       }
 
       Validation.function().requireNonNullResult(result, "mapper", FLAT_MAP);
-      @SuppressWarnings("unchecked")
-      Try<U> typedResult = (Try<U>) result;
-      return typedResult;
+      return covary(result);
     }
 
     @Override
@@ -545,9 +560,7 @@ public sealed interface Try<T> extends TryKind<T> permits Try.Success, Try.Failu
         return new Failure<>(e);
       }
       Validation.function().requireNonNullResult(result, "recoveryFunction", RECOVER_WITH);
-      @SuppressWarnings("unchecked")
-      Try<T> typedResult = (Try<T>) result;
-      return typedResult;
+      return covary(result);
     }
 
     @Override
