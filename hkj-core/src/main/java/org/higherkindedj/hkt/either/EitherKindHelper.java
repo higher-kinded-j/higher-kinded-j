@@ -25,8 +25,8 @@ public enum EitherKindHelper implements EitherConverterOps {
    * Widens a concrete {@code Either<L, R>} instance into its higher-kinded representation, {@code
    * Kind<EitherKind.Witness<L>, R>}. Implements {@link EitherConverterOps#widen}.
    *
-   * <p>Since {@code Left} and {@code Right} directly implement {@code EitherKind}, this method
-   * performs a simple type-safe cast without requiring a wrapper object.
+   * <p>Since {@code Either} extends {@code EitherKind}, this is a cast-free upcast: the validated
+   * {@code either} is already a {@code Kind<EitherKind.Witness<L>, R>}.
    *
    * @param <L> The type of the "Left" value of the {@code Either}.
    * @param <R> The type of the "Right" value of the {@code Either}.
@@ -35,10 +35,9 @@ public enum EitherKindHelper implements EitherConverterOps {
    * @throws NullPointerException if {@code either} is {@code null}.
    */
   @Override
-  @SuppressWarnings("unchecked")
   public <L, R> Kind<EitherKind.Witness<L>, R> widen(Either<L, R> either) {
     Validation.kind().requireForWiden(either, EITHER_CLASS);
-    return (Kind<EitherKind.Witness<L>, R>) either;
+    return either;
   }
 
   /**
@@ -65,8 +64,8 @@ public enum EitherKindHelper implements EitherConverterOps {
    * Widens a concrete {@code Either<L, R>} instance into its Kind2 representation, {@code
    * Kind2<EitherKind2.Witness, L, R>}. Implements {@link EitherConverterOps#widen2}.
    *
-   * <p>Since {@code Left} and {@code Right} directly implement {@code EitherKind2}, this method
-   * performs a simple type-safe cast without requiring a wrapper object.
+   * <p>Since {@code Either} extends {@code EitherKind2}, this is a cast-free upcast: the validated
+   * {@code either} is already a {@code Kind2<EitherKind2.Witness, L, R>}.
    *
    * @param <L> The type of the "Left" value of the {@code Either}.
    * @param <R> The type of the "Right" value of the {@code Either}.
@@ -75,10 +74,9 @@ public enum EitherKindHelper implements EitherConverterOps {
    * @throws NullPointerException if {@code either} is {@code null}.
    */
   @Override
-  @SuppressWarnings("unchecked")
   public <L, R> Kind2<EitherKind2.Witness, L, R> widen2(Either<L, R> either) {
     Validation.kind().requireForWiden(either, EITHER_CLASS);
-    return (Kind2<EitherKind2.Witness, L, R>) either;
+    return either;
   }
 
   /**

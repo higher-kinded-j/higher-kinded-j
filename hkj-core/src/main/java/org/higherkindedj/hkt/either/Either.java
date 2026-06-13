@@ -24,6 +24,12 @@ import org.jspecify.annotations.Nullable;
  * Right}, which are provided as nested records. This allows for exhaustive pattern matching using
  * `switch` expressions.
  *
+ * <p>As part of the HKT simulation, {@code Either} extends both {@link EitherKind} and {@link
+ * EitherKind2}, so every {@code Either} is already a {@code Kind<EitherKind.Witness<L>, R>} (for
+ * functors/monads over the right value) and a {@code Kind2<EitherKind2.Witness, L, R>} (for
+ * bifunctors). Widening via {@link EitherKindHelper} is therefore a cast-free upcast, and any
+ * future implementation that forgot the relationship would be a compile error.
+ *
  * <p>Example of use:
  *
  * <pre>{@code
@@ -47,7 +53,8 @@ import org.jspecify.annotations.Nullable;
  * @param <L> The type of the value if this is a {@link Left}. Conventionally the error type.
  * @param <R> The type of the value if this is a {@link Right}. Conventionally the success type.
  */
-public sealed interface Either<L, R> permits Either.Left, Either.Right {
+public sealed interface Either<L, R> extends EitherKind<L, R>, EitherKind2<L, R>
+    permits Either.Left, Either.Right {
 
   /**
    * Checks if this {@code Either} instance is a {@link Left}.
@@ -391,8 +398,8 @@ public sealed interface Either<L, R> permits Either.Left, Either.Right {
    * Represents the {@link Left} case of an {@link Either}. By convention, this holds an error or
    * alternative value. This is a {@link Record} for conciseness and immutability.
    *
-   * <p>As part of the HKT pattern, this class implements both {@link EitherKind} and {@link
-   * EitherKind2}, allowing it to be used with typeclasses expecting {@code
+   * <p>As part of the HKT pattern, {@link Either} extends both {@link EitherKind} and {@link
+   * EitherKind2}, so this record is already usable with typeclasses expecting {@code
    * Kind<EitherKind.Witness<L>, R>} (for functors/monads) or {@code Kind2<EitherKind2.Witness, L,
    * R>} (for bifunctors).
    *
@@ -400,8 +407,7 @@ public sealed interface Either<L, R> permits Either.Left, Either.Right {
    * @param <R> The type of the {@link Right} value (phantom type for {@code Left}).
    * @param value The value of type {@code L}. Can be {@code null}.
    */
-  record Left<L, R>(@Nullable L value)
-      implements Either<L, R>, EitherKind<L, R>, EitherKind2<L, R> {
+  record Left<L, R>(@Nullable L value) implements Either<L, R> {
 
     @Override
     public boolean isLeft() {
@@ -459,8 +465,8 @@ public sealed interface Either<L, R> permits Either.Left, Either.Right {
    * Represents the {@link Right} case of an {@link Either}. By convention, this holds the
    * successful or primary value. This is a {@link Record} for conciseness and immutability.
    *
-   * <p>As part of the HKT pattern, this class implements both {@link EitherKind} and {@link
-   * EitherKind2}, allowing it to be used with typeclasses expecting {@code
+   * <p>As part of the HKT pattern, {@link Either} extends both {@link EitherKind} and {@link
+   * EitherKind2}, so this record is already usable with typeclasses expecting {@code
    * Kind<EitherKind.Witness<L>, R>} (for functors/monads) or {@code Kind2<EitherKind2.Witness, L,
    * R>} (for bifunctors).
    *
@@ -468,8 +474,7 @@ public sealed interface Either<L, R> permits Either.Left, Either.Right {
    * @param <R> The type of the value held.
    * @param value The value of type {@code R}. Can be {@code null}.
    */
-  record Right<L, R>(@Nullable R value)
-      implements Either<L, R>, EitherKind<L, R>, EitherKind2<L, R> {
+  record Right<L, R>(@Nullable R value) implements Either<L, R> {
     @Override
     public boolean isLeft() {
       return false;

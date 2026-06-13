@@ -68,7 +68,9 @@ What actually happens at the bytecode level:
 
 There is no allocation. The same `Right(10)` object that we created on the first line is the object that lives inside the `Kind`. If we sat at a debugger and inspected `kind.getClass()`, it would say `Either$Right`.
 
-This is the path for *library types*. For JDK types like `Optional`, `widen` allocates a small `Holder` record instead. We will see that variant lower down.
+This is the path for *library types*. `Either` (along with `Maybe`, `Validated`, `Id`, `IO`, `VTask` and `VStream`) declares its sealed interface as extending its own `Kind` interface — e.g. `Either<L, R> extends EitherKind<L, R>` — so every value *is* a `Kind` already and `widen` is a cast-free upcast. The relationship is compiler-checked: a new implementation that forgot it would not compile, rather than failing at runtime. For JDK types like `Optional`, `widen` allocates a small `Holder` record instead, because we cannot make `java.util.Optional` implement our interfaces. We will see that variant lower down.
+
+`widen`/`narrow` remain the idiomatic boundary for *every* type — they read uniformly and validate their input, and they are the only option for the holder-backed types. The structural relationship above is an internal guarantee, not an invitation to drop `widen` for a favoured few.
 
 ---
 

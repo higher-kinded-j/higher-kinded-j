@@ -23,8 +23,8 @@ public enum MaybeKindHelper implements MaybeConverterOps {
    * Widens a concrete {@link Maybe}&lt;A&gt; instance into its HKT representation, {@link
    * Kind}&lt;{@link MaybeKind.Witness}, A&gt;. Implements {@link MaybeConverterOps#widen}.
    *
-   * <p>Since {@code Just} and {@code Nothing} directly implement {@code MaybeKind}, this method
-   * performs a simple type-safe cast without requiring a wrapper object.
+   * <p>Since {@code Maybe} extends {@code MaybeKind}, this is a cast-free upcast: the validated
+   * {@code maybe} is already a {@code Kind<MaybeKind.Witness, A>}.
    *
    * @param <A> The element type of the {@code Maybe}.
    * @param maybe The concrete {@link Maybe}&lt;A&gt; instance to widen. Must be non-null.
@@ -32,10 +32,9 @@ public enum MaybeKindHelper implements MaybeConverterOps {
    * @throws NullPointerException if {@code maybe} is {@code null}.
    */
   @Override
-  @SuppressWarnings("unchecked")
   public <A> Kind<MaybeKind.Witness, A> widen(Maybe<A> maybe) {
     Validation.kind().requireForWiden(maybe, MAYBE_CLASS);
-    return (Kind<MaybeKind.Witness, A>) maybe;
+    return maybe;
   }
 
   /**

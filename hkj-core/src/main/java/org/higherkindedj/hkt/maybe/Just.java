@@ -13,11 +13,11 @@ import org.jspecify.annotations.Nullable;
 /**
  * Concrete implementation of Maybe representing the presence of a value.
  *
- * <p>As part of the HKT pattern, this class implements {@link MaybeKind}, allowing it to be used
- * with typeclasses expecting {@code Kind<MaybeKind.Witness, T>}.
+ * <p>As part of the HKT pattern, {@link Maybe} extends {@link MaybeKind}, so this type is already a
+ * {@code Kind<MaybeKind.Witness, T>} and can be used with typeclasses expecting it.
  */
 // Value must be NonNull because Maybe.just requires it
-record Just<T>(T value) implements Maybe<T>, MaybeKind<T> {
+record Just<T>(T value) implements Maybe<T> {
   // Constructor implicitly checks value is non-null via Maybe.just factory
 
   @Override
