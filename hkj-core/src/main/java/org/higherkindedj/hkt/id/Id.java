@@ -63,9 +63,22 @@ public record Id<A>(@Nullable A value) implements IdKind<A> {
     Id<? extends B> result = fn.apply(value());
     Validation.function().requireNonNullResult(result, "fn", FLAT_MAP);
 
-    // The cast is safe because fn returns Id<? extends B> which is covariant
-    @SuppressWarnings("unchecked")
-    Id<B> typedResult = (Id<B>) result;
-    return typedResult;
+    return covary(result);
+  }
+
+  /**
+   * Reinterprets an {@code Id<? extends B>} as an {@code Id<B>}.
+   *
+   * <p>Safe: {@code Id} is an immutable record, so a value produced as {@code Id<? extends B>} can
+   * be observed as {@code Id<B>} without risk — there is no operation through which the narrowed
+   * element type could be written back.
+   *
+   * @param id the value to reinterpret; never null in practice (callers validate first)
+   * @param <B> the target element type
+   * @return {@code id} viewed as {@code Id<B>}
+   */
+  @SuppressWarnings("unchecked") // immutable record: covariant reinterpretation is unobservable
+  private static <B> Id<B> covary(Id<? extends B> id) {
+    return (Id<B>) id;
   }
 }

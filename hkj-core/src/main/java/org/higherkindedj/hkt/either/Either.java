@@ -395,6 +395,24 @@ public sealed interface Either<L, R> extends EitherKind<L, R>, EitherKind2<L, R>
   }
 
   /**
+   * Reinterprets an {@code Either<L, ? extends R>} as an {@code Either<L, R>}.
+   *
+   * <p>Safe: {@code Either} is sealed and immutable, so a value produced as {@code Either<L, ?
+   * extends R>} can be observed as {@code Either<L, R>} without risk — there is no operation
+   * through which the narrowed right type could be written back. Centralises the covariant
+   * reinterpretation that {@code flatMap} would otherwise cast inline.
+   *
+   * @param e the value to reinterpret; never null in practice (callers validate first)
+   * @param <L> the left type
+   * @param <R> the target right type
+   * @return {@code e} viewed as {@code Either<L, R>}
+   */
+  @SuppressWarnings("unchecked") // sealed + immutable: covariant reinterpretation is unobservable
+  private static <L, R> Either<L, R> covary(Either<L, ? extends R> e) {
+    return (Either<L, R>) e;
+  }
+
+  /**
    * Represents the {@link Left} case of an {@link Either}. By convention, this holds an error or
    * alternative value. This is a {@link Record} for conciseness and immutability.
    *
@@ -496,15 +514,13 @@ public sealed interface Either<L, R> extends EitherKind<L, R>, EitherKind2<L, R>
     }
 
     @Override
-    @SuppressWarnings("unchecked")
     public <R2> Either<L, R2> flatMap(
         Function<? super R, ? extends Either<L, ? extends R2>> mapper) {
       Validation.function().require(mapper, "mapper", FLAT_MAP);
       // Apply the mapper, which itself returns an Either.
       Either<L, ? extends R2> result = mapper.apply(value);
       Validation.function().requireNonNullResult(result, "mapper", FLAT_MAP);
-      // Cast is safe because ? extends R2 is compatible with R2
-      return (Either<L, R2>) result;
+      return covary(result);
     }
 
     @Override

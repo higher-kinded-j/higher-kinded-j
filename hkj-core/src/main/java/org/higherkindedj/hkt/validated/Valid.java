@@ -105,9 +105,19 @@ public record Valid<E, A>(A value) implements Validated<E, A> {
     Validated<E, ? extends B> result = fn.apply(value);
     Validation.function().requireNonNullResult(result, "fn", FLAT_MAP);
 
-    @SuppressWarnings("unchecked")
-    Validated<E, B> typedResult = (Validated<E, B>) result;
-    return typedResult;
+    return covary(result);
+  }
+
+  /**
+   * Reinterprets a {@code Validated<E, ? extends B>} as a {@code Validated<E, B>}.
+   *
+   * <p>Safe: {@code Validated} is sealed and immutable, so a value produced as {@code Validated<E,
+   * ? extends B>} can be observed as {@code Validated<E, B>} without risk — there is no operation
+   * through which the narrowed value type could be written back.
+   */
+  @SuppressWarnings("unchecked") // sealed + immutable: covariant reinterpretation is unobservable
+  private static <E, B> Validated<E, B> covary(Validated<E, ? extends B> v) {
+    return (Validated<E, B>) v;
   }
 
   @Override

@@ -233,62 +233,19 @@ public interface IndexedTraversal<I, S, A> extends IndexedOptic<I, S, A> {
       @Override
       public <M> M ifoldMap(
           Monoid<M> monoid, BiFunction<? super I, ? super A, ? extends M> f, S source) {
-        // We need to traverse all elements and fold them using the monoid.
-        // Since we can't reference Id/IdMonad from hkj-core, we define a minimal
-        // identity-like applicative inline.
+        // Run the traversal purely to collect every index/value pair, using a minimal identity
+        // applicative (we cannot depend on hkj-core's Id from hkj-api).
         final List<Pair<I, A>> collected = new ArrayList<>();
 
-        // Define a simple identity wrapper that implements Kind and WitnessArity
-        // This is a local class to avoid circular dependencies
-        @SuppressWarnings("rawtypes")
-        final class IdWrapper implements Kind, WitnessArity<TypeArity.Unary> {
-          final Object value;
-
-          IdWrapper(Object value) {
-            this.value = value;
-          }
-        }
-
-        // Create a minimal Applicative for IdWrapper
-        Applicative<IdWrapper> idApp =
-            new Applicative<>() {
-              @Override
-              @SuppressWarnings("unchecked")
-              public <A1> Kind<IdWrapper, A1> of(A1 a) {
-                return (Kind<IdWrapper, A1>) new IdWrapper(a);
-              }
-
-              @Override
-              @SuppressWarnings("unchecked")
-              public <A1, B1> Kind<IdWrapper, B1> map(
-                  Function<? super A1, ? extends B1> fn, Kind<IdWrapper, A1> fa) {
-                IdWrapper wrapper = (IdWrapper) fa;
-                return (Kind<IdWrapper, B1>) new IdWrapper(fn.apply((A1) wrapper.value));
-              }
-
-              @Override
-              @SuppressWarnings("unchecked")
-              public <A1, B1> Kind<IdWrapper, B1> ap(
-                  Kind<IdWrapper, ? extends Function<A1, B1>> ff, Kind<IdWrapper, A1> fa) {
-                IdWrapper wrapperF = (IdWrapper) ff;
-                IdWrapper wrapperA = (IdWrapper) fa;
-                Function<A1, B1> fn = (Function<A1, B1>) wrapperF.value;
-                return (Kind<IdWrapper, B1>) new IdWrapper(fn.apply((A1) wrapperA.value));
-              }
-            };
-
-        // Use the traversal to collect all index-value pairs
         self.imodifyF(
             (i, a) -> {
               collected.add(new Pair<>(i, a));
-              @SuppressWarnings("unchecked")
-              Kind<IdWrapper, A> result = (Kind<IdWrapper, A>) new IdWrapper(a);
-              return result;
+              return new IdBox<>(a);
             },
             source,
-            idApp);
+            IdBox.applicative());
 
-        // Fold over the collected pairs using the provided monoid
+        // Fold over the collected pairs using the provided monoid.
         M result = monoid.empty();
         for (Pair<I, A> pair : collected) {
           result = monoid.combine(result, f.apply(pair.first(), pair.second()));

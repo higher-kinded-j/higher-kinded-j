@@ -59,10 +59,19 @@ record Just<T>(T value) implements Maybe<T> {
     Maybe<? extends U> result = mapper.apply(value);
     Validation.function().requireNonNullResult(result, "mapper", FLAT_MAP);
 
-    // Cast needed because of <? extends U> - unavoidable Java type system limitation
-    @SuppressWarnings("unchecked")
-    Maybe<U> typedResult = (Maybe<U>) result;
-    return typedResult;
+    return covary(result);
+  }
+
+  /**
+   * Reinterprets a {@code Maybe<? extends U>} as a {@code Maybe<U>}.
+   *
+   * <p>Safe: {@code Maybe} is sealed and immutable, so a value produced as {@code Maybe<? extends
+   * U>} can be observed as {@code Maybe<U>} without risk — there is no operation through which the
+   * narrowed element type could be written back.
+   */
+  @SuppressWarnings("unchecked") // sealed + immutable: covariant reinterpretation is unobservable
+  private static <U> Maybe<U> covary(Maybe<? extends U> m) {
+    return (Maybe<U>) m;
   }
 
   @Override
