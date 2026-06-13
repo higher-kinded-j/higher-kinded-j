@@ -8,6 +8,8 @@ import com.sun.source.tree.NewClassTree;
 import com.sun.source.tree.ParameterizedTypeTree;
 import com.sun.source.tree.SwitchExpressionTree;
 import com.sun.source.tree.SwitchTree;
+import com.sun.source.tree.TypeCastTree;
+import com.sun.source.tree.VariableTree;
 import com.sun.source.util.TreePathScanner;
 import java.util.List;
 
@@ -74,5 +76,21 @@ final class HkjCheckScanner extends TreePathScanner<Void, Void> {
       c.onParameterizedType(node, getCurrentPath());
     }
     return super.visitParameterizedType(node, unused);
+  }
+
+  @Override
+  public Void visitVariable(VariableTree node, Void unused) {
+    for (CheckVisitor c : checks) {
+      c.onVariable(node, getCurrentPath());
+    }
+    return super.visitVariable(node, unused);
+  }
+
+  @Override
+  public Void visitTypeCast(TypeCastTree node, Void unused) {
+    for (CheckVisitor c : checks) {
+      c.onTypeCast(node, getCurrentPath());
+    }
+    return super.visitTypeCast(node, unused);
   }
 }

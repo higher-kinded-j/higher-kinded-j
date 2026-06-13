@@ -77,6 +77,13 @@ Two small internal-soundness cleanups ([#562](https://github.com/higher-kinded-j
 - `Each.eachWithIndex()` is **deprecated for removal in 0.5.0**. It still works as a bridge (so existing code compiles), but new code should narrow to `EachIndexed` and call `indexedTraversal()`. `Each.supportsIndexed()` reports `true` for any `EachIndexed`, falling back to the deprecated `eachWithIndex()` so a legacy `Each` that overrode it keeps working until the method is removed.
 - API change: additive (`EachIndexed`, sharper factory return types) plus one deprecation; no behaviour change for existing callers. The [Each type class](optics/each_typeclass.md) and [Indexed Optics](optics/indexed_optics.md) chapters show the typed form.
 
+**`raw-kind` checker rule**
+
+The HKJ compiler plugin gains a `raw-kind` rule ([#565](https://github.com/higher-kinded-j/higher-kinded-j/issues/565)). A raw `Kind`/`Kind2` used as a type drops its witness type argument, which is the one route that lets a value tagged with one witness be narrowed through another — it compiles silently and throws `KindUnwrapException` at runtime. javac accepts the raw use, so the checker is the sole compile-time signal.
+
+- Flags raw `Kind`/`Kind2` in a variable, parameter or field declaration, or a cast, at **warn** severity by default (honouring `disable=raw-kind` and `severity:raw-kind=error`). A properly parameterised `Kind<W, A>` (wildcards included) is never flagged, and an unresolved type is skipped — the no-false-positives policy holds.
+- The diagnostic names the fix (`Kind<XKind.Witness, A>`). Documented in [Compile-Time Checks](tooling/compile_checks.md).
+
 ---
 
 ### v0.4.6 (7 June 2026)

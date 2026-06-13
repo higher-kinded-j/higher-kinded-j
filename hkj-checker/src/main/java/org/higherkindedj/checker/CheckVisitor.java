@@ -8,6 +8,8 @@ import com.sun.source.tree.NewClassTree;
 import com.sun.source.tree.ParameterizedTypeTree;
 import com.sun.source.tree.SwitchExpressionTree;
 import com.sun.source.tree.SwitchTree;
+import com.sun.source.tree.TypeCastTree;
+import com.sun.source.tree.VariableTree;
 import com.sun.source.util.TreePath;
 
 /**
@@ -70,4 +72,20 @@ interface CheckVisitor {
    * @param path the tree path to {@code node}
    */
   default void onParameterizedType(ParameterizedTypeTree node, TreePath path) {}
+
+  /**
+   * Invoked for each variable node (local, field or parameter) visited during the scan.
+   *
+   * @param node the variable node
+   * @param path the tree path to {@code node}
+   */
+  default void onVariable(VariableTree node, TreePath path) {}
+
+  /**
+   * Invoked for each cast expression node visited during the scan.
+   *
+   * @param node the cast node
+   * @param path the tree path to {@code node}
+   */
+  default void onTypeCast(TypeCastTree node, TreePath path) {}
 }

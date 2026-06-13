@@ -73,12 +73,15 @@ public final class CheckerConfig {
   /** Check id for {@link MigrationNudgeChecker} (advisory; warn-default). */
   public static final String MIGRATION_NUDGE = "migration-nudge";
 
+  /** Check id for {@link RawKindChecker} (advisory; warn-default). */
+  public static final String RAW_KIND = "raw-kind";
+
   /**
    * Checks whose built-in default is {@code WARNING}: they are the sole compile-time signal over
    * code javac accepts, so they only nudge until a per-check override promotes them.
    */
   private static final Set<String> WARN_DEFAULT_CHECKS =
-      Set.of(ERROR_TYPE_MISMATCH, MAP_NESTS_EFFECT, MIGRATION_NUDGE);
+      Set.of(ERROR_TYPE_MISMATCH, MAP_NESTS_EFFECT, MIGRATION_NUDGE, RAW_KIND);
 
   private final Set<String> disabled;
   private final Diagnostic.Kind severity;

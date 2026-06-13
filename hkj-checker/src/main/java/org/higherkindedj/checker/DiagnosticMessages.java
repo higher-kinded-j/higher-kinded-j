@@ -211,6 +211,23 @@ public final class DiagnosticMessages {
   }
 
   /**
+   * Formats the advisory diagnostic for a raw {@code Kind}/{@code Kind2} used as a type.
+   *
+   * <p>A raw {@code Kind} drops its witness type argument, which is the one compile-silent route to
+   * a wrong-witness {@code narrow()} and a runtime {@code KindUnwrapException}. javac accepts the
+   * raw use, so this is the sole signal.
+   *
+   * @param kindName the raw type's simple name ({@code Kind} or {@code Kind2})
+   * @return a formatted advisory message
+   */
+  public static String rawKind(String kindName) {
+    return ("Raw %s drops its witness type argument — the one way to reach a wrong-witness narrow() "
+            + "that compiles but throws KindUnwrapException at runtime. Parameterise it: "
+            + "%s<XKind.Witness, A> (use %s<XKind.Witness, E, A> for Kind2).")
+        .formatted(kindName, kindName, kindName);
+  }
+
+  /**
    * Formats the companion diagnostic for {@code via}/{@code flatMap}/{@code then} given a function
    * that returns a plain value instead of a {@code Chainable} ({@code effect/compiler_errors.md}
    * section 3).

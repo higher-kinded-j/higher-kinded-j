@@ -35,6 +35,7 @@ class CheckerConfigSeverityTest {
       assertThat(c.severityFor(CheckerConfig.ERROR_TYPE_MISMATCH))
           .isEqualTo(Diagnostic.Kind.WARNING);
       assertThat(c.severityFor(CheckerConfig.MAP_NESTS_EFFECT)).isEqualTo(Diagnostic.Kind.WARNING);
+      assertThat(c.severityFor(CheckerConfig.RAW_KIND)).isEqualTo(Diagnostic.Kind.WARNING);
     }
   }
 
