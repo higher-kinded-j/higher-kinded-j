@@ -104,18 +104,8 @@ public enum ConstKindHelper {
    * @throws KindUnwrapException if the input {@code kind} is {@code null} or not a representation
    *     of a {@code Const<M,A>}.
    */
-  @SuppressWarnings("unchecked")
+  @SuppressWarnings("unchecked") // raw Class token; runtime-checked via Class.isInstance
   public <M, A> Const<M, A> narrow(@Nullable Kind<ConstKind.Witness<M>, A> kind) {
-    if (kind == null) {
-      throw new KindUnwrapException("Cannot narrow null Kind for Const");
-    }
-    if (!(kind instanceof Const<?, ?>)) {
-      throw new KindUnwrapException(
-          "Kind instance cannot be narrowed to Const (received: "
-              + kind.getClass().getSimpleName()
-              + ")");
-    }
-    // Safe cast due to type erasure and instanceof validation
-    return (Const<M, A>) kind;
+    return Validation.kind().narrowWithTypeCheck(kind, CONST_CLASS);
   }
 }

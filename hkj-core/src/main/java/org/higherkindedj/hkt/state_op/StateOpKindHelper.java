@@ -5,6 +5,7 @@ package org.higherkindedj.hkt.state_op;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.util.validation.Validation;
 import org.jspecify.annotations.NullMarked;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Helper for converting between concrete {@link StateOp} and its HKT representation {@link
@@ -44,7 +45,7 @@ public enum StateOpKindHelper {
    * @return The concrete StateOp
    */
   @SuppressWarnings("unchecked") // raw Class token; runtime-checked via Class.isInstance
-  public <S, A> StateOp<S, A> narrow(Kind<StateOpKind.Witness<S>, A> kind) {
+  public <S, A> StateOp<S, A> narrow(@Nullable Kind<StateOpKind.Witness<S>, A> kind) {
     return Validation.kind().narrowWithTypeCheck(kind, StateOp.class);
   }
 }

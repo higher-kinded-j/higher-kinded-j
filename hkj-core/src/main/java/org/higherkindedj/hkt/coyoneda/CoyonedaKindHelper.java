@@ -6,6 +6,7 @@ import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.TypeArity;
 import org.higherkindedj.hkt.WitnessArity;
 import org.higherkindedj.hkt.exception.KindUnwrapException;
+import org.higherkindedj.hkt.util.validation.Validation;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -52,9 +53,7 @@ public enum CoyonedaKindHelper {
    */
   public <F extends WitnessArity<TypeArity.Unary>, A> Kind<CoyonedaKind.Witness<F>, A> widen(
       Coyoneda<F, A> coyoneda) {
-    if (coyoneda == null) {
-      throw new NullPointerException("Coyoneda to widen cannot be null");
-    }
+    Validation.kind().requireForWiden(coyoneda, Coyoneda.class);
     return coyoneda;
   }
 
@@ -69,17 +68,10 @@ public enum CoyonedaKindHelper {
    * @return The concrete Coyoneda instance
    * @throws KindUnwrapException if kind is null or not a valid Coyoneda representation
    */
-  @SuppressWarnings("unchecked")
+  @SuppressWarnings("unchecked") // raw Class token; runtime-checked via Class.isInstance
   public <F extends WitnessArity<TypeArity.Unary>, A> Coyoneda<F, A> narrow(
       @Nullable Kind<CoyonedaKind.Witness<F>, A> kind) {
-    if (kind == null) {
-      throw new KindUnwrapException("Cannot narrow null Kind to Coyoneda");
-    }
-    if (kind instanceof Coyoneda<?, ?> coyoneda) {
-      return (Coyoneda<F, A>) coyoneda;
-    }
-    throw new KindUnwrapException(
-        "Cannot narrow Kind to Coyoneda: expected Coyoneda but got " + kind.getClass());
+    return Validation.kind().narrowWithTypeCheck(kind, Coyoneda.class);
   }
 
   /**

@@ -389,7 +389,7 @@ class CoyonedaTest {
 
       assertThatThrownBy(() -> COYONEDA.narrow(invalidKind))
           .isInstanceOf(KindUnwrapException.class)
-          .hasMessageContaining("expected Coyoneda");
+          .hasMessageContaining("cannot be narrowed to Coyoneda");
     }
   }
 
