@@ -25,19 +25,14 @@ public enum ValidatedKindHelper implements ValidatedConverterOps {
    * Widens a {@link Validated} to its {@link Kind} representation. Implements {@link
    * ValidatedConverterOps#widen}.
    *
-   * <p>The {@code @SuppressWarnings("unchecked")} is necessary because Java's type system doesn't
-   * fully capture that {@code Validated<E, A>} is inherently a {@code
-   * Kind<ValidatedKind.Witness<E>, A>} in this HKT emulation. This cast is fundamental to the HKT
-   * pattern for {@code Validated} in this library.
-   *
-   * <p>Note: Unlike other KindHelpers, Validated doesn't use a holder because Valid and Invalid
-   * already implement ValidatedKind directly.
+   * <p>Since {@code Validated} extends {@code ValidatedKind}, this is a cast-free upcast: the
+   * validated {@code validated} is already a {@code Kind<ValidatedKind.Witness<E>, A>}. Unlike the
+   * holder-based KindHelpers, {@code Validated} needs no wrapper object.
    */
   @Override
-  @SuppressWarnings("unchecked")
   public <E, A> Kind<ValidatedKind.Witness<E>, A> widen(Validated<E, A> validated) {
     Validation.kind().requireForWiden(validated, VALIDATED_CLASS);
-    return (Kind<ValidatedKind.Witness<E>, A>) validated;
+    return validated;
   }
 
   /**
@@ -86,19 +81,14 @@ public enum ValidatedKindHelper implements ValidatedConverterOps {
    * Widens a {@link Validated} to its {@link Kind2} representation. Implements {@link
    * ValidatedConverterOps#widen2}.
    *
-   * <p>The {@code @SuppressWarnings("unchecked")} is necessary because Java's type system doesn't
-   * fully capture that {@code Validated<E, A>} is inherently a {@code Kind2<ValidatedKind2.Witness,
-   * E, A>} in this HKT emulation. This cast is fundamental to the HKT pattern for {@code Validated}
-   * in this library.
-   *
-   * <p>Note: Like the Kind version, Validated doesn't use a holder because Valid and Invalid
-   * already implement ValidatedKind2 directly.
+   * <p>Since {@code Validated} extends {@code ValidatedKind2}, this is a cast-free upcast: the
+   * validated {@code validated} is already a {@code Kind2<ValidatedKind2.Witness, E, A>}, with no
+   * wrapper object required.
    */
   @Override
-  @SuppressWarnings("unchecked")
   public <E, A> Kind2<ValidatedKind2.Witness, E, A> widen2(Validated<E, A> validated) {
     Validation.kind().requireForWiden(validated, VALIDATED_CLASS);
-    return (Kind2<ValidatedKind2.Witness, E, A>) validated;
+    return validated;
   }
 
   /**

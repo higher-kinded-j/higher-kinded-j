@@ -23,10 +23,17 @@ import org.higherkindedj.hkt.util.validation.Validation;
  * #flatMap(Function)} are right-biased, operating on the {@link Valid} value and passing {@link
  * Invalid} values through unchanged.
  *
+ * <p>As part of the HKT simulation, {@code Validated} extends both {@link ValidatedKind} and {@link
+ * ValidatedKind2}, so every {@code Validated} is already a {@code Kind<ValidatedKind.Witness<E>,
+ * A>} and a {@code Kind2<ValidatedKind2.Witness, E, A>}. Widening via {@link ValidatedKindHelper}
+ * is a cast-free upcast, and any future implementation that forgot the relationship would be a
+ * compile error.
+ *
  * @param <E> The type of the error in case of an Invalid value.
  * @param <A> The type of the value in case of a Valid value.
  */
-public sealed interface Validated<E, A> permits Valid, Invalid {
+public sealed interface Validated<E, A> extends ValidatedKind<E, A>, ValidatedKind2<E, A>
+    permits Valid, Invalid {
 
   Class<Validated> VALIDATED_CLASS = Validated.class;
 

@@ -25,16 +25,19 @@ import org.jspecify.annotations.Nullable;
  * within a {@link Just} instance; the {@code Nothing} state should be used to represent the absence
  * of a value.
  *
- * <p>As part of the Higher-Kinded-J HKT simulation, both {@link Just} and {@link Nothing} directly
- * implement {@link MaybeKind}, allowing them to participate in the HKT framework without requiring
- * wrapper types. This means that widen/narrow operations via {@link MaybeKindHelper} have zero
- * runtime overhead (simple type-safe casts rather than object allocation).
+ * <p>As part of the Higher-Kinded-J HKT simulation, {@code Maybe} itself extends {@link MaybeKind},
+ * so every {@code Maybe} is already a {@code Kind<MaybeKind.Witness, T>} and can participate in the
+ * HKT framework without requiring wrapper types. This means that widen/narrow operations via {@link
+ * MaybeKindHelper} have zero runtime overhead (the widen is a cast-free upcast rather than object
+ * allocation). Because the relationship is declared on the sealed interface, any future
+ * implementation that forgot to be a {@code MaybeKind} would be a compile error rather than a
+ * latent failure.
  *
  * @param <T> the type of the value held by this {@code Maybe} instance. This type parameter itself
  *     can be nullable if {@code T} represents a type that can be null, but a {@link Just} instance
  *     will always wrap a non-null value.
  */
-public sealed interface Maybe<T> permits Just, Nothing {
+public sealed interface Maybe<T> extends MaybeKind<T> permits Just, Nothing {
 
   Class<Maybe> MAYBE_CLASS = Maybe.class;
 

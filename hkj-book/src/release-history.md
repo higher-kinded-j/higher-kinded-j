@@ -38,6 +38,15 @@ The build previously surfaced no unchecked warnings at all, so a new unguarded c
 - Generated code: `@ComposeEffects` Support classes now carry `@SuppressWarnings({"unchecked", "rawtypes"})`, so downstream projects compiling generated sources with lint enabled stay warning-free.
 - Purely internal; no behaviour or public API change.
 
+**Cast-free `widen`: root data types extend their `Kind` interfaces**
+
+`Maybe`, `Either` and `Validated` had concrete leaves (`Just`/`Nothing`, `Left`/`Right`, `Valid`/`Invalid`) that each implemented the corresponding `Kind` interface, but the sealed root interface itself did not — so `widen` needed an `@SuppressWarnings("unchecked")` cast whose only safety argument was "every leaf happens to implement the `Kind`". This release declares the relationship on the root type, making it structural and compiler-checked ([#561](https://github.com/higher-kinded-j/higher-kinded-j/issues/561)).
+
+- `Maybe<T> extends MaybeKind<T>`; `Either<L, R> extends EitherKind<L, R>, EitherKind2<L, R>`; `Validated<E, A> extends ValidatedKind<E, A>, ValidatedKind2<E, A>`. The leaves drop their now-redundant `Kind` clauses.
+- The five `widen` / `widen2` methods become cast-free upcasts (`return value;`), removing five `@SuppressWarnings("unchecked")` annotations. A future leaf that forgot to be a `Kind` is now a compile error rather than a latent `KindUnwrapException`.
+- `Id`, `IO`, `VTask` and `VStream` already extended their `Kind` interfaces and were unchanged. Holder-backed types (`Try`, `Lazy`, `State`, `Reader`, `Writer`, `Optional`, `List`, `Stream`, …) keep their holder indirection — for the JDK-wrapped ones it is fundamental, and converting the HKJ-owned ones would change widened-`Kind` identity, so it is left as a separate consideration.
+- `widen` / `narrow` remain the idiomatic, uniform boundary for every type; the structural relationship is an internal guarantee, documented in [Lifting the Hood](hkts/lifting_the_hood.md), not a reason to drop `widen` for these types. Purely internal; behaviour-preserving; the added superinterfaces are binary- and source-compatible.
+
 ---
 
 ### v0.4.6 (7 June 2026)
