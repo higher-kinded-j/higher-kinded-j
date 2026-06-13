@@ -3,6 +3,7 @@
 package org.higherkindedj.hkt.free;
 
 import static org.higherkindedj.hkt.util.validation.Operation.CONSTRUCTION;
+import static org.higherkindedj.hkt.util.validation.Operation.FOLD_MAP;
 import static org.higherkindedj.hkt.util.validation.Operation.FROM_KIND;
 
 import java.util.function.Function;
@@ -357,10 +358,13 @@ public sealed interface Free<F extends WitnessArity<TypeArity.Unary>, A> extends
    * @param monad The monad instance for M. Must not be null.
    * @param <M> The target monad type
    * @return The interpreted result in monad M
+   * @throws NullPointerException if {@code transform} or {@code monad} is null
    * @see Natural
    */
   default <M extends WitnessArity<TypeArity.Unary>> Kind<M, A> foldMap(
       Natural<F, M> transform, Monad<M> monad) {
+    Validation.function().require(transform, "transform", FOLD_MAP);
+    Validation.function().require(monad, "monad", FOLD_MAP);
     return interpretFreeNatural(this, transform, monad).run();
   }
 
@@ -386,12 +390,15 @@ public sealed interface Free<F extends WitnessArity<TypeArity.Unary>, A> extends
    * @param monad The monad instance for M
    * @param <M> The target monad type
    * @return The interpreted result in monad M
+   * @throws NullPointerException if {@code transform} or {@code monad} is null
    * @see #foldMap(Natural, Monad)
    */
   default <M extends WitnessArity<TypeArity.Unary>> Kind<M, A> foldMap(
       Function<Kind<F, ?>, Kind<M, ?>> transform, Monad<M> monad) {
+    Validation.function().require(transform, "transform", FOLD_MAP);
+    Validation.function().require(monad, "monad", FOLD_MAP);
     // Adapt the raw function to a Natural and interpret through the single Natural-based path.
-    return foldMap(asNatural(transform), monad);
+    return interpretFreeNatural(this, asNatural(transform), monad).run();
   }
 
   /**

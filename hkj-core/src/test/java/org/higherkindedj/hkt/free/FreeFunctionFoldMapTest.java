@@ -3,6 +3,7 @@
 package org.higherkindedj.hkt.free;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.higherkindedj.hkt.free.test.IdentityKindHelper.IDENTITY;
 import static org.higherkindedj.hkt.instances.Witnesses.*;
 import static org.higherkindedj.hkt.trymonad.TryKindHelper.TRY;
@@ -23,9 +24,10 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
 /**
- * Tests for the function-based foldMap path (interpretFree) with HandleError and Ap. The Natural
- * path (interpretFreeNatural) is tested in FreeHandleErrorTest and FreeApTest. This file covers the
- * alternative code path through foldMap(Function, Monad).
+ * Tests for the function-based {@code foldMap(Function, Monad)} overload with HandleError and Ap.
+ * Since the function overload now adapts to a {@code Natural} and runs through the single
+ * interpreter, these exercise that adapter path; the direct Natural path is covered in
+ * FreeHandleErrorTest and FreeApTest.
  */
 @DisplayName("Free function-based foldMap: HandleError and Ap coverage")
 class FreeFunctionFoldMapTest {
@@ -138,6 +140,47 @@ class FreeFunctionFoldMapTest {
       Try<String> tryResult = TRY.narrow(result);
       assertThat(tryResult.isSuccess()).isTrue();
       assertThat(tryResult.orElse(null)).isEqualTo("recovered: translated boom");
+    }
+  }
+
+  @Nested
+  @DisplayName("foldMap argument validation")
+  class ArgumentValidation {
+
+    private final Free<IdentityKind.Witness, Integer> program = Free.pure(42);
+
+    @Test
+    @DisplayName("foldMap(Function) rejects a null transform")
+    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
+    void functionFoldMapRejectsNullTransform() {
+      Function<Kind<IdentityKind.Witness, ?>, Kind<IdentityKind.Witness, ?>> nullTransform = null;
+      assertThatThrownBy(() -> program.foldMap(nullTransform, identityMonad))
+          .isInstanceOf(NullPointerException.class);
+    }
+
+    @Test
+    @DisplayName("foldMap(Function) rejects a null monad")
+    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
+    void functionFoldMapRejectsNullMonad() {
+      assertThatThrownBy(() -> program.foldMap(identityTransform, null))
+          .isInstanceOf(NullPointerException.class);
+    }
+
+    @Test
+    @DisplayName("foldMap(Natural) rejects a null transform")
+    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
+    void naturalFoldMapRejectsNullTransform() {
+      Natural<IdentityKind.Witness, IdentityKind.Witness> nullTransform = null;
+      assertThatThrownBy(() -> program.foldMap(nullTransform, identityMonad))
+          .isInstanceOf(NullPointerException.class);
+    }
+
+    @Test
+    @DisplayName("foldMap(Natural) rejects a null monad")
+    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
+    void naturalFoldMapRejectsNullMonad() {
+      Natural<IdentityKind.Witness, IdentityKind.Witness> nat = Natural.identity();
+      assertThatThrownBy(() -> program.foldMap(nat, null)).isInstanceOf(NullPointerException.class);
     }
   }
 }
