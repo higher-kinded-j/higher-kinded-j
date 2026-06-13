@@ -52,7 +52,11 @@ subprojects {
     }
 
     tasks.withType<JavaCompile>().configureEach {
-        options.compilerArgs.addAll(listOf("-Xmaxerrs", "10000", "--enable-preview"))
+        options.compilerArgs.addAll(
+            // -Werror ratchet: a new unchecked/raw-type use must carry an explicit,
+            // justified @SuppressWarnings or the build fails (see issue #560).
+            listOf("-Xmaxerrs", "10000", "--enable-preview", "-Xlint:unchecked,rawtypes", "-Werror")
+        )
     }
 
     tasks.withType<Test>().configureEach {

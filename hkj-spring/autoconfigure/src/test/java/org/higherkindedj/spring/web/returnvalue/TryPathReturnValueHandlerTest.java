@@ -67,7 +67,7 @@ class TryPathReturnValueHandlerTest {
     @Test
     @DisplayName("Should support TryPath return type")
     void shouldSupportTryPathReturnType() {
-      when(returnType.getParameterType()).thenReturn((Class) TryPath.class);
+      doReturn(TryPath.class).when(returnType).getParameterType();
 
       boolean result = handler.supportsReturnType(returnType);
 
@@ -77,7 +77,7 @@ class TryPathReturnValueHandlerTest {
     @Test
     @DisplayName("Should not support non-TryPath return type")
     void shouldNotSupportNonTryPathReturnType() {
-      when(returnType.getParameterType()).thenReturn((Class) String.class);
+      doReturn(String.class).when(returnType).getParameterType();
 
       boolean result = handler.supportsReturnType(returnType);
 

@@ -76,7 +76,7 @@ public enum ReaderKindHelper implements ReaderConverterOps {
    *     internal {@code reader} is non-null.
    */
   @Override
-  @SuppressWarnings("unchecked")
+  @SuppressWarnings({"unchecked", "rawtypes"}) // raw holder Class token; runtime-checked
   public <R, A> Reader<R, A> narrow(@Nullable Kind<ReaderKind.Witness<R>, A> kind) {
     return Validation.kind()
         .narrowHolder(kind, READER_CLASS, ReaderHolder.class, ReaderHolder::reader);

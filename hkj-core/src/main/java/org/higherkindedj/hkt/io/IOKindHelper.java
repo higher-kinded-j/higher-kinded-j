@@ -52,6 +52,7 @@ public enum IOKindHelper implements IOConverterOps {
    *     null}, or not an instance of {@code IO}.
    */
   @Override
+  @SuppressWarnings("unchecked") // raw Class token; runtime-checked via Class.isInstance
   public <A> IO<A> narrow(@Nullable Kind<IOKind.Witness, A> kind) {
     return Validation.kind().narrowWithTypeCheck(kind, IO_CLASS);
   }

@@ -46,6 +46,7 @@ public enum IdKindHelper implements IdConverterOps {
    *     instance.
    */
   @Override
+  @SuppressWarnings("unchecked") // raw Class token; runtime-checked via Class.isInstance
   public <A> Id<A> narrow(@Nullable Kind<IdKind.Witness, A> kind) {
     return Validation.kind().narrowWithTypeCheck(kind, ID_CLASS);
   }

@@ -848,7 +848,7 @@ public final class PathOps {
         paths.stream().map(CompletableFuturePath::toCompletableFuture).collect(Collectors.toList());
 
     CompletableFuture<List<A>> combined =
-        CompletableFuture.allOf(futures.toArray(new CompletableFuture[0]))
+        CompletableFuture.allOf(futures.toArray(new CompletableFuture<?>[0]))
             .thenApply(_ -> futures.stream().map(CompletableFuture::join).toList());
 
     return CompletableFuturePath.fromFuture(combined);
@@ -880,7 +880,7 @@ public final class PathOps {
         items.stream().map(item -> f.apply(item).toCompletableFuture()).toList();
 
     CompletableFuture<List<B>> combined =
-        CompletableFuture.allOf(futures.toArray(new CompletableFuture[0]))
+        CompletableFuture.allOf(futures.toArray(new CompletableFuture<?>[0]))
             .thenApply(_ -> futures.stream().map(CompletableFuture::join).toList());
 
     return CompletableFuturePath.fromFuture(combined);
@@ -963,7 +963,7 @@ public final class PathOps {
                       .toList();
 
               try {
-                CompletableFuture.allOf(futures.toArray(new CompletableFuture[0])).get();
+                CompletableFuture.allOf(futures.toArray(new CompletableFuture<?>[0])).get();
                 return futures.stream().map(CompletableFuture::join).toList();
               } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();

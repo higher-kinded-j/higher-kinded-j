@@ -29,6 +29,15 @@ This page documents the evolution of Higher-Kinded-J from its initial release th
 - `recover(ma, value)` rejects a null source but keeps `@Nullable value` (routed through `of`), so `recover(failure, null)` remains a valid `Success(null)` / `Nothing` / empty per type. `ValidatedMonad` intentionally keeps only `recoverWith`: its `of` rejects null, so a `recover` override could not honour the `@Nullable value` contract.
 - Purely additive and behaviour-preserving except on null input. The constant-fallback `recover` / `recoverWith` shortcuts are now documented on the MonadError and per-type monad pages.
 
+**Unchecked-cast hygiene: zero-cost eliminations and a lint ratchet**
+
+The build previously surfaced no unchecked warnings at all, so a new unguarded cast could land silently, and a handful of `@SuppressWarnings("unchecked")` sites suppressed casts the type system can already express. This release removes the avoidable casts and turns on `-Xlint:unchecked,rawtypes` across all modules so every future unchecked operation must carry an explicit, justified suppression ([#560](https://github.com/higher-kinded-j/higher-kinded-j/issues/560)).
+
+- Zero-cost eliminations: `VStreamPar.parEvalMap` / `parEvalMapUnordered` now accept `Function<? super A, VTask<B>>`, removing the double casts in `DefaultVStreamPath` (binary-compatible widening); `CompletableFuturePath.zipWith3` and `ValidationPath.zipWith3Accum` pair intermediate values with `Tuple2` instead of `Object[]`; `Resource.flatMap` and `VStreamPar.pullBatch` hold state in `AtomicReference` instead of raw one-element arrays; `VStream`'s finalizer wrapping types its `Step.Done` arm explicitly instead of casting the whole switch.
+- Lint ratchet: all modules compile with `-Xlint:unchecked,rawtypes -Werror`, so a new unchecked or raw-type use fails the build unless it carries an explicit suppression. Pre-existing, deliberate unchecked operations (the `KindHelper` narrow methods, whose raw `Class` tokens are runtime-checked via `Class.isInstance`) now carry uniform single-line suppressions stating why they are safe.
+- Generated code: `@ComposeEffects` Support classes now carry `@SuppressWarnings({"unchecked", "rawtypes"})`, so downstream projects compiling generated sources with lint enabled stay warning-free.
+- Purely internal; no behaviour or public API change.
+
 ---
 
 ### v0.4.6 (7 June 2026)

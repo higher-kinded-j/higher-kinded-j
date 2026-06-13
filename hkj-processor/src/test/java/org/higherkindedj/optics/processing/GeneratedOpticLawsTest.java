@@ -460,7 +460,7 @@ class GeneratedOpticLawsTest {
           () -> {
             Object prism = compiled.invokeStatic(TEST_PACKAGE + ".OrderStatusPrisms", prismMethod);
             Class<?> enumClass = compiled.loadClass("org.higherkindedj.test.OrderStatus");
-            Object value = Enum.valueOf(enumClass.asSubclass(Enum.class), enumConstant);
+            Object value = enumValueOf(enumClass, enumConstant);
 
             Object built = compiled.invokePrismBuild(prism, value);
             Optional<Object> extracted = compiled.invokePrismGetOptional(prism, built);
@@ -479,7 +479,7 @@ class GeneratedOpticLawsTest {
           () -> {
             Object prism = compiled.invokeStatic(TEST_PACKAGE + ".OrderStatusPrisms", prismMethod);
             Class<?> enumClass = compiled.loadClass("org.higherkindedj.test.OrderStatus");
-            Object source = Enum.valueOf(enumClass.asSubclass(Enum.class), enumConstant);
+            Object source = enumValueOf(enumClass, enumConstant);
 
             Optional<Object> extracted = compiled.invokePrismGetOptional(prism, source);
             Object result = extracted.map(v -> invokePrismBuildSafe(prism, v)).orElse(source);
@@ -496,6 +496,16 @@ class GeneratedOpticLawsTest {
       } catch (ReflectiveOperationException e) {
         throw new RuntimeException(e);
       }
+    }
+
+    /** Looks up an enum constant by name on a reflectively loaded enum class. */
+    private static Object enumValueOf(Class<?> enumClass, String name) {
+      for (Object constant : enumClass.getEnumConstants()) {
+        if (((Enum<?>) constant).name().equals(name)) {
+          return constant;
+        }
+      }
+      throw new IllegalArgumentException("No enum constant " + enumClass.getName() + "." + name);
     }
   }
 

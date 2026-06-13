@@ -56,6 +56,7 @@ public enum VStreamKindHelper implements VStreamConverterOps {
    *     null}, or not an instance of {@code VStream}.
    */
   @Override
+  @SuppressWarnings("unchecked") // raw Class token; runtime-checked via Class.isInstance
   public <A> VStream<A> narrow(@Nullable Kind<VStreamKind.Witness, A> kind) {
     return Validation.kind().narrowWithTypeCheck(kind, VSTREAM_CLASS);
   }

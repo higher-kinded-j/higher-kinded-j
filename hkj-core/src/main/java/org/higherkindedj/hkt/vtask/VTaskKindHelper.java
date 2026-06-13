@@ -60,6 +60,7 @@ public enum VTaskKindHelper implements VTaskConverterOps {
    *     null}, or not an instance of {@code VTask}.
    */
   @Override
+  @SuppressWarnings("unchecked") // raw Class token; runtime-checked via Class.isInstance
   public <A> VTask<A> narrow(@Nullable Kind<VTaskKind.Witness, A> kind) {
     return Validation.kind().narrowWithTypeCheck(kind, VTASK_CLASS);
   }

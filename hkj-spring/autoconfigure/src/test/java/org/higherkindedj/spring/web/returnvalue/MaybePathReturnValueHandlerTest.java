@@ -67,7 +67,7 @@ class MaybePathReturnValueHandlerTest {
     @Test
     @DisplayName("Should support MaybePath return type")
     void shouldSupportMaybePathReturnType() {
-      when(returnType.getParameterType()).thenReturn((Class) MaybePath.class);
+      doReturn(MaybePath.class).when(returnType).getParameterType();
 
       boolean result = handler.supportsReturnType(returnType);
 
@@ -77,7 +77,7 @@ class MaybePathReturnValueHandlerTest {
     @Test
     @DisplayName("Should not support non-MaybePath return type")
     void shouldNotSupportNonMaybePathReturnType() {
-      when(returnType.getParameterType()).thenReturn((Class) String.class);
+      doReturn(String.class).when(returnType).getParameterType();
 
       boolean result = handler.supportsReturnType(returnType);
 

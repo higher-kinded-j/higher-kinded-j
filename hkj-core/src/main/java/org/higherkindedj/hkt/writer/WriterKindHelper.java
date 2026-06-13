@@ -86,7 +86,7 @@ public enum WriterKindHelper implements WriterConverterOps {
    *     internal {@code writer} is non-null.
    */
   @Override
-  @SuppressWarnings("unchecked")
+  @SuppressWarnings({"unchecked", "rawtypes"}) // raw holder Class token; runtime-checked
   public <W, A> Writer<W, A> narrow(@Nullable Kind<WriterKind.Witness<W>, A> kind) {
     return Validation.kind()
         .narrowHolder(kind, WRITER_CLASS, WriterHolder.class, WriterHolder::writer);

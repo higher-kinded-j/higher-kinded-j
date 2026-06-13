@@ -62,7 +62,7 @@ public enum ListKindHelper implements ListConverterOps {
    *     ListKind representation.
    */
   @Override
-  @SuppressWarnings("unchecked")
+  @SuppressWarnings({"unchecked", "rawtypes"}) // raw holder Class token; runtime-checked
   public <A> List<A> narrow(@Nullable Kind<ListKind.Witness, A> kind) {
     return Validation.kind().narrowHolder(kind, LIST_CLASS, ListHolder.class, ListHolder::list);
   }

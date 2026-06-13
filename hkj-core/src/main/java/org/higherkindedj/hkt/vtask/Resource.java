@@ -9,6 +9,7 @@ import static org.higherkindedj.hkt.util.validation.Operation.MAP;
 
 import java.util.Objects;
 import java.util.concurrent.Callable;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import org.higherkindedj.hkt.util.validation.Validation;
@@ -241,20 +242,18 @@ public final class Resource<A> {
     Validation.function().require(f, "f", FLAT_MAP);
 
     // Holders to capture the outer resource and inner release for proper cleanup
-    @SuppressWarnings("unchecked")
-    Object[] outerHolder = new Object[1];
-    @SuppressWarnings("unchecked")
-    Consumer<B>[] innerReleaseHolder = new Consumer[1];
+    AtomicReference<A> outerHolder = new AtomicReference<>();
+    AtomicReference<Consumer<B>> innerReleaseHolder = new AtomicReference<>();
 
     return new Resource<>(
         () -> {
           A a = acquire.call();
-          outerHolder[0] = a;
+          outerHolder.set(a);
           try {
             Resource<B> resourceB = f.apply(a);
             Objects.requireNonNull(
                 resourceB, "f returned null in Resource.flatMap, which is not allowed");
-            innerReleaseHolder[0] = resourceB.release;
+            innerReleaseHolder.set(resourceB.release);
             return resourceB.acquire.call();
           } catch (Throwable t) {
             // If acquiring B fails, release A
@@ -270,17 +269,16 @@ public final class Resource<A> {
           Throwable firstException = null;
 
           // Release inner resource (B) first
-          // innerReleaseHolder[0] is always set before acquire returns successfully,
+          // innerReleaseHolder is always set before acquire returns successfully,
           // so it is guaranteed non-null when this release lambda is called.
           try {
-            innerReleaseHolder[0].accept(b);
+            innerReleaseHolder.get().accept(b);
           } catch (Throwable t) {
             firstException = t;
           }
 
           // Release outer resource (A) second
-          @SuppressWarnings("unchecked")
-          A a = (A) outerHolder[0];
+          A a = outerHolder.get();
           if (a != null) {
             try {
               release.accept(a);

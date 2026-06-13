@@ -68,7 +68,7 @@ public enum OptionalKindHelper implements OptionalConverterOps {
    *     null} or not an instance of {@code OptionalHolder}.
    */
   @Override
-  @SuppressWarnings("unchecked")
+  @SuppressWarnings({"unchecked", "rawtypes"}) // raw holder Class token; runtime-checked
   public <A> Optional<A> narrow(@Nullable Kind<OptionalKind.Witness, A> kind) {
     return Validation.kind()
         .narrowHolder(kind, OPTIONAL_CLASS, OptionalHolder.class, OptionalHolder::optional);

@@ -18,6 +18,7 @@ import org.higherkindedj.hkt.either.Either;
 import org.higherkindedj.hkt.function.Function3;
 import org.higherkindedj.hkt.maybe.Maybe;
 import org.higherkindedj.hkt.trymonad.Try;
+import org.higherkindedj.hkt.tuple.Tuple2;
 import org.higherkindedj.hkt.validated.Invalid;
 import org.higherkindedj.hkt.validated.Valid;
 import org.higherkindedj.hkt.validated.Validated;
@@ -341,16 +342,8 @@ public final class ValidationPath<E, A>
     Objects.requireNonNull(combiner, "combiner must not be null");
 
     // Implement via two zipWithAccum calls to properly accumulate all errors
-    return this.zipWithAccum(second, (a, b) -> new Object[] {a, b})
-        .zipWithAccum(
-            third,
-            (pair, c) -> {
-              @SuppressWarnings("unchecked")
-              A a = (A) pair[0];
-              @SuppressWarnings("unchecked")
-              B b = (B) pair[1];
-              return combiner.apply(a, b, c);
-            });
+    return this.zipWithAccum(second, Tuple2<A, B>::new)
+        .zipWithAccum(third, (pair, c) -> combiner.apply(pair._1(), pair._2(), c));
   }
 
   @Override

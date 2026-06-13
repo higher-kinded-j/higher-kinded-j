@@ -53,6 +53,7 @@ public enum MaybeTKindHelper implements MaybeTConverterOps {
    *     valid {@link MaybeT} instance.
    */
   @Override
+  @SuppressWarnings("unchecked") // raw Class token; runtime-checked via Class.isInstance
   public <F extends WitnessArity<TypeArity.Unary>, A> MaybeT<F, A> narrow(
       @Nullable Kind<MaybeTKind.Witness<F>, A> kind) {
     return Validation.kind().narrowWithTypeCheck(kind, MAYBE_T_CLASS);

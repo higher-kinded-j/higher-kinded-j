@@ -244,17 +244,13 @@ public record DefaultVStreamPath<A>(VStream<A> stream) implements VStreamPath<A>
   @Override
   public <B> VStreamPath<B> parEvalMap(int concurrency, Function<? super A, VTask<B>> f) {
     Objects.requireNonNull(f, "f must not be null");
-    @SuppressWarnings("unchecked")
-    Function<A, VTask<B>> typedF = (Function<A, VTask<B>>) (Function<?, ?>) f;
-    return new DefaultVStreamPath<>(VStreamPar.parEvalMap(stream, concurrency, typedF));
+    return new DefaultVStreamPath<>(VStreamPar.parEvalMap(stream, concurrency, f));
   }
 
   @Override
   public <B> VStreamPath<B> parEvalMapUnordered(int concurrency, Function<? super A, VTask<B>> f) {
     Objects.requireNonNull(f, "f must not be null");
-    @SuppressWarnings("unchecked")
-    Function<A, VTask<B>> typedF = (Function<A, VTask<B>>) (Function<?, ?>) f;
-    return new DefaultVStreamPath<>(VStreamPar.parEvalMapUnordered(stream, concurrency, typedF));
+    return new DefaultVStreamPath<>(VStreamPar.parEvalMapUnordered(stream, concurrency, f));
   }
 
   // ===== Chunking operations =====
@@ -305,11 +301,9 @@ public record DefaultVStreamPath<A>(VStream<A> stream) implements VStreamPath<A>
   // ===== Effectful mapping =====
 
   @Override
-  @SuppressWarnings("unchecked")
   public <B> VStreamPath<B> mapTask(Function<? super A, ? extends VTask<B>> f) {
     Objects.requireNonNull(f, "f must not be null");
-    Function<A, VTask<B>> typedF = (Function<A, VTask<B>>) (Function<?, ?>) f;
-    return new DefaultVStreamPath<>(stream.mapTask(typedF));
+    return new DefaultVStreamPath<>(stream.mapTask(f));
   }
 
   // ===== Rate limiting =====

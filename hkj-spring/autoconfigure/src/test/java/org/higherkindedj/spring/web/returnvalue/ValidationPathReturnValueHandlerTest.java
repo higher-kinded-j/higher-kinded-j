@@ -68,7 +68,7 @@ class ValidationPathReturnValueHandlerTest {
     @Test
     @DisplayName("Should support ValidationPath return type")
     void shouldSupportValidationPathReturnType() {
-      when(returnType.getParameterType()).thenReturn((Class) ValidationPath.class);
+      doReturn(ValidationPath.class).when(returnType).getParameterType();
 
       boolean result = handler.supportsReturnType(returnType);
 
@@ -78,7 +78,7 @@ class ValidationPathReturnValueHandlerTest {
     @Test
     @DisplayName("Should not support non-ValidationPath return type")
     void shouldNotSupportNonValidationPathReturnType() {
-      when(returnType.getParameterType()).thenReturn((Class) String.class);
+      doReturn(String.class).when(returnType).getParameterType();
 
       boolean result = handler.supportsReturnType(returnType);
 

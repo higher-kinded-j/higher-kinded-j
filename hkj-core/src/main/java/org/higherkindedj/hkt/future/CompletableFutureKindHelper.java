@@ -66,7 +66,7 @@ public enum CompletableFutureKindHelper implements CompletableFutureConverterOps
    *     contains a {@code null} future.
    */
   @Override
-  @SuppressWarnings("unchecked")
+  @SuppressWarnings({"unchecked", "rawtypes"}) // raw holder Class token; runtime-checked
   public <A> CompletableFuture<A> narrow(@Nullable Kind<CompletableFutureKind.Witness, A> kind) {
     return Validation.kind()
         .narrowHolder(

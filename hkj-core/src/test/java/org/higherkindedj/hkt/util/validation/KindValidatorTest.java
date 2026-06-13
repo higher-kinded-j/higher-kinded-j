@@ -120,6 +120,7 @@ class KindValidatorTest {
 
     @Test
     @DisplayName("should preserve narrowing for different types")
+    @SuppressWarnings("unchecked") // typed class literal for narrow
     void shouldPreserveNarrowingForDifferentTypes() {
       var maybeInt = Maybe.just(42);
       var kindInt = MAYBE.widen(maybeInt);
@@ -829,6 +830,7 @@ class KindValidatorTest {
 
     @Test
     @DisplayName("should validate complete narrow-widen cycle")
+    @SuppressWarnings("unchecked") // raw Either.class keeps the validation chain unchecked
     void shouldValidateCompleteNarrowWidenCycle() {
       // Create original
       var original = Either.<String, Integer>right(42);
@@ -845,7 +847,6 @@ class KindValidatorTest {
       assertThat(validatedKind).isEqualTo(widened);
 
       // Narrow
-      @SuppressWarnings("unchecked")
       var narrowed =
           Validation.kind()
               .<EitherKind.Witness<String>, Integer, Either<String, Integer>>narrow(
@@ -859,6 +860,7 @@ class KindValidatorTest {
 
     @Test
     @DisplayName("should handle validation chain with multiple operations")
+    @SuppressWarnings("unchecked") // raw Either.class keeps the validation chain unchecked
     void shouldHandleValidationChainWithMultipleOperations() {
       var either = Either.<String, String>right("test");
 
@@ -901,6 +903,7 @@ class KindValidatorTest {
 
     @Test
     @DisplayName("should handle concurrent validation requests")
+    @SuppressWarnings("unchecked") // raw Either.class keeps the validation chain unchecked
     void shouldHandleConcurrentValidationRequests() throws InterruptedException {
       int threadCount = 10;
       CountDownLatch startLatch = new CountDownLatch(1);
@@ -948,15 +951,14 @@ class KindValidatorTest {
                   i ->
                       CompletableFuture.supplyAsync(
                           () -> new KindValidator.KindContext(Either.class, "narrow")))
-              .toArray(CompletableFuture[]::new);
+              .toArray(CompletableFuture<?>[]::new);
 
       CompletableFuture.allOf(futures).join();
 
       // All contexts should be equal
-      var first = ((CompletableFuture<KindValidator.KindContext>) futures[0]).join();
+      var first = futures[0].join();
       for (var future : futures) {
-        @SuppressWarnings("unchecked")
-        var context = ((CompletableFuture<KindValidator.KindContext>) future).join();
+        var context = future.join();
         assertThat(context).isEqualTo(first);
       }
     }

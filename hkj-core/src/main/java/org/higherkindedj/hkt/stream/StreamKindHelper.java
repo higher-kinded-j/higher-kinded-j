@@ -81,7 +81,7 @@ public enum StreamKindHelper implements StreamConverterOps {
    *     StreamKind representation.
    */
   @Override
-  @SuppressWarnings("unchecked")
+  @SuppressWarnings({"unchecked", "rawtypes"}) // raw holder Class token; runtime-checked
   public <A> Stream<A> narrow(@Nullable Kind<StreamKind.Witness, A> kind) {
     return Validation.kind()
         .narrowHolder(kind, STREAM_CLASS, StreamHolder.class, StreamHolder::stream);

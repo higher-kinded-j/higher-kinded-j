@@ -61,7 +61,7 @@ public enum TryKindHelper implements TryConverterOps {
    *     wrong type or invalid internal state).
    */
   @Override
-  @SuppressWarnings("unchecked")
+  @SuppressWarnings({"unchecked", "rawtypes"}) // raw holder Class token; runtime-checked
   public <A> Try<A> narrow(@Nullable Kind<TryKind.Witness, A> kind) {
     return Validation.kind().narrowHolder(kind, TRY_CLASS, TryHolder.class, TryHolder::tryInstance);
   }

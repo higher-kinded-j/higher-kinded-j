@@ -67,7 +67,7 @@ class IOPathReturnValueHandlerTest {
     @Test
     @DisplayName("Should support IOPath return type")
     void shouldSupportIOPathReturnType() {
-      when(returnType.getParameterType()).thenReturn((Class) IOPath.class);
+      doReturn(IOPath.class).when(returnType).getParameterType();
 
       boolean result = handler.supportsReturnType(returnType);
 
@@ -77,7 +77,7 @@ class IOPathReturnValueHandlerTest {
     @Test
     @DisplayName("Should not support non-IOPath return type")
     void shouldNotSupportNonIOPathReturnType() {
-      when(returnType.getParameterType()).thenReturn((Class) String.class);
+      doReturn(String.class).when(returnType).getParameterType();
 
       boolean result = handler.supportsReturnType(returnType);
 

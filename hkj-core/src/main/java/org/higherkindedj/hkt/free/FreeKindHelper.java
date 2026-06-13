@@ -60,7 +60,7 @@ public enum FreeKindHelper {
    * @return The concrete Free instance
    * @throws ClassCastException if the Kind is not a FreeHolder
    */
-  @SuppressWarnings("unchecked")
+  @SuppressWarnings({"unchecked", "rawtypes"}) // raw holder Class token; runtime-checked
   public <F extends WitnessArity<TypeArity.Unary>, A> Free<F, A> narrow(
       @Nullable Kind<FreeKind.Witness<F>, A> kind) {
     return Validation.kind().narrowHolder(kind, Free.class, FreeHolder.class, FreeHolder::free);

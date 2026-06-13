@@ -54,6 +54,7 @@ public enum ReaderTKindHelper implements ReaderTConverterOps {
    *     valid {@link ReaderT} instance.
    */
   @Override
+  @SuppressWarnings("unchecked") // raw Class token; runtime-checked via Class.isInstance
   public <F extends WitnessArity<TypeArity.Unary>, R_ENV, A> ReaderT<F, R_ENV, A> narrow(
       @Nullable Kind<ReaderTKind.Witness<F, R_ENV>, A> kind) {
     return Validation.kind().narrowWithTypeCheck(kind, READER_T_CLASS);
