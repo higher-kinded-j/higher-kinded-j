@@ -111,7 +111,8 @@ public final class RawKindChecker implements CheckVisitor {
   }
 
   private void flagIfRawKind(Tree typeTree, TreePath path) {
-    TypeMirror tm = typeOf(path, typeTree);
+    // path already points at typeTree (it is the scanner's current path).
+    TypeMirror tm = typeOf(path);
     if (tm == null || tm.getKind() != TypeKind.DECLARED) {
       return; // unresolved or not a declared type: skip (no false positives)
     }
@@ -132,9 +133,9 @@ public final class RawKindChecker implements CheckVisitor {
     }
   }
 
-  private TypeMirror typeOf(TreePath path, Tree t) {
+  private TypeMirror typeOf(TreePath path) {
     try {
-      return trees.getTypeMirror(new TreePath(path, t));
+      return trees.getTypeMirror(path);
     } catch (RuntimeException e) {
       return null;
     }
