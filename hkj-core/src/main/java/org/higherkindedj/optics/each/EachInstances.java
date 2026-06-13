@@ -17,6 +17,7 @@ import org.higherkindedj.hkt.TypeArity;
 import org.higherkindedj.hkt.WitnessArity;
 import org.higherkindedj.hkt.vstream.VStream;
 import org.higherkindedj.optics.Each;
+import org.higherkindedj.optics.EachIndexed;
 import org.higherkindedj.optics.Traversal;
 import org.higherkindedj.optics.focus.FocusPaths;
 import org.higherkindedj.optics.indexed.IndexedTraversal;
@@ -90,21 +91,19 @@ public final class EachInstances {
    * @param <A> The element type of the list
    * @return An {@code Each} instance for lists
    */
-  public static <A> Each<List<A>, A> listEach() {
+  public static <A> EachIndexed<Integer, List<A>, A> listEach() {
     return new ListEach<>();
   }
 
-  private static final class ListEach<A> implements Each<List<A>, A> {
+  private static final class ListEach<A> implements EachIndexed<Integer, List<A>, A> {
     @Override
     public Traversal<List<A>, A> each() {
       return Traversals.forList();
     }
 
     @Override
-    @SuppressWarnings("unchecked")
-    public <I> Optional<IndexedTraversal<I, List<A>, A>> eachWithIndex() {
-      IndexedTraversal<Integer, List<A>, A> indexed = IndexedTraversals.forList();
-      return Optional.of((IndexedTraversal<I, List<A>, A>) indexed);
+    public IndexedTraversal<Integer, List<A>, A> indexedTraversal() {
+      return IndexedTraversals.forList();
     }
   }
 
@@ -143,21 +142,19 @@ public final class EachInstances {
    * @param <V> The value type of the map
    * @return An {@code Each} instance for map values
    */
-  public static <K, V> Each<Map<K, V>, V> mapValuesEach() {
+  public static <K, V> EachIndexed<K, Map<K, V>, V> mapValuesEach() {
     return new MapValuesEach<>();
   }
 
-  private static final class MapValuesEach<K, V> implements Each<Map<K, V>, V> {
+  private static final class MapValuesEach<K, V> implements EachIndexed<K, Map<K, V>, V> {
     @Override
     public Traversal<Map<K, V>, V> each() {
       return Traversals.forMapValues();
     }
 
     @Override
-    @SuppressWarnings("unchecked")
-    public <I> Optional<IndexedTraversal<I, Map<K, V>, V>> eachWithIndex() {
-      IndexedTraversal<K, Map<K, V>, V> indexed = IndexedTraversals.forMap();
-      return Optional.of((IndexedTraversal<I, Map<K, V>, V>) indexed);
+    public IndexedTraversal<K, Map<K, V>, V> indexedTraversal() {
+      return IndexedTraversals.forMap();
     }
   }
 
@@ -198,20 +195,19 @@ public final class EachInstances {
    * @param <A> The element type of the array
    * @return An {@code Each} instance for arrays
    */
-  public static <A> Each<A[], A> arrayEach() {
+  public static <A> EachIndexed<Integer, A[], A> arrayEach() {
     return new ArrayEach<>();
   }
 
-  private static final class ArrayEach<A> implements Each<A[], A> {
+  private static final class ArrayEach<A> implements EachIndexed<Integer, A[], A> {
     @Override
     public Traversal<A[], A> each() {
       return FocusPaths.arrayElements();
     }
 
     @Override
-    @SuppressWarnings("unchecked")
-    public <I> Optional<IndexedTraversal<I, A[], A>> eachWithIndex() {
-      return Optional.of((IndexedTraversal<I, A[], A>) createArrayIndexedTraversal());
+    public IndexedTraversal<Integer, A[], A> indexedTraversal() {
+      return createArrayIndexedTraversal();
     }
 
     private IndexedTraversal<Integer, A[], A> createArrayIndexedTraversal() {
@@ -306,21 +302,21 @@ public final class EachInstances {
    *
    * @return An {@code Each} instance for string characters
    */
-  public static Each<String, Character> stringCharsEach() {
-    return new StringCharsEach();
+  public static EachIndexed<Integer, String, Character> stringCharsEach() {
+    return StringCharsEach.INSTANCE;
   }
 
-  private static final class StringCharsEach implements Each<String, Character> {
+  private static final class StringCharsEach implements EachIndexed<Integer, String, Character> {
+    private static final StringCharsEach INSTANCE = new StringCharsEach();
+
     @Override
     public Traversal<String, Character> each() {
       return new StringCharsTraversal();
     }
 
     @Override
-    @SuppressWarnings("unchecked")
-    public <I> Optional<IndexedTraversal<I, String, Character>> eachWithIndex() {
-      return Optional.of(
-          (IndexedTraversal<I, String, Character>) new StringCharsIndexedTraversal());
+    public IndexedTraversal<Integer, String, Character> indexedTraversal() {
+      return new StringCharsIndexedTraversal();
     }
   }
 

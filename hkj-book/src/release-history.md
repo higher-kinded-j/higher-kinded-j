@@ -69,6 +69,14 @@ Two small internal-soundness cleanups ([#562](https://github.com/higher-kinded-j
 - The `Function`-based `foldMap` now adapts its argument to a `Natural` through a small `asNatural` helper (the one place the function's erased per-element correspondence is reasserted) and runs through the single `Natural`-based interpreter. `interpretFree` and `interpretApFunction` are deleted — `Free.java` loses ~64 lines and three `@SuppressWarnings`, with one trust boundary instead of two.
 - Behaviour is preserved exactly (the strict/lazy probe is unchanged and now documented as the deliberate internal trick it is); the full Free / FreePath suites pass. The `Natural` form is the recommended one, now noted in the [Free Monad](monads/free_monad.md) chapter. Purely internal; no public API change.
 
+**`EachIndexed`: a type-safe replacement for `Each.eachWithIndex()`**
+
+`Each.eachWithIndex()` returned `Optional<IndexedTraversal<I, S, A>>` with a caller-chosen index type `I`, even though each container's real index type is fixed (`Integer` for lists/arrays/strings, the key type for maps). Requesting the wrong index compiled and then failed at runtime with a `ClassCastException` — the one spot in the public optics API where the type system promised something the implementation could not honour ([#564](https://github.com/higher-kinded-j/higher-kinded-j/issues/564)).
+
+- New `EachIndexed<I, S, A> extends Each<S, A>` carries the index type at the type level and exposes the underlying traversal directly via `indexedTraversal()` — no `Optional`, no cast, the index type checked at compile time (mirroring how `At` and `Ixed` already carry their index type). `EachInstances.listEach()`, `mapValuesEach()`, `arrayEach()` and `stringCharsEach()` now return `EachIndexed`, and `Each.fromIndexedTraversal` returns it too; this removes the unsound casts those instances carried.
+- `Each.eachWithIndex()` is **deprecated for removal in 0.5.0**. It still works as a bridge (so existing code compiles), but new code should narrow to `EachIndexed` and call `indexedTraversal()`. `Each.supportsIndexed()` reports `true` for any `EachIndexed`, falling back to the deprecated `eachWithIndex()` so a legacy `Each` that overrode it keeps working until the method is removed.
+- API change: additive (`EachIndexed`, sharper factory return types) plus one deprecation; no behaviour change for existing callers. The [Each type class](optics/each_typeclass.md) and [Indexed Optics](optics/indexed_optics.md) chapters show the typed form.
+
 ---
 
 ### v0.4.6 (7 June 2026)

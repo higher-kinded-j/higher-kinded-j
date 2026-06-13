@@ -175,7 +175,8 @@ class VStreamEachTest {
     }
 
     @Test
-    @DisplayName("eachWithIndex() should return empty for VStream")
+    @DisplayName("deprecated eachWithIndex() returns empty for VStream (non-EachIndexed)")
+    @SuppressWarnings({"deprecation", "removal"}) // exercises the deprecated bridge for back-compat
     void eachWithIndexReturnsEmpty() {
       Optional<IndexedTraversal<Object, VStream<String>, String>> indexed =
           vstreamEach.eachWithIndex();

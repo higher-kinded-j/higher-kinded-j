@@ -2,6 +2,7 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.optics;
 
+import java.util.Objects;
 import java.util.Optional;
 import org.higherkindedj.optics.indexed.IndexedTraversal;
 
@@ -125,57 +126,39 @@ public interface Each<S, A> {
   Traversal<S, A> each();
 
   /**
-   * Returns an indexed traversal if the container supports indexed access.
+   * Returns an indexed traversal if the container supports indexed access, choosing the index type
+   * at the call site.
    *
-   * <p>The index type depends on the container:
+   * <p>This method is unsound: the caller picks {@code <I>} freely, but the underlying traversal
+   * has a fixed index type, so a mismatched request compiles and then fails at runtime with a
+   * {@link ClassCastException}. Indexing instances now implement {@link EachIndexed}, whose {@link
+   * EachIndexed#indexedTraversal()} fixes the index type at the type level — prefer that.
    *
-   * <ul>
-   *   <li>{@code List<A>}: Index type is {@code Integer} (position)
-   *   <li>{@code Map<K, V>}: Index type is {@code K} (key type)
-   *   <li>{@code A[]}: Index type is {@code Integer} (position)
-   *   <li>{@code String}: Index type is {@code Integer} (character position)
-   * </ul>
-   *
-   * <p>Containers that don't naturally support indexing (like {@code Set} or {@code Optional})
-   * return {@link Optional#empty()}.
-   *
-   * <p>Example usage:
-   *
-   * <pre>{@code
-   * Each<List<String>, String> listEach = EachInstances.listEach();
-   *
-   * // Get the indexed traversal
-   * Optional<IndexedTraversal<Integer, List<String>, String>> maybeIndexed =
-   *     listEach.eachWithIndex();
-   *
-   * maybeIndexed.ifPresent(indexed -> {
-   *     // Number each element by position
-   *     List<String> numbered = IndexedTraversals.imodify(
-   *         indexed,
-   *         (i, s) -> (i + 1) + ". " + s,
-   *         List.of("first", "second", "third")
-   *     );
-   *     // Result: ["1. first", "2. second", "3. third"]
-   * });
-   * }</pre>
-   *
-   * @param <I> The index type (inferred from the container)
-   * @return An {@link Optional} containing the {@link IndexedTraversal} if indexed access is
-   *     supported; {@link Optional#empty()} otherwise
+   * @param <I> the requested index type
+   * @return an {@link Optional} of the {@link IndexedTraversal} if indexed access is supported;
+   *     {@link Optional#empty()} otherwise
+   * @deprecated since 0.4.7, for removal in 0.5.0. Narrow to {@link EachIndexed} and call {@link
+   *     EachIndexed#indexedTraversal()} instead — the index type is then checked at compile time.
    */
+  @Deprecated(since = "0.4.7", forRemoval = true)
   default <I> Optional<IndexedTraversal<I, S, A>> eachWithIndex() {
     return Optional.empty();
   }
 
   /**
-   * Checks if this Each instance supports indexed traversal.
+   * Checks if this {@code Each} instance supports indexed traversal.
    *
-   * <p>This is a convenience method equivalent to {@code eachWithIndex().isPresent()}.
+   * <p>True for any {@link EachIndexed}. For backwards compatibility it also falls back to the
+   * deprecated {@link #eachWithIndex()} — so a legacy {@code Each} that signalled indexed support
+   * by overriding {@code eachWithIndex()} still reports {@code true} until that method is removed
+   * in 0.5.0, at which point the fallback can be dropped.
    *
-   * @return {@code true} if {@link #eachWithIndex()} returns a value; {@code false} otherwise
+   * @return {@code true} if this is an {@link EachIndexed}, or if its (deprecated) {@code
+   *     eachWithIndex()} returns a value; {@code false} otherwise
    */
+  @SuppressWarnings({"deprecation", "removal"}) // back-compat fallback until eachWithIndex removal
   default boolean supportsIndexed() {
-    return eachWithIndex().isPresent();
+    return this instanceof EachIndexed<?, ?, ?> || eachWithIndex().isPresent();
   }
 
   /**
@@ -195,64 +178,31 @@ public interface Each<S, A> {
    * @return An Each instance that delegates to the given traversal
    */
   static <S, A> Each<S, A> fromTraversal(Traversal<S, A> traversal) {
+    Objects.requireNonNull(traversal, "traversal must not be null");
     return () -> traversal;
   }
 
   /**
-   * Creates an Each instance from an existing IndexedTraversal.
-   *
-   * <p>The resulting Each instance supports both regular and indexed traversal.
+   * Creates an {@link EachIndexed} instance from an existing {@link IndexedTraversal}, preserving
+   * its index type {@code I} at the type level.
    *
    * <pre>{@code
    * IndexedTraversal<Integer, List<String>, String> indexed = IndexedTraversals.forList();
-   * Each<List<String>, String> each = Each.fromIndexedTraversal(indexed);
+   * EachIndexed<Integer, List<String>, String> each = Each.fromIndexedTraversal(indexed);
    *
-   * // Both methods work
    * Traversal<List<String>, String> trav = each.each();
-   * Optional<IndexedTraversal<Integer, List<String>, String>> iTrav = each.eachWithIndex();
-   * }</pre>
-   *
-   * <p><strong>Type Safety Warning:</strong> The {@link #eachWithIndex()} method on the returned
-   * {@code Each} instance uses an unchecked cast internally. The method signature {@code <J>
-   * Optional<IndexedTraversal<J, S, A>>} allows callers to request any index type {@code J}, but
-   * the underlying traversal has a fixed index type {@code I}. If the caller specifies an
-   * incompatible index type, a {@link ClassCastException} will occur at runtime when the index is
-   * accessed.
-   *
-   * <p><strong>Correct usage:</strong> Always use the same index type that was used when creating
-   * the original {@link IndexedTraversal}:
-   *
-   * <pre>{@code
-   * // listTraversal has index type Integer
-   * IndexedTraversal<Integer, List<String>, String> listTraversal = IndexedTraversals.forList();
-   * Each<List<String>, String> each = Each.fromIndexedTraversal(listTraversal);
-   *
-   * // Correct: request Integer index (matches the original)
-   * Optional<IndexedTraversal<Integer, List<String>, String>> goodPath = each.eachWithIndex();
-   *
-   * // WRONG: requesting String index will compile but fail at runtime
-   * // Optional<IndexedTraversal<String, List<String>, String>> badPath = each.eachWithIndex();
+   * IndexedTraversal<Integer, List<String>, String> iTrav = each.indexedTraversal();
    * }</pre>
    *
    * @param indexedTraversal The indexed traversal to wrap; must not be null
-   * @param <I> The index type of the traversal; callers of {@link #eachWithIndex()} must use this
-   *     same type
+   * @param <I> The index type of the traversal, carried through to the result
    * @param <S> The container type
    * @param <A> The element type
-   * @return An Each instance that provides both regular and indexed traversal
+   * @return An {@link EachIndexed} that provides both regular and indexed traversal
    */
-  static <I, S, A> Each<S, A> fromIndexedTraversal(IndexedTraversal<I, S, A> indexedTraversal) {
-    return new Each<>() {
-      @Override
-      public Traversal<S, A> each() {
-        return indexedTraversal.asTraversal();
-      }
-
-      @Override
-      @SuppressWarnings("unchecked")
-      public <J> Optional<IndexedTraversal<J, S, A>> eachWithIndex() {
-        return Optional.of((IndexedTraversal<J, S, A>) indexedTraversal);
-      }
-    };
+  static <I, S, A> EachIndexed<I, S, A> fromIndexedTraversal(
+      IndexedTraversal<I, S, A> indexedTraversal) {
+    Objects.requireNonNull(indexedTraversal, "indexedTraversal must not be null");
+    return () -> indexedTraversal;
   }
 }

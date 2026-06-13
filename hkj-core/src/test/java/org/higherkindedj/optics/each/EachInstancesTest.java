@@ -17,6 +17,7 @@ import org.higherkindedj.hkt.trymonad.Try;
 import org.higherkindedj.hkt.validated.Validated;
 import org.higherkindedj.hkt.vstream.VStream;
 import org.higherkindedj.optics.Each;
+import org.higherkindedj.optics.EachIndexed;
 import org.higherkindedj.optics.Traversal;
 import org.higherkindedj.optics.extensions.EachExtensions;
 import org.higherkindedj.optics.indexed.IndexedTraversal;
@@ -33,7 +34,7 @@ class EachInstancesTest {
   @DisplayName("List Each Instance")
   class ListEachTests {
 
-    private final Each<List<String>, String> listEach = EachInstances.listEach();
+    private final EachIndexed<Integer, List<String>, String> listEach = EachInstances.listEach();
 
     @Test
     @DisplayName("each() should return traversal for list elements")
@@ -76,19 +77,18 @@ class EachInstancesTest {
     }
 
     @Test
-    @DisplayName("eachWithIndex() should return indexed traversal")
-    void eachWithIndexReturnsIndexedTraversal() {
-      Optional<IndexedTraversal<Integer, List<String>, String>> indexed = listEach.eachWithIndex();
+    @DisplayName("indexedTraversal() should return indexed traversal")
+    void indexedTraversalReturnsIndexedTraversal() {
+      IndexedTraversal<Integer, List<String>, String> indexed = listEach.indexedTraversal();
 
-      assertThat(indexed).isPresent();
+      assertThat(indexed).isNotNull();
     }
 
     @Test
-    @DisplayName("eachWithIndex() should provide element indices")
-    void eachWithIndexProvidesIndices() {
+    @DisplayName("indexedTraversal() should provide element indices")
+    void indexedTraversalProvidesIndices() {
       List<String> list = List.of("a", "b", "c");
-      IndexedTraversal<Integer, List<String>, String> indexed =
-          listEach.<Integer>eachWithIndex().orElseThrow();
+      IndexedTraversal<Integer, List<String>, String> indexed = listEach.indexedTraversal();
 
       List<String> modified = IndexedTraversals.imodify(indexed, (i, s) -> i + ":" + s, list);
 
@@ -145,21 +145,14 @@ class EachInstancesTest {
     void supportsIndexedReturnsFalse() {
       assertThat(setEach.supportsIndexed()).isFalse();
     }
-
-    @Test
-    @DisplayName("eachWithIndex() should return empty for Set")
-    void eachWithIndexReturnsEmpty() {
-      Optional<IndexedTraversal<Object, Set<String>, String>> indexed = setEach.eachWithIndex();
-
-      assertThat(indexed).isEmpty();
-    }
   }
 
   @Nested
   @DisplayName("Map Values Each Instance")
   class MapValuesEachTests {
 
-    private final Each<Map<String, Integer>, Integer> mapEach = EachInstances.mapValuesEach();
+    private final EachIndexed<String, Map<String, Integer>, Integer> mapEach =
+        EachInstances.mapValuesEach();
 
     @Test
     @DisplayName("each() should traverse all values")
@@ -186,13 +179,12 @@ class EachInstancesTest {
     }
 
     @Test
-    @DisplayName("eachWithIndex() should provide key indices")
-    void eachWithIndexProvidesKeyIndices() {
+    @DisplayName("indexedTraversal() should provide key indices")
+    void indexedTraversalProvidesKeyIndices() {
       Map<String, Integer> map = new LinkedHashMap<>();
       map.put("first", 1);
       map.put("second", 2);
-      IndexedTraversal<String, Map<String, Integer>, Integer> indexed =
-          mapEach.<String>eachWithIndex().orElseThrow();
+      IndexedTraversal<String, Map<String, Integer>, Integer> indexed = mapEach.indexedTraversal();
 
       var pairs = IndexedTraversals.toIndexedList(indexed, map);
 
@@ -436,7 +428,7 @@ class EachInstancesTest {
   @DisplayName("Array Each Instance")
   class ArrayEachTests {
 
-    private final Each<String[], String> arrayEach = EachInstances.arrayEach();
+    private final EachIndexed<Integer, String[], String> arrayEach = EachInstances.arrayEach();
 
     @Test
     @DisplayName("each() should traverse all elements")
@@ -472,19 +464,18 @@ class EachInstancesTest {
     }
 
     @Test
-    @DisplayName("eachWithIndex() should return indexed traversal")
-    void eachWithIndexReturnsIndexedTraversal() {
-      Optional<IndexedTraversal<Integer, String[], String>> indexed = arrayEach.eachWithIndex();
+    @DisplayName("indexedTraversal() should return indexed traversal")
+    void indexedTraversalReturnsIndexedTraversal() {
+      IndexedTraversal<Integer, String[], String> indexed = arrayEach.indexedTraversal();
 
-      assertThat(indexed).isPresent();
+      assertThat(indexed).isNotNull();
     }
 
     @Test
-    @DisplayName("eachWithIndex() should provide element indices")
-    void eachWithIndexProvidesIndices() {
+    @DisplayName("indexedTraversal() should provide element indices")
+    void indexedTraversalProvidesIndices() {
       String[] array = {"a", "b", "c"};
-      IndexedTraversal<Integer, String[], String> indexed =
-          arrayEach.<Integer>eachWithIndex().orElseThrow();
+      IndexedTraversal<Integer, String[], String> indexed = arrayEach.indexedTraversal();
 
       String[] modified = IndexedTraversals.imodify(indexed, (i, s) -> i + ":" + s, array);
 
@@ -492,11 +483,10 @@ class EachInstancesTest {
     }
 
     @Test
-    @DisplayName("eachWithIndex() should handle empty array")
-    void eachWithIndexHandlesEmptyArray() {
+    @DisplayName("indexedTraversal() should handle empty array")
+    void indexedTraversalHandlesEmptyArray() {
       String[] array = {};
-      IndexedTraversal<Integer, String[], String> indexed =
-          arrayEach.<Integer>eachWithIndex().orElseThrow();
+      IndexedTraversal<Integer, String[], String> indexed = arrayEach.indexedTraversal();
 
       String[] modified = IndexedTraversals.imodify(indexed, (i, s) -> i + ":" + s, array);
 
@@ -508,7 +498,8 @@ class EachInstancesTest {
   @DisplayName("String Chars Each Instance")
   class StringCharsEachTests {
 
-    private final Each<String, Character> stringEach = EachInstances.stringCharsEach();
+    private final EachIndexed<Integer, String, Character> stringEach =
+        EachInstances.stringCharsEach();
 
     @Test
     @DisplayName("each() should traverse all characters")
@@ -544,11 +535,10 @@ class EachInstancesTest {
     }
 
     @Test
-    @DisplayName("eachWithIndex() should provide character indices")
-    void eachWithIndexProvidesIndices() {
+    @DisplayName("indexedTraversal() should provide character indices")
+    void indexedTraversalProvidesIndices() {
       String str = "abc";
-      IndexedTraversal<Integer, String, Character> indexed =
-          stringEach.<Integer>eachWithIndex().orElseThrow();
+      IndexedTraversal<Integer, String, Character> indexed = stringEach.indexedTraversal();
 
       var pairs = IndexedTraversals.toIndexedList(indexed, str);
 
@@ -562,11 +552,10 @@ class EachInstancesTest {
     }
 
     @Test
-    @DisplayName("eachWithIndex() should handle empty string")
-    void eachWithIndexHandlesEmptyString() {
+    @DisplayName("indexedTraversal() should handle empty string")
+    void indexedTraversalHandlesEmptyString() {
       String str = "";
-      IndexedTraversal<Integer, String, Character> indexed =
-          stringEach.<Integer>eachWithIndex().orElseThrow();
+      IndexedTraversal<Integer, String, Character> indexed = stringEach.indexedTraversal();
 
       var pairs = IndexedTraversals.toIndexedList(indexed, str);
 
@@ -667,6 +656,13 @@ class EachInstancesTest {
 
       assertThat(each.supportsIndexed()).isFalse();
     }
+
+    @Test
+    @DisplayName("fromTraversal() rejects a null traversal")
+    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
+    void fromTraversalRejectsNull() {
+      assertThatThrownBy(() -> Each.fromTraversal(null)).isInstanceOf(NullPointerException.class);
+    }
   }
 
   @Nested
@@ -677,7 +673,7 @@ class EachInstancesTest {
     @DisplayName("fromIndexedTraversal() should wrap as Each with index support")
     void fromIndexedTraversalWrapsWithIndexSupport() {
       IndexedTraversal<Integer, List<String>, String> indexed = IndexedTraversals.forList();
-      Each<List<String>, String> each = Each.fromIndexedTraversal(indexed);
+      EachIndexed<Integer, List<String>, String> each = Each.fromIndexedTraversal(indexed);
 
       assertThat(each.supportsIndexed()).isTrue();
     }
@@ -686,7 +682,7 @@ class EachInstancesTest {
     @DisplayName("fromIndexedTraversal() should provide both regular and indexed traversal")
     void fromIndexedTraversalProvidesBoth() {
       IndexedTraversal<Integer, List<String>, String> indexed = IndexedTraversals.forList();
-      Each<List<String>, String> each = Each.fromIndexedTraversal(indexed);
+      EachIndexed<Integer, List<String>, String> each = Each.fromIndexedTraversal(indexed);
 
       List<String> list = List.of("a", "b", "c");
 
@@ -695,29 +691,36 @@ class EachInstancesTest {
       assertThat(elements).containsExactly("a", "b", "c");
 
       // Indexed traversal
-      IndexedTraversal<Integer, List<String>, String> retrievedIndexed =
-          each.<Integer>eachWithIndex().orElseThrow();
+      IndexedTraversal<Integer, List<String>, String> retrievedIndexed = each.indexedTraversal();
       var pairs = IndexedTraversals.toIndexedList(retrievedIndexed, list);
       assertThat(pairs).hasSize(3);
     }
 
     @Test
-    @DisplayName("fromIndexedTraversal() should preserve index type through generic casting")
+    @DisplayName("fromIndexedTraversal() should preserve index type at the type level")
     void fromIndexedTraversalPreservesIndexType() {
       IndexedTraversal<String, Map<String, Integer>, Integer> indexed = IndexedTraversals.forMap();
-      Each<Map<String, Integer>, Integer> each = Each.fromIndexedTraversal(indexed);
+      EachIndexed<String, Map<String, Integer>, Integer> each = Each.fromIndexedTraversal(indexed);
 
       Map<String, Integer> map = new LinkedHashMap<>();
       map.put("a", 1);
       map.put("b", 2);
 
       IndexedTraversal<String, Map<String, Integer>, Integer> retrievedIndexed =
-          each.<String>eachWithIndex().orElseThrow();
+          each.indexedTraversal();
       var pairs = IndexedTraversals.toIndexedList(retrievedIndexed, map);
 
       assertThat(pairs).hasSize(2);
       assertThat(pairs.stream().anyMatch(p -> p.first().equals("a") && p.second() == 1)).isTrue();
       assertThat(pairs.stream().anyMatch(p -> p.first().equals("b") && p.second() == 2)).isTrue();
+    }
+
+    @Test
+    @DisplayName("fromIndexedTraversal() rejects a null traversal")
+    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
+    void fromIndexedTraversalRejectsNull() {
+      assertThatThrownBy(() -> Each.fromIndexedTraversal(null))
+          .isInstanceOf(NullPointerException.class);
     }
   }
 
@@ -804,7 +807,6 @@ class EachInstancesTest {
           EachInstances.fromTraverse(maybeTraverse);
 
       assertThat(each.supportsIndexed()).isFalse();
-      assertThat(each.eachWithIndex()).isEmpty();
     }
   }
 
@@ -907,12 +909,13 @@ class EachInstancesTest {
     }
 
     @Test
-    @DisplayName("stringCharsEach() should return new instances")
-    void stringCharsEachReturnsNewInstances() {
+    @DisplayName("stringCharsEach() returns the same cached instance")
+    void stringCharsEachReturnsCachedInstance() {
       Each<String, Character> first = EachInstances.stringCharsEach();
       Each<String, Character> second = EachInstances.stringCharsEach();
 
-      assertThat(first).isNotSameAs(second);
+      // StringCharsEach is stateless and non-generic, so it is cached as a singleton.
+      assertThat(first).isSameAs(second);
     }
   }
 
@@ -1016,10 +1019,9 @@ class EachInstancesTest {
     @Test
     @DisplayName("Array indexed traversal should handle single element")
     void arraySingleElementIndexed() {
-      Each<String[], String> arrayEach = EachInstances.arrayEach();
+      EachIndexed<Integer, String[], String> arrayEach = EachInstances.arrayEach();
       String[] array = {"single"};
-      IndexedTraversal<Integer, String[], String> indexed =
-          arrayEach.<Integer>eachWithIndex().orElseThrow();
+      IndexedTraversal<Integer, String[], String> indexed = arrayEach.indexedTraversal();
 
       var pairs = IndexedTraversals.toIndexedList(indexed, array);
 
@@ -1042,10 +1044,9 @@ class EachInstancesTest {
     @Test
     @DisplayName("String indexed traversal should work with special characters")
     void stringSpecialCharacters() {
-      Each<String, Character> stringEach = EachInstances.stringCharsEach();
+      EachIndexed<Integer, String, Character> stringEach = EachInstances.stringCharsEach();
       String str = "a\tb\nc";
-      IndexedTraversal<Integer, String, Character> indexed =
-          stringEach.<Integer>eachWithIndex().orElseThrow();
+      IndexedTraversal<Integer, String, Character> indexed = stringEach.indexedTraversal();
 
       var pairs = IndexedTraversals.toIndexedList(indexed, str);
 
@@ -1080,14 +1081,13 @@ class EachInstancesTest {
     @Test
     @DisplayName("Map indexed traversal with modify should update values with keys")
     void mapIndexedModify() {
-      Each<Map<String, Integer>, Integer> mapEach = EachInstances.mapValuesEach();
+      EachIndexed<String, Map<String, Integer>, Integer> mapEach = EachInstances.mapValuesEach();
       Map<String, Integer> map = new LinkedHashMap<>();
       map.put("a", 1);
       map.put("b", 2);
       map.put("c", 3);
 
-      IndexedTraversal<String, Map<String, Integer>, Integer> indexed =
-          mapEach.<String>eachWithIndex().orElseThrow();
+      IndexedTraversal<String, Map<String, Integer>, Integer> indexed = mapEach.indexedTraversal();
 
       Map<String, Integer> modified =
           IndexedTraversals.imodify(
@@ -1113,16 +1113,17 @@ class EachInstancesTest {
   class EachInterfaceTests {
 
     @Test
-    @DisplayName("supportsIndexed() should delegate to eachWithIndex().isPresent()")
-    void supportsIndexedDelegatesToEachWithIndex() {
-      // Create Each with indexed support
+    @DisplayName("supportsIndexed() should reflect whether the instance is an EachIndexed")
+    void supportsIndexedReflectsEachIndexed() {
+      // An indexed instance is an EachIndexed
       Each<List<String>, String> withIndexed = EachInstances.listEach();
-      assertThat(withIndexed.supportsIndexed()).isEqualTo(withIndexed.eachWithIndex().isPresent());
+      assertThat(withIndexed.supportsIndexed()).isTrue();
+      assertThat(withIndexed).isInstanceOf(EachIndexed.class);
 
-      // Create Each without indexed support
+      // A non-indexed instance is not an EachIndexed
       Each<Set<String>, String> withoutIndexed = EachInstances.setEach();
-      assertThat(withoutIndexed.supportsIndexed())
-          .isEqualTo(withoutIndexed.eachWithIndex().isPresent());
+      assertThat(withoutIndexed.supportsIndexed()).isFalse();
+      assertThat(withoutIndexed).isNotInstanceOf(EachIndexed.class);
     }
 
     @Test
@@ -1136,12 +1137,11 @@ class EachInstancesTest {
     }
 
     @Test
-    @DisplayName("eachWithIndex() default returns empty Optional")
-    void eachWithIndexDefaultReturnsEmpty() {
+    @DisplayName("a minimal Each lambda does not support indexed access")
+    void minimalEachDoesNotSupportIndexed() {
       // Create minimal Each implementation
       Each<List<String>, String> minimalEach = () -> Traversals.forList();
 
-      assertThat(minimalEach.eachWithIndex()).isEmpty();
       assertThat(minimalEach.supportsIndexed()).isFalse();
     }
   }
@@ -1205,13 +1205,6 @@ class EachInstancesTest {
     void supportsIndexedReturnsFalse() {
       Each<VStream<String>, String> vstreamEach = EachInstances.vstreamEach();
       assertThat(vstreamEach.supportsIndexed()).isFalse();
-    }
-
-    @Test
-    @DisplayName("eachWithIndex() should return empty for VStream")
-    void eachWithIndexReturnsEmpty() {
-      Each<VStream<String>, String> vstreamEach = EachInstances.vstreamEach();
-      assertThat(vstreamEach.<Integer>eachWithIndex()).isEmpty();
     }
   }
 
@@ -1349,6 +1342,70 @@ class EachInstancesTest {
       Each<TreeMap<String, Integer>, Integer> each =
           EachInstances.mapValuesEachCollecting(map -> new TreeMap<>(map));
       assertThat(each.supportsIndexed()).isFalse();
+    }
+  }
+
+  // ===== Deprecated eachWithIndex() bridge =====
+
+  /**
+   * Covers the deprecated {@link Each#eachWithIndex()} default (returns empty) and the {@link
+   * EachIndexed#eachWithIndex()} bridge (returns the indexed traversal) for back-compatibility. New
+   * code should use {@link EachIndexed#indexedTraversal()} instead.
+   */
+  @Nested
+  @DisplayName("Deprecated eachWithIndex() Bridge")
+  class DeprecatedEachWithIndexBridge {
+
+    @Test
+    @DisplayName("Each.eachWithIndex() default returns empty for a non-EachIndexed instance")
+    @SuppressWarnings({"deprecation", "removal"}) // exercises the deprecated bridge for back-compat
+    void eachDefaultReturnsEmpty() {
+      // A bare Each lambda is not an EachIndexed, so the default applies.
+      Each<List<String>, String> bareEach = () -> Traversals.forList();
+      assertThat(bareEach.<Integer>eachWithIndex()).isEmpty();
+
+      // setEach() is likewise a non-indexed Each.
+      Each<Set<String>, String> setEach = EachInstances.setEach();
+      assertThat(setEach.<Object>eachWithIndex()).isEmpty();
+    }
+
+    @Test
+    @DisplayName("EachIndexed.eachWithIndex() bridge returns the indexed traversal")
+    @SuppressWarnings({"deprecation", "removal"}) // exercises the deprecated bridge for back-compat
+    void eachIndexedBridgeReturnsIndexedTraversal() {
+      EachIndexed<Integer, List<String>, String> listEach = EachInstances.listEach();
+
+      Optional<IndexedTraversal<Integer, List<String>, String>> indexed = listEach.eachWithIndex();
+
+      assertThat(indexed).isPresent();
+      List<String> modified =
+          IndexedTraversals.imodify(
+              indexed.orElseThrow(), (i, s) -> i + ":" + s, List.of("a", "b"));
+      assertThat(modified).containsExactly("0:a", "1:b");
+    }
+
+    @Test
+    @DisplayName("supportsIndexed() honours a legacy Each that overrides eachWithIndex()")
+    void legacyEachSupportsIndexed() {
+      // A pre-EachIndexed instance signals indexed support the old way: by overriding the
+      // deprecated eachWithIndex(). supportsIndexed() must still report true for it until the
+      // method is removed in 0.5.0.
+      Each<List<String>, String> legacyEach =
+          new Each<>() {
+            @Override
+            public Traversal<List<String>, String> each() {
+              return Traversals.forList();
+            }
+
+            @Override
+            @SuppressWarnings({"unchecked", "deprecation", "removal"}) // legacy override
+            public <I> Optional<IndexedTraversal<I, List<String>, String>> eachWithIndex() {
+              IndexedTraversal<Integer, List<String>, String> indexed = IndexedTraversals.forList();
+              return Optional.of((IndexedTraversal<I, List<String>, String>) indexed);
+            }
+          };
+
+      assertThat(legacyEach.supportsIndexed()).isTrue();
     }
   }
 }
