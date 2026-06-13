@@ -5,6 +5,7 @@ package org.higherkindedj.hkt.error;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.util.validation.Validation;
 import org.jspecify.annotations.NullMarked;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Helper for converting between concrete {@link ErrorOp} and its HKT representation {@link
@@ -43,7 +44,7 @@ public enum ErrorOpKindHelper {
    * @return The concrete ErrorOp
    */
   @SuppressWarnings("unchecked") // raw Class token; runtime-checked via Class.isInstance
-  public <E, A> ErrorOp<E, A> narrow(Kind<ErrorOpKind.Witness<E>, A> kind) {
+  public <E, A> ErrorOp<E, A> narrow(@Nullable Kind<ErrorOpKind.Witness<E>, A> kind) {
     return Validation.kind().narrowWithTypeCheck(kind, ErrorOp.class);
   }
 }

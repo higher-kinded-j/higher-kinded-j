@@ -6,6 +6,7 @@ import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.WitnessArity;
 import org.higherkindedj.hkt.util.validation.Validation;
 import org.jspecify.annotations.NullMarked;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Helper for converting between concrete {@link EitherF} and its HKT representation {@link
@@ -58,7 +59,7 @@ public enum EitherFKindHelper {
    */
   @SuppressWarnings("unchecked") // raw Class token; runtime-checked via Class.isInstance
   public <F extends WitnessArity<?>, G extends WitnessArity<?>, A> EitherF<F, G, A> narrow(
-      Kind<EitherFKind.Witness<F, G>, A> kind) {
+      @Nullable Kind<EitherFKind.Witness<F, G>, A> kind) {
     return Validation.kind().narrowWithTypeCheck(kind, EitherF.class);
   }
 }
