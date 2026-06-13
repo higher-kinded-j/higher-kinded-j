@@ -8,6 +8,7 @@ import org.higherkindedj.hkt.maybe.Maybe;
 import org.higherkindedj.hkt.trymonad.Try;
 import org.higherkindedj.hkt.validated.Validated;
 import org.higherkindedj.optics.Each;
+import org.higherkindedj.optics.EachIndexed;
 import org.higherkindedj.optics.Lens;
 import org.higherkindedj.optics.Traversal;
 import org.higherkindedj.optics.each.EachInstances;
@@ -27,7 +28,8 @@ import org.higherkindedj.optics.util.Traversals;
  *   <li><b>EachInstances</b> for Java standard types (List, Set, Map, Optional, arrays, Stream,
  *       String)
  *   <li><b>EachExtensions</b> for HKT types (Maybe, Either, Try, Validated)
- *   <li><b>IndexedTraversal</b> via {@code eachWithIndex()} for position-aware operations
+ *   <li><b>IndexedTraversal</b> via {@code EachIndexed.indexedTraversal()} for position-aware
+ *       operations
  *   <li><b>Focus DSL integration</b> using {@code .each(Each)} method
  *   <li>Creating custom Each instances
  * </ul>
@@ -37,7 +39,7 @@ import org.higherkindedj.optics.util.Traversals;
  * <ul>
  *   <li>Getting canonical traversals with {@code Each.each()}
  *   <li>Checking for indexed support with {@code Each.supportsIndexed()}
- *   <li>Using {@code Each.eachWithIndex()} for containers with meaningful indices
+ *   <li>Using {@code EachIndexed.indexedTraversal()} for containers with meaningful indices
  *   <li>Wrapping existing traversals with {@code Each.fromTraversal()}
  *   <li>Integrating with Focus DSL paths
  * </ul>
@@ -317,49 +319,41 @@ public class EachInstancesExample {
     System.out.println();
   }
 
-  /** Demonstrates indexed traversal via eachWithIndex(). */
+  /** Demonstrates indexed traversal via EachIndexed.indexedTraversal(). */
   private static void demonstrateIndexedTraversal() {
-    System.out.println("--- Indexed Traversal via eachWithIndex() ---");
+    System.out.println("--- Indexed Traversal via EachIndexed.indexedTraversal() ---");
 
-    Each<List<String>, String> listEach = EachInstances.listEach();
+    // EachInstances.listEach() returns an EachIndexed<Integer, ...>, so the index type is
+    // fixed at compile time — no Optional, no cast.
+    EachIndexed<Integer, List<String>, String> listEach = EachInstances.listEach();
+    IndexedTraversal<Integer, List<String>, String> listIndexed = listEach.indexedTraversal();
 
     List<String> items = List.of("apple", "banana", "cherry");
 
-    // Use eachWithIndex for position-aware operations
-    listEach
-        .<Integer>eachWithIndex()
-        .ifPresent(
-            indexed -> {
-              // Number each element (1-based)
-              List<String> numbered =
-                  IndexedTraversals.imodify(
-                      indexed, (index, value) -> (index + 1) + ". " + value, items);
+    // Number each element (1-based)
+    List<String> numbered =
+        IndexedTraversals.imodify(listIndexed, (index, value) -> (index + 1) + ". " + value, items);
 
-              System.out.println("Numbered items:");
-              for (String item : numbered) {
-                System.out.println("  " + item);
-              }
-            });
+    System.out.println("Numbered items:");
+    for (String item : numbered) {
+      System.out.println("  " + item);
+    }
 
-    // Map with key as index
-    Each<Map<String, Double>, Double> mapEach = EachInstances.mapValuesEach();
+    // Map with key as index — index type is the map key (String).
+    EachIndexed<String, Map<String, Double>, Double> mapEach = EachInstances.mapValuesEach();
+    IndexedTraversal<String, Map<String, Double>, Double> mapIndexed = mapEach.indexedTraversal();
 
     Map<String, Double> prices = new LinkedHashMap<>();
     prices.put("laptop", 999.99);
     prices.put("mouse", 29.99);
     prices.put("keyboard", 79.99);
 
-    mapEach
-        .<String>eachWithIndex()
-        .ifPresent(
-            indexed -> {
-              // Format prices with product name
-              System.out.println("\nPrice list:");
-              var pairs = IndexedTraversals.toIndexedList(indexed, prices);
-              for (var pair : pairs) {
-                System.out.printf("  %s: £%.2f%n", pair.first(), pair.second());
-              }
-            });
+    // Format prices with product name
+    System.out.println("\nPrice list:");
+    var pairs = IndexedTraversals.toIndexedList(mapIndexed, prices);
+    for (var pair : pairs) {
+      System.out.printf("  %s: £%.2f%n", pair.first(), pair.second());
+    }
 
     System.out.println();
   }
@@ -466,23 +460,19 @@ public class EachInstancesExample {
     List<String> result = Traversals.modify(fromTraversal.each(), String::toUpperCase, items);
     System.out.println("From existing traversal: " + result);
 
-    // Create Each from IndexedTraversal (supports both each() and eachWithIndex())
+    // Create EachIndexed from IndexedTraversal (supports both each() and indexedTraversal())
     IndexedTraversal<Integer, List<String>, String> indexedTraversal = IndexedTraversals.forList();
-    Each<List<String>, String> fromIndexed = Each.fromIndexedTraversal(indexedTraversal);
+    EachIndexed<Integer, List<String>, String> fromIndexed =
+        Each.fromIndexedTraversal(indexedTraversal);
 
     System.out.println("From indexed traversal:");
     System.out.println("  Supports indexed: " + fromIndexed.supportsIndexed());
 
-    // Use the indexed capability
-    fromIndexed
-        .<Integer>eachWithIndex()
-        .ifPresent(
-            indexed -> {
-              List<String> numbered =
-                  IndexedTraversals.imodify(
-                      indexed, (i, s) -> "[" + i + "] " + s, List.of("a", "b", "c"));
-              System.out.println("  Numbered: " + numbered);
-            });
+    // Use the indexed capability — index type is fixed at compile time.
+    List<String> numbered =
+        IndexedTraversals.imodify(
+            fromIndexed.indexedTraversal(), (i, s) -> "[" + i + "] " + s, List.of("a", "b", "c"));
+    System.out.println("  Numbered: " + numbered);
 
     System.out.println();
     System.out.println("=== Each provides a uniform interface for element-wise traversal ===");

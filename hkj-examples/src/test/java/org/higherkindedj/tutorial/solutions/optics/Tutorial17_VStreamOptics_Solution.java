@@ -131,8 +131,9 @@ public class Tutorial17_VStreamOptics_Solution {
      * <p>Alternative: assume every container supports indexed traversal. False — only containers
      * like {@code List} and {@code Vector} do; the flag is the typed answer.
      *
-     * <p>Common wrong attempt: try to call {@code eachWithIndex()} on a vstream. The runtime would
-     * refuse; the compile-time check is the polite version.
+     * <p>Common wrong attempt: try to obtain an indexed traversal from a vstream. It is not an
+     * {@code EachIndexed}, so there is no {@code indexedTraversal()} to call; the compile-time
+     * check is the polite version.
      */
     @Test
     @DisplayName("Exercise 4: Check VStream indexed support")

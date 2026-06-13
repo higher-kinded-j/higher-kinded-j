@@ -518,7 +518,7 @@ public class Tutorial05_TraversalBasics_Solution {
    *
    * <ul>
    *   <li>Uniform interface for any container type
-   *   <li>Optional indexed access via {@code eachWithIndex()}
+   *   <li>Typed indexed access via {@code EachIndexed.indexedTraversal()}
    *   <li>Integrates with Focus DSL via {@code .each(Each)}
    *   <li>Extensible for custom containers
    * </ul>
