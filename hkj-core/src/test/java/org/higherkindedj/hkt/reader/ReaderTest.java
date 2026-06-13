@@ -754,18 +754,17 @@ class ReaderTest extends ReaderTestBase {
 
     @Test
     @DisplayName("Reader instances are lightweight")
-    @SuppressWarnings("unchecked") // generic array of Readers
     void readerInstancesAreLightweight() {
       // Creating many readers should not cause issues
-      Reader<TestConfig, String>[] readers = new Reader[1000];
-      for (int i = 0; i < readers.length; i++) {
+      List<Reader<TestConfig, String>> readers = new ArrayList<>();
+      for (int i = 0; i < 1000; i++) {
         final int index = i;
-        readers[i] = Reader.of(cfg -> cfg.url() + ":" + index);
+        readers.add(Reader.of(cfg -> cfg.url() + ":" + index));
       }
 
       // All should work correctly
-      for (int i = 0; i < readers.length; i++) {
-        assertThatReader(readers[i]).whenRunWith(TEST_CONFIG).produces(DEFAULT_URL + ":" + i);
+      for (int i = 0; i < readers.size(); i++) {
+        assertThatReader(readers.get(i)).whenRunWith(TEST_CONFIG).produces(DEFAULT_URL + ":" + i);
       }
     }
 

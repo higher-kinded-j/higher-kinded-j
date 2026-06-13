@@ -56,6 +56,7 @@ public enum EitherKindHelper implements EitherConverterOps {
    *     null} or not an instance of {@code Either}.
    */
   @Override
+  @SuppressWarnings("unchecked") // raw Class token; runtime-checked via Class.isInstance
   public <L, R> Either<L, R> narrow(@Nullable Kind<EitherKind.Witness<L>, R> kind) {
     return Validation.kind().narrowWithTypeCheck(kind, EITHER_CLASS);
   }

@@ -64,7 +64,7 @@ public enum TrampolineKindHelper implements TrampolineConverterOps {
    *     TrampolineHolder} internally contains a {@code null} {@link Trampoline} instance.
    */
   @Override
-  @SuppressWarnings("unchecked")
+  @SuppressWarnings({"unchecked", "rawtypes"}) // raw holder Class token; runtime-checked
   public <A> Trampoline<A> narrow(@Nullable Kind<TrampolineKind.Witness, A> kind) {
     return Validation.kind()
         .narrowHolder(kind, TRAMPOLINE_CLASS, TrampolineHolder.class, TrampolineHolder::trampoline);

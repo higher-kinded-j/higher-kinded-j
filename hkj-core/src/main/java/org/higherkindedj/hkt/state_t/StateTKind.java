@@ -90,6 +90,7 @@ public interface StateTKind<S, F, A> extends Kind<StateTKind.Witness<S, F>, A> {
    * @throws org.higherkindedj.hkt.exception.KindUnwrapException if {@code kind} is {@code null} or
    *     not actually an instance of {@link StateT} (or a compatible subtype).
    */
+  @SuppressWarnings("unchecked") // raw Class token; runtime-checked via Class.isInstance
   static <S, F extends WitnessArity<TypeArity.Unary>, A> StateT<S, F, A> narrow(
       @Nullable Kind<StateTKind.Witness<S, F>, A> kind) {
     return Validation.kind().narrowWithTypeCheck(kind, StateT.class);

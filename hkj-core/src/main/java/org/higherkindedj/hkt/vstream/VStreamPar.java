@@ -6,6 +6,7 @@ import java.util.*;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.StructuredTaskScope;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Function;
 import org.higherkindedj.hkt.Unit;
 import org.higherkindedj.hkt.vtask.VTask;
@@ -114,7 +115,7 @@ public final class VStreamPar {
    */
   @SuppressWarnings("preview")
   public static <A, B> VStream<B> parEvalMap(
-      VStream<A> stream, int concurrency, Function<A, VTask<B>> f) {
+      VStream<A> stream, int concurrency, Function<? super A, VTask<B>> f) {
     Objects.requireNonNull(stream, "stream must not be null");
     Objects.requireNonNull(f, "f must not be null");
     if (concurrency <= 0) {
@@ -125,7 +126,7 @@ public final class VStreamPar {
         () -> {
           // Pull up to concurrency elements from source
           List<A> batch = new ArrayList<>(concurrency);
-          VStream<A>[] tailHolder = new VStream[] {stream};
+          AtomicReference<VStream<A>> tailHolder = new AtomicReference<>(stream);
           boolean done = pullBatch(tailHolder, batch, concurrency);
 
           if (batch.isEmpty()) {
@@ -143,7 +144,7 @@ public final class VStreamPar {
           }
 
           // Recursively process remaining elements
-          return batchStream.concat(parEvalMap(tailHolder[0], concurrency, f));
+          return batchStream.concat(parEvalMap(tailHolder.get(), concurrency, f));
         });
   }
 
@@ -169,7 +170,7 @@ public final class VStreamPar {
    */
   @SuppressWarnings("preview")
   public static <A, B> VStream<B> parEvalMapUnordered(
-      VStream<A> stream, int concurrency, Function<A, VTask<B>> f) {
+      VStream<A> stream, int concurrency, Function<? super A, VTask<B>> f) {
     Objects.requireNonNull(stream, "stream must not be null");
     Objects.requireNonNull(f, "f must not be null");
     if (concurrency <= 0) {
@@ -180,7 +181,7 @@ public final class VStreamPar {
         () -> {
           // Pull up to concurrency elements from source
           List<A> batch = new ArrayList<>(concurrency);
-          VStream<A>[] tailHolder = new VStream[] {stream};
+          AtomicReference<VStream<A>> tailHolder = new AtomicReference<>(stream);
           boolean done = pullBatch(tailHolder, batch, concurrency);
 
           if (batch.isEmpty()) {
@@ -197,7 +198,7 @@ public final class VStreamPar {
             return batchStream;
           }
 
-          return batchStream.concat(parEvalMapUnordered(tailHolder[0], concurrency, f));
+          return batchStream.concat(parEvalMapUnordered(tailHolder.get(), concurrency, f));
         });
   }
 
@@ -499,9 +500,9 @@ public final class VStreamPar {
    *
    * @return true if the stream is exhausted (Done), false if more elements remain.
    */
-  @SuppressWarnings("unchecked")
-  private static <A> boolean pullBatch(VStream<A>[] tailHolder, List<A> batch, int count) {
-    VStream<A> current = tailHolder[0];
+  private static <A> boolean pullBatch(
+      AtomicReference<VStream<A>> tailHolder, List<A> batch, int count) {
+    VStream<A> current = tailHolder.get();
     for (int i = 0; i < count; i++) {
       VStream.Step<A> step = current.pull().run();
       switch (step) {
@@ -514,18 +515,19 @@ public final class VStreamPar {
           i--; // Don't count skips
         }
         case VStream.Step.Done<A> _ -> {
-          tailHolder[0] = current;
+          tailHolder.set(current);
           return true;
         }
       }
     }
-    tailHolder[0] = current;
+    tailHolder.set(current);
     return false;
   }
 
   /** Processes a batch of elements in parallel using StructuredTaskScope, preserving order. */
   @SuppressWarnings("preview")
-  private static <A, B> VTask<List<B>> processBatchOrdered(List<A> batch, Function<A, VTask<B>> f) {
+  private static <A, B> VTask<List<B>> processBatchOrdered(
+      List<A> batch, Function<? super A, VTask<B>> f) {
     return VTask.of(
         () -> {
           try (var scope = StructuredTaskScope.open()) {
@@ -559,7 +561,7 @@ public final class VStreamPar {
    */
   @SuppressWarnings("preview")
   private static <A, B> VTask<List<B>> processBatchUnordered(
-      List<A> batch, Function<A, VTask<B>> f) {
+      List<A> batch, Function<? super A, VTask<B>> f) {
     return VTask.of(
         () -> {
           try (var scope = StructuredTaskScope.open()) {

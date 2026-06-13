@@ -79,7 +79,7 @@ public enum ContextKindHelper implements ContextConverterOps {
    *     valid ContextHolder.
    */
   @Override
-  @SuppressWarnings("unchecked")
+  @SuppressWarnings({"unchecked", "rawtypes"}) // raw holder Class token; runtime-checked
   public <R, A> Context<R, A> narrow(@Nullable Kind<ContextKind.Witness<R>, A> kind) {
     return Validation.kind()
         .narrowHolder(kind, CONTEXT_CLASS, ContextHolder.class, ContextHolder::context);

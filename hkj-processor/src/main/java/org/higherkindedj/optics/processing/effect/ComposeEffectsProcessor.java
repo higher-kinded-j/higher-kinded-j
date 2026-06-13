@@ -168,6 +168,10 @@ public class ComposeEffectsProcessor extends AbstractProcessor {
         TypeSpec.classBuilder(supportName)
             .addAnnotation(NULL_MARKED)
             .addAnnotation(GENERATED)
+            .addAnnotation(
+                AnnotationSpec.builder(SuppressWarnings.class)
+                    .addMember("value", "{$S, $S}", "unchecked", "rawtypes")
+                    .build()) // generated dispatch code performs witness-erased casts
             .addModifiers(Modifier.PUBLIC, Modifier.FINAL)
             .addMethod(MethodSpec.constructorBuilder().addModifiers(Modifier.PRIVATE).build());
 

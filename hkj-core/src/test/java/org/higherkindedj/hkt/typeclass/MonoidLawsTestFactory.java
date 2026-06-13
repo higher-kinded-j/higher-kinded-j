@@ -107,19 +107,18 @@ class MonoidLawsTestFactory {
         .map(
             data ->
                 DynamicTest.dynamicTest(
-                    data.name() + " satisfies left identity",
-                    () -> {
-                      Monoid<Object> monoid = (Monoid<Object>) data.monoid();
-                      Object testValue = data.testValue1();
+                    data.name() + " satisfies left identity", () -> assertLeftIdentity(data)));
+  }
 
-                      Object result = monoid.combine(monoid.empty(), testValue);
+  private static <T> void assertLeftIdentity(MonoidTestData<T> data) {
+    Monoid<T> monoid = data.monoid();
+    T testValue = data.testValue1();
 
-                      assertThat(result)
-                          .as(
-                              "Left identity law failed for %s: combine(empty, %s)",
-                              data.name(), testValue)
-                          .isEqualTo(testValue);
-                    }));
+    T result = monoid.combine(monoid.empty(), testValue);
+
+    assertThat(result)
+        .as("Left identity law failed for %s: combine(empty, %s)", data.name(), testValue)
+        .isEqualTo(testValue);
   }
 
   /**
@@ -135,19 +134,18 @@ class MonoidLawsTestFactory {
         .map(
             data ->
                 DynamicTest.dynamicTest(
-                    data.name() + " satisfies right identity",
-                    () -> {
-                      Monoid<Object> monoid = (Monoid<Object>) data.monoid();
-                      Object testValue = data.testValue1();
+                    data.name() + " satisfies right identity", () -> assertRightIdentity(data)));
+  }
 
-                      Object result = monoid.combine(testValue, monoid.empty());
+  private static <T> void assertRightIdentity(MonoidTestData<T> data) {
+    Monoid<T> monoid = data.monoid();
+    T testValue = data.testValue1();
 
-                      assertThat(result)
-                          .as(
-                              "Right identity law failed for %s: combine(%s, empty)",
-                              data.name(), testValue)
-                          .isEqualTo(testValue);
-                    }));
+    T result = monoid.combine(testValue, monoid.empty());
+
+    assertThat(result)
+        .as("Right identity law failed for %s: combine(%s, empty)", data.name(), testValue)
+        .isEqualTo(testValue);
   }
 
   /**
@@ -170,24 +168,25 @@ class MonoidLawsTestFactory {
 
               return Stream.of(
                   DynamicTest.dynamicTest(
-                      data.name() + " satisfies associativity",
-                      () -> {
-                        Monoid<Object> monoid = (Monoid<Object>) data.monoid();
-                        Object a = data.testValue1();
-                        Object b = data.testValue2();
-                        Object c = data.testValue3();
-
-                        Object leftAssoc = monoid.combine(monoid.combine(a, b), c);
-                        Object rightAssoc = monoid.combine(a, monoid.combine(b, c));
-
-                        assertThat(leftAssoc)
-                            .as(
-                                "Associativity law failed for %s: left=%s, right=%s",
-                                data.name(), leftAssoc, rightAssoc)
-                            .isEqualTo(rightAssoc)
-                            .isEqualTo(data.expectedAssociativeResult());
-                      }));
+                      data.name() + " satisfies associativity", () -> assertAssociativity(data)));
             });
+  }
+
+  private static <T> void assertAssociativity(MonoidTestData<T> data) {
+    Monoid<T> monoid = data.monoid();
+    T a = data.testValue1();
+    T b = data.testValue2();
+    T c = data.testValue3();
+
+    T leftAssoc = monoid.combine(monoid.combine(a, b), c);
+    T rightAssoc = monoid.combine(a, monoid.combine(b, c));
+
+    assertThat(leftAssoc)
+        .as(
+            "Associativity law failed for %s: left=%s, right=%s",
+            data.name(), leftAssoc, rightAssoc)
+        .isEqualTo(rightAssoc)
+        .isEqualTo(data.expectedAssociativeResult());
   }
 
   /**
@@ -199,30 +198,29 @@ class MonoidLawsTestFactory {
   @TestFactory
   @DisplayName("Empty element is a true identity for multiple values")
   Stream<DynamicTest> emptyIsIdentityWithMultipleValues() {
-    return allMonoids()
-        .flatMap(
-            data -> {
-              Monoid<Object> monoid = (Monoid<Object>) data.monoid();
-              List<Object> testValues =
-                  List.of(data.testValue1(), data.testValue2(), data.testValue3());
+    return allMonoids().flatMap(data -> emptyIdentityTests(data));
+  }
 
-              return testValues.stream()
-                  .map(
-                      value ->
-                          DynamicTest.dynamicTest(
-                              String.format("%s: empty is identity for %s", data.name(), value),
-                              () -> {
-                                Object leftResult = monoid.combine(monoid.empty(), value);
-                                Object rightResult = monoid.combine(value, monoid.empty());
+  private static <T> Stream<DynamicTest> emptyIdentityTests(MonoidTestData<T> data) {
+    Monoid<T> monoid = data.monoid();
+    List<T> testValues = List.of(data.testValue1(), data.testValue2(), data.testValue3());
 
-                                assertThat(leftResult)
-                                    .as("Left identity failed for value: %s", value)
-                                    .isEqualTo(value);
-                                assertThat(rightResult)
-                                    .as("Right identity failed for value: %s", value)
-                                    .isEqualTo(value);
-                              }));
-            });
+    return testValues.stream()
+        .map(
+            value ->
+                DynamicTest.dynamicTest(
+                    String.format("%s: empty is identity for %s", data.name(), value),
+                    () -> {
+                      T leftResult = monoid.combine(monoid.empty(), value);
+                      T rightResult = monoid.combine(value, monoid.empty());
+
+                      assertThat(leftResult)
+                          .as("Left identity failed for value: %s", value)
+                          .isEqualTo(value);
+                      assertThat(rightResult)
+                          .as("Right identity failed for value: %s", value)
+                          .isEqualTo(value);
+                    }));
   }
 
   /**
@@ -246,15 +244,15 @@ class MonoidLawsTestFactory {
             data ->
                 DynamicTest.dynamicTest(
                     data.name() + " is idempotent: combine(x, x) = x",
-                    () -> {
-                      Monoid<Object> monoid = (Monoid<Object>) data.monoid();
-                      Object testValue = data.testValue1();
+                    () -> assertIdempotence(data)));
+  }
 
-                      Object result = monoid.combine(testValue, testValue);
+  private static <T> void assertIdempotence(MonoidTestData<T> data) {
+    Monoid<T> monoid = data.monoid();
+    T testValue = data.testValue1();
 
-                      assertThat(result)
-                          .as("Idempotence failed for %s", data.name())
-                          .isEqualTo(testValue);
-                    }));
+    T result = monoid.combine(testValue, testValue);
+
+    assertThat(result).as("Idempotence failed for %s", data.name()).isEqualTo(testValue);
   }
 }

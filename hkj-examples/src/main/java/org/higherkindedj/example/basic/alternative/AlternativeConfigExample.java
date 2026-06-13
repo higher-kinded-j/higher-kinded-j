@@ -68,6 +68,7 @@ public class AlternativeConfigExample {
   }
 
   /** Demonstrates orElseAll() for chaining multiple sources. */
+  @SuppressWarnings("unchecked") // orElseAll varargs; @SafeVarargs not allowed on default methods
   private static void demonstrateOrElseChain() {
     System.out.println("2. orElseAll() - Multiple Fallback Sources");
     System.out.println("------------------------------------------");
@@ -213,6 +214,7 @@ public class AlternativeConfigExample {
   }
 
   /** Tries to parse input as boolean, then as integer, then returns original string. */
+  @SuppressWarnings("unchecked") // orElseAll varargs; @SafeVarargs not allowed on default methods
   private static Maybe<String> parseValue(String input) {
     Kind<MaybeKind.Witness, String> result =
         alt.orElseAll(

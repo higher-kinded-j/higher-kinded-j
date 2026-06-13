@@ -108,6 +108,7 @@ public class ConsoleProgram {
     private static final ConsoleOpKindHelper CONSOLE = ConsoleOpKindHelper.CONSOLE;
 
     @Override
+    @SuppressWarnings("unchecked") // simplified example DSL: map returns the operation unchanged
     public <A, B> Kind<ConsoleOpKind.Witness, B> map(
         Function<? super A, ? extends B> f, Kind<ConsoleOpKind.Witness, A> fa) {
       ConsoleOp<A> op = CONSOLE.narrow(fa);
@@ -127,8 +128,7 @@ public class ConsoleProgram {
       // and must return Kind<IO.Witness, Free<ConsoleOp.Witness, X>>
       Function<Kind<ConsoleOpKind.Witness, ?>, Kind<IOKind.Witness, ?>> transform =
           kind -> {
-            ConsoleOp<?> op =
-                ConsoleOpKindHelper.CONSOLE.narrow((Kind<ConsoleOpKind.Witness, Object>) kind);
+            ConsoleOp<?> op = ConsoleOpKindHelper.CONSOLE.narrow(kind);
             // Execute the instruction IMMEDIATELY and wrap the result in Free.pure
             // NOTE: Side effects happen here during interpretation, not deferred.
             // This is why we use a simple IO wrapper instead of the lazy core IO type.
@@ -168,8 +168,7 @@ public class ConsoleProgram {
       // and must return Kind<TestResult.Witness, Free<ConsoleOp.Witness, X>>
       Function<Kind<ConsoleOpKind.Witness, ?>, Kind<TestResultKind.Witness, ?>> transform =
           kind -> {
-            ConsoleOp<?> op =
-                ConsoleOpKindHelper.CONSOLE.narrow((Kind<ConsoleOpKind.Witness, Object>) kind);
+            ConsoleOp<?> op = ConsoleOpKindHelper.CONSOLE.narrow(kind);
             // Execute the instruction and wrap the result in Free.pure
             Free<ConsoleOpKind.Witness, ?> freeResult =
                 switch (op) {

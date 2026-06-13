@@ -420,7 +420,7 @@ public sealed interface Free<F extends WitnessArity<TypeArity.Unary>, A>
         // the recursive interpretation through the Trampoline for stack safety.
         // For lazy monads (IO, State), the monad's own laziness provides stack safety.
         @SuppressWarnings("unchecked")
-        Free<F, A>[] innerFreeRef = (Free<F, A>[]) new Free[1];
+        Free<F, A>[] innerFreeRef = (Free<F, A>[]) new Free<?, ?>[1];
         boolean[] eager = {false};
         monad.map(
             innerFree -> {
@@ -495,7 +495,7 @@ public sealed interface Free<F extends WitnessArity<TypeArity.Unary>, A>
 
         // Try to extract the inner Free eagerly (works for strict monads).
         @SuppressWarnings("unchecked")
-        Free<F, A>[] innerFreeRef = (Free<F, A>[]) new Free[1];
+        Free<F, A>[] innerFreeRef = (Free<F, A>[]) new Free<?, ?>[1];
         boolean[] eager = {false};
         monad.map(
             innerFree -> {

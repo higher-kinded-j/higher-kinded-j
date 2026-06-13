@@ -29,6 +29,12 @@ class HkjMetricsEndpointTest {
     endpoint = new HkjMetricsEndpoint(properties, metricsService);
   }
 
+  /** Narrows a section of the endpoint payload, which is built as nested string-keyed maps. */
+  @SuppressWarnings("unchecked") // endpoint payload is nested Map<String, Object> by construction
+  private static Map<String, Object> section(Map<String, Object> parent, String key) {
+    return (Map<String, Object>) parent.get(key);
+  }
+
   @Nested
   @DisplayName("Configuration Section Tests")
   class ConfigurationSectionTests {
@@ -39,10 +45,10 @@ class HkjMetricsEndpointTest {
       Map<String, Object> result = endpoint.hkjMetrics();
 
       assertThat(result).containsKey("configuration");
-      Map<String, Object> config = (Map<String, Object>) result.get("configuration");
+      Map<String, Object> config = section(result, "configuration");
       assertThat(config).containsKey("web");
 
-      Map<String, Object> web = (Map<String, Object>) config.get("web");
+      Map<String, Object> web = section(config, "web");
       assertThat(web.get("eitherPathEnabled")).isEqualTo(true);
       assertThat(web.get("maybePathEnabled")).isEqualTo(true);
       assertThat(web.get("tryPathEnabled")).isEqualTo(true);
@@ -64,8 +70,8 @@ class HkjMetricsEndpointTest {
       properties.getWeb().setDefaultErrorStatus(500);
 
       Map<String, Object> result = endpoint.hkjMetrics();
-      Map<String, Object> config = (Map<String, Object>) result.get("configuration");
-      Map<String, Object> web = (Map<String, Object>) config.get("web");
+      Map<String, Object> config = section(result, "configuration");
+      Map<String, Object> web = section(config, "web");
 
       assertThat(web.get("eitherPathEnabled")).isEqualTo(false);
       assertThat(web.get("maybePathEnabled")).isEqualTo(false);
@@ -81,10 +87,10 @@ class HkjMetricsEndpointTest {
     void shouldIncludeJacksonConfigurationWithDefaults() {
       Map<String, Object> result = endpoint.hkjMetrics();
 
-      Map<String, Object> config = (Map<String, Object>) result.get("configuration");
+      Map<String, Object> config = section(result, "configuration");
       assertThat(config).containsKey("jackson");
 
-      Map<String, Object> jackson = (Map<String, Object>) config.get("jackson");
+      Map<String, Object> jackson = section(config, "jackson");
       assertThat(jackson.get("customSerializersEnabled")).isEqualTo(true);
       assertThat(jackson.get("eitherFormat")).isEqualTo("TAGGED");
       assertThat(jackson.get("validatedFormat")).isEqualTo("TAGGED");
@@ -100,8 +106,8 @@ class HkjMetricsEndpointTest {
       properties.getJson().setMaybeFormat(HkjProperties.Jackson.SerializationFormat.SIMPLE);
 
       Map<String, Object> result = endpoint.hkjMetrics();
-      Map<String, Object> config = (Map<String, Object>) result.get("configuration");
-      Map<String, Object> jackson = (Map<String, Object>) config.get("jackson");
+      Map<String, Object> config = section(result, "configuration");
+      Map<String, Object> jackson = section(config, "jackson");
 
       assertThat(jackson.get("customSerializersEnabled")).isEqualTo(false);
       assertThat(jackson.get("eitherFormat")).isEqualTo("SIMPLE");
@@ -115,7 +121,7 @@ class HkjMetricsEndpointTest {
       Map<String, Object> result = endpoint.hkjMetrics();
 
       assertThat(result).containsKeys("configuration");
-      Map<String, Object> config = (Map<String, Object>) result.get("configuration");
+      Map<String, Object> config = section(result, "configuration");
       assertThat(config).containsKeys("web", "jackson");
     }
   }
@@ -129,8 +135,8 @@ class HkjMetricsEndpointTest {
     void shouldReportEitherMetricsWithZeroCounts() {
       Map<String, Object> result = endpoint.hkjMetrics();
 
-      Map<String, Object> metrics = (Map<String, Object>) result.get("metrics");
-      Map<String, Object> either = (Map<String, Object>) metrics.get("either");
+      Map<String, Object> metrics = section(result, "metrics");
+      Map<String, Object> either = section(metrics, "either");
 
       assertThat(either.get("successCount")).isEqualTo(0L);
       assertThat(either.get("errorCount")).isEqualTo(0L);
@@ -146,8 +152,8 @@ class HkjMetricsEndpointTest {
       metricsService.recordEitherSuccess();
 
       Map<String, Object> result = endpoint.hkjMetrics();
-      Map<String, Object> metrics = (Map<String, Object>) result.get("metrics");
-      Map<String, Object> either = (Map<String, Object>) metrics.get("either");
+      Map<String, Object> metrics = section(result, "metrics");
+      Map<String, Object> either = section(metrics, "either");
 
       assertThat(either.get("successCount")).isEqualTo(3L);
       assertThat(either.get("errorCount")).isEqualTo(0L);
@@ -162,8 +168,8 @@ class HkjMetricsEndpointTest {
       metricsService.recordEitherError("Error2");
 
       Map<String, Object> result = endpoint.hkjMetrics();
-      Map<String, Object> metrics = (Map<String, Object>) result.get("metrics");
-      Map<String, Object> either = (Map<String, Object>) metrics.get("either");
+      Map<String, Object> metrics = section(result, "metrics");
+      Map<String, Object> either = section(metrics, "either");
 
       assertThat(either.get("successCount")).isEqualTo(0L);
       assertThat(either.get("errorCount")).isEqualTo(2L);
@@ -183,8 +189,8 @@ class HkjMetricsEndpointTest {
       }
 
       Map<String, Object> result = endpoint.hkjMetrics();
-      Map<String, Object> metrics = (Map<String, Object>) result.get("metrics");
-      Map<String, Object> either = (Map<String, Object>) metrics.get("either");
+      Map<String, Object> metrics = section(result, "metrics");
+      Map<String, Object> either = section(metrics, "either");
 
       assertThat(either.get("successCount")).isEqualTo(7L);
       assertThat(either.get("errorCount")).isEqualTo(3L);
@@ -203,8 +209,8 @@ class HkjMetricsEndpointTest {
       }
 
       Map<String, Object> result = endpoint.hkjMetrics();
-      Map<String, Object> metrics = (Map<String, Object>) result.get("metrics");
-      Map<String, Object> either = (Map<String, Object>) metrics.get("either");
+      Map<String, Object> metrics = section(result, "metrics");
+      Map<String, Object> either = section(metrics, "either");
 
       assertThat(either.get("successCount")).isEqualTo(1000L);
       assertThat(either.get("errorCount")).isEqualTo(500L);
@@ -222,8 +228,8 @@ class HkjMetricsEndpointTest {
     void shouldReportValidatedMetricsWithZeroCounts() {
       Map<String, Object> result = endpoint.hkjMetrics();
 
-      Map<String, Object> metrics = (Map<String, Object>) result.get("metrics");
-      Map<String, Object> validated = (Map<String, Object>) metrics.get("validated");
+      Map<String, Object> metrics = section(result, "metrics");
+      Map<String, Object> validated = section(metrics, "validated");
 
       assertThat(validated.get("validCount")).isEqualTo(0L);
       assertThat(validated.get("invalidCount")).isEqualTo(0L);
@@ -240,8 +246,8 @@ class HkjMetricsEndpointTest {
       metricsService.recordValidatedValid();
 
       Map<String, Object> result = endpoint.hkjMetrics();
-      Map<String, Object> metrics = (Map<String, Object>) result.get("metrics");
-      Map<String, Object> validated = (Map<String, Object>) metrics.get("validated");
+      Map<String, Object> metrics = section(result, "metrics");
+      Map<String, Object> validated = section(metrics, "validated");
 
       assertThat(validated.get("validCount")).isEqualTo(4L);
       assertThat(validated.get("invalidCount")).isEqualTo(0L);
@@ -256,8 +262,8 @@ class HkjMetricsEndpointTest {
       metricsService.recordValidatedInvalid(3);
 
       Map<String, Object> result = endpoint.hkjMetrics();
-      Map<String, Object> metrics = (Map<String, Object>) result.get("metrics");
-      Map<String, Object> validated = (Map<String, Object>) metrics.get("validated");
+      Map<String, Object> metrics = section(result, "metrics");
+      Map<String, Object> validated = section(metrics, "validated");
 
       assertThat(validated.get("validCount")).isEqualTo(0L);
       assertThat(validated.get("invalidCount")).isEqualTo(2L);
@@ -277,8 +283,8 @@ class HkjMetricsEndpointTest {
       }
 
       Map<String, Object> result = endpoint.hkjMetrics();
-      Map<String, Object> metrics = (Map<String, Object>) result.get("metrics");
-      Map<String, Object> validated = (Map<String, Object>) metrics.get("validated");
+      Map<String, Object> metrics = section(result, "metrics");
+      Map<String, Object> validated = section(metrics, "validated");
 
       assertThat(validated.get("validCount")).isEqualTo(8L);
       assertThat(validated.get("invalidCount")).isEqualTo(2L);
@@ -297,8 +303,8 @@ class HkjMetricsEndpointTest {
       }
 
       Map<String, Object> result = endpoint.hkjMetrics();
-      Map<String, Object> metrics = (Map<String, Object>) result.get("metrics");
-      Map<String, Object> validated = (Map<String, Object>) metrics.get("validated");
+      Map<String, Object> metrics = section(result, "metrics");
+      Map<String, Object> validated = section(metrics, "validated");
 
       assertThat(validated.get("validCount")).isEqualTo(750L);
       assertThat(validated.get("invalidCount")).isEqualTo(250L);
@@ -316,8 +322,8 @@ class HkjMetricsEndpointTest {
     void shouldReportEitherTMetricsWithZeroCounts() {
       Map<String, Object> result = endpoint.hkjMetrics();
 
-      Map<String, Object> metrics = (Map<String, Object>) result.get("metrics");
-      Map<String, Object> eitherT = (Map<String, Object>) metrics.get("eitherT");
+      Map<String, Object> metrics = section(result, "metrics");
+      Map<String, Object> eitherT = section(metrics, "eitherT");
 
       assertThat(eitherT.get("successCount")).isEqualTo(0L);
       assertThat(eitherT.get("errorCount")).isEqualTo(0L);
@@ -332,8 +338,8 @@ class HkjMetricsEndpointTest {
       metricsService.recordEitherTSuccess();
 
       Map<String, Object> result = endpoint.hkjMetrics();
-      Map<String, Object> metrics = (Map<String, Object>) result.get("metrics");
-      Map<String, Object> eitherT = (Map<String, Object>) metrics.get("eitherT");
+      Map<String, Object> metrics = section(result, "metrics");
+      Map<String, Object> eitherT = section(metrics, "eitherT");
 
       assertThat(eitherT.get("successCount")).isEqualTo(2L);
       assertThat(eitherT.get("errorCount")).isEqualTo(0L);
@@ -349,8 +355,8 @@ class HkjMetricsEndpointTest {
       metricsService.recordEitherTError("AsyncError3");
 
       Map<String, Object> result = endpoint.hkjMetrics();
-      Map<String, Object> metrics = (Map<String, Object>) result.get("metrics");
-      Map<String, Object> eitherT = (Map<String, Object>) metrics.get("eitherT");
+      Map<String, Object> metrics = section(result, "metrics");
+      Map<String, Object> eitherT = section(metrics, "eitherT");
 
       assertThat(eitherT.get("successCount")).isEqualTo(0L);
       assertThat(eitherT.get("errorCount")).isEqualTo(3L);
@@ -368,8 +374,8 @@ class HkjMetricsEndpointTest {
       metricsService.recordEitherTError("Error");
 
       Map<String, Object> result = endpoint.hkjMetrics();
-      Map<String, Object> metrics = (Map<String, Object>) result.get("metrics");
-      Map<String, Object> eitherT = (Map<String, Object>) metrics.get("eitherT");
+      Map<String, Object> metrics = section(result, "metrics");
+      Map<String, Object> eitherT = section(metrics, "eitherT");
 
       assertThat(eitherT.get("successCount")).isEqualTo(9L);
       assertThat(eitherT.get("errorCount")).isEqualTo(1L);
@@ -388,8 +394,8 @@ class HkjMetricsEndpointTest {
       }
 
       Map<String, Object> result = endpoint.hkjMetrics();
-      Map<String, Object> metrics = (Map<String, Object>) result.get("metrics");
-      Map<String, Object> eitherT = (Map<String, Object>) metrics.get("eitherT");
+      Map<String, Object> metrics = section(result, "metrics");
+      Map<String, Object> eitherT = section(metrics, "eitherT");
 
       assertThat(eitherT.get("successCount")).isEqualTo(850L);
       assertThat(eitherT.get("errorCount")).isEqualTo(150L);
@@ -410,7 +416,7 @@ class HkjMetricsEndpointTest {
       Map<String, Object> result = endpoint.hkjMetrics();
 
       assertThat(result).containsKey("metrics");
-      Map<String, Object> metrics = (Map<String, Object>) result.get("metrics");
+      Map<String, Object> metrics = section(result, "metrics");
       assertThat(metrics).containsEntry("enabled", false);
       assertThat(metrics).doesNotContainKeys("either", "validated", "eitherT");
     }
@@ -423,7 +429,7 @@ class HkjMetricsEndpointTest {
       Map<String, Object> result = endpoint.hkjMetrics();
 
       assertThat(result).containsKey("configuration");
-      Map<String, Object> config = (Map<String, Object>) result.get("configuration");
+      Map<String, Object> config = section(result, "configuration");
       assertThat(config).containsKeys("web", "jackson");
     }
   }
@@ -454,27 +460,27 @@ class HkjMetricsEndpointTest {
       assertThat(result).containsKeys("configuration", "metrics");
 
       // Verify configuration
-      Map<String, Object> config = (Map<String, Object>) result.get("configuration");
+      Map<String, Object> config = section(result, "configuration");
       assertThat(config).containsKeys("web", "jackson");
 
       // Verify metrics
-      Map<String, Object> metrics = (Map<String, Object>) result.get("metrics");
+      Map<String, Object> metrics = section(result, "metrics");
       assertThat(metrics).containsKeys("either", "validated", "eitherT");
 
       // Verify Either metrics
-      Map<String, Object> either = (Map<String, Object>) metrics.get("either");
+      Map<String, Object> either = section(metrics, "either");
       assertThat(either.get("successCount")).isEqualTo(2L);
       assertThat(either.get("errorCount")).isEqualTo(1L);
       assertThat(either.get("totalCount")).isEqualTo(3L);
 
       // Verify Validated metrics
-      Map<String, Object> validated = (Map<String, Object>) metrics.get("validated");
+      Map<String, Object> validated = section(metrics, "validated");
       assertThat(validated.get("validCount")).isEqualTo(3L);
       assertThat(validated.get("invalidCount")).isEqualTo(1L);
       assertThat(validated.get("totalCount")).isEqualTo(4L);
 
       // Verify EitherT metrics
-      Map<String, Object> eitherT = (Map<String, Object>) metrics.get("eitherT");
+      Map<String, Object> eitherT = section(metrics, "eitherT");
       assertThat(eitherT.get("successCount")).isEqualTo(1L);
       assertThat(eitherT.get("errorCount")).isEqualTo(1L);
       assertThat(eitherT.get("totalCount")).isEqualTo(2L);
@@ -485,17 +491,17 @@ class HkjMetricsEndpointTest {
     void shouldHandleAllMetricsAtZero() {
       Map<String, Object> result = endpoint.hkjMetrics();
 
-      Map<String, Object> metrics = (Map<String, Object>) result.get("metrics");
+      Map<String, Object> metrics = section(result, "metrics");
 
-      Map<String, Object> either = (Map<String, Object>) metrics.get("either");
+      Map<String, Object> either = section(metrics, "either");
       assertThat(either.get("totalCount")).isEqualTo(0L);
       assertThat(either.get("successRate")).isEqualTo(0.0);
 
-      Map<String, Object> validated = (Map<String, Object>) metrics.get("validated");
+      Map<String, Object> validated = section(metrics, "validated");
       assertThat(validated.get("totalCount")).isEqualTo(0L);
       assertThat(validated.get("validRate")).isEqualTo(0.0);
 
-      Map<String, Object> eitherT = (Map<String, Object>) metrics.get("eitherT");
+      Map<String, Object> eitherT = section(metrics, "eitherT");
       assertThat(eitherT.get("totalCount")).isEqualTo(0L);
       assertThat(eitherT.get("successRate")).isEqualTo(0.0);
     }
@@ -508,18 +514,18 @@ class HkjMetricsEndpointTest {
       metricsService.recordEitherSuccess();
 
       Map<String, Object> result = endpoint.hkjMetrics();
-      Map<String, Object> metrics = (Map<String, Object>) result.get("metrics");
+      Map<String, Object> metrics = section(result, "metrics");
 
       // Either should have counts
-      Map<String, Object> either = (Map<String, Object>) metrics.get("either");
+      Map<String, Object> either = section(metrics, "either");
       assertThat(either.get("totalCount")).isEqualTo(2L);
 
       // Validated should be zero
-      Map<String, Object> validated = (Map<String, Object>) metrics.get("validated");
+      Map<String, Object> validated = section(metrics, "validated");
       assertThat(validated.get("totalCount")).isEqualTo(0L);
 
       // EitherT should be zero
-      Map<String, Object> eitherT = (Map<String, Object>) metrics.get("eitherT");
+      Map<String, Object> eitherT = section(metrics, "eitherT");
       assertThat(eitherT.get("totalCount")).isEqualTo(0L);
     }
 
@@ -531,12 +537,12 @@ class HkjMetricsEndpointTest {
       properties.getJson().setEitherFormat(HkjProperties.Jackson.SerializationFormat.SIMPLE);
 
       Map<String, Object> result = endpoint.hkjMetrics();
-      Map<String, Object> config = (Map<String, Object>) result.get("configuration");
+      Map<String, Object> config = section(result, "configuration");
 
-      Map<String, Object> web = (Map<String, Object>) config.get("web");
+      Map<String, Object> web = section(config, "web");
       assertThat(web.get("defaultErrorStatus")).isEqualTo(422);
 
-      Map<String, Object> jackson = (Map<String, Object>) config.get("jackson");
+      Map<String, Object> jackson = section(config, "jackson");
       assertThat(jackson.get("eitherFormat")).isEqualTo("SIMPLE");
     }
 
@@ -560,15 +566,15 @@ class HkjMetricsEndpointTest {
       metricsService.recordEitherTError("Error");
 
       Map<String, Object> result = endpoint.hkjMetrics();
-      Map<String, Object> metrics = (Map<String, Object>) result.get("metrics");
+      Map<String, Object> metrics = section(result, "metrics");
 
-      Map<String, Object> either = (Map<String, Object>) metrics.get("either");
+      Map<String, Object> either = section(metrics, "either");
       assertThat((double) either.get("successRate")).isCloseTo(0.5, within(0.001));
 
-      Map<String, Object> validated = (Map<String, Object>) metrics.get("validated");
+      Map<String, Object> validated = section(metrics, "validated");
       assertThat((double) validated.get("validRate")).isCloseTo(0.25, within(0.001));
 
-      Map<String, Object> eitherT = (Map<String, Object>) metrics.get("eitherT");
+      Map<String, Object> eitherT = section(metrics, "eitherT");
       assertThat((double) eitherT.get("successRate")).isCloseTo(0.75, within(0.001));
     }
   }
@@ -581,16 +587,16 @@ class HkjMetricsEndpointTest {
     @DisplayName("Should handle division by zero for success rates")
     void shouldHandleDivisionByZeroForSuccessRates() {
       Map<String, Object> result = endpoint.hkjMetrics();
-      Map<String, Object> metrics = (Map<String, Object>) result.get("metrics");
+      Map<String, Object> metrics = section(result, "metrics");
 
       // All rates should be 0.0, not NaN or Infinity
-      Map<String, Object> either = (Map<String, Object>) metrics.get("either");
+      Map<String, Object> either = section(metrics, "either");
       assertThat(either.get("successRate")).isEqualTo(0.0);
 
-      Map<String, Object> validated = (Map<String, Object>) metrics.get("validated");
+      Map<String, Object> validated = section(metrics, "validated");
       assertThat(validated.get("validRate")).isEqualTo(0.0);
 
-      Map<String, Object> eitherT = (Map<String, Object>) metrics.get("eitherT");
+      Map<String, Object> eitherT = section(metrics, "eitherT");
       assertThat(eitherT.get("successRate")).isEqualTo(0.0);
     }
 
@@ -600,8 +606,8 @@ class HkjMetricsEndpointTest {
       metricsService.recordEitherSuccess();
 
       Map<String, Object> result = endpoint.hkjMetrics();
-      Map<String, Object> metrics = (Map<String, Object>) result.get("metrics");
-      Map<String, Object> either = (Map<String, Object>) metrics.get("either");
+      Map<String, Object> metrics = section(result, "metrics");
+      Map<String, Object> either = section(metrics, "either");
 
       assertThat(either.get("successCount")).isInstanceOf(Long.class);
       assertThat(either.get("errorCount")).isInstanceOf(Long.class);
@@ -617,14 +623,14 @@ class HkjMetricsEndpointTest {
       // Top level should have configuration before metrics
       assertThat(result.keySet()).containsExactly("configuration", "metrics");
 
-      Map<String, Object> config = (Map<String, Object>) result.get("configuration");
+      Map<String, Object> config = section(result, "configuration");
       assertThat(config.keySet()).containsExactly("web", "jackson");
 
-      Map<String, Object> metrics = (Map<String, Object>) result.get("metrics");
+      Map<String, Object> metrics = section(result, "metrics");
       assertThat(metrics.keySet())
           .containsExactly("either", "validated", "eitherT", "vtask", "vstream");
 
-      Map<String, Object> either = (Map<String, Object>) metrics.get("either");
+      Map<String, Object> either = section(metrics, "either");
       assertThat(either.keySet())
           .containsExactly("successCount", "errorCount", "totalCount", "successRate");
     }
@@ -638,8 +644,8 @@ class HkjMetricsEndpointTest {
       metricsService.recordEitherError("Error2");
 
       Map<String, Object> result = endpoint.hkjMetrics();
-      Map<String, Object> metrics = (Map<String, Object>) result.get("metrics");
-      Map<String, Object> either = (Map<String, Object>) metrics.get("either");
+      Map<String, Object> metrics = section(result, "metrics");
+      Map<String, Object> either = section(metrics, "either");
 
       double successRate = (double) either.get("successRate");
       assertThat(successRate).isCloseTo(0.3333, within(0.001));

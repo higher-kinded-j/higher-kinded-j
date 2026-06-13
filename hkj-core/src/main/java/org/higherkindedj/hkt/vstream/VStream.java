@@ -1338,22 +1338,21 @@ public interface VStream<A> extends VStreamKind<A> {
       public VTask<Step<A>> pull() {
         VTask<Step<A>> pullTask = source.pull();
         return pullTask
-            .map(
+            .<Step<A>>map(
                 step ->
-                    (Step<A>)
-                        switch (step) {
-                          case Step.Emit<A> e ->
-                              new Step.Emit<>(
-                                  e.value(), wrapWithFinalizer(e.tail(), finalizer, released));
-                          case Step.Skip<A> s ->
-                              new Step.Skip<>(wrapWithFinalizer(s.tail(), finalizer, released));
-                          case Step.Done<A> _ -> {
-                            if (released.compareAndSet(false, true)) {
-                              finalizer.run();
-                            }
-                            yield new Step.Done<>();
-                          }
-                        })
+                    switch (step) {
+                      case Step.Emit<A> e ->
+                          new Step.Emit<>(
+                              e.value(), wrapWithFinalizer(e.tail(), finalizer, released));
+                      case Step.Skip<A> s ->
+                          new Step.Skip<>(wrapWithFinalizer(s.tail(), finalizer, released));
+                      case Step.Done<A> _ -> {
+                        if (released.compareAndSet(false, true)) {
+                          finalizer.run();
+                        }
+                        yield new Step.Done<A>();
+                      }
+                    })
             .recoverWith(
                 error -> {
                   if (released.compareAndSet(false, true)) {

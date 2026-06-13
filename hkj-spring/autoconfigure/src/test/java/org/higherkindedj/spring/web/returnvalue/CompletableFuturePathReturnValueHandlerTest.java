@@ -4,7 +4,7 @@ package org.higherkindedj.spring.web.returnvalue;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.awaitility.Awaitility.await;
-import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.*;
 
 import java.time.Duration;
 import java.util.Map;
@@ -73,7 +73,7 @@ class CompletableFuturePathReturnValueHandlerTest {
     @Test
     @DisplayName("Should support CompletableFuturePath return type")
     void shouldSupportCompletableFuturePathReturnType() {
-      when(returnType.getParameterType()).thenReturn((Class) CompletableFuturePath.class);
+      doReturn(CompletableFuturePath.class).when(returnType).getParameterType();
 
       boolean result = handler.supportsReturnType(returnType);
 
@@ -83,7 +83,7 @@ class CompletableFuturePathReturnValueHandlerTest {
     @Test
     @DisplayName("Should not support non-CompletableFuturePath return type")
     void shouldNotSupportNonCompletableFuturePathReturnType() {
-      when(returnType.getParameterType()).thenReturn((Class) String.class);
+      doReturn(String.class).when(returnType).getParameterType();
 
       boolean result = handler.supportsReturnType(returnType);
 

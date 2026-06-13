@@ -60,7 +60,7 @@ public enum LazyKindHelper implements LazyConverterOps {
    *     null}, or not an instance of the expected underlying holder type for Lazy.
    */
   @Override
-  @SuppressWarnings("unchecked")
+  @SuppressWarnings({"unchecked", "rawtypes"}) // raw holder Class token; runtime-checked
   public <A> Lazy<A> narrow(@Nullable Kind<LazyKind.Witness, A> kind) {
     return Validation.kind()
         .narrowHolder(kind, LAZY_CLASS, LazyHolder.class, LazyHolder::lazyInstance);

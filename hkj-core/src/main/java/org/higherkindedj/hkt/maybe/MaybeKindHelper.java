@@ -52,6 +52,7 @@ public enum MaybeKindHelper implements MaybeConverterOps {
    *     if {@code kind} is not an instance of {@code Maybe}.
    */
   @Override
+  @SuppressWarnings("unchecked") // raw Class token; runtime-checked via Class.isInstance
   public <A> Maybe<A> narrow(@Nullable Kind<MaybeKind.Witness, A> kind) {
     return Validation.kind().narrowWithTypeCheck(kind, MAYBE_CLASS);
   }

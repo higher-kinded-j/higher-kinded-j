@@ -69,7 +69,7 @@ class EitherPathReturnValueHandlerTest {
     @Test
     @DisplayName("Should support EitherPath return type")
     void shouldSupportEitherPathReturnType() {
-      when(returnType.getParameterType()).thenReturn((Class) EitherPath.class);
+      doReturn(EitherPath.class).when(returnType).getParameterType();
 
       boolean result = handler.supportsReturnType(returnType);
 
@@ -79,7 +79,7 @@ class EitherPathReturnValueHandlerTest {
     @Test
     @DisplayName("Should not support non-EitherPath return type")
     void shouldNotSupportNonEitherPathReturnType() {
-      when(returnType.getParameterType()).thenReturn((Class) String.class);
+      doReturn(String.class).when(returnType).getParameterType();
 
       boolean result = handler.supportsReturnType(returnType);
 

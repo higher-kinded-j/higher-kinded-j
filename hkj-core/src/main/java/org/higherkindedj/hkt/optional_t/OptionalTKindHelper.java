@@ -53,6 +53,7 @@ public enum OptionalTKindHelper implements OptionalTConverterOps {
    *     valid {@link OptionalT} instance.
    */
   @Override
+  @SuppressWarnings("unchecked") // raw Class token; runtime-checked via Class.isInstance
   public <F extends WitnessArity<TypeArity.Unary>, A> OptionalT<F, A> narrow(
       @Nullable Kind<OptionalTKind.Witness<F>, A> kind) {
     return Validation.kind().narrowWithTypeCheck(kind, OPTIONAL_T_CLASS);

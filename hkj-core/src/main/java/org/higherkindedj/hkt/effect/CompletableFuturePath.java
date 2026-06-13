@@ -17,6 +17,7 @@ import org.higherkindedj.hkt.maybe.Maybe;
 import org.higherkindedj.hkt.resilience.Retry;
 import org.higherkindedj.hkt.resilience.RetryPolicy;
 import org.higherkindedj.hkt.trymonad.Try;
+import org.higherkindedj.hkt.tuple.Tuple2;
 
 /**
  * A fluent path wrapper for {@link CompletableFuture} async computations.
@@ -277,16 +278,8 @@ public final class CompletableFuturePath<A> implements Recoverable<Exception, A>
 
     CompletableFuture<D> combined =
         future
-            .thenCombine(second.future, (a, b) -> new Object[] {a, b})
-            .thenCombine(
-                third.future,
-                (arr, c) -> {
-                  @SuppressWarnings("unchecked")
-                  A a = (A) arr[0];
-                  @SuppressWarnings("unchecked")
-                  B b = (B) arr[1];
-                  return combiner.apply(a, b, c);
-                });
+            .thenCombine(second.future, Tuple2<A, B>::new)
+            .thenCombine(third.future, (pair, c) -> combiner.apply(pair._1(), pair._2(), c));
 
     return new CompletableFuturePath<>(combined);
   }

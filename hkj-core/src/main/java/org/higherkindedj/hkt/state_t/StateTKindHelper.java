@@ -59,6 +59,7 @@ public enum StateTKindHelper implements StateTConverterOps {
    *     not a valid {@link StateT} instance.
    */
   @Override
+  @SuppressWarnings("unchecked") // raw Class token; runtime-checked via Class.isInstance
   public <S, F extends WitnessArity<TypeArity.Unary>, A> StateT<S, F, A> narrow(
       @Nullable Kind<StateTKind.Witness<S, F>, A> kind) {
     return Validation.kind().narrowWithTypeCheck(kind, STATE_T_CLASS);
