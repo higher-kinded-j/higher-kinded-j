@@ -2,11 +2,15 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.checker;
 
+import com.sun.source.tree.IdentifierTree;
+import com.sun.source.tree.MemberSelectTree;
+import com.sun.source.tree.MethodTree;
 import com.sun.source.tree.ParameterizedTypeTree;
 import com.sun.source.tree.Tree;
 import com.sun.source.tree.TypeCastTree;
 import com.sun.source.tree.VariableTree;
 import com.sun.source.util.TreePath;
+import com.sun.source.util.TreePathScanner;
 import com.sun.source.util.Trees;
 import java.util.Set;
 import javax.lang.model.element.TypeElement;
@@ -16,8 +20,9 @@ import javax.lang.model.type.TypeMirror;
 import javax.tools.Diagnostic;
 
 /**
- * Detects a raw {@code Kind} or {@code Kind2} used as a type — a variable, field or parameter
- * declared as bare {@code Kind}, or a cast to bare {@code Kind}.
+ * Detects a raw {@code Kind} or {@code Kind2} used as a type — in a variable, field or parameter
+ * declaration, a cast, or a method return type, whether bare ({@code Kind}) or nested ({@code
+ * List<Kind>}).
  *
  * <p>Raw {@code Kind} is the one compile-silent route to a wrong-witness {@code narrow()}: {@code
  * Kind raw = OPTIONAL.widen(opt); EITHER.narrow(raw);} compiles cleanly and throws {@code
@@ -28,11 +33,13 @@ import javax.tools.Diagnostic;
  *
  * <h2>Rule</h2>
  *
- * <p>At a variable/parameter declaration or a cast, resolve the written type. Diagnose iff it
- * resolves to {@code org.higherkindedj.hkt.Kind} or {@code Kind2} as a <em>raw</em> type — the
- * element declares type parameters but the use supplied none. A properly parameterised {@code
- * Kind<W, A>} (including wildcards like {@code Kind<F, ?>}) is never flagged, and an unresolved
- * type is skipped, so the no-false-positives policy holds.
+ * <p>At a variable, parameter or field declaration, a cast, or a method return type, the written
+ * type tree is walked and every reference to {@code org.higherkindedj.hkt.Kind} or {@code Kind2}
+ * that resolves to a <em>raw</em> type — the element declares type parameters but the use supplied
+ * none — is flagged. This catches both a bare {@code Kind} and a nested one such as {@code
+ * List<Kind>}, {@code Kind[]} or {@code ? extends Kind}. A properly parameterised {@code Kind<W,
+ * A>} (wildcards like {@code Kind<F, ?>} included) is never flagged, and an unresolved type is
+ * skipped, so the no-false-positives policy holds.
  */
 public final class RawKindChecker implements CheckVisitor {
 
@@ -63,10 +70,47 @@ public final class RawKindChecker implements CheckVisitor {
     inspect(node.getType(), path);
   }
 
+  @Override
+  public void onMethod(MethodTree node, TreePath path) {
+    inspect(node.getReturnType(), path);
+  }
+
+  /**
+   * Walks a written type tree and flags every raw {@code Kind}/{@code Kind2} within it — the type
+   * itself or one nested inside a parameterised type, array or wildcard.
+   */
   private void inspect(Tree typeTree, TreePath path) {
-    if (typeTree == null || typeTree instanceof ParameterizedTypeTree) {
-      return; // no type tree, or already parameterised (Kind<…> is fine)
+    if (typeTree == null) {
+      return;
     }
+    new TreePathScanner<Void, Void>() {
+      @Override
+      public Void visitParameterizedType(ParameterizedTypeTree node, Void unused) {
+        // The head (e.g. Kind in Kind<W, A>) is parameterised and so never raw; only the type
+        // arguments can hide a nested raw Kind, so recurse into those alone.
+        for (Tree arg : node.getTypeArguments()) {
+          scan(arg, unused);
+        }
+        return null;
+      }
+
+      @Override
+      public Void visitIdentifier(IdentifierTree node, Void unused) {
+        flagIfRawKind(node, getCurrentPath());
+        return null;
+      }
+
+      @Override
+      public Void visitMemberSelect(MemberSelectTree node, Void unused) {
+        // A qualified type reference (e.g. fully-qualified Kind); its qualifier is a package or
+        // outer type, never a raw Kind we care about, so do not recurse into it.
+        flagIfRawKind(node, getCurrentPath());
+        return null;
+      }
+    }.scan(new TreePath(path, typeTree), null);
+  }
+
+  private void flagIfRawKind(Tree typeTree, TreePath path) {
     TypeMirror tm = typeOf(path, typeTree);
     if (tm == null || tm.getKind() != TypeKind.DECLARED) {
       return; // unresolved or not a declared type: skip (no false positives)

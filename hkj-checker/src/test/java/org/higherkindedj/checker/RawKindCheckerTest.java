@@ -117,6 +117,74 @@ class RawKindCheckerTest {
               """);
       Assertions.assertThat(mentionsRawKind(compile(source))).isTrue();
     }
+
+    @Test
+    @DisplayName("raw Kind in a method return type")
+    void rawMethodReturnType() {
+      JavaFileObject source =
+          src(
+              "test.RawReturn",
+              """
+              package test;
+              import org.higherkindedj.hkt.Kind;
+              public class RawReturn {
+                Kind use() {
+                  return null;
+                }
+              }
+              """);
+      Assertions.assertThat(mentionsRawKind(compile(source))).isTrue();
+    }
+
+    @Test
+    @DisplayName("raw Kind nested inside a parameterised type")
+    void rawNestedInParameterised() {
+      JavaFileObject source =
+          src(
+              "test.RawNested",
+              """
+              package test;
+              import java.util.List;
+              import org.higherkindedj.hkt.Kind;
+              public class RawNested {
+                List<Kind> rawList;
+              }
+              """);
+      Assertions.assertThat(mentionsRawKind(compile(source))).isTrue();
+    }
+
+    @Test
+    @DisplayName("raw Kind array")
+    void rawArray() {
+      JavaFileObject source =
+          src(
+              "test.RawArray",
+              """
+              package test;
+              import org.higherkindedj.hkt.Kind;
+              public class RawArray {
+                Kind[] arr;
+              }
+              """);
+      Assertions.assertThat(mentionsRawKind(compile(source))).isTrue();
+    }
+
+    @Test
+    @DisplayName("raw Kind in a wildcard bound")
+    void rawWildcardBound() {
+      JavaFileObject source =
+          src(
+              "test.RawWildcard",
+              """
+              package test;
+              import java.util.List;
+              import org.higherkindedj.hkt.Kind;
+              public class RawWildcard {
+                List<? extends Kind> xs;
+              }
+              """);
+      Assertions.assertThat(mentionsRawKind(compile(source))).isTrue();
+    }
   }
 
   @Nested

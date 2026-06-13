@@ -4,6 +4,7 @@ package org.higherkindedj.checker;
 
 import com.sun.source.tree.ExpressionStatementTree;
 import com.sun.source.tree.MethodInvocationTree;
+import com.sun.source.tree.MethodTree;
 import com.sun.source.tree.NewClassTree;
 import com.sun.source.tree.ParameterizedTypeTree;
 import com.sun.source.tree.SwitchExpressionTree;
@@ -92,5 +93,13 @@ final class HkjCheckScanner extends TreePathScanner<Void, Void> {
       c.onTypeCast(node, getCurrentPath());
     }
     return super.visitTypeCast(node, unused);
+  }
+
+  @Override
+  public Void visitMethod(MethodTree node, Void unused) {
+    for (CheckVisitor c : checks) {
+      c.onMethod(node, getCurrentPath());
+    }
+    return super.visitMethod(node, unused);
   }
 }
