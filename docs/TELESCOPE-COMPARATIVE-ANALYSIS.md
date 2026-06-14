@@ -41,7 +41,33 @@ The headline is the **scope mismatch**: telescope is roughly "HKJ's optics packa
 
 ---
 
-## 3. Part A — Techniques in telescope worth adopting
+## 3. The reflection-vs-codegen axis (MapStruct ↔ telescope ↔ HKJ)
+
+Telescope explicitly benchmarks itself against **MapStruct**, whose entire historical pitch was *compile-time codegen, zero runtime reflection* — the very property that separated it from the older reflective mappers (Dozer, ModelMapper). Yet telescope's **default** path is reflective. That looks like conceding the match; it is actually a deliberate, and largely defensible, trade. Two distinctions carry the weight.
+
+**Telescope reflects for *mechanism*, not for *resolution*.** Reflective mappers of the ModelMapper lineage are stringly-typed — a mistyped field name surfaces as a runtime failure. Telescope's navigation is instead driven by **method references** (`User::name`), which `javac` rejects if the accessor doesn't exist or its type doesn't line up; it then recovers the *name* from that already-type-checked reference via `SerializedLambda` introspection and reflects only to read and rebuild. So telescope keeps MapStruct's **type-safety** property and concedes only its **performance** one (~100 ns/field hop reflective vs ~10 ns hand-written). The single genuinely-unchecked door is the deliberately-named `fieldByName(String)` escape.
+
+**What telescope *does* fully concede is compile-time verification of the *mapping*.** That is the real fault line:
+
+| | Field correspondence verified… | Runtime reflection | First failure surfaces at |
+|---|---|---|---|
+| **MapStruct** | compile time (`javac`) | none | build |
+| **Telescope — default** | mapper *construction* | yes (read / rebuild) | startup / first call |
+| **Telescope — `@Bridge` / `@Focus`** | compile time | none | build |
+| **HKJ — Focus DSL / optics** | compile time | none | build |
+
+Telescope's `@Bridge`/`@Focus` codegen tier exists precisely to climb back onto MapStruct's rung, and on telescope's own numbers it gets there (deep tier 59 vs 50 ns/op — *"matches"*; flat/nested 1.2–1.9× behind, single-digit ns absolute). So the honest reading is *"reflective by default, codegen when it matters,"* not *"reflective instead of codegen"* — and the README is candid about the gap (262 ns reflective vs 45 ns codegen for the deep-field path).
+
+**Why default to reflection at all, given the MapStruct comparison?** Because a *bidirectional, recursive, container-lifting* mapper is far harder to fully codegen than MapStruct's flat, one-directional methods — reflection ships the general case immediately and codegen handles the hot subset — and because zero build-wiring is a real adoption lever. The MapStruct comparison is therefore a **capability** claim (bidirectional + deep + effectful + composable), with reflection as the price of generality and `@Bridge` as the pressure-release.
+
+**Why this matters for HKJ.** HKJ already sits on MapStruct's rung: the Focus DSL is codegen-only, compile-time-verified, reflection-free — it has *no* reflective tier. That repositions two recommendations below:
+
+- It is the strongest argument *for* **A1**. A codegen-first bidirectional mapper would give HKJ **MapStruct's compile-time verification *and* telescope's bidirectionality/composability in one artifact** — the quadrant neither incumbent occupies (MapStruct: codegen but one-directional; telescope: bidirectional but reflective-by-default).
+- It is the strongest argument *for* caution **D**. The reflective tier is the one part of telescope HKJ should specifically *not* import, because HKJ's existing default is already the stronger position on this axis. Adopt telescope's *capabilities* on HKJ's *foundation* — not its defaults.
+
+---
+
+## 4. Part A — Techniques in telescope worth adopting
 
 Each item: **Observation → Evidence → Recommendation → Justification (tied to correctness / type-safety / ergonomics) → Effort & risk → Caveats.**
 
@@ -81,7 +107,7 @@ Generate (a) a real `Iso<UserEntity, UserDto>` that **composes with the existing
 - **Correctness:** verify the round-trip law (`backward(forward(a)) == a`) in **generated** tests using HKJ's existing `LensLawsTestFactory`/`AffineLawsTestFactory`-style harness, so every generated mapper is law-checked.
 - **Ergonomics + effects:** because the result is a genuine `Iso`, a *fallible* mapping (e.g. `String → Email` with validation) returns a `ValidationPath<E, Dto>` that **accumulates per-field conversion errors**, or an `EitherPath` that short-circuits — something MapStruct and telescope cannot express, and a natural fit for `hkj-spring`'s error-to-HTTP mapping. A `Mapper<A,B>` bean registry in the Spring starter mirrors telescope's `telescope-spring-boot-starter`.
 
-**Justification.** Directly attacks the #1 ergonomics pain in real Java code, reuses HKJ's existing `Iso` substrate + codegen + law-testing rather than inventing machinery, and is *more* correct and type-safe than the incumbents. It also lands a unique selling point: **bidirectional, lawful, effect-aware mapping** that composes with the rest of HKJ.
+**Justification.** Directly attacks the #1 ergonomics pain in real Java code, reuses HKJ's existing `Iso` substrate + codegen + law-testing rather than inventing machinery, and is *more* correct and type-safe than the incumbents. It also lands a unique selling point: **bidirectional, lawful, effect-aware mapping** that composes with the rest of HKJ. See §3 for why a *codegen-first* mapper occupies a quadrant neither MapStruct (codegen but one-directional) nor telescope (bidirectional but reflective-by-default) holds.
 
 **Effort & risk.** Medium-high. The recursion/container-lifting and name-matching logic is non-trivial but well-understood (telescope is a working reference). Risk is contained because it produces ordinary `Iso` values.
 
@@ -143,13 +169,13 @@ Order updated = applyPatch.apply(order);
 
 **Recommendation.** Treat the *goal* — fast first success — as the takeaway, but reach it the HKJ way rather than by adding a reflective core. Concretely: make the `hkj-gradle-plugin` / `hkj-maven-plugin` auto-wire the processor in one line, and ship a copy-pasteable quickstart that produces a working `FocusPath` in under a minute. Only consider a **clearly-labelled** reflective `Focus.of(Class)` fallback (for prototyping / config-driven paths) if onboarding data shows the build-wiring step is a real drop-off point.
 
-**Justification.** This is the one place telescope's *defaults* beat HKJ on ergonomics. But a reflective default would tax HKJ's correctness/type-safety values (runtime field-name failures, the `fieldByName`-style escape). So the right move is to keep codegen-first and remove the setup tax — not to import reflection-first semantics.
+**Justification.** This is the one place telescope's *defaults* beat HKJ on ergonomics. But a reflective default would tax HKJ's correctness/type-safety values (runtime field-name failures, the `fieldByName`-style escape). So the right move is to keep codegen-first and remove the setup tax — not to import reflection-first semantics. (§3 lays out this verification/reflection axis in full.)
 
 **Effort & risk.** Low–medium (mostly packaging/docs). Flagged as a **decision** for the maintainer, with a recommended lean toward "frictionless codegen, not reflection."
 
 ---
 
-## 4. Part B — Where Higher-Kinded-J is already stronger
+## 5. Part B — Where Higher-Kinded-J is already stronger
 
 These are HKJ's advantages on the same three values. They should be protected; none of Part A is worth trading for them.
 
@@ -173,7 +199,7 @@ HKJ ships an annotation processor **plus** OpenRewrite recipes, a static checker
 
 ---
 
-## 5. Part C — Prioritised recommendation summary
+## 6. Part C — Prioritised recommendation summary
 
 | # | Recommendation | Primary value | Effort | Risk | Priority |
 |---|---|---|---|---|---|
@@ -185,15 +211,15 @@ HKJ ships an annotation processor **plus** OpenRewrite recipes, a static checker
 
 ---
 
-## 6. Part D — Explicitly *not* recommended (and why)
+## 7. Part D — Explicitly *not* recommended (and why)
 
 - **Do not hide HKJ's optic lattice behind JPMS qualified exports.** Telescope's signature move — making `Lens`/`Prism`/`Iso`/`Traversal` untypeable — is right *for telescope's audience* (Java devs who want navigation without learning category theory). It is wrong for HKJ, whose identity and power-user value *is* the composable optic surface and the teaching of it. Adopt the *spirit* instead: keep the Focus DSL crisply positioned as the "front door" (the 90% path) and the raw optics as clearly-labelled "advanced/extension," so newcomers are never forced to learn what a `Prism` is to update a nested field. HKJ largely does this already; the action is documentation/positioning, not encapsulation.
-- **Do not adopt reflection-first navigation as the default** (see A5). It conflicts with correctness/type-safety. Pursue frictionless codegen instead.
+- **Do not adopt reflection-first navigation as the default** (see §3 and A5). It conflicts with correctness/type-safety, and §3 shows HKJ's codegen-only default already occupies the stronger rung on the verification axis. Pursue frictionless codegen instead.
 - **Do not let bean mutation leak into the functional core** (see A3). Keep any bean-write support opt-in, generated, and walled off from the pure surface.
 
 ---
 
-## 7. Appendix — capability matrix (optics niche only)
+## 8. Appendix — capability matrix (optics niche only)
 
 | Capability | Higher-Kinded-J | Telescope | Takeaway |
 |---|---|---|---|
