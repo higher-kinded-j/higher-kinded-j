@@ -123,12 +123,12 @@ The point: **forward, reverse, projection, and validated-parse are the same arti
 
 Telescope adds `beforeForward`/`afterForward`/`beforeBackward`/`afterBackward` as four bolted-on `Function`/`BiFunction` fields, with a long comment (the *"lattice mandate carve-out"*) explaining why a hook with no inverse must **not** be wrapped as a fake `Iso` — doing so would silently violate the round-trip law.
 
-HKJ does not need bolted-on hooks: **input/output adaptation is profunctor `lmap`/`rmap`/`dimap`, which already exist on `Optic`.** And HKJ can enforce telescope's hand-policed rule *in the type system*:
+HKJ does not need bolted-on hooks — end adaptation already lives in the lattice — but **which** lattice operation you reach for matters, because the raw profunctor adapters expose an encoding seam (§5f). Two cases:
 
-- `dimap`/`contramap` are declared on the **base `Optic`** and return the **base `Optic`** (a weaker type), not `Iso`. So adapting an `Iso` with a **non-invertible** function yields a plain `Optic`/`Getter`, **not** a fake `Iso`. The compiler degrades the type exactly when invertibility is lost — the carve-out telescope enforces by *comment*, HKJ enforces by *type*.
-- For genuinely invertible adaptation you compose `Iso.andThen(Iso)` and stay an `Iso`. The design intent: keep a sharp boundary so a one-way hook can never masquerade as bidirectional.
+- **Invertible adaptation → `andThen(Iso)`, not raw `dimap`.** `Iso.andThen(Iso)` already composes an invertible adapter onto either end *and narrows back to `Iso`* (confirmed in `Iso.java`). This is the right tool for "normalise/canonicalise through an invertible codec": lawful, and you stay in the friendly two-param type with `get`/`reverseGet` intact. No fake `Iso` is possible, because both legs are genuine `Iso`s.
+- **One-way (non-invertible) adaptation → a *narrowing* `rmap`/`lmap`, not raw `dimap`.** A post-map with no inverse must cost you the inverse — but it should not cost you `get` as well. The raw `Optic.dimap`/`contramap`/`map` drop all the way to the bare four-param `Optic` (no `get`, no `reverseGet` — §5f), which is more degradation than the situation warrants. The design fix is *narrowing* overloads that degrade by exactly **one rung** to a still-useful named type — e.g. `Iso.rmap(Function<A,B>) : Getter<S,B>` (read-only, but keeps `get`), `Lens.lmap(Iso<C,S>) : Lens<C,A>`. The type still degrades exactly when invertibility is lost — telescope's carve-out enforced by *type*, not by comment — but it lands somewhere ergonomic.
 
-> Design action: ensure `Iso`/`Prism` do **not** override `dimap` to re-narrow the result. The current inheritance (dimap lives on `Optic`, returns `Optic`) is the safe shape; preserve it deliberately and document *why*.
+> Design action: add *narrowing* `rmap`/`lmap` (and an invertible `dimap(Iso, Iso)`) on the concrete optics so end-adaptation stays in named types; leave the base `Optic.dimap`/`contramap`/`map` as the off-diagonal escape hatch. Do **not** override them on `Iso`/`Prism` to *re-widen* into a fake `Iso`. See §5f for why the seam exists and stays hidden by default.
 
 ### 5d. The accumulating-validation parse ships **today**, on existing machinery
 
@@ -145,6 +145,32 @@ To re-encode optics as `forall p. C p => p a b -> p s t` with the classic streng
 
 1. **Ship the mapper on the van Laarhoven optics + the existing `Profunctor` face** (Tiers 0–3 below). This delivers the entire ergonomic story with today's primitives.
 2. **If** HKJ later wants the ultimate unification, introduce a *focused* profunctor-encoded `Mapping` substrate as a bounded context (the mapping subsystem only), reusing `Profunctor`/`Kind2` and adding `Strong`/`Choice`/`Tagged`/`Star` *there*, with bridges that emit ordinary `Iso`/`Lens` so it still composes with the Focus DSL. The mapping subsystem is the ideal sandbox because its whole reason for being is first-class bidirectionality.
+
+### 5f. Encoding seams: where van Laarhoven meets the profunctor face — and how they stay hidden
+
+A hybrid encoding can leak. Here is exactly where the two representations meet, what the seam costs, and why the Mapping feature never pays it.
+
+**The seam, precisely.** HKJ's concrete optics are the type-*preserving diagonal*: `Iso<S,A>`, `Lens<S,A>`, `Prism<S,A>`, `Affine<S,A>`, `Traversal<S,A>` all `extends Optic<S,S,A,A>`, and the directional methods (`get`/`set`/`reverseGet`/`build`) live on those subtypes. The profunctor adapters — `contramap`, `map`, `dimap` — are declared **only on the base `Optic<S,T,A,B>`** and return the **bare four-param `Optic`**. No concrete optic overrides them to narrow. So invoking one on an `Iso`/`Lens`:
+
+1. **Falls off the diagonal.** `contramap`/`map`/`dimap` move `S`, `T`, `A`, or `B` independently, yielding e.g. `Optic<C,S,A,A>` whose first two parameters differ — structurally *not* a two-param `Iso<,>`/`Lens<,>` (those force `S = T`). The named types do not exist off the diagonal; this is structural, not a missing override.
+2. **Loses the directional methods.** The base `Optic` surface is *only* `modifyF`, `andThen`, `contramap`, `map`, `dimap` — no `get`, `set`, `reverseGet`, or `build`. After a raw `dimap` you hold a `modifyF` and must re-derive reads via `Const`/`Identity` by hand.
+3. **Offers no ramp back.** `asLens`/`asFold`/`reverse` live on `Iso`, not on the base `Optic`. Once at `Optic<C,U,A,B>` the library gives no route back to a named type.
+
+**Why it's hidden for this feature (and the Focus DSL).** Both audiences that matter — the codegen `@DeriveMapping`/`Codec` user and the ordinary optic composer — stay on the diagonal end to end:
+
+| Surface | Operations used | Touches the profunctor face? |
+|---|---|---|
+| `Mapping` API | `render` / `parse` / `patch` / `asIso` / `asLens` | no |
+| Composition | the narrowing `andThen` overloads (`Iso.andThen(Iso)=Iso`, …) | no |
+| Reads / writes | `get` / `set` / `reverseGet` / `modify` on the subtype | no |
+| Invertible end-adaptation | `andThen(Iso)` (§5c) | no |
+| One-way end-adaptation | the narrowing `rmap` / `lmap` (§5c) — *the only contact point* | lands in a named type, not bare `Optic` |
+
+The profunctor adapters sit on a base interface these users never downcast to. They are the **off-diagonal escape hatch** for genuinely type-changing transforms — power-user territory, not the feature's surface.
+
+**The one place the dual encoding is unavoidably visible** is using the `Profunctor` *typeclass* directly (`FunctionProfunctor.INSTANCE.dimap(...)` over `Kind2<…>`), which drags in the `Kind2`/`Witness`/`widen`/`narrow` ceremony — the binary-arity sibling of the `Kind`/`Applicative` ceremony `modifyF` already has. That surface is for **instance authors**, not Mapping users or optic composers; neither audience ever types `Kind2`.
+
+**Correctness footnote.** The degradation-to-bare-`Optic` is the *safeguard*, not a defect: a `dimap`-ped `Iso` is not typed as an `Iso`, so it cannot be misused as one (there is no `reverseGet` to call). The narrowing `rmap`/`lmap` overloads recover the *ergonomics* (land in `Getter`/`Lens`) without weakening the *guarantee* (you still lose the inverse exactly when invertibility is lost).
 
 ---
 
