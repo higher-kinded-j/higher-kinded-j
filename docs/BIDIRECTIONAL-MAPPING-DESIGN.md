@@ -266,3 +266,49 @@ Tiers 0–3 are the recommended build and deliver the full user-visible story. T
 ### One-paragraph verdict
 
 Telescope proves the *demand* for bidirectional record↔DTO mapping; HKJ can answer it at a level neither telescope nor MapStruct reaches — not by shipping a `Mapper` class, but by recognising that the feature already lives in the optic lattice. Derive the weakest lawful optic, let immutability and composition come from the lattice, let the type system enforce exhaustiveness and forbid unsound inverses, let fallibility infect the `parse` type and accumulate onto the Effect-Path railway, and let `dimap` host end-adaptation lawfully. Profunctors are not a tangent here — they are the reason the whole thing coheres, and HKJ's `Optic` already wears the profunctor face. Build Tiers 0–3 on the van Laarhoven engine HKJ has today; hold Tier 4 as the categorical capstone for when the elegance is worth the generics.
+
+---
+
+## 10. API readiness review: gaps & rough edges
+
+A hands-on pass over the API as if *implementing* the mapper — reading `Iso`, `Lens`, `Prism`, `Affine`, `Getter`, `Fold`, `Optic`, `Validated`, `Applicative` and exercising them. This sharpens §8 (which lists the conceptual additions inline) with first-hand, file-line evidence, a severity split, and a build order. Items that also appear in §8 are marked *(see §8)*.
+
+**Architect's headline.** HKJ's *sequential composition core is strong* — the `andThen` overload matrix narrows correctly across the whole lattice (`Iso∘Iso=Iso`, `Iso∘Prism=Prism`, `Lens∘Prism=Affine`, `Affine∘Lens=Affine`, …), each leg law-clean and reflection-free. The gaps are not there. They cluster in the three layers a DTO mapper leans on hardest — **product/parallel assembly** (combining many optics/values into one), the **fallible boundary** (validated parse + error carrier), and the **profunctor seam** (§5f) — plus a few **naming footguns** a coder hits on day one. None touch the composition core or the van Laarhoven engine; all are additive plus two naming cleanups.
+
+### 10a. Blocking gaps — the feature cannot exist without these
+
+| # | Gap | Evidence | Fix | Effort |
+|---|---|---|---|---|
+| **B1** | No **structural optic derivation** between two record types. `@GenerateIsos` only *wraps* a user-supplied `(get, reverseGet)` pair — it does not match fields. | `IsoProcessor` emits `Iso.of(get, reverseGet)`; `@GenerateIsos` is `@Target(METHOD)` | the `@DeriveMapping` processor (field-match → per-field codec → assemble) is net-new | High |
+| **B2** | No **validated/fallible match optic** ("parse, don't validate"); prism match is `Optional`-only. | `Prism.getOptional : Optional<A>`, `Prism.build : A→S` (`Prism.java:43,53`) — no `S → Validated<E,A>` | a validated prism / "refraction" (`parse : S → Validated<E,A>` + total `build`), or a generated `Validated`-returning `parse` | Medium |
+
+### 10b. Ergonomic gaps — these decide whether the fit is *strong*
+
+| # | Gap | Evidence | Fix | Effort |
+|---|---|---|---|---|
+| **E1** | No **N-ary applicative assembly**; `mapN` caps at `map3`. Assembling a record from >3 validated fields means curried `ap` chains. | `Applicative` has only `map2`/`map3` (`Applicative.java:136,157,187`); no `map4+` | higher-arity `mapN`, an `ApplicativeBuilder`/`tupled` accumulator, or a generated applicative traverse over fields | Medium · high payoff |
+| **E2** | No **`NonEmptyList`** / guaranteed-non-empty error carrier — an `Invalid` can carry zero errors. *(see §8)* | no NEL type (only an unrelated list prism) | add `NonEmptyList<E>` + its `Semigroup` instance | Low–Med · broadly useful |
+| **E3** | **`Semigroup` threaded on every combine.** | `Validated.ap(fn, Semigroup<E>)` re-takes the semigroup each call (`Validated.java:235`) | a fixed-`E` accumulating applicative instance (carries the semigroup once), or default it via E2 | Low |
+| **E4** | Profunctor adapters **bottom out at bare `Optic`** (no narrowing `rmap`/`lmap`). *(see §5c / §5f)* | `Optic.contramap/map/dimap → Optic<…>` (`Optic.java:72,91,112`); no concrete override | narrowing `rmap`/`lmap` landing in `Getter`/`Lens` | Low–Med |
+| **E5** | No **`Iso` container-lift** helpers. *(see §8)* | lifting only via `Traversal`/`Each` | `Iso.liftList/liftOptional/liftMapValues` for leaf-codec reuse | Low |
+| **E6** | No **N-ary product-of-optics** builder (only `Lens.paired` → `Pair`). | `Lens.paired` (`Lens.java:382+`); nothing general | fine for codegen (processor emits the product); needed for the value-level escape hatch | Medium |
+| **E7** | No auto-generated **field-path labels** for errors. *(see §8)* | `IndexedLens`/`Pair` exist; lens/focus codegen does not thread a label per hop | extend codegen to carry a label → `"address.zip"` in `FieldError` | Medium |
+
+### 10c. Rough edges / footguns — fix or document loudly
+
+| # | Edge | Evidence | Note |
+|---|---|---|---|
+| **R1** | **`Lens.of` setter order disagrees with `Lens.set`.** Constructor wants `(source, value)`; method takes `(value, source)`. | `Lens.of(Function<S,A>, BiFunction<S,A,S>)` = `(S,A)→S` (`Lens.java:359`) vs `set(A newValue, S source)` (`Lens.java:51`) | a coder *will* trip on this. Align, or document prominently (binary-compat sensitive) |
+| **R2** | **`set`/`modify` are value-first / source-last.** | `set(A value, S source)`, `modify(Function, S source)` (`Lens.java:51,62`) | internally consistent (target last) but unusual for Java; footgun when `S`/`A` are assignable. Consider source-first `with(...)` aliases |
+| **R3** | **`Optic.map`/`contramap` act on the structure ends (S/T), not the focus (A/B).** | `map(Function<T,U>)`, `contramap(Function<C,S>)` (`Optic.java:72,91`) | collides with `Functor.map` intuition. Rename (`lmapSource`/`rmapTarget`) or document; the Mapping facade must never expose these |
+| **R4** | **Three+ names for "go backward/construct":** `Iso.reverseGet`, `Prism.build`, `Lens.set`+base, `Affine.set`+base. | across optic files | raw-optic users context-switch; the `Mapping`/`Codec` facade unifying to `render`/`parse` is the mitigation — make it the documented front door |
+| **R5** | **`Getter.of` vs `Getter.to` redundancy.** | `to` just calls `of` (`Getter.java:148`) | trivial: pick one canonical, keep the other as a documented alias |
+
+### 10d. Build order — if you build the mapper, do these first
+
+1. **E2 (`NonEmptyList`) + E1 (`mapN`/builder)** — together they *are* the validated-parse story; B2 depends on them being ergonomic. Without them, "accumulate every field error" is technically possible but miserable to generate and impossible to hand-write.
+2. **B2 (validated prism)** — the core fallible-boundary primitive.
+3. **E4 (narrowing `rmap`/`lmap`)** — closes the one profunctor seam the feature touches.
+4. **R1 (lens-of order)** — a cheap correctness/ergonomics fix that pays off well beyond mapping.
+
+The foundation is sound; what is thin is the *parallel-assembly* and *fallible-boundary* layers — exactly where a DTO mapper lives.
