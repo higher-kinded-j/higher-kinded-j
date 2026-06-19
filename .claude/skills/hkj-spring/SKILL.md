@@ -1,15 +1,16 @@
 ---
 name: hkj-spring
-description: "Higher-Kinded-J Spring Boot integration (hkj-spring-boot-starter). Use PROACTIVELY whenever the working file or task involves: (1) a Spring controller method (@RestController / @GetMapping / @PostMapping / @PutMapping / @DeleteMapping) that returns Either, Validated, EitherPath, MaybePath, ValidationPath, TryPath, IOPath, CompletableFuturePath, VTaskPath, VStreamPath, or FreePath; (2) a sealed interface or sealed hierarchy named DomainError / *Error / *Failure used as the Left of an Either; (3) Jackson 3.x / tools.jackson serialization of HKJ types; (4) any application.yml / application.properties key under hkj.web.*, hkj.json.*, hkj.validation.*, hkj.async.*, hkj.virtual-threads.*, hkj.actuator.*, hkj.security.*, or hkj.effect-boundary.*; (5) mapping a domain error to an HTTP status code, including 4xx/5xx codes outside the heuristic table (409 Conflict, 422 Unprocessable Entity, 429 Too Many Requests, 503 Service Unavailable); (6) ErrorStatusCodeStrategy, ErrorStatusCodeMapper, DefaultErrorStatusCodeStrategy, or HttpHeaderCarrier (Retry-After, WWW-Authenticate, Location); (7) @WebMvcTest slices that need HkjAutoConfiguration / HkjJacksonAutoConfiguration / HkjWebMvcAutoConfiguration imported; (8) EffectBoundary, @Interpreter, @EnableEffectBoundary, @EffectTest, or returning FreePath from a controller; (9) auto-configuration questions about the starter."
+description: "Higher-Kinded-J Spring Boot integration (hkj-spring-boot-starter). Use PROACTIVELY whenever the working file or task involves: (1) a Spring controller method (@RestController / @GetMapping / @PostMapping / @PutMapping / @DeleteMapping) that returns Either, Validated, EitherPath, MaybePath, ValidationPath, TryPath, IOPath, CompletableFuturePath, VTaskPath, VStreamPath, or FreePath; (2) a sealed interface or sealed hierarchy named DomainError / *Error / *Failure used as the Left of an Either; (3) Jackson 3.x / tools.jackson serialization of HKJ types; (4) any application.yml / application.properties key under hkj.web.*, hkj.json.*, hkj.validation.*, hkj.async.*, hkj.virtual-threads.*, hkj.actuator.*, hkj.security.*, or hkj.effect-boundary.*; (5) mapping a domain error to an HTTP status code, including 4xx/5xx codes outside the heuristic table (409 Conflict, 422 Unprocessable Entity, 429 Too Many Requests, 503 Service Unavailable); (6) ErrorStatusCodeStrategy, ErrorStatusCodeMapper, DefaultErrorStatusCodeStrategy, or HttpHeaderCarrier (Retry-After, WWW-Authenticate, Location); (7) @WebMvcTest slices that need HkjAutoConfiguration / HkjJacksonAutoConfiguration / HkjWebMvcAutoConfiguration imported; (8) EffectBoundary, @Interpreter, @EnableEffectBoundary, @EffectTest, or returning FreePath from a controller; (9) auto-configuration questions about the starter; (10) calling another service over HTTP and keeping the typed error: @HkjHttpClient on a @HttpExchange interface whose methods return EitherPath / VTaskPath<Either> / MaybePath; spring.http.serviceclient.* configuration (base-url, timeouts) for the client; hkj.client.status-error-mappings; @OnStatus(value=, error=); ResponseErrorDecoder / ResponseErrorDecoderFactory / HkjClientExchange / ClientErrorResponse.retryAfter; decoding the {\"success\":false,\"error\":…} envelope back into a typed error; or a generated <Name>HttpExchange / <Name>Client / <Name>ClientConfiguration."
 ---
 
 # Higher-Kinded-J Spring Boot Integration
 
-You are helping a developer integrate HKJ with Spring Boot. The `hkj-spring-boot-starter` enables returning `Either`, `Validated`, `CompletableFuturePath`, `VTaskPath`, and `VStreamPath` directly from Spring controllers with automatic HTTP response conversion.
+You are helping a developer integrate HKJ with Spring Boot. The `hkj-spring-boot-starter` covers both edges of an HTTP boundary: **inbound**, returning `Either`, `Validated`, `CompletableFuturePath`, `VTaskPath`, and `VStreamPath` directly from Spring controllers with automatic HTTP response conversion; and **outbound**, generating declarative HTTP clients (`@HkjHttpClient`) whose methods return Effect Paths and decode a typed error back from the response, so the typed error channel survives a service-to-service call.
 
 ## When to load supporting files
 
-- If the user wants a **complete working example**, load `reference/spring-example.md`
+- If the user wants a **complete working server example**, load `reference/spring-example.md`
+- If the user is **calling another service** (`@HkjHttpClient`), load `reference/http-client-example.md`
 - For **Effect Path API basics**, suggest `/hkj-guide`
 - For **architecture patterns** (functional core / imperative shell), suggest `/hkj-arch`
 
@@ -77,6 +78,7 @@ The starter auto-configures everything: response conversion, JSON serialization,
 | `VStreamPath` SSE | Server-Sent Events streaming on virtual threads |
 | Jackson serialization | JSON support for Either, Maybe, Try, Validated |
 | Status code mapping | Customizable domain error -> HTTP status mapping |
+| `@HkjHttpClient` clients | Declarative HTTP clients returning Effect Paths, decoding a typed error from the response |
 | Actuator integration | Monitoring functional operations |
 
 ---
@@ -234,6 +236,100 @@ public VStreamPath<Update> streamUpdates() {
     // Framework converts VStreamPath to SSE automatically
 }
 ```
+
+---
+
+## Calling Other Services with `@HkjHttpClient`
+
+The outbound inverse of the controller handlers. Annotate a Spring `@HttpExchange` interface with `@HkjHttpClient`; each method returns an Effect Path, and the generated client decodes the server's `{"success":false,"error":…}` envelope back into a typed error.
+
+### Declare, configure, autowire
+
+```java
+@HttpExchange("/users")
+@HkjHttpClient
+public interface UserClientApi {
+
+    @GetExchange("/{id}")
+    EitherPath<ApiError, UserDto> getUser(@PathVariable String id);   // 2xx -> Right, 4xx/5xx -> Left(decoded)
+
+    @PostExchange
+    VTaskPath<Either<ApiError, UserDto>> create(@RequestBody UserDto body);  // deferred: withRetry/timeout/...
+}
+```
+
+```yaml
+spring:
+  http:
+    serviceclient:
+      userClientApi:               # group = decapitalised interface name (or @HkjHttpClient(group="..."))
+        base-url: http://users.internal
+        read-timeout: 2s
+```
+
+```java
+@Autowired UserClientApi userClientApi;   // autowire YOUR interface; the generated …Client is the bean
+EitherPath<ApiError, UserDto> path = userClientApi.getUser("42");
+path.run().fold(this::handleError, this::renderUser);
+```
+
+The starter bundles `spring-boot-restclient`, which binds `spring.http.serviceclient.*` and applies the base URL (it is **not** pulled in by `spring-boot-starter-web` alone). The generated `…ClientConfiguration` declares the `@ImportHttpServices` group and is component-scanned with your app (it sits in your interface's package); add an explicit `@ImportHttpServices(basePackages = "...")` only if your client interfaces live outside the scan.
+
+### Return types
+
+| Return type | Evaluation | non-2xx | Use when |
+|-------------|-----------|---------|----------|
+| `EitherPath<E, T>` | eager, blocks the caller | `Left(decoded)` | a plain request/response call |
+| `VTaskPath<Either<E, T>>` | deferred on a virtual thread | `Left(decoded)` | you want `withRetry` / `withCircuitBreaker` / `timeout` |
+| `MaybePath<T>` | eager, blocks the caller | 404 -> `Nothing` (others propagate) | absence is normal and untyped |
+
+Empty 2xx body: `EitherPath`/`VTaskPath` yield `Right(null)`, `MaybePath` yields `Nothing`. Transport failures (connection refused, timeout) and undecodable bodies are **not** typed errors: they propagate synchronously from the eager variants, and as a failed task from the deferred ones. The generated client is a stateless, thread-safe singleton.
+
+### Decoding errors: concrete vs sealed
+
+A **concrete** error type binds with no extra annotations. A **sealed** `DomainError` needs `@JsonTypeInfo(use = Id.NAME, property = "type")` + `@JsonSubTypes` so Jackson can pick the subtype. **Never use `Id.CLASS` / `Id.MINIMAL_CLASS` or `ObjectMapper` default typing** on a mapper that decodes responses from a server you do not fully trust: those put a class name on the wire that Jackson loads and instantiates (the classic deserialisation-gadget vector). `Id.NAME` only resolves your registered subtype names.
+
+### Overriding status -> error type
+
+Precedence: **per-method `@OnStatus` > global `hkj.client.status-error-mappings` > the declared type.**
+
+```java
+@GetExchange("/{id}")
+@OnStatus(value = 404, error = UserNotFoundError.class)   // each error() must be assignable to the
+@OnStatus(value = 409, error = ConflictError.class)       // declared error type (compile-checked)
+EitherPath<DomainError, UserDto> getUser(@PathVariable String id);
+```
+
+```yaml
+hkj:                                       # the client analogue of hkj.web.error-status-mappings
+  client:
+    status-error-mappings:
+      404: com.example.UserNotFoundError
+      429: com.example.RateLimitError       # applies to a method only if assignable to its declared E
+```
+
+Wholesale: define a `ResponseErrorDecoder` / `ResponseErrorDecoderFactory` bean (e.g. for a non-HKJ server that does not emit the envelope; an undecodable body raises `ResponseErrorDecodeException`).
+
+### Resilience, Retry-After, SSE
+
+```java
+Either<ApiError, UserDto> result =
+    userClientApi.create(body)
+        .withRetry(RetryPolicy.exponentialBackoffWithJitter(3, Duration.ofMillis(100)))
+        .withCircuitBreaker(breaker)
+        .timeout(Duration.ofSeconds(2))
+        .unsafeRun();
+```
+
+`Retry-After` is a **hook**, not automatic: a custom decoder reads `ClientErrorResponse.retryAfter()` and feeds it into the retry policy. Consume an SSE endpoint with `HkjClientExchange.vstream(source, ElementType.class, jsonMapper)` -> `VStreamPath<T>` (drain it with `toList()` or bound it with `take(n)`; `headOption()`/`find(...)` short-circuit and may leave the response open).
+
+### Gotchas
+
+- A sealed error type with no `@JsonTypeInfo` cannot be decoded.
+- Client interfaces outside the component scan: the generated config is not picked up, so no proxy is created — add `@ImportHttpServices(basePackages = "...")`.
+- A generic `@HkjHttpClient` interface is **codegen-only** (no bean, since a generic client cannot be a singleton): instantiate the facade for a concrete type yourself.
+- `VStreamPath` is not generated automatically; consume SSE via `HkjClientExchange.vstream(...)`.
+- A super-interface from a precompiled dependency jar must be built with `-parameters`, or its `@PathVariable`/`@RequestParam` arguments bind to `arg0`-style names.
 
 ---
 
@@ -533,6 +629,20 @@ hkj:
   virtual-threads:
     default-timeout-ms: 30000
     stream-timeout-ms: 60000
+
+  # ---- @HkjHttpClient (outbound): global status -> error type; see "Calling Other Services" ----
+  client:
+    status-error-mappings:
+      404: com.example.UserNotFoundError
+      429: com.example.RateLimitError
+
+# Per-client base URL / timeouts are Spring-native keys (not hkj.*), one block per group:
+spring:
+  http:
+    serviceclient:
+      userClientApi:
+        base-url: http://users.internal
+        read-timeout: 2s
 ```
 
 For field-aware status decisions (e.g. `MfaThrottledError.retryAfter() > 60 → 503`),
@@ -543,5 +653,6 @@ section above.
 
 ## Requirements
 
-- Spring Boot 4.0.1+ (Jackson 3.x / `tools.jackson` namespace)
+- Spring Boot 4.0.1+ for the server side (Jackson 3.x / `tools.jackson` namespace)
+- Spring Boot 4.1+ / Spring Framework 7 for the `@HkjHttpClient` client side (it uses `@ImportHttpServices` and the `spring.http.serviceclient.*` binding from `spring-boot-restclient`)
 - Java 25 with `--enable-preview`

@@ -882,5 +882,5 @@ The migration is straightforward and the benefits are immediate. Start with one 
 
 ---
 
-**Previous:** [Spring Boot Integration](spring_boot_integration.md)
+**Previous:** [Declarative HTTP Clients](declarative_http_clients.md)
 **Next:** [EffectBoundary Integration](effect_boundary_integration.md)

@@ -93,6 +93,7 @@ spring-boot-actuator-autoconfigure = { module = "org.springframework.boot:spring
 spring-boot-health = { module = "org.springframework.boot:spring-boot-health" }
 spring-boot-webmvc = { module = "org.springframework.boot:spring-boot-webmvc" }
 spring-boot-jackson = { module = "org.springframework.boot:spring-boot-jackson" }
+spring-boot-restclient = { module = "org.springframework.boot:spring-boot-restclient", version.ref = "spring-boot" }
 spring-boot-webmvc-test = { module = "org.springframework.boot:spring-boot-webmvc-test" }
 
 # Spring Framework

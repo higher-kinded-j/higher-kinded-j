@@ -14,6 +14,15 @@ This page documents the evolution of Higher-Kinded-J from its initial release th
 
 ### v0.4.7-SNAPSHOT (in development)
 
+**`@HkjHttpClient` — generated Effect-Path HTTP clients**
+
+`hkj-spring` was server-side only: the `*PathReturnValueHandler`s map an `EitherPath`/`VTaskPath`/… returned from a controller into an HTTP response, but when service A called service B, B's typed error collapsed into a raw status code at A's boundary — losing the typed error channel the library is built around. The new `@HkjHttpClient` closes that gap with the client-side inverse, preserving the typed error end-to-end across services. Two additive modules (`hkj-spring/client` runtime + `hkj-spring/client-processor`), no breaking changes.
+
+- **Runtime (`hkj-spring/client`):** `HkjClientExchange` folds an HTTP exchange into an Effect Path — `either` (2xx→`Right`, 4xx/5xx→`Left`), `eitherVTask` (deferred on a virtual thread, so callers get `withRetry`/`withCircuitBreaker`/`timeout`), and `maybe` (404/empty→`Nothing`). A pluggable `ResponseErrorDecoder` decodes the server's `{"success":false,"error":…}` envelope into the declared error type via the shared Jackson mapper; auto-configuration contributes the default factory.
+- **Codegen (`hkj-spring/client-processor`):** annotating a Path-typed `@HttpExchange` interface generates a native `@HttpExchange` interface (return types unwrapped to `ResponseEntity<T>`, all mapping/parameter annotations copied through), a `…Client` implementation that dispatches by return type, and a `…ClientConfiguration` that wires the client via Spring 7 `@ImportHttpServices` — base URL/timeouts/versioning come from `spring.http.serviceclient.<group>.*`.
+- A concrete error type decodes with no extra annotations; a sealed `DomainError` hierarchy needs `@JsonTypeInfo`/`@JsonSubTypes`. The processor is wired into `hkj-spring-boot-starter`; see `hkj-spring/example` for an end-to-end `MockRestServiceServer` test and the [Declarative HTTP Clients](spring/declarative_http_clients.md) guide.
+- **Additional capabilities:** `@OnStatus(value, error)` maps individual statuses to distinct error subtypes (404 → `UserNotFoundError`, …); generic `@HkjHttpClient` interfaces are supported codegen-only (native + facade carry the type parameters; no auto-`@Configuration`); `ClientErrorResponse.retryAfter()` exposes the server's `Retry-After` hint for back-off; and `HkjClientExchange.vstream(source, ElementType.class, mapper)` consumes the server's SSE stream into a `VStreamPath<T>` (deferred, resource-safe).
+
 **Spring Boot 4.1.0 / Framework 7.0.8 upgrade**
 
 The `hkj-spring` integration modules move from Spring Boot 4.0.6 to 4.1.0 (Spring Framework 7.0.8), with the managed Jackson 3.x line advancing from 3.1.2 to 3.1.4 to match the `tools.jackson:jackson-bom` shipped by Boot 4.1.0 ([#575](https://github.com/higher-kinded-j/higher-kinded-j/pull/575)).

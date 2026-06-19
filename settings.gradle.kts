@@ -29,6 +29,8 @@ include(
     "hkj-maven-plugin",
     // Spring Boot integration modules
     "hkj-spring:autoconfigure",
+    "hkj-spring:client",
+    "hkj-spring:client-processor",
     "hkj-spring:starter",
     "hkj-spring:example",
     "hkj-spring:effect-example"

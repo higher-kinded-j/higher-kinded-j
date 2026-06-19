@@ -231,6 +231,7 @@ Building enterprise applications with Spring Boot? The **hkj-spring-boot-starter
 * **Return Functional Types from Controllers:** Use `Either<Error, Data>`, `Validated<Errors, Data>`, and `CompletableFuturePath` as return types with automatic HTTP response conversion.
 * **Eliminate Exception Handling Boilerplate:** No more try-catch blocks or `@ExceptionHandler` methods; errors are explicit in your return types.
 * **Compose Operations Naturally:** Chain operations with `map` and `via` whilst preserving type safety and error information.
+* **Call Other Services Safely:** Generate declarative HTTP clients with `@HkjHttpClient` that return `EitherPath`/`VTaskPath` and decode the response back into a typed error, keeping the error channel intact across services.
 * **Accumulate Validation Errors:** Use `Validated` to collect **all** validation errors in a single request, improving user experience.
 * **Handle Async Operations:** Use `CompletableFuturePath` to compose asynchronous operations seamlessly.
 * **Monitor in Production:** Track EitherPath success rates, ValidationPath error distributions, and CompletableFuturePath async performance with Spring Boot Actuator metrics.

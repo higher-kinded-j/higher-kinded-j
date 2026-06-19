@@ -261,6 +261,7 @@
   - [Testing With hkj-test](tooling/test_assertions.md)
 - [Spring Integration](spring/ch_intro.md)
   - [Spring Boot Integration](spring/spring_boot_integration.md)
+  - [Declarative HTTP Clients](spring/declarative_http_clients.md)
   - [Migrating to Functional Errors](spring/migrating_to_functional_errors.md)
   - [EffectBoundary Integration](spring/effect_boundary_integration.md)
 

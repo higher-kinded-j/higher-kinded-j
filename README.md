@@ -392,8 +392,22 @@ public class UserController {
 
 Auto-configuration handles Either to HTTP response conversion, error accumulation with Validated, and async operations with CompletableFuturePath.
 
+It also closes the loop on the **client** side. When one service calls another, `@HkjHttpClient` generates a declarative client that returns Effect Paths and decodes the response back into a typed error, so the error channel survives the network hop:
+
+```java
+@HttpExchange("/users")
+@HkjHttpClient
+public interface UserClientApi {
+
+    @GetExchange("/{id}")
+    EitherPath<DomainError, User> getUser(@PathVariable String id);
+    // HTTP 200 → Right(user); HTTP 404 → Left(UserNotFoundError), decoded from the response
+}
+```
+
 For complete documentation, see:
 - [Spring Boot Integration Guide](https://higher-kinded-j.github.io/latest/spring/spring_boot_integration.html)
+- [Declarative HTTP Clients](https://higher-kinded-j.github.io/latest/spring/declarative_http_clients.html)
 - [Migration Guide](https://higher-kinded-j.github.io/latest/spring/migrating_to_functional_errors.html)
 
 ---

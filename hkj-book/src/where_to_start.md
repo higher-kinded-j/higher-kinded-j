@@ -199,6 +199,17 @@ shell that runs the effects.
   test).
 - **Read:** [the hkj-arch skill](tooling/claude_code_skills.md), [Effect Boundary Integration](spring/effect_boundary_integration.md).
 
+### I call other services over HTTP
+
+You have a Spring service that calls another, and you want the callee's typed
+error to survive the network hop instead of collapsing into a status code.
+
+- **Tools:** [`@HkjHttpClient`](spring/declarative_http_clients.md) on a Spring
+  `@HttpExchange` interface, returning [`EitherPath`](effect/path_either.md) or
+  [`VTaskPath`](effect/path_vtask.md); base URL and timeouts via
+  `spring.http.serviceclient.<group>.*`.
+- **Read:** [Declarative HTTP Clients](spring/declarative_http_clients.md).
+
 ### A DSL **and** multiple interpreters
 
 You want to describe a workflow once and run it differently in production,

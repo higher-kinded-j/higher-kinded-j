@@ -12,9 +12,18 @@ Functional error handling clarifies thought. When a method returns `Either<Domai
 
 This chapter bridges functional programming and enterprise Java. The `hkj-spring-boot-starter` allows Spring controllers to return `Either`, `Validated`, `CompletableFuturePath`, `VTaskPath`, and `VStreamPath` directly. The framework handles the translation to HTTP responses: `Right` becomes 200 OK; `Left` becomes the appropriate error status. Validation errors accumulate properly. Async operations compose cleanly. Virtual thread operations run without thread pool configuration, and SSE streaming works without WebFlux or Reactor.
 
+The starter also closes the other half of the loop. Once a service speaks typed errors over HTTP, the services that call it should understand them. `@HkjHttpClient` generates a declarative client whose methods return the same Effect Paths, decoding the response back into a typed error so the error channel survives the network hop. The server encodes; the client decodes; the typed error never collapses into a bare status code.
+
 For applications that compose multiple effects, `EffectBoundary` bridges Free monad programs into the existing handler ecosystem. `@EnableEffectBoundary` auto-discovers `@Interpreter` beans, combines them, and registers an `EffectBoundary` that interprets programs and returns `IOPath` or `FreePath`, which the existing handlers convert to HTTP responses.
 
 The integration is non-invasive. Existing exception-based endpoints continue to work. Migration can proceed incrementally. But as more of your codebase adopts functional error handling, a subtle shift occurs. Errors become data. Control flow becomes explicit. The language of your code begins to clarify your thought rather than corrupt it.
+
+~~~admonish note title="New to the vocabulary?"
+This chapter uses `Either`, the Effect Paths (`EitherPath`, `VTaskPath`, …), and the "railway"
+model of success and failure tracks. If those are unfamiliar, [The Effect Path
+API](../effect/effect_path_overview.md) introduces them; the pages here then show how they meet
+Spring.
+~~~
 
 ---
 
@@ -43,6 +52,18 @@ The integration is non-invasive. Existing exception-based endpoints continue to 
     │    → Left(NotFoundError) automatically becomes HTTP 404     │
     │    → Left(ValidationError) automatically becomes HTTP 400   │
     └─────────────────────────────────────────────────────────────┘
+
+    ┌─────────────────────────────────────────────────────────────┐
+    │  AND BACK AGAIN (With @HkjHttpClient)                       │
+    │                                                             │
+    │    EitherPath<DomainError, User> getUser(String id)        │
+    │           ↑                                                 │
+    │    A client call that keeps the typed error                 │
+    │                                                             │
+    │    → HTTP 200 decodes to Right(user)                        │
+    │    → HTTP 404 decodes to Left(NotFoundError)                │
+    │    → HTTP 400 decodes to Left(ValidationError)              │
+    └─────────────────────────────────────────────────────────────┘
 ```
 
 ---
@@ -59,7 +80,8 @@ The integration is non-invasive. Existing exception-based endpoints continue to 
 | `FreePath` return types | Composable effect programs interpreted at the boundary |
 | `EffectBoundary` | Auto-wired interpret-and-execute for Free monad programs |
 | `@Interpreter` beans | Spring-managed interpreters with DI and profile switching |
-| Automatic status mapping | Error types to HTTP status codes |
+| `@HkjHttpClient` interfaces | Declarative clients that keep the typed error when calling other services |
+| Automatic status mapping | Error types to HTTP status codes (inbound) and back to typed errors (outbound) |
 | JSON serialisation | Configurable output formats |
 | Actuator integration | Metrics for functional operations |
 | Security integration | Functional authentication patterns |
@@ -74,6 +96,7 @@ If you use Spring's dependency injection and wonder how `ReaderPath` compares, s
 
 ~~~admonish info title="In This Chapter"
 - **Spring Boot Integration** – Configure Spring to accept Either, Validated, CompletableFuturePath, VTaskPath, and VStreamPath as controller return types. The framework automatically maps Right to 200 OK and Left to appropriate error statuses. VTaskPath provides virtual thread async, VStreamPath provides SSE streaming.
+- **Declarative HTTP Clients** – The outbound inverse of the controller handlers. `@HkjHttpClient` generates a client whose methods return Effect Paths and decodes the response back into a typed error, so the error channel survives a service-to-service call. Wiring is configuration; you autowire your own interface.
 - **Migration Guide** – A practical path from exception-based error handling to functional types. Start with one endpoint, prove the pattern, then expand incrementally.
 - **EffectBoundary Integration** – Compose multiple effect algebras into a single program and interpret them at a clean boundary. `@EnableEffectBoundary` auto-discovers `@Interpreter` beans, combines them, and bridges Free monads into the existing *Path handler ecosystem. Progressive adoption from a single `@Bean` to full auto-wiring.
 ~~~
@@ -83,8 +106,9 @@ If you use Spring's dependency injection and wonder how `ReaderPath` compares, s
 ## Chapter Contents
 
 1. [Spring Boot Integration](spring_boot_integration.md) - Using Either, Validated, and *Path types in controllers
-2. [Migrating to Functional Errors](migrating_to_functional_errors.md) - Moving from exceptions to functional error handling
-3. [EffectBoundary Integration](effect_boundary_integration.md) - Composable effects with auto-wired interpreters
+2. [Declarative HTTP Clients](declarative_http_clients.md) - Calling other services and keeping the typed error
+3. [Migrating to Functional Errors](migrating_to_functional_errors.md) - Moving from exceptions to functional error handling
+4. [EffectBoundary Integration](effect_boundary_integration.md) - Composable effects with auto-wired interpreters
 
 ---
 
