@@ -38,10 +38,11 @@ DEFERRED:                   A3 auto-detecting bean writers (only when the mapper
 | **Field-path labelling / `FieldError`** (E7) | optics + errors | #549 | **draft** | `DRAFT-ISSUE-optic-path-labelling.md` · `PHASE0-FIELD-PATH-LABELLING-ANALYSIS.md` |
 | **Refraction optic** (validated prism) | optic | #549, assembly, labelling | **draft** | `DRAFT-ISSUE-validated-refraction-optic.md` |
 | **A2 — `Patch` / multi-edit** | feature | assembly, labelling, `Endo` | **draft** | `DRAFT-ISSUE-multi-edit-patch.md` · `PHASE1-MULTI-EDIT-ANALYSIS.md` |
-| **A1 — bidirectional mapper** | feature | assembly, labelling, refraction | designed | `BIDIRECTIONAL-MAPPING-DESIGN.md` |
-| A4 — processor diagnostics | quality | the new processors | recommended | `TELESCOPE-COMPARATIVE-ANALYSIS.md` §… |
-| A5 — setup on-ramp | adoption | — | recommended | `TELESCOPE-COMPARATIVE-ANALYSIS.md` |
-| A3 — bean writers | feature | A1 | deferred | `TELESCOPE-COMPARATIVE-ANALYSIS.md` |
+| **A1 — `@DeriveMapping`** | feature | assembly, labelling, refraction | designed + **draft** | `DRAFT-ISSUE-derive-mapping.md` · `BIDIRECTIONAL-MAPPING-DESIGN.md` · `PHASE2-MAPPER-ANALYSIS.md` |
+| Mapper follow-ons (merge · third-party) | feature | A1 | **draft** | `DRAFT-ISSUE-mapper-follow-ons.md` |
+| A4 — processor diagnostics | quality | the new processors | **draft** | `DRAFT-ISSUE-mapper-adjacent.md` |
+| A5 — setup on-ramp | adoption | — | **draft** | `DRAFT-ISSUE-mapper-adjacent.md` |
+| A3 — bean writers | feature | A1 | **fast-follow** (revised — `CopyStrategy` exists) | `PHASE2-MAPPER-ANALYSIS.md` |
 
 ## Build order (and why)
 
