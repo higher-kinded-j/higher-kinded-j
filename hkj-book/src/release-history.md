@@ -14,6 +14,12 @@ This page documents the evolution of Higher-Kinded-J from its initial release th
 
 ### v0.4.7-SNAPSHOT (in development)
 
+**Spring Boot 4.1.0 / Framework 7.0.8 upgrade**
+
+The `hkj-spring` integration modules move from Spring Boot 4.0.6 to 4.1.0 (Spring Framework 7.0.8), with the managed Jackson 3.x line advancing from 3.1.2 to 3.1.4 to match the `tools.jackson:jackson-bom` shipped by Boot 4.1.0 ([#575](https://github.com/higher-kinded-j/higher-kinded-j/pull/575)).
+
+- Dependency-only change, centralised in the version catalog (`spring-boot` and `jackson` entries); Spring Framework 7.0.8 and the rest of the stack flow through transitively via the BOM. The `autoconfigure`, `example` and `effect-example` modules compile and pass their test suites against 4.1.0 with no source changes, and the upgrade introduces no new deprecations. No public API change.
+
 **`Writer.of(log, value)` factory**
 
 `Writer<W, A>` exposed `Writer.value(Monoid<W>, A)` (empty log) and `Writer.tell(W)` (`Unit` value) but had no factory for the common custom-log-plus-value case, leaving the raw `new Writer<>(log, value)` constructor as the only option. Because a `Writer` legitimately holds a null value, that constructor's diamond infers a `@Nullable A` type argument, which trips nullness analysis at the call site ("returning a class with nullable type arguments where not-null expected"); a static factory whose return type is the plain `Writer<W, A>` launders the nullness contract once, in production code.
