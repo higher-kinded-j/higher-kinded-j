@@ -145,16 +145,20 @@ public final class HkjClientExchange {
     Objects.requireNonNull(source, "source");
     Objects.requireNonNull(elementType, "elementType");
     Objects.requireNonNull(mapper, "mapper");
+    // Acquire, use and release the same BufferedReader: closing the outermost wrapper releases the
+    // whole chain down to the underlying stream, and acquire/release stay symmetric.
     return Path.vstreamBracket(
-        VTask.of(() -> Objects.requireNonNull(source.get(), "SSE source stream must not be null")),
-        stream ->
-            VStream.unfold(
-                new BufferedReader(new InputStreamReader(stream, StandardCharsets.UTF_8)),
-                reader -> VTask.of(() -> readSseFrame(reader, elementType, mapper))),
-        stream ->
+        VTask.of(
+            () ->
+                new BufferedReader(
+                    new InputStreamReader(
+                        Objects.requireNonNull(source.get(), "SSE source stream must not be null"),
+                        StandardCharsets.UTF_8))),
+        reader -> VStream.unfold(reader, r -> VTask.of(() -> readSseFrame(r, elementType, mapper))),
+        reader ->
             VTask.of(
                 () -> {
-                  stream.close();
+                  reader.close();
                   return Unit.INSTANCE;
                 }));
   }
