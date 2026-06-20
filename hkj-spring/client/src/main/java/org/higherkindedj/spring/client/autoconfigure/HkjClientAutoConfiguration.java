@@ -2,8 +2,9 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.spring.client.autoconfigure;
 
-import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.stream.Collectors;
+import org.higherkindedj.hkt.trymonad.Try;
 import org.higherkindedj.spring.client.JsonResponseErrorDecoderFactory;
 import org.higherkindedj.spring.client.ResponseErrorDecoderFactory;
 import org.jspecify.annotations.Nullable;
@@ -54,25 +55,29 @@ public class HkjClientAutoConfiguration implements BeanClassLoaderAware {
   }
 
   private Map<Integer, Class<?>> resolveStatusErrorTypes(HkjClientProperties properties) {
-    Map<Integer, Class<?>> resolved = new LinkedHashMap<>();
-    properties
-        .getStatusErrorMappings()
-        .forEach(
-            (status, className) -> {
-              try {
-                // Resolve against the application's bean classloader (BeanClassLoaderAware), not
-                // this auto-config's loader, so user error types load under devtools/layered
-                // loaders.
-                resolved.put(status, ClassUtils.forName(className, this.beanClassLoader));
-              } catch (ClassNotFoundException e) {
-                throw new IllegalStateException(
-                    "hkj.client.status-error-mappings: cannot resolve error type '"
-                        + className
-                        + "' for status "
-                        + status,
-                    e);
-              }
-            });
-    return resolved;
+    return properties.getStatusErrorMappings().entrySet().stream()
+        .collect(
+            Collectors.toUnmodifiableMap(
+                Map.Entry::getKey, entry -> resolveErrorType(entry.getKey(), entry.getValue())));
+  }
+
+  /**
+   * Resolves a single configured error class, failing fast with context if it cannot be loaded.
+   * Resolution uses the application's bean classloader ({@link BeanClassLoaderAware}), not this
+   * auto-config's loader, so user error types load under devtools/layered loaders.
+   */
+  private Class<?> resolveErrorType(int status, String className) {
+    return Try.<Class<?>, ClassNotFoundException>attempt(
+            () -> ClassUtils.forName(className, this.beanClassLoader))
+        .foldFailureFirst(
+            failure -> {
+              throw new IllegalStateException(
+                  "hkj.client.status-error-mappings: cannot resolve error type '"
+                      + className
+                      + "' for status "
+                      + status,
+                  failure);
+            },
+            type -> type);
   }
 }

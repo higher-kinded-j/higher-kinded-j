@@ -10,11 +10,12 @@ This document provides a complete reference for all configuration properties ava
 4. [JSON Serialization Configuration](#json-serialization-configuration)
 5. [Async Configuration](#async-configuration)
 6. [Virtual Thread Configuration](#virtual-thread-configuration)
-7. [Complete Example](#complete-example)
-8. [Disabling Features](#disabling-features)
-9. [Error Status Code Strategy Bean](#error-status-code-strategy-bean)
-10. [HTTP Header Injection on Errors](#http-header-injection-on-errors)
-11. [Known Limitations](#known-limitations)
+7. [Client HTTP Configuration](#client-http-configuration)
+8. [Complete Example](#complete-example)
+9. [Disabling Features](#disabling-features)
+10. [Error Status Code Strategy Bean](#error-status-code-strategy-bean)
+11. [HTTP Header Injection on Errors](#http-header-injection-on-errors)
+12. [Known Limitations](#known-limitations)
 
 ## Quick Start
 
@@ -650,6 +651,75 @@ hkj:
     stream-timeout-ms: 120000  # 2 minutes
 ```
 
+## Client HTTP Configuration
+
+Configure outbound calls made by `@HkjHttpClient`-generated clients. Two key spaces are involved: the
+Spring-native `spring.http.serviceclient.*` keys (base URL, timeouts, versioning per service group)
+and the HKJ-specific `hkj.client.*` keys (status → error-type decoding). For the full feature guide
+see the [HTTP Client Reference](HTTP_CLIENT.md).
+
+### `spring.http.serviceclient.<group>.*`
+
+Per-group connection settings for the generated HTTP Service proxy. These are standard Spring Boot
+keys (bound by the `spring-boot-restclient` module), not HKJ keys: `@HkjHttpClient` only generates
+the `@ImportHttpServices` group that they target.
+
+- **Type:** Per-group properties under a group key
+- **Group key:** the decapitalised interface name (e.g. `UserClientApi` → `userClientApi`), or the
+  explicit `@HkjHttpClient(group = "...")` value
+- **Common keys:** `base-url`, `connect-timeout`, `read-timeout`, `default-headers.*`, `api-version`
+- **Effect:** Applied to the `RestClient` backing every method on that client. A missing `base-url`
+  means requests resolve against the application's own host, which is rarely intended.
+
+**Example:**
+```yaml
+spring:
+  http:
+    serviceclient:
+      userClientApi:                 # group = decapitalised interface name
+        base-url: http://users.internal
+        connect-timeout: 2s
+        read-timeout: 2s
+        default-headers:
+          X-Api-Key: ${USERS_API_KEY}
+```
+
+> The `spring-boot-restclient` module supplies the auto-configuration that binds these keys. The
+> `hkj-spring-boot-starter` pulls it in; a hand-assembled dependency set must add it, or the base URL
+> is silently dropped.
+
+### `hkj.client.status-error-mappings`
+
+Global mappings from HTTP status code to the error type a failed response decodes into. This is the
+client-side analogue of [`hkj.web.error-status-mappings`](#hkjweberror-status-mappings): the server
+maps an error type to a status; the client maps a status back to an error type.
+
+- **Type:** `Map<Integer, String>` (status code → fully-qualified error class name)
+- **Default:** Empty map
+- **Key:** HTTP status code (e.g. `404`)
+- **Value:** Fully-qualified class name of the error type to decode into
+- **Effect:** For a given method, a configured status whose type is **assignable** to that method's
+  declared error type decodes into the subtype. Non-assignable mappings and unmapped statuses fall
+  back to the method's declared error type. A class that cannot be loaded fails fast at startup.
+
+**Example:**
+```yaml
+hkj:
+  client:
+    status-error-mappings:
+      404: com.example.UserNotFoundError
+      429: com.example.RateLimitError
+```
+
+**Precedence (highest first):**
+
+1. A method's own `@OnStatus(value = ..., error = ...)` annotation
+2. `hkj.client.status-error-mappings` (when the mapped type is assignable to the declared error type)
+3. The method's declared error type
+
+So a per-method `@OnStatus` always wins over the global map, and the global map only ever narrows to
+a subtype of what the method already declares: it never widens or changes the declared error channel.
+
 ## Complete Example
 
 Here is a complete configuration file with all options:
@@ -888,6 +958,12 @@ hkj.async.default-timeout-ms=30000
 # Virtual thread configuration
 hkj.virtual-threads.default-timeout-ms=30000
 hkj.virtual-threads.stream-timeout-ms=60000
+
+# Client HTTP configuration (@HkjHttpClient)
+hkj.client.status-error-mappings.404=com.example.UserNotFoundError
+hkj.client.status-error-mappings.429=com.example.RateLimitError
+spring.http.serviceclient.userClientApi.base-url=http://users.internal
+spring.http.serviceclient.userClientApi.read-timeout=2s
 ```
 
 ## Programmatic Configuration
@@ -980,9 +1056,11 @@ any of these block you, please open an issue.
 | `MaybePath` Nothing payload | Single configurable status (`hkj.web.maybe-nothing-status`); no header injection — there is no error value to query | Wrap the result in `EitherPath<DomainError, T>` to gain mapping + headers |
 | Per-request strategy override | The `ErrorStatusCodeStrategy` bean is process-wide | Inspect request context inside the strategy implementation if needed |
 | `@ResponseStatus` on the handler method | Honoured for `Right` / `Valid` / success values only — error status comes from the strategy | Move per-error behaviour into mappings or a custom strategy |
+| Client error decoding | Default `@HkjHttpClient` decoder expects the `{"success":false,"error":…}` envelope | Register a custom `ResponseErrorDecoder` / `ResponseErrorDecoderFactory` bean for foreign servers ([HTTP Client Reference](HTTP_CLIENT.md#error-decoding)) |
 
 ## See Also
 
 - [Testing Guide](./example/TESTING.md) - How to test your configured application
 - [`ErrorStatusFixtureController`](./example/src/main/java/org/higherkindedj/spring/example/controller/ErrorStatusFixtureController.java) - Canonical `@WebMvcTest` fixture exercising every status-mapping rule
 - [Jackson Serialization](./JACKSON_SERIALIZATION.md) - Details on JSON serialization
+- [HTTP Client Reference](./HTTP_CLIENT.md) - Declarative `@HkjHttpClient` clients and their configuration

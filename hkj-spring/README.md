@@ -234,6 +234,9 @@ VStreamPath<Tick> ticks =
                               Tick.class, jsonMapper);
 ```
 
+Full reference: [HTTP Client Reference](HTTP_CLIENT.md). Narrative guide:
+[Declarative HTTP Clients](https://higher-kinded-j.github.io/spring/declarative_http_clients.html).
+
 ## Module Structure
 
 ```
@@ -529,6 +532,7 @@ class UserControllerTest {
 ## Related Documentation
 
 - [Configuration Reference](CONFIGURATION.md)
+- [HTTP Client Reference](HTTP_CLIENT.md)
 - [EffectBoundary Reference](EFFECT_BOUNDARY.md)
 - [Jackson Serialization](JACKSON_SERIALIZATION.md)
 - [Security Integration](SECURITY.md)

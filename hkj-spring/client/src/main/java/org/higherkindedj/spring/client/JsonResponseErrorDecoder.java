@@ -3,6 +3,9 @@
 package org.higherkindedj.spring.client;
 
 import java.util.Objects;
+import java.util.Optional;
+import org.higherkindedj.hkt.either.Either;
+import org.higherkindedj.hkt.trymonad.Try;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.json.JsonMapper;
 
@@ -42,19 +45,28 @@ public final class JsonResponseErrorDecoder<E> implements ResponseErrorDecoder<E
     if (body == null || body.isBlank()) {
       throw new ResponseErrorDecodeException(response.status(), body, null);
     }
-    try {
-      JsonNode root = mapper.readTree(body);
-      JsonNode errorNode = root.get("error");
-      JsonNode target = errorNode != null ? errorNode : root;
-      E decoded = mapper.treeToValue(target, errorType);
-      if (decoded == null) {
-        throw new ResponseErrorDecodeException(response.status(), body, null);
-      }
-      return decoded;
-    } catch (ResponseErrorDecodeException e) {
-      throw e;
-    } catch (RuntimeException e) {
-      throw new ResponseErrorDecodeException(response.status(), body, e);
-    }
+    // Bind in a Try so a Jackson failure becomes a Left rather than a caught-and-rewrapped
+    // exception; a null binding (a JSON `null` error node) is its own Left. fold() then either
+    // returns the typed error or raises the decode failure, honouring the non-null decode contract.
+    return Try.of(() -> bind(body))
+        .toEither(failure -> new ResponseErrorDecodeException(response.status(), body, failure))
+        .flatMap(
+            decoded ->
+                decoded == null
+                    ? Either.<ResponseErrorDecodeException, E>left(
+                        new ResponseErrorDecodeException(response.status(), body, null))
+                    : Either.<ResponseErrorDecodeException, E>right(decoded))
+        .fold(
+            failure -> {
+              throw failure;
+            },
+            decoded -> decoded);
+  }
+
+  /** Binds the {@code error} node of the envelope (or the whole body) to {@code errorType}. */
+  private E bind(String body) {
+    JsonNode root = mapper.readTree(body);
+    JsonNode target = Optional.ofNullable(root.get("error")).orElse(root);
+    return mapper.treeToValue(target, errorType);
   }
 }

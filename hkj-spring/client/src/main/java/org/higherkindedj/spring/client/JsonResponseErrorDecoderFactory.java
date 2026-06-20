@@ -2,9 +2,9 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.spring.client;
 
-import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
+import java.util.stream.Collectors;
 import tools.jackson.databind.json.JsonMapper;
 
 /**
@@ -55,23 +55,25 @@ public final class JsonResponseErrorDecoderFactory implements ResponseErrorDecod
   public <E> ResponseErrorDecoder<E> create(Class<E> errorType) {
     Objects.requireNonNull(errorType, "errorType");
     ResponseErrorDecoder<E> fallback = plain(errorType);
-    if (statusErrorTypes.isEmpty()) {
+    // Keep only the configured statuses whose error type narrows to E; an empty map (no global
+    // mapping, or none assignable) means every status decodes into the declared type.
+    Map<Integer, ResponseErrorDecoder<? extends E>> dispatch =
+        statusErrorTypes.entrySet().stream()
+            .filter(entry -> errorType.isAssignableFrom(entry.getValue()))
+            .collect(
+                Collectors.toUnmodifiableMap(
+                    Map.Entry::getKey, entry -> subtypeDecoder(entry.getValue(), errorType)));
+    if (dispatch.isEmpty()) {
       return fallback;
     }
-    Map<Integer, ResponseErrorDecoder<? extends E>> overrides = new HashMap<>();
-    statusErrorTypes.forEach(
-        (status, type) -> {
-          if (errorType.isAssignableFrom(type)) {
-            overrides.put(status, plain(type.asSubclass(errorType)));
-          }
-        });
-    if (overrides.isEmpty()) {
-      return fallback;
-    }
-    Map<Integer, ResponseErrorDecoder<? extends E>> dispatch = Map.copyOf(overrides);
     return response -> {
       ResponseErrorDecoder<? extends E> decoder = dispatch.get(response.statusValue());
       return decoder != null ? decoder.decode(response) : fallback.decode(response);
     };
+  }
+
+  /** A {@link #plain} decoder for {@code type} narrowed as a subtype of {@code errorType}. */
+  private <E> ResponseErrorDecoder<? extends E> subtypeDecoder(Class<?> type, Class<E> errorType) {
+    return plain(type.asSubclass(errorType));
   }
 }

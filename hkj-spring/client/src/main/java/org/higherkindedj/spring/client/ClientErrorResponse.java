@@ -6,9 +6,9 @@ import java.time.Duration;
 import java.time.Instant;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
-import java.time.format.DateTimeParseException;
 import java.util.Objects;
 import java.util.Optional;
+import org.higherkindedj.hkt.trymonad.Try;
 import org.jspecify.annotations.Nullable;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatusCode;
@@ -63,19 +63,18 @@ public record ClientErrorResponse(
       return Optional.empty();
     }
     String trimmed = value.trim();
-    if (!trimmed.isEmpty() && trimmed.chars().allMatch(Character::isDigit)) {
-      try {
-        return Optional.of(Duration.ofSeconds(Long.parseLong(trimmed)));
-      } catch (NumberFormatException e) {
-        return Optional.empty();
-      }
-    }
-    try {
-      ZonedDateTime when = ZonedDateTime.parse(trimmed, DateTimeFormatter.RFC_1123_DATE_TIME);
-      Duration delta = Duration.between(Instant.now(), when.toInstant());
-      return Optional.of(delta.isNegative() ? Duration.ZERO : delta);
-    } catch (DateTimeParseException e) {
-      return Optional.empty();
-    }
+    // Either parse path can fail on malformed input; a Failure simply means "no usable hint".
+    Try<Duration> parsed =
+        trimmed.chars().allMatch(Character::isDigit)
+            ? Try.of(() -> Duration.ofSeconds(Long.parseLong(trimmed)))
+            : Try.of(() -> httpDateToDelay(trimmed));
+    return parsed.foldFailureFirst(failure -> Optional.empty(), Optional::of);
+  }
+
+  /** Resolves an HTTP-date {@code Retry-After} against the current time, never negative. */
+  private static Duration httpDateToDelay(String httpDate) {
+    ZonedDateTime when = ZonedDateTime.parse(httpDate, DateTimeFormatter.RFC_1123_DATE_TIME);
+    Duration delta = Duration.between(Instant.now(), when.toInstant());
+    return delta.isNegative() ? Duration.ZERO : delta;
   }
 }

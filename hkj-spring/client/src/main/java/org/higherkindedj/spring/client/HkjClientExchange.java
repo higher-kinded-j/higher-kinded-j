@@ -111,9 +111,8 @@ public final class HkjClientExchange {
    */
   public static <T> MaybePath<T> maybe(Supplier<ResponseEntity<T>> call) {
     try {
-      ResponseEntity<T> response = call.get();
-      T body = response.getBody();
-      return body == null ? Path.nothing() : Path.just(body);
+      // Path.maybe folds null (an empty 2xx body) to Nothing and a present body to Just.
+      return Path.maybe(call.get().getBody());
     } catch (RestClientResponseException ex) {
       if (ex.getStatusCode().value() == 404) {
         return Path.nothing();
@@ -174,15 +173,15 @@ public final class HkjClientExchange {
     String line;
     while ((line = readBoundedLine(reader)) != null) {
       if (line.isEmpty()) {
+        // Blank line ends a frame. A `complete` event ends the stream; otherwise emit any
+        // accumulated data, or (a keepalive/comment frame with none) reset and read the next frame.
         if ("complete".equals(event)) {
           return Optional.empty();
         }
-        if ("error".equals(event)) {
-          throw new SseStreamException(data.toString().trim());
-        }
-        if (!data.isEmpty()) {
-          return Optional.of(
-              new VStream.Seed<>(mapper.readValue(data.toString().trim(), elementType), reader));
+        Optional<VStream.Seed<T, BufferedReader>> frame =
+            emitDataFrame(event, data, reader, elementType, mapper);
+        if (frame.isPresent()) {
+          return frame;
         }
         event = null;
         data.setLength(0);
@@ -199,13 +198,29 @@ public final class HkjClientExchange {
       }
       // other SSE fields (id:, retry:) and comment lines (":") are ignored
     }
-    // End-of-input: emit a final unterminated frame, fail a pending error, else complete.
+    // End-of-input: fail a pending error, emit a final unterminated frame, else complete.
+    return emitDataFrame(event, data, reader, elementType, mapper);
+  }
+
+  /**
+   * Resolves a completed SSE frame, shared by the blank-line frame boundary and end-of-input so the
+   * terminal decision lives in one place: an {@code error} event fails with {@link
+   * SseStreamException}; a non-{@code complete} frame carrying data decodes into a {@link
+   * VStream.Seed}; anything else (a {@code complete} frame, or a frame with no data) yields empty.
+   * The caller decides what empty means — continue reading mid-stream, or finish at end-of-input.
+   */
+  private static <T> Optional<VStream.Seed<T, BufferedReader>> emitDataFrame(
+      @Nullable String event,
+      StringBuilder data,
+      BufferedReader reader,
+      Class<T> elementType,
+      JsonMapper mapper) {
+    String payload = data.toString().trim();
     if ("error".equals(event)) {
-      throw new SseStreamException(data.toString().trim());
+      throw new SseStreamException(payload);
     }
-    if (!data.isEmpty() && !"complete".equals(event)) {
-      return Optional.of(
-          new VStream.Seed<>(mapper.readValue(data.toString().trim(), elementType), reader));
+    if (!"complete".equals(event) && !data.isEmpty()) {
+      return Optional.of(new VStream.Seed<>(mapper.readValue(payload, elementType), reader));
     }
     return Optional.empty();
   }
