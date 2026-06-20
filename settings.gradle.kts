@@ -33,6 +33,7 @@ include(
     "hkj-spring:client-processor",
     "hkj-spring:starter",
     "hkj-spring:example",
+    "hkj-spring:client-example",
     "hkj-spring:effect-example"
 )
 

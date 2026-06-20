@@ -1,7 +1,8 @@
 # @HkjHttpClient Example Walkthrough
 
 Condensed walkthrough of calling another service and keeping the typed error, from the
-`hkj-spring/example` module (`.../spring/example/client/`).
+`hkj-spring/client-example` module (`.../spring/clientexample/`), a standalone client application
+that calls the `hkj-spring/example` server.
 
 ---
 
@@ -165,7 +166,7 @@ assertThatEither(client.getUser("2").run()).isLeft();
 
 To prove the **base-url wiring** end to end, a `@SpringBootTest` can point the group's base URL at a
 stub server (e.g. a JDK `HttpServer`) via `@DynamicPropertySource` and assert the autowired client
-resolves against it — see `UserClientApiBaseUrlTest` in the example module.
+resolves against it — see `UserClientApiBaseUrlTest` in the `hkj-spring/client-example` module.
 
 ---
 

@@ -274,20 +274,29 @@ hkj-spring/
 │   └── JsonResponseErrorDecoder…       # Default envelope decoder + factory
 ├── client-processor/  # @HkjHttpClient annotation processor (codegen)
 ├── starter/           # Dependency aggregator
-├── example/           # Path handlers + @HkjHttpClient example (Level 0)
+├── example/           # Path handlers server example (Level 0)
+├── client-example/    # @HkjHttpClient client that calls the example server
 └── effect-example/    # EffectBoundary example (Level 1+)
 ```
 
 ## Example Applications
 
-Two example applications demonstrate different integration levels:
+Three example applications demonstrate different integration levels:
 
-### [Path Handlers Example](example/) — Level 0
+### [Path Handlers Example](example/) — Level 0 (server)
 
 Returns `EitherPath`, `MaybePath`, `IOPath`, `VTaskPath`, and `VStreamPath` directly from controllers. Zero configuration needed.
 
 ```bash
 ./gradlew :hkj-spring:example:bootRun     # Port 8080
+```
+
+### [Declarative HTTP Client Example](client-example/) — Level 0 (client)
+
+A standalone console application that calls the Path Handlers server over HTTP through a generated `@HkjHttpClient`, decoding a remote failure back into a typed `Left(ApiError)`. Start the server first, then run the client.
+
+```bash
+./gradlew :hkj-spring:client-example:bootRun   # calls the server on :8080
 ```
 
 ### [Effect Boundary Example](effect-example/) — Level 1+

@@ -1,6 +1,6 @@
 // Copyright (c) 2025 - 2026 Magnus Smith
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
-package org.higherkindedj.spring.example.client;
+package org.higherkindedj.spring.clientexample;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -9,14 +9,19 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.context.ApplicationContext;
+import org.springframework.test.context.ActiveProfiles;
 
 /**
  * Verifies the headline ergonomic path: the generated {@code @ImportHttpServices} group + {@code
  * UserClientApiClientConfiguration} wire the client in a real Spring context, so it is autowired by
  * the user's own interface type, with the base URL taken from {@code
  * spring.http.serviceclient.userClientApi.*} in {@code application.yml}.
+ *
+ * <p>The {@code test} profile excludes {@link UserClientRunner}, so starting the context does not
+ * make a live call to the server.
  */
-@SpringBootTest
+@SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.NONE)
+@ActiveProfiles("test")
 @DisplayName("UserClientApi bean wiring")
 class UserClientApiWiringTest {
 

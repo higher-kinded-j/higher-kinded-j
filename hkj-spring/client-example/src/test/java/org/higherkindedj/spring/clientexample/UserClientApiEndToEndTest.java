@@ -1,6 +1,6 @@
 // Copyright (c) 2025 - 2026 Magnus Smith
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
-package org.higherkindedj.spring.example.client;
+package org.higherkindedj.spring.clientexample;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.higherkindedj.hkt.assertions.EitherAssert.assertThatEither;
@@ -51,13 +51,18 @@ class UserClientApiEndToEndTest {
   @DisplayName("a 200 response becomes Right(UserDto) with the path variable substituted")
   void success() {
     server
-        .expect(requestTo("http://users.test/users/1"))
+        .expect(requestTo("http://users.test/api/users/1"))
         .andExpect(method(HttpMethod.GET))
-        .andRespond(withSuccess("{\"id\":\"1\",\"name\":\"Ada\"}", MediaType.APPLICATION_JSON));
+        .andRespond(
+            withSuccess(
+                "{\"id\":\"1\",\"email\":\"alice@example.com\",\"firstName\":\"Alice\",\"lastName\":\"Smith\"}",
+                MediaType.APPLICATION_JSON));
 
     EitherPath<ApiError, UserDto> path = client.getUser("1");
 
-    assertThatEither(path.run()).isRight().hasRight(new UserDto("1", "Ada"));
+    assertThatEither(path.run())
+        .isRight()
+        .hasRight(new UserDto("1", "alice@example.com", "Alice", "Smith"));
     server.verify();
   }
 
@@ -65,22 +70,22 @@ class UserClientApiEndToEndTest {
   @DisplayName("a 404 envelope response becomes Left(ApiError) with the typed error preserved")
   void typedError() {
     server
-        .expect(requestTo("http://users.test/users/2"))
+        .expect(requestTo("http://users.test/api/users/999"))
         .andExpect(method(HttpMethod.GET))
         .andRespond(
             withStatus(HttpStatus.NOT_FOUND)
                 .body(
-                    "{\"success\":false,\"error\":{\"code\":\"NOT_FOUND\",\"message\":\"no user 2\"}}")
+                    "{\"success\":false,\"error\":{\"userId\":\"999\",\"message\":\"no user 999\"}}")
                 .contentType(MediaType.APPLICATION_JSON));
 
-    EitherPath<ApiError, UserDto> path = client.getUser("2");
+    EitherPath<ApiError, UserDto> path = client.getUser("999");
 
     assertThatEither(path.run())
         .isLeft()
         .hasLeftSatisfying(
             error -> {
-              assertThat(error.code()).isEqualTo("NOT_FOUND");
-              assertThat(error.message()).isEqualTo("no user 2");
+              assertThat(error.userId()).isEqualTo("999");
+              assertThat(error.message()).isEqualTo("no user 999");
             });
     server.verify();
   }
@@ -89,13 +94,19 @@ class UserClientApiEndToEndTest {
   @DisplayName("the deferred VTask variant posts the body and yields Right when run")
   void deferredCreate() {
     server
-        .expect(requestTo("http://users.test/users"))
+        .expect(requestTo("http://users.test/api/users"))
         .andExpect(method(HttpMethod.POST))
-        .andRespond(withSuccess("{\"id\":\"7\",\"name\":\"Grace\"}", MediaType.APPLICATION_JSON));
+        .andRespond(
+            withSuccess(
+                "{\"id\":\"7\",\"email\":\"grace@example.com\",\"firstName\":\"Grace\",\"lastName\":\"Hopper\"}",
+                MediaType.APPLICATION_JSON));
 
-    Either<ApiError, UserDto> result = client.create(new UserDto("7", "Grace")).unsafeRun();
+    Either<ApiError, UserDto> result =
+        client.create(new NewUser("grace@example.com", "Grace", "Hopper")).unsafeRun();
 
-    assertThatEither(result).isRight().hasRight(new UserDto("7", "Grace"));
+    assertThatEither(result)
+        .isRight()
+        .hasRight(new UserDto("7", "grace@example.com", "Grace", "Hopper"));
     server.verify();
   }
 }

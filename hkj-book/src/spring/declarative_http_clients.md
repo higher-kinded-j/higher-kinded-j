@@ -18,7 +18,7 @@ client (`@HttpExchange`, `@ImportHttpServices`), which needs **Spring Boot 4.1+ 
 ~~~
 
 ~~~admonish example title="See Example Code"
-A complete, runnable client lives in the [hkj-spring example module](https://github.com/higher-kinded-j/higher-kinded-j/tree/main/hkj-spring/example/src/main/java/org/higherkindedj/spring/example/client).
+A complete, runnable client application that calls the server example lives in the [hkj-spring client-example module](https://github.com/higher-kinded-j/higher-kinded-j/tree/main/hkj-spring/client-example/src/main/java/org/higherkindedj/spring/clientexample).
 ~~~
 
 ## Overview
@@ -265,7 +265,7 @@ Either<ApiError, UserDto> result =
 `Retry-After` is a **hook**, not automatic: when the server signals back-off (typically an `HttpHeaderCarrier` error on a 429 or 503), a custom decoder reads it via `ClientErrorResponse.retryAfter()` and feeds it into the retry policy.
 
 ~~~admonish info title="Hands-On Learning"
-The runnable [end-to-end test](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-spring/example/src/test/java/org/higherkindedj/spring/example/client/UserClientApiEndToEndTest.java) drives the generated client against a `MockRestServiceServer`: a 200 becomes `Right`, a 404 envelope becomes `Left(ApiError)`, and the deferred `create` posts a body and yields `Right` when run.
+The runnable [end-to-end test](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-spring/client-example/src/test/java/org/higherkindedj/spring/clientexample/UserClientApiEndToEndTest.java) drives the generated client against a `MockRestServiceServer`: a 200 becomes `Right`, a 404 envelope becomes `Left(ApiError)`, and the deferred `create` posts a body and yields `Right` when run.
 ~~~
 
 ---

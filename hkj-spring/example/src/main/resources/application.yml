@@ -2,15 +2,6 @@ spring:
   application:
     name: hkj-spring-example
 
-  # Base URL + timeouts for the generated @HkjHttpClient (UserClientApi) HTTP Service group.
-  # The group name defaults to the decapitalised interface name (userClientApi).
-  http:
-    serviceclient:
-      userClientApi:
-        base-url: http://localhost:8080
-        connect-timeout: 2s
-        read-timeout: 2s
-
 server:
   port: 8080
 
