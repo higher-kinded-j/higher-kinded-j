@@ -21,6 +21,7 @@ dependencies {
   // Testing
   testImplementation(libs.spring.boot.starter.test)
   testImplementation(libs.spring.boot.webmvc.test)
+  testImplementation(project(":hkj-test"))
   testImplementation(platform(libs.junit.bom))
   testImplementation(libs.junit.jupiter)
 }

@@ -552,11 +552,48 @@ when(authentication.getAuthorities()).thenReturn(
 
 ---
 
+## Outbound Calls (`@HkjHttpClient`)
+
+`@HkjHttpClient` generates a typed client for calling *other* services (the inverse of the
+server-side handlers). Three security concerns apply when this service is the caller.
+
+**Treat decoded error bodies as untrusted input.** A failed response is deserialised into your
+declared error type via Jackson. For a sealed `DomainError` hierarchy this is polymorphic
+deserialisation, so always pin a **closed** discriminator:
+
+```java
+@JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")   // safe: names you control
+@JsonSubTypes({
+    @JsonSubTypes.Type(value = UserNotFoundError.class, name = "not_found"),
+    @JsonSubTypes.Type(value = RateLimitError.class, name = "rate_limited")
+})
+public sealed interface ApiError permits UserNotFoundError, RateLimitError {}
+```
+
+Never use `JsonTypeInfo.Id.CLASS` / `Id.MINIMAL_CLASS` or enable default typing for a type decoded
+from a remote response: an attacker who controls the upstream (or sits on the path) could name an
+arbitrary class and turn deserialisation into a gadget chain. With `Id.NAME` the decoder can only
+construct the subtypes you enumerated. See
+[Jackson Serialization](JACKSON_SERIALIZATION.md#client-side-deserialization-hkjhttpclient) for the
+round-trip details.
+
+**Streams are bounded.** The SSE translator caps each frame line at 1 MiB and raises
+`SseStreamException` rather than buffering an unbounded line, so a hostile or buggy upstream cannot
+exhaust caller memory.
+
+**Credential propagation.** The generated client is a standard Spring HTTP Service proxy over a
+`RestClient`. Attach outbound credentials (bearer tokens, API keys, mTLS) with a `RestClient`
+interceptor or `spring.http.serviceclient.<group>.default-headers`, and scope them to the trust
+boundary you are crossing: do not blindly forward an inbound caller's token to an unrelated service.
+
+---
+
 ## See Also
 
 - [Spring Security Reference](https://docs.spring.io/spring-security/reference/index.html)
 - [hkj-spring README](README.md) - Main documentation
 - [CONFIGURATION.md](CONFIGURATION.md) - Configuration properties
+- [HTTP Client Reference](HTTP_CLIENT.md) - Declarative `@HkjHttpClient` clients
 
 ---
 

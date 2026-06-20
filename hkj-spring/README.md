@@ -132,6 +132,111 @@ hkj:
     stream-timeout-ms: 60000      # VStream timeout (60s, 0 = no timeout)
 ```
 
+## Client-Side HTTP (`@HkjHttpClient`)
+
+The handlers above are the **server** side — a controller returns an `EitherPath` and a typed error
+becomes a 4xx/5xx response. `@HkjHttpClient` is the **client** side: when this service calls another
+over HTTP, the response is folded back into an Effect Path with the typed error decoded, so the typed
+error channel is preserved end-to-end across services.
+
+Annotate a Path-typed `@HttpExchange` interface:
+
+```java
+@HttpExchange("/users")
+@HkjHttpClient
+public interface UserClientApi {
+
+  @GetExchange("/{id}")
+  EitherPath<ApiError, UserDto> getUser(@PathVariable String id);
+
+  @PostExchange                                   // deferred on a virtual thread →
+  VTaskPath<Either<ApiError, UserDto>> create(@RequestBody UserDto body);   // withRetry/timeout/…
+}
+```
+
+The processor generates three siblings: a native `@HttpExchange` interface (return types unwrapped to
+`ResponseEntity<T>`, mapping/parameter annotations copied through) that Spring proxies; a
+`UserClientApiClient` that dispatches each method to `HkjClientExchange` and decodes a `Left` from the
+`{"success":false,"error":…}` envelope; and a `@Configuration` that wires the client via Spring 7
+`@ImportHttpServices`. Base URL, timeouts and API versioning are configuration:
+
+```yaml
+spring:
+  http:
+    serviceclient:
+      userClientApi:                 # group = decapitalised interface name (or @HkjHttpClient(group="…"))
+        base-url: http://users.internal
+        read-timeout: 2s
+```
+
+**Autowire the annotated interface itself** — the generated `…Client` is registered as a bean of
+your interface type, so you never reference the generated class names:
+
+```java
+@Autowired UserClientApi userClientApi;          // the generated UserClientApiClient is injected
+
+EitherPath<ApiError, UserDto> path = userClientApi.getUser("42");
+path.run().fold(this::handleError, this::renderUser);   // typed error, no status-code archaeology
+```
+
+Supported return types: `EitherPath<E, T>`, `VTaskPath<Either<E, T>>`, `MaybePath<T>`. A concrete
+error type decodes with no extra annotations; a sealed `DomainError` hierarchy needs
+`@JsonTypeInfo`/`@JsonSubTypes`. The decoder is a replaceable `ResponseErrorDecoderFactory` bean.
+
+**Talking to non-HKJ servers.** The default decoder expects the `{"success":false,"error":…}`
+envelope. Against a server that doesn't emit it (or an empty/foreign body) it raises
+`ResponseErrorDecodeException`; supply a custom `ResponseErrorDecoder` (or `ResponseErrorDecoderFactory`
+bean) that maps the status/body to your error type instead. A client-only app without the server-side
+auto-configuration should register `HkjJacksonModule` on its `JsonMapper` so nested `Either`/`Validated`
+errors deserialise.
+
+**Per-status error types.** Map individual statuses to distinct error subtypes with `@OnStatus`
+(each subtype must be assignable to the method's declared error type):
+
+```java
+@GetExchange("/{id}")
+@OnStatus(value = 404, error = UserNotFoundError.class)
+@OnStatus(value = 409, error = ConflictError.class)
+EitherPath<DomainError, UserDto> getUser(@PathVariable String id);
+```
+
+**Global status mapping (config).** The client-side analogue of the server's
+`hkj.web.error-status-mappings` — map a status to an error type once, for every client, with no
+annotations:
+
+```yaml
+hkj:
+  client:
+    status-error-mappings:
+      404: com.example.UserNotFoundError
+      429: com.example.RateLimitError
+```
+
+For each method, a configured status whose type is **assignable** to that method's declared error
+type decodes into the subtype; non-assignable mappings and unmapped statuses fall back to the declared
+type. Precedence is **`@OnStatus` (per-method) → global config → declared type**, so a method's
+explicit `@OnStatus` always wins. A configured class that can't be resolved fails fast at startup.
+
+**Generics.** A generic `@HkjHttpClient` interface is supported codegen-only — the native interface
+and facade carry the type parameters, but the `@ImportHttpServices`/`@Bean` wiring is skipped (a
+generic client can't be a singleton bean), so you instantiate the facade for a concrete type.
+
+**Retry-After.** `ClientErrorResponse.retryAfter()` exposes a server `Retry-After` hint (delta-seconds
+or HTTP-date) as an `Optional<Duration>` — read it in a custom decoder to seed `VTaskPath.withRetry`.
+
+**Streaming (SSE).** A streaming endpoint that the server renders with a `VStreamPath`
+(`VStreamPathReturnValueHandler`) is consumed with the runtime translator, which decodes each SSE
+`data:` frame and is deferred + resource-safe:
+
+```java
+VStreamPath<Tick> ticks =
+    HkjClientExchange.vstream(() -> restClient.get().uri("/ticks").retrieve().body(InputStream.class),
+                              Tick.class, jsonMapper);
+```
+
+Full reference: [HTTP Client Reference](HTTP_CLIENT.md). Narrative guide:
+[Declarative HTTP Clients](https://higher-kinded-j.github.io/spring/declarative_http_clients.html).
+
 ## Module Structure
 
 ```
@@ -162,21 +267,36 @@ hkj-spring/
 │   └── actuator/
 │       ├── HkjMetricsService
 │       └── ObservableEffectBoundary        # Metrics-wrapped boundary
+├── client/            # Client-side @HkjHttpClient runtime
+│   ├── HkjHttpClient                   # The annotation
+│   ├── HkjClientExchange               # either / eitherVTask / maybe translators
+│   ├── ResponseErrorDecoder            # Pluggable status/body -> typed error
+│   └── JsonResponseErrorDecoder…       # Default envelope decoder + factory
+├── client-processor/  # @HkjHttpClient annotation processor (codegen)
 ├── starter/           # Dependency aggregator
-├── example/           # Path handlers example (Level 0)
+├── example/           # Path handlers server example (Level 0)
+├── client-example/    # @HkjHttpClient client that calls the example server
 └── effect-example/    # EffectBoundary example (Level 1+)
 ```
 
 ## Example Applications
 
-Two example applications demonstrate different integration levels:
+Three example applications demonstrate different integration levels:
 
-### [Path Handlers Example](example/) — Level 0
+### [Path Handlers Example](example/) — Level 0 (server)
 
 Returns `EitherPath`, `MaybePath`, `IOPath`, `VTaskPath`, and `VStreamPath` directly from controllers. Zero configuration needed.
 
 ```bash
 ./gradlew :hkj-spring:example:bootRun     # Port 8080
+```
+
+### [Declarative HTTP Client Example](client-example/) — Level 0 (client)
+
+A standalone console application that calls the Path Handlers server over HTTP through a generated `@HkjHttpClient`, decoding a remote failure back into a typed `Left(ApiError)`. Start the server first, then run the client.
+
+```bash
+./gradlew :hkj-spring:client-example:bootRun   # calls the server on :8080
 ```
 
 ### [Effect Boundary Example](effect-example/) — Level 1+
@@ -421,6 +541,7 @@ class UserControllerTest {
 ## Related Documentation
 
 - [Configuration Reference](CONFIGURATION.md)
+- [HTTP Client Reference](HTTP_CLIENT.md)
 - [EffectBoundary Reference](EFFECT_BOUNDARY.md)
 - [Jackson Serialization](JACKSON_SERIALIZATION.md)
 - [Security Integration](SECURITY.md)

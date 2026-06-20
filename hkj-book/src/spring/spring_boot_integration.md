@@ -533,6 +533,10 @@ All nine Effect Path handlers honour `@ResponseStatus` consistently.
 
 Every `Left` value emitted by an `EitherPath` (or raw `Either`) handler is run through an `ErrorStatusCodeStrategy` bean. The auto-configuration registers a default strategy that combines the property-table mappings with the built-in token heuristics; adopters can replace it with their own bean for field-aware decisions.
 
+~~~admonish tip title="The other side of this mapping"
+This encodes a typed error into a status code. A service that calls this endpoint can decode it straight back into a typed error with [`@HkjHttpClient`](declarative_http_clients.md), which mirrors this mapping (including a client-side `hkj.client.status-error-mappings` analogue of the table below).
+~~~
+
 #### Property-driven mappings
 
 Add entries to `hkj.web.error-status-mappings` keyed by simple class name (or fully-qualified class name when two error types share a simple name across packages). These mappings take precedence over the heuristics:
@@ -1321,4 +1325,4 @@ Get started today by adding the dependency and returning functional types from y
 ---
 
 **Previous:** [Introduction](ch_intro.md)
-**Next:** [Migrating to Functional Errors](migrating_to_functional_errors.md)
+**Next:** [Declarative HTTP Clients](declarative_http_clients.md)

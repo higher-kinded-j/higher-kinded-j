@@ -194,6 +194,47 @@ This is intentional - the unwrapped format is cleaner for API consumers.
 | Nested Validated in DTO | Jackson ValidatedSerializer | Wrapped with valid/value/errors |
 | Manual ObjectMapper.writeValue() | Jackson serializers | Wrapped format |
 
+## Client-Side Deserialization (`@HkjHttpClient`)
+
+The serializers above are about *producing* JSON. The `@HkjHttpClient` client does the reverse: it
+*reads* a failed HTTP response and decodes the body back into your declared error type. The default
+decoder expects the server envelope `{"success": false, "error": <E>}` and deserialises `<E>` with
+the same `JsonMapper`, reusing `HkjJacksonModule` so a nested `Either`/`Validated` inside the error
+round-trips.
+
+**A concrete error type needs no annotations:**
+
+```java
+public record ApiError(String code, String message) {}     // decodes directly
+```
+
+**A sealed error hierarchy needs a closed discriminator** so the decoder knows which subtype to
+build (the deserialisation counterpart of the wrapped formats above):
+
+```java
+@JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
+@JsonSubTypes({
+    @JsonSubTypes.Type(value = UserNotFoundError.class, name = "not_found"),
+    @JsonSubTypes.Type(value = RateLimitError.class, name = "rate_limited")
+})
+public sealed interface ApiError permits UserNotFoundError, RateLimitError {}
+```
+
+Use `Id.NAME`, never `Id.CLASS` / default typing, because the body comes from a remote service: see
+[SECURITY.md](SECURITY.md#outbound-calls-hkjhttpclient).
+
+**A client-only application** (one that calls services but does not itself return Path types) does
+not get the server-side auto-configuration, so it must register `HkjJacksonModule` on its
+`JsonMapper` for nested `Either`/`Validated` errors to deserialise:
+
+```java
+JsonMapper mapper = JsonMapper.builder().addModule(new HkjJacksonModule()).build();
+```
+
+Which type the body decodes into is the method's declared error type, narrowed by any `@OnStatus`
+override or `hkj.client.status-error-mappings` entry. See the
+[HTTP Client Reference](HTTP_CLIENT.md#error-decoding) for the decoding pipeline.
+
 ## Configuration
 
 ### Automatic Configuration (Default)
@@ -389,3 +430,4 @@ void verifyModuleRegistered() throws Exception {
 - [Return Value Handlers Documentation](./README.md#return-value-handlers)
 - [Testing Guide](./example/TESTING.md)
 - [Configuration Reference](./CONFIGURATION.md)
+- [HTTP Client Reference](./HTTP_CLIENT.md) - Decoding error bodies in `@HkjHttpClient` clients

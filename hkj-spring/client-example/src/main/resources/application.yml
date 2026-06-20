@@ -1,0 +1,20 @@
+spring:
+  application:
+    name: hkj-client-example
+
+  # A client, not a server: no embedded web container.
+  main:
+    web-application-type: none
+
+  # Where the generated @HkjHttpClient (UserClientApi) sends its requests. The group name is the
+  # decapitalised interface name (userClientApi); here it points at HkjSpringExampleApplication.
+  http:
+    serviceclient:
+      userClientApi:
+        base-url: http://localhost:8080
+        connect-timeout: 2s
+        read-timeout: 2s
+
+logging:
+  level:
+    org.higherkindedj: INFO
