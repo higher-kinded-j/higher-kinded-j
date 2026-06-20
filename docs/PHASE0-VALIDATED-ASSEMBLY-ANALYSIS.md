@@ -1,5 +1,7 @@
 # Phase 0 Analysis: Open-Arity Validated Assembly (the consumer layer for `NonEmptyList` / `Ior`)
 
+> ⚠️ **Superseded for the corrected state by `FINAL-DESIGN-AND-ROADMAP.md`.** Key correction: `Tuple3..Tuple12` already ship, so curried-`ap` is argued on merits, not a tuple gap. Retained as provenance/detail.
+
 **Status:** design analysis (no implementation)
 **Roadmap context:** Phase 0 of the re-prioritised program in `TELESCOPE-COMPARATIVE-ANALYSIS.md` / `BIDIRECTIONAL-MAPPING-DESIGN.md` §10d — the foundation that gates **A2** (sparse-PATCH / accumulating multi-edit) and **A1** (the bidirectional mapper's validated `parse`).
 **Grounded in two open maintainer issues:**
@@ -25,7 +27,7 @@ Accumulating validation is **not** missing — it is present but in a shape that
 
 Two structural facts decide the design:
 
-- **`FunctionN` exists up to `Function12`**, but **`TupleN` exists only as `Tuple2`.** So the "grow a tuple as you add fields" builder style is blocked unless `Tuple3..TupleN` are added; a **curried-`ap`** builder is not.
+- **`FunctionN` exists up to `Function12`, and `Tuple3..Tuple12` already ship** (`Tuple.java`, generated via `@GenerateForComprehensions`) *(corrected per review — the earlier "only `Tuple2`" claim was false; see `FINAL-DESIGN-AND-ROADMAP.md` §3)*. So *both* a curried-`ap` builder and a tuple-growing builder are viable; the choice is on ergonomic merits, not a tuple gap.
 - **`NonEmptyList` / `Ior` are greenfield** (no partial work in tree) — so the carrier and the warnings mode arrive clean, exactly as #549/#551 describe.
 
 **The gap, precisely.** Assembling a record from *N* validated fields today means either (a) the `zipWithNAccum` family — a **proliferating, low-capped, `Tuple2`-nesting** set of methods that lives on `ValidationPath`, not `Validated`; (b) chained `ap` with the **`Semigroup` threaded** at every step; or (c) `map2..map5`, capped at 5 and in full `Kind` ceremony. **None** carries a per-field **label** (so errors can't say `"address.zip"`), and **none** is available as one ergonomic call on `Validated` itself. That is exactly what A1's `parse` and A2's accumulating multi-edit need.
@@ -53,7 +55,7 @@ The one consequence worth stating for *this* layer: a **NEL-default accumulating
 | **C** | `traverse` / `sequence` over a `List<Validated<…,X>>` | **Complementary.** The right tool for **collection-valued** fields (`List<Dto> → Validated<NEL, List<Domain>>`), not heterogeneous record construction. |
 | **D** | **Codegen-emitted** assembly inside `@DeriveMapping` | **Recommend (mapper).** The processor knows the N fields + canonical constructor, so it emits the exact accumulation — **arity-unbounded**, labels auto from field names. |
 
-**Why curried-`ap`, not tuple-growing (B vs A):** the tuple-growing builder (`.and(x)` bumps a `TupleK`) needs `Tuple3..TupleN`, which HKJ lacks (only `Tuple2`). The curried-`ap` builder holds a `Validated<NEL, FunctionK<…>>` and each `.and(vNext)` applies `ap` — it needs only the already-present `FunctionN` (to 12) and no new tuple types. (If a `tupled()` surface is wanted for other reasons, adding `Tuple3..TupleN` is a separable decision; the assembly builder does not require it.)
+**Why curried-`ap` (B) is still recommended over tuple-growing (A):** on *merits*, not on a tuple gap (`Tuple3..Tuple12` already exist). The curried-`ap` builder holds a `Validated<NEL, FunctionK<…>>` and each `.and(vNext)` applies `ap` — one shape, parameterisable over the accumulating applicative (`Validated`/`ValidationPath`/`Ior`), and it drops the per-call `Semigroup` via the NEL default. A `tupled()` surface remains available if wanted. (Also: `OpticOps.modifyAllAccumulating` is existing accumulating-modify prior art over a *single* traversal; this builder's novelty is *heterogeneous, multi-arity* assembly. Pin **left-to-right** accumulation order — NEL concat is non-commutative.)
 
 ### Recommended surface
 

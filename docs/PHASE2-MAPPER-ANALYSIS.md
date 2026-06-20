@@ -1,5 +1,7 @@
 # Phase 2 Analysis: The Mapper (A1) + Adjacents — worth-doing verdicts
 
+> ⚠️ **Superseded for the corrected state by `FINAL-DESIGN-AND-ROADMAP.md`.** Key corrections: the mapper is **net-new emit/parse**, not "glue" (only *classify* reuses existing analysers); A3 beans is **not** fast-follow (`CopyStrategy` has no auto-detection; plain bean = `UNSUPPORTED`); `CoupledLensGenerator` does not emit `Lens.paired`; exhaustiveness lives in the processor, not `hkj-checker`. Retained as provenance/detail.
+
 **Status:** design analysis (no implementation)
 **Assesses:** `@DeriveMapping` (record↔record), merge, third-party mapping, A4 (processor diagnostics), A5 (on-ramp), A3 (bean writers). Determines worth and grounds the draft issues. Builds on `BIDIRECTIONAL-MAPPING-DESIGN.md` and the Phase 0/1 analyses.
 **Headline:** *The mapper processor is mostly an **assembly of existing `hkj-processor` components**, not a new build — which raises its feasibility and makes both follow-ons (merge, third-party) and beans (A3) cheaper than first assumed.*

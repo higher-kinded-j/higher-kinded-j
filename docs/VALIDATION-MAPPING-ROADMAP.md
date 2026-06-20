@@ -1,5 +1,7 @@
 # Roadmap: Validation & Bidirectional Mapping
 
+> ⚠️ **Superseded by `FINAL-DESIGN-AND-ROADMAP.md`** (vertical-slice-first sequencing, records-first governance, corrected reuse/feasibility). Retained as provenance/detail.
+
 One page tying together the GitHub issues (#549, #551), the four issue drafts, the `Endo` monoid surfaced by the Phase 1 probe, and the two feature designs (A1 mapper, A2 patch) into a single dependency map and build order. Origin: the telescope comparative analysis (recommendation **A1**), then a foundations-first re-prioritisation validated by two independent consumers.
 
 ## Dependency map

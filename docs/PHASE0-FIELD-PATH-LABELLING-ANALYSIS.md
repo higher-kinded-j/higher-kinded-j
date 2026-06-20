@@ -1,5 +1,7 @@
 # Phase 0 Analysis: Field-Path Labelling (`FieldError` location threading) — E7
 
+> ⚠️ **Superseded for the corrected state by `FINAL-DESIGN-AND-ROADMAP.md`.** `FieldError(Path, message)` and the `NonEmptyList<FieldError>` channel are locked there; the MVP uses a flat-string path, the sealed `PathSegment` model is a later generalisation. Retained as provenance/detail.
+
 **Status:** design analysis (no implementation)
 **Sits in:** Phase 0 foundations — the last unspecified primitive. Shared dependency of the open-arity assembly builder, the validated refraction optic, and the bidirectional mapper. Companion to `docs/PHASE0-VALIDATED-ASSEMBLY-ANALYSIS.md`, `docs/DRAFT-ISSUE-open-arity-validated-assembly.md`, `docs/DRAFT-ISSUE-validated-refraction-optic.md`.
 **One line:** *HKJ already threads a “where” through optic composition (`IndexedOptic`’s `Pair<I,J>` nesting) and the codegen already knows every field’s name — E7 is to specialise that index to a flat `Path` of segments and have the generator emit the names it already holds, turning existing machinery into a located-error system.*

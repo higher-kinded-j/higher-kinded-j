@@ -1,5 +1,7 @@
 # Phase 1 Analysis: Sparse-PATCH / Multi-Edit (A2) — the second-consumer validation
 
+> ⚠️ **Superseded for the corrected state by `FINAL-DESIGN-AND-ROADMAP.md`.** Corrections: the builder is `Edits` (not `Patch` — collides with `Path`); the validated patch is **two phases** (parallel validation + sequential `foldLeft` write), not "parallel-on-original"; `OpticOps.modifyAllAccumulating` is acknowledged prior art. Retained as provenance/detail.
+
 **Status:** design analysis (no implementation)
 **Sits in:** Phase 1 — the first feature *above* the Phase 0 foundations. Its analytical job is to **validate the foundation** by checking whether a *second, independent* feature rides the same Phase 0 primitives (it does) and to surface any *new* requirement before any of it is built (exactly one: an `Endo` monoid). Companion to the Phase 0 analyses and the bidirectional-mapping design.
 **One line:** *A multi-edit is a fold of independent writes into an `Endo<S>` monoid; the validated multi-edit is that fold accumulated through the Phase 0 assembly builder — so A2 reuses the entire foundation and is, in fact, the general form of the mapper’s `patch`.*

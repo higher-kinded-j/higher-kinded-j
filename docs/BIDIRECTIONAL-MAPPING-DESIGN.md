@@ -1,5 +1,7 @@
 # Design Exploration: Bidirectional, Auto-Derived Record↔DTO Mapping in HKJ
 
+> ⚠️ **Superseded for the corrected state by `FINAL-DESIGN-AND-ROADMAP.md`.** This doc predates the six-reviewer panel; read it through the corrections there (key fixes: `patch`≠`Lens.set` §1, profunctor framing softened, the `Getter` taxonomy rung, Refraction's second law). Retained as provenance/detail.
+
 **Status:** design exploration / vision note (no implementation)
 **Audience:** HKJ maintainers and contributors
 **Thesis in one line:** *A record↔DTO mapping is not a new abstraction to bolt on — it is an **optic**, and the design's job is to derive the **weakest lawful optic the relationship admits**, so that immutability, composability, and strong typing fall out of the lattice HKJ already owns.*
@@ -25,7 +27,7 @@ Three of these four are optics HKJ **already has** (`Iso`, `Lens`, `Prism`, each
 
 The immediate payoffs of this reframing:
 
-- **`patch` is not a feature — it is `Lens.set`.** Telescope's sparse overlay `mapper.patch(base, partialDto)` is exactly `lens.set(partialDto, base)`, which HKJ's `Lens` already provides with the law `set(get(s), s) == s` guaranteeing it round-trips. We get telescope's headline `patch` for free, *and* it is law-checked.
+- **`patch` is a *fold*, not `Lens.set`** *(corrected per review — see `FINAL-DESIGN-AND-ROADMAP.md` §1)*. A *sparse* patch (only the present fields overwrite) is a monoidal fold of per-field `Endo<S>` writes with `overIfPresent(absent) = identity` — the `Edits` builder. Only a **total** projection write equals `lens.set(dto, base)`; `Lens.set` overwrites the *whole* `Dto` focus and would clobber the absent fields of a sparse DTO.
 - **Container lifting is `Traversal` / `Each` composition**, which HKJ already has (`Traversals.forList`, `optionalSome`, `mapValues`). No `liftList`/`liftSet`/`liftOptional`/`liftMapValues` zoo to maintain.
 - **Nested mapping is optic composition** (`Iso.andThen`, `Lens.andThen`). A `Mapping<Address,AddressDto>` composes into a `Mapping<User,UserDto>` for the `address` field by `andThen` — recursive derivation is just composition.
 

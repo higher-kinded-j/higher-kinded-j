@@ -1,5 +1,7 @@
 # Expert Review Panel — Synthesis
 
+> ✅ **Resolved:** the corrections and naming decisions from this review are incorporated in the canonical **`FINAL-DESIGN-AND-ROADMAP.md`** (see its Appendix A for F1–F13 traceability). This review is retained as the rationale.
+
 Six independent reviewers (four specialist, two holistic) audited the validation & mapping design set on this branch, each **verifying every load-bearing claim against the actual HKJ source (file:line)**. This synthesis attributes findings, maps where the panel agrees and diverges, lists the **objective factual corrections** the docs need regardless of strategy, and ends with **one prioritised actionable table** plus the open decisions that are yours to make.
 
 > Candid note: most of the factual corrections below are errors in documents *I* authored. The panel did its job — read this as the correction of optimism, not a verdict that the idea is wrong. The core thesis survived scrutiny.
