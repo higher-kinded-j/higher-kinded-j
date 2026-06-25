@@ -1,6 +1,6 @@
 # FINAL — Validation & Bidirectional Mapping: Corrected Design & Roadmap
 
-**This is the canonical, single-surface document.** It consolidates the program and applies every correction from the six-reviewer panel (`EXPERT-REVIEW.md`). Where it disagrees with any earlier doc, **this wins**. The supporting docs (`TELESCOPE-COMPARATIVE-ANALYSIS`, `BIDIRECTIONAL-MAPPING-DESIGN`, the three `PHASE*` analyses, the eight `DRAFT-ISSUE-*`, the old `VALIDATION-MAPPING-ROADMAP`) are retained as provenance/detail; read them through the corrections in §9 + Appendix A.
+**This is the canonical, single-surface document.** It consolidates the program and applies every correction from the six-reviewer panel (`EXPERT-REVIEW.md`). Where it disagrees with any earlier doc, **this wins**. The supporting docs (`TELESCOPE-COMPARATIVE-ANALYSIS`, `BIDIRECTIONAL-MAPPING-DESIGN`, the three `PHASE*` analyses, the eight `DRAFT-ISSUE-*`, the old `VALIDATION-MAPPING-ROADMAP`) are retained as provenance/detail; read them through the corrections in §10 + Appendix A.
 
 ---
 
@@ -57,7 +57,7 @@ Per the steward + optics reviewers, this is a **new public optic family** in a "
 - **Both laws (F10):** `parse(build(a)) == Valid(a)` **and** `parse(s) == Valid(a) ⇒ build(a) == s` (`build` is a section of `parse` — forbids lossy "parse-normalise" that breaks round-trip).
 - **Composition matrix:** specify & test all `andThen` cells with `Iso`/`Lens`/`Prism`/`Refraction`; `andThen` (nesting) short-circuits, sibling assembly accumulates.
 - **`render`/`build`** naming per §2; bridges to `ValidationPath`.
-- For the MVP (§8) a *throwaway hand-written* refraction suffices; the real optic is its own issue.
+- For the MVP (§9) a *throwaway hand-written* refraction suffices; the real optic is its own issue.
 
 ## 6. `Edits` — multi-edit / sparse PATCH (corrected semantics)
 
@@ -80,7 +80,35 @@ Per the steward + optics reviewers, this is a **new public optic family** in a "
 
 **Corrected (F5): A3 beans is NOT fast-follow.** `CopyStrategy` has **no auto-detection** (it emits only from explicit `@ViaBuilder`/`@Wither`), and `TypeKindAnalyser` has **no general bean category** (a plain bean is `UNSUPPORTED`). Bean targets need a *new* builder/bean detector. **Corrected (F6):** `CoupledLensGenerator` does **not** emit `Lens.paired` (it emits an arity ladder via `Lens.of`).
 
-## 8. Roadmap — vertical-slice first (corrected sequencing)
+## 8. Scaffolding — introspection-assisted specs (the convenience/control middle ground)
+
+Codegen-first buys runtime performance and compile-time safety at the cost of *authoring* convenience — you hand-write specs, especially for third-party types. A **fourth mode** recovers much of reflection's convenience without giving up any of codegen's runtime advantages, and **HKJ already has ~80% of it**.
+
+**What exists.** `@ImportOptics({Foreign.class})` *auto-derives* optics from a foreign type's structure (records→Lens, sealed/enum→Prism, wither-classes→Lens) — convenient but **uneditable** (all-or-nothing; no rename/drop/codec). Hand-written `OpticsSpec`/`MappingSpec` is fully editable but **all-manual**. `TypeKindAnalyser` already introspects components, withers (`detectWitherMethods`), setters (`detectMutableFields`), and container shapes (`detectContainerType`); `SpecInterfaceGenerator` already turns a spec into optics. The two halves — *introspection* and *spec→optics* — exist; the missing direction is **type → an editable draft spec**.
+
+| | Mode | Spec | Editable? | Runtime |
+|---|---|---|---|---|
+| 1 | `@GenerateLenses` (own records) | none (auto) | — | codegen |
+| 2 | `@ImportOptics({Foreign})` | none (auto) | **no** (all-or-nothing) | codegen |
+| 3 | **scaffolded spec (new)** | **introspection emits a draft** | **yes — you refine** | codegen |
+| 4 | hand `OpticsSpec`/`MappingSpec` | full manual | yes | codegen |
+| 5 | *(runtime reflection)* | — | — | *deliberately absent* |
+
+Mode 3 sits exactly between 2 (convenient, uneditable) and 4 (editable, all-manual): **auto-derive a starting point you then edit.**
+
+**It's *introspection*, not runtime reflection.** The idiomatic mechanism is the compile-time mirror model (`javax.lang.model`) the processor already uses — *not* `java.lang.reflect`. Two payoffs: the scaffold's guesses are accurate to what the compiler will verify, and **the shipped pipeline stays 100% reflection-free**. (Actual `java.lang.reflect` is needed only for one optional niche — an ad-hoc CLI/Gradle task pointed at a compiled jar you can't run a processor over.)
+
+**Governing principle:** *introspection proposes · the human owns · codegen disposes · the compiler verifies.* The scaffold is an untrusted draft; the committed spec is the source of truth; the processor + `javac` are the correctness gate. Reflection's fallibility is quarantined to authoring — it can never cause a runtime failure or a silently-wrong mapping. This honors Part D ("don't reflect-first"): the runtime default stays codegen; the convenience is *visible, editable, compiler-checked* scaffolding, not invisible runtime magic.
+
+**Shape.** A `@ScaffoldSpec(from = Foreign.class, to = Dto.class)` marker (or a `./gradlew scaffoldSpec` task) runs `TypeKindAnalyser`, emits a draft `MappingSpec`/`OpticsSpec` interface — one method per field, the detected write-strategy annotation filled in, `// TODO: review` on ambiguous rows (no detectable strategy, name mismatch, type needing a codec) — into `build/generated-spec-drafts/` (or a `.txt`, so it cannot accidentally compile). You copy it into `src/main`, tweak, commit; from then the existing processor compiles it to reflection-free optics.
+
+**Bonus — retires the A3/bean tension (F5).** The review found `CopyStrategy` has no runtime auto-detection (and runtime bean-detection is mutation-adjacent). The scaffolder does the detection **once, at authoring time**, emitting an **explicit, reviewable `@ViaBuilder`/`@Wither`/`@ViaCopyAndSet`** annotation — `TypeKindAnalyser.detectWitherMethods`/`detectMutableFields` already do the detecting (today they only classify; a plain bean → `UNSUPPORTED`). Convenience of detection; legibility and reflection-free runtime of explicit codegen.
+
+**The one caveat — drift.** Avoid a base+override split (heavy). Use **one-shot scaffold + a drift lint**: the processor (already introspecting the foreign type for the real codegen) additionally *warns* when the foreign type gains members the committed spec doesn't cover (`"spec covers 9/10 fields of Foreign; 'phone' added upstream is unmapped"`). Reuses the exhaustiveness machinery; pairs with A4 diagnostics.
+
+**Status:** an *adjacent convenience*, **not on the MVP critical path** — build after the mapper proves out (it reuses `TypeKindAnalyser` + `SpecInterfaceGenerator`). Optional, but the cleanest answer to "third-party optics without hand-writing every row," and it resolves A3.
+
+## 9. Roadmap — vertical-slice first (corrected sequencing)
 
 The panel was unanimous that **foundations-first then big-mapper is the wrong shape** (100% design / 0% code; marquee gated behind 5+ greenfield primitives). Reconciled path:
 
@@ -107,13 +135,14 @@ Bet     full @GenerateMapping (records)  ── separate go/no-go ──►  [de
 along   A4 processor diagnostics · A5 codegen on-ramp
 ```
 
-## 9. Decisions — for your review
+## 10. Decisions — for your review
 
 1. **Greenlight scope:** the **substrate** (`#549` + `accumulate()` + `Edits`) is unconditionally worth doing and safe to post/build now. The **mapper** is the strategic bet, now honestly priced as net-new processor + exhaustiveness work — *separate go/no-go*. **Your call: substrate-only, or substrate + mapper-slice?**
-2. **Sequencing:** adopt the vertical-slice-first path (§8)? *(Recommended.)*
+2. **Sequencing:** adopt the vertical-slice-first path (§9)? *(Recommended.)*
 3. **Records-first governance:** confirm deferral of beans/merge/registry/`Ior` twins until users ask. *(Recommended.)*
 4. **Names:** ratify the §2 table — especially `Edits` (was `Patch`), `@GenerateMapping`, and `Refraction`.
 5. **Posting:** the eight issue drafts carry pre-review names (`Patch`, `@Via`, `@DeriveMapping`) and a few corrected claims — I will apply the §2 names + Appendix-A fixes to the drafts on your word before any are posted.
+6. **Scaffolding (§8):** build the introspection-assisted spec mode (`@ScaffoldSpec` / `scaffoldSpec` task → editable draft → codegen)? An *optional adjacent convenience* — not on the MVP path, reuses `TypeKindAnalyser` + `SpecInterfaceGenerator`, and resolves the A3/bean tension by detecting write strategies at *authoring* time into an explicit, reviewable spec.
 
 ---
 
@@ -125,7 +154,7 @@ From `EXPERT-REVIEW.md`. **Fixed in this doc; supporting docs flagged.**
 |---|---|---|
 | F1 | `patch` = `Endo` fold, not `Lens.set` (only *total* write = `Lens.set`) | §1 — fixed; also fixed in `BIDIRECTIONAL-MAPPING-DESIGN.md` §1 |
 | F2 | `Tuple3..Tuple12` already ship; re-argue curried-`ap` on merits | §3 — fixed; also fixed in `PHASE0-VALIDATED-ASSEMBLY-ANALYSIS.md` |
-| F3 | No optic-law harness to reuse — build a new published one | §7, §8 |
+| F3 | No optic-law harness to reuse — build a new published one | §7, §9 |
 | F4 | Mapper = net-new emit/parse, not "glue" (classify only is reuse) | §7 |
 | F5 | A3 beans not fast-follow (no bean auto-detect; bean = UNSUPPORTED) | §7 |
 | F6 | `CoupledLensGenerator` ≠ `Lens.paired` | §7 |
