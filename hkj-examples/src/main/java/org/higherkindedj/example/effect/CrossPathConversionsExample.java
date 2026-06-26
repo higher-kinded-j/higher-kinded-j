@@ -2,9 +2,7 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.example.effect;
 
-import java.util.List;
 import java.util.Optional;
-import org.higherkindedj.hkt.Semigroup;
 import org.higherkindedj.hkt.Semigroups;
 import org.higherkindedj.hkt.effect.EitherPath;
 import org.higherkindedj.hkt.effect.IdPath;
@@ -13,6 +11,8 @@ import org.higherkindedj.hkt.effect.OptionalPath;
 import org.higherkindedj.hkt.effect.Path;
 import org.higherkindedj.hkt.effect.TryPath;
 import org.higherkindedj.hkt.effect.ValidationPath;
+import org.higherkindedj.hkt.nonemptylist.NonEmptyList;
+import org.higherkindedj.hkt.validated.Validated;
 
 /**
  * Examples demonstrating conversions between different Path types.
@@ -30,8 +30,6 @@ import org.higherkindedj.hkt.effect.ValidationPath;
  * -PmainClass=org.higherkindedj.example.effect.CrossPathConversionsExample}
  */
 public class CrossPathConversionsExample {
-
-  private static final Semigroup<List<String>> LIST_SEMIGROUP = Semigroups.list();
 
   public static void main(String[] args) {
     System.out.println("=== Effect Path API: Cross-Path Conversions ===\n");
@@ -61,9 +59,10 @@ public class CrossPathConversionsExample {
     OptionalPath<Integer> optionalFromJust = justPath.toOptionalPath();
     System.out.println("Just -> Optional: " + optionalFromJust.run()); // Optional[42]
 
-    // To ValidationPath
-    ValidationPath<List<String>, Integer> validationFromJust =
-        justPath.toValidationPath(List.of("No value"), LIST_SEMIGROUP);
+    // To ValidationPath (NonEmptyList error channel)
+    ValidationPath<NonEmptyList<String>, Integer> validationFromJust =
+        justPath.toValidationPath(
+            NonEmptyList.single("No value"), NonEmptyList.<String>semigroup());
     System.out.println("Just -> Validation: " + validationFromJust.run()); // Valid[42]
 
     // From Nothing
@@ -146,11 +145,11 @@ public class CrossPathConversionsExample {
   private static void validationPathConversions() {
     System.out.println("--- ValidationPath Conversions ---");
 
-    // From Valid
-    ValidationPath<List<String>, Integer> validPath = Path.valid(42, LIST_SEMIGROUP);
+    // From Valid (NonEmptyList error channel)
+    ValidationPath<NonEmptyList<String>, Integer> validPath = Path.validNel(42);
 
     // To EitherPath
-    EitherPath<List<String>, Integer> eitherFromValid = validPath.toEitherPath();
+    EitherPath<NonEmptyList<String>, Integer> eitherFromValid = validPath.toEitherPath();
     System.out.println("Valid -> Either: " + eitherFromValid.run()); // Right[42]
 
     // To MaybePath - error information is LOST
@@ -166,12 +165,13 @@ public class CrossPathConversionsExample {
     OptionalPath<Integer> optionalFromValid = validPath.toOptionalPath();
     System.out.println("Valid -> Optional: " + optionalFromValid.run()); // Optional[42]
 
-    // From Invalid
-    ValidationPath<List<String>, Integer> invalidPath =
-        Path.invalid(List.of("Error 1", "Error 2"), LIST_SEMIGROUP);
+    // From Invalid (a pre-built NonEmptyList of two errors)
+    ValidationPath<NonEmptyList<String>, Integer> invalidPath =
+        Path.validatedNel(Validated.invalid(NonEmptyList.of("Error 1", "Error 2")));
 
-    EitherPath<List<String>, Integer> eitherFromInvalid = invalidPath.toEitherPath();
-    System.out.println("Invalid -> Either: " + eitherFromInvalid.run()); // Left[[Error 1, Error 2]]
+    EitherPath<NonEmptyList<String>, Integer> eitherFromInvalid = invalidPath.toEitherPath();
+    System.out.println("Invalid -> Either: " + eitherFromInvalid.run());
+    // Left[NonEmptyList[Error 1, Error 2]]
 
     System.out.println();
   }
@@ -192,9 +192,10 @@ public class CrossPathConversionsExample {
     EitherPath<String, Integer> eitherFromPresent = presentPath.toEitherPath("No value");
     System.out.println("Present -> Either: " + eitherFromPresent.run()); // Right[42]
 
-    // To ValidationPath
-    ValidationPath<List<String>, Integer> validationFromPresent =
-        presentPath.toValidationPath(List.of("Required value missing"), LIST_SEMIGROUP);
+    // To ValidationPath (NonEmptyList error channel)
+    ValidationPath<NonEmptyList<String>, Integer> validationFromPresent =
+        presentPath.toValidationPath(
+            NonEmptyList.single("Required value missing"), NonEmptyList.<String>semigroup());
     System.out.println("Present -> Validation: " + validationFromPresent.run()); // Valid[42]
 
     // From Absent
