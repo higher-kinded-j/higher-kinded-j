@@ -8,6 +8,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Comparator;
+import java.util.LinkedHashSet;
 import java.util.List;
 import org.higherkindedj.hkt.Semigroup;
 import org.higherkindedj.hkt.maybe.Maybe;
@@ -84,6 +85,28 @@ class NonEmptyListTest {
       assertThat(result.isJust()).isTrue();
       assertThat(result.get().toJavaList()).containsExactly(7, 8);
     }
+
+    @Test
+    @DisplayName("fromIterable returns the same instance for a NonEmptyList")
+    void fromIterableNonEmptyList() {
+      NonEmptyList<Integer> nel = NonEmptyList.of(1, 2);
+      assertThat(NonEmptyList.fromIterable(nel).get()).isSameAs(nel);
+    }
+
+    @Test
+    @DisplayName("fromIterable iterates a non-List iterable")
+    void fromNonListIterable() {
+      Maybe<NonEmptyList<Integer>> result =
+          NonEmptyList.fromIterable(new LinkedHashSet<>(List.of(7, 8, 9)));
+      assertThat(result.isJust()).isTrue();
+      assertThat(result.get().toJavaList()).containsExactly(7, 8, 9);
+    }
+
+    @Test
+    @DisplayName("fromIterable(empty non-List iterable) returns Nothing")
+    void fromEmptyNonListIterable() {
+      assertThat(NonEmptyList.fromIterable(new LinkedHashSet<Integer>()).isNothing()).isTrue();
+    }
   }
 
   @Nested
@@ -141,10 +164,23 @@ class NonEmptyListTest {
     }
 
     @Test
+    @DisplayName("map of a single element stays a singleton")
+    void mapSingle() {
+      assertThat(NonEmptyList.single(5).map(n -> n * 2)).isEqualTo(NonEmptyList.single(10));
+    }
+
+    @Test
     @DisplayName("flatMap flattens and stays non-empty")
     void flatMap() {
       NonEmptyList<Integer> result = NonEmptyList.of(1, 2).flatMap(n -> NonEmptyList.of(n, n * 10));
       assertThat(result.toJavaList()).containsExactly(1, 10, 2, 20);
+    }
+
+    @Test
+    @DisplayName("flatMap of a single element returns the mapped list")
+    void flatMapSingle() {
+      assertThat(NonEmptyList.single(5).flatMap(n -> NonEmptyList.of(n, n + 1)).toJavaList())
+          .containsExactly(5, 6);
     }
 
     @Test

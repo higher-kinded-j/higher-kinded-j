@@ -143,6 +143,12 @@ public record NonEmptyList<A>(A head, List<A> tail) implements NonEmptyListKind<
    */
   public static <A> Maybe<NonEmptyList<A>> fromIterable(Iterable<A> iterable) {
     Validation.coreType().requireValue(iterable, "iterable", NON_EMPTY_LIST_CLASS, FROM_ITERABLE);
+    if (iterable instanceof NonEmptyList<A> nel) {
+      return Maybe.just(nel); // already non-empty and immutable — no copy needed
+    }
+    if (iterable instanceof List<A> list) {
+      return fromList(list);
+    }
     Iterator<A> it = iterable.iterator();
     if (!it.hasNext()) {
       return Maybe.nothing();
@@ -238,6 +244,9 @@ public record NonEmptyList<A>(A head, List<A> tail) implements NonEmptyListKind<
   public <B> NonEmptyList<B> map(Function<? super A, ? extends B> mapper) {
     Validation.function().require(mapper, "mapper", MAP);
     B newHead = mapper.apply(head);
+    if (tail.isEmpty()) {
+      return single(newHead);
+    }
     List<B> newTail = new ArrayList<>(tail.size());
     for (A a : tail) {
       newTail.add(mapper.apply(a));
@@ -257,6 +266,9 @@ public record NonEmptyList<A>(A head, List<A> tail) implements NonEmptyListKind<
     Validation.function().require(mapper, "mapper", FLAT_MAP);
     NonEmptyList<B> first = mapper.apply(head);
     Validation.coreType().requireValue(first, "result", NON_EMPTY_LIST_CLASS, FLAT_MAP);
+    if (tail.isEmpty()) {
+      return first; // singleton: flatMap is exactly mapper(head)
+    }
     List<B> newTail = new ArrayList<>(first.tail);
     for (A a : tail) {
       NonEmptyList<B> mapped = mapper.apply(a);
@@ -290,9 +302,17 @@ public record NonEmptyList<A>(A head, List<A> tail) implements NonEmptyListKind<
    * @return the reversed list
    */
   public NonEmptyList<A> reverse() {
-    List<A> reversed = new ArrayList<>(toJavaList());
-    Collections.reverse(reversed);
-    return new NonEmptyList<>(reversed.get(0), reversed.subList(1, reversed.size()));
+    if (tail.isEmpty()) {
+      return this;
+    }
+    int tailSize = tail.size();
+    A newHead = tail.get(tailSize - 1);
+    List<A> newTail = new ArrayList<>(tailSize);
+    for (int i = tailSize - 2; i >= 0; i--) {
+      newTail.add(tail.get(i));
+    }
+    newTail.add(head);
+    return new NonEmptyList<>(newHead, newTail);
   }
 
   /**
@@ -319,7 +339,8 @@ public record NonEmptyList<A>(A head, List<A> tail) implements NonEmptyListKind<
    */
   public NonEmptyList<A> append(A element) {
     Validation.coreType().requireValue(element, "element", NON_EMPTY_LIST_CLASS, APPEND);
-    List<A> newTail = new ArrayList<>(tail);
+    List<A> newTail = new ArrayList<>(tail.size() + 1);
+    newTail.addAll(tail);
     newTail.add(element);
     return new NonEmptyList<>(head, newTail);
   }
