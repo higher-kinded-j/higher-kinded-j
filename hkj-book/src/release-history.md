@@ -12,7 +12,7 @@ This page documents the evolution of Higher-Kinded-J from its initial release th
 
 ## Recent Releases
 
-### v0.4.7-SNAPSHOT (in development)
+### [v0.4.7](https://github.com/higher-kinded-j/higher-kinded-j/releases/tag/v0.4.7) (26 June 2026)
 
 **`@HkjHttpClient` — generated Effect-Path HTTP clients**
 
@@ -55,7 +55,7 @@ The HKJ compiler plugin gains a `raw-kind` rule: a raw `Kind`/`Kind2` drops its 
 
 ---
 
-### v0.4.6 (7 June 2026)
+### [v0.4.6](https://github.com/higher-kinded-j/higher-kinded-j/releases/tag/v0.4.6) (7 June 2026)
 
 **Optic-Driven Request Batching**
 
@@ -112,7 +112,7 @@ This release prepares users for a record-shape change to `StateT` that lands in 
 
 ---
 
-### v0.4.5 (22 May 2026)
+### [v0.4.5](https://github.com/higher-kinded-j/higher-kinded-j/releases/tag/v0.4.5) (22 May 2026)
 
 **A Uniform `Instances` Facade for Type-Class Lookup**
 
@@ -154,7 +154,7 @@ This release also marks one wildcard-witness escape hatch for removal, makes the
 
 ---
 
-### v0.4.4 (16 May 2026)
+### [v0.4.4](https://github.com/higher-kinded-j/higher-kinded-j/releases/tag/v0.4.4) (16 May 2026)
 
 **The hkj-test Module, PCollections Integration, and Type Class Enrichments**
 
@@ -176,7 +176,7 @@ This release ships `hkj-test`, a new publishable module providing fluent AssertJ
 
 ---
 
-### v0.4.3 (7 May 2026)
+### [v0.4.3](https://github.com/higher-kinded-j/higher-kinded-j/releases/tag/v0.4.3) (7 May 2026)
 
 **Pluggable HTTP Error Status Strategy, Header Carriers, and Documentation Refresh**
 
@@ -187,7 +187,7 @@ This release introduces pluggable error-to-status mapping for `hkj-spring`, lets
 - [hkj.web.error-status-mappings](spring/spring_boot_integration.md): New configuration property for explicit error-class to HTTP-status mappings, supporting both simple and fully-qualified class names. Covers 4xx/5xx codes outside the heuristic table such as `409 Conflict`, `422 Unprocessable Entity`, `429 Too Many Requests`, and `503 Service Unavailable`
 - [Tokenized class-name matching](spring/spring_boot_integration.md): `ErrorStatusCodeMapper` now splits class names on CamelCase boundaries and matches whole tokens, eliminating false positives like `RevalidationError` previously matching the `validation` heuristic
 
-### Documentation @ Tutorial Improvements
+### Documentation & Tutorial Improvements
 - [Effect Path API Restructure](effect/quickstart.md): The Effect Path API chapter is reorganised into five sub-chapters (Quickstart, Core Paths, Optics Integration, Advanced Paths, Reference) so a Java developer reaches runnable Effect Path code in under five minutes without advanced material blocking the beginner path. New API-level Effect Path quickstart with three runnable examples covering `MaybePath`, `EitherPath`, and `ForPath`
 - [Manual Gradle and Maven Setup](tooling/manual_setup.md): Book-level Quickstart trimmed to lead with the recommended `hkj-gradle-plugin` and `hkj-maven-plugin` setup; full manual build-file configuration extracted to a new dedicated page so adopters who must wire dependencies by hand have one canonical reference
 - [Optics Documentation Reorganised](optics/quickstart.md): Optics chapter restructured along Diátaxis lines: narrative pages focus on learning, while new dedicated reference pages serve returning readers. New [Quickstart](optics/quickstart.md), [Annotations at a Glance](optics/annotations_at_a_glance.md), [Optic Capabilities](optics/optic_capabilities.md), [Conversions](optics/conversions.md), [Decision Trees](optics/decision_trees.md), [Compiler Errors](optics/compiler_errors.md), and [Production Readiness](optics/production_readiness.md); 
@@ -198,7 +198,7 @@ This release introduces pluggable error-to-status mapping for `hkj-spring`, lets
 
 ---
 
-### v0.4.2 (18 April 2026)
+### [v0.4.2](https://github.com/higher-kinded-j/higher-kinded-j/releases/tag/v0.4.2) (18 April 2026)
 
 **EffectBoundary, Claude Code Skills, and Spring HTTP Ergonomics**
 
@@ -218,7 +218,7 @@ This release introduces `EffectBoundary` for gradual Spring adoption of Free-mon
 
 ---
 
-### v0.4.1 (8 April 2026)
+### [v0.4.1](https://github.com/higher-kinded-j/higher-kinded-j/releases/tag/v0.4.1) (8 April 2026)
 
 **Effect Handlers, Spring Observability, and Monad Transformer Enhancements**
 
@@ -256,7 +256,7 @@ This release introduces algebraic effect handlers with annotation-driven code ge
 
 ---
 
-### v0.4.0 (22 March 2026)
+### [v0.4.0](https://github.com/higher-kinded-j/higher-kinded-j/releases/tag/v0.4.0) (22 March 2026)
 
 **SPI-Aware Path Widening, Expanded Plugin Ecosystem, and Focus DSL Restructure**
 
