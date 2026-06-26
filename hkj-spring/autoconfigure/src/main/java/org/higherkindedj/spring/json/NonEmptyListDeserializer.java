@@ -7,8 +7,11 @@ import java.util.List;
 import org.higherkindedj.hkt.nonemptylist.NonEmptyList;
 import tools.jackson.core.JacksonException;
 import tools.jackson.core.JsonParser;
+import tools.jackson.databind.BeanProperty;
 import tools.jackson.databind.DeserializationContext;
+import tools.jackson.databind.JavaType;
 import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.ValueDeserializer;
 import tools.jackson.databind.deser.std.StdDeserializer;
 
 /**
@@ -18,8 +21,11 @@ import tools.jackson.databind.deser.std.StdDeserializer;
  * NonEmptyList} cannot be empty, so {@code []} is a structural error rather than something silently
  * coerced. This keeps the "non-empty by construction" guarantee intact across the wire.
  *
- * <p>Note: due to type erasure this produces {@code NonEmptyList<Object>}; for strongly-typed
- * results use a DTO or a Jackson {@code TypeReference}.
+ * <p>When the target generic type is known — a field typed {@code NonEmptyList<Foo>} or a {@code
+ * TypeReference<NonEmptyList<Foo>>} — the element type is resolved via {@link
+ * #createContextual(DeserializationContext, BeanProperty)} and elements are deserialized to {@code
+ * Foo}. For a raw {@code NonEmptyList.class} read the element type is unknown and elements fall
+ * back to {@code Object} (numbers/strings round-trip; JSON objects become maps).
  *
  * @see NonEmptyListSerializer
  */
@@ -27,10 +33,31 @@ public class NonEmptyListDeserializer extends StdDeserializer<NonEmptyList<?>> {
 
   private static final long serialVersionUID = 1L;
 
-  /** Creates a new NonEmptyListDeserializer for the NonEmptyList type. */
-  @SuppressWarnings("unchecked")
+  /** Element type resolved from the contextual/property type, or {@code null} for a raw read. */
+  private final JavaType elementType;
+
+  /** Creates an unresolved deserializer (used for module registration). */
   public NonEmptyListDeserializer() {
+    this(null);
+  }
+
+  /** Creates a deserializer bound to a resolved element type. */
+  @SuppressWarnings("unchecked")
+  public NonEmptyListDeserializer(JavaType elementType) {
     super((Class<NonEmptyList<?>>) (Class<?>) NonEmptyList.class);
+    this.elementType = elementType;
+  }
+
+  @Override
+  public ValueDeserializer<?> createContextual(DeserializationContext ctxt, BeanProperty property) {
+    JavaType type = (property != null) ? property.getType() : ctxt.getContextualType();
+    if (type != null && type.hasRawClass(NonEmptyList.class) && type.containedTypeCount() == 1) {
+      JavaType elem = type.containedType(0);
+      if (elem != null && !elem.hasRawClass(Object.class)) {
+        return new NonEmptyListDeserializer(elem);
+      }
+    }
+    return this;
   }
 
   @Override
@@ -48,7 +75,10 @@ public class NonEmptyListDeserializer extends StdDeserializer<NonEmptyList<?>> {
 
     List<Object> elements = new ArrayList<>();
     for (JsonNode element : node) {
-      Object value = ctxt.readTreeAsValue(element, Object.class);
+      Object value =
+          (elementType != null)
+              ? ctxt.readTreeAsValue(element, elementType)
+              : ctxt.readTreeAsValue(element, Object.class);
       if (value == null) {
         throw ctxt.weirdStringException(
             "", NonEmptyList.class, "NonEmptyList JSON array must not contain null elements");
