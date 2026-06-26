@@ -1017,6 +1017,29 @@ List<String> built = cons.build(Pair.of("New", List.of("List")));
 
 ---
 
+### NonEmptyList
+
+**Definition:** An immutable list guaranteed by its type to contain at least one element — a `head` plus a (possibly empty) `tail`. Because non-emptiness is encoded in the type, `head`, `last`, `reduce`, `min`, and `max` are **total** (they never throw and return no `Optional`). It is the natural carrier for an accumulating validation error channel, where an *invalid* result always has one or more errors.
+
+**Example:**
+```java
+NonEmptyList<Integer> nel = NonEmptyList.of(1, 2, 3);
+int head = nel.head();                       // 1 — total, never throws
+int sum  = nel.reduce((a, b) -> a + b);      // 6 — reduce without an identity
+
+// Checked construction from possibly-empty data returns Maybe (never throws):
+Maybe<NonEmptyList<Integer>> maybe = NonEmptyList.fromList(List.of());   // Nothing
+
+// As the validation error channel — no Semigroup argument, no List.of wrapping:
+Validated<NonEmptyList<String>, Integer> bad = Validated.invalidNel("must be positive");
+```
+
+**No empty, by design:** there is no empty `NonEmptyList`, and therefore no `Monoid` instance and no `MonadZero`/`Alternative` — the absence of an empty value is the point. It is a `Functor`, `Applicative`, `Monad`, `Foldable`, `Traverse`, and `Semigroup` (concatenation via `NonEmptyList.semigroup()`).
+
+**Related:** [NonEmptyList](monads/nonemptylist_monad.md), [Validated](#validated), [Semigroup](#semigroup)
+
+---
+
 ### Unit
 
 **Definition:** A type with exactly one value (`Unit.INSTANCE`), representing the completion of an operation that doesn't produce a meaningful result. The functional equivalent of `void`, but usable as a type parameter.

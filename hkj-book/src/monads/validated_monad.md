@@ -86,6 +86,10 @@ If you only ever need fail-fast semantics, use [Either](./either_monad.md).
 
 Let's build a registration validator that validates username, email, and age — reporting ALL errors in one pass.
 
+~~~admonish tip title="Error channel: prefer `NonEmptyList<E>` over `List<E>`"
+The examples below use `Validated<List<String>, T>`, but an *invalid* result always has at least one error — so [`NonEmptyList`](nonemptylist_monad.md) is the more honest channel. `Validated.validNel(v)` / `Validated.invalidNel(e)` produce `Validated<NonEmptyList<E>, T>` with no manual `List.of(...)` wrapping, and `getError().head()` becomes total. The `List<String>` form shown here still works unchanged.
+~~~
+
 ~~~admonish example title="Step 1: Define Individual Validators"
 
 Each validator is an independent function that returns `Validated<List<String>, T>`:

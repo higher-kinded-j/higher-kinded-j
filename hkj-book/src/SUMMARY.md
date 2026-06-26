@@ -179,6 +179,7 @@
     - [IO](monads/io_monad.md)
     - [Lazy](monads/lazy_monad.md)
     - [List](monads/list_monad.md)
+    - [NonEmptyList](monads/nonemptylist_monad.md)
     - [Maybe](monads/maybe_monad.md)
     - [Optional](monads/optional_monad.md)
     - [Reader](monads/reader_monad.md)

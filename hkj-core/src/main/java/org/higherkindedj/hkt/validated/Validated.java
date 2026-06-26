@@ -12,6 +12,7 @@ import java.util.function.Supplier;
 import org.higherkindedj.hkt.Semigroup;
 import org.higherkindedj.hkt.Unit;
 import org.higherkindedj.hkt.either.Either;
+import org.higherkindedj.hkt.nonemptylist.NonEmptyList;
 import org.higherkindedj.hkt.util.validation.Validation;
 
 /**
@@ -371,5 +372,36 @@ public sealed interface Validated<E, A> extends ValidatedKind<E, A>, ValidatedKi
   static <E, A> Validated<E, A> invalid(E error) {
     Validation.coreType().requireError(error, VALIDATED_CLASS, INVALID);
     return new Invalid<>(error);
+  }
+
+  /**
+   * Creates a {@code Valid} whose error channel is a {@link NonEmptyList}. A convenience for the
+   * accumulating-validation idiom where the error type is {@code NonEmptyList<E>}; symmetric with
+   * {@link #invalidNel(Object)} and useful for type inference.
+   *
+   * @param value the success value; must not be null
+   * @param <E> the (singleton) error element type
+   * @param <A> the value type
+   * @return a {@code Validated<NonEmptyList<E>, A>} holding {@code value}
+   * @throws NullPointerException if {@code value} is null
+   */
+  static <E, A> Validated<NonEmptyList<E>, A> validNel(A value) {
+    return valid(value);
+  }
+
+  /**
+   * Creates an {@code Invalid} whose error channel is a single-element {@link NonEmptyList}. This
+   * is the "a leaf wraps a single error in a singleton" idiom for accumulating validation: the
+   * result is non-empty by construction and composes with other {@code NonEmptyList} errors via
+   * {@link NonEmptyList#semigroup()}.
+   *
+   * @param error the sole error; must not be null
+   * @param <E> the error element type
+   * @param <A> the value type (unused for Invalid)
+   * @return a {@code Validated<NonEmptyList<E>, A>} holding {@code NonEmptyList.single(error)}
+   * @throws NullPointerException if {@code error} is null
+   */
+  static <E, A> Validated<NonEmptyList<E>, A> invalidNel(E error) {
+    return invalid(NonEmptyList.single(error));
   }
 }

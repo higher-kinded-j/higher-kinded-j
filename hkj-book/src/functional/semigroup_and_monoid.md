@@ -54,6 +54,17 @@ Semigroup<String> stringConcatDelimited = Semigroups.string(", ");
 Semigroup<List<Integer>> listConcat = Semigroups.list();
 ```
 
+~~~admonish tip title="The non-empty alternative: `NonEmptyList.semigroup()`"
+For an accumulating error channel, prefer [`NonEmptyList`](../monads/nonemptylist_monad.md) over a plain `List`: an *invalid* result always has at least one error, and `NonEmptyList` proves that in the type (making `head`/`reduce` total). Its concatenating combine lives on the type itself:
+
+```java
+// Concatenates two NonEmptyLists, left-to-right (associative, not commutative).
+Semigroup<NonEmptyList<String>> nelConcat = NonEmptyList.semigroup();
+```
+
+It is not on the `Semigroups` facade because `NonEmptyList` lives in `hkj-core` while `Semigroups` lives in `hkj-api`. The `Path.validNel` / `Path.invalidNel` factories bake it in, so the common validation case needs no `Semigroup` argument at all.
+~~~
+
 ### Where is it used in `higher-kinded-j`?
 
 The primary and most powerful use case for `Semigroup` in this library is to enable **error accumulation** with the **`Validated`** data type.

@@ -3,6 +3,7 @@
 package org.higherkindedj.spring.json;
 
 import org.higherkindedj.hkt.either.Either;
+import org.higherkindedj.hkt.nonemptylist.NonEmptyList;
 import org.higherkindedj.hkt.validated.Validated;
 import tools.jackson.databind.module.SimpleModule;
 
@@ -14,6 +15,7 @@ import tools.jackson.databind.module.SimpleModule;
  * <ul>
  *   <li>{@link Either} - Serialized as {"isRight": boolean, "left"|"right": value}
  *   <li>{@link Validated} - Serialized as {"valid": boolean, "value"|"errors": value}
+ *   <li>{@link NonEmptyList} - Serialized as a JSON array; an empty array is rejected on read
  * </ul>
  *
  * <p>The module is automatically registered when using Spring Boot's auto-configuration. For manual
@@ -48,6 +50,11 @@ public class HkjJacksonModule extends SimpleModule {
     // Raw type cast needed because Validated<?, ?> is generic
     addSerializer((Class) Validated.class, new ValidatedSerializer());
     addDeserializer((Class) Validated.class, new ValidatedDeserializer());
+
+    // NonEmptyList serialization/deserialization
+    // Raw type cast needed because NonEmptyList<?> is generic
+    addSerializer((Class) NonEmptyList.class, new NonEmptyListSerializer());
+    addDeserializer((Class) NonEmptyList.class, new NonEmptyListDeserializer());
   }
 
   @Override
