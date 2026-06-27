@@ -20,12 +20,12 @@ Accumulating validation is one of Higher-Kinded-J's headline stories: `Validated
 ```java
 // An "invalid" result always has at least one error, yet the type allows zero.
 ValidationPath<List<Error>, User> failure = Path.invalid(List.of(error), Semigroups.list());
-Error first = failure.run().getError().get(0);   // partial: get(0) can throw
+Error first = failure.run().getError().getFirst();   // partial: getFirst() throws on empty
 ```
 
 Three things hurt here:
 
-- **It permits an impossible state.** An *invalid* result always has one or more errors, yet `List<Error>` allows the empty list. Consumers must defensively guard (`errors.isEmpty()`), and `get(0)` is partial.
+- **It permits an impossible state.** An *invalid* result always has one or more errors, yet `List<Error>` allows the empty list. Consumers must defensively guard (`errors.isEmpty()`), and `getFirst()` is partial.
 - **It is ceremony-heavy.** Every entry point hands in `Semigroups.list()` by hand, and every single-error leaf wraps its error in `List.of(...)`.
 - **There is no total `head`.** Reading "the first error" can throw.
 
