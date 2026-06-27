@@ -85,6 +85,6 @@ public class NonEmptyListDeserializer extends StdDeserializer<NonEmptyList<?>> {
       }
       elements.add(value);
     }
-    return NonEmptyList.of(elements.get(0), elements.subList(1, elements.size()));
+    return NonEmptyList.of(elements.getFirst(), elements.subList(1, elements.size()));
   }
 }

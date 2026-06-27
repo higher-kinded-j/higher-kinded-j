@@ -130,7 +130,7 @@ public record NonEmptyList<A>(A head, List<A> tail) implements NonEmptyListKind<
     if (list.isEmpty()) {
       return Maybe.nothing();
     }
-    return Maybe.just(new NonEmptyList<>(list.get(0), list.subList(1, list.size())));
+    return Maybe.just(new NonEmptyList<>(list.getFirst(), list.subList(1, list.size())));
   }
 
   /**
@@ -169,7 +169,7 @@ public record NonEmptyList<A>(A head, List<A> tail) implements NonEmptyListKind<
    * @return the last element
    */
   public A last() {
-    return tail.isEmpty() ? head : tail.get(tail.size() - 1);
+    return tail.isEmpty() ? head : tail.getLast();
   }
 
   /**
@@ -306,7 +306,7 @@ public record NonEmptyList<A>(A head, List<A> tail) implements NonEmptyListKind<
       return this;
     }
     int tailSize = tail.size();
-    A newHead = tail.get(tailSize - 1);
+    A newHead = tail.getLast();
     List<A> newTail = new ArrayList<>(tailSize);
     for (int i = tailSize - 2; i >= 0; i--) {
       newTail.add(tail.get(i));

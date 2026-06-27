@@ -4,6 +4,7 @@ package org.higherkindedj.hkt.nonemptylist;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.higherkindedj.hkt.assertions.NonEmptyListAssert.assertThatNonEmptyList;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -159,8 +160,7 @@ class NonEmptyListTest {
     @Test
     @DisplayName("map applies to every element")
     void map() {
-      assertThat(NonEmptyList.of(1, 2, 3).map(n -> n * 10).toJavaList())
-          .containsExactly(10, 20, 30);
+      assertThatNonEmptyList(NonEmptyList.of(1, 2, 3).map(n -> n * 10)).containsExactly(10, 20, 30);
     }
 
     @Test
@@ -173,13 +173,13 @@ class NonEmptyListTest {
     @DisplayName("flatMap flattens and stays non-empty")
     void flatMap() {
       NonEmptyList<Integer> result = NonEmptyList.of(1, 2).flatMap(n -> NonEmptyList.of(n, n * 10));
-      assertThat(result.toJavaList()).containsExactly(1, 10, 2, 20);
+      assertThatNonEmptyList(result).containsExactly(1, 10, 2, 20);
     }
 
     @Test
     @DisplayName("flatMap of a single element returns the mapped list")
     void flatMapSingle() {
-      assertThat(NonEmptyList.single(5).flatMap(n -> NonEmptyList.of(n, n + 1)).toJavaList())
+      assertThatNonEmptyList(NonEmptyList.single(5).flatMap(n -> NonEmptyList.of(n, n + 1)))
           .containsExactly(5, 6);
     }
 
@@ -199,28 +199,27 @@ class NonEmptyListTest {
     @Test
     @DisplayName("reverse reverses element order")
     void reverse() {
-      assertThat(NonEmptyList.of(1, 2, 3).reverse().toJavaList()).containsExactly(3, 2, 1);
+      assertThatNonEmptyList(NonEmptyList.of(1, 2, 3).reverse()).containsExactly(3, 2, 1);
     }
 
     @Test
     @DisplayName("concat joins two lists, left first")
     void concat() {
-      assertThat(NonEmptyList.of(1, 2).concat(NonEmptyList.of(3, 4)).toJavaList())
+      assertThatNonEmptyList(NonEmptyList.of(1, 2).concat(NonEmptyList.of(3, 4)))
           .containsExactly(1, 2, 3, 4);
     }
 
     @Test
     @DisplayName("append adds an element at the end")
     void append() {
-      assertThat(NonEmptyList.of(1, 2).append(3).toJavaList()).containsExactly(1, 2, 3);
+      assertThatNonEmptyList(NonEmptyList.of(1, 2).append(3)).containsExactly(1, 2, 3);
     }
 
     @Test
     @DisplayName("prepend adds an element at the front as the new head")
     void prepend() {
       NonEmptyList<Integer> result = NonEmptyList.of(2, 3).prepend(1);
-      assertThat(result.head()).isEqualTo(1);
-      assertThat(result.toJavaList()).containsExactly(1, 2, 3);
+      assertThatNonEmptyList(result).hasHead(1).containsExactly(1, 2, 3);
     }
   }
 

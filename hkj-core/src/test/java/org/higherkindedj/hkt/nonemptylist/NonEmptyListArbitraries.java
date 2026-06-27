@@ -28,7 +28,7 @@ final class NonEmptyListArbitraries {
         .list()
         .ofMinSize(1)
         .ofMaxSize(5)
-        .map(l -> NON_EMPTY_LIST.widen(NonEmptyList.of(l.get(0), l.subList(1, l.size()))));
+        .map(l -> NON_EMPTY_LIST.widen(NonEmptyList.of(l.getFirst(), l.subList(1, l.size()))));
   }
 
   /** A small pool of total {@code Integer -> String} functions. */
