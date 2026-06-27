@@ -88,6 +88,7 @@ class TypeClassPatternRules {
           "ValidatedApplicative",
           "ValidatedMonad",
           "ValidatedSelective", // Has Semigroup field for error accumulation
+          "EitherOrBothMonad", // Has Semigroup field for warning accumulation
           "ConstFunctor",
           "ConstApplicative",
           "ReaderTMonadReader",

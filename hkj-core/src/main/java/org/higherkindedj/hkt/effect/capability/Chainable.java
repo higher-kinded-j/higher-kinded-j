@@ -4,6 +4,7 @@ package org.higherkindedj.hkt.effect.capability;
 
 import java.util.function.Function;
 import java.util.function.Supplier;
+import org.higherkindedj.hkt.effect.EitherOrBothPath;
 import org.higherkindedj.hkt.effect.FreePath;
 import org.higherkindedj.hkt.effect.GenericPath;
 import org.higherkindedj.hkt.effect.IdPath;
@@ -57,6 +58,7 @@ public sealed interface Chainable<A> extends Combinable<A>
     permits Recoverable,
         Effectful,
         ValidationPath,
+        EitherOrBothPath,
         IdPath,
         OptionalPath,
         GenericPath,

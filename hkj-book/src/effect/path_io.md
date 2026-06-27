@@ -212,5 +212,5 @@ See [Benchmarks & Performance](../benchmarks.md) for full details, comparison be
 
 ---
 
-**Previous:** [ValidationPath](path_validation.md)
+**Previous:** [EitherOrBothPath](path_either_or_both.md)
 **Next:** [VTaskPath](path_vtask.md)

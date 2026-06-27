@@ -27,6 +27,7 @@ class PathTypeRegistryTest {
         Arguments.of("org.higherkindedj.hkt.effect.VTaskPath", "VTaskPath"),
         Arguments.of("org.higherkindedj.hkt.effect.DefaultVTaskPath", "DefaultVTaskPath"),
         Arguments.of("org.higherkindedj.hkt.effect.ValidationPath", "ValidationPath"),
+        Arguments.of("org.higherkindedj.hkt.effect.EitherOrBothPath", "EitherOrBothPath"),
         Arguments.of("org.higherkindedj.hkt.effect.IdPath", "IdPath"),
         Arguments.of("org.higherkindedj.hkt.effect.OptionalPath", "OptionalPath"),
         Arguments.of("org.higherkindedj.hkt.effect.GenericPath", "GenericPath"),
@@ -54,9 +55,9 @@ class PathTypeRegistryTest {
   class RegisteredTypeCount {
 
     @Test
-    @DisplayName("returns 27 for all registered Path types")
+    @DisplayName("returns 28 for all registered Path types")
     void registeredTypeCount_returnsExpectedCount() {
-      assertThat(PathTypeRegistry.registeredTypeCount()).isEqualTo(27);
+      assertThat(PathTypeRegistry.registeredTypeCount()).isEqualTo(28);
     }
   }
 

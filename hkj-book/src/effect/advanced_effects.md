@@ -437,6 +437,7 @@ List<String> log = computation.written();
 - Output should replace previous output: use `StatePath`
 - You need to read accumulated output mid-computation: use `StatePath`
 - Output goes to external systems: use `IOPath`
+- The computation can also fail and the warnings share that failure channel: use [`EitherOrBothPath`](path_either_or_both.md) (a `WriterPath` always succeeds; an `EitherOrBoth` can be `Left`, `Right`, or `Both`)
 
 ---
 

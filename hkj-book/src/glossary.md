@@ -1040,6 +1040,22 @@ Validated<NonEmptyList<String>, Integer> bad = Validated.invalidNel("must be pos
 
 ---
 
+### EitherOrBoth
+
+**Definition:** An *inclusive*-or (known elsewhere as `Ior` or `These`): a sealed type that is a `Left<L>`, a `Right<R>`, or `Both<L, R>` at once. Unlike `Either` and `Validated` (which are exclusive), it models a success that also carries accumulated, non-fatal warnings.
+
+```java
+EitherOrBoth<String, Integer> ok      = EitherOrBoth.right(42);
+EitherOrBoth<String, Integer> warned  = EitherOrBoth.both("deprecated key", 42);
+EitherOrBoth<String, Integer> failed  = EitherOrBoth.left("fatal");
+```
+
+**Right-biased with total accessors:** `map`/`flatMap` operate on the right; `getLeft()`/`getRight()` return `Maybe` and never throw. `flatMap` short-circuits on `Left` and accumulates a `Both`'s warnings via a `Semigroup<L>` (default `NonEmptyList.semigroup()`). The monadic `ap` short-circuits; full `Validated`-style accumulation lives on `EitherOrBothPath` (`zipWithAccum`).
+
+**Related:** [EitherOrBoth](monads/either_or_both_monad.md), [EitherOrBothPath](effect/path_either_or_both.md), [Either](#either), [Validated](#validated), [NonEmptyList](#nonemptylist)
+
+---
+
 ### Unit
 
 **Definition:** A type with exactly one value (`Unit.INSTANCE`), representing the completion of an operation that doesn't produce a meaningful result. The functional equivalent of `void`, but usable as a type parameter.

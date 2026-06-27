@@ -3,6 +3,7 @@
 package org.higherkindedj.spring.json;
 
 import org.higherkindedj.hkt.either.Either;
+import org.higherkindedj.hkt.eitherorboth.EitherOrBoth;
 import org.higherkindedj.hkt.nonemptylist.NonEmptyList;
 import org.higherkindedj.hkt.validated.Validated;
 import tools.jackson.databind.module.SimpleModule;
@@ -15,6 +16,7 @@ import tools.jackson.databind.module.SimpleModule;
  * <ul>
  *   <li>{@link Either} - Serialized as {"isRight": boolean, "left"|"right": value}
  *   <li>{@link Validated} - Serialized as {"valid": boolean, "value"|"errors": value}
+ *   <li>{@link EitherOrBoth} - Serialized as {"kind": "left"|"right"|"both", "left"?, "right"?}
  *   <li>{@link NonEmptyList} - Serialized as a JSON array; an empty array is rejected on read
  * </ul>
  *
@@ -50,6 +52,11 @@ public class HkjJacksonModule extends SimpleModule {
     // Raw type cast needed because Validated<?, ?> is generic
     addSerializer((Class) Validated.class, new ValidatedSerializer());
     addDeserializer((Class) Validated.class, new ValidatedDeserializer());
+
+    // EitherOrBoth (inclusive-or) serialization/deserialization
+    // Raw type cast needed because EitherOrBoth<?, ?> is generic
+    addSerializer((Class) EitherOrBoth.class, new EitherOrBothSerializer());
+    addDeserializer((Class) EitherOrBoth.class, new EitherOrBothDeserializer());
 
     // NonEmptyList serialization/deserialization
     // Raw type cast needed because NonEmptyList<?> is generic

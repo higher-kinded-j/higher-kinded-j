@@ -8,6 +8,7 @@ import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.spring.actuator.HkjMetricsService;
 import org.higherkindedj.spring.web.returnvalue.CompletableFuturePathReturnValueHandler;
 import org.higherkindedj.spring.web.returnvalue.DefaultErrorStatusCodeStrategy;
+import org.higherkindedj.spring.web.returnvalue.EitherOrBothPathReturnValueHandler;
 import org.higherkindedj.spring.web.returnvalue.EitherPathReturnValueHandler;
 import org.higherkindedj.spring.web.returnvalue.ErrorStatusCodeStrategy;
 import org.higherkindedj.spring.web.returnvalue.FreePathReturnValueHandler;
@@ -49,6 +50,8 @@ import tools.jackson.databind.json.JsonMapper;
  *   <li>{@link MaybePathReturnValueHandler} - Handles MaybePath return types
  *   <li>{@link TryPathReturnValueHandler} - Handles TryPath return types
  *   <li>{@link ValidationPathReturnValueHandler} - Handles ValidationPath with error accumulation
+ *   <li>{@link EitherOrBothPathReturnValueHandler} - Handles EitherOrBothPath
+ *       (success-with-warnings)
  *   <li>{@link IOPathReturnValueHandler} - Handles IOPath deferred execution
  *   <li>{@link CompletableFuturePathReturnValueHandler} - Handles async CompletableFuturePath
  *   <li>{@link VTaskPathReturnValueHandler} - Handles VTaskPath virtual thread execution
@@ -97,6 +100,7 @@ public class HkjWebMvcAutoConfiguration {
    *   <li>hkj.web.maybe-path-enabled - controls MaybePathReturnValueHandler
    *   <li>hkj.web.try-path-enabled - controls TryPathReturnValueHandler
    *   <li>hkj.web.validation-path-enabled - controls ValidationPathReturnValueHandler
+   *   <li>hkj.web.either-or-both-path-enabled - controls EitherOrBothPathReturnValueHandler
    *   <li>hkj.web.io-path-enabled - controls IOPathReturnValueHandler
    *   <li>hkj.web.completable-future-path-enabled - controls
    *       CompletableFuturePathReturnValueHandler
@@ -156,6 +160,12 @@ public class HkjWebMvcAutoConfiguration {
               newHandlers.add(
                   new ValidationPathReturnValueHandler(
                       jsonMapper, webConfig.getValidationInvalidStatus()));
+            }
+
+            if (webConfig.isEitherOrBothPathEnabled()) {
+              newHandlers.add(
+                  new EitherOrBothPathReturnValueHandler(
+                      jsonMapper, webConfig.getDefaultErrorStatus(), errorStatusCodeStrategy));
             }
 
             if (webConfig.isIoPathEnabled()) {

@@ -16,6 +16,8 @@ import org.higherkindedj.hkt.Unit;
 import org.higherkindedj.hkt.WitnessArity;
 import org.higherkindedj.hkt.either_t.EitherTKind;
 import org.higherkindedj.hkt.either_t.EitherTMonad;
+import org.higherkindedj.hkt.eitherorboth.EitherOrBothKind;
+import org.higherkindedj.hkt.eitherorboth.EitherOrBothMonad;
 import org.higherkindedj.hkt.maybe_t.MaybeTKind;
 import org.higherkindedj.hkt.maybe_t.MaybeTMonad;
 import org.higherkindedj.hkt.optional_t.OptionalTKind;
@@ -180,6 +182,24 @@ public final class Instances {
    */
   public static <E> MonadError<ValidatedKind.Witness<E>, E> validated(Semigroup<E> semigroup) {
     return ValidatedMonad.instance(semigroup);
+  }
+
+  /**
+   * Returns the {@link Monad} for {@code EitherOrBoth} (inclusive-or), accumulating the left
+   * (warning) channel with {@code semigroup}. The common case uses {@code
+   * NonEmptyList.semigroup()}.
+   *
+   * <p>Unlike the sibling error types {@code Either}/{@code Validated}, this is a plain {@link
+   * Monad} and not a {@code MonadError}: the {@code Both} case makes {@code raiseError}/{@code
+   * handleErrorWith} ill-defined (a value can coexist with errors). Recovery from a fatal {@code
+   * Left} is offered at the Path level via {@code EitherOrBothPath}'s {@code Recoverable} methods.
+   *
+   * @param <L> the left (warning/error) type
+   * @param semigroup the semigroup used to combine accumulated left values
+   * @return {@code EitherOrBothMonad.instance(semigroup)}
+   */
+  public static <L> Monad<EitherOrBothKind.Witness<L>> eitherOrBoth(Semigroup<L> semigroup) {
+    return EitherOrBothMonad.instance(semigroup);
   }
 
   /**

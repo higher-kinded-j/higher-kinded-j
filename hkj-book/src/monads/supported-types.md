@@ -83,6 +83,8 @@ Six ways to model "this computation might not produce a value."
 
 **[`Validated<E, A>`](./validated_monad.md)** -- `Valid(value)` or `Invalid(error)`. Looks like Either, but its killer feature is error *accumulation*: use applicative `ap` with a `Semigroup<E>` to collect ALL errors from independent validations, not just the first one. The go-to for form validation and input checking.
 
+**[`EitherOrBoth<L, R>`](./either_or_both_monad.md)** -- `Left(error)`, `Right(value)`, or `Both(warnings, value)`. The *inclusive*-or (`Ior`/`These`): unlike Either/Validated, it models a success that also carries non-fatal warnings. Right-biased with total accessors; `flatMap` short-circuits on `Left` and accumulates a `Both`'s warnings via a `Semigroup`. Reach for it when a result can be both a value and a list of problems.
+
 ### Effect & Computation Types
 
 Eight ways to model "this computation does something beyond returning a value."

@@ -34,7 +34,7 @@ record Right<L, R>(R value) implements Either<L, R> { ... }
 That is the whole shape of the type. Two cases, one rail each.
 
 ~~~admonish note title="Related Types"
-For exceptions specifically, see [Try](./try_monad.md), an `Either` specialised with `Throwable` on the left. For fail-slow validation that gathers every error rather than the first, see [Validated](./validated_monad.md).
+For exceptions specifically, see [Try](./try_monad.md), an `Either` specialised with `Throwable` on the left. For fail-slow validation that gathers every error rather than the first, see [Validated](./validated_monad.md). For a success that can also carry non-fatal warnings (a value *and* problems, not one or the other), see [EitherOrBoth](./either_or_both_monad.md), the inclusive-or.
 ~~~
 
 ---
@@ -280,4 +280,4 @@ See [Benchmarks & Performance](../benchmarks.md) for full details, expected rati
 ---
 
 **Previous:** [CompletableFuture](cf_monad.md)
-**Next:** [Identity](identity.md)
+**Next:** [EitherOrBoth](either_or_both_monad.md)

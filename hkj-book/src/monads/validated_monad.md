@@ -304,6 +304,12 @@ Validated has dedicated JMH benchmarks. Key expectations:
 See [Benchmarks & Performance](../benchmarks.md) for full details.
 ~~~
 
+~~~admonish note title="Related Types"
+- [Either](either_monad.md): the exclusive, fail-fast success-or-failure sibling
+- [EitherOrBoth](either_or_both_monad.md): when a result can carry a value *and* accumulated warnings, not only errors or a value (`Validated` is exclusive; `EitherOrBoth` adds the `Both` case)
+- [NonEmptyList](nonemptylist_monad.md): the non-empty error channel that proves an `Invalid` has at least one error
+~~~
+
 ---
 
 **Previous:** [Try](try_monad.md)
