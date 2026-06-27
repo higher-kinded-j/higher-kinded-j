@@ -3,7 +3,7 @@
 This page documents the evolution of Higher-Kinded-J from its initial release through to the current version. Each release builds on the foundations established by earlier versions, progressively adding type classes, monads, optics, and the Effect Path API.
 
 ~~~admonish info title="What You'll Find"
-- Detailed release notes for recent versions (0.3.0–0.4.7) with links to documentation
+- Detailed release notes for recent versions (0.3.0–0.4.8) with links to documentation
 - Summary release notes for earlier versions (pre-0.3.0)
 - Links to GitHub release pages for full changelogs
 ~~~
@@ -11,6 +11,23 @@ This page documents the evolution of Higher-Kinded-J from its initial release th
 ---
 
 ## Recent Releases
+
+### 0.4.8-SNAPSHOT (Latest)
+
+**`NonEmptyList`: a list that is never empty, and the streamlined validation error channel**
+
+`Validated`/`ValidationPath` accumulate errors, but the channel users were steered toward was a plain `List<Error>`: a type that permits the impossible empty case (an *invalid* result always has at least one error), forces a `Semigroups.list()` argument at every call, and leaves `get(0)` partial. New `NonEmptyList<A>` encodes "at least one element" in the type, so `head`/`last`/`reduce`/`min`/`max` are **total** (no `Optional`, never throw). It is the canonical companion to `Validated`, mirroring Cats' `NonEmptyList`/`ValidatedNel`. Purely additive; the existing `Semigroups.list()` channel is unchanged ([#549](https://github.com/higher-kinded-j/higher-kinded-j/issues/549)).
+
+- **Plain fluent type, no HKT tax:** `NonEmptyList.of(a, b, c).map(f).flatMap(g)`, plus `reduce(semigroup)`, `foldLeft`, `reverse`, `concat`/`append`/`prepend`, `toJavaList()`, and `Iterable`. Safe construction from possibly-empty data via `fromList`/`fromIterable`, which return `Maybe` and never throw. Deeply immutable (defensive-copied `tail`, unmodifiable `tail()`); never holds `null`.
+- **Higher-kinded:** `NonEmptyList` implements its `Kind` directly (cast-free widen/narrow), with `Functor`/`Monad`/`Traverse`/`Foldable`/`Semigroup` instances reachable via `Witnesses.nonEmptyList()`. Deliberately **no `Monoid`/`MonadZero`**: there is no empty `NonEmptyList`, and the absence is the point.
+- **Validation integration:** `Path.validNel` / `Path.invalidNel` / `Path.validatedNel` and `Validated.validNel` / `Validated.invalidNel` bake in `NonEmptyList.semigroup()`, so the common case drops the `Semigroup` argument and the manual `List.of(error)` wrapping, and `getError().head()` is total. Accumulation is left-to-right concatenation.
+- **Tooling:** an `assertThatNonEmptyList` assertion in `hkj-test`, and Jackson support in `hkj-spring` (serialised as a JSON array; an empty `[]` is rejected on read so the non-empty guarantee survives the wire). See [NonEmptyList](monads/nonemptylist_monad.md).
+
+**`hkj-spring` Jackson deserializers now resolve their generic element types**
+
+The `Either`, `Validated`, and `NonEmptyList` deserializers read inner values as `Object`, so a `TypeReference<…<CustomType>>` (or a typed field) produced `LinkedHashMap` elements and a `ClassCastException` on access. All three now implement Jackson 3.x contextual resolution (`ValueDeserializer.createContextual`), binding to the contained generic types taken from the property or `TypeReference`, so nested custom types round-trip to the real type, including end-to-end through a `Validated<NonEmptyList<Foo>, …>`. Raw `.class` reads keep the `Object` fallback ([#578](https://github.com/higher-kinded-j/higher-kinded-j/pull/578)).
+
+---
 
 ### [v0.4.7](https://github.com/higher-kinded-j/higher-kinded-j/releases/tag/v0.4.7) (26 June 2026)
 
