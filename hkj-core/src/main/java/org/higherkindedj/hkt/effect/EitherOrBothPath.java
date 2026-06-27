@@ -320,7 +320,7 @@ public final class EitherOrBothPath<L, A>
     Objects.requireNonNull(second, "second must not be null");
     Objects.requireNonNull(third, "third must not be null");
     Objects.requireNonNull(combiner, "combiner must not be null");
-    return this.zipWithAccum(second, Tuple2<A, B>::new)
+    return this.zipWithAccum(second, Tuple2::new)
         .zipWithAccum(third, (pair, c) -> combiner.apply(pair._1(), pair._2(), c));
   }
 
