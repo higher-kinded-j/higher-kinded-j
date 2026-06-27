@@ -211,6 +211,9 @@ public class HkjProperties {
     /** Enable ValidationPath return value handler. Default: true */
     private boolean validationPathEnabled = true;
 
+    /** Enable EitherOrBothPath return value handler. Default: true */
+    private boolean eitherOrBothPathEnabled = true;
+
     /** Enable IOPath return value handler. Default: true */
     private boolean ioPathEnabled = true;
 
@@ -376,6 +379,24 @@ public class HkjProperties {
      */
     public void setValidationPathEnabled(boolean validationPathEnabled) {
       this.validationPathEnabled = validationPathEnabled;
+    }
+
+    /**
+     * Returns whether EitherOrBothPath handler is enabled.
+     *
+     * @return whether EitherOrBothPath handler is enabled
+     */
+    public boolean isEitherOrBothPathEnabled() {
+      return eitherOrBothPathEnabled;
+    }
+
+    /**
+     * Sets whether EitherOrBothPath handler is enabled.
+     *
+     * @param eitherOrBothPathEnabled whether EitherOrBothPath handler is enabled
+     */
+    public void setEitherOrBothPathEnabled(boolean eitherOrBothPathEnabled) {
+      this.eitherOrBothPathEnabled = eitherOrBothPathEnabled;
     }
 
     /**

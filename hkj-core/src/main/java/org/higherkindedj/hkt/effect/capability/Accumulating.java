@@ -3,6 +3,7 @@
 package org.higherkindedj.hkt.effect.capability;
 
 import java.util.function.BiFunction;
+import org.higherkindedj.hkt.effect.EitherOrBothPath;
 import org.higherkindedj.hkt.effect.ValidationPath;
 import org.higherkindedj.hkt.function.Function3;
 
@@ -54,7 +55,8 @@ import org.higherkindedj.hkt.function.Function3;
  * @see Combinable
  * @see org.higherkindedj.hkt.Semigroup
  */
-public sealed interface Accumulating<E, A> extends Composable<A> permits ValidationPath {
+public sealed interface Accumulating<E, A> extends Composable<A>
+    permits ValidationPath, EitherOrBothPath {
 
   /**
    * Combines this accumulating value with another, collecting errors from both.

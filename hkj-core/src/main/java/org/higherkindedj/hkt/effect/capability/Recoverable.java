@@ -5,6 +5,7 @@ package org.higherkindedj.hkt.effect.capability;
 import java.util.function.Function;
 import java.util.function.Supplier;
 import org.higherkindedj.hkt.effect.CompletableFuturePath;
+import org.higherkindedj.hkt.effect.EitherOrBothPath;
 import org.higherkindedj.hkt.effect.EitherPath;
 import org.higherkindedj.hkt.effect.MaybePath;
 import org.higherkindedj.hkt.effect.TryPath;
@@ -39,7 +40,12 @@ import org.higherkindedj.hkt.effect.ValidationPath;
  * @param <A> the type of the contained value
  */
 public sealed interface Recoverable<E, A> extends Chainable<A>
-    permits MaybePath, EitherPath, TryPath, ValidationPath, CompletableFuturePath {
+    permits MaybePath,
+        EitherPath,
+        TryPath,
+        ValidationPath,
+        EitherOrBothPath,
+        CompletableFuturePath {
 
   /**
    * Recovers from an error by providing a fallback value.
@@ -106,6 +112,11 @@ public sealed interface Recoverable<E, A> extends Chainable<A>
    *
    * <p>If this path contains an error, the function is applied to transform it. If this path
    * contains a value, it is returned with the error type changed (the value is unchanged).
+   *
+   * <p><b>Note:</b> the accumulating implementations ({@code ValidationPath}, {@code
+   * EitherOrBothPath}) cannot rebase their {@code Semigroup} for the new error type and therefore
+   * throw {@link UnsupportedOperationException} when they carry errors/warnings; those types offer
+   * a {@code mapErrorWith(mapper, newSemigroup)} alternative. See their documentation.
    *
    * <p>Example:
    *

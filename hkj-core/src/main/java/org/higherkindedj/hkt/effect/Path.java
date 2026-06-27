@@ -23,6 +23,7 @@ import org.higherkindedj.hkt.WitnessArity;
 import org.higherkindedj.hkt.effect.capability.Chainable;
 import org.higherkindedj.hkt.effect.spi.PathRegistry;
 import org.higherkindedj.hkt.either.Either;
+import org.higherkindedj.hkt.eitherorboth.EitherOrBoth;
 import org.higherkindedj.hkt.free.Free;
 import org.higherkindedj.hkt.free_ap.FreeAp;
 import org.higherkindedj.hkt.id.Id;
@@ -238,6 +239,113 @@ public final class Path {
   public static <E, A> EitherPath<E, A> either(Either<E, A> either) {
     Objects.requireNonNull(either, "either must not be null");
     return new EitherPath<>(either);
+  }
+
+  // ===== EitherOrBothPath factory methods =====
+
+  /**
+   * Creates an {@link EitherOrBothPath} containing a {@code Right} (clean success) value.
+   *
+   * @param value the success value; must not be null
+   * @param semigroup the semigroup for combining warnings; must not be null
+   * @param <L> the warning type (phantom for a {@code Right})
+   * @param <A> the success type
+   * @return an EitherOrBothPath containing {@code Right}
+   * @throws NullPointerException if value or semigroup is null
+   */
+  public static <L, A> EitherOrBothPath<L, A> right(A value, Semigroup<L> semigroup) {
+    return new EitherOrBothPath<>(EitherOrBoth.right(value), semigroup);
+  }
+
+  /**
+   * Creates an {@link EitherOrBothPath} containing a {@code Left} (fatal failure) value.
+   *
+   * @param error the warning/error value; must not be null
+   * @param semigroup the semigroup for combining warnings; must not be null
+   * @param <L> the warning type
+   * @param <A> the success type (phantom for a {@code Left})
+   * @return an EitherOrBothPath containing {@code Left}
+   * @throws NullPointerException if error or semigroup is null
+   */
+  public static <L, A> EitherOrBothPath<L, A> left(L error, Semigroup<L> semigroup) {
+    return new EitherOrBothPath<>(EitherOrBoth.left(error), semigroup);
+  }
+
+  /**
+   * Creates an {@link EitherOrBothPath} containing a {@code Both} (success with warnings).
+   *
+   * @param warnings the warning value; must not be null
+   * @param value the success value; must not be null
+   * @param semigroup the semigroup for combining warnings; must not be null
+   * @param <L> the warning type
+   * @param <A> the success type
+   * @return an EitherOrBothPath containing {@code Both}
+   * @throws NullPointerException if any argument is null
+   */
+  public static <L, A> EitherOrBothPath<L, A> both(L warnings, A value, Semigroup<L> semigroup) {
+    return new EitherOrBothPath<>(EitherOrBoth.both(warnings, value), semigroup);
+  }
+
+  /**
+   * Creates an {@link EitherOrBothPath} from an existing {@link EitherOrBoth}.
+   *
+   * @param value the value to wrap; must not be null
+   * @param semigroup the semigroup for combining warnings; must not be null
+   * @param <L> the warning type
+   * @param <A> the success type
+   * @return an EitherOrBothPath wrapping the value
+   * @throws NullPointerException if value or semigroup is null
+   */
+  public static <L, A> EitherOrBothPath<L, A> eitherOrBoth(
+      EitherOrBoth<L, A> value, Semigroup<L> semigroup) {
+    Objects.requireNonNull(value, "value must not be null");
+    return new EitherOrBothPath<>(value, semigroup);
+  }
+
+  // These bake in NonEmptyList.semigroup() so the common warning-accumulating case needs no
+  // explicit Semigroup argument and no manual List.of(...) wrapping.
+
+  /**
+   * Creates a {@code Right} {@link EitherOrBothPath} whose warning channel is a {@link
+   * NonEmptyList}, using {@code NonEmptyList.semigroup()} for accumulation.
+   *
+   * @param value the success value; must not be null
+   * @param <E> the element type of the warning {@code NonEmptyList}
+   * @param <A> the success type
+   * @return a {@code Right} {@code EitherOrBothPath<NonEmptyList<E>, A>}
+   */
+  public static <E, A> EitherOrBothPath<NonEmptyList<E>, A> rightNel(A value) {
+    return new EitherOrBothPath<>(EitherOrBoth.right(value), NonEmptyList.semigroup());
+  }
+
+  /**
+   * Creates a {@code Left} {@link EitherOrBothPath} from a single error wrapped in a singleton
+   * {@link NonEmptyList}, using {@code NonEmptyList.semigroup()} for accumulation.
+   *
+   * @param error the error; must not be null
+   * @param <E> the element type of the warning {@code NonEmptyList}
+   * @param <A> the success type (phantom)
+   * @return a {@code Left} {@code EitherOrBothPath<NonEmptyList<E>, A>}, non-empty by construction
+   */
+  public static <E, A> EitherOrBothPath<NonEmptyList<E>, A> leftNel(E error) {
+    return new EitherOrBothPath<>(
+        EitherOrBoth.left(NonEmptyList.single(error)), NonEmptyList.semigroup());
+  }
+
+  /**
+   * Creates a {@code Both} {@link EitherOrBothPath} from a single warning wrapped in a singleton
+   * {@link NonEmptyList} plus a success value, using {@code NonEmptyList.semigroup()} for
+   * accumulation.
+   *
+   * @param warning the warning; must not be null
+   * @param value the success value; must not be null
+   * @param <E> the element type of the warning {@code NonEmptyList}
+   * @param <A> the success type
+   * @return a {@code Both} {@code EitherOrBothPath<NonEmptyList<E>, A>}, non-empty by construction
+   */
+  public static <E, A> EitherOrBothPath<NonEmptyList<E>, A> bothNel(E warning, A value) {
+    return new EitherOrBothPath<>(
+        EitherOrBoth.both(NonEmptyList.single(warning), value), NonEmptyList.semigroup());
   }
 
   // ===== TryPath factory methods =====

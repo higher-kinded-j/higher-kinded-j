@@ -144,4 +144,4 @@ String result = validated.fold(
 ---
 
 **Previous:** [TryPath](path_try.md)
-**Next:** [IOPath](path_io.md)
+**Next:** [EitherOrBothPath](path_either_or_both.md)

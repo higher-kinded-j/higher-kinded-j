@@ -48,6 +48,8 @@ class PackageStructureRules {
         .and()
         .haveSimpleNameNotContaining("EitherF") // EitherF sum type is in eitherf package
         .and()
+        .haveSimpleNameNotContaining("EitherOrBoth") // inclusive-or is in eitherorboth package
+        .and()
         .haveSimpleNameNotContaining("Path") // Effect Path API classes in effect package
         .and()
         .resideInAPackage("..hkt..")
@@ -285,6 +287,23 @@ class PackageStructureRules {
         .resideInAPackage("..hkt..")
         .should()
         .resideInAPackage("..validated..")
+        .allowEmptyShould(true)
+        .check(classes);
+  }
+
+  /** EitherOrBoth (inclusive-or) classes should be in the eitherorboth package. */
+  @Test
+  @DisplayName("EitherOrBoth classes should reside in the eitherorboth package")
+  void either_or_both_classes_in_eitherorboth_package() {
+    classes()
+        .that()
+        .haveSimpleNameStartingWith("EitherOrBoth")
+        .and()
+        .haveSimpleNameNotContaining("Path") // Effect Path API classes in effect package
+        .and()
+        .resideInAPackage("..hkt..")
+        .should()
+        .resideInAPackage("..eitherorboth..")
         .allowEmptyShould(true)
         .check(classes);
   }

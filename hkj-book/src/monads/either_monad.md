@@ -34,7 +34,7 @@ record Right<L, R>(R value) implements Either<L, R> { ... }
 That is the whole shape of the type. Two cases, one rail each.
 
 ~~~admonish note title="Related Types"
-For exceptions specifically, see [Try](./try_monad.md), an `Either` specialised with `Throwable` on the left. For fail-slow validation that gathers every error rather than the first, see [Validated](./validated_monad.md).
+For exceptions specifically, see [Try](./try_monad.md), an `Either` specialised with `Throwable` on the left. For fail-slow validation that gathers every error rather than the first, see [Validated](./validated_monad.md). For a success that can also carry non-fatal warnings (a value *and* problems, not one or the other), see [EitherOrBoth](./either_or_both_monad.md), the inclusive-or.
 ~~~
 
 ---
@@ -43,16 +43,13 @@ For exceptions specifically, see [Try](./try_monad.md), an `Either` specialised 
 
 The mental picture worth keeping is two parallel rails. `Right` keeps us on the success rail; `Left` jumps us to the alternative rail and stays there.
 
-```
-   start
-     │
-     ▼
-   Right(value) ───map──▶ Right(f value) ───flatMap──▶ Right(...) ──▶ result
-     │
-     │  any step returns Left, or starts on Left:
-     │
-   Left(error) ───map──▶ Left(error) ───flatMap──▶ Left(error) ──▶ short-circuit
-```
+<pre class="hkj-railway-diagram">
+    <span style="color:#4CAF50"><b>Right</b>  ═══●═══════════════●═══▶  result</span>
+    <span style="color:#4CAF50">           map             flatMap</span>
+                ╲               ╲   any step returns Left (or starts on Left)
+                 ╲               ╲
+    <span style="color:#F44336"><b>Left</b>   ────●───────────────●───▶  short-circuit</span>
+</pre>
 
 Once we are on the left rail, every downstream `map` and `flatMap` is a no-op. The error reaches the end of the chain unchanged, ready to be inspected with `fold` or pattern matching. We never wrote that propagation logic; the type wrote it for us.
 
@@ -280,4 +277,4 @@ See [Benchmarks & Performance](../benchmarks.md) for full details, expected rati
 ---
 
 **Previous:** [CompletableFuture](cf_monad.md)
-**Next:** [Identity](identity.md)
+**Next:** [EitherOrBoth](either_or_both_monad.md)

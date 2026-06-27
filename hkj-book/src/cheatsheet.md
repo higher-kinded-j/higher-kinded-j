@@ -17,6 +17,7 @@
 | `EitherPath<E, A>` | Typed errors | `Path.right(v)`, `Path.left(e)`, `Path.either(eitherValue)` | `.run()` → `Either<E, A>` |
 | `TryPath<A>` | Exceptions | `Path.tryOf(() -> ...)`, `Path.success(v)`, `Path.failure(ex)` | `.run()` → `Try<A>` |
 | `ValidationPath<E, A>` | Accumulating errors | `Path.valid(v, sg)`, `Path.invalid(e, sg)` | `.run()` → `Validated<E, A>` |
+| `EitherOrBothPath<L, A>` | Success with warnings | `Path.rightNel(v)`, `Path.bothNel(w, v)`, `Path.leftNel(e)` | `.run()` → `EitherOrBoth<L, A>` |
 | `IOPath<A>` | Deferred side effects | `Path.io(() -> ...)`, `Path.ioPure(v)` | `.unsafeRun()` → `A` |
 | `VTaskPath<A>` | Virtual threads | `Path.vtask(() -> ...)`, `Path.vtaskPure(v)` | `.unsafeRun()` → `A` |
 | `ReaderPath<R, A>` | Dependency injection | `Path.reader(r)`, `Path.ask()`, `Path.asks(fn)` | `.run(env)` → `A` |
@@ -59,9 +60,9 @@
 |----------|-------------|--------------|
 | `.zipWith(other, fn)` | Combine two paths (fail-fast) | All combinable paths |
 | `.zipWith3(b, c, fn)` | Combine three paths (fail-fast) | Most paths |
-| `.zipWithAccum(other, fn)` | Combine, accumulating errors | ValidationPath |
-| `.zipWith3Accum(b, c, fn)` | Combine three, accumulating errors | ValidationPath |
-| `.andAlso(other)` | Accumulate errors, keep left value | ValidationPath |
+| `.zipWithAccum(other, fn)` | Combine, accumulating errors | ValidationPath, EitherOrBothPath |
+| `.zipWith3Accum(b, c, fn)` | Combine three, accumulating errors | ValidationPath, EitherOrBothPath |
+| `.andAlso(other)` | Accumulate errors, keep left value | ValidationPath, EitherOrBothPath |
 
 ### Error Handling
 
