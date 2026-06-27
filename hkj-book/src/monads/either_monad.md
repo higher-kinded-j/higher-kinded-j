@@ -43,16 +43,13 @@ For exceptions specifically, see [Try](./try_monad.md), an `Either` specialised 
 
 The mental picture worth keeping is two parallel rails. `Right` keeps us on the success rail; `Left` jumps us to the alternative rail and stays there.
 
-```
-   start
-     │
-     ▼
-   Right(value) ───map──▶ Right(f value) ───flatMap──▶ Right(...) ──▶ result
-     │
-     │  any step returns Left, or starts on Left:
-     │
-   Left(error) ───map──▶ Left(error) ───flatMap──▶ Left(error) ──▶ short-circuit
-```
+<pre class="hkj-railway-diagram">
+    <span style="color:#4CAF50"><b>Right</b>  ═══●═══════════════●═══▶  result</span>
+    <span style="color:#4CAF50">           map             flatMap</span>
+                ╲               ╲   any step returns Left (or starts on Left)
+                 ╲               ╲
+    <span style="color:#F44336"><b>Left</b>   ────●───────────────●───▶  short-circuit</span>
+</pre>
 
 Once we are on the left rail, every downstream `map` and `flatMap` is a no-op. The error reaches the end of the chain unchanged, ready to be inspected with `fold` or pattern matching. We never wrote that propagation logic; the type wrote it for us.
 
