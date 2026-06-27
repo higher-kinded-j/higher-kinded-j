@@ -94,6 +94,13 @@ String s = both.fold(
 `Validated` uses). The contract is: **`Left` is fatal and short-circuits; `Both` carries its warnings
 forward and accumulates them.**
 
+```
+  Right(r)   ──map──▶ Right(r')    ──flatMap f──▶  f(r)              ──▶  value
+  Both(w, r) ──map──▶ Both(w, r')  ──flatMap f──▶  Both(w ⊕ w', r')  ──▶  value + warnings
+  Left(e)    ──map──▶ Left(e)      ──flatMap f──▶  Left(e)           ──▶  short-circuit
+                                                   (⊕ is the supplied Semigroup; Left never runs f)
+```
+
 ```java
 EitherOrBoth<L, R2> flatMap(
     Semigroup<L> semigroup,

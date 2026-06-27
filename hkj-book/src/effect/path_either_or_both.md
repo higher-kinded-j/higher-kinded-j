@@ -38,6 +38,25 @@ EitherOrBothPath<String, Integer> p = Path.both("warn", 42, Semigroups.string(";
 
 ---
 
+## The Railway View
+
+The two composition modes differ only in how they treat the warning lane. `via` runs a dependent step
+on the success rail; `zipWithAccum` merges two independent results, collecting every warning.
+
+```
+via  (sequential; Left short-circuits, Both threads its warnings):
+  bothNel(w1, a) ──via f──▶ f(a) = bothNel(w2, b)  ──▶  Both([w1, w2], b)
+  leftNel(e)     ──via f──▶ (f not run)            ──▶  Left([e])
+
+zipWithAccum  (parallel; collects every warning, even across a Left):
+  bothNel(w1, a) ┐
+                 ├─ zipWithAccum (a, b) ─▶  Both([w1, w2], combine(a, b))
+  bothNel(w2, b) ┘
+  leftNel(e1)  +  leftNel(e2)            ─▶  Left([e1, e2])
+```
+
+---
+
 ## Two Modes of Composition
 
 Like `ValidationPath`, `EitherOrBothPath` offers both short-circuit and accumulating composition.
