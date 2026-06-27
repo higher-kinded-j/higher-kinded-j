@@ -3,9 +3,9 @@
 
 ~~~admonish info title="What You'll Learn"
 - Why `List<Error>` is the wrong type for an accumulating error channel, and how `NonEmptyList` fixes it
-- Total operations — `head`, `last`, `reduce`, `min`, `max` — that never throw, because there is always at least one element
+- Total operations (`head`, `last`, `reduce`, `min`, `max`) that never throw, because there is always at least one element
 - Constructing a `NonEmptyList` safely: `of`, `single`, and the checked `fromList` / `fromIterable` that return `Maybe`
-- Using `NonEmptyList` as the default validation error channel with `Path.validNel` / `Path.invalidNel` — no `Semigroup` argument, no manual single-error wrapping
+- Using `NonEmptyList` as the default validation error channel with `Path.validNel` / `Path.invalidNel`: no `Semigroup` argument, no manual single-error wrapping
 - Why there is deliberately **no** empty `NonEmptyList` and **no** `Monoid` instance
 ~~~
 
@@ -15,10 +15,10 @@
 
 ## The Problem: `List<Error>` Lies
 
-Accumulating validation is one of Higher-Kinded-J's headline stories — `Validated` and `ValidationPath` collect *all* the errors instead of stopping at the first. But the type the errors are carried in matters. The common choice, `List<Error>`, permits an impossible state:
+Accumulating validation is one of Higher-Kinded-J's headline stories: `Validated` and `ValidationPath` collect *all* the errors instead of stopping at the first. But the type the errors are carried in matters. The common choice, `List<Error>`, permits an impossible state:
 
 ```java
-// An "invalid" result always has at least one error — but the type allows zero.
+// An "invalid" result always has at least one error, yet the type allows zero.
 ValidationPath<List<Error>, User> failure = Path.invalid(List.of(error), Semigroups.list());
 Error first = failure.run().getError().get(0);   // partial: get(0) can throw
 ```
@@ -32,7 +32,7 @@ Three things hurt here:
 `NonEmptyList<A>` is a list guaranteed by its type to contain at least one element. The invalid branch proves non-emptiness at compile time, and the common case loses its boilerplate:
 
 ```java
-// NonEmptyList error channel — no Semigroup argument, no List.of wrapping.
+// NonEmptyList error channel: no Semigroup argument, no List.of wrapping.
 ValidationPath<NonEmptyList<Error>, User> failure = Path.invalidNel(error);
 Error first = failure.run().getError().head();   // total: never throws, returns Error
 ```
@@ -45,8 +45,8 @@ This is the canonical companion to `Validated` in comparable libraries (Cats' `N
 |-----------|------|
 | `NonEmptyList<A>` | An immutable `record` of a `head` plus a (possibly empty) `tail`; always at least one element. Implements `Iterable<A>`. |
 | `NonEmptyListKind<A>` / `NonEmptyListKindHelper` | HKT bridge. `NonEmptyList` implements its own `Kind` directly, so `widen()` is a cast-free upcast and `narrow()` a direct cast. |
-| `NonEmptyListMonad` | `Monad<NonEmptyListKind.Witness>` — `map`, `flatMap`, `of`, and a Cartesian `ap`. Deliberately **not** a `MonadZero`. |
-| `NonEmptyListTraverse` | `Traverse` and `Foldable` — results are non-empty by construction. |
+| `NonEmptyListMonad` | `Monad<NonEmptyListKind.Witness>`: `map`, `flatMap`, `of`, and a Cartesian `ap`. Deliberately **not** a `MonadZero`. |
+| `NonEmptyListTraverse` | `Traverse` and `Foldable`; results are non-empty by construction. |
 | `NonEmptyList.semigroup()` | The concatenating `Semigroup<NonEmptyList<A>>` used as the accumulating error channel. |
 
 ## Construction
@@ -59,7 +59,7 @@ NonEmptyList<Integer> b = NonEmptyList.of(1, List.of(2));  // head + explicit ta
 NonEmptyList<Integer> c = NonEmptyList.single(42);         // single element
 ```
 
-To build one from data that *might* be empty, use the checked factories. They never throw — they return `Maybe`:
+To build one from data that *might* be empty, use the checked factories. They never throw; they return `Maybe`:
 
 ```java
 Maybe<NonEmptyList<Integer>> maybe = NonEmptyList.fromList(List.of(1, 2, 3)); // Just([1, 2, 3])
@@ -67,35 +67,37 @@ Maybe<NonEmptyList<Integer>> none  = NonEmptyList.fromList(List.of());        //
 ```
 
 ~~~admonish note title="Immutable and null-safe"
-The `tail` is defensively copied on construction, `tail()` returns an unmodifiable view, and elements are never `null` — any attempt to introduce a `null` element is rejected at construction time.
+The `tail` is defensively copied on construction, `tail()` returns an unmodifiable view, and elements are never `null`; any attempt to introduce a `null` element is rejected at construction time.
 ~~~
 
 ## Total Accessors
 
-Because non-emptiness is part of the type, operations that are *partial* on an ordinary `List` are **total** here — they always return a value and never throw, with no `Optional` to unwrap:
+Because non-emptiness is part of the type, operations that are *partial* on an ordinary `List` are **total** here: they always return a value and never throw, with no `Optional` to unwrap:
 
 ```java
 NonEmptyList<Integer> nel = NonEmptyList.of(3, 1, 2);
 
-int head = nel.head();                          // 3   — never throws
-int last = nel.last();                          // 2   — never throws
-int sum  = nel.reduce((x, y) -> x + y);         // 6   — reduce without an identity
+int head = nel.head();                          // 3   (never throws)
+int last = nel.last();                          // 2   (never throws)
+int sum  = nel.reduce((x, y) -> x + y);         // 6   (reduce without an identity)
 int min  = nel.min(Comparator.naturalOrder());  // 1
 int max  = nel.max(Comparator.naturalOrder());  // 3
 ```
 
 It is also `Iterable`, so it works directly in for-each loops and streams, and `toJavaList()` gives an immutable `java.util.List` for interop.
 
+---
+
 ## The Validation Error Channel
 
 `NonEmptyList` is the natural carrier for accumulating validation. The `Path` factories bake in `NonEmptyList.semigroup()`, so the common case needs no `Semigroup` argument and no manual `List.of(error)` wrapping:
 
 ```java
-// A single-error leaf wraps its error in a singleton NonEmptyList — that is the whole idiom.
+// A single-error leaf wraps its error in a singleton NonEmptyList; that is the whole idiom.
 ValidationPath<NonEmptyList<String>, String> name  = Path.invalidNel("name is blank");
 ValidationPath<NonEmptyList<String>, String> email = Path.invalidNel("email is invalid");
 
-// Accumulation just concatenates the two NonEmptyLists — non-empty by construction.
+// Accumulation just concatenates the two NonEmptyLists, non-empty by construction.
 ValidationPath<NonEmptyList<String>, String> both = name.andAlso(email);
 both.run().getError().toJavaList();   // ["name is blank", "email is invalid"]  (left-to-right)
 ```
@@ -108,14 +110,14 @@ Validated<NonEmptyList<String>, Integer> bad = Validated.invalidNel("must be pos
 ```
 
 ~~~admonish tip title="Two distinct 'combines'"
-Do not confuse `NonEmptyList`'s applicative `ap` (a Cartesian product, like `List`) with `NonEmptyList.semigroup()` (concatenation). Error accumulation in `ValidationPath` uses the **semigroup** — left-to-right concatenation, which is associative but *not* commutative, so error order is preserved.
+Do not confuse `NonEmptyList`'s applicative `ap` (a Cartesian product, like `List`) with `NonEmptyList.semigroup()` (concatenation). Error accumulation in `ValidationPath` uses the **semigroup**: left-to-right concatenation, which is associative but *not* commutative, so error order is preserved.
 ~~~
 
 The existing `Semigroups.list()` channel keeps working unchanged; `NonEmptyList` is an additive, less error-prone default.
 
 ## Using It as a Higher-Kinded Type
 
-Casual use never requires `Kind` — `NonEmptyList.of(a, b).map(f).flatMap(g)` is a plain fluent chain. When you need the type-class instances for generic code, reach them through the usual registry:
+Casual use never requires `Kind`: `NonEmptyList.of(a, b).map(f).flatMap(g)` is a plain fluent chain. When you need the type-class instances for generic code, reach them through the usual registry:
 
 ```java
 Monad<NonEmptyListKind.Witness> monad = Instances.monad(nonEmptyList());
@@ -123,7 +125,7 @@ Kind<NonEmptyListKind.Witness, Integer> lifted = monad.of(1);
 ```
 
 ~~~admonish warning title="No empty, by design"
-There is no factory that produces an empty `NonEmptyList`, and therefore **no `Monoid` instance** and **no `MonadZero`/`Alternative`** — those carry an empty identity, which would reintroduce the very footgun the type exists to remove. `NonEmptyList` is a `Functor`, `Applicative`, `Monad`, `Foldable`, `Traverse`, and `Semigroup` — but never a `Monoid`. The absence is the point.
+There is no factory that produces an empty `NonEmptyList`, and therefore **no `Monoid` instance** and **no `MonadZero`/`Alternative`**: those carry an empty identity, which would reintroduce the very footgun the type exists to remove. `NonEmptyList` is a `Functor`, `Applicative`, `Monad`, `Foldable`, `Traverse`, and `Semigroup`, but never a `Monoid`. The absence is the point.
 ~~~
 
 ~~~admonish info title="Key Takeaways"
@@ -135,8 +137,13 @@ There is no factory that produces an empty `NonEmptyList`, and therefore **no `M
 ~~~
 
 ~~~admonish tip title="See Also"
-- [Validated](validated_monad.md) — the accumulating-error type `NonEmptyList` pairs with
-- [List](list_monad.md) — the unconstrained sibling
-- [ValidationPath](../effect/path_validation.md) — the fluent validation API
-- [Semigroups and Monoids](../functional/semigroup_and_monoid.md) — where `NonEmptyList.semigroup()` fits
+- [Validated](validated_monad.md): the accumulating-error type `NonEmptyList` pairs with
+- [List](list_monad.md): the unconstrained sibling
+- [ValidationPath](../effect/path_validation.md): the fluent validation API
+- [Semigroups and Monoids](../functional/semigroup_and_monoid.md): where `NonEmptyList.semigroup()` fits
 ~~~
+
+---
+
+**Previous:** [List](list_monad.md)
+**Next:** [Maybe](maybe_monad.md)

@@ -35,13 +35,13 @@ validations fail. Common choices:
 - `Semigroups.string("; ")` - join strings with separator
 
 ~~~admonish tip title="Prefer the NonEmptyList channel"
-An *invalid* result always has at least one error, so [`NonEmptyList`](../monads/nonemptylist_monad.md) is a better fit than `List` — it proves non-emptiness in the type (`getError().head()` is **total**) and drops the ceremony. The `validNel` / `invalidNel` factories bake in `NonEmptyList.semigroup()`, so there is **no `Semigroup` argument** and **no `List.of(...)` wrapping**:
+An *invalid* result always has at least one error, so [`NonEmptyList`](../monads/nonemptylist_monad.md) is a better fit than `List`: it proves non-emptiness in the type (`getError().head()` is **total**) and drops the ceremony. The `validNel` / `invalidNel` factories bake in `NonEmptyList.semigroup()`, so there is **no `Semigroup` argument** and **no `List.of(...)` wrapping**:
 
 ```java
 ValidationPath<NonEmptyList<String>, Integer> valid   = Path.validNel(42);
 ValidationPath<NonEmptyList<String>, Integer> invalid = Path.invalidNel("must be positive");
 
-String first = invalid.run().getError().head();   // total — never throws
+String first = invalid.run().getError().head();   // total, never throws
 ```
 
 The `Semigroups.list()` form below keeps working unchanged; `NonEmptyList` is the streamlined default.
