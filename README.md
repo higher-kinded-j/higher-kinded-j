@@ -277,9 +277,9 @@ Higher-Kinded-J uses Java preview features. See the [Quickstart Guide](https://h
 
 | Higher-Kinded-J | Spring Boot | Jackson | Java |
 |-----------------|-------------|---------|------|
-| 0.3.x | 4.0.1+ | 3.x (tools.jackson) | 25+ |
+| 0.4.x | 4.1.0+ | 3.x (tools.jackson) | 25+ |
 
-The hkj-spring-boot-starter requires Spring Boot 4.0.1 or later with Jackson 3.x (using the `tools.jackson` package namespace).
+The hkj-spring-boot-starter requires Spring Boot 4.1.0 or later with Jackson 3.x (using the `tools.jackson` package namespace).
 
 ## How to Use This Library
 
@@ -432,7 +432,7 @@ assertThatMaybe(value).isJust().hasValue("hello");
 assertThatTry(computation).isFailure().hasExceptionOfType(IOException.class);
 ```
 
-Coverage spans the discriminated unions (`Either`, `Maybe`, `Try`, `Validated`, `Lazy`), the effect types (`IO`, `VTask`, `VStream`), the Reader / Writer / State trio, every monad transformer (`EitherT`, `MaybeT`, `OptionalT`, `ReaderT`, `StateT`, `WriterT`), the `Free` / `EitherF` algebras, the `List` / `OptionalKind` / `Stream` / `Id` Kind-narrowing wrappers, and the `VTaskPath` / `VStreamPath` / `VTaskContext` Path-and-context assertions. On Java 25 with `--enable-preview`, `import module org.higherkindedj.test;` brings every helper into scope in one line.
+Coverage spans the discriminated unions (`Either`, `Maybe`, `Try`, `Validated`, `Lazy`), the effect types (`IO`, `VTask`, `VStream`), the Reader / Writer / State trio, every monad transformer (`EitherT`, `MaybeT`, `OptionalT`, `ReaderT`, `StateT`, `WriterT`), the `Free` / `EitherF` algebras, the `List` / `OptionalKind` / `Stream` / `Id` Kind-narrowing wrappers, the `NonEmptyList` non-empty list, and the `VTaskPath` / `VStreamPath` / `VTaskContext` Path-and-context assertions. On Java 25 with `--enable-preview`, `import module org.higherkindedj.test;` brings every helper into scope in one line.
 
 For the full reference, see [Testing with hkj-test](https://higher-kinded-j.github.io/latest/tooling/test_assertions.html).
 

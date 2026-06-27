@@ -29,6 +29,7 @@ import org.higherkindedj.hkt.id.Id;
 import org.higherkindedj.hkt.io.IO;
 import org.higherkindedj.hkt.lazy.Lazy;
 import org.higherkindedj.hkt.maybe.Maybe;
+import org.higherkindedj.hkt.nonemptylist.NonEmptyList;
 import org.higherkindedj.hkt.reader.Reader;
 import org.higherkindedj.hkt.state.State;
 import org.higherkindedj.hkt.trampoline.Trampoline;
@@ -473,6 +474,56 @@ public final class Path {
     Objects.requireNonNull(validated, "validated must not be null");
     Objects.requireNonNull(semigroup, "semigroup must not be null");
     return new ValidationPath<>(validated, semigroup);
+  }
+
+  // ===== NonEmptyList-channel ValidationPath factory methods =====
+  // These bake in NonEmptyList.semigroup() so the common accumulating-validation case needs no
+  // explicit Semigroup argument and no manual single-error wrapping.
+
+  /**
+   * Creates a valid {@link ValidationPath} whose error channel is a {@link NonEmptyList}, using
+   * {@link NonEmptyList#semigroup()} for accumulation.
+   *
+   * @param value the success value
+   * @param <E> the error element type
+   * @param <A> the value type
+   * @return a valid {@code ValidationPath<NonEmptyList<E>, A>}
+   */
+  public static <E, A> ValidationPath<NonEmptyList<E>, A> validNel(A value) {
+    return new ValidationPath<>(Validated.validNel(value), NonEmptyList.semigroup());
+  }
+
+  /**
+   * Creates an invalid {@link ValidationPath} from a single error, wrapped in a singleton {@link
+   * NonEmptyList} and using {@link NonEmptyList#semigroup()} for accumulation. No explicit {@code
+   * Semigroup} and no manual {@code List.of(error)} wrapping required.
+   *
+   * @param error the sole error; must not be null
+   * @param <E> the error element type
+   * @param <A> the phantom type of the success value
+   * @return an invalid {@code ValidationPath<NonEmptyList<E>, A>} whose error is non-empty by
+   *     construction
+   * @throws NullPointerException if error is null
+   */
+  public static <E, A> ValidationPath<NonEmptyList<E>, A> invalidNel(E error) {
+    Objects.requireNonNull(error, "error must not be null");
+    return new ValidationPath<>(Validated.invalidNel(error), NonEmptyList.semigroup());
+  }
+
+  /**
+   * Creates a {@link ValidationPath} from an existing {@code Validated} whose error channel is a
+   * {@link NonEmptyList}, using {@link NonEmptyList#semigroup()} for accumulation.
+   *
+   * @param validated the {@code Validated} to wrap; must not be null
+   * @param <E> the error element type
+   * @param <A> the value type
+   * @return a {@code ValidationPath<NonEmptyList<E>, A>} wrapping {@code validated}
+   * @throws NullPointerException if validated is null
+   */
+  public static <E, A> ValidationPath<NonEmptyList<E>, A> validatedNel(
+      Validated<NonEmptyList<E>, A> validated) {
+    Objects.requireNonNull(validated, "validated must not be null");
+    return new ValidationPath<>(validated, NonEmptyList.semigroup());
   }
 
   // ===== IdPath factory methods =====

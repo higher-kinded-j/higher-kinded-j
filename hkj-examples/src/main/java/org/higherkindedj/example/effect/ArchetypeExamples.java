@@ -8,8 +8,6 @@ import java.util.Map;
 import java.util.Set;
 import org.higherkindedj.hkt.Monoid;
 import org.higherkindedj.hkt.Monoids;
-import org.higherkindedj.hkt.Semigroup;
-import org.higherkindedj.hkt.Semigroups;
 import org.higherkindedj.hkt.Unit;
 import org.higherkindedj.hkt.effect.EitherPath;
 import org.higherkindedj.hkt.effect.MaybePath;
@@ -19,6 +17,7 @@ import org.higherkindedj.hkt.effect.TrampolinePath;
 import org.higherkindedj.hkt.effect.ValidationPath;
 import org.higherkindedj.hkt.effect.WithStatePath;
 import org.higherkindedj.hkt.effect.WriterPath;
+import org.higherkindedj.hkt.nonemptylist.NonEmptyList;
 
 /**
  * Stack Archetype examples demonstrating the seven named patterns for common enterprise problems.
@@ -205,24 +204,26 @@ public class ArchetypeExamples {
 
   record Registration(String name, String email, int age) {}
 
-  private static final Semigroup<List<String>> LIST_SEMIGROUP = Semigroups.list();
+  // The validNel / invalidNel factories use a NonEmptyList error channel (an invalid result always
+  // has at least one error), baking in NonEmptyList.semigroup() — no Semigroup argument, no
+  // List.of(...) wrapping. The Semigroups.list() channel still works if a plain List is preferred.
 
-  private static ValidationPath<List<String>, String> validateName(String name) {
+  private static ValidationPath<NonEmptyList<String>, String> validateName(String name) {
     return name != null && name.length() >= 2
-        ? Path.valid(name, LIST_SEMIGROUP)
-        : Path.invalid(List.of("Name must be at least 2 characters"), LIST_SEMIGROUP);
+        ? Path.validNel(name)
+        : Path.invalidNel("Name must be at least 2 characters");
   }
 
-  private static ValidationPath<List<String>, String> validateEmail(String email) {
+  private static ValidationPath<NonEmptyList<String>, String> validateEmail(String email) {
     return email != null && email.contains("@")
-        ? Path.valid(email, LIST_SEMIGROUP)
-        : Path.invalid(List.of("Invalid email format"), LIST_SEMIGROUP);
+        ? Path.validNel(email)
+        : Path.invalidNel("Invalid email format");
   }
 
-  private static ValidationPath<List<String>, Integer> validateAge(int age) {
+  private static ValidationPath<NonEmptyList<String>, Integer> validateAge(int age) {
     return age >= 0 && age <= 150
-        ? Path.valid(age, LIST_SEMIGROUP)
-        : Path.invalid(List.of("Age must be between 0 and 150"), LIST_SEMIGROUP);
+        ? Path.validNel(age)
+        : Path.invalidNel("Age must be between 0 and 150");
   }
 
   private static void validationStack() {

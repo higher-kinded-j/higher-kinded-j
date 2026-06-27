@@ -21,6 +21,8 @@ import org.higherkindedj.hkt.list.ListKind;
 import org.higherkindedj.hkt.list.ListMonad;
 import org.higherkindedj.hkt.maybe.MaybeKind;
 import org.higherkindedj.hkt.maybe.MaybeMonad;
+import org.higherkindedj.hkt.nonemptylist.NonEmptyListKind;
+import org.higherkindedj.hkt.nonemptylist.NonEmptyListMonad;
 import org.higherkindedj.hkt.optional.OptionalKind;
 import org.higherkindedj.hkt.optional.OptionalMonad;
 import org.higherkindedj.hkt.reader.ReaderKind;
@@ -104,6 +106,11 @@ public final class Witnesses {
   /** Token for {@code List} ({@link ListMonad#INSTANCE}). */
   public static Of<ListKind.Witness> list() {
     return new Of<>(ListMonad.INSTANCE);
+  }
+
+  /** Token for {@code NonEmptyList} ({@link NonEmptyListMonad#INSTANCE}). */
+  public static Of<NonEmptyListKind.Witness> nonEmptyList() {
+    return new Of<>(NonEmptyListMonad.INSTANCE);
   }
 
   /** Token for {@code Optional} ({@link OptionalMonad#INSTANCE}). */

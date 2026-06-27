@@ -35,6 +35,7 @@ module org.higherkindedj.core {
   exports org.higherkindedj.hkt.list;
   exports org.higherkindedj.hkt.maybe;
   exports org.higherkindedj.hkt.maybe_t;
+  exports org.higherkindedj.hkt.nonemptylist;
   exports org.higherkindedj.hkt.optional;
   exports org.higherkindedj.hkt.optional_t;
   exports org.higherkindedj.hkt.reader;

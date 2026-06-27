@@ -7,6 +7,7 @@ import static org.higherkindedj.hkt.either.EitherKindHelper.EITHER;
 import static org.higherkindedj.hkt.instances.Witnesses.*;
 import static org.higherkindedj.hkt.list.ListKindHelper.LIST;
 import static org.higherkindedj.hkt.maybe.MaybeKindHelper.MAYBE;
+import static org.higherkindedj.hkt.nonemptylist.NonEmptyListKindHelper.NON_EMPTY_LIST;
 import static org.higherkindedj.hkt.optional.OptionalKindHelper.OPTIONAL;
 import static org.higherkindedj.hkt.trymonad.TryKindHelper.TRY;
 import static org.higherkindedj.hkt.vtask.VTaskKindHelper.VTASK;
@@ -27,6 +28,8 @@ import org.higherkindedj.hkt.instances.Witnesses;
 import org.higherkindedj.hkt.list.ListKind;
 import org.higherkindedj.hkt.maybe.Maybe;
 import org.higherkindedj.hkt.maybe.MaybeKind;
+import org.higherkindedj.hkt.nonemptylist.NonEmptyList;
+import org.higherkindedj.hkt.nonemptylist.NonEmptyListKind;
 import org.higherkindedj.hkt.optional.OptionalKind;
 import org.higherkindedj.hkt.trymonad.Try;
 import org.higherkindedj.hkt.trymonad.TryKind;
@@ -186,6 +189,17 @@ class MonadLawsTestFactory {
                   return causeA.getClass().equals(causeB.getClass())
                       && Objects.equals(causeA.getMessage(), causeB.getMessage());
                 }
+              }
+            }),
+        MonadTestData.of(
+            "NonEmptyList",
+            Instances.monad(nonEmptyList()),
+            NON_EMPTY_LIST.widen(NonEmptyList.of(1, 2, 3)),
+            new EqualityChecker<NonEmptyListKind.Witness>() {
+              @Override
+              public <A> boolean areEqual(
+                  Kind<NonEmptyListKind.Witness, A> a, Kind<NonEmptyListKind.Witness, A> b) {
+                return NON_EMPTY_LIST.narrow(a).equals(NON_EMPTY_LIST.narrow(b));
               }
             }));
   }

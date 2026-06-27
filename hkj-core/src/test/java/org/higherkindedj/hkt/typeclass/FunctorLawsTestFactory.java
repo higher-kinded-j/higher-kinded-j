@@ -7,6 +7,7 @@ import static org.higherkindedj.hkt.either.EitherKindHelper.EITHER;
 import static org.higherkindedj.hkt.instances.Witnesses.*;
 import static org.higherkindedj.hkt.list.ListKindHelper.LIST;
 import static org.higherkindedj.hkt.maybe.MaybeKindHelper.MAYBE;
+import static org.higherkindedj.hkt.nonemptylist.NonEmptyListKindHelper.NON_EMPTY_LIST;
 import static org.higherkindedj.hkt.optional.OptionalKindHelper.OPTIONAL;
 import static org.higherkindedj.hkt.trymonad.TryKindHelper.TRY;
 import static org.higherkindedj.hkt.vtask.VTaskKindHelper.VTASK;
@@ -24,6 +25,7 @@ import org.higherkindedj.hkt.either.EitherFunctor;
 import org.higherkindedj.hkt.instances.Instances;
 import org.higherkindedj.hkt.maybe.Maybe;
 import org.higherkindedj.hkt.maybe.MaybeFunctor;
+import org.higherkindedj.hkt.nonemptylist.NonEmptyList;
 import org.higherkindedj.hkt.trymonad.Try;
 import org.higherkindedj.hkt.trymonad.TryFunctor;
 import org.higherkindedj.hkt.vtask.VTask;
@@ -127,7 +129,12 @@ class FunctorLawsTestFactory {
               } catch (Throwable e) {
                 return -1;
               }
-            }));
+            }),
+        FunctorTestData.of(
+            "NonEmptyList",
+            Instances.monad(nonEmptyList()),
+            NON_EMPTY_LIST.widen(NonEmptyList.of(42)),
+            kind -> NON_EMPTY_LIST.narrow(kind).head()));
   }
 
   /** Helper method to test identity law for a specific functor */

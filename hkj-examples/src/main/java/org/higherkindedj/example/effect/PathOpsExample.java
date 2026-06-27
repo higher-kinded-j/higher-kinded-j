@@ -3,14 +3,13 @@
 package org.higherkindedj.example.effect;
 
 import java.util.List;
-import org.higherkindedj.hkt.Semigroup;
-import org.higherkindedj.hkt.Semigroups;
 import org.higherkindedj.hkt.effect.EitherPath;
 import org.higherkindedj.hkt.effect.MaybePath;
 import org.higherkindedj.hkt.effect.Path;
 import org.higherkindedj.hkt.effect.PathOps;
 import org.higherkindedj.hkt.effect.TryPath;
 import org.higherkindedj.hkt.effect.ValidationPath;
+import org.higherkindedj.hkt.nonemptylist.NonEmptyList;
 
 /**
  * Examples demonstrating PathOps utility operations: sequence, traverse, and firstSuccess.
@@ -28,8 +27,6 @@ import org.higherkindedj.hkt.effect.ValidationPath;
  * -PmainClass=org.higherkindedj.example.effect.PathOpsExample}
  */
 public class PathOpsExample {
-
-  private static final Semigroup<List<String>> LIST_SEMIGROUP = Semigroups.list();
 
   public static void main(String[] args) {
     System.out.println("=== Effect Path API: PathOps Utilities ===\n");
@@ -160,30 +157,30 @@ public class PathOpsExample {
     System.out.println("--- ValidationPath Sequence (Accumulating) ---");
 
     // All valid
-    List<ValidationPath<List<String>, Integer>> allValid =
+    List<ValidationPath<NonEmptyList<String>, Integer>> allValid =
         List.of(
-            Path.valid(1, LIST_SEMIGROUP),
-            Path.valid(2, LIST_SEMIGROUP),
-            Path.valid(3, LIST_SEMIGROUP));
+            Path.<String, Integer>validNel(1),
+            Path.<String, Integer>validNel(2),
+            Path.<String, Integer>validNel(3));
 
-    ValidationPath<List<String>, List<Integer>> sequenced =
-        PathOps.sequenceValidated(allValid, LIST_SEMIGROUP);
+    ValidationPath<NonEmptyList<String>, List<Integer>> sequenced =
+        PathOps.sequenceValidated(allValid, NonEmptyList.semigroup());
 
     System.out.println("All valid: " + sequenced.run());
     // Valid[[1, 2, 3]]
 
     // Multiple invalids - ALL errors accumulated
-    List<ValidationPath<List<String>, Integer>> withInvalids =
+    List<ValidationPath<NonEmptyList<String>, Integer>> withInvalids =
         List.of(
-            Path.invalid(List.of("Error 1"), LIST_SEMIGROUP),
-            Path.valid(2, LIST_SEMIGROUP),
-            Path.invalid(List.of("Error 3"), LIST_SEMIGROUP));
+            Path.<String, Integer>invalidNel("Error 1"),
+            Path.<String, Integer>validNel(2),
+            Path.<String, Integer>invalidNel("Error 3"));
 
-    ValidationPath<List<String>, List<Integer>> sequencedInvalids =
-        PathOps.sequenceValidated(withInvalids, LIST_SEMIGROUP);
+    ValidationPath<NonEmptyList<String>, List<Integer>> sequencedInvalids =
+        PathOps.sequenceValidated(withInvalids, NonEmptyList.semigroup());
 
     System.out.println("With invalids (all errors): " + sequencedInvalids.run());
-    // Invalid[[Error 1, Error 3]]
+    // Invalid[NonEmptyList[Error 1, Error 3]]
 
     System.out.println();
   }
@@ -194,8 +191,8 @@ public class PathOpsExample {
     // Validate all emails
     List<String> emails = List.of("alice@example.com", "bob@company.org", "charlie@domain.net");
 
-    ValidationPath<List<String>, List<String>> validated =
-        PathOps.traverseValidated(emails, PathOpsExample::validateEmail, LIST_SEMIGROUP);
+    ValidationPath<NonEmptyList<String>, List<String>> validated =
+        PathOps.traverseValidated(emails, PathOpsExample::validateEmail, NonEmptyList.semigroup());
 
     System.out.println("Valid emails: " + validated.run());
     // Valid[[alice@example.com, bob@company.org, charlie@domain.net]]
@@ -204,23 +201,24 @@ public class PathOpsExample {
     List<String> mixedEmails =
         List.of("alice@example.com", "invalid-email", "bob.com", "charlie@domain.net");
 
-    ValidationPath<List<String>, List<String>> mixedValidation =
-        PathOps.traverseValidated(mixedEmails, PathOpsExample::validateEmail, LIST_SEMIGROUP);
+    ValidationPath<NonEmptyList<String>, List<String>> mixedValidation =
+        PathOps.traverseValidated(
+            mixedEmails, PathOpsExample::validateEmail, NonEmptyList.semigroup());
 
     System.out.println("Mixed emails (all errors): " + mixedValidation.run());
-    // Invalid[[Email 'invalid-email' must contain @, Email 'bob.com' must contain @]]
+    // Invalid[NonEmptyList[Email 'invalid-email' must contain @, Email 'bob.com' must contain @]]
 
     System.out.println();
   }
 
-  private static ValidationPath<List<String>, String> validateEmail(String email) {
+  private static ValidationPath<NonEmptyList<String>, String> validateEmail(String email) {
     if (email == null || email.isBlank()) {
-      return Path.invalid(List.of("Email cannot be empty"), LIST_SEMIGROUP);
+      return Path.invalidNel("Email cannot be empty");
     }
     if (!email.contains("@")) {
-      return Path.invalid(List.of("Email '" + email + "' must contain @"), LIST_SEMIGROUP);
+      return Path.invalidNel("Email '" + email + "' must contain @");
     }
-    return Path.valid(email, LIST_SEMIGROUP);
+    return Path.validNel(email);
   }
 
   // ===== TryPath FirstSuccess =====
