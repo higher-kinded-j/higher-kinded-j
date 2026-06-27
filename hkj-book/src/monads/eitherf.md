@@ -60,13 +60,13 @@ The `F` suffix follows the established `modifyF` convention where it means "lift
 
 When an instruction arrives, dispatch is a simple pattern match:
 
-```
+<pre class="hkj-ascii-diagram">
 Instruction arrives
     │
-    ├── Left(consoleOp)  →  Console interpreter handles it
+    ├── <span style="color:#2196F3">Left(consoleOp)  →  Console interpreter handles it</span>
     │
-    └── Right(dbOp)      →  Database interpreter handles it
-```
+    └── <span style="color:#9C27B0">Right(dbOp)      →  Database interpreter handles it</span>
+</pre>
 
 Now both instruction types live in one combined type, and `Free<EitherFKind.Witness<ConsoleOp, DbOp>, A>` can hold instructions from either vocabulary.
 
