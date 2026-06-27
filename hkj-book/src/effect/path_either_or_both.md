@@ -40,20 +40,23 @@ EitherOrBothPath<String, Integer> p = Path.both("warn", 42, Semigroups.string(";
 
 ## The Railway View
 
-The two composition modes differ only in how they treat the warning lane. `via` runs a dependent step
-on the success rail; `zipWithAccum` merges two independent results, collecting every warning.
+`via` runs a dependent step on the success track. A `Right` flows straight through; a `Both` carries its
+warnings forward and accumulates any the next step adds; a `Left` derails and short-circuits the rest of
+the chain. `recover` can switch a `Left` back onto the success track. (The accumulating `zipWithAccum`
+mode, which collects every warning even across a `Left`, is covered below.)
 
-```
-via  (sequential; Left short-circuits, Both threads its warnings):
-  bothNel(w1, a) ──via f──▶ f(a) = bothNel(w2, b)  ──▶  Both([w1, w2], b)
-  leftNel(e)     ──via f──▶ (f not run)            ──▶  Left([e])
-
-zipWithAccum  (parallel; collects every warning, even across a Left):
-  bothNel(w1, a) ┐
-                 ├─ zipWithAccum (a, b) ─▶  Both([w1, w2], combine(a, b))
-  bothNel(w2, b) ┘
-  leftNel(e1)  +  leftNel(e2)            ─▶  Left([e1, e2])
-```
+<pre class="hkj-railway-diagram">
+    <span style="color:#4CAF50"><b>Right</b>  ═══●═══════════════●═══▶  value</span>
+    <span style="color:#FFB300"><b>Both</b>   ═══●═══════════════●═══▶  value + warnings  (via threads and accumulates them)</span>
+    <span style="color:#FFB300">           via f           via g</span>
+                ╲               ╲   via returns Left
+                 ╲               ╲
+    <span style="color:#F44336"><b>Left</b>   ────●───────────────●───▶  fatal, f never runs</span>
+                                    │
+                               <span style="color:#4CAF50">recover</span>   switch back to the success track
+                                    │
+    <span style="color:#4CAF50">                                ●═══▶  recovered Right</span>
+</pre>
 
 ---
 
