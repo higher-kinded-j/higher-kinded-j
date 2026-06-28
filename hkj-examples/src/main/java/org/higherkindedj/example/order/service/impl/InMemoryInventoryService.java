@@ -207,12 +207,14 @@ public class InMemoryInventoryService implements InventoryService {
     stock.compute(
         productId,
         (_, onHand) -> {
-          int current = (onHand == null) ? 0 : onHand;
-          if (current >= quantity) {
-            took[0] = true;
-            return current - quantity;
+          if (onHand == null) {
+            return null; // unknown product: leave it absent rather than inserting a 0 entry
           }
-          return current;
+          if (onHand >= quantity) {
+            took[0] = true;
+            return onHand - quantity;
+          }
+          return onHand;
         });
     return took[0];
   }
@@ -242,6 +244,12 @@ public class InMemoryInventoryService implements InventoryService {
    * expiresAt} is actually read.
    */
   private void reclaimExpiredReservations() {
+    // A production service would expire holds with a background sweeper or a time-ordered
+    // DelayQueue rather than scanning on the reserve path; for this in-memory demo a lazy scan is
+    // adequate, and the empty-map fast path keeps the common case allocation-free.
+    if (reservations.isEmpty()) {
+      return;
+    }
     var now = Instant.now();
     // Snapshot keys so we can mutate the map while iterating.
     for (var reservationId : List.copyOf(reservations.keySet())) {

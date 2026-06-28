@@ -81,6 +81,24 @@ class PartialFulfilmentWorkflowTest {
   }
 
   @Test
+  @DisplayName("an order with duplicate product lines is handled, not crashed")
+  void handlesDuplicateProductLines() {
+    // Two lines for the same product must not blow up the unitPrices / linesById toMap.
+    var order = orderWith(line("PROD-001", 2), line("PROD-001", 3));
+
+    var result = workflow.process(order).run();
+
+    assertThatEither(result)
+        .isRight()
+        .hasRightSatisfying(
+            fulfilment -> {
+              assertThat(fulfilment.status()).isEqualTo(FulfilmentStatus.COMPLETE);
+              // Both lines (2 + 3 units @ £10) ship and are charged; nothing is back-ordered.
+              assertThat(fulfilment.fulfilledAmount()).isEqualTo(Money.gbp("50.00"));
+            });
+  }
+
+  @Test
   @DisplayName("a fully available order completes with no back-orders")
   void fullyAvailableOrderCompletes() {
     var order = orderWith(line("PROD-001", 2), line("PROD-002", 1));

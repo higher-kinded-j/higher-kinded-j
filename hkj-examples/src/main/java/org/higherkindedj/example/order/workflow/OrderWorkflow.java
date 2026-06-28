@@ -49,6 +49,7 @@ import org.higherkindedj.hkt.either.Either;
 import org.higherkindedj.hkt.either.EitherKind;
 import org.higherkindedj.hkt.expression.For;
 import org.higherkindedj.hkt.instances.Instances;
+import org.jspecify.annotations.Nullable;
 
 /**
  * The main order processing workflow.
@@ -249,9 +250,11 @@ public class OrderWorkflow {
                 new OrderError.ValidationError("Order request validation failed", fieldErrors));
   }
 
+  // @Nullable so the null guard is a real check, not dead code: validation is the boundary where
+  // untrusted input (e.g. a deserialized request) can still defeat the @NullMarked contract.
   private ValidationPath<List<OrderError.FieldError>, String> validateCustomerId(
-      String customerId) {
-    if (customerId.isBlank()) {
+      @Nullable String customerId) {
+    if (customerId == null || customerId.isBlank()) {
       return Path.invalid(
           List.of(
               new OrderError.FieldError("customerId", "Customer id must not be blank", customerId)),
@@ -261,7 +264,12 @@ public class OrderWorkflow {
   }
 
   private ValidationPath<List<OrderError.FieldError>, List<OrderLineRequest>> validateLines(
-      List<OrderLineRequest> lines) {
+      @Nullable List<OrderLineRequest> lines) {
+    if (lines == null) {
+      return Path.invalid(
+          List.of(new OrderError.FieldError("lines", "Order lines must not be null", null)),
+          Semigroups.list());
+    }
     var fieldErrors =
         lines.stream()
             .filter(line -> line.productId().isBlank())

@@ -71,13 +71,19 @@ public class PartialFulfilmentWorkflow {
    */
   private EitherPath<OrderError, PartialFulfilmentResult> processWithAvailability(
       ValidatedOrder order, List<ProductAvailability> availability) {
+    // An order may carry two lines for the same product; collapse them by keeping the first
+    // (same product -> same unit price), rather than letting toMap throw on the duplicate key.
     var unitPrices =
         order.lines().stream()
             .collect(
-                Collectors.toMap(ValidatedOrderLine::productId, ValidatedOrderLine::unitPrice));
+                Collectors.toMap(
+                    ValidatedOrderLine::productId,
+                    ValidatedOrderLine::unitPrice,
+                    (first, _) -> first));
     var linesById =
         order.lines().stream()
-            .collect(Collectors.toMap(ValidatedOrderLine::productId, line -> line));
+            .collect(
+                Collectors.toMap(ValidatedOrderLine::productId, line -> line, (first, _) -> first));
 
     var shippable = availability.stream().filter(a -> a.availableQty() > 0).toList();
     var backordered = availability.stream().filter(a -> a.shortageQty() > 0).toList();
