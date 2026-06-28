@@ -3,6 +3,9 @@
 package org.higherkindedj.tutorial.optics;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.higherkindedj.hkt.assertions.EitherAssert.assertThatEither;
+import static org.higherkindedj.hkt.assertions.MaybeAssert.assertThatMaybe;
+import static org.higherkindedj.hkt.assertions.ValidatedAssert.assertThatValidated;
 
 import java.util.List;
 import java.util.Optional;
@@ -347,8 +350,9 @@ public class Tutorial09_FluentOpticsAPI {
     // Hint: OpticOps.modifyEither(user, emailLens, validateEmail)
     Either<String, User> validResult = answerRequired();
 
-    assertThat(validResult.isRight()).isTrue();
-    assertThat(validResult.getRight().email()).isEqualTo("alice@example.com");
+    assertThatEither(validResult)
+        .isRight()
+        .hasRightSatisfying(u -> assertThat(u.email()).isEqualTo("alice@example.com"));
 
     // Test with invalid email
     User invalidUser = new User("user2", "notanemail");
@@ -356,8 +360,9 @@ public class Tutorial09_FluentOpticsAPI {
     // TODO: Replace null with OpticOps.modifyEither() on invalid email
     Either<String, User> invalidResult = answerRequired();
 
-    assertThat(invalidResult.isLeft()).isTrue();
-    assertThat(invalidResult.getLeft()).contains("missing @");
+    assertThatEither(invalidResult)
+        .isLeft()
+        .hasLeftSatisfying(error -> assertThat(error).contains("missing @"));
   }
 
   /**
@@ -399,7 +404,7 @@ public class Tutorial09_FluentOpticsAPI {
     // Hint: OpticOps.modifyMaybe(person, ageLens, validateAge)
     Maybe<Person> validResult = answerRequired();
 
-    assertThat(validResult.isJust()).isTrue();
+    assertThatMaybe(validResult).isJust();
 
     // Test with invalid age
     Person invalidPerson = new Person("Bob", 200);
@@ -407,7 +412,7 @@ public class Tutorial09_FluentOpticsAPI {
     // TODO: Replace null with OpticOps.modifyMaybe() on invalid age
     Maybe<Person> invalidResult = answerRequired();
 
-    assertThat(invalidResult.isNothing()).isTrue();
+    assertThatMaybe(invalidResult).isNothing();
   }
 
   /**
@@ -469,7 +474,7 @@ public class Tutorial09_FluentOpticsAPI {
     Validated<List<String>, Order> result = answerRequired();
 
     // Should be invalid because we have negative and zero prices
-    assertThat(result.isInvalid()).isTrue();
+    assertThatValidated(result).isInvalid();
     // Validated accumulates errors (at least 2 invalid prices)
     List<String> errors = result.fold(errorList -> errorList, valid -> List.of());
     assertThat(errors.size()).isGreaterThanOrEqualTo(1);
@@ -484,7 +489,7 @@ public class Tutorial09_FluentOpticsAPI {
     // TODO: Replace null with OpticOps.modifyAllValidated() on valid order
     Validated<List<String>, Order> validResult = answerRequired();
 
-    assertThat(validResult.isValid()).isTrue();
+    assertThatValidated(validResult).isValid();
   }
 
   /**

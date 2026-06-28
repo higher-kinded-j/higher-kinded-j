@@ -31,5 +31,7 @@ public record OrderRequest(
     if (lines == null || lines.isEmpty()) {
       throw new IllegalArgumentException("Order must have at least one line item");
     }
+    // Defensive copy: the request must not alias a list the caller can still mutate.
+    lines = List.copyOf(lines);
   }
 }

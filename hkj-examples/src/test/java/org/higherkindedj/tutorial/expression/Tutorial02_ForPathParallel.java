@@ -3,6 +3,7 @@
 package org.higherkindedj.tutorial.expression;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.higherkindedj.hkt.assertions.EitherAssert.assertThatEither;
 
 import org.higherkindedj.hkt.effect.EitherPath;
 import org.higherkindedj.hkt.effect.IOPath;
@@ -145,7 +146,7 @@ public class Tutorial02_ForPathParallel {
     // Hint: Use Path.<String, String>right(...) for type-safe EitherPath creation
     EitherPath<String, String> result = answerRequired();
 
-    assertThat(result.run().getRight()).isEqualTo("Alice is 42");
+    assertThatEither(result.run()).hasRight("Alice is 42");
   }
 
   // =========================================================================

@@ -30,6 +30,11 @@ public record PartialFulfilmentResult(
     FulfilmentStatus status,
     Money fulfilledAmount,
     Money backOrderAmount) {
+  public PartialFulfilmentResult {
+    // Defensive copy: keep the back-orders list immutable and caller-independent.
+    backOrders = List.copyOf(backOrders);
+  }
+
   /**
    * Creates a result for complete fulfilment (no back-orders).
    *

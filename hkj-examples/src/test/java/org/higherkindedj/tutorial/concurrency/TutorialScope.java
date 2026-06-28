@@ -3,6 +3,10 @@
 package org.higherkindedj.tutorial.concurrency;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.higherkindedj.hkt.assertions.EitherAssert.assertThatEither;
+import static org.higherkindedj.hkt.assertions.MaybeAssert.assertThatMaybe;
+import static org.higherkindedj.hkt.assertions.TryAssert.assertThatTry;
+import static org.higherkindedj.hkt.assertions.VTaskAssert.assertThatVTask;
 
 import java.time.Duration;
 import java.util.List;
@@ -78,8 +82,11 @@ public class TutorialScope {
       //     .join()
       VTask<List<String>> scopeTask = answerRequired();
 
-      List<String> results = scopeTask.run();
-      assertThat(results).containsExactlyInAnyOrder("first", "second", "third");
+      assertThatVTask(scopeTask)
+          .whenRun()
+          .succeeds()
+          .hasValueSatisfying(
+              results -> assertThat(results).containsExactlyInAnyOrder("first", "second", "third"));
     }
 
     /**
@@ -114,8 +121,7 @@ public class TutorialScope {
       //     .join()
       VTask<String> scopeTask = answerRequired();
 
-      String result = scopeTask.run();
-      assertThat(result).isEqualTo("fast");
+      assertThatVTask(scopeTask).whenRun().succeeds().hasValue("fast");
     }
   }
 
@@ -159,8 +165,7 @@ public class TutorialScope {
       //     .join()
       VTask<String> scopeTask = answerRequired();
 
-      String result = scopeTask.run();
-      assertThat(result).isEqualTo("fast result");
+      assertThatVTask(scopeTask).whenRun().succeeds().hasValue("fast result");
     }
 
     /**
@@ -189,7 +194,7 @@ public class TutorialScope {
       VTask<Try<List<String>>> scopeTask = answerRequired();
 
       Try<List<String>> result = scopeTask.run();
-      assertThat(result.isFailure()).isTrue();
+      assertThatTry(result).isFailure();
     }
   }
 
@@ -303,7 +308,7 @@ public class TutorialScope {
       VTask<Try<List<String>>> scopeTask = answerRequired();
 
       Try<List<String>> result = scopeTask.run();
-      assertThat(result.isFailure()).isTrue();
+      assertThatTry(result).isFailure();
     }
 
     /**
@@ -328,7 +333,7 @@ public class TutorialScope {
       VTask<Either<Throwable, List<String>>> scopeTask = answerRequired();
 
       Either<Throwable, List<String>> result = scopeTask.run();
-      assertThat(result.isRight()).isTrue();
+      assertThatEither(result).isRight();
       List<String> values = result.fold(e -> List.of(), v -> v);
       assertThat(values).containsExactlyInAnyOrder("hello", "world");
     }
@@ -353,7 +358,7 @@ public class TutorialScope {
       VTask<Maybe<List<Integer>>> scopeTask = answerRequired();
 
       Maybe<List<Integer>> result = scopeTask.run();
-      assertThat(result.isJust()).isTrue();
+      assertThatMaybe(result).isJust();
       assertThat(result.orElse(List.of())).containsExactly(42);
     }
   }
@@ -415,7 +420,7 @@ public class TutorialScope {
       // Execute and handle result
       Try<List<String>> result = dashboard.run();
 
-      assertThat(result.isSuccess()).isTrue();
+      assertThatTry(result).isSuccess();
       assertThat(result.orElse(List.of()))
           .containsExactlyInAnyOrder("Alice", "Developer", "dark-mode");
     }
@@ -462,7 +467,7 @@ public class TutorialScope {
         Scope.<String>allSucceed().fork(failsFast).fork(slow).joinSafe();
 
     Try<List<String>> result = scoped.run();
-    assertThat(result.isFailure()).isTrue();
+    assertThatTry(result).isFailure();
     assertThat(counter.get()).isLessThan(5); // slow was cancelled before reaching 5
   }
 

@@ -8,6 +8,7 @@ import static org.awaitility.Awaitility.await;
 import java.time.Duration;
 import java.util.List;
 import java.util.Set;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 import org.higherkindedj.example.market.aggregation.WindowAggregator;
@@ -16,6 +17,7 @@ import org.higherkindedj.example.market.alert.AnomalyDetector;
 import org.higherkindedj.example.market.enrichment.InMemoryFxRateService;
 import org.higherkindedj.example.market.enrichment.InMemoryReferenceDataService;
 import org.higherkindedj.example.market.enrichment.TickEnricher;
+import org.higherkindedj.example.market.error.MarketError;
 import org.higherkindedj.example.market.feed.FeedMerger;
 import org.higherkindedj.example.market.feed.SimulatedExchangeFeed;
 import org.higherkindedj.example.market.model.AggregatedView;
@@ -193,6 +195,26 @@ class MarketDataPipelineTest {
       List<EnrichedTick> enriched = enricher.enrich(feed.ticks().take(20)).toList().run();
 
       assertThat(enriched).hasSize(20);
+    }
+
+    @Test
+    @DisplayName("surfaces a typed MarketError for an unknown symbol and drops the tick")
+    void surfacesTypedErrorForUnknownSymbol() {
+      var errors = new CopyOnWriteArrayList<MarketError>();
+      // "ZZZZ" has no reference data, so every tick fails enrichment with a typed error.
+      SimulatedExchangeFeed feed =
+          new SimulatedExchangeFeed(Exchange.NYSE, List.of(new Symbol("ZZZZ")), 150.0, 0.002, 42L);
+      TickEnricher enricher = new TickEnricher(refData, fxService, 4, errors::add);
+
+      List<EnrichedTick> enriched = enricher.enrich(feed.ticks().take(3)).toList().run();
+
+      // Failed ticks are reported through the typed channel and dropped, not thrown.
+      assertThat(enriched).isEmpty();
+      assertThat(errors)
+          .hasSize(3)
+          .allSatisfy(error -> assertThat(error).isInstanceOf(MarketError.EnrichmentFailed.class));
+      assertThat(((MarketError.EnrichmentFailed) errors.getFirst()).symbol())
+          .isEqualTo(new Symbol("ZZZZ"));
     }
   }
 

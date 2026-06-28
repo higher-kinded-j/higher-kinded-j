@@ -3,6 +3,7 @@
 package org.higherkindedj.tutorial.coretypes;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.higherkindedj.hkt.assertions.EitherAssert.assertThatEither;
 import static org.higherkindedj.hkt.either.EitherKindHelper.EITHER;
 
 import java.util.List;
@@ -121,7 +122,7 @@ public class Tutorial01_KindBasics {
     Kind<EitherKind.Witness<String>, Integer> kind = answerRequired();
 
     // Sanity: narrow back and check the value survived the round-trip.
-    assertThat(EITHER.narrow(kind).getRight()).isEqualTo(42);
+    assertThatEither(EITHER.narrow(kind)).hasRight(42);
   }
 
   // ═════════════════════════════════════════════════════════════════════════
@@ -149,8 +150,7 @@ public class Tutorial01_KindBasics {
 
     Either<String, Integer> either = answerRequired();
 
-    assertThat(either.isRight()).isTrue();
-    assertThat(either.getRight()).isEqualTo(100);
+    assertThatEither(either).isRight().hasRight(100);
   }
 
   // ═════════════════════════════════════════════════════════════════════════
@@ -225,7 +225,7 @@ public class Tutorial01_KindBasics {
     Kind<EitherKind.Witness<String>, Boolean> kind = EITHER.widen(either);
 
     Either<String, Boolean> result = EITHER.narrow(kind);
-    assertThat(result.getRight()).isTrue();
+    assertThatEither(result).hasRight(true);
   }
 
   // ═════════════════════════════════════════════════════════════════════════

@@ -3,6 +3,7 @@
 package org.higherkindedj.tutorial.solutions.optics;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.higherkindedj.hkt.assertions.EitherAssert.assertThatEither;
 import static org.higherkindedj.optics.fetch.FetchKindHelper.FETCH;
 
 import java.util.*;
@@ -245,10 +246,13 @@ public class Tutorial21_OpticBatching_Solution {
       Either<Throwable, Fetch.RunResult<UserId, User>> outcome =
           SafeFetch.runCached(program, failing);
 
-      assertThat(outcome.isLeft()).isTrue();
-      assertThat(outcome.getLeft())
-          .isInstanceOf(IllegalStateException.class)
-          .hasMessageContaining("unavailable");
+      assertThatEither(outcome)
+          .isLeft()
+          .hasLeftSatisfying(
+              error ->
+                  assertThat(error)
+                      .isInstanceOf(IllegalStateException.class)
+                      .hasMessageContaining("unavailable"));
     }
 
     /**

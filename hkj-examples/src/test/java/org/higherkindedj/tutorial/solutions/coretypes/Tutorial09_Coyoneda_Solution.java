@@ -3,6 +3,7 @@
 package org.higherkindedj.tutorial.solutions.coretypes;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.higherkindedj.hkt.assertions.MaybeAssert.assertThatMaybe;
 import static org.higherkindedj.hkt.instances.Witnesses.*;
 import static org.higherkindedj.hkt.list.ListKindHelper.LIST;
 import static org.higherkindedj.hkt.maybe.MaybeKindHelper.MAYBE;
@@ -61,7 +62,7 @@ public class Tutorial09_Coyoneda_Solution {
     MaybeFunctor functor = MaybeFunctor.INSTANCE;
     Kind<MaybeKind.Witness, Integer> lowered = coyo.lower(functor);
 
-    assertThat(MAYBE.narrow(lowered)).isEqualTo(Maybe.just(42));
+    assertThatMaybe(MAYBE.narrow(lowered)).hasValue(42);
   }
 
   /**
@@ -90,7 +91,7 @@ public class Tutorial09_Coyoneda_Solution {
     MaybeFunctor functor = MaybeFunctor.INSTANCE;
     Kind<MaybeKind.Witness, String> result = upper.lower(functor);
 
-    assertThat(MAYBE.narrow(result)).isEqualTo(Maybe.just("HELLO"));
+    assertThatMaybe(MAYBE.narrow(result)).hasValue("HELLO");
   }
 
   /**
@@ -146,7 +147,7 @@ public class Tutorial09_Coyoneda_Solution {
     Kind<MaybeKind.Witness, Integer> result = coyo.lower(functor);
 
     // Should still be Nothing
-    assertThat(MAYBE.narrow(result)).isEqualTo(Maybe.nothing());
+    assertThatMaybe(MAYBE.narrow(result)).isNothing();
   }
 
   /**

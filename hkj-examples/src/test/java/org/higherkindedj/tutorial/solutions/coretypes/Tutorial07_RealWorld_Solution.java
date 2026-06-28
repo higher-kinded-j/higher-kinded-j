@@ -3,6 +3,7 @@
 package org.higherkindedj.tutorial.solutions.coretypes;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.higherkindedj.hkt.assertions.EitherAssert.assertThatEither;
 
 import java.util.List;
 import java.util.function.Function;
@@ -105,8 +106,9 @@ public class Tutorial07_RealWorld_Solution {
                                                         new Registration(
                                                             username, email, password, age)))));
 
-    assertThat(result.isRight()).isTrue();
-    assertThat(result.getRight().username()).isEqualTo("alice");
+    assertThatEither(result)
+        .isRight()
+        .hasRightSatisfying(reg -> assertThat(reg.username()).isEqualTo("alice"));
   }
 
   /**
@@ -257,16 +259,16 @@ public class Tutorial07_RealWorld_Solution {
         maybeUser.isJust() ? Either.right(maybeUser.get()) : Either.left("User not found");
     Either<String, User> result = eitherUser.flatMap(validateUser);
 
-    assertThat(result.isRight()).isTrue();
-    assertThat(result.getRight().name()).isEqualTo("Alice");
+    assertThatEither(result)
+        .isRight()
+        .hasRightSatisfying(user -> assertThat(user.name()).isEqualTo("Alice"));
 
     // Solution: Handle missing user by providing a user ID that doesn't exist
     Maybe<User> maybeMissing = findUser.apply("user999");
     Either<String, User> missing =
         maybeMissing.isJust() ? Either.right(maybeMissing.get()) : Either.left("User not found");
 
-    assertThat(missing.isLeft()).isTrue();
-    assertThat(missing.getLeft()).isEqualTo("User not found");
+    assertThatEither(missing).isLeft().hasLeft("User not found");
   }
 
   /**
@@ -365,10 +367,13 @@ public class Tutorial07_RealWorld_Solution {
     Either<String, ProcessedOrder> result =
         validateOrder.apply(order).map(o -> processOrder.apply(config).apply(o));
 
-    assertThat(result.isRight()).isTrue();
-    ProcessedOrder processed = result.getRight();
-    assertThat(processed.subtotal()).isEqualTo(100.0);
-    assertThat(processed.total()).isEqualTo(118.0); // 100 + 8 (tax) + 10 (shipping)
+    assertThatEither(result)
+        .isRight()
+        .hasRightSatisfying(
+            processed -> {
+              assertThat(processed.subtotal()).isEqualTo(100.0);
+              assertThat(processed.total()).isEqualTo(118.0); // 100 + 8 (tax) + 10 (shipping)
+            });
   }
 
   /**

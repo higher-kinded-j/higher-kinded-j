@@ -120,12 +120,12 @@ public EitherPath<OrderError, OrderResult> process(OrderRequest request) {
                 ProcessingState.initial(address, customer, order))
 
             // Enrich phase: named field access via ForState + lenses
-            .fromThen(s -> lift(reserveInventory(s.order())),        reservationLens)
-            .fromThen(s -> lift(applyDiscounts(s.order(), s.customer())), discountLens)
-            .fromThen(s -> lift(processPayment(s.order(), s.discount())), paymentLens)
-            .fromThen(s -> lift(createShipment(s.order(), s.address())), shipmentLens)
+            .fromThen(s -> lift(reserveInventory(s.order())),        ProcessingStateLenses.reservation())
+            .fromThen(s -> lift(applyDiscounts(s.order(), s.customer())), ProcessingStateLenses.discount())
+            .fromThen(s -> lift(processPayment(s.order(), s.discount())), ProcessingStateLenses.payment())
+            .fromThen(s -> lift(createShipment(s.order(), s.address())), ProcessingStateLenses.shipment())
             .fromThen(s -> lift(sendNotifications(s.order(), s.customer(), s.discount())),
-                notificationLens)
+                ProcessingStateLenses.notification())
             .yield(OrderWorkflow::toOrderResult);
 
     return Path.either(EITHER.narrow(result));
@@ -162,12 +162,12 @@ For.from(monad, lift(validateShippingAddress(request.shippingAddress())))
     .from(t -> lift(buildValidatedOrder(orderId, request, t._2(), t._1())))
     .toState((address, customer, order) ->
         ProcessingState.initial(address, customer, order))
-    .fromThen(s -> lift(reserveInventory(s.order())),        reservationLens)
-    .fromThen(s -> lift(applyDiscounts(s.order(), s.customer())), discountLens)
-    .fromThen(s -> lift(processPayment(s.order(), s.discount())), paymentLens)
-    .fromThen(s -> lift(createShipment(s.order(), s.address())), shipmentLens)
+    .fromThen(s -> lift(reserveInventory(s.order())),        ProcessingStateLenses.reservation())
+    .fromThen(s -> lift(applyDiscounts(s.order(), s.customer())), ProcessingStateLenses.discount())
+    .fromThen(s -> lift(processPayment(s.order(), s.discount())), ProcessingStateLenses.payment())
+    .fromThen(s -> lift(createShipment(s.order(), s.address())), ProcessingStateLenses.shipment())
     .fromThen(s -> lift(sendNotifications(s.order(), s.customer(), s.discount())),
-        notificationLens)
+        ProcessingStateLenses.notification())
     .yield(OrderWorkflow::toOrderResult);
 ```
 

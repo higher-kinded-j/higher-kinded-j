@@ -3,6 +3,9 @@
 package org.higherkindedj.tutorial.effect;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.higherkindedj.hkt.assertions.EitherAssert.assertThatEither;
+import static org.higherkindedj.hkt.assertions.MaybeAssert.assertThatMaybe;
+import static org.higherkindedj.hkt.assertions.TryAssert.assertThatTry;
 
 import java.util.function.Function;
 import org.higherkindedj.hkt.effect.EitherPath;
@@ -103,22 +106,22 @@ public class Tutorial01_EffectPathBasics {
   void exercise1_creatingMaybePath() {
     MaybePath<String> present = answerRequired();
 
-    assertThat(present.run().isJust()).isTrue();
+    assertThatMaybe(present.run()).isJust();
     assertThat(present.getOrElse("default")).isEqualTo("hello");
 
     MaybePath<String> absent = answerRequired();
 
-    assertThat(absent.run().isNothing()).isTrue();
+    assertThatMaybe(absent.run()).isNothing();
     assertThat(absent.getOrElse("default")).isEqualTo("default");
 
     String nullable = null;
     MaybePath<String> fromNullable = answerRequired();
 
-    assertThat(fromNullable.run().isNothing()).isTrue();
+    assertThatMaybe(fromNullable.run()).isNothing();
 
     // Sanity: non-null values become Just.
     MaybePath<String> fromNonNull = Path.maybe("world");
-    assertThat(fromNonNull.run().isJust()).isTrue();
+    assertThatMaybe(fromNonNull.run()).isJust();
   }
 
   /**
@@ -139,18 +142,16 @@ public class Tutorial01_EffectPathBasics {
   void exercise2_creatingEitherPath() {
     EitherPath<String, Integer> success = answerRequired();
 
-    assertThat(success.run().isRight()).isTrue();
-    assertThat(success.run().getRight()).isEqualTo(42);
+    assertThatEither(success.run()).isRight().hasRight(42);
 
     EitherPath<String, Integer> failure = answerRequired();
 
-    assertThat(failure.run().isLeft()).isTrue();
-    assertThat(failure.run().getLeft()).isEqualTo("Invalid input");
+    assertThatEither(failure.run()).isLeft().hasLeft("Invalid input");
 
     Either<String, Integer> either = Either.right(100);
     EitherPath<String, Integer> fromEither = answerRequired();
 
-    assertThat(fromEither.run().getRight()).isEqualTo(100);
+    assertThatEither(fromEither.run()).hasRight(100);
   }
 
   /**
@@ -173,12 +174,12 @@ public class Tutorial01_EffectPathBasics {
   void exercise3_tryPathAndIOPath() {
     TryPath<Integer> successTry = answerRequired();
 
-    assertThat(successTry.run().isSuccess()).isTrue();
+    assertThatTry(successTry.run()).isSuccess();
     assertThat(successTry.getOrElse(-1)).isEqualTo(42);
 
     // Sanity: invalid input becomes Failure.
     TryPath<Integer> failureTry = Path.tryOf(() -> Integer.parseInt("not a number"));
-    assertThat(failureTry.run().isFailure()).isTrue();
+    assertThatTry(failureTry.run()).isFailure();
 
     var counter = new int[] {0};
     IOPath<Integer> ioPath = answerRequired();
@@ -217,16 +218,16 @@ public class Tutorial01_EffectPathBasics {
 
     // Sanity: map on Nothing is a no-op.
     MaybePath<String> absent = Path.<String>nothing().map(String::toUpperCase);
-    assertThat(absent.run().isNothing()).isTrue();
+    assertThatMaybe(absent.run()).isNothing();
 
     EitherPath<String, Integer> success = Path.right(10);
     EitherPath<String, Integer> doubled = answerRequired();
 
-    assertThat(doubled.run().getRight()).isEqualTo(20);
+    assertThatEither(doubled.run()).hasRight(20);
 
     // Sanity: map on Left is a no-op.
     EitherPath<String, Integer> failure = Path.<String, Integer>left("error").map(n -> n * 2);
-    assertThat(failure.run().getLeft()).isEqualTo("error");
+    assertThatEither(failure.run()).hasLeft("error");
   }
 
   /**
@@ -264,16 +265,14 @@ public class Tutorial01_EffectPathBasics {
 
     EitherPath<String, Double> result = answerRequired();
 
-    assertThat(result.run().isRight()).isTrue();
-    assertThat(result.run().getRight()).isEqualTo(4.0);
+    assertThatEither(result.run()).isRight().hasRight(4.0);
 
     // Sanity: bad input short-circuits at the first failing step.
     EitherPath<String, String> invalidInput = Path.right("not-a-number");
     EitherPath<String, Double> failedResult =
         invalidInput.via(parseNumber).via(validatePositive).via(divideHundredBy);
 
-    assertThat(failedResult.run().isLeft()).isTrue();
-    assertThat(failedResult.run().getLeft()).isEqualTo("Not a number: not-a-number");
+    assertThatEither(failedResult.run()).isLeft().hasLeft("Not a number: not-a-number");
   }
 
   // ═════════════════════════════════════════════════════════════════════════
@@ -306,24 +305,23 @@ public class Tutorial01_EffectPathBasics {
 
     EitherPath<String, Integer> recovered = answerRequired();
 
-    assertThat(recovered.run().isRight()).isTrue();
-    assertThat(recovered.run().getRight()).isEqualTo(-1);
+    assertThatEither(recovered.run()).isRight().hasRight(-1);
 
     EitherPath<String, Integer> recoveredWith = answerRequired();
 
-    assertThat(recoveredWith.run().getRight()).isEqualTo(0);
+    assertThatEither(recoveredWith.run()).hasRight(0);
 
     EitherPath<String, Integer> primary = Path.left("Primary failed");
     EitherPath<String, Integer> fallback = Path.right(42);
 
     EitherPath<String, Integer> withFallback = answerRequired();
 
-    assertThat(withFallback.run().getRight()).isEqualTo(42);
+    assertThatEither(withFallback.run()).hasRight(42);
 
     EitherPath<String, Integer> stringError = Path.left("error");
     EitherPath<Integer, Integer> intError = answerRequired();
 
-    assertThat(intError.run().getLeft()).isEqualTo(5);
+    assertThatEither(intError.run()).hasLeft(5);
   }
 
   // ═════════════════════════════════════════════════════════════════════════
@@ -360,14 +358,14 @@ public class Tutorial01_EffectPathBasics {
     // Sanity: if either input is Nothing, the result is Nothing.
     MaybePath<String> absentName = Path.nothing();
     MaybePath<User> partialUser = absentName.zipWith(agePath, User::new);
-    assertThat(partialUser.run().isNothing()).isTrue();
+    assertThatMaybe(partialUser.run()).isNothing();
 
     EitherPath<String, String> firstName = Path.right("Alice");
     EitherPath<String, String> lastName = Path.right("Smith");
 
     EitherPath<String, String> fullName = answerRequired();
 
-    assertThat(fullName.run().getRight()).isEqualTo("Alice Smith");
+    assertThatEither(fullName.run()).hasRight("Alice Smith");
   }
 
   /**
@@ -414,8 +412,9 @@ public class Tutorial01_EffectPathBasics {
     EitherPath<String, String> invalidWorkflow =
         Path.<String, String>right("u2").via(findUser).via(validateEmail).map(User::email);
 
-    assertThat(invalidWorkflow.run().isLeft()).isTrue();
-    assertThat(invalidWorkflow.run().getLeft()).contains("Email required");
+    assertThatEither(invalidWorkflow.run())
+        .isLeft()
+        .hasLeftSatisfying(error -> assertThat(error).contains("Email required"));
 
     // Sanity: missing user, recovered with a default.
     EitherPath<String, String> recoveredWorkflow =
@@ -424,7 +423,7 @@ public class Tutorial01_EffectPathBasics {
             .recover(err -> new User("default", "Guest", "guest@example.com"))
             .map(User::email);
 
-    assertThat(recoveredWorkflow.run().getRight()).isEqualTo("guest@example.com");
+    assertThatEither(recoveredWorkflow.run()).hasRight("guest@example.com");
   }
 
   // ═════════════════════════════════════════════════════════════════════════
@@ -471,8 +470,7 @@ public class Tutorial01_EffectPathBasics {
     // TODO: replace answerRequired() with input.via(parseNumber).
     EitherPath<String, Integer> flattened = answerRequired();
 
-    assertThat(flattened.run().isRight()).isTrue();
-    assertThat(flattened.run().getRight()).isEqualTo(42);
+    assertThatEither(flattened.run()).isRight().hasRight(42);
 
     // For comparison: the wrong call shape, kept as a comment because it produces nested paths
     // that the type system cannot tell us are wrong:

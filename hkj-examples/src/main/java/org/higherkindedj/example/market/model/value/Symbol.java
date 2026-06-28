@@ -12,6 +12,9 @@ import java.util.Objects;
 public record Symbol(String value) {
   public Symbol {
     Objects.requireNonNull(value, "symbol value must not be null");
+    if (value.isBlank()) {
+      throw new IllegalArgumentException("symbol value must not be blank");
+    }
   }
 
   @Override

@@ -3,6 +3,7 @@
 package org.higherkindedj.tutorial.solutions.transformers;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.higherkindedj.hkt.assertions.MaybeAssert.assertThatMaybe;
 import static org.higherkindedj.hkt.future.CompletableFutureKindHelper.FUTURE;
 import static org.higherkindedj.hkt.instances.Witnesses.*;
 import static org.higherkindedj.hkt.optional_t.OptionalTKindHelper.OPTIONAL_T;
@@ -204,8 +205,8 @@ public class Tutorial02_AsyncWithAbsence_Solution {
       MaybeT<CompletableFutureKind.Witness, User> wrapped = MaybeT.fromKind(bob);
 
       var result = FUTURE.join(wrapped.value());
-      assertThat(result.isJust()).isTrue();
-      assertThat(result.get().name()).isEqualTo("Bob");
+      assertThatMaybe(result).isJust();
+      assertThatMaybe(result).hasValueSatisfying(u -> assertThat(u.name()).isEqualTo("Bob"));
     }
   }
 }

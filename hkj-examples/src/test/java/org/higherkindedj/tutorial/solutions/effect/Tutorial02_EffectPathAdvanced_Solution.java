@@ -3,6 +3,8 @@
 package org.higherkindedj.tutorial.solutions.effect;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.higherkindedj.hkt.assertions.EitherAssert.assertThatEither;
+import static org.higherkindedj.hkt.assertions.MaybeAssert.assertThatMaybe;
 
 import java.util.Optional;
 import java.util.function.Function;
@@ -64,7 +66,7 @@ public class Tutorial02_EffectPathAdvanced_Solution {
             .<Integer>from(a -> Path.nothing())
             .from(t -> Path.just(100))
             .yield((a, b, c) -> a + b + c);
-    assertThat(shortCircuit.run().isNothing()).isTrue();
+    assertThatMaybe(shortCircuit.run()).isNothing();
   }
 
   // ─── Exercise 2 ────────────────────────────────────────────────────────────
@@ -100,23 +102,21 @@ public class Tutorial02_EffectPathAdvanced_Solution {
             .from(parseAge)
             .from(t -> validateRange.apply(t._2()))
             .yield((input, parsed, validated) -> "Valid age: " + validated);
-    assertThat(workflow.run().getRight()).isEqualTo("Valid age: 25");
+    assertThatEither(workflow.run()).hasRight("Valid age: 25");
 
     EitherPath<String, String> invalid =
         ForPath.from(Path.<String, String>right("abc"))
             .from(parseAge)
             .from(t -> validateRange.apply(t._2()))
             .yield((input, parsed, validated) -> "Valid age: " + validated);
-    assertThat(invalid.run().isLeft()).isTrue();
-    assertThat(invalid.run().getLeft()).isEqualTo("Invalid age format");
+    assertThatEither(invalid.run()).isLeft().hasLeft("Invalid age format");
 
     EitherPath<String, String> outOfRange =
         ForPath.from(Path.<String, String>right("200"))
             .from(parseAge)
             .from(t -> validateRange.apply(t._2()))
             .yield((input, parsed, validated) -> "Valid age: " + validated);
-    assertThat(outOfRange.run().isLeft()).isTrue();
-    assertThat(outOfRange.run().getLeft()).isEqualTo("Age out of range");
+    assertThatEither(outOfRange.run()).isLeft().hasLeft("Age out of range");
   }
 
   // ─── Exercise 3 ────────────────────────────────────────────────────────────
@@ -141,10 +141,10 @@ public class Tutorial02_EffectPathAdvanced_Solution {
     ErrorContext<?, String, Integer> failure = ErrorContext.failure("Something went wrong");
 
     Either<String, Integer> successResult = success.runIO().unsafeRun();
-    assertThat(successResult.getRight()).isEqualTo(42);
+    assertThatEither(successResult).hasRight(42);
 
     Either<String, Integer> failureResult = failure.runIO().unsafeRun();
-    assertThat(failureResult.getLeft()).isEqualTo("Something went wrong");
+    assertThatEither(failureResult).hasLeft("Something went wrong");
 
     ErrorContext<?, String, String> workflow =
         ErrorContext.<String, Integer>success(10)
@@ -152,10 +152,10 @@ public class Tutorial02_EffectPathAdvanced_Solution {
             .map(String::toUpperCase);
 
     Either<String, String> workflowResult = workflow.runIO().unsafeRun();
-    assertThat(workflowResult.getRight()).isEqualTo("BIG: 10");
+    assertThatEither(workflowResult).hasRight("BIG: 10");
 
     Either<String, Integer> recovered = failure.recover(err -> -1).runIO().unsafeRun();
-    assertThat(recovered.getRight()).isEqualTo(-1);
+    assertThatEither(recovered).hasRight(-1);
   }
 
   // ─── Exercise 4 ────────────────────────────────────────────────────────────
@@ -288,7 +288,7 @@ public class Tutorial02_EffectPathAdvanced_Solution {
 
     EitherPath<String, String> createResult =
         createUserPath.apply("Bob").map(User::name).map(name -> "Created: " + name);
-    assertThat(createResult.run().getRight()).isEqualTo("Created: Bob");
+    assertThatEither(createResult.run()).hasRight("Created: Bob");
   }
 
   // ─── Exercise 7 ────────────────────────────────────────────────────────────
@@ -322,12 +322,11 @@ public class Tutorial02_EffectPathAdvanced_Solution {
     EitherPath<String, User> userPath = Path.right(alice);
 
     EitherPath<String, String> cityEffectPath = userPath.focus(addressPath).focus(cityPath);
-    assertThat(cityEffectPath.run().getRight()).isEqualTo("London");
+    assertThatEither(cityEffectPath.run()).hasRight("London");
 
     EitherPath<String, User> errorPath = Path.left("User not found");
     EitherPath<String, String> cityFromError = errorPath.focus(addressPath).focus(cityPath);
-    assertThat(cityFromError.run().isLeft()).isTrue();
-    assertThat(cityFromError.run().getLeft()).isEqualTo("User not found");
+    assertThatEither(cityFromError.run()).isLeft().hasLeft("User not found");
 
     MaybePath<String> complexResult =
         ForPath.from(Path.just(alice))
@@ -362,7 +361,6 @@ public class Tutorial02_EffectPathAdvanced_Solution {
             .runIO()
             .unsafeRun();
 
-    assertThat(result.isRight()).isTrue();
-    assertThat(result.getRight()).isEqualTo(20);
+    assertThatEither(result).isRight().hasRight(20);
   }
 }

@@ -305,7 +305,7 @@ public class MarketDataPipeline {
   <div class="pipeline-row pipeline-row-center">
     <span class="pipeline-node pn-orange">enrich — Par.map2 ×8</span>
     <span class="pipeline-arrow">→</span>
-    <span class="pipeline-node pn-orange">risk — parEvalMapUnordered ×4</span>
+    <span class="pipeline-node pn-orange">risk — parEvalMap ×4</span>
   </div>
   <div class="pipeline-arrow-down">▼</div>
   <div class="pipeline-row pipeline-row-center">

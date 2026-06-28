@@ -114,22 +114,28 @@ public EitherPath<OrderError, OrderResult> process(OrderRequest request) {
             .toState((address, customer, order) ->
                 ProcessingState.initial(address, customer, order))
 
-            // Phase 2 (Enrich): named field access via ForState + lenses
+            // Phase 2 (Enrich): named field access via ForState + generated lenses
             .fromThen(s -> lift(reserveInventory(s.order().orderId(), s.order().lines())),
-                reservationLens)
+                ProcessingStateLenses.reservation())
             .fromThen(s -> lift(applyDiscounts(s.order(), s.customer())),
-                discountLens)
+                ProcessingStateLenses.discount())
             .fromThen(s -> lift(processPayment(s.order(), s.discount())),
-                paymentLens)
+                ProcessingStateLenses.payment())
             .fromThen(s -> lift(createShipment(s.order(), s.address())),
-                shipmentLens)
+                ProcessingStateLenses.shipment())
             .fromThen(s -> lift(sendNotifications(s.order(), s.customer(), s.discount())),
-                notificationLens)
+                ProcessingStateLenses.notification())
             .yield(OrderWorkflow::toOrderResult);
 
     return Path.either(EITHER.narrow(result));
 }
 ```
+
+In the current example, `process` first runs **accumulating** field validation: `validateRequest`
+collects every malformed field at once via `ValidationPath.zipWithAccum`, converts to `EitherPath`,
+and only then delegates to the `For` → `ForState` pipeline above (factored out as `processValidated`).
+The composition pattern is unchanged — the validation front door just reports all input errors
+together rather than one per round-trip.
 
 ### Two-Phase Design
 
@@ -157,7 +163,8 @@ With `EitherPath`, the benefit is documentation of intent; execution remains seq
 The `ProcessingState` record gives every intermediate value a name:
 
 ```java
-record ProcessingState(
+@GenerateLenses
+public record ProcessingState(
     ValidatedShippingAddress address,
     Customer customer,
     ValidatedOrder order,
@@ -178,20 +185,24 @@ After `toState()`, the `fromThen()` steps access earlier results by name — `s.
 
 ### Lenses Connect ForState to the State Record
 
-Each `fromThen(function, lens)` call runs a monadic operation and stores the result via a lens:
+Each `fromThen(function, lens)` call runs a monadic operation and stores the result via a lens.
+Because `ProcessingState` is annotated `@GenerateLenses`, the processor generates one lens per field
+— `ProcessingStateLenses.reservation()`, `ProcessingStateLenses.discount()`, … — so the workflow
+above never hand-writes a lens. Each generated lens is just a getter/setter pair;
+`ProcessingStateLenses.discount()` is equivalent to:
 
 ```java
-// In production: @GenerateLenses on ProcessingState generates these automatically
-static final Lens<ProcessingState, DiscountResult> discountLens =
-    Lens.of(
-        ProcessingState::discount,
-        (s, v) -> new ProcessingState(
-            s.address(), s.customer(), s.order(), s.reservation(),
-            v, s.payment(), s.shipment(), s.notification()));
+Lens.of(
+    ProcessingState::discount,
+    (s, v) -> new ProcessingState(
+        s.address(), s.customer(), s.order(), s.reservation(),
+        v, s.payment(), s.shipment(), s.notification()));
 ```
 
-~~~admonish tip title="Use @GenerateLenses in production"
-Annotate your state record with `@GenerateLenses` and the annotation processor generates all lenses automatically. The manual definitions shown here are for clarity.
+~~~admonish tip title="@GenerateLenses removes the boilerplate"
+Annotating the state record with `@GenerateLenses` generates all five enrich-phase lenses
+automatically — the `Lens.of(...)` form above is shown only to illustrate what each generated lens
+does. The example workflow calls `ProcessingStateLenses.discount()` and friends directly.
 ~~~
 
 ### Kind Lifting
@@ -271,7 +282,7 @@ private Either<OrderError, NotificationResult> sendNotifications(
 }
 ```
 
-The `fold()` method handles both cases: on error, it recovers with a "no notification" result; on success, it passes through. The `ForState` step that calls this method via `fromThen()` will store the result via `notificationLens` either way.
+The `fold()` method handles both cases: on error, it recovers with a "no notification" result; on success, it passes through. The `ForState` step that calls this method via `fromThen()` will store the result via `ProcessingStateLenses.notification()` either way.
 
 ### Recovery Options
 

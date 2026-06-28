@@ -3,6 +3,7 @@
 package org.higherkindedj.tutorial.expression;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.higherkindedj.hkt.assertions.MaybeAssert.assertThatMaybe;
 import static org.higherkindedj.hkt.instances.Witnesses.*;
 import static org.higherkindedj.hkt.maybe.MaybeKindHelper.MAYBE;
 
@@ -225,8 +226,7 @@ public class Tutorial01_ForStateBasics {
             .update(processedLens, true)
             .yield();
 
-    assertThat(MAYBE.narrow(result))
-        .isEqualTo(Maybe.just(new OrderContext("ORD-400", true, true, null)));
+    assertThatMaybe(MAYBE.narrow(result)).hasValue(new OrderContext("ORD-400", true, true, null));
   }
 
   /**
@@ -252,7 +252,7 @@ public class Tutorial01_ForStateBasics {
             .update(processedLens, true)
             .yield();
 
-    assertThat(MAYBE.narrow(result)).isEqualTo(Maybe.nothing());
+    assertThatMaybe(MAYBE.narrow(result)).isNothing();
   }
 
   // =========================================================================
@@ -299,8 +299,8 @@ public class Tutorial01_ForStateBasics {
             .matchThen(matchStatusLens, activeCodePrism, extractedCodeLens)
             .yield();
 
-    assertThat(MAYBE.narrow(result))
-        .isEqualTo(Maybe.just(new MatchContext(new Status.Active("A-001"), "A-001")));
+    assertThatMaybe(MAYBE.narrow(result))
+        .hasValue(new MatchContext(new Status.Active("A-001"), "A-001"));
   }
 
   /**
@@ -325,7 +325,7 @@ public class Tutorial01_ForStateBasics {
             .matchThen(matchStatusLens, activeCodePrism, extractedCodeLens)
             .yield();
 
-    assertThat(MAYBE.narrow(result)).isEqualTo(Maybe.nothing());
+    assertThatMaybe(MAYBE.narrow(result)).isNothing();
   }
 
   // =========================================================================
@@ -446,7 +446,7 @@ public class Tutorial01_ForStateBasics {
             .fromThen(ctx -> MAYBE.just("CONF-" + ctx.orderId()), confirmationIdLens)
             .yield(ctx -> ctx.orderId() + ":" + ctx.confirmationId());
 
-    assertThat(MAYBE.narrow(result)).isEqualTo(Maybe.just("ORD-800:CONF-ORD-800"));
+    assertThatMaybe(MAYBE.narrow(result)).hasValue("ORD-800:CONF-ORD-800");
   }
 
   // =========================================================================
@@ -553,10 +553,14 @@ public class Tutorial01_ForStateBasics {
             .yield();
 
     Maybe<Dashboard> pass = MAYBE.narrow(passResult);
-    assertThat(pass.isJust()).isTrue();
-    assertThat(pass.get().user()).isEqualTo("Grace");
-    assertThat(pass.get().ready()).isTrue();
+    assertThatMaybe(pass)
+        .isJust()
+        .hasValueSatisfying(
+            dashboard -> {
+              assertThat(dashboard.user()).isEqualTo("Grace");
+              assertThat(dashboard.ready()).isTrue();
+            });
 
-    assertThat(MAYBE.narrow(failResult).isNothing()).isTrue();
+    assertThatMaybe(MAYBE.narrow(failResult)).isNothing();
   }
 }

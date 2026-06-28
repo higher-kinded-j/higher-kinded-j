@@ -3,6 +3,7 @@
 package org.higherkindedj.tutorial.context;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.higherkindedj.hkt.assertions.MaybeAssert.assertThatMaybe;
 
 import java.security.Principal;
 import java.util.Set;
@@ -228,7 +229,7 @@ public class Tutorial06_AdvancedContextPatterns {
       // Note: toMaybe() runs the context, so call it within the scope
       Maybe<String> result = ScopedValue.where(CONFIG_VALUE, "value").call(() -> answerRequired());
 
-      assertThat(result.isJust()).isTrue();
+      assertThatMaybe(result).isJust();
       assertThat(result.orElse("none")).isEqualTo("value");
     }
 
@@ -247,7 +248,7 @@ public class Tutorial06_AdvancedContextPatterns {
       // TODO: Replace answerRequired() with failing.toMaybe()
       Maybe<String> result = answerRequired();
 
-      assertThat(result.isNothing()).isTrue();
+      assertThatMaybe(result).isNothing();
       assertThat(result.orElse("fallback")).isEqualTo("fallback");
     }
   }

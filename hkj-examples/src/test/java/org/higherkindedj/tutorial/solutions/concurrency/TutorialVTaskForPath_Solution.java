@@ -3,6 +3,7 @@
 package org.higherkindedj.tutorial.solutions.concurrency;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.higherkindedj.hkt.assertions.TryAssert.assertThatTry;
 
 import java.util.List;
 import java.util.function.BiFunction;
@@ -68,8 +69,8 @@ public class TutorialVTaskForPath_Solution {
               .yield((id, greeting) -> greeting + ", " + id + "!");
 
       Try<String> tryResult = result.runSafe();
-      assertThat(tryResult.isSuccess()).isTrue();
-      assertThat(tryResult.orElse("error")).isEqualTo("Hello, user-123!");
+      assertThatTry(tryResult).isSuccess();
+      assertThatTry(tryResult).hasValue("Hello, user-123!");
     }
 
     /**
@@ -95,8 +96,8 @@ public class TutorialVTaskForPath_Solution {
               .yield((base, doubled, sum) -> sum);
 
       Try<Integer> tryResult = result.runSafe();
-      assertThat(tryResult.isSuccess()).isTrue();
-      assertThat(tryResult.orElse(-1)).isEqualTo(30);
+      assertThatTry(tryResult).isSuccess();
+      assertThatTry(tryResult).hasValue(30);
     }
   }
 
@@ -132,8 +133,8 @@ public class TutorialVTaskForPath_Solution {
               .yield((v, squared, plus10) -> "Original: " + v + ", Result: " + plus10);
 
       Try<String> tryResult = result.runSafe();
-      assertThat(tryResult.isSuccess()).isTrue();
-      assertThat(tryResult.orElse("error")).isEqualTo("Original: 5, Result: 35");
+      assertThatTry(tryResult).isSuccess();
+      assertThatTry(tryResult).hasValue("Original: 5, Result: 35");
     }
 
     /**
@@ -161,8 +162,8 @@ public class TutorialVTaskForPath_Solution {
               .yield((price, qty, subtotal, total) -> total);
 
       Try<Double> tryResult = result.runSafe();
-      assertThat(tryResult.isSuccess()).isTrue();
-      assertThat(tryResult.orElse(-1.0)).isEqualTo(33.0);
+      assertThatTry(tryResult).isSuccess();
+      assertThatTry(tryResult).hasValue(33.0);
     }
   }
 
@@ -207,8 +208,8 @@ public class TutorialVTaskForPath_Solution {
           ForPath.from(fetchUser).focus(addressPath).yield((u, addr) -> addr.city());
 
       Try<String> tryResult = result.runSafe();
-      assertThat(tryResult.isSuccess()).isTrue();
-      assertThat(tryResult.orElse("error")).isEqualTo("London");
+      assertThatTry(tryResult).isSuccess();
+      assertThatTry(tryResult).hasValue("London");
     }
 
     /**
@@ -239,8 +240,8 @@ public class TutorialVTaskForPath_Solution {
               .yield((user1, address, weather) -> user1.name() + ": " + weather);
 
       Try<String> tryResult = result.runSafe();
-      assertThat(tryResult.isSuccess()).isTrue();
-      assertThat(tryResult.orElse("error")).isEqualTo("Bob: Sunny in Paris");
+      assertThatTry(tryResult).isSuccess();
+      assertThatTry(tryResult).hasValue("Bob: Sunny in Paris");
     }
   }
 
@@ -277,7 +278,7 @@ public class TutorialVTaskForPath_Solution {
               .yield((a, b, c) -> a + b + c);
 
       Try<Integer> tryResult = result.runSafe();
-      assertThat(tryResult.isFailure()).isTrue();
+      assertThatTry(tryResult).isFailure();
       String errorMessage = tryResult.foldFailureFirst(Throwable::getMessage, v -> "no error");
       assertThat(errorMessage).isEqualTo("Step 2 failed");
     }
@@ -305,8 +306,8 @@ public class TutorialVTaskForPath_Solution {
               .handleError(ex -> "DEFAULT");
 
       Try<String> tryResult = result.runSafe();
-      assertThat(tryResult.isSuccess()).isTrue();
-      assertThat(tryResult.orElse("error")).isEqualTo("DEFAULT");
+      assertThatTry(tryResult).isSuccess();
+      assertThatTry(tryResult).hasValue("DEFAULT");
     }
   }
 
@@ -358,8 +359,8 @@ public class TutorialVTaskForPath_Solution {
               .yield((validated, payment, confirmation) -> confirmation.message());
 
       Try<String> tryResult = result.runSafe();
-      assertThat(tryResult.isSuccess()).isTrue();
-      assertThat(tryResult.orElse("error")).isEqualTo("Order confirmed: ORD-001");
+      assertThatTry(tryResult).isSuccess();
+      assertThatTry(tryResult).hasValue("Order confirmed: ORD-001");
     }
 
     /**
@@ -401,8 +402,8 @@ public class TutorialVTaskForPath_Solution {
                   (cart1, subtotal, afterDiscount, total) -> String.format("Total: $%.2f", total));
 
       Try<String> tryResult = result.runSafe();
-      assertThat(tryResult.isSuccess()).isTrue();
-      assertThat(tryResult.orElse("error")).isEqualTo("Total: $24.30");
+      assertThatTry(tryResult).isSuccess();
+      assertThatTry(tryResult).hasValue("Total: $24.30");
     }
   }
 }

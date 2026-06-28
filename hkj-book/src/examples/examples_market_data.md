@@ -231,7 +231,7 @@ Every HKJ feature used in the pipeline, mapped to the stage where it appears:
 | **Merge** | `VStreamPar.merge` | Concurrent multi-source merging | [Building](market_building.md#step-2) |
 | **Enrich** | `Par.map2` | Run two VTasks in parallel, combine | [Building](market_building.md#step-3) |
 | **Enrich** | `VStreamPar.parEvalMap` | Bounded parallel map, order preserved | [Building](market_building.md#step-3) |
-| **Risk** | `parEvalMapUnordered` | Bounded parallel map, completion order | [Building](market_building.md#step-4) |
+| **Risk** | `parEvalMap` | Bounded parallel map, order preserved | [Building](market_building.md#step-4) |
 | **Window** | `VStream.chunk` | Group elements into fixed-size batches | [Building](market_building.md#step-5) |
 | **Aggregate** | `VStream.map` | Transform each chunk into a summary | [Building](market_building.md#step-5) |
 | **Detect** | `VStream.flatMap` | Each element produces zero or more results | [Alerts](market_alerts.md#step-6) |

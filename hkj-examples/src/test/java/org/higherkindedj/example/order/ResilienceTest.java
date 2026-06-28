@@ -3,6 +3,7 @@
 package org.higherkindedj.example.order;
 
 import static org.assertj.core.api.Assertions.*;
+import static org.higherkindedj.hkt.assertions.EitherAssert.assertThatEither;
 
 import java.io.IOException;
 import java.io.UncheckedIOException;
@@ -143,8 +144,7 @@ class ResilienceTest {
 
       var result = Resilience.withTimeout(operation, Duration.ofSeconds(1), "quickOperation");
 
-      assertThat(result.run().isRight()).isTrue();
-      assertThat(result.run().getRight()).isEqualTo("quick result");
+      assertThatEither(result.run()).isRight().hasRight("quick result");
     }
 
     @Test
@@ -163,10 +163,13 @@ class ResilienceTest {
 
       var result = Resilience.withTimeout(slowOperation, Duration.ofMillis(50), "slowOperation");
 
-      assertThat(result.run().isLeft()).isTrue();
-      var error = result.run().getLeft();
-      assertThat(error).isInstanceOf(OrderError.SystemError.class);
-      assertThat(error.code()).isEqualTo("TIMEOUT");
+      assertThatEither(result.run())
+          .isLeft()
+          .hasLeftSatisfying(
+              error -> {
+                assertThat(error).isInstanceOf(OrderError.SystemError.class);
+                assertThat(error.code()).isEqualTo("TIMEOUT");
+              });
     }
   }
 
@@ -193,8 +196,7 @@ class ResilienceTest {
       var result =
           Resilience.resilient(operation, policy, Duration.ofSeconds(5), "retryableOperation");
 
-      assertThat(result.run().isRight()).isTrue();
-      assertThat(result.run().getRight()).isEqualTo("success after retry");
+      assertThatEither(result.run()).isRight().hasRight("success after retry");
     }
   }
 }

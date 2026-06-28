@@ -3,6 +3,7 @@
 package org.higherkindedj.tutorial.transformers;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.higherkindedj.hkt.assertions.EitherAssert.assertThatEither;
 import static org.higherkindedj.hkt.either_t.EitherTKindHelper.EITHER_T;
 import static org.higherkindedj.hkt.future.CompletableFutureKindHelper.FUTURE;
 import static org.higherkindedj.hkt.instances.Witnesses.*;
@@ -147,8 +148,8 @@ public class Tutorial01_WhenPathIsNotEnough {
           answerRequired();
 
       var report = FUTURE.join(wrapped.value());
-      assertThat(report.isRight()).isTrue();
-      assertThat(report.getRight().city()).isEqualTo("London");
+      assertThatEither(report).isRight();
+      assertThatEither(report).hasRightSatisfying(r -> assertThat(r.city()).isEqualTo("London"));
     }
 
     /**
@@ -170,7 +171,7 @@ public class Tutorial01_WhenPathIsNotEnough {
           answerRequired();
 
       var report = FUTURE.join(underlying);
-      assertThat(report.getRight().city()).isEqualTo("Paris");
+      assertThatEither(report).hasRightSatisfying(r -> assertThat(r.city()).isEqualTo("Paris"));
     }
   }
 
@@ -200,7 +201,7 @@ public class Tutorial01_WhenPathIsNotEnough {
       EitherT<CompletableFutureKind.Witness, WeatherError, String> lifted = answerRequired();
 
       var result = FUTURE.join(lifted.value());
-      assertThat(result.getRight()).isEqualTo("Rome");
+      assertThatEither(result).hasRight("Rome");
     }
 
     /**
@@ -225,9 +226,13 @@ public class Tutorial01_WhenPathIsNotEnough {
           workflow = answerRequired();
 
       var result = FUTURE.join(EITHER_T.narrow(workflow).value());
-      assertThat(result.isRight()).isTrue();
-      assertThat(result.getRight().city()).isEqualTo("Berlin");
-      assertThat(result.getRight().advice()).isEqualTo("Travel light");
+      assertThatEither(result).isRight();
+      assertThatEither(result)
+          .hasRightSatisfying(
+              advice -> {
+                assertThat(advice.city()).isEqualTo("Berlin");
+                assertThat(advice.advice()).isEqualTo("Travel light");
+              });
     }
 
     /**
@@ -250,8 +255,9 @@ public class Tutorial01_WhenPathIsNotEnough {
           workflow = answerRequired();
 
       var result = FUTURE.join(EITHER_T.narrow(workflow).value());
-      assertThat(result.isLeft()).isTrue();
-      assertThat(result.getLeft()).isInstanceOf(WeatherError.CityNotFound.class);
+      assertThatEither(result).isLeft();
+      assertThatEither(result)
+          .hasLeftSatisfying(err -> assertThat(err).isInstanceOf(WeatherError.CityNotFound.class));
     }
   }
 
@@ -292,8 +298,8 @@ public class Tutorial01_WhenPathIsNotEnough {
 
       var result = FUTURE.join(EITHER_T.narrow(recovered).value());
 
-      assertThat(result.isRight()).isTrue();
-      assertThat(result.getRight().city()).isEqualTo("Unknown");
+      assertThatEither(result).isRight();
+      assertThatEither(result).hasRightSatisfying(r -> assertThat(r.city()).isEqualTo("Unknown"));
     }
   }
 

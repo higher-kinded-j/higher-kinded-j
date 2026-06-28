@@ -23,6 +23,11 @@ public record SplitShipmentResult(
     List<ShipmentInfo> shipments,
     Instant latestEstimatedDelivery,
     Money totalShippingCost) {
+  public SplitShipmentResult {
+    // Defensive copy: keep the shipments list immutable and caller-independent.
+    shipments = List.copyOf(shipments);
+  }
+
   /**
    * Returns the number of shipments created.
    *

@@ -2,6 +2,8 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.example.market.model;
 
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.Instant;
 import java.util.Objects;
 import org.higherkindedj.example.market.model.value.Price;
@@ -29,9 +31,15 @@ public record PriceTick(
     Objects.requireNonNull(timestamp, "timestamp must not be null");
   }
 
-  /** The mid-price between bid and ask. */
+  /**
+   * The mid-price between bid and ask.
+   *
+   * <p>Computed entirely in {@link BigDecimal} so the result keeps full decimal precision rather
+   * than round-tripping through {@code double}.
+   */
   public Price mid() {
-    return Price.of((bid.toDouble() + ask.toDouble()) / 2.0);
+    return new Price(
+        bid.value().add(ask.value()).divide(BigDecimal.valueOf(2), 4, RoundingMode.HALF_UP));
   }
 
   /** The spread between ask and bid. */

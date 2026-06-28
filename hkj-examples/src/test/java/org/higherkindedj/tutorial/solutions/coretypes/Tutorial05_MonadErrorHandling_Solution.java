@@ -3,6 +3,8 @@
 package org.higherkindedj.tutorial.solutions.coretypes;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.higherkindedj.hkt.assertions.EitherAssert.assertThatEither;
+import static org.higherkindedj.hkt.assertions.TryAssert.assertThatTry;
 import static org.higherkindedj.hkt.either.EitherKindHelper.EITHER;
 import static org.higherkindedj.hkt.instances.Witnesses.*;
 
@@ -57,8 +59,7 @@ public class Tutorial05_MonadErrorHandling_Solution {
     Kind<EitherKind.Witness<String>, Integer> error = monad.raiseError("Invalid input");
 
     Either<String, Integer> result = EITHER.narrow(error);
-    assertThat(result.isLeft()).isTrue();
-    assertThat(result.getLeft()).isEqualTo("Invalid input");
+    assertThatEither(result).isLeft().hasLeft("Invalid input");
   }
 
   /**
@@ -203,8 +204,7 @@ public class Tutorial05_MonadErrorHandling_Solution {
     // Solution: Use fold to return fallback on error, or wrap success value
     Either<String, String> result = primary.fold(err -> fallback, value -> Either.right(value));
 
-    assertThat(result.isRight()).isTrue();
-    assertThat(result.getRight()).isEqualTo("Fallback value");
+    assertThatEither(result).isRight().hasRight("Fallback value");
   }
 
   /**
@@ -233,13 +233,12 @@ public class Tutorial05_MonadErrorHandling_Solution {
     // Solution: Wrap the risky operation in Try
     Try<Integer> result = Try.of(() -> riskyDivision.apply(0));
 
-    assertThat(result.isFailure()).isTrue();
+    assertThatTry(result).isFailure();
 
     // Solution: Recover from the exception with -1
     Try<Integer> recovered = result.recover(ex -> -1);
 
-    assertThat(recovered.isSuccess()).isTrue();
-    assertThat(recovered.get()).isEqualTo(-1);
+    assertThatTry(recovered).isSuccess().hasValue(-1);
   }
 
   /**

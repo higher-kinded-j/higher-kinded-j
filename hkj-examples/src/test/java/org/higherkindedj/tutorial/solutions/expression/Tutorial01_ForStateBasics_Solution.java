@@ -3,6 +3,7 @@
 package org.higherkindedj.tutorial.solutions.expression;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.higherkindedj.hkt.assertions.MaybeAssert.assertThatMaybe;
 import static org.higherkindedj.hkt.instances.Witnesses.*;
 import static org.higherkindedj.hkt.maybe.MaybeKindHelper.MAYBE;
 
@@ -16,7 +17,6 @@ import org.higherkindedj.hkt.id.Id;
 import org.higherkindedj.hkt.id.IdKind;
 import org.higherkindedj.hkt.id.IdKindHelper;
 import org.higherkindedj.hkt.instances.Instances;
-import org.higherkindedj.hkt.maybe.Maybe;
 import org.higherkindedj.hkt.maybe.MaybeKind;
 import org.higherkindedj.optics.Lens;
 import org.higherkindedj.optics.Prism;
@@ -182,8 +182,7 @@ public class Tutorial01_ForStateBasics_Solution {
             .update(processedLens, true)
             .yield();
 
-    assertThat(MAYBE.narrow(result))
-        .isEqualTo(Maybe.just(new OrderContext("ORD-400", true, true, null)));
+    assertThatMaybe(MAYBE.narrow(result)).hasValue(new OrderContext("ORD-400", true, true, null));
   }
 
   // --- Exercise 4b Solution ---
@@ -212,7 +211,7 @@ public class Tutorial01_ForStateBasics_Solution {
             .update(processedLens, true)
             .yield();
 
-    assertThat(MAYBE.narrow(result)).isEqualTo(Maybe.nothing());
+    assertThatMaybe(MAYBE.narrow(result)).isNothing();
   }
 
   // --- Exercise 5a Solution ---
@@ -259,8 +258,8 @@ public class Tutorial01_ForStateBasics_Solution {
             .matchThen(matchStatusLens, activeCodePrism, extractedCodeLens)
             .yield();
 
-    assertThat(MAYBE.narrow(result))
-        .isEqualTo(Maybe.just(new MatchContext(new Status.Active("A-001"), "A-001")));
+    assertThatMaybe(MAYBE.narrow(result))
+        .hasValue(new MatchContext(new Status.Active("A-001"), "A-001"));
   }
 
   // --- Exercise 5b Solution ---
@@ -288,7 +287,7 @@ public class Tutorial01_ForStateBasics_Solution {
             .matchThen(matchStatusLens, activeCodePrism, extractedCodeLens)
             .yield();
 
-    assertThat(MAYBE.narrow(result)).isEqualTo(Maybe.nothing());
+    assertThatMaybe(MAYBE.narrow(result)).isNothing();
   }
 
   // --- Exercise 6 Solution ---
@@ -407,6 +406,6 @@ public class Tutorial01_ForStateBasics_Solution {
             .fromThen(ctx -> MAYBE.just("CONF-" + ctx.orderId()), confirmationIdLens)
             .yield(ctx -> ctx.orderId() + ":" + ctx.confirmationId());
 
-    assertThat(MAYBE.narrow(result)).isEqualTo(Maybe.just("ORD-800:CONF-ORD-800"));
+    assertThatMaybe(MAYBE.narrow(result)).hasValue("ORD-800:CONF-ORD-800");
   }
 }

@@ -8,6 +8,7 @@ import java.util.stream.Collectors;
 import org.higherkindedj.example.order.error.OrderError;
 import org.higherkindedj.example.order.model.*;
 import org.higherkindedj.example.order.model.value.Money;
+import org.higherkindedj.example.order.model.value.ProductId;
 import org.higherkindedj.example.order.service.InventoryService;
 import org.higherkindedj.example.order.service.NotificationService;
 import org.higherkindedj.example.order.service.PaymentService;
@@ -18,14 +19,14 @@ import org.higherkindedj.hkt.expression.ForPath;
 
 /**
  * Workflow for processing orders with partial fulfilment support. Ships available items immediately
- * and creates back-orders for unavailable items.
+ * and creates back-orders for the shortage.
  *
  * <p>Demonstrates ForPath comprehensions for complex conditional workflows:
  *
  * <ul>
- *   <li>Partitioning items by availability
- *   <li>Processing available subset
- *   <li>Creating back-orders for unavailable items
+ *   <li>Splitting each line into a ship-now quantity and a back-order quantity
+ *   <li>Shipping (and charging for) the available units of every line
+ *   <li>Back-ordering only the shortage, at the correct money
  *   <li>Calculating partial payments
  * </ul>
  */
@@ -48,11 +49,8 @@ public class PartialFulfilmentWorkflow {
   }
 
   /**
-   * Processes an order with partial fulfilment support. Ships available items and creates
-   * back-orders for unavailable ones.
-   *
-   * <p>Uses ForPath comprehension for composing workflow steps, with a helper method for
-   * intermediate partitioning logic.
+   * Processes an order with partial fulfilment support. Ships available units and creates
+   * back-orders for the shortage.
    *
    * @param order the validated order to process
    * @return either an error or the partial fulfilment result
@@ -63,26 +61,62 @@ public class PartialFulfilmentWorkflow {
   }
 
   /**
-   * Processes an order after availability information has been retrieved. Partitions items by
-   * availability and uses ForPath to compose the remaining workflow steps.
+   * Processes an order after availability information has been retrieved.
+   *
+   * <p>Splits <em>each</em> line into a ship-now quantity ({@code min(requested, available)}) and a
+   * back-order quantity (the shortage), rather than bucketing whole lines as available/unavailable.
+   * A partially-available line therefore ships and is charged for its available units, and
+   * back-orders only its shortage at the correct money — the previous boolean partition dropped a
+   * partial line's available units and back-ordered (and over-charged) the whole line.
    */
   private EitherPath<OrderError, PartialFulfilmentResult> processWithAvailability(
       ValidatedOrder order, List<ProductAvailability> availability) {
-    var partitioned = partitionByAvailability(availability);
-    var availableItems = partitioned.get(true);
-    var unavailableItems = partitioned.get(false);
-    var partialTotal = calculateAvailableTotal(order, availableItems);
-    var backOrderTotal = calculateBackOrderTotal(order, unavailableItems);
+    // An order may carry two lines for the same product; collapse them by keeping the first
+    // (same product -> same unit price), rather than letting toMap throw on the duplicate key.
+    var unitPrices =
+        order.lines().stream()
+            .collect(
+                Collectors.toMap(
+                    ValidatedOrderLine::productId,
+                    ValidatedOrderLine::unitPrice,
+                    (first, _) -> first));
+    var linesById =
+        order.lines().stream()
+            .collect(
+                Collectors.toMap(ValidatedOrderLine::productId, line -> line, (first, _) -> first));
 
-    return ForPath.from(validateAvailability(partitioned, order))
-        .from(validated -> reserveAvailableItems(order, availableItems))
-        .from(t -> processPartialPayment(order, partialTotal))
-        .from(t -> createShipmentForAvailable(order, availableItems))
-        .from(t -> createBackOrders(order, unavailableItems))
-        .from(t -> sendPartialFulfilmentNotification(order, t._4(), t._5(), partialTotal))
+    var shippable = availability.stream().filter(a -> a.availableQty() > 0).toList();
+    var backordered = availability.stream().filter(a -> a.shortageQty() > 0).toList();
+
+    var fulfilledAmount =
+        shippable.stream()
+            .map(a -> unitPriceOf(unitPrices, a).multiply(shipQty(a)))
+            .reduce(Money.ZERO_GBP, Money::add);
+    var backOrderAmount =
+        backordered.stream()
+            .map(a -> unitPriceOf(unitPrices, a).multiply(a.shortageQty()))
+            .reduce(Money.ZERO_GBP, Money::add);
+
+    return ForPath.from(validateHasAvailability(shippable, availability))
+        .from(_ -> reserveAvailableItems(order, availability))
+        .from(_ -> processPartialPayment(order, fulfilledAmount))
+        .from(_ -> createShipmentForAvailable(order, shippable, linesById))
+        .from(_ -> createBackOrders(order, backordered, unitPrices))
+        .from(_ -> sendPartialFulfilmentNotification(order, fulfilledAmount))
         .yield(
-            (validated, reservationId, payment, shipment, backOrders, notified) ->
-                buildResult(order, payment, shipment, backOrders, partialTotal, backOrderTotal));
+            (_, _, payment, shipment, backOrders, _) ->
+                buildResult(
+                    order, payment, shipment, backOrders, fulfilledAmount, backOrderAmount));
+  }
+
+  /** The quantity of a line that can ship now. */
+  private static int shipQty(ProductAvailability availability) {
+    return Math.min(availability.requestedQty(), availability.availableQty());
+  }
+
+  private static Money unitPriceOf(
+      Map<ProductId, Money> unitPrices, ProductAvailability availability) {
+    return unitPrices.getOrDefault(availability.productId(), Money.ZERO_GBP);
   }
 
   private EitherPath<OrderError, List<ProductAvailability>> getDetailedAvailability(
@@ -90,43 +124,23 @@ public class PartialFulfilmentWorkflow {
     return Path.either(inventoryService.getDetailedAvailability(lines));
   }
 
-  private Map<Boolean, List<ProductAvailability>> partitionByAvailability(
-      List<ProductAvailability> availability) {
-    return availability.stream()
-        .collect(Collectors.partitioningBy(ProductAvailability::isAvailable));
-  }
-
-  private EitherPath<OrderError, Map<Boolean, List<ProductAvailability>>> validateAvailability(
-      Map<Boolean, List<ProductAvailability>> partitioned, ValidatedOrder order) {
-    var available = partitioned.get(true);
-    var unavailable = partitioned.get(false);
-
-    // If nothing is available, that's an error
-    if (available.isEmpty()) {
+  /** Fails fast only when nothing at all can ship; a partial order is a success here. */
+  private EitherPath<OrderError, List<ProductAvailability>> validateHasAvailability(
+      List<ProductAvailability> shippable, List<ProductAvailability> all) {
+    if (shippable.isEmpty()) {
       return Path.left(
           OrderError.InventoryError.outOfStock(
-              unavailable.stream().map(a -> a.productId().value()).toList()));
+              all.stream().map(a -> a.productId().value()).toList()));
     }
-
-    return Path.right(partitioned);
+    return Path.right(shippable);
   }
 
   private EitherPath<OrderError, String> reserveAvailableItems(
-      ValidatedOrder order, List<ProductAvailability> available) {
+      ValidatedOrder order, List<ProductAvailability> availability) {
     return Path.either(
         inventoryService
-            .reserveAvailable(order.orderId(), available)
+            .reserveAvailable(order.orderId(), availability)
             .map(InventoryReservation::reservationId));
-  }
-
-  private Money calculateAvailableTotal(ValidatedOrder order, List<ProductAvailability> available) {
-    var availableProductIds =
-        available.stream().map(ProductAvailability::productId).collect(Collectors.toSet());
-
-    return order.lines().stream()
-        .filter(line -> availableProductIds.contains(line.productId()))
-        .map(ValidatedOrderLine::lineTotal)
-        .reduce(Money.ZERO_GBP, Money::add);
   }
 
   private EitherPath<OrderError, PaymentConfirmation> processPartialPayment(
@@ -136,39 +150,39 @@ public class PartialFulfilmentWorkflow {
   }
 
   private EitherPath<OrderError, ShipmentInfo> createShipmentForAvailable(
-      ValidatedOrder order, List<ProductAvailability> available) {
-    var availableProductIds =
-        available.stream().map(ProductAvailability::productId).collect(Collectors.toSet());
-
-    var availableLines =
-        order.lines().stream()
-            .filter(line -> availableProductIds.contains(line.productId()))
+      ValidatedOrder order,
+      List<ProductAvailability> shippable,
+      Map<ProductId, ValidatedOrderLine> linesById) {
+    // Ship the available quantity of each line, not the full requested line.
+    var shipLines =
+        shippable.stream()
+            .map(
+                a ->
+                    ValidatedOrderLine.of(
+                        a.productId(), linesById.get(a.productId()).product(), shipQty(a)))
             .toList();
 
     return Path.either(
-        shippingService.createShipment(order.orderId(), order.shippingAddress(), availableLines));
+        shippingService.createShipment(order.orderId(), order.shippingAddress(), shipLines));
   }
 
   private EitherPath<OrderError, List<BackOrder>> createBackOrders(
-      ValidatedOrder order, List<ProductAvailability> unavailable) {
-    if (unavailable.isEmpty()) {
+      ValidatedOrder order,
+      List<ProductAvailability> backordered,
+      Map<ProductId, Money> unitPrices) {
+    if (backordered.isEmpty()) {
       return Path.right(List.of());
     }
 
-    var productPrices =
-        order.lines().stream()
-            .collect(
-                Collectors.toMap(ValidatedOrderLine::productId, ValidatedOrderLine::unitPrice));
-
     var backOrders =
-        unavailable.stream()
+        backordered.stream()
             .map(
-                avail ->
+                a ->
                     BackOrder.create(
                         order.orderId(),
-                        avail.productId(),
-                        avail.shortageQty(),
-                        productPrices.getOrDefault(avail.productId(), Money.ZERO_GBP),
+                        a.productId(),
+                        a.shortageQty(),
+                        unitPriceOf(unitPrices, a),
                         14 // Estimated 14 days for restock
                         ))
             .toList();
@@ -176,28 +190,14 @@ public class PartialFulfilmentWorkflow {
     return Path.right(backOrders);
   }
 
-  private Money calculateBackOrderTotal(
-      ValidatedOrder order, List<ProductAvailability> unavailable) {
-    var unavailableProductIds =
-        unavailable.stream().map(ProductAvailability::productId).collect(Collectors.toSet());
-
-    return order.lines().stream()
-        .filter(line -> unavailableProductIds.contains(line.productId()))
-        .map(ValidatedOrderLine::lineTotal)
-        .reduce(Money.ZERO_GBP, Money::add);
-  }
-
   private EitherPath<OrderError, Boolean> sendPartialFulfilmentNotification(
-      ValidatedOrder order,
-      ShipmentInfo shipment,
-      List<BackOrder> backOrders,
-      Money fulfilledAmount) {
-    // Use the fulfilled amount (items charged) for the notification, not shipping cost
+      ValidatedOrder order, Money fulfilledAmount) {
+    // Use the fulfilled amount (items charged) for the notification, not shipping cost.
     return Path.either(
             notificationService
                 .sendOrderConfirmation(order.orderId(), order.customer(), fulfilledAmount)
                 .map(NotificationResult::emailSent))
-        .recoverWith(error -> Path.right(false));
+        .recoverWith(_ -> Path.right(false));
   }
 
   private PartialFulfilmentResult buildResult(

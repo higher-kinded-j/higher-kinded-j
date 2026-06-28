@@ -3,6 +3,7 @@
 package org.higherkindedj.tutorial.solutions.coretypes;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.higherkindedj.hkt.assertions.MaybeAssert.assertThatMaybe;
 import static org.higherkindedj.hkt.either.EitherKindHelper.EITHER;
 import static org.higherkindedj.hkt.list.ListKindHelper.LIST;
 import static org.higherkindedj.hkt.maybe.MaybeKindHelper.MAYBE;
@@ -102,12 +103,12 @@ public class Tutorial08_NaturalTransformation_Solution {
     // Test with Right
     Kind<EitherKind.Witness<String>, Integer> right = EITHER.widen(Either.right(42));
     Kind<MaybeKind.Witness, Integer> maybeFromRight = eitherToMaybe.apply(right);
-    assertThat(MAYBE.narrow(maybeFromRight)).isEqualTo(Maybe.just(42));
+    assertThatMaybe(MAYBE.narrow(maybeFromRight)).hasValue(42);
 
     // Test with Left
     Kind<EitherKind.Witness<String>, Integer> left = EITHER.widen(Either.left("error"));
     Kind<MaybeKind.Witness, Integer> maybeFromLeft = eitherToMaybe.apply(left);
-    assertThat(MAYBE.narrow(maybeFromLeft)).isEqualTo(Maybe.nothing());
+    assertThatMaybe(MAYBE.narrow(maybeFromLeft)).isNothing();
   }
 
   /**
@@ -139,12 +140,12 @@ public class Tutorial08_NaturalTransformation_Solution {
     // Test with non-empty list
     Kind<ListKind.Witness, String> nonEmpty = LIST.widen(List.of("first", "second"));
     Kind<MaybeKind.Witness, String> headNonEmpty = listHead.apply(nonEmpty);
-    assertThat(MAYBE.narrow(headNonEmpty)).isEqualTo(Maybe.just("first"));
+    assertThatMaybe(MAYBE.narrow(headNonEmpty)).hasValue("first");
 
     // Test with empty list
     Kind<ListKind.Witness, String> empty = LIST.widen(List.of());
     Kind<MaybeKind.Witness, String> headEmpty = listHead.apply(empty);
-    assertThat(MAYBE.narrow(headEmpty)).isEqualTo(Maybe.nothing());
+    assertThatMaybe(MAYBE.narrow(headEmpty)).isNothing();
   }
 
   /**
@@ -186,12 +187,12 @@ public class Tutorial08_NaturalTransformation_Solution {
     // Test: Just(x) -> [x] -> Just(x)
     Kind<MaybeKind.Witness, String> justValue = MAYBE.widen(Maybe.just("test"));
     Kind<MaybeKind.Witness, String> result = composed.apply(justValue);
-    assertThat(MAYBE.narrow(result)).isEqualTo(Maybe.just("test"));
+    assertThatMaybe(MAYBE.narrow(result)).hasValue("test");
 
     // Test: Nothing -> [] -> Nothing
     Kind<MaybeKind.Witness, String> nothing = MAYBE.widen(Maybe.nothing());
     Kind<MaybeKind.Witness, String> resultNothing = composed.apply(nothing);
-    assertThat(MAYBE.narrow(resultNothing)).isEqualTo(Maybe.nothing());
+    assertThatMaybe(MAYBE.narrow(resultNothing)).isNothing();
   }
 
   /**
@@ -217,7 +218,7 @@ public class Tutorial08_NaturalTransformation_Solution {
     Kind<MaybeKind.Witness, Integer> afterIdentity = identity.apply(original);
 
     // Should be unchanged
-    assertThat(MAYBE.narrow(afterIdentity)).isEqualTo(Maybe.just(42));
+    assertThatMaybe(MAYBE.narrow(afterIdentity)).hasValue(42);
 
     // Should be the same reference
     assertThat(afterIdentity).isSameAs(original);

@@ -3,6 +3,7 @@
 package org.higherkindedj.tutorial.solutions.concurrency;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.higherkindedj.hkt.assertions.VStreamAssert.assertThatVStream;
 import static org.higherkindedj.hkt.instances.Witnesses.*;
 import static org.higherkindedj.hkt.vstream.VStreamKindHelper.VSTREAM;
 
@@ -91,7 +92,7 @@ public class TutorialVStreamHKT_Solution {
       // SOLUTION: Use VSTREAM.narrow() to convert back to VStream
       VStream<String> stream = VSTREAM.narrow(kind);
 
-      assertThat(stream.toList().run()).containsExactly("hello", "world");
+      assertThatVStream(stream).producesElements("hello", "world");
     }
   }
 
@@ -123,7 +124,7 @@ public class TutorialVStreamHKT_Solution {
       // SOLUTION: Use functor.map to double each element
       Kind<VStreamKind.Witness, Integer> doubled = functor.map(i -> i * 2, stream);
 
-      assertThat(VSTREAM.narrow(doubled).toList().run()).containsExactly(2, 4, 6);
+      assertThatVStream(doubled).producesElements(2, 4, 6);
     }
 
     /**
@@ -143,7 +144,7 @@ public class TutorialVStreamHKT_Solution {
       // SOLUTION: Use applicative.of to lift a value into VStream
       Kind<VStreamKind.Witness, Integer> result = applicative.of(42);
 
-      assertThat(VSTREAM.narrow(result).toList().run()).containsExactly(42);
+      assertThatVStream(result).producesElements(42);
     }
 
     /**
@@ -168,7 +169,7 @@ public class TutorialVStreamHKT_Solution {
       // SOLUTION: Use applicative.ap for Cartesian product
       Kind<VStreamKind.Witness, String> result = applicative.ap(fns, values);
 
-      assertThat(VSTREAM.narrow(result).toList().run()).containsExactly("x1", "x2", "y1", "y2");
+      assertThatVStream(result).producesElements("x1", "x2", "y1", "y2");
     }
   }
 
@@ -200,7 +201,7 @@ public class TutorialVStreamHKT_Solution {
       Kind<VStreamKind.Witness, Integer> result =
           monad.flatMap(i -> VSTREAM.widen(VStream.of(i, i * 10)), stream);
 
-      assertThat(VSTREAM.narrow(result).toList().run()).containsExactly(1, 10, 2, 20, 3, 30);
+      assertThatVStream(result).producesElements(1, 10, 2, 20, 3, 30);
     }
   }
 
@@ -268,7 +269,7 @@ public class TutorialVStreamHKT_Solution {
       // SOLUTION: Use alt.orElse for concatenation
       Kind<VStreamKind.Witness, Integer> combined = alt.orElse(first, () -> second);
 
-      assertThat(VSTREAM.narrow(combined).toList().run()).containsExactly(1, 2, 3, 4);
+      assertThatVStream(combined).producesElements(1, 2, 3, 4);
     }
 
     /**
@@ -290,8 +291,8 @@ public class TutorialVStreamHKT_Solution {
       Kind<VStreamKind.Witness, Unit> trueResult = alt.guard(true);
       Kind<VStreamKind.Witness, Unit> falseResult = alt.guard(false);
 
-      assertThat(VSTREAM.narrow(trueResult).toList().run()).containsExactly(Unit.INSTANCE);
-      assertThat(VSTREAM.narrow(falseResult).toList().run()).isEmpty();
+      assertThatVStream(trueResult).producesElements(Unit.INSTANCE);
+      assertThatVStream(falseResult).isEmpty();
     }
 
     /**

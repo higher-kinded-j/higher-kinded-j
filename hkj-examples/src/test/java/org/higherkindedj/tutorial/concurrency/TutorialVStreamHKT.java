@@ -3,6 +3,7 @@
 package org.higherkindedj.tutorial.concurrency;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.higherkindedj.hkt.assertions.VStreamAssert.assertThatVStream;
 import static org.higherkindedj.hkt.instances.Witnesses.*;
 import static org.higherkindedj.hkt.vstream.VStreamKindHelper.VSTREAM;
 
@@ -97,7 +98,7 @@ public class TutorialVStreamHKT {
       // TODO: Replace answerRequired() with VSTREAM.narrow(kind)
       VStream<String> stream = answerRequired();
 
-      assertThat(stream.toList().run()).containsExactly("hello", "world");
+      assertThatVStream(stream).producesElements("hello", "world");
     }
   }
 
@@ -126,7 +127,7 @@ public class TutorialVStreamHKT {
       // TODO: Replace answerRequired() with functor.map(i -> i * 2, stream)
       Kind<VStreamKind.Witness, Integer> doubled = answerRequired();
 
-      assertThat(VSTREAM.narrow(doubled).toList().run()).containsExactly(2, 4, 6);
+      assertThatVStream(doubled).producesElements(2, 4, 6);
     }
 
     /**
@@ -144,7 +145,7 @@ public class TutorialVStreamHKT {
       // TODO: Replace answerRequired() with applicative.of(42)
       Kind<VStreamKind.Witness, Integer> result = answerRequired();
 
-      assertThat(VSTREAM.narrow(result).toList().run()).containsExactly(42);
+      assertThatVStream(result).producesElements(42);
     }
 
     /**
@@ -169,7 +170,7 @@ public class TutorialVStreamHKT {
       // TODO: Replace answerRequired() with applicative.ap(fns, values)
       Kind<VStreamKind.Witness, String> result = answerRequired();
 
-      assertThat(VSTREAM.narrow(result).toList().run()).containsExactly("x1", "x2", "y1", "y2");
+      assertThatVStream(result).producesElements("x1", "x2", "y1", "y2");
     }
   }
 
@@ -199,7 +200,7 @@ public class TutorialVStreamHKT {
       // TODO: Replace answerRequired() with monad.flatMap(...)
       Kind<VStreamKind.Witness, Integer> result = answerRequired();
 
-      assertThat(VSTREAM.narrow(result).toList().run()).containsExactly(1, 10, 2, 20, 3, 30);
+      assertThatVStream(result).producesElements(1, 10, 2, 20, 3, 30);
     }
   }
 
@@ -266,7 +267,7 @@ public class TutorialVStreamHKT {
       // TODO: Replace answerRequired() with alt.orElse(first, () -> second)
       Kind<VStreamKind.Witness, Integer> combined = answerRequired();
 
-      assertThat(VSTREAM.narrow(combined).toList().run()).containsExactly(1, 2, 3, 4);
+      assertThatVStream(combined).producesElements(1, 2, 3, 4);
     }
 
     /**
@@ -287,8 +288,8 @@ public class TutorialVStreamHKT {
       // TODO: Replace answerRequired() with alt.guard(false)
       Kind<VStreamKind.Witness, Unit> falseResult = answerRequired();
 
-      assertThat(VSTREAM.narrow(trueResult).toList().run()).containsExactly(Unit.INSTANCE);
-      assertThat(VSTREAM.narrow(falseResult).toList().run()).isEmpty();
+      assertThatVStream(trueResult).producesElements(Unit.INSTANCE);
+      assertThatVStream(falseResult).isEmpty();
     }
 
     /**

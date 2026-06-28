@@ -3,6 +3,7 @@
 package org.higherkindedj.tutorial.expression;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.higherkindedj.hkt.assertions.MaybeAssert.assertThatMaybe;
 import static org.higherkindedj.hkt.instances.Witnesses.*;
 import static org.higherkindedj.hkt.maybe.MaybeKindHelper.MAYBE;
 
@@ -148,8 +149,8 @@ public class Tutorial04_EnhancedOpticsIntegration {
     Kind<MaybeKind.Witness, List<Employee>> validResult = answerRequired();
     Kind<MaybeKind.Witness, List<Employee>> mixedResult = answerRequired();
 
-    assertThat(MAYBE.narrow(validResult)).isEqualTo(Maybe.just(validEmployees));
-    assertThat(MAYBE.narrow(mixedResult)).isEqualTo(Maybe.nothing());
+    assertThatMaybe(MAYBE.narrow(validResult)).hasValue(validEmployees);
+    assertThatMaybe(MAYBE.narrow(mixedResult)).isNothing();
   }
 
   // =========================================================================
@@ -277,8 +278,8 @@ public class Tutorial04_EnhancedOpticsIntegration {
     // TODO: Same workflow but with "hi" (length 2), which should fail the filter.
     Kind<MaybeKind.Witness, String> failResult = answerRequired();
 
-    assertThat(MAYBE.narrow(passResult)).isEqualTo(Maybe.just("hello"));
-    assertThat(MAYBE.narrow(failResult)).isEqualTo(Maybe.nothing());
+    assertThatMaybe(MAYBE.narrow(passResult)).hasValue("hello");
+    assertThatMaybe(MAYBE.narrow(failResult)).isNothing();
   }
 
   // =========================================================================
@@ -379,8 +380,8 @@ public class Tutorial04_EnhancedOpticsIntegration {
     //   Then .yield() to get the result.
     Kind<MaybeKind.Witness, List<Employee>> result = answerRequired();
 
-    assertThat(MAYBE.narrow(result))
-        .isEqualTo(Maybe.just(List.of(new Employee("ALICE", 55000), new Employee("BOB", 65000))));
+    assertThatMaybe(MAYBE.narrow(result))
+        .hasValue(List.of(new Employee("ALICE", 55000), new Employee("BOB", 65000)));
   }
 
   // =========================================================================
@@ -430,12 +431,15 @@ public class Tutorial04_EnhancedOpticsIntegration {
     Kind<MaybeKind.Witness, Department> result = answerRequired();
 
     Maybe<Department> maybeDept = MAYBE.narrow(result);
-    assertThat(maybeDept.isJust()).isTrue();
-    Department updated = maybeDept.get();
-    assertThat(updated.name()).isEqualTo("Engineering");
-    assertThat(updated.staff())
-        .containsExactly(new Employee("Alice", 80000), new Employee("Bob", 90000));
-    assertThat(updated.budgetInCents()).isEqualTo(550000);
+    assertThatMaybe(maybeDept)
+        .isJust()
+        .hasValueSatisfying(
+            updated -> {
+              assertThat(updated.name()).isEqualTo("Engineering");
+              assertThat(updated.staff())
+                  .containsExactly(new Employee("Alice", 80000), new Employee("Bob", 90000));
+              assertThat(updated.budgetInCents()).isEqualTo(550000);
+            });
   }
 
   // =========================================================================

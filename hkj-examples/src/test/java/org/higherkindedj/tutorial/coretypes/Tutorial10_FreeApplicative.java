@@ -3,6 +3,7 @@
 package org.higherkindedj.tutorial.coretypes;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.higherkindedj.hkt.assertions.IdAssert.assertThatId;
 import static org.higherkindedj.hkt.id.IdKindHelper.ID;
 import static org.higherkindedj.hkt.instances.Witnesses.*;
 
@@ -74,7 +75,7 @@ public class Tutorial10_FreeApplicative {
     // Interpret to get the value
     Kind<IdKind.Witness, Integer> result = pureValue.foldMap(IDENTITY, ID_APP);
 
-    assertThat(ID.narrow(result).value()).isEqualTo(42);
+    assertThatId(result).hasValue(42);
   }
 
   /**
@@ -99,7 +100,7 @@ public class Tutorial10_FreeApplicative {
 
     Kind<IdKind.Witness, Integer> result = mapped.foldMap(IDENTITY, ID_APP);
 
-    assertThat(ID.narrow(result).value()).isEqualTo(50);
+    assertThatId(result).hasValue(50);
   }
 
   /**
@@ -126,7 +127,7 @@ public class Tutorial10_FreeApplicative {
 
     Kind<IdKind.Witness, String> result = combined.foldMap(IDENTITY, ID_APP);
 
-    assertThat(ID.narrow(result).value()).isEqualTo("Alice is 30 years old");
+    assertThatId(result).hasValue("Alice is 30 years old");
   }
 
   /**
@@ -154,7 +155,7 @@ public class Tutorial10_FreeApplicative {
 
     Kind<IdKind.Witness, Integer> result = sum.foldMap(IDENTITY, ID_APP);
 
-    assertThat(ID.narrow(result).value()).isEqualTo(60);
+    assertThatId(result).hasValue(60);
   }
 
   /**
@@ -181,7 +182,7 @@ public class Tutorial10_FreeApplicative {
 
     Kind<IdKind.Witness, String> result = dashboard.foldMap(IDENTITY, ID_APP);
 
-    assertThat(ID.narrow(result).value()).isEqualTo("User{id=1} has Posts{count=5}");
+    assertThatId(result).hasValue("User{id=1} has Posts{count=5}");
 
     // Key insight: A smart interpreter could execute fetchUser and fetchPosts
     // in parallel because neither needs the other's result.

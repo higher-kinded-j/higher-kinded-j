@@ -3,6 +3,7 @@
 package org.higherkindedj.tutorial.solutions.coretypes;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.higherkindedj.hkt.assertions.EitherAssert.assertThatEither;
 
 import java.util.HashMap;
 import java.util.LinkedHashMap;
@@ -124,9 +125,8 @@ public class Tutorial00_OneLineSixLayers_Solution {
     EitherPath<RepoError, Item> presentEither = presentMaybe.toEitherPath(RepoError.NOT_FOUND);
     EitherPath<RepoError, Item> absentEither = absentMaybe.toEitherPath(RepoError.NOT_FOUND);
 
-    assertThat(presentEither.run().isRight()).isTrue();
-    assertThat(absentEither.run().isLeft()).isTrue();
-    assertThat(absentEither.run().getLeft()).isEqualTo(RepoError.NOT_FOUND);
+    assertThatEither(presentEither.run()).isRight();
+    assertThatEither(absentEither.run()).isLeft().hasLeft(RepoError.NOT_FOUND);
   }
 
   // ─── Exercise 3 ────────────────────────────────────────────────────────────
@@ -177,8 +177,9 @@ public class Tutorial00_OneLineSixLayers_Solution {
         wrapped.map(item -> attributesLens.modify(addEntry("country", "GB"), item));
 
     Either<RepoError, Item> result = updated.run();
-    assertThat(result.isRight()).isTrue();
-    assertThat(result.getRight().attributes()).containsEntry("country", "GB");
+    assertThatEither(result)
+        .isRight()
+        .hasRightSatisfying(item -> assertThat(item.attributes()).containsEntry("country", "GB"));
   }
 
   // ─── Exercise 5 ────────────────────────────────────────────────────────────
@@ -206,8 +207,9 @@ public class Tutorial00_OneLineSixLayers_Solution {
     EitherPath<RepoError, Item> saved = wrapped.via(Tutorial00_OneLineSixLayers_Solution::save);
 
     Either<RepoError, Item> result = saved.run();
-    assertThat(result.isRight()).isTrue();
-    assertThat(result.getRight().attributes()).containsEntry("country", "GB");
+    assertThatEither(result)
+        .isRight()
+        .hasRightSatisfying(item -> assertThat(item.attributes()).containsEntry("country", "GB"));
   }
 
   // ─── Exercise 6 ────────────────────────────────────────────────────────────
@@ -236,8 +238,9 @@ public class Tutorial00_OneLineSixLayers_Solution {
 
     Either<RepoError, Item> either = saved.run();
 
-    assertThat(either.isRight()).isTrue();
-    assertThat(either.getRight().attributes()).containsEntry("country", "GB");
+    assertThatEither(either)
+        .isRight()
+        .hasRightSatisfying(item -> assertThat(item.attributes()).containsEntry("country", "GB"));
   }
 
   // ─── Exercise 7 ────────────────────────────────────────────────────────────
@@ -268,9 +271,13 @@ public class Tutorial00_OneLineSixLayers_Solution {
             .via(Tutorial00_OneLineSixLayers_Solution::save)
             .run();
 
-    assertThat(result.isRight()).isTrue();
-    assertThat(result.getRight().id()).isEqualTo(idToUpdate);
-    assertThat(result.getRight().attributes()).containsEntry(key, newValue);
+    assertThatEither(result)
+        .isRight()
+        .hasRightSatisfying(
+            item -> {
+              assertThat(item.id()).isEqualTo(idToUpdate);
+              assertThat(item.attributes()).containsEntry(key, newValue);
+            });
 
     String missingId = "user-missing";
     Either<RepoError, Item> missing =
@@ -280,8 +287,7 @@ public class Tutorial00_OneLineSixLayers_Solution {
             .via(Tutorial00_OneLineSixLayers_Solution::save)
             .run();
 
-    assertThat(missing.isLeft()).isTrue();
-    assertThat(missing.getLeft()).isEqualTo(RepoError.NOT_FOUND);
+    assertThatEither(missing).isLeft().hasLeft(RepoError.NOT_FOUND);
   }
 
   // ─── Diagnostic ────────────────────────────────────────────────────────────
@@ -310,13 +316,15 @@ public class Tutorial00_OneLineSixLayers_Solution {
         wrapped.map(item -> attributesLens.modify(addEntry("country", "GB"), item));
 
     Either<RepoError, Item> result = updated.via(Tutorial00_OneLineSixLayers_Solution::save).run();
-    assertThat(result.isRight()).isTrue();
-    assertThat(result.getRight().attributes()).containsEntry("country", "GB");
+    assertThatEither(result)
+        .isRight()
+        .hasRightSatisfying(item -> assertThat(item.attributes()).containsEntry("country", "GB"));
 
     FocusPath<Item, Map<String, String>> attributesPath = FocusPath.of(attributesLens);
     EitherPath<RepoError, Map<String, String>> narrowed =
         wrapped.focus(attributesPath).map(addEntry("country", "GB"));
-    assertThat(narrowed.run().isRight()).isTrue();
-    assertThat(narrowed.run().getRight()).containsEntry("country", "GB");
+    assertThatEither(narrowed.run())
+        .isRight()
+        .hasRightSatisfying(attrs -> assertThat(attrs).containsEntry("country", "GB"));
   }
 }

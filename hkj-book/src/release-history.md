@@ -25,7 +25,7 @@ This page documents the evolution of Higher-Kinded-J from its initial release th
 
 **`EitherOrBoth`: an inclusive-or for "success that also carries warnings"**
 
-`Either` and `Validated` are both *exclusive*: a result is a failure or a success, never both. Neither models a successful value that also carries accumulated, non-fatal problems: config that parses but reports deprecations, an import that yields records *and* a skipped-rows list. New `EitherOrBoth<L, R>` (the inclusive-or known elsewhere as `Ior`/`These`) is a sealed type over `Left` | `Right` | `Both`, right-biased, with total `getLeft`/`getRight` accessors that return `Maybe` and never throw. Purely additive ([#551](https://github.com/higher-kinded-j/higher-kinded-j/issues/551)).
+`Either` and `Validated` are both *exclusive*: a result is a failure or a success, never both. Neither models a successful value that also carries accumulated, non-fatal problems: config that parses but reports deprecations, an import that yields records *and* a skipped-rows list. New `EitherOrBoth<L, R>` (the inclusive-or known elsewhere as `Ior`/`These`) is a sealed type over `Left` | `Right` | `Both`, right-biased, with total `getLeft`/`getRight` accessors that return `Maybe` and never throw. Purely additive ([#551](https://github.com/higher-kinded-j/higher-kinded-j/issues/551); landed in [#583](https://github.com/higher-kinded-j/higher-kinded-j/pull/583)).
 
 - **Accumulating `flatMap`:** `Left` short-circuits; a `Both` carries its warnings forward, combining them with a `Semigroup<L>` (default `NonEmptyList.semigroup()`). The companion `EitherOrBothMonad` is lawful for any associative semigroup. Note the monadic `ap` short-circuits: it is deliberately *not* `Validated`-style accumulation; that lives on the Path.
 - **Higher-kinded:** implements its `Kind`/`Kind2` directly (cast-free), with a right-biased `Functor`/`Monad`/`Traverse`/`Foldable` and a `Bifunctor`; the monad is reached via `Instances.eitherOrBoth(semigroup)`.
@@ -35,6 +35,10 @@ This page documents the evolution of Higher-Kinded-J from its initial release th
 **`hkj-spring` Jackson deserializers now resolve their generic element types**
 
 The `Either`, `Validated`, and `NonEmptyList` deserializers read inner values as `Object`, so a `TypeReference<…<CustomType>>` (or a typed field) produced `LinkedHashMap` elements and a `ClassCastException` on access. All three now implement Jackson 3.x contextual resolution (`ValueDeserializer.createContextual`), binding to the contained generic types taken from the property or `TypeReference`, so nested custom types round-trip to the real type, including end-to-end through a `Validated<NonEmptyList<Foo>, …>`. Raw `.class` reads keep the `Object` fallback ([#578](https://github.com/higher-kinded-j/higher-kinded-j/pull/578)).
+
+**Worked-example hardening: correct, idiomatic `order` & `market` showcases, with `hkj-test` throughout**
+
+The `example.order` and `example.market` showcases were reviewed and hardened so they demonstrate current HKJ functionality rather than the hand-written workarounds that sat beside it. Example- and documentation-only; no library API change.
 
 ---
 

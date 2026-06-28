@@ -15,6 +15,7 @@ import org.higherkindedj.example.order.model.Customer;
 import org.higherkindedj.example.order.model.DiscountResult;
 import org.higherkindedj.example.order.model.InventoryReservation;
 import org.higherkindedj.example.order.model.NotificationResult;
+import org.higherkindedj.example.order.model.OrderLineRequest;
 import org.higherkindedj.example.order.model.OrderRequest;
 import org.higherkindedj.example.order.model.OrderResult;
 import org.higherkindedj.example.order.model.PaymentConfirmation;
@@ -30,20 +31,25 @@ import org.higherkindedj.example.order.model.value.OrderId;
 import org.higherkindedj.example.order.model.value.ProductId;
 import org.higherkindedj.example.order.model.value.PromoCode;
 import org.higherkindedj.example.order.service.CustomerService;
+import org.higherkindedj.example.order.service.CustomerServicePaths;
 import org.higherkindedj.example.order.service.DiscountService;
+import org.higherkindedj.example.order.service.DiscountServicePaths;
 import org.higherkindedj.example.order.service.InventoryService;
 import org.higherkindedj.example.order.service.NotificationService;
 import org.higherkindedj.example.order.service.PaymentService;
 import org.higherkindedj.example.order.service.ShippingService;
+import org.higherkindedj.example.order.service.ShippingServicePaths;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.MonadError;
+import org.higherkindedj.hkt.Semigroups;
 import org.higherkindedj.hkt.effect.EitherPath;
 import org.higherkindedj.hkt.effect.Path;
+import org.higherkindedj.hkt.effect.ValidationPath;
 import org.higherkindedj.hkt.either.Either;
 import org.higherkindedj.hkt.either.EitherKind;
 import org.higherkindedj.hkt.expression.For;
 import org.higherkindedj.hkt.instances.Instances;
-import org.higherkindedj.optics.Lens;
+import org.jspecify.annotations.Nullable;
 
 /**
  * The main order processing workflow.
@@ -82,12 +88,12 @@ import org.higherkindedj.optics.Lens;
  *     .from(t -> lift(buildValidatedOrder(..., t._2(), t._1())))
  *     .toState((address, customer, order) ->                   // bridge to ForState
  *         ProcessingState.initial(address, customer, order))
- *     .fromThen(s -> lift(reserveInventory(s.order())),        reservationLens)
- *     .fromThen(s -> lift(applyDiscounts(s.order(), s.customer())), discountLens)
- *     .fromThen(s -> lift(processPayment(s.order(), s.discount())), paymentLens)
- *     .fromThen(s -> lift(createShipment(s.order(), s.address())), shipmentLens)
+ *     .fromThen(s -> lift(reserveInventory(s.order())), ProcessingStateLenses.reservation())
+ *     .fromThen(s -> lift(applyDiscounts(s.order(), s.customer())), ProcessingStateLenses.discount())
+ *     .fromThen(s -> lift(processPayment(s.order(), s.discount())), ProcessingStateLenses.payment())
+ *     .fromThen(s -> lift(createShipment(s.order(), s.address())), ProcessingStateLenses.shipment())
  *     .fromThen(s -> lift(sendNotifications(s.order(), s.customer(), s.discount())),
- *         notificationLens)
+ *         ProcessingStateLenses.notification())
  *     .yield(OrderWorkflow::toOrderResult);
  * }</pre>
  *
@@ -98,133 +104,26 @@ import org.higherkindedj.optics.Lens;
  */
 public class OrderWorkflow {
 
-  private final CustomerService customerService;
+  // Reads go through the generated @GeneratePathBridge wrappers (CustomerServicePaths, …) instead
+  // of hand-written Path.either(service.call()). The raw services are still held where a call has
+  // no EitherPath bridge usage in this workflow (reserve, payment, the discount calculations,
+  // notifications).
+  private final CustomerServicePaths customerPaths;
   private final InventoryService inventoryService;
   private final DiscountService discountService;
+  private final DiscountServicePaths discountPaths;
   private final PaymentService paymentService;
   private final ShippingService shippingService;
+  private final ShippingServicePaths shippingPaths;
   private final NotificationService notificationService;
   private final WorkflowConfig config;
 
   // -------------------------------------------------------------------------
-  // Processing State — named record that replaces tuple positions
+  // Processing State
   // -------------------------------------------------------------------------
-
-  /**
-   * Immutable state record that accumulates workflow results with named fields.
-   *
-   * <p>Unlike tuple-based accumulation where values are accessed by position ({@code t._3()},
-   * {@code t._5()}), this record provides named accessors ({@code state.order()}, {@code
-   * state.discount()}) that are self-documenting and refactoring-safe.
-   *
-   * <p>Fields populated during the gather phase (address, customer, order) are always non-null.
-   * Fields populated during the enrich phase start as null and are set by {@code fromThen()} steps.
-   * The monadic short-circuit guarantees each field is populated before subsequent steps access it.
-   *
-   * @param address the validated shipping address (gather phase)
-   * @param customer the validated customer (gather phase)
-   * @param order the validated order (gather phase)
-   * @param reservation the inventory reservation (enrich phase)
-   * @param discount the discount calculation result (enrich phase)
-   * @param payment the payment confirmation (enrich phase)
-   * @param shipment the shipment info (enrich phase)
-   * @param notification the notification result (enrich phase)
-   */
-  public record ProcessingState(
-      ValidatedShippingAddress address,
-      Customer customer,
-      ValidatedOrder order,
-      InventoryReservation reservation,
-      DiscountResult discount,
-      PaymentConfirmation payment,
-      ShipmentInfo shipment,
-      NotificationResult notification) {
-
-    /**
-     * Creates the initial state from the three values gathered by the For comprehension. Remaining
-     * fields are null until populated by ForState steps.
-     */
-    static ProcessingState initial(
-        ValidatedShippingAddress address, Customer customer, ValidatedOrder order) {
-      return new ProcessingState(address, customer, order, null, null, null, null, null);
-    }
-  }
-
-  // -------------------------------------------------------------------------
-  // Lenses — provide named, type-safe access for ForState operations
-  // -------------------------------------------------------------------------
-  // In production code, annotate ProcessingState with @GenerateLenses
-  // and the annotation processor generates these automatically.
-
-  static final Lens<ProcessingState, InventoryReservation> reservationLens =
-      Lens.of(
-          ProcessingState::reservation,
-          (s, v) ->
-              new ProcessingState(
-                  s.address(),
-                  s.customer(),
-                  s.order(),
-                  v,
-                  s.discount(),
-                  s.payment(),
-                  s.shipment(),
-                  s.notification()));
-
-  static final Lens<ProcessingState, DiscountResult> discountLens =
-      Lens.of(
-          ProcessingState::discount,
-          (s, v) ->
-              new ProcessingState(
-                  s.address(),
-                  s.customer(),
-                  s.order(),
-                  s.reservation(),
-                  v,
-                  s.payment(),
-                  s.shipment(),
-                  s.notification()));
-
-  static final Lens<ProcessingState, PaymentConfirmation> paymentLens =
-      Lens.of(
-          ProcessingState::payment,
-          (s, v) ->
-              new ProcessingState(
-                  s.address(),
-                  s.customer(),
-                  s.order(),
-                  s.reservation(),
-                  s.discount(),
-                  v,
-                  s.shipment(),
-                  s.notification()));
-
-  static final Lens<ProcessingState, ShipmentInfo> shipmentLens =
-      Lens.of(
-          ProcessingState::shipment,
-          (s, v) ->
-              new ProcessingState(
-                  s.address(),
-                  s.customer(),
-                  s.order(),
-                  s.reservation(),
-                  s.discount(),
-                  s.payment(),
-                  v,
-                  s.notification()));
-
-  static final Lens<ProcessingState, NotificationResult> notificationLens =
-      Lens.of(
-          ProcessingState::notification,
-          (s, v) ->
-              new ProcessingState(
-                  s.address(),
-                  s.customer(),
-                  s.order(),
-                  s.reservation(),
-                  s.discount(),
-                  s.payment(),
-                  s.shipment(),
-                  v));
+  // The accumulator is the top-level {@link ProcessingState} record, annotated with
+  // {@code @GenerateLenses}. The processor generates {@code ProcessingStateLenses} — one lens per
+  // field — used below by the {@code ForState} enrich phase, so there are no hand-written lenses.
 
   // -------------------------------------------------------------------------
   // Constructors
@@ -239,11 +138,13 @@ public class OrderWorkflow {
       ShippingService shippingService,
       NotificationService notificationService,
       WorkflowConfig config) {
-    this.customerService = customerService;
+    this.customerPaths = new CustomerServicePaths(customerService);
     this.inventoryService = inventoryService;
     this.discountService = discountService;
+    this.discountPaths = new DiscountServicePaths(discountService);
     this.paymentService = paymentService;
     this.shippingService = shippingService;
+    this.shippingPaths = new ShippingServicePaths(shippingService);
     this.notificationService = notificationService;
     this.config = config;
   }
@@ -285,6 +186,13 @@ public class OrderWorkflow {
    * @return either an error or the successful order result
    */
   public EitherPath<OrderError, OrderResult> process(OrderRequest request) {
+    // Front door: accumulating field validation reports *all* structural problems at once via
+    // ValidationPath.zipWithAccum (rather than fail-fast on the first), then converts to EitherPath
+    // so the sequential pipeline below stays fail-fast.
+    return validateRequest(request).via(this::processValidated);
+  }
+
+  private EitherPath<OrderError, OrderResult> processValidated(OrderRequest request) {
     var orderId = OrderId.generate();
     var customerId = new CustomerId(request.customerId());
     MonadError<EitherKind.Witness<OrderError>, OrderError> monad = Instances.monadError(either());
@@ -300,19 +208,91 @@ public class OrderWorkflow {
             .toState(
                 (address, customer, order) -> ProcessingState.initial(address, customer, order))
 
-            // From here on, every value is accessed by name
+            // From here on, every value is accessed by name, and the field updates use the
+            // generated ProcessingStateLenses rather than hand-written lenses.
             .fromThen(
                 s -> lift(reserveInventory(s.order().orderId(), s.order().lines())),
-                reservationLens)
-            .fromThen(s -> lift(applyDiscounts(s.order(), s.customer())), discountLens)
-            .fromThen(s -> lift(processPayment(s.order(), s.discount())), paymentLens)
-            .fromThen(s -> lift(createShipment(s.order(), s.address())), shipmentLens)
+                ProcessingStateLenses.reservation())
+            .fromThen(
+                s -> lift(applyDiscounts(s.order(), s.customer())),
+                ProcessingStateLenses.discount())
+            .fromThen(
+                s -> lift(processPayment(s.order(), s.discount())), ProcessingStateLenses.payment())
+            .fromThen(
+                s -> lift(createShipment(s.order(), s.address())), ProcessingStateLenses.shipment())
             .fromThen(
                 s -> lift(sendNotifications(s.order(), s.customer(), s.discount())),
-                notificationLens)
+                ProcessingStateLenses.notification())
             .yield(OrderWorkflow::toOrderResult);
 
     return Path.either(EITHER.narrow(result));
+  }
+
+  // -------------------------------------------------------------------------
+  // Front-door accumulating validation
+  // -------------------------------------------------------------------------
+
+  /**
+   * Validates the request's structural fields, accumulating every problem (not failing fast) via
+   * {@code zipWithAccum}, then folding the collected {@link OrderError.FieldError}s into a single
+   * {@link OrderError.ValidationError} on the {@link EitherPath} the pipeline consumes. A malformed
+   * order therefore reports all its field errors at once instead of one per round-trip.
+   */
+  private EitherPath<OrderError, OrderRequest> validateRequest(OrderRequest request) {
+    return validateCustomerId(request.customerId())
+        .zipWithAccum(validateLines(request.lines()), (_, _) -> request)
+        .zipWithAccum(validatePromoCode(request.promoCode()), (_, _) -> request)
+        // Accumulation is done; fold the collected field errors into a single typed OrderError on
+        // the EitherPath (mapError on a still-accumulating ValidationPath is unsupported).
+        .toEitherPath()
+        .mapError(
+            fieldErrors ->
+                new OrderError.ValidationError("Order request validation failed", fieldErrors));
+  }
+
+  // @Nullable so the null guard is a real check, not dead code: validation is the boundary where
+  // untrusted input (e.g. a deserialized request) can still defeat the @NullMarked contract.
+  private ValidationPath<List<OrderError.FieldError>, String> validateCustomerId(
+      @Nullable String customerId) {
+    if (customerId == null || customerId.isBlank()) {
+      return Path.invalid(
+          List.of(
+              new OrderError.FieldError("customerId", "Customer id must not be blank", customerId)),
+          Semigroups.list());
+    }
+    return Path.valid(customerId, Semigroups.list());
+  }
+
+  private ValidationPath<List<OrderError.FieldError>, List<OrderLineRequest>> validateLines(
+      @Nullable List<OrderLineRequest> lines) {
+    if (lines == null) {
+      return Path.invalid(
+          List.of(new OrderError.FieldError("lines", "Order lines must not be null", null)),
+          Semigroups.list());
+    }
+    var fieldErrors =
+        lines.stream()
+            .filter(line -> line.productId().isBlank())
+            .map(
+                line ->
+                    new OrderError.FieldError(
+                        "productId", "Product id must not be blank", line.productId()))
+            .toList();
+    return fieldErrors.isEmpty()
+        ? Path.valid(lines, Semigroups.list())
+        : Path.invalid(fieldErrors, Semigroups.list());
+  }
+
+  private ValidationPath<List<OrderError.FieldError>, Optional<String>> validatePromoCode(
+      Optional<String> promoCode) {
+    if (promoCode.isPresent() && promoCode.get().isBlank()) {
+      return Path.invalid(
+          List.of(
+              new OrderError.FieldError(
+                  "promoCode", "Promo code must not be blank when present", promoCode.get())),
+          Semigroups.list());
+    }
+    return Path.valid(promoCode, Semigroups.list());
   }
 
   // -------------------------------------------------------------------------
@@ -333,15 +313,15 @@ public class OrderWorkflow {
 
   private EitherPath<OrderError, ValidatedShippingAddress> validateShippingAddress(
       ShippingAddress address) {
-    return Path.either(shippingService.validateAddress(address));
+    return shippingPaths.validateAddress(address);
   }
 
   private EitherPath<OrderError, Customer> lookupCustomer(CustomerId customerId) {
-    return Path.either(customerService.findById(customerId));
+    return customerPaths.findById(customerId);
   }
 
   private EitherPath<OrderError, Customer> validateCustomerEligibility(Customer customer) {
-    return Path.either(customerService.validateEligibility(customer));
+    return customerPaths.validateEligibility(customer);
   }
 
   private EitherPath<OrderError, Customer> lookupAndValidateCustomer(CustomerId customerId) {
@@ -384,7 +364,7 @@ public class OrderWorkflow {
       Optional<String> promoCode) {
     return promoCode
         .<EitherPath<OrderError, Optional<PromoCode>>>map(
-            code -> Path.either(discountService.validatePromoCode(code)).map(Optional::of))
+            code -> discountPaths.validatePromoCode(code).map(Optional::of))
         .orElse(Path.right(Optional.empty()));
   }
 

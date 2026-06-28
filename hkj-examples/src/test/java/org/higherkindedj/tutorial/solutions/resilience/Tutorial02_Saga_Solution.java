@@ -3,6 +3,8 @@
 package org.higherkindedj.tutorial.solutions.resilience;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.higherkindedj.hkt.assertions.EitherAssert.assertThatEither;
+import static org.higherkindedj.hkt.assertions.TryAssert.assertThatTry;
 
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Consumer;
@@ -120,7 +122,7 @@ public class Tutorial02_Saga_Solution {
       // Execute safely - the saga should fail, triggering compensation
       var tryResult = saga.run().runSafe();
 
-      assertThat(tryResult.isFailure()).isTrue();
+      assertThatTry(tryResult).isFailure();
       assertThat(step1Compensated.get()).isTrue();
     }
   }
@@ -179,12 +181,14 @@ public class Tutorial02_Saga_Solution {
       Either<SagaError, String> result = failingSaga.runSafe().run();
 
       // The result should be a Left containing the SagaError
-      assertThat(result.isLeft()).isTrue();
-
-      SagaError error = result.getLeft();
-      assertThat(error.originalError()).isInstanceOf(RuntimeException.class);
-      assertThat(error.originalError().getMessage()).isEqualTo("Network timeout");
-      assertThat(error.allCompensationsSucceeded()).isTrue();
+      assertThatEither(result)
+          .isLeft()
+          .hasLeftSatisfying(
+              error -> {
+                assertThat(error.originalError()).isInstanceOf(RuntimeException.class);
+                assertThat(error.originalError().getMessage()).isEqualTo("Network timeout");
+                assertThat(error.allCompensationsSucceeded()).isTrue();
+              });
     }
   }
 
@@ -224,7 +228,7 @@ public class Tutorial02_Saga_Solution {
 
       Either<SagaError, String> result = orderSaga.runSafe().run();
 
-      assertThat(result.isLeft()).isTrue();
+      assertThatEither(result).isLeft();
       SagaError error = result.getLeft();
       assertThat(error.failedStep()).isEqualTo("schedule-shipping");
 

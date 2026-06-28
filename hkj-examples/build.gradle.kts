@@ -28,6 +28,7 @@ dependencies {
     testRuntimeOnly(libs.junit.platform.launcher)
     testImplementation(libs.assertj.core)
     testImplementation(libs.awaitility)
+    testImplementation(project(":hkj-test"))
 }
 
 tasks.named("javadoc") {

@@ -2,6 +2,8 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.example.market.aggregation;
 
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -76,44 +78,50 @@ public interface WindowAggregator {
       throw new IllegalArgumentException("window must not be empty");
     }
 
-    var firstSymbol = window.getFirst().tick().tick().symbol();
+    var first = window.getFirst();
+    var firstSymbol = first.tick().tick().symbol();
 
-    double totalVolumeWeightedPrice = 0.0;
+    // VWAP is accumulated in BigDecimal and best bid/ask are tracked via Price.compareTo, so the
+    // headline analytics keep the precision of the underlying Price type instead of round-tripping
+    // through double. best bid/ask are seeded from the first tick rather than
+    // Double.MIN_VALUE/MAX_VALUE: Double.MIN_VALUE is the smallest *positive* double, so a genuine
+    // bid below it could never win the running max — the sentinel approach hid a latent bug.
+    BigDecimal totalVolumeWeightedPrice = BigDecimal.ZERO;
     long totalVol = 0;
-    double bestBid = Double.MIN_VALUE;
-    double bestAsk = Double.MAX_VALUE;
+    Price bestBid = first.tick().tick().bid();
+    Price bestAsk = first.tick().tick().ask();
     double maxRisk = 0.0;
 
     for (RiskAssessment ra : window) {
-      double mid = ra.tick().midInUsd().toDouble();
+      Price mid = ra.tick().midInUsd();
       long vol = ra.tick().tick().volume().value();
 
-      totalVolumeWeightedPrice += mid * vol;
+      totalVolumeWeightedPrice =
+          totalVolumeWeightedPrice.add(mid.value().multiply(BigDecimal.valueOf(vol)));
       totalVol += vol;
 
-      double bidVal = ra.tick().tick().bid().toDouble();
-      double askVal = ra.tick().tick().ask().toDouble();
+      Price bid = ra.tick().tick().bid();
+      Price ask = ra.tick().tick().ask();
 
-      if (bidVal > bestBid) {
-        bestBid = bidVal;
+      if (bid.compareTo(bestBid) > 0) {
+        bestBid = bid;
       }
-      if (askVal < bestAsk) {
-        bestAsk = askVal;
+      if (ask.compareTo(bestAsk) < 0) {
+        bestAsk = ask;
       }
       if (ra.riskScore() > maxRisk) {
         maxRisk = ra.riskScore();
       }
     }
 
-    double vwap = totalVol > 0 ? totalVolumeWeightedPrice / totalVol : 0.0;
+    Price vwap =
+        totalVol > 0
+            ? new Price(
+                totalVolumeWeightedPrice.divide(
+                    BigDecimal.valueOf(totalVol), 4, RoundingMode.HALF_UP))
+            : new Price(BigDecimal.ZERO.setScale(4, RoundingMode.HALF_UP));
 
     return new AggregatedView(
-        firstSymbol,
-        Price.of(vwap),
-        Price.of(bestBid),
-        Price.of(bestAsk),
-        Volume.of(totalVol),
-        window.size(),
-        maxRisk);
+        firstSymbol, vwap, bestBid, bestAsk, Volume.of(totalVol), window.size(), maxRisk);
   }
 }
