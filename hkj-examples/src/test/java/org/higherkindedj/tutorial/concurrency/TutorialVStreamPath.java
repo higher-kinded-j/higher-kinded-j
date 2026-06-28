@@ -3,6 +3,7 @@
 package org.higherkindedj.tutorial.concurrency;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.higherkindedj.hkt.assertions.VStreamPathAssert.assertThatVStreamPath;
 
 import org.higherkindedj.hkt.effect.Path;
 import org.higherkindedj.hkt.effect.VStreamPath;
@@ -66,7 +67,7 @@ public class TutorialVStreamPath {
       // TODO: Replace answerRequired() with Path.vstreamOf(1, 2, 3)
       VStreamPath<Integer> path = answerRequired();
 
-      assertThat(path.toList().unsafeRun()).containsExactly(1, 2, 3);
+      assertThatVStreamPath(path).producesElements(1, 2, 3);
     }
 
     /**
@@ -82,7 +83,7 @@ public class TutorialVStreamPath {
       // TODO: Replace answerRequired() with Path.vstreamRange(1, 6)
       VStreamPath<Integer> path = answerRequired();
 
-      assertThat(path.toList().unsafeRun()).containsExactly(1, 2, 3, 4, 5);
+      assertThatVStreamPath(path).producesElements(1, 2, 3, 4, 5);
     }
 
     /**
@@ -98,7 +99,7 @@ public class TutorialVStreamPath {
       // TODO: Replace answerRequired() with Path.vstreamIterate(10, n -> n + 10).take(4)
       VStreamPath<Integer> path = answerRequired();
 
-      assertThat(path.toList().unsafeRun()).containsExactly(10, 20, 30, 40);
+      assertThatVStreamPath(path).producesElements(10, 20, 30, 40);
     }
 
     /**
@@ -117,7 +118,7 @@ public class TutorialVStreamPath {
       //         : Optional.of(new VStream.Seed<>(state, state + 1)))
       VStreamPath<Integer> path = answerRequired();
 
-      assertThat(path.toList().unsafeRun()).containsExactly(1, 2, 3);
+      assertThatVStreamPath(path).producesElements(1, 2, 3);
     }
   }
 
@@ -144,7 +145,7 @@ public class TutorialVStreamPath {
       // TODO: Replace answerRequired() with names.map(String::toUpperCase)
       VStreamPath<String> upper = answerRequired();
 
-      assertThat(upper.toList().unsafeRun()).containsExactly("ALICE", "BOB");
+      assertThatVStreamPath(upper).producesElements("ALICE", "BOB");
     }
 
     /**
@@ -162,7 +163,7 @@ public class TutorialVStreamPath {
       // TODO: Replace answerRequired() with range.filter(n -> n % 2 == 0)
       VStreamPath<Integer> evens = answerRequired();
 
-      assertThat(evens.toList().unsafeRun()).containsExactly(2, 4, 6, 8, 10);
+      assertThatVStreamPath(evens).producesElements(2, 4, 6, 8, 10);
     }
 
     /**
@@ -180,7 +181,7 @@ public class TutorialVStreamPath {
       // TODO: Replace answerRequired() with nums.flatMap(n -> Path.vstreamOf(n, n * 10))
       VStreamPath<Integer> expanded = answerRequired();
 
-      assertThat(expanded.toList().unsafeRun()).containsExactly(1, 10, 2, 20, 3, 30);
+      assertThatVStreamPath(expanded).producesElements(1, 10, 2, 20, 3, 30);
     }
 
     /**
@@ -197,7 +198,7 @@ public class TutorialVStreamPath {
       //   Path.vstreamRange(1, 100).filter(n -> n % 2 == 0).map(n -> "Even:" + n).take(3)
       VStreamPath<String> pipeline = answerRequired();
 
-      assertThat(pipeline.toList().unsafeRun()).containsExactly("Even:2", "Even:4", "Even:6");
+      assertThatVStreamPath(pipeline).producesElements("Even:2", "Even:4", "Even:6");
     }
   }
 
@@ -261,7 +262,7 @@ public class TutorialVStreamPath {
       // TODO: Replace answerRequired() with nums.zipWith(labels, (n, s) -> n + s)
       VStreamPath<String> zipped = answerRequired();
 
-      assertThat(zipped.toList().unsafeRun()).containsExactly("1a", "2b", "3c");
+      assertThatVStreamPath(zipped).producesElements("1a", "2b", "3c");
     }
 
     /**
@@ -284,7 +285,7 @@ public class TutorialVStreamPath {
       // TODO: Replace answerRequired() with people.focus(nameFocus)
       VStreamPath<String> names = answerRequired();
 
-      assertThat(names.toList().unsafeRun()).containsExactly("Alice", "Bob");
+      assertThatVStreamPath(names).producesElements("Alice", "Bob");
     }
   }
 

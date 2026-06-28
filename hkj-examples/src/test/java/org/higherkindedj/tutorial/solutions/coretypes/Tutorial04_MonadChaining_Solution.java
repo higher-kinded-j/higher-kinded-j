@@ -3,6 +3,8 @@
 package org.higherkindedj.tutorial.solutions.coretypes;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.higherkindedj.hkt.assertions.EitherAssert.assertThatEither;
+import static org.higherkindedj.hkt.assertions.MaybeAssert.assertThatMaybe;
 import static org.higherkindedj.hkt.either.EitherKindHelper.EITHER;
 import static org.higherkindedj.hkt.instances.Witnesses.*;
 import static org.higherkindedj.hkt.list.ListKindHelper.LIST;
@@ -58,8 +60,7 @@ public class Tutorial04_MonadChaining_Solution {
 
     Either<String, Integer> result = input.flatMap(parse);
 
-    assertThat(result.isRight()).isTrue();
-    assertThat(result.getRight()).isEqualTo(42);
+    assertThatEither(result).isRight().hasRight(42);
   }
 
   // ─── Exercise 2 ────────────────────────────────────────────────────────────
@@ -97,8 +98,7 @@ public class Tutorial04_MonadChaining_Solution {
     Either<String, Double> result =
         input.flatMap(parse).flatMap(validatePositive).flatMap(divideHundredBy);
 
-    assertThat(result.isRight()).isTrue();
-    assertThat(result.getRight()).isEqualTo(20.0);
+    assertThatEither(result).isRight().hasRight(20.0);
   }
 
   // ─── Exercise 3 ────────────────────────────────────────────────────────────
@@ -132,8 +132,7 @@ public class Tutorial04_MonadChaining_Solution {
 
     Either<String, Integer> result = input.flatMap(parse).flatMap(validatePositive);
 
-    assertThat(result.isLeft()).isTrue();
-    assertThat(result.getLeft()).isEqualTo("Must be positive");
+    assertThatEither(result).isLeft().hasLeft("Must be positive");
   }
 
   // ─── Exercise 4 ────────────────────────────────────────────────────────────
@@ -160,7 +159,7 @@ public class Tutorial04_MonadChaining_Solution {
 
     Either<String, Integer> result = value.flatMap(validate);
 
-    assertThat(result.getRight()).isEqualTo(10);
+    assertThatEither(result).hasRight(10);
   }
 
   // ─── Exercise 5 ────────────────────────────────────────────────────────────
@@ -193,8 +192,7 @@ public class Tutorial04_MonadChaining_Solution {
 
     Maybe<String> email = userId.flatMap(findUser).flatMap(User::email);
 
-    assertThat(email.isJust()).isTrue();
-    assertThat(email.get()).isEqualTo("alice@example.com");
+    assertThatMaybe(email).isJust().hasValue("alice@example.com");
   }
 
   // ─── Exercise 6 ────────────────────────────────────────────────────────────
@@ -260,7 +258,7 @@ public class Tutorial04_MonadChaining_Solution {
                       (a, c) -> "Age: " + a + ", City: " + c));
             });
 
-    assertThat(result.getRight()).isEqualTo("Age: 30, City: New York");
+    assertThatEither(result).hasRight("Age: 30, City: New York");
   }
 
   // ─── Diagnostic ────────────────────────────────────────────────────────────
@@ -288,8 +286,12 @@ public class Tutorial04_MonadChaining_Solution {
     Either<String, Pair> result =
         EITHER.narrow(app.map2(EITHER.widen(name), EITHER.widen(age), Pair::new));
 
-    assertThat(result.isRight()).isTrue();
-    assertThat(result.getRight().name()).isEqualTo("Alice");
-    assertThat(result.getRight().age()).isEqualTo(30);
+    assertThatEither(result)
+        .isRight()
+        .hasRightSatisfying(
+            pair -> {
+              assertThat(pair.name()).isEqualTo("Alice");
+              assertThat(pair.age()).isEqualTo(30);
+            });
   }
 }

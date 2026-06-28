@@ -3,6 +3,7 @@
 package org.higherkindedj.tutorial.solutions.expression;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.higherkindedj.hkt.assertions.MaybeAssert.assertThatMaybe;
 import static org.higherkindedj.hkt.instances.Witnesses.*;
 import static org.higherkindedj.hkt.maybe.MaybeKindHelper.MAYBE;
 
@@ -178,7 +179,7 @@ public class Tutorial05_ZoomAndMagnify_Solution {
             .yield();
 
     Maybe<OptionalAddressCustomer> outcome = MAYBE.narrow(result);
-    assertThat(outcome.isJust()).isTrue();
+    assertThatMaybe(outcome).isJust();
     Address updated = outcome.orElse(initial).address().orElseThrow();
     assertThat(updated.street()).isEqualTo("Oak Ave");
   }
@@ -213,7 +214,7 @@ public class Tutorial05_ZoomAndMagnify_Solution {
             .endZoom()
             .yield();
 
-    assertThat(MAYBE.narrow(result)).isEqualTo(Maybe.nothing());
+    assertThatMaybe(MAYBE.narrow(result)).isNothing();
   }
 
   // ─────────────────────────────────────────────────────────────────────────

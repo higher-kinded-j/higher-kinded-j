@@ -3,6 +3,7 @@
 package org.higherkindedj.tutorial.solutions.resilience;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.higherkindedj.hkt.assertions.TryAssert.assertThatTry;
 
 import java.time.Duration;
 import org.higherkindedj.hkt.resilience.CircuitBreaker;
@@ -148,7 +149,7 @@ public class Tutorial01_CircuitBreaker_Solution {
       // SOLUTION: Protect and run against the open circuit
       Try<String> result = breaker.protect(task).runSafe();
 
-      assertThat(result.isFailure()).isTrue();
+      assertThatTry(result).isFailure();
 
       // SOLUTION: Extract the exception using foldFailureFirst
       Throwable error = result.foldFailureFirst(ex -> ex, value -> null);

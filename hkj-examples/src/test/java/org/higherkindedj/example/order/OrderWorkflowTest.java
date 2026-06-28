@@ -3,6 +3,7 @@
 package org.higherkindedj.example.order;
 
 import static org.assertj.core.api.Assertions.*;
+import static org.higherkindedj.hkt.assertions.EitherAssert.assertThatEither;
 
 import java.util.List;
 import java.util.Optional;
@@ -86,11 +87,13 @@ class OrderWorkflowTest {
       var result = workflow.process(request);
 
       // Assert
-      assertThat(result.run().isRight()).isTrue();
-
-      var orderResult = result.run().getRight();
-      assertThat(orderResult.orderId()).isNotNull();
-      assertThat(orderResult.trackingNumber()).isNotEmpty();
+      assertThatEither(result.run())
+          .isRight()
+          .hasRightSatisfying(
+              orderResult -> {
+                assertThat(orderResult.orderId()).isNotNull();
+                assertThat(orderResult.trackingNumber()).isNotEmpty();
+              });
     }
 
     @Test
@@ -119,9 +122,9 @@ class OrderWorkflowTest {
       var result = workflow.process(request);
 
       // Assert
-      assertThat(result.run().isRight()).isTrue();
-      var orderResult = result.run().getRight();
-      assertThat(orderResult.totalCharged()).isNotNull();
+      assertThatEither(result.run())
+          .isRight()
+          .hasRightSatisfying(orderResult -> assertThat(orderResult.totalCharged()).isNotNull());
     }
   }
 
@@ -145,10 +148,13 @@ class OrderWorkflowTest {
       var result = workflow.process(request);
 
       // Assert
-      assertThat(result.run().isLeft()).isTrue();
-      var error = result.run().getLeft();
-      assertThat(error).isInstanceOf(OrderError.CustomerError.class);
-      assertThat(error.code()).isEqualTo("CUSTOMER_NOT_FOUND");
+      assertThatEither(result.run())
+          .isLeft()
+          .hasLeftSatisfying(
+              error -> {
+                assertThat(error).isInstanceOf(OrderError.CustomerError.class);
+                assertThat(error.code()).isEqualTo("CUSTOMER_NOT_FOUND");
+              });
     }
 
     @Test
@@ -178,9 +184,10 @@ class OrderWorkflowTest {
       var result = workflow.process(request);
 
       // Assert
-      assertThat(result.run().isLeft()).isTrue();
-      var error = result.run().getLeft();
-      assertThat(error).isInstanceOf(OrderError.InventoryError.class);
+      assertThatEither(result.run())
+          .isLeft()
+          .hasLeftSatisfying(
+              error -> assertThat(error).isInstanceOf(OrderError.InventoryError.class));
     }
 
     @Test
@@ -218,9 +225,35 @@ class OrderWorkflowTest {
       var result = workflow.process(request);
 
       // Assert
-      assertThat(result.run().isLeft()).isTrue();
-      var error = result.run().getLeft();
-      assertThat(error).isInstanceOf(OrderError.ShippingError.class);
+      assertThatEither(result.run())
+          .isLeft()
+          .hasLeftSatisfying(
+              error -> assertThat(error).isInstanceOf(OrderError.ShippingError.class));
+    }
+
+    @Test
+    @DisplayName("accumulates all structural field errors at once")
+    void accumulatesStructuralFieldErrors() {
+      // A blank customer id AND a blank product id: both should be reported together.
+      var request =
+          new OrderRequest(
+              "",
+              List.of(new OrderLineRequest("", 1)),
+              Optional.empty(),
+              createValidAddress(),
+              new PaymentMethod.CreditCard("4000000000000002", "12", "2025", "123"));
+
+      var result = workflow.process(request);
+
+      assertThatEither(result.run())
+          .isLeft()
+          .hasLeftSatisfying(
+              error -> {
+                assertThat(error).isInstanceOf(OrderError.ValidationError.class);
+                assertThat(((OrderError.ValidationError) error).fieldErrors())
+                    .extracting(OrderError.FieldError::field)
+                    .containsExactlyInAnyOrder("customerId", "productId");
+              });
     }
   }
 
@@ -255,10 +288,13 @@ class OrderWorkflowTest {
       var result = workflow.process(request);
 
       // Assert
-      assertThat(result.run().isLeft()).isTrue();
-      var error = result.run().getLeft();
-      assertThat(error).isInstanceOf(OrderError.PaymentError.class);
-      assertThat(error.code()).isEqualTo("PAYMENT_DECLINED");
+      assertThatEither(result.run())
+          .isLeft()
+          .hasLeftSatisfying(
+              error -> {
+                assertThat(error).isInstanceOf(OrderError.PaymentError.class);
+                assertThat(error.code()).isEqualTo("PAYMENT_DECLINED");
+              });
     }
   }
 
@@ -292,9 +328,9 @@ class OrderWorkflowTest {
       var result = workflow.process(request);
 
       // Assert
-      assertThat(result.run().isRight()).isTrue();
-      var orderResult = result.run().getRight();
-      assertThat(orderResult.totalCharged()).isNotNull();
+      assertThatEither(result.run())
+          .isRight()
+          .hasRightSatisfying(orderResult -> assertThat(orderResult.totalCharged()).isNotNull());
     }
 
     @Test
@@ -323,9 +359,10 @@ class OrderWorkflowTest {
       var result = workflow.process(request);
 
       // Assert
-      assertThat(result.run().isLeft()).isTrue();
-      var error = result.run().getLeft();
-      assertThat(error).isInstanceOf(OrderError.DiscountError.class);
+      assertThatEither(result.run())
+          .isLeft()
+          .hasLeftSatisfying(
+              error -> assertThat(error).isInstanceOf(OrderError.DiscountError.class));
     }
   }
 

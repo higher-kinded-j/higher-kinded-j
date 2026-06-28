@@ -3,6 +3,7 @@
 package org.higherkindedj.tutorial.solutions.coretypes;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.higherkindedj.hkt.assertions.EitherAssert.assertThatEither;
 
 import java.time.Duration;
 import java.util.List;
@@ -108,8 +109,9 @@ public class TutorialCapstone_OneLineSixLayersGrowsUp_Solution {
     EitherPath<OrderError, Order> path = findOrder("ord-1").toEitherPath(OrderError.NOT_FOUND);
 
     Either<OrderError, Order> result = path.run();
-    assertThat(result.isRight()).isTrue();
-    assertThat(result.getRight().id()).isEqualTo("ord-1");
+    assertThatEither(result)
+        .isRight()
+        .hasRightSatisfying(order -> assertThat(order.id()).isEqualTo("ord-1"));
   }
 
   // ─── Exercise 2 ────────────────────────────────────────────────────────────
@@ -143,8 +145,10 @@ public class TutorialCapstone_OneLineSixLayersGrowsUp_Solution {
                             .toList(),
                     o));
 
-    Order out = doubled.run().getRight();
-    assertThat(out.items()).extracting(Item::quantity).containsExactly(4, 2);
+    assertThatEither(doubled.run())
+        .isRight()
+        .hasRightSatisfying(
+            out -> assertThat(out.items()).extracting(Item::quantity).containsExactly(4, 2));
   }
 
   // ─── Exercise 3 ────────────────────────────────────────────────────────────
@@ -172,8 +176,9 @@ public class TutorialCapstone_OneLineSixLayersGrowsUp_Solution {
             .via(TutorialCapstone_OneLineSixLayersGrowsUp_Solution::save);
 
     Either<OrderError, Order> result = persisted.run();
-    assertThat(result.isRight()).isTrue();
-    assertThat(result.getRight().status()).isEqualTo("RESERVED");
+    assertThatEither(result)
+        .isRight()
+        .hasRightSatisfying(order -> assertThat(order.status()).isEqualTo("RESERVED"));
   }
 
   // ─── Exercise 4 ────────────────────────────────────────────────────────────
@@ -211,9 +216,13 @@ public class TutorialCapstone_OneLineSixLayersGrowsUp_Solution {
             .via(TutorialCapstone_OneLineSixLayersGrowsUp_Solution::save)
             .run();
 
-    assertThat(result.isRight()).isTrue();
-    assertThat(result.getRight().id()).isEqualTo(id);
-    assertThat(result.getRight().status()).isEqualTo("RESERVED");
+    assertThatEither(result)
+        .isRight()
+        .hasRightSatisfying(
+            order -> {
+              assertThat(order.id()).isEqualTo(id);
+              assertThat(order.status()).isEqualTo("RESERVED");
+            });
   }
 
   // ─── Exercise 5 ────────────────────────────────────────────────────────────
@@ -282,8 +291,9 @@ public class TutorialCapstone_OneLineSixLayersGrowsUp_Solution {
             .yield((idIn, found, reserved) -> reserved)
             .run();
 
-    assertThat(result.isRight()).isTrue();
-    assertThat(result.getRight().status()).isEqualTo("RESERVED");
+    assertThatEither(result)
+        .isRight()
+        .hasRightSatisfying(order -> assertThat(order.status()).isEqualTo("RESERVED"));
   }
 
   // ─── Exercise 7 ────────────────────────────────────────────────────────────
@@ -310,7 +320,8 @@ public class TutorialCapstone_OneLineSixLayersGrowsUp_Solution {
         findOrder(id).toEitherPath(OrderError.NOT_FOUND).recover(err -> defaultOrder);
 
     Either<OrderError, Order> result = path.run();
-    assertThat(result.isRight()).isTrue();
-    assertThat(result.getRight().id()).isEqualTo("default");
+    assertThatEither(result)
+        .isRight()
+        .hasRightSatisfying(order -> assertThat(order.id()).isEqualTo("default"));
   }
 }

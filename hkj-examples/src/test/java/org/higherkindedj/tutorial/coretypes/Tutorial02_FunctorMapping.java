@@ -2,7 +2,8 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.tutorial.coretypes;
 
-import static org.assertj.core.api.Assertions.assertThat;
+import static org.higherkindedj.hkt.assertions.EitherAssert.assertThatEither;
+import static org.higherkindedj.hkt.assertions.ListAssert.assertThatList;
 import static org.higherkindedj.hkt.either.EitherKindHelper.EITHER;
 import static org.higherkindedj.hkt.instances.Witnesses.*;
 import static org.higherkindedj.hkt.list.ListKindHelper.LIST;
@@ -99,8 +100,7 @@ public class Tutorial02_FunctorMapping {
 
     Either<String, String> result = answerRequired();
 
-    assertThat(result.isRight()).isTrue();
-    assertThat(result.getRight()).isEqualTo("42");
+    assertThatEither(result).isRight().hasRight("42");
   }
 
   // ═════════════════════════════════════════════════════════════════════════
@@ -131,8 +131,7 @@ public class Tutorial02_FunctorMapping {
 
     Either<String, String> result = error.map(i -> answerRequired());
 
-    assertThat(result.isLeft()).isTrue();
-    assertThat(result.getLeft()).isEqualTo("Error occurred");
+    assertThatEither(result).isLeft().hasLeft("Error occurred");
   }
 
   // ═════════════════════════════════════════════════════════════════════════
@@ -162,7 +161,7 @@ public class Tutorial02_FunctorMapping {
 
     Kind<ListKind.Witness, Integer> doubled = answerRequired();
 
-    assertThat(LIST.narrow(doubled)).containsExactly(2, 4, 6, 8, 10);
+    assertThatList(doubled).containsExactly(2, 4, 6, 8, 10);
   }
 
   // ═════════════════════════════════════════════════════════════════════════
@@ -193,7 +192,7 @@ public class Tutorial02_FunctorMapping {
 
     Either<String, String> result = answerRequired();
 
-    assertThat(result.getRight()).isEqualTo("25");
+    assertThatEither(result).hasRight("25");
   }
 
   // ═════════════════════════════════════════════════════════════════════════
@@ -225,7 +224,7 @@ public class Tutorial02_FunctorMapping {
     Kind<EitherKind.Witness<String>, String> mapped = functor.map(i -> answerRequired(), kind);
 
     Either<String, String> result = EITHER.narrow(mapped);
-    assertThat(result.getRight()).isEqualTo("Value: 100");
+    assertThatEither(result).hasRight("Value: 100");
   }
 
   // ═════════════════════════════════════════════════════════════════════════
@@ -255,7 +254,7 @@ public class Tutorial02_FunctorMapping {
 
     Kind<ListKind.Witness, String> uppercase = answerRequired();
 
-    assertThat(LIST.narrow(uppercase)).containsExactly("HELLO", "WORLD", "JAVA");
+    assertThatList(uppercase).containsExactly("HELLO", "WORLD", "JAVA");
   }
 
   // ═════════════════════════════════════════════════════════════════════════
@@ -298,9 +297,9 @@ public class Tutorial02_FunctorMapping {
     // The result is nested: Either&lt;String, Either&lt;String, Integer&gt;&gt;.
     Either<String, Either<String, Integer>> nested = answerRequired();
 
-    assertThat(nested.isRight()).isTrue();
-    assertThat(nested.getRight().isRight()).isTrue();
-    assertThat(nested.getRight().getRight()).isEqualTo(42);
+    assertThatEither(nested)
+        .isRight()
+        .hasRightSatisfying(inner -> assertThatEither(inner).isRight().hasRight(42));
 
     // The next tutorial will show how flatMap collapses this to a single Either.
   }

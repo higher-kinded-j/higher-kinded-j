@@ -3,6 +3,7 @@
 package org.higherkindedj.tutorial.concurrency;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.higherkindedj.hkt.assertions.TryAssert.assertThatTry;
 
 import java.util.List;
 import java.util.function.BiFunction;
@@ -75,8 +76,8 @@ public class TutorialVTaskForPath {
       VTaskPath<String> result = answerRequired();
 
       Try<String> tryResult = result.runSafe();
-      assertThat(tryResult.isSuccess()).isTrue();
-      assertThat(tryResult.orElse("error")).isEqualTo("Hello, user-123!");
+      assertThatTry(tryResult).isSuccess();
+      assertThatTry(tryResult).hasValue("Hello, user-123!");
     }
 
     /**
@@ -101,8 +102,8 @@ public class TutorialVTaskForPath {
       VTaskPath<Integer> result = answerRequired();
 
       Try<Integer> tryResult = result.runSafe();
-      assertThat(tryResult.isSuccess()).isTrue();
-      assertThat(tryResult.orElse(-1)).isEqualTo(30);
+      assertThatTry(tryResult).isSuccess();
+      assertThatTry(tryResult).hasValue(30);
     }
   }
 
@@ -135,8 +136,8 @@ public class TutorialVTaskForPath {
       VTaskPath<String> result = answerRequired();
 
       Try<String> tryResult = result.runSafe();
-      assertThat(tryResult.isSuccess()).isTrue();
-      assertThat(tryResult.orElse("error")).isEqualTo("Original: 5, Result: 35");
+      assertThatTry(tryResult).isSuccess();
+      assertThatTry(tryResult).hasValue("Original: 5, Result: 35");
     }
 
     /**
@@ -162,8 +163,8 @@ public class TutorialVTaskForPath {
       VTaskPath<Double> result = answerRequired();
 
       Try<Double> tryResult = result.runSafe();
-      assertThat(tryResult.isSuccess()).isTrue();
-      assertThat(tryResult.orElse(-1.0)).isEqualTo(33.0);
+      assertThatTry(tryResult).isSuccess();
+      assertThatTry(tryResult).hasValue(33.0);
     }
   }
 
@@ -210,8 +211,8 @@ public class TutorialVTaskForPath {
       VTaskPath<String> result = answerRequired();
 
       Try<String> tryResult = result.runSafe();
-      assertThat(tryResult.isSuccess()).isTrue();
-      assertThat(tryResult.orElse("error")).isEqualTo("London");
+      assertThatTry(tryResult).isSuccess();
+      assertThatTry(tryResult).hasValue("London");
     }
 
     /**
@@ -240,8 +241,8 @@ public class TutorialVTaskForPath {
       VTaskPath<String> result = answerRequired();
 
       Try<String> tryResult = result.runSafe();
-      assertThat(tryResult.isSuccess()).isTrue();
-      assertThat(tryResult.orElse("error")).isEqualTo("Bob: Sunny in Paris");
+      assertThatTry(tryResult).isSuccess();
+      assertThatTry(tryResult).hasValue("Bob: Sunny in Paris");
     }
   }
 
@@ -276,7 +277,7 @@ public class TutorialVTaskForPath {
       VTaskPath<Integer> result = answerRequired();
 
       Try<Integer> tryResult = result.runSafe();
-      assertThat(tryResult.isFailure()).isTrue();
+      assertThatTry(tryResult).isFailure();
       String errorMessage = tryResult.foldFailureFirst(Throwable::getMessage, v -> "no error");
       assertThat(errorMessage).isEqualTo("Step 2 failed");
     }
@@ -302,8 +303,8 @@ public class TutorialVTaskForPath {
       VTaskPath<String> result = answerRequired();
 
       Try<String> tryResult = result.runSafe();
-      assertThat(tryResult.isSuccess()).isTrue();
-      assertThat(tryResult.orElse("error")).isEqualTo("DEFAULT");
+      assertThatTry(tryResult).isSuccess();
+      assertThatTry(tryResult).hasValue("DEFAULT");
     }
   }
 
@@ -354,8 +355,8 @@ public class TutorialVTaskForPath {
       VTaskPath<String> result = answerRequired();
 
       Try<String> tryResult = result.runSafe();
-      assertThat(tryResult.isSuccess()).isTrue();
-      assertThat(tryResult.orElse("error")).isEqualTo("Order confirmed: ORD-001");
+      assertThatTry(tryResult).isSuccess();
+      assertThatTry(tryResult).hasValue("Order confirmed: ORD-001");
     }
 
     /**
@@ -393,8 +394,8 @@ public class TutorialVTaskForPath {
       VTaskPath<String> result = answerRequired();
 
       Try<String> tryResult = result.runSafe();
-      assertThat(tryResult.isSuccess()).isTrue();
-      assertThat(tryResult.orElse("error")).isEqualTo("Total: $24.30");
+      assertThatTry(tryResult).isSuccess();
+      assertThatTry(tryResult).hasValue("Total: $24.30");
     }
   }
 

@@ -3,6 +3,8 @@
 package org.higherkindedj.tutorial.expression;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.higherkindedj.hkt.assertions.EitherAssert.assertThatEither;
+import static org.higherkindedj.hkt.assertions.MaybeAssert.assertThatMaybe;
 import static org.higherkindedj.hkt.instances.Witnesses.*;
 import static org.higherkindedj.hkt.list.ListKindHelper.LIST;
 import static org.higherkindedj.hkt.maybe.MaybeKindHelper.MAYBE;
@@ -127,8 +129,9 @@ public class Tutorial03_ForTraverseComprehension {
       Kind<MaybeKind.Witness, List<Integer>> result = answerRequired();
 
       Maybe<List<Integer>> maybe = MAYBE.narrow(result);
-      assertThat(maybe.isJust()).isTrue();
-      assertThat(maybe.get()).containsExactly(1, 2, 3);
+      assertThatMaybe(maybe)
+          .isJust()
+          .hasValueSatisfying(list -> assertThat(list).containsExactly(1, 2, 3));
     }
   }
 
@@ -161,7 +164,7 @@ public class Tutorial03_ForTraverseComprehension {
       Kind<MaybeKind.Witness, List<Integer>> result = answerRequired();
 
       Maybe<List<Integer>> maybe = MAYBE.narrow(result);
-      assertThat(maybe.isJust()).isFalse();
+      assertThatMaybe(maybe).isNothing();
     }
   }
 
@@ -195,8 +198,7 @@ public class Tutorial03_ForTraverseComprehension {
       Kind<MaybeKind.Witness, String> result = answerRequired();
 
       Maybe<String> maybe = MAYBE.narrow(result);
-      assertThat(maybe.isJust()).isTrue();
-      assertThat(maybe.get()).isEqualTo("10 -> [20, 22, 24]");
+      assertThatMaybe(maybe).hasValue("10 -> [20, 22, 24]");
     }
   }
 
@@ -232,8 +234,9 @@ public class Tutorial03_ForTraverseComprehension {
       Kind<MaybeKind.Witness, List<Integer>> result = answerRequired();
 
       Maybe<List<Integer>> maybe = MAYBE.narrow(result);
-      assertThat(maybe.isJust()).isTrue();
-      assertThat(maybe.get()).containsExactly(10, 20, 30);
+      assertThatMaybe(maybe)
+          .isJust()
+          .hasValueSatisfying(list -> assertThat(list).containsExactly(10, 20, 30));
     }
   }
 
@@ -268,8 +271,7 @@ public class Tutorial03_ForTraverseComprehension {
       Kind<MaybeKind.Witness, String> result = answerRequired();
 
       Maybe<String> maybe = MAYBE.narrow(result);
-      assertThat(maybe.isJust()).isTrue();
-      assertThat(maybe.get()).isEqualTo("Total: 60");
+      assertThatMaybe(maybe).hasValue("Total: 60");
     }
   }
 
@@ -304,8 +306,9 @@ public class Tutorial03_ForTraverseComprehension {
       Kind<MaybeKind.Witness, List<Integer>> result = answerRequired();
 
       Maybe<List<Integer>> maybe = MAYBE.narrow(result);
-      assertThat(maybe.isJust()).isTrue();
-      assertThat(maybe.get()).containsExactly(10, 20, 30);
+      assertThatMaybe(maybe)
+          .isJust()
+          .hasValueSatisfying(list -> assertThat(list).containsExactly(10, 20, 30));
     }
 
     @Test
@@ -319,7 +322,7 @@ public class Tutorial03_ForTraverseComprehension {
       Kind<MaybeKind.Witness, List<Integer>> result = answerRequired();
 
       Maybe<List<Integer>> maybe = MAYBE.narrow(result);
-      assertThat(maybe.isJust()).isFalse();
+      assertThatMaybe(maybe).isNothing();
     }
   }
 
@@ -354,8 +357,9 @@ public class Tutorial03_ForTraverseComprehension {
       Kind<MaybeKind.Witness, List<Integer>> result = answerRequired();
 
       Maybe<List<Integer>> maybe = MAYBE.narrow(result);
-      assertThat(maybe.isJust()).isTrue();
-      assertThat(maybe.get()).containsExactly(1, 10, 2, 20, 3, 30);
+      assertThatMaybe(maybe)
+          .isJust()
+          .hasValueSatisfying(list -> assertThat(list).containsExactly(1, 10, 2, 20, 3, 30));
     }
   }
 
@@ -389,8 +393,7 @@ public class Tutorial03_ForTraverseComprehension {
       Kind<MaybeKind.Witness, String> result = answerRequired();
 
       Maybe<String> maybe = MAYBE.narrow(result);
-      assertThat(maybe.isJust()).isTrue();
-      assertThat(maybe.get()).isEqualTo("Original: [a, b, c], Uppercased: [A, B, C]");
+      assertThatMaybe(maybe).hasValue("Original: [a, b, c], Uppercased: [A, B, C]");
     }
   }
 
@@ -424,8 +427,9 @@ public class Tutorial03_ForTraverseComprehension {
       MaybePath<List<Integer>> result = answerRequired();
 
       Maybe<List<Integer>> maybe = result.run();
-      assertThat(maybe.isJust()).isTrue();
-      assertThat(maybe.get()).containsExactly(2, 4, 6);
+      assertThatMaybe(maybe)
+          .isJust()
+          .hasValueSatisfying(list -> assertThat(list).containsExactly(2, 4, 6));
     }
   }
 
@@ -460,8 +464,9 @@ public class Tutorial03_ForTraverseComprehension {
       EitherPath<String, List<Integer>> result = answerRequired();
 
       Either<String, List<Integer>> either = result.run();
-      assertThat(either.isRight()).isTrue();
-      assertThat(either.getRight()).containsExactly(2, 4, 6);
+      assertThatEither(either)
+          .isRight()
+          .hasRightSatisfying(list -> assertThat(list).containsExactly(2, 4, 6));
     }
 
     @Test
@@ -475,7 +480,7 @@ public class Tutorial03_ForTraverseComprehension {
       EitherPath<String, List<Integer>> result = answerRequired();
 
       Either<String, List<Integer>> either = result.run();
-      assertThat(either.isLeft()).isTrue();
+      assertThatEither(either).isLeft();
     }
   }
 
@@ -520,8 +525,7 @@ public class Tutorial03_ForTraverseComprehension {
       Kind<MaybeKind.Witness, String> result = answerRequired();
 
       Maybe<String> maybe = MAYBE.narrow(result);
-      assertThat(maybe.isJust()).isTrue();
-      assertThat(maybe.get()).isEqualTo("Items: 3, Total: 70");
+      assertThatMaybe(maybe).hasValue("Items: 3, Total: 70");
     }
 
     @Test
@@ -540,7 +544,7 @@ public class Tutorial03_ForTraverseComprehension {
       Kind<MaybeKind.Witness, String> result = answerRequired();
 
       Maybe<String> maybe = MAYBE.narrow(result);
-      assertThat(maybe.isJust()).isFalse();
+      assertThatMaybe(maybe).isNothing();
     }
   }
 

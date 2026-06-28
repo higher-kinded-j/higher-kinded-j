@@ -3,6 +3,7 @@
 package org.higherkindedj.example.order;
 
 import static org.assertj.core.api.Assertions.*;
+import static org.higherkindedj.hkt.assertions.EitherAssert.assertThatEither;
 
 import java.math.BigDecimal;
 import java.time.Duration;
@@ -212,8 +213,8 @@ class FocusDSLExamplesTest {
       var validResult = FocusDSLExamples.validatePaymentMethod(validCard);
 
       // Assert
-      assertThat(shortResult.run().isLeft()).isTrue();
-      assertThat(validResult.run().isRight()).isTrue();
+      assertThatEither(shortResult.run()).isLeft();
+      assertThatEither(validResult.run()).isRight();
     }
 
     @Test

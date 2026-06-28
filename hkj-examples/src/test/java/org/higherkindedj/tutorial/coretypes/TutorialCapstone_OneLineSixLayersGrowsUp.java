@@ -3,6 +3,7 @@
 package org.higherkindedj.tutorial.coretypes;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.higherkindedj.hkt.assertions.EitherAssert.assertThatEither;
 
 import java.util.List;
 import java.util.Map;
@@ -130,11 +131,12 @@ public class TutorialCapstone_OneLineSixLayersGrowsUp {
     EitherPath<OrderError, Order> path = answerRequired();
 
     Either<OrderError, Order> result = path.run();
-    assertThat(result.isRight()).isTrue();
-    assertThat(result.getRight().id()).isEqualTo("ord-1");
+    assertThatEither(result)
+        .isRight()
+        .hasRightSatisfying(order -> assertThat(order.id()).isEqualTo("ord-1"));
 
     EitherPath<OrderError, Order> missing = findOrder("missing").toEitherPath(OrderError.NOT_FOUND);
-    assertThat(missing.run().getLeft()).isEqualTo(OrderError.NOT_FOUND);
+    assertThatEither(missing.run()).hasLeft(OrderError.NOT_FOUND);
   }
 
   // ═════════════════════════════════════════════════════════════════════════
@@ -157,8 +159,10 @@ public class TutorialCapstone_OneLineSixLayersGrowsUp {
 
     EitherPath<OrderError, Order> doubled = answerRequired();
 
-    Order out = doubled.run().getRight();
-    assertThat(out.items()).extracting(Item::quantity).containsExactly(4, 2);
+    assertThatEither(doubled.run())
+        .isRight()
+        .hasRightSatisfying(
+            out -> assertThat(out.items()).extracting(Item::quantity).containsExactly(4, 2));
   }
 
   // ═════════════════════════════════════════════════════════════════════════
@@ -182,8 +186,9 @@ public class TutorialCapstone_OneLineSixLayersGrowsUp {
     EitherPath<OrderError, Order> persisted = answerRequired();
 
     Either<OrderError, Order> result = persisted.run();
-    assertThat(result.isRight()).isTrue();
-    assertThat(result.getRight().status()).isEqualTo("RESERVED");
+    assertThatEither(result)
+        .isRight()
+        .hasRightSatisfying(order -> assertThat(order.status()).isEqualTo("RESERVED"));
   }
 
   // ═════════════════════════════════════════════════════════════════════════
@@ -210,9 +215,13 @@ public class TutorialCapstone_OneLineSixLayersGrowsUp {
 
     Either<OrderError, Order> result = answerRequired();
 
-    assertThat(result.isRight()).isTrue();
-    assertThat(result.getRight().id()).isEqualTo(id);
-    assertThat(result.getRight().status()).isEqualTo("RESERVED");
+    assertThatEither(result)
+        .isRight()
+        .hasRightSatisfying(
+            order -> {
+              assertThat(order.id()).isEqualTo(id);
+              assertThat(order.status()).isEqualTo("RESERVED");
+            });
   }
 
   // ═════════════════════════════════════════════════════════════════════════
@@ -277,8 +286,9 @@ public class TutorialCapstone_OneLineSixLayersGrowsUp {
 
     Either<OrderError, Order> result = answerRequired();
 
-    assertThat(result.isRight()).isTrue();
-    assertThat(result.getRight().status()).isEqualTo("RESERVED");
+    assertThatEither(result)
+        .isRight()
+        .hasRightSatisfying(order -> assertThat(order.status()).isEqualTo("RESERVED"));
   }
 
   // ═════════════════════════════════════════════════════════════════════════
@@ -306,8 +316,9 @@ public class TutorialCapstone_OneLineSixLayersGrowsUp {
     EitherPath<OrderError, Order> path = answerRequired();
 
     Either<OrderError, Order> result = path.run();
-    assertThat(result.isRight()).isTrue();
-    assertThat(result.getRight().id()).isEqualTo("default");
+    assertThatEither(result)
+        .isRight()
+        .hasRightSatisfying(order -> assertThat(order.id()).isEqualTo("default"));
   }
 
   /*

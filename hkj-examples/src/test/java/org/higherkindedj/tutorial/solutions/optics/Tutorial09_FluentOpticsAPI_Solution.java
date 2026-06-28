@@ -3,6 +3,9 @@
 package org.higherkindedj.tutorial.solutions.optics;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.higherkindedj.hkt.assertions.EitherAssert.assertThatEither;
+import static org.higherkindedj.hkt.assertions.MaybeAssert.assertThatMaybe;
+import static org.higherkindedj.hkt.assertions.ValidatedAssert.assertThatValidated;
 
 import java.util.List;
 import java.util.Optional;
@@ -320,8 +323,9 @@ public class Tutorial09_FluentOpticsAPI_Solution {
     // Use OpticOps.modifyEither() to validate and normalise email
     Either<String, User> validResult = OpticOps.modifyEither(user, emailLens, validateEmail);
 
-    assertThat(validResult.isRight()).isTrue();
-    assertThat(validResult.getRight().email()).isEqualTo("alice@example.com");
+    assertThatEither(validResult)
+        .isRight()
+        .hasRightSatisfying(u -> assertThat(u.email()).isEqualTo("alice@example.com"));
 
     // Test with invalid email
     User invalidUser = new User("user2", "notanemail");
@@ -330,8 +334,9 @@ public class Tutorial09_FluentOpticsAPI_Solution {
     Either<String, User> invalidResult =
         OpticOps.modifyEither(invalidUser, emailLens, validateEmail);
 
-    assertThat(invalidResult.isLeft()).isTrue();
-    assertThat(invalidResult.getLeft()).contains("missing @");
+    assertThatEither(invalidResult)
+        .isLeft()
+        .hasLeftSatisfying(error -> assertThat(error).contains("missing @"));
   }
 
   /**
@@ -372,7 +377,7 @@ public class Tutorial09_FluentOpticsAPI_Solution {
     // Use OpticOps.modifyMaybe() to validate age
     Maybe<Person> validResult = OpticOps.modifyMaybe(person, ageLens, validateAge);
 
-    assertThat(validResult.isJust()).isTrue();
+    assertThatMaybe(validResult).isJust();
 
     // Test with invalid age
     Person invalidPerson = new Person("Bob", 200);
@@ -380,7 +385,7 @@ public class Tutorial09_FluentOpticsAPI_Solution {
     // Use OpticOps.modifyMaybe() on invalid age
     Maybe<Person> invalidResult = OpticOps.modifyMaybe(invalidPerson, ageLens, validateAge);
 
-    assertThat(invalidResult.isNothing()).isTrue();
+    assertThatMaybe(invalidResult).isNothing();
   }
 
   /**
@@ -441,7 +446,7 @@ public class Tutorial09_FluentOpticsAPI_Solution {
         OpticOps.modifyAllValidated(order, prices, validatePrice);
 
     // Should be invalid because we have negative and zero prices
-    assertThat(result.isInvalid()).isTrue();
+    assertThatValidated(result).isInvalid();
     // Validated accumulates errors (at least 2 invalid prices)
     List<String> errors = result.fold(errorList -> errorList, valid -> List.of());
     assertThat(errors.size()).isGreaterThanOrEqualTo(1);
@@ -457,7 +462,7 @@ public class Tutorial09_FluentOpticsAPI_Solution {
     Validated<List<String>, Order> validResult =
         OpticOps.modifyAllValidated(validOrder, validPrices, validatePrice);
 
-    assertThat(validResult.isValid()).isTrue();
+    assertThatValidated(validResult).isValid();
   }
 
   /**

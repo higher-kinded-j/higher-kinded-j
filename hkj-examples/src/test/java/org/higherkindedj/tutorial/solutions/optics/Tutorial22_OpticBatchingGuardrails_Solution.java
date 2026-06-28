@@ -3,6 +3,7 @@
 package org.higherkindedj.tutorial.solutions.optics;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.higherkindedj.hkt.assertions.EitherAssert.assertThatEither;
 import static org.higherkindedj.optics.fetch.FetchKindHelper.FETCH;
 
 import java.util.ArrayList;
@@ -224,10 +225,13 @@ public class Tutorial22_OpticBatchingGuardrails_Solution {
           SafeFetch.runCachedWithGuard(
               FETCH.narrow(program), doubler(new AtomicInteger()), Guards.maxKeysPerRound(3));
 
-      assertThat(outcome.isLeft()).isTrue();
-      assertThat(outcome.getLeft())
-          .isInstanceOf(GuardViolationException.class)
-          .hasMessageContaining("keysPerRound=5");
+      assertThatEither(outcome)
+          .isLeft()
+          .hasLeftSatisfying(
+              error ->
+                  assertThat(error)
+                      .isInstanceOf(GuardViolationException.class)
+                      .hasMessageContaining("keysPerRound=5"));
     }
   }
 }

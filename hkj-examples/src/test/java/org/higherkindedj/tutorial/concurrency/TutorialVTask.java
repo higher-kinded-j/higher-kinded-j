@@ -3,6 +3,8 @@
 package org.higherkindedj.tutorial.concurrency;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.higherkindedj.hkt.assertions.TryAssert.assertThatTry;
+import static org.higherkindedj.hkt.assertions.VTaskAssert.assertThatVTask;
 
 import java.util.List;
 import org.higherkindedj.hkt.trymonad.Try;
@@ -83,8 +85,7 @@ public class TutorialVTask {
 
       VTask<Integer> lengthTask = answerRequired();
 
-      Integer result = lengthTask.run();
-      assertThat(result).isEqualTo(13);
+      assertThatVTask(lengthTask).whenRun().succeeds().hasValue(13);
     }
 
     /**
@@ -103,11 +104,11 @@ public class TutorialVTask {
       VTask<Integer> failure = answerRequired();
 
       Try<Integer> successResult = success.runSafe();
-      assertThat(successResult.isSuccess()).isTrue();
-      assertThat(successResult.orElse(-1)).isEqualTo(42);
+      assertThatTry(successResult).isSuccess();
+      assertThatTry(successResult).hasValue(42);
 
       Try<Integer> failureResult = failure.runSafe();
-      assertThat(failureResult.isFailure()).isTrue();
+      assertThatTry(failureResult).isFailure();
     }
   }
 
@@ -135,8 +136,7 @@ public class TutorialVTask {
 
       VTask<Integer> length = answerRequired();
 
-      Integer result = length.run();
-      assertThat(result).isEqualTo(23);
+      assertThatVTask(length).whenRun().succeeds().hasValue(23);
     }
 
     /**
@@ -155,8 +155,7 @@ public class TutorialVTask {
 
       VTask<Integer> doubled = answerRequired();
 
-      Integer result = doubled.run();
-      assertThat(result).isEqualTo(42);
+      assertThatVTask(doubled).whenRun().succeeds().hasValue(42);
     }
   }
 
@@ -207,8 +206,7 @@ public class TutorialVTask {
 
       VTask<Integer> recovered = answerRequired();
 
-      Integer result = recovered.run();
-      assertThat(result).isEqualTo(-1);
+      assertThatVTask(recovered).whenRun().succeeds().hasValue(-1);
     }
   }
 
@@ -248,8 +246,7 @@ public class TutorialVTask {
 
       VTask<Integer> combined = answerRequired();
 
-      Integer result = combined.run();
-      assertThat(result).isEqualTo(42);
+      assertThatVTask(combined).whenRun().succeeds().hasValue(42);
     }
 
     /**
@@ -287,8 +284,7 @@ public class TutorialVTask {
 
       VTask<String> winner = answerRequired();
 
-      String result = winner.run();
-      assertThat(result).isEqualTo("fast");
+      assertThatVTask(winner).whenRun().succeeds().hasValue("fast");
     }
   }
 
@@ -360,8 +356,7 @@ public class TutorialVTask {
 
       VTask<String> safeProfile = profile.recover(error -> "Unknown user");
 
-      String result = safeProfile.run();
-      assertThat(result).isEqualTo("Alice (age 30)");
+      assertThatVTask(safeProfile).whenRun().succeeds().hasValue("Alice (age 30)");
 
       // Showing List import is used (suppressing unused warning).
       assertThat(List.of(safeProfile)).hasSize(1);

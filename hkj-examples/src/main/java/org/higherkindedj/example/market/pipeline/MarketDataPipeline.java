@@ -2,6 +2,7 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.example.market.pipeline;
 
+import java.time.Duration;
 import java.util.List;
 import java.util.Objects;
 import org.higherkindedj.example.market.aggregation.WindowAggregator;
@@ -15,8 +16,10 @@ import org.higherkindedj.example.market.model.Alert;
 import org.higherkindedj.example.market.model.EnrichedTick;
 import org.higherkindedj.example.market.model.PriceTick;
 import org.higherkindedj.example.market.model.RiskAssessment;
+import org.higherkindedj.example.market.resilience.FeedResilience;
 import org.higherkindedj.example.market.risk.RiskPipeline;
 import org.higherkindedj.hkt.vstream.VStream;
+import org.higherkindedj.hkt.vstream.VStreamThrottle;
 
 /**
  * The main market data pipeline that wires together all processing stages.
@@ -24,19 +27,25 @@ import org.higherkindedj.hkt.vstream.VStream;
  * <p>The pipeline processes data through these stages:
  *
  * <pre>{@code
- * Exchange Feeds ──→ Merge ──→ Enrich ──→ Risk ──→ Aggregate ──→ Detect ──→ Dispatch
- *  (VStreamPar.merge)  (Par.map2)  (parEvalMap)  (chunk+fold)  (flatMap)  (Scope.allSucceed)
+ * Exchange Feeds ──→ Merge ──→ Resilience+Throttle ──→ Enrich ──→ Risk ──→ Aggregate ──→ Detect ──→ Dispatch
+ *  (VStreamPar.merge)   (FeedResilience, throttle)    (parEvalMap)  (chunk)   (flatMap)  (Scope.allSucceed)
  * }</pre>
  *
  * <p><b>HKJ features demonstrated:</b>
  *
  * <ul>
  *   <li>{@link VStream#take} - Safety valve limiting total ticks processed
- *   <li>{@link VStream#peek} - Observation tap for monitoring/logging
- *   <li>{@link VStream#onFinalize} - Cleanup when pipeline shuts down
+ *   <li>{@link FeedResilience} - Falls back to an empty stream if a feed errors, so one bad
+ *       exchange cannot abort the pipeline
+ *   <li>{@link VStreamThrottle#throttle} - Rate-limits feed ingestion to a sustainable burst
  * </ul>
  */
 public class MarketDataPipeline {
+
+  /** Maximum ticks admitted per throttle window (a small burst to demonstrate rate limiting). */
+  private static final int FEED_THROTTLE_BURST = 10;
+
+  private static final Duration FEED_THROTTLE_WINDOW = Duration.ofMillis(1);
 
   private final List<ExchangeFeed> feeds;
   private final TickEnricher enricher;
@@ -44,6 +53,7 @@ public class MarketDataPipeline {
   private final AnomalyDetector anomalyDetector;
   private final AlertDispatcher alertDispatcher;
   private final PipelineConfig config;
+  private final FeedResilience feedResilience;
 
   public MarketDataPipeline(
       List<ExchangeFeed> feeds,
@@ -58,11 +68,19 @@ public class MarketDataPipeline {
     this.anomalyDetector = Objects.requireNonNull(anomalyDetector);
     this.alertDispatcher = Objects.requireNonNull(alertDispatcher);
     this.config = Objects.requireNonNull(config);
+    this.feedResilience = FeedResilience.withDefaults();
   }
 
-  /** Returns the merged raw tick stream from all feeds, limited by config. */
+  /**
+   * Returns the merged raw tick stream from all feeds, limited by config, with feed resilience and
+   * throttling applied on the live path.
+   */
   public VStream<PriceTick> mergedTicks() {
-    return FeedMerger.merge(feeds).take(config.maxTicks());
+    VStream<PriceTick> merged = FeedMerger.merge(feeds).take(config.maxTicks());
+    // Resilience on the live feed path: fall back to an empty stream if a feed errors (so one bad
+    // exchange cannot kill the pipeline), then throttle ingestion to a sustainable burst.
+    VStream<PriceTick> resilient = feedResilience.withFallback(merged, VStream.empty());
+    return VStreamThrottle.throttle(resilient, FEED_THROTTLE_BURST, FEED_THROTTLE_WINDOW);
   }
 
   /** Returns the enriched tick stream. */

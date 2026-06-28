@@ -3,6 +3,7 @@
 package org.higherkindedj.tutorial.context;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.higherkindedj.hkt.assertions.TryAssert.assertThatTry;
 
 import java.util.List;
 import org.higherkindedj.hkt.context.Context;
@@ -74,7 +75,7 @@ public class Tutorial05_ContextWithVTask {
       Try<String> result =
           ScopedValue.where(RequestContext.TRACE_ID, traceId).call(() -> traceTask.runSafe());
 
-      assertThat(result.isSuccess()).isTrue();
+      assertThatTry(result).isSuccess();
       assertThat(result.orElse("error")).isEqualTo(traceId);
     }
 

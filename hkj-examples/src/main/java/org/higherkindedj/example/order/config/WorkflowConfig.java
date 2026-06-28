@@ -7,8 +7,11 @@ import java.time.Duration;
 /**
  * Configuration for the order workflow.
  *
- * <p>This record is used with {@code ReaderPath} to thread configuration through the workflow
- * without explicit parameter passing.
+ * <p>This config is supplied as a constructor dependency to the workflows (see {@link
+ * org.higherkindedj.example.order.workflow.OrderWorkflow} and friends); the workflow reads its
+ * fields directly. Per-request cross-cutting context (trace id, tenant, deadline) is propagated
+ * separately via {@link org.higherkindedj.example.order.context.OrderContext}'s {@code ScopedValue}
+ * bindings rather than threaded as configuration.
  *
  * @param retryConfig retry configuration for transient failures
  * @param timeoutConfig timeout configuration for external calls

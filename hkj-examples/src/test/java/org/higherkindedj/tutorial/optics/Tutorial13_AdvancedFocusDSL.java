@@ -3,6 +3,7 @@
 package org.higherkindedj.tutorial.optics;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.higherkindedj.hkt.assertions.MaybeAssert.assertThatMaybe;
 import static org.higherkindedj.hkt.instances.Witnesses.*;
 
 import java.util.ArrayList;
@@ -173,8 +174,9 @@ public class Tutorial13_AdvancedFocusDSL {
 
     // The result should be Just(Config("ABC123")) because the key is valid
     Maybe<Config> maybeConfig = MaybeKindHelper.MAYBE.narrow(result);
-    assertThat(maybeConfig.isJust()).isTrue();
-    assertThat(maybeConfig.get().apiKey()).isEqualTo("ABC123");
+    assertThatMaybe(maybeConfig)
+        .isJust()
+        .hasValueSatisfying(cfg -> assertThat(cfg.apiKey()).isEqualTo("ABC123"));
 
     // Now test with an invalid key
     Config shortKeyConfig = new Config("abc");
@@ -183,7 +185,7 @@ public class Tutorial13_AdvancedFocusDSL {
     Kind<MaybeKind.Witness, Config> invalidResult = answerRequired();
 
     Maybe<Config> invalidMaybe = MaybeKindHelper.MAYBE.narrow(invalidResult);
-    assertThat(invalidMaybe.isNothing()).isTrue();
+    assertThatMaybe(invalidMaybe).isNothing();
   }
 
   /**

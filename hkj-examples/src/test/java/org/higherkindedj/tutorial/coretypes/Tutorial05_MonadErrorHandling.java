@@ -3,6 +3,8 @@
 package org.higherkindedj.tutorial.coretypes;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.higherkindedj.hkt.assertions.EitherAssert.assertThatEither;
+import static org.higherkindedj.hkt.assertions.TryAssert.assertThatTry;
 import static org.higherkindedj.hkt.either.EitherKindHelper.EITHER;
 import static org.higherkindedj.hkt.instances.Witnesses.*;
 
@@ -70,8 +72,7 @@ public class Tutorial05_MonadErrorHandling {
     Kind<EitherKind.Witness<String>, Integer> error = answerRequired();
 
     Either<String, Integer> result = EITHER.narrow(error);
-    assertThat(result.isLeft()).isTrue();
-    assertThat(result.getLeft()).isEqualTo("Invalid input");
+    assertThatEither(result).isLeft().hasLeft("Invalid input");
   }
 
   /**
@@ -214,8 +215,7 @@ public class Tutorial05_MonadErrorHandling {
     // Hint: primary.fold(err -> fallback, value -> Either.right(value))
     Either<String, String> result = answerRequired();
 
-    assertThat(result.isRight()).isTrue();
-    assertThat(result.getRight()).isEqualTo("Fallback value");
+    assertThatEither(result).isRight().hasRight("Fallback value");
   }
 
   /**
@@ -242,14 +242,13 @@ public class Tutorial05_MonadErrorHandling {
     // Hint: Try.of(() -> riskyDivision.apply(0))
     Try<Integer> result = answerRequired();
 
-    assertThat(result.isFailure()).isTrue();
+    assertThatTry(result).isFailure();
 
     // TODO: Replace null with code that recovers from the exception
     // Hint: result.recover(ex -> -1)
     Try<Integer> recovered = answerRequired();
 
-    assertThat(recovered.isSuccess()).isTrue();
-    assertThat(recovered.get()).isEqualTo(-1);
+    assertThatTry(recovered).isSuccess().hasValue(-1);
   }
 
   /**

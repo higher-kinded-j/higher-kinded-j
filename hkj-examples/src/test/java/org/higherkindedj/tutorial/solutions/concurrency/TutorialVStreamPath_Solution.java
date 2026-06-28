@@ -3,6 +3,7 @@
 package org.higherkindedj.tutorial.solutions.concurrency;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.higherkindedj.hkt.assertions.VStreamPathAssert.assertThatVStreamPath;
 
 import java.util.Optional;
 import org.higherkindedj.hkt.effect.Path;
@@ -60,7 +61,7 @@ public class TutorialVStreamPath_Solution {
       // SOLUTION: Use Path.vstreamOf() to create from varargs
       VStreamPath<Integer> path = Path.vstreamOf(1, 2, 3);
 
-      assertThat(path.toList().unsafeRun()).containsExactly(1, 2, 3);
+      assertThatVStreamPath(path).producesElements(1, 2, 3);
     }
 
     /**
@@ -79,7 +80,7 @@ public class TutorialVStreamPath_Solution {
       // SOLUTION: Use Path.vstreamRange() to create an integer range
       VStreamPath<Integer> path = Path.vstreamRange(1, 6);
 
-      assertThat(path.toList().unsafeRun()).containsExactly(1, 2, 3, 4, 5);
+      assertThatVStreamPath(path).producesElements(1, 2, 3, 4, 5);
     }
 
     /**
@@ -97,7 +98,7 @@ public class TutorialVStreamPath_Solution {
       // SOLUTION: Use Path.vstreamIterate() for an infinite stream and take(4)
       VStreamPath<Integer> path = Path.vstreamIterate(10, n -> n + 10).take(4);
 
-      assertThat(path.toList().unsafeRun()).containsExactly(10, 20, 30, 40);
+      assertThatVStreamPath(path).producesElements(10, 20, 30, 40);
     }
 
     /**
@@ -123,7 +124,7 @@ public class TutorialVStreamPath_Solution {
                           ? Optional.empty()
                           : Optional.of(new VStream.Seed<>(state, state + 1))));
 
-      assertThat(path.toList().unsafeRun()).containsExactly(1, 2, 3);
+      assertThatVStreamPath(path).producesElements(1, 2, 3);
     }
   }
 
@@ -153,7 +154,7 @@ public class TutorialVStreamPath_Solution {
       // SOLUTION: Use map to transform each element to uppercase
       VStreamPath<String> upper = names.map(String::toUpperCase);
 
-      assertThat(upper.toList().unsafeRun()).containsExactly("ALICE", "BOB");
+      assertThatVStreamPath(upper).producesElements("ALICE", "BOB");
     }
 
     /**
@@ -174,7 +175,7 @@ public class TutorialVStreamPath_Solution {
       // SOLUTION: Use filter to keep only even numbers
       VStreamPath<Integer> evens = range.filter(n -> n % 2 == 0);
 
-      assertThat(evens.toList().unsafeRun()).containsExactly(2, 4, 6, 8, 10);
+      assertThatVStreamPath(evens).producesElements(2, 4, 6, 8, 10);
     }
 
     /**
@@ -196,7 +197,7 @@ public class TutorialVStreamPath_Solution {
       // SOLUTION: Use flatMap to expand each element into [n, n*10]
       VStreamPath<Integer> expanded = nums.flatMap(n -> Path.vstreamOf(n, n * 10));
 
-      assertThat(expanded.toList().unsafeRun()).containsExactly(1, 10, 2, 20, 3, 30);
+      assertThatVStreamPath(expanded).producesElements(1, 10, 2, 20, 3, 30);
     }
 
     /**
@@ -216,7 +217,7 @@ public class TutorialVStreamPath_Solution {
       VStreamPath<String> pipeline =
           Path.vstreamRange(1, 100).filter(n -> n % 2 == 0).map(n -> "Even:" + n).take(3);
 
-      assertThat(pipeline.toList().unsafeRun()).containsExactly("Even:2", "Even:4", "Even:6");
+      assertThatVStreamPath(pipeline).producesElements("Even:2", "Even:4", "Even:6");
     }
   }
 
@@ -288,7 +289,7 @@ public class TutorialVStreamPath_Solution {
       // SOLUTION: Use zipWith to pair elements positionally
       VStreamPath<String> zipped = nums.zipWith(labels, (n, s) -> n + s);
 
-      assertThat(zipped.toList().unsafeRun()).containsExactly("1a", "2b", "3c");
+      assertThatVStreamPath(zipped).producesElements("1a", "2b", "3c");
     }
 
     /**
@@ -314,7 +315,7 @@ public class TutorialVStreamPath_Solution {
       // SOLUTION: Use focus() to extract names from each Person
       VStreamPath<String> names = people.focus(nameFocus);
 
-      assertThat(names.toList().unsafeRun()).containsExactly("Alice", "Bob");
+      assertThatVStreamPath(names).producesElements("Alice", "Bob");
     }
   }
 }

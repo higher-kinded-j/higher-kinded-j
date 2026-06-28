@@ -3,6 +3,7 @@
 package org.higherkindedj.tutorial.resilience;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.higherkindedj.hkt.assertions.TryAssert.assertThatTry;
 
 import java.time.Duration;
 import org.higherkindedj.hkt.resilience.CircuitBreaker;
@@ -176,7 +177,7 @@ public class Tutorial01_CircuitBreaker {
       // TODO: Protect the task and execute it with runSafe() to obtain Try<String>
       Try<String> result = answerRequired();
 
-      assertThat(result.isFailure()).isTrue();
+      assertThatTry(result).isFailure();
 
       // TODO: Extract the exception from the Try (hint: result.fold(value -> null, ex -> ex))
       Throwable error = answerRequired();

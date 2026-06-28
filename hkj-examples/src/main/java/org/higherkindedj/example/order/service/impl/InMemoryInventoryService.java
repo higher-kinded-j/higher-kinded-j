@@ -2,7 +2,9 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.example.order.service.impl;
 
+import java.time.Duration;
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -18,17 +20,21 @@ import org.higherkindedj.hkt.either.Either;
 /**
  * In-memory implementation of InventoryService for testing and examples.
  *
- * <p><strong>Thread Safety Note:</strong> While this implementation uses ConcurrentHashMap for
- * storage, the {@link #reserve} method is not fully atomic. It checks availability first, then
- * reserves stock in a separate operation. In a concurrent environment, this could lead to race
- * conditions (e.g., overselling). This is acceptable for testing and demonstration purposes but
- * would require proper synchronisation or database transactions in production.
+ * <p><strong>Thread Safety:</strong> {@link #reserve} decrements each product's stock with a single
+ * atomic {@link Map#compute} guarded by a floor, so stock can never oversell or go negative even
+ * under concurrent callers. A multi-line reservation is all-or-nothing: if any line is short the
+ * lines already taken are returned before failing. Expired holds are reclaimed lazily on the next
+ * reservation (see {@link #reclaimExpiredReservations()}), which is the only place {@code
+ * expiresAt} is consulted.
  */
 public class InMemoryInventoryService implements InventoryService {
 
   private final Map<String, Integer> stock = new ConcurrentHashMap<>();
   private final Map<String, String> productWarehouses = new ConcurrentHashMap<>();
   private final Map<String, InventoryReservation> reservations = new ConcurrentHashMap<>();
+
+  /** How long a reservation is held before it can be reclaimed. Adjustable for tests. */
+  private Duration reservationHold = Duration.ofMinutes(15);
 
   public InMemoryInventoryService() {
     // Pre-populate with sample stock across different warehouses
@@ -57,6 +63,11 @@ public class InMemoryInventoryService implements InventoryService {
     productWarehouses.put(productId, warehouseId);
   }
 
+  /** Overrides how long reservations are held; mainly a seam for exercising expiry in tests. */
+  public void setReservationHold(Duration reservationHold) {
+    this.reservationHold = reservationHold;
+  }
+
   @Override
   public Either<OrderError, InventoryCheckResult> checkAvailability(
       List<ValidatedOrderLine> lines) {
@@ -80,41 +91,29 @@ public class InMemoryInventoryService implements InventoryService {
   @Override
   public Either<OrderError, InventoryReservation> reserve(
       OrderId orderId, List<ValidatedOrderLine> lines) {
-    // Check availability first
-    var unavailable =
-        lines.stream()
-            .filter(
-                line -> {
-                  var available = stock.getOrDefault(line.productId().value(), 0);
-                  return available < line.quantity();
-                })
-            .map(line -> line.productId().value())
-            .toList();
+    reclaimExpiredReservations();
+
+    // Take each line atomically with a floor, rolling back the lines already taken if any line is
+    // short. This makes the whole reservation all-or-nothing and removes the check-then-act race:
+    // two callers can no longer both pass a check and then both subtract the same stock.
+    var taken = new ArrayList<InventoryReservation.ReservedItem>();
+    var unavailable = new ArrayList<String>();
+    for (var line : lines) {
+      if (tryTake(line.productId().value(), line.quantity())) {
+        taken.add(
+            new InventoryReservation.ReservedItem(
+                line.productId(), line.quantity(), warehouseOf(line.productId().value())));
+      } else {
+        unavailable.add(line.productId().value());
+      }
+    }
 
     if (!unavailable.isEmpty()) {
+      taken.forEach(item -> returnStock(item.productId().value(), item.quantity()));
       return Either.left(OrderError.InventoryError.outOfStock(unavailable));
     }
 
-    // Reserve the stock
-    var reservedItems =
-        lines.stream()
-            .map(
-                line -> {
-                  var productId = line.productId().value();
-                  stock.compute(productId, (k, v) -> (v == null ? 0 : v) - line.quantity());
-                  return new InventoryReservation.ReservedItem(
-                      line.productId(), line.quantity(), "WAREHOUSE-01");
-                })
-            .toList();
-
-    var reservationId = "RES-" + UUID.randomUUID().toString().substring(0, 8).toUpperCase();
-    var reservation =
-        new InventoryReservation(
-            reservationId, reservedItems, Instant.now().plusSeconds(900) // 15 minute expiry
-            );
-
-    reservations.put(reservationId, reservation);
-    return Either.right(reservation);
+    return Either.right(storeReservation(taken));
   }
 
   @Override
@@ -173,35 +172,85 @@ public class InMemoryInventoryService implements InventoryService {
   @Override
   public Either<OrderError, InventoryReservation> reserveAvailable(
       OrderId orderId, List<ProductAvailability> availability) {
-    // Only reserve items that have some availability
-    var reservable = availability.stream().filter(a -> a.availableQty() > 0).toList();
+    reclaimExpiredReservations();
 
-    if (reservable.isEmpty()) {
+    // Best-effort partial reserve: take whatever each line can supply (up to the requested
+    // quantity), again using the atomic floored take so a concurrent caller cannot oversell.
+    var taken = new ArrayList<InventoryReservation.ReservedItem>();
+    for (var avail : availability) {
+      var qtyToReserve = Math.min(avail.requestedQty(), avail.availableQty());
+      if (qtyToReserve > 0 && tryTake(avail.productId().value(), qtyToReserve)) {
+        taken.add(
+            new InventoryReservation.ReservedItem(
+                avail.productId(), qtyToReserve, avail.warehouseId()));
+      }
+    }
+
+    if (taken.isEmpty()) {
       return Either.left(
           OrderError.InventoryError.outOfStock(
               availability.stream().map(a -> a.productId().value()).toList()));
     }
 
-    // Reserve the available quantities
-    var reservedItems =
-        reservable.stream()
-            .map(
-                avail -> {
-                  var productId = avail.productId().value();
-                  var qtyToReserve = Math.min(avail.requestedQty(), avail.availableQty());
-                  stock.compute(productId, (k, v) -> (v == null ? 0 : v) - qtyToReserve);
-                  return new InventoryReservation.ReservedItem(
-                      avail.productId(), qtyToReserve, avail.warehouseId());
-                })
-            .toList();
+    return Either.right(storeReservation(taken));
+  }
 
+  /**
+   * Atomically subtracts {@code quantity} from a product's stock, but only if at least that much is
+   * on hand. The floor inside {@link Map#compute} guarantees stock never goes negative and that two
+   * concurrent takes cannot both succeed against the same insufficient stock.
+   *
+   * @return {@code true} if the stock was taken, {@code false} if there was not enough
+   */
+  private boolean tryTake(String productId, int quantity) {
+    var took = new boolean[1];
+    stock.compute(
+        productId,
+        (_, onHand) -> {
+          int current = (onHand == null) ? 0 : onHand;
+          if (current >= quantity) {
+            took[0] = true;
+            return current - quantity;
+          }
+          return current;
+        });
+    return took[0];
+  }
+
+  /** Returns {@code quantity} units of a product to stock. */
+  private void returnStock(String productId, int quantity) {
+    stock.compute(productId, (_, onHand) -> (onHand == null ? 0 : onHand) + quantity);
+  }
+
+  /** Records a reservation for the given taken items and returns it. */
+  private InventoryReservation storeReservation(List<InventoryReservation.ReservedItem> items) {
     var reservationId = "RES-" + UUID.randomUUID().toString().substring(0, 8).toUpperCase();
     var reservation =
-        new InventoryReservation(
-            reservationId, reservedItems, Instant.now().plusSeconds(900) // 15 minute expiry
-            );
-
+        new InventoryReservation(reservationId, items, Instant.now().plus(reservationHold));
     reservations.put(reservationId, reservation);
-    return Either.right(reservation);
+    return reservation;
+  }
+
+  /** Looks up the warehouse a product ships from, defaulting to the primary warehouse. */
+  private String warehouseOf(String productId) {
+    return productWarehouses.getOrDefault(productId, "WAREHOUSE-01");
+  }
+
+  /**
+   * Releases any reservation whose hold has expired, returning its stock. Called before each
+   * reserve so abandoned holds do not permanently strand inventory — and the one place {@code
+   * expiresAt} is actually read.
+   */
+  private void reclaimExpiredReservations() {
+    var now = Instant.now();
+    // Snapshot keys so we can mutate the map while iterating.
+    for (var reservationId : List.copyOf(reservations.keySet())) {
+      var reservation = reservations.get(reservationId);
+      if (reservation != null
+          && reservation.expiresAt().isBefore(now)
+          && reservations.remove(reservationId, reservation)) {
+        reservation.items().forEach(item -> returnStock(item.productId().value(), item.quantity()));
+      }
+    }
   }
 }

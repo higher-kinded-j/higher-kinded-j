@@ -3,6 +3,7 @@
 package org.higherkindedj.tutorial.solutions.coretypes;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.higherkindedj.hkt.assertions.EitherAssert.assertThatEither;
 import static org.higherkindedj.hkt.either.EitherKindHelper.EITHER;
 import static org.higherkindedj.hkt.instances.Witnesses.*;
 import static org.higherkindedj.hkt.list.ListKindHelper.LIST;
@@ -48,8 +49,7 @@ public class Tutorial02_FunctorMapping_Solution {
 
     Either<String, String> result = either.map(String::valueOf);
 
-    assertThat(result.isRight()).isTrue();
-    assertThat(result.getRight()).isEqualTo("42");
+    assertThatEither(result).isRight().hasRight("42");
   }
 
   // ─── Exercise 2 ────────────────────────────────────────────────────────────
@@ -73,8 +73,7 @@ public class Tutorial02_FunctorMapping_Solution {
 
     Either<String, String> result = error.map(i -> "won't run");
 
-    assertThat(result.isLeft()).isTrue();
-    assertThat(result.getLeft()).isEqualTo("Error occurred");
+    assertThatEither(result).isLeft().hasLeft("Error occurred");
   }
 
   // ─── Exercise 3 ────────────────────────────────────────────────────────────
@@ -124,7 +123,7 @@ public class Tutorial02_FunctorMapping_Solution {
 
     Either<String, String> result = value.map(n -> n * 2).map(n -> n + 5).map(String::valueOf);
 
-    assertThat(result.getRight()).isEqualTo("25");
+    assertThatEither(result).hasRight("25");
   }
 
   // ─── Exercise 5 ────────────────────────────────────────────────────────────
@@ -149,7 +148,7 @@ public class Tutorial02_FunctorMapping_Solution {
     Kind<EitherKind.Witness<String>, String> mapped = functor.map(i -> "Value: " + i, kind);
 
     Either<String, String> result = EITHER.narrow(mapped);
-    assertThat(result.getRight()).isEqualTo("Value: 100");
+    assertThatEither(result).hasRight("Value: 100");
   }
 
   // ─── Exercise 6 ────────────────────────────────────────────────────────────
@@ -205,8 +204,8 @@ public class Tutorial02_FunctorMapping_Solution {
 
     Either<String, Either<String, Integer>> nested = outer.map(parse);
 
-    assertThat(nested.isRight()).isTrue();
-    assertThat(nested.getRight().isRight()).isTrue();
-    assertThat(nested.getRight().getRight()).isEqualTo(42);
+    assertThatEither(nested)
+        .isRight()
+        .hasRightSatisfying(inner -> assertThatEither(inner).isRight().hasRight(42));
   }
 }

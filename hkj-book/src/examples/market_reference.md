@@ -16,7 +16,7 @@ file without scrolling through three chapters.
 | **Merge** | `VStreamPar.merge` | Concurrent multi-source merging with virtual threads |
 | **Enrich** | `Par.map2` | Run two VTasks in parallel, combine results |
 | **Enrich** | `VStreamPar.parEvalMap` | Bounded parallel map preserving order |
-| **Risk** | `VStreamPar.parEvalMapUnordered` | Bounded parallel map in completion order |
+| **Risk** | `VStreamPar.parEvalMap` | Bounded parallel map preserving order (windowing needs it) |
 | **Window** | `VStream.chunk` | Group elements into fixed-size batches |
 | **Aggregate** | `VStream.map` | Transform each chunk into a summary |
 | **Detect** | `VStream.flatMap` | Each element produces zero or more results |
@@ -40,10 +40,11 @@ cancels the other. This is what the enrichment stage does with its reference-dat
 FX-rate lookups.
 
 **I need to apply an effectful function to every element in a stream.**
-If downstream order matters (e.g. enrichment feeds into risk assessment), use
-`parEvalMap`. It processes elements concurrently but emits them in the original order.
-If order does not matter and you want maximum throughput (e.g. independent risk
-calculations), use `parEvalMapUnordered`. It emits results as they complete.
+If downstream order matters, use `parEvalMap`. It processes elements concurrently but emits
+them in the original order — the pipeline uses it for both enrichment *and* risk assessment,
+because the risk results feed a count-based windower (`chunk`) that groups ticks by position.
+If order genuinely does not matter and you want maximum throughput, use
+`parEvalMapUnordered`. It emits results as they complete.
 
 **I need to fan out to multiple channels and all must succeed.**
 Use `Scope.allSucceed` with `fork` for each channel and `join` to wait. If any channel
@@ -69,7 +70,7 @@ starting the second.
 | Feed combination | `merge` over `concat` | Live feeds must interleave by arrival time |
 | Lookup parallelism | `Par.map2` over `flatMap` | Two independent lookups: 50ms vs 100ms |
 | Stream parallelism | `parEvalMap` for enrichment | Order matters for downstream processing |
-| Risk parallelism | `parEvalMapUnordered` | Order irrelevant, maximise throughput |
+| Risk parallelism | `parEvalMap` | Windowing groups ticks by position, so order matters |
 | Windowing | `chunk` (fixed-size) | Deterministic, simple; time-based is a config change |
 | Detection | `flatMap` over `map` + `filter` | Natural 0-to-many mapping per view |
 | Alert dispatch | `Scope.allSucceed` | All-or-nothing: every channel must confirm |

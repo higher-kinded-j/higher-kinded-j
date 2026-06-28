@@ -3,6 +3,8 @@
 package org.higherkindedj.tutorial.coretypes;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.higherkindedj.hkt.assertions.EitherAssert.assertThatEither;
+import static org.higherkindedj.hkt.assertions.ValidatedAssert.assertThatValidated;
 import static org.higherkindedj.hkt.instances.Witnesses.*;
 
 import org.higherkindedj.hkt.MonadError;
@@ -99,8 +101,7 @@ public class Tutorial03_ApplicativeCombining {
   void exercise1_liftingValues() {
     Either<String, Integer> result = answerRequired();
 
-    assertThat(result.isRight()).isTrue();
-    assertThat(result.getRight()).isEqualTo(42);
+    assertThatEither(result).isRight().hasRight(42);
   }
 
   // ═════════════════════════════════════════════════════════════════════════
@@ -130,7 +131,7 @@ public class Tutorial03_ApplicativeCombining {
 
     Either<String, Integer> result = answerRequired();
 
-    assertThat(result.getRight()).isEqualTo(30);
+    assertThatEither(result).hasRight(30);
   }
 
   // ═════════════════════════════════════════════════════════════════════════
@@ -159,8 +160,7 @@ public class Tutorial03_ApplicativeCombining {
 
     Either<String, Integer> result = answerRequired();
 
-    assertThat(result.isLeft()).isTrue();
-    assertThat(result.getLeft()).isEqualTo("Error occurred");
+    assertThatEither(result).isLeft().hasLeft("Error occurred");
   }
 
   // ═════════════════════════════════════════════════════════════════════════
@@ -192,10 +192,14 @@ public class Tutorial03_ApplicativeCombining {
 
     Either<String, Person> result = answerRequired();
 
-    assertThat(result.isRight()).isTrue();
-    assertThat(result.getRight().name()).isEqualTo("Alice");
-    assertThat(result.getRight().age()).isEqualTo(30);
-    assertThat(result.getRight().email()).isEqualTo("alice@example.com");
+    assertThatEither(result)
+        .isRight()
+        .hasRightSatisfying(
+            person -> {
+              assertThat(person.name()).isEqualTo("Alice");
+              assertThat(person.age()).isEqualTo(30);
+              assertThat(person.email()).isEqualTo("alice@example.com");
+            });
   }
 
   // ═════════════════════════════════════════════════════════════════════════
@@ -234,7 +238,7 @@ public class Tutorial03_ApplicativeCombining {
 
     Validated<String, FormData> result = answerRequired();
 
-    assertThat(result.isInvalid()).isTrue();
+    assertThatValidated(result).isInvalid();
     // The accumulated error contains every individual message, joined by the Semigroup.
   }
 
@@ -269,12 +273,15 @@ public class Tutorial03_ApplicativeCombining {
 
     Either<String, Order> result = answerRequired();
 
-    assertThat(result.isRight()).isTrue();
-    Order order = result.getRight();
-    assertThat(order.id()).isEqualTo("ORD-001");
-    assertThat(order.product()).isEqualTo("Laptop");
-    assertThat(order.quantity()).isEqualTo(2);
-    assertThat(order.price()).isEqualTo(999.99);
+    assertThatEither(result)
+        .isRight()
+        .hasRightSatisfying(
+            order -> {
+              assertThat(order.id()).isEqualTo("ORD-001");
+              assertThat(order.product()).isEqualTo("Laptop");
+              assertThat(order.quantity()).isEqualTo(2);
+              assertThat(order.price()).isEqualTo(999.99);
+            });
   }
 
   // ═════════════════════════════════════════════════════════════════════════
@@ -310,11 +317,14 @@ public class Tutorial03_ApplicativeCombining {
 
     Either<String, Address> result = answerRequired();
 
-    assertThat(result.isRight()).isTrue();
-    Address address = result.getRight();
-    assertThat(address.street()).isEqualTo("123 Main St");
-    assertThat(address.city()).isEqualTo("Springfield");
-    assertThat(address.country()).isEqualTo("USA");
+    assertThatEither(result)
+        .isRight()
+        .hasRightSatisfying(
+            address -> {
+              assertThat(address.street()).isEqualTo("123 Main St");
+              assertThat(address.city()).isEqualTo("Springfield");
+              assertThat(address.country()).isEqualTo("USA");
+            });
   }
 
   // ═════════════════════════════════════════════════════════════════════════
@@ -360,11 +370,12 @@ public class Tutorial03_ApplicativeCombining {
     MonadError<ValidatedKind.Witness<String>, String> app = Instances.validated(stringSemigroup);
 
     Validated<String, Pair> bothValid = answerRequired();
-    assertThat(bothValid.isValid()).isTrue();
-    assertThat(bothValid.get().name()).isEqualTo("Alice");
+    assertThatValidated(bothValid)
+        .isValid()
+        .hasValueSatisfying(pair -> "Alice".equals(pair.name()), "name is Alice");
 
     Validated<String, Pair> oneInvalid = answerRequired();
-    assertThat(oneInvalid.isInvalid()).isTrue();
+    assertThatValidated(oneInvalid).isInvalid();
   }
 
   /*

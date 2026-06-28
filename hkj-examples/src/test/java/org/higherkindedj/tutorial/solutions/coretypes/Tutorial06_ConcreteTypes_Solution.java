@@ -3,6 +3,9 @@
 package org.higherkindedj.tutorial.solutions.coretypes;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.higherkindedj.hkt.assertions.EitherAssert.assertThatEither;
+import static org.higherkindedj.hkt.assertions.MaybeAssert.assertThatMaybe;
+import static org.higherkindedj.hkt.assertions.ValidatedAssert.assertThatValidated;
 import static org.higherkindedj.hkt.instances.Witnesses.*;
 
 import java.util.List;
@@ -65,14 +68,11 @@ public class Tutorial06_ConcreteTypes_Solution {
           }
         };
 
-    assertThat(validateAge.apply(25).isRight()).isTrue();
-    assertThat(validateAge.apply(25).getRight()).isEqualTo(25);
+    assertThatEither(validateAge.apply(25)).isRight().hasRight(25);
 
-    assertThat(validateAge.apply(15).isLeft()).isTrue();
-    assertThat(validateAge.apply(15).getLeft()).isEqualTo("Too young");
+    assertThatEither(validateAge.apply(15)).isLeft().hasLeft("Too young");
 
-    assertThat(validateAge.apply(-5).isLeft()).isTrue();
-    assertThat(validateAge.apply(-5).getLeft()).isEqualTo("Invalid age");
+    assertThatEither(validateAge.apply(-5)).isLeft().hasLeft("Invalid age");
   }
 
   /**
@@ -102,11 +102,10 @@ public class Tutorial06_ConcreteTypes_Solution {
         };
 
     Maybe<String> found = lookup.apply("key1");
-    assertThat(found.isJust()).isTrue();
-    assertThat(found.get()).isEqualTo("value");
+    assertThatMaybe(found).isJust().hasValue("value");
 
     Maybe<String> notFound = lookup.apply("key2");
-    assertThat(notFound.isNothing()).isTrue();
+    assertThatMaybe(notFound).isNothing();
   }
 
   /**
@@ -200,7 +199,7 @@ public class Tutorial06_ConcreteTypes_Solution {
                 ValidatedKindHelper.VALIDATED.widen(validEmail),
                 User::new));
 
-    assertThat(validUser.isValid()).isTrue();
+    assertThatValidated(validUser).isValid();
 
     // Invalid case - multiple errors
     Validated<String, String> invalidName = validateName.apply("A");
@@ -216,7 +215,7 @@ public class Tutorial06_ConcreteTypes_Solution {
                 ValidatedKindHelper.VALIDATED.widen(invalidEmail),
                 User::new));
 
-    assertThat(invalidUser.isInvalid()).isTrue();
+    assertThatValidated(invalidUser).isInvalid();
     // Validated accumulates errors (implementation-dependent on how Semigroup works)
   }
 
@@ -246,11 +245,9 @@ public class Tutorial06_ConcreteTypes_Solution {
     Either<String, String> either2 =
         absent.isJust() ? Either.right(absent.get()) : Either.left("Not found");
 
-    assertThat(either1.isRight()).isTrue();
-    assertThat(either1.getRight()).isEqualTo("value");
+    assertThatEither(either1).isRight().hasRight("value");
 
-    assertThat(either2.isLeft()).isTrue();
-    assertThat(either2.getLeft()).isEqualTo("Not found");
+    assertThatEither(either2).isLeft().hasLeft("Not found");
   }
 
   /**
@@ -280,8 +277,8 @@ public class Tutorial06_ConcreteTypes_Solution {
               }
             };
 
-    assertThat(safeDivideEither.apply(10).apply(2).getRight()).isEqualTo(5);
-    assertThat(safeDivideEither.apply(10).apply(0).getLeft()).isEqualTo("Division by zero");
+    assertThatEither(safeDivideEither.apply(10).apply(2)).hasRight(5);
+    assertThatEither(safeDivideEither.apply(10).apply(0)).hasLeft("Division by zero");
 
     // Option 2: Use Maybe if you don't need an error message
     Function<Integer, Function<Integer, Maybe<Integer>>> safeDivideMaybe =
@@ -295,8 +292,8 @@ public class Tutorial06_ConcreteTypes_Solution {
               }
             };
 
-    assertThat(safeDivideMaybe.apply(10).apply(2).get()).isEqualTo(5);
-    assertThat(safeDivideMaybe.apply(10).apply(0).isNothing()).isTrue();
+    assertThatMaybe(safeDivideMaybe.apply(10).apply(2)).hasValue(5);
+    assertThatMaybe(safeDivideMaybe.apply(10).apply(0)).isNothing();
   }
 
   /**

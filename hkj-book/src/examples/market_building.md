@@ -192,23 +192,34 @@ stream, we want bounded concurrency (don't open 10,000 connections at once).
 
 ```java
 public class TickEnricher {
-    // Per-tick: fetch instrument + FX rate in parallel
-    public VTask<EnrichedTick> enrichOne(PriceTick tick) {
+    // Per-tick: fetch instrument + FX rate in parallel; a failed lookup becomes a typed error.
+    public VTask<Either<MarketError, EnrichedTick>> enrichOne(PriceTick tick) {
         VTask<Instrument> instrumentTask = refData.lookup(tick.symbol());
         VTask<BigDecimal> fxTask = fxService.rateToUsd(tick.exchange().currency());
 
         return Par.map2(instrumentTask, fxTask,
-            (instrument, fxRate) -> new EnrichedTick(tick, instrument, fxRate));
+                (instrument, fxRate) ->
+                    Either.<MarketError, EnrichedTick>right(
+                        new EnrichedTick(tick, instrument, fxRate)))
+            // An unknown instrument/currency is recovered into a typed EnrichmentFailed (carrying
+            // the tick's symbol) instead of propagating as an exception.
+            .recover(error ->
+                Either.left(new MarketError.EnrichmentFailed(tick.symbol(), error.getMessage())));
     }
 
-    // Across the stream: bounded concurrent enrichment
+    // Across the stream: bounded concurrent enrichment. Failed ticks are reported through the
+    // typed-error channel and dropped, so one bad symbol can't abort the feed.
     public VStream<EnrichedTick> enrich(VStream<PriceTick> ticks) {
-        return VStreamPar.parEvalMap(ticks, concurrency, this::enrichOne);
+        return VStreamPar.parEvalMap(ticks, concurrency, this::enrichOne)
+            .peek(result -> result.ifLeft(onEnrichmentError))
+            .flatMap(result -> result.fold(_ -> VStream.empty(), VStream::of));
     }
 }
 ```
 
-This creates two levels of concurrency that compose naturally:
+`enrichOne` returns `VTask<Either<MarketError, EnrichedTick>>`: the `MarketError` channel makes a
+lookup miss a *value*, not a thrown exception, so the pipeline filters failures instead of crashing.
+The enrichment also creates two levels of concurrency that compose naturally:
 
 ```
    ┌──────────────── parEvalMap (across stream, 8 concurrent) ──────────────┐
@@ -274,19 +285,19 @@ The same pattern is available within for-comprehensions via `ForPath.par()`. For
 
 ---
 
-## Step 4: Parallel Risk Assessment with `parEvalMapUnordered` {#step-4}
+## Step 4: Parallel Risk Assessment with `parEvalMap` {#step-4}
 
-**Problem:** Each enriched tick needs a risk score. Risk calculations are independent:
-the order doesn't matter for downstream aggregation, so we can maximise throughput by
-emitting results in completion order.
+**Problem:** Each enriched tick needs a risk score. The calculations are independent of one
+another, but the results feed straight into a count-based windower (`chunk`), so emission
+order must match arrival order — otherwise ticks would land in the wrong window.
 
-**HKJ feature:** `VStreamPar.parEvalMapUnordered(stream, concurrency, f)`: same as
-`parEvalMap`, but emits results as they complete rather than preserving input order.
+**HKJ feature:** `VStreamPar.parEvalMap(stream, concurrency, f)`: applies an effectful
+function to each element with bounded concurrency while **preserving input order**.
 
 ```java
 public class RiskPipeline {
     public VStream<RiskAssessment> assess(VStream<EnrichedTick> enrichedTicks) {
-        return VStreamPar.parEvalMapUnordered(
+        return VStreamPar.parEvalMap(
             enrichedTicks, concurrency, calculator::assess);
     }
 }
@@ -308,12 +319,15 @@ Both variants:
 - Fork each element's VTask via `StructuredTaskScope`
 - Fail fast if any element throws (remaining tasks are cancelled)
 
-~~~admonish note title="Design Decision: Why unordered for risk?"
-Risk assessment feeds into `chunk()`, which groups consecutive elements into windows. The
-**identity** of the ticks in a window matters (we need valid prices), but their **order**
-within the window doesn't affect the VWAP calculation or anomaly detection. By using the
-unordered variant, a fast risk assessment for tick₅ doesn't have to wait behind a slow
-assessment for tick₃.
+~~~admonish note title="Design Decision: Why ordered for risk?"
+Risk assessment feeds into `chunk()`, which groups **consecutive** elements into fixed-size
+windows. Because the window boundaries are positional — every `windowSize` ticks in stream
+order — emission order decides *which* ticks share a window. The unordered variant emits in
+completion order, so a fast assessment for tick₅ could overtake a slow one for tick₃ and land
+in an earlier window, scrambling window membership and making per-window VWAP meaningless.
+`parEvalMap` keeps the assessments in arrival order, so each window holds the temporally
+adjacent ticks it should — paying the per-batch "wait for the slowest" cost in exchange for
+correct windows.
 ~~~
 
 ---

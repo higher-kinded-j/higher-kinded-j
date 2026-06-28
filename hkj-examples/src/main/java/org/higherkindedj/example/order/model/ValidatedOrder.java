@@ -40,6 +40,11 @@ public record ValidatedOrder(
     PaymentMethod paymentMethod,
     Money subtotal,
     Instant createdAt) {
+  public ValidatedOrder {
+    // Defensive copy: the record must not alias a list the caller can still mutate.
+    lines = List.copyOf(lines);
+  }
+
   /**
    * Calculates the subtotal from the order lines.
    *

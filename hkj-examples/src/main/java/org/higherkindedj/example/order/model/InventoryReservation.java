@@ -17,6 +17,11 @@ import org.higherkindedj.optics.annotations.GenerateLenses;
 @GenerateLenses
 public record InventoryReservation(
     String reservationId, List<ReservedItem> items, Instant expiresAt) {
+  public InventoryReservation {
+    // Defensive copy: keep the reserved-items list immutable and caller-independent.
+    items = List.copyOf(items);
+  }
+
   /**
    * An individual item reservation.
    *

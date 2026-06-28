@@ -3,6 +3,8 @@
 package org.higherkindedj.tutorial.concurrency;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.higherkindedj.hkt.assertions.TryAssert.assertThatTry;
+import static org.higherkindedj.hkt.assertions.VTaskAssert.assertThatVTask;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -91,8 +93,7 @@ public class TutorialResource {
       // Use the resource and verify it gets closed
       VTask<String> task = connResource.useSync(TestConnection::query);
 
-      String result = task.run();
-      assertThat(result).isEqualTo("result");
+      assertThatVTask(task).whenRun().succeeds().hasValue("result");
       assertThat(closed.get()).as("Resource should be closed after use").isTrue();
     }
 
@@ -118,8 +119,7 @@ public class TutorialResource {
 
       VTask<String> task = resource.useSync(h -> h.toUpperCase());
 
-      String result = task.run();
-      assertThat(result).isEqualTo("HANDLE");
+      assertThatVTask(task).whenRun().succeeds().hasValue("HANDLE");
       assertThat(events).containsExactly("acquired", "released");
     }
   }
@@ -157,8 +157,7 @@ public class TutorialResource {
       // resource.use(value -> VTask.of(() -> value * 2))
       VTask<Integer> task = answerRequired();
 
-      Integer result = task.run();
-      assertThat(result).isEqualTo(42);
+      assertThatVTask(task).whenRun().succeeds().hasValue(42);
       assertThat(counter.get()).as("Resource should be released").isZero();
     }
 
@@ -188,7 +187,7 @@ public class TutorialResource {
       // TODO: Replace answerRequired() with: failingTask.runSafe()
       Try<String> result = answerRequired();
 
-      assertThat(result.isFailure()).isTrue();
+      assertThatTry(result).isFailure();
       assertThat(released.get()).as("Resource must be released even on failure").isTrue();
     }
   }
@@ -419,9 +418,7 @@ public class TutorialResource {
                         return "result-from-" + stmt;
                       }));
 
-      String result = query.run();
-
-      assertThat(result).isEqualTo("result-from-stmt-for-conn-1");
+      assertThatVTask(query).whenRun().succeeds().hasValue("result-from-stmt-for-conn-1");
       assertThat(events)
           .containsExactly("connect", "prepare", "execute", "close-stmt", "disconnect");
     }
@@ -464,7 +461,7 @@ public class TutorialResource {
                         }))
             .runSafe();
 
-    assertThat(result.isFailure()).isTrue();
+    assertThatTry(result).isFailure();
     assertThat(released.get()).isTrue();
   }
 

@@ -29,6 +29,7 @@ import org.higherkindedj.example.order.service.NotificationService;
 import org.higherkindedj.example.order.service.PaymentService;
 import org.higherkindedj.example.order.service.ShippingService;
 import org.higherkindedj.example.order.service.WarehouseService;
+import org.higherkindedj.hkt.Unit;
 import org.higherkindedj.hkt.effect.EitherPath;
 import org.higherkindedj.hkt.effect.Path;
 import org.jspecify.annotations.Nullable;
@@ -155,21 +156,65 @@ public class ConfigurableOrderWorkflow {
    */
   public EitherPath<OrderError, OrderResult> process(OrderRequest request) {
     var retryPolicy = createRetryPolicy();
+    var timeoutConfig = config.timeoutConfig();
 
-    // Calculate total timeout from all service timeouts
-    var totalTimeout =
-        config
-            .timeoutConfig()
+    // Resilience granularity: RETRY only the idempotent pre-flight reads (customer eligibility and
+    // shipping-address validation) — re-running those is always safe. The committing workflow
+    // (reserve -> payment -> shipment -> notification) is then run EXACTLY ONCE under a timeout and
+    // is never retried: payment is not idempotent, so retrying a commit that already charged the
+    // customer could double-charge. The previous code wrapped the whole workflow — payment
+    // included — in retry, and avoided double-charging only by accident (the default retry
+    // predicate happens not to match the business-error wrapper).
+    //
+    // Compensating a partially-applied commit (e.g. refunding a charge when a later step fails)
+    // would use a Saga across reserve -> pay -> ship; that needs an Either-aware Saga on the Path
+    // stack and is tracked as future work.
+    var preflightTimeout = timeoutConfig.inventoryTimeout();
+    var commitTimeout =
+        timeoutConfig
             .paymentTimeout()
-            .plus(config.timeoutConfig().inventoryTimeout())
-            .plus(config.timeoutConfig().shippingTimeout())
-            .plus(config.timeoutConfig().notificationTimeout());
+            .plus(timeoutConfig.shippingTimeout())
+            .plus(timeoutConfig.notificationTimeout());
 
-    return Resilience.resilient(
-        Path.io(() -> executeWorkflow(request)),
-        retryPolicy,
-        totalTimeout,
-        "ConfigurableOrderWorkflow.process");
+    EitherPath<OrderError, Unit> preflight =
+        Resilience.resilient(
+            Path.io(() -> runPreflight(request)),
+            retryPolicy,
+            preflightTimeout,
+            "ConfigurableOrderWorkflow.preflight");
+
+    return preflight.via(
+        _ ->
+            Resilience.withTimeout(
+                Path.io(() -> executeWorkflow(request)),
+                commitTimeout,
+                "ConfigurableOrderWorkflow.commit"));
+  }
+
+  /**
+   * Idempotent pre-flight validation that is safe to retry: confirms the customer exists and is
+   * eligible and that the shipping address is valid. A business failure throws {@link
+   * WorkflowException}, which the retry policy deliberately does not retry — only transient infra
+   * failures are retried.
+   */
+  private Unit runPreflight(OrderRequest request) {
+    var customerId = new CustomerId(request.customerId());
+    customerService
+        .findById(customerId)
+        .flatMap(customerService::validateEligibility)
+        .fold(
+            error -> {
+              throw new WorkflowException(error);
+            },
+            customer -> customer);
+    shippingService
+        .validateAddress(request.shippingAddress())
+        .fold(
+            error -> {
+              throw new WorkflowException(error);
+            },
+            address -> address);
+    return Unit.INSTANCE;
   }
 
   /**

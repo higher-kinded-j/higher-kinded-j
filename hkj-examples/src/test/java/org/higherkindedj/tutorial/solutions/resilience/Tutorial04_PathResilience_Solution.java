@@ -3,6 +3,9 @@
 package org.higherkindedj.tutorial.solutions.resilience;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.higherkindedj.hkt.assertions.EitherAssert.assertThatEither;
+import static org.higherkindedj.hkt.assertions.MaybeAssert.assertThatMaybe;
+import static org.higherkindedj.hkt.assertions.TryAssert.assertThatTry;
 
 import java.time.Duration;
 import java.util.List;
@@ -109,8 +112,7 @@ public class Tutorial04_PathResilience_Solution {
       VTaskPath<Either<String, String>> caught = failing.catching(Throwable::getMessage);
 
       Either<String, String> result = caught.unsafeRun();
-      assertThat(result.isLeft()).isTrue();
-      assertThat(result.getLeft()).isEqualTo("Connection refused");
+      assertThatEither(result).isLeft().hasLeft("Connection refused");
     }
 
     /**
@@ -137,7 +139,7 @@ public class Tutorial04_PathResilience_Solution {
       VTaskPath<Maybe<String>> maybePath = failing.asMaybe();
 
       Maybe<String> result = maybePath.unsafeRun();
-      assertThat(result.isNothing()).isTrue();
+      assertThatMaybe(result).isNothing();
     }
 
     /**
@@ -164,7 +166,7 @@ public class Tutorial04_PathResilience_Solution {
       VTaskPath<Try<Integer>> tryPath = failing.asTry();
 
       Try<Integer> result = tryPath.unsafeRun();
-      assertThat(result.isFailure()).isTrue();
+      assertThatTry(result).isFailure();
     }
   }
 
@@ -309,7 +311,7 @@ public class Tutorial04_PathResilience_Solution {
 
       // VTaskContext.run() returns Try<String>
       Try<String> result = ctx.run();
-      assertThat(result.isSuccess()).isTrue();
+      assertThatTry(result).isSuccess();
       assertThat(result.orElse("oops")).isEqualTo("context-result");
     }
   }
@@ -357,7 +359,7 @@ public class Tutorial04_PathResilience_Solution {
               .recover(error -> "RECOVERED")
               .run();
 
-      assertThat(contextResult.isSuccess()).isTrue();
+      assertThatTry(contextResult).isSuccess();
       assertThat(contextResult.orElse("fail")).isEqualTo("CONTEXT-VALUE");
 
       // VStreamPath with error recovery

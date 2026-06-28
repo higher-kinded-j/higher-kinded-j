@@ -3,6 +3,7 @@
 package org.higherkindedj.tutorial.solutions.transformers;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.higherkindedj.hkt.assertions.EitherAssert.assertThatEither;
 import static org.higherkindedj.hkt.either_t.EitherTKindHelper.EITHER_T;
 import static org.higherkindedj.hkt.instances.Witnesses.*;
 import static org.higherkindedj.hkt.optional.OptionalKindHelper.OPTIONAL;
@@ -83,7 +84,7 @@ public class Tutorial03_StackingTransformers_Solution {
 
       Optional<Either<AppError, Integer>> outer = OPTIONAL.narrow(wrapped.value());
       assertThat(outer).isPresent();
-      assertThat(outer.get().getRight()).isEqualTo(42);
+      assertThatEither(outer.get()).hasRight(42);
     }
 
     /**
@@ -139,7 +140,7 @@ public class Tutorial03_StackingTransformers_Solution {
               .yield((a, b) -> a + b);
 
       Optional<Either<AppError, Integer>> outer = OPTIONAL.narrow(EITHER_T.narrow(sum).value());
-      assertThat(outer.get().getRight()).isEqualTo(42);
+      assertThatEither(outer.get()).hasRight(42);
     }
 
     /**
@@ -167,8 +168,9 @@ public class Tutorial03_StackingTransformers_Solution {
 
       Optional<Either<AppError, Integer>> outer = OPTIONAL.narrow(EITHER_T.narrow(result).value());
       assertThat(outer).isPresent();
-      assertThat(outer.get().isLeft()).isTrue();
-      assertThat(outer.get().getLeft()).isInstanceOf(AppError.InvalidInput.class);
+      assertThatEither(outer.get()).isLeft();
+      assertThatEither(outer.get())
+          .hasLeftSatisfying(err -> assertThat(err).isInstanceOf(AppError.InvalidInput.class));
     }
   }
 }

@@ -3,6 +3,9 @@
 package org.higherkindedj.tutorial.concurrency;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.higherkindedj.hkt.assertions.TryAssert.assertThatTry;
+import static org.higherkindedj.hkt.assertions.VTaskAssert.assertThatVTask;
+import static org.higherkindedj.hkt.assertions.VTaskPathAssert.assertThatVTaskPath;
 
 import java.util.concurrent.atomic.AtomicInteger;
 import org.higherkindedj.hkt.effect.Path;
@@ -69,8 +72,8 @@ public class TutorialVTaskPath {
 
       // Execute safely and verify
       Try<Integer> result = lengthPath.runSafe();
-      assertThat(result.isSuccess()).isTrue();
-      assertThat(result.orElse(-1)).isEqualTo(17);
+      assertThatTry(result).isSuccess();
+      assertThatTry(result).hasValue(17);
     }
 
     /**
@@ -90,12 +93,12 @@ public class TutorialVTaskPath {
 
       // Verify pure path
       Try<String> pureResult = purePath.runSafe();
-      assertThat(pureResult.isSuccess()).isTrue();
-      assertThat(pureResult.orElse("default")).isEqualTo("success");
+      assertThatTry(pureResult).isSuccess();
+      assertThatTry(pureResult).hasValue("success");
 
       // Verify failed path
       Try<String> failedResult = failedPath.runSafe();
-      assertThat(failedResult.isFailure()).isTrue();
+      assertThatTry(failedResult).isFailure();
     }
   }
 
@@ -125,8 +128,8 @@ public class TutorialVTaskPath {
       VTaskPath<Integer> doubled = answerRequired();
 
       Try<Integer> result = doubled.runSafe();
-      assertThat(result.isSuccess()).isTrue();
-      assertThat(result.orElse(-1)).isEqualTo(42);
+      assertThatTry(result).isSuccess();
+      assertThatTry(result).hasValue(42);
     }
 
     /**
@@ -149,7 +152,7 @@ public class TutorialVTaskPath {
       VTaskPath<Integer> debugged = answerRequired();
 
       Try<Integer> result = debugged.runSafe();
-      assertThat(result.orElse(-1)).isEqualTo(20);
+      assertThatTry(result).hasValue(20);
       assertThat(peekCount.get()).isEqualTo(2); // peek was called twice
     }
   }
@@ -186,8 +189,8 @@ public class TutorialVTaskPath {
       VTaskPath<String> withTimeout = answerRequired();
 
       Try<String> result = withTimeout.runSafe();
-      assertThat(result.isSuccess()).isTrue();
-      assertThat(result.orElse("error")).isEqualTo("timeout fallback");
+      assertThatTry(result).isSuccess();
+      assertThatTry(result).hasValue("timeout fallback");
     }
 
     /**
@@ -221,8 +224,8 @@ public class TutorialVTaskPath {
       VTaskPath<String> resilient = answerRequired();
 
       Try<String> result = resilient.runSafe();
-      assertThat(result.isSuccess()).isTrue();
-      assertThat(result.orElse("error")).isEqualTo("fallback value");
+      assertThatTry(result).isSuccess();
+      assertThatTry(result).hasValue("fallback value");
       assertThat(attemptCount.get()).isEqualTo(2); // Both primary and secondary were attempted
     }
   }
@@ -274,7 +277,7 @@ public class TutorialVTaskPath {
       VTaskPath<UserProfile> profile = answerRequired();
 
       Try<UserProfile> result = profile.runSafe();
-      assertThat(result.isSuccess()).isTrue();
+      assertThatTry(result).isSuccess();
 
       UserProfile user = result.orElse(null);
       assertThat(user).isNotNull();
@@ -330,7 +333,7 @@ public class TutorialVTaskPath {
       VTaskPath<Dashboard> dashboard = answerRequired();
 
       Try<Dashboard> result = dashboard.runSafe();
-      assertThat(result.isSuccess()).isTrue();
+      assertThatTry(result).isSuccess();
 
       Dashboard d = result.orElse(null);
       assertThat(d).isNotNull();
@@ -407,8 +410,8 @@ public class TutorialVTaskPath {
       VTask<Integer> backToVtask = path.run();
 
       // Both produce the same result
-      assertThat(path.runSafe().orElse(-1)).isEqualTo(42);
-      assertThat(backToVtask.runSafe().orElse(-1)).isEqualTo(42);
+      assertThatVTaskPath(path).hasValue(42);
+      assertThatVTask(backToVtask).whenRun().succeeds().hasValue(42);
     }
   }
 

@@ -2,6 +2,9 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.example.order.workflow;
 
+import static org.higherkindedj.hkt.either_t.EitherTKindHelper.EITHER_T;
+import static org.higherkindedj.hkt.vtask.VTaskKindHelper.VTASK;
+
 import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
@@ -37,13 +40,23 @@ import org.higherkindedj.example.order.service.InventoryService;
 import org.higherkindedj.example.order.service.NotificationService;
 import org.higherkindedj.example.order.service.PaymentService;
 import org.higherkindedj.example.order.service.ShippingService;
+import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.Unit;
 import org.higherkindedj.hkt.effect.Path;
 import org.higherkindedj.hkt.effect.VTaskPath;
 import org.higherkindedj.hkt.either.Either;
+import org.higherkindedj.hkt.either_t.EitherT;
+import org.higherkindedj.hkt.either_t.EitherTKind;
+import org.higherkindedj.hkt.either_t.EitherTMonad;
+import org.higherkindedj.hkt.expression.For;
+import org.higherkindedj.hkt.resilience.CircuitBreaker;
+import org.higherkindedj.hkt.resilience.RetryPolicy;
 import org.higherkindedj.hkt.trymonad.Try;
 import org.higherkindedj.hkt.vtask.Resource;
 import org.higherkindedj.hkt.vtask.Scope;
 import org.higherkindedj.hkt.vtask.VTask;
+import org.higherkindedj.hkt.vtask.VTaskKind;
+import org.higherkindedj.hkt.vtask.VTaskMonad;
 
 /**
  * Enhanced order workflow demonstrating recent HKJ innovations.
@@ -110,6 +123,14 @@ public class EnhancedOrderWorkflow {
   private final ShippingService shippingService;
   private final NotificationService notificationService;
   private final WorkflowConfig config;
+
+  // Library resilience (hkt.resilience) applied to the idempotent customer lookup. These are
+  // VTask-native, so they compose directly onto the VTaskPath via withCircuitBreaker/withRetry —
+  // no hand-rolled retry loop. The breaker is shared across calls so it can trip open on a
+  // persistently failing customer service.
+  private final RetryPolicy customerLookupRetry =
+      RetryPolicy.exponentialBackoff(3, Duration.ofMillis(50));
+  private final CircuitBreaker customerLookupBreaker = CircuitBreaker.withDefaults();
 
   /**
    * Creates an enhanced order workflow with the given services and config.
@@ -185,47 +206,44 @@ public class EnhancedOrderWorkflow {
   private VTaskPath<Either<OrderError, OrderResult>> processWithResources(
       OrderId orderId, CustomerId customerId, OrderRequest request) {
 
-    return validateShippingAddress(request.shippingAddress())
-        .via(addressResult -> continueWithAddress(orderId, customerId, request, addressResult));
+    // Async (VTask) and typed error (Either) are two stacked effects. EitherT combines them so the
+    // gather -> reserve pipeline reads as a linear `For` comprehension that short-circuits on the
+    // first Left, instead of the manual fold-and-relift chain (continueWithAddress/Customer/Order)
+    // this replaced. Each step is a VTaskPath<Either<OrderError, X>>, which already is a
+    // Kind<VTaskKind.Witness, Either<...>>, so it lifts straight into EitherT via fromKind (see
+    // #et).
+    var monad = new EitherTMonad<VTaskKind.Witness, OrderError>(VTaskMonad.INSTANCE);
+
+    Kind<EitherTKind.Witness<VTaskKind.Witness, OrderError>, OrderResult> program =
+        For.from(monad, et(validateShippingAddress(request.shippingAddress())))
+            .from(_ -> et(lookupAndValidateCustomer(customerId)))
+            .from(t -> et(buildValidatedOrder(orderId, request, t._2(), t._1())))
+            .from(t -> et(processWithReservation(t._3(), t._2())))
+            .yield((_, _, _, result) -> result);
+
+    return runToVTaskPath(program);
   }
 
-  /** Continues processing after address validation. */
-  private VTaskPath<Either<OrderError, OrderResult>> continueWithAddress(
-      OrderId orderId,
-      CustomerId customerId,
-      OrderRequest request,
-      Either<OrderError, ValidatedShippingAddress> addressResult) {
+  // =========================================================================
+  // EitherT bridge — combine the VTask (async) and Either (typed error) effects
+  // =========================================================================
 
-    return addressResult.fold(
-        error -> Path.vtaskPure(Either.left(error)),
-        validAddress ->
-            lookupAndValidateCustomer(customerId)
-                .via(
-                    customerResult ->
-                        continueWithCustomer(orderId, request, validAddress, customerResult)));
+  /**
+   * Lifts one async, fallible step into the {@code EitherT<VTask, OrderError, X>} stack so it can
+   * participate in a {@code For} comprehension. {@link VTaskPath#run()} hands back the wrapped
+   * (still lazy) {@link VTask}, which is widened into the {@code VTaskKind} the transformer's outer
+   * monad operates on; the inner {@link Either} is then lifted via {@link EitherT#fromKind}.
+   */
+  private static <X> Kind<EitherTKind.Witness<VTaskKind.Witness, OrderError>, X> et(
+      VTaskPath<Either<OrderError, X>> step) {
+    return EITHER_T.widen(EitherT.fromKind(VTASK.widen(step.run())));
   }
 
-  /** Continues processing after customer lookup. */
-  private VTaskPath<Either<OrderError, OrderResult>> continueWithCustomer(
-      OrderId orderId,
-      OrderRequest request,
-      ValidatedShippingAddress validAddress,
-      Either<OrderError, Customer> customerResult) {
-
-    return customerResult.fold(
-        error -> Path.vtaskPure(Either.left(error)),
-        customer ->
-            buildValidatedOrder(orderId, request, customer, validAddress)
-                .via(orderResult -> continueWithOrder(customer, orderResult)));
-  }
-
-  /** Continues processing after order validation. */
-  private VTaskPath<Either<OrderError, OrderResult>> continueWithOrder(
-      Customer customer, Either<OrderError, ValidatedOrder> orderResult) {
-
-    return orderResult.fold(
-        error -> Path.vtaskPure(Either.left(error)),
-        order -> processWithReservation(order, customer));
+  /** Runs an {@code EitherT<VTask, OrderError, ...>} program back down to a {@link VTaskPath}. */
+  private static <X> VTaskPath<Either<OrderError, X>> runToVTaskPath(
+      Kind<EitherTKind.Witness<VTaskKind.Witness, OrderError>, X> program) {
+    EitherT<VTaskKind.Witness, OrderError, X> result = EITHER_T.narrow(program);
+    return Path.vtaskPath(VTASK.narrow(result.value()));
   }
 
   /**
@@ -285,47 +303,24 @@ public class EnhancedOrderWorkflow {
   private VTaskPath<Either<OrderError, OrderResult>> processAfterReservation(
       ValidatedOrder order, Customer customer, InventoryReservation reservation) {
 
-    return applyDiscounts(order, customer)
-        .via(
-            discountResult ->
-                discountResult.fold(
-                    error -> Path.vtaskPure(Either.<OrderError, OrderResult>left(error)),
-                    discount ->
-                        processPayment(order, discount)
-                            .via(
-                                paymentResult ->
-                                    paymentResult.fold(
-                                        error ->
-                                            Path.vtaskPure(
-                                                Either.<OrderError, OrderResult>left(error)),
-                                        payment ->
-                                            createShipment(order)
-                                                .via(
-                                                    shipmentResult ->
-                                                        shipmentResult.fold(
-                                                            error ->
-                                                                Path.vtaskPure(
-                                                                    Either
-                                                                        .<OrderError, OrderResult>
-                                                                            left(error)),
-                                                            shipment ->
-                                                                sendNotifications(
-                                                                        order, customer, discount)
-                                                                    .map(
-                                                                        notificationResult ->
-                                                                            buildOrderResult(
-                                                                                order,
-                                                                                discount,
-                                                                                payment,
-                                                                                shipment,
-                                                                                reservation,
-                                                                                notificationResult
-                                                                                    .fold(
-                                                                                        err ->
-                                                                                            NotificationResult
-                                                                                                .none(),
-                                                                                        success ->
-                                                                                            success)))))))));
+    // The same EitherT-over-VTask railway as the gather phase: discount -> payment -> shipment ->
+    // notification, short-circuiting on the first Left. Notifications are non-critical and are
+    // recovered to a value inside #sendNotifications, so they never abort the order here. This
+    // replaced a nine-level nested via/fold pyramid.
+    var monad = new EitherTMonad<VTaskKind.Witness, OrderError>(VTaskMonad.INSTANCE);
+
+    Kind<EitherTKind.Witness<VTaskKind.Witness, OrderError>, OrderResult> program =
+        For.from(monad, et(applyDiscounts(order, customer)))
+            .from(discount -> et(processPayment(order, discount)))
+            .from(_ -> et(createShipment(order)))
+            // sendNotifications always yields a Right (failures are downgraded to none()), so the
+            // bound value is ignored with `_` — the step runs purely for its side effect.
+            .from(t -> et(sendNotifications(order, customer, t._1())))
+            .yield(
+                (discount, payment, shipment, _) ->
+                    buildOrderResultValue(order, discount, payment, shipment, reservation));
+
+    return runToVTaskPath(program);
   }
 
   // =========================================================================
@@ -425,13 +420,20 @@ public class EnhancedOrderWorkflow {
   }
 
   private VTaskPath<Either<OrderError, Customer>> lookupAndValidateCustomer(CustomerId customerId) {
+    // Idempotent read: protect it with the library circuit breaker + retry so a flaky customer
+    // service is retried with backoff and the breaker trips open after repeated failures. Retry
+    // engages only when the lookup *throws* (a transient infra failure); a business `Left` (e.g.
+    // customer-not-found) is returned as-is and never retried. Safe precisely because the lookup
+    // has no side effects — unlike payment, which §1.3 never retries.
     return Path.vtask(
-        () -> {
-          logSync("Looking up customer [trace=" + OrderContext.shortTraceId() + "]");
-          return customerService
-              .findById(customerId)
-              .flatMap(customer -> customerService.validateEligibility(customer));
-        });
+            () -> {
+              logSync("Looking up customer [trace=" + OrderContext.shortTraceId() + "]");
+              return customerService
+                  .findById(customerId)
+                  .flatMap(customerService::validateEligibility);
+            })
+        .withCircuitBreaker(customerLookupBreaker)
+        .withRetry(customerLookupRetry);
   }
 
   private VTaskPath<Either<OrderError, ValidatedOrder>> buildValidatedOrder(
@@ -531,11 +533,18 @@ public class EnhancedOrderWorkflow {
 
   private VTaskPath<Either<OrderError, NotificationResult>> sendNotifications(
       ValidatedOrder order, Customer customer, DiscountResult discount) {
-    // Notifications are non-critical - we recover from failures
+    // Notifications are non-critical: a failure (a Left result *or* a thrown error) is downgraded
+    // to
+    // NotificationResult.none() so it never short-circuits the order in the EitherT pipeline. The
+    // step therefore always yields a Right.
     return Path.vtask(
             () ->
                 notificationService.sendOrderConfirmation(
                     order.orderId(), customer, discount.finalTotal()))
+        .map(
+            result ->
+                Either.<OrderError, NotificationResult>right(
+                    result.fold(_ -> NotificationResult.none(), success -> success)))
         .handleError(
             error -> {
               logSync("Notification failed (non-critical): " + error.getMessage());
@@ -547,13 +556,12 @@ public class EnhancedOrderWorkflow {
   // Result Building
   // =========================================================================
 
-  private Either<OrderError, OrderResult> buildOrderResult(
+  private OrderResult buildOrderResultValue(
       ValidatedOrder order,
       DiscountResult discount,
       PaymentConfirmation payment,
       ShipmentInfo shipment,
-      InventoryReservation reservation,
-      NotificationResult notification) {
+      InventoryReservation reservation) {
 
     var auditLog =
         AuditLog.EMPTY
@@ -572,15 +580,14 @@ public class EnhancedOrderWorkflow {
             .append(AuditLog.of("PAYMENT_PROCESSED", "Transaction " + payment.transactionId()))
             .append(AuditLog.of("SHIPMENT_CREATED", "Tracking " + shipment.trackingNumber()));
 
-    return Either.right(
-        new OrderResult(
-            order.orderId(),
-            order.customerId(),
-            discount.finalTotal(),
-            payment.transactionId(),
-            shipment.trackingNumber(),
-            shipment.estimatedDelivery(),
-            auditLog));
+    return new OrderResult(
+        order.orderId(),
+        order.customerId(),
+        discount.finalTotal(),
+        payment.transactionId(),
+        shipment.trackingNumber(),
+        shipment.estimatedDelivery(),
+        auditLog);
   }
 
   // =========================================================================
@@ -588,24 +595,26 @@ public class EnhancedOrderWorkflow {
   // =========================================================================
 
   /** Checks if the deadline has been exceeded and fails fast if so. */
-  private VTaskPath<Either<OrderError, Void>> checkDeadline(String operation) {
+  private VTaskPath<Either<OrderError, Unit>> checkDeadline(String operation) {
     return Path.vtask(
         () -> {
           if (OrderContext.isDeadlineExceeded()) {
             return Either.left(SystemError.timeout(operation));
           }
-          return Either.right(null);
+          // Unit.INSTANCE rather than a null Right: success carries no value, but the success
+          // channel stays non-null and total.
+          return Either.right(Unit.INSTANCE);
         });
   }
 
   /** Logs a message with context information. */
-  private VTaskPath<Either<OrderError, Void>> logWithContext(String message, Map<String, ?> data) {
+  private VTaskPath<Either<OrderError, Unit>> logWithContext(String message, Map<String, ?> data) {
     return Path.vtask(
         () -> {
           String traceId = OrderContext.shortTraceId();
           String tenantId = OrderContext.TENANT_ID.isBound() ? OrderContext.TENANT_ID.get() : "?";
           System.out.printf("[%s] [tenant=%s] %s %s%n", traceId, tenantId, message, data);
-          return Either.right(null);
+          return Either.right(Unit.INSTANCE);
         });
   }
 

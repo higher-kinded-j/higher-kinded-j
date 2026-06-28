@@ -19,20 +19,30 @@ This page covers production-grade patterns for the order workflow: resilience wi
 
 ## Resilience: Retry and Timeout
 
-The `ConfigurableOrderWorkflow` demonstrates production-grade resilience:
+The `ConfigurableOrderWorkflow` applies resilience **per step**, not around the whole flow:
 
 ```java
 public EitherPath<OrderError, OrderResult> process(OrderRequest request) {
     var retryPolicy = createRetryPolicy();
-    var totalTimeout = calculateTotalTimeout();
 
-    return Resilience.resilient(
+    // Phase 1 — RETRY only the idempotent pre-flight (customer eligibility + address validation);
+    // re-running these reads is always safe.
+    EitherPath<OrderError, Unit> preflight = Resilience.resilient(
+        Path.io(() -> runPreflight(request)),
+        retryPolicy, preflightTimeout, "ConfigurableOrderWorkflow.preflight");
+
+    // Phase 2 — run the committing workflow (reserve -> payment -> ship) EXACTLY ONCE under a
+    // timeout, never retried.
+    return preflight.via(_ -> Resilience.withTimeout(
         Path.io(() -> executeWorkflow(request)),
-        retryPolicy,
-        totalTimeout,
-        "ConfigurableOrderWorkflow.process");
+        commitTimeout, "ConfigurableOrderWorkflow.commit"));
 }
 ```
+
+Granularity matters: payment is **not** idempotent, so wrapping the *entire* workflow in retry
+could re-run a charge that already succeeded and double-bill the customer. Retry is confined to the
+safe pre-flight reads; the commit runs once. (Per-step refund-on-failure compensation across
+reserve → pay → ship would use a `Saga` — see the future-work draft issues.)
 
 ### Retry Policy
 

@@ -2,7 +2,8 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.tutorial.coretypes;
 
-import static org.assertj.core.api.Assertions.assertThat;
+import static org.higherkindedj.hkt.assertions.ListAssert.assertThatList;
+import static org.higherkindedj.hkt.assertions.MaybeAssert.assertThatMaybe;
 import static org.higherkindedj.hkt.instances.Witnesses.*;
 import static org.higherkindedj.hkt.list.ListKindHelper.LIST;
 import static org.higherkindedj.hkt.maybe.MaybeKindHelper.MAYBE;
@@ -86,7 +87,7 @@ public class Tutorial09_Coyoneda {
     MaybeFunctor functor = MaybeFunctor.INSTANCE;
     Kind<MaybeKind.Witness, Integer> lowered = coyo.lower(functor);
 
-    assertThat(MAYBE.narrow(lowered)).isEqualTo(Maybe.just(42));
+    assertThatMaybe(lowered).hasValue(42);
   }
 
   /**
@@ -115,7 +116,7 @@ public class Tutorial09_Coyoneda {
     MaybeFunctor functor = MaybeFunctor.INSTANCE;
     Kind<MaybeKind.Witness, String> result = upper.lower(functor);
 
-    assertThat(MAYBE.narrow(result)).isEqualTo(Maybe.just("HELLO"));
+    assertThatMaybe(result).hasValue("HELLO");
   }
 
   /**
@@ -145,7 +146,7 @@ public class Tutorial09_Coyoneda {
     Kind<ListKind.Witness, String> result = chained.lower(listFunctor);
 
     // Results: (1*2)+10=12, (2*2)+10=14, (3*2)+10=16, (4*2)+10=18, (5*2)+10=20
-    assertThat(LIST.narrow(result)).containsExactly("12", "14", "16", "18", "20");
+    assertThatList(result).containsExactly("12", "14", "16", "18", "20");
   }
 
   /**
@@ -174,7 +175,7 @@ public class Tutorial09_Coyoneda {
     Kind<MaybeKind.Witness, Integer> result = coyo.lower(functor);
 
     // Should still be Nothing
-    assertThat(MAYBE.narrow(result)).isEqualTo(Maybe.nothing());
+    assertThatMaybe(result).isNothing();
   }
 
   /**
@@ -204,7 +205,7 @@ public class Tutorial09_Coyoneda {
     MonadZero<ListKind.Witness> listFunctor = Instances.monadZero(list());
     Kind<ListKind.Witness, String> result = pipeline.lower(listFunctor);
 
-    assertThat(LIST.narrow(result)).containsExactly("[ALICE]", "[BOB]", "[CHARLIE]");
+    assertThatList(result).containsExactly("[ALICE]", "[BOB]", "[CHARLIE]");
   }
 
   /**

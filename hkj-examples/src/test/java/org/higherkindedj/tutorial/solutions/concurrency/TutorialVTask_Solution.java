@@ -3,6 +3,7 @@
 package org.higherkindedj.tutorial.solutions.concurrency;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.higherkindedj.hkt.assertions.VTaskAssert.assertThatVTask;
 
 import java.util.List;
 import org.higherkindedj.hkt.trymonad.Try;
@@ -36,7 +37,7 @@ public class TutorialVTask_Solution {
     void exercise1_createVTaskWithOf() {
       String input = "Hello, VTask!";
       VTask<Integer> lengthTask = VTask.of(() -> input.length());
-      assertThat(lengthTask.run()).isEqualTo(13);
+      assertThatVTask(lengthTask).whenRun().succeeds().hasValue(13);
     }
 
     /**
@@ -55,9 +56,9 @@ public class TutorialVTask_Solution {
       VTask<Integer> success = VTask.succeed(42);
       VTask<Integer> failure = VTask.fail(new RuntimeException("Expected failure"));
 
-      assertThat(success.runSafe().isSuccess()).isTrue();
-      assertThat(success.runSafe().orElse(-1)).isEqualTo(42);
-      assertThat(failure.runSafe().isFailure()).isTrue();
+      assertThatVTask(success).runSafeSucceeds();
+      assertThatVTask(success).whenRun().succeeds().hasValue(42);
+      assertThatVTask(failure).runSafeFails();
     }
   }
 
@@ -79,7 +80,7 @@ public class TutorialVTask_Solution {
     void exercise3_mapTransformation() {
       VTask<String> greeting = VTask.succeed("Hello, Virtual Threads!");
       VTask<Integer> length = greeting.map(String::length);
-      assertThat(length.run()).isEqualTo(23);
+      assertThatVTask(length).whenRun().succeeds().hasValue(23);
     }
 
     /**
@@ -97,7 +98,7 @@ public class TutorialVTask_Solution {
     void exercise4_flatMapChaining() {
       VTask<Integer> getNumber = VTask.succeed(21);
       VTask<Integer> doubled = getNumber.flatMap(n -> VTask.succeed(n * 2));
-      assertThat(doubled.run()).isEqualTo(42);
+      assertThatVTask(doubled).whenRun().succeeds().hasValue(42);
     }
   }
 
@@ -144,7 +145,7 @@ public class TutorialVTask_Solution {
     void exercise6_recoverFromFailure() {
       VTask<Integer> failingTask = VTask.fail(new RuntimeException("Computation failed"));
       VTask<Integer> recovered = failingTask.recover(error -> -1);
-      assertThat(recovered.run()).isEqualTo(-1);
+      assertThatVTask(recovered).whenRun().succeeds().hasValue(-1);
     }
   }
 
@@ -178,7 +179,7 @@ public class TutorialVTask_Solution {
                 return 22;
               });
       VTask<Integer> combined = Par.map2(taskA, taskB, Integer::sum);
-      assertThat(combined.run()).isEqualTo(42);
+      assertThatVTask(combined).whenRun().succeeds().hasValue(42);
     }
 
     /**
@@ -213,7 +214,7 @@ public class TutorialVTask_Solution {
                 return "fast";
               });
       VTask<String> winner = Par.race(List.of(slow, medium, fast));
-      assertThat(winner.run()).isEqualTo("fast");
+      assertThatVTask(winner).whenRun().succeeds().hasValue("fast");
     }
   }
 
@@ -282,7 +283,7 @@ public class TutorialVTask_Solution {
       VTask<String> profile =
           Par.map2(fetchUser, fetchAge, (name, age) -> name + " (age " + age + ")");
       VTask<String> safeProfile = profile.recover(error -> "Unknown user");
-      assertThat(safeProfile.run()).isEqualTo("Alice (age 30)");
+      assertThatVTask(safeProfile).whenRun().succeeds().hasValue("Alice (age 30)");
     }
   }
 }

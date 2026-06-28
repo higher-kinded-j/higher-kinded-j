@@ -3,6 +3,8 @@
 package org.higherkindedj.tutorial.solutions.coretypes;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.higherkindedj.hkt.assertions.EitherAssert.assertThatEither;
+import static org.higherkindedj.hkt.assertions.ValidatedAssert.assertThatValidated;
 import static org.higherkindedj.hkt.either.EitherKindHelper.EITHER;
 import static org.higherkindedj.hkt.instances.Witnesses.*;
 import static org.higherkindedj.hkt.validated.ValidatedKindHelper.VALIDATED;
@@ -46,8 +48,7 @@ public class Tutorial03_ApplicativeCombining_Solution {
   void exercise1_liftingValues() {
     Either<String, Integer> result = Either.right(42);
 
-    assertThat(result.isRight()).isTrue();
-    assertThat(result.getRight()).isEqualTo(42);
+    assertThatEither(result).isRight().hasRight(42);
   }
 
   // ─── Exercise 2 ────────────────────────────────────────────────────────────
@@ -75,7 +76,7 @@ public class Tutorial03_ApplicativeCombining_Solution {
     Either<String, Integer> result =
         EITHER.narrow(app.map2(EITHER.widen(value1), EITHER.widen(value2), (a, b) -> a + b));
 
-    assertThat(result.getRight()).isEqualTo(30);
+    assertThatEither(result).hasRight(30);
   }
 
   // ─── Exercise 3 ────────────────────────────────────────────────────────────
@@ -101,8 +102,7 @@ public class Tutorial03_ApplicativeCombining_Solution {
     Either<String, Integer> result =
         EITHER.narrow(app.map2(EITHER.widen(value1), EITHER.widen(error), (a, b) -> a + b));
 
-    assertThat(result.isLeft()).isTrue();
-    assertThat(result.getLeft()).isEqualTo("Error occurred");
+    assertThatEither(result).isLeft().hasLeft("Error occurred");
   }
 
   // ─── Exercise 4 ────────────────────────────────────────────────────────────
@@ -132,10 +132,14 @@ public class Tutorial03_ApplicativeCombining_Solution {
         EITHER.narrow(
             app.map3(EITHER.widen(name), EITHER.widen(age), EITHER.widen(email), Person::new));
 
-    assertThat(result.isRight()).isTrue();
-    assertThat(result.getRight().name()).isEqualTo("Alice");
-    assertThat(result.getRight().age()).isEqualTo(30);
-    assertThat(result.getRight().email()).isEqualTo("alice@example.com");
+    assertThatEither(result)
+        .isRight()
+        .hasRightSatisfying(
+            person -> {
+              assertThat(person.name()).isEqualTo("Alice");
+              assertThat(person.age()).isEqualTo(30);
+              assertThat(person.email()).isEqualTo("alice@example.com");
+            });
   }
 
   // ─── Exercise 5 ────────────────────────────────────────────────────────────
@@ -171,7 +175,7 @@ public class Tutorial03_ApplicativeCombining_Solution {
                 VALIDATED.widen(email),
                 FormData::new));
 
-    assertThat(result.isInvalid()).isTrue();
+    assertThatValidated(result).isInvalid();
   }
 
   // ─── Exercise 6 ────────────────────────────────────────────────────────────
@@ -205,12 +209,15 @@ public class Tutorial03_ApplicativeCombining_Solution {
                 EITHER.widen(price),
                 Order::new));
 
-    assertThat(result.isRight()).isTrue();
-    Order order = result.getRight();
-    assertThat(order.id()).isEqualTo("ORD-001");
-    assertThat(order.product()).isEqualTo("Laptop");
-    assertThat(order.quantity()).isEqualTo(2);
-    assertThat(order.price()).isEqualTo(999.99);
+    assertThatEither(result)
+        .isRight()
+        .hasRightSatisfying(
+            order -> {
+              assertThat(order.id()).isEqualTo("ORD-001");
+              assertThat(order.product()).isEqualTo("Laptop");
+              assertThat(order.quantity()).isEqualTo(2);
+              assertThat(order.price()).isEqualTo(999.99);
+            });
   }
 
   // ─── Exercise 7 ────────────────────────────────────────────────────────────
@@ -246,11 +253,14 @@ public class Tutorial03_ApplicativeCombining_Solution {
                 EITHER.widen(country),
                 Address::new));
 
-    assertThat(result.isRight()).isTrue();
-    Address address = result.getRight();
-    assertThat(address.street()).isEqualTo("123 Main St");
-    assertThat(address.city()).isEqualTo("Springfield");
-    assertThat(address.country()).isEqualTo("USA");
+    assertThatEither(result)
+        .isRight()
+        .hasRightSatisfying(
+            address -> {
+              assertThat(address.street()).isEqualTo("123 Main St");
+              assertThat(address.city()).isEqualTo("Springfield");
+              assertThat(address.country()).isEqualTo("USA");
+            });
   }
 
   // ─── Diagnostic ────────────────────────────────────────────────────────────
@@ -281,11 +291,12 @@ public class Tutorial03_ApplicativeCombining_Solution {
 
     Validated<String, Pair> bothValid =
         VALIDATED.narrow(app.map2(VALIDATED.widen(nameOk), VALIDATED.widen(ageOk), Pair::new));
-    assertThat(bothValid.isValid()).isTrue();
-    assertThat(bothValid.get().name()).isEqualTo("Alice");
+    assertThatValidated(bothValid)
+        .isValid()
+        .hasValueSatisfying(pair -> "Alice".equals(pair.name()), "name is Alice");
 
     Validated<String, Pair> oneInvalid =
         VALIDATED.narrow(app.map2(VALIDATED.widen(nameOk), VALIDATED.widen(ageBad), Pair::new));
-    assertThat(oneInvalid.isInvalid()).isTrue();
+    assertThatValidated(oneInvalid).isInvalid();
   }
 }

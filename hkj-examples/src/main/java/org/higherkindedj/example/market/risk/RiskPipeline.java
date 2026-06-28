@@ -14,8 +14,11 @@ import org.higherkindedj.hkt.vstream.VStreamPar;
  * <p><b>HKJ features demonstrated:</b>
  *
  * <ul>
- *   <li>{@link VStreamPar#parEvalMapUnordered} - Concurrent risk assessment where output order does
- *       not matter (risk results are independent of each other)
+ *   <li>{@link VStreamPar#parEvalMap} - Concurrent risk assessment with bounded concurrency that
+ *       <em>preserves input order</em>. Risk results are independent, but the downstream {@code
+ *       WindowAggregator} groups ticks into windows, so emission order must match arrival order for
+ *       a window to contain temporally adjacent ticks. Using the unordered variant here would feed
+ *       the windower a completion-order grab-bag and make per-window VWAP meaningless.
  * </ul>
  */
 public class RiskPipeline {
@@ -41,9 +44,9 @@ public class RiskPipeline {
    * Applies risk assessment across a stream of enriched ticks.
    *
    * @param enrichedTicks the input stream
-   * @return a stream of risk assessments (may arrive in any order)
+   * @return a stream of risk assessments in the same order as the input ticks
    */
   public VStream<RiskAssessment> assess(VStream<EnrichedTick> enrichedTicks) {
-    return VStreamPar.parEvalMapUnordered(enrichedTicks, concurrency, calculator::assess);
+    return VStreamPar.parEvalMap(enrichedTicks, concurrency, calculator::assess);
   }
 }

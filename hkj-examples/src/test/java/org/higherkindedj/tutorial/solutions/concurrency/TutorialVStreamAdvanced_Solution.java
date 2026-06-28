@@ -3,6 +3,7 @@
 package org.higherkindedj.tutorial.solutions.concurrency;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.higherkindedj.hkt.assertions.VStreamAssert.assertThatVStream;
 import static org.higherkindedj.hkt.list.ListKindHelper.LIST;
 import static org.higherkindedj.hkt.vstream.VStreamKindHelper.VSTREAM;
 
@@ -244,9 +245,7 @@ public class TutorialVStreamAdvanced_Solution {
       // SOLUTION: toPublisher + fromPublisher for round-trip
       Flow.Publisher<Integer> publisher = VStreamReactive.toPublisher(original);
       VStream<Integer> roundTripped = VStreamReactive.fromPublisher(publisher, 16);
-      List<Integer> result = roundTripped.toList().run();
-
-      assertThat(result).containsExactly(1, 2, 3);
+      assertThatVStream(roundTripped).producesElements(1, 2, 3);
     }
   }
 
@@ -280,9 +279,7 @@ public class TutorialVStreamAdvanced_Solution {
       Kind<ListKind.Witness, String> listKind = LIST.widen(source);
       Kind<VStreamKind.Witness, String> vstreamKind = nt.apply(listKind);
       VStream<String> vstream = VSTREAM.narrow(vstreamKind);
-      List<String> result = vstream.toList().run();
-
-      assertThat(result).containsExactly("x", "y", "z");
+      assertThatVStream(vstream).producesElements("x", "y", "z");
     }
   }
 
