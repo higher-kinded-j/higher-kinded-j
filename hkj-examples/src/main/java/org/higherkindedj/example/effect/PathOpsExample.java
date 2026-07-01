@@ -158,10 +158,7 @@ public class PathOpsExample {
 
     // All valid
     List<ValidationPath<NonEmptyList<String>, Integer>> allValid =
-        List.of(
-            Path.<String, Integer>validNel(1),
-            Path.<String, Integer>validNel(2),
-            Path.<String, Integer>validNel(3));
+        List.of(Path.validNel(1), Path.validNel(2), Path.validNel(3));
 
     ValidationPath<NonEmptyList<String>, List<Integer>> sequenced =
         PathOps.sequenceValidated(allValid, NonEmptyList.semigroup());
@@ -171,10 +168,7 @@ public class PathOpsExample {
 
     // Multiple invalids - ALL errors accumulated
     List<ValidationPath<NonEmptyList<String>, Integer>> withInvalids =
-        List.of(
-            Path.<String, Integer>invalidNel("Error 1"),
-            Path.<String, Integer>validNel(2),
-            Path.<String, Integer>invalidNel("Error 3"));
+        List.of(Path.invalidNel("Error 1"), Path.validNel(2), Path.invalidNel("Error 3"));
 
     ValidationPath<NonEmptyList<String>, List<Integer>> sequencedInvalids =
         PathOps.sequenceValidated(withInvalids, NonEmptyList.semigroup());

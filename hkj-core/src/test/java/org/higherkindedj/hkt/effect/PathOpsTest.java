@@ -522,7 +522,7 @@ class PathOpsTest {
     @DisplayName("traverseVTask() validates non-null items")
     void traverseVTaskValidatesNonNullItems() {
       assertThatNullPointerException()
-          .isThrownBy(() -> PathOps.traverseVTask(null, s -> Path.vtaskPure(s)))
+          .isThrownBy(() -> PathOps.traverseVTask(null, Path::vtaskPure))
           .withMessageContaining("items must not be null");
     }
 
@@ -603,7 +603,7 @@ class PathOpsTest {
     @DisplayName("traverseVTaskPar() validates non-null items")
     void traverseVTaskParValidatesNonNullItems() {
       assertThatNullPointerException()
-          .isThrownBy(() -> PathOps.traverseVTaskPar(null, s -> Path.vtaskPure(s)))
+          .isThrownBy(() -> PathOps.traverseVTaskPar(null, Path::vtaskPure))
           .withMessageContaining("items must not be null");
     }
 
@@ -972,7 +972,7 @@ class PathOpsTest {
     @DisplayName("traverseNonDet() validates non-null items")
     void traverseNonDetValidatesNonNullItems() {
       assertThatNullPointerException()
-          .isThrownBy(() -> PathOps.traverseNonDet(null, s -> NonDetPath.pure(s)))
+          .isThrownBy(() -> PathOps.traverseNonDet(null, NonDetPath::pure))
           .withMessageContaining("items must not be null");
     }
 
@@ -1066,7 +1066,7 @@ class PathOpsTest {
     @DisplayName("traverseFuture() validates non-null items")
     void traverseFutureValidatesNonNullItems() {
       assertThatNullPointerException()
-          .isThrownBy(() -> PathOps.traverseFuture(null, s -> CompletableFuturePath.completed(s)))
+          .isThrownBy(() -> PathOps.traverseFuture(null, CompletableFuturePath::completed))
           .withMessageContaining("items must not be null");
     }
 
@@ -1327,7 +1327,7 @@ class PathOpsTest {
     @DisplayName("traverseListPath() validates non-null items")
     void traverseListPathValidatesNonNullItems() {
       assertThatNullPointerException()
-          .isThrownBy(() -> PathOps.traverseListPath(null, s -> ListPath.of(s)))
+          .isThrownBy(() -> PathOps.traverseListPath(null, ListPath::of))
           .withMessageContaining("items must not be null");
     }
 
@@ -1460,15 +1460,15 @@ class PathOpsTest {
       IOPath<Integer> path = Path.ioPure(1);
 
       assertThatNullPointerException()
-          .isThrownBy(() -> PathOps.parZip3(null, path, path, (a, b, c) -> a))
+          .isThrownBy(() -> PathOps.parZip3(null, path, path, (a, _, _) -> a))
           .withMessageContaining("first must not be null");
 
       assertThatNullPointerException()
-          .isThrownBy(() -> PathOps.parZip3(path, null, path, (a, b, c) -> a))
+          .isThrownBy(() -> PathOps.parZip3(path, null, path, (a, _, _) -> a))
           .withMessageContaining("second must not be null");
 
       assertThatNullPointerException()
-          .isThrownBy(() -> PathOps.parZip3(path, path, null, (a, b, c) -> a))
+          .isThrownBy(() -> PathOps.parZip3(path, path, null, (a, _, _) -> a))
           .withMessageContaining("third must not be null");
 
       assertThatNullPointerException()
@@ -1515,19 +1515,19 @@ class PathOpsTest {
       IOPath<Integer> path = Path.ioPure(1);
 
       assertThatNullPointerException()
-          .isThrownBy(() -> PathOps.parZip4(null, path, path, path, (a, b, c, d) -> a))
+          .isThrownBy(() -> PathOps.parZip4(null, path, path, path, (a, _, _, _) -> a))
           .withMessageContaining("first must not be null");
 
       assertThatNullPointerException()
-          .isThrownBy(() -> PathOps.parZip4(path, null, path, path, (a, b, c, d) -> a))
+          .isThrownBy(() -> PathOps.parZip4(path, null, path, path, (a, _, _, _) -> a))
           .withMessageContaining("second must not be null");
 
       assertThatNullPointerException()
-          .isThrownBy(() -> PathOps.parZip4(path, path, null, path, (a, b, c, d) -> a))
+          .isThrownBy(() -> PathOps.parZip4(path, path, null, path, (a, _, _, _) -> a))
           .withMessageContaining("third must not be null");
 
       assertThatNullPointerException()
-          .isThrownBy(() -> PathOps.parZip4(path, path, path, null, (a, b, c, d) -> a))
+          .isThrownBy(() -> PathOps.parZip4(path, path, path, null, (a, _, _, _) -> a))
           .withMessageContaining("fourth must not be null");
 
       assertThatNullPointerException()
@@ -1928,13 +1928,11 @@ class PathOpsTest {
     @Test
     @DisplayName("All traverse methods validate non-null parameters")
     void allTraverseMethodsValidateNonNullParameters() {
-      assertThatNullPointerException()
-          .isThrownBy(() -> PathOps.traverseMaybe(null, s -> Path.just(s)));
+      assertThatNullPointerException().isThrownBy(() -> PathOps.traverseMaybe(null, Path::just));
 
       assertThatNullPointerException().isThrownBy(() -> PathOps.traverseMaybe(List.of(), null));
 
-      assertThatNullPointerException()
-          .isThrownBy(() -> PathOps.traverseEither(null, s -> Path.right(s)));
+      assertThatNullPointerException().isThrownBy(() -> PathOps.traverseEither(null, Path::right));
 
       assertThatNullPointerException().isThrownBy(() -> PathOps.traverseEither(List.of(), null));
     }
@@ -2050,7 +2048,7 @@ class PathOpsTest {
         Each<List<Integer>, Integer> listEach = EachInstances.listEach();
 
         assertThatNullPointerException()
-            .isThrownBy(() -> PathOps.traverseEachMaybe(null, listEach, n -> Path.just(n)))
+            .isThrownBy(() -> PathOps.traverseEachMaybe(null, listEach, Path::just))
             .withMessageContaining("structure must not be null");
       }
 
@@ -2060,7 +2058,7 @@ class PathOpsTest {
         List<Integer> list = List.of(1, 2, 3);
 
         assertThatNullPointerException()
-            .isThrownBy(() -> PathOps.traverseEachMaybe(list, null, n -> Path.just(n)))
+            .isThrownBy(() -> PathOps.traverseEachMaybe(list, null, Path::just))
             .withMessageContaining("each must not be null");
       }
 
@@ -2146,7 +2144,7 @@ class PathOpsTest {
         Each<List<Integer>, Integer> listEach = EachInstances.listEach();
 
         assertThatNullPointerException()
-            .isThrownBy(() -> PathOps.traverseEachEither(null, listEach, n -> Path.right(n)))
+            .isThrownBy(() -> PathOps.traverseEachEither(null, listEach, Path::right))
             .withMessageContaining("structure must not be null");
       }
 
@@ -2156,7 +2154,7 @@ class PathOpsTest {
         List<Integer> list = List.of(1, 2, 3);
 
         assertThatNullPointerException()
-            .isThrownBy(() -> PathOps.traverseEachEither(list, null, n -> Path.right(n)))
+            .isThrownBy(() -> PathOps.traverseEachEither(list, null, Path::right))
             .withMessageContaining("each must not be null");
       }
 
@@ -2345,7 +2343,7 @@ class PathOpsTest {
         Each<List<Integer>, Integer> listEach = EachInstances.listEach();
 
         assertThatNullPointerException()
-            .isThrownBy(() -> PathOps.traverseEachTry(null, listEach, n -> Path.success(n)))
+            .isThrownBy(() -> PathOps.traverseEachTry(null, listEach, Path::success))
             .withMessageContaining("structure must not be null");
       }
 
@@ -2355,7 +2353,7 @@ class PathOpsTest {
         List<Integer> list = List.of(1, 2, 3);
 
         assertThatNullPointerException()
-            .isThrownBy(() -> PathOps.traverseEachTry(list, null, n -> Path.success(n)))
+            .isThrownBy(() -> PathOps.traverseEachTry(list, null, Path::success))
             .withMessageContaining("each must not be null");
       }
 
