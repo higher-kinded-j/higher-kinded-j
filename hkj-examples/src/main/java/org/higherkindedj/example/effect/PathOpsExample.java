@@ -262,6 +262,17 @@ public class PathOpsExample {
     System.out.println("First succeeds: " + firstSucceedsResult.run());
     // Success[Got it on first try!]
 
+    // NonEmptyList overload: the sources are statically known, so the call is
+    // total. There is no empty case to guard and no IllegalArgumentException.
+    NonEmptyList<TryPath<String>> knownSources =
+        NonEmptyList.of(
+            Path.failure(new RuntimeException("Primary DB unavailable")),
+            List.of(Path.success("Data from backup source")));
+
+    TryPath<String> nelResult = PathOps.firstSuccess(knownSources);
+    System.out.println("First success (NonEmptyList): " + nelResult.run());
+    // Success[Data from backup source]
+
     System.out.println();
   }
 }

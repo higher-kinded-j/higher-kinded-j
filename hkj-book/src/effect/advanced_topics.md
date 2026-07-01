@@ -581,6 +581,23 @@ List<IOPath<Response>> sources = List.of(
 IOPath<Response> fastest = PathOps.raceIO(sources);
 ```
 
+When the competitors are statically known, the `List` overload's empty-list
+guard is avoidable. Pass a [`NonEmptyList`](../monads/nonemptylist_monad.md)
+instead and the call is total: there is no empty case to throw on, so no
+`IllegalArgumentException` to catch.
+
+```java
+NonEmptyList<IOPath<Response>> sources =
+    NonEmptyList.of(fetchFromRegionA(), List.of(fetchFromRegionB(), fetchFromRegionC()));
+
+IOPath<Response> fastest = PathOps.raceIO(sources);
+```
+
+The same typed overload exists for `firstSuccess`, `raceVTask`,
+`firstVTaskSuccess`, and `firstCompletedSuccess`. For a runtime-sized list,
+bridge the empty case to a value with
+`NonEmptyList.fromList(list).map(PathOps::raceIO)`.
+
 ### Sequential vs Parallel: The Decision
 
 | Scenario | Use |
