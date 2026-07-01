@@ -360,7 +360,7 @@ class IOPathResourceAndParallelTest {
 
     @Test
     @DisplayName("parZipWith() executes concurrently")
-    void parZipWithExecutesConcurrently() throws InterruptedException {
+    void parZipWithExecutesConcurrently() {
       CountDownLatch firstStarted = new CountDownLatch(1);
       CountDownLatch secondStarted = new CountDownLatch(1);
       AtomicBoolean bothStartedBeforeEitherFinished = new AtomicBoolean(false);

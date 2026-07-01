@@ -206,7 +206,7 @@ public class PathOpsExample {
   }
 
   private static ValidationPath<NonEmptyList<String>, String> validateEmail(String email) {
-    if (email == null || email.isBlank()) {
+    if (email.isBlank()) {
       return Path.invalidNel("Email cannot be empty");
     }
     if (!email.contains("@")) {

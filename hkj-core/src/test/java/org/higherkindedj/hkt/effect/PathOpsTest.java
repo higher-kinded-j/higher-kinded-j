@@ -329,13 +329,7 @@ class PathOpsTest {
       List<String> items = List.of("1", "not-a-number", "3");
 
       TryPath<List<Integer>> result =
-          PathOps.traverseTry(
-              items,
-              s ->
-                  Path.tryOf(
-                      () -> {
-                        return Integer.parseInt(s);
-                      }));
+          PathOps.traverseTry(items, s -> Path.tryOf(() -> Integer.parseInt(s)));
 
       assertThat(result.run().isFailure()).isTrue();
     }
@@ -507,13 +501,7 @@ class PathOpsTest {
       List<String> items = List.of("1", "not-a-number", "3");
 
       VTaskPath<List<Integer>> result =
-          PathOps.traverseVTask(
-              items,
-              s ->
-                  Path.vtask(
-                      () -> {
-                        return Integer.parseInt(s);
-                      }));
+          PathOps.traverseVTask(items, s -> Path.vtask(() -> Integer.parseInt(s)));
 
       assertThatThrownBy(result::unsafeRun).isInstanceOf(NumberFormatException.class);
     }
@@ -1010,7 +998,7 @@ class PathOpsTest {
 
     @Test
     @DisplayName("sequenceFuture() converts list of futures to future of list")
-    void sequenceFutureConvertsListOfFutures() throws Exception {
+    void sequenceFutureConvertsListOfFutures() {
       List<CompletableFuturePath<Integer>> paths =
           List.of(
               CompletableFuturePath.completed(1),
