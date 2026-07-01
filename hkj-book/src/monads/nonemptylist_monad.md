@@ -141,6 +141,7 @@ There is no factory that produces an empty `NonEmptyList`, and therefore **no `M
 - [List](list_monad.md): the unconstrained sibling
 - [ValidationPath](../effect/path_validation.md): the fluent validation API
 - [Semigroups and Monoids](../functional/semigroup_and_monoid.md): where `NonEmptyList.semigroup()` fits
+- [Advanced Paths](../effect/advanced_topics.md): the `race` and first-success combinators take `NonEmptyList` for a total, guard-free call
 ~~~
 
 ---

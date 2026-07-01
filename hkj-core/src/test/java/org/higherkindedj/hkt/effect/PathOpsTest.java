@@ -16,6 +16,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import org.awaitility.Awaitility;
 import org.higherkindedj.hkt.Semigroup;
+import org.higherkindedj.hkt.nonemptylist.NonEmptyList;
 import org.higherkindedj.optics.Each;
 import org.higherkindedj.optics.each.EachInstances;
 import org.higherkindedj.optics.util.Traversals;
@@ -328,13 +329,7 @@ class PathOpsTest {
       List<String> items = List.of("1", "not-a-number", "3");
 
       TryPath<List<Integer>> result =
-          PathOps.traverseTry(
-              items,
-              s ->
-                  Path.tryOf(
-                      () -> {
-                        return Integer.parseInt(s);
-                      }));
+          PathOps.traverseTry(items, s -> Path.tryOf(() -> Integer.parseInt(s)));
 
       assertThat(result.run().isFailure()).isTrue();
     }
@@ -396,7 +391,7 @@ class PathOpsTest {
     @DisplayName("firstSuccess() validates non-null paths")
     void firstSuccessValidatesNonNullPaths() {
       assertThatNullPointerException()
-          .isThrownBy(() -> PathOps.firstSuccess(null))
+          .isThrownBy(() -> PathOps.firstSuccess((List<TryPath<String>>) null))
           .withMessageContaining("paths must not be null");
     }
   }
@@ -506,13 +501,7 @@ class PathOpsTest {
       List<String> items = List.of("1", "not-a-number", "3");
 
       VTaskPath<List<Integer>> result =
-          PathOps.traverseVTask(
-              items,
-              s ->
-                  Path.vtask(
-                      () -> {
-                        return Integer.parseInt(s);
-                      }));
+          PathOps.traverseVTask(items, s -> Path.vtask(() -> Integer.parseInt(s)));
 
       assertThatThrownBy(result::unsafeRun).isInstanceOf(NumberFormatException.class);
     }
@@ -521,7 +510,7 @@ class PathOpsTest {
     @DisplayName("traverseVTask() validates non-null items")
     void traverseVTaskValidatesNonNullItems() {
       assertThatNullPointerException()
-          .isThrownBy(() -> PathOps.traverseVTask(null, s -> Path.vtaskPure(s)))
+          .isThrownBy(() -> PathOps.traverseVTask(null, Path::vtaskPure))
           .withMessageContaining("items must not be null");
     }
 
@@ -602,7 +591,7 @@ class PathOpsTest {
     @DisplayName("traverseVTaskPar() validates non-null items")
     void traverseVTaskParValidatesNonNullItems() {
       assertThatNullPointerException()
-          .isThrownBy(() -> PathOps.traverseVTaskPar(null, s -> Path.vtaskPure(s)))
+          .isThrownBy(() -> PathOps.traverseVTaskPar(null, Path::vtaskPure))
           .withMessageContaining("items must not be null");
     }
 
@@ -663,7 +652,7 @@ class PathOpsTest {
     @DisplayName("raceVTask() validates non-null paths")
     void raceVTaskValidatesNonNullPaths() {
       assertThatNullPointerException()
-          .isThrownBy(() -> PathOps.raceVTask(null))
+          .isThrownBy(() -> PathOps.raceVTask((List<VTaskPath<String>>) null))
           .withMessageContaining("paths must not be null");
     }
 
@@ -719,7 +708,7 @@ class PathOpsTest {
     @DisplayName("firstVTaskSuccess() validates non-null paths")
     void firstVTaskSuccessValidatesNonNullPaths() {
       assertThatNullPointerException()
-          .isThrownBy(() -> PathOps.firstVTaskSuccess(null))
+          .isThrownBy(() -> PathOps.firstVTaskSuccess((List<VTaskPath<String>>) null))
           .withMessageContaining("paths must not be null");
     }
 
@@ -971,7 +960,7 @@ class PathOpsTest {
     @DisplayName("traverseNonDet() validates non-null items")
     void traverseNonDetValidatesNonNullItems() {
       assertThatNullPointerException()
-          .isThrownBy(() -> PathOps.traverseNonDet(null, s -> NonDetPath.pure(s)))
+          .isThrownBy(() -> PathOps.traverseNonDet(null, NonDetPath::pure))
           .withMessageContaining("items must not be null");
     }
 
@@ -1009,7 +998,7 @@ class PathOpsTest {
 
     @Test
     @DisplayName("sequenceFuture() converts list of futures to future of list")
-    void sequenceFutureConvertsListOfFutures() throws Exception {
+    void sequenceFutureConvertsListOfFutures() {
       List<CompletableFuturePath<Integer>> paths =
           List.of(
               CompletableFuturePath.completed(1),
@@ -1065,7 +1054,7 @@ class PathOpsTest {
     @DisplayName("traverseFuture() validates non-null items")
     void traverseFutureValidatesNonNullItems() {
       assertThatNullPointerException()
-          .isThrownBy(() -> PathOps.traverseFuture(null, s -> CompletableFuturePath.completed(s)))
+          .isThrownBy(() -> PathOps.traverseFuture(null, CompletableFuturePath::completed))
           .withMessageContaining("items must not be null");
     }
 
@@ -1136,7 +1125,8 @@ class PathOpsTest {
     @DisplayName("firstCompletedSuccess() validates non-null paths")
     void firstCompletedSuccessValidatesNonNullPaths() {
       assertThatNullPointerException()
-          .isThrownBy(() -> PathOps.firstCompletedSuccess(null))
+          .isThrownBy(
+              () -> PathOps.firstCompletedSuccess((List<CompletableFuturePath<String>>) null))
           .withMessageContaining("paths must not be null");
     }
 
@@ -1325,7 +1315,7 @@ class PathOpsTest {
     @DisplayName("traverseListPath() validates non-null items")
     void traverseListPathValidatesNonNullItems() {
       assertThatNullPointerException()
-          .isThrownBy(() -> PathOps.traverseListPath(null, s -> ListPath.of(s)))
+          .isThrownBy(() -> PathOps.traverseListPath(null, ListPath::of))
           .withMessageContaining("items must not be null");
     }
 
@@ -1458,15 +1448,15 @@ class PathOpsTest {
       IOPath<Integer> path = Path.ioPure(1);
 
       assertThatNullPointerException()
-          .isThrownBy(() -> PathOps.parZip3(null, path, path, (a, b, c) -> a))
+          .isThrownBy(() -> PathOps.parZip3(null, path, path, (a, _, _) -> a))
           .withMessageContaining("first must not be null");
 
       assertThatNullPointerException()
-          .isThrownBy(() -> PathOps.parZip3(path, null, path, (a, b, c) -> a))
+          .isThrownBy(() -> PathOps.parZip3(path, null, path, (a, _, _) -> a))
           .withMessageContaining("second must not be null");
 
       assertThatNullPointerException()
-          .isThrownBy(() -> PathOps.parZip3(path, path, null, (a, b, c) -> a))
+          .isThrownBy(() -> PathOps.parZip3(path, path, null, (a, _, _) -> a))
           .withMessageContaining("third must not be null");
 
       assertThatNullPointerException()
@@ -1513,19 +1503,19 @@ class PathOpsTest {
       IOPath<Integer> path = Path.ioPure(1);
 
       assertThatNullPointerException()
-          .isThrownBy(() -> PathOps.parZip4(null, path, path, path, (a, b, c, d) -> a))
+          .isThrownBy(() -> PathOps.parZip4(null, path, path, path, (a, _, _, _) -> a))
           .withMessageContaining("first must not be null");
 
       assertThatNullPointerException()
-          .isThrownBy(() -> PathOps.parZip4(path, null, path, path, (a, b, c, d) -> a))
+          .isThrownBy(() -> PathOps.parZip4(path, null, path, path, (a, _, _, _) -> a))
           .withMessageContaining("second must not be null");
 
       assertThatNullPointerException()
-          .isThrownBy(() -> PathOps.parZip4(path, path, null, path, (a, b, c, d) -> a))
+          .isThrownBy(() -> PathOps.parZip4(path, path, null, path, (a, _, _, _) -> a))
           .withMessageContaining("third must not be null");
 
       assertThatNullPointerException()
-          .isThrownBy(() -> PathOps.parZip4(path, path, path, null, (a, b, c, d) -> a))
+          .isThrownBy(() -> PathOps.parZip4(path, path, path, null, (a, _, _, _) -> a))
           .withMessageContaining("fourth must not be null");
 
       assertThatNullPointerException()
@@ -1603,7 +1593,7 @@ class PathOpsTest {
     @DisplayName("raceIO() validates non-null paths")
     void raceIOValidatesNonNullPaths() {
       assertThatNullPointerException()
-          .isThrownBy(() -> PathOps.raceIO(null))
+          .isThrownBy(() -> PathOps.raceIO((List<IOPath<String>>) null))
           .withMessageContaining("paths must not be null");
     }
 
@@ -1926,13 +1916,11 @@ class PathOpsTest {
     @Test
     @DisplayName("All traverse methods validate non-null parameters")
     void allTraverseMethodsValidateNonNullParameters() {
-      assertThatNullPointerException()
-          .isThrownBy(() -> PathOps.traverseMaybe(null, s -> Path.just(s)));
+      assertThatNullPointerException().isThrownBy(() -> PathOps.traverseMaybe(null, Path::just));
 
       assertThatNullPointerException().isThrownBy(() -> PathOps.traverseMaybe(List.of(), null));
 
-      assertThatNullPointerException()
-          .isThrownBy(() -> PathOps.traverseEither(null, s -> Path.right(s)));
+      assertThatNullPointerException().isThrownBy(() -> PathOps.traverseEither(null, Path::right));
 
       assertThatNullPointerException().isThrownBy(() -> PathOps.traverseEither(List.of(), null));
     }
@@ -2048,7 +2036,7 @@ class PathOpsTest {
         Each<List<Integer>, Integer> listEach = EachInstances.listEach();
 
         assertThatNullPointerException()
-            .isThrownBy(() -> PathOps.traverseEachMaybe(null, listEach, n -> Path.just(n)))
+            .isThrownBy(() -> PathOps.traverseEachMaybe(null, listEach, Path::just))
             .withMessageContaining("structure must not be null");
       }
 
@@ -2058,7 +2046,7 @@ class PathOpsTest {
         List<Integer> list = List.of(1, 2, 3);
 
         assertThatNullPointerException()
-            .isThrownBy(() -> PathOps.traverseEachMaybe(list, null, n -> Path.just(n)))
+            .isThrownBy(() -> PathOps.traverseEachMaybe(list, null, Path::just))
             .withMessageContaining("each must not be null");
       }
 
@@ -2144,7 +2132,7 @@ class PathOpsTest {
         Each<List<Integer>, Integer> listEach = EachInstances.listEach();
 
         assertThatNullPointerException()
-            .isThrownBy(() -> PathOps.traverseEachEither(null, listEach, n -> Path.right(n)))
+            .isThrownBy(() -> PathOps.traverseEachEither(null, listEach, Path::right))
             .withMessageContaining("structure must not be null");
       }
 
@@ -2154,7 +2142,7 @@ class PathOpsTest {
         List<Integer> list = List.of(1, 2, 3);
 
         assertThatNullPointerException()
-            .isThrownBy(() -> PathOps.traverseEachEither(list, null, n -> Path.right(n)))
+            .isThrownBy(() -> PathOps.traverseEachEither(list, null, Path::right))
             .withMessageContaining("each must not be null");
       }
 
@@ -2343,7 +2331,7 @@ class PathOpsTest {
         Each<List<Integer>, Integer> listEach = EachInstances.listEach();
 
         assertThatNullPointerException()
-            .isThrownBy(() -> PathOps.traverseEachTry(null, listEach, n -> Path.success(n)))
+            .isThrownBy(() -> PathOps.traverseEachTry(null, listEach, Path::success))
             .withMessageContaining("structure must not be null");
       }
 
@@ -2353,7 +2341,7 @@ class PathOpsTest {
         List<Integer> list = List.of(1, 2, 3);
 
         assertThatNullPointerException()
-            .isThrownBy(() -> PathOps.traverseEachTry(list, null, n -> Path.success(n)))
+            .isThrownBy(() -> PathOps.traverseEachTry(list, null, Path::success))
             .withMessageContaining("each must not be null");
       }
 
@@ -2399,6 +2387,216 @@ class PathOpsTest {
         assertThat(result.run().isRight()).isTrue();
         assertThat(result.run().getRight()).containsExactly("a!", "b!", "c!");
       }
+    }
+  }
+
+  @Nested
+  @DisplayName("NonEmptyList overloads (race / first-success)")
+  class NonEmptyListOverloadTests {
+
+    // ----- firstSuccess(NonEmptyList) -----
+
+    @Test
+    @DisplayName("firstSuccess(NonEmptyList) returns first successful path")
+    void firstSuccessNelReturnsFirstSuccessfulPath() {
+      NonEmptyList<TryPath<String>> paths =
+          NonEmptyList.of(
+              Path.failure(new RuntimeException("error1")),
+              List.of(Path.success("found"), Path.success("also found")));
+
+      TryPath<String> result = PathOps.firstSuccess(paths);
+
+      assertThat(result.run().isSuccess()).isTrue();
+      assertThat(result.run().orElse(null)).isEqualTo("found");
+    }
+
+    @Test
+    @DisplayName("firstSuccess(NonEmptyList) returns last failure if all fail")
+    void firstSuccessNelReturnsLastFailureIfAllFail() {
+      NonEmptyList<TryPath<String>> paths =
+          NonEmptyList.of(
+              Path.failure(new RuntimeException("error1")),
+              List.of(Path.failure(new RuntimeException("error2"))));
+
+      TryPath<String> result = PathOps.firstSuccess(paths);
+
+      assertThat(result.run().isFailure()).isTrue();
+    }
+
+    @Test
+    @DisplayName("firstSuccess(NonEmptyList) returns sole success without an empty guard")
+    void firstSuccessNelReturnsSoleSuccess() {
+      TryPath<String> result = PathOps.firstSuccess(NonEmptyList.single(Path.success("only one")));
+
+      assertThat(result.run().orElse(null)).isEqualTo("only one");
+    }
+
+    @Test
+    @DisplayName("firstSuccess(NonEmptyList) validates non-null paths")
+    void firstSuccessNelValidatesNonNullPaths() {
+      assertThatNullPointerException()
+          .isThrownBy(() -> PathOps.firstSuccess((NonEmptyList<TryPath<String>>) null))
+          .withMessageContaining("paths must not be null");
+    }
+
+    // ----- raceVTask(NonEmptyList) -----
+
+    @Test
+    @DisplayName("raceVTask(NonEmptyList) returns the sole path for a single element")
+    void raceVTaskNelReturnsSolePath() {
+      VTaskPath<String> path = Path.vtaskPure("only one");
+
+      VTaskPath<String> result = PathOps.raceVTask(NonEmptyList.single(path));
+
+      assertThat(result).isSameAs(path);
+    }
+
+    @Test
+    @DisplayName("raceVTask(NonEmptyList) races multiple paths to a successful result")
+    void raceVTaskNelReturnsSuccessfulResult() {
+      NonEmptyList<VTaskPath<String>> paths =
+          NonEmptyList.of(Path.vtaskPure("a"), List.of(Path.vtaskPure("b")));
+
+      VTaskPath<String> result = PathOps.raceVTask(paths);
+
+      assertThat(result.unsafeRun()).isIn("a", "b");
+    }
+
+    @Test
+    @DisplayName("raceVTask(NonEmptyList) validates non-null paths")
+    void raceVTaskNelValidatesNonNullPaths() {
+      assertThatNullPointerException()
+          .isThrownBy(() -> PathOps.raceVTask((NonEmptyList<VTaskPath<String>>) null))
+          .withMessageContaining("paths must not be null");
+    }
+
+    // ----- firstVTaskSuccess(NonEmptyList) -----
+
+    @Test
+    @DisplayName("firstVTaskSuccess(NonEmptyList) returns first successful path")
+    void firstVTaskSuccessNelReturnsFirstSuccessfulPath() {
+      NonEmptyList<VTaskPath<String>> paths =
+          NonEmptyList.of(
+              Path.vtaskFail(new RuntimeException("error1")),
+              List.of(Path.vtaskPure("found"), Path.vtaskPure("also found")));
+
+      VTaskPath<String> result = PathOps.firstVTaskSuccess(paths);
+
+      assertThat(result.unsafeRun()).isEqualTo("found");
+    }
+
+    @Test
+    @DisplayName("firstVTaskSuccess(NonEmptyList) returns last failure if all fail")
+    void firstVTaskSuccessNelReturnsLastFailureIfAllFail() {
+      NonEmptyList<VTaskPath<String>> paths =
+          NonEmptyList.of(
+              Path.vtaskFail(new RuntimeException("error1")),
+              List.of(Path.vtaskFail(new RuntimeException("error2"))));
+
+      VTaskPath<String> result = PathOps.firstVTaskSuccess(paths);
+
+      assertThatThrownBy(result::unsafeRun)
+          .isInstanceOf(RuntimeException.class)
+          .hasMessage("error2");
+    }
+
+    @Test
+    @DisplayName("firstVTaskSuccess(NonEmptyList) returns sole success")
+    void firstVTaskSuccessNelReturnsSoleSuccess() {
+      VTaskPath<String> result =
+          PathOps.firstVTaskSuccess(NonEmptyList.single(Path.vtaskPure("only one")));
+
+      assertThat(result.unsafeRun()).isEqualTo("only one");
+    }
+
+    @Test
+    @DisplayName("firstVTaskSuccess(NonEmptyList) propagates the failure of a sole failing element")
+    void firstVTaskSuccessNelReturnsSoleFailure() {
+      VTaskPath<String> result =
+          PathOps.firstVTaskSuccess(
+              NonEmptyList.single(Path.vtaskFail(new RuntimeException("only error"))));
+
+      assertThatThrownBy(result::unsafeRun)
+          .isInstanceOf(RuntimeException.class)
+          .hasMessage("only error");
+    }
+
+    @Test
+    @DisplayName("firstVTaskSuccess(NonEmptyList) validates non-null paths")
+    void firstVTaskSuccessNelValidatesNonNullPaths() {
+      assertThatNullPointerException()
+          .isThrownBy(() -> PathOps.firstVTaskSuccess((NonEmptyList<VTaskPath<String>>) null))
+          .withMessageContaining("paths must not be null");
+    }
+
+    // ----- firstCompletedSuccess(NonEmptyList) -----
+
+    @Test
+    @DisplayName("firstCompletedSuccess(NonEmptyList) returns first successful future")
+    void firstCompletedSuccessNelReturnsFirstSuccess() throws Exception {
+      CompletableFuture<String> fast = new CompletableFuture<>();
+      CompletableFuture<String> slow = new CompletableFuture<>();
+      NonEmptyList<CompletableFuturePath<String>> paths =
+          NonEmptyList.of(
+              CompletableFuturePath.fromFuture(slow),
+              List.of(CompletableFuturePath.fromFuture(fast)));
+
+      CompletableFuturePath<String> result = PathOps.firstCompletedSuccess(paths);
+      fast.complete("fast wins");
+
+      assertThat(result.toCompletableFuture().get(1, TimeUnit.SECONDS)).isEqualTo("fast wins");
+    }
+
+    @Test
+    @DisplayName("firstCompletedSuccess(NonEmptyList) returns the sole path for a single element")
+    void firstCompletedSuccessNelReturnsSolePath() {
+      CompletableFuturePath<String> path = CompletableFuturePath.completed("only one");
+
+      CompletableFuturePath<String> result =
+          PathOps.firstCompletedSuccess(NonEmptyList.single(path));
+
+      assertThat(result).isSameAs(path);
+    }
+
+    @Test
+    @DisplayName("firstCompletedSuccess(NonEmptyList) validates non-null paths")
+    void firstCompletedSuccessNelValidatesNonNullPaths() {
+      assertThatNullPointerException()
+          .isThrownBy(
+              () ->
+                  PathOps.firstCompletedSuccess((NonEmptyList<CompletableFuturePath<String>>) null))
+          .withMessageContaining("paths must not be null");
+    }
+
+    // ----- raceIO(NonEmptyList) -----
+
+    @Test
+    @DisplayName("raceIO(NonEmptyList) returns the sole path for a single element")
+    void raceIONelReturnsSolePath() {
+      IOPath<String> path = Path.ioPure("only one");
+
+      IOPath<String> result = PathOps.raceIO(NonEmptyList.single(path));
+
+      assertThat(result).isSameAs(path);
+    }
+
+    @Test
+    @DisplayName("raceIO(NonEmptyList) races multiple paths to a successful result")
+    void raceIONelReturnsSuccessfulResult() {
+      NonEmptyList<IOPath<String>> paths =
+          NonEmptyList.of(Path.ioPure("a"), List.of(Path.ioPure("b")));
+
+      IOPath<String> result = PathOps.raceIO(paths);
+
+      assertThat(result.unsafeRun()).isIn("a", "b");
+    }
+
+    @Test
+    @DisplayName("raceIO(NonEmptyList) validates non-null paths")
+    void raceIONelValidatesNonNullPaths() {
+      assertThatNullPointerException()
+          .isThrownBy(() -> PathOps.raceIO((NonEmptyList<IOPath<String>>) null))
+          .withMessageContaining("paths must not be null");
     }
   }
 }

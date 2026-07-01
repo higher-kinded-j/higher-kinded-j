@@ -16,6 +16,7 @@ import org.higherkindedj.hkt.function.Function3;
 import org.higherkindedj.hkt.function.Function4;
 import org.higherkindedj.hkt.io.IO;
 import org.higherkindedj.hkt.maybe.Maybe;
+import org.higherkindedj.hkt.nonemptylist.NonEmptyList;
 import org.higherkindedj.hkt.trymonad.Try;
 import org.higherkindedj.hkt.validated.Validated;
 import org.higherkindedj.hkt.vtask.Par;
@@ -341,6 +342,15 @@ public final class PathOps {
    *
    * <p>This is useful for trying multiple fallback strategies until one succeeds.
    *
+   * <p>When at least one path is statically known, prefer the {@link #firstSuccess(NonEmptyList)}
+   * overload, which is total and never throws {@link IllegalArgumentException}. For a runtime-sized
+   * list whose empty case should be a value rather than a throw, bridge through {@link
+   * NonEmptyList#fromList(List)}:
+   *
+   * <pre>{@code
+   * Maybe<TryPath<A>> winner = NonEmptyList.fromList(paths).map(PathOps::firstSuccess);
+   * }</pre>
+   *
    * @param paths the paths to try; must not be null or empty
    * @param <A> the element type
    * @return the first successful path, or the last failure
@@ -352,7 +362,27 @@ public final class PathOps {
     if (paths.isEmpty()) {
       throw new IllegalArgumentException("paths must not be empty");
     }
+    return firstSuccessUnchecked(paths);
+  }
 
+  /**
+   * Returns the first successful path, or the last failure if all fail.
+   *
+   * <p>The {@link NonEmptyList} guarantees at least one path, so this overload is total: there is
+   * no empty case to guard and it never throws {@link IllegalArgumentException}.
+   *
+   * @param paths the non-empty paths to try; must not be null
+   * @param <A> the element type
+   * @return the first successful path, or the last failure
+   * @throws NullPointerException if paths is null
+   * @see #firstSuccess(List)
+   */
+  public static <A> TryPath<A> firstSuccess(NonEmptyList<TryPath<A>> paths) {
+    Objects.requireNonNull(paths, "paths must not be null");
+    return firstSuccessUnchecked(paths.toJavaList());
+  }
+
+  private static <A> TryPath<A> firstSuccessUnchecked(List<TryPath<A>> paths) {
     TryPath<A> lastFailure = null;
     for (TryPath<A> path : paths) {
       if (path.run().isSuccess()) {
@@ -360,7 +390,8 @@ public final class PathOps {
       }
       lastFailure = path;
     }
-    return lastFailure;
+    // Callers guarantee a non-empty list, so the loop always assigns lastFailure.
+    return Objects.requireNonNull(lastFailure);
   }
 
   // ===== VTaskPath Operations =====
@@ -490,18 +521,45 @@ public final class PathOps {
    * <p>All VTaskPaths are executed concurrently on virtual threads. The first to complete
    * successfully wins. If all fail, the last failure is propagated.
    *
+   * <p>When at least one path is statically known, prefer the {@link #raceVTask(NonEmptyList)}
+   * overload, which is total and never throws {@link IllegalArgumentException}.
+   *
    * @param paths the VTaskPaths to race; must not be null or empty
    * @param <A> the element type
    * @return a VTaskPath that completes with the first successful result
    * @throws NullPointerException if paths is null
    * @throws IllegalArgumentException if paths is empty
+   * @see NonEmptyList#fromList(List)
    */
   public static <A> VTaskPath<A> raceVTask(List<VTaskPath<A>> paths) {
     Objects.requireNonNull(paths, "paths must not be null");
     if (paths.isEmpty()) {
       throw new IllegalArgumentException("paths must not be empty");
     }
+    return raceVTaskUnchecked(paths);
+  }
 
+  /**
+   * Races multiple VTaskPaths, returning the first to complete successfully.
+   *
+   * <p>All VTaskPaths are executed concurrently on virtual threads. The first to complete
+   * successfully wins. If all fail, the last failure is propagated.
+   *
+   * <p>The {@link NonEmptyList} guarantees at least one path, so this overload is total: there is
+   * no empty case to guard and it never throws {@link IllegalArgumentException}.
+   *
+   * @param paths the non-empty VTaskPaths to race; must not be null
+   * @param <A> the element type
+   * @return a VTaskPath that completes with the first successful result
+   * @throws NullPointerException if paths is null
+   * @see #raceVTask(List)
+   */
+  public static <A> VTaskPath<A> raceVTask(NonEmptyList<VTaskPath<A>> paths) {
+    Objects.requireNonNull(paths, "paths must not be null");
+    return raceVTaskUnchecked(paths.toJavaList());
+  }
+
+  private static <A> VTaskPath<A> raceVTaskUnchecked(List<VTaskPath<A>> paths) {
     if (paths.size() == 1) {
       return paths.getFirst();
     }
@@ -516,18 +574,46 @@ public final class PathOps {
    * <p>This is useful for trying multiple fallback strategies until one succeeds. Unlike {@link
    * #raceVTask(List)}, paths are tried sequentially (not in parallel).
    *
+   * <p>When at least one path is statically known, prefer the {@link
+   * #firstVTaskSuccess(NonEmptyList)} overload, which is total and never throws {@link
+   * IllegalArgumentException}.
+   *
    * @param paths the paths to try; must not be null or empty
    * @param <A> the element type
    * @return the first successful path, or the last failure
    * @throws NullPointerException if paths is null
    * @throws IllegalArgumentException if paths is empty
+   * @see NonEmptyList#fromList(List)
    */
   public static <A> VTaskPath<A> firstVTaskSuccess(List<VTaskPath<A>> paths) {
     Objects.requireNonNull(paths, "paths must not be null");
     if (paths.isEmpty()) {
       throw new IllegalArgumentException("paths must not be empty");
     }
+    return firstVTaskSuccessUnchecked(paths);
+  }
 
+  /**
+   * Returns the first successful VTaskPath, or the last failure if all fail.
+   *
+   * <p>This is useful for trying multiple fallback strategies until one succeeds. Unlike {@link
+   * #raceVTask(NonEmptyList)}, paths are tried sequentially (not in parallel).
+   *
+   * <p>The {@link NonEmptyList} guarantees at least one path, so this overload is total: there is
+   * no empty case to guard and it never throws {@link IllegalArgumentException}.
+   *
+   * @param paths the non-empty paths to try; must not be null
+   * @param <A> the element type
+   * @return the first successful path, or the last failure
+   * @throws NullPointerException if paths is null
+   * @see #firstVTaskSuccess(List)
+   */
+  public static <A> VTaskPath<A> firstVTaskSuccess(NonEmptyList<VTaskPath<A>> paths) {
+    Objects.requireNonNull(paths, "paths must not be null");
+    return firstVTaskSuccessUnchecked(paths.toJavaList());
+  }
+
+  private static <A> VTaskPath<A> firstVTaskSuccessUnchecked(List<VTaskPath<A>> paths) {
     return Path.vtaskPath(
         VTask.delay(
             () -> {
@@ -892,11 +978,16 @@ public final class PathOps {
    * <p>Note: Unlike {@link #firstSuccess(List)} for TryPath, this races the futures concurrently
    * rather than trying them sequentially.
    *
+   * <p>When at least one path is statically known, prefer the {@link
+   * #firstCompletedSuccess(NonEmptyList)} overload, which is total and never throws {@link
+   * IllegalArgumentException}.
+   *
    * @param paths the paths to race; must not be null or empty
    * @param <A> the element type
    * @return the first completed successful path, or a path with the last exception
    * @throws NullPointerException if paths is null
    * @throws IllegalArgumentException if paths is empty
+   * @see NonEmptyList#fromList(List)
    */
   public static <A> CompletableFuturePath<A> firstCompletedSuccess(
       List<CompletableFuturePath<A>> paths) {
@@ -904,7 +995,32 @@ public final class PathOps {
     if (paths.isEmpty()) {
       throw new IllegalArgumentException("paths must not be empty");
     }
+    return firstCompletedSuccessUnchecked(paths);
+  }
 
+  /**
+   * Returns the first successful future path, or the last failure if all fail.
+   *
+   * <p>Note: Unlike {@link #firstSuccess(NonEmptyList)} for TryPath, this races the futures
+   * concurrently rather than trying them sequentially.
+   *
+   * <p>The {@link NonEmptyList} guarantees at least one path, so this overload is total: there is
+   * no empty case to guard and it never throws {@link IllegalArgumentException}.
+   *
+   * @param paths the non-empty paths to race; must not be null
+   * @param <A> the element type
+   * @return the first completed successful path, or a path with the last exception
+   * @throws NullPointerException if paths is null
+   * @see #firstCompletedSuccess(List)
+   */
+  public static <A> CompletableFuturePath<A> firstCompletedSuccess(
+      NonEmptyList<CompletableFuturePath<A>> paths) {
+    Objects.requireNonNull(paths, "paths must not be null");
+    return firstCompletedSuccessUnchecked(paths.toJavaList());
+  }
+
+  private static <A> CompletableFuturePath<A> firstCompletedSuccessUnchecked(
+      List<CompletableFuturePath<A>> paths) {
     if (paths.size() == 1) {
       return paths.getFirst();
     }
@@ -1100,18 +1216,45 @@ public final class PathOps {
    * <p>All IOPaths are executed concurrently. The first to complete successfully wins. If all fail,
    * the last failure is propagated.
    *
+   * <p>When at least one path is statically known, prefer the {@link #raceIO(NonEmptyList)}
+   * overload, which is total and never throws {@link IllegalArgumentException}.
+   *
    * @param paths the IOPaths to race; must not be null or empty
    * @param <A> the element type
    * @return an IOPath that completes with the first successful result
    * @throws NullPointerException if paths is null
    * @throws IllegalArgumentException if paths is empty
+   * @see NonEmptyList#fromList(List)
    */
   public static <A> IOPath<A> raceIO(List<IOPath<A>> paths) {
     Objects.requireNonNull(paths, "paths must not be null");
     if (paths.isEmpty()) {
       throw new IllegalArgumentException("paths must not be empty");
     }
+    return raceIOUnchecked(paths);
+  }
 
+  /**
+   * Races multiple IOPaths, returning the first to complete successfully.
+   *
+   * <p>All IOPaths are executed concurrently. The first to complete successfully wins. If all fail,
+   * the last failure is propagated.
+   *
+   * <p>The {@link NonEmptyList} guarantees at least one path, so this overload is total: there is
+   * no empty case to guard and it never throws {@link IllegalArgumentException}.
+   *
+   * @param paths the non-empty IOPaths to race; must not be null
+   * @param <A> the element type
+   * @return an IOPath that completes with the first successful result
+   * @throws NullPointerException if paths is null
+   * @see #raceIO(List)
+   */
+  public static <A> IOPath<A> raceIO(NonEmptyList<IOPath<A>> paths) {
+    Objects.requireNonNull(paths, "paths must not be null");
+    return raceIOUnchecked(paths.toJavaList());
+  }
+
+  private static <A> IOPath<A> raceIOUnchecked(List<IOPath<A>> paths) {
     if (paths.size() == 1) {
       return paths.getFirst();
     }

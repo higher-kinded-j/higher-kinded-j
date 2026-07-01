@@ -12,6 +12,7 @@ import org.higherkindedj.hkt.effect.CompletableFuturePath;
 import org.higherkindedj.hkt.effect.IOPath;
 import org.higherkindedj.hkt.effect.Path;
 import org.higherkindedj.hkt.effect.PathOps;
+import org.higherkindedj.hkt.nonemptylist.NonEmptyList;
 
 /**
  * Examples demonstrating parallel execution with IOPath and CompletableFuturePath.
@@ -203,6 +204,18 @@ public class ParallelExecutionExample {
     String winnerMulti = multiRace.unsafeRun();
     long timeMulti = System.currentTimeMillis() - start;
     System.out.println("  Winner: " + winnerMulti + " (" + timeMulti + "ms)");
+
+    // NonEmptyList overload: a statically-known set of racers, so raceIO is
+    // total (no empty-list guard to trip).
+    System.out.println("\nRacing with raceIO (NonEmptyList of paths):");
+    start = System.currentTimeMillis();
+
+    NonEmptyList<IOPath<String>> nelRacers =
+        NonEmptyList.of(slowService, List.of(mediumService, fastService));
+    IOPath<String> nelRace = PathOps.raceIO(nelRacers);
+    String nelWinner = nelRace.unsafeRun();
+    long nelTime = System.currentTimeMillis() - start;
+    System.out.println("  Winner: " + nelWinner + " (" + nelTime + "ms)");
 
     System.out.println();
   }

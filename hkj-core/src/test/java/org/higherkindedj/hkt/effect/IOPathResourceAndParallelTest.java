@@ -360,7 +360,7 @@ class IOPathResourceAndParallelTest {
 
     @Test
     @DisplayName("parZipWith() executes concurrently")
-    void parZipWithExecutesConcurrently() throws InterruptedException {
+    void parZipWithExecutesConcurrently() {
       CountDownLatch firstStarted = new CountDownLatch(1);
       CountDownLatch secondStarted = new CountDownLatch(1);
       AtomicBoolean bothStartedBeforeEitherFinished = new AtomicBoolean(false);
@@ -636,15 +636,15 @@ class IOPathResourceAndParallelTest {
       IOPath<Integer> path = Path.ioPure(1);
 
       assertThatNullPointerException()
-          .isThrownBy(() -> PathOps.parZip3(null, path, path, (a, b, c) -> a))
+          .isThrownBy(() -> PathOps.parZip3(null, path, path, (a, _, _) -> a))
           .withMessageContaining("first must not be null");
 
       assertThatNullPointerException()
-          .isThrownBy(() -> PathOps.parZip3(path, null, path, (a, b, c) -> a))
+          .isThrownBy(() -> PathOps.parZip3(path, null, path, (a, _, _) -> a))
           .withMessageContaining("second must not be null");
 
       assertThatNullPointerException()
-          .isThrownBy(() -> PathOps.parZip3(path, path, null, (a, b, c) -> a))
+          .isThrownBy(() -> PathOps.parZip3(path, path, null, (a, _, _) -> a))
           .withMessageContaining("third must not be null");
 
       assertThatNullPointerException()
@@ -743,7 +743,7 @@ class IOPathResourceAndParallelTest {
       IOPath<Integer> path = Path.ioPure(1);
 
       assertThatNullPointerException()
-          .isThrownBy(() -> PathOps.parZip4(null, path, path, path, (a, b, c, d) -> a))
+          .isThrownBy(() -> PathOps.parZip4(null, path, path, path, (a, _, _, _) -> a))
           .withMessageContaining("first must not be null");
 
       assertThatNullPointerException()
@@ -913,7 +913,7 @@ class IOPathResourceAndParallelTest {
     @DisplayName("raceIO() validates null argument")
     void raceIOValidatesNullArgument() {
       assertThatNullPointerException()
-          .isThrownBy(() -> PathOps.raceIO(null))
+          .isThrownBy(() -> PathOps.raceIO((List<IOPath<Integer>>) null))
           .withMessageContaining("paths must not be null");
     }
 

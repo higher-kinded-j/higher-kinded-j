@@ -23,6 +23,10 @@ This page documents the evolution of Higher-Kinded-J from its initial release th
 - **Validation integration:** `Path.validNel` / `Path.invalidNel` / `Path.validatedNel` and `Validated.validNel` / `Validated.invalidNel` bake in `NonEmptyList.semigroup()`, so the common case drops the `Semigroup` argument and the manual `List.of(error)` wrapping, and `getError().head()` is total. Accumulation is left-to-right concatenation.
 - **Tooling:** an `assertThatNonEmptyList` assertion in `hkj-test`, and Jackson support in `hkj-spring` (serialised as a JSON array; an empty `[]` is rejected on read so the non-empty guarantee survives the wire). See [NonEmptyList](monads/nonemptylist_monad.md).
 
+**`PathOps` race / first-success combinators gain `NonEmptyList` overloads**
+
+The five `PathOps` "first to succeed" combinators (`firstSuccess`, `raceVTask`, `firstVTaskSuccess`, `firstCompletedSuccess`, `raceIO`) took a `List` that must be non-empty and paid for the missing guarantee with a runtime `IllegalArgumentException` on an empty input. Each now has a `NonEmptyList`-accepting overload beside the `List` one: the typed form is total, so a statically-known set of competitors (a fixed set of fallbacks, a literal list) needs no empty guard and cannot throw. The `List` overloads are retained, undeprecated, for runtime-sized inputs; bridge the empty case to a value with `NonEmptyList.fromList(list).map(PathOps::firstSuccess)`. Purely additive at the API surface, building on `NonEmptyList`; the one source-compat note is that a bare `null`-literal argument to these methods now needs a cast to pick an overload ([#579](https://github.com/higher-kinded-j/higher-kinded-j/issues/579), [#585](https://github.com/higher-kinded-j/higher-kinded-j/pull/585)). See [Advanced Paths](effect/advanced_topics.md).
+
 **`EitherOrBoth`: an inclusive-or for "success that also carries warnings"**
 
 `Either` and `Validated` are both *exclusive*: a result is a failure or a success, never both. Neither models a successful value that also carries accumulated, non-fatal problems: config that parses but reports deprecations, an import that yields records *and* a skipped-rows list. New `EitherOrBoth<L, R>` (the inclusive-or known elsewhere as `Ior`/`These`) is a sealed type over `Left` | `Right` | `Both`, right-biased, with total `getLeft`/`getRight` accessors that return `Maybe` and never throw. Purely additive ([#551](https://github.com/higher-kinded-j/higher-kinded-j/issues/551); landed in [#583](https://github.com/higher-kinded-j/higher-kinded-j/pull/583)).
@@ -370,7 +374,7 @@ This release extends for-comprehension arity to 12, simplifies the VTask API, ad
 - [Quickstart](quickstart.md): New getting-started guide with Gradle and Maven setup including `--enable-preview` configuration
 - [Cheat Sheet](cheatsheet.md): Quick-reference for Path types, operators, escape hatches, and type conversions
 - [Stack Archetypes](transformers/archetypes.md): 7 named transformer stack archetypes with colour-coded railway diagrams
-- [Migration Cookbook](migration_cookbook.md): 6 recipes for migrating from try/catch, Optional chains, null checks, CompletableFuture, validation, and nested records
+- [Migration Cookbook](transformers/migration_cookbook.md): 6 recipes for migrating from try/catch, Optional chains, null checks, CompletableFuture, validation, and nested records
 - [Compiler Error Guide](effect/compiler_errors.md): Solutions for the 5 most common Effect Path compiler errors
 - [Effects-Optics Capstone](effect/capstone_focus_effect.md): Combined effects and optics pipeline example
 - Railway operator diagrams for all 8 Effect Path operators and for EitherT, MaybeT, OptionalT transformers

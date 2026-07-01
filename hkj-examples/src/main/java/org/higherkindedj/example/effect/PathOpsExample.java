@@ -158,10 +158,7 @@ public class PathOpsExample {
 
     // All valid
     List<ValidationPath<NonEmptyList<String>, Integer>> allValid =
-        List.of(
-            Path.<String, Integer>validNel(1),
-            Path.<String, Integer>validNel(2),
-            Path.<String, Integer>validNel(3));
+        List.of(Path.validNel(1), Path.validNel(2), Path.validNel(3));
 
     ValidationPath<NonEmptyList<String>, List<Integer>> sequenced =
         PathOps.sequenceValidated(allValid, NonEmptyList.semigroup());
@@ -171,10 +168,7 @@ public class PathOpsExample {
 
     // Multiple invalids - ALL errors accumulated
     List<ValidationPath<NonEmptyList<String>, Integer>> withInvalids =
-        List.of(
-            Path.<String, Integer>invalidNel("Error 1"),
-            Path.<String, Integer>validNel(2),
-            Path.<String, Integer>invalidNel("Error 3"));
+        List.of(Path.invalidNel("Error 1"), Path.validNel(2), Path.invalidNel("Error 3"));
 
     ValidationPath<NonEmptyList<String>, List<Integer>> sequencedInvalids =
         PathOps.sequenceValidated(withInvalids, NonEmptyList.semigroup());
@@ -212,7 +206,7 @@ public class PathOpsExample {
   }
 
   private static ValidationPath<NonEmptyList<String>, String> validateEmail(String email) {
-    if (email == null || email.isBlank()) {
+    if (email.isBlank()) {
       return Path.invalidNel("Email cannot be empty");
     }
     if (!email.contains("@")) {
@@ -261,6 +255,17 @@ public class PathOpsExample {
     TryPath<String> firstSucceedsResult = PathOps.firstSuccess(firstSucceeds);
     System.out.println("First succeeds: " + firstSucceedsResult.run());
     // Success[Got it on first try!]
+
+    // NonEmptyList overload: the sources are statically known, so the call is
+    // total. There is no empty case to guard and no IllegalArgumentException.
+    NonEmptyList<TryPath<String>> knownSources =
+        NonEmptyList.of(
+            Path.failure(new RuntimeException("Primary DB unavailable")),
+            List.of(Path.success("Data from backup source")));
+
+    TryPath<String> nelResult = PathOps.firstSuccess(knownSources);
+    System.out.println("First success (NonEmptyList): " + nelResult.run());
+    // Success[Data from backup source]
 
     System.out.println();
   }
