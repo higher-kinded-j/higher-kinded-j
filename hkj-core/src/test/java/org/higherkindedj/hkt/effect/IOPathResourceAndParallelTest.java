@@ -913,7 +913,7 @@ class IOPathResourceAndParallelTest {
     @DisplayName("raceIO() validates null argument")
     void raceIOValidatesNullArgument() {
       assertThatNullPointerException()
-          .isThrownBy(() -> PathOps.raceIO(null))
+          .isThrownBy(() -> PathOps.raceIO((List<IOPath<Integer>>) null))
           .withMessageContaining("paths must not be null");
     }
 
