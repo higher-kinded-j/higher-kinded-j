@@ -21,8 +21,11 @@ This page documents the evolution of Higher-Kinded-J from its initial release th
 - **Plain fluent type, no HKT tax:** `NonEmptyList.of(a, b, c).map(f).flatMap(g)`, plus `reduce(semigroup)`, `foldLeft`, `reverse`, `concat`/`append`/`prepend`, `toJavaList()`, and `Iterable`. Safe construction from possibly-empty data via `fromList`/`fromIterable`, which return `Maybe` and never throw. Deeply immutable (defensive-copied `tail`, unmodifiable `tail()`); never holds `null`.
 - **Higher-kinded:** `NonEmptyList` implements its `Kind` directly (cast-free widen/narrow), with `Functor`/`Monad`/`Traverse`/`Foldable`/`Semigroup` instances reachable via `Witnesses.nonEmptyList()`. Deliberately **no `Monoid`/`MonadZero`**: there is no empty `NonEmptyList`, and the absence is the point.
 - **Validation integration:** `Path.validNel` / `Path.invalidNel` / `Path.validatedNel` and `Validated.validNel` / `Validated.invalidNel` bake in `NonEmptyList.semigroup()`, so the common case drops the `Semigroup` argument and the manual `List.of(error)` wrapping, and `getError().head()` is total. Accumulation is left-to-right concatenation.
-- **Race / first-success integration:** the five `PathOps` race and first-success combinators (`firstSuccess`, `raceVTask`, `firstVTaskSuccess`, `firstCompletedSuccess`, `raceIO`) gain `NonEmptyList` overloads beside the existing `List` ones. The `List` forms throw `IllegalArgumentException` on an empty input; the typed forms are total, so a statically-known set of competitors needs no empty guard. The `List` overloads are retained for runtime-sized inputs ([#579](https://github.com/higher-kinded-j/higher-kinded-j/issues/579)).
 - **Tooling:** an `assertThatNonEmptyList` assertion in `hkj-test`, and Jackson support in `hkj-spring` (serialised as a JSON array; an empty `[]` is rejected on read so the non-empty guarantee survives the wire). See [NonEmptyList](monads/nonemptylist_monad.md).
+
+**`PathOps` race / first-success combinators gain `NonEmptyList` overloads**
+
+The five `PathOps` "first to succeed" combinators (`firstSuccess`, `raceVTask`, `firstVTaskSuccess`, `firstCompletedSuccess`, `raceIO`) took a `List` that must be non-empty and paid for the missing guarantee with a runtime `IllegalArgumentException` on an empty input. Each now has a `NonEmptyList`-accepting overload beside the `List` one: the typed form is total, so a statically-known set of competitors (a fixed set of fallbacks, a literal list) needs no empty guard and cannot throw. The `List` overloads are retained, undeprecated, for runtime-sized inputs; bridge the empty case to a value with `NonEmptyList.fromList(list).map(PathOps::firstSuccess)`. Purely additive, building on `NonEmptyList` ([#579](https://github.com/higher-kinded-j/higher-kinded-j/issues/579), [#585](https://github.com/higher-kinded-j/higher-kinded-j/pull/585)). See [Advanced Paths](effect/advanced_topics.md).
 
 **`EitherOrBoth`: an inclusive-or for "success that also carries warnings"**
 
@@ -371,7 +374,7 @@ This release extends for-comprehension arity to 12, simplifies the VTask API, ad
 - [Quickstart](quickstart.md): New getting-started guide with Gradle and Maven setup including `--enable-preview` configuration
 - [Cheat Sheet](cheatsheet.md): Quick-reference for Path types, operators, escape hatches, and type conversions
 - [Stack Archetypes](transformers/archetypes.md): 7 named transformer stack archetypes with colour-coded railway diagrams
-- [Migration Cookbook](migration_cookbook.md): 6 recipes for migrating from try/catch, Optional chains, null checks, CompletableFuture, validation, and nested records
+- [Migration Cookbook](transformers/migration_cookbook.md): 6 recipes for migrating from try/catch, Optional chains, null checks, CompletableFuture, validation, and nested records
 - [Compiler Error Guide](effect/compiler_errors.md): Solutions for the 5 most common Effect Path compiler errors
 - [Effects-Optics Capstone](effect/capstone_focus_effect.md): Combined effects and optics pipeline example
 - Railway operator diagrams for all 8 Effect Path operators and for EitherT, MaybeT, OptionalT transformers
