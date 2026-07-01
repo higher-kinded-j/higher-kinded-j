@@ -343,7 +343,7 @@ public final class PathOps {
    * <p>This is useful for trying multiple fallback strategies until one succeeds.
    *
    * <p>When at least one path is statically known, prefer the {@link #firstSuccess(NonEmptyList)}
-   * overload — it is total and never throws {@link IllegalArgumentException}. For a runtime-sized
+   * overload, which is total and never throws {@link IllegalArgumentException}. For a runtime-sized
    * list whose empty case should be a value rather than a throw, bridge through {@link
    * NonEmptyList#fromList(List)}:
    *
@@ -390,7 +390,8 @@ public final class PathOps {
       }
       lastFailure = path;
     }
-    return lastFailure;
+    // Callers guarantee a non-empty list, so the loop always assigns lastFailure.
+    return Objects.requireNonNull(lastFailure);
   }
 
   // ===== VTaskPath Operations =====
@@ -521,13 +522,14 @@ public final class PathOps {
    * successfully wins. If all fail, the last failure is propagated.
    *
    * <p>When at least one path is statically known, prefer the {@link #raceVTask(NonEmptyList)}
-   * overload — it is total and never throws {@link IllegalArgumentException}.
+   * overload, which is total and never throws {@link IllegalArgumentException}.
    *
    * @param paths the VTaskPaths to race; must not be null or empty
    * @param <A> the element type
    * @return a VTaskPath that completes with the first successful result
    * @throws NullPointerException if paths is null
    * @throws IllegalArgumentException if paths is empty
+   * @see NonEmptyList#fromList(List)
    */
   public static <A> VTaskPath<A> raceVTask(List<VTaskPath<A>> paths) {
     Objects.requireNonNull(paths, "paths must not be null");
@@ -573,7 +575,7 @@ public final class PathOps {
    * #raceVTask(List)}, paths are tried sequentially (not in parallel).
    *
    * <p>When at least one path is statically known, prefer the {@link
-   * #firstVTaskSuccess(NonEmptyList)} overload — it is total and never throws {@link
+   * #firstVTaskSuccess(NonEmptyList)} overload, which is total and never throws {@link
    * IllegalArgumentException}.
    *
    * @param paths the paths to try; must not be null or empty
@@ -581,6 +583,7 @@ public final class PathOps {
    * @return the first successful path, or the last failure
    * @throws NullPointerException if paths is null
    * @throws IllegalArgumentException if paths is empty
+   * @see NonEmptyList#fromList(List)
    */
   public static <A> VTaskPath<A> firstVTaskSuccess(List<VTaskPath<A>> paths) {
     Objects.requireNonNull(paths, "paths must not be null");
@@ -976,7 +979,7 @@ public final class PathOps {
    * rather than trying them sequentially.
    *
    * <p>When at least one path is statically known, prefer the {@link
-   * #firstCompletedSuccess(NonEmptyList)} overload — it is total and never throws {@link
+   * #firstCompletedSuccess(NonEmptyList)} overload, which is total and never throws {@link
    * IllegalArgumentException}.
    *
    * @param paths the paths to race; must not be null or empty
@@ -984,6 +987,7 @@ public final class PathOps {
    * @return the first completed successful path, or a path with the last exception
    * @throws NullPointerException if paths is null
    * @throws IllegalArgumentException if paths is empty
+   * @see NonEmptyList#fromList(List)
    */
   public static <A> CompletableFuturePath<A> firstCompletedSuccess(
       List<CompletableFuturePath<A>> paths) {
@@ -1213,13 +1217,14 @@ public final class PathOps {
    * the last failure is propagated.
    *
    * <p>When at least one path is statically known, prefer the {@link #raceIO(NonEmptyList)}
-   * overload — it is total and never throws {@link IllegalArgumentException}.
+   * overload, which is total and never throws {@link IllegalArgumentException}.
    *
    * @param paths the IOPaths to race; must not be null or empty
    * @param <A> the element type
    * @return an IOPath that completes with the first successful result
    * @throws NullPointerException if paths is null
    * @throws IllegalArgumentException if paths is empty
+   * @see NonEmptyList#fromList(List)
    */
   public static <A> IOPath<A> raceIO(List<IOPath<A>> paths) {
     Objects.requireNonNull(paths, "paths must not be null");

@@ -2524,6 +2524,18 @@ class PathOpsTest {
     }
 
     @Test
+    @DisplayName("firstVTaskSuccess(NonEmptyList) propagates the failure of a sole failing element")
+    void firstVTaskSuccessNelReturnsSoleFailure() {
+      VTaskPath<String> result =
+          PathOps.firstVTaskSuccess(
+              NonEmptyList.single(Path.vtaskFail(new RuntimeException("only error"))));
+
+      assertThatThrownBy(result::unsafeRun)
+          .isInstanceOf(RuntimeException.class)
+          .hasMessage("only error");
+    }
+
+    @Test
     @DisplayName("firstVTaskSuccess(NonEmptyList) validates non-null paths")
     void firstVTaskSuccessNelValidatesNonNullPaths() {
       assertThatNullPointerException()
