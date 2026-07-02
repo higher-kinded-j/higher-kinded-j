@@ -7,6 +7,8 @@ import static org.higherkindedj.hkt.util.validation.Operation.*;
 import java.util.function.BiFunction;
 import java.util.function.Function;
 import org.higherkindedj.hkt.Semigroup;
+import org.higherkindedj.hkt.assembly.EitherOrBothAccum0;
+import org.higherkindedj.hkt.assembly.EitherOrBothFields0;
 import org.higherkindedj.hkt.either.Either;
 import org.higherkindedj.hkt.maybe.Maybe;
 import org.higherkindedj.hkt.util.validation.Validation;
@@ -383,6 +385,39 @@ public sealed interface EitherOrBoth<L, R> extends EitherOrBothKind<L, R>, Eithe
   static <L, R> EitherOrBoth<L, R> fromValidated(Validated<L, R> validated) {
     Validation.coreType().requireValue(validated, EitherOrBoth.class, FROM_KIND);
     return validated.fold(EitherOrBoth::left, EitherOrBoth::right);
+  }
+
+  /**
+   * Opens a tolerant open-arity accumulating assembly: warnings accumulate ({@code Both}) while the
+   * value keeps flowing; any {@code Left} makes the whole assembly {@code Left}, still with every
+   * warning collected, in field-declaration order. Generic in the warning payload {@code X},
+   * carried as {@code NonEmptyList<X>}; no {@code Semigroup} argument is needed.
+   *
+   * <pre>{@code
+   * EitherOrBoth<NonEmptyList<Warning>, Config> cfg =
+   *     EitherOrBoth.accumulate()
+   *         .and(parsePortLenient(raw.port()))
+   *         .and(parseTimeoutLenient(raw.timeout()))
+   *         .apply(Config::new);
+   * }</pre>
+   *
+   * @return the stateless entry stage
+   * @see #fields()
+   */
+  static EitherOrBothAccum0 accumulate() {
+    return EitherOrBothAccum0.instance();
+  }
+
+  /**
+   * Opens a labelled tolerant open-arity accumulating assembly over {@code NonEmptyList<}{@link
+   * org.higherkindedj.hkt.assembly.FieldError}{@code >}: each warning carries its path, and nesting
+   * composes ({@code "address.zip"}).
+   *
+   * @return the stateless entry stage
+   * @see #accumulate()
+   */
+  static EitherOrBothFields0 fields() {
+    return EitherOrBothFields0.instance();
   }
 
   /**
