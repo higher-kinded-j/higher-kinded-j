@@ -1,10 +1,8 @@
 // Copyright (c) 2025 - 2026 Magnus Smith
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
-package org.higherkindedj.hkt.assembly;
+package org.higherkindedj.hkt.effect;
 
 import java.util.Objects;
-import org.higherkindedj.hkt.effect.Path;
-import org.higherkindedj.hkt.effect.ValidationPath;
 import org.higherkindedj.hkt.nonemptylist.NonEmptyList;
 
 /**

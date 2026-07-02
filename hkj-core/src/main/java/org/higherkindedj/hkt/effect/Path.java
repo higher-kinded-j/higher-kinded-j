@@ -20,8 +20,6 @@ import org.higherkindedj.hkt.Semigroup;
 import org.higherkindedj.hkt.TypeArity;
 import org.higherkindedj.hkt.Unit;
 import org.higherkindedj.hkt.WitnessArity;
-import org.higherkindedj.hkt.assembly.ValidationPathAccum0;
-import org.higherkindedj.hkt.assembly.ValidationPathFields0;
 import org.higherkindedj.hkt.effect.capability.Chainable;
 import org.higherkindedj.hkt.effect.spi.PathRegistry;
 import org.higherkindedj.hkt.either.Either;
@@ -659,7 +657,7 @@ public final class Path {
 
   /**
    * Opens a labelled open-arity accumulating {@link ValidationPath} assembly over {@code
-   * NonEmptyList<}{@link org.higherkindedj.hkt.assembly.FieldError}{@code >}: every bad field is
+   * NonEmptyList<}{@link org.higherkindedj.hkt.validated.FieldError}{@code >}: every bad field is
    * reported at once, each error carrying its path, in field-declaration order.
    *
    * <pre>{@code

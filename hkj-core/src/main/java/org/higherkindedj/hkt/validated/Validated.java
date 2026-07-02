@@ -11,8 +11,6 @@ import java.util.function.Function;
 import java.util.function.Supplier;
 import org.higherkindedj.hkt.Semigroup;
 import org.higherkindedj.hkt.Unit;
-import org.higherkindedj.hkt.assembly.ValidatedAccum0;
-import org.higherkindedj.hkt.assembly.ValidatedFields0;
 import org.higherkindedj.hkt.either.Either;
 import org.higherkindedj.hkt.nonemptylist.NonEmptyList;
 import org.higherkindedj.hkt.util.validation.Validation;
@@ -429,7 +427,7 @@ public sealed interface Validated<E, A> extends ValidatedKind<E, A>, ValidatedKi
 
   /**
    * Opens a labelled open-arity accumulating assembly over {@code NonEmptyList<}{@link
-   * org.higherkindedj.hkt.assembly.FieldError}{@code >}: every bad field is reported at once, each
+   * org.higherkindedj.hkt.validated.FieldError}{@code >}: every bad field is reported at once, each
    * error carrying its path, in field-declaration order.
    *
    * <pre>{@code

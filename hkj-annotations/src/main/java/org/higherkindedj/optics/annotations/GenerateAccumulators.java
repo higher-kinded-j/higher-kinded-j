@@ -28,11 +28,13 @@ import java.lang.annotation.Target;
  * value)}, which prepends the label onto each error's path so that nested assemblies compose (e.g.
  * {@code "address.zip"}). Errors always accumulate in field-declaration order.
  *
- * <p>Example usage in {@code package-info.java}:
+ * <p>Each family is generated into its carrier's own package ({@code ..hkt.validated}, {@code
+ * ..hkt.effect}, {@code ..hkt.eitherorboth}), per the package-structure rules; the annotated
+ * package-info merely triggers generation. Example usage:
  *
  * <pre>{@code
  * @GenerateAccumulators(minArity = 1, maxArity = 12)
- * package org.higherkindedj.hkt.assembly;
+ * package org.higherkindedj.hkt.validated;
  *
  * import org.higherkindedj.optics.annotations.GenerateAccumulators;
  * }</pre>

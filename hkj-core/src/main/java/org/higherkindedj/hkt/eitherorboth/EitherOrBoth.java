@@ -7,8 +7,6 @@ import static org.higherkindedj.hkt.util.validation.Operation.*;
 import java.util.function.BiFunction;
 import java.util.function.Function;
 import org.higherkindedj.hkt.Semigroup;
-import org.higherkindedj.hkt.assembly.EitherOrBothAccum0;
-import org.higherkindedj.hkt.assembly.EitherOrBothFields0;
 import org.higherkindedj.hkt.either.Either;
 import org.higherkindedj.hkt.maybe.Maybe;
 import org.higherkindedj.hkt.util.validation.Validation;
@@ -258,6 +256,61 @@ public sealed interface EitherOrBoth<L, R> extends EitherOrBothKind<L, R>, Eithe
     };
   }
 
+  /**
+   * {@code Validated}-style accumulating combination: combines two independent values, keeping
+   * <b>every</b> warning from both sides; the right is present only if both are.
+   *
+   * <p>Unlike {@link #flatMap(Semigroup, Function)}, nothing short-circuits: a {@link Left} on
+   * either side still collects the other side's warnings. Accumulation is left-to-right ({@code
+   * this} first), so chained combinations report warnings in declaration order:
+   *
+   * <table border="1">
+   *   <caption>{@code a.zipWithAccum(b, sg, f)}</caption>
+   *   <tr><th>{@code a}</th><th>{@code b}</th><th>result</th></tr>
+   *   <tr><td>{@code Right(r1)}</td><td>{@code Right(r2)}</td><td>{@code Right(f(r1, r2))}</td></tr>
+   *   <tr><td>{@code Right(r1)}</td><td>{@code Both(l2, r2)}</td><td>{@code Both(l2, f(r1, r2))}</td></tr>
+   *   <tr><td>{@code Both(l1, r1)}</td><td>{@code Both(l2, r2)}</td><td>{@code Both(l1 ⊕ l2, f(r1, r2))}</td></tr>
+   *   <tr><td>{@code Both(l1, r1)}</td><td>{@code Left(l2)}</td><td>{@code Left(l1 ⊕ l2)}</td></tr>
+   *   <tr><td>{@code Left(l1)}</td><td>{@code Left(l2)}</td><td>{@code Left(l1 ⊕ l2)}</td></tr>
+   * </table>
+   *
+   * <p>This is the combination primitive behind {@code
+   * org.higherkindedj.hkt.effect.EitherOrBothPath#zipWithAccum} and the {@link #accumulate()} /
+   * {@link #fields()} assembly builders.
+   *
+   * @param other the independent value to combine with; must not be null
+   * @param semigroup combines the left (warning) channels; must not be null
+   * @param combiner combines the right values when both are present; must not be null
+   * @param <B> the other right type
+   * @param <C> the combined right type
+   * @return the combination per the table above
+   * @throws NullPointerException if any argument is null
+   */
+  default <B, C> EitherOrBoth<L, C> zipWithAccum(
+      EitherOrBoth<L, B> other,
+      Semigroup<L> semigroup,
+      BiFunction<? super R, ? super B, ? extends C> combiner) {
+    Validation.function().require(other, "other", ZIP_WITH_ACCUM);
+    Validation.function().require(semigroup, "semigroup", ZIP_WITH_ACCUM);
+    Validation.function().require(combiner, "combiner", ZIP_WITH_ACCUM);
+    Maybe<L> thisLeft = getLeft();
+    Maybe<L> otherLeft = other.getLeft();
+    Maybe<L> combinedLeft =
+        thisLeft.isJust() && otherLeft.isJust()
+            ? Maybe.just(semigroup.combine(thisLeft.get(), otherLeft.get()))
+            : (thisLeft.isJust() ? thisLeft : otherLeft);
+    Maybe<R> thisRight = getRight();
+    Maybe<B> otherRight = other.getRight();
+    if (thisRight.isJust() && otherRight.isJust()) {
+      C combined = combiner.apply(thisRight.get(), otherRight.get());
+      return combinedLeft.isJust()
+          ? EitherOrBoth.both(combinedLeft.get(), combined)
+          : EitherOrBoth.right(combined);
+    }
+    // At least one right is absent, so the corresponding side was a Left ⇒ combinedLeft is present.
+    return EitherOrBoth.left(combinedLeft.get());
+  }
+
   // --- Conversions ---
 
   /**
@@ -410,8 +463,8 @@ public sealed interface EitherOrBoth<L, R> extends EitherOrBothKind<L, R>, Eithe
 
   /**
    * Opens a labelled tolerant open-arity accumulating assembly over {@code NonEmptyList<}{@link
-   * org.higherkindedj.hkt.assembly.FieldError}{@code >}: each warning carries its path, and nesting
-   * composes ({@code "address.zip"}).
+   * org.higherkindedj.hkt.validated.FieldError}{@code >}: each warning carries its path, and
+   * nesting composes ({@code "address.zip"}).
    *
    * @return the stateless entry stage
    * @see #accumulate()

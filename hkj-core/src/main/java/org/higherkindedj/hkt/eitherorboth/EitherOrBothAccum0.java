@@ -1,10 +1,8 @@
 // Copyright (c) 2025 - 2026 Magnus Smith
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
-package org.higherkindedj.hkt.assembly;
+package org.higherkindedj.hkt.eitherorboth;
 
 import java.util.Objects;
-import org.higherkindedj.hkt.effect.Path;
-import org.higherkindedj.hkt.eitherorboth.EitherOrBoth;
 import org.higherkindedj.hkt.nonemptylist.NonEmptyList;
 
 /**
@@ -41,6 +39,6 @@ public final class EitherOrBothAccum0 {
    */
   public <X, A> EitherOrBothAccum1<X, A> and(EitherOrBoth<NonEmptyList<X>, A> value) {
     Objects.requireNonNull(value, "value must not be null");
-    return new EitherOrBothAccum1<>(Path.eitherOrBoth(value, NonEmptyList.semigroup()));
+    return new EitherOrBothAccum1<>(value);
   }
 }

@@ -1,11 +1,10 @@
 // Copyright (c) 2025 - 2026 Magnus Smith
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
-package org.higherkindedj.hkt.assembly;
+package org.higherkindedj.hkt.eitherorboth;
 
 import java.util.Objects;
-import org.higherkindedj.hkt.effect.Path;
-import org.higherkindedj.hkt.eitherorboth.EitherOrBoth;
 import org.higherkindedj.hkt.nonemptylist.NonEmptyList;
+import org.higherkindedj.hkt.validated.FieldError;
 
 /**
  * Entry stage of a labelled tolerant accumulating {@code EitherOrBoth} assembly, obtained from
@@ -44,10 +43,7 @@ public final class EitherOrBothFields0 {
       String label, EitherOrBoth<NonEmptyList<FieldError>, A> value) {
     Objects.requireNonNull(label, "label must not be null");
     Objects.requireNonNull(value, "value must not be null");
-    return new EitherOrBothFields1<>(
-        Path.eitherOrBoth(
-            value.bimap(errors -> errors.map(err -> err.at(label)), right -> right),
-            NonEmptyList.semigroup()));
+    return new EitherOrBothFields1<>(value.mapLeft(errors -> errors.map(err -> err.at(label))));
   }
 
   /**
@@ -60,6 +56,6 @@ public final class EitherOrBothFields0 {
    */
   public <A> EitherOrBothFields1<A> and(EitherOrBoth<NonEmptyList<FieldError>, A> value) {
     Objects.requireNonNull(value, "value must not be null");
-    return new EitherOrBothFields1<>(Path.eitherOrBoth(value, NonEmptyList.semigroup()));
+    return new EitherOrBothFields1<>(value);
   }
 }

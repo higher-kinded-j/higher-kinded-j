@@ -27,7 +27,15 @@ import org.junit.jupiter.api.Test;
 @DisplayName("Accumulator Generator Tests")
 class AccumulatorGeneratorTest {
 
-  private static final String PACKAGE = "org.higherkindedj.hkt.assembly.";
+  private static String packageFor(String simpleName) {
+    if (simpleName.startsWith("ValidationPath")) {
+      return "org.higherkindedj.hkt.effect.";
+    }
+    if (simpleName.startsWith("Validated")) {
+      return "org.higherkindedj.hkt.validated.";
+    }
+    return "org.higherkindedj.hkt.eitherorboth.";
+  }
 
   private static Compilation compilation;
 
@@ -48,7 +56,8 @@ class AccumulatorGeneratorTest {
   }
 
   private static String generatedSource(String simpleName) throws IOException {
-    Optional<JavaFileObject> file = compilation.generatedSourceFile(PACKAGE + simpleName);
+    Optional<JavaFileObject> file =
+        compilation.generatedSourceFile(packageFor(simpleName) + simpleName);
     assertThat(file).as("Generated file should exist: %s", simpleName).isPresent();
     return file.get().getCharContent(true).toString();
   }
@@ -151,13 +160,20 @@ class AccumulatorGeneratorTest {
     }
 
     @Test
-    @DisplayName("EitherOrBoth stages wrap via Path.eitherOrBoth and unwrap at apply")
-    void eitherOrBothWrapsAndUnwraps() throws IOException {
+    @DisplayName("EitherOrBoth stages merge via the core type's zipWithAccum")
+    void eitherOrBothMergesViaZipWithAccum() throws IOException {
       String source = generatedSource("EitherOrBothAccum2");
       assertThat(source)
-          .contains("Path.eitherOrBoth(value, NonEmptyList.semigroup())")
-          .contains("accumulated.<R>map(")
-          .contains(".run();");
+          .contains("accumulated.zipWithAccum(")
+          .contains("NonEmptyList.semigroup(),")
+          .doesNotContain(".run()");
+    }
+
+    @Test
+    @DisplayName("EitherOrBoth fields() labels the warning channel via mapLeft")
+    void eitherOrBothFieldsLabelsViaMapLeft() throws IOException {
+      assertThat(generatedSource("EitherOrBothFields2"))
+          .contains("value.mapLeft(errors -> errors.map(err -> err.at(label)))");
     }
 
     @Test

@@ -309,7 +309,8 @@ public final class EitherOrBothPath<L, A>
     Objects.requireNonNull(other, "other must not be null");
     Objects.requireNonNull(combiner, "combiner must not be null");
     EitherOrBothPath<L, B> typedOther = narrowAccumulating(other);
-    return new EitherOrBothPath<>(accumulate(value, typedOther.value, combiner), semigroup);
+    return new EitherOrBothPath<>(
+        value.zipWithAccum(typedOther.value, semigroup, combiner), semigroup);
   }
 
   @Override
@@ -334,31 +335,6 @@ public final class EitherOrBothPath<L, A>
   public <B> EitherOrBothPath<L, B> andThen(Accumulating<L, B> other) {
     Objects.requireNonNull(other, "other must not be null");
     return zipWithAccum(other, (ignored, b) -> b);
-  }
-
-  /** Full, {@code Validated}-style accumulation: the right is present only if both are. */
-  private <B, C> EitherOrBoth<L, C> accumulate(
-      EitherOrBoth<L, A> x,
-      EitherOrBoth<L, B> y,
-      BiFunction<? super A, ? super B, ? extends C> combiner) {
-    Maybe<L> combinedLeft = combineLeft(x.getLeft(), y.getLeft());
-    Maybe<A> xr = x.getRight();
-    Maybe<B> yr = y.getRight();
-    if (xr.isJust() && yr.isJust()) {
-      C c = combiner.apply(xr.get(), yr.get());
-      return combinedLeft.isJust()
-          ? EitherOrBoth.both(combinedLeft.get(), c)
-          : EitherOrBoth.right(c);
-    }
-    // At least one right is absent, so the corresponding side was a Left ⇒ combinedLeft is present.
-    return EitherOrBoth.left(combinedLeft.get());
-  }
-
-  private Maybe<L> combineLeft(Maybe<L> a, Maybe<L> b) {
-    if (a.isJust() && b.isJust()) {
-      return Maybe.just(semigroup.combine(a.get(), b.get()));
-    }
-    return a.isJust() ? a : b;
   }
 
   // ===== Chainable (short-circuit, accumulating Both) =====

@@ -86,7 +86,18 @@ class AccumulatorGoldenFileTest {
 
   private static GoldenTestCase goldenCase(String simpleName) {
     return new GoldenTestCase(
-        simpleName, "org.higherkindedj.hkt.assembly." + simpleName, simpleName + ".java.golden");
+        simpleName, packageFor(simpleName) + simpleName, simpleName + ".java.golden");
+  }
+
+  /** Each family lands in its carrier's package (see AccumulatorStepGenerator). */
+  private static String packageFor(String simpleName) {
+    if (simpleName.startsWith("ValidationPath")) {
+      return "org.higherkindedj.hkt.effect.";
+    }
+    if (simpleName.startsWith("Validated")) {
+      return "org.higherkindedj.hkt.validated.";
+    }
+    return "org.higherkindedj.hkt.eitherorboth.";
   }
 
   // =============================================================================

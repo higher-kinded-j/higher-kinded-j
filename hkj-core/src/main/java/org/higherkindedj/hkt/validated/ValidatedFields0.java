@@ -1,10 +1,9 @@
 // Copyright (c) 2025 - 2026 Magnus Smith
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
-package org.higherkindedj.hkt.assembly;
+package org.higherkindedj.hkt.validated;
 
 import java.util.Objects;
 import org.higherkindedj.hkt.nonemptylist.NonEmptyList;
-import org.higherkindedj.hkt.validated.Validated;
 
 /**
  * Entry stage of a labelled accumulating {@code Validated} assembly, obtained from {@link
