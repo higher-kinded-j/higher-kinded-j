@@ -5,6 +5,7 @@ package org.higherkindedj.example.effect;
 import org.higherkindedj.hkt.effect.Path;
 import org.higherkindedj.hkt.effect.ValidationPath;
 import org.higherkindedj.hkt.nonemptylist.NonEmptyList;
+import org.higherkindedj.hkt.validated.FieldError;
 
 /**
  * Examples demonstrating error-accumulating validation with ValidationPath, using a {@link
@@ -40,10 +41,34 @@ public class AccumulatingValidationExample {
   public static void main(String[] args) {
     System.out.println("=== Effect Path API: Accumulating Validation ===\n");
 
+    fieldsAssembly();
     basicAccumulation();
     shortCircuitVsAccumulating();
     complexAccumulatingValidation();
     andAlsoPattern();
+  }
+
+  // ===== The front door: the staged fields() assembly =====
+
+  /**
+   * For assembling a value from N independent validations, the staged builder is the documented
+   * front door: open arity, located errors, declaration order. zipWithAccum below remains the
+   * binary fast path.
+   */
+  private static void fieldsAssembly() {
+    System.out.println("--- The front door: Path.fields() staged assembly ---");
+
+    ValidationPath<NonEmptyList<FieldError>, User> user =
+        Path.fields()
+            .field("name", Path.<FieldError, String>validNel("Alice"))
+            .field(
+                "email", Path.<FieldError, String>invalidNel(FieldError.of("not an email address")))
+            .field("age", Path.<FieldError, Integer>invalidNel(FieldError.of("must be positive")))
+            .apply(User::new);
+
+    System.out.println("assembled = " + user.run());
+    // Invalid(NonEmptyList[email: not an email address, age: must be positive])
+    System.out.println();
   }
 
   // ===== Basic Error Accumulation =====

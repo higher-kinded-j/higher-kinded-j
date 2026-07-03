@@ -4,9 +4,10 @@
 - Making failures explicit and recoverable using MonadError
 - When to use `Either`, `Maybe`, `Validated`, and `Try`
 - Building real-world workflows that combine multiple patterns
+- Assembling records from N validated fields with located, declaration-ordered errors
 ~~~
 
-**Duration**: ~30 minutes | **Tutorials**: 3 | **Exercises**: 20
+**Duration**: ~40 minutes | **Tutorials**: 4 | **Exercises**: 26
 
 **Prerequisites**: [Core Types: Foundations Journey](foundations_journey.md)
 
@@ -97,6 +98,28 @@ Bring everything together by building realistic workflows that combine multiple 
 **Links to documentation**: [Reader Monad](../../monads/reader_monad.md) | [For Comprehensions](../../functional/for_comprehension.md)
 
 [Hands On Practice](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/test/java/org/higherkindedj/tutorial/coretypes/Tutorial07_RealWorld.java)
+
+---
+
+## Tutorial 12: Accumulating Assembly (~10 minutes)
+**File**: `Tutorial12_AccumulatingAssembly.java` | **Exercises**: 6
+
+Learn the staged assembly builder: build a record from N validated fields with every error reported at once, each carrying its field path.
+
+**What you'll learn**:
+- Assembling records with `Validated.fields()...apply(Ctor::new)`: no `Semigroup`, no `Kind`, no arity wall
+- Located errors (`"email: not an address"`) and the field-declaration-order guarantee
+- The generic `accumulate()` flavour for your own error payloads
+- Nested assemblies whose paths compose (`address.zip`)
+- Tolerant assembly with `EitherOrBoth.accumulate()`: warnings gather, the value keeps flowing
+
+**Key insight**: Tutorial 03's `mapN` family stops at five fields and reports unlocated errors. The assembly builder is the everyday front door: open arity, located errors, and the same shape on `Validated`, `ValidationPath`, and `EitherOrBoth`.
+
+**Real-world application**: request DTO to domain aggregate mapping, form validation with per-field messages, lenient configuration parsing.
+
+**Links to documentation**: [Accumulating Assembly](../../monads/validated_assembly.md) | [Validated Monad](../../monads/validated_monad.md)
+
+[Hands On Practice](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/test/java/org/higherkindedj/tutorial/coretypes/Tutorial12_AccumulatingAssembly.java)
 
 ---
 

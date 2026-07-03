@@ -10,6 +10,7 @@ public enum Operation {
   MAP_4("map4"),
   MAP_5("map5"),
   FLAT_MAP("flatMap"),
+  ZIP_WITH_ACCUM("zipWithAccum"),
   FILTER("filter"),
   FOLD_MAP("foldMap"),
   TRAVERSE("traverse"),

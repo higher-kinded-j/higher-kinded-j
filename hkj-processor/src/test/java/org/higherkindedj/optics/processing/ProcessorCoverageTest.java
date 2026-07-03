@@ -8,7 +8,22 @@ import static org.higherkindedj.optics.processing.GeneratorTestHelper.assertGene
 
 import com.google.testing.compile.Compilation;
 import com.google.testing.compile.JavaFileObjects;
+import java.lang.reflect.Method;
+import java.lang.reflect.Proxy;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Set;
+import java.util.function.BiFunction;
+import javax.annotation.processing.Messager;
+import javax.annotation.processing.ProcessingEnvironment;
+import javax.annotation.processing.RoundEnvironment;
+import javax.lang.model.SourceVersion;
+import javax.lang.model.element.Element;
+import javax.lang.model.element.ElementKind;
+import javax.lang.model.element.TypeElement;
 import javax.tools.JavaFileObject;
+import org.assertj.core.api.Assertions;
+import org.higherkindedj.optics.annotations.GenerateAccumulators;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -1343,6 +1358,143 @@ class ProcessorCoverageTest {
       // EitherInner has Either<String,String> which is SPI ZERO_OR_ONE → AffinePath
       assertGeneratedCodeContains(
           compilation, "com.example.EitherOuterFocus", "AffinePath<S, String> result()");
+    }
+  }
+
+  @Nested
+  @DisplayName("AccumulatorProcessor edge cases (direct invocation)")
+  class AccumulatorProcessorEdgeCases {
+
+    // These branches are unreachable through javac: @GenerateAccumulators is @Target(PACKAGE),
+    // so misplacement is rejected before annotation processing runs, and getAnnotation on an
+    // element returned by getElementsAnnotatedWith is never null in a real round. They are
+    // defensive, so they are exercised by invoking process() directly with proxy-backed elements.
+
+    @Test
+    @DisplayName("supports the latest source version")
+    void latestSupportedSourceVersion() {
+      Assertions.assertThat(new AccumulatorProcessor().getSupportedSourceVersion())
+          .isEqualTo(SourceVersion.latestSupported());
+    }
+
+    @Test
+    @DisplayName("rejects placement on a non-package element with a what/why/fix message")
+    void nonPackagePlacementRejected() {
+      List<String> errors = new ArrayList<>();
+      AccumulatorProcessor processor = initialisedProcessor(errors);
+      Element bad = element(ElementKind.CLASS, "com.example.NotAPackage", null);
+
+      boolean claimed = processor.process(Set.of(annotationElement()), roundReturning(bad));
+
+      Assertions.assertThat(claimed).isTrue();
+      Assertions.assertThat(errors).hasSize(1);
+      Assertions.assertThat(errors.getFirst())
+          .contains("not a package")
+          .contains("package-info.java");
+    }
+
+    @Test
+    @DisplayName("reports an unreadable annotation instead of crashing")
+    void unreadableAnnotationReported() {
+      List<String> errors = new ArrayList<>();
+      AccumulatorProcessor processor = initialisedProcessor(errors);
+      Element pkg = element(ElementKind.PACKAGE, "com.example.trigger", null);
+
+      processor.process(Set.of(annotationElement()), roundReturning(pkg));
+
+      Assertions.assertThat(errors).hasSize(1);
+      Assertions.assertThat(errors.getFirst()).contains("Could not read");
+    }
+
+    @Test
+    @DisplayName("a package is processed once; a repeat round hits the guard silently")
+    void duplicateTriggerProcessedOnce() {
+      List<String> errors = new ArrayList<>();
+      AccumulatorProcessor processor = initialisedProcessor(errors);
+      // minArity 0 stops processing at validation, so no Filer is needed for this test.
+      GenerateAccumulators ann = annotationValues(0, 12);
+      Element pkg = element(ElementKind.PACKAGE, "com.example.trigger", ann);
+
+      processor.process(Set.of(annotationElement()), roundReturning(pkg));
+      processor.process(Set.of(annotationElement()), roundReturning(pkg));
+
+      // One diagnostic from the first round; the second round short-circuits on the guard.
+      Assertions.assertThat(errors).hasSize(1);
+      Assertions.assertThat(errors.getFirst()).contains("minArity was 0");
+    }
+
+    // ---- proxy-backed fakes ----------------------------------------------------------------
+
+    private AccumulatorProcessor initialisedProcessor(List<String> errors) {
+      Messager messager =
+          proxy(
+              Messager.class,
+              "messager",
+              (method, args) -> {
+                if (method.getName().equals("printMessage")) {
+                  errors.add(String.valueOf(args[1]));
+                }
+                return null;
+              });
+      ProcessingEnvironment env =
+          proxy(
+              ProcessingEnvironment.class,
+              "processingEnv",
+              (method, args) -> method.getName().equals("getMessager") ? messager : null);
+      AccumulatorProcessor processor = new AccumulatorProcessor();
+      processor.init(env);
+      return processor;
+    }
+
+    private TypeElement annotationElement() {
+      return proxy(TypeElement.class, "GenerateAccumulators", (method, args) -> null);
+    }
+
+    private RoundEnvironment roundReturning(Element element) {
+      return proxy(
+          RoundEnvironment.class,
+          "round",
+          (method, args) ->
+              method.getName().equals("getElementsAnnotatedWith") ? Set.of(element) : null);
+    }
+
+    private Element element(ElementKind kind, String name, GenerateAccumulators annotation) {
+      return proxy(
+          Element.class,
+          name,
+          (method, args) ->
+              switch (method.getName()) {
+                case "getKind" -> kind;
+                case "getAnnotation" -> annotation;
+                default -> null;
+              });
+    }
+
+    private GenerateAccumulators annotationValues(int minArity, int maxArity) {
+      return proxy(
+          GenerateAccumulators.class,
+          "@GenerateAccumulators",
+          (method, args) ->
+              switch (method.getName()) {
+                case "minArity" -> minArity;
+                case "maxArity" -> maxArity;
+                default -> null;
+              });
+    }
+
+    @SuppressWarnings("unchecked")
+    private <T> T proxy(Class<T> type, String name, BiFunction<Method, Object[], Object> handler) {
+      return (T)
+          Proxy.newProxyInstance(
+              ProcessorCoverageTest.class.getClassLoader(),
+              new Class<?>[] {type},
+              (p, method, args) ->
+                  switch (method.getName()) {
+                    case "toString" -> name;
+                    case "hashCode" -> System.identityHashCode(p);
+                    case "equals" -> p == args[0];
+                    default -> handler.apply(method, args);
+                  });
     }
   }
 }

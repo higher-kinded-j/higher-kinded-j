@@ -301,7 +301,7 @@ Solutions mirror the tutorial structure under `hkj-examples/src/test/java/org/hi
 
 ```
 solutions/
-├── coretypes/                  (11 solutions)
+├── coretypes/                  (12 solutions)
 │   ├── Tutorial01_KindBasics_Solution.java
 │   ├── Tutorial02_FunctorMapping_Solution.java
 │   ├── Tutorial03_ApplicativeCombining_Solution.java
@@ -312,7 +312,8 @@ solutions/
 │   ├── Tutorial08_NaturalTransformation_Solution.java
 │   ├── Tutorial09_Coyoneda_Solution.java
 │   ├── Tutorial10_FreeApplicative_Solution.java
-│   └── Tutorial11_StaticAnalysis_Solution.java
+│   ├── Tutorial11_StaticAnalysis_Solution.java
+│   └── Tutorial12_AccumulatingAssembly_Solution.java
 ├── effect/                     (2 solutions)
 │   ├── Tutorial01_EffectPathBasics_Solution.java
 │   └── Tutorial02_EffectPathAdvanced_Solution.java

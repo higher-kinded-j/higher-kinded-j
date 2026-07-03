@@ -164,6 +164,21 @@ them).
 `EitherOrBoth` is complementary to the other two, not a replacement: reach for it precisely when a
 result can be *both* a value and a set of problems.
 
+## Tolerant Assembly: `accumulate()` and `fields()`
+
+The staged assembly builder gives `EitherOrBoth` the same open-arity construction story as [Validated](validated_assembly.md), in tolerant form: warnings accumulate (`Both`) while the value keeps flowing, and any `Left` makes the whole assembly `Left` while still keeping every warning, in field-declaration order.
+
+```java
+EitherOrBoth<NonEmptyList<String>, Config> cfg =
+    EitherOrBoth.accumulate()
+        .and(parsePortLenient(raw.port()))       // Both("port defaulted", 8080)
+        .and(parseTimeoutLenient(raw.timeout())) // Right(30)
+        .apply(Config::new);
+// Both(NonEmptyList[port defaulted], Config[port=8080, timeout=30])
+```
+
+The combination primitive behind it is `zipWithAccum(other, semigroup, combiner)`: the `Validated`-style merge in which the right is present only if both are, and nothing short-circuits the warning collection. `EitherOrBoth.fields()` is the labelled twin over `NonEmptyList<FieldError>`, with paths that compose through nesting.
+
 ~~~admonish info title="Key Takeaways"
 - **`EitherOrBoth` is an inclusive-or:** `Left`, `Right`, or `Both` at once: the type for "success with warnings".
 - **Right-biased with total accessors:** `map` / `flatMap` operate on the right; `getLeft` / `getRight` return `Maybe` and never throw.
@@ -178,6 +193,7 @@ result can be *both* a value and a set of problems.
 - [Validated](validated_monad.md): pure error accumulation with no partial value
 - [NonEmptyList](nonemptylist_monad.md): the non-empty warning channel a `Both` pairs with
 - [Semigroups and Monoids](../functional/semigroup_and_monoid.md): how the left channel accumulates
+- [Accumulating Assembly](validated_assembly.md): the open-arity `accumulate()` / `fields()` builder
 ~~~
 
 ---

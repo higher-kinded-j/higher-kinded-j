@@ -404,4 +404,56 @@ public sealed interface Validated<E, A> extends ValidatedKind<E, A>, ValidatedKi
   static <E, A> Validated<NonEmptyList<E>, A> invalidNel(E error) {
     return invalid(NonEmptyList.single(error));
   }
+
+  /**
+   * Opens an open-arity accumulating assembly: build a value from N independently validated fields,
+   * collecting <b>all</b> errors in field-declaration order. Generic in the error payload {@code
+   * X}, carried as {@code NonEmptyList<X>}; no {@code Semigroup} argument is needed.
+   *
+   * <pre>{@code
+   * Validated<NonEmptyList<ConfigError>, Settings> settings =
+   *     Validated.accumulate()
+   *         .and(parseHost(raw.host()))
+   *         .and(parsePort(raw.port()))
+   *         .apply(Settings::new);
+   * }</pre>
+   *
+   * <p>Inference note: the first {@code and(...)} fixes the error payload {@code X}, so an inline
+   * factory literal there needs a type witness (for example {@code Validated.<String,
+   * Integer>invalidNel(...)}); values with declared types need none.
+   *
+   * @return the stateless entry stage
+   * @see #fields()
+   */
+  static ValidatedAccum0 accumulate() {
+    return ValidatedAccum0.instance();
+  }
+
+  /**
+   * Opens a labelled open-arity accumulating assembly over {@code NonEmptyList<}{@link
+   * org.higherkindedj.hkt.validated.FieldError}{@code >}: every bad field is reported at once, each
+   * error carrying its path, in field-declaration order.
+   *
+   * <pre>{@code
+   * Validated<NonEmptyList<FieldError>, User> user =
+   *     Validated.fields()
+   *         .field("name", Name.parse(dto.name()))
+   *         .field("email", Email.parse(dto.email()))
+   *         .field("age", Age.parse(dto.age()))
+   *         .apply(User::new);
+   * }</pre>
+   *
+   * <p>Nesting composes: {@code .field("address", Address.parseFields(dto.address()))} prefixes
+   * {@code "address."} onto the inner errors' paths.
+   *
+   * <p>Inference note: an inline factory literal needs a type witness, because a chained stage
+   * receives no target typing (for example {@code Validated.<FieldError, String>invalidNel(...)});
+   * values with declared types, such as the results of leaf validators, need none.
+   *
+   * @return the stateless entry stage
+   * @see #accumulate()
+   */
+  static ValidatedFields0 fields() {
+    return ValidatedFields0.instance();
+  }
 }

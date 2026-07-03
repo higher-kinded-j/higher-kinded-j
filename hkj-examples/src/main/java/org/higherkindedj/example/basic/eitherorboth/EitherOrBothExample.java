@@ -29,6 +29,7 @@ public class EitherOrBothExample {
     totalAccessors();
     transforms();
     accumulatingFlatMap();
+    tolerantAssembly();
     conversions();
   }
 
@@ -97,6 +98,25 @@ public class EitherOrBothExample {
     return value < 10
         ? EitherOrBoth.both(NonEmptyList.single("value is low"), value)
         : EitherOrBoth.right(value);
+  }
+
+  /**
+   * The staged accumulate() assembly is the tolerant twin of Validated.fields(): warnings
+   * accumulate while the value keeps flowing. See EitherOrBothPathExample for the fuller
+   * config-parsing scenario.
+   */
+  private static void tolerantAssembly() {
+    System.out.println("--- Tolerant assembly (accumulate) ---");
+
+    EitherOrBoth<NonEmptyList<String>, String> greeting =
+        EitherOrBoth.accumulate()
+            .and(EitherOrBoth.<NonEmptyList<String>, String>right("Hello"))
+            .and(EitherOrBoth.both(NonEmptyList.single("name defaulted"), "World"))
+            .apply((a, b) -> a + ", " + b);
+
+    System.out.println("assembled = " + greeting);
+    // Both(NonEmptyList[name defaulted], Hello, World)
+    System.out.println();
   }
 
   private static void conversions() {

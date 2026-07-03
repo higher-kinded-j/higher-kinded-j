@@ -195,6 +195,7 @@
     - [Coyoneda](monads/coyoneda.md)
     - [Try](monads/try_monad.md)
     - [Validated](monads/validated_monad.md)
+      - [Accumulating Assembly](monads/validated_assembly.md)
     - [VTask](monads/vtask_monad.md)
       - [Structured Concurrency](monads/vtask_scope.md)
       - [Resource Management](monads/vtask_resource.md)

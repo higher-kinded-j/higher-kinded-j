@@ -63,6 +63,7 @@
 | `.zipWithAccum(other, fn)` | Combine, accumulating errors | ValidationPath, EitherOrBothPath |
 | `.zipWith3Accum(b, c, fn)` | Combine three, accumulating errors | ValidationPath, EitherOrBothPath |
 | `.andAlso(other)` | Accumulate errors, keep left value | ValidationPath, EitherOrBothPath |
+| `fields().field(label, v)...apply(Ctor::new)` | Open-arity record assembly, located errors | Validated, Path (ValidationPath), EitherOrBoth |
 
 ### Error Handling
 

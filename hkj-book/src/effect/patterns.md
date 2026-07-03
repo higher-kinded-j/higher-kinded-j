@@ -720,6 +720,7 @@ void processOrder(OrderRequest request) {
 |---------|-------------|-------------|
 | Single validation | Validate one field | `Path.right/left` |
 | Combined validation | Multiple independent fields | `zipWith`, `zipWithAccum` |
+| Record assembly | N validated fields, every error located | [`fields()` / `accumulate()`](../monads/validated_assembly.md) |
 | Repository wrapping | Maybe → Either at boundary | `toEitherPath` |
 | Service chaining | Sequential dependent calls | `via`, `mapError` |
 | Fallback chain | Multiple sources | `recoverWith` |

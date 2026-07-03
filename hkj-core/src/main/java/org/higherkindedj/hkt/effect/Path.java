@@ -634,6 +634,47 @@ public final class Path {
     return new ValidationPath<>(validated, NonEmptyList.semigroup());
   }
 
+  /**
+   * Opens an open-arity accumulating {@link ValidationPath} assembly: build a value from N
+   * independently validated fields, collecting <b>all</b> errors in field-declaration order.
+   * Generic in the error payload {@code X}, carried as {@code NonEmptyList<X>} with {@link
+   * NonEmptyList#semigroup()} fixed for accumulation.
+   *
+   * <pre>{@code
+   * ValidationPath<NonEmptyList<ConfigError>, Settings> settings =
+   *     Path.accumulate()
+   *         .and(parseHost(raw.host()))
+   *         .and(parsePort(raw.port()))
+   *         .apply(Settings::new);
+   * }</pre>
+   *
+   * @return the stateless entry stage
+   * @see #fields()
+   */
+  public static ValidationPathAccum0 accumulate() {
+    return ValidationPathAccum0.instance();
+  }
+
+  /**
+   * Opens a labelled open-arity accumulating {@link ValidationPath} assembly over {@code
+   * NonEmptyList<}{@link org.higherkindedj.hkt.validated.FieldError}{@code >}: every bad field is
+   * reported at once, each error carrying its path, in field-declaration order.
+   *
+   * <pre>{@code
+   * ValidationPath<NonEmptyList<FieldError>, User> user =
+   *     Path.fields()
+   *         .field("name", validateName(dto.name()))
+   *         .field("email", validateEmail(dto.email()))
+   *         .apply(User::new);
+   * }</pre>
+   *
+   * @return the stateless entry stage
+   * @see #accumulate()
+   */
+  public static ValidationPathFields0 fields() {
+    return ValidationPathFields0.instance();
+  }
+
   // ===== IdPath factory methods =====
 
   /**

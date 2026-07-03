@@ -424,5 +424,5 @@ See [Benchmarks & Performance](../benchmarks.md) for full details, comparison be
 
 ---
 
-**Previous:** [Validated](validated_monad.md)
+**Previous:** [Accumulating Assembly](validated_assembly.md)
 **Next:** [Structured Concurrency](vtask_scope.md)

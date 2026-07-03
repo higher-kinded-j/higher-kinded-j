@@ -4,6 +4,7 @@ package org.higherkindedj.example.effect;
 
 import org.higherkindedj.hkt.effect.EitherOrBothPath;
 import org.higherkindedj.hkt.effect.Path;
+import org.higherkindedj.hkt.eitherorboth.EitherOrBoth;
 import org.higherkindedj.hkt.nonemptylist.NonEmptyList;
 
 /**
@@ -26,6 +27,7 @@ public class EitherOrBothPathExample {
 
     sequentialWithWarnings();
     parallelAccumulation();
+    tolerantAssembly();
     recovery();
   }
 
@@ -61,6 +63,37 @@ public class EitherOrBothPathExample {
     System.out.println("result   = " + registration.run());
     // Both([name was trimmed, age defaulted], Ada (30))
     System.out.println();
+  }
+
+  /**
+   * The staged assembly over the core type: lenient parses produce warnings, the config still
+   * assembles ({@code Both}); a fatal {@code Left} would dominate while keeping every warning.
+   */
+  private static void tolerantAssembly() {
+    System.out.println("--- Tolerant assembly: EitherOrBoth.accumulate() ---");
+
+    record Config(int port, int timeout) {}
+
+    EitherOrBoth<NonEmptyList<String>, Config> cfg =
+        EitherOrBoth.accumulate()
+            .and(parseLenient("port", "8O80", 8080)) // typo: warns, falls back
+            .and(parseLenient("timeout", "30", 60)) // parses cleanly
+            .apply(Config::new);
+
+    System.out.println("config = " + cfg);
+    // Both(NonEmptyList[port: could not parse '8O80', using 8080], Config[port=8080, timeout=30])
+    System.out.println();
+  }
+
+  private static EitherOrBoth<NonEmptyList<String>, Integer> parseLenient(
+      String key, String raw, int fallback) {
+    try {
+      return EitherOrBoth.right(Integer.parseInt(raw));
+    } catch (NumberFormatException _) {
+      return EitherOrBoth.both(
+          NonEmptyList.single(key + ": could not parse '" + raw + "', using " + fallback),
+          fallback);
+    }
   }
 
   /** A fatal Left can be recovered at the boundary; a Both is already a success. */
