@@ -10,6 +10,7 @@ import java.util.List;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import javax.annotation.processing.ProcessingEnvironment;
+import javax.lang.model.element.Element;
 import javax.tools.JavaFileObject;
 
 /**
@@ -64,13 +65,20 @@ final class AccumulatorStepGenerator {
 
   private AccumulatorStepGenerator() {}
 
-  /** Generates every family for the requested arity range. */
-  static void generate(int minArity, int maxArity, ProcessingEnvironment env) throws IOException {
+  /**
+   * Generates every family for the requested arity range. The originating element (the annotated
+   * package) is passed to the {@link javax.annotation.processing.Filer} so build tools can track
+   * which input triggered each generated file (incremental compilation support).
+   */
+  static void generate(
+      int minArity, int maxArity, ProcessingEnvironment env, Element originatingElement)
+      throws IOException {
     for (Family family : FAMILIES) {
       for (int arity = minArity; arity <= maxArity; arity++) {
         String className = family.prefix() + arity;
         JavaFileObject file =
-            env.getFiler().createSourceFile(family.packageName() + "." + className);
+            env.getFiler()
+                .createSourceFile(family.packageName() + "." + className, originatingElement);
         try (Writer writer = file.openWriter()) {
           writer.write(generateStage(family, arity, maxArity));
         }

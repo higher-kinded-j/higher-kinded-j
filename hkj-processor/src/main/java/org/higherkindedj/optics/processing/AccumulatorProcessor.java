@@ -9,7 +9,6 @@ import javax.annotation.processing.AbstractProcessor;
 import javax.annotation.processing.Processor;
 import javax.annotation.processing.RoundEnvironment;
 import javax.annotation.processing.SupportedAnnotationTypes;
-import javax.annotation.processing.SupportedSourceVersion;
 import javax.lang.model.SourceVersion;
 import javax.lang.model.element.Element;
 import javax.lang.model.element.ElementKind;
@@ -30,7 +29,6 @@ import org.higherkindedj.optics.processing.util.ExcludeFromJacocoGeneratedReport
  */
 @AutoService(Processor.class)
 @SupportedAnnotationTypes("org.higherkindedj.optics.annotations.GenerateAccumulators")
-@SupportedSourceVersion(SourceVersion.RELEASE_25)
 public class AccumulatorProcessor extends AbstractProcessor {
 
   /** The arity ceiling: the shipped {@code FunctionN} and {@code TupleN} families stop at 12. */
@@ -40,6 +38,11 @@ public class AccumulatorProcessor extends AbstractProcessor {
   public AccumulatorProcessor() {}
 
   private final Set<String> processedPackages = new HashSet<>();
+
+  @Override
+  public SourceVersion getSupportedSourceVersion() {
+    return SourceVersion.latestSupported();
+  }
 
   @Override
   public boolean process(Set<? extends TypeElement> annotations, RoundEnvironment roundEnv) {
@@ -119,7 +122,7 @@ public class AccumulatorProcessor extends AbstractProcessor {
   @ExcludeFromJacocoGeneratedReport
   private void runAccumulatorStepGenerator(int minArity, int maxArity, Element element) {
     try {
-      AccumulatorStepGenerator.generate(minArity, maxArity, processingEnv);
+      AccumulatorStepGenerator.generate(minArity, maxArity, processingEnv, element);
     } catch (Exception e) {
       error("Could not generate accumulator stage classes: " + e.getMessage(), element);
     }
