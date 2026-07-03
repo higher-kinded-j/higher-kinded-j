@@ -140,6 +140,7 @@ There is no factory that produces an empty `NonEmptyList`, and therefore **no `M
 - [Validated](validated_monad.md): the accumulating-error type `NonEmptyList` pairs with
 - [List](list_monad.md): the unconstrained sibling
 - [ValidationPath](../effect/path_validation.md): the fluent validation API
+- [Accumulating Assembly](validated_assembly.md): the `fields()` / `accumulate()` builder this channel was built for
 - [Semigroups and Monoids](../functional/semigroup_and_monoid.md): where `NonEmptyList.semigroup()` fits
 - [Advanced Paths](../effect/advanced_topics.md): the `race` and first-success combinators take `NonEmptyList` for a total, guard-free call
 ~~~

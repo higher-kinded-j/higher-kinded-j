@@ -9,6 +9,7 @@ third outcome: a value *and* warnings.
 - Creating EitherOrBothPath instances, including the `rightNel` / `leftNel` / `bothNel` shortcuts
 - Short-circuit sequencing with `via` (Left stops; Both carries warnings forward)
 - Parallel, collect-everything accumulation with `zipWithAccum` / `andAlso`
+- Open-arity tolerant assembly with `EitherOrBoth.accumulate()` / `fields()`
 - Recovering from a fatal `Left` at the boundary
 - Converting to other paths, deciding what happens to warnings
 ~~~
@@ -106,6 +107,20 @@ warning regardless. Choose by intent: sequential dependency → `via`; independe
 ~~~
 
 ---
+
+### Open-arity assembly (`EitherOrBoth.accumulate()`)
+
+For N independent fields, the staged assembly on the core type extends `zipWithAccum` to open arity: warnings accumulate while the value keeps flowing, and the result wraps back into a path with `Path.eitherOrBoth` when railway composition should continue.
+
+```java
+EitherOrBoth<NonEmptyList<String>, Config> cfg =
+    EitherOrBoth.accumulate()
+        .and(parsePortLenient(raw.port()))
+        .and(parseTimeoutLenient(raw.timeout()))
+        .apply(Config::new);
+```
+
+See [Accumulating Assembly](../monads/validated_assembly.md).
 
 ## Recovery
 

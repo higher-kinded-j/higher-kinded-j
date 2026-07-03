@@ -14,6 +14,15 @@ This page documents the evolution of Higher-Kinded-J from its initial release th
 
 ### 0.4.8-SNAPSHOT (Latest)
 
+**Open-arity accumulating assembly: build a record from N validated fields with `fields()` / `accumulate()`**
+
+Assembling a record from N validated fields (a request DTO becomes a domain aggregate; raw config becomes a settings object) previously hit an arity wall (`map2..map5`), full `Kind` ceremony, and flat, unlocated error lists. The new staged builder assembles any arity up to 12 with every error collected in field-declaration order, no `Semigroup` argument, and no `Kind` in sight. Purely additive; `ap`, `zipWithAccum`, and the `mapN` family are unchanged ([#581](https://github.com/higher-kinded-j/higher-kinded-j/issues/581)).
+
+- **Located errors:** `Validated.fields()` fixes the error channel to `NonEmptyList<FieldError>`; `field(label, value)` tags each slot, and nesting a sub-assembly prepends the outer segment (`address.zip`). The new `FieldError` record carries a composable path, and `assertThatFieldError` ships in `hkj-test`.
+- **Generic flavour:** `accumulate()` takes any error payload `X`, carried as `NonEmptyList<X>`, with fields joining via `and(value)`.
+- **One shape, three carriers:** the same entry points on `Validated` (strict), `Path`/`ValidationPath` (railway), and `EitherOrBoth` (tolerant: warnings accumulate while the value keeps flowing). The combination primitive behind the tolerant flavour is the new public `EitherOrBoth.zipWithAccum(other, semigroup, combiner)`, to which `EitherOrBothPath` now delegates.
+- **Generated, not hand-written:** the stage families (`ValidatedFields1..12` and friends) are produced by the annotation processor via the new package-level `@GenerateAccumulators`, following the `@GenerateForComprehensions` machinery; only the entry stages and `FieldError` are hand-written. See [Accumulating Assembly](monads/validated_assembly.md).
+
 **`NonEmptyList`: a list that is never empty, and the streamlined validation error channel**
 
 `Validated`/`ValidationPath` accumulate errors, but the channel users were steered toward was a plain `List<Error>`: a type that permits the impossible empty case (an *invalid* result always has at least one error), forces a `Semigroups.list()` argument at every call, and leaves `get(0)` partial. New `NonEmptyList<A>` encodes "at least one element" in the type, so `head`/`last`/`reduce`/`min`/`max` are **total** (no `Optional`, never throw). It is the canonical companion to `Validated`, mirroring Cats' `NonEmptyList`/`ValidatedNel`. Purely additive; the existing `Semigroups.list()` channel is unchanged ([#549](https://github.com/higher-kinded-j/higher-kinded-j/issues/549)).

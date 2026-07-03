@@ -47,6 +47,7 @@ You want chaining, short-circuiting, and a clear extraction point.
 | Failure carries a typed domain error you control | [`EitherPath`](effect/path_either.md) |
 | Failure comes from code that throws exceptions | [`TryPath`](effect/path_try.md) |
 | You want **all** validation errors, not just the first | [`ValidationPath`](effect/path_validation.md) |
+| You are assembling a record from validated fields and want every error, located | [Accumulating Assembly](monads/validated_assembly.md) |
 
 If you are not sure between `EitherPath` and `TryPath`, ask: *would I want to
 unit-test the error branch?* If yes, `EitherPath`. If the error is genuinely
@@ -245,6 +246,7 @@ If none of the above fits, you are in one of these situations:
 | Typed domain errors | [`EitherPath`](effect/path_either.md) |
 | Wrapping throwing code | [`TryPath`](effect/path_try.md) |
 | Accumulating validation errors | [`ValidationPath`](effect/path_validation.md) |
+| Assembling a record from validated fields | [Accumulating Assembly](monads/validated_assembly.md) |
 | Deferred side effect | [`IOPath`](effect/path_io.md) |
 | Async on virtual threads | [`VTaskPath`](effect/path_vtask.md) |
 | Lazy streaming | [`VStreamPath`](effect/path_vstream.md) |

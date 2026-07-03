@@ -172,6 +172,22 @@ Validated<List<String>, String> finalResult = VALIDATED.narrow(result);
 ```
 
 `map3` uses `ap` under the hood — it lifts the combining function into the `Validated` context and applies each argument, accumulating errors via the `Semigroup`. The `mapN` family (`map2`, `map3`, `map4`) is the recommended way to combine independent validations without writing curried functions manually.
+
+~~~admonish tip title="The ergonomic front door: the assembly builder"
+For the everyday case (assembling a record from N validated fields) the staged builder on `Validated` itself is the recommended entry point: open arity up to 12, no `Semigroup` argument, no `Kind`, and located errors.
+
+```java
+Validated<NonEmptyList<FieldError>, User> user =
+    Validated.fields()
+        .field("name", parseName(dto.name()))
+        .field("email", parseEmail(dto.email()))
+        .field("age", parseAge(dto.age()))
+        .apply(User::new);
+// Invalid(NonEmptyList[email: not an email address, age: not a number])
+```
+
+The `mapN` family remains the right tool inside `Kind`-generic code. See [Accumulating Assembly](validated_assembly.md) for the full tour.
+~~~
 ~~~
 
 ~~~admonish example title="Step 4: Recover from Errors"
@@ -313,4 +329,4 @@ See [Benchmarks & Performance](../benchmarks.md) for full details.
 ---
 
 **Previous:** [Try](try_monad.md)
-**Next:** [VTask](vtask_monad.md)
+**Next:** [Accumulating Assembly](validated_assembly.md)

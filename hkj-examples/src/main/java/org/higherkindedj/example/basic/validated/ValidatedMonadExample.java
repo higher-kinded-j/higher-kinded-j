@@ -13,6 +13,8 @@ import org.higherkindedj.hkt.MonadError;
 import org.higherkindedj.hkt.Semigroup;
 import org.higherkindedj.hkt.Semigroups;
 import org.higherkindedj.hkt.instances.Instances;
+import org.higherkindedj.hkt.nonemptylist.NonEmptyList;
+import org.higherkindedj.hkt.validated.FieldError;
 import org.higherkindedj.hkt.validated.Validated;
 import org.higherkindedj.hkt.validated.ValidatedKind;
 import org.higherkindedj.hkt.validated.ValidatedMonad;
@@ -37,6 +39,27 @@ public class ValidatedMonadExample {
   public static void main(String[] args) {
     System.out.println("--- ValidatedMonad Usage Example (with MonadError) ---");
     validatedMonadOperations();
+    accumulatingAssemblyFrontDoor();
+  }
+
+  /**
+   * The mapN family above is the HKT-generic form. For the everyday case of assembling a record
+   * from N validated fields, the staged builder is the ergonomic front door: no Semigroup argument,
+   * no Kind, open arity, and located errors. See ValidatedAssemblyExample for the full tour.
+   */
+  private static void accumulatingAssemblyFrontDoor() {
+    System.out.println("\n--- The assembly front door: Validated.fields() ---");
+
+    record User(String name, Integer age) {}
+
+    Validated<NonEmptyList<FieldError>, User> user =
+        Validated.fields()
+            .field("name", Validated.<FieldError, String>validNel("Ada"))
+            .field("age", Validated.<FieldError, Integer>invalidNel(FieldError.of("not a number")))
+            .apply(User::new);
+
+    System.out.println("fields() assembly: " + user);
+    // Invalid(NonEmptyList[age: not a number])
   }
 
   private static void validatedMonadOperations() {

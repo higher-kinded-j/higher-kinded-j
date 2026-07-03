@@ -8,6 +8,8 @@ import org.higherkindedj.hkt.effect.Path;
 import org.higherkindedj.hkt.effect.ValidationPath;
 import org.higherkindedj.hkt.maybe.Maybe;
 import org.higherkindedj.hkt.nonemptylist.NonEmptyList;
+import org.higherkindedj.hkt.validated.FieldError;
+import org.higherkindedj.hkt.validated.Validated;
 
 /**
  * Demonstrates {@link NonEmptyList} — a list guaranteed to contain at least one element.
@@ -93,6 +95,18 @@ public class NonEmptyListExample {
 
     ValidationPath<NonEmptyList<String>, Integer> ok = Path.validNel(42);
     System.out.println("valid              = " + ok.run());
+
+    // The NonEmptyList channel is what the staged assembly builds on: N validated fields,
+    // every error collected, no Semigroup argument. See ValidatedAssemblyExample.
+    record Signup(String name, String email) {}
+    Validated<NonEmptyList<FieldError>, Signup> signup =
+        Validated.fields()
+            .field("name", Validated.<FieldError, String>validNel("Ada"))
+            .field(
+                "email", Validated.<FieldError, String>invalidNel(FieldError.of("not an address")))
+            .apply(Signup::new);
+    System.out.println("fields() assembly  = " + signup);
+    // Invalid(NonEmptyList[email: not an address])
     System.out.println();
   }
 }

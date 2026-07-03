@@ -6,6 +6,7 @@
 ~~~admonish info title="What You'll Learn"
 - Creating ValidationPath instances
 - Error accumulation with zipWithAccum
+- Open-arity assembly with `Path.fields()` / `Path.accumulate()`
 - Semigroup for combining errors
 - Extraction patterns
 - When to use (and when not to)
@@ -95,6 +96,22 @@ ValidationPath<List<String>, User> shortCircuit =
 ```
 
 ---
+
+## Open-Arity Assembly: `fields()` and `accumulate()`
+
+`zipWithAccum` is binary. For assembling a value from N independent validations, `Path.fields()` and `Path.accumulate()` open the staged assembly builder: open arity up to 12, located errors, declaration order, and still a `ValidationPath` at the end.
+
+```java
+ValidationPath<NonEmptyList<FieldError>, User> user =
+    Path.fields()
+        .field("name", validateName(input.name()))
+        .field("email", validateEmail(input.email()))
+        .field("age", validateAge(input.age()))
+        .apply(User::new);
+// Invalid(NonEmptyList[email: not an email address, age: must be positive])
+```
+
+See [Accumulating Assembly](../monads/validated_assembly.md) for the full story, including nesting (`address.zip`) and the generic `accumulate()` flavour.
 
 ## Combining Validations
 
