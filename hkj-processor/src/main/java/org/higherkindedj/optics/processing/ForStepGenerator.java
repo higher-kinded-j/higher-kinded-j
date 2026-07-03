@@ -5,6 +5,7 @@ package org.higherkindedj.optics.processing;
 import java.io.IOException;
 import java.io.Writer;
 import javax.annotation.processing.ProcessingEnvironment;
+import javax.lang.model.element.Element;
 
 /**
  * Generates {@code MonadicStepsN} and {@code FilterableStepsN} as top-level public classes in the
@@ -21,11 +22,12 @@ final class ForStepGenerator {
 
   private ForStepGenerator() {}
 
-  static void generate(int minArity, int maxArity, ProcessingEnvironment processingEnv)
+  static void generate(
+      int minArity, int maxArity, ProcessingEnvironment processingEnv, Element originatingElement)
       throws IOException {
     for (int n = minArity; n <= maxArity; n++) {
-      generateMonadicSteps(n, maxArity, processingEnv);
-      generateFilterableSteps(n, maxArity, processingEnv);
+      generateMonadicSteps(n, maxArity, processingEnv, originatingElement);
+      generateFilterableSteps(n, maxArity, processingEnv, originatingElement);
     }
   }
 
@@ -33,7 +35,8 @@ final class ForStepGenerator {
   // MonadicStepsN
   // ---------------------------------------------------------------------------
 
-  private static void generateMonadicSteps(int n, int maxArity, ProcessingEnvironment processingEnv)
+  private static void generateMonadicSteps(
+      int n, int maxArity, ProcessingEnvironment processingEnv, Element originatingElement)
       throws IOException {
     boolean terminal = (n == maxArity);
     String className = "MonadicSteps" + n;
@@ -190,7 +193,8 @@ final class ForStepGenerator {
 
     sb.append("}\n");
 
-    Writer writer = processingEnv.getFiler().createSourceFile(qualifiedName).openWriter();
+    Writer writer =
+        processingEnv.getFiler().createSourceFile(qualifiedName, originatingElement).openWriter();
     writer.write(sb.toString());
     writer.close();
   }
@@ -200,7 +204,8 @@ final class ForStepGenerator {
   // ---------------------------------------------------------------------------
 
   private static void generateFilterableSteps(
-      int n, int maxArity, ProcessingEnvironment processingEnv) throws IOException {
+      int n, int maxArity, ProcessingEnvironment processingEnv, Element originatingElement)
+      throws IOException {
     boolean terminal = (n == maxArity);
     String className = "FilterableSteps" + n;
     String qualifiedName = PACKAGE + "." + className;
@@ -406,7 +411,8 @@ final class ForStepGenerator {
 
     sb.append("}\n");
 
-    Writer writer = processingEnv.getFiler().createSourceFile(qualifiedName).openWriter();
+    Writer writer =
+        processingEnv.getFiler().createSourceFile(qualifiedName, originatingElement).openWriter();
     writer.write(sb.toString());
     writer.close();
   }

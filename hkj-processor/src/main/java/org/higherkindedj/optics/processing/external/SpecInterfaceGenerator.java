@@ -15,6 +15,7 @@ import java.io.IOException;
 import java.util.List;
 import javax.annotation.processing.Filer;
 import javax.annotation.processing.Messager;
+import javax.lang.model.element.Element;
 import javax.lang.model.element.ExecutableElement;
 import javax.lang.model.element.Modifier;
 import javax.lang.model.element.TypeElement;
@@ -78,8 +79,9 @@ public class SpecInterfaceGenerator {
    *
    * @param analysis the spec interface analysis
    * @param targetPackage the target package for the generated class
+   * @param originatingElement the annotated element that triggered generation
    */
-  public void generate(SpecAnalysis analysis, String targetPackage) {
+  public void generate(SpecAnalysis analysis, String targetPackage, Element originatingElement) {
     TypeElement specInterface = analysis.specInterface();
     String className = deriveGeneratedClassName(specInterface.getSimpleName().toString());
 
@@ -92,7 +94,8 @@ public class SpecInterfaceGenerator {
                 analysis.sourceTypeElement(),
                 specInterface)
             .addModifiers(Modifier.PUBLIC, Modifier.FINAL)
-            .addMethod(MethodSpec.constructorBuilder().addModifiers(Modifier.PRIVATE).build());
+            .addMethod(MethodSpec.constructorBuilder().addModifiers(Modifier.PRIVATE).build())
+            .addOriginatingElement(originatingElement);
 
     // Generate optic methods for abstract methods
     for (OpticMethodInfo opticMethod : analysis.opticMethods()) {

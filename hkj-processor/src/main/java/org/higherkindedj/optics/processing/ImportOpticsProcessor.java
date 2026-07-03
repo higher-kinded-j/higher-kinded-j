@@ -12,7 +12,6 @@ import javax.annotation.processing.AbstractProcessor;
 import javax.annotation.processing.Processor;
 import javax.annotation.processing.RoundEnvironment;
 import javax.annotation.processing.SupportedAnnotationTypes;
-import javax.annotation.processing.SupportedSourceVersion;
 import javax.lang.model.SourceVersion;
 import javax.lang.model.element.AnnotationMirror;
 import javax.lang.model.element.AnnotationValue;
@@ -64,8 +63,12 @@ import org.higherkindedj.optics.processing.external.TypeKindAnalyser;
  */
 @AutoService(Processor.class)
 @SupportedAnnotationTypes("org.higherkindedj.optics.annotations.ImportOptics")
-@SupportedSourceVersion(SourceVersion.RELEASE_25)
 public class ImportOpticsProcessor extends AbstractProcessor {
+
+  @Override
+  public SourceVersion getSupportedSourceVersion() {
+    return SourceVersion.latestSupported();
+  }
 
   /** Creates a new ImportOpticsProcessor. */
   public ImportOpticsProcessor() {}
@@ -159,7 +162,7 @@ public class ImportOpticsProcessor extends AbstractProcessor {
     SpecInterfaceGenerator generator =
         new SpecInterfaceGenerator(processingEnv.getFiler(), processingEnv.getMessager());
 
-    generator.generate(analysisOpt.get(), targetPackage);
+    generator.generate(analysisOpt.get(), targetPackage, specInterface);
     note("Generation complete", specInterface);
   }
 
@@ -208,11 +211,12 @@ public class ImportOpticsProcessor extends AbstractProcessor {
     TypeAnalysis analysis = typeAnalyser.analyseType(typeElement);
 
     switch (analysis.typeKind()) {
-      case RECORD -> lensGenerator.generateForRecord(analysis, targetPackage);
+      case RECORD -> lensGenerator.generateForRecord(analysis, targetPackage, sourceElement);
 
-      case SEALED_INTERFACE -> prismGenerator.generateForSealedInterface(analysis, targetPackage);
+      case SEALED_INTERFACE ->
+          prismGenerator.generateForSealedInterface(analysis, targetPackage, sourceElement);
 
-      case ENUM -> prismGenerator.generateForEnum(analysis, targetPackage);
+      case ENUM -> prismGenerator.generateForEnum(analysis, targetPackage, sourceElement);
 
       case WITHER_CLASS -> {
         if (analysis.hasMutableFields() && !allowMutable) {
@@ -226,7 +230,7 @@ public class ImportOpticsProcessor extends AbstractProcessor {
               sourceElement);
           return;
         }
-        lensGenerator.generateForWitherClass(analysis, targetPackage);
+        lensGenerator.generateForWitherClass(analysis, targetPackage, sourceElement);
       }
 
       case UNSUPPORTED -> {

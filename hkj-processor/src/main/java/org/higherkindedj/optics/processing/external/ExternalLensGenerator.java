@@ -12,6 +12,7 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 import javax.annotation.processing.Filer;
 import javax.annotation.processing.Messager;
+import javax.lang.model.element.Element;
 import javax.lang.model.element.Modifier;
 import javax.lang.model.element.RecordComponentElement;
 import javax.lang.model.element.TypeElement;
@@ -66,8 +67,10 @@ public class ExternalLensGenerator {
    *
    * @param analysis the type analysis for the record
    * @param targetPackage the target package for the generated class
+   * @param originatingElement the annotated element that triggered generation
    */
-  public void generateForRecord(TypeAnalysis analysis, String targetPackage) {
+  public void generateForRecord(
+      TypeAnalysis analysis, String targetPackage, Element originatingElement) {
     TypeElement recordElement = analysis.typeElement();
     String recordName = recordElement.getSimpleName().toString();
     String lensesClassName = recordName + "Lenses";
@@ -80,7 +83,8 @@ public class ExternalLensGenerator {
             .addJavadoc(
                 "Generated optics for {@link $T}. Do not edit.", ClassName.get(recordElement))
             .addModifiers(Modifier.PUBLIC, Modifier.FINAL)
-            .addMethod(MethodSpec.constructorBuilder().addModifiers(Modifier.PRIVATE).build());
+            .addMethod(MethodSpec.constructorBuilder().addModifiers(Modifier.PRIVATE).build())
+            .addOriginatingElement(originatingElement);
 
     List<? extends RecordComponentElement> components = recordElement.getRecordComponents();
 
@@ -114,8 +118,10 @@ public class ExternalLensGenerator {
    *
    * @param analysis the type analysis for the class
    * @param targetPackage the target package for the generated class
+   * @param originatingElement the annotated element that triggered generation
    */
-  public void generateForWitherClass(TypeAnalysis analysis, String targetPackage) {
+  public void generateForWitherClass(
+      TypeAnalysis analysis, String targetPackage, Element originatingElement) {
     TypeElement classElement = analysis.typeElement();
     String className = classElement.getSimpleName().toString();
     String lensesClassName = className + "Lenses";
@@ -128,7 +134,8 @@ public class ExternalLensGenerator {
             .addJavadoc(
                 "Generated optics for {@link $T}. Do not edit.", ClassName.get(classElement))
             .addModifiers(Modifier.PUBLIC, Modifier.FINAL)
-            .addMethod(MethodSpec.constructorBuilder().addModifiers(Modifier.PRIVATE).build());
+            .addMethod(MethodSpec.constructorBuilder().addModifiers(Modifier.PRIVATE).build())
+            .addOriginatingElement(originatingElement);
 
     // Generate lens methods using wither pattern
     for (int i = 0; i < analysis.fields().size(); i++) {

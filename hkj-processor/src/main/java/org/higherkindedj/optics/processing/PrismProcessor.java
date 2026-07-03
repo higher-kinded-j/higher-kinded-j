@@ -17,7 +17,6 @@ import javax.annotation.processing.AbstractProcessor;
 import javax.annotation.processing.Processor;
 import javax.annotation.processing.RoundEnvironment;
 import javax.annotation.processing.SupportedAnnotationTypes;
-import javax.annotation.processing.SupportedSourceVersion;
 import javax.lang.model.SourceVersion;
 import javax.lang.model.element.Element;
 import javax.lang.model.element.ElementKind;
@@ -41,8 +40,12 @@ import org.higherkindedj.optics.processing.util.ProcessorUtils;
  */
 @AutoService(Processor.class)
 @SupportedAnnotationTypes("org.higherkindedj.optics.annotations.GeneratePrisms")
-@SupportedSourceVersion(SourceVersion.RELEASE_25)
 public class PrismProcessor extends AbstractProcessor {
+
+  @Override
+  public SourceVersion getSupportedSourceVersion() {
+    return SourceVersion.latestSupported();
+  }
 
   /** Creates a new PrismProcessor. */
   public PrismProcessor() {}
@@ -103,6 +106,7 @@ public class PrismProcessor extends AbstractProcessor {
 
     TypeSpec.Builder prismsClassBuilder =
         TypeSpec.classBuilder(prismsClassName)
+            .addOriginatingElement(sumTypeElement)
             // Add the @Generated annotation to the class
             .addAnnotation(generatedAnnotation)
             .addJavadoc(
