@@ -10,9 +10,10 @@ import java.lang.annotation.Target;
 /**
  * Triggers generation of the staged accumulating-assembly builder classes.
  *
- * <p>Apply this annotation to a {@code package-info.java} in the package where the generated
- * classes should be placed. The annotation processor generates six stage families, one class per
- * arity from {@code minArity} to {@code maxArity}:
+ * <p>Apply this annotation to a {@code package-info.java} to trigger generation; the annotated
+ * package only triggers, it does not receive the output. The processor always emits the six stage
+ * families into the fixed carrier packages listed below, one class per arity from {@code minArity}
+ * to {@code maxArity} (the annotation is intended for higher-kinded-j's own build):
  *
  * <ul>
  *   <li>{@code ValidatedAccumN} / {@code ValidatedFieldsN} for {@code Validated} assembly

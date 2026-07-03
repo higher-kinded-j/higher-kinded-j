@@ -10,9 +10,10 @@ import org.higherkindedj.hkt.validated.FieldError;
 import org.higherkindedj.optics.annotations.Generated;
 
 /**
- * Stage 2 of a labelled ({@code FieldError}) accumulating {@code EitherOrBoth} assembly.
+ * Stage 2 of a labelled ({@code FieldError}) tolerant accumulating {@code EitherOrBoth} assembly.
  *
- * <p>All errors accumulate; they emerge in field-declaration order.
+ * <p>Warnings accumulate ({@code Both}) while the value keeps flowing; any {@code Left}
+ * makes the assembly {@code Left}, still keeping every warning, in field-declaration order.
  */
 @Generated
 public final class EitherOrBothFields2<A, B> {
@@ -24,7 +25,7 @@ public final class EitherOrBothFields2<A, B> {
   }
 
   /**
-   * Adds the next validated field, prepending {@code label} onto each of its errors'
+   * Adds the next validated field, prepending {@code label} onto each of its warnings'
    * paths.
    */
   public <C> EitherOrBothFields3<A, B, C> field(String label, EitherOrBoth<NonEmptyList<FieldError>, C> value) {
@@ -33,7 +34,12 @@ public final class EitherOrBothFields2<A, B> {
     return and(value.mapLeft(errors -> errors.map(err -> err.at(label))));
   }
 
-  /** Adds the next validated field; all errors accumulate. */
+  /**
+   * Adds the next field without attaching a label: for values whose warnings already
+   * carry their paths (for example a pre-labelled sub-assembly that must not be
+   * re-prefixed) or genuinely unattributable warnings. Prefer {@code field(label, value)}
+   * for leaf validators.
+   */
   public <C> EitherOrBothFields3<A, B, C> and(EitherOrBoth<NonEmptyList<FieldError>, C> value) {
     Objects.requireNonNull(value, "value must not be null");
     return new EitherOrBothFields3<>(

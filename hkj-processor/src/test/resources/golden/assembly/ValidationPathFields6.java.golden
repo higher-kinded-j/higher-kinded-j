@@ -34,7 +34,12 @@ public final class ValidationPathFields6<A, B, C, D, E, F> {
         value.run().mapError(errors -> errors.map(err -> err.at(label)))));
   }
 
-  /** Adds the next validated field; all errors accumulate. */
+  /**
+   * Adds the next field without attaching a label: for values whose errors already
+   * carry their paths (for example a pre-labelled sub-assembly that must not be
+   * re-prefixed) or genuinely unattributable errors. Prefer {@code field(label, value)}
+   * for leaf validators.
+   */
   public <G> ValidationPathFields7<A, B, C, D, E, F, G> and(ValidationPath<NonEmptyList<FieldError>, G> value) {
     Objects.requireNonNull(value, "value must not be null");
     return new ValidationPathFields7<>(

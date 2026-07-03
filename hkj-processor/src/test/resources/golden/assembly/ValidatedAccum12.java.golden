@@ -11,6 +11,9 @@ import org.higherkindedj.optics.annotations.Generated;
  * Stage 12 of an accumulating {@code Validated} assembly.
  *
  * <p>All errors accumulate; they emerge in field-declaration order.
+ *
+ * <p>Terminal stage: {@code apply} only. For wider assemblies, nest a sub-record per
+ * group of fields.
  */
 @Generated
 public final class ValidatedAccum12<X, A, B, C, D, E, F, G, H, I, J, K, L> {

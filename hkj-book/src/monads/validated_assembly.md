@@ -19,7 +19,7 @@
 
 ```java
 // The HKT-generic form: capped at map5, and every call passes the Semigroup by hand.
-var validatedMonad = Instances.validated(Semigroups.list());
+ValidatedMonad<List<String>> validatedMonad = Instances.validated(Semigroups.list());
 Kind<ValidatedKind.Witness<List<String>>, User> user =
     validatedMonad.map3(nameKind, emailKind, ageKind, User::new);
 ```
@@ -91,6 +91,11 @@ Validated<NonEmptyList<ConfigError>, Settings> settings =
 
 There is still no `Semigroup` argument: the carrier is fixed to `NonEmptyList`, and accumulation is concatenation.
 
+~~~admonish note title="Two inference notes"
+- **Inline literals need a type witness.** A chained stage receives no target typing, so an inline factory call such as `.field("age", Validated.invalidNel(FieldError.of("bad")))` infers `Object` and the compile error surfaces later, at `apply`. Write `Validated.<FieldError, Integer>invalidNel(...)` for inline literals; values with declared types (the results of leaf validators) need no witness.
+- **Error payloads are invariant.** Leaves typed with a subtype of a sealed error hierarchy (`Validated<NonEmptyList<PortError>, A>`) do not widen automatically to the assembly's payload (`ConfigError`). Widen at the leaf: `parsePort(raw).mapError(nel -> nel.map(e -> (ConfigError) e))`, or have leaf validators return the hierarchy's root type directly.
+~~~
+
 ---
 
 ## One Shape, Three Carriers
@@ -123,7 +128,7 @@ Under the hood every stage transition delegates to the existing accumulation pri
 | You are combining... | Reach for |
 |---|---|
 | N independent fields into a record | `fields()` / `accumulate()` |
-| Two or three values, inline, no labels needed | `zipWithAccum` / `zipWith3Accum` |
+| Two or three values, inline, no labels needed | `zipWithAccum` / `zipWith3Accum` on the Path types, or `EitherOrBoth.zipWithAccum` |
 | Values inside generic `Kind`-polymorphic code | the `Applicative` `mapN` family |
 | Steps where later ones depend on earlier results | `flatMap` / `via` (short-circuiting, by design) |
 

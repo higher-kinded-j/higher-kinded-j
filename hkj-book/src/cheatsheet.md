@@ -61,9 +61,9 @@
 | `.zipWith(other, fn)` | Combine two paths (fail-fast) | All combinable paths |
 | `.zipWith3(b, c, fn)` | Combine three paths (fail-fast) | Most paths |
 | `.zipWithAccum(other, fn)` | Combine, accumulating errors | ValidationPath, EitherOrBothPath |
-| `fields().field(label, v)...apply(Ctor::new)` | Open-arity record assembly, located errors | Validated, Path (ValidationPath), EitherOrBoth |
 | `.zipWith3Accum(b, c, fn)` | Combine three, accumulating errors | ValidationPath, EitherOrBothPath |
 | `.andAlso(other)` | Accumulate errors, keep left value | ValidationPath, EitherOrBothPath |
+| `fields().field(label, v)...apply(Ctor::new)` | Open-arity record assembly, located errors | Validated, Path (ValidationPath), EitherOrBoth |
 
 ### Error Handling
 

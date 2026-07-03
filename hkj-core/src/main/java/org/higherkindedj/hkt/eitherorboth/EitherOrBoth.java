@@ -466,6 +466,14 @@ public sealed interface EitherOrBoth<L, R> extends EitherOrBothKind<L, R>, Eithe
    * org.higherkindedj.hkt.validated.FieldError}{@code >}: each warning carries its path, and
    * nesting composes ({@code "address.zip"}).
    *
+   * <pre>{@code
+   * EitherOrBoth<NonEmptyList<FieldError>, Config> cfg =
+   *     EitherOrBoth.fields()
+   *         .field("port", parsePortLenient(raw.port()))       // Both -> warning at "port"
+   *         .field("timeout", parseTimeoutLenient(raw.timeout()))
+   *         .apply(Config::new);                                // value still flows
+   * }</pre>
+   *
    * @return the stateless entry stage
    * @see #accumulate()
    */

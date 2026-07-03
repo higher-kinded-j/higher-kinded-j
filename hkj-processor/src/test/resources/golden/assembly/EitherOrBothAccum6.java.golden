@@ -9,9 +9,10 @@ import org.higherkindedj.hkt.tuple.Tuple6;
 import org.higherkindedj.optics.annotations.Generated;
 
 /**
- * Stage 6 of an accumulating {@code EitherOrBoth} assembly.
+ * Stage 6 of a tolerant accumulating {@code EitherOrBoth} assembly.
  *
- * <p>All errors accumulate; they emerge in field-declaration order.
+ * <p>Warnings accumulate ({@code Both}) while the value keeps flowing; any {@code Left}
+ * makes the assembly {@code Left}, still keeping every warning, in field-declaration order.
  */
 @Generated
 public final class EitherOrBothAccum6<X, A, B, C, D, E, F> {
@@ -22,7 +23,7 @@ public final class EitherOrBothAccum6<X, A, B, C, D, E, F> {
     this.accumulated = accumulated;
   }
 
-  /** Adds the next validated field; all errors accumulate. */
+  /** Adds the next field; warnings accumulate while the value keeps flowing. */
   public <G> EitherOrBothAccum7<X, A, B, C, D, E, F, G> and(EitherOrBoth<NonEmptyList<X>, G> value) {
     Objects.requireNonNull(value, "value must not be null");
     return new EitherOrBothAccum7<>(

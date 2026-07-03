@@ -418,6 +418,10 @@ public sealed interface Validated<E, A> extends ValidatedKind<E, A>, ValidatedKi
    *         .apply(Settings::new);
    * }</pre>
    *
+   * <p>Inference note: the first {@code and(...)} fixes the error payload {@code X}, so an inline
+   * factory literal there needs a type witness (for example {@code Validated.<String,
+   * Integer>invalidNel(...)}); values with declared types need none.
+   *
    * @return the stateless entry stage
    * @see #fields()
    */
@@ -441,6 +445,10 @@ public sealed interface Validated<E, A> extends ValidatedKind<E, A>, ValidatedKi
    *
    * <p>Nesting composes: {@code .field("address", Address.parseFields(dto.address()))} prefixes
    * {@code "address."} onto the inner errors' paths.
+   *
+   * <p>Inference note: an inline factory literal needs a type witness, because a chained stage
+   * receives no target typing (for example {@code Validated.<FieldError, String>invalidNel(...)});
+   * values with declared types, such as the results of leaf validators, need none.
    *
    * @return the stateless entry stage
    * @see #accumulate()

@@ -293,14 +293,15 @@ public class Tutorial12_AccumulatingAssembly {
    *   // The buggy version someone wrote:
    *   Validated.fields()
    *       .field("name", parseName("Ada"))
-   *       .and(parseEmail("oops"))          // compiles; the location is silently lost
+   *       .and(parseEmail("oops"))          // compiles; the label is never attached
    *       .apply(Pair::new);
    *   // renders: "not an address"          — which field was that?
    * </pre>
    *
-   * <p>Rule of thumb: inside {@code fields()}, reach for {@code field(label, value)} unless the
-   * error genuinely has no home. {@code and} is for the {@code accumulate()} flavour, where labels
-   * do not exist.
+   * <p>Rule of thumb: inside {@code fields()}, reach for {@code field(label, value)} for leaf
+   * validators. The unlabelled {@code and(value)} exists for values whose errors already carry
+   * their paths (a pre-labelled sub-assembly that must not be re-prefixed) and for genuinely
+   * unattributable errors — not for leaves.
    *
    * <p>Task: write the corrected assembly so the email error is located.
    *

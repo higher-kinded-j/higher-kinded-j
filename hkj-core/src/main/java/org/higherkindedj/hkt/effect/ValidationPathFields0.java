@@ -48,7 +48,9 @@ public final class ValidationPathFields0 {
   }
 
   /**
-   * Adds the first validated field without a label.
+   * Adds the first field without attaching a label: for values whose errors already carry their
+   * paths (for example a pre-labelled sub-assembly that must not be re-prefixed) or genuinely
+   * unattributable errors. Prefer {@code field(label, value)} for leaf validators.
    *
    * @param value the validation path for the field; must not be null
    * @param <A> the field type

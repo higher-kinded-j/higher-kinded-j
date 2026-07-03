@@ -223,13 +223,13 @@ public class Tutorial12_AccumulatingAssembly_Solution {
    * location costs one string and pays for itself the first time a user has to find the bad input.
    * The unlabelled {@code and} exists for the rare genuinely-unattributable error.
    *
-   * <p>Alternative: none needed — if labels never matter for the use case, that is what {@code
-   * accumulate()} is for.
+   * <p>Alternative: {@code and(value)} is legitimate for a value whose errors already carry their
+   * paths (a pre-labelled sub-assembly that must not be re-prefixed) — and if labels never matter
+   * at all, that is what {@code accumulate()} is for.
    *
    * <p>Common wrong attempt: the buggy version in the exercise text. {@code and(parseEmail(...))}
-   * compiles and accumulates, but the error renders as a bare {@code "not an address"} with an
-   * empty path. Silent label loss is why the diagnostic exists: the types cannot catch it, so the
-   * habit must.
+   * compiles and accumulates, but the label is never attached, so the error renders as a bare
+   * {@code "not an address"} with an empty path. The types cannot catch it, so the habit must.
    */
   @Test
   @DisplayName("Diagnostic: and() drops the location; field() keeps it")
