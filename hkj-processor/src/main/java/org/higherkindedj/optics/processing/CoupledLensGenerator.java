@@ -5,6 +5,7 @@ package org.higherkindedj.optics.processing;
 import java.io.IOException;
 import java.io.Writer;
 import javax.annotation.processing.ProcessingEnvironment;
+import javax.lang.model.element.Element;
 
 /**
  * Generates {@code CoupledLenses}, a utility class holding {@code coupled3} ... {@code coupledN}
@@ -47,7 +48,8 @@ final class CoupledLensGenerator {
 
   private CoupledLensGenerator() {}
 
-  static void generate(int minArity, int maxArity, ProcessingEnvironment processingEnv)
+  static void generate(
+      int minArity, int maxArity, ProcessingEnvironment processingEnv, Element originatingElement)
       throws IOException {
     int effectiveMin = Math.max(minArity, MIN_SUPPORTED_ARITY);
     int effectiveMax = Math.min(maxArity, MAX_SUPPORTED_ARITY);
@@ -101,7 +103,10 @@ final class CoupledLensGenerator {
     sb.append("}\n");
 
     try (Writer writer =
-        processingEnv.getFiler().createSourceFile(PACKAGE + "." + CLASS_NAME).openWriter()) {
+        processingEnv
+            .getFiler()
+            .createSourceFile(PACKAGE + "." + CLASS_NAME, originatingElement)
+            .openWriter()) {
       writer.write(sb.toString());
     }
   }

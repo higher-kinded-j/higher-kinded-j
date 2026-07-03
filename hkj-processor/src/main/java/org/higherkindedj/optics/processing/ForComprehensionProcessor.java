@@ -9,7 +9,6 @@ import javax.annotation.processing.AbstractProcessor;
 import javax.annotation.processing.Processor;
 import javax.annotation.processing.RoundEnvironment;
 import javax.annotation.processing.SupportedAnnotationTypes;
-import javax.annotation.processing.SupportedSourceVersion;
 import javax.lang.model.SourceVersion;
 import javax.lang.model.element.Element;
 import javax.lang.model.element.ElementKind;
@@ -35,8 +34,12 @@ import org.higherkindedj.optics.processing.util.ExcludeFromJacocoGeneratedReport
  */
 @AutoService(Processor.class)
 @SupportedAnnotationTypes("org.higherkindedj.optics.annotations.GenerateForComprehensions")
-@SupportedSourceVersion(SourceVersion.RELEASE_25)
 public class ForComprehensionProcessor extends AbstractProcessor {
+
+  @Override
+  public SourceVersion getSupportedSourceVersion() {
+    return SourceVersion.latestSupported();
+  }
 
   /** Creates a new ForComprehensionProcessor. */
   public ForComprehensionProcessor() {}
@@ -96,7 +99,7 @@ public class ForComprehensionProcessor extends AbstractProcessor {
   @ExcludeFromJacocoGeneratedReport
   private void runTupleGenerator(int minArity, int maxArity, Element element) {
     try {
-      TupleGenerator.generate(minArity, maxArity, processingEnv);
+      TupleGenerator.generate(minArity, maxArity, processingEnv, element);
     } catch (Exception e) {
       error("Could not generate Tuple classes: " + e.getMessage(), element);
     }
@@ -105,7 +108,7 @@ public class ForComprehensionProcessor extends AbstractProcessor {
   @ExcludeFromJacocoGeneratedReport
   private void runForStepGenerator(int minArity, int maxArity, Element element) {
     try {
-      ForStepGenerator.generate(minArity, maxArity, processingEnv);
+      ForStepGenerator.generate(minArity, maxArity, processingEnv, element);
     } catch (Exception e) {
       error("Could not generate For step classes: " + e.getMessage(), element);
     }
@@ -114,7 +117,7 @@ public class ForComprehensionProcessor extends AbstractProcessor {
   @ExcludeFromJacocoGeneratedReport
   private void runForPathStepGenerator(int minArity, int maxArity, Element element) {
     try {
-      ForPathStepGenerator.generate(minArity, maxArity, processingEnv);
+      ForPathStepGenerator.generate(minArity, maxArity, processingEnv, element);
     } catch (Exception e) {
       error("Could not generate ForPath step classes: " + e.getMessage(), element);
     }
@@ -123,7 +126,7 @@ public class ForComprehensionProcessor extends AbstractProcessor {
   @ExcludeFromJacocoGeneratedReport
   private void runCoupledLensGenerator(int minArity, int maxArity, Element element) {
     try {
-      CoupledLensGenerator.generate(minArity, maxArity, processingEnv);
+      CoupledLensGenerator.generate(minArity, maxArity, processingEnv, element);
     } catch (Exception e) {
       error("Could not generate CoupledLenses class: " + e.getMessage(), element);
     }

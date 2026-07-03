@@ -12,7 +12,6 @@ import javax.annotation.processing.AbstractProcessor;
 import javax.annotation.processing.Processor;
 import javax.annotation.processing.RoundEnvironment;
 import javax.annotation.processing.SupportedAnnotationTypes;
-import javax.annotation.processing.SupportedSourceVersion;
 import javax.lang.model.SourceVersion;
 import javax.lang.model.element.Element;
 import javax.lang.model.element.ElementKind;
@@ -28,8 +27,12 @@ import org.higherkindedj.optics.processing.util.ExcludeFromJacocoGeneratedReport
 /** Annotation processor that generates Getter optics for record types. */
 @AutoService(Processor.class)
 @SupportedAnnotationTypes("org.higherkindedj.optics.annotations.GenerateGetters")
-@SupportedSourceVersion(SourceVersion.RELEASE_25)
 public class GetterProcessor extends AbstractProcessor {
+
+  @Override
+  public SourceVersion getSupportedSourceVersion() {
+    return SourceVersion.latestSupported();
+  }
 
   /** Creates a new GetterProcessor. */
   public GetterProcessor() {}
@@ -75,6 +78,7 @@ public class GetterProcessor extends AbstractProcessor {
 
     TypeSpec.Builder gettersClassBuilder =
         TypeSpec.classBuilder(gettersClassName)
+            .addOriginatingElement(recordElement)
             .addAnnotation(generatedAnnotation)
             .addJavadoc(
                 "Generated getters for {@link $T}. Do not edit.", ClassName.get(recordElement))

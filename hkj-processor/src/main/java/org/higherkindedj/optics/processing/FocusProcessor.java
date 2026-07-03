@@ -90,8 +90,12 @@ import org.higherkindedj.optics.processing.util.ProcessorUtils;
  */
 @AutoService(Processor.class)
 @SupportedAnnotationTypes("org.higherkindedj.optics.annotations.GenerateFocus")
-@SupportedSourceVersion(SourceVersion.RELEASE_25)
 public class FocusProcessor extends AbstractProcessor {
+
+  @Override
+  public SourceVersion getSupportedSourceVersion() {
+    return SourceVersion.latestSupported();
+  }
 
   /** Creates a new FocusProcessor. */
   public FocusProcessor() {}
@@ -190,6 +194,7 @@ public class FocusProcessor extends AbstractProcessor {
 
     TypeSpec.Builder focusClassBuilder =
         TypeSpec.classBuilder(focusClassName)
+            .addOriginatingElement(recordElement)
             .addAnnotation(generatedAnnotation)
             .addJavadoc(
                 "Generated Focus DSL paths for {@link $T}.\n\n"

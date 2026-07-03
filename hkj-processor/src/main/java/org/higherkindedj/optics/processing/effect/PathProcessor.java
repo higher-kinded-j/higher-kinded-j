@@ -10,7 +10,6 @@ import javax.annotation.processing.AbstractProcessor;
 import javax.annotation.processing.Processor;
 import javax.annotation.processing.RoundEnvironment;
 import javax.annotation.processing.SupportedAnnotationTypes;
-import javax.annotation.processing.SupportedSourceVersion;
 import javax.lang.model.SourceVersion;
 import javax.lang.model.element.*;
 import javax.lang.model.type.DeclaredType;
@@ -41,8 +40,12 @@ import org.higherkindedj.optics.processing.util.ExcludeFromJacocoGeneratedReport
  */
 @AutoService(Processor.class)
 @SupportedAnnotationTypes("org.higherkindedj.hkt.effect.annotation.GeneratePathBridge")
-@SupportedSourceVersion(SourceVersion.RELEASE_25)
 public class PathProcessor extends AbstractProcessor {
+
+  @Override
+  public SourceVersion getSupportedSourceVersion() {
+    return SourceVersion.latestSupported();
+  }
 
   /** Creates a new PathProcessor. */
   public PathProcessor() {}
@@ -113,7 +116,8 @@ public class PathProcessor extends AbstractProcessor {
             .addAnnotation(GENERATED)
             .addJavadoc(
                 "Generated Path bridge for {@link $T}.\n\n<p>Do not edit.\n", interfaceClassName)
-            .addModifiers(Modifier.PUBLIC, Modifier.FINAL);
+            .addModifiers(Modifier.PUBLIC, Modifier.FINAL)
+            .addOriginatingElement(interfaceElement);
 
     // Add delegate field
     classBuilder.addField(

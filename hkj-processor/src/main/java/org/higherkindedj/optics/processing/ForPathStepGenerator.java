@@ -5,6 +5,7 @@ package org.higherkindedj.optics.processing;
 import java.io.IOException;
 import java.io.Writer;
 import javax.annotation.processing.ProcessingEnvironment;
+import javax.lang.model.element.Element;
 
 /**
  * Generates {@code *PathStepsN} classes for all 10 ForPath effect types.
@@ -245,7 +246,8 @@ final class ForPathStepGenerator {
   // Entry point
   // =========================================================================
 
-  static void generate(int minArity, int maxArity, ProcessingEnvironment processingEnv)
+  static void generate(
+      int minArity, int maxArity, ProcessingEnvironment processingEnv, Element originatingElement)
       throws IOException {
     for (PathTypeDescriptor desc : PATH_TYPES) {
       // Always generate from the next arity after the hand-written max, regardless of minArity.
@@ -253,7 +255,7 @@ final class ForPathStepGenerator {
       int startArity = desc.currentMaxArity + 1;
       for (int n = startArity; n <= maxArity; n++) {
         boolean terminal = (n == maxArity);
-        generatePathSteps(desc, n, terminal, processingEnv);
+        generatePathSteps(desc, n, terminal, processingEnv, originatingElement);
       }
     }
   }
@@ -263,7 +265,11 @@ final class ForPathStepGenerator {
   // =========================================================================
 
   private static void generatePathSteps(
-      PathTypeDescriptor desc, int n, boolean terminal, ProcessingEnvironment processingEnv)
+      PathTypeDescriptor desc,
+      int n,
+      boolean terminal,
+      ProcessingEnvironment processingEnv,
+      Element originatingElement)
       throws IOException {
     String className = desc.stepsPrefix + n;
     String qualifiedName = PACKAGE + "." + className;
@@ -330,7 +336,8 @@ final class ForPathStepGenerator {
 
     sb.append("}\n");
 
-    Writer writer = processingEnv.getFiler().createSourceFile(qualifiedName).openWriter();
+    Writer writer =
+        processingEnv.getFiler().createSourceFile(qualifiedName, originatingElement).openWriter();
     writer.write(sb.toString());
     writer.close();
   }

@@ -5,6 +5,7 @@ package org.higherkindedj.optics.processing;
 import java.io.IOException;
 import java.io.Writer;
 import javax.annotation.processing.ProcessingEnvironment;
+import javax.lang.model.element.Element;
 
 /**
  * Generates {@code TupleN} record classes for extended arities.
@@ -47,14 +48,16 @@ final class TupleGenerator {
 
   private TupleGenerator() {}
 
-  static void generate(int minArity, int maxArity, ProcessingEnvironment processingEnv)
+  static void generate(
+      int minArity, int maxArity, ProcessingEnvironment processingEnv, Element originatingElement)
       throws IOException {
     for (int n = minArity; n <= maxArity; n++) {
-      generateTuple(n, processingEnv);
+      generateTuple(n, processingEnv, originatingElement);
     }
   }
 
-  private static void generateTuple(int n, ProcessingEnvironment processingEnv) throws IOException {
+  private static void generateTuple(
+      int n, ProcessingEnvironment processingEnv, Element originatingElement) throws IOException {
     String className = "Tuple" + n;
     String qualifiedName = PACKAGE + "." + className;
     String constName = className.toUpperCase() + "_CLASS";
@@ -140,7 +143,8 @@ final class TupleGenerator {
 
     sb.append("}\n");
 
-    Writer writer = processingEnv.getFiler().createSourceFile(qualifiedName).openWriter();
+    Writer writer =
+        processingEnv.getFiler().createSourceFile(qualifiedName, originatingElement).openWriter();
     writer.write(sb.toString());
     writer.close();
   }

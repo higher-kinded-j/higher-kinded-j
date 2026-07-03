@@ -12,7 +12,6 @@ import javax.annotation.processing.AbstractProcessor;
 import javax.annotation.processing.Processor;
 import javax.annotation.processing.RoundEnvironment;
 import javax.annotation.processing.SupportedAnnotationTypes;
-import javax.annotation.processing.SupportedSourceVersion;
 import javax.lang.model.SourceVersion;
 import javax.lang.model.element.Element;
 import javax.lang.model.element.ElementKind;
@@ -28,8 +27,12 @@ import org.higherkindedj.optics.processing.util.ExcludeFromJacocoGeneratedReport
 /** Annotation processor that generates Setter optics for record types. */
 @AutoService(Processor.class)
 @SupportedAnnotationTypes("org.higherkindedj.optics.annotations.GenerateSetters")
-@SupportedSourceVersion(SourceVersion.RELEASE_25)
 public class SetterProcessor extends AbstractProcessor {
+
+  @Override
+  public SourceVersion getSupportedSourceVersion() {
+    return SourceVersion.latestSupported();
+  }
 
   /** Creates a new SetterProcessor. */
   public SetterProcessor() {}
@@ -75,6 +78,7 @@ public class SetterProcessor extends AbstractProcessor {
 
     TypeSpec.Builder settersClassBuilder =
         TypeSpec.classBuilder(settersClassName)
+            .addOriginatingElement(recordElement)
             .addAnnotation(generatedAnnotation)
             .addJavadoc(
                 "Generated setters for {@link $T}. Do not edit.", ClassName.get(recordElement))

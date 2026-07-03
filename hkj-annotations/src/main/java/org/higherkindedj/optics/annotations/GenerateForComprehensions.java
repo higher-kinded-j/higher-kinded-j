@@ -10,8 +10,10 @@ import java.lang.annotation.Target;
 /**
  * Triggers generation of extended-arity for-comprehension support classes.
  *
- * <p>Apply this annotation to a {@code package-info.java} in the package where the generated
- * classes should be placed. The annotation processor will generate:
+ * <p>Apply this annotation to a {@code package-info.java} to trigger generation; the annotated
+ * package only triggers, it does not receive the output (the generators emit into their fixed
+ * target packages, and the annotation is intended for higher-kinded-j's own build). The annotation
+ * processor will generate:
  *
  * <ul>
  *   <li>{@code TupleN} records from {@code minArity} to {@code maxArity}

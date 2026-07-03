@@ -11,7 +11,6 @@ import javax.annotation.processing.AbstractProcessor;
 import javax.annotation.processing.Processor;
 import javax.annotation.processing.RoundEnvironment;
 import javax.annotation.processing.SupportedAnnotationTypes;
-import javax.annotation.processing.SupportedSourceVersion;
 import javax.lang.model.SourceVersion;
 import javax.lang.model.element.Element;
 import javax.lang.model.element.ElementKind;
@@ -31,8 +30,12 @@ import org.higherkindedj.optics.processing.util.ExcludeFromJacocoGeneratedReport
 /** Annotation processor that generates Fold optics for record types. */
 @AutoService(Processor.class)
 @SupportedAnnotationTypes("org.higherkindedj.optics.annotations.GenerateFolds")
-@SupportedSourceVersion(SourceVersion.RELEASE_25)
 public class FoldProcessor extends AbstractProcessor {
+
+  @Override
+  public SourceVersion getSupportedSourceVersion() {
+    return SourceVersion.latestSupported();
+  }
 
   /** Creates a new FoldProcessor. */
   public FoldProcessor() {}
@@ -78,6 +81,7 @@ public class FoldProcessor extends AbstractProcessor {
 
     TypeSpec.Builder foldsClassBuilder =
         TypeSpec.classBuilder(foldsClassName)
+            .addOriginatingElement(recordElement)
             .addAnnotation(generatedAnnotation)
             .addJavadoc(
                 "Generated optics for {@link $T}. Do not edit.", ClassName.get(recordElement))

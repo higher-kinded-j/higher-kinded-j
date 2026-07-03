@@ -14,7 +14,6 @@ import javax.annotation.processing.AbstractProcessor;
 import javax.annotation.processing.Processor;
 import javax.annotation.processing.RoundEnvironment;
 import javax.annotation.processing.SupportedAnnotationTypes;
-import javax.annotation.processing.SupportedSourceVersion;
 import javax.lang.model.SourceVersion;
 import javax.lang.model.element.*;
 import javax.lang.model.type.MirroredTypeException;
@@ -46,8 +45,12 @@ import org.higherkindedj.optics.processing.util.ExcludeFromJacocoGeneratedReport
   "org.higherkindedj.hkt.effect.annotation.ComposeEffects",
   "org.higherkindedj.hkt.effect.annotation.Handles"
 })
-@SupportedSourceVersion(SourceVersion.RELEASE_25)
 public class ComposeEffectsProcessor extends AbstractProcessor {
+
+  @Override
+  public SourceVersion getSupportedSourceVersion() {
+    return SourceVersion.latestSupported();
+  }
 
   /** Creates a new ComposeEffectsProcessor. */
   public ComposeEffectsProcessor() {}
@@ -173,7 +176,8 @@ public class ComposeEffectsProcessor extends AbstractProcessor {
                     .addMember("value", "{$S, $S}", "unchecked", "rawtypes")
                     .build()) // generated dispatch code performs witness-erased casts
             .addModifiers(Modifier.PUBLIC, Modifier.FINAL)
-            .addMethod(MethodSpec.constructorBuilder().addModifiers(Modifier.PRIVATE).build());
+            .addMethod(MethodSpec.constructorBuilder().addModifiers(Modifier.PRIVATE).build())
+            .addOriginatingElement(source);
 
     // Generate inject factory methods for each effect
     // For 2 effects: injectLeft() and injectRight()

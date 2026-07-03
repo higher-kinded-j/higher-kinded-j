@@ -7,6 +7,7 @@ import java.io.IOException;
 import java.util.Optional;
 import javax.annotation.processing.Filer;
 import javax.annotation.processing.Messager;
+import javax.lang.model.element.Element;
 import javax.lang.model.element.Modifier;
 import javax.lang.model.element.TypeElement;
 import javax.tools.Diagnostic;
@@ -44,8 +45,10 @@ public class ExternalPrismGenerator {
    *
    * @param analysis the type analysis for the sealed interface
    * @param targetPackage the target package for the generated class
+   * @param originatingElement the annotated element that triggered generation
    */
-  public void generateForSealedInterface(TypeAnalysis analysis, String targetPackage) {
+  public void generateForSealedInterface(
+      TypeAnalysis analysis, String targetPackage, Element originatingElement) {
     TypeElement sealedInterface = analysis.typeElement();
     String interfaceName = sealedInterface.getSimpleName().toString();
     String prismsClassName = interfaceName + "Prisms";
@@ -58,7 +61,8 @@ public class ExternalPrismGenerator {
             .addJavadoc(
                 "Generated optics for {@link $T}. Do not edit.", ClassName.get(sealedInterface))
             .addModifiers(Modifier.PUBLIC, Modifier.FINAL)
-            .addMethod(MethodSpec.constructorBuilder().addModifiers(Modifier.PRIVATE).build());
+            .addMethod(MethodSpec.constructorBuilder().addModifiers(Modifier.PRIVATE).build())
+            .addOriginatingElement(originatingElement);
 
     // Generate prism methods for each permitted subtype
     for (TypeElement subtype : analysis.permittedSubtypes()) {
@@ -73,8 +77,10 @@ public class ExternalPrismGenerator {
    *
    * @param analysis the type analysis for the enum
    * @param targetPackage the target package for the generated class
+   * @param originatingElement the annotated element that triggered generation
    */
-  public void generateForEnum(TypeAnalysis analysis, String targetPackage) {
+  public void generateForEnum(
+      TypeAnalysis analysis, String targetPackage, Element originatingElement) {
     TypeElement enumElement = analysis.typeElement();
     String enumName = enumElement.getSimpleName().toString();
     String prismsClassName = enumName + "Prisms";
@@ -86,7 +92,8 @@ public class ExternalPrismGenerator {
             .addAnnotation(GENERATED_ANNOTATION)
             .addJavadoc("Generated optics for {@link $T}. Do not edit.", ClassName.get(enumElement))
             .addModifiers(Modifier.PUBLIC, Modifier.FINAL)
-            .addMethod(MethodSpec.constructorBuilder().addModifiers(Modifier.PRIVATE).build());
+            .addMethod(MethodSpec.constructorBuilder().addModifiers(Modifier.PRIVATE).build())
+            .addOriginatingElement(originatingElement);
 
     // Generate prism methods for each enum constant
     for (String constantName : analysis.enumConstants()) {

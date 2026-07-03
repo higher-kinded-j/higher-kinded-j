@@ -15,7 +15,6 @@ import javax.annotation.processing.AbstractProcessor;
 import javax.annotation.processing.Processor;
 import javax.annotation.processing.RoundEnvironment;
 import javax.annotation.processing.SupportedAnnotationTypes;
-import javax.annotation.processing.SupportedSourceVersion;
 import javax.lang.model.SourceVersion;
 import javax.lang.model.element.*;
 import javax.lang.model.type.DeclaredType;
@@ -31,8 +30,12 @@ import org.higherkindedj.optics.processing.util.ExcludeFromJacocoGeneratedReport
  */
 @AutoService(Processor.class)
 @SupportedAnnotationTypes("org.higherkindedj.optics.annotations.GenerateIsos")
-@SupportedSourceVersion(SourceVersion.RELEASE_25)
 public final class IsoProcessor extends AbstractProcessor {
+
+  @Override
+  public SourceVersion getSupportedSourceVersion() {
+    return SourceVersion.latestSupported();
+  }
 
   /** Creates a new IsoProcessor. */
   public IsoProcessor() {}
@@ -100,6 +103,7 @@ public final class IsoProcessor extends AbstractProcessor {
 
     final TypeSpec isoContainer =
         TypeSpec.classBuilder(generatedClassName)
+            .addOriginatingElement(method)
             // Add the @Generated annotation to the class
             .addAnnotation(generatedAnnotation)
             .addModifiers(PUBLIC, FINAL)

@@ -10,7 +10,6 @@ import javax.annotation.processing.AbstractProcessor;
 import javax.annotation.processing.Processor;
 import javax.annotation.processing.RoundEnvironment;
 import javax.annotation.processing.SupportedAnnotationTypes;
-import javax.annotation.processing.SupportedSourceVersion;
 import javax.lang.model.SourceVersion;
 import javax.lang.model.element.*;
 import javax.lang.model.type.MirroredTypeException;
@@ -41,8 +40,12 @@ import org.higherkindedj.optics.processing.util.ExcludeFromJacocoGeneratedReport
  */
 @AutoService(Processor.class)
 @SupportedAnnotationTypes("org.higherkindedj.hkt.effect.annotation.PathSource")
-@SupportedSourceVersion(SourceVersion.RELEASE_25)
 public class PathSourceProcessor extends AbstractProcessor {
+
+  @Override
+  public SourceVersion getSupportedSourceVersion() {
+    return SourceVersion.latestSupported();
+  }
 
   /** Creates a new PathSourceProcessor. */
   public PathSourceProcessor() {}
@@ -134,7 +137,8 @@ public class PathSourceProcessor extends AbstractProcessor {
                 sourceClassName,
                 sourceName)
             .addModifiers(Modifier.PUBLIC, Modifier.FINAL)
-            .addTypeVariable(typeA);
+            .addTypeVariable(typeA)
+            .addOriginatingElement(sourceElement);
 
     // Add the appropriate interface implementations based on capability
     List<TypeName> interfaces = determineInterfaces(capability, hasErrorType, errorType, typeA);
