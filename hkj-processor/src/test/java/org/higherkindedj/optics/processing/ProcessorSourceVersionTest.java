@@ -36,6 +36,7 @@ class ProcessorSourceVersionTest {
         new ImportOpticsProcessor(),
         new ForComprehensionProcessor(),
         new AccumulatorProcessor(),
+        new AssemblyProcessor(),
         new PathProcessor(),
         new PathSourceProcessor(),
         new EffectAlgebraProcessor(),

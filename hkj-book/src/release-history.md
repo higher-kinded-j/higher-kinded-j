@@ -14,6 +14,10 @@ This page documents the evolution of Higher-Kinded-J from its initial release th
 
 ### 0.4.8-SNAPSHOT (Latest)
 
+**`@GenerateAssembly`: per-record validated-assembly companions**
+
+The accumulating assembly builder gains its codegen layer: annotate a record and the processor generates a same-package companion (`UserAssembly.fields().name(v).email(v).age(v).assemble()`) with one named, order-enforcing method per component. Labels come from the component names, the terminal `assemble()` invokes the canonical constructor, and the merge is a curried `Validated.ap` chain with `NonEmptyList.semigroup()`, so arity is exact with **no ceiling** and errors emerge in component-declaration order. A component typed as another annotated record accepts its sub-companion's result directly (`address.zip`). First slice of the record mapper feature ([#586](https://github.com/higher-kinded-j/higher-kinded-j/issues/586)). See [Accumulating Assembly](monads/validated_assembly.md).
+
 **Open-arity accumulating assembly: build a record from N validated fields with `fields()` / `accumulate()`**
 
 Assembling a record from N validated fields (a request DTO becomes a domain aggregate; raw config becomes a settings object) previously hit an arity wall (`map2..map5`), full `Kind` ceremony, and flat, unlocated error lists. The new staged builder assembles any arity up to 12 with every error collected in field-declaration order, no `Semigroup` argument, and no `Kind` in sight. Purely additive; `ap`, `zipWithAccum`, and the `mapN` family are unchanged ([#581](https://github.com/higher-kinded-j/higher-kinded-j/issues/581)).
@@ -22,6 +26,10 @@ Assembling a record from N validated fields (a request DTO becomes a domain aggr
 - **Generic flavour:** `accumulate()` takes any error payload `X`, carried as `NonEmptyList<X>`, with fields joining via `and(value)`.
 - **One shape, three carriers:** the same entry points on `Validated` (strict), `Path`/`ValidationPath` (railway), and `EitherOrBoth` (tolerant: warnings accumulate while the value keeps flowing). The combination primitive behind the tolerant flavour is the new public `EitherOrBoth.zipWithAccum(other, semigroup, combiner)`, to which `EitherOrBothPath` now delegates.
 - **Generated, not hand-written:** the stage families (`ValidatedFields1..12` and friends) are produced by the annotation processor via the new package-level `@GenerateAccumulators`, following the `@GenerateForComprehensions` machinery; only the entry stages and `FieldError` are hand-written. See [Accumulating Assembly](monads/validated_assembly.md).
+
+**Internal: annotation-processor hygiene, repo-wide**
+
+Every processor now reports `SourceVersion.latestSupported()` instead of a hardcoded release (no compiler warnings on newer JDKs), and every generated file carries its originating element through the `Filer`, enabling correct incremental annotation processing in Gradle: builds recompile only what the changed inputs actually produced. Generated output is byte-identical ([#588](https://github.com/higher-kinded-j/higher-kinded-j/issues/588)).
 
 **`NonEmptyList`: a list that is never empty, and the streamlined validation error channel**
 
