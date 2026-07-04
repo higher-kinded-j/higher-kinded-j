@@ -123,11 +123,32 @@ Under the hood every stage transition delegates to the existing accumulation pri
 
 ---
 
+## Generating the Companion: `@GenerateAssembly`
+
+For records you own, the annotation processor generates a per-record companion that removes the three remaining failure modes of the hand-written chain: labels come from the component names (typo-proof, rename-safe), field order cannot be wrong (named, order-enforcing stage methods), and there is no arity ceiling (the generator emits exact arity, even past 12).
+
+```java
+@GenerateAssembly
+record User(String name, String email, int age) {}
+
+Validated<NonEmptyList<FieldError>, User> user =
+    UserAssembly.fields()
+        .name(parseName(dto.name()))      // label "name" attached automatically
+        .email(parseEmail(dto.email()))
+        .age(parseAge(dto.age()))
+        .assemble();                       // canonical constructor baked in
+```
+
+A component whose type is itself annotated accepts its sub-companion's result directly, and the outer component name prefixes the inner paths (`address.zip`). The companion lives in the record's package, named `<Record>Assembly`; for a nested record the enclosing simple names are joined (`Outer.Inner` gives `OuterInnerAssembly`). Under the hood the companion merges through the same `Validated.ap` / `NonEmptyList.semigroup()` primitives as the builder, so the two agree on every input. Generic records are not supported; use the hand-written `fields()` builder for records you cannot annotate.
+
+---
+
 ## Choosing the Right Tool
 
 | You are combining... | Reach for |
 |---|---|
 | N independent fields into a record | `fields()` / `accumulate()` |
+| A record you own, assembled in many places | [`@GenerateAssembly`](#generating-the-companion-generateassembly) |
 | Two or three values, inline, no labels needed | `zipWithAccum` / `zipWith3Accum` on the Path types, or `EitherOrBoth.zipWithAccum` |
 | Values inside generic `Kind`-polymorphic code | the `Applicative` `mapN` family |
 | Steps where later ones depend on earlier results | `flatMap` / `via` (short-circuiting, by design) |

@@ -1,0 +1,114 @@
+package com.example;
+
+import java.lang.Integer;
+import java.lang.String;
+import java.util.Objects;
+import org.higherkindedj.hkt.nonemptylist.NonEmptyList;
+import org.higherkindedj.hkt.validated.FieldError;
+import org.higherkindedj.hkt.validated.Validated;
+import org.higherkindedj.optics.annotations.Generated;
+
+/**
+ * Validated-assembly companion for {@link User}: one named method per component, in
+ * declaration order; labels come from the component names; every error is
+ * collected, located, and emerges in declaration order.
+ */
+@Generated
+public final class UserAssembly {
+  private UserAssembly() {
+  }
+
+  /**
+   * Opens the assembly at the first component.
+   */
+  public static Stage0 fields() {
+    return Stage0.INSTANCE;
+  }
+
+  /**
+   * Stage 0 of 3: expects {@code name} next.
+   */
+  public static final class Stage0 {
+    private static final Stage0 INSTANCE = new Stage0();
+
+    private Stage0() {
+    }
+
+    /**
+     * Supplies {@code name}; its errors are labelled {@code "name"}.
+     */
+    public Stage1 name(Validated<NonEmptyList<FieldError>, String> value) {
+      Objects.requireNonNull(value, "value must not be null");
+      return new Stage1(value.mapError(errors -> errors.map(err -> err.at("name"))));
+    }
+  }
+
+  /**
+   * Stage 1 of 3: expects {@code email} next.
+   */
+  public static final class Stage1 {
+    private final Validated<NonEmptyList<FieldError>, String> name;
+
+    private Stage1(Validated<NonEmptyList<FieldError>, String> name) {
+      this.name = name;
+    }
+
+    /**
+     * Supplies {@code email}; its errors are labelled {@code "email"}.
+     */
+    public Stage2 email(Validated<NonEmptyList<FieldError>, String> value) {
+      Objects.requireNonNull(value, "value must not be null");
+      return new Stage2(this.name, value.mapError(errors -> errors.map(err -> err.at("email"))));
+    }
+  }
+
+  /**
+   * Stage 2 of 3: expects {@code age} next.
+   */
+  public static final class Stage2 {
+    private final Validated<NonEmptyList<FieldError>, String> name;
+
+    private final Validated<NonEmptyList<FieldError>, String> email;
+
+    private Stage2(Validated<NonEmptyList<FieldError>, String> name,
+        Validated<NonEmptyList<FieldError>, String> email) {
+      this.name = name;
+      this.email = email;
+    }
+
+    /**
+     * Supplies {@code age}; its errors are labelled {@code "age"}.
+     */
+    public Stage3 age(Validated<NonEmptyList<FieldError>, Integer> value) {
+      Objects.requireNonNull(value, "value must not be null");
+      return new Stage3(this.name, this.email, value.mapError(errors -> errors.map(err -> err.at("age"))));
+    }
+  }
+
+  /**
+   * Terminal stage: every component supplied; {@code assemble()} only.
+   */
+  public static final class Stage3 {
+    private final Validated<NonEmptyList<FieldError>, String> name;
+
+    private final Validated<NonEmptyList<FieldError>, String> email;
+
+    private final Validated<NonEmptyList<FieldError>, Integer> age;
+
+    private Stage3(Validated<NonEmptyList<FieldError>, String> name,
+        Validated<NonEmptyList<FieldError>, String> email,
+        Validated<NonEmptyList<FieldError>, Integer> age) {
+      this.name = name;
+      this.email = email;
+      this.age = age;
+    }
+
+    /**
+     * Assembles the record via its canonical constructor; every error is collected, in
+     * component-declaration order.
+     */
+    public Validated<NonEmptyList<FieldError>, User> assemble() {
+      return this.age.ap(this.email.ap(this.name.map(a1 -> a2 -> a3 -> new User(a1, a2, a3)), NonEmptyList.semigroup()), NonEmptyList.semigroup());
+    }
+  }
+}

@@ -1,0 +1,603 @@
+package com.example;
+
+import java.lang.String;
+import java.util.Objects;
+import org.higherkindedj.hkt.nonemptylist.NonEmptyList;
+import org.higherkindedj.hkt.validated.FieldError;
+import org.higherkindedj.hkt.validated.Validated;
+import org.higherkindedj.optics.annotations.Generated;
+
+/**
+ * Validated-assembly companion for {@link Wide13}: one named method per component, in
+ * declaration order; labels come from the component names; every error is
+ * collected, located, and emerges in declaration order.
+ */
+@Generated
+public final class Wide13Assembly {
+  private Wide13Assembly() {
+  }
+
+  /**
+   * Opens the assembly at the first component.
+   */
+  public static Stage0 fields() {
+    return Stage0.INSTANCE;
+  }
+
+  /**
+   * Stage 0 of 13: expects {@code f1} next.
+   */
+  public static final class Stage0 {
+    private static final Stage0 INSTANCE = new Stage0();
+
+    private Stage0() {
+    }
+
+    /**
+     * Supplies {@code f1}; its errors are labelled {@code "f1"}.
+     */
+    public Stage1 f1(Validated<NonEmptyList<FieldError>, String> value) {
+      Objects.requireNonNull(value, "value must not be null");
+      return new Stage1(value.mapError(errors -> errors.map(err -> err.at("f1"))));
+    }
+  }
+
+  /**
+   * Stage 1 of 13: expects {@code f2} next.
+   */
+  public static final class Stage1 {
+    private final Validated<NonEmptyList<FieldError>, String> f1;
+
+    private Stage1(Validated<NonEmptyList<FieldError>, String> f1) {
+      this.f1 = f1;
+    }
+
+    /**
+     * Supplies {@code f2}; its errors are labelled {@code "f2"}.
+     */
+    public Stage2 f2(Validated<NonEmptyList<FieldError>, String> value) {
+      Objects.requireNonNull(value, "value must not be null");
+      return new Stage2(this.f1, value.mapError(errors -> errors.map(err -> err.at("f2"))));
+    }
+  }
+
+  /**
+   * Stage 2 of 13: expects {@code f3} next.
+   */
+  public static final class Stage2 {
+    private final Validated<NonEmptyList<FieldError>, String> f1;
+
+    private final Validated<NonEmptyList<FieldError>, String> f2;
+
+    private Stage2(Validated<NonEmptyList<FieldError>, String> f1,
+        Validated<NonEmptyList<FieldError>, String> f2) {
+      this.f1 = f1;
+      this.f2 = f2;
+    }
+
+    /**
+     * Supplies {@code f3}; its errors are labelled {@code "f3"}.
+     */
+    public Stage3 f3(Validated<NonEmptyList<FieldError>, String> value) {
+      Objects.requireNonNull(value, "value must not be null");
+      return new Stage3(this.f1, this.f2, value.mapError(errors -> errors.map(err -> err.at("f3"))));
+    }
+  }
+
+  /**
+   * Stage 3 of 13: expects {@code f4} next.
+   */
+  public static final class Stage3 {
+    private final Validated<NonEmptyList<FieldError>, String> f1;
+
+    private final Validated<NonEmptyList<FieldError>, String> f2;
+
+    private final Validated<NonEmptyList<FieldError>, String> f3;
+
+    private Stage3(Validated<NonEmptyList<FieldError>, String> f1,
+        Validated<NonEmptyList<FieldError>, String> f2,
+        Validated<NonEmptyList<FieldError>, String> f3) {
+      this.f1 = f1;
+      this.f2 = f2;
+      this.f3 = f3;
+    }
+
+    /**
+     * Supplies {@code f4}; its errors are labelled {@code "f4"}.
+     */
+    public Stage4 f4(Validated<NonEmptyList<FieldError>, String> value) {
+      Objects.requireNonNull(value, "value must not be null");
+      return new Stage4(this.f1, this.f2, this.f3, value.mapError(errors -> errors.map(err -> err.at("f4"))));
+    }
+  }
+
+  /**
+   * Stage 4 of 13: expects {@code f5} next.
+   */
+  public static final class Stage4 {
+    private final Validated<NonEmptyList<FieldError>, String> f1;
+
+    private final Validated<NonEmptyList<FieldError>, String> f2;
+
+    private final Validated<NonEmptyList<FieldError>, String> f3;
+
+    private final Validated<NonEmptyList<FieldError>, String> f4;
+
+    private Stage4(Validated<NonEmptyList<FieldError>, String> f1,
+        Validated<NonEmptyList<FieldError>, String> f2,
+        Validated<NonEmptyList<FieldError>, String> f3,
+        Validated<NonEmptyList<FieldError>, String> f4) {
+      this.f1 = f1;
+      this.f2 = f2;
+      this.f3 = f3;
+      this.f4 = f4;
+    }
+
+    /**
+     * Supplies {@code f5}; its errors are labelled {@code "f5"}.
+     */
+    public Stage5 f5(Validated<NonEmptyList<FieldError>, String> value) {
+      Objects.requireNonNull(value, "value must not be null");
+      return new Stage5(this.f1, this.f2, this.f3, this.f4, value.mapError(errors -> errors.map(err -> err.at("f5"))));
+    }
+  }
+
+  /**
+   * Stage 5 of 13: expects {@code f6} next.
+   */
+  public static final class Stage5 {
+    private final Validated<NonEmptyList<FieldError>, String> f1;
+
+    private final Validated<NonEmptyList<FieldError>, String> f2;
+
+    private final Validated<NonEmptyList<FieldError>, String> f3;
+
+    private final Validated<NonEmptyList<FieldError>, String> f4;
+
+    private final Validated<NonEmptyList<FieldError>, String> f5;
+
+    private Stage5(Validated<NonEmptyList<FieldError>, String> f1,
+        Validated<NonEmptyList<FieldError>, String> f2,
+        Validated<NonEmptyList<FieldError>, String> f3,
+        Validated<NonEmptyList<FieldError>, String> f4,
+        Validated<NonEmptyList<FieldError>, String> f5) {
+      this.f1 = f1;
+      this.f2 = f2;
+      this.f3 = f3;
+      this.f4 = f4;
+      this.f5 = f5;
+    }
+
+    /**
+     * Supplies {@code f6}; its errors are labelled {@code "f6"}.
+     */
+    public Stage6 f6(Validated<NonEmptyList<FieldError>, String> value) {
+      Objects.requireNonNull(value, "value must not be null");
+      return new Stage6(this.f1, this.f2, this.f3, this.f4, this.f5, value.mapError(errors -> errors.map(err -> err.at("f6"))));
+    }
+  }
+
+  /**
+   * Stage 6 of 13: expects {@code f7} next.
+   */
+  public static final class Stage6 {
+    private final Validated<NonEmptyList<FieldError>, String> f1;
+
+    private final Validated<NonEmptyList<FieldError>, String> f2;
+
+    private final Validated<NonEmptyList<FieldError>, String> f3;
+
+    private final Validated<NonEmptyList<FieldError>, String> f4;
+
+    private final Validated<NonEmptyList<FieldError>, String> f5;
+
+    private final Validated<NonEmptyList<FieldError>, String> f6;
+
+    private Stage6(Validated<NonEmptyList<FieldError>, String> f1,
+        Validated<NonEmptyList<FieldError>, String> f2,
+        Validated<NonEmptyList<FieldError>, String> f3,
+        Validated<NonEmptyList<FieldError>, String> f4,
+        Validated<NonEmptyList<FieldError>, String> f5,
+        Validated<NonEmptyList<FieldError>, String> f6) {
+      this.f1 = f1;
+      this.f2 = f2;
+      this.f3 = f3;
+      this.f4 = f4;
+      this.f5 = f5;
+      this.f6 = f6;
+    }
+
+    /**
+     * Supplies {@code f7}; its errors are labelled {@code "f7"}.
+     */
+    public Stage7 f7(Validated<NonEmptyList<FieldError>, String> value) {
+      Objects.requireNonNull(value, "value must not be null");
+      return new Stage7(this.f1, this.f2, this.f3, this.f4, this.f5, this.f6, value.mapError(errors -> errors.map(err -> err.at("f7"))));
+    }
+  }
+
+  /**
+   * Stage 7 of 13: expects {@code f8} next.
+   */
+  public static final class Stage7 {
+    private final Validated<NonEmptyList<FieldError>, String> f1;
+
+    private final Validated<NonEmptyList<FieldError>, String> f2;
+
+    private final Validated<NonEmptyList<FieldError>, String> f3;
+
+    private final Validated<NonEmptyList<FieldError>, String> f4;
+
+    private final Validated<NonEmptyList<FieldError>, String> f5;
+
+    private final Validated<NonEmptyList<FieldError>, String> f6;
+
+    private final Validated<NonEmptyList<FieldError>, String> f7;
+
+    private Stage7(Validated<NonEmptyList<FieldError>, String> f1,
+        Validated<NonEmptyList<FieldError>, String> f2,
+        Validated<NonEmptyList<FieldError>, String> f3,
+        Validated<NonEmptyList<FieldError>, String> f4,
+        Validated<NonEmptyList<FieldError>, String> f5,
+        Validated<NonEmptyList<FieldError>, String> f6,
+        Validated<NonEmptyList<FieldError>, String> f7) {
+      this.f1 = f1;
+      this.f2 = f2;
+      this.f3 = f3;
+      this.f4 = f4;
+      this.f5 = f5;
+      this.f6 = f6;
+      this.f7 = f7;
+    }
+
+    /**
+     * Supplies {@code f8}; its errors are labelled {@code "f8"}.
+     */
+    public Stage8 f8(Validated<NonEmptyList<FieldError>, String> value) {
+      Objects.requireNonNull(value, "value must not be null");
+      return new Stage8(this.f1, this.f2, this.f3, this.f4, this.f5, this.f6, this.f7, value.mapError(errors -> errors.map(err -> err.at("f8"))));
+    }
+  }
+
+  /**
+   * Stage 8 of 13: expects {@code f9} next.
+   */
+  public static final class Stage8 {
+    private final Validated<NonEmptyList<FieldError>, String> f1;
+
+    private final Validated<NonEmptyList<FieldError>, String> f2;
+
+    private final Validated<NonEmptyList<FieldError>, String> f3;
+
+    private final Validated<NonEmptyList<FieldError>, String> f4;
+
+    private final Validated<NonEmptyList<FieldError>, String> f5;
+
+    private final Validated<NonEmptyList<FieldError>, String> f6;
+
+    private final Validated<NonEmptyList<FieldError>, String> f7;
+
+    private final Validated<NonEmptyList<FieldError>, String> f8;
+
+    private Stage8(Validated<NonEmptyList<FieldError>, String> f1,
+        Validated<NonEmptyList<FieldError>, String> f2,
+        Validated<NonEmptyList<FieldError>, String> f3,
+        Validated<NonEmptyList<FieldError>, String> f4,
+        Validated<NonEmptyList<FieldError>, String> f5,
+        Validated<NonEmptyList<FieldError>, String> f6,
+        Validated<NonEmptyList<FieldError>, String> f7,
+        Validated<NonEmptyList<FieldError>, String> f8) {
+      this.f1 = f1;
+      this.f2 = f2;
+      this.f3 = f3;
+      this.f4 = f4;
+      this.f5 = f5;
+      this.f6 = f6;
+      this.f7 = f7;
+      this.f8 = f8;
+    }
+
+    /**
+     * Supplies {@code f9}; its errors are labelled {@code "f9"}.
+     */
+    public Stage9 f9(Validated<NonEmptyList<FieldError>, String> value) {
+      Objects.requireNonNull(value, "value must not be null");
+      return new Stage9(this.f1, this.f2, this.f3, this.f4, this.f5, this.f6, this.f7, this.f8, value.mapError(errors -> errors.map(err -> err.at("f9"))));
+    }
+  }
+
+  /**
+   * Stage 9 of 13: expects {@code f10} next.
+   */
+  public static final class Stage9 {
+    private final Validated<NonEmptyList<FieldError>, String> f1;
+
+    private final Validated<NonEmptyList<FieldError>, String> f2;
+
+    private final Validated<NonEmptyList<FieldError>, String> f3;
+
+    private final Validated<NonEmptyList<FieldError>, String> f4;
+
+    private final Validated<NonEmptyList<FieldError>, String> f5;
+
+    private final Validated<NonEmptyList<FieldError>, String> f6;
+
+    private final Validated<NonEmptyList<FieldError>, String> f7;
+
+    private final Validated<NonEmptyList<FieldError>, String> f8;
+
+    private final Validated<NonEmptyList<FieldError>, String> f9;
+
+    private Stage9(Validated<NonEmptyList<FieldError>, String> f1,
+        Validated<NonEmptyList<FieldError>, String> f2,
+        Validated<NonEmptyList<FieldError>, String> f3,
+        Validated<NonEmptyList<FieldError>, String> f4,
+        Validated<NonEmptyList<FieldError>, String> f5,
+        Validated<NonEmptyList<FieldError>, String> f6,
+        Validated<NonEmptyList<FieldError>, String> f7,
+        Validated<NonEmptyList<FieldError>, String> f8,
+        Validated<NonEmptyList<FieldError>, String> f9) {
+      this.f1 = f1;
+      this.f2 = f2;
+      this.f3 = f3;
+      this.f4 = f4;
+      this.f5 = f5;
+      this.f6 = f6;
+      this.f7 = f7;
+      this.f8 = f8;
+      this.f9 = f9;
+    }
+
+    /**
+     * Supplies {@code f10}; its errors are labelled {@code "f10"}.
+     */
+    public Stage10 f10(Validated<NonEmptyList<FieldError>, String> value) {
+      Objects.requireNonNull(value, "value must not be null");
+      return new Stage10(this.f1, this.f2, this.f3, this.f4, this.f5, this.f6, this.f7, this.f8, this.f9, value.mapError(errors -> errors.map(err -> err.at("f10"))));
+    }
+  }
+
+  /**
+   * Stage 10 of 13: expects {@code f11} next.
+   */
+  public static final class Stage10 {
+    private final Validated<NonEmptyList<FieldError>, String> f1;
+
+    private final Validated<NonEmptyList<FieldError>, String> f2;
+
+    private final Validated<NonEmptyList<FieldError>, String> f3;
+
+    private final Validated<NonEmptyList<FieldError>, String> f4;
+
+    private final Validated<NonEmptyList<FieldError>, String> f5;
+
+    private final Validated<NonEmptyList<FieldError>, String> f6;
+
+    private final Validated<NonEmptyList<FieldError>, String> f7;
+
+    private final Validated<NonEmptyList<FieldError>, String> f8;
+
+    private final Validated<NonEmptyList<FieldError>, String> f9;
+
+    private final Validated<NonEmptyList<FieldError>, String> f10;
+
+    private Stage10(Validated<NonEmptyList<FieldError>, String> f1,
+        Validated<NonEmptyList<FieldError>, String> f2,
+        Validated<NonEmptyList<FieldError>, String> f3,
+        Validated<NonEmptyList<FieldError>, String> f4,
+        Validated<NonEmptyList<FieldError>, String> f5,
+        Validated<NonEmptyList<FieldError>, String> f6,
+        Validated<NonEmptyList<FieldError>, String> f7,
+        Validated<NonEmptyList<FieldError>, String> f8,
+        Validated<NonEmptyList<FieldError>, String> f9,
+        Validated<NonEmptyList<FieldError>, String> f10) {
+      this.f1 = f1;
+      this.f2 = f2;
+      this.f3 = f3;
+      this.f4 = f4;
+      this.f5 = f5;
+      this.f6 = f6;
+      this.f7 = f7;
+      this.f8 = f8;
+      this.f9 = f9;
+      this.f10 = f10;
+    }
+
+    /**
+     * Supplies {@code f11}; its errors are labelled {@code "f11"}.
+     */
+    public Stage11 f11(Validated<NonEmptyList<FieldError>, String> value) {
+      Objects.requireNonNull(value, "value must not be null");
+      return new Stage11(this.f1, this.f2, this.f3, this.f4, this.f5, this.f6, this.f7, this.f8, this.f9, this.f10, value.mapError(errors -> errors.map(err -> err.at("f11"))));
+    }
+  }
+
+  /**
+   * Stage 11 of 13: expects {@code f12} next.
+   */
+  public static final class Stage11 {
+    private final Validated<NonEmptyList<FieldError>, String> f1;
+
+    private final Validated<NonEmptyList<FieldError>, String> f2;
+
+    private final Validated<NonEmptyList<FieldError>, String> f3;
+
+    private final Validated<NonEmptyList<FieldError>, String> f4;
+
+    private final Validated<NonEmptyList<FieldError>, String> f5;
+
+    private final Validated<NonEmptyList<FieldError>, String> f6;
+
+    private final Validated<NonEmptyList<FieldError>, String> f7;
+
+    private final Validated<NonEmptyList<FieldError>, String> f8;
+
+    private final Validated<NonEmptyList<FieldError>, String> f9;
+
+    private final Validated<NonEmptyList<FieldError>, String> f10;
+
+    private final Validated<NonEmptyList<FieldError>, String> f11;
+
+    private Stage11(Validated<NonEmptyList<FieldError>, String> f1,
+        Validated<NonEmptyList<FieldError>, String> f2,
+        Validated<NonEmptyList<FieldError>, String> f3,
+        Validated<NonEmptyList<FieldError>, String> f4,
+        Validated<NonEmptyList<FieldError>, String> f5,
+        Validated<NonEmptyList<FieldError>, String> f6,
+        Validated<NonEmptyList<FieldError>, String> f7,
+        Validated<NonEmptyList<FieldError>, String> f8,
+        Validated<NonEmptyList<FieldError>, String> f9,
+        Validated<NonEmptyList<FieldError>, String> f10,
+        Validated<NonEmptyList<FieldError>, String> f11) {
+      this.f1 = f1;
+      this.f2 = f2;
+      this.f3 = f3;
+      this.f4 = f4;
+      this.f5 = f5;
+      this.f6 = f6;
+      this.f7 = f7;
+      this.f8 = f8;
+      this.f9 = f9;
+      this.f10 = f10;
+      this.f11 = f11;
+    }
+
+    /**
+     * Supplies {@code f12}; its errors are labelled {@code "f12"}.
+     */
+    public Stage12 f12(Validated<NonEmptyList<FieldError>, String> value) {
+      Objects.requireNonNull(value, "value must not be null");
+      return new Stage12(this.f1, this.f2, this.f3, this.f4, this.f5, this.f6, this.f7, this.f8, this.f9, this.f10, this.f11, value.mapError(errors -> errors.map(err -> err.at("f12"))));
+    }
+  }
+
+  /**
+   * Stage 12 of 13: expects {@code f13} next.
+   */
+  public static final class Stage12 {
+    private final Validated<NonEmptyList<FieldError>, String> f1;
+
+    private final Validated<NonEmptyList<FieldError>, String> f2;
+
+    private final Validated<NonEmptyList<FieldError>, String> f3;
+
+    private final Validated<NonEmptyList<FieldError>, String> f4;
+
+    private final Validated<NonEmptyList<FieldError>, String> f5;
+
+    private final Validated<NonEmptyList<FieldError>, String> f6;
+
+    private final Validated<NonEmptyList<FieldError>, String> f7;
+
+    private final Validated<NonEmptyList<FieldError>, String> f8;
+
+    private final Validated<NonEmptyList<FieldError>, String> f9;
+
+    private final Validated<NonEmptyList<FieldError>, String> f10;
+
+    private final Validated<NonEmptyList<FieldError>, String> f11;
+
+    private final Validated<NonEmptyList<FieldError>, String> f12;
+
+    private Stage12(Validated<NonEmptyList<FieldError>, String> f1,
+        Validated<NonEmptyList<FieldError>, String> f2,
+        Validated<NonEmptyList<FieldError>, String> f3,
+        Validated<NonEmptyList<FieldError>, String> f4,
+        Validated<NonEmptyList<FieldError>, String> f5,
+        Validated<NonEmptyList<FieldError>, String> f6,
+        Validated<NonEmptyList<FieldError>, String> f7,
+        Validated<NonEmptyList<FieldError>, String> f8,
+        Validated<NonEmptyList<FieldError>, String> f9,
+        Validated<NonEmptyList<FieldError>, String> f10,
+        Validated<NonEmptyList<FieldError>, String> f11,
+        Validated<NonEmptyList<FieldError>, String> f12) {
+      this.f1 = f1;
+      this.f2 = f2;
+      this.f3 = f3;
+      this.f4 = f4;
+      this.f5 = f5;
+      this.f6 = f6;
+      this.f7 = f7;
+      this.f8 = f8;
+      this.f9 = f9;
+      this.f10 = f10;
+      this.f11 = f11;
+      this.f12 = f12;
+    }
+
+    /**
+     * Supplies {@code f13}; its errors are labelled {@code "f13"}.
+     */
+    public Stage13 f13(Validated<NonEmptyList<FieldError>, String> value) {
+      Objects.requireNonNull(value, "value must not be null");
+      return new Stage13(this.f1, this.f2, this.f3, this.f4, this.f5, this.f6, this.f7, this.f8, this.f9, this.f10, this.f11, this.f12, value.mapError(errors -> errors.map(err -> err.at("f13"))));
+    }
+  }
+
+  /**
+   * Terminal stage: every component supplied; {@code assemble()} only.
+   */
+  public static final class Stage13 {
+    private final Validated<NonEmptyList<FieldError>, String> f1;
+
+    private final Validated<NonEmptyList<FieldError>, String> f2;
+
+    private final Validated<NonEmptyList<FieldError>, String> f3;
+
+    private final Validated<NonEmptyList<FieldError>, String> f4;
+
+    private final Validated<NonEmptyList<FieldError>, String> f5;
+
+    private final Validated<NonEmptyList<FieldError>, String> f6;
+
+    private final Validated<NonEmptyList<FieldError>, String> f7;
+
+    private final Validated<NonEmptyList<FieldError>, String> f8;
+
+    private final Validated<NonEmptyList<FieldError>, String> f9;
+
+    private final Validated<NonEmptyList<FieldError>, String> f10;
+
+    private final Validated<NonEmptyList<FieldError>, String> f11;
+
+    private final Validated<NonEmptyList<FieldError>, String> f12;
+
+    private final Validated<NonEmptyList<FieldError>, String> f13;
+
+    private Stage13(Validated<NonEmptyList<FieldError>, String> f1,
+        Validated<NonEmptyList<FieldError>, String> f2,
+        Validated<NonEmptyList<FieldError>, String> f3,
+        Validated<NonEmptyList<FieldError>, String> f4,
+        Validated<NonEmptyList<FieldError>, String> f5,
+        Validated<NonEmptyList<FieldError>, String> f6,
+        Validated<NonEmptyList<FieldError>, String> f7,
+        Validated<NonEmptyList<FieldError>, String> f8,
+        Validated<NonEmptyList<FieldError>, String> f9,
+        Validated<NonEmptyList<FieldError>, String> f10,
+        Validated<NonEmptyList<FieldError>, String> f11,
+        Validated<NonEmptyList<FieldError>, String> f12,
+        Validated<NonEmptyList<FieldError>, String> f13) {
+      this.f1 = f1;
+      this.f2 = f2;
+      this.f3 = f3;
+      this.f4 = f4;
+      this.f5 = f5;
+      this.f6 = f6;
+      this.f7 = f7;
+      this.f8 = f8;
+      this.f9 = f9;
+      this.f10 = f10;
+      this.f11 = f11;
+      this.f12 = f12;
+      this.f13 = f13;
+    }
+
+    /**
+     * Assembles the record via its canonical constructor; every error is collected, in
+     * component-declaration order.
+     */
+    public Validated<NonEmptyList<FieldError>, Wide13> assemble() {
+      return this.f13.ap(this.f12.ap(this.f11.ap(this.f10.ap(this.f9.ap(this.f8.ap(this.f7.ap(this.f6.ap(this.f5.ap(this.f4.ap(this.f3.ap(this.f2.ap(this.f1.map(a1 -> a2 -> a3 -> a4 -> a5 -> a6 -> a7 -> a8 -> a9 -> a10 -> a11 -> a12 -> a13 -> new Wide13(a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12, a13)), NonEmptyList.semigroup()), NonEmptyList.semigroup()), NonEmptyList.semigroup()), NonEmptyList.semigroup()), NonEmptyList.semigroup()), NonEmptyList.semigroup()), NonEmptyList.semigroup()), NonEmptyList.semigroup()), NonEmptyList.semigroup()), NonEmptyList.semigroup()), NonEmptyList.semigroup()), NonEmptyList.semigroup());
+    }
+  }
+}

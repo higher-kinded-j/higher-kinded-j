@@ -325,6 +325,8 @@ public class Tutorial12_AccumulatingAssembly {
 
   /*
    * Where to next?
+   *   • @GenerateAssembly — annotate a record you own and the processor generates this whole
+   *     chain for you: named methods per component, auto-labels, no arity ceiling.
    *   • Accumulating Assembly (Core Types chapter) — the full story: three carriers
    *     (Validated, ValidationPath, EitherOrBoth), the declaration-order contract, and
    *     when to reach for zipWithAccum or mapN instead.
