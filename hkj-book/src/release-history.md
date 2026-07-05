@@ -14,6 +14,10 @@ This page documents the evolution of Higher-Kinded-J from its initial release th
 
 ### 0.4.8-SNAPSHOT (Latest)
 
+**Processor diagnostics: what / why / fix**
+
+Annotation-processor errors now follow a shared three-part format (`Diagnostics` in `hkj-processor`): **what** is wrong (naming the offending element and its kind), **why** (what the processor found or needs), and the exact **fix** — e.g. `@GenerateFocus: can only be applied to records, but 'Config' is a class. The processor derives FocusPath methods from record components. Move the annotation to a record, or use @ImportOptics with an OpticsSpec interface for types you cannot change.` Adopted across the `@GenerateFocus`, `@GenerateLenses`, and `@ImportOptics` error paths; the standard is in place for every future processor ([#601](https://github.com/higher-kinded-j/higher-kinded-j/issues/601)).
+
 **Codegen on-ramp: `-parameters` wired by both build plugins**
 
 The Gradle and Maven plugins now add `-parameters` to compilation automatically (parameter names in class files — used by copy strategies and the upcoming mapper), completing the one-line setup story: apply the plugin and dependencies, annotation processors, preview flags, `-parameters`, and compile-time checks are all configured. The quickstart and plugin pages state the full list ([#602](https://github.com/higher-kinded-j/higher-kinded-j/issues/602)).

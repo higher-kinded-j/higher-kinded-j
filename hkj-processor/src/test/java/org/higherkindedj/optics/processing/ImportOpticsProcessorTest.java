@@ -496,6 +496,71 @@ class ImportOpticsProcessorTest {
   }
 
   @Nested
+  @DisplayName("What/Why/Fix Diagnostics")
+  class WhatWhyFixDiagnostics {
+
+    @Test
+    @DisplayName("should reject @ImportOptics on an enum with the what/why/fix message")
+    void shouldRejectEnumPlacement() {
+      final var enumSource =
+          JavaFileObjects.forSourceString(
+              "com.myapp.Colour",
+              """
+              package com.myapp;
+
+              import org.higherkindedj.optics.annotations.ImportOptics;
+
+              @ImportOptics({java.lang.String.class})
+              public enum Colour { RED, GREEN }
+              """);
+
+      var compilation = javac().withProcessors(new ImportOpticsProcessor()).compile(enumSource);
+
+      assertThat(compilation).failed();
+      assertThat(compilation).hadErrorContaining("@ImportOptics: cannot be applied to 'Colour'");
+      assertThat(compilation)
+          .hadErrorContaining("Move the annotation to a package-info.java or a type declaration");
+    }
+
+    @Test
+    @DisplayName("should reject a mutable class without withers, prescribing the fix")
+    void shouldRejectMutableClassWithoutWithers() {
+      final var mutableClass =
+          JavaFileObjects.forSourceString(
+              "com.external.SetterOnly",
+              """
+              package com.external;
+
+              public class SetterOnly {
+                  private String name;
+
+                  public String getName() { return name; }
+                  public void setName(String name) { this.name = name; }
+              }
+              """);
+
+      final var packageInfo =
+          JavaFileObjects.forSourceString(
+              "com.myapp.optics.package-info",
+              """
+              @ImportOptics({com.external.SetterOnly.class})
+              package com.myapp.optics;
+
+              import org.higherkindedj.optics.annotations.ImportOptics;
+              """);
+
+      var compilation =
+          javac().withProcessors(new ImportOpticsProcessor()).compile(mutableClass, packageInfo);
+
+      assertThat(compilation).failed();
+      assertThat(compilation)
+          .hadErrorContaining("is a mutable class without wither methods")
+          .inFile(packageInfo);
+      assertThat(compilation).hadErrorContaining("Define an OpticsSpec interface");
+    }
+  }
+
+  @Nested
   @DisplayName("Target Package Configuration")
   class TargetPackageConfiguration {
 

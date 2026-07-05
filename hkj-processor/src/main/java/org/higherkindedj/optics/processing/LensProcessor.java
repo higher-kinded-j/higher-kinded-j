@@ -19,9 +19,9 @@ import javax.lang.model.element.Modifier;
 import javax.lang.model.element.RecordComponentElement;
 import javax.lang.model.element.TypeElement;
 import javax.lang.model.element.TypeParameterElement;
-import javax.tools.Diagnostic;
 import org.higherkindedj.optics.Lens;
 import org.higherkindedj.optics.annotations.GenerateLenses;
+import org.higherkindedj.optics.processing.util.Diagnostics;
 import org.higherkindedj.optics.processing.util.ExcludeFromJacocoGeneratedReport;
 
 /** Annotation processor that generates Lens optics for record types. */
@@ -43,7 +43,18 @@ public class LensProcessor extends AbstractProcessor {
       Set<? extends Element> annotatedElements = roundEnv.getElementsAnnotatedWith(annotation);
       for (Element element : annotatedElements) {
         if (element.getKind() != ElementKind.RECORD) {
-          error("The @GenerateLenses annotation can only be applied to records.", element);
+          Diagnostics.error(
+              processingEnv.getMessager(),
+              element,
+              "@GenerateLenses",
+              "can only be applied to records, but '"
+                  + element.getSimpleName()
+                  + "' is a "
+                  + element.getKind().toString().toLowerCase(java.util.Locale.ROOT)
+                  + ".",
+              "The processor derives one Lens per record component.",
+              "Move the annotation to a record, or use @ImportOptics with an OpticsSpec"
+                  + " interface for types you cannot change.");
           continue;
         }
         writeLensesFile((TypeElement) element);
@@ -57,7 +68,13 @@ public class LensProcessor extends AbstractProcessor {
     try {
       generateLensesFile(element);
     } catch (IOException e) {
-      error("Could not generate lenses file: " + e.getMessage(), element);
+      Diagnostics.error(
+          processingEnv.getMessager(),
+          element,
+          "@GenerateLenses",
+          "could not write the generated Lenses companion for '" + element.getSimpleName() + "'.",
+          "The filer reported: " + e.getMessage() + ".",
+          "Check build-output permissions and free disk space, then rebuild.");
     }
   }
 
@@ -224,9 +241,5 @@ public class LensProcessor extends AbstractProcessor {
       return s;
     }
     return s.substring(0, 1).toUpperCase() + s.substring(1);
-  }
-
-  private void error(String msg, Element e) {
-    processingEnv.getMessager().printMessage(Diagnostic.Kind.ERROR, msg, e);
   }
 }
