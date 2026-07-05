@@ -12,6 +12,7 @@ import java.util.function.Function;
 import org.higherkindedj.hkt.Applicative;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.TypeArity;
+import org.higherkindedj.hkt.Update;
 import org.higherkindedj.hkt.WitnessArity;
 import org.higherkindedj.optics.Lens;
 import org.higherkindedj.optics.Prism;
@@ -552,7 +553,9 @@ public class Tutorial08_RealWorldOptics {
    *
    * <pre>
    *   // Nudge:    Use lens composition for nested config; for environment overrides reach
-   *   //           for affines or filtered traversals (Lens + Prism = Affine).
+   *   //           for affines or filtered traversals (Lens + Prism = Affine). For the final
+   *   //           host migration, fold the two lens writes into one Update&lt;AppConfig&gt;
+   *   //           with Monoids.update().combineAll(...).
    *   // Strategy: walk each assertion; build one composed optic per scenario.
    *   // Spoiler:  the solution file shows the full pipeline.
    * </pre>
@@ -648,15 +651,17 @@ public class Tutorial08_RealWorldOptics {
     assertThat(prodConfig.environment()).isEqualTo("production");
     assertThat(prodConfig.database().ssl()).isTrue();
 
-    // TODO: Replace null with code that updates both database and cache hosts to
-    // "prod.example.com"
+    // TODO: Update both database and cache hosts to "prod.example.com". Each lens write is
+    // an Update<AppConfig>; fold the two writes into one migration step with
+    // Monoids.<AppConfig>update().combineAll(...), then apply it below.
     Lens<AppConfig, String> dbHostLens =
         AppConfigLenses.database().andThen(DatabaseConfigLenses.host());
     Lens<AppConfig, String> cacheHostLens =
         AppConfigLenses.cache().andThen(CacheConfigLenses.host());
 
-    AppConfig updated = dbHostLens.set("prod.example.com", prodConfig);
-    updated = answerRequired();
+    Update<AppConfig> pointHostsAtProd = answerRequired();
+
+    AppConfig updated = pointHostsAtProd.apply(prodConfig);
 
     assertThat(updated.database().host()).isEqualTo("prod.example.com");
     assertThat(updated.cache().host()).isEqualTo("prod.example.com");

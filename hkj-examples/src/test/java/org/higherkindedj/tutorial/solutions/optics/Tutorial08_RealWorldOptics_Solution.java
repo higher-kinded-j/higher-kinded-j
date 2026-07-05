@@ -11,7 +11,9 @@ import java.util.function.BiFunction;
 import java.util.function.Function;
 import org.higherkindedj.hkt.Applicative;
 import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.Monoids;
 import org.higherkindedj.hkt.TypeArity;
+import org.higherkindedj.hkt.Update;
 import org.higherkindedj.hkt.WitnessArity;
 import org.higherkindedj.optics.Lens;
 import org.higherkindedj.optics.Prism;
@@ -660,14 +662,21 @@ public class Tutorial08_RealWorldOptics_Solution {
     assertThat(prodConfig.environment()).isEqualTo("production");
     assertThat(prodConfig.database().ssl()).isTrue();
 
-    // Update both database and cache hosts
+    // Update both database and cache hosts: each lens write is an Update<AppConfig>,
+    // folded into one named migration step applied in a single pass
     Lens<AppConfig, String> dbHostLens =
         AppConfigLenses.database().andThen(DatabaseConfigLenses.host());
     Lens<AppConfig, String> cacheHostLens =
         AppConfigLenses.cache().andThen(CacheConfigLenses.host());
 
-    AppConfig updated = dbHostLens.set("prod.example.com", prodConfig);
-    updated = cacheHostLens.set("prod.example.com", updated);
+    Update<AppConfig> pointHostsAtProd =
+        Monoids.<AppConfig>update()
+            .combineAll(
+                List.of(
+                    c -> dbHostLens.set("prod.example.com", c),
+                    c -> cacheHostLens.set("prod.example.com", c)));
+
+    AppConfig updated = pointHostsAtProd.apply(prodConfig);
 
     assertThat(updated.database().host()).isEqualTo("prod.example.com");
     assertThat(updated.cache().host()).isEqualTo("prod.example.com");

@@ -512,12 +512,47 @@ This makes them perfect for aggregation pipelines where you're not certain data 
 
 ---
 
+## **The Update Monoid: Composing Transformations**
+
+Every monoid so far combines *data*. `Monoids.update()` combines *behaviour*: an `Update<S>` is a named, reusable transformation of a value (`S -> S`), and the monoid composes any number of them into one.
+
+`Update<S>` extends `UnaryOperator<S>`, so it drops straight into `Stream.map`, `Optional.map`, and any other `Function`-shaped API. Its `andThen` stays in the type, so composition chains fluently:
+
+``` java
+Update<Order> normalise     = order -> order.withEmail(order.email().toLowerCase());
+Update<Order> applyDiscount = order -> order.withTotal(order.total().multiply(DISCOUNT));
+
+// Compose two updates and apply to many sources:
+Order a = normalise.andThen(applyDiscount).apply(orderA);
+Order b = normalise.andThen(applyDiscount).apply(orderB);
+```
+
+The monoid's identity is the do-nothing update (`Update.identity()`), and `combine(f, g)` applies `f` first, then `g` — so folding a list of updates applies them left to right:
+
+``` java
+Monoid<Update<Order>> m = Monoids.update();
+
+List<Update<Order>> steps = List.of(normalise, applyDiscount, assignWarehouse);
+Update<Order> pipeline = m.combineAll(steps);
+
+Order processed = pipeline.apply(order);
+```
+
+Because the identity element is "change nothing", an absent or skipped step simply contributes nothing to the fold — the property that powers sparse partial updates (see the `Edits` builder, issue [#582](https://github.com/higher-kinded-j/higher-kinded-j/issues/582)).
+
+~~~admonish note title="For the functionally curious"
+In functional-programming literature this is the `Endo` monoid (for *endomorphism*, a function from a type to itself). Higher-Kinded-J names it `Update` for clarity.
+~~~
+
+---
+
 ~~~admonish info title="Key Takeaways"
 * **Semigroup provides `combine`** for associatively merging two values of the same type
 * **Monoid adds `empty`** (the identity element), enabling safe folds over potentially empty collections
 * **Swap the Monoid, change the behaviour**: addition, multiplication, concatenation, min/max, all from the same operation
 * **Error accumulation** in `Validated` is powered by Semigroup; it tells the Applicative how to merge errors
 * **Utility methods** (`combineAll`, `combineN`, `isEmpty`) and Optional-based monoids (`firstOptional`, `maximum`, etc.) cover common aggregation patterns
+* **`Monoids.update()` composes behaviour, not data**: fold any number of `Update<S>` transformations into one, applied left to right
 ~~~
 
 ---

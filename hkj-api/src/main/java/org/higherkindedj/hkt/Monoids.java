@@ -367,4 +367,38 @@ public interface Monoids {
   static <A extends Comparable<? super A>> Monoid<Optional<A>> minimum() {
     return minimum(Comparator.<A>naturalOrder());
   }
+
+  /**
+   * Returns a {@code Monoid} for {@link Update}, where the combination is left-to-right function
+   * composition and the identity element is {@link Update#identity()}.
+   *
+   * <p>{@code combine(f, g)} applies {@code f} first, then {@code g}. Folding a collection of
+   * updates through this monoid yields a single update that applies them all in order:
+   *
+   * <pre>{@code
+   * Monoid<Update<Order>> m = Monoids.update();
+   * Update<Order> all = updates.stream().reduce(m.empty(), m::combine);
+   * }</pre>
+   *
+   * <p>Known in functional-programming literature as the {@code Endo} monoid.
+   *
+   * <p>Note: updates are functions and compare by object identity, so {@link Monoid#isEmpty} cannot
+   * detect a behaviourally do-nothing update — do not use it to skip pipeline stages.
+   *
+   * @param <S> the type of the value being updated
+   * @return a Monoid for update composition
+   */
+  static <S> Monoid<Update<S>> update() {
+    return new Monoid<Update<S>>() {
+      @Override
+      public Update<S> empty() {
+        return Update.identity();
+      }
+
+      @Override
+      public Update<S> combine(Update<S> u1, Update<S> u2) {
+        return u1.andThen(u2);
+      }
+    };
+  }
 }
