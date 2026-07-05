@@ -10,6 +10,7 @@ import java.util.Optional;
 import java.util.stream.Stream;
 import org.higherkindedj.optics.Lens;
 import org.higherkindedj.optics.at.AtInstances;
+import org.higherkindedj.optics.laws.LensLaws;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.DynamicTest;
 import org.junit.jupiter.api.TestFactory;
@@ -158,17 +159,7 @@ class LensLawsTestFactory {
    * <p>Setting what you get doesn't change anything.
    */
   private <S, A> void testGetPutLaw(LensTestData<S, A> data) {
-    Lens<S, A> lens = data.lens();
-    S testValue = data.testValue();
-
-    // Get the current value
-    A currentValue = lens.get(testValue);
-
-    // Set it back to the same value
-    S result = lens.set(currentValue, testValue);
-
-    // Should be equal to original
-    assertThat(result).isEqualTo(testValue);
+    LensLaws.assertGetSet(data.lens(), data.testValue());
   }
 
   /**
@@ -195,18 +186,7 @@ class LensLawsTestFactory {
    * <p>Getting what you set returns what you set.
    */
   private <S, A> void testPutGetLaw(LensTestData<S, A> data) {
-    Lens<S, A> lens = data.lens();
-    S testValue = data.testValue();
-    A newValue = data.newValue();
-
-    // Set a new value
-    S updated = lens.set(newValue, testValue);
-
-    // Get it back
-    A retrieved = lens.get(updated);
-
-    // Should equal what we set
-    assertThat(retrieved).isEqualTo(newValue);
+    LensLaws.assertSetGet(data.lens(), data.testValue(), data.newValue());
   }
 
   /**
@@ -233,19 +213,7 @@ class LensLawsTestFactory {
    * <p>Second set wins - setting twice is the same as setting once with the second value.
    */
   private <S, A> void testPutPutLaw(LensTestData<S, A> data) {
-    Lens<S, A> lens = data.lens();
-    S testValue = data.testValue();
-    A newValue = data.newValue();
-    A alternateValue = data.alternateValue();
-
-    // Left side: set(b, set(a, s))
-    S setTwice = lens.set(alternateValue, lens.set(newValue, testValue));
-
-    // Right side: set(b, s)
-    S setOnce = lens.set(alternateValue, testValue);
-
-    // Should be equal
-    assertThat(setTwice).isEqualTo(setOnce);
+    LensLaws.assertSetSet(data.lens(), data.testValue(), data.newValue(), data.alternateValue());
   }
 
   /**

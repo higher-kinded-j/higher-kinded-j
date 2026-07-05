@@ -225,9 +225,32 @@ Coverage is enforced at 100% line and 100% instruction on the `hkj-test` bundle.
 
 ---
 
+## Optic Laws
+
+`org.higherkindedj.optics.laws` publishes law-verification helpers for every optic family — the properties that *define* a lawful `Iso`, `Lens`, `Prism`, `Affine`, or `Traversal` — in the same flat `assert…` style as the `hkt.laws` type-class helpers:
+
+``` java
+import org.higherkindedj.optics.laws.LensLaws;
+import org.higherkindedj.optics.laws.PrismLaws;
+
+@Test
+void nameLensIsLawful() {
+    LensLaws.assertLensLaws(UserLenses.name(), new User("Ada", 36), "Grace", "Alan");
+    // get-set, set-get (both values) and set-set, with counterexample-bearing messages
+}
+
+@Test
+void statusPrismIsLawful() {
+    PrismLaws.assertPrismLaws(ShapePrisms.circle(), new Circle(1.0), new Square(2.0));
+}
+```
+
+Each family also exposes the individual laws (`assertGetSet`, `assertBuildMatch`, `assertSetNoOpWhenAbsent`, …) for targeted checks, and failures name the violated law with the offending values — `"Lens set-get: get(set(Grace, …)) == the value set; got Ada"`. Guard rails reject vacuous fixtures (equal set-set values, non-matching prism sources). Drive broader coverage with `@ParameterizedTest` or property fixtures at the call site.
+
 ~~~admonish tip title="See Also"
 - [Manual Gradle and Maven Setup](manual_setup.md) - Adding hkj-test to projects that do not use the HKJ build plugin
 - [Build Plugins](gradle_plugin.md) - Other test-time tooling
+- [What Are Optics?](../optics/optics_intro.md) - The optic families these laws define
 ~~~
 
 ---

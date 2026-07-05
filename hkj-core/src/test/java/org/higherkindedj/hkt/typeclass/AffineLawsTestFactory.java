@@ -9,6 +9,7 @@ import java.util.stream.Stream;
 import org.higherkindedj.optics.Affine;
 import org.higherkindedj.optics.Lens;
 import org.higherkindedj.optics.Prism;
+import org.higherkindedj.optics.laws.AffineLaws;
 import org.higherkindedj.optics.util.Prisms;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.DynamicTest;
@@ -186,18 +187,7 @@ class AffineLawsTestFactory {
    * <p>Setting a value then getting it returns what was set.
    */
   private <S, A> void testGetSetLaw(AffineTestData<S, A> data) {
-    Affine<S, A> affine = data.affine();
-    S presentValue = data.presentValue();
-    A testValue = data.testValue();
-
-    // Set a value
-    S updated = affine.set(testValue, presentValue);
-
-    // Get it back
-    Optional<A> retrieved = affine.getOptional(updated);
-
-    // Should equal what we set
-    assertThat(retrieved).isPresent().contains(testValue);
+    AffineLaws.assertSetGetWhenPresent(data.affine(), data.presentValue(), data.testValue());
   }
 
   /**
@@ -225,19 +215,8 @@ class AffineLawsTestFactory {
    * <p>Second set wins - setting twice is the same as setting once with the second value.
    */
   private <S, A> void testSetSetLaw(AffineTestData<S, A> data) {
-    Affine<S, A> affine = data.affine();
-    S presentValue = data.presentValue();
-    A testValue = data.testValue();
-    A alternateValue = data.alternateValue();
-
-    // Left side: set(b, set(a, s))
-    S setTwice = affine.set(alternateValue, affine.set(testValue, presentValue));
-
-    // Right side: set(b, s)
-    S setOnce = affine.set(alternateValue, presentValue);
-
-    // Should be equal
-    assertThat(setTwice).isEqualTo(setOnce);
+    AffineLaws.assertSetSetWhenPresent(
+        data.affine(), data.presentValue(), data.testValue(), data.alternateValue());
   }
 
   /**
@@ -264,20 +243,7 @@ class AffineLawsTestFactory {
    * <p>Setting the current value changes nothing.
    */
   private <S, A> void testGetOptionalSetLaw(AffineTestData<S, A> data) {
-    Affine<S, A> affine = data.affine();
-    S presentValue = data.presentValue();
-
-    // Get the current value
-    Optional<A> current = affine.getOptional(presentValue);
-
-    // Only test if value is present
-    if (current.isPresent()) {
-      // Set it back to the same value
-      S result = affine.set(current.get(), presentValue);
-
-      // Should be equal to original
-      assertThat(result).isEqualTo(presentValue);
-    }
+    AffineLaws.assertGetSetWhenPresent(data.affine(), data.presentValue());
   }
 
   /**

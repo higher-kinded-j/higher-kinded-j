@@ -9,6 +9,7 @@ import java.util.stream.Stream;
 import org.higherkindedj.hkt.Unit;
 import org.higherkindedj.hkt.either.Either;
 import org.higherkindedj.optics.Prism;
+import org.higherkindedj.optics.laws.PrismLaws;
 import org.higherkindedj.optics.util.Prisms;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.DynamicTest;
@@ -227,17 +228,7 @@ class PrismLawsTestFactory {
    * <p>Building a value and then extracting it should return the original value.
    */
   private <S, A> void testReviewLaw(PrismTestData<S, A> data) {
-    Prism<S, A> prism = data.prism();
-    A testValue = data.testValue();
-
-    // Build the outer type from the value
-    S built = prism.build(testValue);
-
-    // Extract it back
-    Optional<A> extracted = prism.getOptional(built);
-
-    // Should match the original value
-    assertThat(extracted).isPresent().contains(testValue);
+    PrismLaws.assertBuildMatch(data.prism(), data.testValue());
   }
 
   /**
@@ -287,12 +278,7 @@ class PrismLawsTestFactory {
    * <p>Consistency property: {@code getOptional} should return empty for non-matching cases.
    */
   private <S, A> void testGetOptionalNonMatches(PrismTestData<S, A> data) {
-    Prism<S, A> prism = data.prism();
-    S nonMatchingValue = data.nonMatchingValue();
-
-    Optional<A> extracted = prism.getOptional(nonMatchingValue);
-
-    assertThat(extracted).isEmpty();
+    PrismLaws.assertNoMatch(data.prism(), data.nonMatchingValue());
   }
 
   /**
