@@ -337,11 +337,12 @@ public class FocusProcessor extends AbstractProcessor {
                         : "source." + c.getSimpleName() + "()")
             .collect(Collectors.joining(", "));
 
-    // Generate code based on path type widening
+    // Generate code based on path type widening. The component name rides along as the path's
+    // field-name segment, so generated paths self-locate (issue #592).
     String baseLens =
         String.format(
-            "$T.of($T.of($T::%s, (source, newValue) -> new $T(%s)))",
-            componentName, constructorArgs);
+            "$T.of($T.of($T::%s, (source, newValue) -> new $T(%s)), \"%s\")",
+            componentName, constructorArgs, componentName);
 
     switch (pathTypeInfo.wideningType) {
       case OPTIONAL ->

@@ -36,13 +36,13 @@ public class FocusProcessorIntegrationTest {
       final String expectedNameFocusPath =
           """
           public static FocusPath<User, String> name() {
-              return FocusPath.of(Lens.of(User::name, (source, newValue) -> new User(newValue, source.age())));
+              return FocusPath.of(Lens.of(User::name, (source, newValue) -> new User(newValue, source.age())), "name");
           }
           """;
       final String expectedAgeFocusPath =
           """
           public static FocusPath<User, Integer> age() {
-              return FocusPath.of(Lens.of(User::age, (source, newValue) -> new User(source.name(), newValue)));
+              return FocusPath.of(Lens.of(User::age, (source, newValue) -> new User(source.name(), newValue)), "age");
           }
           """;
 
@@ -73,7 +73,7 @@ public class FocusProcessorIntegrationTest {
       final String expectedStreetFocusPath =
           """
           public static FocusPath<Address, String> street() {
-              return FocusPath.of(Lens.of(Address::street, (source, newValue) -> new Address(newValue, source.city(), source.postcode())));
+              return FocusPath.of(Lens.of(Address::street, (source, newValue) -> new Address(newValue, source.city(), source.postcode())), "street");
           }
           """;
 
@@ -135,7 +135,7 @@ public class FocusProcessorIntegrationTest {
       final String expectedFirstNameFocusPath =
           """
           public static FocusPath<Person, String> firstName() {
-              return FocusPath.of(Lens.of(Person::firstName, (source, newValue) -> new Person(newValue, source.lastName())));
+              return FocusPath.of(Lens.of(Person::firstName, (source, newValue) -> new Person(newValue, source.lastName())), "firstName");
           }
           """;
 
@@ -169,13 +169,13 @@ public class FocusProcessorIntegrationTest {
       final String expectedValueFocusPath =
           """
           public static <T> FocusPath<Wrapper<T>, T> value() {
-              return FocusPath.of(Lens.of(Wrapper<T>::value, (source, newValue) -> new Wrapper<T>(newValue, source.label())));
+              return FocusPath.of(Lens.of(Wrapper<T>::value, (source, newValue) -> new Wrapper<T>(newValue, source.label())), "value");
           }
           """;
       final String expectedLabelFocusPath =
           """
           public static <T> FocusPath<Wrapper<T>, String> label() {
-              return FocusPath.of(Lens.of(Wrapper<T>::label, (source, newValue) -> new Wrapper<T>(source.value(), newValue)));
+              return FocusPath.of(Lens.of(Wrapper<T>::label, (source, newValue) -> new Wrapper<T>(source.value(), newValue)), "label");
           }
           """;
 

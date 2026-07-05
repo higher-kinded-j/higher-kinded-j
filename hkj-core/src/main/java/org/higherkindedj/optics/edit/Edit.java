@@ -2,6 +2,7 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.optics.edit;
 
+import java.util.List;
 import java.util.Objects;
 import java.util.function.BiFunction;
 import java.util.function.Function;
@@ -276,7 +277,7 @@ public sealed interface Edit<S> extends FallibleEdit<S> permits Edit.Infallible 
     }
     Validated<NonEmptyList<FieldError>, A> parsed =
         Objects.requireNonNull(parser.apply(raw), "parser must not return null");
-    return parsedEdit(path::set, parsed);
+    return parsedEdit(path::set, locate(parsed, path.segments()));
   }
 
   /**
@@ -309,6 +310,28 @@ public sealed interface Edit<S> extends FallibleEdit<S> permits Edit.Infallible 
   }
 
   // Shared bodies: the FocusPath and Setter overloads differ only in the write target.
+
+  /**
+   * Locates parse failures with the path's own segments (generated paths carry their record
+   * component name), folding outermost-first segments through {@link FieldError#at}. An explicit
+   * {@link FallibleEdit#at} still prepends outer labels around these.
+   */
+  private static <A> Validated<NonEmptyList<FieldError>, A> locate(
+      Validated<NonEmptyList<FieldError>, A> parsed, List<String> segments) {
+    if (segments.isEmpty()) {
+      return parsed;
+    }
+    return parsed.mapError(
+        errors ->
+            errors.map(
+                error -> {
+                  FieldError located = error;
+                  for (int i = segments.size() - 1; i >= 0; i--) {
+                    located = located.at(segments.get(i));
+                  }
+                  return located;
+                }));
+  }
 
   private static <S> Edit<S> noOp() {
     return new Infallible<>(Update.identity());

@@ -14,6 +14,10 @@ This page documents the evolution of Higher-Kinded-J from its initial release th
 
 ### 0.4.8-SNAPSHOT (Latest)
 
+**Optic-path labelling: generated paths know their own names**
+
+`@GenerateFocus` companions now emit the record-component name as a path segment (`FocusPath.of(lens, "email")`), and every path type surfaces `segments()` and `pathString()` (`"customer.address.zip"`). Composing paths concatenates segments; raw-optic and widening links (`each()`/`some()`/`nullable()`) contribute nothing. `Edit.parseIfPresent` locates parse failures with the path's own segments automatically, so sparse-PATCH errors arrive located with no `.at(...)` ceremony — an explicit `.at(label)` still prepends outward. Purely additive ([#592](https://github.com/higher-kinded-j/higher-kinded-j/issues/592)). See [Multi-Edit and Sparse Updates](optics/multi_edit.md).
+
 **`Edits`: sparse, accumulating multi-edit over optics**
 
 Apply N independent edits at different paths in one reusable operation. `Edits.combine` folds pure edits (`Edit.set`/`modify`/`setIfPresent`/`modifyIfPresent`, over a `FocusPath` or `Setter`) into a single `Update<S>` via `Monoids.update()`; `Edits.accumulate` adds the validated REST-`PATCH` shape — `parseIfPresent(path, raw, parser).at("email")` parses each incoming value independently, reports **every** bad field at once as located `FieldError`s in edit order (the `NonEmptyList` channel, with no arity ceiling), and applies the writes in one left-to-right pass only if everything validated. `…IfPresent` treats `null` as absent (the monoid identity), so sparse DTO fields land one-to-one with no `if` ceremony; a `ValidationPath` twin (`applyPath`) rides the railway. Purely additive ([#582](https://github.com/higher-kinded-j/higher-kinded-j/issues/582)). See [Multi-Edit and Sparse Updates](optics/multi_edit.md).

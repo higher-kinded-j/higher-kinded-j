@@ -82,7 +82,13 @@ Validated<NonEmptyList<FieldError>, Order> updated =
 // Invalid(NEL[ "email: not an address" ]) — or Valid(order') with only the present fields changed
 ```
 
-Errors accumulate in edit order on the `NonEmptyList` channel, exactly like the [accumulating assembly](../monads/validated_assembly.md) — but as a homogeneous fold, so there is **no arity ceiling**. For the railway, `applyPath(order)` is the `ValidationPath` twin of `apply(order)`, and `toValidated()` exposes the folded `Update` itself for reuse.
+Errors accumulate in edit order on the `NonEmptyList` channel, exactly like the [accumulating assembly](../monads/validated_assembly.md) — but as a homogeneous fold, so there is **no arity ceiling**.
+
+~~~admonish tip title="Generated paths label themselves"
+A path from a `@GenerateFocus` companion carries its record-component name as a **segment** (`OrderFocus.email()` → `"email"`); composing paths concatenates segments (`customer.via(address).via(zip)` → `"customer.address.zip"`, surfaced by `segments()`/`pathString()`), and `parseIfPresent` locates failures with them **automatically** — no `.at(...)` needed for generated paths. An explicit `.at(label)` still prepends outward, for hand-written optics or extra context.
+~~~
+
+For the railway, `applyPath(order)` is the `ValidationPath` twin of `apply(order)`, and `toValidated()` exposes the folded `Update` itself for reuse.
 
 ## Semantics: validate everything, then write once
 

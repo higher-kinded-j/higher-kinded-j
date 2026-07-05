@@ -23,10 +23,13 @@ import org.jspecify.annotations.NullMarked;
  * @param <A> the focused type
  */
 @NullMarked
-record TraversalFocusPath<S, A>(Traversal<S, A> traversal) implements TraversalPath<S, A> {
+record TraversalFocusPath<S, A>(Traversal<S, A> traversal, List<String> segments)
+    implements TraversalPath<S, A> {
 
   TraversalFocusPath {
     Objects.requireNonNull(traversal, "traversal must not be null");
+    Objects.requireNonNull(segments, "segments must not be null");
+    segments = List.copyOf(segments);
   }
 
   @Override
@@ -46,37 +49,37 @@ record TraversalFocusPath<S, A>(Traversal<S, A> traversal) implements TraversalP
 
   @Override
   public TraversalPath<S, A> filter(Predicate<A> predicate) {
-    return new TraversalFocusPath<>(traversal.filtered(predicate));
+    return new TraversalFocusPath<>(traversal.filtered(predicate), segments);
   }
 
   // ===== Composition Methods =====
 
   @Override
   public <B> TraversalPath<S, B> via(Lens<A, B> lens) {
-    return new TraversalFocusPath<>(traversal.andThen(lens));
+    return new TraversalFocusPath<>(traversal.andThen(lens), segments);
   }
 
   @Override
   public <B> TraversalPath<S, B> via(Prism<A, B> prism) {
-    return new TraversalFocusPath<>(traversal.andThen(prism));
+    return new TraversalFocusPath<>(traversal.andThen(prism), segments);
   }
 
   @Override
   public <B> TraversalPath<S, B> via(Affine<A, B> affine) {
     // Traversal >>> Affine requires going through traversal composition
-    return new TraversalFocusPath<>(traversal.andThen(affine.asTraversal()));
+    return new TraversalFocusPath<>(traversal.andThen(affine.asTraversal()), segments);
   }
 
   @Override
   public <B> TraversalPath<S, B> via(Traversal<A, B> other) {
-    return new TraversalFocusPath<>(traversal.andThen(other));
+    return new TraversalFocusPath<>(traversal.andThen(other), segments);
   }
 
   @Override
   public <B> TraversalPath<S, B> via(Iso<A, B> iso) {
     // Compose via lens view of the iso
     Lens<A, B> lensView = Lens.of(iso::get, (a, b) -> iso.reverseGet(b));
-    return new TraversalFocusPath<>(traversal.andThen(lensView));
+    return new TraversalFocusPath<>(traversal.andThen(lensView), segments);
   }
 
   // ===== Conversion =====

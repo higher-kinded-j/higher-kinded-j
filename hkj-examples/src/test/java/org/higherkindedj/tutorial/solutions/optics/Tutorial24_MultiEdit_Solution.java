@@ -31,12 +31,16 @@ public class Tutorial24_MultiEdit_Solution {
 
   record Profile(String email, String displayName, int age) {}
 
+  // Labelled paths (a @GenerateFocus companion emits exactly this shape): failures self-locate.
   static final FocusPath<Profile, String> EMAIL =
-      FocusPath.of(Lens.of(Profile::email, (p, e) -> new Profile(e, p.displayName(), p.age())));
+      FocusPath.of(
+          Lens.of(Profile::email, (p, e) -> new Profile(e, p.displayName(), p.age())), "email");
   static final FocusPath<Profile, String> NAME =
-      FocusPath.of(Lens.of(Profile::displayName, (p, n) -> new Profile(p.email(), n, p.age())));
+      FocusPath.of(
+          Lens.of(Profile::displayName, (p, n) -> new Profile(p.email(), n, p.age())), "name");
   static final FocusPath<Profile, Integer> AGE =
-      FocusPath.of(Lens.of(Profile::age, (p, a) -> new Profile(p.email(), p.displayName(), a)));
+      FocusPath.of(
+          Lens.of(Profile::age, (p, a) -> new Profile(p.email(), p.displayName(), a)), "age");
 
   static Validated<NonEmptyList<FieldError>, String> parseEmail(String raw) {
     return raw.contains("@")
@@ -125,7 +129,8 @@ public class Tutorial24_MultiEdit_Solution {
 
     /**
      * Why this is idiomatic: the parser stays a plain smart constructor (no path parameter); the
-     * location is attached around it with {@code .at("email")}, mirroring {@code FieldError.at}.
+     * labelled path locates the failure automatically, and {@code .at(label)} remains available to
+     * prepend outer context.
      */
     @Test
     @DisplayName("Exercise 4: a fallible edit parses, then writes")
@@ -135,8 +140,7 @@ public class Tutorial24_MultiEdit_Solution {
       Validated<NonEmptyList<FieldError>, Profile> patched =
           Edits.accumulate(
                   Edit.parseIfPresent(
-                          EMAIL, "  Dan@Example.COM ", Tutorial24_MultiEdit_Solution::parseEmail)
-                      .at("email"))
+                      EMAIL, "  Dan@Example.COM ", Tutorial24_MultiEdit_Solution::parseEmail))
               .apply(dan);
 
       assertThatValidated(patched).isValid().hasValue(new Profile("dan@example.com", "Dan", 52));
@@ -154,10 +158,8 @@ public class Tutorial24_MultiEdit_Solution {
 
       Validated<NonEmptyList<FieldError>, Profile> patched =
           Edits.accumulate(
-                  Edit.parseIfPresent(EMAIL, "nope", Tutorial24_MultiEdit_Solution::parseEmail)
-                      .at("email"),
-                  Edit.parseIfPresent(AGE, "not-a-number", Tutorial24_MultiEdit_Solution::parseAge)
-                      .at("age"))
+                  Edit.parseIfPresent(EMAIL, "nope", Tutorial24_MultiEdit_Solution::parseEmail),
+                  Edit.parseIfPresent(AGE, "not-a-number", Tutorial24_MultiEdit_Solution::parseAge))
               .apply(eve);
 
       assertThatValidated(patched).isInvalid();

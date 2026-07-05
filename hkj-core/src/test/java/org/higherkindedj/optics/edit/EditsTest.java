@@ -301,6 +301,38 @@ class EditsTest {
     }
 
     @Test
+    @DisplayName("a labelled path auto-locates failures; explicit at prepends around them")
+    void labelledPathAutoLocates() {
+      FocusPath<Order, String> labelled =
+          FocusPath.of(
+              Lens.of(Order::email, (o, e) -> new Order(e, o.sku(), o.quantity())), "email");
+
+      Validated<NonEmptyList<FieldError>, Order> auto =
+          Edits.accumulate(Edit.parseIfPresent(labelled, "nope", EditsTest::parseEmail))
+              .apply(ORDER);
+      assertThatValidated(auto).isInvalid();
+      assertThat(auto.getError().toJavaList()).singleElement().hasToString("email: not an address");
+
+      FocusPath<Order, String> nested =
+          FocusPath.of(Lens.<Order, Order>of(o -> o, (o, n) -> n), "customer").via(labelled);
+      Validated<NonEmptyList<FieldError>, Order> composed =
+          Edits.accumulate(Edit.parseIfPresent(nested, "nope", EditsTest::parseEmail)).apply(ORDER);
+      assertThatValidated(composed).isInvalid();
+      assertThat(composed.getError().toJavaList())
+          .singleElement()
+          .hasToString("customer.email: not an address");
+
+      Validated<NonEmptyList<FieldError>, Order> wrapped =
+          Edits.accumulate(
+                  Edit.parseIfPresent(labelled, "nope", EditsTest::parseEmail).at("account"))
+              .apply(ORDER);
+      assertThatValidated(wrapped).isInvalid();
+      assertThat(wrapped.getError().toJavaList())
+          .singleElement()
+          .hasToString("account.email: not an address");
+    }
+
+    @Test
     @DisplayName("should eagerly reject null arguments and a null-returning parser")
     void shouldRejectNulls() {
       assertThatNullPointerException()
