@@ -187,7 +187,9 @@ public final class LensDeepUpdate {
     Lens<User, String> userToPostalCode =
         UserLenses.profile().andThen(ProfileLenses.address()).andThen(AddressLenses.postalCode());
 
-    // Fold the independent writes into one reusable update, applied in one pass
+    // Fold the independent writes into one reusable update, applied in one pass.
+    // (Edits.combine(Edit.set(path, v), ...) sugars exactly this fold - see
+    // org.higherkindedj.optics.edit.)
     Update<User> relocate =
         Monoids.<User>update()
             .combineAll(

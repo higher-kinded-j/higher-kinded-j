@@ -101,6 +101,7 @@
   - [Integration and Recipes](optics/ch5_intro.md)
     - [Composing Optics](optics/composing_optics.md)
     - [Core Type Integration](optics/core_type_integration.md)
+    - [Multi-Edit and Sparse Updates](optics/multi_edit.md)
     - [Optics Extensions](optics/optics_extensions.md)
     - [Optic-Driven Batching](optics/optic_batching.md)
     - [Plan Introspection and Guardrails](optics/optic_batching_guardrails.md)

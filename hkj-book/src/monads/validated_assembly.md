@@ -148,6 +148,7 @@ A component whose type is itself annotated accepts its sub-companion's result di
 | You are combining... | Reach for |
 |---|---|
 | N independent fields into a record | `fields()` / `accumulate()` |
+| N validated fields into an **existing** value (sparse update / `PATCH`) | [`Edits.accumulate`](../optics/multi_edit.md) |
 | A record you own, assembled in many places | [`@GenerateAssembly`](#generating-the-companion-generateassembly) |
 | Two or three values, inline, no labels needed | `zipWithAccum` / `zipWith3Accum` on the Path types, or `EitherOrBoth.zipWithAccum` |
 | Values inside generic `Kind`-polymorphic code | the `Applicative` `mapN` family |
@@ -178,6 +179,7 @@ assertThatFieldError(FieldError.of("not a postcode").at("zip").at("address"))
 - [EitherOrBoth](either_or_both_monad.md): the tolerant carrier
 - [ValidationPath](../effect/path_validation.md): the railway validation API
 - [Applicative](../functional/applicative.md): the `mapN` family for `Kind`-generic code
+- [Multi-Edit and Sparse Updates](../optics/multi_edit.md): the same all-errors-at-once model for *updating* existing values
 ~~~
 
 ---

@@ -8,19 +8,22 @@ import static org.higherkindedj.optics.extensions.TraversalExtensions.*;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
-import java.util.ArrayList;
 import java.util.List;
-import org.higherkindedj.hkt.Monoids;
-import org.higherkindedj.hkt.Update;
+import java.util.Objects;
 import org.higherkindedj.hkt.either.Either;
 import org.higherkindedj.hkt.maybe.Maybe;
+import org.higherkindedj.hkt.nonemptylist.NonEmptyList;
 import org.higherkindedj.hkt.trymonad.Try;
+import org.higherkindedj.hkt.validated.FieldError;
 import org.higherkindedj.hkt.validated.Validated;
 import org.higherkindedj.optics.Lens;
 import org.higherkindedj.optics.Prism;
 import org.higherkindedj.optics.Traversal;
 import org.higherkindedj.optics.annotations.GenerateLenses;
 import org.higherkindedj.optics.annotations.GeneratePrisms;
+import org.higherkindedj.optics.edit.Edit;
+import org.higherkindedj.optics.edit.Edits;
+import org.higherkindedj.optics.focus.FocusPath;
 import org.higherkindedj.optics.util.Prisms;
 import org.higherkindedj.optics.util.Traversals;
 
@@ -132,7 +135,8 @@ public class IntegrationPatternsExample {
   private static void processOrder(IPOrder order) {
     // Step 3: Validate customer data
     System.out.println("\nStep 2: IPCustomer Validation");
-    Validated<List<String>, IPCustomer> customerValidation = validateCustomer(order.customer());
+    Validated<NonEmptyList<FieldError>, IPCustomer> customerValidation =
+        validateCustomer(order.customer());
 
     customerValidation.fold(
         errors -> {
@@ -184,49 +188,41 @@ public class IntegrationPatternsExample {
         });
   }
 
-  private static Validated<List<String>, IPCustomer> validateCustomer(IPCustomer customer) {
-    Lens<IPCustomer, String> nameLens = IPCustomerLenses.name();
-    Lens<IPCustomer, String> emailLens = IPCustomerLenses.email();
+  private static Validated<NonEmptyList<FieldError>, IPCustomer> validateCustomer(
+      IPCustomer customer) {
+    FocusPath<IPCustomer, String> name = FocusPath.of(IPCustomerLenses.name());
+    FocusPath<IPCustomer, String> email = FocusPath.of(IPCustomerLenses.email());
 
-    // Validate each field independently and collect errors
-    List<String> errors = new ArrayList<>();
+    // Every field validated independently; ALL failures reported at once, located by field.
+    // A null incoming value would mean "absent" to parseIfPresent, so required fields are
+    // defaulted to "" first - the parser then reports them as missing.
+    return Edits.accumulate(
+            Edit.parseIfPresent(
+                    name,
+                    Objects.requireNonNullElse(customer.name(), ""),
+                    IntegrationPatternsExample::parseName)
+                .at("name"),
+            Edit.parseIfPresent(
+                    email,
+                    Objects.requireNonNullElse(customer.email(), ""),
+                    IntegrationPatternsExample::parseEmail)
+                .at("email"))
+        .apply(customer);
+  }
 
-    // Validate name
-    Validated<String, String> nameValidation =
-        customer.name() == null || customer.name().trim().isEmpty()
-            ? Validated.invalid("Name is required")
-            : customer.name().length() < 2
-                ? Validated.invalid("Name too short")
-                : Validated.valid(customer.name());
-
-    // Validate email
-    Validated<String, String> emailValidation =
-        customer.email() == null || !customer.email().contains("@")
-            ? Validated.invalid("Valid email is required")
-            : Validated.valid(customer.email());
-
-    // Collect errors
-    if (nameValidation.isInvalid()) {
-      errors.add(nameValidation.getError());
+  private static Validated<NonEmptyList<FieldError>, String> parseName(String name) {
+    if (name.trim().isEmpty()) {
+      return Validated.invalidNel(FieldError.of("name is required"));
     }
-    if (emailValidation.isInvalid()) {
-      errors.add(emailValidation.getError());
-    }
+    return name.length() < 2
+        ? Validated.invalidNel(FieldError.of("name too short"))
+        : Validated.validNel(name);
+  }
 
-    // If there are errors, return invalid with all errors
-    if (!errors.isEmpty()) {
-      return Validated.invalid(errors);
-    }
-
-    // Both validations passed; fold the two field writes into one update
-    Update<IPCustomer> applyValidated =
-        Monoids.<IPCustomer>update()
-            .combineAll(
-                List.of(
-                    c -> nameLens.set(nameValidation.get(), c),
-                    c -> emailLens.set(emailValidation.get(), c)));
-
-    return Validated.valid(applyValidated.apply(customer));
+  private static Validated<NonEmptyList<FieldError>, String> parseEmail(String email) {
+    return email.contains("@")
+        ? Validated.validNel(email)
+        : Validated.invalidNel(FieldError.of("valid email is required"));
   }
 
   private static ValidationResult validateOrderItems(List<IPOrderItem> items) {

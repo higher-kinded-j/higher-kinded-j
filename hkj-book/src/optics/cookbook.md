@@ -214,52 +214,47 @@ You need to validate multiple fields and accumulate all errors.
 
 ### Solution
 
+Use the `Edits` builder: each field becomes a fallible edit, every incoming value is validated independently, and **all** failures are reported at once, located by field:
+
 ```java
-import static org.higherkindedj.optics.fluent.OpticOps.modifyAllValidated;
+import static org.higherkindedj.optics.edit.Edit.parseIfPresent;
 
 record Registration(String email, String password, int age) {}
 
-// Traversals for each field
-Traversal<Registration, String> emailTraversal =
-    RegistrationLenses.email().asTraversal();
-Traversal<Registration, String> passwordTraversal =
-    RegistrationLenses.password().asTraversal();
-Traversal<Registration, Integer> ageTraversal =
-    RegistrationLenses.age().asTraversal();
+FocusPath<Registration, String> emailPath = FocusPath.of(RegistrationLenses.email());
+FocusPath<Registration, String> passwordPath = FocusPath.of(RegistrationLenses.password());
+FocusPath<Registration, Integer> agePath = FocusPath.of(RegistrationLenses.age());
 
-// Validation functions
-Function<String, Validated<List<String>, String>> validateEmail = email ->
+// Leaf validators stay plain - no path parameter, no error-list plumbing
+Function<String, Validated<NonEmptyList<FieldError>, String>> validateEmail = email ->
     email.contains("@")
-        ? Validated.valid(email)
-        : Validated.invalid(List.of("Invalid email format"));
+        ? Validated.validNel(email)
+        : Validated.invalidNel(FieldError.of("invalid email format"));
 
-Function<String, Validated<List<String>, String>> validatePassword = password ->
+Function<String, Validated<NonEmptyList<FieldError>, String>> validatePassword = password ->
     password.length() >= 8
-        ? Validated.valid(password)
-        : Validated.invalid(List.of("Password must be at least 8 characters"));
+        ? Validated.validNel(password)
+        : Validated.invalidNel(FieldError.of("must be at least 8 characters"));
 
-Function<Integer, Validated<List<String>, Integer>> validateAge = age ->
+Function<Integer, Validated<NonEmptyList<FieldError>, Integer>> validateAge = age ->
     age >= 18
-        ? Validated.valid(age)
-        : Validated.invalid(List.of("Must be 18 or older"));
+        ? Validated.validNel(age)
+        : Validated.invalidNel(FieldError.of("must be 18 or older"));
 
-// Combine validations
-public Validated<List<String>, Registration> validateRegistration(Registration reg) {
-    Validated<List<String>, Registration> emailResult =
-        modifyAllValidated(emailTraversal, validateEmail, reg);
-    Validated<List<String>, Registration> passwordResult =
-        modifyAllValidated(passwordTraversal, validatePassword, reg);
-    Validated<List<String>, Registration> ageResult =
-        modifyAllValidated(ageTraversal, validateAge, reg);
-
-    // Combine all validations
-    return emailResult.flatMap(r1 ->
-        passwordResult.flatMap(r2 ->
-            ageResult
-        )
-    );
+public Validated<NonEmptyList<FieldError>, Registration> validateRegistration(Registration reg) {
+    return Edits.accumulate(
+            parseIfPresent(emailPath,    reg.email(),    validateEmail).at("email"),
+            parseIfPresent(passwordPath, reg.password(), validatePassword).at("password"),
+            parseIfPresent(agePath,      reg.age(),      validateAge).at("age"))
+        .apply(reg);
 }
+// Invalid(NonEmptyList[email: invalid email format, password: must be at least 8 characters])
+// - every bad field reported at once, located, in edit order
 ```
+
+~~~admonish warning title="Why not flatMap?"
+Chaining per-field `Validated` results with `flatMap` short-circuits: the first failure hides all the others, and earlier writes are discarded. `Edits.accumulate` validates every field independently and applies every write in one pass — see [Multi-Edit and Sparse Updates](multi_edit.md).
+~~~
 
 ---
 

@@ -475,4 +475,4 @@ Maybe<String> safeBio = maybeProfile.flatMap(p -> getMaybe(bioLens, p));
 
 ---
 
-[Previous: Core Type Integration](core_type_integration.md) | [Next: Optic-Driven Batching](optic_batching.md)
+[Previous: Multi-Edit and Sparse Updates](multi_edit.md) | [Next: Optic-Driven Batching](optic_batching.md)
