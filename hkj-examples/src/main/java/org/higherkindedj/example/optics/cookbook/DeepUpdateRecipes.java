@@ -2,6 +2,9 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.example.optics.cookbook;
 
+import java.util.List;
+import org.higherkindedj.hkt.Monoids;
+import org.higherkindedj.hkt.Update;
 import org.higherkindedj.optics.Lens;
 import org.higherkindedj.optics.annotations.GenerateLenses;
 
@@ -117,9 +120,13 @@ public class DeepUpdateRecipes {
 
     User user = new User("Charlie", new Address(new Street("Main St", 1), "Manchester", "M1 1AA"));
 
-    // Use paths multiple times
-    User relocated = userCity.set("Edinburgh", user);
-    relocated = userPostcode.set("EH1 1AA", relocated);
+    // Reuse the paths AND the composed transformation: fold both writes into one update
+    Update<User> relocate =
+        Monoids.<User>update()
+            .combineAll(
+                List.of(u -> userCity.set("Edinburgh", u), u -> userPostcode.set("EH1 1AA", u)));
+
+    User relocated = relocate.apply(user);
 
     System.out.println("Original: " + user);
     System.out.println("Relocated: " + relocated);

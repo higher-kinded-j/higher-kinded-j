@@ -2,6 +2,9 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.example.tutorials;
 
+import java.util.List;
+import org.higherkindedj.hkt.Monoids;
+import org.higherkindedj.hkt.Update;
 import org.higherkindedj.optics.Lens;
 import org.higherkindedj.optics.annotations.GenerateLenses;
 
@@ -171,8 +174,8 @@ public final class LensDeepUpdate {
   /**
    * Demonstrates updating multiple nested fields independently.
    *
-   * <p>Each lens operates independently. You can compose different paths and apply them
-   * sequentially or use one lens multiple times.
+   * <p>Each lens operates independently, and each lens write is an {@code Update<User>}, so
+   * independent writes fold into one named transformation via {@link Monoids#update()}.
    */
   private static void demonstrateMultipleUpdates(User original) {
     System.out.println("\n2. Multiple Updates: Change city and postal code");
@@ -184,9 +187,14 @@ public final class LensDeepUpdate {
     Lens<User, String> userToPostalCode =
         UserLenses.profile().andThen(ProfileLenses.address()).andThen(AddressLenses.postalCode());
 
-    // Apply updates sequentially
-    User updated = userToCity.set("Shelbyville", original);
-    updated = userToPostalCode.set("54321", updated);
+    // Fold the independent writes into one reusable update, applied in one pass
+    Update<User> relocate =
+        Monoids.<User>update()
+            .combineAll(
+                List.of(
+                    u -> userToCity.set("Shelbyville", u), u -> userToPostalCode.set("54321", u)));
+
+    User updated = relocate.apply(original);
 
     System.out.println("  Updated city: " + userToCity.get(updated));
     System.out.println("  Updated postal code: " + userToPostalCode.get(updated));

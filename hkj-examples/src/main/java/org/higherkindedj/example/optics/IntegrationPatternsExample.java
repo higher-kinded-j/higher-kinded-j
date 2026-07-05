@@ -10,6 +10,8 @@ import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
+import org.higherkindedj.hkt.Monoids;
+import org.higherkindedj.hkt.Update;
 import org.higherkindedj.hkt.either.Either;
 import org.higherkindedj.hkt.maybe.Maybe;
 import org.higherkindedj.hkt.trymonad.Try;
@@ -216,11 +218,15 @@ public class IntegrationPatternsExample {
       return Validated.invalid(errors);
     }
 
-    // Both validations passed, update the customer with validated values
-    IPCustomer updated = nameLens.set(nameValidation.get(), customer);
-    updated = emailLens.set(emailValidation.get(), updated);
+    // Both validations passed; fold the two field writes into one update
+    Update<IPCustomer> applyValidated =
+        Monoids.<IPCustomer>update()
+            .combineAll(
+                List.of(
+                    c -> nameLens.set(nameValidation.get(), c),
+                    c -> emailLens.set(emailValidation.get(), c)));
 
-    return Validated.valid(updated);
+    return Validated.valid(applyValidated.apply(customer));
   }
 
   private static ValidationResult validateOrderItems(List<IPOrderItem> items) {
