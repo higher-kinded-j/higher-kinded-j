@@ -76,6 +76,19 @@ public class HKJPlugin implements Plugin<Project> {
                 sourceSet.getAnnotationProcessorConfigurationName(),
                 GROUP_ID + ":hkj-processor-plugins:" + version));
 
+    // Record parameter names in class files: some copy strategies and future mapper
+    // features read them, and the flag is harmless otherwise.
+    project
+        .getTasks()
+        .withType(JavaCompile.class)
+        .configureEach(
+            task -> {
+              List<String> args = task.getOptions().getCompilerArgs();
+              if (!args.contains("-parameters")) {
+                args.add("-parameters");
+              }
+            });
+
     // Preview features
     if (Boolean.TRUE.equals(extension.getPreview().get())) {
       configurePreviewFeatures(project);

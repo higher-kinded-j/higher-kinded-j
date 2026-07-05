@@ -14,6 +14,10 @@ This page documents the evolution of Higher-Kinded-J from its initial release th
 
 ### 0.4.8-SNAPSHOT (Latest)
 
+**Codegen on-ramp: `-parameters` wired by both build plugins**
+
+The Gradle and Maven plugins now add `-parameters` to compilation automatically (parameter names in class files — used by copy strategies and the upcoming mapper), completing the one-line setup story: apply the plugin and dependencies, annotation processors, preview flags, `-parameters`, and compile-time checks are all configured. The quickstart and plugin pages state the full list ([#602](https://github.com/higher-kinded-j/higher-kinded-j/issues/602)).
+
 **`ValidatedPrism`: the smart-constructor optic for parse-don't-validate boundaries**
 
 A `Prism` whose match accumulates reasons: `parse` returns `Validated<NonEmptyList<FieldError>, A>` (every failure, located), `build` is total. Nested composition short-circuits while sibling fields accumulate through the assembly builders or `Edits`; only build-preserving compositions exist (`ValidatedPrism`, `Iso`, `Prism`-with-a-reason — a `Lens` cell is deliberately absent because no total build survives it). Bridges: `fromIso`/`fromPrism(reason)`, reason-forgetting `toPrism()`/`toAffine()`, and `parsePath` onto the railway. Both round-trip laws ship as `ValidatedPrismLaws` in `hkj-test` — the law harness's first extension. Purely additive ([#597](https://github.com/higher-kinded-j/higher-kinded-j/issues/597)). See [Validated Prisms](optics/validated_prism.md).
