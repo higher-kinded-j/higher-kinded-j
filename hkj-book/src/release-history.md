@@ -14,6 +14,10 @@ This page documents the evolution of Higher-Kinded-J from its initial release th
 
 ### 0.4.8-SNAPSHOT (Latest)
 
+**`Update<S>` and `Monoids.update()`: the function-composition monoid**
+
+A named, composable update: `Update<S>` extends `UnaryOperator<S>` (so it drops into any `Function`-shaped API for free) with `Update.identity()` and an `andThen` that stays in the type. `Monoids.update()` joins the existing noun factories — identity is the do-nothing update, `combine(f, g)` applies `f` first, then `g` — so any number of updates fold into one, applied left to right. Known in FP literature as the `Endo` monoid; the keystone for the upcoming `Edits` multi-edit builder ([#582](https://github.com/higher-kinded-j/higher-kinded-j/issues/582)). Purely additive ([#591](https://github.com/higher-kinded-j/higher-kinded-j/issues/591)). See [Semigroup and Monoid](functional/semigroup_and_monoid.md).
+
 **`@GenerateAssembly`: per-record validated-assembly companions**
 
 The accumulating assembly builder gains its codegen layer: annotate a record and the processor generates a same-package companion (`UserAssembly.fields().name(v).email(v).age(v).assemble()`) with one named, order-enforcing method per component. Labels come from the component names, the terminal `assemble()` invokes the canonical constructor, and the merge is a curried `Validated.ap` chain with `NonEmptyList.semigroup()`, so arity is exact with **no ceiling** and errors emerge in component-declaration order. A component typed as another annotated record accepts its sub-companion's result directly (`address.zip`). First slice of the record mapper feature ([#586](https://github.com/higher-kinded-j/higher-kinded-j/issues/586)). See [Accumulating Assembly](monads/validated_assembly.md).

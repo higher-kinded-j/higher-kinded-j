@@ -605,6 +605,7 @@ Optional<Integer> max = maxMonoid.combineAll(
 - `booleanAnd()`, `booleanOr()` - Boolean operations
 - `firstOptional()`, `lastOptional()` - First/last non-empty Optional
 - `maximum()`, `minimum()` - Max/min value aggregation with Optional
+- `update()` - Left-to-right composition of `Update<S>` transformations
 
 **Laws:**
 - Left Identity: `combine(empty(), a) == a`

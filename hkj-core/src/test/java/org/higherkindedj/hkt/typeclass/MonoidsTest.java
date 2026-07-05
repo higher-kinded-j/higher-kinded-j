@@ -13,6 +13,7 @@ import java.util.stream.Stream;
 import org.assertj.core.api.Assertions;
 import org.higherkindedj.hkt.Monoid;
 import org.higherkindedj.hkt.Monoids;
+import org.higherkindedj.hkt.Update;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -1006,6 +1007,57 @@ class MonoidsTest {
       T rightAssoc = monoid.combine(a, monoid.combine(b, c));
 
       assertThat(leftAssoc).isEqualTo(rightAssoc).isEqualTo(expected);
+    }
+  }
+
+  @Nested
+  @DisplayName("Update monoid")
+  class UpdateMonoidTests {
+
+    private final Monoid<Update<String>> updateMonoid = Monoids.update();
+    private final Update<String> appendA = s -> s + "a";
+    private final Update<String> appendB = s -> s + "b";
+    private final Update<String> appendC = s -> s + "c";
+
+    @Test
+    @DisplayName("should have the identity update as empty value")
+    void shouldHaveIdentityAsEmpty() {
+      String value = "unchanged";
+
+      assertThat(updateMonoid.empty().apply(value)).isSameAs(value);
+    }
+
+    @Test
+    @DisplayName("should combine left-to-right: combine(f, g) applies f first, then g")
+    void shouldCombineLeftToRight() {
+      assertThat(updateMonoid.combine(appendA, appendB).apply("")).isEqualTo("ab");
+      assertThat(updateMonoid.combine(appendB, appendA).apply("")).isEqualTo("ba");
+    }
+
+    @Test
+    @DisplayName("should satisfy identity laws, observed by application")
+    void shouldSatisfyIdentityLaws() {
+      assertThat(updateMonoid.combine(updateMonoid.empty(), appendA).apply("x")).isEqualTo("xa");
+      assertThat(updateMonoid.combine(appendA, updateMonoid.empty()).apply("x")).isEqualTo("xa");
+    }
+
+    @Test
+    @DisplayName("should satisfy associativity law, observed by application")
+    void shouldSatisfyAssociativityLaw() {
+      Update<String> leftAssoc =
+          updateMonoid.combine(updateMonoid.combine(appendA, appendB), appendC);
+      Update<String> rightAssoc =
+          updateMonoid.combine(appendA, updateMonoid.combine(appendB, appendC));
+
+      assertThat(leftAssoc.apply("")).isEqualTo("abc").isEqualTo(rightAssoc.apply(""));
+    }
+
+    @Test
+    @DisplayName("should fold many updates in order via combineAll")
+    void shouldFoldInOrderViaCombineAll() {
+      Update<String> all = updateMonoid.combineAll(List.of(appendA, appendB, appendC));
+
+      assertThat(all.apply("")).isEqualTo("abc");
     }
   }
 }
