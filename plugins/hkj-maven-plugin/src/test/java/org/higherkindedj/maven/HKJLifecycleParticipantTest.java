@@ -113,7 +113,7 @@ class HKJLifecycleParticipantTest {
       Xpp3Dom cfg = (Xpp3Dom) compilerPlugin().getConfiguration();
       assertThat(processorArtifactIds(cfg, "annotationProcessorPaths"))
           .contains("hkj-processor-plugins", "hkj-checker");
-      assertThat(argValues(cfg, "compilerArgs")).contains("-Xplugin:HKJChecker");
+      assertThat(argValues(cfg, "compilerArgs")).contains("-Xplugin:HKJChecker", "-parameters");
     }
 
     @Test
@@ -149,7 +149,7 @@ class HKJLifecycleParticipantTest {
 
       Xpp3Dom finalCfg = (Xpp3Dom) compilerPlugin().getConfiguration();
       assertThat(argValues(finalCfg, "testCompilerArgs"))
-          .containsExactlyInAnyOrder("--user-test-arg", "-Xplugin:HKJChecker");
+          .containsExactlyInAnyOrder("--user-test-arg", "-Xplugin:HKJChecker", "-parameters");
     }
 
     @Test
@@ -216,7 +216,7 @@ class HKJLifecycleParticipantTest {
       Xpp3Dom finalExecConfig =
           (Xpp3Dom) compilerPlugin().getExecutions().get(0).getConfiguration();
       assertThat(argValues(finalExecConfig, "compilerArgs"))
-          .containsExactlyInAnyOrder("--user-arg", "-Xplugin:HKJChecker");
+          .containsExactlyInAnyOrder("--user-arg", "-Xplugin:HKJChecker", "-parameters");
     }
 
     @Test
@@ -258,8 +258,12 @@ class HKJLifecycleParticipantTest {
       assertThat(processorArtifactIds(finalCfg, "testAnnotationProcessorPaths"))
           .contains("hkj-processor-plugins")
           .doesNotContain("hkj-checker");
-      assertThat(argValues(finalCfg, "testCompilerArgs")).doesNotContain("-Xplugin:HKJChecker");
-      assertThat(finalCfg.getChild("compilerArgs")).isNull();
+      assertThat(argValues(finalCfg, "testCompilerArgs"))
+          .contains("-parameters")
+          .doesNotContain("-Xplugin:HKJChecker");
+      assertThat(argValues(finalCfg, "compilerArgs"))
+          .contains("-parameters")
+          .doesNotContain("-Xplugin:HKJChecker");
     }
   }
 }

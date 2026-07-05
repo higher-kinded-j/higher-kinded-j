@@ -27,7 +27,7 @@ plugins {
 }
 ```
 
-This single line configures dependencies, preview features, annotation processors, and compile-time Path type checking automatically. See the [Gradle Plugin](tooling/gradle_plugin.md) documentation for the full DSL reference.
+This single line configures dependencies, preview features, annotation processors, `-parameters` (parameter names for copy strategies and the upcoming mapper), and compile-time Path type checking automatically. See the [Gradle Plugin](tooling/gradle_plugin.md) documentation for the full DSL reference.
 
 For **SNAPSHOT** versions of the plugin, add the Sonatype snapshots repository to your `settings.gradle.kts`:
 

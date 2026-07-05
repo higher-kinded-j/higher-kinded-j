@@ -26,7 +26,7 @@ plugins {
 }
 ```
 
-That is it. The plugin handles dependencies, preview flags, compile-time checks, and Javadoc configuration automatically.
+That is it. The plugin handles dependencies, preview flags, `-parameters` (parameter names in class files, used by copy strategies and the upcoming mapper), compile-time checks, and Javadoc configuration automatically.
 
 ### Using SNAPSHOT Versions
 
@@ -95,6 +95,7 @@ With default settings, the plugin adds:
 - `hkj-processor-plugins` to `annotationProcessor`
 - `hkj-checker` to `annotationProcessor`
 - `--enable-preview` to `JavaCompile`, `Test`, `JavaExec`, and `Javadoc` tasks
+- `-parameters` to every `JavaCompile` task (unconditional)
 - `-Xplugin:HKJChecker` to compiler arguments
 
 ---

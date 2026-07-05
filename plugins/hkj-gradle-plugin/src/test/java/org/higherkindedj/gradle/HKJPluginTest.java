@@ -101,6 +101,19 @@ class HKJPluginTest {
     }
 
     @Test
+    @DisplayName("adds -parameters to JavaCompile tasks unconditionally")
+    void plugin_addsParametersFlag_always() {
+      applyPlugin();
+      evaluateProject();
+
+      project
+          .getTasks()
+          .withType(JavaCompile.class)
+          .configureEach(
+              task -> assertThat(task.getOptions().getCompilerArgs()).contains("-parameters"));
+    }
+
+    @Test
     @DisplayName("adds --enable-preview to JavaCompile tasks when preview is enabled")
     void plugin_addsPreviewFlags_whenEnabled() {
       applyPlugin();
