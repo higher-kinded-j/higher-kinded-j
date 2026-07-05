@@ -248,42 +248,31 @@ When we call `Traversals.getAll(finalAuditor, config)`, it performs the entire, 
 
 This example is just the beginning. Here are some ideas for extending this solution into a real-world application:
 
-### 1. **Safe Decoding with `Validated`**
+### 1. **Safe Decoding with a `ValidatedPrism`**
 
-The `Base64.getDecoder().decode()` can throw an `IllegalArgumentException`. Instead of an `Iso`, create an `AffineTraversal` (an optional `Prism`) that returns a `Validated<String, byte[]>`, separating successes from failures gracefully.
-
+`Base64.getDecoder().decode()` can throw an `IllegalArgumentException`. A plain `Prism` can make the decode safe, but its match is an `Optional` — it **throws the reason away**, forcing the call site to reconstruct it. This is exactly the boundary [`ValidatedPrism`](validated_prism.md) names: the parse carries its reasons, and the build (Base64 encode) is genuinely total and faithful, so both round-trip laws hold:
 
 ```java
-public static final Prism<String, byte[]> SAFE_BASE64_PRISM = Prism.of(
+public static final ValidatedPrism<String, byte[]> SAFE_BASE64 = ValidatedPrism.of(
     encoded -> {
         try {
-            return Optional.of(Base64.getDecoder().decode(encoded));
+            return Validated.validNel(Base64.getDecoder().decode(encoded));
         } catch (IllegalArgumentException e) {
-            return Optional.empty();
+            return Validated.invalidNel(FieldError.of("invalid base64: " + encoded));
         }
     },
     bytes -> Base64.getEncoder().encodeToString(bytes)
 );
 
-// Use in a traversal that accumulates both successes and failures
-public static AuditResult auditWithErrorReporting(AppConfig config) {
-    var validatedApplicative = Instances.validated(Semigroups.list());
-  
-    Traversal<AppConfig, String> base64Strings = /* ... path to base64 strings ... */;
-  
-    Validated<List<String>, List<byte[]>> result = VALIDATED.narrow(
-        base64Strings.modifyF(
-            encoded -> SAFE_BASE64_PRISM.getOptional(encoded)
-                .map(bytes -> VALIDATED.widen(Validated.valid(bytes)))
-                .orElse(VALIDATED.widen(Validated.invalid(List.of("Invalid base64: " + encoded)))),
-            config,
-            validatedApplicative
-        )
-    );
-  
-    return new AuditResult(result);
-}
+// The reason now lives where the failure happens - no reconstruction at the call site:
+Validated<NonEmptyList<FieldError>, byte[]> decoded = SAFE_BASE64.parse(encodedValue);
+ValidationPath<NonEmptyList<FieldError>, byte[]> railway = SAFE_BASE64.parsePath(encodedValue);
+
+// Need the reason-less form for composing into the audit traversal? Forget on demand:
+Traversal<AppConfig, byte[]> lossy = base64Strings.andThen(SAFE_BASE64.toPrism().asTraversal());
 ```
+
+To audit a whole config and report **every** bad entry at once, parse each string through `SAFE_BASE64.parse` and accumulate the results with the [assembly builders](../monads/validated_assembly.md) — sibling accumulation is their job; `ValidatedPrism` supplies the located leaf.
 
 ### 2. **Data Migration with `modify`**
 

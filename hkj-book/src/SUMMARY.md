@@ -62,6 +62,7 @@
     - [Lenses](optics/lenses.md)
     - [Prisms](optics/prisms.md)
       - [Prism Toolkit](optics/prism_toolkit.md)
+      - [Validated Prisms](optics/validated_prism.md)
     - [Affines](optics/affine.md)
     - [Isomorphisms](optics/iso.md)
     - [Composition Rules](optics/composition_rules.md)

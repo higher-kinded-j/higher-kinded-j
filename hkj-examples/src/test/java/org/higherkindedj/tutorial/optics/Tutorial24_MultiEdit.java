@@ -247,6 +247,8 @@ public class Tutorial24_MultiEdit {
    *     the ValidationPath twin (applyPath), and reusing one accumulated patch across sources.
    *   • Tutorial 23 — genuinely coupled fields (a cross-field invariant) belong in one atomic
    *     edit: CoupledLenses, not independent edits.
+   *   • Tutorial 25 — the leaf-side twin: parseIfPresent takes exactly a ValidatedPrism's
+   *     parse; name the boundary once and pass prism::parse.
    *   • Tutorial 12 — the construction-side twin: assembling a NEW record from N validated
    *     fields with fields()/accumulate().
    */

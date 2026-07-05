@@ -60,6 +60,7 @@ module org.higherkindedj.core {
   exports org.higherkindedj.optics.focus;
   exports org.higherkindedj.optics.fetch;
   exports org.higherkindedj.optics.edit;
+  exports org.higherkindedj.optics.validated;
   exports org.higherkindedj.hkt.vtask;
   exports org.higherkindedj.hkt.vstream;
   exports org.higherkindedj.hkt.context;

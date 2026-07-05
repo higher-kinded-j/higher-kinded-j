@@ -458,6 +458,7 @@ Extracted strings only: [hello, world]
 
 ~~~admonish tip title="See Also"
 - [Prism Toolkit](prism_toolkit.md), the full convenience-method catalogue and the `Prisms` utility factory methods for `Optional`, `Either`, `Maybe`, `Try`, and list decomposition.
+- [Validated Prisms](validated_prism.md) - When the *no* needs to carry located, accumulated reasons (a validated boundary)
 ~~~
 
 ---

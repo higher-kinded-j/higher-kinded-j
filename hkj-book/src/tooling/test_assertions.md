@@ -245,7 +245,7 @@ void statusPrismIsLawful() {
 }
 ```
 
-Each family also exposes the individual laws (`assertGetSet`, `assertBuildMatch`, `assertSetNoOpWhenAbsent`, …) for targeted checks, and failures name the violated law with the offending values — `"Lens set-get: get(set(Grace, …)) == the value set; got Ada"`. Guard rails reject vacuous fixtures (equal set-set values, non-matching prism sources). Drive broader coverage with `@ParameterizedTest` or property fixtures at the call site.
+`ValidatedPrismLaws` joins the family for the validated-boundary optic (parse-build and the section law build-parse). Each family also exposes the individual laws (`assertGetSet`, `assertBuildMatch`, `assertSetNoOpWhenAbsent`, …) for targeted checks, and failures name the violated law with the offending values — `"Lens set-get: get(set(Grace, …)) == the value set; got Ada"`. Guard rails reject vacuous fixtures (equal set-set values, non-matching prism sources). Drive broader coverage with `@ParameterizedTest` or property fixtures at the call site.
 
 ~~~admonish tip title="See Also"
 - [Manual Gradle and Maven Setup](manual_setup.md) - Adding hkj-test to projects that do not use the HKJ build plugin
