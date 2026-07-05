@@ -14,6 +14,10 @@ This page documents the evolution of Higher-Kinded-J from its initial release th
 
 ### 0.4.8-SNAPSHOT (Latest)
 
+**`ValidatedPrism`: the smart-constructor optic for parse-don't-validate boundaries**
+
+A `Prism` whose match accumulates reasons: `parse` returns `Validated<NonEmptyList<FieldError>, A>` (every failure, located), `build` is total. Nested composition short-circuits while sibling fields accumulate through the assembly builders or `Edits`; only build-preserving compositions exist (`ValidatedPrism`, `Iso`, `Prism`-with-a-reason — a `Lens` cell is deliberately absent because no total build survives it). Bridges: `fromIso`/`fromPrism(reason)`, reason-forgetting `toPrism()`/`toAffine()`, and `parsePath` onto the railway. Both round-trip laws ship as `ValidatedPrismLaws` in `hkj-test` — the law harness's first extension. Purely additive ([#597](https://github.com/higher-kinded-j/higher-kinded-j/issues/597)). See [Validated Prisms](optics/validated_prism.md).
+
 **Published optic-law harness: law-test your own optics**
 
 `hkj-test` gains `org.higherkindedj.optics.laws` — `IsoLaws`, `LensLaws`, `PrismLaws`, `AffineLaws`, `TraversalLaws` — flat `assert…` helpers in the established `hkt.laws` style, so every user can verify the defining properties of hand-written optics (`Lens.of(...)`, spec interfaces, codecs). Failures name the violated law with the offending values; guard rails reject vacuous fixtures. Also the published target for the upcoming `ValidatedPrism` laws and `@GenerateMapping`'s law-checked guarantee. Purely additive ([#596](https://github.com/higher-kinded-j/higher-kinded-j/issues/596)). See [Testing With hkj-test](tooling/test_assertions.md).

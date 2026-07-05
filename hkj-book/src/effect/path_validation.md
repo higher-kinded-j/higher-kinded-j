@@ -156,6 +156,7 @@ String result = validated.fold(
 - [Validated](../monads/validated_monad.md) - Underlying type for ValidationPath
 - [EitherPath](path_either.md) - For short-circuit validation
 - [Semigroup and Monoid](../functional/semigroup_and_monoid.md) - How errors combine
+- [Validated Prisms](../optics/validated_prism.md) - `parsePath` lands a parse-don't-validate boundary directly on this railway
 ~~~
 
 ---

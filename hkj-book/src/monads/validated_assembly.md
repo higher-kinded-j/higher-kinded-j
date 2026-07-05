@@ -178,6 +178,7 @@ assertThatFieldError(FieldError.of("not a postcode").at("zip").at("address"))
 - [NonEmptyList](nonemptylist_monad.md): the error carrier the builder is fixed to
 - [EitherOrBoth](either_or_both_monad.md): the tolerant carrier
 - [ValidationPath](../effect/path_validation.md): the railway validation API
+- [Validated Prisms](../optics/validated_prism.md): a leaf parser with a faithful render-back *is* a `ValidatedPrism` — pass `vp::parse` to `field(label, ...)`. (`fields()` accumulates *siblings*; a prism's `andThen` short-circuits *nesting*.)
 - [Applicative](../functional/applicative.md): the `mapN` family for `Kind`-generic code
 - [Multi-Edit and Sparse Updates](../optics/multi_edit.md): the same all-errors-at-once model for *updating* existing values
 ~~~

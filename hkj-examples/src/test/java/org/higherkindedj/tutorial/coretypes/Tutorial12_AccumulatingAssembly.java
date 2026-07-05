@@ -333,6 +333,8 @@ public class Tutorial12_AccumulatingAssembly {
    *   • Tutorial 03 — the mapN family remains the right tool inside Kind-generic code.
    *   • Effect journey — ValidationPath carries the same assembly (Path.fields()) on the
    *     railway, composing onward with via and recover.
+   *   • Tutorial 25 (optics) — the leaf-side twin: a ValidatedPrism is the named home for the
+   *     per-field parsers this tutorial feeds to fields()/accumulate().
    *   • Tutorial 24 (optics) — the update-side twin: Edits.accumulate applies N validated
    *     edits to an EXISTING value (sparse PATCH), with the same located, all-at-once errors.
    */

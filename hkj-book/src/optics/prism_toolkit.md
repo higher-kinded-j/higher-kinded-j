@@ -534,4 +534,4 @@ public class AppPrisms {
 ---
 
 **Previous:** [Prisms](prisms.md)
-**Next:** [Affines: Working with Optional Fields](affine.md)
+**Next:** [Validated Prisms](validated_prism.md)

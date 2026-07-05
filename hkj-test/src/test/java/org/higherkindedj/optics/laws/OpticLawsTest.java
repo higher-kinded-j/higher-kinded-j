@@ -32,6 +32,19 @@ class OpticLawsTest {
 
   private static final Iso<Integer, String> INT_STRING = Iso.of(String::valueOf, Integer::parseInt);
 
+  private static final org.higherkindedj.optics.validated.ValidatedPrism<String, Integer>
+      INT_PRISM =
+          org.higherkindedj.optics.validated.ValidatedPrism.of(
+              s -> {
+                try {
+                  return org.higherkindedj.hkt.validated.Validated.validNel(Integer.parseInt(s));
+                } catch (NumberFormatException e) {
+                  return org.higherkindedj.hkt.validated.Validated.invalidNel(
+                      org.higherkindedj.hkt.validated.FieldError.of("not a number"));
+                }
+              },
+              String::valueOf);
+
   private static final Prism<String, Integer> PARSE_INT =
       Prism.of(
           s -> {
@@ -56,6 +69,7 @@ class OpticLawsTest {
       AffineLaws.assertAffineLaws(NICKNAME, ADA, ANON, "Lady", "Countess of Lovelace");
       TraversalLaws.assertTraversalLaws(
           Traversals.forList(), List.of("a", "bb"), s -> s + "!", String::toUpperCase);
+      ValidatedPrismLaws.assertValidatedPrismLaws(INT_PRISM, "42", "not-a-number");
     }
   }
 
@@ -112,6 +126,38 @@ class OpticLawsTest {
       assertThatThrownBy(() -> AffineLaws.assertSetNoOpWhenAbsent(forcesNickname, ANON, "Ghost"))
           .isInstanceOf(AssertionError.class)
           .hasMessageContaining("absence");
+    }
+
+    @Test
+    @DisplayName("a normalising ValidatedPrism build fails the section law")
+    void normalisingValidatedPrismFailsBuildParse() {
+      org.higherkindedj.optics.validated.ValidatedPrism<String, Integer> zeroPadding =
+          org.higherkindedj.optics.validated.ValidatedPrism.of(
+              s -> {
+                try {
+                  return org.higherkindedj.hkt.validated.Validated.validNel(Integer.parseInt(s));
+                } catch (NumberFormatException e) {
+                  return org.higherkindedj.hkt.validated.Validated.invalidNel(
+                      org.higherkindedj.hkt.validated.FieldError.of("not a number"));
+                }
+              },
+              i -> String.format("%03d", i));
+
+      ValidatedPrismLaws.assertParseBuild(zeroPadding, 42);
+      assertThatThrownBy(() -> ValidatedPrismLaws.assertBuildParse(zeroPadding, "42"))
+          .isInstanceOf(AssertionError.class)
+          .hasMessageContaining("build-parse");
+      assertThatThrownBy(() -> ValidatedPrismLaws.assertNoParse(zeroPadding, "42"))
+          .isInstanceOf(AssertionError.class)
+          .hasMessageContaining("no-parse");
+      assertThatThrownBy(
+              () -> ValidatedPrismLaws.assertValidatedPrismLaws(zeroPadding, "nope", "nope"))
+          .isInstanceOf(AssertionError.class)
+          .hasMessageContaining("DISTINCT");
+      assertThatThrownBy(
+              () -> ValidatedPrismLaws.assertValidatedPrismLaws(zeroPadding, "nope", "also-nope"))
+          .isInstanceOf(AssertionError.class)
+          .hasMessageContaining("PARSING");
     }
 
     @Test

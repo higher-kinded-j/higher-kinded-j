@@ -686,5 +686,5 @@ Practice affine basics in [Tutorial 04: Affine Basics](https://github.com/higher
 
 ---
 
-**Previous:** [Prism Toolkit](prism_toolkit.md)
+**Previous:** [Validated Prisms](validated_prism.md)
 **Next:** [Isomorphisms: Data Equivalence](iso.md)

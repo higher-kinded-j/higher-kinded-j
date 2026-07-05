@@ -70,7 +70,7 @@ A sparse edit cannot *clear* a field: `setIfPresent(path, null)` means "no chang
 
 ## Validated PATCH: `Edits.accumulate`
 
-`parseIfPresent` parses the incoming value first — and `.at(label)` locates any failure, exactly as `FieldError.at` composes paths. `accumulate` validates **every** edit independently and reports **all** bad fields at once:
+`parseIfPresent` parses the incoming value first — and `.at(label)` locates any failure, exactly as `FieldError.at` composes paths. The parser you hand it has exactly the shape of a [`ValidatedPrism`](validated_prism.md)'s `parse` — define the boundary once as a prism (gaining the total render-back and the round-trip laws) and pass `email::parse` here. `accumulate` validates **every** edit independently and reports **all** bad fields at once:
 
 ``` java
 Validated<NonEmptyList<FieldError>, Order> updated =
