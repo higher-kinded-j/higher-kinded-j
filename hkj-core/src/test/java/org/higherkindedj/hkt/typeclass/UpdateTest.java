@@ -51,6 +51,16 @@ class UpdateTest {
     }
 
     @Test
+    @DisplayName("should compose with a plain UnaryOperator without wrapping, staying an Update")
+    void shouldComposeWithPlainUnaryOperator() {
+      UnaryOperator<String> trim = String::trim;
+
+      Update<String> composed = APPEND_A.andThen(trim).andThen(APPEND_B);
+
+      assertThat(composed.apply("  x ")).isEqualTo("x ab");
+    }
+
+    @Test
     @DisplayName("should reject a null after update")
     void shouldRejectNullAfter() {
       assertThatNullPointerException()

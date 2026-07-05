@@ -48,17 +48,17 @@ public interface Update<S> extends UnaryOperator<S> {
    * Returns a composed update that applies this update first and then {@code after}.
    *
    * <p>This is {@link UnaryOperator#andThen} narrowed so the result remains an {@code Update<S>}
-   * and stays composable. Note that overload selection is static: the argument must itself be typed
-   * as {@code Update<S>} — composing with a plain {@code UnaryOperator} or {@code Function} selects
-   * the inherited {@link java.util.function.Function#andThen} and yields a {@code Function}, not an
-   * {@code Update}. Wrap such a function first ({@code fn::apply} as an {@code Update<S>}) to stay
-   * in the type.
+   * and stays composable. Accepting any {@link UnaryOperator} lets an update compose seamlessly
+   * with standard Java operators, lambdas, and method references — no wrapping required — while
+   * keeping the result in the type. (An argument typed as a plain {@code Function<S, S>} still
+   * selects the inherited {@link java.util.function.Function#andThen} and yields a {@code
+   * Function}; pass it as {@code fn::apply} to stay in the type.)
    *
-   * @param after the update to apply after this one; must not be null
+   * @param after the operator to apply after this update; must not be null
    * @return the composed update (non-null)
    * @throws NullPointerException if {@code after} is null
    */
-  default Update<S> andThen(final Update<S> after) {
+  default Update<S> andThen(final UnaryOperator<S> after) {
     Objects.requireNonNull(after, "after must not be null");
     return s -> after.apply(this.apply(s));
   }
