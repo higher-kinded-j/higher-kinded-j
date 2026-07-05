@@ -2,6 +2,7 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.optics.focus;
 
+import java.util.List;
 import java.util.Objects;
 import org.higherkindedj.optics.Affine;
 import org.higherkindedj.optics.Iso;
@@ -19,10 +20,12 @@ import org.jspecify.annotations.NullMarked;
  * @param <A> the focused type
  */
 @NullMarked
-record LensFocusPath<S, A>(Lens<S, A> lens) implements FocusPath<S, A> {
+record LensFocusPath<S, A>(Lens<S, A> lens, List<String> segments) implements FocusPath<S, A> {
 
   LensFocusPath {
     Objects.requireNonNull(lens, "lens must not be null");
+    Objects.requireNonNull(segments, "segments must not be null");
+    segments = List.copyOf(segments);
   }
 
   @Override
@@ -39,27 +42,27 @@ record LensFocusPath<S, A>(Lens<S, A> lens) implements FocusPath<S, A> {
 
   @Override
   public <B> FocusPath<S, B> via(Lens<A, B> other) {
-    return new LensFocusPath<>(lens.andThen(other));
+    return new LensFocusPath<>(lens.andThen(other), segments);
   }
 
   @Override
   public <B> FocusPath<S, B> via(Iso<A, B> iso) {
-    return new LensFocusPath<>(lens.andThen(iso));
+    return new LensFocusPath<>(lens.andThen(iso), segments);
   }
 
   @Override
   public <B> AffinePath<S, B> via(Prism<A, B> prism) {
-    return new AffineFocusPath<>(lens.andThen(prism));
+    return new AffineFocusPath<>(lens.andThen(prism), segments);
   }
 
   @Override
   public <B> AffinePath<S, B> via(Affine<A, B> affine) {
-    return new AffineFocusPath<>(lens.andThen(affine));
+    return new AffineFocusPath<>(lens.andThen(affine), segments);
   }
 
   @Override
   public <B> TraversalPath<S, B> via(Traversal<A, B> traversal) {
-    return new TraversalFocusPath<>(lens.andThen(traversal));
+    return new TraversalFocusPath<>(lens.andThen(traversal), segments);
   }
 
   // ===== Conversion =====

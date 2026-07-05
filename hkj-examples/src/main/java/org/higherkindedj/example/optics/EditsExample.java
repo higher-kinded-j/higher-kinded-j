@@ -11,6 +11,7 @@ import org.higherkindedj.hkt.Update;
 import org.higherkindedj.hkt.nonemptylist.NonEmptyList;
 import org.higherkindedj.hkt.validated.FieldError;
 import org.higherkindedj.hkt.validated.Validated;
+import org.higherkindedj.optics.annotations.GenerateFocus;
 import org.higherkindedj.optics.annotations.GenerateLenses;
 import org.higherkindedj.optics.edit.Edits;
 import org.higherkindedj.optics.focus.FocusPath;
@@ -28,12 +29,14 @@ import org.jspecify.annotations.Nullable;
  *   <li>Sparse updates: {@code …IfPresent} treats {@code null} as absent, contributing the identity
  *       update, so nullable DTO fields land one-to-one with no {@code if} ceremony
  *   <li>{@code Edits.accumulate}: every incoming value validated independently, every bad field
- *       reported at once as located {@code FieldError}s
+ *       reported at once as located {@code FieldError}s - generated paths label failures
+ *       automatically; an explicit {@code .at(label)} still prepends outer context
  *   <li>Reuse: one accumulated patch, validated once, applied to many sources
  * </ul>
  */
 public final class EditsExample {
 
+  @GenerateFocus
   @GenerateLenses
   public record EditOrder(String email, String sku, int quantity) {}
 
@@ -41,10 +44,10 @@ public final class EditsExample {
   public record PatchRequest(
       @Nullable String email, @Nullable String sku, @Nullable Integer qtyDelta) {}
 
-  private static final FocusPath<EditOrder, String> EMAIL = FocusPath.of(EditOrderLenses.email());
-  private static final FocusPath<EditOrder, String> SKU = FocusPath.of(EditOrderLenses.sku());
-  private static final FocusPath<EditOrder, Integer> QUANTITY =
-      FocusPath.of(EditOrderLenses.quantity());
+  // Generated paths carry their component name as a segment, so failures self-locate.
+  private static final FocusPath<EditOrder, String> EMAIL = EditOrderFocus.email();
+  private static final FocusPath<EditOrder, String> SKU = EditOrderFocus.sku();
+  private static final FocusPath<EditOrder, Integer> QUANTITY = EditOrderFocus.quantity();
 
   public static void main(String[] args) {
     demonstratePureMultiEdit();
@@ -119,7 +122,7 @@ public final class EditsExample {
     System.out.println("=== Reusable Patch Example ===");
 
     Edits.Accumulated<EditOrder> renumber =
-        Edits.accumulate(parseIfPresent(SKU, "WH-9 ", EditsExample::parseSku).at("sku"));
+        Edits.accumulate(parseIfPresent(SKU, "WH-9 ", EditsExample::parseSku));
 
     EditOrder first = new EditOrder("a@example.com", "old-1", 1);
     EditOrder second = new EditOrder("b@example.com", "old-2", 2);
@@ -133,9 +136,10 @@ public final class EditsExample {
   /** Applies a sparse PATCH request: absent fields contribute the identity update. */
   private static Validated<NonEmptyList<FieldError>, EditOrder> patch(
       PatchRequest request, EditOrder order) {
+    // No .at(...) needed: the generated paths auto-locate failures ("email: ...", "sku: ...").
     return Edits.accumulate(
-            parseIfPresent(EMAIL, request.email(), EditsExample::parseEmail).at("email"),
-            parseIfPresent(SKU, request.sku(), EditsExample::parseSku).at("sku"),
+            parseIfPresent(EMAIL, request.email(), EditsExample::parseEmail),
+            parseIfPresent(SKU, request.sku(), EditsExample::parseSku),
             modifyIfPresent(QUANTITY, request.qtyDelta(), (delta, qty) -> qty + delta),
             setIfPresent(EMAIL, (String) null)) // a fully absent slot: contributes nothing
         .apply(order);

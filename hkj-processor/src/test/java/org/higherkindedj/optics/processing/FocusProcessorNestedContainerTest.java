@@ -52,7 +52,7 @@ public class FocusProcessorNestedContainerTest {
       final String expectedMethod =
           """
           public static TraversalPath<Config, String> tags() {
-              return FocusPath.of(Lens.of(Config::tags, (source, newValue) -> new Config(source.name(), newValue))).some().each();
+              return FocusPath.of(Lens.of(Config::tags, (source, newValue) -> new Config(source.name(), newValue)), "tags").some().each();
           }
           """;
 
@@ -81,7 +81,7 @@ public class FocusProcessorNestedContainerTest {
       final String expectedMethod =
           """
           public static TraversalPath<Config, String> items() {
-              return FocusPath.of(Lens.of(Config::items, (source, newValue) -> new Config(source.name(), newValue))).each().some();
+              return FocusPath.of(Lens.of(Config::items, (source, newValue) -> new Config(source.name(), newValue)), "items").each().some();
           }
           """;
 
@@ -109,7 +109,7 @@ public class FocusProcessorNestedContainerTest {
       final String expectedMethod =
           """
           public static AffinePath<Config, String> nested() {
-              return FocusPath.of(Lens.of(Config::nested, (source, newValue) -> new Config(source.name(), newValue))).some().some();
+              return FocusPath.of(Lens.of(Config::nested, (source, newValue) -> new Config(source.name(), newValue)), "nested").some().some();
           }
           """;
 
@@ -137,7 +137,7 @@ public class FocusProcessorNestedContainerTest {
       final String expectedMethod =
           """
           public static TraversalPath<Config, String> matrix() {
-              return FocusPath.of(Lens.of(Config::matrix, (source, newValue) -> new Config(source.name(), newValue))).each().each();
+              return FocusPath.of(Lens.of(Config::matrix, (source, newValue) -> new Config(source.name(), newValue)), "matrix").each().each();
           }
           """;
 
@@ -166,7 +166,7 @@ public class FocusProcessorNestedContainerTest {
       final String expectedMethod =
           """
           public static TraversalPath<Config, String> items() {
-              return FocusPath.of(Lens.of(Config::items, (source, newValue) -> new Config(source.name(), newValue))).each().some();
+              return FocusPath.of(Lens.of(Config::items, (source, newValue) -> new Config(source.name(), newValue)), "items").each().some();
           }
           """;
 
@@ -202,7 +202,7 @@ public class FocusProcessorNestedContainerTest {
       final String expectedMethod =
           """
           public static TraversalPath<Config, String> deep() {
-              return FocusPath.of(Lens.of(Config::deep, (source, newValue) -> new Config(source.name(), newValue))).some().each().some();
+              return FocusPath.of(Lens.of(Config::deep, (source, newValue) -> new Config(source.name(), newValue)), "deep").some().each().some();
           }
           """;
 
@@ -231,7 +231,7 @@ public class FocusProcessorNestedContainerTest {
       final String expectedMethod =
           """
           public static TraversalPath<Config, String> cube() {
-              return FocusPath.of(Lens.of(Config::cube, (source, newValue) -> new Config(source.name(), newValue))).each().each().each();
+              return FocusPath.of(Lens.of(Config::cube, (source, newValue) -> new Config(source.name(), newValue)), "cube").each().each().each();
           }
           """;
 
@@ -346,7 +346,7 @@ public class FocusProcessorNestedContainerTest {
       final String expectedMethod =
           """
           public static AffinePath<Config, String> email() {
-              return FocusPath.of(Lens.of(Config::email, (source, newValue) -> new Config(source.name(), newValue))).some();
+              return FocusPath.of(Lens.of(Config::email, (source, newValue) -> new Config(source.name(), newValue)), "email").some();
           }
           """;
 
@@ -374,7 +374,7 @@ public class FocusProcessorNestedContainerTest {
       final String expectedMethod =
           """
           public static TraversalPath<Config, String> items() {
-              return FocusPath.of(Lens.of(Config::items, (source, newValue) -> new Config(source.name(), newValue))).each();
+              return FocusPath.of(Lens.of(Config::items, (source, newValue) -> new Config(source.name(), newValue)), "items").each();
           }
           """;
 
@@ -401,7 +401,7 @@ public class FocusProcessorNestedContainerTest {
       final String expectedMethod =
           """
           public static FocusPath<Config, String> name() {
-              return FocusPath.of(Lens.of(Config::name, (source, newValue) -> new Config(newValue)));
+              return FocusPath.of(Lens.of(Config::name, (source, newValue) -> new Config(newValue)), "name");
           }
           """;
 
@@ -437,7 +437,7 @@ public class FocusProcessorNestedContainerTest {
       final String expectedMethod =
           """
           public static AffinePath<Config, Integer> result() {
-              return FocusPath.of(Lens.of(Config::result, (source, newValue) -> new Config(source.name(), newValue))).<Either<String, Integer>>some().some(Affines.eitherRight());
+              return FocusPath.of(Lens.of(Config::result, (source, newValue) -> new Config(source.name(), newValue)), "result").<Either<String, Integer>>some().some(Affines.eitherRight());
           }
           """;
 
@@ -468,7 +468,7 @@ public class FocusProcessorNestedContainerTest {
       final String expectedMethod =
           """
           public static TraversalPath<Config, Integer> results() {
-              return FocusPath.of(Lens.of(Config::results, (source, newValue) -> new Config(source.name(), newValue))).<Either<String, Integer>>each().some(Affines.eitherRight());
+              return FocusPath.of(Lens.of(Config::results, (source, newValue) -> new Config(source.name(), newValue)), "results").<Either<String, Integer>>each().some(Affines.eitherRight());
           }
           """;
 
@@ -503,7 +503,7 @@ public class FocusProcessorNestedContainerTest {
       final String expectedMethod =
           """
           public static TraversalPath<Config, Integer> items() {
-              return FocusPath.of(Lens.of(Config::items, (source, newValue) -> new Config(source.name(), newValue))).some(Affines.eitherRight()).each();
+              return FocusPath.of(Lens.of(Config::items, (source, newValue) -> new Config(source.name(), newValue)), "items").some(Affines.eitherRight()).each();
           }
           """;
 

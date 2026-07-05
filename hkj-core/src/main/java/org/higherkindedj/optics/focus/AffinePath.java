@@ -79,6 +79,29 @@ import org.jspecify.annotations.NullMarked;
 public sealed interface AffinePath<S, A> permits AffineFocusPath {
 
   /**
+   * The field-name segments this path carries, outermost first; empty when unlabelled.
+   *
+   * <p>Generated paths carry their record-component name as a segment, and composing paths
+   * concatenates segments ({@code customer.via(address).via(zip)} yields {@code ["customer",
+   * "address", "zip"]}). Composing with a raw optic contributes no segment.
+   *
+   * @return the segments (never null, possibly empty, immutable)
+   */
+  List<String> segments();
+
+  /**
+   * The dot-joined segments, for example {@code "customer.address.zip"}; empty when unlabelled.
+   *
+   * <p>The rendering matches {@link org.higherkindedj.hkt.validated.FieldError#pathString()}, so a
+   * label derived here lines up with located validation errors.
+   *
+   * @return the rendered path
+   */
+  default String pathString() {
+    return String.join(".", segments());
+  }
+
+  /**
    * Extracts the focused value if present.
    *
    * @param source the source structure
@@ -206,7 +229,8 @@ public sealed interface AffinePath<S, A> permits AffineFocusPath {
    * @return an AffinePath focusing on the composed target
    */
   default <B> AffinePath<S, B> via(FocusPath<A, B> other) {
-    return via(other.toLens());
+    return new AffineFocusPath<>(
+        toAffine().andThen(other.toLens()), Segments.concat(segments(), other.segments()));
   }
 
   /**
@@ -220,7 +244,8 @@ public sealed interface AffinePath<S, A> permits AffineFocusPath {
    * @return an AffinePath that may or may not focus on a value
    */
   default <B> AffinePath<S, B> via(AffinePath<A, B> other) {
-    return via(other.toAffine());
+    return new AffineFocusPath<>(
+        toAffine().andThen(other.toAffine()), Segments.concat(segments(), other.segments()));
   }
 
   /**
@@ -234,7 +259,8 @@ public sealed interface AffinePath<S, A> permits AffineFocusPath {
    * @return a TraversalPath focusing on multiple elements
    */
   default <B> TraversalPath<S, B> via(TraversalPath<A, B> other) {
-    return via(other.toTraversal());
+    return new TraversalFocusPath<>(
+        toAffine().andThen(other.toTraversal()), Segments.concat(segments(), other.segments()));
   }
 
   /**
@@ -833,7 +859,7 @@ public sealed interface AffinePath<S, A> permits AffineFocusPath {
    * @return a new AffinePath
    */
   static <S, A> AffinePath<S, A> of(Affine<S, A> affine) {
-    return new AffineFocusPath<>(affine);
+    return new AffineFocusPath<>(affine, List.of());
   }
 
   /**

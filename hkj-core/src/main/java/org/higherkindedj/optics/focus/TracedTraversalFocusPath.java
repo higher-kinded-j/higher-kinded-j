@@ -35,6 +35,11 @@ record TracedTraversalFocusPath<S, A>(
   }
 
   @Override
+  public List<String> segments() {
+    return underlying.segments();
+  }
+
+  @Override
   public List<A> getAll(S source) {
     List<A> result = underlying.getAll(source);
     observer.accept(source, result);

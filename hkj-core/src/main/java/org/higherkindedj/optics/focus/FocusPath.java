@@ -73,6 +73,29 @@ import org.jspecify.annotations.NullMarked;
 public sealed interface FocusPath<S, A> permits LensFocusPath {
 
   /**
+   * The field-name segments this path carries, outermost first; empty when unlabelled.
+   *
+   * <p>Generated paths carry their record-component name as a segment, and composing paths
+   * concatenates segments ({@code customer.via(address).via(zip)} yields {@code ["customer",
+   * "address", "zip"]}). Composing with a raw optic contributes no segment.
+   *
+   * @return the segments (never null, possibly empty, immutable)
+   */
+  List<String> segments();
+
+  /**
+   * The dot-joined segments, for example {@code "customer.address.zip"}; empty when unlabelled.
+   *
+   * <p>The rendering matches {@link org.higherkindedj.hkt.validated.FieldError#pathString()}, so a
+   * label derived here lines up with located validation errors.
+   *
+   * @return the rendered path
+   */
+  default String pathString() {
+    return String.join(".", segments());
+  }
+
+  /**
    * Extracts the focused value from the source.
    *
    * <p>This operation always succeeds because a FocusPath guarantees exactly one focused element.
@@ -167,7 +190,8 @@ public sealed interface FocusPath<S, A> permits LensFocusPath {
    * @return a new FocusPath focusing on the composed target
    */
   default <B> FocusPath<S, B> via(FocusPath<A, B> other) {
-    return via(other.toLens());
+    return new LensFocusPath<>(
+        toLens().andThen(other.toLens()), Segments.concat(segments(), other.segments()));
   }
 
   /**
@@ -181,7 +205,8 @@ public sealed interface FocusPath<S, A> permits LensFocusPath {
    * @return an AffinePath that may or may not focus on a value
    */
   default <B> AffinePath<S, B> via(AffinePath<A, B> other) {
-    return via(other.toAffine());
+    return new AffineFocusPath<>(
+        toLens().andThen(other.toAffine()), Segments.concat(segments(), other.segments()));
   }
 
   /**
@@ -195,7 +220,8 @@ public sealed interface FocusPath<S, A> permits LensFocusPath {
    * @return a TraversalPath focusing on multiple elements
    */
   default <B> TraversalPath<S, B> via(TraversalPath<A, B> other) {
-    return via(other.toTraversal());
+    return new TraversalFocusPath<>(
+        toLens().andThen(other.toTraversal()), Segments.concat(segments(), other.segments()));
   }
 
   /**
@@ -934,7 +960,26 @@ public sealed interface FocusPath<S, A> permits LensFocusPath {
    * @return a new FocusPath
    */
   static <S, A> FocusPath<S, A> of(Lens<S, A> lens) {
-    return new LensFocusPath<>(lens);
+    return new LensFocusPath<>(lens, List.of());
+  }
+
+  /**
+   * Creates a FocusPath from a Lens, labelled with one field-name segment.
+   *
+   * <p>This is the form the {@code @GenerateFocus} processor emits: the record-component name
+   * becomes the path's segment, so failures located through this path read {@code "email: ..."}.
+   * Composition concatenates segments; see {@link #segments()}.
+   *
+   * @param lens the lens to wrap; must not be null
+   * @param segment the field-name segment; must not be null
+   * @param <S> the source type
+   * @param <A> the focused type
+   * @return a labelled FocusPath (non-null)
+   * @throws NullPointerException if {@code lens} or {@code segment} is null
+   */
+  static <S, A> FocusPath<S, A> of(Lens<S, A> lens, String segment) {
+    java.util.Objects.requireNonNull(segment, "segment must not be null");
+    return new LensFocusPath<>(lens, List.of(segment));
   }
 
   /**

@@ -34,9 +34,8 @@ import org.junit.jupiter.api.Test;
  *   Validated&lt;NonEmptyList&lt;FieldError&gt;, Profile&gt; patched =
  *       Edits.accumulate(
  *               Edit.setIfPresent(NAME, request.name()),                       // null -&gt; no-op
- *               Edit.parseIfPresent(EMAIL, request.email(), Tutorial24_MultiEdit::parseEmail)
- *                   .at("email"))
- *           .apply(profile);
+ *               Edit.parseIfPresent(EMAIL, request.email(), Tutorial24_MultiEdit::parseEmail))
+ *           .apply(profile);  // labelled paths locate failures automatically
  * </pre>
  *
  * <p>Key concepts:
@@ -73,12 +72,16 @@ public class Tutorial24_MultiEdit {
 
   record Profile(String email, String displayName, int age) {}
 
+  // Labelled paths (a @GenerateFocus companion emits exactly this shape): failures self-locate.
   static final FocusPath<Profile, String> EMAIL =
-      FocusPath.of(Lens.of(Profile::email, (p, e) -> new Profile(e, p.displayName(), p.age())));
+      FocusPath.of(
+          Lens.of(Profile::email, (p, e) -> new Profile(e, p.displayName(), p.age())), "email");
   static final FocusPath<Profile, String> NAME =
-      FocusPath.of(Lens.of(Profile::displayName, (p, n) -> new Profile(p.email(), n, p.age())));
+      FocusPath.of(
+          Lens.of(Profile::displayName, (p, n) -> new Profile(p.email(), n, p.age())), "name");
   static final FocusPath<Profile, Integer> AGE =
-      FocusPath.of(Lens.of(Profile::age, (p, a) -> new Profile(p.email(), p.displayName(), a)));
+      FocusPath.of(
+          Lens.of(Profile::age, (p, a) -> new Profile(p.email(), p.displayName(), a)), "age");
 
   static Validated<NonEmptyList<FieldError>, String> parseEmail(String raw) {
     return raw.contains("@")
@@ -193,7 +196,8 @@ public class Tutorial24_MultiEdit {
      *
      * <pre>
      *   // Hint 1: {@code Edit.parseIfPresent(EMAIL, "  Dan@Example.COM ", Tutorial24_MultiEdit::parseEmail)}.
-     *   // Hint 2: tag it with {@code .at("email")} so failures are located.
+     *   // Hint 2: EMAIL is a labelled path, so failures self-locate as "email: ..." - no .at
+     *   //         needed. (.at("account") would still prepend outer context.)
      *   // Hint 3: {@code Edits.accumulate(...).apply(dan)} returns a Validated.
      * </pre>
      */
@@ -215,8 +219,9 @@ public class Tutorial24_MultiEdit {
      * result reports both failures, in edit order, each located by its label.
      *
      * <pre>
-     *   // Hint 1: {@code parseIfPresent(EMAIL, "nope", ...).at("email")} and
-     *   //         {@code parseIfPresent(AGE, "not-a-number", Tutorial24_MultiEdit::parseAge).at("age")}.
+     *   // Hint 1: {@code parseIfPresent(EMAIL, "nope", ...)} and
+     *   //         {@code parseIfPresent(AGE, "not-a-number", Tutorial24_MultiEdit::parseAge)} -
+     *   //         the labelled paths locate each failure automatically.
      *   // Hint 2: unlike flatMap chaining, accumulate does NOT short-circuit.
      *   // Hint 3: compare with Tutorial 12 - this is the same all-errors-at-once model, for
      *   //         updating instead of constructing.

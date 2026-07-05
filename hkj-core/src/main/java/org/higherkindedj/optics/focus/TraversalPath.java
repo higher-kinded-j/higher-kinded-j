@@ -84,6 +84,29 @@ import org.jspecify.annotations.NullMarked;
 public sealed interface TraversalPath<S, A> permits TraversalFocusPath, TracedTraversalFocusPath {
 
   /**
+   * The field-name segments this path carries, outermost first; empty when unlabelled.
+   *
+   * <p>Generated paths carry their record-component name as a segment, and composing paths
+   * concatenates segments ({@code customer.via(address).via(zip)} yields {@code ["customer",
+   * "address", "zip"]}). Composing with a raw optic contributes no segment.
+   *
+   * @return the segments (never null, possibly empty, immutable)
+   */
+  List<String> segments();
+
+  /**
+   * The dot-joined segments, for example {@code "customer.address.zip"}; empty when unlabelled.
+   *
+   * <p>The rendering matches {@link org.higherkindedj.hkt.validated.FieldError#pathString()}, so a
+   * label derived here lines up with located validation errors.
+   *
+   * @return the rendered path
+   */
+  default String pathString() {
+    return String.join(".", segments());
+  }
+
+  /**
    * Extracts all focused values from the source.
    *
    * @param source the source structure
@@ -212,7 +235,8 @@ public sealed interface TraversalPath<S, A> permits TraversalFocusPath, TracedTr
    * @return a TraversalPath focusing on the composed targets
    */
   default <B> TraversalPath<S, B> via(FocusPath<A, B> other) {
-    return via(other.toLens());
+    return new TraversalFocusPath<>(
+        toTraversal().andThen(other.toLens()), Segments.concat(segments(), other.segments()));
   }
 
   /**
@@ -226,7 +250,9 @@ public sealed interface TraversalPath<S, A> permits TraversalFocusPath, TracedTr
    * @return a TraversalPath focusing on the composed targets
    */
   default <B> TraversalPath<S, B> via(AffinePath<A, B> other) {
-    return via(other.toAffine().asTraversal());
+    return new TraversalFocusPath<>(
+        toTraversal().andThen(other.toAffine().asTraversal()),
+        Segments.concat(segments(), other.segments()));
   }
 
   /**
@@ -241,7 +267,8 @@ public sealed interface TraversalPath<S, A> permits TraversalFocusPath, TracedTr
    * @return a TraversalPath focusing on all nested targets
    */
   default <B> TraversalPath<S, B> via(TraversalPath<A, B> other) {
-    return via(other.toTraversal());
+    return new TraversalFocusPath<>(
+        toTraversal().andThen(other.toTraversal()), Segments.concat(segments(), other.segments()));
   }
 
   /**
@@ -1012,6 +1039,6 @@ public sealed interface TraversalPath<S, A> permits TraversalFocusPath, TracedTr
    * @return a new TraversalPath
    */
   static <S, A> TraversalPath<S, A> of(Traversal<S, A> traversal) {
-    return new TraversalFocusPath<>(traversal);
+    return new TraversalFocusPath<>(traversal, List.of());
   }
 }
