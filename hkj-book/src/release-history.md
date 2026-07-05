@@ -14,6 +14,10 @@ This page documents the evolution of Higher-Kinded-J from its initial release th
 
 ### 0.4.8-SNAPSHOT (Latest)
 
+**Published optic-law harness: law-test your own optics**
+
+`hkj-test` gains `org.higherkindedj.optics.laws` — `IsoLaws`, `LensLaws`, `PrismLaws`, `AffineLaws`, `TraversalLaws` — flat `assert…` helpers in the established `hkt.laws` style, so every user can verify the defining properties of hand-written optics (`Lens.of(...)`, spec interfaces, codecs). Failures name the violated law with the offending values; guard rails reject vacuous fixtures. Also the published target for the upcoming `ValidatedPrism` laws and `@GenerateMapping`'s law-checked guarantee. Purely additive ([#596](https://github.com/higher-kinded-j/higher-kinded-j/issues/596)). See [Testing With hkj-test](tooling/test_assertions.md).
+
 **Optic-path labelling: generated paths know their own names**
 
 `@GenerateFocus` companions now emit the record-component name as a path segment (`FocusPath.of(lens, "email")`), and every path type surfaces `segments()` and `pathString()` (`"customer.address.zip"`). Composing paths concatenates segments; raw-optic and widening links (`each()`/`some()`/`nullable()`) contribute nothing. `Edit.parseIfPresent` locates parse failures with the path's own segments automatically, so sparse-PATCH errors arrive located with no `.at(...)` ceremony — an explicit `.at(label)` still prepends outward. Purely additive ([#592](https://github.com/higher-kinded-j/higher-kinded-j/issues/592)). See [Multi-Edit and Sparse Updates](optics/multi_edit.md).

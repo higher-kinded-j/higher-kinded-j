@@ -22,4 +22,5 @@ module org.higherkindedj.test {
 
   exports org.higherkindedj.hkt.assertions;
   exports org.higherkindedj.hkt.laws;
+  exports org.higherkindedj.optics.laws;
 }
