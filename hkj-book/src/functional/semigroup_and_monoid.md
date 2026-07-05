@@ -538,7 +538,7 @@ Update<Order> pipeline = m.combineAll(steps);
 Order processed = pipeline.apply(order);
 ```
 
-Because the identity element is "change nothing", an absent or skipped step simply contributes nothing to the fold — the property that powers sparse partial updates (see the `Edits` builder, issue [#582](https://github.com/higher-kinded-j/higher-kinded-j/issues/582)).
+Because the identity element is "change nothing", an absent or skipped step simply contributes nothing to the fold — the property that powers sparse partial updates. The [`Edits` builder](../optics/multi_edit.md) builds on exactly this: optic-targeted edits folded through `Monoids.update()`, with absent fields contributing the identity.
 
 ~~~admonish note title="For the functionally curious"
 In functional-programming literature this is the `Endo` monoid (for *endomorphism*, a function from a type to itself). Higher-Kinded-J names it `Update` for clarity.

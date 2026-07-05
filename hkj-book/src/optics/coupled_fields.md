@@ -235,7 +235,7 @@ Lens<Transaction, Pair<Integer, Integer>> limitsLens = Lens.paired(
 
 | Scenario | Recommended Approach |
 |----------|---------------------|
-| Independent fields | Use individual lenses |
+| Independent fields | Use individual lenses — or fold several into one operation with [`Edits`](multi_edit.md) |
 | Fields with shared invariant | Use `Lens.paired` |
 | Computed/derived fields | Don't expose a lens for the computed field |
 | Cross-structure invariants | Use domain methods, not lenses |

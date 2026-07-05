@@ -14,6 +14,10 @@ This page documents the evolution of Higher-Kinded-J from its initial release th
 
 ### 0.4.8-SNAPSHOT (Latest)
 
+**`Edits`: sparse, accumulating multi-edit over optics**
+
+Apply N independent edits at different paths in one reusable operation. `Edits.combine` folds pure edits (`Edit.set`/`modify`/`setIfPresent`/`modifyIfPresent`, over a `FocusPath` or `Setter`) into a single `Update<S>` via `Monoids.update()`; `Edits.accumulate` adds the validated REST-`PATCH` shape — `parseIfPresent(path, raw, parser).at("email")` parses each incoming value independently, reports **every** bad field at once as located `FieldError`s in edit order (the `NonEmptyList` channel, with no arity ceiling), and applies the writes in one left-to-right pass only if everything validated. `…IfPresent` treats `null` as absent (the monoid identity), so sparse DTO fields land one-to-one with no `if` ceremony; a `ValidationPath` twin (`applyPath`) rides the railway. Purely additive ([#582](https://github.com/higher-kinded-j/higher-kinded-j/issues/582)). See [Multi-Edit and Sparse Updates](optics/multi_edit.md).
+
 **`Update<S>` and `Monoids.update()`: the function-composition monoid**
 
 A named, composable update: `Update<S>` extends `UnaryOperator<S>` (so it drops into any `Function`-shaped API for free) with `Update.identity()` and an `andThen` that stays in the type. `Monoids.update()` joins the existing noun factories — identity is the do-nothing update, `combine(f, g)` applies `f` first, then `g` — so any number of updates fold into one, applied left to right. Known in FP literature as the `Endo` monoid; the keystone for the upcoming `Edits` multi-edit builder ([#582](https://github.com/higher-kinded-j/higher-kinded-j/issues/582)). Purely additive ([#591](https://github.com/higher-kinded-j/higher-kinded-j/issues/591)). See [Semigroup and Monoid](functional/semigroup_and_monoid.md).

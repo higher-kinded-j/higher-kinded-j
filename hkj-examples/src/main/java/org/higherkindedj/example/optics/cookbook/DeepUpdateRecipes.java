@@ -120,7 +120,9 @@ public class DeepUpdateRecipes {
 
     User user = new User("Charlie", new Address(new Street("Main St", 1), "Manchester", "M1 1AA"));
 
-    // Reuse the paths AND the composed transformation: fold both writes into one update
+    // Reuse the paths AND the composed transformation: fold both writes into one update.
+    // (Edits.combine(Edit.set(path, v), ...) sugars exactly this fold - see
+    // org.higherkindedj.optics.edit.)
     Update<User> relocate =
         Monoids.<User>update()
             .combineAll(
