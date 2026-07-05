@@ -31,6 +31,7 @@ import org.higherkindedj.optics.processing.external.SpecInterfaceAnalyser;
 import org.higherkindedj.optics.processing.external.SpecInterfaceGenerator;
 import org.higherkindedj.optics.processing.external.TypeAnalysis;
 import org.higherkindedj.optics.processing.external.TypeKindAnalyser;
+import org.higherkindedj.optics.processing.util.Diagnostics;
 
 /**
  * Annotation processor for {@link ImportOptics}.
@@ -98,7 +99,14 @@ public class ImportOpticsProcessor extends AbstractProcessor {
       } else if (element.getKind() == ElementKind.CLASS) {
         processTypeAnnotation((TypeElement) element);
       } else {
-        error("@ImportOptics can only be applied to packages or types.", element);
+        Diagnostics.error(
+            processingEnv.getMessager(),
+            element,
+            "@ImportOptics",
+            "cannot be applied to '" + element.getSimpleName() + "'.",
+            "Optics are imported for a package (via package-info.java) or for a listed"
+                + " class/interface.",
+            "Move the annotation to a package-info.java or a type declaration.");
       }
     }
     return true;
@@ -220,14 +228,14 @@ public class ImportOpticsProcessor extends AbstractProcessor {
 
       case WITHER_CLASS -> {
         if (analysis.hasMutableFields() && !allowMutable) {
-          error(
-              "Type '"
-                  + typeElement.getQualifiedName()
-                  + "' has mutable fields (setters). "
-                  + "Lens laws may not hold for mutable types. "
-                  + "Either use allowMutable = true to acknowledge this limitation, "
-                  + "or create a spec interface for explicit control.",
-              sourceElement);
+          Diagnostics.error(
+              processingEnv.getMessager(),
+              sourceElement,
+              "@ImportOptics",
+              "type '" + typeElement.getQualifiedName() + "' has mutable fields (setters).",
+              "Lens laws may not hold for mutable types.",
+              "Use allowMutable = true to acknowledge the limitation, or create an OpticsSpec"
+                  + " interface for explicit control.");
           return;
         }
         lensGenerator.generateForWitherClass(analysis, targetPackage, sourceElement);
@@ -235,20 +243,26 @@ public class ImportOpticsProcessor extends AbstractProcessor {
 
       case UNSUPPORTED -> {
         if (analysis.hasMutableFields()) {
-          error(
-              "Type '"
+          Diagnostics.error(
+              processingEnv.getMessager(),
+              sourceElement,
+              "@ImportOptics",
+              "type '"
                   + typeElement.getQualifiedName()
-                  + "' is a mutable class without wither methods. "
-                  + "Cannot generate lenses for types that don't support immutable updates. "
-                  + "Consider using a spec interface to define custom copy logic.",
-              sourceElement);
+                  + "' is a mutable class without wither"
+                  + " methods.",
+              "Lenses require immutable updates, and no copy mechanism was found.",
+              "Define an OpticsSpec interface with custom copy logic, or add wither methods.");
         } else {
-          error(
-              "Type '"
+          Diagnostics.error(
+              processingEnv.getMessager(),
+              sourceElement,
+              "@ImportOptics",
+              "type '"
                   + typeElement.getQualifiedName()
-                  + "' is not a record, sealed interface, enum, or class with wither methods. "
-                  + "Cannot determine how to generate optics for this type.",
-              sourceElement);
+                  + "' is not a record, sealed interface, enum, or class with wither methods.",
+              "The processor cannot determine how to generate optics for this shape.",
+              "Make the type one of those shapes, or define an OpticsSpec interface for it.");
         }
       }
     }
@@ -304,10 +318,6 @@ public class ImportOpticsProcessor extends AbstractProcessor {
     }
 
     return result;
-  }
-
-  private void error(String msg, Element e) {
-    processingEnv.getMessager().printMessage(Diagnostic.Kind.ERROR, msg, e);
   }
 
   private void note(String msg, Element e) {

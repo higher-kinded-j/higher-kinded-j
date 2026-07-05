@@ -108,8 +108,7 @@ public class FocusProcessorIntegrationTest {
       var compilation = javac().withProcessors(new FocusProcessor()).compile(sourceFile);
 
       assertThat(compilation).failed();
-      assertThat(compilation)
-          .hadErrorContaining("@GenerateFocus annotation can only be applied to records");
+      assertThat(compilation).hadErrorContaining("@GenerateFocus: can only be applied to records");
     }
   }
 

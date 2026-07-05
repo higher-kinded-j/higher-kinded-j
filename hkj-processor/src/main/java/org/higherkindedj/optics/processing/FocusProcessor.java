@@ -31,6 +31,7 @@ import org.higherkindedj.optics.processing.kind.KindFieldAnalyser;
 import org.higherkindedj.optics.processing.kind.KindFieldInfo;
 import org.higherkindedj.optics.processing.spi.Cardinality;
 import org.higherkindedj.optics.processing.spi.TraversableGenerator;
+import org.higherkindedj.optics.processing.util.Diagnostics;
 import org.higherkindedj.optics.processing.util.ExcludeFromJacocoGeneratedReport;
 import org.higherkindedj.optics.processing.util.OpticExpressionResolver;
 import org.higherkindedj.optics.processing.util.ProcessorUtils;
@@ -148,7 +149,18 @@ public class FocusProcessor extends AbstractProcessor {
       Set<? extends Element> annotatedElements = roundEnv.getElementsAnnotatedWith(annotation);
       for (Element element : annotatedElements) {
         if (element.getKind() != ElementKind.RECORD) {
-          error("The @GenerateFocus annotation can only be applied to records.", element);
+          Diagnostics.error(
+              processingEnv.getMessager(),
+              element,
+              "@GenerateFocus",
+              "can only be applied to records, but '"
+                  + element.getSimpleName()
+                  + "' is a "
+                  + element.getKind().toString().toLowerCase(java.util.Locale.ROOT)
+                  + ".",
+              "The processor derives FocusPath methods from record components.",
+              "Move the annotation to a record, or use @ImportOptics with an OpticsSpec"
+                  + " interface for types you cannot change.");
           continue;
         }
         writeFocusFile((TypeElement) element, navigableTypes);
@@ -162,7 +174,13 @@ public class FocusProcessor extends AbstractProcessor {
     try {
       generateFocusFile(element, navigableTypes);
     } catch (IOException e) {
-      error("Could not generate focus file: " + e.getMessage(), element);
+      Diagnostics.error(
+          processingEnv.getMessager(),
+          element,
+          "@GenerateFocus",
+          "could not write the generated Focus companion for '" + element.getSimpleName() + "'.",
+          "The filer reported: " + e.getMessage() + ".",
+          "Check build-output permissions and free disk space, then rebuild.");
     }
   }
 
@@ -982,9 +1000,5 @@ public class FocusProcessor extends AbstractProcessor {
       case NONE -> "get";
       case NESTED -> "get"; // handled above, unreachable
     };
-  }
-
-  private void error(String msg, Element e) {
-    processingEnv.getMessager().printMessage(Diagnostic.Kind.ERROR, msg, e);
   }
 }
