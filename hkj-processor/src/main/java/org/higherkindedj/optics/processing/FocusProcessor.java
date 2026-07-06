@@ -489,17 +489,19 @@ public class FocusProcessor extends AbstractProcessor {
    * @param args the mutable list of JavaPoet arguments (for SPI import resolution)
    * @return the chained expression string
    */
-  private String buildWideningChainExpression(List<WideningStep> chain, List<Object> args) {
+  String buildWideningChainExpression(List<WideningStep> chain, List<Object> args) {
     StringBuilder sb = new StringBuilder();
     for (int i = 0; i < chain.size(); i++) {
       WideningStep step = chain.get(i);
       // Check if the next step requires argument type matching (SPI with parameters).
       // If so, the current no-arg step needs a type witness to help Java's type inference.
+      // A next step only exists because analyseNestedType recursed into a non-null inner
+      // type, so innerTypeMirror() is guaranteed non-null here.
       boolean nextStepNeedsTypeWitness =
           i + 1 < chain.size() && isParameterisedStep(chain.get(i + 1));
       switch (step.type()) {
         case OPTIONAL -> {
-          if (nextStepNeedsTypeWitness && step.innerTypeMirror() != null) {
+          if (nextStepNeedsTypeWitness) {
             sb.append(".<$T>some()");
             args.add(TypeName.get(step.innerTypeMirror()));
           } else {
@@ -507,7 +509,7 @@ public class FocusProcessor extends AbstractProcessor {
           }
         }
         case COLLECTION -> {
-          if (nextStepNeedsTypeWitness && step.innerTypeMirror() != null) {
+          if (nextStepNeedsTypeWitness) {
             sb.append(".<$T>each()");
             args.add(TypeName.get(step.innerTypeMirror()));
           } else {
@@ -552,7 +554,7 @@ public class FocusProcessor extends AbstractProcessor {
   }
 
   /** Represents the type of path widening to apply. */
-  private enum WideningType {
+  enum WideningType {
     /** No widening - standard FocusPath. */
     NONE,
     /** Optional/Maybe types - AffinePath via .some(). */
@@ -583,7 +585,7 @@ public class FocusProcessor extends AbstractProcessor {
    * @param spiGenerator SPI generator if this step is an SPI type (may be null)
    * @param innerTypeMirror the type produced by unwrapping this container (may be null)
    */
-  private record WideningStep(
+  record WideningStep(
       WideningType type,
       KindFieldInfo kindInfo,
       TraversableGenerator spiGenerator,
@@ -722,10 +724,9 @@ public class FocusProcessor extends AbstractProcessor {
           AFFINE_PATH_CLASS, innerType, WideningType.SPI_ZERO_OR_ONE, matchedGenerator);
     }
 
-    // When widenCollections is enabled, also widen ZERO_OR_MORE SPI types to TraversalPath
-    if (widenCollections
-        && matchedGenerator != null
-        && matchedGenerator.getCardinality() == Cardinality.ZERO_OR_MORE) {
+    // When widenCollections is enabled, also widen ZERO_OR_MORE SPI types to TraversalPath.
+    // A matched generator here is always ZERO_OR_MORE: ZERO_OR_ONE matches returned above.
+    if (widenCollections && matchedGenerator != null) {
       int typeArgIndex = matchedGenerator.getFocusTypeArgumentIndex();
       TypeMirror innerTypeMirror = getTypeArgumentAt(declaredType, typeArgIndex);
       Optional<PathTypeInfo> nested =
@@ -864,7 +865,8 @@ public class FocusProcessor extends AbstractProcessor {
       }
       return steps;
     }
-    if (widenCollections && gen != null && gen.getCardinality() == Cardinality.ZERO_OR_MORE) {
+    // A matched generator here is always ZERO_OR_MORE: ZERO_OR_ONE matches returned above.
+    if (widenCollections && gen != null) {
       List<WideningStep> steps = new ArrayList<>();
       TypeMirror innerTypeMirror = getTypeArgumentAt(declaredType, gen.getFocusTypeArgumentIndex());
       steps.add(new WideningStep(WideningType.SPI_ZERO_OR_MORE, null, gen, innerTypeMirror));
@@ -925,9 +927,9 @@ public class FocusProcessor extends AbstractProcessor {
     }
 
     if (chain.size() == 1) {
-      // Resolve wildcard bounds on the innermost type
-      TypeMirror resolved = ProcessorUtils.resolveWildcard(innerTypeMirror);
-      return resolved != null ? TypeName.get(resolved).box() : ClassName.get(Object.class);
+      // getTypeArgumentAt has already resolved wildcard bounds (returning null for
+      // unresolvable wildcards, handled above), so no re-resolution is needed here.
+      return TypeName.get(innerTypeMirror).box();
     }
 
     return resolveDeepInnerType(innerTypeMirror, chain.subList(1, chain.size()));

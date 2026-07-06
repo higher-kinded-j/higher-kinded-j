@@ -206,10 +206,10 @@ public class FoldProcessor extends AbstractProcessor {
   }
 
   private TypeName getElementType(RecordComponentElement component) {
-    if (component.asType() instanceof DeclaredType containerType) {
-      if (!containerType.getTypeArguments().isEmpty()) {
-        return TypeName.get(containerType.getTypeArguments().getFirst()).box();
-      }
+    // Only called for iterable components, and isIterableType requires a declared type.
+    DeclaredType containerType = (DeclaredType) component.asType();
+    if (!containerType.getTypeArguments().isEmpty()) {
+      return TypeName.get(containerType.getTypeArguments().getFirst()).box();
     }
     return ClassName.get(Object.class);
   }

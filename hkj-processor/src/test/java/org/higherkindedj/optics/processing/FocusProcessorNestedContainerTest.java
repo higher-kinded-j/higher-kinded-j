@@ -6,6 +6,7 @@ import static com.google.testing.compile.CompilationSubject.assertThat;
 import static com.google.testing.compile.Compiler.javac;
 import static org.higherkindedj.optics.processing.GeneratorTestHelper.assertGeneratedCodeContains;
 
+import com.google.testing.compile.Compilation;
 import com.google.testing.compile.JavaFileObjects;
 import javax.tools.JavaFileObject;
 import org.junit.jupiter.api.DisplayName;
@@ -613,6 +614,69 @@ public class FocusProcessorNestedContainerTest {
       var compilation = javac().withProcessors(new FocusProcessor()).compile(source);
       assertThat(compilation).succeeded();
       assertGeneratedCodeContains(compilation, "com.example.ConfigFocus", expectedReturn);
+    }
+  }
+
+  @Nested
+  @DisplayName("Raw and Wildcard Inner Containers")
+  class RawInnerContainers {
+
+    @Test
+    @DisplayName("raw inner containers should stop recursion and resolve to Object")
+    void rawInnerContainersShouldResolveToObject() {
+      final JavaFileObject source =
+          JavaFileObjects.forSourceString(
+              "com.example.RawNested",
+              """
+              package com.example;
+
+              import java.util.List;
+              import java.util.Optional;
+              import org.higherkindedj.optics.annotations.GenerateFocus;
+
+              @GenerateFocus
+              @SuppressWarnings("rawtypes")
+              public record RawNested(List<Optional> a, Optional<List> b) {}
+              """);
+
+      Compilation compilation = javac().withProcessors(new FocusProcessor()).compile(source);
+
+      assertThat(compilation).succeeded();
+      // List<Optional>: the raw inner Optional stops recursion; deep inner type is Object.
+      assertGeneratedCodeContains(
+          compilation, "com.example.RawNestedFocus", "TraversalPath<RawNested, Object> a()");
+      // Optional<List>: the raw inner List stops recursion.
+      assertGeneratedCodeContains(
+          compilation, "com.example.RawNestedFocus", "TraversalPath<RawNested, Object> b()");
+    }
+
+    @Test
+    @DisplayName("widenCollections should compose nested SPI ZERO_OR_MORE chains")
+    void widenCollectionsShouldComposeNestedSpiChains() {
+      final JavaFileObject source =
+          JavaFileObjects.forSourceString(
+              "com.example.WidenNested",
+              """
+              package com.example;
+
+              import java.util.Map;
+              import java.util.Optional;
+              import org.higherkindedj.optics.annotations.GenerateFocus;
+
+              @GenerateFocus(widenCollections = true)
+              public record WidenNested(Optional<Map<String, Integer>> e) {}
+              """);
+
+      Compilation compilation = javac().withProcessors(new FocusProcessor()).compile(source);
+
+      assertThat(compilation).succeeded();
+      // Optional<Map<String, Integer>>: nested SPI ZERO_OR_MORE widens to a Traversal chain.
+      assertGeneratedCodeContains(
+          compilation, "com.example.WidenNestedFocus", "TraversalPath<WidenNested, Integer> e()");
+      assertGeneratedCodeContains(
+          compilation,
+          "com.example.WidenNestedFocus",
+          "some().each(EachInstances.mapValuesEach())");
     }
   }
 }

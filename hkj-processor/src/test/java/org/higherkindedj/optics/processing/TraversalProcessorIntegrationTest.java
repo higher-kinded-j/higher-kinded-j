@@ -50,4 +50,59 @@ public class TraversalProcessorIntegrationTest {
     final String generatedClassName = "com.example.PlaylistTraversals";
     assertGeneratedCodeContains(compilation, generatedClassName, expectedTraversal);
   }
+
+  @Test
+  void shouldSkipComponentWhenGeneratorFocusIndexExceedsTypeArguments() {
+    // The test-scope BoxIndexOneGenerator supports com.example.hkjtest.Box but focuses on type
+    // argument index 1, which a Box<T> never has, so the traversal method is skipped.
+    final var markerSource =
+        JavaFileObjects.forSourceString(
+            "com.example.hkjtest.Box",
+            """
+            package com.example.hkjtest;
+
+            public class Box<T> {}
+            """);
+
+    final var sourceFile =
+        JavaFileObjects.forSourceString(
+            "com.example.BoxRecord",
+            """
+            package com.example;
+
+            import com.example.hkjtest.Box;
+            import org.higherkindedj.optics.annotations.GenerateTraversals;
+
+            @GenerateTraversals
+            public record BoxRecord(Box<String> boxed) {}
+            """);
+
+    var compilation =
+        javac().withProcessors(new TraversalProcessor()).compile(markerSource, sourceFile);
+
+    assertThat(compilation).succeeded();
+    assertThat(compilation).generatedSourceFile("com.example.BoxRecordTraversals").isNotNull();
+  }
+
+  @Test
+  void shouldSkipComponentThatIsNeitherArrayNorDeclared() {
+    // The test-scope TypeVariableGenerator supports type variables named TRAVMARKER, steering a
+    // type-variable component into createTraversalMethod, which cannot handle it and skips it.
+    final var sourceFile =
+        JavaFileObjects.forSourceString(
+            "com.example.VarRecord",
+            """
+            package com.example;
+
+            import org.higherkindedj.optics.annotations.GenerateTraversals;
+
+            @GenerateTraversals
+            public record VarRecord<TRAVMARKER>(TRAVMARKER value) {}
+            """);
+
+    var compilation = javac().withProcessors(new TraversalProcessor()).compile(sourceFile);
+
+    assertThat(compilation).succeeded();
+    assertThat(compilation).generatedSourceFile("com.example.VarRecordTraversals").isNotNull();
+  }
 }
