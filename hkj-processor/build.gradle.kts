@@ -76,12 +76,12 @@ tasks.jacocoTestCoverageVerification {
             limit {
                 counter = "LINE"
                 value = "COVEREDRATIO"
-                minimum = "0.95".toBigDecimal()
+                minimum = "0.99".toBigDecimal()
             }
             limit {
                 counter = "BRANCH"
                 value = "COVEREDRATIO"
-                minimum = "0.87".toBigDecimal()
+                minimum = "0.97".toBigDecimal()
             }
         }
         // MappingProcessor is held at 100% (see PR #605).
