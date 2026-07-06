@@ -96,6 +96,7 @@
       - [Taming JSON with Jackson](optics/optics_spec_interfaces.md)
       - [Database Records with JOOQ](optics/copy_strategies.md)
       - [Focus DSL with External Libraries](optics/focus_external_bridging.md)
+    - [Record Mapping](optics/record_mapping.md)
     - [Kind Field Support](optics/kind_field_support.md)
     - [Fluent API](optics/fluent_api.md)
       - [Fluent API Field Guide](optics/fluent_api_field_guide.md)

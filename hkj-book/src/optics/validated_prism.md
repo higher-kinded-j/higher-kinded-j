@@ -69,6 +69,7 @@ Practice the boundary in [Tutorial 25: ValidatedPrism](https://github.com/higher
 - [Prisms](prisms.md) - The yes/no match this type upgrades
 - [Accumulating Assembly](../monads/validated_assembly.md) - Sibling-field accumulation for multi-field parses
 - [Multi-Edit and Sparse Updates](multi_edit.md) - The update-side counterpart
+- [Record Mapping](record_mapping.md) - `@GenerateMapping` derives whole-record `parse`/`build` from these leaves
 ~~~
 
 ---

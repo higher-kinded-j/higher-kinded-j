@@ -14,6 +14,10 @@ This page documents the evolution of Higher-Kinded-J from its initial release th
 
 ### 0.4.8-SNAPSHOT (Latest)
 
+**`@GenerateMapping` Step-0 slice: the bidirectional mapper, de-risked**
+
+The first cut of the record↔DTO mapper: annotate `interface UserMapping extends MappingSpec<User, UserDto>` with `@GenerateMapping` and the processor generates `UserMappingImpl` — a total `build(User) : UserDto` and an accumulating `parse(UserDto) : Validated<NonEmptyList<FieldError>, User>` assembled with `Validated.fields()`, every failure located by component name. Components match by name; a validated leaf is a typed `default` method returning a `ValidatedPrism`. `@MapField` renames, nesting (spec delegating to spec, failures located by dotted path), `List`/`Optional` container lifting, sealed-interface dispatch and the truthful emission tiers (lossless → `asIso()`, lossy projection → `asLens()`, fallible → accumulating `parse`) all ship in this slice; every diagnostic follows the what/why/fix standard from day one. Map value lifting and generated law tests arrive with the full mapper ([#600](https://github.com/higher-kinded-j/higher-kinded-j/issues/600)).
+
 **Processor diagnostics: what / why / fix**
 
 Annotation-processor errors now follow a shared three-part format (`Diagnostics` in `hkj-processor`): **what** is wrong (naming the offending element and its kind), **why** (what the processor found or needs), and the exact **fix** — e.g. `@GenerateFocus: can only be applied to records, but 'Config' is a class. The processor derives FocusPath methods from record components. Move the annotation to a record, or use @ImportOptics with an OpticsSpec interface for types you cannot change.` Adopted across the `@GenerateFocus`, `@GenerateLenses`, and `@ImportOptics` error paths; the standard is in place for every future processor ([#601](https://github.com/higher-kinded-j/higher-kinded-j/issues/601)).

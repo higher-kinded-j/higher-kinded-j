@@ -56,7 +56,18 @@ External types like `LocalDate`, Jackson's `JsonNode`, JOOQ records, and Protobu
 
 ---
 
-## 3. Spec-method hints (inside `OpticsSpec` interfaces)
+## 3. Generate record mappings (domain ↔ DTO)
+
+| Annotation | Apply to | Generates | When to reach for it |
+|---|---|---|---|
+| [`@GenerateMapping`](record_mapping.md) | interface extending `MappingSpec<Domain, Wire>` | `XMappingImpl` with a total `build` and an accumulating, located `parse` | Bidirectional boundary mapping with validation — every bad field reported at once |
+| [`@MapField(to = "...")`](record_mapping.md) | abstract method on the spec, named after the domain component | a rename in both directions | Domain and wire components with different names |
+
+Leaves, nesting, `List`/`Optional` lifting, sealed dispatch and the `asIso()`/`asLens()` tiers are covered in [Record Mapping](record_mapping.md).
+
+---
+
+## 4. Spec-method hints (inside `OpticsSpec` interfaces)
 
 Apply these to abstract methods inside an interface that extends `OpticsSpec<S>`.
 
@@ -93,7 +104,7 @@ External record-like types rarely have a single copy mechanism. The processor us
 
 ---
 
-## 4. Build setup
+## 5. Build setup
 
 The HKJ Gradle and Maven plugins wire the annotation processor in for you. Apply the plugin and every annotation on this page is available immediately. See [Build Plugins: One-Line HKJ Setup](../tooling/gradle_plugin.md) for the plugin DSL, or [Manual Setup](../tooling/manual_setup.md) if you need to configure dependencies by hand.
 
@@ -101,7 +112,7 @@ For compile-time path-type checking, see [Compile-Time Checks](../tooling/compil
 
 ---
 
-## 5. Quick decision guide
+## 6. Quick decision guide
 
 | You have... | You want to... | Reach for |
 |---|---|---|
@@ -114,6 +125,7 @@ For compile-time path-type checking, see [Compile-Time Checks](../tooling/compil
 | An external record (in a library) | Lenses for its components | `@ImportOptics` |
 | An external sealed/enum (in a library) | Prisms for its variants | `@ImportOptics` |
 | `JsonNode`, JOOQ records, anything tricky | Custom optics with copy strategy | `@ImportOptics` on an `OpticsSpec` interface + spec-method hints |
+| A domain record and a wire DTO | Map both ways, with validation | `@GenerateMapping` on a `MappingSpec` interface |
 
 ---
 
@@ -122,6 +134,7 @@ For compile-time path-type checking, see [Compile-Time Checks](../tooling/compil
 - **New to optics?** Start with the [Quickstart](quickstart.md), three runnable examples in 100 lines.
 - **Updating a nested record right now?** Jump to the [Focus DSL](focus_dsl.md).
 - **Working with external types?** See [Optics for External Types](importing_optics.md) and [Taming JSON with Jackson](optics_spec_interfaces.md).
+- **Mapping DTOs at a service boundary?** See [Record Mapping](record_mapping.md).
 - **Want hands-on practice?** The [Lens & Prism Journey](../tutorials/optics/lens_prism_journey.md) is 40 minutes, 30 exercises.
 
 ---

@@ -612,4 +612,4 @@ Consider these opportunities to enhance your bridge layer integration:
 ---
 
 **Previous:** [Database Records with JOOQ](copy_strategies.md)
-**Next:** [Kind Field Support](kind_field_support.md)
+**Next:** [Record Mapping](record_mapping.md)
