@@ -385,8 +385,13 @@ public class SpecInterfaceAnalyser {
     // Check for @InstanceOf
     AnnotationMirror instanceOf = findAnnotation(method, INSTANCE_OF_FQN);
     if (instanceOf != null) {
-      // @InstanceOf.value() is mandatory, so the mirror always carries a TypeMirror.
+      // @InstanceOf.value() is mandatory, but an unresolvable class constant (a typo, or a
+      // not-yet-generated type) is modelled as an erroneous attribute whose value is a String,
+      // not a TypeMirror - so this CAN be null and must fall through to the hint diagnostic.
       TypeMirror targetType = getAnnotationTypeMirror(instanceOf, "value");
+      if (targetType == null) {
+        return Optional.empty();
+      }
       // Validate subtype relationship (Decision 6)
       if (!typeUtils.isSubtype(targetType, sourceType)) {
         error(

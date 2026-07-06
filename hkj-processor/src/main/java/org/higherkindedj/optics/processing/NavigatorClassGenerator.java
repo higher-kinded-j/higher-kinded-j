@@ -1080,8 +1080,6 @@ public class NavigatorClassGenerator {
     return OPTIONAL_TYPES.contains(qualifiedName) || COLLECTION_TYPES.contains(qualifiedName);
   }
 
-  /** Capitalises the first letter of a string. */
-
   /**
    * Creates a method spec for a navigator-returning method (replaces the standard FocusPath
    * method).

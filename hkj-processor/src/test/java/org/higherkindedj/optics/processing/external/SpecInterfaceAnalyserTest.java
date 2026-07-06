@@ -214,6 +214,49 @@ class SpecInterfaceAnalyserTest {
    * Like {@link #analyseSpec} but does not assert compilation success. Use for tests where the
    * analyser is expected to report errors that cause compilation to fail.
    */
+  @org.junit.jupiter.api.Test
+  @org.junit.jupiter.api.DisplayName(
+      "an unresolvable @InstanceOf class constant falls through cleanly, not an NPE")
+  void unresolvableInstanceOfTargetFallsThrough() {
+    JavaFileObject source =
+        JavaFileObjects.forSourceString(
+            "com.example.Shape",
+            """
+            package com.example;
+
+            public sealed interface Shape permits Circle {}
+            """);
+    JavaFileObject circle =
+        JavaFileObjects.forSourceString(
+            "com.example.Circle",
+            """
+            package com.example;
+
+            public record Circle(double radius) implements Shape {}
+            """);
+    JavaFileObject spec =
+        JavaFileObjects.forSourceString(
+            "com.example.ShapeSpec",
+            """
+            package com.example;
+
+            import org.higherkindedj.optics.Prism;
+            import org.higherkindedj.optics.annotations.InstanceOf;
+            import org.higherkindedj.optics.annotations.OpticsSpec;
+
+            public interface ShapeSpec extends OpticsSpec<Shape> {
+              @InstanceOf(MissingType.class)
+              Prism<Shape, Circle> circle();
+            }
+            """);
+
+    // MissingType does not exist: compilation fails, but the analyser must degrade to its
+    // hint diagnostic instead of throwing NullPointerException on the erroneous constant.
+    Optional<SpecAnalysis> result =
+        analyseSpecAllowingErrors("com.example.ShapeSpec", source, circle, spec);
+    org.assertj.core.api.Assertions.assertThat(result).isEmpty();
+  }
+
   private Optional<SpecAnalysis> analyseSpecAllowingErrors(
       String typeName, JavaFileObject... additionalSources) {
     JavaFileObject[] allSources = new JavaFileObject[additionalSources.length + 4];

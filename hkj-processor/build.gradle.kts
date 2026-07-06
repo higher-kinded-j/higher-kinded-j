@@ -72,6 +72,9 @@ tasks.jacocoTestCoverageVerification {
     )
 
     violationRules {
+        // 99/97 (not 100): the residual is verified-unreachable - compiler-synthesised
+        // exhaustive-switch defaults, @Target-unproducible arms, and descriptor-table
+        // combos that cannot occur (see the coverage-hardening PR for the per-class list).
         rule {
             limit {
                 counter = "LINE"
