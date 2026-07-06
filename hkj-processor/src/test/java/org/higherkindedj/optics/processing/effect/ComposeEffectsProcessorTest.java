@@ -6,6 +6,7 @@ import static com.google.testing.compile.Compiler.javac;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.google.testing.compile.Compilation;
+import com.google.testing.compile.CompilationSubject;
 import com.google.testing.compile.JavaFileObjects;
 import java.io.IOException;
 import java.util.Optional;
@@ -56,6 +57,26 @@ class ComposeEffectsProcessorTest {
             Long logging
         ) {}
         """);
+  }
+
+  @org.junit.jupiter.api.Test
+  @org.junit.jupiter.api.DisplayName("@Handles with an unresolvable value type is rejected")
+  void handlesWithUnresolvableValueRejected() {
+    JavaFileObject bad =
+        JavaFileObjects.forSourceString(
+            "test.pkg.BadInterpreter",
+            """
+            package test.pkg;
+
+            import org.higherkindedj.hkt.effect.annotation.Handles;
+
+            @Handles(int.class)
+            public final class BadInterpreter {}
+            """);
+    Compilation compilation = compile(bad);
+    CompilationSubject.assertThat(compilation).failed();
+    CompilationSubject.assertThat(compilation)
+        .hadErrorContaining("Cannot resolve @Handles value type");
   }
 
   private Compilation compile(JavaFileObject... sources) {
