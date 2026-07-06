@@ -2,6 +2,8 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.optics.validated;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.function.Function;
@@ -155,6 +157,54 @@ public sealed interface ValidatedPrism<S, A> permits ValidatedPrism.Of {
           Objects.requireNonNull(a, "value must not be null");
           return parse(s).isValid() ? build(a) : s;
         });
+  }
+
+  /**
+   * Parses every element, accumulating all failures across the whole list.
+   *
+   * @param sources the wire values; neither the list nor its elements may be null
+   * @return {@code Valid(list)} or every located failure from every element, in list order
+   *     (non-null)
+   * @throws NullPointerException if {@code sources} or one of its elements is null (the message
+   *     names the offending index)
+   */
+  default Validated<NonEmptyList<FieldError>, List<A>> parseAll(List<? extends S> sources) {
+    Objects.requireNonNull(sources, "sources must not be null");
+    List<A> values = new ArrayList<>(sources.size());
+    NonEmptyList<FieldError> failures = null;
+    int i = 0;
+    for (S source : sources) {
+      Objects.requireNonNull(source, "sources[" + i + "] must not be null");
+      i++;
+      Validated<NonEmptyList<FieldError>, A> parsed = parse(source);
+      if (parsed.isValid()) {
+        values.add(parsed.get());
+      } else if (failures == null) {
+        failures = parsed.getError();
+      } else {
+        failures = NonEmptyList.<FieldError>semigroup().combine(failures, parsed.getError());
+      }
+    }
+    return failures == null ? Validated.valid(List.copyOf(values)) : Validated.invalid(failures);
+  }
+
+  /**
+   * Renders every domain value; total like {@link #build}.
+   *
+   * @param values the domain values; neither the list nor its elements may be null
+   * @return the rendered wire values, immutable (non-null)
+   * @throws NullPointerException if {@code values} or one of its elements is null (the message
+   *     names the offending index)
+   */
+  default List<S> buildAll(List<? extends A> values) {
+    Objects.requireNonNull(values, "values must not be null");
+    List<S> built = new ArrayList<>(values.size());
+    int i = 0;
+    for (A value : values) {
+      built.add(build(Objects.requireNonNull(value, "values[" + i + "] must not be null")));
+      i++;
+    }
+    return List.copyOf(built);
   }
 
   /**

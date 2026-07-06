@@ -6,6 +6,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatNullPointerException;
 import static org.higherkindedj.hkt.assertions.ValidatedAssert.assertThatValidated;
 
+import java.util.Arrays;
+import java.util.List;
 import java.util.Optional;
 import org.higherkindedj.hkt.nonemptylist.NonEmptyList;
 import org.higherkindedj.hkt.validated.FieldError;
@@ -61,6 +63,44 @@ class ValidatedPrismTest {
       ValidatedPrismLaws.assertValidatedPrismLaws(EMAIL, "ada@corp.example", "nope");
       ValidatedPrismLaws.assertValidatedPrismLaws(
           CORP, new Email("ada@corp.example"), new Email("ada@other.example"));
+    }
+
+    @Test
+    @DisplayName("parseAll accumulates failures across all elements; buildAll is total")
+    void parseAllAndBuildAll() {
+      assertThatValidated(EMAIL.parseAll(List.of("a@b", "c@d")))
+          .isValid()
+          .hasValue(List.of(new Email("a@b"), new Email("c@d")));
+
+      ValidatedPrism<String, Email> located =
+          ValidatedPrism.of(
+              raw ->
+                  raw.contains("@")
+                      ? Validated.validNel(new Email(raw))
+                      : Validated.invalidNel(FieldError.of("bad: " + raw)),
+              Email::value);
+      Validated<NonEmptyList<FieldError>, List<Email>> failed =
+          located.parseAll(List.of("bad-one", "a@b", "bad-two"));
+      assertThatValidated(failed).isInvalid();
+      assertThat(failed.getError().toJavaList())
+          .extracting(FieldError::message)
+          .containsExactly("bad: bad-one", "bad: bad-two");
+
+      assertThat(EMAIL.buildAll(List.of(new Email("a@b"), new Email("c@d"))))
+          .containsExactly("a@b", "c@d");
+      assertThatValidated(EMAIL.parseAll(List.of())).isValid().hasValue(List.of());
+      assertThatNullPointerException()
+          .isThrownBy(() -> EMAIL.parseAll(null))
+          .withMessage("sources must not be null");
+      assertThatNullPointerException()
+          .isThrownBy(() -> EMAIL.buildAll(null))
+          .withMessage("values must not be null");
+      assertThatNullPointerException()
+          .isThrownBy(() -> EMAIL.parseAll(Arrays.asList("a@b", null)))
+          .withMessage("sources[1] must not be null");
+      assertThatNullPointerException()
+          .isThrownBy(() -> EMAIL.buildAll(Arrays.asList(new Email("a@b"), null)))
+          .withMessage("values[1] must not be null");
     }
 
     @Test

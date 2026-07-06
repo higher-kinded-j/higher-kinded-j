@@ -37,6 +37,7 @@ class ProcessorSourceVersionTest {
         new ForComprehensionProcessor(),
         new AccumulatorProcessor(),
         new AssemblyProcessor(),
+        new MappingProcessor(),
         new PathProcessor(),
         new PathSourceProcessor(),
         new EffectAlgebraProcessor(),

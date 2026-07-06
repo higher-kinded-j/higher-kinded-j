@@ -84,6 +84,21 @@ tasks.jacocoTestCoverageVerification {
                 minimum = "0.87".toBigDecimal()
             }
         }
+        // MappingProcessor is held at 100% (see PR #605).
+        rule {
+            element = "CLASS"
+            includes = listOf("org.higherkindedj.optics.processing.MappingProcessor*")
+            limit {
+                counter = "LINE"
+                value = "COVEREDRATIO"
+                minimum = "1.00".toBigDecimal()
+            }
+            limit {
+                counter = "BRANCH"
+                value = "COVEREDRATIO"
+                minimum = "1.00".toBigDecimal()
+            }
+        }
     }
 }
 

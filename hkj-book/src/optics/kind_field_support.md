@@ -349,5 +349,5 @@ To enable automatic traversal for unknown types, add `@TraverseField` with the a
 
 ---
 
-**Previous:** [Focus DSL with External Libraries](focus_external_bridging.md)
+**Previous:** [Record Mapping](record_mapping.md)
 **Next:** [Fluent API](fluent_api.md)
