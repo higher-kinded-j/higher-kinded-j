@@ -6,7 +6,6 @@ import com.palantir.javapoet.*;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Locale;
 import java.util.ServiceLoader;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -29,6 +28,7 @@ import org.higherkindedj.optics.Lens;
 import org.higherkindedj.optics.Traversal;
 import org.higherkindedj.optics.processing.spi.TraversableGenerator;
 import org.higherkindedj.optics.processing.util.ExcludeFromJacocoGeneratedReport;
+import org.higherkindedj.optics.processing.util.ProcessorUtils;
 
 /**
  * Generates lens classes for external types (records and wither-based classes).
@@ -242,8 +242,8 @@ public class ExternalLensGenerator {
   private MethodSpec createWithMethod(FieldInfo field, TypeElement typeElement, TypeName typeName) {
 
     TypeName fieldTypeName = TypeName.get(field.type());
-    String methodName = "with" + capitalise(field.name());
-    String parameterName = "new" + capitalise(field.name());
+    String methodName = "with" + ProcessorUtils.capitalise(field.name());
+    String parameterName = "new" + ProcessorUtils.capitalise(field.name());
     String lensesClassName = typeElement.getSimpleName().toString() + "Lenses";
 
     MethodSpec.Builder methodBuilder =
@@ -430,12 +430,5 @@ public class ExternalLensGenerator {
       messager.printMessage(
           Diagnostic.Kind.ERROR, "Could not write generated file: " + e.getMessage());
     }
-  }
-
-  private String capitalise(String s) {
-    if (s == null || s.isEmpty()) {
-      return s;
-    }
-    return s.substring(0, 1).toUpperCase(Locale.ROOT) + s.substring(1);
   }
 }

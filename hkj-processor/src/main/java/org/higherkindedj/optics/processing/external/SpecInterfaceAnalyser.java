@@ -26,6 +26,7 @@ import org.higherkindedj.optics.processing.external.SpecAnalysis.PrismHintInfo;
 import org.higherkindedj.optics.processing.external.SpecAnalysis.PrismHintKind;
 import org.higherkindedj.optics.processing.external.SpecAnalysis.TraversalHintInfo;
 import org.higherkindedj.optics.processing.external.SpecAnalysis.TraversalHintKind;
+import org.higherkindedj.optics.processing.util.ProcessorUtils;
 
 /**
  * Analyses spec interfaces extending {@code OpticsSpec<S>} to determine what optics to generate.
@@ -539,8 +540,8 @@ public class SpecInterfaceAnalyser {
     }
 
     // Look for accessor method (record-style: fieldName() or JavaBean-style: getFieldName())
-    String getterName = "get" + capitalise(fieldName);
-    String isGetterName = "is" + capitalise(fieldName); // For booleans
+    String getterName = "get" + ProcessorUtils.capitalise(fieldName);
+    String isGetterName = "is" + ProcessorUtils.capitalise(fieldName); // For booleans
 
     for (var enclosed : typeElement.getEnclosedElements()) {
       if (enclosed.getKind() != ElementKind.METHOD) {
@@ -574,13 +575,6 @@ public class SpecInterfaceAnalyser {
     }
 
     return null;
-  }
-
-  private String capitalise(String s) {
-    if (s == null || s.isEmpty()) {
-      return s;
-    }
-    return s.substring(0, 1).toUpperCase(Locale.ROOT) + s.substring(1);
   }
 
   // ----- Annotation Utility Methods -----

@@ -23,6 +23,7 @@ import org.higherkindedj.optics.Lens;
 import org.higherkindedj.optics.annotations.GenerateLenses;
 import org.higherkindedj.optics.processing.util.Diagnostics;
 import org.higherkindedj.optics.processing.util.ExcludeFromJacocoGeneratedReport;
+import org.higherkindedj.optics.processing.util.ProcessorUtils;
 
 /** Annotation processor that generates Lens optics for record types. */
 @AutoService(Processor.class)
@@ -188,8 +189,8 @@ public class LensProcessor extends AbstractProcessor {
 
     String componentName = component.getSimpleName().toString();
     TypeName componentTypeName = TypeName.get(component.asType());
-    String methodName = "with" + capitalise(componentName);
-    String parameterName = "new" + capitalise(componentName);
+    String methodName = "with" + ProcessorUtils.capitalise(componentName);
+    String parameterName = "new" + ProcessorUtils.capitalise(componentName);
     String lensesClassName = recordElement.getSimpleName().toString() + "Lenses";
 
     MethodSpec.Builder methodBuilder =
@@ -234,12 +235,5 @@ public class LensProcessor extends AbstractProcessor {
     }
 
     return methodBuilder.build();
-  }
-
-  private String capitalise(String s) {
-    if (s == null || s.isEmpty()) {
-      return s;
-    }
-    return s.substring(0, 1).toUpperCase() + s.substring(1);
   }
 }

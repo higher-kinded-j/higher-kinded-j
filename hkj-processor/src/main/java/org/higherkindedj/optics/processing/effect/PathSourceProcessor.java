@@ -231,7 +231,7 @@ public class PathSourceProcessor extends AbstractProcessor {
     javaFile.writeTo(processingEnv.getFiler());
   }
 
-  private TypeMirror getWitnessType(PathSource annotation) {
+  static TypeMirror getWitnessType(PathSource annotation) {
     try {
       annotation.witness();
       throw new AssertionError("Should have thrown MirroredTypeException");
@@ -240,7 +240,7 @@ public class PathSourceProcessor extends AbstractProcessor {
     }
   }
 
-  private TypeMirror getErrorType(PathSource annotation) {
+  static TypeMirror getErrorType(PathSource annotation) {
     try {
       annotation.errorType();
       throw new AssertionError("Should have thrown MirroredTypeException");
@@ -256,18 +256,14 @@ public class PathSourceProcessor extends AbstractProcessor {
       TypeVariableName typeA) {
     List<TypeName> interfaces = new ArrayList<>();
 
-    // Note: Chainable is sealed, so generated classes implement Combinable instead
-    // but still provide via/flatMap/then methods
-    switch (capability) {
-      case COMPOSABLE -> interfaces.add(ParameterizedTypeName.get(COMPOSABLE, typeA));
-      case COMBINABLE, CHAINABLE, EFFECTFUL ->
-          interfaces.add(ParameterizedTypeName.get(COMBINABLE, typeA));
-      case RECOVERABLE, ACCUMULATING -> {
-        interfaces.add(ParameterizedTypeName.get(COMBINABLE, typeA));
-        // Note: Recoverable is also sealed, so we don't implement it
-        // but still provide recover/recoverWith/mapError methods
-      }
-    }
+    // Note: Chainable and Recoverable are sealed, so generated classes implement Combinable
+    // instead but still provide via/flatMap/then (and recover/recoverWith/mapError) methods.
+    interfaces.add(
+        switch (capability) {
+          case COMPOSABLE -> ParameterizedTypeName.get(COMPOSABLE, typeA);
+          case COMBINABLE, CHAINABLE, EFFECTFUL, RECOVERABLE, ACCUMULATING ->
+              ParameterizedTypeName.get(COMBINABLE, typeA);
+        });
 
     return interfaces;
   }

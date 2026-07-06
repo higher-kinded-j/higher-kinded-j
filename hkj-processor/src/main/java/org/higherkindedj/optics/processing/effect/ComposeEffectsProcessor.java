@@ -413,7 +413,7 @@ public class ComposeEffectsProcessor extends AbstractProcessor {
     }
   }
 
-  private TypeElement getHandlesAlgebraType(TypeElement interpreterType) {
+  TypeElement getHandlesAlgebraType(TypeElement interpreterType) {
     Handles annotation = interpreterType.getAnnotation(Handles.class);
     if (annotation == null) return null;
 

@@ -18,6 +18,7 @@ import javax.lang.model.type.TypeKind;
 import javax.lang.model.type.TypeMirror;
 import javax.lang.model.util.Elements;
 import javax.lang.model.util.Types;
+import org.higherkindedj.optics.processing.util.ProcessorUtils;
 
 /**
  * Analyses external types to determine what kind of optics can be generated.
@@ -229,8 +230,8 @@ public class TypeKindAnalyser {
     // Try various getter naming conventions
     String[] getterCandidates = {
       fieldName, // record-style: year()
-      "get" + capitalise(fieldName), // JavaBean: getYear()
-      "is" + capitalise(fieldName) // boolean: isActive()
+      "get" + ProcessorUtils.capitalise(fieldName), // JavaBean: getYear()
+      "is" + ProcessorUtils.capitalise(fieldName) // boolean: isActive()
     };
 
     for (var enclosed : classElement.getEnclosedElements()) {
@@ -441,12 +442,5 @@ public class TypeKindAnalyser {
     }
 
     return Optional.empty();
-  }
-
-  private String capitalise(String s) {
-    if (s == null || s.isEmpty()) {
-      return s;
-    }
-    return s.substring(0, 1).toUpperCase(Locale.ROOT) + s.substring(1);
   }
 }

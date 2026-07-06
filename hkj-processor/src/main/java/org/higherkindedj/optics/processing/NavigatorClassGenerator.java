@@ -331,7 +331,7 @@ public class NavigatorClassGenerator {
       PathKind pathKind) {
 
     String componentName = component.getSimpleName().toString();
-    String navigatorClassName = capitalise(componentName) + "Navigator";
+    String navigatorClassName = ProcessorUtils.capitalise(componentName) + "Navigator";
     TypeName targetTypeName = TypeName.get(targetRecord.asType());
 
     // Type parameter S for the source type in the navigator
@@ -756,7 +756,7 @@ public class NavigatorClassGenerator {
           if (fieldTypeElement != null) {
             // The navigator is a nested class of the target record's Focus class.
             // Use $T for the enclosing Focus class to ensure proper cross-package imports.
-            String fieldNavigatorClassName = capitalise(fieldName) + "Navigator";
+            String fieldNavigatorClassName = ProcessorUtils.capitalise(fieldName) + "Navigator";
             ClassName navigatorClass =
                 ClassName.get(targetPackage, targetFocusClassName, fieldNavigatorClassName);
             ParameterizedTypeName navigatorType =
@@ -848,7 +848,7 @@ public class NavigatorClassGenerator {
           && innerTypeElement != null
           && innerTypeElement.getAnnotation(GenerateFocus.class) != null) {
         wrapInNavigator = true;
-        String innerNavigatorClassName = capitalise(fieldName) + "Navigator";
+        String innerNavigatorClassName = ProcessorUtils.capitalise(fieldName) + "Navigator";
         navigatorFromTargetFocus =
             ClassName.get(targetPackage, targetFocusClassName, innerNavigatorClassName);
       }
@@ -1096,12 +1096,6 @@ public class NavigatorClassGenerator {
   }
 
   /** Capitalises the first letter of a string. */
-  private String capitalise(String s) {
-    if (s == null || s.isEmpty()) {
-      return s;
-    }
-    return Character.toUpperCase(s.charAt(0)) + s.substring(1);
-  }
 
   /**
    * Creates a method spec for a navigator-returning method (replaces the standard FocusPath
@@ -1164,7 +1158,7 @@ public class NavigatorClassGenerator {
     }
 
     // Navigator class name
-    String navigatorClassName = capitalise(componentName) + "Navigator";
+    String navigatorClassName = ProcessorUtils.capitalise(componentName) + "Navigator";
     String packageName =
         processingEnv.getElementUtils().getPackageOf(recordElement).getQualifiedName().toString();
     String focusClassName = recordElement.getSimpleName().toString() + "Focus";

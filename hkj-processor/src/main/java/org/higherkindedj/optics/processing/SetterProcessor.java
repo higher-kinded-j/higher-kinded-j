@@ -23,6 +23,7 @@ import javax.tools.Diagnostic;
 import org.higherkindedj.optics.Setter;
 import org.higherkindedj.optics.annotations.GenerateSetters;
 import org.higherkindedj.optics.processing.util.ExcludeFromJacocoGeneratedReport;
+import org.higherkindedj.optics.processing.util.ProcessorUtils;
 
 /** Annotation processor that generates Setter optics for record types. */
 @AutoService(Processor.class)
@@ -171,8 +172,8 @@ public class SetterProcessor extends AbstractProcessor {
 
     String componentName = component.getSimpleName().toString();
     TypeName componentTypeName = TypeName.get(component.asType());
-    String methodName = "with" + capitalise(componentName);
-    String parameterName = "new" + capitalise(componentName);
+    String methodName = "with" + ProcessorUtils.capitalise(componentName);
+    String parameterName = "new" + ProcessorUtils.capitalise(componentName);
     String settersClassName = recordElement.getSimpleName().toString() + "Setters";
 
     MethodSpec.Builder methodBuilder =
@@ -217,13 +218,6 @@ public class SetterProcessor extends AbstractProcessor {
     }
 
     return methodBuilder.build();
-  }
-
-  private String capitalise(String s) {
-    if (s == null || s.isEmpty()) {
-      return s;
-    }
-    return s.substring(0, 1).toUpperCase() + s.substring(1);
   }
 
   private void error(String msg, Element e) {
