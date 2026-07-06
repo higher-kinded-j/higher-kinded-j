@@ -63,6 +63,22 @@ public class ExternalLensGenerator {
   }
 
   /**
+   * Creates a new ExternalLensGenerator with an explicit list of traversal generators.
+   *
+   * <p>Package-private; intended for tests that need to control the available generators.
+   *
+   * @param filer the filer for writing generated files
+   * @param messager the messager for reporting diagnostics
+   * @param traversalGenerators the traversal generators to use instead of SPI discovery
+   */
+  ExternalLensGenerator(
+      Filer filer, Messager messager, List<TraversableGenerator> traversalGenerators) {
+    this.filer = filer;
+    this.messager = messager;
+    this.traversalGenerators = List.copyOf(traversalGenerators);
+  }
+
+  /**
    * Generates a lenses class for an external record.
    *
    * @param analysis the type analysis for the record
@@ -290,7 +306,7 @@ public class ExternalLensGenerator {
     return methodBuilder.build();
   }
 
-  private MethodSpec createTraversalMethod(
+  MethodSpec createTraversalMethod(
       FieldInfo field,
       TypeElement recordElement,
       List<? extends RecordComponentElement> allComponents,
@@ -387,7 +403,7 @@ public class ExternalLensGenerator {
         .build();
   }
 
-  private TypeName getFocusType(TypeMirror type, TraversableGenerator generator) {
+  TypeName getFocusType(TypeMirror type, TraversableGenerator generator) {
     if (type instanceof ArrayType arrayType) {
       return TypeName.get(arrayType.getComponentType()).box();
     } else if (type instanceof DeclaredType declaredType) {

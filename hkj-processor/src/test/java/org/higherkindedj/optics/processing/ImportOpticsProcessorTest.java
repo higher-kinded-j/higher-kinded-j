@@ -660,4 +660,307 @@ class ImportOpticsProcessorTest {
       assertThat(compilation).generatedSourceFile("com.myapp.ProductLenses").isNotNull();
     }
   }
+
+  @Nested
+  @DisplayName("Coverage Hardening")
+  class CoverageHardening {
+
+    @Test
+    @DisplayName("should generate array traversal for record with array component")
+    void shouldGenerateArrayTraversalForRecord() {
+      final var externalRecord =
+          JavaFileObjects.forSourceString(
+              "com.external.Squad",
+              """
+              package com.external;
+
+              public record Squad(String name, String[] tags) {}
+              """);
+
+      final var packageInfo =
+          JavaFileObjects.forSourceString(
+              "com.myapp.optics.package-info",
+              """
+              @ImportOptics({com.external.Squad.class})
+              package com.myapp.optics;
+
+              import org.higherkindedj.optics.annotations.ImportOptics;
+              """);
+
+      var compilation =
+          javac().withProcessors(new ImportOpticsProcessor()).compile(externalRecord, packageInfo);
+
+      assertThat(compilation).succeeded();
+      assertGeneratedCodeContains(compilation, "com.myapp.optics.SquadLenses", "tagsTraversal");
+    }
+
+    @Test
+    @DisplayName(
+        "should treat interface with non-OpticsSpec super-interface as a class-list importer")
+    void shouldTreatNonSpecInterfaceAsClassListImporter() {
+      final var externalRecord =
+          JavaFileObjects.forSourceString(
+              "com.external.Widget",
+              """
+              package com.external;
+
+              public record Widget(String label) {}
+              """);
+
+      final var importerInterface =
+          JavaFileObjects.forSourceString(
+              "com.myapp.WidgetImporter",
+              """
+              package com.myapp;
+
+              import org.higherkindedj.optics.annotations.ImportOptics;
+
+              @ImportOptics({com.external.Widget.class})
+              public interface WidgetImporter extends java.io.Serializable {}
+              """);
+
+      var compilation =
+          javac()
+              .withProcessors(new ImportOpticsProcessor())
+              .compile(externalRecord, importerInterface);
+
+      assertThat(compilation).succeeded();
+      assertThat(compilation).generatedSourceFile("com.myapp.WidgetLenses").isNotNull();
+    }
+
+    @Test
+    @DisplayName("should honour explicit targetPackage on a spec interface")
+    void shouldHonourExplicitTargetPackageOnSpecInterface() {
+      final var externalClass =
+          JavaFileObjects.forSourceString(
+              "com.external.Temp",
+              """
+              package com.external;
+
+              public class Temp {
+                  private final int celsius;
+                  public Temp(int celsius) { this.celsius = celsius; }
+                  public int celsius() { return celsius; }
+              }
+              """);
+
+      final var specInterface =
+          JavaFileObjects.forSourceString(
+              "com.myapp.TempOpticsSpec",
+              """
+              package com.myapp;
+
+              import org.higherkindedj.optics.Lens;
+              import org.higherkindedj.optics.annotations.ImportOptics;
+              import org.higherkindedj.optics.annotations.OpticsSpec;
+              import org.higherkindedj.optics.annotations.ViaConstructor;
+              import com.external.Temp;
+
+              @ImportOptics(targetPackage = "com.custom.gen")
+              public interface TempOpticsSpec extends OpticsSpec<Temp> {
+
+                  @ViaConstructor(parameterOrder = {"celsius"})
+                  Lens<Temp, Integer> celsius();
+              }
+              """);
+
+      var compilation =
+          javac().withProcessors(new ImportOpticsProcessor()).compile(externalClass, specInterface);
+
+      assertThat(compilation).succeeded();
+      assertThat(compilation).generatedSourceFile("com.custom.gen.TempOptics").isNotNull();
+    }
+
+    @Test
+    @DisplayName("should honour explicit targetPackage on a type-level importer")
+    void shouldHonourExplicitTargetPackageOnTypeImporter() {
+      final var externalRecord =
+          JavaFileObjects.forSourceString(
+              "com.external.Gadget",
+              """
+              package com.external;
+
+              public record Gadget(String id) {}
+              """);
+
+      final var importerClass =
+          JavaFileObjects.forSourceString(
+              "com.myapp.GadgetImporter",
+              """
+              package com.myapp;
+
+              import org.higherkindedj.optics.annotations.ImportOptics;
+
+              @ImportOptics(value = {com.external.Gadget.class}, targetPackage = "com.gen")
+              public class GadgetImporter {}
+              """);
+
+      var compilation =
+          javac()
+              .withProcessors(new ImportOpticsProcessor())
+              .compile(externalRecord, importerClass);
+
+      assertThat(compilation).succeeded();
+      assertThat(compilation).generatedSourceFile("com.gen.GadgetLenses").isNotNull();
+    }
+
+    @Test
+    @DisplayName("should skip non-@ImportOptics annotation mirrors when reading the class list")
+    void shouldSkipOtherAnnotationMirrors() {
+      final var externalRecord =
+          JavaFileObjects.forSourceString(
+              "com.external.Gizmo",
+              """
+              package com.external;
+
+              public record Gizmo(String id) {}
+              """);
+
+      final var importerClass =
+          JavaFileObjects.forSourceString(
+              "com.myapp.GizmoImporter",
+              """
+              package com.myapp;
+
+              import org.higherkindedj.optics.annotations.ImportOptics;
+
+              @Deprecated
+              @ImportOptics({com.external.Gizmo.class})
+              public class GizmoImporter {}
+              """);
+
+      var compilation =
+          javac()
+              .withProcessors(new ImportOpticsProcessor())
+              .compile(externalRecord, importerClass);
+
+      assertThat(compilation).succeeded();
+      assertThat(compilation).generatedSourceFile("com.myapp.GizmoLenses").isNotNull();
+    }
+
+    @Test
+    @DisplayName("should skip non-value annotation elements when reading the class list")
+    void shouldSkipNonValueAnnotationElements() {
+      final var externalRecord =
+          JavaFileObjects.forSourceString(
+              "com.external.Doohickey",
+              """
+              package com.external;
+
+              public record Doohickey(String id) {}
+              """);
+
+      final var importerClass =
+          JavaFileObjects.forSourceString(
+              "com.myapp.DoohickeyImporter",
+              """
+              package com.myapp;
+
+              import org.higherkindedj.optics.annotations.ImportOptics;
+
+              @ImportOptics(allowMutable = true, value = {com.external.Doohickey.class})
+              public class DoohickeyImporter {}
+              """);
+
+      var compilation =
+          javac()
+              .withProcessors(new ImportOpticsProcessor())
+              .compile(externalRecord, importerClass);
+
+      assertThat(compilation).succeeded();
+      assertThat(compilation).generatedSourceFile("com.myapp.DoohickeyLenses").isNotNull();
+    }
+
+    @Test
+    @DisplayName("should generate nothing when the class list is absent")
+    void shouldGenerateNothingWhenClassListAbsent() {
+      // Only targetPackage is written, so the element-values loop never finds "value"
+      final var importerClass =
+          JavaFileObjects.forSourceString(
+              "com.myapp.NoValueImporter",
+              """
+              package com.myapp;
+
+              import org.higherkindedj.optics.annotations.ImportOptics;
+
+              @ImportOptics(targetPackage = "com.gen2")
+              public class NoValueImporter {}
+              """);
+
+      var compilation = javac().withProcessors(new ImportOpticsProcessor()).compile(importerClass);
+
+      assertThat(compilation).succeeded();
+    }
+
+    @Test
+    @DisplayName("should ignore class-list entries whose type has no element (primitives)")
+    void shouldIgnorePrimitiveClassListEntries() {
+      final var importerClass =
+          JavaFileObjects.forSourceString(
+              "com.myapp.PrimitiveImporter",
+              """
+              package com.myapp;
+
+              import org.higherkindedj.optics.annotations.ImportOptics;
+
+              @ImportOptics({int.class})
+              public class PrimitiveImporter {}
+              """);
+
+      var compilation = javac().withProcessors(new ImportOpticsProcessor()).compile(importerClass);
+
+      assertThat(compilation).succeeded();
+    }
+
+    @Test
+    @DisplayName("should return empty class list for element without @ImportOptics")
+    void shouldReturnEmptyClassListWithoutImportOptics() {
+      final var plainClass =
+          JavaFileObjects.forSourceString(
+              "com.myapp.Plain",
+              """
+              package com.myapp;
+
+              public class Plain {}
+              """);
+
+      final class HarnessProcessor extends javax.annotation.processing.AbstractProcessor {
+        private java.util.List<javax.lang.model.element.TypeElement> classList;
+
+        @Override
+        public java.util.Set<String> getSupportedAnnotationTypes() {
+          return java.util.Set.of("*");
+        }
+
+        @Override
+        public javax.lang.model.SourceVersion getSupportedSourceVersion() {
+          return javax.lang.model.SourceVersion.RELEASE_25;
+        }
+
+        @Override
+        public boolean process(
+            java.util.Set<? extends javax.lang.model.element.TypeElement> annotations,
+            javax.annotation.processing.RoundEnvironment roundEnv) {
+          if (roundEnv.processingOver() || classList != null) {
+            return false;
+          }
+
+          var plain = processingEnv.getElementUtils().getTypeElement("com.myapp.Plain");
+          if (plain != null) {
+            ImportOpticsProcessor target = new ImportOpticsProcessor();
+            target.init(processingEnv);
+            classList = target.getClassArrayFromAnnotation(plain);
+          }
+
+          return false;
+        }
+      }
+
+      HarnessProcessor harness = new HarnessProcessor();
+      var compilation = javac().withProcessors(harness).compile(plainClass);
+
+      assertThat(compilation).succeeded();
+      org.assertj.core.api.Assertions.assertThat(harness.classList).isEmpty();
+    }
+  }
 }

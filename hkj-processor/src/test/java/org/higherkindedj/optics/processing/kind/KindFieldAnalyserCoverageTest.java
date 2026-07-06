@@ -298,6 +298,49 @@ class KindFieldAnalyserCoverageTest {
   }
 
   @Nested
+  @DisplayName("Registered parameterised witness used raw")
+  class RawParameterisedWitness {
+
+    @Test
+    @DisplayName("should skip type-argument injection when a parameterised witness is used raw")
+    void shouldSkipInjectionForRawParameterisedWitness() {
+      // EitherKind.Witness is registered in KindRegistry as parameterised, but here it is used
+      // RAW (no <...>), so extractWitnessTypeArgs returns "" and injectTypeArgs is skipped.
+      // A stub EitherKind shadows the real one so the raw witness satisfies the stub Kind's
+      // unbounded type parameter (the real Kind bounds F with WitnessArity, rejecting raw use).
+      var eitherKindStub =
+          JavaFileObjects.forSourceString(
+              "org.higherkindedj.hkt.either.EitherKind",
+              """
+              package org.higherkindedj.hkt.either;
+              public final class EitherKind {
+                  public static final class Witness<L> {}
+              }
+              """);
+
+      var record =
+          JavaFileObjects.forSourceString(
+              "com.test.RawEitherRecord",
+              """
+              package com.test;
+              import org.higherkindedj.hkt.Kind;
+              @SuppressWarnings("rawtypes")
+              public record RawEitherRecord(
+                  Kind<org.higherkindedj.hkt.either.EitherKind.Witness, Integer> value
+              ) {}
+              """);
+
+      List<Optional<KindFieldInfo>> results =
+          analyseRecord("com.test.RawEitherRecord", KIND_INTERFACE, eitherKindStub, record);
+
+      assertThat(results).hasSize(1);
+      assertThat(results.get(0)).isPresent();
+      assertThat(results.get(0).get().isParameterised()).isTrue();
+      assertThat(results.get(0).get().witnessTypeArgs()).isEmpty();
+    }
+  }
+
+  @Nested
   @DisplayName("@TraverseField with parameterised witness")
   class TraverseFieldParameterisedWitness {
 

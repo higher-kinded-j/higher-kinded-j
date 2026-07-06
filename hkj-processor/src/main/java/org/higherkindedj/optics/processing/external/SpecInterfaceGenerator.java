@@ -349,7 +349,7 @@ public class SpecInterfaceGenerator {
    * @param typeMirror the type mirror
    * @return the type name, parameterised if the type has type arguments
    */
-  private TypeName getParameterisedTypeName(TypeMirror typeMirror) {
+  TypeName getParameterisedTypeName(TypeMirror typeMirror) {
     if (typeMirror instanceof DeclaredType declaredType) {
       List<? extends TypeMirror> typeArgs = declaredType.getTypeArguments();
       if (!typeArgs.isEmpty()) {
