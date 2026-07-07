@@ -115,6 +115,31 @@ Employee moved = badge.set(new EmployeeCardDto("Ada", "Platform"), employee);
 The annotation sits on *your* spec interface, never on the mapped types — so third-party records and sealed hierarchies from compiled libraries map without being annotatable: `interface VendorOrderMapping extends MappingSpec<com.vendor.OrderRecord, OrderDto> {}` works today. Bean-shaped foreign types (getter/setter DTOs) are the one un-owned shape that needs future work.
 ~~~
 
+## Merging several sources — `@GenerateMerge`
+
+The forward-only sibling: assemble one target from **several** sources, declared entirely by the spec method's signature — no class literals, no inverse (truthful types):
+
+``` java
+@GenerateMerge
+public interface DashboardAssembly {
+  Dashboard assemble(User user, Account account, Settings settings);
+}
+
+Dashboard dashboard = DashboardAssemblyImpl.INSTANCE.assemble(user, account, settings);
+```
+
+Each target component fills from the one source with a same-named component — identity when the types match, through a `ValidatedPrism` leaf when they differ, or through a sibling `@GenerateMapping` spec (the `customer` below parses through `CustomerMappingImpl`, and failures locate as dotted paths):
+
+``` java
+@GenerateMerge
+public interface ProfileCardAssembly {
+  Validated<NonEmptyList<FieldError>, ProfileCard> assemble(User user, Wrapper wrapper);
+}
+// Invalid(NonEmptyList[customer.email: not an email address])
+```
+
+Ambiguity (two sources carrying the component) and unfilled components are compile errors, and the return type must tell the truth: fallible fills demand the `Validated` return; an identity-only merge must declare the plain target.
+
 ## Diagnostics and limits
 
 Every rejection follows the processor's what/why/fix standard — the message states what is wrong, why the mapper needs it, and the code to write. Current limits, each with its own diagnostic:

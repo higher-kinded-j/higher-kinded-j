@@ -14,6 +14,10 @@ This page documents the evolution of Higher-Kinded-J from its initial release th
 
 ### 0.4.8-SNAPSHOT (Latest)
 
+**`@GenerateMerge`: one target from N sources, declared by a typed method**
+
+The forward-only companion to the mapper: annotate an interface whose single abstract method carries the whole declaration — `DashboardDto assemble(User user, Account account, Settings settings)` — and the processor generates the assembly. Each target component fills from the one source with a same-named component (identity, through a `ValidatedPrism` leaf, or through a sibling `@GenerateMapping` spec's `asValidatedPrism()` — failures locate as dotted paths). Ambiguous or unfilled components are what/why/fix compile errors, and the types are truthful in both directions: fallible fills demand the `Validated<NonEmptyList<FieldError>, Target>` return, identity-only merges must declare the plain target, and no inverse is ever generated ([#613](https://github.com/higher-kinded-j/higher-kinded-j/issues/613)).
+
 **`TimeSource`: effectful, testable time**
 
 `java.time.Clock` lifted into the effect world: `TimeSource.system()` / `of(clock)` / `fixed(instant)` with lazy `now() : IO<Instant>` and `nowAsync() : VTask<Instant>` reads — time as a composable effect, deterministic in tests. Deliberately *not* named `Clock`, so it never clashes with `java.time.Clock` in the files that use both; any JDK clock (`fixed`/`offset`/`tick`) lifts through `of()`. `hkj-test` gains `SteppableClock` (`startingAt`/`advance`/`set`, atomic stepping, contract-honouring `withZone`) so time-dependent code is exercised by moving the clock, not sleeping — the order example's reservation-expiry test now works exactly that way ([#609](https://github.com/higher-kinded-j/higher-kinded-j/issues/609)).
