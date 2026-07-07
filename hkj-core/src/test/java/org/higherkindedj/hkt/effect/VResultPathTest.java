@@ -5,10 +5,15 @@ package org.higherkindedj.hkt.effect;
 import static org.assertj.core.api.Assertions.*;
 import static org.higherkindedj.hkt.assertions.EitherAssert.assertThatEither;
 
+import java.time.Duration;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Function;
 import org.higherkindedj.hkt.either.Either;
+import org.higherkindedj.hkt.nonemptylist.NonEmptyList;
 import org.higherkindedj.hkt.vtask.VTask;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -1213,6 +1218,345 @@ class VResultPathTest {
 
       assertThat(execute(failed.via(intToPath.compose(Function.identity()))))
           .isEqualTo(execute(VResultPath.<String, String>raiseError(TEST_ERROR)));
+    }
+  }
+
+  @Nested
+  @DisplayName("Outcome-aware structured concurrency")
+  class OutcomeAwareConcurrency {
+
+    @Test
+    @DisplayName("firstSuccess: the first Right wins")
+    void firstSuccessWinnerWins() {
+      CountDownLatch blocked = new CountDownLatch(1);
+      VResultPath<String, String> slow =
+          VResultPath.fromVTask(
+              VTask.of(
+                  () -> {
+                    blocked.await();
+                    return Either.right("slow");
+                  }));
+      VResultPath<String, String> fast = VResultPath.pure("fast");
+
+      Either<NonEmptyList<String>, String> result =
+          VResultPath.firstSuccess(List.of(slow, fast)).run().run();
+      assertThatEither(result).isRight().hasRight("fast");
+    }
+
+    @Test
+    @DisplayName("firstSuccess: typed failures do not abort; all are collected in order")
+    void firstSuccessCollectsAllTypedFailures() {
+      VResultPath<String, String> a = VResultPath.raiseError("a failed");
+      VResultPath<String, String> b = VResultPath.raiseError("b failed");
+      VResultPath<String, String> c = VResultPath.raiseError("c failed");
+
+      Either<NonEmptyList<String>, String> result =
+          VResultPath.firstSuccess(List.of(a, b, c)).run().run();
+      assertThat(result.isLeft()).isTrue();
+      assertThat(result.getLeft().toJavaList()).containsExactly("a failed", "b failed", "c failed");
+    }
+
+    @Test
+    @DisplayName("firstSuccess: a Left does not stop a later Right from winning")
+    void firstSuccessLeftThenRight() {
+      VResultPath<String, String> failing = VResultPath.raiseError("nope");
+      VResultPath<String, String> winning = VResultPath.pure("won");
+
+      Either<NonEmptyList<String>, String> result =
+          VResultPath.firstSuccess(List.of(failing, winning)).run().run();
+      assertThatEither(result).isRight().hasRight("won");
+    }
+
+    @Test
+    @DisplayName("firstSuccess: a defect fails the race rather than being typed")
+    void firstSuccessDefectPropagates() {
+      VResultPath<String, String> defective =
+          VResultPath.fromVTask(
+              VTask.of(
+                  () -> {
+                    throw new IllegalStateException("boom");
+                  }));
+      VResultPath<String, String> typed = VResultPath.raiseError("typed");
+
+      assertThatThrownBy(() -> VResultPath.firstSuccess(List.of(defective, typed)).run().run())
+          .isInstanceOf(IllegalStateException.class);
+    }
+
+    @Test
+    @DisplayName("firstSuccess: guards")
+    void firstSuccessGuards() {
+      assertThatNullPointerException()
+          .isThrownBy(() -> VResultPath.firstSuccess(null))
+          .withMessage("candidates must not be null");
+      assertThatIllegalArgumentException()
+          .isThrownBy(() -> VResultPath.firstSuccess(List.of()))
+          .withMessage("candidates must not be empty");
+      List<VResultPath<String, String>> withNull = new ArrayList<>();
+      withNull.add(VResultPath.pure("ok"));
+      withNull.add(null);
+      assertThatNullPointerException()
+          .isThrownBy(() -> VResultPath.firstSuccess(withNull))
+          .withMessage("candidates must not contain null");
+    }
+
+    @Test
+    @DisplayName("allSucceed: all values in task order")
+    void allSucceedCollectsInOrder() {
+      Either<String, List<String>> result =
+          VResultPath.allSucceed(
+                  List.of(VResultPath.<String, String>pure("one"), VResultPath.pure("two")))
+              .run()
+              .run();
+      assertThat(result.getRight()).containsExactly("one", "two");
+    }
+
+    @Test
+    @DisplayName("allSucceed: the first typed failure is the result (fail-fast)")
+    void allSucceedFailsFast() {
+      Either<String, List<String>> result =
+          VResultPath.allSucceed(
+                  List.of(
+                      VResultPath.<String, String>pure("fine"),
+                      VResultPath.<String, String>raiseError("broke")))
+              .run()
+              .run();
+      assertThatEither(result).isLeft().hasLeft("broke");
+    }
+
+    @Test
+    @DisplayName("allSucceed: empty input is vacuously successful; nulls are guarded")
+    void allSucceedEmptyAndGuards() {
+      Either<String, List<String>> result =
+          VResultPath.<String, String>allSucceed(List.of()).run().run();
+      assertThat(result.getRight()).isEmpty();
+      assertThatNullPointerException()
+          .isThrownBy(() -> VResultPath.allSucceed(null))
+          .withMessage("tasks must not be null");
+      List<VResultPath<String, String>> withNull = new ArrayList<>();
+      withNull.add(null);
+      assertThatNullPointerException()
+          .isThrownBy(() -> VResultPath.allSucceed(withNull))
+          .withMessage("tasks must not contain null");
+    }
+
+    @Test
+    @DisplayName("allSucceed: a defect propagates, not typed")
+    void allSucceedDefectPropagates() {
+      VResultPath<String, String> defective =
+          VResultPath.fromVTask(
+              VTask.of(
+                  () -> {
+                    throw new IllegalStateException("boom");
+                  }));
+      assertThatThrownBy(() -> VResultPath.allSucceed(List.of(defective)).run().run())
+          .isInstanceOf(IllegalStateException.class);
+    }
+
+    @Test
+    @DisplayName("allSucceedAccumulating: every typed failure is collected in task order")
+    void allSucceedAccumulatingCollectsAll() {
+      Either<NonEmptyList<String>, List<String>> mixed =
+          VResultPath.allSucceedAccumulating(
+                  List.of(
+                      VResultPath.<String, String>raiseError("first"),
+                      VResultPath.<String, String>pure("ok"),
+                      VResultPath.<String, String>raiseError("second")))
+              .run()
+              .run();
+      assertThat(mixed.getLeft().toJavaList()).containsExactly("first", "second");
+
+      Either<NonEmptyList<String>, List<String>> allRight =
+          VResultPath.allSucceedAccumulating(
+                  List.of(
+                      VResultPath.<String, String>pure("one"),
+                      VResultPath.<String, String>pure("two")))
+              .run()
+              .run();
+      assertThat(allRight.getRight()).containsExactly("one", "two");
+
+      Either<NonEmptyList<String>, List<String>> empty =
+          VResultPath.<String, String>allSucceedAccumulating(List.of()).run().run();
+      assertThat(empty.getRight()).isEmpty();
+
+      assertThatNullPointerException()
+          .isThrownBy(() -> VResultPath.allSucceedAccumulating(null))
+          .withMessage("tasks must not be null");
+      List<VResultPath<String, String>> withNull = new ArrayList<>();
+      withNull.add(null);
+      assertThatNullPointerException()
+          .isThrownBy(() -> VResultPath.allSucceedAccumulating(withNull))
+          .withMessage("tasks must not contain null");
+    }
+
+    @Test
+    @DisplayName("withTimeout: a timeout becomes the designated typed error, on the railway")
+    void withTimeoutBecomesTypedError() {
+      CountDownLatch never = new CountDownLatch(1);
+      VResultPath<String, String> stuck =
+          VResultPath.fromVTask(
+              VTask.of(
+                  () -> {
+                    never.await();
+                    return Either.right("unreachable");
+                  }));
+      Either<String, String> result =
+          stuck.withTimeout(Duration.ofMillis(50), () -> "took too long").run().run();
+      assertThatEither(result).isLeft().hasLeft("took too long");
+    }
+
+    @Test
+    @DisplayName("withTimeout: completion within budget and non-timeout defects are untouched")
+    void withTimeoutPassesThroughOtherOutcomes() {
+      Either<String, String> ok =
+          VResultPath.<String, String>pure("quick")
+              .withTimeout(Duration.ofSeconds(5), () -> "unused")
+              .run()
+              .run();
+      assertThatEither(ok).isRight().hasRight("quick");
+
+      VResultPath<String, String> defective =
+          VResultPath.fromVTask(
+              VTask.of(
+                  () -> {
+                    throw new IllegalStateException("boom");
+                  }));
+      assertThatThrownBy(
+              () -> defective.withTimeout(Duration.ofSeconds(5), () -> "unused").run().run())
+          .isInstanceOf(IllegalStateException.class);
+
+      assertThatNullPointerException()
+          .isThrownBy(() -> VResultPath.<String, String>pure("x").withTimeout(null, () -> "e"))
+          .withMessage("duration must not be null");
+      assertThatNullPointerException()
+          .isThrownBy(
+              () -> VResultPath.<String, String>pure("x").withTimeout(Duration.ofSeconds(1), null))
+          .withMessage("onTimeout must not be null");
+    }
+  }
+
+  @Nested
+  @DisplayName("bracketOutcome")
+  class BracketOutcome {
+
+    private final List<String> releaseLog = new ArrayList<>();
+
+    private VTask<String> logRelease(String resource, Either<String, String> outcome) {
+      return VTask.delay(
+          () -> {
+            releaseLog.add(resource + ":" + (outcome.isRight() ? "confirm" : "compensate"));
+            return "released";
+          });
+    }
+
+    @Test
+    @DisplayName("a Right outcome reaches release as confirm")
+    void rightOutcomeConfirms() {
+      Either<String, String> result =
+          VResultPath.bracketOutcome(
+                  VResultPath.<String, String>pure("res"),
+                  resource -> VResultPath.pure("used " + resource),
+                  this::logRelease,
+                  Throwable::getMessage)
+              .run()
+              .run();
+      assertThatEither(result).isRight().hasRight("used res");
+      assertThat(releaseLog).containsExactly("res:confirm");
+    }
+
+    @Test
+    @DisplayName("a typed failure from use reaches release as compensate, then surfaces")
+    void leftOutcomeCompensates() {
+      Either<String, String> result =
+          VResultPath.bracketOutcome(
+                  VResultPath.<String, String>pure("res"),
+                  resource -> VResultPath.<String, String>raiseError("card declined"),
+                  this::logRelease,
+                  Throwable::getMessage)
+              .run()
+              .run();
+      assertThatEither(result).isLeft().hasLeft("card declined");
+      assertThat(releaseLog).containsExactly("res:compensate");
+    }
+
+    @Test
+    @DisplayName("a defect in use is typed through onDefect, and release still compensates")
+    void defectInUseIsTypedAndReleased() {
+      Either<String, String> result =
+          VResultPath.bracketOutcome(
+                  VResultPath.<String, String>pure("res"),
+                  resource ->
+                      VResultPath.<String, String>fromVTask(
+                          VTask.of(
+                              () -> {
+                                throw new IllegalStateException("wire snapped");
+                              })),
+                  this::logRelease,
+                  Throwable::getMessage)
+              .run()
+              .run();
+      assertThatEither(result).isLeft().hasLeft("wire snapped");
+      assertThat(releaseLog).containsExactly("res:compensate");
+    }
+
+    @Test
+    @DisplayName("a typed failure from acquire skips use and release")
+    void acquireFailureSkipsUseAndRelease() {
+      AtomicInteger useCalls = new AtomicInteger();
+      Either<String, String> result =
+          VResultPath.bracketOutcome(
+                  VResultPath.<String, String>raiseError("no capacity"),
+                  resource -> {
+                    useCalls.incrementAndGet();
+                    return VResultPath.pure("never");
+                  },
+                  this::logRelease,
+                  Throwable::getMessage)
+              .run()
+              .run();
+      assertThatEither(result).isLeft().hasLeft("no capacity");
+      assertThat(useCalls).hasValue(0);
+      assertThat(releaseLog).isEmpty();
+    }
+
+    @Test
+    @DisplayName("a defect from release propagates - broken cleanup must be visible")
+    void releaseDefectPropagates() {
+      assertThatThrownBy(
+              () ->
+                  VResultPath.bracketOutcome(
+                          VResultPath.<String, String>pure("res"),
+                          resource -> VResultPath.pure("used"),
+                          (resource, outcome) ->
+                              VTask.of(
+                                  () -> {
+                                    throw new IllegalStateException("cleanup broke");
+                                  }),
+                          Throwable::getMessage)
+                      .run()
+                      .run())
+          .isInstanceOf(IllegalStateException.class);
+    }
+
+    @Test
+    @DisplayName("all arguments are eagerly guarded")
+    void argumentsAreGuarded() {
+      VResultPath<String, String> ok = VResultPath.pure("x");
+      assertThatNullPointerException()
+          .isThrownBy(
+              () ->
+                  VResultPath.bracketOutcome(
+                      null, r -> ok, this::logRelease, Throwable::getMessage))
+          .withMessage("acquire must not be null");
+      assertThatNullPointerException()
+          .isThrownBy(
+              () -> VResultPath.bracketOutcome(ok, null, this::logRelease, Throwable::getMessage))
+          .withMessage("use must not be null");
+      assertThatNullPointerException()
+          .isThrownBy(() -> VResultPath.bracketOutcome(ok, r -> ok, null, Throwable::getMessage))
+          .withMessage("release must not be null");
+      assertThatNullPointerException()
+          .isThrownBy(() -> VResultPath.bracketOutcome(ok, r -> ok, this::logRelease, null))
+          .withMessage("onDefect must not be null");
     }
   }
 }

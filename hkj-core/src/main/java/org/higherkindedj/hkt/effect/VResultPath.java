@@ -2,7 +2,11 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.hkt.effect;
 
+import java.time.Duration;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Objects;
+import java.util.concurrent.TimeoutException;
 import java.util.function.BiFunction;
 import java.util.function.Consumer;
 import java.util.function.Function;
@@ -12,6 +16,9 @@ import org.higherkindedj.hkt.effect.capability.Combinable;
 import org.higherkindedj.hkt.effect.capability.Recoverable;
 import org.higherkindedj.hkt.either.Either;
 import org.higherkindedj.hkt.function.Function3;
+import org.higherkindedj.hkt.nonemptylist.NonEmptyList;
+import org.higherkindedj.hkt.vtask.Scope;
+import org.higherkindedj.hkt.vtask.ScopeJoiner;
 import org.higherkindedj.hkt.vtask.VTask;
 
 /**
@@ -523,5 +530,219 @@ public final class VResultPath<E, A> implements Recoverable<E, A> {
   @Override
   public String toString() {
     return "VResultPath(" + PathToString.DEFERRED + ")";
+  }
+
+  // ==================== Outcome-aware structured concurrency (#606 slice 2) ====================
+  // The issue sketches Scope.firstSuccess(...), but Scope lives in hkt.vtask and hkt.effect
+  // depends on hkt.vtask - statics on Scope referencing VResultPath would create a package
+  // cycle, so the combinators live here, implemented over the Scope/ScopeJoiner substrate.
+
+  /**
+   * Races the candidates: the first to succeed with a {@code Right} wins and the rest are
+   * cancelled. Typed failures do not abort the race - they are collected, and only if every
+   * candidate fails does the result carry {@code Left} of all their errors, in candidate order. A
+   * candidate that throws is a defect and fails the whole race.
+   *
+   * @param candidates the racing paths; must not be null, empty, or contain nulls
+   * @param <E> the typed error type
+   * @param <A> the success type
+   * @return the winning value, or every typed failure when nothing succeeds (non-null)
+   * @throws NullPointerException if {@code candidates} or an element is null
+   * @throws IllegalArgumentException if {@code candidates} is empty
+   */
+  public static <E, A> VResultPath<NonEmptyList<E>, A> firstSuccess(
+      List<? extends VResultPath<E, A>> candidates) {
+    Objects.requireNonNull(candidates, "candidates must not be null");
+    if (candidates.isEmpty()) {
+      throw new IllegalArgumentException("candidates must not be empty");
+    }
+    List<VTask<Either<E, A>>> tasks = new ArrayList<>(candidates.size());
+    for (VResultPath<E, A> candidate : candidates) {
+      tasks.add(Objects.requireNonNull(candidate, "candidates must not contain null").run());
+    }
+    Scope<Either<E, A>, Either<List<E>, A>> scope =
+        Scope.withJoiner(ScopeJoiner.firstSuccessEither());
+    for (VTask<Either<E, A>> task : tasks) {
+      scope = scope.fork(task);
+    }
+    VTask<Either<NonEmptyList<E>, A>> joined =
+        scope
+            .join()
+            .map(
+                outcome ->
+                    outcome.fold(
+                        errors ->
+                            Either.left(
+                                NonEmptyList.of(
+                                    errors.getFirst(), errors.subList(1, errors.size()))),
+                        Either::right));
+    return fromVTask(joined);
+  }
+
+  /**
+   * Runs every task and succeeds only when all do, fail-fast: the first typed failure cancels the
+   * remaining tasks and becomes the result. An empty list is vacuously successful.
+   *
+   * @param tasks the paths to run together; must not be null or contain nulls
+   * @param <E> the typed error type
+   * @param <A> the success type
+   * @return every value in task order, or the first typed failure (non-null)
+   * @throws NullPointerException if {@code tasks} or an element is null
+   */
+  public static <E, A> VResultPath<E, List<A>> allSucceed(List<? extends VResultPath<E, A>> tasks) {
+    Objects.requireNonNull(tasks, "tasks must not be null");
+    Scope<A, List<A>> scope = Scope.allSucceed();
+    for (VResultPath<E, A> task : tasks) {
+      Objects.requireNonNull(task, "tasks must not contain null");
+      scope =
+          scope.fork(
+              task.run()
+                  .flatMap(
+                      either ->
+                          either.fold(
+                              error -> VTask.fail(new LeftCarrier(error)), VTask::succeed)));
+    }
+    VTask<Either<E, List<A>>> joined =
+        scope
+            .join()
+            .<Either<E, List<A>>>map(Either::right)
+            .recoverWith(
+                failure ->
+                    failure instanceof LeftCarrier carrier
+                        ? VTask.succeed(Either.left(carrier.typedError()))
+                        : VTask.fail(failure));
+    return fromVTask(joined);
+  }
+
+  /**
+   * Runs every task to completion and accumulates: all values when everything succeeds, otherwise
+   * every typed failure (in task order). Nothing is cancelled - unlike {@link #allSucceed}, a
+   * failure does not abort the others. An empty list is vacuously successful. A task that throws is
+   * a defect and fails the whole operation.
+   *
+   * @param tasks the paths to run together; must not be null or contain nulls
+   * @param <E> the typed error type
+   * @param <A> the success type
+   * @return every value, or every typed failure (non-null)
+   * @throws NullPointerException if {@code tasks} or an element is null
+   */
+  public static <E, A> VResultPath<NonEmptyList<E>, List<A>> allSucceedAccumulating(
+      List<? extends VResultPath<E, A>> tasks) {
+    Objects.requireNonNull(tasks, "tasks must not be null");
+    Scope<Either<E, A>, List<Either<E, A>>> scope = Scope.allSucceed();
+    for (VResultPath<E, A> task : tasks) {
+      scope = scope.fork(Objects.requireNonNull(task, "tasks must not contain null").run());
+    }
+    VTask<Either<NonEmptyList<E>, List<A>>> joined =
+        scope
+            .join()
+            .map(
+                outcomes -> {
+                  List<E> errors = new ArrayList<>();
+                  List<A> values = new ArrayList<>();
+                  for (Either<E, A> outcome : outcomes) {
+                    outcome.fold(
+                        error -> {
+                          errors.add(error);
+                          return null;
+                        },
+                        value -> {
+                          values.add(value);
+                          return null;
+                        });
+                  }
+                  return errors.isEmpty()
+                      ? Either.<NonEmptyList<E>, List<A>>right(List.copyOf(values))
+                      : Either.<NonEmptyList<E>, List<A>>left(
+                          NonEmptyList.of(errors.getFirst(), errors.subList(1, errors.size())));
+                });
+    return fromVTask(joined);
+  }
+
+  /**
+   * Bounds this path's execution: if it does not complete within {@code duration}, the result is
+   * {@code Left} of the designated typed error - a timeout stays on the railway instead of becoming
+   * a thrown {@code TimeoutException}.
+   *
+   * @param duration the time budget; must not be null
+   * @param onTimeout supplies the typed error for the timeout case; must not be null
+   * @return a time-bounded path (non-null)
+   * @throws NullPointerException if either argument is null
+   */
+  public VResultPath<E, A> withTimeout(Duration duration, Supplier<? extends E> onTimeout) {
+    Objects.requireNonNull(duration, "duration must not be null");
+    Objects.requireNonNull(onTimeout, "onTimeout must not be null");
+    return fromVTask(
+        run()
+            .timeout(duration)
+            .recoverWith(
+                failure ->
+                    failure instanceof TimeoutException
+                        ? VTask.succeed(Either.left(onTimeout.get()))
+                        : VTask.fail(failure)));
+  }
+
+  /**
+   * The bracket pattern with an outcome-aware release: acquire a resource, use it, and ALWAYS
+   * release it - with the release seeing the {@link Either} outcome, so compensation (confirm vs
+   * refund vs plain cleanup) is decided from the result, not a side flag.
+   *
+   * <p>Policies: a typed failure from {@code acquire} skips {@code use} and {@code release}
+   * (nothing was acquired). A defect thrown inside {@code use} is first converted to the typed
+   * channel through {@code onDefect}, so {@code release} always observes a real outcome. A defect
+   * thrown by {@code release} itself propagates as a defect - broken cleanup is exceptional and
+   * must be visible, even at the cost of masking the primary outcome.
+   *
+   * @param acquire produces the resource; must not be null
+   * @param use consumes the resource; must not be null
+   * @param release always runs after {@code use}, observing the outcome; must not be null
+   * @param onDefect types a defect thrown inside {@code use}; must not be null
+   * @param <E> the typed error type
+   * @param <A> the resource type
+   * @param <B> the result type
+   * @return the bracketed path (non-null)
+   * @throws NullPointerException if any argument is null
+   */
+  public static <E, A, B> VResultPath<E, B> bracketOutcome(
+      VResultPath<E, A> acquire,
+      Function<? super A, ? extends VResultPath<E, B>> use,
+      BiFunction<? super A, ? super Either<E, B>, ? extends VTask<?>> release,
+      Function<? super Throwable, ? extends E> onDefect) {
+    Objects.requireNonNull(acquire, "acquire must not be null");
+    Objects.requireNonNull(use, "use must not be null");
+    Objects.requireNonNull(release, "release must not be null");
+    Objects.requireNonNull(onDefect, "onDefect must not be null");
+    return fromVTask(
+        acquire
+            .run()
+            .flatMap(
+                acquired ->
+                    acquired.fold(
+                        error -> VTask.succeed(Either.left(error)),
+                        resource ->
+                            use.apply(resource)
+                                .run()
+                                .recoverWith(
+                                    defect -> VTask.succeed(Either.left(onDefect.apply(defect))))
+                                .flatMap(
+                                    outcome ->
+                                        release
+                                            .apply(resource, outcome)
+                                            .map(ignored -> outcome)))));
+  }
+
+  /** Smuggles a typed error through the scope's failure channel for fail-fast joining. */
+  private static final class LeftCarrier extends RuntimeException {
+    private final transient Object error;
+
+    LeftCarrier(Object error) {
+      super(null, null, false, false);
+      this.error = error;
+    }
+
+    @SuppressWarnings("unchecked") // sound: the carrier is created and consumed with the same E
+    <E> E typedError() {
+      return (E) error;
+    }
   }
 }
