@@ -90,7 +90,10 @@ tasks.jacocoTestCoverageVerification {
         // MappingProcessor is held at 100% (see PR #605).
         rule {
             element = "CLASS"
-            includes = listOf("org.higherkindedj.optics.processing.MappingProcessor*")
+            includes = listOf(
+                "org.higherkindedj.optics.processing.MappingProcessor*",
+                "org.higherkindedj.optics.processing.MergeProcessor*",
+            )
             limit {
                 counter = "LINE"
                 value = "COVEREDRATIO"
