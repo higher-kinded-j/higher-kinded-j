@@ -138,6 +138,214 @@ class MergeProcessorTest {
   }
 
   @Nested
+  @DisplayName("Nested fills through the mapping registry")
+  class NestedFills {
+
+    private static final JavaFileObject NESTED_RECORDS =
+        JavaFileObjects.forSourceString(
+            "com.example.Nested",
+            """
+            package com.example;
+
+            public final class Nested {
+              public record Customer(String name, Records.EmailAddress email) {}
+
+              public record CustomerDto(String name, String email) {}
+
+              public record CustomerSummaryDto(String name) {}
+
+              public record Wrapper(CustomerDto customer) {}
+
+              public record Profile(String name, Customer customer) {}
+            }
+            """);
+
+    private static final JavaFileObject CUSTOMER_MAPPING =
+        JavaFileObjects.forSourceString(
+            "com.example.CustomerMapping",
+            """
+            package com.example;
+
+            import org.higherkindedj.hkt.validated.FieldError;
+            import org.higherkindedj.hkt.validated.Validated;
+            import org.higherkindedj.optics.annotations.GenerateMapping;
+            import org.higherkindedj.optics.annotations.MappingSpec;
+            import org.higherkindedj.optics.validated.ValidatedPrism;
+
+            @GenerateMapping
+            public interface CustomerMapping
+                extends MappingSpec<Nested.Customer, Nested.CustomerDto> {
+              default ValidatedPrism<String, Records.EmailAddress> email() {
+                return ValidatedPrism.of(
+                    raw ->
+                        raw.contains("@")
+                            ? Validated.validNel(new Records.EmailAddress(raw))
+                            : Validated.invalidNel(FieldError.of("not an email address")),
+                    Records.EmailAddress::value);
+              }
+            }
+            """);
+
+    /** A projection spec for the same domain type: registered but not parse-capable. */
+    private static final JavaFileObject PROJECTION_MAPPING =
+        JavaFileObjects.forSourceString(
+            "com.example.CustomerSummaryMapping",
+            """
+            package com.example;
+
+            import org.higherkindedj.optics.annotations.GenerateMapping;
+            import org.higherkindedj.optics.annotations.MappingSpec;
+
+            @GenerateMapping
+            public interface CustomerSummaryMapping
+                extends MappingSpec<Nested.Customer, Nested.CustomerSummaryDto> {}
+            """);
+
+    /** Parse-capable decoys the nested filter must skip: wrong wire, then wrong domain. */
+    private static final JavaFileObject DECOY_MAPPINGS =
+        JavaFileObjects.forSourceString(
+            "com.example.DecoyMappings",
+            """
+            package com.example;
+
+            import org.higherkindedj.optics.annotations.GenerateMapping;
+            import org.higherkindedj.optics.annotations.MappingSpec;
+
+            public final class DecoyMappings {
+              @GenerateMapping
+              public interface WrongWire
+                  extends MappingSpec<Records.EmailAddress, Records.EmailAddress> {}
+
+              @GenerateMapping
+              public interface WrongDomain extends MappingSpec<Records.User, Nested.CustomerDto> {}
+            }
+            """);
+
+    private Compilation compileWithMapping(JavaFileObject... sources) {
+      return javac().withProcessors(new MergeProcessor(), new MappingProcessor()).compile(sources);
+    }
+
+    @Test
+    @DisplayName("a component pair mapped by a sibling spec fills through its Impl")
+    void nestedComponentFillsThroughSiblingImpl() {
+      Compilation compilation =
+          compileWithMapping(
+              RECORDS,
+              NESTED_RECORDS,
+              CUSTOMER_MAPPING,
+              PROJECTION_MAPPING,
+              DECOY_MAPPINGS,
+              spec(
+                  "ProfileAssembly",
+                  """
+                  public interface ProfileAssembly {
+                    Validated<NonEmptyList<FieldError>, Nested.Profile> assemble(
+                        Records.User user, Nested.Wrapper wrapper);
+                  }
+                  """));
+      assertThat(compilation).succeeded();
+      String generated = generatedSource(compilation, "com.example.ProfileAssemblyImpl");
+      Assertions.assertThat(generated)
+          .contains(
+              ".field(\"customer\","
+                  + " CustomerMappingImpl.INSTANCE.asValidatedPrism().parse(wrapper.customer()))")
+          .contains(".field(\"name\", Validated.validNel(user.name()))");
+    }
+
+    @Test
+    @DisplayName("an explicit leaf beats the nested spec")
+    void explicitLeafBeatsNestedSpec() {
+      Compilation compilation =
+          compileWithMapping(
+              RECORDS,
+              NESTED_RECORDS,
+              CUSTOMER_MAPPING,
+              spec(
+                  "LeafFirstAssembly",
+                  """
+                  public interface LeafFirstAssembly {
+                    Validated<NonEmptyList<FieldError>, Nested.Profile> assemble(
+                        Records.User user, Nested.Wrapper wrapper);
+
+                    default ValidatedPrism<Nested.CustomerDto, Nested.Customer> customer() {
+                      return CustomerMappingImpl.INSTANCE.asValidatedPrism();
+                    }
+                  }
+                  """));
+      assertThat(compilation).succeeded();
+      String generated = generatedSource(compilation, "com.example.LeafFirstAssemblyImpl");
+      Assertions.assertThat(generated)
+          .contains(".field(\"customer\", customer().parse(wrapper.customer()))")
+          .doesNotContain("asValidatedPrism().parse");
+    }
+
+    @Test
+    @DisplayName("two mapping specs for one pair make the nested fill ambiguous")
+    void ambiguousNestedSpecsRejected() {
+      JavaFileObject duplicate =
+          JavaFileObjects.forSourceString(
+              "com.example.OtherCustomerMapping",
+              """
+              package com.example;
+
+              import org.higherkindedj.hkt.validated.Validated;
+              import org.higherkindedj.optics.annotations.GenerateMapping;
+              import org.higherkindedj.optics.annotations.MappingSpec;
+              import org.higherkindedj.optics.validated.ValidatedPrism;
+
+              @GenerateMapping
+              public interface OtherCustomerMapping
+                  extends MappingSpec<Nested.Customer, Nested.CustomerDto> {
+                default ValidatedPrism<String, Records.EmailAddress> email() {
+                  return ValidatedPrism.of(
+                      raw -> Validated.validNel(new Records.EmailAddress(raw)),
+                      Records.EmailAddress::value);
+                }
+              }
+              """);
+      Compilation compilation =
+          compileWithMapping(
+              RECORDS,
+              NESTED_RECORDS,
+              CUSTOMER_MAPPING,
+              duplicate,
+              spec(
+                  "AmbiguousAssembly",
+                  """
+                  public interface AmbiguousAssembly {
+                    Validated<NonEmptyList<FieldError>, Nested.Profile> assemble(
+                        Records.User user, Nested.Wrapper wrapper);
+                  }
+                  """));
+      assertThat(compilation).failed();
+      assertThat(compilation)
+          .hadErrorContaining("target component 'customer' matches more than one mapping spec");
+      assertThat(compilation)
+          .hadErrorContaining("Add a leaf method 'customer()' delegating to the spec you want");
+    }
+
+    @Test
+    @DisplayName("a nested fill counts as fallible for the return-type discipline")
+    void nestedFillDemandsValidatedReturn() {
+      Compilation compilation =
+          compileWithMapping(
+              RECORDS,
+              NESTED_RECORDS,
+              CUSTOMER_MAPPING,
+              spec(
+                  "PlainNestedAssembly",
+                  """
+                  public interface PlainNestedAssembly {
+                    Nested.Profile assemble(Records.User user, Nested.Wrapper wrapper);
+                  }
+                  """));
+      assertThat(compilation).failed();
+      assertThat(compilation)
+          .hadErrorContaining("uses fallible fills but declares a plain 'Profile' return");
+    }
+  }
+
+  @Nested
   @DisplayName("What/why/fix diagnostics")
   class Diagnostics {
 
@@ -230,7 +438,7 @@ class MergeProcessorTest {
                   """));
       assertThat(compilation).failed();
       assertThat(compilation)
-          .hadErrorContaining("uses fallible leaves but declares a plain 'TypedDashboard' return");
+          .hadErrorContaining("uses fallible fills but declares a plain 'TypedDashboard' return");
     }
 
     @Test

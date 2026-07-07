@@ -46,6 +46,19 @@ public final class GenerateMergeExample {
     }
   }
 
+  public record Wrapper(GenerateMappingExample.CustomerDto customer) {}
+
+  public record ProfileCard(String name, GenerateMappingExample.Customer customer) {}
+
+  /**
+   * The customer fill resolves through the sibling {@code @GenerateMapping} spec ({@code
+   * GenerateMappingExample.CustomerMapping}) - merge composes with the mapper ecosystem.
+   */
+  @GenerateMerge
+  public interface ProfileCardAssembly {
+    Validated<NonEmptyList<FieldError>, ProfileCard> assemble(User user, Wrapper wrapper);
+  }
+
   public static void main(String[] args) {
     System.out.println("=== Identity Merge Example (lossless, plain return) ===");
     User ada = new User("Ada", "ada@corp.example");
@@ -64,7 +77,19 @@ public final class GenerateMergeExample {
         "Invalid: "
             + GenerateMergeExampleTypedDashboardAssemblyImpl.INSTANCE.assemble(
                 new User("Bob", "not-an-email"), account));
-    System.out.println("Expected: Valid(TypedDashboard...), then Invalid located at \"email\"");
+    System.out.println("Expected: Valid(TypedDashboard...), then Invalid located at \"email\"\n");
+
+    System.out.println("=== Nested Merge Example (fill through a sibling @GenerateMapping) ===");
+    Wrapper wrapper =
+        new Wrapper(new GenerateMappingExample.CustomerDto("Grace", "grace@corp.example"));
+    System.out.println(
+        "Valid:   " + GenerateMergeExampleProfileCardAssemblyImpl.INSTANCE.assemble(ada, wrapper));
+    System.out.println(
+        "Invalid: "
+            + GenerateMergeExampleProfileCardAssemblyImpl.INSTANCE.assemble(
+                ada, new Wrapper(new GenerateMappingExample.CustomerDto("Bob", "nope"))));
+    System.out.println(
+        "Expected: Valid(ProfileCard...), then Invalid located at \"customer.email\"");
   }
 
   private GenerateMergeExample() {}

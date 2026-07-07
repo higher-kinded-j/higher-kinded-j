@@ -70,13 +70,15 @@ public class MergeProcessor extends AbstractProcessor {
 
   @Override
   public boolean process(Set<? extends TypeElement> annotations, RoundEnvironment roundEnv) {
+    // Nested fills resolve against the same round's @GenerateMapping specs (shared scan).
+    List<MappingProcessor.RegisteredSpec> registry = MappingProcessor.scanRegistry(roundEnv);
     for (Element element : roundEnv.getElementsAnnotatedWith(GenerateMerge.class)) {
-      processSpec(element);
+      processSpec(element, registry);
     }
     return true;
   }
 
-  private void processSpec(Element element) {
+  private void processSpec(Element element, List<MappingProcessor.RegisteredSpec> registry) {
     if (element.getKind() != ElementKind.INTERFACE) {
       Diagnostics.error(
           processingEnv.getMessager(),
@@ -141,7 +143,7 @@ public class MergeProcessor extends AbstractProcessor {
       return;
     }
 
-    List<Fill> fills = classify(spec, mergeMethod, shape.target());
+    List<Fill> fills = classify(spec, registry, mergeMethod, shape.target());
     if (fills == null) {
       return;
     }
@@ -154,7 +156,7 @@ public class MergeProcessor extends AbstractProcessor {
           TAG,
           "'"
               + mergeMethod.getSimpleName()
-              + "' uses fallible leaves but declares a plain '"
+              + "' uses fallible fills but declares a plain '"
               + shape.target().getSimpleName()
               + "' return.",
           "Truthful types: a merge that can fail must say so in its signature.",
@@ -301,7 +303,11 @@ public class MergeProcessor extends AbstractProcessor {
     }
   }
 
-  private List<Fill> classify(TypeElement spec, ExecutableElement mergeMethod, TypeElement target) {
+  private List<Fill> classify(
+      TypeElement spec,
+      List<MappingProcessor.RegisteredSpec> registry,
+      ExecutableElement mergeMethod,
+      TypeElement target) {
     List<Fill> fills = new ArrayList<>();
     for (RecordComponentElement targetComponent : target.getRecordComponents()) {
       String name = targetComponent.getSimpleName().toString();
@@ -359,29 +365,71 @@ public class MergeProcessor extends AbstractProcessor {
       }
       ExecutableElement leaf =
           findLeaf(spec, name, sourceComponent.asType(), targetComponent.asType());
-      if (leaf == null) {
+      if (leaf != null) {
+        fills.add(
+            new Fill(
+                name,
+                holder.getSimpleName().toString(),
+                CodeBlock.of("$L()", leaf.getSimpleName())));
+        continue;
+      }
+      List<MappingProcessor.RegisteredSpec> nested =
+          registry.stream()
+              .filter(MappingProcessor.RegisteredSpec::parseCapable)
+              .filter(
+                  r ->
+                      processingEnv.getTypeUtils().isSameType(r.wire(), sourceComponent.asType())
+                          && processingEnv
+                              .getTypeUtils()
+                              .isSameType(r.domain(), targetComponent.asType()))
+              .toList();
+      if (nested.size() > 1) {
         Diagnostics.error(
             processingEnv.getMessager(),
             mergeMethod,
             TAG,
-            "target component '" + target.getSimpleName() + "." + name + "' has no usable fill.",
-            "The types differ ("
-                + sourceComponent.asType()
-                + " vs "
-                + targetComponent.asType()
-                + ") and no matching leaf method was found.",
-            "Add 'default ValidatedPrism<"
-                + sourceComponent.asType()
-                + ", "
-                + targetComponent.asType()
-                + "> "
+            "target component '"
                 + name
-                + "()' to the spec (source first, target second).");
+                + "' matches more than one mapping spec: "
+                + nested.stream().map(r -> r.spec().getSimpleName().toString()).toList()
+                + ".",
+            "A nested fill resolves to the single spec mapping ("
+                + targetComponent.asType()
+                + ", "
+                + sourceComponent.asType()
+                + "); with several, the choice would be arbitrary.",
+            "Add a leaf method '"
+                + name
+                + "()' delegating to the spec you want, or remove the duplicate spec.");
         return null;
       }
-      fills.add(
-          new Fill(
-              name, holder.getSimpleName().toString(), CodeBlock.of("$L()", leaf.getSimpleName())));
+      if (nested.size() == 1) {
+        fills.add(
+            new Fill(
+                name,
+                holder.getSimpleName().toString(),
+                CodeBlock.of("$T.INSTANCE.asValidatedPrism()", nested.getFirst().impl())));
+        continue;
+      }
+      Diagnostics.error(
+          processingEnv.getMessager(),
+          mergeMethod,
+          TAG,
+          "target component '" + target.getSimpleName() + "." + name + "' has no usable fill.",
+          "The types differ ("
+              + sourceComponent.asType()
+              + " vs "
+              + targetComponent.asType()
+              + ") and no matching leaf method was found.",
+          "Add 'default ValidatedPrism<"
+              + sourceComponent.asType()
+              + ", "
+              + targetComponent.asType()
+              + "> "
+              + name
+              + "()' to the spec (source first, target second), or declare a @GenerateMapping"
+              + " spec mapping those records in the same compilation.");
+      return null;
     }
     return fills;
   }
