@@ -5,6 +5,7 @@ package org.higherkindedj.hkt.assertions;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatNullPointerException;
 
+import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.ZoneOffset;
@@ -31,11 +32,18 @@ class SteppableClockTest {
   }
 
   @Test
-  @DisplayName("is fixed to UTC and keeps its identity across withZone")
+  @DisplayName("withZone returns a new clock with the requested zone sharing the timeline")
   void zoneHandling() {
     SteppableClock clock = SteppableClock.startingAt(START);
     assertThat(clock.getZone()).isEqualTo(ZoneOffset.UTC);
-    assertThat(clock.withZone(ZoneOffset.ofHours(2))).isSameAs(clock);
+
+    Clock zoned = clock.withZone(ZoneOffset.ofHours(2));
+    assertThat(zoned.getZone()).isEqualTo(ZoneOffset.ofHours(2));
+    assertThat(zoned).isNotSameAs(clock);
+
+    // Same underlying timeline: stepping the original is seen through the zoned view.
+    clock.advance(Duration.ofMinutes(10));
+    assertThat(zoned.instant()).isEqualTo(START.plus(Duration.ofMinutes(10)));
   }
 
   @Test
@@ -51,5 +59,8 @@ class SteppableClockTest {
     assertThatNullPointerException()
         .isThrownBy(() -> clock.set(null))
         .withMessage("instant must not be null");
+    assertThatNullPointerException()
+        .isThrownBy(() -> clock.withZone(null))
+        .withMessage("zone must not be null");
   }
 }

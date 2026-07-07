@@ -8,6 +8,7 @@ import java.time.Instant;
 import java.time.ZoneId;
 import java.time.ZoneOffset;
 import java.util.Objects;
+import java.util.concurrent.atomic.AtomicReference;
 
 /**
  * A test clock that only moves when told to: start it at a known instant, then {@link #advance} or
@@ -21,16 +22,19 @@ import java.util.Objects;
  * clock.advance(Duration.ofMinutes(16));   // the hold has now expired
  * }</pre>
  *
- * <p>The clock is fixed to UTC; {@link #withZone} returns {@code this} (zone handling is out of a
- * test fixture's scope). The current instant is {@code volatile}, so advancing from a test thread
- * is visible to code reading the clock on other (e.g. virtual) threads.
+ * <p>The clock is UTC by default; per the {@link Clock} contract, {@link #withZone} returns a new
+ * clock with the requested zone sharing the same underlying timeline. The current instant is held
+ * in an {@link AtomicReference}, so stepping from a test thread is atomic and visible to code
+ * reading the clock on other (e.g. virtual) threads.
  */
 public final class SteppableClock extends Clock {
 
-  private volatile Instant current;
+  private final AtomicReference<Instant> current;
+  private final ZoneId zone;
 
-  private SteppableClock(Instant start) {
-    this.current = start;
+  private SteppableClock(AtomicReference<Instant> current, ZoneId zone) {
+    this.current = current;
+    this.zone = zone;
   }
 
   /**
@@ -42,7 +46,7 @@ public final class SteppableClock extends Clock {
    */
   public static SteppableClock startingAt(Instant start) {
     Objects.requireNonNull(start, "start must not be null");
-    return new SteppableClock(start);
+    return new SteppableClock(new AtomicReference<>(start), ZoneOffset.UTC);
   }
 
   /**
@@ -53,7 +57,7 @@ public final class SteppableClock extends Clock {
    */
   public void advance(Duration step) {
     Objects.requireNonNull(step, "step must not be null");
-    current = current.plus(step);
+    current.updateAndGet(instant -> instant.plus(step));
   }
 
   /**
@@ -63,21 +67,23 @@ public final class SteppableClock extends Clock {
    * @throws NullPointerException if {@code instant} is null
    */
   public void set(Instant instant) {
-    current = Objects.requireNonNull(instant, "instant must not be null");
+    Objects.requireNonNull(instant, "instant must not be null");
+    current.set(instant);
   }
 
   @Override
   public ZoneId getZone() {
-    return ZoneOffset.UTC;
+    return zone;
   }
 
   @Override
   public Clock withZone(ZoneId zone) {
-    return this;
+    Objects.requireNonNull(zone, "zone must not be null");
+    return new SteppableClock(current, zone);
   }
 
   @Override
   public Instant instant() {
-    return current;
+    return current.get();
   }
 }
