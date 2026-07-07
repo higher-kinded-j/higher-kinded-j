@@ -38,6 +38,7 @@ class ProcessorSourceVersionTest {
         new AccumulatorProcessor(),
         new AssemblyProcessor(),
         new MappingProcessor(),
+        new MergeProcessor(),
         new PathProcessor(),
         new PathSourceProcessor(),
         new EffectAlgebraProcessor(),

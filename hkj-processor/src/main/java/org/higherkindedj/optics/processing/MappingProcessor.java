@@ -87,9 +87,20 @@ public class MappingProcessor extends AbstractProcessor {
 
   @Override
   public boolean process(Set<? extends TypeElement> annotations, RoundEnvironment roundEnv) {
-    Set<? extends Element> elements = roundEnv.getElementsAnnotatedWith(GenerateMapping.class);
+    List<RegisteredSpec> registry = scanRegistry(roundEnv);
+    for (Element element : roundEnv.getElementsAnnotatedWith(GenerateMapping.class)) {
+      processSpec(element, registry);
+    }
+    return true;
+  }
+
+  /**
+   * Scans the round for valid {@code @GenerateMapping} specs. Shared with {@link MergeProcessor},
+   * whose nested fills resolve against the same parse-capable specs.
+   */
+  static List<RegisteredSpec> scanRegistry(RoundEnvironment roundEnv) {
     List<RegisteredSpec> registry = new ArrayList<>();
-    for (Element element : elements) {
+    for (Element element : roundEnv.getElementsAnnotatedWith(GenerateMapping.class)) {
       if (element.getKind() != ElementKind.INTERFACE) {
         continue;
       }
@@ -115,14 +126,11 @@ public class MappingProcessor extends AbstractProcessor {
                   == wireRecord.getRecordComponents().size();
       registry.add(new RegisteredSpec(domainArg, wireArg, implClassName(spec), spec, parseCapable));
     }
-    for (Element element : elements) {
-      processSpec(element, registry);
-    }
-    return true;
+    return registry;
   }
 
   /** A valid spec seen this round; nested components resolve against the parse-capable ones. */
-  private record RegisteredSpec(
+  record RegisteredSpec(
       TypeMirror domain, TypeMirror wire, ClassName impl, TypeElement spec, boolean parseCapable) {}
 
   private static ClassName implClassName(TypeElement spec) {
@@ -1188,7 +1196,7 @@ public class MappingProcessor extends AbstractProcessor {
         "Check build-output permissions and free disk space, then rebuild.");
   }
 
-  private DeclaredType findMappingSpec(TypeElement spec) {
+  private static DeclaredType findMappingSpec(TypeElement spec) {
     for (TypeMirror iface : spec.getInterfaces()) {
       // Superinterface mirrors are always declared (or error) types, both DeclaredType.
       DeclaredType declared = (DeclaredType) iface;
@@ -1199,7 +1207,7 @@ public class MappingProcessor extends AbstractProcessor {
     return null;
   }
 
-  private TypeElement asRecord(TypeMirror mirror) {
+  private static TypeElement asRecord(TypeMirror mirror) {
     // A DeclaredType's element is always a TypeElement.
     if (mirror instanceof DeclaredType declared) {
       TypeElement type = (TypeElement) declared.asElement();
@@ -1210,7 +1218,7 @@ public class MappingProcessor extends AbstractProcessor {
     return null;
   }
 
-  private TypeElement asSealed(TypeMirror mirror) {
+  private static TypeElement asSealed(TypeMirror mirror) {
     if (mirror instanceof DeclaredType declared) {
       TypeElement type = (TypeElement) declared.asElement();
       if (type.getKind() == ElementKind.INTERFACE
