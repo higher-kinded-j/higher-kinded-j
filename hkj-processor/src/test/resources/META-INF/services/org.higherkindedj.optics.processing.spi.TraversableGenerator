@@ -1,0 +1,6 @@
+org.higherkindedj.optics.processing.testspi.TestMarkerGenerators$DupGeneratorAlpha
+org.higherkindedj.optics.processing.testspi.TestMarkerGenerators$DupGeneratorBeta
+org.higherkindedj.optics.processing.testspi.TestMarkerGenerators$DupGeneratorFallback
+org.higherkindedj.optics.processing.testspi.TestMarkerGenerators$SoloGenerator
+org.higherkindedj.optics.processing.testspi.TestMarkerGenerators$BoxIndexOneGenerator
+org.higherkindedj.optics.processing.testspi.TestMarkerGenerators$TypeVariableGenerator

@@ -23,6 +23,7 @@ import javax.tools.Diagnostic;
 import org.higherkindedj.optics.Getter;
 import org.higherkindedj.optics.annotations.GenerateGetters;
 import org.higherkindedj.optics.processing.util.ExcludeFromJacocoGeneratedReport;
+import org.higherkindedj.optics.processing.util.ProcessorUtils;
 
 /** Annotation processor that generates Getter optics for record types. */
 @AutoService(Processor.class)
@@ -152,7 +153,7 @@ public class GetterProcessor extends AbstractProcessor {
 
     String componentName = component.getSimpleName().toString();
     TypeName componentTypeName = TypeName.get(component.asType());
-    String methodName = "get" + capitalise(componentName);
+    String methodName = "get" + ProcessorUtils.capitalise(componentName);
     String gettersClassName = recordElement.getSimpleName().toString() + "Getters";
 
     MethodSpec.Builder methodBuilder =
@@ -189,13 +190,6 @@ public class GetterProcessor extends AbstractProcessor {
     }
 
     return methodBuilder.build();
-  }
-
-  private String capitalise(String s) {
-    if (s == null || s.isEmpty()) {
-      return s;
-    }
-    return s.substring(0, 1).toUpperCase() + s.substring(1);
   }
 
   private void error(String msg, Element e) {

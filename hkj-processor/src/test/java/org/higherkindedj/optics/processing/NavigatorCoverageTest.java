@@ -1015,4 +1015,167 @@ class NavigatorCoverageTest {
       assertGeneratedCodeContains(compilation, "com.example.MapOuterFocus", "data()");
     }
   }
+
+  @Nested
+  @DisplayName("SPI Containers Wrapping Navigable Types")
+  class SpiContainersWrappingNavigableTypes {
+
+    @Test
+    @DisplayName("should generate AFFINE and TRAVERSAL navigators for SPI-wrapped navigable types")
+    void shouldGenerateNavigatorsForSpiWrappedNavigableTypes() {
+      final JavaFileObject deptSource =
+          JavaFileObjects.forSourceString(
+              "com.example.Dept",
+              """
+              package com.example;
+              import org.higherkindedj.optics.annotations.GenerateFocus;
+              @GenerateFocus(generateNavigators = true)
+              public record Dept(String title) {}
+              """);
+
+      final JavaFileObject addressSource =
+          JavaFileObjects.forSourceString(
+              "com.example.Address",
+              """
+              package com.example;
+              import java.util.Map;
+              import org.higherkindedj.optics.annotations.GenerateFocus;
+              @GenerateFocus(generateNavigators = true, maxNavigatorDepth = 3)
+              public record Address(String street, Map<String, Dept> depts) {}
+              """);
+
+      final JavaFileObject companySource =
+          JavaFileObjects.forSourceString(
+              "com.example.Company",
+              """
+              package com.example;
+              import java.util.Map;
+              import org.higherkindedj.hkt.either.Either;
+              import org.higherkindedj.optics.annotations.GenerateFocus;
+              @GenerateFocus(generateNavigators = true, maxNavigatorDepth = 3)
+              public record Company(
+                  String name,
+                  Address hq,
+                  Either<String, Address> registered,
+                  Map<String, Address> branches) {}
+              """);
+
+      Compilation compilation =
+          javac()
+              .withProcessors(new FocusProcessor())
+              .compile(deptSource, addressSource, companySource);
+
+      assertThat(compilation).succeeded();
+
+      // Either<String, Address> wraps a navigable type: AFFINE navigator with AffinePath delegate.
+      assertGeneratedCodeContains(
+          compilation, "com.example.CompanyFocus", "class RegisteredNavigator<S>");
+      assertGeneratedCodeContains(
+          compilation,
+          "com.example.CompanyFocus",
+          "private final AffinePath<S, Address> delegate;");
+
+      // Map<String, Address> wraps a navigable type: TRAVERSAL navigator with TraversalPath
+      // delegate methods (getAll/modifyAll from addTraversalPathDelegateMethods).
+      assertGeneratedCodeContains(
+          compilation, "com.example.CompanyFocus", "class BranchesNavigator<S>");
+      assertGeneratedCodeContains(
+          compilation,
+          "com.example.CompanyFocus",
+          "private final TraversalPath<S, Address> delegate;");
+
+      // Inside HqNavigator, the Map<String, Dept> field is wrapped in the target Focus class's
+      // DeptsNavigator (SPI ZERO_OR_MORE wrapping a navigable inner type).
+      assertGeneratedCodeContains(
+          compilation, "com.example.CompanyFocus", "AddressFocus.DeptsNavigator<S> depts()");
+    }
+  }
+
+  @Nested
+  @DisplayName("Widened Navigator Target Fields")
+  class WidenedNavigatorTargetFields {
+
+    @Test
+    @DisplayName("should handle raw, wildcard, array and subtype container fields in navigators")
+    void shouldHandleRawWildcardArrayAndSubtypeContainerFields() {
+      final JavaFileObject nullableAnnotation =
+          JavaFileObjects.forSourceString(
+              "org.jspecify.annotations.Nullable",
+              """
+              package org.jspecify.annotations;
+              import java.lang.annotation.*;
+              @Target({ElementType.TYPE_USE, ElementType.PARAMETER, ElementType.FIELD,
+                       ElementType.RECORD_COMPONENT})
+              @Retention(RetentionPolicy.RUNTIME)
+              public @interface Nullable {}
+              """);
+
+      final JavaFileObject targetSource =
+          JavaFileObjects.forSourceString(
+              "com.example.WideTarget",
+              """
+              package com.example;
+              import java.util.ArrayList;
+              import java.util.List;
+              import java.util.Map;
+              import java.util.Optional;
+              import org.higherkindedj.optics.annotations.GenerateFocus;
+              import org.jspecify.annotations.Nullable;
+              @GenerateFocus(generateNavigators = true)
+              @SuppressWarnings("rawtypes")
+              public record WideTarget(
+                  String label,
+                  Optional rawOpt,
+                  Optional<?> wildOpt,
+                  @Nullable int[] scores,
+                  ArrayList<String> tags,
+                  ArrayList<?> wildTags,
+                  ArrayList rawTags,
+                  Map<String, String> attrs,
+                  List<List<List<String>>> deep) {}
+              """);
+
+      final JavaFileObject rootSource =
+          JavaFileObjects.forSourceString(
+              "com.example.WideRoot",
+              """
+              package com.example;
+              import org.higherkindedj.optics.annotations.GenerateFocus;
+              @GenerateFocus(generateNavigators = true)
+              public record WideRoot(String name, WideTarget target) {}
+              """);
+
+      Compilation compilation =
+          javac()
+              .withProcessors(new FocusProcessor())
+              .compile(nullableAnnotation, targetSource, rootSource);
+
+      assertThat(compilation).succeeded();
+
+      // Raw Optional: no inner type argument, so the field type itself is the focus.
+      assertGeneratedCodeContains(
+          compilation, "com.example.WideRootFocus", "AffinePath<S, Optional> rawOpt()");
+      // Optional<?>: the unbounded wildcard resolves to Object.
+      assertGeneratedCodeContains(
+          compilation, "com.example.WideRootFocus", "AffinePath<S, Object> wildOpt()");
+      // @Nullable int[]: non-declared type, no inner extraction, widened via .nullable().
+      assertGeneratedCodeContains(
+          compilation, "com.example.WideRootFocus", "AffinePath<S, int[]> scores()");
+      // ArrayList<String>: Collection subtype resolved through the interface walk.
+      assertGeneratedCodeContains(
+          compilation, "com.example.WideRootFocus", "TraversalPath<S, String> tags()");
+      // ArrayList<?>: wildcard element resolves to Object.
+      assertGeneratedCodeContains(
+          compilation, "com.example.WideRootFocus", "TraversalPath<S, Object> wildTags()");
+      // Raw ArrayList: no type argument, the field type itself is the focus.
+      assertGeneratedCodeContains(
+          compilation, "com.example.WideRootFocus", "TraversalPath<S, ArrayList> rawTags()");
+      // Map<String, String>: SPI widening with a real optic expression.
+      assertGeneratedCodeContains(
+          compilation, "com.example.WideRootFocus", "TraversalPath<S, String> attrs()");
+      // List<List<List<String>>>: nesting beyond the depth cap still composes to TRAVERSAL.
+      assertGeneratedCodeContains(
+          compilation, "com.example.WideRootFocus", "TraversalPath<S, List<List<String>>> deep()");
+    }
+  }
 }

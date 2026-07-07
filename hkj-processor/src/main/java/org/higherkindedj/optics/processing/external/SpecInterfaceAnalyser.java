@@ -26,6 +26,7 @@ import org.higherkindedj.optics.processing.external.SpecAnalysis.PrismHintInfo;
 import org.higherkindedj.optics.processing.external.SpecAnalysis.PrismHintKind;
 import org.higherkindedj.optics.processing.external.SpecAnalysis.TraversalHintInfo;
 import org.higherkindedj.optics.processing.external.SpecAnalysis.TraversalHintKind;
+import org.higherkindedj.optics.processing.util.ProcessorUtils;
 
 /**
  * Analyses spec interfaces extending {@code OpticsSpec<S>} to determine what optics to generate.
@@ -117,7 +118,8 @@ public class SpecInterfaceAnalyser {
       if (method.isDefault()) {
         defaultMethods.add(method);
       } else if (method.getModifiers().contains(Modifier.ABSTRACT)) {
-        Optional<OpticMethodInfo> opticInfo = analyseOpticMethod(method, sourceType, specInterface);
+        Optional<OpticMethodInfo> opticInfo =
+            analyseOpticMethod(method, sourceType, sourceTypeElement, specInterface);
         if (opticInfo.isPresent()) {
           opticMethods.add(opticInfo.get());
         } else {
@@ -141,9 +143,8 @@ public class SpecInterfaceAnalyser {
    */
   private TypeMirror extractSourceType(TypeElement specInterface) {
     for (TypeMirror superInterface : specInterface.getInterfaces()) {
-      if (!(superInterface instanceof DeclaredType declaredType)) {
-        continue;
-      }
+      // Super-interfaces returned by getInterfaces() are always declared types.
+      DeclaredType declaredType = (DeclaredType) superInterface;
 
       TypeElement interfaceElement = (TypeElement) declaredType.asElement();
       if (interfaceElement.getQualifiedName().contentEquals(OPTICS_SPEC_FQN)) {
@@ -161,11 +162,15 @@ public class SpecInterfaceAnalyser {
    *
    * @param method the abstract method
    * @param sourceType the source type S
+   * @param sourceTypeElement the resolved element for the source type
    * @param specInterface the spec interface (for error reporting)
    * @return the optic method info, or empty if invalid
    */
   private Optional<OpticMethodInfo> analyseOpticMethod(
-      ExecutableElement method, TypeMirror sourceType, TypeElement specInterface) {
+      ExecutableElement method,
+      TypeMirror sourceType,
+      TypeElement sourceTypeElement,
+      TypeElement specInterface) {
 
     // Validate method signature: no parameters allowed
     if (!method.getParameters().isEmpty()) {
@@ -253,7 +258,7 @@ public class SpecInterfaceAnalyser {
         prismHintInfo = prismResult.get().info();
       }
       case TRAVERSAL -> {
-        var traversalResult = parseTraversalHint(method, sourceType, specInterface);
+        var traversalResult = parseTraversalHint(method, sourceTypeElement, specInterface);
         if (traversalResult.isEmpty()) {
           error(
               "Traversal method '"
@@ -380,26 +385,29 @@ public class SpecInterfaceAnalyser {
     // Check for @InstanceOf
     AnnotationMirror instanceOf = findAnnotation(method, INSTANCE_OF_FQN);
     if (instanceOf != null) {
+      // @InstanceOf.value() is mandatory, but an unresolvable class constant (a typo, or a
+      // not-yet-generated type) is modelled as an erroneous attribute whose value is a String,
+      // not a TypeMirror - so this CAN be null and must fall through to the hint diagnostic.
       TypeMirror targetType = getAnnotationTypeMirror(instanceOf, "value");
-      if (targetType != null) {
-        // Validate subtype relationship (Decision 6)
-        if (!typeUtils.isSubtype(targetType, sourceType)) {
-          error(
-              "@InstanceOf target '"
-                  + targetType
-                  + "' is not a subtype of source type '"
-                  + sourceType
-                  + "'. "
-                  + "Only subtypes of '"
-                  + sourceType
-                  + "' can be used with @InstanceOf.",
-              method);
-          return Optional.empty();
-        }
-        return Optional.of(
-            new PrismHintResult(
-                PrismHintKind.INSTANCE_OF, PrismHintInfo.forInstanceOf(targetType)));
+      if (targetType == null) {
+        return Optional.empty();
       }
+      // Validate subtype relationship (Decision 6)
+      if (!typeUtils.isSubtype(targetType, sourceType)) {
+        error(
+            "@InstanceOf target '"
+                + targetType
+                + "' is not a subtype of source type '"
+                + sourceType
+                + "'. "
+                + "Only subtypes of '"
+                + sourceType
+                + "' can be used with @InstanceOf.",
+            method);
+        return Optional.empty();
+      }
+      return Optional.of(
+          new PrismHintResult(PrismHintKind.INSTANCE_OF, PrismHintInfo.forInstanceOf(targetType)));
     }
 
     // Check for @MatchWhen
@@ -420,7 +428,7 @@ public class SpecInterfaceAnalyser {
   private record TraversalHintResult(TraversalHintKind kind, TraversalHintInfo info) {}
 
   private Optional<TraversalHintResult> parseTraversalHint(
-      ExecutableElement method, TypeMirror sourceType, TypeElement specInterface) {
+      ExecutableElement method, TypeElement sourceTypeElement, TypeElement specInterface) {
     // Check for @TraverseWith
     AnnotationMirror traverseWith = findAnnotation(method, TRAVERSE_WITH_FQN);
     if (traverseWith != null) {
@@ -439,7 +447,8 @@ public class SpecInterfaceAnalyser {
 
       // Auto-detect traversal if not specified
       if (traversal.isEmpty()) {
-        Optional<String> autoDetected = autoDetectTraversalForField(fieldName, sourceType, method);
+        Optional<String> autoDetected =
+            autoDetectTraversalForField(fieldName, sourceTypeElement, method);
         if (autoDetected.isEmpty()) {
           // Error already reported in autoDetectTraversalForField
           return Optional.empty();
@@ -460,23 +469,12 @@ public class SpecInterfaceAnalyser {
    * Auto-detects the appropriate traversal for a field based on its type.
    *
    * @param fieldName the name of the field to look up
-   * @param sourceType the source type containing the field
+   * @param sourceTypeElement the resolved element for the source type containing the field
    * @param method the method element (for error reporting)
    * @return the traversal reference string, or empty if detection failed
    */
   private Optional<String> autoDetectTraversalForField(
-      String fieldName, TypeMirror sourceType, ExecutableElement method) {
-
-    // Get the source type element
-    TypeElement sourceTypeElement = (TypeElement) typeUtils.asElement(sourceType);
-    if (sourceTypeElement == null) {
-      error(
-          "Cannot auto-detect traversal: source type '"
-              + sourceType
-              + "' is not a valid type element",
-          method);
-      return Optional.empty();
-    }
+      String fieldName, TypeElement sourceTypeElement, ExecutableElement method) {
 
     // Look up the field's type on the source type
     TypeMirror fieldType = findFieldType(sourceTypeElement, fieldName);
@@ -539,8 +537,8 @@ public class SpecInterfaceAnalyser {
     }
 
     // Look for accessor method (record-style: fieldName() or JavaBean-style: getFieldName())
-    String getterName = "get" + capitalise(fieldName);
-    String isGetterName = "is" + capitalise(fieldName); // For booleans
+    String getterName = "get" + ProcessorUtils.capitalise(fieldName);
+    String isGetterName = "is" + ProcessorUtils.capitalise(fieldName); // For booleans
 
     for (var enclosed : typeElement.getEnclosedElements()) {
       if (enclosed.getKind() != ElementKind.METHOD) {
@@ -576,13 +574,6 @@ public class SpecInterfaceAnalyser {
     return null;
   }
 
-  private String capitalise(String s) {
-    if (s == null || s.isEmpty()) {
-      return s;
-    }
-    return s.substring(0, 1).toUpperCase(Locale.ROOT) + s.substring(1);
-  }
-
   // ----- Annotation Utility Methods -----
 
   private AnnotationMirror findAnnotation(Element element, String annotationFqn) {
@@ -600,14 +591,15 @@ public class SpecInterfaceAnalyser {
     for (Map.Entry<? extends ExecutableElement, ? extends AnnotationValue> entry :
         annotation.getElementValues().entrySet()) {
       if (entry.getKey().getSimpleName().contentEquals(elementName)) {
-        Object value = entry.getValue().getValue();
-        return value != null ? value.toString() : defaultValue;
+        // getValue() never returns null for a present annotation element.
+        return entry.getValue().getValue().toString();
       }
     }
     return defaultValue;
   }
 
-  private String[] getAnnotationStringArray(AnnotationMirror annotation, String elementName) {
+  // Package-private for tests.
+  String[] getAnnotationStringArray(AnnotationMirror annotation, String elementName) {
     for (Map.Entry<? extends ExecutableElement, ? extends AnnotationValue> entry :
         annotation.getElementValues().entrySet()) {
       if (entry.getKey().getSimpleName().contentEquals(elementName)) {
@@ -622,7 +614,8 @@ public class SpecInterfaceAnalyser {
     return new String[0];
   }
 
-  private TypeMirror getAnnotationTypeMirror(AnnotationMirror annotation, String elementName) {
+  // Package-private for tests.
+  TypeMirror getAnnotationTypeMirror(AnnotationMirror annotation, String elementName) {
     for (Map.Entry<? extends ExecutableElement, ? extends AnnotationValue> entry :
         annotation.getElementValues().entrySet()) {
       if (entry.getKey().getSimpleName().contentEquals(elementName)) {

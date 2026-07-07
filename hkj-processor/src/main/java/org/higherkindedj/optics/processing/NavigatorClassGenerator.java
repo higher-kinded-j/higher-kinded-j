@@ -244,16 +244,17 @@ public class NavigatorClassGenerator {
     generateNavigatorsWithPathKind(focusClassBuilder, recordElement, currentDepth, PathKind.FOCUS);
   }
 
-  /** Generates navigator inner classes with path kind tracking. */
+  /**
+   * Generates navigator inner classes with path kind tracking.
+   *
+   * <p>Depth limiting is handled by the navigation-method generation (via {@code currentDepth +
+   * 1}); this method is only entered at the root level.
+   */
   private void generateNavigatorsWithPathKind(
       TypeSpec.Builder focusClassBuilder,
       TypeElement recordElement,
       int currentDepth,
       PathKind currentPathKind) {
-
-    if (currentDepth >= maxDepth) {
-      return;
-    }
 
     List<? extends RecordComponentElement> components = recordElement.getRecordComponents();
 
@@ -331,7 +332,7 @@ public class NavigatorClassGenerator {
       PathKind pathKind) {
 
     String componentName = component.getSimpleName().toString();
-    String navigatorClassName = capitalise(componentName) + "Navigator";
+    String navigatorClassName = ProcessorUtils.capitalise(componentName) + "Navigator";
     TypeName targetTypeName = TypeName.get(targetRecord.asType());
 
     // Type parameter S for the source type in the navigator
@@ -750,24 +751,20 @@ public class NavigatorClassGenerator {
         final CodeBlock viaStatement =
             buildViaStatement(currentPathKind, widenedKind, fieldKind, targetFocusClass, fieldName);
 
-        // Check if the field type is also navigable and we haven't exceeded depth
+        // Check if the field type is also navigable and we haven't exceeded depth.
+        // Navigable types are always declared types, so no TypeElement re-check is needed.
         if (currentDepth < maxDepth && isNavigableType(fieldType)) {
-          TypeElement fieldTypeElement = getTypeElement(fieldType);
-          if (fieldTypeElement != null) {
-            // The navigator is a nested class of the target record's Focus class.
-            // Use $T for the enclosing Focus class to ensure proper cross-package imports.
-            String fieldNavigatorClassName = capitalise(fieldName) + "Navigator";
-            ClassName navigatorClass =
-                ClassName.get(targetPackage, targetFocusClassName, fieldNavigatorClassName);
-            ParameterizedTypeName navigatorType =
-                ParameterizedTypeName.get(navigatorClass, sourceTypeVar);
+          // The navigator is a nested class of the target record's Focus class.
+          // Use $T for the enclosing Focus class to ensure proper cross-package imports.
+          String fieldNavigatorClassName = ProcessorUtils.capitalise(fieldName) + "Navigator";
+          ClassName navigatorClass =
+              ClassName.get(targetPackage, targetFocusClassName, fieldNavigatorClassName);
+          ParameterizedTypeName navigatorType =
+              ParameterizedTypeName.get(navigatorClass, sourceTypeVar);
 
-            methodBuilder.returns(navigatorType);
-            methodBuilder.addStatement(
-                "return new $T.$L<>($L)", targetFocusClass, fieldNavigatorClassName, viaStatement);
-          } else {
-            methodBuilder.addStatement("return $L", viaStatement);
-          }
+          methodBuilder.returns(navigatorType);
+          methodBuilder.addStatement(
+              "return new $T.$L<>($L)", targetFocusClass, fieldNavigatorClassName, viaStatement);
         } else {
           methodBuilder.addStatement("return $L", viaStatement);
         }
@@ -848,7 +845,7 @@ public class NavigatorClassGenerator {
           && innerTypeElement != null
           && innerTypeElement.getAnnotation(GenerateFocus.class) != null) {
         wrapInNavigator = true;
-        String innerNavigatorClassName = capitalise(fieldName) + "Navigator";
+        String innerNavigatorClassName = ProcessorUtils.capitalise(fieldName) + "Navigator";
         navigatorFromTargetFocus =
             ClassName.get(targetPackage, targetFocusClassName, innerNavigatorClassName);
       }
@@ -951,28 +948,16 @@ public class NavigatorClassGenerator {
       return null;
     }
     DeclaredType declaredType = (DeclaredType) type;
-    TypeElement typeElement = (TypeElement) declaredType.asElement();
-    String qualifiedName = typeElement.getQualifiedName().toString();
 
+    // The sole caller filters out hardcoded Optional/Collection types, so only SPI
+    // containers reach this point.
     TypeMirror innerType = null;
-
-    // Hardcoded Optional and Collection types
-    if (OPTIONAL_TYPES.contains(qualifiedName) || COLLECTION_TYPES.contains(qualifiedName)) {
+    TraversableGenerator generator = findSpiGenerator(type);
+    if (generator != null) {
+      int focusIdx = generator.getFocusTypeArgumentIndex();
       List<? extends TypeMirror> typeArgs = declaredType.getTypeArguments();
-      if (!typeArgs.isEmpty()) {
-        innerType = ProcessorUtils.resolveWildcard(typeArgs.get(0));
-      }
-    }
-
-    // SPI types
-    if (innerType == null) {
-      TraversableGenerator generator = findSpiGenerator(type);
-      if (generator != null) {
-        int focusIdx = generator.getFocusTypeArgumentIndex();
-        List<? extends TypeMirror> typeArgs = declaredType.getTypeArguments();
-        if (focusIdx < typeArgs.size()) {
-          innerType = ProcessorUtils.resolveWildcard(typeArgs.get(focusIdx));
-        }
+      if (focusIdx < typeArgs.size()) {
+        innerType = ProcessorUtils.resolveWildcard(typeArgs.get(focusIdx));
       }
     }
 
@@ -986,7 +971,8 @@ public class NavigatorClassGenerator {
    * to {@code targetFocusClass}, ensuring correct import generation even when the Focus class is in
    * a different package.
    */
-  private CodeBlock buildViaStatement(
+  // Package-private for tests.
+  CodeBlock buildViaStatement(
       PathKind currentKind,
       PathKind widenedKind,
       PathKind fieldKind,
@@ -1022,7 +1008,7 @@ public class NavigatorClassGenerator {
   }
 
   /** Checks if a type is navigable (has @GenerateFocus annotation). */
-  private boolean isNavigableType(TypeMirror type) {
+  boolean isNavigableType(TypeMirror type) {
     if (type.getKind() != TypeKind.DECLARED) {
       return false;
     }
@@ -1095,14 +1081,6 @@ public class NavigatorClassGenerator {
     return OPTIONAL_TYPES.contains(qualifiedName) || COLLECTION_TYPES.contains(qualifiedName);
   }
 
-  /** Capitalises the first letter of a string. */
-  private String capitalise(String s) {
-    if (s == null || s.isEmpty()) {
-      return s;
-    }
-    return Character.toUpperCase(s.charAt(0)) + s.substring(1);
-  }
-
   /**
    * Creates a method spec for a navigator-returning method (replaces the standard FocusPath
    * method).
@@ -1164,7 +1142,7 @@ public class NavigatorClassGenerator {
     }
 
     // Navigator class name
-    String navigatorClassName = capitalise(componentName) + "Navigator";
+    String navigatorClassName = ProcessorUtils.capitalise(componentName) + "Navigator";
     String packageName =
         processingEnv.getElementUtils().getPackageOf(recordElement).getQualifiedName().toString();
     String focusClassName = recordElement.getSimpleName().toString() + "Focus";

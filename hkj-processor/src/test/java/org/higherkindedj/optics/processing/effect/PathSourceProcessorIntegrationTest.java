@@ -203,6 +203,52 @@ class PathSourceProcessorIntegrationTest {
     }
 
     @Test
+    @DisplayName("errorType with a non-recoverable capability generates no recovery surface")
+    void errorTypeWithNonRecoverableCapabilityHasNoRecovery() {
+      final var witnessSource =
+          JavaFileObjects.forSourceString(
+              "com.example.ChainErrKind",
+              """
+              package com.example;
+
+              import org.higherkindedj.hkt.Kind;
+              import org.higherkindedj.hkt.TypeArity;
+              import org.higherkindedj.hkt.WitnessArity;
+
+              public interface ChainErrKind<A> extends Kind<ChainErrKind.Witness, A> {
+                  final class Witness implements WitnessArity<TypeArity.Unary> {}
+              }
+              """);
+
+      final var sourceFile =
+          JavaFileObjects.forSourceString(
+              "com.example.ChainErr",
+              """
+              package com.example;
+
+              import org.higherkindedj.hkt.effect.annotation.PathSource;
+
+              @PathSource(
+                  witness = ChainErrKind.Witness.class,
+                  errorType = String.class,
+                  capability = PathSource.Capability.CHAINABLE
+              )
+              public interface ChainErr<A> {}
+              """);
+
+      var compilation =
+          javac().withProcessors(new PathSourceProcessor()).compile(witnessSource, sourceFile);
+
+      assertThat(compilation).succeeded();
+
+      final String generatedClassName = "com.example.ChainErrPath";
+      // errorType alone does not unlock recovery: the capability decides (truthful surface).
+      assertGeneratedCodeContains(compilation, generatedClassName, "implements Combinable<A>");
+      assertGeneratedCodeDoesNotContain(compilation, generatedClassName, "recover(");
+      assertGeneratedCodeDoesNotContain(compilation, generatedClassName, "mapError(");
+    }
+
+    @Test
     @DisplayName("generates path class with Composable capability only")
     void shouldGenerateComposableOnlyPathClass() {
       final var witnessSource =

@@ -122,13 +122,13 @@ public class ImportOpticsProcessor extends AbstractProcessor {
     note("Checking interfaces for: " + typeElement.getQualifiedName(), typeElement);
     for (TypeMirror superInterface : typeElement.getInterfaces()) {
       note("  Found super interface: " + superInterface, typeElement);
-      if (superInterface instanceof DeclaredType declaredType) {
-        TypeElement interfaceElement = (TypeElement) declaredType.asElement();
-        String fqn = interfaceElement.getQualifiedName().toString();
-        note("  Interface FQN: " + fqn + " (expected: " + OPTICS_SPEC_FQN + ")", typeElement);
-        if (fqn.equals(OPTICS_SPEC_FQN)) {
-          return true;
-        }
+      // Super-interfaces returned by getInterfaces() are always declared types.
+      DeclaredType declaredType = (DeclaredType) superInterface;
+      TypeElement interfaceElement = (TypeElement) declaredType.asElement();
+      String fqn = interfaceElement.getQualifiedName().toString();
+      note("  Interface FQN: " + fqn + " (expected: " + OPTICS_SPEC_FQN + ")", typeElement);
+      if (fqn.equals(OPTICS_SPEC_FQN)) {
+        return true;
       }
     }
     return false;
@@ -274,7 +274,8 @@ public class ImportOpticsProcessor extends AbstractProcessor {
    * <p>We cannot directly access the Class objects at compile time, so we use the annotation mirror
    * API to extract the TypeMirrors and convert them to TypeElements.
    */
-  private List<TypeElement> getClassArrayFromAnnotation(Element element) {
+  // Package-private for tests.
+  List<TypeElement> getClassArrayFromAnnotation(Element element) {
     List<TypeElement> result = new ArrayList<>();
 
     // Find the @ImportOptics annotation mirror

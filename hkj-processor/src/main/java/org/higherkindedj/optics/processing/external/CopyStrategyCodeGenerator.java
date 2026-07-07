@@ -4,10 +4,10 @@ package org.higherkindedj.optics.processing.external;
 
 import com.palantir.javapoet.CodeBlock;
 import com.palantir.javapoet.TypeName;
-import java.util.Locale;
 import javax.lang.model.type.TypeMirror;
 import org.higherkindedj.optics.processing.external.SpecAnalysis.CopyStrategyInfo;
 import org.higherkindedj.optics.processing.external.SpecAnalysis.CopyStrategyKind;
+import org.higherkindedj.optics.processing.util.ProcessorUtils;
 
 /**
  * Generates code for lens setter lambdas based on copy strategy annotations.
@@ -232,13 +232,6 @@ public class CopyStrategyCodeGenerator {
    * @return the JavaBean getter method name
    */
   public String javaBeanGetterMethodName(String fieldName) {
-    return "get" + capitalise(fieldName);
-  }
-
-  private String capitalise(String s) {
-    if (s == null || s.isEmpty()) {
-      return s;
-    }
-    return s.substring(0, 1).toUpperCase(Locale.ROOT) + s.substring(1);
+    return "get" + ProcessorUtils.capitalise(fieldName);
   }
 }

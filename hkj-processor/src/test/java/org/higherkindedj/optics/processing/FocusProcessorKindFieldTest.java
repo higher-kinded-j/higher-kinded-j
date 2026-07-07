@@ -453,4 +453,37 @@ public class FocusProcessorKindFieldTest {
           compilation, "com.example.UnknownKindRecordFocus", "FocusPath<UnknownKindRecord");
     }
   }
+
+  @Nested
+  @DisplayName("Raw Parameterised Witness")
+  class RawParameterisedWitness {
+
+    @Test
+    @DisplayName("should skip witness type arguments when a parameterised witness is used raw")
+    void shouldSkipWitnessTypeArgumentsForRawWitness() {
+      // EitherKind.Witness is registered as parameterised, but used RAW here so the generated
+      // traverseOver call carries no witness type arguments. The record itself does not compile
+      // (the raw witness violates Kind's WitnessArity bound), but annotation processing runs
+      // before that bound check, so the generation path is still exercised.
+      final var sourceFile =
+          JavaFileObjects.forSourceString(
+              "com.example.RawWitnessRecord",
+              """
+              package com.example;
+
+              import org.higherkindedj.hkt.Kind;
+              import org.higherkindedj.hkt.either.EitherKind;
+              import org.higherkindedj.optics.annotations.GenerateFocus;
+
+              @GenerateFocus
+              @SuppressWarnings("rawtypes")
+              public record RawWitnessRecord(
+                  String name, Kind<EitherKind.Witness, Integer> outcome) {}
+              """);
+
+      var compilation = javac().withProcessors(new FocusProcessor()).compile(sourceFile);
+
+      assertThat(compilation).hadErrorContaining("not within bounds");
+    }
+  }
 }

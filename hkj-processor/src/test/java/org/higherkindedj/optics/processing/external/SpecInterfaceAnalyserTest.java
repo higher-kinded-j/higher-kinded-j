@@ -14,6 +14,7 @@ import javax.annotation.processing.AbstractProcessor;
 import javax.annotation.processing.RoundEnvironment;
 import javax.lang.model.SourceVersion;
 import javax.lang.model.element.TypeElement;
+import javax.lang.model.util.ElementFilter;
 import javax.tools.JavaFileObject;
 import org.higherkindedj.optics.processing.external.SpecAnalysis.CopyStrategyKind;
 import org.higherkindedj.optics.processing.external.SpecAnalysis.OpticKind;
@@ -108,6 +109,33 @@ class SpecInterfaceAnalyserTest {
           }
           """);
 
+  private static final JavaFileObject VIA_CONSTRUCTOR =
+      JavaFileObjects.forSourceString(
+          "org.higherkindedj.optics.annotations.ViaConstructor",
+          """
+          package org.higherkindedj.optics.annotations;
+          import java.lang.annotation.*;
+          @Target(ElementType.METHOD)
+          @Retention(RetentionPolicy.CLASS)
+          public @interface ViaConstructor {
+              String[] parameterOrder() default {};
+          }
+          """);
+
+  private static final JavaFileObject THROUGH_FIELD =
+      JavaFileObjects.forSourceString(
+          "org.higherkindedj.optics.annotations.ThroughField",
+          """
+          package org.higherkindedj.optics.annotations;
+          import java.lang.annotation.*;
+          @Target(ElementType.METHOD)
+          @Retention(RetentionPolicy.CLASS)
+          public @interface ThroughField {
+              String field();
+              String traversal() default "";
+          }
+          """);
+
   private static final JavaFileObject TRAVERSE_WITH =
       JavaFileObjects.forSourceString(
           "org.higherkindedj.optics.annotations.TraverseWith",
@@ -187,6 +215,48 @@ class SpecInterfaceAnalyserTest {
    * Like {@link #analyseSpec} but does not assert compilation success. Use for tests where the
    * analyser is expected to report errors that cause compilation to fail.
    */
+  @Test
+  @DisplayName("an unresolvable @InstanceOf class constant falls through cleanly, not an NPE")
+  void unresolvableInstanceOfTargetFallsThrough() {
+    JavaFileObject source =
+        JavaFileObjects.forSourceString(
+            "com.example.Shape",
+            """
+            package com.example;
+
+            public sealed interface Shape permits Circle {}
+            """);
+    JavaFileObject circle =
+        JavaFileObjects.forSourceString(
+            "com.example.Circle",
+            """
+            package com.example;
+
+            public record Circle(double radius) implements Shape {}
+            """);
+    JavaFileObject spec =
+        JavaFileObjects.forSourceString(
+            "com.example.ShapeSpec",
+            """
+            package com.example;
+
+            import org.higherkindedj.optics.Prism;
+            import org.higherkindedj.optics.annotations.InstanceOf;
+            import org.higherkindedj.optics.annotations.OpticsSpec;
+
+            public interface ShapeSpec extends OpticsSpec<Shape> {
+              @InstanceOf(MissingType.class)
+              Prism<Shape, Circle> circle();
+            }
+            """);
+
+    // MissingType does not exist: compilation fails, but the analyser must degrade to its
+    // hint diagnostic instead of throwing NullPointerException on the erroneous constant.
+    Optional<SpecAnalysis> result =
+        analyseSpecAllowingErrors("com.example.ShapeSpec", source, circle, spec);
+    assertThat(result).isEmpty();
+  }
+
   private Optional<SpecAnalysis> analyseSpecAllowingErrors(
       String typeName, JavaFileObject... additionalSources) {
     JavaFileObject[] allSources = new JavaFileObject[additionalSources.length + 4];
@@ -783,6 +853,232 @@ class SpecInterfaceAnalyserTest {
           analyseSpecAllowingErrors("com.test.BadFocusSpec", person, spec);
 
       assertThat(result).isEmpty();
+    }
+  }
+
+  @Nested
+  @DisplayName("Coverage Hardening")
+  class CoverageHardening {
+
+    @Test
+    @DisplayName("should report error when source type is not a valid type element")
+    void shouldReportErrorForArraySourceType() {
+      var spec =
+          JavaFileObjects.forSourceString(
+              "com.test.BadSourceSpec",
+              """
+              package com.test;
+              import org.higherkindedj.optics.annotations.OpticsSpec;
+              public interface BadSourceSpec extends OpticsSpec<String[]> {}
+              """);
+
+      Optional<SpecAnalysis> result = analyseSpecAllowingErrors("com.test.BadSourceSpec", spec);
+
+      assertThat(result).isEmpty();
+    }
+
+    @Test
+    @DisplayName("should skip non-OpticsSpec super-interfaces when extracting the source type")
+    void shouldSkipNonOpticsSpecSuperInterfaces() {
+      var person =
+          JavaFileObjects.forSourceString(
+              "com.test.Person",
+              """
+              package com.test;
+              public record Person(String name) {}
+              """);
+
+      var spec =
+          JavaFileObjects.forSourceString(
+              "com.test.MixedSuperSpec",
+              """
+              package com.test;
+              import org.higherkindedj.optics.Lens;
+              import org.higherkindedj.optics.annotations.OpticsSpec;
+              import org.higherkindedj.optics.annotations.ViaBuilder;
+
+              public interface MixedSuperSpec extends Runnable, OpticsSpec<Person> {
+                  @ViaBuilder
+                  Lens<Person, String> name();
+              }
+              """);
+
+      Optional<SpecAnalysis> result =
+          analyseSpec("com.test.MixedSuperSpec", person, spec, VIA_BUILDER);
+
+      assertThat(result).isPresent();
+      assertThat(result.get().sourceType().toString()).isEqualTo("com.test.Person");
+    }
+
+    @Test
+    @DisplayName("should find field type via public field fallback for @ThroughField")
+    void shouldFindFieldTypeViaPublicField() {
+      var squad =
+          JavaFileObjects.forSourceString(
+              "com.test.Squad",
+              """
+              package com.test;
+              public class Squad {
+                  public java.util.List<String> members;
+                  public Squad() {}
+              }
+              """);
+
+      var spec =
+          JavaFileObjects.forSourceString(
+              "com.test.SquadSpec",
+              """
+              package com.test;
+              import org.higherkindedj.optics.Traversal;
+              import org.higherkindedj.optics.annotations.OpticsSpec;
+              import org.higherkindedj.optics.annotations.ThroughField;
+
+              public interface SquadSpec extends OpticsSpec<Squad> {
+                  @ThroughField(field = "members")
+                  Traversal<Squad, String> members();
+              }
+              """);
+
+      Optional<SpecAnalysis> result = analyseSpec("com.test.SquadSpec", squad, spec, THROUGH_FIELD);
+
+      assertThat(result).isPresent();
+      var method = result.get().opticMethods().get(0);
+      assertThat(method.traversalHint()).isEqualTo(TraversalHintKind.THROUGH_FIELD);
+    }
+
+    @Test
+    @DisplayName("should return empty parameter order for default @ViaConstructor")
+    void shouldReturnEmptyParameterOrderForDefaultViaConstructor() {
+      var coord =
+          JavaFileObjects.forSourceString(
+              "com.test.Coord",
+              """
+              package com.test;
+              public record Coord(int x) {}
+              """);
+
+      var spec =
+          JavaFileObjects.forSourceString(
+              "com.test.CoordSpec",
+              """
+              package com.test;
+              import org.higherkindedj.optics.Lens;
+              import org.higherkindedj.optics.annotations.OpticsSpec;
+              import org.higherkindedj.optics.annotations.ViaConstructor;
+
+              public interface CoordSpec extends OpticsSpec<Coord> {
+                  @ViaConstructor
+                  Lens<Coord, Integer> x();
+              }
+              """);
+
+      Optional<SpecAnalysis> result =
+          analyseSpec("com.test.CoordSpec", coord, spec, VIA_CONSTRUCTOR);
+
+      assertThat(result).isPresent();
+      var method = result.get().opticMethods().get(0);
+      assertThat(method.copyStrategy()).isEqualTo(CopyStrategyKind.VIA_CONSTRUCTOR);
+      assertThat(method.copyStrategyInfo().parameterOrder()).isEmpty();
+    }
+  }
+
+  @Nested
+  @DisplayName("Annotation Helper Methods")
+  class AnnotationHelperMethods {
+
+    /**
+     * A helper processor that calls the package-private annotation helper methods with a real
+     * {@code @ViaBuilder} mirror, capturing the results for assertion. Exercises the non-matching
+     * element-name arms and the non-List / non-TypeMirror value arms, which are unreachable via the
+     * production call sites.
+     */
+    private static class AnnotationHelperTestProcessor extends AbstractProcessor {
+      private String[] arrayForStringValue;
+      private String[] arrayForMissingElement;
+      private javax.lang.model.type.TypeMirror mirrorForStringValue;
+      private javax.lang.model.type.TypeMirror mirrorForMissingElement;
+      private boolean invoked = false;
+
+      @Override
+      public Set<String> getSupportedAnnotationTypes() {
+        return Set.of("*");
+      }
+
+      @Override
+      public SourceVersion getSupportedSourceVersion() {
+        return SourceVersion.RELEASE_25;
+      }
+
+      @Override
+      public boolean process(Set<? extends TypeElement> annotations, RoundEnvironment roundEnv) {
+        if (roundEnv.processingOver() || invoked) {
+          return false;
+        }
+
+        TypeElement spec = processingEnv.getElementUtils().getTypeElement("com.test.HelperSpec");
+        if (spec == null) {
+          return false;
+        }
+        invoked = true;
+
+        var method = ElementFilter.methodsIn(spec.getEnclosedElements()).get(0);
+        var viaBuilderMirror = method.getAnnotationMirrors().get(0);
+
+        SpecInterfaceAnalyser analyser =
+            new SpecInterfaceAnalyser(
+                processingEnv.getTypeUtils(),
+                processingEnv.getElementUtils(),
+                processingEnv.getMessager());
+
+        // "getter" is present but its value is a String, not a List or TypeMirror
+        arrayForStringValue = analyser.getAnnotationStringArray(viaBuilderMirror, "getter");
+        mirrorForStringValue = analyser.getAnnotationTypeMirror(viaBuilderMirror, "getter");
+
+        // "missing" matches no element name at all
+        arrayForMissingElement = analyser.getAnnotationStringArray(viaBuilderMirror, "missing");
+        mirrorForMissingElement = analyser.getAnnotationTypeMirror(viaBuilderMirror, "missing");
+
+        return false;
+      }
+    }
+
+    @Test
+    @DisplayName("should fall back to defaults when element values do not match the expected shape")
+    void shouldFallBackWhenElementValuesDoNotMatch() {
+      var person =
+          JavaFileObjects.forSourceString(
+              "com.test.Person",
+              """
+              package com.test;
+              public record Person(String name) {}
+              """);
+
+      var spec =
+          JavaFileObjects.forSourceString(
+              "com.test.HelperSpec",
+              """
+              package com.test;
+              import org.higherkindedj.optics.Lens;
+              import org.higherkindedj.optics.annotations.OpticsSpec;
+              import org.higherkindedj.optics.annotations.ViaBuilder;
+
+              public interface HelperSpec extends OpticsSpec<Person> {
+                  @ViaBuilder(getter = "getName")
+                  Lens<Person, String> name();
+              }
+              """);
+
+      AnnotationHelperTestProcessor processor = new AnnotationHelperTestProcessor();
+      Compilation compilation =
+          javac()
+              .withProcessors(processor)
+              .compile(OPTICS_SPEC, LENS, PRISM, TRAVERSAL, VIA_BUILDER, person, spec);
+      assertThat(compilation).succeeded();
+
+      assertThat(processor.arrayForStringValue).isEmpty();
+      assertThat(processor.arrayForMissingElement).isEmpty();
+      assertThat(processor.mirrorForStringValue).isNull();
+      assertThat(processor.mirrorForMissingElement).isNull();
     }
   }
 

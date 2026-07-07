@@ -1054,4 +1054,58 @@ class SpecInterfaceCoverageTest {
       assertGeneratedCodeContains(compilation, "com.myapp.TeamLenses", "Lens<Team, String> name()");
     }
   }
+
+  @Nested
+  @DisplayName("Default method copying")
+  class DefaultMethodCopying {
+
+    @Test
+    @DisplayName("should copy type parameters of a generic default method")
+    void shouldCopyTypeParametersOfGenericDefaultMethod() {
+      final var externalClass =
+          JavaFileObjects.forSourceString(
+              "com.external.Config",
+              """
+              package com.external;
+
+              public class Config {
+                  private final String host;
+                  public Config(String host) { this.host = host; }
+                  public String getHost() { return host; }
+                  public Config withHost(String host) { return new Config(host); }
+              }
+              """);
+
+      final var specInterface =
+          JavaFileObjects.forSourceString(
+              "com.myapp.ConfigOpticsSpec",
+              """
+              package com.myapp;
+
+              import org.higherkindedj.optics.Lens;
+              import org.higherkindedj.optics.annotations.ImportOptics;
+              import org.higherkindedj.optics.annotations.OpticsSpec;
+              import org.higherkindedj.optics.annotations.Wither;
+              import com.external.Config;
+
+              @ImportOptics
+              public interface ConfigOpticsSpec extends OpticsSpec<Config> {
+
+                  @Wither(value = "withHost", getter = "getHost")
+                  Lens<Config, String> host();
+
+                  default <T> Lens<Config, T> generic() {
+                      return null;
+                  }
+              }
+              """);
+
+      Compilation compilation =
+          javac().withProcessors(new ImportOpticsProcessor()).compile(externalClass, specInterface);
+
+      assertThat(compilation).succeeded();
+      assertGeneratedCodeContains(
+          compilation, "com.myapp.ConfigOptics", "public static <T> Lens<Config, T> generic()");
+    }
+  }
 }

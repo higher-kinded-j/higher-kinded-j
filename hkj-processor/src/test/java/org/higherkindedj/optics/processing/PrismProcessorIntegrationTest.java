@@ -58,4 +58,26 @@ public class PrismProcessorIntegrationTest {
     assertGeneratedCodeContains(compilation, generatedClassName, expectedCirclePrism);
     assertGeneratedCodeContains(compilation, generatedClassName, expectedSquarePrism);
   }
+
+  @Test
+  void shouldGenerateEmptyPrismsClassForPlainInterface() {
+    // A non-sealed, non-enum interface is accepted by the processor but produces a Prisms class
+    // with no factory methods (neither the sealed nor the enum body applies).
+    final var sourceFile =
+        JavaFileObjects.forSourceString(
+            "com.example.Plain",
+            """
+            package com.example;
+
+            import org.higherkindedj.optics.annotations.GeneratePrisms;
+
+            @GeneratePrisms
+            public interface Plain {}
+            """);
+
+    var compilation = javac().withProcessors(new PrismProcessor()).compile(sourceFile);
+
+    assertThat(compilation).succeeded();
+    assertThat(compilation).generatedSourceFile("com.example.PlainPrisms").isNotNull();
+  }
 }

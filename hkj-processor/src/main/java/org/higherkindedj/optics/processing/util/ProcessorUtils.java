@@ -108,4 +108,17 @@ public final class ProcessorUtils {
     }
     return true;
   }
+
+  /**
+   * Capitalises the first character, locale-neutrally; null and empty inputs pass through.
+   *
+   * @param s the string, may be null
+   * @return the capitalised string, or {@code s} unchanged when null or empty
+   */
+  public static String capitalise(String s) {
+    if (s == null || s.isEmpty()) {
+      return s;
+    }
+    return s.substring(0, 1).toUpperCase(Locale.ROOT) + s.substring(1);
+  }
 }

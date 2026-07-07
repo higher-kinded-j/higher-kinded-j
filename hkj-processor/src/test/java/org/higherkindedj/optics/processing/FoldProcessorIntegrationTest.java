@@ -7,6 +7,7 @@ import static com.google.testing.compile.Compiler.javac;
 import static org.higherkindedj.optics.processing.GeneratorTestHelper.assertGeneratedCodeContains;
 
 import com.google.testing.compile.JavaFileObjects;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 public class FoldProcessorIntegrationTest {
@@ -181,5 +182,28 @@ public class FoldProcessorIntegrationTest {
     assertThat(compilation).failed();
     assertThat(compilation)
         .hadErrorContaining("The @GenerateFolds annotation can only be applied to records.");
+  }
+
+  @Test
+  @DisplayName("a type-variable component bound to Iterable is a plain fold, not a crash")
+  void typeVariableComponentBoundToIterableIsNotTreatedAsIterable() {
+    // A TypeVariable never passes isIterableType's DeclaredType gate, so getElementType's
+    // documented cast invariant holds even for T extends Iterable<String>.
+    final var sourceFile =
+        JavaFileObjects.forSourceString(
+            "com.example.GenericHolder",
+            """
+            package com.example;
+
+            import org.higherkindedj.optics.annotations.GenerateFolds;
+
+            @GenerateFolds
+            public record GenericHolder<T extends Iterable<String>>(T items) {}
+            """);
+
+    var compilation = javac().withProcessors(new FoldProcessor()).compile(sourceFile);
+
+    assertThat(compilation).succeeded();
+    assertThat(compilation).generatedSourceFile("com.example.GenericHolderFolds").isNotNull();
   }
 }

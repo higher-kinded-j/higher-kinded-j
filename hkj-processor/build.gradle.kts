@@ -72,16 +72,19 @@ tasks.jacocoTestCoverageVerification {
     )
 
     violationRules {
+        // 99/97 (not 100): the residual is verified-unreachable - compiler-synthesised
+        // exhaustive-switch defaults, @Target-unproducible arms, and descriptor-table
+        // combos that cannot occur (see the coverage-hardening PR for the per-class list).
         rule {
             limit {
                 counter = "LINE"
                 value = "COVEREDRATIO"
-                minimum = "0.95".toBigDecimal()
+                minimum = "0.99".toBigDecimal()
             }
             limit {
                 counter = "BRANCH"
                 value = "COVEREDRATIO"
-                minimum = "0.87".toBigDecimal()
+                minimum = "0.97".toBigDecimal()
             }
         }
         // MappingProcessor is held at 100% (see PR #605).

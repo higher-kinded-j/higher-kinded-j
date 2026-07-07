@@ -8,6 +8,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import com.google.testing.compile.Compilation;
 import com.google.testing.compile.JavaFileObjects;
+import java.lang.reflect.Proxy;
 import java.util.Optional;
 import java.util.Set;
 import javax.annotation.processing.AbstractProcessor;
@@ -1000,6 +1001,89 @@ class TypeKindAnalyserTest {
       var result = detectContainerType("com.test.RawMap", "data", source);
 
       assertThat(result).isEmpty();
+    }
+
+    @Test
+    @DisplayName("should return empty for primitive (non-declared) type")
+    void shouldReturnEmptyForPrimitiveType() {
+      var source =
+          JavaFileObjects.forSourceString(
+              "com.test.WithPrimitive",
+              """
+              package com.test;
+
+              public record WithPrimitive(int value) {}
+              """);
+
+      var result = detectContainerType("com.test.WithPrimitive", "value", source);
+
+      assertThat(result).isEmpty();
+    }
+
+    @Test
+    @DisplayName("should return empty when container type elements cannot be resolved")
+    void shouldReturnEmptyWhenContainerElementsUnresolvable() {
+      // Exercises the defensive `getTypeElement(...) != null` arms for List, Set, Optional and
+      // Map, which never fail on a real JVM. A delegating Elements whose getTypeElement always
+      // returns null forces all four checks to fall through to the final empty return.
+      var source =
+          JavaFileObjects.forSourceString(
+              "com.test.NullElementsList",
+              """
+              package com.test;
+
+              import java.util.List;
+
+              public record NullElementsList(List<String> items) {}
+              """);
+
+      final class NullElementsProcessor extends AbstractProcessor {
+        private Optional<ContainerType> result;
+
+        @Override
+        public Set<String> getSupportedAnnotationTypes() {
+          return Set.of("*");
+        }
+
+        @Override
+        public SourceVersion getSupportedSourceVersion() {
+          return SourceVersion.RELEASE_25;
+        }
+
+        @Override
+        public boolean process(Set<? extends TypeElement> annotations, RoundEnvironment roundEnv) {
+          if (roundEnv.processingOver() || result != null) {
+            return false;
+          }
+
+          TypeElement typeElement =
+              processingEnv.getElementUtils().getTypeElement("com.test.NullElementsList");
+          if (typeElement != null) {
+            var realElements = processingEnv.getElementUtils();
+            var nullReturningElements =
+                (javax.lang.model.util.Elements)
+                    Proxy.newProxyInstance(
+                        getClass().getClassLoader(),
+                        new Class<?>[] {javax.lang.model.util.Elements.class},
+                        (proxy, method, args) ->
+                            method.getName().equals("getTypeElement")
+                                ? null
+                                : method.invoke(realElements, args));
+
+            TypeKindAnalyser analyser = new TypeKindAnalyser(processingEnv.getTypeUtils());
+            result =
+                analyser.detectContainerTypeWithSubtypes(
+                    typeElement.getRecordComponents().getFirst().asType(), nullReturningElements);
+          }
+
+          return false;
+        }
+      }
+
+      NullElementsProcessor processor = new NullElementsProcessor();
+      Compilation compilation = javac().withProcessors(processor).compile(source);
+      assertThat(compilation).succeeded();
+      assertThat(processor.result).isEmpty();
     }
 
     @Test
