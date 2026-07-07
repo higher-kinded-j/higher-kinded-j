@@ -33,6 +33,7 @@ module org.higherkindedj.core {
   exports org.higherkindedj.hkt.instances;
   exports org.higherkindedj.hkt.io;
   exports org.higherkindedj.hkt.lazy;
+  exports org.higherkindedj.hkt.time;
   exports org.higherkindedj.hkt.list;
   exports org.higherkindedj.hkt.maybe;
   exports org.higherkindedj.hkt.maybe_t;

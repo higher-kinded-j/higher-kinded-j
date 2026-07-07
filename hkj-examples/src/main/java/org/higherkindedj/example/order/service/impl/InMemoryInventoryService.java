@@ -7,6 +7,7 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import org.higherkindedj.example.order.error.OrderError;
@@ -16,6 +17,7 @@ import org.higherkindedj.example.order.model.ValidatedOrderLine;
 import org.higherkindedj.example.order.model.value.OrderId;
 import org.higherkindedj.example.order.service.InventoryService;
 import org.higherkindedj.hkt.either.Either;
+import org.higherkindedj.hkt.time.TimeSource;
 
 /**
  * In-memory implementation of InventoryService for testing and examples.
@@ -33,10 +35,18 @@ public class InMemoryInventoryService implements InventoryService {
   private final Map<String, String> productWarehouses = new ConcurrentHashMap<>();
   private final Map<String, InventoryReservation> reservations = new ConcurrentHashMap<>();
 
-  /** How long a reservation is held before it can be reclaimed. Adjustable for tests. */
-  private Duration reservationHold = Duration.ofMinutes(15);
+  /** How long a reservation is held before it can be reclaimed. */
+  private static final Duration RESERVATION_HOLD = Duration.ofMinutes(15);
+
+  /** Where this service reads time from; inject a fixed/steppable source in tests (#609). */
+  private final TimeSource timeSource;
 
   public InMemoryInventoryService() {
+    this(TimeSource.system());
+  }
+
+  public InMemoryInventoryService(TimeSource timeSource) {
+    this.timeSource = Objects.requireNonNull(timeSource, "timeSource must not be null");
     // Pre-populate with sample stock across different warehouses
     stock.put("PROD-001", 100);
     stock.put("PROD-002", 50);
@@ -61,11 +71,6 @@ public class InMemoryInventoryService implements InventoryService {
   public void setStock(String productId, int quantity, String warehouseId) {
     stock.put(productId, quantity);
     productWarehouses.put(productId, warehouseId);
-  }
-
-  /** Overrides how long reservations are held; mainly a seam for exercising expiry in tests. */
-  public void setReservationHold(Duration reservationHold) {
-    this.reservationHold = reservationHold;
   }
 
   @Override
@@ -227,10 +232,14 @@ public class InMemoryInventoryService implements InventoryService {
   /** Records a reservation for the given taken items and returns it. */
   private InventoryReservation storeReservation(List<InventoryReservation.ReservedItem> items) {
     var reservationId = "RES-" + UUID.randomUUID().toString().substring(0, 8).toUpperCase();
-    var reservation =
-        new InventoryReservation(reservationId, items, Instant.now().plus(reservationHold));
+    var reservation = new InventoryReservation(reservationId, items, now().plus(RESERVATION_HOLD));
     reservations.put(reservationId, reservation);
     return reservation;
+  }
+
+  /** The service's single read of current time - always through the injected source. */
+  private Instant now() {
+    return timeSource.now().unsafeRunSync();
   }
 
   /** Looks up the warehouse a product ships from, defaulting to the primary warehouse. */
@@ -250,7 +259,7 @@ public class InMemoryInventoryService implements InventoryService {
     if (reservations.isEmpty()) {
       return;
     }
-    var now = Instant.now();
+    var now = now();
     // Snapshot keys so we can mutate the map while iterating.
     for (var reservationId : List.copyOf(reservations.keySet())) {
       var reservation = reservations.get(reservationId);
