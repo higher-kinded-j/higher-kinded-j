@@ -112,16 +112,16 @@ class EffectAlgebraProcessorTest {
         """);
   }
 
-  @org.junit.jupiter.api.Test
-  @org.junit.jupiter.api.DisplayName("a non-record permit is rejected")
+  @Test
+  @DisplayName("a non-record permit is rejected")
   void nonRecordPermitRejected() {
     Compilation compilation = compile(nonRecordPermitAlgebra());
     CompilationSubject.assertThat(compilation).failed();
     CompilationSubject.assertThat(compilation).hadErrorContaining("Permit must be a record type");
   }
 
-  @org.junit.jupiter.api.Test
-  @org.junit.jupiter.api.DisplayName("mapK detection skips unrelated methods by name")
+  @Test
+  @DisplayName("mapK detection skips unrelated methods by name")
   void mapKDetectionSkipsUnrelatedMethods() {
     Compilation compilation = compile(unrelatedMethodAlgebra());
     CompilationSubject.assertThat(compilation).succeeded();

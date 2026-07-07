@@ -5,8 +5,10 @@ package org.higherkindedj.optics.processing;
 import static com.google.testing.compile.CompilationSubject.assertThat;
 import static com.google.testing.compile.Compiler.javac;
 import static org.higherkindedj.optics.processing.GeneratorTestHelper.assertGeneratedCodeContains;
+import static org.higherkindedj.optics.processing.GeneratorTestHelper.assertGeneratedCodeDoesNotContain;
 
 import com.google.testing.compile.JavaFileObjects;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 public class TraversalProcessorIntegrationTest {
@@ -52,6 +54,7 @@ public class TraversalProcessorIntegrationTest {
   }
 
   @Test
+  @DisplayName("a component whose generator focus index exceeds its type arguments is skipped")
   void shouldSkipComponentWhenGeneratorFocusIndexExceedsTypeArguments() {
     // The test-scope BoxIndexOneGenerator supports com.example.hkjtest.Box but focuses on type
     // argument index 1, which a Box<T> never has, so the traversal method is skipped.
@@ -82,9 +85,11 @@ public class TraversalProcessorIntegrationTest {
 
     assertThat(compilation).succeeded();
     assertThat(compilation).generatedSourceFile("com.example.BoxRecordTraversals").isNotNull();
+    assertGeneratedCodeDoesNotContain(compilation, "com.example.BoxRecordTraversals", "boxed");
   }
 
   @Test
+  @DisplayName("a component that is neither an array nor a declared type is skipped")
   void shouldSkipComponentThatIsNeitherArrayNorDeclared() {
     // The test-scope TypeVariableGenerator supports type variables named TRAVMARKER, steering a
     // type-variable component into createTraversalMethod, which cannot handle it and skips it.
@@ -104,5 +109,6 @@ public class TraversalProcessorIntegrationTest {
 
     assertThat(compilation).succeeded();
     assertThat(compilation).generatedSourceFile("com.example.VarRecordTraversals").isNotNull();
+    assertGeneratedCodeDoesNotContain(compilation, "com.example.VarRecordTraversals", "value");
   }
 }

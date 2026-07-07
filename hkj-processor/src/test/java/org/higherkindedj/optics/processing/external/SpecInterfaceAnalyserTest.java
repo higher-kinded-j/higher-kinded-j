@@ -14,6 +14,7 @@ import javax.annotation.processing.AbstractProcessor;
 import javax.annotation.processing.RoundEnvironment;
 import javax.lang.model.SourceVersion;
 import javax.lang.model.element.TypeElement;
+import javax.lang.model.util.ElementFilter;
 import javax.tools.JavaFileObject;
 import org.higherkindedj.optics.processing.external.SpecAnalysis.CopyStrategyKind;
 import org.higherkindedj.optics.processing.external.SpecAnalysis.OpticKind;
@@ -214,9 +215,8 @@ class SpecInterfaceAnalyserTest {
    * Like {@link #analyseSpec} but does not assert compilation success. Use for tests where the
    * analyser is expected to report errors that cause compilation to fail.
    */
-  @org.junit.jupiter.api.Test
-  @org.junit.jupiter.api.DisplayName(
-      "an unresolvable @InstanceOf class constant falls through cleanly, not an NPE")
+  @Test
+  @DisplayName("an unresolvable @InstanceOf class constant falls through cleanly, not an NPE")
   void unresolvableInstanceOfTargetFallsThrough() {
     JavaFileObject source =
         JavaFileObjects.forSourceString(
@@ -254,7 +254,7 @@ class SpecInterfaceAnalyserTest {
     // hint diagnostic instead of throwing NullPointerException on the erroneous constant.
     Optional<SpecAnalysis> result =
         analyseSpecAllowingErrors("com.example.ShapeSpec", source, circle, spec);
-    org.assertj.core.api.Assertions.assertThat(result).isEmpty();
+    assertThat(result).isEmpty();
   }
 
   private Optional<SpecAnalysis> analyseSpecAllowingErrors(
@@ -1021,8 +1021,7 @@ class SpecInterfaceAnalyserTest {
         }
         invoked = true;
 
-        var method =
-            javax.lang.model.util.ElementFilter.methodsIn(spec.getEnclosedElements()).get(0);
+        var method = ElementFilter.methodsIn(spec.getEnclosedElements()).get(0);
         var viaBuilderMirror = method.getAnnotationMirrors().get(0);
 
         SpecInterfaceAnalyser analyser =

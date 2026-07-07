@@ -274,6 +274,7 @@ public class ImportOpticsProcessor extends AbstractProcessor {
    * <p>We cannot directly access the Class objects at compile time, so we use the annotation mirror
    * API to extract the TypeMirrors and convert them to TypeElements.
    */
+  // Package-private for tests.
   List<TypeElement> getClassArrayFromAnnotation(Element element) {
     List<TypeElement> result = new ArrayList<>();
 

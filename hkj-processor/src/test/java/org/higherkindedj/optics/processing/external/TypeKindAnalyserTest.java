@@ -8,6 +8,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import com.google.testing.compile.Compilation;
 import com.google.testing.compile.JavaFileObjects;
+import java.lang.reflect.Proxy;
 import java.util.Optional;
 import java.util.Set;
 import javax.annotation.processing.AbstractProcessor;
@@ -1061,7 +1062,7 @@ class TypeKindAnalyserTest {
             var realElements = processingEnv.getElementUtils();
             var nullReturningElements =
                 (javax.lang.model.util.Elements)
-                    java.lang.reflect.Proxy.newProxyInstance(
+                    Proxy.newProxyInstance(
                         getClass().getClassLoader(),
                         new Class<?>[] {javax.lang.model.util.Elements.class},
                         (proxy, method, args) ->

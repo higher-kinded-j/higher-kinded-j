@@ -7,6 +7,9 @@ import static com.google.testing.compile.Compiler.javac;
 import static org.higherkindedj.optics.processing.GeneratorTestHelper.assertGeneratedCodeContains;
 
 import com.google.testing.compile.JavaFileObjects;
+import javax.annotation.processing.AbstractProcessor;
+import javax.annotation.processing.RoundEnvironment;
+import org.assertj.core.api.Assertions;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -890,6 +893,7 @@ class ImportOpticsProcessorTest {
       var compilation = javac().withProcessors(new ImportOpticsProcessor()).compile(importerClass);
 
       assertThat(compilation).succeeded();
+      Assertions.assertThat(compilation.generatedSourceFiles()).isEmpty();
     }
 
     @Test
@@ -924,7 +928,7 @@ class ImportOpticsProcessorTest {
               public class Plain {}
               """);
 
-      final class HarnessProcessor extends javax.annotation.processing.AbstractProcessor {
+      final class HarnessProcessor extends AbstractProcessor {
         private java.util.List<javax.lang.model.element.TypeElement> classList;
 
         @Override
@@ -940,7 +944,7 @@ class ImportOpticsProcessorTest {
         @Override
         public boolean process(
             java.util.Set<? extends javax.lang.model.element.TypeElement> annotations,
-            javax.annotation.processing.RoundEnvironment roundEnv) {
+            RoundEnvironment roundEnv) {
           if (roundEnv.processingOver() || classList != null) {
             return false;
           }
@@ -960,7 +964,7 @@ class ImportOpticsProcessorTest {
       var compilation = javac().withProcessors(harness).compile(plainClass);
 
       assertThat(compilation).succeeded();
-      org.assertj.core.api.Assertions.assertThat(harness.classList).isEmpty();
+      Assertions.assertThat(harness.classList).isEmpty();
     }
   }
 }

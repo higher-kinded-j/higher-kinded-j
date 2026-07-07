@@ -489,6 +489,7 @@ public class FocusProcessor extends AbstractProcessor {
    * @param args the mutable list of JavaPoet arguments (for SPI import resolution)
    * @return the chained expression string
    */
+  // Package-private for tests.
   String buildWideningChainExpression(List<WideningStep> chain, List<Object> args) {
     StringBuilder sb = new StringBuilder();
     for (int i = 0; i < chain.size(); i++) {
@@ -554,6 +555,7 @@ public class FocusProcessor extends AbstractProcessor {
   }
 
   /** Represents the type of path widening to apply. */
+  // Package-private for tests.
   enum WideningType {
     /** No widening - standard FocusPath. */
     NONE,
@@ -585,6 +587,7 @@ public class FocusProcessor extends AbstractProcessor {
    * @param spiGenerator SPI generator if this step is an SPI type (may be null)
    * @param innerTypeMirror the type produced by unwrapping this container (may be null)
    */
+  // Package-private for tests.
   record WideningStep(
       WideningType type,
       KindFieldInfo kindInfo,

@@ -306,6 +306,7 @@ public class ExternalLensGenerator {
     return methodBuilder.build();
   }
 
+  // Package-private for tests.
   MethodSpec createTraversalMethod(
       FieldInfo field,
       TypeElement recordElement,
@@ -403,6 +404,7 @@ public class ExternalLensGenerator {
         .build();
   }
 
+  // Package-private for tests.
   TypeName getFocusType(TypeMirror type, TraversableGenerator generator) {
     if (type instanceof ArrayType arrayType) {
       return TypeName.get(arrayType.getComponentType()).box();

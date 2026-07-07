@@ -231,6 +231,7 @@ public class PathSourceProcessor extends AbstractProcessor {
     javaFile.writeTo(processingEnv.getFiler());
   }
 
+  // Package-private for tests.
   static TypeMirror getWitnessType(PathSource annotation) {
     try {
       annotation.witness();
@@ -240,6 +241,7 @@ public class PathSourceProcessor extends AbstractProcessor {
     }
   }
 
+  // Package-private for tests.
   static TypeMirror getErrorType(PathSource annotation) {
     try {
       annotation.errorType();

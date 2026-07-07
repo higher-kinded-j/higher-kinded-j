@@ -59,8 +59,8 @@ class ComposeEffectsProcessorTest {
         """);
   }
 
-  @org.junit.jupiter.api.Test
-  @org.junit.jupiter.api.DisplayName("@Handles with an unresolvable value type is rejected")
+  @Test
+  @DisplayName("@Handles with an unresolvable value type is rejected")
   void handlesWithUnresolvableValueRejected() {
     JavaFileObject bad =
         JavaFileObjects.forSourceString(

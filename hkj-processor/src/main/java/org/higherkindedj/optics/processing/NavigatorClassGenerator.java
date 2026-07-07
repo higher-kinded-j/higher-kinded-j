@@ -971,6 +971,7 @@ public class NavigatorClassGenerator {
    * to {@code targetFocusClass}, ensuring correct import generation even when the Focus class is in
    * a different package.
    */
+  // Package-private for tests.
   CodeBlock buildViaStatement(
       PathKind currentKind,
       PathKind widenedKind,

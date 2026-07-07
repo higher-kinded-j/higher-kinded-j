@@ -53,6 +53,33 @@ public final class GeneratorTestHelper {
    * @param generatedFileName The fully qualified name of the generated file.
    * @param expectedCode The expected code snippet.
    */
+  /** Asserts the generated file exists but does NOT contain the given (normalised) snippet. */
+  public static void assertGeneratedCodeDoesNotContain(
+      final Compilation compilation, final String generatedFileName, final String unexpectedCode) {
+
+    Optional<JavaFileObject> generatedSourceFile =
+        compilation.generatedSourceFile(generatedFileName);
+
+    if (generatedSourceFile.isEmpty()) {
+      fail("Generated source file not found: " + generatedFileName);
+      return;
+    }
+
+    try {
+      final String actualGeneratedCode = generatedSourceFile.get().getCharContent(true).toString();
+      final String normalisedActual = normaliseCode(actualGeneratedCode);
+      final String normalisedUnexpected = normaliseCode(unexpectedCode);
+
+      assertTrue(
+          !normalisedActual.contains(normalisedUnexpected),
+          String.format(
+              "Expected generated code NOT to contain:%n---%n%s%n---%nBut was:%n---%n%s%n---",
+              unexpectedCode, actualGeneratedCode));
+    } catch (Exception e) {
+      fail("Could not read generated source file: " + e.getMessage());
+    }
+  }
+
   public static void assertGeneratedCodeContains(
       final Compilation compilation, final String generatedFileName, final String expectedCode) {
 

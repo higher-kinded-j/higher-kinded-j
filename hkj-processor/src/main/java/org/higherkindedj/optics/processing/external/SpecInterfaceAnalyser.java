@@ -598,6 +598,7 @@ public class SpecInterfaceAnalyser {
     return defaultValue;
   }
 
+  // Package-private for tests.
   String[] getAnnotationStringArray(AnnotationMirror annotation, String elementName) {
     for (Map.Entry<? extends ExecutableElement, ? extends AnnotationValue> entry :
         annotation.getElementValues().entrySet()) {
@@ -613,6 +614,7 @@ public class SpecInterfaceAnalyser {
     return new String[0];
   }
 
+  // Package-private for tests.
   TypeMirror getAnnotationTypeMirror(AnnotationMirror annotation, String elementName) {
     for (Map.Entry<? extends ExecutableElement, ? extends AnnotationValue> entry :
         annotation.getElementValues().entrySet()) {
