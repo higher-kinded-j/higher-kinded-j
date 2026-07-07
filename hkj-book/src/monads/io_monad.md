@@ -222,6 +222,22 @@ IO_OP.unsafeRunSync(finalProgram);
 
 ---
 
+## Reading the Clock
+
+The most common side effect after console/file I/O is reading the time — and `Instant.now()` scattered through your code makes every timestamp untestable. `TimeSource` lifts `java.time.Clock` into `IO` so time is a lazy, composable effect:
+
+``` java
+import org.higherkindedj.hkt.time.TimeSource;
+
+TimeSource time = TimeSource.system();               // or TimeSource.fixed(instant) in tests
+
+IO<Reservation> reserve(Order order) {
+  return time.now().map(t -> new Reservation(order.id(), order.items(), t.plus(hold)));
+}
+```
+
+Nothing is read until the effect runs, and each run reads afresh. In tests, inject `TimeSource.fixed(...)` — or `TimeSource.of(steppableClock)` with `hkj-test`'s [`SteppableClock`](../tooling/test_assertions.md#steppableclock) — and the same code becomes deterministic. (It is named `TimeSource`, not `Clock`, precisely so it never clashes with `java.time.Clock`.)
+
 ## Back to the One-Liner
 
 `IO` is the layer we wrap around the Foundations one-liner when we want side effects to be *described* rather than *performed* until interpretation:

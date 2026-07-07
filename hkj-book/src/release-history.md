@@ -14,6 +14,10 @@ This page documents the evolution of Higher-Kinded-J from its initial release th
 
 ### 0.4.8-SNAPSHOT (Latest)
 
+**`TimeSource`: effectful, testable time**
+
+`java.time.Clock` lifted into the effect world: `TimeSource.system()` / `of(clock)` / `fixed(instant)` with lazy `now() : IO<Instant>` and `nowAsync() : VTask<Instant>` reads — time as a composable effect, deterministic in tests. Deliberately *not* named `Clock`, so it never clashes with `java.time.Clock` in the files that use both; any JDK clock (`fixed`/`offset`/`tick`) lifts through `of()`. `hkj-test` gains `SteppableClock` (`startingAt`/`advance`/`set`, atomic stepping, contract-honouring `withZone`) so time-dependent code is exercised by moving the clock, not sleeping — the order example's reservation-expiry test now works exactly that way ([#609](https://github.com/higher-kinded-j/higher-kinded-j/issues/609)).
+
 **`@GenerateMapping` Step-0 slice: the bidirectional mapper, de-risked**
 
 The first cut of the record↔DTO mapper: annotate `interface UserMapping extends MappingSpec<User, UserDto>` with `@GenerateMapping` and the processor generates `UserMappingImpl` — a total `build(User) : UserDto` and an accumulating `parse(UserDto) : Validated<NonEmptyList<FieldError>, User>` assembled with `Validated.fields()`, every failure located by component name. Components match by name; a validated leaf is a typed `default` method returning a `ValidatedPrism`. `@MapField` renames, nesting (spec delegating to spec, failures located by dotted path), `List`/`Optional` container lifting, sealed-interface dispatch and the truthful emission tiers (lossless → `asIso()`, lossy projection → `asLens()`, fallible → accumulating `parse`) all ship in this slice; every diagnostic follows the what/why/fix standard from day one. Map value lifting and generated law tests arrive with the full mapper ([#600](https://github.com/higher-kinded-j/higher-kinded-j/issues/600)).

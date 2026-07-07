@@ -196,6 +196,28 @@ The same shape applies to `MaybeTAssert`, `OptionalTAssert`, `ReaderTAssert`, `S
 
 ---
 
+## Test Fixtures
+
+### `SteppableClock`
+
+A clock that only moves when told to — pair it with `TimeSource.of(clock)` and time-dependent code is exercised by stepping the clock, not sleeping:
+
+``` java
+import org.higherkindedj.hkt.assertions.SteppableClock;
+import org.higherkindedj.hkt.time.TimeSource;
+
+SteppableClock clock = SteppableClock.startingAt(Instant.parse("2026-07-07T00:00:00Z"));
+var service = new InMemoryInventoryService(TimeSource.of(clock));
+
+service.reserve(order);                    // hold expires 15 minutes from "now"
+clock.advance(Duration.ofMinutes(16));     // time passes - instantly
+service.reserve(other);                    // the expired hold is reclaimed
+```
+
+Stepping is atomic (safe to advance from the test thread while virtual threads read), and `withZone` honours the `java.time.Clock` contract — the zoned view shares the same steppable timeline.
+
+---
+
 ## Java 25: One-line Module Import
 
 `hkj-test` is published as a proper JPMS module named `org.higherkindedj.test`. On Java 25 with `--enable-preview` (already enabled across the HKJ project), JEP 511's module-import syntax reduces the per-class import boilerplate to a single line:

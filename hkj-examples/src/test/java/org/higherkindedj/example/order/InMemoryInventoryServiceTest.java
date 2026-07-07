@@ -6,6 +6,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.higherkindedj.hkt.assertions.EitherAssert.assertThatEither;
 
 import java.time.Duration;
+import java.time.Instant;
 import java.util.List;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CountDownLatch;
@@ -20,6 +21,8 @@ import org.higherkindedj.example.order.model.value.Money;
 import org.higherkindedj.example.order.model.value.OrderId;
 import org.higherkindedj.example.order.model.value.ProductId;
 import org.higherkindedj.example.order.service.impl.InMemoryInventoryService;
+import org.higherkindedj.hkt.assertions.SteppableClock;
+import org.higherkindedj.hkt.time.TimeSource;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -104,11 +107,15 @@ class InMemoryInventoryServiceTest {
   @Test
   @DisplayName("an expired hold is reclaimed on the next reservation")
   void expiredHoldIsReclaimed() {
-    // Force every hold to be already expired, so the next reserve reclaims the prior one.
-    service.setReservationHold(Duration.ofSeconds(-1));
+    // Inject a steppable time source (#609): reserve, advance past the hold, and the next
+    // reservation reclaims the expired one - no seams, no negative durations, no sleeping.
+    var clock = SteppableClock.startingAt(Instant.parse("2026-07-07T00:00:00Z"));
+    service = new InMemoryInventoryService(TimeSource.of(clock));
 
     service.reserve(OrderId.generate(), List.of(line("PROD-001", 10)));
     assertThat(stockOf("PROD-001")).isEqualTo(90);
+
+    clock.advance(Duration.ofMinutes(16));
 
     // This second reservation reclaims the expired first one before taking its own stock.
     service.reserve(OrderId.generate(), List.of(line("PROD-002", 1)));

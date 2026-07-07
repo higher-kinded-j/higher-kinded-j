@@ -45,6 +45,7 @@ module org.higherkindedj.core {
   exports org.higherkindedj.hkt.state_op;
   exports org.higherkindedj.hkt.state_t;
   exports org.higherkindedj.hkt.stream;
+  exports org.higherkindedj.hkt.time;
   exports org.higherkindedj.hkt.trampoline;
   exports org.higherkindedj.hkt.trymonad;
   exports org.higherkindedj.hkt.validated;
