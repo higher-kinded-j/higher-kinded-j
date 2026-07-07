@@ -47,6 +47,7 @@ class NullMarkedPackageRules {
     "eitherf",
     "error",
     "trymonad",
+    "time",
     "validated",
     "list",
     "optional",

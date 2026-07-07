@@ -5,11 +5,8 @@ package org.higherkindedj.example.order;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.higherkindedj.hkt.assertions.EitherAssert.assertThatEither;
 
-import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
-import java.time.ZoneId;
-import java.time.ZoneOffset;
 import java.util.List;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CountDownLatch;
@@ -24,6 +21,7 @@ import org.higherkindedj.example.order.model.value.Money;
 import org.higherkindedj.example.order.model.value.OrderId;
 import org.higherkindedj.example.order.model.value.ProductId;
 import org.higherkindedj.example.order.service.impl.InMemoryInventoryService;
+import org.higherkindedj.hkt.assertions.SteppableClock;
 import org.higherkindedj.hkt.time.TimeSource;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -111,7 +109,7 @@ class InMemoryInventoryServiceTest {
   void expiredHoldIsReclaimed() {
     // Inject a steppable time source (#609): reserve, advance past the hold, and the next
     // reservation reclaims the expired one - no seams, no negative durations, no sleeping.
-    var clock = new SteppableClock(Instant.parse("2026-07-07T00:00:00Z"));
+    var clock = SteppableClock.startingAt(Instant.parse("2026-07-07T00:00:00Z"));
     service = new InMemoryInventoryService(TimeSource.of(clock));
 
     service.reserve(OrderId.generate(), List.of(line("PROD-001", 10)));
@@ -122,34 +120,6 @@ class InMemoryInventoryServiceTest {
     // This second reservation reclaims the expired first one before taking its own stock.
     service.reserve(OrderId.generate(), List.of(line("PROD-002", 1)));
     assertThat(stockOf("PROD-001")).isEqualTo(100);
-  }
-
-  /** A clock tests can move forward by hand. */
-  private static final class SteppableClock extends Clock {
-    private Instant current;
-
-    SteppableClock(Instant start) {
-      this.current = start;
-    }
-
-    void advance(Duration step) {
-      current = current.plus(step);
-    }
-
-    @Override
-    public ZoneId getZone() {
-      return ZoneOffset.UTC;
-    }
-
-    @Override
-    public Clock withZone(ZoneId zone) {
-      return this;
-    }
-
-    @Override
-    public Instant instant() {
-      return current;
-    }
   }
 
   /** Reads true on-hand stock by requesting more than could exist and reading what is available. */

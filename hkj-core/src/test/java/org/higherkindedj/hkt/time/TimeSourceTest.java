@@ -4,6 +4,8 @@ package org.higherkindedj.hkt.time;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatNullPointerException;
+import static org.higherkindedj.hkt.assertions.IOAssert.assertThatIO;
+import static org.higherkindedj.hkt.assertions.VTaskAssert.assertThatVTask;
 
 import java.time.Clock;
 import java.time.Duration;
@@ -44,10 +46,10 @@ class TimeSourceTest {
     @Test
     @DisplayName("system reads live UTC time")
     void systemReadsLiveTime() {
-      Instant before = Instant.now();
+      // A generous tolerance rather than a strict wall-clock sandwich: the system clock is not
+      // monotonic, and an NTP adjustment must not flake this test.
       Instant read = TimeSource.system().now().unsafeRunSync();
-      Instant after = Instant.now();
-      assertThat(read).isBetween(before, after);
+      assertThat(Duration.between(read, Instant.now()).abs()).isLessThan(Duration.ofMinutes(1));
       assertThat(TimeSource.system().clock().getZone()).isEqualTo(ZoneOffset.UTC);
     }
 
@@ -93,16 +95,17 @@ class TimeSourceTest {
             }
           };
       IO<Instant> now = TimeSource.of(counting).now();
+      assertThatIO(now).isNotExecutedYet();
       assertThat(reads).hasValue(0);
-      assertThat(now.unsafeRunSync()).isEqualTo(FROZEN);
-      assertThat(now.unsafeRunSync()).isEqualTo(FROZEN);
+      assertThatIO(now).whenExecuted().hasValue(FROZEN);
+      assertThatIO(now).whenExecuted().hasValue(FROZEN);
       assertThat(reads).hasValue(2);
     }
 
     @Test
     @DisplayName("nowAsync reads the same clock through VTask")
     void nowAsyncReadsThroughVTask() {
-      assertThat(TimeSource.fixed(FROZEN).nowAsync().run()).isEqualTo(FROZEN);
+      assertThatVTask(TimeSource.fixed(FROZEN).nowAsync()).whenRun().succeeds().hasValue(FROZEN);
     }
   }
 }

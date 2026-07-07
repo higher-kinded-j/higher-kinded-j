@@ -237,9 +237,13 @@ public class InMemoryInventoryService implements InventoryService {
     return reservation;
   }
 
-  /** The service's single read of current time - always through the injected source. */
+  /**
+   * The service's single read of current time - always through the injected source. This service is
+   * synchronous (Either-returning), so it reads the clock directly; effectful pipelines would
+   * compose {@code timeSource.now()} instead of unwrapping it.
+   */
   private Instant now() {
-    return timeSource.now().unsafeRunSync();
+    return timeSource.clock().instant();
   }
 
   /** Looks up the warehouse a product ships from, defaulting to the primary warehouse. */

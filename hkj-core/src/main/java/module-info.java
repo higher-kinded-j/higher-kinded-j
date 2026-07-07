@@ -33,7 +33,6 @@ module org.higherkindedj.core {
   exports org.higherkindedj.hkt.instances;
   exports org.higherkindedj.hkt.io;
   exports org.higherkindedj.hkt.lazy;
-  exports org.higherkindedj.hkt.time;
   exports org.higherkindedj.hkt.list;
   exports org.higherkindedj.hkt.maybe;
   exports org.higherkindedj.hkt.maybe_t;
@@ -46,6 +45,7 @@ module org.higherkindedj.core {
   exports org.higherkindedj.hkt.state_op;
   exports org.higherkindedj.hkt.state_t;
   exports org.higherkindedj.hkt.stream;
+  exports org.higherkindedj.hkt.time;
   exports org.higherkindedj.hkt.trampoline;
   exports org.higherkindedj.hkt.trymonad;
   exports org.higherkindedj.hkt.validated;

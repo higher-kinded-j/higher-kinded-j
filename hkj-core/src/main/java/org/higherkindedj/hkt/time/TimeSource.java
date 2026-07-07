@@ -28,12 +28,17 @@ import org.higherkindedj.hkt.vtask.VTask;
  * }
  * }</pre>
  *
+ * <p>Construct through the factories. Effectful pipelines compose {@link #now()} (or {@link
+ * #nowAsync()}); synchronous code at the edge of the effect world may read {@code
+ * clock().instant()} directly — determinism still comes from the injected clock.
+ *
  * @param clock the underlying JDK clock; must not be null
  */
 public record TimeSource(Clock clock) {
 
   /**
-   * Validates the wrapped clock.
+   * Validates the wrapped clock. Prefer the {@link #system()}, {@link #of(Clock)} and {@link
+   * #fixed(Instant)} factories; this canonical constructor exists because records require it.
    *
    * @throws NullPointerException if {@code clock} is null
    */
