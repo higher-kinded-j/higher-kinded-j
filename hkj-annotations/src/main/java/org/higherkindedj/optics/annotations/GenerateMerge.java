@@ -24,12 +24,15 @@ import java.lang.annotation.Target;
  * DashboardDto dashboard = DashboardAssemblyImpl.INSTANCE.assemble(user, account, settings);
  * }</pre>
  *
- * <p>Each target component is filled from the one source with a same-named component (identity when
+ * <p>Each target component is filled from the one source with a same-named component: identity when
  * the types match, through a zero-parameter {@code default} leaf method returning {@code
- * ValidatedPrism<SourceComponent, TargetComponent>} when they differ). An ambiguous component (same
- * name in two sources) or an unfilled one is a compile error. With any fallible leaf the declared
- * return type must be {@code Validated<NonEmptyList<FieldError>, Target>} — the types never over-
- * or under-claim fallibility.
+ * ValidatedPrism<SourceComponent, TargetComponent>} (an explicit leaf wins even over a same-typed
+ * match, so it can validate or normalise a copied value), or through a sibling
+ * {@code @GenerateMapping} spec in the same compilation — nested failures locate as dotted paths.
+ * An ambiguous component (same name in two sources) or an unfilled one is a compile error. With any
+ * fallible fill the declared return type must be {@code Validated<NonEmptyList<FieldError>,
+ * Target>} — the types never over- or under-claim fallibility (and the fallible path inherits
+ * {@code Validated}'s null-hostility: component values must not be null).
  */
 @Target(ElementType.TYPE)
 @Retention(RetentionPolicy.SOURCE)

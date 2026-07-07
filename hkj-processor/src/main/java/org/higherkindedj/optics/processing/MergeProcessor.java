@@ -109,8 +109,31 @@ public class MergeProcessor extends AbstractProcessor {
       return;
     }
 
+    if (!spec.getInterfaces().isEmpty()) {
+      Diagnostics.error(
+          processingEnv.getMessager(),
+          spec,
+          TAG,
+          "'" + spec.getSimpleName() + "' extends other interfaces.",
+          "The merge method and leaves declared on supertypes are invisible to this slice's"
+              + " classification, so the generated Impl could silently miss inherited members.",
+          "Declare the merge method and every leaf directly on the spec.");
+      return;
+    }
+
     ExecutableElement mergeMethod = findMergeMethod(spec);
     if (mergeMethod == null) {
+      return;
+    }
+    if (!mergeMethod.getTypeParameters().isEmpty()) {
+      Diagnostics.error(
+          processingEnv.getMessager(),
+          mergeMethod,
+          TAG,
+          "merge method '" + mergeMethod.getSimpleName() + "' declares type parameters.",
+          "The generated implementation must override the method exactly; type parameters would"
+              + " leave the override generic.",
+          "Remove the type parameters from the merge method.");
       return;
     }
 
@@ -126,7 +149,8 @@ public class MergeProcessor extends AbstractProcessor {
       return;
     }
     for (VariableElement source : sources) {
-      if (asRecord(source.asType()) == null) {
+      TypeElement sourceRecord = asRecord(source.asType());
+      if (sourceRecord == null) {
         Diagnostics.error(
             processingEnv.getMessager(),
             mergeMethod,
@@ -134,6 +158,17 @@ public class MergeProcessor extends AbstractProcessor {
             "source parameter '" + source.getSimpleName() + "' is not a record.",
             "The merge derives fills from record components on every source.",
             "Use record types for all sources.");
+        return;
+      }
+      if (!sourceRecord.getTypeParameters().isEmpty()) {
+        Diagnostics.error(
+            processingEnv.getMessager(),
+            mergeMethod,
+            TAG,
+            "'" + sourceRecord.getSimpleName() + "' is generic, which this merge does not support.",
+            "The generated Impl names the merged types directly; type parameters would leave it"
+                + " referencing undeclared type variables.",
+            "Merge concrete record types.");
         return;
       }
     }
@@ -357,14 +392,17 @@ public class MergeProcessor extends AbstractProcessor {
               .filter(c -> c.getSimpleName().contentEquals(name))
               .findFirst()
               .orElseThrow();
-      if (processingEnv
-          .getTypeUtils()
-          .isSameType(sourceComponent.asType(), targetComponent.asType())) {
+      // An explicit leaf always wins - even over a same-typed identity match, so a
+      // ValidatedPrism<X, X> can validate or normalise a component the types alone would copy.
+      ExecutableElement leaf =
+          findLeaf(spec, name, sourceComponent.asType(), targetComponent.asType());
+      if (leaf == null
+          && processingEnv
+              .getTypeUtils()
+              .isSameType(sourceComponent.asType(), targetComponent.asType())) {
         fills.add(new Fill(name, holder.getSimpleName().toString(), null));
         continue;
       }
-      ExecutableElement leaf =
-          findLeaf(spec, name, sourceComponent.asType(), targetComponent.asType());
       if (leaf != null) {
         fills.add(
             new Fill(
@@ -411,6 +449,21 @@ public class MergeProcessor extends AbstractProcessor {
                 CodeBlock.of("$T.INSTANCE.asValidatedPrism()", nested.getFirst().impl())));
         continue;
       }
+      boolean primitiveInvolved =
+          sourceComponent.asType().getKind().isPrimitive()
+              || targetComponent.asType().getKind().isPrimitive();
+      String fix =
+          primitiveInvolved
+              ? "Align the component types on the two records - a ValidatedPrism cannot carry a"
+                  + " primitive type argument, so box the primitive on one side."
+              : "Add 'default ValidatedPrism<"
+                  + sourceComponent.asType()
+                  + ", "
+                  + targetComponent.asType()
+                  + "> "
+                  + name
+                  + "()' to the spec (source first, target second), or declare a @GenerateMapping"
+                  + " spec mapping those records in the same compilation.";
       Diagnostics.error(
           processingEnv.getMessager(),
           mergeMethod,
@@ -420,18 +473,49 @@ public class MergeProcessor extends AbstractProcessor {
               + sourceComponent.asType()
               + " vs "
               + targetComponent.asType()
-              + ") and no matching leaf method was found.",
-          "Add 'default ValidatedPrism<"
-              + sourceComponent.asType()
-              + ", "
-              + targetComponent.asType()
-              + "> "
-              + name
-              + "()' to the spec (source first, target second), or declare a @GenerateMapping"
-              + " spec mapping those records in the same compilation.");
+              + ") and no matching leaf method was found."
+              + leafNearMissHint(spec, name)
+              + projectionSpecHint(registry, sourceComponent.asType(), targetComponent.asType()),
+          fix);
       return null;
     }
     return fills;
+  }
+
+  private String leafNearMissHint(TypeElement spec, String name) {
+    for (ExecutableElement method : ElementFilter.methodsIn(spec.getEnclosedElements())) {
+      if (method.getSimpleName().contentEquals(name) && method.isDefault()) {
+        return " A default method '"
+            + name
+            + "()' exists but returns '"
+            + method.getReturnType()
+            + "'"
+            + (method.getParameters().isEmpty() ? "" : " and declares parameters")
+            + " — a leaf must be a zero-parameter default method returning exactly"
+            + " ValidatedPrism<SourceComponent, TargetComponent> (source first, target second).";
+      }
+    }
+    return "";
+  }
+
+  private String projectionSpecHint(
+      List<MappingProcessor.RegisteredSpec> registry,
+      TypeMirror sourceType,
+      TypeMirror targetType) {
+    return registry.stream()
+        .filter(r -> !r.parseCapable())
+        .filter(
+            r ->
+                processingEnv.getTypeUtils().isSameType(r.wire(), sourceType)
+                    && processingEnv.getTypeUtils().isSameType(r.domain(), targetType))
+        .findFirst()
+        .map(
+            r ->
+                " '"
+                    + r.spec().getSimpleName()
+                    + "' maps this pair but is a projection (no parse), so it cannot fill a"
+                    + " merge.")
+        .orElse("");
   }
 
   private ExecutableElement findLeaf(

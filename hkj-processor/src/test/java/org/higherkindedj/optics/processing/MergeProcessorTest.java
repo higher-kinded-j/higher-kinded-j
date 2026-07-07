@@ -280,6 +280,80 @@ class MergeProcessorTest {
     }
 
     @Test
+    @DisplayName("a projection spec that cannot fill is named in the failure")
+    void projectionSpecNamedInFillFailure() {
+      JavaFileObject summaryWrapper =
+          JavaFileObjects.forSourceString(
+              "com.example.SummaryWrapper",
+              """
+              package com.example;
+
+              public record SummaryWrapper(Nested.CustomerSummaryDto customer) {}
+              """);
+      JavaFileObject decoyProjections =
+          JavaFileObjects.forSourceString(
+              "com.example.DecoyProjections",
+              """
+              package com.example;
+
+              import org.higherkindedj.optics.annotations.GenerateMapping;
+              import org.higherkindedj.optics.annotations.MappingSpec;
+
+              public final class DecoyProjections {
+                public record UserSummaryDto(String name) {}
+
+                @GenerateMapping
+                public interface WrongWireProjection
+                    extends MappingSpec<Records.User, UserSummaryDto> {}
+
+                @GenerateMapping
+                public interface WrongDomainProjection
+                    extends MappingSpec<Records.User, Nested.CustomerSummaryDto> {}
+              }
+              """);
+      Compilation compilation =
+          compileWithMapping(
+              RECORDS,
+              NESTED_RECORDS,
+              CUSTOMER_MAPPING,
+              PROJECTION_MAPPING,
+              decoyProjections,
+              summaryWrapper,
+              spec(
+                  "SummaryAssembly",
+                  """
+                  public interface SummaryAssembly {
+                    Validated<NonEmptyList<FieldError>, Nested.Profile> assemble(
+                        Records.User user, SummaryWrapper wrapper);
+                  }
+                  """));
+      assertThat(compilation).failed();
+      assertThat(compilation)
+          .hadErrorContaining(
+              "'CustomerSummaryMapping' maps this pair but is a projection (no parse), so it"
+                  + " cannot fill a merge");
+
+      // Without the matching projection the hint stream exhausts the decoys and stays silent.
+      Compilation noMatch =
+          compileWithMapping(
+              RECORDS,
+              NESTED_RECORDS,
+              decoyProjections,
+              summaryWrapper,
+              spec(
+                  "SilentSummaryAssembly",
+                  """
+                  public interface SilentSummaryAssembly {
+                    Validated<NonEmptyList<FieldError>, Nested.Profile> assemble(
+                        Records.User user, SummaryWrapper wrapper);
+                  }
+                  """));
+      assertThat(noMatch).failed();
+      assertThat(noMatch)
+          .hadErrorContaining("target component 'Profile.customer' has no usable fill");
+    }
+
+    @Test
     @DisplayName("two mapping specs for one pair make the nested fill ambiguous")
     void ambiguousNestedSpecsRejected() {
       JavaFileObject duplicate =
@@ -348,6 +422,219 @@ class MergeProcessorTest {
   @Nested
   @DisplayName("What/why/fix diagnostics")
   class Diagnostics {
+
+    @Test
+    @DisplayName("a same-typed component still routes through an explicit validating leaf")
+    void sameTypeLeafWinsOverIdentity() {
+      Compilation compilation =
+          compile(
+              RECORDS,
+              spec(
+                  "NormalisingAssembly",
+                  """
+                  public interface NormalisingAssembly {
+                    Validated<NonEmptyList<FieldError>, Records.Dashboard> assemble(
+                        Records.User user, Records.Account account, Records.Settings settings);
+
+                    default ValidatedPrism<String, String> name() {
+                      return ValidatedPrism.of(
+                          raw ->
+                              raw.isBlank()
+                                  ? Validated.invalidNel(FieldError.of("blank name"))
+                                  : Validated.validNel(raw.strip()),
+                          v -> v);
+                    }
+                  }
+                  """));
+      assertThat(compilation).succeeded();
+      String generated = generatedSource(compilation, "com.example.NormalisingAssemblyImpl");
+      Assertions.assertThat(generated)
+          .contains(".field(\"name\", name().parse(user.name()))")
+          .contains(".field(\"iban\", Validated.validNel(account.iban()))");
+    }
+
+    @Test
+    @DisplayName("a merge spec extending another interface is rejected")
+    void specInheritanceRejected() {
+      JavaFileObject base =
+          JavaFileObjects.forSourceString(
+              "com.example.BaseLeaves",
+              """
+              package com.example;
+
+              public interface BaseLeaves {}
+              """);
+      Compilation compilation =
+          compile(
+              RECORDS,
+              base,
+              spec(
+                  "InheritingAssembly",
+                  """
+                  public interface InheritingAssembly extends BaseLeaves {
+                    Records.Dashboard assemble(
+                        Records.User user, Records.Account account, Records.Settings settings);
+                  }
+                  """));
+      assertThat(compilation).failed();
+      assertThat(compilation).hadErrorContaining("'InheritingAssembly' extends other interfaces");
+      assertThat(compilation)
+          .hadErrorContaining("Declare the merge method and every leaf directly on the spec");
+    }
+
+    @Test
+    @DisplayName("a generic merge method is rejected")
+    void genericMergeMethodRejected() {
+      Compilation compilation =
+          compile(
+              RECORDS,
+              spec(
+                  "GenericMethodAssembly",
+                  """
+                  public interface GenericMethodAssembly {
+                    <T> Records.Dashboard assemble(
+                        Records.User user, Records.Account account, Records.Settings settings);
+                  }
+                  """));
+      assertThat(compilation).failed();
+      assertThat(compilation)
+          .hadErrorContaining("merge method 'assemble' declares type parameters");
+    }
+
+    @Test
+    @DisplayName("a generic source record is rejected")
+    void genericSourceRejected() {
+      JavaFileObject generic =
+          JavaFileObjects.forSourceString(
+              "com.example.GenSource",
+              """
+              package com.example;
+
+              public final class GenSource {
+                public record Box<T>(String name) {}
+              }
+              """);
+      Compilation compilation =
+          compile(
+              RECORDS,
+              generic,
+              spec(
+                  "GenericSourceAssembly",
+                  """
+                  public interface GenericSourceAssembly {
+                    Records.Dashboard assemble(GenSource.Box<String> box, Records.Account account);
+                  }
+                  """));
+      assertThat(compilation).failed();
+      assertThat(compilation).hadErrorContaining("'Box' is generic");
+    }
+
+    @Test
+    @DisplayName("a parameterised near-miss leaf is named, with the parameter problem")
+    void parameterisedNearMissNamed() {
+      Compilation compilation =
+          compile(
+              RECORDS,
+              spec(
+                  "ParamOnlyLeafAssembly",
+                  """
+                  public interface ParamOnlyLeafAssembly {
+                    Records.TypedDashboard assemble(Records.User user, Records.Account account);
+
+                    default ValidatedPrism<String, Records.EmailAddress> email(int variant) {
+                      return null;
+                    }
+                  }
+                  """));
+      assertThat(compilation).failed();
+      assertThat(compilation).hadErrorContaining("A default method 'email()' exists but returns");
+      assertThat(compilation).hadErrorContaining("declares parameters");
+      assertThat(compilation).hadErrorContaining("source first, target second");
+    }
+
+    @Test
+    @DisplayName("a static same-named method is not a near-miss leaf")
+    void staticSameNamedMethodIsNotANearMiss() {
+      Compilation compilation =
+          compile(
+              RECORDS,
+              spec(
+                  "StaticOnlyLeafAssembly",
+                  """
+                  public interface StaticOnlyLeafAssembly {
+                    Records.TypedDashboard assemble(Records.User user, Records.Account account);
+
+                    static ValidatedPrism<String, Records.EmailAddress> email(String seed) {
+                      return null;
+                    }
+                  }
+                  """));
+      assertThat(compilation).failed();
+      assertThat(compilation)
+          .hadErrorContaining("target component 'TypedDashboard.email' has no usable fill");
+    }
+
+    @Test
+    @DisplayName("boxed-vs-primitive components get an achievable fix, not uncompilable code")
+    void boxedPrimitiveFixIsAchievable() {
+      JavaFileObject boxed =
+          JavaFileObjects.forSourceString(
+              "com.example.Boxed",
+              """
+              package com.example;
+
+              public final class Boxed {
+                public record Source(Integer balance, String name) {}
+
+                public record Other(String iban) {}
+
+                public record Target(int balance, String name, String iban) {}
+              }
+              """);
+      Compilation compilation =
+          compile(
+              RECORDS,
+              boxed,
+              spec(
+                  "BoxedAssembly",
+                  """
+                  public interface BoxedAssembly {
+                    Boxed.Target assemble(Boxed.Source source, Boxed.Other other);
+                  }
+                  """));
+      assertThat(compilation).failed();
+      assertThat(compilation)
+          .hadErrorContaining("target component 'Target.balance' has no usable fill");
+      assertThat(compilation).hadErrorContaining("box the primitive on one side");
+
+      JavaFileObject primitiveSource =
+          JavaFileObjects.forSourceString(
+              "com.example.PrimBoxed",
+              """
+              package com.example;
+
+              public final class PrimBoxed {
+                public record Source(int balance, String name) {}
+
+                public record Other(String iban) {}
+
+                public record Target(Integer balance, String name, String iban) {}
+              }
+              """);
+      Compilation reversed =
+          compile(
+              RECORDS,
+              primitiveSource,
+              spec(
+                  "PrimBoxedAssembly",
+                  """
+                  public interface PrimBoxedAssembly {
+                    PrimBoxed.Target assemble(PrimBoxed.Source source, PrimBoxed.Other other);
+                  }
+                  """));
+      assertThat(reversed).failed();
+      assertThat(reversed).hadErrorContaining("box the primitive on one side");
+    }
 
     @Test
     @DisplayName("a component carried by two sources is ambiguous")
@@ -595,45 +882,34 @@ class MergeProcessorTest {
           .hadErrorContaining("has 13 components; the accumulating merge supports at most 12");
     }
 
-    @Test
+    @org.junit.jupiter.params.ParameterizedTest(name = "{0}")
+    @org.junit.jupiter.params.provider.CsvSource(
+        delimiter = '|',
+        value = {
+          "RawValidated|Validated|wrong error channel",
+          "WildcardChannel|Validated<?, Records.Dashboard>|wrong error channel",
+          "RawNel|Validated<NonEmptyList, Records.Dashboard>|wrong error channel",
+          "WildcardNel|Validated<NonEmptyList<?>, Records.Dashboard>|wrong error channel",
+          "StringNel|Validated<NonEmptyList<String>, Records.Dashboard>|wrong error channel",
+          "NonRecordInside|Validated<NonEmptyList<FieldError>, String>|merge target"
+              + " 'java.lang.String' is not a record",
+        })
     @DisplayName("malformed Validated returns are each rejected")
-    void malformedValidatedReturnsRejected() {
-      record Shape(String name, String returnType, String expected) {}
-      var shapes =
-          java.util.List.of(
-              new Shape("RawValidated", "Validated", "wrong error channel"),
-              new Shape(
-                  "WildcardChannel", "Validated<?, Records.Dashboard>", "wrong error channel"),
-              new Shape(
-                  "RawNel", "Validated<NonEmptyList, Records.Dashboard>", "wrong error channel"),
-              new Shape(
-                  "WildcardNel",
-                  "Validated<NonEmptyList<?>, Records.Dashboard>",
-                  "wrong error channel"),
-              new Shape(
-                  "StringNel",
-                  "Validated<NonEmptyList<String>, Records.Dashboard>",
-                  "wrong error channel"),
-              new Shape(
-                  "NonRecordInside",
-                  "Validated<NonEmptyList<FieldError>, String>",
-                  "merge target 'java.lang.String' is not a record"));
-      for (Shape shape : shapes) {
-        Compilation compilation =
-            compile(
-                RECORDS,
-                spec(
-                    shape.name() + "Assembly",
-                    "@SuppressWarnings(\"rawtypes\")\n"
-                        + "public interface "
-                        + shape.name()
-                        + "Assembly {\n  "
-                        + shape.returnType()
-                        + " assemble(Records.User user, Records.Account account,"
-                        + " Records.Settings settings);\n}\n"));
-        assertThat(compilation).failed();
-        assertThat(compilation).hadErrorContaining(shape.expected());
-      }
+    void malformedValidatedReturnsRejected(String name, String returnType, String expected) {
+      Compilation compilation =
+          compile(
+              RECORDS,
+              spec(
+                  name + "Assembly",
+                  "@SuppressWarnings(\"rawtypes\")\n"
+                      + "public interface "
+                      + name
+                      + "Assembly {\n  "
+                      + returnType
+                      + " assemble(Records.User user, Records.Account account,"
+                      + " Records.Settings settings);\n}\n"));
+      assertThat(compilation).failed();
+      assertThat(compilation).hadErrorContaining(expected);
     }
 
     @Test
