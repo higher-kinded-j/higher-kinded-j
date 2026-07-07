@@ -111,6 +111,10 @@ Employee moved = badge.set(new EmployeeCardDto("Ada", "Platform"), employee);
 // department written back, age kept — a lawful lens, not a fake inverse
 ```
 
+~~~admonish tip title="Mapping types you don't own"
+The annotation sits on *your* spec interface, never on the mapped types — so third-party records and sealed hierarchies from compiled libraries map without being annotatable: `interface VendorOrderMapping extends MappingSpec<com.vendor.OrderRecord, OrderDto> {}` works today. Bean-shaped foreign types (getter/setter DTOs) are the one un-owned shape that needs future work.
+~~~
+
 ## Diagnostics and limits
 
 Every rejection follows the processor's what/why/fix standard — the message states what is wrong, why the mapper needs it, and the code to write. Current limits, each with its own diagnostic:
