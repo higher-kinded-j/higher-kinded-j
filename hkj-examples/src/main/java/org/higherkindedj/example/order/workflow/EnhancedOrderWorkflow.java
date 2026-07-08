@@ -85,6 +85,8 @@ import org.higherkindedj.hkt.vtask.VTask;
  * <pre>{@code
  * VResultPath.firstSuccess(List.of(warehouse1, warehouse2, warehouse3))
  *     .mapError(NonEmptyList::head) // all failed: surface the first typed error
+ *     .withRetry(error -> error instanceof SystemError, retryPolicy) // never retries a business Left
+ *     .withCircuitBreaker(breaker, open -> SystemError.circuitBreakerOpen("inventory"))
  *     .withTimeout(remaining, () -> SystemError.timeout("parallel inventory reservation"));
  * }</pre>
  *
@@ -124,6 +126,13 @@ public class EnhancedOrderWorkflow {
   private final RetryPolicy customerLookupRetry =
       RetryPolicy.exponentialBackoff(3, Duration.ofMillis(50));
   private final CircuitBreaker customerLookupBreaker = CircuitBreaker.withDefaults();
+
+  // Path-native, railway-aware resilience (issue #607) on the idempotent inventory race: a
+  // business Left (e.g. out of stock) is never retried; only transient SystemErrors are. The
+  // breaker is shared across calls, and the non-idempotent payment step is deliberately unwrapped.
+  private final RetryPolicy inventoryRetry =
+      RetryPolicy.exponentialBackoff(2, Duration.ofMillis(25));
+  private final CircuitBreaker inventoryBreaker = CircuitBreaker.withDefaults();
 
   /**
    * Creates an enhanced order workflow with the given services and config.
@@ -303,9 +312,16 @@ public class EnhancedOrderWorkflow {
             warehouseReservation(3, Duration.ofMillis(100), orderId, lines));
 
     // Race all warehouses - first Right wins; all-Left surfaces the first warehouse's error.
+    // The race is idempotent, so it gets the railway-aware per-step protection: withRetry with a
+    // typed predicate re-runs only transient SystemErrors (an out-of-stock Left returns as-is),
+    // the shared breaker sits outside the retry (so an open circuit is not retried against), and
+    // the typed timeout bounds everything. processPayment below is deliberately unwrapped.
     return VResultPath.firstSuccess(candidates)
         .peekLeft(errors -> logSync("All warehouses failed: " + errors.toJavaList()))
         .mapError(NonEmptyList::head)
+        .withRetry(error -> error instanceof SystemError, inventoryRetry)
+        .withCircuitBreaker(
+            inventoryBreaker, open -> SystemError.circuitBreakerOpen("inventory reservation"))
         .withTimeout(
             getRemainingTimeout(), () -> SystemError.timeout("parallel inventory reservation"));
   }

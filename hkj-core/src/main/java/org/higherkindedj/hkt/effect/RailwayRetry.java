@@ -64,6 +64,12 @@ final class RailwayRetry {
         return last;
       }
       throw exhausted;
+    } catch (LeftRetrySignal escaped) {
+      // A retry listener may rethrow event.lastException() (a plausible abort idiom); the signal
+      // must never reach user code, so restore the typed Left it was carrying.
+      @SuppressWarnings("unchecked") // signal carries the Either it was constructed with
+      Either<E, A> last = (Either<E, A>) escaped.outcome();
+      return last;
     }
   }
 
@@ -85,15 +91,22 @@ final class RailwayRetry {
    * #executeEither}.
    */
   static final class LeftRetrySignal extends RuntimeException {
-    private final transient Either<?, ?> outcome;
+    private final Either<?, ?> outcome;
 
     LeftRetrySignal(Either<?, ?> outcome) {
-      super("typed error selected for retry: " + outcome.getLeft(), null, false, false);
+      super(null, null, false, false);
       this.outcome = outcome;
     }
 
     Either<?, ?> outcome() {
       return outcome;
+    }
+
+    @Override
+    public String getMessage() {
+      // Computed lazily so the error's toString runs only when a listener or log asks for it,
+      // never on the retry hot path.
+      return "typed error selected for retry: " + outcome.getLeft();
     }
   }
 }

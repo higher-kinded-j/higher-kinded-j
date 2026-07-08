@@ -3,11 +3,14 @@
 package org.higherkindedj.hkt.effect;
 
 import static org.assertj.core.api.Assertions.*;
+import static org.higherkindedj.hkt.assertions.VTaskAssert.assertThatVTask;
 import static org.higherkindedj.hkt.assertions.VTaskPathAssert.assertThatVTaskPath;
 
 import java.time.Duration;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.higherkindedj.hkt.Unit;
@@ -1134,7 +1137,7 @@ class VTaskPathTest {
     @Test
     @DisplayName("an exceeded budget fails with TimeoutException")
     void exceededBudgetFailsWithTimeoutException() {
-      java.util.concurrent.CountDownLatch never = new java.util.concurrent.CountDownLatch(1);
+      CountDownLatch never = new CountDownLatch(1);
       VTaskPath<Integer> stuck =
           Path.vtask(
                   () -> {
@@ -1145,10 +1148,7 @@ class VTaskPathTest {
       try {
         // Observe through the underlying VTask: runSafe preserves the checked TimeoutException
         // (the path-level runSafe wraps it in VTaskExecutionException per VTask.run()).
-        Try<Integer> outcome = stuck.run().runSafe();
-        assertThat(outcome.isFailure()).isTrue();
-        Throwable failure = outcome.<Throwable>foldFailureFirst(f -> f, value -> null);
-        assertThat(failure).isInstanceOf(java.util.concurrent.TimeoutException.class);
+        assertThatVTask(stuck.run()).whenRun().fails().withExceptionType(TimeoutException.class);
       } finally {
         never.countDown(); // unblock the losing computation - withTimeout does not interrupt it
       }

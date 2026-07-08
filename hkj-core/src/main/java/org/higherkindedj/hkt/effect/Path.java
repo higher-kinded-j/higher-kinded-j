@@ -241,6 +241,10 @@ public final class Path {
   /**
    * Creates an EitherPath from an existing Either.
    *
+   * <p>EitherPath is eager, so its resilience combinators are <em>static step combinators</em> on
+   * {@link EitherPath} (e.g. {@code EitherPath.withRetry(() -> step(), retryOn, policy)}) rather
+   * than instance methods - see the {@link EitherPath} class documentation.
+   *
    * @param either the Either to wrap; must not be null
    * @param <E> the error type
    * @param <A> the success type

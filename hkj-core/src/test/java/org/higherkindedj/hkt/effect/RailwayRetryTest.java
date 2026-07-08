@@ -7,7 +7,9 @@ import static org.assertj.core.api.Assertions.*;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Supplier;
 import org.higherkindedj.hkt.either.Either;
 import org.higherkindedj.hkt.resilience.RetryExhaustedException;
@@ -168,29 +170,56 @@ class RailwayRetryTest {
     }
 
     @Test
+    @DisplayName("a listener that rethrows the signal never leaks it - the typed Left is restored")
+    void listenerRethrowingSignalRestoresTypedLeft() {
+      RetryPolicy aborting =
+          immediate.onRetry(
+              event -> {
+                if (event.lastException() instanceof RuntimeException rethrown) {
+                  throw rethrown; // the plausible abort-by-rethrow idiom
+                }
+              });
+      Either<String, Integer> result =
+          RailwayRetry.executeEither(aborting, e -> true, () -> Either.left("typed"));
+      assertThat(result.getLeft()).isEqualTo("typed");
+    }
+
+    @Test
     @DisplayName("interruption mid-typed-retry returns the last Left with the flag restored")
     void interruptionMidTypedRetryReturnsLastLeft() throws InterruptedException {
       AtomicInteger attempts = new AtomicInteger();
       RetryPolicy slow = RetryPolicy.fixed(3, Duration.ofSeconds(5));
+      // Capture the spawned thread's outcome and assert on the main thread - an assertion
+      // inside the Runnable would die silently with the thread.
+      AtomicReference<Either<String, Integer>> outcome = new AtomicReference<>();
+      AtomicReference<Throwable> unexpected = new AtomicReference<>();
+      AtomicBoolean flagRestored = new AtomicBoolean(false);
       Thread testThread =
           new Thread(
               () -> {
-                Either<String, Integer> result =
-                    RailwayRetry.executeEither(
-                        slow,
-                        e -> true,
-                        () -> {
-                          attempts.incrementAndGet();
-                          return Either.left("typed");
-                        });
-                assertThat(result.getLeft()).isEqualTo("typed");
-                assertThat(Thread.currentThread().isInterrupted()).isTrue();
+                try {
+                  outcome.set(
+                      RailwayRetry.executeEither(
+                          slow,
+                          e -> true,
+                          () -> {
+                            attempts.incrementAndGet();
+                            return Either.left("typed");
+                          }));
+                  flagRestored.set(Thread.currentThread().isInterrupted());
+                } catch (Throwable t) {
+                  unexpected.set(t);
+                }
               });
       testThread.start();
       Thread.sleep(100);
       testThread.interrupt();
       testThread.join(5000);
       assertThat(testThread.isAlive()).isFalse();
+      assertThat(unexpected.get()).isNull();
+      assertThat(outcome.get()).isNotNull();
+      assertThat(outcome.get().getLeft()).isEqualTo("typed");
+      assertThat(flagRestored).isTrue();
       assertThat(attempts.get()).isEqualTo(1);
     }
 

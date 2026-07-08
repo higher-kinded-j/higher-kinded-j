@@ -730,6 +730,10 @@ public final class VResultPath<E, A> implements Recoverable<E, A> {
    * typed errors, use {@link #withRetry(Predicate, RetryPolicy)}.
    *
    * <p>Do not wrap a non-idempotent step (e.g. a payment): retry re-runs the whole computation.
+   * Ordering note: the default policy predicate retries every exception, so chaining {@code
+   * .withCircuitBreaker(cb).withRetry(policy)} will also retry {@link CircuitOpenException} against
+   * an open circuit - exclude it via {@link RetryPolicy#retryIf} or chain the breaker after the
+   * retry.
    *
    * @param policy the retry policy; must not be null
    * @return a new path with retry behaviour (non-null)
@@ -750,6 +754,10 @@ public final class VResultPath<E, A> implements Recoverable<E, A> {
    * RetryExhaustedException}.
    *
    * <p>Do not wrap a non-idempotent step (e.g. a payment): retry re-runs the whole computation.
+   * Ordering note: the default policy predicate retries every exception, so chaining {@code
+   * .withCircuitBreaker(cb).withRetry(retryOn, policy)} will also retry {@link
+   * CircuitOpenException} against an open circuit - exclude it via {@link RetryPolicy#retryIf} or
+   * chain the breaker after the retry.
    *
    * @param retryOn selects which typed errors are transient enough to retry; must not be null
    * @param policy the retry policy; must not be null
@@ -764,10 +772,15 @@ public final class VResultPath<E, A> implements Recoverable<E, A> {
 
   /**
    * Returns a path that executes through the circuit breaker. A {@code Left} is a successfully
-   * computed value - it does <em>not</em> count as a breaker failure; only defects (thrown
-   * exceptions) trip the circuit. When the circuit is open the {@link CircuitOpenException}
-   * surfaces as a defect; use {@link #withCircuitBreaker(CircuitBreaker, Function)} to keep the
-   * rejection on the typed channel.
+   * computed value - it does <em>not</em> count as a breaker failure; defects (thrown exceptions)
+   * trip the circuit. When the circuit is open the {@link CircuitOpenException} surfaces as a
+   * defect; use {@link #withCircuitBreaker(CircuitBreaker, Function)} to keep the rejection on the
+   * typed channel.
+   *
+   * <p>The breaker also applies its configured per-call budget ({@code
+   * CircuitBreakerConfig.callTimeout()}, 10 seconds by default): a pipeline slower than that - even
+   * one that would have produced a {@code Left} - counts as a breaker failure and surfaces as a
+   * defect wrapping the checked {@code TimeoutException}.
    *
    * @param circuitBreaker the (shareable) breaker; must not be null
    * @return a new path protected by the breaker (non-null)
@@ -781,7 +794,12 @@ public final class VResultPath<E, A> implements Recoverable<E, A> {
   /**
    * Returns a path that executes through the circuit breaker, keeping an open-circuit rejection on
    * the typed channel: {@link CircuitOpenException} becomes {@code Left(onOpen.apply(e))}. A {@code
-   * Left} is a successfully computed value and does not count as a breaker failure.
+   * Left} is a successfully computed value and does not count as a breaker failure. The per-call
+   * budget caveat on {@link #withCircuitBreaker(CircuitBreaker)} applies here too.
+   *
+   * <p>A {@code CircuitOpenException} raised by the pipeline <em>itself</em> (e.g. a nested breaker
+   * inside it) is indistinguishable from this breaker's rejection and is likewise mapped through
+   * {@code onOpen}.
    *
    * @param circuitBreaker the (shareable) breaker; must not be null
    * @param onOpen types the open-circuit rejection; must not be null
@@ -804,9 +822,10 @@ public final class VResultPath<E, A> implements Recoverable<E, A> {
 
   /**
    * Returns a path that executes through the bulkhead, bounding how many callers run this
-   * computation concurrently. When no permit is available the {@link BulkheadFullException}
-   * surfaces as a defect; use {@link #withBulkhead(Bulkhead, Function)} to keep the rejection on
-   * the typed channel.
+   * computation concurrently. A caller that finds no permit free <em>waits</em> up to the
+   * bulkhead's configured {@code waitTimeout} (5 seconds by default) before {@link
+   * BulkheadFullException} surfaces as a defect; use {@link #withBulkhead(Bulkhead, Function)} to
+   * keep the rejection on the typed channel.
    *
    * @param bulkhead the (shareable) bulkhead; must not be null
    * @return a new path protected by the bulkhead (non-null)
@@ -819,7 +838,10 @@ public final class VResultPath<E, A> implements Recoverable<E, A> {
 
   /**
    * Returns a path that executes through the bulkhead, keeping a rejected execution on the typed
-   * channel: {@link BulkheadFullException} becomes {@code Left(onFull.apply(e))}.
+   * channel: {@link BulkheadFullException} becomes {@code Left(onFull.apply(e))} - including when
+   * the permit wait is interrupted (the interrupt flag stays set). A {@code BulkheadFullException}
+   * raised by the pipeline <em>itself</em> is indistinguishable from this bulkhead's rejection and
+   * is likewise mapped through {@code onFull}.
    *
    * @param bulkhead the (shareable) bulkhead; must not be null
    * @param onFull types the bulkhead rejection; must not be null

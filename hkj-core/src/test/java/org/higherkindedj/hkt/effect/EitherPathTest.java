@@ -12,6 +12,7 @@ import java.util.function.Function;
 import java.util.function.Supplier;
 import org.higherkindedj.hkt.either.Either;
 import org.higherkindedj.hkt.resilience.Bulkhead;
+import org.higherkindedj.hkt.resilience.BulkheadConfig;
 import org.higherkindedj.hkt.resilience.CircuitBreaker;
 import org.higherkindedj.hkt.resilience.CircuitOpenException;
 import org.higherkindedj.hkt.resilience.RetryExhaustedException;
@@ -1087,7 +1088,10 @@ class EitherPathTest {
     @Test
     @DisplayName("withBulkhead: a saturated bulkhead rejects, and the typed overload lands a Left")
     void bulkheadSaturationTypedOverload() throws InterruptedException {
-      Bulkhead bulkhead = Bulkhead.withMaxConcurrent(1);
+      // Short waitTimeout: the default 5s permit wait would stall the suite on every rejection.
+      Bulkhead bulkhead =
+          Bulkhead.create(
+              BulkheadConfig.builder().maxConcurrent(1).waitTimeout(Duration.ofMillis(50)).build());
       CountDownLatch holding = new CountDownLatch(1);
       CountDownLatch release = new CountDownLatch(1);
       Thread holder =

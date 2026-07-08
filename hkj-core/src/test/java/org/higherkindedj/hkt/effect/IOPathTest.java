@@ -7,13 +7,16 @@ import static org.assertj.core.api.Assertions.*;
 import java.io.Closeable;
 import java.io.IOException;
 import java.time.Duration;
+import java.util.concurrent.CompletionException;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import org.higherkindedj.hkt.Unit;
 import org.higherkindedj.hkt.io.IO;
 import org.higherkindedj.hkt.resilience.Bulkhead;
+import org.higherkindedj.hkt.resilience.BulkheadConfig;
 import org.higherkindedj.hkt.resilience.BulkheadFullException;
 import org.higherkindedj.hkt.resilience.CircuitBreaker;
 import org.higherkindedj.hkt.resilience.CircuitOpenException;
@@ -1312,9 +1315,9 @@ class IOPathTest {
                   })
               .withTimeout(Duration.ofMillis(50));
       try {
-        assertThatExceptionOfType(java.util.concurrent.CompletionException.class)
+        assertThatExceptionOfType(CompletionException.class)
             .isThrownBy(stuck::unsafeRun)
-            .withCauseInstanceOf(java.util.concurrent.TimeoutException.class);
+            .withCauseInstanceOf(TimeoutException.class);
       } finally {
         never.countDown(); // unblock the losing computation - withTimeout does not interrupt it
       }
@@ -1361,7 +1364,10 @@ class IOPathTest {
     @Test
     @DisplayName("withBulkhead: a saturated bulkhead rejects with BulkheadFullException")
     void withBulkheadRejectsWhenSaturated() throws InterruptedException {
-      Bulkhead bulkhead = Bulkhead.withMaxConcurrent(1);
+      // Short waitTimeout: the default 5s permit wait would stall the suite on every rejection.
+      Bulkhead bulkhead =
+          Bulkhead.create(
+              BulkheadConfig.builder().maxConcurrent(1).waitTimeout(Duration.ofMillis(50)).build());
       CountDownLatch holding = new CountDownLatch(1);
       CountDownLatch release = new CountDownLatch(1);
       Thread holder =

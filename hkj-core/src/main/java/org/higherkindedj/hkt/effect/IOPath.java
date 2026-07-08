@@ -663,9 +663,10 @@ public final class IOPath<A> implements Effectful<A> {
    * <p>On timeout the computation fails with a {@link CompletionException} wrapping a {@link
    * TimeoutException} - the same surfacing as {@link CompletableFuturePath#withTimeout}. Two
    * caveats inherited from {@link VTask#timeout}: the losing computation is <em>not</em>
-   * interrupted, and a {@code TimeoutException} thrown inside the computation is indistinguishable
-   * from the budget expiring. To land a timeout on the typed channel instead, use {@link
-   * EitherPath#withTimeout(Supplier, Duration, Supplier)}.
+   * interrupted; a {@code TimeoutException} thrown inside the computation is indistinguishable from
+   * the budget expiring; and the computation runs on a fresh virtual thread, so caller {@code
+   * ThreadLocal}s and {@code ScopedValue} bindings are not visible inside it. To land a timeout on
+   * the typed channel instead, use {@link EitherPath#withTimeout(Supplier, Duration, Supplier)}.
    *
    * <p>When combining with {@link #withRetry(RetryPolicy)}, note the wrapping: a retry predicate
    * must match the {@code CompletionException} (e.g. {@code policy.retryIf(t -> t.getCause()
@@ -695,7 +696,7 @@ public final class IOPath<A> implements Effectful<A> {
 
   // The IO computation cannot declare checked exceptions, so any non-timeout failure here is
   // already unchecked; the erased cast rethrows it unchanged without an unreachable wrapping arm.
-  @SuppressWarnings("unchecked")
+  @SuppressWarnings("unchecked") // erased rethrow
   private static <X extends Throwable> RuntimeException rethrow(Throwable failure) throws X {
     throw (X) failure;
   }
@@ -705,7 +706,11 @@ public final class IOPath<A> implements Effectful<A> {
    * while it is open the computation is rejected immediately with {@link CircuitOpenException}.
    *
    * <p>The breaker is shareable - protect several paths with one breaker to give them a common
-   * failure budget.
+   * failure budget. The breaker also applies its configured per-call budget ({@code
+   * CircuitBreakerConfig.callTimeout()}, 10 seconds by default): a computation slower than that
+   * counts as a breaker failure and surfaces as a {@code VTaskExecutionException} wrapping the
+   * checked {@code TimeoutException}. The computation runs on a fresh virtual thread (see the
+   * {@link #withTimeout(Duration)} caveats).
    *
    * @param circuitBreaker the (shareable) breaker; must not be null
    * @return an IOPath protected by the breaker
@@ -718,8 +723,10 @@ public final class IOPath<A> implements Effectful<A> {
 
   /**
    * Returns an IOPath that executes through the bulkhead, bounding how many callers run this
-   * computation concurrently. When no permit is available the computation is rejected with {@link
-   * BulkheadFullException}.
+   * computation concurrently. A caller that finds no permit free <em>waits</em> up to the
+   * bulkhead's configured {@code waitTimeout} (5 seconds by default) before {@link
+   * BulkheadFullException} is thrown. Unlike the breaker, the computation runs on the caller's
+   * thread.
    *
    * @param bulkhead the (shareable) bulkhead; must not be null
    * @return an IOPath protected by the bulkhead

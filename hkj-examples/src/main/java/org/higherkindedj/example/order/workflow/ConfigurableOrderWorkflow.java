@@ -2,10 +2,8 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.example.order.workflow;
 
-import java.io.IOException;
 import java.time.Instant;
 import java.util.Optional;
-import java.util.concurrent.TimeoutException;
 import org.higherkindedj.example.order.config.WorkflowConfig;
 import org.higherkindedj.example.order.error.OrderError;
 import org.higherkindedj.example.order.model.Customer;
@@ -169,9 +167,12 @@ public class ConfigurableOrderWorkflow {
     // for the retry loop, then EitherPath.withTimeout so ONE time budget bounds the whole loop —
     // while the commit gets EitherPath.withTimeout alone.
     //
-    // Compensating a partially-applied commit (e.g. refunding a charge when a later step fails)
-    // would use a Saga across reserve -> pay -> ship; that needs an Either-aware Saga on the Path
-    // stack and is tracked as future work.
+    // Note on timeout semantics: EitherPath.withTimeout does NOT interrupt the losing work (the
+    // old hand-rolled executor cancelled it best-effort). After a commit timeout the
+    // reserve -> payment -> ... sequence may still complete unobserved; the timeout Left is a
+    // reporting decision, not a rollback. Compensating a partially-applied commit (e.g. refunding
+    // a charge when a later step fails) would use a Saga across reserve -> pay -> ship; that needs
+    // an Either-aware Saga on the Path stack and is tracked as future work.
     var preflightTimeout = timeoutConfig.inventoryTimeout();
     var commitTimeout =
         timeoutConfig
@@ -204,9 +205,11 @@ public class ConfigurableOrderWorkflow {
   }
 
   /**
-   * Runs the operation and lands any thrown failure on the typed channel as {@link
-   * OrderError.SystemError}. {@link EitherPath#withTimeout} types only the timeout itself; every
-   * other exception must already be a {@code Left} by the time it reaches the timeout wrapper.
+   * Runs the operation and lands any thrown failure on the typed channel: a business {@link
+   * WorkflowException} is unwrapped back to its {@link OrderError} (the railway keeps typed errors
+   * typed), anything else becomes {@link OrderError.SystemError}. {@link EitherPath#withTimeout}
+   * types only the timeout itself; every other exception must already be a {@code Left} by the time
+   * it reaches the timeout wrapper.
    */
   private static <A> EitherPath<OrderError, A> toEitherPath(
       IOPath<A> operation, String operationName) {
@@ -215,7 +218,10 @@ public class ConfigurableOrderWorkflow {
         .foldFailureFirst(
             cause ->
                 Path.<OrderError, A>left(
-                    OrderError.SystemError.unexpected("Operation failed: " + operationName, cause)),
+                    cause instanceof WorkflowException workflow
+                        ? workflow.getError()
+                        : OrderError.SystemError.unexpected(
+                            "Operation failed: " + operationName, cause)),
             Path::right);
   }
 
@@ -391,9 +397,11 @@ public class ConfigurableOrderWorkflow {
   }
 
   /**
-   * Translates {@link WorkflowConfig.RetryConfig} into a core {@link RetryPolicy}. Retries only
-   * transient infrastructure failures ({@code IOException}/{@code TimeoutException}); the business
-   * {@link WorkflowException} never matches, so a business failure is never retried.
+   * Translates {@link WorkflowConfig.RetryConfig} into a core {@link RetryPolicy}. The predicate
+   * expresses the railway rule directly: anything except the business {@link WorkflowException} is
+   * treated as transient infrastructure and retried - through {@code Path.io} the services surface
+   * transient failures as unchecked wrappers ({@code UncheckedIOException} and friends), so
+   * matching checked types here would silently never engage.
    */
   private RetryPolicy createRetryPolicy() {
     var retryConfig = config.retryConfig();
@@ -402,7 +410,7 @@ public class ConfigurableOrderWorkflow {
         .initialDelay(retryConfig.initialDelay())
         .backoffMultiplier(retryConfig.backoffMultiplier())
         .maxDelay(retryConfig.maxDelay())
-        .retryIf(t -> t instanceof IOException || t instanceof TimeoutException)
+        .retryIf(t -> !(t instanceof WorkflowException))
         .build();
   }
 

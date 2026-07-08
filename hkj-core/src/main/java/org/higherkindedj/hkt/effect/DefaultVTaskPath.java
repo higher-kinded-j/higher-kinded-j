@@ -247,8 +247,7 @@ final class DefaultVTaskPath<A> implements VTaskPath<A> {
 
   @Override
   public VTaskPath<A> withTimeout(Duration duration) {
-    Objects.requireNonNull(duration, "duration must not be null");
-    return new DefaultVTaskPath<>(value.timeout(duration));
+    return timeout(duration); // alias: the with* family form of timeout(Duration)
   }
 
   @Override
