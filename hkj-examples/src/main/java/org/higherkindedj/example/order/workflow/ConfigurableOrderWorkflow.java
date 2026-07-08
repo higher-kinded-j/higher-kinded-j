@@ -398,10 +398,11 @@ public class ConfigurableOrderWorkflow {
 
   /**
    * Translates {@link WorkflowConfig.RetryConfig} into a core {@link RetryPolicy}. The predicate
-   * expresses the railway rule directly: anything except the business {@link WorkflowException} is
-   * treated as transient infrastructure and retried - through {@code Path.io} the services surface
-   * transient failures as unchecked wrappers ({@code UncheckedIOException} and friends), so
-   * matching checked types here would silently never engage.
+   * expresses the railway rule directly: any {@code Exception} except the business {@link
+   * WorkflowException} is treated as transient infrastructure and retried - through {@code Path.io}
+   * the services surface transient failures as unchecked wrappers ({@code UncheckedIOException} and
+   * friends), so matching checked types here would silently never engage. JVM {@code Error}s
+   * (OutOfMemoryError and friends) are never retried; they propagate immediately.
    */
   private RetryPolicy createRetryPolicy() {
     var retryConfig = config.retryConfig();
@@ -410,7 +411,7 @@ public class ConfigurableOrderWorkflow {
         .initialDelay(retryConfig.initialDelay())
         .backoffMultiplier(retryConfig.backoffMultiplier())
         .maxDelay(retryConfig.maxDelay())
-        .retryIf(t -> !(t instanceof WorkflowException))
+        .retryIf(t -> t instanceof Exception && !(t instanceof WorkflowException))
         .build();
   }
 
