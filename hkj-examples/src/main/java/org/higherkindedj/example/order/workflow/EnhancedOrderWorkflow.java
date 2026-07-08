@@ -2,15 +2,11 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.example.order.workflow;
 
-import static org.higherkindedj.hkt.either_t.EitherTKindHelper.EITHER_T;
-import static org.higherkindedj.hkt.vtask.VTaskKindHelper.VTASK;
-
 import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.concurrent.atomic.AtomicBoolean;
 import org.higherkindedj.example.order.audit.AuditLog;
 import org.higherkindedj.example.order.config.WorkflowConfig;
 import org.higherkindedj.example.order.context.OrderContext;
@@ -40,23 +36,14 @@ import org.higherkindedj.example.order.service.InventoryService;
 import org.higherkindedj.example.order.service.NotificationService;
 import org.higherkindedj.example.order.service.PaymentService;
 import org.higherkindedj.example.order.service.ShippingService;
-import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Unit;
 import org.higherkindedj.hkt.effect.Path;
-import org.higherkindedj.hkt.effect.VTaskPath;
+import org.higherkindedj.hkt.effect.VResultPath;
 import org.higherkindedj.hkt.either.Either;
-import org.higherkindedj.hkt.either_t.EitherT;
-import org.higherkindedj.hkt.either_t.EitherTKind;
-import org.higherkindedj.hkt.either_t.EitherTMonad;
-import org.higherkindedj.hkt.expression.For;
+import org.higherkindedj.hkt.nonemptylist.NonEmptyList;
 import org.higherkindedj.hkt.resilience.CircuitBreaker;
 import org.higherkindedj.hkt.resilience.RetryPolicy;
-import org.higherkindedj.hkt.trymonad.Try;
-import org.higherkindedj.hkt.vtask.Resource;
-import org.higherkindedj.hkt.vtask.Scope;
 import org.higherkindedj.hkt.vtask.VTask;
-import org.higherkindedj.hkt.vtask.VTaskKind;
-import org.higherkindedj.hkt.vtask.VTaskMonad;
 
 /**
  * Enhanced order workflow demonstrating recent HKJ innovations.
@@ -66,12 +53,16 @@ import org.higherkindedj.hkt.vtask.VTaskMonad;
  * <ul>
  *   <li><b>Context propagation</b> - Uses {@link OrderContext} for trace IDs, tenant isolation,
  *       security, and deadline enforcement across all operations
- *   <li><b>Structured concurrency</b> - Uses {@link Scope} for parallel inventory checks with
- *       proper cancellation and timeout handling
- *   <li><b>Resource management</b> - Uses {@link Resource} for guaranteed cleanup of connections
- *       and reservations
- *   <li><b>Virtual thread execution</b> - Uses {@link VTaskPath} for scalable concurrent order
- *       processing
+ *   <li><b>Typed async railway</b> - Uses {@link VResultPath} for the stacked shape {@code
+ *       VTask<Either<OrderError, A>>}: {@code via} chains dependent steps on the success channel, a
+ *       {@code Left} from any step short-circuits the rest, and {@code mapError} reshapes the error
+ *       channel - with no {@code Kind} widening, transformer, or bridge helpers surfacing
+ *   <li><b>Outcome-aware concurrency</b> - Uses {@link VResultPath#firstSuccess(List)} for parallel
+ *       inventory checks: typed failures stay in the value channel and are collected rather than
+ *       thrown, and the first successful warehouse wins
+ *   <li><b>Outcome-aware resources</b> - Uses {@link VResultPath#bracketOutcome} so the release
+ *       action sees the {@link Either} outcome and decides confirm-versus-release from the result,
+ *       not from a mutable flag
  * </ul>
  *
  * <h2>Context Propagation</h2>
@@ -88,31 +79,33 @@ import org.higherkindedj.hkt.vtask.VTaskMonad;
  *
  * <h2>Parallel Operations</h2>
  *
- * <p>Inventory checks run in parallel across multiple warehouses using structured concurrency:
+ * <p>Inventory checks race in parallel across multiple warehouses; a warehouse failing with a typed
+ * {@code Left} does not abort the race:
  *
  * <pre>{@code
- * Scope.<InventoryReservation>anySucceed()
- *     .timeout(Duration.ofSeconds(10))
- *     .fork(warehouse1.reserve(orderId, lines))
- *     .fork(warehouse2.reserve(orderId, lines))
- *     .join();
+ * VResultPath.firstSuccess(List.of(warehouse1, warehouse2, warehouse3))
+ *     .mapError(NonEmptyList::head) // all failed: surface the first typed error
+ *     .withTimeout(remaining, () -> SystemError.timeout("parallel inventory reservation"));
  * }</pre>
  *
  * <h2>Resource Safety</h2>
  *
- * <p>Reservations are managed as resources with guaranteed cleanup:
+ * <p>Reservations are bracketed with an outcome-aware release, so compensation is decided from the
+ * {@code Either} result rather than a side flag:
  *
  * <pre>{@code
- * Resource<InventoryReservation> reservation = Resource.make(
- *     () -> inventoryService.reserve(orderId, lines),
- *     res -> inventoryService.releaseReservation(res.reservationId())
- * );
+ * VResultPath.bracketOutcome(
+ *     reserveInventory(order),                        // acquire
+ *     reservation -> payAndShip(order, reservation),  // use
+ *     (reservation, outcome) -> outcome.fold(         // release sees the outcome
+ *         error -> release(reservation),
+ *         success -> confirm(reservation)),
+ *     defect -> SystemError.fromException("Order processing failed", defect));
  * }</pre>
  *
  * @see OrderWorkflow for the basic workflow patterns
  * @see OrderContext for available scoped values
- * @see Scope for structured concurrency patterns
- * @see Resource for resource management patterns
+ * @see VResultPath for the async-with-typed-error path
  */
 public class EnhancedOrderWorkflow {
 
@@ -161,7 +154,7 @@ public class EnhancedOrderWorkflow {
   }
 
   // =========================================================================
-  // Main Entry Point - VTaskPath with Context
+  // Main Entry Point - VResultPath with Context
   // =========================================================================
 
   /**
@@ -179,13 +172,14 @@ public class EnhancedOrderWorkflow {
    * </ul>
    *
    * @param request the order request to process
-   * @return a VTaskPath that executes the workflow when run
+   * @return a lazy VResultPath describing the workflow; execute the carrier from {@link
+   *     VResultPath#run()} at the boundary
    */
-  public VTaskPath<Either<OrderError, OrderResult>> process(OrderRequest request) {
+  public VResultPath<OrderError, OrderResult> process(OrderRequest request) {
     var orderId = OrderId.generate();
     var customerId = new CustomerId(request.customerId());
 
-    // Check deadline before starting
+    // Check deadline before starting; a Left here short-circuits the whole railway.
     return checkDeadline("order.start")
         .via(
             _ ->
@@ -194,249 +188,174 @@ public class EnhancedOrderWorkflow {
   }
 
   // =========================================================================
-  // Resource-Managed Processing
+  // The Gather Railway - validate, look up, build, then fulfil
   // =========================================================================
 
   /**
-   * Processes the order with resource management for inventory reservation.
+   * Gathers and validates everything the order needs, then hands over to the reservation-bracketed
+   * fulfilment phase.
    *
-   * <p>Uses the bracket pattern to ensure inventory is released if payment fails. Each step is
-   * extracted to a helper method to avoid deep nesting.
+   * <p>Async (VTask) and typed error (Either) are one railway here: each step is a {@code
+   * VResultPath<OrderError, X>}, {@code via} chains them, and the first {@code Left} short-circuits
+   * the rest. Steps nest only where a later step still needs an earlier binding (address and
+   * customer feed the order build) - no transformer, {@code Kind} widening, or bridge helpers are
+   * involved.
    */
-  private VTaskPath<Either<OrderError, OrderResult>> processWithResources(
+  private VResultPath<OrderError, OrderResult> processWithResources(
       OrderId orderId, CustomerId customerId, OrderRequest request) {
 
-    // Async (VTask) and typed error (Either) are two stacked effects. EitherT combines them so the
-    // gather -> reserve pipeline reads as a linear `For` comprehension that short-circuits on the
-    // first Left, instead of the manual fold-and-relift chain (continueWithAddress/Customer/Order)
-    // this replaced. Each step is a VTaskPath<Either<OrderError, X>>, which already is a
-    // Kind<VTaskKind.Witness, Either<...>>, so it lifts straight into EitherT via fromKind (see
-    // #et).
-    var monad = new EitherTMonad<VTaskKind.Witness, OrderError>(VTaskMonad.INSTANCE);
-
-    Kind<EitherTKind.Witness<VTaskKind.Witness, OrderError>, OrderResult> program =
-        For.from(monad, et(validateShippingAddress(request.shippingAddress())))
-            .from(_ -> et(lookupAndValidateCustomer(customerId)))
-            .from(t -> et(buildValidatedOrder(orderId, request, t._2(), t._1())))
-            .from(t -> et(processWithReservation(t._3(), t._2())))
-            .yield((_, _, _, result) -> result);
-
-    return runToVTaskPath(program);
-  }
-
-  // =========================================================================
-  // EitherT bridge — combine the VTask (async) and Either (typed error) effects
-  // =========================================================================
-
-  /**
-   * Lifts one async, fallible step into the {@code EitherT<VTask, OrderError, X>} stack so it can
-   * participate in a {@code For} comprehension. {@link VTaskPath#run()} hands back the wrapped
-   * (still lazy) {@link VTask}, which is widened into the {@code VTaskKind} the transformer's outer
-   * monad operates on; the inner {@link Either} is then lifted via {@link EitherT#fromKind}.
-   */
-  private static <X> Kind<EitherTKind.Witness<VTaskKind.Witness, OrderError>, X> et(
-      VTaskPath<Either<OrderError, X>> step) {
-    return EITHER_T.widen(EitherT.fromKind(VTASK.widen(step.run())));
-  }
-
-  /** Runs an {@code EitherT<VTask, OrderError, ...>} program back down to a {@link VTaskPath}. */
-  private static <X> VTaskPath<Either<OrderError, X>> runToVTaskPath(
-      Kind<EitherTKind.Witness<VTaskKind.Witness, OrderError>, X> program) {
-    EitherT<VTaskKind.Witness, OrderError, X> result = EITHER_T.narrow(program);
-    return Path.vtaskPath(VTASK.narrow(result.value()));
+    return validateShippingAddress(request.shippingAddress())
+        .via(
+            address ->
+                lookupAndValidateCustomer(customerId)
+                    .via(
+                        customer ->
+                            buildValidatedOrder(orderId, request, customer, address)
+                                .via(order -> processWithReservation(order, customer))));
   }
 
   /**
-   * Processes order with managed inventory reservation.
+   * Processes the order with an outcome-aware bracket around the inventory reservation.
    *
-   * <p>The reservation is automatically released if subsequent steps fail. On success, the
-   * reservation is confirmed instead of released.
+   * <p>{@link VResultPath#bracketOutcome} lets the release action see the {@link Either} outcome of
+   * the fulfilment phase: a {@code Right} confirms the reservation, a {@code Left} releases it.
+   * There is no mutable "confirmed" flag - compensation is decided from the result itself. A defect
+   * thrown mid-fulfilment is first typed as a {@link SystemError}, so the release always observes a
+   * real outcome (and releases the reservation).
    */
-  private VTaskPath<Either<OrderError, OrderResult>> processWithReservation(
+  private VResultPath<OrderError, OrderResult> processWithReservation(
       ValidatedOrder order, Customer customer) {
 
-    // Track whether the reservation was confirmed (success) or needs release (failure)
-    var confirmed = new AtomicBoolean(false);
-
-    // Create a resource for the inventory reservation
-    // This ensures cleanup even if payment or shipping fails
-    Resource<InventoryReservation> reservationResource =
-        Resource.make(
-            () -> {
-              // Acquire: Reserve inventory
-              Either<OrderError, InventoryReservation> result =
-                  inventoryService.reserve(order.orderId(), order.lines());
-              return result.fold(
-                  error -> {
-                    throw new ReservationException(error);
-                  },
-                  res -> res);
-            },
-            reservation -> {
-              // Release: Only release if not confirmed (i.e., on failure)
-              if (!confirmed.get()) {
-                logSync("Releasing reservation " + reservation.reservationId());
-                inventoryService.releaseReservation(reservation.reservationId());
-              }
-            });
-
-    // Use the resource with proper cleanup
-    return Path.vtaskPath(
-        reservationResource.use(
-            reservation ->
-                processAfterReservation(order, customer, reservation)
-                    .run()
-                    .map(
-                        result ->
-                            result.fold(
-                                // On failure, release is handled by Resource cleanup
-                                Either::left,
-                                success -> {
-                                  // On success, confirm the reservation and prevent release
-                                  inventoryService.confirmReservation(reservation.reservationId());
-                                  confirmed.set(true);
-                                  return Either.right(success);
-                                }))));
+    return VResultPath.bracketOutcome(
+        // Acquire: reserve inventory; a Left skips use and release entirely.
+        Path.vresultDefer(() -> inventoryService.reserve(order.orderId(), order.lines())),
+        // Use: discount -> payment -> shipment -> notification.
+        reservation -> processAfterReservation(order, customer, reservation),
+        // Release: decide confirm-versus-release from the outcome.
+        (reservation, outcome) ->
+            outcome.fold(
+                _ ->
+                    VTask.exec(
+                        () -> {
+                          logSync("Releasing reservation " + reservation.reservationId());
+                          inventoryService.releaseReservation(reservation.reservationId());
+                        }),
+                _ ->
+                    VTask.exec(
+                        () -> inventoryService.confirmReservation(reservation.reservationId()))),
+        defect -> SystemError.fromException("Order processing failed", defect));
   }
 
   /** Process steps after inventory is reserved: discount, payment, shipping, notification. */
-  private VTaskPath<Either<OrderError, OrderResult>> processAfterReservation(
+  private VResultPath<OrderError, OrderResult> processAfterReservation(
       ValidatedOrder order, Customer customer, InventoryReservation reservation) {
 
-    // The same EitherT-over-VTask railway as the gather phase: discount -> payment -> shipment ->
-    // notification, short-circuiting on the first Left. Notifications are non-critical and are
-    // recovered to a value inside #sendNotifications, so they never abort the order here. This
-    // replaced a nine-level nested via/fold pyramid.
-    var monad = new EitherTMonad<VTaskKind.Witness, OrderError>(VTaskMonad.INSTANCE);
-
-    Kind<EitherTKind.Witness<VTaskKind.Witness, OrderError>, OrderResult> program =
-        For.from(monad, et(applyDiscounts(order, customer)))
-            .from(discount -> et(processPayment(order, discount)))
-            .from(_ -> et(createShipment(order)))
-            // sendNotifications always yields a Right (failures are downgraded to none()), so the
-            // bound value is ignored with `_` — the step runs purely for its side effect.
-            .from(t -> et(sendNotifications(order, customer, t._1())))
-            .yield(
-                (discount, payment, shipment, _) ->
-                    buildOrderResultValue(order, discount, payment, shipment, reservation));
-
-    return runToVTaskPath(program);
+    // The same railway as the gather phase: discount -> payment -> shipment -> notification,
+    // short-circuiting on the first Left. Notifications are non-critical and are recovered to a
+    // value inside #sendNotifications, so they never abort the order here - the step runs purely
+    // for its side effect and its bound value is ignored with `_`.
+    return applyDiscounts(order, customer)
+        .via(
+            discount ->
+                processPayment(order, discount)
+                    .via(
+                        payment ->
+                            createShipment(order)
+                                .via(
+                                    shipment ->
+                                        sendNotifications(order, customer, discount)
+                                            .map(
+                                                _ ->
+                                                    buildOrderResultValue(
+                                                        order,
+                                                        discount,
+                                                        payment,
+                                                        shipment,
+                                                        reservation)))));
   }
 
   // =========================================================================
-  // Parallel Inventory Check with Scope
+  // Parallel Inventory Check with firstSuccess
   // =========================================================================
 
   /**
    * Reserves inventory using parallel checks across multiple warehouses.
    *
-   * <p>This demonstrates structured concurrency with {@link Scope}: - First successful reservation
-   * wins - Other tasks are automatically cancelled - Timeout prevents indefinite waiting - Context
-   * values propagate to all forked tasks
+   * <p>This demonstrates outcome-aware structured concurrency with {@link
+   * VResultPath#firstSuccess(List)}: the first successful reservation wins and the other tasks are
+   * cancelled, while a warehouse failing with a typed {@code Left} does not abort the race - typed
+   * errors stay in the value channel and are collected. Only when every warehouse fails does the
+   * race fail, and the first typed error is surfaced. Context values propagate to all forked tasks,
+   * and the deadline bounds the whole race as a typed timeout error.
    *
    * @param orderId the order ID
    * @param lines the order lines to reserve
-   * @return VTaskPath with reservation result
+   * @return a VResultPath producing the winning reservation
    */
-  public VTaskPath<Either<OrderError, InventoryReservation>> reserveInventoryParallel(
+  public VResultPath<OrderError, InventoryReservation> reserveInventoryParallel(
       OrderId orderId, List<ValidatedOrderLine> lines) {
 
-    // Create tasks for parallel warehouse checks
-    // Each task automatically inherits the scoped values (traceId, tenantId, etc.)
-    VTask<InventoryReservation> warehouse1 =
+    // Each candidate automatically inherits the scoped values (traceId, tenantId, etc.).
+    var candidates =
+        List.of(
+            warehouseReservation(1, Duration.ofMillis(50), orderId, lines),
+            warehouseReservation(2, Duration.ofMillis(75), orderId, lines),
+            warehouseReservation(3, Duration.ofMillis(100), orderId, lines));
+
+    // Race all warehouses - first Right wins; all-Left surfaces the first warehouse's error.
+    return VResultPath.firstSuccess(candidates)
+        .mapError(NonEmptyList::head)
+        .withTimeout(
+            getRemainingTimeout(), () -> SystemError.timeout("parallel inventory reservation"));
+  }
+
+  /** One warehouse's reservation attempt, with simulated network latency. */
+  private VResultPath<OrderError, InventoryReservation> warehouseReservation(
+      int warehouse, Duration latency, OrderId orderId, List<ValidatedOrderLine> lines) {
+    return Path.vresult(
         VTask.of(
             () -> {
-              logSync("Checking warehouse 1 [trace=" + OrderContext.shortTraceId() + "]");
-              Thread.sleep(50); // Simulate network latency
-              return inventoryService
-                  .reserve(orderId, lines)
-                  .fold(
-                      error -> {
-                        throw new ReservationException(error);
-                      },
-                      res -> res);
-            });
-
-    VTask<InventoryReservation> warehouse2 =
-        VTask.of(
-            () -> {
-              logSync("Checking warehouse 2 [trace=" + OrderContext.shortTraceId() + "]");
-              Thread.sleep(75); // Simulate slightly slower warehouse
-              return inventoryService
-                  .reserve(orderId, lines)
-                  .fold(
-                      error -> {
-                        throw new ReservationException(error);
-                      },
-                      res -> res);
-            });
-
-    VTask<InventoryReservation> warehouse3 =
-        VTask.of(
-            () -> {
-              logSync("Checking warehouse 3 [trace=" + OrderContext.shortTraceId() + "]");
-              Thread.sleep(100); // Simulate even slower warehouse
-              return inventoryService
-                  .reserve(orderId, lines)
-                  .fold(
-                      error -> {
-                        throw new ReservationException(error);
-                      },
-                      res -> res);
-            });
-
-    // Race all warehouses - first to succeed wins
-    VTask<InventoryReservation> raceResult =
-        Scope.<InventoryReservation>anySucceed()
-            .timeout(getRemainingTimeout())
-            .fork(warehouse1)
-            .fork(warehouse2)
-            .fork(warehouse3)
-            .join();
-
-    // Convert to VTaskPath with proper error handling
-    return Path.vtask(
-        () -> {
-          Try<InventoryReservation> result = raceResult.runSafe();
-          return result.foldFailureFirst(
-              error -> {
-                if (error instanceof ReservationException re) {
-                  return Either.left(re.orderError);
-                }
-                return Either.left(
-                    SystemError.fromException("Parallel inventory check failed", error));
-              },
-              Either::right);
-        });
+              logSync(
+                  "Checking warehouse "
+                      + warehouse
+                      + " [trace="
+                      + OrderContext.shortTraceId()
+                      + "]");
+              Thread.sleep(latency.toMillis()); // Simulate network latency
+              return inventoryService.reserve(orderId, lines);
+            }));
   }
 
   // =========================================================================
   // Individual Workflow Steps
   // =========================================================================
 
-  private VTaskPath<Either<OrderError, ValidatedShippingAddress>> validateShippingAddress(
+  private VResultPath<OrderError, ValidatedShippingAddress> validateShippingAddress(
       ShippingAddress address) {
-    return Path.vtask(() -> shippingService.validateAddress(address));
+    return Path.vresultDefer(() -> shippingService.validateAddress(address));
   }
 
-  private VTaskPath<Either<OrderError, Customer>> lookupAndValidateCustomer(CustomerId customerId) {
+  private VResultPath<OrderError, Customer> lookupAndValidateCustomer(CustomerId customerId) {
     // Idempotent read: protect it with the library circuit breaker + retry so a flaky customer
     // service is retried with backoff and the breaker trips open after repeated failures. Retry
     // engages only when the lookup *throws* (a transient infra failure); a business `Left` (e.g.
     // customer-not-found) is returned as-is and never retried. Safe precisely because the lookup
-    // has no side effects — unlike payment, which §1.3 never retries.
-    return Path.vtask(
-            () -> {
-              logSync("Looking up customer [trace=" + OrderContext.shortTraceId() + "]");
-              return customerService
-                  .findById(customerId)
-                  .flatMap(customerService::validateEligibility);
-            })
-        .withCircuitBreaker(customerLookupBreaker)
-        .withRetry(customerLookupRetry);
+    // has no side effects — unlike payment, which §1.3 never retries. The resilience combinators
+    // live on the VTask layer, so the protected carrier is lifted into the typed-error path.
+    return Path.vresult(
+        Path.vtask(
+                () -> {
+                  logSync("Looking up customer [trace=" + OrderContext.shortTraceId() + "]");
+                  return customerService
+                      .findById(customerId)
+                      .flatMap(customerService::validateEligibility);
+                })
+            .withCircuitBreaker(customerLookupBreaker)
+            .withRetry(customerLookupRetry)
+            .run());
   }
 
-  private VTaskPath<Either<OrderError, ValidatedOrder>> buildValidatedOrder(
+  private VResultPath<OrderError, ValidatedOrder> buildValidatedOrder(
       OrderId orderId,
       OrderRequest request,
       Customer customer,
@@ -453,29 +372,26 @@ public class EnhancedOrderWorkflow {
     // Validate promo code if present
     return validatePromoCodeIfPresent(request.promoCode())
         .map(
-            promoResult ->
-                promoResult.map(
-                    validatedPromoCode ->
-                        new ValidatedOrder(
-                            orderId,
-                            customer.id(),
-                            customer,
-                            lines,
-                            validatedPromoCode,
-                            validAddress,
-                            request.paymentMethod(),
-                            subtotal,
-                            Instant.now())));
+            validatedPromoCode ->
+                new ValidatedOrder(
+                    orderId,
+                    customer.id(),
+                    customer,
+                    lines,
+                    validatedPromoCode,
+                    validAddress,
+                    request.paymentMethod(),
+                    subtotal,
+                    Instant.now()));
   }
 
-  private VTaskPath<Either<OrderError, Optional<PromoCode>>> validatePromoCodeIfPresent(
+  private VResultPath<OrderError, Optional<PromoCode>> validatePromoCodeIfPresent(
       Optional<String> promoCode) {
     return promoCode
-        .<VTaskPath<Either<OrderError, Optional<PromoCode>>>>map(
+        .<VResultPath<OrderError, Optional<PromoCode>>>map(
             code ->
-                Path.vtask(() -> discountService.validatePromoCode(code))
-                    .map(result -> result.map(Optional::of)))
-        .orElse(Path.vtaskPure(Either.right(Optional.empty())));
+                Path.vresultDefer(() -> discountService.validatePromoCode(code)).map(Optional::of))
+        .orElseGet(() -> Path.vresultRight(Optional.empty()));
   }
 
   private ValidatedOrderLine createValidatedLine(String productIdStr, int quantity) {
@@ -491,23 +407,23 @@ public class EnhancedOrderWorkflow {
     return ValidatedOrderLine.of(productId, product, quantity);
   }
 
-  private VTaskPath<Either<OrderError, DiscountResult>> applyDiscounts(
+  private VResultPath<OrderError, DiscountResult> applyDiscounts(
       ValidatedOrder order, Customer customer) {
     return order
         .promoCode()
-        .<VTaskPath<Either<OrderError, DiscountResult>>>map(
-            code -> Path.vtask(() -> discountService.applyPromoCode(code, order.subtotal())))
+        .<VResultPath<OrderError, DiscountResult>>map(
+            code -> Path.vresultDefer(() -> discountService.applyPromoCode(code, order.subtotal())))
         .orElseGet(
             () -> {
               if (config.featureFlags().enableLoyaltyDiscounts()) {
-                return Path.vtask(
+                return Path.vresultDefer(
                     () -> discountService.calculateLoyaltyDiscount(customer, order.subtotal()));
               }
-              return Path.vtaskPure(Either.right(DiscountResult.noDiscount(order.subtotal())));
+              return Path.vresultRight(DiscountResult.noDiscount(order.subtotal()));
             });
   }
 
-  private VTaskPath<Either<OrderError, PaymentConfirmation>> processPayment(
+  private VResultPath<OrderError, PaymentConfirmation> processPayment(
       ValidatedOrder order, DiscountResult discount) {
 
     return checkDeadline("payment")
@@ -516,7 +432,7 @@ public class EnhancedOrderWorkflow {
                 logWithContext("Processing payment", Map.of("amount", discount.finalTotal()))
                     .then(
                         () ->
-                            Path.vtask(
+                            Path.vresultDefer(
                                 () ->
                                     paymentService.processPayment(
                                         order.orderId(),
@@ -524,32 +440,31 @@ public class EnhancedOrderWorkflow {
                                         order.paymentMethod()))));
   }
 
-  private VTaskPath<Either<OrderError, ShipmentInfo>> createShipment(ValidatedOrder order) {
-    return Path.vtask(
+  private VResultPath<OrderError, ShipmentInfo> createShipment(ValidatedOrder order) {
+    return Path.vresultDefer(
         () ->
             shippingService.createShipment(
                 order.orderId(), order.shippingAddress(), order.lines()));
   }
 
-  private VTaskPath<Either<OrderError, NotificationResult>> sendNotifications(
+  private VResultPath<OrderError, NotificationResult> sendNotifications(
       ValidatedOrder order, Customer customer, DiscountResult discount) {
     // Notifications are non-critical: a failure (a Left result *or* a thrown error) is downgraded
-    // to
-    // NotificationResult.none() so it never short-circuits the order in the EitherT pipeline. The
-    // step therefore always yields a Right.
-    return Path.vtask(
-            () ->
-                notificationService.sendOrderConfirmation(
-                    order.orderId(), customer, discount.finalTotal()))
-        .map(
-            result ->
-                Either.<OrderError, NotificationResult>right(
-                    result.fold(_ -> NotificationResult.none(), success -> success)))
-        .handleError(
-            error -> {
-              logSync("Notification failed (non-critical): " + error.getMessage());
-              return Either.right(NotificationResult.none());
-            });
+    // to NotificationResult.none() so it never short-circuits the order railway. The step
+    // therefore always yields a Right.
+    return Path.vresult(
+        VTask.of(
+                () ->
+                    notificationService.sendOrderConfirmation(
+                        order.orderId(), customer, discount.finalTotal()))
+            .<Either<OrderError, NotificationResult>>map(
+                result ->
+                    Either.right(result.fold(_ -> NotificationResult.none(), success -> success)))
+            .recover(
+                error -> {
+                  logSync("Notification failed (non-critical): " + error.getMessage());
+                  return Either.right(NotificationResult.none());
+                }));
   }
 
   // =========================================================================
@@ -595,8 +510,8 @@ public class EnhancedOrderWorkflow {
   // =========================================================================
 
   /** Checks if the deadline has been exceeded and fails fast if so. */
-  private VTaskPath<Either<OrderError, Unit>> checkDeadline(String operation) {
-    return Path.vtask(
+  private VResultPath<OrderError, Unit> checkDeadline(String operation) {
+    return Path.vresultDefer(
         () -> {
           if (OrderContext.isDeadlineExceeded()) {
             return Either.left(SystemError.timeout(operation));
@@ -608,8 +523,8 @@ public class EnhancedOrderWorkflow {
   }
 
   /** Logs a message with context information. */
-  private VTaskPath<Either<OrderError, Unit>> logWithContext(String message, Map<String, ?> data) {
-    return Path.vtask(
+  private VResultPath<OrderError, Unit> logWithContext(String message, Map<String, ?> data) {
+    return Path.vresultDefer(
         () -> {
           String traceId = OrderContext.shortTraceId();
           String tenantId = OrderContext.TENANT_ID.isBound() ? OrderContext.TENANT_ID.get() : "?";
@@ -629,19 +544,5 @@ public class EnhancedOrderWorkflow {
     Duration remaining = OrderContext.remainingTime();
     // Cap at 30 seconds for individual operations
     return remaining.compareTo(Duration.ofSeconds(30)) > 0 ? Duration.ofSeconds(30) : remaining;
-  }
-
-  // =========================================================================
-  // Exception Wrapper
-  // =========================================================================
-
-  /** Exception wrapper for reservation errors in parallel operations. */
-  private static class ReservationException extends RuntimeException {
-    final OrderError orderError;
-
-    ReservationException(OrderError orderError) {
-      super(orderError.message());
-      this.orderError = orderError;
-    }
   }
 }

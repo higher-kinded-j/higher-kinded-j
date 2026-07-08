@@ -31,8 +31,8 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
 /**
- * Tests for {@link EnhancedOrderWorkflow}, focused on its {@code EitherT<VTask, OrderError, _>}
- * railway: the happy path threads through both {@code For} comprehensions (gather then
+ * Tests for {@link EnhancedOrderWorkflow}, focused on its {@code VResultPath<OrderError, _>}
+ * railway: the happy path threads through both phases (gather then
  * discount/payment/shipment/notification), and a {@code Left} from any step short-circuits the rest
  * of the pipeline.
  */
@@ -61,7 +61,7 @@ class EnhancedOrderWorkflowTest {
   class HappyPathTests {
 
     @Test
-    @DisplayName("processes a valid order end-to-end through both For comprehensions")
+    @DisplayName("processes a valid order end-to-end through the full VResultPath railway")
     void processesValidOrder() {
       // CUST-001 (GOLD, ACTIVE) and PROD-001/PROD-002 are seeded by the in-memory services.
       var request =
