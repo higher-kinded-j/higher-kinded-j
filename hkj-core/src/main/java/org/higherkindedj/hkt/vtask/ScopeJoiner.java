@@ -217,8 +217,11 @@ final class FirstSuccessEitherJoiner<E, T>
               return Either.right(won.getRight());
             }
             completionTracker.result();
-            // No winner: cancellation only happens via a successful winner CAS, so every
-            // subtask here ran to completion - a Right in this loop is impossible.
+            // No winner: every subtask here ran to completion, so UNAVAILABLE (and a Right)
+            // is impossible in this loop. The only cancellation path through this joiner is
+            // a successful winner CAS (returned above); Scope applies timeouts at the VTask
+            // layer, not as a scope deadline; and a raw StructuredTaskScope configured with
+            // a timeout throws TimeoutException from join() without consulting result().
             List<E> errors = new ArrayList<>();
             for (StructuredTaskScope.Subtask<? extends Either<E, T>> subtask : allSubtasks) {
               if (subtask.state() == StructuredTaskScope.Subtask.State.FAILED) {

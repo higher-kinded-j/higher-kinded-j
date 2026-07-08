@@ -721,10 +721,12 @@ public final class VResultPath<E, A> implements Recoverable<E, A> {
    * refund vs plain cleanup) is decided from the result, not a side flag.
    *
    * <p>Policies: a typed failure from {@code acquire} skips {@code use} and {@code release}
-   * (nothing was acquired). A defect thrown inside {@code use} is first converted to the typed
-   * channel through {@code onDefect}, so {@code release} always observes a real outcome. A defect
-   * thrown by {@code release} itself propagates as a defect - broken cleanup is exceptional and
-   * must be visible, even at the cost of masking the primary outcome.
+   * (nothing was acquired). A defect thrown inside {@code use} - including one thrown while {@code
+   * use} is still <em>constructing</em> its path, before any task runs - is first converted to the
+   * typed channel through {@code onDefect}, so {@code release} always observes a real outcome and
+   * the resource is never leaked. A defect thrown by {@code release} itself propagates as a defect
+   * - broken cleanup is exceptional and must be visible, even at the cost of masking the primary
+   * outcome.
    *
    * <p>Cancellation reaches {@code use} as an {@link InterruptedException}-style defect and is
    * therefore also typed through {@code onDefect} (release still runs - the {@code Resource}
@@ -757,16 +759,23 @@ public final class VResultPath<E, A> implements Recoverable<E, A> {
                 acquired ->
                     acquired.fold(
                         error -> VTask.succeed(Either.left(error)),
-                        resource ->
-                            use.apply(resource)
-                                .run()
-                                .recoverWith(
-                                    defect -> VTask.succeed(Either.left(onDefect.apply(defect))))
-                                .flatMap(
-                                    outcome ->
-                                        release
-                                            .apply(resource, outcome)
-                                            .map(ignored -> outcome)))));
+                        resource -> {
+                          VTask<Either<E, B>> useOutcome;
+                          try {
+                            useOutcome = use.apply(resource).run();
+                          } catch (Throwable defect) {
+                            // use threw while CONSTRUCTING its path (before any task ran);
+                            // funnel it into the task channel so the recoverWith below types
+                            // it and release still observes a real outcome - never a leak.
+                            useOutcome = VTask.fail(defect);
+                          }
+                          return useOutcome
+                              .recoverWith(
+                                  defect -> VTask.succeed(Either.left(onDefect.apply(defect))))
+                              .flatMap(
+                                  outcome ->
+                                      release.apply(resource, outcome).map(ignored -> outcome));
+                        })));
   }
 
   /** Smuggles a typed error through the scope's failure channel for fail-fast joining. */

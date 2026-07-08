@@ -1516,6 +1516,23 @@ class VResultPathTest {
     }
 
     @Test
+    @DisplayName("use throwing during path CONSTRUCTION still releases - no leak")
+    void useThrowingDuringConstructionStillReleases() {
+      Either<String, String> result =
+          VResultPath.bracketOutcome(
+                  VResultPath.<String, String>pure("res"),
+                  resource -> {
+                    throw new IllegalStateException("failed before any task ran");
+                  },
+                  this::logRelease,
+                  Throwable::getMessage)
+              .run()
+              .run();
+      assertThatEither(result).isLeft().hasLeft("failed before any task ran");
+      assertThat(releaseLog).containsExactly("res:compensate");
+    }
+
+    @Test
     @DisplayName("a defect in use is typed through onDefect, and release still compensates")
     void defectInUseIsTypedAndReleased() {
       Either<String, String> result =
