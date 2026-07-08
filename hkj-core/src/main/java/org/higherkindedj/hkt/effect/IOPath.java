@@ -5,7 +5,9 @@ package org.higherkindedj.hkt.effect;
 import java.time.Duration;
 import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeoutException;
 import java.util.function.BiFunction;
 import java.util.function.Consumer;
 import java.util.function.Function;
@@ -18,9 +20,14 @@ import org.higherkindedj.hkt.either.Either;
 import org.higherkindedj.hkt.function.Function3;
 import org.higherkindedj.hkt.io.IO;
 import org.higherkindedj.hkt.maybe.Maybe;
+import org.higherkindedj.hkt.resilience.Bulkhead;
+import org.higherkindedj.hkt.resilience.BulkheadFullException;
+import org.higherkindedj.hkt.resilience.CircuitBreaker;
+import org.higherkindedj.hkt.resilience.CircuitOpenException;
 import org.higherkindedj.hkt.resilience.Retry;
 import org.higherkindedj.hkt.resilience.RetryPolicy;
 import org.higherkindedj.hkt.trymonad.Try;
+import org.higherkindedj.hkt.vtask.VTask;
 import org.higherkindedj.optics.focus.AffinePath;
 import org.higherkindedj.optics.focus.FocusPath;
 
@@ -646,6 +653,81 @@ public final class IOPath<A> implements Effectful<A> {
    */
   public IOPath<A> retry(int maxAttempts, Duration initialDelay) {
     return withRetry(RetryPolicy.exponentialBackoffWithJitter(maxAttempts, initialDelay));
+  }
+
+  // ===== Resilience Operations =====
+
+  /**
+   * Returns an IOPath that fails if this computation does not complete within the given duration.
+   *
+   * <p>On timeout the computation fails with a {@link CompletionException} wrapping a {@link
+   * TimeoutException} - the same surfacing as {@link CompletableFuturePath#withTimeout}. Two
+   * caveats inherited from {@link VTask#timeout}: the losing computation is <em>not</em>
+   * interrupted, and a {@code TimeoutException} thrown inside the computation is indistinguishable
+   * from the budget expiring. To land a timeout on the typed channel instead, use {@link
+   * EitherPath#withTimeout(Supplier, Duration, Supplier)}.
+   *
+   * <p>When combining with {@link #withRetry(RetryPolicy)}, note the wrapping: a retry predicate
+   * must match the {@code CompletionException} (e.g. {@code policy.retryIf(t -> t.getCause()
+   * instanceof TimeoutException)}).
+   *
+   * @param duration the time budget; must not be null
+   * @return an IOPath bounded by the time budget
+   * @throws NullPointerException if duration is null
+   */
+  public IOPath<A> withTimeout(Duration duration) {
+    Objects.requireNonNull(duration, "duration must not be null");
+    return new IOPath<>(
+        IO.delay(
+            () ->
+                VTask.of(this::unsafeRun)
+                    .timeout(duration)
+                    .runSafe()
+                    .foldFailureFirst(
+                        failure -> {
+                          if (failure instanceof TimeoutException timeout) {
+                            throw new CompletionException(timeout);
+                          }
+                          throw IOPath.<RuntimeException>rethrow(failure);
+                        },
+                        value -> value)));
+  }
+
+  // The IO computation cannot declare checked exceptions, so any non-timeout failure here is
+  // already unchecked; the erased cast rethrows it unchanged without an unreachable wrapping arm.
+  @SuppressWarnings("unchecked")
+  private static <X extends Throwable> RuntimeException rethrow(Throwable failure) throws X {
+    throw (X) failure;
+  }
+
+  /**
+   * Returns an IOPath that executes through the circuit breaker: failures trip the circuit, and
+   * while it is open the computation is rejected immediately with {@link CircuitOpenException}.
+   *
+   * <p>The breaker is shareable - protect several paths with one breaker to give them a common
+   * failure budget.
+   *
+   * @param circuitBreaker the (shareable) breaker; must not be null
+   * @return an IOPath protected by the breaker
+   * @throws NullPointerException if circuitBreaker is null
+   */
+  public IOPath<A> withCircuitBreaker(CircuitBreaker circuitBreaker) {
+    Objects.requireNonNull(circuitBreaker, "circuitBreaker must not be null");
+    return new IOPath<>(IO.delay(() -> circuitBreaker.protect(VTask.of(this::unsafeRun)).run()));
+  }
+
+  /**
+   * Returns an IOPath that executes through the bulkhead, bounding how many callers run this
+   * computation concurrently. When no permit is available the computation is rejected with {@link
+   * BulkheadFullException}.
+   *
+   * @param bulkhead the (shareable) bulkhead; must not be null
+   * @return an IOPath protected by the bulkhead
+   * @throws NullPointerException if bulkhead is null
+   */
+  public IOPath<A> withBulkhead(Bulkhead bulkhead) {
+    Objects.requireNonNull(bulkhead, "bulkhead must not be null");
+    return new IOPath<>(IO.delay(() -> bulkhead.protect(VTask.of(this::unsafeRun)).run()));
   }
 
   // ===== Effect Wrapping Methods =====

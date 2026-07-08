@@ -246,6 +246,12 @@ final class DefaultVTaskPath<A> implements VTaskPath<A> {
   // ===== Resilience Operations =====
 
   @Override
+  public VTaskPath<A> withTimeout(Duration duration) {
+    Objects.requireNonNull(duration, "duration must not be null");
+    return new DefaultVTaskPath<>(value.timeout(duration));
+  }
+
+  @Override
   public VTaskPath<A> withCircuitBreaker(CircuitBreaker circuitBreaker) {
     Objects.requireNonNull(circuitBreaker, "circuitBreaker must not be null");
     return new DefaultVTaskPath<>(circuitBreaker.protect(value));

@@ -2,12 +2,15 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.hkt.effect;
 
+import java.time.Duration;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeoutException;
 import java.util.function.BiFunction;
 import java.util.function.Consumer;
 import java.util.function.Function;
+import java.util.function.Predicate;
 import java.util.function.Supplier;
 import org.higherkindedj.hkt.Semigroup;
 import org.higherkindedj.hkt.effect.capability.Chainable;
@@ -17,8 +20,16 @@ import org.higherkindedj.hkt.either.Either;
 import org.higherkindedj.hkt.function.Function3;
 import org.higherkindedj.hkt.io.IO;
 import org.higherkindedj.hkt.maybe.Maybe;
+import org.higherkindedj.hkt.resilience.Bulkhead;
+import org.higherkindedj.hkt.resilience.BulkheadFullException;
+import org.higherkindedj.hkt.resilience.CircuitBreaker;
+import org.higherkindedj.hkt.resilience.CircuitOpenException;
+import org.higherkindedj.hkt.resilience.Retry;
+import org.higherkindedj.hkt.resilience.RetryExhaustedException;
+import org.higherkindedj.hkt.resilience.RetryPolicy;
 import org.higherkindedj.hkt.trymonad.Try;
 import org.higherkindedj.hkt.validated.Validated;
+import org.higherkindedj.hkt.vtask.VTask;
 import org.higherkindedj.optics.focus.AffinePath;
 import org.higherkindedj.optics.focus.FocusPath;
 
@@ -518,6 +529,205 @@ public final class EitherPath<E, A> implements Recoverable<E, A> {
   public static <E, A> IOPath<Either<E, A>> deferIO(Supplier<Either<E, A>> supplier) {
     Objects.requireNonNull(supplier, "supplier must not be null");
     return new IOPath<>(IO.delay(supplier));
+  }
+
+  // ===== Resilience (step combinators) =====
+  //
+  // EitherPath is an EAGER carrier - by the time an instance exists, the computation already ran,
+  // so instance-chained retry/timeout would have nothing left to protect. Resilience wraps a
+  // COMPUTATION, so these combinators are static and take the step as a Supplier: the same with*
+  // vocabulary the lazy paths chain, applied at the point the computation still exists.
+  //
+  //   .via(order -> EitherPath.withRetry(() -> reserveInventory(order), isTransient, policy))
+
+  /**
+   * Executes the step with retry on <em>thrown exceptions only</em>, per the policy's predicate. A
+   * {@code Left} is a business decision, not a fault - it is returned as-is and never retried; this
+   * overload is the pure railway default. To also retry selected typed errors, use {@link
+   * #withRetry(Supplier, Predicate, RetryPolicy)}.
+   *
+   * <p>Do not wrap a non-idempotent step (e.g. a payment): retry re-invokes the whole supplier.
+   *
+   * @param step produces a fresh attempt each invocation; must not be null
+   * @param policy the retry policy; must not be null
+   * @param <E> the error type
+   * @param <A> the success type
+   * @return the final outcome as a path; never null
+   * @throws RetryExhaustedException if attempts are exhausted on a thrown exception
+   * @throws NullPointerException if any argument is null
+   */
+  public static <E, A> EitherPath<E, A> withRetry(
+      Supplier<? extends EitherPath<E, A>> step, RetryPolicy policy) {
+    Objects.requireNonNull(step, "step must not be null");
+    Objects.requireNonNull(policy, "policy must not be null");
+    return Path.either(Retry.execute(policy, () -> runStep(step)));
+  }
+
+  /**
+   * Executes the step with railway-aware retry: thrown exceptions retry per the policy's predicate,
+   * and a {@code Left} retries only when {@code retryOn} selects it (e.g. {@code
+   * SystemError::isTransient}). A {@code Left} the predicate does not select - a business error
+   * such as "card declined" - is returned immediately, never retried. On exhaustion while retrying
+   * a selected {@code Left}, the last {@code Left} is returned, keeping errors on the typed
+   * channel.
+   *
+   * <p>Do not wrap a non-idempotent step (e.g. a payment): retry re-invokes the whole supplier.
+   *
+   * @param step produces a fresh attempt each invocation; must not be null
+   * @param retryOn selects which typed errors are transient enough to retry; must not be null
+   * @param policy the retry policy; must not be null
+   * @param <E> the error type
+   * @param <A> the success type
+   * @return the final outcome as a path; never null
+   * @throws RetryExhaustedException if attempts are exhausted on a thrown exception
+   * @throws NullPointerException if any argument is null
+   */
+  public static <E, A> EitherPath<E, A> withRetry(
+      Supplier<? extends EitherPath<E, A>> step, Predicate<? super E> retryOn, RetryPolicy policy) {
+    Objects.requireNonNull(step, "step must not be null");
+    Objects.requireNonNull(retryOn, "retryOn must not be null");
+    Objects.requireNonNull(policy, "policy must not be null");
+    return Path.either(RailwayRetry.executeEither(policy, retryOn, () -> runStep(step)));
+  }
+
+  /**
+   * Executes the step under a time budget: if it does not complete within {@code duration}, the
+   * result is {@code Left} of the designated typed error - a timeout stays on the railway instead
+   * of becoming a thrown {@code TimeoutException}.
+   *
+   * <p>Two caveats inherited from {@link VTask#timeout}: the losing computation is <em>not</em>
+   * interrupted - it keeps running unobserved after the typed timeout is returned; and a {@code
+   * TimeoutException} thrown by code <em>inside</em> the step is indistinguishable from the budget
+   * expiring, so it is also mapped to {@code onTimeout}.
+   *
+   * @param step the computation to bound; must not be null
+   * @param duration the time budget; must not be null
+   * @param onTimeout supplies the typed error for the timeout case; must not be null
+   * @param <E> the error type
+   * @param <A> the success type
+   * @return the outcome, or {@code Left(onTimeout.get())} on timeout; never null
+   * @throws NullPointerException if any argument is null
+   */
+  public static <E, A> EitherPath<E, A> withTimeout(
+      Supplier<? extends EitherPath<E, A>> step,
+      Duration duration,
+      Supplier<? extends E> onTimeout) {
+    Objects.requireNonNull(step, "step must not be null");
+    Objects.requireNonNull(duration, "duration must not be null");
+    Objects.requireNonNull(onTimeout, "onTimeout must not be null");
+    return VTask.of(() -> runStep(step))
+        .timeout(duration)
+        .runSafe()
+        .foldFailureFirst(
+            failure -> {
+              if (failure instanceof TimeoutException) {
+                return Path.<E, A>left(onTimeout.get());
+              }
+              throw EitherPath.<RuntimeException>rethrow(failure);
+            },
+            Path::either);
+  }
+
+  /**
+   * Executes the step through the circuit breaker. A {@code Left} is a successfully computed value
+   * - it does <em>not</em> count as a breaker failure; only thrown exceptions trip the circuit.
+   * When the circuit is open the {@link CircuitOpenException} propagates as-is; use {@link
+   * #withCircuitBreaker(Supplier, CircuitBreaker, Function)} to keep the rejection on the typed
+   * channel.
+   *
+   * @param step the computation to protect; must not be null
+   * @param circuitBreaker the (shareable) breaker; must not be null
+   * @param <E> the error type
+   * @param <A> the success type
+   * @return the outcome as a path; never null
+   * @throws CircuitOpenException if the circuit is open
+   * @throws NullPointerException if any argument is null
+   */
+  public static <E, A> EitherPath<E, A> withCircuitBreaker(
+      Supplier<? extends EitherPath<E, A>> step, CircuitBreaker circuitBreaker) {
+    Objects.requireNonNull(step, "step must not be null");
+    Objects.requireNonNull(circuitBreaker, "circuitBreaker must not be null");
+    return Path.either(circuitBreaker.protect(VTask.of(() -> runStep(step))).run());
+  }
+
+  /**
+   * Executes the step through the circuit breaker, keeping an open-circuit rejection on the typed
+   * channel: {@link CircuitOpenException} becomes {@code Left(onOpen.apply(e))}. A {@code Left} is
+   * a successfully computed value and does not count as a breaker failure.
+   *
+   * @param step the computation to protect; must not be null
+   * @param circuitBreaker the (shareable) breaker; must not be null
+   * @param onOpen types the open-circuit rejection; must not be null
+   * @param <E> the error type
+   * @param <A> the success type
+   * @return the outcome as a path; never null
+   * @throws NullPointerException if any argument is null
+   */
+  public static <E, A> EitherPath<E, A> withCircuitBreaker(
+      Supplier<? extends EitherPath<E, A>> step,
+      CircuitBreaker circuitBreaker,
+      Function<? super CircuitOpenException, ? extends E> onOpen) {
+    Objects.requireNonNull(onOpen, "onOpen must not be null");
+    try {
+      return withCircuitBreaker(step, circuitBreaker);
+    } catch (CircuitOpenException open) {
+      return Path.left(onOpen.apply(open));
+    }
+  }
+
+  /**
+   * Executes the step through the bulkhead, bounding how many callers run it concurrently. When the
+   * bulkhead is full the {@link BulkheadFullException} propagates as-is; use {@link
+   * #withBulkhead(Supplier, Bulkhead, Function)} to keep the rejection on the typed channel.
+   *
+   * @param step the computation to protect; must not be null
+   * @param bulkhead the (shareable) bulkhead; must not be null
+   * @param <E> the error type
+   * @param <A> the success type
+   * @return the outcome as a path; never null
+   * @throws BulkheadFullException if no permit is available
+   * @throws NullPointerException if any argument is null
+   */
+  public static <E, A> EitherPath<E, A> withBulkhead(
+      Supplier<? extends EitherPath<E, A>> step, Bulkhead bulkhead) {
+    Objects.requireNonNull(step, "step must not be null");
+    Objects.requireNonNull(bulkhead, "bulkhead must not be null");
+    return Path.either(bulkhead.protect(VTask.of(() -> runStep(step))).run());
+  }
+
+  /**
+   * Executes the step through the bulkhead, keeping a rejected execution on the typed channel:
+   * {@link BulkheadFullException} becomes {@code Left(onFull.apply(e))}.
+   *
+   * @param step the computation to protect; must not be null
+   * @param bulkhead the (shareable) bulkhead; must not be null
+   * @param onFull types the bulkhead rejection; must not be null
+   * @param <E> the error type
+   * @param <A> the success type
+   * @return the outcome as a path; never null
+   * @throws NullPointerException if any argument is null
+   */
+  public static <E, A> EitherPath<E, A> withBulkhead(
+      Supplier<? extends EitherPath<E, A>> step,
+      Bulkhead bulkhead,
+      Function<? super BulkheadFullException, ? extends E> onFull) {
+    Objects.requireNonNull(onFull, "onFull must not be null");
+    try {
+      return withBulkhead(step, bulkhead);
+    } catch (BulkheadFullException full) {
+      return Path.left(onFull.apply(full));
+    }
+  }
+
+  private static <E, A> Either<E, A> runStep(Supplier<? extends EitherPath<E, A>> step) {
+    return Objects.requireNonNull(step.get(), "step returned null").run();
+  }
+
+  // The step suppliers cannot declare checked exceptions, so any non-timeout failure here is
+  // already unchecked; the erased cast rethrows it unchanged without an unreachable wrapping arm.
+  @SuppressWarnings("unchecked")
+  private static <X extends Throwable> RuntimeException rethrow(Throwable failure) throws X {
+    throw (X) failure;
   }
 
   // ===== Object methods =====

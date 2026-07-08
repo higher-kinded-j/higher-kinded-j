@@ -2,8 +2,10 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.example.order.workflow;
 
+import java.io.IOException;
 import java.time.Instant;
 import java.util.Optional;
+import java.util.concurrent.TimeoutException;
 import org.higherkindedj.example.order.config.WorkflowConfig;
 import org.higherkindedj.example.order.error.OrderError;
 import org.higherkindedj.example.order.model.Customer;
@@ -20,8 +22,6 @@ import org.higherkindedj.example.order.model.value.CustomerId;
 import org.higherkindedj.example.order.model.value.Money;
 import org.higherkindedj.example.order.model.value.OrderId;
 import org.higherkindedj.example.order.model.value.ProductId;
-import org.higherkindedj.example.order.resilience.Resilience;
-import org.higherkindedj.example.order.resilience.RetryPolicy;
 import org.higherkindedj.example.order.service.CustomerService;
 import org.higherkindedj.example.order.service.DiscountService;
 import org.higherkindedj.example.order.service.InventoryService;
@@ -31,7 +31,9 @@ import org.higherkindedj.example.order.service.ShippingService;
 import org.higherkindedj.example.order.service.WarehouseService;
 import org.higherkindedj.hkt.Unit;
 import org.higherkindedj.hkt.effect.EitherPath;
+import org.higherkindedj.hkt.effect.IOPath;
 import org.higherkindedj.hkt.effect.Path;
+import org.higherkindedj.hkt.resilience.RetryPolicy;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -50,8 +52,9 @@ import org.jspecify.annotations.Nullable;
  *       </ul>
  * </ul>
  *
- * <p>This workflow uses the resilience utilities to wrap service calls with retry and timeout logic
- * based on configuration.
+ * <p>This workflow uses the core Path resilience combinators ({@code IOPath.withRetry} and {@code
+ * EitherPath.withTimeout}) to wrap service calls with retry and timeout logic based on
+ * configuration.
  */
 public class ConfigurableOrderWorkflow {
 
@@ -162,9 +165,9 @@ public class ConfigurableOrderWorkflow {
     // shipping-address validation) — re-running those is always safe. The committing workflow
     // (reserve -> payment -> shipment -> notification) is then run EXACTLY ONCE under a timeout and
     // is never retried: payment is not idempotent, so retrying a commit that already charged the
-    // customer could double-charge. The previous code wrapped the whole workflow — payment
-    // included — in retry, and avoided double-charging only by accident (the default retry
-    // predicate happens not to match the business-error wrapper).
+    // customer could double-charge. The pre-flight composes the core combinators — IOPath.withRetry
+    // for the retry loop, then EitherPath.withTimeout so ONE time budget bounds the whole loop —
+    // while the commit gets EitherPath.withTimeout alone.
     //
     // Compensating a partially-applied commit (e.g. refunding a charge when a later step fails)
     // would use a Saga across reserve -> pay -> ship; that needs an Either-aware Saga on the Path
@@ -177,18 +180,43 @@ public class ConfigurableOrderWorkflow {
             .plus(timeoutConfig.notificationTimeout());
 
     EitherPath<OrderError, Unit> preflight =
-        Resilience.resilient(
-            Path.io(() -> runPreflight(request)),
-            retryPolicy,
+        EitherPath.withTimeout(
+            () ->
+                toEitherPath(
+                    Path.io(() -> runPreflight(request)).withRetry(retryPolicy),
+                    "ConfigurableOrderWorkflow.preflight"),
             preflightTimeout,
-            "ConfigurableOrderWorkflow.preflight");
+            () ->
+                OrderError.SystemError.timeout(
+                    "ConfigurableOrderWorkflow.preflight", preflightTimeout));
 
     return preflight.via(
         _ ->
-            Resilience.withTimeout(
-                Path.io(() -> executeWorkflow(request)),
+            EitherPath.withTimeout(
+                () ->
+                    toEitherPath(
+                        Path.io(() -> executeWorkflow(request)),
+                        "ConfigurableOrderWorkflow.commit"),
                 commitTimeout,
-                "ConfigurableOrderWorkflow.commit"));
+                () ->
+                    OrderError.SystemError.timeout(
+                        "ConfigurableOrderWorkflow.commit", commitTimeout)));
+  }
+
+  /**
+   * Runs the operation and lands any thrown failure on the typed channel as {@link
+   * OrderError.SystemError}. {@link EitherPath#withTimeout} types only the timeout itself; every
+   * other exception must already be a {@code Left} by the time it reaches the timeout wrapper.
+   */
+  private static <A> EitherPath<OrderError, A> toEitherPath(
+      IOPath<A> operation, String operationName) {
+    return operation
+        .runSafe()
+        .foldFailureFirst(
+            cause ->
+                Path.<OrderError, A>left(
+                    OrderError.SystemError.unexpected("Operation failed: " + operationName, cause)),
+            Path::right);
   }
 
   /**
@@ -362,13 +390,20 @@ public class ConfigurableOrderWorkflow {
         Instant.now());
   }
 
+  /**
+   * Translates {@link WorkflowConfig.RetryConfig} into a core {@link RetryPolicy}. Retries only
+   * transient infrastructure failures ({@code IOException}/{@code TimeoutException}); the business
+   * {@link WorkflowException} never matches, so a business failure is never retried.
+   */
   private RetryPolicy createRetryPolicy() {
     var retryConfig = config.retryConfig();
-    return RetryPolicy.of(
-        retryConfig.maxRetries(),
-        retryConfig.initialDelay(),
-        retryConfig.maxDelay(),
-        retryConfig.backoffMultiplier());
+    return RetryPolicy.builder()
+        .maxAttempts(retryConfig.maxRetries() + 1) // maxAttempts includes the initial try
+        .initialDelay(retryConfig.initialDelay())
+        .backoffMultiplier(retryConfig.backoffMultiplier())
+        .maxDelay(retryConfig.maxDelay())
+        .retryIf(t -> t instanceof IOException || t instanceof TimeoutException)
+        .build();
   }
 
   /**

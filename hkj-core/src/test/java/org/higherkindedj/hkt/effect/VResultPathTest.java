@@ -14,6 +14,12 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Function;
 import org.higherkindedj.hkt.either.Either;
 import org.higherkindedj.hkt.nonemptylist.NonEmptyList;
+import org.higherkindedj.hkt.resilience.Bulkhead;
+import org.higherkindedj.hkt.resilience.BulkheadFullException;
+import org.higherkindedj.hkt.resilience.CircuitBreaker;
+import org.higherkindedj.hkt.resilience.CircuitOpenException;
+import org.higherkindedj.hkt.resilience.RetryExhaustedException;
+import org.higherkindedj.hkt.resilience.RetryPolicy;
 import org.higherkindedj.hkt.vtask.VTask;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -1611,6 +1617,278 @@ class VResultPathTest {
       assertThatNullPointerException()
           .isThrownBy(() -> VResultPath.bracketOutcome(ok, r -> ok, this::logRelease, null))
           .withMessage("onDefect must not be null");
+    }
+  }
+
+  @Nested
+  @DisplayName("Resilience (withRetry, withCircuitBreaker, withBulkhead)")
+  class Resilience {
+
+    private final RetryPolicy immediate = RetryPolicy.fixed(3, Duration.ZERO);
+
+    @Test
+    @DisplayName("withRetry(policy): a business Left is never retried - it is a value")
+    void businessLeftNeverRetried() {
+      AtomicInteger attempts = new AtomicInteger();
+      Either<String, Integer> result =
+          VResultPath.<String, Integer>fromVTask(
+                  VTask.of(
+                      () -> {
+                        attempts.incrementAndGet();
+                        return Either.left("card declined");
+                      }))
+              .withRetry(immediate)
+              .run()
+              .run();
+      assertThatEither(result).isLeft().hasLeft("card declined");
+      assertThat(attempts).hasValue(1);
+    }
+
+    @Test
+    @DisplayName("withRetry(policy): a defect is retried per the policy")
+    void defectRetriedPerPolicy() {
+      AtomicInteger attempts = new AtomicInteger();
+      Either<String, Integer> result =
+          VResultPath.<String, Integer>fromVTask(
+                  VTask.of(
+                      () -> {
+                        if (attempts.incrementAndGet() < 3) {
+                          throw new IllegalStateException("flaky");
+                        }
+                        return Either.right(5);
+                      }))
+              .withRetry(immediate)
+              .run()
+              .run();
+      assertThatEither(result).isRight().hasRight(5);
+      assertThat(attempts).hasValue(3);
+    }
+
+    @Test
+    @DisplayName("withRetry(policy): stays lazy until run")
+    void withRetryStaysLazy() {
+      AtomicInteger attempts = new AtomicInteger();
+      VResultPath<String, Integer> retried =
+          VResultPath.<String, Integer>fromVTask(
+                  VTask.of(
+                      () -> {
+                        attempts.incrementAndGet();
+                        return Either.right(1);
+                      }))
+              .withRetry(immediate);
+      assertThat(attempts).hasValue(0);
+      retried.run().run();
+      assertThat(attempts).hasValue(1);
+    }
+
+    @Test
+    @DisplayName("withRetry(retryOn, policy): a selected Left is retried until Right")
+    void selectedLeftRetried() {
+      AtomicInteger attempts = new AtomicInteger();
+      Either<String, Integer> result =
+          VResultPath.<String, Integer>fromVTask(
+                  VTask.of(
+                      () ->
+                          attempts.incrementAndGet() < 3
+                              ? Either.left("transient")
+                              : Either.right(9)))
+              .withRetry("transient"::equals, immediate)
+              .run()
+              .run();
+      assertThatEither(result).isRight().hasRight(9);
+      assertThat(attempts).hasValue(3);
+    }
+
+    @Test
+    @DisplayName("withRetry(retryOn, policy): an unselected Left completes immediately")
+    void unselectedLeftImmediate() {
+      AtomicInteger attempts = new AtomicInteger();
+      Either<String, Integer> result =
+          VResultPath.<String, Integer>fromVTask(
+                  VTask.of(
+                      () -> {
+                        attempts.incrementAndGet();
+                        return Either.left("card declined");
+                      }))
+              .withRetry("transient"::equals, immediate)
+              .run()
+              .run();
+      assertThatEither(result).isLeft().hasLeft("card declined");
+      assertThat(attempts).hasValue(1);
+    }
+
+    @Test
+    @DisplayName("withRetry(retryOn, policy): typed exhaustion completes with the last Left")
+    void typedExhaustionReturnsLastLeft() {
+      AtomicInteger attempts = new AtomicInteger();
+      Either<String, Integer> result =
+          VResultPath.<String, Integer>fromVTask(
+                  VTask.of(() -> Either.left("attempt-" + attempts.incrementAndGet())))
+              .withRetry(e -> true, immediate)
+              .run()
+              .run();
+      assertThatEither(result).isLeft().hasLeft("attempt-3");
+      assertThat(attempts).hasValue(3);
+    }
+
+    @Test
+    @DisplayName("withRetry(retryOn, policy): defect exhaustion fails with RetryExhaustedException")
+    void defectExhaustionThrows() {
+      VResultPath<String, Integer> alwaysDown =
+          VResultPath.fromVTask(
+              VTask.of(
+                  () -> {
+                    throw new IllegalStateException("always down");
+                  }));
+      assertThatExceptionOfType(RetryExhaustedException.class)
+          .isThrownBy(() -> alwaysDown.withRetry(e -> true, immediate).run().run());
+    }
+
+    @Test
+    @DisplayName("withCircuitBreaker: a Left is a value - it does not trip the circuit")
+    void leftDoesNotTripBreaker() {
+      CircuitBreaker breaker = CircuitBreaker.withDefaults();
+      for (int i = 0; i < 10; i++) {
+        VResultPath.<String, Integer>raiseError("declined").withCircuitBreaker(breaker).run().run();
+      }
+      Either<String, Integer> after =
+          VResultPath.<String, Integer>pure(1).withCircuitBreaker(breaker).run().run();
+      assertThatEither(after).isRight().hasRight(1);
+    }
+
+    @Test
+    @DisplayName("withCircuitBreaker: an open circuit surfaces CircuitOpenException as a defect")
+    void openCircuitSurfacesDefect() {
+      CircuitBreaker breaker = CircuitBreaker.withDefaults();
+      breaker.tripOpen();
+      VResultPath<String, Integer> protectedPath =
+          VResultPath.<String, Integer>pure(1).withCircuitBreaker(breaker);
+      assertThatExceptionOfType(CircuitOpenException.class)
+          .isThrownBy(() -> protectedPath.run().run());
+    }
+
+    @Test
+    @DisplayName("withCircuitBreaker: the typed overload lands the rejection as a Left")
+    void openCircuitTypedOverload() {
+      CircuitBreaker breaker = CircuitBreaker.withDefaults();
+      breaker.tripOpen();
+      Either<String, Integer> result =
+          VResultPath.<String, Integer>pure(1)
+              .withCircuitBreaker(breaker, open -> "shed")
+              .run()
+              .run();
+      assertThatEither(result).isLeft().hasLeft("shed");
+    }
+
+    @Test
+    @DisplayName("withCircuitBreaker: the typed overload passes other defects through")
+    void typedOverloadPassesOtherDefectsThrough() {
+      VResultPath<String, Integer> defective =
+          VResultPath.fromVTask(
+              VTask.of(
+                  () -> {
+                    throw new IllegalStateException("boom");
+                  }));
+      VResultPath<String, Integer> protectedPath =
+          defective.withCircuitBreaker(CircuitBreaker.withDefaults(), open -> "shed");
+      assertThatExceptionOfType(IllegalStateException.class)
+          .isThrownBy(() -> protectedPath.run().run());
+    }
+
+    @Test
+    @DisplayName("withBulkhead: success passes through when a permit is free")
+    void bulkheadPassesThrough() {
+      Either<String, Integer> result =
+          VResultPath.<String, Integer>pure(3)
+              .withBulkhead(Bulkhead.withMaxConcurrent(1))
+              .run()
+              .run();
+      assertThatEither(result).isRight().hasRight(3);
+    }
+
+    @Test
+    @DisplayName("withBulkhead: saturation rejects; the typed overload lands a Left")
+    void bulkheadSaturationTypedOverload() throws InterruptedException {
+      Bulkhead bulkhead = Bulkhead.withMaxConcurrent(1);
+      CountDownLatch holding = new CountDownLatch(1);
+      CountDownLatch release = new CountDownLatch(1);
+      Thread holder =
+          Thread.ofVirtual()
+              .start(
+                  () ->
+                      VResultPath.<String, Integer>fromVTask(
+                              VTask.of(
+                                  () -> {
+                                    holding.countDown();
+                                    release.await();
+                                    return Either.right(0);
+                                  }))
+                          .withBulkhead(bulkhead)
+                          .run()
+                          .run());
+      try {
+        holding.await();
+        assertThatExceptionOfType(BulkheadFullException.class)
+            .isThrownBy(
+                () -> VResultPath.<String, Integer>pure(1).withBulkhead(bulkhead).run().run());
+        Either<String, Integer> typed =
+            VResultPath.<String, Integer>pure(1)
+                .withBulkhead(bulkhead, full -> "no permit")
+                .run()
+                .run();
+        assertThatEither(typed).isLeft().hasLeft("no permit");
+      } finally {
+        release.countDown();
+        holder.join();
+      }
+    }
+
+    @Test
+    @DisplayName("withBulkhead: the typed overload passes other defects through")
+    void bulkheadTypedOverloadPassesOtherDefectsThrough() {
+      VResultPath<String, Integer> defective =
+          VResultPath.fromVTask(
+              VTask.of(
+                  () -> {
+                    throw new IllegalStateException("boom");
+                  }));
+      VResultPath<String, Integer> protectedPath =
+          defective.withBulkhead(Bulkhead.withMaxConcurrent(1), full -> "no permit");
+      assertThatExceptionOfType(IllegalStateException.class)
+          .isThrownBy(() -> protectedPath.run().run());
+    }
+
+    @Test
+    @DisplayName("null arguments are rejected across the family")
+    void nullArgumentsRejected() {
+      VResultPath<String, Integer> path = VResultPath.pure(1);
+      assertThatNullPointerException()
+          .isThrownBy(() -> path.withRetry(null))
+          .withMessage("policy must not be null");
+      assertThatNullPointerException()
+          .isThrownBy(() -> path.withRetry(null, immediate))
+          .withMessage("retryOn must not be null");
+      assertThatNullPointerException()
+          .isThrownBy(() -> path.withRetry(e -> true, null))
+          .withMessage("policy must not be null");
+      assertThatNullPointerException()
+          .isThrownBy(() -> path.withCircuitBreaker(null))
+          .withMessage("circuitBreaker must not be null");
+      assertThatNullPointerException()
+          .isThrownBy(() -> path.withCircuitBreaker(null, open -> "e"))
+          .withMessage("circuitBreaker must not be null");
+      assertThatNullPointerException()
+          .isThrownBy(() -> path.withCircuitBreaker(CircuitBreaker.withDefaults(), null))
+          .withMessage("onOpen must not be null");
+      assertThatNullPointerException()
+          .isThrownBy(() -> path.withBulkhead(null))
+          .withMessage("bulkhead must not be null");
+      assertThatNullPointerException()
+          .isThrownBy(() -> path.withBulkhead(null, full -> "e"))
+          .withMessage("bulkhead must not be null");
+      assertThatNullPointerException()
+          .isThrownBy(() -> path.withBulkhead(Bulkhead.withMaxConcurrent(1), null))
+          .withMessage("onFull must not be null");
     }
   }
 }

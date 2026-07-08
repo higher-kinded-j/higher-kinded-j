@@ -270,6 +270,22 @@ public sealed interface VTaskPath<A> extends VTaskKind<A>, Effectful<A> permits 
   // ===== Resilience Operations =====
 
   /**
+   * Returns a VTaskPath that fails with a {@link java.util.concurrent.TimeoutException} if this
+   * computation does not complete within the given duration.
+   *
+   * <p>Two caveats inherited from {@link org.higherkindedj.hkt.vtask.VTask#timeout}: the losing
+   * computation is <em>not</em> interrupted, and a {@code TimeoutException} thrown inside the
+   * computation is indistinguishable from the budget expiring. Note the observation channel: {@code
+   * run().runSafe()} preserves the checked {@code TimeoutException}, while the path-level {@code
+   * unsafeRun()}/{@code runSafe()} wrap it per {@code VTask.run()} conventions.
+   *
+   * @param duration the time budget; must not be null
+   * @return a new VTaskPath bounded by the time budget
+   * @throws NullPointerException if duration is null
+   */
+  VTaskPath<A> withTimeout(Duration duration);
+
+  /**
    * Returns a VTaskPath protected by the given circuit breaker.
    *
    * @param circuitBreaker the circuit breaker; must not be null

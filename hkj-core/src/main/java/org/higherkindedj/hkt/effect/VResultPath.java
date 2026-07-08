@@ -10,6 +10,7 @@ import java.util.concurrent.TimeoutException;
 import java.util.function.BiFunction;
 import java.util.function.Consumer;
 import java.util.function.Function;
+import java.util.function.Predicate;
 import java.util.function.Supplier;
 import org.higherkindedj.hkt.effect.capability.Chainable;
 import org.higherkindedj.hkt.effect.capability.Combinable;
@@ -17,6 +18,13 @@ import org.higherkindedj.hkt.effect.capability.Recoverable;
 import org.higherkindedj.hkt.either.Either;
 import org.higherkindedj.hkt.function.Function3;
 import org.higherkindedj.hkt.nonemptylist.NonEmptyList;
+import org.higherkindedj.hkt.resilience.Bulkhead;
+import org.higherkindedj.hkt.resilience.BulkheadFullException;
+import org.higherkindedj.hkt.resilience.CircuitBreaker;
+import org.higherkindedj.hkt.resilience.CircuitOpenException;
+import org.higherkindedj.hkt.resilience.Retry;
+import org.higherkindedj.hkt.resilience.RetryExhaustedException;
+import org.higherkindedj.hkt.resilience.RetryPolicy;
 import org.higherkindedj.hkt.vtask.Scope;
 import org.higherkindedj.hkt.vtask.ScopeJoiner;
 import org.higherkindedj.hkt.vtask.VTask;
@@ -712,6 +720,123 @@ public final class VResultPath<E, A> implements Recoverable<E, A> {
                 failure ->
                     failure instanceof TimeoutException
                         ? VTask.succeed(Either.left(onTimeout.get()))
+                        : VTask.fail(failure)));
+  }
+
+  /**
+   * Returns a path that retries this computation on <em>thrown exceptions only</em>, per the
+   * policy's predicate. A {@code Left} is a business decision, not a fault - it completes the path
+   * as-is and is never retried; this overload is the pure railway default. To also retry selected
+   * typed errors, use {@link #withRetry(Predicate, RetryPolicy)}.
+   *
+   * <p>Do not wrap a non-idempotent step (e.g. a payment): retry re-runs the whole computation.
+   *
+   * @param policy the retry policy; must not be null
+   * @return a new path with retry behaviour (non-null)
+   * @throws NullPointerException if policy is null
+   */
+  public VResultPath<E, A> withRetry(RetryPolicy policy) {
+    Objects.requireNonNull(policy, "policy must not be null");
+    return fromVTask(Retry.retryTask(run(), policy));
+  }
+
+  /**
+   * Returns a path with railway-aware retry: thrown exceptions retry per the policy's predicate,
+   * and a {@code Left} retries only when {@code retryOn} selects it (e.g. {@code
+   * SystemError::isTransient}). A {@code Left} the predicate does not select - a business error
+   * such as "card declined" - completes the path immediately, never retried. On exhaustion while
+   * retrying a selected {@code Left}, the path completes with the last {@code Left}, keeping errors
+   * on the typed channel; exhaustion on a thrown exception fails with {@link
+   * RetryExhaustedException}.
+   *
+   * <p>Do not wrap a non-idempotent step (e.g. a payment): retry re-runs the whole computation.
+   *
+   * @param retryOn selects which typed errors are transient enough to retry; must not be null
+   * @param policy the retry policy; must not be null
+   * @return a new path with railway-aware retry (non-null)
+   * @throws NullPointerException if either argument is null
+   */
+  public VResultPath<E, A> withRetry(Predicate<? super E> retryOn, RetryPolicy policy) {
+    Objects.requireNonNull(retryOn, "retryOn must not be null");
+    Objects.requireNonNull(policy, "policy must not be null");
+    return fromVTask(RailwayRetry.retryTaskEither(run(), retryOn, policy));
+  }
+
+  /**
+   * Returns a path that executes through the circuit breaker. A {@code Left} is a successfully
+   * computed value - it does <em>not</em> count as a breaker failure; only defects (thrown
+   * exceptions) trip the circuit. When the circuit is open the {@link CircuitOpenException}
+   * surfaces as a defect; use {@link #withCircuitBreaker(CircuitBreaker, Function)} to keep the
+   * rejection on the typed channel.
+   *
+   * @param circuitBreaker the (shareable) breaker; must not be null
+   * @return a new path protected by the breaker (non-null)
+   * @throws NullPointerException if circuitBreaker is null
+   */
+  public VResultPath<E, A> withCircuitBreaker(CircuitBreaker circuitBreaker) {
+    Objects.requireNonNull(circuitBreaker, "circuitBreaker must not be null");
+    return fromVTask(circuitBreaker.protect(run()));
+  }
+
+  /**
+   * Returns a path that executes through the circuit breaker, keeping an open-circuit rejection on
+   * the typed channel: {@link CircuitOpenException} becomes {@code Left(onOpen.apply(e))}. A {@code
+   * Left} is a successfully computed value and does not count as a breaker failure.
+   *
+   * @param circuitBreaker the (shareable) breaker; must not be null
+   * @param onOpen types the open-circuit rejection; must not be null
+   * @return a new path protected by the breaker (non-null)
+   * @throws NullPointerException if either argument is null
+   */
+  public VResultPath<E, A> withCircuitBreaker(
+      CircuitBreaker circuitBreaker, Function<? super CircuitOpenException, ? extends E> onOpen) {
+    Objects.requireNonNull(circuitBreaker, "circuitBreaker must not be null");
+    Objects.requireNonNull(onOpen, "onOpen must not be null");
+    return fromVTask(
+        circuitBreaker
+            .protect(run())
+            .recoverWith(
+                failure ->
+                    failure instanceof CircuitOpenException open
+                        ? VTask.succeed(Either.left(onOpen.apply(open)))
+                        : VTask.fail(failure)));
+  }
+
+  /**
+   * Returns a path that executes through the bulkhead, bounding how many callers run this
+   * computation concurrently. When no permit is available the {@link BulkheadFullException}
+   * surfaces as a defect; use {@link #withBulkhead(Bulkhead, Function)} to keep the rejection on
+   * the typed channel.
+   *
+   * @param bulkhead the (shareable) bulkhead; must not be null
+   * @return a new path protected by the bulkhead (non-null)
+   * @throws NullPointerException if bulkhead is null
+   */
+  public VResultPath<E, A> withBulkhead(Bulkhead bulkhead) {
+    Objects.requireNonNull(bulkhead, "bulkhead must not be null");
+    return fromVTask(bulkhead.protect(run()));
+  }
+
+  /**
+   * Returns a path that executes through the bulkhead, keeping a rejected execution on the typed
+   * channel: {@link BulkheadFullException} becomes {@code Left(onFull.apply(e))}.
+   *
+   * @param bulkhead the (shareable) bulkhead; must not be null
+   * @param onFull types the bulkhead rejection; must not be null
+   * @return a new path protected by the bulkhead (non-null)
+   * @throws NullPointerException if either argument is null
+   */
+  public VResultPath<E, A> withBulkhead(
+      Bulkhead bulkhead, Function<? super BulkheadFullException, ? extends E> onFull) {
+    Objects.requireNonNull(bulkhead, "bulkhead must not be null");
+    Objects.requireNonNull(onFull, "onFull must not be null");
+    return fromVTask(
+        bulkhead
+            .protect(run())
+            .recoverWith(
+                failure ->
+                    failure instanceof BulkheadFullException full
+                        ? VTask.succeed(Either.left(onFull.apply(full)))
                         : VTask.fail(failure)));
   }
 

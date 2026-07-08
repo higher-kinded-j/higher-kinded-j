@@ -4,9 +4,18 @@ package org.higherkindedj.hkt.effect;
 
 import static org.assertj.core.api.Assertions.*;
 
+import java.time.Duration;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Function;
+import java.util.function.Supplier;
 import org.higherkindedj.hkt.either.Either;
+import org.higherkindedj.hkt.resilience.Bulkhead;
+import org.higherkindedj.hkt.resilience.CircuitBreaker;
+import org.higherkindedj.hkt.resilience.CircuitOpenException;
+import org.higherkindedj.hkt.resilience.RetryExhaustedException;
+import org.higherkindedj.hkt.resilience.RetryPolicy;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -883,6 +892,284 @@ class EitherPathTest {
       assertThat(result.run().isLeft()).isTrue();
       assertThat(result.run().getLeft().code()).isEqualTo("ERR001");
       assertThat(result.run().getLeft().message()).isEqualTo("low level error");
+    }
+  }
+
+  @Nested
+  @DisplayName("Resilience step combinators (static - the carrier is eager)")
+  class ResilienceStepCombinators {
+
+    private final RetryPolicy immediate = RetryPolicy.fixed(3, Duration.ZERO);
+
+    @Test
+    @DisplayName("withRetry(step, policy): a business Left is never retried")
+    void businessLeftNeverRetriedByDefault() {
+      AtomicInteger attempts = new AtomicInteger();
+      EitherPath<String, Integer> result =
+          EitherPath.withRetry(
+              () -> {
+                attempts.incrementAndGet();
+                return Path.left("card declined");
+              },
+              immediate);
+      assertThat(result.run().getLeft()).isEqualTo("card declined");
+      assertThat(attempts).hasValue(1);
+    }
+
+    @Test
+    @DisplayName("withRetry(step, policy): a thrown exception is retried per the policy")
+    void thrownExceptionRetried() {
+      AtomicInteger attempts = new AtomicInteger();
+      EitherPath<String, Integer> result =
+          EitherPath.withRetry(
+              () -> {
+                if (attempts.incrementAndGet() < 3) {
+                  throw new IllegalStateException("flaky");
+                }
+                return Path.right(5);
+              },
+              immediate);
+      assertThat(result.run().getRight()).isEqualTo(5);
+      assertThat(attempts).hasValue(3);
+    }
+
+    @Test
+    @DisplayName("withRetry(step, policy): exhaustion on exceptions throws RetryExhaustedException")
+    void exceptionExhaustionThrows() {
+      assertThatExceptionOfType(RetryExhaustedException.class)
+          .isThrownBy(
+              () ->
+                  EitherPath.withRetry(
+                      () -> {
+                        throw new IllegalStateException("always down");
+                      },
+                      immediate));
+    }
+
+    @Test
+    @DisplayName("withRetry(step, retryOn, policy): a selected Left is retried until Right")
+    void selectedLeftRetried() {
+      AtomicInteger attempts = new AtomicInteger();
+      EitherPath<String, Integer> result =
+          EitherPath.withRetry(
+              () ->
+                  attempts.incrementAndGet() < 3
+                      ? Path.left("transient")
+                      : Path.<String, Integer>right(9),
+              "transient"::equals,
+              immediate);
+      assertThat(result.run().getRight()).isEqualTo(9);
+      assertThat(attempts).hasValue(3);
+    }
+
+    @Test
+    @DisplayName("withRetry(step, retryOn, policy): an unselected Left returns immediately")
+    void unselectedLeftImmediate() {
+      AtomicInteger attempts = new AtomicInteger();
+      EitherPath<String, Integer> result =
+          EitherPath.withRetry(
+              () -> {
+                attempts.incrementAndGet();
+                return Path.left("card declined");
+              },
+              "transient"::equals,
+              immediate);
+      assertThat(result.run().getLeft()).isEqualTo("card declined");
+      assertThat(attempts).hasValue(1);
+    }
+
+    @Test
+    @DisplayName("withRetry(step, retryOn, policy): typed exhaustion returns the last Left")
+    void typedExhaustionReturnsLastLeft() {
+      AtomicInteger attempts = new AtomicInteger();
+      EitherPath<String, Integer> result =
+          EitherPath.withRetry(
+              () -> Path.left("attempt-" + attempts.incrementAndGet()), e -> true, immediate);
+      assertThat(result.run().getLeft()).isEqualTo("attempt-3");
+      assertThat(attempts).hasValue(3);
+    }
+
+    @Test
+    @DisplayName("withTimeout: completes within budget")
+    void timeoutCompletesWithinBudget() {
+      EitherPath<String, Integer> result =
+          EitherPath.withTimeout(() -> Path.right(1), Duration.ofMinutes(1), () -> "took too long");
+      assertThat(result.run().getRight()).isEqualTo(1);
+    }
+
+    @Test
+    @DisplayName("withTimeout: an exceeded budget produces the typed Left")
+    void timeoutProducesTypedLeft() {
+      CountDownLatch never = new CountDownLatch(1);
+      EitherPath<String, Integer> result;
+      try {
+        result =
+            EitherPath.withTimeout(
+                () -> {
+                  try {
+                    never.await();
+                  } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                  }
+                  return Path.right(1);
+                },
+                Duration.ofMillis(50),
+                () -> "took too long");
+      } finally {
+        never.countDown(); // unblock the losing computation - withTimeout does not interrupt it
+      }
+      assertThat(result.run().getLeft()).isEqualTo("took too long");
+    }
+
+    @Test
+    @DisplayName("withTimeout: a runtime exception from the step propagates unchanged")
+    void timeoutPropagatesRuntimeException() {
+      assertThatExceptionOfType(IllegalStateException.class)
+          .isThrownBy(
+              () ->
+                  EitherPath.withTimeout(
+                      () -> {
+                        throw new IllegalStateException("defect");
+                      },
+                      Duration.ofMinutes(1),
+                      () -> "took too long"))
+          .withMessage("defect");
+    }
+
+    @Test
+    @DisplayName("withCircuitBreaker: success passes through a closed circuit")
+    void breakerSuccessPassesThrough() {
+      EitherPath<String, Integer> result =
+          EitherPath.withCircuitBreaker(() -> Path.right(7), CircuitBreaker.withDefaults());
+      assertThat(result.run().getRight()).isEqualTo(7);
+    }
+
+    @Test
+    @DisplayName("withCircuitBreaker: a Left is a value - it does not trip the circuit")
+    void leftDoesNotTripBreaker() {
+      CircuitBreaker breaker = CircuitBreaker.withDefaults();
+      for (int i = 0; i < 10; i++) {
+        EitherPath.withCircuitBreaker(() -> Path.left("declined"), breaker);
+      }
+      EitherPath<String, Integer> after =
+          EitherPath.withCircuitBreaker(() -> Path.right(1), breaker);
+      assertThat(after.run().getRight()).isEqualTo(1);
+    }
+
+    @Test
+    @DisplayName("withCircuitBreaker: an open circuit propagates CircuitOpenException")
+    void openCircuitPropagates() {
+      CircuitBreaker breaker = CircuitBreaker.withDefaults();
+      breaker.tripOpen();
+      assertThatExceptionOfType(CircuitOpenException.class)
+          .isThrownBy(() -> EitherPath.withCircuitBreaker(() -> Path.right(1), breaker));
+    }
+
+    @Test
+    @DisplayName("withCircuitBreaker: the typed overload lands the rejection as a Left")
+    void openCircuitTypedOverload() {
+      CircuitBreaker breaker = CircuitBreaker.withDefaults();
+      breaker.tripOpen();
+      EitherPath<String, Integer> result =
+          EitherPath.withCircuitBreaker(
+              () -> Path.right(1), breaker, open -> "shed: " + open.getMessage());
+      assertThat(result.run().getLeft()).startsWith("shed: ");
+    }
+
+    @Test
+    @DisplayName("withBulkhead: success passes through when a permit is free")
+    void bulkheadSuccessPassesThrough() {
+      EitherPath<String, Integer> result =
+          EitherPath.withBulkhead(() -> Path.right(3), Bulkhead.withMaxConcurrent(1));
+      assertThat(result.run().getRight()).isEqualTo(3);
+    }
+
+    @Test
+    @DisplayName("withBulkhead: a saturated bulkhead rejects, and the typed overload lands a Left")
+    void bulkheadSaturationTypedOverload() throws InterruptedException {
+      Bulkhead bulkhead = Bulkhead.withMaxConcurrent(1);
+      CountDownLatch holding = new CountDownLatch(1);
+      CountDownLatch release = new CountDownLatch(1);
+      Thread holder =
+          Thread.ofVirtual()
+              .start(
+                  () ->
+                      EitherPath.withBulkhead(
+                          () -> {
+                            holding.countDown();
+                            try {
+                              release.await();
+                            } catch (InterruptedException e) {
+                              Thread.currentThread().interrupt();
+                            }
+                            return Path.<String, Integer>right(0);
+                          },
+                          bulkhead));
+      try {
+        holding.await();
+        EitherPath<String, Integer> rejected =
+            EitherPath.withBulkhead(() -> Path.right(1), bulkhead, full -> "no permit");
+        assertThat(rejected.run().getLeft()).isEqualTo("no permit");
+      } finally {
+        release.countDown();
+        holder.join();
+      }
+    }
+
+    @Test
+    @DisplayName("null arguments are rejected across the family")
+    void nullArgumentsRejected() {
+      Supplier<EitherPath<String, Integer>> step = () -> Path.right(1);
+      assertThatNullPointerException()
+          .isThrownBy(() -> EitherPath.withRetry(null, immediate))
+          .withMessage("step must not be null");
+      assertThatNullPointerException()
+          .isThrownBy(() -> EitherPath.withRetry(step, (RetryPolicy) null))
+          .withMessage("policy must not be null");
+      assertThatNullPointerException()
+          .isThrownBy(() -> EitherPath.withRetry(null, e -> true, immediate))
+          .withMessage("step must not be null");
+      assertThatNullPointerException()
+          .isThrownBy(() -> EitherPath.withRetry(step, null, immediate))
+          .withMessage("retryOn must not be null");
+      assertThatNullPointerException()
+          .isThrownBy(() -> EitherPath.withRetry(step, e -> true, null))
+          .withMessage("policy must not be null");
+      assertThatNullPointerException()
+          .isThrownBy(() -> EitherPath.withTimeout(null, Duration.ZERO, () -> "e"))
+          .withMessage("step must not be null");
+      assertThatNullPointerException()
+          .isThrownBy(() -> EitherPath.withTimeout(step, null, () -> "e"))
+          .withMessage("duration must not be null");
+      assertThatNullPointerException()
+          .isThrownBy(() -> EitherPath.withTimeout(step, Duration.ZERO, null))
+          .withMessage("onTimeout must not be null");
+      assertThatNullPointerException()
+          .isThrownBy(() -> EitherPath.withCircuitBreaker(null, CircuitBreaker.withDefaults()))
+          .withMessage("step must not be null");
+      assertThatNullPointerException()
+          .isThrownBy(() -> EitherPath.withCircuitBreaker(step, null))
+          .withMessage("circuitBreaker must not be null");
+      assertThatNullPointerException()
+          .isThrownBy(
+              () -> EitherPath.withCircuitBreaker(step, CircuitBreaker.withDefaults(), null))
+          .withMessage("onOpen must not be null");
+      assertThatNullPointerException()
+          .isThrownBy(() -> EitherPath.withBulkhead(null, Bulkhead.withMaxConcurrent(1)))
+          .withMessage("step must not be null");
+      assertThatNullPointerException()
+          .isThrownBy(() -> EitherPath.withBulkhead(step, null))
+          .withMessage("bulkhead must not be null");
+      assertThatNullPointerException()
+          .isThrownBy(() -> EitherPath.withBulkhead(step, Bulkhead.withMaxConcurrent(1), null))
+          .withMessage("onFull must not be null");
+      assertThatExceptionOfType(RetryExhaustedException.class)
+          .isThrownBy(() -> EitherPath.withRetry(() -> null, immediate))
+          .satisfies(
+              e ->
+                  assertThat(e.getCause())
+                      .isInstanceOf(NullPointerException.class)
+                      .hasMessage("step returned null"));
     }
   }
 }
