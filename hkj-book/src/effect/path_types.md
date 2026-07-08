@@ -43,10 +43,15 @@ Before diving into specifics, orient yourself by the problem you're solving:
                                                /            \
                                             Typed        Exception
                                              │              │
-                                         EitherPath     TryPath
+                                      Is the work        TryPath
+                                      asynchronous?
+                                       /        \
+                                     Yes         No
+                                      │           │
+                                 VResultPath  EitherPath
 ```
 
-*The decision tree above covers the six core path types in this section. For deferred side effects, [`IOPath`](path_io.md) and [`VTaskPath`](path_vtask.md) follow shortly. For stack-safe recursion via [`TrampolinePath`](path_trampoline.md), and for free-monad DSLs via [`FreePath`](path_free.md) / [`FreeApPath`](path_freeap.md), see [Advanced Paths](advanced_topics.md).*
+*The decision tree above covers the seven core path types in this section. For deferred side effects, [`IOPath`](path_io.md) and [`VTaskPath`](path_vtask.md) follow shortly. For stack-safe recursion via [`TrampolinePath`](path_trampoline.md), and for free-monad DSLs via [`FreePath`](path_free.md) / [`FreeApPath`](path_freeap.md), see [Advanced Paths](advanced_topics.md).*
 
 ### _"The value might not exist"_
 
@@ -70,6 +75,10 @@ structured errors.
 **Reach for [`TryPath`](path_try.md)** when you're wrapping code that throws exceptions and
 want to stay in exception-land (with `Throwable` as the error type).
 
+**Reach for [`VResultPath`](path_vresult.md)** when the fallible operation is also
+asynchronous -- the typed-error railway of `EitherPath` running on `VTask` virtual
+threads (`VTask<Either<E, A>>`), without hand-carrying an `Either` through `VTaskPath`.
+
 ### _"I need ALL the errors, not just the first"_
 
 Multiple independent validations, and stopping at the first failure would
@@ -92,7 +101,9 @@ multiple APIs in parallel, or processing streams of events.
 
 **Reach for [`VTaskPath`](path_vtask.md)** for virtual thread-based concurrency. Write
 simple blocking code that scales to millions of concurrent tasks without
-the complexity of reactive streams.
+the complexity of reactive streams. When those concurrent operations fail with a
+typed domain error rather than an exception, reach for
+[`VResultPath`](path_vresult.md) instead.
 
 ### _"I need lazy streaming with virtual threads"_
 
@@ -141,6 +152,7 @@ with a `Monad` instance.
 | [`TryPath<A>`](path_try.md) | `Try<A>` | `Throwable` | Immediate | Exception wrapping |
 | [`IOPath<A>`](path_io.md) | `IO<A>` | `Throwable` | **Deferred** | Side effects |
 | [`VTaskPath<A>`](path_vtask.md) | `VTask<A>` | `Throwable` | **Deferred** | Virtual thread concurrency |
+| [`VResultPath<E, A>`](path_vresult.md) | `VTask<Either<E, A>>` | `E` (typed) | **Deferred** | Async work with a typed domain error |
 | [`VStreamPath<A>`](path_vstream.md) | `VStream<A>` | Via VTask | **Lazy pull** | Lazy streaming on virtual threads |
 | [`ValidationPath<E, A>`](path_validation.md) | `Validated<E, A>` | `E` (accumulated) | Immediate | Form validation |
 | [`IdPath<A>`](path_id.md) | `Id<A>` | None (always succeeds) | Immediate | Pure values |
@@ -176,6 +188,7 @@ These types describe computations without executing them:
 
 - **[IOPath](path_io.md)** - Side effects, runs when you call `unsafeRun()`
 - **[VTaskPath](path_vtask.md)** - Virtual thread concurrency, runs when you call `run()`
+- **[VResultPath](path_vresult.md)** - Async work with a typed domain error (`VTask<Either<E, A>>`)
 - **[VStreamPath](path_vstream.md)** - Lazy pull-based streaming on virtual threads
 - **[TrampolinePath](path_trampoline.md)** - Stack-safe recursion
 
@@ -201,6 +214,7 @@ These types support building domain-specific languages:
 | Wrapping exception-throwing code | `TryPath` | Exception → functional bridge |
 | Side effects to defer | `IOPath` | Lazy, referential transparency |
 | Concurrent operations at scale | `VTaskPath` | Virtual threads, simple blocking code |
+| Async operation with a typed error | `VResultPath` | Virtual threads plus a typed error channel |
 | Lazy streaming with virtual threads | `VStreamPath` | Pull-based, infinite-safe, backpressure |
 | Need ALL validation errors | `ValidationPath` | Error accumulation |
 | Bridging Java's Optional | `OptionalPath` | Stdlib compatibility |

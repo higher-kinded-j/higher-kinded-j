@@ -387,6 +387,7 @@ See [Benchmarks & Performance](../benchmarks.md) for full details, comparison be
 
 ~~~admonish tip title="See Also"
 - [VTask Monad](../monads/vtask_monad.md) - Underlying type with full API details
+- [VResultPath](path_vresult.md) - The composition of this path with the typed-error half: `VTask<Either<E, A>>` as one railway
 - [Structured Concurrency](../monads/vtask_scope.md) - Scope and ScopeJoiner for task coordination
 - [Resource Management](../monads/vtask_resource.md) - Bracket pattern for safe resource handling
 - [IOPath](path_io.md) - Platform thread-based effect path for single-threaded scenarios

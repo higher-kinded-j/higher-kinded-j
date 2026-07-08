@@ -48,7 +48,7 @@ VResultPath<OrderError, OrderResult> fulfilled =
         SystemError::fromDefect);                             // defects join the typed channel here
 ```
 
-- **`firstSuccess`** — first `Right` wins and cancels the rest; if every candidate fails, the result is `Left` of **all** their errors (`NonEmptyList`, in candidate order). A thrown exception is a defect and fails the race.
+- **`firstSuccess`** — first `Right` wins and cancels the rest; if every candidate fails, the result is `Left` of **all** their errors (`NonEmptyList`, in candidate order). A winning `Right` outranks defects: a candidate that throws is a defect, and it fails the race only when no candidate ever succeeds.
 - **`allSucceed`** — fail-fast: the first typed failure cancels the remaining tasks and becomes the result.
 - **`allSucceedAccumulating`** — run everything to completion and collect every typed failure at once.
 - **`withTimeout(duration, onTimeout)`** — a timeout becomes the designated typed error, on the railway.

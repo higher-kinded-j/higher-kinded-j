@@ -140,6 +140,7 @@ if (either.isRight()) {
 ~~~admonish tip title="See Also"
 - [Either Monad](../monads/either_monad.md) - Underlying type for EitherPath
 - [ValidationPath](path_validation.md) - For accumulating errors
+- [VResultPath](path_vresult.md) - The composition of this path with the async half: `VTask<Either<E, A>>` as one railway
 ~~~
 
 ---

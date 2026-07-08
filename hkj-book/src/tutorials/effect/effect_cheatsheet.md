@@ -23,6 +23,7 @@ A single-page reference for the Effect Path API. Two columns: how we wrote it be
 | A `Supplier` that may throw | `TryPath<A>` | `Path.tryOf(() -> ...)` |
 | A side-effecting computation, deferred | `IOPath<A>` | `Path.io(() -> ...)` |
 | A virtual-thread async computation | `VTaskPath<A>` | `Path.vtask(() -> ...)` |
+| A virtual-thread async computation with a typed error | `VResultPath<E, A>` | `Path.vresultDefer(() -> ...)` / `Path.vresult(vtaskOfEither)` |
 | An existing `Optional<A>` | `OptionalPath<A>` | `Path.optional(opt)` |
 
 ---

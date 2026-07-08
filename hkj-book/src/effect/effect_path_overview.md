@@ -277,7 +277,7 @@ rethrow) are gone. What remains is the essential shape of your logic.
 
 ## Path Types at a Glance
 
-The six **core path types** -- the everyday API for almost every workflow:
+The seven **core path types** -- the everyday API for almost every workflow:
 
 | Path Type | Underlying Effect | When to Reach for It |
 |-----------|-------------------|----------------------|
@@ -287,6 +287,7 @@ The six **core path types** -- the everyday API for almost every workflow:
 | `ValidationPath<E, A>` | `Validated<E, A>` | Collecting *all* errors, not just the first |
 | `IOPath<A>` | `IO<A>` | Side effects you want to defer |
 | `VTaskPath<A>` | `VTask<A>` | Virtual-thread concurrency for I/O-bound work |
+| [`VResultPath<E, A>`](path_vresult.md) | `VTask<Either<E, A>>` | Async work with a typed domain error |
 
 Seven additional path types (`IdPath`, `OptionalPath`, `GenericPath`,
 `TrampolinePath`, `FreePath`, `FreeApPath`, `VStreamPath`) live under
