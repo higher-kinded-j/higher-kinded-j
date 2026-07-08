@@ -4,6 +4,7 @@ A single-page reference for the Effect Path API. Two columns: how we wrote it be
 
 ~~~admonish info title="Scope"
 - All `Path` factory methods and the four core operations (`map`, `via`, recovery, `zipWith`)
+- Path-native resilience combinators (`withRetry`, `withTimeout`, `withCircuitBreaker`, `withBulkhead`)
 - `ForPath` comprehension shape and tuple-binding semantics
 - Effect Contexts: `ErrorContext`, `ConfigContext`, `MutableContext`
 - Service-integration patterns (`@GeneratePathBridge`)
@@ -39,6 +40,22 @@ A single-page reference for the Effect Path API. Two columns: how we wrote it be
 | Use an alternative when this fails | `Optional.or(() -> alt)` | `path.orElse(() -> alt)` |
 | Translate the error type | manual map | `path.mapError(e -> e2)` |
 | Combine two independent paths | `CompletableFuture.allOf` then unpack | `pathA.zipWith(pathB, combiner)` |
+
+---
+
+## Resilience combinators
+
+Resilience wraps a *computation*. The lazy carriers (`IOPath`, `VTaskPath`, `VResultPath`) chain the combinators as instance methods; the eager `EitherPath` offers the same vocabulary as static methods taking the step as a `Supplier`.
+
+| Pattern | Lazy carriers (instance) | Eager `EitherPath` (static) |
+|---------|--------------------------|------------------------------|
+| Retry on thrown exceptions | `path.withRetry(policy)` | `EitherPath.withRetry(() -> step(), policy)` |
+| Railway-aware retry (typed errors opt in) | `vresultPath.withRetry(retryOn, policy)` | `EitherPath.withRetry(() -> step(), retryOn, policy)` |
+| Time budget | `path.withTimeout(duration)` / `vresultPath.withTimeout(duration, onTimeout)` | `EitherPath.withTimeout(() -> step(), duration, onTimeout)` |
+| Circuit breaker | `path.withCircuitBreaker(breaker)` / `vresultPath.withCircuitBreaker(breaker, onOpen)` | `EitherPath.withCircuitBreaker(() -> step(), breaker[, onOpen])` |
+| Bulkhead | `path.withBulkhead(bulkhead)` / `vresultPath.withBulkhead(bulkhead, onFull)` | `EitherPath.withBulkhead(() -> step(), bulkhead[, onFull])` |
+
+On the typed carriers a business `Left` is a value, not a fault: never retried, never counted by a circuit breaker; the `onTimeout`/`onOpen`/`onFull` overloads land rejections as typed `Left`s. Never wrap a non-idempotent step (payment) in retry.
 
 ---
 

@@ -297,18 +297,32 @@ When the steps are asynchronous, the same railway is [`VResultPath`](../effect/p
 
 ### Step 4: Add Resilience Gradually
 
-Start simple, add resilience as needed:
+Start simple, add resilience as needed. `EitherPath` is eager, so its resilience combinators are static and take the step as a `Supplier` — resilience wraps the *computation*, not the finished result:
 
 ```java
 // Start with basic composition
 var result = workflow.process(request);
 
-// Add timeout when integrating external services
-var withTimeout = Resilience.withTimeout(result, Duration.ofSeconds(30), "process");
+// Add a typed timeout when integrating external services — the timeout
+// arrives as a Left, not a thrown TimeoutException
+var withTimeout = EitherPath.withTimeout(
+    () -> workflow.process(request),
+    Duration.ofSeconds(30),
+    () -> SystemError.timeout("process"));
 
-// Add retry for transient failures
-var resilient = Resilience.withRetry(withTimeout, RetryPolicy.defaults());
+// Add railway-aware retry for transient failures. A business Left is never
+// retried; the predicate opts selected transient errors in. Only wrap steps
+// that are safe to re-run.
+var resilient = EitherPath.withRetry(
+    () -> EitherPath.withTimeout(
+        () -> workflow.process(request),
+        Duration.ofSeconds(30),
+        () -> SystemError.timeout("process")),
+    error -> error instanceof SystemError,
+    RetryPolicy.exponentialBackoffWithJitter(3, Duration.ofMillis(200)));
 ```
+
+On the async railway the same vocabulary chains as instance methods: `VResultPath` carries `withRetry(retryOn, policy)`, `withTimeout(duration, onTimeout)`, `withCircuitBreaker`, and `withBulkhead` directly.
 
 ### Step 5: Add Concurrency for Scale
 

@@ -191,6 +191,18 @@ Try<Data> result = withTimeout.runSafe();
 // result.isFailure() == true (TimeoutException)
 ```
 
+`withTimeout(duration)` is the same operation under the family-wide `with*` name, so resilience chains read uniformly across `IOPath`, `VTaskPath`, and `VResultPath`:
+
+```java
+VTaskPath<Data> guarded = Path.vtask(() -> fetchData())
+    .withRetry(RetryPolicy.exponentialBackoffWithJitter(3, Duration.ofMillis(200)))
+    .withTimeout(Duration.ofSeconds(2))
+    .withCircuitBreaker(serviceBreaker)
+    .withBulkhead(serviceBulkhead);
+```
+
+Two caveats inherited from `VTask.timeout`: the losing computation is *not* interrupted — it keeps running unobserved after the timeout is reported — and a `TimeoutException` thrown inside the computation is indistinguishable from the budget expiring. To land the timeout as a typed `Left` instead of a failure, use [`VResultPath.withTimeout(duration, onTimeout)`](path_vresult.md#resilience). See [Resilience Patterns](../resilience/ch_intro.md) for the per-carrier availability table.
+
 ---
 
 ## Parallel Execution with Par

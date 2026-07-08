@@ -9,6 +9,7 @@ right, as the mnemonic goes.)
 - Core operations and error handling
 - Bifunctor operations
 - Extraction patterns
+- Railway-aware resilience with the static step combinators (`withRetry`, `withTimeout`, `withCircuitBreaker`, `withBulkhead`)
 - When to use (and when not to)
 ~~~
 
@@ -125,6 +126,47 @@ if (either.isRight()) {
 
 ---
 
+## Resilience (Step Combinators)
+
+`EitherPath` is an *eager* carrier — by the time an instance exists, the computation has already run, so an instance-chained retry would have nothing left to protect. Resilience wraps a **computation**, so on `EitherPath` the `with*` vocabulary is static, taking the step as a `Supplier` — the same combinators the lazy paths chain, applied at the point where the computation still exists:
+
+```java
+// Railway-aware retry: thrown exceptions retry per the policy; a Left retries
+// only when the predicate selects it. A business Left ("card declined") is a
+// value — returned immediately, never retried. Typed exhaustion returns the
+// last Left, staying on the typed channel.
+EitherPath<OrderError, Reservation> reserved = EitherPath.withRetry(
+    () -> reserveInventory(order),
+    error -> error instanceof OrderError.SystemError,
+    policy);
+
+// Typed time budget: the timeout arrives as Left(onTimeout.get()), not a
+// thrown TimeoutException. The losing computation is not interrupted.
+EitherPath<OrderError, Receipt> charged = EitherPath.withTimeout(
+    () -> chargePayment(order),
+    Duration.ofSeconds(10),
+    () -> OrderError.SystemError.timeout("payment"));
+
+// Circuit breaker and bulkhead, with rejections on the typed channel. A Left
+// never trips the breaker — only thrown exceptions count as failures.
+EitherPath<OrderError, Status> status = EitherPath.withCircuitBreaker(
+    () -> fetchStatus(orderId), breaker, open -> OrderError.unavailable());
+
+EitherPath<OrderError, Result> queried = EitherPath.withBulkhead(
+    () -> runQuery(sql), bulkhead, full -> OrderError.busy());
+```
+
+In a pipeline these sit naturally inside `via`:
+
+```java
+pipeline.via(order ->
+    EitherPath.withRetry(() -> reserveInventory(order), isTransient, policy));
+```
+
+`withRetry(step, policy)` (without the predicate) retries thrown exceptions only — the pure railway default. Do not wrap non-idempotent steps (a payment) in retry: the whole supplier is re-invoked. See [Resilience Patterns](../resilience/ch_intro.md) for the full treatment, including the per-carrier availability table.
+
+---
+
 ## When to Use
 
 `EitherPath` is right when:
@@ -141,6 +183,7 @@ if (either.isRight()) {
 - [Either Monad](../monads/either_monad.md) - Underlying type for EitherPath
 - [ValidationPath](path_validation.md) - For accumulating errors
 - [VResultPath](path_vresult.md) - The composition of this path with the async half: `VTask<Either<E, A>>` as one railway
+- [Resilience Patterns](../resilience/ch_intro.md) - Retry, timeout, circuit breaker, and bulkhead across the Path family
 ~~~
 
 ---

@@ -4,6 +4,7 @@
 - How the circuit breaker state machine works (CLOSED, OPEN, HALF_OPEN)
 - How to configure failure thresholds, recovery timeouts, and call timeouts
 - How to protect VTask operations with a shared circuit breaker
+- How to chain `withCircuitBreaker` on Path carriers, and why a `Left` never trips the circuit
 - How to use fallbacks when the circuit is open
 - How to monitor circuit breaker health via metrics
 ~~~
@@ -119,6 +120,39 @@ VTask<String> resilient = paymentBreaker.protect(
         return "unknown";
     });
 ```
+
+## Path-Native Circuit Breakers
+
+The lazy Path carriers chain breaker protection directly, with the same shareable breaker:
+
+```java
+IOPath<String> guarded = Path.io(() -> paymentService.getStatus(orderId))
+    .withCircuitBreaker(paymentBreaker);
+
+VTaskPath<String> guardedAsync = Path.vtask(() -> paymentService.getStatus(orderId))
+    .withCircuitBreaker(paymentBreaker);
+```
+
+On the typed-error carriers the breaker is railway-aware: a `Left` is a *successfully computed value* — the service answered, just not with a `Right` — so it does **not** count as a breaker failure. Only thrown exceptions (defects) trip the circuit. A stream of "customer not found" responses will never open the circuit; a stream of connection resets will.
+
+The typed overloads keep an open-circuit rejection on the typed channel instead of surfacing `CircuitOpenException`:
+
+```java
+// VResultPath: instance combinator, rejection lands as a Left
+VResultPath<OrderError, Reservation> guarded =
+    reserveInventory(order)
+        .withCircuitBreaker(
+            inventoryBreaker,
+            open -> OrderError.SystemError.circuitBreakerOpen("inventory"));
+
+// EitherPath is eager, so the combinator is static and takes the step as a Supplier
+EitherPath<OrderError, Reservation> reserved = EitherPath.withCircuitBreaker(
+    () -> reserveInventory(order),
+    inventoryBreaker,
+    open -> OrderError.SystemError.circuitBreakerOpen("inventory"));
+```
+
+Without the `onOpen` argument, the rejection propagates as-is: a thrown `CircuitOpenException` on `EitherPath`, a defect on the `VTask` failure channel for `VResultPath`.
 
 ## Metrics
 

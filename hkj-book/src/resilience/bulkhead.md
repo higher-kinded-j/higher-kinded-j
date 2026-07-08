@@ -5,6 +5,7 @@
 - How to configure concurrency limits, wait queues, and fairness
 - The distinction between Bulkhead and VStreamPar
 - How to protect VTask operations with concurrency limiting
+- How to chain `withBulkhead` on Path carriers, with typed rejections on the railway
 ~~~
 
 ---
@@ -90,6 +91,37 @@ VTask<Result> resilient = dbBulkhead.protect(
         throw (ex instanceof RuntimeException re) ? re : new RuntimeException(ex);
     });
 ```
+
+## Path-Native Bulkheads
+
+The lazy Path carriers chain bulkhead protection directly:
+
+```java
+IOPath<Result> guarded = Path.io(() -> database.query(sql))
+    .withBulkhead(dbBulkhead);
+
+VTaskPath<Result> guardedAsync = Path.vtask(() -> database.query(sql))
+    .withBulkhead(dbBulkhead);
+```
+
+On the typed-error carriers, the typed overload keeps a rejected execution on the typed channel — `BulkheadFullException` becomes a `Left` instead of a thrown exception or defect:
+
+```java
+// VResultPath: instance combinator, rejection lands as a Left
+VResultPath<OrderError, Reservation> guarded =
+    reserveInventory(order)
+        .withBulkhead(
+            inventoryBulkhead,
+            full -> OrderError.SystemError.fromException("Inventory service busy", full));
+
+// EitherPath is eager, so the combinator is static and takes the step as a Supplier
+EitherPath<OrderError, Reservation> reserved = EitherPath.withBulkhead(
+    () -> reserveInventory(order),
+    inventoryBulkhead,
+    full -> OrderError.SystemError.fromException("Inventory service busy", full));
+```
+
+Without the `onFull` argument, `BulkheadFullException` propagates as-is.
 
 ## Bulkhead vs VStreamPar
 
