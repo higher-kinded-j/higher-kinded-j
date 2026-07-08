@@ -76,7 +76,7 @@ structured errors.
 want to stay in exception-land (with `Throwable` as the error type).
 
 **Reach for [`VResultPath`](path_vresult.md)** when the fallible operation is also
-asynchronous -- the typed-error railway of `EitherPath` running on `VTask` virtual
+asynchronous: the typed-error railway of `EitherPath` running on `VTask` virtual
 threads (`VTask<Either<E, A>>`), without hand-carrying an `Either` through `VTaskPath`.
 
 ### _"I need ALL the errors, not just the first"_

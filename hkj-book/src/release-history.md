@@ -16,7 +16,7 @@ This page documents the evolution of Higher-Kinded-J from its initial release th
 
 **`VResultPath`: the async-with-typed-error path**
 
-`VTask<Either<E, A>>` — async work that can fail with a typed domain error — gets a first-class railway: `VResultPath<E, A>` speaks the family vocabulary (`map`/`via`/`then`, `mapError`/`recover`/`recoverWith`/`bimap`) with no `Kind` ceremony and no hand-rolled `EitherT` bridges, and its structured-concurrency surface keeps typed failures in the value channel: `firstSuccess` (first `Right` wins, all failures collected when nothing does), `allSucceed`/`allSucceedAccumulating`, `withTimeout` (timeout → designated typed error), and `bracketOutcome` (release always sees the `Either` outcome, so compensation is decided from the result). Defects stay on the `VTask` failure channel throughout ([#606](https://github.com/higher-kinded-j/higher-kinded-j/issues/606)).
+`VTask<Either<E, A>>` (async work that can fail with a typed domain error) gets a first-class railway: `VResultPath<E, A>` speaks the family vocabulary (`map`/`via`/`then`, `mapError`/`recover`/`recoverWith`/`bimap`) with no `Kind` ceremony and no hand-rolled `EitherT` bridges, and its structured-concurrency surface keeps typed failures in the value channel: `firstSuccess` (first `Right` wins, all failures collected when nothing does), `allSucceed`/`allSucceedAccumulating`, `withTimeout` (timeout → designated typed error), and `bracketOutcome` (release always sees the `Either` outcome, so compensation is decided from the result). Defects stay on the `VTask` failure channel throughout ([#606](https://github.com/higher-kinded-j/higher-kinded-j/issues/606)).
 
 **`@GenerateMerge`: one target from N sources, declared by a typed method**
 

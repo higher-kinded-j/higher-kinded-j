@@ -95,7 +95,7 @@ VResultPath<OrderError, InventoryReservation> result =
 | `allSucceedAccumulating(tasks)` | Run everything to completion; collect every typed failure at once |
 | `withTimeout(duration, onTimeout)` | Overrunning the deadline becomes the designated typed error, on the railway |
 
-A warehouse failing with a typed `Left` does not abort the race — errors stay in the value channel rather than being thrown and caught. Under the hood these combinators run on the same `Scope`/`ScopeJoiner` substrate documented in [Structured Concurrency](../monads/vtask_scope.md); reach for raw `Scope` directly when your tasks have no typed error channel.
+A warehouse failing with a typed `Left` does not abort the race; errors stay in the value channel rather than being thrown and caught. Under the hood these combinators run on the same `Scope`/`ScopeJoiner` substrate documented in [Structured Concurrency](../monads/vtask_scope.md); reach for raw `Scope` directly when your tasks have no typed error channel.
 
 Context values propagate to all forked tasks automatically. Each racing candidate inherits the trace ID, tenant ID, and deadline without explicit passing.
 
@@ -134,7 +134,7 @@ private VResultPath<OrderError, InventoryReservation> warehouseReservation(
 
 Three moves on the error channel do all the work:
 
-- `peekLeft` observes the collected failures (a `NonEmptyList<OrderError>`, in candidate order) without changing tracks — here, logging that every warehouse failed
+- `peekLeft` observes the collected failures (a `NonEmptyList<OrderError>`, in candidate order) without changing tracks (here, logging that every warehouse failed)
 - `mapError(NonEmptyList::head)` collapses the collected errors back to the workflow's single `OrderError`, surfacing the first
 - `withTimeout` bounds the whole race by the remaining deadline; overrunning becomes a typed `SystemError.timeout`, not a `TimeoutException`
 
@@ -166,7 +166,7 @@ private VResultPath<OrderError, OrderResult> processWithReservation(
 }
 ```
 
-Release *always* runs and receives the `Either` outcome: a `Right` confirms the reservation, a `Left` releases it. There is no mutable "confirmed" flag. A defect (a thrown exception) inside the use phase is first typed through the final `onDefect` argument — here as a `SystemError` — so the release always observes a real outcome, and the reservation is released.
+Release *always* runs and receives the `Either` outcome: a `Right` confirms the reservation, a `Left` releases it. There is no mutable "confirmed" flag. A defect (a thrown exception) inside the use phase is first typed through the final `onDefect` argument (here as a `SystemError`), so the release always observes a real outcome, and the reservation is released.
 
 ### General-Purpose Resource
 
@@ -193,7 +193,7 @@ Resources are released in reverse order of acquisition (LIFO), and cleanup runs 
 
 ## The Typed Async Railway with VResultPath
 
-Scale to millions of concurrent orders using virtual threads. The workflow's shape is `VTask<Either<OrderError, A>>` — async work that can fail with a typed domain error — and `VResultPath` is that stack as a first-class railway, with no `Kind` widening, transformer, or hand-carried `Either`:
+Scale to millions of concurrent orders using virtual threads. The workflow's shape is `VTask<Either<OrderError, A>>` (async work that can fail with a typed domain error), and `VResultPath` is that stack as a first-class railway, with no `Kind` widening, transformer, or hand-carried `Either`:
 
 ```java
 // VResultPath operations are lazy - they describe computation

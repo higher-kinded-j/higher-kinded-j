@@ -277,7 +277,7 @@ rethrow) are gone. What remains is the essential shape of your logic.
 
 ## Path Types at a Glance
 
-The seven **core path types** -- the everyday API for almost every workflow:
+The seven **core path types**: the everyday API for almost every workflow:
 
 | Path Type | Underlying Effect | When to Reach for It |
 |-----------|-------------------|----------------------|
