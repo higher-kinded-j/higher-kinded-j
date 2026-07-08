@@ -1268,7 +1268,40 @@ class VResultPathTest {
     }
 
     @Test
-    @DisplayName("firstSuccess: a defect fails the race rather than being typed")
+    @DisplayName("firstSuccess: a winning Right outranks a defect from another candidate")
+    void firstSuccessWinnerOutranksDefect() {
+      VResultPath<String, String> defective =
+          VResultPath.fromVTask(
+              VTask.of(
+                  () -> {
+                    throw new IllegalStateException("boom");
+                  }));
+      VResultPath<String, String> healthy = VResultPath.pure("won anyway");
+
+      Either<NonEmptyList<String>, String> result =
+          VResultPath.firstSuccess(List.of(defective, healthy)).run().run();
+      assertThatEither(result).isRight().hasRight("won anyway");
+    }
+
+    @Test
+    @DisplayName("firstSuccess: the NonEmptyList overload makes emptiness unrepresentable")
+    void firstSuccessNonEmptyListOverload() {
+      Either<NonEmptyList<String>, String> result =
+          VResultPath.firstSuccess(
+                  NonEmptyList.of(
+                      VResultPath.<String, String>raiseError("nope"),
+                      List.of(VResultPath.<String, String>pure("via NEL"))))
+              .run()
+              .run();
+      assertThatEither(result).isRight().hasRight("via NEL");
+      assertThatNullPointerException()
+          .isThrownBy(
+              () -> VResultPath.firstSuccess((NonEmptyList<VResultPath<String, String>>) null))
+          .withMessage("candidates must not be null");
+    }
+
+    @Test
+    @DisplayName("firstSuccess: a defect fails the race when no candidate ever succeeds")
     void firstSuccessDefectPropagates() {
       VResultPath<String, String> defective =
           VResultPath.fromVTask(
@@ -1286,7 +1319,7 @@ class VResultPathTest {
     @DisplayName("firstSuccess: guards")
     void firstSuccessGuards() {
       assertThatNullPointerException()
-          .isThrownBy(() -> VResultPath.firstSuccess(null))
+          .isThrownBy(() -> VResultPath.firstSuccess((List<VResultPath<String, String>>) null))
           .withMessage("candidates must not be null");
       assertThatIllegalArgumentException()
           .isThrownBy(() -> VResultPath.firstSuccess(List.of()))
@@ -1399,8 +1432,12 @@ class VResultPathTest {
                     never.await();
                     return Either.right("unreachable");
                   }));
-      Either<String, String> result =
-          stuck.withTimeout(Duration.ofMillis(50), () -> "took too long").run().run();
+      Either<String, String> result;
+      try {
+        result = stuck.withTimeout(Duration.ofMillis(50), () -> "took too long").run().run();
+      } finally {
+        never.countDown(); // unblock the losing computation - withTimeout does not interrupt it
+      }
       assertThatEither(result).isLeft().hasLeft("took too long");
     }
 

@@ -406,6 +406,14 @@ public final class VResultPath<E, A> implements Recoverable<E, A> {
         task.map(either -> either.fold(e -> Either.<E, A>right(recovery.apply(e)), _ -> either)));
   }
 
+  /**
+   * {@inheritDoc}
+   *
+   * <p>Deviation note (#606): the issue sketched a {@code recoverWith(predicate, handler)}
+   * overload; the single-argument family form ships instead - no Path-family member has a predicate
+   * overload, and selective recovery reads naturally as {@code recoverWith(e -> pred.test(e) ?
+   * handler.apply(e) : VResultPath.raiseError(e))}.
+   */
   @Override
   public VResultPath<E, A> recoverWith(Function<? super E, ? extends Recoverable<E, A>> recovery) {
     Objects.requireNonNull(recovery, "recovery must not be null");
@@ -538,10 +546,12 @@ public final class VResultPath<E, A> implements Recoverable<E, A> {
   // cycle, so the combinators live here, implemented over the Scope/ScopeJoiner substrate.
 
   /**
-   * Races the candidates: the first to succeed with a {@code Right} wins and the rest are
-   * cancelled. Typed failures do not abort the race - they are collected, and only if every
-   * candidate fails does the result carry {@code Left} of all their errors, in candidate order. A
-   * candidate that throws is a defect and fails the whole race.
+   * Races the candidates: the first to succeed with a {@code Right} wins and the rest are cancelled
+   * - a winning {@code Right} outranks everything, including defects raised by other candidates
+   * (the {@code anySucceed} family precedent). Typed failures do not abort the race - they are
+   * collected, and only if every candidate fails does the result carry {@code Left} of all their
+   * errors, in candidate order. A candidate that throws is a defect: it fails the race only when no
+   * candidate ever succeeds.
    *
    * @param candidates the racing paths; must not be null, empty, or contain nulls
    * @param <E> the typed error type
@@ -577,6 +587,23 @@ public final class VResultPath<E, A> implements Recoverable<E, A> {
                                     errors.getFirst(), errors.subList(1, errors.size()))),
                         Either::right));
     return fromVTask(joined);
+  }
+
+  /**
+   * Races the candidates with emptiness made unrepresentable - the {@link NonEmptyList} overload of
+   * {@link #firstSuccess(List)}, preferred when at least one candidate is statically known (the
+   * race-family precedent from #585).
+   *
+   * @param candidates the racing paths; must not be null or contain nulls
+   * @param <E> the typed error type
+   * @param <A> the success type
+   * @return the winning value, or every typed failure when nothing succeeds (non-null)
+   * @throws NullPointerException if {@code candidates} or an element is null
+   */
+  public static <E, A> VResultPath<NonEmptyList<E>, A> firstSuccess(
+      NonEmptyList<VResultPath<E, A>> candidates) {
+    Objects.requireNonNull(candidates, "candidates must not be null");
+    return firstSuccess(candidates.toJavaList());
   }
 
   /**
@@ -664,6 +691,12 @@ public final class VResultPath<E, A> implements Recoverable<E, A> {
    * {@code Left} of the designated typed error - a timeout stays on the railway instead of becoming
    * a thrown {@code TimeoutException}.
    *
+   * <p>Two caveats inherited from {@link VTask#timeout}: the losing computation is <em>not</em>
+   * interrupted - it keeps running unobserved after the typed timeout is returned (bound its side
+   * effects accordingly, e.g. with {@link #bracketOutcome}); and a {@code TimeoutException} thrown
+   * by code <em>inside</em> the pipeline is indistinguishable from the budget expiring, so it is
+   * also mapped to {@code onTimeout}.
+   *
    * @param duration the time budget; must not be null
    * @param onTimeout supplies the typed error for the timeout case; must not be null
    * @return a time-bounded path (non-null)
@@ -692,6 +725,11 @@ public final class VResultPath<E, A> implements Recoverable<E, A> {
    * channel through {@code onDefect}, so {@code release} always observes a real outcome. A defect
    * thrown by {@code release} itself propagates as a defect - broken cleanup is exceptional and
    * must be visible, even at the cost of masking the primary outcome.
+   *
+   * <p>Cancellation reaches {@code use} as an {@link InterruptedException}-style defect and is
+   * therefore also typed through {@code onDefect} (release still runs - the {@code Resource}
+   * guarantee). If the pipeline must distinguish cancellation from domain failure, map it to a
+   * dedicated error in {@code onDefect}.
    *
    * @param acquire produces the resource; must not be null
    * @param use consumes the resource; must not be null

@@ -304,6 +304,7 @@ public class EnhancedOrderWorkflow {
 
     // Race all warehouses - first Right wins; all-Left surfaces the first warehouse's error.
     return VResultPath.firstSuccess(candidates)
+        .peekLeft(errors -> logSync("All warehouses failed: " + errors.toJavaList()))
         .mapError(NonEmptyList::head)
         .withTimeout(
             getRemainingTimeout(), () -> SystemError.timeout("parallel inventory reservation"));

@@ -153,10 +153,11 @@ public sealed interface ScopeJoiner<T, R>
    * Creates a joiner over {@link Either}-valued subtasks where the first {@code Right} wins.
    *
    * <p>The first subtask to complete with a {@code Right} supplies the result and the remaining
-   * subtasks are cancelled. A subtask completing with a {@code Left} does not abort the race — its
-   * error is collected, and only if every subtask completes {@code Left} does the join yield {@code
-   * Left} of all collected errors (in fork order). A subtask that <em>throws</em> is a defect: the
-   * join rethrows it rather than typing it.
+   * subtasks are cancelled — a winning {@code Right} outranks everything, including defects raised
+   * by other subtasks. A subtask completing with a {@code Left} does not abort the race — its error
+   * is collected, and only if every subtask completes {@code Left} does the join yield {@code Left}
+   * of all collected errors (in fork order). A subtask that <em>throws</em> is a defect: when no
+   * winner emerges, the join rethrows it rather than typing it.
    *
    * @param <E> the typed error carried by each subtask's {@code Left}
    * @param <T> the success value carried by each subtask's {@code Right}
@@ -170,9 +171,10 @@ public sealed interface ScopeJoiner<T, R>
 // ==================== Implementation Classes ====================
 
 /**
- * Joiner where the first {@code Right} wins and cancels the rest; {@code Left}s are collected and
- * only surface (in fork order) when no subtask ever produces a {@code Right}. Thrown exceptions are
- * defects and rethrown.
+ * Joiner where the first {@code Right} wins and cancels the rest (outranking even defects raised by
+ * other subtasks); {@code Left}s are collected and only surface (in fork order) when no subtask
+ * ever produces a {@code Right}. With no winner, a thrown exception is a defect and is rethrown
+ * rather than typed.
  *
  * @param <E> the typed error type
  * @param <T> the success type
@@ -215,19 +217,16 @@ final class FirstSuccessEitherJoiner<E, T>
               return Either.right(won.getRight());
             }
             completionTracker.result();
+            // No winner: cancellation only happens via a successful winner CAS, so every
+            // subtask here ran to completion - a Right in this loop is impossible.
             List<E> errors = new ArrayList<>();
             for (StructuredTaskScope.Subtask<? extends Either<E, T>> subtask : allSubtasks) {
               if (subtask.state() == StructuredTaskScope.Subtask.State.FAILED) {
-                throw subtask.exception(); // a defect outranks the typed channel
+                throw subtask.exception(); // with no winner, a defect outranks the typed channel
               }
-              Either<E, T> completed = subtask.get();
-              if (completed.isRight()) {
-                // A Right raced in after the winner check window; honour it.
-                return Either.right(completed.getRight());
-              }
-              errors.add(completed.getLeft());
+              errors.add(subtask.get().getLeft());
             }
-            return Either.left(errors);
+            return Either.left(List.copyOf(errors));
           }
         };
   }
