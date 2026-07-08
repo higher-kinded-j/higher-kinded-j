@@ -133,7 +133,7 @@ VTaskPath<String> guardedAsync = Path.vtask(() -> paymentService.getStatus(order
     .withCircuitBreaker(paymentBreaker);
 ```
 
-On the typed-error carriers the breaker is railway-aware: a `Left` is a *successfully computed value* — the service answered, just not with a `Right` — so it does **not** count as a breaker failure. Only thrown exceptions (defects) trip the circuit. A stream of "customer not found" responses will never open the circuit; a stream of connection resets will.
+On the typed-error carriers the breaker is railway-aware: a `Left` is a *successfully computed value* (the service answered, just not with a `Right`), so it does **not** count as a breaker failure. Only thrown exceptions (defects) trip the circuit. A stream of "customer not found" responses will never open the circuit; a stream of connection resets will.
 
 The typed overloads keep an open-circuit rejection on the typed channel instead of surfacing `CircuitOpenException`:
 

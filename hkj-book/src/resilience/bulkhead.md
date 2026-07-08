@@ -104,7 +104,7 @@ VTaskPath<Result> guardedAsync = Path.vtask(() -> database.query(sql))
     .withBulkhead(dbBulkhead);
 ```
 
-On the typed-error carriers, the typed overload keeps a rejected execution on the typed channel — `BulkheadFullException` becomes a `Left` instead of a thrown exception or defect:
+On the typed-error carriers, the typed overload keeps a rejected execution on the typed channel: `BulkheadFullException` becomes a `Left` instead of a thrown exception or defect.
 
 ```java
 // VResultPath: instance combinator, rejection lands as a Left

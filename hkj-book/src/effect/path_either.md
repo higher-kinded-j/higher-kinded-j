@@ -128,12 +128,12 @@ if (either.isRight()) {
 
 ## Resilience (Step Combinators)
 
-`EitherPath` is an *eager* carrier — by the time an instance exists, the computation has already run, so an instance-chained retry would have nothing left to protect. Resilience wraps a **computation**, so on `EitherPath` the `with*` vocabulary is static, taking the step as a `Supplier` — the same combinators the lazy paths chain, applied at the point where the computation still exists:
+`EitherPath` is an *eager* carrier: by the time an instance exists, the computation has already run, so an instance-chained retry would have nothing left to protect. Resilience wraps a **computation**, so on `EitherPath` the `with*` vocabulary is static, taking the step as a `Supplier` (the same combinators the lazy paths chain, applied at the point where the computation still exists):
 
 ```java
 // Railway-aware retry: thrown exceptions retry per the policy; a Left retries
 // only when the predicate selects it. A business Left ("card declined") is a
-// value — returned immediately, never retried. Typed exhaustion returns the
+// value: returned immediately, never retried. Typed exhaustion returns the
 // last Left, staying on the typed channel.
 EitherPath<OrderError, Reservation> reserved = EitherPath.withRetry(
     () -> reserveInventory(order),
@@ -148,7 +148,7 @@ EitherPath<OrderError, Receipt> charged = EitherPath.withTimeout(
     () -> OrderError.SystemError.timeout("payment"));
 
 // Circuit breaker and bulkhead, with rejections on the typed channel. A Left
-// never trips the breaker — only thrown exceptions count as failures.
+// never trips the breaker; only thrown exceptions count as failures.
 EitherPath<OrderError, Status> status = EitherPath.withCircuitBreaker(
     () -> fetchStatus(orderId), breaker, open -> OrderError.unavailable());
 
@@ -163,7 +163,7 @@ pipeline.via(order ->
     EitherPath.withRetry(() -> reserveInventory(order), isTransient, policy));
 ```
 
-`withRetry(step, policy)` (without the predicate) retries thrown exceptions only — the pure railway default. Do not wrap non-idempotent steps (a payment) in retry: the whole supplier is re-invoked. See [Resilience Patterns](../resilience/ch_intro.md) for the full treatment, including the per-carrier availability table.
+`withRetry(step, policy)` (without the predicate) retries thrown exceptions only: the pure railway default. Do not wrap non-idempotent steps (a payment) in retry: the whole supplier is re-invoked. See [Resilience Patterns](../resilience/ch_intro.md) for the full treatment, including the per-carrier availability table.
 
 ---
 

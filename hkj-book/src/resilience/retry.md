@@ -181,7 +181,7 @@ VTask<String> withRecovery = Retry.retryTaskWithRecovery(
 
 ### Path-Native Retry
 
-Retry wraps a **computation**. On the lazy Path carriers — where the computation has not yet run — `withRetry` chains as an instance method:
+Retry wraps a **computation**. On the lazy Path carriers (where the computation has not yet run), `withRetry` chains as an instance method:
 
 ```java
 // IOPath
@@ -192,13 +192,13 @@ IOPath<Response> resilient = Path.io(() -> httpClient.get(url))
 VTaskPath<Response> resilient = Path.vtask(() -> httpClient.get(url))
     .withRetry(RetryPolicy.exponentialBackoff(3, Duration.ofSeconds(1)));
 
-// VResultPath — async with a typed error channel
+// VResultPath: async with a typed error channel
 VResultPath<OrderError, Reservation> resilient =
     Path.vresultDefer(() -> inventoryService.reserve(order))
         .withRetry(RetryPolicy.exponentialBackoffWithJitter(3, Duration.ofMillis(200)));
 ```
 
-`EitherPath` is an *eager* carrier: by the time an instance exists, the computation has already run, so an instance-chained retry would have nothing left to protect. On `EitherPath` the same `with*` vocabulary is therefore **static**, taking the step as a `Supplier` — applied at the point where the computation still exists:
+`EitherPath` is an *eager* carrier: by the time an instance exists, the computation has already run, so an instance-chained retry would have nothing left to protect. On `EitherPath` the same `with*` vocabulary is therefore **static**, taking the step as a `Supplier`, applied at the point where the computation still exists:
 
 ```java
 EitherPath<OrderError, Reservation> reserved =
@@ -210,7 +210,7 @@ pipeline.via(order -> EitherPath.withRetry(() -> reserveInventory(order), policy
 
 ### Railway-Aware Retry on Typed Carriers
 
-On the typed-error carriers (`EitherPath` and `VResultPath`) retry understands the railway. The default overload retries **thrown exceptions only**: a `Left` is a business decision, not a fault — "card declined" is an answer, and asking again will not change it — so it is returned as-is and never retried.
+On the typed-error carriers (`EitherPath` and `VResultPath`) retry understands the railway. The default overload retries **thrown exceptions only**: a `Left` is a business decision, not a fault ("card declined" is an answer, and asking again will not change it), so it is returned as-is and never retried.
 
 Some typed errors *are* transient, though (a `SystemError` wrapping a connection reset, say). The typed overload lets a predicate opt those in:
 
@@ -230,14 +230,14 @@ EitherPath<OrderError, Reservation> reserved = EitherPath.withRetry(
 | Outcome of an attempt | Behaviour |
 |-----------------------|-----------|
 | `Right` | Returned; no retry |
-| `Left` the predicate does not select | Returned immediately — business errors are values |
+| `Left` the predicate does not select | Returned immediately; business errors are values |
 | `Left` the predicate selects | Retried per the policy; on exhaustion the **last `Left`** is returned, keeping the error on the typed channel |
 | Thrown exception matching the policy's predicate | Retried; on exhaustion `RetryExhaustedException` is thrown |
 
-Internally both typed carriers share a single railway-aware retry lowering, so `EitherPath` and `VResultPath` behave identically — the only difference is eager-static versus lazy-instance.
+Internally both typed carriers share a single railway-aware retry lowering, so `EitherPath` and `VResultPath` behave identically; the only difference is eager-static versus lazy-instance.
 
 ~~~admonish warning title="Never Retry a Non-Idempotent Step"
-Retry re-invokes the whole step. Wrapping a step with side effects that must happen at most once — a payment, an email, an inventory *commit* — risks performing them twice: an attempt can succeed remotely and still throw on the way back. Confine retry to idempotent steps (reads, validations, reservations that can safely be re-issued) and run everything else exactly once. See [Combined Patterns](combined.md#path-native-resilience-per-step-protection) for a worked per-step example.
+Retry re-invokes the whole step. Wrapping a step with side effects that must happen at most once (a payment, an email, an inventory *commit*) risks performing them twice: an attempt can succeed remotely and still throw on the way back. Confine retry to idempotent steps (reads, validations, reservations that can safely be re-issued) and run everything else exactly once. See [Combined Patterns](combined.md#path-native-resilience-per-step-protection) for a worked per-step example.
 ~~~
 
 ---
