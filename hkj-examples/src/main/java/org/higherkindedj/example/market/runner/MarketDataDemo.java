@@ -22,10 +22,8 @@ import org.higherkindedj.example.market.model.RiskAssessment;
 import org.higherkindedj.example.market.model.value.Symbol;
 import org.higherkindedj.example.market.pipeline.MarketDataPipeline;
 import org.higherkindedj.example.market.pipeline.PipelineConfig;
-import org.higherkindedj.example.market.resilience.FeedResilience;
 import org.higherkindedj.example.market.risk.RiskCalculator;
 import org.higherkindedj.example.market.risk.RiskPipeline;
-import org.higherkindedj.hkt.resilience.CircuitBreaker;
 import org.higherkindedj.hkt.vstream.VStream;
 import org.higherkindedj.hkt.vstream.VStreamPar;
 import org.higherkindedj.hkt.vstream.VStreamThrottle;
@@ -46,7 +44,7 @@ import org.higherkindedj.hkt.vtask.Par;
  *   <li><b>Step 6:</b> Anomaly detection + {@link org.higherkindedj.hkt.vtask.Scope#allSucceed} —
  *       Multi-channel alert dispatch
  *   <li><b>Step 7:</b> {@link VStreamThrottle#throttle} — Rate-limited publishing
- *   <li><b>Step 8:</b> {@link CircuitBreaker} + Recovery — Resilient feeds
+ *   <li><b>Step 8:</b> {@link VStream#recoverWith} — Resilient feeds
  *   <li><b>Step 9:</b> Full pipeline — End-to-end integration
  * </ol>
  *
@@ -358,22 +356,23 @@ public class MarketDataDemo {
   }
 
   // =========================================================================
-  // Step 8: CircuitBreaker + Recovery — Resilient Feeds
+  // Step 8: VStream.recoverWith — Resilient Feeds
   // =========================================================================
 
   /**
-   * Introduces resilience patterns: CircuitBreaker for feed protection and VStream.recoverWith for
-   * fallback streams.
+   * Introduces stream recovery: VStream.recoverWith substitutes a fallback stream when the primary
+   * feed fails.
    *
-   * <p>When an exchange feed fails repeatedly, the circuit breaker trips open, preventing further
-   * calls. The stream recovers by switching to a fallback feed.
+   * <p>Per-task protection (retry, circuit breaking, bulkheads) belongs on the core path types —
+   * {@code VTaskPath.withRetry/withCircuitBreaker/withBulkhead}; the stream layer only needs the
+   * fallback.
    */
   private static void step8_ResilientFeeds() {
     System.out.println("┌─────────────────────────────────────────────────────────────────┐");
-    System.out.println("│ Step 8: CircuitBreaker + Recovery — Resilient Feeds            │");
+    System.out.println("│ Step 8: VStream.recoverWith — Resilient Feeds                  │");
     System.out.println("└─────────────────────────────────────────────────────────────────┘");
-    System.out.println("  CircuitBreaker trips after repeated failures.");
-    System.out.println("  VStream.recoverWith switches to a fallback stream.\n");
+    System.out.println("  VStream.recoverWith switches to a fallback stream when the");
+    System.out.println("  primary feed fails.\n");
 
     // Simulate a primary feed that can't connect (fails on first pull).
     // VStream.recoverWith wraps the first pull, so it handles connection failures
@@ -385,9 +384,7 @@ public class MarketDataDemo {
     VStream<PriceTick> fallbackFeed =
         new SimulatedExchangeFeed(Exchange.LSE, SYMBOLS, 150.0, 0.002, 99L).ticks();
 
-    // Use resilience wrapper
-    FeedResilience resilience = FeedResilience.withDefaults();
-    VStream<PriceTick> resilientFeed = resilience.withFallback(primaryFeed, fallbackFeed);
+    VStream<PriceTick> resilientFeed = primaryFeed.recoverWith(_ -> fallbackFeed);
 
     List<PriceTick> ticks = resilientFeed.take(6).toList().run();
 
@@ -468,7 +465,6 @@ public class MarketDataDemo {
     System.out.println("    • VStream.chunk          — Fixed-size windowed aggregation");
     System.out.println("    • VStream.flatMap        — Zero-or-more alerts per view");
     System.out.println("    • Scope.allSucceed       — Multi-channel alert dispatch");
-    System.out.println("    • CircuitBreaker         — Feed failure protection");
     System.out.println("    • VStream.recoverWith    — Fallback stream on failure");
     System.out.println("    • VStream.take           — Safety valve for demo runs");
   }

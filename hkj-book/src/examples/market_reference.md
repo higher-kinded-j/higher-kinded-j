@@ -114,7 +114,6 @@ starting the second.
   <div class="source-group sg-resil">
     <div class="source-group-title">Resilience</div>
     <ul class="source-group-files">
-      <li><a href="https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/market/resilience/FeedResilience.java">FeedResilience.java</a></li>
     </ul>
   </div>
   <div class="source-group sg-model">

@@ -16,7 +16,6 @@ import org.higherkindedj.example.market.model.Alert;
 import org.higherkindedj.example.market.model.EnrichedTick;
 import org.higherkindedj.example.market.model.PriceTick;
 import org.higherkindedj.example.market.model.RiskAssessment;
-import org.higherkindedj.example.market.resilience.FeedResilience;
 import org.higherkindedj.example.market.risk.RiskPipeline;
 import org.higherkindedj.hkt.vstream.VStream;
 import org.higherkindedj.hkt.vstream.VStreamThrottle;
@@ -28,14 +27,14 @@ import org.higherkindedj.hkt.vstream.VStreamThrottle;
  *
  * <pre>{@code
  * Exchange Feeds ──→ Merge ──→ Resilience+Throttle ──→ Enrich ──→ Risk ──→ Aggregate ──→ Detect ──→ Dispatch
- *  (VStreamPar.merge)   (FeedResilience, throttle)    (parEvalMap)  (chunk)   (flatMap)  (Scope.allSucceed)
+ *  (VStreamPar.merge)   (recoverWith, throttle)       (parEvalMap)  (chunk)   (flatMap)  (Scope.allSucceed)
  * }</pre>
  *
  * <p><b>HKJ features demonstrated:</b>
  *
  * <ul>
  *   <li>{@link VStream#take} - Safety valve limiting total ticks processed
- *   <li>{@link FeedResilience} - Falls back to an empty stream if a feed errors, so one bad
+ *   <li>{@link VStream#recoverWith} - Falls back to an empty stream if a feed errors, so one bad
  *       exchange cannot abort the pipeline
  *   <li>{@link VStreamThrottle#throttle} - Rate-limits feed ingestion to a sustainable burst
  * </ul>
@@ -53,7 +52,6 @@ public class MarketDataPipeline {
   private final AnomalyDetector anomalyDetector;
   private final AlertDispatcher alertDispatcher;
   private final PipelineConfig config;
-  private final FeedResilience feedResilience;
 
   public MarketDataPipeline(
       List<ExchangeFeed> feeds,
@@ -68,7 +66,6 @@ public class MarketDataPipeline {
     this.anomalyDetector = Objects.requireNonNull(anomalyDetector);
     this.alertDispatcher = Objects.requireNonNull(alertDispatcher);
     this.config = Objects.requireNonNull(config);
-    this.feedResilience = FeedResilience.withDefaults();
   }
 
   /**
@@ -79,7 +76,9 @@ public class MarketDataPipeline {
     VStream<PriceTick> merged = FeedMerger.merge(feeds).take(config.maxTicks());
     // Resilience on the live feed path: fall back to an empty stream if a feed errors (so one bad
     // exchange cannot kill the pipeline), then throttle ingestion to a sustainable burst.
-    VStream<PriceTick> resilient = feedResilience.withFallback(merged, VStream.empty());
+    // Per-task protection (retry, circuit breaking, bulkheads) lives on the core path types —
+    // VTaskPath/VResultPath withRetry/withCircuitBreaker/withBulkhead — not on the stream layer.
+    VStream<PriceTick> resilient = merged.recoverWith(_ -> VStream.empty());
     return VStreamThrottle.throttle(resilient, FEED_THROTTLE_BURST, FEED_THROTTLE_WINDOW);
   }
 

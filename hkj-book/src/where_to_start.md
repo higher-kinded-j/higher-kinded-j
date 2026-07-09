@@ -185,7 +185,7 @@ result is materialised.
 You have async or deferred work and you need to make it survive partial
 failure.
 
-- **Tools:** [`VTaskPath`](effect/path_vtask.md) or [`IOPath`](effect/path_io.md) underneath the resilience combinators.
+- **Tools:** [`VTaskPath`](effect/path_vtask.md) or [`IOPath`](effect/path_io.md) underneath the resilience combinators; [`VResultPath`](effect/path_vresult.md) when the failures are typed domain errors (railway-aware retry, breaker, bulkhead, and typed timeouts chain directly on the path).
 - **Read:** [Resilience Patterns](resilience/ch_intro.md) ·
   [Retry](resilience/retry.md) ·
   [Saga](resilience/saga.md)

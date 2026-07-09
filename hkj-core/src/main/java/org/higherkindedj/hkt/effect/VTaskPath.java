@@ -210,6 +210,9 @@ public sealed interface VTaskPath<A> extends VTaskKind<A>, Effectful<A> permits 
    * Creates a new VTaskPath that fails if this task does not complete within the specified
    * duration.
    *
+   * <p>Alias of {@link #withTimeout(Duration)}, which is the {@code with*} family form shared with
+   * the other path types; both delegate to the same {@code VTask.timeout} lowering.
+   *
    * @param duration the maximum time to wait; must not be null
    * @return a VTaskPath with timeout behaviour
    * @throws NullPointerException if duration is null
@@ -268,6 +271,25 @@ public sealed interface VTaskPath<A> extends VTaskKind<A>, Effectful<A> permits 
   VTaskPath<A> retry(int maxAttempts, Duration initialDelay);
 
   // ===== Resilience Operations =====
+
+  /**
+   * Returns a VTaskPath that fails with a {@link java.util.concurrent.TimeoutException} if this
+   * computation does not complete within the given duration.
+   *
+   * <p>This is the {@code with*} family form of {@link #timeout(Duration)} - the two are aliases
+   * sharing one {@code VTask.timeout} lowering.
+   *
+   * <p>Two caveats inherited from {@link org.higherkindedj.hkt.vtask.VTask#timeout}: the losing
+   * computation is <em>not</em> interrupted, and a {@code TimeoutException} thrown inside the
+   * computation is indistinguishable from the budget expiring. Note the observation channel: {@code
+   * run().runSafe()} preserves the checked {@code TimeoutException}, while the path-level {@code
+   * unsafeRun()}/{@code runSafe()} wrap it per {@code VTask.run()} conventions.
+   *
+   * @param duration the time budget; must not be null
+   * @return a new VTaskPath bounded by the time budget
+   * @throws NullPointerException if duration is null
+   */
+  VTaskPath<A> withTimeout(Duration duration);
 
   /**
    * Returns a VTaskPath protected by the given circuit breaker.

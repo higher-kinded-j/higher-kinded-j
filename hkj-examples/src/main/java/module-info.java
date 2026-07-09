@@ -29,7 +29,6 @@ module org.higherkindedj.examples {
   exports org.higherkindedj.example.order.error;
   exports org.higherkindedj.example.order.model;
   exports org.higherkindedj.example.order.model.value;
-  exports org.higherkindedj.example.order.resilience;
   exports org.higherkindedj.example.order.runner;
   exports org.higherkindedj.example.order.service;
   exports org.higherkindedj.example.order.service.impl;

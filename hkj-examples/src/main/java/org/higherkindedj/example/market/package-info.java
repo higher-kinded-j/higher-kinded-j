@@ -15,8 +15,7 @@
  *   <li>{@link org.higherkindedj.hkt.vstream.VStreamThrottle} — Rate-limited emission
  *   <li>{@link org.higherkindedj.hkt.vtask.Par} — Parallel combinator (map2 for concurrent lookups)
  *   <li>{@link org.higherkindedj.hkt.vtask.Scope} — Structured concurrency for alert dispatch
- *   <li>{@link org.higherkindedj.hkt.resilience.CircuitBreaker} — Feed failure protection
- *   <li>{@link org.higherkindedj.hkt.resilience.RetryPolicy} — Retry with backoff
+ *   <li>{@link org.higherkindedj.hkt.vstream.VStream#recoverWith} — Feed fallback on failure
  * </ul>
  *
  * <p>Run the demo with: {@code ./gradlew :hkj-examples:run

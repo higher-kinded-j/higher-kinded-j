@@ -93,6 +93,16 @@ import org.jspecify.annotations.Nullable;
  * VTaskPath<Config> fromVTask = Path.vtaskPath(someVTask);
  * }</pre>
  *
+ * <h2>Creating VResultPath instances</h2>
+ *
+ * <pre>{@code
+ * VResultPath<Error, Order> deferred = Path.vresultDefer(() -> orderService.load(orderId));
+ * VResultPath<Error, Order> success = Path.vresultRight(order);
+ * VResultPath<Error, Order> failure = Path.vresultLeft(Error.notFound(orderId));
+ * VResultPath<Error, Order> fromEither = Path.vresultEither(someEither);
+ * VResultPath<Error, Order> fromVTask = Path.vresult(someVTask);
+ * }</pre>
+ *
  * <h2>Creating ValidationPath instances</h2>
  *
  * <pre>{@code
@@ -128,6 +138,7 @@ import org.jspecify.annotations.Nullable;
  * @see TryPath
  * @see IOPath
  * @see VTaskPath
+ * @see VResultPath
  * @see ValidationPath
  * @see IdPath
  * @see OptionalPath
@@ -229,6 +240,10 @@ public final class Path {
 
   /**
    * Creates an EitherPath from an existing Either.
+   *
+   * <p>EitherPath is eager, so its resilience combinators are <em>static step combinators</em> on
+   * {@link EitherPath} (e.g. {@code EitherPath.withRetry(() -> step(), retryOn, policy)}) rather
+   * than instance methods - see the {@link EitherPath} class documentation.
    *
    * @param either the Either to wrap; must not be null
    * @param <E> the error type
@@ -532,6 +547,74 @@ public final class Path {
   public static <A> VTaskPath<A> vtaskPath(VTask<A> vtask) {
     Objects.requireNonNull(vtask, "vtask must not be null");
     return new DefaultVTaskPath<>(vtask);
+  }
+
+  // ===== VResultPath factory methods =====
+
+  /**
+   * Creates a VResultPath from an existing {@code VTask<Either<E, A>>} carrier.
+   *
+   * @param task the carrier to wrap; must not be null
+   * @param <E> the error type
+   * @param <A> the success type
+   * @return a VResultPath wrapping the carrier
+   * @throws NullPointerException if task is null
+   */
+  public static <E, A> VResultPath<E, A> vresult(VTask<Either<E, A>> task) {
+    return VResultPath.fromVTask(task);
+  }
+
+  /**
+   * Creates a VResultPath from an already-computed Either.
+   *
+   * @param either the Either to lift; must not be null
+   * @param <E> the error type
+   * @param <A> the success type
+   * @return a VResultPath that immediately produces the Either when run
+   * @throws NullPointerException if either is null
+   */
+  public static <E, A> VResultPath<E, A> vresultEither(Either<E, A> either) {
+    return VResultPath.fromEither(either);
+  }
+
+  /**
+   * Creates a successful VResultPath containing the given value.
+   *
+   * @param value the success value
+   * @param <E> the phantom error type
+   * @param <A> the success type
+   * @return a VResultPath that immediately produces {@code Right(value)} when run
+   */
+  public static <E, A> VResultPath<E, A> vresultRight(A value) {
+    return VResultPath.pure(value);
+  }
+
+  /**
+   * Creates a failed VResultPath containing the given typed error.
+   *
+   * @param error the error value; must not be null
+   * @param <E> the error type
+   * @param <A> the phantom success type
+   * @return a VResultPath that immediately produces {@code Left(error)} when run
+   * @throws NullPointerException if error is null
+   */
+  public static <E, A> VResultPath<E, A> vresultLeft(E error) {
+    return VResultPath.raiseError(error);
+  }
+
+  /**
+   * Creates a VResultPath from a deferred computation that produces an Either.
+   *
+   * <p>The supplier is not invoked until the path is run.
+   *
+   * @param supplier the deferred computation; must not be null and must not return null
+   * @param <E> the error type
+   * @param <A> the success type
+   * @return a VResultPath representing the deferred computation
+   * @throws NullPointerException if supplier is null
+   */
+  public static <E, A> VResultPath<E, A> vresultDefer(Supplier<Either<E, A>> supplier) {
+    return VResultPath.defer(supplier);
   }
 
   // ===== ValidationPath factory methods =====

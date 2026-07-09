@@ -47,6 +47,7 @@ Every public HKJ type a user is likely to assert on has a dedicated assertion cl
 | Discriminated unions | `EitherAssert`, `MaybeAssert`, `TryAssert`, `ValidatedAssert`, `LazyAssert` |
 | Reader / Writer / State | `ReaderAssert` (with `ReaderResultAssert`), `WriterAssert`, `StateAssert` |
 | Effect types | `IOAssert`, `VTaskAssert`, `VStreamAssert` |
+| Effect paths | `VTaskPathAssert`, `VStreamPathAssert`, `VResultPathAssert`, `VTaskContextAssert` |
 | Monad transformers | `EitherTAssert`, `MaybeTAssert`, `OptionalTAssert`, `ReaderTAssert`, `StateTAssert`, `WriterTAssert` |
 | Free algebra | `FreeAssert`, `EitherFAssert` |
 | Error envelopes | `ErrorEnvelopeAssert` |
@@ -153,6 +154,25 @@ assertThatVTask(task)
     .succeeds()
     .hasValue(expected)
     .completesWithin(Duration.ofSeconds(1));
+```
+
+### `VResultPathAssert`
+
+A `VResultPath<E, A>` run has three possible outcomes, and the assertion covers all of them: a typed success (`Right`), a typed domain error (`Left`), or a defect (an exception outside the typed channel). The path is executed once and the outcome cached for the rest of the chain:
+
+```java
+VResultPath<DomainError, Order> path = Path.vresultDefer(() -> service.load(orderId));
+
+assertThatVResultPath(path).isRight().hasRight(expectedOrder);
+
+assertThatVResultPath(failing)
+    .isLeft()
+    .hasLeftSatisfying(error ->
+        assertThat(error).isInstanceOf(NotFound.class));
+
+assertThatVResultPath(defective)
+    .hasDefect()
+    .withDefectType(IllegalStateException.class);
 ```
 
 ### `VStreamAssert`

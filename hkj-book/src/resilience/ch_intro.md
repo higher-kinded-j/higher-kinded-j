@@ -34,10 +34,12 @@ This chapter introduces four resilience patterns that encode this discipline int
 
 Higher-Kinded-J's resilience patterns integrate directly with `VTask`, `VStream`, and the Effect Path API. You compose them as combinators in the same fluent chains you already use for mapping, error handling, and parallel execution. A retry is just another method on a `VTaskPath`, no different in character from `map` or `timeout`. They are lazy, composable, and type-safe: they describe resilience as structure, not as an afterthought.
 
+The full `with*` vocabulary (`withRetry`, `withTimeout`, `withCircuitBreaker`, `withBulkhead`) is available across the Path family. The lazy carriers (`IOPath`, `VTaskPath`, `VResultPath`) chain the combinators as instance methods; on the eager `EitherPath` the same combinators are static, taking the step as a `Supplier`, because resilience wraps a *computation* and an eager path has already run. On the typed-error carriers the combinators are **railway-aware**: a business `Left` is a value, never retried and never counted as a circuit-breaker failure, while typed overloads land timeouts and rejections as `Left`s rather than thrown exceptions.
+
 ---
 
 ~~~admonish info title="In This Chapter"
-- **[Retry](retry.md)** -- `RetryPolicy` configuration with fixed, exponential, and jittered backoff strategies. Selective retry based on exception type. Integration with `IOPath`, `CompletableFuturePath`, and `VTaskPath`.
+- **[Retry](retry.md)**: `RetryPolicy` configuration with fixed, exponential, and jittered backoff strategies. Selective retry based on exception type. Path-native `withRetry` on every carrier, including railway-aware typed retry on `EitherPath` and `VResultPath`.
 
 - **[Circuit Breaker](circuit_breaker.md)** -- A state machine that tracks dependency health across three states (closed, open, half-open). Protects recovering services from being overwhelmed by callers that have not yet noticed the failure.
 
@@ -45,12 +47,12 @@ Higher-Kinded-J's resilience patterns integrate directly with `VTask`, `VStream`
 
 - **[Saga](saga.md)** -- Compensating transactions for multi-step distributed operations. Each forward step registers a corresponding undo action; on failure, compensations execute in reverse order to restore consistency.
 
-- **[Combined Patterns](combined.md)** -- Composing multiple resilience patterns into layered defences. The `ResilienceBuilder` applies patterns in the correct order: timeout outermost, then bulkhead, then retry, then circuit breaker innermost.
+- **[Combined Patterns](combined.md)**: Composing multiple resilience patterns into layered defences. The `ResilienceBuilder` applies patterns in the correct order: timeout outermost, then bulkhead, then retry, then circuit breaker innermost. Plus the per-carrier availability table for the path-native `with*` combinators and a worked per-step example.
 ~~~
 
 ~~~admonish example title="See Example Code"
 - [ResilienceExample.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/effect/ResilienceExample.java) -- Retry policies, backoff strategies, and combined patterns
-- [Order Resilience](https://github.com/higher-kinded-j/higher-kinded-j/tree/main/hkj-examples/src/main/java/org/higherkindedj/example/order/resilience) -- Production-style retry with timeout in an order processing workflow
+- [ConfigurableOrderWorkflow.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/order/workflow/ConfigurableOrderWorkflow.java): Production-style per-step resilience; retry confined to an idempotent pre-flight, the commit run exactly once under a typed timeout
 ~~~
 
 ---
