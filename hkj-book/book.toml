@@ -6,8 +6,8 @@ language = "en"
 multilingual = false
 src = "src"
 [output.html]
-additional-css = ["./mdbook-admonish.css", "./theme/catppuccin.css", "./theme/catppuccin-admonish.css", "./theme/catppuccin-alerts.css", "./theme/additional-hkj.css"]
-additional-js = ["./theme/version-switcher.js", "./theme/sidebar-nav-link.js", "./theme/chapter-title.js"]
+additional-css = ["./mdbook-admonish.css", "./theme/catppuccin.css", "./theme/catppuccin-admonish.css", "./theme/catppuccin-alerts.css", "./theme/additional-hkj.css", "./theme/change-tracking.css"]
+additional-js = ["./theme/version-switcher.js", "./theme/sidebar-nav-link.js", "./theme/chapter-title.js", "./theme/change-tracking.js"]
 default-theme = "latte"
 preferred-dark-theme = "macchiato"
 site-url = "https://higher-kinded-j.github.io"
@@ -30,4 +30,12 @@ level = 1
 [preprocessor.admonish]
 command = "mdbook-admonish"
 assets_version = "3.0.3" # do not edit: managed by `mdbook-admonish install`
+
+# Marks content that is new/changed vs a baseline release. No-op unless
+# HKJ_CHANGES_BASE (a git ref) or HKJ_CHANGES_BASELINE_DIR is set, so it is
+# safe to leave enabled for local builds. Runs before admonish/alerts so it
+# sees the original markdown source.
+[preprocessor.hkj-changes]
+command = "python3 ../.github/scripts/hkj_changes_preprocessor.py"
+before = ["admonish", "alerts"]
 

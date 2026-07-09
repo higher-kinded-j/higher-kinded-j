@@ -1,0 +1,132 @@
+/* Change tracking: highlight content that is new/changed vs a baseline release.
+ *
+ * Two visual signals, controlled by a three-state header toggle:
+ *   - a vertical line in the left margin marking a run of new/changed blocks
+ *   - a faint underline on the individual words that changed within a block
+ *
+ * State is a class on <html> set by change-tracking.js:
+ *   .hkj-ct-full  -> margin line + word underlines   (default)
+ *   .hkj-ct-lines -> margin line only
+ *   .hkj-ct-off   -> nothing shown
+ */
+
+/* Change-tracking accent, tuned per theme to the book's mauve brand accent
+ * (the Catppuccin "mauve" of each flavour, same hue used for headings and the
+ * active sidebar item in additional-hkj.css). Falls back to --links for any
+ * theme not listed. */
+:root {
+  --hkj-ct-accent: var(--links, #8839ef);
+}
+html.latte     { --hkj-ct-accent: #8839ef; } /* mauve (light) */
+html.frappe    { --hkj-ct-accent: #ca9ee6; } /* mauve (frappe) */
+html.macchiato { --hkj-ct-accent: #c6a0f6; } /* mauve (macchiato) */
+html.mocha     { --hkj-ct-accent: #cba6f7; } /* mauve (mocha) */
+
+/* The runtime wraps each run of changed blocks in this container. */
+.hkj-new-content {
+  position: relative;
+  border-left: 3px solid var(--hkj-ct-accent);
+  padding-left: 1rem;
+  margin-left: -1rem;
+  border-radius: 2px;
+}
+
+/* Keep the empty marker divs out of the flow before JS consumes them. */
+.hkj-ct-mark {
+  display: none;
+}
+
+/* Faint underline on changed words (only meaningful inside a modified block). */
+.hkj-word-changed {
+  text-decoration: underline;
+  text-decoration-style: dotted;
+  text-decoration-thickness: 1px;
+  text-decoration-color: color-mix(in srgb, var(--hkj-ct-accent) 55%, transparent);
+  text-underline-offset: 3px;
+}
+
+/* --- toggle states -------------------------------------------------------- */
+
+/* Lines-only: keep the margin line, drop the word underline. */
+.hkj-ct-lines .hkj-word-changed {
+  text-decoration: none;
+}
+
+/* Off: hide both signals but leave the DOM intact so toggling back is instant. */
+.hkj-ct-off .hkj-new-content {
+  border-left-color: transparent;
+}
+.hkj-ct-off .hkj-word-changed {
+  text-decoration: none;
+}
+
+/* --- sidebar TOC change indicators --------------------------------------- */
+
+/* The per-page manifest element must never take up space. */
+#hkj-ct-manifest {
+  display: none !important;
+}
+
+/* Solid dot on changed chapters/sections and on their ancestor sections
+ * (so a collapsed group still signals that something inside it changed). */
+.sidebar .hkj-ct-changed::after,
+.sidebar .hkj-ct-changed-descendant::after {
+  content: "";
+  display: inline-block;
+  width: 0.45em;
+  height: 0.45em;
+  margin-left: 0.4em;
+  border-radius: 50%;
+  background: var(--hkj-ct-accent);
+  vertical-align: middle;
+}
+
+/* Sidebar dots follow the toggle: hidden when change tracking is off. */
+.hkj-ct-off .sidebar .hkj-ct-changed::after,
+.hkj-ct-off .sidebar .hkj-ct-changed-descendant::after {
+  display: none;
+}
+
+/* --- header toggle button ------------------------------------------------- */
+
+#hkj-ct-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35em;
+  font-size: 0.8rem;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+#hkj-ct-toggle .hkj-ct-dot {
+  width: 0.6em;
+  height: 0.6em;
+  border-radius: 50%;
+  background: var(--hkj-ct-accent);
+  display: inline-block;
+}
+
+.hkj-ct-lines #hkj-ct-toggle .hkj-ct-dot {
+  background: color-mix(in srgb, var(--hkj-ct-accent) 55%, transparent);
+}
+.hkj-ct-off #hkj-ct-toggle .hkj-ct-dot {
+  background: transparent;
+  border: 1px solid var(--icons, currentColor);
+}
+
+#hkj-ct-toggle .hkj-ct-label {
+  font-weight: 500;
+}
+
+/* On narrow viewports keep only the coloured dot so the label can't crowd
+   the header menu bar; the tooltip still explains the button. */
+@media (max-width: 600px) {
+  #hkj-ct-toggle .hkj-ct-label {
+    display: none;
+  }
+}
+
+/* Hide the toggle entirely on builds/pages that carry no change data. */
+#hkj-ct-toggle[hidden] {
+  display: none;
+}

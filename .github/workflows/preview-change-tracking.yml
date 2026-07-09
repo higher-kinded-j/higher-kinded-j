@@ -1,0 +1,104 @@
+name: Preview mdBook Change Tracking
+
+# Build the book with change tracking enabled against a chosen baseline and
+# upload it as an artifact. This never touches the published site — it is a
+# safe, on-demand way for maintainers to preview the margin line + word-level
+# change highlighting before a release.
+
+on:
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: 'Git ref to build (branch/tag/commit)'
+        required: false
+        default: 'main'
+      baseline:
+        description: 'Baseline ref to diff against (tag/commit). Leave blank to auto-pick (previous tag of a tagged ref, else latest tag).'
+        required: false
+        default: ''
+
+jobs:
+  preview:
+    runs-on: ubuntu-latest
+    env:
+      MDBOOK_ADMONISH_VERSION: "1.19.0"
+      MDBOOK_ALERTS_VERSION: "0.7.0"
+      BOOK_ROOT_DIR: "hkj-book"
+
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout requested ref
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.inputs.ref }}
+          fetch-depth: 0  # need full history + tags for baseline resolution
+
+      - name: Determine change-tracking baseline
+        id: baseline
+        run: |
+          REF="${{ github.event.inputs.ref }}"
+          BASE="${{ github.event.inputs.baseline }}"
+
+          if [[ -z "$BASE" ]]; then
+            # Auto-pick: previous tag when building a tag, else the latest tag.
+            if git describe --exact-match --tags HEAD >/dev/null 2>&1; then
+              BASE="$(git describe --tags --abbrev=0 HEAD^ 2>/dev/null || true)"
+            else
+              BASE="$(git describe --tags --abbrev=0 2>/dev/null || true)"
+            fi
+          fi
+
+          if [[ -z "$BASE" ]]; then
+            echo "::warning::No baseline tag found; change tracking will be a no-op."
+          elif ! git rev-parse --verify --quiet "${BASE}^{commit}" >/dev/null; then
+            echo "::error::Baseline ref '${BASE}' not found."
+            exit 1
+          else
+            echo "Change tracking baseline: ${BASE}"
+          fi
+          echo "base=${BASE}" >> "$GITHUB_OUTPUT"
+
+      - name: Setup mdBook
+        uses: peaceiris/actions-mdbook@v2
+        with:
+          mdbook-version: '0.4.51'
+
+      - name: Install 'mdbook-admonish'
+        run: cargo install mdbook-admonish --version ${{ env.MDBOOK_ADMONISH_VERSION }} --locked
+
+      - name: Install 'mdbook-alerts'
+        run: cargo install mdbook-alerts --version ${{ env.MDBOOK_ALERTS_VERSION }} --locked
+
+      - name: Setup mdbook-admonish assets
+        working-directory: ./${{ env.BOOK_ROOT_DIR }}
+        run: mdbook-admonish install .
+
+      - name: Build mdBook with change tracking
+        working-directory: ./${{ env.BOOK_ROOT_DIR }}
+        env:
+          HKJ_CHANGES_BASE: ${{ steps.baseline.outputs.base }}
+          HKJ_CHANGES_SINCE_LABEL: ${{ steps.baseline.outputs.base }}
+        run: mdbook build
+
+      - name: Upload preview artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: change-tracking-preview
+          path: ${{ env.BOOK_ROOT_DIR }}/book
+          if-no-files-found: error
+
+      - name: Summary
+        run: |
+          {
+            echo "### Change-tracking preview built"
+            echo ""
+            echo "- **Built ref:** \`${{ github.event.inputs.ref }}\`"
+            echo "- **Baseline:** \`${{ steps.baseline.outputs.base }}\`"
+            echo ""
+            echo "Download the **change-tracking-preview** artifact above, unzip,"
+            echo "and open \`index.html\` (or serve the folder) to review the"
+            echo "margin line and word-level highlighting. Use the header toggle"
+            echo "to switch between full / lines-only / off."
+          } >> "$GITHUB_STEP_SUMMARY"
