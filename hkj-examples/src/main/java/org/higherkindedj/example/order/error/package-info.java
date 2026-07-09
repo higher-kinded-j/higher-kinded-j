@@ -23,6 +23,14 @@
  *   <li>{@code SystemError} - Infrastructure or timeout errors
  * </ul>
  *
+ * <h2>Error Envelope</h2>
+ *
+ * <p>Each variant declares only its domain-specific components plus one {@link
+ * org.higherkindedj.hkt.error.ErrorEnvelope} carrying the shared code, message and timestamp
+ * together with the typed {@link org.higherkindedj.example.order.error.OrderErrorContext}. The
+ * generated {@code OrderErrors} companion supplies per-variant factories, the fluent context
+ * builder and the {@code editContext} wither.
+ *
  * <h2>Usage with Effect Paths</h2>
  *
  * <pre>{@code

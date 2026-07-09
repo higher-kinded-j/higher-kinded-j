@@ -49,6 +49,7 @@ Every public HKJ type a user is likely to assert on has a dedicated assertion cl
 | Effect types | `IOAssert`, `VTaskAssert`, `VStreamAssert` |
 | Monad transformers | `EitherTAssert`, `MaybeTAssert`, `OptionalTAssert`, `ReaderTAssert`, `StateTAssert`, `WriterTAssert` |
 | Free algebra | `FreeAssert`, `EitherFAssert` |
+| Error envelopes | `ErrorEnvelopeAssert` |
 
 Each entry point follows the AssertJ convention `assertThatXxx(actual)`:
 
@@ -166,6 +167,30 @@ assertThatVStream(stream).isEmpty();          // for empty streams
 assertThatVStream(failingStream)
     .failsWithExceptionType(IllegalStateException.class);
 ```
+
+---
+
+## Assertions for the Error Envelope
+
+`ErrorEnvelopeAssert` covers the generated `ErrorEnvelope<C>` (see [`@GenerateErrorEnvelope`](../optics/record_mapping.md#generating-error-envelopes-generateerrorenvelope)). Because envelope timestamps come from a `TimeSource`, a frozen clock makes the whole envelope, the timestamp included, exactly assertable:
+
+```java
+import static org.higherkindedj.hkt.assertions.ErrorEnvelopeAssert.assertThatErrorEnvelope;
+
+Instant frozen = Instant.parse("2026-07-07T09:30:00Z");
+TimeSource time = TimeSource.of(SteppableClock.startingAt(frozen));
+
+OrderError error = OrderErrors.outOfStock(time, products)
+    .editContext(ctx -> ctx.orderId(orderId));
+
+assertThatErrorEnvelope(error.envelope())
+    .hasCode("OUT_OF_STOCK")
+    .hasMessageContaining("stock")
+    .hasTimestamp(frozen)
+    .hasContextSatisfying(ctx -> assertThat(ctx.orderId()).isEqualTo(orderId));
+```
+
+`hasCode` / `hasMessage` / `hasMessageContaining` / `hasTimestamp` / `hasContext` / `hasContextSatisfying` cover the four fields; the context escape hatch keeps the assertion typed against your context record.
 
 ---
 

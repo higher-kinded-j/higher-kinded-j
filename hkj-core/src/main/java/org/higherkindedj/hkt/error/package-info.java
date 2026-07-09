@@ -6,6 +6,10 @@
  * org.higherkindedj.hkt.eitherf.EitherF} like any other effect algebra. Programs that need to
  * explicitly raise typed business errors include it in their effect set. Programs that only need to
  * recover from interpreter failures (e.g. gateway timeouts) do NOT need ErrorOp.
+ *
+ * <p>Also provides {@link org.higherkindedj.hkt.error.ErrorEnvelope}, the shared carrier for a
+ * typed domain error's common fields (code, message, timestamp, typed context) used by the {@code
+ * GenerateErrorEnvelope} companion generator.
  */
 @NullMarked
 package org.higherkindedj.hkt.error;

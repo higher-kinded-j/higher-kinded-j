@@ -16,6 +16,9 @@ dependencies {
     annotationProcessor(libs.autoservice)
 
     testImplementation(project(":hkj-processor-plugins"))
+    // Tests exercising generated error-envelope companions cast into hkj-core's carrier types
+    // (ErrorEnvelope, TimeSource); already on the runtime classpath via hkj-processor-plugins.
+    testImplementation(project(":hkj-core"))
 
     testImplementation(libs.compile.testing)
     testImplementation(libs.truth)
@@ -91,6 +94,7 @@ tasks.jacocoTestCoverageVerification {
         rule {
             element = "CLASS"
             includes = listOf(
+                "org.higherkindedj.optics.processing.ErrorEnvelopeProcessor*",
                 "org.higherkindedj.optics.processing.MappingProcessor*",
                 "org.higherkindedj.optics.processing.MergeProcessor*",
             )

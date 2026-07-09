@@ -115,7 +115,7 @@ public class InMemoryInventoryService implements InventoryService {
 
     if (!unavailable.isEmpty()) {
       taken.forEach(item -> returnStock(item.productId().value(), item.quantity()));
-      return Either.left(OrderError.InventoryError.outOfStock(unavailable));
+      return Either.left(OrderError.InventoryError.outOfStock(timeSource, unavailable));
     }
 
     return Either.right(storeReservation(taken));
@@ -125,7 +125,8 @@ public class InMemoryInventoryService implements InventoryService {
   public Either<OrderError, Void> confirmReservation(String reservationId) {
     if (!reservations.containsKey(reservationId)) {
       return Either.left(
-          OrderError.InventoryError.reservationFailed("Reservation not found: " + reservationId));
+          OrderError.InventoryError.reservationFailed(
+              timeSource, "Reservation not found: " + reservationId));
     }
     reservations.remove(reservationId);
     return Either.right(null);
@@ -136,7 +137,8 @@ public class InMemoryInventoryService implements InventoryService {
     var reservation = reservations.remove(reservationId);
     if (reservation == null) {
       return Either.left(
-          OrderError.InventoryError.reservationFailed("Reservation not found: " + reservationId));
+          OrderError.InventoryError.reservationFailed(
+              timeSource, "Reservation not found: " + reservationId));
     }
 
     // Return stock
@@ -194,7 +196,7 @@ public class InMemoryInventoryService implements InventoryService {
     if (taken.isEmpty()) {
       return Either.left(
           OrderError.InventoryError.outOfStock(
-              availability.stream().map(a -> a.productId().value()).toList()));
+              timeSource, availability.stream().map(a -> a.productId().value()).toList()));
     }
 
     return Either.right(storeReservation(taken));

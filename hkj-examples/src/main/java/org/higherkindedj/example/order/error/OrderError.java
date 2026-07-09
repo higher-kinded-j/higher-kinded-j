@@ -5,8 +5,13 @@ package org.higherkindedj.example.order.error;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
+import java.util.function.UnaryOperator;
+import org.higherkindedj.example.order.model.value.CustomerId;
+import org.higherkindedj.example.order.model.value.ProductId;
+import org.higherkindedj.hkt.error.ErrorEnvelope;
+import org.higherkindedj.hkt.time.TimeSource;
+import org.higherkindedj.optics.annotations.GenerateErrorEnvelope;
 import org.higherkindedj.optics.annotations.GeneratePrisms;
 import org.jspecify.annotations.Nullable;
 
@@ -15,8 +20,15 @@ import org.jspecify.annotations.Nullable;
  *
  * <p>Using a sealed interface enables exhaustive pattern matching and generates prisms for
  * type-safe error handling.
+ *
+ * <p>Each variant declares only its domain-specific components plus one {@link ErrorEnvelope}
+ * carrying the shared fields (code, message, timestamp) and the typed {@link OrderErrorContext}
+ * (issue #610). The {@code code()}/{@code message()}/{@code timestamp()}/{@code context()}
+ * accessors delegate to the envelope, and the generated {@link OrderErrors} companion supplies
+ * per-variant factories, the fluent context builder and the context wither.
  */
 @GeneratePrisms
+@GenerateErrorEnvelope
 public sealed interface OrderError
     permits OrderError.ValidationError,
         OrderError.CustomerError,
@@ -27,33 +39,36 @@ public sealed interface OrderError
         OrderError.NotificationError,
         OrderError.SystemError {
 
-  /**
-   * Error code for categorisation.
-   *
-   * @return the error code
-   */
-  String code();
+  /** The shared envelope: code, message, timestamp and typed context. */
+  ErrorEnvelope<OrderErrorContext> envelope();
+
+  /** Error code for categorisation. */
+  default String code() {
+    return envelope().code();
+  }
+
+  /** Human-readable error message. */
+  default String message() {
+    return envelope().message();
+  }
+
+  /** When the error occurred. */
+  default Instant timestamp() {
+    return envelope().timestamp();
+  }
+
+  /** Additional typed context for debugging and logging. */
+  default OrderErrorContext context() {
+    return envelope().context();
+  }
 
   /**
-   * Human-readable error message.
-   *
-   * @return the message
+   * Rebuilds this error with its context transformed by {@code edit}, seeded from the current
+   * context; code, message and timestamp are preserved.
    */
-  String message();
-
-  /**
-   * When the error occurred.
-   *
-   * @return the timestamp
-   */
-  Instant timestamp();
-
-  /**
-   * Additional context for debugging and logging.
-   *
-   * @return the context map
-   */
-  Map<String, Object> context();
+  default OrderError editContext(UnaryOperator<OrderErrors.ContextBuilder> edit) {
+    return OrderErrors.editContext(this, edit);
+  }
 
   // -------------------------------------------------------------------------
   // Validation Errors
@@ -62,18 +77,10 @@ public sealed interface OrderError
   /**
    * Validation errors from input data issues.
    *
-   * @param code the error code
-   * @param message the error message
-   * @param timestamp when the error occurred
-   * @param context additional context
    * @param fieldErrors the individual field validation failures
+   * @param envelope the shared error envelope
    */
-  record ValidationError(
-      String code,
-      String message,
-      Instant timestamp,
-      Map<String, Object> context,
-      List<FieldError> fieldErrors)
+  record ValidationError(List<FieldError> fieldErrors, ErrorEnvelope<OrderErrorContext> envelope)
       implements OrderError {
 
     /**
@@ -83,7 +90,9 @@ public sealed interface OrderError
      * @param fieldErrors the field-level errors
      */
     public ValidationError(String message, List<FieldError> fieldErrors) {
-      this("VALIDATION_ERROR", message, Instant.now(), Map.of(), fieldErrors);
+      this(
+          fieldErrors,
+          ErrorEnvelope.of("VALIDATION_ERROR", message, OrderErrors.context().build()));
     }
 
     /**
@@ -115,18 +124,10 @@ public sealed interface OrderError
   /**
    * Customer lookup or validation errors.
    *
-   * @param code the error code
-   * @param message the error message
-   * @param timestamp when the error occurred
-   * @param context additional context
    * @param customerId the customer ID involved
+   * @param envelope the shared error envelope
    */
-  record CustomerError(
-      String code,
-      String message,
-      Instant timestamp,
-      Map<String, Object> context,
-      String customerId)
+  record CustomerError(String customerId, ErrorEnvelope<OrderErrorContext> envelope)
       implements OrderError {
 
     /**
@@ -137,11 +138,11 @@ public sealed interface OrderError
      */
     public static CustomerError notFound(String customerId) {
       return new CustomerError(
-          "CUSTOMER_NOT_FOUND",
-          "Customer not found: " + customerId,
-          Instant.now(),
-          Map.of("customerId", customerId),
-          customerId);
+          customerId,
+          ErrorEnvelope.of(
+              "CUSTOMER_NOT_FOUND",
+              "Customer not found: " + customerId,
+              OrderErrors.context().customerId(new CustomerId(customerId)).build()));
     }
 
     /**
@@ -153,11 +154,11 @@ public sealed interface OrderError
      */
     public static CustomerError suspended(String customerId, String reason) {
       return new CustomerError(
-          "CUSTOMER_SUSPENDED",
-          "Customer account suspended: " + reason,
-          Instant.now(),
-          Map.of("customerId", customerId, "reason", reason),
-          customerId);
+          customerId,
+          ErrorEnvelope.of(
+              "CUSTOMER_SUSPENDED",
+              "Customer account suspended: " + reason,
+              OrderErrors.context().customerId(new CustomerId(customerId)).reason(reason).build()));
     }
   }
 
@@ -168,48 +169,66 @@ public sealed interface OrderError
   /**
    * Inventory or stock errors.
    *
-   * @param code the error code
-   * @param message the error message
-   * @param timestamp when the error occurred
-   * @param context additional context
    * @param unavailableProducts products that are unavailable
+   * @param envelope the shared error envelope
    */
-  record InventoryError(
-      String code,
-      String message,
-      Instant timestamp,
-      Map<String, Object> context,
-      List<String> unavailableProducts)
+  record InventoryError(List<String> unavailableProducts, ErrorEnvelope<OrderErrorContext> envelope)
       implements OrderError {
 
     /**
-     * Creates an error for out of stock products.
+     * Creates an error for out of stock products, stamped from the live clock.
      *
      * @param productIds the unavailable product IDs
      * @return an InventoryError
      */
     public static InventoryError outOfStock(List<String> productIds) {
-      return new InventoryError(
-          "OUT_OF_STOCK",
-          "Products unavailable: " + String.join(", ", productIds),
-          Instant.now(),
-          Map.of("productIds", productIds),
-          productIds);
+      return outOfStock(TimeSource.system(), productIds);
     }
 
     /**
-     * Creates an error for a failed reservation.
+     * Creates an error for out of stock products, stamped from the given time source.
+     *
+     * @param time the time source the timestamp is read from
+     * @param productIds the unavailable product IDs
+     * @return an InventoryError
+     */
+    public static InventoryError outOfStock(TimeSource time, List<String> productIds) {
+      return new InventoryError(
+          productIds,
+          ErrorEnvelope.of(
+              time,
+              "OUT_OF_STOCK",
+              "Products unavailable: " + String.join(", ", productIds),
+              OrderErrors.context()
+                  .productIds(productIds.stream().map(ProductId::new).toList())
+                  .build()));
+    }
+
+    /**
+     * Creates an error for a failed reservation, stamped from the live clock.
      *
      * @param reason the failure reason
      * @return an InventoryError
      */
     public static InventoryError reservationFailed(String reason) {
+      return reservationFailed(TimeSource.system(), reason);
+    }
+
+    /**
+     * Creates an error for a failed reservation, stamped from the given time source.
+     *
+     * @param time the time source the timestamp is read from
+     * @param reason the failure reason
+     * @return an InventoryError
+     */
+    public static InventoryError reservationFailed(TimeSource time, String reason) {
       return new InventoryError(
-          "RESERVATION_FAILED",
-          "Could not reserve inventory: " + reason,
-          Instant.now(),
-          Map.of("reason", reason),
-          List.of());
+          List.of(),
+          ErrorEnvelope.of(
+              time,
+              "RESERVATION_FAILED",
+              "Could not reserve inventory: " + reason,
+              OrderErrors.context().reason(reason).build()));
     }
 
     /**
@@ -222,11 +241,15 @@ public sealed interface OrderError
      */
     public static InventoryError partialStock(int available, int requested, String productId) {
       return new InventoryError(
-          "PARTIAL_STOCK",
-          "Only " + available + " of " + requested + " available for " + productId,
-          Instant.now(),
-          Map.of("available", available, "requested", requested, "productId", productId),
-          List.of(productId));
+          List.of(productId),
+          ErrorEnvelope.of(
+              "PARTIAL_STOCK",
+              "Only " + available + " of " + requested + " available for " + productId,
+              OrderErrors.context()
+                  .productId(new ProductId(productId))
+                  .availableQuantity(available)
+                  .requestedQuantity(requested)
+                  .build()));
     }
   }
 
@@ -237,18 +260,10 @@ public sealed interface OrderError
   /**
    * Discount or promo code errors.
    *
-   * @param code the error code
-   * @param message the error message
-   * @param timestamp when the error occurred
-   * @param context additional context
    * @param promoCode the promo code involved, if any
+   * @param envelope the shared error envelope
    */
-  record DiscountError(
-      String code,
-      String message,
-      Instant timestamp,
-      Map<String, Object> context,
-      Optional<String> promoCode)
+  record DiscountError(Optional<String> promoCode, ErrorEnvelope<OrderErrorContext> envelope)
       implements OrderError {
 
     /**
@@ -259,11 +274,11 @@ public sealed interface OrderError
      */
     public static DiscountError invalidCode(String code) {
       return new DiscountError(
-          "INVALID_PROMO_CODE",
-          "Promo code not valid: " + code,
-          Instant.now(),
-          Map.of("promoCode", code),
-          Optional.of(code));
+          Optional.of(code),
+          ErrorEnvelope.of(
+              "INVALID_PROMO_CODE",
+              "Promo code not valid: " + code,
+              OrderErrors.context().promoCode(code).build()));
     }
 
     /**
@@ -274,11 +289,11 @@ public sealed interface OrderError
      */
     public static DiscountError expired(String code) {
       return new DiscountError(
-          "PROMO_CODE_EXPIRED",
-          "Promo code has expired: " + code,
-          Instant.now(),
-          Map.of("promoCode", code),
-          Optional.of(code));
+          Optional.of(code),
+          ErrorEnvelope.of(
+              "PROMO_CODE_EXPIRED",
+              "Promo code has expired: " + code,
+              OrderErrors.context().promoCode(code).build()));
     }
   }
 
@@ -289,18 +304,10 @@ public sealed interface OrderError
   /**
    * Payment processing errors.
    *
-   * @param code the error code
-   * @param message the error message
-   * @param timestamp when the error occurred
-   * @param context additional context
    * @param transactionId the transaction ID, if available
+   * @param envelope the shared error envelope
    */
-  record PaymentError(
-      String code,
-      String message,
-      Instant timestamp,
-      Map<String, Object> context,
-      Optional<String> transactionId)
+  record PaymentError(Optional<String> transactionId, ErrorEnvelope<OrderErrorContext> envelope)
       implements OrderError {
 
     /**
@@ -311,11 +318,11 @@ public sealed interface OrderError
      */
     public static PaymentError declined(String reason) {
       return new PaymentError(
-          "PAYMENT_DECLINED",
-          "Payment was declined: " + reason,
-          Instant.now(),
-          Map.of("reason", reason),
-          Optional.empty());
+          Optional.empty(),
+          ErrorEnvelope.of(
+              "PAYMENT_DECLINED",
+              "Payment was declined: " + reason,
+              OrderErrors.context().reason(reason).build()));
     }
 
     /**
@@ -325,11 +332,11 @@ public sealed interface OrderError
      */
     public static PaymentError insufficientFunds() {
       return new PaymentError(
-          "INSUFFICIENT_FUNDS",
-          "Insufficient funds for payment",
-          Instant.now(),
-          Map.of(),
-          Optional.empty());
+          Optional.empty(),
+          ErrorEnvelope.of(
+              "INSUFFICIENT_FUNDS",
+              "Insufficient funds for payment",
+              OrderErrors.context().build()));
     }
 
     /**
@@ -341,11 +348,11 @@ public sealed interface OrderError
      */
     public static PaymentError processingFailed(String transactionId, Throwable cause) {
       return new PaymentError(
-          "PAYMENT_PROCESSING_FAILED",
-          "Payment processing failed: " + cause.getMessage(),
-          Instant.now(),
-          Map.of("cause", cause.getClass().getSimpleName()),
-          Optional.of(transactionId));
+          Optional.ofNullable(transactionId), // documented "if available" - may be absent
+          ErrorEnvelope.of(
+              "PAYMENT_PROCESSING_FAILED",
+              "Payment processing failed: " + cause.getMessage(),
+              OrderErrors.context().exceptionType(cause.getClass().getSimpleName()).build()));
     }
   }
 
@@ -356,18 +363,10 @@ public sealed interface OrderError
   /**
    * Shipping errors.
    *
-   * @param code the error code
-   * @param message the error message
-   * @param timestamp when the error occurred
-   * @param context additional context
    * @param recoverable whether this error can be retried
+   * @param envelope the shared error envelope
    */
-  record ShippingError(
-      String code,
-      String message,
-      Instant timestamp,
-      Map<String, Object> context,
-      boolean recoverable)
+  record ShippingError(boolean recoverable, ErrorEnvelope<OrderErrorContext> envelope)
       implements OrderError {
 
     /**
@@ -378,11 +377,11 @@ public sealed interface OrderError
      */
     public static ShippingError invalidAddress(String reason) {
       return new ShippingError(
-          "INVALID_ADDRESS",
-          "Shipping address invalid: " + reason,
-          Instant.now(),
-          Map.of("reason", reason),
-          false);
+          false,
+          ErrorEnvelope.of(
+              "INVALID_ADDRESS",
+              "Shipping address invalid: " + reason,
+              OrderErrors.context().reason(reason).build()));
     }
 
     /**
@@ -393,11 +392,11 @@ public sealed interface OrderError
      */
     public static ShippingError temporaryFailure(String reason) {
       return new ShippingError(
-          "SHIPPING_TEMPORARY_FAILURE",
-          "Temporary shipping service failure: " + reason,
-          Instant.now(),
-          Map.of("reason", reason),
-          true);
+          true,
+          ErrorEnvelope.of(
+              "SHIPPING_TEMPORARY_FAILURE",
+              "Temporary shipping service failure: " + reason,
+              OrderErrors.context().reason(reason).build()));
     }
 
     /**
@@ -407,11 +406,11 @@ public sealed interface OrderError
      */
     public static ShippingError noCarrierAvailable() {
       return new ShippingError(
-          "NO_CARRIER_AVAILABLE",
-          "No shipping carrier available for this destination",
-          Instant.now(),
-          Map.of(),
-          false);
+          false,
+          ErrorEnvelope.of(
+              "NO_CARRIER_AVAILABLE",
+              "No shipping carrier available for this destination",
+              OrderErrors.context().build()));
     }
   }
 
@@ -422,14 +421,9 @@ public sealed interface OrderError
   /**
    * Notification errors (non-critical).
    *
-   * @param code the error code
-   * @param message the error message
-   * @param timestamp when the error occurred
-   * @param context additional context
+   * @param envelope the shared error envelope
    */
-  record NotificationError(
-      String code, String message, Instant timestamp, Map<String, Object> context)
-      implements OrderError {
+  record NotificationError(ErrorEnvelope<OrderErrorContext> envelope) implements OrderError {
 
     /**
      * Creates an error for an email send failure.
@@ -439,10 +433,10 @@ public sealed interface OrderError
      */
     public static NotificationError emailFailed(String reason) {
       return new NotificationError(
-          "EMAIL_SEND_FAILED",
-          "Failed to send email: " + reason,
-          Instant.now(),
-          Map.of("reason", reason));
+          ErrorEnvelope.of(
+              "EMAIL_SEND_FAILED",
+              "Failed to send email: " + reason,
+              OrderErrors.context().reason(reason).build()));
     }
 
     /**
@@ -453,10 +447,10 @@ public sealed interface OrderError
      */
     public static NotificationError smsFailed(String reason) {
       return new NotificationError(
-          "SMS_SEND_FAILED",
-          "Failed to send SMS: " + reason,
-          Instant.now(),
-          Map.of("reason", reason));
+          ErrorEnvelope.of(
+              "SMS_SEND_FAILED",
+              "Failed to send SMS: " + reason,
+              OrderErrors.context().reason(reason).build()));
     }
   }
 
@@ -467,18 +461,10 @@ public sealed interface OrderError
   /**
    * System-level errors (infrastructure, configuration, etc.).
    *
-   * @param code the error code
-   * @param message the error message
-   * @param timestamp when the error occurred
-   * @param context additional context
    * @param cause the underlying exception, if any
+   * @param envelope the shared error envelope
    */
-  record SystemError(
-      String code,
-      String message,
-      Instant timestamp,
-      Map<String, Object> context,
-      Optional<Throwable> cause)
+  record SystemError(Optional<Throwable> cause, ErrorEnvelope<OrderErrorContext> envelope)
       implements OrderError {
 
     /**
@@ -490,11 +476,11 @@ public sealed interface OrderError
      */
     public static SystemError fromException(String message, Throwable cause) {
       return new SystemError(
-          "SYSTEM_ERROR",
-          message + ": " + cause.getMessage(),
-          Instant.now(),
-          Map.of("exceptionType", cause.getClass().getSimpleName()),
-          Optional.of(cause));
+          Optional.of(cause),
+          ErrorEnvelope.of(
+              "SYSTEM_ERROR",
+              message + ": " + cause.getMessage(),
+              OrderErrors.context().exceptionType(cause.getClass().getSimpleName()).build()));
     }
 
     /**
@@ -505,11 +491,11 @@ public sealed interface OrderError
      */
     public static SystemError timeout(String operation) {
       return new SystemError(
-          "TIMEOUT",
-          "Operation timed out: " + operation,
-          Instant.now(),
-          Map.of("operation", operation),
-          Optional.empty());
+          Optional.empty(),
+          ErrorEnvelope.of(
+              "TIMEOUT",
+              "Operation timed out: " + operation,
+              OrderErrors.context().operation(operation).build()));
     }
 
     /**
@@ -521,11 +507,11 @@ public sealed interface OrderError
      */
     public static SystemError timeout(String operation, Duration timeout) {
       return new SystemError(
-          "TIMEOUT",
-          "Operation timed out after " + timeout.toMillis() + "ms: " + operation,
-          Instant.now(),
-          Map.of("operation", operation, "timeoutMs", timeout.toMillis()),
-          Optional.empty());
+          Optional.empty(),
+          ErrorEnvelope.of(
+              "TIMEOUT",
+              "Operation timed out after " + timeout.toMillis() + "ms: " + operation,
+              OrderErrors.context().operation(operation).timeout(timeout).build()));
     }
 
     /**
@@ -537,11 +523,11 @@ public sealed interface OrderError
      */
     public static SystemError unexpected(String message, Throwable cause) {
       return new SystemError(
-          "UNEXPECTED_ERROR",
-          message + ": " + cause.getMessage(),
-          Instant.now(),
-          Map.of("exceptionType", cause.getClass().getSimpleName()),
-          Optional.of(cause));
+          Optional.of(cause),
+          ErrorEnvelope.of(
+              "UNEXPECTED_ERROR",
+              message + ": " + cause.getMessage(),
+              OrderErrors.context().exceptionType(cause.getClass().getSimpleName()).build()));
     }
 
     /**
@@ -552,11 +538,11 @@ public sealed interface OrderError
      */
     public static SystemError circuitBreakerOpen(String service) {
       return new SystemError(
-          "CIRCUIT_BREAKER_OPEN",
-          "Service temporarily unavailable: " + service,
-          Instant.now(),
-          Map.of("service", service),
-          Optional.empty());
+          Optional.empty(),
+          ErrorEnvelope.of(
+              "CIRCUIT_BREAKER_OPEN",
+              "Service temporarily unavailable: " + service,
+              OrderErrors.context().service(service).build()));
     }
   }
 }
