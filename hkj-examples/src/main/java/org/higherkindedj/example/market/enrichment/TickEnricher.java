@@ -94,7 +94,10 @@ public class TickEnricher {
                 Either.<MarketError, EnrichedTick>right(new EnrichedTick(tick, instrument, fxRate)))
         .recover(
             error ->
-                Either.left(new MarketError.EnrichmentFailed(tick.symbol(), error.getMessage())));
+                Either.left(
+                    MarketError.EnrichmentFailed.of(
+                            tick.symbol(), String.valueOf(error.getMessage()))
+                        .editContext(ctx -> ctx.exchange(tick.exchange().name()))));
   }
 
   /**

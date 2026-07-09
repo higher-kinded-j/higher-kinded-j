@@ -140,6 +140,48 @@ public interface ProfileCardAssembly {
 
 Ambiguity (two sources carrying the component) and unfilled components are compile errors, and the return type must tell the truth: fallible fills demand the `Validated` return; an identity-only merge must declare the plain target.
 
+## Generating error envelopes: `@GenerateErrorEnvelope`
+
+The third generator in the family targets the other end of the boundary: the typed domain error a fallible mapping produces. A sealed error hierarchy re-declares the same envelope (`code`, `message`, `timestamp`, `context`) on every variant, and `context` is usually an untyped `Map<String, Object>`. `@GenerateErrorEnvelope` supplies the envelope and types the context, so each variant declares only its domain-specific components plus one `ErrorEnvelope<C>` component:
+
+``` java
+// The context is records-as-schema: nullable components, an all-absent default.
+record OrderErrorContext(@Nullable OrderId orderId, @Nullable TraceId traceId) {}
+
+@GenerateErrorEnvelope
+public sealed interface OrderError {
+  ErrorEnvelope<OrderErrorContext> envelope();          // declared once
+
+  record OutOfStock(List<ProductId> products, ErrorEnvelope<OrderErrorContext> envelope)
+      implements OrderError {}
+  record PaymentDeclined(CardRef card, ErrorEnvelope<OrderErrorContext> envelope)
+      implements OrderError {}
+}
+```
+
+~~~admonish note title="Two senses of 'context'"
+The *typed context* here is diagnostic metadata attached to an error value: a records-as-schema type such as `OrderErrorContext`. It is unrelated to the [`ErrorContext`](../effect/effect_contexts_error.md) effect type, which is a composable IO-plus-`Either` computation. This page's context is data carried on an error; that one is a way of running effects.
+~~~
+
+For `OrderError` the processor generates `OrderErrors`: a factory per variant (`code` is the UPPER_SNAKE variant name, `message` its humanised form, the timestamp read from a `TimeSource`, so an overload takes one explicitly and the convenience uses `TimeSource.system()`), a fluent `context()` builder over the context record's components, and an `editContext(error, edit)` wither that rebuilds the concrete variant through an exhaustive switch. Add a one-line default so the wither reads as an instance method, and construction plus enrichment matches the shape you would hand-write:
+
+``` java
+default OrderError editContext(UnaryOperator<OrderErrors.ContextBuilder> edit) {
+  return OrderErrors.editContext(this, edit);
+}
+
+OrderError error = OrderErrors.outOfStock(products)                 // typed factory
+    .editContext(ctx -> ctx.orderId(orderId).traceId(traceId));     // typed context, not map.put
+```
+
+The context type is discovered **structurally** from the `ErrorEnvelope` component's type argument, never a class literal, and every variant must agree on it. The rules, each a what/why/fix diagnostic: the hierarchy and its variants and the context record must be non-generic; permitted variants must be records (a nested sealed sub-hierarchy is rejected with a flatten-it fix, not recursed into); and the context record's components must be nullable reference types (primitives are rejected at compile time, because the all-absent context holds `null`; a null-rejecting compact constructor cannot be detected by the processor, so keep the context a plain nullable data carrier).
+
+The two example hierarchies show the spread of the win on purpose. `MarketError` is fine-grained: each variant is a single failure mode with its own typed fields (`FeedDisconnected`, `RiskLimitBreached`, `StaleData`), so its generated `MarketErrors` factories carry everything and no hand-written construction remains. `OrderError` is coarser: variants such as `CustomerError` and `InventoryError` group several codes (`CUSTOMER_NOT_FOUND` and `CUSTOMER_SUSPENDED`; `OUT_OF_STOCK`, `RESERVATION_FAILED`, `PARTIAL_STOCK`) because a downstream `switch` presents failures by category, and one generated factory per variant derives only one code. Those variants keep a hand-written factory per code, each calling the canonical constructor with `ErrorEnvelope.of(...)` and the generated builder.
+
+Either way the repeated envelope and the untyped `Map<String, Object>` are gone; the fully-generated factories are the extra a fine-grained hierarchy earns. So the design guidance is about the *hierarchy*, not the annotation: reach for fine-grained variants when each failure mode is genuinely distinct, and group them when a boundary treats a whole category uniformly, accepting a hand-written factory per code as the price of that grouping.
+
+Two verbs keep the two operations distinct: `ErrorEnvelope.withContext(D)` is the record wither that **replaces** the context (and may change its type), while the generated `editContext(error, edit)` **transforms** the existing context through the builder, seeded from the current value. Reach for `withContext` to set a context, `editContext` to enrich one.
+
 ## Diagnostics and limits
 
 Every rejection follows the processor's what/why/fix standard — the message states what is wrong, why the mapper needs it, and the code to write. Current limits, each with its own diagnostic:
