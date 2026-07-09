@@ -295,6 +295,39 @@ class ScopeJoinerTest {
   }
 
   @Nested
+  @DisplayName("FirstSuccessEither Joiner")
+  class FirstSuccessEitherJoinerTests {
+
+    @Test
+    @DisplayName("a second successful subtask does not overwrite the winner (deterministic)")
+    @SuppressWarnings("preview")
+    void secondSuccessDoesNotOverwriteWinner() throws Throwable {
+      // Subtask is a sealed type, so we obtain real, already-completed Rights from a throwaway,
+      // fully-joined scope rather than stubbing them.
+      StructuredTaskScope.Subtask<Either<String, String>> won;
+      StructuredTaskScope.Subtask<Either<String, String>> runnerUp;
+      try (var scope =
+          StructuredTaskScope.open(ScopeJoiner.<Either<String, String>>allSucceed().joiner())) {
+        won = scope.fork(() -> Either.<String, String>right("won"));
+        runnerUp = scope.fork(() -> Either.<String, String>right("late"));
+        scope.join();
+      }
+
+      StructuredTaskScope.Joiner<Either<String, String>, Either<List<String>, String>> joiner =
+          ScopeJoiner.<String, String>firstSuccessEither().joiner();
+
+      // The first success wins the winner CAS.
+      assertThat(joiner.onComplete(won)).isTrue();
+      // A second success finds the winner already set: the compareAndSet fails, so it does not
+      // win. This deterministically exercises the CAS-false branch that a live race hits only
+      // intermittently (previously flaky coverage).
+      assertThat(joiner.onComplete(runnerUp)).isFalse();
+      // The original winner still stands.
+      assertThat(joiner.result()).isEqualTo(Either.right("won"));
+    }
+  }
+
+  @Nested
   @DisplayName("Accumulating Joiner")
   class AccumulatingJoinerTests {
 

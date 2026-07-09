@@ -16,6 +16,7 @@
     - [EitherOrBothPath](effect/path_either_or_both.md)
     - [IOPath](effect/path_io.md)
     - [VTaskPath](effect/path_vtask.md)
+    - [VResultPath](effect/path_vresult.md)
     - [Composition Patterns](effect/composition.md)
     - [ForPath Comprehension](effect/forpath_comprehension.md)
       - [ForPath Examples](effect/forpath_examples.md)

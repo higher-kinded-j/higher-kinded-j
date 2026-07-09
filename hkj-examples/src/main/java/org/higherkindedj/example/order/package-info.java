@@ -30,7 +30,6 @@
  *   <li>{@link org.higherkindedj.example.order.workflow} - Workflow engine
  *   <li>{@link org.higherkindedj.example.order.config} - Configuration
  *   <li>{@link org.higherkindedj.example.order.audit} - Audit logging
- *   <li>{@link org.higherkindedj.example.order.resilience} - Retry/circuit breaker
  * </ul>
  *
  * <h2>The Order Workflow</h2>

@@ -53,7 +53,7 @@ public class EnhancedOrderWorkflowDemo {
     System.out.println("║  • Context propagation (trace ID, tenant ID, deadline)           ║");
     System.out.println("║  • Structured concurrency (parallel inventory checks)            ║");
     System.out.println("║  • Resource management (reservation cleanup on failure)          ║");
-    System.out.println("║  • Virtual thread execution (VTaskPath)                          ║");
+    System.out.println("║  • Typed async railway on virtual threads (VResultPath)          ║");
     System.out.println("╚══════════════════════════════════════════════════════════════════╝\n");
 
     // Create workflow with services

@@ -1,0 +1,34 @@
+# Codecov configuration.
+#
+# The Gradle build has no hard JaCoCo verification rule, so Codecov is the coverage
+# gate. Patch coverage is required to be 100%: every line a change adds or touches must
+# be covered by a test.
+#
+# Note for the effect types: exercise resilience/timeout defect paths through
+# `.recoverWith(... VTask.fail(failure))` on the VTask (as VResultPath/EitherPath/IOPath
+# do) rather than a `throw sneakyThrow(failure)` idiom or a cross-thread try/catch, both
+# of which JaCoCo cannot record even when a passing test drives them. Concurrency-joiner
+# branches that a live race only hits intermittently are covered deterministically by
+# driving the joiner's onFork/onComplete directly with a real, already-completed Subtask
+# obtained from a throwaway scope (see ScopeJoinerTest).
+
+coverage:
+  status:
+    project:
+      default:
+        target: auto
+        threshold: 1%
+    patch:
+      default:
+        target: 100%
+        threshold: 0%
+
+# hkj-examples and generated sources carry no JaCoCo report and are not part of the
+# published library's coverage story.
+ignore:
+  - "hkj-examples/**"
+  - "hkj-benchmarks/**"
+  - "**/build/generated/**"
+  - "**/*Kind.java"
+  - "**/package-info.java"
+  - "**/module-info.java"

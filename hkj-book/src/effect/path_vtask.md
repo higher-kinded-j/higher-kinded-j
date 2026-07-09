@@ -191,6 +191,18 @@ Try<Data> result = withTimeout.runSafe();
 // result.isFailure() == true (TimeoutException)
 ```
 
+`withTimeout(duration)` is the same operation under the family-wide `with*` name, so resilience chains read uniformly across `IOPath`, `VTaskPath`, and `VResultPath`:
+
+```java
+VTaskPath<Data> guarded = Path.vtask(() -> fetchData())
+    .withRetry(RetryPolicy.exponentialBackoffWithJitter(3, Duration.ofMillis(200)))
+    .withTimeout(Duration.ofSeconds(2))
+    .withCircuitBreaker(serviceBreaker)
+    .withBulkhead(serviceBulkhead);
+```
+
+Two caveats inherited from `VTask.timeout`: the losing computation is *not* interrupted (it keeps running unobserved after the timeout is reported), and a `TimeoutException` thrown inside the computation is indistinguishable from the budget expiring. To land the timeout as a typed `Left` instead of a failure, use [`VResultPath.withTimeout(duration, onTimeout)`](path_vresult.md#resilience). See [Resilience Patterns](../resilience/ch_intro.md) for the per-carrier availability table.
+
 ---
 
 ## Parallel Execution with Par
@@ -387,6 +399,7 @@ See [Benchmarks & Performance](../benchmarks.md) for full details, comparison be
 
 ~~~admonish tip title="See Also"
 - [VTask Monad](../monads/vtask_monad.md) - Underlying type with full API details
+- [VResultPath](path_vresult.md) - The composition of this path with the typed-error half: `VTask<Either<E, A>>` as one railway
 - [Structured Concurrency](../monads/vtask_scope.md) - Scope and ScopeJoiner for task coordination
 - [Resource Management](../monads/vtask_resource.md) - Bracket pattern for safe resource handling
 - [IOPath](path_io.md) - Platform thread-based effect path for single-threaded scenarios

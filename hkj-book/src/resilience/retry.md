@@ -5,7 +5,8 @@
 - When to use fixed, exponential, linear, or jittered delays
 - How to filter retries by exception type
 - How to monitor retry attempts with `RetryEvent`
-- How retry integrates with `VTask`, `IOPath`, and `VTaskPath`
+- How retry integrates with `VTask` and every Path carrier (`IOPath`, `VTaskPath`, `VResultPath`, and the eager `EitherPath`)
+- Why a business `Left` is never retried, and how to opt selected transient typed errors in
 ~~~
 
 ---
@@ -178,17 +179,66 @@ VTask<String> withRecovery = Retry.retryTaskWithRecovery(
     lastError -> VTask.of(() -> backupService.get(url)));
 ```
 
-### IOPath and VTaskPath Integration
+### Path-Native Retry
+
+Retry wraps a **computation**. On the lazy Path carriers (where the computation has not yet run), `withRetry` chains as an instance method:
 
 ```java
 // IOPath
-IOPath<Response> resilient = IOPath.delay(() -> httpClient.get(url))
+IOPath<Response> resilient = Path.io(() -> httpClient.get(url))
     .withRetry(RetryPolicy.exponentialBackoff(3, Duration.ofSeconds(1)));
 
-// VTaskPath (once Path API integration is complete)
+// VTaskPath
 VTaskPath<Response> resilient = Path.vtask(() -> httpClient.get(url))
     .withRetry(RetryPolicy.exponentialBackoff(3, Duration.ofSeconds(1)));
+
+// VResultPath: async with a typed error channel
+VResultPath<OrderError, Reservation> resilient =
+    Path.vresultDefer(() -> inventoryService.reserve(order))
+        .withRetry(RetryPolicy.exponentialBackoffWithJitter(3, Duration.ofMillis(200)));
 ```
+
+`EitherPath` is an *eager* carrier: by the time an instance exists, the computation has already run, so an instance-chained retry would have nothing left to protect. On `EitherPath` the same `with*` vocabulary is therefore **static**, taking the step as a `Supplier`, applied at the point where the computation still exists:
+
+```java
+EitherPath<OrderError, Reservation> reserved =
+    EitherPath.withRetry(() -> reserveInventory(order), policy);
+
+// Typically inline, inside a chain:
+pipeline.via(order -> EitherPath.withRetry(() -> reserveInventory(order), policy));
+```
+
+### Railway-Aware Retry on Typed Carriers
+
+On the typed-error carriers (`EitherPath` and `VResultPath`) retry understands the railway. The default overload retries **thrown exceptions only**: a `Left` is a business decision, not a fault ("card declined" is an answer, and asking again will not change it), so it is returned as-is and never retried.
+
+Some typed errors *are* transient, though (a `SystemError` wrapping a connection reset, say). The typed overload lets a predicate opt those in:
+
+```java
+// Instance form on VResultPath
+VResultPath<OrderError, Reservation> resilient =
+    reserveInventory(order)
+        .withRetry(error -> error instanceof OrderError.SystemError, policy);
+
+// Static form on the eager EitherPath
+EitherPath<OrderError, Reservation> reserved = EitherPath.withRetry(
+    () -> reserveInventory(order),
+    error -> error instanceof OrderError.SystemError,
+    policy);
+```
+
+| Outcome of an attempt | Behaviour |
+|-----------------------|-----------|
+| `Right` | Returned; no retry |
+| `Left` the predicate does not select | Returned immediately; business errors are values |
+| `Left` the predicate selects | Retried per the policy; on exhaustion the **last `Left`** is returned, keeping the error on the typed channel |
+| Thrown exception matching the policy's predicate | Retried; on exhaustion `RetryExhaustedException` is thrown |
+
+Internally both typed carriers share a single railway-aware retry lowering, so `EitherPath` and `VResultPath` behave identically; the only difference is eager-static versus lazy-instance.
+
+~~~admonish warning title="Never Retry a Non-Idempotent Step"
+Retry re-invokes the whole step. Wrapping a step with side effects that must happen at most once (a payment, an email, an inventory *commit*) risks performing them twice: an attempt can succeed remotely and still throw on the way back. Confine retry to idempotent steps (reads, validations, reservations that can safely be re-issued) and run everything else exactly once. See [Combined Patterns](combined.md#path-native-resilience-per-step-protection) for a worked per-step example.
+~~~
 
 ---
 
@@ -244,7 +294,9 @@ VTask<Data> robust = Retry.retryTask(
 | Custom predicate | `.retryIf(ex -> ...)` |
 | Monitor retries | `.onRetry(event -> ...)` |
 | Apply to VTask | `Retry.retryTask(task, policy)` |
-| Apply to IOPath | `path.withRetry(policy)` |
+| Apply to IOPath / VTaskPath / VResultPath | `path.withRetry(policy)` |
+| Wrap an eager EitherPath step | `EitherPath.withRetry(() -> step(), policy)` |
+| Railway-aware typed retry | `path.withRetry(retryOn, policy)` / `EitherPath.withRetry(() -> step(), retryOn, policy)` |
 | Simple retry | `Retry.retryTask(task, 3)` |
 | Retry with fallback | `Retry.retryTaskWithFallback(task, policy, fallbackFn)` |
 | Retry with recovery | `Retry.retryTaskWithRecovery(task, policy, recoveryFn)` |

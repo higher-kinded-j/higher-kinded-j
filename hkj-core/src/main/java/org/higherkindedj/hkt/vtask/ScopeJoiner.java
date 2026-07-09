@@ -50,7 +50,11 @@ import org.higherkindedj.hkt.validated.Validated;
  * @see StructuredTaskScope.Joiner
  */
 public sealed interface ScopeJoiner<T, R>
-    permits AllSucceedJoiner, AnySucceedJoiner, FirstCompleteJoiner, AccumulatingJoiner {
+    permits AllSucceedJoiner,
+        AnySucceedJoiner,
+        FirstCompleteJoiner,
+        AccumulatingJoiner,
+        FirstSuccessEitherJoiner {
 
   /**
    * Returns the underlying Java 25 {@link StructuredTaskScope.Joiner}.
@@ -144,9 +148,101 @@ public sealed interface ScopeJoiner<T, R>
     Objects.requireNonNull(errorMapper, "errorMapper must not be null");
     return new AccumulatingJoiner<>(errorMapper);
   }
+
+  /**
+   * Creates a joiner over {@link Either}-valued subtasks where the first {@code Right} wins.
+   *
+   * <p>The first subtask to complete with a {@code Right} supplies the result and the remaining
+   * subtasks are cancelled — a winning {@code Right} outranks everything, including defects raised
+   * by other subtasks. A subtask completing with a {@code Left} does not abort the race — its error
+   * is collected, and only if every subtask completes {@code Left} does the join yield {@code Left}
+   * of all collected errors (in fork order). A subtask that <em>throws</em> is a defect: when no
+   * winner emerges, the join rethrows it rather than typing it.
+   *
+   * @param <E> the typed error carried by each subtask's {@code Left}
+   * @param <T> the success value carried by each subtask's {@code Right}
+   * @return a joiner racing to the first {@code Right} while collecting typed failures
+   */
+  static <E, T> ScopeJoiner<Either<E, T>, Either<List<E>, T>> firstSuccessEither() {
+    return new FirstSuccessEitherJoiner<>();
+  }
 }
 
 // ==================== Implementation Classes ====================
+
+/**
+ * Joiner where the first {@code Right} wins and cancels the rest (outranking even defects raised by
+ * other subtasks); {@code Left}s are collected and only surface (in fork order) when no subtask
+ * ever produces a {@code Right}. With no winner, a thrown exception is a defect and is rethrown
+ * rather than typed.
+ *
+ * @param <E> the typed error type
+ * @param <T> the success type
+ */
+@SuppressWarnings("preview")
+final class FirstSuccessEitherJoiner<E, T>
+    implements ScopeJoiner<Either<E, T>, Either<List<E>, T>> {
+
+  private final List<StructuredTaskScope.Subtask<? extends Either<E, T>>> allSubtasks =
+      Collections.synchronizedList(new ArrayList<>());
+  private final AtomicReference<Either<E, T>> winner = new AtomicReference<>();
+  private final StructuredTaskScope.Joiner<Either<E, T>, Either<List<E>, T>> delegate;
+
+  FirstSuccessEitherJoiner() {
+    StructuredTaskScope.Joiner<Either<E, T>, Void> completionTracker =
+        StructuredTaskScope.Joiner.awaitAll();
+
+    this.delegate =
+        new StructuredTaskScope.Joiner<>() {
+          @Override
+          public boolean onFork(StructuredTaskScope.Subtask<? extends Either<E, T>> subtask) {
+            allSubtasks.add(subtask);
+            return completionTracker.onFork(subtask);
+          }
+
+          @Override
+          public boolean onComplete(StructuredTaskScope.Subtask<? extends Either<E, T>> subtask) {
+            if (subtask.state() == StructuredTaskScope.Subtask.State.SUCCESS
+                && subtask.get().isRight()
+                && winner.compareAndSet(null, subtask.get())) {
+              return true; // done: the first Right cancels the remaining subtasks
+            }
+            return completionTracker.onComplete(subtask);
+          }
+
+          @Override
+          public Either<List<E>, T> result() throws Throwable {
+            Either<E, T> won = winner.get();
+            if (won != null) {
+              return Either.right(won.getRight());
+            }
+            completionTracker.result();
+            // No winner: every subtask here ran to completion, so UNAVAILABLE (and a Right)
+            // is impossible in this loop. The only cancellation path through this joiner is
+            // a successful winner CAS (returned above); Scope applies timeouts at the VTask
+            // layer, not as a scope deadline; and a raw StructuredTaskScope configured with
+            // a timeout throws TimeoutException from join() without consulting result().
+            List<E> errors = new ArrayList<>();
+            // Iterating a synchronizedList requires holding its monitor; forking is already done
+            // by the time result() runs, but this keeps the contract explicit.
+            synchronized (allSubtasks) {
+              for (StructuredTaskScope.Subtask<? extends Either<E, T>> subtask : allSubtasks) {
+                if (subtask.state() == StructuredTaskScope.Subtask.State.FAILED) {
+                  throw subtask.exception(); // with no winner, a defect outranks the typed channel
+                }
+                errors.add(subtask.get().getLeft());
+              }
+            }
+            return Either.left(List.copyOf(errors));
+          }
+        };
+  }
+
+  @Override
+  public StructuredTaskScope.Joiner<Either<E, T>, Either<List<E>, T>> joiner() {
+    return delegate;
+  }
+}
 
 /**
  * Joiner that waits for all subtasks to succeed.
@@ -315,11 +411,15 @@ final class AccumulatingJoiner<E, T> implements ScopeJoiner<T, Validated<List<E>
             List<E> errors = new ArrayList<>();
             List<T> successes = new ArrayList<>();
 
-            for (StructuredTaskScope.Subtask<? extends T> subtask : allSubtasks) {
-              if (subtask.state() == StructuredTaskScope.Subtask.State.FAILED) {
-                errors.add(errorMapper.apply(subtask.exception()));
-              } else {
-                successes.add(subtask.get());
+            // Iterating a synchronizedList requires holding its monitor; forking is already done
+            // by the time result() runs, but this keeps the contract explicit.
+            synchronized (allSubtasks) {
+              for (StructuredTaskScope.Subtask<? extends T> subtask : allSubtasks) {
+                if (subtask.state() == StructuredTaskScope.Subtask.State.FAILED) {
+                  errors.add(errorMapper.apply(subtask.exception()));
+                } else {
+                  successes.add(subtask.get());
+                }
               }
             }
 

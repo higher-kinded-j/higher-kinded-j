@@ -7,12 +7,19 @@ import static org.assertj.core.api.Assertions.*;
 import java.io.Closeable;
 import java.io.IOException;
 import java.time.Duration;
+import java.util.concurrent.CompletionException;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import org.higherkindedj.hkt.Unit;
 import org.higherkindedj.hkt.io.IO;
+import org.higherkindedj.hkt.resilience.Bulkhead;
+import org.higherkindedj.hkt.resilience.BulkheadConfig;
+import org.higherkindedj.hkt.resilience.BulkheadFullException;
+import org.higherkindedj.hkt.resilience.CircuitBreaker;
+import org.higherkindedj.hkt.resilience.CircuitOpenException;
 import org.higherkindedj.hkt.resilience.RetryExhaustedException;
 import org.higherkindedj.hkt.resilience.RetryPolicy;
 import org.higherkindedj.hkt.trymonad.Try;
@@ -1274,6 +1281,134 @@ class IOPathTest {
 
       assertThat(result).isEqualTo("success on attempt 3");
       assertThat(attempts.get()).isEqualTo(3);
+    }
+  }
+
+  @Nested
+  @DisplayName("Resilience Operations (withTimeout, withCircuitBreaker, withBulkhead)")
+  class ResilienceOperationsTests {
+
+    @Test
+    @DisplayName("withTimeout: completes within budget and stays lazy")
+    void withTimeoutCompletesWithinBudget() {
+      AtomicInteger executions = new AtomicInteger();
+      IOPath<Integer> bounded =
+          Path.io(executions::incrementAndGet).withTimeout(Duration.ofMinutes(1));
+      assertThat(executions).hasValue(0);
+      assertThat(bounded.unsafeRun()).isEqualTo(1);
+      assertThat(executions).hasValue(1);
+    }
+
+    @Test
+    @DisplayName("withTimeout: an exceeded budget surfaces CompletionException(TimeoutException)")
+    void withTimeoutSurfacesCompletionException() {
+      CountDownLatch never = new CountDownLatch(1);
+      IOPath<Integer> stuck =
+          Path.io(
+                  () -> {
+                    try {
+                      never.await();
+                    } catch (InterruptedException e) {
+                      Thread.currentThread().interrupt();
+                    }
+                    return 1;
+                  })
+              .withTimeout(Duration.ofMillis(50));
+      try {
+        assertThatExceptionOfType(CompletionException.class)
+            .isThrownBy(stuck::unsafeRun)
+            .withCauseInstanceOf(TimeoutException.class);
+      } finally {
+        never.countDown(); // unblock the losing computation - withTimeout does not interrupt it
+      }
+    }
+
+    @Test
+    @DisplayName("withTimeout: a runtime exception from the computation propagates unchanged")
+    void withTimeoutPropagatesRuntimeException() {
+      IOPath<Integer> failing =
+          Path.<Integer>io(
+                  () -> {
+                    throw new IllegalStateException("defect");
+                  })
+              .withTimeout(Duration.ofMinutes(1));
+      assertThatExceptionOfType(IllegalStateException.class)
+          .isThrownBy(failing::unsafeRun)
+          .withMessage("defect");
+    }
+
+    @Test
+    @DisplayName("withCircuitBreaker: success passes through a closed circuit")
+    void withCircuitBreakerPassesThrough() {
+      IOPath<Integer> protectedPath =
+          Path.io(() -> 7).withCircuitBreaker(CircuitBreaker.withDefaults());
+      assertThat(protectedPath.unsafeRun()).isEqualTo(7);
+    }
+
+    @Test
+    @DisplayName("withCircuitBreaker: an open circuit rejects with CircuitOpenException")
+    void withCircuitBreakerRejectsWhenOpen() {
+      CircuitBreaker breaker = CircuitBreaker.withDefaults();
+      breaker.tripOpen();
+      IOPath<Integer> protectedPath = Path.io(() -> 7).withCircuitBreaker(breaker);
+      assertThatExceptionOfType(CircuitOpenException.class).isThrownBy(protectedPath::unsafeRun);
+    }
+
+    @Test
+    @DisplayName("withBulkhead: success passes through when a permit is free")
+    void withBulkheadPassesThrough() {
+      IOPath<Integer> protectedPath = Path.io(() -> 3).withBulkhead(Bulkhead.withMaxConcurrent(1));
+      assertThat(protectedPath.unsafeRun()).isEqualTo(3);
+    }
+
+    @Test
+    @DisplayName("withBulkhead: a saturated bulkhead rejects with BulkheadFullException")
+    void withBulkheadRejectsWhenSaturated() throws InterruptedException {
+      // Short waitTimeout: the default 5s permit wait would stall the suite on every rejection.
+      Bulkhead bulkhead =
+          Bulkhead.create(
+              BulkheadConfig.builder().maxConcurrent(1).waitTimeout(Duration.ofMillis(50)).build());
+      CountDownLatch holding = new CountDownLatch(1);
+      CountDownLatch release = new CountDownLatch(1);
+      Thread holder =
+          Thread.ofVirtual()
+              .start(
+                  () ->
+                      Path.io(
+                              () -> {
+                                holding.countDown();
+                                try {
+                                  release.await();
+                                } catch (InterruptedException e) {
+                                  Thread.currentThread().interrupt();
+                                }
+                                return 0;
+                              })
+                          .withBulkhead(bulkhead)
+                          .unsafeRun());
+      try {
+        holding.await();
+        IOPath<Integer> rejected = Path.io(() -> 1).withBulkhead(bulkhead);
+        assertThatExceptionOfType(BulkheadFullException.class).isThrownBy(rejected::unsafeRun);
+      } finally {
+        release.countDown();
+        holder.join();
+      }
+    }
+
+    @Test
+    @DisplayName("null arguments are rejected")
+    void nullArgumentsRejected() {
+      IOPath<Integer> path = Path.io(() -> 1);
+      assertThatNullPointerException()
+          .isThrownBy(() -> path.withTimeout(null))
+          .withMessage("duration must not be null");
+      assertThatNullPointerException()
+          .isThrownBy(() -> path.withCircuitBreaker(null))
+          .withMessage("circuitBreaker must not be null");
+      assertThatNullPointerException()
+          .isThrownBy(() -> path.withBulkhead(null))
+          .withMessage("bulkhead must not be null");
     }
   }
 }

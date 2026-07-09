@@ -3,11 +3,14 @@
 package org.higherkindedj.hkt.effect;
 
 import static org.assertj.core.api.Assertions.*;
+import static org.higherkindedj.hkt.assertions.VTaskAssert.assertThatVTask;
 import static org.higherkindedj.hkt.assertions.VTaskPathAssert.assertThatVTaskPath;
 
 import java.time.Duration;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.higherkindedj.hkt.Unit;
@@ -1116,6 +1119,47 @@ class VTaskPathTest {
               });
 
       assertThatThrownBy(path::unsafeRun).isInstanceOf(OutOfMemoryError.class);
+    }
+  }
+
+  @Nested
+  @DisplayName("withTimeout()")
+  class WithTimeoutTests {
+
+    @Test
+    @DisplayName("completes within budget")
+    void completesWithinBudget() {
+      assertThatVTaskPath(Path.vtaskPure(42).withTimeout(Duration.ofMinutes(1)))
+          .succeeds()
+          .hasValue(42);
+    }
+
+    @Test
+    @DisplayName("an exceeded budget fails with TimeoutException")
+    void exceededBudgetFailsWithTimeoutException() {
+      CountDownLatch never = new CountDownLatch(1);
+      VTaskPath<Integer> stuck =
+          Path.vtask(
+                  () -> {
+                    never.await();
+                    return 1;
+                  })
+              .withTimeout(Duration.ofMillis(50));
+      try {
+        // Observe through the underlying VTask: runSafe preserves the checked TimeoutException
+        // (the path-level runSafe wraps it in VTaskExecutionException per VTask.run()).
+        assertThatVTask(stuck.run()).whenRun().fails().withExceptionType(TimeoutException.class);
+      } finally {
+        never.countDown(); // unblock the losing computation - withTimeout does not interrupt it
+      }
+    }
+
+    @Test
+    @DisplayName("null duration is rejected")
+    void nullDurationRejected() {
+      assertThatNullPointerException()
+          .isThrownBy(() -> Path.vtaskPure(1).withTimeout(null))
+          .withMessage("duration must not be null");
     }
   }
 }

@@ -19,23 +19,35 @@ This page covers production-grade patterns for the order workflow: resilience wi
 
 ## Resilience: Retry and Timeout
 
-The `ConfigurableOrderWorkflow` applies resilience **per step**, not around the whole flow:
+The `ConfigurableOrderWorkflow` composes the core path-native combinators (`IOPath.withRetry` for the retry loop, the static `EitherPath.withTimeout` for a typed time budget) and applies them **per step**, not around the whole flow:
 
 ```java
 public EitherPath<OrderError, OrderResult> process(OrderRequest request) {
     var retryPolicy = createRetryPolicy();
 
-    // Phase 1 — RETRY only the idempotent pre-flight (customer eligibility + address validation);
-    // re-running these reads is always safe.
-    EitherPath<OrderError, Unit> preflight = Resilience.resilient(
-        Path.io(() -> runPreflight(request)),
-        retryPolicy, preflightTimeout, "ConfigurableOrderWorkflow.preflight");
+    // Phase 1: RETRY only the idempotent pre-flight (customer eligibility +
+    // address validation); re-running these reads is always safe. IOPath.withRetry
+    // drives the loop, then EitherPath.withTimeout puts ONE typed time budget
+    // around the whole loop, so a timeout arrives as a Left on the railway.
+    EitherPath<OrderError, Unit> preflight =
+        EitherPath.withTimeout(
+            () -> toEitherPath(
+                Path.io(() -> runPreflight(request)).withRetry(retryPolicy),
+                "ConfigurableOrderWorkflow.preflight"),
+            preflightTimeout,
+            () -> OrderError.SystemError.timeout(
+                "ConfigurableOrderWorkflow.preflight", preflightTimeout));
 
-    // Phase 2 — run the committing workflow (reserve -> payment -> ship) EXACTLY ONCE under a
-    // timeout, never retried.
-    return preflight.via(_ -> Resilience.withTimeout(
-        Path.io(() -> executeWorkflow(request)),
-        commitTimeout, "ConfigurableOrderWorkflow.commit"));
+    // Phase 2: run the committing workflow (reserve -> payment -> ship -> notify)
+    // EXACTLY ONCE under a timeout, never retried.
+    return preflight.via(_ ->
+        EitherPath.withTimeout(
+            () -> toEitherPath(
+                Path.io(() -> executeWorkflow(request)),
+                "ConfigurableOrderWorkflow.commit"),
+            commitTimeout,
+            () -> OrderError.SystemError.timeout(
+                "ConfigurableOrderWorkflow.commit", commitTimeout)));
 }
 ```
 
@@ -44,35 +56,22 @@ could re-run a charge that already succeeded and double-bill the customer. Retry
 safe pre-flight reads; the commit runs once. (Per-step refund-on-failure compensation across
 reserve → pay → ship would use a `Saga` — see the future-work draft issues.)
 
+Note the eager/lazy split: `EitherPath.withTimeout` is *static* and takes the step as a `Supplier`, because `EitherPath` is eager: resilience must wrap the computation before it runs. The `toEitherPath` helper runs the `IOPath` and lands any thrown failure on the typed channel as an `OrderError.SystemError`, so by the time the timeout wrapper sees the outcome, everything except the timeout itself is already a `Left`.
+
 ### Retry Policy
 
-```java
-public record RetryPolicy(
-    int maxAttempts,
-    Duration initialDelay,
-    double backoffMultiplier,
-    Duration maxDelay,
-    Predicate<Throwable> retryOn
-) {
-    public static RetryPolicy defaults() {
-        return new RetryPolicy(
-            3,                              // attempts
-            Duration.ofMillis(100),         // initial delay
-            2.0,                            // exponential backoff
-            Duration.ofSeconds(5),          // max delay cap
-            t -> t instanceof IOException  // retry on IO errors
-                || t instanceof TimeoutException
-        );
-    }
+The retry policy is the core `RetryPolicy`, translated from workflow configuration. Only transient infrastructure failures are selected; the business `WorkflowException` never matches, so a business failure is never retried:
 
-    public Duration delayForAttempt(int attempt) {
-        if (attempt <= 1) return Duration.ZERO;
-        var retryNumber = attempt - 1;
-        var delayMillis = initialDelay.toMillis()
-            * Math.pow(backoffMultiplier, retryNumber - 1);
-        return Duration.ofMillis(
-            Math.min((long) delayMillis, maxDelay.toMillis()));
-    }
+```java
+private RetryPolicy createRetryPolicy() {
+    var retryConfig = config.retryConfig();
+    return RetryPolicy.builder()
+        .maxAttempts(retryConfig.maxRetries() + 1) // maxAttempts includes the initial try
+        .initialDelay(retryConfig.initialDelay())
+        .backoffMultiplier(retryConfig.backoffMultiplier())
+        .maxDelay(retryConfig.maxDelay())
+        .retryIf(t -> t instanceof IOException || t instanceof TimeoutException)
+        .build();
 }
 ```
 
@@ -80,15 +79,17 @@ public record RetryPolicy(
 >
 > -- Douglas Adams
 
-Timeouts ensure deadlines do not just whoosh by indefinitely:
+Timeouts ensure deadlines do not just whoosh by indefinitely, and with the typed overload they arrive as a `Left` that flows down the same railway as every other domain error, not as a thrown `TimeoutException`:
 
 ```java
-var timeout = Resilience.withTimeout(
-    operation,
-    Duration.ofSeconds(30),
-    "paymentService.charge"
-);
+EitherPath<OrderError, Receipt> charged =
+    EitherPath.withTimeout(
+        () -> chargePayment(order),
+        Duration.ofSeconds(30),
+        () -> OrderError.SystemError.timeout("paymentService.charge"));
 ```
+
+One caveat: the timed-out computation is not interrupted, so on a non-idempotent step like payment, `Left(timeout)` means the outcome is *unknown*: reconcile, do not blindly retry. See [Resilience Patterns](../resilience/ch_intro.md) for the full path-native combinator surface (`withRetry`, `withTimeout`, `withCircuitBreaker`, `withBulkhead`) and the per-carrier availability table.
 
 ---
 
@@ -303,7 +304,7 @@ The result is domain code that reads like a specification of *what* should happe
 ---
 
 ~~~admonish info title="Key Takeaways"
-* **Resilience utilities** add retry and timeout behaviour without cluttering business logic
+* **Path-native resilience combinators** (`IOPath.withRetry`, `EitherPath.withTimeout`) add retry and timeout behaviour without cluttering business logic: retry only what is idempotent, run commits exactly once
 * **Focus DSL** complements Effect Path for immutable state updates
 * **Feature flags** enable configuration-driven workflow behaviour
 * **Annotation processors** generate lenses, prisms, and service bridges, eliminating boilerplate

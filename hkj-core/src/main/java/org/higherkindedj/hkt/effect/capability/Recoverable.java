@@ -9,6 +9,7 @@ import org.higherkindedj.hkt.effect.EitherOrBothPath;
 import org.higherkindedj.hkt.effect.EitherPath;
 import org.higherkindedj.hkt.effect.MaybePath;
 import org.higherkindedj.hkt.effect.TryPath;
+import org.higherkindedj.hkt.effect.VResultPath;
 import org.higherkindedj.hkt.effect.ValidationPath;
 
 /**
@@ -34,6 +35,7 @@ import org.higherkindedj.hkt.effect.ValidationPath;
  *   <li>{@code MaybePath} uses {@code Unit} (absence is the only "error")
  *   <li>{@code EitherPath<E, A>} uses {@code E} (the left type)
  *   <li>{@code TryPath} uses {@code Throwable}
+ *   <li>{@code VResultPath<E, A>} uses {@code E} (the left type of its async carrier)
  * </ul>
  *
  * @param <E> the type of error this path can contain
@@ -45,7 +47,8 @@ public sealed interface Recoverable<E, A> extends Chainable<A>
         TryPath,
         ValidationPath,
         EitherOrBothPath,
-        CompletableFuturePath {
+        CompletableFuturePath,
+        VResultPath {
 
   /**
    * Recovers from an error by providing a fallback value.

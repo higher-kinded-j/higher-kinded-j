@@ -194,24 +194,21 @@ a platform thread.
 
 ---
 
-## Step 8: Resilient Feeds with `CircuitBreaker` + `recoverWith` {#step-8}
+## Step 8: Resilient Feeds with `recoverWith` {#step-8}
 
 **Problem:** Exchange feeds fail. Network partitions, exchange maintenance windows,
 rate-limiting by the exchange itself. When NYSE goes down, the pipeline shouldn't crash;
 it should fail over to a backup feed.
 
 **HKJ features:**
-- `CircuitBreaker`: trips open after repeated failures, preventing cascade
 - `VStream.recoverWith(error -> fallbackStream)`: switches to a fallback stream when the
-  first pull fails
+  first pull fails - chained directly on the stream, no wrapper class needed
+- For per-task protection (retry budgets, circuit breakers, bulkheads), the path types
+  chain the `with*` combinators directly - see
+  [Path-Native Resilience](../resilience/combined.md#path-native-resilience-per-step-protection)
 
 ```java
-public class FeedResilience {
-    public VStream<PriceTick> withFallback(
-            VStream<PriceTick> primary, VStream<PriceTick> fallback) {
-        return primary.recoverWith(error -> fallback);
-    }
-}
+VStream<PriceTick> resilientFeed = primaryFeed.recoverWith(error -> fallbackFeed);
 ```
 
 <div class="pipeline-diagram">

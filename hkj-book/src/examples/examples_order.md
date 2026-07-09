@@ -165,9 +165,6 @@ hkj-examples/src/main/java/org/higherkindedj/example/order/
 │   ├── ValidatedOrder.java        # Domain models
 │   ├── OrderResult.java           # Result types
 │   └── value/                     # Value objects (Money, OrderId, etc.)
-├── resilience/
-│   ├── Resilience.java            # Retry utilities
-│   └── RetryPolicy.java           # Policy definitions
 ├── runner/
 │   ├── OrderWorkflowDemo.java     # Main runner
 │   └── EnhancedOrderWorkflowDemo.java
