@@ -111,8 +111,36 @@ jobs:
           EOF
         shell: bash
 
+      - name: Determine change-tracking baseline
+        id: baseline
+        run: |
+          # The version being deployed decides which baseline "new content" is
+          # measured against:
+          #   * tagged release vX.Y.Z -> the previous tag
+          #   * latest/snapshot        -> the most recent tag
+          VERSION="${{ steps.version.outputs.version }}"
+          BASE=""
+          if [[ "$VERSION" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            BASE="$(git describe --tags --abbrev=0 "${VERSION}^" 2>/dev/null || true)"
+          else
+            BASE="$(git describe --tags --abbrev=0 2>/dev/null || true)"
+          fi
+
+          if [[ -n "$BASE" ]]; then
+            echo "Change tracking baseline: ${BASE}"
+          else
+            echo "No baseline tag found; change tracking will be a no-op"
+          fi
+          echo "base=${BASE}" >> "$GITHUB_OUTPUT"
+          echo "since_label=${BASE}" >> "$GITHUB_OUTPUT"
+        shell: bash
+
       - name: Build mdBook
         working-directory: ./${{ env.BOOK_ROOT_DIR }}
+        env:
+          # Empty values make the change-tracking preprocessor a no-op.
+          HKJ_CHANGES_BASE: ${{ steps.baseline.outputs.base }}
+          HKJ_CHANGES_SINCE_LABEL: ${{ steps.baseline.outputs.since_label }}
         run: mdbook build
 
       - name: Generate Sitemap
