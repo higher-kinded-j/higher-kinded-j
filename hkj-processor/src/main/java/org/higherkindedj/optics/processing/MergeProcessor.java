@@ -30,6 +30,7 @@ import javax.lang.model.element.VariableElement;
 import javax.lang.model.type.DeclaredType;
 import javax.lang.model.type.TypeMirror;
 import javax.lang.model.util.ElementFilter;
+import org.higherkindedj.optics.annotations.ArityCeilings;
 import org.higherkindedj.optics.annotations.GenerateMerge;
 import org.higherkindedj.optics.processing.util.Diagnostics;
 
@@ -214,7 +215,7 @@ public class MergeProcessor extends AbstractProcessor {
           "Declare the plain '" + shape.target().getSimpleName() + "' return type.");
       return;
     }
-    if (fallible && shape.target().getRecordComponents().size() > 12) {
+    if (fallible && shape.target().getRecordComponents().size() > ArityCeilings.ASSEMBLY) {
       Diagnostics.error(
           processingEnv.getMessager(),
           mergeMethod,
@@ -223,8 +224,12 @@ public class MergeProcessor extends AbstractProcessor {
               + shape.target().getSimpleName()
               + "' has "
               + shape.target().getRecordComponents().size()
-              + " components; the accumulating merge supports at most 12.",
-          "The fallible path is assembled with Validated.fields(), which locates up to 12 fields.",
+              + " components; the accumulating merge supports at most "
+              + ArityCeilings.ASSEMBLY
+              + ".",
+          "The fallible path is assembled with Validated.fields(), which locates up to "
+              + ArityCeilings.ASSEMBLY
+              + " fields.",
           "Group related components into nested records, or map the record by hand.");
       return;
     }

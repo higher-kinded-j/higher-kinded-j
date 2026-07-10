@@ -7,8 +7,9 @@
  * style.
  */
 @NullMarked
-@GenerateForComprehensions(minArity = 2, maxArity = 12)
+@GenerateForComprehensions(minArity = 2, maxArity = ArityCeilings.FOR_COMPREHENSION)
 package org.higherkindedj.hkt.expression;
 
+import org.higherkindedj.optics.annotations.ArityCeilings;
 import org.higherkindedj.optics.annotations.GenerateForComprehensions;
 import org.jspecify.annotations.NullMarked;

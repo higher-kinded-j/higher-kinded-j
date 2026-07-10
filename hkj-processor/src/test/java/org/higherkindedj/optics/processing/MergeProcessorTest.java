@@ -840,10 +840,10 @@ class MergeProcessorTest {
     }
 
     @Test
-    @DisplayName("a 13-component fallible target hits the fields() ceiling")
+    @DisplayName("a 17-component fallible target hits the fields() ceiling")
     void fallibleArityCeilingRejected() {
       String comps =
-          java.util.stream.IntStream.rangeClosed(1, 12)
+          java.util.stream.IntStream.rangeClosed(1, 16)
               .mapToObj(i -> "String f" + i)
               .collect(java.util.stream.Collectors.joining(", "));
       JavaFileObject wide =
@@ -879,7 +879,7 @@ class MergeProcessorTest {
                   """));
       assertThat(compilation).failed();
       assertThat(compilation)
-          .hadErrorContaining("has 13 components; the accumulating merge supports at most 12");
+          .hadErrorContaining("has 17 components; the accumulating merge supports at most 16");
     }
 
     @org.junit.jupiter.params.ParameterizedTest(name = "{0}")

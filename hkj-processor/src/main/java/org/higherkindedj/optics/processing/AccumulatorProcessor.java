@@ -14,6 +14,7 @@ import javax.lang.model.element.Element;
 import javax.lang.model.element.ElementKind;
 import javax.lang.model.element.TypeElement;
 import javax.tools.Diagnostic;
+import org.higherkindedj.optics.annotations.ArityCeilings;
 import org.higherkindedj.optics.annotations.GenerateAccumulators;
 import org.higherkindedj.optics.processing.util.ExcludeFromJacocoGeneratedReport;
 
@@ -31,8 +32,18 @@ import org.higherkindedj.optics.processing.util.ExcludeFromJacocoGeneratedReport
 @SupportedAnnotationTypes("org.higherkindedj.optics.annotations.GenerateAccumulators")
 public class AccumulatorProcessor extends AbstractProcessor {
 
-  /** The arity ceiling: the shipped {@code FunctionN} and {@code TupleN} families stop at 12. */
-  static final int MAX_SUPPORTED_ARITY = 12;
+  /** The arity ceiling for the assembly ladder (the hand-written {@code FunctionN} family). */
+  static final int MAX_SUPPORTED_ARITY = ArityCeilings.ASSEMBLY;
+
+  /**
+   * The arity up to which {@code @GenerateForComprehensions} already emits {@code TupleN} (see
+   * {@code org.higherkindedj.hkt.expression}). The accumulator ladder accumulates into a {@code
+   * TupleN}, so this processor fills the tuple gap above this ceiling up to {@link
+   * #MAX_SUPPORTED_ARITY} itself, keeping the For-comprehension arity independent of the
+   * accumulator arity. Both ceilings are defined once in {@link ArityCeilings} so they cannot
+   * drift.
+   */
+  static final int FOR_COMPREHENSION_TUPLE_CEILING = ArityCeilings.FOR_COMPREHENSION;
 
   /** Creates a new AccumulatorProcessor. */
   public AccumulatorProcessor() {}
@@ -104,15 +115,17 @@ public class AccumulatorProcessor extends AbstractProcessor {
                   + packageName
                   + ": maxArity was "
                   + maxArity
-                  + ", but the shipped FunctionN and TupleN families stop at "
+                  + ", but the assembly ladder stops at "
                   + MAX_SUPPORTED_ARITY
-                  + ", so stages beyond that cannot be expressed. Fix: set maxArity <= "
+                  + " (the hand-written FunctionN family), so stages beyond that cannot be"
+                  + " expressed. Fix: set maxArity <= "
                   + MAX_SUPPORTED_ARITY
                   + " (nest a sub-record for wider assemblies).",
               element);
           continue;
         }
 
+        runTupleGapGenerator(maxArity, element);
         runAccumulatorStepGenerator(minArity, maxArity, element);
       }
     }
@@ -125,6 +138,34 @@ public class AccumulatorProcessor extends AbstractProcessor {
       AccumulatorStepGenerator.generate(minArity, maxArity, processingEnv, element);
     } catch (Exception e) {
       error("Could not generate accumulator stage classes: " + e.getMessage(), element);
+    }
+  }
+
+  /**
+   * Emits the {@code TupleN} classes the accumulator ladder needs beyond the range
+   * {@code @GenerateForComprehensions} already covers, so raising the accumulator ceiling does not
+   * drag the For-comprehension arity up with it (issue #626).
+   */
+  @ExcludeFromJacocoGeneratedReport
+  private void runTupleGapGenerator(int maxArity, Element element) {
+    if (maxArity <= FOR_COMPREHENSION_TUPLE_CEILING) {
+      return;
+    }
+    int firstGap = FOR_COMPREHENSION_TUPLE_CEILING + 1;
+    // Skip if the gap tuples already exist (already on the classpath, or emitted by an earlier
+    // trigger), so a second trigger cannot ask the Filer to recreate them.
+    if (processingEnv
+            .getElementUtils()
+            .getTypeElement("org.higherkindedj.hkt.tuple.Tuple" + firstGap)
+        != null) {
+      return;
+    }
+    try {
+      TupleGenerator.generate(firstGap, maxArity, processingEnv, element);
+    } catch (Exception e) {
+      error(
+          "Could not generate tuple classes for the accumulator ladder: " + e.getMessage(),
+          element);
     }
   }
 

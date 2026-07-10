@@ -32,11 +32,12 @@
  * for all three carriers ({@code Validated} here, {@code ValidationPath} in {@code
  * org.higherkindedj.hkt.effect}, and {@code EitherOrBoth} in {@code
  * org.higherkindedj.hkt.eitherorboth}); only the arity-0 entry stages and {@code FieldError} are
- * hand-written. Records with more than twelve fields nest a sub-record per slot.
+ * hand-written. Records with more than sixteen fields nest a sub-record per slot.
  */
 @NullMarked
-@GenerateAccumulators(minArity = 1, maxArity = 12)
+@GenerateAccumulators(minArity = 1, maxArity = ArityCeilings.ASSEMBLY)
 package org.higherkindedj.hkt.validated;
 
+import org.higherkindedj.optics.annotations.ArityCeilings;
 import org.higherkindedj.optics.annotations.GenerateAccumulators;
 import org.jspecify.annotations.NullMarked;

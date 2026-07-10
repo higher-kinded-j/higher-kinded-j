@@ -41,7 +41,7 @@ final class AccumulatorStepGenerator {
   private static final String EITHER_OR_BOTH_PACKAGE = "org.higherkindedj.hkt.eitherorboth";
 
   private static final String[] TYPE_PARAMS = {
-    "A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L"
+    "A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L", "M", "N", "O", "P"
   };
 
   /** The carrier a family accumulates over. */

@@ -35,6 +35,7 @@ import javax.lang.model.type.DeclaredType;
 import javax.lang.model.type.TypeKind;
 import javax.lang.model.type.TypeMirror;
 import javax.lang.model.util.ElementFilter;
+import org.higherkindedj.optics.annotations.ArityCeilings;
 import org.higherkindedj.optics.annotations.GenerateMapping;
 import org.higherkindedj.optics.annotations.MapField;
 import org.higherkindedj.optics.processing.util.Diagnostics;
@@ -670,7 +671,7 @@ public class MappingProcessor extends AbstractProcessor {
       return null;
     }
 
-    if (domain.getRecordComponents().size() > 12) {
+    if (domain.getRecordComponents().size() > ArityCeilings.ASSEMBLY) {
       Diagnostics.error(
           processingEnv.getMessager(),
           spec,
@@ -679,8 +680,12 @@ public class MappingProcessor extends AbstractProcessor {
               + domain.getSimpleName()
               + "' has "
               + domain.getRecordComponents().size()
-              + " components; the accumulating parse supports at most 12.",
-          "parse is assembled with Validated.fields(), which locates up to 12 fields.",
+              + " components; the accumulating parse supports at most "
+              + ArityCeilings.ASSEMBLY
+              + ".",
+          "parse is assembled with Validated.fields(), which locates up to "
+              + ArityCeilings.ASSEMBLY
+              + " fields.",
           "Group related components into nested records (each pair nests through its own spec),"
               + " or map the record by hand.");
       return null;

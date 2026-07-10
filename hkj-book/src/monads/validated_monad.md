@@ -174,7 +174,7 @@ Validated<List<String>, String> finalResult = VALIDATED.narrow(result);
 `map3` uses `ap` under the hood; it lifts the combining function into the `Validated` context and applies each argument, accumulating errors via the `Semigroup`. The `mapN` family (`map2`, `map3`, `map4`) is the recommended way to combine independent validations without writing curried functions manually.
 
 ~~~admonish tip title="The ergonomic front door: the assembly builder"
-For the everyday case (assembling a record from N validated fields) the staged builder on `Validated` itself is the recommended entry point: open arity up to 12, no `Semigroup` argument, no `Kind`, and located errors.
+For the everyday case (assembling a record from N validated fields) the staged builder on `Validated` itself is the recommended entry point: open arity up to 16, no `Semigroup` argument, no `Kind`, and located errors.
 
 ```java
 Validated<NonEmptyList<FieldError>, User> user =

@@ -22,6 +22,10 @@ package org.higherkindedj.hkt.tuple;
  * @see Tuple10
  * @see Tuple11
  * @see Tuple12
+ * @see Tuple13
+ * @see Tuple14
+ * @see Tuple15
+ * @see Tuple16
  */
 public sealed interface Tuple
     permits Tuple2,
@@ -34,7 +38,11 @@ public sealed interface Tuple
         Tuple9,
         Tuple10,
         Tuple11,
-        Tuple12 {
+        Tuple12,
+        Tuple13,
+        Tuple14,
+        Tuple15,
+        Tuple16 {
 
   /**
    * Creates a {@link Tuple2} containing two elements.
@@ -292,5 +300,164 @@ public sealed interface Tuple
   static <A, B, C, D, E, F, G, H, I, J, K, L> Tuple12<A, B, C, D, E, F, G, H, I, J, K, L> of(
       A a, B b, C c, D d, E e, F f, G g, H h, I i, J j, K k, L l) {
     return new Tuple12<>(a, b, c, d, e, f, g, h, i, j, k, l);
+  }
+
+  /**
+   * Creates a {@link Tuple13} containing thirteen elements.
+   *
+   * @param a The first element.
+   * @param b The second element.
+   * @param c The third element.
+   * @param d The fourth element.
+   * @param e The fifth element.
+   * @param f The sixth element.
+   * @param g The seventh element.
+   * @param h The eighth element.
+   * @param i The ninth element.
+   * @param j The tenth element.
+   * @param k The eleventh element.
+   * @param l The twelfth element.
+   * @param m The thirteenth element.
+   * @param <A> The type of the first element.
+   * @param <B> The type of the second element.
+   * @param <C> The type of the third element.
+   * @param <D> The type of the fourth element.
+   * @param <E> The type of the fifth element.
+   * @param <F> The type of the sixth element.
+   * @param <G> The type of the seventh element.
+   * @param <H> The type of the eighth element.
+   * @param <I> The type of the ninth element.
+   * @param <J> The type of the tenth element.
+   * @param <K> The type of the eleventh element.
+   * @param <L> The type of the twelfth element.
+   * @param <M> The type of the thirteenth element.
+   * @return A new {@link Tuple13} instance.
+   */
+  static <A, B, C, D, E, F, G, H, I, J, K, L, M> Tuple13<A, B, C, D, E, F, G, H, I, J, K, L, M> of(
+      A a, B b, C c, D d, E e, F f, G g, H h, I i, J j, K k, L l, M m) {
+    return new Tuple13<>(a, b, c, d, e, f, g, h, i, j, k, l, m);
+  }
+
+  /**
+   * Creates a {@link Tuple14} containing fourteen elements.
+   *
+   * @param a The first element.
+   * @param b The second element.
+   * @param c The third element.
+   * @param d The fourth element.
+   * @param e The fifth element.
+   * @param f The sixth element.
+   * @param g The seventh element.
+   * @param h The eighth element.
+   * @param i The ninth element.
+   * @param j The tenth element.
+   * @param k The eleventh element.
+   * @param l The twelfth element.
+   * @param m The thirteenth element.
+   * @param n The fourteenth element.
+   * @param <A> The type of the first element.
+   * @param <B> The type of the second element.
+   * @param <C> The type of the third element.
+   * @param <D> The type of the fourth element.
+   * @param <E> The type of the fifth element.
+   * @param <F> The type of the sixth element.
+   * @param <G> The type of the seventh element.
+   * @param <H> The type of the eighth element.
+   * @param <I> The type of the ninth element.
+   * @param <J> The type of the tenth element.
+   * @param <K> The type of the eleventh element.
+   * @param <L> The type of the twelfth element.
+   * @param <M> The type of the thirteenth element.
+   * @param <N> The type of the fourteenth element.
+   * @return A new {@link Tuple14} instance.
+   */
+  static <A, B, C, D, E, F, G, H, I, J, K, L, M, N>
+      Tuple14<A, B, C, D, E, F, G, H, I, J, K, L, M, N> of(
+          A a, B b, C c, D d, E e, F f, G g, H h, I i, J j, K k, L l, M m, N n) {
+    return new Tuple14<>(a, b, c, d, e, f, g, h, i, j, k, l, m, n);
+  }
+
+  /**
+   * Creates a {@link Tuple15} containing fifteen elements.
+   *
+   * @param a The first element.
+   * @param b The second element.
+   * @param c The third element.
+   * @param d The fourth element.
+   * @param e The fifth element.
+   * @param f The sixth element.
+   * @param g The seventh element.
+   * @param h The eighth element.
+   * @param i The ninth element.
+   * @param j The tenth element.
+   * @param k The eleventh element.
+   * @param l The twelfth element.
+   * @param m The thirteenth element.
+   * @param n The fourteenth element.
+   * @param o The fifteenth element.
+   * @param <A> The type of the first element.
+   * @param <B> The type of the second element.
+   * @param <C> The type of the third element.
+   * @param <D> The type of the fourth element.
+   * @param <E> The type of the fifth element.
+   * @param <F> The type of the sixth element.
+   * @param <G> The type of the seventh element.
+   * @param <H> The type of the eighth element.
+   * @param <I> The type of the ninth element.
+   * @param <J> The type of the tenth element.
+   * @param <K> The type of the eleventh element.
+   * @param <L> The type of the twelfth element.
+   * @param <M> The type of the thirteenth element.
+   * @param <N> The type of the fourteenth element.
+   * @param <O> The type of the fifteenth element.
+   * @return A new {@link Tuple15} instance.
+   */
+  static <A, B, C, D, E, F, G, H, I, J, K, L, M, N, O>
+      Tuple15<A, B, C, D, E, F, G, H, I, J, K, L, M, N, O> of(
+          A a, B b, C c, D d, E e, F f, G g, H h, I i, J j, K k, L l, M m, N n, O o) {
+    return new Tuple15<>(a, b, c, d, e, f, g, h, i, j, k, l, m, n, o);
+  }
+
+  /**
+   * Creates a {@link Tuple16} containing sixteen elements.
+   *
+   * @param a The first element.
+   * @param b The second element.
+   * @param c The third element.
+   * @param d The fourth element.
+   * @param e The fifth element.
+   * @param f The sixth element.
+   * @param g The seventh element.
+   * @param h The eighth element.
+   * @param i The ninth element.
+   * @param j The tenth element.
+   * @param k The eleventh element.
+   * @param l The twelfth element.
+   * @param m The thirteenth element.
+   * @param n The fourteenth element.
+   * @param o The fifteenth element.
+   * @param p The sixteenth element.
+   * @param <A> The type of the first element.
+   * @param <B> The type of the second element.
+   * @param <C> The type of the third element.
+   * @param <D> The type of the fourth element.
+   * @param <E> The type of the fifth element.
+   * @param <F> The type of the sixth element.
+   * @param <G> The type of the seventh element.
+   * @param <H> The type of the eighth element.
+   * @param <I> The type of the ninth element.
+   * @param <J> The type of the tenth element.
+   * @param <K> The type of the eleventh element.
+   * @param <L> The type of the twelfth element.
+   * @param <M> The type of the thirteenth element.
+   * @param <N> The type of the fourteenth element.
+   * @param <O> The type of the fifteenth element.
+   * @param <P> The type of the sixteenth element.
+   * @return A new {@link Tuple16} instance.
+   */
+  static <A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P>
+      Tuple16<A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P> of(
+          A a, B b, C c, D d, E e, F f, G g, H h, I i, J j, K k, L l, M m, N n, O o, P p) {
+    return new Tuple16<>(a, b, c, d, e, f, g, h, i, j, k, l, m, n, o, p);
   }
 }

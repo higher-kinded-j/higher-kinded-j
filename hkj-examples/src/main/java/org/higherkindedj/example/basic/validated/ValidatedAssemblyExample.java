@@ -21,7 +21,7 @@ import org.higherkindedj.hkt.validated.Validated;
  *       and(value)}.
  * </ul>
  *
- * <p>The chain is staged, so {@code apply(...)} always matches the accumulated arity (up to 12,
+ * <p>The chain is staged, so {@code apply(...)} always matches the accumulated arity (up to 16,
  * matching the shipped {@code FunctionN}); records with more fields nest a sub-record per slot.
  *
  * <p>Run with: {@code ./gradlew :hkj-examples:run

@@ -18,17 +18,17 @@ final class TupleGenerator {
   private static final String PACKAGE = "org.higherkindedj.hkt.tuple";
 
   private static final String[] TYPE_PARAMS = {
-    "A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L"
+    "A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L", "M", "N", "O", "P"
   };
 
   private static final String[] ORDINALS = {
-    "First", "Second", "Third", "Fourth", "Fifth", "Sixth",
-    "Seventh", "Eighth", "Ninth", "Tenth", "Eleventh", "Twelfth"
+    "First", "Second", "Third", "Fourth", "Fifth", "Sixth", "Seventh", "Eighth",
+    "Ninth", "Tenth", "Eleventh", "Twelfth", "Thirteenth", "Fourteenth", "Fifteenth", "Sixteenth"
   };
 
   private static final String[] ORDINAL_LOWER = {
-    "first", "second", "third", "fourth", "fifth", "sixth",
-    "seventh", "eighth", "ninth", "tenth", "eleventh", "twelfth"
+    "first", "second", "third", "fourth", "fifth", "sixth", "seventh", "eighth",
+    "ninth", "tenth", "eleventh", "twelfth", "thirteenth", "fourteenth", "fifteenth", "sixteenth"
   };
 
   private static final String[] MAP_OPS = {
@@ -43,7 +43,11 @@ final class TupleGenerator {
     "MAP_NINTH",
     "MAP_TENTH",
     "MAP_ELEVENTH",
-    "MAP_TWELFTH"
+    "MAP_TWELFTH",
+    "MAP_THIRTEENTH",
+    "MAP_FOURTEENTH",
+    "MAP_FIFTEENTH",
+    "MAP_SIXTEENTH"
   };
 
   private TupleGenerator() {}
