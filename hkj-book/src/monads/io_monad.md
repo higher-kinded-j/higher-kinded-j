@@ -224,7 +224,7 @@ IO_OP.unsafeRunSync(finalProgram);
 
 ## Reading the Clock
 
-The most common side effect after console/file I/O is reading the time — and `Instant.now()` scattered through your code makes every timestamp untestable. `TimeSource` lifts `java.time.Clock` into `IO` so time is a lazy, composable effect:
+The most common side effect after console/file I/O is reading the time, and `Instant.now()` scattered through your code makes every timestamp untestable. `TimeSource` lifts `java.time.Clock` into `IO` so time is a lazy, composable effect:
 
 ``` java
 import org.higherkindedj.hkt.time.TimeSource;
@@ -236,7 +236,7 @@ IO<Reservation> reserve(Order order) {
 }
 ```
 
-Nothing is read until the effect runs, and each run reads afresh. In tests, inject `TimeSource.fixed(...)` — or `TimeSource.of(steppableClock)` with `hkj-test`'s [`SteppableClock`](../tooling/test_assertions.md#steppableclock) — and the same code becomes deterministic. (It is named `TimeSource`, not `Clock`, precisely so it never clashes with `java.time.Clock`.)
+Nothing is read until the effect runs, and each run reads afresh. In tests, inject `TimeSource.fixed(...)`, or `TimeSource.of(steppableClock)` with `hkj-test`'s [`SteppableClock`](../tooling/test_assertions.md#steppableclock), and the same code becomes deterministic. (It is named `TimeSource`, not `Clock`, precisely so it never clashes with `java.time.Clock`.)
 
 ## Back to the One-Liner
 

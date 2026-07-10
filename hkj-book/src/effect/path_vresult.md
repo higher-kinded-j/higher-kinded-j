@@ -17,6 +17,20 @@ VResultPath<OrderError, OrderResult> process(OrderRequest request) {
 
 It speaks the family vocabulary exactly (`map`/`via`/`then` on the success channel, `mapError`/`recover`/`recoverWith`/`orElse`/`bimap` on the error channel), so it reads as "an `EitherPath` that happens to be async". `run()` returns the carrier `VTask<Either<E, A>>` for the boundary; nothing executes until it runs, and defects (thrown exceptions) stay on the `VTask` failure channel, never masquerading as typed errors.
 
+~~~admonish info title="What You'll Learn"
+- Constructing VResultPath with the `Path.vresult*` factories
+- Speaking the family vocabulary (`map`/`via`/`then`, `mapError`/`recover`/`recoverWith`/`bimap`) over `VTask<Either<E, A>>`
+- Outcome-aware structured concurrency: `firstSuccess`, `allSucceed`, `allSucceedAccumulating`, `withTimeout`, `bracketOutcome`
+- Railway-aware resilience: `withRetry`/`withCircuitBreaker`/`withBulkhead`/`withTimeout`
+- Escaping the path back to `VTask<Either<E, A>>`, `EitherPath`, or `VTaskPath`
+~~~
+
+~~~admonish example title="See Example Code:"
+[EnhancedOrderWorkflow.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/order/workflow/EnhancedOrderWorkflow.java)
+~~~
+
+---
+
 ## Construction
 
 ``` java
@@ -26,6 +40,8 @@ VResultPath<E, A> p3 = Path.vresultEither(either);        // lift a decided Eith
 VResultPath<E, A> p4 = Path.vresult(vtaskOfEither);       // lift the carrier
 VResultPath<E, A> p5 = Path.vresultDefer(() -> decide()); // defer the decision itself
 ```
+
+---
 
 ## Outcome-aware structured concurrency
 
@@ -58,6 +74,8 @@ VResultPath<OrderError, OrderResult> fulfilled =
 The issue sketched `Scope.firstSuccess(...)`, but `Scope` lives in `hkt.vtask`, which `hkt.effect` depends on; statics there referencing `VResultPath` would create a package cycle. The combinators sit on `VResultPath`, implemented over the same `Scope`/`ScopeJoiner` substrate (which gained an `Either`-aware `firstSuccessEither` joiner).
 ~~~
 
+---
+
 ## Resilience
 
 The full `with*` resilience vocabulary chains directly on the path, and every combinator is railway-aware: a typed `Left` is a *value*, not a fault.
@@ -79,6 +97,8 @@ VResultPath<OrderError, Reservation> guarded =
 
 Because the path is lazy, protection wraps the *computation*: apply the combinators before the boundary `run()`. Do not wrap non-idempotent steps (a payment) in retry. See [Resilience Patterns](../resilience/ch_intro.md) for the per-carrier availability table and per-step guidance.
 
+---
+
 ## Escaping the path
 
 ``` java
@@ -93,3 +113,8 @@ VTask<B>           folded  = path.fold(this::onError, this::onValue);
 - [EitherPath](path_either.md) - The typed-error half and the shared vocabulary
 - [Effect Path Overview](effect_path_overview.md) - Where every path sits in the lattice
 ~~~
+
+---
+
+**Previous:** [VTaskPath](path_vtask.md)
+**Next:** [Composition Patterns](composition.md)

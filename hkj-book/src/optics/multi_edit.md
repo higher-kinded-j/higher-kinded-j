@@ -1,8 +1,17 @@
 # Multi-Edit and Sparse Updates
 
-_Apply N independent edits at different paths in one reusable operation — including the sparse, all-errors-at-once REST `PATCH` shape._
+_Apply N independent edits at different paths in one reusable operation, including the sparse, all-errors-at-once REST `PATCH` shape._
 
-Optics edit one path at a time: `FocusPath.set`, `Setter.modify`. The everyday case of applying **several independent edits** — tidy the email, trim the SKU, bump the quantity — previously meant hand-threading the result through a chain of reassignments, wrapping each optional field in an `if`, and reporting only the first bad value.
+~~~admonish info title="What You'll Learn"
+- Folding N independent edits into one reusable `Update<S>` with `Edits.combine`, powered by the `Update` monoid
+- How the sealed `Edit`/`FallibleEdit` split keeps pure and fallible edits apart at compile time
+- Writing sparse updates where the `…IfPresent` factories treat `null` as absent, contributing the monoid identity instead of an `if`
+- Building a validated REST `PATCH` with `Edits.accumulate` that reports every bad field at once, each located
+- The two-phase semantics: validate every edit source-independently, then write left-to-right only when all validated
+- Why overlapping paths observe earlier writes, and when to reach for one atomic edit instead
+~~~
+
+Optics edit one path at a time: `FocusPath.set`, `Setter.modify`. The everyday case of applying **several independent edits** (tidy the email, trim the SKU, bump the quantity) previously meant hand-threading the result through a chain of reassignments, wrapping each optional field in an `if`, and reporting only the first bad value.
 
 The `org.higherkindedj.optics.edit` package folds all of that into two entry points:
 
@@ -26,9 +35,11 @@ The sealed hierarchy is what makes that split compile-time safe:
     Edits.accumulate(FallibleEdit<S>...) ← both fit: a pure edit is one that always validates
 ```
 
+---
+
 ## Pure multi-edit: `Edits.combine`
 
-Each `Edit` factory pairs an optic (a `FocusPath` or a `Setter`) with a value or function. `combine` folds them — via the [`Update` monoid](../functional/semigroup_and_monoid.md) — into one named, reusable transformation:
+Each `Edit` factory pairs an optic (a `FocusPath` or a `Setter`) with a value or function. `combine` folds them (via the [`Update` monoid](../functional/semigroup_and_monoid.md)) into one named, reusable transformation:
 
 ``` java
 import static org.higherkindedj.optics.edit.Edit.*;
@@ -41,7 +52,9 @@ Order a = normalise.apply(orderA);
 Order b = normalise.andThen(applyDiscount).apply(orderB);   // Update composes further
 ```
 
-Only pure `Edit`s fit `combine`'s signature — a fallible edit is rejected **at compile time**, so validation failures can never be silently dropped.
+Only pure `Edit`s fit `combine`'s signature; a fallible edit is rejected **at compile time**, so validation failures can never be silently dropped.
+
+---
 
 ## Sparse updates: absent means "leave it alone"
 
@@ -68,9 +81,11 @@ Each request field maps to exactly one slot; an absent field simply contributes 
 A sparse edit cannot *clear* a field: `setIfPresent(path, null)` means "no change requested", not "set to null". This suits non-null domain models; if a field must be clearable, model the cleared state explicitly (e.g. `Maybe`) and `set` it. The functions given to `modifyIfPresent`/`parseIfPresent` are never invoked with `null`.
 ~~~
 
+---
+
 ## Validated PATCH: `Edits.accumulate`
 
-`parseIfPresent` parses the incoming value first — and `.at(label)` locates any failure, exactly as `FieldError.at` composes paths. The parser you hand it has exactly the shape of a [`ValidatedPrism`](validated_prism.md)'s `parse` — define the boundary once as a prism (gaining the total render-back and the round-trip laws) and pass `email::parse` here. `accumulate` validates **every** edit independently and reports **all** bad fields at once:
+`parseIfPresent` parses the incoming value first, and `.at(label)` locates any failure, exactly as `FieldError.at` composes paths. The parser you hand it has exactly the shape of a [`ValidatedPrism`](validated_prism.md)'s `parse`: define the boundary once as a prism (gaining the total render-back and the round-trip laws) and pass `email::parse` here. `accumulate` validates **every** edit independently and reports **all** bad fields at once:
 
 ``` java
 Validated<NonEmptyList<FieldError>, Order> updated =
@@ -82,20 +97,22 @@ Validated<NonEmptyList<FieldError>, Order> updated =
 // Invalid(NEL[ "email: not an address" ]) — or Valid(order') with only the present fields changed
 ```
 
-Errors accumulate in edit order on the `NonEmptyList` channel, exactly like the [accumulating assembly](../monads/validated_assembly.md) — but as a homogeneous fold, so there is **no arity ceiling**.
+Errors accumulate in edit order on the `NonEmptyList` channel, exactly like the [accumulating assembly](../monads/validated_assembly.md), but as a homogeneous fold, so there is **no arity ceiling**.
 
 ~~~admonish tip title="Generated paths label themselves"
-A path from a `@GenerateFocus` companion carries its record-component name as a **segment** (`OrderFocus.email()` → `"email"`); composing paths concatenates segments (`customer.via(address).via(zip)` → `"customer.address.zip"`, surfaced by `segments()`/`pathString()`), and `parseIfPresent` locates failures with them **automatically** — no `.at(...)` needed for generated paths. An explicit `.at(label)` still prepends outward, for hand-written optics or extra context.
+A path from a `@GenerateFocus` companion carries its record-component name as a **segment** (`OrderFocus.email()` → `"email"`); composing paths concatenates segments (`customer.via(address).via(zip)` → `"customer.address.zip"`, surfaced by `segments()`/`pathString()`), and `parseIfPresent` locates failures with them **automatically**: no `.at(...)` needed for generated paths. An explicit `.at(label)` still prepends outward, for hand-written optics or extra context.
 ~~~
 
 For the railway, `applyPath(order)` is the `ValidationPath` twin of `apply(order)`, and `toValidated()` exposes the folded `Update` itself for reuse.
+
+---
 
 ## Semantics: validate everything, then write once
 
 An accumulated patch works in two phases:
 
-1. **Validate** — each edit's incoming value is checked independently. Validation never sees a source, which is what makes accumulation sound *and* lets one patch apply to many sources.
-2. **Apply** — only if every edit validated, the writes run as a single left-to-right fold.
+1. **Validate**: each edit's incoming value is checked independently. Validation never sees a source, which is what makes accumulation sound *and* lets one patch apply to many sources.
+2. **Apply**: only if every edit validated, the writes run as a single left-to-right fold.
 
 ```
   Phase 1 — validate every edit independently (no source involved)
@@ -115,20 +132,20 @@ An accumulated patch works in two phases:
                        fields changed         in edit order — no writes run
 ```
 
-Application order is observable only when paths overlap: disjoint paths commute; an edit at an overlapping path sees the previous edit's result (a `modify` reads the *current* value at application time). Genuinely coupled fields belong in one atomic edit — see [Coupled Fields](coupled_fields.md) and `Lens.paired`.
+Application order is observable only when paths overlap: disjoint paths commute; an edit at an overlapping path sees the previous edit's result (a `modify` reads the *current* value at application time). Genuinely coupled fields belong in one atomic edit (see [Coupled Fields](coupled_fields.md) and `Lens.paired`).
 
 ---
 
 ~~~admonish info title="Key Takeaways"
 * **`Edits.combine`** folds pure edits into one reusable `Update<S>`; compile-time purity
-* **`…IfPresent` + null-as-absent** gives sparse updates with no `if` ceremony — absent contributes the monoid identity
+* **`…IfPresent` + null-as-absent** gives sparse updates with no `if` ceremony: absent contributes the monoid identity
 * **`Edits.accumulate`** validates every edit independently and reports all located failures at once, in edit order, with no arity ceiling
 * **Two phases**: validation is source-independent; writes run left-to-right only when everything validated
 * **Overlapping paths see earlier writes**; coupled fields should be one atomic edit (`Lens.paired`)
 ~~~
 
 ~~~admonish info title="Hands-On Learning"
-Practice the whole model in [Tutorial 24: Multi-Edit and Sparse Updates](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/test/java/org/higherkindedj/tutorial/optics/Tutorial24_MultiEdit.java) (5 exercises, ~12 minutes) — pure folds, sparse patches, and the all-errors-at-once validated PATCH.
+Practice the whole model in [Tutorial 24: Multi-Edit and Sparse Updates](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/test/java/org/higherkindedj/tutorial/optics/Tutorial24_MultiEdit.java) (5 exercises, ~12 minutes): pure folds, sparse patches, and the all-errors-at-once validated PATCH.
 ~~~
 
 ~~~admonish tip title="See Also"

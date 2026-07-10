@@ -122,6 +122,8 @@ EitherOrBoth<NonEmptyList<String>, Config> cfg =
 
 See [Accumulating Assembly](../monads/validated_assembly.md).
 
+---
+
 ## Recovery
 
 `recover` / `recoverWith` / `orElse` act on a fatal `Left` only; a `Both` is already a success and is

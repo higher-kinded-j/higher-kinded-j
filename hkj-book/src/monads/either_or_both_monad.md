@@ -66,6 +66,8 @@ EitherOrBoth<String, Integer> both  = EitherOrBoth.both("deprecated key", 42);
 Values are **never `null`**: the components are validated at construction, which is what keeps the
 total accessors honest.
 
+---
+
 ## Total Accessors (No Throwing Getters)
 
 Unlike `Either`'s throwing `getLeft` / `getRight`, `EitherOrBoth` exposes **total** accessors that
@@ -163,6 +165,8 @@ them).
 
 `EitherOrBoth` is complementary to the other two, not a replacement: reach for it precisely when a
 result can be *both* a value and a set of problems.
+
+---
 
 ## Tolerant Assembly: `accumulate()` and `fields()`
 

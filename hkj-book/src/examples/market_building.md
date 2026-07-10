@@ -289,7 +289,7 @@ The same pattern is available within for-comprehensions via `ForPath.par()`. For
 
 **Problem:** Each enriched tick needs a risk score. The calculations are independent of one
 another, but the results feed straight into a count-based windower (`chunk`), so emission
-order must match arrival order — otherwise ticks would land in the wrong window.
+order must match arrival order; otherwise ticks would land in the wrong window.
 
 **HKJ feature:** `VStreamPar.parEvalMap(stream, concurrency, f)`: applies an effectful
 function to each element with bounded concurrency while **preserving input order**.
@@ -321,12 +321,12 @@ Both variants:
 
 ~~~admonish note title="Design Decision: Why ordered for risk?"
 Risk assessment feeds into `chunk()`, which groups **consecutive** elements into fixed-size
-windows. Because the window boundaries are positional — every `windowSize` ticks in stream
-order — emission order decides *which* ticks share a window. The unordered variant emits in
+windows. Because the window boundaries are positional (every `windowSize` ticks in stream
+order), emission order decides *which* ticks share a window. The unordered variant emits in
 completion order, so a fast assessment for tick₅ could overtake a slow one for tick₃ and land
 in an earlier window, scrambling window membership and making per-window VWAP meaningless.
 `parEvalMap` keeps the assessments in arrival order, so each window holds the temporally
-adjacent ticks it should — paying the per-batch "wait for the slowest" cost in exchange for
+adjacent ticks it should, paying the per-batch "wait for the slowest" cost in exchange for
 correct windows.
 ~~~
 

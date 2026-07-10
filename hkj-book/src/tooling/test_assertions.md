@@ -245,7 +245,7 @@ The same shape applies to `MaybeTAssert`, `OptionalTAssert`, `ReaderTAssert`, `S
 
 ### `SteppableClock`
 
-A clock that only moves when told to — pair it with `TimeSource.of(clock)` and time-dependent code is exercised by stepping the clock, not sleeping:
+A clock that only moves when told to; pair it with `TimeSource.of(clock)` and time-dependent code is exercised by stepping the clock, not sleeping:
 
 ``` java
 import org.higherkindedj.hkt.assertions.SteppableClock;
@@ -259,7 +259,7 @@ clock.advance(Duration.ofMinutes(16));     // time passes - instantly
 service.reserve(other);                    // the expired hold is reclaimed
 ```
 
-Stepping is atomic (safe to advance from the test thread while virtual threads read), and `withZone` honours the `java.time.Clock` contract — the zoned view shares the same steppable timeline.
+Stepping is atomic (safe to advance from the test thread while virtual threads read), and `withZone` honours the `java.time.Clock` contract: the zoned view shares the same steppable timeline.
 
 ---
 
@@ -294,7 +294,7 @@ Coverage is enforced at 100% line and 100% instruction on the `hkj-test` bundle.
 
 ## Optic Laws
 
-`org.higherkindedj.optics.laws` publishes law-verification helpers for every optic family — the properties that *define* a lawful `Iso`, `Lens`, `Prism`, `Affine`, or `Traversal` — in the same flat `assert…` style as the `hkt.laws` type-class helpers:
+`org.higherkindedj.optics.laws` publishes law-verification helpers for every optic family (the properties that *define* a lawful `Iso`, `Lens`, `Prism`, `Affine`, or `Traversal`) in the same flat `assert…` style as the `hkt.laws` type-class helpers:
 
 ``` java
 import org.higherkindedj.optics.laws.LensLaws;
@@ -312,7 +312,7 @@ void statusPrismIsLawful() {
 }
 ```
 
-`ValidatedPrismLaws` joins the family for the validated-boundary optic (parse-build and the section law build-parse). Each family also exposes the individual laws (`assertGetSet`, `assertBuildMatch`, `assertSetNoOpWhenAbsent`, …) for targeted checks, and failures name the violated law with the offending values — `"Lens set-get: get(set(Grace, …)) == the value set; got Ada"`. Guard rails reject vacuous fixtures (equal set-set values, non-matching prism sources). Drive broader coverage with `@ParameterizedTest` or property fixtures at the call site.
+`ValidatedPrismLaws` joins the family for the validated-boundary optic (parse-build and the section law build-parse). Each family also exposes the individual laws (`assertGetSet`, `assertBuildMatch`, `assertSetNoOpWhenAbsent`, …) for targeted checks, and failures name the violated law with the offending values: `"Lens set-get: get(set(Grace, …)) == the value set; got Ada"`. Guard rails reject vacuous fixtures (equal set-set values, non-matching prism sources). Drive broader coverage with `@ParameterizedTest` or property fixtures at the call site.
 
 ~~~admonish tip title="See Also"
 - [Manual Gradle and Maven Setup](manual_setup.md) - Adding hkj-test to projects that do not use the HKJ build plugin

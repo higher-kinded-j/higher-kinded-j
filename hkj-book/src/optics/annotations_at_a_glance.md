@@ -60,7 +60,7 @@ External types like `LocalDate`, Jackson's `JsonNode`, JOOQ records, and Protobu
 
 | Annotation | Apply to | Generates | When to reach for it |
 |---|---|---|---|
-| [`@GenerateMapping`](record_mapping.md) | interface extending `MappingSpec<Domain, Wire>` | `XMappingImpl` with a total `build` and an accumulating, located `parse` | Bidirectional boundary mapping with validation — every bad field reported at once |
+| [`@GenerateMapping`](record_mapping.md) | interface extending `MappingSpec<Domain, Wire>` | `XMappingImpl` with a total `build` and an accumulating, located `parse` | Bidirectional boundary mapping with validation: every bad field reported at once |
 | [`@MapField(to = "...")`](record_mapping.md) | abstract method on the spec, named after the domain component | a rename in both directions | Domain and wire components with different names |
 
 Leaves, nesting, `List`/`Optional` lifting, sealed dispatch and the `asIso()`/`asLens()` tiers are covered in [Record Mapping](record_mapping.md).
