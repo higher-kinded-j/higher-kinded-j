@@ -4,10 +4,15 @@ package org.higherkindedj.optics.validated;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatNullPointerException;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.assertj.core.api.Assertions.entry;
 import static org.higherkindedj.hkt.assertions.ValidatedAssert.assertThatValidated;
 
 import java.util.Arrays;
+import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import org.higherkindedj.hkt.nonemptylist.NonEmptyList;
 import org.higherkindedj.hkt.validated.FieldError;
@@ -101,6 +106,80 @@ class ValidatedPrismTest {
       assertThatNullPointerException()
           .isThrownBy(() -> EMAIL.buildAll(Arrays.asList(new Email("a@b"), null)))
           .withMessage("values[1] must not be null");
+    }
+
+    @Test
+    @DisplayName("parseValues accumulates failures across all entries, each located by its key")
+    void parseValuesAccumulatesByKey() {
+      Map<String, String> wire = new LinkedHashMap<>();
+      wire.put("work", "a@b");
+      wire.put("home", "c@d");
+      Validated<NonEmptyList<FieldError>, Map<String, Email>> parsed = EMAIL.parseValues(wire);
+      assertThatValidated(parsed).isValid();
+      assertThat(parsed.get())
+          .containsExactly(entry("work", new Email("a@b")), entry("home", new Email("c@d")));
+      assertThatThrownBy(() -> parsed.get().put("x", new Email("x@y")))
+          .isInstanceOf(UnsupportedOperationException.class);
+
+      Map<String, String> bad = new LinkedHashMap<>();
+      bad.put("work", "bad-one");
+      bad.put("home", "a@b");
+      bad.put("other", "bad-two");
+      Validated<NonEmptyList<FieldError>, Map<String, Email>> failed = EMAIL.parseValues(bad);
+      assertThatValidated(failed).isInvalid();
+      assertThat(failed.getError().toJavaList())
+          .containsExactly(
+              new FieldError(List.of("work"), "not an email address"),
+              new FieldError(List.of("other"), "not an email address"));
+
+      // Non-string keys locate through their toString rendering.
+      Validated<NonEmptyList<FieldError>, Map<Integer, Email>> numbered =
+          EMAIL.parseValues(Map.of(7, "nope"));
+      assertThatValidated(numbered).isInvalid();
+      assertThat(numbered.getError().head())
+          .isEqualTo(new FieldError(List.of("7"), "not an email address"));
+
+      assertThatValidated(EMAIL.parseValues(Map.of())).isValid().hasValue(Map.of());
+      assertThatNullPointerException()
+          .isThrownBy(() -> EMAIL.parseValues(null))
+          .withMessage("sources must not be null");
+      Map<String, String> nullKey = new HashMap<>();
+      nullKey.put(null, "a@b");
+      assertThatNullPointerException()
+          .isThrownBy(() -> EMAIL.parseValues(nullKey))
+          .withMessage("sources must not contain a null key");
+      Map<String, String> nullValue = new HashMap<>();
+      nullValue.put("work", null);
+      assertThatNullPointerException()
+          .isThrownBy(() -> EMAIL.parseValues(nullValue))
+          .withMessage("sources[work] must not be null");
+    }
+
+    @Test
+    @DisplayName("buildValues is total, preserving entry order and rejecting nulls")
+    void buildValuesIsTotal() {
+      Map<String, Email> domain = new LinkedHashMap<>();
+      domain.put("work", new Email("a@b"));
+      domain.put("home", new Email("c@d"));
+      Map<String, String> built = EMAIL.buildValues(domain);
+      assertThat(built).containsExactly(entry("work", "a@b"), entry("home", "c@d"));
+      assertThatThrownBy(() -> built.put("x", "x@y"))
+          .isInstanceOf(UnsupportedOperationException.class);
+
+      assertThat(EMAIL.buildValues(Map.of())).isEmpty();
+      assertThatNullPointerException()
+          .isThrownBy(() -> EMAIL.buildValues(null))
+          .withMessage("values must not be null");
+      Map<String, Email> nullKey = new HashMap<>();
+      nullKey.put(null, new Email("a@b"));
+      assertThatNullPointerException()
+          .isThrownBy(() -> EMAIL.buildValues(nullKey))
+          .withMessage("values must not contain a null key");
+      Map<String, Email> nullValue = new HashMap<>();
+      nullValue.put("home", null);
+      assertThatNullPointerException()
+          .isThrownBy(() -> EMAIL.buildValues(nullValue))
+          .withMessage("values[home] must not be null");
     }
 
     @Test

@@ -19,6 +19,9 @@ dependencies {
     // Tests exercising generated error-envelope companions cast into hkj-core's carrier types
     // (ErrorEnvelope, TimeSource); already on the runtime classpath via hkj-processor-plugins.
     testImplementation(project(":hkj-core"))
+    // Law-checks every @GenerateMapping emission tier against the published harness
+    // (GeneratedMappingLawsTest). hkj-test depends only on hkj-core, so no cycle.
+    testImplementation(project(":hkj-test"))
 
     testImplementation(libs.compile.testing)
     testImplementation(libs.truth)

@@ -4,6 +4,7 @@ package org.higherkindedj.optics.processing;
 
 import static com.google.testing.compile.CompilationSubject.assertThat;
 import static com.google.testing.compile.Compiler.javac;
+import static org.higherkindedj.optics.processing.RuntimeCompilationHelper.invoke;
 
 import com.google.testing.compile.Compilation;
 import com.google.testing.compile.JavaFileObjects;
@@ -11,7 +12,9 @@ import com.palantir.javapoet.TypeSpec;
 import java.io.IOException;
 import java.lang.reflect.Proxy;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import javax.annotation.processing.Filer;
@@ -21,6 +24,10 @@ import javax.lang.model.element.Name;
 import javax.lang.model.element.TypeElement;
 import javax.tools.JavaFileObject;
 import org.assertj.core.api.Assertions;
+import org.assertj.core.api.InstanceOfAssertFactories;
+import org.higherkindedj.hkt.nonemptylist.NonEmptyList;
+import org.higherkindedj.hkt.validated.FieldError;
+import org.higherkindedj.hkt.validated.Validated;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -233,10 +240,313 @@ class MappingProcessorTest {
           .contains(".field(\"lead\", wire.lead().map(v -> lead().parse(v).map(Optional::of))")
           .doesNotContain("asIso");
     }
+  }
+
+  @Nested
+  @DisplayName("Map value lifting")
+  class MapValueLifting {
+
+    private static final JavaFileObject DIRECTORY =
+        JavaFileObjects.forSourceString(
+            "com.example.Directory",
+            """
+            package com.example;
+
+            import java.util.Map;
+
+            public record Directory(Map<String, EmailAddress> entries) {}
+            """);
+
+    private static final JavaFileObject DIRECTORY_DTO =
+        JavaFileObjects.forSourceString(
+            "com.example.DirectoryDto",
+            """
+            package com.example;
+
+            import java.util.Map;
+
+            public record DirectoryDto(Map<String, String> entries) {}
+            """);
+
+    private static final JavaFileObject DIRECTORY_MAPPING =
+        JavaFileObjects.forSourceString(
+            "com.example.DirectoryMapping",
+            """
+            package com.example;
+
+            import org.higherkindedj.hkt.validated.FieldError;
+            import org.higherkindedj.hkt.validated.Validated;
+            import org.higherkindedj.optics.annotations.GenerateMapping;
+            import org.higherkindedj.optics.annotations.MappingSpec;
+            import org.higherkindedj.optics.validated.ValidatedPrism;
+
+            @GenerateMapping
+            public interface DirectoryMapping extends MappingSpec<Directory, DirectoryDto> {
+              default ValidatedPrism<String, EmailAddress> entries() {
+                return ValidatedPrism.of(
+                    raw ->
+                        raw.contains("@")
+                            ? Validated.validNel(new EmailAddress(raw))
+                            : Validated.invalidNel(FieldError.of("not an email address")),
+                    EmailAddress::value);
+              }
+            }
+            """);
 
     @Test
-    @DisplayName("Map value lifting is deferred with a clear diagnostic")
-    void mapLiftingDeferred() {
+    @DisplayName("Map components lift their values through the leaf, keys untouched")
+    void mapValuesLiftThroughLeaf() {
+      Compilation compilation = compile(EMAIL, DIRECTORY, DIRECTORY_DTO, DIRECTORY_MAPPING);
+      assertThat(compilation).succeeded();
+      String generated = generatedSource(compilation, "com.example.DirectoryMappingImpl");
+      Assertions.assertThat(generated)
+          .contains("entries().buildValues(domain.entries())")
+          .contains(".field(\"entries\", entries().parseValues(wire.entries()))")
+          .doesNotContain("asIso");
+
+      var result = new RuntimeCompilationHelper.CompiledResult(compilation);
+      try {
+        Object impl =
+            result.loadClass("com.example.DirectoryMappingImpl").getField("INSTANCE").get(null);
+        Map<String, Object> byKey = new LinkedHashMap<>();
+        byKey.put("work", result.newInstance("com.example.EmailAddress", "ada@corp.example"));
+        byKey.put("home", result.newInstance("com.example.EmailAddress", "ada@home.example"));
+        Object domain =
+            result
+                .loadClass("com.example.Directory")
+                .getDeclaredConstructor(Map.class)
+                .newInstance(byKey);
+
+        Object dto = invoke(impl, "build", domain);
+        Assertions.assertThat(invoke(dto, "entries"))
+            .asInstanceOf(InstanceOfAssertFactories.MAP)
+            .containsExactly(
+                Assertions.entry("work", "ada@corp.example"),
+                Assertions.entry("home", "ada@home.example"));
+
+        @SuppressWarnings("unchecked")
+        Validated<NonEmptyList<FieldError>, Object> parsed =
+            (Validated<NonEmptyList<FieldError>, Object>) invoke(impl, "parse", dto);
+        Assertions.assertThat(parsed.isValid()).isTrue();
+        Assertions.assertThat(parsed.get()).isEqualTo(domain);
+      } catch (ReflectiveOperationException e) {
+        throw new AssertionError(e);
+      }
+    }
+
+    @Test
+    @DisplayName("parse accumulates across bad entries, each failure located by its key")
+    void parseAccumulatesAcrossEntriesLocatedByKey() {
+      Compilation compilation = compile(EMAIL, DIRECTORY, DIRECTORY_DTO, DIRECTORY_MAPPING);
+      assertThat(compilation).succeeded();
+
+      var result = new RuntimeCompilationHelper.CompiledResult(compilation);
+      try {
+        Object impl =
+            result.loadClass("com.example.DirectoryMappingImpl").getField("INSTANCE").get(null);
+        Map<String, String> byKey = new LinkedHashMap<>();
+        byKey.put("work", "bad-one");
+        byKey.put("home", "ada@home.example");
+        byKey.put("other", "bad-two");
+        Object dto =
+            result
+                .loadClass("com.example.DirectoryDto")
+                .getDeclaredConstructor(Map.class)
+                .newInstance(byKey);
+
+        @SuppressWarnings("unchecked")
+        Validated<NonEmptyList<FieldError>, Object> parsed =
+            (Validated<NonEmptyList<FieldError>, Object>) invoke(impl, "parse", dto);
+        Assertions.assertThat(parsed.isInvalid()).isTrue();
+        Assertions.assertThat(parsed.getError().toJavaList())
+            .containsExactly(
+                new FieldError(List.of("entries", "work"), "not an email address"),
+                new FieldError(List.of("entries", "other"), "not an email address"));
+      } catch (ReflectiveOperationException e) {
+        throw new AssertionError(e);
+      }
+    }
+
+    @Test
+    @DisplayName("a Map of a nested pair lifts through the sibling impl's prism, paths composing")
+    void mapThroughNestedSpecComposes() {
+      JavaFileObject domain =
+          JavaFileObjects.forSourceString(
+              "com.example.Team",
+              """
+              package com.example;
+
+              import java.util.Map;
+
+              public record Team(Map<String, Customer> members) {}
+              """);
+      JavaFileObject wire =
+          JavaFileObjects.forSourceString(
+              "com.example.TeamDto",
+              """
+              package com.example;
+
+              import java.util.Map;
+
+              public record TeamDto(Map<String, CustomerDto> members) {}
+              """);
+      JavaFileObject spec =
+          JavaFileObjects.forSourceString(
+              "com.example.TeamMapping",
+              """
+              package com.example;
+
+              import org.higherkindedj.optics.annotations.GenerateMapping;
+              import org.higherkindedj.optics.annotations.MappingSpec;
+
+              @GenerateMapping
+              public interface TeamMapping extends MappingSpec<Team, TeamDto> {}
+              """);
+
+      Compilation compilation =
+          compile(
+              EMAIL,
+              NestedRecursion.CUSTOMER,
+              NestedRecursion.CUSTOMER_DTO,
+              NestedRecursion.CUSTOMER_MAPPING,
+              domain,
+              wire,
+              spec);
+      assertThat(compilation).succeeded();
+      String generated = generatedSource(compilation, "com.example.TeamMappingImpl");
+      Assertions.assertThat(generated)
+          .contains("CustomerMappingImpl.INSTANCE.asValidatedPrism().buildValues(domain.members())")
+          .contains(
+              ".field(\"members\","
+                  + " CustomerMappingImpl.INSTANCE.asValidatedPrism().parseValues(wire.members()))");
+
+      var result = new RuntimeCompilationHelper.CompiledResult(compilation);
+      try {
+        Object impl =
+            result.loadClass("com.example.TeamMappingImpl").getField("INSTANCE").get(null);
+        Map<String, Object> byKey = new LinkedHashMap<>();
+        byKey.put("alice", result.newInstance("com.example.CustomerDto", "Alice", "nope"));
+        Object dto =
+            result
+                .loadClass("com.example.TeamDto")
+                .getDeclaredConstructor(Map.class)
+                .newInstance(byKey);
+
+        @SuppressWarnings("unchecked")
+        Validated<NonEmptyList<FieldError>, Object> parsed =
+            (Validated<NonEmptyList<FieldError>, Object>) invoke(impl, "parse", dto);
+        Assertions.assertThat(parsed.isInvalid()).isTrue();
+        Assertions.assertThat(parsed.getError().toJavaList())
+            .containsExactly(
+                new FieldError(List.of("members", "alice", "email"), "not an email address"));
+      } catch (ReflectiveOperationException e) {
+        throw new AssertionError(e);
+      }
+    }
+
+    @Test
+    @DisplayName("an Optional of a nested pair lifts through the sibling impl's prism")
+    void optionalThroughNestedSpecComposes() {
+      JavaFileObject domain =
+          JavaFileObjects.forSourceString(
+              "com.example.Account",
+              """
+              package com.example;
+
+              import java.util.Optional;
+
+              public record Account(Optional<Customer> owner) {}
+              """);
+      JavaFileObject wire =
+          JavaFileObjects.forSourceString(
+              "com.example.AccountDto",
+              """
+              package com.example;
+
+              import java.util.Optional;
+
+              public record AccountDto(Optional<CustomerDto> owner) {}
+              """);
+      JavaFileObject spec =
+          JavaFileObjects.forSourceString(
+              "com.example.AccountMapping",
+              """
+              package com.example;
+
+              import org.higherkindedj.optics.annotations.GenerateMapping;
+              import org.higherkindedj.optics.annotations.MappingSpec;
+
+              @GenerateMapping
+              public interface AccountMapping extends MappingSpec<Account, AccountDto> {}
+              """);
+
+      Compilation compilation =
+          compile(
+              EMAIL,
+              NestedRecursion.CUSTOMER,
+              NestedRecursion.CUSTOMER_DTO,
+              NestedRecursion.CUSTOMER_MAPPING,
+              domain,
+              wire,
+              spec);
+      assertThat(compilation).succeeded();
+      String generated = generatedSource(compilation, "com.example.AccountMappingImpl");
+      Assertions.assertThat(generated)
+          .contains("domain.owner().map(CustomerMappingImpl.INSTANCE.asValidatedPrism()::build)")
+          .contains(
+              "wire.owner().map(v -> CustomerMappingImpl.INSTANCE.asValidatedPrism().parse(v)");
+    }
+
+    @Test
+    @DisplayName("an identity Map (same keys, same values, no leaf) stays a plain copy")
+    void identityMapStaysIdentity() {
+      JavaFileObject domain =
+          JavaFileObjects.forSourceString(
+              "com.example.Labels",
+              """
+              package com.example;
+
+              import java.util.Map;
+
+              public record Labels(Map<String, String> tags) {}
+              """);
+      JavaFileObject wire =
+          JavaFileObjects.forSourceString(
+              "com.example.LabelsDto",
+              """
+              package com.example;
+
+              import java.util.Map;
+
+              public record LabelsDto(Map<String, String> tags) {}
+              """);
+      JavaFileObject spec =
+          JavaFileObjects.forSourceString(
+              "com.example.LabelsMapping",
+              """
+              package com.example;
+
+              import org.higherkindedj.optics.annotations.GenerateMapping;
+              import org.higherkindedj.optics.annotations.MappingSpec;
+
+              @GenerateMapping
+              public interface LabelsMapping extends MappingSpec<Labels, LabelsDto> {}
+              """);
+
+      Compilation compilation = compile(domain, wire, spec);
+      assertThat(compilation).succeeded();
+      String generated = generatedSource(compilation, "com.example.LabelsMappingImpl");
+      Assertions.assertThat(generated)
+          .contains("new LabelsDto(domain.tags())")
+          .contains(".field(\"tags\", Validated.validNel(wire.tags()))")
+          .contains("public Iso<Labels, LabelsDto> asIso()")
+          .doesNotContain("parseValues")
+          .doesNotContain("buildValues");
+    }
+
+    @Test
+    @DisplayName("differing key types are rejected: keys are identity-only")
+    void differingKeyTypesRejected() {
       JavaFileObject domain =
           JavaFileObjects.forSourceString(
               "com.example.Directory",
@@ -245,8 +555,62 @@ class MappingProcessorTest {
 
               import java.util.Map;
 
-              public record Directory(Map<String, EmailAddress> entries) {}
+              public record Directory(Map<Integer, EmailAddress> entries) {}
               """);
+
+      Compilation compilation = compile(EMAIL, domain, DIRECTORY_DTO, DIRECTORY_MAPPING);
+      assertThat(compilation).failed();
+      assertThat(compilation)
+          .hadErrorContaining("field 'entries' maps between Maps whose key types differ");
+      assertThat(compilation).hadErrorContaining("Keys pass through as identity");
+      assertThat(compilation)
+          .hadErrorContaining(
+              "Align the key types (mapping the value type through a leaf or spec), or"
+                  + " restructure to a List of entry records mapped through their own spec");
+    }
+
+    @Test
+    @DisplayName("a raw wire Map is rejected")
+    void rawWireMapRejected() {
+      JavaFileObject wire =
+          JavaFileObjects.forSourceString(
+              "com.example.DirectoryDto",
+              """
+              package com.example;
+
+              @SuppressWarnings("rawtypes")
+              public record DirectoryDto(java.util.Map entries) {}
+              """);
+
+      Compilation compilation = compile(EMAIL, DIRECTORY, wire, DIRECTORY_MAPPING);
+      assertThat(compilation).failed();
+      assertThat(compilation)
+          .hadErrorContaining("field 'entries' uses a raw Map, which cannot lift");
+      assertThat(compilation).hadErrorContaining("Declare both type arguments on each side");
+    }
+
+    @Test
+    @DisplayName("a raw domain Map is rejected")
+    void rawDomainMapRejected() {
+      JavaFileObject domain =
+          JavaFileObjects.forSourceString(
+              "com.example.Directory",
+              """
+              package com.example;
+
+              @SuppressWarnings("rawtypes")
+              public record Directory(java.util.Map entries) {}
+              """);
+
+      Compilation compilation = compile(EMAIL, domain, DIRECTORY_DTO, DIRECTORY_MAPPING);
+      assertThat(compilation).failed();
+      assertThat(compilation)
+          .hadErrorContaining("field 'entries' uses a raw Map, which cannot lift");
+    }
+
+    @Test
+    @DisplayName("wildcard type arguments on the wire Map are rejected")
+    void wildcardWireMapRejected() {
       JavaFileObject wire =
           JavaFileObjects.forSourceString(
               "com.example.DirectoryDto",
@@ -255,25 +619,507 @@ class MappingProcessorTest {
 
               import java.util.Map;
 
-              public record DirectoryDto(Map<String, String> entries) {}
+              public record DirectoryDto(Map<String, ? extends String> entries) {}
               """);
-      JavaFileObject spec =
+
+      Compilation compilation = compile(EMAIL, DIRECTORY, wire, DIRECTORY_MAPPING);
+      assertThat(compilation).failed();
+      assertThat(compilation)
+          .hadErrorContaining("field 'entries' uses wildcard Map type arguments");
+      assertThat(compilation).hadErrorContaining("Declare exact type arguments on both sides");
+    }
+
+    @Test
+    @DisplayName("wildcard type arguments on the domain Map are rejected")
+    void wildcardDomainMapRejected() {
+      JavaFileObject domain =
           JavaFileObjects.forSourceString(
-              "com.example.DirectoryMapping",
+              "com.example.Directory",
               """
               package com.example;
 
-              import org.higherkindedj.optics.annotations.GenerateMapping;
-              import org.higherkindedj.optics.annotations.MappingSpec;
+              import java.util.Map;
 
-              @GenerateMapping
-              public interface DirectoryMapping extends MappingSpec<Directory, DirectoryDto> {}
+              public record Directory(Map<String, ? extends EmailAddress> entries) {}
               """);
 
-      Compilation compilation = compile(EMAIL, domain, wire, spec);
+      Compilation compilation = compile(EMAIL, domain, DIRECTORY_DTO, DIRECTORY_MAPPING);
       assertThat(compilation).failed();
-      assertThat(compilation).hadErrorContaining("needs Map value lifting");
-      assertThat(compilation).hadErrorContaining("Map arrives with the full mapper");
+      assertThat(compilation)
+          .hadErrorContaining("field 'entries' uses wildcard Map type arguments");
+    }
+  }
+
+  @Nested
+  @DisplayName("Derived wire fields")
+  class DerivedWireFields {
+
+    private static JavaFileObject records(String body) {
+      return JavaFileObjects.forSourceString(
+          "com.example.Records", "package com.example;\n" + body);
+    }
+
+    private static JavaFileObject spec(String name, String body) {
+      return JavaFileObjects.forSourceString(
+          "com.example." + name,
+          """
+          package com.example;
+
+          import org.higherkindedj.hkt.validated.FieldError;
+          import org.higherkindedj.hkt.validated.Validated;
+          import org.higherkindedj.optics.Getter;
+          import org.higherkindedj.optics.annotations.GenerateMapping;
+          import org.higherkindedj.optics.annotations.MapField;
+          import org.higherkindedj.optics.annotations.MappingSpec;
+          import org.higherkindedj.optics.validated.ValidatedPrism;
+
+          @GenerateMapping
+          """
+              + body);
+    }
+
+    private static final JavaFileObject PERSON =
+        JavaFileObjects.forSourceString(
+            "com.example.Person",
+            """
+            package com.example;
+
+            public record Person(String first, String last) {}
+            """);
+
+    private static final JavaFileObject PERSON_DTO =
+        JavaFileObjects.forSourceString(
+            "com.example.PersonDto",
+            """
+            package com.example;
+
+            public record PersonDto(String first, String last, String displayName) {}
+            """);
+
+    private static final JavaFileObject PERSON_MAPPING =
+        JavaFileObjects.forSourceString(
+            "com.example.PersonMapping",
+            """
+            package com.example;
+
+            import org.higherkindedj.optics.Getter;
+            import org.higherkindedj.optics.annotations.GenerateMapping;
+            import org.higherkindedj.optics.annotations.MappingSpec;
+
+            @GenerateMapping
+            public interface PersonMapping extends MappingSpec<Person, PersonDto> {
+              default Getter<Person, String> displayName() {
+                return Getter.of(p -> p.first() + " " + p.last());
+              }
+            }
+            """);
+
+    @Test
+    @DisplayName("build fills a derived wire component; parse ignores it and round-trips the rest")
+    void buildFillsDerivedComponentAndParseIgnoresIt() {
+      Compilation compilation = compile(PERSON, PERSON_DTO, PERSON_MAPPING);
+      assertThat(compilation).succeeded();
+      String generated = generatedSource(compilation, "com.example.PersonMappingImpl");
+      Assertions.assertThat(generated)
+          .contains("new PersonDto(domain.first(), domain.last(), displayName().get(domain))")
+          .contains(".field(\"first\", Validated.validNel(wire.first()))")
+          .contains(".field(\"last\", Validated.validNel(wire.last()))")
+          .doesNotContain(".field(\"displayName\"")
+          .doesNotContain("asIso");
+
+      var result = new RuntimeCompilationHelper.CompiledResult(compilation);
+      try {
+        Object impl =
+            result.loadClass("com.example.PersonMappingImpl").getField("INSTANCE").get(null);
+        Object domain = result.newInstance("com.example.Person", "Ada", "Lovelace");
+
+        Object dto = invoke(impl, "build", domain);
+        Assertions.assertThat(invoke(dto, "displayName")).isEqualTo("Ada Lovelace");
+
+        // An inconsistent displayName is derivable data: parse ignores it entirely.
+        Object inconsistent =
+            result.newInstance("com.example.PersonDto", "Ada", "Lovelace", "nonsense");
+        @SuppressWarnings("unchecked")
+        Validated<NonEmptyList<FieldError>, Object> parsed =
+            (Validated<NonEmptyList<FieldError>, Object>) invoke(impl, "parse", inconsistent);
+        Assertions.assertThat(parsed.isValid()).isTrue();
+        Assertions.assertThat(parsed.get()).isEqualTo(domain);
+      } catch (ReflectiveOperationException e) {
+        throw new AssertionError(e);
+      }
+    }
+
+    @Test
+    @DisplayName("an otherwise-lossless spec with a derived field drops from the Iso tier")
+    void otherwiseLosslessSpecWithDerivedFieldDropsFromIsoTier() {
+      Compilation compilation =
+          compile(
+              records(
+                  """
+                  public final class Records {
+                    public record D(String a) {}
+
+                    public record W(String a, String stamp) {}
+                  }
+                  """),
+              spec(
+                  "StampMapping",
+                  """
+                  public interface StampMapping extends MappingSpec<Records.D, Records.W> {
+                    default Getter<Records.D, String> stamp() {
+                      return Getter.of(d -> "v1:" + d.a());
+                    }
+                  }
+                  """));
+      assertThat(compilation).succeeded();
+      String generated = generatedSource(compilation, "com.example.StampMappingImpl");
+      Assertions.assertThat(generated)
+          .contains("stamp().get(domain)")
+          .contains(".field(\"a\", Validated.validNel(wire.a()))")
+          .contains("asValidatedPrism")
+          .doesNotContain("asIso");
+    }
+
+    @Test
+    @DisplayName(
+        "a derived field composes with a leaf and a rename in one spec, even mid-record: buildArgs"
+            + " looks components up by name, not position")
+    void derivedComposesWithLeafAndRename() {
+      JavaFileObject domain =
+          JavaFileObjects.forSourceString(
+              "com.example.Account",
+              """
+              package com.example;
+
+              public record Account(String name, EmailAddress email) {}
+              """);
+      // The derived component deliberately sits BETWEEN the mapped ones.
+      JavaFileObject wire =
+          JavaFileObjects.forSourceString(
+              "com.example.AccountDto",
+              """
+              package com.example;
+
+              public record AccountDto(String fullName, String label, String email) {}
+              """);
+      JavaFileObject mapping =
+          spec(
+              "AccountMapping",
+              """
+              public interface AccountMapping extends MappingSpec<Account, AccountDto> {
+                @MapField(to = "fullName")
+                String name();
+
+                default ValidatedPrism<String, EmailAddress> email() {
+                  return ValidatedPrism.of(
+                      raw ->
+                          raw.contains("@")
+                              ? Validated.validNel(new EmailAddress(raw))
+                              : Validated.invalidNel(FieldError.of("not an email address")),
+                      EmailAddress::value);
+                }
+
+                default Getter<Account, String> label() {
+                  return Getter.of(a -> a.name() + " <" + a.email().value() + ">");
+                }
+              }
+              """);
+
+      Compilation compilation = compile(EMAIL, domain, wire, mapping);
+      assertThat(compilation).succeeded();
+      String generated = generatedSource(compilation, "com.example.AccountMappingImpl");
+      Assertions.assertThat(generated)
+          .contains(
+              "new AccountDto(domain.name(), label().get(domain),"
+                  + " email().build(domain.email()))")
+          .contains(".field(\"name\", Validated.validNel(wire.fullName()))")
+          .contains(".field(\"email\", email().parse(wire.email()))")
+          .doesNotContain(".field(\"label\"")
+          .doesNotContain("asIso");
+
+      var result = new RuntimeCompilationHelper.CompiledResult(compilation);
+      try {
+        Object impl =
+            result.loadClass("com.example.AccountMappingImpl").getField("INSTANCE").get(null);
+        Object emailValue = result.newInstance("com.example.EmailAddress", "ada@corp.example");
+        Object account = result.newInstance("com.example.Account", "Ada", emailValue);
+
+        Object dto = invoke(impl, "build", account);
+        Assertions.assertThat(invoke(dto, "fullName")).isEqualTo("Ada");
+        Assertions.assertThat(invoke(dto, "label")).isEqualTo("Ada <ada@corp.example>");
+
+        @SuppressWarnings("unchecked")
+        Validated<NonEmptyList<FieldError>, Object> parsed =
+            (Validated<NonEmptyList<FieldError>, Object>) invoke(impl, "parse", dto);
+        Assertions.assertThat(parsed.isValid()).isTrue();
+        Assertions.assertThat(parsed.get()).isEqualTo(account);
+
+        // Accumulation is untouched by the derived field: the bad leaf still locates.
+        Object bad = result.newInstance("com.example.AccountDto", "Ada", "ignored", "nope");
+        @SuppressWarnings("unchecked")
+        Validated<NonEmptyList<FieldError>, Object> failed =
+            (Validated<NonEmptyList<FieldError>, Object>) invoke(impl, "parse", bad);
+        Assertions.assertThat(failed.isInvalid()).isTrue();
+        Assertions.assertThat(failed.getError().toJavaList())
+            .containsExactly(new FieldError(List.of("email"), "not an email address"));
+      } catch (ReflectiveOperationException e) {
+        throw new AssertionError(e);
+      }
+    }
+
+    @Test
+    @DisplayName("a derived-field spec stays parse-capable, so it nests like any other")
+    void derivedSpecStaysParseCapableAndNests() {
+      Compilation compilation =
+          compile(
+              records(
+                  """
+                  public final class Records {
+                    public record Inner(String v) {}
+
+                    public record InnerDto(String v, String tag) {}
+
+                    public record Outer(Inner inner) {}
+
+                    public record OuterDto(InnerDto inner) {}
+                  }
+                  """),
+              spec(
+                  "InnerMapping",
+                  """
+                  public interface InnerMapping extends MappingSpec<Records.Inner, Records.InnerDto> {
+                    default Getter<Records.Inner, String> tag() {
+                      return Getter.of(i -> "#" + i.v());
+                    }
+                  }
+                  """),
+              spec(
+                  "OuterMapping",
+                  "public interface OuterMapping extends MappingSpec<Records.Outer,"
+                      + " Records.OuterDto> {}"));
+      assertThat(compilation).succeeded();
+      String generated = generatedSource(compilation, "com.example.OuterMappingImpl");
+      Assertions.assertThat(generated)
+          .contains("InnerMappingImpl.INSTANCE.asValidatedPrism().build(domain.inner())")
+          .contains(
+              ".field(\"inner\","
+                  + " InnerMappingImpl.INSTANCE.asValidatedPrism().parse(wire.inner()))");
+    }
+
+    @Test
+    @DisplayName("a Getter method named after a domain component is ambiguous and rejected")
+    void getterNamedAfterDomainComponentRejected() {
+      Compilation compilation =
+          compile(
+              records(
+                  """
+                  public final class Records {
+                    public record D(String name) {}
+
+                    public record W(String name) {}
+                  }
+                  """),
+              spec(
+                  "AmbiguousMapping",
+                  """
+                  public interface AmbiguousMapping extends MappingSpec<Records.D, Records.W> {
+                    default Getter<Records.D, String> name() {
+                      return Getter.of(Records.D::name);
+                    }
+                  }
+                  """));
+      assertThat(compilation).failed();
+      assertThat(compilation)
+          .hadErrorContaining(
+              "default method 'name' returns a Getter but is named after a domain component");
+      assertThat(compilation)
+          .hadErrorContaining("reads as a leaf, but a leaf never returns Getter");
+      assertThat(compilation)
+          .hadErrorContaining("rename the method after the wire-only component it derives");
+    }
+
+    @Test
+    @DisplayName("a Getter method naming no wire component is rejected")
+    void getterNamingNoWireComponentRejected() {
+      Compilation compilation =
+          compile(
+              records(
+                  """
+                  public final class Records {
+                    public record D(String a) {}
+
+                    public record W(String a) {}
+                  }
+                  """),
+              spec(
+                  "BogusMapping",
+                  """
+                  public interface BogusMapping extends MappingSpec<Records.D, Records.W> {
+                    default Getter<Records.D, String> bogus() {
+                      return Getter.of(Records.D::a);
+                    }
+                  }
+                  """));
+      assertThat(compilation).failed();
+      assertThat(compilation)
+          .hadErrorContaining("derived field method 'bogus' names no component of W");
+      assertThat(compilation)
+          .hadErrorContaining("Rename the method after the wire component it derives");
+    }
+
+    private static final JavaFileObject EXTRA_RECORDS =
+        records(
+            """
+            public final class Records {
+              public record D(String a) {}
+
+              public record W(String a, String extra) {}
+            }
+            """);
+
+    @Test
+    @DisplayName("a raw Getter return type is rejected with the exact shape to declare")
+    void rawGetterRejected() {
+      Compilation compilation =
+          compile(
+              EXTRA_RECORDS,
+              spec(
+                  "RawGetterMapping",
+                  """
+                  @SuppressWarnings("rawtypes")
+                  public interface RawGetterMapping extends MappingSpec<Records.D, Records.W> {
+                    default Getter extra() {
+                      return null;
+                    }
+                  }
+                  """));
+      assertThat(compilation).failed();
+      assertThat(compilation)
+          .hadErrorContaining("derived field 'extra' must return Getter<D, java.lang.String>");
+      assertThat(compilation).hadErrorContaining("applying the getter to the whole domain value");
+    }
+
+    @Test
+    @DisplayName("a Getter whose source type is not the domain record is rejected")
+    void getterWithWrongSourceTypeRejected() {
+      Compilation compilation =
+          compile(
+              EXTRA_RECORDS,
+              spec(
+                  "WrongSourceMapping",
+                  """
+                  public interface WrongSourceMapping extends MappingSpec<Records.D, Records.W> {
+                    default Getter<String, String> extra() {
+                      return Getter.of(s -> s);
+                    }
+                  }
+                  """));
+      assertThat(compilation).failed();
+      assertThat(compilation)
+          .hadErrorContaining("derived field 'extra' must return Getter<D, java.lang.String>");
+      assertThat(compilation)
+          .hadErrorContaining("Declare 'default Getter<D, java.lang.String> extra()'");
+    }
+
+    @Test
+    @DisplayName("a Getter whose target type is not the wire component's is rejected")
+    void getterWithWrongTargetTypeRejected() {
+      Compilation compilation =
+          compile(
+              EXTRA_RECORDS,
+              spec(
+                  "WrongTargetMapping",
+                  """
+                  public interface WrongTargetMapping extends MappingSpec<Records.D, Records.W> {
+                    default Getter<Records.D, Integer> extra() {
+                      return Getter.of(d -> 42);
+                    }
+                  }
+                  """));
+      assertThat(compilation).failed();
+      assertThat(compilation)
+          .hadErrorContaining("derived field 'extra' must return Getter<D, java.lang.String>");
+    }
+
+    @Test
+    @DisplayName("a rename targeting a wire component a derived field fills is rejected")
+    void renameTargetingDerivedComponentRejected() {
+      Compilation compilation =
+          compile(
+              records(
+                  """
+                  public final class Records {
+                    public record D(String a, String b) {}
+
+                    public record W(String a, String x) {}
+                  }
+                  """),
+              spec(
+                  "ClashMapping",
+                  """
+                  public interface ClashMapping extends MappingSpec<Records.D, Records.W> {
+                    @MapField(to = "x")
+                    String b();
+
+                    default Getter<Records.D, String> x() {
+                      return Getter.of(Records.D::a);
+                    }
+                  }
+                  """));
+      assertThat(compilation).failed();
+      assertThat(compilation)
+          .hadErrorContaining(
+              "derived field 'x' fills a wire component the @MapField rename on 'b' also"
+                  + " targets");
+      assertThat(compilation).hadErrorContaining("Each wire component takes exactly one source");
+    }
+
+    @Test
+    @DisplayName("a projection combined with a derived field is incoherent and rejected")
+    void projectionWithDerivedFieldRejected() {
+      Compilation compilation =
+          compile(
+              records(
+                  """
+                  public final class Records {
+                    public record D(String a, String b) {}
+
+                    public record W(String a, String d) {}
+                  }
+                  """),
+              spec(
+                  "MixedMapping",
+                  """
+                  public interface MixedMapping extends MappingSpec<Records.D, Records.W> {
+                    default Getter<Records.D, String> d() {
+                      return Getter.of(x -> x.a() + x.b());
+                    }
+                  }
+                  """));
+      assertThat(compilation).failed();
+      assertThat(compilation).hadErrorContaining("'W' combines a projection with derived fields");
+      assertThat(compilation).hadErrorContaining("an unlawful lens");
+      assertThat(compilation).hadErrorContaining("map the smaller wire as a plain projection");
+    }
+
+    @Test
+    @DisplayName("a parameterised Getter method is not a derived field; the extras error guides")
+    void parameterisedGetterMethodIsNotADerivedField() {
+      Compilation compilation =
+          compile(
+              EXTRA_RECORDS,
+              spec(
+                  "ParamGetterMapping",
+                  """
+                  public interface ParamGetterMapping extends MappingSpec<Records.D, Records.W> {
+                    default Getter<Records.D, String> extra(boolean strict) {
+                      return Getter.of(Records.D::a);
+                    }
+                  }
+                  """));
+      assertThat(compilation).failed();
+      assertThat(compilation).hadErrorContaining("'W' has more components than 'D'");
+      assertThat(compilation).hadErrorContaining("or declare derived fields");
     }
   }
 
@@ -1029,6 +1875,236 @@ class MappingProcessorTest {
           .contains(".field(\"handle\", handle().parse(wire.handle()))")
           .contains("handle().build(domain.handle())")
           .doesNotContain("asIso");
+    }
+
+    @Test
+    @DisplayName("an identity-typed List still routes through an explicit element leaf")
+    void identityTypedListRoutesThroughElementLeaf() {
+      JavaFileObject domain =
+          JavaFileObjects.forSourceString(
+              "com.example.Handles",
+              """
+              package com.example;
+
+              import java.util.List;
+
+              public record Handles(List<String> tags) {}
+              """);
+      JavaFileObject wire =
+          JavaFileObjects.forSourceString(
+              "com.example.HandlesDto",
+              """
+              package com.example;
+
+              import java.util.List;
+
+              public record HandlesDto(List<String> tags) {}
+              """);
+      JavaFileObject spec =
+          JavaFileObjects.forSourceString(
+              "com.example.HandlesMapping",
+              """
+              package com.example;
+
+              import org.higherkindedj.hkt.validated.FieldError;
+              import org.higherkindedj.hkt.validated.Validated;
+              import org.higherkindedj.optics.annotations.GenerateMapping;
+              import org.higherkindedj.optics.annotations.MappingSpec;
+              import org.higherkindedj.optics.validated.ValidatedPrism;
+
+              @GenerateMapping
+              public interface HandlesMapping extends MappingSpec<Handles, HandlesDto> {
+                default ValidatedPrism<String, String> tags() {
+                  return ValidatedPrism.of(
+                      raw ->
+                          raw.startsWith("@")
+                              ? Validated.validNel(raw)
+                              : Validated.invalidNel(FieldError.of("handles start with @")),
+                      raw -> raw);
+                }
+              }
+              """);
+
+      Compilation compilation = compile(domain, wire, spec);
+      assertThat(compilation).succeeded();
+      String generated = generatedSource(compilation, "com.example.HandlesMappingImpl");
+      Assertions.assertThat(generated)
+          .contains("tags().buildAll(domain.tags())")
+          .contains(".field(\"tags\", tags().parseAll(wire.tags()))")
+          .doesNotContain("asIso");
+
+      var result = new RuntimeCompilationHelper.CompiledResult(compilation);
+      try {
+        Object impl =
+            result.loadClass("com.example.HandlesMappingImpl").getField("INSTANCE").get(null);
+        Object dto =
+            result
+                .loadClass("com.example.HandlesDto")
+                .getDeclaredConstructor(List.class)
+                .newInstance(List.of("@ada", "bob"));
+
+        @SuppressWarnings("unchecked")
+        Validated<NonEmptyList<FieldError>, Object> parsed =
+            (Validated<NonEmptyList<FieldError>, Object>) invoke(impl, "parse", dto);
+        Assertions.assertThat(parsed.isInvalid()).isTrue();
+        Assertions.assertThat(parsed.getError().toJavaList())
+            .containsExactly(new FieldError(List.of("tags"), "handles start with @"));
+      } catch (ReflectiveOperationException e) {
+        throw new AssertionError(e);
+      }
+    }
+
+    @Test
+    @DisplayName("an identity-typed Optional still routes through an explicit element leaf")
+    void identityTypedOptionalRoutesThroughElementLeaf() {
+      JavaFileObject domain =
+          JavaFileObjects.forSourceString(
+              "com.example.Nickname",
+              """
+              package com.example;
+
+              import java.util.Optional;
+
+              public record Nickname(Optional<String> alias) {}
+              """);
+      JavaFileObject wire =
+          JavaFileObjects.forSourceString(
+              "com.example.NicknameDto",
+              """
+              package com.example;
+
+              import java.util.Optional;
+
+              public record NicknameDto(Optional<String> alias) {}
+              """);
+      JavaFileObject spec =
+          JavaFileObjects.forSourceString(
+              "com.example.NicknameMapping",
+              """
+              package com.example;
+
+              import org.higherkindedj.hkt.validated.FieldError;
+              import org.higherkindedj.hkt.validated.Validated;
+              import org.higherkindedj.optics.annotations.GenerateMapping;
+              import org.higherkindedj.optics.annotations.MappingSpec;
+              import org.higherkindedj.optics.validated.ValidatedPrism;
+
+              @GenerateMapping
+              public interface NicknameMapping extends MappingSpec<Nickname, NicknameDto> {
+                default ValidatedPrism<String, String> alias() {
+                  return ValidatedPrism.of(
+                      raw ->
+                          raw.isBlank()
+                              ? Validated.invalidNel(FieldError.of("alias must not be blank"))
+                              : Validated.validNel(raw),
+                      raw -> raw);
+                }
+              }
+              """);
+
+      Compilation compilation = compile(domain, wire, spec);
+      assertThat(compilation).succeeded();
+      String generated = generatedSource(compilation, "com.example.NicknameMappingImpl");
+      Assertions.assertThat(generated)
+          .contains("domain.alias().map(alias()::build)")
+          .contains(".field(\"alias\", wire.alias().map(v -> alias().parse(v).map(Optional::of))")
+          .doesNotContain("asIso");
+
+      var result = new RuntimeCompilationHelper.CompiledResult(compilation);
+      try {
+        Object impl =
+            result.loadClass("com.example.NicknameMappingImpl").getField("INSTANCE").get(null);
+        Object dto =
+            result
+                .loadClass("com.example.NicknameDto")
+                .getDeclaredConstructor(java.util.Optional.class)
+                .newInstance(java.util.Optional.of("   "));
+
+        @SuppressWarnings("unchecked")
+        Validated<NonEmptyList<FieldError>, Object> parsed =
+            (Validated<NonEmptyList<FieldError>, Object>) invoke(impl, "parse", dto);
+        Assertions.assertThat(parsed.isInvalid()).isTrue();
+        Assertions.assertThat(parsed.getError().toJavaList())
+            .containsExactly(new FieldError(List.of("alias"), "alias must not be blank"));
+      } catch (ReflectiveOperationException e) {
+        throw new AssertionError(e);
+      }
+    }
+
+    @Test
+    @DisplayName("an identity-typed Map still routes its values through an explicit value leaf")
+    void identityTypedMapRoutesThroughValueLeaf() {
+      JavaFileObject domain =
+          JavaFileObjects.forSourceString(
+              "com.example.Contacts",
+              """
+              package com.example;
+
+              import java.util.Map;
+
+              public record Contacts(Map<String, String> emails) {}
+              """);
+      JavaFileObject wire =
+          JavaFileObjects.forSourceString(
+              "com.example.ContactsDto",
+              """
+              package com.example;
+
+              import java.util.Map;
+
+              public record ContactsDto(Map<String, String> emails) {}
+              """);
+      JavaFileObject spec =
+          JavaFileObjects.forSourceString(
+              "com.example.ContactsMapping",
+              """
+              package com.example;
+
+              import java.util.Locale;
+              import org.higherkindedj.hkt.validated.Validated;
+              import org.higherkindedj.optics.annotations.GenerateMapping;
+              import org.higherkindedj.optics.annotations.MappingSpec;
+              import org.higherkindedj.optics.validated.ValidatedPrism;
+
+              @GenerateMapping
+              public interface ContactsMapping extends MappingSpec<Contacts, ContactsDto> {
+                default ValidatedPrism<String, String> emails() {
+                  return ValidatedPrism.of(
+                      raw -> Validated.validNel(raw.trim().toLowerCase(Locale.ROOT)),
+                      value -> value);
+                }
+              }
+              """);
+
+      Compilation compilation = compile(domain, wire, spec);
+      assertThat(compilation).succeeded();
+      String generated = generatedSource(compilation, "com.example.ContactsMappingImpl");
+      Assertions.assertThat(generated)
+          .contains("emails().buildValues(domain.emails())")
+          .contains(".field(\"emails\", emails().parseValues(wire.emails()))")
+          .doesNotContain("asIso");
+
+      var result = new RuntimeCompilationHelper.CompiledResult(compilation);
+      try {
+        Object impl =
+            result.loadClass("com.example.ContactsMappingImpl").getField("INSTANCE").get(null);
+        Object dto =
+            result
+                .loadClass("com.example.ContactsDto")
+                .getDeclaredConstructor(Map.class)
+                .newInstance(Map.of("work", "  ADA@CORP.EXAMPLE  "));
+
+        // The identity types would have copied verbatim; the leaf normalising proves it ran.
+        @SuppressWarnings("unchecked")
+        Validated<NonEmptyList<FieldError>, Object> parsed =
+            (Validated<NonEmptyList<FieldError>, Object>) invoke(impl, "parse", dto);
+        Assertions.assertThat(parsed.isValid()).isTrue();
+        Assertions.assertThat(invoke(parsed.get(), "emails"))
+            .asInstanceOf(InstanceOfAssertFactories.MAP)
+            .containsExactly(Assertions.entry("work", "ada@corp.example"));
+      } catch (ReflectiveOperationException e) {
+        throw new AssertionError(e);
+      }
     }
 
     @Test
@@ -1949,6 +3025,10 @@ class MappingProcessorTest {
               public record OD(java.util.Optional<EmD> o) {}
 
               public record OW(java.util.Optional<EmW> o) {}
+
+              public record MD(java.util.Map<String, EmD> m) {}
+
+              public record MW(java.util.Map<String, EmW> m) {}
             }
             """);
 
@@ -1973,6 +3053,48 @@ class MappingProcessorTest {
                   "public interface ListNestMapping extends MappingSpec<Records.D, Records.W> {}"));
       assertThat(compilation).failed();
       assertThat(compilation).hadErrorContaining("field 'xs' matches more than one mapping spec");
+    }
+
+    @Test
+    @DisplayName("Map components whose values resolve to nothing fall through")
+    void unresolvableMapValuesFallThrough() {
+      JavaFileObject maps =
+          records(
+              """
+              public final class Records {
+                public record D(java.util.Map<String, Integer> m) {}
+
+                public record W(java.util.Map<String, String> m) {}
+              }
+              """);
+      Compilation compilation =
+          compile(
+              maps,
+              spec(
+                  "IntMapMapping",
+                  "public interface IntMapMapping extends MappingSpec<Records.D, Records.W> {}"));
+      assertThat(compilation).failed();
+      assertThat(compilation).hadErrorContaining("target field 'W.m' has no usable source");
+    }
+
+    @Test
+    @DisplayName("ambiguous value specs inside a Map are rejected")
+    void ambiguousMapValueSpecsRejected() {
+      Compilation compilation =
+          compile(
+              ELEMENT_RECORDS,
+              spec(
+                  "EmMappingA",
+                  "public interface EmMappingA extends MappingSpec<Records.EmD, Records.EmW> {}"),
+              spec(
+                  "EmMappingB",
+                  "public interface EmMappingB extends MappingSpec<Records.EmD, Records.EmW> {}"),
+              spec(
+                  "MapNestMapping",
+                  "public interface MapNestMapping extends MappingSpec<Records.MD, Records.MW>"
+                      + " {}"));
+      assertThat(compilation).failed();
+      assertThat(compilation).hadErrorContaining("field 'm' matches more than one mapping spec");
     }
 
     @Test

@@ -3,7 +3,10 @@
 package org.higherkindedj.optics.validated;
 
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.function.Function;
@@ -205,6 +208,75 @@ public sealed interface ValidatedPrism<S, A> permits ValidatedPrism.Of {
       i++;
     }
     return List.copyOf(built);
+  }
+
+  /**
+   * Parses every value of a map, accumulating all failures across the whole map.
+   *
+   * <p>Keys pass through untouched - only the values map through the prism. Each entry's failures
+   * are located by its key (prepended as a path segment via {@link FieldError#at}), so an outer
+   * {@code field(label, ...)} call composes to dotted paths such as {@code attributes.en.email}.
+   * Entry order is preserved.
+   *
+   * <p>Keys are located via {@code toString()}. In the RENDERED {@code pathString} a key containing
+   * a dot is therefore indistinguishable from deeper nesting ({@code attributes.en.gb} could be key
+   * {@code en.gb} or key {@code en} nesting {@code gb}); the structured {@link FieldError#path()}
+   * list stays exact, with the whole key as one segment. Distinct keys whose {@code toString()}
+   * collide share a rendered location, but every error is still reported.
+   *
+   * @param sources the wire values by key; neither the map, its keys, nor its values may be null
+   * @param <K> the key type, carried through unchanged
+   * @return {@code Valid(map)} or every located failure from every entry, in entry order (non-null,
+   *     immutable)
+   * @throws NullPointerException if {@code sources}, one of its keys, or one of its values is null
+   *     (the message names the offending key where one exists)
+   */
+  default <K> Validated<NonEmptyList<FieldError>, Map<K, A>> parseValues(
+      Map<K, ? extends S> sources) {
+    Objects.requireNonNull(sources, "sources must not be null");
+    Map<K, A> values = LinkedHashMap.newLinkedHashMap(sources.size());
+    NonEmptyList<FieldError> failures = null;
+    for (Map.Entry<K, ? extends S> entry : sources.entrySet()) {
+      K key = Objects.requireNonNull(entry.getKey(), "sources must not contain a null key");
+      S source = Objects.requireNonNull(entry.getValue(), "sources[" + key + "] must not be null");
+      Validated<NonEmptyList<FieldError>, A> parsed = parse(source);
+      if (parsed.isValid()) {
+        values.put(key, parsed.get());
+      } else {
+        NonEmptyList<FieldError> located = parsed.getError().map(err -> err.at(key.toString()));
+        failures =
+            failures == null
+                ? located
+                : NonEmptyList.<FieldError>semigroup().combine(failures, located);
+      }
+    }
+    // Map.copyOf does not preserve entry order, so wrap the LinkedHashMap instead.
+    return failures == null
+        ? Validated.valid(Collections.unmodifiableMap(values))
+        : Validated.invalid(failures);
+  }
+
+  /**
+   * Renders every value of a map; total like {@link #build}. Keys pass through untouched and entry
+   * order is preserved.
+   *
+   * @param values the domain values by key; neither the map, its keys, nor its values may be null
+   * @param <K> the key type, carried through unchanged
+   * @return the rendered wire values by key, immutable and in entry order (non-null)
+   * @throws NullPointerException if {@code values}, one of its keys, or one of its values is null
+   *     (the message names the offending key where one exists)
+   */
+  default <K> Map<K, S> buildValues(Map<K, ? extends A> values) {
+    Objects.requireNonNull(values, "values must not be null");
+    Map<K, S> built = LinkedHashMap.newLinkedHashMap(values.size());
+    for (Map.Entry<K, ? extends A> entry : values.entrySet()) {
+      K key = Objects.requireNonNull(entry.getKey(), "values must not contain a null key");
+      built.put(
+          key,
+          build(Objects.requireNonNull(entry.getValue(), "values[" + key + "] must not be null")));
+    }
+    // Map.copyOf does not preserve entry order, so wrap the LinkedHashMap instead.
+    return Collections.unmodifiableMap(built);
   }
 
   /**
