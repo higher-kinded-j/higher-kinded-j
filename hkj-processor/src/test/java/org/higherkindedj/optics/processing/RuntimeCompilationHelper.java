@@ -63,6 +63,30 @@ public class RuntimeCompilationHelper {
   }
 
   /**
+   * Reflectively invokes {@code name} on {@code target}, matching by name and arity. The shared
+   * helper for exercising instances of runtime-compiled classes (generated impls and their
+   * records), whose types are not visible to the test at compile time.
+   *
+   * @param target the instance to invoke on
+   * @param name the method name
+   * @param args the arguments; the arity selects the method
+   * @return the method result
+   */
+  public static Object invoke(Object target, String name, Object... args) {
+    try {
+      for (Method method : target.getClass().getDeclaredMethods()) {
+        if (method.getName().equals(name) && method.getParameterCount() == args.length) {
+          method.setAccessible(true);
+          return method.invoke(target, args);
+        }
+      }
+      throw new NoSuchMethodException(target.getClass().getName() + "." + name);
+    } catch (ReflectiveOperationException e) {
+      throw new AssertionError(e);
+    }
+  }
+
+  /**
    * Creates a package-info.java source that imports the given types.
    *
    * @param packageName the package for the generated optics

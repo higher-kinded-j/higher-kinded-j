@@ -68,9 +68,50 @@ Each wire component takes exactly one domain source; colliding renames are compi
 
 ---
 
+## Derived wire fields
+
+A wire component with **no domain counterpart** can be computed from the whole domain value. Declare a zero-parameter `default` method named after the *wire* component, returning `Getter<Domain, WireComponentType>`:
+
+``` java
+import org.higherkindedj.optics.Getter;
+
+public record Profile(String first, String last) {}
+public record ProfileDto(String first, String last, String displayName) {}
+
+@GenerateMapping
+public interface ProfileMapping extends MappingSpec<Profile, ProfileDto> {
+  default Getter<Profile, String> displayName() {
+    return Getter.of(p -> p.first() + " " + p.last());
+  }
+}
+
+ProfileMappingImpl.INSTANCE.build(new Profile("Ada", "Lovelace"));
+// ProfileDto[first=Ada, last=Lovelace, displayName=Ada Lovelace]
+```
+
+The two directions are asymmetric: `build` computes the derived component, `parse` throws it away.
+
+```
+  build : fills the derived component from the whole domain value
+  ────────────────────────────────────────────────────────────────
+  Profile(first, last) ──▶ ProfileDto(first, last, displayName)
+                                                   ▲
+             displayName() : Getter<Profile,String>│  first + " " + last
+                                                    └── computed, not copied
+
+  parse : ignores the derived component (it is derivable)
+  ────────────────────────────────────────────────────────────────
+  ProfileDto(first, last, displayName) ──▶ Valid(Profile(first, last))
+                          displayName ──┘ dropped, never read
+```
+
+`build` fills the component by applying the getter to the whole domain value; `parse` **ignores** it, because the data is derivable, and stays total and accumulating over the remaining components (a derived-only mapping is *total-parse*: the accumulating parse still runs, it simply cannot fail). The optic is a `Getter` because a derived field is single-valued, exactly one focus computed from the whole domain value; a `Fold` has zero-to-many focuses and no single-component meaning. Naming keeps the two `default` families apart: leaves are named after *domain* components and return `ValidatedPrism`, derived fields after wire-only components and return `Getter`. The two families are matched differently, though: a zero-parameter `default` returning `Getter` is *always* claimed as a derived field (and validated as one), while `ValidatedPrism`-returning defaults are matched by name and otherwise stay inert helpers, so give getter-shaped utility helpers parameters or a different return type. A `Getter` method named after a domain component is ambiguous and rejected, as is one naming nothing on the wire, one with the wrong type arguments, and a `@MapField` rename targeting a component a derived field also fills.
+
+A spec with any derived field never emits `asIso()`: the wire round trip recomputes the derived component, so it is only an identity for wire values that were consistent to begin with. Combining a derived field with a projection (a wire otherwise smaller than the domain) is rejected too, because the projection's `asLens()` write-back could never honour a component `build` recomputes.
+
 ## Nesting, containers, and recursion
 
-A component pair mapped by **another spec in the same compilation** nests automatically, and `List`/`Optional` components lift through the element's leaf or spec. Failures compose into dotted paths:
+A component pair mapped by **another spec in the same compilation** nests automatically, and `List`/`Optional` components lift through the element's leaf or spec. `Map` components lift their **values** the same way; keys pass through untouched and each entry's failures are located by its key, so a bad value under key `en` reports as `attributes.en.email`. Keys are located via `toString()`, so in the *rendered* path a key containing a dot is indistinguishable from deeper nesting (the structured `FieldError` path list stays exact, holding the whole key as one segment), and distinct keys whose renderings collide share a location while every error is still reported. Failures compose into dotted paths:
 
 ``` java
 public record Invoice(String id, Customer customer) {}
@@ -114,7 +155,7 @@ The field correspondences select what the Impl can lawfully offer; nothing is fa
 | Spec shape | Generated surface |
 |---|---|
 | All components identity-matched (lossless) | `build`, total `parse`, **`asIso()`** |
-| Any fallible leaf or nested spec | `build`, accumulating `parse`, no `asIso` |
+| Any fallible leaf, nested spec or derived field | `build`, accumulating `parse`, no `asIso` |
 | Wire record with *fewer* components (lossy projection) | `build` + **`asLens()`** whose `set` writes the projected components back, **no `parse`** (the dropped components cannot be reconstructed) |
 | Every parse-capable mapping | **`asValidatedPrism()`**: the mapping as a leaf, so it nests and lifts |
 
@@ -129,6 +170,21 @@ Lens<Employee, EmployeeCardDto> badge = EmployeeCardMappingImpl.INSTANCE.asLens(
 Employee moved = badge.set(new EmployeeCardDto("Ada", "Platform"), employee);
 // department written back, age kept — a lawful lens, not a fake inverse
 ```
+
+### Law-checked, in the repo and in your tests
+
+"Lawfully offer" is verified, not promised: every emission tier above (lossless iso, projection lens, fallible leaf, nested spec, `List`/`Optional`/`Map` lifting, sealed dispatch, derived fields) is compiled and law-checked in the Higher-Kinded-J build itself, against the published [`hkj-test` law harness](../tooling/test_assertions.md#optic-laws). Your own specs get the same guarantee with one call from a test, where `hkj-test` lives:
+
+``` java
+import org.higherkindedj.optics.laws.MappingLaws;
+
+MappingLaws.assertMappingLaws(
+    CustomerMappingImpl.INSTANCE.asValidatedPrism(),
+    new CustomerDto("Ada", "ada@example.org"),    // parses
+    new CustomerDto("Bob", "not-an-email"));      // must not parse
+```
+
+The overloads follow the tiers: pass `asIso()` plus `asValidatedPrism()` for a lossless mapping (iso laws, both round trips, and the coherence between the two surfaces), `asLens()` with a domain value and two wire values for a projection, and `asValidatedPrism()` with a parsing and a non-parsing wire value for the fallible tier. For a derived-field mapping, `build` recomputes what `parse` ignores, so only the non-derived components round-trip; the domain-sample overload `assertMappingLaws(prism, domainValue)` asserts exactly that and nothing stronger. A spec with a derived field *and* a fallible leaf is better served by the fallible overload with a parseable wire value whose derived components match what `build` would produce, which keeps the no-parse check; reserve the domain-sample overload for total-parse mappings, where no wire value can fail.
 
 ~~~admonish tip title="Mapping types you don't own"
 The annotation sits on *your* spec interface, never on the mapped types, so third-party records and sealed hierarchies from compiled libraries map without being annotatable: `interface VendorOrderMapping extends MappingSpec<com.vendor.OrderRecord, OrderDto> {}` works today. Bean-shaped foreign types (getter/setter DTOs) are the one un-owned shape that needs future work.
@@ -211,13 +267,14 @@ Every rejection follows the processor's what/why/fix standard: the message state
 
 - `parse` is assembled with [`Validated.fields()`](../monads/validated_assembly.md), which locates up to **12 components**; group larger records into nested records, which nest through their own specs.
 - Nested and sealed resolution sees specs **in the same compilation**, and a spec extends `MappingSpec` and nothing else; inherited renames/leaves arrive with the full mapper.
-- Projections are identity-only (a leaf would make the write-back fallible), and generic types, `Map` value lifting and derived wire fields arrive with the full mapper.
+- `Map` components lift values only: keys are identity, so differing key types, raw `Map`s and wildcard type arguments are compile errors.
+- Projections are identity-only (a leaf would make the write-back fallible) and cannot carry derived fields (the write-back could never honour a recomputed component); generic types arrive with the full mapper.
 
 ~~~admonish tip title="See Also"
 - [Validated Prisms](validated_prism.md) - The leaf optic every fallible correspondence is built from
 - [Accumulating Assembly](../monads/validated_assembly.md) - The `fields()` builder behind the generated `parse`
 - [Multi-Edit and Sparse Updates](multi_edit.md) - The update-side counterpart at the same boundary
-- `GenerateMappingExample` in `hkj-examples` - every feature on this page, runnable
+- `GenerateMappingExample` in `hkj-examples` - every feature on this page, runnable; its `GenerateMappingExampleLawsTest` law-checks the example's mappings through `MappingLaws`
 ~~~
 
 ---

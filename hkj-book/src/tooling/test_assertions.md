@@ -314,6 +314,8 @@ void statusPrismIsLawful() {
 
 `ValidatedPrismLaws` joins the family for the validated-boundary optic (parse-build and the section law build-parse). Each family also exposes the individual laws (`assertGetSet`, `assertBuildMatch`, `assertSetNoOpWhenAbsent`, …) for targeted checks, and failures name the violated law with the offending values: `"Lens set-get: get(set(Grace, …)) == the value set; got Ada"`. Guard rails reject vacuous fixtures (equal set-set values, non-matching prism sources). Drive broader coverage with `@ParameterizedTest` or property fixtures at the call site.
 
+`MappingLaws` completes the family for [`@GenerateMapping`](../optics/record_mapping.md) Impls, law-checking a mapping through its exposed surface with one `assertMappingLaws` overload per emission tier: `asIso()` plus `asValidatedPrism()` for a lossless mapping (delegating to `IsoLaws` and adding the coherence checks between the two surfaces), `asLens()` for a projection (delegating to `LensLaws`), `asValidatedPrism()` with a parsing and a non-parsing wire value for the fallible tier (delegating to `ValidatedPrismLaws`), and a domain-sample overload for total-parse mappings such as those with derived wire fields, where only non-derived components round-trip.
+
 ~~~admonish tip title="See Also"
 - [Manual Gradle and Maven Setup](manual_setup.md) - Adding hkj-test to projects that do not use the HKJ build plugin
 - [Build Plugins](gradle_plugin.md) - Other test-time tooling

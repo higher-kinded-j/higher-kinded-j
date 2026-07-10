@@ -3,9 +3,11 @@
 package org.higherkindedj.example.optics;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import org.higherkindedj.hkt.validated.FieldError;
 import org.higherkindedj.hkt.validated.Validated;
+import org.higherkindedj.optics.Getter;
 import org.higherkindedj.optics.Lens;
 import org.higherkindedj.optics.annotations.GenerateMapping;
 import org.higherkindedj.optics.annotations.MapField;
@@ -13,16 +15,22 @@ import org.higherkindedj.optics.annotations.MappingSpec;
 import org.higherkindedj.optics.validated.ValidatedPrism;
 
 /**
- * Demonstrates {@code @GenerateMapping} (Step-0 slice): a compile-time, reflection-free
- * bidirectional record mapping with a total {@code build} and an accumulating, located {@code
- * parse}.
+ * Demonstrates {@code @GenerateMapping}: a compile-time, reflection-free bidirectional record
+ * mapping with a total {@code build} and an accumulating, located {@code parse}.
  *
  * <p>Key concepts demonstrated: the empty-spec happy path with {@code @MapField} renames and a
  * truthful {@code asIso()} (lossless tier); a validated-leaf mapping whose {@code parse} reports
  * every bad field at once, located by component name; {@code List}/{@code Optional} container
- * lifting; nesting (a spec delegating to a sibling spec, failures located by dotted path); a
- * self-recursive mapping over a tree; sealed-interface dispatch over permitted subtype pairs; and a
- * lossy projection (Lens tier) whose {@code asLens()} writes the projected components back.
+ * lifting; {@code Map} value lifting (keys identity, values through the leaf, failures located by
+ * key); a derived wire field (a {@code Getter} default method filled on {@code build} and ignored
+ * by {@code parse}); nesting (a spec delegating to a sibling spec, failures located by dotted
+ * path); a self-recursive mapping over a tree; sealed-interface dispatch over permitted subtype
+ * pairs; and a lossy projection (Lens tier) whose {@code asLens()} writes the projected components
+ * back.
+ *
+ * <p>The law-checked guarantee is runnable too: {@code GenerateMappingExampleLawsTest} in this
+ * module's test sources law-checks every mapping below through the published {@code MappingLaws}
+ * harness ({@code hkj-test} is test-scope, so the laws live in a test, not here).
  */
 public final class GenerateMappingExample {
 
@@ -75,6 +83,33 @@ public final class GenerateMappingExample {
                   ? Validated.validNel(new EmailAddress(raw))
                   : Validated.invalidNel(FieldError.of("not an email address")),
           EmailAddress::value);
+    }
+  }
+
+  public record Directory(String team, Map<String, EmailAddress> contacts) {}
+
+  public record DirectoryDto(String team, Map<String, String> contacts) {}
+
+  @GenerateMapping
+  public interface DirectoryMapping extends MappingSpec<Directory, DirectoryDto> {
+    default ValidatedPrism<String, EmailAddress> contacts() {
+      return ValidatedPrism.of(
+          raw ->
+              raw.contains("@")
+                  ? Validated.validNel(new EmailAddress(raw))
+                  : Validated.invalidNel(FieldError.of("not an email address")),
+          EmailAddress::value);
+    }
+  }
+
+  public record Profile(String first, String last) {}
+
+  public record ProfileDto(String first, String last, String displayName) {}
+
+  @GenerateMapping
+  public interface ProfileMapping extends MappingSpec<Profile, ProfileDto> {
+    default Getter<Profile, String> displayName() {
+      return Getter.of(p -> p.first() + " " + p.last());
     }
   }
 
@@ -173,6 +208,34 @@ public final class GenerateMappingExample {
     System.out.println(
         "Expected: strings in the DTO, Valid(round trip), Valid with empty lead, and BOTH bad"
             + " values reported at once\n");
+
+    System.out.println(
+        "=== Map Value Lifting Example (keys identity, values through the leaf) ===");
+    Directory platform =
+        new Directory("Platform", Map.of("ops", new EmailAddress("kay@corp.example")));
+    DirectoryDto directoryDto = GenerateMappingExampleDirectoryMappingImpl.INSTANCE.build(platform);
+    System.out.println("Built:        " + directoryDto);
+    System.out.println(
+        "Round trip:   " + GenerateMappingExampleDirectoryMappingImpl.INSTANCE.parse(directoryDto));
+    System.out.println(
+        "Located fail: "
+            + GenerateMappingExampleDirectoryMappingImpl.INSTANCE.parse(
+                new DirectoryDto("Platform", Map.of("sre", "not-an-email"))));
+    System.out.println(
+        "Expected: string values in the DTO, Valid(round trip), and the failure located by its"
+            + " key as \"contacts.sre\"\n");
+
+    System.out.println("=== Derived Wire Field Example (Getter, filled on build) ===");
+    Profile profile = new Profile("Ada", "Lovelace");
+    ProfileDto profileDto = GenerateMappingExampleProfileMappingImpl.INSTANCE.build(profile);
+    System.out.println("Built:        " + profileDto);
+    System.out.println(
+        "Parse:        "
+            + GenerateMappingExampleProfileMappingImpl.INSTANCE.parse(
+                new ProfileDto("Ada", "Lovelace", "nonsense")));
+    System.out.println(
+        "Expected: build fills displayName from the whole Profile; parse ignores even an"
+            + " inconsistent displayName (the data is derivable) and stays Valid\n");
 
     System.out.println("=== Nested Mapping Example (spec delegates to spec) ===");
     Invoice invoice =
