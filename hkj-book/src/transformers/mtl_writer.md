@@ -245,7 +245,7 @@ Kind<WriterTKind.Witness<IdKind.Witness, List<String>>, Unit> logged =
 - [MonadReader](mtl_reader.md) -- Read-only environment access
 - [MonadState](mtl_state.md) -- Read-write state threading
 - [Writer Monad](../monads/writer_monad.md) -- The non-transformer version
-- [EitherOrBoth](../monads/either_or_both_monad.md) -- Value-with-warnings when the computation can also fail (Writer always succeeds)
+- [EitherOrBoth](../monads/either_or_both_monad.md): Value-with-warnings when the computation can also fail (Writer always succeeds)
 - [Semigroup and Monoid](../functional/semigroup_and_monoid.md) -- How output combination works
 ~~~
 

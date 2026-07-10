@@ -527,7 +527,7 @@ Order a = normalise.andThen(applyDiscount).apply(orderA);
 Order b = normalise.andThen(applyDiscount).apply(orderB);
 ```
 
-The monoid's identity is the do-nothing update (`Update.identity()`), and `combine(f, g)` applies `f` first, then `g` — so folding a list of updates applies them left to right:
+The monoid's identity is the do-nothing update (`Update.identity()`), and `combine(f, g)` applies `f` first, then `g`, so folding a list of updates applies them left to right:
 
 ``` java
 Monoid<Update<Order>> m = Monoids.update();
@@ -538,7 +538,7 @@ Update<Order> pipeline = m.combineAll(steps);
 Order processed = pipeline.apply(order);
 ```
 
-Because the identity element is "change nothing", an absent or skipped step simply contributes nothing to the fold — the property that powers sparse partial updates. The [`Edits` builder](../optics/multi_edit.md) builds on exactly this: optic-targeted edits folded through `Monoids.update()`, with absent fields contributing the identity.
+Because the identity element is "change nothing", an absent or skipped step simply contributes nothing to the fold: the property that powers sparse partial updates. The [`Edits` builder](../optics/multi_edit.md) builds on exactly this: optic-targeted edits folded through `Monoids.update()`, with absent fields contributing the identity.
 
 ~~~admonish note title="For the functionally curious"
 In functional-programming literature this is the `Endo` monoid (for *endomorphism*, a function from a type to itself). Higher-Kinded-J names it `Update` for clarity.

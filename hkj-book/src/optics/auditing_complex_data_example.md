@@ -250,7 +250,7 @@ This example is just the beginning. Here are some ideas for extending this solut
 
 ### 1. **Safe Decoding with a `ValidatedPrism`**
 
-`Base64.getDecoder().decode()` can throw an `IllegalArgumentException`. A plain `Prism` can make the decode safe, but its match is an `Optional` — it **throws the reason away**, forcing the call site to reconstruct it. This is exactly the boundary [`ValidatedPrism`](validated_prism.md) names: the parse carries its reasons, and the build (Base64 encode) is genuinely total and faithful, so both round-trip laws hold:
+`Base64.getDecoder().decode()` can throw an `IllegalArgumentException`. A plain `Prism` can make the decode safe, but its match is an `Optional`: it **throws the reason away**, forcing the call site to reconstruct it. This is exactly the boundary [`ValidatedPrism`](validated_prism.md) names: the parse carries its reasons, and the build (Base64 encode) is genuinely total and faithful, so both round-trip laws hold:
 
 ```java
 public static final ValidatedPrism<String, byte[]> SAFE_BASE64 = ValidatedPrism.of(
@@ -272,7 +272,7 @@ ValidationPath<NonEmptyList<FieldError>, byte[]> railway = SAFE_BASE64.parsePath
 Traversal<AppConfig, byte[]> lossy = base64Strings.andThen(SAFE_BASE64.toPrism().asTraversal());
 ```
 
-To audit a whole config and report **every** bad entry at once, parse each string through `SAFE_BASE64.parse` and accumulate the results with the [assembly builders](../monads/validated_assembly.md) — sibling accumulation is their job; `ValidatedPrism` supplies the located leaf.
+To audit a whole config and report **every** bad entry at once, parse each string through `SAFE_BASE64.parse` and accumulate the results with the [assembly builders](../monads/validated_assembly.md). Sibling accumulation is their job; `ValidatedPrism` supplies the located leaf.
 
 ### 2. **Data Migration with `modify`**
 

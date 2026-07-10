@@ -39,6 +39,8 @@ Error first = failure.run().getError().head();   // total: never throws, returns
 
 This is the canonical companion to `Validated` in comparable libraries (Cats' `NonEmptyList` / `ValidatedNel`) precisely because it removes the empty-error-list footgun.
 
+---
+
 ## Core Components
 
 | Component | Role |
@@ -48,6 +50,8 @@ This is the canonical companion to `Validated` in comparable libraries (Cats' `N
 | `NonEmptyListMonad` | `Monad<NonEmptyListKind.Witness>`: `map`, `flatMap`, `of`, and a Cartesian `ap`. Deliberately **not** a `MonadZero`. |
 | `NonEmptyListTraverse` | `Traverse` and `Foldable`; results are non-empty by construction. |
 | `NonEmptyList.semigroup()` | The concatenating `Semigroup<NonEmptyList<A>>` used as the accumulating error channel. |
+
+---
 
 ## Construction
 
@@ -69,6 +73,8 @@ Maybe<NonEmptyList<Integer>> none  = NonEmptyList.fromList(List.of());        //
 ~~~admonish note title="Immutable and null-safe"
 The `tail` is defensively copied on construction, `tail()` returns an unmodifiable view, and elements are never `null`; any attempt to introduce a `null` element is rejected at construction time.
 ~~~
+
+---
 
 ## Total Accessors
 
@@ -114,6 +120,8 @@ Do not confuse `NonEmptyList`'s applicative `ap` (a Cartesian product, like `Lis
 ~~~
 
 The existing `Semigroups.list()` channel keeps working unchanged; `NonEmptyList` is an additive, less error-prone default.
+
+---
 
 ## Using It as a Higher-Kinded Type
 

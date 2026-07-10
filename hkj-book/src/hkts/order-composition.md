@@ -134,7 +134,7 @@ public EitherPath<OrderError, OrderResult> process(OrderRequest request) {
 In the current example, `process` first runs **accumulating** field validation: `validateRequest`
 collects every malformed field at once via `ValidationPath.zipWithAccum`, converts to `EitherPath`,
 and only then delegates to the `For` → `ForState` pipeline above (factored out as `processValidated`).
-The composition pattern is unchanged — the validation front door just reports all input errors
+The composition pattern is unchanged. The validation front door just reports all input errors
 together rather than one per round-trip.
 
 ### Two-Phase Design
@@ -187,7 +187,7 @@ After `toState()`, the `fromThen()` steps access earlier results by name — `s.
 
 Each `fromThen(function, lens)` call runs a monadic operation and stores the result via a lens.
 Because `ProcessingState` is annotated `@GenerateLenses`, the processor generates one lens per field
-— `ProcessingStateLenses.reservation()`, `ProcessingStateLenses.discount()`, … — so the workflow
+(`ProcessingStateLenses.reservation()`, `ProcessingStateLenses.discount()`, …) so the workflow
 above never hand-writes a lens. Each generated lens is just a getter/setter pair;
 `ProcessingStateLenses.discount()` is equivalent to:
 
@@ -201,7 +201,7 @@ Lens.of(
 
 ~~~admonish tip title="@GenerateLenses removes the boilerplate"
 Annotating the state record with `@GenerateLenses` generates all five enrich-phase lenses
-automatically — the `Lens.of(...)` form above is shown only to illustrate what each generated lens
+automatically. The `Lens.of(...)` form above is shown only to illustrate what each generated lens
 does. The example workflow calls `ProcessingStateLenses.discount()` and friends directly.
 ~~~
 

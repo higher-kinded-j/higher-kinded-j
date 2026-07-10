@@ -41,7 +41,7 @@ FX-rate lookups.
 
 **I need to apply an effectful function to every element in a stream.**
 If downstream order matters, use `parEvalMap`. It processes elements concurrently but emits
-them in the original order — the pipeline uses it for both enrichment *and* risk assessment,
+them in the original order: the pipeline uses it for both enrichment *and* risk assessment,
 because the risk results feed a count-based windower (`chunk`) that groups ticks by position.
 If order genuinely does not matter and you want maximum throughput, use
 `parEvalMapUnordered`. It emits results as they complete.

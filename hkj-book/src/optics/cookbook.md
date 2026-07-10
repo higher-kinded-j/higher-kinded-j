@@ -253,7 +253,7 @@ public Validated<NonEmptyList<FieldError>, Registration> validateRegistration(Re
 ```
 
 ~~~admonish warning title="Why not flatMap?"
-Chaining per-field `Validated` results with `flatMap` short-circuits: the first failure hides all the others, and earlier writes are discarded. `Edits.accumulate` validates every field independently and applies every write in one pass — see [Multi-Edit and Sparse Updates](multi_edit.md).
+Chaining per-field `Validated` results with `flatMap` short-circuits: the first failure hides all the others, and earlier writes are discarded. `Edits.accumulate` validates every field independently and applies every write in one pass: see [Multi-Edit and Sparse Updates](multi_edit.md).
 ~~~
 
 ---
