@@ -2,7 +2,7 @@
 
 > *"Evrything has a shape and so does the nite only you cant see the shape of nite nor you cant think it."*
 >
-> -- Russell Hoban, *Riddley Walker*
+> — Russell Hoban, *Riddley Walker*
 
 Hoban's narrator speaks of invisible shapes: structures that exist whether or not we perceive them. Monad transformers are like this. `EitherT<IOKind.Witness, ApiError, User>` has a definite shape: it's a computation that defers execution, might fail with a typed error, and produces a user when successful. The shape is there. But the syntax makes it hard to see, hard to think.
 

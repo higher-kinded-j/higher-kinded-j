@@ -1,14 +1,14 @@
 # Interactive Tutorials: Learn Higher-Kinded-J by Building
 
-The best way to understand Higher-Kinded Types and Optics is not to read about them but to write them — to run a test, watch it fail, change one line, and watch it pass. This chapter is built around that loop.
+The best way to understand Higher-Kinded Types and Optics is not to read about them but to write them: run a test, watch it fail, change one line, and watch it pass. This chapter is built around that loop.
 
 ## What Makes These Tutorials Different?
 
 Rather than passive reading, we will:
 - **Write real code** by replacing `answerRequired()` placeholders with working implementations
 - **Get immediate feedback** because each test fails until our solution is correct
-- **Build progressively** — earlier concepts become tools for later challenges
-- **See practical applications** — every exercise solves a problem Java developers face routinely
+- **Build progressively**: earlier concepts become tools for later challenges
+- **See practical applications**: every exercise solves a problem Java developers face routinely
 
 Think of the chapter as a guided laboratory for functional programming patterns in Java.
 
@@ -103,7 +103,7 @@ Read top-to-bottom and stop as soon as we have what we need.
 2. **Write** our solution in place of `answerRequired()`
 3. **Run** the test (Ctrl+Shift+F10 in IntelliJ, Cmd+Shift+T in Eclipse)
 4. **Observe** the result:
-   - ✅ Green: correct — move on
+   - ✅ Green: correct, move on
    - ❌ Red: read the error message and the Strategy hint
 5. **Iterate** until we understand the pattern, not just until the test passes
 
@@ -119,11 +119,11 @@ This task scans the tutorial test files, counts the remaining `answerRequired()`
 
 If we are struggling with an exercise:
 
-1. **Read the Javadoc carefully** — comments contain hints and links to relevant documentation
-2. **Check the type signatures** — what type does the method expect? what does it return?
-3. **Look at earlier exercises** — we may already have used a similar pattern
-4. **Consult the documentation** — links are provided throughout the tutorials
-5. **Peek at the solution** — solutions live in `solutions/<journey>/` directories. Each `@Test` method in a solution carries a Javadoc block in the **Why this is idiomatic / Alternative / Common wrong attempt** format; reading that prose first is usually more useful than reading the working code on its own. See the [Solutions Guide](solutions_guide.md) for the format and how to use it.
+1. **Read the Javadoc carefully**: comments contain hints and links to relevant documentation
+2. **Check the type signatures**: what type does the method expect? what does it return?
+3. **Look at earlier exercises**: we may already have used a similar pattern
+4. **Consult the documentation**: links are provided throughout the tutorials
+5. **Peek at the solution**: solutions live in `solutions/<journey>/` directories. Each `@Test` method in a solution carries a Javadoc block in the **Why this is idiomatic / Alternative / Common wrong attempt** format; reading that prose first is usually more useful than reading the working code on its own. See the [Solutions Guide](solutions_guide.md) for the format and how to use it.
 
 > **Resist the temptation to copy-paste.** We will learn far more from struggling for five minutes than from reading the answer immediately. The struggle is where the learning happens.
 
@@ -222,18 +222,18 @@ By the end of these tutorials, we will have hands-on experience building:
 
 After completing the tutorials, continue with:
 
-- **[Example Code](https://github.com/higher-kinded-j/higher-kinded-j/tree/main/hkj-examples/src/main/java/org/higherkindedj/example)** — production-quality examples in `hkj-examples`, including the order, market, payment, and draughts domains
-- **[API Documentation](https://higher-kinded-j.github.io/home.html)** — deep dives into every optic and typeclass
-- **[Complete Walkthroughs](../hkts/order-walkthrough.md)** — how the patterns combine in real applications
-- **[One Line, Six Layers](../hkts/one_line_six_layers.md)** — the chapter-wide anchor that ties everything in this book to a single expression
-- **Our own projects** — apply these patterns to a real codebase
+- **[Example Code](https://github.com/higher-kinded-j/higher-kinded-j/tree/main/hkj-examples/src/main/java/org/higherkindedj/example)** - production-quality examples in `hkj-examples`, including the order, market, payment, and draughts domains
+- **[API Documentation](https://higher-kinded-j.github.io/home.html)** - deep dives into every optic and typeclass
+- **[Complete Walkthroughs](../hkts/order-walkthrough.md)** - how the patterns combine in real applications
+- **[One Line, Six Layers](../hkts/one_line_six_layers.md)** - the chapter-wide anchor that ties everything in this book to a single expression
+- **Our own projects** - apply these patterns to a real codebase
 
 ## Ready to Begin?
 
 Choose a starting point:
 
 **Recommended Path:**
-1. [Tutorial00 — One Line, Six Layers](../hkts/one_line_six_layers.md) (anchor + setup check)
+1. [Tutorial00: One Line, Six Layers](../hkts/one_line_six_layers.md) (anchor + setup check)
 2. [Foundations Journey](coretypes/foundations_journey.md) - core concepts
 3. [Effect API Journey](effect/effect_journey.md) - the primary user-facing API
 

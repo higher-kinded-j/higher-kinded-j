@@ -29,9 +29,9 @@ void exerciseN_someName() {
 }
 ```
 
-That format is the same across all 60-odd solution files (Capstone, coretypes, optics, expression, effecthandlers, context, concurrency, transformers, resilience). When you peek at a solution, read the working code first, then the commentary — the prose tells you **why** the chosen form is preferred, what the close alternatives are, and which mistake the exercise is guarding against.
+That format is the same across all 60-odd solution files (Capstone, coretypes, optics, expression, effecthandlers, context, concurrency, transformers, resilience). When you peek at a solution, read the working code first, then the commentary: the prose tells you **why** the chosen form is preferred, what the close alternatives are, and which mistake the exercise is guarding against.
 
-The pilot solutions live in `coretypes/Tutorial01_KindBasics_Solution.java` and `optics/Tutorial01_LensBasics_Solution.java` — they are the canonical references for the format.
+The pilot solutions live in `coretypes/Tutorial01_KindBasics_Solution.java` and `optics/Tutorial01_LensBasics_Solution.java`; they are the canonical references for the format.
 
 ## Philosophy: When to Use Solutions
 
@@ -60,7 +60,7 @@ When you do consult a solution, approach it systematically:
 ### 1. Don't Just Copy-Paste
 
 **Instead**:
-- Read the per-exercise Javadoc first — the **Why this is idiomatic** paragraph names what the working code is doing and why
+- Read the per-exercise Javadoc first: the **Why this is idiomatic** paragraph names what the working code is doing and why
 - Read the working code with that framing in mind
 - Skim the **Alternative** paragraph to understand a close-but-different shape
 - Note the **Common wrong attempt** so you know what to avoid

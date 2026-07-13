@@ -1,4 +1,4 @@
-# Effect API Journey — Cheatsheet
+# Effect API Journey: Cheatsheet
 
 A single-page reference for the Effect Path API. Two columns: how we wrote it before, how we write it now.
 
@@ -59,7 +59,7 @@ On the typed carriers a business `Left` is a value, not a fault: never retried, 
 
 ---
 
-## `map` vs `via` — the canonical decision
+## `map` vs `via`: the canonical decision
 
 | Function shape | Reach for | Result shape |
 |----------------|-----------|--------------|
@@ -129,7 +129,7 @@ The annotation processor generates `UserServicePaths` with:
 | `T` (with `@PathVia(IO)`) | `IOPath<T>` |
 | `CompletableFuture<T>` | `VTaskPath<T>` (or `CompletableFuturePath<T>`) |
 
-The wrapper is exactly the one-liner shown in Tutorial 02 Exercise 6 — generated so we never have to write it.
+The wrapper is exactly the one-liner shown in Tutorial 02 Exercise 6, generated so we never have to write it.
 
 ---
 

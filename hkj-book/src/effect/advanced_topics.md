@@ -6,7 +6,7 @@
 > fragments and scattered across the world... You had to pick up all the
 > pieces and fit them together just right for any of it to make sense."*
 >
-> -- Neal Stephenson, *Cryptonomicon*
+> — Neal Stephenson, *Cryptonomicon*
 
 Stephenson's observation about scattered fragments applies equally to
 advanced effect patterns. Stack safety, resource management, parallel
@@ -55,9 +55,9 @@ Assumes comfort with the six core path types and the basic ForPath comprehension
 > Even after you'd encrypted something, you had to worry about whether the
 > encrypted thing was encrypted safely."*
 >
-> -- Neal Stephenson, *Cryptonomicon*
+> — Neal Stephenson, *Cryptonomicon*
 
-*Looking for the API reference? See [TrampolinePath](path_trampoline.md). This section is the narrative -- when stack safety matters and how trampolining converts unbounded recursion into a constant-space loop.*
+*Looking for the API reference? See [TrampolinePath](path_trampoline.md). This section is the narrative: when stack safety matters and how trampolining converts unbounded recursion into a constant-space loop.*
 
 Recursion is elegant, until it overflows your stack. Java's call stack is
 finite, typically 512KB to 1MB depending on configuration. A recursive
@@ -193,9 +193,9 @@ LazyPath<Integer> lazy = computation.toLazyPath();
 > ability to write numbers down and combined it with a few simple rules. From
 > this, everything else followed."*
 >
-> -- Neal Stephenson, *Cryptonomicon*
+> — Neal Stephenson, *Cryptonomicon*
 
-*Looking for the API reference? See [FreePath](path_free.md), [FreeApPath](path_freeap.md), and [Effect Handlers](effect_handlers_intro.md) for interpreter patterns. This section is the narrative -- why programs-as-data, what Free buys you, and how to interpret one.*
+*Looking for the API reference? See [FreePath](path_free.md), [FreeApPath](path_freeap.md), and [Effect Handlers](effect_handlers_intro.md) for interpreter patterns. This section is the narrative: why programs-as-data, what Free buys you, and how to interpret one.*
 
 Sometimes you want to describe a computation without immediately executing it.
 You might want to:
@@ -349,7 +349,7 @@ can be collected rather than stopping at the first failure.
 > *"He had learned to think of the system as a living thing, with resources
 > that had to be carefully husbanded."*
 >
-> -- Lionel Davidson, *Kolymsky Heights*
+> — Lionel Davidson, *Kolymsky Heights*
 
 Davidson's protagonist survived the Siberian wilderness by meticulous resource
 management. Software faces analogous challenges: database connections, file
@@ -470,9 +470,9 @@ connection. If any step fails, all acquired resources are still released.
 > *"In cryptography, you sometimes have to try many keys simultaneously.
 > The first one that works wins."*
 >
-> -- Neal Stephenson, *Cryptonomicon*
+> — Neal Stephenson, *Cryptonomicon*
 
-*Looking for parallel ForPath comprehensions specifically? See [ForPath Parallel Composition](forpath_par.md). This section covers parallel primitives across path types -- `parZipWith`, `parSequence`, and `race`.*
+*Looking for parallel ForPath comprehensions specifically? See [ForPath Parallel Composition](forpath_par.md). This section covers parallel primitives across path types: `parZipWith`, `parSequence`, and `race`.*
 
 Some computations are independent. Fetching user data and fetching preferences
 don't depend on each other; why wait for one to finish before starting the other?
@@ -618,7 +618,7 @@ prefer sequential; parallelise when profiling shows it matters.
 > *"The protocol specified exponential backoff: wait one second, try again;
 > wait two seconds, try again; wait four seconds..."*
 >
-> -- Neal Stephenson, *Cryptonomicon*
+> — Neal Stephenson, *Cryptonomicon*
 
 *This section is the conceptual primer. The dedicated [Resilience Patterns](../resilience/ch_intro.md) sub-chapter goes much deeper into Retry, Circuit Breaker, Bulkhead, and Saga, including the `ResilienceBuilder` for composing multiple patterns.*
 

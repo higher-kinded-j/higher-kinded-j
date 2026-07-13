@@ -15,7 +15,7 @@
 
 ## Why Use OptionalMonad?
 
-Java's `Optional<T>` is everywhere — repositories return it, configuration lookups return it, and dozens of JDK and third-party APIs produce it. But when you try to write *generic* monadic code that programs against `Kind<F, A>`, `Optional` cannot participate directly. It is a concrete JDK class, not part of any higher-kinded type hierarchy.
+Java's `Optional<T>` is everywhere: repositories return it, configuration lookups return it, and dozens of JDK and third-party APIs produce it. But when you try to write *generic* monadic code that programs against `Kind<F, A>`, `Optional` cannot participate directly. It is a concrete JDK class, not part of any higher-kinded type hierarchy.
 
 ```java
 // You want to write generic code like this...
@@ -28,7 +28,7 @@ Java's `Optional<T>` is everywhere — repositories return it, configuration loo
 Optional<User> user = repository.findById(id); // can't pass to lookupAndFormat
 ```
 
-`OptionalMonad` bridges this gap. It wraps `Optional` into the HKT system via `OptionalKind`, giving you `map`, `flatMap`, `ap`, `raiseError`, and `handleErrorWith` — all working through the `Kind` abstraction. Your generic algorithms now work with `Optional` alongside `Maybe`, `Either`, `IO`, and every other type in the library, without duplicating logic.
+`OptionalMonad` bridges this gap. It wraps `Optional` into the HKT system via `OptionalKind`, giving you `map`, `flatMap`, `ap`, `raiseError`, and `handleErrorWith`, all working through the `Kind` abstraction. Your generic algorithms now work with `Optional` alongside `Maybe`, `Either`, `IO`, and every other type in the library, without duplicating logic.
 
 ```java
 // Wrap the Optional into the HKT world
@@ -44,7 +44,7 @@ Optional<String> name = OPTIONAL.narrow(result);
 ~~~admonish note title="Optional vs Maybe"
 Both `OptionalMonad` and [MaybeMonad](maybe_monad.md) model "a value that might be absent" with `Unit` as the error type. The key difference is a **null guarantee**:
 
-- **`Maybe.just(value)`** throws `NullPointerException` if `value` is null — a `Just` always holds a non-null value.
+- **`Maybe.just(value)`** throws `NullPointerException` if `value` is null: a `Just` always holds a non-null value.
 - **`Optional.of(value)`** also rejects null, but `Optional.ofNullable(value)` (used by `OptionalMonad.of`) silently converts null to empty.
 
 Choose `OptionalMonad` when you need to interoperate with JDK APIs that already return `Optional`. Choose `MaybeMonad` when you control the data types and want the stronger non-null guarantee. See the [decision table below](#when-to-use-optional-vs-maybe) for detailed guidance.
@@ -58,13 +58,13 @@ The `Optional` HKT simulation is built from these pieces:
 |-----------|------|
 | `Optional<A>` | Standard JDK optional value |
 | `OptionalKind<A>` / `OptionalKindHelper` | HKT bridge: `widen()`, `narrow()` |
-| `OptionalMonad` | `MonadError<OptionalKind.Witness, Unit>` — provides `map`, `flatMap`, `of`, `ap`, `raiseError`, `handleErrorWith` |
+| `OptionalMonad` | `MonadError<OptionalKind.Witness, Unit>`: provides `map`, `flatMap`, `of`, `ap`, `raiseError`, `handleErrorWith` |
 
 ~~~admonish note title="How the Operations Map"
 | Type Class Operation | What It Does |
 |---------------------|--------------|
 | `OPTIONAL.widen(optional)` | Wrap a `java.util.Optional` into the HKT world |
-| `optionalMonad.of(value)` | Lift a value via `Optional.ofNullable` — null becomes empty |
+| `optionalMonad.of(value)` | Lift a value via `Optional.ofNullable`: null becomes empty |
 | `optionalMonad.map(f, fa)` | Transform the value if present; empty stays empty |
 | `optionalMonad.flatMap(f, fa)` | Chain a function that itself returns an `OptionalKind` |
 | `optionalMonad.ap(ff, fa)` | Apply a function-in-Optional to a value-in-Optional |
@@ -202,18 +202,18 @@ See [One Line, Six Layers](../hkts/one_line_six_layers.md) for the wider picture
 
 | Scenario | Recommendation |
 |----------|---------------|
-| Interoperating with JDK APIs that return `Optional` | Use `OptionalMonad` — avoids unnecessary conversion |
-| You control the data model and want non-null guarantees | Use [MaybeMonad](maybe_monad.md) — `Just` rejects null at construction |
-| Writing generic code that must accept `Optional` from callers | Use `OptionalMonad` — wrap with `OPTIONAL.widen()` |
-| Green-field code with no `Optional` dependency | Prefer [MaybeMonad](maybe_monad.md) — stricter and more predictable |
+| Interoperating with JDK APIs that return `Optional` | Use `OptionalMonad`: avoids unnecessary conversion |
+| You control the data model and want non-null guarantees | Use [MaybeMonad](maybe_monad.md): `Just` rejects null at construction |
+| Writing generic code that must accept `Optional` from callers | Use `OptionalMonad`: wrap with `OPTIONAL.widen()` |
+| Green-field code with no `Optional` dependency | Prefer [MaybeMonad](maybe_monad.md): stricter and more predictable |
 | Need to convert between the two | `Optional` to `Maybe`: `Maybe.fromNullable(opt.orElse(null))`; `Maybe` to `Optional`: `Optional.ofNullable(maybe.orElse(null))` |
 | Application-level fluent composition | Prefer [OptionalPath](../effect/path_optional.md) or [MaybePath](../effect/path_maybe.md) |
 
 ~~~admonish important title="Key Points"
 - `OptionalMonad` implements `MonadError<OptionalKind.Witness, Unit>`, treating `Optional.empty()` as the error state with `Unit` as the phantom error type.
-- `of(value)` uses `Optional.ofNullable` internally — null values silently become empty rather than throwing.
+- `of(value)` uses `Optional.ofNullable` internally: null values silently become empty rather than throwing.
 - `map` returns empty if the mapping function returns null (standard `Optional.map` behavior).
-- `handleErrorWith` is the recovery mechanism — the handler is invoked only when the value is empty.
+- `handleErrorWith` is the recovery mechanism: the handler is invoked only when the value is empty.
 - Use `OPTIONAL.widen()` and `OPTIONAL.narrow()` to move between `java.util.Optional` and `Kind<OptionalKind.Witness, A>` at system boundaries.
 ~~~
 
@@ -242,7 +242,7 @@ See [Effect Path Overview](../effect/effect_path_overview.md) for the complete g
 ~~~admonish example title="Benchmarks"
 Optional has dedicated JMH benchmarks measuring wrapping overhead, map/flatMap chains, and empty propagation. Key expectations:
 
-- **`of` / `raiseError`** are very fast — thin wrappers around `Optional.ofNullable` and `Optional.empty()`
+- **`of` / `raiseError`** are very fast: thin wrappers around `Optional.ofNullable` and `Optional.empty()`
 - **Empty propagation** short-circuits immediately with minimal overhead
 - **`widen` / `narrow`** are low-cost cast operations with no object allocation
 

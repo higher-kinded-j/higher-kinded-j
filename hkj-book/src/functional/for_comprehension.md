@@ -232,12 +232,12 @@ The `For` builder in `higher-kinded-j` provides the same expressive power throug
 ~~~
 
 ~~~admonish tip title="See Also"
-- [Parallel Composition](for_par.md) -- Express independent computations with `par()`
-- [Traverse Within Comprehensions](for_traverse.md) -- Bulk operations over traversable structures
-- [Optics Integration](for_optics.md) -- `focus()`, `match()`, ForTraversal, and ForIndexed
-- [MTL & ForState Bridge](for_mtl.md) -- MTL integration and `toState()` bridge
-- [ForState: Named State Comprehensions](forstate_comprehension.md) -- The recommended pattern for complex workflows
-- [ForPath Comprehension](../effect/forpath_comprehension.md) -- For-comprehensions that work directly with Effect Path types
+- [Parallel Composition](for_par.md) - Express independent computations with `par()`
+- [Traverse Within Comprehensions](for_traverse.md) - Bulk operations over traversable structures
+- [Optics Integration](for_optics.md) - `focus()`, `match()`, ForTraversal, and ForIndexed
+- [MTL & ForState Bridge](for_mtl.md) - MTL integration and `toState()` bridge
+- [ForState: Named State Comprehensions](forstate_comprehension.md) - The recommended pattern for complex workflows
+- [ForPath Comprehension](../effect/forpath_comprehension.md) - For-comprehensions that work directly with Effect Path types
 ~~~
 
 ---

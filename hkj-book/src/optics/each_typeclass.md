@@ -94,7 +94,7 @@ public interface EachIndexed<I, S, A> extends Each<S, A> {
 The interface is simple by design. Implement `each()` to provide a traversal; if your container has meaningful indices, implement `EachIndexed` and provide `indexedTraversal()` instead.
 
 ~~~admonish warning title="Deprecated: eachWithIndex()"
-Earlier releases exposed `Each.eachWithIndex()`, which returned an `Optional<IndexedTraversal<I, S, A>>` and let the caller choose the index type `<I>` freely even though the real index type was fixed — a mismatched request compiled but failed at runtime with a `ClassCastException`. It is **deprecated (for removal in 0.5.0)** in favour of `EachIndexed.indexedTraversal()`, which fixes the index type at the type level and needs no `Optional` unwrap. Migrate by typing the variable as `EachIndexed` and calling `indexedTraversal()` directly.
+Earlier releases exposed `Each.eachWithIndex()`, which returned an `Optional<IndexedTraversal<I, S, A>>` and let the caller choose the index type `<I>` freely even though the real index type was fixed; a mismatched request compiled but failed at runtime with a `ClassCastException`. It is **deprecated (for removal in 0.5.0)** in favour of `EachIndexed.indexedTraversal()`, which fixes the index type at the type level and needs no `Optional` unwrap. Migrate by typing the variable as `EachIndexed` and calling `indexedTraversal()` directly.
 ~~~
 
 ---

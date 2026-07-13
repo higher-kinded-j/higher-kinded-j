@@ -209,9 +209,9 @@ VTask<String> resilient = Resilience.<String>builder(
 ```
 
 ~~~admonish tip title="See Also"
-- [Retry](retry.md) -- backoff strategies and retry configuration
-- [Bulkhead](bulkhead.md) -- concurrency limiting
-- [Combined Patterns](combined.md) -- composing all patterns with ResilienceBuilder
+- [Retry](retry.md) - backoff strategies and retry configuration
+- [Bulkhead](bulkhead.md) - concurrency limiting
+- [Combined Patterns](combined.md) - composing all patterns with ResilienceBuilder
 ~~~
 
 ---

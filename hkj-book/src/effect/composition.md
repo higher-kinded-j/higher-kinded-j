@@ -2,7 +2,7 @@
 
 > *"The world, that understandable and lawful world, was slipping away."*
 >
-> -- William Golding, *Lord of the Flies*
+> — William Golding, *Lord of the Flies*
 
 Golding's boys lost their grip on order gradually, one compromised rule at a
 time. Code works the same way. A null check here, an uncaught exception there,
@@ -11,7 +11,7 @@ suddenly your "understandable and lawful" service layer has become something
 you approach with trepidation.
 
 Composition is how you hold the line. The previous pages introduced `via`,
-`map`, `recover`, and `zipWith` one path type at a time -- this page steps
+`map`, `recover`, and `zipWith` one path type at a time. This page steps
 back and looks at the shapes those operators form when you combine them
 across real workflows: dependent chains, independent fan-outs, debugging
 hooks, and fallback strategies. The vocabulary you've already met is the
@@ -174,7 +174,7 @@ structure at a glance.
 > many things, all at once, in parallel streams that only converged when
 > they had to."*
 >
-> -- Neal Stephenson, *Cryptonomicon*
+> — Neal Stephenson, *Cryptonomicon*
 
 Sequential composition with `via` is appropriate when each step depends on
 the previous. But when computations are genuinely independent, running them

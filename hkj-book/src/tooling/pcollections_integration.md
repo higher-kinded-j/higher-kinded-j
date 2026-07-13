@@ -173,7 +173,7 @@ laws hold for `PVector` widened through `ListKind`:
 
 ~~~admonish tip title="See Also"
 - [Benchmarks and Performance](../benchmarks.md) - The full benchmark suite and how to read its output
-- [Traversal Generator Plugins](generator_plugins.md) - Phase 2 will add PCollections support to `@GenerateTraversals`
+- [Traversal Generator Plugins](generator_plugins.md) - Phase 2 adds PCollections support to `@GenerateTraversals`
 - [List Type Class Instances](../monads/list_monad.md) - The instances PCollections piggy-backs on
 ~~~
 

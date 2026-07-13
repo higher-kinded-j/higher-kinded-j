@@ -4,7 +4,7 @@
 
 > *"Give me a place to stand, and I shall move the earth."*
 >
-> -- Archimedes
+> — Archimedes
 
 ![indexed-optics.jpg](../images/indexed-optics.jpg)
 
@@ -189,7 +189,7 @@ IndexedTraversal<String, Map<String, String>, String> metadataWithKeys =
 The `forMap()` factory creates a traversal where each value is paired with its key.
 
 ~~~admonish tip title="Alternative: EachIndexed.indexedTraversal()"
-You can also obtain indexed traversals through the [Each typeclass](each_typeclass.md). If a container's `Each` instance supports indexed access it is an `EachIndexed`, whose `indexedTraversal()` returns the `IndexedTraversal` directly — the index type is fixed at compile time, with no `Optional` to unwrap:
+You can also obtain indexed traversals through the [Each typeclass](each_typeclass.md). If a container's `Each` instance supports indexed access it is an `EachIndexed`, whose `indexedTraversal()` returns the `IndexedTraversal` directly; the index type is fixed at compile time, with no `Optional` to unwrap:
 
 ```java
 EachIndexed<Integer, List<String>, String> listEach = EachInstances.listEach();

@@ -3,7 +3,7 @@
 
 > *"The writer's duty is to keep on writing."*
 >
-> -- William Styron
+> — William Styron
 
 A writer accumulates, sentence by sentence, until a complete work emerges. `WriterT` does the same for your computations: each step appends to an output log, and the accumulation travels invisibly through whatever outer effect you are working in.
 

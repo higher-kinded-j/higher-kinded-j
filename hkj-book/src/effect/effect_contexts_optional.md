@@ -2,7 +2,7 @@
 
 > *"Sum tyms theres mor in the emty than the ful."*
 >
-> -- Russell Hoban, *Riddley Walker*
+> — Russell Hoban, *Riddley Walker*
 
 Hoban's riddler knew that absence can be as meaningful as presence. A database query that returns nothing isn't always an error; sometimes the record genuinely doesn't exist, and that's valuable information. `OptionalContext` and `JavaOptionalContext` model this graceful absence within effectful computations, giving you the compositional power of transformers without forcing non-existence into an error mould.
 

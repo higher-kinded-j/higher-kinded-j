@@ -272,7 +272,7 @@ ServiceRegistry updated = Traversals.modify(
 
 ### Persistent and Third-Party Maps: `forMapValuesCollecting()`
 
-`forMapValues()` is hard-wired to `java.util.HashMap`. To traverse the values of a *persistent* or *specialised* map — PCollections `PMap` / `PSortedMap`, Guava `ImmutableMap`, Eclipse Collections `ImmutableMap`, Vavr `io.vavr.collection.Map` — use `forMapValuesCollecting()`. It is the map-shaped companion to `forIterableCollecting()`, which does the same job for non-`Iterable` collections.
+`forMapValues()` is hard-wired to `java.util.HashMap`. To traverse the values of a *persistent* or *specialised* map (PCollections `PMap` / `PSortedMap`, Guava `ImmutableMap`, Eclipse Collections `ImmutableMap`, Vavr `io.vavr.collection.Map`), use `forMapValuesCollecting()`. It is the map-shaped companion to `forIterableCollecting()`, which does the same job for non-`Iterable` collections.
 
 For any map type that *implements* `java.util.Map` (PCollections maps, Guava `ImmutableMap`, Apache Commons map decorators, …), pass a single rebuild function:
 
@@ -289,7 +289,7 @@ PMap<String, Integer> updated =
     Traversals.modify(pmapValues, score -> score + 10, scores);   // keys preserved
 ```
 
-For map types that are *not* `java.util.Map` (Eclipse Collections `ImmutableMap`, Vavr `Map`), pass a view function as well — one that exposes the container as a JDK `Map`, plus one that rebuilds it:
+For map types that are *not* `java.util.Map` (Eclipse Collections `ImmutableMap`, Vavr `Map`), pass a view function as well, one that exposes the container as a JDK `Map`, plus one that rebuilds it:
 
 ```java
 // Vavr HashMap
@@ -298,7 +298,7 @@ Traversal<io.vavr.collection.HashMap<String, Integer>, Integer> vavrValues =
         io.vavr.collection.HashMap::toJavaMap, io.vavr.collection.HashMap::ofAll);
 ```
 
-The same two overloads exist on `EachInstances` for use in the Focus DSL — `EachInstances.mapValuesEachCollecting(HashTreePMap::from)` — which is how `@GenerateFocus` widens `PMap` / `PSortedMap` fields into `TraversalPath`s. See [PCollections Optics](../tooling/pcollections_optics.md).
+The same two overloads exist on `EachInstances` for use in the Focus DSL (`EachInstances.mapValuesEachCollecting(HashTreePMap::from)`), which is how `@GenerateFocus` widens `PMap` / `PSortedMap` fields into `TraversalPath`s. See [PCollections Optics](../tooling/pcollections_optics.md).
 
 > Like `forMapValues()`, the value transformation never touches keys. Sorted-map collectors (`TreePMap::from`, Vavr `TreeMap::ofAll`) re-apply natural ordering; custom comparators are not preserved.
 

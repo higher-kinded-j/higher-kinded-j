@@ -3,7 +3,7 @@
 
 > *"I am the sum total of everything that went before me, of all I have been seen done, of everything done-to-me."*
 >
-> -- Salman Rushdie, *Midnight's Children*
+> — Salman Rushdie, *Midnight's Children*
 
 Rushdie's narrator insists that identity does not depend on the specifics of its construction. The same principle applies to effectful code. A function that reads configuration should not care whether the environment arrives through `ReaderT<CompletableFuture, ...>`, `ReaderT<IO, ...>`, or some custom stack. It should declare *what it needs* ("I need to read an environment") and let the caller decide *how* that capability is provided.
 

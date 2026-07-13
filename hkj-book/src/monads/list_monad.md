@@ -14,7 +14,7 @@
 
 ## The Problem: Non-Deterministic Computation
 
-Some computations don't have a single answer — they have many. Consider finding all valid moves for a chess piece, all paths through a grid, or all ways to make change for a dollar. In each case, every intermediate step branches into multiple possibilities, and you need to explore *all* of them.
+Some computations don't have a single answer; they have many. Consider finding all valid moves for a chess piece, all paths through a grid, or all ways to make change for a dollar. In each case, every intermediate step branches into multiple possibilities, and you need to explore *all* of them.
 
 With plain Java, this means nested loops, manual concatenation, and tangled control flow:
 
@@ -28,7 +28,7 @@ for (String first : neighbors(start)) {
 }
 ```
 
-Each level of nesting adds another loop. If the number of steps is dynamic, you need recursion with manual list-building. The structure of the problem — "for each possibility, explore further" — is buried under bookkeeping.
+Each level of nesting adds another loop. If the number of steps is dynamic, you need recursion with manual list-building. The structure of the problem ("for each possibility, explore further") is buried under bookkeeping.
 
 The `ListMonad` captures this pattern directly. A `List` represents multiple possible values, `flatMap` explores all combinations by applying a function to each element and concatenating the results, and `ap` produces Cartesian products. The nested-loop problem above becomes:
 
@@ -44,15 +44,15 @@ Kind<ListKind.Witness, String> step2 = listMonad.flatMap(
 // step2 contains every node reachable in exactly 2 hops
 ```
 
-Each `flatMap` expands one level of the search tree. No nested loops, no manual concatenation — the monad handles it.
+Each `flatMap` expands one level of the search tree. No nested loops, no manual concatenation; the monad handles it.
 
 ## Core Components
 
 | Component | Role |
 |-----------|------|
-| `List<A>` | Standard Java list — the underlying data structure |
+| `List<A>` | Standard Java list, the underlying data structure |
 | `ListKind<A>` / `ListKindHelper` | HKT bridge: `widen()` wraps a `List` into `Kind`, `narrow()` unwraps it back |
-| `ListMonad` | `Monad<ListKind.Witness>` — provides `map`, `flatMap`, `of`, and `ap` over lists |
+| `ListMonad` | `Monad<ListKind.Witness>`: provides `map`, `flatMap`, `of`, and `ap` over lists |
 
 ~~~admonish note title="How the Operations Map"
 The monad operations correspond to familiar list operations:
@@ -60,9 +60,9 @@ The monad operations correspond to familiar list operations:
 | Type Class Operation | What It Does |
 |---------------------|--------------|
 | `listMonad.of(value)` | Create a singleton list containing `value` (`null` produces an empty list) |
-| `listMonad.map(f, fa)` | Apply `f` to every element — same as `stream().map(f).toList()` |
-| `listMonad.flatMap(f, fa)` | Apply `f` to each element (where `f` returns a list), concatenate all results — same as `stream().flatMap(...)` |
-| `listMonad.ap(ff, fa)` | Apply every function in `ff` to every value in `fa` — Cartesian product |
+| `listMonad.map(f, fa)` | Apply `f` to every element, same as `stream().map(f).toList()` |
+| `listMonad.flatMap(f, fa)` | Apply `f` to each element (where `f` returns a list), concatenate all results, same as `stream().flatMap(...)` |
+| `listMonad.ap(ff, fa)` | Apply every function in `ff` to every value in `fa`: Cartesian product |
 
 The key insight: `flatMap` on lists *is* non-deterministic computation. Each element branches into zero or more results, and all branches are collected into a single list.
 ~~~
@@ -77,7 +77,7 @@ functions: [f1, f2]       values: [a, b, c]
 results:  [f1(a), f1(b), f1(c), f2(a), f2(b), f2(c)]
 ```
 
-This is the applicative Cartesian product — if you have `n` functions and `m` values, `ap` produces `n * m` results.
+This is the applicative Cartesian product. If you have `n` functions and `m` values, `ap` produces `n * m` results.
 
 ## Working with ListMonad
 
@@ -107,7 +107,7 @@ Kind<ListKind.Witness, String> decorated = listMonad.map(
 ```
 ~~~
 
-~~~admonish example title="Composing with flatMap — Exploring All Combinations"
+~~~admonish example title="Composing with flatMap: Exploring All Combinations"
 
 - [ListMonadExample.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/basic/list/ListMonadExample.java)
 
@@ -155,7 +155,7 @@ Kind<ListKind.Witness, String> results = listMonad.ap(functions, inputs);
 // ["Val: 10", "Val: 20", "Mul: 20", "Mul: 40"]
 ```
 
-This is the same Cartesian product shown in the diagram above — 2 functions applied to 2 values yields 4 results.
+This is the same Cartesian product shown in the diagram above: 2 functions applied to 2 values yields 4 results.
 ~~~
 
 ---
@@ -181,16 +181,16 @@ See [One Line, Six Layers](../hkts/one_line_six_layers.md) for the wider picture
 
 | Scenario | Use |
 |----------|-----|
-| Non-deterministic computation — exploring all possibilities | `ListMonad` with `flatMap` to branch and collect |
+| Non-deterministic computation, exploring all possibilities | `ListMonad` with `flatMap` to branch and collect |
 | Generating combinations or Cartesian products | `ListMonad` with `ap` |
-| Writing generic code that works across monads | `ListMonad` — your logic programs against `Kind<F, A>` |
+| Writing generic code that works across monads | `ListMonad`: your logic programs against `Kind<F, A>` |
 | Filtering within a pipeline (guard-style) | Return empty lists from `flatMap` to prune branches |
 | Single-value computation with optionality | Prefer [Maybe](maybe_monad.md) instead |
 
 ~~~admonish important title="Key Points"
 - `ListMonad` implements `Monad<ListKind.Witness>`, giving you `map`, `flatMap`, `of`, and `ap` over standard Java lists.
 - `flatMap` is non-deterministic composition: each element can produce zero, one, or many results, and all results are concatenated.
-- `ap` produces the Cartesian product of a list of functions and a list of values — O(n*m) results.
+- `ap` produces the Cartesian product of a list of functions and a list of values, O(n*m) results.
 - `of(null)` produces an empty list, not a singleton containing `null`.
 - For the HKT bridge: `LIST.widen()` wraps a `List` into `Kind`, `LIST.narrow()` unwraps it back. Both are low-cost cast operations.
 ~~~
@@ -200,7 +200,7 @@ List has dedicated JMH benchmarks measuring map, flatMap, and ap composition. Ke
 
 - **`map`** scales linearly with list size
 - **`flatMap`** performance depends on the output size of the mapping function
-- **`ap`** produces Cartesian products — O(n*m) where n = functions, m = values
+- **`ap`** produces Cartesian products, O(n*m) where n = functions, m = values
 
 ```bash
 ./gradlew :hkj-benchmarks:jmh --includes=".*ListBenchmark.*"

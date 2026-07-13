@@ -128,7 +128,7 @@ The project includes JMH benchmarks that measure construction, execution, and co
 ~~~
 
 ~~~admonish tip title="Full Benchmark Suite"
-The `hkj-benchmarks` module contains 18 benchmark classes covering every major type in the library — not just Effect Path types. For the full picture including VTask, VStream, Either, Maybe, concurrency scaling, and Java baseline comparisons, see [Benchmarks & Performance](../benchmarks.md).
+The `hkj-benchmarks` module contains 18 benchmark classes covering every major type in the library, not just Effect Path types. For the full picture including VTask, VStream, Either, Maybe, concurrency scaling, and Java baseline comparisons, see [Benchmarks & Performance](../benchmarks.md).
 ~~~
 
 ---

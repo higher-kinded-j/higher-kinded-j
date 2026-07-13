@@ -1,7 +1,7 @@
 # Capstone: One Line, Six Layers Grows Up
 
 ~~~admonish info title="What We'll Build"
-Tutorial 00 introduced the chapter anchor expression — one line of Higher-Kinded-J that touched every layer of the library. By the time we reach this capstone we have learned each layer in depth: the Effect Path API, optics, expression comprehensions, structured concurrency, resilience patterns. The capstone is the same expression, grown up to handle a realistic order workflow:
+Tutorial 00 introduced the chapter anchor expression, one line of Higher-Kinded-J that touched every layer of the library. By the time we reach this capstone we have learned each layer in depth: the Effect Path API, optics, expression comprehensions, structured concurrency, resilience patterns. The capstone is the same expression, grown up to handle a realistic order workflow:
 
 ```java
 findOrder(id)
@@ -61,4 +61,4 @@ A single test file with 7 exercises and a matching solution file. Exercises 1-3 
 ---
 
 **Previous:** [Effect Handlers Journey](../effecthandlers/ch_intro.md)
-**Next:** [Foundations chapter](../../hkts/foundations_intro.md) — the theory underneath
+**Next:** [Foundations chapter](../../hkts/foundations_intro.md) - the theory underneath

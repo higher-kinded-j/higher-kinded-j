@@ -3,7 +3,7 @@
 ## _Spec Interfaces for Jackson and Beyond_
 
 > "The art of programming is the art of organising complexity, of mastering multitude and avoiding its bastard chaos."
-> -- Edsger W. Dijkstra
+> — Edsger W. Dijkstra
 
 Dijkstra's words ring especially true when facing JSON. A nested, dynamically-typed structure with optional fields, variable array contents, and no compile-time guarantees: this is complexity waiting to become chaos. The imperative approach fights this with defensive code: null checks upon null checks, type assertions, and deeply nested conditionals.
 

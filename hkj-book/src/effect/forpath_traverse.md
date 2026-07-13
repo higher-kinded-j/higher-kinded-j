@@ -1,6 +1,6 @@
 # ForPath Traverse
 
-A common pattern in effectful programming is having a collection of items where each item needs to be processed through an effect -- validating every field in a form, fetching details for every ID in a list, or parsing every line in a file. Without `traverse`, you'd break out of the comprehension, process the collection separately, and thread the result back in. The `traverse()`, `sequence()`, and `flatTraverse()` methods let you do this *inline*, keeping the entire pipeline in one fluent chain.
+A common pattern in effectful programming is having a collection of items where each item needs to be processed through an effect: validating every field in a form, fetching details for every ID in a list, or parsing every line in a file. Without `traverse`, you'd break out of the comprehension, process the collection separately, and thread the result back in. The `traverse()`, `sequence()`, and `flatTraverse()` methods let you do this *inline*, keeping the entire pipeline in one fluent chain.
 
 ## Traverse: Apply an Effect to Every Element
 
@@ -44,7 +44,7 @@ EitherPath<String, Kind<ListKind.Witness, String>> result =
 
 ## Sequence: Flip the Nesting
 
-Sometimes you already have a collection of effectful values (e.g., a `List<MaybePath<Integer>>`) and need to "turn it inside-out" into a single effect containing the collection (`MaybePath<List<Integer>>`). `sequence()` does exactly this -- it's equivalent to `traverse` with the identity function.
+Sometimes you already have a collection of effectful values (e.g., a `List<MaybePath<Integer>>`) and need to "turn it inside-out" into a single effect containing the collection (`MaybePath<List<Integer>>`). `sequence()` does exactly this; it's equivalent to `traverse` with the identity function.
 
 ## FlatTraverse: Traverse and Flatten
 

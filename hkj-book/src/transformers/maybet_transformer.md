@@ -3,7 +3,7 @@
 
 > *"Some things are present, others not."*
 >
-> -- Aristotle, *Categories*
+> — Aristotle, *Categories*
 
 `MaybeT` is the FP-native cousin of `OptionalT`. Same idea, same composition story, slightly different host type, and a slightly cleaner pairing with the rest of Higher-Kinded-J.
 

@@ -171,10 +171,10 @@ starting the second.
 <div style="text-align: center; margin: 1.5em 0;">
   <a href="https://xkcd.com/2347/" target="_blank" rel="noopener">
     <img src="https://imgs.xkcd.com/comics/dependency.png"
-         alt="XKCD 2347: Dependency — 'Someday ImageMagick will finally break for good and we&#39;ll have a long period of scrambling as we try to reassemble civilization from the rubble.'"
+         alt="XKCD 2347: Dependency. 'Someday ImageMagick will finally break for good and we&#39;ll have a long period of scrambling as we try to reassemble civilization from the rubble.'"
          style="max-width: 400px; width: 100%;" />
   </a>
-  <br/><small><em>XKCD 2347 — Dependency. Now you know why Step 8 exists.</em></small>
+  <br/><small><em>XKCD 2347: Dependency. Now you know why Step 8 exists.</em></small>
 </div>
 
 ---

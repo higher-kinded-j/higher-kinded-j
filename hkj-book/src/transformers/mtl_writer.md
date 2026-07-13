@@ -2,7 +2,7 @@
 
 > *"What is written without effort is in general read without pleasure."*
 >
-> -- Samuel Johnson
+> — Samuel Johnson
 
 Johnson was talking about prose, but the principle maps neatly onto computation logs. If accumulating output requires effort at every call site (threading a mutable list, remembering to append, praying nobody drops an entry) the resulting log will be incomplete and unreliable. `MonadWriter` removes that effort. You `tell`, and the output accumulates.
 
@@ -241,12 +241,12 @@ Kind<WriterTKind.Witness<IdKind.Witness, List<String>>, Unit> logged =
 ---
 
 ~~~admonish tip title="See Also"
-- [WriterT](writert_transformer.md) -- The concrete transformer behind `MonadWriter`
-- [MonadReader](mtl_reader.md) -- Read-only environment access
-- [MonadState](mtl_state.md) -- Read-write state threading
-- [Writer Monad](../monads/writer_monad.md) -- The non-transformer version
+- [WriterT](writert_transformer.md) - The concrete transformer behind `MonadWriter`
+- [MonadReader](mtl_reader.md) - Read-only environment access
+- [MonadState](mtl_state.md) - Read-write state threading
+- [Writer Monad](../monads/writer_monad.md) - The non-transformer version
 - [EitherOrBoth](../monads/either_or_both_monad.md): Value-with-warnings when the computation can also fail (Writer always succeeds)
-- [Semigroup and Monoid](../functional/semigroup_and_monoid.md) -- How output combination works
+- [Semigroup and Monoid](../functional/semigroup_and_monoid.md) - How output combination works
 ~~~
 
 ---

@@ -2,7 +2,7 @@
 
 > *"All that is solid melts into air."*
 >
-> -- Karl Marx, *The Communist Manifesto*
+> — Karl Marx, *The Communist Manifesto*
 
 Marx was describing political transformation, but the phrase captures exactly what `MonadState` does to mutable variables: it dissolves them into a purely functional flow. The state is still there (read, updated, replaced) but it threads through your computation invisibly, with no `var`, no `synchronized`, no shared mutable field.
 
@@ -269,10 +269,10 @@ Kind<StateTKind.Witness<Counter, IdKind.Witness>, Integer> total =
 ---
 
 ~~~admonish tip title="See Also"
-- [StateT](statet_transformer.md) -- The concrete transformer behind `MonadState`
-- [MonadReader](mtl_reader.md) -- When you need read-only environment access
-- [MonadWriter](mtl_writer.md) -- When you need append-only output
-- [State Monad](../monads/state_monad.md) -- The non-transformer version
+- [StateT](statet_transformer.md) - The concrete transformer behind `MonadState`
+- [MonadReader](mtl_reader.md) - When you need read-only environment access
+- [MonadWriter](mtl_writer.md) - When you need append-only output
+- [State Monad](../monads/state_monad.md) - The non-transformer version
 ~~~
 
 ---

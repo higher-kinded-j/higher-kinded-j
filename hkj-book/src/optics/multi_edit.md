@@ -3,37 +3,43 @@
 _Apply N independent edits at different paths in one reusable operation, including the sparse, all-errors-at-once REST `PATCH` shape._
 
 ~~~admonish info title="What You'll Learn"
-- Folding N independent edits into one reusable `Update<S>` with `Edits.combine`, powered by the `Update` monoid
-- How the sealed `Edit`/`FallibleEdit` split keeps pure and fallible edits apart at compile time
-- Writing sparse updates where the `…IfPresent` factories treat `null` as absent, contributing the monoid identity instead of an `if`
-- Building a validated REST `PATCH` with `Edits.accumulate` that reports every bad field at once, each located
-- The two-phase semantics: validate every edit source-independently, then write left-to-right only when all validated
-- Why overlapping paths observe earlier writes, and when to reach for one atomic edit instead
+- Combining several edits at different paths into one reusable operation with `Edits.combine`
+- Writing sparse updates where a `null` field means "leave it alone", with no `if` per field
+- Building a REST `PATCH` with `Edits.accumulate` that validates every field and reports all the bad ones at once, not just the first
+- The two-phase model: validate everything first, then apply the writes only if all of them passed
+- How the pure and validating edits are kept apart at compile time, and when overlapping paths need one atomic edit instead
 ~~~
 
-Optics edit one path at a time: `FocusPath.set`, `Setter.modify`. The everyday case of applying **several independent edits** (tidy the email, trim the SKU, bump the quantity) previously meant hand-threading the result through a chain of reassignments, wrapping each optional field in an `if`, and reporting only the first bad value.
+## The problem
 
-The `org.higherkindedj.optics.edit` package folds all of that into two entry points:
+An optic edits one path at a time (`FocusPath.set`, `Setter.modify`). But the everyday case is applying **several** edits at once, the classic example being a REST `PATCH` that tidies the email, trims the SKU, and bumps the quantity. By hand that means threading the value through every step, guarding each optional field with an `if`, and (if you validate at all) throwing on the first bad field:
 
-| Entry point | Accepts | Returns |
+``` java
+Order updated = order;
+if (req.email() != null) {
+    updated = updated.withEmail(req.email().toLowerCase());        // thread the result...
+}
+if (req.sku() != null) {
+    updated = updated.withSku(req.sku().trim());                   // ...through every step
+}
+if (req.qtyDelta() != null) {
+    updated = updated.withQuantity(updated.quantity() + req.qtyDelta());
+}
+// And if the email was malformed? You throw on the first bad field and never see the rest.
+```
+
+Three pains recur: one `if` per optional field, the value re-threaded by hand at every step, and validation that stops at the first error instead of collecting them all.
+
+## The solution: two entry points
+
+The `org.higherkindedj.optics.edit` package folds all of that into two operations. Which one you reach for depends only on whether any edit can *fail*:
+
+| Entry point | Reach for it when | Returns |
 |---|---|---|
-| `Edits.combine(...)` | pure edits only (compile-time) | one `Update<S>` |
-| `Edits.accumulate(...)` | pure and fallible edits mixed | an accumulated patch: apply it to get `Validated<NonEmptyList<FieldError>, S>` |
+| `Edits.combine(...)` | every edit is always safe (no validation) | one reusable `Update<S>` |
+| `Edits.accumulate(...)` | some edits validate their input (a REST `PATCH`) | a patch you apply to get `Validated<NonEmptyList<FieldError>, S>` |
 
-The sealed hierarchy is what makes that split compile-time safe:
-
-```
-    FallibleEdit<S>            may fail: carries Validated<NEL<FieldError>, Update<S>>
-        ▲       ▲
-        │       └── FallibleEdit.Parsed     the fallible leaf   (from parseIfPresent)
-        │
-    Edit<S>                    cannot fail: carries the Update<S> directly
-        ▲
-        └────────── Edit.Infallible         the infallible leaf (from set / modify / …IfPresent)
-
-    Edits.combine(Edit<S>...)          ← only pure edits fit: a FallibleEdit is a compile error
-    Edits.accumulate(FallibleEdit<S>...) ← both fit: a pure edit is one that always validates
-```
+Those are the whole API. The rest of this page is how each one behaves, and how the compiler keeps a validating edit from slipping into `combine` by accident.
 
 ---
 
@@ -104,6 +110,25 @@ A path from a `@GenerateFocus` companion carries its record-component name as a 
 ~~~
 
 For the railway, `applyPath(order)` is the `ValidationPath` twin of `apply(order)`, and `toValidated()` exposes the folded `Update` itself for reuse.
+
+---
+
+## How the split stays compile-time safe
+
+`combine` accepts only pure edits; `accumulate` accepts both. That is not a rule you have to remember: it is carried by the type of each edit. `set`, `modify`, and the `…IfPresent` forms produce an `Edit` (cannot fail); `parseIfPresent` produces a `FallibleEdit` (may fail). Passing a `FallibleEdit` to `combine` does not compile, so a validation failure can never be silently dropped.
+
+```
+    FallibleEdit<S>            may fail: carries Validated<NEL<FieldError>, Update<S>>
+        ▲       ▲
+        │       └── FallibleEdit.Parsed     the fallible leaf   (from parseIfPresent)
+        │
+    Edit<S>                    cannot fail: carries the Update<S> directly
+        ▲
+        └────────── Edit.Infallible         the infallible leaf (from set / modify / …IfPresent)
+
+    Edits.combine(Edit<S>...)          ← only pure edits fit: a FallibleEdit is a compile error
+    Edits.accumulate(FallibleEdit<S>...) ← both fit: a pure edit is one that always validates
+```
 
 ---
 

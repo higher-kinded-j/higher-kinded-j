@@ -8,10 +8,26 @@ _The smart-constructor optic: a `Prism` whose match says **why not**, and all th
 - How composition splits: `andThen` short-circuits into structure while sibling fields accumulate every reason
 - Which compositions preserve the total build (`ValidatedPrism`, `Iso`, and `Prism`-with-a-reason) and why `Lens` cannot
 - Bridging the optic lattice with `fromIso`, `fromPrism`, `toPrism`, and `toAffine`
-- The two round-trip laws, and why the section law forbids a lossy, normalising `build`
+- The two round-trip laws, and why the second forbids a lossy, normalising `build`
 ~~~
 
-A `Prism<S, A>`'s match answers yes/no (`Optional`). That is the wrong shape for a **validated boundary**: the "parse, don't validate" pattern where an unvalidated wire value becomes an always-valid domain value. The forward direction wants *reasons* (`"not an email"`), located and accumulated; the backward direction is *total* (a valid domain value always renders). `ValidatedPrism` encodes exactly that asymmetry:
+A `Prism<S, A>` answers one question about a value: does it match this shape, yes or no? Its match returns `Optional<A>`, present or empty. At a **validated boundary**, where a raw wire value (a `String` off the network) must become an always-valid domain value (an `EmailAddress`), yes/no is too blunt. A rejected value needs to say *why*, and ideally give *every* reason at once (`"not an email"`, `"too long"`), each located to the field it came from. The reverse direction is never in doubt: a domain value you already hold always renders back to a string.
+
+`ValidatedPrism<S, A>` captures that asymmetry as two directions with different shapes. `parse` is fallible and accumulating; `build` is total:
+
+```
+                 parse  (fallible, accumulating)
+   wire value  ───────────────────────────────▶  domain value
+   String                                          EmailAddress
+   (unvalidated)  ◀───────────────────────────────  (always valid)
+                 build  (total, always succeeds)
+
+   parse("  NOPE ")          =  Invalid[ "not an email" ]   (every reason at once)
+   parse("ada@corp.example") =  Valid(EmailAddress)
+   build(addr)               =  "ada@corp.example"          (never fails)
+```
+
+In code:
 
 ``` java
 import org.higherkindedj.optics.validated.ValidatedPrism;
@@ -33,7 +49,23 @@ ValidationPath<NonEmptyList<FieldError>, EmailAddress> railway =
 
 ## Composition: nesting short-circuits, siblings accumulate
 
-`andThen` goes *deeper into structure*, so it **short-circuits**: you cannot parse the inner value if the outer parse failed. To report every bad field of a record at once, parse each field with its own prism and assemble the *siblings* with [`fields()` / `accumulate()`](../monads/validated_assembly.md) or the [`Edits` builder](multi_edit.md). This is the same split `ValidationPath` draws between `via` and sibling accumulation.
+Prisms combine in two ways, and the two behave differently when a parse fails.
+
+**Nesting with `andThen` goes deeper into a single value, so it short-circuits.** If the outer parse fails there is no inner value to look at, so the first reason wins and parsing stops. This is the same choice `ValidationPath` makes with `via`.
+
+**Sibling fields accumulate.** To report every bad field of a record at once, parse each field with its own prism and combine the results with [`fields()` / `accumulate()`](../monads/validated_assembly.md) or the [`Edits` builder](multi_edit.md). Because the fields are independent, every reason is collected, not just the first.
+
+```
+   Nesting: andThen, deeper into one value       =>  short-circuit
+     outer.parse ✗ ─────────────────────────▶  stop, the first reason wins
+     outer.parse ✓ ──▶ inner.parse ─────────▶  keep going
+
+   Siblings: fields() / accumulate(), one prism per field    =>  accumulate
+     name   ✓
+     email  ✗  "not an email"      ┐
+     age    ✗  "must be positive"  ├──▶  Invalid[ all reasons at once ]
+                                   ┘
+```
 
 Only compositions that preserve the **total build** yield a `ValidatedPrism`:
 
@@ -64,7 +96,7 @@ ValidatedPrismLaws.assertValidatedPrismLaws(email, "ada@corp.example", "not-an-e
 // build-parse: parse(s) == Valid(a)  =>  build(a) == s   (no lossy parse-normalise)
 ```
 
-The section law is the sharp one: a prism whose `build` normalises (zero-padding, trimming) breaks it: normalise in `parse`, render faithfully in `build`.
+The second law is the subtle one. If `build` changes the value as it renders (zero-padding a code, trimming whitespace), the round trip no longer holds. Keep all normalising in `parse`, and let `build` render the value faithfully.
 
 ---
 

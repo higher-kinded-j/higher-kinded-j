@@ -147,7 +147,7 @@ The workflow has a natural two-phase shape:
 This split is what makes the pattern powerful. The gather phase uses `For` for concise accumulation. The enrich phase uses `ForState` for self-documenting named access. The bridge connects them seamlessly.
 
 ~~~admonish tip title="Optimising the gather phase with par()"
-In this workflow, steps 1 and 2 (address validation and customer lookup) are independent — neither uses the other's result. You could use `For.par()` to express this:
+In this workflow, steps 1 and 2 (address validation and customer lookup) are independent: neither uses the other's result. You could use `For.par()` to express this:
 
 ```java
 For.par(monad, lift(validateShippingAddress(...)), lift(lookupAndValidateCustomer(...)))
@@ -181,7 +181,7 @@ public record ProcessingState(
 }
 ```
 
-After `toState()`, the `fromThen()` steps access earlier results by name — `s.order()`, `s.customer()`, `s.discount()` — instead of by tuple position. This makes the code self-documenting: you can read the workflow without a position reference table.
+After `toState()`, the `fromThen()` steps access earlier results by name (`s.order()`, `s.customer()`, `s.discount()`) instead of by tuple position. This makes the code self-documenting: you can read the workflow without a position reference table.
 
 ### Lenses Connect ForState to the State Record
 
@@ -261,7 +261,7 @@ This keeps the main comprehension readable while encapsulating sub-workflows.
 | `via()` | One-off chaining, conditional branching |
 
 ~~~admonish tip title="For and ForState support up to 12 steps"
-`For` comprehensions support up to 12 chained bindings. `ForState` has no arity limit — the state record can have any number of fields. The `toState()` bridge works at all arities (1 through 12).
+`For` comprehensions support up to 12 chained bindings. `ForState` has no arity limit: the state record can have any number of fields. The `toState()` bridge works at all arities (1 through 12).
 ~~~
 
 ---
@@ -297,7 +297,7 @@ The `fold()` method handles both cases: on error, it recovers with a "no notific
 
 ~~~admonish info title="Key Takeaways"
 * **Sealed error hierarchies** enable exhaustive pattern matching and type-safe error handling
-* **`For` → `toState()` → `ForState`** composes multi-step workflows with named field access — no tuple positions after the bridge
+* **`For` → `toState()` → `ForState`** composes multi-step workflows with named field access, no tuple positions after the bridge
 * **Two-phase gather/enrich** uses the best tool for each part of the workflow
 * **Recovery patterns** (`fold`, `recover`, `recoverWith`) handle non-fatal errors gracefully
 ~~~

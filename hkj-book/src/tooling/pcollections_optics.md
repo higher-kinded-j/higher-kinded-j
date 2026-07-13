@@ -110,7 +110,7 @@ Each<PMap<String, Integer>, Integer> pmapValues =
     EachInstances.mapValuesEachCollecting(HashTreePMap::from);
 ```
 
-`fromIterableCollecting` accepts any function that builds a persistent collection from a `List`; `mapValuesEachCollecting` does the same for any `java.util.Map` subtype, rebuilding the persistent map from a JDK `Map`. The same forms cover all the PCollections types — there is no library-specific factory class; the generic helpers are the public API.
+`fromIterableCollecting` accepts any function that builds a persistent collection from a `List`; `mapValuesEachCollecting` does the same for any `java.util.Map` subtype, rebuilding the persistent map from a JDK `Map`. The same forms cover all the PCollections types. There is no library-specific factory class; the generic helpers are the public API.
 
 ---
 

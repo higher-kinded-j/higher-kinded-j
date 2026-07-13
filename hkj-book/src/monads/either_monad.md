@@ -196,7 +196,7 @@ Either<String, Integer> finalEither = EITHER.narrow(recovered);
 // Right(0)
 ```
 
-The handler above uses the error (it logs it), so `handleErrorWith` is the right tool. When you only want a constant fallback and don't need the error, the [`recover`/`recoverWith` shortcuts](../functional/monad_error.md#constant-fallbacks-recover-and-recoverwith) are shorter — `eitherMonad.recover(errorKind, 0)` yields the same `Right(0)`.
+The handler above uses the error (it logs it), so `handleErrorWith` is the right tool. When you only want a constant fallback and don't need the error, the [`recover`/`recoverWith` shortcuts](../functional/monad_error.md#constant-fallbacks-recover-and-recoverwith) are shorter. `eitherMonad.recover(errorKind, 0)` yields the same `Right(0)`.
 
 This is the door through which `Either` joins every generic combinator the rest of the library defines: `traverse`, `sequence`, `flatMapN`, the lot.
 

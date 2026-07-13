@@ -71,8 +71,8 @@ public interface MonadZero<F> extends Monad<F>, Alternative<F> {
 
 The most powerful application of `MonadZero` is the `.when()` clause in the `For` comprehension builder. The builder has two entry points:
 
-* `For.from(monad, ...)` -- For any standard `Monad`.
-* `For.from(monadZero, ...)` -- An overloaded version that unlocks `.when(predicate)`.
+* `For.from(monad, ...)`: For any standard `Monad`.
+* `For.from(monadZero, ...)`: An overloaded version that unlocks `.when(predicate)`.
 
 When the predicate evaluates to `false`, the builder internally calls `monad.zero()` to terminate that specific computational path.
 
@@ -140,7 +140,7 @@ The default implementation is derived from `flatMap` + `of` / `zero` and adds no
 filter(p, ma)  ≡  flatMap(a -> p.test(a) ? of(a) : zero(), ma)
 ```
 
-`ListMonad` and `StreamMonad` override `filter` to avoid the per-element singleton/empty allocations the derived form would produce — `ListMonad` walks once into a single result list, `StreamMonad` delegates to `Stream.filter` to preserve laziness.
+`ListMonad` and `StreamMonad` override `filter` to avoid the per-element singleton/empty allocations the derived form would produce. `ListMonad` walks once into a single result list, `StreamMonad` delegates to `Stream.filter` to preserve laziness.
 
 ---
 

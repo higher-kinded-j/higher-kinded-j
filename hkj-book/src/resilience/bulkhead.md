@@ -157,8 +157,8 @@ int active = dbBulkhead.activeCount();           // How many callers are current
 ```
 
 ~~~admonish tip title="See Also"
-- [Circuit Breaker](circuit_breaker.md) -- detecting and responding to service failures
-- [Combined Patterns](combined.md) -- using bulkhead with retry and circuit breaker
+- [Circuit Breaker](circuit_breaker.md) - detecting and responding to service failures
+- [Combined Patterns](combined.md) - using bulkhead with retry and circuit breaker
 ~~~
 
 ---

@@ -38,10 +38,10 @@ The Effect API journey covers the complete Effect Path system:
 
 The Effect Path API is designed to be the primary interface for most users:
 
-1. **Ergonomic** — fluent, chainable, reads naturally in Java
-2. **Type-safe** — compile-time guarantees about effect handling
-3. **Practical** — designed for real-world use cases
-4. **Composable** — paths compose with each other and with optics
+1. **Ergonomic**: fluent, chainable, reads naturally in Java
+2. **Type-safe**: compile-time guarantees about effect handling
+3. **Practical**: designed for real-world use cases
+4. **Composable**: paths compose with each other and with optics
 
 ## Tutorial 01: Effect Path Basics
 **File**: `Tutorial01_EffectPathBasics.java` | **Exercises**: 9 (8 graded + 1 diagnostic)
@@ -132,18 +132,6 @@ String url = workflow.runWithSync(config);
 
 For the full table see the [Cheatsheet](effect_cheatsheet.md).
 
-## How Each Exercise Is Structured
-
-Same template as the Foundations journey:
-
-- **Pain → Promise** header at the top of each file
-- **Java idiom anchor** mapping each Path type to a familiar Java pattern
-- **Tiered hints** on every exercise (Nudge / Strategy / Spoiler)
-- **Diagnostic exercise** at the end of each tutorial drawn from the most common stumble:
-  - Tutorial 01: `via` vs `map` when the function returns a Path
-  - Tutorial 02: don't call `runIO().unsafeRun()` in the middle of a workflow
-- **Teaching solutions** in `solutions/effect/` with Why this is idiomatic / Alternative / Common wrong attempt commentary on every exercise
-
 ## Prerequisites
 
 - Comfortable with Java lambdas and method references
@@ -185,21 +173,21 @@ Same template as the Foundations journey:
 
 ## Further Resources
 
-- [Effect Path Overview](../../effect/effect_path_overview.md) — chapter-level reference
-- [Path Types](../../effect/path_types.md) — every Path type in one page
-- [ForPath Comprehension](../../effect/forpath_comprehension.md) — full ForPath documentation
-- [Effect Contexts](../../effect/effect_contexts.md) — Context API documentation
-- [Concurrency: VTask Journey](../concurrency/vtask_journey.md) — VTaskPath for virtual-thread async
-- [Optics: Focus DSL Journey](../optics/focus_dsl_journey.md) — Focus-Effect bridge in depth
+- [Effect Path Overview](../../effect/effect_path_overview.md) - chapter-level reference
+- [Path Types](../../effect/path_types.md) - every Path type in one page
+- [ForPath Comprehension](../../effect/forpath_comprehension.md) - full ForPath documentation
+- [Effect Contexts](../../effect/effect_contexts.md) - Context API documentation
+- [Concurrency: VTask Journey](../concurrency/vtask_journey.md) - VTaskPath for virtual-thread async
+- [Optics: Focus DSL Journey](../optics/focus_dsl_journey.md) - Focus-Effect bridge in depth
 
 ## What's Next?
 
 After completing the Effect API journey:
 
-- **Explore Core Types** — understand the HKT foundations in [Core Types: Foundations](../coretypes/foundations_journey.md)
-- **Master Optics** — learn data manipulation in [Optics: Lens & Prism](../optics/lens_prism_journey.md)
-- **Tackle Concurrency** — apply the same Path API to virtual-thread async with [Concurrency: VTask](../concurrency/vtask_journey.md)
-- **See Production Patterns** — explore `hkj-examples/src/main/java/org/higherkindedj/example/` for the order, market, payment domains in full
+- **Explore Core Types**: understand the HKT foundations in [Core Types: Foundations](../coretypes/foundations_journey.md)
+- **Master Optics**: learn data manipulation in [Optics: Lens & Prism](../optics/lens_prism_journey.md)
+- **Tackle Concurrency**: apply the same Path API to virtual-thread async with [Concurrency: VTask](../concurrency/vtask_journey.md)
+- **See Production Patterns**: explore `hkj-examples/src/main/java/org/higherkindedj/example/` for the order, market, payment domains in full
 
 ---
 

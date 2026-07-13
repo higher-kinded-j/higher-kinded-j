@@ -17,7 +17,7 @@
 
 ## The Idea: Your Program Is a Shopping List
 
-Imagine writing a shopping list. The list *describes* what to buy — it doesn't actually buy anything. The same list could be:
+Imagine writing a shopping list. The list *describes* what to buy; it doesn't actually buy anything. The same list could be:
 
 - **Executed** at the supermarket (production)
 - **Priced up** without buying anything (dry-run)
@@ -56,7 +56,7 @@ Free<ConsoleOpKind.Witness, Unit> program =
             .flatMap(name -> printLine("Hello, " + name + "!")));
 ```
 
-Run it with a **real** interpreter — it talks to the console:
+Run it with a **real** interpreter (it talks to the console):
 
 ```java
 ioInterpreter.run(program);
@@ -65,7 +65,7 @@ ioInterpreter.run(program);
 // Console: Hello, Alice!
 ```
 
-Run the **same program** with a **test** interpreter — no console, pure assertions:
+Run the **same program** with a **test** interpreter (no console, pure assertions):
 
 ```java
 TestInterpreter test = new TestInterpreter(List.of("Alice"));
@@ -83,9 +83,9 @@ That is the Free monad's value: **write once, interpret many ways**.
 | `Free<F, A>` | A program built from instructions `F` that produces `A`. Sealed: `Pure`, `Suspend`, `FlatMapped` |
 | `FreeKind<F, A>` / `FreeKindHelper` | HKT bridge: `widen()`, `narrow()` |
 | `FreeFunctor<F>` / `FreeMonad<F>` | Type class instances: `map`, `flatMap`, `of` |
-| `FreeFactory<F>` | Captures the functor type once — fixes Java's type inference for chained operations |
+| `FreeFactory<F>` | Captures the functor type once, fixing Java's type inference for chained operations |
 | `Free.liftF(fa, functor)` | Lifts a single instruction into a Free program |
-| `free.foldMap(transform, monad)` | Interprets the program using a natural transformation — stack-safe via Trampoline |
+| `free.foldMap(transform, monad)` | Interprets the program using a natural transformation, stack-safe via Trampoline |
 
 ~~~admonish note title="How foldMap Works"
 ```
@@ -101,7 +101,7 @@ Free program (tree):                  foldMap walks it:
 
 ~~~admonish tip title="Prefer a type-safe `Natural` transformation"
 `foldMap` is overloaded: it takes either a type-safe `Natural<F, M>` or a raw
-`Function<Kind<F, ?>, Kind<M, ?>>`. **Prefer `Natural`** — it makes the per-instruction
+`Function<Kind<F, ?>, Kind<M, ?>>`. **Prefer `Natural`**: it makes the per-instruction
 correspondence (`Kind<F, B>` maps to `Kind<M, B>` for every `B`) explicit, so a witness mismatch
 is caught at compile time instead of riding on an unchecked cast. The `Function` form (used in
 some examples below for brevity) stays for convenience and interop; internally both overloads run
@@ -195,7 +195,7 @@ Free<ConsoleOpKind.Witness, Unit> greetingProgram =
 
 ## Multiple Interpreters: The Payoff
 
-~~~admonish example title="IO Interpreter — Real Execution"
+~~~admonish example title="IO Interpreter: Real Execution"
 ```java
 public class IOInterpreter {
     private static final Scanner scanner = new Scanner(System.in);
@@ -217,7 +217,7 @@ public class IOInterpreter {
 ```
 ~~~
 
-~~~admonish example title="Test Interpreter — Pure Assertions"
+~~~admonish example title="Test Interpreter: Pure Assertions"
 ```java
 public class TestInterpreter {
     private final List<String> input;
@@ -304,12 +304,12 @@ Free<IdKind.Witness, Integer> program = FREE.pure(10)
 | Scenario | Use |
 |----------|-----|
 | Building a DSL for your domain (workflows, queries, rules) | Free monad |
-| Same logic needs production, test, and logging modes | Free monad — one program, many interpreters |
-| Testing complex logic without real side effects | Free monad — pure, deterministic tests |
-| Analysing or optimising programs before running them | Free monad — programs are inspectable data |
-| Simple side effects (read file, call API) | Prefer [IO](./io_monad.md) — less boilerplate |
-| Single interpretation, no testing benefit | Direct code — Free adds unnecessary complexity |
-| Performance-critical hot paths | Direct code — Free has ~2-10x interpretation overhead |
+| Same logic needs production, test, and logging modes | Free monad: one program, many interpreters |
+| Testing complex logic without real side effects | Free monad: pure, deterministic tests |
+| Analysing or optimising programs before running them | Free monad: programs are inspectable data |
+| Simple side effects (read file, call API) | Prefer [IO](./io_monad.md): less boilerplate |
+| Single interpretation, no testing benefit | Direct code: Free adds unnecessary complexity |
+| Performance-critical hot paths | Direct code: Free has ~2-10x interpretation overhead |
 
 ## Free Monad vs Traditional Java Patterns
 
@@ -333,7 +333,7 @@ See [Free Applicative](free_applicative.md) for details.
 ~~~
 
 ~~~admonish tip title="Coyoneda Optimisation"
-Don't want to write a Functor for your instruction set? The **Coyoneda lemma** gives you one for free. It also enables map fusion — consecutive `.map(f).map(g).map(h)` calls collapse into a single `.map(f.andThen(g).andThen(h))`.
+Don't want to write a Functor for your instruction set? The **Coyoneda lemma** gives you one for free. It also enables map fusion: consecutive `.map(f).map(g).map(h)` calls collapse into a single `.map(f.andThen(g).andThen(h))`.
 
 See [Coyoneda](coyoneda.md) for details.
 ~~~
@@ -365,11 +365,11 @@ the natural transformation. This means accumulated state in the transformer laye
 ~~~
 
 ~~~admonish important title="Key Points"
-- `Free<F, A>` turns any instruction set `F` into a monad — programs become composable data structures.
+- `Free<F, A>` turns any instruction set `F` into a monad; programs become composable data structures.
 - **`foldMap`** is the engine: it walks the program tree, transforms each instruction via a natural transformation, and sequences results in a target monad. Stack-safe via Trampoline.
 - **Testability** is the killer feature: write one program, test it with a pure interpreter, run it with a real one.
 - **FreeFactory** solves Java's type inference limitations when chaining `map`/`flatMap` on `Free.pure()`.
-- Programs compose with `flatMap` — build small DSL operations, snap them together into complex workflows.
+- Programs compose with `flatMap`: build small DSL operations, snap them together into complex workflows.
 - Free monad has overhead (~2-10x vs direct code). Use it when testability and flexibility outweigh raw performance.
 ~~~
 
@@ -392,9 +392,9 @@ For deeper exploration of Free monads and their applications:
 ~~~admonish example title="Benchmarks"
 Free has dedicated JMH benchmarks measuring interpretation cost and stack safety. Key expectations:
 
-- **Deep recursion (10,000+)** completes without `StackOverflowError` — Free monad interpretation is stack-safe via trampolining
-- **Performance scaling is linear with depth** — interpretation cost grows proportionally, not exponentially
-- Abstraction overhead of 50-200x vs raw Java is expected and acceptable — real workloads involve I/O that dominates compute time
+- **Deep recursion (10,000+)** completes without `StackOverflowError`; Free monad interpretation is stack-safe via trampolining
+- **Performance scaling is linear with depth**: interpretation cost grows proportionally, not exponentially
+- Abstraction overhead of 50-200x vs raw Java is expected and acceptable; real workloads involve I/O that dominates compute time
 
 ```bash
 ./gradlew :hkj-benchmarks:jmh --includes=".*FreeBenchmark.*"

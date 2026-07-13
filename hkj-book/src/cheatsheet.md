@@ -139,7 +139,7 @@ import static org.higherkindedj.hkt.instances.Witnesses.*;
 | `Writer` (needs a `Monoid`) | `Instances.writer(Monoids.string())` |
 | Transformers (need the outer `Monad`) | `Instances.eitherT(outer)`, `maybeT`, `optionalT`, `readerT`, `stateT`, `writerT(outer, monoid)` |
 
-> Tokens: `maybe() io() list() optional() try_() vtask() vstream() lazy() stream() completableFuture() trampoline() id() either() reader() context() state()`. The `monadError`/`monadZero`/`alternative` lookups are partial — only valid where the type implements that capability.
+> Tokens: `maybe() io() list() optional() try_() vtask() vstream() lazy() stream() completableFuture() trampoline() id() either() reader() context() state()`. The `monadError`/`monadZero`/`alternative` lookups are partial, only valid where the type implements that capability.
 
 ---
 

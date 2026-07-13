@@ -2,7 +2,7 @@
 
 > *"Its the same thing every time. The stoan you find aint the stoan you thot youd be looking for."*
 >
-> -- Russell Hoban, *Riddley Walker*
+> — Russell Hoban, *Riddley Walker*
 
 State transforms as you work with it. The counter you started with isn't the counter you end with. The accumulator grows. The traversal position shifts. `MutableContext` lets you write code that *feels* like mutation (get the current value, update it, continue) while remaining purely functional underneath. The state you find at the end isn't the state you started with, but the transformation is explicit and controlled.
 

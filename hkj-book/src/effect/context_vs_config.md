@@ -2,13 +2,13 @@
 
 > *"If the rule you followed brought you to this, of what use was the rule?"*
 >
-> -- Anton Chigurh, *No Country for Old Men*
+> — Anton Chigurh, *No Country for Old Men*
 
 Both `Context<R, A>` and `ConfigContext<F, R, A>` solve the problem of accessing environment values without threading parameters through every function. Both enable clean, composable code. Both support testing through dependency injection. Yet they solve subtly different problems, and using the wrong one leads to subtle bugs or unnecessary complexity.
 
 > *"A story has no beginning or end: arbitrarily one chooses that moment of experience from which to look back or from which to look ahead."*
 >
-> -- Graham Greene, *The End of the Affair*
+> — Graham Greene, *The End of the Affair*
 
 The choice between them isn't about which is "better"; it's about where your story begins. Does your environment value exist at application startup, passed through a call chain? Or does it flow implicitly through thread scopes, inherited by forked virtual threads? The answer determines your tool.
 
@@ -478,11 +478,11 @@ static final ScopedValue<DatabaseUrl> DB_URL = ScopedValue.newInstance();
 - **Set at startup** and **passed through call chain** → `ConfigContext`
 
 ~~~admonish tip title="See Also"
-- [Context Effect](../monads/context_scoped.md) -- Core Context documentation
-- [RequestContext Patterns](context_request.md) -- Request tracing and metadata
-- [SecurityContext Patterns](context_security.md) -- Authentication and authorisation
-- [ConfigContext](effect_contexts_config.md) -- Configuration dependency injection
-- [Effect Contexts Overview](effect_contexts.md) -- Layer 2 effect wrappers
+- [Context Effect](../monads/context_scoped.md) - Core Context documentation
+- [RequestContext Patterns](context_request.md) - Request tracing and metadata
+- [SecurityContext Patterns](context_security.md) - Authentication and authorisation
+- [ConfigContext](effect_contexts_config.md) - Configuration dependency injection
+- [Effect Contexts Overview](effect_contexts.md) - Layer 2 effect wrappers
 ~~~
 
 ---

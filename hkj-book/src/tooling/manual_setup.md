@@ -6,7 +6,7 @@
 - Snapshot repository configuration for both build tools
 ~~~
 
-Most projects should use the [HKJ build plugin](gradle_plugin.md) -- a single line replaces all the boilerplate below. This page documents the full manual configuration for the projects that cannot use the plugin (constrained environments, in-house build frameworks, or plugins that conflict with the HKJ plugin). If the plugin is an option for you, start there instead.
+Most projects should use the [HKJ build plugin](gradle_plugin.md): a single line replaces all the boilerplate below. This page documents the full manual configuration for the projects that cannot use the plugin (constrained environments, in-house build frameworks, or plugins that conflict with the HKJ plugin). If the plugin is an option for you, start there instead.
 
 ---
 
@@ -133,7 +133,7 @@ For SNAPSHOT versions, add the Sonatype snapshots repository to your `pom.xml`:
 ---
 
 ~~~admonish tip title="Prefer the Plugin"
-The [HKJ build plugin](gradle_plugin.md) handles all of the above -- dependencies, preview flags, annotation processors, and compile-time Path type checking -- with a single `plugins { }` block. Unless you have a specific reason to avoid it, the plugin is the recommended path.
+The [HKJ build plugin](gradle_plugin.md) handles all of the above (dependencies, preview flags, annotation processors, and compile-time Path type checking) with a single `plugins { }` block. Unless you have a specific reason to avoid it, the plugin is the recommended path.
 ~~~
 
 ---

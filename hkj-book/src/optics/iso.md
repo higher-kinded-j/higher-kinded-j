@@ -148,7 +148,7 @@ The `Iso` acted as a bridge, allowing a generic `Lens` for tuples to work on our
 
 ### Step 4: Isos in Comprehension Workflows
 
-Composition with individual lenses is useful, but Isos truly come into their own when they are woven into [comprehension](../functional/for_comprehension.md) workflows. Instead of scattering `iso.get()` and `iso.reverseGet()` calls throughout your code, you can let the comprehension handle the conversion for you -- keeping both representations in scope at once.
+Composition with individual lenses is useful, but Isos truly come into their own when they are woven into [comprehension](../functional/for_comprehension.md) workflows. Instead of scattering `iso.get()` and `iso.reverseGet()` calls throughout your code, you can let the comprehension handle the conversion for you, keeping both representations in scope at once.
 
 The `For` comprehension's `through()` method does exactly this. It converts the currently bound value via an Iso and accumulates both the original and the converted value, so you can reason in whichever representation suits each step:
 
@@ -191,7 +191,7 @@ ForState.withState(idMonad, Id.of(department))
 The `modifyVia` flow is: `lens.get` &#8594; `iso.get` &#8594; `modifier` &#8594; `iso.reverseGet` &#8594; `lens.set`. The `updateVia` flow is simpler: `iso.reverseGet(value)` &#8594; `lens.set`. Both honour the Iso's round-trip property.
 
 ~~~admonish tip title="See Also"
-For the full range of optics operations within comprehensions -- including traversals, pattern matching, and bulk transforms -- see [Optics Integration](../functional/for_optics.md).
+For the full range of optics operations within comprehensions (including traversals, pattern matching, and bulk transforms), see [Optics Integration](../functional/for_optics.md).
 ~~~
 
 ---

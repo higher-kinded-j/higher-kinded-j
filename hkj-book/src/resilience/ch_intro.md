@@ -2,7 +2,7 @@
 
 > *"Success consists of going from failure to failure without loss of enthusiasm."*
 >
-> -- Winston Churchill
+> — Winston Churchill
 
 ---
 
@@ -41,17 +41,17 @@ The full `with*` vocabulary (`withRetry`, `withTimeout`, `withCircuitBreaker`, `
 ~~~admonish info title="In This Chapter"
 - **[Retry](retry.md)**: `RetryPolicy` configuration with fixed, exponential, and jittered backoff strategies. Selective retry based on exception type. Path-native `withRetry` on every carrier, including railway-aware typed retry on `EitherPath` and `VResultPath`.
 
-- **[Circuit Breaker](circuit_breaker.md)** -- A state machine that tracks dependency health across three states (closed, open, half-open). Protects recovering services from being overwhelmed by callers that have not yet noticed the failure.
+- **[Circuit Breaker](circuit_breaker.md)**: A state machine that tracks dependency health across three states (closed, open, half-open). Protects recovering services from being overwhelmed by callers that have not yet noticed the failure.
 
-- **[Bulkhead](bulkhead.md)** -- Semaphore-based concurrency limiting that prevents a single slow dependency from exhausting shared capacity. Configurable permits, fairness, and timeout behaviour.
+- **[Bulkhead](bulkhead.md)**: Semaphore-based concurrency limiting that prevents a single slow dependency from exhausting shared capacity. Configurable permits, fairness, and timeout behaviour.
 
-- **[Saga](saga.md)** -- Compensating transactions for multi-step distributed operations. Each forward step registers a corresponding undo action; on failure, compensations execute in reverse order to restore consistency.
+- **[Saga](saga.md)**: Compensating transactions for multi-step distributed operations. Each forward step registers a corresponding undo action; on failure, compensations execute in reverse order to restore consistency.
 
 - **[Combined Patterns](combined.md)**: Composing multiple resilience patterns into layered defences. The `ResilienceBuilder` applies patterns in the correct order: timeout outermost, then bulkhead, then retry, then circuit breaker innermost. Plus the per-carrier availability table for the path-native `with*` combinators and a worked per-step example.
 ~~~
 
 ~~~admonish example title="See Example Code"
-- [ResilienceExample.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/effect/ResilienceExample.java) -- Retry policies, backoff strategies, and combined patterns
+- [ResilienceExample.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/effect/ResilienceExample.java) - Retry policies, backoff strategies, and combined patterns
 - [ConfigurableOrderWorkflow.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/order/workflow/ConfigurableOrderWorkflow.java): Production-style per-step resilience; retry confined to an idempotent pre-flight, the commit run exactly once under a typed timeout
 ~~~
 
@@ -59,11 +59,11 @@ The full `with*` vocabulary (`withRetry`, `withTimeout`, `withCircuitBreaker`, `
 
 ## Chapter Contents
 
-1. [Retry](retry.md) -- Backoff strategies, selective retry, and exhaustion handling
-2. [Circuit Breaker](circuit_breaker.md) -- State machine, configuration, and service protection
-3. [Bulkhead](bulkhead.md) -- Concurrency limiting and resource isolation
-4. [Saga](saga.md) -- Compensating transactions and distributed consistency
-5. [Combined Patterns](combined.md) -- Layered resilience and the ResilienceBuilder
+1. [Retry](retry.md) - Backoff strategies, selective retry, and exhaustion handling
+2. [Circuit Breaker](circuit_breaker.md) - State machine, configuration, and service protection
+3. [Bulkhead](bulkhead.md) - Concurrency limiting and resource isolation
+4. [Saga](saga.md) - Compensating transactions and distributed consistency
+5. [Combined Patterns](combined.md) - Layered resilience and the ResilienceBuilder
 
 ---
 

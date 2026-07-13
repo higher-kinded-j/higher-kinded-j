@@ -13,6 +13,10 @@ Every service boundary maps between a rich domain record and a flat wire DTO. Ha
 - Typing an error's diagnostic context, and retiring the untyped `Map<String, Object>`, with `@GenerateErrorEnvelope`
 ~~~
 
+~~~admonish example title="See Example Code"
+[GenerateMappingExample.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/optics/GenerateMappingExample.java)
+~~~
+
 ``` java
 import org.higherkindedj.optics.annotations.GenerateMapping;
 import org.higherkindedj.optics.annotations.MappingSpec;
@@ -24,6 +28,14 @@ public interface PersonMapping extends MappingSpec<Person, PersonDto> {}
 PersonDto dto   = PersonMappingImpl.INSTANCE.build(person);      // total
 Validated<NonEmptyList<FieldError>, Person> back =
     PersonMappingImpl.INSTANCE.parse(dto);                       // accumulating, located
+```
+
+The two directions have different shapes, and that asymmetry runs through the whole page:
+
+```
+   build : Domain ──▶ DTO      total, always succeeds
+   parse : DTO ──▶ Domain      fallible, reports every bad field at once
+                               Validated<NonEmptyList<FieldError>, Domain>
 ```
 
 The generated class is `<Spec>Impl` beside the spec, used through its `INSTANCE` constant. A spec nested in an outer class joins the enclosing simple names: `Shop.CustomerMapping` generates `ShopCustomerMappingImpl`.
@@ -105,13 +117,29 @@ The two directions are asymmetric: `build` computes the derived component, `pars
                           displayName ──┘ dropped, never read
 ```
 
-`build` fills the component by applying the getter to the whole domain value; `parse` **ignores** it, because the data is derivable, and stays total and accumulating over the remaining components (a derived-only mapping is *total-parse*: the accumulating parse still runs, it simply cannot fail). The optic is a `Getter` because a derived field is single-valued, exactly one focus computed from the whole domain value; a `Fold` has zero-to-many focuses and no single-component meaning. Naming keeps the two `default` families apart: leaves are named after *domain* components and return `ValidatedPrism`, derived fields after wire-only components and return `Getter`. The two families are matched differently, though: a zero-parameter `default` returning `Getter` is *always* claimed as a derived field (and validated as one), while `ValidatedPrism`-returning defaults are matched by name and otherwise stay inert helpers, so give getter-shaped utility helpers parameters or a different return type. A `Getter` method named after a domain component is ambiguous and rejected, as is one naming nothing on the wire, one with the wrong type arguments, and a `@MapField` rename targeting a component a derived field also fills.
+`build` fills the component by applying the getter to the whole domain value. `parse` **ignores** it: the data is derivable, so parse stays total and accumulating over the remaining components. (A mapping whose only extra is a derived field is *total-parse*: the accumulating parse still runs, it simply cannot fail.)
 
-A spec with any derived field never emits `asIso()`: the wire round trip recomputes the derived component, so it is only an identity for wire values that were consistent to begin with. Combining a derived field with a projection (a wire otherwise smaller than the domain) is rejected too, because the projection's `asLens()` write-back could never honour a component `build` recomputes.
+The optic is a `Getter` because a derived field is single-valued, exactly one focus computed from the whole domain value. A `Fold`, with its zero-to-many focuses, has no single-component meaning here.
+
+**How the two `default` families are told apart.** Leaves are named after *domain* components and return `ValidatedPrism`; derived fields are named after *wire-only* components and return `Getter`. The processor matches the two differently:
+
+- A zero-parameter `default` returning `Getter` is *always* claimed as a derived field, and validated as one. So give getter-shaped utility helpers a parameter or a different return type, or they will be mistaken for derived fields.
+- A `default` returning `ValidatedPrism` is matched by name; an unmatched one stays an inert helper.
+
+Four shapes are rejected, each with a what/why/fix diagnostic:
+
+- a `Getter` named after a *domain* component (ambiguous with a leaf);
+- a `Getter` naming nothing on the wire;
+- a `Getter` with the wrong type arguments;
+- a `@MapField` rename targeting a component a derived field already fills.
+
+**Derived fields and the emission tiers.** A spec with any derived field never emits `asIso()`: the wire round trip recomputes the derived component, so it is an identity only for wire values that were already consistent. Combining a derived field with a projection (a wire otherwise smaller than the domain) is rejected too, because the projection's `asLens()` write-back could never honour a component that `build` recomputes.
+
+---
 
 ## Nesting, containers, and recursion
 
-A component pair mapped by **another spec in the same compilation** nests automatically, and `List`/`Optional` components lift through the element's leaf or spec. `Map` components lift their **values** the same way; keys pass through untouched and each entry's failures are located by its key, so a bad value under key `en` reports as `attributes.en.email`. Keys are located via `toString()`, so in the *rendered* path a key containing a dot is indistinguishable from deeper nesting (the structured `FieldError` path list stays exact, holding the whole key as one segment), and distinct keys whose renderings collide share a location while every error is still reported. Failures compose into dotted paths:
+A component whose two sides are themselves mapped by **another spec in the same compilation** nests automatically, and failures compose into dotted paths:
 
 ``` java
 public record Invoice(String id, Customer customer) {}
@@ -124,7 +152,16 @@ InvoiceMappingImpl.INSTANCE.parse(new InvoiceDto("INV-2", new CustomerDto("Bob",
 // Invalid(NonEmptyList[customer.email: not an email address])
 ```
 
-Because nesting is *delegation* (each spec's Impl exposes `asValidatedPrism()`, so a whole mapping plugs in wherever a leaf does), recursion terminates by construction: a self-referential `Tree(String value, List<Tree> children)` maps with an empty spec and round-trips any finite tree.
+Containers lift the same way:
+
+- `List` and `Optional` components lift through the element's leaf or spec.
+- `Map` components lift their **values**; keys pass through untouched, and each entry's failures are located by its key, so a bad value under key `en` reports as `attributes.en.email`.
+
+Because nesting is *delegation* (each spec's `Impl` exposes `asValidatedPrism()`, so a whole mapping plugs in wherever a leaf does), recursion terminates by construction: a self-referential `Tree(String value, List<Tree> children)` maps with an empty spec and round-trips any finite tree.
+
+~~~admonish note title="Map keys are located by `toString()`"
+The rendered path uses each key's `toString()`, so a key containing a dot looks the same as deeper nesting, and two distinct keys whose renderings collide share a location. The structured `FieldError` path list stays exact regardless, holding the whole key as one segment, and every error is still reported.
+~~~
 
 ---
 
@@ -168,7 +205,7 @@ public interface EmployeeCardMapping extends MappingSpec<Employee, EmployeeCardD
 
 Lens<Employee, EmployeeCardDto> badge = EmployeeCardMappingImpl.INSTANCE.asLens();
 Employee moved = badge.set(new EmployeeCardDto("Ada", "Platform"), employee);
-// department written back, age kept — a lawful lens, not a fake inverse
+// department written back, age kept: a lawful lens, not a fake inverse
 ```
 
 ### Law-checked, in the repo and in your tests
@@ -184,7 +221,14 @@ MappingLaws.assertMappingLaws(
     new CustomerDto("Bob", "not-an-email"));      // must not parse
 ```
 
-The overloads follow the tiers: pass `asIso()` plus `asValidatedPrism()` for a lossless mapping (iso laws, both round trips, and the coherence between the two surfaces), `asLens()` with a domain value and two wire values for a projection, and `asValidatedPrism()` with a parsing and a non-parsing wire value for the fallible tier. For a derived-field mapping, `build` recomputes what `parse` ignores, so only the non-derived components round-trip; the domain-sample overload `assertMappingLaws(prism, domainValue)` asserts exactly that and nothing stronger. A spec with a derived field *and* a fallible leaf is better served by the fallible overload with a parseable wire value whose derived components match what `build` would produce, which keeps the no-parse check; reserve the domain-sample overload for total-parse mappings, where no wire value can fail.
+The overloads follow the tiers:
+
+- **Lossless mapping:** pass `asIso()` plus `asValidatedPrism()` to check the iso laws, both round trips, and the coherence between the two surfaces.
+- **Projection:** pass `asLens()` with a domain value and two wire values.
+- **Fallible tier:** pass `asValidatedPrism()` with a parsing and a non-parsing wire value.
+- **Derived-field (total-parse) mapping:** `build` recomputes what `parse` ignores, so only the non-derived components round-trip. The domain-sample overload `assertMappingLaws(prism, domainValue)` asserts exactly that and nothing stronger.
+
+A spec with a derived field *and* a fallible leaf is better served by the fallible overload, given a parseable wire value whose derived components match what `build` would produce (this keeps the no-parse check). Reserve the domain-sample overload for total-parse mappings, where no wire value can fail.
 
 ~~~admonish tip title="Mapping types you don't own"
 The annotation sits on *your* spec interface, never on the mapped types, so third-party records and sealed hierarchies from compiled libraries map without being annotatable: `interface VendorOrderMapping extends MappingSpec<com.vendor.OrderRecord, OrderDto> {}` works today. Bean-shaped foreign types (getter/setter DTOs) are the one un-owned shape that needs future work.
@@ -242,7 +286,13 @@ public sealed interface OrderError {
 The *typed context* here is diagnostic metadata attached to an error value: a records-as-schema type such as `OrderErrorContext`. It is unrelated to the [`ErrorContext`](../effect/effect_contexts_error.md) effect type, which is a composable IO-plus-`Either` computation. This page's context is data carried on an error; that one is a way of running effects.
 ~~~
 
-For `OrderError` the processor generates `OrderErrors`: a factory per variant (`code` is the UPPER_SNAKE variant name, `message` its humanised form, the timestamp read from a `TimeSource`, so an overload takes one explicitly and the convenience uses `TimeSource.system()`), a fluent `context()` builder over the context record's components, and an `editContext(error, edit)` wither that rebuilds the concrete variant through an exhaustive switch. Add a one-line default so the wither reads as an instance method, and construction plus enrichment matches the shape you would hand-write:
+For `OrderError` the processor generates a companion named `OrderErrors` with three pieces:
+
+- **A factory per variant.** `code` is the UPPER_SNAKE variant name and `message` its humanised form; the timestamp is read from a [`TimeSource`](../monads/io_monad.md), so an overload takes one explicitly and the convenience uses `TimeSource.system()`.
+- **A fluent `context()` builder** over the context record's components.
+- **An `editContext(error, edit)` wither** that rebuilds the concrete variant through an exhaustive switch.
+
+Add a one-line `default` so the wither reads as an instance method, and construction plus enrichment matches the shape you would hand-write:
 
 ``` java
 default OrderError editContext(UnaryOperator<OrderErrors.ContextBuilder> edit) {
@@ -253,13 +303,24 @@ OrderError error = OrderErrors.outOfStock(products)                 // typed fac
     .editContext(ctx -> ctx.orderId(orderId).traceId(traceId));     // typed context, not map.put
 ```
 
-The context type is discovered **structurally** from the `ErrorEnvelope` component's type argument, never a class literal, and every variant must agree on it. The rules, each a what/why/fix diagnostic: the hierarchy and its variants and the context record must be non-generic; permitted variants must be records (a nested sealed sub-hierarchy is rejected with a flatten-it fix, not recursed into); and the context record's components must be nullable reference types (primitives are rejected at compile time, because the all-absent context holds `null`; a null-rejecting compact constructor cannot be detected by the processor, so keep the context a plain nullable data carrier).
+The context type is discovered **structurally** from the `ErrorEnvelope` component's type argument, never a class literal, and every variant must agree on it. Three rules apply, each a what/why/fix diagnostic:
 
-The two example hierarchies show the spread of the win on purpose. `MarketError` is fine-grained: each variant is a single failure mode with its own typed fields (`FeedDisconnected`, `RiskLimitBreached`, `StaleData`), so its generated `MarketErrors` factories carry everything and no hand-written construction remains. `OrderError` is coarser: variants such as `CustomerError` and `InventoryError` group several codes (`CUSTOMER_NOT_FOUND` and `CUSTOMER_SUSPENDED`; `OUT_OF_STOCK`, `RESERVATION_FAILED`, `PARTIAL_STOCK`) because a downstream `switch` presents failures by category, and one generated factory per variant derives only one code. Those variants keep a hand-written factory per code, each calling the canonical constructor with `ErrorEnvelope.of(...)` and the generated builder.
+- the hierarchy, its variants, and the context record must be non-generic;
+- permitted variants must be records; a nested sealed sub-hierarchy is rejected with a flatten-it fix, not recursed into;
+- the context record's components must be nullable reference types. The all-absent context holds `null`, so primitives are rejected at compile time; and because a null-rejecting compact constructor cannot be detected by the processor, keep the context a plain nullable data carrier.
 
-Either way the repeated envelope and the untyped `Map<String, Object>` are gone; the fully-generated factories are the extra a fine-grained hierarchy earns. So the design guidance is about the *hierarchy*, not the annotation: reach for fine-grained variants when each failure mode is genuinely distinct, and group them when a boundary treats a whole category uniformly, accepting a hand-written factory per code as the price of that grouping.
+~~~admonish note title="Fine-grained or coarse variants?"
+The design choice is about the *hierarchy*, not the annotation.
+
+- **Fine-grained** (one variant per failure mode, each with its own typed fields, as in `MarketError`'s `FeedDisconnected` / `RiskLimitBreached` / `StaleData`): the generated `MarketErrors` factories carry everything, and no hand-written construction remains.
+- **Coarse** (a variant grouping several codes, as in `OrderError`'s `CustomerError` covering `CUSTOMER_NOT_FOUND` and `CUSTOMER_SUSPENDED`): suits a boundary whose downstream `switch` presents failures by category. One generated factory per variant derives only one code, so these variants keep a hand-written factory per code, each calling the canonical constructor with `ErrorEnvelope.of(...)` and the generated builder.
+
+Either way the repeated envelope and the untyped `Map<String, Object>` are gone. Reach for fine-grained variants when each failure mode is genuinely distinct, and group them when a boundary treats a whole category uniformly.
+~~~
 
 Two verbs keep the two operations distinct: `ErrorEnvelope.withContext(D)` is the record wither that **replaces** the context (and may change its type), while the generated `editContext(error, edit)` **transforms** the existing context through the builder, seeded from the current value. Reach for `withContext` to set a context, `editContext` to enrich one.
+
+---
 
 ## Diagnostics and limits
 

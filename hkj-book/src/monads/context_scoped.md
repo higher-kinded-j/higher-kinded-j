@@ -2,13 +2,13 @@
 
 > *"This was no boat accident."*
 >
-> -- Hooper, *Jaws*
+> — Hooper, *Jaws*
 
 When code behaves unexpectedly in concurrent systems, it's rarely random. There's something beneath the surface: context that was set elsewhere, state that travelled invisibly, assumptions that held on one thread but failed on another. The experienced developer learns to suspect these hidden currents.
 
 > *"A paranoid is someone who knows a little of what's going on."*
 >
-> -- William S. Burroughs
+> — William S. Burroughs
 
 Java's `ScopedValue` API makes those currents visible. Where `ThreadLocal` let context drift silently through your application (sometimes appearing where it shouldn't, sometimes vanishing where it should) `ScopedValue` enforces explicit boundaries. You declare what flows into a scope. You control what child threads inherit. The paranoid developer becomes the informed one.
 
@@ -34,8 +34,8 @@ Ensure your project targets Java 25 or later to use these features.
 ~~~
 
 ~~~admonish example title="Example Code"
-- [ContextBasicExample.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/context/ContextBasicExample.java) -- Core Context usage patterns
-- [ContextScopeExample.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/context/ContextScopeExample.java) -- Integration with structured concurrency
+- [ContextBasicExample.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/context/ContextBasicExample.java) - Core Context usage patterns
+- [ContextScopeExample.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/context/ContextScopeExample.java) - Integration with structured concurrency
 ~~~
 
 ---
@@ -811,12 +811,12 @@ Practice Context patterns in [Tutorial 01: Context Fundamentals](https://github.
 ~~~
 
 ~~~admonish tip title="See Also"
-- [RequestContext Patterns](../effect/context_request.md) -- Request tracing and metadata
-- [SecurityContext Patterns](../effect/context_security.md) -- Authentication and authorisation
-- [Context vs ConfigContext](../effect/context_vs_config.md) -- When to use each
-- [VTask](vtask_monad.md) -- Virtual thread effect type
-- [Scope](vtask_scope.md) -- Structured concurrency
-- [Reader](reader_monad.md) -- Explicit environment passing
+- [RequestContext Patterns](../effect/context_request.md) - Request tracing and metadata
+- [SecurityContext Patterns](../effect/context_security.md) - Authentication and authorisation
+- [Context vs ConfigContext](../effect/context_vs_config.md) - When to use each
+- [VTask](vtask_monad.md) - Virtual thread effect type
+- [Scope](vtask_scope.md) - Structured concurrency
+- [Reader](reader_monad.md) - Explicit environment passing
 ~~~
 
 ---

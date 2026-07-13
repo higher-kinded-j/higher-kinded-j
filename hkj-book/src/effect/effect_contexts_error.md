@@ -2,7 +2,7 @@
 
 > *"You wont never get the whole thing its too big in the nite of your head ther aint room."*
 >
-> -- Russell Hoban, *Riddley Walker*
+> — Russell Hoban, *Riddley Walker*
 
 API calls fail. Database queries timeout. Files go missing. The "whole thing" of what can go wrong in effectful code is indeed too big to hold in your head at once. But you can give those failures *names*: typed errors that the compiler understands and your code can reason about. `ErrorContext` captures both the deferred nature of IO and the typed-error semantics of `Either` in a single, composable abstraction.
 

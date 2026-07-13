@@ -2,13 +2,13 @@
 
 > *"The thing about a shark, it's got lifeless eyes, black eyes, like a doll's eyes. When it comes at you it doesn't seem to be livin'... until he bites you."*
 >
-> -- Quint, *Jaws*
+> — Quint, *Jaws*
 
 The unauthorised request looks just like any other. Same headers, same format, same endpoint. It doesn't seem malicious, until it's accessing data it shouldn't, performing actions reserved for administrators, or exfiltrating information that will cost you millions. By the time you notice, the damage is done.
 
 > *"You think when you wake up in the mornin yesterday don't count. But yesterday is all that does count."*
 >
-> -- Cormac McCarthy, *No Country for Old Men*
+> — Cormac McCarthy, *No Country for Old Men*
 
 Yesterday's unvalidated request is today's security incident. Yesterday's missing role check is today's data breach. Security isn't a feature you add later; it's context that must flow through every layer of your application, verified at every boundary, never assumed.
 
@@ -24,7 +24,7 @@ Yesterday's unvalidated request is today's security incident. Yesterday's missin
 ~~~
 
 ~~~admonish example title="Example Code"
-- [SecurityContextExample.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/context/SecurityContextExample.java) -- Complete security pattern examples
+- [SecurityContextExample.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/context/SecurityContextExample.java) - Complete security pattern examples
 ~~~
 
 ---
@@ -860,10 +860,10 @@ Practice security patterns in [Tutorial 04: Security Patterns](https://github.co
 ~~~
 
 ~~~admonish tip title="See Also"
-- [Context Effect](../monads/context_scoped.md) -- Core Context documentation
-- [RequestContext Patterns](context_request.md) -- Request tracing and metadata
-- [Context vs ConfigContext](context_vs_config.md) -- When to use each
-- [VTask](../monads/vtask_monad.md) -- Virtual thread effect type
+- [Context Effect](../monads/context_scoped.md) - Core Context documentation
+- [RequestContext Patterns](context_request.md) - Request tracing and metadata
+- [Context vs ConfigContext](context_vs_config.md) - When to use each
+- [VTask](../monads/vtask_monad.md) - Virtual thread effect type
 ~~~
 
 ---

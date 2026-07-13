@@ -3,7 +3,7 @@
 
 > *"The most beautiful experience we can have is the mysterious."*
 >
-> -- Albert Einstein
+> — Albert Einstein
 
 `OptionalT` lets a chain of asynchronous lookups disappear cleanly the moment a value is missing. The mystery of "did this resolve?" stays inside the type and never leaks into your control flow.
 

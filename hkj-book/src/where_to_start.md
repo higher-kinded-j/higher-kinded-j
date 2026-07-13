@@ -4,7 +4,7 @@
 >
 > *"That depends a good deal on where you want to get to," said the Cat.*
 >
-> -- Lewis Carroll, *Alice's Adventures in Wonderland*
+> — Lewis Carroll, *Alice's Adventures in Wonderland*
 
 Alice's reply was that she did not much care where, at which point the Cat
 told her any road would do. This page is built on the opposite assumption:

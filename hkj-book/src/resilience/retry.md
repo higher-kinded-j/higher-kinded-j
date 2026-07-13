@@ -6,7 +6,7 @@
 - How to filter retries by exception type
 - How to monitor retry attempts with `RetryEvent`
 - How retry integrates with `VTask` and every Path carrier (`IOPath`, `VTaskPath`, `VResultPath`, and the eager `EitherPath`)
-- Why a business `Left` is never retried, and how to opt selected transient typed errors in
+- Why a business `Left` is never retried, and how to opt selected transient errors into retry
 ~~~
 
 ---
@@ -302,9 +302,9 @@ VTask<Data> robust = Retry.retryTask(
 | Retry with recovery | `Retry.retryTaskWithRecovery(task, policy, recoveryFn)` |
 
 ~~~admonish tip title="See Also"
-- [Circuit Breaker](circuit_breaker.md) -- protecting against persistent failures
-- [Combined Patterns](combined.md) -- composing retry with circuit breaker and bulkhead
-- [Effect Path API: Patterns and Recipes](../effect/patterns.md) -- retry in the context of IOPath
+- [Circuit Breaker](circuit_breaker.md) - protecting against persistent failures
+- [Combined Patterns](combined.md) - composing retry with circuit breaker and bulkhead
+- [Effect Path API: Patterns and Recipes](../effect/patterns.md) - retry in the context of IOPath
 ~~~
 
 ---

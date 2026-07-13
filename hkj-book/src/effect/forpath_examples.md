@@ -29,7 +29,7 @@ EitherPath<String, String> failed = ForPath.from(findUser.apply("unknown"))
 // Left("User not found: unknown")
 ```
 
-The second comprehension never reaches `createOrder` -- the `Left` from `findUser` propagates immediately.
+The second comprehension never reaches `createOrder`; the `Left` from `findUser` propagates immediately.
 
 ---
 
@@ -90,7 +90,7 @@ Try<OrderSummary> result = orderWorkflow.runSafe();
 
 ## NonDetPath: Nondeterministic Choice
 
-The name *NonDet* comes from *nondeterministic computation* -- a model where a computation can produce multiple results simultaneously, as if it were exploring every possible choice in parallel. This concept originates from nondeterministic automata in theoretical computer science, where a machine can be "in multiple states at once."
+The name *NonDet* comes from *nondeterministic computation*, a model where a computation can produce multiple results simultaneously, as if it were exploring every possible choice in parallel. This concept originates from nondeterministic automata in theoretical computer science, where a machine can be "in multiple states at once."
 
 In practice, NonDetPath is backed by `List`, and a for-comprehension over it generates the *cartesian product* of all choices. Combined with `when()` guards, this makes it a natural fit for search problems, constraint satisfaction, and combinatorial generation.
 
@@ -104,7 +104,7 @@ List<String> result = combinations.run();
 // ["red-S", "red-M", "red-L", "blue-M", "blue-L"]
 ```
 
-Each `.from()` introduces a new "dimension" of choice, and `when()` prunes branches that don't satisfy constraints -- much like a `SELECT ... WHERE` over multiple tables.
+Each `.from()` introduces a new "dimension" of choice, and `when()` prunes branches that don't satisfy constraints, much like a `SELECT ... WHERE` over multiple tables.
 
 ---
 

@@ -2,13 +2,13 @@
 
 > *"Never get out of the boat. Absolutely goddamn right. Unless you were goin' all the way."*
 >
-> -- Captain Willard, *Apocalypse Now*
+> — Captain Willard, *Apocalypse Now*
 
 A request enters your system and begins its journey through layers of services, queues, and databases. At each step, you need to know where it came from, where it's going, and how to find it again when something goes wrong. The trace ID is your boat; stay in it, and you can navigate any complexity. Lose it, and you're swimming blind in hostile waters.
 
 > *"Keep a little fire burning; however small, however hidden."*
 >
-> -- Cormac McCarthy, *The Road*
+> — Cormac McCarthy, *The Road*
 
 That small fire is the context you propagate: trace IDs, correlation identifiers, locale preferences, timing information. It may seem like overhead, but when a production incident strikes at 3 AM, that carefully preserved context is the difference between a five-minute diagnosis and a five-hour nightmare.
 
@@ -24,7 +24,7 @@ That small fire is the context you propagate: trace IDs, correlation identifiers
 ~~~
 
 ~~~admonish example title="Example Code"
-- [RequestContextExample.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/context/RequestContextExample.java) -- Complete request tracing examples
+- [RequestContextExample.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/context/RequestContextExample.java) - Complete request tracing examples
 ~~~
 
 ---
@@ -803,10 +803,10 @@ Practice request tracing patterns in [Tutorial 03: Request Tracing Patterns](htt
 ~~~
 
 ~~~admonish tip title="See Also"
-- [Context Effect](../monads/context_scoped.md) -- Core Context documentation
-- [SecurityContext Patterns](context_security.md) -- Authentication and authorisation
-- [VTaskPath](path_vtask.md) -- Virtual thread effect paths
-- [Scope](../monads/vtask_scope.md) -- Structured concurrency
+- [Context Effect](../monads/context_scoped.md) - Core Context documentation
+- [SecurityContext Patterns](context_security.md) - Authentication and authorisation
+- [VTaskPath](path_vtask.md) - Virtual thread effect paths
+- [Scope](../monads/vtask_scope.md) - Structured concurrency
 ~~~
 
 ---

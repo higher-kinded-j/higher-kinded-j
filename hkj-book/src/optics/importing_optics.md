@@ -3,7 +3,7 @@
 ## _Extending Your Reach Beyond Your Own Code_
 
 > "The real voyage of discovery consists not in seeking new landscapes, but in having new eyes."
-> -- Marcel Proust
+> — Marcel Proust
 
 Proust's insight captures exactly what we're doing here. The landscape (JDK classes, database libraries, JSON parsers) already exists. What changes is how we *see* it. With `@ImportOptics`, we gain new eyes: the ability to view `LocalDate`, `JsonNode`, or any external type through the lens (pun intended) of functional optics. We're not adding code to these libraries; we're changing our perspective on them, making them participants in compositional, type-safe transformations.
 
