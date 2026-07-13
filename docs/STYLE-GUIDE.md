@@ -10,7 +10,7 @@ This document defines the house style for Higher-Kinded-J documentation. Follow 
   - A **colon** (`: `) to introduce an expansion after a label (e.g. "`SafeFetch`: Total runner that captures..."). This is the standard form for label-and-description bullets and for "See Also" link descriptions
   - **Parentheses** for asides and dates after a heading (e.g. "`### v0.4.5 (22 May 2026)`", "`### v0.4.6-SNAPSHOT (unreleased)`"). Also for short parenthetical lists inside prose ("five sub-chapters (Quickstart, Core Paths, ..., Reference)")
   - A **full stop** when the dash is really separating two complete thoughts, and treating them as two sentences reads more naturally
-- Do not use emojis in documentation
+- Do not use decorative emojis in documentation. The one exception is the status markers **✅** (correct, supported, "do this") and **❌** (wrong, unsupported, "avoid this"), used sparingly to label good-versus-bad code examples or supported-versus-unsupported rows in a table. Their plain-text equivalents **✓** and **✗** are equally acceptable. Do not use them as decoration or in prose; reserve them for a clear pass/fail signal.
 - Keep explanations practical and focused on Java developers
 - Avoid academic jargon; prefer accessible explanations
 
@@ -421,7 +421,7 @@ When creating a new documentation page, ensure:
 - [ ] "Further Reading" section with validated external links
 - [ ] Previous/Next navigation links at the end
 - [ ] British English spelling throughout
-- [ ] No emojis
+- [ ] No decorative emojis (the ✅/❌ status markers are allowed)
 - [ ] All code examples are properly formatted
 
 ## Checklist for Chapter Introductions
@@ -435,4 +435,4 @@ When creating a chapter introduction page (`ch_intro.md`), ensure:
 - [ ] "In This Chapter" and "Chapter Contents" are distinct (expanded context vs. brief navigation)
 - [ ] **Next** link to the first page in the chapter (no Previous link)
 - [ ] British English spelling throughout
-- [ ] No emojis
+- [ ] No decorative emojis (the ✅/❌ status markers are allowed)
