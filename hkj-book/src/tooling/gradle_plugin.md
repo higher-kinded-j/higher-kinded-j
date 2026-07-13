@@ -26,7 +26,7 @@ plugins {
 }
 ```
 
-That is it. The plugin wires in dependencies, preview flags, compile-time checks, and Javadoc configuration automatically. It also enables `-parameters`, which keeps constructor parameter names in the compiled class files: some copy strategies read them today, and planned [record mapper](../optics/record_mapping.md) features will use them too.
+That is it. The plugin wires in dependencies, preview flags, compile-time checks, and Javadoc configuration automatically. It also enables "-parameters", which keeps constructor parameter names in the compiled class files: some copy strategies read them today, and the [record mapper](../optics/record_mapping.md) uses them too.
 
 ### Using SNAPSHOT Versions
 
