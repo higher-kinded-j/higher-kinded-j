@@ -4,7 +4,7 @@
 
 > *"The knife had two edges: one was tempered for common use, but the other was keener than any blade that had ever existed before. It could cut through anything, even the fabric of the universe itself... With the right touch, you could open a window to another world."*
 >
-> -- Philip Pullman, *The Subtle Knife*
+> — Philip Pullman, *The Subtle Knife*
 
 ---
 
@@ -17,8 +17,8 @@ When you hold structured data and need the railway semantics of effects, the `to
 ~~~admonish info title="In this section"
 The **Optics Integration** sub-chapter shows how the Effect Path API and the [Optics chapter](../optics/ch_intro.md) compose:
 
-- **This page** -- the bridge API: `toMaybePath()`, `toEitherPath()`, `focus()`, and the conversion mechanics between FocusPath / AffinePath / TraversalPath and the Effect Path types.
-- **[Capstone: Effects Meet Optics](capstone_focus_effect.md)** -- a complete worked example replacing 30 lines of defensive Java with a single optics-and-effects pipeline.
+- **This page** - the bridge API: `toMaybePath()`, `toEitherPath()`, `focus()`, and the conversion mechanics between FocusPath / AffinePath / TraversalPath and the Effect Path types.
+- **[Capstone: Effects Meet Optics](capstone_focus_effect.md)** - a complete worked example replacing 30 lines of defensive Java with a single optics-and-effects pipeline.
 
 Assumes you've read the [Focus DSL](../optics/focus_dsl.md) and the basic Effect Path types from Core Paths.
 ~~~

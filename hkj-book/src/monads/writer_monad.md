@@ -2,7 +2,7 @@
 ## _Accumulating Output Alongside Computations_
 
 ~~~admonish info title="What You'll Learn"
-- Why threading a mutable log through every function is painful -- and how Writer eliminates it
+- Why threading a mutable log through every function is painful, and how Writer eliminates it
 - How `Monoid` controls the way accumulated output combines
 - Building a complete audit trail that travels with your computation
 - Using `tell`, `flatMap`, and `map` to construct a step-by-step receipt
@@ -15,7 +15,7 @@
 
 ## The Problem: Logs That Leak Everywhere
 
-Imagine a pricing function that computes a final price through several steps -- add tax, apply a discount, add shipping. You need a complete audit log of every step. You cannot use `System.out.println` (not composable, not testable). So you reach for a shared mutable list:
+Imagine a pricing function that computes a final price through several steps: add tax, apply a discount, add shipping. You need a complete audit log of every step. You cannot use `System.out.println` (not composable, not testable). So you reach for a shared mutable list:
 
 ```java
 // The ugly way: threading a mutable log through every function
@@ -26,13 +26,13 @@ double finalP = addShipping(total, log);       // log.add("Shipping added: ...")
 // Every function needs a log parameter. Leaky. Messy. Untestable.
 ```
 
-Every function must accept *and* mutate that list. The log is invisible in the return type, impossible to compose, and a magnet for bugs. What you actually want is a return value that carries both the result *and* the log -- automatically, invisibly, composably.
+Every function must accept *and* mutate that list. The log is invisible in the return type, impossible to compose, and a magnet for bugs. What you actually want is a return value that carries both the result *and* the log, automatically, invisibly, composably.
 
 That is exactly what `Writer` does.
 
 ## The Fix: Writer Carries the Log For You
 
-A `Writer<W, A>` pairs a computed value `A` with an accumulated log `W`. When you sequence steps with `flatMap`, the logs combine automatically through a `Monoid<W>` -- no manual bookkeeping, no mutable state.
+A `Writer<W, A>` pairs a computed value `A` with an accumulated log `W`. When you sequence steps with `flatMap`, the logs combine automatically through a `Monoid<W>`: no manual bookkeeping, no mutable state.
 
 The `Writer<W, A>` record is minimal by design:
 
@@ -48,7 +48,7 @@ public record Writer<W, A>(W log, A value) implements WriterKind<W, A> {
 }
 ```
 
-Two fields. Two factory methods. Two accessors. The complexity lives in how steps *compose* -- and that is where `Monoid` and `flatMap` come in.
+Two fields. Two factory methods. Two accessors. The complexity lives in how steps *compose*, and that is where `Monoid` and `flatMap` come in.
 
 ### Monoid Made Tangible
 
@@ -71,7 +71,7 @@ class StringMonoid implements Monoid<String> {
 }
 ```
 
-Swap in a different Monoid and Writer accumulates a completely different kind of output -- no other code changes needed.
+Swap in a different Monoid and Writer accumulates a completely different kind of output; no other code changes needed.
 
 ## Core Components
 
@@ -79,7 +79,7 @@ Swap in a different Monoid and Writer accumulates a completely different kind of
 |-----------|------|
 | `Writer<W, A>` | Record holding a `log` of type `W` and a `value` of type `A` |
 | `Monoid<W>` | Defines `empty()` and `combine()` for the log type |
-| `WriterMonad<W>` | Provides `of`, `map`, `flatMap`, `ap` -- all log-aware |
+| `WriterMonad<W>` | Provides `of`, `map`, `flatMap`, `ap`, all log-aware |
 | `WriterKind<W, A>` | HKT interface; `Writer` implements it via holder pattern |
 | `WriterKindHelper.WRITER` | Enum singleton for `widen`, `narrow`, `tell`, `value`, `run`, `exec`, `runWriter` |
 
@@ -103,7 +103,7 @@ Each `flatMap` step produces a new `(log, value)` pair. The logs from both the i
 
 A pricing calculation that produces both a final price and a step-by-step receipt.
 
-**Step 1 -- Set up the Monoid and Monad**
+**Step 1: Set up the Monoid and Monad**
 
 ```java
 import static org.higherkindedj.hkt.writer.WriterKindHelper.*;
@@ -117,7 +117,7 @@ Monoid<String> logMonoid = new Monoid<>() {
 var monad = Instances.writer(logMonoid);
 ```
 
-**Step 2 -- Define pricing steps as functions**
+**Step 2: Define pricing steps as functions**
 
 Each step returns a Writer: the result *and* a log entry. No log parameter needed.
 
@@ -142,7 +142,7 @@ Function<Double, Kind<WriterKind.Witness<String>, Double>> addShipping = price -
 };
 ```
 
-**Step 3 -- Compose the pipeline**
+**Step 3: Compose the pipeline**
 
 `flatMap` threads the value forward and accumulates the log at each step.
 
@@ -159,7 +159,7 @@ var afterDiscount = monad.flatMap(applyDiscount, afterTax);
 var finalPrice    = monad.flatMap(addShipping, afterDiscount);
 ```
 
-**Step 4 -- Extract the results**
+**Step 4: Extract the results**
 
 ```java
 // Get just the final price
@@ -176,7 +176,7 @@ System.out.println("Receipt: " + result.log());
 System.out.println("Total:   $" + result.value());
 ```
 
-Every step is a pure function. The log is never passed as a parameter -- Writer carries it invisibly. The receipt and the price arrive together at the end.
+Every step is a pure function. The log is never passed as a parameter. Writer carries it invisibly. The receipt and the price arrive together at the end.
 ~~~
 
 ~~~admonish note title="Before vs After"
@@ -186,9 +186,9 @@ Compare the mutable-log approach from the opening with the Writer version:
 | | Mutable Log | Writer |
 |---|---|---|
 | **Log location** | Separate `List<String>` parameter | Inside the return value |
-| **Function signature** | `double addTax(double price, List<String> log)` | `Function<Double, Kind<..., Double>>` -- no log param |
+| **Function signature** | `double addTax(double price, List<String> log)` | `Function<Double, Kind<..., Double>>` (no log param) |
 | **Composability** | Must manually pass the log through every call | `flatMap` chains compose automatically |
-| **Testability** | Hard to test without mocking the list | Pure functions -- assert on `run()` and `exec()` |
+| **Testability** | Hard to test without mocking the list | Pure functions: assert on `run()` and `exec()` |
 | **Thread safety** | Shared mutable list is not thread-safe | Immutable records, no shared state |
 ~~~
 
@@ -198,9 +198,9 @@ These three operations serve distinct roles. Understanding when to use each is k
 
 | Operation | What it does | Touches the log? | Touches the value? |
 |-----------|-------------|-------------------|--------------------|
-| `tell(msg)` | Appends to the log; value is `Unit` | Yes -- sets the log | No -- value is `Unit` |
+| `tell(msg)` | Appends to the log; value is `Unit` | Yes, sets the log | No, value is `Unit` |
 | `map(f)` | Transforms the value; log passes through unchanged | No | Yes |
-| `flatMap(f)` | Runs a function that returns a new Writer; **combines** both logs via Monoid | Yes -- combines | Yes |
+| `flatMap(f)` | Runs a function that returns a new Writer; **combines** both logs via Monoid | Yes, combines | Yes |
 
 **`tell`** is for inserting a log entry without affecting the computation:
 
@@ -228,18 +228,18 @@ var chained = monad.flatMap(addTax, WRITER.value(logMonoid, 100.0));
 
 | Scenario | Writer? |
 |----------|---------|
-| Accumulating logs, metrics, or audit trails alongside a computation | Yes -- this is Writer's sweet spot |
-| Tracing steps in a calculation for debugging | Yes -- use `tell` for step-by-step entries |
-| Building up a list of results or messages | Yes -- use `Writer<List<T>, A>` with a list-concat Monoid |
-| Side effects that hit the outside world (console, network, DB) | No -- use [IO](./io_monad.md) instead |
+| Accumulating logs, metrics, or audit trails alongside a computation | Yes, this is Writer's sweet spot |
+| Tracing steps in a calculation for debugging | Yes, use `tell` for step-by-step entries |
+| Building up a list of results or messages | Yes, use `Writer<List<T>, A>` with a list-concat Monoid |
+| Side effects that hit the outside world (console, network, DB) | No, use [IO](./io_monad.md) instead |
 | Combining Writer with other effects (async, errors) | Use [WriterT transformer](../transformers/transformers.md) |
 
 ~~~admonish important title="Key Points"
 - `Writer<W, A>` pairs a computation result (`A`) with accumulated output (`W`).
-- The `Monoid<W>` defines how outputs combine -- concatenation for strings, appending for lists, addition for numbers.
-- `flatMap` automatically combines logs from both steps using the Monoid -- no manual bookkeeping.
-- `tell(log)` creates a Writer that only logs (value is `Unit`) -- useful for inserting log entries into a chain.
-- `map(f)` transforms only the value -- the log passes through unchanged.
+- The `Monoid<W>` defines how outputs combine: concatenation for strings, appending for lists, addition for numbers.
+- `flatMap` automatically combines logs from both steps using the Monoid, no manual bookkeeping.
+- `tell(log)` creates a Writer that only logs (value is `Unit`), useful for inserting log entries into a chain.
+- `map(f)` transforms only the value; the log passes through unchanged.
 - `run()` extracts just the value; `exec()` extracts just the log; `runWriter()` gives you both as a `Writer` record.
 - `Writer<W, A>` integrates with HKT via `WriterKind`, so `widen`/`narrow` are zero-cost casts.
 ~~~
@@ -249,8 +249,8 @@ var chained = monad.flatMap(addTax, WRITER.value(logMonoid, 100.0));
 ~~~admonish example title="Benchmarks"
 Writer has dedicated JMH benchmarks measuring log accumulation overhead, Monoid combination cost, and chain depth. Key expectations:
 
-- **Pure value operations** (`map`, `of`) are fast -- they don't invoke the Monoid
-- **`flatMap` chains** incur Monoid combination cost at each step -- use an efficient Monoid (e.g., `StringBuilder` or list append rather than string concatenation for long logs)
+- **Pure value operations** (`map`, `of`) are fast; they don't invoke the Monoid
+- **`flatMap` chains** incur Monoid combination cost at each step. Use an efficient Monoid (e.g., `StringBuilder` or list append rather than string concatenation for long logs)
 - **Deep chains** scale linearly with the Monoid's `combine` cost
 
 ```bash

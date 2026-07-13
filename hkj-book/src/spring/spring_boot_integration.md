@@ -55,7 +55,7 @@ Or with Maven:
 
 #### Recommended: align versions with the BOM
 
-A Spring project usually pulls in more than the starter alone -- typically
+A Spring project usually pulls in more than the starter alone, typically
 `hkj-core` for the Path types your services return, and `hkj-test` for the
 AssertJ helpers in your slice tests. Importing the `hkj-bom` platform pins
 all HKJ modules to one consistent version, so you declare the version once
@@ -447,9 +447,9 @@ public VTaskPath<EnrichedUser> getEnrichedUser(@PathVariable String id) {
 ```
 
 **Key advantages over CompletableFuturePath:**
-- No thread pool sizing or tuning — virtual threads scale automatically with the JVM
+- No thread pool sizing or tuning: virtual threads scale automatically with the JVM
 - Structured concurrency via `Scope` replaces `CompletableFuture.allOf()` with cancellation awareness
-- Simpler imperative code style — blocking is free on virtual threads
+- Simpler imperative code style: blocking is free on virtual threads
 
 ---
 
@@ -485,7 +485,7 @@ public VStreamPath<TickEvent> streamTicks(@RequestParam(defaultValue = "10") int
 ```
 
 **Key advantages:**
-- No WebFlux, no Reactor, no Flux — just imperative code that streams
+- No WebFlux, no Reactor, no Flux: just imperative code that streams
 - Pull-based with natural backpressure via virtual thread blocking
 - Configurable stream timeout via `hkj.virtual-threads.stream-timeout-ms`
 
@@ -1312,7 +1312,7 @@ The integration focuses on functional validation patterns. For Spring's `@Valid`
 The hkj-spring-boot-starter brings functional programming patterns seamlessly into Spring Boot applications:
 
 - **Return functional types from controllers:** EitherPath, ValidationPath, CompletableFuturePath, VTaskPath, VStreamPath
-- **Virtual thread integration:** VTaskPath for async, VStreamPath for SSE streaming — no thread pools or WebFlux needed
+- **Virtual thread integration:** VTaskPath for async, VStreamPath for SSE streaming (no thread pools or WebFlux needed)
 - **Automatic HTTP response conversion:** No boilerplate required
 - **Explicit, type-safe error handling:** Errors in method signatures
 - **Composable operations:** Functional composition with map/via/flatMap

@@ -16,13 +16,13 @@ Higher-Kinded-J ships with a comprehensive JMH benchmark suite in the `hkj-bench
 
 ## Why Benchmarks Matter
 
-Functional abstractions wrap values. Wrapping has a cost. The question is never "is there overhead?" — there always is — but "does the overhead matter for my workload?" The benchmark suite answers that question with data rather than intuition.
+Functional abstractions wrap values. Wrapping has a cost. The question is never "is there overhead?" (there always is) but "does the overhead matter for my workload?" The benchmark suite answers that question with data rather than intuition.
 
 The suite is designed around three principles:
 
-1. **Honesty** — measure real abstraction costs, not contrived best cases
-2. **Comparability** — include raw Java baselines alongside library operations
-3. **Actionability** — organise results so regressions are immediately visible
+1. **Honesty**: measure real abstraction costs, not contrived best cases
+2. **Comparability**: include raw Java baselines alongside library operations
+3. **Actionability**: organise results so regressions are immediately visible
 
 ---
 
@@ -94,7 +94,7 @@ The `hkj-benchmarks` module contains 19 benchmark classes covering every major t
 
 ### With GC Profiling
 
-This reveals allocation rates and GC pressure — essential for understanding memory behaviour:
+This reveals allocation rates and GC pressure, essential for understanding memory behaviour:
 
 ```bash
 ./gradlew :hkj-benchmarks:jmh -Pjmh.profilers=gc
@@ -126,7 +126,7 @@ EitherBenchmark.rightMap                   thrpt   20  15.234 ± 0.512  ops/us
 EitherBenchmark.leftMap                    thrpt   20  89.123 ± 1.234  ops/us
 ```
 
-**Score** is the measured throughput. **Error** is the 99.9% confidence interval. If the error is larger than ~30% of the score, the result is noisy — increase warmup or measurement iterations.
+**Score** is the measured throughput. **Error** is the 99.9% confidence interval. If the error is larger than ~30% of the score, the result is noisy. Increase warmup or measurement iterations.
 
 ### What to Look For
 
@@ -232,7 +232,7 @@ If a workload is on a hot path and does not benefit from inspection or alternati
 
 ## Benchmark Assertion Tests
 
-The benchmark suite includes automated assertion tests that validate performance characteristics after each benchmark run. These are not just "did it finish?" checks — they verify relative performance, overhead ratios, and sanity bounds.
+The benchmark suite includes automated assertion tests that validate performance characteristics after each benchmark run. These are not just "did it finish?" checks; they verify relative performance, overhead ratios, and sanity bounds.
 
 ~~~admonish warning title="Tests Fail If Benchmarks Haven't Run"
 The assertion tests **fail** (not skip) if benchmark results are missing. This is intentional. Run `./gradlew :hkj-benchmarks:jmh` before running `./gradlew :hkj-benchmarks:test`. Silent skips hide missing quality gates.
@@ -313,7 +313,7 @@ After a successful run, reports are available at:
 
 ## When Overhead Matters (and When It Doesn't)
 
-The benchmarks consistently show that abstraction overhead is measured in **nanoseconds**. Real-world operations — database queries, HTTP calls, file reads — are measured in **milliseconds**. The overhead is three to four orders of magnitude smaller than any I/O operation.
+The benchmarks consistently show that abstraction overhead is measured in **nanoseconds**. Real-world operations (database queries, HTTP calls, file reads) are measured in **milliseconds**. The overhead is three to four orders of magnitude smaller than any I/O operation.
 
 Abstraction overhead matters in exactly three scenarios:
 
@@ -324,9 +324,9 @@ Abstraction overhead matters in exactly three scenarios:
 For everything else, the type safety, composability, and testability benefits far outweigh the cost.
 
 ~~~admonish tip title="See Also"
-- [Production Readiness](effect/production_readiness.md) — stack traces, allocation analysis, and stack safety for Effect Path types
-- [hkj-benchmarks README](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-benchmarks/README.md) — full method reference for all 18 benchmark classes
-- [Performance Testing Guide](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/docs/PERFORMANCE-TESTING-GUIDE.md) — benchmark categories and CI integration
+- [Production Readiness](effect/production_readiness.md) - stack traces, allocation analysis, and stack safety for Effect Path types
+- [hkj-benchmarks README](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-benchmarks/README.md) - full method reference for all 18 benchmark classes
+- [Performance Testing Guide](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/docs/PERFORMANCE-TESTING-GUIDE.md) - benchmark categories and CI integration
 ~~~
 
 ---

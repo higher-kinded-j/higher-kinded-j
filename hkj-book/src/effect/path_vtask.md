@@ -7,7 +7,7 @@ operations.
 
 > *"The perfect is the enemy of the good."*
 >
-> -- Voltaire, *Dictionnaire philosophique*
+> — Voltaire, *Dictionnaire philosophique*
 
 Java's reactive libraries pursued a kind of perfection: maximum throughput, minimal thread usage, non-blocking from end to end. The result was powerful but demanding; developers needed to master publishers, subscribers, backpressure, and schedulers before writing their first concurrent operation. The perfect abstraction for performance became the enemy of good code that anyone could read and maintain.
 
@@ -385,7 +385,7 @@ Practice VTaskPath composition in [TutorialVTaskPath.java](https://github.com/hi
 ~~~admonish example title="Benchmarks"
 VTaskPath has dedicated JMH benchmarks measuring wrapper overhead on top of raw VTask. Key expectations:
 
-- **VTaskPath vs raw VTask:** 5-15% overhead — wrapper allocation plus delegation cost
+- **VTaskPath vs raw VTask:** 5-15% overhead (wrapper allocation plus delegation cost)
 - **`let()` vs `from()`:** `let()` is ~20% faster as it avoids VTaskPath wrapping
 - Wrapper overhead > 30% is a warning sign suggesting unnecessary allocation
 - Comparison benchmarks against IOPath are also available

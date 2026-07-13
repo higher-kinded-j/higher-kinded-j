@@ -18,7 +18,7 @@
 ~~~
 
 > *"Structured concurrency is to concurrent programming what structured programming was to sequential programming."*
-> -- **Ron Pressler**, Project Loom Lead
+> — **Ron Pressler**, Project Loom Lead
 
 While `Par` combinators provide simple parallel execution, `Scope` offers a more flexible, fluent API for structured concurrent computations. It wraps Java 25's `StructuredTaskScope` with functional result handling.
 

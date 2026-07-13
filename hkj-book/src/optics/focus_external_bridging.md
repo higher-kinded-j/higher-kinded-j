@@ -3,7 +3,7 @@
 ## _Bridging Fluent Navigation into Immutables, Lombok, and Beyond_
 
 > "The best interface is no interface at all. The second best is the one that feels invisible."
-> -- Don Norman
+> — Don Norman
 
 Norman's design principle applies perfectly to our bridging challenge. The *best* solution would be if Focus DSL worked seamlessly with every external type, no extra code needed. That's not possible; external libraries don't know about our optics. But the *second best* is what we build here: bridges that feel invisible in use. Once we've set up the spec interfaces and bridge utilities, developers navigate from `CompanyFocus.headquarters()` into `AddressOptics.city()` without thinking about library boundaries.
 

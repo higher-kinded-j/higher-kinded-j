@@ -46,7 +46,7 @@ var p = Path.right(user);     // nothing constrains E -> E = Object, compiles si
 `Path.right`/`Path.left` put `E` only in the result. When `E` defaults
 to `Object`, later code that expects a specific error type either fails
 to type-check at the *consumer* (a normal incompatible-types error,
-elsewhere) or, inside a chain, has its real error type erased — see
+elsewhere) or, inside a chain, has its real error type erased; see
 [§5](#5-the-error-type-is-silently-erased-across-a-chain).
 
 **The fix:** pin `E` explicitly so intent is recorded and `Object`
@@ -243,7 +243,7 @@ private Double extractTotal(Order order) {
 
 ## 5. The error type is silently erased across a chain
 
-~~~admonish danger title="This compiles — and that is the bug"
+~~~admonish danger title="This compiles, and that is the bug"
 This case was previously documented as a compile error:
 
 ```
@@ -253,7 +253,7 @@ error: incompatible types: EitherPath<String,User> cannot be converted to
 
 On the supported compiler it is **not** an error. `via`/`flatMap`/
 `then` accept `Function/Supplier<? extends Chainable<B>>` and `zipWith`
-a `Combinable<B>` — none of which carry the error type. A step whose
+a `Combinable<B>`, none of which carry the error type. A step whose
 `E` differs from the chain's compiles cleanly; the wrong error type is
 **carried at runtime**, surfacing later as a `ClassCastException` when
 the error is consumed. The compiler does not catch this.

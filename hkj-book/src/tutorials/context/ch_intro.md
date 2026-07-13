@@ -26,14 +26,6 @@ Each tutorial opens with a Pain → Promise header showing the imperative-Java p
 | 05 | Context with VTask | Propagation across virtual-thread boundaries |
 | 06 | Advanced Context Patterns | Error handling and recovery |
 
-## How Each Exercise Is Structured
-
-Same template as the rest of the chapter:
-
-- **Pain → Promise** header at the top of each file
-- **Java idiom anchor** mapping each Context type to its `ThreadLocal` / `MDC` / `SecurityContextHolder` cousin
-- Exercise bodies and solutions are unchanged from the original; per-exercise tiered hints and teaching-solution commentary are scheduled for the follow-up Phase 3.5 pass
-
 ## Running the Tutorials
 
 ```bash

@@ -2,7 +2,7 @@
 
 > *"All moments, past, present, and future, always have existed, always will exist."*
 >
-> -- Kurt Vonnegut, *Slaughterhouse-Five*
+> — Kurt Vonnegut, *Slaughterhouse-Five*
 
 Billy Pilgrim experiences every moment of his life simultaneously; nothing is executed in sequence, everything simply *is*. A Free monad program has the same quality: every instruction, from charging a card to sending a receipt, exists simultaneously as data in a tree. No side effect has fired. No network call has been made. The entire workflow is present, inspectable, transformable. Only when an interpreter walks the tree does a single timeline, production, test, audit, or dry-run, materialise from the structure. Traditional dependency injection chooses the timeline at compile time; effect handlers let the program contain all of them at once.
 

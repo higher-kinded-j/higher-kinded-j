@@ -3,7 +3,7 @@
 ## _Copy Strategies for Builder-Based Types_
 
 > "First, solve the problem. Then, write the code."
-> -- John Johnson
+> — John Johnson
 
 Johnson's advice is deceptively simple, yet it cuts to the heart of what we're doing here. The *problem* isn't "how do I update a field in a JOOQ record." The problem is: "how do I express my domain transformations clearly while respecting immutability?" Builders solve immutability; optics solve composition. Together, they let us solve the real problem first (describing what our business logic does) and then write concise code that does exactly that.
 

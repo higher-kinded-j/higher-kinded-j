@@ -376,9 +376,9 @@ For deeper exploration of the State monad and its applications:
 ~~~admonish example title="Benchmarks"
 State has dedicated JMH benchmarks measuring state threading overhead, composition depth, and `get`/`set`/`modify` performance. Key expectations:
 
-- **`get` / `inspect`** are very fast — they read state without transformation
+- **`get` / `inspect`** are very fast; they read state without transformation
 - **`flatMap` chains** thread state through each step with minimal overhead beyond the step's own computation
-- **Deep chains (50+)** complete without error — composition is stack-safe for typical depths
+- **Deep chains (50+)** complete without error; composition is stack-safe for typical depths
 - State threading adds constant overhead per step regardless of state size
 
 ```bash

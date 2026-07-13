@@ -39,9 +39,9 @@ Applicative<MaybeKind.Witness> applicative = Instances.applicative(maybe());
 Functor<MaybeKind.Witness>     functor     = Instances.functor(maybe());
 ```
 
-Because the canonical instance implements the whole `Functor → Applicative → Monad` chain in **one object**, a single token yields all three levels by Java subtyping — there is no extra lookup data.
+Because the canonical instance implements the whole `Functor → Applicative → Monad` chain in **one object**, a single token yields all three levels by Java subtyping; there is no extra lookup data.
 
-For canonical instances that also implement a richer capability, three further lookups are available — `monadError`, `monadZero` and `alternative`:
+For canonical instances that also implement a richer capability, three further lookups are available (`monadError`, `monadZero` and `alternative`):
 
 ```java
 MonadError<MaybeKind.Witness, Unit> me  = Instances.monadError(maybe());   // E inferred
@@ -49,7 +49,7 @@ MonadZero<ListKind.Witness>         mz  = Instances.monadZero(list());
 Alternative<OptionalKind.Witness>   alt = Instances.alternative(optional());
 ```
 
-Unlike `monad`/`applicative`/`functor`, these three are **not total**: they are only valid for instances that actually implement the requested capability (e.g. `monadError` for `Maybe`, `Optional`, `Try`, `Either`; `monadZero`/`alternative` for `Maybe`, `Optional`, `List`, `Stream`). Asking for a capability the canonical instance does not have is a programming error and fails fast with a `ClassCastException` — exactly as calling a method that does not exist would. The error type `E` of `monadError` is inferred from the assignment target, the same way the phantom type of `Either` is.
+Unlike `monad`/`applicative`/`functor`, these three are **not total**: they are only valid for instances that actually implement the requested capability (e.g. `monadError` for `Maybe`, `Optional`, `Try`, `Either`; `monadZero`/`alternative` for `Maybe`, `Optional`, `List`, `Stream`). Asking for a capability the canonical instance does not have is a programming error and fails fast with a `ClassCastException`, exactly as calling a method that does not exist would. The error type `E` of `monadError` is inferred from the assignment target, the same way the phantom type of `Either` is.
 
 ### Type inference for phantom-typed types
 
@@ -73,7 +73,7 @@ Monad<EitherKind.Witness<DomainError>> m = Instances.monad(either());
 
 ## Argument-carrying instances
 
-`Validated`, `Writer` and the monad transformers have a **structurally required dependency** — a `Semigroup`, a `Monoid`, or an outer `Monad`. There is no canonical default for these, so the facade cannot hide the dependency; instead it puts it **in the method signature**, where the compiler enforces it and the IDE documents it:
+`Validated`, `Writer` and the monad transformers have a **structurally required dependency**: a `Semigroup`, a `Monoid`, or an outer `Monad`. There is no canonical default for these, so the facade cannot hide the dependency; instead it puts it **in the method signature**, where the compiler enforces it and the IDE documents it:
 
 ```java
 MonadError<ValidatedKind.Witness<E>, E>  v  = Instances.validated(Semigroups.list());

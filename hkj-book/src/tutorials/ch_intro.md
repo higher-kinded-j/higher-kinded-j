@@ -8,7 +8,7 @@
 
 Reading about functional programming is one thing. Writing it is another entirely. This chapter is the writing part: thirteen short journeys, each a single test file we open in our IDE and complete by replacing `answerRequired()` with working code. Tests stay red until the solution is right, which makes feedback immediate and the loop tight.
 
-We can read every other chapter in the book without ever opening this one — the Effect Path API, Optics, and Monad Transformers chapters are designed for that — but most readers find that the patterns "click" only after they have spent forty minutes typing them out. That is what this chapter is for.
+We can read every other chapter in the book without ever opening this one (the Effect Path API, Optics, and Monad Transformers chapters are designed for that), but most readers find that the patterns "click" only after they have spent forty minutes typing them out. That is what this chapter is for.
 
 ~~~admonish tip title="Already Productive? Skip to the Capstone"
 If we have already shipped something with the library, the **[One Line, Six Layers](../hkts/one_line_six_layers.md)** anchor in the Foundations chapter is the densest tour of the stack. Each journey here teaches one of the tokens in that single expression; **Tutorial00_OneLineSixLayers** ties them together as a setup check.
@@ -104,7 +104,7 @@ Start wherever interests us most. The pattern Pirsig describes applies precisely
     └─────────────────────────────────────────────────────────────┘
 ```
 
-The loop is simple. The understanding it produces is not. Expect moments of confusion — they are signs that learning is happening, not that something is wrong.
+The loop is simple. The understanding it produces is not. Expect moments of confusion; they are signs that learning is happening, not that something is wrong.
 
 ---
 

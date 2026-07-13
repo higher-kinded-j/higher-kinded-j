@@ -85,17 +85,17 @@ That is it. No restructuring, no cleverness. Follow these three steps and your f
 |-----------|------|
 | `Trampoline<A>` | Sealed interface with three variants: `Done<A>` (final value), `More<A>` (suspended thunk), `FlatMap<A,B>` (monadic bind) |
 | `Trampoline.done(value)` | Create a completed computation holding a final value |
-| `Trampoline.defer(supplier)` | Suspend a computation for later evaluation -- the key to stack safety |
+| `Trampoline.defer(supplier)` | Suspend a computation for later evaluation: the key to stack safety |
 | `trampoline.run()` | Execute the trampoline iteratively and return the final result |
 | `trampoline.map(f)` | Transform the eventual result without executing yet |
 | `trampoline.flatMap(f)` | Sequence two trampolined computations, maintaining stack safety |
 | `TrampolineKind<A>` | HKT marker (`Kind<TrampolineKind.Witness, A>`) so Trampoline works with generic typeclasses |
 | `TrampolineKindHelper` | Provides `widen`, `narrow`, `done`, `defer`, and `run` for the HKT bridge |
-| `TrampolineMonad` | `Monad<TrampolineKind.Witness>` instance -- gives you `of`, `map`, and `flatMap` through the typeclass |
+| `TrampolineMonad` | `Monad<TrampolineKind.Witness>` instance: gives you `of`, `map`, and `flatMap` through the typeclass |
 | `TrampolineUtils` | Stack-safe applicative operations: `traverseListStackSafe`, `map2StackSafe`, `sequenceStackSafe` |
 
 ~~~admonish example title="Example 1: Stack-Safe Factorial"
-**Before** -- naive recursion that blows the stack:
+**Before** (naive recursion that blows the stack):
 
 ```java
 static BigInteger factorialNaive(BigInteger n) {
@@ -105,7 +105,7 @@ static BigInteger factorialNaive(BigInteger n) {
 // factorialNaive(BigInteger.valueOf(10000)) --> StackOverflowError
 ```
 
-**After** -- apply the 3-step recipe:
+**After** (apply the 3-step recipe):
 
 ```java
 import org.higherkindedj.hkt.trampoline.Trampoline;
@@ -144,7 +144,7 @@ System.out.println("5! + 6! = " + combined.run()); // 840
 ```
 ~~~
 
-~~~admonish example title="Example 2: Mutual Recursion -- isEven / isOdd"
+~~~admonish example title="Example 2: Mutual Recursion (isEven / isOdd)"
 Mutual recursion is where Trampoline really shines. Two functions calling each other cannot be unrolled into a simple loop, yet they blow the stack just as fast:
 
 **Before:**
@@ -217,19 +217,19 @@ Key utilities: `traverseListStackSafe`, `map2StackSafe`, `sequenceStackSafe`. Us
 
 | Scenario | Recommendation |
 |----------|----------------|
-| Deep single recursion (>5,000 frames) | Use Trampoline -- this is exactly what it is for |
-| Mutual recursion at any depth | Use Trampoline -- you cannot convert mutual recursion to a simple loop |
+| Deep single recursion (>5,000 frames) | Use Trampoline: this is exactly what it is for |
+| Mutual recursion at any depth | Use Trampoline: you cannot convert mutual recursion to a simple loop |
 | Traversing large collections with custom applicatives | Use `TrampolineUtils` |
-| Recursive tree walking (JSON, XML, file systems) | Use Trampoline -- tree depth is unpredictable in production |
-| Shallow recursion (<1,000 frames) | Skip it -- the overhead is not justified |
-| Performance-critical tight loops | Skip it -- a hand-written `while` loop will always be faster |
-| Simple iteration that is already a loop | Skip it -- do not add complexity where none is needed |
+| Recursive tree walking (JSON, XML, file systems) | Use Trampoline: tree depth is unpredictable in production |
+| Shallow recursion (<1,000 frames) | Skip it: the overhead is not justified |
+| Performance-critical tight loops | Skip it: a hand-written `while` loop will always be faster |
+| Simple iteration that is already a loop | Skip it: do not add complexity where none is needed |
 
 ~~~admonish important title="Key Points"
 - The JVM has no tail-call optimization. Trampoline gives you the equivalent by converting recursion into heap-allocated data structures processed by a flat loop.
-- Stack space is O(1). Heap space is O(n) -- you trade stack frames for small objects on the heap.
+- Stack space is O(1). Heap space is O(n): you trade stack frames for small objects on the heap.
 - The 3-step recipe (change return type, wrap base case, wrap recursive call) is mechanical and works on any recursive function.
-- Call `.run()` to execute. Until then, nothing happens -- evaluation is lazy.
+- Call `.run()` to execute. Until then, nothing happens; evaluation is lazy.
 - For real-world use cases, think: recursive descent parsers, tree traversals, graph algorithms, deeply nested data structures.
 ~~~
 
@@ -238,11 +238,11 @@ Key utilities: `traverseListStackSafe`, `map2StackSafe`, `sequenceStackSafe`. Us
 ~~~ admonish tip title="Influence: Recursion, Thunks and Trampolines"
 The Higher-Kinded-J trampoline implementation was directly influenced by Scott Logic's blog post [Recursion, Thunks and Trampolines with Java and Scala](https://blog.scottlogic.com/2025/05/02/recursion-thunks-trampolines-with-java-and-scala.html). That article traces a progression from problem to solution that closely mirrors what you have just read:
 
-1. **The JVM problem** -- every method call pushes a stack frame. The default stack is ~1 MB, so deep recursion hits `StackOverflowError` well before the heap is anywhere close to full. Even tail-recursive code overflows because the standard JVM does not implement tail-call optimisation (unlike the Scala compiler, which can rewrite `@tailrec` functions into iterative bytecode).
+1. **The JVM problem**: every method call pushes a stack frame. The default stack is ~1 MB, so deep recursion hits `StackOverflowError` well before the heap is anywhere close to full. Even tail-recursive code overflows because the standard JVM does not implement tail-call optimisation (unlike the Scala compiler, which can rewrite `@tailrec` functions into iterative bytecode).
 
-2. **Thunks** -- a thunk is simply a wrapped computation you can execute later (`Supplier<T>` in Java). The key insight is that instead of *making* a recursive call, you *return a thunk that describes* the call. This converts stack growth into heap allocation.
+2. **Thunks**: a thunk is simply a wrapped computation you can execute later (`Supplier<T>` in Java). The key insight is that instead of *making* a recursive call, you *return a thunk that describes* the call. This converts stack growth into heap allocation.
 
-3. **The trampoline pattern** -- a sealed interface with two states: `Done(result)` for a completed value and `More(thunk)` for a suspended step. A `run()` loop unwraps `More` thunks iteratively in a single stack frame until it reaches `Done`:
+3. **The trampoline pattern**: a sealed interface with two states: `Done(result)` for a completed value and `More(thunk)` for a suspended step. A `run()` loop unwraps `More` thunks iteratively in a single stack frame until it reaches `Done`:
 
 ```java
 // From the blog post — the core idea Higher-Kinded-J builds on
@@ -259,15 +259,15 @@ public sealed interface Trampoline<T> permits Done, More {
 }
 ```
 
-Higher-Kinded-J extends this foundation in several ways: adding `FlatMap<A,B>` as a third variant for monadic sequencing, integrating with the HKT simulation so `Trampoline` participates in generic typeclass code, and providing `TrampolineUtils` for stack-safe applicative traversal of large collections. The `Free` monad's `foldMap` also uses `Trampoline` internally for stack-safe interpretation -- a direct payoff of having a first-class trampoline abstraction in the library.
+Higher-Kinded-J extends this foundation in several ways: adding `FlatMap<A,B>` as a third variant for monadic sequencing, integrating with the HKT simulation so `Trampoline` participates in generic typeclass code, and providing `TrampolineUtils` for stack-safe applicative traversal of large collections. The `Free` monad's `foldMap` also uses `Trampoline` internally for stack-safe interpretation, a direct payoff of having a first-class trampoline abstraction in the library.
 ~~~
 
 ~~~admonish example title="Benchmarks"
 Trampoline has dedicated JMH benchmarks measuring stack-safe recursion overhead and scaling behaviour. Key expectations:
 
-- **Deep recursion (10,000+)** completes without `StackOverflowError` — stack-safe trampolining is working
-- **Performance scaling is linear with depth** — no exponential blowup or quadratic complexity
-- **`factorialTrampoline` vs `factorialNaive`** show similar performance at depth 100 — trampoline overhead is minimal for moderate depths
+- **Deep recursion (10,000+)** completes without `StackOverflowError`: stack-safe trampolining is working
+- **Performance scaling is linear with depth**: no exponential blowup or quadratic complexity
+- **`factorialTrampoline` vs `factorialNaive`** show similar performance at depth 100: trampoline overhead is minimal for moderate depths
 - Non-linear scaling is a warning sign suggesting memory leak or quadratic complexity
 
 ```bash

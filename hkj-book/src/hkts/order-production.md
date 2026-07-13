@@ -77,7 +77,7 @@ private RetryPolicy createRetryPolicy() {
 
 > *"I love deadlines. I love the whooshing noise they make as they go by."*
 >
-> -- Douglas Adams
+> — Douglas Adams
 
 Timeouts ensure deadlines do not just whoosh by indefinitely, and with the typed overload they arrive as a `Left` that flows down the same railway as every other domain error, not as a thrown `TimeoutException`:
 

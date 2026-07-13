@@ -15,7 +15,7 @@
 
 ### Without the Plugin
 
-A manual setup requires dependencies, annotation processors, the compile-time checker, and preview flags wired into every task that needs them. The full build file runs to roughly 30 lines -- see [Manual Gradle and Maven Setup](manual_setup.md) for the complete configuration.
+A manual setup requires dependencies, annotation processors, the compile-time checker, and preview flags wired into every task that needs them. The full build file runs to roughly 30 lines; see [Manual Gradle and Maven Setup](manual_setup.md) for the complete configuration.
 
 ### With the Plugin
 
@@ -26,7 +26,7 @@ plugins {
 }
 ```
 
-That is it. The plugin handles dependencies, preview flags, `-parameters` (parameter names in class files, used by copy strategies and the upcoming mapper), compile-time checks, and Javadoc configuration automatically.
+That is it. The plugin wires in dependencies, preview flags, compile-time checks, and Javadoc configuration automatically. It also enables "-parameters", which keeps constructor parameter names in the compiled class files: some copy strategies read them today, and the [record mapper](../optics/record_mapping.md) uses them too.
 
 ### Using SNAPSHOT Versions
 
@@ -233,7 +233,7 @@ Run diagnostics with `mvn hkj:diagnostics` or install skills with `mvn hkj:insta
 
 ### Manual Maven Setup
 
-Projects that cannot apply the Maven plugin should see [Manual Gradle and Maven Setup](manual_setup.md) for the full `pom.xml` -- including the BOM, annotation processors, the `HKJChecker` compiler plugin, and the preview flags for surefire and exec plugins.
+Projects that cannot apply the Maven plugin should see [Manual Gradle and Maven Setup](manual_setup.md) for the full `pom.xml`, including the BOM, annotation processors, the `HKJChecker` compiler plugin, and the preview flags for surefire and exec plugins.
 
 ---
 

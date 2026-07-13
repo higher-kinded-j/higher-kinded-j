@@ -273,7 +273,7 @@ runReader(program, config)
     └──► formatInfo(conn)        → "Connected to prod-db"
 ```
 
-Each step in a `flatMap` chain receives the same environment `R`. The environment is provided once at the end via `runReader` — individual steps never need it as an explicit parameter.
+Each step in a `flatMap` chain receives the same environment `R`. The environment is provided once at the end via `runReader`. Individual steps never need it as an explicit parameter.
 ~~~
 
 
@@ -282,18 +282,18 @@ Each step in a `flatMap` chain receives the same environment `R`. The environmen
 | Scenario | Use |
 |----------|-----|
 | Threading configuration through multiple functions | `Reader` / `ReaderMonad` |
-| Functional dependency injection | `Reader` — dependencies provided at `runReader` time |
-| Testing with different configurations | `Reader` — swap environments without changing code |
+| Functional dependency injection | `Reader`: dependencies provided at `runReader` time |
+| Testing with different configurations | `Reader`: swap environments without changing code |
 | Modifying the environment for a sub-computation | `Reader` with `local` (modify env for inner Reader) |
 | Combining configuration with error handling or async | Use [ReaderT transformer](../transformers/readert_transformer.md) |
 | Application-level environment-dependent pipelines | Prefer composing with other Path types |
 
 ~~~admonish important title="Key Points"
-- `Reader<R, A>` wraps a function `R → A` — it describes a computation that depends on environment `R`.
+- `Reader<R, A>` wraps a function `R → A`: it describes a computation that depends on environment `R`.
 - Nothing executes until `runReader(reader, environment)` is called with a concrete environment.
-- `flatMap` chains pass the **same** environment to each step — no manual threading.
-- `ask()` returns the environment itself — useful when a step needs the full config.
-- `constant(value)` ignores the environment — useful for lifting pure values into Reader context.
+- `flatMap` chains pass the **same** environment to each step, no manual threading.
+- `ask()` returns the environment itself, useful when a step needs the full config.
+- `constant(value)` ignores the environment, useful for lifting pure values into Reader context.
 - `Reader<R, A>` directly implements `ReaderKind<R, A>`, so `widen`/`narrow` are zero-cost casts.
 ~~~
 
@@ -302,9 +302,9 @@ Each step in a `flatMap` chain receives the same environment `R`. The environmen
 ~~~admonish example title="Benchmarks"
 Reader has dedicated JMH benchmarks measuring function composition overhead, environment access, and chain depth. Key expectations:
 
-- **`of` / `constant`** are very fast — they wrap a function with no computation
-- **`flatMap` chains** incur minimal overhead — each step is a function call with the shared environment
-- **`ask`** is essentially free — it returns the environment directly
+- **`of` / `constant`** are very fast: they wrap a function with no computation
+- **`flatMap` chains** incur minimal overhead: each step is a function call with the shared environment
+- **`ask`** is essentially free: it returns the environment directly
 
 ```bash
 ./gradlew :hkj-benchmarks:jmh --includes=".*ReaderBenchmark.*"

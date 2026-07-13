@@ -209,8 +209,8 @@ idempotent where possible.
 | `saga.flatMap(fn)` | Chain with another saga |
 
 ~~~admonish tip title="See Also"
-- [Combined Patterns](combined.md) -- using saga alongside retry and circuit breaker
-- [Resource Management](../effect/advanced_topics.md#resource-management) -- bracket pattern for infrastructure cleanup
+- [Combined Patterns](combined.md) - using saga alongside retry and circuit breaker
+- [Resource Management](../effect/advanced_topics.md#resource-management) - bracket pattern for infrastructure cleanup
 ~~~
 
 ---

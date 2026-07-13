@@ -15,9 +15,9 @@ A one-page reference card for every monad transformer in Higher-Kinded-J. Use th
 
 | Transformer | Wraps | MonadError? | Path Type | MTL Capability |
 |-------------|-------|-------------|-----------|----------------|
-| `EitherT<F, L, R>`   | `Kind<F, Either<L, R>>` | yes (`L`)    | [`EitherPath<E, A>`](../effect/path_either.md) | -- |
-| `OptionalT<F, A>`    | `Kind<F, Optional<A>>`  | yes (`Unit`) | [`OptionalPath<A>`](../effect/path_optional.md) | -- |
-| `MaybeT<F, A>`       | `Kind<F, Maybe<A>>`     | yes (`Unit`) | [`MaybePath<A>`](../effect/path_maybe.md) | -- |
+| `EitherT<F, L, R>`   | `Kind<F, Either<L, R>>` | yes (`L`)    | [`EitherPath<E, A>`](../effect/path_either.md) | - |
+| `OptionalT<F, A>`    | `Kind<F, Optional<A>>`  | yes (`Unit`) | [`OptionalPath<A>`](../effect/path_optional.md) | - |
+| `MaybeT<F, A>`       | `Kind<F, Maybe<A>>`     | yes (`Unit`) | [`MaybePath<A>`](../effect/path_maybe.md) | - |
 | `ReaderT<F, R, A>`   | `R -> Kind<F, A>`       | no           | [`ReaderPath<R, A>`](../effect/advanced_effects.md) | [`MonadReader`](mtl_reader.md) |
 | `StateT<S, F, A>`    | `S -> Kind<F, (S, A)>`  | no           | [`WithStatePath<S, A>`](../effect/advanced_effects.md) | [`MonadState`](mtl_state.md) |
 | `WriterT<F, W, A>`   | `Kind<F, Pair<A, W>>`   | no           | [`WriterPath<W, A>`](../effect/advanced_effects.md) | [`MonadWriter`](mtl_writer.md) |
@@ -175,10 +175,10 @@ If none of those apply, the corresponding Path type is simpler to read and write
 ---
 
 ~~~admonish tip title="See Also"
-- [Quickstart](quickstart.md) -- three runnable examples in 150 lines
-- [Stack Archetypes](archetypes.md) -- named patterns for common composition problems
-- [Migration Cookbook](migration_cookbook.md) -- imperative and Path translations
-- [Monad Transformers](transformers.md) -- the underlying mechanics
+- [Quickstart](quickstart.md) - three runnable examples in 150 lines
+- [Stack Archetypes](archetypes.md) - named patterns for common composition problems
+- [Migration Cookbook](migration_cookbook.md) - imperative and Path translations
+- [Monad Transformers](transformers.md) - the underlying mechanics
 ~~~
 
 ---

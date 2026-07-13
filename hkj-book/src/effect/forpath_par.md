@@ -4,7 +4,7 @@ Sequential comprehensions with `.from()` force each step to wait for the previou
 
 ## Combining Independent Values
 
-`ForPath.par()` accepts two or three independent Path values and combines them using applicative semantics. The key difference from `.from()` is that `par()` does not thread values sequentially -- it evaluates all branches and merges the results:
+`ForPath.par()` accepts two or three independent Path values and combines them using applicative semantics. The key difference from `.from()` is that `par()` does not thread values sequentially; it evaluates all branches and merges the results:
 
 ```java
 // Two independent MaybePaths
@@ -23,7 +23,7 @@ EitherPath<String, String> profile =
 // Right("Alice (42) [admin]")
 ```
 
-Short-circuiting works as expected for types with failure semantics -- if any branch fails, the whole computation fails:
+Short-circuiting works as expected for types with failure semantics; if any branch fails, the whole computation fails:
 
 ```java
 MaybePath<String> result =
@@ -61,7 +61,7 @@ IOPath<String> result =
 String value = result.unsafeRun();  // "hello world"
 ```
 
-IdPath uses `Id.of()` to wrap pure values -- there is no effect to parallelise, but `par()` still expresses structural independence:
+IdPath uses `Id.of()` to wrap pure values; there is no effect to parallelise, but `par()` still expresses structural independence:
 
 ```java
 IdPath<Integer> sum =

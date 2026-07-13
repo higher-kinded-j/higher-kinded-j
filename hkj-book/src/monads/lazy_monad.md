@@ -39,11 +39,11 @@ EAGER (always runs everything):         LAZY (runs on demand):
 
 With `Lazy`, each computation is wrapped in a deferred shell. Nothing runs until you explicitly call `force()`. If you never force a value, you never pay its cost.
 
-This is not a niche optimization. Any time your code builds a data structure with fields that are expensive to populate but cheap to skip, laziness eliminates wasted work at zero architectural cost. The calling code decides what to evaluate -- not the producer.
+This is not a niche optimization. Any time your code builds a data structure with fields that are expensive to populate but cheap to skip, laziness eliminates wasted work at zero architectural cost. The calling code decides what to evaluate, not the producer.
 
 ## The Fix: Defer and Force
 
-`Lazy<A>` stores a computation without executing it. Call `defer()` to wrap the work; call `force()` when you actually need the result. After the first `force()`, the result is cached -- subsequent calls return instantly with zero recomputation.
+`Lazy<A>` stores a computation without executing it. Call `defer()` to wrap the work; call `force()` when you actually need the result. After the first `force()`, the result is cached; subsequent calls return instantly with zero recomputation.
 
 ```java
 Kind<LazyKind.Witness, String> profile = LAZY.defer(() -> fetchUserProfile(userId));
@@ -61,7 +61,7 @@ Contrast this with a raw `Supplier<T>`, which re-executes on every `.get()` call
 
 | Component | Role |
 |-----------|------|
-| `ThrowableSupplier<T>` | Like `Supplier`, but its `get()` may throw any `Throwable` -- the computation source for `Lazy` |
+| `ThrowableSupplier<T>` | Like `Supplier`, but its `get()` may throw any `Throwable` (the computation source for `Lazy`) |
 | `Lazy<A>` | Core class: wraps a supplier, evaluates on `force()`, and memoizes the result (or exception) |
 | `LazyKind<A>` | HKT marker (`Kind<LazyKind.Witness, A>`) so `Lazy` can participate in generic typeclass code |
 | `LazyKindHelper` | Bridge utilities: `widen`, `narrow`, `defer`, `now`, `force` for converting between `Lazy` and `LazyKind` |
@@ -69,10 +69,10 @@ Contrast this with a raw `Supplier<T>`, which re-executes on every `.get()` call
 
 `LazyKindHelper` deserves special attention. It is your primary API surface when working with `Lazy` in generic HKT code. Its static methods handle the wrapping and unwrapping so you can stay in the `Kind<LazyKind.Witness, A>` world without manual casting:
 
-- **`defer(supplier)`** -- create a deferred `LazyKind` from a `ThrowableSupplier`
-- **`now(value)`** -- create an already-evaluated `LazyKind`
-- **`force(kind)`** -- unwrap and evaluate, returning the cached result or throwing the cached exception
-- **`widen(lazy)`** / **`narrow(kind)`** -- convert between `Lazy<A>` and `Kind<LazyKind.Witness, A>`
+- **`defer(supplier)`**: create a deferred `LazyKind` from a `ThrowableSupplier`
+- **`now(value)`**: create an already-evaluated `LazyKind`
+- **`force(kind)`**: unwrap and evaluate, returning the cached result or throwing the cached exception
+- **`widen(lazy)`** / **`narrow(kind)`**: convert between `Lazy<A>` and `Kind<LazyKind.Witness, A>`
 
 ~~~admonish note title="How Lazy Evaluation Works"
 ```
@@ -97,11 +97,11 @@ force() #3  -->  cache hit      -->  result returned -->    0ms
 force() #N  -->  cache hit      -->  result returned -->    0ms
 ```
 
-This makes `Lazy` ideal for values that are expensive to produce but read frequently -- configuration lookups, parsed templates, compiled patterns, and similar compute-once artifacts.
+This makes `Lazy` ideal for values that are expensive to produce but read frequently: configuration lookups, parsed templates, compiled patterns, and similar compute-once artifacts.
 ~~~
 
 ~~~admonish example title="Example 1: Deferred Computation"
-Creating lazy values does no work. Forcing them does -- exactly once.
+Creating lazy values does no work. Forcing them does, exactly once.
 
 ```java
 AtomicInteger counter = new AtomicInteger(0);
@@ -128,7 +128,7 @@ System.out.println("Counter: " + counter.get()); // still 1 -- no recomputation
 String resultNow = LAZY.force(ready);   // "Precomputed Value" -- counter unchanged
 ```
 
-Exceptions follow the same rule: if the computation throws on the first `force()`, that exception is cached. Every subsequent `force()` rethrows the same exception without re-executing the supplier. This means error behavior is deterministic -- you will never see a computation fail once, then succeed on retry through the same `Lazy` instance.
+Exceptions follow the same rule: if the computation throws on the first `force()`, that exception is cached. Every subsequent `force()` rethrows the same exception without re-executing the supplier. This means error behavior is deterministic. You will never see a computation fail once, then succeed on retry through the same `Lazy` instance.
 ~~~
 
 ~~~admonish example title="Example 2: Composing with map and flatMap"
@@ -159,13 +159,13 @@ Kind<LazyKind.Witness, String> chained =
 System.out.println(LAZY.force(chained)); // "Combined: 5 & 10"
 ```
 
-Neither `map` nor `flatMap` triggers evaluation -- they build a new `Lazy` that will run the full chain when forced. This means you can construct an entire pipeline of transformations upfront, and the cost of the whole pipeline is paid only at the single point where `force()` is called.
+Neither `map` nor `flatMap` triggers evaluation; they build a new `Lazy` that will run the full chain when forced. This means you can construct an entire pipeline of transformations upfront, and the cost of the whole pipeline is paid only at the single point where `force()` is called.
 ~~~
 
 ~~~admonish warning title="Lazy vs IO: Know the Difference"
-**`Lazy`** defers **pure computation** -- work that depends only on its inputs and always produces the same result. The memoized value is safe to reuse because it never changes.
+**`Lazy`** defers **pure computation**: work that depends only on its inputs and always produces the same result. The memoized value is safe to reuse because it never changes.
 
-**`IO`** defers **side effects** -- work that reads files, calls APIs, writes to databases, or depends on external state. Each execution may produce a different result, so memoization would give stale answers.
+**`IO`** defers **side effects**: work that reads files, calls APIs, writes to databases, or depends on external state. Each execution may produce a different result, so memoization would give stale answers.
 
 | Question | Answer |
 |----------|--------|
@@ -204,20 +204,20 @@ See [One Line, Six Layers](../hkts/one_line_six_layers.md) for the wider picture
 | Scenario | Recommendation |
 |----------|----------------|
 | Deferring expensive computation until needed | `Lazy` / `LazyMonad` |
-| Composing deferred computations while preserving laziness | `LazyMonad` -- `map`/`flatMap` don't trigger evaluation |
-| Caching computation results (memoization) | `Lazy` -- result is cached after first `force()` |
-| Computations that may throw checked exceptions | `Lazy` -- wraps `ThrowableSupplier` |
-| Building data structures with optional expensive fields | `Lazy` -- callers force only what they need |
-| Configuration values loaded once and reused | `Lazy` -- natural fit for compute-once semantics |
+| Composing deferred computations while preserving laziness | `LazyMonad`: `map`/`flatMap` don't trigger evaluation |
+| Caching computation results (memoization) | `Lazy`: result is cached after first `force()` |
+| Computations that may throw checked exceptions | `Lazy`: wraps `ThrowableSupplier` |
+| Building data structures with optional expensive fields | `Lazy`: callers force only what they need |
+| Configuration values loaded once and reused | `Lazy`: natural fit for compute-once semantics |
 | Deferred side effects with execution control | Prefer [IO](./io_monad.md) instead |
 
 ~~~admonish important title="Key Points"
-- `Lazy<A>` wraps a `ThrowableSupplier<A>` -- nothing executes until `force()` is called.
+- `Lazy<A>` wraps a `ThrowableSupplier<A>`; nothing executes until `force()` is called.
 - Results are **memoized**: the first `force()` computes and caches; subsequent calls return the cached value instantly.
-- Exceptions are also memoized -- if the computation throws on first `force()`, the same exception is rethrown on subsequent calls.
+- Exceptions are also memoized: if the computation throws on first `force()`, the same exception is rethrown on subsequent calls.
 - `map` and `flatMap` via `LazyMonad` produce new `Lazy` values without triggering evaluation of the input.
-- `Lazy.now(value)` creates an already-evaluated instance -- useful for lifting pure values into the Lazy context.
-- `ThrowableSupplier` allows checked exceptions -- no need for awkward `try`/`catch` inside lambdas.
+- `Lazy.now(value)` creates an already-evaluated instance, useful for lifting pure values into the Lazy context.
+- `ThrowableSupplier` allows checked exceptions; no need for awkward `try`/`catch` inside lambdas.
 - Thread safety: `Lazy` ensures the supplier runs at most once, even under concurrent `force()` calls.
 ~~~
 
@@ -226,9 +226,9 @@ See [One Line, Six Layers](../hkts/one_line_six_layers.md) for the wider picture
 ~~~admonish example title="Benchmarks"
 Lazy has dedicated JMH benchmarks measuring deferred construction, memoization overhead, and chain depth. Key expectations:
 
-- **Construction** (`defer`, `now`) is very fast -- Lazy is a thin wrapper with no immediate execution
+- **Construction** (`defer`, `now`) is very fast; Lazy is a thin wrapper with no immediate execution
 - **First `force()`** incurs the full computation cost; subsequent calls return the cached result
-- **Deep chains (50+)** of `map`/`flatMap` complete without error -- composition overhead dominates at depth
+- **Deep chains (50+)** of `map`/`flatMap` complete without error; composition overhead dominates at depth
 
 ```bash
 ./gradlew :hkj-benchmarks:jmh --includes=".*LazyBenchmark.*"

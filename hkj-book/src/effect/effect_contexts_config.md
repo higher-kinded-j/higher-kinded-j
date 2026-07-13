@@ -2,7 +2,7 @@
 
 > *"The onlyes power is no power."*
 >
-> -- Russell Hoban, *Riddley Walker*
+> — Russell Hoban, *Riddley Walker*
 
 Hoban's aphorism hints at a paradox: sometimes the most powerful abstractions are those that feel like nothing at all. `ConfigContext` provides dependency injection that doesn't feel like a framework: no annotations, no containers, no reflection. Dependencies flow through your code as naturally as function arguments, but without cluttering every signature.
 

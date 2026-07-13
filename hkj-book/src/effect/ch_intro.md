@@ -4,7 +4,7 @@
 > *"A map is not the territory it represents, but, if correct, it has a similar
 > structure to the territory, which accounts for its usefulness."*
 >
-> -- Alfred Korzybski, *Science and Sanity*
+> — Alfred Korzybski, *Science and Sanity*
 
 ---
 
@@ -21,35 +21,35 @@ If you've used the Focus DSL from the optics chapters, the patterns will feel fa
 ---
 
 ~~~admonish info title="In This Chapter"
-**[Quickstart](quickstart.md)** -- Three runnable examples showing `MaybePath`, `EitherPath`, and `ForPath` in about 150 lines. The fastest path from zero to working code.
+**[Quickstart](quickstart.md)** - Three runnable examples showing `MaybePath`, `EitherPath`, and `ForPath` in about 150 lines. The fastest path from zero to working code.
 
-**Core Paths** -- The everyday API for Effect Path adopters:
-- **[Core Paths Overview](effect_path_overview.md)** -- The problem that Path types solve, the railway model of effect composition, and your first taste of the API.
-- **[Migration Cookbook](migration_cookbook.md)** -- Pattern-by-pattern translations from imperative Java to Effect Path. Recipes for `try/catch`, nullable lookups, `CompletableFuture`, validation, and nested record updates.
-- **[Path Types Overview](path_types.md)** -- A decision tree across the six core path types, with a short primer on when to reach for each.
-- **MaybePath, EitherPath, TryPath, ValidationPath, IOPath, VTaskPath** -- One page per path type: operators, idioms, and worked examples.
-- **[Composition Patterns](composition.md)** -- Sequential chains, independent combination, parallel execution, debugging with `peek`.
-- **[ForPath Comprehension](forpath_comprehension.md)** (with Examples) -- The for-comprehension designed specifically for Path types. Parallel and Traverse variants live under Advanced Paths.
+**Core Paths** - The everyday API for Effect Path adopters:
+- **[Core Paths Overview](effect_path_overview.md)** - The problem that Path types solve, the railway model of effect composition, and your first taste of the API.
+- **[Migration Cookbook](migration_cookbook.md)** - Pattern-by-pattern translations from imperative Java to Effect Path. Recipes for `try/catch`, nullable lookups, `CompletableFuture`, validation, and nested record updates.
+- **[Path Types Overview](path_types.md)** - A decision tree across the six core path types, with a short primer on when to reach for each.
+- **MaybePath, EitherPath, TryPath, ValidationPath, IOPath, VTaskPath** - One page per path type: operators, idioms, and worked examples.
+- **[Composition Patterns](composition.md)** - Sequential chains, independent combination, parallel execution, debugging with `peek`.
+- **[ForPath Comprehension](forpath_comprehension.md)** (with Examples) - The for-comprehension designed specifically for Path types. Parallel and Traverse variants live under Advanced Paths.
 
-**Optics Integration** -- Bridging Effect Paths with the Optics chapter:
-- **[Focus-Effect Integration](focus_integration.md)** -- Converting between FocusPath / AffinePath / TraversalPath and Effect Path types; using `focus()` to navigate within effect contexts.
-- **[Capstone: Effects Meet Optics](capstone_focus_effect.md)** -- A complete before/after example combining effects and optics in a single pipeline.
+**Optics Integration** - Bridging Effect Paths with the Optics chapter:
+- **[Focus-Effect Integration](focus_integration.md)** - Converting between FocusPath / AffinePath / TraversalPath and Effect Path types; using `focus()` to navigate within effect contexts.
+- **[Capstone: Effects Meet Optics](capstone_focus_effect.md)** - A complete before/after example combining effects and optics in a single pipeline.
 
-**Advanced Paths** -- Free monads, algebraic effects, streaming, and resilience:
-- **[Advanced Paths Overview](advanced_topics.md)** -- Stack-safe recursion, DSL building with Free structures, resource management, parallel execution.
-- **IdPath, OptionalPath, GenericPath, TrampolinePath, FreePath, FreeApPath, VStreamPath** -- Advanced and specialised path types.
-- **[ForPath Parallel Composition](forpath_par.md)** and **[ForPath Traverse](forpath_traverse.md)** -- Concurrency primitives and typeclass-level traversal for ForPath comprehensions.
-- **[Advanced Effects](advanced_effects.md)** -- Reader, State, and Writer paths for environment access, stateful computation, and logging accumulation.
-- **[Effect Contexts](effect_contexts.md)** -- Context-scoped effects including ErrorContext, ConfigContext, RequestContext, and SecurityContext.
-- **[Effect Handlers](effect_handlers_intro.md)** -- Algebraic-effect-style programming via Free monads and interpreters.
-- **[Patterns and Recipes](patterns.md)** -- Real-world patterns distilled from production code: validation pipelines, service orchestration, fallback chains, resilience with retry.
-- **[Resilience Patterns](../resilience/ch_intro.md)** -- Retry, circuit breaker, bulkhead, saga, and the `ResilienceBuilder`.
+**Advanced Paths** - Free monads, algebraic effects, streaming, and resilience:
+- **[Advanced Paths Overview](advanced_topics.md)** - Stack-safe recursion, DSL building with Free structures, resource management, parallel execution.
+- **IdPath, OptionalPath, GenericPath, TrampolinePath, FreePath, FreeApPath, VStreamPath** - Advanced and specialised path types.
+- **[ForPath Parallel Composition](forpath_par.md)** and **[ForPath Traverse](forpath_traverse.md)** - Concurrency primitives and typeclass-level traversal for ForPath comprehensions.
+- **[Advanced Effects](advanced_effects.md)** - Reader, State, and Writer paths for environment access, stateful computation, and logging accumulation.
+- **[Effect Contexts](effect_contexts.md)** - Context-scoped effects including ErrorContext, ConfigContext, RequestContext, and SecurityContext.
+- **[Effect Handlers](effect_handlers_intro.md)** - Algebraic-effect-style programming via Free monads and interpreters.
+- **[Patterns and Recipes](patterns.md)** - Real-world patterns distilled from production code: validation pipelines, service orchestration, fallback chains, resilience with retry.
+- **[Resilience Patterns](../resilience/ch_intro.md)** - Retry, circuit breaker, bulkhead, saga, and the `ResilienceBuilder`.
 
-**Reference** -- Lookup material:
-- **[Capability Interfaces](capabilities.md)** -- The hierarchy of powers that Path types possess: Composable, Combinable, Chainable, Recoverable, Effectful, and Accumulating.
-- **[Type Conversions](conversions.md)** -- Moving between Path types as your needs change.
-- **[Common Compiler Errors](compiler_errors.md)** -- The five most common compiler errors with full messages, minimal triggers, and fixes.
-- **[Production Readiness](production_readiness.md)** -- Stack traces, allocation overhead, and stack safety. Honest answers for senior engineers.
+**Reference** - Lookup material:
+- **[Capability Interfaces](capabilities.md)** - The hierarchy of powers that Path types possess: Composable, Combinable, Chainable, Recoverable, Effectful, and Accumulating.
+- **[Type Conversions](conversions.md)** - Moving between Path types as your needs change.
+- **[Common Compiler Errors](compiler_errors.md)** - The five most common compiler errors with full messages, minimal triggers, and fixes.
+- **[Production Readiness](production_readiness.md)** - Stack traces, allocation overhead, and stack safety. Honest answers for senior engineers.
 ~~~
 
 ~~~admonish note title="Compile-Time Safety"

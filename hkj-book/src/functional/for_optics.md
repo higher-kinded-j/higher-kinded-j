@@ -5,7 +5,7 @@
 > Hold Infinity in the palm of your hand,
 > And Eternity in an hour."
 >
-> -- William Blake, _Auguries of Innocence_
+> — William Blake, _Auguries of Innocence_
 
 ~~~admonish info title="What You'll Learn"
 - How `focus()` and `match()` let you extract and filter data within comprehensions
@@ -17,10 +17,10 @@
 
 ~~~admonish example title="See Example Code"
 - [EnhancedOpticsIntegrationExample.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/basic/expression/EnhancedOpticsIntegrationExample.java)
-- [ForStateExample.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/basic/expression/ForStateExample.java) -- ForState basics
+- [ForStateExample.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/basic/expression/ForStateExample.java) - ForState basics
 ~~~
 
-Comprehensions give you sequential, composable workflows. Optics give you precise, composable data access. When the two meet, something powerful happens: you can reach into nested structures, filter on variant types, convert between representations, and transform entire collections -- all within a single fluent pipeline.
+Comprehensions give you sequential, composable workflows. Optics give you precise, composable data access. When the two meet, something powerful happens: you can reach into nested structures, filter on variant types, convert between representations, and transform entire collections, all within a single fluent pipeline.
 
 This chapter builds a payroll processing scenario step by step. Each section introduces an optics operation that solves a specific part of the problem, so by the end you will have seen how all the pieces fit together.
 
@@ -28,7 +28,7 @@ This chapter builds a payroll processing scenario step by step. Each section int
 
 ## Seeing Into Your Data
 
-The first challenge in any data pipeline is getting at the values you need. In a traditional approach you would destructure records, call getters, and scatter intermediate variables across your method. Within a comprehension, `focus()` and `match()` let you do this declaratively -- each extracted value is accumulated alongside the original, available to every subsequent step.
+The first challenge in any data pipeline is getting at the values you need. In a traditional approach you would destructure records, call getters, and scatter intermediate variables across your method. Within a comprehension, `focus()` and `match()` let you do this declaratively: each extracted value is accumulated alongside the original, available to every subsequent step.
 
 ### Extracting Nested Values with `focus()`
 
@@ -51,11 +51,11 @@ Kind<ListKind.Witness, String> result =
 // Result: ["Alice works in Engineering", "Bob works in Engineering"]
 ```
 
-The `focus()` call does not introduce a new monadic binding -- it simply extracts a value from what is already in scope and adds it to the tuple. Both the original employee and the extracted department name are available in `yield()`.
+The `focus()` call does not introduce a new monadic binding; it simply extracts a value from what is already in scope and adds it to the tuple. Both the original employee and the extracted department name are available in `yield()`.
 
 ### Filtering with Pattern Matching via `match()`
 
-Not all data fits neatly into a single type. When you need to work with sum types -- sealed interfaces, variants, or optional shapes -- `match()` provides prism-like pattern matching directly within the comprehension. Elements that do not match are filtered out (with `List`) or short-circuit the computation (with `Maybe`):
+Not all data fits neatly into a single type. When you need to work with sum types (sealed interfaces, variants, or optional shapes), `match()` provides prism-like pattern matching directly within the comprehension. Elements that do not match are filtered out (with `List`) or short-circuit the computation (with `Maybe`):
 
 ```java
 sealed interface PayrollResult permits Paid, Skipped {}
@@ -110,9 +110,9 @@ For.from(listMonad, LIST.widen(items))
 
 > "Nothing is true, everything is permitted."
 >
-> -- William Burroughs, _Cities of the Red Night_
+> — William Burroughs, _Cities of the Red Night_
 
-A salary stored as `int` cents and a budget reasoned about in dollars are the same information in different clothes. Converting back and forth is tedious and error-prone -- you end up with `/ 100.0` and `* 100` calls scattered throughout your code. An [Iso](../optics/iso.md) formalises this equivalence, and comprehensions provide three ways to use it.
+A salary stored as `int` cents and a budget reasoned about in dollars are the same information in different clothes. Converting back and forth is tedious and error-prone; you end up with `/ 100.0` and `* 100` calls scattered throughout your code. An [Iso](../optics/iso.md) formalises this equivalence, and comprehensions provide three ways to use it.
 
 ### Converting Within a For Comprehension: `through(Iso)`
 
@@ -186,11 +186,11 @@ Both honour the Iso's round-trip property, keeping internal and external represe
 
 ## Transforming Collections in Place
 
-With extraction, filtering, and conversion covered, the remaining challenge is bulk operations -- applying a transformation to every element in a collection, potentially with effects. ForState provides two operations for this, and the standalone `ForTraversal` and `ForIndexed` builders offer additional flexibility.
+With extraction, filtering, and conversion covered, the remaining challenge is bulk operations: applying a transformation to every element in a collection, potentially with effects. ForState provides two operations for this, and the standalone `ForTraversal` and `ForIndexed` builders offer additional flexibility.
 
 ### Effectful Traversal with `traverseOver`
 
-`traverseOver(traversal, function)` applies an effectful function to each element focused by the traversal. The monad governs how effects compose -- with `Maybe`, a single failure short-circuits the entire operation:
+`traverseOver(traversal, function)` applies an effectful function to each element focused by the traversal. The monad governs how effects compose; with `Maybe`, a single failure short-circuits the entire operation:
 
 ```java
 Traversal<List<Employee>, Employee> empTraversal = Traversals.forList();
@@ -208,7 +208,7 @@ The key difference from `traverse(lens, traversal, function)` is that `traverseO
 
 ### Pure Traversal with `modifyThrough`
 
-When your transformation is pure -- no validation, no effects, no possibility of failure -- use `modifyThrough(traversal, modifier)`. It uses the Identity monad internally, so there is no monadic overhead:
+When your transformation is pure (no validation, no effects, no possibility of failure), use `modifyThrough(traversal, modifier)`. It uses the Identity monad internally, so there is no monadic overhead:
 
 ```java
 // Uppercase all employee names (pure operation, no effect needed)
@@ -379,7 +379,7 @@ For more details on indexed optics, see [Indexed Optics](../optics/indexed_optic
 
 ## Putting It Together
 
-The real power of optics integration emerges when you combine these operations in a single pipeline. Here is a payroll workflow that validates employees, normalises their names, gives everyone a raise, and increases the department budget -- all in one composable chain:
+The real power of optics integration emerges when you combine these operations in a single pipeline. Here is a payroll workflow that validates employees, normalises their names, gives everyone a raise, and increases the department budget, all in one composable chain:
 
 ```java
 MonadError<MaybeKind.Witness, Unit> maybeMonad = Instances.monadError(maybe());
@@ -398,7 +398,7 @@ Kind<MaybeKind.Witness, Department> result =
         .yield();
 ```
 
-Each operation addresses a different concern -- validation, transformation, unit conversion -- yet they compose into a single, readable pipeline. The monad handles failure propagation; the optics handle data access. Neither concern leaks into the other.
+Each operation addresses a different concern (validation, transformation, unit conversion), yet they compose into a single, readable pipeline. The monad handles failure propagation; the optics handle data access. Neither concern leaks into the other.
 
 ---
 

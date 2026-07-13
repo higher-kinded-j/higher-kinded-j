@@ -1,4 +1,4 @@
-# Foundations Journey — Cheatsheet
+# Foundations Journey: Cheatsheet
 
 A single-page reference for the four tutorials in the Foundations journey. Two columns: how we wrote it before, how we write it now.
 
@@ -19,11 +19,11 @@ A single-page reference for the four tutorials in the Foundations journey. Two c
 | Drop a `Kind` back to the concrete type | n/a | `EITHER.narrow(kind)` / `LIST.narrow(kind)` / etc. |
 | Talk about "the shape F" at the type level | not expressible | the witness type, e.g. `EitherKind.Witness<L>` |
 
-Common stumble: narrowing with the wrong helper. The witness type is exactly what catches this — it is a compile error, not a runtime surprise.
+Common stumble: narrowing with the wrong helper. The witness type is exactly what catches this; it is a compile error, not a runtime surprise.
 
 ---
 
-## Functor — `map` (Tutorial 02)
+## Functor: `map` (Tutorial 02)
 
 | Pattern | Imperative Java | Higher-Kinded-J |
 |---------|------------------|-----------------|
@@ -31,13 +31,13 @@ Common stumble: narrowing with the wrong helper. The witness type is exactly wha
 | Transform a possibly-absent value | `opt.map(f)` | `monad.map(f, MAYBE.widen(maybe))` |
 | Transform the success side of a result | `result.map(f)` (custom Result) | `either.map(f)` or `monad.map(f, EITHER.widen(either))` |
 | Transform a future | `future.thenApply(f)` | `monad.map(f, FUTURE.widen(future))` |
-| Method reference inside a transform | `String::toUpperCase` | unchanged — works exactly the same |
+| Method reference inside a transform | `String::toUpperCase` | unchanged (works exactly the same) |
 
-Common stumble: using `map` with a function that returns a wrapped value. The result is `F<F<B>>` (nested). The fix is `flatMap` — see Tutorial 04.
+Common stumble: using `map` with a function that returns a wrapped value. The result is `F<F<B>>` (nested). The fix is `flatMap` (see Tutorial 04).
 
 ---
 
-## Applicative — `map2` … `map5` (Tutorial 03)
+## Applicative: `map2` … `map5` (Tutorial 03)
 
 | Pattern | Imperative Java | Higher-Kinded-J |
 |---------|------------------|-----------------|
@@ -51,7 +51,7 @@ Common stumble: calling `value1.map2(value2, ...)` directly on the concrete type
 
 ---
 
-## Monad — `flatMap` (Tutorial 04)
+## Monad: `flatMap` (Tutorial 04)
 
 | Pattern | Imperative Java | Higher-Kinded-J |
 |---------|------------------|-----------------|

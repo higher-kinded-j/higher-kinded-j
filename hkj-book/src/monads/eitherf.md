@@ -3,7 +3,7 @@
 
 > *"Only connect! That was the whole of her sermon."*
 >
-> -- E.M. Forster, *Howards End*
+> — E.M. Forster, *Howards End*
 
 Forster's imperative applies to effect algebras. A payment service speaks four separate languages: gateway operations, fraud checks, ledger entries, notifications. Each is a self-contained sealed interface with its own vocabulary. But a program orchestrating all four needs a single type that can hold any instruction from any vocabulary. `EitherF` is the connection: a union type at the type-constructor level that routes each instruction to the interpreter that speaks its language.
 

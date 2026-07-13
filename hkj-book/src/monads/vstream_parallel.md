@@ -127,7 +127,7 @@ VStream<Integer> processed = VStreamPar.parEvalMapUnordered(
 
 Applies a stream-producing function to each element with bounded concurrency. Up to
 `concurrency` sub-stream creation calls run in parallel via `parEvalMap`; the resulting
-sub-streams are then concatenated lazily via `flatMap` — sub-stream contents are never
+sub-streams are then concatenated lazily via `flatMap`; sub-stream contents are never
 materialised into intermediate lists:
 
 ```java
@@ -142,7 +142,7 @@ VStream<Order> orders = VStreamPar.parEvalFlatMap(
 Combines multiple streams concurrently. Each source stream is consumed on its own
 virtual thread within a `StructuredTaskScope`. Elements are pushed to a shared queue
 as they are produced, so the first element is available as soon as any source produces
-one — without waiting for all sources to finish:
+one, without waiting for all sources to finish:
 
 ```java
 VStream<Event> allEvents = VStreamPar.merge(List.of(

@@ -2,7 +2,7 @@
 
 > *"The major difference between a thing that might go wrong and a thing that cannot possibly go wrong is that when a thing that cannot possibly go wrong goes wrong, it usually turns out to be impossible to get at or repair."*
 >
-> -- Douglas Adams, *Mostly Harmless*
+> — Douglas Adams, *Mostly Harmless*
 
 Enterprise software can be like this. Consider order processing. Every step can fail. Every failure has a type. Every type demands a different response. And when you have nested enough `try-catch` blocks inside enough null checks inside enough `if` statements, the thing that cannot possibly go wrong becomes the thing you cannot possibly debug.
 
@@ -134,7 +134,7 @@ public EitherPath<OrderError, OrderResult> process(OrderRequest request) {
 
 The transformation is dramatic:
 
-- **Named field access**: After `toState()`, every value is `s.order()`, `s.customer()`, `s.discount()` — not `t._3()`, `t._2()`, `t._5()`
+- **Named field access**: After `toState()`, every value is `s.order()`, `s.customer()`, `s.discount()`, not `t._3()`, `t._2()`, `t._5()`
 - **Typed errors**: `OrderError` is a sealed interface; the compiler ensures exhaustive handling
 - **Automatic propagation**: Failures short-circuit; no explicit checks required
 - **Refactoring-safe**: Adding or removing a step does not shift any other accessor
@@ -154,7 +154,7 @@ Notice how errors branch off at each decision point, while success flows forward
 
 Step back and consider what this example builds. An order workflow with eight distinct steps, seven potential error types, recovery logic, retry policies, feature flags, immutable state updates, and concurrent execution. In traditional Java, this would likely span hundreds of lines of nested conditionals, try-catch blocks, and defensive null checks.
 
-Instead, the core workflow fits in a `For` → `toState()` → `ForState` comprehension — eight steps, flat and readable, with named field access throughout:
+Instead, the core workflow fits in a `For` → `toState()` → `ForState` comprehension (eight steps, flat and readable, with named field access throughout):
 
 ```java
 For.from(monad, lift(validateShippingAddress(request.shippingAddress())))
@@ -187,7 +187,7 @@ This is not magic. It is the result of combining a small number of simple, compo
 | Annotations | Generates lenses, prisms, and bridges |
 
 ~~~admonish note title="Why not par() in the gather phase?"
-The gather phase uses sequential `.from()` rather than `par()` because **step 3 depends on the results of steps 1 and 2**: `buildValidatedOrder` needs both the validated address and the customer. However, steps 1 and 2 *are* independent — `validateShippingAddress` and `lookupAndValidateCustomer` do not depend on each other. If these were expensive operations, you could use `For.par()` for them and chain step 3 with `.from()`:
+The gather phase uses sequential `.from()` rather than `par()` because **step 3 depends on the results of steps 1 and 2**: `buildValidatedOrder` needs both the validated address and the customer. However, steps 1 and 2 *are* independent: `validateShippingAddress` and `lookupAndValidateCustomer` do not depend on each other. If these were expensive operations, you could use `For.par()` for them and chain step 3 with `.from()`:
 
 ```java
 For.par(monad, lift(validateShippingAddress(address)), lift(lookupAndValidateCustomer(id)))
@@ -205,7 +205,7 @@ The power comes from *composition*. Each building block does one thing well, and
 
 > *"Make each program do one thing well. To do a new job, build afresh rather than complicate old programs by adding new features."*
 >
-> -- Doug McIlroy, Unix Philosophy
+> — Doug McIlroy, Unix Philosophy
 
 This is the Unix philosophy applied to data and control flow. Small, focused tools, combined freely. The result is code that is:
 
@@ -228,7 +228,7 @@ The pyramid of doom we started with was not a failure of Java. It was a failure 
 
 ~~~admonish info title="Key Takeaways"
 * **Sealed error hierarchies** enable exhaustive pattern matching and type-safe error handling
-* **`For` → `toState()` → `ForState`** composes multi-step workflows with named field access — no more tuple positions
+* **`For` → `toState()` → `ForState`** composes multi-step workflows with named field access, no more tuple positions
 * **Recovery patterns** handle non-fatal errors gracefully
 * **Resilience utilities** add retry and timeout behaviour without cluttering business logic
 * **Focus DSL** complements Effect Path for immutable state updates

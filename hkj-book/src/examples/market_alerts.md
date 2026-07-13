@@ -2,7 +2,7 @@
 
 > *"The future is already here. It's just not evenly distributed."*
 >
-> -- William Gibson
+> — William Gibson
 
 Neither is failure. In a live system, one exchange drops out while the others keep
 streaming, one alert channel times out while the rest succeed, one batch of ticks arrives
@@ -61,7 +61,7 @@ public VStream<Alert> detect(VStream<AggregatedView> views) {
     <span class="pipeline-arrow">→</span>
     <span class="pipeline-node pn-purple" style="font-weight:700">flatMap flattens</span>
     <span class="pipeline-arrow">→</span>
-    <span class="pipeline-node pn-red">VStream&lt;Alert&gt; — 5 total</span>
+    <span class="pipeline-node pn-red">VStream&lt;Alert&gt;: 5 total</span>
   </div>
   <div class="pipeline-row">
     <span class="pipeline-node pn-blue">AggView₃</span>
@@ -213,7 +213,7 @@ VStream<PriceTick> resilientFeed = primaryFeed.recoverWith(error -> fallbackFeed
 
 <div class="pipeline-diagram">
   <div class="pipeline-row pipeline-row-center">
-    <span class="pipeline-node pn-blue">Primary Feed — NYSE</span>
+    <span class="pipeline-node pn-blue">Primary Feed (NYSE)</span>
     <span class="pipeline-arrow">→</span>
     <span class="pipeline-node pn-grey">pull()</span>
     <span class="pipeline-arrow">→</span>
@@ -225,7 +225,7 @@ VStream<PriceTick> resilientFeed = primaryFeed.recoverWith(error -> fallbackFeed
   </div>
   <div class="pipeline-arrow-down">▼</div>
   <div class="pipeline-row pipeline-row-center">
-    <span class="pipeline-node pn-blue">Fallback Feed — LSE</span>
+    <span class="pipeline-node pn-blue">Fallback Feed (LSE)</span>
     <span class="pipeline-arrow">→</span>
     <span class="pipeline-node pn-grey">pull()</span>
     <span class="pipeline-arrow">→</span>
@@ -300,19 +300,19 @@ public class MarketDataPipeline {
   </div>
   <div class="pipeline-arrow-down">▼</div>
   <div class="pipeline-row pipeline-row-center">
-    <span class="pipeline-node pn-orange">enrich — Par.map2 ×8</span>
+    <span class="pipeline-node pn-orange">enrich: Par.map2 ×8</span>
     <span class="pipeline-arrow">→</span>
-    <span class="pipeline-node pn-orange">risk — parEvalMap ×4</span>
+    <span class="pipeline-node pn-orange">risk: parEvalMap ×4</span>
   </div>
   <div class="pipeline-arrow-down">▼</div>
   <div class="pipeline-row pipeline-row-center">
-    <span class="pipeline-node pn-red">chunk(5) — map</span>
+    <span class="pipeline-node pn-red">chunk(5): map</span>
     <span class="pipeline-arrow">→</span>
-    <span class="pipeline-node pn-red">detect — flatMap 0..n</span>
+    <span class="pipeline-node pn-red">detect: flatMap 0..n</span>
   </div>
   <div class="pipeline-arrow-down">▼</div>
   <div class="pipeline-row pipeline-row-center">
-    <span class="pipeline-node pn-purple">dispatch — Scope.allSucceed</span>
+    <span class="pipeline-node pn-purple">dispatch: Scope.allSucceed</span>
   </div>
   <div class="pipeline-arrow-down">▼ ▼ ▼</div>
   <div class="pipeline-row pipeline-row-center">

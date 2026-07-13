@@ -614,7 +614,28 @@ Optional<Integer> max = maxMonoid.combineAll(
 
 **When To Use:** Aggregating data (summing values, concatenating strings), reducing collections, folding data structures, accumulating results in parallel computations.
 
-**Related:** [Semigroup and Monoid Documentation](functional/semigroup_and_monoid.md)
+**Related:** [Semigroup and Monoid Documentation](functional/semigroup_and_monoid.md), [Update](#update)
+
+---
+
+### Update
+
+**Definition:** A named, reusable transformation of a value (`S -> S`). `Update<S>` extends `UnaryOperator<S>`, so it drops straight into `Stream.map`, `Optional.map`, and any `Function`-shaped API, whilst its `andThen` stays in the `Update` type so compositions chain fluently. In functional-programming literature this is the `Endo` monoid (from *endomorphism*, a function from a type to itself); Higher-Kinded-J names it `Update` for clarity.
+
+**Example:**
+```java
+Update<Order> normalise     = order -> order.withEmail(order.email().toLowerCase());
+Update<Order> applyDiscount = order -> order.withTotal(order.total().multiply(DISCOUNT));
+
+// Compose in the type; the monoid's identity is the do-nothing update
+Monoid<Update<Order>> m = Monoids.update();
+Update<Order> pipeline = m.combineAll(List.of(normalise, applyDiscount));  // applied left to right
+Order result = pipeline.apply(order);
+```
+
+**Why it matters:** because the identity is "change nothing", an absent or skipped step contributes nothing to the fold. That property powers sparse partial updates: the [Edits](#edits) builder folds optic-targeted edits through `Monoids.update()`, with absent fields contributing the identity.
+
+**Related:** [Semigroup and Monoid](functional/semigroup_and_monoid.md), [Monoid](#monoid), [Edits](#edits)
 
 ---
 
@@ -1031,7 +1052,7 @@ int sum  = nel.reduce((a, b) -> a + b);      // 6 (reduce without an identity)
 // Checked construction from possibly-empty data returns Maybe (never throws):
 Maybe<NonEmptyList<Integer>> maybe = NonEmptyList.fromList(List.of());   // Nothing
 
-// As the validation error channel — no Semigroup argument, no List.of wrapping:
+// As the validation error channel, no Semigroup argument, no List.of wrapping:
 Validated<NonEmptyList<String>, Integer> bad = Validated.invalidNel("must be positive");
 ```
 
@@ -1361,7 +1382,7 @@ IO<List<String>> readThreeLines = IO.sequence(List.of(
 
 **Effect Path Equivalent:** Use [IOPath](#effect-path) for fluent composition.
 
-**Related:** [IO Documentation](monads/io_monad.md), [IOPath](effect/path_io.md)
+**Related:** [IO Documentation](monads/io_monad.md), [IOPath](effect/path_io.md), [TimeSource](#timesource)
 
 ---
 
@@ -1395,6 +1416,8 @@ Either<String, Integer> eitherResult = Either.left("First error");
 Validated<String, Integer> validated = Validated.fromEither(eitherResult);
 ```
 
+**Modern accumulating idiom:** the canonical error channel is now [NonEmptyList](#nonemptylist), so `Validated.invalidNel("...")` and `Validated.validNel(value)` bake in the `Semigroup` and drop the manual `Semigroups.list()` argument. To build a record from several validated fields with every error located, use [Validated Assembly](#validated-assembly) (`Validated.fields()`), which reports each failure as a [FieldError](#fielderror).
+
 **When To Use:**
 - Form validation where all errors should be shown
 - Batch processing where you want all failures reported
@@ -1403,7 +1426,28 @@ Validated<String, Integer> validated = Validated.fromEither(eitherResult);
 
 **Effect Path Equivalent:** Use [ValidationPath](#effect-path) for fluent composition.
 
-**Related:** [Validated Documentation](monads/validated_monad.md), [ValidationPath](effect/path_validation.md)
+**Related:** [Validated Documentation](monads/validated_monad.md), [ValidationPath](effect/path_validation.md), [NonEmptyList](#nonemptylist), [Validated Assembly](#validated-assembly), [FieldError](#fielderror)
+
+---
+
+### TimeSource
+
+**Definition:** `java.time.Clock` lifted into the effect world, so reading the time is a lazy, composable effect rather than a scattered `Instant.now()` that makes every timestamp untestable. `TimeSource.now()` returns an `IO<Instant>` (with `nowAsync()` for the deferred variant); nothing is read until the effect runs, and each run reads afresh. It is deliberately named `TimeSource`, not `Clock`, so it never clashes with `java.time.Clock`.
+
+**Example:**
+```java
+import org.higherkindedj.hkt.time.TimeSource;
+
+TimeSource time  = TimeSource.system();         // production
+TimeSource fixed = TimeSource.fixed(instant);   // deterministic in tests
+
+IO<Reservation> reserve =
+    time.now().map(t -> new Reservation(order.id(), t.plus(hold)));
+```
+
+**Testing:** inject `TimeSource.fixed(...)`, or `TimeSource.of(steppableClock)` with `hkj-test`'s `SteppableClock`, and time-dependent code becomes deterministic by moving the clock rather than sleeping.
+
+**Related:** [TimeSource](monads/io_monad.md), [IO](#io)
 
 ---
 
@@ -1713,6 +1757,29 @@ EitherPath<Error, Report> report =
 - Type-safe composition across effect and structure boundaries
 
 **Related:** [Effect Path](#effect-path), [Focus DSL](#focus-dsl), [FocusPath](#focuspath)
+
+---
+
+### VResultPath
+
+**Definition:** A first-class railway for `VTask<Either<E, A>>`: asynchronous work, run on a virtual thread, that can fail with a typed domain error `E`. It composes `VTaskPath` (async) and `EitherPath` (typed error) into one path, so neither `Kind` ceremony nor a hand-rolled `EitherT` bridge ever surfaces. It speaks the full family vocabulary (`map`/`via`/`then`, `mapError`/`recover`/`recoverWith`/`bimap`).
+
+**Example:**
+```java
+VResultPath<OrderError, OrderResult> process(OrderRequest request) {
+    return Path.vresultDefer(() -> validateAddress(request.address()))  // VResultPath<OrderError, Address>
+        .via(address -> reserveStock(address))                          // chain a fallible async step
+        .recover(err -> OrderResult.rejected(err));                     // handle the typed Left
+}
+
+VTask<Either<OrderError, OrderResult>> carrier = process(req).run();    // execute on a virtual thread
+```
+
+**Factories:** `Path.vresultRight`/`vresultLeft` (decided), `Path.vresultEither` (lift a decided `Either`), `Path.vresult` (lift a `VTask<Either<E, A>>`), and `Path.vresultDefer` (defer the decision itself).
+
+**Two channels, kept apart:** a business failure travels in the value channel as `Left`, whilst an unexpected defect stays on the `VTask` channel. The outcome-aware structured-concurrency combinators (`firstSuccess`, `allSucceed`, `allSucceedAccumulating`, `withTimeout`, `bracketOutcome`) preserve that split, and the `with*` resilience combinators are railway-aware.
+
+**Related:** [VResultPath](effect/path_vresult.md), [Path](#path), [Railway-Oriented Programming](#railway-oriented-programming), [Either](#either), [Resilience Combinators](#resilience-combinators)
 
 ---
 
@@ -2142,7 +2209,27 @@ Optional<String> cardNumber = creditCardPrism.preview(payment);
 PaymentMethod masked = creditCardPrism.modify(num -> "****" + num.substring(12), payment);
 ```
 
-**Related:** [Prisms Documentation](optics/prisms.md)
+**Related:** [Prisms Documentation](optics/prisms.md), [ValidatedPrism](#validatedprism)
+
+---
+
+### ValidatedPrism
+
+**Definition:** The smart-constructor optic for *parse, don't validate* boundaries. Its `parse` returns `Validated<NonEmptyList<FieldError>, A>`, so every failure is located rather than only the first, whilst `build` is total and always succeeds. It is the accumulating counterpart to a [Prism](#prism), whose `preview` reports only presence or absence.
+
+**Example:**
+```java
+ValidatedPrism<String, EmailAddress> email = ValidatedPrism.of(
+    raw -> parseEmail(raw),        // String -> Validated<NonEmptyList<FieldError>, EmailAddress>
+    EmailAddress::toString);       // total build
+
+Validated<NonEmptyList<FieldError>, EmailAddress> parsed = email.parse("  NOPE ");
+String rendered = email.build(addr);   // always succeeds
+```
+
+**Composition:** nested composition short-circuits whilst sibling fields accumulate, so a whole record parses in one pass with every bad field reported. `ValidatedPrism.fromIso(iso)` is a parse that never fails; `ValidatedPrism.fromPrism(prism, reason)` lifts a plain prism by supplying the reason its empty case cannot express. Both round-trip laws ship as `ValidatedPrismLaws` in `hkj-test`.
+
+**Related:** [ValidatedPrism](optics/validated_prism.md), [Prism](#prism), [FieldError](#fielderror), [Validated](#validated)
 
 ---
 
@@ -2342,6 +2429,158 @@ EitherPath<Error, String> cityPath = loadUser(id)
 - Each field `bar` generates static method `FooFocus.bar()`
 
 **Related:** [Focus DSL](#focus-dsl), [Lens](#lens), [Code Generation](optics/code_generation.md)
+
+---
+
+### Edits
+
+**Definition:** A sparse, accumulating multi-edit over optics. `Edits.combine(...)` folds several pure edits (`set`, `modify`) into one reusable [Update](#update) at compile time; a fallible edit is rejected there, so a validation failure can never be silently dropped. `Edits.accumulate(...)` adds the validated REST-`PATCH` shape: it mixes pure and fallible edits, reports every bad field at once (each located as a [FieldError](#fielderror)), and applies the writes only if all validated. The `…IfPresent` factories treat `null` as absent, which is what makes a patch sparse.
+
+**Example:**
+```java
+import static org.higherkindedj.optics.edit.Edit.*;
+
+// Pure fold: several edits into one reusable Update<Order>
+Update<Order> normalise = Edits.combine(
+    modify(EMAIL, String::toLowerCase),
+    modify(SKU,   String::trim));
+
+// Validated PATCH: every bad field reported at once, only present fields written
+Validated<NonEmptyList<FieldError>, Order> patched =
+    Edits.accumulate(
+            setIfPresent(ORDER_NUMBER, req.orderNumber()),
+            parseIfPresent(EMAIL, req.email(), Email::parse),
+            modifyIfPresent(QUANTITY, req.qtyDelta(), (delta, qty) -> qty + delta))
+        .apply(order);
+```
+
+**Related:** [Multi-Edit and Sparse Updates](optics/multi_edit.md), [Update](#update), [FieldError](#fielderror), [ValidatedPrism](#validatedprism)
+
+---
+
+## Validation and Record Mapping
+
+### Parse, Don't Validate
+
+**Definition:** The principle that a boundary should turn unstructured input into a typed value **once**, at the edge, and keep that guarantee in the type thereafter, rather than re-checking the same data repeatedly downstream. Higher-Kinded-J expresses it with types whose *parse* is fallible and accumulating and whose *build* is total: [ValidatedPrism](#validatedprism) for a single value, [Validated Assembly](#validated-assembly) for a whole record, and [@GenerateMapping](#generatemapping) for a record-to-DTO boundary. Failures are [FieldError](#fielderror)s, so a rejected input reports every bad field at once, each located.
+
+**Related:** [Record Mapping](optics/record_mapping.md), [ValidatedPrism](#validatedprism), [Validated](#validated)
+
+---
+
+### FieldError
+
+**Definition:** A single validation failure carrying a composable path to the offending field plus a message. It is a small record (path segments plus a message) with a `pathString()` such as `"address.zip"`. Accumulating validation collects `FieldError`s into a [NonEmptyList](#nonemptylist) in declaration order, so a failed parse reports *which* fields were wrong and *where* they sit in a nested structure, not merely that validation failed.
+
+**Example:**
+```java
+FieldError bare    = FieldError.of("not a postcode");   // unlocated leaf
+FieldError located = bare.at("zip").at("address");      // pathString() == "address.zip"
+```
+
+**Located automatically:** `Validated.fields()` and the `parseIfPresent` edits prepend the field label onto each error's path, so a leaf validator creates unlocated `FieldError.of(...)`s and the assembly attaches the location. `hkj-test` ships `assertThatFieldError`.
+
+**Related:** [Open-Arity Assembly](monads/validated_assembly.md), [NonEmptyList](#nonemptylist), [Validated Assembly](#validated-assembly), [ValidatedPrism](#validatedprism)
+
+---
+
+### Validated Assembly
+
+**Definition:** Open-arity assembly of a record from N independently validated fields, with every error collected and no `Semigroup` argument, no arity wall, and no `Kind` ceremony. `Validated.fields()` opens a labelled assembly over `NonEmptyList<FieldError>`; each `field(label, value)` adds one validated field, and `apply(...)` completes it with a constructor reference of exactly the accumulated arity. The same shape exists across three carriers: `Validated` (strict), `ValidationPath` (railway, via `Path.fields()`), and `EitherOrBoth` (tolerant).
+
+**Example:**
+```java
+Validated<NonEmptyList<FieldError>, User> user =
+    Validated.fields()
+        .field("name",  parseName(dto.name()))
+        .field("email", parseEmail(dto.email()))
+        .apply(User::new);
+// Invalid(NonEmptyList[email: not an email address]), or Valid(user)
+```
+
+**Related:** [Open-Arity Assembly](monads/validated_assembly.md), [@GenerateAssembly](#generateassembly), [FieldError](#fielderror), [Validated](#validated), [EitherOrBoth](#eitherorboth)
+
+---
+
+### @GenerateAssembly
+
+**Definition:** The codegen companion for [Validated Assembly](#validated-assembly). Annotate a record and the processor emits a same-package `…Assembly` companion with one order-enforcing method per component, so assembly is discovered by autocomplete and the canonical constructor is baked in. A component typed as another annotated record accepts its sub-companion's result directly.
+
+**Example:**
+```java
+@GenerateAssembly
+public record User(Name name, Email email) {}
+
+Validated<NonEmptyList<FieldError>, User> user =
+    UserAssembly.fields()
+        .name(parseName(dto.name()))
+        .email(parseEmail(dto.email()))
+        .assemble();      // canonical constructor baked in
+```
+
+**Related:** [Open-Arity Assembly](monads/validated_assembly.md), [Validated Assembly](#validated-assembly), [FieldError](#fielderror)
+
+---
+
+### @GenerateMapping
+
+**Definition:** An annotation processor for the record-to-DTO boundary. Annotate an interface extending `MappingSpec<Domain, Wire>` and the processor generates, reflection-free at compile time, a total `build` (domain to wire) plus an accumulating `parse` (wire to domain) returning `Validated<NonEmptyList<FieldError>, Domain>`, so a bad DTO reports every bad field at once. Components match by name and type; `@MapField` declares renames, and `List`/`Optional`/`Map` containers lift automatically. The annotation sits on *your* spec interface, so third-party records map without being annotatable.
+
+**Example:**
+```java
+@GenerateMapping
+public interface PersonMapping extends MappingSpec<Person, PersonDto> {}
+
+PersonDto dto = PersonMappingImpl.INSTANCE.build(person);          // total
+Validated<NonEmptyList<FieldError>, Person> back =
+    PersonMappingImpl.INSTANCE.parse(dto);                        // accumulating, located
+```
+
+**Truthful emission tiers:** the generated mapper offers only what the shape supports: `asIso` when lossless, `asLens` when total one way, and the accumulating `parse` otherwise. Every tier is law-checked against the published `hkj-test` harness.
+
+**Related:** [Record Mapping](optics/record_mapping.md), [ValidatedPrism](#validatedprism), [FieldError](#fielderror), [@GenerateMerge](#generatemerge)
+
+---
+
+### @GenerateMerge
+
+**Definition:** The forward-only sibling of [@GenerateMapping](#generatemapping): assemble one target record from **several** sources, declared entirely by the spec method's signature, with no class literals and no inverse. Each target component fills from the one source with a same-named component: identity when the types match, through a [ValidatedPrism](#validatedprism) leaf when they differ, or through a sibling `@GenerateMapping` spec (failures locating as dotted paths). Ambiguous or unfilled components are what/why/fix compile errors, and the return type must tell the truth: a fallible fill demands a `Validated` return.
+
+**Example:**
+```java
+@GenerateMerge
+public interface DashboardAssembly {
+  Dashboard assemble(User user, Account account, Settings settings);
+}
+
+Dashboard dashboard =
+    DashboardAssemblyImpl.INSTANCE.assemble(user, account, settings);
+```
+
+**Related:** [Record Mapping](optics/record_mapping.md), [@GenerateMapping](#generatemapping), [ValidatedPrism](#validatedprism)
+
+---
+
+### @GenerateErrorEnvelope
+
+**Definition:** The third record-mapping processor, targeting the typed domain error a fallible mapping produces. A sealed error hierarchy usually re-declares the same envelope (`code`, `message`, `timestamp`, `context`) on every variant, with `context` an untyped `Map<String, Object>`. `@GenerateErrorEnvelope` supplies the envelope and **types** the context: each variant declares only its domain fields plus one `ErrorEnvelope<C>` component, and the processor generates the `…s` companion (per-variant factories, a typed `context()` builder, and an `editContext` wither). Context is records-as-schema (`context.orderId()`, not `map.get(...)`); timestamps read from a [TimeSource](#timesource) for deterministic tests.
+
+**Example:**
+```java
+record OrderErrorContext(@Nullable OrderId orderId, @Nullable TraceId traceId) {}
+
+@GenerateErrorEnvelope
+public sealed interface OrderError {
+  ErrorEnvelope<OrderErrorContext> envelope();                  // declared once
+  record OutOfStock(List<ProductId> products,
+                    ErrorEnvelope<OrderErrorContext> envelope) implements OrderError {}
+}
+
+OrderError error = OrderErrors.outOfStock(products)
+    .editContext(ctx -> ctx.orderId(orderId).traceId(traceId));  // typed context, not map.put
+```
+
+**Related:** [Record Mapping](optics/record_mapping.md#generating-error-envelopes-generateerrorenvelope), [TimeSource](#timesource), [@GenerateMapping](#generatemapping)
 
 ---
 
@@ -2615,6 +2854,34 @@ Resource<Lock> lock = Resource.make(
 ```
 
 **Related:** [Bracket Pattern](#bracket-pattern), [Scope](#scope), [Resource Documentation](monads/vtask_resource.md)
+
+---
+
+## Resilience
+
+### Resilience Combinators
+
+**Definition:** A single `with*` vocabulary for wrapping a computation in a resilience policy: `withRetry`, `withTimeout`, `withCircuitBreaker`, and `withBulkhead`, available across the Path family. On the lazy carriers (`IOPath`, `VTaskPath`, [VResultPath](#vresultpath)) they chain as instance methods; on the eager `EitherPath` the same combinators are static, taking the step as a `Supplier`, because resilience wraps a *computation* and an eager path has already run.
+
+**Railway-aware:** on the typed-error carriers a business `Left` is a value, never retried and never counted as a circuit-breaker failure. Typed overloads opt selected transient errors into retry and land timeouts or rejections as `Left`s rather than thrown exceptions, so resilience never swallows a domain outcome.
+
+**Related:** [Resilience Patterns](resilience/ch_intro.md), [Retry](resilience/retry.md), [Circuit Breaker](#circuit-breaker), [Bulkhead](#bulkhead), [Path](#path), [VResultPath](#vresultpath)
+
+---
+
+### Circuit Breaker
+
+**Definition:** A resilience pattern that remembers recent failures and stops calling a dependency that is clearly down, so a system does not waste effort on doomed requests whilst a service recovers. It is a state machine across three states: **closed** (calls flow), **open** (calls are rejected immediately once failures cross a threshold), and **half-open** (after a timeout, a single probe is allowed; success closes the breaker, failure re-opens it). Applied as `withCircuitBreaker` in the resilience vocabulary.
+
+**Related:** [Circuit Breaker](resilience/circuit_breaker.md), [Resilience Combinators](#resilience-combinators), [Bulkhead](#bulkhead)
+
+---
+
+### Bulkhead
+
+**Definition:** A resilience pattern that caps how many callers may use a shared resource at once, so one slow dependency cannot exhaust all available capacity and sink otherwise-healthy work (named for a ship's watertight compartments). Implemented as semaphore-based concurrency limiting with configurable permits, fairness, and timeout behaviour, and applied as `withBulkhead` in the resilience vocabulary.
+
+**Related:** [Bulkhead](resilience/bulkhead.md), [Resilience Combinators](#resilience-combinators), [Circuit Breaker](#circuit-breaker)
 
 ---
 

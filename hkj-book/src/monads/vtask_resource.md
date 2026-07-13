@@ -10,7 +10,7 @@
 ~~~
 
 > *"Resource acquisition is initialization... the point is to tie the lifecycle of a resource to the lifetime of a local object."*
-> -- **Bjarne Stroustrup**, creator of C++, on the RAII pattern that inspired functional bracket semantics
+> — **Bjarne Stroustrup**, creator of C++, on the RAII pattern that inspired functional bracket semantics
 
 ~~~admonish example title="See Example Code"
 [VTaskResourceExample.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/effect/VTaskResourceExample.java)

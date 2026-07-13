@@ -309,10 +309,10 @@ If none of these apply, stay with the Path type.
 ---
 
 ~~~admonish tip title="See Also"
-- [Quickstart](quickstart.md) -- three runnable examples in 150 lines
-- [Stack Archetypes](archetypes.md) -- named patterns for common composition problems
-- [Effect Path Migration Cookbook](../effect/migration_cookbook.md) -- imperative-to-Path migrations (read this first)
-- [MTL Capabilities](mtl_capabilities.md) -- when to write polymorphic code instead of using a concrete transformer
+- [Quickstart](quickstart.md) - three runnable examples in 150 lines
+- [Stack Archetypes](archetypes.md) - named patterns for common composition problems
+- [Effect Path Migration Cookbook](../effect/migration_cookbook.md) - imperative-to-Path migrations (read this first)
+- [MTL Capabilities](mtl_capabilities.md) - when to write polymorphic code instead of using a concrete transformer
 ~~~
 
 ---

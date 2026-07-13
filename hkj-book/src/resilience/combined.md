@@ -316,10 +316,10 @@ PaymentResult result = chargePayment.run();
 ```
 
 ~~~admonish tip title="See Also"
-- [Retry](retry.md) -- backoff strategies and retry configuration
-- [Circuit Breaker](circuit_breaker.md) -- state machine and service protection
-- [Bulkhead](bulkhead.md) -- concurrency limiting
-- [Saga](saga.md) -- compensating transactions
+- [Retry](retry.md) - backoff strategies and retry configuration
+- [Circuit Breaker](circuit_breaker.md) - state machine and service protection
+- [Bulkhead](bulkhead.md) - concurrency limiting
+- [Saga](saga.md) - compensating transactions
 ~~~
 
 ---

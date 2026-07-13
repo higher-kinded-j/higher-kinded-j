@@ -2,7 +2,7 @@
 
 > *"The answer to the Great Question... of Life, the Universe and Everything... is... Forty-two."*
 >
-> -- Douglas Adams, *The Hitchhiker's Guide to the Galaxy*
+> — Douglas Adams, *The Hitchhiker's Guide to the Galaxy*
 
 The computer Deep Thought spent seven and a half million years computing an answer, but nobody remembered the question. With `MonadReader`, the question is always available: your environment is there whenever you `ask()` for it, and every function in the chain sees the same one.
 
@@ -234,9 +234,9 @@ Kind<ReaderTKind.Witness<IdKind.Witness, AppConfig>, String> result =
 ---
 
 ~~~admonish tip title="See Also"
-- [ReaderT](readert_transformer.md) -- The concrete transformer behind `MonadReader`
-- [MonadState](mtl_state.md) -- When you need read-write state
-- [Reader Monad](../monads/reader_monad.md) -- The non-transformer version
+- [ReaderT](readert_transformer.md) - The concrete transformer behind `MonadReader`
+- [MonadState](mtl_state.md) - When you need read-write state
+- [Reader Monad](../monads/reader_monad.md) - The non-transformer version
 ~~~
 
 ---

@@ -15,7 +15,7 @@
 
 ## The Problem: Death by a Thousand Submits
 
-A user fills out your registration form. They make three mistakes — empty name, malformed email, and age below 18. They hit Submit.
+A user fills out your registration form. They make three mistakes: empty name, malformed email, and age below 18. They hit Submit.
 
 Your validation reports: **"Name is required."**
 
@@ -70,9 +70,9 @@ record Invalid<E, A>(E error) implements Validated<E, A> { ... }
 
 | Component | Role |
 |-----------|------|
-| `Validated<E, A>` | `Valid(value)` or `Invalid(error)` — like Either but validation-focused |
+| `Validated<E, A>` | `Valid(value)` or `Invalid(error)`, like Either but validation-focused |
 | `ValidatedKind<E, A>` / `ValidatedKindHelper` | HKT bridge: `widen()`, `narrow()`, `valid()`, `invalid()` |
-| `ValidatedMonad<E>` | `MonadError<ValidatedKind.Witness<E>, E>` — fail-fast `map`/`flatMap`, plus `raiseError`/`handleErrorWith` |
+| `ValidatedMonad<E>` | `MonadError<ValidatedKind.Witness<E>, E>`: fail-fast `map`/`flatMap`, plus `raiseError`/`handleErrorWith` |
 
 ~~~admonish note title="Validated vs Either"
 Both represent success or failure. The difference is in **applicative** behaviour:
@@ -84,7 +84,7 @@ If you only ever need fail-fast semantics, use [Either](./either_monad.md).
 
 ## Building a Complete Form Validator
 
-Let's build a registration validator that validates username, email, and age — reporting ALL errors in one pass.
+Let's build a registration validator that validates username, email, and age, reporting ALL errors in one pass.
 
 ~~~admonish tip title="Error channel: prefer `NonEmptyList<E>` over `List<E>`"
 The examples below use `Validated<List<String>, T>`, but an *invalid* result always has at least one error, so [`NonEmptyList`](nonemptylist_monad.md) is the more honest channel. `Validated.validNel(v)` / `Validated.invalidNel(e)` produce `Validated<NonEmptyList<E>, T>` with no manual `List.of(...)` wrapping, and `getError().head()` becomes total. The `List<String>` form shown here still works unchanged.
@@ -171,7 +171,7 @@ Validated<List<String>, String> finalResult = VALIDATED.narrow(result);
 //         ^^^ ALL three errors in one pass!
 ```
 
-`map3` uses `ap` under the hood — it lifts the combining function into the `Validated` context and applies each argument, accumulating errors via the `Semigroup`. The `mapN` family (`map2`, `map3`, `map4`) is the recommended way to combine independent validations without writing curried functions manually.
+`map3` uses `ap` under the hood; it lifts the combining function into the `Validated` context and applies each argument, accumulating errors via the `Semigroup`. The `mapN` family (`map2`, `map3`, `map4`) is the recommended way to combine independent validations without writing curried functions manually.
 
 ~~~admonish tip title="The ergonomic front door: the assembly builder"
 For the everyday case (assembling a record from N validated fields) the staged builder on `Validated` itself is the recommended entry point: open arity up to 12, no `Semigroup` argument, no `Kind`, and located errors.
@@ -227,11 +227,11 @@ Kind<ValidatedKind.Witness<List<String>>, Integer> stillOk =
 
 Beyond the typeclass, the `Validated` type itself offers useful methods:
 
-* `isValid()` / `isInvalid()` — check the state.
-* `get()` / `getError()` — extract value or error (throws `NoSuchElementException` on wrong case).
-* `orElse(other)` / `orElseGet(supplier)` / `orElseThrow(supplier)` — safe extraction with fallbacks.
-* `fold(invalidMapper, validMapper)` — eliminate both cases into a single result.
-* `map`, `flatMap`, `ap` — also available directly on `Validated` instances.
+* `isValid()` / `isInvalid()`: check the state.
+* `get()` / `getError()`: extract value or error (throws `NoSuchElementException` on wrong case).
+* `orElse(other)` / `orElseGet(supplier)` / `orElseThrow(supplier)`: safe extraction with fallbacks.
+* `fold(invalidMapper, validMapper)`: eliminate both cases into a single result.
+* `map`, `flatMap`, `ap`: also available directly on `Validated` instances.
 
 ~~~admonish note title="Which Composition to Choose?"
 ```
@@ -269,14 +269,14 @@ See [One Line, Six Layers](../hkts/one_line_six_layers.md) for the wider picture
 
 | Scenario | Use |
 |----------|-----|
-| Form/input validation — want ALL errors at once | `Validated` with `ap` + `Semigroup` |
-| Sequential validation — later steps depend on earlier results | `ValidatedMonad` (fail-fast via `flatMap`) |
+| Form/input validation (want ALL errors at once) | `Validated` with `ap` + `Semigroup` |
+| Sequential validation (later steps depend on earlier results) | `ValidatedMonad` (fail-fast via `flatMap`) |
 | Typed errors with arbitrary branching | Prefer [Either](./either_monad.md) |
 | Application-level validation with fluent API | Prefer [ValidationPath](../effect/path_validation.md) |
 | Mix of independent + dependent validations | Independent fields via `ap`, then cross-field checks via `flatMap` |
 
 ~~~admonish important title="Key Points"
-- `Validated<E, A>` is `Valid(value)` or `Invalid(error)` — explicitly models validation outcomes.
+- `Validated<E, A>` is `Valid(value)` or `Invalid(error)`, explicitly modelling validation outcomes.
 - **Monadic** operations (`flatMap` via `ValidatedMonad`) are **fail-fast**: the first `Invalid` short-circuits the chain.
 - **Applicative** operations (`ap` with a `Semigroup<E>`) **accumulate** errors from independent validations.
 - `ValidatedMonad<E>` implements `MonadError<ValidatedKind.Witness<E>, E>`, giving you `raiseError` and `handleErrorWith` for structured recovery.

@@ -6,7 +6,7 @@
 > Decisions are never really made; at best they manage to emerge, from a chaos
 > of peeves, whims, hallucinations and all-round assholery."*
 >
-> -- Thomas Pynchon, *Gravity's Rainbow*
+> — Thomas Pynchon, *Gravity's Rainbow*
 
 Pynchon was describing wartime bureaucracy, but he might as well have been
 code reviewing a poorly implemented service layer.
@@ -20,7 +20,7 @@ code reviewing a poorly implemented service layer.
 ~~~
 
 ~~~admonish tip title="Coming from imperative Java?"
-Start with the [Migration Cookbook](migration_cookbook.md) -- side-by-side translations of `try/catch`, nullable lookups, `CompletableFuture`, and validation patterns you already know.
+Start with the [Migration Cookbook](migration_cookbook.md): side-by-side translations of `try/catch`, nullable lookups, `CompletableFuture`, and validation patterns you already know.
 ~~~
 
 ---
@@ -575,8 +575,8 @@ that powers `via`, `recover`, `mapError` and the rest is documented in
 ~~~
 
 ~~~admonish tip title="Further Reading"
-- **Scott Wlaschin**: [Railway Oriented Programming -- error handling in functional languages](https://vimeo.com/97344498) - video
-- **Scott Wlaschin**: [Railway Oriented Programming -- error handling in functional languages](https://www.slideshare.net/slideshow/railway-oriented-programming/32242318#1) - slides)
+- **Scott Wlaschin**: [Railway Oriented Programming: error handling in functional languages](https://vimeo.com/97344498) - video
+- **Scott Wlaschin**: [Railway Oriented Programming: error handling in functional languages](https://www.slideshare.net/slideshow/railway-oriented-programming/32242318#1) - slides)
 ~~~
 
 ---

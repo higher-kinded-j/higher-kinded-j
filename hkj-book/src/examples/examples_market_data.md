@@ -2,7 +2,7 @@
 
 > *"The system that would not be watched, would not be trusted."*
 >
-> -- Gary Stevenson
+> — Gary Stevenson
 
 Stevenson was talking about financial markets, but the same principle applies to the
 software that processes them. A pipeline you can't observe, can't compose, and can't
@@ -151,10 +151,10 @@ accidental.
 <div style="text-align: center; margin: 1.5em 0;">
   <a href="https://xkcd.com/2200/" target="_blank" rel="noopener">
     <img src="https://imgs.xkcd.com/comics/unreachable_state.png"
-         alt="XKCD 2200: Unreachable State — 'ERROR: We&#39;ve reached an unreachable state. Anything is possible. The limits were in our heads all along. Follow your dreams.'"
+         alt="XKCD 2200: Unreachable State. 'ERROR: We&#39;ve reached an unreachable state. Anything is possible. The limits were in our heads all along. Follow your dreams.'"
          style="max-width: 350px; width: 100%;" />
   </a>
-  <br/><small><em>XKCD 2200 — Unreachable State. The pipeline disagrees.</em></small>
+  <br/><small><em>XKCD 2200: Unreachable State. The pipeline disagrees.</em></small>
 </div>
 
 ---

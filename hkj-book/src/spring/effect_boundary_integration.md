@@ -49,7 +49,7 @@ Each level uses patterns Spring developers already know. No level requires the p
 
 | Level | What You Write | Spring Analogy | Change Required |
 |-------|---------------|----------------|-----------------|
-| **0** | `Either<E,A>`, `IOPath<A>` from controllers | — | None (today) |
+| **0** | `Either<E,A>`, `IOPath<A>` from controllers | N/A | None (today) |
 | **1** | `EffectBoundary` bean + `boundary.runIO()` | Any `@Bean` | None (core only) |
 | **2** | Return `FreePath<F,A>` from controller | `CompletableFuture<T>` return | Handler #9 |
 | **3** | `@Interpreter(MyOp.class)` on interpreter classes | `@Repository`, `@Service` | Stereotype |

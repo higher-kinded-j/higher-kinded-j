@@ -1,8 +1,12 @@
 # VResultPath
 
+> _"Behind the hieroglyphic streets there would either be a transcendent meaning, or only the earth."_
+>
+> — Thomas Pynchon, *The Crying of Lot 49*
+
 _Async work that can fail with a typed, domain error: the railway for the shape real services actually have._
 
-`VTask<Either<E, A>>` (call something remote, get back either a value or a typed failure) is the single most common effect stack in real services. HKJ models both halves well separately (`VTaskPath` for async, `EitherPath` for typed errors); `VResultPath<E, A>` is their composition as a first-class path, so neither `Kind` ceremony nor a hand-rolled `EitherT` bridge ever surfaces:
+Pynchon's binary is a dread; for a service call it is the goal. Every remote request settles onto exactly one of two channels: a value, or a typed, domain reason it produced none. `VTask<Either<E, A>>` (call something remote, get back either a value or a typed failure) is the single most common effect stack in real services. HKJ models both halves well separately (`VTaskPath` for async, `EitherPath` for typed errors); `VResultPath<E, A>` is their composition as a first-class path, so neither `Kind` ceremony nor a hand-rolled `EitherT` bridge ever surfaces:
 
 ``` java
 VResultPath<OrderError, OrderResult> process(OrderRequest request) {

@@ -129,7 +129,7 @@ into a single result; concrete instances override the default with a
 single-pass implementation to avoid quadratic concatenation.
 
 Unlike the varargs `orElseAll`, the default `Iterable` implementation does not
-short-circuit on the first non-empty value — every element of the iterable
+short-circuit on the first non-empty value. Every element of the iterable
 is iterated and combined into the result. Concrete instances may provide
 stronger laziness: the `StreamMonad` override, for example, traverses the
 iterable lazily so that a lazy `Iterable` stays lazy end-to-end. If you need

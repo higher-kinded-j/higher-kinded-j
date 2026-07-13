@@ -7,7 +7,7 @@ VTaskPath, IOPath, and every other path type.
 
 > *"The stream of time sweeps away errors, and leaves the truth for the inheritance of posterity."*
 >
-> -- Georg Brandes
+> — Georg Brandes
 
 VStreamPath occupies a unique position among path types: it is the only one that
 models a sequence of zero or more values produced lazily over time. Where VTaskPath

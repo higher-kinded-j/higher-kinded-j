@@ -15,7 +15,7 @@
 
 ## The Problem: Async Composition Without Structure
 
-Java's `CompletableFuture` is powerful, but composing multiple async operations quickly becomes unwieldy. Consider a typical microservice scenario — fetching a user, looking up their subscription, then calculating a discount:
+Java's `CompletableFuture` is powerful, but composing multiple async operations quickly becomes unwieldy. Consider a typical microservice scenario (fetching a user, looking up their subscription, then calculating a discount):
 
 ```java
 // Traditional CompletableFuture chaining
@@ -28,9 +28,9 @@ CompletableFuture<Discount> result =
                         .exceptionally(ex -> Discount.none())));
 ```
 
-Each level of `thenCompose` indents further. Error handling with `exceptionally` or `handle` dangles awkwardly at the end, applies only to the innermost stage, and loses type information — every error becomes a generic `Throwable`. If you need different recovery strategies for different failures, you end up with nested `try`/`catch` inside your lambdas, and the functional style collapses.
+Each level of `thenCompose` indents further. Error handling with `exceptionally` or `handle` dangles awkwardly at the end, applies only to the innermost stage, and loses type information: every error becomes a generic `Throwable`. If you need different recovery strategies for different failures, you end up with nested `try`/`catch` inside your lambdas, and the functional style collapses.
 
-The `CompletableFutureMonad` gives you a structured alternative: standard `map`, `flatMap`, and `handleErrorWith` operations that compose cleanly, and the ability to write generic code that works across *any* monadic type — not just `CompletableFuture`.
+The `CompletableFutureMonad` gives you a structured alternative: standard `map`, `flatMap`, and `handleErrorWith` operations that compose cleanly, and the ability to write generic code that works across *any* monadic type, not just `CompletableFuture`.
 
 ## Core Components
 
@@ -39,9 +39,9 @@ The simulation for `CompletableFuture` involves these key pieces:
 | Component | Role |
 |-----------|------|
 | `CompletableFuture<A>` | Standard Java async computation |
-| `CompletableFutureKind<A>` | HKT marker (`Kind<CompletableFutureKind.Witness, A>`) — enables generic type class programming |
+| `CompletableFutureKind<A>` | HKT marker (`Kind<CompletableFutureKind.Witness, A>`): enables generic type class programming |
 | `CompletableFutureKindHelper` | Bridge utilities: `widen()`, `narrow()`, and `join()` for blocking extraction |
-| `CompletableFutureMonad` | Implements `MonadError<CompletableFutureKind.Witness, Throwable>` — provides `map`, `flatMap`, `of`, `ap`, `raiseError`, and `handleErrorWith` |
+| `CompletableFutureMonad` | Implements `MonadError<CompletableFutureKind.Witness, Throwable>`: provides `map`, `flatMap`, `of`, `ap`, `raiseError`, and `handleErrorWith` |
 
 ~~~admonish note title="How the Operations Map"
 The type class operations correspond directly to `CompletableFuture` methods you already know:
@@ -55,7 +55,7 @@ The type class operations correspond directly to `CompletableFuture` methods you
 | `raiseError(ex)` | `failedFuture(ex)` |
 | `handleErrorWith(fa, handler)` | `exceptionallyCompose(handler)` |
 
-The difference is that these operations work through the `Kind` abstraction, so your code becomes reusable across *any* monadic type — swap `CompletableFuture` for `IO`, `Either`, or `VTask` without changing the logic.
+The difference is that these operations work through the `Kind` abstraction, so your code becomes reusable across *any* monadic type: swap `CompletableFuture` for `IO`, `Either`, or `VTask` without changing the logic.
 ~~~
 
 ## Working with CompletableFutureMonad
@@ -102,7 +102,7 @@ public void createExample() {
 
 - [CompletableFutureExample.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/basic/future/CompletableFutureExample.java)
 
-These examples show how the type class instance composes async operations — the same `map`/`flatMap` vocabulary you use with `Either`, `IO`, or any other monad.
+These examples show how the type class instance composes async operations: the same `map`/`flatMap` vocabulary you use with `Either`, `IO`, or any other monad.
 
 ```java
 public void monadExample() {
@@ -152,7 +152,7 @@ public void monadExample() {
 
 - [CompletableFutureExample.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/basic/future/CompletableFutureExample.java)
 
-This is where `CompletableFutureMonad` shines. Unlike `exceptionally` which returns a plain value, `handleErrorWith` returns a *new* `Kind` — so recovery itself can be asynchronous.
+This is where `CompletableFutureMonad` shines. Unlike `exceptionally` which returns a plain value, `handleErrorWith` returns a *new* `Kind`, so recovery itself can be asynchronous.
 
 ```java
  public void errorHandlingExample(){
@@ -189,9 +189,9 @@ This is where `CompletableFutureMonad` shines. Unlike `exceptionally` which retu
 }
 ```
 
-The handler receives the *cause* of the failure, unwrapped from `CompletionException` when necessary. This lets you pattern-match on specific exception types and choose recovery strategies — retry, fallback, or re-raise — all within the same compositional pipeline.
+The handler receives the *cause* of the failure, unwrapped from `CompletionException` when necessary. This lets you pattern-match on specific exception types and choose recovery strategies (retry, fallback, or re-raise) all within the same compositional pipeline.
 
-When you don't need the cause and just want a constant fallback, the [`recover`/`recoverWith` shortcuts](../functional/monad_error.md#constant-fallbacks-recover-and-recoverwith) are more concise — `futureMonad.recover(failedKind, "Default")`. Note `recoverWith` evaluates its fallback eagerly, so keep `handleErrorWith` when the recovery future is expensive and should only start on failure.
+When you don't need the cause and just want a constant fallback, the [`recover`/`recoverWith` shortcuts](../functional/monad_error.md#constant-fallbacks-recover-and-recoverwith) are more concise: `futureMonad.recover(failedKind, "Default")`. Note `recoverWith` evaluates its fallback eagerly, so keep `handleErrorWith` when the recovery future is expensive and should only start on failure.
 ~~~
 
 ---
@@ -216,14 +216,14 @@ See [One Line, Six Layers](../hkts/one_line_six_layers.md) for the wider picture
 
 | Scenario | Use |
 |----------|-----|
-| Writing generic code that works across monads | `CompletableFutureMonad` — your logic programs against `Kind<F, A>` |
-| Composing async workflows with typed error propagation | Combine with [EitherT](../transformers/eithert_transformer.md) — see the [Order Workflow](../hkts/order-walkthrough.md) |
+| Writing generic code that works across monads | `CompletableFutureMonad`: your logic programs against `Kind<F, A>` |
+| Composing async workflows with typed error propagation | Combine with [EitherT](../transformers/eithert_transformer.md) (see the [Order Workflow](../hkts/order-walkthrough.md)) |
 | Straightforward async pipelines in application code | Prefer [CompletableFuturePath](../effect/migration_cookbook.md#recipe-4-completablefuture-nesting-to-completablefuturepath) for fluent API |
 | Virtual-thread concurrency | Consider [VTaskPath](../monads/vtask_monad.md) instead |
 
 ~~~admonish important title="Key Points"
 - `CompletableFutureMonad` implements `MonadError<CompletableFutureKind.Witness, Throwable>`, giving you `map`, `flatMap`, `of`, `ap`, `raiseError`, and `handleErrorWith` over async computations.
-- `handleErrorWith` is the key differentiator — recovery can itself be asynchronous, unlike `exceptionally` which forces synchronous fallback.
+- `handleErrorWith` is the key differentiator: recovery can itself be asynchronous, unlike `exceptionally` which forces synchronous fallback.
 - Use `CompletableFutureKindHelper.join()` to block and extract results at system boundaries (tests, `main` methods). Avoid calling it mid-pipeline.
 - For the HKT bridge: `widen()` wraps a `CompletableFuture` into `Kind`, `narrow()` unwraps it back. Both are low-cost cast operations.
 ~~~
@@ -254,7 +254,7 @@ See [Migration Cookbook: Recipe 4](../effect/migration_cookbook.md#recipe-4-comp
 ~~~admonish example title="Benchmarks"
 CompletableFuture has dedicated JMH benchmarks measuring async composition overhead, error recovery, and chain depth. Key expectations:
 
-- **`of` / `raiseError`** are very fast — they wrap already-completed futures with no thread scheduling
+- **`of` / `raiseError`** are very fast: they wrap already-completed futures with no thread scheduling
 - **`flatMap` chains** add minimal overhead beyond the underlying `thenCompose` cost
 - **`handleErrorWith`** matches `exceptionallyCompose` performance while providing stronger composition guarantees
 

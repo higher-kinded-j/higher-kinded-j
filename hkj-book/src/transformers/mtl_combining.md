@@ -2,7 +2,7 @@
 
 > *"The whole is greater than the sum of its parts."*
 >
-> -- Aristotle, *Metaphysics*
+> — Aristotle, *Metaphysics*
 
 A function that can read configuration is useful. A function that can also accumulate an audit log is more useful. A function that does both while managing state is a production workflow. The power of MTL emerges when you combine capabilities, letting each function declare exactly the subset of effects it needs.
 
@@ -192,12 +192,12 @@ record LogConfig(boolean verbose) {}
 ---
 
 ~~~admonish tip title="See Also"
-- [MTL Capabilities](mtl_capabilities.md) -- Overview and when to use MTL vs concrete transformers
-- [MonadReader](mtl_reader.md) -- Read-only environment access
-- [MonadState](mtl_state.md) -- Mutable state threading
-- [MonadWriter](mtl_writer.md) -- Append-only output accumulation
-- [MonadError](../functional/monad_error.md) -- Typed error handling
-- [ForState Comprehension](../functional/forstate_comprehension.md) -- Stateful workflows with named fields
+- [MTL Capabilities](mtl_capabilities.md) - Overview and when to use MTL vs concrete transformers
+- [MonadReader](mtl_reader.md) - Read-only environment access
+- [MonadState](mtl_state.md) - Mutable state threading
+- [MonadWriter](mtl_writer.md) - Append-only output accumulation
+- [MonadError](../functional/monad_error.md) - Typed error handling
+- [ForState Comprehension](../functional/forstate_comprehension.md) - Stateful workflows with named fields
 ~~~
 
 ---

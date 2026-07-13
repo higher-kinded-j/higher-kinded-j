@@ -25,9 +25,9 @@ logger.info("Connected to " + conn.endpoint());   // writes to stdout
 return conn;
 ```
 
-Each line performs a side effect the instant it runs. You can't test `connectToDb` without a real database. You can't reorder or retry steps without re-executing earlier effects. And if you want to compose this with other workflows, you're stuck — the effects have already happened.
+Each line performs a side effect the instant it runs. You can't test `connectToDb` without a real database. You can't reorder or retry steps without re-executing earlier effects. And if you want to compose this with other workflows, you're stuck; the effects have already happened.
 
-The `IO` monad solves this by separating **description** from **execution**. An `IO<A>` value is a *recipe* for a computation that will produce an `A` when run — but nothing happens until you explicitly say "go." This means you can build, compose, and inspect entire programs as pure values, then execute them once at the application boundary.
+The `IO` monad solves this by separating **description** from **execution**. An `IO<A>` value is a *recipe* for a computation that will produce an `A` when run, but nothing happens until you explicitly say "go." This means you can build, compose, and inspect entire programs as pure values, then execute them once at the application boundary.
 
 ```java
 // Describe effects — nothing executes yet
@@ -49,25 +49,25 @@ The `IO` functionality is built upon these key pieces:
 
 | Component | Role |
 |-----------|------|
-| `IO<A>` | Wraps a `Supplier<A>` — describes an effect that produces `A` when run. Directly extends `IOKind<A>`, so no wrapper allocation is needed. |
+| `IO<A>` | Wraps a `Supplier<A>`, describing an effect that produces `A` when run. Directly extends `IOKind<A>`, so no wrapper allocation is needed. |
 | `IOKind<A>` / `IOKindHelper` | HKT bridge: `widen()` and `narrow()` (zero-cost casts), `delay()` to create deferred effects, `unsafeRunSync()` to execute them |
 | `IOMonad` | Type class instance (`Monad<IOKind.Witness>`): provides `map`, `flatMap`, `of`, and `ap` for composing IO programs |
 
 ~~~admonish note title="How the Operations Map"
 | Type Class Operation | What It Does |
 |---------------------|--------------|
-| `IO_OP.delay(supplier)` | Wrap a side effect — nothing executes yet |
+| `IO_OP.delay(supplier)` | Wrap a side effect; nothing executes yet |
 | `ioMonad.of(value)` | Lift a pure value into IO (no effect) |
 | `ioMonad.map(f, fa)` | Transform the eventual result without adding new effects |
-| `ioMonad.flatMap(f, fa)` | Sequence two effects — the second can depend on the first's result |
+| `ioMonad.flatMap(f, fa)` | Sequence two effects: the second can depend on the first's result |
 | `ioMonad.ap(ff, fa)` | Apply a function-in-IO to a value-in-IO |
-| `IO_OP.unsafeRunSync(fa)` | **Execute** — run the recipe and produce the result. Call this at the edge. |
+| `IO_OP.unsafeRunSync(fa)` | **Execute**: run the recipe and produce the result. Call this at the edge. |
 ~~~
 
 ~~~admonish warning title="What IO Does Not Do"
-- **Error handling** — Exceptions thrown during `unsafeRunSync` propagate directly. For typed error handling, combine with [EitherT](../transformers/eithert_transformer.md) or wrap operations with [Try](./try_monad.md).
-- **Async execution** — IO runs synchronously on the calling thread. For async, see [CompletableFutureMonad](./cf_monad.md). For virtual-thread concurrency, see [VTaskPath](./vtask_monad.md).
-- **Resource management** — IO alone doesn't guarantee cleanup. Use [IOPath's bracket pattern](../effect/path_io.md) for safe resource handling.
+- **Error handling**: Exceptions thrown during `unsafeRunSync` propagate directly. For typed error handling, combine with [EitherT](../transformers/eithert_transformer.md) or wrap operations with [Try](./try_monad.md).
+- **Async execution**: IO runs synchronously on the calling thread. For async, see [CompletableFutureMonad](./cf_monad.md). For virtual-thread concurrency, see [VTaskPath](./vtask_monad.md).
+- **Resource management**: IO alone doesn't guarantee cleanup. Use [IOPath's bracket pattern](../effect/path_io.md) for safe resource handling.
 ~~~
 
 ## Working with IO
@@ -110,7 +110,7 @@ None of these execute when created. The `Supplier` inside `delay` is stored, not
 
 - [IOExample.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/basic/io/IOExample.java)
 
-Use `IO_OP.unsafeRunSync` to run the computation. This is the "end of the world" — call it at application boundaries, not deep inside your logic.
+Use `IO_OP.unsafeRunSync` to run the computation. This is the "end of the world"; call it at application boundaries, not deep inside your logic.
 
 ```java
 // Execute printHello — now the effect happens
@@ -140,7 +140,7 @@ try {
 
 - [IOExample.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/basic/io/IOExample.java)
 
-`map` transforms the result of an IO action *without executing it*. `flatMap` sequences two IO actions — the second can depend on the first's result.
+`map` transforms the result of an IO action *without executing it*. `flatMap` sequences two IO actions; the second can depend on the first's result.
 
 ```java
 Monad<IOKind.Witness> ioMonad = Instances.monad(io());
@@ -266,9 +266,9 @@ See [One Line, Six Layers](../hkts/one_line_six_layers.md) for the wider picture
 
 ~~~admonish important title="Key Points"
 - `IO<A>` is a **description**, not an execution. Nothing happens until `unsafeRunSync` is called.
-- `IO<A>` directly extends `IOKind<A>`, so `widen`/`narrow` are zero-cost casts — no wrapper allocation.
+- `IO<A>` directly extends `IOKind<A>`, so `widen`/`narrow` are zero-cost casts (no wrapper allocation).
 - `map` transforms the eventual result; `flatMap` sequences dependent effects. Neither triggers execution.
-- Call `unsafeRunSync` at the application boundary ("end of the world") — never deep inside business logic.
+- Call `unsafeRunSync` at the application boundary ("end of the world"), never deep inside business logic.
 - Re-running the same IO value re-executes the effect. IO values are recipes, not cached results.
 ~~~
 
@@ -298,9 +298,9 @@ See [Effect Path Overview](../effect/effect_path_overview.md) for the complete g
 ~~~admonish example title="Benchmarks"
 IO has dedicated JMH benchmarks measuring lazy construction, platform thread execution, and map/flatMap chains. Key expectations:
 
-- **Construction** (delay, pure) is very fast (~100+ ops/us) — IO is a lazy wrapper with no immediate execution
+- **Construction** (delay, pure) is very fast (~100+ ops/us); IO is a lazy wrapper with no immediate execution
 - **IO vs VTask:** IO is ~10-30% faster for simple operations due to no virtual thread spawn overhead
-- **Deep chains (50+)** complete without error — composition overhead dominates at depth
+- **Deep chains (50+)** complete without error; composition overhead dominates at depth
 - At high concurrency (1000+ tasks), VTask scales better than IO due to virtual threads
 
 ```bash

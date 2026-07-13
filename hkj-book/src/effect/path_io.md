@@ -7,7 +7,7 @@ Unlike other Path types, nothing happens until you explicitly run it.
 > heavier than what you had in mind, well... maybe chalk it up to forced
 > consciousness expansion."*
 >
-> -- Hunter S. Thompson, *Fear and Loathing in Las Vegas*
+> — Hunter S. Thompson, *Fear and Loathing in Las Vegas*
 
 Thompson's advice applies here. When you call `unsafeRun()`, you've bought
 the ticket. The effects will happen. There's no going back. Until that moment,
@@ -198,7 +198,7 @@ Integer length = transformed.unsafeRun();  // Prints "Side effect!"
 ~~~admonish example title="Benchmarks"
 IOPath has dedicated JMH benchmarks measuring wrapper overhead on top of raw IO. Key expectations:
 
-- **IOPath vs raw IO:** 5-15% overhead — wrapper allocation plus delegation cost
+- **IOPath vs raw IO:** 5-15% overhead (wrapper allocation plus delegation cost)
 - Wrapper overhead > 30% is a warning sign suggesting unnecessary allocation
 - Comparison benchmarks against VTaskPath are available for choosing between effect types
 

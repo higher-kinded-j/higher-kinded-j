@@ -2,7 +2,7 @@
 
 > *"The chief end of man is to compose effects."*
 >
-> -- A modernised paraphrase of Westminster, with apologies
+> — A modernised paraphrase of Westminster, with apologies
 
 ~~~admonish info title="What You'll Learn"
 - How a real workflow combines typed errors, configuration, audit, and async execution

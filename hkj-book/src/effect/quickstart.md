@@ -15,7 +15,7 @@ You do not need to understand higher-kinded types, typeclasses, or the Kind enco
 
 ## 1. Handle absence with `MaybePath`
 
-Some values just might not exist -- a lookup that returns nothing, a nullable field. `MaybePath` lets you transform the value if it's present and skip the work if it isn't, without ever writing a null check.
+Some values just might not exist: a lookup that returns nothing, a nullable field. `MaybePath` lets you transform the value if it's present and skip the work if it isn't, without ever writing a null check.
 
 ```java
 import org.higherkindedj.hkt.effect.Path;
@@ -71,13 +71,13 @@ MaybePath<Summary> summary = ForPath
     .yield((user, profile, name) -> new Summary(user.id(), name, profile.email()));
 ```
 
-Every binding becomes available to every later step. Any `Nothing` in the chain short-circuits to `Nothing`. The same shape works for `EitherPath`, `TryPath`, `IOPath`, and the other Path types -- see [ForPath Comprehension](forpath_comprehension.md).
+Every binding becomes available to every later step. Any `Nothing` in the chain short-circuits to `Nothing`. The same shape works for `EitherPath`, `TryPath`, `IOPath`, and the other Path types. See [ForPath Comprehension](forpath_comprehension.md).
 
 ---
 
 ## Where next?
 
-- **Coming from imperative Java?** Read the [Migration Cookbook](migration_cookbook.md) -- side-by-side translations of `try/catch`, nullable lookups, `CompletableFuture`, and validation.
+- **Coming from imperative Java?** Read the [Migration Cookbook](migration_cookbook.md): side-by-side translations of `try/catch`, nullable lookups, `CompletableFuture`, and validation.
 - **Choosing a Path type?** The [Path Types Overview](path_types.md) is a decision tree over the six core Path types.
 - **Composing paths together?** [ForPath Comprehension](forpath_comprehension.md) is the idiomatic entry point for multi-step workflows.
 - **Hardening for production?** [Patterns and Recipes](patterns.md) covers retries, fallback policies, parallelism, and integration testing.

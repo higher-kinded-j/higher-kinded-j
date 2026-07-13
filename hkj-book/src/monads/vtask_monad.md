@@ -15,8 +15,8 @@ VTask uses Java's **structured concurrency APIs** (JEP 505/525), which are curre
 Higher-Kinded-J's `Scope`, `ScopeJoiner`, and `Resource` abstractions provide a buffer against such changes; your code uses HKJ's stable API whilst we handle any necessary adaptations to the underlying preview features.
 ~~~
 
-> *"Sometimes abstraction and encapsulation are at odds with performance -- although not nearly as often as many developers believe -- but it is always a good practice first to make your code right, and then make it fast."*
-> -- **Brian Goetz**, *Java Concurrency in Practice*
+> *"Sometimes abstraction and encapsulation are at odds with performance (although not nearly as often as many developers believe), but it is always a good practice first to make your code right, and then make it fast."*
+> — **Brian Goetz**, *Java Concurrency in Practice*
 
 ## The Abstraction Tax
 
@@ -24,8 +24,8 @@ For two decades, Java developers have wrestled with an uncomfortable trade-off i
 
 The result was a generation of concurrent code optimised for machines rather than humans. Developers learned to hoard threads jealously, to batch operations artificially, and to transform naturally sequential logic into convoluted state machines. The abstraction tax seemed unavoidable; you could have clean code or performant code, but not both.
 
-> *"Virtual threads are not faster threads -- they are cheaper threads. This means that you can have a lot more of them, and that changes how you structure programs."*
-> -- **Brian Goetz**, Java Language Architect at Oracle
+> *"Virtual threads are not faster threads: they are cheaper threads. This means that you can have a lot more of them, and that changes how you structure programs."*
+> — **Brian Goetz**, Java Language Architect at Oracle
 
 ## A New Economics of Concurrency
 
@@ -244,7 +244,7 @@ Kind<VTaskKind.Witness, String> recovered = monad.handleErrorWith(
 String result = VTASK.narrow(recovered).run(); // "Default value"
 ```
 
-This handler ignores the error and returns a constant, so the type-class [`recover`/`recoverWith` shortcuts](../functional/monad_error.md#constant-fallbacks-recover-and-recoverwith) express it directly — `monad.recover(taskKind, "Default value")`. These are the generic, instance-level forms; they are distinct from the fluent `VTask.recover(fn)` / `VTask.recoverWith(fn)` methods shown earlier, which take a function of the error.
+This handler ignores the error and returns a constant, so the type-class [`recover`/`recoverWith` shortcuts](../functional/monad_error.md#constant-fallbacks-recover-and-recoverwith) express it directly: `monad.recover(taskKind, "Default value")`. These are the generic, instance-level forms; they are distinct from the fluent `VTask.recover(fn)` / `VTask.recoverWith(fn)` methods shown earlier, which take a function of the error.
 ~~~
 
 ---

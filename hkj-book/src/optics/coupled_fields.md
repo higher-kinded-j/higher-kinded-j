@@ -3,7 +3,8 @@
 ## _Atomic Updates for Fields with Shared Invariants_
 <img src="../images/coupled_mr_robot.png" alt="Illustration for coupled fields and atomic updates" style="width: 100%;" />
 > *"A bug is never just a mistake. It represents something bigger. An error of thinking that makes you who you are."*
-> -- Elliot Alderson, Mr. Robot
+>
+> — Elliot Alderson, *Mr. Robot*
 
 When a lens update throws an exception, it is not the lens that is broken; it is our assumption about field independence. What looks like a bug often reveals a deeper truth about the relationship between fields in our data structures.
 
@@ -151,7 +152,8 @@ Sequential lens updates create intermediate states. When fields are coupled by a
 ## The Solution: Paired Lenses
 
 > *"They're all tied in together."*
-> -- Sergeant Pinback, Dark Star
+>
+> — Sergeant Pinback, *Dark Star*
 
 This boils down to: if fields are coupled, update them together. `Lens.paired` combines two lenses into one that focuses on both values as a `Pair`:
 

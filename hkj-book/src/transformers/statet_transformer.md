@@ -3,7 +3,7 @@
 
 > *"You could not step twice into the same river."*
 >
-> -- Heraclitus
+> — Heraclitus
 
 State that changes between steps is exactly the river Heraclitus described. `StateT` lets each step see the river it actually faces while keeping the same composable surface.
 

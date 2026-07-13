@@ -2,7 +2,7 @@
 
 > *"The trick to forgetting the big picture is to look at everything close-up."*
 >
-> -- Martin Amis, *The Information*
+> — Martin Amis, *The Information*
 
 That's exactly the plan. The previous page laid out the full architecture: nine stages,
 fourteen features, three exchange feeds converging into alerts. Now we forget all that and
