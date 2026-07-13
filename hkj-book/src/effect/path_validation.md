@@ -99,7 +99,7 @@ ValidationPath<List<String>, User> shortCircuit =
 
 ## Open-Arity Assembly: `fields()` and `accumulate()`
 
-`zipWithAccum` is binary. For assembling a value from N independent validations, `Path.fields()` and `Path.accumulate()` open the staged assembly builder: open arity up to 12, located errors, declaration order, and still a `ValidationPath` at the end.
+`zipWithAccum` is binary. For assembling a value from N independent validations, `Path.fields()` and `Path.accumulate()` open the staged assembly builder: open arity up to 16, located errors, declaration order, and still a `ValidationPath` at the end.
 
 ```java
 ValidationPath<NonEmptyList<FieldError>, User> user =

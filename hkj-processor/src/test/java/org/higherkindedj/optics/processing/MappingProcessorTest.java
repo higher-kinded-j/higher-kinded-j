@@ -2259,10 +2259,10 @@ class MappingProcessorTest {
     }
 
     @Test
-    @DisplayName("records beyond the 12-field parse ceiling get a diagnostic, not broken code")
+    @DisplayName("records beyond the 16-field parse ceiling get a diagnostic, not broken code")
     void arityCeilingRejected() {
       String comps =
-          IntStream.rangeClosed(1, 13)
+          IntStream.rangeClosed(1, 17)
               .mapToObj(i -> "String f" + i)
               .collect(Collectors.joining(", "));
       JavaFileObject spec =
@@ -2288,8 +2288,40 @@ class MappingProcessorTest {
               spec);
       assertThat(compilation).failed();
       assertThat(compilation)
-          .hadErrorContaining("has 13 components; the accumulating parse supports at most 12");
+          .hadErrorContaining("has 17 components; the accumulating parse supports at most 16");
       assertThat(compilation).hadErrorContaining("Group related components into nested records");
+    }
+
+    @Test
+    @DisplayName("a 16-component record maps in one spec (the raised parse ceiling)")
+    void arityAtNewCeilingCompiles() {
+      String comps =
+          IntStream.rangeClosed(1, 16)
+              .mapToObj(i -> "String f" + i)
+              .collect(Collectors.joining(", "));
+      JavaFileObject spec =
+          JavaFileObjects.forSourceString(
+              "com.example.WideMapping",
+              """
+              package com.example;
+
+              import org.higherkindedj.optics.annotations.GenerateMapping;
+              import org.higherkindedj.optics.annotations.MappingSpec;
+
+              @GenerateMapping
+              public interface WideMapping extends MappingSpec<Records.D, Records.W> {}
+              """);
+      Compilation compilation =
+          compile(
+              records(
+                  "public final class Records {\n  public record D("
+                      + comps
+                      + ") {}\n\n  public record W("
+                      + comps
+                      + ") {}\n}\n"),
+              spec);
+      assertThat(compilation).succeeded();
+      assertThat(compilation).generatedSourceFile("com.example.WideMappingImpl");
     }
 
     @Test

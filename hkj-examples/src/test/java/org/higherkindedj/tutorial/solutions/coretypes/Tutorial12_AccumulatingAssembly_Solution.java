@@ -152,7 +152,7 @@ public class Tutorial12_AccumulatingAssembly_Solution {
    * {@code field("address", ...)} like any leaf. Because {@code FieldError.at} prepends, the outer
    * label wraps around the inner one and the path reads outside-in: {@code address.zip}.
    *
-   * <p>Alternative: flattening the domain model to avoid nesting. Twelve fields per level is the
+   * <p>Alternative: flattening the domain model to avoid nesting. Sixteen fields per level is the
    * ceiling, and a sub-record per aggregate usually improves the model anyway.
    *
    * <p>Common wrong attempt: labelling inside the sub-assembly with the full path ({@code

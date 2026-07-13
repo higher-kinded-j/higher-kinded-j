@@ -28,7 +28,7 @@ import org.junit.jupiter.api.Test;
  * </pre>
  *
  * <p>The staged assembly builder removes both. {@code Validated.fields()} assembles any number of
- * fields (up to 12 per level; nest a sub-record for more), needs no {@code Semigroup} argument and
+ * fields (up to 16 per level; nest a sub-record for more), needs no {@code Semigroup} argument and
  * no {@code Kind}, and each {@code field(label, value)} call tags its slot so every error carries
  * its path — {@code "email: not an address"}, {@code "address.zip: not a postcode"}. Errors always
  * emerge in field-declaration order.

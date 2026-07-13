@@ -424,6 +424,213 @@ class EitherOrBothAssemblyTest {
       assertThat(warnings(tolerant)).containsExactly("w1", "w12");
       assertThat(valueOf(tolerant)).isEqualTo("v1+v2+v3+v4+v5+v6+v7+v8+v9+v10+v11+v12");
     }
+
+    @Test
+    @DisplayName("Arity 13: warnings accumulate in declaration order while the value flows")
+    void arity13() {
+      var allRight =
+          EitherOrBoth.accumulate()
+              .and(right("v1"))
+              .and(right("v2"))
+              .and(right("v3"))
+              .and(right("v4"))
+              .and(right("v5"))
+              .and(right("v6"))
+              .and(right("v7"))
+              .and(right("v8"))
+              .and(right("v9"))
+              .and(right("v10"))
+              .and(right("v11"))
+              .and(right("v12"))
+              .and(right("v13"))
+              .apply(
+                  (a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12, a13) ->
+                      String.join("+", a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12, a13));
+      assertThatEitherOrBoth(allRight).hasRight("v1+v2+v3+v4+v5+v6+v7+v8+v9+v10+v11+v12+v13");
+
+      var tolerant =
+          EitherOrBoth.accumulate()
+              .and(both("w1", "v1"))
+              .and(right("v2"))
+              .and(right("v3"))
+              .and(right("v4"))
+              .and(right("v5"))
+              .and(right("v6"))
+              .and(right("v7"))
+              .and(right("v8"))
+              .and(right("v9"))
+              .and(right("v10"))
+              .and(right("v11"))
+              .and(right("v12"))
+              .and(both("w13", "v13"))
+              .apply(
+                  (a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12, a13) ->
+                      String.join("+", a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12, a13));
+      assertThatEitherOrBoth(tolerant).isBoth();
+      assertThat(warnings(tolerant)).containsExactly("w1", "w13");
+      assertThat(valueOf(tolerant)).isEqualTo("v1+v2+v3+v4+v5+v6+v7+v8+v9+v10+v11+v12+v13");
+    }
+
+    @Test
+    @DisplayName("Arity 14: warnings accumulate in declaration order while the value flows")
+    void arity14() {
+      var allRight =
+          EitherOrBoth.accumulate()
+              .and(right("v1"))
+              .and(right("v2"))
+              .and(right("v3"))
+              .and(right("v4"))
+              .and(right("v5"))
+              .and(right("v6"))
+              .and(right("v7"))
+              .and(right("v8"))
+              .and(right("v9"))
+              .and(right("v10"))
+              .and(right("v11"))
+              .and(right("v12"))
+              .and(right("v13"))
+              .and(right("v14"))
+              .apply(
+                  (a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12, a13, a14) ->
+                      String.join(
+                          "+", a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12, a13, a14));
+      assertThatEitherOrBoth(allRight).hasRight("v1+v2+v3+v4+v5+v6+v7+v8+v9+v10+v11+v12+v13+v14");
+
+      var tolerant =
+          EitherOrBoth.accumulate()
+              .and(both("w1", "v1"))
+              .and(right("v2"))
+              .and(right("v3"))
+              .and(right("v4"))
+              .and(right("v5"))
+              .and(right("v6"))
+              .and(right("v7"))
+              .and(right("v8"))
+              .and(right("v9"))
+              .and(right("v10"))
+              .and(right("v11"))
+              .and(right("v12"))
+              .and(right("v13"))
+              .and(both("w14", "v14"))
+              .apply(
+                  (a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12, a13, a14) ->
+                      String.join(
+                          "+", a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12, a13, a14));
+      assertThatEitherOrBoth(tolerant).isBoth();
+      assertThat(warnings(tolerant)).containsExactly("w1", "w14");
+      assertThat(valueOf(tolerant)).isEqualTo("v1+v2+v3+v4+v5+v6+v7+v8+v9+v10+v11+v12+v13+v14");
+    }
+
+    @Test
+    @DisplayName("Arity 15: warnings accumulate in declaration order while the value flows")
+    void arity15() {
+      var allRight =
+          EitherOrBoth.accumulate()
+              .and(right("v1"))
+              .and(right("v2"))
+              .and(right("v3"))
+              .and(right("v4"))
+              .and(right("v5"))
+              .and(right("v6"))
+              .and(right("v7"))
+              .and(right("v8"))
+              .and(right("v9"))
+              .and(right("v10"))
+              .and(right("v11"))
+              .and(right("v12"))
+              .and(right("v13"))
+              .and(right("v14"))
+              .and(right("v15"))
+              .apply(
+                  (a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12, a13, a14, a15) ->
+                      String.join(
+                          "+", a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12, a13, a14, a15));
+      assertThatEitherOrBoth(allRight)
+          .hasRight("v1+v2+v3+v4+v5+v6+v7+v8+v9+v10+v11+v12+v13+v14+v15");
+
+      var tolerant =
+          EitherOrBoth.accumulate()
+              .and(both("w1", "v1"))
+              .and(right("v2"))
+              .and(right("v3"))
+              .and(right("v4"))
+              .and(right("v5"))
+              .and(right("v6"))
+              .and(right("v7"))
+              .and(right("v8"))
+              .and(right("v9"))
+              .and(right("v10"))
+              .and(right("v11"))
+              .and(right("v12"))
+              .and(right("v13"))
+              .and(right("v14"))
+              .and(both("w15", "v15"))
+              .apply(
+                  (a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12, a13, a14, a15) ->
+                      String.join(
+                          "+", a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12, a13, a14, a15));
+      assertThatEitherOrBoth(tolerant).isBoth();
+      assertThat(warnings(tolerant)).containsExactly("w1", "w15");
+      assertThat(valueOf(tolerant)).isEqualTo("v1+v2+v3+v4+v5+v6+v7+v8+v9+v10+v11+v12+v13+v14+v15");
+    }
+
+    @Test
+    @DisplayName("Arity 16: warnings accumulate in declaration order while the value flows")
+    void arity16() {
+      var allRight =
+          EitherOrBoth.accumulate()
+              .and(right("v1"))
+              .and(right("v2"))
+              .and(right("v3"))
+              .and(right("v4"))
+              .and(right("v5"))
+              .and(right("v6"))
+              .and(right("v7"))
+              .and(right("v8"))
+              .and(right("v9"))
+              .and(right("v10"))
+              .and(right("v11"))
+              .and(right("v12"))
+              .and(right("v13"))
+              .and(right("v14"))
+              .and(right("v15"))
+              .and(right("v16"))
+              .apply(
+                  (a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12, a13, a14, a15, a16) ->
+                      String.join(
+                          "+", a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12, a13, a14, a15,
+                          a16));
+      assertThatEitherOrBoth(allRight)
+          .hasRight("v1+v2+v3+v4+v5+v6+v7+v8+v9+v10+v11+v12+v13+v14+v15+v16");
+
+      var tolerant =
+          EitherOrBoth.accumulate()
+              .and(both("w1", "v1"))
+              .and(right("v2"))
+              .and(right("v3"))
+              .and(right("v4"))
+              .and(right("v5"))
+              .and(right("v6"))
+              .and(right("v7"))
+              .and(right("v8"))
+              .and(right("v9"))
+              .and(right("v10"))
+              .and(right("v11"))
+              .and(right("v12"))
+              .and(right("v13"))
+              .and(right("v14"))
+              .and(right("v15"))
+              .and(both("w16", "v16"))
+              .apply(
+                  (a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12, a13, a14, a15, a16) ->
+                      String.join(
+                          "+", a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12, a13, a14, a15,
+                          a16));
+      assertThatEitherOrBoth(tolerant).isBoth();
+      assertThat(warnings(tolerant)).containsExactly("w1", "w16");
+      assertThat(valueOf(tolerant))
+          .isEqualTo("v1+v2+v3+v4+v5+v6+v7+v8+v9+v10+v11+v12+v13+v14+v15+v16");
+    }
   }
 
   @Nested
@@ -791,6 +998,213 @@ class EitherOrBothAssemblyTest {
       assertThatEitherOrBoth(tolerant).isBoth();
       assertThat(warningPaths(tolerant)).containsExactly("f1", "f12");
       assertThat(valueOf(tolerant)).isEqualTo("v1+v2+v3+v4+v5+v6+v7+v8+v9+v10+v11+v12");
+    }
+
+    @Test
+    @DisplayName("Arity 13: warnings accumulate in declaration order while the value flows")
+    void arity13() {
+      var allRight =
+          EitherOrBoth.fields()
+              .field("f1", rightF("v1"))
+              .field("f2", rightF("v2"))
+              .field("f3", rightF("v3"))
+              .field("f4", rightF("v4"))
+              .field("f5", rightF("v5"))
+              .field("f6", rightF("v6"))
+              .field("f7", rightF("v7"))
+              .field("f8", rightF("v8"))
+              .field("f9", rightF("v9"))
+              .field("f10", rightF("v10"))
+              .field("f11", rightF("v11"))
+              .field("f12", rightF("v12"))
+              .field("f13", rightF("v13"))
+              .apply(
+                  (a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12, a13) ->
+                      String.join("+", a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12, a13));
+      assertThatEitherOrBoth(allRight).hasRight("v1+v2+v3+v4+v5+v6+v7+v8+v9+v10+v11+v12+v13");
+
+      var tolerant =
+          EitherOrBoth.fields()
+              .field("f1", bothF("warn 1", "v1"))
+              .field("f2", rightF("v2"))
+              .field("f3", rightF("v3"))
+              .field("f4", rightF("v4"))
+              .field("f5", rightF("v5"))
+              .field("f6", rightF("v6"))
+              .field("f7", rightF("v7"))
+              .field("f8", rightF("v8"))
+              .field("f9", rightF("v9"))
+              .field("f10", rightF("v10"))
+              .field("f11", rightF("v11"))
+              .field("f12", rightF("v12"))
+              .field("f13", bothF("warn 13", "v13"))
+              .apply(
+                  (a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12, a13) ->
+                      String.join("+", a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12, a13));
+      assertThatEitherOrBoth(tolerant).isBoth();
+      assertThat(warningPaths(tolerant)).containsExactly("f1", "f13");
+      assertThat(valueOf(tolerant)).isEqualTo("v1+v2+v3+v4+v5+v6+v7+v8+v9+v10+v11+v12+v13");
+    }
+
+    @Test
+    @DisplayName("Arity 14: warnings accumulate in declaration order while the value flows")
+    void arity14() {
+      var allRight =
+          EitherOrBoth.fields()
+              .field("f1", rightF("v1"))
+              .field("f2", rightF("v2"))
+              .field("f3", rightF("v3"))
+              .field("f4", rightF("v4"))
+              .field("f5", rightF("v5"))
+              .field("f6", rightF("v6"))
+              .field("f7", rightF("v7"))
+              .field("f8", rightF("v8"))
+              .field("f9", rightF("v9"))
+              .field("f10", rightF("v10"))
+              .field("f11", rightF("v11"))
+              .field("f12", rightF("v12"))
+              .field("f13", rightF("v13"))
+              .field("f14", rightF("v14"))
+              .apply(
+                  (a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12, a13, a14) ->
+                      String.join(
+                          "+", a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12, a13, a14));
+      assertThatEitherOrBoth(allRight).hasRight("v1+v2+v3+v4+v5+v6+v7+v8+v9+v10+v11+v12+v13+v14");
+
+      var tolerant =
+          EitherOrBoth.fields()
+              .field("f1", bothF("warn 1", "v1"))
+              .field("f2", rightF("v2"))
+              .field("f3", rightF("v3"))
+              .field("f4", rightF("v4"))
+              .field("f5", rightF("v5"))
+              .field("f6", rightF("v6"))
+              .field("f7", rightF("v7"))
+              .field("f8", rightF("v8"))
+              .field("f9", rightF("v9"))
+              .field("f10", rightF("v10"))
+              .field("f11", rightF("v11"))
+              .field("f12", rightF("v12"))
+              .field("f13", rightF("v13"))
+              .field("f14", bothF("warn 14", "v14"))
+              .apply(
+                  (a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12, a13, a14) ->
+                      String.join(
+                          "+", a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12, a13, a14));
+      assertThatEitherOrBoth(tolerant).isBoth();
+      assertThat(warningPaths(tolerant)).containsExactly("f1", "f14");
+      assertThat(valueOf(tolerant)).isEqualTo("v1+v2+v3+v4+v5+v6+v7+v8+v9+v10+v11+v12+v13+v14");
+    }
+
+    @Test
+    @DisplayName("Arity 15: warnings accumulate in declaration order while the value flows")
+    void arity15() {
+      var allRight =
+          EitherOrBoth.fields()
+              .field("f1", rightF("v1"))
+              .field("f2", rightF("v2"))
+              .field("f3", rightF("v3"))
+              .field("f4", rightF("v4"))
+              .field("f5", rightF("v5"))
+              .field("f6", rightF("v6"))
+              .field("f7", rightF("v7"))
+              .field("f8", rightF("v8"))
+              .field("f9", rightF("v9"))
+              .field("f10", rightF("v10"))
+              .field("f11", rightF("v11"))
+              .field("f12", rightF("v12"))
+              .field("f13", rightF("v13"))
+              .field("f14", rightF("v14"))
+              .field("f15", rightF("v15"))
+              .apply(
+                  (a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12, a13, a14, a15) ->
+                      String.join(
+                          "+", a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12, a13, a14, a15));
+      assertThatEitherOrBoth(allRight)
+          .hasRight("v1+v2+v3+v4+v5+v6+v7+v8+v9+v10+v11+v12+v13+v14+v15");
+
+      var tolerant =
+          EitherOrBoth.fields()
+              .field("f1", bothF("warn 1", "v1"))
+              .field("f2", rightF("v2"))
+              .field("f3", rightF("v3"))
+              .field("f4", rightF("v4"))
+              .field("f5", rightF("v5"))
+              .field("f6", rightF("v6"))
+              .field("f7", rightF("v7"))
+              .field("f8", rightF("v8"))
+              .field("f9", rightF("v9"))
+              .field("f10", rightF("v10"))
+              .field("f11", rightF("v11"))
+              .field("f12", rightF("v12"))
+              .field("f13", rightF("v13"))
+              .field("f14", rightF("v14"))
+              .field("f15", bothF("warn 15", "v15"))
+              .apply(
+                  (a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12, a13, a14, a15) ->
+                      String.join(
+                          "+", a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12, a13, a14, a15));
+      assertThatEitherOrBoth(tolerant).isBoth();
+      assertThat(warningPaths(tolerant)).containsExactly("f1", "f15");
+      assertThat(valueOf(tolerant)).isEqualTo("v1+v2+v3+v4+v5+v6+v7+v8+v9+v10+v11+v12+v13+v14+v15");
+    }
+
+    @Test
+    @DisplayName("Arity 16: warnings accumulate in declaration order while the value flows")
+    void arity16() {
+      var allRight =
+          EitherOrBoth.fields()
+              .field("f1", rightF("v1"))
+              .field("f2", rightF("v2"))
+              .field("f3", rightF("v3"))
+              .field("f4", rightF("v4"))
+              .field("f5", rightF("v5"))
+              .field("f6", rightF("v6"))
+              .field("f7", rightF("v7"))
+              .field("f8", rightF("v8"))
+              .field("f9", rightF("v9"))
+              .field("f10", rightF("v10"))
+              .field("f11", rightF("v11"))
+              .field("f12", rightF("v12"))
+              .field("f13", rightF("v13"))
+              .field("f14", rightF("v14"))
+              .field("f15", rightF("v15"))
+              .field("f16", rightF("v16"))
+              .apply(
+                  (a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12, a13, a14, a15, a16) ->
+                      String.join(
+                          "+", a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12, a13, a14, a15,
+                          a16));
+      assertThatEitherOrBoth(allRight)
+          .hasRight("v1+v2+v3+v4+v5+v6+v7+v8+v9+v10+v11+v12+v13+v14+v15+v16");
+
+      var tolerant =
+          EitherOrBoth.fields()
+              .field("f1", bothF("warn 1", "v1"))
+              .field("f2", rightF("v2"))
+              .field("f3", rightF("v3"))
+              .field("f4", rightF("v4"))
+              .field("f5", rightF("v5"))
+              .field("f6", rightF("v6"))
+              .field("f7", rightF("v7"))
+              .field("f8", rightF("v8"))
+              .field("f9", rightF("v9"))
+              .field("f10", rightF("v10"))
+              .field("f11", rightF("v11"))
+              .field("f12", rightF("v12"))
+              .field("f13", rightF("v13"))
+              .field("f14", rightF("v14"))
+              .field("f15", rightF("v15"))
+              .field("f16", bothF("warn 16", "v16"))
+              .apply(
+                  (a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12, a13, a14, a15, a16) ->
+                      String.join(
+                          "+", a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12, a13, a14, a15,
+                          a16));
+      assertThatEitherOrBoth(tolerant).isBoth();
+      assertThat(warningPaths(tolerant)).containsExactly("f1", "f16");
+      assertThat(valueOf(tolerant))
+          .isEqualTo("v1+v2+v3+v4+v5+v6+v7+v8+v9+v10+v11+v12+v13+v14+v15+v16");
     }
   }
 

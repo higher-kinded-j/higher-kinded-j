@@ -326,7 +326,7 @@ Two verbs keep the two operations distinct: `ErrorEnvelope.withContext(D)` is th
 
 Every rejection follows the processor's what/why/fix standard: the message states what is wrong, why the mapper needs it, and the code to write. Current limits, each with its own diagnostic:
 
-- `parse` is assembled with [`Validated.fields()`](../monads/validated_assembly.md), which locates up to **12 components**; group larger records into nested records, which nest through their own specs.
+- `parse` is assembled with [`Validated.fields()`](../monads/validated_assembly.md), which locates up to **16 components**; group larger records into nested records, which nest through their own specs.
 - Nested and sealed resolution sees specs **in the same compilation**, and a spec extends `MappingSpec` and nothing else; inherited renames/leaves arrive with the full mapper.
 - `Map` components lift values only: keys are identity, so differing key types, raw `Map`s and wildcard type arguments are compile errors.
 - Projections are identity-only (a leaf would make the write-back fallible) and cannot carry derived fields (the write-back could never honour a recomputed component); generic types arrive with the full mapper.

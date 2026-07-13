@@ -73,7 +73,7 @@ Validated<NonEmptyList<FieldError>, Customer> customer =
         .apply(Customer::new);
 ```
 
-This also doubles as the escape hatch for very wide records: `apply` overloads exist up to arity 12 (matching the shipped `Function3..Function12`); a record with more fields nests a sub-record per group, which usually improves the domain model anyway.
+This also doubles as the escape hatch for very wide records: `apply` overloads exist up to arity 16 (matching the shipped `Function3..Function16`); a record with more fields nests a sub-record per group, which usually improves the domain model anyway.
 
 ---
 
@@ -125,7 +125,7 @@ Under the hood every stage transition delegates to the existing accumulation pri
 
 ## Generating the Companion: `@GenerateAssembly`
 
-For records you own, the annotation processor generates a per-record companion that removes the three remaining failure modes of the hand-written chain: labels come from the component names (typo-proof, rename-safe), field order cannot be wrong (named, order-enforcing stage methods), and there is no arity ceiling (the generator emits exact arity, even past 12).
+For records you own, the annotation processor generates a per-record companion that removes the three remaining failure modes of the hand-written chain: labels come from the component names (typo-proof, rename-safe), field order cannot be wrong (named, order-enforcing stage methods), and there is no arity ceiling (the generator emits exact arity, even past 16).
 
 ```java
 @GenerateAssembly
@@ -167,7 +167,7 @@ assertThatFieldError(FieldError.of("not a postcode").at("zip").at("address"))
 
 ~~~admonish info title="Key Takeaways"
 - `fields()` assembles a record from N validated fields with located errors; `accumulate()` is the generic-payload twin.
-- No `Semigroup` argument, no `Kind`, no arity wall up to 12; wider records nest sub-records.
+- No `Semigroup` argument, no `Kind`, no arity wall up to 16; wider records nest sub-records.
 - Errors always emerge in field-declaration order.
 - Nesting prepends the outer label: `"address.zip"`.
 - The same shape exists on `Validated`, `ValidationPath` (via `Path`), and `EitherOrBoth` (tolerant).

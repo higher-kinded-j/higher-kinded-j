@@ -401,6 +401,212 @@ class ValidatedAssemblyTest {
       assertThatValidated(invalid).isInvalid();
       assertThat(errors(invalid)).containsExactly("e1", "e12");
     }
+
+    @Test
+    @DisplayName("Arity 13: and() chain assembles; errors accumulate in declaration order")
+    void arity13() {
+      var valid =
+          Validated.accumulate()
+              .and(ok("v1"))
+              .and(ok("v2"))
+              .and(ok("v3"))
+              .and(ok("v4"))
+              .and(ok("v5"))
+              .and(ok("v6"))
+              .and(ok("v7"))
+              .and(ok("v8"))
+              .and(ok("v9"))
+              .and(ok("v10"))
+              .and(ok("v11"))
+              .and(ok("v12"))
+              .and(ok("v13"))
+              .apply(
+                  (a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12, a13) ->
+                      String.join("+", a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12, a13));
+      assertThatValidated(valid).isValid().hasValue("v1+v2+v3+v4+v5+v6+v7+v8+v9+v10+v11+v12+v13");
+
+      var invalid =
+          Validated.accumulate()
+              .and(bad("e1"))
+              .and(ok("v2"))
+              .and(ok("v3"))
+              .and(ok("v4"))
+              .and(ok("v5"))
+              .and(ok("v6"))
+              .and(ok("v7"))
+              .and(ok("v8"))
+              .and(ok("v9"))
+              .and(ok("v10"))
+              .and(ok("v11"))
+              .and(ok("v12"))
+              .and(bad("e13"))
+              .apply(
+                  (a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12, a13) ->
+                      String.join("+", a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12, a13));
+      assertThatValidated(invalid).isInvalid();
+      assertThat(errors(invalid)).containsExactly("e1", "e13");
+    }
+
+    @Test
+    @DisplayName("Arity 14: and() chain assembles; errors accumulate in declaration order")
+    void arity14() {
+      var valid =
+          Validated.accumulate()
+              .and(ok("v1"))
+              .and(ok("v2"))
+              .and(ok("v3"))
+              .and(ok("v4"))
+              .and(ok("v5"))
+              .and(ok("v6"))
+              .and(ok("v7"))
+              .and(ok("v8"))
+              .and(ok("v9"))
+              .and(ok("v10"))
+              .and(ok("v11"))
+              .and(ok("v12"))
+              .and(ok("v13"))
+              .and(ok("v14"))
+              .apply(
+                  (a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12, a13, a14) ->
+                      String.join(
+                          "+", a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12, a13, a14));
+      assertThatValidated(valid)
+          .isValid()
+          .hasValue("v1+v2+v3+v4+v5+v6+v7+v8+v9+v10+v11+v12+v13+v14");
+
+      var invalid =
+          Validated.accumulate()
+              .and(bad("e1"))
+              .and(ok("v2"))
+              .and(ok("v3"))
+              .and(ok("v4"))
+              .and(ok("v5"))
+              .and(ok("v6"))
+              .and(ok("v7"))
+              .and(ok("v8"))
+              .and(ok("v9"))
+              .and(ok("v10"))
+              .and(ok("v11"))
+              .and(ok("v12"))
+              .and(ok("v13"))
+              .and(bad("e14"))
+              .apply(
+                  (a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12, a13, a14) ->
+                      String.join(
+                          "+", a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12, a13, a14));
+      assertThatValidated(invalid).isInvalid();
+      assertThat(errors(invalid)).containsExactly("e1", "e14");
+    }
+
+    @Test
+    @DisplayName("Arity 15: and() chain assembles; errors accumulate in declaration order")
+    void arity15() {
+      var valid =
+          Validated.accumulate()
+              .and(ok("v1"))
+              .and(ok("v2"))
+              .and(ok("v3"))
+              .and(ok("v4"))
+              .and(ok("v5"))
+              .and(ok("v6"))
+              .and(ok("v7"))
+              .and(ok("v8"))
+              .and(ok("v9"))
+              .and(ok("v10"))
+              .and(ok("v11"))
+              .and(ok("v12"))
+              .and(ok("v13"))
+              .and(ok("v14"))
+              .and(ok("v15"))
+              .apply(
+                  (a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12, a13, a14, a15) ->
+                      String.join(
+                          "+", a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12, a13, a14, a15));
+      assertThatValidated(valid)
+          .isValid()
+          .hasValue("v1+v2+v3+v4+v5+v6+v7+v8+v9+v10+v11+v12+v13+v14+v15");
+
+      var invalid =
+          Validated.accumulate()
+              .and(bad("e1"))
+              .and(ok("v2"))
+              .and(ok("v3"))
+              .and(ok("v4"))
+              .and(ok("v5"))
+              .and(ok("v6"))
+              .and(ok("v7"))
+              .and(ok("v8"))
+              .and(ok("v9"))
+              .and(ok("v10"))
+              .and(ok("v11"))
+              .and(ok("v12"))
+              .and(ok("v13"))
+              .and(ok("v14"))
+              .and(bad("e15"))
+              .apply(
+                  (a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12, a13, a14, a15) ->
+                      String.join(
+                          "+", a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12, a13, a14, a15));
+      assertThatValidated(invalid).isInvalid();
+      assertThat(errors(invalid)).containsExactly("e1", "e15");
+    }
+
+    @Test
+    @DisplayName("Arity 16: and() chain assembles; errors accumulate in declaration order")
+    void arity16() {
+      var valid =
+          Validated.accumulate()
+              .and(ok("v1"))
+              .and(ok("v2"))
+              .and(ok("v3"))
+              .and(ok("v4"))
+              .and(ok("v5"))
+              .and(ok("v6"))
+              .and(ok("v7"))
+              .and(ok("v8"))
+              .and(ok("v9"))
+              .and(ok("v10"))
+              .and(ok("v11"))
+              .and(ok("v12"))
+              .and(ok("v13"))
+              .and(ok("v14"))
+              .and(ok("v15"))
+              .and(ok("v16"))
+              .apply(
+                  (a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12, a13, a14, a15, a16) ->
+                      String.join(
+                          "+", a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12, a13, a14, a15,
+                          a16));
+      assertThatValidated(valid)
+          .isValid()
+          .hasValue("v1+v2+v3+v4+v5+v6+v7+v8+v9+v10+v11+v12+v13+v14+v15+v16");
+
+      var invalid =
+          Validated.accumulate()
+              .and(bad("e1"))
+              .and(ok("v2"))
+              .and(ok("v3"))
+              .and(ok("v4"))
+              .and(ok("v5"))
+              .and(ok("v6"))
+              .and(ok("v7"))
+              .and(ok("v8"))
+              .and(ok("v9"))
+              .and(ok("v10"))
+              .and(ok("v11"))
+              .and(ok("v12"))
+              .and(ok("v13"))
+              .and(ok("v14"))
+              .and(ok("v15"))
+              .and(bad("e16"))
+              .apply(
+                  (a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12, a13, a14, a15, a16) ->
+                      String.join(
+                          "+", a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12, a13, a14, a15,
+                          a16));
+      assertThatValidated(invalid).isInvalid();
+      assertThat(errors(invalid)).containsExactly("e1", "e16");
+    }
   }
 
   @Nested
@@ -755,6 +961,212 @@ class ValidatedAssemblyTest {
                       String.join("+", a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12));
       assertThatValidated(invalid).isInvalid();
       assertThat(errorPaths(invalid)).containsExactly("f1", "f12");
+    }
+
+    @Test
+    @DisplayName("Arity 13: field() chain assembles; errors accumulate in declaration order")
+    void arity13() {
+      var valid =
+          Validated.fields()
+              .field("f1", okF("v1"))
+              .field("f2", okF("v2"))
+              .field("f3", okF("v3"))
+              .field("f4", okF("v4"))
+              .field("f5", okF("v5"))
+              .field("f6", okF("v6"))
+              .field("f7", okF("v7"))
+              .field("f8", okF("v8"))
+              .field("f9", okF("v9"))
+              .field("f10", okF("v10"))
+              .field("f11", okF("v11"))
+              .field("f12", okF("v12"))
+              .field("f13", okF("v13"))
+              .apply(
+                  (a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12, a13) ->
+                      String.join("+", a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12, a13));
+      assertThatValidated(valid).isValid().hasValue("v1+v2+v3+v4+v5+v6+v7+v8+v9+v10+v11+v12+v13");
+
+      var invalid =
+          Validated.fields()
+              .field("f1", badF("bad 1"))
+              .field("f2", okF("v2"))
+              .field("f3", okF("v3"))
+              .field("f4", okF("v4"))
+              .field("f5", okF("v5"))
+              .field("f6", okF("v6"))
+              .field("f7", okF("v7"))
+              .field("f8", okF("v8"))
+              .field("f9", okF("v9"))
+              .field("f10", okF("v10"))
+              .field("f11", okF("v11"))
+              .field("f12", okF("v12"))
+              .field("f13", badF("bad 13"))
+              .apply(
+                  (a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12, a13) ->
+                      String.join("+", a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12, a13));
+      assertThatValidated(invalid).isInvalid();
+      assertThat(errorPaths(invalid)).containsExactly("f1", "f13");
+    }
+
+    @Test
+    @DisplayName("Arity 14: field() chain assembles; errors accumulate in declaration order")
+    void arity14() {
+      var valid =
+          Validated.fields()
+              .field("f1", okF("v1"))
+              .field("f2", okF("v2"))
+              .field("f3", okF("v3"))
+              .field("f4", okF("v4"))
+              .field("f5", okF("v5"))
+              .field("f6", okF("v6"))
+              .field("f7", okF("v7"))
+              .field("f8", okF("v8"))
+              .field("f9", okF("v9"))
+              .field("f10", okF("v10"))
+              .field("f11", okF("v11"))
+              .field("f12", okF("v12"))
+              .field("f13", okF("v13"))
+              .field("f14", okF("v14"))
+              .apply(
+                  (a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12, a13, a14) ->
+                      String.join(
+                          "+", a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12, a13, a14));
+      assertThatValidated(valid)
+          .isValid()
+          .hasValue("v1+v2+v3+v4+v5+v6+v7+v8+v9+v10+v11+v12+v13+v14");
+
+      var invalid =
+          Validated.fields()
+              .field("f1", badF("bad 1"))
+              .field("f2", okF("v2"))
+              .field("f3", okF("v3"))
+              .field("f4", okF("v4"))
+              .field("f5", okF("v5"))
+              .field("f6", okF("v6"))
+              .field("f7", okF("v7"))
+              .field("f8", okF("v8"))
+              .field("f9", okF("v9"))
+              .field("f10", okF("v10"))
+              .field("f11", okF("v11"))
+              .field("f12", okF("v12"))
+              .field("f13", okF("v13"))
+              .field("f14", badF("bad 14"))
+              .apply(
+                  (a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12, a13, a14) ->
+                      String.join(
+                          "+", a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12, a13, a14));
+      assertThatValidated(invalid).isInvalid();
+      assertThat(errorPaths(invalid)).containsExactly("f1", "f14");
+    }
+
+    @Test
+    @DisplayName("Arity 15: field() chain assembles; errors accumulate in declaration order")
+    void arity15() {
+      var valid =
+          Validated.fields()
+              .field("f1", okF("v1"))
+              .field("f2", okF("v2"))
+              .field("f3", okF("v3"))
+              .field("f4", okF("v4"))
+              .field("f5", okF("v5"))
+              .field("f6", okF("v6"))
+              .field("f7", okF("v7"))
+              .field("f8", okF("v8"))
+              .field("f9", okF("v9"))
+              .field("f10", okF("v10"))
+              .field("f11", okF("v11"))
+              .field("f12", okF("v12"))
+              .field("f13", okF("v13"))
+              .field("f14", okF("v14"))
+              .field("f15", okF("v15"))
+              .apply(
+                  (a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12, a13, a14, a15) ->
+                      String.join(
+                          "+", a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12, a13, a14, a15));
+      assertThatValidated(valid)
+          .isValid()
+          .hasValue("v1+v2+v3+v4+v5+v6+v7+v8+v9+v10+v11+v12+v13+v14+v15");
+
+      var invalid =
+          Validated.fields()
+              .field("f1", badF("bad 1"))
+              .field("f2", okF("v2"))
+              .field("f3", okF("v3"))
+              .field("f4", okF("v4"))
+              .field("f5", okF("v5"))
+              .field("f6", okF("v6"))
+              .field("f7", okF("v7"))
+              .field("f8", okF("v8"))
+              .field("f9", okF("v9"))
+              .field("f10", okF("v10"))
+              .field("f11", okF("v11"))
+              .field("f12", okF("v12"))
+              .field("f13", okF("v13"))
+              .field("f14", okF("v14"))
+              .field("f15", badF("bad 15"))
+              .apply(
+                  (a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12, a13, a14, a15) ->
+                      String.join(
+                          "+", a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12, a13, a14, a15));
+      assertThatValidated(invalid).isInvalid();
+      assertThat(errorPaths(invalid)).containsExactly("f1", "f15");
+    }
+
+    @Test
+    @DisplayName("Arity 16: field() chain assembles; errors accumulate in declaration order")
+    void arity16() {
+      var valid =
+          Validated.fields()
+              .field("f1", okF("v1"))
+              .field("f2", okF("v2"))
+              .field("f3", okF("v3"))
+              .field("f4", okF("v4"))
+              .field("f5", okF("v5"))
+              .field("f6", okF("v6"))
+              .field("f7", okF("v7"))
+              .field("f8", okF("v8"))
+              .field("f9", okF("v9"))
+              .field("f10", okF("v10"))
+              .field("f11", okF("v11"))
+              .field("f12", okF("v12"))
+              .field("f13", okF("v13"))
+              .field("f14", okF("v14"))
+              .field("f15", okF("v15"))
+              .field("f16", okF("v16"))
+              .apply(
+                  (a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12, a13, a14, a15, a16) ->
+                      String.join(
+                          "+", a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12, a13, a14, a15,
+                          a16));
+      assertThatValidated(valid)
+          .isValid()
+          .hasValue("v1+v2+v3+v4+v5+v6+v7+v8+v9+v10+v11+v12+v13+v14+v15+v16");
+
+      var invalid =
+          Validated.fields()
+              .field("f1", badF("bad 1"))
+              .field("f2", okF("v2"))
+              .field("f3", okF("v3"))
+              .field("f4", okF("v4"))
+              .field("f5", okF("v5"))
+              .field("f6", okF("v6"))
+              .field("f7", okF("v7"))
+              .field("f8", okF("v8"))
+              .field("f9", okF("v9"))
+              .field("f10", okF("v10"))
+              .field("f11", okF("v11"))
+              .field("f12", okF("v12"))
+              .field("f13", okF("v13"))
+              .field("f14", okF("v14"))
+              .field("f15", okF("v15"))
+              .field("f16", badF("bad 16"))
+              .apply(
+                  (a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12, a13, a14, a15, a16) ->
+                      String.join(
+                          "+", a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12, a13, a14, a15,
+                          a16));
+      assertThatValidated(invalid).isInvalid();
+      assertThat(errorPaths(invalid)).containsExactly("f1", "f16");
     }
   }
 

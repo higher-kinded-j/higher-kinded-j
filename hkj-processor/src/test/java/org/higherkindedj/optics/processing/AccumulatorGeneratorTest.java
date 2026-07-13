@@ -208,15 +208,15 @@ class AccumulatorGeneratorTest {
       Compilation bad = compileTrigger("minArity = 0, maxArity = 12");
       assertThat(bad).failed();
       assertThat(bad).hadErrorContaining("minArity was 0");
-      assertThat(bad).hadErrorContaining("Fix: set minArity between 1 and 12");
+      assertThat(bad).hadErrorContaining("Fix: set minArity between 1 and 16");
     }
 
     @Test
-    @DisplayName("maxArity above 12 is rejected with a what/why/fix message")
+    @DisplayName("maxArity above 16 is rejected with a what/why/fix message")
     void maxArityTooHigh() {
-      Compilation bad = compileTrigger("minArity = 1, maxArity = 13");
+      Compilation bad = compileTrigger("minArity = 1, maxArity = 17");
       assertThat(bad).failed();
-      assertThat(bad).hadErrorContaining("maxArity was 13");
+      assertThat(bad).hadErrorContaining("maxArity was 17");
       assertThat(bad).hadErrorContaining("nest a sub-record");
     }
 
