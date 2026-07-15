@@ -88,7 +88,8 @@ What makes Higher-Kinded-J unique is the seamless integration between **Effect P
   IOPath<Data>         ────┤
   VTaskPath<A>         ────┤
   VStreamPath<A>       ────┤
-  ValidationPath<E, A> ────┘
+  ValidationPath<E, A> ────┤
+  EitherOrBothPath<L, A>───┘
                             │       │
                             ▼       ▼
                        ┌─────────────────┐
@@ -140,6 +141,7 @@ Higher-Kinded-J provides the most comprehensive optics implementation available 
 * **External type import** via `@ImportOptics` for types you don't own (e.g., `java.time.LocalDate`)
 * **Spec interfaces** for complex external types with copy strategy annotations (`@ViaBuilder`, `@Wither`, `@ViaCopyAndSet`)
 * **Works with popular libraries**: Jackson JsonNode, JOOQ records, Immutables, Lombok, AutoValue, and Protocol Buffers
+* **[ValidatedPrism](https://higher-kinded-j.github.io/latest/optics/validated_prism.html)** for parse-don't-validate boundaries: `parse` returns a `Validated` locating every failure, `build` is total, and both round-trip laws ship in `hkj-test`
 * **Filtered traversals** for predicate-based focusing within collections
 * **Indexed optics** for position-aware transformations
 * **Focus DSL** for type-safe, fluent path navigation with seamless bridging into external libraries
@@ -155,11 +157,37 @@ For services with complex domain workflows, Higher-Kinded-J provides algebraic-e
 * **Mock-free testing** via `Id` monad interpreters; no mocking frameworks needed
 * **Program inspection** with `ProgramAnalyser` before any side effects execute
 
+### [Record Mapping and Typed-Error Codegen](https://higher-kinded-j.github.io/latest/optics/record_mapping.html)
+
+The boundary between your domain records and the wire is usually hand-written mappers or a reflective bean-mapper. Higher-Kinded-J turns it into compile-time codegen that never loses an error:
+
+* **`@GenerateMapping`** generates a total `build` **and** an accumulating `parse` returning `Validated<NonEmptyList<FieldError>, T>`; every emission tier is law-checked against `hkj-test`
+* **`@GenerateMerge`** assembles one target record from several source records, filling each component by name
+* **[Open-arity accumulating assembly](https://higher-kinded-j.github.io/latest/monads/validated_assembly.html)** (`fields()` / `accumulate()` / `@GenerateAssembly`) builds a record from N independently-validated fields, collecting every error in declaration order with no `Semigroup` ceremony
+* **`@GenerateErrorEnvelope`** gives a sealed error hierarchy a typed context record (records-as-schema, not `Map<String, Object>`) with deterministic timestamps from a `TimeSource`
+
 ---
 
 ## Why Higher-Kinded-J?
 
-Higher-Kinded-J offers the most advanced optics implementation in the Java ecosystem, combined with a unified effect system that no other library provides.
+Modern Java handed you records, sealed interfaces, and pattern matching. What it didn't hand you is a way to make them *compose*: errors that chain instead of nest, validation that collects every failure instead of stopping at the first, deep immutable updates in one line instead of nested `with…` calls, and typed errors that survive a network hop. Higher-Kinded-J is the missing layer.
+
+You don't need to learn an esoteric functional library to feel the benefit. Each capability replaces something you already reach for today:
+
+| Instead of… | Today you reach for | Higher-Kinded-J gives you |
+|-------------|---------------------|---------------------------|
+| Nested `Optional`, thrown exceptions, and validation that stops at the first error | the standard library | one railway vocabulary (`map` / `via` / `recover`) across absence, typed errors, async, and **accumulating** validation |
+| `Option` / `Either` / `Try` from **Vavr** | the FP library most Java developers know | the same core types **plus** higher-kinded abstraction, a full optics suite, monad transformers, and an effect system — built natively on modern Java (records, sealed types, virtual threads), where Vavr keeps a Java 8 foundation |
+| **MapStruct** / ModelMapper for DTO↔domain mapping | annotation-driven mappers | `@GenerateMapping` with a total `build` **and** an accumulating `parse` that reports every bad field, law-checked at compile time |
+| **Resilience4j** annotations for retry / circuit-breaker / bulkhead | AOP-style resilience | the same policies as composable path combinators (`withRetry` / `withCircuitBreaker` / `withBulkhead`) that treat a business `Left` as a value, never as a failure to retry |
+| Hand-written `wither` / copy-constructor updates on records | manual boilerplate | generated lenses, prisms, and traversals — the most comprehensive optics available for Java |
+
+And unlike any of those tools, effects and data navigation speak **the same language** — the Effect-Optics bridge above is something no other Java library offers.
+
+<details>
+<summary><strong>How the optics compare to other Java optics libraries</strong></summary>
+
+Higher-Kinded-J also offers the most advanced optics implementation in the Java ecosystem. Measured against the dedicated Java optics libraries:
 
 | Feature | Higher-Kinded-J | Functional Java | Fugue Optics | Derive4J |
 |---------|:--------------:|:---------------:|:------------:|:--------:|
@@ -185,6 +213,8 @@ Higher-Kinded-J offers the most advanced optics implementation in the Java ecosy
 
 *\* Derive4J generates getters/setters but requires Functional Java for actual optic classes*
 
+</details>
+
 ---
 
 ## Path Types at a Glance
@@ -193,9 +223,11 @@ Higher-Kinded-J offers the most advanced optics implementation in the Java ecosy
 |-----------|-------------|
 | `MaybePath<A>` | Absence is normal, not an error |
 | `EitherPath<E, A>` | Errors carry typed, structured information |
+| `EitherOrBothPath<L, A>` | Success that also carries non-fatal warnings (inclusive-or) |
 | `TryPath<A>` | Wrapping code that throws exceptions |
 | `ValidationPath<E, A>` | Collecting *all* errors, not just the first |
 | `IOPath<A>` | Side effects you want to defer and sequence |
+| `VResultPath<E, A>` | Async work that fails with a *typed* domain error (`VTask<Either<E, A>>`) |
 | `TrampolinePath<A>` | Stack-safe recursion |
 | `CompletableFuturePath<A>` | Async operations |
 | `ReaderPath<R, A>` | Dependency injection, configuration access |
@@ -211,7 +243,7 @@ Higher-Kinded-J offers the most advanced optics implementation in the Java ecosy
 | `VTaskPath<A>` | Virtual thread-based concurrency with Par combinators |
 | `VStreamPath<A>` | Lazy pull-based streaming on virtual threads |
 
-Each Path provides `map`, `via`, `run`, `recover`, and integration with the Focus DSL.
+Each Path provides `map`, `via`, `run`, `recover`, and integration with the Focus DSL. The lazy carriers (`IOPath`, `VTaskPath`, `VResultPath`) additionally chain path-native resilience — `withRetry` / `withTimeout` / `withCircuitBreaker` / `withBulkhead` — that treats a business `Left` as a value, never as a failure to retry.
 
 ### Optic Path Types
 
