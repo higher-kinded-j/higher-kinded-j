@@ -55,6 +55,7 @@ public class OrderService {
 
 **Functional Core** (pure, testable):
 
+<!-- verify -->
 ```java
 // Pure domain logic: no injected dependencies, no side effects
 public class OrderRules {
@@ -93,6 +94,7 @@ public class OrderRules {
 
 **Imperative Shell** (orchestrates effects):
 
+<!-- verify -->
 ```java
 @Service
 public class OrderService {
@@ -103,15 +105,16 @@ public class OrderService {
     @Autowired private NotificationService notifications;
 
     public Either<OrderError, OrderResult> processOrder(String userId, OrderRequest request) {
-        return Path.maybe(userRepo.findById(userId))
-            .toEitherPath(new OrderError.NotFound(userId))
+        return Path.optional(userRepo.findById(userId))     // Optional<User> -> OptionalPath<User>
+            .<OrderError>toEitherPath(new OrderError.NotFound(userId))   // widen to the sealed parent
             .via(user -> {
                 var invStatus = inventory.checkStatus(request.items());
                 return OrderRules.validateOrder(user, request, invStatus);  // pure core
             })
             .via(validated -> Path.tryOf(() ->
                     payments.charge(validated.user(), validated.total()))
-                .toEitherPath(OrderError.PaymentFailed::new))
+                .toEitherPath(OrderError.PaymentFailed::new)
+                .map(payment -> new OrderResult(payment.transactionId(), validated.total())))
             .peek(result -> notifications.sendConfirmation(result))  // side effect in shell
             .run();
     }
@@ -120,6 +123,7 @@ public class OrderService {
 
 **Controller** (thin shell):
 
+<!-- verify -->
 ```java
 @PostMapping("/orders")
 public Either<OrderError, OrderResult> createOrder(@RequestBody OrderRequest req) {
@@ -148,6 +152,7 @@ void goldMemberGetsDiscount() {
 
 ### Before
 
+<!-- verify -->
 ```java
 public User register(RegistrationForm form) {
     if (form.name() == null) throw new ValidationException("Name required");
@@ -166,12 +171,14 @@ public User register(RegistrationForm form) {
 
 **Core** (pure validation):
 
+<!-- verify -->
 ```java
 public static Validated<List<String>, RegistrationForm> validateForm(RegistrationForm form) {
-    return Path.valid(form.name(), Semigroup.listSemigroup())
+    Semigroup<List<String>> errors = Semigroups.list();   // how the failures combine
+    return Path.valid(form.name(), errors)
         .via(name -> name == null || name.isBlank()
-            ? Path.invalid(List.of("Name required"), Semigroup.listSemigroup())
-            : Path.valid(name, Semigroup.listSemigroup()))
+            ? Path.invalid(List.of("Name required"), errors)
+            : Path.valid(name, errors))
         .zipWithAccum(
             validateEmail(form.email()),
             (name, email) -> new RegistrationForm(name, email))
@@ -181,10 +188,11 @@ public static Validated<List<String>, RegistrationForm> validateForm(Registratio
 
 **Shell** (effects at boundary):
 
+<!-- verify -->
 ```java
 public Either<RegistrationError, User> register(RegistrationForm form) {
-    return Path.either(validateForm(form))
-        .mapError(RegistrationError.ValidationFailed::new)
+    return Path.either(validateForm(form).toEither())
+        .<RegistrationError>mapError(RegistrationError.ValidationFailed::new)
         .via(valid -> userRepo.existsByEmail(valid.email())
             ? Path.left(new RegistrationError.DuplicateEmail(valid.email()))
             : Path.right(valid))

@@ -24,6 +24,7 @@ hkj-spring/example/
 
 ## Domain Model
 
+<!-- verify -->
 ```java
 public record User(String id, String name, String email) {}
 
@@ -38,22 +39,38 @@ public sealed interface DomainError {
 
 ## Service Layer (Functional Core)
 
+<!-- verify -->
 ```java
 @Service
 public class UserService {
 
+    // Hold the semigroup in a typed field: `Path.valid(name, Semigroups.list())` on its own would
+    // infer Semigroup<List<Object>>, and the later zipWithAccum would not line up.
+    private static final Semigroup<List<String>> ERRORS = Semigroups.list();
+
     private final UserRepository repository;
+
+    public UserService(UserRepository repository) {
+        this.repository = repository;
+    }
 
     // Returns Either: explicit about possible errors
     public Either<DomainError, User> findById(String id) {
-        return Path.maybe(repository.findById(id))
-            .toEitherPath(new DomainError.UserNotFound(id))
+        // Path.optional, not Path.maybe: findById returns an Optional, and Path.maybe takes a
+        // *nullable* value, so it would bind A = Optional<User> and turn a miss into
+        // Just(Optional.empty()). That compiles, and is silently wrong.
+        //
+        // Type the error as the interface: toEitherPath infers the Left type from this argument,
+        // so passing `new DomainError.UserNotFound(id)` inline would give Either<UserNotFound, User>.
+        DomainError notFound = new DomainError.UserNotFound(id);
+        return Path.optional(repository.findById(id))
+            .toEitherPath(notFound)
             .run();
     }
 
     // Returns Validated: accumulates ALL errors
     public Validated<List<String>, User> validateAndCreate(String name, String email) {
-        return Path.valid(name, Semigroup.listSemigroup())
+        return Path.valid(name, ERRORS)
             .via(n -> validateName(n))
             .zipWithAccum(
                 validateEmail(email),
@@ -63,15 +80,15 @@ public class UserService {
 
     // Pure validation functions
     private ValidationPath<List<String>, String> validateName(String name) {
-        if (name == null || name.isBlank()) return Path.invalid(List.of("Name is required"), Semigroup.listSemigroup());
-        if (name.length() < 2) return Path.invalid(List.of("Name too short"), Semigroup.listSemigroup());
-        return Path.valid(name, Semigroup.listSemigroup());
+        if (name == null || name.isBlank()) return Path.invalid(List.of("Name is required"), ERRORS);
+        if (name.length() < 2) return Path.invalid(List.of("Name too short"), ERRORS);
+        return Path.valid(name, ERRORS);
     }
 
     private ValidationPath<List<String>, String> validateEmail(String email) {
-        if (email == null || email.isBlank()) return Path.invalid(List.of("Email is required"), Semigroup.listSemigroup());
-        if (!email.contains("@")) return Path.invalid(List.of("Invalid email format"), Semigroup.listSemigroup());
-        return Path.valid(email, Semigroup.listSemigroup());
+        if (email == null || email.isBlank()) return Path.invalid(List.of("Email is required"), ERRORS);
+        if (!email.contains("@")) return Path.invalid(List.of("Invalid email format"), ERRORS);
+        return Path.valid(email, ERRORS);
     }
 }
 ```
@@ -80,6 +97,7 @@ public class UserService {
 
 ## Controller (Imperative Shell)
 
+<!-- verify -->
 ```java
 @RestController
 @RequestMapping("/api/users")

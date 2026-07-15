@@ -10,6 +10,7 @@ Practical patterns for Higher-Kinded-J Effect Paths in production code.
 
 Each field gets its own function returning `EitherPath`. The success track carries the cleaned value.
 
+<!-- verify -->
 ```java
 private EitherPath<String, String> validateEmail(String email) {
     return switch (email) {
@@ -53,6 +54,7 @@ Nest by validating sub-objects independently, then combining with `zipWith3` at 
 
 Repositories return `Maybe` (absence is normal). Services convert to `Either` (absence is an error).
 
+<!-- verify -->
 ```java
 // Repository
 public Maybe<User> findById(String id) {
@@ -62,14 +64,18 @@ public Maybe<User> findById(String id) {
 // Service: converts at the boundary
 public EitherPath<UserError, User> getById(String id) {
     return Path.maybe(repository.findById(id))
-        .toEitherPath(() -> new UserError.NotFound(id));
+        .toEitherPath(new UserError.NotFound(id));
 }
 ```
+
+`toEitherPath` takes the error **value**, not a supplier: the `Maybe` is already computed, so there
+is nothing left to defer.
 
 ### Chained Service Calls with ForPath
 
 Use `ForPath` when each step depends on previous results. Use `.mapError()` to unify error types.
 
+<!-- verify -->
 ```java
 public EitherPath<OrderError, Order> placeOrder(String userId, List<Item> items) {
     return ForPath.from(users.getById(userId).mapError(OrderError::fromUserError))
@@ -81,6 +87,7 @@ public EitherPath<OrderError, Order> placeOrder(String userId, List<Item> items)
 
 ### Service with Fallback Chain
 
+<!-- verify -->
 ```java
 public EitherPath<ConfigError, Config> loadConfig() {
     return Path.either(loadFromFile())
@@ -95,20 +102,25 @@ public EitherPath<ConfigError, Config> loadConfig() {
 
 ### Resource Management
 
-Acquire, use, release. Cleanup runs via `ensuring` regardless of outcome.
+Acquire, use, release. Cleanup runs via `guarantee` regardless of outcome.
 
 ```java
 public IOPath<Result> withConnection(Function<Connection, Result> action) {
     return Path.io(() -> dataSource.getConnection())
         .via(conn -> Path.io(() -> action.apply(conn))
-            .ensuring(() -> { try { conn.close(); } catch (SQLException e) { log.warn("Close failed", e); } }));
+            .guarantee(() -> { try { conn.close(); } catch (SQLException e) { log.warn("Close failed", e); } }));
 }
 ```
+
+`Path.io` takes a `Supplier`, so an acquire that throws a *checked* exception (`getConnection()`
+does) must be wrapped by you. `IOPath.bracket` / `IOPath.withResource` are the same shape with the
+release built in.
 
 ### Composing Deferred Pipelines
 
 Nothing executes until the terminal call. Use `then` to sequence, `via` to chain dependent steps.
 
+<!-- verify -->
 ```java
 public IOPath<Report> generateReport(ReportRequest req) {
     return Path.io(() -> fetchData(req))
@@ -135,6 +147,7 @@ Report r = pipeline.generateReport(req).unsafeRun(); // executes here
 
 ### Error Enrichment with mapError
 
+<!-- verify -->
 ```java
 public <A> EitherPath<DetailedError, A> withContext(
         EitherPath<Error, A> path, String op, Map<String, Object> ctx) {
@@ -144,6 +157,7 @@ public <A> EitherPath<DetailedError, A> withContext(
 
 ### Recovery with Logging
 
+<!-- verify -->
 ```java
 path.recover(error -> { log.warn("Failed: {}. Using fallback.", error); return fallback; });
 ```
@@ -154,6 +168,7 @@ Track failures in an `AtomicInteger`; when threshold is exceeded, skip the call 
 
 ### Retry with Backoff
 
+<!-- verify -->
 ```java
 // Policies
 RetryPolicy.fixed(3, Duration.ofMillis(100));
@@ -161,7 +176,7 @@ RetryPolicy.exponentialBackoff(5, Duration.ofSeconds(1));
 RetryPolicy.exponentialBackoffWithJitter(5, Duration.ofSeconds(1));
 
 // Apply
-IOPath<Response> resilient = IOPath.delay(() -> httpClient.get(url))
+IOPath<Response> resilient = Path.io(() -> httpClient.get(url))
     .withRetry(RetryPolicy.exponentialBackoff(3, Duration.ofSeconds(1)));
 
 // Configure
@@ -173,8 +188,12 @@ RetryPolicy policy = RetryPolicy.exponentialBackoff(5, Duration.ofMillis(100))
 IOPath<Data> robust = fetchFromPrimary()
     .withRetry(RetryPolicy.exponentialBackoff(3, Duration.ofSeconds(1)))
     .handleErrorWith(e -> fetchFromBackup().withRetry(RetryPolicy.fixed(2, Duration.ofMillis(100))))
-    .recover(e -> Data.empty());
+    .handleError(e -> Data.empty());
 ```
+
+`IOPath`'s failure channel is a thrown exception, so its recovery pair is
+`handleError` / `handleErrorWith`. `recover` / `recoverWith` belong to the paths whose failure is a
+*value*: `MaybePath`, `EitherPath`, `TryPath`, `ValidationPath`.
 
 | Strategy | Factory | Use Case |
 |----------|---------|----------|
@@ -248,6 +267,7 @@ Use `@Property` to verify functor/monad laws. Example: `path.map(Function.identi
 
 ### Wrapping Exception-Throwing APIs
 
+<!-- verify -->
 ```java
 // As TryPath
 public TryPath<Data> fetchData(String id) {
@@ -262,6 +282,7 @@ public EitherPath<ServiceError, Data> fetchDataSafe(String id) {
 
 ### Wrapping Optional-Returning APIs
 
+<!-- verify -->
 ```java
 public MaybePath<User> findUser(String id) {
     return Path.maybe(Maybe.fromOptional(modern.findUser(id)));
@@ -275,7 +296,7 @@ public class ServiceAdapter {
     private final PathBasedService service;
 
     public Optional<User> findUser(String id) {           // Optional consumer
-        return service.findUser(id).run().toOptional();
+        return service.findUser(id).toOptionalPath().run();
     }
 
     public User getUser(String id) throws UserNotFoundException {  // Exception consumer

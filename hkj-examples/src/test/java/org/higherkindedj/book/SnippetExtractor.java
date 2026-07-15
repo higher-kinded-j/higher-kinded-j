@@ -46,16 +46,28 @@ final class SnippetExtractor {
       Pattern.compile("^\\s*import\\s+(static\\s+)?[\\w.*]+\\s*;\\s*$");
 
   /**
-   * A top-level declaration: a type, or an annotation that introduces one. Anything else is treated
-   * as loose statements and wrapped in a method body.
+   * A top-level type declaration. Anything else is treated as loose statements and wrapped in a
+   * method body.
    */
   private static final Pattern DECLARATION =
       Pattern.compile(
-          "^\\s*(@(GenerateLenses|GenerateFocus|GeneratePrisms|GenerateIsos|GenerateGetters"
-              + "|GenerateSetters|GenerateFolds|GenerateMapping|GenerateMerge|GenerateAssembly"
-              + "|GenerateErrorEnvelope|EffectAlgebra|ComposeEffects)\\b"
-              + "|(public\\s+|final\\s+|abstract\\s+|sealed\\s+|non-sealed\\s+|static\\s+)*"
-              + "(class|record|interface|enum)\\s+\\w+)");
+          "^\\s*(public\\s+|final\\s+|abstract\\s+|sealed\\s+|non-sealed\\s+|static\\s+)*"
+              + "(class|record|interface|enum|@interface)\\s+\\w+");
+
+  /**
+   * Any annotation, not just HKJ's own. What it annotates is decided by looking past it: a page may
+   * write {@code @RestController} above a class or {@code @Test} above a method, and hoisting the
+   * class away from its annotations produces "illegal start of type" rather than a real finding.
+   */
+  private static final Pattern ANNOTATION = Pattern.compile("^\\s*@\\w+.*$");
+
+  /**
+   * A declaration on the SAME line as its annotation, e.g. {@code @GenerateMapping public interface
+   * CardMapping extends MappingSpec<Card, CardDto> {}}. The look-ahead past annotations must stop
+   * here, or the declaration is skipped over and dumped into the statement body.
+   */
+  private static final Pattern INLINE_DECLARATION =
+      Pattern.compile("\\b(class|record|interface|enum)\\s+\\w+");
 
   /**
    * A method declaration, which a page writes when it is showing you a signature rather than a
@@ -65,7 +77,12 @@ final class SnippetExtractor {
   private static final Pattern METHOD =
       Pattern.compile(
           "^\\s*(public\\s+|private\\s+|protected\\s+|static\\s+|final\\s+|default\\s+)*"
+              // A generic method declares its own type parameters before the return type.
+              + "(<[^=;{]+>\\s*)?"
               + "[\\w.$]+(<[^=;]*>)?(\\[])?\\s+\\w+\\s*\\([^;]*\\)\\s*(throws\\s+[\\w.,\\s]+)?\\{\\s*$");
+
+  /** How many lines a wrapped signature may span before we stop looking. */
+  private static final int MAX_SIGNATURE_LINES = 6;
 
   /** A fixture may be generic, so a page can show `VResultPath<E, A>` without naming a domain. */
   private static final Pattern FIXTURE_DECL =
@@ -201,6 +218,51 @@ final class SnippetExtractor {
     return null;
   }
 
+  /**
+   * The last line of a method signature starting at {@code start}, or -1 if that is not a signature.
+   *
+   * <p>A page routinely wraps a signature over several lines:
+   *
+   * <pre>{@code
+   * public static Either<DomainError, Company> updateManagerEmail(
+   *     Company company, String department, String email) {
+   * }</pre>
+   *
+   * <p>Matching one line at a time misses that, and the declaration is then treated as loose
+   * statements and wrapped inside a method, which does not parse. So join lines until it closes.
+   */
+  private static int endOfSignature(List<String> lines, int start) {
+    String first = lines.get(start).strip();
+    // A signature starts with code and opens a parameter list. Without this guard the join runs on
+    // from a blank line through several complete declarations until the concatenation happens to
+    // end
+    // in `{`, and swallows them whole.
+    if (first.isBlank() || first.startsWith("//") || !first.contains("(")) {
+      return -1;
+    }
+    StringBuilder joined = new StringBuilder();
+    int limit = Math.min(lines.size(), start + MAX_SIGNATURE_LINES);
+    for (int i = start; i < limit; i++) {
+      if (i > start) {
+        joined.append(' ');
+      }
+      // Strip comments and literals first, exactly as endOfDeclaration does: a trailing `// note`
+      // on the `{` line would otherwise stop the signature ending in `{`, and a `;` or `}` inside a
+      // comment would trip the guard below into a false negative.
+      joined.append(stripLiterals(lines.get(i)).strip());
+      String candidate = joined.toString().strip();
+      // A `;` ends a statement and a `}` closes a construct: either way we have run past whatever
+      // this is, and it was not a signature.
+      if (candidate.endsWith(";") || candidate.contains("}")) {
+        return -1;
+      }
+      if (candidate.endsWith("{") && METHOD.matcher(candidate).matches()) {
+        return i;
+      }
+    }
+    return -1;
+  }
+
   /** The declared name, so a snippet's own type can shadow the fixture's. */
   private static String typeNameOf(String declaration) {
     var matcher =
@@ -222,6 +284,32 @@ final class SnippetExtractor {
       if (IMPORT.matcher(line).matches()) {
         imports.add(line.strip());
         i++;
+      } else if (ANNOTATION.matcher(line).matches()) {
+        // Look past the annotations to see what they annotate, and keep them attached to it.
+        int subject = i;
+        while (subject < lines.size()
+            && ANNOTATION.matcher(lines.get(subject)).matches()
+            && !INLINE_DECLARATION.matcher(lines.get(subject)).find()) {
+          subject++;
+        }
+        if (subject < lines.size() && DECLARATION.matcher(lines.get(subject)).find()) {
+          int end = endOfDeclaration(lines, subject);
+          String declaration = String.join("\n", lines.subList(i, end + 1));
+          declarations.add(
+              declaration.replaceAll(
+                  "\\bpublic\\s+(?=(final\\s+|abstract\\s+|sealed\\s+|non-sealed\\s+|static\\s+)*"
+                      + "(class|record|interface|enum)\\b)",
+                  ""));
+          i = end + 1;
+        } else if (subject < lines.size() && endOfSignature(lines, subject) >= 0) {
+          int end = endOfDeclaration(lines, endOfSignature(lines, subject));
+          members.add("  " + String.join("\n  ", lines.subList(i, end + 1)));
+          i = end + 1;
+        } else {
+          // An annotation on something we do not model (a field, a parameter): leave it in place.
+          loose.add("    " + line + "\n");
+          i++;
+        }
       } else if (DECLARATION.matcher(line).find()) {
         int end = endOfDeclaration(lines, i);
         String declaration = String.join("\n", lines.subList(i, end + 1));
@@ -234,10 +322,10 @@ final class SnippetExtractor {
                     + "(class|record|interface|enum)\\b)",
                 ""));
         i = end + 1;
-      } else if (METHOD.matcher(line).matches()) {
+      } else if (endOfSignature(lines, i) >= 0) {
         // The page is showing a whole method. It becomes a member: a method cannot nest in a
-        // method.
-        int end = endOfDeclaration(lines, i);
+        // method. The signature may wrap, so brace-walk from where it actually closes.
+        int end = endOfDeclaration(lines, endOfSignature(lines, i));
         members.add("  " + String.join("\n  ", lines.subList(i, end + 1)));
         i = end + 1;
       } else if (line.isBlank() || line.strip().startsWith("//")) {
@@ -276,9 +364,17 @@ final class SnippetExtractor {
     return lines.size() - 1;
   }
 
-  /** Braces inside strings and char literals must not count towards nesting depth. */
+  /**
+   * Braces inside strings, char literals and comments must not count towards nesting depth: a lone
+   * {@code // }} in a comment would otherwise close a declaration early. Strings are blanked first,
+   * so a {@code //} inside one is already gone before comments are stripped. Comments are removed
+   * entirely rather than blanked to {@code ""}, so a trailing comment cannot mask the {@code ;}
+   * that marks a body-less member.
+   */
   private static String stripLiterals(String line) {
     return line.replaceAll("\"(\\\\.|[^\"\\\\])*\"", "\"\"")
-        .replaceAll("'(\\\\.|[^'\\\\])'", "' '");
+        .replaceAll("'(\\\\.|[^'\\\\])'", "' '")
+        .replaceAll("//.*", "")
+        .replaceAll("/\\*.*?\\*/", "");
   }
 }

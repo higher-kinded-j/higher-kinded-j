@@ -37,6 +37,7 @@ spring:
 A normal Spring `@HttpExchange` interface, annotated `@HkjHttpClient`, returning Effect Paths over
 your own DTO and error types:
 
+<!-- verify -->
 ```java
 public record UserDto(String id, String name) {}
 public record ApiError(String code, String message) {}   // concrete error: binds with no annotations
@@ -131,6 +132,7 @@ Precedence: `@OnStatus` (per method) beats the global mapping beats the declared
 
 `VTaskPath` defers the call onto a virtual thread, so the resilience combinators compose:
 
+<!-- verify -->
 ```java
 Either<ApiError, UserDto> result =
     users.create(body)
@@ -146,6 +148,7 @@ Either<ApiError, UserDto> result =
 
 Drive the generated client against a `MockRestServiceServer` (no Spring context needed):
 
+<!-- verify -->
 ```java
 RestClient.Builder builder = RestClient.builder().baseUrl("http://users.test");
 MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();

@@ -20,6 +20,7 @@ Quick-lookup reference for converting common imperative Java patterns to Higher-
 **Pattern replaced:** Exception handling interleaved with business logic.
 
 ### Before
+<!-- verify -->
 ```java
 String result;
 try {
@@ -32,8 +33,9 @@ try {
 ```
 
 ### After
+<!-- verify -->
 ```java
-String result = Path.tryOf(() -> readFile(path))
+String result = Path.tryPath(Try.attempt(() -> readFile(path)))
     .map(this::transform)
     .recover(e -> {
         log.warn("Read failed", e);
@@ -41,6 +43,10 @@ String result = Path.tryOf(() -> readFile(path))
     })
     .getOrElse(DEFAULT_VALUE);
 ```
+
+`Path.tryOf(() -> ...)` takes a plain `Supplier`, so it can only wrap a computation that throws
+*unchecked*. `readFile` throws `IOException`, so it goes through `Try.attempt`, which takes a
+checked supplier; `Path.tryPath` lifts the resulting `Try` onto the railway.
 
 **Gain:** Happy path reads top-to-bottom. Recovery separated from business logic. Additional `.map`/`.via` steps insert without restructuring error handling.
 
@@ -51,6 +57,7 @@ String result = Path.tryOf(() -> readFile(path))
 **Pattern replaced:** `Optional.flatMap` chains that lack uniform composition vocabulary.
 
 ### Before
+<!-- verify -->
 ```java
 String city = findUser(id)
     .flatMap(user -> findAddress(user))
@@ -59,21 +66,26 @@ String city = findUser(id)
 ```
 
 ### After
+<!-- verify -->
 ```java
-String city = Path.maybe(findUser(id))
-    .via(user -> Path.maybe(findAddress(user)))
+String city = Path.maybe(Maybe.fromOptional(findUser(id)))
+    .via(user -> Path.maybe(Maybe.fromOptional(findAddress(user))))
     .map(Address::city)
     .run()
     .orElse("Unknown");
 ```
 
+`Maybe.fromOptional` is the bridge: `Path.maybe` takes a `Maybe` (or a plain nullable value), not a
+`java.util.Optional`.
+
 **Gain:** Shares `via`, `map`, `peek`, `recover` vocabulary with all other Path types. Upgrading to typed errors is a one-line change:
 
+<!-- verify -->
 ```java
 // MaybePath -> EitherPath upgrade
-Path.maybe(findUser(id))
+Path.maybe(Maybe.fromOptional(findUser(id)))
     .toEitherPath(new AppError.UserNotFound(id))
-    .via(user -> Path.maybe(findAddress(user))
+    .via(user -> Path.maybe(Maybe.fromOptional(findAddress(user)))
         .toEitherPath(new AppError.NoAddress(user.id())))
     .map(Address::city)
     .run();
@@ -100,6 +112,7 @@ return postcode != null ? postcode : "N/A";
 ```
 
 ### After
+<!-- verify -->
 ```java
 String postcode = Path.maybe(findOrder(id))
     .map(Order::customer)
@@ -120,6 +133,7 @@ String postcode = Path.maybe(findOrder(id))
 **Pattern replaced:** `thenCompose`/`thenApply` nesting with awkward error handling.
 
 ### Before
+<!-- verify -->
 ```java
 CompletableFuture<OrderConfirmation> result =
     userService.findUser(userId)
@@ -130,6 +144,7 @@ CompletableFuture<OrderConfirmation> result =
 ```
 
 ### After
+<!-- verify -->
 ```java
 var result = CompletableFuturePath.fromFuture(userService.findUser(userId))
     .via(user -> CompletableFuturePath.fromFuture(
@@ -143,6 +158,7 @@ var result = CompletableFuturePath.fromFuture(userService.findUser(userId))
 **Gain:** `recover` integrates into the chain (not dangling at the end). `peek` adds logging at any step.
 
 ### Parallel independent fetches
+<!-- verify -->
 ```java
 CompletableFuturePath.fromFuture(fetchMetrics())
     .parZipWith(
@@ -173,6 +189,7 @@ Registration reg = new Registration(name, email, age);
 ```
 
 ### After
+<!-- verify -->
 ```java
 Semigroup<List<String>> sg = Semigroups.list();
 
@@ -195,6 +212,7 @@ ValidationPath<List<String>, Registration> result =
 **Gain:** All validators run independently. `zipWith3Accum` accumulates every error, not just the first. The result type proves validation passed if you get a `Registration`.
 
 ### Switch to short-circuit after validation
+<!-- verify -->
 ```java
 result.toEitherPath()
     .via(reg -> processRegistration(reg));
@@ -207,6 +225,7 @@ result.toEitherPath()
 **Pattern replaced:** Manual reconstruction of every intermediate record for a deeply nested field update.
 
 ### Before
+<!-- verify -->
 ```java
 Order updatePostcode(Order order, String newPostcode) {
     Address old = order.customer().shippingAddress();
@@ -219,19 +238,23 @@ Order updatePostcode(Order order, String newPostcode) {
 ```
 
 ### After
+<!-- verify -->
 ```java
 // Uses @GenerateLenses annotation on records
 Order updatePostcode(Order order, String newPostcode) {
     return OrderLenses.customer()
         .andThen(CustomerLenses.shippingAddress())
         .andThen(AddressLenses.postcode())
-        .set(order, newPostcode);
+        .set(newPostcode, order);
 }
 ```
 
 **Gain:** Lens composition describes the path; the library handles reconstruction. Adding fields to `Address` requires zero changes here. Fully type-safe.
 
+`set` takes the **new value first, the source second** (`set(a, s)`), matching `modify(f, s)`.
+
 ### Combining lenses with Effect Paths
+<!-- verify -->
 ```java
 var postcodeLens = OrderLenses.customer()
     .andThen(CustomerLenses.shippingAddress())
@@ -240,7 +263,7 @@ var postcodeLens = OrderLenses.customer()
 EitherPath<AppError, Order> result =
     Path.<AppError, Order>right(order)
         .via(curr -> validatePostcode(postcodeLens.get(curr))
-            .map(valid -> postcodeLens.set(curr, valid)));
+            .map(valid -> postcodeLens.set(valid, curr)));
 ```
 
 ---

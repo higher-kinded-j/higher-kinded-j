@@ -104,12 +104,13 @@ You are helping a developer structure their Java 25 application using the "funct
 
 ### Where to Convert Between Path Types
 
+<!-- verify -->
 ```java
 // Service layer (core): returns EitherPath
 public EitherPath<OrderError, Order> processOrder(OrderRequest req) {
     return validateRequest(req)             // EitherPath<OrderError, ValidatedReq>
         .via(v -> checkInventory(v))        // EitherPath<OrderError, InventoryCheck>
-        .via(inv -> calculateTotal(inv))    // EitherPath<OrderError, Order>
+        .via(inv -> calculateTotal(inv));   // EitherPath<OrderError, Order>
 }
 
 // Controller (shell): converts to HTTP response
@@ -123,11 +124,12 @@ public Either<OrderError, Order> createOrder(@RequestBody OrderRequest req) {
 
 Optics navigate and transform immutable data without mutation:
 
+<!-- verify -->
 ```java
 // Pure: navigate and transform (no side effects)
 Order discounted = OrderFocus.items()          // TraversalPath<Order, LineItem>
     .filter(item -> item.quantity() > 10)      // only bulk items
-    .price()                                    // TraversalPath to price
+    .via(LineItemFocus.price())                // TraversalPath to price
     .modifyAll(p -> p.multiply(0.9), order);   // 10% discount, returns new Order
 ```
 
@@ -159,13 +161,14 @@ void testDiscount() {
 
 ### Effect Handlers: Id Monad for Tests
 
+<!-- verify -->
 ```java
 // Production: IO interpreter (real side effects)
 var ioResult = program.foldMap(productionInterpreter, IOMonad.INSTANCE);
 
 // Test: Id interpreter (pure, no mocks)
-var testResult = program.foldMap(testInterpreter, IdMonad.INSTANCE);
-assertEquals(expected, IdKindHelper.ID_OP.narrow(testResult).value());
+var testResult = program.foldMap(testInterpreter, IdMonad.instance());
+assertEquals(expected, IdKindHelper.ID.narrow(testResult).value());
 ```
 
 ---
@@ -194,6 +197,7 @@ it wraps (as a record component) rather than replaces.
 Take a `TimeSource` in the constructor; default it to the system clock. The dependency is explicit,
 and the only place that decides *which* clock is the composition root.
 
+<!-- verify -->
 ```java
 public class InMemoryInventoryService implements InventoryService {
 
@@ -224,6 +228,7 @@ The shell runs it (`.unsafeRunSync()`); the core never does. Same rule as every 
 hkj-test ships `SteppableClock`, a real `java.time.Clock` you move by hand. Combined with
 `TimeSource.of(clock)`, a fifteen-minute expiry test costs microseconds and no mock:
 
+<!-- verify -->
 ```java
 var clock = SteppableClock.startingAt(Instant.parse("2026-07-07T00:00:00Z"));
 var service = new InMemoryInventoryService(TimeSource.of(clock));
@@ -253,6 +258,7 @@ no injectable `Supplier<Instant>` seam bolted on per class, no sleeping.
 
 ### Domain Errors as Sealed Hierarchies
 
+<!-- verify -->
 ```java
 public sealed interface OrderError {
     record NotFound(String orderId) implements OrderError {}
@@ -266,6 +272,7 @@ Benefits: exhaustive `switch`, no `instanceof` chains, structured error data, JS
 
 ### Domain State as Records
 
+<!-- verify -->
 ```java
 @GenerateLenses
 @GenerateFocus

@@ -56,6 +56,7 @@ All third-party types have cardinality `ZERO_OR_MORE` and use `EachInstances.fro
 ## Generated Code Examples
 
 ### Required field -> FocusPath
+<!-- verify -->
 ```java
 public static FocusPath<Employee, String> name() {
     return FocusPath.of(EmployeeLenses.name());
@@ -63,6 +64,7 @@ public static FocusPath<Employee, String> name() {
 ```
 
 ### Optional<T> -> AffinePath (auto-unwrap)
+<!-- verify -->
 ```java
 public static AffinePath<Employee, String> email() {
     return FocusPath.of(EmployeeLenses.email()).some();
@@ -70,6 +72,7 @@ public static AffinePath<Employee, String> email() {
 ```
 
 ### @Nullable -> AffinePath (null handling)
+<!-- verify -->
 ```java
 public static AffinePath<Employee, String> nickname() {
     return FocusPath.of(EmployeeLenses.nickname()).nullable();
@@ -77,6 +80,7 @@ public static AffinePath<Employee, String> nickname() {
 ```
 
 ### List<T> -> TraversalPath (element traversal)
+<!-- verify -->
 ```java
 public static TraversalPath<Employee, Skill> skills() {
     return FocusPath.of(EmployeeLenses.skills()).each();
@@ -84,6 +88,7 @@ public static TraversalPath<Employee, Skill> skills() {
 ```
 
 ### List<T> indexed access -> AffinePath
+<!-- verify -->
 ```java
 public static AffinePath<Employee, Skill> skill(int index) {
     return FocusPath.of(EmployeeLenses.skills()).at(index);
@@ -91,6 +96,7 @@ public static AffinePath<Employee, Skill> skill(int index) {
 ```
 
 ### Either<L, R> -> AffinePath (SPI widening)
+<!-- verify -->
 ```java
 public static AffinePath<Employee, Integer> timeout() {
     return FocusPath.of(EmployeeLenses.timeout()).some(Affines.eitherRight());
@@ -98,6 +104,7 @@ public static AffinePath<Employee, Integer> timeout() {
 ```
 
 ### Map<K, V> -> TraversalPath (SPI widening)
+<!-- verify -->
 ```java
 public static TraversalPath<Employee, Integer> scores() {
     return FocusPath.of(EmployeeLenses.scores()).each(EachInstances.mapValuesEach());
@@ -112,6 +119,7 @@ Patterns like `Optional<List<String>>` or `Either<E, Map<K, V>>` are detected au
 
 For SPI `ZERO_OR_MORE` types, static Focus methods return `FocusPath`. Widen manually:
 
+<!-- verify -->
 ```java
 // Static method returns FocusPath<AssetClass, ImmutableList<Position>>
 var positions = AssetClassFocus.positions();
@@ -127,12 +135,15 @@ Navigator generation handles `ZERO_OR_MORE` automatically: navigator methods ret
 
 ### Step 1: Implement the SPI
 
+<!-- verify -->
 ```java
 public class ResultGenerator extends BaseTraversableGenerator {
 
+    // Which type this generator claims. The SPI matches on the TypeMirror, not on a name.
     @Override
-    public String supportedTypeName() {
-        return "com.example.Result";
+    public boolean supports(TypeMirror type) {
+        return type instanceof DeclaredType declared
+            && declared.asElement().toString().equals("com.example.Result");
     }
 
     @Override
@@ -153,6 +164,21 @@ public class ResultGenerator extends BaseTraversableGenerator {
     @Override
     public Set<String> getRequiredImports() {
         return Set.of("com.example.optics.ResultAffines");
+    }
+
+    // The ONE method you must implement: everything above has a default. It emits the body of the
+    // effectful modify, so this is where the container is actually traversed.
+    @Override
+    public CodeBlock generateModifyF(
+            RecordComponentElement component,
+            ClassName recordClassName,
+            List<? extends RecordComponentElement> allComponents) {
+        String name = component.getSimpleName().toString();
+        return CodeBlock.builder()
+            .addStatement("final var result = source.$L()", name)
+            .addStatement("return applicative.map(v -> $L, f.apply(result.get()))",
+                generateConstructorArgs(name, "com.example.Result.ok(v)", allComponents))
+            .build();
     }
 }
 ```

@@ -70,6 +70,7 @@ public sealed interface ConsoleOp<A> {
 
 With `@EffectAlgebra`, use CPS (continuation-passing style) instead:
 
+<!-- verify -->
 ```java
 @EffectAlgebra
 public sealed interface ConsoleOp<A>
@@ -123,6 +124,7 @@ With `@EffectAlgebra`, smart constructors are generated as `ConsoleOpOps` method
 
 ### Step 4: Write Programs
 
+<!-- verify -->
 ```java
 Free<ConsoleOpKind.Witness, Unit> program =
     printLine("What is your name?")
@@ -235,6 +237,7 @@ Free<W, Unit> registration() {
 
 Java cannot infer the functor type `F` when chaining on `Free.pure()`:
 
+<!-- verify -->
 ```java
 Free.pure(2).map(x -> x * 2);  // COMPILE ERROR: cannot infer F
 

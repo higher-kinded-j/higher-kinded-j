@@ -38,6 +38,7 @@ dependencies {
 
 ### 2. Return Functional Types from Controllers
 
+<!-- verify -->
 ```java
 @RestController
 @RequestMapping("/api/users")
@@ -129,6 +130,7 @@ simple name across packages.
 When the status depends on the error's field values, register an `ErrorStatusCodeStrategy`
 bean. It replaces the default via `@ConditionalOnMissingBean`:
 
+<!-- verify -->
 ```java
 @Bean
 ErrorStatusCodeStrategy errorStatusCodeStrategy() {
@@ -144,6 +146,7 @@ ErrorStatusCodeStrategy errorStatusCodeStrategy() {
 
 If you can pick the names, choose ones that trip the heuristics so you avoid configuration:
 
+<!-- verify -->
 ```java
 public sealed interface DomainError {
     record UserNotFound(String id) implements DomainError {}              // -> 404
@@ -162,6 +165,7 @@ table.
 
 Error payloads can surface response headers by implementing `HttpHeaderCarrier`:
 
+<!-- verify -->
 ```java
 public record MfaThrottledError(int retryAfterSeconds) implements DomainError, HttpHeaderCarrier {
     @Override public Map<String, String> headers() {
@@ -197,6 +201,7 @@ case), see `hkj-spring/example/.../ErrorStatusFixtureController.java` and the ma
 
 ### Either: Success or Typed Error
 
+<!-- verify -->
 ```java
 @GetMapping("/{id}")
 public Either<DomainError, User> getUser(@PathVariable String id) {
@@ -206,6 +211,7 @@ public Either<DomainError, User> getUser(@PathVariable String id) {
 
 ### Validated: Accumulating All Errors
 
+<!-- verify -->
 ```java
 @PostMapping
 public Validated<List<String>, User> createUser(@RequestBody UserRequest req) {
@@ -229,6 +235,7 @@ value). Both `EitherOrBothPath<W, T>` and a bare `EitherOrBoth<W, T>` are accept
 The `Both` case is the interesting one: a partial success still returns 200, but the caller is told
 what was degraded rather than the warnings being silently dropped.
 
+<!-- verify -->
 ```java
 @GetMapping("/{id}/report")
 public EitherOrBothPath<NonEmptyList<String>, Report> getReport(@PathVariable String id) {
@@ -240,6 +247,7 @@ public EitherOrBothPath<NonEmptyList<String>, Report> getReport(@PathVariable St
 }
 ```
 
+<!-- verify -->
 ```java
 // Service side: Path.bothNel / rightNel / leftNel bake in NonEmptyList.semigroup()
 public EitherOrBothPath<NonEmptyList<String>, Report> buildReport(String id) {
@@ -255,6 +263,7 @@ slice needs the usual `@ImportAutoConfiguration` (see [Testing](#testing)).
 
 ### CompletableFuturePath: Async
 
+<!-- verify -->
 ```java
 @GetMapping("/{id}")
 public CompletableFuturePath<Either<DomainError, User>> getUserAsync(@PathVariable String id) {
@@ -264,6 +273,7 @@ public CompletableFuturePath<Either<DomainError, User>> getUserAsync(@PathVariab
 
 ### VTaskPath: Virtual Thread Async
 
+<!-- verify -->
 ```java
 @GetMapping("/{id}")
 public VTaskPath<Either<DomainError, User>> getUserVTask(@PathVariable String id) {
@@ -274,6 +284,7 @@ public VTaskPath<Either<DomainError, User>> getUserVTask(@PathVariable String id
 
 ### VStreamPath: Server-Sent Events
 
+<!-- verify -->
 ```java
 @GetMapping(value = "/stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
 public VStreamPath<Update> streamUpdates() {
@@ -310,6 +321,7 @@ The outbound inverse of the controller handlers. Annotate a Spring `@HttpExchang
 
 ### Declare, configure, autowire
 
+<!-- verify -->
 ```java
 @HttpExchange("/users")
 @HkjHttpClient
@@ -377,6 +389,7 @@ Wholesale: define a `ResponseErrorDecoder` / `ResponseErrorDecoderFactory` bean 
 
 ### Resilience, Retry-After, SSE
 
+<!-- verify -->
 ```java
 Either<ApiError, UserDto> result =
     userClientApi.create(body)
@@ -407,8 +420,12 @@ Either<ApiError, UserDto> result =
 public class UserService {
 
     public Either<DomainError, User> findById(String id) {
-        return Path.maybe(repository.findById(id))
-            .toEitherPath(new DomainError.NotFound("user", id))
+        // Path.optional for an Optional-returning repository. Path.maybe takes a *nullable* value,
+        // so it would bind A = Optional<User> and a miss would become Just(Optional.empty()).
+        // Typed as the interface: toEitherPath infers the Left type from this argument.
+        DomainError notFound = new DomainError.NotFound("user", id);
+        return Path.optional(repository.findById(id))
+            .toEitherPath(notFound)
             .run();
     }
 
@@ -425,14 +442,14 @@ public class UserService {
 
 ### Composing Service Calls
 
+<!-- verify -->
 ```java
 public Either<DomainError, OrderResult> processOrder(String userId, OrderRequest req) {
-    return Path.<DomainError, User>right(null)
-        .then(() -> findUser(userId))
+    return findUser(userId)
         .via(user -> validateOrder(req)
-            .mapError(DomainError.Validation::new))
-        .via(order -> chargePayment(user, order)
-            .mapError(DomainError.PaymentFailed::new))
+            .mapError(DomainError.Validation::new)
+            .via(order -> chargePayment(user, order)      // nested: `user` is still in scope
+                .mapError(DomainError.PaymentFailed::new)))
         .map(payment -> new OrderResult(payment.id()))
         .run();
 }
@@ -457,8 +474,13 @@ public User findById(String id) {
 
 // After: returns Either
 public Either<DomainError, User> findById(String id) {
-    return Path.maybe(repository.findById(id))
-        .toEitherPath(new DomainError.NotFound("user", id))
+    // Path.optional mirrors the Optional the repository already returns. Path.maybe is for a
+    // *nullable* value: handed an Optional it binds A = Optional<User>, and the empty case
+    // becomes Just(Optional.empty()) rather than the miss you meant.
+    // Typed as the interface: toEitherPath infers the Left type from this argument.
+    DomainError notFound = new DomainError.NotFound("user", id);
+    return Path.optional(repository.findById(id))
+        .toEitherPath(notFound)
         .run();
 }
 ```
@@ -552,11 +574,22 @@ For services that compose multiple effect algebras (e.g., inventory + orders + n
 
 ### Level 1: Manual Bean
 
+`EffectBoundary<F>` and `FreePath<F, A>` are parameterised by the **effect witness**, not by the
+`@ComposeEffects` record. Java has no type alias, so the witness of a composition is spelled out:
+`Interpreters.combine` nests `EitherF` to the right, so three algebras give
+`EitherFKind.Witness<OrderOpKind.Witness, EitherFKind.Witness<InventoryOpKind.Witness, NotifyOpKind.Witness>>`.
+With one algebra it is simply `OrderOpKind.Witness`.
+
+<!-- verify -->
 ```java
 @Configuration
 public class OrderConfig {
     @Bean
-    public EffectBoundary<OrderEffects> orderBoundary() {
+    public EffectBoundary<
+            EitherFKind.Witness<
+                OrderOpKind.Witness,
+                EitherFKind.Witness<InventoryOpKind.Witness, NotifyOpKind.Witness>>>
+        orderBoundary() {
         return EffectBoundary.of(Interpreters.combine(
             new ProductionOrderInterpreter(),
             new ProductionInventoryInterpreter(),
@@ -573,6 +606,7 @@ public IOPath<OrderResult> createOrder(@RequestBody OrderRequest req) {
 
 ### Level 3: Interpreters as Spring Beans
 
+<!-- verify -->
 ```java
 @Interpreter(OrderOp.class)
 public class JpaOrderInterpreter extends OrderOpInterpreter<IOKind.Witness> {
@@ -582,7 +616,7 @@ public class JpaOrderInterpreter extends OrderOpInterpreter<IOKind.Witness> {
 
     @Override
     protected <A> Kind<IOKind.Witness, A> handleCreateOrder(OrderOp.CreateOrder<A> op) {
-        return IO.of(() -> op.k().apply(repo.save(op.request())));
+        return IO.delay(() -> op.k().apply(repo.save(op.request())));
     }
 }
 ```
@@ -595,6 +629,7 @@ public class StubOrderInterpreter extends OrderOpInterpreter<IOKind.Witness> { .
 
 ### Level 4: Full Auto-Wiring
 
+<!-- verify -->
 ```java
 @SpringBootApplication
 @EnableEffectBoundary({OrderOp.class, InventoryOp.class, NotifyOp.class})
@@ -609,10 +644,20 @@ This replaces manual wiring with one annotation: auto-discovers `@Interpreter` b
 
 ### Level 5: Testing with @EffectTest
 
+`@EffectTest` supplies the boundary, not the context: pair it with `@SpringBootTest`.
+
+<!-- verify -->
 ```java
+@SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.NONE)
 @EffectTest(effects = {OrderOp.class, InventoryOp.class, NotifyOp.class})
 class OrderServiceTest {
-    @Autowired EffectBoundary<OrderEffects> boundary;
+    @Autowired EffectBoundary<
+        EitherFKind.Witness<
+            OrderOpKind.Witness,
+            EitherFKind.Witness<InventoryOpKind.Witness, NotifyOpKind.Witness>>> boundary;
+    @Autowired OrderService orderService;
+
+    OrderRequest validRequest = new OrderRequest("SKU-42", 2);
 
     @Test void processOrder_success() {
         var result = boundary.run(orderService.processOrder(validRequest));
@@ -625,9 +670,13 @@ For pure tests without Spring context, use `TestBoundary` directly (see `/hkj-ef
 
 ### FreePath as Controller Return Type
 
+`FreePath<F, A>` takes the same witness as the boundary that interprets it: one algebra here, so
+`OrderOpKind.Witness`; a composition spells out its `EitherF` nesting, as at Level 1.
+
+<!-- verify -->
 ```java
 @GetMapping("/{id}/status")
-public FreePath<OrderEffects, OrderStatus> getStatus(@PathVariable String id) {
+public FreePath<OrderOpKind.Witness, OrderStatus> getStatus(@PathVariable String id) {
     return orderService.getOrderStatus(id);
     // FreePathReturnValueHandler interprets via EffectBoundary bean -> HTTP 200 JSON
 }

@@ -187,6 +187,7 @@ The distinction that matters:
 So a business failure (`Left`) is a **value**, not an exception. A defect (a thrown bug) stays on the
 `VTask` channel. Keeping those two apart is what makes the resilience combinators safe (see below).
 
+<!-- verify -->
 ```java
 VResultPath<OrderError, Receipt> receipt =
     validateAddress(request)
@@ -214,6 +215,7 @@ is never retried and never trips the breaker, because a business rejection is no
 It is the canonical carrier for an accumulating error channel: if a computation failed, there is at
 least one reason, and the type should say so.
 
+<!-- verify -->
 ```java
 NonEmptyList<String> reasons = NonEmptyList.of("too short", "no digit");
 String first = reasons.head();   // total: no Optional, no throw. This is the whole point.
@@ -231,6 +233,7 @@ Ops: `head()`, `last()`, `size()`, `map`, `flatMap`, `foldLeft`, `reverse`, `con
 
 Use the `Nel` factories to get a `NonEmptyList` error channel without naming a semigroup:
 
+<!-- verify -->
 ```java
 Validated<NonEmptyList<String>, Integer> v = Validated.invalidNel("bad");
 ValidationPath<NonEmptyList<String>, Integer> p = Path.invalidNel("bad");
@@ -256,6 +259,7 @@ three carriers, each in a labelled and an unlabelled flavour. The ladder tops ou
 
 Note the `ValidationPath` twins live on **`Path`**, not on `ValidationPath`.
 
+<!-- verify -->
 ```java
 // Labelled: errors carry the field name, so they locate themselves
 Validated<NonEmptyList<FieldError>, User> user =
@@ -288,6 +292,7 @@ Reach for it when a success can still be degraded: a config that loaded but fell
 an import that succeeded but skipped rows. `Either` cannot say this (exclusive), and `Validated`
 cannot (it has no partial value).
 
+<!-- verify -->
 ```java
 EitherOrBoth<String, Config> result = EitherOrBoth.both("port invalid, using 8080", config);
 
@@ -323,12 +328,16 @@ deliberately **not** monadic. Do not assume the monad accumulates.
 
 `ForPath` provides for-comprehension syntax directly with Path types (up to 12 chained bindings):
 
+<!-- verify -->
 ```java
 EitherPath<Error, Result> result = ForPath.from(fetchUser(id))
     .from(user -> validateUser(user))
-    .from((user, validated) -> checkInventory(items))
+    .from(t -> checkInventory(items))
     .yield((user, validated, inventory) -> createOrder(user, validated, inventory));
 ```
+
+After the first binding, `.from()` receives the accumulated bindings as a `Tuple` (`t._1()`,
+`t._2()`, ...); `.yield()` takes them apart again as separate parameters.
 
 | Path Type | Entry Point | Supports `when()` guard |
 |-----------|-------------|------------------------|
@@ -450,20 +459,27 @@ return Path.<AppError, User>right(user);
 
 ## Core Pattern: Railway-Oriented Pipeline
 
+<!-- verify -->
 ```java
 // Flat, composable, readable
 public EitherPath<OrderError, Order> processOrder(String userId, OrderRequest request) {
     return Path.maybe(userRepository.findById(userId))
-        .toEitherPath(() -> new OrderError.UserNotFound(userId))
+        .<OrderError>toEitherPath(new OrderError.UserNotFound(userId))
         .via(user -> Path.either(validator.validate(request))
-            .mapError(OrderError.ValidationFailed::new))
-        .via(validated -> Path.tryOf(() -> paymentService.charge(user, amount))
-            .toEitherPath(OrderError.PaymentFailed::new))
-        .map(payment -> createOrder(user, request, payment));
+            .mapError(OrderError.ValidationFailed::new)
+            .via(validated -> Path.tryOf(() -> paymentService.charge(user, validated.amount()))
+                .toEitherPath(OrderError.PaymentFailed::new))
+            .map(payment -> createOrder(user, request, payment)));
 }
 ```
 
-Success flows down the pipeline. Failures short-circuit automatically. No nesting required.
+`toEitherPath` takes the error **value**, not a supplier. The `<OrderError>` witness widens it from
+the concrete `UserNotFound` to the sealed parent, which is what the rest of the chain is typed on.
+A step that needs an earlier binding (`user`, here) nests inside the `via` that bound it; when the
+nesting gets deep, reach for `ForPath`, which keeps every binding in scope and stays flat.
+
+Success flows down the pipeline. Failures short-circuit automatically: no `try`/`catch`, no null
+checks, no early returns.
 
 ---
 

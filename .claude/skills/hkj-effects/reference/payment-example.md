@@ -131,6 +131,7 @@ Use `Function.identity()` as continuation to get the natural result type directl
 
 ## @ComposeEffects Wiring
 
+<!-- verify -->
 ```java
 @ComposeEffects
 public record PaymentEffects(
@@ -158,12 +159,12 @@ Inject routing:
 | LedgerOp | Right > Right > Left | `injectLedger()` |
 | NotificationOp | Right > Right > Right | `injectNotification()` |
 
-Key `PaymentEffectsSupport` API:
+The example's integration point is the hand-written `PaymentEffectsWiring`, which types the generated (raw) injects to the concrete composition and is what `PaymentService` and the interpreters use:
 
 ```java
-PaymentEffectsSupport.functor()    // Composed EitherFFunctor
-PaymentEffectsSupport.boundSet()   // BoundSet with all four Bound instances
-PaymentEffectsSupport.interpret(program, interpreter, monad)  // foldMap convenience
+PaymentEffectsWiring.functor()    // Composed EitherFFunctor
+PaymentEffectsWiring.boundSet()   // BoundSet with all four Bound instances
+PaymentEffectsWiring.interpret(program, interpreter, monad)  // foldMap convenience
 ```
 
 ---
@@ -178,11 +179,11 @@ public final class PaymentService<G extends WitnessArity<TypeArity.Unary>> {
   private final LedgerOpOps.Bound<G> ledger;
   private final NotificationOpOps.Bound<G> notification;
 
-  // Factory using PaymentEffectsSupport
+  // Factory using PaymentEffectsWiring
   public static PaymentService<...> create() {
-    var bounds = PaymentEffectsSupport.boundSet();
+    var bounds = PaymentEffectsWiring.boundSet();
     return new PaymentService<>(bounds.gateway(), bounds.fraud(),
-        bounds.ledger(), bounds.notification(), PaymentEffectsSupport.functor());
+        bounds.ledger(), bounds.notification(), PaymentEffectsWiring.functor());
   }
 
   public Free<G, PaymentResult> processPayment(
@@ -217,6 +218,7 @@ Key patterns:
 
 ## Interpretation Mode 1: Production (IO)
 
+<!-- verify -->
 ```java
 var interpreter = Interpreters.combine(
     new ProductionGatewayInterpreter(),   // extends PaymentGatewayOpInterpreter<IOKind.Witness>
@@ -225,7 +227,7 @@ var interpreter = Interpreters.combine(
     new ProductionNotificationInterpreter());
 
 IO<PaymentResult> io = IOKindHelper.IO_OP.narrow(
-    PaymentEffectsSupport.interpret(program, interpreter, IOMonad.INSTANCE));
+    PaymentEffectsWiring.interpret(program, interpreter, IOMonad.INSTANCE));
 PaymentResult result = io.unsafeRunSync();
 ```
 
@@ -247,6 +249,7 @@ public final class ProductionGatewayInterpreter
 
 ## Interpretation Mode 2: Testing (Id, No Mocks)
 
+<!-- verify -->
 ```java
 var gateway = new RecordingGatewayInterpreter();     // records calls, returns deterministic results
 var fraud = new FixedRiskInterpreter(RiskScore.of(15));  // fixed score
@@ -256,7 +259,7 @@ var notification = new CapturingNotificationInterpreter();  // captures receipts
 
 var interpreter = Interpreters.combine(gateway, fraud, ledger, notification);
 Id<PaymentResult> id = IdKindHelper.ID.narrow(
-    PaymentEffectsSupport.interpret(program, interpreter, IdMonad.instance()));
+    PaymentEffectsWiring.interpret(program, interpreter, IdMonad.instance()));
 PaymentResult result = id.value();
 
 // Assert on captured data
@@ -285,6 +288,7 @@ public final class RecordingGatewayInterpreter
 
 ## Interpretation Mode 3: Quote (Fee Estimation)
 
+<!-- verify -->
 ```java
 var gateway = new QuoteGatewayInterpreter();  // calculates fees, no real charge
 // ... same fraud/ledger/notification as test mode
@@ -316,6 +320,7 @@ public final class QuoteGatewayInterpreter
 
 ## Interpretation Mode 4: High-Risk Decline
 
+<!-- verify -->
 ```java
 var fraud = new FixedRiskInterpreter(RiskScore.of(95));  // above RISK_THRESHOLD (70)
 // gateway, ledger, notification same as test mode
@@ -346,12 +351,14 @@ Free<G, Unit> safeReceipt = receipt.handleError(
 
 ## PaymentResult Model
 
+<!-- verify -->
 ```java
 public sealed interface PaymentResult
     permits PaymentResult.Approved, PaymentResult.Declined, PaymentResult.Failed {
-  record Approved(ChargeResult chargeResult, LedgerEntry ledgerEntry, RiskScore riskScore) {}
-  record Declined(String reason) {}
-  record Failed(ChargeResult chargeResult) {}
+  record Approved(ChargeResult chargeResult, LedgerEntry ledgerEntry, RiskScore riskScore)
+      implements PaymentResult {}
+  record Declined(String reason) implements PaymentResult {}
+  record Failed(ChargeResult chargeResult) implements PaymentResult {}
 }
 ```
 

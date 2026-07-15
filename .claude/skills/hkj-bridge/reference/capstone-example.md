@@ -16,6 +16,7 @@ Update a manager's email in a nested company directory. The operation must:
 
 Domain model (nested immutable records):
 
+<!-- verify -->
 ```java
 @GenerateLenses @GenerateFocus
 record Company(String name, List<Department> departments) {}
@@ -32,6 +33,7 @@ record ContactInfo(String phone, Optional<String> email) {}
 
 Error type:
 
+<!-- verify -->
 ```java
 sealed interface DirectoryError {
   record DepartmentNotFound(String name) implements DirectoryError {}
@@ -64,6 +66,7 @@ Key distinction:
 
 ## BEFORE: Imperative Approach (30 lines)
 
+<!-- verify -->
 ```java
 Either<DirectoryError, Company> updateManagerEmail(
     Company company, String deptName, String newEmail) {
@@ -107,6 +110,7 @@ Either<DirectoryError, Company> updateManagerEmail(
 
 ## AFTER: Effects + Optics Pipeline (6 lines)
 
+<!-- verify -->
 ```java
 EitherPath<DirectoryError, Company> updateManagerEmail(
     Company company, String deptName, String newEmail) {
@@ -132,6 +136,7 @@ EitherPath<DirectoryError, Company> updateManagerEmail(
 
 Helper methods:
 
+<!-- verify -->
 ```java
 EitherPath<DirectoryError, Department> findDepartment(Company company, String name) {
   return company.departments().stream()
@@ -209,6 +214,7 @@ Path.left(new DirectoryError.DepartmentNotFound(name))  // failure
 
 Alternative using filtered traversal:
 
+<!-- verify -->
 ```java
 EitherPath<DirectoryError, Department> findDepartment(Company company, String name) {
   return CompanyFocus.departments()
@@ -235,6 +241,7 @@ Rule of thumb: optics for **where** the data lives (structure), streams/effects 
 
 The composed path used for reconstruction:
 
+<!-- verify -->
 ```java
 TraversalPath<Company, ContactInfo> contactInDept =
     CompanyFocus.departments()                      // TraversalPath<Company, Department>

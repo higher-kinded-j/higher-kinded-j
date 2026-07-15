@@ -52,6 +52,7 @@ IdPath<String> name        = namePath.toIdPath(user);         // Id("Alice")
 
 ### AffinePath (may not have a value -> may fail)
 
+<!-- verify -->
 ```java
 AffinePath<User, String> emailPath = UserFocus.email();
 
@@ -67,6 +68,7 @@ emailPath.toTryPath(user, () -> new MissingEmailException()); // Success or Fail
 
 ### TraversalPath (zero or more values)
 
+<!-- verify -->
 ```java
 TraversalPath<Company, User> employees = CompanyFocus.employees();
 
@@ -99,6 +101,7 @@ Use `.focus()` on effect paths to navigate into the contained value's structure.
 
 ### Basic focus() with FocusPath
 
+<!-- verify -->
 ```java
 EitherPath<Error, User> userResult = fetchUser(userId);
 FocusPath<User, String> namePath = UserFocus.name();
@@ -147,6 +150,7 @@ accumulating world:
 - `parsePath(S)` -> `ValidationPath<NonEmptyList<FieldError>, A>`: optics -> Path world, straight into a pipeline
 - `build(A)` -> `S`: **total**, cannot fail (a parsed value can always be rendered back)
 
+<!-- verify -->
 ```java
 ValidatedPrism<String, EmailAddress> emailPrism = ValidatedPrism.of(
     raw -> raw.contains("@")
@@ -187,6 +191,7 @@ That hole is a design constraint, not an omission. If you want to combine *sibli
 narrow deeper), do not reach for prism composition; assemble them with `Validated.fields()`, which is
 the accumulating construct:
 
+<!-- verify -->
 ```java
 Validated<NonEmptyList<FieldError>, Customer> customer =
     Validated.fields()
@@ -246,6 +251,7 @@ return patched.fold(this::badRequest, repository::save);
 
 Pure counterpart (nothing can fail, so it never leaves the optics world):
 
+<!-- verify -->
 ```java
 Update<Order> confirm = Edits.combine(
     Edit.set(OrderFocus.status(), OrderStatus.CONFIRMED),
@@ -277,6 +283,7 @@ overloads produce an unlabelled `FieldError`. Re-label a fallible leaf explicitl
 
 ### Pattern 1: Extract and Validate
 
+<!-- verify -->
 ```java
 EitherPath<Error, String> validatedPostcode =
     fetchUser(userId)                              // EitherPath<Error, User>
@@ -287,6 +294,7 @@ EitherPath<Error, String> validatedPostcode =
 
 ### Pattern 2: Safe Deep Access
 
+<!-- verify -->
 ```java
 MaybePath<String> managerEmail =
     Path.maybe(department)
@@ -296,16 +304,18 @@ MaybePath<String> managerEmail =
 
 ### Pattern 3: Batch Processing with Traversals
 
+<!-- verify -->
 ```java
 ListPath<String> allEmails =
     CompanyFocus.departments()                     // TraversalPath
-        .employees()                               // TraversalPath
-        .email()                                   // TraversalPath (Optional unwrapped)
+        .via(DepartmentFocus.employees())          // TraversalPath
+        .via(EmployeeFocus.email())                // TraversalPath (Optional unwrapped)
         .toListPath(company);
 ```
 
 ### Pattern 4: Complete Pipeline (Fetch -> Navigate -> Validate -> Save)
 
+<!-- verify -->
 ```java
 EitherPath<Error, Order> result =
     fetchUser(userId)                              // EitherPath<Error, User>
@@ -321,10 +331,11 @@ EitherPath<Error, Order> result =
 
 Focus paths integrate with ForPath comprehensions via `.focus()`:
 
+<!-- verify -->
 ```java
 EitherPath<Error, OrderResult> result = ForPath.from(fetchUser(id))
     .focus(UserFocus.address())                    // navigate within comprehension
-    .from((user, address) -> validateAddress(address))
+    .from(t -> validateAddress(t._2()))            // steps take the tuple so far: _2 is the address
     .yield((user, address, validated) -> createOrder(user, validated));
 ```
 

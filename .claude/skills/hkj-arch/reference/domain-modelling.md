@@ -8,6 +8,7 @@ Patterns for modelling domain concepts using records, sealed interfaces, and HKJ
 
 ### Flat Error Hierarchy
 
+<!-- verify -->
 ```java
 public sealed interface AppError {
     record NotFound(String resource, String id) implements AppError {}
@@ -20,6 +21,7 @@ public sealed interface AppError {
 
 ### Nested Error Hierarchy (Multi-Module)
 
+<!-- verify -->
 ```java
 // Top-level application errors
 public sealed interface AppError permits OrderError, UserError, PaymentError {}
@@ -63,6 +65,7 @@ public int toHttpStatus(AppError error) {
 
 ### Simple Result
 
+<!-- verify -->
 ```java
 // Just use Either<Error, Success>
 Either<OrderError, Order> result = orderService.processOrder(request);
@@ -70,6 +73,7 @@ Either<OrderError, Order> result = orderService.processOrder(request);
 
 ### Rich Result with Metadata
 
+<!-- verify -->
 ```java
 public record ProcessingResult<T>(
     T value,
@@ -92,6 +96,7 @@ EitherPath<AppError, ProcessingResult<Order>> processOrder(OrderRequest req) {
 
 ### Order Lifecycle
 
+<!-- verify -->
 ```java
 @GeneratePrisms
 public sealed interface OrderStatus {
@@ -106,6 +111,7 @@ public sealed interface OrderStatus {
 
 ### Transitions as Pure Functions
 
+<!-- verify -->
 ```java
 public class OrderTransitions {
 
@@ -130,6 +136,7 @@ public class OrderTransitions {
 
 ### Navigate Status with Optics
 
+<!-- verify -->
 ```java
 @GenerateLenses
 @GenerateFocus
@@ -139,11 +146,11 @@ public record Order(OrderId id, Customer customer, OrderStatus status) {}
 Prism<OrderStatus, Confirmed> confirmedPrism = OrderStatusPrisms.confirmed();
 
 // Check if confirmed
-boolean isConfirmed = confirmedPrism.preview(order.status()).isPresent();
+boolean isConfirmed = confirmedPrism.getOptional(order.status()).isPresent();
 
 // Extract tracking from shipped orders
 Optional<TrackingNumber> tracking = OrderStatusPrisms.shipped()
-    .preview(order.status())
+    .getOptional(order.status())
     .map(Shipped::tracking);
 ```
 
@@ -153,6 +160,7 @@ Optional<TrackingNumber> tracking = OrderStatusPrisms.shipped()
 
 ### Type-Safe IDs
 
+<!-- verify -->
 ```java
 public record OrderId(String value) {
     public OrderId {
@@ -168,6 +176,7 @@ public record CustomerId(String value) {
 
 ### Money Type
 
+<!-- verify -->
 ```java
 @GenerateLenses
 public record Money(BigDecimal amount, Currency currency) {
@@ -191,6 +200,7 @@ public record Money(BigDecimal amount, Currency currency) {
 
 ### Aggregate with Optics
 
+<!-- verify -->
 ```java
 @GenerateLenses
 @GenerateFocus
@@ -211,7 +221,7 @@ public record Order(
 
 // Deep navigation with Focus DSL
 TraversalPath<Order, Money> allItemPrices =
-    OrderFocus.items().price();
+    OrderFocus.items().via(LineItemFocus.price());
 
 // Apply discount to all items
 Order discounted = allItemPrices
@@ -220,6 +230,7 @@ Order discounted = allItemPrices
 
 ### Domain Events
 
+<!-- verify -->
 ```java
 public sealed interface OrderEvent {
     record Created(OrderId id, Customer customer, Instant at) implements OrderEvent {}
@@ -229,12 +240,14 @@ public sealed interface OrderEvent {
 }
 
 // Events are just data: accumulate with WriterPath
-WriterPath<List<OrderEvent>, Order> processWithEvents(Order order) {
-    return Path.writer(List.of(), Semigroup.listSemigroup())
-        .via(_ -> confirmOrder(order))
-        .peek(confirmed -> Path.tell(
-            List.of(new OrderEvent.Confirmed(order.id(), confirmed.payment(), Instant.now())),
-            Semigroup.listSemigroup()));
+WriterPath<List<OrderEvent>, Order> processWithEvents(Order order, PaymentRef payment) {
+    Monoid<List<OrderEvent>> events = Monoids.list();     // how the log accumulates
+    return Path.writerPure(order, events)
+        .via(this::confirmOrder)                          // WriterPath<List<OrderEvent>, Order>
+        .via(confirmed -> Path.tell(
+                List.of(new OrderEvent.Confirmed(confirmed.id(), payment, Instant.now())),
+                events)
+            .map(_ -> confirmed));                        // tell() writes; the value carries on
 }
 ```
 

@@ -6,6 +6,7 @@ Practical recipes for common optics problems. Each recipe: problem, solution, ex
 
 ## Recipe 1: Updating Nested Optional Fields
 
+<!-- verify -->
 ```java
 record User(String name, Optional<Profile> profile) {}
 record Profile(String bio, Optional<Settings> settings) {}
@@ -15,7 +16,7 @@ Traversal<User, Integer> userFontSize =
     UserLenses.profile()                                    // Lens<User, Optional<Profile>>
         .andThen(Prisms.some())                             // Prism -> Profile
         .andThen(ProfileLenses.settings().asTraversal())    // Lens -> Optional<Settings>
-        .andThen(Prisms.some().asTraversal())               // Prism -> Settings
+        .andThen(Prisms.<Settings>some().asTraversal())     // Prism -> Settings
         .andThen(SettingsLenses.fontSize().asTraversal());  // Lens -> Integer
 
 // Increase font size if it exists; otherwise unchanged
@@ -28,6 +29,7 @@ Each `Prisms.some()` safely handles Optional: if any is empty, modification is s
 
 ## Recipe 2: Modifying a Specific Variant of a Sum Type
 
+<!-- verify -->
 ```java
 sealed interface ApiResponse permits Success, Error, Loading {}
 record Success(Data data, String timestamp) implements ApiResponse {}
@@ -39,7 +41,7 @@ Prism<ApiResponse, Success> successPrism = Prism.of(
 );
 
 Traversal<ApiResponse, Data> successData =
-    successPrism.andThen(SuccessLenses.data());
+    successPrism.andThen(SuccessLenses.data().asTraversal());
 
 // Transform data only for Success responses; Error/Loading pass through unchanged
 ApiResponse modified = Traversals.modify(
@@ -50,6 +52,7 @@ ApiResponse modified = Traversals.modify(
 
 ## Recipe 3: Bulk Updates Across Collections
 
+<!-- verify -->
 ```java
 record Order(String id, List<LineItem> items) {}
 record LineItem(String productId, int quantity, Money price) {}
@@ -71,6 +74,7 @@ Order discounted = Traversals.modify(bulkItems,
 
 ## Recipe 4: Extracting Values from Polymorphic Structures
 
+<!-- verify -->
 ```java
 sealed interface Event permits UserEvent, SystemEvent {}
 record UserEvent(String userId, String action) implements Event {}
@@ -94,6 +98,7 @@ List<String> actions = Traversals.getAll(userActions, events);
 
 ## Recipe 5: Safe Map Access
 
+<!-- verify -->
 ```java
 record Config(Map<String, String> settings) {}
 
@@ -109,6 +114,7 @@ String url = urls.isEmpty() ? "jdbc:postgresql://localhost/default" : urls.get(0
 
 ## Recipe 6: Transforming Nested Collections
 
+<!-- verify -->
 ```java
 record Company(List<Department> departments) {}
 record Department(String name, List<Employee> employees) {}
@@ -133,6 +139,7 @@ int totalPayroll = salaries.stream().mapToInt(Integer::intValue).sum();
 
 ## Recipe 7: Conditional Updates Based on Related Data
 
+<!-- verify -->
 ```java
 record Product(String name, Money price, boolean onSale) {}
 
@@ -150,6 +157,7 @@ List<Product> discounted = Traversals.modify(
 
 ## Recipe 8: Working with Either for Error Handling
 
+<!-- verify -->
 ```java
 Prism<Either<ValidationError, UserData>, UserData> rightPrism = Prisms.right();
 
@@ -162,6 +170,7 @@ Either<ValidationError, UserData> transformed = rightPrism.modify(
 
 ## Recipe 9: Extracting Values from Multiple Paths (Fold.plus)
 
+<!-- verify -->
 ```java
 record Team(String name, Employee lead, List<Employee> members) {}
 
@@ -203,22 +212,33 @@ int itemCount = pricesFold.length(order);
 
 ## Recipe 11: Focus DSL for Nested Record Updates
 
+<!-- verify -->
 ```java
-// Using Focus DSL instead of manual lens composition
+// Using Focus DSL instead of manual lens composition. Mid-chain, each() has nothing to infer
+// its element type from, so give it a witness: `.<Department>each()`.
 TraversalPath<Company, Integer> allSalaries =
-    FocusPath.of(companyDeptsLens).each().via(deptEmployeesLens).each().via(employeeSalaryLens);
+    FocusPath.of(companyDeptsLens)
+        .<Department>each()
+        .via(deptEmployeesLens)
+        .<Employee>each()
+        .via(employeeSalaryLens);
 
 Company updated = allSalaries.modifyAll(s -> (int)(s * 1.05), company);
 
-// Or use generated Focus classes (@GenerateFocus)
-Company updated = CompanyFocus.departments().employees().salary()
-    .modifyAll(s -> (int)(s * 1.05), company);
+// Or use generated Focus classes (@GenerateFocus): a List field widens to a TraversalPath,
+// so each hop is a .via()
+Company updatedViaFocus =
+    CompanyFocus.departments()
+        .via(DepartmentFocus.employees())
+        .via(EmployeeFocus.salary())
+        .modifyAll(s -> (int)(s * 1.05), company);
 ```
 
 ---
 
 ## Recipe 12: Sum Type Handling with instanceOf()
 
+<!-- verify -->
 ```java
 sealed interface Notification permits Email, SMS, Push {}
 record Email(String address, String subject, String body) implements Notification {}
@@ -241,6 +261,7 @@ User updated = emailsOnly.via(emailSubjectLens)
 
 ## Recipe 13: Conditional Updates with modifyWhen()
 
+<!-- verify -->
 ```java
 record Inventory(List<Product> products) {}
 record Product(String name, int stock, BigDecimal price, Category category) {}
@@ -260,6 +281,7 @@ Inventory updated = allProducts.modifyWhen(
 
 ## Recipe 14: Aggregation with foldMap()
 
+<!-- verify -->
 ```java
 TraversalPath<Order, LineItem> allItems = FocusPath.of(orderItemsLens).each();
 
@@ -274,6 +296,7 @@ BigDecimal totalPrice = allItems.via(lineItemPriceLens)
 
 ## Recipe 15: Validation with modifyF()
 
+<!-- verify -->
 ```java
 FocusPath<Config, String> apiKeyPath = FocusPath.of(configApiKeyLens);
 
@@ -293,6 +316,7 @@ Kind<MaybeKind.Witness, Config> result =
 ## Best Practices
 
 **1. Create reusable optic constants:**
+<!-- verify -->
 ```java
 public final class OrderOptics {
     public static final Traversal<Order, Money> ALL_PRICES =
@@ -303,11 +327,12 @@ public final class OrderOptics {
 ```
 
 **2. Use direct composition when possible:**
+<!-- verify -->
 ```java
-// Preferred: type-safe
-Traversal<Config, Settings> direct = configLens.andThen(settingsPrism);
+// Preferred: type-safe (Lens + Prism = Affine, the most precise type available)
+Affine<Config, Settings> direct = configLens.andThen(settingsPrism);
 
-// Fallback: maximum flexibility
+// Fallback: maximum flexibility (everything widens to Traversal)
 Traversal<Config, Settings> manual =
     configLens.asTraversal().andThen(settingsPrism.asTraversal());
 ```

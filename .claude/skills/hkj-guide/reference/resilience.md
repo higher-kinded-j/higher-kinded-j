@@ -8,6 +8,7 @@ Retry, timeout, circuit breaker and bulkhead are **methods on the path itself**.
 static helpers (`Retry.retryTask`, `breaker.protect`) only when you are holding a bare `VTask`
 rather than a path.
 
+<!-- verify -->
 ```java
 IOPath<Response> resilient = Path.io(() -> httpClient.get(url))
     .withTimeout(Duration.ofSeconds(30))
@@ -49,6 +50,7 @@ Resilience should react to the second, not the first. A validation rejection is 
 retrying it will fail identically, and letting it trip a circuit breaker will take down a healthy
 service. So on `VResultPath`, **by default a `Left` is never retried and never trips the breaker.**
 
+<!-- verify -->
 ```java
 VResultPath<ApiError, Response> call =
     Path.<ApiError, Response>vresultDefer(() -> callService(request))
@@ -78,6 +80,7 @@ Opt a genuinely transient rejection into retry explicitly:
 
 ### Structured concurrency
 
+<!-- verify -->
 ```java
 // If every candidate fails, you get EVERY error, hence NonEmptyList<E>
 VResultPath<NonEmptyList<ApiError>, Response> fastest = VResultPath.firstSuccess(replicas);
@@ -100,6 +103,7 @@ Retries a failing operation with configurable backoff. Assumes transient failure
 
 ### RetryPolicy Factory Methods
 
+<!-- verify -->
 ```java
 RetryPolicy.fixed(3, Duration.ofMillis(100));                    // Same delay every attempt
 RetryPolicy.exponentialBackoff(5, Duration.ofSeconds(1));         // Doubling: 1s, 2s, 4s, 8s, 16s
@@ -110,6 +114,7 @@ RetryPolicy.noRetry();                                            // Fail immedi
 
 ### Configuration (immutable: methods return new instances)
 
+<!-- verify -->
 ```java
 RetryPolicy policy = RetryPolicy.exponentialBackoff(5, Duration.ofMillis(100))
     .withMaxDelay(Duration.ofSeconds(30))   // Cap maximum wait
@@ -119,6 +124,7 @@ RetryPolicy policy = RetryPolicy.exponentialBackoff(5, Duration.ofMillis(100))
 ```
 
 Builder for full control:
+<!-- verify -->
 ```java
 RetryPolicy policy = RetryPolicy.builder()
     .maxAttempts(5).initialDelay(Duration.ofMillis(100))
@@ -144,7 +150,7 @@ VTask<String> withFallback = Retry.retryTaskWithFallback(task, policy, lastError
 VTask<String> withRecovery = Retry.retryTaskWithRecovery(task, policy, err -> VTask.of(() -> backup.get(url)));
 
 // IOPath / VTaskPath integration
-IOPath<Response> resilient = IOPath.delay(() -> httpClient.get(url))
+IOPath<Response> resilient = Path.io(() -> httpClient.get(url))
     .withRetry(RetryPolicy.exponentialBackoff(3, Duration.ofSeconds(1)));
 ```
 
@@ -164,6 +170,7 @@ Stops calling a failing service to let it recover. Tracks consecutive failures a
 
 ### Configuration
 
+<!-- verify -->
 ```java
 CircuitBreakerConfig config = CircuitBreakerConfig.builder()
     .failureThreshold(5)                      // Consecutive failures before opening (default: 5)
@@ -176,11 +183,12 @@ CircuitBreakerConfig config = CircuitBreakerConfig.builder()
 
 ### Usage
 
+<!-- verify -->
 ```java
 CircuitBreaker breaker = CircuitBreaker.create(config);  // or CircuitBreaker.withDefaults()
 
 // Protect a VTask (generic: one breaker can protect different return types)
-VTask<String> protected = breaker.protect(VTask.of(() -> service.call()));
+VTask<String> guarded = breaker.protect(VTask.of(() -> service.call()));
 
 // With fallback
 VTask<String> withFallback = breaker.protectWithFallback(
@@ -263,6 +271,7 @@ Limits concurrent access to a resource to prevent cascading failures from one sl
 
 ### Configuration
 
+<!-- verify -->
 ```java
 Bulkhead simple = Bulkhead.withMaxConcurrent(10);
 
@@ -276,8 +285,9 @@ Bulkhead configured = Bulkhead.create(BulkheadConfig.builder()
 
 ### Usage
 
+<!-- verify -->
 ```java
-VTask<Result> protected = bulkhead.protect(VTask.of(() -> database.query(sql)));
+VTask<Result> guarded = bulkhead.protect(VTask.of(() -> database.query(sql)));
 // Throws BulkheadFullException when full
 
 // Inspect state
@@ -302,6 +312,7 @@ Circuit breaker MUST be inside retry so each attempt is recorded individually.
 
 Chain them in the order above and you get the correct nesting:
 
+<!-- verify -->
 ```java
 VResultPath<ApiError, Response> resilient =
     Path.<ApiError, Response>vresultDefer(() -> callService(request))
@@ -313,6 +324,7 @@ VResultPath<ApiError, Response> resilient =
 
 ### ResilienceBuilder (for a bare `VTask`; applies correct order regardless of call order)
 
+<!-- verify -->
 ```java
 VTask<Response> resilient = Resilience.<Response>builder(
         VTask.of(() -> httpClient.get(url)))
@@ -336,6 +348,7 @@ VTask<String> p = Resilience.protect(task, breaker, retryPolicy, bulkhead);
 
 ### Stream Integration
 
+<!-- verify -->
 ```java
 // Per-element resilience in parallel streams
 List<UserProfile> profiles = Path.vstreamFromList(userIds)
@@ -344,7 +357,7 @@ List<UserProfile> profiles = Path.vstreamFromList(userIds)
             Retry.retryTask(VTask.of(() -> profileService.fetch(id)), retryPolicy)))
     .recover(ex -> UserProfile.unknown())
     .toList()
-    .run();
+    .unsafeRun();
 
 // Using per-element helpers
 Function<String, VTask<UserProfile>> resilientFetch =

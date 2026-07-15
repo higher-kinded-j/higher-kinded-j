@@ -86,6 +86,7 @@ Traversal<A, C> result = traversalAB.andThen(traversalBC);
 
 ## Universal Fallback (asTraversal)
 
+<!-- verify -->
 ```java
 // Any optic composition via Traversal (loses type info)
 Traversal<A, D> result =
@@ -101,6 +102,7 @@ Traversal<A, D> result =
 | `andThen`  | Sequential | Navigate deeper: `A -> B -> C`             |
 | `plus`     | Parallel   | Combine results: `A -> B` and `A -> C`     |
 
+<!-- verify -->
 ```java
 // Sequential: navigate deeper
 Fold<Customer, Item> items = ordersFold.andThen(itemsFold);
@@ -119,6 +121,7 @@ Fold<Team, String> allEmails = Fold.sum(
 
 ## Common Patterns
 
+<!-- verify -->
 ```java
 // Pattern 1: Optional field access (Lens + Prism + Lens = Traversal)
 Traversal<User, String> userCity =
@@ -126,8 +129,8 @@ Traversal<User, String> userCity =
         .andThen(Prisms.some())    // Prism<Optional<Address>, Address>
         .andThen(AddressLenses.city().asTraversal());
 
-// Pattern 2: Sum type field access (Prism + Lens)
-Traversal<Payment, String> creditCardNumber =
+// Pattern 2: Sum type field access (Prism + Lens = Affine)
+Affine<Payment, String> creditCardNumber =
     PaymentPrisms.creditCard()
         .andThen(CreditCardLenses.number());
 
@@ -139,12 +142,13 @@ Traversal<List<Order>, Order> activeOrders =
 
 ## Best Practice: Store Complex Compositions as Constants
 
+<!-- verify -->
 ```java
 public final class OrderOptics {
     public static final Traversal<Order, String> CUSTOMER_EMAIL =
         OrderLenses.customer()
             .andThen(CustomerPrisms.activeCustomer())
-            .andThen(CustomerLenses.email().asTraversal());
+            .andThen(ActiveCustomerLenses.email().asTraversal());
 
     public static final Traversal<Order, Money> LINE_ITEM_PRICES =
         OrderTraversals.lineItems()

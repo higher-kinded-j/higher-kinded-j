@@ -29,10 +29,44 @@ dependencies {
     testImplementation(libs.assertj.core)
     testImplementation(libs.awaitility)
     testImplementation(project(":hkj-test"))
+
+    // The TraversableGenerator SPI (BaseTraversableGenerator, Cardinality) that hkj-optics'
+    // container-types page documents. It is wired above as `annotationProcessor`, which puts it on
+    // the PROCESSOR path, not the compile classpath, so the gate could not compile a snippet that
+    // implements the SPI. javac is given an explicit -processorpath, so classpath discovery stays off.
+    testImplementation(project(":hkj-processor-plugins"))
+
+    testImplementation(project(":hkj-spring:client"))
+
+    // Test-only, so the examples' own artifact stays Spring-free: the hkj-spring skill's snippets
+    // are Spring code, and without these the gate could not compile them at all.
+    testImplementation(platform(libs.spring.boot.bom))
+    testImplementation(project(":hkj-spring:starter"))
+    testImplementation(libs.spring.boot.starter.web)
+    testImplementation(libs.spring.boot.starter.test)
+    testImplementation(libs.spring.boot.webmvc.test)
+
+    // JUnit declares apiguardian as compileOnly, so it is absent from the test runtime classpath.
+    // The book gate hands that classpath to javac, and a snippet using @Test then trips
+    // "unknown enum constant API.Status.STABLE" -- a warning, which the gate treats as fatal.
+    // It is a gap in the harness's classpath, not a defect in the page, so close the gap.
+    testRuntimeOnly("org.apiguardian:apiguardian-api:1.1.2")
 }
 
 tasks.named("javadoc") {
     enabled = false
+}
+
+// The processors the documentation gate hands to javac: this module's own, plus the @HkjHttpClient
+// one, so the hkj-spring skill's client snippets are checked against the generated
+// <Name>HttpExchange rather than a stub of it. Kept out of the main compile, which has no
+// @HkjHttpClient to process.
+val bookProcessor: Configuration by configurations.creating {
+    extendsFrom(configurations.annotationProcessor.get())
+}
+
+dependencies {
+    bookProcessor(project(":hkj-spring:client-processor"))
 }
 
 // The book-snippet fixtures (src/test/resources/fixtures) are .java for IDE support, but they are
@@ -86,6 +120,12 @@ val bookVerify = tasks.register<Test>("bookVerify") {
     inputs.dir(bookDir).withPropertyName("bookSources").withPathSensitivity(PathSensitivity.RELATIVE)
     systemProperty("hkj.book.dir", bookDir.asFile.absolutePath)
 
+    // The shipped Claude Code skills are documentation too, and they are installed into consumer
+    // projects by the build plugins. Until they were gated, nothing compiled their code.
+    val skillsDir = rootProject.layout.projectDirectory.dir(".claude/skills")
+    inputs.dir(skillsDir).withPropertyName("skillSources").withPathSensitivity(PathSensitivity.RELATIVE)
+    systemProperty("hkj.skills.dir", skillsDir.asFile.absolutePath)
+
     // The anchored example sources are inputs too. Without this, renaming an `// ANCHOR:` would not
     // re-run the gate: the rename is a comment, so the compiled classes are byte-identical and the
     // task stays UP-TO-DATE while the book silently loses that code block.
@@ -101,7 +141,7 @@ val bookVerify = tasks.register<Test>("bookVerify") {
     // Declared as a proper input (so a processor change re-runs the gate) and passed via an argument
     // provider (so the configuration cache can serialise it). It must be captured as a FileCollection,
     // not a NamedDomainObjectProvider: the cache cannot serialise the latter.
-    val processorPath: FileCollection = configurations.getByName("annotationProcessor")
+    val processorPath: FileCollection = bookProcessor
     inputs.files(processorPath)
         .withPropertyName("bookProcessorPath")
         .withNormalizer(ClasspathNormalizer::class)
