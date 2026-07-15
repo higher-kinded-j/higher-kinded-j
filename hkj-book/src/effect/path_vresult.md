@@ -8,6 +8,7 @@ _Async work that can fail with a typed, domain error: the railway for the shape 
 
 Pynchon's binary is a dread; for a service call it is the goal. Every remote request settles onto exactly one of two channels: a value, or a typed, domain reason it produced none. `VTask<Either<E, A>>` (call something remote, get back either a value or a typed failure) is the single most common effect stack in real services. HKJ models both halves well separately (`VTaskPath` for async, `EitherPath` for typed errors); `VResultPath<E, A>` is their composition as a first-class path, so neither `Kind` ceremony nor a hand-rolled `EitherT` bridge ever surfaces:
 
+<!-- verify -->
 ``` java
 VResultPath<OrderError, OrderResult> process(OrderRequest request) {
     return validateShippingAddress(request.shippingAddress())    // VResultPath<OrderError, Address>
@@ -37,6 +38,7 @@ It speaks the family vocabulary exactly (`map`/`via`/`then` on the success chann
 
 ## Construction
 
+<!-- verify -->
 ``` java
 VResultPath<E, A> p1 = Path.vresultRight(value);          // pure success
 VResultPath<E, A> p2 = Path.vresultLeft(error);           // typed failure
@@ -51,9 +53,10 @@ VResultPath<E, A> p5 = Path.vresultDefer(() -> decide()); // defer the decision 
 
 The structured-concurrency surface keeps typed failures **in the value channel**: no thrown-and-recovered domain errors, no `instanceof` bridges, no side flags.
 
+<!-- verify -->
 ``` java
 // First warehouse to succeed wins; typed failures do not abort, they're collected.
-VResultPath<NonEmptyList<OrderError>, Reservation> reservation =
+VResultPath<NonEmptyList<OrderError>, Reservation> fromAnyWarehouse =
     VResultPath.firstSuccess(List.of(warehouse1, warehouse2, warehouse3))
         .withTimeout(Duration.ofSeconds(10), () -> NonEmptyList.of(OrderError.timeout()));
 
@@ -72,7 +75,7 @@ VResultPath<OrderError, OrderResult> fulfilled =
 - **`allSucceed`**: fail-fast; the first typed failure cancels the remaining tasks and becomes the result.
 - **`allSucceedAccumulating`**: run everything to completion and collect every typed failure at once.
 - **`withTimeout(duration, onTimeout)`**: a timeout becomes the designated typed error, on the railway.
-- **`bracketOutcome`**: release *always* runs and receives the `Either` outcome, so confirm-vs-compensate is decided from the result; defects inside `use` are typed through `onDefect` first, so release always observes a real outcome. This is the substrate the order example's deferred compensation Saga hangs on.
+- **`bracketOutcome`**: once the resource is acquired, release *always* runs and receives the `Either` outcome (a typed failure from `acquire` skips both `use` and `release`, since nothing was acquired), so confirm-vs-compensate is decided from the result; defects inside `use` are typed through `onDefect` first, so release always observes a real outcome. This is the substrate the order example's deferred compensation Saga hangs on.
 
 ~~~admonish note title="Why these live on VResultPath, not Scope"
 The issue sketched `Scope.firstSuccess(...)`, but `Scope` lives in `hkt.vtask`, which `hkt.effect` depends on; statics there referencing `VResultPath` would create a package cycle. The combinators sit on `VResultPath`, implemented over the same `Scope`/`ScopeJoiner` substrate (which gained an `Either`-aware `firstSuccessEither` joiner).
@@ -84,6 +87,7 @@ The issue sketched `Scope.firstSuccess(...)`, but `Scope` lives in `hkt.vtask`, 
 
 The full `with*` resilience vocabulary chains directly on the path, and every combinator is railway-aware: a typed `Left` is a *value*, not a fault.
 
+<!-- verify -->
 ``` java
 VResultPath<OrderError, Reservation> guarded =
     reserveInventory(order)
@@ -105,6 +109,7 @@ Because the path is lazy, protection wraps the *computation*: apply the combinat
 
 ## Escaping the path
 
+<!-- verify -->
 ``` java
 VTask<Either<E, A>> carrier = path.run();                 // the boundary type
 EitherPath<E, A>   decided = path.toEitherPath();         // blocking: runs the task

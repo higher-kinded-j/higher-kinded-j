@@ -95,7 +95,8 @@ The examples below use `Validated<List<String>, T>`, but an *invalid* result alw
 Each validator is an independent function that returns `Validated<List<String>, T>`:
 
 ```java
-ValidatedMonad<List<String>> validatedMonad = Instances.validated(Semigroups.list());
+MonadError<ValidatedKind.Witness<List<String>>, List<String>> validatedMonad =
+    Instances.validated(Semigroups.list());
 
 static Validated<List<String>, String> validateName(String name) {
     return (name == null || name.isBlank())

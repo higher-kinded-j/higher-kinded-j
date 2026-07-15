@@ -1,6 +1,11 @@
 # EitherOrBoth:
 ## _Success That Can Also Carry Warnings_
 
+~~~admonish example title="See Example Code"
+**The code on this page is [EitherOrBothBook.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/book/monads/eitherorboth/EitherOrBothBook.java)** - the page includes it directly, so it is compiled and run by the build.
+~~~
+
+
 ~~~admonish info title="What You'll Learn"
 - Why neither `Either` nor `Validated` can model "success with warnings", and how `EitherOrBoth` fills the gap
 - The three cases (`Left`, `Right`, `Both`) and the total accessors (`getLeft` / `getRight`) that never throw
@@ -26,9 +31,7 @@ Neither models a genuinely common outcome: a **successful value that also carrie
 `EitherOrBoth<L, R>` is the principled type. It is an *inclusive*-or: a `Left`, a `Right`, **or `Both` at once**.
 
 ```java
-EitherOrBoth<NonEmptyList<Warning>, Config> result =
-    parseConfig(raw)                          // Right(cfg), Both(warnings, cfg), or Left(fatal)
-        .flatMap(NonEmptyList.semigroup(), cfg -> validateConfig(cfg)); // warnings accumulate
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/monads/eitherorboth/EitherOrBothBook.java:flatmap}}
 ```
 
 By convention it is **right-biased**: success on the right, problems on the left, so `map` / `flatMap` feel identical to the rest of the railway. A `Both` is therefore "a successful value *and* the warnings gathered while producing it".
@@ -46,21 +49,13 @@ descriptive name; the aliases are noted only so the concept is recognisable.
 `switch`-matchable:
 
 ```java
-String describe(EitherOrBoth<NonEmptyList<Warning>, Config> r) {
-  return switch (r) {
-    case EitherOrBoth.Left<NonEmptyList<Warning>, Config>(var w)        -> "failed: " + w;
-    case EitherOrBoth.Right<NonEmptyList<Warning>, Config>(var cfg)     -> "ok: " + cfg;
-    case EitherOrBoth.Both<NonEmptyList<Warning>, Config>(var w, var c) -> "ok with warnings: " + c;
-  };
-}
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/monads/eitherorboth/EitherOrBothBook.java:switch}}
 ```
 
 Create values with `left` / `right` / `both`:
 
 ```java
-EitherOrBoth<String, Integer> left  = EitherOrBoth.left("fatal");
-EitherOrBoth<String, Integer> right = EitherOrBoth.right(42);
-EitherOrBoth<String, Integer> both  = EitherOrBoth.both("deprecated key", 42);
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/monads/eitherorboth/EitherOrBothBook.java:cases}}
 ```
 
 Values are **never `null`**: the components are validated at construction, which is what keeps the
@@ -82,10 +77,7 @@ return a `Maybe`:
 `fold` collapses all three cases at once:
 
 ```java
-String s = both.fold(
-    warnings -> "failed: " + warnings,
-    value    -> "ok: " + value,
-    (w, v)   -> "ok (" + v + ") with " + w);
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/monads/eitherorboth/EitherOrBothBook.java:fold}}
 ```
 
 ---
@@ -106,9 +98,7 @@ forward and accumulates them.**
 </pre>
 
 ```java
-EitherOrBoth<L, R2> flatMap(
-    Semigroup<L> semigroup,
-    Function<? super R, ? extends EitherOrBoth<L, ? extends R2>> mapper);
+{{#include ../../../hkj-core/src/main/java/org/higherkindedj/hkt/eitherorboth/EitherOrBoth.java:flatmap_signature}}
 ```
 
 For `Both(l, r).flatMap(⊕, f)`:
@@ -173,12 +163,7 @@ result can be *both* a value and a set of problems.
 The staged assembly builder gives `EitherOrBoth` the same open-arity construction story as [Validated](validated_assembly.md), in tolerant form: warnings accumulate (`Both`) while the value keeps flowing, and any `Left` makes the whole assembly `Left` while still keeping every warning, in field-declaration order.
 
 ```java
-EitherOrBoth<NonEmptyList<String>, Config> cfg =
-    EitherOrBoth.accumulate()
-        .and(parsePortLenient(raw.port()))       // Both("port defaulted", 8080)
-        .and(parseTimeoutLenient(raw.timeout())) // Right(30)
-        .apply(Config::new);
-// Both(NonEmptyList[port defaulted], Config[port=8080, timeout=30])
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/monads/eitherorboth/EitherOrBothBook.java:accumulate}}
 ```
 
 The combination primitive behind it is `zipWithAccum(other, semigroup, combiner)`: the `Validated`-style merge in which the right is present only if both are, and nothing short-circuits the warning collection. `EitherOrBoth.fields()` is the labelled twin over `NonEmptyList<FieldError>`, with paths that compose through nesting.

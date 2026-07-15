@@ -299,6 +299,23 @@ Use the following admonishment types consistently:
 
 ## Code Formatting
 
+### Java code in hkj-book must be verified
+
+Hand-written Java in a book page drifts: nothing compiles it, so it rots silently and readers copy
+code that does not build. Prefer, in this order:
+
+1. **Include it from a compiled example.** Anchor the code in
+   `hkj-examples/src/main/java/org/higherkindedj/example/book/**` and `{{#include}}` it. The page then
+   renders code the build compiles *and runs*, so it cannot drift, and a runnable example also proves
+   the output comments the page asserts.
+2. **Mark the fence `<!-- verify -->`.** The gate compiles a copy of it against the real library and
+   the real annotation processor. Use this only when the snippet cannot be runnable code (a shape
+   written against abstract type variables, for instance).
+3. A plain fence, verified by nothing, is a last resort. Two ratchets fail the build if the number of
+   includes or verified snippets falls, so it cannot become the default by accident.
+
+See `hkj-examples/BOOK-SNIPPETS.md`, and run `gradle :hkj-examples:bookVerify`.
+
 ### Code Blocks
 
 Use triple backticks with language specifier:

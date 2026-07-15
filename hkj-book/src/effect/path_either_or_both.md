@@ -1,5 +1,10 @@
 # EitherOrBothPath
 
+~~~admonish example title="See Example Code"
+**The code on this page is [EitherOrBothPathBook.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/book/effect/EitherOrBothPathBook.java)** - the page includes it directly, so it is compiled and run by the build.
+~~~
+
+
 `EitherOrBothPath<L, A>` wraps [`EitherOrBoth<L, A>`](../monads/either_or_both_monad.md) for
 computations that succeed but may also carry **non-fatal warnings**. It is the railway companion to
 `ValidationPath`: where `ValidationPath` is success *or* accumulated errors, `EitherOrBothPath` adds a
@@ -26,15 +31,13 @@ The `rightNel` / `leftNel` / `bothNel` factories bake in `NonEmptyList.semigroup
 case needs no `Semigroup` argument and no manual single-warning wrapping:
 
 ```java
-EitherOrBothPath<NonEmptyList<String>, Config> ok      = Path.rightNel(config);
-EitherOrBothPath<NonEmptyList<String>, Config> warned  = Path.bothNel("deprecated key", config);
-EitherOrBothPath<NonEmptyList<String>, Config> failed  = Path.leftNel("config missing");
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/effect/EitherOrBothPathBook.java:create}}
 ```
 
 When you need a custom warning channel, supply the `Semigroup` explicitly:
 
 ```java
-EitherOrBothPath<String, Integer> p = Path.both("warn", 42, Semigroups.string("; "));
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/effect/EitherOrBothPathBook.java:custom_semigroup}}
 ```
 
 ---
@@ -71,15 +74,7 @@ Like `ValidationPath`, `EitherOrBothPath` offers both short-circuit and accumula
 accumulates any the next step produces:
 
 ```java
-EitherOrBothPath<NonEmptyList<String>, Integer> result =
-    Path.<String, Integer>bothNel("uses deprecated key", 8)
-        .via(value -> value < 10
-            ? Path.bothNel("value is low", value)
-            : Path.rightNel(value));
-
-result.run();        // Both([uses deprecated key, value is low], 8)
-result.warnings();   // Just([uses deprecated key, value is low])
-result.getOrElse(0); // 8
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/effect/EitherOrBothPathBook.java:via}}
 ```
 
 ### Accumulating (`zipWithAccum`)
@@ -88,12 +83,7 @@ result.getOrElse(0); // 8
 `Left` (the `Validated`-style accumulation that the monadic operations deliberately do not do):
 
 ```java
-EitherOrBothPath<NonEmptyList<String>, String> name = Path.bothNel("name was trimmed", "Ada");
-EitherOrBothPath<NonEmptyList<String>, Integer> age = Path.bothNel("age defaulted", 30);
-
-EitherOrBothPath<NonEmptyList<String>, String> reg =
-    name.zipWithAccum(age, (n, a) -> n + " (" + a + ")");
-// Both([name was trimmed, age defaulted], "Ada (30)")
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/effect/EitherOrBothPathBook.java:zip_accum}}
 ```
 
 `andAlso` / `andThen` are conveniences over `zipWithAccum` that keep one side's value while still
@@ -113,11 +103,7 @@ warning regardless. Choose by intent: sequential dependency → `via`; independe
 For N independent fields, the staged assembly on the core type extends `zipWithAccum` to open arity: warnings accumulate while the value keeps flowing, and the result wraps back into a path with `Path.eitherOrBoth` when railway composition should continue.
 
 ```java
-EitherOrBoth<NonEmptyList<String>, Config> cfg =
-    EitherOrBoth.accumulate()
-        .and(parsePortLenient(raw.port()))
-        .and(parseTimeoutLenient(raw.timeout()))
-        .apply(Config::new);
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/effect/EitherOrBothPathBook.java:accumulate}}
 ```
 
 See [Accumulating Assembly](../monads/validated_assembly.md).
@@ -130,8 +116,7 @@ See [Accumulating Assembly](../monads/validated_assembly.md).
 passed through unchanged:
 
 ```java
-Path.<String, Integer>leftNel("config missing").recover(errors -> 0).run();   // Right(0)
-Path.<String, Integer>bothNel("deprecated", 42).recover(errors -> 0).run();    // Both([deprecated], 42)
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/effect/EitherOrBothPathBook.java:recover}}
 ```
 
 To transform the warning type, use `mapErrorWith(mapper, newSemigroup)` (a new `Semigroup` is needed

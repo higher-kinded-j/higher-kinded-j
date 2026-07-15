@@ -18,15 +18,21 @@ import org.higherkindedj.hkt.validated.Validated;
  * accumulated writes to a source, which {@link Edits#accumulate} performs only if <em>every</em>
  * edit validated.
  *
- * <p>Failures are located: {@link #at(String)} tags this edit's errors with a field label, exactly
- * as {@link FieldError#at(String)} composes paths outward-in:
+ * <p>Failures are located automatically: a path from a {@code @GenerateFocus} companion carries its
+ * component name as a segment, so {@code parseIfPresent} already tags failures with it. {@link
+ * #at(String)} <em>prepends</em> a further segment, exactly as {@link FieldError#at(String)}
+ * composes paths outward-in - use it for extra context, or for hand-written optics that carry no
+ * label of their own:
  *
  * <pre>{@code
  * Edits.accumulate(
  *         Edit.setIfPresent(ORDER_NUMBER, req.orderNumber()),
- *         Edit.parseIfPresent(EMAIL, req.email(), Email::parse).at("email"))
+ *         Edit.parseIfPresent(EMAIL, req.email(), Email::parse))   // EMAIL is OrderFocus.email()
  *     .apply(order);
  * // Invalid(NEL[ "email: not an address" ]) — or Valid(order') with only present fields changed
+ *
+ * // .at("customer") prepends, giving "customer.email: not an address":
+ * Edit.parseIfPresent(EMAIL, req.email(), Email::parse).at("customer");
  * }</pre>
  *
  * @param <S> the type of the value being edited

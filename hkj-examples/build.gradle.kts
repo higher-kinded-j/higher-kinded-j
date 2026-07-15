@@ -35,10 +35,24 @@ tasks.named("javadoc") {
     enabled = false
 }
 
+// The book-snippet fixtures (src/test/resources/fixtures) are .java for IDE support, but they are
+// resources, not sources: their imports exist for the *snippet* they are spliced into, so an
+// "unused import" cleanup would silently break them.
+spotless {
+    java {
+        targetExclude("src/test/resources/fixtures/**")
+    }
+}
+
 // Default test task: runs solution tests only (tutorials are excluded)
 // Solutions must pass as they verify the tutorial exercises are correct
 tasks.named<Test>("test") {
     useJUnitPlatform()
+
+    // The book gate has its own task (`bookVerify`, below): hanging it off `test` meant every edit
+    // to an .md file invalidated `test` and re-ran the whole tutorial/solution suite.
+    exclude("org/higherkindedj/book/**")
+
     // Exclude tutorial exercises (they are incomplete by design)
     // Include solutions which must always pass
     exclude("**/tutorial/optics/**")
@@ -53,6 +67,52 @@ tasks.named<Test>("test") {
     exclude("**/tutorial/resilience/**")
     // Solutions are in tutorial/solutions/ and will run
 }
+
+// The book gate: compiles hkj-book's `<!-- verify -->` snippets against this module's classpath and
+// the REAL annotation processor, and checks that every `{{#include}}` resolves to a real anchor. A
+// page therefore cannot drift away from the API without failing the build. It lives in this module
+// rather than one of its own because this module already wires the processor, hkj-test, JUnit and
+// AssertJ. See BOOK-SNIPPETS.md.
+val bookVerify = tasks.register<Test>("bookVerify") {
+    description = "Compiles the code in hkj-book against the library, so the docs cannot drift."
+    group = "verification"
+    useJUnitPlatform()
+
+    testClassesDirs = sourceSets["test"].output.classesDirs
+    classpath = sourceSets["test"].runtimeClasspath
+    include("org/higherkindedj/book/**")
+
+    val bookDir = rootProject.layout.projectDirectory.dir("hkj-book/src")
+    inputs.dir(bookDir).withPropertyName("bookSources").withPathSensitivity(PathSensitivity.RELATIVE)
+    systemProperty("hkj.book.dir", bookDir.asFile.absolutePath)
+
+    // The anchored example sources are inputs too. Without this, renaming an `// ANCHOR:` would not
+    // re-run the gate: the rename is a comment, so the compiled classes are byte-identical and the
+    // task stays UP-TO-DATE while the book silently loses that code block.
+    inputs
+        .files(layout.projectDirectory.dir("src/main/java/org/higherkindedj/example/book").asFileTree)
+        .withPropertyName("bookExampleSources")
+        .withPathSensitivity(PathSensitivity.RELATIVE)
+    inputs
+        .files(layout.projectDirectory.dir("src/test/java/org/higherkindedj/example/book").asFileTree)
+        .withPropertyName("bookExampleTestSources")
+        .withPathSensitivity(PathSensitivity.RELATIVE)
+
+    // Declared as a proper input (so a processor change re-runs the gate) and passed via an argument
+    // provider (so the configuration cache can serialise it). It must be captured as a FileCollection,
+    // not a NamedDomainObjectProvider: the cache cannot serialise the latter.
+    val processorPath: FileCollection = configurations.getByName("annotationProcessor")
+    inputs.files(processorPath)
+        .withPropertyName("bookProcessorPath")
+        .withNormalizer(ClasspathNormalizer::class)
+    jvmArgumentProviders.add(
+        CommandLineArgumentProvider {
+            listOf("-Dhkj.book.processorPath=${processorPath.asPath}")
+        }
+    )
+}
+
+tasks.named("check") { dependsOn(bookVerify) }
 
 // Separate task for users to run tutorial exercises
 // Usage: ./gradlew :hkj-examples:tutorialTest

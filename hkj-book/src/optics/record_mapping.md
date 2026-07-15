@@ -14,20 +14,15 @@ Every service boundary maps between a rich domain record and a flat wire DTO. Ha
 ~~~
 
 ~~~admonish example title="See Example Code"
+**The code on this page is [RecordMappingBook.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/book/mapping/RecordMappingBook.java)** - the page includes it directly, so it is compiled and run by the build.
+
 [GenerateMappingExample.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/optics/GenerateMappingExample.java)
 ~~~
 
 ``` java
-import org.higherkindedj.optics.annotations.GenerateMapping;
-import org.higherkindedj.optics.annotations.MappingSpec;
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/mapping/RecordMappingBook.java:basics_spec}}
 
-@GenerateMapping
-public interface PersonMapping extends MappingSpec<Person, PersonDto> {}
-
-// Same-named, same-typed components match automatically:
-PersonDto dto   = PersonMappingImpl.INSTANCE.build(person);      // total
-Validated<NonEmptyList<FieldError>, Person> back =
-    PersonMappingImpl.INSTANCE.parse(dto);                       // accumulating, located
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/mapping/RecordMappingBook.java:basics_usage}}
 ```
 
 The two directions have different shapes, and that asymmetry runs through the whole page:
@@ -47,15 +42,9 @@ The generated class is `<Spec>Impl` beside the spec, used through its `INSTANCE`
 Where the two sides differ in type, the boundary conversion is a [`ValidatedPrism`](validated_prism.md) supplied as a **zero-parameter `default` method named after the domain component**:
 
 ``` java
-@GenerateMapping
-public interface CustomerMapping extends MappingSpec<Customer, CustomerDto> {
-  default ValidatedPrism<String, EmailAddress> email() {   // wire first, domain second
-    return EmailCodecs.EMAIL;
-  }
-}
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/mapping/RecordMappingBook.java:leaf_spec}}
 
-CustomerMappingImpl.INSTANCE.parse(new CustomerDto("Bob", "not-an-email"));
-// Invalid(NonEmptyList[email: not an email address])
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/mapping/RecordMappingBook.java:leaf_usage}}
 ```
 
 ~~~admonish tip title="A leaf beats an identity match"
@@ -69,11 +58,7 @@ An explicit leaf wins even when the two component types are identical, so a `Val
 A rename is an abstract method named after the *domain* component, with `to` naming the *wire* component:
 
 ``` java
-@GenerateMapping
-public interface PersonMapping extends MappingSpec<Person, PersonDto> {
-  @MapField(to = "fullName")
-  String name();          // Person.name <-> PersonDto.fullName
-}
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/mapping/RecordMappingBook.java:rename_spec}}
 ```
 
 Each wire component takes exactly one domain source; colliding renames are compile errors, not surprises.
@@ -85,20 +70,9 @@ Each wire component takes exactly one domain source; colliding renames are compi
 A wire component with **no domain counterpart** can be computed from the whole domain value. Declare a zero-parameter `default` method named after the *wire* component, returning `Getter<Domain, WireComponentType>`:
 
 ``` java
-import org.higherkindedj.optics.Getter;
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/mapping/RecordMappingBook.java:derived_spec}}
 
-public record Profile(String first, String last) {}
-public record ProfileDto(String first, String last, String displayName) {}
-
-@GenerateMapping
-public interface ProfileMapping extends MappingSpec<Profile, ProfileDto> {
-  default Getter<Profile, String> displayName() {
-    return Getter.of(p -> p.first() + " " + p.last());
-  }
-}
-
-ProfileMappingImpl.INSTANCE.build(new Profile("Ada", "Lovelace"));
-// ProfileDto[first=Ada, last=Lovelace, displayName=Ada Lovelace]
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/mapping/RecordMappingBook.java:derived_usage}}
 ```
 
 The two directions are asymmetric: `build` computes the derived component, `parse` throws it away.
@@ -142,14 +116,9 @@ Four shapes are rejected, each with a what/why/fix diagnostic:
 A component whose two sides are themselves mapped by **another spec in the same compilation** nests automatically, and failures compose into dotted paths:
 
 ``` java
-public record Invoice(String id, Customer customer) {}
-public record InvoiceDto(String id, CustomerDto customer) {}
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/mapping/RecordMappingBook.java:nesting_spec}}
 
-@GenerateMapping
-public interface InvoiceMapping extends MappingSpec<Invoice, InvoiceDto> {}
-
-InvoiceMappingImpl.INSTANCE.parse(new InvoiceDto("INV-2", new CustomerDto("Bob", "nope")));
-// Invalid(NonEmptyList[customer.email: not an email address])
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/mapping/RecordMappingBook.java:nesting_usage}}
 ```
 
 Containers lift the same way:
@@ -170,9 +139,7 @@ The rendered path uses each key's `toString()`, so a key containing a dot looks 
 A `MappingSpec` over two **sealed interfaces** dispatches over the permitted subtype pairs, one spec per pair, exhaustively in both directions:
 
 ``` java
-@GenerateMapping public interface CardMapping extends MappingSpec<Card, CardDto> {}
-@GenerateMapping public interface BankMapping extends MappingSpec<Bank, BankDto> {}
-@GenerateMapping public interface PaymentMapping extends MappingSpec<Payment, PaymentDto> {}
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/mapping/RecordMappingBook.java:sealed_spec}}
 
 // generated PaymentMappingImpl.build:
 //   return switch (domain) {
@@ -197,14 +164,9 @@ The field correspondences select what the Impl can lawfully offer; nothing is fa
 | Every parse-capable mapping | **`asValidatedPrism()`**: the mapping as a leaf, so it nests and lifts |
 
 ``` java
-public record Employee(String name, String department, int age) {}
-public record EmployeeCardDto(String name, String department) {}
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/mapping/RecordMappingBook.java:projection_spec}}
 
-@GenerateMapping
-public interface EmployeeCardMapping extends MappingSpec<Employee, EmployeeCardDto> {}
-
-Lens<Employee, EmployeeCardDto> badge = EmployeeCardMappingImpl.INSTANCE.asLens();
-Employee moved = badge.set(new EmployeeCardDto("Ada", "Platform"), employee);
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/mapping/RecordMappingBook.java:projection_usage}}
 // department written back, age kept: a lawful lens, not a fake inverse
 ```
 
@@ -215,10 +177,7 @@ Employee moved = badge.set(new EmployeeCardDto("Ada", "Platform"), employee);
 ``` java
 import org.higherkindedj.optics.laws.MappingLaws;
 
-MappingLaws.assertMappingLaws(
-    CustomerMappingImpl.INSTANCE.asValidatedPrism(),
-    new CustomerDto("Ada", "ada@example.org"),    // parses
-    new CustomerDto("Bob", "not-an-email"));      // must not parse
+{{#include ../../../hkj-examples/src/test/java/org/higherkindedj/example/book/mapping/RecordMappingBookLawsTest.java:laws}}
 ```
 
 The overloads follow the tiers:
@@ -241,22 +200,15 @@ The annotation sits on *your* spec interface, never on the mapped types, so thir
 The forward-only sibling: assemble one target from **several** sources, declared entirely by the spec method's signature, no class literals, no inverse (truthful types):
 
 ``` java
-@GenerateMerge
-public interface DashboardAssembly {
-  Dashboard assemble(User user, Account account, Settings settings);
-}
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/mapping/RecordMappingBook.java:merge_spec}}
 
-Dashboard dashboard = DashboardAssemblyImpl.INSTANCE.assemble(user, account, settings);
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/mapping/RecordMappingBook.java:merge_usage}}
 ```
 
 Each target component fills from the one source with a same-named component: identity when the types match, through a `ValidatedPrism` leaf when they differ, or through a sibling `@GenerateMapping` spec (the `customer` below parses through `CustomerMappingImpl`, and failures locate as dotted paths):
 
 ``` java
-@GenerateMerge
-public interface ProfileCardAssembly {
-  Validated<NonEmptyList<FieldError>, ProfileCard> assemble(User user, Wrapper wrapper);
-}
-// Invalid(NonEmptyList[customer.email: not an email address])
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/mapping/RecordMappingBook.java:nested_merge_spec}}
 ```
 
 Ambiguity (two sources carrying the component) and unfilled components are compile errors, and the return type must tell the truth: fallible fills demand the `Validated` return; an identity-only merge must declare the plain target.
@@ -268,18 +220,7 @@ Ambiguity (two sources carrying the component) and unfilled components are compi
 The third generator in the family targets the other end of the boundary: the typed domain error a fallible mapping produces. A sealed error hierarchy re-declares the same envelope (`code`, `message`, `timestamp`, `context`) on every variant, and `context` is usually an untyped `Map<String, Object>`. `@GenerateErrorEnvelope` supplies the envelope and types the context, so each variant declares only its domain-specific components plus one `ErrorEnvelope<C>` component:
 
 ``` java
-// The context is records-as-schema: nullable components, an all-absent default.
-record OrderErrorContext(@Nullable OrderId orderId, @Nullable TraceId traceId) {}
-
-@GenerateErrorEnvelope
-public sealed interface OrderError {
-  ErrorEnvelope<OrderErrorContext> envelope();          // declared once
-
-  record OutOfStock(List<ProductId> products, ErrorEnvelope<OrderErrorContext> envelope)
-      implements OrderError {}
-  record PaymentDeclined(CardRef card, ErrorEnvelope<OrderErrorContext> envelope)
-      implements OrderError {}
-}
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/mapping/OrderErrorBook.java:error_envelope}}
 ```
 
 ~~~admonish note title="Two senses of 'context'"
@@ -295,12 +236,7 @@ For `OrderError` the processor generates a companion named `OrderErrors` with th
 Add a one-line `default` so the wither reads as an instance method, and construction plus enrichment matches the shape you would hand-write:
 
 ``` java
-default OrderError editContext(UnaryOperator<OrderErrors.ContextBuilder> edit) {
-  return OrderErrors.editContext(this, edit);
-}
-
-OrderError error = OrderErrors.outOfStock(products)                 // typed factory
-    .editContext(ctx -> ctx.orderId(orderId).traceId(traceId));     // typed context, not map.put
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/mapping/OrderErrorBook.java:edit_context}}
 ```
 
 The context type is discovered **structurally** from the `ErrorEnvelope` component's type argument, never a class literal, and every variant must agree on it. Three rules apply, each a what/why/fix diagnostic:

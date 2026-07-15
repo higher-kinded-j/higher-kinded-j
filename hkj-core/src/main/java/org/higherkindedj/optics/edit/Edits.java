@@ -37,7 +37,7 @@ import org.higherkindedj.hkt.validated.Validated;
  * Validated<NonEmptyList<FieldError>, Order> updated =
  *     Edits.accumulate(
  *             setIfPresent(ORDER_NUMBER, req.orderNumber()),
- *             parseIfPresent(EMAIL, req.email(), Email::parse).at("email"),
+ *             parseIfPresent(EMAIL, req.email(), Email::parse),
  *             modifyIfPresent(QUANTITY, req.qtyDelta(), (delta, qty) -> qty + delta))
  *         .apply(order);
  * }</pre>
