@@ -57,6 +57,8 @@ public final class ProductionGatewayInterpreter
 3. Widen via `IOKindHelper.IO_OP.widen(...)`
 
 **Combine and run**:
+
+<!-- verify -->
 ```java
 var interpreter = Interpreters.combine(gateway, fraud, ledger, notification);
 IO<Result> io = IOKindHelper.IO_OP.narrow(
@@ -103,6 +105,7 @@ public final class RecordingGatewayInterpreter
 
 **Fixed-response pattern** (useful for controlling test paths):
 
+<!-- verify -->
 ```java
 public final class FixedRiskInterpreter
     extends FraudCheckOpInterpreter<IdKind.Witness> {
@@ -247,6 +250,7 @@ public final class QuoteGatewayInterpreter
 
 ## Combining Interpreters
 
+<!-- verify -->
 ```java
 // 4-effect combination (matches @ComposeEffects order)
 var interpreter = Interpreters.combine(

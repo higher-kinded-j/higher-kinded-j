@@ -5,6 +5,7 @@ JSON-friendly, without hand-writing a mapper and without a reflective one.
 
 ## The Problem With the Hand-Written Mapper
 
+<!-- verify -->
 ```java
 // Before: correct today, quietly wrong after the next field is added.
 public final class CustomerMapper {
@@ -32,6 +33,7 @@ Three defects, none of which the compiler can see:
 
 State only what is *not* obvious. Name-and-type matches need no declaration.
 
+<!-- verify -->
 ```java
 public record EmailAddress(String value) {}
 public record Customer(String name, EmailAddress email) {}
@@ -72,6 +74,7 @@ return parsed.fold(
 An invoice carries a customer. The sibling spec is found automatically, so `InvoiceMapping` has
 nothing to declare:
 
+<!-- verify -->
 ```java
 public record Invoice(String id, Customer customer) {}
 public record InvoiceDto(String id, CustomerDto customer) {}
@@ -87,6 +90,7 @@ A failure inside the nested customer locates itself as a dotted path: `customer.
 Declare the leaf prism once per component; `List`, `Optional` and `Map` lift it for you. (For a
 `Map`, values lift and keys pass through by identity; a failure is located by its key.)
 
+<!-- verify -->
 ```java
 public record Team(String name, List<EmailAddress> members, Optional<EmailAddress> lead) {}
 public record TeamDto(String name, List<String> members, Optional<String> lead) {}
@@ -113,6 +117,7 @@ public interface TeamMapping extends MappingSpec<Team, TeamDto> {
 A field the wire wants and the domain does not store. `Getter` is `build`-only: `parse` ignores it,
 which is exactly right: it is derived, so there is nothing to read back.
 
+<!-- verify -->
 ```java
 public record Profile(String first, String last) {}
 public record ProfileDto(String first, String last, String displayName) {}
@@ -130,6 +135,7 @@ public interface ProfileMapping extends MappingSpec<Profile, ProfileDto> {
 The wire calls it `fullName`; the domain calls it `name`. Declare it **abstract**: you are stating
 a fact, not supplying an implementation.
 
+<!-- verify -->
 ```java
 @GenerateMapping
 public interface PersonMapping extends MappingSpec<Person, PersonDto> {
@@ -142,6 +148,7 @@ public interface PersonMapping extends MappingSpec<Person, PersonDto> {
 
 Defect 3 from the top: nobody checked that the two directions agree. `MappingLaws` does:
 
+<!-- verify -->
 ```java
 @Test
 void customerMappingObeysTheLaws() {
@@ -167,6 +174,7 @@ Two points that are easy to get wrong:
 
 A dashboard drawn from three aggregates. The method signature **is** the declaration:
 
+<!-- verify -->
 ```java
 @GenerateMerge
 public interface DashboardAssembly {

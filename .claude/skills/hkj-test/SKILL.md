@@ -84,6 +84,7 @@ Every assertion class extends AssertJ's `AbstractAssert`, so `.as("description")
 
 ### Discriminated unions (Either, Maybe, Try, Validated)
 
+<!-- verify -->
 ```java
 import static org.higherkindedj.hkt.assertions.EitherAssert.assertThatEither;
 
@@ -98,6 +99,7 @@ assertThatEither(result).isRight().hasRightSatisfying(v ->
 
 ### NonEmptyList
 
+<!-- verify -->
 ```java
 import static org.higherkindedj.hkt.assertions.NonEmptyListAssert.assertThatNonEmptyList;
 
@@ -115,6 +117,7 @@ Also `isNotEmpty()`, `containsOnly(...)`. `head()`/`last()` are total on `NonEmp
 
 Three states, so three predicates. `Both` is the one `Either` cannot express (success *plus* non-fatal warnings):
 
+<!-- verify -->
 ```java
 import static org.higherkindedj.hkt.assertions.EitherOrBothAssert.assertThatEitherOrBoth;
 
@@ -134,6 +137,7 @@ Also `hasLeftSatisfying(...)` / `hasRightSatisfying(...)`.
 
 There is **no** dedicated "accumulated validation" assertion; `ValidatedAssert` is unchanged. Assert accumulation by taking the `NonEmptyList<FieldError>` off the `Invalid` and asserting on the located errors:
 
+<!-- verify -->
 ```java
 import static org.higherkindedj.hkt.assertions.FieldErrorAssert.assertThatFieldError;
 import static org.higherkindedj.hkt.assertions.NonEmptyListAssert.assertThatNonEmptyList;
@@ -155,6 +159,7 @@ assertThatFieldError(unlabelled).isUnlabelled();             // no path segments
 
 ### ErrorEnvelope
 
+<!-- verify -->
 ```java
 import static org.higherkindedj.hkt.assertions.ErrorEnvelopeAssert.assertThatErrorEnvelope;
 
@@ -203,6 +208,7 @@ assertThatStateTuple(result)
 
 IO and VTask are lazy. Drive them through `whenExecuted()` / `whenRun()` first:
 
+<!-- verify -->
 ```java
 assertThatIO(effect).whenExecuted().hasValue(2);
 assertThatIO(effect).isNotExecutedYet();
@@ -212,8 +218,8 @@ assertThatIO(failing).throwsException(IllegalStateException.class)
 
 assertThatVTask(task).whenRun().succeeds().hasValue(expected)
     .completesWithin(Duration.ofSeconds(1));
-assertThatVTask(task).runSafeSucceeds();   // delegates to TryAssert
-assertThatVTask(failing).runSafeFails();   // cached: chain reuses the runSafe result
+assertThatVTask(task).runSafeSucceeds();       // delegates to TryAssert
+assertThatVTask(failingTask).runSafeFails();   // cached: chain reuses the runSafe result
 
 assertThatVStream(stream).producesElements(1, 2, 3);
 assertThatVStream(stream).hasCount(3);
@@ -224,6 +230,7 @@ assertThatVStream(failingStream).failsWithExceptionType(IllegalStateException.cl
 
 `VResultPath<E, A>` wraps `VTask<Either<E, A>>`, so it has *three* outcomes: `Right` (success), `Left` (typed domain failure), and a **defect** (a thrown exception on the task channel). The assert runs the path on the first assertion and caches the outcome (no `whenRun()` step):
 
+<!-- verify -->
 ```java
 import static org.higherkindedj.hkt.assertions.VResultPathAssert.assertThatVResultPath;
 
@@ -267,6 +274,7 @@ The same shape applies to `MaybeTAssert`, `OptionalTAssert`, `ReaderTAssert`, `S
 
 ### Free / EitherF
 
+<!-- verify -->
 ```java
 Free<MaybeKind.Witness, String> program = Free.pure("hello");
 assertThatFree(program).isPure().hasPureValue("hello");
@@ -294,6 +302,7 @@ Hand-written or generated optics are only useful if they are lawful. Package `or
 | `ValidatedPrism<S, A>` | `ValidatedPrismLaws` | `assertValidatedPrismLaws(prism, parsingSource, nonParsingSource)` |
 | `@GenerateMapping` spec | `MappingLaws` | `assertMappingLaws(...)` (see below) |
 
+<!-- verify -->
 ```java
 import org.higherkindedj.optics.laws.LensLaws;
 import org.higherkindedj.optics.laws.PrismLaws;
@@ -359,6 +368,7 @@ Also `MappingLaws.assertBuildAgreesWithIso(iso, mapping, domainSample)` and `ass
 
 Code that reads the wall clock should take a `TimeSource` (`org.higherkindedj.hkt.time.TimeSource`), not call `Instant.now()`. In tests, feed it a clock you control and **advance time instead of sleeping**. `SteppableClock` (in `org.higherkindedj.hkt.assertions`) is a mutable `java.time.Clock` that only moves when you move it:
 
+<!-- verify -->
 ```java
 import java.time.Duration;
 import java.time.Instant;

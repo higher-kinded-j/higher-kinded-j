@@ -38,6 +38,7 @@ All live in `org.higherkindedj.optics.annotations`.
 
 Declare the mapping as a **spec interface**; the processor writes the implementation.
 
+<!-- verify -->
 ```java
 @GenerateMapping
 public interface CustomerMapping extends MappingSpec<Customer, CustomerDto> {}
@@ -46,6 +47,7 @@ public interface CustomerMapping extends MappingSpec<Customer, CustomerDto> {}
 
 Generated: `CustomerMappingImpl`, reached through `INSTANCE`.
 
+<!-- verify -->
 ```java
 CustomerDto dto = CustomerMappingImpl.INSTANCE.build(customer);              // total
 Validated<NonEmptyList<FieldError>, Customer> back =
@@ -67,6 +69,7 @@ says what is *not* obvious.
 | A component that must be **parsed** (`String` -> `EmailAddress`) | a zero-arg `default` method named after the domain component, returning `ValidatedPrism<Wire, Domain>` |
 | A wire-only field **derived** from the domain | a zero-arg `default` method returning `Getter<Domain, WireType>` |
 
+<!-- verify -->
 ```java
 public record Customer(String name, EmailAddress email) {}
 public record CustomerDto(String name, String email) {}
@@ -90,6 +93,7 @@ needs validating on the way in".
 
 Renaming, and deriving a wire-only field:
 
+<!-- verify -->
 ```java
 @GenerateMapping
 public interface PersonMapping extends MappingSpec<Person, PersonDto> {
@@ -109,6 +113,7 @@ public interface ProfileMapping extends MappingSpec<Profile, ProfileDto> {
 
 A leaf prism declared for a component applies **elementwise** through `List`, `Optional` and `Map`:
 
+<!-- verify -->
 ```java
 public record Team(String name, List<EmailAddress> members, Optional<EmailAddress> lead) {}
 public record TeamDto(String name, List<String> members, Optional<String> lead) {}
@@ -133,6 +138,7 @@ public interface TeamMapping extends MappingSpec<Team, TeamDto> {
 And a nested record resolves through its **sibling spec**, so this spec is empty and still maps
 `Customer` <-> `CustomerDto` inside the invoice:
 
+<!-- verify -->
 ```java
 public record Invoice(String id, Customer customer) {}
 public record InvoiceDto(String id, CustomerDto customer) {}
@@ -193,6 +199,7 @@ rejected outright: the projection's `asLens()` write-back could never honour a c
 The spec is a plain interface, with no marker supertype. **The single abstract method signature *is*
 the declaration.**
 
+<!-- verify -->
 ```java
 @GenerateMerge
 public interface DashboardAssembly {
@@ -231,11 +238,13 @@ themselves as dotted paths, e.g. `"customer.email"`.
 
 Put it on the record. You get a staged builder with one method per component, in declaration order.
 
+<!-- verify -->
 ```java
 @GenerateAssembly
 record SignupUser(String name, String email, int age) {}
 ```
 
+<!-- verify -->
 ```java
 Validated<NonEmptyList<FieldError>, SignupUser> result =
     SignupUserAssembly.fields()
@@ -305,6 +314,7 @@ record OrderErrorContext(OrderId orderId, TraceId traceId) {}
 The processor generates an `OrderErrors` companion: per-variant factories, a fluent `context()`
 builder, and `editContext`:
 
+<!-- verify -->
 ```java
 OrderError error = OrderErrors.editContext(
     OrderErrors.outOfStock(products),

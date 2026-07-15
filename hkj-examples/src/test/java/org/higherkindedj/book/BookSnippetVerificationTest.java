@@ -53,9 +53,16 @@ class BookSnippetVerificationTest {
    * copy of it, so those snippets no longer need a marker. That is the only reason this number may
    * fall.
    */
-  private static final int MINIMUM_VERIFIED_SNIPPETS = 5;
+  private static final int MINIMUM_VERIFIED_SNIPPETS = 215;
 
-  private static final Path BOOK = Path.of(required("hkj.book.dir"));
+  /**
+   * Every documentation root whose code is verified. The book was the first; the skills are the
+   * other documentation this repo ships, and until they were added here nothing compiled them, so a
+   * code review found four undefined identifiers in a single pass.
+   */
+  private static final List<Path> ROOTS =
+      List.of(Path.of(required("hkj.book.dir")), Path.of(required("hkj.skills.dir")));
+
   private static final String PROCESSOR_PATH = System.getProperty("hkj.book.processorPath", "");
 
   /** Domain types a page elides for readability. Kept out of the book so the pages stay clean. */
@@ -67,7 +74,7 @@ class BookSnippetVerificationTest {
     @Override
     public String toString() {
       return "%s (snippet %d, line %d)"
-          .formatted(BOOK.relativize(page.file()), snippet.index() + 1, snippet.lineNumber());
+          .formatted(shortName(page.file()), snippet.index() + 1, snippet.lineNumber());
     }
   }
 
@@ -79,23 +86,35 @@ class BookSnippetVerificationTest {
   }
 
   private static Stream<SnippetExtractor.Page> verifiedPages() throws IOException {
-    try (Stream<Path> pages = Files.walk(BOOK)) {
-      return pages
-          .filter(p -> p.toString().endsWith(".md"))
-          .sorted()
-          .map(BookSnippetVerificationTest::extract)
-          .filter(page -> !page.isEmpty())
-          .toList()
-          .stream();
+    List<SnippetExtractor.Page> found = new ArrayList<>();
+    for (Path root : ROOTS) {
+      try (Stream<Path> pages = Files.walk(root)) {
+        pages
+            .filter(p -> p.toString().endsWith(".md"))
+            .sorted()
+            .map(page -> extract(page, root))
+            .filter(page -> !page.isEmpty())
+            .forEach(found::add);
+      }
     }
+    return found.stream();
   }
 
-  private static SnippetExtractor.Page extract(Path page) {
+  private static SnippetExtractor.Page extract(Path page, Path root) {
     try {
-      return SnippetExtractor.extract(page, BOOK);
+      return SnippetExtractor.extract(page, root);
     } catch (IOException e) {
       throw new UncheckedIOException(e);
     }
+  }
+
+  /** A path relative to whichever root it came from, so a failure names the file the way you do. */
+  private static String shortName(Path file) {
+    return ROOTS.stream()
+        .filter(file::startsWith)
+        .findFirst()
+        .map(root -> root.relativize(file).toString())
+        .orElseGet(file::toString);
   }
 
   @ParameterizedTest(name = "{0}")

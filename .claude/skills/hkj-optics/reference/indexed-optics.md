@@ -17,6 +17,7 @@ Common index types:
 
 ## Creating Indexed Traversals
 
+<!-- verify -->
 ```java
 import org.higherkindedj.optics.indexed.IndexedTraversal;
 import org.higherkindedj.optics.util.IndexedTraversals;
@@ -32,6 +33,7 @@ IndexedTraversal<String, Map<String, String>, String> metadataWithKeys =
 
 ## Accessing Index-Value Pairs
 
+<!-- verify -->
 ```java
 import org.higherkindedj.optics.indexed.Pair;
 
@@ -45,6 +47,7 @@ for (Pair<Integer, LineItem> pair : indexedItems) {
 
 ## IndexedFold Queries
 
+<!-- verify -->
 ```java
 IndexedFold<Integer, List<LineItem>, LineItem> itemsFold =
     itemsWithIndex.asIndexedFold();
@@ -60,6 +63,7 @@ boolean hasExpensiveEven = itemsFold.existsWithIndex(
 
 ## Position-Aware Modifications (imodify)
 
+<!-- verify -->
 ```java
 // Numbering items
 List<LineItem> numbered = IndexedTraversals.imodify(itemsWithIndex,
@@ -83,6 +87,7 @@ Map<String, String> processed = IndexedTraversals.imodify(metadataTraversal,
 
 ## Index Filtering
 
+<!-- verify -->
 ```java
 // Filter by index
 IndexedTraversal<Integer, List<LineItem>, LineItem> evenPositions =
@@ -100,6 +105,7 @@ IndexedTraversal<String, Map<String, String>, String> deliveryMetadata =
 
 ## IndexedLens for Field Tracking
 
+<!-- verify -->
 ```java
 IndexedLens<String, Customer, String> emailLens = IndexedLens.of(
     "email",                                                    // index: field name
@@ -119,6 +125,7 @@ Customer updated = emailLens.imodify(
 
 ## Converting Between Indexed and Standard
 
+<!-- verify -->
 ```java
 IndexedTraversal<Integer, List<LineItem>, LineItem> indexed =
     IndexedTraversals.forList();
@@ -131,6 +138,7 @@ Traversal<List<LineItem>, LineItem> standard = indexed.asTraversal();
 
 Composing two indexed optics produces `Pair<I, J>` indices representing the path through nested structures.
 
+<!-- verify -->
 ```java
 IndexedTraversal<Integer, List<Order>, Order> ordersIndexed =
     IndexedTraversals.forList();
@@ -156,6 +164,7 @@ for (Pair<Pair<Integer, Integer>, LineItem> entry : all) {
 
 ## Pair Utilities
 
+<!-- verify -->
 ```java
 Pair<Integer, String> pair = new Pair<>(1, "Hello");
 
@@ -183,6 +192,7 @@ Pair.of("Key", 42);             // factory method
 
 ## Best Practice: Store as Constants
 
+<!-- verify -->
 ```java
 public class OrderOptics {
     public static final IndexedTraversal<Integer, List<LineItem>, LineItem>

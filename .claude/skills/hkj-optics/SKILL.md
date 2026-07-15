@@ -24,7 +24,7 @@ You are helping a developer use HKJ's optics system for type-safe immutable data
 | Annotation | Place On | Generates |
 |------------|----------|-----------|
 | `@GenerateLenses` | `record` | `{Record}Lenses` class with `Lens<S, A>` for each field |
-| `@GenerateFocus` | `record` (requires `@GenerateLenses`) | `{Record}Focus` class with `FocusPath`/`AffinePath`/`TraversalPath` builders |
+| `@GenerateFocus` | `record` (requires `@GenerateLenses`) | `{Record}Focus` class with `FocusPath`/`AffinePath`/`TraversalPath` builders. Add `(generateNavigators = true)` for cross-type chaining |
 | `@GenerateTraversals` | `record` with collection fields | `{Record}Traversals` with `Traversal<S, A>` for collection fields |
 | `@GeneratePrisms` | `sealed interface` | `{Interface}Prisms` class with `Prism<S, A>` for each permitted record |
 | `@GenerateIsos` | `record` with single field | `{Record}Isos` class with `Iso<S, A>` |
@@ -50,18 +50,24 @@ You are helping a developer use HKJ's optics system for type-safe immutable data
 
 ### 1. Annotate your records
 
+<!-- verify -->
 ```java
 @GenerateLenses
-@GenerateFocus
+@GenerateFocus(generateNavigators = true)
 public record User(String name, Address address) {}
 
 @GenerateLenses
-@GenerateFocus
+@GenerateFocus(generateNavigators = true)
 public record Address(String city, String postcode, Optional<String> floor) {}
 ```
 
+`generateNavigators = true` is what makes the cross-type chains below (`UserFocus.address().city()`)
+exist; it defaults to `false`, in which case `UserFocus.address()` is a plain
+`FocusPath<User, Address>` with nothing to chain onto.
+
 ### 2. Use generated Focus classes
 
+<!-- verify -->
 ```java
 // FocusPath: exactly one focus (wraps Lens)
 FocusPath<User, String> namePath = UserFocus.name();
@@ -79,16 +85,21 @@ Optional<String> floor = floorPath.getOptional(user);
 
 ### 3. Chain for deep navigation
 
+<!-- verify -->
 ```java
-// Cross-type navigation with generated navigators (no .via() needed)
+// A List field widens to a TraversalPath, which you chain with .via()
 TraversalPath<Company, String> allNames =
-    CompanyFocus.departments()    // TraversalPath<Company, Department>
-        .employees()              // TraversalPath<Company, Employee>
-        .name();                  // TraversalPath<Company, String>
+    CompanyFocus.departments()             // TraversalPath<Company, Department>
+        .via(DepartmentFocus.employees())  // TraversalPath<Company, Employee>
+        .via(EmployeeFocus.name());        // TraversalPath<Company, String>
 
 List<String> names = allNames.getAll(company);
 Company updated = allNames.modifyAll(String::toUpperCase, company);
 ```
+
+Navigators are generated for **nested record** fields (`UserFocus.address().city()` above) and for
+SPI container types; `List`, `Set`, `Optional` and `Maybe` fields are widened instead, so you chain
+them with `.via(...)`.
 
 ---
 
@@ -149,6 +160,7 @@ below).
 
 Hand-rolling a labelled path from a raw lens:
 
+<!-- verify -->
 ```java
 FocusPath<Order, String> email = FocusPath.of(OrderLenses.email(), "email");
 ```
@@ -170,6 +182,7 @@ The split to understand:
 The two builders live on `Edits`; the **leaves live on `Edit`** (there is no `Edits.modify`). Either
 qualify them, as below, or `import static org.higherkindedj.optics.edit.Edit.*;`.
 
+<!-- verify -->
 ```java
 // Infallible: normalise a few fields
 Update<Order> normalise = Edits.combine(
@@ -179,6 +192,7 @@ Update<Order> normalise = Edits.combine(
 Order cleaned = normalise.apply(order);
 ```
 
+<!-- verify -->
 ```java
 // Fallible + sparse: a PATCH where any field may be absent (null = "not supplied")
 Validated<NonEmptyList<FieldError>, Order> patched =
@@ -229,6 +243,7 @@ Gotcha: `andThen`'s argument must be typed `Update<S>` / `UnaryOperator<S>`. Pas
 `org.higherkindedj.optics.validated.ValidatedPrism<S, A>`: the smart-constructor optic. `parse`
 accumulates *reasons* for rejection; `build` is total.
 
+<!-- verify -->
 ```java
 ValidatedPrism<String, EmailAddress> EMAIL =
     ValidatedPrism.of(Email::parse, EmailAddress::render);
@@ -289,6 +304,7 @@ Generates `LocalDateLenses` with `year()`, `monthValue()`, `dayOfMonth()` by aut
 
 `OpticsSpec<S>` is a marker interface. Declare an interface that extends it, annotate the interface with `@ImportOptics`, and declare the optics you want via abstract methods with `@InstanceOf` prisms:
 
+<!-- verify -->
 ```java
 @ImportOptics
 public interface JsonNodeOpticSpec extends OpticsSpec<JsonNode> {
@@ -298,10 +314,12 @@ public interface JsonNodeOpticSpec extends OpticsSpec<JsonNode> {
     @InstanceOf(ArrayNode.class)
     Prism<JsonNode, ArrayNode> asArray();
 
-    @InstanceOf(TextNode.class)
-    Prism<JsonNode, TextNode> asText();
+    @InstanceOf(StringNode.class)
+    Prism<JsonNode, StringNode> asText();
 }
 ```
+
+(Jackson 3 renamed `TextNode` to `StringNode`, and moved to the `tools.jackson` packages.)
 
 The processor generates a companion class with the requested prisms and lenses.
 
@@ -322,6 +340,7 @@ Nested containers like `Optional<List<String>>` are detected automatically with 
 
 When not using `@GenerateFocus`, compose optics manually with `andThen`:
 
+<!-- verify -->
 ```java
 Lens<User, Address> addressLens = UserLenses.address();
 Lens<Address, String> cityLens = AddressLenses.city();

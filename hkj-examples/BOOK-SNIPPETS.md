@@ -1,4 +1,4 @@
-# Book snippet verification
+# Documentation verification
 
 The book's code is kept honest in two ways. **Prefer the first.**
 
@@ -45,8 +45,15 @@ Two things matter:
   must resolve to a real file, a real anchor, and a non-empty one.
 
 
-Compiles the code snippets in `hkj-book` against the real library, so the documentation cannot drift
-away from the API without failing the build.
+Compiles the code in the repo's documentation against the real library, so a page cannot drift away
+from the API without failing the build. Two roots are covered:
+
+- **`hkj-book/src`**, the book.
+- **`.claude/skills`**, the Claude Code skills, which the build plugins install into consumer
+  projects. These were the last documentation nothing compiled, and it showed: a code review found
+  four undefined identifiers in them in a single pass (`emailPrism()`, `unlabelled`, `outOfStock`,
+  `notFound`). A skill is read by an assistant that generates code from it, so a wrong snippet there
+  becomes code that does not build in someone's project.
 
 It lives in `hkj-examples` (`src/test/java/org/higherkindedj/book/`) rather than in a module of its
 own, because this module already wires everything it needs: the annotation processor, `hkj-test`,

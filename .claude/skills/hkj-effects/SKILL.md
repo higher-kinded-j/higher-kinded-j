@@ -36,6 +36,7 @@ You are helping a developer build effect handlers using HKJ's algebraic-effect-s
 
 An effect algebra is a `sealed interface` where each permitted `record` represents a domain operation. Operations use continuation-passing style (CPS): a `Function` parameter maps the natural result to `A`.
 
+<!-- verify -->
 ```java
 @EffectAlgebra
 public sealed interface ConsoleOp<A>
@@ -71,6 +72,7 @@ public sealed interface ConsoleOp<A>
 
 ### Pattern for Each Record
 
+<!-- verify -->
 ```java
 record OperationName<A>(
     ParamType1 param1,           // operation parameters
@@ -92,6 +94,7 @@ record OperationName<A>(
 
 When your program uses multiple effect algebras:
 
+<!-- verify -->
 ```java
 @ComposeEffects
 public record AppEffects(
@@ -102,10 +105,11 @@ public record AppEffects(
 
 ### What `@ComposeEffects` Generates
 
-| Generated Class | Purpose |
+| Generated Member | Purpose |
 |----------------|---------|
-| `{Effects}Support` | `injectXxx()` methods, `functor()`, `boundSet()` |
-| `{Effects}BoundSet` | Record holding `Bound` instances for all effect types |
+| `{Effects}Support.injectXxx()` | An `Inject` per effect, routing it to its position in the `EitherF` nesting |
+| `{Effects}Support.functor(...)` | The composed `EitherFFunctor`, from one `Functor` per effect |
+| `{Effects}Support.BoundSet<F>` | Record holding the `Bound` instances for all effect types |
 
 The processor takes the record name and appends `Support` (e.g., `AppEffects` -> `AppEffectsSupport`).
 
@@ -113,14 +117,19 @@ The processor takes the record name and appends `Support` (e.g., `AppEffects` ->
 
 ## Step 3: Write Programs
 
-Programs use `Bound` instances from the generated `BoundSet`. Pass `Function.identity()` as the continuation to get the natural result type:
+Programs use the `Bound` instance of each effect, obtained from `{Op}Ops.boundTo(inject, functor)`. Pass `Function.identity()` as the continuation to get the natural result type. The composed witness type has no name in Java, so use `var`:
 
+<!-- verify -->
 ```java
-var bounds = AppEffectsSupport.boundSet();
-var console = bounds.console();
-var db = bounds.db();
+var functor =
+    EitherFFunctor.of(
+        ConsoleOpFunctor.instance(),
+        EitherFFunctor.of(DbOpFunctor.instance(), LogOpFunctor.instance()));
 
-Free<AppEffectsSupport.ComposedType, String> program =
+var console = ConsoleOpOps.boundTo(InjectInstances.injectLeft(), functor);
+var db = DbOpOps.boundTo(InjectInstances.injectRightThen(InjectInstances.injectLeft()), functor);
+
+var program =
     console.printLine("Enter name:", Function.identity())
         .flatMap(_ -> console.readLine(Function.identity()))
         .flatMap(name -> db.save(name, Function.identity()))
@@ -176,6 +185,7 @@ public class TestConsoleInterpreter extends ConsoleOpInterpreter<IdKind.Witness>
 
 `Interpreters.combine()` takes interpreter instances directly (not inject/interpreter pairs):
 
+<!-- verify -->
 ```java
 // Combine interpreters for composed effects
 var interpreter = Interpreters.combine(consoleInterp, dbInterp, logInterp);
@@ -190,12 +200,13 @@ String value = result.unsafeRunSync();
 
 ### For Testing (Id Monad)
 
+<!-- verify -->
 ```java
 var testInterpreter = Interpreters.combine(
     testConsoleInterp, testDbInterp, testLogInterp);
 
 Id<String> result = IdKindHelper.ID.narrow(
-    program.foldMap(testInterpreter, IdMonad.INSTANCE));
+    program.foldMap(testInterpreter, IdMonad.instance()));
 
 assertEquals("expected", result.value());
 ```
@@ -206,9 +217,11 @@ assertEquals("expected", result.value());
 
 `EffectBoundary` encapsulates the interpret-and-execute pattern, replacing manual `foldMap` + `narrow` + `unsafeRun` ceremony:
 
+<!-- verify -->
 ```java
-// Create a boundary with composed interpreters
-EffectBoundary<AppEffects> boundary = EffectBoundary.of(
+// Create a boundary with composed interpreters. Its type parameter is the composed
+// *witness* (EitherFKind.Witness<...>), which has no short name: use var.
+var boundary = EffectBoundary.of(
     Interpreters.combine(consoleInterp, dbInterp, logInterp));
 
 // Execute a program (multiple options)
@@ -218,7 +231,7 @@ IOPath<String> io   = boundary.runIO(program);         // Deferred IO (for Sprin
 CompletableFuture<String> async = boundary.runAsync(program); // Virtual thread async
 
 // Lift raw IO actions into the effect algebra for composition
-Free<AppEffects, String> lifted = boundary.embed(IO.delay(() -> "value"));
+var lifted = boundary.embed(IO.delay(() -> "value"));
 ```
 
 ### Key Methods
@@ -236,8 +249,9 @@ Free<AppEffects, String> lifted = boundary.embed(IO.delay(() -> "value"));
 
 `TestBoundary` targets the `Id` monad for deterministic, no-IO testing:
 
+<!-- verify -->
 ```java
-TestBoundary<AppEffects> testBoundary = TestBoundary.of(
+var testBoundary = TestBoundary.of(
     Interpreters.combine(testConsoleInterp, testDbInterp, testLogInterp));
 
 // Pure execution: no IO, no Spring context, no network
@@ -255,8 +269,9 @@ For Spring integration with `@EnableEffectBoundary` and `@Interpreter` beans, se
 
 Inspect programs before execution. `TestBoundary.analyse()` produces a `ProgramAnalysis` record describing the program's structure:
 
+<!-- verify -->
 ```java
-TestBoundary<AppEffects> testBoundary = TestBoundary.of(
+var testBoundary = TestBoundary.of(
     Interpreters.combine(testInterp1, testInterp2));
 
 ProgramAnalysis analysis = testBoundary.analyse(program);
@@ -270,6 +285,7 @@ int applicativeBlocks   = analysis.applicativeBlocks(); // Number of Ap nodes
 
 The lower-level `ProgramAnalyser` utility (in `hkj.free`) exposes `analyse()` as a static method:
 
+<!-- verify -->
 ```java
 org.higherkindedj.hkt.free.ProgramAnalysis lowLevel =
     ProgramAnalyser.analyse(program);
@@ -282,6 +298,7 @@ org.higherkindedj.hkt.free.ProgramAnalysis lowLevel =
 
 `handleError` is an instance method on `Free` that wraps sub-programs with recovery strategies. It takes an error class and a recovery function:
 
+<!-- verify -->
 ```java
 Free<F, A> programWithRecovery = riskyProgram.handleError(
     MyError.class,

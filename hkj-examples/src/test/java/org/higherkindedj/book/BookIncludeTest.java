@@ -35,7 +35,7 @@ import org.junit.jupiter.params.provider.MethodSource;
 @DisplayName("every book {{#include}} resolves to a real anchor")
 class BookIncludeTest {
 
-  private static final Path BOOK = Path.of(System.getProperty("hkj.book.dir"));
+  private static final Path BOOK = Path.of(required("hkj.book.dir"));
 
   /**
    * The number of includes must never fall below this. Deleting an include line, or replacing it
@@ -187,5 +187,20 @@ class BookIncludeTest {
     } catch (IOException e) {
       throw new UncheckedIOException(e);
     }
+  }
+
+  /**
+   * The book directory is supplied by the Gradle task. Run straight from an IDE the property is
+   * unset, and {@code Path.of(null)} throws an opaque NPE during class initialisation; this turns
+   * that into a message that says how to run the test.
+   */
+  private static String required(String property) {
+    String value = System.getProperty(property);
+    if (value == null) {
+      throw new IllegalStateException(
+          "System property '%s' is not set. Run this via Gradle: `gradle :hkj-examples:bookVerify`."
+              .formatted(property));
+    }
+    return value;
   }
 }
