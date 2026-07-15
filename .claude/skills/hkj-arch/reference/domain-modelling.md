@@ -44,7 +44,7 @@ public sealed interface PaymentError extends AppError {
 ### Pattern Matching at the Boundary
 
 ```java
-// Exhaustive handling -- compiler verifies all cases covered
+// Exhaustive handling: compiler verifies all cases covered
 public int toHttpStatus(AppError error) {
     return switch (error) {
         case OrderError.InvalidItems _       -> 400;
@@ -228,7 +228,7 @@ public sealed interface OrderEvent {
     record Cancelled(OrderId id, String reason, Instant at) implements OrderEvent {}
 }
 
-// Events are just data -- accumulate with WriterPath
+// Events are just data: accumulate with WriterPath
 WriterPath<List<OrderEvent>, Order> processWithEvents(Order order) {
     return Path.writer(List.of(), Semigroup.listSemigroup())
         .via(_ -> confirmOrder(order))

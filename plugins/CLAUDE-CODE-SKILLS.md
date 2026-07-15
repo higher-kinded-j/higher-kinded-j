@@ -7,11 +7,13 @@ Both the Gradle and Maven plugins can install HKJ Claude Code skills into a cons
 | Skill | Purpose |
 |-------|---------|
 | `hkj-guide` | Path type selection, project setup, migration recipes, compiler error fixes |
-| `hkj-optics` | Focus DSL, annotation-driven optics generation, lens and traversal composition |
+| `hkj-optics` | Focus DSL, annotation-driven optics generation, lens and traversal composition, `Edits`, `ValidatedPrism` |
+| `hkj-mapping` | Compile-time record <-> DTO mapping (`@GenerateMapping`), merging (`@GenerateMerge`), validated assembly (`@GenerateAssembly`), error envelopes (`@GenerateErrorEnvelope`) |
 | `hkj-effects` | Effect handlers with `@EffectAlgebra`, Free monads, interpreters |
 | `hkj-bridge` | Composing effects with optics via the bridge API |
 | `hkj-spring` | Spring Boot starter: functional return types in controllers (inbound), plus declarative `@HkjHttpClient` HTTP clients that keep typed errors across service calls (outbound) |
-| `hkj-arch` | Functional core / imperative shell architecture patterns for Java 25 |
+| `hkj-arch` | Functional core / imperative shell architecture patterns for Java 25, `TimeSource` |
+| `hkj-test` | AssertJ assertions for HKJ types (`assertThatEither`, ...), the optic-law harness, `SteppableClock` |
 
 Each skill has a `SKILL.md` with YAML frontmatter for automatic trigger matching, plus `reference/` files loaded on demand for deeper topics.
 

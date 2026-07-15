@@ -22,7 +22,7 @@ Traversal<User, Integer> userFontSize =
 User updated = Traversals.modify(userFontSize, size -> size + 2, user);
 ```
 
-Each `Prisms.some()` safely handles Optional -- if any is empty, modification is skipped.
+Each `Prisms.some()` safely handles Optional: if any is empty, modification is skipped.
 
 ---
 
@@ -201,7 +201,7 @@ int itemCount = pricesFold.length(order);
 
 ---
 
-## Recipe 11: Focus DSL -- Nested Record Updates
+## Recipe 11: Focus DSL for Nested Record Updates
 
 ```java
 // Using Focus DSL instead of manual lens composition

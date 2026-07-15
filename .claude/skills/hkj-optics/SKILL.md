@@ -1,6 +1,6 @@
 ---
 name: hkj-optics
-description: "Generate and compose HKJ optics: @GenerateLenses, @GenerateFocus, @GenerateTraversals, @GeneratePrisms, @ImportOptics, @OpticsSpec. Focus DSL navigation, FocusPath, AffinePath, TraversalPath, Lens, Prism, Iso, deep immutable record updates, collection navigation"
+description: "Generate and compose HKJ optics: @GenerateLenses, @GenerateFocus, @GenerateTraversals, @GeneratePrisms, @ImportOptics, @OpticsSpec. Focus DSL navigation, FocusPath, AffinePath, TraversalPath, Lens, Prism, Iso, deep immutable record updates, collection navigation. Also: ValidatedPrism (parse-don't-validate smart constructors), Edits multi-edit builder and REST PATCH, Update<S> and Monoids.update(), optic-path labelling (segments()/pathString())"
 ---
 
 # Higher-Kinded-J Optics
@@ -15,6 +15,7 @@ You are helping a developer use HKJ's optics system for type-safe immutable data
 - If the user asks about **indexed optics** (position-aware transforms), load `reference/indexed-optics.md`
 - For **bridging optics with effects** (.focus() on paths, toEitherPath), suggest `/hkj-bridge`
 - For **choosing Path types or Effect Path API**, suggest `/hkj-guide`
+- For **record <-> DTO mapping, merging N sources, or generated validated assembly** (`@GenerateMapping`, `@GenerateMerge`, `@GenerateAssembly`, `@GenerateErrorEnvelope`), suggest `/hkj-mapping`
 
 ---
 
@@ -131,6 +132,128 @@ Path types widen automatically when navigating through optional/collection field
 | `setAll(A, S)` | `S` | Set all to same value |
 | `count(S)` | `int` | Count focused elements |
 | `toTraversal()` | `Traversal<S, A>` | Extract underlying optic |
+
+### Every Path Is Labelled
+
+All three carry the field names they were built from:
+
+| Method | Return | Description |
+|--------|--------|-------------|
+| `segments()` | `List<String>` | The field-name segments, in navigation order |
+| `pathString()` | `String` | Rendered location, e.g. `"customer.email"` |
+
+`@GenerateFocus` emits the labelled factory `FocusPath.of(lens, "fieldName")`, and `.via(...)`
+concatenates segments as you compose. `pathString()` renders the same way `FieldError.pathString()`
+does, which is what lets a failed parse **locate itself** with no manual bookkeeping (see `Edits`
+below).
+
+Hand-rolling a labelled path from a raw lens:
+
+```java
+FocusPath<Order, String> email = FocusPath.of(OrderLenses.email(), "email");
+```
+
+---
+
+## Multi-Edit: `Edits` and `Update<S>`
+
+`org.higherkindedj.optics.edit`: apply many edits to one structure in a single pass. This is the
+REST-`PATCH` building block: a request where each field is *optionally* present.
+
+The split to understand:
+
+| Builder | Leaves | Returns | Meaning |
+|---------|--------|---------|---------|
+| `Edits.combine(...)` | `Edit<S>` | `Update<S>` | Infallible: just a composed `S -> S` |
+| `Edits.accumulate(...)` | `FallibleEdit<S>` | `Edits.Accumulated<S>` | Each edit may fail; **all** failures collected |
+
+The two builders live on `Edits`; the **leaves live on `Edit`** (there is no `Edits.modify`). Either
+qualify them, as below, or `import static org.higherkindedj.optics.edit.Edit.*;`.
+
+```java
+// Infallible: normalise a few fields
+Update<Order> normalise = Edits.combine(
+    Edit.modify(OrderFocus.email(), String::toLowerCase),
+    Edit.modify(OrderFocus.sku(),   String::trim));
+
+Order cleaned = normalise.apply(order);
+```
+
+```java
+// Fallible + sparse: a PATCH where any field may be absent (null = "not supplied")
+Validated<NonEmptyList<FieldError>, Order> patched =
+    Edits.accumulate(
+            Edit.parseIfPresent(OrderFocus.email(), request.email(), Email::parse),
+            Edit.modifyIfPresent(OrderFocus.quantity(), request.qtyDelta(), (d, q) -> q + d),
+            Edit.setIfPresent(OrderFocus.sku(), request.sku()))
+        .apply(order);
+```
+
+`Accumulated<S>` exits via `.apply(s)` (-> `Validated`), `.applyPath(s)` (-> `ValidationPath`, i.e.
+straight into an effect pipeline), or `.toValidated()`.
+
+**The leaf factories take a `FocusPath<S, A>` or a `Setter<S, A>`, never a raw `Lens`.** The
+idiomatic source is a generated `@GenerateFocus` path, because its label is what locates a parse
+failure. If you only have a `Lens`, wrap it: `FocusPath.of(lens, "email")`.
+
+| Leaf | Fails? | Notes |
+|------|--------|-------|
+| `Edit.set(path, value)` | No | Always applies |
+| `Edit.modify(path, fn)` | No | Always applies |
+| `Edit.setIfPresent(path, @Nullable value)` | No | Skipped when `null` |
+| `Edit.modifyIfPresent(path, @Nullable b, (b, a) -> a)` | No | Skipped when `null` |
+| `Edit.parseIfPresent(path, @Nullable b, parser)` | **Yes** | Skipped when `null`; returns `FallibleEdit<S>` |
+
+Errors accumulate on `NonEmptyList<FieldError>`. This is a homogeneous fold, so unlike the assembly
+builders there is **no arity ceiling**. `FallibleEdit.at("label")` **prepends** an outer segment (it does not replace the path);
+a generated path already locates its own failures.
+
+### `Update<S>`: the composition monoid
+
+`org.higherkindedj.hkt.Update`: a named, reusable `S -> S` (`extends UnaryOperator<S>`), so it
+drops into any `Function`-shaped API for free.
+
+```java
+Update<Order> normalise = Edits.combine(...);
+Update<Order> full = normalise.andThen(applyDiscount);   // compose
+Monoid<Update<Order>> m = Monoids.update();              // combine = "f then g", empty = identity
+```
+
+Gotcha: `andThen`'s argument must be typed `Update<S>` / `UnaryOperator<S>`. Pass a plain
+`Function<S, S>` and Java selects `Function.andThen`, silently degrading the result to `Function`.
+
+---
+
+## ValidatedPrism: Parse, Don't Validate
+
+`org.higherkindedj.optics.validated.ValidatedPrism<S, A>`: the smart-constructor optic. `parse`
+accumulates *reasons* for rejection; `build` is total.
+
+```java
+ValidatedPrism<String, EmailAddress> EMAIL =
+    ValidatedPrism.of(Email::parse, EmailAddress::render);
+
+Validated<NonEmptyList<FieldError>, EmailAddress> parsed = EMAIL.parse(raw);
+ValidationPath<NonEmptyList<FieldError>, EmailAddress> asPath = EMAIL.parsePath(raw);  // -> effects
+String back = EMAIL.build(address);                                                     // total
+```
+
+| Method | Notes |
+|--------|-------|
+| `parse(S)` | `Validated<NonEmptyList<FieldError>, A>` (accumulates reasons) |
+| `parsePath(S)` | Same, as a `ValidationPath` (straight into a pipeline) |
+| `build(A)` | Total. An `A` is by construction renderable as an `S` |
+| `parseAll(list)` / `buildAll(list)` | Bulk forms over a `List` |
+| `parseValues(map)` / `buildValues(map)` | Bulk forms over a `Map`'s values; failures located by key |
+| `toPrism()` / `toAffine()` | Downgrade to a plain optic |
+
+Compose with another `ValidatedPrism` (short-circuits), an `Iso`, or a `Prism` (supplying the
+`FieldError` for the no-match case). Build one from an existing optic with `ValidatedPrism.fromIso`
+/ `fromPrism`.
+
+**You cannot compose a `ValidatedPrism` with a `Lens`, and that is deliberate**: a `Lens` has no
+total `B -> S` build, so the result could not honour `build`. To validate sibling fields, use
+`Validated.fields()` (see `/hkj-guide`), not prism composition.
 
 ---
 

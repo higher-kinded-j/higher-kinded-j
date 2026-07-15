@@ -56,7 +56,7 @@ public class OrderService {
 **Functional Core** (pure, testable):
 
 ```java
-// Pure domain logic -- no injected dependencies, no side effects
+// Pure domain logic: no injected dependencies, no side effects
 public class OrderRules {
 
     // Pure validation

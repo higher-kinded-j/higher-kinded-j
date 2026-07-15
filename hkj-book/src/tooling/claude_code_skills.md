@@ -3,7 +3,7 @@
 ~~~admonish info title="What You'll Learn"
 - What Claude Code skills are and how they help with HKJ development
 - How to install skills into your project with one command
-- What each of the seven HKJ skills covers
+- What each of the eight HKJ skills covers
 - How skills trigger automatically and how to invoke them directly
 ~~~
 
@@ -46,6 +46,7 @@ The `hkj-guide` skill triggers automatically because the question mentions error
 Other examples of questions the skills handle:
 
 - *"Generate lenses for my Order record"* triggers `hkj-optics`
+- *"Map my Customer record to a CustomerDto"* triggers `hkj-mapping`
 - *"How do I write a test interpreter for my effect algebra?"* triggers `hkj-effects`
 - *"How do I return Either from a Spring controller?"* triggers `hkj-spring`
 - *"Where should I call unsafeRun?"* triggers `hkj-arch`
@@ -68,7 +69,7 @@ Skills are project-level files that live in your repository's `.claude/skills/` 
 
 ### Gradle
 
-The HKJ Gradle plugin bundles all seven skills. Install them with a single task:
+The HKJ Gradle plugin bundles all eight skills. Install them with a single task:
 
 ```bash
 ./gradlew hkjInstallSkills
@@ -99,7 +100,9 @@ mvn hkj:install-skills
 If you are not using either build plugin, copy skills directly from the repository:
 
 ```bash
-git clone --depth 1 https://github.com/higher-kinded-j/higher-kinded-j.git /tmp/hkj-skills
+# Pin to your release: `main` tracks the unreleased snapshot, whose skills describe
+# APIs your version does not have. The build plugins always install the matching set.
+git clone --depth 1 --branch v0.4.7 https://github.com/higher-kinded-j/higher-kinded-j.git /tmp/hkj-skills
 cp -r /tmp/hkj-skills/.claude/skills/hkj-* .claude/skills/
 rm -rf /tmp/hkj-skills
 ```
@@ -110,16 +113,17 @@ rm -rf /tmp/hkj-skills
 ls .claude/skills/hkj-*/SKILL.md
 ```
 
-This should list seven `SKILL.md` files. You can also run the diagnostics task (`./gradlew hkjDiagnostics` or `mvn hkj:diagnostics`) which reports skills status.
+This should list eight `SKILL.md` files. You can also run the diagnostics task (`./gradlew hkjDiagnostics` or `mvn hkj:diagnostics`) which reports skills status.
 
 ---
 
-## The Six Skills
+## The Eight Skills
 
 | Skill | What It Helps With | Invoke Directly |
 |-------|--------------------|-----------------|
 | `hkj-guide` | Choosing Path types, project setup, migrating imperative code, fixing compiler errors | `/hkj-guide` |
-| `hkj-optics` | `@GenerateLenses`, `@GenerateFocus`, Focus DSL, deep immutable updates, external type import | `/hkj-optics` |
+| `hkj-optics` | `@GenerateLenses`, `@GenerateFocus`, Focus DSL, deep immutable updates, external type import, `Edits`, `ValidatedPrism` | `/hkj-optics` |
+| `hkj-mapping` | `@GenerateMapping` (record <-> DTO), `@GenerateMerge`, `@GenerateAssembly`, `@GenerateErrorEnvelope` | `/hkj-mapping` |
 | `hkj-effects` | `@EffectAlgebra`, Free monad programs, interpreters, `EffectBoundary`, mock-free testing | `/hkj-effects` |
 | `hkj-bridge` | Combining effects with optics: `.focus()` on paths, `toEitherPath()`, unified pipelines | `/hkj-bridge` |
 | `hkj-spring` | Spring Boot starter, `Either`/`Validated` responses, `@EnableEffectBoundary`, `@Interpreter` beans | `/hkj-spring` |
@@ -142,9 +146,11 @@ The `hkj-guide` skill serves as a navigator. If you are unsure which skill you n
 
 Each skill provides condensed reference material optimised for Claude to use when answering your questions:
 
-**hkj-guide** provides a Path type decision tree, creation/extraction cheatsheet for all 18 Path types, operator quick reference (`map`, `via`, `recover`, `mapError`, `focus`), type conversion matrix, ForPath comprehension entry points, and Gradle/Maven setup instructions. Supporting files cover migration recipes (try/catch to TryPath, Optional to MaybePath, etc.), service layer patterns, and resilience patterns (retry, circuit breaker, saga).
+**hkj-guide** provides a Path type decision tree, creation/extraction cheatsheet for all Path types (including `VResultPath` and `EitherOrBothPath`), operator quick reference (`map`, `via`, `recover`, `mapError`, `focus`), type conversion matrix, ForPath comprehension entry points, `NonEmptyList`, the open-arity accumulating assembly (`fields()` / `accumulate()`), and Gradle/Maven setup instructions. Supporting files cover migration recipes (try/catch to TryPath, Optional to MaybePath, etc.), service layer patterns, and resilience patterns, now led by the path-native combinators (`withRetry`, `withTimeout`, `withCircuitBreaker`, `withBulkhead`) and the railway-aware semantics of `VResultPath`, where a typed `Left` is never retried and never trips the breaker.
 
-**hkj-optics** provides an annotation reference table, step-by-step Focus DSL walkthrough, FocusPath/AffinePath/TraversalPath hierarchy, collection navigation methods (`.each()`, `.at()`, `.some()`, `.nullable()`), and external type import with `@ImportOptics` and `@OpticsSpec`. Supporting files cover the full optic composition matrix, a cookbook of recipes, container type support (23 types across JDK, Eclipse Collections, Guava, Vavr, Apache Commons), and indexed optics.
+**hkj-optics** provides an annotation reference table, step-by-step Focus DSL walkthrough, FocusPath/AffinePath/TraversalPath hierarchy, optic-path labelling (`segments()` / `pathString()`), collection navigation methods (`.each()`, `.at()`, `.some()`, `.nullable()`), the `Edits` multi-edit builder with `Update<S>`, `ValidatedPrism` for parse-don't-validate boundaries, and external type import with `@ImportOptics` and `@OpticsSpec`. Supporting files cover the full optic composition matrix, a cookbook of recipes, container type support (23 types across JDK, Eclipse Collections, Guava, Vavr, Apache Commons), and indexed optics.
+
+**hkj-mapping** covers the compile-time data-assembly generators: `@GenerateMapping` for bidirectional record <-> DTO mapping (spec interfaces, `@MapField` renames, `ValidatedPrism` leaves, derived wire fields, elementwise lifting through `List`/`Optional`/`Map`, nested and recursive records), `@GenerateMerge` for building one target from N sources, `@GenerateAssembly` for staged validated construction, and `@GenerateErrorEnvelope` for sealed error hierarchies with a typed context record. The unifying rule it teaches: `build` is total, `parse` is fallible and accumulates every `FieldError`. A supporting file walks through a complete DTO boundary, including law-checking the round-trip with `MappingLaws`.
 
 **hkj-effects** provides the `@EffectAlgebra` pattern (sealed interface + CPS records), what the annotation processor generates, `@ComposeEffects` wiring, interpreter implementation guide, `EffectBoundary` and `TestBoundary` usage, and program analysis. Supporting files walk through the payment processing example, interpreter patterns (production, test, audit), and Free monad basics.
 
@@ -184,7 +190,7 @@ Add to `.gitignore` only if your team prefers not to commit generated files. In 
 
 ~~~admonish info title="Key Takeaways"
 * **Skills are project-level knowledge files** that teach Claude Code about HKJ's API and patterns
-* **Six skills** cover the library's major domains, from basic Path selection to architecture guidance
+* **Eight skills** cover the library's major domains, from basic Path selection to architecture guidance
 * **One command** installs all skills: `./gradlew hkjInstallSkills` or `mvn hkj:install-skills`
 * **Skills trigger automatically** when your question matches a skill's domain keywords
 * **Direct invocation** via `/hkj-guide` etc. is available when you know which domain you need

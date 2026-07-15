@@ -1,24 +1,26 @@
 ---
 name: hkj-guide
-description: "Help with Higher-Kinded-J (HKJ) Java library: choose Path types (MaybePath, EitherPath, TryPath, ValidationPath, IOPath, VTaskPath), set up Gradle/Maven, migrate imperative Java code to Effect Paths, fix compiler errors, understand the railway model"
+description: "Help with Higher-Kinded-J (HKJ) Java library: choose Path types (MaybePath, EitherPath, TryPath, ValidationPath, IOPath, VTaskPath, VResultPath, EitherOrBothPath), set up Gradle/Maven, migrate imperative Java code to Effect Paths, fix compiler errors, understand the railway model. Also: NonEmptyList, EitherOrBoth (inclusive-or, success with warnings), open-arity accumulating assembly (fields()/accumulate()), path-native resilience (withRetry/withTimeout/withCircuitBreaker/withBulkhead), TimeSource"
 ---
 
 # Higher-Kinded-J Guide
 
 You are helping a developer use the **Higher-Kinded-J (HKJ)** Java library. HKJ provides composable error handling via the **Effect Path API** and type-safe immutable data navigation via **Optics / Focus DSL**. It requires **Java 25 with `--enable-preview`**.
 
-Key entry point: `org.higherkindedj.hkt.effect.Path` — factory for all Path types.
+Key entry point: `org.higherkindedj.hkt.effect.Path`, the factory for all Path types.
 
 ## When to load supporting files
 
 - If the user asks about **migrating imperative code** (try/catch, Optional, null checks, CompletableFuture), load `reference/migration-recipes.md`
 - If the user asks about **service layer patterns, validation pipelines, or testing patterns**, load `reference/patterns.md`
-- If the user asks about **retry, circuit breaker, saga, or bulkhead**, load `reference/resilience.md`
+- If the user asks about **retry, circuit breaker, saga, bulkhead, or `VResultPath`**, load `reference/resilience.md`
 - For **optics, lenses, Focus DSL** in depth, suggest `/hkj-optics`
+- For **record <-> DTO mapping, merging, or generated assembly** (`@GenerateMapping`, `@GenerateMerge`, `@GenerateAssembly`, `@GenerateErrorEnvelope`), suggest `/hkj-mapping`
 - For **effect handlers, @EffectAlgebra, Free monads**, suggest `/hkj-effects`
 - For **combining effects with optics** (.focus() on paths), suggest `/hkj-bridge`
 - For **Spring Boot integration**, suggest `/hkj-spring`
-- For **architecture patterns** (functional core / imperative shell), suggest `/hkj-arch`
+- For **architecture patterns** (functional core / imperative shell, `TimeSource`), suggest `/hkj-arch`
+- For **testing** (assertions, optic laws, `SteppableClock`), suggest `/hkj-test`
 
 ---
 
@@ -44,11 +46,23 @@ Key entry point: `org.higherkindedj.hkt.effect.Path` — factory for all Path ty
                                         Typed        Exception
                                          |              |
                                      EitherPath     TryPath
+                                         |
+                              Is it also asynchronous?
+                                         |
+                                        Yes
+                                         |
+                                    VResultPath
 ```
+
+**Can a success still carry warnings?** Neither `Either` (exclusive) nor `Validated` (no partial
+value) can express "it worked, but here's what was degraded". That shape is `EitherOrBothPath` --
+see *Inclusive-Or* below.
 
 Additional considerations:
 - **Deferred side effects** (IO, network, DB): `IOPath`
 - **Virtual thread concurrency**: `VTaskPath`
+- **Virtual threads + a typed domain error**: `VResultPath` (`VTask<Either<E, A>>`)
+- **Success that may carry warnings**: `EitherOrBothPath`
 - **Lazy streaming on virtual threads**: `VStreamPath`
 - **Stack-safe recursion**: `TrampolinePath`
 - **Dependency injection / config**: `ReaderPath`
@@ -71,6 +85,8 @@ Additional considerations:
 | `ValidationPath<E, A>` | Accumulating errors | `Path.valid(v, sg)`, `Path.invalid(e, sg)` | `.run()` -> `Validated<E, A>` |
 | `IOPath<A>` | Deferred side effects | `Path.io(() -> ...)`, `Path.ioPure(v)` | `.unsafeRun()` -> `A` |
 | `VTaskPath<A>` | Virtual threads | `Path.vtask(() -> ...)`, `Path.vtaskPure(v)` | `.unsafeRun()` -> `A` |
+| `VResultPath<E, A>` | Virtual threads + typed error | `Path.vresultRight(v)`, `Path.vresultLeft(e)`, `Path.vresultDefer(() -> either)` | `.toEitherPath()` -> `EitherPath<E, A>` |
+| `EitherOrBothPath<L, A>` | Success that may carry warnings | `Path.rightNel(v)`, `Path.leftNel(e)`, `Path.bothNel(warn, v)` | `.run()` -> `EitherOrBoth<L, A>` |
 | `ReaderPath<R, A>` | Dependency injection | `Path.reader(r)`, `Path.ask()`, `Path.asks(fn)` | `.run(env)` -> `A` |
 | `WriterPath<W, A>` | Logging, audit | `Path.writer(w, m)`, `Path.tell(log, m)` | `.run()` -> `Writer<W, A>` |
 | `WithStatePath<S, A>` | Stateful computation | `Path.state(s)`, `Path.getState()` | `.run(initial)` -> `(S, A)` |
@@ -145,10 +161,161 @@ Additional considerations:
 | `TryPath<A>` | `EitherPath<E, A>` | `.toEitherPath(exceptionToError)` |
 | `TryPath<A>` | `MaybePath<A>` | `.toMaybePath()` |
 | `ValidationPath<E, A>` | `EitherPath<E, A>` | `.toEitherPath()` |
+| `VResultPath<E, A>` | `EitherPath<E, A>` | `.toEitherPath()` (runs it) |
+| `VResultPath<E, A>` | `VTaskPath<A>` | `.toVTaskPath(errorToException)` |
+| `EitherOrBoth<L, R>` | `Either<L, R>` | `.toEitherDroppingWarnings()`, `.toEitherFailingOnWarnings()` |
+| `EitherOrBoth<L, R>` | `Validated<L, R>` | `.toValidated()` |
 | `FocusPath<S, A>` | `MaybePath<A>` | `.toMaybePath(source)` |
 | `FocusPath<S, A>` | `EitherPath<E, A>` | `.toEitherPath(source)` |
 | `AffinePath<S, A>` | `MaybePath<A>` | `.toMaybePath(source)` |
 | `AffinePath<S, A>` | `EitherPath<E, A>` | `.toEitherPath(source, errorFn)` |
+
+---
+
+## VResultPath: the async typed-error railway
+
+`VResultPath<E, A>` wraps `VTask<Either<E, A>>`. It is an `EitherPath` that happens to be
+asynchronous. Use it whenever a virtual-thread operation has a **typed domain failure**.
+
+The distinction that matters:
+
+| Type | Wraps | Failure channel |
+|------|-------|-----------------|
+| `VTaskPath<A>` | `VTask<A>` | Untyped: a thrown exception, and nothing else |
+| `VResultPath<E, A>` | `VTask<Either<E, A>>` | **Typed** `E` in the *value* channel; defects still throw |
+
+So a business failure (`Left`) is a **value**, not an exception. A defect (a thrown bug) stays on the
+`VTask` channel. Keeping those two apart is what makes the resilience combinators safe (see below).
+
+```java
+VResultPath<OrderError, Receipt> receipt =
+    validateAddress(request)
+        .via(addr -> lookupCustomer(request))
+        .map(Customer::preferredPayment)
+        .recoverWith(err -> retryOnce(request))
+        .mapError(OrderError::enrich);
+```
+
+Create: `Path.vresultRight(v)`, `Path.vresultLeft(e)`, `Path.vresultEither(either)`,
+`Path.vresult(vtaskOfEither)`, `Path.vresultDefer(() -> either)` (a supplier of an `Either`, not of
+a bare value).
+Leave: `.toEitherPath()` (runs it), `.toVTaskPath(errorToException)`.
+
+**Resilience is now on the path itself**: `.withRetry(...)`, `.withTimeout(...)`,
+`.withCircuitBreaker(...)`, `.withBulkhead(...)`. On `VResultPath` it is railway-aware: a `Left`
+is never retried and never trips the breaker, because a business rejection is not an outage. Load
+`reference/resilience.md` for the full story.
+
+---
+
+## NonEmptyList: the total error channel
+
+`org.higherkindedj.hkt.nonemptylist.NonEmptyList`: a list that cannot be empty, by construction.
+It is the canonical carrier for an accumulating error channel: if a computation failed, there is at
+least one reason, and the type should say so.
+
+```java
+NonEmptyList<String> reasons = NonEmptyList.of("too short", "no digit");
+String first = reasons.head();   // total: no Optional, no throw. This is the whole point.
+```
+
+| Create | Notes |
+|--------|-------|
+| `NonEmptyList.of(head, rest...)` | Head is separate, so emptiness is unrepresentable |
+| `NonEmptyList.single(v)` | One element |
+| `NonEmptyList.fromList(list)` | Returns `Maybe<NonEmptyList<A>>`: the empty case is handled here, once |
+| `NonEmptyList.semigroup()` | The canonical combine for accumulation |
+
+Ops: `head()`, `last()`, `size()`, `map`, `flatMap`, `foldLeft`, `reverse`, `concat`, `append`,
+`prepend`, `reduce(sg)`, `min/max(cmp)`, `toJavaList()`.
+
+Use the `Nel` factories to get a `NonEmptyList` error channel without naming a semigroup:
+
+```java
+Validated<NonEmptyList<String>, Integer> v = Validated.invalidNel("bad");
+ValidationPath<NonEmptyList<String>, Integer> p = Path.invalidNel("bad");
+```
+
+The race / first-success combinators take `NonEmptyList` overloads too (on `PathOps`), which removes
+the empty-list `IllegalArgumentException` from the API entirely:
+`PathOps.raceVTask(nel)`, `firstVTaskSuccess(nel)`, `firstSuccess(nel)`, `raceIO(nel)`,
+`firstCompletedSuccess(nel)`.
+
+---
+
+## Open-Arity Assembly: `fields()` and `accumulate()`
+
+Build a record from many independently-validated parts, collecting **every** failure. Available on
+three carriers, each in a labelled and an unlabelled flavour. The ladder tops out at **16** fields.
+
+| Carrier | Labelled (`FieldError`) | Unlabelled (your error type) |
+|---------|-------------------------|------------------------------|
+| `Validated` | `Validated.fields()` | `Validated.accumulate()` |
+| `ValidationPath` | `Path.fields()` | `Path.accumulate()` |
+| `EitherOrBoth` | `EitherOrBoth.fields()` | `EitherOrBoth.accumulate()` |
+
+Note the `ValidationPath` twins live on **`Path`**, not on `ValidationPath`.
+
+```java
+// Labelled: errors carry the field name, so they locate themselves
+Validated<NonEmptyList<FieldError>, User> user =
+    Validated.fields()
+        .field("name",  Name.parse(dto.name()))
+        .field("email", Email.parse(dto.email()))
+        .field("age",   Age.parse(dto.age()))
+        .apply(User::new);          // every invalid field reported, not just the first
+
+// Unlabelled: .and(...) instead of .field(label, ...)
+Validated<NonEmptyList<String>, User> u =
+    Validated.<String>accumulate()
+        .and(parseName(dto.name()))
+        .and(parseEmail(dto.email()))
+        .apply(User::new);
+```
+
+**Past 16 fields, reach for `@GenerateAssembly`** (see `/hkj-mapping`): it emits a curried `ap` chain
+at exactly the record's arity, so it has no ceiling. This ladder stops at 16.
+
+---
+
+## Inclusive-Or: `EitherOrBoth` and `EitherOrBothPath`
+
+`org.higherkindedj.hkt.eitherorboth.EitherOrBoth<L, R>` is the inclusive or (`Ior` / `These`
+elsewhere): **`Left`** (fatal), **`Right`** (clean success), or **`Both`** (success *carrying*
+non-fatal warnings). Right-biased.
+
+Reach for it when a success can still be degraded: a config that loaded but fell back to defaults,
+an import that succeeded but skipped rows. `Either` cannot say this (exclusive), and `Validated`
+cannot (it has no partial value).
+
+```java
+EitherOrBoth<String, Config> result = EitherOrBoth.both("port invalid, using 8080", config);
+
+String rendered = result.fold(
+    err          -> "failed: " + err,
+    cfg          -> "ok",
+    (warn, cfg)  -> "ok, with warning: " + warn);
+```
+
+Factories: `left(l)`, `right(r)`, `both(l, r)`, `fromEither(e)`, `fromValidated(v)`.
+Accessors: `isLeft()` / `isRight()` / `isBoth()`, `getLeft()` -> `Maybe<L>`, `getRight()` -> `Maybe<R>`.
+
+`EitherOrBothPath` is the Path wrapper. It is unusual in implementing **both** protocols:
+
+| Protocol | Methods | Behaviour |
+|----------|---------|-----------|
+| `Chainable` | `via`, `zipWith` | Short-circuits on `Left` |
+| `Accumulating` | `zipWithAccum`, `andAlso` | Parallel; collects every warning |
+
+```java
+Path.right(v, semigroup)   Path.left(e, semigroup)   Path.both(warn, v, semigroup)
+Path.rightNel(v)           Path.leftNel(e)           Path.bothNel(warn, v)   // bake in NonEmptyList.semigroup()
+```
+
+**The one thing to get right:** `flatMap` / `ap` **short-circuit**. `EitherOrBoth` is a lawful monad,
+*not* a Validated-style accumulator; only `Both` warnings accumulate as they pass through. The
+collect-everything behaviour lives in `zipWithAccum` / `accumulate()` / `fields()`, which are
+deliberately **not** monadic. Do not assume the monad accumulates.
 
 ---
 
@@ -188,6 +355,10 @@ plugins {
 ```
 
 This single line configures dependencies, preview features, annotation processors, and compile-time checks.
+
+It also adds **`-parameters`** to every compile task automatically. Do not add it by hand: the
+plugin (and the Maven lifecycle participant) now wire it unconditionally, and `@GenerateMapping`
+relies on it to read constructor parameter names.
 
 ### Manual Gradle Setup
 

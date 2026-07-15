@@ -1,6 +1,6 @@
 ---
 name: hkj-spring
-description: "Higher-Kinded-J Spring Boot integration (hkj-spring-boot-starter). Use PROACTIVELY whenever the working file or task involves: (1) a Spring controller method (@RestController / @GetMapping / @PostMapping / @PutMapping / @DeleteMapping) that returns Either, Validated, EitherPath, MaybePath, ValidationPath, TryPath, IOPath, CompletableFuturePath, VTaskPath, VStreamPath, or FreePath; (2) a sealed interface or sealed hierarchy named DomainError / *Error / *Failure used as the Left of an Either; (3) Jackson 3.x / tools.jackson serialization of HKJ types; (4) any application.yml / application.properties key under hkj.web.*, hkj.json.*, hkj.validation.*, hkj.async.*, hkj.virtual-threads.*, hkj.actuator.*, hkj.security.*, or hkj.effect-boundary.*; (5) mapping a domain error to an HTTP status code, including 4xx/5xx codes outside the heuristic table (409 Conflict, 422 Unprocessable Entity, 429 Too Many Requests, 503 Service Unavailable); (6) ErrorStatusCodeStrategy, ErrorStatusCodeMapper, DefaultErrorStatusCodeStrategy, or HttpHeaderCarrier (Retry-After, WWW-Authenticate, Location); (7) @WebMvcTest slices that need HkjAutoConfiguration / HkjJacksonAutoConfiguration / HkjWebMvcAutoConfiguration imported; (8) EffectBoundary, @Interpreter, @EnableEffectBoundary, @EffectTest, or returning FreePath from a controller; (9) auto-configuration questions about the starter; (10) calling another service over HTTP and keeping the typed error: @HkjHttpClient on a @HttpExchange interface whose methods return EitherPath / VTaskPath<Either> / MaybePath; spring.http.serviceclient.* configuration (base-url, timeouts) for the client; hkj.client.status-error-mappings; @OnStatus(value=, error=); ResponseErrorDecoder / ResponseErrorDecoderFactory / HkjClientExchange / ClientErrorResponse.retryAfter; decoding the {\"success\":false,\"error\":…} envelope back into a typed error; or a generated <Name>HttpExchange / <Name>Client / <Name>ClientConfiguration."
+description: "Higher-Kinded-J Spring Boot integration (hkj-spring-boot-starter). Use PROACTIVELY whenever the working file or task involves: (1) a Spring controller method (@RestController / @GetMapping / @PostMapping / @PutMapping / @DeleteMapping) that returns Either, Validated, EitherOrBoth, EitherOrBothPath, EitherPath, MaybePath, ValidationPath, TryPath, IOPath, CompletableFuturePath, VTaskPath, VStreamPath, or FreePath; (2) a sealed interface or sealed hierarchy named DomainError / *Error / *Failure used as the Left of an Either; (3) Jackson 3.x / tools.jackson serialization of HKJ types, including EitherOrBoth and NonEmptyList; (4) any application.yml / application.properties key under hkj.web.* (including hkj.web.either-or-both-path-enabled), hkj.json.*, hkj.validation.*, hkj.async.*, hkj.virtual-threads.*, hkj.actuator.*, hkj.security.*, or hkj.effect-boundary.*; (5) mapping a domain error to an HTTP status code, including 4xx/5xx codes outside the heuristic table (409 Conflict, 422 Unprocessable Entity, 429 Too Many Requests, 503 Service Unavailable); (6) ErrorStatusCodeStrategy, ErrorStatusCodeMapper, DefaultErrorStatusCodeStrategy, or HttpHeaderCarrier (Retry-After, WWW-Authenticate, Location); (7) @WebMvcTest slices that need HkjAutoConfiguration / HkjJacksonAutoConfiguration / HkjWebMvcAutoConfiguration imported; (8) EffectBoundary, @Interpreter, @EnableEffectBoundary, @EffectTest, or returning FreePath from a controller; (9) auto-configuration questions about the starter; (10) calling another service over HTTP and keeping the typed error: @HkjHttpClient on a @HttpExchange interface whose methods return EitherPath / VTaskPath<Either> / MaybePath; spring.http.serviceclient.* configuration (base-url, timeouts) for the client; hkj.client.status-error-mappings; @OnStatus(value=, error=); ResponseErrorDecoder / ResponseErrorDecoderFactory / HkjClientExchange / ClientErrorResponse.retryAfter; decoding the {\"success\":false,\"error\":…} envelope back into a typed error; or a generated <Name>HttpExchange / <Name>Client / <Name>ClientConfiguration."
 ---
 
 # Higher-Kinded-J Spring Boot Integration
@@ -73,11 +73,12 @@ The starter auto-configures everything: response conversion, JSON serialization,
 |---------|-------------|
 | `Either` response conversion | `Right(value)` -> 200, `Left(error)` -> mapped status code |
 | `Validated` response conversion | `Valid(value)` -> 200, `Invalid(errors)` -> 400 |
+| `EitherOrBoth` / `EitherOrBothPath` conversion | `Right` -> 200, `Both` -> 200 + `X-Hkj-Warnings` header, `Left` -> mapped status code |
 | `CompletableFuturePath` async | Async operations with functional error handling |
 | `VTaskPath` async | Virtual thread async via `DeferredResult` |
 | `VStreamPath` SSE | Server-Sent Events streaming on virtual threads |
-| Jackson serialization | JSON support for Either, Maybe, Try, Validated |
-| Status code mapping | Customizable domain error -> HTTP status mapping |
+| Jackson serialization | JSON support for Either, Maybe, Try, Validated, EitherOrBoth, NonEmptyList |
+| Status code mapping | Customisable domain error -> HTTP status mapping |
 | `@HkjHttpClient` clients | Declarative HTTP clients returning Effect Paths, decoding a typed error from the response |
 | Actuator integration | Monitoring functional operations |
 
@@ -98,6 +99,11 @@ The starter resolves the status for a `Left` error value in this order:
 | `authorization` or `forbidden`            | 403 |
 | `authentication` or `unauthorized`        | 401 |
 | (no match)                                | configured default |
+
+Resolution is purely **by class name**. Nothing inspects the error's fields: a core
+`ErrorEnvelope` / `@GenerateErrorEnvelope` error (its `code`, its typed context) is **not** consulted
+by `DefaultErrorStatusCodeStrategy` / `ErrorStatusCodeMapper`; there is no Spring integration for it.
+To key a status off an envelope `code()`, write your own `ErrorStatusCodeStrategy` bean (below).
 
 ### Explicit Mappings (covers 409, 422, 429, 503, …)
 
@@ -149,7 +155,7 @@ public sealed interface DomainError {
 ```
 
 If the desired status is 409, 422, 429, 503, or anything else outside the heuristics, prefer
-an explicit mapping over renaming the variant — names should describe the domain, not the HTTP
+an explicit mapping over renaming the variant: names should describe the domain, not the HTTP
 table.
 
 ### Response Header Injection (Retry-After, WWW-Authenticate, …)
@@ -165,7 +171,7 @@ public record MfaThrottledError(int retryAfterSeconds) implements DomainError, H
 ```
 
 Honoured by `EitherPath`, `TryPath`, `ValidationPath`, `IOPath`, `CompletableFuturePath`,
-`VTaskPath`, and `FreePath` handlers. Headers are added (not set), so multi-valued headers
+`VTaskPath`, `FreePath`, and `EitherOrBothPath` (on its `Left`) handlers. Headers are added (not set), so multi-valued headers
 like `WWW-Authenticate` and `Set-Cookie` accumulate as separate header lines, matching the
 HTTP grammar; upstream headers from filters or interceptors are preserved. For single-valued
 headers like `Retry-After`, the carrier should ensure the value appears at most once across
@@ -208,6 +214,45 @@ public Validated<List<String>, User> createUser(@RequestBody UserRequest req) {
 }
 ```
 
+### EitherOrBothPath: Success That Still Carries Warnings
+
+`EitherOrBoth` is the inclusive-or: `Left` (fatal), `Right` (clean success), `Both` (success **plus**
+non-fatal warnings). `Either` cannot express `Both` (exclusive) and `Validated` cannot (no partial
+value). Both `EitherOrBothPath<W, T>` and a bare `EitherOrBoth<W, T>` are accepted return types.
+
+| Branch | Response |
+|--------|----------|
+| `Right(value)` | success status (200, or the method's `@ResponseStatus`) + value as the JSON body |
+| `Both(warnings, value)` | the **same success status** + value as the body, warnings JSON-encoded into the `X-Hkj-Warnings` response header |
+| `Left(error)` | the fatal case (no value): status from `ErrorStatusCodeStrategy`, body `{"success":false,"error":…}` (same shape as `EitherPath`) |
+
+The `Both` case is the interesting one: a partial success still returns 200, but the caller is told
+what was degraded rather than the warnings being silently dropped.
+
+```java
+@GetMapping("/{id}/report")
+public EitherOrBothPath<NonEmptyList<String>, Report> getReport(@PathVariable String id) {
+    return reportService.buildReport(id);
+    // Right(report)                              -> 200, body = report
+    // Both(["stale cache","partial index"], rep) -> 200, body = rep,
+    //                                               X-Hkj-Warnings: ["stale cache","partial index"]
+    // Left(["report unavailable"])               -> status via ErrorStatusCodeStrategy
+}
+```
+
+```java
+// Service side: Path.bothNel / rightNel / leftNel bake in NonEmptyList.semigroup()
+public EitherOrBothPath<NonEmptyList<String>, Report> buildReport(String id) {
+    return cache.isStale()
+        ? Path.bothNel("stale cache", renderer.render(id))
+        : Path.rightNel(renderer.render(id));
+}
+```
+
+Toggle with `hkj.web.either-or-both-path-enabled` (default `true`). Handler:
+`EitherOrBothPathReturnValueHandler`, wired by `HkjWebMvcAutoConfiguration`, so a `@WebMvcTest`
+slice needs the usual `@ImportAutoConfiguration` (see [Testing](#testing)).
+
 ### CompletableFuturePath: Async
 
 ```java
@@ -236,6 +281,26 @@ public VStreamPath<Update> streamUpdates() {
     // Framework converts VStreamPath to SSE automatically
 }
 ```
+
+---
+
+## Jackson (`HkjJacksonModule`)
+
+Registered by `HkjJacksonAutoConfiguration`; no code needed. Beyond `Either` / `Validated` / `Maybe`
+/ `Try`, two more types bind in **both directions** (request bodies as well as responses):
+
+| Type | JSON shape |
+|------|------------|
+| `EitherOrBoth<L, R>` | tag-based: `{"kind":"left","left":…}` / `{"kind":"right","right":…}` / `{"kind":"both","left":…,"right":…}` |
+| `NonEmptyList<A>` | a plain JSON array: `["a","b"]`. Deserialising `[]`, a non-array, or an array containing `null` is an error (the type's non-emptiness is enforced on the wire) |
+
+Neither adds a config key; both follow `hkj.json.custom-serializers-enabled`. `EitherOrBoth` has no
+`*-format` toggle; it is always tagged, because three branches cannot be told apart untagged.
+
+The `EitherOrBoth`, `NonEmptyList`, `Either`, and `Validated` deserialisers all do Jackson 3.x
+**contextual generic-type resolution**: a declared `Either<DomainError, User>` on a field or
+parameter binds its branches to those concrete types rather than to `Object`/`LinkedHashMap`. A raw
+(un-parameterised) declaration still falls back to `Object`.
 
 ---
 
@@ -326,7 +391,7 @@ Either<ApiError, UserDto> result =
 ### Gotchas
 
 - A sealed error type with no `@JsonTypeInfo` cannot be decoded.
-- Client interfaces outside the component scan: the generated config is not picked up, so no proxy is created — add `@ImportHttpServices(basePackages = "...")`.
+- Client interfaces outside the component scan: the generated config is not picked up, so no proxy is created. Add `@ImportHttpServices(basePackages = "...")`.
 - A generic `@HkjHttpClient` interface is **codegen-only** (no bean, since a generic client cannot be a singleton): instantiate the facade for a concrete type yourself.
 - `VStreamPath` is not generated automatically; consume SSE via `HkjClientExchange.vstream(...)`.
 - A super-interface from a precompiled dependency jar must be built with `-parameters`, or its `@PathVariable`/`@RequestParam` arguments bind to `arg0`-style names.
@@ -422,7 +487,7 @@ Once all endpoints are migrated, remove exception handlers.
 
 ## Testing
 
-> **Heads up — `@WebMvcTest` does not load third-party auto-configurations.**
+> **Heads up: `@WebMvcTest` does not load third-party auto-configurations.**
 > The hkj-spring-boot-starter registers `HkjJacksonAutoConfiguration` (for the
 > `Either` / `Validated` JSON shape) and `HkjWebMvcAutoConfiguration` (for the
 > `*ReturnValueHandler`s and HTTP status-code mapping) via
@@ -599,6 +664,7 @@ hkj:
 
     # ---- Handler toggles (all default true) ----
     either-path-enabled: true
+    either-or-both-path-enabled: true       # EitherOrBoth / EitherOrBothPath (Both -> X-Hkj-Warnings)
     maybe-path-enabled: true
     try-path-enabled: true
     validation-path-enabled: true
@@ -646,8 +712,8 @@ spring:
 ```
 
 For field-aware status decisions (e.g. `MfaThrottledError.retryAfter() > 60 → 503`),
-register an `ErrorStatusCodeStrategy` bean — see the [HTTP Status Code Mapping](#http-status-code-mapping)
-section above.
+register an `ErrorStatusCodeStrategy` bean (see the [HTTP Status Code Mapping](#http-status-code-mapping)
+section above).
 
 ---
 

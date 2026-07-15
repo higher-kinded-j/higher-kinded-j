@@ -1,6 +1,6 @@
 ---
 name: hkj-arch
-description: "Functional core imperative shell architecture with Higher-Kinded-J and Java 25: separate pure business logic from side effects, boundary design, records and sealed interfaces for domain models, where to call unsafeRun, testing without mocks, push effects to edges"
+description: "Functional core imperative shell architecture with Higher-Kinded-J and Java 25: separate pure business logic from side effects, boundary design, records and sealed interfaces for domain models, where to call unsafeRun, testing without mocks, push effects to edges, TimeSource, injecting the clock, deterministic time, testing time without sleeping, SteppableClock"
 ---
 
 # Functional Core / Imperative Shell with HKJ and Java 25
@@ -71,6 +71,7 @@ You are helping a developer structure their Java 25 application using the "funct
 | `FocusPath` / `AffinePath` | Type-safe data access and transformation |
 | `ForPath` comprehensions | Multi-step pure workflows |
 | Free monad programs | Domain operations as inspectable data |
+| `TimeSource` | The clock as an injected dependency; `now()` returns `IO<Instant>`, so the core defers the read rather than performing it |
 
 ### Imperative Shell (Effects)
 
@@ -169,6 +170,85 @@ assertEquals(expected, IdKindHelper.ID_OP.narrow(testResult).value());
 
 ---
 
+## TimeSource: The Clock Is an Effect
+
+`Instant.now()` in the core is a side effect hiding in plain sight: it reads the outside world, so the
+function is no longer deterministic and no longer testable by data alone. `TimeSource`
+(`org.higherkindedj.hkt.time.TimeSource`) lifts `java.time.Clock` into IO/VTask so "now" becomes a
+lazy, composable, testable value that the core *builds* and the shell *runs*.
+
+**Why the name**: it is `TimeSource`, not `Clock`, so it never clashes with `java.time.Clock`, which
+it wraps (as a record component) rather than replaces.
+
+| Member | Returns | Where |
+|--------|---------|-------|
+| `TimeSource.system()` | `TimeSource` | Shell: the production default (`Clock.systemUTC()`) |
+| `TimeSource.of(Clock)` | `TimeSource` | Lift any JDK clock: offset, fixed, or a test clock |
+| `TimeSource.fixed(Instant)` | `TimeSource` | Tests: a frozen instant, UTC |
+| `ts.now()` | `IO<Instant>` | Core: the clock read, deferred |
+| `ts.nowAsync()` | `VTask<Instant>` | Core: the same read on a virtual thread |
+| `ts.clock()` | `Clock` | Shell: synchronous edge code that just needs a `Clock` |
+
+### The Injection Pattern
+
+Take a `TimeSource` in the constructor; default it to the system clock. The dependency is explicit,
+and the only place that decides *which* clock is the composition root.
+
+```java
+public class InMemoryInventoryService implements InventoryService {
+
+    private static final Duration RESERVATION_HOLD = Duration.ofMinutes(15);
+
+    private final TimeSource timeSource;
+
+    public InMemoryInventoryService() {          // production default, chosen at the edge
+        this(TimeSource.system());
+    }
+
+    public InMemoryInventoryService(TimeSource timeSource) {   // the seam
+        this.timeSource = Objects.requireNonNull(timeSource, "timeSource must not be null");
+    }
+
+    // Core: builds an effect. Nothing has read the clock yet.
+    public IO<Reservation> reserve(OrderId id, List<LineItem> lines) {
+        return timeSource.now()
+            .map(now -> new Reservation(id, lines, now.plus(RESERVATION_HOLD)));
+    }
+}
+```
+
+The shell runs it (`.unsafeRunSync()`); the core never does. Same rule as every other effect.
+
+### Testing: Advance Time Instead of Sleeping
+
+hkj-test ships `SteppableClock`, a real `java.time.Clock` you move by hand. Combined with
+`TimeSource.of(clock)`, a fifteen-minute expiry test costs microseconds and no mock:
+
+```java
+var clock = SteppableClock.startingAt(Instant.parse("2026-07-07T00:00:00Z"));
+var service = new InMemoryInventoryService(TimeSource.of(clock));
+
+// reserve() returns a lazy IO; the shell runs it, exactly as the section above says
+service.reserve(OrderId.generate(), List.of(line("PROD-001", 10))).unsafeRunSync();
+
+clock.advance(Duration.ofMinutes(16));   // past the 15-minute hold - no Thread.sleep
+
+// the expired hold is now reclaimed, deterministically
+```
+
+`SteppableClock.startingAt(Instant)` creates it; `clock.advance(Duration)` steps it forward;
+`clock.set(Instant)` jumps to an absolute point. For a clock that never moves, skip it and use
+`TimeSource.fixed(instant)`.
+
+This is the same thesis as the rest of this skill: a side effect pushed out to a boundary becomes a
+value you pass in, and tests become data rather than choreography. No `Mockito.mockStatic(Instant.class)`,
+no injectable `Supplier<Instant>` seam bolted on per class, no sleeping.
+
+> `ErrorEnvelope` factories take a `TimeSource` for exactly this reason (`ErrorEnvelope.of(timeSource,
+> code, message, context)`), so error records carry a timestamp that tests can pin.
+
+---
+
 ## Data-Oriented Programming with HKJ
 
 ### Domain Errors as Sealed Hierarchies
@@ -213,6 +293,9 @@ public sealed interface OrderStatus {
 ### Step 1: Identify Side Effects in Business Logic
 
 Look for: database calls, HTTP requests, file I/O, logging, random values, system clock reads.
+
+Clock reads are the easiest to miss and the cheapest to fix: swap `Instant.now()` for an injected
+`TimeSource` (see above) and the class becomes deterministic before you touch anything else.
 
 ### Step 2: Extract Pure Logic
 
@@ -282,4 +365,5 @@ For testing, `TestBoundary` replaces the production boundary with pure `Id` mona
 | Mixing IO with validation | Side effects during validation | Validate first (pure), then execute |
 | Mutable state in domain models | Breaks referential transparency | Use records + optics |
 | Catching exceptions in the core | Exceptions are not composable | Use `TryPath` / `EitherPath` |
+| `Instant.now()` / `System.currentTimeMillis()` in the core | A hidden effect: non-deterministic, forces sleeping or static mocking in tests | Inject a `TimeSource`; `now()` -> `IO<Instant>` |
 | Giant `switch` in controller | Business logic in the shell | Move to core, return Path from service |

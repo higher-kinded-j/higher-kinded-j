@@ -1,6 +1,6 @@
 # Contract Pattern: Reaching 100% Coverage on AssertJ Extensions
 
-The `hkj-test` module enforces 100% line and instruction coverage on its 19 assertion classes via a contract-test framework. The same pattern is reusable for any AssertJ extension a user writes for their own domain types.
+The `hkj-test` module enforces 100% line and instruction coverage on every one of its assertion classes via a contract-test framework. The same pattern is reusable for any AssertJ extension a user writes for their own domain types.
 
 ---
 
@@ -37,8 +37,8 @@ Hand-writing two `@Test`s per method scales linearly with the API surface and bl
 
 Two `@TestFactory` methods dispatch each row as up to two dynamic tests:
 
-- happy path — invoking the chain on the passing subject must not throw,
-- failure path — invoking the chain on the failing subject must throw `AssertionError`.
+- happy path: invoking the chain on the passing subject must not throw,
+- failure path: invoking the chain on the failing subject must throw `AssertionError`.
 
 Asymmetric rows (chains whose closure always throws regardless of input, or chains for which a meaningful failing input does not exist) use `passOnly` / `failOnly`.
 

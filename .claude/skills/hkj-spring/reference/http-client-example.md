@@ -9,7 +9,7 @@ that calls the `hkj-spring/example` server.
 ## Setup
 
 Add the starter (it bundles `spring-boot-restclient`, which binds `spring.http.serviceclient.*` and
-applies the base URL — not pulled in by `spring-boot-starter-web` alone):
+applies the base URL; it is not pulled in by `spring-boot-starter-web` alone):
 
 ```gradle
 dependencies {
@@ -104,7 +104,7 @@ so Jackson can pick the subtype (never `Id.CLASS`/default typing on untrusted re
 public sealed interface DomainError permits UserNotFoundError, ConflictError {}
 ```
 
-Map specific statuses to subtypes — per method (highest precedence):
+Map specific statuses to subtypes, per method (highest precedence):
 
 ```java
 @GetExchange("/{id}")
@@ -166,7 +166,7 @@ assertThatEither(client.getUser("2").run()).isLeft();
 
 To prove the **base-url wiring** end to end, a `@SpringBootTest` can point the group's base URL at a
 stub server (e.g. a JDK `HttpServer`) via `@DynamicPropertySource` and assert the autowired client
-resolves against it — see `UserClientApiBaseUrlTest` in the `hkj-spring/client-example` module.
+resolves against it (see `UserClientApiBaseUrlTest` in the `hkj-spring/client-example` module).
 
 ---
 

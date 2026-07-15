@@ -14,7 +14,7 @@ Update a manager's email in a nested company directory. The operation must:
 3. Validate new email format
 4. Return updated company or typed error
 
-Domain model -- nested immutable records:
+Domain model (nested immutable records):
 
 ```java
 @GenerateLenses @GenerateFocus
@@ -68,7 +68,7 @@ Key distinction:
 Either<DirectoryError, Company> updateManagerEmail(
     Company company, String deptName, String newEmail) {
 
-  // 1. Find department -- manual loop
+  // 1. Find department: manual loop
   Department dept = null;
   for (Department d : company.departments()) {
     if (d.name().equals(deptName)) { dept = d; break; }
@@ -77,19 +77,19 @@ Either<DirectoryError, Company> updateManagerEmail(
     return Either.left(new DirectoryError.DepartmentNotFound(deptName));
   }
 
-  // 2. Get manager -- manual Optional check
+  // 2. Get manager: manual Optional check
   if (dept.manager().isEmpty()) {
     return Either.left(new DirectoryError.NoManager(deptName));
   }
   Employee manager = dept.manager().get();
 
-  // 3. Validate email -- manual check
+  // 3. Validate email: manual check
   if (!newEmail.contains("@") || newEmail.length() < 5) {
     return Either.left(
         new DirectoryError.InvalidEmail(newEmail, "Must contain @ and be >= 5 chars"));
   }
 
-  // 4. Rebuild entire structure -- the painful part
+  // 4. Rebuild entire structure: the painful part
   ContactInfo updatedContact = new ContactInfo(manager.contact().phone(), Optional.of(newEmail));
   Employee updatedManager = new Employee(manager.name(), updatedContact);
   Department updatedDept = new Department(dept.name(), Optional.of(updatedManager), dept.staff());
@@ -101,7 +101,7 @@ Either<DirectoryError, Company> updateManagerEmail(
 }
 ```
 
-**Issues**: Five concerns tangled -- searching, null-checking, validating, reconstructing, error-wrapping. Actual business logic is 2 lines buried in the middle.
+**Issues**: Five concerns tangled (searching, null-checking, validating, reconstructing, error-wrapping). Actual business logic is 2 lines buried in the middle.
 
 ---
 
@@ -188,10 +188,10 @@ Each step either continues on the success track or diverts to failure.
 Already in an `EitherPath` pipeline; need to drill into the contained value's structure.
 
 ```java
-// AffinePath focus -- requires error argument (field may be absent)
+// AffinePath focus: requires error argument (field may be absent)
 eitherPath.focus(DepartmentFocus.manager(), new DirectoryError.NoManager(deptName))
 
-// FocusPath focus -- no error needed (field always present)
+// FocusPath focus: no error needed (field always present)
 eitherPath.focus(EmployeeFocus.contact())
 ```
 
