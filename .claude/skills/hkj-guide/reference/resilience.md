@@ -2,6 +2,98 @@
 
 Package: `org.higherkindedj.hkt.resilience`
 
+## 0. Start Here: Resilience Lives on the Path
+
+Retry, timeout, circuit breaker and bulkhead are **methods on the path itself**. Reach for the
+static helpers (`Retry.retryTask`, `breaker.protect`) only when you are holding a bare `VTask`
+rather than a path.
+
+```java
+IOPath<Response> resilient = Path.io(() -> httpClient.get(url))
+    .withTimeout(Duration.ofSeconds(30))
+    .withBulkhead(serviceBulkhead)
+    .withRetry(retryPolicy)
+    .withCircuitBreaker(serviceBreaker);
+```
+
+### Which path has what
+
+| Path | `with*` form | Failure model |
+|------|--------------|---------------|
+| `IOPath<A>` | Instance methods | Untyped: failure is a thrown exception |
+| `VTaskPath<A>` | Instance methods | Untyped: failure is a thrown exception |
+| `VResultPath<E, A>` | Instance methods, **typed overloads** | Typed `E` in the value channel; defects still throw |
+| `EitherPath<E, A>` | **Static**, taking a `Supplier` thunk | Eager, so it must be re-invocable to be retried |
+
+`IOPath` / `VTaskPath` take the plain four: `withRetry(policy)`, `withTimeout(duration)`,
+`withCircuitBreaker(breaker)`, `withBulkhead(bulkhead)`.
+
+`EitherPath` is eager (there is no effect left to re-run), so its combinators are static and take a
+thunk that rebuilds the step:
+
+```java
+EitherPath<ApiError, Response> r =
+    EitherPath.withRetry(() -> callService(request), retryPolicy);
+```
+
+---
+
+## 0.1 VResultPath: Railway-Aware Resilience
+
+This is the reason `VResultPath` exists. It separates two things that ordinary async code conflates:
+
+- a **typed domain failure** (`Left`): the service answered, and the answer was "no"
+- a **defect**: a thrown exception; something is broken
+
+Resilience should react to the second, not the first. A validation rejection is not an outage:
+retrying it will fail identically, and letting it trip a circuit breaker will take down a healthy
+service. So on `VResultPath`, **by default a `Left` is never retried and never trips the breaker.**
+
+```java
+VResultPath<ApiError, Response> call =
+    Path.<ApiError, Response>vresultDefer(() -> callService(request))
+        .withTimeout(Duration.ofSeconds(30), ApiError.Timeout::new)   // timeout -> typed Left
+        .withBulkhead(bulkhead, full -> new ApiError.Overloaded())     // rejection -> typed Left
+        .withRetry(retryPolicy)                                        // defects only
+        .withCircuitBreaker(breaker, open -> new ApiError.Overloaded());
+```
+
+Every failure mode can be brought onto the typed channel, so the caller handles one `sealed`
+hierarchy instead of a mix of `Left`s and exceptions.
+
+| Method | Effect |
+|--------|--------|
+| `withTimeout(duration, Supplier<E> onTimeout)` | Timeout becomes a typed `Left`, not a thrown `TimeoutException` |
+| `withRetry(policy)` | Retries **defects only**: a `Left` is a value, never retried |
+| `withRetry(Predicate<E> retryOn, policy)` | Opt selected *transient* `Left`s into retry; on exhaustion returns the last `Left` |
+| `withCircuitBreaker(breaker)` | A `Left` never counts as a failure |
+| `withCircuitBreaker(breaker, Function<CircuitOpenException, E> onOpen)` | Open-circuit rejection arrives as a typed `Left` |
+| `withBulkhead(bulkhead)` / `withBulkhead(bulkhead, Function<BulkheadFullException, E> onFull)` | Same, for saturation |
+
+Opt a genuinely transient rejection into retry explicitly:
+
+```java
+.withRetry(e -> e instanceof ApiError.Timeout, retryPolicy)   // this Left IS worth retrying
+```
+
+### Structured concurrency
+
+```java
+// If every candidate fails, you get EVERY error, hence NonEmptyList<E>
+VResultPath<NonEmptyList<ApiError>, Response> fastest = VResultPath.firstSuccess(replicas);
+
+VResultPath<ApiError, List<Response>> all = VResultPath.allSucceed(tasks);            // fail-fast
+VResultPath<NonEmptyList<ApiError>, List<Response>> every =
+    VResultPath.allSucceedAccumulating(tasks);                                        // collect all
+
+VResultPath.bracketOutcome(acquire, use, release, onDefect);  // release sees the Either outcome
+```
+
+Both `firstSuccess` and `allSucceedAccumulating` widen the error to `NonEmptyList<E>`: if nothing
+succeeded there is at least one reason, and the type says so.
+
+---
+
 ## 1. Retry
 
 Retries a failing operation with configurable backoff. Assumes transient failures will resolve.
@@ -16,7 +108,7 @@ RetryPolicy.linear(5, Duration.ofMillis(200));                    // Linear: 200
 RetryPolicy.noRetry();                                            // Fail immediately
 ```
 
-### Configuration (immutable -- methods return new instances)
+### Configuration (immutable: methods return new instances)
 
 ```java
 RetryPolicy policy = RetryPolicy.exponentialBackoff(5, Duration.ofMillis(100))
@@ -42,7 +134,7 @@ RetryPolicy policy = RetryPolicy.builder()
 // Direct execution
 String result = Retry.execute(policy, () -> httpClient.get(url));
 
-// Wrap VTask (lazy -- nothing runs until run()/runSafe()/runAsync())
+// Wrap VTask (lazy: nothing runs until run()/runSafe()/runAsync())
 VTask<String> resilient = Retry.retryTask(VTask.of(() -> httpClient.get(url)), policy);
 
 // With fallback on exhaustion
@@ -64,7 +156,7 @@ Stops calling a failing service to let it recover. Tracks consecutive failures a
 
 ### States
 
-| State | Behavior | Transitions to |
+| State | Behaviour | Transitions to |
 |-------|----------|----------------|
 | CLOSED | All calls allowed; failures counted | OPEN (failures reach threshold) |
 | OPEN | All calls rejected with `CircuitOpenException` | HALF_OPEN (after openDuration expires) |
@@ -87,7 +179,7 @@ CircuitBreakerConfig config = CircuitBreakerConfig.builder()
 ```java
 CircuitBreaker breaker = CircuitBreaker.create(config);  // or CircuitBreaker.withDefaults()
 
-// Protect a VTask (generic -- one breaker can protect different return types)
+// Protect a VTask (generic: one breaker can protect different return types)
 VTask<String> protected = breaker.protect(VTask.of(() -> service.call()));
 
 // With fallback
@@ -145,11 +237,11 @@ Saga<String> saga = SagaBuilder.<Unit>start()
 ### Running
 
 ```java
-// run() -- throws on failure
+// run(): throws on failure
 VTask<String> execution = saga.run();
 Try<String> result = execution.runSafe();
 
-// runSafe() -- returns Either<SagaError, String> with full details
+// runSafe(): returns Either<SagaError, String> with full details
 VTask<Either<SagaError, String>> safe = saga.runSafe();
 Either<SagaError, String> result = safe.run();
 // SagaError: .failedStep(), .originalError(), .allCompensationsSucceeded(), .compensationFailures()
@@ -199,14 +291,27 @@ Bulkhead vs VStreamPar: Bulkhead is per-service (shared across callers). VStream
 
 ### Correct Ordering (outermost to innermost)
 
-1. **Timeout** -- bounds total elapsed time including retries
-2. **Bulkhead** -- limits concurrent access
-3. **Retry** -- re-attempts on transient failure
-4. **Circuit Breaker** -- each attempt checks circuit state (innermost)
+1. **Timeout**: bounds total elapsed time including retries
+2. **Bulkhead**: limits concurrent access
+3. **Retry**: re-attempts on transient failure
+4. **Circuit Breaker**: each attempt checks circuit state (innermost)
 
 Circuit breaker MUST be inside retry so each attempt is recorded individually.
 
-### ResilienceBuilder (applies correct order regardless of call order)
+### Preferred: chain the `with*` methods on the path
+
+Chain them in the order above and you get the correct nesting:
+
+```java
+VResultPath<ApiError, Response> resilient =
+    Path.<ApiError, Response>vresultDefer(() -> callService(request))
+        .withTimeout(Duration.ofSeconds(30), ApiError.Timeout::new)
+        .withBulkhead(bulkhead, full -> new ApiError.Overloaded())
+        .withRetry(retryPolicy)
+        .withCircuitBreaker(breaker, open -> new ApiError.Overloaded());
+```
+
+### ResilienceBuilder (for a bare `VTask`; applies correct order regardless of call order)
 
 ```java
 VTask<Response> resilient = Resilience.<Response>builder(

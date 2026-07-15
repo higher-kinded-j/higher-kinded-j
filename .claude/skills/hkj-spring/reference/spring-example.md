@@ -229,15 +229,15 @@ class UserControllerTest {
 
 > If you prefer full-fidelity over slice isolation, swap the annotations for
 > `@SpringBootTest(classes = HkjSpringExampleApplication.class) +
-> @AutoConfigureMockMvc` — see `UserControllerIntegrationTest` for the full
-> pattern.
+> @AutoConfigureMockMvc` (see `UserControllerIntegrationTest` for the full
+> pattern).
 
 ---
 
 ## Key Takeaways
 
-1. **Service layer returns functional types** (Either, Validated) — explicit error contracts
-2. **Controller is a thin shell** — just delegates to service and returns the result
-3. **Auto-configuration handles conversion** — no manual ResponseEntity construction
-4. **Error status mapping is centralised** — one switch expression, not scattered `@ExceptionHandler` methods
-5. **Testing is straightforward** — mock the service, assert on status codes and JSON
+1. **Service layer returns functional types** (Either, Validated): explicit error contracts
+2. **Controller is a thin shell**: just delegates to service and returns the result
+3. **Auto-configuration handles conversion**: no manual ResponseEntity construction
+4. **Error status mapping is centralised**: one switch expression, not scattered `@ExceptionHandler` methods
+5. **Testing is straightforward**: mock the service, assert on status codes and JSON

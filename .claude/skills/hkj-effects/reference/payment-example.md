@@ -229,7 +229,7 @@ IO<PaymentResult> io = IOKindHelper.IO_OP.narrow(
 PaymentResult result = io.unsafeRunSync();
 ```
 
-Production interpreter pattern -- wrap in `IO.delay`:
+Production interpreter pattern (wrap in `IO.delay`):
 
 ```java
 public final class ProductionGatewayInterpreter
@@ -264,7 +264,7 @@ assertThat(gateway.calls()).containsExactly("charge:GBP 49.99");
 assertThat(notification.receipts()).hasSize(1);
 ```
 
-Test interpreter pattern -- return `new Id<>(...)`:
+Test interpreter pattern (return `new Id<>(...)`):
 
 ```java
 public final class RecordingGatewayInterpreter
@@ -294,7 +294,7 @@ if (result instanceof PaymentResult.Approved approved) {
 }
 ```
 
-Quote interpreter pattern -- compute derived values:
+Quote interpreter pattern (compute derived values):
 
 ```java
 public final class QuoteGatewayInterpreter
@@ -321,8 +321,8 @@ var fraud = new FixedRiskInterpreter(RiskScore.of(95));  // above RISK_THRESHOLD
 // gateway, ledger, notification same as test mode
 
 // Result: Declined("High risk: ...")
-// gateway.calls() is empty -- charge never reached
-// notification.alerts() has 1 entry -- fraud team alerted
+// gateway.calls() is empty: charge never reached
+// notification.alerts() has 1 entry: fraud team alerted
 ```
 
 Same program, different interpreter configuration. No code changes to PaymentService.

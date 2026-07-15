@@ -28,7 +28,7 @@ One program. Multiple interpreters. Zero code changes between them.
 
 | Constructor | Meaning | Java Record |
 |------------|---------|-------------|
-| `Pure(a)` | Finished -- holds result `a` | `Free.Pure<F, A>` |
+| `Pure(a)` | Finished: holds result `a` | `Free.Pure<F, A>` |
 | `Suspend(fa)` | One instruction `fa` of type `F<A>` | `Free.Suspend<F, A>` |
 | `FlatMapped(sub, fn)` | Sequenced: run `sub`, then apply `fn` to continue | `Free.FlatMapped<F, B, A>` |
 
@@ -239,7 +239,7 @@ Java cannot infer the functor type `F` when chaining on `Free.pure()`:
 Free.pure(2).map(x -> x * 2);  // COMPILE ERROR: cannot infer F
 
 FreeFactory<IdKind.Witness> FREE = FreeFactory.of();
-FREE.pure(2).map(x -> x * 2);  // Works -- F is captured once
+FREE.pure(2).map(x -> x * 2);  // Works: F is captured once
 ```
 
 ---

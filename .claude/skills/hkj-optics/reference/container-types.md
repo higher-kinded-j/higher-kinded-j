@@ -121,7 +121,7 @@ TraversalPath<AssetClass, Position> traversal = positions.each(
     EachInstances.fromIterableCollecting(list -> Lists.immutable.ofAll(list)));
 ```
 
-Navigator generation handles `ZERO_OR_MORE` automatically -- navigator methods return `TraversalPath` without manual widening.
+Navigator generation handles `ZERO_OR_MORE` automatically: navigator methods return `TraversalPath` without manual widening.
 
 ## Registering Custom Container Types (TraversableGenerator SPI)
 

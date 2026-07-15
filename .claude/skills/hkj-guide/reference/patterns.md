@@ -59,7 +59,7 @@ public Maybe<User> findById(String id) {
     return Maybe.fromOptional(jdbcTemplate.queryForOptional("SELECT...", id));
 }
 
-// Service -- converts at the boundary
+// Service: converts at the boundary
 public EitherPath<UserError, User> getById(String id) {
     return Path.maybe(repository.findById(id))
         .toEitherPath(() -> new UserError.NotFound(id));
@@ -95,7 +95,7 @@ public EitherPath<ConfigError, Config> loadConfig() {
 
 ### Resource Management
 
-Acquire, use, release -- cleanup runs via `ensuring` regardless of outcome.
+Acquire, use, release. Cleanup runs via `ensuring` regardless of outcome.
 
 ```java
 public IOPath<Result> withConnection(Function<Connection, Result> action) {
