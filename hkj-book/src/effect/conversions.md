@@ -48,6 +48,18 @@ The Path API supports rich conversions between all path types. Some conversions 
 │                                                                                  │
 │    TryPath ─────── toValidationPath(mapper) ────────────────→ ValidationPath     │
 │                                                                                  │
+│  ASYNC TYPED-ERROR PATHS                                                         │
+│  ───────────────────────                                                         │
+│    VResultPath ─── toEitherPath() ──────────────────────────→ EitherPath         │
+│       │            (runs the task)                                               │
+│    VResultPath ─── toVTaskPath(errorToException) ───────────→ VTaskPath          │
+│                                                                                  │
+│  INCLUSIVE-OR                                                                    │
+│  ────────────                                                                    │
+│    EitherOrBoth ── toEitherDroppingWarnings() ──────────────→ Either             │
+│       │            toEitherFailingOnWarnings()                                   │
+│    EitherOrBoth ── toValidated() / toMaybe() ───────────────→ Validated / Maybe  │
+│                                                                                  │
 │  UTILITY PATHS                                                                   │
 │  ─────────────                                                                   │
 │    IdPath ←──────── toIdPath() / toMaybePath() ─────────────→ MaybePath          │

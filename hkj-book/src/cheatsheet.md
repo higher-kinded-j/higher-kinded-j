@@ -20,6 +20,7 @@
 | `EitherOrBothPath<L, A>` | Success with warnings | `Path.rightNel(v)`, `Path.bothNel(w, v)`, `Path.leftNel(e)` | `.run()` → `EitherOrBoth<L, A>` |
 | `IOPath<A>` | Deferred side effects | `Path.io(() -> ...)`, `Path.ioPure(v)` | `.unsafeRun()` → `A` |
 | `VTaskPath<A>` | Virtual threads | `Path.vtask(() -> ...)`, `Path.vtaskPure(v)` | `.unsafeRun()` → `A` |
+| `VResultPath<E, A>` | Virtual threads + typed error | `Path.vresultRight(v)`, `Path.vresultLeft(e)`, `Path.vresultDefer(() -> either)` | `.toEitherPath()` → `EitherPath<E, A>` |
 | `ReaderPath<R, A>` | Dependency injection | `Path.reader(r)`, `Path.ask()`, `Path.asks(fn)` | `.run(env)` → `A` |
 | `WriterPath<W, A>` | Logging, audit | `Path.writer(w, m)`, `Path.tell(log, m)` | `.run()` → `Writer<W, A>` |
 | `WithStatePath<S, A>` | Stateful computation | `Path.state(s)`, `Path.getState()` | `.run(initial)` → `(S, A)` |
@@ -159,6 +160,11 @@ import static org.higherkindedj.hkt.instances.Witnesses.*;
 | `TryPath<A>` | `MaybePath<A>` | `.toMaybePath()` |
 | `ValidationPath<E, A>` | `EitherPath<E, A>` | `.toEitherPath()` |
 | `ValidationPath<E, A>` | `MaybePath<A>` | `.toMaybePath()` |
+| `VResultPath<E, A>` | `EitherPath<E, A>` | `.toEitherPath()` (runs it) |
+| `VResultPath<E, A>` | `VTaskPath<A>` | `.toVTaskPath(errorToException)` |
+| `EitherOrBoth<L, R>` | `Either<L, R>` | `.toEitherDroppingWarnings()`, `.toEitherFailingOnWarnings()` |
+| `EitherOrBoth<L, R>` | `Validated<L, R>` | `.toValidated()` |
+| `EitherOrBoth<L, R>` | `Maybe<R>` | `.toMaybe()` |
 | `FocusPath<S, A>` | `MaybePath<A>` | `.toMaybePath()` |
 | `FocusPath<S, A>` | `EitherPath<E, A>` | `.toEitherPath(errorFn)` |
 | `AffinePath<S, A>` | `MaybePath<A>` | `.toMaybePath()` |

@@ -1,5 +1,10 @@
 # Multi-Edit and Sparse Updates
 
+~~~admonish example title="See Example Code"
+**The code on this page is [MultiEditBook.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/book/optics/MultiEditBook.java)** - the page includes it directly, so it is compiled and run by the build.
+~~~
+
+
 _Apply N independent edits at different paths in one reusable operation, including the sparse, all-errors-at-once REST `PATCH` shape._
 
 ~~~admonish info title="What You'll Learn"
@@ -15,17 +20,7 @@ _Apply N independent edits at different paths in one reusable operation, includi
 An optic edits one path at a time (`FocusPath.set`, `Setter.modify`). But the everyday case is applying **several** edits at once, the classic example being a REST `PATCH` that tidies the email, trims the SKU, and bumps the quantity. By hand that means threading the value through every step, guarding each optional field with an `if`, and (if you validate at all) throwing on the first bad field:
 
 ``` java
-Order updated = order;
-if (req.email() != null) {
-    updated = updated.withEmail(req.email().toLowerCase());        // thread the result...
-}
-if (req.sku() != null) {
-    updated = updated.withSku(req.sku().trim());                   // ...through every step
-}
-if (req.qtyDelta() != null) {
-    updated = updated.withQuantity(updated.quantity() + req.qtyDelta());
-}
-// And if the email was malformed? You throw on the first bad field and never see the rest.
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/optics/MultiEditBook.java:before}}
 ```
 
 Three pains recur: one `if` per optional field, the value re-threaded by hand at every step, and validation that stops at the first error instead of collecting them all.
@@ -50,12 +45,7 @@ Each `Edit` factory pairs an optic (a `FocusPath` or a `Setter`) with a value or
 ``` java
 import static org.higherkindedj.optics.edit.Edit.*;
 
-Update<Order> normalise = Edits.combine(
-    modify(EMAIL, String::toLowerCase),
-    modify(SKU,   String::trim));
-
-Order a = normalise.apply(orderA);
-Order b = normalise.andThen(applyDiscount).apply(orderB);   // Update composes further
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/optics/MultiEditBook.java:combine}}
 ```
 
 Only pure `Edit`s fit `combine`'s signature; a fallible edit is rejected **at compile time**, so validation failures can never be silently dropped.
@@ -67,8 +57,7 @@ Only pure `Edit`s fit `combine`'s signature; a fallible edit is rejected **at co
 The `…IfPresent` factories treat `null` as *absent*: the edit contributes the identity update, so a sparse request DTO lands one-to-one with no `if` ceremony:
 
 ``` java
-setIfPresent(ORDER_NUMBER, req.orderNumber())              // null -> no-op
-modifyIfPresent(QUANTITY, req.qtyDelta(), (delta, qty) -> qty + delta)
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/optics/MultiEditBook.java:sparse}}
 ```
 
 Each request field maps to exactly one slot; an absent field simply contributes nothing to the fold:
@@ -91,16 +80,10 @@ A sparse edit cannot *clear* a field: `setIfPresent(path, null)` means "no chang
 
 ## Validated PATCH: `Edits.accumulate`
 
-`parseIfPresent` parses the incoming value first, and `.at(label)` locates any failure, exactly as `FieldError.at` composes paths. The parser you hand it has exactly the shape of a [`ValidatedPrism`](validated_prism.md)'s `parse`: define the boundary once as a prism (gaining the total render-back and the round-trip laws) and pass `email::parse` here. `accumulate` validates **every** edit independently and reports **all** bad fields at once:
+`parseIfPresent` parses the incoming value first, and a generated path locates any failure **automatically** from its own label (`.at(label)` prepends further context, exactly as `FieldError.at` composes paths). The parser you hand it has exactly the shape of a [`ValidatedPrism`](validated_prism.md)'s `parse`: define the boundary once as a prism (gaining the total render-back and the round-trip laws) and pass `Email::parse` here. `accumulate` validates **every** edit independently and reports **all** bad fields at once:
 
 ``` java
-Validated<NonEmptyList<FieldError>, Order> updated =
-    Edits.accumulate(
-            setIfPresent(ORDER_NUMBER, req.orderNumber()),
-            parseIfPresent(EMAIL, req.email(), Email::parse).at("email"),
-            modifyIfPresent(QUANTITY, req.qtyDelta(), (delta, qty) -> qty + delta))
-        .apply(order);
-// Invalid(NEL[ "email: not an address" ]) — or Valid(order') with only the present fields changed
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/optics/MultiEditBook.java:accumulate}}
 ```
 
 Errors accumulate in edit order on the `NonEmptyList` channel, exactly like the [accumulating assembly](../monads/validated_assembly.md), but as a homogeneous fold, so there is **no arity ceiling**.

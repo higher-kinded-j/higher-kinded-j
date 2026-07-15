@@ -1,6 +1,11 @@
 # Accumulating Assembly:
 ## _Building a Record from N Validated Fields_
 
+~~~admonish example title="See Example Code"
+**The code on this page is [ValidatedAssemblyBook.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/book/monads/assembly/ValidatedAssemblyBook.java)** - the page includes it directly, so it is compiled and run by the build.
+~~~
+
+
 ~~~admonish info title="What You'll Learn"
 - Assembling a record from independently validated fields with `Validated.fields()` and `Validated.accumulate()`: every error reported at once, no `Semigroup` argument, no arity wall, no `Kind`
 - How `field(label, value)` attaches a path to each error, and how nesting composes paths (`address.zip`)
@@ -18,10 +23,7 @@
 [Validated](validated_monad.md) accumulates errors, and [NonEmptyList](nonemptylist_monad.md) gives the errors an honest carrier. But the everyday task (a request DTO becomes a domain aggregate; a raw config becomes a settings object) is assembling a record from N validated fields, and until now that meant choosing between:
 
 ```java
-// The HKT-generic form: capped at map5, and every call passes the Semigroup by hand.
-ValidatedMonad<List<String>> validatedMonad = Instances.validated(Semigroups.list());
-Kind<ValidatedKind.Witness<List<String>>, User> user =
-    validatedMonad.map3(nameKind, emailKind, ageKind, User::new);
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/monads/assembly/ValidatedAssemblyBook.java:hkt_generic}}
 ```
 
 - **An arity wall.** `map2..map5` stop at five fields; `zipWithAccum` is binary and `zipWith3Accum` ternary.
@@ -37,14 +39,7 @@ The staged assembly builder removes all three at once.
 `Validated.fields()` opens a labelled assembly over `NonEmptyList<FieldError>`. Each `field(label, value)` adds one validated field; `apply(...)` completes the assembly with a constructor reference or lambda of exactly the accumulated arity:
 
 ```java
-Validated<NonEmptyList<FieldError>, User> user =
-    Validated.fields()
-        .field("name", parseName(dto.name()))     // Validated<NonEmptyList<FieldError>, Name>
-        .field("email", parseEmail(dto.email()))
-        .field("age", parseAge(dto.age()))
-        .apply(User::new);                        // (Name, Email, Age) -> User
-
-// Invalid(NonEmptyList[email: not an email address, age: not a number]) - name was fine.
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/monads/assembly/ValidatedAssemblyBook.java:fields}}
 ```
 
 Three guarantees, all by construction:
@@ -60,17 +55,7 @@ A leaf validator creates unlabelled errors with `FieldError.of("message")`; the 
 Because `at()` *prepends*, assembling a sub-record under an outer label prefixes all its inner paths:
 
 ```java
-Validated<NonEmptyList<FieldError>, Address> address =
-    Validated.fields()
-        .field("street", parseStreet(raw.street()))
-        .field("zip", parseZip(raw.zip()))          // fails: "zip: not a postcode"
-        .apply(Address::new);
-
-Validated<NonEmptyList<FieldError>, Customer> customer =
-    Validated.fields()
-        .field("name", parseName(raw.name()))
-        .field("address", address)                  // prefixes: "address.zip: not a postcode"
-        .apply(Customer::new);
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/monads/assembly/ValidatedAssemblyBook.java:nesting}}
 ```
 
 This also doubles as the escape hatch for very wide records: `apply` overloads exist up to arity 16 (matching the shipped `Function3..Function16`); a record with more fields nests a sub-record per group, which usually improves the domain model anyway.
@@ -82,11 +67,7 @@ This also doubles as the escape hatch for very wide records: `apply` overloads e
 When your error type is not `FieldError`, `accumulate()` gives the same open-arity assembly for any payload `X`, carried as `NonEmptyList<X>`. Fields join with `and(value)`:
 
 ```java
-Validated<NonEmptyList<ConfigError>, Settings> settings =
-    Validated.accumulate()
-        .and(parseHost(raw.host()))
-        .and(parsePort(raw.port()))
-        .apply(Settings::new);
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/monads/assembly/ValidatedAssemblyBook.java:accumulate}}
 ```
 
 There is still no `Semigroup` argument: the carrier is fixed to `NonEmptyList`, and accumulation is concatenation.
@@ -111,12 +92,7 @@ The same two entry points exist on each carrier, so the assembly reads identical
 The tolerant flavour is the natural fit for lenient config parsing:
 
 ```java
-EitherOrBoth<NonEmptyList<String>, Config> cfg =
-    EitherOrBoth.accumulate()
-        .and(parsePortLenient(raw.port()))       // Both("port defaulted", 8080)
-        .and(parseTimeoutLenient(raw.timeout())) // Right(30)
-        .apply(Config::new);
-// Both(NonEmptyList[port defaulted], Config[port=8080, timeout=30])
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/monads/assembly/ValidatedAssemblyBook.java:eob_accumulate}}
 ```
 
 Under the hood every stage transition delegates to the existing accumulation primitives: `Validated.ap` with `NonEmptyList.semigroup()`, `ValidationPath.zipWithAccum`, and `EitherOrBoth.zipWithAccum`. The builder introduces no second accumulation mechanism.
@@ -128,15 +104,9 @@ Under the hood every stage transition delegates to the existing accumulation pri
 For records you own, the annotation processor generates a per-record companion that removes the three remaining failure modes of the hand-written chain: labels come from the component names (typo-proof, rename-safe), field order cannot be wrong (named, order-enforcing stage methods), and there is no arity ceiling (the generator emits exact arity, even past 16).
 
 ```java
-@GenerateAssembly
-record User(String name, String email, int age) {}
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/monads/assembly/ValidatedAssemblyBook.java:generated_spec}}
 
-Validated<NonEmptyList<FieldError>, User> user =
-    UserAssembly.fields()
-        .name(parseName(dto.name()))      // label "name" attached automatically
-        .email(parseEmail(dto.email()))
-        .age(parseAge(dto.age()))
-        .assemble();                       // canonical constructor baked in
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/monads/assembly/ValidatedAssemblyBook.java:generated_usage}}
 ```
 
 A component whose type is itself annotated accepts its sub-companion's result directly, and the outer component name prefixes the inner paths (`address.zip`). The companion lives in the record's package, named `<Record>Assembly`; for a nested record the enclosing simple names are joined (`Outer.Inner` gives `OuterInnerAssembly`). Under the hood the companion merges through the same `Validated.ap` / `NonEmptyList.semigroup()` primitives as the builder, so the two agree on every input. Generic records are not supported; use the hand-written `fields()` builder for records you cannot annotate.
@@ -158,10 +128,7 @@ A component whose type is itself annotated accepts its sub-companion's result di
 `hkj-test` ships `assertThatFieldError` alongside `assertThatValidated`:
 
 ```java
-assertThatFieldError(FieldError.of("not a postcode").at("zip").at("address"))
-    .hasPath("address.zip")
-    .hasSegments("address", "zip")
-    .hasMessageContaining("postcode");
+{{#include ../../../hkj-examples/src/test/java/org/higherkindedj/example/book/monads/assembly/ValidatedAssemblyBookTest.java:field_error}}
 ```
 ~~~
 
@@ -178,7 +145,7 @@ assertThatFieldError(FieldError.of("not a postcode").at("zip").at("address"))
 - [NonEmptyList](nonemptylist_monad.md): the error carrier the builder is fixed to
 - [EitherOrBoth](either_or_both_monad.md): the tolerant carrier
 - [ValidationPath](../effect/path_validation.md): the railway validation API
-- [Validated Prisms](../optics/validated_prism.md): a leaf parser with a faithful render-back *is* a `ValidatedPrism`: pass `vp::parse` to `field(label, ...)`. (`fields()` accumulates *siblings*; a prism's `andThen` short-circuits *nesting*.)
+- [Validated Prisms](../optics/validated_prism.md): a leaf parser with a faithful render-back *is* a `ValidatedPrism`: pass `vp.parse(raw)` to `field(label, ...)`. (`fields()` accumulates *siblings*; a prism's `andThen` short-circuits *nesting*.)
 - [Applicative](../functional/applicative.md): the `mapN` family for `Kind`-generic code
 - [Multi-Edit and Sparse Updates](../optics/multi_edit.md): the same all-errors-at-once model for *updating* existing values
 ~~~

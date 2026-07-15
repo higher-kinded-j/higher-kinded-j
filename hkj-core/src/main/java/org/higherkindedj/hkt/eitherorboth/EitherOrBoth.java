@@ -233,8 +233,10 @@ public sealed interface EitherOrBoth<L, R> extends EitherOrBothKind<L, R>, Eithe
    * @throws NullPointerException if {@code semigroup} or {@code mapper} is null
    * @throws org.higherkindedj.hkt.exception.KindUnwrapException if {@code mapper} returns null
    */
+  // ANCHOR: flatmap_signature
   default <R2> EitherOrBoth<L, R2> flatMap(
       Semigroup<L> semigroup, Function<? super R, ? extends EitherOrBoth<L, ? extends R2>> mapper) {
+    // ANCHOR_END: flatmap_signature
     Validation.function().require(semigroup, "semigroup", FLAT_MAP);
     Validation.function().require(mapper, "mapper", FLAT_MAP);
     return switch (this) {

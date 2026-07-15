@@ -1,5 +1,10 @@
 # Validated Prisms
 
+~~~admonish example title="See Example Code"
+**The code on this page is [ValidatedPrismBook.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/book/optics/ValidatedPrismBook.java)** - the page includes it directly, so it is compiled and run by the build.
+~~~
+
+
 _The smart-constructor optic: a `Prism` whose match says **why not**, and all the reasons at once._
 
 ~~~admonish info title="What You'll Learn"
@@ -32,17 +37,9 @@ In code:
 ``` java
 import org.higherkindedj.optics.validated.ValidatedPrism;
 
-ValidatedPrism<String, EmailAddress> email = ValidatedPrism.of(
-    EmailAddress::parse,      // String -> Validated<NonEmptyList<FieldError>, EmailAddress>
-    EmailAddress::value);     // EmailAddress -> String   (total)
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/optics/ValidatedPrismBook.java:prism}}
 
-Validated<NonEmptyList<FieldError>, EmailAddress> parsed = email.parse("  NOPE ");
-
-EmailAddress addr = /* a valid domain value */;
-String rendered = email.build(addr);              // always succeeds
-
-ValidationPath<NonEmptyList<FieldError>, EmailAddress> railway =
-    email.parsePath("ada@corp.example");
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/optics/ValidatedPrismBook.java:usage}}
 ```
 
 ---
@@ -91,9 +88,7 @@ Only compositions that preserve the **total build** yield a `ValidatedPrism`:
 A lawful validated boundary satisfies both round trips, verified with [`ValidatedPrismLaws`](../tooling/test_assertions.md) from `hkj-test`:
 
 ``` java
-ValidatedPrismLaws.assertValidatedPrismLaws(email, "ada@corp.example", "not-an-email");
-// parse-build: parse(build(a)) == Valid(a)
-// build-parse: parse(s) == Valid(a)  =>  build(a) == s   (no lossy parse-normalise)
+{{#include ../../../hkj-examples/src/test/java/org/higherkindedj/example/book/optics/ValidatedPrismBookLawsTest.java:laws}}
 ```
 
 The second law is the subtle one. If `build` changes the value as it renders (zero-padding a code, trimming whitespace), the round trip no longer holds. Keep all normalising in `parse`, and let `build` render the value faithfully.

@@ -155,6 +155,7 @@ with a `Monad` instance.
 | [`VResultPath<E, A>`](path_vresult.md) | `VTask<Either<E, A>>` | `E` (typed) | **Deferred** | Async work with a typed domain error |
 | [`VStreamPath<A>`](path_vstream.md) | `VStream<A>` | Via VTask | **Lazy pull** | Lazy streaming on virtual threads |
 | [`ValidationPath<E, A>`](path_validation.md) | `Validated<E, A>` | `E` (accumulated) | Immediate | Form validation |
+| [`EitherOrBothPath<L, A>`](path_either_or_both.md) | `EitherOrBoth<L, A>` | `L` (fatal, or non-fatal warnings alongside a value) | Immediate | Success that may carry warnings |
 | [`IdPath<A>`](path_id.md) | `Id<A>` | None (always succeeds) | Immediate | Pure values |
 | [`OptionalPath<A>`](path_optional.md) | `Optional<A>` | None (absence) | Immediate | Java stdlib bridge |
 | [`GenericPath<F, A>`](path_generic.md) | `Kind<F, A>` | Depends on monad | Depends | Custom monads |
@@ -181,6 +182,7 @@ These types handle failures with different strategies:
 - **[EitherPath](path_either.md)** - Typed errors, short-circuit on first failure
 - **[TryPath](path_try.md)** - Exception-based errors
 - **[ValidationPath](path_validation.md)** - Accumulate all errors
+- **[EitherOrBothPath](path_either_or_both.md)** - Success that can still carry non-fatal warnings
 
 ### Deferred Computation
 
