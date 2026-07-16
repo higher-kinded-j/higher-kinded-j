@@ -133,8 +133,8 @@ mavenPublishing {
 
   // POM details are defined once and inherited by all published submodules.
   pom {
-    name.set("Higher-Kinded-J")
-    description.set("Bringing Higher-Kinded Types to Java Functional Patterns - Core")
+    name.set("Higher-Kinded-J Core")
+    description.set("Core Higher-Kinded-J implementations: higher-kinded type simulations, monads and type classes, the Effect Path API, and optics for Java.")
     url.set("https://github.com/higher-kinded-j/higher-kinded-j")
 
     licenses {
