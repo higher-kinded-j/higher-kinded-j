@@ -47,6 +47,12 @@ HEAD_CLOSE_RE = re.compile(r"</head>", re.IGNORECASE)
 def page_url(base_url: str, book_dir: str, file_path: str) -> str:
     """Map a built HTML file to its canonical URL under ``base_url``."""
     rel = os.path.relpath(file_path, book_dir).replace(os.path.sep, "/")
+    # Canonicalise directory index pages to the clean directory URL
+    # (".../" rather than ".../index.html"), including the site root.
+    if rel == "index.html":
+        return base_url
+    if rel.endswith("/index.html"):
+        return base_url + rel[: -len("index.html")]
     return base_url + rel
 
 
@@ -78,13 +84,19 @@ def process_file(file_path: str, url: str) -> bool:
         content = fh.read()
     original = content
 
-    # 1. Rewrite og:url to the real page URL.
-    content = OG_URL_RE.sub(rf"\g<1>{url}\g<2>", content, count=1)
+    # HTML-escape the URL for use in attribute values. (The JSON-LD block below
+    # takes the raw URL - json.dumps handles its escaping.)
+    href = html.escape(url, quote=True)
+
+    # 1. Rewrite og:url to the real page URL. A function replacement avoids
+    #    re.sub interpreting backslashes / group refs in the URL, and needs no
+    #    manual escaping of the replacement text.
+    content = OG_URL_RE.sub(lambda m: m.group(1) + href + m.group(2), content, count=1)
 
     # 2 + 3. Inject canonical + TechArticle just before </head>, once.
     additions = []
     if not CANONICAL_RE.search(content):
-        additions.append(f'<link rel="canonical" href="{url}">')
+        additions.append(f'<link rel="canonical" href="{href}">')
     if TECHARTICLE_MARKER not in content:
         match = TITLE_RE.search(content)
         title = html.unescape(match.group(1).strip()) if match else "Higher-Kinded-J"
