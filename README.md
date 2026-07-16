@@ -177,12 +177,12 @@ You don't need to learn an esoteric functional library to feel the benefit. Each
 | Instead of… | Today you reach for | Higher-Kinded-J gives you |
 |-------------|---------------------|---------------------------|
 | Nested `Optional`, thrown exceptions, and validation that stops at the first error | the standard library | one railway vocabulary (`map` / `via` / `recover`) across absence, typed errors, async, and **accumulating** validation |
-| `Option` / `Either` / `Try` from **Vavr** | the FP library most Java developers know | the same core types **plus** higher-kinded abstraction, a full optics suite, monad transformers, and an effect system — built natively on modern Java (records, sealed types, virtual threads), where Vavr keeps a Java 8 foundation |
+| `Option` / `Either` / `Try` from **Vavr** | the FP library most Java developers know | the same core types **plus** higher-kinded abstraction, a full optics suite, monad transformers, and an effect system, built natively on modern Java (records, sealed types, virtual threads), where Vavr keeps a Java 8 foundation |
 | **MapStruct** / ModelMapper for DTO↔domain mapping | annotation-driven mappers | `@GenerateMapping` with a total `build` **and** an accumulating `parse` that reports every bad field, law-checked at compile time |
 | **Resilience4j** annotations for retry / circuit-breaker / bulkhead | AOP-style resilience | the same policies as composable path combinators (`withRetry` / `withCircuitBreaker` / `withBulkhead`) that treat a business `Left` as a value, never as a failure to retry |
-| Hand-written `wither` / copy-constructor updates on records | manual boilerplate | generated lenses, prisms, and traversals — the most comprehensive optics available for Java |
+| Hand-written `wither` / copy-constructor updates on records | manual boilerplate | generated lenses, prisms, and traversals: the most comprehensive optics available for Java |
 
-And unlike any of those tools, effects and data navigation speak **the same language** — the Effect-Optics bridge above is something no other Java library offers.
+And unlike any of those tools, effects and data navigation speak **the same language**: the Effect-Optics bridge above is something no other Java library offers.
 
 <details>
 <summary><strong>How the optics compare to other Java optics libraries</strong></summary>
@@ -243,7 +243,7 @@ Higher-Kinded-J also offers the most advanced optics implementation in the Java 
 | `VTaskPath<A>` | Virtual thread-based concurrency with Par combinators |
 | `VStreamPath<A>` | Lazy pull-based streaming on virtual threads |
 
-Each Path provides `map`, `via`, `run`, `recover`, and integration with the Focus DSL. The lazy carriers (`IOPath`, `VTaskPath`, `VResultPath`) additionally chain path-native resilience — `withRetry` / `withTimeout` / `withCircuitBreaker` / `withBulkhead` — that treats a business `Left` as a value, never as a failure to retry.
+Each Path provides `map`, `via`, `run`, `recover`, and integration with the Focus DSL. The lazy carriers (`IOPath`, `VTaskPath`, `VResultPath`) additionally chain path-native resilience (`withRetry` / `withTimeout` / `withCircuitBreaker` / `withBulkhead`) that treats a business `Left` as a value, never as a failure to retry.
 
 ### Optic Path Types
 
@@ -315,7 +315,7 @@ The hkj-spring-boot-starter requires Spring Boot 4.1.0 or later with Jackson 3.x
 
 ## How to Use This Library
 
-### Gradle -- With HKJ Plugin (Recommended)
+### Gradle: With HKJ Plugin (Recommended)
 
 ```gradle
 // build.gradle.kts
@@ -347,7 +347,7 @@ repositories {
 }
 ```
 
-### Maven -- With HKJ Plugin (Recommended)
+### Maven: With HKJ Plugin (Recommended)
 
 ```xml
 <build>
