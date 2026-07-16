@@ -8,4 +8,5 @@ Allow: /
 Sitemap: https://higher-kinded-j.github.io/latest/sitemap.xml
 
 # AI-friendly documentation
-# See: https://higher-kinded-j.github.io/latest/llms.txt
+# Concise index:   https://higher-kinded-j.github.io/latest/llms.txt
+# Full-text corpus: https://higher-kinded-j.github.io/llms-full.txt

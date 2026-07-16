@@ -193,6 +193,7 @@ dependencies {
 - Spring Boot: https://higher-kinded-j.github.io/latest/spring/spring_boot_integration.html
 - Testing (hkj-test): https://higher-kinded-j.github.io/latest/tooling/test_assertions.html
 - Examples: https://higher-kinded-j.github.io/latest/examples/ch_intro.html
+- Full documentation (single file): https://higher-kinded-j.github.io/llms-full.txt
 
 ## Source Code
 

@@ -143,6 +143,20 @@ jobs:
           HKJ_CHANGES_SINCE_LABEL: ${{ steps.baseline.outputs.since_label }}
         run: mdbook build
 
+      - name: Post-process SEO tags (og:url + canonical + per-page JSON-LD)
+        run: python .github/scripts/postprocess_seo.py
+        env:
+          MDBOOK_OUTPUT_DIR: ./${{ env.BOOK_ROOT_DIR }}/book
+          # Every deploy (latest and each vX.Y.Z) canonicalises to /latest/ so
+          # old versions consolidate ranking onto the current docs.
+          HKJ_CANONICAL_BASE: "https://higher-kinded-j.github.io/latest/"
+
+      - name: Generate llms-full.txt (full-text corpus for AI crawlers)
+        run: python .github/scripts/generate_llms_full.py
+        env:
+          MDBOOK_SRC_DIR: ./${{ env.BOOK_ROOT_DIR }}/src
+          MDBOOK_OUTPUT_DIR: ./${{ env.BOOK_ROOT_DIR }}/book
+
       - name: Generate Sitemap
         run: python .github/scripts/generate_sitemap.py
         env:
@@ -197,6 +211,12 @@ jobs:
           if [ -f "${{ env.BOOK_ROOT_DIR }}/book/llms.txt" ]; then
             cp ${{ env.BOOK_ROOT_DIR }}/book/llms.txt gh-pages-repo/llms.txt
             echo "llms.txt copied to root"
+          fi
+
+          # Copy llms-full.txt (full-text corpus) for AI discoverability
+          if [ -f "${{ env.BOOK_ROOT_DIR }}/book/llms-full.txt" ]; then
+            cp ${{ env.BOOK_ROOT_DIR }}/book/llms-full.txt gh-pages-repo/llms-full.txt
+            echo "llms-full.txt copied to root"
           fi
 
           # Copy social preview image to root for Open Graph meta tags
