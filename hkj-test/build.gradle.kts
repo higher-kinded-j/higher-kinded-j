@@ -103,5 +103,14 @@ mavenPublishing {
       developerConnection.set("scm:git:ssh://github.com/higher-kinded-j/higher-kinded-j.git")
       url.set("https://github.com/higher-kinded-j/higher-kinded-j")
     }
+    inceptionYear.set("2025")
+    organization {
+      name.set("The Higher-Kinded-J Team")
+      url.set("https://github.com/higher-kinded-j")
+    }
+    issueManagement {
+      system.set("GitHub")
+      url.set("https://github.com/higher-kinded-j/higher-kinded-j/issues")
+    }
   }
 }

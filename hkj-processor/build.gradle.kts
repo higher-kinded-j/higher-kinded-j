@@ -157,8 +157,8 @@ mavenPublishing {
 
     // POM details are defined once and inherited by all published submodules.
     pom {
-        name.set("Higher-Kinded-J")
-        description.set("Bringing Higher-Kinded Types to Java Functional Patterns - Annotation Processor")
+        name.set("Higher-Kinded-J Annotation Processor")
+        description.set("Annotation processor for Higher-Kinded-J that generates optics and data-mapping boilerplate for Java records and sealed interfaces.")
         url.set("https://github.com/higher-kinded-j/higher-kinded-j")
 
         licenses {
@@ -178,6 +178,15 @@ mavenPublishing {
             connection.set("scm:git:git://github.com/higher-kinded-j/higher-kinded-j.git")
             developerConnection.set("scm:git:ssh://github.com/higher-kinded-j/higher-kinded-j.git")
             url.set("https://github.com/higher-kinded-j/higher-kinded-j")
+        }
+        inceptionYear.set("2025")
+        organization {
+            name.set("The Higher-Kinded-J Team")
+            url.set("https://github.com/higher-kinded-j")
+        }
+        issueManagement {
+            system.set("GitHub")
+            url.set("https://github.com/higher-kinded-j/higher-kinded-j/issues")
         }
     }
 
