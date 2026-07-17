@@ -276,6 +276,12 @@
 - [Reference](reference_intro.md)
   - [More Functional Thinking](reading.md)
   - [Glossary](glossary.md)
+    - [Type System & HKT](glossary/type-system.md)
+    - [Type Classes](glossary/type-classes.md)
+    - [Data & Effect Types](glossary/data-effects.md)
+    - [Effect Paths & Handlers](glossary/effect-paths.md)
+    - [Optics & Mapping](glossary/optics.md)
+    - [Concurrency & Resilience](glossary/concurrency.md)
   - [Release History](release-history.md)
   - [Benchmarks & Performance](benchmarks.md)
 

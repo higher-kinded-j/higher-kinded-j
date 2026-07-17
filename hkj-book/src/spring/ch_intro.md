@@ -33,7 +33,7 @@ Spring.
     ┌─────────────────────────────────────────────────────────────┐
     │  EXCEPTION-BASED (Traditional)                              │
     │                                                             │
-    │    User getUser(String id)    ← What can go wrong?         │
+    │    User getUser(String id)    ← What can go wrong?          │
     │                                                             │
     │    @ExceptionHandler(UserNotFoundException.class)           │
     │    @ExceptionHandler(ValidationException.class)             │
@@ -44,7 +44,7 @@ Spring.
     ┌─────────────────────────────────────────────────────────────┐
     │  FUNCTIONAL (With hkj-spring)                               │
     │                                                             │
-    │    Either<DomainError, User> getUser(String id)            │
+    │    Either<DomainError, User> getUser(String id)             │
     │           ↑                                                 │
     │    Errors visible in the type signature                     │
     │                                                             │
@@ -56,7 +56,7 @@ Spring.
     ┌─────────────────────────────────────────────────────────────┐
     │  AND BACK AGAIN (With @HkjHttpClient)                       │
     │                                                             │
-    │    EitherPath<DomainError, User> getUser(String id)        │
+    │    EitherPath<DomainError, User> getUser(String id)         │
     │           ↑                                                 │
     │    A client call that keeps the typed error                 │
     │                                                             │

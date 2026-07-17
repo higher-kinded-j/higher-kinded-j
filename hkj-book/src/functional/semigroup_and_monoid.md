@@ -108,7 +108,8 @@ A `Monoid` is a type class for any data type that has an associative `combine` o
 
 This is known as the **identity law**. For any value `a`:
 
-`a.combine(empty())` must be equal to `a``empty().combine(a)` must be equal to `a`
+- `a.combine(empty())` must be equal to `a`
+- `empty().combine(a)` must be equal to `a`
 
 The interface for `Monoid` in `hkj-api` extends `Semigroup`:
 

@@ -16,7 +16,7 @@
 The `Const` type is a constant functor that holds a value of type `C` whilst treating `A` as a **phantom type parameter**: a type that exists only in the type signature but has no runtime representation. This seemingly simple property unlocks powerful patterns for accumulating values, implementing efficient folds, and building compositional getters in the style of van Laarhoven lenses.
 
 ~~~admonish note
-New to phantom types? See the [Glossary](../glossary.md#phantom-type) for a detailed explanation with Java-focused examples, or continue reading for practical demonstrations.
+New to phantom types? See the [Glossary](../glossary/type-system.md#phantom-type) for a detailed explanation with Java-focused examples, or continue reading for practical demonstrations.
 ~~~
 
 ---

@@ -211,4 +211,4 @@ See [Benchmarks & Performance](../benchmarks.md) for full details.
 ---
 
 **Previous:** [Lazy](lazy_monad.md)
-**Next:** [Maybe](maybe_monad.md)
+**Next:** [NonEmptyList](nonemptylist_monad.md)

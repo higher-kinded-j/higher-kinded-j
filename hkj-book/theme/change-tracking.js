@@ -169,7 +169,19 @@
     blocks[0].parentNode.insertBefore(wrapper, blocks[0]);
     // Remove markers first so they don't get pulled into the wrapper.
     run.forEach(function (e) { if (e.mark.parentNode) e.mark.remove(); });
-    blocks.forEach(function (block) { wrapper.appendChild(block); });
+    // Move the contiguous DOM range from the first block to the last, inclusive.
+    // Cherry-picking only the marked blocks would strand any unmarked element
+    // rendered between them - e.g. an h2 subtitle whose preceding h1 shares its
+    // marker (title and subtitle are one markdown block) - leaving it behind as
+    // the last sibling, visible as an orphaned heading at the foot of the page.
+    var lastBlock = blocks[blocks.length - 1];
+    var node = blocks[0];
+    while (node) {
+      var next = node.nextSibling;
+      wrapper.appendChild(node);
+      if (node === lastBlock) break;
+      node = next;
+    }
 
     // Underline changed words per modified block.
     run.forEach(function (entry) {
