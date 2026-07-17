@@ -3,7 +3,7 @@
 This page documents the evolution of Higher-Kinded-J from its initial release through to the current version. Each release builds on the foundations established by earlier versions, progressively adding type classes, monads, optics, and the Effect Path API.
 
 ~~~admonish info title="What You'll Find"
-- Detailed release notes for recent versions (0.3.0–0.4.8) with links to documentation
+- Detailed release notes for recent versions (0.3.0–0.4.9) with links to documentation
 - Summary release notes for earlier versions (pre-0.3.0)
 - Links to GitHub release pages for full changelogs
 ~~~
@@ -12,7 +12,13 @@ This page documents the evolution of Higher-Kinded-J from its initial release th
 
 ## Recent Releases
 
-### 0.4.8-SNAPSHOT (Latest)
+### 0.4.9-SNAPSHOT (Latest)
+
+_In development. Release notes will be added here as changes land on `main`._
+
+---
+
+### [v0.4.8](https://github.com/higher-kinded-j/higher-kinded-j/releases/tag/v0.4.8) (17 July 2026)
 
 **Async, Typed Errors, and Resilience**
 
