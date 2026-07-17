@@ -12,7 +12,7 @@ This page documents the evolution of Higher-Kinded-J from its initial release th
 
 ## Recent Releases
 
-### 0.4.8-SNAPSHOT (Latest)
+### [v0.4.8](https://github.com/higher-kinded-j/higher-kinded-j/releases/tag/v0.4.8) (17 July 2026)
 
 **Async, Typed Errors, and Resilience**
 
