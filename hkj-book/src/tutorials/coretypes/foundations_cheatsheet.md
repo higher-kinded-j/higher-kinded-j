@@ -104,7 +104,7 @@ Same shape for `LIST`/`MAYBE`/`VALIDATED`/`OPTIONAL`/`FUTURE`/etc. Once we know 
                                                                                │
    .modify(spec::validateAndCoerce)             .flatMap(repo::save);          │
    └── Functor (under the optic) ───┐           └── Monad ─────────────────────┘
-       Tutorial 02                   │               Tutorial 04
+       Tutorial 02                  │               Tutorial 04
                                     │
                                     └── Type class instance dispatched at compile time
                                         EitherFunctor / EitherMonad

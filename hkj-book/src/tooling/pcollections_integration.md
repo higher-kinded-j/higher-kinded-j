@@ -14,15 +14,16 @@ compatibility makes PCollections a particularly easy fit for Higher-Kinded-J: an
 `PStack` can be widened directly into the existing `ListKind` and processed through `ListMonad`,
 `ListTraverse`, and `ListSelective` with no production code changes.
 
-This page describes the Phase 1 integration: a purely additive set of tests, benchmarks, and
+This page describes the core integration: a purely additive set of tests, benchmarks, and
 documentation that validate the compatibility hypothesis. No new HKT types or instances are
-introduced. Phase 2 adds optics generator plugins for `PVector`, `PStack`, `PSet`, `PBag`, and
-`PMap`; Phase 3 adds dedicated `Kind`/`Witness` types so persistent collections survive the entire
-HKT pipeline.
+introduced. Optics support goes further, with [generator plugins](pcollections_optics.md) for
+`PVector`, `PStack`, `PSet`, `PBag`, and `PMap`. One caveat remains, covered below: transformations
+do not preserve the persistent type through the entire HKT pipeline, because there are no dedicated
+`Kind`/`Witness` types for it.
 
 ---
 
-## What's in Phase 1
+## What's Included
 
 | Artefact | Location |
 |----------|----------|
@@ -36,7 +37,7 @@ HKT pipeline.
 
 ## Adding PCollections to a Project That Already Uses Higher-Kinded-J
 
-PCollections is not a transitive dependency of `hkj-core`. Phase 1 wires it in only as a
+PCollections is not a transitive dependency of `hkj-core`. It is wired in only as a
 `testImplementation`. Application code that wants to use the integration must add it explicitly:
 
 ```kotlin
@@ -77,7 +78,7 @@ widen/narrow boundary is structural rather than nominal.
 
 ---
 
-## Phase 1 Caveat: Persistent Type Is Not Preserved End-to-End
+## Caveat: Persistent Type Is Not Preserved End-to-End
 
 `ListMonad.of` and the standard `map`/`flatMap` implementations produce `java.util.List`
 instances internally, typically `Collections.singletonList` or a fresh `ArrayList`. That means a
@@ -91,7 +92,8 @@ List<Integer> narrowed = LIST.narrow(out); // not a PVector anymore
 
 returns a JDK list, not a `PVector`. Round-tripping a `PVector` without any operation preserves
 the underlying instance (`narrowed == in`); only transformations widen back to `java.util.List`.
-Preserving the persistent type through the entire HKT pipeline is the goal of Phase 3.
+Preserving the persistent type through the entire HKT pipeline would require dedicated
+`Kind`/`Witness` types, which the integration does not currently provide.
 
 ---
 
@@ -168,12 +170,12 @@ laws hold for `PVector` widened through `ListKind`:
 * **The widen/narrow boundary is free**, with no defensive copying in either direction
 * **PCollections pays a 2 to 3 times iteration tax** on `map`, `flatMap`, and `foldMap` compared to `ArrayList`
 * **The tax shrinks for richer operations**: `traverse` is only 30% slower because per-element applicative work dominates
-* **Operations return `java.util.List`**, not the original persistent type. Phase 3 is where end-to-end type preservation lands
+* **Operations return `java.util.List`**, not the original persistent type; preserving it end-to-end is not currently supported
 ~~~
 
 ~~~admonish tip title="See Also"
 - [Benchmarks and Performance](../benchmarks.md) - The full benchmark suite and how to read its output
-- [Traversal Generator Plugins](generator_plugins.md) - Phase 2 adds PCollections support to `@GenerateTraversals`
+- [Traversal Generator Plugins](generator_plugins.md) - PCollections support for `@GenerateTraversals`
 - [List Type Class Instances](../monads/list_monad.md) - The instances PCollections piggy-backs on
 ~~~
 

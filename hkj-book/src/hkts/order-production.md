@@ -54,7 +54,7 @@ public EitherPath<OrderError, OrderResult> process(OrderRequest request) {
 Granularity matters: payment is **not** idempotent, so wrapping the *entire* workflow in retry
 could re-run a charge that already succeeded and double-bill the customer. Retry is confined to the
 safe pre-flight reads; the commit runs once. (Per-step refund-on-failure compensation across
-reserve → pay → ship would use a `Saga`: see the future-work draft issues.)
+reserve → pay → ship would use a `Saga`.)
 
 Note the eager/lazy split: `EitherPath.withTimeout` is *static* and takes the step as a `Supplier`, because `EitherPath` is eager: resilience must wrap the computation before it runs. The `toEitherPath` helper runs the `IOPath` and lands any thrown failure on the typed channel as an `OrderError.SystemError`, so by the time the timeout wrapper sees the outcome, everything except the timeout itself is already a `Left`.
 

@@ -9,7 +9,7 @@
 
 [PCollections](https://pcollections.org/) persistent collections are first-class citizens of the optics generator system. Annotating a record whose components are `PVector`, `PStack`, `PSet`, `PSortedSet`, `PBag`, `PMap`, or `PSortedMap` produces traversal code that round-trips through the persistent type, with no production-code changes required.
 
-This page documents the seven PCollections generator plugins added in Phase 2 of the integration. For the underlying compatibility hypothesis and benchmark numbers, see [PCollections Integration](pcollections_integration.md).
+This page documents the seven PCollections generator plugins. For the underlying compatibility hypothesis and benchmark numbers, see [PCollections Integration](pcollections_integration.md).
 
 ---
 
@@ -132,7 +132,7 @@ For projects already on Eclipse Collections or Vavr, those existing generators r
 
 ~~~admonish tip title="See Also"
 - [Traversal Generator Plugins](generator_plugins.md) - The full SPI catalogue and architecture
-- [PCollections Integration](pcollections_integration.md) - Phase 1 compatibility tests, benchmarks, and the underlying `ListKind` story
+- [PCollections Integration](pcollections_integration.md) - compatibility tests, benchmarks, and the underlying `ListKind` story
 - [Focus DSL](../optics/focus_dsl.md) - Composing generated traversals into navigators
 ~~~
 

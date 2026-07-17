@@ -161,10 +161,10 @@ You don't need to learn an esoteric functional library to feel the benefit. Each
 | Instead of… | Today you reach for | Higher-Kinded-J gives you |
 |-------------|---------------------|---------------------------|
 | Nested `Optional`, thrown exceptions, and validation that stops at the first error | the standard library | one railway vocabulary (`map` / `via` / `recover`) across absence, typed errors, async, and **accumulating** validation |
-| `Option` / `Either` / `Try` from **Vavr** | the FP library most Java developers know | the same core types **plus** higher-kinded abstraction, a full optics suite, monad transformers, and an effect system — built natively on modern Java (records, sealed types, virtual threads), where Vavr keeps a Java 8 foundation |
+| `Option` / `Either` / `Try` from **Vavr** | the FP library most Java developers know | the same core types **plus** higher-kinded abstraction, a full optics suite, monad transformers, and an effect system, built natively on modern Java (records, sealed types, virtual threads), where Vavr keeps a Java 8 foundation |
 | **MapStruct** / ModelMapper for DTO↔domain mapping | annotation-driven mappers | `@GenerateMapping` with a total `build` **and** an accumulating `parse` that reports every bad field, law-checked at compile time |
 | **Resilience4j** annotations for retry / circuit-breaker / bulkhead | AOP-style resilience | the same policies as composable path combinators (`withRetry` / `withCircuitBreaker` / `withBulkhead`) that treat a business `Left` as a value, never as a failure to retry |
-| Hand-written `wither` / copy-constructor updates on records | manual boilerplate | generated lenses, prisms, and traversals — the most comprehensive optics available for Java |
+| Hand-written `wither` / copy-constructor updates on records | manual boilerplate | generated lenses, prisms, and traversals: the most comprehensive optics available for Java |
 
 And unlike any of those tools, effects and data navigation speak **the same language**: the [Effect-Optics bridge](#the-bridge-effects-meet-optics) above is something no other Java library offers.
 
@@ -223,7 +223,7 @@ Higher-Kinded-J also offers the most advanced optics implementation in the Java 
 | `VTaskPath<A>` | Virtual thread-based concurrency with Par combinators |
 | `VStreamPath<A>` | Lazy pull-based streaming on virtual threads |
 
-Each Path wraps its underlying effect and provides `map`, `via`, `run`, `recover`, and integration with the Focus DSL. The lazy carriers (`IOPath`, `VTaskPath`, `VResultPath`) additionally chain **[path-native resilience](resilience/ch_intro.md)** — `withRetry` / `withTimeout` / `withCircuitBreaker` / `withBulkhead` — that treats a business `Left` as a value, never as a failure to retry.
+Each Path wraps its underlying effect and provides `map`, `via`, `run`, `recover`, and integration with the Focus DSL. The lazy carriers (`IOPath`, `VTaskPath`, `VResultPath`) additionally chain **[path-native resilience](resilience/ch_intro.md)** (`withRetry` / `withTimeout` / `withCircuitBreaker` / `withBulkhead`) that treats a business `Left` as a value, never as a failure to retry.
 
 ---
 
@@ -333,7 +333,7 @@ If you want working code immediately, start with the **[Quickstart](quickstart.m
 2. **[Core Paths](effect/effect_path_overview.md):** The railway model, the six core path types, composition, and basic ForPath comprehensions
 3. **[Optics Integration](effect/focus_integration.md):** Bridging Effect Paths with the Focus DSL
 4. **[Advanced Paths](effect/advanced_topics.md):** Free monads, effect handlers, contexts, ForPath parallelism, and resilience
-5. **[Reference](effect/capabilities.md):** Capability typeclasses, type conversions, compiler errors, and production readiness
+5. **[Reference](effect/capabilities.md):** Capability type classes, type conversions, compiler errors, and production readiness
 
 ### Monad Transformers
 For the cases where the Path API does not fit (a different outer monad, polymorphic library code, or integrating with raw `Kind` shapes).

@@ -234,7 +234,7 @@ This is equivalent to manually composing `traversal` with `lens.asTraversal()`, 
 
 ```
 +-------------------------------------------------------------------+
-|                    ForState Traversal Operations                   |
+|                   ForState Traversal Operations                   |
 +-------------------------------------------------------------------+
 |                                                                   |
 |  traverseOver(traversal, f)    modifyThrough(traversal, modifier) |
