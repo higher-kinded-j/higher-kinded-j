@@ -112,25 +112,56 @@ sealed interface WireShape permits WireShape.RecordShape, WireShape.BeanShape {
   }
 
   /**
-   * One bean property: its (decapitalised) name, type, the getter that reads it and the setter that
-   * writes it. A slice-B property has both — the canonical mutable JavaBean shape.
+   * One bean property: its (decapitalised) name, type, the getter that reads it and the {@link
+   * WriteSite} that writes it (a setter, a builder setter, or a JAXB collection getter).
    */
-  record BeanProperty(String name, TypeMirror type, String getter, String setter) {
+  record BeanProperty(String name, TypeMirror type, String getter, WriteSite write) {
 
     WireComponent asWireComponent() {
       return new WireComponent(name, type, getter);
     }
   }
 
+  /** How a single bean property is written into a target (a bean instance or a builder). */
+  sealed interface WriteSite permits WriteSite.Setter, WriteSite.CollectionAdd {
+
+    /**
+     * A statement writing {@code value} into {@code receiver} (the bean {@code wire} or builder).
+     */
+    CodeBlock write(String receiver, CodeBlock value);
+
+    /** {@code receiver.setX(value)} — a setter or, in a builder frame, a builder setter. */
+    record Setter(String method) implements WriteSite {
+      @Override
+      public CodeBlock write(String receiver, CodeBlock value) {
+        return CodeBlock.of("$L.$L($L)", receiver, method, value);
+      }
+    }
+
+    /** {@code receiver.getX().addAll(value)} — the JAXB collection-getter convention. */
+    record CollectionAdd(String getter) implements WriteSite {
+      @Override
+      public CodeBlock write(String receiver, CodeBlock value) {
+        return CodeBlock.of("$L.$L().addAll($L)", receiver, getter, value);
+      }
+    }
+  }
+
   /** How a bean value is constructed from its per-property build expressions. */
-  sealed interface ConstructionStrategy permits ConstructionStrategy.NoArgsSetters {
+  sealed interface ConstructionStrategy
+      permits ConstructionStrategy.NoArgsSetters, ConstructionStrategy.Builder {
 
     CodeBlock buildStatements(
         TypeName wireType,
         List<BeanProperty> properties,
         Function<WireComponent, CodeBlock> valueFor);
 
-    /** Public no-args constructor plus setters: {@code var w = new W(); w.setX(...); return w;}. */
+    /**
+     * Public no-args constructor plus per-property writes: {@code var w = new W(); w.setX(...);
+     * return w;}. A property may write through a setter or, for a getter-only {@code List}, the
+     * JAXB collection-getter convention ({@code w.getItems().addAll(...)}), which assumes the
+     * getter returns a mutable, live list.
+     */
     record NoArgsSetters() implements ConstructionStrategy {
 
       @Override
@@ -142,9 +173,32 @@ sealed interface WireShape permits WireShape.RecordShape, WireShape.BeanShape {
         body.addStatement("$T wire = new $T()", wireType, wireType);
         for (BeanProperty property : properties) {
           body.addStatement(
-              "wire.$L($L)", property.setter(), valueFor.apply(property.asWireComponent()));
+              "$L", property.write().write("wire", valueFor.apply(property.asWireComponent())));
         }
         body.addStatement("return wire");
+        return body.build();
+      }
+    }
+
+    /**
+     * A builder: {@code var b = W.builder(); b.name(...); return b.build();}. {@code factory} is
+     * the static builder factory ({@code builder} or {@code newBuilder}) and {@code buildMethod}
+     * the builder's terminal method; each property writes through its builder setter.
+     */
+    record Builder(String factory, String buildMethod) implements ConstructionStrategy {
+
+      @Override
+      public CodeBlock buildStatements(
+          TypeName wireType,
+          List<BeanProperty> properties,
+          Function<WireComponent, CodeBlock> valueFor) {
+        CodeBlock.Builder body = CodeBlock.builder();
+        body.addStatement("var b = $T.$L()", wireType, factory);
+        for (BeanProperty property : properties) {
+          body.addStatement(
+              "$L", property.write().write("b", valueFor.apply(property.asWireComponent())));
+        }
+        body.addStatement("return b.$L()", buildMethod);
         return body.build();
       }
     }

@@ -2718,8 +2718,7 @@ class MappingProcessorTest {
                   "public interface HalfMapping extends MappingSpec<Records.D, String> {}"));
       assertThat(compilation).failed();
       assertThat(compilation).hadErrorContaining("'String' is not a usable bean-shaped wire");
-      assertThat(compilation)
-          .hadErrorContaining("public no-args constructor and at least one getter/setter property");
+      assertThat(compilation).hadErrorContaining("no construction strategy fits it");
     }
 
     @Test

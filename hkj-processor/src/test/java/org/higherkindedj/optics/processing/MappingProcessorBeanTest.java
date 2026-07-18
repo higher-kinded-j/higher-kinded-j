@@ -565,6 +565,254 @@ class MappingProcessorBeanTest {
   }
 
   @Nested
+  @DisplayName("Builder and collection strategies")
+  class BuilderAndCollection {
+
+    @Test
+    @DisplayName("a Lombok-style bean builds through builder() and property-named setters")
+    void lombokStyleBuilder() {
+      JavaFileObject domain =
+          JavaFileObjects.forSourceString(
+              "com.example.Point",
+              """
+              package com.example;
+
+              public record Point(int x, String label) {}
+              """);
+      // An immutable bean: no setters, no no-args constructor, only a builder.
+      JavaFileObject wire =
+          JavaFileObjects.forSourceString(
+              "com.example.PointDto",
+              """
+              package com.example;
+
+              public final class PointDto {
+                private final int x;
+                private final String label;
+                private PointDto(int x, String label) { this.x = x; this.label = label; }
+                public int getX() { return x; }
+                public String getLabel() { return label; }
+                public static Builder builder() { return new Builder(); }
+                public static final class Builder {
+                  private int x;
+                  private String label;
+                  public Builder x(int x) { this.x = x; return this; }
+                  public Builder label(String label) { this.label = label; return this; }
+                  public PointDto build() { return new PointDto(x, label); }
+                }
+              }
+              """);
+      JavaFileObject spec =
+          JavaFileObjects.forSourceString(
+              "com.example.PointMapping",
+              """
+              package com.example;
+
+              import org.higherkindedj.optics.annotations.GenerateMapping;
+              import org.higherkindedj.optics.annotations.MappingSpec;
+
+              @GenerateMapping
+              public interface PointMapping extends MappingSpec<Point, PointDto> {}
+              """);
+
+      Compilation compilation = compile(domain, wire, spec);
+      assertThat(compilation).succeeded();
+      String generated = generatedSource(compilation, "com.example.PointMappingImpl");
+      Assertions.assertThat(generated)
+          .contains("var b = PointDto.builder();")
+          .contains("b.x(domain.x());")
+          .contains("b.label(domain.label());")
+          .contains("return b.build();")
+          .contains(".field(\"label\", ifPresent(wire.getLabel(), Validated::validNel))");
+
+      var result = new RuntimeCompilationHelper.CompiledResult(compilation);
+      try {
+        Object impl =
+            result.loadClass("com.example.PointMappingImpl").getField("INSTANCE").get(null);
+        Object point = result.newInstance("com.example.Point", 3, "origin");
+        Object dto = invoke(impl, "build", point);
+        Assertions.assertThat(invoke(dto, "getX")).isEqualTo(3);
+        Assertions.assertThat(invoke(dto, "getLabel")).isEqualTo("origin");
+
+        @SuppressWarnings("unchecked")
+        Validated<NonEmptyList<FieldError>, Object> parsed =
+            (Validated<NonEmptyList<FieldError>, Object>) invoke(impl, "parse", dto);
+        Assertions.assertThat(parsed.get()).isEqualTo(point);
+      } catch (ReflectiveOperationException e) {
+        throw new AssertionError(e);
+      }
+    }
+
+    @Test
+    @DisplayName("a protobuf-style bean builds through newBuilder() and setX setters")
+    void protobufStyleBuilder() {
+      JavaFileObject domain =
+          JavaFileObjects.forSourceString(
+              "com.example.Msg",
+              """
+              package com.example;
+
+              public record Msg(String subject) {}
+              """);
+      JavaFileObject wire =
+          JavaFileObjects.forSourceString(
+              "com.example.MsgProto",
+              """
+              package com.example;
+
+              public final class MsgProto {
+                private final String subject;
+                private MsgProto(String subject) { this.subject = subject; }
+                public String getSubject() { return subject; }
+                public static Builder newBuilder() { return new Builder(); }
+                public static final class Builder {
+                  private String subject;
+                  public Builder setSubject(String subject) { this.subject = subject; return this; }
+                  public MsgProto build() { return new MsgProto(subject); }
+                }
+              }
+              """);
+      JavaFileObject spec =
+          JavaFileObjects.forSourceString(
+              "com.example.MsgMapping",
+              """
+              package com.example;
+
+              import org.higherkindedj.optics.annotations.GenerateMapping;
+              import org.higherkindedj.optics.annotations.MappingSpec;
+
+              @GenerateMapping
+              public interface MsgMapping extends MappingSpec<Msg, MsgProto> {}
+              """);
+
+      Compilation compilation = compile(domain, wire, spec);
+      assertThat(compilation).succeeded();
+      String generated = generatedSource(compilation, "com.example.MsgMappingImpl");
+      Assertions.assertThat(generated)
+          .contains("var b = MsgProto.newBuilder();")
+          .contains("b.setSubject(domain.subject());")
+          .contains("return b.build();");
+    }
+
+    @Test
+    @DisplayName("a JAXB-style getter-only List is filled via getX().addAll(...)")
+    void jaxbCollectionGetter() {
+      JavaFileObject domain =
+          JavaFileObjects.forSourceString(
+              "com.example.Doc",
+              """
+              package com.example;
+
+              import java.util.List;
+
+              public record Doc(String title, List<String> tags) {}
+              """);
+      // JAXB convention: the List has a getter that lazily returns a live mutable list, no setter.
+      JavaFileObject wire =
+          JavaFileObjects.forSourceString(
+              "com.example.DocDto",
+              """
+              package com.example;
+
+              import java.util.ArrayList;
+              import java.util.List;
+
+              public class DocDto {
+                private String title;
+                private List<String> tags;
+                public String getTitle() { return title; }
+                public void setTitle(String title) { this.title = title; }
+                public List<String> getTags() {
+                  if (tags == null) { tags = new ArrayList<>(); }
+                  return tags;
+                }
+              }
+              """);
+      JavaFileObject spec =
+          JavaFileObjects.forSourceString(
+              "com.example.DocMapping",
+              """
+              package com.example;
+
+              import org.higherkindedj.optics.annotations.GenerateMapping;
+              import org.higherkindedj.optics.annotations.MappingSpec;
+
+              @GenerateMapping
+              public interface DocMapping extends MappingSpec<Doc, DocDto> {}
+              """);
+
+      Compilation compilation = compile(domain, wire, spec);
+      assertThat(compilation).succeeded();
+      String generated = generatedSource(compilation, "com.example.DocMappingImpl");
+      Assertions.assertThat(generated)
+          .contains("wire.setTitle(domain.title());")
+          .contains("wire.getTags().addAll(domain.tags());")
+          .contains(".field(\"tags\", ifPresent(wire.getTags(), Validated::validNel))");
+
+      var result = new RuntimeCompilationHelper.CompiledResult(compilation);
+      try {
+        Object impl = result.loadClass("com.example.DocMappingImpl").getField("INSTANCE").get(null);
+        Object doc =
+            result
+                .loadClass("com.example.Doc")
+                .getDeclaredConstructor(String.class, List.class)
+                .newInstance("spec", List.of("a", "b"));
+        Object dto = invoke(impl, "build", doc);
+        Assertions.assertThat((List<?>) invoke(dto, "getTags")).isEqualTo(List.of("a", "b"));
+
+        @SuppressWarnings("unchecked")
+        Validated<NonEmptyList<FieldError>, Object> parsed =
+            (Validated<NonEmptyList<FieldError>, Object>) invoke(impl, "parse", dto);
+        Assertions.assertThat(parsed.get()).isEqualTo(doc);
+      } catch (ReflectiveOperationException e) {
+        throw new AssertionError(e);
+      }
+    }
+
+    @Test
+    @DisplayName("a fluent setter (returning the bean) is accepted")
+    void fluentSetter() {
+      JavaFileObject domain =
+          JavaFileObjects.forSourceString(
+              "com.example.Tag",
+              """
+              package com.example;
+
+              public record Tag(String value) {}
+              """);
+      JavaFileObject wire =
+          JavaFileObjects.forSourceString(
+              "com.example.TagDto",
+              """
+              package com.example;
+
+              public class TagDto {
+                private String value;
+                public String getValue() { return value; }
+                public TagDto setValue(String value) { this.value = value; return this; }
+              }
+              """);
+      JavaFileObject spec =
+          JavaFileObjects.forSourceString(
+              "com.example.TagMapping",
+              """
+              package com.example;
+
+              import org.higherkindedj.optics.annotations.GenerateMapping;
+              import org.higherkindedj.optics.annotations.MappingSpec;
+
+              @GenerateMapping
+              public interface TagMapping extends MappingSpec<Tag, TagDto> {}
+              """);
+
+      Compilation compilation = compile(domain, wire, spec);
+      assertThat(compilation).succeeded();
+      String generated = generatedSource(compilation, "com.example.TagMappingImpl");
+      Assertions.assertThat(generated).contains("wire.setValue(domain.value());");
+    }
+  }
+
+  @Nested
   @DisplayName("Diagnostics")
   class Diagnostics {
 
@@ -609,14 +857,14 @@ class MappingProcessorBeanTest {
           compile(D, wire, spec("public interface M extends MappingSpec<D, WDto> {}"));
       assertThat(compilation).failed();
       assertThat(compilation)
-          .hadErrorContaining(
-              "bean property 'a' on 'WDto' has a getter and setter of different types");
-      assertThat(compilation).hadErrorContaining("Align the getter and setter types on the bean");
+          .hadErrorContaining("bean property 'a' on 'WDto' is read and written at different types");
+      assertThat(compilation)
+          .hadErrorContaining("Align the getter and its setter (or builder setter)");
     }
 
     @Test
-    @DisplayName("a bean with no public no-args constructor is rejected")
-    void noNoArgsConstructor() {
+    @DisplayName("a bean that is neither constructible nor a builder is rejected")
+    void noConstructionStrategy() {
       JavaFileObject wire =
           JavaFileObjects.forSourceString(
               "com.example.WDto",
@@ -634,7 +882,7 @@ class MappingProcessorBeanTest {
           compile(D, wire, spec("public interface M extends MappingSpec<D, WDto> {}"));
       assertThat(compilation).failed();
       assertThat(compilation).hadErrorContaining("'WDto' is not a usable bean-shaped wire");
-      assertThat(compilation).hadErrorContaining("has no public no-args constructor");
+      assertThat(compilation).hadErrorContaining("no construction strategy fits it");
     }
 
     @Test
