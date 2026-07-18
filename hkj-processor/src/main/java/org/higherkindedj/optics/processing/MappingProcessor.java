@@ -343,6 +343,15 @@ public class MappingProcessor extends AbstractProcessor {
         reportProjectionWithDerived(spec, domain, wireShape, derived);
         return;
       }
+      // A projection's asLens() writes wire reads straight back into the domain. A record (or an
+      // all-primitive bean) can never read null, so the write-back is lawful; a bean with any
+      // reference property could read null, which the lawful lens cannot express — that maps as a
+      // validated patch instead (a follow-up), so it is deferred here rather than emitted
+      // unlawfully.
+      if (wireShape instanceof WireShape.BeanShape && !allPrimitive(wireShape)) {
+        reportBeanProjectionDeferred(spec, domain, wireShape);
+        return;
+      }
       List<Correspondence> projection = classifyProjection(spec, domain, wireShape, renames);
       if (projection == null) {
         return;
@@ -378,6 +387,8 @@ public class MappingProcessor extends AbstractProcessor {
     LEAF,
     LIST,
     OPTIONAL,
+    // A domain Optional<T> bridged to a nullable bean property T (#628): empty <-> null/absent.
+    OPTIONAL_BRIDGE,
     MAP,
     DERIVED
   }
@@ -812,6 +823,29 @@ public class MappingProcessor extends AbstractProcessor {
           continue;
         }
       }
+      // Optional bridge (#628): a domain Optional<DE> maps to a nullable bean property PE, since
+      // beans never declare Optional. Empty <-> null/absent; the element is copied (identity) or
+      // mapped through a leaf, exactly as an Optional element would be. (An Optional bridge through
+      // a
+      // nested spec is a follow-up.)
+      if (wire instanceof WireShape.BeanShape && domainElement != null && wireElement == null) {
+        TypeMirror wireType = wireComponent.type();
+        if (processingEnv.getTypeUtils().isSameType(wireType, domainElement)) {
+          result.add(new Correspondence(name, wireName, Kind.OPTIONAL_BRIDGE, null));
+          continue;
+        }
+        ExecutableElement bridgeLeaf = findLeaf(spec, name, wireType, domainElement);
+        if (bridgeLeaf != null) {
+          result.add(
+              new Correspondence(
+                  name,
+                  wireName,
+                  Kind.OPTIONAL_BRIDGE,
+                  CodeBlock.of("$L()", bridgeLeaf.getSimpleName())));
+          continue;
+        }
+        // No identity or leaf for the element: fall through to the no-usable-source diagnostic.
+      }
       DeclaredType wireMapType = asMapType(wireComponent.type());
       DeclaredType domainMapType = asMapType(domainComponent.asType());
       if (wireMapType != null && domainMapType != null) {
@@ -1133,10 +1167,43 @@ public class MappingProcessor extends AbstractProcessor {
       case LEAF -> CodeBlock.of("$L.build(domain.$L())", c.prism(), c.name());
       case LIST -> CodeBlock.of("$L.buildAll(domain.$L())", c.prism(), c.name());
       case OPTIONAL -> CodeBlock.of("domain.$L().map($L::build)", c.name(), c.prism());
+      // The domain Optional is carried as-is (identity) or its element built through the leaf; the
+      // conditional ifPresent write lives in beanBuildBody, so an empty Optional skips the write.
+      case OPTIONAL_BRIDGE ->
+          c.prism() == null
+              ? CodeBlock.of("domain.$L()", c.name())
+              : CodeBlock.of("domain.$L().map($L::build)", c.name(), c.prism());
       case MAP -> CodeBlock.of("$L.buildValues(domain.$L())", c.prism(), c.name());
       case IDENTITY -> CodeBlock.of("domain.$L()", c.name());
       case DERIVED -> CodeBlock.of("$L.get(domain)", c.prism());
     };
+  }
+
+  /**
+   * The bean {@code build} body: the strategy frames the construction, and each property writes its
+   * build value between the frame. An {@code Optional}-bridged property writes conditionally, so an
+   * empty domain Optional leaves the bean property unset (protecting null-hostile setters).
+   */
+  private static CodeBlock beanBuildBody(
+      WireShape.BeanShape bean, TypeName wireType, List<Correspondence> comps) {
+    WireShape.ConstructionStrategy strategy = bean.strategy();
+    String receiver = strategy.receiver();
+    CodeBlock.Builder body = CodeBlock.builder().add(strategy.prologue(wireType));
+    for (WireShape.BeanProperty property : bean.properties()) {
+      Correspondence c =
+          comps.stream()
+              .filter(x -> x.wireName().equals(property.name()))
+              .findFirst()
+              .orElseThrow();
+      CodeBlock value = buildValue(property.asWireComponent(), comps);
+      if (c.kind() == Kind.OPTIONAL_BRIDGE) {
+        body.addStatement(
+            "$L.ifPresent(v -> $L)", value, property.write().write(receiver, CodeBlock.of("v")));
+      } else {
+        body.addStatement("$L", property.write().write(receiver, value));
+      }
+    }
+    return body.add(strategy.epilogue()).build();
   }
 
   /**
@@ -1152,7 +1219,11 @@ public class MappingProcessor extends AbstractProcessor {
    * read at all).
    */
   private static boolean beanGuard(Correspondence c, WireShape wire) {
-    if (!(wire instanceof WireShape.BeanShape) || c.kind() == Kind.DERIVED) {
+    // Derived fields are not read; an Optional bridge maps null to Optional.empty, so both are
+    // null-safe and never guarded.
+    if (!(wire instanceof WireShape.BeanShape)
+        || c.kind() == Kind.DERIVED
+        || c.kind() == Kind.OPTIONAL_BRIDGE) {
       return false;
     }
     if (c.kind() == Kind.IDENTITY) {
@@ -1204,7 +1275,11 @@ public class MappingProcessor extends AbstractProcessor {
         ParameterizedTypeName.get(
             VALIDATED, ParameterizedTypeName.get(NEL, FIELD_ERROR), domainName);
 
-    CodeBlock buildBody = wire.buildStatements(wireName, wc -> buildValue(wc, comps));
+    CodeBlock buildBody =
+        switch (wire) {
+          case WireShape.RecordShape r -> r.buildStatements(wireName, wc -> buildValue(wc, comps));
+          case WireShape.BeanShape b -> beanBuildBody(b, wireName, comps);
+        };
 
     ClassName optional = ClassName.get("java.util", "Optional");
     CodeBlock.Builder parseChain = CodeBlock.builder().add("return $T.fields()", VALIDATED);
@@ -1256,6 +1331,26 @@ public class MappingProcessor extends AbstractProcessor {
                     ? CodeBlock.of(
                         "\n.field($S, ifPresent($L, $T::validNel))", c.name(), read, VALIDATED)
                     : CodeBlock.of("\n.field($S, $T.validNel($L))", c.name(), VALIDATED, read);
+            // A nullable bean read bridges to the domain Optional: null becomes Optional.empty, so
+            // it is never guarded and never fails on absence.
+            case OPTIONAL_BRIDGE ->
+                c.prism() == null
+                    ? CodeBlock.of(
+                        "\n.field($S, $T.validNel($T.ofNullable($L)))",
+                        c.name(),
+                        VALIDATED,
+                        optional,
+                        read)
+                    : CodeBlock.of(
+                        "\n.field($S, $T.ofNullable($L).map(v -> $L.parse(v).map($T::of)).orElseGet("
+                            + "() -> $T.validNel($T.empty())))",
+                        c.name(),
+                        optional,
+                        read,
+                        c.prism(),
+                        optional,
+                        VALIDATED,
+                        optional);
             // A derived component carries no domain data; parse reconstructs without it.
             case DERIVED -> CodeBlock.of("");
           });
@@ -1329,16 +1424,10 @@ public class MappingProcessor extends AbstractProcessor {
     TypeName wireName = TypeName.get(wire.element().asType());
 
     CodeBlock buildBody =
-        wire.buildStatements(
-            wireName,
-            wc ->
-                CodeBlock.of(
-                    "domain.$L()",
-                    comps.stream()
-                        .filter(x -> x.wireName().equals(wc.name()))
-                        .findFirst()
-                        .orElseThrow()
-                        .name()));
+        switch (wire) {
+          case WireShape.RecordShape r -> r.buildStatements(wireName, wc -> buildValue(wc, comps));
+          case WireShape.BeanShape b -> beanBuildBody(b, wireName, comps);
+        };
 
     CodeBlock.Builder setArgs = CodeBlock.builder();
     boolean first = true;
@@ -1708,6 +1797,33 @@ public class MappingProcessor extends AbstractProcessor {
         "Records map component-wise; sealed hierarchies map by dispatching over their permitted"
             + " subtype pairs; a record domain may also map to a bean-shaped wire.",
         "Use two record types, two sealed interface types, or a record domain with a bean wire.");
+  }
+
+  /** Whether every wire component is a primitive (so no read can be null). */
+  private static boolean allPrimitive(WireShape wire) {
+    return wire.components().stream().allMatch(c -> c.type().getKind().isPrimitive());
+  }
+
+  /**
+   * A bean projection with a reference property maps as a validated patch rather than a lawful lens
+   * (a null read cannot be written back through a total {@code set}); that tier is a follow-up.
+   */
+  private void reportBeanProjectionDeferred(TypeElement spec, TypeElement domain, WireShape wire) {
+    Diagnostics.error(
+        processingEnv.getMessager(),
+        spec,
+        TAG,
+        "'"
+            + wire.element().getSimpleName()
+            + "' is a bean projection of '"
+            + domain.getSimpleName()
+            + "' with a reference-typed property, which is not yet supported.",
+        "A projection maps as build() plus a lawful asLens() write-back, but a bean's reference"
+            + " property can read null, which a total lens set cannot honour; that shape maps as a"
+            + " validated patch(domain, wire), a follow-up to the bean mapper. An all-primitive bean"
+            + " projection (no null possible) is supported today.",
+        "Map the full bean (add the dropped domain components to it), use a record wire for the"
+            + " projection, or wait for the validated patch tier.");
   }
 
   /** The wire (against a record domain) must be a record or a bean-shaped class. */

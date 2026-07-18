@@ -813,6 +813,458 @@ class MappingProcessorBeanTest {
   }
 
   @Nested
+  @DisplayName("Optional bridging")
+  class OptionalBridging {
+
+    @Test
+    @DisplayName(
+        "a domain Optional maps to a nullable bean property, skipping the write when empty")
+    void identityBridge() {
+      JavaFileObject domain =
+          JavaFileObjects.forSourceString(
+              "com.example.Profile",
+              """
+              package com.example;
+
+              import java.util.Optional;
+
+              public record Profile(String handle, Optional<String> bio) {}
+              """);
+      JavaFileObject wire =
+          JavaFileObjects.forSourceString(
+              "com.example.ProfileDto",
+              """
+              package com.example;
+
+              public class ProfileDto {
+                private String handle;
+                private String bio;
+                public String getHandle() { return handle; }
+                public void setHandle(String handle) { this.handle = handle; }
+                public String getBio() { return bio; }
+                public void setBio(String bio) { this.bio = bio; }
+              }
+              """);
+      JavaFileObject spec =
+          JavaFileObjects.forSourceString(
+              "com.example.ProfileMapping",
+              """
+              package com.example;
+
+              import org.higherkindedj.optics.annotations.GenerateMapping;
+              import org.higherkindedj.optics.annotations.MappingSpec;
+
+              @GenerateMapping
+              public interface ProfileMapping extends MappingSpec<Profile, ProfileDto> {}
+              """);
+
+      Compilation compilation = compile(domain, wire, spec);
+      assertThat(compilation).succeeded();
+      String generated = generatedSource(compilation, "com.example.ProfileMappingImpl");
+      Assertions.assertThat(generated)
+          .contains("domain.bio().ifPresent(v -> wire.setBio(v));")
+          .contains(".field(\"bio\", Validated.validNel(Optional.ofNullable(wire.getBio())))")
+          .doesNotContain("asIso");
+
+      var result = new RuntimeCompilationHelper.CompiledResult(compilation);
+      try {
+        Object impl =
+            result.loadClass("com.example.ProfileMappingImpl").getField("INSTANCE").get(null);
+        Object present =
+            result
+                .loadClass("com.example.Profile")
+                .getDeclaredConstructor(String.class, java.util.Optional.class)
+                .newInstance("ada", java.util.Optional.of("hi"));
+        Object emptyProfile =
+            result
+                .loadClass("com.example.Profile")
+                .getDeclaredConstructor(String.class, java.util.Optional.class)
+                .newInstance("ada", java.util.Optional.empty());
+
+        Object dtoPresent = invoke(impl, "build", present);
+        Assertions.assertThat(invoke(dtoPresent, "getBio")).isEqualTo("hi");
+        Object dtoEmpty = invoke(impl, "build", emptyProfile);
+        Assertions.assertThat(invoke(dtoEmpty, "getBio")).isNull();
+
+        @SuppressWarnings("unchecked")
+        Validated<NonEmptyList<FieldError>, Object> parsedEmpty =
+            (Validated<NonEmptyList<FieldError>, Object>) invoke(impl, "parse", dtoEmpty);
+        Assertions.assertThat(parsedEmpty.get()).isEqualTo(emptyProfile);
+      } catch (ReflectiveOperationException e) {
+        throw new AssertionError(e);
+      }
+    }
+
+    @Test
+    @DisplayName("a domain Optional element maps through a leaf to a nullable bean property")
+    void leafBridge() {
+      JavaFileObject domain =
+          JavaFileObjects.forSourceString(
+              "com.example.Account",
+              """
+              package com.example;
+
+              import java.util.Optional;
+
+              public record Account(Optional<EmailAddress> email) {}
+              """);
+      JavaFileObject wire =
+          JavaFileObjects.forSourceString(
+              "com.example.AccountDto",
+              """
+              package com.example;
+
+              public class AccountDto {
+                private String email;
+                public String getEmail() { return email; }
+                public void setEmail(String email) { this.email = email; }
+              }
+              """);
+      JavaFileObject spec =
+          JavaFileObjects.forSourceString(
+              "com.example.AccountMapping",
+              """
+              package com.example;
+
+              import org.higherkindedj.hkt.validated.FieldError;
+              import org.higherkindedj.hkt.validated.Validated;
+              import org.higherkindedj.optics.annotations.GenerateMapping;
+              import org.higherkindedj.optics.annotations.MappingSpec;
+              import org.higherkindedj.optics.validated.ValidatedPrism;
+
+              @GenerateMapping
+              public interface AccountMapping extends MappingSpec<Account, AccountDto> {
+                default ValidatedPrism<String, EmailAddress> email() {
+                  return ValidatedPrism.of(
+                      raw ->
+                          raw.contains("@")
+                              ? Validated.validNel(new EmailAddress(raw))
+                              : Validated.invalidNel(FieldError.of("not an email address")),
+                      EmailAddress::value);
+                }
+              }
+              """);
+
+      Compilation compilation = compile(EMAIL, domain, wire, spec);
+      assertThat(compilation).succeeded();
+      String generated = generatedSource(compilation, "com.example.AccountMappingImpl");
+      Assertions.assertThat(generated)
+          .contains("domain.email().map(email()::build).ifPresent(v -> wire.setEmail(v));")
+          .contains(
+              ".field(\"email\", Optional.ofNullable(wire.getEmail()).map(v ->"
+                  + " email().parse(v).map(Optional::of))");
+    }
+
+    @Test
+    @DisplayName("a bad Optional-bridged element still accumulates a located failure")
+    void bridgeElementValidation() {
+      JavaFileObject domain =
+          JavaFileObjects.forSourceString(
+              "com.example.Account",
+              """
+              package com.example;
+
+              import java.util.Optional;
+
+              public record Account(Optional<EmailAddress> email) {}
+              """);
+      JavaFileObject wire =
+          JavaFileObjects.forSourceString(
+              "com.example.AccountDto",
+              """
+              package com.example;
+
+              public class AccountDto {
+                private String email;
+                public String getEmail() { return email; }
+                public void setEmail(String email) { this.email = email; }
+              }
+              """);
+      JavaFileObject spec =
+          JavaFileObjects.forSourceString(
+              "com.example.AccountMapping",
+              """
+              package com.example;
+
+              import org.higherkindedj.hkt.validated.FieldError;
+              import org.higherkindedj.hkt.validated.Validated;
+              import org.higherkindedj.optics.annotations.GenerateMapping;
+              import org.higherkindedj.optics.annotations.MappingSpec;
+              import org.higherkindedj.optics.validated.ValidatedPrism;
+
+              @GenerateMapping
+              public interface AccountMapping extends MappingSpec<Account, AccountDto> {
+                default ValidatedPrism<String, EmailAddress> email() {
+                  return ValidatedPrism.of(
+                      raw ->
+                          raw.contains("@")
+                              ? Validated.validNel(new EmailAddress(raw))
+                              : Validated.invalidNel(FieldError.of("not an email address")),
+                      EmailAddress::value);
+                }
+              }
+              """);
+
+      Compilation compilation = compile(EMAIL, domain, wire, spec);
+      assertThat(compilation).succeeded();
+      var result = new RuntimeCompilationHelper.CompiledResult(compilation);
+      try {
+        Object impl =
+            result.loadClass("com.example.AccountMappingImpl").getField("INSTANCE").get(null);
+        Object dto = result.newInstance("com.example.AccountDto");
+        invoke(dto, "setEmail", "not-an-email");
+
+        @SuppressWarnings("unchecked")
+        Validated<NonEmptyList<FieldError>, Object> parsed =
+            (Validated<NonEmptyList<FieldError>, Object>) invoke(impl, "parse", dto);
+        Assertions.assertThat(parsed.getError().toJavaList())
+            .containsExactly(new FieldError(List.of("email"), "not an email address"));
+
+        // An absent (null) email is valid: it bridges to Optional.empty.
+        Object emptyDto = result.newInstance("com.example.AccountDto");
+        @SuppressWarnings("unchecked")
+        Validated<NonEmptyList<FieldError>, Object> parsedEmpty =
+            (Validated<NonEmptyList<FieldError>, Object>) invoke(impl, "parse", emptyDto);
+        Assertions.assertThat(parsedEmpty.isValid()).isTrue();
+      } catch (ReflectiveOperationException e) {
+        throw new AssertionError(e);
+      }
+    }
+
+    @Test
+    @DisplayName("a domain Optional element with no identity or leaf to the property is rejected")
+    void bridgeWithoutElementSourceRejected() {
+      JavaFileObject domain =
+          JavaFileObjects.forSourceString(
+              "com.example.Box",
+              """
+              package com.example;
+
+              import java.util.Optional;
+
+              public record Box(Optional<Integer> count) {}
+              """);
+      JavaFileObject wire =
+          JavaFileObjects.forSourceString(
+              "com.example.BoxDto",
+              """
+              package com.example;
+
+              public class BoxDto {
+                private String count;
+                public String getCount() { return count; }
+                public void setCount(String count) { this.count = count; }
+              }
+              """);
+      JavaFileObject spec =
+          JavaFileObjects.forSourceString(
+              "com.example.BoxMapping",
+              """
+              package com.example;
+
+              import org.higherkindedj.optics.annotations.GenerateMapping;
+              import org.higherkindedj.optics.annotations.MappingSpec;
+
+              @GenerateMapping
+              public interface BoxMapping extends MappingSpec<Box, BoxDto> {}
+              """);
+
+      Compilation compilation = compile(domain, wire, spec);
+      assertThat(compilation).failed();
+      assertThat(compilation)
+          .hadErrorContaining("target field 'BoxDto.count' has no usable source");
+    }
+
+    @Test
+    @DisplayName("a non-Optional mismatched bean property is not a bridge and is rejected")
+    void nonOptionalMismatchNotABridge() {
+      JavaFileObject domain =
+          JavaFileObjects.forSourceString(
+              "com.example.Thing",
+              """
+              package com.example;
+
+              public record Thing(int count) {}
+              """);
+      JavaFileObject wire =
+          JavaFileObjects.forSourceString(
+              "com.example.ThingDto",
+              """
+              package com.example;
+
+              public class ThingDto {
+                private String count;
+                public String getCount() { return count; }
+                public void setCount(String count) { this.count = count; }
+              }
+              """);
+      JavaFileObject spec =
+          JavaFileObjects.forSourceString(
+              "com.example.ThingMapping",
+              """
+              package com.example;
+
+              import org.higherkindedj.optics.annotations.GenerateMapping;
+              import org.higherkindedj.optics.annotations.MappingSpec;
+
+              @GenerateMapping
+              public interface ThingMapping extends MappingSpec<Thing, ThingDto> {}
+              """);
+
+      Compilation compilation = compile(domain, wire, spec);
+      assertThat(compilation).failed();
+      assertThat(compilation)
+          .hadErrorContaining("target field 'ThingDto.count' has no usable source");
+    }
+
+    @Test
+    @DisplayName(
+        "a bean Optional property against a domain Optional (unresolvable element) is not a bridge")
+    void beanOptionalPropertyIsNotABridge() {
+      JavaFileObject domain =
+          JavaFileObjects.forSourceString(
+              "com.example.Holder",
+              """
+              package com.example;
+
+              import java.util.Optional;
+
+              public record Holder(Optional<Integer> value) {}
+              """);
+      JavaFileObject wire =
+          JavaFileObjects.forSourceString(
+              "com.example.HolderDto",
+              """
+              package com.example;
+
+              import java.util.Optional;
+
+              public class HolderDto {
+                private Optional<String> value;
+                public Optional<String> getValue() { return value; }
+                public void setValue(Optional<String> value) { this.value = value; }
+              }
+              """);
+      JavaFileObject spec =
+          JavaFileObjects.forSourceString(
+              "com.example.HolderMapping",
+              """
+              package com.example;
+
+              import org.higherkindedj.optics.annotations.GenerateMapping;
+              import org.higherkindedj.optics.annotations.MappingSpec;
+
+              @GenerateMapping
+              public interface HolderMapping extends MappingSpec<Holder, HolderDto> {}
+              """);
+
+      Compilation compilation = compile(domain, wire, spec);
+      assertThat(compilation).failed();
+      assertThat(compilation)
+          .hadErrorContaining("target field 'HolderDto.value' has no usable source");
+    }
+  }
+
+  @Nested
+  @DisplayName("Projection tier")
+  class ProjectionTier {
+
+    @Test
+    @DisplayName("an all-primitive bean projection gains a lawful asLens")
+    void allPrimitiveProjectionAsLens() {
+      JavaFileObject domain =
+          JavaFileObjects.forSourceString(
+              "com.example.Reading",
+              """
+              package com.example;
+
+              public record Reading(int temperature, int humidity, long timestamp) {}
+              """);
+      JavaFileObject wire =
+          JavaFileObjects.forSourceString(
+              "com.example.ReadingDto",
+              """
+              package com.example;
+
+              public class ReadingDto {
+                private int temperature;
+                private int humidity;
+                public int getTemperature() { return temperature; }
+                public void setTemperature(int temperature) { this.temperature = temperature; }
+                public int getHumidity() { return humidity; }
+                public void setHumidity(int humidity) { this.humidity = humidity; }
+              }
+              """);
+      JavaFileObject spec =
+          JavaFileObjects.forSourceString(
+              "com.example.ReadingMapping",
+              """
+              package com.example;
+
+              import org.higherkindedj.optics.annotations.GenerateMapping;
+              import org.higherkindedj.optics.annotations.MappingSpec;
+
+              @GenerateMapping
+              public interface ReadingMapping extends MappingSpec<Reading, ReadingDto> {}
+              """);
+
+      Compilation compilation = compile(domain, wire, spec);
+      assertThat(compilation).succeeded();
+      String generated = generatedSource(compilation, "com.example.ReadingMappingImpl");
+      Assertions.assertThat(generated)
+          .contains("ReadingDto wire = new ReadingDto();")
+          .contains("wire.setTemperature(domain.temperature());")
+          .contains("public Lens<Reading, ReadingDto> asLens()")
+          .doesNotContain("parse(")
+          .doesNotContain("asValidatedPrism");
+    }
+
+    @Test
+    @DisplayName("a reference-typed bean projection is deferred to the validated patch tier")
+    void referenceProjectionDeferred() {
+      JavaFileObject domain =
+          JavaFileObjects.forSourceString(
+              "com.example.Employee",
+              """
+              package com.example;
+
+              public record Employee(String name, String department, int age) {}
+              """);
+      JavaFileObject wire =
+          JavaFileObjects.forSourceString(
+              "com.example.EmployeeCardDto",
+              """
+              package com.example;
+
+              public class EmployeeCardDto {
+                private String name;
+                public String getName() { return name; }
+                public void setName(String name) { this.name = name; }
+              }
+              """);
+      JavaFileObject spec =
+          JavaFileObjects.forSourceString(
+              "com.example.EmployeeCardMapping",
+              """
+              package com.example;
+
+              import org.higherkindedj.optics.annotations.GenerateMapping;
+              import org.higherkindedj.optics.annotations.MappingSpec;
+
+              @GenerateMapping
+              public interface EmployeeCardMapping extends MappingSpec<Employee, EmployeeCardDto> {}
+              """);
+
+      Compilation compilation = compile(domain, wire, spec);
+      assertThat(compilation).failed();
+      assertThat(compilation)
+          .hadErrorContaining(
+              "'EmployeeCardDto' is a bean projection of 'Employee' with a reference-typed property");
+      assertThat(compilation).hadErrorContaining("maps as a validated patch");
+    }
+  }
+
+  @Nested
   @DisplayName("Diagnostics")
   class Diagnostics {
 

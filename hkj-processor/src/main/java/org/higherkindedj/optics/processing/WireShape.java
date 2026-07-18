@@ -20,8 +20,9 @@ import javax.lang.model.type.TypeMirror;
  *
  * <p>Classification ({@link MappingProcessor#classify}) and code generation ({@link
  * MappingProcessor#writeImpl}) speak to the wire only through this interface: component enumeration
- * and name lookup, the per-component read expression ({@link WireComponent#readFrom}), and the
- * build-method body ({@link #buildStatements}).
+ * and name lookup, and the per-component read expression ({@link WireComponent#readFrom}). The build
+ * body differs per shape (a record's canonical constructor versus a bean's {@link
+ * ConstructionStrategy}), so the processor assembles it by switching on the shape.
  */
 sealed interface WireShape permits WireShape.RecordShape, WireShape.BeanShape {
 
@@ -47,18 +48,6 @@ sealed interface WireShape permits WireShape.RecordShape, WireShape.BeanShape {
   }
 
   /**
-   * The complete, terminated statements of the {@code build} method body: they construct the wire
-   * value from each component's build expression (supplied by {@code valueFor}) and {@code return}
-   * it. A record emits a single {@code return new W(...)}; a bean emits setter or builder
-   * statements.
-   *
-   * @param wireType the wire type to construct
-   * @param valueFor maps each component to the expression build fills it with
-   * @return terminated statement(s) suitable for {@code MethodSpec.Builder.addCode}
-   */
-  CodeBlock buildStatements(TypeName wireType, Function<WireComponent, CodeBlock> valueFor);
-
-  /**
    * One wire component: its (decapitalised) name, its type, and the accessor that reads it. For a
    * record the accessor is the component name; for a bean it is the getter (for example {@code
    * getName}).
@@ -74,9 +63,8 @@ sealed interface WireShape permits WireShape.RecordShape, WireShape.BeanShape {
   /** A record wire: positional accessors and canonical-constructor construction (today's path). */
   record RecordShape(TypeElement element, List<WireComponent> components) implements WireShape {
 
-    @Override
-    public CodeBlock buildStatements(
-        TypeName wireType, Function<WireComponent, CodeBlock> valueFor) {
+    /** The record build body: {@code return new W(v0, v1, ...)} in component order. */
+    CodeBlock buildStatements(TypeName wireType, Function<WireComponent, CodeBlock> valueFor) {
       CodeBlock.Builder args = CodeBlock.builder();
       boolean first = true;
       for (WireComponent component : components) {
@@ -93,7 +81,9 @@ sealed interface WireShape permits WireShape.RecordShape, WireShape.BeanShape {
   /**
    * A bean-shaped wire (issue #628): components are read through getters and written through the
    * {@link ConstructionStrategy}. Reads are null-hostile at parse time (an unset bean property is
-   * null), which the mapping processor guards; only the construction differs from a record.
+   * null), which the mapping processor guards; only the construction differs from a record. The
+   * bean build body is assembled by the processor (per-property writes, which the strategy frames),
+   * since an {@code Optional}-bridged property writes conditionally.
    */
   record BeanShape(
       TypeElement element, List<BeanProperty> properties, ConstructionStrategy strategy)
@@ -102,12 +92,6 @@ sealed interface WireShape permits WireShape.RecordShape, WireShape.BeanShape {
     @Override
     public List<WireComponent> components() {
       return properties.stream().map(BeanProperty::asWireComponent).toList();
-    }
-
-    @Override
-    public CodeBlock buildStatements(
-        TypeName wireType, Function<WireComponent, CodeBlock> valueFor) {
-      return strategy.buildStatements(wireType, properties, valueFor);
     }
   }
 
@@ -147,14 +131,23 @@ sealed interface WireShape permits WireShape.RecordShape, WireShape.BeanShape {
     }
   }
 
-  /** How a bean value is constructed from its per-property build expressions. */
+  /**
+   * How a bean value is constructed: the target variable each property writes into ({@link
+   * #receiver}), and the framing {@link #prologue} and {@link #epilogue} statements. The
+   * per-property writes between them are emitted by the processor, so an {@code Optional}-bridged
+   * property can write conditionally.
+   */
   sealed interface ConstructionStrategy
       permits ConstructionStrategy.NoArgsSetters, ConstructionStrategy.Builder {
 
-    CodeBlock buildStatements(
-        TypeName wireType,
-        List<BeanProperty> properties,
-        Function<WireComponent, CodeBlock> valueFor);
+    /** The variable each property write targets (the bean instance or the builder). */
+    String receiver();
+
+    /** The opening statement that creates the target. */
+    CodeBlock prologue(TypeName wireType);
+
+    /** The closing statement that returns the built wire. */
+    CodeBlock epilogue();
 
     /**
      * Public no-args constructor plus per-property writes: {@code var w = new W(); w.setX(...);
@@ -163,20 +156,19 @@ sealed interface WireShape permits WireShape.RecordShape, WireShape.BeanShape {
      * getter returns a mutable, live list.
      */
     record NoArgsSetters() implements ConstructionStrategy {
+      @Override
+      public String receiver() {
+        return "wire";
+      }
 
       @Override
-      public CodeBlock buildStatements(
-          TypeName wireType,
-          List<BeanProperty> properties,
-          Function<WireComponent, CodeBlock> valueFor) {
-        CodeBlock.Builder body = CodeBlock.builder();
-        body.addStatement("$T wire = new $T()", wireType, wireType);
-        for (BeanProperty property : properties) {
-          body.addStatement(
-              "$L", property.write().write("wire", valueFor.apply(property.asWireComponent())));
-        }
-        body.addStatement("return wire");
-        return body.build();
+      public CodeBlock prologue(TypeName wireType) {
+        return CodeBlock.builder().addStatement("$T wire = new $T()", wireType, wireType).build();
+      }
+
+      @Override
+      public CodeBlock epilogue() {
+        return CodeBlock.builder().addStatement("return wire").build();
       }
     }
 
@@ -186,20 +178,19 @@ sealed interface WireShape permits WireShape.RecordShape, WireShape.BeanShape {
      * the builder's terminal method; each property writes through its builder setter.
      */
     record Builder(String factory, String buildMethod) implements ConstructionStrategy {
+      @Override
+      public String receiver() {
+        return "b";
+      }
 
       @Override
-      public CodeBlock buildStatements(
-          TypeName wireType,
-          List<BeanProperty> properties,
-          Function<WireComponent, CodeBlock> valueFor) {
-        CodeBlock.Builder body = CodeBlock.builder();
-        body.addStatement("var b = $T.$L()", wireType, factory);
-        for (BeanProperty property : properties) {
-          body.addStatement(
-              "$L", property.write().write("b", valueFor.apply(property.asWireComponent())));
-        }
-        body.addStatement("return b.$L()", buildMethod);
-        return body.build();
+      public CodeBlock prologue(TypeName wireType) {
+        return CodeBlock.builder().addStatement("var b = $T.$L()", wireType, factory).build();
+      }
+
+      @Override
+      public CodeBlock epilogue() {
+        return CodeBlock.builder().addStatement("return b.$L()", buildMethod).build();
       }
     }
   }
