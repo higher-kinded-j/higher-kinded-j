@@ -5,9 +5,9 @@
  *   - a faint underline on the individual words that changed within a block
  *
  * State is a class on <html> set by change-tracking.js:
- *   .hkj-ct-full  -> margin line + word underlines   (default)
+ *   .hkj-ct-full  -> margin line + word underlines   (default on /latest/)
  *   .hkj-ct-lines -> margin line only
- *   .hkj-ct-off   -> nothing shown
+ *   .hkj-ct-off   -> nothing shown                    (default elsewhere)
  */
 
 /* Change-tracking accent, tuned per theme to the book's mauve brand accent

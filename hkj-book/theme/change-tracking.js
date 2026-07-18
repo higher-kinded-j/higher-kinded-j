@@ -29,19 +29,43 @@
 
   // --- state persistence ----------------------------------------------------
 
+  // The preference is scoped per docs version (latest / vX.Y.Z / local build),
+  // so a choice made on one version never leaks across the latest<->release
+  // boundary: each version re-evaluates its own default and remembers its own
+  // toggle independently. Detection mirrors version-switcher.js.
+  function currentVersion() {
+    try {
+      var m = window.location.pathname.match(/^\/(v\d+\.\d+\.\d+|latest)(\/|$)/);
+      if (m) return m[1];
+    } catch (e) { /* window.location may be unavailable */ }
+    return 'local';
+  }
+
+  function storageKey() {
+    return STORAGE_KEY + ':' + currentVersion();
+  }
+
+  // The latest snapshot (deployed under /latest/) is where new/changed content
+  // is most relevant, so change tracking defaults to 'full' there. Released
+  // versions (/vX.Y.Z/) and everywhere else default to 'off' so historical or
+  // baseline-less docs read cleanly. A stored preference for THIS version wins.
+  function defaultState() {
+    return currentVersion() === 'latest' ? 'full' : 'off';
+  }
+
   function readState() {
     try {
-      var stored = window.localStorage.getItem(STORAGE_KEY);
+      var stored = window.localStorage.getItem(storageKey());
       if (STATES.indexOf(stored) !== -1) return stored;
     } catch (e) { /* localStorage may be unavailable */ }
-    return 'full';
+    return defaultState();
   }
 
   function applyState(state) {
     var root = document.documentElement;
     STATES.forEach(function (s) { root.classList.remove('hkj-ct-' + s); });
     root.classList.add('hkj-ct-' + state);
-    try { window.localStorage.setItem(STORAGE_KEY, state); } catch (e) { /* ignore */ }
+    try { window.localStorage.setItem(storageKey(), state); } catch (e) { /* ignore */ }
   }
 
   // --- word underlining -----------------------------------------------------
