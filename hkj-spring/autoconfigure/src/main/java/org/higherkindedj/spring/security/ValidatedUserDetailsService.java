@@ -6,7 +6,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
-import org.higherkindedj.hkt.Semigroup;
 import org.higherkindedj.hkt.validated.Validated;
 import org.springframework.security.core.userdetails.User;
 import org.springframework.security.core.userdetails.UserDetails;
@@ -14,110 +13,87 @@ import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 
 /**
- * UserDetailsService using Validated for comprehensive user validation.
+ * UserDetailsService using Validated for comprehensive username validation.
  *
  * <p>Demonstrates error accumulation with Validated in Spring Security:
  *
  * <ul>
- *   <li>Validate username format
- *   <li>Validate account status (enabled, non-locked, etc.)
- *   <li>Accumulate ALL validation errors
+ *   <li>Validate username format, accumulating ALL format errors
+ *   <li>Load the user from the in-memory store
  *   <li>Return detailed error information
  * </ul>
+ *
+ * <p>The service starts <strong>empty</strong>: register users explicitly via {@link
+ * #addUser(UserDetails)}. For demos and tests, {@link #withSampleUsers()} creates an instance
+ * pre-populated with well-known sample accounts — never use that factory in production.
+ *
+ * <p>Account-status checks (disabled, locked, expired) are deliberately <em>not</em> performed
+ * here: per the {@link UserDetailsService} contract they belong to the authentication provider,
+ * which raises the specific {@code DisabledException}/{@code LockedException} variants. Use {@link
+ * #validateAccountStatus(UserDetails)} if you need an accumulated functional view of those checks.
  *
  * <p>Example usage:
  *
  * <pre>{@code
  * @Bean
- * public UserDetailsService userDetailsService() {
- *     return new ValidatedUserDetailsService();
- * }
- *
- * @Bean
- * public AuthenticationManager authManager(HttpSecurity http) {
- *     return http.getSharedObject(AuthenticationManagerBuilder.class)
- *         .userDetailsService(userDetailsService())
- *         .passwordEncoder(passwordEncoder())
- *         .and()
- *         .build();
+ * public UserDetailsService userDetailsService(PasswordEncoder encoder) {
+ *     var service = new ValidatedUserDetailsService();
+ *     service.addUser(User.builder()
+ *         .username("alice")
+ *         .password(encoder.encode(secret))
+ *         .roles("USER")
+ *         .build());
+ *     return service;
  * }
  * }</pre>
- *
- * <p>Benefits of Validated for user details:
- *
- * <ul>
- *   <li>Complete error reporting (not just first error)
- *   <li>Better UX - users see all validation issues
- *   <li>Type-safe validation
- *   <li>Composable validation rules
- * </ul>
  */
 public class ValidatedUserDetailsService implements UserDetailsService {
 
   private final Map<String, UserDetails> users = new ConcurrentHashMap<>();
 
-  // Semigroup for combining error lists
-  private static final Semigroup<List<UserValidationError>> ERROR_SEMIGROUP =
-      (a, b) -> {
-        List<UserValidationError> combined = new ArrayList<>(a);
-        combined.addAll(b);
-        return combined;
-      };
+  /** Creates a new, empty ValidatedUserDetailsService. Register users via {@link #addUser}. */
+  public ValidatedUserDetailsService() {}
 
-  /** Creates a new ValidatedUserDetailsService with sample users. */
-  public ValidatedUserDetailsService() {
-    // Add sample users for testing
-    users.put(
-        "admin",
+  /**
+   * Creates a service pre-populated with sample users for demos and tests.
+   *
+   * <p><strong>Never use in production:</strong> the accounts ({@code admin}, {@code user}, {@code
+   * disabled}) have well-known plaintext ({@code {noop}}) passwords.
+   *
+   * @return a service containing the sample accounts
+   */
+  public static ValidatedUserDetailsService withSampleUsers() {
+    var service = new ValidatedUserDetailsService();
+    service.addUser(
         User.builder().username("admin").password("{noop}admin123").roles("ADMIN", "USER").build());
-
-    users.put(
-        "user", User.builder().username("user").password("{noop}user123").roles("USER").build());
-
-    // Disabled user for testing
-    users.put(
-        "disabled",
+    service.addUser(
+        User.builder().username("user").password("{noop}user123").roles("USER").build());
+    service.addUser(
         User.builder()
             .username("disabled")
             .password("{noop}disabled123")
             .roles("USER")
             .disabled(true)
             .build());
+    return service;
   }
 
   @Override
   public UserDetails loadUserByUsername(String username) throws UsernameNotFoundException {
-    // Validate username and load user
-    Validated<List<UserValidationError>, UserDetails> validated = validateAndLoadUser(username);
+    Validated<List<UserValidationError>, UserDetails> validated =
+        validateUsername(username).flatMap(this::loadUser);
 
-    // Fold Validated to UserDetails or throw exception
     return validated.fold(
         errors -> {
-          // Collect all error messages
           String errorMessages =
-              errors.stream()
-                  .map(UserValidationError::message)
-                  .reduce((a, b) -> a + "; " + b)
-                  .orElse("Unknown error");
-
+              String.join("; ", errors.stream().map(UserValidationError::message).toList());
           throw new UsernameNotFoundException(errorMessages);
         },
         userDetails -> userDetails);
   }
 
   /**
-   * Validates username and loads user details.
-   *
-   * @param username the username to validate and load
-   * @return Validated containing user details or validation errors
-   */
-  private Validated<List<UserValidationError>, UserDetails> validateAndLoadUser(String username) {
-    // Start with username validation
-    return validateUsername(username).flatMap(this::loadUser).flatMap(this::validateUserAccount);
-  }
-
-  /**
-   * Validates username format.
+   * Validates username format, accumulating all format errors.
    *
    * @param username the username
    * @return Validated containing username or errors
@@ -143,11 +119,11 @@ public class ValidatedUserDetailsService implements UserDetailsService {
               "Username can only contain letters, numbers, underscores, and hyphens"));
     }
 
-    return errors.isEmpty() ? Validated.valid(username) : Validated.invalid(errors);
+    return errors.isEmpty() ? Validated.valid(username) : Validated.invalid(List.copyOf(errors));
   }
 
   /**
-   * Loads user from repository.
+   * Loads user from the in-memory store.
    *
    * @param username the username
    * @return Validated containing user details or error
@@ -163,12 +139,16 @@ public class ValidatedUserDetailsService implements UserDetailsService {
   }
 
   /**
-   * Validates user account status.
+   * Validates account status (enabled, non-locked, non-expired), accumulating all failures.
+   *
+   * <p>Not consulted by {@link #loadUserByUsername}: status enforcement is the authentication
+   * provider's responsibility. This is a functional convenience for callers that want the
+   * accumulated view.
    *
    * @param userDetails the user details
-   * @return Validated containing user details or errors
+   * @return Validated containing user details or all status errors
    */
-  private Validated<List<UserValidationError>, UserDetails> validateUserAccount(
+  public Validated<List<UserValidationError>, UserDetails> validateAccountStatus(
       UserDetails userDetails) {
     List<UserValidationError> errors = new ArrayList<>();
 
@@ -188,7 +168,7 @@ public class ValidatedUserDetailsService implements UserDetailsService {
       errors.add(new UserValidationError("Credentials have expired"));
     }
 
-    return errors.isEmpty() ? Validated.valid(userDetails) : Validated.invalid(errors);
+    return errors.isEmpty() ? Validated.valid(userDetails) : Validated.invalid(List.copyOf(errors));
   }
 
   /**

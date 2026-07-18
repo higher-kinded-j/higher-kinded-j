@@ -16,8 +16,15 @@ import org.springframework.stereotype.Service;
  * Service demonstrating async operations using CompletableFuturePath.
  *
  * <p>CompletableFuturePath provides a clean API for async operations with the Effect Path API.
- * Error handling uses exceptions which are automatically converted to appropriate HTTP responses by
- * the CompletableFuturePathReturnValueHandler.
+ * Error handling uses exceptions: a failed future is converted by the
+ * CompletableFuturePathReturnValueHandler to the configured async failure status (default 500) with
+ * a {@code {"success": false, "error": ...}} body.
+ *
+ * <p><b>Known limitation:</b> because failures are {@code Throwable}s rather than typed {@code
+ * Left} values, the per-error-class {@code ErrorStatusCodeStrategy} does not apply — {@link
+ * UserNotFoundException} surfaces as the async failure status (500), not 404. Endpoints that need
+ * typed-error status mapping should return {@code Either} at the boundary (see {@link
+ * UserService#findById}).
  *
  * <p>Example async chain:
  *

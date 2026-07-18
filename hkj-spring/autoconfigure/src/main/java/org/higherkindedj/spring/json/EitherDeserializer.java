@@ -63,8 +63,8 @@ public class EitherDeserializer extends StdDeserializer<Either<?, ?>> {
 
   @Override
   public ValueDeserializer<?> createContextual(DeserializationContext ctxt, BeanProperty property) {
-    JavaType type = (property != null) ? property.getType() : ctxt.getContextualType();
-    if (type != null && type.hasRawClass(Either.class) && type.containedTypeCount() == 2) {
+    JavaType type = HkjTypeResolution.resolveTargetType(ctxt, property, Either.class);
+    if (type != null && type.containedTypeCount() == 2) {
       return new EitherDeserializer(type.containedType(0), type.containedType(1));
     }
     return this;
@@ -75,22 +75,24 @@ public class EitherDeserializer extends StdDeserializer<Either<?, ?>> {
       throws JacksonException {
     JsonNode node = p.readValueAsTree();
 
-    if (!node.has("isRight")) {
-      throw ctxt.weirdStringException("", Either.class, "Either JSON must have 'isRight' field");
+    JsonNode flag = node.get("isRight");
+    if (flag == null || !flag.isBoolean()) {
+      return ctxt.reportInputMismatch(
+          Either.class, "Either JSON must have a boolean 'isRight' field");
     }
 
-    boolean isRight = node.get("isRight").asBoolean();
+    boolean isRight = flag.asBoolean();
 
     if (isRight) {
       if (!node.has("right")) {
-        throw ctxt.weirdStringException(
-            "", Either.class, "Either with isRight=true must have 'right' field");
+        return ctxt.reportInputMismatch(
+            Either.class, "Either with isRight=true must have 'right' field");
       }
       return Either.right(readAs(ctxt, node.get("right"), rightType));
     } else {
       if (!node.has("left")) {
-        throw ctxt.weirdStringException(
-            "", Either.class, "Either with isRight=false must have 'left' field");
+        return ctxt.reportInputMismatch(
+            Either.class, "Either with isRight=false must have 'left' field");
       }
       return Either.left(readAs(ctxt, node.get("left"), leftType));
     }

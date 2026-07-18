@@ -54,8 +54,8 @@ public class EitherOrBothDeserializer extends StdDeserializer<EitherOrBoth<?, ?>
 
   @Override
   public ValueDeserializer<?> createContextual(DeserializationContext ctxt, BeanProperty property) {
-    JavaType type = (property != null) ? property.getType() : ctxt.getContextualType();
-    if (type != null && type.hasRawClass(EitherOrBoth.class) && type.containedTypeCount() == 2) {
+    JavaType type = HkjTypeResolution.resolveTargetType(ctxt, property, EitherOrBoth.class);
+    if (type != null && type.containedTypeCount() == 2) {
       return new EitherOrBothDeserializer(type.containedType(0), type.containedType(1));
     }
     return this;
@@ -67,8 +67,8 @@ public class EitherOrBothDeserializer extends StdDeserializer<EitherOrBoth<?, ?>
     JsonNode node = p.readValueAsTree();
 
     if (!node.has("kind")) {
-      throw ctxt.weirdStringException(
-          "", EitherOrBoth.class, "EitherOrBoth JSON must have a 'kind' field");
+      return ctxt.reportInputMismatch(
+          EitherOrBoth.class, "EitherOrBoth JSON must have a 'kind' field");
     }
 
     String kind = node.get("kind").asString();
@@ -88,12 +88,19 @@ public class EitherOrBothDeserializer extends StdDeserializer<EitherOrBoth<?, ?>
   private static Object readField(
       DeserializationContext ctxt, JsonNode node, String field, JavaType type) {
     if (!node.has(field)) {
-      throw ctxt.weirdStringException(
-          "", EitherOrBoth.class, "EitherOrBoth is missing required '" + field + "' field");
+      return ctxt.reportInputMismatch(
+          EitherOrBoth.class, "EitherOrBoth is missing required '" + field + "' field");
     }
     JsonNode child = node.get(field);
-    return (type != null)
-        ? ctxt.readTreeAsValue(child, type)
-        : ctxt.readTreeAsValue(child, Object.class);
+    Object value =
+        (type != null)
+            ? ctxt.readTreeAsValue(child, type)
+            : ctxt.readTreeAsValue(child, Object.class);
+    if (value == null) {
+      // EitherOrBoth branch factories reject null; report cleanly instead of escaping as an NPE
+      return ctxt.reportInputMismatch(
+          EitherOrBoth.class, "EitherOrBoth '" + field + "' must not be null");
+    }
+    return value;
   }
 }

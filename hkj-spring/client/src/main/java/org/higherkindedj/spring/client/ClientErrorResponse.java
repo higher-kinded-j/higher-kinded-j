@@ -27,9 +27,16 @@ import org.springframework.http.HttpStatusCode;
 public record ClientErrorResponse(
     HttpStatusCode status, @Nullable String body, @Nullable HttpHeaders headers) {
 
-  /** Canonical constructor. */
+  /**
+   * Canonical constructor; headers are snapshotted then wrapped read-only so the record is deeply
+   * immutable and unaffected by later mutation of the caller's {@link HttpHeaders} instance.
+   */
   public ClientErrorResponse {
     Objects.requireNonNull(status, "status");
+    // readOnlyHttpHeaders alone only wraps — it still aliases the caller's instance, so a later
+    // mutation there would change this record's observed headers (including retryAfter()). Copy
+    // first, then wrap the copy.
+    headers = headers == null ? null : HttpHeaders.readOnlyHttpHeaders(HttpHeaders.copyOf(headers));
   }
 
   /**

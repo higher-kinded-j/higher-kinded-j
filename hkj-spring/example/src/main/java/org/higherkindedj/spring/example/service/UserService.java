@@ -5,6 +5,7 @@ package org.higherkindedj.spring.example.service;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicLong;
 import org.higherkindedj.hkt.Applicative;
 import org.higherkindedj.hkt.Semigroups;
 import org.higherkindedj.hkt.either.Either;
@@ -27,6 +28,10 @@ public class UserService {
 
   // In-memory "database" for the example
   private final Map<String, User> users = new ConcurrentHashMap<>();
+
+  // Monotonic id generator: seeded past the pre-populated users so generated ids
+  // never collide, even after deletions or under concurrent creates.
+  private final AtomicLong idGenerator = new AtomicLong(3);
 
   /** Creates a new user service with pre-populated test data. */
   public UserService() {
@@ -95,7 +100,7 @@ public class UserService {
       return Either.left(new ValidationError("lastName", "Last name cannot be empty"));
     }
 
-    String id = String.valueOf(users.size() + 1);
+    String id = String.valueOf(idGenerator.incrementAndGet());
     User user = new User(id, email, firstName, lastName);
     users.put(id, user);
     return Either.right(user);
@@ -171,7 +176,7 @@ public class UserService {
             ValidatedKindHelper.VALIDATED.widen(validatedFirstName),
             ValidatedKindHelper.VALIDATED.widen(validatedLastName),
             (e, f, l) -> {
-              String id = String.valueOf(users.size() + 1);
+              String id = String.valueOf(idGenerator.incrementAndGet());
               User user = new User(id, e, f, l);
               users.put(id, user);
               return user;

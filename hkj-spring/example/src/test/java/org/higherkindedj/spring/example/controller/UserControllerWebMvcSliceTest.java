@@ -36,14 +36,19 @@ import org.springframework.test.web.servlet.MockMvc;
  *
  * <ul>
  *   <li>{@link HkjJacksonAutoConfiguration} (registers {@code HkjJacksonModule}) isn't loaded, so
- *       {@code Either} / {@code Validated} serialize as their raw fields rather than the tagged
- *       {@code {success, value}} / {@code {success, error}} shape.
+ *       nested {@code Either} / {@code Validated} values serialise as their raw fields rather than
+ *       the tagged {@code {"isRight": ..., "right"/"left": ...}} / {@code {"valid": ...,
+ *       "value"/"errors": ...}} shapes. (Top-level success values are unwrapped by the handlers;
+ *       only Left errors gain the {@code {"success": false, "error": ...}} envelope.)
  *   <li>{@link HkjWebMvcAutoConfiguration} (registers the {@code *ReturnValueHandler}s and the
  *       {@code ErrorStatusCodeMapper}) isn't loaded, so top-level {@code Either} values are not
  *       unwrapped and left errors don't map to status codes like 404/400.
  * </ul>
  *
- * <p>Importing all three auto-configurations below restores production behaviour inside the slice:
+ * <p>Importing all three auto-configurations below restores production behaviour inside the slice —
+ * so in <b>this</b> test nested {@code Either} / {@code Validated} values <b>do</b> serialise with
+ * the tagged shapes above, and top-level values are unwrapped with left errors mapped to status
+ * codes:
  *
  * <ul>
  *   <li>{@link HkjAutoConfiguration} — binds {@code HkjProperties} (required by the Web MVC
@@ -79,7 +84,7 @@ class UserControllerWebMvcSliceTest {
     mockMvc
         .perform(get("/api/users/{id}", "1"))
         .andExpect(status().isOk())
-        .andExpect(content().contentType(MediaType.APPLICATION_JSON))
+        .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
         .andExpect(jsonPath("$.id").value("1"))
         .andExpect(jsonPath("$.email").value("alice@example.com"))
         // Top-level Either is unwrapped — the Either wrapper fields must NOT leak.
@@ -96,7 +101,7 @@ class UserControllerWebMvcSliceTest {
     mockMvc
         .perform(get("/api/users/{id}", "999"))
         .andExpect(status().isNotFound())
-        .andExpect(content().contentType(MediaType.APPLICATION_JSON))
+        .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
         .andExpect(jsonPath("$.success").value(false))
         .andExpect(jsonPath("$.error").exists())
         .andExpect(jsonPath("$.error.userId").value("999"));

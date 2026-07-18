@@ -31,9 +31,11 @@ The hkj-spring security integration brings functional programming patterns to Sp
 hkj:
   security:
     enabled: true
-    validated-user-details: true
     either-authentication: true
     either-authorization: true
+    # Opt-in: only enable when you will register accounts — once unique, this bean
+    # becomes the application-wide UserDetailsService and it starts EMPTY.
+    # validated-user-details: true
 ```
 
 ### 2. Configure Spring Security
@@ -72,17 +74,41 @@ Accumulates validation errors instead of fail-fast exceptions.
 
 #### Features
 
-- Username format validation
-- Account status validation (enabled, locked, expired)
-- Credentials expiration checking
-- **ALL errors reported at once**
+- Username format validation, with **ALL errors reported at once**
+- In-memory user store, populated explicitly via `addUser(...)`
+- `validateAccountStatus(...)` helper for an accumulated view of enabled/locked/expired checks (status *enforcement* stays with the authentication provider, per the `UserDetailsService` contract)
+
+> **Warning — the service starts empty; sample users are opt-in.**
+> `new ValidatedUserDetailsService()` registers **no** users; authentication fails for every
+> username until you call `addUser(...)`. The `withSampleUsers()` factory pre-populates
+> well-known demo accounts (`admin`/`admin123`, `user`/`user123`, `disabled`/`disabled123`)
+> with plaintext `{noop}` passwords — use it for demos and tests only, **never in
+> production**.
 
 #### Example
 
 ```java
 @Bean
-public UserDetailsService userDetailsService() {
-    return new ValidatedUserDetailsService();
+public UserDetailsService userDetailsService(
+        PasswordEncoder encoder,
+        @Value("${app.security.alice-password}") String alicePassword) {
+    var service = new ValidatedUserDetailsService();
+    service.addUser(User.builder()
+        .username("alice")
+        .password(encoder.encode(alicePassword))  // never hard-code — source from config/secrets
+        .roles("USER")
+        .build());
+    return service;
+}
+```
+
+For a throwaway demo or test context only:
+
+```java
+@Bean
+@Profile("demo")
+public UserDetailsService demoUserDetailsService() {
+    return ValidatedUserDetailsService.withSampleUsers();  // NEVER in production
 }
 ```
 
@@ -120,10 +146,9 @@ Converts JWT tokens to Authentication using Either for functional error handling
 
 #### Features
 
-- Extracts authorities from JWT claims
-- Handles missing/invalid claims gracefully
+- Extracts authorities from JWT claims using `Either` internally
 - Configurable claim name and authority prefix
-- Returns empty authorities on error (no exceptions)
+- **Rejects on failure (by default):** a *malformed* authorities claim always folds the `Left` into a thrown `BadCredentialsException` (HTTP 401); a *missing* claim does the same while `reject-missing-authorities-claim` stays `true` (the default), so a bad token yields no authenticated principal. Set that flag to `false` to let legitimately role-less tokens (e.g. client-credentials) authenticate with empty authorities — malformed claims stay rejected regardless
 
 #### Example
 
@@ -156,7 +181,18 @@ hkj:
   security:
     jwt-authorities-claim: "roles"      # JWT claim containing roles
     jwt-authority-prefix: "ROLE_"        # Prefix added to each role
+    reject-missing-authorities-claim: true  # default: true
 ```
+
+A token whose authorities claim is **missing** or **malformed** is rejected with
+`BadCredentialsException` (surfaced as HTTP 401) — the converter never authenticates a token whose
+authorities it could not read. If your IdP legitimately issues role-less tokens (e.g.
+client-credentials), set `reject-missing-authorities-claim: false` to let a token with **no**
+authorities claim authenticate with an empty authority set. A **malformed** (wrong-type) claim is
+always rejected regardless of this flag.
+
+> A present-but-empty list (`"roles": []`) always authenticates with empty authorities — it is a
+> valid claim, not a missing one.
 
 ---
 
@@ -190,21 +226,28 @@ public SecurityFilterChain filterChain(
 #### Authorization Flow
 
 ```java
-Either<AuthorizationError, AuthorizationSuccess> result =
-    checkAuthentication(auth)           // Is user authenticated?
-        .flatMap(this::checkAuthorities)     // Has required roles?
-        .flatMap(auth -> checkRequestPath(auth, context));  // Path allowed?
-
+// Rules are chained with flatMap: the first Left denies access
+Either<AuthorizationError, Authentication> result = checkAuthentication(auth);
+for (AuthorizationRule rule : rules) {
+    result = result.flatMap(a -> rule.check(a, context));
+}
 // Short-circuits on first error (Either flatMap semantics)
+```
+
+Build your own policy with the rule factories, evaluated in order:
+
+```java
+var authManager = new EitherAuthorizationManager(List.of(
+    EitherAuthorizationManager.requireAuthority("ROLE_ADMIN"),
+    EitherAuthorizationManager.denyPathPrefix("/api/admin/dangerous")));
 ```
 
 #### Built-in Rules
 
-The default `EitherAuthorizationManager` requires:
-1. Authentication present
-2. Authentication authenticated
-3. `ROLE_ADMIN` authority
-4. Blocks `/api/admin/dangerous` paths
+The no-arg `EitherAuthorizationManager` keeps the historical default policy as three explicit rules:
+1. Authentication present and authenticated (always checked first)
+2. `requireAuthority("ROLE_ADMIN")`
+3. `denyPathPrefix("/api/admin/dangerous")` (matched against the decoded, normalised path)
 
 ---
 
@@ -218,13 +261,15 @@ hkj:
     # Enable/disable security integration
     enabled: false  # default: false (opt-in)
 
-    # ValidatedUserDetailsService
-    validated-user-details: true  # default: true
+    # ValidatedUserDetailsService (opt-in: starts empty and, once unique, becomes the
+    # application-wide UserDetailsService)
+    validated-user-details: false  # default: false
 
     # EitherAuthenticationConverter (JWT)
     either-authentication: true  # default: true
     jwt-authorities-claim: "roles"  # default: "roles"
     jwt-authority-prefix: "ROLE_"   # default: "ROLE_"
+    reject-missing-authorities-claim: true  # default: true (false = lenient, role-less tokens ok)
 
     # EitherAuthorizationManager
     either-authorization: true  # default: true
@@ -383,6 +428,21 @@ void shouldConvertJwtWithRoles() {
 
     assertThat(token.getAuthorities()).extracting("authority")
         .containsExactlyInAnyOrder("ROLE_USER", "ROLE_ADMIN");
+}
+
+@Test
+void shouldRejectJwtWithMissingRolesClaim() {
+    EitherAuthenticationConverter converter = new EitherAuthenticationConverter();
+
+    Jwt jwt = Jwt.withTokenValue("token")
+        .header("alg", "none")
+        .subject("user123")
+        .claim("other", "value")   // no "roles" claim
+        .build();
+
+    assertThatThrownBy(() -> converter.convert(jwt))
+        .isInstanceOf(BadCredentialsException.class)
+        .hasMessageContaining("Missing authorities claim");
 }
 ```
 

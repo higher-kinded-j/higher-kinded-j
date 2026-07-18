@@ -55,6 +55,8 @@ class HkjMetricsEndpointTest {
       assertThat(web.get("validationPathEnabled")).isEqualTo(true);
       assertThat(web.get("ioPathEnabled")).isEqualTo(true);
       assertThat(web.get("completableFuturePathEnabled")).isEqualTo(true);
+      assertThat(web.get("eitherOrBothPathEnabled")).isEqualTo(true);
+      assertThat(web.get("freePathEnabled")).isEqualTo(true);
       assertThat(web.get("defaultErrorStatus")).isEqualTo(400);
     }
 
@@ -67,6 +69,8 @@ class HkjMetricsEndpointTest {
       properties.getWeb().setValidationPathEnabled(false);
       properties.getWeb().setIoPathEnabled(false);
       properties.getWeb().setCompletableFuturePathEnabled(false);
+      properties.getWeb().setEitherOrBothPathEnabled(false);
+      properties.getWeb().setFreePathEnabled(false);
       properties.getWeb().setDefaultErrorStatus(500);
 
       Map<String, Object> result = endpoint.hkjMetrics();
@@ -79,6 +83,8 @@ class HkjMetricsEndpointTest {
       assertThat(web.get("validationPathEnabled")).isEqualTo(false);
       assertThat(web.get("ioPathEnabled")).isEqualTo(false);
       assertThat(web.get("completableFuturePathEnabled")).isEqualTo(false);
+      assertThat(web.get("eitherOrBothPathEnabled")).isEqualTo(false);
+      assertThat(web.get("freePathEnabled")).isEqualTo(false);
       assertThat(web.get("defaultErrorStatus")).isEqualTo(500);
     }
 
@@ -92,27 +98,18 @@ class HkjMetricsEndpointTest {
 
       Map<String, Object> jackson = section(config, "jackson");
       assertThat(jackson.get("customSerializersEnabled")).isEqualTo(true);
-      assertThat(jackson.get("eitherFormat")).isEqualTo("TAGGED");
-      assertThat(jackson.get("validatedFormat")).isEqualTo("TAGGED");
-      assertThat(jackson.get("maybeFormat")).isEqualTo("TAGGED");
     }
 
     @Test
     @DisplayName("Should include jackson configuration with custom values")
     void shouldIncludeJacksonConfigurationWithCustomValues() {
       properties.getJson().setCustomSerializersEnabled(false);
-      properties.getJson().setEitherFormat(HkjProperties.Jackson.SerializationFormat.SIMPLE);
-      properties.getJson().setValidatedFormat(HkjProperties.Jackson.SerializationFormat.SIMPLE);
-      properties.getJson().setMaybeFormat(HkjProperties.Jackson.SerializationFormat.SIMPLE);
 
       Map<String, Object> result = endpoint.hkjMetrics();
       Map<String, Object> config = section(result, "configuration");
       Map<String, Object> jackson = section(config, "jackson");
 
       assertThat(jackson.get("customSerializersEnabled")).isEqualTo(false);
-      assertThat(jackson.get("eitherFormat")).isEqualTo("SIMPLE");
-      assertThat(jackson.get("validatedFormat")).isEqualTo("SIMPLE");
-      assertThat(jackson.get("maybeFormat")).isEqualTo("SIMPLE");
     }
 
     @Test
@@ -534,7 +531,7 @@ class HkjMetricsEndpointTest {
     void shouldReflectCurrentConfigurationState() {
       // Modify configuration
       properties.getWeb().setDefaultErrorStatus(422);
-      properties.getJson().setEitherFormat(HkjProperties.Jackson.SerializationFormat.SIMPLE);
+      properties.getJson().setCustomSerializersEnabled(false);
 
       Map<String, Object> result = endpoint.hkjMetrics();
       Map<String, Object> config = section(result, "configuration");
@@ -543,7 +540,7 @@ class HkjMetricsEndpointTest {
       assertThat(web.get("defaultErrorStatus")).isEqualTo(422);
 
       Map<String, Object> jackson = section(config, "jackson");
-      assertThat(jackson.get("eitherFormat")).isEqualTo("SIMPLE");
+      assertThat(jackson.get("customSerializersEnabled")).isEqualTo(false);
     }
 
     @Test

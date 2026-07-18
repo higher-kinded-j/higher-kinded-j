@@ -924,12 +924,11 @@ hkj:
     default-error-status: 400      # Default HTTP status for errors
 
   async:
-    executor-core-pool-size: 10
-    executor-max-pool-size: 20
-    executor-queue-capacity: 100
-    executor-thread-name-prefix: "hkj-async-"
-    default-timeout-ms: 30000
+    default-timeout-ms: 30000    # Timeout applied by the CompletableFuturePath handler
 ```
+
+The starter does not create an executor: define your own `ThreadPoolTaskExecutor` bean (see
+`AsyncConfig` in this example) when your services need one.
 
 ### Disabling Async Support
 

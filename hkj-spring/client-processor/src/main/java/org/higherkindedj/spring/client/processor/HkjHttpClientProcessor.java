@@ -91,6 +91,19 @@ public class HkjHttpClientProcessor extends AbstractProcessor {
       ClassName.get("org.springframework.web.service.registry", "ImportHttpServices");
   private static final ClassName RESPONSE_ERROR_DECODERS =
       ClassName.get("org.higherkindedj.spring.client", "ResponseErrorDecoders");
+  private static final ClassName RESPONSE_ERROR_DECODER =
+      ClassName.get("org.higherkindedj.spring.client", "ResponseErrorDecoder");
+
+  /**
+   * Spring binding annotations whose parameter-name attribute the processor makes explicit in
+   * generated code, so the native interface works without {@code -parameters}.
+   */
+  private static final Set<String> NAME_BINDING_ANNOTATIONS =
+      Set.of(
+          "org.springframework.web.bind.annotation.PathVariable",
+          "org.springframework.web.bind.annotation.RequestParam",
+          "org.springframework.web.bind.annotation.RequestHeader",
+          "org.springframework.web.bind.annotation.CookieValue");
 
   /** The flavour of Effect Path a client method returns. */
   private enum PathKind {
@@ -261,24 +274,50 @@ public class HkjHttpClientProcessor extends AbstractProcessor {
             .addTypeVariables(typeVars)
             .addSuperinterface(ifaceType)
             .addJavadoc("Generated Effect-Path client. Do not edit.\n")
-            .addField(nativeType, "http", Modifier.PRIVATE, Modifier.FINAL)
-            .addField(DECODER_FACTORY, "decoderFactory", Modifier.PRIVATE, Modifier.FINAL)
-            .addMethod(
-                MethodSpec.constructorBuilder()
-                    .addModifiers(Modifier.PUBLIC)
-                    .addParameter(nativeType, "http")
-                    .addParameter(DECODER_FACTORY, "decoderFactory")
-                    .addStatement("this.http = http")
-                    .addStatement("this.decoderFactory = decoderFactory")
-                    .build());
+            .addField(nativeType, "http", Modifier.PRIVATE, Modifier.FINAL);
+
+    MethodSpec.Builder constructor =
+        MethodSpec.constructorBuilder()
+            .addModifiers(Modifier.PUBLIC)
+            .addParameter(nativeType, "http")
+            .addParameter(DECODER_FACTORY, "decoderFactory")
+            .addStatement("this.http = http");
+
+    // Decoders are constructor-initialised final fields so the (stateless, thread-safe)
+    // facade does not rebuild the decoder chain on every HTTP call.
+    Set<String> usedFieldNames = new HashSet<>();
+    List<@Nullable String> decoderFields = new ArrayList<>();
+    for (int i = 0; i < methods.size(); i++) {
+      ExecutableElement method = methods.get(i);
+      ReturnInfo info = infos.get(i);
+      if (info.kind() == PathKind.MAYBE) {
+        decoderFields.add(null);
+        continue;
+      }
+      String fieldName = method.getSimpleName() + "Decoder";
+      int suffix = 2;
+      while (!usedFieldNames.add(fieldName)) {
+        fieldName = method.getSimpleName() + "Decoder" + suffix++;
+      }
+      builder.addField(
+          ParameterizedTypeName.get(RESPONSE_ERROR_DECODER, rawClass(info.error())),
+          fieldName,
+          Modifier.PRIVATE,
+          Modifier.FINAL);
+      constructor.addStatement("this.$L = $L", fieldName, decoderExpression(method, info));
+      decoderFields.add(fieldName);
+    }
+
+    builder.addMethod(constructor.build());
 
     for (int i = 0; i < methods.size(); i++) {
-      builder.addMethod(buildFacadeMethod(methods.get(i), infos.get(i)));
+      builder.addMethod(buildFacadeMethod(methods.get(i), infos.get(i), decoderFields.get(i)));
     }
     return builder.build();
   }
 
-  private MethodSpec buildFacadeMethod(ExecutableElement method, ReturnInfo info) {
+  private MethodSpec buildFacadeMethod(
+      ExecutableElement method, ReturnInfo info, @Nullable String decoderField) {
     String name = method.getSimpleName().toString();
     MethodSpec.Builder facadeMethod =
         MethodSpec.methodBuilder(name)
@@ -308,16 +347,10 @@ public class HkjHttpClientProcessor extends AbstractProcessor {
         switch (info.kind()) {
           case EITHER ->
               CodeBlock.of(
-                  "return $T.either($L, $L)",
-                  HKJ_CLIENT_EXCHANGE,
-                  call,
-                  decoderExpression(method, info));
+                  "return $T.either($L, this.$L)", HKJ_CLIENT_EXCHANGE, call, decoderField);
           case EITHER_VTASK ->
               CodeBlock.of(
-                  "return $T.eitherVTask($L, $L)",
-                  HKJ_CLIENT_EXCHANGE,
-                  call,
-                  decoderExpression(method, info));
+                  "return $T.eitherVTask($L, this.$L)", HKJ_CLIENT_EXCHANGE, call, decoderField);
           case MAYBE -> CodeBlock.of("return $T.maybe($L)", HKJ_CLIENT_EXCHANGE, call);
         });
     return facadeMethod.build();
@@ -332,12 +365,12 @@ public class HkjHttpClientProcessor extends AbstractProcessor {
     ClassName errorRaw = rawClass(info.error());
     List<StatusOverride> overrides = readStatusOverrides(method, info.error());
     if (overrides.isEmpty()) {
-      return CodeBlock.of("this.decoderFactory.create($T.class)", errorRaw);
+      return CodeBlock.of("decoderFactory.create($T.class)", errorRaw);
     }
     CodeBlock.Builder builder =
         CodeBlock.builder()
             .add(
-                "$T.<$T>forDefault(this.decoderFactory, $T.class)",
+                "$T.<$T>forDefault(decoderFactory, $T.class)",
                 RESPONSE_ERROR_DECODERS,
                 errorRaw,
                 errorRaw);
@@ -415,7 +448,10 @@ public class HkjHttpClientProcessor extends AbstractProcessor {
         .addJavadoc(
             "Registers the {@link $T} HTTP Service group and the client bean. Generated; do not edit.\n",
             nativeName)
-        .addAnnotation(CONFIGURATION)
+        .addAnnotation(
+            AnnotationSpec.builder(CONFIGURATION)
+                .addMember("proxyBeanMethods", "$L", false)
+                .build())
         .addAnnotation(
             AnnotationSpec.builder(IMPORT_HTTP_SERVICES)
                 .addMember("group", "$S", group)
@@ -427,15 +463,57 @@ public class HkjHttpClientProcessor extends AbstractProcessor {
 
   // ---- analysis helpers ---------------------------------------------------------------------
 
-  /** Copies a parameter's type, name and binding annotations onto the native interface method. */
-  private static ParameterSpec copyParameter(VariableElement parameter) {
+  /**
+   * Copies a parameter's type, name and binding annotations onto the native interface method. A
+   * name-binding annotation ({@code @PathVariable}, {@code @RequestParam}, …) without an explicit
+   * name gets one injected from the source parameter — the processor knows the name even when the
+   * consuming build does not compile with {@code -parameters}.
+   */
+  private ParameterSpec copyParameter(VariableElement parameter) {
+    String parameterName = parameter.getSimpleName().toString();
     ParameterSpec.Builder builder =
-        ParameterSpec.builder(
-            TypeName.get(parameter.asType()), parameter.getSimpleName().toString());
+        ParameterSpec.builder(TypeName.get(parameter.asType()), parameterName);
     for (AnnotationMirror mirror : parameter.getAnnotationMirrors()) {
-      builder.addAnnotation(AnnotationSpec.get(mirror));
+      AnnotationSpec spec = AnnotationSpec.get(mirror);
+      if (needsExplicitName(mirror, parameter)) {
+        spec = spec.toBuilder().addMember("value", "$S", parameterName).build();
+      }
+      builder.addAnnotation(spec);
     }
     return builder.build();
+  }
+
+  /**
+   * True for a name-binding annotation that declares neither {@code value} nor {@code name} and is
+   * not an <em>aggregate</em> binder. A {@code Map}/{@code MultiValueMap} parameter on
+   * {@code @RequestParam}/{@code @RequestHeader}/{@code @CookieValue}, or a {@code Map} on
+   * {@code @PathVariable}, binds <em>every</em> name/value pair when left unnamed — injecting a
+   * name would change it into a single-entry binder, so it must stay unnamed.
+   */
+  private boolean needsExplicitName(AnnotationMirror mirror, VariableElement parameter) {
+    String annotationType = mirror.getAnnotationType().toString();
+    if (!NAME_BINDING_ANNOTATIONS.contains(annotationType)) {
+      return false;
+    }
+    if (isMapType(parameter.asType())) {
+      return false;
+    }
+    return mirror.getElementValues().keySet().stream()
+        .map(member -> member.getSimpleName().toString())
+        .noneMatch(member -> member.equals("value") || member.equals("name"));
+  }
+
+  /**
+   * True when {@code type} is (a subtype of) {@link java.util.Map} — including {@code
+   * MultiValueMap}.
+   */
+  private boolean isMapType(TypeMirror type) {
+    var types = processingEnv.getTypeUtils();
+    TypeElement mapElement = processingEnv.getElementUtils().getTypeElement("java.util.Map");
+    if (mapElement == null) {
+      return false;
+    }
+    return types.isAssignable(types.erasure(type), types.erasure(mapElement.asType()));
   }
 
   /**

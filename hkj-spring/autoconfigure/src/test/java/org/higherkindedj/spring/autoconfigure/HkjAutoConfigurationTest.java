@@ -47,22 +47,14 @@ class HkjAutoConfigurationTest {
             assertThat(properties.getWeb().isValidationPathEnabled()).isTrue();
             assertThat(properties.getWeb().getDefaultErrorStatus()).isEqualTo(400);
 
-            // Verify validation defaults
-            assertThat(properties.getValidation().isEnabled()).isTrue();
-            assertThat(properties.getValidation().isAccumulateErrors()).isTrue();
-            assertThat(properties.getValidation().getMaxErrors()).isEqualTo(0);
-
             // Verify JSON defaults
             assertThat(properties.getJson().isCustomSerializersEnabled()).isTrue();
-            assertThat(properties.getJson().getEitherFormat())
-                .isEqualTo(HkjProperties.Jackson.SerializationFormat.TAGGED);
 
             // Verify async defaults
-            assertThat(properties.getAsync().getExecutorCorePoolSize()).isEqualTo(10);
-            assertThat(properties.getAsync().getExecutorMaxPoolSize()).isEqualTo(20);
-            assertThat(properties.getAsync().getExecutorQueueCapacity()).isEqualTo(100);
-            assertThat(properties.getAsync().getExecutorThreadNamePrefix()).isEqualTo("hkj-async-");
             assertThat(properties.getAsync().getDefaultTimeoutMs()).isEqualTo(30000);
+
+            // Verify effect-boundary defaults
+            assertThat(properties.getEffectBoundary().isEnabled()).isTrue();
           });
     }
 
@@ -93,33 +85,12 @@ class HkjAutoConfigurationTest {
     @DisplayName("Should load custom JSON properties")
     void shouldLoadCustomJsonProperties() {
       contextRunner
-          .withPropertyValues(
-              "hkj.json.custom-serializers-enabled=false", "hkj.json.either-format=SIMPLE")
+          .withPropertyValues("hkj.json.custom-serializers-enabled=false")
           .run(
               context -> {
                 HkjProperties properties = context.getBean(HkjProperties.class);
 
                 assertThat(properties.getJson().isCustomSerializersEnabled()).isFalse();
-                assertThat(properties.getJson().getEitherFormat())
-                    .isEqualTo(HkjProperties.Jackson.SerializationFormat.SIMPLE);
-              });
-    }
-
-    @Test
-    @DisplayName("Should load custom validation properties")
-    void shouldLoadCustomValidationProperties() {
-      contextRunner
-          .withPropertyValues(
-              "hkj.validation.enabled=false",
-              "hkj.validation.accumulate-errors=false",
-              "hkj.validation.max-errors=10")
-          .run(
-              context -> {
-                HkjProperties properties = context.getBean(HkjProperties.class);
-
-                assertThat(properties.getValidation().isEnabled()).isFalse();
-                assertThat(properties.getValidation().isAccumulateErrors()).isFalse();
-                assertThat(properties.getValidation().getMaxErrors()).isEqualTo(10);
               });
     }
 
@@ -127,22 +98,25 @@ class HkjAutoConfigurationTest {
     @DisplayName("Should load custom async properties")
     void shouldLoadCustomAsyncProperties() {
       contextRunner
-          .withPropertyValues(
-              "hkj.async.executor-core-pool-size=20",
-              "hkj.async.executor-max-pool-size=50",
-              "hkj.async.executor-queue-capacity=500",
-              "hkj.async.executor-thread-name-prefix=custom-async-",
-              "hkj.async.default-timeout-ms=60000")
+          .withPropertyValues("hkj.async.default-timeout-ms=60000")
           .run(
               context -> {
                 HkjProperties properties = context.getBean(HkjProperties.class);
 
-                assertThat(properties.getAsync().getExecutorCorePoolSize()).isEqualTo(20);
-                assertThat(properties.getAsync().getExecutorMaxPoolSize()).isEqualTo(50);
-                assertThat(properties.getAsync().getExecutorQueueCapacity()).isEqualTo(500);
-                assertThat(properties.getAsync().getExecutorThreadNamePrefix())
-                    .isEqualTo("custom-async-");
                 assertThat(properties.getAsync().getDefaultTimeoutMs()).isEqualTo(60000);
+              });
+    }
+
+    @Test
+    @DisplayName("Should load custom effect-boundary properties")
+    void shouldLoadCustomEffectBoundaryProperties() {
+      contextRunner
+          .withPropertyValues("hkj.effect-boundary.enabled=false")
+          .run(
+              context -> {
+                HkjProperties properties = context.getBean(HkjProperties.class);
+
+                assertThat(properties.getEffectBoundary().isEnabled()).isFalse();
               });
     }
   }
@@ -201,20 +175,10 @@ class HkjAutoConfigurationTest {
               "hkj.web.error-status-mappings.ValidationError=400",
               "hkj.web.error-status-mappings.AuthorizationError=403",
 
-              // Validation
-              "hkj.validation.enabled=true",
-              "hkj.validation.accumulate-errors=true",
-              "hkj.validation.max-errors=0",
-
               // JSON
               "hkj.json.custom-serializers-enabled=true",
-              "hkj.json.either-format=TAGGED",
 
               // Async
-              "hkj.async.executor-core-pool-size=10",
-              "hkj.async.executor-max-pool-size=20",
-              "hkj.async.executor-queue-capacity=100",
-              "hkj.async.executor-thread-name-prefix=hkj-async-",
               "hkj.async.default-timeout-ms=30000")
           .run(
               context -> {
@@ -228,19 +192,8 @@ class HkjAutoConfigurationTest {
                     .hasSize(3)
                     .containsEntry("UserNotFoundError", 404);
 
-                assertThat(properties.getValidation().isEnabled()).isTrue();
-                assertThat(properties.getValidation().isAccumulateErrors()).isTrue();
-                assertThat(properties.getValidation().getMaxErrors()).isEqualTo(0);
-
                 assertThat(properties.getJson().isCustomSerializersEnabled()).isTrue();
-                assertThat(properties.getJson().getEitherFormat())
-                    .isEqualTo(HkjProperties.Jackson.SerializationFormat.TAGGED);
 
-                assertThat(properties.getAsync().getExecutorCorePoolSize()).isEqualTo(10);
-                assertThat(properties.getAsync().getExecutorMaxPoolSize()).isEqualTo(20);
-                assertThat(properties.getAsync().getExecutorQueueCapacity()).isEqualTo(100);
-                assertThat(properties.getAsync().getExecutorThreadNamePrefix())
-                    .isEqualTo("hkj-async-");
                 assertThat(properties.getAsync().getDefaultTimeoutMs()).isEqualTo(30000);
               });
     }

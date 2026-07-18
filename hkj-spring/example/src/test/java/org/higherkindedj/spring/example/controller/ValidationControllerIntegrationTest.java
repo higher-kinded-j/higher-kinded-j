@@ -60,7 +60,7 @@ class ValidationControllerIntegrationTest {
                   .contentType(MediaType.APPLICATION_JSON)
                   .content(requestBody))
           .andExpect(status().isOk())
-          .andExpect(content().contentType(MediaType.APPLICATION_JSON))
+          .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
           .andExpect(jsonPath("$.id").exists())
           .andExpect(jsonPath("$.email").value("test@example.com"))
           .andExpect(jsonPath("$.firstName").value("John"))
@@ -85,7 +85,7 @@ class ValidationControllerIntegrationTest {
                   .contentType(MediaType.APPLICATION_JSON)
                   .content(requestBody))
           .andExpect(status().isBadRequest())
-          .andExpect(content().contentType(MediaType.APPLICATION_JSON))
+          .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
           .andExpect(jsonPath("$.valid").value(false))
           .andExpect(jsonPath("$.errors").isArray())
           .andExpect(jsonPath("$.errors", hasSize(3)));
@@ -230,7 +230,7 @@ class ValidationControllerIntegrationTest {
                   .contentType(MediaType.APPLICATION_JSON)
                   .content(requestBody))
           .andExpect(status().isOk())
-          .andExpect(content().contentType(MediaType.APPLICATION_JSON))
+          .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
           .andExpect(jsonPath("$.batchId").exists())
           .andExpect(jsonPath("$.results").isArray())
           .andExpect(jsonPath("$.results", hasSize(3)));

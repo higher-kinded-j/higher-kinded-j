@@ -16,6 +16,18 @@ This page documents the evolution of Higher-Kinded-J from its initial release th
 
 _In development. Release notes will be added here as changes land on `main`._
 
+**hkj-spring hardening ([#642](https://github.com/higher-kinded-j/higher-kinded-j/issues/642))**
+
+A review pass over the Spring integration fixed a security fail-open in the JWT converter, several async-handler lifecycle defects, a Jackson contextual-binding bug, and a batch of dead configuration. Most changes are internal, but a few are behaviour- or source-breaking:
+
+_Breaking changes / migration:_
+
+- **SSE responses now commit after the first stream element resolves**, not immediately. This is what lets a stream that fails at its start return the configured `hkj.web.vstream-failure-status` (default 500) instead of a broken `200` stream, and it removes the hop-by-hop `Connection: keep-alive` header. Consequence: `EventSource.onopen` fires only once the first element is produced. A `VStreamPath` that may idle for a long time before its first element should emit an **early heartbeat element** so the client and any intermediary proxies see the response promptly.
+- **Removed public API on the starter's `@ConfigurationProperties` surface** (source-breaking for programmatic-config consumers): the `HkjProperties.Jackson.SerializationFormat` enum and the `either-format`/`validated-format`/`maybe-format` getters/setters; the `HkjProperties.Validation` nested class (`hkj.validation.*`); the `hkj.async.executor-*` fields; and `EffectConfig.startupValidation`/`interpreterSelection`. These keys never altered behaviour (the JSON shapes are fixed; the executor is app-defined). Also removed: `EitherAuthorizationManager.AuthorizationSuccess`. Delete any of these keys from your YAML and stop calling the getters.
+- **`hkj.security.validated-user-details` now defaults to `false`** and the bean starts empty (sample accounts moved to `ValidatedUserDetailsService.withSampleUsers()`). It is a `UserDetailsService`, so once unique it becomes the application-wide user store — enabling it without registering accounts fails every login. Enable it only when you will populate it.
+- **A JWT whose authorities claim is missing or malformed is now rejected with `BadCredentialsException` (HTTP 401)** rather than authenticating with empty authorities. If your IdP legitimately issues role-less tokens, set `hkj.security.reject-missing-authorities-claim: false` to restore lenient handling for the missing-claim case (a malformed claim is always rejected).
+- **Effect-boundary interpreter resolution now fails fast at startup** on an ambiguous match (two equally-specific eligible interpreters for one algebra) or when the only interpreter for an algebra is gated behind an inactive `@Interpreter(profile = ...)`. Both were previously silent scan-order selections.
+
 ---
 
 ### [v0.4.8](https://github.com/higher-kinded-j/higher-kinded-j/releases/tag/v0.4.8) (17 July 2026)

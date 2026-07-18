@@ -7,8 +7,10 @@ This document explains how higher-kinded-j types (Either, Validated) are seriali
 The `hkj-spring-autoconfigure` module provides custom Jackson serializers and deserializers for:
 - `Either<L, R>` - Sum type for error handling
 - `Validated<E, A>` - Validation with error accumulation
+- `EitherOrBoth<W, A>` - Inclusive-or (success that may carry warnings)
+- `NonEmptyList<A>` - Non-empty list (serialised as a plain JSON array)
 
-These serializers are **automatically registered** when using Spring Boot auto-configuration.
+These serializers are **automatically registered** when using Spring Boot auto-configuration. The shapes below are fixed — there are no format-toggle properties. `Maybe` and `Try` have **no** Jackson support: return them at the top level (where the return-value handlers apply) rather than nesting them in DTOs.
 
 ## JSON Format
 
@@ -65,6 +67,18 @@ Validated<List<String>, User> success = Validated.valid(new User("1", "alice@exa
 Validated<List<String>, User> errors = Validated.invalid(List.of("Invalid email", "Name required"));
 // JSON: {"valid": false, "errors": ["Invalid email", "Name required"]}
 ```
+
+### EitherOrBoth Serialization
+
+`EitherOrBoth` has three cases, so it uses a `kind` discriminator:
+
+```json
+{"kind": "left",  "left":  <warnings>}
+{"kind": "right", "right": <value>}
+{"kind": "both",  "left":  <warnings>, "right": <value>}
+```
+
+This applies to **nested** `EitherOrBoth` values. A top-level `EitherOrBoth` / `EitherOrBothPath` controller return value is shaped by `EitherOrBothPathReturnValueHandler` instead: the success body is the bare value, `Both` warnings travel JSON-encoded in the `X-Hkj-Warnings` response header, and a `Left` produces the `{"success": false, "error": ...}` envelope (see [CONFIGURATION.md](CONFIGURATION.md#hkjwebeither-or-both-path-enabled)).
 
 ## When Jackson Serializers Are Used
 
@@ -385,14 +399,14 @@ class BatchControllerTest {
 
 **Problem:** Either/Validated not serializing with custom format
 
-**Solution:** Verify HkjJacksonModule is registered. You can add a debug endpoint to check module registration:
+**Solution:** Verify HkjJacksonModule is registered by probing real serialisation behaviour (Jackson 3.x does not expose registered module IDs directly). The example module's `/api/users/debug/jackson-modules` endpoint serialises a sample `Either` with the injected `JsonMapper` and reports whether the tagged shape came back:
+
 ```java
-@GetMapping("/debug/jackson")
-public Map<String, Object> getJacksonInfo(ObjectMapper objectMapper) {
-    return Map.of(
-        "hkjModulePresent", true,  // Set based on your verification logic
-        "registeredModules", List.of("HkjJacksonModule")
-    );
+@GetMapping("/debug/jackson-modules")
+public Map<String, Object> getJacksonInfo() {
+    String probe = jsonMapper.writeValueAsString(Either.<String, String>right("probe"));
+    boolean hkjModulePresent = probe.contains("\"isRight\"");
+    return Map.of("hkjModulePresent", hkjModulePresent, "eitherProbe", probe);
 }
 ```
 

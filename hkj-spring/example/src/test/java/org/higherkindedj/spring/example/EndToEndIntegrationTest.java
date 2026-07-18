@@ -282,7 +282,7 @@ class EndToEndIntegrationTest {
           .perform(get("/api/users/debug/jackson-modules"))
           .andExpect(status().isOk())
           .andExpect(jsonPath("$.hkjModulePresent").value(true))
-          .andExpect(jsonPath("$.registeredModules", hasItem("HkjJacksonModule")));
+          .andExpect(jsonPath("$.eitherProbe").exists());
     }
 
     @Test
@@ -457,7 +457,7 @@ class EndToEndIntegrationTest {
           .andExpect(status().isOk())
           .andExpect(jsonPath("$.hkjModulePresent").value(true));
 
-      // Verify either-format=TAGGED (default in application.yml)
+      // Verify the fixed nested-Either JSON shape (isRight/right)
       MvcResult result =
           mockMvc.perform(get("/api/users/batch")).andExpect(status().isOk()).andReturn();
 

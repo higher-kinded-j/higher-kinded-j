@@ -5,7 +5,6 @@ package org.higherkindedj.spring.security;
 import static org.assertj.core.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
-import jakarta.servlet.http.HttpServletRequest;
 import java.util.Collection;
 import java.util.List;
 import java.util.function.Supplier;
@@ -16,6 +15,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.security.authorization.AuthorizationDecision;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.GrantedAuthority;
@@ -26,9 +26,9 @@ import org.springframework.security.web.access.intercept.RequestAuthorizationCon
 @DisplayName("EitherAuthorizationManager Tests")
 class EitherAuthorizationManagerTest {
 
-  @Mock private HttpServletRequest request;
-
   @Mock private Authentication authentication;
+
+  private MockHttpServletRequest request;
 
   private EitherAuthorizationManager manager;
   private RequestAuthorizationContext context;
@@ -36,6 +36,7 @@ class EitherAuthorizationManagerTest {
   @BeforeEach
   void setUp() {
     manager = new EitherAuthorizationManager();
+    request = new MockHttpServletRequest();
     context = new RequestAuthorizationContext(request);
   }
 
@@ -47,9 +48,8 @@ class EitherAuthorizationManagerTest {
     @DisplayName("Should grant access for admin with valid path")
     void shouldGrantAccessForAdminWithValidPath() {
       when(authentication.isAuthenticated()).thenReturn(true);
-      when(authentication.getName()).thenReturn("admin");
       doReturn(createAuthorities("ROLE_ADMIN", "ROLE_USER")).when(authentication).getAuthorities();
-      when(request.getRequestURI()).thenReturn("/api/admin/users");
+      request.setRequestURI("/api/admin/users");
 
       Supplier<Authentication> authSupplier = () -> authentication;
 
@@ -64,11 +64,10 @@ class EitherAuthorizationManagerTest {
     @DisplayName("Should grant access for admin with multiple roles")
     void shouldGrantAccessForAdminWithMultipleRoles() {
       when(authentication.isAuthenticated()).thenReturn(true);
-      when(authentication.getName()).thenReturn("superadmin");
       doReturn(createAuthorities("ROLE_ADMIN", "ROLE_USER", "ROLE_MODERATOR"))
           .when(authentication)
           .getAuthorities();
-      when(request.getRequestURI()).thenReturn("/api/admin/settings");
+      request.setRequestURI("/api/admin/settings");
 
       Supplier<Authentication> authSupplier = () -> authentication;
 
@@ -126,9 +125,8 @@ class EitherAuthorizationManagerTest {
     @DisplayName("Should deny access to dangerous path even for admin")
     void shouldDenyAccessToDangerousPathEvenForAdmin() {
       when(authentication.isAuthenticated()).thenReturn(true);
-      // getName() not needed - test fails at path check, never creates success object
       doReturn(createAuthorities("ROLE_ADMIN")).when(authentication).getAuthorities();
-      when(request.getRequestURI()).thenReturn("/api/admin/dangerous/action");
+      request.setRequestURI("/api/admin/dangerous/action");
 
       Supplier<Authentication> authSupplier = () -> authentication;
 
@@ -161,7 +159,6 @@ class EitherAuthorizationManagerTest {
     @DisplayName("Should allow safe admin paths")
     void shouldAllowSafeAdminPaths() {
       when(authentication.isAuthenticated()).thenReturn(true);
-      when(authentication.getName()).thenReturn("admin");
       doReturn(createAuthorities("ROLE_ADMIN")).when(authentication).getAuthorities();
 
       String[] safePaths = {
@@ -169,7 +166,7 @@ class EitherAuthorizationManagerTest {
       };
 
       for (String path : safePaths) {
-        when(request.getRequestURI()).thenReturn(path);
+        request.setRequestURI(path);
         Supplier<Authentication> authSupplier = () -> authentication;
 
         AuthorizationDecision decision =
@@ -183,7 +180,6 @@ class EitherAuthorizationManagerTest {
     @DisplayName("Should block all dangerous paths")
     void shouldBlockAllDangerousPaths() {
       when(authentication.isAuthenticated()).thenReturn(true);
-      // getName() not needed - test fails at path check, never creates success object
       doReturn(createAuthorities("ROLE_ADMIN")).when(authentication).getAuthorities();
 
       String[] dangerousPaths = {
@@ -193,7 +189,7 @@ class EitherAuthorizationManagerTest {
       };
 
       for (String path : dangerousPaths) {
-        when(request.getRequestURI()).thenReturn(path);
+        request.setRequestURI(path);
         Supplier<Authentication> authSupplier = () -> authentication;
 
         AuthorizationDecision decision =
@@ -201,6 +197,84 @@ class EitherAuthorizationManagerTest {
 
         assertThat(decision.isGranted()).as("Should deny access to path: " + path).isFalse();
       }
+    }
+  }
+
+  @Nested
+  @DisplayName("denyPathPrefix Normalisation Tests")
+  class DenyPathPrefixNormalisationTests {
+
+    @Test
+    @DisplayName("A trailing-slash prefix still denies descendants (no fail-open)")
+    void trailingSlashPrefixStillDeniesDescendants() {
+      // Regression: "/api/admin/" would build a "/api/admin//**" descendants matcher whose empty
+      // segment matches nothing, silently allowing /api/admin/secret.
+      var custom =
+          new EitherAuthorizationManager(
+              List.of(
+                  EitherAuthorizationManager.requireAuthority("ROLE_ADMIN"),
+                  EitherAuthorizationManager.denyPathPrefix("/api/admin/")));
+      when(authentication.isAuthenticated()).thenReturn(true);
+      doReturn(createAuthorities("ROLE_ADMIN")).when(authentication).getAuthorities();
+      request.setRequestURI("/api/admin/secret");
+
+      AuthorizationDecision decision =
+          (AuthorizationDecision) custom.authorize(() -> authentication, context);
+
+      assertThat(decision.isGranted()).isFalse();
+    }
+
+    @Test
+    @DisplayName("A repeated trailing slash still denies descendants (no fail-open)")
+    void repeatedTrailingSlashStillDeniesDescendants() {
+      // Regression: "/api/admin//" would strip only one slash → "/api/admin/" → "/api/admin//**",
+      // whose empty segment matches nothing, silently allowing /api/admin/secret.
+      var custom =
+          new EitherAuthorizationManager(
+              List.of(
+                  EitherAuthorizationManager.requireAuthority("ROLE_ADMIN"),
+                  EitherAuthorizationManager.denyPathPrefix("/api/admin//")));
+      when(authentication.isAuthenticated()).thenReturn(true);
+      doReturn(createAuthorities("ROLE_ADMIN")).when(authentication).getAuthorities();
+      request.setRequestURI("/api/admin/secret");
+
+      AuthorizationDecision decision =
+          (AuthorizationDecision) custom.authorize(() -> authentication, context);
+
+      assertThat(decision.isGranted()).isFalse();
+    }
+
+    @Test
+    @DisplayName("Root prefix \"/\" denies descendants, not just the root path (no fail-open)")
+    void rootPrefixDeniesDescendants() {
+      // Regression: "/" would build a "//**" descendants matcher whose empty segment matches
+      // nothing, denying only "/" itself while allowing every real path below it.
+      var custom =
+          new EitherAuthorizationManager(List.of(EitherAuthorizationManager.denyPathPrefix("/")));
+      when(authentication.isAuthenticated()).thenReturn(true);
+      request.setRequestURI("/api/users");
+
+      AuthorizationDecision decision =
+          (AuthorizationDecision) custom.authorize(() -> authentication, context);
+
+      assertThat(decision.isGranted()).isFalse();
+    }
+
+    @Test
+    @DisplayName("Rejects a blank, non-slash, or PathPattern-metacharacter prefix at construction")
+    void rejectsMalformedPrefixes() {
+      assertThatIllegalArgumentException()
+          .isThrownBy(() -> EitherAuthorizationManager.denyPathPrefix("  "));
+      assertThatIllegalArgumentException()
+          .isThrownBy(() -> EitherAuthorizationManager.denyPathPrefix("api/admin"));
+      // Every PathPattern metacharacter must be rejected: *, ?, and { } capture syntax would make
+      // the "literal prefix" match more than intended (e.g. "/api/{segment}").
+      assertThatIllegalArgumentException()
+          .isThrownBy(() -> EitherAuthorizationManager.denyPathPrefix("/api/admin/**"));
+      assertThatIllegalArgumentException()
+          .isThrownBy(() -> EitherAuthorizationManager.denyPathPrefix("/api/admin?x"));
+      assertThatIllegalArgumentException()
+          .isThrownBy(() -> EitherAuthorizationManager.denyPathPrefix("/api/{segment}"));
     }
   }
 
@@ -236,9 +310,8 @@ class EitherAuthorizationManagerTest {
     @DisplayName("Should accept ROLE_ADMIN with any case")
     void shouldAcceptRoleAdminWithCorrectCase() {
       when(authentication.isAuthenticated()).thenReturn(true);
-      when(authentication.getName()).thenReturn("admin");
       doReturn(createAuthorities("ROLE_ADMIN")).when(authentication).getAuthorities();
-      when(request.getRequestURI()).thenReturn("/api/admin/users");
+      request.setRequestURI("/api/admin/users");
 
       Supplier<Authentication> authSupplier = () -> authentication;
 
@@ -252,11 +325,10 @@ class EitherAuthorizationManagerTest {
     @DisplayName("Should work with ADMIN role among other roles")
     void shouldWorkWithAdminRoleAmongOtherRoles() {
       when(authentication.isAuthenticated()).thenReturn(true);
-      when(authentication.getName()).thenReturn("admin");
       doReturn(createAuthorities("ROLE_USER", "ROLE_MODERATOR", "ROLE_ADMIN", "ROLE_AUDITOR"))
           .when(authentication)
           .getAuthorities();
-      when(request.getRequestURI()).thenReturn("/api/admin/users");
+      request.setRequestURI("/api/admin/users");
 
       Supplier<Authentication> authSupplier = () -> authentication;
 
@@ -272,26 +344,27 @@ class EitherAuthorizationManagerTest {
   class EdgeCasesTests {
 
     @Test
-    @DisplayName("Should handle null request URI")
-    void shouldHandleNullRequestURI() {
+    @DisplayName("Should deny a percent-encoded dangerous path")
+    void shouldDenyPercentEncodedDangerousPath() {
       when(authentication.isAuthenticated()).thenReturn(true);
-      when(authentication.getName()).thenReturn("admin");
       doReturn(createAuthorities("ROLE_ADMIN")).when(authentication).getAuthorities();
-      when(request.getRequestURI()).thenReturn(null);
+      // A raw startsWith check on getRequestURI() would be bypassed by this encoding
+      request.setRequestURI("/api/admin/%64angerous/action");
 
       Supplier<Authentication> authSupplier = () -> authentication;
 
-      // Should not throw exception
-      assertThatCode(() -> manager.authorize(authSupplier, context)).doesNotThrowAnyException();
+      AuthorizationDecision decision =
+          (AuthorizationDecision) manager.authorize(authSupplier, context);
+
+      assertThat(decision.isGranted()).isFalse();
     }
 
     @Test
     @DisplayName("Should handle empty request URI")
     void shouldHandleEmptyRequestURI() {
       when(authentication.isAuthenticated()).thenReturn(true);
-      when(authentication.getName()).thenReturn("admin");
       doReturn(createAuthorities("ROLE_ADMIN")).when(authentication).getAuthorities();
-      when(request.getRequestURI()).thenReturn("");
+      request.setRequestURI("");
 
       Supplier<Authentication> authSupplier = () -> authentication;
 
@@ -305,9 +378,8 @@ class EitherAuthorizationManagerTest {
     @DisplayName("Should handle null authentication name")
     void shouldHandleNullAuthenticationName() {
       when(authentication.isAuthenticated()).thenReturn(true);
-      when(authentication.getName()).thenReturn(null);
       doReturn(createAuthorities("ROLE_ADMIN")).when(authentication).getAuthorities();
-      when(request.getRequestURI()).thenReturn("/api/admin/users");
+      request.setRequestURI("/api/admin/users");
 
       Supplier<Authentication> authSupplier = () -> authentication;
 
@@ -342,9 +414,8 @@ class EitherAuthorizationManagerTest {
     @DisplayName("Should evaluate all checks for success case")
     void shouldEvaluateAllChecksForSuccessCase() {
       when(authentication.isAuthenticated()).thenReturn(true);
-      when(authentication.getName()).thenReturn("admin");
       doReturn(createAuthorities("ROLE_ADMIN")).when(authentication).getAuthorities();
-      when(request.getRequestURI()).thenReturn("/api/admin/users");
+      request.setRequestURI("/api/admin/users");
 
       Supplier<Authentication> authSupplier = () -> authentication;
 
@@ -356,7 +427,6 @@ class EitherAuthorizationManagerTest {
       // All checks should have been called
       verify(authentication).isAuthenticated();
       verify(authentication).getAuthorities();
-      verify(request).getRequestURI();
     }
   }
 

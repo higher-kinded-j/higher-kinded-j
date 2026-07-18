@@ -4,6 +4,8 @@ package org.higherkindedj.spring.web.returnvalue;
 
 import jakarta.servlet.http.HttpServletResponse;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.atomic.AtomicBoolean;
 import org.higherkindedj.hkt.effect.VTaskPath;
 import org.higherkindedj.spring.actuator.HkjMetricsService;
 import org.jspecify.annotations.Nullable;
@@ -11,7 +13,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.core.MethodParameter;
 import org.springframework.http.HttpStatus;
-import org.springframework.http.MediaType;
 import org.springframework.web.context.request.NativeWebRequest;
 import org.springframework.web.context.request.async.DeferredResult;
 import org.springframework.web.context.request.async.WebAsyncUtils;
@@ -75,7 +76,6 @@ public class VTaskPathReturnValueHandler implements AsyncHandlerMethodReturnValu
 
   private static final Logger log = LoggerFactory.getLogger(VTaskPathReturnValueHandler.class);
 
-  private final JsonMapper jsonMapper;
   private final ObjectWriter objectWriter;
   private final int failureStatus;
   private final boolean includeExceptionDetails;
@@ -97,7 +97,6 @@ public class VTaskPathReturnValueHandler implements AsyncHandlerMethodReturnValu
       boolean includeExceptionDetails,
       long timeoutMillis,
       @Nullable HkjMetricsService metricsService) {
-    this.jsonMapper = jsonMapper;
     this.objectWriter = jsonMapper.writer();
     this.failureStatus = failureStatus;
     this.includeExceptionDetails = includeExceptionDetails;
@@ -138,61 +137,91 @@ public class VTaskPathReturnValueHandler implements AsyncHandlerMethodReturnValu
     DeferredResult<Void> deferredResult =
         timeoutMillis > 0 ? new DeferredResult<>(timeoutMillis) : new DeferredResult<>();
 
-    // Handle timeout
+    // Exactly one of the timeout callback and the completion callback may write the response:
+    // after a timeout the container completes (and may recycle) the request, so a late
+    // completion must not touch the response object.
+    AtomicBoolean responseWritten = new AtomicBoolean(false);
+
+    long startNanos = System.nanoTime();
+    CompletableFuture<?> future = vtaskPath.runAsync();
+
     deferredResult.onTimeout(
         () -> {
+          // If completion already won the write race it owns the response and will settle the
+          // request — do NOT cancel or setResult here, or we could complete/recycle the response
+          // out from under the completion callback's in-flight write. The winner of the CAS is the
+          // one request handler that records metrics, so a timeout is filed exactly once and as a
+          // timeout — not as the CancellationException that cancel() completes the future with.
+          if (!responseWritten.compareAndSet(false, true)) {
+            return;
+          }
           try {
             writeTimeoutResponse(response);
           } catch (Exception e) {
             log.error("Failed to write timeout response", e);
           }
+          if (metricsService != null) {
+            metricsService.recordVTaskError("timeout");
+            metricsService.recordVTaskDuration((System.nanoTime() - startNanos) / 1_000_000);
+          }
+          // cancel() settles the future so the (now no-op) completion callback fires; note the
+          // underlying work is NOT interrupted and may still run to completion in the background
+          // (see VTask.runAsync / CompletableFuture.cancel semantics).
+          future.cancel(true);
+          // Settle the DeferredResult so Spring does not dispatch an
+          // AsyncRequestTimeoutException onto the committed response.
+          deferredResult.setResult(null);
         });
 
     int successStatus =
         SuccessStatusResolver.resolveSuccessStatus(returnType, HttpStatus.OK.value());
 
-    // Execute the VTask asynchronously on a virtual thread
-    long startTime = System.currentTimeMillis();
-    vtaskPath
-        .runAsync()
-        .whenComplete(
-            (result, throwable) -> {
-              long durationMillis = System.currentTimeMillis() - startTime;
-              try {
-                if (throwable != null) {
-                  log.error("VTaskPath failed", throwable);
-                  Throwable cause = throwable.getCause() != null ? throwable.getCause() : throwable;
-                  if (metricsService != null) {
-                    metricsService.recordVTaskError(cause.getClass().getSimpleName());
-                    metricsService.recordVTaskDuration(durationMillis);
-                  }
-                  writeFailureResponse(throwable, response);
-                } else {
-                  if (metricsService != null) {
-                    metricsService.recordVTaskSuccess();
-                    metricsService.recordVTaskDuration(durationMillis);
-                  }
-                  writeSuccessResponse(result, response, successStatus);
-                }
-                deferredResult.setResult(null);
-              } catch (Exception e) {
-                log.error("Failed to write async response", e);
-                deferredResult.setErrorResult(e);
-              }
-            });
-
-    // Start async processing
+    // Enter async mode BEFORE installing the completion callback: whenComplete runs synchronously
+    // when the future is already complete, so an already-settled fast task must not write and
+    // settle the response before startDeferredResultProcessing (the commit-before-startAsync race
+    // the VStream handler also avoids).
     WebAsyncUtils.getAsyncManager(webRequest)
         .startDeferredResultProcessing(deferredResult, mavContainer);
+
+    future.whenComplete(
+        (result, throwable) -> {
+          // Only the writer that wins the response race records the outcome, so each request
+          // contributes exactly one correctly-attributed metric. A timeout that already won is
+          // recorded by onTimeout above; this callback then no-ops.
+          if (!responseWritten.compareAndSet(false, true)) {
+            return;
+          }
+          long durationMillis = (System.nanoTime() - startNanos) / 1_000_000;
+          if (metricsService != null) {
+            if (throwable != null) {
+              Throwable cause = JsonResponses.unwrapAsyncException(throwable);
+              metricsService.recordVTaskError(cause.getClass().getSimpleName());
+            } else {
+              metricsService.recordVTaskSuccess();
+            }
+            metricsService.recordVTaskDuration(durationMillis);
+          }
+          try {
+            if (throwable != null) {
+              log.error("VTaskPath failed", throwable);
+              writeFailureResponse(throwable, response);
+            } else {
+              writeSuccessResponse(result, response, successStatus);
+            }
+            deferredResult.setResult(null);
+          } catch (Exception e) {
+            log.error("Failed to write async response", e);
+            deferredResult.setErrorResult(e);
+          }
+        });
   }
 
   private void writeFailureResponse(Throwable throwable, HttpServletResponse response) {
     try {
       response.setStatus(failureStatus);
-      response.setContentType(MediaType.APPLICATION_JSON_VALUE);
+      JsonResponses.setJsonContentType(response);
 
-      // Unwrap CompletionException if present
-      Throwable cause = throwable.getCause() != null ? throwable.getCause() : throwable;
+      Throwable cause = JsonResponses.unwrapAsyncException(throwable);
 
       ErrorResponseHeaders.applyTo(cause, response);
 
@@ -222,7 +251,7 @@ public class VTaskPathReturnValueHandler implements AsyncHandlerMethodReturnValu
   private void writeTimeoutResponse(HttpServletResponse response) {
     try {
       response.setStatus(HttpStatus.GATEWAY_TIMEOUT.value());
-      response.setContentType(MediaType.APPLICATION_JSON_VALUE);
+      JsonResponses.setJsonContentType(response);
 
       Map<String, Object> body = Map.of("success", false, "error", "VTask request timed out");
       objectWriter.writeValue(response.getWriter(), body);
@@ -234,8 +263,8 @@ public class VTaskPathReturnValueHandler implements AsyncHandlerMethodReturnValu
   private void writeSuccessResponse(Object value, HttpServletResponse response, int status) {
     try {
       response.setStatus(status);
-      if (status != HttpStatus.NO_CONTENT.value()) {
-        response.setContentType(MediaType.APPLICATION_JSON_VALUE);
+      if (!JsonResponses.isBodilessStatus(status)) {
+        JsonResponses.setJsonContentType(response);
         objectWriter.writeValue(response.getWriter(), value);
       }
     } catch (Exception e) {

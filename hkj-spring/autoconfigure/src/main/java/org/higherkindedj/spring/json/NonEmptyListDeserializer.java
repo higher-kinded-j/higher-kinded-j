@@ -50,8 +50,8 @@ public class NonEmptyListDeserializer extends StdDeserializer<NonEmptyList<?>> {
 
   @Override
   public ValueDeserializer<?> createContextual(DeserializationContext ctxt, BeanProperty property) {
-    JavaType type = (property != null) ? property.getType() : ctxt.getContextualType();
-    if (type != null && type.hasRawClass(NonEmptyList.class) && type.containedTypeCount() == 1) {
+    JavaType type = HkjTypeResolution.resolveTargetType(ctxt, property, NonEmptyList.class);
+    if (type != null && type.containedTypeCount() == 1) {
       JavaType elem = type.containedType(0);
       if (elem != null && !elem.hasRawClass(Object.class)) {
         return new NonEmptyListDeserializer(elem);
@@ -66,11 +66,11 @@ public class NonEmptyListDeserializer extends StdDeserializer<NonEmptyList<?>> {
     JsonNode node = p.readValueAsTree();
 
     if (!node.isArray()) {
-      throw ctxt.weirdStringException("", NonEmptyList.class, "NonEmptyList JSON must be an array");
+      return ctxt.reportInputMismatch(NonEmptyList.class, "NonEmptyList JSON must be an array");
     }
     if (node.isEmpty()) {
-      throw ctxt.weirdStringException(
-          "", NonEmptyList.class, "NonEmptyList JSON array must not be empty");
+      return ctxt.reportInputMismatch(
+          NonEmptyList.class, "NonEmptyList JSON array must not be empty");
     }
 
     List<Object> elements = new ArrayList<>();
@@ -80,8 +80,8 @@ public class NonEmptyListDeserializer extends StdDeserializer<NonEmptyList<?>> {
               ? ctxt.readTreeAsValue(element, elementType)
               : ctxt.readTreeAsValue(element, Object.class);
       if (value == null) {
-        throw ctxt.weirdStringException(
-            "", NonEmptyList.class, "NonEmptyList JSON array must not contain null elements");
+        return ctxt.reportInputMismatch(
+            NonEmptyList.class, "NonEmptyList JSON array must not contain null elements");
       }
       elements.add(value);
     }

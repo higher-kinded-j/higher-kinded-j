@@ -19,7 +19,7 @@ class ValidatedUserDetailsServiceTest {
 
   @BeforeEach
   void setUp() {
-    service = new ValidatedUserDetailsService();
+    service = ValidatedUserDetailsService.withSampleUsers();
   }
 
   @Nested
@@ -106,11 +106,12 @@ class ValidatedUserDetailsServiceTest {
     }
 
     @Test
-    @DisplayName("Should throw exception for disabled user")
-    void shouldThrowExceptionForDisabledUser() {
-      assertThatThrownBy(() -> service.loadUserByUsername("disabled"))
-          .isInstanceOf(UsernameNotFoundException.class)
-          .hasMessageContaining("Account is disabled");
+    @DisplayName("Should load disabled user with its status flags intact")
+    void shouldLoadDisabledUserWithStatusFlags() {
+      // Status enforcement belongs to the authentication provider, not loadUserByUsername
+      UserDetails disabled = service.loadUserByUsername("disabled");
+
+      assertThat(disabled.isEnabled()).isFalse();
     }
 
     @Test
@@ -225,8 +226,17 @@ class ValidatedUserDetailsServiceTest {
   }
 
   @Nested
-  @DisplayName("Account Status Validation Tests")
-  class AccountStatusValidationTests {
+  @DisplayName("validateAccountStatus Tests")
+  class ValidateAccountStatusTests {
+
+    @Test
+    @DisplayName("Should pass a fully active account")
+    void shouldPassActiveAccount() {
+      UserDetails active =
+          User.builder().username("active").password("{noop}password").roles("USER").build();
+
+      assertThat(service.validateAccountStatus(active).isValid()).isTrue();
+    }
 
     @Test
     @DisplayName("Should reject locked account")
@@ -239,47 +249,12 @@ class ValidatedUserDetailsServiceTest {
               .accountLocked(true)
               .build();
 
-      service.addUser(lockedUser);
+      var result = service.validateAccountStatus(lockedUser);
 
-      assertThatThrownBy(() -> service.loadUserByUsername("locked"))
-          .isInstanceOf(UsernameNotFoundException.class)
-          .hasMessageContaining("Account is locked");
-    }
-
-    @Test
-    @DisplayName("Should reject expired account")
-    void shouldRejectExpiredAccount() {
-      UserDetails expiredUser =
-          User.builder()
-              .username("expired")
-              .password("{noop}password")
-              .roles("USER")
-              .accountExpired(true)
-              .build();
-
-      service.addUser(expiredUser);
-
-      assertThatThrownBy(() -> service.loadUserByUsername("expired"))
-          .isInstanceOf(UsernameNotFoundException.class)
-          .hasMessageContaining("Account has expired");
-    }
-
-    @Test
-    @DisplayName("Should reject user with expired credentials")
-    void shouldRejectExpiredCredentials() {
-      UserDetails credentialsExpiredUser =
-          User.builder()
-              .username("credexpired")
-              .password("{noop}password")
-              .roles("USER")
-              .credentialsExpired(true)
-              .build();
-
-      service.addUser(credentialsExpiredUser);
-
-      assertThatThrownBy(() -> service.loadUserByUsername("credexpired"))
-          .isInstanceOf(UsernameNotFoundException.class)
-          .hasMessageContaining("Credentials have expired");
+      assertThat(result.isInvalid()).isTrue();
+      assertThat(result.getError())
+          .extracting(ValidatedUserDetailsService.UserValidationError::message)
+          .containsExactly("Account is locked");
     }
 
     @Test
@@ -295,43 +270,38 @@ class ValidatedUserDetailsServiceTest {
               .accountExpired(true)
               .build();
 
-      service.addUser(multipleIssuesUser);
+      var result = service.validateAccountStatus(multipleIssuesUser);
 
-      assertThatThrownBy(() -> service.loadUserByUsername("issues"))
-          .isInstanceOf(UsernameNotFoundException.class)
-          .hasMessageMatching(".*disabled.*locked.*expired.*");
+      assertThat(result.isInvalid()).isTrue();
+      assertThat(result.getError())
+          .extracting(ValidatedUserDetailsService.UserValidationError::message)
+          .containsExactly("Account is disabled", "Account is locked", "Account has expired");
     }
   }
 
   @Nested
-  @DisplayName("Pre-populated Users Tests")
-  class PrePopulatedUsersTests {
+  @DisplayName("Sample Users Factory Tests")
+  class SampleUsersFactoryTests {
 
     @Test
-    @DisplayName("Should have admin user pre-populated")
-    void shouldHaveAdminUserPrePopulated() {
+    @DisplayName("Default constructor starts with no users")
+    void defaultConstructorStartsEmpty() {
+      var empty = new ValidatedUserDetailsService();
+
+      assertThatThrownBy(() -> empty.loadUserByUsername("admin"))
+          .isInstanceOf(UsernameNotFoundException.class)
+          .hasMessageContaining("User not found");
+    }
+
+    @Test
+    @DisplayName("withSampleUsers pre-populates the demo accounts")
+    void withSampleUsersPrePopulatesDemoAccounts() {
       UserDetails admin = service.loadUserByUsername("admin");
 
-      assertThat(admin).isNotNull();
       assertThat(admin.getUsername()).isEqualTo("admin");
       assertThat(admin.getAuthorities()).hasSizeGreaterThan(1);
-    }
-
-    @Test
-    @DisplayName("Should have regular user pre-populated")
-    void shouldHaveRegularUserPrePopulated() {
-      UserDetails user = service.loadUserByUsername("user");
-
-      assertThat(user).isNotNull();
-      assertThat(user.getUsername()).isEqualTo("user");
-    }
-
-    @Test
-    @DisplayName("Should have disabled user pre-populated")
-    void shouldHaveDisabledUserPrePopulated() {
-      // This should throw because user is disabled
-      assertThatThrownBy(() -> service.loadUserByUsername("disabled"))
-          .isInstanceOf(UsernameNotFoundException.class);
+      assertThat(service.loadUserByUsername("user").getUsername()).isEqualTo("user");
+      assertThat(service.loadUserByUsername("disabled").isEnabled()).isFalse();
     }
   }
 }

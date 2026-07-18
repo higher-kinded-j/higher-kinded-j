@@ -2,6 +2,9 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.spring.actuator;
 
+import java.util.concurrent.Executor;
+import java.util.concurrent.ExecutorService;
+import org.jspecify.annotations.Nullable;
 import org.springframework.boot.health.contributor.Health;
 import org.springframework.boot.health.contributor.HealthIndicator;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
@@ -49,14 +52,19 @@ import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
  */
 public class HkjAsyncHealthIndicator implements HealthIndicator {
 
-  private final ThreadPoolTaskExecutor executor;
+  private final @Nullable Executor executor;
 
   /**
    * Creates a new HkjAsyncHealthIndicator.
    *
+   * <p>Accepts any {@link Executor}: full pool statistics are reported for a {@link
+   * ThreadPoolTaskExecutor}, while any other executor type (e.g. a virtual-thread-per-task
+   * executor) reports {@code UP} with a {@code type} detail rather than failing — the named {@code
+   * hkjAsyncExecutor} bean is not required to be a {@code ThreadPoolTaskExecutor}.
+   *
    * @param executor the async executor to monitor (may be null if not configured)
    */
-  public HkjAsyncHealthIndicator(ThreadPoolTaskExecutor executor) {
+  public HkjAsyncHealthIndicator(@Nullable Executor executor) {
     this.executor = executor;
   }
 
@@ -66,8 +74,26 @@ public class HkjAsyncHealthIndicator implements HealthIndicator {
       return Health.outOfService().withDetail("reason", "Async executor not configured").build();
     }
 
+    if (!(executor instanceof ThreadPoolTaskExecutor poolExecutor)) {
+      // Pool statistics are only available for ThreadPoolTaskExecutor. A shutdown ExecutorService
+      // (including a closed virtual-thread executor) can still be reported as unhealthy, since
+      // submissions would be rejected — check that before the type-only UP.
+      if (executor instanceof ExecutorService executorService && executorService.isShutdown()) {
+        return Health.down()
+            .withDetail("type", executor.getClass().getSimpleName())
+            .withDetail("reason", "Executor is shutdown")
+            .build();
+      }
+      // Otherwise report UP with the type so a live virtual-thread (or other) executor does not
+      // read as unhealthy or fail startup.
+      return Health.up()
+          .withDetail("type", executor.getClass().getSimpleName())
+          .withDetail("detail", "pool statistics unavailable for this executor type")
+          .build();
+    }
+
     try {
-      var threadPoolExecutor = executor.getThreadPoolExecutor();
+      var threadPoolExecutor = poolExecutor.getThreadPoolExecutor();
 
       if (threadPoolExecutor == null || threadPoolExecutor.isShutdown()) {
         return Health.down().withDetail("reason", "Thread pool is shutdown").build();
@@ -78,7 +104,7 @@ public class HkjAsyncHealthIndicator implements HealthIndicator {
       int corePoolSize = threadPoolExecutor.getCorePoolSize();
       int maxPoolSize = threadPoolExecutor.getMaximumPoolSize();
       int queueSize = threadPoolExecutor.getQueue().size();
-      int queueCapacity = executor.getQueueCapacity();
+      int queueCapacity = poolExecutor.getQueueCapacity();
       int queueRemainingCapacity = threadPoolExecutor.getQueue().remainingCapacity();
 
       // Health check: queue should not be full

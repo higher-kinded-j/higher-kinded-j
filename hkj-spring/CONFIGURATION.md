@@ -6,10 +6,10 @@ This document provides a complete reference for all configuration properties ava
 
 1. [Quick Start](#quick-start)
 2. [Web/MVC Configuration](#webmvc-configuration)
-3. [Validation Configuration](#validation-configuration)
-4. [JSON Serialization Configuration](#json-serialization-configuration)
-5. [Async Configuration](#async-configuration)
-6. [Virtual Thread Configuration](#virtual-thread-configuration)
+3. [JSON Serialization Configuration](#json-serialization-configuration)
+4. [Async Configuration](#async-configuration)
+5. [Virtual Thread Configuration](#virtual-thread-configuration)
+6. [Effect Boundary Configuration](#effect-boundary-configuration)
 7. [Client HTTP Configuration](#client-http-configuration)
 8. [Complete Example](#complete-example)
 9. [Disabling Features](#disabling-features)
@@ -31,8 +31,8 @@ All configuration is optional. The integration works out-of-the-box with sensibl
 hkj:
   web:
     default-error-status: 500
-  json:
-    either-format: SIMPLE
+    error-status-mappings:
+      ConflictError: 409
 ```
 
 ## Web/MVC Configuration
@@ -158,6 +158,38 @@ hkj:
   web:
     vstream-path-enabled: false  # Disable VStreamPath handler
 ```
+
+### `hkj.web.either-or-both-path-enabled`
+
+Enable or disable the `EitherOrBothPathReturnValueHandler`.
+
+- **Type:** `boolean`
+- **Default:** `true`
+- **Effect:** When enabled, controllers can return `EitherOrBothPath<W, A>` (or raw `EitherOrBoth<W, A>`) — the inclusive-or type whose `Both` case models "success with non-fatal warnings"
+
+**Response contract:**
+
+| Result | Status | Body | Header |
+|--------|--------|------|--------|
+| `Right(value)` | success status (200 or `@ResponseStatus`) | value, unwrapped | — |
+| `Both(warnings, value)` | same success status | value, unwrapped | warnings JSON-encoded into `X-Hkj-Warnings` |
+| `Left(warnings)` | resolved by `ErrorStatusCodeStrategy` (as for `EitherPath`) | `{"success": false, "error": <warnings>}` | `HttpHeaderCarrier` headers if implemented |
+
+Warnings on the `Both` branch are never silently dropped, but the success body stays the bare value: clients that ignore the `X-Hkj-Warnings` header see a normal success response; clients that care parse the header's JSON.
+
+**Example:**
+```yaml
+hkj:
+  web:
+    either-or-both-path-enabled: false  # Disable EitherOrBothPath handler
+```
+
+### `hkj.web.free-path-enabled`
+
+Enable or disable the `FreePathReturnValueHandler` (Free-monad programs interpreted through the `EffectBoundary` bean). See [EFFECT_BOUNDARY.md](EFFECT_BOUNDARY.md) for the companion keys `free-path-failure-status` and `free-path-include-exception-details`.
+
+- **Type:** `boolean`
+- **Default:** `true`
 
 ### `hkj.web.either.default-error-status` (alias: `hkj.web.default-error-status`)
 
@@ -391,70 +423,18 @@ For anything beyond table lookup — for example, a status that depends on a rec
 (`MfaThrottledError.retryAfter() ≥ 60 → 503`) — register a custom
 [`ErrorStatusCodeStrategy` bean](#error-status-code-strategy-bean).
 
-## Validation Configuration
-
-Configure validation behaviour for `Validated` types.
-
-### `hkj.validation.enabled`
-
-Enable or disable validation support.
-
-- **Type:** `boolean`
-- **Default:** `true`
-- **Effect:** Global toggle for Validated functionality
-- **Note:** Currently informational; all validation features are always available
-
-**Example:**
-```yaml
-hkj:
-  validation:
-    enabled: false
-```
-
-### `hkj.validation.accumulate-errors`
-
-Accumulate all validation errors vs. fail-fast on first error.
-
-- **Type:** `boolean`
-- **Default:** `true`
-- **Effect:** When true, `Validated` accumulates all errors; when false, stops at first error (behaves like Either)
-- **Note:** Currently informational; error accumulation is controlled by using `Validated` vs `Either`
-
-**Example:**
-```yaml
-hkj:
-  validation:
-    accumulate-errors: false  # Fail-fast behaviour
-```
-
-### `hkj.validation.max-errors`
-
-Maximum number of errors to accumulate.
-
-- **Type:** `int`
-- **Default:** `0` (unlimited)
-- **Effect:** Limits error accumulation to prevent unbounded error lists
-- **Note:** Currently informational; will be implemented in future versions
-
-**Example:**
-```yaml
-hkj:
-  validation:
-    max-errors: 10  # Stop after 10 errors
-```
-
 ## JSON Serialization Configuration
 
 Configure Jackson serialization for higher-kinded-j types.
 
 ### `hkj.json.custom-serializers-enabled`
 
-Enable or disable custom Jackson serializers for Either and Validated.
+Enable or disable the custom Jackson serializers for `Either`, `Validated`, `EitherOrBoth`, and `NonEmptyList`.
 
 - **Type:** `boolean`
 - **Default:** `true`
 - **Effect:** Controls registration of `HkjJacksonModule`
-- **When disabled:** Either and Validated will use default Jackson serialization (may fail)
+- **When disabled:** Nested HKJ types will use default Jackson serialization (may fail)
 
 **Example:**
 ```yaml
@@ -463,152 +443,36 @@ hkj:
     custom-serializers-enabled: false  # Use default serialization
 ```
 
-### `hkj.json.either-format`
+The JSON shapes produced by the module are **fixed** — there are no format-toggle properties. Nested values serialise as:
 
-JSON output format for Either types (when serialized by Jackson).
-
-- **Type:** `SerializationFormat` enum
-- **Default:** `TAGGED`
-- **Valid values:**
-  - `TAGGED`: `{"isRight": true/false, "right/left": value}`
-  - `SIMPLE`: `{"value": ...}` or `{"error": ...}`
-- **Effect:** Changes JSON structure for nested Either values
-- **Note:** Does NOT affect top-level Either return values (those use return value handler)
-
-**Example:**
-```yaml
-hkj:
-  json:
-    either-format: SIMPLE  # Simpler JSON structure
-```
-
-**Output comparison:**
-
-**TAGGED format (default):**
 ```json
-{
-  "results": [
-    {"isRight": true, "right": {"id": "1", "name": "Alice"}},
-    {"isRight": false, "left": "Not found"}
-  ]
-}
+// Either
+{"isRight": true, "right": <value>}
+{"isRight": false, "left": <error>}
+
+// Validated
+{"valid": true, "value": <value>}
+{"valid": false, "errors": <errors>}
+
+// EitherOrBoth
+{"kind": "right", "right": <value>}
+{"kind": "both", "left": <warnings>, "right": <value>}
+{"kind": "left", "left": <warnings>}
 ```
 
-**SIMPLE format:**
-```json
-{
-  "results": [
-    {"value": {"id": "1", "name": "Alice"}},
-    {"error": "Not found"}
-  ]
-}
-```
-
-### `hkj.json.validated-format`
-
-JSON output format for Validated types (when serialized by Jackson).
-
-- **Type:** `SerializationFormat` enum
-- **Default:** `TAGGED`
-- **Valid values:**
-  - `TAGGED`: `{"valid": true/false, "value/errors": ...}`
-  - `SIMPLE`: `{"value": ...}` or `{"errors": ...}`
-
-**Example:**
-```yaml
-hkj:
-  json:
-    validated-format: SIMPLE
-```
-
-### `hkj.json.maybe-format`
-
-JSON output format for Maybe types (when serialized by Jackson).
-
-- **Type:** `SerializationFormat` enum
-- **Default:** `TAGGED`
-- **Valid values:**
-  - `TAGGED`: `{"present": true/false, "value": ...}`
-  - `SIMPLE`: `{"value": ...}` or null
-
-**Example:**
-```yaml
-hkj:
-  json:
-    maybe-format: SIMPLE
-```
+`Maybe` and `Try` have no Jackson support: return them at the top level (where the return-value handlers apply) rather than nesting them inside DTOs. Top-level controller return values are shaped by the handlers, not by these serializers — see [JACKSON_SERIALIZATION.md](JACKSON_SERIALIZATION.md).
 
 ## Async Configuration
 
-Configure async execution for CompletableFuturePath operations.
-
-### `hkj.async.executor-core-pool-size`
-
-Core thread pool size for async operations.
-
-- **Type:** `int`
-- **Default:** `10`
-- **Effect:** Minimum number of threads in the pool
-
-**Example:**
-```yaml
-hkj:
-  async:
-    executor-core-pool-size: 20
-```
-
-### `hkj.async.executor-max-pool-size`
-
-Maximum thread pool size for async operations.
-
-- **Type:** `int`
-- **Default:** `20`
-- **Effect:** Maximum number of threads in the pool
-
-**Example:**
-```yaml
-hkj:
-  async:
-    executor-max-pool-size: 50
-```
-
-### `hkj.async.executor-queue-capacity`
-
-Queue capacity for async executor.
-
-- **Type:** `int`
-- **Default:** `100`
-- **Effect:** Number of tasks to queue when all threads are busy
-
-**Example:**
-```yaml
-hkj:
-  async:
-    executor-queue-capacity: 500
-```
-
-### `hkj.async.executor-thread-name-prefix`
-
-Thread name prefix for async executor threads.
-
-- **Type:** `String`
-- **Default:** `"hkj-async-"`
-- **Effect:** Makes threads identifiable in logs and profilers
-
-**Example:**
-```yaml
-hkj:
-  async:
-    executor-thread-name-prefix: "my-app-async-"
-```
+`CompletableFuturePath` services supply their own executor — the starter does not create a thread pool. Define an `Executor` bean in your application (the example module's `AsyncConfig` uses a `ThreadPoolTaskExecutor` named `hkjAsyncExecutor`) and pass it to `CompletableFuture.supplyAsync(...)`. Naming the bean `hkjAsyncExecutor` also enables the optional `hkj-async` health indicator (see [ACTUATOR.md](ACTUATOR.md)).
 
 ### `hkj.async.default-timeout-ms`
 
-Default timeout for async operations in milliseconds.
+Default timeout for `CompletableFuturePath` responses in milliseconds.
 
 - **Type:** `long`
 - **Default:** `30000` (30 seconds)
-- **Effect:** Maximum time to wait for async operations
+- **Effect:** Maximum time to wait for the future to complete before the `DeferredResult` times out (HTTP 504)
 
 **Example:**
 ```yaml
@@ -650,6 +514,18 @@ hkj:
   virtual-threads:
     stream-timeout-ms: 120000  # 2 minutes
 ```
+
+## Effect Boundary Configuration
+
+### `hkj.effect-boundary.enabled`
+
+Master switch for `@EnableEffectBoundary` auto-configuration.
+
+- **Type:** `boolean`
+- **Default:** `true`
+- **Effect:** When `false`, the registrar does not create the `effectBoundary` bean
+
+Interpreter validation is always fail-fast (a missing or ambiguous interpreter is a startup error), and environment-specific interpreter switching uses the `@Interpreter(profile = ...)` attribute — neither is configurable via properties. See [EFFECT_BOUNDARY.md](EFFECT_BOUNDARY.md) for the full guide.
 
 ## Client HTTP Configuration
 
@@ -735,17 +611,21 @@ hkj:
     completable-future-path-enabled: true
     vtask-path-enabled: true
     vstream-path-enabled: true
+    either-or-both-path-enabled: true
+    free-path-enabled: true
     default-error-status: 400
     maybe-nothing-status: 404
     try-failure-status: 500
     validation-invalid-status: 400
     vtask-failure-status: 500
     vstream-failure-status: 500
+    free-path-failure-status: 500
     try-include-exception-details: false
     io-include-exception-details: false
     async-include-exception-details: false
     vtask-include-exception-details: false
     vstream-include-exception-details: false
+    free-path-include-exception-details: false
     error-status-mappings:
       UserNotFoundError: 404
       ValidationError: 400
@@ -754,27 +634,18 @@ hkj:
       ServerError: 500
       ConflictError: 409
 
-  validation:
-    enabled: true
-    accumulate-errors: true
-    max-errors: 0  # unlimited
-
   json:
     custom-serializers-enabled: true
-    either-format: TAGGED
-    validated-format: TAGGED
-    maybe-format: TAGGED
 
   async:
-    executor-core-pool-size: 10
-    executor-max-pool-size: 20
-    executor-queue-capacity: 100
-    executor-thread-name-prefix: "hkj-async-"
     default-timeout-ms: 30000
 
   virtual-threads:
     default-timeout-ms: 30000
     stream-timeout-ms: 60000
+
+  effect-boundary:
+    enabled: true
 ```
 
 ## Disabling Features
@@ -853,6 +724,8 @@ hkj:
     completable-future-path-enabled: false
     vtask-path-enabled: false
     vstream-path-enabled: false
+    either-or-both-path-enabled: false
+    free-path-enabled: false
   json:
     custom-serializers-enabled: false
 ```
@@ -874,8 +747,6 @@ hkj:
     async-include-exception-details: true
     vtask-include-exception-details: true
     vstream-include-exception-details: true
-  json:
-    either-format: TAGGED  # More verbose for debugging
 ```
 
 ### Production
@@ -894,8 +765,6 @@ hkj:
       UserNotFoundError: 404
       ValidationError: 400
       AuthorizationError: 403
-  json:
-    either-format: SIMPLE  # Cleaner API responses
 ```
 
 ### Testing
@@ -906,8 +775,6 @@ hkj:
     default-error-status: 400
     try-include-exception-details: true  # Helps debug test failures
   async:
-    executor-core-pool-size: 2  # Smaller pool for tests
-    executor-max-pool-size: 5
     default-timeout-ms: 5000  # Shorter timeout
 ```
 
@@ -925,6 +792,8 @@ hkj.web.io-path-enabled=true
 hkj.web.completable-future-path-enabled=true
 hkj.web.vtask-path-enabled=true
 hkj.web.vstream-path-enabled=true
+hkj.web.either-or-both-path-enabled=true
+hkj.web.free-path-enabled=true
 hkj.web.default-error-status=400
 hkj.web.maybe-nothing-status=404
 hkj.web.try-failure-status=500
@@ -937,23 +806,14 @@ hkj.web.vstream-include-exception-details=false
 hkj.web.error-status-mappings.UserNotFoundError=404
 hkj.web.error-status-mappings.ValidationError=400
 
-# Validation configuration
-hkj.validation.enabled=true
-hkj.validation.accumulate-errors=true
-hkj.validation.max-errors=0
-
 # JSON configuration
 hkj.json.custom-serializers-enabled=true
-hkj.json.either-format=TAGGED
-hkj.json.validated-format=TAGGED
-hkj.json.maybe-format=TAGGED
 
 # Async configuration
-hkj.async.executor-core-pool-size=10
-hkj.async.executor-max-pool-size=20
-hkj.async.executor-queue-capacity=100
-hkj.async.executor-thread-name-prefix=hkj-async-
 hkj.async.default-timeout-ms=30000
+
+# Effect boundary configuration
+hkj.effect-boundary.enabled=true
 
 # Virtual thread configuration
 hkj.virtual-threads.default-timeout-ms=30000
@@ -981,9 +841,6 @@ public class HkjConfig {
         // Configure web
         properties.getWeb().setDefaultErrorStatus(500);
         properties.getWeb().getErrorStatusMappings().put("MyCustomError", 418);
-
-        // Configure JSON
-        properties.getJson().setEitherFormat(HkjProperties.Jackson.SerializationFormat.SIMPLE);
 
         return properties;
     }
@@ -1028,7 +885,7 @@ public record MfaThrottledError(int retryAfterSeconds) implements DomainError, H
 }
 ```
 
-The headers are applied by `EitherPath`, `TryPath`, `ValidationPath`, `IOPath`,
+The headers are applied by `EitherPath`, `EitherOrBothPath`, `TryPath`, `ValidationPath`, `IOPath`,
 `CompletableFuturePath`, `VTaskPath`, and `FreePath` handlers before the JSON body is written.
 Internally the headers are added (not set), so multi-valued headers such as
 `WWW-Authenticate`, `Set-Cookie`, and `Link` accumulate as separate header lines on the

@@ -732,14 +732,7 @@ hkj:
     free-path-include-exception-details: false
 
   json:
-    custom-serializers-enabled: true
-    either-format: TAGGED                   # TAGGED | SIMPLE
-    validated-format: TAGGED                # TAGGED | SIMPLE
-    maybe-format: TAGGED                    # TAGGED | SIMPLE
-
-  validation:
-    enabled: true
-    accumulate-errors: true                 # true = collect all; false = fail-fast
+    custom-serializers-enabled: true        # the only hkj.json.* key; the JSON shapes are fixed
 
   virtual-threads:
     default-timeout-ms: 30000

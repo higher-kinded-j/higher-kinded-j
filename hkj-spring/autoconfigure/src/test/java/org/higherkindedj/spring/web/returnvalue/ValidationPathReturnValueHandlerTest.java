@@ -13,6 +13,7 @@ import java.util.Map;
 import org.higherkindedj.hkt.Semigroups;
 import org.higherkindedj.hkt.effect.Path;
 import org.higherkindedj.hkt.effect.ValidationPath;
+import org.higherkindedj.hkt.nonemptylist.NonEmptyList;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -230,6 +231,22 @@ class ValidationPathReturnValueHandlerTest {
       printWriter.flush();
       String json = stringWriter.toString();
       assertThat(json).contains("\"errorCount\":1");
+    }
+
+    @Test
+    @DisplayName("Should count every element of a NonEmptyList error payload")
+    void shouldCountNonEmptyListErrors() throws Exception {
+      // NonEmptyList is Iterable but not a Collection — must not collapse to errorCount 1
+      ValidationPath<NonEmptyList<String>, TestUser> path =
+          Path.invalid(
+              NonEmptyList.of("Email invalid", "Name blank", "Age negative"),
+              NonEmptyList.semigroup());
+
+      handler.handleReturnValue(path, returnType, mavContainer, webRequest);
+
+      printWriter.flush();
+      String json = stringWriter.toString();
+      assertThat(json).contains("\"errorCount\":3");
     }
   }
 

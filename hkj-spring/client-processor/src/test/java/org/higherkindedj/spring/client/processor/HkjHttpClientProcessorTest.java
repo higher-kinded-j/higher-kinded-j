@@ -98,12 +98,14 @@ class HkjHttpClientProcessorTest {
     }
 
     @Test
-    @DisplayName("parameter binding annotations are preserved on the native interface")
+    @DisplayName("parameter binding annotations are preserved with explicit names injected")
     void parameterAnnotations() {
+      // The explicit "id" name must be injected so the generated interface binds without the
+      // consuming build needing -parameters.
       assertThat(compilation)
           .generatedSourceFile("com.example.UserApiHttpExchange")
           .contentsAsUtf8String()
-          .containsMatch("getUser\\(@PathVariable");
+          .contains("@PathVariable(\"id\")");
       assertThat(compilation)
           .generatedSourceFile("com.example.UserApiHttpExchange")
           .contentsAsUtf8String()
@@ -165,6 +167,72 @@ class HkjHttpClientProcessorTest {
           .generatedSourceFile("com.example.UserApiHttpExchange")
           .contentsAsUtf8String()
           .contains("accept = \"application/json\"");
+    }
+  }
+
+  @Nested
+  @DisplayName("aggregate Map/MultiValueMap binders are left unnamed")
+  class AggregateBinders {
+
+    // A Map/MultiValueMap parameter on @RequestParam/@RequestHeader/@CookieValue, or a Map on
+    // @PathVariable, is an aggregate binder: unnamed, it binds *every* name/value pair. Injecting a
+    // name would turn it into a single-entry binder, so the processor must leave these unnamed
+    // while still naming ordinary scalar parameters.
+    private final Compilation compilation =
+        compile(
+            JavaFileObjects.forSourceLines(
+                "com.example.AggApi",
+                "package com.example;",
+                "import java.util.Map;",
+                "import org.higherkindedj.hkt.effect.EitherPath;",
+                "import org.higherkindedj.spring.client.HkjHttpClient;",
+                "import org.springframework.util.MultiValueMap;",
+                "import org.springframework.web.bind.annotation.CookieValue;",
+                "import org.springframework.web.bind.annotation.PathVariable;",
+                "import org.springframework.web.bind.annotation.RequestHeader;",
+                "import org.springframework.web.bind.annotation.RequestParam;",
+                "import org.springframework.web.service.annotation.GetExchange;",
+                "import org.springframework.web.service.annotation.HttpExchange;",
+                "@HttpExchange(\"/agg\")",
+                "@HkjHttpClient",
+                "public interface AggApi {",
+                "  @GetExchange(\"/search\")",
+                "  EitherPath<UserError, UserDto> search(@RequestParam Map<String, String> params);",
+                "  @GetExchange(\"/headers\")",
+                "  EitherPath<UserError, UserDto> headers("
+                    + "@RequestHeader MultiValueMap<String, String> headers);",
+                "  @GetExchange(\"/cookies\")",
+                "  EitherPath<UserError, UserDto> cookies(@CookieValue Map<String, String> cookies);",
+                "  @GetExchange(\"/vars\")",
+                "  EitherPath<UserError, UserDto> vars(@PathVariable Map<String, String> vars);",
+                "  @GetExchange(\"/one\")",
+                "  EitherPath<UserError, UserDto> one(@RequestParam String q);",
+                "}"),
+            USER_DTO,
+            USER_ERROR);
+
+    @Test
+    @DisplayName("no explicit name is injected for aggregate Map/MultiValueMap parameters")
+    void leavesAggregateBindersUnnamed() {
+      assertThat(compilation).succeeded();
+      var nativeIface =
+          assertThat(compilation)
+              .generatedSourceFile("com.example.AggApiHttpExchange")
+              .contentsAsUtf8String();
+      nativeIface.doesNotContain("@RequestParam(\"params\")");
+      nativeIface.doesNotContain("@RequestHeader(\"headers\")");
+      nativeIface.doesNotContain("@CookieValue(\"cookies\")");
+      nativeIface.doesNotContain("@PathVariable(\"vars\")");
+    }
+
+    @Test
+    @DisplayName("scalar parameters alongside aggregate binders still get an explicit name")
+    void namesScalarParameters() {
+      assertThat(compilation).succeeded();
+      assertThat(compilation)
+          .generatedSourceFile("com.example.AggApiHttpExchange")
+          .contentsAsUtf8String()
+          .contains("@RequestParam(\"q\")");
     }
   }
 
@@ -233,7 +301,7 @@ class HkjHttpClientProcessorTest {
       assertThat(compilation)
           .generatedSourceFile("com.example.OsApiClient")
           .contentsAsUtf8String()
-          .contains("ResponseErrorDecoders.<ApiErr>forDefault(this.decoderFactory, ApiErr.class)");
+          .contains("ResponseErrorDecoders.<ApiErr>forDefault(decoderFactory, ApiErr.class)");
       assertThat(compilation)
           .generatedSourceFile("com.example.OsApiClient")
           .contentsAsUtf8String()

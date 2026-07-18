@@ -6,7 +6,7 @@
 - The progressive adoption ladder, from a single `@Bean` to full `@EnableEffectBoundary` auto-wiring
 - Writing effect algebras as Spring-managed `@Interpreter` beans with dependency injection
 - Returning `FreePath` and `IOPath` from controllers with automatic HTTP response conversion
-- Testing effect programs purely with `TestBoundary` and recording interpreters
+- Testing effect programs purely with `TestBoundary` and stub interpreters
 - How this integrates with existing hkj-spring features (actuator, Jackson, error status mapping)
 ~~~
 
@@ -29,7 +29,7 @@ The **effect handler system** (Free monads, `@EffectAlgebra`, `Interpreters.comb
 
 ## The Bridge: How Free Connects to Existing Handlers
 
-The existing hkj-spring module has 8 return value handlers for *Path types. `EffectBoundary.runIO()` returns `IOPath<A>`, which the **existing** `IOPathReturnValueHandler` already handles:
+The existing hkj-spring module has nine return value handlers for *Path types (`FreePath` makes ten). `EffectBoundary.runIO()` returns `IOPath<A>`, which the **existing** `IOPathReturnValueHandler` already handles:
 
 ```
 FreePath<F, A>  ──foldMap──▸  GenericPath<IO.Witness, A>  ──narrow──▸  IOPath<A>
@@ -51,7 +51,7 @@ Each level uses patterns Spring developers already know. No level requires the p
 |-------|---------------|----------------|-----------------|
 | **0** | `Either<E,A>`, `IOPath<A>` from controllers | N/A | None (today) |
 | **1** | `EffectBoundary` bean + `boundary.runIO()` | Any `@Bean` | None (core only) |
-| **2** | Return `FreePath<F,A>` from controller | `CompletableFuture<T>` return | Handler #9 |
+| **2** | Return `FreePath<F,A>` from controller | `CompletableFuture<T>` return | Handler #10 |
 | **3** | `@Interpreter(MyOp.class)` on interpreter classes | `@Repository`, `@Service` | Stereotype |
 | **4** | `@EnableEffectBoundary({...})` on app class | `@EnableCaching` | Auto-config |
 | **5** | `@EffectTest(effects={...})` on test class | `@WebMvcTest` | Test slice |
@@ -183,7 +183,7 @@ public class StubGatewayInterpreter
 }
 ```
 
-Run with `--spring.profiles.active=test` and the stub interpreter is used automatically.
+An interpreter with a `profile` attribute is only **eligible** when that profile is active (the registrar filters candidates with `Environment.acceptsProfiles`); one with no `profile` is always eligible. A profile-restricted interpreter is more **specific** and shadows an unrestricted one — run with `--spring.profiles.active=test` and the stub is selected for `PaymentGatewayOp` even though the profile-less `StripeGatewayInterpreter` is still eligible. Only two or more interpreters at the *same* specificity (two unrestricted beans, or two active profiled beans) fail startup with a hard error naming the ambiguous algebra.
 
 ---
 
@@ -205,12 +205,13 @@ public class PaymentApplication {
 The `@EnableEffectBoundary` registrar:
 1. Reads the effect algebra class list from the annotation
 2. Resolves each to its generated `*Kind.Witness` type
-3. Scans for `@Interpreter`-annotated beans matching each algebra
+3. Scans for `@Interpreter`-annotated beans matching each algebra, filtering by active profile
 4. Constructs the `EitherF` nesting order automatically (left-to-right = outer-to-inner)
 5. Calls `Interpreters.combine()` with the discovered interpreters
-6. Registers `EffectBoundary<ComposedWitness>` as a singleton bean
-7. Registers individual `Bound<ComposedWitness>` beans for constructor injection in services
-8. Validates at startup: missing interpreter produces a clear error naming the unimplemented algebra
+6. Registers the single `effectBoundary` bean (`EffectBoundary<ComposedWitness>`) as a singleton
+7. Validates at startup: a missing interpreter — or two equally-specific eligible interpreters for one algebra — produces a clear error naming the offending algebra
+
+The registrar honours the `hkj.effect-boundary.enabled` master switch (default `true`); when set to `false`, no boundary bean is registered.
 
 This replaces `PaymentEffectsWiring.java` (284 lines) with **one annotation**.
 
@@ -222,46 +223,51 @@ This replaces `PaymentEffectsWiring.java` (284 lines) with **one annotation**.
 
 ### Pure Service Tests
 
+A stub interpreter targets `IdKind.Witness` and records what it was asked to do. This mirrors `OrderServicePureTest` in the effect-example module:
+
 ```java
-@DisplayName("OrderService Pure Tests")
+@DisplayName("OrderService Pure Tests (No Spring Context)")
 class OrderServicePureTest {
 
-    private final RecordingOrderInterpreter orderInterp =
-        new RecordingOrderInterpreter();
-    private final RecordingInventoryInterpreter inventoryInterp =
-        new RecordingInventoryInterpreter();
-    private final RecordingNotificationInterpreter notifInterp =
-        new RecordingNotificationInterpreter();
+    /** In-memory Id-targeting interpreter for pure testing. */
+    static class StubOrderInterpreter implements Natural<OrderOpKind.Witness, IdKind.Witness> {
+        private int ordersPlaced = 0;
 
-    private final TestBoundary<OrderEffects> boundary = TestBoundary.of(
-        Interpreters.combine(orderInterp, inventoryInterp, notifInterp));
+        @Override
+        public <A> Kind<IdKind.Witness, A> apply(Kind<OrderOpKind.Witness, A> fa) {
+            OrderOp<A> op = OrderOpKindHelper.ORDER_OP.narrow(fa);
+            return switch (op) {
+                case OrderOp.PlaceOrder<A> place -> {
+                    ordersPlaced++;
+                    yield Id.of(place.k().apply(OrderResult.confirmed("ORD-TEST-0001")));
+                }
+                case OrderOp.GetStatus<A> get ->
+                    Id.of(get.k().apply(OrderStatus.CONFIRMED));
+            };
+        }
+
+        int ordersPlaced() {
+            return ordersPlaced;
+        }
+    }
+
+    private final StubOrderInterpreter interpreter = new StubOrderInterpreter();
+    private final TestBoundary<OrderOpKind.Witness> boundary = TestBoundary.of(interpreter);
+    private final OrderService service = new OrderService();
 
     @Test
-    @DisplayName("Should reserve inventory before placing order")
-    void shouldReserveInventoryBeforePlacingOrder() {
+    @DisplayName("Should place order and return confirmed result")
+    void shouldPlaceOrder() {
         OrderResult result = boundary.run(
             service.placeOrder(new OrderRequest("C001", "ITEM-42", 2)));
 
         assertThat(result.status()).isEqualTo(OrderStatus.CONFIRMED);
-        assertThat(inventoryInterp.reservations()).hasSize(1);
-        assertThat(notifInterp.sentNotifications()).hasSize(1);
-    }
-
-    @Test
-    @DisplayName("Should not place order when inventory unavailable")
-    void shouldNotPlaceOrderWhenInventoryUnavailable() {
-        inventoryInterp.setAvailableStock("ITEM-42", 0);
-
-        OrderResult result = boundary.run(
-            service.placeOrder(new OrderRequest("C001", "ITEM-42", 2)));
-
-        assertThat(result.status()).isEqualTo(OrderStatus.REJECTED);
-        assertThat(orderInterp.placedOrders()).isEmpty();
+        assertThat(interpreter.ordersPlaced()).isEqualTo(1);
     }
 }
 ```
 
-These tests run in milliseconds. The same `OrderService` program that runs against Stripe and PostgreSQL in production runs against in-memory stubs here, with no code changes.
+These tests run in milliseconds. The same `OrderService` program that runs against real infrastructure in production runs against in-memory stubs here, with no code changes. Composing several algebras works the same way — build the boundary with `TestBoundary.of(Interpreters.combine(orderStub, inventoryStub, notifyStub))`.
 
 ### @EffectTest Test Slice
 
@@ -337,19 +343,16 @@ hkj:
     either-path-enabled: true
     maybe-path-enabled: true
 
-    # New: FreePath handler
+    # FreePath handler
     free-path-enabled: true
     free-path-failure-status: 500
     free-path-include-exception-details: false
 
   effect-boundary:
-    enabled: true                     # master switch
-    startup-validation: true          # fail-fast if interpreters missing
-    interpreter-selection:            # config-driven interpreter switching
-      payment-gateway: stripe
-      fraud-check: ml-model
-      notification: email
+    enabled: true                     # master switch consulted by the registrar (default: true)
 ```
+
+Setting `hkj.effect-boundary.enabled: false` prevents the registrar from creating the boundary bean at all. Interpreter validation is always fail-fast: a missing or ambiguous interpreter is a startup error, not a warning — there is no property to relax it. Environment-specific interpreter switching is done with the `@Interpreter(profile = ...)` attribute (see [Level 3](#level-3-interpreters-as-spring-beans)), not with configuration keys.
 
 ---
 
@@ -404,57 +407,11 @@ These appear automatically in the `/actuator/metrics` endpoint alongside existin
 
 ---
 
-## Pure Tests with TestBoundary
-
-For unit tests that verify business logic without Spring or IO, `TestBoundary` interprets programs using the Id monad. Tests execute in milliseconds and are fully deterministic:
-
-```java
-@DisplayName("OrderService Pure Tests")
-class OrderServicePureTest {
-
-    private final StubOrderInterpreter interpreter = new StubOrderInterpreter();
-    private final TestBoundary<OrderEffects> boundary = TestBoundary.of(interpreter);
-
-    @Test
-    void shouldPlaceOrder() {
-        OrderResult result = boundary.run(
-            service.placeOrder(new OrderRequest("C001", "ITEM-42", 2)));
-
-        assertThat(result.status()).isEqualTo(OrderStatus.CONFIRMED);
-        assertThat(interpreter.ordersPlaced()).isEqualTo(1);
-    }
-}
-```
-
-The stub interpreter targets `IdKind.Witness` instead of `IOKind.Witness`, returning pure `Id` values. The same `Free<F, A>` program that runs against real services in production runs against stubs here. Only the interpreter and boundary change; the program is identical.
-
-For integration tests that need Spring auto-configuration but not the web layer, use `@EffectTest(effects={...})` to auto-discover interpreters and register an `EffectBoundary` bean:
-
-```java
-@SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.NONE)
-@EffectTest(effects = {OrderOp.class})
-class OrderServiceSpringTest {
-
-    @Autowired EffectBoundary<OrderOpKind.Witness> boundary;
-    @Autowired OrderService service;
-
-    @Test
-    void shouldProcessOrder() {
-        OrderResult result = boundary.run(service.placeOrder(request));
-        assertThat(result.status()).isEqualTo(OrderStatus.CONFIRMED);
-    }
-}
-```
-
-`@EffectTest` discovers `@Interpreter` beans matching each listed effect algebra, combines them, and registers the boundary. No manual wiring needed. When the `effects` parameter is empty, no automatic boundary registration occurs.
-
----
-
 ~~~admonish info title="Key Takeaways"
 * **EffectBoundary bridges Free monads into existing infrastructure.** `runIO()` returns `IOPath`, which the existing handler converts to HTTP responses. No parallel universe.
 * **Adoption is progressive.** Start with a single `@Bean`, then add `@Interpreter`, then `@EnableEffectBoundary`. Each level adds value independently.
 * **Interpreters become Spring beans.** They can inject repositories, HTTP clients, and configuration. Profile-based switching replaces manual test/prod wiring.
-* **Testing is pure and fast.** `TestBoundary` with recording interpreters runs programs in milliseconds with no Spring context, no IO, and full observability into what effects were executed.
+* **Testing is pure and fast.** `TestBoundary` with stub interpreters runs programs in milliseconds with no Spring context, no IO, and full observability into what effects were executed.
 * **The same program runs everywhere.** Production interprets into IO with real services. Tests interpret into Id with stubs. Auditing wraps interpreters with logging. The program itself never changes.
 ~~~
 

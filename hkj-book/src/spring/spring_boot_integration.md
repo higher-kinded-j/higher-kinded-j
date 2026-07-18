@@ -2,7 +2,7 @@
 ## _Bringing Type-Safe Error Handling to Your REST APIs_
 
 ~~~admonish info title="What You'll Learn"
-- How to use Either, Validated, Maybe, Try, IO, CompletableFuture, VTask, VStream, and Free as Spring controller return types (via their Path wrappers)
+- How to use Either, Validated, Maybe, Try, IO, CompletableFuture, VTask, VStream, EitherOrBoth, and Free as Spring controller return types (via their Path wrappers)
 - Zero-configuration setup with the hkj-spring-boot-starter
 - Virtual thread integration with VTaskPath (async) and VStreamPath (SSE streaming)
 - Automatic JSON serialisation with customisable formats
@@ -146,6 +146,7 @@ That's it! The starter auto-configures everything:
 - CompletableFuturePath support for async operations
 - VTaskPath support for virtual thread async via DeferredResult
 - VStreamPath support for SSE streaming on virtual threads
+- EitherOrBothPath support for success-with-warnings responses (warnings in the `X-Hkj-Warnings` header)
 - FreePath support for Free-monad programs interpreted through `EffectBoundary`
 - `@ResponseStatus` honoured on handler methods to override the default success status
 - JSON serialisation for functional types
@@ -230,8 +231,10 @@ public class UserController {
 ```
 
 **Response Mapping:**
-- `Right(user)` → HTTP 200 with JSON: `{"id": "1", "email": "alice@example.com", ...}`
-- `Left(UserNotFoundError)` → HTTP 404 with JSON: `{"success": false, "error": {"type": "UserNotFoundError", ...}}`
+- `Right(user)` → HTTP 200 with the value unwrapped as JSON: `{"id": "1", "email": "alice@example.com", ...}`
+- `Left(UserNotFoundError)` → HTTP 404 with the error wrapped in an envelope: `{"success": false, "error": {"userId": "999", ...}}`
+
+The error object inside the envelope is the error record serialised as-is — there is no automatic `type` discriminator. If your clients need one, add it to the error type with Jackson's `@JsonTypeInfo(use = Id.NAME, ...)` on the sealed interface.
 
 #### Error Type to HTTP Status Mapping {#error-type-http-status-mapping}
 
@@ -307,43 +310,65 @@ public Validated<List<ValidationError>, User> createUser(@RequestBody UserReques
 ```
 
 **Response Mapping:**
-- `Valid(user)` → HTTP 200 with JSON: `{"id": "1", "email": "alice@example.com", ...}`
-- `Invalid(errors)` → HTTP 400 with JSON: `{"success": false, "errors": [{"field": "email", "message": "Invalid format"}, ...]}`
+- `Valid(user)` → HTTP 200 with the value unwrapped as JSON: `{"id": "1", "email": "alice@example.com", ...}`
+- `Invalid(errors)` → HTTP 400 with JSON: `{"valid": false, "errors": [{"field": "email", "message": "Invalid format"}, ...], "errorCount": 2}`
 
 #### Validation Example
+
+Individual field checks each return a `Validated`; the applicative for `Validated` (with a list semigroup for the error channel) combines them so that **every** failing check is reported:
 
 ```java
 @Service
 public class UserService {
 
     public Validated<List<ValidationError>, User> validateAndCreate(UserRequest request) {
-        return Validated.validateAll(
-            validateEmail(request.email()),
-            validateName(request.firstName()),
-            validateName(request.lastName())
-        ).map(tuple -> new User(
-            UUID.randomUUID().toString(),
-            tuple._1(),  // email
-            tuple._2(),  // firstName
-            tuple._3()   // lastName
-        ));
+        Applicative<ValidatedKind.Witness<List<ValidationError>>> applicative =
+            ValidatedMonad.instance(Semigroups.list());
+
+        var result = applicative.map3(
+            VALIDATED.widen(validateEmail(request.email())),
+            VALIDATED.widen(validateName("firstName", request.firstName())),
+            VALIDATED.widen(validateName("lastName", request.lastName())),
+            (email, firstName, lastName) ->
+                new User(UUID.randomUUID().toString(), email, firstName, lastName));
+
+        return VALIDATED.narrow(result);
     }
 
-    private Validated<ValidationError, String> validateEmail(String email) {
+    private Validated<List<ValidationError>, String> validateEmail(String email) {
         if (email == null || !email.contains("@")) {
-            return Validated.invalid(new ValidationError("email", "Invalid email format"));
+            return Validated.invalid(List.of(new ValidationError("email", "Invalid email format")));
         }
         return Validated.valid(email);
     }
 
-    private Validated<ValidationError, String> validateName(String name) {
+    private Validated<List<ValidationError>, String> validateName(String field, String name) {
         if (name == null || name.trim().isEmpty()) {
-            return Validated.invalid(new ValidationError("name", "Name cannot be empty"));
+            return Validated.invalid(List.of(new ValidationError(field, "Name cannot be empty")));
         }
         return Validated.valid(name);
     }
 }
 ```
+
+This mirrors `UserService.validateAndCreate` in the example module. (`VALIDATED` is the `ValidatedKindHelper.VALIDATED` widening/narrowing helper.)
+
+~~~admonish tip title="Prefer the Path builders for new code"
+The `ValidationPath` accumulating builders avoid the widen/narrow ceremony entirely — controllers can return `ValidationPath` directly and the same handler applies. Each field validator returns `ValidationPath<NonEmptyList<ValidationError>, String>` (built with `Path.validNel` / `Path.invalidNel`):
+
+```java
+public ValidationPath<NonEmptyList<ValidationError>, User> validateAndCreate(UserRequest request) {
+    return Path.accumulate()
+        .and(validateEmail(request.email()))
+        .and(validateName("firstName", request.firstName()))
+        .and(validateName("lastName", request.lastName()))
+        .apply((email, firstName, lastName) ->
+            new User(UUID.randomUUID().toString(), email, firstName, lastName));
+}
+```
+
+See the [Effect Path API](../effect/path_types.md) for `Path.accumulate()` and its labelled sibling `Path.fields()`.
+~~~
 
 **Key Difference from Either:**
 - `Either` short-circuits on first error (fail-fast)
@@ -432,7 +457,7 @@ public VTaskPath<EnrichedUser> getEnrichedUser(@PathVariable String id) {
     VTask<Profile> profileTask = VTask.of(() -> fetchProfile(id));
     VTask<OrderSummary> ordersTask = VTask.of(() -> fetchOrders(id));
 
-    return Path.vtask(
+    return Path.vtaskPath(
         Scope.<Object>allSucceed()
             .fork(userTask)
             .fork(profileTask)
@@ -491,6 +516,44 @@ public VStreamPath<TickEvent> streamTicks(@RequestParam(defaultValue = "10") int
 
 ---
 
+### 6. EitherOrBoth: Success with Warnings {#eitherorboth-success-with-warnings}
+
+`EitherOrBoth<W, A>` is the inclusive-or: a computation that fails with warnings (`Left`), succeeds cleanly (`Right`), or **succeeds while also carrying non-fatal warnings** (`Both`). Controllers can return either the raw `EitherOrBoth` or its Path wrapper `EitherOrBothPath` — both are handled by `EitherOrBothPathReturnValueHandler`.
+
+#### Basic Usage
+
+```java
+@PostMapping("/imports")
+public EitherOrBothPath<NonEmptyList<ImportWarning>, ImportSummary> importBatch(
+        @RequestBody ImportRequest request) {
+    return importService.importBatch(request);
+}
+```
+
+**Response Mapping (three branches, not two):**
+
+| Result | Status | Body | Extra |
+|--------|--------|------|-------|
+| `Right(value)` | success status (200, or `@ResponseStatus` on the handler) | the value, unwrapped | — |
+| `Both(warnings, value)` | the **same** success status | the value, unwrapped | warnings JSON-encoded into the `X-Hkj-Warnings` response header |
+| `Left(warnings)` | resolved by `ErrorStatusCodeStrategy` (same as `EitherPath`) | `{"success": false, "error": <warnings>}` | `HttpHeaderCarrier` headers applied if implemented |
+
+The `Both` branch is the point: warnings are never silently dropped, but the success body stays the bare value, so clients that ignore the header see exactly the same response as a clean success. Clients that care read `X-Hkj-Warnings` and parse the JSON array.
+
+```http
+HTTP/1.1 200 OK
+Content-Type: application/json
+X-Hkj-Warnings: [{"row":17,"message":"duplicate SKU skipped"}]
+
+{"imported": 240, "skipped": 1}
+```
+
+Disable the handler with `hkj.web.either-or-both-path-enabled: false` (default: `true`).
+
+See [EitherOrBoth](../monads/either_or_both_monad.md) for the type itself, including `zipWithAccum` for combining independent checks whilst accumulating warnings.
+
+---
+
 ## HTTP Status Codes {#http-status-codes}
 
 Every Effect Path return-value handler resolves the success and error status codes independently, so the same controller method can map typed successes and typed failures to different HTTP responses.
@@ -527,7 +590,7 @@ public class OrderController {
 }
 ```
 
-All nine Effect Path handlers honour `@ResponseStatus` consistently.
+All ten Effect Path handlers honour `@ResponseStatus` consistently.
 
 ### Error Status Mapping
 
@@ -586,7 +649,7 @@ public record MfaThrottledError(int retryAfterSeconds)
 }
 ```
 
-The headers are applied by the `EitherPath`, `TryPath`, `ValidationPath`, `IOPath`, `CompletableFuturePath`, `VTaskPath`, and `FreePath` return-value handlers before the JSON body is written. Internally the headers are added (not set), so multi-valued headers such as `WWW-Authenticate`, `Set-Cookie`, and `Link` accumulate as separate header lines, matching the HTTP grammar; upstream headers set by filters or interceptors are also preserved. For collection-typed payloads (such as `ValidationPath` `Invalid` values), every element that implements `HttpHeaderCarrier` contributes; values accumulate. For single-valued headers like `Retry-After`, the carrier should ensure the value appears at most once across all payload elements.
+The headers are applied by the `EitherPath`, `EitherOrBothPath`, `TryPath`, `ValidationPath`, `IOPath`, `CompletableFuturePath`, `VTaskPath`, and `FreePath` return-value handlers before the JSON body is written. Internally the headers are added (not set), so multi-valued headers such as `WWW-Authenticate`, `Set-Cookie`, and `Link` accumulate as separate header lines, matching the HTTP grammar; upstream headers set by filters or interceptors are also preserved. For collection-typed payloads (such as `ValidationPath` `Invalid` values), every element that implements `HttpHeaderCarrier` contributes; values accumulate. For single-valued headers like `Retry-After`, the carrier should ensure the value appears at most once across all payload elements.
 
 `VStreamPath` does not honour `HttpHeaderCarrier`, because the response status and headers are committed before the first SSE event. Set required headers via a servlet filter or controller advice before the stream begins.
 
@@ -604,56 +667,50 @@ The example module contains a [`ErrorStatusFixtureController`](https://github.co
 
 ## JSON Serialisation {#json-serialisation}
 
-The starter provides flexible JSON serialisation for functional types.
+Two different mechanisms produce JSON for functional types, and it matters which one applies:
 
-### Configuration
+### Top-level return values (the handlers)
 
-Configure serialisation format in `application.yml`:
+When a controller returns a functional type directly, the return-value handler shapes the response:
+
+- **Success values are unwrapped.** `Right(user)`, `Valid(user)`, a completed `CompletableFuturePath<User>`, etc. all produce the bare value as the body: `{"id": "1", "email": "alice@example.com"}` — no envelope.
+- **Either errors** produce `{"success": false, "error": <error record serialised as-is>}`.
+- **Validated errors** produce `{"valid": false, "errors": [...], "errorCount": n}`.
+- **EitherOrBoth `Both`** produces the unwrapped value plus the `X-Hkj-Warnings` header (see [above](#eitherorboth-success-with-warnings)).
+
+### Nested values (the Jackson module)
+
+When an `Either`, `Validated`, `EitherOrBoth`, or `NonEmptyList` appears **inside** a DTO (for example a batch result containing `List<Either<DomainError, User>>`), the `HkjJacksonModule` serialises it with a tagged shape:
+
+```json
+// Nested Either.right(user)
+{"isRight": true, "right": {"id": "1", "email": "alice@example.com"}}
+
+// Nested Either.left(error)
+{"isRight": false, "left": {"userId": "999"}}
+
+// Nested Validated
+{"valid": true, "value": ...}
+{"valid": false, "errors": [...]}
+
+// Nested EitherOrBoth
+{"kind": "right", "right": ...}
+{"kind": "both", "left": [...warnings...], "right": ...}
+```
+
+These shapes are fixed — there is no format-toggle property. The only Jackson-related switch is:
 
 ```yaml
 hkj:
   json:
-    custom-serializers-enabled: true  # Enable custom serialisers (default: true)
-    either-format: TAGGED             # TAGGED or SIMPLE
-    validated-format: TAGGED          # TAGGED or SIMPLE
-    maybe-format: TAGGED              # TAGGED or SIMPLE
+    custom-serializers-enabled: true  # Register HkjJacksonModule (default: true)
 ```
 
-~~~admonish note title="Property prefix vs. actuator key"
-The configuration prefix is `hkj.json.*`. The actuator endpoint at `/actuator/hkj` reports the same values under the `"jackson"` key for backward compatibility with earlier releases.
+~~~admonish warning title="No Maybe or Try Jackson support"
+The Jackson module covers `Either`, `Validated`, `EitherOrBoth`, and `NonEmptyList`. `Maybe` and `Try` have **no** nested-serialisation support — return them at the top level (where the handlers apply) or convert them to a supported type before embedding them in a DTO.
 ~~~
 
-### Serialisation Formats
-
-#### TAGGED (Default)
-
-Wraps the value with metadata indicating success/failure:
-
-```json
-// Right(user)
-{
-  "success": true,
-  "value": {
-    "id": "1",
-    "email": "alice@example.com"
-  }
-}
-
-// Left(error)
-{
-  "success": false,
-  "error": {
-    "type": "UserNotFoundError",
-    "userId": "999"
-  }
-}
-```
-
-#### SIMPLE
-
-Compact form without the discriminator metadata, suitable for clients that already infer success and failure from the HTTP status code.
-
-For complete serialisation details, including the exact field names produced for each format, see [hkj-spring/JACKSON_SERIALIZATION.md](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-spring/JACKSON_SERIALIZATION.md).
+For complete serialisation details, see [hkj-spring/JACKSON_SERIALIZATION.md](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-spring/JACKSON_SERIALIZATION.md).
 
 ---
 
@@ -665,13 +722,14 @@ For complete serialisation details, including the exact field names produced for
 hkj:
   web:
     either-path-enabled: true               # Enable EitherPath handler (default: true)
-    validated-path-enabled: true            # Enable ValidationPath handler (default: true)
+    validation-path-enabled: true           # Enable ValidationPath handler (default: true)
     maybe-path-enabled: true                # Enable MaybePath handler (default: true)
     try-path-enabled: true                  # Enable TryPath handler (default: true)
     io-path-enabled: true                   # Enable IOPath handler (default: true)
     completable-future-path-enabled: true   # Enable CompletableFuturePath handler (default: true)
     vtask-path-enabled: true                # Enable VTaskPath handler (default: true)
     vstream-path-enabled: true              # Enable VStreamPath handler (default: true)
+    either-or-both-path-enabled: true       # Enable EitherOrBothPath handler (default: true)
     free-path-enabled: true                 # Enable FreePath handler (default: true)
     either:
       default-error-status: 400             # Default HTTP status for unmapped Left errors
@@ -681,16 +739,27 @@ The canonical key for the EitherPath default error status is `hkj.web.either.def
 
 ### Async Executor Configuration
 
-For CompletableFuturePath operations, configure the async thread pool:
+The starter does **not** create or configure a thread pool for `CompletableFuturePath` operations — your application defines its own executor bean and passes it to `CompletableFuture.supplyAsync(...)` in the service layer. The example module's `AsyncConfig` shows the pattern:
 
-```yaml
-hkj:
-  async:
-    core-pool-size: 10                 # Minimum threads
-    max-pool-size: 20                  # Maximum threads
-    queue-capacity: 100                # Queue size before rejection
-    thread-name-prefix: "hkj-async-"   # Thread naming pattern
+```java
+@Configuration
+@EnableAsync
+public class AsyncConfig {
+
+    @Bean(name = "hkjAsyncExecutor")
+    public Executor hkjAsyncExecutor() {
+        ThreadPoolTaskExecutor executor = new ThreadPoolTaskExecutor();
+        executor.setCorePoolSize(10);
+        executor.setMaxPoolSize(20);
+        executor.setQueueCapacity(100);
+        executor.setThreadNamePrefix("hkj-async-");
+        executor.initialize();
+        return executor;
+    }
+}
 ```
+
+Naming the bean `hkjAsyncExecutor` also lights up the optional async-executor health indicator (see [Monitoring](#monitoring-with-spring-boot-actuator)). The one async property the starter does read is `hkj.async.default-timeout-ms` (default: 30000), the response timeout for `CompletableFuturePath` requests.
 
 ### Virtual Thread Configuration
 
@@ -855,53 +924,46 @@ The hkj-spring-boot-starter provides optional Spring Security integration with f
 hkj:
   security:
     enabled: true                       # Enable functional security (default: false)
-    validated-user-details: true        # Use Validated for user loading
     either-authentication: true         # Use Either for authentication
     either-authorization: true          # Use Either for authorisation
+    # Opt-in (default: false). Only enable when you will register accounts: once it is the sole
+    # UserDetailsService bean, Spring Security adopts it as the application-wide user store — and it
+    # starts EMPTY, so enabling it without adding users fails every form/basic login.
+    # validated-user-details: true
 ```
 
 ### Functional User Details Service
 
-Use `Validated` to accumulate authentication errors:
+`ValidatedUserDetailsService` validates the username with `Validated`, accumulating **all** format errors (too short *and* illegal characters, not just the first) before looking the user up. It starts **empty** — register accounts explicitly:
 
 ```java
-@Service
-public class CustomUserDetailsService implements ValidatedUserDetailsService {
-
-    @Override
-    public Validated<List<SecurityError>, UserDetails> loadUserByUsername(String username) {
-        return Validated.validateAll(
-            validateUsername(username),
-            validateAccountStatus(username),
-            validateCredentials(username)
-        ).map(tuple -> new User(
-            tuple._1(),  // username
-            tuple._2(),  // password
-            tuple._3()   // authorities
-        ));
-
-        // Returns ALL validation errors at once
-        // e.g., "Username too short" + "Account locked"
-    }
+@Bean
+public UserDetailsService userDetailsService(PasswordEncoder encoder) {
+    var service = new ValidatedUserDetailsService();
+    service.addUser(User.builder()
+        .username("alice")
+        .password(encoder.encode(secret))
+        .roles("USER")
+        .build());
+    return service;
 }
 ```
 
+~~~admonish warning title="Sample users are opt-in, demos only"
+`ValidatedUserDetailsService.withSampleUsers()` returns an instance pre-populated with well-known accounts (`admin`/`admin123`, `user`/`user123`, `disabled`/`disabled123`) using plaintext `{noop}` passwords. It exists for demos and tests — never use it in production. The no-argument constructor registers **no** users.
+~~~
+
 ### Functional Authentication
 
-Use `Either` for JWT authentication with typed errors:
+`EitherAuthenticationConverter` converts JWTs to `Authentication` using `Either` internally. A **malformed** authorities claim (wrong type, or a collection with a non-string element) always folds the `Left` into a thrown `BadCredentialsException`, so such a token is **rejected** (HTTP 401) — it never produces an authenticated token. A **missing** claim is rejected the same way only while `hkj.security.reject-missing-authorities-claim` stays `true` (the default); set it to `false` to allow legitimately role-less tokens (e.g. client-credentials) to authenticate with empty authorities:
 
 ```java
-@Component
-public class JwtAuthenticationConverter {
-
-    public Either<AuthenticationError, Authentication> convert(Jwt jwt) {
-        return extractUsername(jwt)
-            .flatMap(this::validateToken)
-            .flatMap(this::extractAuthorities)
-            .map(authorities -> new JwtAuthenticationToken(jwt, authorities));
-
-        // Short-circuits on first error
-    }
+@Bean
+public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
+    http.oauth2ResourceServer(oauth2 -> oauth2
+        .jwt(jwt -> jwt
+            .jwtAuthenticationConverter(new EitherAuthenticationConverter())));
+    return http.build();
 }
 ```
 
@@ -918,18 +980,19 @@ Track functional programming patterns in production with built-in Actuator integ
 ```yaml
 hkj:
   actuator:
-    metrics:
-      enabled: true                     # Enable metrics tracking
-    health:
-      async-executor:
-        enabled: true                   # Monitor CompletableFuturePath thread pool
+    metrics-enabled: true               # Enable metrics tracking (default: true)
 
 management:
+  health:
+    hkj-async:
+      enabled: true                     # Async executor health indicator (default: true)
   endpoints:
     web:
       exposure:
         include: health,info,metrics,hkj
 ```
+
+The `hkj-async` health indicator only registers when your application defines an `Executor` bean named `hkjAsyncExecutor` (see [Async Executor Configuration](#async-executor-configuration)) — without that bean there is nothing to monitor. Any `Executor` is accepted: a `ThreadPoolTaskExecutor` reports full pool statistics, while other types (e.g. a virtual-thread executor) report `UP` with a `type` detail (or `DOWN` if shut down).
 
 ### Available Metrics
 
@@ -937,10 +1000,10 @@ The starter automatically tracks:
 
 - **EitherPath metrics:** Success/error counts and rates
 - **ValidationPath metrics:** Valid/invalid counts and error distributions
-- **CompletableFuturePath metrics:** Async operation durations and success rates
 - **VTaskPath metrics:** Virtual thread execution durations and success rates
 - **VStreamPath metrics:** Stream completion counts and element distribution
-- **Thread pool health:** Active threads, queue size, saturation
+- **EffectBoundary metrics:** Free-program execution counts and durations (via `ObservableEffectBoundary`)
+- **Thread pool health:** Active threads, queue size, saturation (requires a `hkjAsyncExecutor` bean)
 
 ### Custom HKJ Endpoint
 
@@ -950,42 +1013,63 @@ Access functional programming metrics via the custom actuator endpoint:
 curl http://localhost:8080/actuator/hkj
 ```
 
-Response:
+Response (metric keys are `either`, `validated`, `eitherT`, `vtask`, and `vstream`):
 ```json
 {
   "configuration": {
     "web": {
       "eitherPathEnabled": true,
-      "validatedPathEnabled": true,
-      "completableFuturePathEnabled": true
+      "maybePathEnabled": true,
+      "tryPathEnabled": true,
+      "validationPathEnabled": true,
+      "ioPathEnabled": true,
+      "completableFuturePathEnabled": true,
+      "vtaskPathEnabled": true,
+      "vstreamPathEnabled": true,
+      "eitherOrBothPathEnabled": true,
+      "freePathEnabled": true,
+      "defaultErrorStatus": 400
     },
     "jackson": {
-      "eitherFormat": "TAGGED",
-      "validatedFormat": "TAGGED"
+      "customSerializersEnabled": true
     }
   },
   "metrics": {
-    "eitherPath": {
+    "either": {
       "successCount": 1547,
       "errorCount": 123,
       "totalCount": 1670,
       "successRate": 0.926
     },
-    "validationPath": {
+    "validated": {
       "validCount": 892,
       "invalidCount": 45,
       "totalCount": 937,
       "validRate": 0.952
     },
-    "completableFuturePath": {
+    "eitherT": {
       "successCount": 234,
       "errorCount": 12,
       "totalCount": 246,
       "successRate": 0.951
+    },
+    "vtask": {
+      "successCount": 340,
+      "errorCount": 15,
+      "totalCount": 355,
+      "successRate": 0.958
+    },
+    "vstream": {
+      "successCount": 120,
+      "errorCount": 5,
+      "totalCount": 125,
+      "successRate": 0.960
     }
   }
 }
 ```
+
+(The `eitherT` key and its `hkj.either_t.*` Micrometer meters are a legacy async-metrics surface retained for dashboard compatibility; the actively recorded handler metrics are `either`, `validated`, `vtask`, and `vstream`.)
 
 ### Prometheus Integration
 
@@ -993,24 +1077,25 @@ Export metrics to Prometheus for monitoring and alerting:
 
 ```yaml
 management:
-  metrics:
-    export:
-      prometheus:
+  prometheus:
+    metrics:
+      export:
         enabled: true
 ```
 
-Example Prometheus queries:
+The Micrometer meter names are `hkj.either.invocations`, `hkj.validated.invocations`, `hkj.either_t.invocations`, `hkj.either_t.async.duration`, `hkj.vtask.invocations`, `hkj.vtask.duration`, and `hkj.vstream.invocations` (Prometheus renders the dots as underscores):
+
 ```promql
 # EitherPath error rate
-rate(hkj_either_path_invocations_total{result="error"}[5m])
+rate(hkj_either_invocations_total{result="error"}[5m])
 
-# CompletableFuturePath p95 latency
+# VTaskPath p95 latency
 histogram_quantile(0.95,
-  rate(hkj_completable_future_path_async_duration_seconds_bucket[5m]))
+  rate(hkj_vtask_duration_seconds_bucket[5m]))
 
 # ValidationPath success rate
-sum(rate(hkj_validation_path_invocations_total{result="valid"}[5m]))
-  / sum(rate(hkj_validation_path_invocations_total[5m]))
+sum(rate(hkj_validated_invocations_total{result="valid"}[5m]))
+  / sum(rate(hkj_validated_invocations_total[5m]))
 ```
 
 For complete Actuator integration details, see [hkj-spring/ACTUATOR.md](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-spring/ACTUATOR.md).
@@ -1035,9 +1120,9 @@ class UserControllerTest {
     void shouldReturn200ForExistingUser() throws Exception {
         mockMvc.perform(get("/api/users/1"))
             .andExpect(status().isOk())
-            .andExpect(jsonPath("$.success").value(true))
-            .andExpect(jsonPath("$.value.id").value("1"))
-            .andExpect(jsonPath("$.value.email").value("alice@example.com"));
+            // Success bodies are unwrapped — no envelope fields
+            .andExpect(jsonPath("$.id").value("1"))
+            .andExpect(jsonPath("$.email").value("alice@example.com"));
     }
 
     @Test
@@ -1045,7 +1130,8 @@ class UserControllerTest {
         mockMvc.perform(get("/api/users/999"))
             .andExpect(status().isNotFound())
             .andExpect(jsonPath("$.success").value(false))
-            .andExpect(jsonPath("$.error.type").value("UserNotFoundError"));
+            // The error record is embedded as-is — assert on its own fields
+            .andExpect(jsonPath("$.error.userId").value("999"));
     }
 }
 ```
@@ -1067,9 +1153,9 @@ void shouldAccumulateValidationErrors() throws Exception {
             .contentType(MediaType.APPLICATION_JSON)
             .content(invalidRequest))
         .andExpect(status().isBadRequest())
-        .andExpect(jsonPath("$.success").value(false))
+        .andExpect(jsonPath("$.valid").value(false))
         .andExpect(jsonPath("$.errors").isArray())
-        .andExpect(jsonPath("$.errors.length()").value(3));  // All errors returned
+        .andExpect(jsonPath("$.errorCount").value(3));  // All errors returned
 }
 ```
 
@@ -1107,11 +1193,11 @@ class UserControllerWebMvcSliceTest {
     @Test
     void shouldReturn200ForExistingUser() throws Exception {
         when(userService.findById("1"))
-            .thenReturn(Either.right(new User("1", "alice@example.com")));
+            .thenReturn(Either.right(new User("1", "alice@example.com", "Alice", "Smith")));
 
         mockMvc.perform(get("/api/users/1"))
             .andExpect(status().isOk())
-            .andExpect(jsonPath("$.value.id").value("1"));
+            .andExpect(jsonPath("$.id").value("1"));
     }
 
     @Test
@@ -1125,7 +1211,7 @@ class UserControllerWebMvcSliceTest {
 }
 ```
 
-The three imports activate EitherPath/ValidationPath/Maybe/Try/IO/CompletableFuture/VTask/VStream/Free return-value handling, Jackson modules for functional types, and the error-status mapper; everything a controller slice needs. For integration-style tests covering the full stack, prefer `@SpringBootTest @AutoConfigureMockMvc` as shown above.
+The three imports activate EitherPath/ValidationPath/Maybe/Try/IO/CompletableFuture/VTask/VStream/EitherOrBoth/Free return-value handling, Jackson modules for functional types, and the error-status mapper; everything a controller slice needs. For integration-style tests covering the full stack, prefer `@SpringBootTest @AutoConfigureMockMvc` as shown above.
 
 ### Unit Testing Services
 
@@ -1207,7 +1293,7 @@ public class HkjWebMvcAutoConfiguration implements WebMvcConfigurer {
 ```
 
 Auto-configuration activates when:
-- `higher-kinded-j-core` is on the classpath
+- `hkj-core` is on the classpath
 - Spring Web MVC is present
 - Application is a servlet web app
 
@@ -1215,22 +1301,23 @@ Auto-configuration activates when:
 
 Each functional type has a dedicated handler:
 
-1. **EitherPathReturnValueHandler:** Converts `EitherPath<L, R>` to HTTP responses
-2. **ValidationPathReturnValueHandler:** Converts `ValidationPath<E, A>` to HTTP responses
+1. **EitherPathReturnValueHandler:** Converts `EitherPath<L, R>` (and raw `Either`) to HTTP responses
+2. **ValidationPathReturnValueHandler:** Converts `ValidationPath<E, A>` (and raw `Validated`) to HTTP responses
 3. **MaybePathReturnValueHandler:** Converts `MaybePath<A>`, mapping `Just` to `200` and `Nothing` to `404`
 4. **TryPathReturnValueHandler:** Converts `TryPath<A>`, mapping `Success` to `200` and `Failure` to an error response
 5. **IOPathReturnValueHandler:** Executes `IOPath<A>` and writes the captured result
 6. **CompletableFuturePathReturnValueHandler:** Unwraps `CompletableFuturePath<A>` for async processing
 7. **VTaskPathReturnValueHandler:** Executes `VTaskPath<A>` on virtual threads via `DeferredResult`
 8. **VStreamPathReturnValueHandler:** Streams `VStreamPath<A>` as SSE events on virtual threads
-9. **FreePathReturnValueHandler:** Interprets `FreePath<F, A>` via the registered `EffectBoundary` bean
+9. **EitherOrBothPathReturnValueHandler:** Converts `EitherOrBothPath<W, A>` (and raw `EitherOrBoth`), surfacing `Both` warnings in the `X-Hkj-Warnings` header
+10. **FreePathReturnValueHandler:** Interprets `FreePath<F, A>` via the registered `EffectBoundary` bean
 
 Supporting collaborators:
 
 - **`SuccessStatusResolver`:** Reads `@ResponseStatus` on the handler method (with controller-class fallback and meta-annotation support) so each handler can override its default success status.
 - **`ErrorStatusCodeStrategy`:** Functional interface invoked once per error response. The default `DefaultErrorStatusCodeStrategy` consults `hkj.web.error-status-mappings` first, then falls back to `ErrorStatusCodeMapper`'s tokenised heuristics, then to `hkj.web.either.default-error-status`. Replace the bean to inject custom logic (for example, status that depends on an error's field values).
 - **`ErrorStatusCodeMapper`:** Token-aware heuristic resolver used by the default strategy. Exposed as a static helper so custom strategies can delegate to the same logic.
-- **`HttpHeaderCarrier`:** Mix-in interface that lets `Left`-side error payloads add response headers (`Retry-After`, `WWW-Authenticate`, and similar) to the outgoing response. Honoured by every error-bearing handler except `VStreamPath`.
+- **`HttpHeaderCarrier`:** Mix-in interface that lets `Left`-side error payloads add response headers (`Retry-After`, `WWW-Authenticate`, and similar) to the outgoing response. Honoured by every error-bearing handler except `VStreamPath` and `MaybePath` (which has no error payload).
 
 Handlers are registered automatically and integrated seamlessly with Spring's request processing lifecycle.
 

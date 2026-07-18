@@ -99,17 +99,9 @@ public class PaymentController {
 ### `hkj.effect-boundary.enabled`
 
 - **Type:** `boolean` | **Default:** `true`
-- **Effect:** Master switch for EffectBoundary auto-configuration
+- **Effect:** Master switch consulted by the `@EnableEffectBoundary` registrar. When `false`, the `effectBoundary` bean is not registered.
 
-### `hkj.effect-boundary.startup-validation`
-
-- **Type:** `boolean` | **Default:** `true`
-- **Effect:** Fail fast at startup if any declared effect algebra has no matching `@Interpreter` bean
-
-### `hkj.effect-boundary.interpreter-selection`
-
-- **Type:** `Map<String, String>` | **Default:** empty
-- **Effect:** Configuration-driven interpreter selection by qualifier (keys are hyphenated algebra names, values are bean qualifiers)
+Interpreter validation is always fail-fast: a declared effect algebra with no matching `@Interpreter` bean — or with more than one eligible bean in the same specificity tier after profile filtering — is a startup error. A profile-restricted interpreter is more specific and shadows an unrestricted one, so a `profile = "test"` stub automatically replaces the production interpreter when the test profile is active. There is no property to relax this, and interpreter switching is done with `@Interpreter(profile = ...)`, not configuration keys.
 
 ### `hkj.web.free-path-enabled`
 
@@ -200,12 +192,11 @@ Replaces manual wiring with a single declaration. The `value` attribute lists th
 
 1. Reads the effect algebra class list from the annotation
 2. Resolves each to its generated `*Kind.Witness` type
-3. Scans for `@Interpreter`-annotated beans matching each algebra
+3. Scans for `@Interpreter`-annotated beans matching each algebra, filtering by active profile
 4. Constructs the `EitherF` nesting order automatically (left-to-right = outer-to-inner)
 5. Calls `Interpreters.combine()` with the discovered interpreters
-6. Registers `EffectBoundary<ComposedWitness>` as a singleton bean
-7. Registers individual `Bound<ComposedWitness>` beans for constructor injection in services
-8. Validates at startup: missing interpreter produces a clear error naming the unimplemented algebra
+6. Registers the single `effectBoundary` bean (`EffectBoundary<ComposedWitness>`) as a singleton
+7. Validates at startup: a missing interpreter — or two equally-specific eligible interpreters for one algebra — produces a clear error naming the offending algebra
 
 ### Multiple Boundary Beans
 
@@ -230,7 +221,7 @@ Inject with `@Qualifier("payments") EffectBoundary<PaymentEffects> boundary` in 
 Marks a class as a Spring-managed interpreter for a specific effect algebra. Because `@Interpreter` includes `@Component`, interpreters are full Spring beans and constructor injection works naturally.
 
 - **`value()`** -- The effect algebra class this interpreter handles. The registrar uses this to match interpreters to algebras declared in `@EnableEffectBoundary`.
-- **`profile()`** -- Optional Spring profile. When set, the interpreter is only active in that profile, enabling environment-based switching.
+- **`profile()`** -- Optional Spring profile expression. When set, the interpreter is only **eligible** while that profile is active (the registrar filters candidates with `Environment.acceptsProfiles`); when empty, it is always eligible. An eligible profile-restricted interpreter **shadows** an unrestricted one, so an active `profile = "test"` stub wins over the production interpreter without further configuration. Two or more eligible interpreters at the same specificity (both unrestricted, or both profile-restricted and active) fail startup with an error naming the ambiguous algebra.
 
 ### Profile-Based Switching
 
@@ -278,26 +269,42 @@ The handler is registered via `HkjWebMvcAutoConfiguration` using `org.springfram
 
 `TestBoundary<F extends WitnessArity<TypeArity.Unary>>` interprets programs using the Id monad (`IdKind.Witness`): pure, synchronous, deterministic. No IO, no Spring context. The same service program that runs against real infrastructure in production runs against in-memory stubs here.
 
+A stub interpreter targets `IdKind.Witness` and records what it was asked to do (see `OrderServicePureTest` in the effect-example module for the full listing):
+
 ```java
 class OrderServicePureTest {
-    private final RecordingOrderInterpreter orderInterp = new RecordingOrderInterpreter();
-    private final RecordingInventoryInterpreter inventoryInterp = new RecordingInventoryInterpreter();
-    private final TestBoundary<OrderEffects> boundary = TestBoundary.of(
-        Interpreters.combine(orderInterp, inventoryInterp));
 
-    @Test void shouldReserveInventory() {
-        OrderResult result = boundary.run(service.placeOrder(new OrderRequest("C001", "ITEM-42", 2)));
-        assertThat(result.status()).isEqualTo(OrderStatus.CONFIRMED);
-        assertThat(inventoryInterp.reservations()).hasSize(1);
+    static class StubOrderInterpreter implements Natural<OrderOpKind.Witness, IdKind.Witness> {
+        private int ordersPlaced = 0;
+
+        @Override
+        public <A> Kind<IdKind.Witness, A> apply(Kind<OrderOpKind.Witness, A> fa) {
+            OrderOp<A> op = OrderOpKindHelper.ORDER_OP.narrow(fa);
+            return switch (op) {
+                case OrderOp.PlaceOrder<A> place -> {
+                    ordersPlaced++;
+                    yield Id.of(place.k().apply(OrderResult.confirmed("ORD-TEST-0001")));
+                }
+                case OrderOp.GetStatus<A> get -> Id.of(get.k().apply(OrderStatus.CONFIRMED));
+            };
+        }
+
+        int ordersPlaced() { return ordersPlaced; }
     }
 
-    @Test void shouldRejectWhenUnavailable() {
-        inventoryInterp.setAvailableStock("ITEM-42", 0);
+    private final StubOrderInterpreter interpreter = new StubOrderInterpreter();
+    private final TestBoundary<OrderOpKind.Witness> boundary = TestBoundary.of(interpreter);
+    private final OrderService service = new OrderService();
+
+    @Test void shouldPlaceOrder() {
         OrderResult result = boundary.run(service.placeOrder(new OrderRequest("C001", "ITEM-42", 2)));
-        assertThat(result.status()).isEqualTo(OrderStatus.REJECTED);
+        assertThat(result.status()).isEqualTo(OrderStatus.CONFIRMED);
+        assertThat(interpreter.ordersPlaced()).isEqualTo(1);
     }
 }
 ```
+
+Composing several algebras works the same way: `TestBoundary.of(Interpreters.combine(orderStub, inventoryStub))`.
 
 ### @EffectTest Test Slice
 
@@ -338,12 +345,7 @@ hkj:
     free-path-include-exception-details: false
 
   effect-boundary:
-    enabled: true
-    startup-validation: true
-    interpreter-selection:
-      payment-gateway: stripe
-      fraud-check: ml-model
-      notification: email
+    enabled: true   # master switch (default: true)
 ```
 
 ## Comparison
@@ -418,7 +420,7 @@ The `ObservableEffectBoundary` provides the same API as `EffectBoundary` (`run()
 
 **Solution:** Ensure the interpreter class is within the component scan base packages. If it is in a separate module, add `@ComponentScan(basePackages = {...})` to include the relevant packages.
 
-> **Important**: With `hkj.effect-boundary.startup-validation` set to `true` (the default), a missing interpreter causes the application to fail at startup with a descriptive error. This is the recommended behaviour for production deployments.
+> **Important**: Startup validation is always on: a missing (or ambiguous) interpreter causes the application to fail at startup with a descriptive error. This fail-fast behaviour is deliberate and not configurable.
 
 ## Related Documentation
 

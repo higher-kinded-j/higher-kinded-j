@@ -50,8 +50,15 @@ public class VirtualThreadUserService {
    * <p>The computation is deferred — nothing executes until the Spring handler invokes the VTask.
    * When executed, it runs on a virtual thread automatically.
    *
+   * <p><b>Known limitation:</b> {@code VTaskPathReturnValueHandler} carries failures as exceptions,
+   * not typed {@code Left} values, so folding the {@link UserNotFoundError} into a {@code
+   * RuntimeException} here means a missing user maps to the configured VTask failure status
+   * (default 500), <em>not</em> 404 — the per-error-class {@code ErrorStatusCodeStrategy} does not
+   * apply to VTask failures. Endpoints that need {@code Left(UserNotFoundError)} → 404 semantics
+   * should return {@code Either} at the boundary instead (see {@link UserService#findById}).
+   *
    * @param id the user ID to find
-   * @return VTaskPath containing the User, or failing with an exception
+   * @return VTaskPath containing the User, or failing with an exception (→ 500)
    */
   public VTaskPath<User> findById(String id) {
     return Path.vtask(
