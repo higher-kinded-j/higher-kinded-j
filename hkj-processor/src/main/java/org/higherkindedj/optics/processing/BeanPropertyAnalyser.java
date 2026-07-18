@@ -25,8 +25,8 @@ import org.higherkindedj.optics.processing.util.Diagnostics;
  * of a fixed ladder of strategies, tried in order:
  *
  * <ol>
- *   <li>a public no-args constructor with {@code setX} setters (and, for a getter-only {@code
- *       List}, the JAXB collection convention {@code getX().addAll(...)});
+ *   <li>a no-args constructor with {@code setX} setters (and, for a getter-only {@code List}, the
+ *       JAXB collection convention {@code getX().addAll(...)});
  *   <li>a builder: a static {@code builder()} or {@code newBuilder()} returning a builder whose
  *       property-named or {@code setX} setters fill it and whose {@code build()} yields the wire.
  * </ol>
@@ -55,7 +55,7 @@ final class BeanPropertyAnalyser {
   WireShape.BeanShape analyse(TypeElement spec, TypeElement bean, String tag) {
     Map<String, ExecutableElement> getters = collectGetters(bean);
 
-    if (hasPublicNoArgsConstructor(bean)) {
+    if (hasUsableNoArgsConstructor(bean)) {
       Map<String, ExecutableElement> setters = collectSetters(bean);
       List<WireShape.BeanProperty> properties = new ArrayList<>();
       for (Map.Entry<String, ExecutableElement> entry : getters.entrySet()) {
@@ -121,7 +121,7 @@ final class BeanPropertyAnalyser {
   /** The number of mappable properties under the selected strategy, for the parse arithmetic. */
   int propertyCount(TypeElement bean) {
     Map<String, ExecutableElement> getters = collectGetters(bean);
-    if (hasPublicNoArgsConstructor(bean)) {
+    if (hasUsableNoArgsConstructor(bean)) {
       Map<String, ExecutableElement> setters = collectSetters(bean);
       long count =
           getters.entrySet().stream()
@@ -274,7 +274,7 @@ final class BeanPropertyAnalyser {
         "'"
             + bean.getSimpleName()
             + "' is not a usable bean-shaped wire: no construction strategy fits it.",
-        "The mapper fills a bean through a public no-args constructor with getX/setX pairs (or a"
+        "The mapper fills a bean through a no-args constructor with getX/setX pairs (or a"
             + " getter-only List, filled with getX().addAll(...)), or through a static"
             + " builder()/newBuilder() whose setters fill it and whose build() yields the wire; '"
             + bean.getSimpleName()
@@ -314,9 +314,14 @@ final class BeanPropertyAnalyser {
     return setter.getParameters().getFirst().asType();
   }
 
-  private boolean hasPublicNoArgsConstructor(TypeElement bean) {
+  /**
+   * A no-args constructor the generated impl can call. The impl is emitted in the spec's package,
+   * so any non-private constructor of a co-located bean is reachable; a public one is reachable
+   * from any package (as a compiled third-party bean's would be).
+   */
+  private boolean hasUsableNoArgsConstructor(TypeElement bean) {
     return ElementFilter.constructorsIn(bean.getEnclosedElements()).stream()
-        .anyMatch(c -> c.getParameters().isEmpty() && c.getModifiers().contains(Modifier.PUBLIC));
+        .anyMatch(c -> c.getParameters().isEmpty() && !c.getModifiers().contains(Modifier.PRIVATE));
   }
 
   /** The JavaBeans {@code Introspector.decapitalize} rule: {@code getURL} -> {@code URL}. */

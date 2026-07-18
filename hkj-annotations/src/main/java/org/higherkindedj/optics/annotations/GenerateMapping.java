@@ -29,6 +29,13 @@ import java.lang.annotation.Target;
  *   <li>Record components mapped by another spec in the same compilation nest automatically, and
  *       {@code List}/{@code Optional} components lift through the element's leaf or spec.
  *   <li>Sealed interface pairs dispatch over their permitted subtype pairs, one spec per pair.
+ *   <li>The wire may be a bean-shaped class (issue #628) instead of a record: a mutable class with
+ *       a no-args constructor and getters/setters, or an immutable one with a builder. {@code
+ *       build} fills it through setters or a builder and {@code parse} reads it through getters. An
+ *       unset bean property is null, so every reference-typed read is null-guarded into a located
+ *       {@code FieldError}; those guards make an {@code asIso()} truthful only for an all-primitive
+ *       bean. A domain {@code Optional<T>} bridges to a nullable bean property {@code T} (empty
+ *       maps to absent). The domain stays a record.
  *   <li>A lossless mapping additionally gets {@code asIso()}; a wire record with fewer components
  *       maps as a projection with {@code asLens()} and no {@code parse} (truthful types); every
  *       parse-capable mapping gets {@code asValidatedPrism()} so it plugs in wherever a leaf does.

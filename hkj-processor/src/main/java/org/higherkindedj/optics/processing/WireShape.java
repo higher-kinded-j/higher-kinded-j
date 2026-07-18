@@ -20,8 +20,8 @@ import javax.lang.model.type.TypeMirror;
  *
  * <p>Classification ({@link MappingProcessor#classify}) and code generation ({@link
  * MappingProcessor#writeImpl}) speak to the wire only through this interface: component enumeration
- * and name lookup, and the per-component read expression ({@link WireComponent#readFrom}). The build
- * body differs per shape (a record's canonical constructor versus a bean's {@link
+ * and name lookup, and the per-component read expression ({@link WireComponent#readFrom}). The
+ * build body differs per shape (a record's canonical constructor versus a bean's {@link
  * ConstructionStrategy}), so the processor assembles it by switching on the shape.
  */
 sealed interface WireShape permits WireShape.RecordShape, WireShape.BeanShape {

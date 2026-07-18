@@ -571,4 +571,83 @@ class GeneratedMappingLawsTest {
     MappingLaws.assertMappingLaws(
         asValidatedPrism(impl), result.newInstance("com.example.Profile", "Ada", "Lovelace"));
   }
+
+  @Test
+  @DisplayName(
+      "bean-wire tier: a bean mapping's domain round trip is lawful through the published harness")
+  void beanWireTierIsLawful() throws ReflectiveOperationException {
+    JavaFileObject domain =
+        JavaFileObjects.forSourceString(
+            "com.example.User",
+            """
+            package com.example;
+
+            import java.util.Optional;
+
+            public record User(String name, EmailAddress email, Optional<String> nickname) {}
+            """);
+    // The wire is a mutable JavaBean: no equals(), so only the domain round trip is comparable.
+    JavaFileObject wire =
+        JavaFileObjects.forSourceString(
+            "com.example.UserDto",
+            """
+            package com.example;
+
+            public class UserDto {
+              private String name;
+              private String email;
+              private String nickname;
+
+              public String getName() { return name; }
+              public void setName(String name) { this.name = name; }
+              public String getEmail() { return email; }
+              public void setEmail(String email) { this.email = email; }
+              public String getNickname() { return nickname; }
+              public void setNickname(String nickname) { this.nickname = nickname; }
+            }
+            """);
+    JavaFileObject spec =
+        JavaFileObjects.forSourceString(
+            "com.example.UserMapping",
+            """
+            package com.example;
+
+            import org.higherkindedj.hkt.validated.FieldError;
+            import org.higherkindedj.hkt.validated.Validated;
+            import org.higherkindedj.optics.annotations.GenerateMapping;
+            import org.higherkindedj.optics.annotations.MappingSpec;
+            import org.higherkindedj.optics.validated.ValidatedPrism;
+
+            @GenerateMapping
+            public interface UserMapping extends MappingSpec<User, UserDto> {
+              default ValidatedPrism<String, EmailAddress> email() {
+                return emailPrism();
+              }
+
+            """
+                + EMAIL_PRISM
+                + """
+            }
+            """);
+
+    var result = compileMapping(EMAIL, domain, wire, spec);
+    Object impl = implInstance(result, "com.example.UserMappingImpl");
+
+    // parse(build(user)) == Valid(user), compared on the domain record (the bean has no equals).
+    // Exercises the null-guarded getter reads and the Optional<->nullable bridge on the round trip.
+    MappingLaws.assertMappingLaws(
+        asValidatedPrism(impl),
+        result.newInstance(
+            "com.example.User",
+            "Ada",
+            result.newInstance("com.example.EmailAddress", "ada@example.org"),
+            Optional.of("countess")));
+    MappingLaws.assertMappingLaws(
+        asValidatedPrism(impl),
+        result.newInstance(
+            "com.example.User",
+            "Grace",
+            result.newInstance("com.example.EmailAddress", "grace@example.org"),
+            Optional.empty()));
+  }
 }

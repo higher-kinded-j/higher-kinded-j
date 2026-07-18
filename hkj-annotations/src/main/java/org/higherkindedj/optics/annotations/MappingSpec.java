@@ -21,7 +21,14 @@ package org.higherkindedj.optics.annotations;
  * //   Validated<NonEmptyList<FieldError>, User> parse(UserDto)   (accumulating, located)
  * }</pre>
  *
- * @param <A> the domain type (a record)
- * @param <B> the wire type (a record)
+ * <p>The wire type {@code B} may be a record or a bean-shaped class (issue #628): a mutable class
+ * with a no-args constructor and getters/setters, or an immutable one with a builder. The bean is
+ * read through getters and written through setters or a builder; every reference-typed read is
+ * null-guarded, so an unset property parses to a located {@code FieldError} rather than throwing.
+ * The domain type {@code A} stays a record (or a sealed interface of records), since {@code parse}
+ * assembles it through its canonical constructor.
+ *
+ * @param <A> the domain type (a record or a sealed interface of records)
+ * @param <B> the wire type (a record or a bean-shaped class)
  */
 public interface MappingSpec<A, B> {}
