@@ -6,11 +6,11 @@ import jakarta.servlet.http.HttpServletResponse;
 import java.util.Collection;
 import java.util.Map;
 import org.higherkindedj.hkt.effect.ValidationPath;
+import org.higherkindedj.hkt.nonemptylist.NonEmptyList;
 import org.higherkindedj.hkt.validated.Validated;
 import org.jspecify.annotations.Nullable;
 import org.springframework.core.MethodParameter;
 import org.springframework.http.HttpStatus;
-import org.springframework.http.MediaType;
 import org.springframework.web.context.request.NativeWebRequest;
 import org.springframework.web.method.support.HandlerMethodReturnValueHandler;
 import org.springframework.web.method.support.ModelAndViewContainer;
@@ -74,7 +74,6 @@ import tools.jackson.databind.json.JsonMapper;
  */
 public class ValidationPathReturnValueHandler implements HandlerMethodReturnValueHandler {
 
-  private final JsonMapper jsonMapper;
   private final ObjectWriter objectWriter;
   private final int invalidStatus;
 
@@ -85,7 +84,6 @@ public class ValidationPathReturnValueHandler implements HandlerMethodReturnValu
    * @param invalidStatus the HTTP status code for invalid results (default 400)
    */
   public ValidationPathReturnValueHandler(JsonMapper jsonMapper, int invalidStatus) {
-    this.jsonMapper = jsonMapper;
     this.objectWriter = jsonMapper.writer();
     this.invalidStatus = invalidStatus;
   }
@@ -155,12 +153,18 @@ public class ValidationPathReturnValueHandler implements HandlerMethodReturnValu
    */
   private void writeInvalidResponse(Object errors, HttpServletResponse response) {
     try {
+      // A one-shot Iterable (neither Collection nor NonEmptyList) would be exhausted by the first
+      // of applyTo/countErrors/Jackson, dropping errors from the later passes. Materialise it once;
+      // Collection, NonEmptyList and array payloads are already re-traversable and pass through
+      // unchanged so their JSON shape is preserved.
+      Object materialised = JsonResponses.materialiseErrors(errors);
       response.setStatus(invalidStatus);
-      ErrorResponseHeaders.applyTo(errors, response);
-      response.setContentType(MediaType.APPLICATION_JSON_VALUE);
+      ErrorResponseHeaders.applyTo(materialised, response);
+      JsonResponses.setJsonContentType(response);
 
-      int errorCount = countErrors(errors);
-      Map<String, Object> body = Map.of("valid", false, "errors", errors, "errorCount", errorCount);
+      int errorCount = countErrors(materialised);
+      Map<String, Object> body =
+          Map.of("valid", false, "errors", materialised, "errorCount", errorCount);
 
       objectWriter.writeValue(response.getWriter(), body);
     } catch (Exception e) {
@@ -178,8 +182,8 @@ public class ValidationPathReturnValueHandler implements HandlerMethodReturnValu
   private void writeValidResponse(Object value, HttpServletResponse response, int status) {
     try {
       response.setStatus(status);
-      if (status != HttpStatus.NO_CONTENT.value()) {
-        response.setContentType(MediaType.APPLICATION_JSON_VALUE);
+      if (!JsonResponses.isBodilessStatus(status)) {
+        JsonResponses.setJsonContentType(response);
         objectWriter.writeValue(response.getWriter(), value);
       }
     } catch (Exception e) {
@@ -190,16 +194,24 @@ public class ValidationPathReturnValueHandler implements HandlerMethodReturnValu
   /**
    * Counts the number of errors for the error count field.
    *
-   * @param errors the errors object (may be a collection or single error)
+   * @param errors the errors object (may be a collection, another iterable such as {@code
+   *     NonEmptyList}, an array, or a single error)
    * @return the count of errors
    */
   private int countErrors(Object errors) {
-    if (errors instanceof Collection<?> collection) {
-      return collection.size();
-    } else if (errors instanceof Object[] array) {
-      return array.length;
-    } else {
-      return 1;
-    }
+    return switch (errors) {
+      case Collection<?> collection -> collection.size();
+      // NonEmptyList (the idiomatic accumulation type) is Iterable but not a Collection
+      case NonEmptyList<?> nel -> nel.size();
+      case Iterable<?> iterable -> {
+        int count = 0;
+        for (var _ : iterable) {
+          count++;
+        }
+        yield count;
+      }
+      case Object[] array -> array.length;
+      default -> 1;
+    };
   }
 }

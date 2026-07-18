@@ -29,15 +29,13 @@ import org.springframework.boot.actuate.endpoint.annotation.ReadOperation;
  * {
  *   "configuration": {
  *     "web": {
- *       "eitherResponseEnabled": true,
- *       "validatedResponseEnabled": true,
- *       "asyncEitherTEnabled": true,
+ *       "eitherPathEnabled": true,
+ *       "validationPathEnabled": true,
+ *       "vtaskPathEnabled": true,
  *       "defaultErrorStatus": 400
  *     },
  *     "jackson": {
- *       "customSerializersEnabled": true,
- *       "eitherFormat": "TAGGED",
- *       "validatedFormat": "TAGGED"
+ *       "customSerializersEnabled": true
  *     }
  *   },
  *   "metrics": {
@@ -121,6 +119,8 @@ public class HkjMetricsEndpoint {
     web.put("completableFuturePathEnabled", properties.getWeb().isCompletableFuturePathEnabled());
     web.put("vtaskPathEnabled", properties.getWeb().isVtaskPathEnabled());
     web.put("vstreamPathEnabled", properties.getWeb().isVstreamPathEnabled());
+    web.put("eitherOrBothPathEnabled", properties.getWeb().isEitherOrBothPathEnabled());
+    web.put("freePathEnabled", properties.getWeb().isFreePathEnabled());
     web.put("defaultErrorStatus", properties.getWeb().getDefaultErrorStatus());
     return web;
   }
@@ -128,9 +128,6 @@ public class HkjMetricsEndpoint {
   private Map<String, Object> getJacksonConfig() {
     Map<String, Object> jackson = new LinkedHashMap<>();
     jackson.put("customSerializersEnabled", properties.getJson().isCustomSerializersEnabled());
-    jackson.put("eitherFormat", properties.getJson().getEitherFormat().name());
-    jackson.put("validatedFormat", properties.getJson().getValidatedFormat().name());
-    jackson.put("maybeFormat", properties.getJson().getMaybeFormat().name());
     return jackson;
   }
 

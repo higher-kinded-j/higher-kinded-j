@@ -12,6 +12,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.springframework.security.authentication.AbstractAuthenticationToken;
+import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.oauth2.jwt.Jwt;
 
 @DisplayName("EitherAuthenticationConverter Tests")
@@ -36,6 +37,7 @@ class EitherAuthenticationConverterTest {
       AbstractAuthenticationToken token = converter.convert(jwt);
 
       assertThat(token).isNotNull();
+      assertThat(token.isAuthenticated()).isTrue();
       assertThat(token.getName()).isEqualTo("user123");
       assertThat(token.getAuthorities()).hasSize(2);
       assertThat(token.getAuthorities())
@@ -75,8 +77,8 @@ class EitherAuthenticationConverterTest {
   class ConvertErrorTests {
 
     @Test
-    @DisplayName("Should handle JWT with missing roles claim")
-    void shouldHandleJwtWithMissingRolesClaim() {
+    @DisplayName("Should reject JWT with missing roles claim")
+    void shouldRejectJwtWithMissingRolesClaim() {
       Jwt jwt =
           Jwt.withTokenValue("token")
               .header("alg", "none")
@@ -86,17 +88,15 @@ class EitherAuthenticationConverterTest {
               // No roles claim
               .build();
 
-      AbstractAuthenticationToken token = converter.convert(jwt);
-
-      // On error, returns token with empty authorities
-      assertThat(token).isNotNull();
-      assertThat(token.getName()).isEqualTo("user123");
-      assertThat(token.getAuthorities()).isEmpty();
+      // A conversion failure must never yield an authenticated token
+      assertThatExceptionOfType(BadCredentialsException.class)
+          .isThrownBy(() -> converter.convert(jwt))
+          .withMessageContaining("Missing authorities claim: roles");
     }
 
     @Test
-    @DisplayName("Should handle JWT with invalid roles type")
-    void shouldHandleJwtWithInvalidRolesType() {
+    @DisplayName("Should reject JWT with invalid roles type")
+    void shouldRejectJwtWithInvalidRolesType() {
       Jwt jwt =
           Jwt.withTokenValue("token")
               .header("alg", "none")
@@ -106,11 +106,48 @@ class EitherAuthenticationConverterTest {
               .claim("roles", "ADMIN") // String instead of Collection
               .build();
 
-      AbstractAuthenticationToken token = converter.convert(jwt);
+      assertThatExceptionOfType(BadCredentialsException.class)
+          .isThrownBy(() -> converter.convert(jwt))
+          .withMessageContaining("Invalid authorities claim type");
+    }
 
-      // On error, returns token with empty authorities
+    @Test
+    @DisplayName("Lenient mode authenticates a token with no roles claim, with empty authorities")
+    void lenientModeAuthenticatesMissingClaim() {
+      var lenient = new EitherAuthenticationConverter("roles", "ROLE_", false);
+      Jwt jwt =
+          Jwt.withTokenValue("token")
+              .header("alg", "none")
+              .subject("client-credentials")
+              .issuedAt(Instant.now())
+              .expiresAt(Instant.now().plusSeconds(3600))
+              // No roles claim
+              .build();
+
+      AbstractAuthenticationToken token = lenient.convert(jwt);
+
       assertThat(token).isNotNull();
+      assertThat(token.isAuthenticated()).isTrue();
+      assertThat(token.getName()).isEqualTo("client-credentials");
       assertThat(token.getAuthorities()).isEmpty();
+    }
+
+    @Test
+    @DisplayName("Lenient mode still rejects a malformed (wrong-type) roles claim")
+    void lenientModeStillRejectsMalformedClaim() {
+      var lenient = new EitherAuthenticationConverter("roles", "ROLE_", false);
+      Jwt jwt =
+          Jwt.withTokenValue("token")
+              .header("alg", "none")
+              .subject("user123")
+              .issuedAt(Instant.now())
+              .expiresAt(Instant.now().plusSeconds(3600))
+              .claim("roles", "ADMIN") // String instead of Collection
+              .build();
+
+      assertThatExceptionOfType(BadCredentialsException.class)
+          .isThrownBy(() -> lenient.convert(jwt))
+          .withMessageContaining("Invalid authorities claim type");
     }
 
     @Test
@@ -125,8 +162,8 @@ class EitherAuthenticationConverterTest {
     }
 
     @Test
-    @DisplayName("Should filter out non-string roles")
-    void shouldFilterOutNonStringRoles() {
+    @DisplayName("Should reject a roles claim containing non-string elements")
+    void shouldRejectNonStringRoles() {
       Jwt jwt =
           Jwt.withTokenValue("token")
               .header("alg", "none")
@@ -137,13 +174,29 @@ class EitherAuthenticationConverterTest {
                   "roles", Arrays.asList("USER", 123, "ADMIN", null)) // Mixed types including null
               .build();
 
-      AbstractAuthenticationToken token = converter.convert(jwt);
+      // A collection with any non-string element is malformed, not role-less: reject it rather
+      // than silently authenticating with the string subset (which would grant ROLE_ADMIN here).
+      assertThatExceptionOfType(BadCredentialsException.class)
+          .isThrownBy(() -> converter.convert(jwt))
+          .withMessageContaining("Invalid authorities claim element type");
+    }
 
-      assertThat(token).isNotNull();
-      assertThat(token.getAuthorities()).hasSize(2);
-      assertThat(token.getAuthorities())
-          .extracting("authority")
-          .containsExactlyInAnyOrder("ROLE_USER", "ROLE_ADMIN");
+    @Test
+    @DisplayName("Lenient mode still rejects a roles claim containing non-string elements")
+    void lenientModeStillRejectsNonStringRoles() {
+      var lenient = new EitherAuthenticationConverter("roles", "ROLE_", false);
+      Jwt jwt =
+          Jwt.withTokenValue("token")
+              .header("alg", "none")
+              .subject("user123")
+              .issuedAt(Instant.now())
+              .expiresAt(Instant.now().plusSeconds(3600))
+              .claim("roles", Arrays.asList("USER", 123))
+              .build();
+
+      assertThatExceptionOfType(BadCredentialsException.class)
+          .isThrownBy(() -> lenient.convert(jwt))
+          .withMessageContaining("Invalid authorities claim element type");
     }
   }
 

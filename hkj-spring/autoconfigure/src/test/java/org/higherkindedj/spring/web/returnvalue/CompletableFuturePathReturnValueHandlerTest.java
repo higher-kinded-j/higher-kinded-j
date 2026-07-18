@@ -6,6 +6,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.awaitility.Awaitility.await;
 import static org.mockito.Mockito.*;
 
+import jakarta.servlet.AsyncEvent;
 import java.time.Duration;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
@@ -143,7 +144,7 @@ class CompletableFuturePathReturnValueHandlerTest {
               () -> {
                 assertThat(mockResponse.getStatus()).isEqualTo(HttpStatus.OK.value());
                 assertThat(mockResponse.getContentType())
-                    .isEqualTo(MediaType.APPLICATION_JSON_VALUE);
+                    .startsWith(MediaType.APPLICATION_JSON_VALUE);
                 String json = mockResponse.getContentAsString();
                 assertThat(json).contains("\"id\":\"1\"");
                 assertThat(json).contains("\"email\":\"alice@example.com\"");
@@ -188,7 +189,7 @@ class CompletableFuturePathReturnValueHandlerTest {
                 assertThat(mockResponse.getStatus())
                     .isEqualTo(HttpStatus.INTERNAL_SERVER_ERROR.value());
                 assertThat(mockResponse.getContentType())
-                    .isEqualTo(MediaType.APPLICATION_JSON_VALUE);
+                    .startsWith(MediaType.APPLICATION_JSON_VALUE);
                 String json = mockResponse.getContentAsString();
                 assertThat(json).contains("\"success\":false");
                 assertThat(json).contains("\"error\":\"An error occurred during async execution\"");
@@ -327,6 +328,48 @@ class CompletableFuturePathReturnValueHandlerTest {
           .atMost(Duration.ofSeconds(2))
           .pollInterval(Duration.ofMillis(10))
           .untilAsserted(() -> assertThat(mockResponse.getHeader("Retry-After")).isNull());
+    }
+  }
+
+  @Nested
+  @DisplayName("handleReturnValue - Timeout Tests")
+  class TimeoutTests {
+
+    @Test
+    @DisplayName("Timeout writes 504, cancels the future, and late completion is ignored")
+    void timeoutWrites504AndLateCompletionIsIgnored() throws Exception {
+      CompletableFuture<TestUser> source = new CompletableFuture<>();
+      CompletableFuturePath<TestUser> path = Path.future(source);
+
+      StandardServletAsyncWebRequest asyncWebRequest =
+          new StandardServletAsyncWebRequest(mockRequest, mockResponse);
+      WebAsyncUtils.getAsyncManager(webRequest).setAsyncWebRequest(asyncWebRequest);
+
+      handler.handleReturnValue(path, returnType, mavContainer, webRequest);
+
+      // Simulate the container's async timeout event
+      asyncWebRequest.onTimeout(new AsyncEvent(mockRequest.getAsyncContext()));
+
+      assertThat(mockResponse.getStatus()).isEqualTo(HttpStatus.GATEWAY_TIMEOUT.value());
+      assertThat(mockResponse.getContentAsString()).contains("timed out");
+
+      // The timeout must cancel the wrapped future so the underlying work stops being awaited;
+      // without cancel(true) the source would still be completable below.
+      assertThat(source.isCancelled()).isTrue();
+
+      // Late completion of the source must not overwrite the timeout response: a cancelled future
+      // rejects the completion (returns false), and without the single-writer guard the completion
+      // callback would otherwise stamp a 500 failure body here.
+      assertThat(source.complete(new TestUser("1", "late@example.com"))).isFalse();
+      await()
+          .atMost(Duration.ofSeconds(2))
+          .pollInterval(Duration.ofMillis(10))
+          .untilAsserted(
+              () -> {
+                assertThat(mockResponse.getStatus()).isEqualTo(HttpStatus.GATEWAY_TIMEOUT.value());
+                assertThat(mockResponse.getContentAsString()).contains("timed out");
+                assertThat(mockResponse.getContentAsString()).doesNotContain("late@example.com");
+              });
     }
   }
 

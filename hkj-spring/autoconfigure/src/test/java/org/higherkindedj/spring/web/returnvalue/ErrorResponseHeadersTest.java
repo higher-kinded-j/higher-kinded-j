@@ -14,6 +14,7 @@ import java.lang.reflect.InvocationTargetException;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import org.higherkindedj.hkt.nonemptylist.NonEmptyList;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -106,6 +107,16 @@ class ErrorResponseHeadersTest {
     verify(response).addHeader("Keep-Me", "x");
     verify(response, never()).addHeader(null, "value");
     verify(response, never()).addHeader("Skip-Me", null);
+  }
+
+  @Test
+  @DisplayName("Applies headers from each carrier element of a NonEmptyList payload")
+  void nonEmptyListPayloadAppliesAll() {
+    // NonEmptyList is Iterable but not a Collection — the idiomatic accumulation type
+    ErrorResponseHeaders.applyTo(
+        NonEmptyList.of(new ThrottledError(30), new AuthChallenge("Basic")), response);
+    verify(response).addHeader("Retry-After", "30");
+    verify(response).addHeader("WWW-Authenticate", "Basic");
   }
 
   @Test

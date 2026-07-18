@@ -23,8 +23,9 @@ hkj:
     free-path-include-exception-details: true
 
   effect-boundary:
+    # Master switch for the @EnableEffectBoundary registrar (default: true).
+    # Interpreter validation is always fail-fast; there is no property for it.
     enabled: true
-    startup-validation: true
 
   actuator:
     metrics-enabled: true

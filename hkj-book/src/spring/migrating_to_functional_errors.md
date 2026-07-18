@@ -6,7 +6,7 @@
 - Converting exception-throwing methods to Either
 - Replacing `@ExceptionHandler` methods with automatic response conversion
 - Migrating validation logic to Validated
-- Converting async operations to EitherT
+- Converting async operations to CompletableFuturePath and VTaskPath
 - Maintaining backwards compatibility during migration
 - Common migration patterns and pitfalls to avoid
 ~~~
@@ -329,50 +329,54 @@ public record ValidationError(String field, String message) {
 @Service
 public class UserService {
 
-    public Validated<List<ValidationError>, User> validateAndCreate(UserRequest request) {
-        return Validated.validateAll(
-            validateEmail(request.email()),
-            validateFirstName(request.firstName()),
-            validateLastName(request.lastName()),
-            validateUniqueEmail(request.email())
-        ).map(tuple -> createUser(
-            tuple._1(),  // validated email
-            tuple._2(),  // validated firstName
-            tuple._3(),  // validated lastName
-            tuple._4()   // uniqueness confirmed
-        ));
+    public ValidationPath<NonEmptyList<ValidationError>, User> validateAndCreate(
+            UserRequest request) {
+        return Path.accumulate()
+            .and(validateEmail(request.email()))
+            .and(validateFirstName(request.firstName()))
+            .and(validateLastName(request.lastName()))
+            .and(validateUniqueEmail(request.email()))
+            .apply((email, firstName, lastName, uniqueEmail) ->
+                createUser(email, firstName, lastName));
     }
 
-    private Validated<ValidationError, String> validateEmail(String email) {
+    private ValidationPath<NonEmptyList<ValidationError>, String> validateEmail(String email) {
         if (email == null || !email.matches("^[A-Za-z0-9+_.-]+@(.+)$")) {
-            return Validated.invalid(
+            return Path.invalidNel(
                 new ValidationError("email", "Invalid email format"));
         }
-        return Validated.valid(email);
+        return Path.validNel(email);
     }
 
-    private Validated<ValidationError, String> validateFirstName(String name) {
+    private ValidationPath<NonEmptyList<ValidationError>, String> validateFirstName(String name) {
         if (name == null || name.trim().length() < 2) {
-            return Validated.invalid(
+            return Path.invalidNel(
                 new ValidationError("firstName", "First name must be at least 2 characters"));
         }
-        return Validated.valid(name);
+        return Path.validNel(name);
     }
 
-    private Validated<ValidationError, String> validateLastName(String name) {
+    private ValidationPath<NonEmptyList<ValidationError>, String> validateLastName(String name) {
         if (name == null || name.trim().length() < 2) {
-            return Validated.invalid(
+            return Path.invalidNel(
                 new ValidationError("lastName", "Last name must be at least 2 characters"));
         }
-        return Validated.valid(name);
+        return Path.validNel(name);
     }
 
-    private Validated<ValidationError, String> validateUniqueEmail(String email) {
+    private ValidationPath<NonEmptyList<ValidationError>, String> validateUniqueEmail(String email) {
+        // accumulate() runs every validator independently, so this one must not query the
+        // repository for a syntactically invalid email: existsByEmail(null) could throw and turn a
+        // bad request into a 500. validateEmail already reports the format error, so skip the
+        // uniqueness check for malformed input.
+        if (email == null || !email.matches("^[A-Za-z0-9+_.-]+@(.+)$")) {
+            return Path.validNel(email);
+        }
         if (userRepository.existsByEmail(email)) {
-            return Validated.invalid(
+            return Path.invalidNel(
                 new ValidationError("email", "Email already exists"));
         }
-        return Validated.valid(email);
+        return Path.validNel(email);
     }
 }
 
@@ -381,16 +385,20 @@ public class UserService {
 public class UserController {
 
     @PostMapping
-    public Validated<List<ValidationError>, User> createUser(@RequestBody UserRequest request) {
+    public ValidationPath<NonEmptyList<ValidationError>, User> createUser(
+            @RequestBody UserRequest request) {
         return userService.validateAndCreate(request);
     }
 
     // No @ExceptionHandler needed!
     // Framework converts:
-    // - Valid(user) → 200 OK with user JSON
-    // - Invalid(errors) → 400 Bad Request with ALL validation errors
+    // - Valid(user) → 200 OK with user JSON (unwrapped)
+    // - Invalid(errors) → 400 Bad Request with ALL validation errors:
+    //   {"valid": false, "errors": [...], "errorCount": n}
 }
 ```
+
+`Path.accumulate()` opens an open-arity accumulating assembly: each `.and(...)` adds an independently validated field, and `.apply(...)` builds the result only when every field is valid — otherwise **all** errors are collected, in declaration order. Raw `Validated<List<ValidationError>, User>` works as a return type too (the same handler accepts it); the example module's `UserService.validateAndCreate` shows that style using `ValidatedMonad.instance(Semigroups.list())` with `Applicative.map3`.
 
 **Why it helps:**
 - ✅ Returns **all** validation errors at once
@@ -400,38 +408,39 @@ public class UserController {
 
 ### Migration Steps
 
-**Step 1:** Extract validation logic into individual `Validated` functions
+**Step 1:** Extract validation logic into individual single-field validators
 
 ```java
-private Validated<ValidationError, String> validateEmail(String email) {
-    // validation logic
+private ValidationPath<NonEmptyList<ValidationError>, String> validateEmail(String email) {
+    // validation logic: Path.validNel(email) or Path.invalidNel(error)
 }
 ```
 
-**Step 2:** Compose validations with `Validated.validateAll()`
+**Step 2:** Compose validations with `Path.accumulate()`
 
 ```java
-public Validated<List<ValidationError>, User> validateAndCreate(UserRequest request) {
-    return Validated.validateAll(
-        validateEmail(request.email()),
-        validateName(request.name())
-        // ... more validations
-    ).map(tuple -> createUser(...));
+public ValidationPath<NonEmptyList<ValidationError>, User> validateAndCreate(UserRequest request) {
+    return Path.accumulate()
+        .and(validateEmail(request.email()))
+        .and(validateName(request.name()))
+        // ... more fields
+        .apply((email, name) -> createUser(email, name));
 }
 ```
 
-**Step 3:** Return `Validated` from controller
+**Step 3:** Return the `ValidationPath` from the controller
 
 ```java
 @PostMapping
-public Validated<List<ValidationError>, User> createUser(@RequestBody UserRequest request) {
+public ValidationPath<NonEmptyList<ValidationError>, User> createUser(
+        @RequestBody UserRequest request) {
     return userService.validateAndCreate(request);
 }
 ```
 
 ---
 
-## Pattern 4: Async Exceptions to EitherT
+## Pattern 4: Async Exceptions to CompletableFuturePath
 
 ### Before: CompletableFuture with Exception Handling
 
@@ -488,94 +497,101 @@ public class OrderController {
 - Error handling scattered across `.handle()` and `.exceptionally()`
 - Type safety lost
 
-### After: EitherT for Async + Typed Errors
+### After: CompletableFuturePath Composition
+
+`CompletableFuturePath` wraps the future in the Effect Path API, so the chain reads linearly with `via` (async bind) and `map`, and the return-value handler takes care of Spring's async request processing:
 
 ```java
 @Service
 public class AsyncOrderService {
 
-    public EitherT<CompletableFutureKind.Witness, OrderError, Order>
-    processOrderAsync(OrderRequest request) {
-
+    public CompletableFuturePath<Order> processOrderAsync(OrderRequest request) {
         return asyncUserService.findByIdAsync(request.userId())
-            .flatMap(user -> asyncInventoryService.checkStockAsync(request.items()))
-            .flatMap(stock -> {
+            .via(user -> asyncInventoryService.checkStockAsync(request.items()))
+            .via(stock -> {
                 if (!stock.isAvailable()) {
-                    return EitherT.leftT(
-                        CompletableFutureKindHelper.FUTURE,
-                        new OutOfStockError(stock.unavailableItems())
-                    );
+                    return Path.future(CompletableFuture.failedFuture(
+                        new OutOfStockException(stock.unavailableItems())));
                 }
-                return EitherT.rightT(CompletableFutureKindHelper.FUTURE, stock);
+                return asyncPaymentService.processPaymentAsync(request.payment());
             })
-            .flatMap(stock -> asyncPaymentService.processPaymentAsync(request.payment()))
             .map(payment -> createOrder(request, payment));
 
-        // Clean, composable, type-safe
-        // Short-circuits on first error
+        // Linear composition — the failure short-circuits the chain
     }
 }
 
 @RestController
 public class OrderController {
 
-    @GetMapping("/{id}/async")
-    public EitherT<CompletableFutureKind.Witness, OrderError, Order>
-    getOrder(@PathVariable String id) {
-
-        return asyncOrderService.getOrderAsync(id);
-        // Framework handles async → sync HTTP response conversion automatically
+    @PostMapping("/orders")
+    public CompletableFuturePath<Order> createOrder(@RequestBody OrderRequest request) {
+        return asyncOrderService.processOrderAsync(request);
+        // Framework handles async → HTTP response conversion via DeferredResult
     }
 }
 ```
 
 **Improvements:**
-- ✅ Type-safe error handling in async context
-- ✅ Clean composition with `flatMap`
-- ✅ Automatic short-circuiting on errors
-- ✅ Framework handles async processing
+- ✅ Clean, linear composition with `via`/`map` — no `.handle()` / `.exceptionally()` pyramid
+- ✅ Automatic short-circuiting on failure
+- ✅ Framework handles async processing (non-blocking request thread)
+
+~~~admonish warning title="Failure mapping is coarse-grained"
+`CompletableFuturePath` (and `VTaskPath`) carry failures as **exceptions**, not typed `Left` values. A failed future maps to the configured `hkj.web.async-failure-status` (default 500) — the per-error-class `ErrorStatusCodeStrategy` mapping does not apply, because by the time the handler sees the failure it is a `Throwable`. If an endpoint needs `Left(UserNotFoundError)` → 404 semantics, keep the typed `Either` at the boundary (a synchronous `Either` return, possibly computed off-thread inside the service) rather than folding the error into an exception. This mirrors `AsyncUserService` in the example module, where `UserNotFoundException` deliberately surfaces as the configured async failure status.
+~~~
 
 ### Migration Steps
 
-**Step 1:** Convert async methods to return `EitherT`
+**Step 1:** Convert async methods to return `CompletableFuturePath` with `Path.future`
 
 ```java
-public EitherT<CompletableFutureKind.Witness, DomainError, User>
-findByIdAsync(String id) {
+public CompletableFuturePath<User> findByIdAsync(String id) {
+    CompletableFuture<User> future = CompletableFuture.supplyAsync(
+        () -> repository.findById(id)
+                  .orElseThrow(() -> new UserNotFoundException(id)),
+        asyncExecutor);
 
-    CompletableFuture<Either<DomainError, User>> future =
-        CompletableFuture.supplyAsync(() -> {
-            return repository.findById(id)
-                .map(Either::<DomainError, User>right)
-                .orElseGet(() -> Either.left(new UserNotFoundError(id)));
-        });
-
-    return EitherT.fromKind(CompletableFutureKindHelper.FUTURE.widen(future));
+    return Path.future(future);
 }
 ```
 
-**Step 2:** Compose operations with `flatMap`
+**Step 2:** Compose operations with `via` and `map`
 
 ```java
-public EitherT<CompletableFutureKind.Witness, OrderError, Order>
-processOrderAsync(OrderRequest request) {
-
-    return asyncUserService.findByIdAsync(request.userId())
-        .flatMap(user -> asyncInventoryService.checkStockAsync(request.items()))
-        .flatMap(stock -> asyncPaymentService.processPaymentAsync(request.payment()))
+public CompletableFuturePath<Order> processOrderAsync(OrderRequest request) {
+    return findByIdAsync(request.userId())
+        .via(user -> checkStockAsync(request.items()))
+        .via(stock -> processPaymentAsync(request.payment()))
         .map(payment -> createOrder(request, payment));
 }
 ```
 
-**Step 3:** Return `EitherT` from controller
+**Step 3:** Return `CompletableFuturePath` from the controller
 
 ```java
 @GetMapping("/{id}/async")
-public EitherT<CompletableFutureKind.Witness, OrderError, Order>
-getOrder(@PathVariable String id) {
+public CompletableFuturePath<Order> getOrder(@PathVariable String id) {
     return asyncOrderService.getOrderAsync(id);
 }
 ```
+
+### Alternative: VTaskPath on Virtual Threads
+
+If you are on virtual threads, `VTaskPath` gives the same handler integration with no executor bean at all — the computation is deferred and runs on a virtual thread when the handler invokes it:
+
+```java
+public VTaskPath<User> findById(String id) {
+    return Path.vtask(() -> {
+            // Blocking calls are cheap on a virtual thread
+            return repository.findById(id)
+                .orElseThrow(() -> new UserNotFoundException(id));
+        })
+        .timeout(Duration.ofSeconds(5));
+}
+```
+
+The same failure-mapping caveat applies: a thrown exception maps to `hkj.web.vtask-failure-status` (default 500). See [VTaskPath](spring_boot_integration.md#vtaskpath-virtual-thread-async) for structured-concurrency fan-out with `Scope`.
 
 ---
 
@@ -783,13 +799,13 @@ public Either<ValidationError, User> validateUser(UserRequest request) {
     // Stops at first error!
 }
 
-// ✅ GOOD: Use Validated to accumulate all errors
-public Validated<List<ValidationError>, User> validateUser(UserRequest request) {
-    return Validated.validateAll(
-        validateEmail(request.email()),
-        validateName(request.name()),
-        validateAge(request.age())
-    ).map(tuple -> createUser(...));
+// ✅ GOOD: Accumulate all errors with Path.accumulate()
+public ValidationPath<NonEmptyList<ValidationError>, User> validateUser(UserRequest request) {
+    return Path.accumulate()
+        .and(validateEmail(request.email()))
+        .and(validateName(request.name()))
+        .and(validateAge(request.age()))
+        .apply((email, name, age) -> createUser(email, name, age));
     // Returns ALL errors!
 }
 ```
@@ -801,7 +817,7 @@ public Validated<List<ValidationError>, User> validateUser(UserRequest request) 
 When migrating an endpoint:
 
 - [ ] Define domain error types as sealed interface
-- [ ] Convert service methods to return Either/Validated/EitherT
+- [ ] Convert service methods to return Either/Validated/CompletableFuturePath/VTaskPath
 - [ ] Update controller methods to return functional types
 - [ ] Remove corresponding `@ExceptionHandler` methods
 - [ ] Update unit tests (no more exception mocking!)
@@ -877,7 +893,7 @@ The migration is straightforward and the benefits are immediate. Start with one 
 - [Spring Boot Integration](./spring_boot_integration.md) - Complete integration guide
 - [Either Monad](../monads/either_monad.md) - Either usage patterns
 - [Validated Monad](../monads/validated_monad.md) - Validation patterns
-- [EitherT Transformer](../transformers/eithert_transformer.md) - Async composition
+- [Effect Path API](../effect/path_types.md) - CompletableFuturePath, VTaskPath, and friends
 ~~~
 
 ---

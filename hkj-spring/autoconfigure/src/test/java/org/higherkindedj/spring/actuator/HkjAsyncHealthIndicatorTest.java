@@ -45,6 +45,47 @@ class HkjAsyncHealthIndicatorTest {
   }
 
   @Nested
+  @DisplayName("Non-ThreadPoolTaskExecutor Tests")
+  class NonPoolExecutorTests {
+
+    @Test
+    @DisplayName("Reports UP with the executor type when it is not a ThreadPoolTaskExecutor")
+    void reportsUpForVirtualThreadExecutor() {
+      // A virtual-thread executor exposes no pool stats; the indicator must not fail or read DOWN.
+      var executor = java.util.concurrent.Executors.newVirtualThreadPerTaskExecutor();
+
+      HkjAsyncHealthIndicator indicator = new HkjAsyncHealthIndicator(executor);
+
+      try {
+        Health health = indicator.health();
+
+        assertThat(health.getStatus()).isEqualTo(Status.UP);
+        assertThat(health.getDetails()).containsKey("type");
+        assertThat(health.getDetails()).doesNotContainKey("queueCapacity");
+      } finally {
+        executor.close();
+      }
+    }
+
+    @Test
+    @DisplayName("Reports DOWN when a virtual-thread executor is shut down")
+    void reportsDownForClosedVirtualThreadExecutor() {
+      // A closed ExecutorService (including a virtual-thread executor) rejects submissions, so it
+      // must not read UP just because it is not a ThreadPoolTaskExecutor.
+      var executor = java.util.concurrent.Executors.newVirtualThreadPerTaskExecutor();
+      executor.shutdown();
+
+      HkjAsyncHealthIndicator indicator = new HkjAsyncHealthIndicator(executor);
+
+      Health health = indicator.health();
+
+      assertThat(health.getStatus()).isEqualTo(Status.DOWN);
+      assertThat(health.getDetails()).containsEntry("reason", "Executor is shutdown");
+      assertThat(health.getDetails()).containsKey("type");
+    }
+  }
+
+  @Nested
   @DisplayName("Shutdown Executor Tests")
   class ShutdownExecutorTests {
 

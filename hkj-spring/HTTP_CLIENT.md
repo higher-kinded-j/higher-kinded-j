@@ -109,7 +109,9 @@ without codegen.
 A failed response (`RestClientResponseException`) is turned into your declared error type by a
 `ResponseErrorDecoder<E>`. Rather than wiring one decoder bean per error type, the generated client
 autowires a single `ResponseErrorDecoderFactory` and builds a per-method decoder for whatever error
-type that method declares:
+type that method declares. Each per-method decoder is created **once**, in the generated client's
+constructor, and reused for every call — a custom `ResponseErrorDecoderFactory` therefore sees only
+construction-time state, not per-call state:
 
 ```java
 @FunctionalInterface

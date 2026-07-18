@@ -8,7 +8,6 @@ import org.higherkindedj.hkt.effect.MaybePath;
 import org.jspecify.annotations.Nullable;
 import org.springframework.core.MethodParameter;
 import org.springframework.http.HttpStatus;
-import org.springframework.http.MediaType;
 import org.springframework.web.context.request.NativeWebRequest;
 import org.springframework.web.method.support.HandlerMethodReturnValueHandler;
 import org.springframework.web.method.support.ModelAndViewContainer;
@@ -45,7 +44,6 @@ import tools.jackson.databind.json.JsonMapper;
  */
 public class MaybePathReturnValueHandler implements HandlerMethodReturnValueHandler {
 
-  private final JsonMapper jsonMapper;
   private final ObjectWriter objectWriter;
   private final int nothingStatus;
 
@@ -56,7 +54,6 @@ public class MaybePathReturnValueHandler implements HandlerMethodReturnValueHand
    * @param nothingStatus the HTTP status code for Nothing values (default 404)
    */
   public MaybePathReturnValueHandler(JsonMapper jsonMapper, int nothingStatus) {
-    this.jsonMapper = jsonMapper;
     this.objectWriter = jsonMapper.writer();
     this.nothingStatus = nothingStatus;
   }
@@ -99,7 +96,11 @@ public class MaybePathReturnValueHandler implements HandlerMethodReturnValueHand
   private void writeNothingResponse(HttpServletResponse response) {
     try {
       response.setStatus(nothingStatus);
-      response.setContentType(MediaType.APPLICATION_JSON_VALUE);
+      // 204/304 responses must not carry a body
+      if (JsonResponses.isBodilessStatus(nothingStatus)) {
+        return;
+      }
+      JsonResponses.setJsonContentType(response);
 
       Map<String, Object> body = Map.of("success", false, "error", "Resource not found");
       objectWriter.writeValue(response.getWriter(), body);
@@ -118,8 +119,8 @@ public class MaybePathReturnValueHandler implements HandlerMethodReturnValueHand
   private void writeJustResponse(Object value, HttpServletResponse response, int status) {
     try {
       response.setStatus(status);
-      if (status != HttpStatus.NO_CONTENT.value()) {
-        response.setContentType(MediaType.APPLICATION_JSON_VALUE);
+      if (!JsonResponses.isBodilessStatus(status)) {
+        JsonResponses.setJsonContentType(response);
         objectWriter.writeValue(response.getWriter(), value);
       }
     } catch (Exception e) {

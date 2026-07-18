@@ -57,7 +57,7 @@ That's it! The starter auto-configures everything.
 
 ## Features
 
-### Effect Path API Support (8 Handler Types)
+### Effect Path API Support (10 Handler Types)
 
 | Path Type | Success | Failure | Use Case |
 |-----------|---------|---------|----------|
@@ -65,10 +65,12 @@ That's it! The starter auto-configures everything.
 | `MaybePath<A>` | HTTP 200 | HTTP 404 | Optional values |
 | `TryPath<A>` | HTTP 200 | HTTP 500 | Exception handling |
 | `ValidationPath<E, A>` | HTTP 200 | HTTP 400 (with all errors) | Input validation |
+| `EitherOrBothPath<W, A>` | HTTP 200 (+ `X-Hkj-Warnings` on `Both`) | HTTP 4xx/5xx (based on error type) | Success with warnings |
 | `IOPath<A>` | HTTP 200 | HTTP 500 | Deferred side effects |
 | `CompletableFuturePath<A>` | HTTP 200 | HTTP 500 | Async operations |
 | `VTaskPath<A>` | HTTP 200 (via DeferredResult) | HTTP 500 | Virtual thread async |
-| `VStreamPath<A>` | SSE stream | SSE error event | Virtual thread streaming |
+| `VStreamPath<A>` | SSE stream | Failure status before first element, else SSE error event | Virtual thread streaming |
+| `FreePath<F, A>` | HTTP 200 | HTTP 500 | Effect boundary interpretation |
 
 ### Automatic Path → HTTP Response Conversion
 
@@ -97,6 +99,7 @@ hkj:
   web:
     # Enable/disable individual handlers
     either-path-enabled: true
+    either-or-both-path-enabled: true
     maybe-path-enabled: true
     try-path-enabled: true
     validation-path-enabled: true
@@ -104,6 +107,7 @@ hkj:
     completable-future-path-enabled: true
     vtask-path-enabled: true
     vstream-path-enabled: true
+    free-path-enabled: true
 
     # Customize status codes
     default-error-status: 400

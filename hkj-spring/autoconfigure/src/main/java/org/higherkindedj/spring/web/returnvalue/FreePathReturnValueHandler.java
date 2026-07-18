@@ -13,7 +13,6 @@ import org.slf4j.LoggerFactory;
 import org.springframework.context.ApplicationContext;
 import org.springframework.core.MethodParameter;
 import org.springframework.http.HttpStatus;
-import org.springframework.http.MediaType;
 import org.springframework.web.context.request.NativeWebRequest;
 import org.springframework.web.method.support.HandlerMethodReturnValueHandler;
 import org.springframework.web.method.support.ModelAndViewContainer;
@@ -48,7 +47,6 @@ public class FreePathReturnValueHandler implements HandlerMethodReturnValueHandl
 
   private static final Logger log = LoggerFactory.getLogger(FreePathReturnValueHandler.class);
 
-  private final JsonMapper jsonMapper;
   private final ObjectWriter objectWriter;
   private final int failureStatus;
   private final boolean includeExceptionDetails;
@@ -68,7 +66,6 @@ public class FreePathReturnValueHandler implements HandlerMethodReturnValueHandl
       int failureStatus,
       boolean includeExceptionDetails,
       ApplicationContext applicationContext) {
-    this.jsonMapper = jsonMapper;
     this.objectWriter = jsonMapper.writer();
     this.failureStatus = failureStatus;
     this.includeExceptionDetails = includeExceptionDetails;
@@ -132,7 +129,7 @@ public class FreePathReturnValueHandler implements HandlerMethodReturnValueHandl
     try {
       response.setStatus(failureStatus);
       ErrorResponseHeaders.applyTo(throwable, response);
-      response.setContentType(MediaType.APPLICATION_JSON_VALUE);
+      JsonResponses.setJsonContentType(response);
 
       Map<String, Object> errorBody;
       if (includeExceptionDetails) {
@@ -159,8 +156,8 @@ public class FreePathReturnValueHandler implements HandlerMethodReturnValueHandl
   private void writeSuccessResponse(Object value, HttpServletResponse response, int status) {
     try {
       response.setStatus(status);
-      if (status != HttpStatus.NO_CONTENT.value()) {
-        response.setContentType(MediaType.APPLICATION_JSON_VALUE);
+      if (!JsonResponses.isBodilessStatus(status)) {
+        JsonResponses.setJsonContentType(response);
         objectWriter.writeValue(response.getWriter(), value);
       }
     } catch (Exception e) {

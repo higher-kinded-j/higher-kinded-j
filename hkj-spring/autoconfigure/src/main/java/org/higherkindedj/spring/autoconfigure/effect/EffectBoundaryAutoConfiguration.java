@@ -21,8 +21,10 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
  * </ul>
  *
  * <p>The actual {@link EffectBoundary} bean registration is handled by {@link
- * EffectBoundaryRegistrar}, which is imported via {@link EnableEffectBoundary}. This
- * auto-configuration class serves as the conditional gate and integration point.
+ * EffectBoundaryRegistrar}, which is imported via {@link EnableEffectBoundary} on the application
+ * class and consults {@code hkj.effect-boundary.enabled} itself (registrar imports are not gated by
+ * this class's conditions). This auto-configuration class is an integration point for future
+ * boundary-adjacent beans.
  *
  * @see EnableEffectBoundary
  * @see EffectBoundaryRegistrar

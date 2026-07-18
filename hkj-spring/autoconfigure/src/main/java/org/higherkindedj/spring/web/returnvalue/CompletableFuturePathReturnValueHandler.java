@@ -4,13 +4,14 @@ package org.higherkindedj.spring.web.returnvalue;
 
 import jakarta.servlet.http.HttpServletResponse;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.atomic.AtomicBoolean;
 import org.higherkindedj.hkt.effect.CompletableFuturePath;
 import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.core.MethodParameter;
 import org.springframework.http.HttpStatus;
-import org.springframework.http.MediaType;
 import org.springframework.web.context.request.NativeWebRequest;
 import org.springframework.web.context.request.async.DeferredResult;
 import org.springframework.web.context.request.async.WebAsyncUtils;
@@ -60,7 +61,6 @@ public class CompletableFuturePathReturnValueHandler
   private static final Logger log =
       LoggerFactory.getLogger(CompletableFuturePathReturnValueHandler.class);
 
-  private final JsonMapper jsonMapper;
   private final ObjectWriter objectWriter;
   private final int failureStatus;
   private final boolean includeExceptionDetails;
@@ -79,7 +79,6 @@ public class CompletableFuturePathReturnValueHandler
       int failureStatus,
       boolean includeExceptionDetails,
       long timeoutMillis) {
-    this.jsonMapper = jsonMapper;
     this.objectWriter = jsonMapper.writer();
     this.failureStatus = failureStatus;
     this.includeExceptionDetails = includeExceptionDetails;
@@ -119,36 +118,56 @@ public class CompletableFuturePathReturnValueHandler
     DeferredResult<Void> deferredResult =
         timeoutMillis > 0 ? new DeferredResult<>(timeoutMillis) : new DeferredResult<>();
 
-    // Handle timeout
+    // Exactly one of the timeout callback and the completion callback may write the response:
+    // after a timeout the container completes (and may recycle) the request, so a late
+    // completion must not touch the response object.
+    AtomicBoolean responseWritten = new AtomicBoolean(false);
+
+    CompletableFuture<?> future = path.run();
+
     deferredResult.onTimeout(
         () -> {
+          // If completion already won the write race it owns the response and will settle the
+          // request — do NOT cancel or setResult here, or we could complete/recycle the response
+          // out from under the completion callback's in-flight write.
+          if (!responseWritten.compareAndSet(false, true)) {
+            return;
+          }
           try {
             writeTimeoutResponse(response);
           } catch (Exception e) {
             log.error("Failed to write timeout response", e);
           }
+          // cancel() settles the future so the (now no-op) completion callback fires; note the
+          // underlying work is NOT interrupted and may still run to completion in the background
+          // (see CompletableFuture.cancel semantics).
+          future.cancel(true);
+          // Settle the DeferredResult so Spring does not dispatch an AsyncRequestTimeoutException
+          // onto the committed response.
+          deferredResult.setResult(null);
         });
 
     int successStatus =
         SuccessStatusResolver.resolveSuccessStatus(returnType, HttpStatus.OK.value());
 
-    // Execute the CompletableFuture asynchronously
-    path.run()
-        .whenComplete(
-            (result, throwable) -> {
-              try {
-                if (throwable != null) {
-                  log.error("CompletableFuturePath failed", throwable);
-                  writeFailureResponse(throwable, response);
-                } else {
-                  writeSuccessResponse(result, response, successStatus);
-                }
-                deferredResult.setResult(null);
-              } catch (Exception e) {
-                log.error("Failed to write async response", e);
-                deferredResult.setErrorResult(e);
-              }
-            });
+    future.whenComplete(
+        (result, throwable) -> {
+          if (!responseWritten.compareAndSet(false, true)) {
+            return;
+          }
+          try {
+            if (throwable != null) {
+              log.error("CompletableFuturePath failed", throwable);
+              writeFailureResponse(throwable, response);
+            } else {
+              writeSuccessResponse(result, response, successStatus);
+            }
+            deferredResult.setResult(null);
+          } catch (Exception e) {
+            log.error("Failed to write async response", e);
+            deferredResult.setErrorResult(e);
+          }
+        });
 
     // Start async processing
     WebAsyncUtils.getAsyncManager(webRequest)
@@ -168,10 +187,9 @@ public class CompletableFuturePathReturnValueHandler
   private void writeFailureResponse(Throwable throwable, HttpServletResponse response) {
     try {
       response.setStatus(failureStatus);
-      response.setContentType(MediaType.APPLICATION_JSON_VALUE);
+      JsonResponses.setJsonContentType(response);
 
-      // Unwrap CompletionException if present
-      Throwable cause = throwable.getCause() != null ? throwable.getCause() : throwable;
+      Throwable cause = JsonResponses.unwrapAsyncException(throwable);
 
       ErrorResponseHeaders.applyTo(cause, response);
 
@@ -206,7 +224,7 @@ public class CompletableFuturePathReturnValueHandler
   private void writeTimeoutResponse(HttpServletResponse response) {
     try {
       response.setStatus(HttpStatus.GATEWAY_TIMEOUT.value());
-      response.setContentType(MediaType.APPLICATION_JSON_VALUE);
+      JsonResponses.setJsonContentType(response);
 
       Map<String, Object> body = Map.of("success", false, "error", "Request timed out");
       objectWriter.writeValue(response.getWriter(), body);
@@ -225,8 +243,8 @@ public class CompletableFuturePathReturnValueHandler
   private void writeSuccessResponse(Object value, HttpServletResponse response, int status) {
     try {
       response.setStatus(status);
-      if (status != HttpStatus.NO_CONTENT.value()) {
-        response.setContentType(MediaType.APPLICATION_JSON_VALUE);
+      if (!JsonResponses.isBodilessStatus(status)) {
+        JsonResponses.setJsonContentType(response);
         objectWriter.writeValue(response.getWriter(), value);
       }
     } catch (Exception e) {

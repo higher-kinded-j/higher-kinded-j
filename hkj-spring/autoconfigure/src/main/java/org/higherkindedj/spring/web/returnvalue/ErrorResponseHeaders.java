@@ -16,9 +16,9 @@ import org.jspecify.annotations.Nullable;
  *
  * <ul>
  *   <li>If {@code error} itself implements {@link HttpHeaderCarrier}, its headers are applied.
- *   <li>Else if {@code error} is a {@link Collection} or array, every element that implements
- *       {@link HttpHeaderCarrier} contributes its headers; values accumulate rather than
- *       overwriting one another.
+ *   <li>Else if {@code error} is an {@link Iterable} (including {@code NonEmptyList} and every
+ *       {@link Collection}) or array, every element that implements {@link HttpHeaderCarrier}
+ *       contributes its headers; values accumulate rather than overwriting one another.
  *   <li>Otherwise nothing is written.
  * </ul>
  *
@@ -52,8 +52,9 @@ final class ErrorResponseHeaders {
       copy(carrier.headers(), response);
       return;
     }
-    if (error instanceof Collection<?> collection) {
-      for (Object element : collection) {
+    // Iterable also covers NonEmptyList, which is Iterable but not a Collection
+    if (error instanceof Iterable<?> iterable) {
+      for (Object element : iterable) {
         if (element instanceof HttpHeaderCarrier carrier) {
           copy(carrier.headers(), response);
         }

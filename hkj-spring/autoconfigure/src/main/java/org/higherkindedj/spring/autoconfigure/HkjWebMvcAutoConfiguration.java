@@ -3,6 +3,7 @@
 package org.higherkindedj.spring.autoconfigure;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.spring.actuator.HkjMetricsService;
@@ -19,6 +20,9 @@ import org.higherkindedj.spring.web.returnvalue.VStreamPathReturnValueHandler;
 import org.higherkindedj.spring.web.returnvalue.VTaskPathReturnValueHandler;
 import org.higherkindedj.spring.web.returnvalue.ValidationPathReturnValueHandler;
 import org.jspecify.annotations.Nullable;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.SmartInitializingSingleton;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
@@ -70,8 +74,37 @@ import tools.jackson.databind.json.JsonMapper;
 @ConditionalOnWebApplication(type = ConditionalOnWebApplication.Type.SERVLET)
 public class HkjWebMvcAutoConfiguration {
 
+  private static final Logger log = LoggerFactory.getLogger(HkjWebMvcAutoConfiguration.class);
+
   /** Creates a new HkjWebMvcAutoConfiguration. */
   public HkjWebMvcAutoConfiguration() {}
+
+  /**
+   * Detects a silent conflict: Spring Boot consumes {@link WebMvcRegistrations} via {@code
+   * getIfUnique()}, so if the application defines its own bean alongside {@code
+   * hkjWebMvcRegistrations}, <em>both</em> are ignored without any error and every HKJ Path
+   * return-value handler vanishes (controllers returning Path types would then be serialised as raw
+   * objects). This check makes that failure mode loud.
+   *
+   * @param applicationContext the application context
+   * @return a callback that logs a warning when more than one registrations bean exists
+   */
+  @Bean
+  public SmartInitializingSingleton hkjWebMvcRegistrationsConflictCheck(
+      ApplicationContext applicationContext) {
+    return () -> {
+      String[] names = applicationContext.getBeanNamesForType(WebMvcRegistrations.class);
+      if (names.length > 1) {
+        log.warn(
+            "Multiple WebMvcRegistrations beans found: {}. Spring Boot resolves"
+                + " WebMvcRegistrations with getIfUnique(), so ALL of them are silently ignored —"
+                + " including the HKJ Path return-value handlers. Controllers returning Path types"
+                + " will be serialised as raw objects. Merge your customisation into a single"
+                + " WebMvcRegistrations bean, or exclude HkjWebMvcAutoConfiguration.",
+            Arrays.toString(names));
+      }
+    };
+  }
 
   /**
    * Default {@link ErrorStatusCodeStrategy} that combines the {@code hkj.web.error-status-mappings}

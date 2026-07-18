@@ -26,18 +26,14 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
  *     default-error-status: 400
  *     maybe-nothing-status: 404
  *     try-include-exception-details: false
- *   validation:
- *     accumulate-errors: true
  *   json:
  *     custom-serializers-enabled: true
- *     either-format: TAGGED
  * </pre>
  */
 @ConfigurationProperties(prefix = "hkj")
 public class HkjProperties {
 
   private Web web = new Web();
-  private Validation validation = new Validation();
   private Jackson json = new Jackson();
   private Async async = new Async();
   private Actuator actuator = new Actuator();
@@ -64,24 +60,6 @@ public class HkjProperties {
    */
   public void setWeb(Web web) {
     this.web = web;
-  }
-
-  /**
-   * Returns the validation configuration.
-   *
-   * @return the validation configuration
-   */
-  public Validation getValidation() {
-    return validation;
-  }
-
-  /**
-   * Sets the validation configuration.
-   *
-   * @param validation the validation configuration
-   */
-  public void setValidation(Validation validation) {
-    this.validation = validation;
   }
 
   /**
@@ -852,117 +830,10 @@ public class HkjProperties {
     }
   }
 
-  /** Validation configuration properties. */
-  public static class Validation {
-    /** Enable Validated-based validation support. Default: true */
-    private boolean enabled = true;
-
-    /**
-     * Accumulate all validation errors (true) or fail-fast on first error (false). Default: true
-     */
-    private boolean accumulateErrors = true;
-
-    /** Maximum number of errors to accumulate (0 = unlimited). Default: 0 (unlimited) */
-    private int maxErrors = 0;
-
-    /** Creates a new Validation configuration with default values. */
-    public Validation() {}
-
-    /**
-     * Returns whether validation is enabled.
-     *
-     * @return whether validation is enabled
-     */
-    public boolean isEnabled() {
-      return enabled;
-    }
-
-    /**
-     * Sets whether validation is enabled.
-     *
-     * @param enabled whether validation is enabled
-     */
-    public void setEnabled(boolean enabled) {
-      this.enabled = enabled;
-    }
-
-    /**
-     * Returns whether errors are accumulated.
-     *
-     * @return whether errors are accumulated
-     */
-    public boolean isAccumulateErrors() {
-      return accumulateErrors;
-    }
-
-    /**
-     * Sets whether errors are accumulated.
-     *
-     * @param accumulateErrors whether errors are accumulated
-     */
-    public void setAccumulateErrors(boolean accumulateErrors) {
-      this.accumulateErrors = accumulateErrors;
-    }
-
-    /**
-     * Returns the maximum number of errors to accumulate.
-     *
-     * @return the maximum number of errors to accumulate
-     */
-    public int getMaxErrors() {
-      return maxErrors;
-    }
-
-    /**
-     * Sets the maximum number of errors to accumulate.
-     *
-     * @param maxErrors the maximum number of errors to accumulate
-     */
-    public void setMaxErrors(int maxErrors) {
-      this.maxErrors = maxErrors;
-    }
-  }
-
   /** Jackson JSON serialization configuration properties. */
   public static class Jackson {
     /** Enable custom Jackson serializers for Either, Validated types. Default: true */
     private boolean customSerializersEnabled = true;
-
-    /**
-     * Format for Either JSON output.
-     *
-     * <ul>
-     *   <li>TAGGED: {"isRight": true/false, "right/left": ...} (default)
-     *   <li>SIMPLE: {"value": ...} or {"error": ...}
-     * </ul>
-     *
-     * Default: TAGGED
-     */
-    private SerializationFormat eitherFormat = SerializationFormat.TAGGED;
-
-    /**
-     * Format for Validated JSON output.
-     *
-     * <ul>
-     *   <li>TAGGED: {"valid": true/false, "value/errors": ...} (default)
-     *   <li>SIMPLE: {"value": ...} or {"errors": ...}
-     * </ul>
-     *
-     * Default: TAGGED
-     */
-    private SerializationFormat validatedFormat = SerializationFormat.TAGGED;
-
-    /**
-     * Format for Maybe JSON output.
-     *
-     * <ul>
-     *   <li>TAGGED: {"present": true/false, "value": ...} (default)
-     *   <li>SIMPLE: {"value": ...} or null
-     * </ul>
-     *
-     * Default: TAGGED
-     */
-    private SerializationFormat maybeFormat = SerializationFormat.TAGGED;
 
     /** Creates a new Jackson configuration with default values. */
     public Jackson() {}
@@ -984,162 +855,18 @@ public class HkjProperties {
     public void setCustomSerializersEnabled(boolean customSerializersEnabled) {
       this.customSerializersEnabled = customSerializersEnabled;
     }
-
-    /**
-     * Returns the Either serialization format.
-     *
-     * @return the Either serialization format
-     */
-    public SerializationFormat getEitherFormat() {
-      return eitherFormat;
-    }
-
-    /**
-     * Sets the Either serialization format.
-     *
-     * @param eitherFormat the Either serialization format
-     */
-    public void setEitherFormat(SerializationFormat eitherFormat) {
-      this.eitherFormat = eitherFormat;
-    }
-
-    /**
-     * Returns the Validated serialization format.
-     *
-     * @return the Validated serialization format
-     */
-    public SerializationFormat getValidatedFormat() {
-      return validatedFormat;
-    }
-
-    /**
-     * Sets the Validated serialization format.
-     *
-     * @param validatedFormat the Validated serialization format
-     */
-    public void setValidatedFormat(SerializationFormat validatedFormat) {
-      this.validatedFormat = validatedFormat;
-    }
-
-    /**
-     * Returns the Maybe serialization format.
-     *
-     * @return the Maybe serialization format
-     */
-    public SerializationFormat getMaybeFormat() {
-      return maybeFormat;
-    }
-
-    /**
-     * Sets the Maybe serialization format.
-     *
-     * @param maybeFormat the Maybe serialization format
-     */
-    public void setMaybeFormat(SerializationFormat maybeFormat) {
-      this.maybeFormat = maybeFormat;
-    }
-
-    /** JSON serialization format for HKJ types. */
-    public enum SerializationFormat {
-      /** Simple format: minimal wrapping, direct value or error */
-      SIMPLE,
-
-      /** Tagged format: includes discriminator tags and both branches */
-      TAGGED
-    }
   }
 
-  /** Async configuration properties (for future EitherT support). */
+  /**
+   * Async configuration properties for the {@code CompletableFuturePath} handler. The starter does
+   * not create an executor; applications define their own bean when they need one.
+   */
   public static class Async {
-    /** Core thread pool size for async IO execution. Default: 10 */
-    private int executorCorePoolSize = 10;
-
-    /** Maximum thread pool size for async IO execution. Default: 20 */
-    private int executorMaxPoolSize = 20;
-
-    /** Queue capacity for async IO executor. Default: 100 */
-    private int executorQueueCapacity = 100;
-
-    /** Thread name prefix for async IO executor. Default: "hkj-async-" */
-    private String executorThreadNamePrefix = "hkj-async-";
-
     /** Default timeout for async operations (milliseconds). Default: 30000 (30 seconds) */
     private long defaultTimeoutMs = 30000;
 
     /** Creates a new Async configuration with default values. */
     public Async() {}
-
-    /**
-     * Returns the executor core pool size.
-     *
-     * @return the executor core pool size
-     */
-    public int getExecutorCorePoolSize() {
-      return executorCorePoolSize;
-    }
-
-    /**
-     * Sets the executor core pool size.
-     *
-     * @param executorCorePoolSize the executor core pool size
-     */
-    public void setExecutorCorePoolSize(int executorCorePoolSize) {
-      this.executorCorePoolSize = executorCorePoolSize;
-    }
-
-    /**
-     * Returns the executor maximum pool size.
-     *
-     * @return the executor maximum pool size
-     */
-    public int getExecutorMaxPoolSize() {
-      return executorMaxPoolSize;
-    }
-
-    /**
-     * Sets the executor maximum pool size.
-     *
-     * @param executorMaxPoolSize the executor maximum pool size
-     */
-    public void setExecutorMaxPoolSize(int executorMaxPoolSize) {
-      this.executorMaxPoolSize = executorMaxPoolSize;
-    }
-
-    /**
-     * Returns the executor queue capacity.
-     *
-     * @return the executor queue capacity
-     */
-    public int getExecutorQueueCapacity() {
-      return executorQueueCapacity;
-    }
-
-    /**
-     * Sets the executor queue capacity.
-     *
-     * @param executorQueueCapacity the executor queue capacity
-     */
-    public void setExecutorQueueCapacity(int executorQueueCapacity) {
-      this.executorQueueCapacity = executorQueueCapacity;
-    }
-
-    /**
-     * Returns the executor thread name prefix.
-     *
-     * @return the executor thread name prefix
-     */
-    public String getExecutorThreadNamePrefix() {
-      return executorThreadNamePrefix;
-    }
-
-    /**
-     * Sets the executor thread name prefix.
-     *
-     * @param executorThreadNamePrefix the executor thread name prefix
-     */
-    public void setExecutorThreadNamePrefix(String executorThreadNamePrefix) {
-      this.executorThreadNamePrefix = executorThreadNamePrefix;
-    }
 
     /**
      * Returns the default timeout in milliseconds.
@@ -1192,8 +919,12 @@ public class HkjProperties {
     /** Enable HKJ Spring Security integration. Default: false (opt-in) */
     private boolean enabled = false;
 
-    /** Enable ValidatedUserDetailsService for error accumulation. Default: true */
-    private boolean validatedUserDetails = true;
+    /**
+     * Enable the ValidatedUserDetailsService bean. Opt-in (default: false): the bean implements
+     * UserDetailsService, so once unique it becomes the application-wide user store — it must only
+     * exist when the application intends to populate and use it.
+     */
+    private boolean validatedUserDetails = false;
 
     /** Enable EitherAuthenticationConverter for JWT processing. Default: true */
     private boolean eitherAuthentication = true;
@@ -1206,6 +937,13 @@ public class HkjProperties {
 
     /** Prefix to add to JWT authorities (e.g., "ROLE_"). Default: "ROLE_" */
     private String jwtAuthorityPrefix = "ROLE_";
+
+    /**
+     * Reject a JWT whose authorities claim is absent. Default: true (safe). Set false to let a
+     * legitimately role-less token (e.g. client-credentials) authenticate with no authorities; a
+     * malformed (wrong-type) claim is always rejected regardless.
+     */
+    private boolean rejectMissingAuthoritiesClaim = true;
 
     /** Creates a new Security configuration with default values. */
     public Security() {}
@@ -1317,14 +1055,33 @@ public class HkjProperties {
     public void setJwtAuthorityPrefix(String jwtAuthorityPrefix) {
       this.jwtAuthorityPrefix = jwtAuthorityPrefix;
     }
+
+    /**
+     * Returns whether a missing authorities claim is rejected.
+     *
+     * @return whether a missing authorities claim is rejected
+     */
+    public boolean isRejectMissingAuthoritiesClaim() {
+      return rejectMissingAuthoritiesClaim;
+    }
+
+    /**
+     * Sets whether a missing authorities claim is rejected.
+     *
+     * @param rejectMissingAuthoritiesClaim whether a missing authorities claim is rejected
+     */
+    public void setRejectMissingAuthoritiesClaim(boolean rejectMissingAuthoritiesClaim) {
+      this.rejectMissingAuthoritiesClaim = rejectMissingAuthoritiesClaim;
+    }
   }
 
   /**
    * Virtual thread configuration properties for VTask and VStream integration.
    *
    * <p>These properties control the behaviour of virtual-thread-based handlers. Unlike the {@link
-   * Async} configuration which manages a fixed thread pool, virtual threads require no pool sizing
-   * — they scale automatically with the JVM.
+   * Async} configuration, which only tunes timeouts (the starter creates no executor — the
+   * application supplies its own), virtual threads require no pool sizing at all: they scale
+   * automatically with the JVM.
    *
    * <p>Example configuration:
    *
@@ -1416,31 +1173,15 @@ public class HkjProperties {
    * hkj:
    *   effect-boundary:
    *     enabled: true
-   *     startup-validation: true
-   *     interpreter-selection:
-   *       payment-gateway: stripe
-   *       fraud-check: ml-model
    * </pre>
+   *
+   * <p>Missing-interpreter validation is always fail-fast; profile-restricted interpreters are
+   * selected via {@code @Interpreter(profile = "...")}.
    */
   public static class EffectConfig {
 
     /** Enable EffectBoundary auto-configuration. Default: true */
     private boolean enabled = true;
-
-    /** Fail fast at startup if any declared effect has no matching interpreter. Default: true */
-    private boolean startupValidation = true;
-
-    /**
-     * Configuration-driven interpreter selection by qualifier.
-     *
-     * <p>Maps effect algebra names (kebab-case) to interpreter qualifier names. When set, the
-     * registrar selects the interpreter matching the configured qualifier instead of using
-     * auto-discovery.
-     *
-     * <p>Example: {@code payment-gateway: stripe} selects the interpreter annotated with
-     * {@code @Interpreter(value = PaymentGatewayOp.class, qualifier = "stripe")}.
-     */
-    private Map<String, String> interpreterSelection = new HashMap<>();
 
     /** Creates a new EffectConfig with default values. */
     public EffectConfig() {}
@@ -1461,42 +1202,6 @@ public class HkjProperties {
      */
     public void setEnabled(boolean enabled) {
       this.enabled = enabled;
-    }
-
-    /**
-     * Returns whether startup validation is enabled.
-     *
-     * @return whether startup validation is enabled
-     */
-    public boolean isStartupValidation() {
-      return startupValidation;
-    }
-
-    /**
-     * Sets whether startup validation is enabled.
-     *
-     * @param startupValidation whether startup validation is enabled
-     */
-    public void setStartupValidation(boolean startupValidation) {
-      this.startupValidation = startupValidation;
-    }
-
-    /**
-     * Returns the interpreter selection map.
-     *
-     * @return the interpreter selection map
-     */
-    public Map<String, String> getInterpreterSelection() {
-      return interpreterSelection;
-    }
-
-    /**
-     * Sets the interpreter selection map.
-     *
-     * @param interpreterSelection the interpreter selection map
-     */
-    public void setInterpreterSelection(Map<String, String> interpreterSelection) {
-      this.interpreterSelection = interpreterSelection;
     }
   }
 }

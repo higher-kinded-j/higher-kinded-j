@@ -54,7 +54,7 @@ class AsyncControllerIntegrationTest {
     mockMvc
         .perform(asyncDispatch(mvcResult))
         .andExpect(status().isOk())
-        .andExpect(content().contentType(MediaType.APPLICATION_JSON))
+        .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
         .andExpect(jsonPath("$.id").value("1"))
         .andExpect(jsonPath("$.email").value("alice@example.com"))
         .andExpect(jsonPath("$.firstName").value("Alice"))
@@ -82,7 +82,7 @@ class AsyncControllerIntegrationTest {
     mockMvc
         .perform(asyncDispatch(mvcResult))
         .andExpect(status().isInternalServerError())
-        .andExpect(content().contentType(MediaType.APPLICATION_JSON))
+        .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
         .andExpect(jsonPath("$.success").value(false));
   }
 
@@ -107,7 +107,7 @@ class AsyncControllerIntegrationTest {
     mockMvc
         .perform(asyncDispatch(mvcResult))
         .andExpect(status().isOk())
-        .andExpect(content().contentType(MediaType.APPLICATION_JSON))
+        .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
         .andExpect(jsonPath("$.id").value("2"))
         .andExpect(jsonPath("$.email").value("bob@example.com"))
         .andExpect(jsonPath("$.firstName").value("Bob"))
@@ -126,7 +126,7 @@ class AsyncControllerIntegrationTest {
     mockMvc
         .perform(asyncDispatch(mvcResult))
         .andExpect(status().isInternalServerError())
-        .andExpect(content().contentType(MediaType.APPLICATION_JSON))
+        .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
         .andExpect(jsonPath("$.success").value(false));
   }
 
@@ -154,7 +154,7 @@ class AsyncControllerIntegrationTest {
     mockMvc
         .perform(asyncDispatch(mvcResult))
         .andExpect(status().isOk())
-        .andExpect(content().contentType(MediaType.APPLICATION_JSON))
+        .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
         .andExpect(jsonPath("$.user.id").value("1"))
         .andExpect(jsonPath("$.user.email").value("alice@example.com"))
         .andExpect(jsonPath("$.profile.userId").value("1"))
@@ -184,7 +184,7 @@ class AsyncControllerIntegrationTest {
     mockMvc
         .perform(asyncDispatch(mvcResult))
         .andExpect(status().isInternalServerError())
-        .andExpect(content().contentType(MediaType.APPLICATION_JSON))
+        .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
         .andExpect(jsonPath("$.success").value(false));
   }
 
@@ -211,7 +211,7 @@ class AsyncControllerIntegrationTest {
     mockMvc
         .perform(asyncDispatch(mvcResult))
         .andExpect(status().isOk())
-        .andExpect(content().contentType(MediaType.APPLICATION_JSON))
+        .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
         .andExpect(jsonPath("$.id").value("1"))
         .andExpect(jsonPath("$.email").value("alice.updated@example.com"))
         .andExpect(jsonPath("$.firstName").value("Alice"))
@@ -240,7 +240,7 @@ class AsyncControllerIntegrationTest {
     mockMvc
         .perform(asyncDispatch(mvcResult))
         .andExpect(status().isInternalServerError())
-        .andExpect(content().contentType(MediaType.APPLICATION_JSON))
+        .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
         .andExpect(jsonPath("$.success").value(false));
   }
 
@@ -266,7 +266,7 @@ class AsyncControllerIntegrationTest {
     mockMvc
         .perform(asyncDispatch(mvcResult))
         .andExpect(status().isInternalServerError())
-        .andExpect(content().contentType(MediaType.APPLICATION_JSON))
+        .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
         .andExpect(jsonPath("$.success").value(false));
   }
 
@@ -288,7 +288,7 @@ class AsyncControllerIntegrationTest {
     mockMvc
         .perform(asyncDispatch(mvcResult))
         .andExpect(status().isOk())
-        .andExpect(content().contentType(MediaType.APPLICATION_JSON))
+        .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
         .andExpect(jsonPath("$.status").value("healthy"))
         .andExpect(jsonPath("$.message").value("Async operations are working"));
   }

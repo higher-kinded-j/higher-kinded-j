@@ -9,7 +9,6 @@ import org.higherkindedj.hkt.either.Either;
 import org.jspecify.annotations.Nullable;
 import org.springframework.core.MethodParameter;
 import org.springframework.http.HttpStatus;
-import org.springframework.http.MediaType;
 import org.springframework.web.context.request.NativeWebRequest;
 import org.springframework.web.method.support.HandlerMethodReturnValueHandler;
 import org.springframework.web.method.support.ModelAndViewContainer;
@@ -56,7 +55,6 @@ import tools.jackson.databind.json.JsonMapper;
  */
 public class EitherPathReturnValueHandler implements HandlerMethodReturnValueHandler {
 
-  private final JsonMapper jsonMapper;
   private final ObjectWriter objectWriter;
   private final int defaultErrorStatus;
   private final ErrorStatusCodeStrategy errorStatusCodeStrategy;
@@ -84,7 +82,6 @@ public class EitherPathReturnValueHandler implements HandlerMethodReturnValueHan
       JsonMapper jsonMapper,
       int defaultErrorStatus,
       ErrorStatusCodeStrategy errorStatusCodeStrategy) {
-    this.jsonMapper = jsonMapper;
     this.objectWriter = jsonMapper.writer();
     this.defaultErrorStatus = defaultErrorStatus;
     this.errorStatusCodeStrategy = errorStatusCodeStrategy;
@@ -154,12 +151,16 @@ public class EitherPathReturnValueHandler implements HandlerMethodReturnValueHan
    */
   private void writeErrorResponse(Object error, HttpServletResponse response) {
     try {
-      int statusCode = errorStatusCodeStrategy.statusCodeFor(error, defaultErrorStatus);
+      // A one-shot Iterable Left would be exhausted by status resolution / header application and
+      // reach the body writer empty; materialise it once (single errors and re-traversable
+      // payloads pass through unchanged).
+      Object materialised = JsonResponses.materialiseErrors(error);
+      int statusCode = errorStatusCodeStrategy.statusCodeFor(materialised, defaultErrorStatus);
       response.setStatus(statusCode);
-      ErrorResponseHeaders.applyTo(error, response);
-      response.setContentType(MediaType.APPLICATION_JSON_VALUE);
+      ErrorResponseHeaders.applyTo(materialised, response);
+      JsonResponses.setJsonContentType(response);
 
-      Map<String, Object> errorBody = Map.of("success", false, "error", error);
+      Map<String, Object> errorBody = Map.of("success", false, "error", materialised);
       objectWriter.writeValue(response.getWriter(), errorBody);
     } catch (Exception e) {
       throw new RuntimeException("Failed to write error response", e);
@@ -176,8 +177,8 @@ public class EitherPathReturnValueHandler implements HandlerMethodReturnValueHan
   private void writeSuccessResponse(Object value, HttpServletResponse response, int status) {
     try {
       response.setStatus(status);
-      if (status != HttpStatus.NO_CONTENT.value()) {
-        response.setContentType(MediaType.APPLICATION_JSON_VALUE);
+      if (!JsonResponses.isBodilessStatus(status)) {
+        JsonResponses.setJsonContentType(response);
         objectWriter.writeValue(response.getWriter(), value);
       }
     } catch (Exception e) {

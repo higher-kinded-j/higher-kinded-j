@@ -21,7 +21,7 @@ This guide covers the Spring Boot Actuator integration for higher-kinded-j, prov
 
 The higher-kinded-j Actuator integration provides:
 
-- **Metrics tracking** for Either, Validated, CompletableFuturePath, VTask, and VStream operations
+- **Metrics tracking** for Either, Validated, VTask, VStream, and EffectBoundary operations
 - **Custom actuator endpoint** exposing HKJ configuration and metrics
 - **Health indicator** for async executor monitoring
 - **Micrometer integration** for metrics export to monitoring systems
@@ -29,7 +29,7 @@ The higher-kinded-j Actuator integration provides:
 ### Benefits
 
 - Monitor functional error handling in production
-- Track success/failure rates for Either, CompletableFuturePath, VTask, and VStream
+- Track success/failure rates for Either, Validated, VTask, and VStream
 - Validate thread pool health for async operations
 - Track virtual thread performance and streaming element counts
 - Export metrics to Prometheus, Graphite, or other systems
@@ -61,19 +61,23 @@ The Actuator integration is included in `hkj-spring-boot-starter`:
 # application.yml
 hkj:
   actuator:
-    metrics:
-      enabled: true          # Enable HKJ metrics (default: true)
-    health:
-      async-executor:
-        enabled: true        # Enable async health indicator (default: true)
+    metrics-enabled: true    # Enable HKJ metrics (default: true)
 
 # Expose actuator endpoints
 management:
+  health:
+    hkj-async:
+      enabled: true          # Async executor health indicator (default: true)
   endpoints:
     web:
       exposure:
         include: health,info,metrics,hkj
 ```
+
+> The `hkj-async` health indicator only registers when the application defines an `Executor` bean
+> named `hkjAsyncExecutor` — the starter does not create one. Any `Executor` is accepted: a
+> `ThreadPoolTaskExecutor` reports full pool statistics, while other types (e.g. a virtual-thread
+> executor) report `UP` with a `type` detail (or `DOWN` if the executor is shut down).
 
 ### 3. Access Metrics
 
@@ -97,10 +101,10 @@ The `HkjMetricsService` tracks metrics for all functional constructs using Micro
 | `hkj.either.errors` | Counter | Either errors (tagged: error_type) |
 | `hkj.validated.invocations` | Counter | Validated invocations (tagged: valid/invalid) |
 | `hkj.validated.error_count` | Summary | Number of errors in Invalid cases |
-| `hkj.async.invocations` | Counter | CompletableFuturePath invocations (tagged: success/error) |
-| `hkj.async.errors` | Counter | CompletableFuturePath errors (tagged: error_type) |
-| `hkj.async.duration` | Timer | CompletableFuturePath async operation duration |
-| `hkj.async.exceptions` | Counter | CompletableFuturePath exceptions (tagged: exception_type) |
+| `hkj.either_t.invocations` | Counter | Legacy async invocations (tagged: success/error) — registered for dashboard compatibility, not recorded by the current handlers |
+| `hkj.either_t.errors` | Counter | Legacy async errors (tagged: error_type) |
+| `hkj.either_t.async.duration` | Timer | Legacy async operation duration |
+| `hkj.either_t.exceptions` | Counter | Legacy async exceptions (tagged: exception_type) |
 | `hkj.vtask.invocations` | Counter | VTask invocations (tagged: success/error) |
 | `hkj.vtask.errors` | Counter | VTask errors (tagged: error_type) |
 | `hkj.vtask.duration` | Timer | VTask virtual thread operation duration |
@@ -161,10 +165,7 @@ GET /actuator/hkj
       "defaultErrorStatus": 400
     },
     "jackson": {
-      "customSerializersEnabled": true,
-      "eitherFormat": "TAGGED",
-      "validatedFormat": "TAGGED",
-      "maybeFormat": "TAGGED"
+      "customSerializersEnabled": true
     }
   },
   "metrics": {
@@ -180,11 +181,11 @@ GET /actuator/hkj
       "totalCount": 250,
       "validRate": 0.800
     },
-    "async": {
-      "successCount": 75,
-      "errorCount": 10,
-      "totalCount": 85,
-      "successRate": 0.882
+    "eitherT": {
+      "successCount": 0,
+      "errorCount": 0,
+      "totalCount": 0,
+      "successRate": 0.0
     },
     "vtask": {
       "successCount": 340,
@@ -272,30 +273,19 @@ hkj:
     completable-future-path-enabled: true
     default-error-status: 400
 
-  # Jackson serialization
-  jackson:
+  # Jackson serialisation (property prefix is hkj.json)
+  json:
     custom-serializers-enabled: true
-    either-format: TAGGED
-    validated-format: TAGGED
-    maybe-format: TAGGED
-
-  # Async executor for CompletableFuturePath
-  async:
-    executor-core-pool-size: 10
-    executor-max-pool-size: 20
-    executor-queue-capacity: 100
-    executor-thread-name-prefix: "hkj-async-"
 
   # Actuator integration
   actuator:
-    metrics:
-      enabled: true
-    health:
-      async-executor:
-        enabled: true
+    metrics-enabled: true
 
 # Spring Boot Actuator
 management:
+  health:
+    hkj-async:
+      enabled: true   # Requires a user-defined "hkjAsyncExecutor" bean
   endpoints:
     web:
       exposure:
@@ -308,6 +298,8 @@ management:
       enabled: true
 ```
 
+The `CompletableFuturePath` thread pool itself is not configured by the starter — the application defines its own `Executor` bean (see the example module's `AsyncConfig`) and names it `hkjAsyncExecutor` if the health indicator should monitor it.
+
 ### Conditional Configuration
 
 Disable metrics if not needed:
@@ -315,18 +307,16 @@ Disable metrics if not needed:
 ```yaml
 hkj:
   actuator:
-    metrics:
-      enabled: false  # Metrics service will not be created
+    metrics-enabled: false  # Metrics service will not be created
 ```
 
 Disable async health checks:
 
 ```yaml
-hkj:
-  actuator:
-    health:
-      async-executor:
-        enabled: false  # Health indicator will not be registered
+management:
+  health:
+    hkj-async:
+      enabled: false  # Health indicator will not be registered
 ```
 
 ## Metrics Details
@@ -375,29 +365,9 @@ rate(hkj_validated_error_count_sum[5m])
 rate(hkj_validated_error_count_count[5m])
 ```
 
-### CompletableFuturePath Metrics
+### Legacy Async (EitherT) Metrics
 
-Track async operations with success rates, durations, and exception handling.
-
-**Use Cases:**
-- Monitor async API performance
-- Track async error rates
-- Identify slow async operations
-- Monitor exception patterns
-
-**Example Queries:**
-
-```promql
-# Prometheus query for CompletableFuturePath latency (p95)
-histogram_quantile(0.95,
-  rate(hkj_async_duration_seconds_bucket[5m]))
-
-# CompletableFuturePath error rate
-rate(hkj_async_invocations_total{result="error"}[5m])
-
-# Exception types distribution
-sum by (exception_type) (hkj_async_exceptions_total)
-```
+The `hkj.either_t.*` meters (`invocations`, `errors`, `async.duration`, `exceptions`) are registered for dashboard compatibility with earlier releases, and their counts are exposed under the `eitherT` key of `/actuator/hkj`. The current `CompletableFuturePath` handler does not record into them — for live async metrics use the VTask meters below, or record into `HkjMetricsService` manually from your own code.
 
 ### VTask Metrics
 
@@ -487,13 +457,17 @@ The async health indicator monitors thread pool saturation and queue fullness.
 
 **Indicates:** Queue is full, new async operations will be rejected.
 
-**Action:** Increase pool size or queue capacity:
+**Action:** Increase the pool size or queue capacity on your `hkjAsyncExecutor` bean:
 
-```yaml
-hkj:
-  async:
-    max-pool-size: 40      # Increase max threads
-    queue-capacity: 200    # Increase queue size
+```java
+@Bean(name = "hkjAsyncExecutor")
+public Executor hkjAsyncExecutor() {
+    ThreadPoolTaskExecutor executor = new ThreadPoolTaskExecutor();
+    executor.setMaxPoolSize(40);       // Increase max threads
+    executor.setQueueCapacity(200);    // Increase queue size
+    executor.initialize();
+    return executor;
+}
 ```
 
 ### Custom Health Checks
@@ -547,9 +521,9 @@ management:
     web:
       exposure:
         include: health,info,metrics,prometheus,hkj
-  metrics:
-    export:
-      prometheus:
+  prometheus:
+    metrics:
+      export:
         enabled: true
 ```
 
@@ -570,9 +544,9 @@ scrape_configs:
 # Either error rate over time
 rate(hkj_either_invocations_total{result="error"}[5m])
 
-# EitherT p95 latency
+# VTask p95 latency
 histogram_quantile(0.95,
-  rate(hkj_either_t_async_duration_seconds_bucket[5m]))
+  rate(hkj_vtask_duration_seconds_bucket[5m]))
 
 # Validated success rate
 sum(rate(hkj_validated_invocations_total{result="valid"}[5m]))
@@ -596,18 +570,18 @@ Example Grafana queries for HKJ metrics:
       ]
     },
     {
-      "title": "EitherT Async Duration (p95)",
+      "title": "VTask Duration (p95)",
       "targets": [
         {
-          "expr": "histogram_quantile(0.95, rate(hkj_either_t_async_duration_seconds_bucket[5m]))"
+          "expr": "histogram_quantile(0.95, rate(hkj_vtask_duration_seconds_bucket[5m]))"
         }
       ]
     },
     {
-      "title": "Thread Pool Utilization",
+      "title": "VStream Elements per Stream (avg)",
       "targets": [
         {
-          "expr": "hkj_async_active_count / hkj_async_pool_size"
+          "expr": "rate(hkj_vstream_elements_sum[5m]) / rate(hkj_vstream_elements_count[5m])"
         }
       ]
     }
@@ -635,22 +609,14 @@ groups:
           summary: "High Either error rate"
           description: "Either error rate is {{ $value }} (>50%)"
 
-      # Alert when async queue is getting full
-      - alert: AsyncQueueNearFull
-        expr: hkj_async_queue_remaining_capacity < 10
-        for: 2m
-        annotations:
-          summary: "Async queue near capacity"
-          description: "Only {{ $value }} slots remaining"
-
-      # Alert when EitherT operations are slow
-      - alert: SlowEitherTOperations
+      # Alert when VTask operations are slow
+      - alert: SlowVTaskOperations
         expr: |
           histogram_quantile(0.95,
-            rate(hkj_either_t_async_duration_seconds_bucket[5m])) > 5
+            rate(hkj_vtask_duration_seconds_bucket[5m])) > 5
         for: 5m
         annotations:
-          summary: "Slow EitherT operations"
+          summary: "Slow VTask operations"
           description: "p95 latency is {{ $value }}s (>5s)"
 ```
 
@@ -666,29 +632,22 @@ Metrics collection has minimal overhead:
 
 ### Tuning Thread Pool
 
-Monitor these indicators to tune the async executor:
+The async pool is your own `hkjAsyncExecutor` bean, so tuning happens in code:
 
-```yaml
-# Conservative (low traffic)
-hkj:
-  async:
-    core-pool-size: 5
-    max-pool-size: 10
-    queue-capacity: 50
-
-# Moderate (medium traffic)
-hkj:
-  async:
-    core-pool-size: 10
-    max-pool-size: 20
-    queue-capacity: 100
-
-# Aggressive (high traffic)
-hkj:
-  async:
-    core-pool-size: 20
-    max-pool-size: 50
-    queue-capacity: 500
+```java
+@Bean(name = "hkjAsyncExecutor")
+public Executor hkjAsyncExecutor() {
+    ThreadPoolTaskExecutor executor = new ThreadPoolTaskExecutor();
+    // Conservative (low traffic):  core 5,  max 10, queue 50
+    // Moderate (medium traffic):   core 10, max 20, queue 100
+    // Aggressive (high traffic):   core 20, max 50, queue 500
+    executor.setCorePoolSize(10);
+    executor.setMaxPoolSize(20);
+    executor.setQueueCapacity(100);
+    executor.setThreadNamePrefix("hkj-async-");
+    executor.initialize();
+    return executor;
+}
 ```
 
 **Monitoring Guidelines:**
@@ -839,8 +798,7 @@ class HkjEndpointIntegrationTest {
    ```yaml
    hkj:
      actuator:
-       metrics:
-         enabled: true
+       metrics-enabled: true
    ```
 
 2. Verify HkjMetricsService bean exists:
@@ -866,11 +824,15 @@ class HkjEndpointIntegrationTest {
 **Problem:** `hkjAsync` always shows DOWN status
 
 **Solutions:**
-1. Check executor is initialized:
+1. Check the indicator is enabled and the executor bean exists — the indicator only registers
+   when the application defines an `Executor` bean named `hkjAsyncExecutor` (a
+   `ThreadPoolTaskExecutor` exposes full pool statistics; other executor types report `UP` with a
+   `type` detail):
    ```yaml
-   hkj:
-     async:
-       core-pool-size: 10  # Must be > 0
+   management:
+     health:
+       hkj-async:
+         enabled: true
    ```
 
 2. Verify executor bean:
@@ -906,7 +868,7 @@ class HkjEndpointIntegrationTest {
 
 The higher-kinded-j Actuator integration provides:
 
-- **Comprehensive metrics** for Either, Validated, CompletableFuturePath, VTask, and VStream
+- **Comprehensive metrics** for Either, Validated, VTask, VStream, and EffectBoundary
 - **Health monitoring** for async thread pools
 - **Custom endpoint** for configuration and metrics snapshots
 - **Micrometer integration** for export to monitoring systems

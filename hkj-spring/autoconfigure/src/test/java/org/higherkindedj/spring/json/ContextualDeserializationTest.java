@@ -3,8 +3,12 @@
 package org.higherkindedj.spring.json;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
 
+import java.util.List;
+import java.util.Map;
 import org.higherkindedj.hkt.either.Either;
+import org.higherkindedj.hkt.eitherorboth.EitherOrBoth;
 import org.higherkindedj.hkt.nonemptylist.NonEmptyList;
 import org.higherkindedj.hkt.validated.Validated;
 import org.junit.jupiter.api.BeforeEach;
@@ -12,6 +16,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import tools.jackson.core.type.TypeReference;
+import tools.jackson.databind.DatabindException;
 import tools.jackson.databind.json.JsonMapper;
 
 /**
@@ -19,7 +24,7 @@ import tools.jackson.databind.json.JsonMapper;
  * TypeReference} (or field type), so nested custom types round-trip to the real type rather than a
  * {@code LinkedHashMap}.
  */
-@DisplayName("Contextual deserialization of HKJ types")
+@DisplayName("Contextual deserialisation of HKJ types")
 class ContextualDeserializationTest {
 
   record Point(int x, int y) {}
@@ -29,6 +34,97 @@ class ContextualDeserializationTest {
   @BeforeEach
   void setUp() {
     mapper = JsonMapper.builder().addModule(new HkjJacksonModule()).build();
+  }
+
+  @Nested
+  @DisplayName("HKJ types nested inside collections and maps")
+  class NestedInCollections {
+
+    record ListHolder(List<Either<String, Point>> items) {}
+
+    record MapHolder(Map<String, Either<String, Point>> byKey) {}
+
+    @Test
+    @DisplayName("binds Either elements of a List bean field to the real branch types")
+    void bindsEitherInsideListField() {
+      ListHolder original =
+          new ListHolder(List.of(Either.right(new Point(1, 2)), Either.left("bad")));
+      String json = mapper.writeValueAsString(original);
+
+      ListHolder back = mapper.readValue(json, ListHolder.class);
+
+      // Regression: element contextualisation used to fall back to Object binding,
+      // producing Right(LinkedHashMap) and a ClassCastException on first typed access
+      assertThat(back.items().getFirst().getRight()).isEqualTo(new Point(1, 2));
+      assertThat(back.items().getLast().getLeft()).isEqualTo("bad");
+    }
+
+    @Test
+    @DisplayName("binds Either values of a Map bean field to the real branch types")
+    void bindsEitherInsideMapField() {
+      MapHolder original = new MapHolder(Map.of("a", Either.right(new Point(3, 4))));
+      String json = mapper.writeValueAsString(original);
+
+      MapHolder back = mapper.readValue(json, MapHolder.class);
+
+      assertThat(back.byKey().get("a").getRight()).isEqualTo(new Point(3, 4));
+    }
+
+    @Test
+    @DisplayName("binds Either elements of a root-level List read via TypeReference")
+    void bindsEitherInsideRootList() {
+      String json = "[{\"isRight\":true,\"right\":{\"x\":1,\"y\":2}}]";
+
+      List<Either<String, Point>> back =
+          mapper.readValue(json, new TypeReference<List<Either<String, Point>>>() {});
+
+      assertThat(back.getFirst().getRight()).isEqualTo(new Point(1, 2));
+    }
+
+    record Wrapper(Either<Integer, Point> inner) {}
+
+    @Test
+    @DisplayName("binds an Either field inside a bean that is itself inside an Either")
+    void bindsEitherFieldNestedInsideOuterEither() {
+      // The inner Either field resolves to its own branch types, not the outer Either's
+      Either<String, Wrapper> original = Either.right(new Wrapper(Either.right(new Point(7, 8))));
+      String json = mapper.writeValueAsString(original);
+
+      Either<String, Wrapper> back =
+          mapper.readValue(json, new TypeReference<Either<String, Wrapper>>() {});
+
+      assertThat(back.getRight().inner().getRight()).isEqualTo(new Point(7, 8));
+    }
+  }
+
+  @Nested
+  @DisplayName("Null branch values")
+  class NullBranchValues {
+
+    @Test
+    @DisplayName("Validated with null value reports a clean mapping error, not an NPE")
+    void validatedNullValueIsCleanError() {
+      assertThatExceptionOfType(DatabindException.class)
+          .isThrownBy(() -> mapper.readValue("{\"valid\":true,\"value\":null}", Validated.class))
+          .withMessageContaining("must not be null");
+    }
+
+    @Test
+    @DisplayName("EitherOrBoth with null left reports a clean mapping error, not an NPE")
+    void eitherOrBothNullLeftIsCleanError() {
+      assertThatExceptionOfType(DatabindException.class)
+          .isThrownBy(
+              () -> mapper.readValue("{\"kind\":\"left\",\"left\":null}", EitherOrBoth.class))
+          .withMessageContaining("must not be null");
+    }
+
+    @Test
+    @DisplayName("Either discriminator must be a boolean")
+    void eitherNonBooleanDiscriminatorRejected() {
+      assertThatExceptionOfType(DatabindException.class)
+          .isThrownBy(() -> mapper.readValue("{\"isRight\":null,\"left\":\"boom\"}", Either.class))
+          .withMessageContaining("boolean 'isRight'");
+    }
   }
 
   @Nested

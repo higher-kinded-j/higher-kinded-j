@@ -3,10 +3,13 @@
 package org.higherkindedj.spring.autoconfigure;
 
 import io.micrometer.core.instrument.MeterRegistry;
+import java.util.concurrent.Executor;
 import org.higherkindedj.spring.actuator.HkjAsyncHealthIndicator;
 import org.higherkindedj.spring.actuator.HkjMetricsEndpoint;
 import org.higherkindedj.spring.actuator.HkjMetricsService;
 import org.higherkindedj.spring.actuator.HkjVirtualThreadHealthIndicator;
+import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.boot.actuate.autoconfigure.endpoint.condition.ConditionalOnAvailableEndpoint;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
@@ -15,7 +18,6 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.boot.health.contributor.HealthIndicator;
 import org.springframework.context.annotation.Bean;
-import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 
 /**
  * Auto-configuration for higher-kinded-j Spring Boot Actuator integration.
@@ -78,25 +80,30 @@ public class HkjActuatorAutoConfiguration {
    * <p>Enabled by default. Disable with: {@code management.endpoint.hkj.enabled=false}
    *
    * @param properties the HKJ configuration properties
-   * @param metricsService the metrics service (optional)
+   * @param metricsService provider of the metrics service (empty when {@code
+   *     hkj.actuator.metrics-enabled=false}; the endpoint then reports configuration only)
    * @return the custom endpoint
    */
   @Bean
   @ConditionalOnAvailableEndpoint
   public HkjMetricsEndpoint hkjMetricsEndpoint(
-      HkjProperties properties, HkjMetricsService metricsService) {
-    return new HkjMetricsEndpoint(properties, metricsService);
+      HkjProperties properties, ObjectProvider<HkjMetricsService> metricsService) {
+    return new HkjMetricsEndpoint(properties, metricsService.getIfAvailable());
   }
 
   /**
    * Creates the async executor health indicator.
    *
-   * <p>Monitors the thread pool used by EitherT async operations.
+   * <p>Monitors the application-defined {@code hkjAsyncExecutor} bean. It is injected as the widest
+   * {@link Executor} type — the qualifier binds it to that specific bean, and {@link
+   * HkjAsyncHealthIndicator} reports full pool statistics for a {@code ThreadPoolTaskExecutor} or a
+   * type-only {@code UP} for any other executor (e.g. a virtual-thread executor). Injecting the
+   * concrete pool type would instead fail context startup when the named bean is not one.
    *
-   * <p>Enabled by default when async executor is configured. Disable with: {@code
+   * <p>Enabled by default when the executor bean is defined. Disable with: {@code
    * management.health.hkj-async.enabled=false}
    *
-   * @param executor the async executor bean (optional, may not be present)
+   * @param executor the {@code hkjAsyncExecutor} bean
    * @return the health indicator
    */
   @Bean(name = "hkjAsyncHealthIndicator")
@@ -105,7 +112,8 @@ public class HkjActuatorAutoConfiguration {
       havingValue = "true",
       matchIfMissing = true)
   @ConditionalOnBean(name = "hkjAsyncExecutor")
-  public HkjAsyncHealthIndicator hkjAsyncHealthIndicator(ThreadPoolTaskExecutor executor) {
+  public HkjAsyncHealthIndicator hkjAsyncHealthIndicator(
+      @Qualifier("hkjAsyncExecutor") Executor executor) {
     return new HkjAsyncHealthIndicator(executor);
   }
 

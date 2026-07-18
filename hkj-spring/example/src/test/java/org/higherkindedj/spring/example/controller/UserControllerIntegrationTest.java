@@ -47,7 +47,7 @@ class UserControllerIntegrationTest {
       mockMvc
           .perform(get("/api/users/{id}", "1"))
           .andExpect(status().isOk())
-          .andExpect(content().contentType(MediaType.APPLICATION_JSON))
+          .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
           .andExpect(jsonPath("$.id").value("1"))
           .andExpect(jsonPath("$.email").value("alice@example.com"))
           .andExpect(jsonPath("$.firstName").value("Alice"))
@@ -60,7 +60,7 @@ class UserControllerIntegrationTest {
       mockMvc
           .perform(get("/api/users/{id}", "2"))
           .andExpect(status().isOk())
-          .andExpect(content().contentType(MediaType.APPLICATION_JSON))
+          .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
           .andExpect(jsonPath("$.id").value("2"))
           .andExpect(jsonPath("$.email").value("bob@example.com"))
           .andExpect(jsonPath("$.firstName").value("Bob"))
@@ -73,7 +73,7 @@ class UserControllerIntegrationTest {
       mockMvc
           .perform(get("/api/users/{id}", "999"))
           .andExpect(status().isNotFound())
-          .andExpect(content().contentType(MediaType.APPLICATION_JSON))
+          .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
           .andExpect(jsonPath("$.success").value(false))
           .andExpect(jsonPath("$.error").exists())
           .andExpect(jsonPath("$.error.userId").value("999"));
@@ -85,7 +85,7 @@ class UserControllerIntegrationTest {
       mockMvc
           .perform(get("/api/users/{id}", "nonexistent"))
           .andExpect(status().isNotFound())
-          .andExpect(content().contentType(MediaType.APPLICATION_JSON))
+          .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
           .andExpect(jsonPath("$.success").value(false))
           .andExpect(jsonPath("$.error.userId").value("nonexistent"));
     }
@@ -101,7 +101,7 @@ class UserControllerIntegrationTest {
       mockMvc
           .perform(get("/api/users/batch"))
           .andExpect(status().isOk())
-          .andExpect(content().contentType(MediaType.APPLICATION_JSON))
+          .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
           .andExpect(jsonPath("$.batchId").exists())
           .andExpect(jsonPath("$.results").isArray())
           .andExpect(jsonPath("$.results", hasSize(3)));
@@ -148,24 +148,27 @@ class UserControllerIntegrationTest {
   class GetJacksonModulesTests {
 
     @Test
-    @DisplayName("Should return Jackson modules information")
+    @DisplayName("Should return Jackson module probe information")
     void shouldReturnJacksonModulesInfo() throws Exception {
       mockMvc
           .perform(get("/api/users/debug/jackson-modules"))
           .andExpect(status().isOk())
-          .andExpect(content().contentType(MediaType.APPLICATION_JSON))
-          .andExpect(jsonPath("$.registeredModules").isArray())
+          .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
+          .andExpect(jsonPath("$.eitherProbe").isString())
           .andExpect(jsonPath("$.hkjModulePresent").exists());
     }
 
     @Test
-    @DisplayName("Should confirm HkjJacksonModule is registered")
+    @DisplayName("Should confirm HkjJacksonModule is registered by probing real serialisation")
     void shouldConfirmHkjModuleRegistered() throws Exception {
+      // hkjModulePresent is computed by serialising a sample Either with the app's JsonMapper,
+      // so this asserts observed mapper behaviour rather than a hardcoded constant.
       mockMvc
           .perform(get("/api/users/debug/jackson-modules"))
           .andExpect(status().isOk())
           .andExpect(jsonPath("$.hkjModulePresent").value(true))
-          .andExpect(jsonPath("$.registeredModules", hasItem("HkjJacksonModule")));
+          .andExpect(jsonPath("$.eitherProbe", containsString("\"isRight\"")))
+          .andExpect(jsonPath("$.eitherProbe", containsString("\"right\"")));
     }
   }
 

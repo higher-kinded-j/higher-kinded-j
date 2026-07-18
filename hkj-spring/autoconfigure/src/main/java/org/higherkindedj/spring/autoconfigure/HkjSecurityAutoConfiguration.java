@@ -21,9 +21,12 @@ import org.springframework.security.oauth2.jwt.Jwt;
  * <p>Provides functional error handling in Spring Security contexts using Either and Validated:
  *
  * <ul>
- *   <li>{@link ValidatedUserDetailsService} - User authentication with error accumulation
- *   <li>{@link EitherAuthenticationConverter} - JWT conversion with Either error handling
- *   <li>{@link EitherAuthorizationManager} - Authorization decisions using Either
+ *   <li>{@link ValidatedUserDetailsService} - User authentication with error accumulation (starts
+ *       empty; register accounts explicitly)
+ *   <li>{@link EitherAuthenticationConverter} - JWT conversion with Either error handling (rejects
+ *       the token when authority extraction fails)
+ *   <li>{@link EitherAuthorizationManager} - Authorization decisions using composable Either-based
+ *       rules
  * </ul>
  *
  * <p>Enable via configuration property:
@@ -97,49 +100,30 @@ public class HkjSecurityAutoConfiguration {
   }
 
   /**
-   * Provides a ValidatedUserDetailsService bean if none exists.
+   * Provides a ValidatedUserDetailsService bean when explicitly enabled.
    *
-   * <p>This service uses Validated for comprehensive user validation with error accumulation.
+   * <p>This service uses Validated for username validation with error accumulation. The bean starts
+   * <strong>empty</strong> — register accounts via {@link ValidatedUserDetailsService#addUser}.
    *
-   * <p>Configure via:
+   * <p><strong>Opt-in, and application-wide once enabled:</strong> {@code
+   * ValidatedUserDetailsService} implements {@link UserDetailsService}, so when it is the only bean
+   * of that type Spring Security adopts it as the global user store (and Boot's generated default
+   * user backs off). Enabling this without registering accounts means every form/basic login fails.
+   * It is therefore disabled by default; enable it only when you intend to populate and use it:
    *
    * <pre>
    * hkj:
    *   security:
-   *     validated-user-details: true  # default: true
+   *     validated-user-details: true  # default: false (opt-in)
    * </pre>
    *
    * @return validated user details service
    */
   @Bean
   @ConditionalOnMissingBean(ValidatedUserDetailsService.class)
-  @ConditionalOnProperty(
-      prefix = "hkj.security",
-      name = "validated-user-details",
-      havingValue = "true",
-      matchIfMissing = true)
+  @ConditionalOnProperty(prefix = "hkj.security", name = "validated-user-details")
   public ValidatedUserDetailsService validatedUserDetailsService() {
     return new ValidatedUserDetailsService();
-  }
-
-  /**
-   * Provides a UserDetailsService bean that delegates to ValidatedUserDetailsService.
-   *
-   * <p>This allows Spring Security to use the Validated-based user details service without
-   * requiring changes to existing security configurations.
-   *
-   * @param validatedService the validated user details service
-   * @return user details service
-   */
-  @Bean
-  @ConditionalOnMissingBean(UserDetailsService.class)
-  @ConditionalOnProperty(
-      prefix = "hkj.security",
-      name = "validated-user-details",
-      havingValue = "true",
-      matchIfMissing = true)
-  public UserDetailsService userDetailsService(ValidatedUserDetailsService validatedService) {
-    return validatedService;
   }
 
   /**
@@ -169,16 +153,11 @@ public class HkjSecurityAutoConfiguration {
       havingValue = "true",
       matchIfMissing = true)
   public EitherAuthenticationConverter eitherAuthenticationConverter() {
-    String authoritiesClaim =
-        properties.getSecurity() != null
-            ? properties.getSecurity().getJwtAuthoritiesClaim()
-            : "roles";
-    String authorityPrefix =
-        properties.getSecurity() != null
-            ? properties.getSecurity().getJwtAuthorityPrefix()
-            : "ROLE_";
-
-    return new EitherAuthenticationConverter(authoritiesClaim, authorityPrefix);
+    HkjProperties.Security security = properties.getSecurity();
+    return new EitherAuthenticationConverter(
+        security.getJwtAuthoritiesClaim(),
+        security.getJwtAuthorityPrefix(),
+        security.isRejectMissingAuthoritiesClaim());
   }
 
   /**

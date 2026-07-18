@@ -10,6 +10,7 @@ import org.higherkindedj.spring.example.domain.User;
 import org.higherkindedj.spring.example.domain.UserNotFoundError;
 import org.higherkindedj.spring.example.service.UserService;
 import org.springframework.web.bind.annotation.*;
+import tools.jackson.databind.json.JsonMapper;
 
 /**
  * REST controller demonstrating Either-based error handling.
@@ -23,14 +24,18 @@ import org.springframework.web.bind.annotation.*;
 public class UserController {
 
   private final UserService userService;
+  private final JsonMapper jsonMapper;
 
   /**
    * Constructs a UserController.
    *
    * @param userService the user service
+   * @param jsonMapper the application's Jackson 3.x mapper, used by the debug endpoint to probe
+   *     whether HkjJacksonModule is actually registered
    */
-  public UserController(UserService userService) {
+  public UserController(UserService userService, JsonMapper jsonMapper) {
     this.userService = userService;
+    this.jsonMapper = jsonMapper;
   }
 
   /**
@@ -119,32 +124,37 @@ public class UserController {
   }
 
   /**
-   * Debug endpoint to confirm HKJ Jackson module configuration.
+   * Debug endpoint reporting the <em>actual</em> HKJ Jackson module state.
    *
-   * <p>Note: Jackson 3.x does not expose registered module IDs directly. This endpoint confirms
-   * HkjJacksonModule should be registered via Spring Boot auto-configuration.
+   * <p>Jackson 3.x does not expose registered module IDs directly, so instead of echoing a
+   * hardcoded value this endpoint probes real behaviour: it serialises a sample {@code Either} with
+   * the injected {@link JsonMapper} and checks whether the tagged {@code isRight} shape (produced
+   * only by HkjJacksonModule's EitherSerializer) came back.
    *
    * <p>Example response:
    *
    * <pre>
    * {
    *   "hkjModulePresent": true,
-   *   "registeredModules": ["HkjJacksonModule"],
-   *   "message": "HkjJacksonModule configured via Spring Boot auto-configuration"
+   *   "eitherProbe": "{\"isRight\":true,\"right\":\"probe\"}",
+   *   "message": "hkjModulePresent is derived by serialising a sample Either with the application's JsonMapper"
    * }
    * </pre>
    *
-   * @return a map of Jackson module configuration details
+   * @return a map describing the observed Jackson configuration
    */
   @GetMapping("/debug/jackson-modules")
   public Map<String, Object> getJacksonModules() {
+    String eitherProbe = jsonMapper.writeValueAsString(Either.<String, String>right("probe"));
+    boolean hkjModulePresent = eitherProbe.contains("\"isRight\"");
     return Map.of(
         "hkjModulePresent",
-        true,
-        "registeredModules",
-        List.of("HkjJacksonModule"),
+        hkjModulePresent,
+        "eitherProbe",
+        eitherProbe,
         "message",
-        "HkjJacksonModule configured via Spring Boot auto-configuration");
+        "hkjModulePresent is derived by serialising a sample Either with the application's"
+            + " JsonMapper");
   }
 
   /**

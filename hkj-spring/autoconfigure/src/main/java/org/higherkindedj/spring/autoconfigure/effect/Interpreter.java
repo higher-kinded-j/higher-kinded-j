@@ -35,8 +35,8 @@ import org.springframework.stereotype.Component;
  *
  * <h2>Profile-Based Switching</h2>
  *
- * <p>Use the {@link #profile()} attribute to activate interpreters only under specific Spring
- * profiles:
+ * <p>Use the {@link #profile()} attribute to make an interpreter eligible only under a specific
+ * Spring profile (any profile expression accepted by {@code Environment.acceptsProfiles}):
  *
  * <pre>{@code
  * @Interpreter(value = PaymentGatewayOp.class, profile = "test")
@@ -44,7 +44,13 @@ import org.springframework.stereotype.Component;
  *     extends PaymentGatewayOpInterpreter<IOKind.Witness> { ... }
  * }</pre>
  *
+ * <p>Note: the bean itself is still created in every profile (the annotation is not
+ * {@code @Profile}); the profile restricts which interpreter the boundary <em>selects</em>. If more
+ * than one interpreter is eligible for the same algebra, boundary creation fails fast with the
+ * ambiguous candidates listed — selection never depends on classpath scan order.
+ *
  * @see EnableEffectBoundary
+ * @see InterpreterResolution
  */
 @Target(ElementType.TYPE)
 @Retention(RetentionPolicy.RUNTIME)
@@ -59,10 +65,10 @@ public @interface Interpreter {
   Class<?> value();
 
   /**
-   * Optional Spring profile under which this interpreter is active. When empty (default), the
-   * interpreter is active in all profiles.
+   * Optional Spring profile expression under which this interpreter is eligible for selection. When
+   * empty (default), the interpreter is eligible in all profiles.
    *
-   * @return the Spring profile name, or empty for all profiles
+   * @return the Spring profile expression, or empty for all profiles
    */
   String profile() default "";
 }

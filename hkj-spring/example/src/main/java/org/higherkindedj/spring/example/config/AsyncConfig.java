@@ -11,11 +11,14 @@ import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 /**
  * Configuration for async task execution using Spring's @Async support.
  *
- * <p>This configuration creates a custom thread pool executor specifically for async operations in
- * the higher-kinded-j Spring integration, particularly for {@code
- * EitherT<CompletableFuture.Witness, E, A>} return types.
+ * <p>This configuration creates the thread pool executor used by {@link
+ * org.higherkindedj.spring.example.service.AsyncUserService} for {@code CompletableFuturePath}
+ * operations. The starter does <b>not</b> create or configure this pool — defining an executor bean
+ * in the application (and passing it to {@code CompletableFuture.supplyAsync}) is the documented
+ * pattern. Naming the bean {@code hkjAsyncExecutor} also enables the optional {@code hkj-async}
+ * actuator health indicator.
  *
- * <p>The executor is configured with:
+ * <p>The executor is hardcoded here with:
  *
  * <ul>
  *   <li>Core pool size: 10 threads
@@ -24,14 +27,9 @@ import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
  *   <li>Thread name prefix: "hkj-async-" for easy identification
  * </ul>
  *
- * <p>These settings can be customized via application.properties using:
- *
- * <pre>
- * hkj.async.executor-core-pool-size=10
- * hkj.async.executor-max-pool-size=20
- * hkj.async.executor-queue-capacity=100
- * hkj.async.executor-thread-name-prefix=hkj-async-
- * </pre>
+ * <p>To change these settings, edit this bean (there are no {@code hkj.async.executor-*}
+ * configuration properties). The only async property the starter reads is {@code
+ * hkj.async.default-timeout-ms}, the response timeout for {@code CompletableFuturePath} requests.
  */
 @Configuration
 @EnableAsync
@@ -48,7 +46,6 @@ public class AsyncConfig {
    * <ul>
    *   <li>AsyncUserService for async database/external service calls
    *   <li>CompletableFuture.supplyAsync() calls in services
-   *   <li>EitherT async operation chains
    * </ul>
    *
    * @return configured ThreadPoolTaskExecutor
