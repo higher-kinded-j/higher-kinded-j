@@ -72,7 +72,8 @@ public class MergeProcessor extends AbstractProcessor {
   @Override
   public boolean process(Set<? extends TypeElement> annotations, RoundEnvironment roundEnv) {
     // Nested fills resolve against the same round's @GenerateMapping specs (shared scan).
-    List<MappingProcessor.RegisteredSpec> registry = MappingProcessor.scanRegistry(roundEnv);
+    List<MappingProcessor.RegisteredSpec> registry =
+        MappingProcessor.scanRegistry(processingEnv, roundEnv);
     for (Element element : roundEnv.getElementsAnnotatedWith(GenerateMerge.class)) {
       processSpec(element, registry);
     }

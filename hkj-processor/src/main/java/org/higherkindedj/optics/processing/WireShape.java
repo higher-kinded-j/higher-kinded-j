@@ -12,18 +12,18 @@ import javax.lang.model.type.TypeMirror;
 
 /**
  * The wire side of a {@code @GenerateMapping} pair, abstracted over how its components are
- * enumerated, read and constructed. A record wire ({@link RecordShape}) reads components positionally
- * through their accessors and constructs via the canonical constructor; a bean-shaped wire ({@link
- * BeanShape}, issue #628) reads through getters and constructs through setters or a builder. The
- * domain side is always a record (parse assembles it with {@code Validated.fields().apply(D::new)}),
- * so only the wire is abstracted.
+ * enumerated, read and constructed. A record wire ({@link RecordShape}) reads components
+ * positionally through their accessors and constructs via the canonical constructor; a bean-shaped
+ * wire ({@link BeanShape}, issue #628) reads through getters and constructs through setters or a
+ * builder. The domain side is always a record (parse assembles it with {@code
+ * Validated.fields().apply(D::new)}), so only the wire is abstracted.
  *
  * <p>Classification ({@link MappingProcessor#classify}) and code generation ({@link
  * MappingProcessor#writeImpl}) speak to the wire only through this interface: component enumeration
  * and name lookup, the per-component read expression ({@link WireComponent#readFrom}), and the
  * build-method body ({@link #buildStatements}).
  */
-sealed interface WireShape permits WireShape.RecordShape {
+sealed interface WireShape permits WireShape.RecordShape, WireShape.BeanShape {
 
   /** The wire type element. */
   TypeElement element();
@@ -49,7 +49,8 @@ sealed interface WireShape permits WireShape.RecordShape {
   /**
    * The complete, terminated statements of the {@code build} method body: they construct the wire
    * value from each component's build expression (supplied by {@code valueFor}) and {@code return}
-   * it. A record emits a single {@code return new W(...)}; a bean emits setter or builder statements.
+   * it. A record emits a single {@code return new W(...)}; a bean emits setter or builder
+   * statements.
    *
    * @param wireType the wire type to construct
    * @param valueFor maps each component to the expression build fills it with
@@ -86,6 +87,66 @@ sealed interface WireShape permits WireShape.RecordShape {
         args.add(valueFor.apply(component));
       }
       return CodeBlock.builder().addStatement("return new $T($L)", wireType, args.build()).build();
+    }
+  }
+
+  /**
+   * A bean-shaped wire (issue #628): components are read through getters and written through the
+   * {@link ConstructionStrategy}. Reads are null-hostile at parse time (an unset bean property is
+   * null), which the mapping processor guards; only the construction differs from a record.
+   */
+  record BeanShape(
+      TypeElement element, List<BeanProperty> properties, ConstructionStrategy strategy)
+      implements WireShape {
+
+    @Override
+    public List<WireComponent> components() {
+      return properties.stream().map(BeanProperty::asWireComponent).toList();
+    }
+
+    @Override
+    public CodeBlock buildStatements(
+        TypeName wireType, Function<WireComponent, CodeBlock> valueFor) {
+      return strategy.buildStatements(wireType, properties, valueFor);
+    }
+  }
+
+  /**
+   * One bean property: its (decapitalised) name, type, the getter that reads it and the setter that
+   * writes it. A slice-B property has both — the canonical mutable JavaBean shape.
+   */
+  record BeanProperty(String name, TypeMirror type, String getter, String setter) {
+
+    WireComponent asWireComponent() {
+      return new WireComponent(name, type, getter);
+    }
+  }
+
+  /** How a bean value is constructed from its per-property build expressions. */
+  sealed interface ConstructionStrategy permits ConstructionStrategy.NoArgsSetters {
+
+    CodeBlock buildStatements(
+        TypeName wireType,
+        List<BeanProperty> properties,
+        Function<WireComponent, CodeBlock> valueFor);
+
+    /** Public no-args constructor plus setters: {@code var w = new W(); w.setX(...); return w;}. */
+    record NoArgsSetters() implements ConstructionStrategy {
+
+      @Override
+      public CodeBlock buildStatements(
+          TypeName wireType,
+          List<BeanProperty> properties,
+          Function<WireComponent, CodeBlock> valueFor) {
+        CodeBlock.Builder body = CodeBlock.builder();
+        body.addStatement("$T wire = new $T()", wireType, wireType);
+        for (BeanProperty property : properties) {
+          body.addStatement(
+              "wire.$L($L)", property.setter(), valueFor.apply(property.asWireComponent()));
+        }
+        body.addStatement("return wire");
+        return body.build();
+      }
     }
   }
 }
