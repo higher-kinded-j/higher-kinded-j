@@ -67,6 +67,14 @@ import org.higherkindedj.optics.processing.util.Diagnostics;
  * plus a lawful {@code asLens()} write-back, and no {@code parse} (truthful types). Sealed
  * interface pairs dispatch {@code build}/{@code parse} over their permitted subtype pairs, each
  * delegating to its own spec.
+ *
+ * <p>The wire may be a bean-shaped class instead of a record (issue #628, {@link WireShape}):
+ * {@code build} fills it through setters or a builder and {@code parse} reads it through getters.
+ * Since an unset bean property is null, every reference-typed read is null-guarded into a located
+ * {@code FieldError}, which makes {@code asIso()} truthful only for an all-primitive bean; a domain
+ * {@code Optional<T>} bridges to a nullable bean property {@code T}. A reference-typed bean
+ * projection is deferred (the validated-patch tier); an all-primitive one keeps the {@code
+ * asLens()} projection.
  */
 @AutoService(Processor.class)
 @SupportedAnnotationTypes("org.higherkindedj.optics.annotations.GenerateMapping")
@@ -140,7 +148,7 @@ public class MappingProcessor extends AbstractProcessor {
       int wireCount =
           recordPair
               ? wireRecord.getRecordComponents().size()
-              : beanPair ? beanAnalyser.propertyCount(wireBean) : 0;
+              : beanPair ? beanAnalyser.propertyCount(spec, wireBean) : 0;
       boolean parseCapable =
           sealedPair
               || domainRecord.getRecordComponents().size()
@@ -826,8 +834,7 @@ public class MappingProcessor extends AbstractProcessor {
       // Optional bridge (#628): a domain Optional<DE> maps to a nullable bean property PE, since
       // beans never declare Optional. Empty <-> null/absent; the element is copied (identity) or
       // mapped through a leaf, exactly as an Optional element would be. (An Optional bridge through
-      // a
-      // nested spec is a follow-up.)
+      // a nested spec is a follow-up.)
       if (wire instanceof WireShape.BeanShape && domainElement != null && wireElement == null) {
         TypeMirror wireType = wireComponent.type();
         if (processingEnv.getTypeUtils().isSameType(wireType, domainElement)) {
@@ -844,7 +851,39 @@ public class MappingProcessor extends AbstractProcessor {
                   CodeBlock.of("$L()", bridgeLeaf.getSimpleName())));
           continue;
         }
-        // No identity or leaf for the element: fall through to the no-usable-source diagnostic.
+        // A bridge is the only way to map a domain Optional to a plain bean property, so a failed
+        // one is a dedicated diagnostic that names the ELEMENT types (not the whole Optional) — a
+        // leaf over Optional<DE> would be matched as a plain leaf and bypass the bridge.
+        Diagnostics.error(
+            processingEnv.getMessager(),
+            spec,
+            TAG,
+            "domain field '"
+                + domain.getSimpleName()
+                + "."
+                + name
+                + "' is Optional<"
+                + domainElement
+                + ">, bridged to the nullable bean property '"
+                + wireName
+                + "' of type "
+                + wireType
+                + ", but the element types differ and no leaf converts them.",
+            "A domain Optional bridges to a nullable bean property (empty maps to absent); the"
+                + " present element is copied when the types match, or mapped through a leaf named"
+                + " after the domain component returning ValidatedPrism<"
+                + wireType
+                + ", "
+                + domainElement
+                + "> (the element types, not the Optional).",
+            "Add 'default ValidatedPrism<"
+                + wireType
+                + ", "
+                + domainElement
+                + "> "
+                + name
+                + "()' to the spec, or align the element types.");
+        return null;
       }
       DeclaredType wireMapType = asMapType(wireComponent.type());
       DeclaredType domainMapType = asMapType(domainComponent.asType());
@@ -1647,10 +1686,10 @@ public class MappingProcessor extends AbstractProcessor {
   }
 
   /**
-   * The {@code build} method. {@code body} is the complete, terminated build statement(s) — a
-   * record or bean wire supplies these via {@link WireShape#buildStatements}, and the sealed path
-   * supplies a terminated {@code return switch} — so they are emitted verbatim with {@code
-   * addCode}.
+   * The {@code build} method. {@code body} is the complete, terminated build statement(s): a record
+   * wire supplies them via {@link WireShape.RecordShape#buildStatements}, a bean wire via {@link
+   * #beanBuildBody}, and the sealed path via a terminated {@code return switch} — so all three are
+   * emitted verbatim with {@code addCode}.
    */
   private static MethodSpec buildMethod(TypeName domainName, TypeName wireName, CodeBlock body) {
     return MethodSpec.methodBuilder("build")

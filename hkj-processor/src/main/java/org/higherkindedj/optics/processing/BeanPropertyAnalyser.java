@@ -55,7 +55,7 @@ final class BeanPropertyAnalyser {
   WireShape.BeanShape analyse(TypeElement spec, TypeElement bean, String tag) {
     Map<String, ExecutableElement> getters = collectGetters(bean);
 
-    if (hasUsableNoArgsConstructor(bean)) {
+    if (hasUsableNoArgsConstructor(spec, bean)) {
       Map<String, ExecutableElement> setters = collectSetters(bean);
       List<WireShape.BeanProperty> properties = new ArrayList<>();
       for (Map.Entry<String, ExecutableElement> entry : getters.entrySet()) {
@@ -119,9 +119,9 @@ final class BeanPropertyAnalyser {
   }
 
   /** The number of mappable properties under the selected strategy, for the parse arithmetic. */
-  int propertyCount(TypeElement bean) {
+  int propertyCount(TypeElement spec, TypeElement bean) {
     Map<String, ExecutableElement> getters = collectGetters(bean);
-    if (hasUsableNoArgsConstructor(bean)) {
+    if (hasUsableNoArgsConstructor(spec, bean)) {
       Map<String, ExecutableElement> setters = collectSetters(bean);
       long count =
           getters.entrySet().stream()
@@ -315,13 +315,21 @@ final class BeanPropertyAnalyser {
   }
 
   /**
-   * A no-args constructor the generated impl can call. The impl is emitted in the spec's package,
-   * so any non-private constructor of a co-located bean is reachable; a public one is reachable
-   * from any package (as a compiled third-party bean's would be).
+   * A no-args constructor the generated impl can call. The impl is emitted in the <em>spec's</em>
+   * package, so a public constructor is always reachable (as a compiled third-party bean's would
+   * be), while a {@code protected} or package-private one is reachable only when the bean is
+   * co-located with the spec. A non-public constructor on a bean in another package would make
+   * {@code new Wire()} illegal in the generated impl, so it is not treated as usable.
    */
-  private boolean hasUsableNoArgsConstructor(TypeElement bean) {
+  private boolean hasUsableNoArgsConstructor(TypeElement spec, TypeElement bean) {
+    boolean samePackage =
+        env.getElementUtils().getPackageOf(spec).equals(env.getElementUtils().getPackageOf(bean));
     return ElementFilter.constructorsIn(bean.getEnclosedElements()).stream()
-        .anyMatch(c -> c.getParameters().isEmpty() && !c.getModifiers().contains(Modifier.PRIVATE));
+        .anyMatch(
+            c ->
+                c.getParameters().isEmpty()
+                    && (c.getModifiers().contains(Modifier.PUBLIC)
+                        || (samePackage && !c.getModifiers().contains(Modifier.PRIVATE))));
   }
 
   /** The JavaBeans {@code Introspector.decapitalize} rule: {@code getURL} -> {@code URL}. */

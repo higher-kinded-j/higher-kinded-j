@@ -1072,7 +1072,13 @@ class MappingProcessorBeanTest {
       Compilation compilation = compile(domain, wire, spec);
       assertThat(compilation).failed();
       assertThat(compilation)
-          .hadErrorContaining("target field 'BoxDto.count' has no usable source");
+          .hadErrorContaining(
+              "domain field 'Box.count' is Optional<java.lang.Integer>, bridged to the nullable"
+                  + " bean property 'count' of type java.lang.String");
+      assertThat(compilation)
+          .hadErrorContaining(
+              "ValidatedPrism<java.lang.String, java.lang.Integer> (the element types, not the"
+                  + " Optional)");
     }
 
     @Test
@@ -1261,6 +1267,99 @@ class MappingProcessorBeanTest {
           .hadErrorContaining(
               "'EmployeeCardDto' is a bean projection of 'Employee' with a reference-typed property");
       assertThat(compilation).hadErrorContaining("maps as a validated patch");
+    }
+  }
+
+  @Nested
+  @DisplayName("Constructor accessibility")
+  class ConstructorAccessibility {
+
+    @Test
+    @DisplayName("a same-package bean with a package-private constructor is usable")
+    void samePackageNonPublicConstructor() {
+      JavaFileObject domain =
+          JavaFileObjects.forSourceString(
+              "com.example.D",
+              """
+              package com.example;
+
+              public record D(String a) {}
+              """);
+      // Package-private class (so an implicit package-private constructor), co-located with the
+      // spec.
+      JavaFileObject wire =
+          JavaFileObjects.forSourceString(
+              "com.example.SameBean",
+              """
+              package com.example;
+
+              class SameBean {
+                private String a;
+                public String getA() { return a; }
+                public void setA(String a) { this.a = a; }
+              }
+              """);
+      JavaFileObject spec =
+          JavaFileObjects.forSourceString(
+              "com.example.SameMapping",
+              """
+              package com.example;
+
+              import org.higherkindedj.optics.annotations.GenerateMapping;
+              import org.higherkindedj.optics.annotations.MappingSpec;
+
+              @GenerateMapping
+              public interface SameMapping extends MappingSpec<D, SameBean> {}
+              """);
+
+      Compilation compilation = compile(domain, wire, spec);
+      assertThat(compilation).succeeded();
+      Assertions.assertThat(generatedSource(compilation, "com.example.SameMappingImpl"))
+          .contains("SameBean wire = new SameBean();");
+    }
+
+    @Test
+    @DisplayName("a cross-package bean with a non-public constructor is rejected, not miscompiled")
+    void crossPackageNonPublicConstructor() {
+      JavaFileObject domain =
+          JavaFileObjects.forSourceString(
+              "com.example.D",
+              """
+              package com.example;
+
+              public record D(String a) {}
+              """);
+      // A public class in another package whose no-args constructor is package-private: the impl
+      // (emitted in com.example) could not call `new Foreign()`.
+      JavaFileObject wire =
+          JavaFileObjects.forSourceString(
+              "com.other.Foreign",
+              """
+              package com.other;
+
+              public class Foreign {
+                Foreign() {}
+                private String a;
+                public String getA() { return a; }
+                public void setA(String a) { this.a = a; }
+              }
+              """);
+      JavaFileObject spec =
+          JavaFileObjects.forSourceString(
+              "com.example.ForeignMapping",
+              """
+              package com.example;
+
+              import org.higherkindedj.optics.annotations.GenerateMapping;
+              import org.higherkindedj.optics.annotations.MappingSpec;
+
+              @GenerateMapping
+              public interface ForeignMapping extends MappingSpec<D, com.other.Foreign> {}
+              """);
+
+      Compilation compilation = compile(domain, wire, spec);
+      assertThat(compilation).failed();
+      assertThat(compilation).hadErrorContaining("'Foreign' is not a usable bean-shaped wire");
     }
   }
 
