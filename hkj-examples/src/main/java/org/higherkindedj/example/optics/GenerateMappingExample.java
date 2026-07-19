@@ -405,7 +405,7 @@ public final class GenerateMappingExample {
         "Built:        PointDto[x=" + pointDto.getX() + ", label=" + pointDto.getLabel() + "]");
     System.out.println(
         "Round trip:   " + GenerateMappingExamplePointMappingImpl.INSTANCE.parse(pointDto));
-    System.out.println("Expected: built through Point.builder(); the round trip is Valid");
+    System.out.println("Expected: built through PointDto.builder(); the round trip is Valid");
   }
 
   private GenerateMappingExample() {}

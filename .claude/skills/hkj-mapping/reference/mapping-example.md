@@ -179,11 +179,14 @@ public interface ContactMapping extends MappingSpec<Contact, ContactDto> {
 }
 ```
 
-A bean property is `null` when unset, and a leaf's `parse` rejects `null`, so every reference read is
-null-guarded: a missing field becomes a located `FieldError` (`email: must not be null`) rather than
-throwing, and `parse` stays total and accumulating. An immutable bean with a static `builder()` or
-`newBuilder()` (Lombok, Immutables, AutoValue, protobuf) maps identically - `build` goes through the
-builder. A domain `Optional<T>` bridges to a nullable bean property `T` (empty maps to absent).
+A bean property is `null` when unset, and a leaf's `parse` throws on a `null` source, so the mapper
+null-guards each nullable getter result *before* handing it to the leaf: a missing field becomes a
+located `FieldError` (`email: must not be null`) instead of an NPE, and `parse` stays total and
+accumulating. Three construction shapes are detected: a no-args constructor with setters (above); an
+immutable bean with a static `builder()`/`newBuilder()` (Lombok, Immutables, AutoValue, protobuf),
+where `build` goes through the builder; and the JAXB convention, where a getter-only `List` (its
+getter returns a live mutable list, no setter) is filled with `getItems().addAll(...)`. A domain
+`Optional<T>` bridges to a nullable bean property `T` (empty maps to absent).
 
 ## Prove the Round-Trip
 
