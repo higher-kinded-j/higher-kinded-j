@@ -1489,6 +1489,290 @@ class MappingProcessorBeanTest {
     }
   }
 
+  @Nested
+  @DisplayName("Property-analyser branch coverage")
+  class AnalyserBranchCoverage {
+
+    private static final JavaFileObject DOM =
+        JavaFileObjects.forSourceString(
+            "com.example.Dom",
+            """
+            package com.example;
+
+            public record Dom(String a) {}
+            """);
+
+    /** Compiles a bean-wire spec mapping {@code Dom} to the given wire class. */
+    private Compilation analyse(String wireName, String wireSource) {
+      JavaFileObject wire = JavaFileObjects.forSourceString("com.example." + wireName, wireSource);
+      JavaFileObject spec =
+          JavaFileObjects.forSourceString(
+              "com.example.Map" + wireName,
+              "package com.example;\n"
+                  + "import org.higherkindedj.optics.annotations.GenerateMapping;\n"
+                  + "import org.higherkindedj.optics.annotations.MappingSpec;\n"
+                  + "@GenerateMapping public interface Map"
+                  + wireName
+                  + " extends MappingSpec<Dom, "
+                  + wireName
+                  + "> {}\n");
+      return compile(DOM, wire, spec);
+    }
+
+    @Test
+    @DisplayName("decapitalise handles the empty, acronym, single-char and normal cases")
+    void decapitaliseEdgeCases() {
+      Assertions.assertThat(BeanPropertyAnalyser.decapitalise("")).isEmpty();
+      Assertions.assertThat(BeanPropertyAnalyser.decapitalise("URL")).isEqualTo("URL");
+      Assertions.assertThat(BeanPropertyAnalyser.decapitalise("Name")).isEqualTo("name");
+      Assertions.assertThat(BeanPropertyAnalyser.decapitalise("A")).isEqualTo("a");
+    }
+
+    @Test
+    @DisplayName("non-accessor methods (void, too-short, wrong-shape) are ignored, not misread")
+    void nonAccessorMethodsIgnored() {
+      // Exercises the getter/setter recognition guards: a void method and a wrong-return is-getter
+      // are not getters; a getter-only String/int property is not a JAXB collection; "get"/"is"/
+      // "set" that are too short, and a non-get/is/set method, are all skipped.
+      Compilation compilation =
+          analyse(
+              "OddBean",
+              """
+              package com.example;
+
+              public class OddBean {
+                private String a;
+                private String b;
+                private int c;
+                public String getA() { return a; }
+                public void setA(String a) { this.a = a; }
+                public String getB() { return b; }
+                public int getC() { return c; }
+                public void reset() {}
+                public String get() { return ""; }
+                public String describe() { return ""; }
+                public String isReady() { return ""; }
+                public boolean is() { return true; }
+                public void set(String x) {}
+              }
+              """);
+      assertThat(compilation).succeeded();
+      Assertions.assertThat(generatedSource(compilation, "com.example.MapOddBean"))
+          .contains("wire.setA(domain.a());");
+    }
+
+    @Test
+    @DisplayName("a builder whose setter type disagrees with the getter is rejected")
+    void builderTypeMismatch() {
+      Compilation compilation =
+          analyse(
+              "B8",
+              """
+              package com.example;
+
+              public class B8 {
+                private B8() {}
+                private String a;
+                public String getA() { return a; }
+                public static Builder builder() { return new Builder(); }
+                public static final class Builder {
+                  public Builder a(int x) { return this; }
+                  public B8 build() { return new B8(); }
+                }
+              }
+              """);
+      assertThat(compilation).failed();
+      assertThat(compilation)
+          .hadErrorContaining("bean property 'a' on 'B8' is read and written at different types");
+    }
+
+    @Test
+    @DisplayName("a builder covering only some getters maps the covered ones")
+    void builderPartialCoverage() {
+      Compilation compilation =
+          analyse(
+              "B9",
+              """
+              package com.example;
+
+              public class B9 {
+                private B9() {}
+                private String a;
+                private String b;
+                public String getA() { return a; }
+                public String getB() { return b; }
+                public static Builder builder() { return new Builder(); }
+                public static final class Builder {
+                  public Builder a(String v) { return this; }
+                  public B9 build() { return new B9(); }
+                }
+              }
+              """);
+      assertThat(compilation).succeeded();
+      Assertions.assertThat(generatedSource(compilation, "com.example.MapB9"))
+          .contains("b.a(domain.a())");
+    }
+
+    @Test
+    @DisplayName("a builder whose setters match no getter is unusable")
+    void builderNoMatchingProperty() {
+      Compilation compilation =
+          analyse(
+              "B10",
+              """
+              package com.example;
+
+              public class B10 {
+                private B10() {}
+                private String a;
+                public String getA() { return a; }
+                public static Builder builder() { return new Builder(); }
+                public static final class Builder {
+                  public Builder x(String v) { return this; }
+                  public B10 build() { return new B10(); }
+                }
+              }
+              """);
+      assertThat(compilation).failed();
+      assertThat(compilation).hadErrorContaining("'B10' is not a usable bean-shaped wire");
+    }
+
+    @Test
+    @DisplayName("a builder factory returning a non-class type is not a builder")
+    void builderFactoryNonDeclaredReturn() {
+      Compilation compilation =
+          analyse(
+              "B3",
+              """
+              package com.example;
+
+              public class B3 {
+                private B3() {}
+                private String a;
+                public String getA() { return a; }
+                public static int builder() { return 0; }
+              }
+              """);
+      assertThat(compilation).failed();
+      assertThat(compilation).hadErrorContaining("'B3' is not a usable bean-shaped wire");
+    }
+
+    @Test
+    @DisplayName("a builder factory with parameters is not a builder")
+    void builderFactoryWithParameters() {
+      Compilation compilation =
+          analyse(
+              "B4",
+              """
+              package com.example;
+
+              public class B4 {
+                private B4() {}
+                private String a;
+                public String getA() { return a; }
+                public static Builder builder(int seed) { return new Builder(); }
+                public static final class Builder {
+                  public B4 build() { return new B4(); }
+                }
+              }
+              """);
+      assertThat(compilation).failed();
+      assertThat(compilation).hadErrorContaining("'B4' is not a usable bean-shaped wire");
+    }
+
+    @Test
+    @DisplayName("a non-static builder factory is not a builder")
+    void builderFactoryNonStatic() {
+      Compilation compilation =
+          analyse(
+              "B5",
+              """
+              package com.example;
+
+              public class B5 {
+                private B5() {}
+                private String a;
+                public String getA() { return a; }
+                public Builder builder() { return new Builder(); }
+                public static final class Builder {
+                  public B5 build() { return new B5(); }
+                }
+              }
+              """);
+      assertThat(compilation).failed();
+      assertThat(compilation).hadErrorContaining("'B5' is not a usable bean-shaped wire");
+    }
+
+    @Test
+    @DisplayName("a non-public builder factory is not a builder")
+    void builderFactoryNonPublic() {
+      Compilation compilation =
+          analyse(
+              "B6",
+              """
+              package com.example;
+
+              public class B6 {
+                private B6() {}
+                private String a;
+                public String getA() { return a; }
+                static Builder builder() { return new Builder(); }
+                public static final class Builder {
+                  public B6 build() { return new B6(); }
+                }
+              }
+              """);
+      assertThat(compilation).failed();
+      assertThat(compilation).hadErrorContaining("'B6' is not a usable bean-shaped wire");
+    }
+
+    @Test
+    @DisplayName("a builder whose build() takes parameters does not yield the wire")
+    void builderBuildWithParameters() {
+      Compilation compilation =
+          analyse(
+              "B7a",
+              """
+              package com.example;
+
+              public class B7a {
+                private B7a() {}
+                private String a;
+                public String getA() { return a; }
+                public static Builder builder() { return new Builder(); }
+                public static final class Builder {
+                  public B7a build(int x) { return new B7a(); }
+                }
+              }
+              """);
+      assertThat(compilation).failed();
+      assertThat(compilation).hadErrorContaining("'B7a' is not a usable bean-shaped wire");
+    }
+
+    @Test
+    @DisplayName("a builder whose build() returns another type does not yield the wire")
+    void builderBuildWrongReturn() {
+      Compilation compilation =
+          analyse(
+              "B7b",
+              """
+              package com.example;
+
+              public class B7b {
+                private B7b() {}
+                private String a;
+                public String getA() { return a; }
+                public static Builder builder() { return new Builder(); }
+                public static final class Builder {
+                  public String build() { return ""; }
+                }
+              }
+              """);
+      assertThat(compilation).failed();
+      assertThat(compilation).hadErrorContaining("'B7b' is not a usable bean-shaped wire");
+    }
+  }
+
   private static String generatedSource(Compilation compilation, String qualifiedName) {
     return compilation.generatedSourceFiles().stream()
         .filter(f -> f.getName().contains(qualifiedName.replace('.', '/')))

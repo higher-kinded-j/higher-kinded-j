@@ -237,10 +237,11 @@ final class BeanPropertyAnalyser {
     if (factory == null) {
       factory = builderFactory(bean, "newBuilder");
     }
-    if (factory == null || !(factory.getReturnType() instanceof DeclaredType builderMirror)) {
+    if (factory == null) {
       return null;
     }
-    TypeElement builderType = (TypeElement) builderMirror.asElement();
+    // builderFactory only returns a factory whose return kind is DECLARED, so the cast is total.
+    TypeElement builderType = (TypeElement) ((DeclaredType) factory.getReturnType()).asElement();
     boolean buildsWire =
         publicInstanceMethods(builderType).stream()
             .anyMatch(
@@ -300,9 +301,10 @@ final class BeanPropertyAnalyser {
   }
 
   private boolean declaredOnObject(ExecutableElement method) {
-    Element enclosing = method.getEnclosingElement();
-    return enclosing instanceof TypeElement type
-        && type.getQualifiedName().contentEquals("java.lang.Object");
+    // A method's enclosing element is always the declaring type.
+    return ((TypeElement) method.getEnclosingElement())
+        .getQualifiedName()
+        .contentEquals("java.lang.Object");
   }
 
   private boolean isList(TypeMirror type) {
