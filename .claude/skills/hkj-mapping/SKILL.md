@@ -26,6 +26,7 @@ validated domain type out to the wire cannot fail. Coming from the wire in can, 
 | You have | You want | Use |
 |----------|----------|-----|
 | One domain record + one wire DTO | Convert both ways | **`@GenerateMapping`** |
+| One domain record + a PATCH request bean | Fold the present fields, leave the absent | **`@GenerateMapping`** on **`UpdateSpec`** |
 | N source records | One target record | **`@GenerateMerge`** |
 | One record + independently-validated parts | Construct it, collecting every error | **`@GenerateAssembly`** |
 | A sealed error hierarchy | Codes, timestamps, and a typed context | **`@GenerateErrorEnvelope`** |
@@ -197,6 +198,40 @@ rejected outright: the projection's `asLens()` write-back could never honour a c
 - **`parse` is capped at 16 components**: it is assembled via `Validated.fields()`.
 - **It is law-checked.** Assert `build`/`parse` round-trip with `MappingLaws.assertMappingLaws(...)`
   from `hkj-test`.
+
+### Sparse PATCH write-back: `UpdateSpec`
+
+A REST `PATCH` body sends only the fields to change; every other property arrives `null`, meaning
+*not provided, leave unchanged* - the opposite of a `parse`, where `null` is broken data. Opt into
+that contract by extending **`UpdateSpec`** instead of `MappingSpec`. The wire must be **bean-shaped**
+(a record component is always present, so it cannot signal absence).
+
+<!-- verify -->
+```java
+@GenerateMapping
+public interface UserPatchMapping extends UpdateSpec<User, UserPatchBean> {}
+//                                                   ^domain ^PATCH request bean
+```
+
+The Impl exposes a *single* method, `updateFrom(Wire) : Edits.Accumulated<Domain>` - no
+`build`/`parse`/`as*`. It folds the present (non-null) fields into an update and skips the absent
+ones:
+
+<!-- verify -->
+```java
+UserPatchBean patch = new UserPatchBean();
+patch.setEmail("new@corp.example");                              // name absent -> unchanged
+Edits.Accumulated<User> update = UserPatchMappingImpl.INSTANCE.updateFrom(patch);
+Validated<NonEmptyList<FieldError>, User> updated = update.apply(user);  // or applyPath / toValidated
+```
+
+- **Present + valid** -> set (or parsed through its leaf), folded in. **Present + invalid** -> a
+  located `FieldError`, accumulating. **Absent (null)** -> skipped.
+- A **primitive** or **`Optional`-typed** wire property is rejected (neither can carry the absent
+  signal); use a wrapper type, or a nested record/sentinel for the Optional.
+- Coverage is one-sided: a domain component with no wire property is simply never changed.
+- Law-check it with the sparse overload:
+  `MappingLaws.assertMappingLaws(Impl.INSTANCE::updateFrom, current, absentWire, validWire, invalidWire)`.
 
 ---
 

@@ -39,6 +39,10 @@ import java.lang.annotation.Target;
  *   <li>A lossless mapping additionally gets {@code asIso()}; a wire record with fewer components
  *       maps as a projection with {@code asLens()} and no {@code parse} (truthful types); every
  *       parse-capable mapping gets {@code asValidatedPrism()} so it plugs in wherever a leaf does.
+ *   <li>A spec extending {@link UpdateSpec} instead of {@link MappingSpec} (issue #645) opts into
+ *       sparse null-as-absent PATCH: it generates only {@code updateFrom(Wire) :
+ *       Edits.Accumulated<Domain>}, folding the present (non-null) wire properties into an update
+ *       and leaving absent ones unchanged.
  * </ul>
  */
 @Target(ElementType.TYPE)

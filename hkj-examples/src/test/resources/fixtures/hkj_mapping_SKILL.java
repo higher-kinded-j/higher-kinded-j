@@ -32,6 +32,8 @@ import org.higherkindedj.optics.annotations.GenerateMapping;
 import org.higherkindedj.optics.annotations.GenerateMerge;
 import org.higherkindedj.optics.annotations.MapField;
 import org.higherkindedj.optics.annotations.MappingSpec;
+import org.higherkindedj.optics.annotations.UpdateSpec;
+import org.higherkindedj.optics.edit.Edits;
 import org.higherkindedj.optics.validated.ValidatedPrism;
 import org.jspecify.annotations.Nullable;
 
@@ -81,6 +83,31 @@ record BankDto(String iban) implements PaymentDto {}
 
 // @GenerateMerge: N sources -> one target.
 record User(String name, String email) {}
+
+// UpdateSpec (sparse PATCH): a bean-shaped request where null means "not provided, leave unchanged".
+class UserPatchBean {
+  private String name;
+  private String email;
+
+  public String getName() {
+    return name;
+  }
+
+  public void setName(String name) {
+    this.name = name;
+  }
+
+  public String getEmail() {
+    return email;
+  }
+
+  public void setEmail(String email) {
+    this.email = email;
+  }
+}
+
+@GenerateMapping
+interface UserPatchMapping extends UpdateSpec<User, UserPatchBean> {}
 
 record Account(String iban, int balance) {}
 

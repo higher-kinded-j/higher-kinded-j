@@ -11,6 +11,8 @@ import org.higherkindedj.optics.annotations.GenerateMapping;
 import org.higherkindedj.optics.annotations.GenerateMerge;
 import org.higherkindedj.optics.annotations.MapField;
 import org.higherkindedj.optics.annotations.MappingSpec;
+import org.higherkindedj.optics.annotations.UpdateSpec;
+import org.higherkindedj.optics.edit.Edits;
 import org.higherkindedj.optics.validated.ValidatedPrism;
 
 /**
@@ -76,6 +78,18 @@ public final class RecordMappingBook {
     // A null bean property parses to a located FieldError, e.g. [email: must not be null].
     // ANCHOR_END: bean_usage
     System.out.println(bean.getName() + " / " + fromBean);
+
+    // ANCHOR: update_usage
+    Customer current = new Customer("Ada", new EmailAddress("ada@corp.example"));
+
+    ContactPatchBean patch = new ContactPatchBean();
+    patch.setName("Ada Lovelace"); // email left null: not provided, keep the current one
+
+    Edits.Accumulated<Customer> update = ContactPatchMappingImpl.INSTANCE.updateFrom(patch);
+    Validated<NonEmptyList<FieldError>, Customer> patched = update.apply(current);
+    // Valid(Customer[name=Ada Lovelace, email=ada@corp.example]) - only the name changed
+    // ANCHOR_END: update_usage
+    System.out.println(patched);
 
     // ANCHOR: merge_usage
     Dashboard dashboard =
@@ -251,6 +265,42 @@ interface ContactMapping extends MappingSpec<Customer, ContactBean> {
 }
 
 // ANCHOR_END: bean_spec
+
+// ANCHOR: update_spec
+// A PATCH request bean. Here null means "not provided, leave unchanged" - the opposite of the bean
+// parse above, where null is broken data. That contract is opted into by extending UpdateSpec.
+class ContactPatchBean {
+  private String name;
+  private String email;
+
+  public String getName() {
+    return name;
+  }
+
+  public void setName(String name) {
+    this.name = name;
+  }
+
+  public String getEmail() {
+    return email;
+  }
+
+  public void setEmail(String email) {
+    this.email = email;
+  }
+}
+
+@GenerateMapping
+interface ContactPatchMapping extends UpdateSpec<Customer, ContactPatchBean> {
+  // Generates only updateFrom(ContactPatchBean) : Edits.Accumulated<Customer> - no build/parse/as*.
+  // A present field is set (email parsed through its leaf, located on failure); an absent (null)
+  // one is skipped, so the domain's current value survives.
+  default ValidatedPrism<String, EmailAddress> email() {
+    return EmailCodecs.EMAIL;
+  }
+}
+
+// ANCHOR_END: update_spec
 
 // ANCHOR: nested_merge_spec
 record Wrapper(CustomerDto customer) {} // the wire side

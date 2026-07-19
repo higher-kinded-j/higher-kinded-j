@@ -11,9 +11,11 @@ import com.google.testing.compile.JavaFileObjects;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.function.Function;
 import javax.tools.JavaFileObject;
 import org.higherkindedj.optics.Iso;
 import org.higherkindedj.optics.Lens;
+import org.higherkindedj.optics.edit.Edits;
 import org.higherkindedj.optics.laws.MappingLaws;
 import org.higherkindedj.optics.validated.ValidatedPrism;
 import org.junit.jupiter.api.DisplayName;
@@ -649,5 +651,98 @@ class GeneratedMappingLawsTest {
             "Grace",
             result.newInstance("com.example.EmailAddress", "grace@example.org"),
             Optional.empty()));
+  }
+
+  @Test
+  @DisplayName(
+      "sparse-update tier: a generated updateFrom satisfies identity, idempotence and validation")
+  void updateTierIsLawful() throws ReflectiveOperationException {
+    JavaFileObject domain =
+        JavaFileObjects.forSourceString(
+            "com.example.User",
+            """
+            package com.example;
+
+            public record User(String name, EmailAddress email, int age) {}
+            """);
+    // A PATCH DTO: reference-typed getters/setters, a wrapper Integer for the scalar so it too can
+    // be absent (null).
+    JavaFileObject wire =
+        JavaFileObjects.forSourceString(
+            "com.example.UserPatchDto",
+            """
+            package com.example;
+
+            public class UserPatchDto {
+              private String name;
+              private String email;
+              private Integer age;
+
+              public String getName() { return name; }
+              public void setName(String name) { this.name = name; }
+              public String getEmail() { return email; }
+              public void setEmail(String email) { this.email = email; }
+              public Integer getAge() { return age; }
+              public void setAge(Integer age) { this.age = age; }
+            }
+            """);
+    JavaFileObject spec =
+        JavaFileObjects.forSourceString(
+            "com.example.UserPatchMapping",
+            """
+            package com.example;
+
+            import org.higherkindedj.hkt.validated.FieldError;
+            import org.higherkindedj.hkt.validated.Validated;
+            import org.higherkindedj.optics.annotations.GenerateMapping;
+            import org.higherkindedj.optics.annotations.UpdateSpec;
+            import org.higherkindedj.optics.validated.ValidatedPrism;
+
+            @GenerateMapping
+            public interface UserPatchMapping extends UpdateSpec<User, UserPatchDto> {
+              default ValidatedPrism<String, EmailAddress> email() {
+                return emailPrism();
+              }
+
+            """
+                + EMAIL_PRISM
+                + """
+            }
+            """);
+
+    var result = compileMapping(EMAIL, domain, wire, spec);
+    Object impl = implInstance(result, "com.example.UserPatchMappingImpl");
+
+    Function<Object, Edits.Accumulated<Object>> updateFrom =
+        w -> asAccumulated(invoke(impl, "updateFrom", w));
+
+    // Absent -> identity; a present valid patch changes name/email/age (Integer unboxing into int)
+    // and is idempotent; a present invalid email fails, all through the published harness.
+    MappingLaws.assertMappingLaws(
+        updateFrom,
+        result.newInstance(
+            "com.example.User",
+            "Ada",
+            result.newInstance("com.example.EmailAddress", "ada@example.org"),
+            36),
+        patchDto(result, null, null, null),
+        patchDto(result, "Grace", "grace@example.org", 41),
+        patchDto(result, null, "not-an-email", null));
+  }
+
+  @SuppressWarnings("unchecked")
+  private static Edits.Accumulated<Object> asAccumulated(Object accumulated) {
+    return (Edits.Accumulated<Object>) accumulated;
+  }
+
+  private static Object patchDto(
+      RuntimeCompilationHelper.CompiledResult result, String name, String email, Integer age)
+      throws ReflectiveOperationException {
+    Object dto =
+        result.loadClass("com.example.UserPatchDto").getDeclaredConstructor().newInstance();
+    invoke(dto, "setName", name);
+    invoke(dto, "setEmail", email);
+    invoke(dto, "setAge", age);
+    return dto;
   }
 }

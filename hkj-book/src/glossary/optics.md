@@ -308,9 +308,9 @@ Validated<NonEmptyList<FieldError>, Person> back =
     PersonMappingImpl.INSTANCE.parse(dto);                        // accumulating, located
 ```
 
-**Truthful emission tiers:** the generated mapper offers only what the shape supports: `asIso` when lossless, `asLens` when total one way, and the accumulating `parse` otherwise. Every tier is law-checked against the published `hkj-test` harness.
+**Truthful emission tiers:** the generated mapper offers only what the shape supports: `asIso` when lossless, `asLens` when total one way, and the accumulating `parse` otherwise. A spec extending [UpdateSpec](#updatespec) instead opts into the sparse PATCH tier (only `updateFrom`). Every tier is law-checked against the published `hkj-test` harness.
 
-**Related:** [Record Mapping](../optics/record_mapping.md), [ValidatedPrism](#validatedprism), [FieldError](#fielderror), [@GenerateMerge](#generatemerge)
+**Related:** [Record Mapping](../optics/record_mapping.md), [ValidatedPrism](#validatedprism), [FieldError](#fielderror), [@GenerateMerge](#generatemerge), [UpdateSpec](#updatespec)
 
 ---
 
@@ -498,6 +498,23 @@ Order discounted = orderItems.modify(
 ```
 
 **Related:** [Traversals Documentation](../optics/traversals.md)
+
+---
+
+## UpdateSpec
+
+**Definition:** The sparse-PATCH sibling of [MappingSpec](#generatemapping). Annotate an interface extending `UpdateSpec<Domain, Wire>` (with `@GenerateMapping`) to opt into the null-as-absent contract: a null bean property means *not provided, leave unchanged* rather than broken data. The processor generates a single method, `updateFrom(Wire) : Edits.Accumulated<Domain>` — no `build`, `parse`, or `as*` tier — folding the present (non-null) properties into an [Update](#edits) and skipping the absent ones. The wire must be bean-shaped; a primitive or `Optional`-typed component is rejected (neither can carry the absent signal). Present-but-invalid fields still fail, located and accumulating.
+
+**Example:**
+```java
+@GenerateMapping
+public interface UserPatchMapping extends UpdateSpec<User, UserPatchDto> {}
+
+Edits.Accumulated<User> patch = UserPatchMappingImpl.INSTANCE.updateFrom(dto);
+Validated<NonEmptyList<FieldError>, User> updated = patch.apply(current); // absent fields survive
+```
+
+**Related:** [Record Mapping](../optics/record_mapping.md#sparse-patch-write-back-updatespec), [@GenerateMapping](#generatemapping), [Edits](#edits)
 
 ---
 

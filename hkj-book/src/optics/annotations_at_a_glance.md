@@ -61,9 +61,10 @@ External types like `LocalDate`, Jackson's `JsonNode`, JOOQ records, and Protobu
 | Annotation | Apply to | Generates | When to reach for it |
 |---|---|---|---|
 | [`@GenerateMapping`](record_mapping.md) | interface extending `MappingSpec<Domain, Wire>` | `XMappingImpl` with a total `build` and an accumulating, located `parse` | Bidirectional boundary mapping with validation: every bad field reported at once |
+| [`@GenerateMapping`](record_mapping.md#sparse-patch-write-back-updatespec) | interface extending `UpdateSpec<Domain, Wire>` (bean wire) | `XMappingImpl` with only `updateFrom(Wire) : Edits.Accumulated<Domain>` | Sparse PATCH write-back: fold the present (non-null) request fields into an update, leave the absent ones |
 | [`@MapField(to = "...")`](record_mapping.md) | abstract method on the spec, named after the domain component | a rename in both directions | Domain and wire components with different names |
 
-Leaves, nesting, `List`/`Optional` lifting, sealed dispatch and the `asIso()`/`asLens()` tiers are covered in [Record Mapping](record_mapping.md).
+Leaves, nesting, `List`/`Optional` lifting, sealed dispatch, the `asIso()`/`asLens()` tiers, and the sparse `UpdateSpec` tier are covered in [Record Mapping](record_mapping.md).
 
 ---
 
@@ -126,6 +127,7 @@ For compile-time path-type checking, see [Compile-Time Checks](../tooling/compil
 | An external sealed/enum (in a library) | Prisms for its variants | `@ImportOptics` |
 | `JsonNode`, JOOQ records, anything tricky | Custom optics with copy strategy | `@ImportOptics` on an `OpticsSpec` interface + spec-method hints |
 | A domain record and a wire DTO | Map both ways, with validation | `@GenerateMapping` on a `MappingSpec` interface |
+| A domain record and a PATCH request bean | Fold the present fields into an update, leave the absent ones | `@GenerateMapping` on an `UpdateSpec` interface |
 
 ---
 

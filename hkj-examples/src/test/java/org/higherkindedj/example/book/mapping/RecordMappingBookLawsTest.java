@@ -25,4 +25,23 @@ class RecordMappingBookLawsTest {
         new CustomerDto("Bob", "not-an-email")); // must not parse
     // ANCHOR_END: laws
   }
+
+  @Test
+  void contactPatchMappingObeysTheSparseLaws() {
+    // ANCHOR: update_laws
+    MappingLaws.assertMappingLaws(
+        ContactPatchMappingImpl.INSTANCE::updateFrom,
+        new Customer("Ada", new EmailAddress("ada@example.org")), // the current value
+        patch(null, null), // all-absent   -> identity
+        patch("Grace", "grace@example.org"), // present valid -> changes the domain
+        patch(null, "not-an-email")); // present invalid -> located failure
+    // ANCHOR_END: update_laws
+  }
+
+  private static ContactPatchBean patch(String name, String email) {
+    ContactPatchBean bean = new ContactPatchBean();
+    bean.setName(name);
+    bean.setEmail(email);
+    return bean;
+  }
 }
