@@ -5,10 +5,14 @@ package org.higherkindedj.optics.laws;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.util.Locale;
+import java.util.function.Function;
 import org.higherkindedj.hkt.validated.FieldError;
 import org.higherkindedj.hkt.validated.Validated;
 import org.higherkindedj.optics.Iso;
 import org.higherkindedj.optics.Lens;
+import org.higherkindedj.optics.Setter;
+import org.higherkindedj.optics.edit.Edit;
+import org.higherkindedj.optics.edit.Edits;
 import org.higherkindedj.optics.validated.ValidatedPrism;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -66,6 +70,31 @@ class MappingLawsTest {
           w -> Validated.validNel(new FullName(w.first(), w.last())),
           d -> new FullNameDto(d.first(), d.last(), d.first() + " " + d.last()));
 
+  // Sparse-update tier: a hand-written updateFrom over an owner (identity) and a validated contact
+  // (leaf), mirroring what an UpdateSpec Impl emits (issue #645).
+  record Account(String owner, EmailAddress contact) {}
+
+  record AccountPatch(String owner, String contact) {}
+
+  private static final Setter<Account, String> ACCOUNT_OWNER =
+      Setter.fromGetSet(Account::owner, (a, v) -> new Account(v, a.contact()));
+
+  private static final Setter<Account, EmailAddress> ACCOUNT_CONTACT =
+      Setter.fromGetSet(Account::contact, (a, v) -> new Account(a.owner(), v));
+
+  private static final Account ACCOUNT = new Account("Ada", new EmailAddress("ada@example.org"));
+
+  // Lawful: absent -> no-op, present owner -> set, present contact -> parsed and located.
+  private static final Function<AccountPatch, Edits.Accumulated<Account>> LAWFUL_UPDATE =
+      p ->
+          Edits.accumulate(
+              Edit.setIfPresent(ACCOUNT_OWNER, p.owner()),
+              Edit.parseIfPresent(ACCOUNT_CONTACT, p.contact(), EMAIL::parse).at("contact"));
+
+  private static final AccountPatch ABSENT_PATCH = new AccountPatch(null, null);
+  private static final AccountPatch VALID_PATCH = new AccountPatch("Grace", "grace@example.org");
+  private static final AccountPatch INVALID_PATCH = new AccountPatch(null, "not-an-email");
+
   @Nested
   @DisplayName("Lawful mappings pass every tier's laws")
   class LawfulMappings {
@@ -96,6 +125,13 @@ class MappingLawsTest {
     @DisplayName("a total-parse mapping with a derived field round-trips its domain sample")
     void totalParseTierPasses() {
       MappingLaws.assertMappingLaws(DERIVED_MAPPING, new FullName("Ada", "Lovelace"));
+    }
+
+    @Test
+    @DisplayName("the sparse-update tier passes identity, idempotence and validation")
+    void sparseUpdateTierPasses() {
+      MappingLaws.assertMappingLaws(
+          LAWFUL_UPDATE, ACCOUNT, ABSENT_PATCH, VALID_PATCH, INVALID_PATCH);
     }
 
     @Test
@@ -161,6 +197,44 @@ class MappingLawsTest {
           .isInstanceOf(AssertionError.class)
           .hasMessageContaining("parse-build");
     }
+
+    @Test
+    @DisplayName("a sparse update that ignores the absent contract fails the identity law")
+    void sparseNonIdentityFails() {
+      // Always sets owner, even for an all-absent wire, so the domain never survives untouched.
+      Function<AccountPatch, Edits.Accumulated<Account>> alwaysSets =
+          p -> Edits.accumulate(Edit.set(ACCOUNT_OWNER, "CONSTANT"));
+
+      assertThatThrownBy(() -> MappingLaws.assertSparseIdentity(alwaysSets, ACCOUNT, ABSENT_PATCH))
+          .isInstanceOf(AssertionError.class)
+          .hasMessageContaining("identity law");
+    }
+
+    @Test
+    @DisplayName("a modify-shaped sparse update fails the idempotence law")
+    void sparseNonIdempotentFails() {
+      // Appends the present owner to the current one, so applying twice differs from applying once.
+      Function<AccountPatch, Edits.Accumulated<Account>> appending =
+          p ->
+              Edits.accumulate(Edit.modifyIfPresent(ACCOUNT_OWNER, p.owner(), (v, cur) -> cur + v));
+
+      assertThatThrownBy(() -> MappingLaws.assertSparseIdempotent(appending, ACCOUNT, VALID_PATCH))
+          .isInstanceOf(AssertionError.class)
+          .hasMessageContaining("idempotence law");
+    }
+
+    @Test
+    @DisplayName("a sparse update that ignores a present invalid field fails the validation law")
+    void sparseValidationDoesNotFail() {
+      // Never parses contact, so an invalid contact still yields a Valid result.
+      Function<AccountPatch, Edits.Accumulated<Account>> ignoresContact =
+          p -> Edits.accumulate(Edit.setIfPresent(ACCOUNT_OWNER, p.owner()));
+
+      assertThatThrownBy(
+              () -> MappingLaws.assertSparseValidationFails(ignoresContact, ACCOUNT, INVALID_PATCH))
+          .isInstanceOf(AssertionError.class)
+          .hasMessageContaining("must fail");
+    }
   }
 
   @Nested
@@ -219,6 +293,26 @@ class MappingLawsTest {
       assertThatThrownBy(() -> MappingLaws.assertMappingLaws(EMAIL, "nope", "also-nope"))
           .isInstanceOf(AssertionError.class)
           .hasMessageContaining("PARSING");
+    }
+
+    @Test
+    @DisplayName("the sparse tier rejects a validWire that does not change the domain")
+    void sparseTierRejectsVacuousValidWire() {
+      // A patch equal to the current values changes nothing, making idempotence vacuously true.
+      AccountPatch vacuous = new AccountPatch("Ada", "ada@example.org");
+
+      assertThatThrownBy(() -> MappingLaws.assertSparseIdempotent(LAWFUL_UPDATE, ACCOUNT, vacuous))
+          .isInstanceOf(AssertionError.class)
+          .hasMessageContaining("CHANGES");
+    }
+
+    @Test
+    @DisplayName("the sparse tier rejects a validWire that does not parse")
+    void sparseTierRejectsNonParsingValidWire() {
+      assertThatThrownBy(
+              () -> MappingLaws.assertSparseIdempotent(LAWFUL_UPDATE, ACCOUNT, INVALID_PATCH))
+          .isInstanceOf(AssertionError.class)
+          .hasMessageContaining("PARSES");
     }
   }
 }

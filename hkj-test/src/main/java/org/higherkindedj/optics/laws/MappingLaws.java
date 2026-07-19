@@ -4,11 +4,13 @@ package org.higherkindedj.optics.laws;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import java.util.function.Function;
 import org.higherkindedj.hkt.nonemptylist.NonEmptyList;
 import org.higherkindedj.hkt.validated.FieldError;
 import org.higherkindedj.hkt.validated.Validated;
 import org.higherkindedj.optics.Iso;
 import org.higherkindedj.optics.Lens;
+import org.higherkindedj.optics.edit.Edits;
 import org.higherkindedj.optics.validated.ValidatedPrism;
 
 /**
@@ -28,6 +30,9 @@ import org.higherkindedj.optics.validated.ValidatedPrism;
  *       value - both validated round-trip laws plus the no-parse sanity check;
  *   <li>total-parse mappings (no wire value can fail, e.g. derived wire fields over identity
  *       components): pass a domain sample - the round trip through {@code build}.
+ *   <li>sparse-update tier ({@code updateFrom()} only, from an {@code UpdateSpec}): pass the {@code
+ *       updateFrom} method reference, a domain sample, and an all-absent, a valid and an invalid
+ *       wire - the identity, idempotence and validation laws.
  * </ul>
  *
  * <p>The derived-field reality: {@code build} recomputes a derived wire component and {@code parse}
@@ -141,5 +146,103 @@ public final class MappingLaws {
    */
   public static <W, D> void assertMappingLaws(ValidatedPrism<W, D> mapping, D domainSample) {
     ValidatedPrismLaws.assertParseBuild(mapping, domainSample);
+  }
+
+  /**
+   * All laws of the sparse-update tier ({@code updateFrom(Wire) : Edits.Accumulated<Domain>}, issue
+   * #645): the identity, idempotence and validation laws that make a null-as-absent PATCH lawful.
+   *
+   * <ul>
+   *   <li><b>Identity</b> — {@code updateFrom(allAbsentWire).apply(d) == Valid(d)}: an all-absent
+   *       wire folds to the identity update, leaving the domain untouched.
+   *   <li><b>Idempotence</b> — applying a valid patch twice equals applying it once. This holds
+   *       because generated edits <em>set</em> or <em>parse</em> (overwrite), never
+   *       <em>modify</em>; a modify-shaped edit (e.g. increment) is deliberately not idempotent and
+   *       would fail here.
+   *   <li><b>Validation</b> — {@code updateFrom(invalidWire).apply(d)} is {@code Invalid}: a
+   *       present but invalid field fails, so sparseness never weakens validation of what was sent.
+   * </ul>
+   *
+   * <p>Monoidal composition of the folded {@code Update} is {@code Monoids.update()}'s own law
+   * suite (verified there); this helper checks only the laws specific to {@code updateFrom}.
+   *
+   * <p>Guards against vacuous fixtures: {@code validWire} must parse and must actually change
+   * {@code domainSample} (otherwise idempotence is trivially true), and {@code invalidWire} must
+   * fail (otherwise the validation law is not exercised).
+   *
+   * @param updateFrom the generated {@code Impl.INSTANCE::updateFrom}
+   * @param domainSample the current domain value a patch is applied onto
+   * @param allAbsentWire a wire with every property absent (null)
+   * @param validWire a wire with at least one present, valid property that changes the domain
+   * @param invalidWire a wire with a present but invalid property
+   */
+  public static <W, D> void assertMappingLaws(
+      Function<? super W, Edits.Accumulated<D>> updateFrom,
+      D domainSample,
+      W allAbsentWire,
+      W validWire,
+      W invalidWire) {
+    assertSparseIdentity(updateFrom, domainSample, allAbsentWire);
+    assertSparseIdempotent(updateFrom, domainSample, validWire);
+    assertSparseValidationFails(updateFrom, domainSample, invalidWire);
+  }
+
+  /**
+   * Sparse identity law: an all-absent wire folds to the identity update, so {@code
+   * updateFrom(allAbsentWire).apply(domainSample) == Valid(domainSample)}.
+   */
+  public static <W, D> void assertSparseIdentity(
+      Function<? super W, Edits.Accumulated<D>> updateFrom, D domainSample, W allAbsentWire) {
+    Validated<NonEmptyList<FieldError>, D> result =
+        updateFrom.apply(allAbsentWire).apply(domainSample);
+    assertThat(result)
+        .as(
+            "Sparse identity law: updateFrom(allAbsentWire).apply(%s) == Valid(it); got %s",
+            domainSample, result)
+        .isEqualTo(Validated.validNel(domainSample));
+  }
+
+  /**
+   * Sparse idempotence law: applying the same valid patch twice equals applying it once. Guards
+   * that {@code validWire} parses and genuinely changes the domain, so the law is not vacuously
+   * true.
+   */
+  public static <W, D> void assertSparseIdempotent(
+      Function<? super W, Edits.Accumulated<D>> updateFrom, D domainSample, W validWire) {
+    Validated<NonEmptyList<FieldError>, D> once = updateFrom.apply(validWire).apply(domainSample);
+    assertThat(once.isValid())
+        .as(
+            "Sparse idempotence needs a validWire that PARSES; updateFrom(validWire).apply(%s) was"
+                + " %s",
+            domainSample, once)
+        .isTrue();
+    D patched = once.get();
+    assertThat(patched)
+        .as(
+            "Sparse idempotence needs a validWire that CHANGES the domain; %s left %s unchanged",
+            validWire, domainSample)
+        .isNotEqualTo(domainSample);
+    Validated<NonEmptyList<FieldError>, D> twice = updateFrom.apply(validWire).apply(patched);
+    assertThat(twice)
+        .as(
+            "Sparse idempotence law: applying the same patch twice equals applying it once; got %s",
+            twice)
+        .isEqualTo(Validated.validNel(patched));
+  }
+
+  /**
+   * Sparse validation law: a present but invalid field fails, so {@code
+   * updateFrom(invalidWire).apply(domainSample)} is {@code Invalid}.
+   */
+  public static <W, D> void assertSparseValidationFails(
+      Function<? super W, Edits.Accumulated<D>> updateFrom, D domainSample, W invalidWire) {
+    Validated<NonEmptyList<FieldError>, D> result =
+        updateFrom.apply(invalidWire).apply(domainSample);
+    assertThat(result.isInvalid())
+        .as(
+            "Sparse validation law: a present invalid field must fail;"
+                + " updateFrom(invalidWire).apply(%s) was %s",
+            domainSample, result)
+        .isTrue();
   }
 }
