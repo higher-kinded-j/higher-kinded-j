@@ -162,6 +162,7 @@ The field correspondences select what the Impl can lawfully offer; nothing is fa
 | Any fallible leaf, nested spec or derived field | `build`, accumulating `parse`, no `asIso` |
 | Wire record with *fewer* components (lossy projection) | `build` + **`asLens()`** whose `set` writes the projected components back, **no `parse`** (the dropped components cannot be reconstructed) |
 | Every parse-capable mapping | **`asValidatedPrism()`**: the mapping as a leaf, so it nests and lifts |
+| A spec extending **`UpdateSpec`** (opt-in, bean wire) | only **`updateFrom(Wire)`**: a sparse PATCH fold, [below](#sparse-patch-write-back-updatespec) |
 
 ``` java
 {{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/mapping/RecordMappingBook.java:projection_spec}}
@@ -186,6 +187,7 @@ The overloads follow the tiers:
 - **Projection:** pass `asLens()` with a domain value and two wire values.
 - **Fallible tier:** pass `asValidatedPrism()` with a parsing and a non-parsing wire value.
 - **Derived-field (total-parse) mapping:** `build` recomputes what `parse` ignores, so only the non-derived components round-trip. The domain-sample overload `assertMappingLaws(prism, domainValue)` asserts exactly that and nothing stronger.
+- **Sparse-update (`UpdateSpec`) mapping:** pass the `updateFrom` method reference, a domain value, and an all-absent, a valid and an invalid wire to check the identity, idempotence and validation laws ([below](#sparse-patch-write-back-updatespec)).
 
 A spec with a derived field *and* a fallible leaf is better served by the fallible overload, given a parseable wire value whose derived components match what `build` would produce (this keeps the no-parse check). Reserve the domain-sample overload for total-parse mappings, where no wire value can fail.
 
@@ -218,6 +220,44 @@ The design decisions worth knowing:
 ~~~admonish note title="Not yet: bean projections and read-only beans"
 A bean *projection* (a bean with fewer properties than the domain) with a reference property, and read-only (parse-only) or write-only (build-only) beans, are follow-ons. An all-primitive bean projection maps as a lawful `asLens()` today; a reference-typed one is reported with a pointer to the planned validated-`patch` tier rather than emitting an unlawful lens.
 ~~~
+
+---
+
+## Sparse PATCH write-back: `UpdateSpec`
+
+A `parse` reads a null bean property as **broken data** - a located `FieldError`. But a REST `PATCH` body means the opposite: the client sends only the fields it wants to change, and every other property of the bound request arrives `null`, meaning *not provided, leave unchanged*. The two meanings of `null` are a property of the DTO's contract, not something the mapper can infer, so sparse semantics are an **explicit opt-in**: the spec extends `UpdateSpec<Domain, Wire>` instead of `MappingSpec`.
+
+``` java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/mapping/RecordMappingBook.java:update_spec}}
+```
+
+The Impl exposes a *single* method, `updateFrom(Wire) : Edits.Accumulated<Domain>` - no `build`, `parse`, or `as*` tier (a sparse mapping is not a projection of information, and an all-null wire is *valid*, not a total parse). It folds the present properties into an [`Update<Domain>`](multi_edit.md), leaving the absent ones alone:
+
+``` java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/mapping/RecordMappingBook.java:update_usage}}
+```
+
+- **Present and valid** → the field is set, or parsed through its leaf, and folded in.
+- **Present and invalid** → a located `FieldError`, accumulating as usual: sparseness never weakens validation of what *was* sent. `Edits.Accumulated` also offers `applyPath(current)` to drop straight onto the [validation railway](../effect/path_validation.md), so a controller can answer `400` with the errors instead of persisting a partial write.
+- **Absent (null)** → skipped; the domain's current value survives.
+
+The return type is exactly what a hand-written [`Edits.accumulate(...)`](multi_edit.md) PATCH builder produces, so the two compose and the same consumption story (`apply`, `applyPath`, `toValidated`) carries over.
+
+The rules that keep the contract honest:
+
+- **A primitive wire property is rejected.** A primitive is always present (its default), so it can never carry the null-as-absent signal; use the wrapper type (`Integer`, `Boolean`). This is *forced*, not a style choice: an all-absent body must fold to the identity update, which a primitive would break.
+- **A domain `Optional<T>` component is rejected.** Under null-as-absent, `null` already means "leave unchanged", so "set to empty" has no encoding (and a null-clears rule would be JSON Merge Patch's opposite contract). Model the field as a nested record or a sentinel instead.
+- **A record wire is rejected.** A record component is always present, so absence is inexpressible - sparse PATCH is a bean-only shape.
+- **Coverage is one-sided.** Every wire property maps to a domain component, but a domain component with *no* wire property is simply never changed: a PATCH DTO deliberately covers a subset.
+- **A same-typed nested record, `List` or `Map` replaces wholesale** through identity; a nested record whose wire differs is patched wholesale through its own full mapping spec. Deep merge is out of scope.
+
+The sparse tier is law-checked like every other, through the same `MappingLaws` harness:
+
+``` java
+{{#include ../../../hkj-examples/src/test/java/org/higherkindedj/example/book/mapping/RecordMappingBookLawsTest.java:update_laws}}
+```
+
+Identity (an all-absent wire is the identity update), idempotence (applying the same patch twice equals applying it once - which holds because the generated edits *set* and *parse*, never *modify*), and validation (a present invalid field fails).
 
 ---
 
