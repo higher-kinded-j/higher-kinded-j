@@ -6,7 +6,8 @@ package org.higherkindedj.spring.example.domain;
  * Base interface for domain errors. Errors are modeled as sealed types for exhaustive pattern
  * matching.
  */
-public sealed interface DomainError permits UserNotFoundError, ValidationError {
+public sealed interface DomainError
+    permits UserNotFoundError, ValidationError, PatchValidationError {
   /**
    * Returns the error message.
    *
