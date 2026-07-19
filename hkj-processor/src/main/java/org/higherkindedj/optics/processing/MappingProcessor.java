@@ -35,6 +35,7 @@ import javax.lang.model.element.Modifier;
 import javax.lang.model.element.RecordComponentElement;
 import javax.lang.model.element.TypeElement;
 import javax.lang.model.type.DeclaredType;
+import javax.lang.model.type.PrimitiveType;
 import javax.lang.model.type.TypeKind;
 import javax.lang.model.type.TypeMirror;
 import javax.lang.model.util.ElementFilter;
@@ -75,6 +76,14 @@ import org.higherkindedj.optics.processing.util.Diagnostics;
  * {@code Optional<T>} bridges to a nullable bean property {@code T}. A reference-typed bean
  * projection is deferred (the validated-patch tier); an all-primitive one keeps the {@code
  * asLens()} projection.
+ *
+ * <p>A spec extending {@code UpdateSpec<Domain, Wire>} (issue #645, {@link
+ * org.higherkindedj.optics.annotations.UpdateSpec}) opts into the opposite null contract: a null
+ * bean property means <em>absent — leave unchanged</em> rather than invalid. Such a spec emits only
+ * {@code updateFrom(Wire) : Edits.Accumulated<Domain>}, folding the present (non-null) properties
+ * into an {@code Update} via {@code Edits.accumulate} — no {@code build}, {@code parse}, or {@code
+ * as*} tier. A primitive wire property (which can never be absent) is rejected with a diagnostic,
+ * and an {@code UpdateSpec} never registers for nesting (it has no {@code parse}).
  */
 @AutoService(Processor.class)
 @SupportedAnnotationTypes("org.higherkindedj.optics.annotations.GenerateMapping")
@@ -82,10 +91,16 @@ public class MappingProcessor extends AbstractProcessor {
 
   private static final String TAG = "@GenerateMapping";
   private static final String MAPPING_SPEC = "org.higherkindedj.optics.annotations.MappingSpec";
+  private static final String UPDATE_SPEC = "org.higherkindedj.optics.annotations.UpdateSpec";
   private static final String VALIDATED_PRISM = "org.higherkindedj.optics.validated.ValidatedPrism";
   private static final String GETTER = "org.higherkindedj.optics.Getter";
   private static final ClassName VALIDATED_PRISM_TYPE =
       ClassName.get("org.higherkindedj.optics.validated", "ValidatedPrism");
+  private static final ClassName EDITS = ClassName.get("org.higherkindedj.optics.edit", "Edits");
+  private static final ClassName EDIT = ClassName.get("org.higherkindedj.optics.edit", "Edit");
+  private static final ClassName ACCUMULATED =
+      ClassName.get("org.higherkindedj.optics.edit", "Edits", "Accumulated");
+  private static final ClassName SETTER = ClassName.get("org.higherkindedj.optics", "Setter");
   private static final ClassName VALIDATED =
       ClassName.get("org.higherkindedj.hkt.validated", "Validated");
   private static final ClassName FIELD_ERROR =
@@ -267,6 +282,15 @@ public class MappingProcessor extends AbstractProcessor {
     }
     TypeElement spec = (TypeElement) element;
 
+    // A spec extending UpdateSpec<Domain, Wire> opts into sparse null-as-absent PATCH (#645): it
+    // emits updateFrom() and nothing else. It never reaches scanRegistry (which matches the direct
+    // MappingSpec supertype only), so an UpdateSpec is never nestable — it has no parse.
+    DeclaredType updateSuper = findUpdateSpec(spec);
+    if (updateSuper != null) {
+      processUpdateSpec(spec, updateSuper);
+      return;
+    }
+
     DeclaredType specSuper = findMappingSpec(spec);
     if (specSuper == null || specSuper.getTypeArguments().size() != 2) {
       Diagnostics.error(
@@ -374,6 +398,385 @@ public class MappingProcessor extends AbstractProcessor {
       return;
     }
     writeImpl(spec, domain, wireShape, correspondences);
+  }
+
+  /**
+   * Processes a sparse-update spec (issue #645, {@code extends UpdateSpec<Domain, Wire>}). The wire
+   * must be a bean-shaped class (a record cannot signal absence) and the domain a record; sealed
+   * pairs are deferred. Every present (non-null) wire property folds into an {@code Update} via
+   * {@code Edits.accumulate}; absent properties leave the domain unchanged. Only {@code updateFrom}
+   * is emitted — no {@code build}, {@code parse}, or {@code as*} tier.
+   */
+  private void processUpdateSpec(TypeElement spec, DeclaredType updateSuper) {
+    if (updateSuper.getTypeArguments().size() != 2) {
+      Diagnostics.error(
+          processingEnv.getMessager(),
+          spec,
+          TAG,
+          "'" + spec.getSimpleName() + "' does not extend UpdateSpec<Domain, Wire>.",
+          "The two type arguments name the domain record and the bean-shaped PATCH wire.",
+          "Add 'extends UpdateSpec<Domain, Wire>' with both type arguments.");
+      return;
+    }
+    if (spec.getInterfaces().size() != 1) {
+      Diagnostics.error(
+          processingEnv.getMessager(),
+          spec,
+          TAG,
+          "'" + spec.getSimpleName() + "' extends interfaces besides UpdateSpec.",
+          "Renames and leaves declared on other supertypes are invisible to this slice's"
+              + " classification, so the generated Impl could silently miss inherited members.",
+          "Declare every rename and leaf directly on the spec.");
+      return;
+    }
+
+    TypeMirror domainArg = updateSuper.getTypeArguments().get(0);
+    TypeMirror wireArg = updateSuper.getTypeArguments().get(1);
+
+    if (asSealed(domainArg) != null || asSealed(wireArg) != null) {
+      Diagnostics.error(
+          processingEnv.getMessager(),
+          spec,
+          TAG,
+          "a sparse UpdateSpec cannot map a sealed hierarchy.",
+          "A sparse update edits the fields of one record; a sealed mapping dispatches over whole"
+              + " values, and a wire subtype cannot choose the domain variant to patch at fold"
+              + " time.",
+          "Declare one UpdateSpec per concrete record pair.");
+      return;
+    }
+
+    if (!validateSpecMethods(spec, false)) {
+      return;
+    }
+
+    TypeElement domain = asRecord(domainArg);
+    if (domain == null) {
+      reportUnsupportedDomain(spec, domainArg);
+      return;
+    }
+
+    // A record wire cannot express "absent" (every component is always present), so sparse PATCH is
+    // a bean-only shape; a non-bean, non-record wire is unsupported as for the full mapper.
+    if (asRecord(wireArg) != null) {
+      reportRecordWireOnUpdate(spec, domain, asRecord(wireArg));
+      return;
+    }
+    TypeElement wireBean = asBean(wireArg);
+    if (wireBean == null) {
+      reportUnsupportedWire(spec, wireArg);
+      return;
+    }
+    if (!checkNotGeneric(spec, domain, wireBean)) {
+      return;
+    }
+
+    WireShape wireShape = new BeanPropertyAnalyser(processingEnv).analyse(spec, wireBean, TAG);
+    if (wireShape == null) {
+      return;
+    }
+
+    Map<String, String> renames = collectRenames(spec, domain, wireShape);
+    if (renames == null) {
+      return;
+    }
+
+    List<UpdateEdit> edits = classifyUpdate(spec, domain, wireShape, renames);
+    if (edits == null) {
+      return;
+    }
+    writeUpdateImpl(spec, domain, wireShape, edits);
+  }
+
+  /**
+   * One folded edit of a sparse update: the domain component it writes, the wire property it reads,
+   * and — for a validated leaf — the leaf accessor to parse the present value through. A pure
+   * (identity) edit carries no leaf and folds as {@code Edit.setIfPresent}; a leaf edit folds as
+   * {@code Edit.parseIfPresent(...).at(name)}.
+   */
+  private record UpdateEdit(String domainName, String wireName, CodeBlock leaf) {
+    boolean parsed() {
+      return leaf != null;
+    }
+  }
+
+  /**
+   * Classifies each wire property against the domain for a sparse update. Coverage is one-sided:
+   * every wire property must map to a domain component (a dangling wire property is an error), but
+   * a domain component with no wire property is simply never edited. Each property matches by an
+   * explicit leaf (named after the domain component), or by identity — the same type, or a wrapper
+   * of a primitive domain component (so an {@code Integer} property can patch an {@code int}
+   * field). A primitive wire property can never be absent and is rejected. Returns null after
+   * reporting.
+   */
+  private List<UpdateEdit> classifyUpdate(
+      TypeElement spec, TypeElement domain, WireShape wire, Map<String, String> renames) {
+    Map<String, String> wireToDomain = new LinkedHashMap<>();
+    renames.forEach((domainName, wireName) -> wireToDomain.put(wireName, domainName));
+
+    List<UpdateEdit> edits = new ArrayList<>();
+    Map<String, String> claimedBy = new LinkedHashMap<>();
+    for (WireShape.WireComponent property : wire.components()) {
+      String domainName = wireToDomain.getOrDefault(property.name(), property.name());
+      RecordComponentElement domainComp =
+          domain.getRecordComponents().stream()
+              .filter(c -> c.getSimpleName().contentEquals(domainName))
+              .findFirst()
+              .orElse(null);
+      if (domainComp == null) {
+        reportDanglingWireProperty(spec, domain, property);
+        return null;
+      }
+      // One wire property per domain component: a same-named property and a rename can otherwise
+      // both land on one component, silently emitting two writes to the same slot.
+      if (claimedBy.containsKey(domainName)) {
+        reportDuplicateDomainTarget(
+            spec, domain, domainName, claimedBy.get(domainName), property.name());
+        return null;
+      }
+      claimedBy.put(domainName, property.name());
+      if (property.type().getKind().isPrimitive()) {
+        reportPrimitiveProperty(spec, property);
+        return null;
+      }
+      ExecutableElement leaf = findLeaf(spec, domainName, property.type(), domainComp.asType());
+      if (leaf != null) {
+        edits.add(
+            new UpdateEdit(
+                domainName, property.name(), CodeBlock.of("$L()", leaf.getSimpleName())));
+        continue;
+      }
+      if (identityMatch(property.type(), domainComp.asType())) {
+        edits.add(new UpdateEdit(domainName, property.name(), null));
+        continue;
+      }
+      reportNoUpdateSource(spec, domain, property, domainComp);
+      return null;
+    }
+    return edits;
+  }
+
+  /**
+   * Whether a present wire value can be written straight into the domain component: the same type,
+   * or a wrapper of a primitive domain component (unboxing identity). The wire property is never a
+   * primitive here — a primitive property is rejected before this by {@link #classifyUpdate}.
+   */
+  private boolean identityMatch(TypeMirror wireType, TypeMirror domainType) {
+    if (processingEnv.getTypeUtils().isSameType(wireType, domainType)) {
+      return true;
+    }
+    if (domainType.getKind().isPrimitive()) {
+      TypeMirror boxed =
+          processingEnv.getTypeUtils().boxedClass((PrimitiveType) domainType).asType();
+      return processingEnv.getTypeUtils().isSameType(wireType, boxed);
+    }
+    return false;
+  }
+
+  /**
+   * A record wire on an UpdateSpec: records cannot express an absent (null-as-not-provided) field.
+   */
+  private void reportRecordWireOnUpdate(TypeElement spec, TypeElement domain, TypeElement wire) {
+    Diagnostics.error(
+        processingEnv.getMessager(),
+        spec,
+        TAG,
+        "the wire '"
+            + wire.getSimpleName()
+            + "' is a record, which a sparse UpdateSpec cannot map.",
+        "Sparse PATCH reads null as 'not provided, leave unchanged', but a record component is"
+            + " always present, so absence is inexpressible.",
+        "Use a bean-shaped PATCH DTO (wrapper-typed getters/setters), or a full MappingSpec<"
+            + domain.getSimpleName()
+            + ", "
+            + wire.getSimpleName()
+            + "> if you meant a total mapping.");
+  }
+
+  /**
+   * A primitive wire property is always present, so it can never carry the null-as-absent signal.
+   */
+  private void reportPrimitiveProperty(TypeElement spec, WireShape.WireComponent property) {
+    Diagnostics.error(
+        processingEnv.getMessager(),
+        spec,
+        TAG,
+        "the wire property '" + property.name() + "' is primitive and can never be absent.",
+        "An all-absent PATCH body must fold to the identity update, but a primitive property always"
+            + " carries a value (its default), so its 'absent' state cannot be distinguished.",
+        "Use the wrapper type for '"
+            + property.name()
+            + "' on the PATCH DTO (e.g. Integer, Boolean).");
+  }
+
+  /**
+   * A wire property with no domain component to write into (one-sided coverage still requires one).
+   */
+  private void reportDanglingWireProperty(
+      TypeElement spec, TypeElement domain, WireShape.WireComponent property) {
+    Diagnostics.error(
+        processingEnv.getMessager(),
+        spec,
+        TAG,
+        "the wire property '"
+            + property.name()
+            + "' names no component of "
+            + domain.getSimpleName()
+            + ".",
+        "A sparse update writes each present wire property into a domain component; there is no"
+            + " build step for a derived field to feed. Found on "
+            + domain.getSimpleName()
+            + ": "
+            + wireNames(domain.getRecordComponents())
+            + ".",
+        "Add a @MapField rename to a domain component, or remove the property.");
+  }
+
+  /** Two wire properties resolve to the same domain component (a same-named one and a rename). */
+  private void reportDuplicateDomainTarget(
+      TypeElement spec, TypeElement domain, String domainName, String first, String second) {
+    Diagnostics.error(
+        processingEnv.getMessager(),
+        spec,
+        TAG,
+        "the wire properties '"
+            + first
+            + "' and '"
+            + second
+            + "' both write "
+            + domain.getSimpleName()
+            + "."
+            + domainName
+            + ".",
+        "Each domain component takes at most one wire source, or the update would write the slot"
+            + " twice (last write wins).",
+        "Point the @MapField rename at a distinct component, or drop one of the properties.");
+  }
+
+  /** A wire property matches a domain component by name but neither by type nor through a leaf. */
+  private void reportNoUpdateSource(
+      TypeElement spec,
+      TypeElement domain,
+      WireShape.WireComponent property,
+      RecordComponentElement domainComp) {
+    Diagnostics.error(
+        processingEnv.getMessager(),
+        spec,
+        TAG,
+        "the wire property '"
+            + property.name()
+            + "' ("
+            + property.type()
+            + ") cannot be written into "
+            + domain.getSimpleName()
+            + "."
+            + domainComp.getSimpleName()
+            + " ("
+            + domainComp.asType()
+            + ").",
+        "A sparse update writes a present property by identity (same type, or a wrapper of a"
+            + " primitive component) or through a leaf named after the domain component."
+            + leafNearMissHint(spec, domainComp.getSimpleName().toString()),
+        "Declare a leaf 'default ValidatedPrism<"
+            + property.type()
+            + ", "
+            + domainComp.asType()
+            + "> "
+            + domainComp.getSimpleName()
+            + "()', or align the types.");
+  }
+
+  /**
+   * Emits the sparse-update Impl: a single {@code updateFrom(Wire) : Edits.Accumulated<Domain>}
+   * that folds each present wire property into an {@code Update}. Identity edits use {@code
+   * Edit.setIfPresent} against an inline {@code Setter} that rebuilds the record; leaf edits use
+   * {@code Edit.parseIfPresent(...).at(name)}, so a present-but-invalid value accumulates a located
+   * {@code FieldError}. No {@code build}/{@code parse}/{@code as*} tier is emitted.
+   */
+  private void writeUpdateImpl(
+      TypeElement spec, TypeElement domain, WireShape wire, List<UpdateEdit> edits) {
+    ClassName specName = ClassName.get(spec);
+    ClassName implName = implClassName(spec);
+    ClassName domainClass = ClassName.get(domain);
+    TypeName wireName = TypeName.get(wire.element().asType());
+    TypeName accumulatedReturn =
+        ParameterizedTypeName.get(ACCUMULATED, TypeName.get(domain.asType()));
+
+    CodeBlock.Builder call = CodeBlock.builder().add("return $T.accumulate(", EDITS);
+    boolean first = true;
+    for (UpdateEdit edit : edits) {
+      call.add(first ? "\n" : ",\n");
+      first = false;
+      CodeBlock setter = setterExpr(domainClass, domain, edit.domainName());
+      CodeBlock read = wireRead(wire, edit.wireName());
+      if (edit.parsed()) {
+        call.add(
+            "    $T.parseIfPresent($L, $L, $L::parse).at($S)",
+            EDIT,
+            setter,
+            read,
+            edit.leaf(),
+            edit.domainName());
+      } else {
+        call.add("    $T.setIfPresent($L, $L)", EDIT, setter, read);
+      }
+    }
+    call.add(")");
+
+    MethodSpec updateFrom =
+        MethodSpec.methodBuilder("updateFrom")
+            .addModifiers(Modifier.PUBLIC)
+            .returns(accumulatedReturn)
+            .addParameter(wireName, "wire")
+            .addJavadoc(
+                "Folds the present (non-null) properties of {@code wire} into an update: an absent"
+                    + " property leaves the domain unchanged, a present one is set (or parsed"
+                    + " through its leaf) and located on failure.\n")
+            .addStatement("$T.requireNonNull(wire, $S)", OBJECTS, "wire must not be null")
+            .addStatement("$L", call.build())
+            .build();
+
+    TypeSpec.Builder implBuilder =
+        implSkeleton(
+                spec,
+                implName,
+                specName,
+                "Generated sparse PATCH write-back for {@link $T}: folds the present wire fields into"
+                    + " an {@code Edits.Accumulated<Domain>} (issue #645).\n")
+            .addMethod(updateFrom);
+    addRenameStubs(implBuilder, spec);
+    writeFile(spec, specName.packageName(), implBuilder.build());
+  }
+
+  /**
+   * An inline {@code Setter.fromGetSet(Domain::comp, (d, v) -> new Domain(...))} focusing one
+   * domain component: the getter is the component accessor, and the writer rebuilds the record
+   * positionally with the focused slot taken from {@code v}. Type inference fixes the focus type,
+   * so no explicit generics are needed (a wrapper {@code v} auto-unboxes into a primitive slot).
+   */
+  private static CodeBlock setterExpr(
+      ClassName domainClass, TypeElement domain, String focusedName) {
+    CodeBlock.Builder args = CodeBlock.builder();
+    boolean first = true;
+    for (RecordComponentElement component : domain.getRecordComponents()) {
+      if (!first) {
+        args.add(", ");
+      }
+      first = false;
+      String name = component.getSimpleName().toString();
+      if (name.equals(focusedName)) {
+        args.add("v");
+      } else {
+        args.add("d.$L()", name);
+      }
+    }
+    return CodeBlock.of(
+        "$T.fromGetSet($T::$L, (d, v) -> new $T($L))",
+        SETTER,
+        domainClass,
+        focusedName,
+        domainClass,
+        args.build());
   }
 
   /**
@@ -1772,6 +2175,17 @@ public class MappingProcessor extends AbstractProcessor {
       // Superinterface mirrors are always declared (or error) types, both DeclaredType.
       DeclaredType declared = (DeclaredType) iface;
       if (((TypeElement) declared.asElement()).getQualifiedName().contentEquals(MAPPING_SPEC)) {
+        return declared;
+      }
+    }
+    return null;
+  }
+
+  /** The direct {@code UpdateSpec<Domain, Wire>} supertype (issue #645), or null if none. */
+  private static DeclaredType findUpdateSpec(TypeElement spec) {
+    for (TypeMirror iface : spec.getInterfaces()) {
+      DeclaredType declared = (DeclaredType) iface;
+      if (((TypeElement) declared.asElement()).getQualifiedName().contentEquals(UPDATE_SPEC)) {
         return declared;
       }
     }
