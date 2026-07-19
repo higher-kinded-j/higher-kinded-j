@@ -310,6 +310,188 @@ class MappingProcessorUpdateTest {
   }
 
   @Nested
+  @DisplayName("Nesting")
+  class Nesting {
+
+    private static final JavaFileObject ADDRESS =
+        JavaFileObjects.forSourceString(
+            "com.example.Address",
+            """
+            package com.example;
+
+            public record Address(String city) {}
+            """);
+
+    private static final JavaFileObject ADDRESS_DTO =
+        JavaFileObjects.forSourceString(
+            "com.example.AddressDto",
+            """
+            package com.example;
+
+            public class AddressDto {
+              private String city;
+              public String getCity() { return city; }
+              public void setCity(String city) { this.city = city; }
+            }
+            """);
+
+    private static final JavaFileObject CUSTOMER =
+        JavaFileObjects.forSourceString(
+            "com.example.Customer",
+            """
+            package com.example;
+
+            public record Customer(Address address) {}
+            """);
+
+    private static final JavaFileObject CUSTOMER_PATCH_DTO =
+        JavaFileObjects.forSourceString(
+            "com.example.CustomerPatchDto",
+            """
+            package com.example;
+
+            public class CustomerPatchDto {
+              private AddressDto address;
+              public AddressDto getAddress() { return address; }
+              public void setAddress(AddressDto address) { this.address = address; }
+            }
+            """);
+
+    private static final JavaFileObject ADDRESS_MAPPING =
+        JavaFileObjects.forSourceString(
+            "com.example.AddressMapping",
+            """
+            package com.example;
+
+            import org.higherkindedj.optics.annotations.GenerateMapping;
+            import org.higherkindedj.optics.annotations.MappingSpec;
+
+            @GenerateMapping
+            public interface AddressMapping extends MappingSpec<Address, AddressDto> {}
+            """);
+
+    private static final JavaFileObject CUSTOMER_PATCH_MAPPING =
+        JavaFileObjects.forSourceString(
+            "com.example.CustomerPatchMapping",
+            """
+            package com.example;
+
+            import org.higherkindedj.optics.annotations.GenerateMapping;
+            import org.higherkindedj.optics.annotations.UpdateSpec;
+
+            @GenerateMapping
+            public interface CustomerPatchMapping extends UpdateSpec<Customer, CustomerPatchDto> {}
+            """);
+
+    @Test
+    @DisplayName("a nested record is patched wholesale through its own full mapping spec")
+    void nestedThroughFullSpec() {
+      Compilation compilation =
+          compile(
+              ADDRESS,
+              ADDRESS_DTO,
+              CUSTOMER,
+              CUSTOMER_PATCH_DTO,
+              ADDRESS_MAPPING,
+              CUSTOMER_PATCH_MAPPING);
+      assertThat(compilation).succeeded();
+      String generated = generatedSource(compilation, "com.example.CustomerPatchMappingImpl");
+      Assertions.assertThat(generated)
+          .contains("Edit.parseIfPresent(")
+          .contains("AddressMappingImpl.INSTANCE.asValidatedPrism()::parse")
+          .contains("wire.getAddress()")
+          .contains(".at(\"address\")");
+
+      var result = new RuntimeCompilationHelper.CompiledResult(compilation);
+      try {
+        Object impl =
+            result.loadClass("com.example.CustomerPatchMappingImpl").getField("INSTANCE").get(null);
+        Object oldAddress = result.newInstance("com.example.Address", "OldCity");
+        Object current = result.newInstance("com.example.Customer", oldAddress);
+
+        Object addressDto =
+            result.loadClass("com.example.AddressDto").getDeclaredConstructor().newInstance();
+        invoke(addressDto, "setCity", "NewCity");
+        Object patch =
+            result.loadClass("com.example.CustomerPatchDto").getDeclaredConstructor().newInstance();
+        invoke(patch, "setAddress", addressDto);
+
+        Object accumulated = invoke(impl, "updateFrom", patch);
+        @SuppressWarnings("unchecked")
+        Validated<NonEmptyList<FieldError>, Object> patched =
+            (Validated<NonEmptyList<FieldError>, Object>) invoke(accumulated, "apply", current);
+        Assertions.assertThat(patched.isValid()).isTrue();
+        Object newAddress = result.newInstance("com.example.Address", "NewCity");
+        Assertions.assertThat(invoke(patched.get(), "address")).isEqualTo(newAddress);
+      } catch (ReflectiveOperationException e) {
+        throw new AssertionError(e);
+      }
+    }
+
+    @Test
+    @DisplayName("an absent nested record leaves the domain component unchanged")
+    void absentNestedUnchanged() {
+      Compilation compilation =
+          compile(
+              ADDRESS,
+              ADDRESS_DTO,
+              CUSTOMER,
+              CUSTOMER_PATCH_DTO,
+              ADDRESS_MAPPING,
+              CUSTOMER_PATCH_MAPPING);
+      assertThat(compilation).succeeded();
+      var result = new RuntimeCompilationHelper.CompiledResult(compilation);
+      try {
+        Object impl =
+            result.loadClass("com.example.CustomerPatchMappingImpl").getField("INSTANCE").get(null);
+        Object oldAddress = result.newInstance("com.example.Address", "OldCity");
+        Object current = result.newInstance("com.example.Customer", oldAddress);
+        Object patch =
+            result
+                .loadClass("com.example.CustomerPatchDto")
+                .getDeclaredConstructor()
+                .newInstance(); // address left null
+
+        Object accumulated = invoke(impl, "updateFrom", patch);
+        @SuppressWarnings("unchecked")
+        Validated<NonEmptyList<FieldError>, Object> patched =
+            (Validated<NonEmptyList<FieldError>, Object>) invoke(accumulated, "apply", current);
+        Assertions.assertThat(patched.get()).isEqualTo(current);
+      } catch (ReflectiveOperationException e) {
+        throw new AssertionError(e);
+      }
+    }
+
+    @Test
+    @DisplayName("two full specs mapping the same nested pair are ambiguous")
+    void ambiguousNestedSpec() {
+      JavaFileObject addressMapping2 =
+          JavaFileObjects.forSourceString(
+              "com.example.AddressMapping2",
+              """
+              package com.example;
+
+              import org.higherkindedj.optics.annotations.GenerateMapping;
+              import org.higherkindedj.optics.annotations.MappingSpec;
+
+              @GenerateMapping
+              public interface AddressMapping2 extends MappingSpec<Address, AddressDto> {}
+              """);
+      Compilation compilation =
+          compile(
+              ADDRESS,
+              ADDRESS_DTO,
+              CUSTOMER,
+              CUSTOMER_PATCH_DTO,
+              ADDRESS_MAPPING,
+              addressMapping2,
+              CUSTOMER_PATCH_MAPPING);
+      assertThat(compilation).failed();
+      assertThat(compilation).hadErrorContaining("matches more than one mapping spec");
+    }
+  }
+
+  @Nested
   @DisplayName("Shape diagnostics")
   class ShapeDiagnostics {
 
@@ -805,6 +987,73 @@ class MappingProcessorUpdateTest {
       Compilation compilation = compile(domain, dto, spec);
       assertThat(compilation).failed();
       assertThat(compilation).hadErrorContaining("both write Acct.owner");
+    }
+
+    @Test
+    @DisplayName("a domain Optional component (null-as-absent bridge) is rejected")
+    void optionalBridgeRejected() {
+      JavaFileObject dto =
+          JavaFileObjects.forSourceString(
+              "com.example.ProfilePatchDto",
+              """
+              package com.example;
+
+              public class ProfilePatchDto {
+                private String nickname;
+                public String getNickname() { return nickname; }
+                public void setNickname(String nickname) { this.nickname = nickname; }
+              }
+              """);
+      JavaFileObject domain =
+          JavaFileObjects.forSourceString(
+              "com.example.Profile",
+              """
+              package com.example;
+
+              import java.util.Optional;
+
+              public record Profile(Optional<String> nickname) {}
+              """);
+      JavaFileObject spec =
+          JavaFileObjects.forSourceString(
+              "com.example.ProfilePatchMapping",
+              """
+              package com.example;
+
+              import org.higherkindedj.optics.annotations.GenerateMapping;
+              import org.higherkindedj.optics.annotations.UpdateSpec;
+
+              @GenerateMapping
+              public interface ProfilePatchMapping extends UpdateSpec<Profile, ProfilePatchDto> {}
+              """);
+      Compilation compilation = compile(domain, dto, spec);
+      assertThat(compilation).failed();
+      assertThat(compilation).hadErrorContaining("which a sparse update cannot express");
+    }
+
+    @Test
+    @DisplayName("a derived-field default method has no meaning on an UpdateSpec")
+    void derivedFieldRejected() {
+      JavaFileObject spec =
+          JavaFileObjects.forSourceString(
+              "com.example.DerivedPatchMapping",
+              """
+              package com.example;
+
+              import org.higherkindedj.optics.Getter;
+              import org.higherkindedj.optics.annotations.GenerateMapping;
+              import org.higherkindedj.optics.annotations.UpdateSpec;
+
+              @GenerateMapping
+              public interface DerivedPatchMapping extends UpdateSpec<User, UserPatchDto> {
+                default Getter<User, String> summary() {
+                  return User::name;
+                }
+              }
+              """);
+      Compilation compilation = compile(EMAIL, USER, USER_PATCH_DTO, spec);
+      assertThat(compilation).failed();
+      assertThat(compilation).hadErrorContaining("has no meaning on a sparse UpdateSpec");
     }
 
     @Test

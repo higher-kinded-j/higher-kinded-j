@@ -287,7 +287,7 @@ public class MappingProcessor extends AbstractProcessor {
     // MappingSpec supertype only), so an UpdateSpec is never nestable — it has no parse.
     DeclaredType updateSuper = findUpdateSpec(spec);
     if (updateSuper != null) {
-      processUpdateSpec(spec, updateSuper);
+      processUpdateSpec(spec, updateSuper, registry);
       return;
     }
 
@@ -407,7 +407,8 @@ public class MappingProcessor extends AbstractProcessor {
    * {@code Edits.accumulate}; absent properties leave the domain unchanged. Only {@code updateFrom}
    * is emitted — no {@code build}, {@code parse}, or {@code as*} tier.
    */
-  private void processUpdateSpec(TypeElement spec, DeclaredType updateSuper) {
+  private void processUpdateSpec(
+      TypeElement spec, DeclaredType updateSuper, List<RegisteredSpec> registry) {
     if (updateSuper.getTypeArguments().size() != 2) {
       Diagnostics.error(
           processingEnv.getMessager(),
@@ -449,6 +450,9 @@ public class MappingProcessor extends AbstractProcessor {
     if (!validateSpecMethods(spec, false)) {
       return;
     }
+    if (!checkNoDerivedFields(spec)) {
+      return;
+    }
 
     TypeElement domain = asRecord(domainArg);
     if (domain == null) {
@@ -481,7 +485,7 @@ public class MappingProcessor extends AbstractProcessor {
       return;
     }
 
-    List<UpdateEdit> edits = classifyUpdate(spec, domain, wireShape, renames);
+    List<UpdateEdit> edits = classifyUpdate(spec, domain, wireShape, renames, registry);
     if (edits == null) {
       return;
     }
@@ -490,13 +494,26 @@ public class MappingProcessor extends AbstractProcessor {
 
   /**
    * One folded edit of a sparse update: the domain component it writes, the wire property it reads,
-   * and — for a validated leaf — the leaf accessor to parse the present value through. A pure
-   * (identity) edit carries no leaf and folds as {@code Edit.setIfPresent}; a leaf edit folds as
-   * {@code Edit.parseIfPresent(...).at(name)}.
+   * and — when the present value must be validated — the prism expression to parse through and the
+   * {@code ValidatedPrism} method to call ({@code parse} for a whole value or nested spec, {@code
+   * parseAll} for a {@code List}, {@code parseValues} for a {@code Map}). A pure (identity) edit
+   * carries no prism and folds as {@code Edit.setIfPresent}; a validated edit folds as {@code
+   * Edit.parseIfPresent(...).at(name)}.
    */
-  private record UpdateEdit(String domainName, String wireName, CodeBlock leaf) {
+  private record UpdateEdit(
+      String domainName, String wireName, CodeBlock prism, String parseMethod) {
+
+    static UpdateEdit identity(String domainName, String wireName) {
+      return new UpdateEdit(domainName, wireName, null, null);
+    }
+
+    static UpdateEdit validated(
+        String domainName, String wireName, CodeBlock prism, String parseMethod) {
+      return new UpdateEdit(domainName, wireName, prism, parseMethod);
+    }
+
     boolean parsed() {
-      return leaf != null;
+      return prism != null;
     }
   }
 
@@ -510,7 +527,11 @@ public class MappingProcessor extends AbstractProcessor {
    * reporting.
    */
   private List<UpdateEdit> classifyUpdate(
-      TypeElement spec, TypeElement domain, WireShape wire, Map<String, String> renames) {
+      TypeElement spec,
+      TypeElement domain,
+      WireShape wire,
+      Map<String, String> renames,
+      List<RegisteredSpec> registry) {
     Map<String, String> wireToDomain = new LinkedHashMap<>();
     renames.forEach((domainName, wireName) -> wireToDomain.put(wireName, domainName));
 
@@ -539,21 +560,70 @@ public class MappingProcessor extends AbstractProcessor {
         reportPrimitiveProperty(spec, property);
         return null;
       }
-      ExecutableElement leaf = findLeaf(spec, domainName, property.type(), domainComp.asType());
+      TypeMirror wireType = property.type();
+      TypeMirror domainType = domainComp.asType();
+
+      // An explicit whole-component leaf wins even over a same-typed match, so it can validate or
+      // normalise a copied field.
+      ExecutableElement leaf = findLeaf(spec, domainName, wireType, domainType);
       if (leaf != null) {
         edits.add(
-            new UpdateEdit(
-                domainName, property.name(), CodeBlock.of("$L()", leaf.getSimpleName())));
+            UpdateEdit.validated(
+                domainName, property.name(), CodeBlock.of("$L()", leaf.getSimpleName()), "parse"));
         continue;
       }
-      if (identityMatch(property.type(), domainComp.asType())) {
-        edits.add(new UpdateEdit(domainName, property.name(), null));
+
+      // Same type (or a wrapper of a primitive component) — including a same-typed List, Map or
+      // nested record — writes the present value straight in (wholesale replacement).
+      if (identityMatch(wireType, domainType)) {
+        edits.add(UpdateEdit.identity(domainName, property.name()));
         continue;
       }
+
+      // A domain Optional<T> component is the null-as-absent bridge shape (a same-typed Optional
+      // wire was already matched by identity above), which sparseness cannot express: null already
+      // means "leave unchanged", so "set to empty" has no encoding.
+      if (containerElement(domainType, "java.util.Optional") != null) {
+        reportOptionalBridge(spec, domain, property, domainComp);
+        return null;
+      }
+
+      // A nested record patched wholesale through its own full mapping spec's asValidatedPrism().
+      PrismResolution nested = resolveNestedSpec(spec, registry, domainName, wireType, domainType);
+      if (nested.ambiguous()) {
+        return null;
+      }
+      if (nested.accessor() != null) {
+        edits.add(UpdateEdit.validated(domainName, property.name(), nested.accessor(), "parse"));
+        continue;
+      }
+
       reportNoUpdateSource(spec, domain, property, domainComp);
       return null;
     }
     return edits;
+  }
+
+  /**
+   * A spec {@code default} method returning {@code Getter} (a derived field) has no sparse meaning.
+   */
+  private boolean checkNoDerivedFields(TypeElement spec) {
+    for (ExecutableElement method : ElementFilter.methodsIn(spec.getEnclosedElements())) {
+      if (isDerivedCandidate(method)) {
+        Diagnostics.error(
+            processingEnv.getMessager(),
+            method,
+            TAG,
+            "the derived-field method '"
+                + method.getSimpleName()
+                + "' has no meaning on a sparse UpdateSpec.",
+            "A derived field feeds build(); a sparse update only writes present wire properties into"
+                + " the domain, so there is nothing to derive.",
+            "Remove the method, or use a full MappingSpec if you need a total build().");
+        return false;
+      }
+    }
+    return true;
   }
 
   /**
@@ -630,6 +700,34 @@ public class MappingProcessor extends AbstractProcessor {
             + wireNames(domain.getRecordComponents())
             + ".",
         "Add a @MapField rename to a domain component, or remove the property.");
+  }
+
+  /**
+   * A domain {@code Optional<T>} component under sparseness: null already means absent, so "set to
+   * empty" is inexpressible (and null-clears would be JSON Merge Patch's opposite contract).
+   */
+  private void reportOptionalBridge(
+      TypeElement spec,
+      TypeElement domain,
+      WireShape.WireComponent property,
+      RecordComponentElement domainComp) {
+    Diagnostics.error(
+        processingEnv.getMessager(),
+        spec,
+        TAG,
+        "the wire property '"
+            + property.name()
+            + "' bridges the domain Optional component "
+            + domain.getSimpleName()
+            + "."
+            + domainComp.getSimpleName()
+            + " ("
+            + domainComp.asType()
+            + "), which a sparse update cannot express.",
+        "Under null-as-absent a null property means 'leave unchanged', so setting the component to"
+            + " an empty Optional has no encoding; a null-clears rule would be the opposite contract"
+            + " (JSON Merge Patch).",
+        "Model the field as a nested record or a sentinel value instead of Optional.");
   }
 
   /** Two wire properties resolve to the same domain component (a same-named one and a rename). */
@@ -711,11 +809,12 @@ public class MappingProcessor extends AbstractProcessor {
       CodeBlock read = wireRead(wire, edit.wireName());
       if (edit.parsed()) {
         call.add(
-            "    $T.parseIfPresent($L, $L, $L::parse).at($S)",
+            "    $T.parseIfPresent($L, $L, $L::$L).at($S)",
             EDIT,
             setter,
             read,
-            edit.leaf(),
+            edit.prism(),
+            edit.parseMethod(),
             edit.domainName());
       } else {
         call.add("    $T.setIfPresent($L, $L)", EDIT, setter, read);
