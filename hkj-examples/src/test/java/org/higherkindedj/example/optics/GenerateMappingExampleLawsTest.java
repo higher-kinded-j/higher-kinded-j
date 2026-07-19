@@ -5,15 +5,18 @@ package org.higherkindedj.example.optics;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import org.higherkindedj.example.optics.GenerateMappingExample.Account;
 import org.higherkindedj.example.optics.GenerateMappingExample.Bank;
 import org.higherkindedj.example.optics.GenerateMappingExample.Card;
 import org.higherkindedj.example.optics.GenerateMappingExample.CustomerDto;
 import org.higherkindedj.example.optics.GenerateMappingExample.DirectoryDto;
+import org.higherkindedj.example.optics.GenerateMappingExample.EmailAddress;
 import org.higherkindedj.example.optics.GenerateMappingExample.Employee;
 import org.higherkindedj.example.optics.GenerateMappingExample.EmployeeCardDto;
 import org.higherkindedj.example.optics.GenerateMappingExample.InvoiceDto;
 import org.higherkindedj.example.optics.GenerateMappingExample.Person;
 import org.higherkindedj.example.optics.GenerateMappingExample.PersonDto;
+import org.higherkindedj.example.optics.GenerateMappingExample.Point;
 import org.higherkindedj.example.optics.GenerateMappingExample.Profile;
 import org.higherkindedj.example.optics.GenerateMappingExample.TeamDto;
 import org.higherkindedj.example.optics.GenerateMappingExample.Tree;
@@ -115,5 +118,22 @@ class GenerateMappingExampleLawsTest {
         new Employee("Ada", "Engineering", 36),
         new EmployeeCardDto("Grace", "Compilers"),
         new EmployeeCardDto("Alan", "Computing"));
+  }
+
+  @Test
+  @DisplayName("bean tier: AccountMapping's domain round trip is lawful (the bean has no equals)")
+  void accountMappingIsLawful() {
+    // A bean wire has no value equals(), so only the domain round trip is comparable: the
+    // domain-sample overload asserts parse(build(account)) == Valid(account).
+    MappingLaws.assertMappingLaws(
+        GenerateMappingExampleAccountMappingImpl.INSTANCE.asValidatedPrism(),
+        new Account("Ada", new EmailAddress("ada@corp.example")));
+  }
+
+  @Test
+  @DisplayName("builder-bean tier: PointMapping's domain round trip is lawful")
+  void pointMappingIsLawful() {
+    MappingLaws.assertMappingLaws(
+        GenerateMappingExamplePointMappingImpl.INSTANCE.asValidatedPrism(), new Point(3, "origin"));
   }
 }

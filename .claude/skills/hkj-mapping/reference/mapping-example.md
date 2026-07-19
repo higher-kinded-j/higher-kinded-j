@@ -144,6 +144,47 @@ public interface PersonMapping extends MappingSpec<Person, PersonDto> {
 }
 ```
 
+## Bean-Shaped DTOs
+
+The wire you were handed is rarely a record. JAXB, protobuf-lite and most OpenAPI generators emit a
+**bean**: a mutable class with getters and setters, or an immutable one with a builder. It maps the
+same way, with every feature above. Only the shape changes: `build` fills through setters (or a
+builder), `parse` reads through getters. The annotation still sits on your spec, never on the bean,
+so a third-party DTO maps without being touched.
+
+<!-- verify -->
+```java
+public record Contact(String name, EmailAddress email) {}
+
+// A generated getter/setter DTO - not a record, not annotatable.
+public class ContactDto {
+  private String name;
+  private String email;
+
+  public String getName()             { return name; }
+  public void setName(String name)    { this.name = name; }
+  public String getEmail()            { return email; }
+  public void setEmail(String email)  { this.email = email; }
+}
+
+@GenerateMapping
+public interface ContactMapping extends MappingSpec<Contact, ContactDto> {
+  default ValidatedPrism<String, EmailAddress> email() {
+    return ValidatedPrism.of(
+        raw -> raw.contains("@")
+            ? Validated.validNel(new EmailAddress(raw))
+            : Validated.invalidNel(FieldError.of("not an email address")),
+        EmailAddress::value);
+  }
+}
+```
+
+A bean property is `null` when unset, and a leaf's `parse` rejects `null`, so every reference read is
+null-guarded: a missing field becomes a located `FieldError` (`email: must not be null`) rather than
+throwing, and `parse` stays total and accumulating. An immutable bean with a static `builder()` or
+`newBuilder()` (Lombok, Immutables, AutoValue, protobuf) maps identically - `build` goes through the
+builder. A domain `Optional<T>` bridges to a nullable bean property `T` (empty maps to absent).
+
 ## Prove the Round-Trip
 
 Defect 3 from the top: nobody checked that the two directions agree. `MappingLaws` does:

@@ -53,7 +53,7 @@ class BookSnippetVerificationTest {
    * copy of it, so those snippets no longer need a marker. That is the only reason this number may
    * fall.
    */
-  private static final int MINIMUM_VERIFIED_SNIPPETS = 215;
+  private static final int MINIMUM_VERIFIED_SNIPPETS = 216;
 
   /**
    * Every documentation root whose code is verified. The book was the first; the skills are the
