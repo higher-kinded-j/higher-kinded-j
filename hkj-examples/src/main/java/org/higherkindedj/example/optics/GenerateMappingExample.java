@@ -25,8 +25,10 @@ import org.higherkindedj.optics.validated.ValidatedPrism;
  * key); a derived wire field (a {@code Getter} default method filled on {@code build} and ignored
  * by {@code parse}); nesting (a spec delegating to a sibling spec, failures located by dotted
  * path); a self-recursive mapping over a tree; sealed-interface dispatch over permitted subtype
- * pairs; and a lossy projection (Lens tier) whose {@code asLens()} writes the projected components
- * back.
+ * pairs; a lossy projection (Lens tier) whose {@code asLens()} writes the projected components
+ * back; and bean-shaped wire targets (issue #628) - a mutable getter/setter DTO and an immutable
+ * builder DTO - where {@code build} fills through setters or a builder and {@code parse} reads
+ * through getters, null-guarding every reference read into a located {@code FieldError}.
  *
  * <p>The law-checked guarantee is runnable too: {@code GenerateMappingExampleLawsTest} in this
  * module's test sources law-checks every mapping below through the published {@code MappingLaws}
@@ -162,6 +164,91 @@ public final class GenerateMappingExample {
   @GenerateMapping
   public interface EmployeeCardMapping extends MappingSpec<Employee, EmployeeCardDto> {}
 
+  public record Account(String owner, EmailAddress email) {}
+
+  // A mutable getter/setter DTO - the shape a JAXB, Jackson or OpenAPI generator emits. It is not a
+  // record and is not annotatable, yet it maps: build fills it through setters, parse reads it back
+  // through getters. An unset property is null, so every reference read is null-guarded (below).
+  public static final class AccountDto {
+    private String owner;
+    private String email;
+
+    public String getOwner() {
+      return owner;
+    }
+
+    public void setOwner(String owner) {
+      this.owner = owner;
+    }
+
+    public String getEmail() {
+      return email;
+    }
+
+    public void setEmail(String email) {
+      this.email = email;
+    }
+  }
+
+  @GenerateMapping
+  public interface AccountMapping extends MappingSpec<Account, AccountDto> {
+    default ValidatedPrism<String, EmailAddress> email() {
+      return ValidatedPrism.of(
+          raw ->
+              raw.contains("@")
+                  ? Validated.validNel(new EmailAddress(raw))
+                  : Validated.invalidNel(FieldError.of("not an email address")),
+          EmailAddress::value);
+    }
+  }
+
+  public record Point(int x, String label) {}
+
+  // An immutable bean built through a static builder() - the Lombok / Immutables / AutoValue shape.
+  public static final class PointDto {
+    private final int x;
+    private final String label;
+
+    private PointDto(int x, String label) {
+      this.x = x;
+      this.label = label;
+    }
+
+    public int getX() {
+      return x;
+    }
+
+    public String getLabel() {
+      return label;
+    }
+
+    public static Builder builder() {
+      return new Builder();
+    }
+
+    public static final class Builder {
+      private int x;
+      private String label;
+
+      public Builder x(int x) {
+        this.x = x;
+        return this;
+      }
+
+      public Builder label(String label) {
+        this.label = label;
+        return this;
+      }
+
+      public PointDto build() {
+        return new PointDto(x, label);
+      }
+    }
+  }
+
+  @GenerateMapping
+  public interface PointMapping extends MappingSpec<Point, PointDto> {}
+
   public static void main(String[] args) {
     System.out.println("=== Validated Mapping Example ===");
     Customer ada = new Customer("Ada", new EmailAddress("ada@corp.example"));
@@ -290,7 +377,35 @@ public final class GenerateMappingExample {
     System.out.println("Written back: " + moved);
     System.out.println(
         "Expected: build drops age; asLens().set writes name and department back and keeps"
-            + " age=36");
+            + " age=36\n");
+
+    System.out.println("=== Bean-Shaped Wire Example (getters/setters, null-guarded parse) ===");
+    Account account = new Account("Ada", new EmailAddress("ada@corp.example"));
+    AccountDto accountDto = GenerateMappingExampleAccountMappingImpl.INSTANCE.build(account);
+    System.out.println(
+        "Built:        AccountDto[owner="
+            + accountDto.getOwner()
+            + ", email="
+            + accountDto.getEmail()
+            + "]");
+    System.out.println(
+        "Round trip:   " + GenerateMappingExampleAccountMappingImpl.INSTANCE.parse(accountDto));
+    AccountDto missing = new AccountDto();
+    missing.setOwner("Bob"); // email left unset (null)
+    System.out.println(
+        "Located fail: " + GenerateMappingExampleAccountMappingImpl.INSTANCE.parse(missing));
+    System.out.println(
+        "Expected: build via setters, Valid(round trip), and the unset email located at \"email\""
+            + " as must-not-be-null (a null never reaches the leaf)\n");
+
+    System.out.println("=== Builder-Based Bean Example (immutable DTO via builder()) ===");
+    Point origin = new Point(3, "origin");
+    PointDto pointDto = GenerateMappingExamplePointMappingImpl.INSTANCE.build(origin);
+    System.out.println(
+        "Built:        PointDto[x=" + pointDto.getX() + ", label=" + pointDto.getLabel() + "]");
+    System.out.println(
+        "Round trip:   " + GenerateMappingExamplePointMappingImpl.INSTANCE.parse(pointDto));
+    System.out.println("Expected: built through PointDto.builder(); the round trip is Valid");
   }
 
   private GenerateMappingExample() {}

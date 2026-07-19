@@ -2707,8 +2707,9 @@ class MappingProcessorTest {
     }
 
     @Test
-    @DisplayName("a record domain with a non-record wire is rejected")
+    @DisplayName("a record domain with a wire that is neither record nor usable bean is rejected")
     void recordWithNonRecordWireRejected() {
+      // String is a concrete class (a candidate bean) but exposes no getter/setter property pair.
       Compilation compilation =
           compile(
               PLAIN,
@@ -2716,7 +2717,8 @@ class MappingProcessorTest {
                   "HalfMapping",
                   "public interface HalfMapping extends MappingSpec<Records.D, String> {}"));
       assertThat(compilation).failed();
-      assertThat(compilation).hadErrorContaining("must both be records, or both sealed interfaces");
+      assertThat(compilation).hadErrorContaining("'String' is not a usable bean-shaped wire");
+      assertThat(compilation).hadErrorContaining("no construction strategy fits it");
     }
 
     @Test
@@ -3550,7 +3552,7 @@ class MappingProcessorTest {
     }
 
     @Test
-    @DisplayName("rejects non-record type arguments")
+    @DisplayName("rejects a bean-shaped domain type argument")
     void rejectsNonRecordArguments() {
       JavaFileObject spec =
           JavaFileObjects.forSourceString(
@@ -3567,7 +3569,10 @@ class MappingProcessorTest {
 
       Compilation compilation = compile(WIRE, spec);
       assertThat(compilation).failed();
-      assertThat(compilation).hadErrorContaining("must both be records");
+      assertThat(compilation)
+          .hadErrorContaining(
+              "is a bean-shaped class, which this mapper does not support on the domain side");
+      assertThat(compilation).hadErrorContaining("the domain must be a record");
     }
   }
 

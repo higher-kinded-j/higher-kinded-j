@@ -67,6 +67,16 @@ public final class RecordMappingBook {
     // ANCHOR_END: projection_usage
     System.out.println(moved);
 
+    // ANCHOR: bean_usage
+    Customer ada = new Customer("Ada", new EmailAddress("ada@corp.example"));
+    ContactBean bean =
+        ContactMappingImpl.INSTANCE.build(ada); // new ContactBean(); setName; setEmail
+    Validated<NonEmptyList<FieldError>, Customer> fromBean =
+        ContactMappingImpl.INSTANCE.parse(bean);
+    // A null bean property parses to a located FieldError, e.g. [email: must not be null].
+    // ANCHOR_END: bean_usage
+    System.out.println(bean.getName() + " / " + fromBean);
+
     // ANCHOR: merge_usage
     Dashboard dashboard =
         DashboardAssemblyImpl.INSTANCE.assemble(
@@ -207,6 +217,40 @@ interface DashboardAssembly {
 }
 
 // ANCHOR_END: merge_spec
+
+// ANCHOR: bean_spec
+// A generated, mutable getter/setter DTO - not a record, so not annotatable. The spec still sits
+// on your interface, never on the bean, so a third-party bean maps without being touched.
+class ContactBean {
+  private String name;
+  private String email;
+
+  public String getName() {
+    return name;
+  }
+
+  public void setName(String name) {
+    this.name = name;
+  }
+
+  public String getEmail() {
+    return email;
+  }
+
+  public void setEmail(String email) {
+    this.email = email;
+  }
+}
+
+@GenerateMapping
+interface ContactMapping extends MappingSpec<Customer, ContactBean> {
+  // build() writes through setters; parse() reads through getters, null-guarded and located.
+  default ValidatedPrism<String, EmailAddress> email() {
+    return EmailCodecs.EMAIL;
+  }
+}
+
+// ANCHOR_END: bean_spec
 
 // ANCHOR: nested_merge_spec
 record Wrapper(CustomerDto customer) {} // the wire side

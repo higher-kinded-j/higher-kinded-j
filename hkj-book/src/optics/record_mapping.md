@@ -190,7 +190,33 @@ The overloads follow the tiers:
 A spec with a derived field *and* a fallible leaf is better served by the fallible overload, given a parseable wire value whose derived components match what `build` would produce (this keeps the no-parse check). Reserve the domain-sample overload for total-parse mappings, where no wire value can fail.
 
 ~~~admonish tip title="Mapping types you don't own"
-The annotation sits on *your* spec interface, never on the mapped types, so third-party records and sealed hierarchies from compiled libraries map without being annotatable: `interface VendorOrderMapping extends MappingSpec<com.vendor.OrderRecord, OrderDto> {}` works today. Bean-shaped foreign types (getter/setter DTOs) are the one un-owned shape that the mapping processor does not currently support.
+The annotation sits on *your* spec interface, never on the mapped types, so third-party records, sealed hierarchies, and bean-shaped DTOs from compiled libraries map without being annotatable: `interface VendorOrderMapping extends MappingSpec<com.vendor.OrderRecord, OrderDto> {}` works today. Bean-shaped wire types (getter/setter DTOs) are covered too; see [Bean-shaped wire targets](#bean-shaped-wire-targets) below.
+~~~
+
+---
+
+## Bean-shaped wire targets
+
+The wire side need not be a record. A **bean** (a mutable class with a no-args constructor and getters/setters, or an immutable one with a builder) maps the same way, with the same features (renames, leaves, derived fields, container lifting, nesting). Only *how* the wire is read and written changes: `build` fills through setters or a builder, and `parse` reads through getters.
+
+``` java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/mapping/RecordMappingBook.java:bean_spec}}
+```
+
+``` java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/mapping/RecordMappingBook.java:bean_usage}}
+```
+
+The design decisions worth knowing:
+
+- **Null is located, never thrown.** An unset bean property is `null`, and a leaf's `parse` rejects `null`. So every reference-typed read is null-guarded: a `null` becomes a located `FieldError` (`must not be null`) under the field's label, and `parse` stays total and accumulating. A `null` never reaches a leaf. Primitive reads are never null and need no guard.
+- **Honest tiers.** Those null guards make reference components fallible, so a bean mapping withholds `asIso()` automatically; an all-primitive bean (whose reads can never be null) still earns it. Nesting is unaffected: a bean mapping exposes `asValidatedPrism()` like any other, so record specs nest it and containers lift it.
+- **Construction strategy** is detected from the bean's shape, tried in order: a public no-args constructor with `setX` setters (and, for a getter-only `List`, the JAXB convention `getItems().addAll(...)`); then a static `builder()`/`newBuilder()` whose setters fill it and whose `build()` yields the wire. A bean that fits neither gets a what/why/fix diagnostic.
+- **Optionality bridges through `null`.** Beans never declare `Optional`, so a domain `Optional<T>` maps to a nullable bean property `T`: empty bridges to absent (`build` skips the write, leaving the property unset; `parse` reads `Optional.ofNullable(...)`), and a present value still validates through its leaf.
+- **The domain stays a record.** `parse` assembles the domain through its canonical constructor, so only the *wire* may be bean-shaped; a bean domain gets a diagnostic.
+
+~~~admonish note title="Not yet: bean projections and read-only beans"
+A bean *projection* (a bean with fewer properties than the domain) with a reference property, and read-only (parse-only) or write-only (build-only) beans, are follow-ons. An all-primitive bean projection maps as a lawful `asLens()` today; a reference-typed one is reported with a pointer to the planned validated-`patch` tier rather than emitting an unlawful lens.
 ~~~
 
 ---

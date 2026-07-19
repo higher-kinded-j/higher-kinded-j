@@ -28,6 +28,10 @@ _Breaking changes / migration:_
 - **A JWT whose authorities claim is missing or malformed is now rejected with `BadCredentialsException` (HTTP 401)** rather than authenticating with empty authorities. If your IdP legitimately issues role-less tokens, set `hkj.security.reject-missing-authorities-claim: false` to restore lenient handling for the missing-claim case (a malformed claim is always rejected).
 - **Effect-boundary interpreter resolution now fails fast at startup** on an ambiguous match (two equally-specific eligible interpreters for one algebra) or when the only interpreter for an algebra is gated behind an inactive `@Interpreter(profile = ...)`. Both were previously silent scan-order selections.
 
+**Bean-shaped `@GenerateMapping` wire targets ([#628](https://github.com/higher-kinded-j/higher-kinded-j/issues/628))**
+
+`@GenerateMapping` now maps a record domain to a **bean-shaped wire**, not only a record: a mutable class with a no-args constructor and getters/setters, or an immutable one with a builder (`builder()`/`newBuilder()`), with the JAXB getter-only collection convention (`getItems().addAll(...)`) also recognised. The full feature set carries over: renames, leaves, derived fields, `List`/`Optional`/`Map` lifting, and nesting both ways. Because an unset bean property is `null`, every reference-typed `parse` read is null-guarded into a located `FieldError`, so `parse` stays total and accumulating; those guards make `asIso()` truthful only for an all-primitive bean. A domain `Optional<T>` bridges to a nullable bean property `T` (empty to absent). See [Bean-shaped wire targets](optics/record_mapping.md#bean-shaped-wire-targets). The validated-`patch` projection tier, read-only/write-only bean tiers, and Optional-through-nested-spec bridging remain follow-ons.
+
 ---
 
 ### [v0.4.8](https://github.com/higher-kinded-j/higher-kinded-j/releases/tag/v0.4.8) (17 July 2026)

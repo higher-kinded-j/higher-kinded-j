@@ -188,6 +188,12 @@ rejected outright: the projection's `asLens()` write-back could never honour a c
   key.
 - **The mapped record need not be yours.** The annotation sits on *your spec interface*, never on
   the record, so third-party and library records map fine.
+- **The wire need not be a record.** A bean-shaped DTO maps too - detected in three shapes: a no-args
+  constructor with `setX` setters; an immutable bean with a static `builder()`/`newBuilder()`
+  (Lombok, Immutables, AutoValue, protobuf); or the JAXB convention, where a getter-only `List` is
+  filled with `getItems().addAll(...)`. `build` fills through setters or the builder, `parse` reads
+  through getters. A `null` bean property becomes a located `FieldError` (never thrown), and a domain
+  `Optional<T>` bridges to a nullable bean property `T`. See `reference/mapping-example.md`.
 - **`parse` is capped at 16 components**: it is assembled via `Validated.fields()`.
 - **It is law-checked.** Assert `build`/`parse` round-trip with `MappingLaws.assertMappingLaws(...)`
   from `hkj-test`.
