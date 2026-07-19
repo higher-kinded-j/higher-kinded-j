@@ -456,19 +456,19 @@ public class MappingProcessor extends AbstractProcessor {
 
     TypeElement domain = asRecord(domainArg);
     if (domain == null) {
-      reportUnsupportedDomain(spec, domainArg);
+      reportUpdateDomainNotRecord(spec, domainArg);
       return;
     }
 
     // A record wire cannot express "absent" (every component is always present), so sparse PATCH is
-    // a bean-only shape; a non-bean, non-record wire is unsupported as for the full mapper.
+    // a bean-only shape; a non-bean, non-record wire is rejected with a sparse-specific message.
     if (asRecord(wireArg) != null) {
       reportRecordWireOnUpdate(spec, domain, asRecord(wireArg));
       return;
     }
     TypeElement wireBean = asBean(wireArg);
     if (wireBean == null) {
-      reportUnsupportedWire(spec, wireArg);
+      reportUpdateWireNotBean(spec, wireArg);
       return;
     }
     if (!checkNotGeneric(spec, domain, wireBean)) {
@@ -494,22 +494,21 @@ public class MappingProcessor extends AbstractProcessor {
 
   /**
    * One folded edit of a sparse update: the domain component it writes, the wire property it reads,
-   * and — when the present value must be validated — the prism expression to parse through and the
-   * {@code ValidatedPrism} method to call ({@code parse} for a whole value or nested spec, {@code
-   * parseAll} for a {@code List}, {@code parseValues} for a {@code Map}). A pure (identity) edit
-   * carries no prism and folds as {@code Edit.setIfPresent}; a validated edit folds as {@code
-   * Edit.parseIfPresent(...).at(name)}.
+   * and — when the present value must be validated — the {@code ValidatedPrism} expression to parse
+   * it through (a whole-component leaf, or a nested spec's {@code asValidatedPrism()}). A pure
+   * (identity) edit carries no prism and folds as {@code Edit.setIfPresent}; a validated edit folds
+   * as {@code Edit.parseIfPresent(...).at(name)}. (Container element-lifting — {@code
+   * parseAll}/{@code parseValues} — is deferred; when it lands, the parse method is selected from
+   * the container shape, as {@link Correspondence} does with its {@code Kind}.)
    */
-  private record UpdateEdit(
-      String domainName, String wireName, CodeBlock prism, String parseMethod) {
+  private record UpdateEdit(String domainName, String wireName, CodeBlock prism) {
 
     static UpdateEdit identity(String domainName, String wireName) {
-      return new UpdateEdit(domainName, wireName, null, null);
+      return new UpdateEdit(domainName, wireName, null);
     }
 
-    static UpdateEdit validated(
-        String domainName, String wireName, CodeBlock prism, String parseMethod) {
-      return new UpdateEdit(domainName, wireName, prism, parseMethod);
+    static UpdateEdit validated(String domainName, String wireName, CodeBlock prism) {
+      return new UpdateEdit(domainName, wireName, prism);
     }
 
     boolean parsed() {
@@ -569,7 +568,7 @@ public class MappingProcessor extends AbstractProcessor {
       if (leaf != null) {
         edits.add(
             UpdateEdit.validated(
-                domainName, property.name(), CodeBlock.of("$L()", leaf.getSimpleName()), "parse"));
+                domainName, property.name(), CodeBlock.of("$L()", leaf.getSimpleName())));
         continue;
       }
 
@@ -594,7 +593,7 @@ public class MappingProcessor extends AbstractProcessor {
         return null;
       }
       if (nested.accessor() != null) {
-        edits.add(UpdateEdit.validated(domainName, property.name(), nested.accessor(), "parse"));
+        edits.add(UpdateEdit.validated(domainName, property.name(), nested.accessor()));
         continue;
       }
 
@@ -641,6 +640,39 @@ public class MappingProcessor extends AbstractProcessor {
       return processingEnv.getTypeUtils().isSameType(wireType, boxed);
     }
     return false;
+  }
+
+  /**
+   * The domain of a sparse UpdateSpec is not a record (a sealed one was rejected earlier). Unlike
+   * the full mapper's domain diagnostic, this references the positional record rebuild (there is no
+   * {@code parse}), and does not offer a sealed hierarchy (the sparse tier rejects those).
+   */
+  private void reportUpdateDomainNotRecord(TypeElement spec, TypeMirror domainArg) {
+    Diagnostics.error(
+        processingEnv.getMessager(),
+        spec,
+        TAG,
+        "the UpdateSpec domain type argument '" + domainArg + "' is not a record.",
+        "A sparse update rebuilds the domain positionally through its canonical constructor, so the"
+            + " domain must be a record; only the wire may be bean-shaped.",
+        "Use a record for the domain, mapping the bean as the wire.");
+  }
+
+  /**
+   * The wire of a sparse UpdateSpec is neither a record (rejected earlier) nor a bean. Unlike the
+   * full mapper's wire diagnostic, the fix names only the bean-shaped PATCH DTO — a record wire is
+   * rejected here, so offering one (as the full mapper does) would send the user in a circle.
+   */
+  private void reportUpdateWireNotBean(TypeElement spec, TypeMirror wireArg) {
+    Diagnostics.error(
+        processingEnv.getMessager(),
+        spec,
+        TAG,
+        "the UpdateSpec wire type argument '" + wireArg + "' is not a bean-shaped class.",
+        "A sparse update reads the present properties through the wire's getters, so the wire must"
+            + " be a bean (a class with getters and setters or a builder); a record component is"
+            + " always present, so a record cannot express an absent field.",
+        "Use a bean-shaped PATCH DTO (wrapper-typed getters/setters).");
   }
 
   /**
@@ -775,13 +807,21 @@ public class MappingProcessor extends AbstractProcessor {
         "A sparse update writes a present property by identity (same type, or a wrapper of a"
             + " primitive component) or through a leaf named after the domain component."
             + leafNearMissHint(spec, domainComp.getSimpleName().toString()),
-        "Declare a leaf 'default ValidatedPrism<"
-            + property.type()
-            + ", "
-            + domainComp.asType()
-            + "> "
-            + domainComp.getSimpleName()
-            + "()', or align the types.");
+        // A leaf cannot target a primitive component: a ValidatedPrism's domain arg is a reference
+        // type, so findLeaf's isSameType(wrapper, primitive) can never match. Steer to alignment.
+        domainComp.asType().getKind().isPrimitive()
+            ? "Align the types: make '"
+                + domainComp.getSimpleName()
+                + "' a wrapper type, or match the wire property to "
+                + domainComp.asType()
+                + "."
+            : "Declare a leaf 'default ValidatedPrism<"
+                + property.type()
+                + ", "
+                + domainComp.asType()
+                + "> "
+                + domainComp.getSimpleName()
+                + "()', or align the types.");
   }
 
   /**
@@ -809,12 +849,11 @@ public class MappingProcessor extends AbstractProcessor {
       CodeBlock read = wireRead(wire, edit.wireName());
       if (edit.parsed()) {
         call.add(
-            "    $T.parseIfPresent($L, $L, $L::$L).at($S)",
+            "    $T.parseIfPresent($L, $L, $L::parse).at($S)",
             EDIT,
             setter,
             read,
             edit.prism(),
-            edit.parseMethod(),
             edit.domainName());
       } else {
         call.add("    $T.setIfPresent($L, $L)", EDIT, setter, read);

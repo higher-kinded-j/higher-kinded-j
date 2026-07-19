@@ -655,7 +655,8 @@ class MappingProcessorUpdateTest {
               """);
       Compilation compilation = compile(EMAIL, USER_PATCH_DTO, domainBean, spec);
       assertThat(compilation).failed();
-      assertThat(compilation).hadErrorContaining("does not support on the domain side");
+      assertThat(compilation).hadErrorContaining("UpdateSpec domain type argument");
+      assertThat(compilation).hadErrorContaining("is not a record");
     }
 
     @Test
@@ -712,7 +713,8 @@ class MappingProcessorUpdateTest {
               """);
       Compilation compilation = compile(EMAIL, USER, wire, spec);
       assertThat(compilation).failed();
-      assertThat(compilation).hadErrorContaining("neither a record nor a bean-shaped class");
+      assertThat(compilation).hadErrorContaining("UpdateSpec wire type argument");
+      assertThat(compilation).hadErrorContaining("is not a bean-shaped class");
     }
 
     @Test
@@ -939,6 +941,9 @@ class MappingProcessorUpdateTest {
       Compilation compilation = compile(domain, dto, spec);
       assertThat(compilation).failed();
       assertThat(compilation).hadErrorContaining("cannot be written into");
+      // A leaf can never target a primitive component, so the fix steers to type alignment only.
+      assertThat(compilation).hadErrorContaining("Align the types");
+      assertThat(compilation).hadErrorContaining("make 'count' a wrapper type");
     }
 
     @Test
@@ -1094,6 +1099,8 @@ class MappingProcessorUpdateTest {
       Compilation compilation = compile(EMAIL, domain, dto, spec);
       assertThat(compilation).failed();
       assertThat(compilation).hadErrorContaining("cannot be written into");
+      // A reference-typed component CAN take a leaf, so the fix offers one.
+      assertThat(compilation).hadErrorContaining("Declare a leaf 'default ValidatedPrism<");
     }
   }
 
