@@ -79,6 +79,34 @@ public class UserController {
   }
 
   /**
+   * Partially update a user (sparse PATCH, issue #645).
+   *
+   * <p>The request bean carries only the fields to change; every omitted field is {@code null},
+   * meaning <em>leave unchanged</em>. {@link UserPatchMapping}'s generated {@code updateFrom} folds
+   * the present fields into an update; {@code id} is never mapped, so the resource cannot move.
+   *
+   * <p>Three outcomes flow through one {@code Either<DomainError, User>} channel:
+   *
+   * <ul>
+   *   <li>unknown id → {@code Left(UserNotFoundError)} → 404 (from {@code findById});
+   *   <li>a present but invalid field (e.g. a malformed email) → {@code Left(PatchValidationError)}
+   *       → 400, carrying every located {@code FieldError} at once;
+   *   <li>otherwise → {@code Right(patched)} → 200 with the updated user.
+   * </ul>
+   *
+   * @param id the id of the user to patch
+   * @param request the partial-update request
+   * @return Either a DomainError or the patched User
+   */
+  @PatchMapping("/{id}")
+  public Either<DomainError, User> patchUser(
+      @PathVariable String id, @RequestBody UserPatchRequest request) {
+    // updateFrom validates and folds the present fields once, off the store lock; patch then
+    // applies that accumulated update to the current user atomically.
+    return userService.patch(id, UserPatchMappingImpl.INSTANCE.updateFrom(request));
+  }
+
+  /**
    * Demonstrates composing Either values.
    *
    * <p>Chains two operations: 1. Find user by ID 2. Return just the email
