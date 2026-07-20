@@ -78,7 +78,11 @@ jobs:
           # frozen /vX.Y.Z/ snapshot on re-deploy, without rewriting that
           # version's prose. On a fresh tag push HEAD already IS the tag, so the
           # checkout below is a harmless no-op.
-          VERSION="${{ steps.version.outputs.version }}"
+      - name: Restore tagged content for re-deploys (keep current shared theme)
+        env:
+          DEPLOY_VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          VERSION="$DEPLOY_VERSION"
           if [[ ! "$VERSION" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
             echo "Not a versioned tag ('${VERSION}'); building from current checkout"
             exit 0
