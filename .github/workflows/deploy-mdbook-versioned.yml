@@ -13,7 +13,7 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: 'Version to deploy (e.g., v0.1.9 for release or "latest" for snapshot)'
+        description: 'Version to deploy (e.g., v0.1.9 to (re)deploy a release, or "latest" for the snapshot). Re-deploying an existing tag rebuilds that version''s content with the current shared theme/scripts.'
         required: true
         default: 'latest'
 
@@ -64,6 +64,31 @@ jobs:
           echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
           echo "deploy_path=${DEPLOY_PATH}" >> "$GITHUB_OUTPUT"
           echo "version_label=${VERSION_LABEL}" >> "$GITHUB_OUTPUT"
+        shell: bash
+
+      - name: Restore tagged content for re-deploys (keep current shared theme)
+        run: |
+          # When (re)deploying an existing tag whose commit is NOT the one we
+          # checked out - e.g. a manual `workflow_dispatch` from main to refresh
+          # an old release - take that version's documented CONTENT from the tag
+          # but leave theme/, scripts and workflow files at the deploying branch.
+          #
+          # This lets cross-cutting infrastructure fixes (such as the
+          # change-tracking default that must be 'off' outside /latest/) reach a
+          # frozen /vX.Y.Z/ snapshot on re-deploy, without rewriting that
+          # version's prose. On a fresh tag push HEAD already IS the tag, so the
+          # checkout below is a harmless no-op.
+          VERSION="${{ steps.version.outputs.version }}"
+          if [[ ! "$VERSION" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "Not a versioned tag ('${VERSION}'); building from current checkout"
+            exit 0
+          fi
+          if ! git rev-parse -q --verify "refs/tags/${VERSION}" >/dev/null; then
+            echo "Tag ${VERSION} not found; building from current checkout"
+            exit 0
+          fi
+          echo "Restoring hkj-book/src from tag ${VERSION} (theme/scripts stay current)"
+          git checkout "refs/tags/${VERSION}" -- hkj-book/src
         shell: bash
 
       - name: Setup mdBook and Rust Environment
