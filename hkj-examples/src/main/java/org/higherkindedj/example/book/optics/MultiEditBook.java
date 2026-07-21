@@ -25,6 +25,10 @@ import org.jspecify.annotations.Nullable;
  *
  * <p>The paths come from the generated {@code OrderFocus} companion, not hand-rolled optics: their
  * labels are what let a failed parse locate itself, which is precisely what the page claims.
+ *
+ * <p>The {@code accumulate} region here is the hand-written REST PATCH; when the DTO maps
+ * one-to-one to a domain record, {@code @GenerateMapping} on an {@code UpdateSpec} generates the
+ * same fold — see {@code RecordMappingBook}'s {@code update_spec}/{@code update_usage} regions.
  */
 public final class MultiEditBook {
 
