@@ -9,7 +9,7 @@ plugins {
 
 // Global properties for all modules
 group = "io.github.higher-kinded-j"
-version = project.findProperty("projectVersion")?.toString() ?: "0.2.2-SNAPSHOT"
+version = project.findProperty("projectVersion")?.toString() ?: "0.4.9-SNAPSHOT"
 
 
 // Repositories for root project (required for OpenRewrite dependencies)
