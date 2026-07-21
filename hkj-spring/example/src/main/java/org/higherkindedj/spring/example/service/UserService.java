@@ -6,6 +6,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.atomic.AtomicReference;
 import org.higherkindedj.hkt.Applicative;
 import org.higherkindedj.hkt.Semigroups;
 import org.higherkindedj.hkt.either.Either;
@@ -13,7 +14,9 @@ import org.higherkindedj.hkt.validated.Validated;
 import org.higherkindedj.hkt.validated.ValidatedKind;
 import org.higherkindedj.hkt.validated.ValidatedKindHelper;
 import org.higherkindedj.hkt.validated.ValidatedMonad;
+import org.higherkindedj.optics.edit.Edits;
 import org.higherkindedj.spring.example.domain.DomainError;
+import org.higherkindedj.spring.example.domain.PatchValidationError;
 import org.higherkindedj.spring.example.domain.User;
 import org.higherkindedj.spring.example.domain.UserNotFoundError;
 import org.higherkindedj.spring.example.domain.ValidationError;
@@ -53,6 +56,36 @@ public class UserService {
       return Either.left(new UserNotFoundError(id));
     }
     return Either.right(user);
+  }
+
+  /**
+   * Atomically apply a sparse patch to a stored user: look up, apply, and replace in one step, so
+   * concurrent PATCHes cannot read the same user and overwrite each other (the read-modify-write
+   * lost-update race). The patch is an {@link Edits.Accumulated} — its validation already ran,
+   * source-independently, when {@code updateFrom} built it — so only the pure {@code apply} runs
+   * under {@link ConcurrentHashMap#compute}'s per-key lock.
+   *
+   * @param id the id of the user to patch
+   * @param patch the accumulated sparse update (from {@code UserPatchMappingImpl.updateFrom})
+   * @return {@code Left(UserNotFoundError)} if no such user, {@code Left(PatchValidationError)} if
+   *     a present field was invalid (nothing written), else {@code Right(patched)}
+   */
+  public Either<DomainError, User> patch(String id, Edits.Accumulated<User> patch) {
+    // compute() applies the patch atomically under the key's lock; it returns the value to store,
+    // but the caller also needs the Either outcome, so that is threaded out through this one cell.
+    AtomicReference<Either<DomainError, User>> outcome = new AtomicReference<>();
+    users.compute(
+        id,
+        (key, current) -> {
+          Either<DomainError, User> result =
+              current == null
+                  ? Either.left(new UserNotFoundError(id))
+                  : patch.apply(current).toEither().<DomainError>mapLeft(PatchValidationError::new);
+          outcome.set(result);
+          // absent -> null (stays absent); invalid -> current (unchanged); valid -> updated.
+          return result.fold(error -> current, updated -> updated);
+        });
+    return outcome.get();
   }
 
   /**

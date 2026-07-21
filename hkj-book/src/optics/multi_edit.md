@@ -94,6 +94,10 @@ A path from a `@GenerateFocus` companion carries its record-component name as a 
 
 For the railway, `applyPath(order)` is the `ValidationPath` twin of `apply(order)`, and `toValidated()` exposes the folded `Update` itself for reuse.
 
+~~~admonish tip title="Generate this when the shape is regular"
+When the request DTO's fields line up one-to-one with a domain record — the common REST PATCH case — you need not hand-write the fold at all: `@GenerateMapping` on an [`UpdateSpec<Domain, Wire>`](record_mapping.md#sparse-patch-write-back-updatespec) generates exactly this `Edits.accumulate` over the present fields, as `updateFrom(wire) : Edits.Accumulated<Domain>` (the same `apply`/`applyPath`/`toValidated` surface). Reach for the hand-written `Edits` here when the edits are irregular — a `qtyDelta` that *modifies*, coupled fields, a computed target; reach for `UpdateSpec` when each present field maps to one slot.
+~~~
+
 ---
 
 ## How the split stays compile-time safe
@@ -160,6 +164,7 @@ Practice the whole model in [Tutorial 24: Multi-Edit and Sparse Updates](https:/
 - [Semigroup and Monoid](../functional/semigroup_and_monoid.md) - The `Update` monoid that powers `combine`
 - [Accumulating Assembly](../monads/validated_assembly.md) - The same all-errors-at-once model for *constructing* values
 - [Coupled Fields](coupled_fields.md) - Atomic updates of interdependent fields
+- [Record Mapping — sparse PATCH (`UpdateSpec`)](record_mapping.md#sparse-patch-write-back-updatespec) - Generate this `Edits.accumulate` fold when the DTO maps one-to-one
 ~~~
 
 ---

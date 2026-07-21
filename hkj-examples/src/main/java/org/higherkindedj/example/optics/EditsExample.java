@@ -33,6 +33,11 @@ import org.jspecify.annotations.Nullable;
  *       automatically; an explicit {@code .at(label)} still prepends outer context
  *   <li>Reuse: one accumulated patch, validated once, applied to many sources
  * </ul>
+ *
+ * <p>When a request DTO's fields line up one-to-one with a domain record — the common REST PATCH
+ * case — this exact {@code Edits.accumulate} fold is generated for you: see {@link
+ * UpdateSpecExample} ({@code @GenerateMapping} on an {@code UpdateSpec}). Hand-write {@code Edits}
+ * here when the edits are irregular (a delta that modifies, coupled fields, a computed target).
  */
 public final class EditsExample {
 
