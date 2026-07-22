@@ -88,7 +88,7 @@ The two directions are asymmetric: `build` computes the derived component, `pars
   parse : ignores the derived component (it is derivable)
   ────────────────────────────────────────────────────────────────
   ProfileDto(first, last, displayName) ──▶ Valid(Profile(first, last))
-                          displayName ──┘ dropped, never read
+                          └── displayName dropped, never read
 ```
 
 `build` fills the component by applying the getter to the whole domain value. `parse` **ignores** it: the data is derivable, so parse stays total and accumulating over the remaining components. (A mapping whose only extra is a derived field is *total-parse*: the accumulating parse still runs, it simply cannot fail.)
