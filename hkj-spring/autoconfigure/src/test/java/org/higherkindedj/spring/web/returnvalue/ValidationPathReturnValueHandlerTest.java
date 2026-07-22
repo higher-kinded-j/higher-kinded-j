@@ -14,6 +14,9 @@ import org.higherkindedj.hkt.Semigroups;
 import org.higherkindedj.hkt.effect.Path;
 import org.higherkindedj.hkt.effect.ValidationPath;
 import org.higherkindedj.hkt.nonemptylist.NonEmptyList;
+import org.higherkindedj.hkt.validated.FieldError;
+import org.higherkindedj.hkt.validated.Validated;
+import org.higherkindedj.spring.web.returnvalue.ValidationPathReturnValueHandler.FieldErrorItem;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -26,6 +29,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.web.context.request.NativeWebRequest;
 import org.springframework.web.method.support.ModelAndViewContainer;
+import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.json.JsonMapper;
 
 /**
@@ -53,7 +57,9 @@ class ValidationPathReturnValueHandlerTest {
   @BeforeEach
   void setUp() throws Exception {
     jsonMapper = JsonMapper.builder().build();
-    handler = new ValidationPathReturnValueHandler(jsonMapper, HttpStatus.BAD_REQUEST.value());
+    handler =
+        new ValidationPathReturnValueHandler(
+            jsonMapper, HttpStatus.BAD_REQUEST.value(), HttpStatus.UNPROCESSABLE_CONTENT.value());
 
     stringWriter = new StringWriter();
     printWriter = new PrintWriter(stringWriter);
@@ -70,6 +76,16 @@ class ValidationPathReturnValueHandlerTest {
     @DisplayName("Should support ValidationPath return type")
     void shouldSupportValidationPathReturnType() {
       doReturn(ValidationPath.class).when(returnType).getParameterType();
+
+      boolean result = handler.supportsReturnType(returnType);
+
+      assertThat(result).isTrue();
+    }
+
+    @Test
+    @DisplayName("Should support raw Validated return type")
+    void shouldSupportRawValidatedReturnType() {
+      doReturn(Validated.class).when(returnType).getParameterType();
 
       boolean result = handler.supportsReturnType(returnType);
 
@@ -169,13 +185,16 @@ class ValidationPathReturnValueHandlerTest {
     @DisplayName("Should use custom invalid status")
     void shouldUseCustomInvalidStatus() throws Exception {
       ValidationPathReturnValueHandler customHandler =
-          new ValidationPathReturnValueHandler(jsonMapper, HttpStatus.UNPROCESSABLE_ENTITY.value());
+          new ValidationPathReturnValueHandler(
+              jsonMapper,
+              HttpStatus.UNPROCESSABLE_CONTENT.value(),
+              HttpStatus.UNPROCESSABLE_CONTENT.value());
       List<String> errors = List.of("Invalid format");
       ValidationPath<List<String>, TestUser> path = Path.invalid(errors, Semigroups.list());
 
       customHandler.handleReturnValue(path, returnType, mavContainer, webRequest);
 
-      verify(response).setStatus(HttpStatus.UNPROCESSABLE_ENTITY.value());
+      verify(response).setStatus(HttpStatus.UNPROCESSABLE_CONTENT.value());
     }
 
     @Test
@@ -267,6 +286,190 @@ class ValidationPathReturnValueHandlerTest {
 
       verify(response).addHeader("WWW-Authenticate", "Basic");
       verify(response).addHeader("WWW-Authenticate", "Bearer");
+    }
+  }
+
+  @Nested
+  @DisplayName("FieldError payloads - the 422 leg")
+  class FieldErrorPayloadTests {
+
+    @Test
+    @DisplayName(
+        "NonEmptyList of FieldErrors from a raw Validated renders 422 with path-keyed items")
+    void nonEmptyListOfFieldErrorsFromRawValidated() throws Exception {
+      Validated<NonEmptyList<FieldError>, TestUser> invalid =
+          Validated.invalid(
+              NonEmptyList.of(
+                  FieldError.of("not an email address").at("email"),
+                  FieldError.of("must be 5 digits").at("zip").at("address")));
+
+      handler.handleReturnValue(invalid, returnType, mavContainer, webRequest);
+
+      verify(response).setStatus(HttpStatus.UNPROCESSABLE_CONTENT.value());
+      verify(response).setContentType(MediaType.APPLICATION_JSON_VALUE);
+
+      printWriter.flush();
+      String json = stringWriter.toString();
+      assertThat(json).contains("\"valid\":false");
+      assertThat(json).contains("\"errorCount\":2");
+      assertThat(json).contains("\"path\":\"email\"");
+      assertThat(json).contains("\"path\":\"address.zip\"");
+      assertThat(json).contains("\"segments\":[\"address\",\"zip\"]");
+      assertThat(json).contains("\"message\":\"must be 5 digits\"");
+    }
+
+    @Test
+    @DisplayName("The same payload through a ValidationPath renders identically")
+    void fieldErrorsThroughValidationPath() throws Exception {
+      ValidationPath<NonEmptyList<FieldError>, TestUser> path =
+          Path.invalid(
+              NonEmptyList.of(FieldError.of("not an email address").at("email")),
+              NonEmptyList.semigroup());
+
+      handler.handleReturnValue(path, returnType, mavContainer, webRequest);
+
+      verify(response).setStatus(HttpStatus.UNPROCESSABLE_CONTENT.value());
+      printWriter.flush();
+      String json = stringWriter.toString();
+      assertThat(json).contains("\"path\":\"email\"");
+      assertThat(json).contains("\"segments\":[\"email\"]");
+      assertThat(json).contains("\"errorCount\":1");
+    }
+
+    @Test
+    @DisplayName("A plain List of FieldErrors renders 422")
+    void plainListOfFieldErrors() throws Exception {
+      Validated<List<FieldError>, TestUser> invalid =
+          Validated.invalid(List.of(FieldError.of("required").at("name")));
+
+      handler.handleReturnValue(invalid, returnType, mavContainer, webRequest);
+
+      verify(response).setStatus(HttpStatus.UNPROCESSABLE_CONTENT.value());
+      printWriter.flush();
+      assertThat(stringWriter.toString()).contains("\"path\":\"name\"");
+    }
+
+    @Test
+    @DisplayName("An array of FieldErrors renders 422")
+    void arrayOfFieldErrors() throws Exception {
+      Validated<FieldError[], TestUser> invalid =
+          Validated.invalid(new FieldError[] {FieldError.of("required").at("name")});
+
+      handler.handleReturnValue(invalid, returnType, mavContainer, webRequest);
+
+      verify(response).setStatus(HttpStatus.UNPROCESSABLE_CONTENT.value());
+      printWriter.flush();
+      assertThat(stringWriter.toString()).contains("\"path\":\"name\"");
+    }
+
+    @Test
+    @DisplayName("A single bare FieldError renders 422 as a one-element list")
+    void singleBareFieldError() throws Exception {
+      Validated<FieldError, TestUser> invalid =
+          Validated.invalid(FieldError.of("not an email address").at("email"));
+
+      handler.handleReturnValue(invalid, returnType, mavContainer, webRequest);
+
+      verify(response).setStatus(HttpStatus.UNPROCESSABLE_CONTENT.value());
+      printWriter.flush();
+      String json = stringWriter.toString();
+      assertThat(json).contains("\"path\":\"email\"");
+      assertThat(json).contains("\"errorCount\":1");
+    }
+
+    @Test
+    @DisplayName("An empty error collection falls back to the generic rendering and status")
+    void emptyPayloadFallsBack() throws Exception {
+      Validated<List<FieldError>, TestUser> invalid = Validated.invalid(List.of());
+
+      handler.handleReturnValue(invalid, returnType, mavContainer, webRequest);
+
+      verify(response).setStatus(HttpStatus.BAD_REQUEST.value());
+      printWriter.flush();
+      String json = stringWriter.toString();
+      assertThat(json).contains("\"errorCount\":0");
+      assertThat(json).doesNotContain("\"segments\"");
+    }
+
+    @Test
+    @DisplayName("A mixed payload falls back to the generic rendering and status")
+    void mixedPayloadFallsBack() throws Exception {
+      Validated<List<Object>, TestUser> invalid =
+          Validated.invalid(List.of(FieldError.of("required").at("name"), "a plain error"));
+
+      handler.handleReturnValue(invalid, returnType, mavContainer, webRequest);
+
+      verify(response).setStatus(HttpStatus.BAD_REQUEST.value());
+      printWriter.flush();
+      String json = stringWriter.toString();
+      assertThat(json).contains("\"a plain error\"");
+      assertThat(json).doesNotContain("\"segments\"");
+      assertThat(json).contains("\"errorCount\":2");
+    }
+
+    @Test
+    @DisplayName("An unlabelled FieldError renders an empty path and no segments")
+    void unlabelledFieldError() throws Exception {
+      Validated<NonEmptyList<FieldError>, TestUser> invalid =
+          Validated.invalid(NonEmptyList.of(FieldError.of("something went wrong")));
+
+      handler.handleReturnValue(invalid, returnType, mavContainer, webRequest);
+
+      verify(response).setStatus(HttpStatus.UNPROCESSABLE_CONTENT.value());
+      printWriter.flush();
+      String json = stringWriter.toString();
+      assertThat(json).contains("\"path\":\"\"");
+      assertThat(json).contains("\"segments\":[]");
+    }
+
+    @Test
+    @DisplayName("A dotted key is ambiguous in path but exact in segments - and round-trips")
+    void dottedKeyStaysExactInSegments() throws Exception {
+      // "a.b" is ONE segment; the rendered path cannot distinguish it from nesting (#621),
+      // so segments is the lossless location - proven by rebuilding the FieldError from the body.
+      FieldError original = FieldError.of("not an email address").at("a.b");
+      Validated<NonEmptyList<FieldError>, TestUser> invalid =
+          Validated.invalid(NonEmptyList.of(original));
+
+      handler.handleReturnValue(invalid, returnType, mavContainer, webRequest);
+
+      printWriter.flush();
+      String json = stringWriter.toString();
+      assertThat(json).contains("\"path\":\"a.b\"");
+      assertThat(json).contains("\"segments\":[\"a.b\"]");
+
+      JsonNode errorNode = jsonMapper.readTree(json).get("errors").get(0);
+      FieldErrorItem item = jsonMapper.treeToValue(errorNode, FieldErrorItem.class);
+      assertThat(new FieldError(item.segments(), item.message())).isEqualTo(original);
+    }
+
+    @Test
+    @DisplayName("The backward-compatible two-arg constructor defaults FieldError payloads to 422")
+    void twoArgConstructorDefaultsFieldErrorsTo422() throws Exception {
+      ValidationPathReturnValueHandler compatHandler =
+          new ValidationPathReturnValueHandler(jsonMapper, HttpStatus.BAD_REQUEST.value());
+      Validated<NonEmptyList<FieldError>, TestUser> invalid =
+          Validated.invalid(NonEmptyList.of(FieldError.of("required").at("name")));
+
+      compatHandler.handleReturnValue(invalid, returnType, mavContainer, webRequest);
+
+      verify(response).setStatus(HttpStatus.UNPROCESSABLE_CONTENT.value());
+    }
+
+    @Test
+    @DisplayName("The field-error status knob applies, not the generic invalid status")
+    void fieldErrorStatusKnobApplies() throws Exception {
+      // Swap the two statuses: a FieldError payload must pick up fieldErrorStatus (here 400),
+      // proving the selection is by shape rather than falling through to invalidStatus.
+      ValidationPathReturnValueHandler swappedHandler =
+          new ValidationPathReturnValueHandler(
+              jsonMapper, HttpStatus.UNPROCESSABLE_CONTENT.value(), HttpStatus.BAD_REQUEST.value());
+      Validated<NonEmptyList<FieldError>, TestUser> invalid =
+          Validated.invalid(NonEmptyList.of(FieldError.of("required").at("name")));
+
+      swappedHandler.handleReturnValue(invalid, returnType, mavContainer, webRequest);
+
+      verify(response).setStatus(HttpStatus.BAD_REQUEST.value());
     }
   }
 

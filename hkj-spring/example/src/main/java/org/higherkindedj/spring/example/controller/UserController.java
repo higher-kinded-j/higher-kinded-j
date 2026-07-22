@@ -5,6 +5,9 @@ package org.higherkindedj.spring.example.controller;
 import java.util.List;
 import java.util.Map;
 import org.higherkindedj.hkt.either.Either;
+import org.higherkindedj.hkt.nonemptylist.NonEmptyList;
+import org.higherkindedj.hkt.validated.FieldError;
+import org.higherkindedj.hkt.validated.Validated;
 import org.higherkindedj.spring.example.domain.DomainError;
 import org.higherkindedj.spring.example.domain.User;
 import org.higherkindedj.spring.example.domain.UserNotFoundError;
@@ -79,6 +82,34 @@ public class UserController {
   }
 
   /**
+   * Parse a wire-side user into the domain — the 422 leg (issue #627).
+   *
+   * <p>The generated {@code UserMappingImpl.parse} validates every field at once, accumulating a
+   * located {@code FieldError} per bad field, and the returned {@code Validated} is rendered by the
+   * {@code ValidationPathReturnValueHandler} directly:
+   *
+   * <ul>
+   *   <li>all fields valid → 200 with the parsed {@link User};
+   *   <li>any bad fields → one {@code hkj.web.validation-field-error-status} response (default 422
+   *       Unprocessable Content) listing <em>every</em> bad field as {@code { path, segments,
+   *       message }};
+   *   <li>an absent (or {@code null}) field → the same 422, located as {@code "must not be null"}
+   *       under the field's path — the bean-shaped wire's null-guarded parse, never an exception.
+   * </ul>
+   *
+   * <p>No service call and no error wrapping: unlike {@link #patchUser}, which mixes not-found with
+   * validation and therefore folds both into one {@code Either} channel, a pure parse boundary
+   * returns its {@code Validated} as-is.
+   *
+   * @param dto the wire-side user representation
+   * @return the parse result — every located field error, or the parsed User
+   */
+  @PostMapping("/parse")
+  public Validated<NonEmptyList<FieldError>, User> parseUser(@RequestBody UserDto dto) {
+    return UserMappingImpl.INSTANCE.parse(dto);
+  }
+
+  /**
    * Partially update a user (sparse PATCH, issue #645).
    *
    * <p>The request bean carries only the fields to change; every omitted field is {@code null},
@@ -93,6 +124,10 @@ public class UserController {
    *       → 400, carrying every located {@code FieldError} at once;
    *   <li>otherwise → {@code Right(patched)} → 200 with the updated user.
    * </ul>
+   *
+   * <p>This endpoint deliberately stays on the Either leg rather than the 422 leg ({@link
+   * #parseUser}): a PATCH mixes not-found with validation, and one {@code Either} channel carries
+   * both; a pure parse boundary has only validation to report.
    *
    * @param id the id of the user to patch
    * @param request the partial-update request

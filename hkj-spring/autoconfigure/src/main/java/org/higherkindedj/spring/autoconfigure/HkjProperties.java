@@ -25,6 +25,7 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
  *     completable-future-path-enabled: true
  *     default-error-status: 400
  *     maybe-nothing-status: 404
+ *     validation-field-error-status: 422
  *     try-include-exception-details: false
  *   json:
  *     custom-serializers-enabled: true
@@ -224,6 +225,13 @@ public class HkjProperties {
 
     /** HTTP status code for ValidationPath Invalid values. Default: 400 (Bad Request) */
     private int validationInvalidStatus = 400;
+
+    /**
+     * HTTP status code for ValidationPath Invalid values consisting entirely of located {@code
+     * FieldError}s — the shape produced by a mapper {@code parse}, {@code Path.fields()} or
+     * {@code @GenerateAssembly}. Default: 422 (Unprocessable Content)
+     */
+    private int validationFieldErrorStatus = 422;
 
     /** HTTP status code for IOPath execution failures. Default: 500 (Internal Server Error) */
     private int ioFailureStatus = 500;
@@ -512,6 +520,26 @@ public class HkjProperties {
      */
     public void setValidationInvalidStatus(int validationInvalidStatus) {
       this.validationInvalidStatus = validationInvalidStatus;
+    }
+
+    /**
+     * Returns the HTTP status code for Invalid values consisting entirely of located {@code
+     * FieldError}s.
+     *
+     * @return the HTTP status code for FieldError-shaped Invalid values
+     */
+    public int getValidationFieldErrorStatus() {
+      return validationFieldErrorStatus;
+    }
+
+    /**
+     * Sets the HTTP status code for Invalid values consisting entirely of located {@code
+     * FieldError}s.
+     *
+     * @param validationFieldErrorStatus the HTTP status code for FieldError-shaped Invalid values
+     */
+    public void setValidationFieldErrorStatus(int validationFieldErrorStatus) {
+      this.validationFieldErrorStatus = validationFieldErrorStatus;
     }
 
     /**

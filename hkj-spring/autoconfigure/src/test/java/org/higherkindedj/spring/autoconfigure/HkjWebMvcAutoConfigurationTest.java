@@ -245,6 +245,52 @@ class HkjWebMvcAutoConfigurationTest {
     }
 
     @Test
+    @DisplayName("validation-field-error-status defaults to 422 Unprocessable Content")
+    void fieldErrorStatusDefaultsTo422() {
+      contextRunner.run(
+          context -> {
+            HkjProperties properties = context.getBean(HkjProperties.class);
+            assertThat(properties.getWeb().getValidationFieldErrorStatus()).isEqualTo(422);
+
+            RequestMappingHandlerAdapter adapter =
+                context.getBean(RequestMappingHandlerAdapter.class);
+            boolean hasValidatedHandler =
+                adapter.getReturnValueHandlers().stream()
+                    .anyMatch(h -> h instanceof ValidationPathReturnValueHandler);
+            assertThat(hasValidatedHandler).isTrue();
+          });
+    }
+
+    @Test
+    @DisplayName("hkj.web.validation-field-error-status binds an override")
+    void fieldErrorStatusBindsOverride() {
+      contextRunner
+          .withPropertyValues("hkj.web.validation-field-error-status=400")
+          .run(
+              context -> {
+                HkjProperties properties = context.getBean(HkjProperties.class);
+                assertThat(properties.getWeb().getValidationFieldErrorStatus()).isEqualTo(400);
+
+                // The generic invalid status is independent of the FieldError knob
+                assertThat(properties.getWeb().getValidationInvalidStatus()).isEqualTo(400);
+              });
+    }
+
+    @Test
+    @DisplayName("validation-field-error-status and validation-invalid-status bind independently")
+    void fieldErrorAndValidationInvalidStatusesBindIndependently() {
+      contextRunner
+          .withPropertyValues(
+              "hkj.web.validation-invalid-status=422", "hkj.web.validation-field-error-status=400")
+          .run(
+              context -> {
+                HkjProperties properties = context.getBean(HkjProperties.class);
+                assertThat(properties.getWeb().getValidationInvalidStatus()).isEqualTo(422);
+                assertThat(properties.getWeb().getValidationFieldErrorStatus()).isEqualTo(400);
+              });
+    }
+
+    @Test
     @DisplayName("Should load error status mappings")
     void shouldLoadErrorStatusMappings() {
       contextRunner

@@ -3,10 +3,15 @@
 package org.higherkindedj.spring.web.returnvalue;
 
 import jakarta.servlet.http.HttpServletResponse;
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
+import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import org.higherkindedj.hkt.effect.ValidationPath;
 import org.higherkindedj.hkt.nonemptylist.NonEmptyList;
+import org.higherkindedj.hkt.validated.FieldError;
 import org.higherkindedj.hkt.validated.Validated;
 import org.jspecify.annotations.Nullable;
 import org.springframework.core.MethodParameter;
@@ -37,7 +42,13 @@ import tools.jackson.databind.json.JsonMapper;
  * <ul>
  *   <li>{@code Valid<A>} → HTTP 200 OK with value as JSON body
  *   <li>{@code Invalid<E>} → HTTP 400 Bad Request with all accumulated errors
+ *   <li>{@code Invalid} payloads made entirely of located {@link FieldError}s (the shape produced
+ *       by a mapper {@code parse}, {@code Path.fields()} or {@code @GenerateAssembly}) → HTTP 422
+ *       Unprocessable Content with each error rendered by path
  * </ul>
+ *
+ * <p>Both statuses are configurable: {@code hkj.web.validation-invalid-status} (default 400) and
+ * {@code hkj.web.validation-field-error-status} (default 422).
  *
  * <p>The response format for validation errors:
  *
@@ -46,6 +57,17 @@ import tools.jackson.databind.json.JsonMapper;
  *   "valid": false,
  *   "errors": [...accumulated errors...],
  *   "errorCount": 3
+ * }
+ * }</pre>
+ *
+ * <p>For {@code FieldError} payloads each error renders as an object carrying the dot-joined
+ * display path plus the exact segments:
+ *
+ * <pre>{@code
+ * {
+ *   "valid": false,
+ *   "errors": [ { "path": "address.zip", "segments": ["address", "zip"], "message": "must be 5 digits" } ],
+ *   "errorCount": 1
  * }
  * }</pre>
  *
@@ -76,16 +98,33 @@ public class ValidationPathReturnValueHandler implements HandlerMethodReturnValu
 
   private final ObjectWriter objectWriter;
   private final int invalidStatus;
+  private final int fieldErrorStatus;
 
   /**
    * Creates a new ValidationPathReturnValueHandler with the specified settings.
    *
    * @param jsonMapper the Jackson 3.x JsonMapper for JSON serialization
    * @param invalidStatus the HTTP status code for invalid results (default 400)
+   * @param fieldErrorStatus the HTTP status code for invalid results made entirely of located
+   *     {@link FieldError}s (default 422)
    */
-  public ValidationPathReturnValueHandler(JsonMapper jsonMapper, int invalidStatus) {
+  public ValidationPathReturnValueHandler(
+      JsonMapper jsonMapper, int invalidStatus, int fieldErrorStatus) {
     this.objectWriter = jsonMapper.writer();
     this.invalidStatus = invalidStatus;
+    this.fieldErrorStatus = fieldErrorStatus;
+  }
+
+  /**
+   * Backward-compatible constructor preserved for programmatic adopters who built the handler
+   * directly without going through the auto-configuration. Equivalent to constructing with the
+   * default FieldError status of 422 Unprocessable Content.
+   *
+   * @param jsonMapper the Jackson 3.x JsonMapper for JSON serialization
+   * @param invalidStatus the HTTP status code for invalid results (default 400)
+   */
+  public ValidationPathReturnValueHandler(JsonMapper jsonMapper, int invalidStatus) {
+    this(jsonMapper, invalidStatus, HttpStatus.UNPROCESSABLE_CONTENT.value());
   }
 
   @Override
@@ -158,18 +197,48 @@ public class ValidationPathReturnValueHandler implements HandlerMethodReturnValu
       // Collection, NonEmptyList and array payloads are already re-traversable and pass through
       // unchanged so their JSON shape is preserved.
       Object materialised = JsonResponses.materialiseErrors(errors);
-      response.setStatus(invalidStatus);
+      List<FieldErrorItem> fieldErrorItems = fieldErrorItems(materialised);
+      response.setStatus(fieldErrorItems == null ? invalidStatus : fieldErrorStatus);
       ErrorResponseHeaders.applyTo(materialised, response);
       JsonResponses.setJsonContentType(response);
 
-      int errorCount = countErrors(materialised);
+      Object renderedErrors = fieldErrorItems == null ? materialised : fieldErrorItems;
+      int errorCount = fieldErrorItems == null ? countErrors(materialised) : fieldErrorItems.size();
       Map<String, Object> body =
-          Map.of("valid", false, "errors", materialised, "errorCount", errorCount);
+          Map.of("valid", false, "errors", renderedErrors, "errorCount", errorCount);
 
       objectWriter.writeValue(response.getWriter(), body);
     } catch (Exception e) {
       throw new RuntimeException("Failed to write validation error response", e);
     }
+  }
+
+  /**
+   * Renders the payload as located field-error items when it consists entirely of {@link
+   * FieldError}s — a {@link NonEmptyList}, {@link Collection} or array of them, or one bare error.
+   *
+   * @param errors the materialised error payload
+   * @return the rendered items, or {@code null} when the payload is not the FieldError shape (a
+   *     mixed or empty payload falls back to the generic rendering)
+   */
+  @Nullable
+  private static List<FieldErrorItem> fieldErrorItems(Object errors) {
+    Iterable<?> candidates =
+        switch (errors) {
+          case FieldError fieldError -> List.of(fieldError);
+          case NonEmptyList<?> nel -> nel;
+          case Collection<?> collection -> collection;
+          case Object[] array -> Arrays.asList(array);
+          default -> List.of();
+        };
+    List<FieldErrorItem> items = new ArrayList<>();
+    for (Object candidate : candidates) {
+      if (!(candidate instanceof FieldError fieldError)) {
+        return null;
+      }
+      items.add(FieldErrorItem.of(fieldError));
+    }
+    return items.isEmpty() ? null : List.copyOf(items);
   }
 
   /**
@@ -213,5 +282,44 @@ public class ValidationPathReturnValueHandler implements HandlerMethodReturnValu
       case Object[] array -> array.length;
       default -> 1;
     };
+  }
+
+  /**
+   * The rendered form of one {@link FieldError} in an invalid response body — the JSON wire shape
+   * of the FieldError leg, kept package-private like every other rendering detail in this handler
+   * family.
+   *
+   * <p>{@code path} is the dot-joined display key ({@link FieldError#pathString()}); {@code
+   * segments} is the exact structured location, mirroring {@link FieldError#path()} under the
+   * current string-segment model. A segment containing a dot is indistinguishable from nesting in
+   * {@code path}, so consumers needing lossless locations must read {@code segments}.
+   *
+   * @param path the dot-joined path, for example {@code "address.zip"}; empty for unlabelled errors
+   * @param segments the exact path segments, outermost first; never null, defensively copied
+   * @param message the human-readable description; never null
+   */
+  record FieldErrorItem(String path, List<String> segments, String message) {
+
+    /**
+     * Canonical constructor; validates and defensively copies, mirroring {@link FieldError}.
+     *
+     * @throws NullPointerException if {@code path}, {@code segments}, any of its elements, or
+     *     {@code message} is null
+     */
+    FieldErrorItem {
+      Objects.requireNonNull(path, "path must not be null");
+      Objects.requireNonNull(message, "message must not be null");
+      segments = List.copyOf(segments);
+    }
+
+    /**
+     * Renders the given error.
+     *
+     * @param error the located error to render; must not be null
+     * @return the rendered item
+     */
+    static FieldErrorItem of(FieldError error) {
+      return new FieldErrorItem(error.pathString(), error.path(), error.message());
+    }
   }
 }

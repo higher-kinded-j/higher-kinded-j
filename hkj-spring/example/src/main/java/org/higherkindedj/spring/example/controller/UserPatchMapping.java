@@ -27,9 +27,9 @@ public interface UserPatchMapping extends UpdateSpec<User, UserPatchRequest> {
    * Validates a present email, keeping it a {@code String} (an explicit leaf wins over identity).
    *
    * <p>{@code updateFrom} only calls this for a <em>present</em> field, so the sparse flow never
-   * hands it {@code null}. It still rejects {@code null} as invalid rather than throwing, because a
-   * {@code ValidatedPrism} is a public boundary parser that may be reused directly on untrusted
-   * input — parse-don't-validate: a malformed value becomes a located error, never an exception.
+   * hands it {@code null} — and {@code ValidatedPrism.parse} rejects a null source outright by
+   * contract, so the lambda's own null test is defence in depth. Parse-don't-validate: a malformed
+   * present value becomes a located error.
    */
   default ValidatedPrism<String, String> email() {
     return ValidatedPrism.of(

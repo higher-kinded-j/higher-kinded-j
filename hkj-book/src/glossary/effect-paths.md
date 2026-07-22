@@ -357,6 +357,14 @@ public class IOConsoleInterpreter extends ConsoleOpInterpreter<IOKind.Witness> {
 
 ---
 
+## Leg
+
+**Definition:** One of the routes a value can travel through a railway-modelled computation: a segment of the journey, as in a leg of a relay. Used especially at the Spring boundary, where each distinct route from a controller's return value to an HTTP response is a named leg: a `Left(DomainError)` travels the *Either leg* to its mapped error status, a generic `Invalid` travels the *validation leg* to 400, and an `Invalid` made entirely of located `FieldError`s takes [the 422 leg](../spring/spring_boot_integration.md#the-422-leg): one response naming every bad field. Which leg a response travels is decided by the value's shape, like a railway switch routing a train.
+
+**Related:** [Railway-Oriented Programming](#railway-oriented-programming)
+
+---
+
 ## mapK
 
 **Definition:** A method on each effect algebra record that composes the continuation function with a new transformation. The generated Functor delegates to `mapK` rather than using unsafe casts. Analogous to `Stream.map` but applied to a single instruction rather than a collection.

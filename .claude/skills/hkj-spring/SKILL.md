@@ -1,6 +1,6 @@
 ---
 name: hkj-spring
-description: "Higher-Kinded-J Spring Boot integration (hkj-spring-boot-starter). Use PROACTIVELY whenever the working file or task involves: (1) a Spring controller method (@RestController / @GetMapping / @PostMapping / @PutMapping / @PatchMapping / @DeleteMapping) that returns Either, Validated, EitherOrBoth, EitherOrBothPath, EitherPath, MaybePath, ValidationPath, TryPath, IOPath, CompletableFuturePath, VTaskPath, VStreamPath, or FreePath, including a sparse PATCH via @GenerateMapping on an UpdateSpec (updateFrom returning Edits.Accumulated); (2) a sealed interface or sealed hierarchy named DomainError / *Error / *Failure used as the Left of an Either; (3) Jackson 3.x / tools.jackson serialization of HKJ types, including EitherOrBoth and NonEmptyList; (4) any application.yml / application.properties key under hkj.web.* (including hkj.web.either-or-both-path-enabled), hkj.json.*, hkj.validation.*, hkj.async.*, hkj.virtual-threads.*, hkj.actuator.*, hkj.security.*, or hkj.effect-boundary.*; (5) mapping a domain error to an HTTP status code, including 4xx/5xx codes outside the heuristic table (409 Conflict, 422 Unprocessable Entity, 429 Too Many Requests, 503 Service Unavailable); (6) ErrorStatusCodeStrategy, ErrorStatusCodeMapper, DefaultErrorStatusCodeStrategy, or HttpHeaderCarrier (Retry-After, WWW-Authenticate, Location); (7) @WebMvcTest slices that need HkjAutoConfiguration / HkjJacksonAutoConfiguration / HkjWebMvcAutoConfiguration imported; (8) EffectBoundary, @Interpreter, @EnableEffectBoundary, @EffectTest, or returning FreePath from a controller; (9) auto-configuration questions about the starter; (10) calling another service over HTTP and keeping the typed error: @HkjHttpClient on a @HttpExchange interface whose methods return EitherPath / VTaskPath<Either> / MaybePath; spring.http.serviceclient.* configuration (base-url, timeouts) for the client; hkj.client.status-error-mappings; @OnStatus(value=, error=); ResponseErrorDecoder / ResponseErrorDecoderFactory / HkjClientExchange / ClientErrorResponse.retryAfter; decoding the {\"success\":false,\"error\":…} envelope back into a typed error; or a generated <Name>HttpExchange / <Name>Client / <Name>ClientConfiguration."
+description: "Higher-Kinded-J Spring Boot integration (hkj-spring-boot-starter). Use PROACTIVELY whenever the working file or task involves: (1) a Spring controller method (@RestController / @GetMapping / @PostMapping / @PutMapping / @PatchMapping / @DeleteMapping) that returns Either, Validated, EitherOrBoth, EitherOrBothPath, EitherPath, MaybePath, ValidationPath, TryPath, IOPath, CompletableFuturePath, VTaskPath, VStreamPath, or FreePath, including a sparse PATCH via @GenerateMapping on an UpdateSpec (updateFrom returning Edits.Accumulated); (2) a sealed interface or sealed hierarchy named DomainError / *Error / *Failure used as the Left of an Either; (3) Jackson 3.x / tools.jackson serialization of HKJ types, including EitherOrBoth and NonEmptyList; (4) any application.yml / application.properties key under hkj.web.* (including hkj.web.either-or-both-path-enabled and hkj.web.validation-field-error-status), hkj.json.*, hkj.validation.*, hkj.async.*, hkj.virtual-threads.*, hkj.actuator.*, hkj.security.*, or hkj.effect-boundary.*; (5) mapping a domain error to an HTTP status code, including 4xx/5xx codes outside the heuristic table (409 Conflict, 422 Unprocessable Content, 429 Too Many Requests, 503 Service Unavailable); (6) ErrorStatusCodeStrategy, ErrorStatusCodeMapper, DefaultErrorStatusCodeStrategy, or HttpHeaderCarrier (Retry-After, WWW-Authenticate, Location); (7) @WebMvcTest slices that need HkjAutoConfiguration / HkjJacksonAutoConfiguration / HkjWebMvcAutoConfiguration imported; (8) EffectBoundary, @Interpreter, @EnableEffectBoundary, @EffectTest, or returning FreePath from a controller; (9) auto-configuration questions about the starter; (10) calling another service over HTTP and keeping the typed error: @HkjHttpClient on a @HttpExchange interface whose methods return EitherPath / VTaskPath<Either> / MaybePath; spring.http.serviceclient.* configuration (base-url, timeouts) for the client; hkj.client.status-error-mappings; @OnStatus(value=, error=); ResponseErrorDecoder / ResponseErrorDecoderFactory / HkjClientExchange / ClientErrorResponse.retryAfter; decoding the {\"success\":false,\"error\":…} envelope back into a typed error; or a generated <Name>HttpExchange / <Name>Client / <Name>ClientConfiguration."
 ---
 
 # Higher-Kinded-J Spring Boot Integration
@@ -73,7 +73,7 @@ The starter auto-configures everything: response conversion, JSON serialization,
 | Feature | Description |
 |---------|-------------|
 | `Either` response conversion | `Right(value)` -> 200, `Left(error)` -> mapped status code |
-| `Validated` response conversion | `Valid(value)` -> 200, `Invalid(errors)` -> 400 |
+| `Validated` response conversion | `Valid(value)` -> 200, `Invalid(errors)` -> 400; an all-`FieldError` payload -> **422** with `{path, segments, message}` items (the 422 leg) |
 | `EitherOrBoth` / `EitherOrBothPath` conversion | `Right` -> 200, `Both` -> 200 + `X-Hkj-Warnings` header, `Left` -> mapped status code |
 | `CompletableFuturePath` async | Async operations with functional error handling |
 | `VTaskPath` async | Virtual thread async via `DeferredResult` |
@@ -117,7 +117,7 @@ hkj:
       default-error-status: 500
     error-status-mappings:
       MfaAlreadyEnrolledError: 409   # Conflict
-      PaymentDeclinedError: 422      # Unprocessable Entity
+      PaymentDeclinedError: 422      # Unprocessable Content
       MfaThrottledError: 429         # Too Many Requests
       ScheduledMaintenanceError: 503 # Service Unavailable
 ```
@@ -223,10 +223,10 @@ public Validated<List<String>, User> createUser(@RequestBody UserRequest req) {
 ~~~admonish tip title="Sparse PATCH: `UpdateSpec`"
 A `PATCH` updates only the fields the client sent. Annotate an `UpdateSpec<Domain, Wire>` with `@GenerateMapping` (the null-as-absent sibling of `MappingSpec` — see the **hkj-mapping** skill); `updateFrom(request)` returns an `Edits.Accumulated<Domain>` that has already validated and folded the present (non-null) fields, leaving absent ones — and any unmapped component such as the id — untouched. Apply it to the current value and return the outcome straight from the controller:
 
-- `Validated<NonEmptyList<FieldError>, Domain>` → `Valid` 200 (patched), `Invalid` **400** with every field error located (the native `Validated` conversion above); or
+- `Validated<NonEmptyList<FieldError>, Domain>` → `Valid` 200 (patched), `Invalid` **422** (`hkj.web.validation-field-error-status`) with every field error rendered as `{path, segments, message}` (the 422 leg, selected by payload shape); or
 - `Either<DomainError, Domain>` when you also need **404** for an unknown id — pass the `Edits.Accumulated` into an atomic look-up-apply-replace on the store (e.g. `ConcurrentHashMap.compute`, or a repository transaction) that returns `Left(UserNotFoundError)` for a missing id and folds an `Invalid` into a `DomainError` whose class name contains "Validation" (→ 400). Building the accumulated patch off the store lock keeps the validation out of the critical section.
 
-Worked end-to-end in the example app's `UserController.patchUser` / `UserService.patch`, with a `@WebMvcTest` slice covering 200 / 400 / 404.
+Worked end-to-end in the example app's `UserController.patchUser` / `UserService.patch`, with a `@WebMvcTest` slice covering 200 / 400 / 404. The pure parse boundary (a controller returning a full `MappingSpec`'s `parse(dto)` directly) is `UserController.parseUser` (`POST /api/users/parse`): the 422 leg with no service call and no error wrapping.
 ~~~
 
 ### EitherOrBothPath: Success That Still Carries Warnings
@@ -707,6 +707,7 @@ hkj:
     maybe-nothing-status: 404               # MaybePath Nothing → 404
     try-failure-status: 500                 # TryPath Failure → 500
     validation-invalid-status: 400          # ValidationPath Invalid → 400
+    validation-field-error-status: 422      # all-FieldError Invalid → 422 (the 422 leg)
     io-failure-status: 500                  # IOPath failures → 500
     async-failure-status: 500               # CompletableFuturePath failures → 500
     vtask-failure-status: 500               # VTaskPath failures → 500

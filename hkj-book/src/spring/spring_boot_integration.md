@@ -141,7 +141,7 @@ public class UserController {
 
 That's it! The starter auto-configures everything:
 - EitherPath to HTTP response conversion with automatic status code mapping
-- ValidationPath to HTTP response with error accumulation
+- ValidationPath to HTTP response with error accumulation (located `FieldError` payloads render as one 422 listing every bad field by path)
 - MaybePath, TryPath, and IOPath handlers for optional, exception-capturing, and deferred computations
 - CompletableFuturePath support for async operations
 - VTaskPath support for virtual thread async via DeferredResult
@@ -262,7 +262,7 @@ public sealed interface DomainError permits
     AuthenticationError {}  // -> 401 via heuristic
 ```
 
-For status codes outside the heuristic table (409 Conflict, 422 Unprocessable Entity, 429 Too Many Requests, 503 Service Unavailable), add explicit entries to `hkj.web.error-status-mappings`:
+For status codes outside the heuristic table (409 Conflict, 422 Unprocessable Content, 429 Too Many Requests, 503 Service Unavailable), add explicit entries to `hkj.web.error-status-mappings`:
 
 ```yaml
 hkj:
@@ -312,6 +312,7 @@ public Validated<List<ValidationError>, User> createUser(@RequestBody UserReques
 **Response Mapping:**
 - `Valid(user)` → HTTP 200 with the value unwrapped as JSON: `{"id": "1", "email": "alice@example.com", ...}`
 - `Invalid(errors)` → HTTP 400 with JSON: `{"valid": false, "errors": [{"field": "email", "message": "Invalid format"}, ...], "errorCount": 2}`
+- `Invalid(errors)` where every error is a located `FieldError` → HTTP 422 with each error rendered by path ([the 422 leg](#the-422-leg) below)
 
 #### Validation Example
 
@@ -367,8 +368,42 @@ public ValidationPath<NonEmptyList<ValidationError>, User> validateAndCreate(Use
 }
 ```
 
-See the [Effect Path API](../effect/path_types.md) for `Path.accumulate()` and its labelled sibling `Path.fields()`.
+See the [Effect Path API](../effect/path_types.md) for `Path.accumulate()` and its labelled sibling `Path.fields()`. Note that `Path.fields()` fixes the error channel to `NonEmptyList<FieldError>`, so its invalid responses take [the 422 leg](#the-422-leg) below.
 ~~~
+
+#### The 422 leg: located field errors, one response {#the-422-leg}
+
+A *leg* is one of the routes a value returned from a controller can travel to become an HTTP response: a segment of the [railway](../glossary/effect-paths.md#railway-oriented-programming) journey, as in a leg of a relay. A `Left(DomainError)` travels the **Either leg** to its mapped error status; a generic `Invalid` travels the standard **validation leg** to 400. This section describes a third: the leg an all-`FieldError` payload takes to a 422, chosen (like a railway switch) by the shape of the value itself.
+
+A [`@GenerateMapping`](../optics/record_mapping.md) spec's `parse` returns `Validated<NonEmptyList<FieldError>, Domain>`: every bad field reported at once, each located by a structured path. (`FieldError` here is HKJ's `org.higherkindedj.hkt.validated.FieldError`, not Spring's `org.springframework.validation.FieldError`.) A controller returns it directly, with no service call and no error wrapping:
+
+```java
+@PostMapping("/parse")
+public Validated<NonEmptyList<FieldError>, User> parseUser(@RequestBody UserDto dto) {
+    return UserMappingImpl.INSTANCE.parse(dto);
+}
+```
+
+When an `Invalid` payload consists **entirely** of located `FieldError`s, the handler switches to `hkj.web.validation-field-error-status` (default **422 Unprocessable Content**, formerly named "Unprocessable Entity") and renders each error by path:
+
+```json
+{
+  "valid": false,
+  "errors": [
+    { "path": "email",       "segments": ["email"],          "message": "not a valid email address" },
+    { "path": "address.zip", "segments": ["address", "zip"], "message": "must be 5 digits" }
+  ],
+  "errorCount": 2
+}
+```
+
+`path` is the dot-joined display key (`FieldError.pathString()`); `segments` is the exact structured location. The distinction matters: a map key containing a dot is indistinguishable from nesting in the rendered `path` (`attributes."a.b".email` vs deeper nesting), so structured consumers should read `segments`, which stays exact. An unlabelled error renders `"path": ""` and `"segments": []`; treat it as object-level.
+
+The leg is selected purely by payload shape, so **any** all-`FieldError` payload takes it: `Path.fields()` assemblies, `@GenerateAssembly` results and hand-built `NonEmptyList<FieldError>`s included, not just a mapper `parse`. A pre-existing `Path.fields()` endpoint therefore moves from 400 to 422 on upgrade; set `hkj.web.validation-field-error-status: 400` to restore the old status.
+
+Mixed, empty or non-`FieldError` payloads keep the generic rendering and `hkj.web.validation-invalid-status` (default 400): nothing to enable, nothing else affected.
+
+The example module's `POST /api/users/parse` endpoint shows the full leg; its PATCH sibling deliberately stays on the Either leg because a PATCH mixes not-found with validation, and one `Either` channel carries both.
 
 **Key Difference from Either:**
 - `Either` short-circuits on first error (fail-fast)
@@ -611,7 +646,7 @@ hkj:
       default-error-status: 500          # Fallback for unmapped Left values
     error-status-mappings:
       MfaAlreadyEnrolledError: 409       # Conflict
-      PaymentDeclinedError: 422          # Unprocessable Entity
+      PaymentDeclinedError: 422          # Unprocessable Content
       MfaThrottledError: 429             # Too Many Requests
       ScheduledMaintenanceError: 503     # Service Unavailable
 ```
@@ -731,6 +766,8 @@ hkj:
     vstream-path-enabled: true              # Enable VStreamPath handler (default: true)
     either-or-both-path-enabled: true       # Enable EitherOrBothPath handler (default: true)
     free-path-enabled: true                 # Enable FreePath handler (default: true)
+    validation-invalid-status: 400          # Status for generic validation errors (default: 400)
+    validation-field-error-status: 422      # Status for FieldError-shaped validation errors (default: 422)
     either:
       default-error-status: 400             # Default HTTP status for unmapped Left errors
 ```
