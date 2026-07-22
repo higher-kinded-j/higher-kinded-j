@@ -83,7 +83,7 @@ The two directions are asymmetric: `build` computes the derived component, `pars
   Profile(first, last) ──▶ ProfileDto(first, last, displayName)
                                                    ▲
              displayName() : Getter<Profile,String>│  first + " " + last
-                                                    └── computed, not copied
+                                                   └── computed, not copied
 
   parse : ignores the derived component (it is derivable)
   ────────────────────────────────────────────────────────────────
