@@ -1098,7 +1098,7 @@ class MappingProcessorTest {
                   """));
       assertThat(compilation).failed();
       assertThat(compilation).hadErrorContaining("'W' combines a projection with derived fields");
-      assertThat(compilation).hadErrorContaining("an unlawful lens");
+      assertThat(compilation).hadErrorContaining("The projection write-back (asLens or patch)");
       assertThat(compilation).hadErrorContaining("map the smaller wire as a plain projection");
     }
 
@@ -1704,6 +1704,826 @@ class MappingProcessorTest {
   }
 
   @Nested
+  @DisplayName("Leaf-carrying projection (validated patch tier, #625)")
+  class LeafCarryingProjectionPatchTier {
+
+    private static final JavaFileObject ACCOUNT =
+        JavaFileObjects.forSourceString(
+            "com.example.Account",
+            """
+            package com.example;
+
+            public record Account(String id, String email, String notes, int age) {}
+            """);
+
+    private static final JavaFileObject ACCOUNT_PATCH_DTO =
+        JavaFileObjects.forSourceString(
+            "com.example.AccountPatchDto",
+            """
+            package com.example;
+
+            public record AccountPatchDto(String email, String notes, int age) {}
+            """);
+
+    private static final JavaFileObject ACCOUNT_PATCH_MAPPING =
+        JavaFileObjects.forSourceString(
+            "com.example.AccountPatchMapping",
+            """
+            package com.example;
+
+            import org.higherkindedj.hkt.validated.FieldError;
+            import org.higherkindedj.hkt.validated.Validated;
+            import org.higherkindedj.optics.annotations.GenerateMapping;
+            import org.higherkindedj.optics.annotations.MappingSpec;
+            import org.higherkindedj.optics.validated.ValidatedPrism;
+
+            @GenerateMapping
+            public interface AccountPatchMapping extends MappingSpec<Account, AccountPatchDto> {
+              default ValidatedPrism<String, String> email() {
+                return ValidatedPrism.of(
+                    raw ->
+                        raw.contains("@")
+                            ? Validated.validNel(raw.toLowerCase(java.util.Locale.ROOT))
+                            : Validated.invalidNel(FieldError.of("not an email address")),
+                    email -> email);
+              }
+            }
+            """);
+
+    private Object impl(RuntimeCompilationHelper.CompiledResult result, String implFqcn) {
+      try {
+        return result.loadClass(implFqcn).getField("INSTANCE").get(null);
+      } catch (ReflectiveOperationException e) {
+        throw new AssertionError(e);
+      }
+    }
+
+    @SuppressWarnings("unchecked")
+    private Validated<NonEmptyList<FieldError>, Object> patch(
+        Object impl, Object domain, Object wire) {
+      return (Validated<NonEmptyList<FieldError>, Object>) invoke(impl, "patch", domain, wire);
+    }
+
+    private List<String> renderedErrors(Validated<NonEmptyList<FieldError>, Object> result) {
+      return result.getError().toJavaList().stream().map(FieldError::toString).toList();
+    }
+
+    @Test
+    @DisplayName("a leaf-carrying projection emits build + validated patch, no asLens, no parse")
+    void leafProjectionEmitsBuildAndPatch() {
+      Compilation compilation = compile(ACCOUNT, ACCOUNT_PATCH_DTO, ACCOUNT_PATCH_MAPPING);
+      assertThat(compilation).succeeded();
+      String generated = generatedSource(compilation, "com.example.AccountPatchMappingImpl");
+      Assertions.assertThat(generated)
+          .contains("public AccountPatchDto build(Account domain)")
+          .contains("public Validated<NonEmptyList<FieldError>, Account> patch(")
+          .contains("AccountPatchDto wire)")
+          // reference reads are guarded into located FieldErrors; the primitive is not
+          .contains(".field(\"email\", ifPresent(wire.email(), email()::parse))")
+          .contains(".field(\"notes\", ifPresent(wire.notes(), Validated::validNel))")
+          .contains(".field(\"age\", Validated.validNel(wire.age()))")
+          // projected components bind by name; unprojected read from the domain argument
+          .contains(".apply((email, notes, age) -> new Account(domain.id(), email, notes, age))")
+          .doesNotContain("asLens")
+          .doesNotContain("asIso")
+          .doesNotContain("asValidatedPrism");
+    }
+
+    @Test
+    @DisplayName("patch applies a valid wire, normalising through the leaf, keeping the rest")
+    void patchAppliesValidWireAndPreservesUnprojected() {
+      Compilation compilation = compile(ACCOUNT, ACCOUNT_PATCH_DTO, ACCOUNT_PATCH_MAPPING);
+      assertThat(compilation).succeeded();
+      var result = new RuntimeCompilationHelper.CompiledResult(compilation);
+      try {
+        Object impl = impl(result, "com.example.AccountPatchMappingImpl");
+        Class<?> accountClass = result.loadClass("com.example.Account");
+        Object domain =
+            accountClass
+                .getDeclaredConstructor(String.class, String.class, String.class, int.class)
+                .newInstance("7", "old@example.com", "keep", 30);
+        Object wire =
+            result
+                .loadClass("com.example.AccountPatchDto")
+                .getDeclaredConstructor(String.class, String.class, int.class)
+                .newInstance("Ada@Example.COM", "fresh notes", 44);
+
+        Validated<NonEmptyList<FieldError>, Object> patched = patch(impl, domain, wire);
+        Assertions.assertThat(patched.isValid()).isTrue();
+        Object account = patched.get();
+        Assertions.assertThat(invoke(account, "id")).isEqualTo("7");
+        Assertions.assertThat(invoke(account, "email")).isEqualTo("ada@example.com");
+        Assertions.assertThat(invoke(account, "notes")).isEqualTo("fresh notes");
+        Assertions.assertThat(invoke(account, "age")).isEqualTo(44);
+      } catch (ReflectiveOperationException e) {
+        throw new AssertionError(e);
+      }
+    }
+
+    @Test
+    @DisplayName("patch of the domain's own build is identity (the projection round-trip law)")
+    void patchOfOwnBuildIsIdentity() {
+      Compilation compilation = compile(ACCOUNT, ACCOUNT_PATCH_DTO, ACCOUNT_PATCH_MAPPING);
+      assertThat(compilation).succeeded();
+      var result = new RuntimeCompilationHelper.CompiledResult(compilation);
+      try {
+        Object impl = impl(result, "com.example.AccountPatchMappingImpl");
+        Object domain =
+            result
+                .loadClass("com.example.Account")
+                .getDeclaredConstructor(String.class, String.class, String.class, int.class)
+                .newInstance("7", "ada@example.com", "keep", 30);
+
+        Object wire = invoke(impl, "build", domain);
+        Validated<NonEmptyList<FieldError>, Object> patched = patch(impl, domain, wire);
+        Assertions.assertThat(patched.isValid()).isTrue();
+        Assertions.assertThat(patched.get()).isEqualTo(domain);
+      } catch (ReflectiveOperationException e) {
+        throw new AssertionError(e);
+      }
+    }
+
+    @Test
+    @DisplayName("every bad projected field accumulates into one located Invalid")
+    void patchAccumulatesEveryBadField() {
+      Compilation compilation = compile(ACCOUNT, ACCOUNT_PATCH_DTO, ACCOUNT_PATCH_MAPPING);
+      assertThat(compilation).succeeded();
+      var result = new RuntimeCompilationHelper.CompiledResult(compilation);
+      try {
+        Object impl = impl(result, "com.example.AccountPatchMappingImpl");
+        Object domain =
+            result
+                .loadClass("com.example.Account")
+                .getDeclaredConstructor(String.class, String.class, String.class, int.class)
+                .newInstance("7", "ada@example.com", "keep", 30);
+        Object wire =
+            result
+                .loadClass("com.example.AccountPatchDto")
+                .getDeclaredConstructor(String.class, String.class, int.class)
+                .newInstance("nope", null, 44);
+
+        Validated<NonEmptyList<FieldError>, Object> patched = patch(impl, domain, wire);
+        Assertions.assertThat(patched.isInvalid()).isTrue();
+        Assertions.assertThat(renderedErrors(patched))
+            .containsExactly("email: not an email address", "notes: must not be null");
+      } catch (ReflectiveOperationException e) {
+        throw new AssertionError(e);
+      }
+    }
+
+    @Test
+    @DisplayName("an all-null wire is total: every absence located, nothing thrown")
+    void nullProjectedComponentsAreLocatedNotThrown() {
+      Compilation compilation = compile(ACCOUNT, ACCOUNT_PATCH_DTO, ACCOUNT_PATCH_MAPPING);
+      assertThat(compilation).succeeded();
+      var result = new RuntimeCompilationHelper.CompiledResult(compilation);
+      try {
+        Object impl = impl(result, "com.example.AccountPatchMappingImpl");
+        Object domain =
+            result
+                .loadClass("com.example.Account")
+                .getDeclaredConstructor(String.class, String.class, String.class, int.class)
+                .newInstance("7", "ada@example.com", "keep", 30);
+        Object wire =
+            result
+                .loadClass("com.example.AccountPatchDto")
+                .getDeclaredConstructor(String.class, String.class, int.class)
+                .newInstance(null, null, 44);
+
+        Validated<NonEmptyList<FieldError>, Object> patched = patch(impl, domain, wire);
+        Assertions.assertThat(patched.isInvalid()).isTrue();
+        Assertions.assertThat(renderedErrors(patched))
+            .containsExactly("email: must not be null", "notes: must not be null");
+      } catch (ReflectiveOperationException e) {
+        throw new AssertionError(e);
+      }
+    }
+
+    @Test
+    @DisplayName("a @MapField rename works in the patch tier; errors locate under domain names")
+    void renamedProjectionComponentWorksInPatchTier() {
+      JavaFileObject wire =
+          JavaFileObjects.forSourceString(
+              "com.example.MailPatchDto",
+              """
+              package com.example;
+
+              public record MailPatchDto(String email, String memo) {}
+              """);
+      JavaFileObject spec =
+          JavaFileObjects.forSourceString(
+              "com.example.MailPatchMapping",
+              """
+              package com.example;
+
+              import org.higherkindedj.hkt.validated.FieldError;
+              import org.higherkindedj.hkt.validated.Validated;
+              import org.higherkindedj.optics.annotations.GenerateMapping;
+              import org.higherkindedj.optics.annotations.MapField;
+              import org.higherkindedj.optics.annotations.MappingSpec;
+              import org.higherkindedj.optics.validated.ValidatedPrism;
+
+              @GenerateMapping
+              public interface MailPatchMapping extends MappingSpec<Account, MailPatchDto> {
+                @MapField(to = "memo")
+                String notes();
+
+                default ValidatedPrism<String, String> email() {
+                  return ValidatedPrism.of(
+                      raw ->
+                          raw.contains("@")
+                              ? Validated.validNel(raw)
+                              : Validated.invalidNel(FieldError.of("not an email address")),
+                      email -> email);
+                }
+              }
+              """);
+
+      Compilation compilation = compile(ACCOUNT, wire, spec);
+      assertThat(compilation).succeeded();
+      var result = new RuntimeCompilationHelper.CompiledResult(compilation);
+      try {
+        Object impl = impl(result, "com.example.MailPatchMappingImpl");
+        Object domain =
+            result
+                .loadClass("com.example.Account")
+                .getDeclaredConstructor(String.class, String.class, String.class, int.class)
+                .newInstance("7", "ada@example.com", "keep", 30);
+        Class<?> wireClass = result.loadClass("com.example.MailPatchDto");
+
+        // Bad email locates under the DOMAIN component name, not the wire name.
+        Validated<NonEmptyList<FieldError>, Object> bad =
+            patch(
+                impl,
+                domain,
+                wireClass
+                    .getDeclaredConstructor(String.class, String.class)
+                    .newInstance("nope", "new memo"));
+        Assertions.assertThat(bad.isInvalid()).isTrue();
+        Assertions.assertThat(renderedErrors(bad)).containsExactly("email: not an email address");
+
+        // A valid wire writes the renamed component back to its domain source.
+        Validated<NonEmptyList<FieldError>, Object> good =
+            patch(
+                impl,
+                domain,
+                wireClass
+                    .getDeclaredConstructor(String.class, String.class)
+                    .newInstance("grace@example.com", "new memo"));
+        Assertions.assertThat(good.isValid()).isTrue();
+        Assertions.assertThat(invoke(good.get(), "notes")).isEqualTo("new memo");
+        Assertions.assertThat(invoke(good.get(), "email")).isEqualTo("grace@example.com");
+        Assertions.assertThat(invoke(good.get(), "id")).isEqualTo("7");
+      } catch (ReflectiveOperationException e) {
+        throw new AssertionError(e);
+      }
+    }
+
+    @Test
+    @DisplayName("a nested-spec projected component composes dotted error paths")
+    void nestedSpecProjectionComposesDottedPaths() {
+      JavaFileObject address =
+          JavaFileObjects.forSourceString(
+              "com.example.Address",
+              """
+              package com.example;
+
+              public record Address(String zip) {}
+              """);
+      JavaFileObject addressDto =
+          JavaFileObjects.forSourceString(
+              "com.example.AddressDto",
+              """
+              package com.example;
+
+              public record AddressDto(String zip) {}
+              """);
+      JavaFileObject addressMapping =
+          JavaFileObjects.forSourceString(
+              "com.example.AddressMapping",
+              """
+              package com.example;
+
+              import org.higherkindedj.hkt.validated.FieldError;
+              import org.higherkindedj.hkt.validated.Validated;
+              import org.higherkindedj.optics.annotations.GenerateMapping;
+              import org.higherkindedj.optics.annotations.MappingSpec;
+              import org.higherkindedj.optics.validated.ValidatedPrism;
+
+              @GenerateMapping
+              public interface AddressMapping extends MappingSpec<Address, AddressDto> {
+                default ValidatedPrism<String, String> zip() {
+                  return ValidatedPrism.of(
+                      raw ->
+                          raw.matches("\\\\d{5}")
+                              ? Validated.validNel(raw)
+                              : Validated.invalidNel(FieldError.of("must be 5 digits")),
+                      zip -> zip);
+                }
+              }
+              """);
+      JavaFileObject customer =
+          JavaFileObjects.forSourceString(
+              "com.example.Customer",
+              """
+              package com.example;
+
+              public record Customer(String id, Address address) {}
+              """);
+      JavaFileObject customerPatchDto =
+          JavaFileObjects.forSourceString(
+              "com.example.CustomerPatchDto",
+              """
+              package com.example;
+
+              public record CustomerPatchDto(AddressDto address) {}
+              """);
+      JavaFileObject customerPatchMapping =
+          JavaFileObjects.forSourceString(
+              "com.example.CustomerPatchMapping",
+              """
+              package com.example;
+
+              import org.higherkindedj.optics.annotations.GenerateMapping;
+              import org.higherkindedj.optics.annotations.MappingSpec;
+
+              @GenerateMapping
+              public interface CustomerPatchMapping extends MappingSpec<Customer, CustomerPatchDto> {}
+              """);
+
+      Compilation compilation =
+          compile(
+              address,
+              addressDto,
+              addressMapping,
+              customer,
+              customerPatchDto,
+              customerPatchMapping);
+      assertThat(compilation).succeeded();
+      var result = new RuntimeCompilationHelper.CompiledResult(compilation);
+      try {
+        Object impl = impl(result, "com.example.CustomerPatchMappingImpl");
+        Object domainAddress =
+            result
+                .loadClass("com.example.Address")
+                .getDeclaredConstructor(String.class)
+                .newInstance("12345");
+        Object domain =
+            result
+                .loadClass("com.example.Customer")
+                .getDeclaredConstructor(String.class, result.loadClass("com.example.Address"))
+                .newInstance("7", domainAddress);
+        Object wireAddress =
+            result
+                .loadClass("com.example.AddressDto")
+                .getDeclaredConstructor(String.class)
+                .newInstance("nope");
+        Object wire =
+            result
+                .loadClass("com.example.CustomerPatchDto")
+                .getDeclaredConstructor(result.loadClass("com.example.AddressDto"))
+                .newInstance(wireAddress);
+
+        Validated<NonEmptyList<FieldError>, Object> patched = patch(impl, domain, wire);
+        Assertions.assertThat(patched.isInvalid()).isTrue();
+        Assertions.assertThat(renderedErrors(patched))
+            .containsExactly("address.zip: must be 5 digits");
+      } catch (ReflectiveOperationException e) {
+        throw new AssertionError(e);
+      }
+    }
+
+    @Test
+    @DisplayName("container lifting works in projections: List elements locate by index")
+    void listProjectionLiftsElements() {
+      JavaFileObject roster =
+          JavaFileObjects.forSourceString(
+              "com.example.Roster",
+              """
+              package com.example;
+
+              import java.util.List;
+
+              public record Roster(String id, List<EmailAddress> emails) {}
+              """);
+      JavaFileObject rosterPatchDto =
+          JavaFileObjects.forSourceString(
+              "com.example.RosterPatchDto",
+              """
+              package com.example;
+
+              import java.util.List;
+
+              public record RosterPatchDto(List<String> emails) {}
+              """);
+      JavaFileObject rosterPatchMapping =
+          JavaFileObjects.forSourceString(
+              "com.example.RosterPatchMapping",
+              """
+              package com.example;
+
+              import org.higherkindedj.hkt.validated.FieldError;
+              import org.higherkindedj.hkt.validated.Validated;
+              import org.higherkindedj.optics.annotations.GenerateMapping;
+              import org.higherkindedj.optics.annotations.MappingSpec;
+              import org.higherkindedj.optics.validated.ValidatedPrism;
+
+              @GenerateMapping
+              public interface RosterPatchMapping extends MappingSpec<Roster, RosterPatchDto> {
+                default ValidatedPrism<String, EmailAddress> emails() {
+                  return ValidatedPrism.of(
+                      raw ->
+                          raw.contains("@")
+                              ? Validated.validNel(new EmailAddress(raw))
+                              : Validated.invalidNel(FieldError.of("not an email address")),
+                      EmailAddress::value);
+                }
+              }
+              """);
+
+      Compilation compilation = compile(EMAIL, roster, rosterPatchDto, rosterPatchMapping);
+      assertThat(compilation).succeeded();
+      var result = new RuntimeCompilationHelper.CompiledResult(compilation);
+      try {
+        Object impl = impl(result, "com.example.RosterPatchMappingImpl");
+        Object domainEmail =
+            result
+                .loadClass("com.example.EmailAddress")
+                .getDeclaredConstructor(String.class)
+                .newInstance("ada@example.com");
+        Object domain =
+            result
+                .loadClass("com.example.Roster")
+                .getDeclaredConstructor(String.class, List.class)
+                .newInstance("7", List.of(domainEmail));
+        Object wire =
+            result
+                .loadClass("com.example.RosterPatchDto")
+                .getDeclaredConstructor(List.class)
+                .newInstance(List.of("good@example.com", "nope"));
+
+        Validated<NonEmptyList<FieldError>, Object> patched = patch(impl, domain, wire);
+        Assertions.assertThat(patched.isInvalid()).isTrue();
+        Assertions.assertThat(renderedErrors(patched)).hasSize(1);
+        Assertions.assertThat(renderedErrors(patched).getFirst())
+            .startsWith("emails")
+            .contains("not an email address");
+      } catch (ReflectiveOperationException e) {
+        throw new AssertionError(e);
+      }
+    }
+
+    @Test
+    @DisplayName("Optional lifting works in projections: present parses, empty stays, null locates")
+    void optionalProjectionLifts() {
+      JavaFileObject profile =
+          JavaFileObjects.forSourceString(
+              "com.example.Profile",
+              """
+              package com.example;
+
+              import java.util.Optional;
+
+              public record Profile(String id, Optional<EmailAddress> backup) {}
+              """);
+      JavaFileObject profilePatchDto =
+          JavaFileObjects.forSourceString(
+              "com.example.ProfilePatchDto",
+              """
+              package com.example;
+
+              import java.util.Optional;
+
+              public record ProfilePatchDto(Optional<String> backup) {}
+              """);
+      JavaFileObject profilePatchMapping =
+          JavaFileObjects.forSourceString(
+              "com.example.ProfilePatchMapping",
+              """
+              package com.example;
+
+              import org.higherkindedj.hkt.validated.FieldError;
+              import org.higherkindedj.hkt.validated.Validated;
+              import org.higherkindedj.optics.annotations.GenerateMapping;
+              import org.higherkindedj.optics.annotations.MappingSpec;
+              import org.higherkindedj.optics.validated.ValidatedPrism;
+
+              @GenerateMapping
+              public interface ProfilePatchMapping extends MappingSpec<Profile, ProfilePatchDto> {
+                default ValidatedPrism<String, EmailAddress> backup() {
+                  return ValidatedPrism.of(
+                      raw ->
+                          raw.contains("@")
+                              ? Validated.validNel(new EmailAddress(raw))
+                              : Validated.invalidNel(FieldError.of("not an email address")),
+                      EmailAddress::value);
+                }
+              }
+              """);
+
+      Compilation compilation = compile(EMAIL, profile, profilePatchDto, profilePatchMapping);
+      assertThat(compilation).succeeded();
+      var result = new RuntimeCompilationHelper.CompiledResult(compilation);
+      try {
+        Object impl = impl(result, "com.example.ProfilePatchMappingImpl");
+        Object domain =
+            result
+                .loadClass("com.example.Profile")
+                .getDeclaredConstructor(String.class, java.util.Optional.class)
+                .newInstance("7", java.util.Optional.empty());
+        Class<?> wireClass = result.loadClass("com.example.ProfilePatchDto");
+
+        Validated<NonEmptyList<FieldError>, Object> present =
+            patch(
+                impl,
+                domain,
+                wireClass
+                    .getDeclaredConstructor(java.util.Optional.class)
+                    .newInstance(java.util.Optional.of("ada@example.com")));
+        Assertions.assertThat(present.isValid()).isTrue();
+        Assertions.assertThat(invoke(present.get(), "backup"))
+            .asInstanceOf(InstanceOfAssertFactories.OPTIONAL)
+            .isPresent();
+
+        Validated<NonEmptyList<FieldError>, Object> empty =
+            patch(
+                impl,
+                domain,
+                wireClass
+                    .getDeclaredConstructor(java.util.Optional.class)
+                    .newInstance(java.util.Optional.empty()));
+        Assertions.assertThat(empty.isValid()).isTrue();
+        Assertions.assertThat(invoke(empty.get(), "backup"))
+            .asInstanceOf(InstanceOfAssertFactories.OPTIONAL)
+            .isEmpty();
+
+        Validated<NonEmptyList<FieldError>, Object> bad =
+            patch(
+                impl,
+                domain,
+                wireClass
+                    .getDeclaredConstructor(java.util.Optional.class)
+                    .newInstance(java.util.Optional.of("nope")));
+        Assertions.assertThat(bad.isInvalid()).isTrue();
+        Assertions.assertThat(renderedErrors(bad)).containsExactly("backup: not an email address");
+
+        Validated<NonEmptyList<FieldError>, Object> nullRead =
+            patch(
+                impl,
+                domain,
+                wireClass
+                    .getDeclaredConstructor(java.util.Optional.class)
+                    .newInstance(new Object[] {null}));
+        Assertions.assertThat(nullRead.isInvalid()).isTrue();
+        Assertions.assertThat(renderedErrors(nullRead)).containsExactly("backup: must not be null");
+      } catch (ReflectiveOperationException e) {
+        throw new AssertionError(e);
+      }
+    }
+
+    @Test
+    @DisplayName("Map value lifting works in projections: failures locate by key")
+    void mapProjectionLiftsValues() {
+      JavaFileObject book =
+          JavaFileObjects.forSourceString(
+              "com.example.AddressBook",
+              """
+              package com.example;
+
+              import java.util.Map;
+
+              public record AddressBook(String id, Map<String, EmailAddress> entries) {}
+              """);
+      JavaFileObject bookPatchDto =
+          JavaFileObjects.forSourceString(
+              "com.example.AddressBookPatchDto",
+              """
+              package com.example;
+
+              import java.util.Map;
+
+              public record AddressBookPatchDto(Map<String, String> entries) {}
+              """);
+      JavaFileObject bookPatchMapping =
+          JavaFileObjects.forSourceString(
+              "com.example.AddressBookPatchMapping",
+              """
+              package com.example;
+
+              import org.higherkindedj.hkt.validated.FieldError;
+              import org.higherkindedj.hkt.validated.Validated;
+              import org.higherkindedj.optics.annotations.GenerateMapping;
+              import org.higherkindedj.optics.annotations.MappingSpec;
+              import org.higherkindedj.optics.validated.ValidatedPrism;
+
+              @GenerateMapping
+              public interface AddressBookPatchMapping
+                  extends MappingSpec<AddressBook, AddressBookPatchDto> {
+                default ValidatedPrism<String, EmailAddress> entries() {
+                  return ValidatedPrism.of(
+                      raw ->
+                          raw.contains("@")
+                              ? Validated.validNel(new EmailAddress(raw))
+                              : Validated.invalidNel(FieldError.of("not an email address")),
+                      EmailAddress::value);
+                }
+              }
+              """);
+
+      Compilation compilation = compile(EMAIL, book, bookPatchDto, bookPatchMapping);
+      assertThat(compilation).succeeded();
+      var result = new RuntimeCompilationHelper.CompiledResult(compilation);
+      try {
+        Object impl = impl(result, "com.example.AddressBookPatchMappingImpl");
+        Object domain =
+            result
+                .loadClass("com.example.AddressBook")
+                .getDeclaredConstructor(String.class, Map.class)
+                .newInstance("7", Map.of());
+        Object wire =
+            result
+                .loadClass("com.example.AddressBookPatchDto")
+                .getDeclaredConstructor(Map.class)
+                .newInstance(new LinkedHashMap<>(Map.of("work", "nope")));
+
+        Validated<NonEmptyList<FieldError>, Object> patched = patch(impl, domain, wire);
+        Assertions.assertThat(patched.isInvalid()).isTrue();
+        Assertions.assertThat(renderedErrors(patched)).hasSize(1);
+        Assertions.assertThat(renderedErrors(patched).getFirst())
+            .startsWith("entries")
+            .contains("not an email address");
+      } catch (ReflectiveOperationException e) {
+        throw new AssertionError(e);
+      }
+    }
+
+    @Test
+    @DisplayName("components named 'domain' or 'wire' do not shadow the patch method parameters")
+    void reservedNamesDoNotShadowPatchParameters() {
+      JavaFileObject site =
+          JavaFileObjects.forSourceString(
+              "com.example.Site",
+              """
+              package com.example;
+
+              public record Site(String id, String domain, String wire) {}
+              """);
+      JavaFileObject sitePatchDto =
+          JavaFileObjects.forSourceString(
+              "com.example.SitePatchDto",
+              """
+              package com.example;
+
+              public record SitePatchDto(String domain, String wire) {}
+              """);
+      JavaFileObject sitePatchMapping =
+          JavaFileObjects.forSourceString(
+              "com.example.SitePatchMapping",
+              """
+              package com.example;
+
+              import java.util.Locale;
+              import org.higherkindedj.hkt.validated.FieldError;
+              import org.higherkindedj.hkt.validated.Validated;
+              import org.higherkindedj.optics.annotations.GenerateMapping;
+              import org.higherkindedj.optics.annotations.MappingSpec;
+              import org.higherkindedj.optics.validated.ValidatedPrism;
+
+              @GenerateMapping
+              public interface SitePatchMapping extends MappingSpec<Site, SitePatchDto> {
+                default ValidatedPrism<String, String> domain() {
+                  return ValidatedPrism.of(
+                      raw ->
+                          raw.contains(".")
+                              ? Validated.validNel(raw.toLowerCase(Locale.ROOT))
+                              : Validated.invalidNel(FieldError.of("not a dotted host name")),
+                      domain -> domain);
+                }
+              }
+              """);
+
+      Compilation compilation = compile(site, sitePatchDto, sitePatchMapping);
+      assertThat(compilation).succeeded();
+      String generated = generatedSource(compilation, "com.example.SitePatchMappingImpl");
+      Assertions.assertThat(generated)
+          .contains(".apply((domain_, wire_) -> new Site(domain.id(), domain_, wire_))");
+
+      var result = new RuntimeCompilationHelper.CompiledResult(compilation);
+      try {
+        Object impl = impl(result, "com.example.SitePatchMappingImpl");
+        Object domainValue =
+            result
+                .loadClass("com.example.Site")
+                .getDeclaredConstructor(String.class, String.class, String.class)
+                .newInstance("7", "example.org", "rss");
+        Object wireValue =
+            result
+                .loadClass("com.example.SitePatchDto")
+                .getDeclaredConstructor(String.class, String.class)
+                .newInstance("Example.COM", "atom");
+
+        Validated<NonEmptyList<FieldError>, Object> patched = patch(impl, domainValue, wireValue);
+        Assertions.assertThat(patched.isValid()).isTrue();
+        Assertions.assertThat(invoke(patched.get(), "id")).isEqualTo("7");
+        Assertions.assertThat(invoke(patched.get(), "domain")).isEqualTo("example.com");
+        Assertions.assertThat(invoke(patched.get(), "wire")).isEqualTo("atom");
+      } catch (ReflectiveOperationException e) {
+        throw new AssertionError(e);
+      }
+    }
+
+    @Test
+    @DisplayName("a component named 'domain_' pushes the renamed parameter to 'domain__'")
+    void suffixedReservedNameKeepsSuffixingUntilFree() {
+      JavaFileObject odd =
+          JavaFileObjects.forSourceString(
+              "com.example.Odd",
+              """
+              package com.example;
+
+              public record Odd(String id, String domain, String domain_) {}
+              """);
+      JavaFileObject oddPatchDto =
+          JavaFileObjects.forSourceString(
+              "com.example.OddPatchDto",
+              """
+              package com.example;
+
+              public record OddPatchDto(String domain, String domain_) {}
+              """);
+      JavaFileObject oddPatchMapping =
+          JavaFileObjects.forSourceString(
+              "com.example.OddPatchMapping",
+              """
+              package com.example;
+
+              import org.higherkindedj.hkt.validated.Validated;
+              import org.higherkindedj.optics.annotations.GenerateMapping;
+              import org.higherkindedj.optics.annotations.MappingSpec;
+              import org.higherkindedj.optics.validated.ValidatedPrism;
+
+              @GenerateMapping
+              public interface OddPatchMapping extends MappingSpec<Odd, OddPatchDto> {
+                default ValidatedPrism<String, String> domain() {
+                  return ValidatedPrism.of(Validated::validNel, value -> value);
+                }
+              }
+              """);
+
+      Compilation compilation = compile(odd, oddPatchDto, oddPatchMapping);
+      assertThat(compilation).succeeded();
+      Assertions.assertThat(generatedSource(compilation, "com.example.OddPatchMappingImpl"))
+          .contains(".apply((domain__, domain_) -> new Odd(domain.id(), domain__, domain_))");
+    }
+
+    @Test
+    @DisplayName("a projection wider than the fields() ladder is rejected with the ceiling")
+    void patchCeilingRejected() {
+      String domainComponents =
+          IntStream.rangeClosed(1, 18)
+              .mapToObj(i -> "String f" + i)
+              .collect(Collectors.joining(", "));
+      String wireComponents =
+          IntStream.rangeClosed(1, 17)
+              .mapToObj(i -> "String f" + i)
+              .collect(Collectors.joining(", "));
+      JavaFileObject wideDomain =
+          JavaFileObjects.forSourceString(
+              "com.example.WideDomain",
+              "package com.example;\n\npublic record WideDomain(" + domainComponents + ") {}\n");
+      JavaFileObject wideWire =
+          JavaFileObjects.forSourceString(
+              "com.example.WideWireDto",
+              "package com.example;\n\npublic record WideWireDto(" + wireComponents + ") {}\n");
+      JavaFileObject spec =
+          JavaFileObjects.forSourceString(
+              "com.example.WideMapping",
+              """
+              package com.example;
+
+              import org.higherkindedj.hkt.validated.FieldError;
+              import org.higherkindedj.hkt.validated.Validated;
+              import org.higherkindedj.optics.annotations.GenerateMapping;
+              import org.higherkindedj.optics.annotations.MappingSpec;
+              import org.higherkindedj.optics.validated.ValidatedPrism;
+
+              @GenerateMapping
+              public interface WideMapping extends MappingSpec<WideDomain, WideWireDto> {
+                default ValidatedPrism<String, String> f1() {
+                  return ValidatedPrism.of(Validated::validNel, s -> s);
+                }
+              }
+              """);
+
+      Compilation compilation = compile(wideDomain, wideWire, spec);
+      assertThat(compilation).failed();
+      assertThat(compilation)
+          .hadErrorContaining(
+              "'WideWireDto' projects 17 components; the validated patch supports at most 16");
+    }
+  }
+
+  @Nested
   @DisplayName("Projection (Lens tier)")
   class ProjectionLensTier {
 
@@ -1760,7 +2580,7 @@ class MappingProcessorTest {
     }
 
     @Test
-    @DisplayName("a projection field that changes type is rejected")
+    @DisplayName("a projection field that changes type without a leaf or nested spec is rejected")
     void projectionTypeChangeRejected() {
       JavaFileObject wire =
           JavaFileObjects.forSourceString(
@@ -1785,8 +2605,11 @@ class MappingProcessorTest {
 
       Compilation compilation = compile(EMPLOYEE, wire, spec);
       assertThat(compilation).failed();
-      assertThat(compilation).hadErrorContaining("projection field 'BadgeDto.name' changes type");
-      assertThat(compilation).hadErrorContaining("the types must match exactly");
+      assertThat(compilation)
+          .hadErrorContaining("target field 'BadgeDto.name' has no usable source");
+      assertThat(compilation).hadErrorContaining("no matching leaf method was found");
+      assertThat(compilation)
+          .hadErrorContaining("emits the validated patch(domain, wire) instead of asLens()");
     }
 
     @Test
@@ -2255,7 +3078,7 @@ class MappingProcessorTest {
       assertThat(compilation).failed();
       assertThat(compilation)
           .hadErrorContaining("domain component 'name' sources more than one wire component");
-      assertThat(compilation).hadErrorContaining("unlawful lens");
+      assertThat(compilation).hadErrorContaining("would discard one wire value on write-back");
     }
 
     @Test

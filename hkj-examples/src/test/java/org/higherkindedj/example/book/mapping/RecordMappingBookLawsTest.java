@@ -38,6 +38,18 @@ class RecordMappingBookLawsTest {
     // ANCHOR_END: update_laws
   }
 
+  @Test
+  void subscriberPatchMappingObeysThePatchLaws() {
+    // ANCHOR: patch_laws
+    MappingLaws.assertMappingLaws(
+        SubscriberPatchMappingImpl.INSTANCE::patch,
+        SubscriberPatchMappingImpl.INSTANCE::build,
+        new Subscriber("7", new EmailAddress("ada@example.org"), 36), // the current value
+        new SubscriberPatchDto("grace@example.org", 41), // parses and changes the domain
+        new SubscriberPatchDto("not-an-email", 36)); // located failure
+    // ANCHOR_END: patch_laws
+  }
+
   private static ContactPatchBean patch(String name, String email) {
     ContactPatchBean bean = new ContactPatchBean();
     bean.setName(name);

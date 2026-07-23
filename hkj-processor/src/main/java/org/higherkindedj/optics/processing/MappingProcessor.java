@@ -65,9 +65,11 @@ import org.higherkindedj.optics.processing.util.Diagnostics;
  * WireComponentType>}. {@code build} fills it with the getter applied to the whole domain value;
  * {@code parse} ignores it (the data is derivable), and a spec with any derived field never emits
  * {@code asIso()}. A wire record with fewer components maps as a lossy projection: {@code build}
- * plus a lawful {@code asLens()} write-back, and no {@code parse} (truthful types). Sealed
- * interface pairs dispatch {@code build}/{@code parse} over their permitted subtype pairs, each
- * delegating to its own spec.
+ * plus a lawful {@code asLens()} write-back when every projected component matches by identity, or
+ * a validated {@code patch(domain, wire)} write-back when any component maps through a leaf, nested
+ * spec or container (issue #625); no {@code parse} either way (truthful types). Sealed interface
+ * pairs dispatch {@code build}/{@code parse} over their permitted subtype pairs, each delegating to
+ * its own spec.
  *
  * <p>The wire may be a bean-shaped class instead of a record (issue #628, {@link WireShape}):
  * {@code build} fills it through setters or a builder and {@code parse} reads it through getters.
@@ -375,20 +377,47 @@ public class MappingProcessor extends AbstractProcessor {
         reportProjectionWithDerived(spec, domain, wireShape, derived);
         return;
       }
-      // A projection's asLens() writes wire reads straight back into the domain. A record (or an
-      // all-primitive bean) can never read null, so the write-back is lawful; a bean with any
-      // reference property could read null, which the lawful lens cannot express — that maps as a
-      // validated patch instead (a follow-up), so it is deferred here rather than emitted
-      // unlawfully.
+      // A bean projection with a reference property could read null, which neither the lawful
+      // lens nor the record-shaped patch tier covers yet (#625 ships records only) — deferred
+      // rather than emitted unlawfully. An all-primitive bean can never read null and projects
+      // as a lawful lens.
       if (wireShape instanceof WireShape.BeanShape && !allPrimitive(wireShape)) {
         reportBeanProjectionDeferred(spec, domain, wireShape);
         return;
       }
-      List<Correspondence> projection = classifyProjection(spec, domain, wireShape, renames);
+      List<Correspondence> projection =
+          classifyProjection(spec, registry, domain, wireShape, renames);
       if (projection == null) {
         return;
       }
-      writeLensImpl(spec, domain, wireShape, projection);
+      // An all-identity projection keeps the lawful total asLens(); any fallible correspondence
+      // makes the write-back partial, which maps as the validated patch tier instead (#625).
+      if (projection.stream().noneMatch(Correspondence::fallible)) {
+        writeLensImpl(spec, domain, wireShape, projection);
+        return;
+      }
+      if (wireShape.componentCount() > ArityCeilings.ASSEMBLY) {
+        Diagnostics.error(
+            processingEnv.getMessager(),
+            spec,
+            TAG,
+            "'"
+                + wireShape.element().getSimpleName()
+                + "' projects "
+                + wireShape.componentCount()
+                + " components; the validated patch supports at most "
+                + ArityCeilings.ASSEMBLY
+                + ".",
+            "patch is assembled with Validated.fields(), which locates up to "
+                + ArityCeilings.ASSEMBLY
+                + " fields.",
+            "Group related components into nested records (each pair nests through its own"
+                + " spec), or map the record by hand.");
+        return;
+      }
+      // Bean projections with reference properties are deferred above, and an all-primitive
+      // bean cannot carry a fallible correspondence, so the patch tier only ever sees a record.
+      writePatchImpl(spec, domain, (WireShape.RecordShape) wireShape, projection);
       return;
     }
 
@@ -1223,9 +1252,9 @@ public class MappingProcessor extends AbstractProcessor {
             + wire.element().getSimpleName()
             + "' has fewer components than '"
             + domain.getSimpleName()
-            + "', which is the projection shape (Lens tier). A projection's asLens() writes wire"
-            + " values straight back into the domain, but build recomputes a derived component,"
-            + " so the write-back could never honour the value being set (an unlawful lens).",
+            + "', which is the projection shape. The projection write-back (asLens or patch)"
+            + " writes wire values back into the domain, but build recomputes a derived"
+            + " component, so the write-back could never honour the value being set.",
         "Remove the derived methods and map the smaller wire as a plain projection, or add wire"
             + " components until every domain component keeps a counterpart.");
   }
@@ -1321,213 +1350,22 @@ public class MappingProcessor extends AbstractProcessor {
             "Point the rename at a distinct wire component.");
         return null;
       }
-      // An explicit leaf always wins — even over a same-typed identity match, so a
-      // ValidatedPrism<X, X> can validate or normalise a component the types alone would copy.
-      ExecutableElement directLeaf =
-          findLeaf(spec, name, wireComponent.type(), domainComponent.asType());
-      if (directLeaf != null) {
-        result.add(
-            new Correspondence(
-                name, wireName, Kind.LEAF, CodeBlock.of("$L()", directLeaf.getSimpleName())));
-        continue;
-      }
-      // The same rule lifted through containers: an ELEMENT/VALUE-typed leaf on a List, Optional
-      // or Map component beats the identity copy the container types alone would take. Only
-      // explicit leaves pre-empt identity; nested-spec resolution never does (the scalar
-      // precedent).
-      Correspondence containerLeaf =
-          containerLeafCorrespondence(
-              spec, name, wireName, wireComponent.type(), domainComponent.asType());
-      if (containerLeaf != null) {
-        result.add(containerLeaf);
-        continue;
-      }
-      if (processingEnv.getTypeUtils().isSameType(domainComponent.asType(), wireComponent.type())) {
-        result.add(new Correspondence(name, wireName, Kind.IDENTITY, null));
-        continue;
-      }
-      TypeMirror wireElement = containerElement(wireComponent.type(), "java.util.List");
-      TypeMirror domainElement = containerElement(domainComponent.asType(), "java.util.List");
-      if (wireElement != null && domainElement != null) {
-        PrismResolution lifted =
-            resolveNestedSpec(spec, registry, name, wireElement, domainElement);
-        if (lifted.ambiguous()) {
-          return null;
-        }
-        if (lifted.accessor() != null) {
-          result.add(new Correspondence(name, wireName, Kind.LIST, lifted.accessor()));
-          continue;
-        }
-      }
-      wireElement = containerElement(wireComponent.type(), "java.util.Optional");
-      domainElement = containerElement(domainComponent.asType(), "java.util.Optional");
-      if (wireElement != null && domainElement != null) {
-        PrismResolution lifted =
-            resolveNestedSpec(spec, registry, name, wireElement, domainElement);
-        if (lifted.ambiguous()) {
-          return null;
-        }
-        if (lifted.accessor() != null) {
-          result.add(new Correspondence(name, wireName, Kind.OPTIONAL, lifted.accessor()));
-          continue;
-        }
-      }
-      // Optional bridge (#628): a domain Optional<DE> maps to a nullable bean property PE, since
-      // beans never declare Optional. Empty <-> null/absent; the element is copied (identity) or
-      // mapped through a leaf, exactly as an Optional element would be. (An Optional bridge through
-      // a nested spec is a follow-up.)
-      if (wire instanceof WireShape.BeanShape && domainElement != null && wireElement == null) {
-        TypeMirror wireType = wireComponent.type();
-        if (processingEnv.getTypeUtils().isSameType(wireType, domainElement)) {
-          result.add(new Correspondence(name, wireName, Kind.OPTIONAL_BRIDGE, null));
-          continue;
-        }
-        ExecutableElement bridgeLeaf = findLeaf(spec, name, wireType, domainElement);
-        if (bridgeLeaf != null) {
-          result.add(
-              new Correspondence(
-                  name,
-                  wireName,
-                  Kind.OPTIONAL_BRIDGE,
-                  CodeBlock.of("$L()", bridgeLeaf.getSimpleName())));
-          continue;
-        }
-        // A bridge is the only way to map a domain Optional to a plain bean property, so a failed
-        // one is a dedicated diagnostic that names the ELEMENT types (not the whole Optional) — a
-        // leaf over Optional<DE> would be matched as a plain leaf and bypass the bridge.
-        Diagnostics.error(
-            processingEnv.getMessager(),
-            spec,
-            TAG,
-            "domain field '"
-                + domain.getSimpleName()
-                + "."
-                + name
-                + "' is Optional<"
-                + domainElement
-                + ">, bridged to the nullable bean property '"
-                + wireName
-                + "' of type "
-                + wireType
-                + ", but the element types differ and no leaf converts them.",
-            "A domain Optional bridges to a nullable bean property (empty maps to absent); the"
-                + " present element is copied when the types match, or mapped through a leaf named"
-                + " after the domain component returning ValidatedPrism<"
-                + wireType
-                + ", "
-                + domainElement
-                + "> (the element types, not the Optional).",
-            "Add 'default ValidatedPrism<"
-                + wireType
-                + ", "
-                + domainElement
-                + "> "
-                + name
-                + "()' to the spec, or align the element types.");
+      Correspondence resolved =
+          resolveCorrespondence(
+              spec,
+              registry,
+              domain,
+              wire,
+              name,
+              wireName,
+              wireComponent.type(),
+              domainComponent.asType(),
+              domainNames,
+              false);
+      if (resolved == null) {
         return null;
       }
-      DeclaredType wireMapType = asMapType(wireComponent.type());
-      DeclaredType domainMapType = asMapType(domainComponent.asType());
-      if (wireMapType != null && domainMapType != null) {
-        if (wireMapType.getTypeArguments().isEmpty()
-            || domainMapType.getTypeArguments().isEmpty()) {
-          Diagnostics.error(
-              processingEnv.getMessager(),
-              spec,
-              TAG,
-              "field '" + name + "' uses a raw Map, which cannot lift.",
-              "Value lifting resolves a ValidatedPrism for the value type, and a raw Map declares"
-                  + " neither key nor value type.",
-              "Declare both type arguments on each side, for example Map<String, EmailAddress>.");
-          return null;
-        }
-        if (hasWildcardArgument(wireMapType) || hasWildcardArgument(domainMapType)) {
-          Diagnostics.error(
-              processingEnv.getMessager(),
-              spec,
-              TAG,
-              "field '" + name + "' uses wildcard Map type arguments, which cannot lift.",
-              "Value lifting resolves a ValidatedPrism for the exact key and value types; a"
-                  + " wildcard leaves them unknown.",
-              "Declare exact type arguments on both sides, for example Map<String,"
-                  + " EmailAddress>.");
-          return null;
-        }
-        TypeMirror wireKey = wireMapType.getTypeArguments().getFirst();
-        TypeMirror domainKey = domainMapType.getTypeArguments().getFirst();
-        if (!processingEnv.getTypeUtils().isSameType(wireKey, domainKey)) {
-          Diagnostics.error(
-              processingEnv.getMessager(),
-              spec,
-              TAG,
-              "field '"
-                  + name
-                  + "' maps between Maps whose key types differ ("
-                  + wireKey
-                  + " vs "
-                  + domainKey
-                  + ").",
-              "Keys pass through as identity; only Map values lift through a leaf or nested spec,"
-                  + " so the key types must match exactly.",
-              "Align the key types (mapping the value type through a leaf or spec), or"
-                  + " restructure to a List of entry records mapped through their own spec.");
-          return null;
-        }
-        PrismResolution lifted =
-            resolveNestedSpec(
-                spec,
-                registry,
-                name,
-                wireMapType.getTypeArguments().get(1),
-                domainMapType.getTypeArguments().get(1));
-        if (lifted.ambiguous()) {
-          return null;
-        }
-        if (lifted.accessor() != null) {
-          result.add(new Correspondence(name, wireName, Kind.MAP, lifted.accessor()));
-          continue;
-        }
-        // Values resolving to nothing fall through to the no-usable-source error, like List
-        // elements.
-      }
-      PrismResolution direct =
-          resolveNestedSpec(spec, registry, name, wireComponent.type(), domainComponent.asType());
-      if (direct.ambiguous()) {
-        return null;
-      }
-      if (direct.accessor() == null) {
-        Diagnostics.error(
-            processingEnv.getMessager(),
-            spec,
-            TAG,
-            "target field '"
-                + wire.element().getSimpleName()
-                + "."
-                + wireName
-                + "' has no usable source.",
-            "The types differ ("
-                + wireComponent.type()
-                + " vs "
-                + domainComponent.asType()
-                + ") and no matching leaf method was found."
-                + leafNearMissHint(spec, name)
-                + projectionSpecHint(registry, wireComponent.type(), domainComponent.asType())
-                + " Found on "
-                + domain.getSimpleName()
-                + ": "
-                + domainNames
-                + ".",
-            "Add 'default ValidatedPrism<"
-                + wireComponent.type()
-                + ", "
-                + domainComponent.asType()
-                + "> "
-                + name
-                + "()' to the spec, or declare a @GenerateMapping spec mapping those records in"
-                + " the same compilation.");
-        return null;
-      }
-      result.add(new Correspondence(name, wireName, Kind.LEAF, direct.accessor()));
+      result.add(resolved);
     }
     for (DerivedField field : derived) {
       // Diagnostics in collectDerived guarantee the derived names are disjoint from the
@@ -1543,14 +1381,234 @@ public class MappingProcessor extends AbstractProcessor {
   }
 
   /**
-   * Classifies the Lens tier: the wire record is smaller, so it maps as a lossy projection. Every
-   * wire component must identity-match a domain component (a fallible leaf would make the
-   * write-back partial).
+   * Resolves one domain-component/wire-component pair to its correspondence: an explicit leaf first
+   * (beating even a same-typed identity match), container element/value leaves, identity,
+   * nested-spec lifting through {@code List}/{@code Optional}/{@code Map}, the bean Optional
+   * bridge, then a direct nested spec — reporting and returning null when nothing usable exists.
+   * Shared by the full tier ({@link #classify}) and the projection tiers ({@link
+   * #classifyProjection}), so a projection resolves exactly like a full-tier component.
+   */
+  private Correspondence resolveCorrespondence(
+      TypeElement spec,
+      List<RegisteredSpec> registry,
+      TypeElement domain,
+      WireShape wire,
+      String name,
+      String wireName,
+      TypeMirror wireType,
+      TypeMirror domainType,
+      List<String> domainNames,
+      boolean projection) {
+    // An explicit leaf always wins — even over a same-typed identity match, so a
+    // ValidatedPrism<X, X> can validate or normalise a component the types alone would copy.
+    ExecutableElement directLeaf = findLeaf(spec, name, wireType, domainType);
+    if (directLeaf != null) {
+      return new Correspondence(
+          name, wireName, Kind.LEAF, CodeBlock.of("$L()", directLeaf.getSimpleName()));
+    }
+    // The same rule lifted through containers: an ELEMENT/VALUE-typed leaf on a List, Optional
+    // or Map component beats the identity copy the container types alone would take. Only
+    // explicit leaves pre-empt identity; nested-spec resolution never does (the scalar
+    // precedent).
+    Correspondence containerLeaf =
+        containerLeafCorrespondence(spec, name, wireName, wireType, domainType);
+    if (containerLeaf != null) {
+      return containerLeaf;
+    }
+    if (processingEnv.getTypeUtils().isSameType(domainType, wireType)) {
+      return new Correspondence(name, wireName, Kind.IDENTITY, null);
+    }
+    TypeMirror wireElement = containerElement(wireType, "java.util.List");
+    TypeMirror domainElement = containerElement(domainType, "java.util.List");
+    if (wireElement != null && domainElement != null) {
+      PrismResolution lifted = resolveNestedSpec(spec, registry, name, wireElement, domainElement);
+      if (lifted.ambiguous()) {
+        return null;
+      }
+      if (lifted.accessor() != null) {
+        return new Correspondence(name, wireName, Kind.LIST, lifted.accessor());
+      }
+    }
+    wireElement = containerElement(wireType, "java.util.Optional");
+    domainElement = containerElement(domainType, "java.util.Optional");
+    if (wireElement != null && domainElement != null) {
+      PrismResolution lifted = resolveNestedSpec(spec, registry, name, wireElement, domainElement);
+      if (lifted.ambiguous()) {
+        return null;
+      }
+      if (lifted.accessor() != null) {
+        return new Correspondence(name, wireName, Kind.OPTIONAL, lifted.accessor());
+      }
+    }
+    // Optional bridge (#628): a domain Optional<DE> maps to a nullable bean property PE, since
+    // beans never declare Optional. Empty <-> null/absent; the element is copied (identity) or
+    // mapped through a leaf, exactly as an Optional element would be. (An Optional bridge through
+    // a nested spec is a follow-up.)
+    if (wire instanceof WireShape.BeanShape && domainElement != null && wireElement == null) {
+      if (processingEnv.getTypeUtils().isSameType(wireType, domainElement)) {
+        return new Correspondence(name, wireName, Kind.OPTIONAL_BRIDGE, null);
+      }
+      ExecutableElement bridgeLeaf = findLeaf(spec, name, wireType, domainElement);
+      if (bridgeLeaf != null) {
+        return new Correspondence(
+            name, wireName, Kind.OPTIONAL_BRIDGE, CodeBlock.of("$L()", bridgeLeaf.getSimpleName()));
+      }
+      // A bridge is the only way to map a domain Optional to a plain bean property, so a failed
+      // one is a dedicated diagnostic that names the ELEMENT types (not the whole Optional) — a
+      // leaf over Optional<DE> would be matched as a plain leaf and bypass the bridge.
+      Diagnostics.error(
+          processingEnv.getMessager(),
+          spec,
+          TAG,
+          "domain field '"
+              + domain.getSimpleName()
+              + "."
+              + name
+              + "' is Optional<"
+              + domainElement
+              + ">, bridged to the nullable bean property '"
+              + wireName
+              + "' of type "
+              + wireType
+              + ", but the element types differ and no leaf converts them.",
+          "A domain Optional bridges to a nullable bean property (empty maps to absent); the"
+              + " present element is copied when the types match, or mapped through a leaf named"
+              + " after the domain component returning ValidatedPrism<"
+              + wireType
+              + ", "
+              + domainElement
+              + "> (the element types, not the Optional).",
+          "Add 'default ValidatedPrism<"
+              + wireType
+              + ", "
+              + domainElement
+              + "> "
+              + name
+              + "()' to the spec, or align the element types.");
+      return null;
+    }
+    DeclaredType wireMapType = asMapType(wireType);
+    DeclaredType domainMapType = asMapType(domainType);
+    if (wireMapType != null && domainMapType != null) {
+      if (wireMapType.getTypeArguments().isEmpty() || domainMapType.getTypeArguments().isEmpty()) {
+        Diagnostics.error(
+            processingEnv.getMessager(),
+            spec,
+            TAG,
+            "field '" + name + "' uses a raw Map, which cannot lift.",
+            "Value lifting resolves a ValidatedPrism for the value type, and a raw Map declares"
+                + " neither key nor value type.",
+            "Declare both type arguments on each side, for example Map<String, EmailAddress>.");
+        return null;
+      }
+      if (hasWildcardArgument(wireMapType) || hasWildcardArgument(domainMapType)) {
+        Diagnostics.error(
+            processingEnv.getMessager(),
+            spec,
+            TAG,
+            "field '" + name + "' uses wildcard Map type arguments, which cannot lift.",
+            "Value lifting resolves a ValidatedPrism for the exact key and value types; a"
+                + " wildcard leaves them unknown.",
+            "Declare exact type arguments on both sides, for example Map<String,"
+                + " EmailAddress>.");
+        return null;
+      }
+      TypeMirror wireKey = wireMapType.getTypeArguments().getFirst();
+      TypeMirror domainKey = domainMapType.getTypeArguments().getFirst();
+      if (!processingEnv.getTypeUtils().isSameType(wireKey, domainKey)) {
+        Diagnostics.error(
+            processingEnv.getMessager(),
+            spec,
+            TAG,
+            "field '"
+                + name
+                + "' maps between Maps whose key types differ ("
+                + wireKey
+                + " vs "
+                + domainKey
+                + ").",
+            "Keys pass through as identity; only Map values lift through a leaf or nested spec,"
+                + " so the key types must match exactly.",
+            "Align the key types (mapping the value type through a leaf or spec), or"
+                + " restructure to a List of entry records mapped through their own spec.");
+        return null;
+      }
+      PrismResolution lifted =
+          resolveNestedSpec(
+              spec,
+              registry,
+              name,
+              wireMapType.getTypeArguments().get(1),
+              domainMapType.getTypeArguments().get(1));
+      if (lifted.ambiguous()) {
+        return null;
+      }
+      if (lifted.accessor() != null) {
+        return new Correspondence(name, wireName, Kind.MAP, lifted.accessor());
+      }
+      // Values resolving to nothing fall through to the no-usable-source error, like List
+      // elements.
+    }
+    PrismResolution direct = resolveNestedSpec(spec, registry, name, wireType, domainType);
+    if (direct.ambiguous()) {
+      return null;
+    }
+    if (direct.accessor() == null) {
+      Diagnostics.error(
+          processingEnv.getMessager(),
+          spec,
+          TAG,
+          "target field '"
+              + wire.element().getSimpleName()
+              + "."
+              + wireName
+              + "' has no usable source.",
+          "The types differ ("
+              + wireType
+              + " vs "
+              + domainType
+              + ") and no matching leaf method was found."
+              + leafNearMissHint(spec, name)
+              + projectionSpecHint(registry, wireType, domainType)
+              + " Found on "
+              + domain.getSimpleName()
+              + ": "
+              + domainNames
+              + ".",
+          "Add 'default ValidatedPrism<"
+              + wireType
+              + ", "
+              + domainType
+              + "> "
+              + name
+              + "()' to the spec, or declare a @GenerateMapping spec mapping those records in"
+              + " the same compilation."
+              + (projection
+                  ? " On a projection, adding the leaf makes the write-back fallible: the Impl"
+                      + " then emits the validated patch(domain, wire) instead of asLens()."
+                  : ""));
+      return null;
+    }
+    return new Correspondence(name, wireName, Kind.LEAF, direct.accessor());
+  }
+
+  /**
+   * Classifies a projection: the wire record is smaller, so it maps lossily, and every wire
+   * component must name a domain component. Each pair then resolves exactly like a full-tier
+   * component (explicit leaf first, identity, nested specs, container lifting) via {@link
+   * #resolveCorrespondence}. All-identity projections keep the lawful total {@code asLens()}
+   * write-back; any fallible correspondence selects the validated {@code patch} tier (#625).
    */
   private List<Correspondence> classifyProjection(
-      TypeElement spec, TypeElement domain, WireShape wire, Map<String, String> renames) {
+      TypeElement spec,
+      List<RegisteredSpec> registry,
+      TypeElement domain,
+      WireShape wire,
+      Map<String, String> renames) {
     Map<String, String> domainByWire = new LinkedHashMap<>();
     renames.forEach((domainName, wireName) -> domainByWire.put(wireName, domainName));
+    List<String> domainNames =
+        domain.getRecordComponents().stream().map(c -> c.getSimpleName().toString()).toList();
     Set<String> usedDomain = new LinkedHashSet<>();
     List<Correspondence> result = new ArrayList<>();
     for (WireShape.WireComponent wireComponent : wire.components()) {
@@ -1575,8 +1633,8 @@ public class MappingProcessor extends AbstractProcessor {
                 + wire.element().getSimpleName()
                 + "' is smaller than '"
                 + domain.getSimpleName()
-                + "', so it maps as a projection (Lens tier): every wire component must name a"
-                + " domain component. Found on "
+                + "', so it maps as a projection: every wire component must name a domain"
+                + " component. Found on "
                 + domain.getSimpleName()
                 + ": "
                 + wireNames(domain.getRecordComponents())
@@ -1590,35 +1648,29 @@ public class MappingProcessor extends AbstractProcessor {
             spec,
             TAG,
             "domain component '" + name + "' sources more than one wire component.",
-            "The projection's asLens() writes each wire component back to its own domain"
-                + " component; a shared source would discard one wire value on write-back (an"
-                + " unlawful lens).",
+            "The projection write-back (asLens or patch) writes each wire component back to its"
+                + " own domain component; a shared source would discard one wire value on"
+                + " write-back.",
             "Point the @MapField rename at a different domain component, or drop one wire"
                 + " component.");
         return null;
       }
-      if (!processingEnv
-          .getTypeUtils()
-          .isSameType(domainComponent.asType(), wireComponent.type())) {
-        Diagnostics.error(
-            processingEnv.getMessager(),
-            spec,
-            TAG,
-            "projection field '"
-                + wire.element().getSimpleName()
-                + "."
-                + wireName
-                + "' changes type ("
-                + domainComponent.asType()
-                + " -> "
-                + wireComponent.type()
-                + ").",
-            "A projection (Lens tier) writes wire values straight back into the domain, so the"
-                + " types must match exactly; a leaf would make the write-back fallible.",
-            "Align the types, or wait for the full mapper's validated patch.");
+      Correspondence resolved =
+          resolveCorrespondence(
+              spec,
+              registry,
+              domain,
+              wire,
+              name,
+              wireName,
+              wireComponent.type(),
+              domainComponent.asType(),
+              domainNames,
+              true);
+      if (resolved == null) {
         return null;
       }
-      result.add(new Correspondence(name, wireName, Kind.IDENTITY, null));
+      result.add(resolved);
     }
     return result;
   }
@@ -1861,79 +1913,11 @@ public class MappingProcessor extends AbstractProcessor {
           case WireShape.BeanShape b -> beanBuildBody(b, wireName, comps);
         };
 
-    ClassName optional = ClassName.get("java.util", "Optional");
     CodeBlock.Builder parseChain = CodeBlock.builder().add("return $T.fields()", VALIDATED);
     for (Correspondence c : comps) {
-      CodeBlock read = wireRead(wire, c.wireName());
       // A bean property is null when unset, so its read is guarded before it reaches a leaf (whose
       // parse rejects null) or the identity copy; the guard locates the null under the field label.
-      boolean guard = beanGuard(c, wire);
-      parseChain.add(
-          switch (c.kind()) {
-            case LEAF ->
-                guard
-                    ? CodeBlock.of(
-                        "\n.field($S, ifPresent($L, $L::parse))", c.name(), read, c.prism())
-                    : CodeBlock.of("\n.field($S, $L.parse($L))", c.name(), c.prism(), read);
-            case LIST ->
-                guard
-                    ? CodeBlock.of(
-                        "\n.field($S, ifPresent($L, $L::parseAll))", c.name(), read, c.prism())
-                    : CodeBlock.of("\n.field($S, $L.parseAll($L))", c.name(), c.prism(), read);
-            case OPTIONAL ->
-                guard
-                    ? CodeBlock.of(
-                        "\n.field($S, ifPresent($L, o -> o.map(v ->"
-                            + " $L.parse(v).map($T::of)).orElseGet(() ->"
-                            + " $T.validNel($T.empty()))))",
-                        c.name(),
-                        read,
-                        c.prism(),
-                        optional,
-                        VALIDATED,
-                        optional)
-                    : CodeBlock.of(
-                        "\n.field($S, $L.map(v -> $L.parse(v).map($T::of)).orElseGet(() ->"
-                            + " $T.validNel($T.empty())))",
-                        c.name(),
-                        read,
-                        c.prism(),
-                        optional,
-                        VALIDATED,
-                        optional);
-            case MAP ->
-                guard
-                    ? CodeBlock.of(
-                        "\n.field($S, ifPresent($L, $L::parseValues))", c.name(), read, c.prism())
-                    : CodeBlock.of("\n.field($S, $L.parseValues($L))", c.name(), c.prism(), read);
-            case IDENTITY ->
-                guard
-                    ? CodeBlock.of(
-                        "\n.field($S, ifPresent($L, $T::validNel))", c.name(), read, VALIDATED)
-                    : CodeBlock.of("\n.field($S, $T.validNel($L))", c.name(), VALIDATED, read);
-            // A nullable bean read bridges to the domain Optional: null becomes Optional.empty, so
-            // it is never guarded and never fails on absence.
-            case OPTIONAL_BRIDGE ->
-                c.prism() == null
-                    ? CodeBlock.of(
-                        "\n.field($S, $T.validNel($T.ofNullable($L)))",
-                        c.name(),
-                        VALIDATED,
-                        optional,
-                        read)
-                    : CodeBlock.of(
-                        "\n.field($S, $T.ofNullable($L).map(v -> $L.parse(v).map($T::of)).orElseGet("
-                            + "() -> $T.validNel($T.empty())))",
-                        c.name(),
-                        optional,
-                        read,
-                        c.prism(),
-                        optional,
-                        VALIDATED,
-                        optional);
-            // A derived component carries no domain data; parse reconstructs without it.
-            case DERIVED -> CodeBlock.of("");
-          });
+      parseChain.add(parseLeg(c, wireRead(wire, c.wireName()), beanGuard(c, wire)));
     }
     parseChain.add("\n.apply($T::new)", domainName);
 
@@ -1995,6 +1979,198 @@ public class MappingProcessor extends AbstractProcessor {
               .build());
     }
     writeFile(spec, specName.packageName(), implBuilder.build());
+  }
+
+  /**
+   * One {@code Validated.fields()} leg for a correspondence — shared by the full tier's {@code
+   * parse} and the projection tier's {@code patch}. When {@code guard} is set the read is wrapped
+   * in the {@code ifPresent} helper, so a null becomes a located {@code FieldError} instead of
+   * reaching a leaf (whose parse rejects null) or the identity copy.
+   */
+  private CodeBlock parseLeg(Correspondence c, CodeBlock read, boolean guard) {
+    ClassName optional = ClassName.get("java.util", "Optional");
+    return switch (c.kind()) {
+      case LEAF ->
+          guard
+              ? CodeBlock.of("\n.field($S, ifPresent($L, $L::parse))", c.name(), read, c.prism())
+              : CodeBlock.of("\n.field($S, $L.parse($L))", c.name(), c.prism(), read);
+      case LIST ->
+          guard
+              ? CodeBlock.of("\n.field($S, ifPresent($L, $L::parseAll))", c.name(), read, c.prism())
+              : CodeBlock.of("\n.field($S, $L.parseAll($L))", c.name(), c.prism(), read);
+      case OPTIONAL ->
+          guard
+              ? CodeBlock.of(
+                  "\n.field($S, ifPresent($L, o -> o.map(v ->"
+                      + " $L.parse(v).map($T::of)).orElseGet(() ->"
+                      + " $T.validNel($T.empty()))))",
+                  c.name(),
+                  read,
+                  c.prism(),
+                  optional,
+                  VALIDATED,
+                  optional)
+              : CodeBlock.of(
+                  "\n.field($S, $L.map(v -> $L.parse(v).map($T::of)).orElseGet(() ->"
+                      + " $T.validNel($T.empty())))",
+                  c.name(),
+                  read,
+                  c.prism(),
+                  optional,
+                  VALIDATED,
+                  optional);
+      case MAP ->
+          guard
+              ? CodeBlock.of(
+                  "\n.field($S, ifPresent($L, $L::parseValues))", c.name(), read, c.prism())
+              : CodeBlock.of("\n.field($S, $L.parseValues($L))", c.name(), c.prism(), read);
+      case IDENTITY ->
+          guard
+              ? CodeBlock.of("\n.field($S, ifPresent($L, $T::validNel))", c.name(), read, VALIDATED)
+              : CodeBlock.of("\n.field($S, $T.validNel($L))", c.name(), VALIDATED, read);
+      // A nullable bean read bridges to the domain Optional: null becomes Optional.empty, so
+      // it is never guarded and never fails on absence.
+      case OPTIONAL_BRIDGE ->
+          c.prism() == null
+              ? CodeBlock.of(
+                  "\n.field($S, $T.validNel($T.ofNullable($L)))",
+                  c.name(),
+                  VALIDATED,
+                  optional,
+                  read)
+              : CodeBlock.of(
+                  "\n.field($S, $T.ofNullable($L).map(v -> $L.parse(v).map($T::of)).orElseGet("
+                      + "() -> $T.validNel($T.empty())))",
+                  c.name(),
+                  optional,
+                  read,
+                  c.prism(),
+                  optional,
+                  VALIDATED,
+                  optional);
+      // A derived component carries no domain data; parse reconstructs without it.
+      case DERIVED -> CodeBlock.of("");
+    };
+  }
+
+  /**
+   * Emits the validated patch tier (issue #625): a projection whose wire carries fallible
+   * correspondences. {@code build} stays total; the write-back is {@code patch(domain, wire)}
+   * returning {@code Validated<NonEmptyList<FieldError>, Domain>} — every projected component
+   * validates (a null reference read becomes a located {@code FieldError}, matching the bean-parse
+   * convention), unprojected components are read from the domain argument, and all failures
+   * accumulate. Dense semantics: every projected component applies; contrast {@code UpdateSpec}'s
+   * sparse null-as-absent {@code updateFrom}.
+   */
+  private void writePatchImpl(
+      TypeElement spec,
+      TypeElement domain,
+      WireShape.RecordShape wire,
+      List<Correspondence> comps) {
+    ClassName specName = ClassName.get(spec);
+    TypeName domainName = TypeName.get(domain.asType());
+    TypeName wireName = TypeName.get(wire.element().asType());
+    TypeName patchReturn =
+        ParameterizedTypeName.get(
+            VALIDATED, ParameterizedTypeName.get(NEL, FIELD_ERROR), domainName);
+
+    CodeBlock buildBody = wire.buildStatements(wireName, wc -> buildValue(wc, comps));
+
+    CodeBlock.Builder patchChain = CodeBlock.builder().add("return $T.fields()", VALIDATED);
+    for (Correspondence c : comps) {
+      // A JSON-bound record leaves an absent component null, exactly like an unset bean
+      // property, so every reference read is guarded into a located FieldError (the locked
+      // #625 null policy); a primitive read can never be null and copies directly.
+      patchChain.add(
+          parseLeg(c, wireRead(wire, c.wireName()), !isPrimitiveWireComponent(wire, c.wireName())));
+    }
+
+    // Lambda parameters are named after the projected components, but the enclosing method
+    // already declares 'domain' and 'wire', and a lambda parameter may not shadow either (JLS
+    // 6.4). Colliding names take underscore suffixes until free of the method parameters AND of
+    // every component name (a renamed parameter must not capture another component's reference).
+    Set<String> takenParamNames = new LinkedHashSet<>(List.of("domain", "wire"));
+    for (RecordComponentElement domainComponent : domain.getRecordComponents()) {
+      takenParamNames.add(domainComponent.getSimpleName().toString());
+    }
+    Map<String, String> lambdaParamFor = new LinkedHashMap<>();
+    for (Correspondence c : comps) {
+      String candidate = c.name();
+      if (candidate.equals("domain") || candidate.equals("wire")) {
+        do {
+          candidate = candidate + "_";
+        } while (takenParamNames.contains(candidate));
+      }
+      takenParamNames.add(candidate);
+      lambdaParamFor.put(c.name(), candidate);
+    }
+
+    CodeBlock.Builder lambdaParams = CodeBlock.builder();
+    boolean firstParam = true;
+    for (Correspondence c : comps) {
+      if (!firstParam) {
+        lambdaParams.add(", ");
+      }
+      firstParam = false;
+      lambdaParams.add("$L", lambdaParamFor.get(c.name()));
+    }
+    CodeBlock.Builder ctorArgs = CodeBlock.builder();
+    boolean firstArg = true;
+    for (RecordComponentElement domainComponent : domain.getRecordComponents()) {
+      String name = domainComponent.getSimpleName().toString();
+      boolean projected = comps.stream().anyMatch(c -> c.name().equals(name));
+      if (!firstArg) {
+        ctorArgs.add(", ");
+      }
+      firstArg = false;
+      if (projected) {
+        ctorArgs.add("$L", lambdaParamFor.get(name));
+      } else {
+        ctorArgs.add("domain.$L()", name);
+      }
+    }
+    patchChain.add(
+        "\n.apply(($L) -> new $T($L))", lambdaParams.build(), domainName, ctorArgs.build());
+
+    TypeSpec.Builder implBuilder =
+        implSkeleton(
+                spec,
+                implClassName(spec),
+                specName,
+                "Generated projection mapping for {@link $T}: total {@code build} and a validated"
+                    + " {@code patch} write-back. No {@code parse} is emitted — the dropped"
+                    + " components cannot be reconstructed (truthful types).\n")
+            .addMethod(buildMethod(domainName, wireName, buildBody))
+            .addMethod(
+                MethodSpec.methodBuilder("patch")
+                    .addModifiers(Modifier.PUBLIC)
+                    .returns(patchReturn)
+                    .addParameter(domainName, "domain")
+                    .addParameter(wireName, "wire")
+                    .addJavadoc(
+                        "Writes the wire's projected components onto {@code domain}, validating"
+                            + " each one; every bad field is reported at once, located under its"
+                            + " component name, and unprojected components stay untouched. Dense:"
+                            + " every projected component applies, and a {@code null} reference"
+                            + " read is a located error, never absence — contrast {@code"
+                            + " UpdateSpec}'s sparse {@code updateFrom}. The guard covers the"
+                            + " projected reads themselves; a null inside a nested wire value"
+                            + " follows the nested spec's own parse contract.\n")
+                    .addStatement(
+                        "$T.requireNonNull(domain, $S)", OBJECTS, "domain must not be null")
+                    .addStatement("$T.requireNonNull(wire, $S)", OBJECTS, "wire must not be null")
+                    .addStatement("$L", patchChain.build())
+                    .build());
+    addRenameStubs(implBuilder, spec);
+    // A patch tier always carries at least one fallible correspondence, which is always a
+    // reference read, so the guard helper is always needed.
+    implBuilder.addMethod(ifPresentHelper());
+    writeFile(spec, specName.packageName(), implBuilder.build());
+  }
+
+  /** Whether the named wire component reads a primitive (a read that can never be null). */
+  private static boolean isPrimitiveWireComponent(WireShape wire, String wireName) {
+    return wire.componentNamed(wireName).map(c -> c.type().getKind().isPrimitive()).orElse(false);
   }
 
   private void writeLensImpl(
@@ -2410,11 +2586,12 @@ public class MappingProcessor extends AbstractProcessor {
             + domain.getSimpleName()
             + "' with a reference-typed property, which is not yet supported.",
         "A projection maps as build() plus a lawful asLens() write-back, but a bean's reference"
-            + " property can read null, which a total lens set cannot honour; that shape maps as a"
-            + " validated patch(domain, wire), a follow-up to the bean mapper. An all-primitive bean"
-            + " projection (no null possible) is supported today.",
-        "Map the full bean (add the dropped domain components to it), use a record wire for the"
-            + " projection, or wait for the validated patch tier.");
+            + " property can read null, which a total lens set cannot honour. Record projections"
+            + " map that shape as a validated patch(domain, wire) (#625); the bean flavour is a"
+            + " follow-up to the bean mapper. An all-primitive bean projection (no null possible)"
+            + " is supported today.",
+        "Use a record wire for the projection (which supports the validated patch tier), or map"
+            + " the full bean by adding the dropped domain components to it.");
   }
 
   /** The wire (against a record domain) must be a record or a bean-shaped class. */

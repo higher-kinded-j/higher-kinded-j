@@ -11,8 +11,12 @@ import com.google.testing.compile.JavaFileObjects;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.function.BiFunction;
 import java.util.function.Function;
 import javax.tools.JavaFileObject;
+import org.higherkindedj.hkt.nonemptylist.NonEmptyList;
+import org.higherkindedj.hkt.validated.FieldError;
+import org.higherkindedj.hkt.validated.Validated;
 import org.higherkindedj.optics.Iso;
 import org.higherkindedj.optics.Lens;
 import org.higherkindedj.optics.edit.Edits;
@@ -728,6 +732,75 @@ class GeneratedMappingLawsTest {
         patchDto(result, null, null, null),
         patchDto(result, "Grace", "grace@example.org", 41),
         patchDto(result, null, "not-an-email", null));
+  }
+
+  @Test
+  @DisplayName(
+      "validated-patch tier: a generated leaf-carrying projection patch satisfies identity,"
+          + " idempotence and located validation")
+  void patchTierIsLawful() throws ReflectiveOperationException {
+    JavaFileObject domain =
+        JavaFileObjects.forSourceString(
+            "com.example.Account",
+            """
+            package com.example;
+
+            public record Account(String id, EmailAddress email, int age) {}
+            """);
+    JavaFileObject wire =
+        JavaFileObjects.forSourceString(
+            "com.example.AccountPatchDto",
+            """
+            package com.example;
+
+            public record AccountPatchDto(String email, int age) {}
+            """);
+    JavaFileObject spec =
+        JavaFileObjects.forSourceString(
+            "com.example.AccountPatchMapping",
+            """
+            package com.example;
+
+            import org.higherkindedj.hkt.validated.FieldError;
+            import org.higherkindedj.hkt.validated.Validated;
+            import org.higherkindedj.optics.annotations.GenerateMapping;
+            import org.higherkindedj.optics.annotations.MappingSpec;
+            import org.higherkindedj.optics.validated.ValidatedPrism;
+
+            @GenerateMapping
+            public interface AccountPatchMapping extends MappingSpec<Account, AccountPatchDto> {
+              default ValidatedPrism<String, EmailAddress> email() {
+                return emailPrism();
+              }
+
+            """
+                + EMAIL_PRISM
+                + """
+            }
+            """);
+
+    var result = compileMapping(EMAIL, domain, wire, spec);
+    Object impl = implInstance(result, "com.example.AccountPatchMappingImpl");
+
+    BiFunction<Object, Object, Validated<NonEmptyList<FieldError>, Object>> patch =
+        (d, w) -> asValidated(invoke(impl, "patch", d, w));
+    Function<Object, Object> build = d -> invoke(impl, "build", d);
+
+    MappingLaws.assertMappingLaws(
+        patch,
+        build,
+        result.newInstance(
+            "com.example.Account",
+            "7",
+            result.newInstance("com.example.EmailAddress", "ada@example.org"),
+            36),
+        result.newInstance("com.example.AccountPatchDto", "grace@example.org", 41),
+        result.newInstance("com.example.AccountPatchDto", "not-an-email", 36));
+  }
+
+  @SuppressWarnings("unchecked")
+  private static Validated<NonEmptyList<FieldError>, Object> asValidated(Object validated) {
+    return (Validated<NonEmptyList<FieldError>, Object>) validated;
   }
 
   @SuppressWarnings("unchecked")

@@ -1266,7 +1266,8 @@ class MappingProcessorBeanTest {
       assertThat(compilation)
           .hadErrorContaining(
               "'EmployeeCardDto' is a bean projection of 'Employee' with a reference-typed property");
-      assertThat(compilation).hadErrorContaining("maps as a validated patch");
+      assertThat(compilation)
+          .hadErrorContaining("the bean flavour is a follow-up to the bean mapper");
     }
   }
 

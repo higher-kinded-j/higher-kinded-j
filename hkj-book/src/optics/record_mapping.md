@@ -8,7 +8,7 @@ Every service boundary maps between a rich domain record and a flat wire DTO. Ha
 - How `@GenerateMapping` derives a compile-time, reflection-free mapper from an interface you own: a total `build` and an accumulating, field-located `parse`
 - Handling type-differing fields with `ValidatedPrism` leaves, renaming components with `@MapField`, and how nesting, containers, and recursion compose into dotted error paths
 - Dispatching a mapping over two sealed hierarchies, exhaustively in both directions
-- Reading the emission tiers so the generated surface (`asIso`, `asLens`, `asValidatedPrism`) only ever offers what the field correspondences can lawfully support
+- Reading the emission tiers so the generated surface (`asIso`, `asLens`, the validated `patch`, `asValidatedPrism`) only ever offers what the field correspondences can lawfully support
 - Assembling one target from several sources with `@GenerateMerge`
 - Typing an error's diagnostic context, and retiring the untyped `Map<String, Object>`, with `@GenerateErrorEnvelope`
 ~~~
@@ -164,7 +164,8 @@ The field correspondences select what the Impl can lawfully offer; nothing is fa
 |---|---|
 | All components identity-matched (lossless) | `build`, total `parse`, **`asIso()`** |
 | Any fallible leaf, nested spec or derived field | `build`, accumulating `parse`, no `asIso` |
-| Wire record with *fewer* components (lossy projection) | `build` + **`asLens()`** whose `set` writes the projected components back, **no `parse`** (the dropped components cannot be reconstructed) |
+| Wire record with *fewer* components, all identity (lossy projection) | `build` + **`asLens()`** whose `set` writes the projected components back, **no `parse`** (the dropped components cannot be reconstructed) |
+| Wire record with fewer components **and** any fallible correspondence | `build` + a validated **`patch(domain, wire)`** write-back, no `asLens` and no `parse`, [below](#leaf-carrying-projections-the-validated-patch) |
 | Every parse-capable mapping | **`asValidatedPrism()`**: the mapping as a leaf, so it nests and lifts |
 | A spec extending **`UpdateSpec`** (opt-in, bean wire) | only **`updateFrom(Wire)`**: a sparse PATCH fold, [below](#sparse-patch-write-back-updatespec) |
 
@@ -189,6 +190,7 @@ The overloads follow the tiers:
 
 - **Lossless mapping:** pass `asIso()` plus `asValidatedPrism()` to check the iso laws, both round trips, and the coherence between the two surfaces.
 - **Projection:** pass `asLens()` with a domain value and two wire values.
+- **Validated patch (leaf-carrying projection):** pass the `patch` and `build` method references, a domain value, and a parsing and a non-parsing wire value ([below](#leaf-carrying-projections-the-validated-patch)).
 - **Fallible tier:** pass `asValidatedPrism()` with a parsing and a non-parsing wire value.
 - **Derived-field (total-parse) mapping:** `build` recomputes what `parse` ignores, so only the non-derived components round-trip. The domain-sample overload `assertMappingLaws(prism, domainValue)` asserts exactly that and nothing stronger.
 - **Sparse-update (`UpdateSpec`) mapping:** pass the `updateFrom` method reference, a domain value, and an all-absent, a valid and an invalid wire to check the identity, idempotence and validation laws ([below](#sparse-patch-write-back-updatespec)).
@@ -198,6 +200,34 @@ A spec with a derived field *and* a fallible leaf is better served by the fallib
 ~~~admonish tip title="Mapping types you don't own"
 The annotation sits on *your* spec interface, never on the mapped types, so third-party records, sealed hierarchies, and bean-shaped DTOs from compiled libraries map without being annotatable: `interface VendorOrderMapping extends MappingSpec<com.vendor.OrderRecord, OrderDto> {}` works today. Bean-shaped wire types (getter/setter DTOs) are covered too; see [Bean-shaped wire targets](#bean-shaped-wire-targets) below.
 ~~~
+
+---
+
+## Leaf-carrying projections: the validated `patch`
+
+A projection that also *validates or normalises* a field (a leaf on a projected component) has no lawful total lens: the write-back can fail. Instead of refusing to generate, the mapping emits the **validated `patch` tier** (issue #625): the total `build` stays, and the write-back returns `Validated`:
+
+``` java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/mapping/RecordMappingBook.java:leaf_projection_spec}}
+```
+
+`patch(domain, wire)` writes every projected component onto the domain, validating each one: every bad field is reported at once, located under its component name, and the unprojected components are read from the domain argument, so they survive untouched by construction:
+
+``` java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/mapping/RecordMappingBook.java:leaf_projection_usage}}
+```
+
+~~~admonish warning title="Dense, not sparse: patch is the opposite of updateFrom"
+`patch` applies **every** projected component: a `null` reference read becomes a located `FieldError` (`must not be null`), never "leave unchanged". The REST-PATCH contract (null means absent, keep the current value) is the [sparse `UpdateSpec` tier](#sparse-patch-write-back-updatespec) on a bean wire; this tier is its dense, record-shaped complement for writing a validated sub-view onto a bigger record.
+~~~
+
+Everything the full tier resolves is available on the projected components: explicit leaves (beating identity, so a `ValidatedPrism<X, X>` can normalise), nested specs (failures compose into dotted paths), and `List`/`Optional`/`Map` lifting. The null guard covers the projected reads themselves; a null *inside* a nested wire value follows the nested spec's own parse contract (extending located nulls through record-wire parse legs is a tracked follow-up). Only derived fields stay rejected, and the wire shares `parse`'s 16-component ceiling. At the Spring boundary the result is already [the 422 leg](../spring/spring_boot_integration.md#the-422-leg)'s shape: return it as-is. Like every tier, this one is law-checked:
+
+``` java
+{{#include ../../../hkj-examples/src/test/java/org/higherkindedj/example/book/mapping/RecordMappingBookLawsTest.java:patch_laws}}
+```
+
+The patch laws are projection identity (`patch(d, build(d)) == Valid(d)`), idempotence, and located validation. `build` after `patch` is deliberately not a law: a normalising leaf rewrites the wire form by design, the same weakening as the fallible full tier.
 
 ---
 
@@ -222,7 +252,7 @@ The design decisions worth knowing:
 - **The domain stays a record.** `parse` assembles the domain through its canonical constructor, so only the *wire* may be bean-shaped; a bean domain gets a diagnostic.
 
 ~~~admonish note title="Not yet: bean projections and read-only beans"
-A bean *projection* (a bean with fewer properties than the domain) with a reference property, and read-only (parse-only) or write-only (build-only) beans, are follow-ons. An all-primitive bean projection maps as a lawful `asLens()` today; a reference-typed one is reported with a pointer to the planned validated-`patch` tier rather than emitting an unlawful lens.
+A bean *projection* (a bean with fewer properties than the domain) with a reference property, and read-only (parse-only) or write-only (build-only) beans, are follow-ons. An all-primitive bean projection maps as a lawful `asLens()` today; a reference-typed one is reported with a pointer to the [validated-`patch` tier](#leaf-carrying-projections-the-validated-patch), which ships for record wires; the bean flavour remains a follow-on.
 ~~~
 
 ---
@@ -335,7 +365,7 @@ Every rejection follows the processor's what/why/fix standard: the message state
 - `parse` is assembled with [`Validated.fields()`](../monads/validated_assembly.md), which locates up to **16 components**; group larger records into nested records, which nest through their own specs.
 - Nested and sealed resolution sees specs **in the same compilation**, and a spec extends `MappingSpec` and nothing else; inherited renames/leaves arrive with the full mapper.
 - `Map` components lift values only: keys are identity, so differing key types, raw `Map`s and wildcard type arguments are compile errors.
-- Projections are identity-only (a leaf would make the write-back fallible) and cannot carry derived fields (the write-back could never honour a recomputed component); generic types arrive with the full mapper.
+- A projection with any fallible correspondence emits the [validated `patch`](#leaf-carrying-projections-the-validated-patch) write-back rather than `asLens()`; projections cannot carry derived fields (the write-back could never honour a recomputed component); generic types arrive with the full mapper.
 
 ~~~admonish tip title="See Also"
 - [Validated Prisms](validated_prism.md) - The leaf optic every fallible correspondence is built from
