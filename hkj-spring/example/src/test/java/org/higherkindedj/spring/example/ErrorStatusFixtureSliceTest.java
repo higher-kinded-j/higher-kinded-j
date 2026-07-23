@@ -104,7 +104,7 @@ class ErrorStatusFixtureSliceTest {
   void unprocessable() throws Exception {
     mockMvc
         .perform(get("/api/error-status-fixture/unprocessable"))
-        .andExpect(status().isUnprocessableEntity());
+        .andExpect(status().isUnprocessableContent());
   }
 
   @Test

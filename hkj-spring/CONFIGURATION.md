@@ -257,13 +257,28 @@ HTTP status code for ValidationPath Invalid values.
 
 - **Type:** `int`
 - **Default:** `400`
-- **Effect:** Status code returned when validation errors are present
+- **Effect:** Status code returned when validation errors are present, unless the payload consists entirely of located `FieldError`s, which use `hkj.web.validation-field-error-status` (below) instead
 
 **Example:**
 ```yaml
 hkj:
   web:
-    validation-invalid-status: 422  # Use 422 Unprocessable Entity
+    validation-invalid-status: 422  # Use 422 for ALL validation errors (FieldError payloads already default to 422)
+```
+
+### `hkj.web.validation-field-error-status`
+
+HTTP status code for ValidationPath Invalid values consisting entirely of located `FieldError`s (`Validated<NonEmptyList<FieldError>, Domain>`): the shape produced by a `@GenerateMapping` `parse`, a `Path.fields()` assembly, `@GenerateAssembly`, or a hand-built `NonEmptyList<FieldError>`. `FieldError` here is HKJ's `org.higherkindedj.hkt.validated.FieldError`, not Spring's `org.springframework.validation.FieldError`.
+
+- **Type:** `int`
+- **Default:** `422`
+- **Effect:** When every accumulated error is a `FieldError` (a `NonEmptyList`, collection or array of them, or one bare error), the response uses this status and renders each error as `{ "path": "address.zip", "segments": ["address", "zip"], "message": "must be 5 digits" }`. Mixed, empty or non-FieldError payloads keep `validation-invalid-status` and the generic rendering. `path` is the dot-joined display key; `segments` is the exact structured location: a path segment containing a dot is indistinguishable from nesting in `path`, so structured consumers should read `segments`. An unlabelled error renders `"path": ""` and `"segments": []`; treat it as object-level.
+
+**Example:**
+```yaml
+hkj:
+  web:
+    validation-field-error-status: 400  # Opt out of the 422 default; align FieldError payloads with generic validation errors
 ```
 
 ### `hkj.web.try-include-exception-details`
@@ -393,7 +408,7 @@ hkj:
       AuthorizationError: 403
       AuthenticationError: 401
       MfaAlreadyEnrolledError: 409   # Conflict
-      PaymentDeclinedError: 422      # Unprocessable Entity
+      PaymentDeclinedError: 422      # Unprocessable Content
       MfaThrottledError: 429         # Too Many Requests
       ServerError: 500
 ```
@@ -617,6 +632,7 @@ hkj:
     maybe-nothing-status: 404
     try-failure-status: 500
     validation-invalid-status: 400
+    validation-field-error-status: 422
     vtask-failure-status: 500
     vstream-failure-status: 500
     free-path-failure-status: 500
@@ -798,6 +814,7 @@ hkj.web.default-error-status=400
 hkj.web.maybe-nothing-status=404
 hkj.web.try-failure-status=500
 hkj.web.validation-invalid-status=400
+hkj.web.validation-field-error-status=422
 hkj.web.vtask-failure-status=500
 hkj.web.vstream-failure-status=500
 hkj.web.try-include-exception-details=false

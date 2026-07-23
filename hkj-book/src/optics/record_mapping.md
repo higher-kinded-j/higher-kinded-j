@@ -35,6 +35,10 @@ The two directions have different shapes, and that asymmetry runs through the wh
 
 The generated class is `<Spec>Impl` beside the spec, used through its `INSTANCE` constant. A spec nested in an outer class joins the enclosing simple names: `Shop.CustomerMapping` generates `ShopCustomerMappingImpl`.
 
+~~~admonish tip title="At the Spring boundary: one 422, every bad field by path"
+In a Spring controller the parse result needs no wrapping: return it as-is and `hkj-spring` renders an `Invalid` as one **422 Unprocessable Content** response listing every located `FieldError` by path. See [the 422 leg](../spring/spring_boot_integration.md#the-422-leg): the "leg" is the response route an all-`FieldError` payload travels at the Spring boundary, in the railway sense.
+~~~
+
 ---
 
 ## Validated leaves

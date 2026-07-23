@@ -133,6 +133,8 @@ public class HkjWebMvcAutoConfiguration {
    *   <li>hkj.web.maybe-path-enabled - controls MaybePathReturnValueHandler
    *   <li>hkj.web.try-path-enabled - controls TryPathReturnValueHandler
    *   <li>hkj.web.validation-path-enabled - controls ValidationPathReturnValueHandler
+   *       (hkj.web.validation-field-error-status sets the status for FieldError-shaped Invalid
+   *       payloads)
    *   <li>hkj.web.either-or-both-path-enabled - controls EitherOrBothPathReturnValueHandler
    *   <li>hkj.web.io-path-enabled - controls IOPathReturnValueHandler
    *   <li>hkj.web.completable-future-path-enabled - controls
@@ -192,7 +194,9 @@ public class HkjWebMvcAutoConfiguration {
             if (webConfig.isValidationPathEnabled()) {
               newHandlers.add(
                   new ValidationPathReturnValueHandler(
-                      jsonMapper, webConfig.getValidationInvalidStatus()));
+                      jsonMapper,
+                      webConfig.getValidationInvalidStatus(),
+                      webConfig.getValidationFieldErrorStatus()));
             }
 
             if (webConfig.isEitherOrBothPathEnabled()) {
