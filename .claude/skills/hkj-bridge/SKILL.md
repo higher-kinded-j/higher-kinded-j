@@ -173,7 +173,7 @@ String wire = emailPrism.build(email);                     // total
 | `.parse(S)` | `Validated<NEL<FieldError>, A>` | Accumulates every reason |
 | `.parsePath(S)` | `ValidationPath<NEL<FieldError>, A>` | The bridge into the effects world |
 | `.build(A)` | `S` | Total |
-| `.parseAll(List<? extends S>)` | `Validated<NEL<FieldError>, List<A>>` | Failures across elements accumulate |
+| `.parseAll(List<? extends S>)` | `Validated<NEL<FieldError>, List<A>>` | Failures accumulate, located by index |
 | `.parseValues(Map<K, ? extends S>)` | `Validated<NEL<FieldError>, Map<K, A>>` | Failures located by key |
 | `.buildAll(List<? extends A>)` | `List<S>` | Total |
 | `.toPrism()` / `.toAffine()` | `Prism<S, A>` / `Affine<S, A>` | Drop back to plain optics (reasons discarded) |

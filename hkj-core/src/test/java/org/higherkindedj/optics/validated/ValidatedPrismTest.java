@@ -109,6 +109,15 @@ class ValidatedPrismTest {
       assertThatValidated(nullElement).isInvalid();
       assertThat(nullElement.getError().toJavaList())
           .containsExactly(new FieldError(List.of("1"), "must not be null"));
+
+      // Accumulation continues past a null: failures before AND after it all report, in order.
+      Validated<NonEmptyList<FieldError>, List<Email>> mixed =
+          located.parseAll(Arrays.asList("a@b", null, "bad-three"));
+      assertThatValidated(mixed).isInvalid();
+      assertThat(mixed.getError().toJavaList())
+          .containsExactly(
+              new FieldError(List.of("1"), "must not be null"),
+              new FieldError(List.of("2"), "bad: bad-three"));
       assertThatNullPointerException()
           .isThrownBy(() -> EMAIL.buildAll(Arrays.asList(new Email("a@b"), null)))
           .withMessage("values[1] must not be null");
@@ -163,6 +172,18 @@ class ValidatedPrismTest {
       assertThatValidated(locatedNull).isInvalid();
       assertThat(locatedNull.getError().toJavaList())
           .containsExactly(new FieldError(List.of("work"), "must not be null"));
+
+      // Accumulation continues past a null value: the key-located parse failure still reports.
+      Map<String, String> mixed = new LinkedHashMap<>();
+      mixed.put("work", null);
+      mixed.put("home", "nope");
+      Validated<NonEmptyList<FieldError>, Map<String, Email>> mixedValues =
+          EMAIL.parseValues(mixed);
+      assertThatValidated(mixedValues).isInvalid();
+      assertThat(mixedValues.getError().toJavaList())
+          .containsExactly(
+              new FieldError(List.of("work"), "must not be null"),
+              new FieldError(List.of("home"), "not an email address"));
     }
 
     @Test

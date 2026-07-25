@@ -1261,6 +1261,38 @@ class MappingProcessorTest {
           .contains(
               ".field(\"customers\", hkj$ifPresent(wire.customers(),"
                   + " CustomerMappingImpl.INSTANCE.asValidatedPrism()::parseAll))");
+
+      // The composed location, end to end (#660): field label, then element index, then the
+      // nested spec's own path — customers.1.email, never customers.email.1.
+      var result = new RuntimeCompilationHelper.CompiledResult(compilation);
+      try {
+        Object impl = result.instance("com.example.CompanyMappingImpl");
+        Object good =
+            result
+                .loadClass("com.example.CustomerDto")
+                .getDeclaredConstructor(String.class, String.class)
+                .newInstance("Ada", "ada@x.com");
+        Object bad =
+            result
+                .loadClass("com.example.CustomerDto")
+                .getDeclaredConstructor(String.class, String.class)
+                .newInstance("Bob", "nope");
+        Object companyDto =
+            result
+                .loadClass("com.example.CompanyDto")
+                .getDeclaredConstructor(String.class, List.class)
+                .newInstance("Acme", List.of(good, bad));
+
+        @SuppressWarnings("unchecked")
+        Validated<NonEmptyList<FieldError>, Object> parsed =
+            (Validated<NonEmptyList<FieldError>, Object>) invoke(impl, "parse", companyDto);
+        Assertions.assertThat(parsed.isInvalid()).isTrue();
+        Assertions.assertThat(
+                parsed.getError().toJavaList().stream().map(FieldError::toString).toList())
+            .containsExactly("customers.1.email: not an email address");
+      } catch (ReflectiveOperationException e) {
+        throw new AssertionError(e);
+      }
     }
 
     @Test

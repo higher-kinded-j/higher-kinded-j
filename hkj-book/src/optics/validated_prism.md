@@ -107,6 +107,14 @@ The second law is the subtle one. If `build` changes the value as it renders (ze
 Practice the boundary in [Tutorial 25: ValidatedPrism](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/test/java/org/higherkindedj/tutorial/optics/Tutorial25_ValidatedPrism.java) (3 exercises, ~10 minutes), and see the runnable [`ValidatedPrismExample`](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/optics/ValidatedPrismExample.java).
 ~~~
 
+## The bulk forms: `parseAll` and `parseValues`
+
+One prism lifts over whole containers. `parseAll(List<? extends S>)` parses every element and accumulates **every** failure, each located by its index — a plain positional segment, so a bad second element under a field labelled `emails` renders as `emails.1: not an email address` (through a nested spec, `customers.1.email: ...`). `parseValues(Map<K, ? extends S>)` parses a map's values the same way, each failure located by its key (`attributes.en: ...`); keys pass through untouched.
+
+The [null doctrine](record_mapping.md#record-mapping) reaches inside both: a `null` element or map value is a located, accumulating `must not be null` at its index or key, never an exception. Three edges stay the caller's `NullPointerException`, by contract: a `null` list or map itself, and a `null` map *key* — a structurally broken map, not a wrong value. The build direction (`buildAll`, `buildValues`) is total like `build` and rejects nulls outright.
+
+(Bracketed index rendering — `emails[1]` — is deliberately deferred to the future sealed path-segment model; today's paths are flat dotted segments, and the positional segment matches the map-key grammar.)
+
 ~~~admonish tip title="See Also"
 - [Prisms](prisms.md) - The yes/no match this type upgrades
 - [Accumulating Assembly](../monads/validated_assembly.md) - Sibling-field accumulation for multi-field parses
