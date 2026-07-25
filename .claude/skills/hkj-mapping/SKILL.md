@@ -185,6 +185,14 @@ rejected outright: the projection's `asLens()` write-back could never honour a c
 
 ### Things worth knowing
 
+- **A null component read is a located `FieldError`, never an exception — on both wire shapes.**
+  A JSON binder leaves a missing property `null` on a record component just as on an unset bean
+  property, so every reference-typed `parse` read is null-guarded (`must not be null`, accumulating,
+  locating through nesting: `customer.name: must not be null`). A null *wire* stays the caller's
+  `NullPointerException`, and a null *element inside* a `List`/`Map` value follows the container's
+  own contract. A lossless record mapping keeps `asIso()` (its guards cover hostile bindings, with
+  parse-iso coherence scoped to non-null wires); a bean's guarded reads still cost the Iso tier,
+  because an unset bean property is a representable state.
 - **`Map` components lift values only.** Keys pass through by identity; a failure is located by its
   key.
 - **The mapped record need not be yours.** The annotation sits on *your spec interface*, never on
@@ -193,8 +201,8 @@ rejected outright: the projection's `asLens()` write-back could never honour a c
   constructor with `setX` setters; an immutable bean with a static `builder()`/`newBuilder()`
   (Lombok, Immutables, AutoValue, protobuf); or the JAXB convention, where a getter-only `List` is
   filled with `getItems().addAll(...)`. `build` fills through setters or the builder, `parse` reads
-  through getters. A `null` bean property becomes a located `FieldError` (never thrown), and a domain
-  `Optional<T>` bridges to a nullable bean property `T`. See `reference/mapping-example.md`.
+  through getters under the same null guard as a record wire, and a domain `Optional<T>` bridges to
+  a nullable bean property `T`. See `reference/mapping-example.md`.
 - **`parse` is capped at 16 components**: it is assembled via `Validated.fields()`.
 - **It is law-checked.** Assert `build`/`parse` round-trip with `MappingLaws.assertMappingLaws(...)`
   from `hkj-test`.
