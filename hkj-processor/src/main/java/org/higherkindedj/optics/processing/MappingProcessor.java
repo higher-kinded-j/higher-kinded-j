@@ -284,7 +284,9 @@ public class MappingProcessor extends AbstractProcessor {
         "'" + offender.getSimpleName() + "' is generic, which this mapper does not support.",
         "The generated Impl names the mapped types directly; type parameters would leave it"
             + " referencing undeclared type variables.",
-        "Map concrete record types, or wait for the full mapper's generics support.");
+        "Map concrete types here; concrete instantiations of generic records are currently"
+            + " supported for record-record pairs only, and threaded type parameters arrive with"
+            + " the full mapper.");
     return false;
   }
 
@@ -338,8 +340,8 @@ public class MappingProcessor extends AbstractProcessor {
             processingEnv.getMessager(),
             spec,
             TAG,
-            "'" + record.getSimpleName() + "<" + argument + ">' is not a concrete instantiation.",
-            "Wildcard and type-variable arguments leave component types unresolvable; the"
+            "'" + used + "' is not a concrete instantiation.",
+            "Wildcard, raw and type-variable arguments leave component types unresolvable; the"
                 + " classifier matches concrete substituted types.",
             "Use concrete type arguments (e.g. '" + record.getSimpleName() + "<User>').");
         return false;
@@ -349,19 +351,31 @@ public class MappingProcessor extends AbstractProcessor {
   }
 
   /**
-   * Concrete = a declared type whose own arguments are concrete, or a primitive-free array-less
-   * base case.
+   * Concrete = a declared type that is itself fully instantiated with concrete arguments, an array
+   * of a concrete component, or (as an array component only) a primitive. A raw nested use has
+   * fewer arguments than its element declares parameters, so it is caught here — raw is strictly
+   * less safe than the wildcard this gate already rejects.
    */
   private boolean concreteArgument(TypeMirror argument) {
-    if (!(argument instanceof DeclaredType declared)) {
-      return false;
-    }
-    return declared.getTypeArguments().stream().allMatch(this::concreteArgument);
+    return switch (argument) {
+      case javax.lang.model.type.ArrayType array -> concreteArgument(array.getComponentType());
+      case DeclaredType declared ->
+          ((TypeElement) declared.asElement()).getTypeParameters().size()
+                  == declared.getTypeArguments().size()
+              && declared.getTypeArguments().stream().allMatch(this::concreteArgument);
+      default -> argument.getKind().isPrimitive();
+    };
   }
 
-  /** A component's type as seen under the spec's instantiation of its record (issue #624). */
+  /**
+   * A component's type as seen under the spec's instantiation of its record (issue #624). The
+   * substitution runs only for generic records, so concrete pairs stay on the exact
+   * pre-instantiation path (and never rely on {@code asMemberOf} accepting record components).
+   */
   private TypeMirror componentType(DeclaredType owner, RecordComponentElement component) {
-    return processingEnv.getTypeUtils().asMemberOf(owner, component);
+    return ((TypeElement) owner.asElement()).getTypeParameters().isEmpty()
+        ? component.asType()
+        : processingEnv.getTypeUtils().asMemberOf(owner, component);
   }
 
   private void processSpec(Element element, List<RegisteredSpec> registry) {
@@ -1067,7 +1081,7 @@ public class MappingProcessor extends AbstractProcessor {
                 c ->
                     new WireShape.WireComponent(
                         c.getSimpleName().toString(),
-                        processingEnv.getTypeUtils().asMemberOf(declared, c),
+                        componentType(declared, c),
                         c.getSimpleName().toString()))
             .toList();
     return new WireShape.RecordShape(wire, components);

@@ -163,16 +163,12 @@ A domain subtype without a spec, or a wire subtype nothing produces, is a compil
 A generic record maps as a **concrete instantiation**: name the type arguments in the spec, and every component classifies under that substitution — so the whole toolkit (leaves, nesting, containers, the null doctrine, index location) applies unchanged:
 
 ``` java
-public record Page<T>(List<T> items, int total) {}
-public record PageDto<T>(List<T> items, int total) {}
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/mapping/RecordMappingBook.java:generic_spec}}
 
-@GenerateMapping
-public interface UserPageMapping extends MappingSpec<Page<User>, PageDto<UserDto>> {}
-// items : List<User> <-> List<UserDto>, lifted through the sibling UserMapping;
-// a bad element parses to items.1.email: not an email address
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/mapping/RecordMappingBook.java:generic_usage}}
 ```
 
-An instantiated mapping registers like any other, so `Report(Page<User> results)` nests it automatically. Raw uses (`Page`), wildcards (`Page<?>`) and **generic specs** (`PageMapping<T>` — threaded type parameters) are diagnosed; the threaded form arrives with the full mapper.
+An instantiated mapping registers like any other, so `Report(Page<Customer> results)` nests it automatically. Instantiations apply to **record-record pairs**: a bean-shaped wire (and a sparse `UpdateSpec`) keeps its pair concrete for now. Raw uses (`Page`, including raw *nested* arguments), wildcards (`Page<?>`) and **generic specs** (`PageMapping<T>` — threaded type parameters) are diagnosed; array arguments (`Page<String[]>`) are concrete and map fine. The threaded form arrives with the full mapper.
 
 ---
 

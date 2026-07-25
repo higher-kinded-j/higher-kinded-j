@@ -152,9 +152,10 @@ Recursive records (a `Tree` of `Tree`) work too.
 
 Generic records map as **concrete instantiations** (`extends MappingSpec<Page<User>, PageDto<UserDto>>`):
 components classify under the substitution, so leaves/nesting/containers and the null doctrine apply
-unchanged, and the instantiated mapping nests into siblings automatically. Raw (`Page`), wildcard
-(`Page<?>`) and generic-spec (`PageMapping<T>`) shapes are diagnosed — threaded type parameters are
-not yet supported.
+unchanged, and the instantiated mapping nests into siblings automatically. Record-record pairs only —
+a bean-shaped wire (and a sparse `UpdateSpec`) keeps its pair concrete for now. Raw (`Page`, incl.
+raw nested arguments), wildcard (`Page<?>`) and generic-spec (`PageMapping<T>`) shapes are
+diagnosed; array arguments are concrete. Threaded type parameters are not yet supported.
 
 ### Sealed hierarchies dispatch exhaustively
 
@@ -336,7 +337,7 @@ Validated<NonEmptyList<FieldError>, Customer> customer =
         .assemble();                                // a bad zip reports as "address.zip"
 ```
 
-**Generic records are not supported.** Annotating one is a compile error; use the hand-written
+**`@GenerateAssembly` does not support generic records.** Annotating one is a compile error; use the hand-written
 `fields()` ladder for those, and for any record you cannot annotate.
 
 **When to prefer the hand-written ladder instead.** `Validated.fields()` / `Validated.accumulate()`

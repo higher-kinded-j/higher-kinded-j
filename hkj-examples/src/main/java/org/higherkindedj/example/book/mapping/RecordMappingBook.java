@@ -2,6 +2,7 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.example.book.mapping;
 
+import java.util.List;
 import org.higherkindedj.hkt.nonemptylist.NonEmptyList;
 import org.higherkindedj.hkt.validated.FieldError;
 import org.higherkindedj.hkt.validated.Validated;
@@ -61,6 +62,19 @@ public final class RecordMappingBook {
     // ANCHOR_END: nesting_usage
     System.out.println(
         InvoiceMappingImpl.INSTANCE.parse(new InvoiceDto("INV-2", new CustomerDto("Bob", "nope"))));
+
+    // ANCHOR: generic_usage
+    CustomerPageMappingImpl.INSTANCE.parse(
+        new PageDto<>(
+            List.of(new CustomerDto("Ada", "ada@corp.example"), new CustomerDto("Bob", "nope")),
+            2));
+    // Invalid(NonEmptyList[items.1.email: not an email address])
+    // ANCHOR_END: generic_usage
+    System.out.println(
+        CustomerPageMappingImpl.INSTANCE.parse(
+            new PageDto<>(
+                List.of(new CustomerDto("Ada", "ada@corp.example"), new CustomerDto("Bob", "nope")),
+                2)));
 
     // ANCHOR: projection_usage
     Employee employee = new Employee("Ada", "Research", 36);
@@ -198,6 +212,16 @@ record InvoiceDto(String id, CustomerDto customer) {}
 interface InvoiceMapping extends MappingSpec<Invoice, InvoiceDto> {}
 
 // ANCHOR_END: nesting_spec
+
+// ANCHOR: generic_spec
+record Page<T>(List<T> items, int total) {}
+
+record PageDto<T>(List<T> items, int total) {}
+
+@GenerateMapping
+interface CustomerPageMapping extends MappingSpec<Page<Customer>, PageDto<CustomerDto>> {}
+
+// ANCHOR_END: generic_spec
 
 // ANCHOR: sealed_spec
 sealed interface Payment permits Card, Bank {}

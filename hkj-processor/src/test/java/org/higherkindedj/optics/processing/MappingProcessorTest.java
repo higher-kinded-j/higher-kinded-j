@@ -5343,6 +5343,19 @@ class MappingProcessorTest {
         Assertions.assertThat(
                 parsed.getError().toJavaList().stream().map(FieldError::toString).toList())
             .containsExactly("items.1.email: not an email address");
+
+        // The null doctrine composes with the substitution too: a null element is located.
+        Object nullElementPage =
+            result
+                .loadClass("com.example.PageDto")
+                .getDeclaredConstructor(List.class, int.class)
+                .newInstance(Arrays.asList(goodDto, null), 2);
+        @SuppressWarnings("unchecked")
+        Validated<NonEmptyList<FieldError>, Object> nullParsed =
+            (Validated<NonEmptyList<FieldError>, Object>) invoke(impl, "parse", nullElementPage);
+        Assertions.assertThat(
+                nullParsed.getError().toJavaList().stream().map(FieldError::toString).toList())
+            .containsExactly("items.1: must not be null");
       } catch (ReflectiveOperationException e) {
         throw new AssertionError(e);
       }
@@ -5402,6 +5415,193 @@ class MappingProcessorTest {
     }
 
     @Test
+    @DisplayName("array, nested-generic and bounded arguments are concrete and map fine")
+    void furtherConcreteShapesAreAccepted() {
+      JavaFileObject ranked =
+          JavaFileObjects.forSourceString(
+              "com.example.Ranked",
+              """
+              package com.example;
+
+              public record Ranked<T extends Number>(T score, String label) {}
+              """);
+      JavaFileObject rankedDto =
+          JavaFileObjects.forSourceString(
+              "com.example.RankedDto",
+              """
+              package com.example;
+
+              public record RankedDto<T extends Number>(T score, String label) {}
+              """);
+      JavaFileObject specs =
+          JavaFileObjects.forSourceString(
+              "com.example.FurtherShapes",
+              """
+              package com.example;
+
+              import java.util.List;
+              import org.higherkindedj.optics.annotations.GenerateMapping;
+              import org.higherkindedj.optics.annotations.MappingSpec;
+
+              public final class FurtherShapes {
+                @GenerateMapping
+                public interface ArrayPageMapping
+                    extends MappingSpec<Page<String[]>, PageDto<String[]>> {}
+
+                @GenerateMapping
+                public interface PrimitiveArrayPageMapping
+                    extends MappingSpec<Page<int[]>, PageDto<int[]>> {}
+
+                @GenerateMapping
+                public interface DeepPageMapping
+                    extends MappingSpec<Page<List<String>>, PageDto<List<String>>> {}
+
+                @GenerateMapping
+                public interface IntRankedMapping
+                    extends MappingSpec<Ranked<Integer>, RankedDto<Integer>> {}
+              }
+              """);
+
+      Compilation compilation =
+          compile(EMAIL, DOMAIN, WIRE, SPEC, PAGE, PAGE_DTO, ranked, rankedDto, specs);
+      assertThat(compilation).succeeded();
+      Assertions.assertThat(
+              generatedSource(compilation, "com.example.FurtherShapesArrayPageMappingImpl"))
+          .contains("public PageDto<String[]> build(Page<String[]> domain)");
+      Assertions.assertThat(
+              generatedSource(compilation, "com.example.FurtherShapesIntRankedMappingImpl"))
+          .contains("public RankedDto<Integer> build(Ranked<Integer> domain)");
+    }
+
+    @Test
+    @DisplayName("the lossy-projection and patch tiers classify under substitution too")
+    void projectionTiersClassifyUnderSubstitution() {
+      JavaFileObject pageItemsDto =
+          JavaFileObjects.forSourceString(
+              "com.example.PageItemsDto",
+              """
+              package com.example;
+
+              import java.util.List;
+
+              public record PageItemsDto<T>(List<T> items) {}
+              """);
+      JavaFileObject lensSpec =
+          JavaFileObjects.forSourceString(
+              "com.example.PageItemsMapping",
+              """
+              package com.example;
+
+              import org.higherkindedj.optics.annotations.GenerateMapping;
+              import org.higherkindedj.optics.annotations.MappingSpec;
+
+              @GenerateMapping
+              public interface PageItemsMapping
+                  extends MappingSpec<Page<User>, PageItemsDto<User>> {}
+              """);
+      JavaFileObject patchSpec =
+          JavaFileObjects.forSourceString(
+              "com.example.PagePatchMapping",
+              """
+              package com.example;
+
+              import org.higherkindedj.optics.annotations.GenerateMapping;
+              import org.higherkindedj.optics.annotations.MappingSpec;
+
+              @GenerateMapping
+              public interface PagePatchMapping
+                  extends MappingSpec<Page<User>, PageItemsDto<UserDto>> {}
+              """);
+
+      Compilation compilation =
+          compile(EMAIL, DOMAIN, WIRE, SPEC, PAGE, PAGE_DTO, pageItemsDto, lensSpec, patchSpec);
+      assertThat(compilation).succeeded();
+      Assertions.assertThat(generatedSource(compilation, "com.example.PageItemsMappingImpl"))
+          .contains("public Lens<Page<User>, PageItemsDto<User>> asLens()");
+      Assertions.assertThat(generatedSource(compilation, "com.example.PagePatchMappingImpl"))
+          .contains(
+              "public Validated<NonEmptyList<FieldError>, Page<User>> patch(Page<User> domain,")
+          .contains(
+              ".field(\"items\", hkj$ifPresent(wire.items(),"
+                  + " UserMappingImpl.INSTANCE.asValidatedPrism()::parseAll))");
+    }
+
+    @Test
+    @DisplayName("Map and Optional components lift under the substitution as well")
+    void containerKindsLiftUnderSubstitution() {
+      JavaFileObject env =
+          JavaFileObjects.forSourceString(
+              "com.example.Env",
+              """
+              package com.example;
+
+              import java.util.Map;
+              import java.util.Optional;
+
+              public record Env<T>(Map<String, T> byKey, Optional<T> head, int n) {}
+              """);
+      JavaFileObject envDto =
+          JavaFileObjects.forSourceString(
+              "com.example.EnvDto",
+              """
+              package com.example;
+
+              import java.util.Map;
+              import java.util.Optional;
+
+              public record EnvDto<T>(Map<String, T> byKey, Optional<T> head, int n) {}
+              """);
+      JavaFileObject spec =
+          JavaFileObjects.forSourceString(
+              "com.example.UserEnvMapping",
+              """
+              package com.example;
+
+              import org.higherkindedj.optics.annotations.GenerateMapping;
+              import org.higherkindedj.optics.annotations.MappingSpec;
+
+              @GenerateMapping
+              public interface UserEnvMapping extends MappingSpec<Env<User>, EnvDto<UserDto>> {}
+              """);
+
+      Compilation compilation = compile(EMAIL, DOMAIN, WIRE, SPEC, env, envDto, spec);
+      assertThat(compilation).succeeded();
+      Assertions.assertThat(generatedSource(compilation, "com.example.UserEnvMappingImpl"))
+          .contains(
+              ".field(\"byKey\", hkj$ifPresent(wire.byKey(),"
+                  + " UserMappingImpl.INSTANCE.asValidatedPrism()::parseValues))")
+          .contains(".field(\"head\", hkj$ifPresent(wire.head(), o -> o.map(v ->")
+          .contains(".field(\"n\", Validated.validNel(wire.n()))");
+    }
+
+    @Test
+    @DisplayName(
+        "the #654 collision sweep runs on instantiated specs with the instantiated" + " member set")
+    void collisionSweepCoversInstantiatedSpecs() {
+      JavaFileObject colliding =
+          JavaFileObjects.forSourceString(
+              "com.example.UserPageMapping",
+              """
+              package com.example;
+
+              import org.higherkindedj.optics.annotations.GenerateMapping;
+              import org.higherkindedj.optics.annotations.MappingSpec;
+
+              @GenerateMapping
+              public interface UserPageMapping
+                  extends MappingSpec<Page<User>, PageDto<UserDto>> {
+                default PageDto<UserDto> build(Page<User> domain) {
+                  return null;
+                }
+              }
+              """);
+
+      Compilation compilation = compile(EMAIL, DOMAIN, WIRE, SPEC, PAGE, PAGE_DTO, colliding);
+      assertThat(compilation).failed();
+      assertThat(compilation).hadErrorContaining("'build(Page)' collides with the 'build' member");
+    }
+
+    @Test
     @DisplayName("raw, wildcard and generic-spec shapes stay diagnosed")
     void unsupportedGenericShapesAreDiagnosed() {
       JavaFileObject rawSpec =
@@ -5435,7 +5635,8 @@ class MappingProcessorTest {
               """);
       Compilation wildcard = compile(EMAIL, DOMAIN, WIRE, SPEC, PAGE, PAGE_DTO, wildcardSpec);
       assertThat(wildcard).failed();
-      assertThat(wildcard).hadErrorContaining("is not a concrete instantiation");
+      assertThat(wildcard)
+          .hadErrorContaining("'com.example.Page<?>' is not a concrete instantiation");
 
       // The wire side is checked independently: a concrete domain does not excuse it.
       JavaFileObject wildcardWireSpec =
@@ -5453,7 +5654,8 @@ class MappingProcessorTest {
       Compilation wildcardWire =
           compile(EMAIL, DOMAIN, WIRE, SPEC, PAGE, PAGE_DTO, wildcardWireSpec);
       assertThat(wildcardWire).failed();
-      assertThat(wildcardWire).hadErrorContaining("'PageDto<?>' is not a concrete instantiation");
+      assertThat(wildcardWire)
+          .hadErrorContaining("'com.example.PageDto<?>' is not a concrete instantiation");
 
       // Concreteness is recursive: a wildcard nested inside an argument is caught too.
       JavaFileObject nestedWildcardSpec =
@@ -5473,7 +5675,48 @@ class MappingProcessorTest {
       Compilation nestedWildcard =
           compile(EMAIL, DOMAIN, WIRE, SPEC, PAGE, PAGE_DTO, nestedWildcardSpec);
       assertThat(nestedWildcard).failed();
-      assertThat(nestedWildcard).hadErrorContaining("is not a concrete instantiation");
+      assertThat(nestedWildcard)
+          .hadErrorContaining(
+              "'com.example.Page<java.util.List<?>>' is not a concrete instantiation");
+
+      // Raw nested arguments are caught recursively — raw is less safe than the rejected
+      // wildcard (#624 panel finding).
+      JavaFileObject nestedRawSpec =
+          JavaFileObjects.forSourceString(
+              "com.example.NestedRawMapping",
+              """
+              package com.example;
+
+              import java.util.List;
+              import org.higherkindedj.optics.annotations.GenerateMapping;
+              import org.higherkindedj.optics.annotations.MappingSpec;
+
+              @SuppressWarnings("rawtypes")
+              @GenerateMapping
+              public interface NestedRawMapping extends MappingSpec<Page<List>, PageDto<List>> {}
+              """);
+      Compilation nestedRaw = compile(EMAIL, DOMAIN, WIRE, SPEC, PAGE, PAGE_DTO, nestedRawSpec);
+      assertThat(nestedRaw).failed();
+      assertThat(nestedRaw)
+          .hadErrorContaining("'com.example.Page<java.util.List>' is not a concrete instantiation");
+
+      // The raw check fires on the wire leg too.
+      JavaFileObject rawWireSpec =
+          JavaFileObjects.forSourceString(
+              "com.example.RawWireMapping",
+              """
+              package com.example;
+
+              import org.higherkindedj.optics.annotations.GenerateMapping;
+              import org.higherkindedj.optics.annotations.MappingSpec;
+
+              @SuppressWarnings("rawtypes")
+              @GenerateMapping
+              public interface RawWireMapping extends MappingSpec<User, PageDto> {}
+              """);
+      Compilation rawWire = compile(EMAIL, DOMAIN, WIRE, SPEC, PAGE, PAGE_DTO, rawWireSpec);
+      assertThat(rawWire).failed();
+      assertThat(rawWire).hadErrorContaining("'PageDto' is used raw");
 
       JavaFileObject genericSpec =
           JavaFileObjects.forSourceString(
