@@ -150,6 +150,14 @@ public interface InvoiceMapping extends MappingSpec<Invoice, InvoiceDto> {}   //
 
 Recursive records (a `Tree` of `Tree`) work too.
 
+Generic records map as **concrete instantiations** (`extends MappingSpec<Page<User>, PageDto<UserDto>>`):
+components classify under the substitution, so leaves/nesting/containers and the null doctrine apply
+unchanged, and the instantiated mapping nests into siblings automatically. Supported for
+record-to-record mappings only: bean-shaped wires and `UpdateSpec` mappings do not support generic
+instantiations yet. Raw (`Page`, incl.
+raw nested arguments), wildcard (`Page<?>`) and generic-spec (`PageMapping<T>`) shapes are
+diagnosed; array arguments are concrete. Threaded type parameters are not yet supported.
+
 ### Sealed hierarchies dispatch exhaustively
 
 A `MappingSpec` may be declared over two **sealed interfaces**, not just two records. Give each
@@ -330,7 +338,7 @@ Validated<NonEmptyList<FieldError>, Customer> customer =
         .assemble();                                // a bad zip reports as "address.zip"
 ```
 
-**Generic records are not supported.** Annotating one is a compile error; use the hand-written
+**`@GenerateAssembly` does not support generic records.** Annotating one is a compile error; use the hand-written
 `fields()` ladder for those, and for any record you cannot annotate.
 
 **When to prefer the hand-written ladder instead.** `Validated.fields()` / `Validated.accumulate()`

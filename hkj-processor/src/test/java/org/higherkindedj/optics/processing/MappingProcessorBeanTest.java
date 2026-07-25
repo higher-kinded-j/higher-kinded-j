@@ -166,6 +166,41 @@ class MappingProcessorBeanTest {
 
     @Test
     @DisplayName(
+        "an instantiated generic domain stays concrete-only on a bean wire (#624 is"
+            + " record-record for now)")
+    void instantiatedGenericDomainRejectedOnBeanWire() {
+      JavaFileObject page =
+          JavaFileObjects.forSourceString(
+              "com.example.Page",
+              """
+              package com.example;
+
+              import java.util.List;
+
+              public record Page<T>(List<T> items, int total) {}
+              """);
+      JavaFileObject spec =
+          JavaFileObjects.forSourceString(
+              "com.example.PageBeanMapping",
+              """
+              package com.example;
+
+              import org.higherkindedj.optics.annotations.GenerateMapping;
+              import org.higherkindedj.optics.annotations.MappingSpec;
+
+              @GenerateMapping
+              public interface PageBeanMapping extends MappingSpec<Page<User>, UserDto> {}
+              """);
+
+      Compilation compilation = compile(EMAIL, USER, USER_DTO, page, spec);
+      assertThat(compilation).failed();
+      assertThat(compilation)
+          .hadErrorContaining("'Page' is generic, which this mapper does not support");
+      assertThat(compilation).hadErrorContaining("record-record pairs only");
+    }
+
+    @Test
+    @DisplayName(
         "a user 'ifPresent' helper stays legal beside the $-namespaced guard and never"
             + " captures its calls (#654)")
     void ifPresentHelperStaysLegalBesideTheGuard() {
