@@ -38,7 +38,7 @@ _Breaking changes / migration:_
 
 **Located nulls for fallible `@GenerateMerge` legs ([#659](https://github.com/higher-kinded-j/higher-kinded-j/issues/659))**
 
-The #653 null doctrine (below) extends to the merge generator: every reference-typed source-component read in a `Validated`-returning `assemble` is null-guarded into a located, accumulating `FieldError` (`must not be null`), never an exception. **Behaviour change** in the same friendly direction: a null source component previously threw out of `Validated` or a leaf prism. A null source *argument* stays the caller's `requireNonNull`, and a merge whose method declares the plain target return remains total by that declaration — nulls flow through to the target constructor; declare the `Validated` return to buy the guard.
+The #653 null doctrine (below) extends to the merge generator: every reference-typed source-component read in a `Validated`-returning `assemble` is null-guarded into a located, accumulating `FieldError` (`must not be null`), never an exception. **Behaviour change** in the same friendly direction: a null source component previously threw out of `Validated` or a leaf prism. A null source *argument* stays the caller's `requireNonNull`, and a merge whose method declares the plain target return remains total by that declaration — nulls flow through to the target constructor. The return type follows the fills (an identity-only merge cannot declare `Validated`), so an identity-only merge that wants the guard should add a normalising `ValidatedPrism<X, X>` leaf, which makes it fallible and brings the `Validated` return with it.
 
 **Located nulls for record-wire `parse` ([#653](https://github.com/higher-kinded-j/higher-kinded-j/issues/653))**
 

@@ -105,7 +105,8 @@ class MergeProcessorTest {
           .contains("Objects.requireNonNull(settings, \"settings must not be null\")")
           .contains(
               "return new Records.Dashboard(user.name(), account.iban(), settings.darkMode())")
-          .doesNotContain("Validated");
+          .doesNotContain("Validated")
+          .doesNotContain("hkj$ifPresent");
     }
 
     @Test
@@ -257,6 +258,60 @@ class MergeProcessorTest {
               ".field(\"customer\", hkj$ifPresent(wrapper.customer(),"
                   + " CustomerMappingImpl.INSTANCE.asValidatedPrism()::parse))")
           .contains(".field(\"name\", hkj$ifPresent(user.name(), Validated::validNel))");
+    }
+
+    @Test
+    @DisplayName(
+        "a null inside a nested source locates through the nesting from one assemble"
+            + " call (#653 + #659)")
+    void nestedNullsLocateThroughTheMergeSeam() {
+      Compilation compilation =
+          compileWithMapping(
+              RECORDS,
+              NESTED_RECORDS,
+              CUSTOMER_MAPPING,
+              PROJECTION_MAPPING,
+              DECOY_MAPPINGS,
+              spec(
+                  "ProfileAssembly",
+                  """
+                  public interface ProfileAssembly {
+                    Validated<NonEmptyList<FieldError>, Nested.Profile> assemble(
+                        Records.User user, Nested.Wrapper wrapper);
+                  }
+                  """));
+      assertThat(compilation).succeeded();
+      var result = new RuntimeCompilationHelper.CompiledResult(compilation);
+      try {
+        Object assembly =
+            result.loadClass("com.example.ProfileAssemblyImpl").getField("INSTANCE").get(null);
+        Object customerDto =
+            result
+                .loadClass("com.example.Nested$CustomerDto")
+                .getDeclaredConstructor(String.class, String.class)
+                .newInstance("Bob", null);
+        Object wrapper =
+            result
+                .loadClass("com.example.Nested$Wrapper")
+                .getDeclaredConstructor(result.loadClass("com.example.Nested$CustomerDto"))
+                .newInstance(customerDto);
+        Object user =
+            result
+                .loadClass("com.example.Records$User")
+                .getDeclaredConstructor(String.class, String.class)
+                .newInstance(null, "ada@x.com");
+
+        @SuppressWarnings("unchecked")
+        Validated<NonEmptyList<FieldError>, Object> merged =
+            (Validated<NonEmptyList<FieldError>, Object>)
+                invoke(assembly, "assemble", user, wrapper);
+        Assertions.assertThat(merged.isInvalid()).isTrue();
+        Assertions.assertThat(
+                merged.getError().toJavaList().stream().map(FieldError::toString).toList())
+            .containsExactly("name: must not be null", "customer.email: must not be null");
+      } catch (ReflectiveOperationException e) {
+        throw new AssertionError(e);
+      }
     }
 
     @Test
@@ -1291,6 +1346,7 @@ class MergeProcessorTest {
         Validated<NonEmptyList<FieldError>, Object> nullLeaf =
             (Validated<NonEmptyList<FieldError>, Object>)
                 invoke(assembly, "assemble", user(result, "Ada", null), account(result));
+        Assertions.assertThat(nullLeaf.isInvalid()).isTrue();
         Assertions.assertThat(renderedErrors(nullLeaf)).containsExactly("email: must not be null");
       } catch (ReflectiveOperationException e) {
         throw new AssertionError(e);

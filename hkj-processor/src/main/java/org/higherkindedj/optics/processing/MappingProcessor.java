@@ -1931,8 +1931,8 @@ public class MappingProcessor extends AbstractProcessor {
         .addParameter(s, "value")
         .addParameter(parseFn, "parse")
         .addJavadoc(
-            "Guards a nullable wire read: a null becomes a located {@code FieldError}, otherwise"
-                + " the value is parsed.\n")
+            "Guards a nullable read: a null becomes a located {@code FieldError}, otherwise the"
+                + " value is parsed.\n")
         .addStatement(
             "return value == null ? $T.invalidNel($T.of($S)) : parse.apply(value)",
             VALIDATED,

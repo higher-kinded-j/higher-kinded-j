@@ -31,8 +31,11 @@ import java.lang.annotation.Target;
  * {@code @GenerateMapping} spec in the same compilation — nested failures locate as dotted paths.
  * An ambiguous component (same name in two sources) or an unfilled one is a compile error. With any
  * fallible fill the declared return type must be {@code Validated<NonEmptyList<FieldError>,
- * Target>} — the types never over- or under-claim fallibility (and the fallible path inherits
- * {@code Validated}'s null-hostility: component values must not be null).
+ * Target>} — the types never over- or under-claim fallibility. On that fallible path every
+ * reference-typed source-component read is null-guarded (issue #659): a null component is a
+ * located, accumulated {@code FieldError} ({@code must not be null}), never an exception, while a
+ * null source <em>argument</em> stays the caller's {@code NullPointerException}. A plain-return
+ * merge is total by its declaration, and nulls flow through to the target constructor.
  */
 @Target(ElementType.TYPE)
 @Retention(RetentionPolicy.SOURCE)

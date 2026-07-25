@@ -192,8 +192,9 @@ rejected outright: the projection's `asLens()` write-back could never honour a c
   `NullPointerException`, and a null *element inside* a `List`/`Map` value follows the container's
   own contract. A lossless record mapping keeps `asIso()` (its guards cover hostile bindings, with
   parse-iso coherence scoped to non-null wires); a bean's guarded reads still cost the Iso tier,
-  because an unset bean property is a representable state. The same guard covers the fallible legs
-  of a `@GenerateMerge` `assemble` (a plain-return merge stays total by its declaration).
+  because an unset bean property is a representable state. The same guard covers every
+  reference-typed source read on a `@GenerateMerge` `assemble`'s fallible path (a plain-return
+  merge stays total by its declaration).
 - **`Map` components lift values only.** Keys pass through by identity; a failure is located by its
   key.
 - **The mapped record need not be yours.** The annotation sits on *your spec interface*, never on
