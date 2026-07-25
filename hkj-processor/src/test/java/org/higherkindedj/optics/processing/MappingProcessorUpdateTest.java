@@ -1104,6 +1104,97 @@ class MappingProcessorUpdateTest {
     }
   }
 
+  @Nested
+  @DisplayName("Generated-member collision sweep (#654)")
+  class GeneratedMemberCollisionSweep {
+
+    @Test
+    @DisplayName("a default with the generated 'updateFrom' signature is rejected")
+    void updateFromCollisionIsRejected() {
+      JavaFileObject colliding =
+          JavaFileObjects.forSourceString(
+              "com.example.UserPatchMapping",
+              """
+              package com.example;
+
+              import org.higherkindedj.hkt.validated.FieldError;
+              import org.higherkindedj.hkt.validated.Validated;
+              import org.higherkindedj.optics.annotations.GenerateMapping;
+              import org.higherkindedj.optics.annotations.UpdateSpec;
+              import org.higherkindedj.optics.edit.Edits;
+              import org.higherkindedj.optics.validated.ValidatedPrism;
+
+              @GenerateMapping
+              public interface UserPatchMapping extends UpdateSpec<User, UserPatchDto> {
+                default ValidatedPrism<String, EmailAddress> email() {
+                  return ValidatedPrism.of(
+                      raw ->
+                          raw.contains("@")
+                              ? Validated.validNel(new EmailAddress(raw))
+                              : Validated.invalidNel(FieldError.of("not an email address")),
+                      EmailAddress::value);
+                }
+
+                default Edits.Accumulated<User> updateFrom(UserPatchDto wire) {
+                  return null;
+                }
+              }
+              """);
+
+      Compilation compilation = compile(EMAIL, USER, USER_PATCH_DTO, colliding);
+
+      assertThat(compilation).failed();
+      assertThat(compilation)
+          .hadErrorContaining(
+              "'updateFrom(UserPatchDto)' collides with the 'updateFrom' member the generated"
+                  + " UserPatchMappingImpl emits");
+      assertThat(compilation).hadErrorContaining("a sparse update");
+    }
+
+    @Test
+    @DisplayName(
+        "'build' and 'parse' helpers stay legal: a sparse update reserves only" + " 'updateFrom'")
+    void buildAndParseHelpersStayLegal() {
+      JavaFileObject spec =
+          JavaFileObjects.forSourceString(
+              "com.example.UserPatchMapping",
+              """
+              package com.example;
+
+              import org.higherkindedj.hkt.nonemptylist.NonEmptyList;
+              import org.higherkindedj.hkt.validated.FieldError;
+              import org.higherkindedj.hkt.validated.Validated;
+              import org.higherkindedj.optics.annotations.GenerateMapping;
+              import org.higherkindedj.optics.annotations.UpdateSpec;
+              import org.higherkindedj.optics.validated.ValidatedPrism;
+
+              @GenerateMapping
+              public interface UserPatchMapping extends UpdateSpec<User, UserPatchDto> {
+                default ValidatedPrism<String, EmailAddress> email() {
+                  return ValidatedPrism.of(
+                      raw ->
+                          raw.contains("@")
+                              ? Validated.validNel(new EmailAddress(raw))
+                              : Validated.invalidNel(FieldError.of("not an email address")),
+                      EmailAddress::value);
+                }
+
+                default UserPatchDto build(User domain) {
+                  return new UserPatchDto();
+                }
+
+                default Validated<NonEmptyList<FieldError>, User> parse(UserPatchDto wire) {
+                  return Validated.invalidNel(FieldError.of("a helper, not a collision"));
+                }
+              }
+              """);
+
+      Compilation compilation = compile(EMAIL, USER, USER_PATCH_DTO, spec);
+
+      assertThat(compilation).succeeded();
+    }
+  }
+
   private static String generatedSource(Compilation compilation, String qualifiedName) {
     return compilation.generatedSourceFiles().stream()
         .filter(f -> f.getName().contains(qualifiedName.replace('.', '/')))
