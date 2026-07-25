@@ -165,6 +165,52 @@ class MappingProcessorBeanTest {
         throw new AssertionError(e);
       }
     }
+
+    @Test
+    @DisplayName(
+        "a default override-equivalent to the emitted 'ifPresent' guard is rejected" + " (#654)")
+    void ifPresentCollisionOnBeanFullTierIsRejected() {
+      JavaFileObject colliding =
+          JavaFileObjects.forSourceString(
+              "com.example.UserMapping",
+              """
+              package com.example;
+
+              import java.util.function.Function;
+              import org.higherkindedj.hkt.nonemptylist.NonEmptyList;
+              import org.higherkindedj.hkt.validated.FieldError;
+              import org.higherkindedj.hkt.validated.Validated;
+              import org.higherkindedj.optics.annotations.GenerateMapping;
+              import org.higherkindedj.optics.annotations.MappingSpec;
+              import org.higherkindedj.optics.validated.ValidatedPrism;
+
+              @GenerateMapping
+              public interface UserMapping extends MappingSpec<User, UserDto> {
+                default ValidatedPrism<String, EmailAddress> email() {
+                  return ValidatedPrism.of(
+                      raw ->
+                          raw.contains("@")
+                              ? Validated.validNel(new EmailAddress(raw))
+                              : Validated.invalidNel(FieldError.of("not an email address")),
+                      EmailAddress::value);
+                }
+
+                default <S, A> Validated<NonEmptyList<FieldError>, A> ifPresent(
+                    S value, Function<? super S, Validated<NonEmptyList<FieldError>, A>> parse) {
+                  return parse.apply(value);
+                }
+              }
+              """);
+
+      Compilation compilation = compile(EMAIL, USER, USER_DTO, colliding);
+
+      assertThat(compilation).failed();
+      assertThat(compilation)
+          .hadErrorContaining(
+              "'ifPresent(S, Function)' collides with the 'ifPresent' member the generated"
+                  + " UserMappingImpl emits");
+      assertThat(compilation).hadErrorContaining("a full mapping");
+    }
   }
 
   @Nested

@@ -21,6 +21,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
+import java.util.StringJoiner;
 import javax.annotation.processing.AbstractProcessor;
 import javax.annotation.processing.FilerException;
 import javax.annotation.processing.ProcessingEnvironment;
@@ -34,11 +35,13 @@ import javax.lang.model.element.ExecutableElement;
 import javax.lang.model.element.Modifier;
 import javax.lang.model.element.RecordComponentElement;
 import javax.lang.model.element.TypeElement;
+import javax.lang.model.element.VariableElement;
 import javax.lang.model.type.DeclaredType;
 import javax.lang.model.type.PrimitiveType;
 import javax.lang.model.type.TypeKind;
 import javax.lang.model.type.TypeMirror;
 import javax.lang.model.util.ElementFilter;
+import javax.lang.model.util.Types;
 import org.higherkindedj.optics.annotations.ArityCeilings;
 import org.higherkindedj.optics.annotations.GenerateMapping;
 import org.higherkindedj.optics.annotations.MapField;
@@ -86,6 +89,12 @@ import org.higherkindedj.optics.processing.util.Diagnostics;
  * into an {@code Update} via {@code Edits.accumulate} — no {@code build}, {@code parse}, or {@code
  * as*} tier. A primitive wire property (which can never be absent) is rejected with a diagnostic,
  * and an {@code UpdateSpec} never registers for nesting (it has no {@code parse}).
+ *
+ * <p>A spec method that is override-equivalent to a member the Impl emits for the classified shape
+ * is rejected with a diagnostic at the spec (issue #654): a colliding {@code default} would
+ * otherwise be silently overridden by the generated method, or — with a different return type —
+ * fail javac inside the generated file. Overloads with a different erased signature, and static or
+ * private spec methods (never inherited by the Impl), stay legal.
  */
 @AutoService(Processor.class)
 @SupportedAnnotationTypes("org.higherkindedj.optics.annotations.GenerateMapping")
@@ -866,6 +875,14 @@ public class MappingProcessor extends AbstractProcessor {
     ClassName implName = implClassName(spec);
     ClassName domainClass = ClassName.get(domain);
     TypeName wireName = TypeName.get(wire.element().asType());
+
+    if (!checkNoEmittedCollisions(
+        spec,
+        "a sparse update",
+        List.of(EmittedMember.of("updateFrom", wire.element().asType())))) {
+      return;
+    }
+
     TypeName accumulatedReturn =
         ParameterizedTypeName.get(ACCUMULATED, TypeName.get(domain.asType()));
 
@@ -1927,6 +1944,21 @@ public class MappingProcessor extends AbstractProcessor {
     // lossless (its reads cannot be null).
     boolean lossless = comps.stream().noneMatch(c -> c.fallible() || beanGuard(c, wire));
     boolean needsGuardHelper = comps.stream().anyMatch(c -> beanGuard(c, wire));
+
+    List<EmittedMember> emitted = new ArrayList<>();
+    emitted.add(EmittedMember.of("build", domain.asType()));
+    emitted.add(EmittedMember.of("parse", wire.element().asType()));
+    emitted.add(EmittedMember.of("asValidatedPrism"));
+    if (lossless) {
+      emitted.add(EmittedMember.of("asIso"));
+    }
+    if (needsGuardHelper) {
+      emitted.add(ifPresentMember());
+    }
+    if (!checkNoEmittedCollisions(spec, "a full mapping", emitted)) {
+      return;
+    }
+
     CodeBlock.Builder reverseArgs = CodeBlock.builder();
     boolean firstReverse = true;
     for (Correspondence c : comps) {
@@ -2074,6 +2106,16 @@ public class MappingProcessor extends AbstractProcessor {
         ParameterizedTypeName.get(
             VALIDATED, ParameterizedTypeName.get(NEL, FIELD_ERROR), domainName);
 
+    if (!checkNoEmittedCollisions(
+        spec,
+        "a leaf-carrying projection",
+        List.of(
+            EmittedMember.of("build", domain.asType()),
+            EmittedMember.of("patch", domain.asType(), wire.element().asType()),
+            ifPresentMember()))) {
+      return;
+    }
+
     CodeBlock buildBody = wire.buildStatements(wireName, wc -> buildValue(wc, comps));
 
     CodeBlock.Builder patchChain = CodeBlock.builder().add("return $T.fields()", VALIDATED);
@@ -2178,6 +2220,13 @@ public class MappingProcessor extends AbstractProcessor {
     ClassName specName = ClassName.get(spec);
     TypeName domainName = TypeName.get(domain.asType());
     TypeName wireName = TypeName.get(wire.element().asType());
+
+    if (!checkNoEmittedCollisions(
+        spec,
+        "an identity projection",
+        List.of(EmittedMember.of("build", domain.asType()), EmittedMember.of("asLens")))) {
+      return;
+    }
 
     CodeBlock buildBody =
         switch (wire) {
@@ -2344,6 +2393,17 @@ public class MappingProcessor extends AbstractProcessor {
     ClassName specName = ClassName.get(spec);
     TypeName domainName = TypeName.get(domain.asType());
     TypeName wireName = TypeName.get(wire.asType());
+
+    if (!checkNoEmittedCollisions(
+        spec,
+        "a sealed dispatch mapping",
+        List.of(
+            EmittedMember.of("build", domain.asType()),
+            EmittedMember.of("parse", wire.asType()),
+            EmittedMember.of("asValidatedPrism")))) {
+      return;
+    }
+
     TypeName parseReturn =
         ParameterizedTypeName.get(
             VALIDATED, ParameterizedTypeName.get(NEL, FIELD_ERROR), domainName);
@@ -2448,6 +2508,113 @@ public class MappingProcessor extends AbstractProcessor {
                   "@MapField methods declare renames and are not invocable")
               .build());
     }
+  }
+
+  /**
+   * One member the generated Impl will declare, described for the collision sweep (issue #654): its
+   * name and parameter types, compared against spec methods by erased signature.
+   */
+  private record EmittedMember(String name, List<TypeMirror> params) {
+    static EmittedMember of(String name, TypeMirror... params) {
+      return new EmittedMember(name, List.of(params));
+    }
+  }
+
+  /** The {@code ifPresent} guard helper's erased shape: {@code (Object, Function)}. */
+  private EmittedMember ifPresentMember() {
+    return EmittedMember.of(
+        "ifPresent",
+        processingEnv.getElementUtils().getTypeElement("java.lang.Object").asType(),
+        processingEnv
+            .getTypeUtils()
+            .erasure(
+                processingEnv
+                    .getElementUtils()
+                    .getTypeElement("java.util.function.Function")
+                    .asType()));
+  }
+
+  /**
+   * Rejects spec methods that are override-equivalent to a member the Impl emits for this spec
+   * shape (issue #654). Without the check, a colliding {@code default} is silently overridden by
+   * the generated method — the user's logic never runs on {@code INSTANCE} — or, with a different
+   * return type, the generated file fails javac with no diagnostic pointing at the spec. Static and
+   * private spec methods are not inherited by the Impl, so they can never collide; overloads with a
+   * different erased signature stay legal. Each tier passes exactly the members it emits, so a
+   * helper named after another tier's member (say {@code patch} on a full mapping) stays legal too.
+   */
+  private boolean checkNoEmittedCollisions(
+      TypeElement spec, String tier, List<EmittedMember> emitted) {
+    for (ExecutableElement method : ElementFilter.methodsIn(spec.getEnclosedElements())) {
+      if (method.getModifiers().contains(Modifier.STATIC)
+          || method.getModifiers().contains(Modifier.PRIVATE)) {
+        continue;
+      }
+      for (EmittedMember member : emitted) {
+        if (!overrideEquivalent(method, member)) {
+          continue;
+        }
+        Diagnostics.error(
+            processingEnv.getMessager(),
+            method,
+            TAG,
+            "'"
+                + methodSignature(method)
+                + "' collides with the '"
+                + member.name()
+                + "' member the generated "
+                + implClassName(spec).simpleName()
+                + " emits for this spec shape ("
+                + tier
+                + ").",
+            "The generated Impl declares an override-equivalent '"
+                + member.name()
+                + "', so this method is either silently overridden (its logic never runs on"
+                + " INSTANCE) or fails the generated file's compile with a raw javac error.",
+            "Rename the method, or remove it and rely on the generated '" + member.name() + "'.");
+        return false;
+      }
+    }
+    return true;
+  }
+
+  /**
+   * Override-equivalence (JLS 8.4.2) against a member that does not exist yet: same name and same
+   * erased parameter types.
+   */
+  private boolean overrideEquivalent(ExecutableElement method, EmittedMember member) {
+    if (!method.getSimpleName().contentEquals(member.name())
+        || method.getParameters().size() != member.params().size()) {
+      return false;
+    }
+    Types types = processingEnv.getTypeUtils();
+    for (int i = 0; i < member.params().size(); i++) {
+      TypeMirror specParam = types.erasure(method.getParameters().get(i).asType());
+      if (!types.isSameType(specParam, types.erasure(member.params().get(i)))) {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  /** Renders a spec method as {@code name(SimpleParamType, ...)} for the collision diagnostic. */
+  private static String methodSignature(ExecutableElement method) {
+    StringJoiner params = new StringJoiner(", ", "(", ")");
+    for (VariableElement parameter : method.getParameters()) {
+      params.add(simpleTypeName(parameter.asType()));
+    }
+    return method.getSimpleName() + params.toString();
+  }
+
+  /** The compact display name of a parameter type: no package, no type arguments. */
+  private static String simpleTypeName(TypeMirror type) {
+    String name = type.toString();
+    int generics = name.indexOf('<');
+    if (generics >= 0) {
+      name = name.substring(0, generics);
+    }
+    int lastDot = name.lastIndexOf('.');
+    return lastDot >= 0 ? name.substring(lastDot + 1) : name;
   }
 
   void writeFile(TypeElement spec, String packageName, TypeSpec impl) {
