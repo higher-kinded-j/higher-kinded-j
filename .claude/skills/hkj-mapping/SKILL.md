@@ -188,9 +188,13 @@ rejected outright: the projection's `asLens()` write-back could never honour a c
 - **A null component read is a located `FieldError`, never an exception — on both wire shapes.**
   A JSON binder leaves a missing property `null` on a record component just as on an unset bean
   property, so every reference-typed `parse` read is null-guarded (`must not be null`, accumulating,
-  locating through nesting: `customer.name: must not be null`). A null *wire* stays the caller's
-  `NullPointerException`, and a null *element inside* a `List`/`Map` value follows the container's
-  own contract. A lossless record mapping keeps `asIso()` (its guards cover hostile bindings, with
+  locating through nesting: `customer.name: must not be null`). The doctrine reaches inside
+  containers: a null element or map value locates by index or key (`emails.1: must not be null`),
+  and failing container elements are index- or key-located (`parseAll`/`parseValues`). What stays
+  the caller's `NullPointerException`: a null *wire* itself, and a null map *key* (a structurally
+  broken map, not a wrong value). A null container *component* is guarded like any reference read
+  (`emails: must not be null`); only calling `parseAll`/`parseValues` directly with a null
+  list/map is the caller's error. A lossless record mapping keeps `asIso()` (its guards cover hostile bindings, with
   parse-iso coherence scoped to non-null wires); a bean's guarded reads still cost the Iso tier,
   because an unset bean property is a representable state. The same guard covers every
   reference-typed source read on a `@GenerateMerge` `assemble`'s fallible path (a plain-return

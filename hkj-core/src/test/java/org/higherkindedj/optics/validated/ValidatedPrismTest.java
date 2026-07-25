@@ -87,9 +87,11 @@ class ValidatedPrismTest {
       Validated<NonEmptyList<FieldError>, List<Email>> failed =
           located.parseAll(List.of("bad-one", "a@b", "bad-two"));
       assertThatValidated(failed).isInvalid();
+      // Element failures locate by index (issue #660), a plain positional segment like a map key.
       assertThat(failed.getError().toJavaList())
-          .extracting(FieldError::message)
-          .containsExactly("bad: bad-one", "bad: bad-two");
+          .containsExactly(
+              new FieldError(List.of("0"), "bad: bad-one"),
+              new FieldError(List.of("2"), "bad: bad-two"));
 
       assertThat(EMAIL.buildAll(List.of(new Email("a@b"), new Email("c@d"))))
           .containsExactly("a@b", "c@d");
@@ -100,9 +102,22 @@ class ValidatedPrismTest {
       assertThatNullPointerException()
           .isThrownBy(() -> EMAIL.buildAll(null))
           .withMessage("values must not be null");
-      assertThatNullPointerException()
-          .isThrownBy(() -> EMAIL.parseAll(Arrays.asList("a@b", null)))
-          .withMessage("sources[1] must not be null");
+      // A null element is a located invalid at its index (issue #660), never an exception; the
+      // build direction stays total-and-throwing.
+      Validated<NonEmptyList<FieldError>, List<Email>> nullElement =
+          EMAIL.parseAll(Arrays.asList("a@b", null));
+      assertThatValidated(nullElement).isInvalid();
+      assertThat(nullElement.getError().toJavaList())
+          .containsExactly(new FieldError(List.of("1"), "must not be null"));
+
+      // Accumulation continues past a null: failures before AND after it all report, in order.
+      Validated<NonEmptyList<FieldError>, List<Email>> mixed =
+          located.parseAll(Arrays.asList("a@b", null, "bad-three"));
+      assertThatValidated(mixed).isInvalid();
+      assertThat(mixed.getError().toJavaList())
+          .containsExactly(
+              new FieldError(List.of("1"), "must not be null"),
+              new FieldError(List.of("2"), "bad: bad-three"));
       assertThatNullPointerException()
           .isThrownBy(() -> EMAIL.buildAll(Arrays.asList(new Email("a@b"), null)))
           .withMessage("values[1] must not be null");
@@ -148,11 +163,27 @@ class ValidatedPrismTest {
       assertThatNullPointerException()
           .isThrownBy(() -> EMAIL.parseValues(nullKey))
           .withMessage("sources must not contain a null key");
+      // A null value is a located invalid under its key (issue #660), never an exception; a null
+      // key stays the caller's error — a structurally broken map, not a wrong value.
       Map<String, String> nullValue = new HashMap<>();
       nullValue.put("work", null);
-      assertThatNullPointerException()
-          .isThrownBy(() -> EMAIL.parseValues(nullValue))
-          .withMessage("sources[work] must not be null");
+      Validated<NonEmptyList<FieldError>, Map<String, Email>> locatedNull =
+          EMAIL.parseValues(nullValue);
+      assertThatValidated(locatedNull).isInvalid();
+      assertThat(locatedNull.getError().toJavaList())
+          .containsExactly(new FieldError(List.of("work"), "must not be null"));
+
+      // Accumulation continues past a null value: the key-located parse failure still reports.
+      Map<String, String> mixed = new LinkedHashMap<>();
+      mixed.put("work", null);
+      mixed.put("home", "nope");
+      Validated<NonEmptyList<FieldError>, Map<String, Email>> mixedValues =
+          EMAIL.parseValues(mixed);
+      assertThatValidated(mixedValues).isInvalid();
+      assertThat(mixedValues.getError().toJavaList())
+          .containsExactly(
+              new FieldError(List.of("work"), "must not be null"),
+              new FieldError(List.of("home"), "not an email address"));
     }
 
     @Test

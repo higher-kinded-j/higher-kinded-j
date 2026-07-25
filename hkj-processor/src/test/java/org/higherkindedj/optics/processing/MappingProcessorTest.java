@@ -1261,6 +1261,38 @@ class MappingProcessorTest {
           .contains(
               ".field(\"customers\", hkj$ifPresent(wire.customers(),"
                   + " CustomerMappingImpl.INSTANCE.asValidatedPrism()::parseAll))");
+
+      // The composed location, end to end (#660): field label, then element index, then the
+      // nested spec's own path — customers.1.email, never customers.email.1.
+      var result = new RuntimeCompilationHelper.CompiledResult(compilation);
+      try {
+        Object impl = result.instance("com.example.CompanyMappingImpl");
+        Object good =
+            result
+                .loadClass("com.example.CustomerDto")
+                .getDeclaredConstructor(String.class, String.class)
+                .newInstance("Ada", "ada@x.com");
+        Object bad =
+            result
+                .loadClass("com.example.CustomerDto")
+                .getDeclaredConstructor(String.class, String.class)
+                .newInstance("Bob", "nope");
+        Object companyDto =
+            result
+                .loadClass("com.example.CompanyDto")
+                .getDeclaredConstructor(String.class, List.class)
+                .newInstance("Acme", List.of(good, bad));
+
+        @SuppressWarnings("unchecked")
+        Validated<NonEmptyList<FieldError>, Object> parsed =
+            (Validated<NonEmptyList<FieldError>, Object>) invoke(impl, "parse", companyDto);
+        Assertions.assertThat(parsed.isInvalid()).isTrue();
+        Assertions.assertThat(
+                parsed.getError().toJavaList().stream().map(FieldError::toString).toList())
+            .containsExactly("customers.1.email: not an email address");
+      } catch (ReflectiveOperationException e) {
+        throw new AssertionError(e);
+      }
     }
 
     @Test
@@ -2199,10 +2231,9 @@ class MappingProcessorTest {
 
         Validated<NonEmptyList<FieldError>, Object> patched = patch(impl, domain, wire);
         Assertions.assertThat(patched.isInvalid()).isTrue();
-        Assertions.assertThat(renderedErrors(patched)).hasSize(1);
-        Assertions.assertThat(renderedErrors(patched).getFirst())
-            .startsWith("emails")
-            .contains("not an email address");
+        // "nope" at position 1: located by index since #660, making this test's name literal.
+        Assertions.assertThat(renderedErrors(patched))
+            .containsExactly("emails.1: not an email address");
       } catch (ReflectiveOperationException e) {
         throw new AssertionError(e);
       }
@@ -2804,8 +2835,9 @@ class MappingProcessorTest {
         Validated<NonEmptyList<FieldError>, Object> parsed =
             (Validated<NonEmptyList<FieldError>, Object>) invoke(impl, "parse", dto);
         Assertions.assertThat(parsed.isInvalid()).isTrue();
+        // The failing element locates by index (#660): "bob" at position 1.
         Assertions.assertThat(parsed.getError().toJavaList())
-            .containsExactly(new FieldError(List.of("tags"), "handles start with @"));
+            .containsExactly(new FieldError(List.of("tags", "1"), "handles start with @"));
       } catch (ReflectiveOperationException e) {
         throw new AssertionError(e);
       }
@@ -5138,9 +5170,9 @@ class MappingProcessorTest {
 
     @Test
     @DisplayName(
-        "a null container leg is located; a null element inside the container follows"
-            + " the container's own contract")
-    void containerLegNullsAreLocatedElementNullsAreNot() {
+        "a null container leg is located; a null element inside the container locates by index"
+            + " (#660)")
+    void containerLegAndElementNullsAreLocated() {
       JavaFileObject roster =
           JavaFileObjects.forSourceString(
               "com.example.Roster",
@@ -5199,18 +5231,15 @@ class MappingProcessorTest {
         Assertions.assertThat(renderedErrors(parse(impl, nullListWire)))
             .containsExactly("emails: must not be null");
 
-        // The documented boundary: the leg guard covers the container read; a null ELEMENT
-        // follows parseAll's own contract and still throws.
+        // The #653 boundary retired by #660: a null ELEMENT is a located invalid at its index,
+        // completing the doctrine inside containers.
         Object nullElementWire =
             result
                 .loadClass("com.example.RosterDto")
                 .getDeclaredConstructor(String.class, List.class)
                 .newInstance("7", Arrays.asList("a@b.c", null));
-        Throwable thrown = Assertions.catchThrowable(() -> invoke(impl, "parse", nullElementWire));
-        Assertions.assertThat(thrown)
-            .rootCause()
-            .isInstanceOf(NullPointerException.class)
-            .hasMessage("sources[1] must not be null");
+        Assertions.assertThat(renderedErrors(parse(impl, nullElementWire)))
+            .containsExactly("emails.1: must not be null");
       } catch (ReflectiveOperationException e) {
         throw new AssertionError(e);
       }

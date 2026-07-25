@@ -77,12 +77,14 @@ import org.higherkindedj.optics.processing.util.Diagnostics;
  * <p>One null doctrine covers both wire shapes (issue #653): every reference-typed {@code parse}
  * read is null-guarded into a located {@code FieldError} — an unset bean property is null, and a
  * JSON binder leaves a missing record component null just the same — so a component-level null is a
- * located, accumulated invalid, never an exception (a null wire itself stays the caller-contract
- * {@code requireNonNull}, and a null <em>element</em> inside a {@code List}/{@code Map} value
- * follows the container's own contract). What stays bean-only is the <em>absence</em> contract:
- * only a bean property is legitimately unset, so only bean guards cost the Iso tier — {@code
- * asIso()} is truthful for an all-primitive bean, while a lossless record mapping keeps it with the
- * parse-iso coherence law scoped to wires whose reference components are non-null.
+ * located, accumulated invalid, never an exception. The doctrine reaches inside containers too
+ * (issue #660): a null <em>element</em> or map <em>value</em> locates by its index or key ({@code
+ * emails.1: must not be null}). What stays the caller-contract {@code requireNonNull}: a null wire
+ * itself, and a null map <em>key</em> (a structurally broken map, not a wrong value). What stays
+ * bean-only is the <em>absence</em> contract: only a bean property is legitimately unset, so only
+ * bean guards cost the Iso tier — {@code asIso()} is truthful for an all-primitive bean, while a
+ * lossless record mapping keeps it with the parse-iso coherence law scoped to wires whose reference
+ * components are non-null.
  *
  * <p>The wire may be a bean-shaped class instead of a record (issue #628, {@link WireShape}):
  * {@code build} fills it through setters or a builder and {@code parse} reads it through getters; a
