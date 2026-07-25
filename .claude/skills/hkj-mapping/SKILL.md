@@ -192,7 +192,9 @@ rejected outright: the projection's `asLens()` write-back could never honour a c
   containers: a null element or map value locates by index or key (`emails.1: must not be null`),
   and failing container elements are index- or key-located (`parseAll`/`parseValues`). What stays
   the caller's `NullPointerException`: a null *wire* itself, and a null map *key* (a structurally
-  broken map, not a wrong value). A lossless record mapping keeps `asIso()` (its guards cover hostile bindings, with
+  broken map, not a wrong value). A null container *component* is guarded like any reference read
+  (`emails: must not be null`); only calling `parseAll`/`parseValues` directly with a null
+  list/map is the caller's error. A lossless record mapping keeps `asIso()` (its guards cover hostile bindings, with
   parse-iso coherence scoped to non-null wires); a bean's guarded reads still cost the Iso tier,
   because an unset bean property is a representable state. The same guard covers every
   reference-typed source read on a `@GenerateMerge` `assemble`'s fallible path (a plain-return

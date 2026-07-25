@@ -258,8 +258,8 @@ String back = EMAIL.build(address);                                             
 | `parse(S)` | `Validated<NonEmptyList<FieldError>, A>` (accumulates reasons) |
 | `parsePath(S)` | Same, as a `ValidationPath` (straight into a pipeline) |
 | `build(A)` | Total. An `A` is by construction renderable as an `S` |
-| `parseAll(list)` / `buildAll(list)` | Bulk forms over a `List`; failures located by index |
-| `parseValues(map)` / `buildValues(map)` | Bulk forms over a `Map`'s values; failures located by key |
+| `parseAll(list)` / `buildAll(list)` | Bulk forms over a `List`; `parseAll` locates failures by index, `buildAll` is total |
+| `parseValues(map)` / `buildValues(map)` | Bulk forms over a `Map`'s values; `parseValues` locates failures by key, `buildValues` is total |
 | `toPrism()` / `toAffine()` | Downgrade to a plain optic |
 
 Compose with another `ValidatedPrism` (short-circuits), an `Iso`, or a `Prism` (supplying the
