@@ -161,6 +161,16 @@ nested arguments) and wildcard (`Page<?>`) shapes are diagnosed; array arguments
 threaded spec is not yet nestable, and an *abstract* leaf (`ValidatedPrism<TDto, T> items();`, the
 element-mapped form) stays diagnosed; both are planned follow-ups (#624).
 
+### Shared vocabulary: mix-in interfaces (#623)
+
+A spec may extend plain **mix-in interfaces** alongside `MappingSpec`/`UpdateSpec`; inherited
+renames, leaves and derived fields count as if declared on the spec, collected transitively with
+Java's own precedence (a local override hides the mix-in's member). Interface statics are not
+inherited. Rejected with diagnostics naming the offender: a mix-in that is itself a mapping spec
+(directly or transitively extends `MappingSpec`/`UpdateSpec`), and a generic mix-in. Threaded
+generic specs may extend (non-generic) mix-ins; `@GenerateMerge` specs still declare everything
+directly. Diagnostics about inherited members name the declaring interface.
+
 ### Sealed hierarchies dispatch exhaustively
 
 A `MappingSpec` may be declared over two **sealed interfaces**, not just two records. Give each

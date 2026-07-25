@@ -117,6 +117,27 @@ Four shapes are rejected, each with a what/why/fix diagnostic:
 
 ---
 
+## Shared vocabulary: mix-in interfaces
+
+The same rename or the same leaf tends to recur across an API's specs — every wire calls it `fullName`, every email parses the same way. Move the shared members onto a **plain interface** and extend it alongside `MappingSpec`:
+
+``` java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/mapping/RecordMappingBook.java:mixin_spec}}
+
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/mapping/RecordMappingBook.java:mixin_usage}}
+```
+
+An inherited member counts exactly as if it were declared on the spec — renames, leaves *and* derived fields, collected across the whole hierarchy (a mix-in may extend further mix-ins). Precedence is **Java's own**: a member re-declared on the spec (or on a nearer mix-in) hides the one it overrides, and genuinely conflicting parents are already a javac error before the processor runs. Interface `static` helpers are not inherited (JLS 8.4.8), so factory methods on a mix-in stay inert.
+
+Two shapes are rejected, each naming the offender:
+
+- a mix-in that **is itself a mapping spec** (directly or transitively extends `MappingSpec`/`UpdateSpec`) — a mix-in shares vocabulary, a spec generates an Impl, and inheriting one spec from another would conflate the two;
+- a **generic** mix-in — inherited member types are read as declared, and substituting them under an instantiation is not supported yet.
+
+Diagnostics about an inherited member name its declaring interface — `abstract method 'bogus' (inherited from 'BrokenVocabulary') is neither a rename nor a leaf` — so the fix points at the right file. Mix-ins compose with the rest of the feature: [threaded generic specs](#generic-records-concrete-instantiations-and-threaded-specs) can extend (non-generic) mix-ins, and [`UpdateSpec`](#sparse-patch-write-back-updatespec) mappings inherit vocabulary the same way. `@GenerateMerge` specs still declare everything directly.
+
+---
+
 ## Nesting, containers, and recursion
 
 A component whose two sides are themselves mapped by **another spec in the same compilation** nests automatically, and failures compose into dotted paths:
@@ -393,7 +414,7 @@ Two verbs keep the two operations distinct: `ErrorEnvelope.withContext(D)` is th
 Every rejection follows the processor's what/why/fix standard: the message states what is wrong, why the mapper needs it, and the code to write. Current limits, each with its own diagnostic:
 
 - `parse` is assembled with [`Validated.fields()`](../monads/validated_assembly.md), which locates up to **16 components**; group larger records into nested records, which nest through their own specs.
-- Nested and sealed resolution sees specs **in the same compilation**, and a spec extends `MappingSpec` and nothing else; inherited renames/leaves arrive with the full mapper.
+- Nested and sealed resolution sees specs **in the same compilation**. A spec extends `MappingSpec` directly, plus any plain [mix-in interfaces](#shared-vocabulary-mix-in-interfaces); a mix-in that is itself a mapping spec, or a generic one, is diagnosed.
 - `Map` components lift values only: keys are identity, so differing key types, raw `Map`s and wildcard type arguments are compile errors.
 - A projection with any fallible correspondence emits the [validated `patch`](#leaf-carrying-projections-the-validated-patch) write-back rather than `asLens()`; projections cannot carry derived fields (the write-back could never honour a recomputed component); generic records map as concrete instantiations or threaded specs ([above](#generic-records-concrete-instantiations-and-threaded-specs)); a threaded spec is not yet nestable into siblings, and an *abstract* element-mapped leaf stays diagnosed; both are planned follow-ups.
 
