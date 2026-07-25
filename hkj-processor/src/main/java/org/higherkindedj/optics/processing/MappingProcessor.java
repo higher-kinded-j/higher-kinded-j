@@ -288,6 +288,82 @@ public class MappingProcessor extends AbstractProcessor {
     return false;
   }
 
+  /**
+   * Record pairs may instantiate generic records with concrete type arguments (issue #624): {@code
+   * MappingSpec<Page<User>, PageDto<UserDto>>} classifies with every component type substituted
+   * under the instantiation, so the existing leaf/nesting/container machinery applies unchanged. A
+   * generic <em>spec</em> (threaded type parameters) and raw, wildcard or type-variable arguments
+   * stay diagnosed.
+   */
+  private boolean checkGenericsSupported(
+      TypeElement spec,
+      TypeElement domain,
+      DeclaredType domainDeclared,
+      TypeElement wire,
+      DeclaredType wireDeclared) {
+    if (!spec.getTypeParameters().isEmpty()) {
+      Diagnostics.error(
+          processingEnv.getMessager(),
+          spec,
+          TAG,
+          "'" + spec.getSimpleName() + "' is generic, which this mapper does not support.",
+          "A generic spec threads its type parameters through build/parse; the generated Impl"
+              + " cannot yet do that. Concrete instantiations of generic records are supported.",
+          "Instantiate the mapping concretely (e.g. 'extends MappingSpec<Page<User>,"
+              + " PageDto<UserDto>>'), or wait for threaded type parameters.");
+      return false;
+    }
+    return concreteInstantiation(spec, domain, domainDeclared)
+        && concreteInstantiation(spec, wire, wireDeclared);
+  }
+
+  private boolean concreteInstantiation(TypeElement spec, TypeElement record, DeclaredType used) {
+    if (record.getTypeParameters().isEmpty()) {
+      return true;
+    }
+    if (used.getTypeArguments().size() != record.getTypeParameters().size()) {
+      Diagnostics.error(
+          processingEnv.getMessager(),
+          spec,
+          TAG,
+          "'" + record.getSimpleName() + "' is used raw.",
+          "A generic record maps only as a concrete instantiation; a raw use leaves every"
+              + " parameterised component unresolvable.",
+          "Declare the type arguments: '" + record.getSimpleName() + "<...>'.");
+      return false;
+    }
+    for (TypeMirror argument : used.getTypeArguments()) {
+      if (!concreteArgument(argument)) {
+        Diagnostics.error(
+            processingEnv.getMessager(),
+            spec,
+            TAG,
+            "'" + record.getSimpleName() + "<" + argument + ">' is not a concrete instantiation.",
+            "Wildcard and type-variable arguments leave component types unresolvable; the"
+                + " classifier matches concrete substituted types.",
+            "Use concrete type arguments (e.g. '" + record.getSimpleName() + "<User>').");
+        return false;
+      }
+    }
+    return true;
+  }
+
+  /**
+   * Concrete = a declared type whose own arguments are concrete, or a primitive-free array-less
+   * base case.
+   */
+  private boolean concreteArgument(TypeMirror argument) {
+    if (!(argument instanceof DeclaredType declared)) {
+      return false;
+    }
+    return declared.getTypeArguments().stream().allMatch(this::concreteArgument);
+  }
+
+  /** A component's type as seen under the spec's instantiation of its record (issue #624). */
+  private TypeMirror componentType(DeclaredType owner, RecordComponentElement component) {
+    return processingEnv.getTypeUtils().asMemberOf(owner, component);
+  }
+
   private void processSpec(Element element, List<RegisteredSpec> registry) {
     if (element.getKind() != ElementKind.INTERFACE) {
       Diagnostics.error(
@@ -359,15 +435,19 @@ public class MappingProcessor extends AbstractProcessor {
       reportUnsupportedDomain(spec, domainArg);
       return;
     }
+    DeclaredType domainDeclared = (DeclaredType) domainArg;
 
     // The wire may be a record (component-wise) or a bean-shaped class (getters/setters).
     TypeElement wireRecord = asRecord(wireArg);
     WireShape wireShape;
+    TypeMirror wireUsed;
     if (wireRecord != null) {
-      if (!checkNotGeneric(spec, domain, wireRecord)) {
+      DeclaredType wireDeclared = (DeclaredType) wireArg;
+      if (!checkGenericsSupported(spec, domain, domainDeclared, wireRecord, wireDeclared)) {
         return;
       }
-      wireShape = recordWireShape(wireRecord);
+      wireShape = recordWireShape(wireRecord, wireDeclared);
+      wireUsed = wireDeclared;
     } else {
       TypeElement wireBean = asBean(wireArg);
       if (wireBean == null) {
@@ -381,6 +461,7 @@ public class MappingProcessor extends AbstractProcessor {
       if (wireShape == null) {
         return;
       }
+      wireUsed = wireBean.asType();
     }
 
     Map<String, String> renames = collectRenames(spec, domain, wireShape);
@@ -388,7 +469,7 @@ public class MappingProcessor extends AbstractProcessor {
       return;
     }
 
-    List<DerivedField> derived = collectDerived(spec, domain, wireShape, renames);
+    List<DerivedField> derived = collectDerived(spec, domain, domainDeclared, wireShape, renames);
     if (derived == null) {
       return;
     }
@@ -407,14 +488,14 @@ public class MappingProcessor extends AbstractProcessor {
         return;
       }
       List<Correspondence> projection =
-          classifyProjection(spec, registry, domain, wireShape, renames);
+          classifyProjection(spec, registry, domain, domainDeclared, wireShape, renames);
       if (projection == null) {
         return;
       }
       // An all-identity projection keeps the lawful total asLens(); any fallible correspondence
       // makes the write-back partial, which maps as the validated patch tier instead (#625).
       if (projection.stream().noneMatch(Correspondence::fallible)) {
-        writeLensImpl(spec, domain, wireShape, projection);
+        writeLensImpl(spec, domain, domainDeclared, wireShape, wireUsed, projection);
         return;
       }
       if (wireShape.componentCount() > ArityCeilings.ASSEMBLY) {
@@ -438,16 +519,17 @@ public class MappingProcessor extends AbstractProcessor {
       }
       // Bean projections with reference properties are deferred above, and an all-primitive
       // bean cannot carry a fallible correspondence, so the patch tier only ever sees a record.
-      writePatchImpl(spec, domain, (WireShape.RecordShape) wireShape, projection);
+      writePatchImpl(
+          spec, domain, domainDeclared, (WireShape.RecordShape) wireShape, wireUsed, projection);
       return;
     }
 
     List<Correspondence> correspondences =
-        classify(spec, registry, domain, wireShape, renames, derived);
+        classify(spec, registry, domain, domainDeclared, wireShape, renames, derived);
     if (correspondences == null) {
       return;
     }
-    writeImpl(spec, domain, wireShape, correspondences);
+    writeImpl(spec, domain, domainDeclared, wireShape, wireUsed, correspondences);
   }
 
   /**
@@ -978,13 +1060,15 @@ public class MappingProcessor extends AbstractProcessor {
   /**
    * Wraps a record wire in a {@link WireShape}: accessor is the component name, positional build.
    */
-  private static WireShape recordWireShape(TypeElement wire) {
+  private WireShape recordWireShape(TypeElement wire, DeclaredType declared) {
     List<WireShape.WireComponent> components =
         wire.getRecordComponents().stream()
             .map(
                 c ->
                     new WireShape.WireComponent(
-                        c.getSimpleName().toString(), c.asType(), c.getSimpleName().toString()))
+                        c.getSimpleName().toString(),
+                        processingEnv.getTypeUtils().asMemberOf(declared, c),
+                        c.getSimpleName().toString()))
             .toList();
     return new WireShape.RecordShape(wire, components);
   }
@@ -1156,7 +1240,11 @@ public class MappingProcessor extends AbstractProcessor {
    * ignores it. Returns null after reporting a malformed declaration.
    */
   private List<DerivedField> collectDerived(
-      TypeElement spec, TypeElement domain, WireShape wire, Map<String, String> renames) {
+      TypeElement spec,
+      TypeElement domain,
+      DeclaredType domainDeclared,
+      WireShape wire,
+      Map<String, String> renames) {
     List<DerivedField> derived = new ArrayList<>();
     for (ExecutableElement method : ElementFilter.methodsIn(spec.getEnclosedElements())) {
       if (!isDerivedCandidate(method)) {
@@ -1207,7 +1295,7 @@ public class MappingProcessor extends AbstractProcessor {
           returnType.getTypeArguments().size() == 2
               && processingEnv
                   .getTypeUtils()
-                  .isSameType(returnType.getTypeArguments().getFirst(), domain.asType())
+                  .isSameType(returnType.getTypeArguments().getFirst(), domainDeclared)
               && processingEnv
                   .getTypeUtils()
                   .isSameType(returnType.getTypeArguments().get(1), wireComponent.type());
@@ -1292,6 +1380,7 @@ public class MappingProcessor extends AbstractProcessor {
       TypeElement spec,
       List<RegisteredSpec> registry,
       TypeElement domain,
+      DeclaredType domainDeclared,
       WireShape wire,
       Map<String, String> renames,
       List<DerivedField> derived) {
@@ -1388,7 +1477,7 @@ public class MappingProcessor extends AbstractProcessor {
               name,
               wireName,
               wireComponent.type(),
-              domainComponent.asType(),
+              componentType(domainDeclared, domainComponent),
               domainNames,
               false);
       if (resolved == null) {
@@ -1632,6 +1721,7 @@ public class MappingProcessor extends AbstractProcessor {
       TypeElement spec,
       List<RegisteredSpec> registry,
       TypeElement domain,
+      DeclaredType domainDeclared,
       WireShape wire,
       Map<String, String> renames) {
     Map<String, String> domainByWire = new LinkedHashMap<>();
@@ -1693,7 +1783,7 @@ public class MappingProcessor extends AbstractProcessor {
               name,
               wireName,
               wireComponent.type(),
-              domainComponent.asType(),
+              componentType(domainDeclared, domainComponent),
               domainNames,
               true);
       if (resolved == null) {
@@ -1944,11 +2034,16 @@ public class MappingProcessor extends AbstractProcessor {
   }
 
   private void writeImpl(
-      TypeElement spec, TypeElement domain, WireShape wire, List<Correspondence> comps) {
+      TypeElement spec,
+      TypeElement domain,
+      DeclaredType domainDeclared,
+      WireShape wire,
+      TypeMirror wireUsed,
+      List<Correspondence> comps) {
     ClassName specName = ClassName.get(spec);
     ClassName implName = implClassName(spec);
-    TypeName domainName = TypeName.get(domain.asType());
-    TypeName wireName = TypeName.get(wire.element().asType());
+    TypeName domainName = TypeName.get(domainDeclared);
+    TypeName wireName = TypeName.get(wireUsed);
     TypeName parseReturn =
         ParameterizedTypeName.get(
             VALIDATED, ParameterizedTypeName.get(NEL, FIELD_ERROR), domainName);
@@ -1962,8 +2057,8 @@ public class MappingProcessor extends AbstractProcessor {
     boolean needsGuardHelper = comps.stream().anyMatch(c -> guardedRead(c, wire));
 
     List<EmittedMember> emitted = new ArrayList<>();
-    emitted.add(EmittedMember.of("build", domain.asType()));
-    emitted.add(EmittedMember.of("parse", wire.element().asType()));
+    emitted.add(EmittedMember.of("build", domainDeclared));
+    emitted.add(EmittedMember.of("parse", wireUsed));
     emitted.add(EmittedMember.of("asValidatedPrism"));
     if (lossless) {
       emitted.add(EmittedMember.of("asIso"));
@@ -2112,12 +2207,14 @@ public class MappingProcessor extends AbstractProcessor {
   private void writePatchImpl(
       TypeElement spec,
       TypeElement domain,
+      DeclaredType domainDeclared,
       WireShape.RecordShape wire,
+      TypeMirror wireUsed,
       List<Correspondence> comps) {
     ClassName specName = ClassName.get(spec);
     ClassName implName = implClassName(spec);
-    TypeName domainName = TypeName.get(domain.asType());
-    TypeName wireName = TypeName.get(wire.element().asType());
+    TypeName domainName = TypeName.get(domainDeclared);
+    TypeName wireName = TypeName.get(wireUsed);
     TypeName patchReturn =
         ParameterizedTypeName.get(
             VALIDATED, ParameterizedTypeName.get(NEL, FIELD_ERROR), domainName);
@@ -2126,8 +2223,8 @@ public class MappingProcessor extends AbstractProcessor {
         spec,
         "a leaf-carrying projection",
         List.of(
-            EmittedMember.of("build", domain.asType()),
-            EmittedMember.of("patch", domain.asType(), wire.element().asType())))) {
+            EmittedMember.of("build", domainDeclared),
+            EmittedMember.of("patch", domainDeclared, wireUsed)))) {
       return;
     }
 
@@ -2226,15 +2323,20 @@ public class MappingProcessor extends AbstractProcessor {
   }
 
   private void writeLensImpl(
-      TypeElement spec, TypeElement domain, WireShape wire, List<Correspondence> comps) {
+      TypeElement spec,
+      TypeElement domain,
+      DeclaredType domainDeclared,
+      WireShape wire,
+      TypeMirror wireUsed,
+      List<Correspondence> comps) {
     ClassName specName = ClassName.get(spec);
-    TypeName domainName = TypeName.get(domain.asType());
-    TypeName wireName = TypeName.get(wire.element().asType());
+    TypeName domainName = TypeName.get(domainDeclared);
+    TypeName wireName = TypeName.get(wireUsed);
 
     if (!checkNoEmittedCollisions(
         spec,
         "a lossy projection",
-        List.of(EmittedMember.of("build", domain.asType()), EmittedMember.of("asLens")))) {
+        List.of(EmittedMember.of("build", domainDeclared), EmittedMember.of("asLens")))) {
       return;
     }
 

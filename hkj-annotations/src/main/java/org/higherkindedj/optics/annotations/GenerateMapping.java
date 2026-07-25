@@ -29,6 +29,10 @@ import java.lang.annotation.Target;
  *   <li>Record components mapped by another spec in the same compilation nest automatically, and
  *       {@code List}/{@code Optional} components lift through the element's leaf or spec.
  *   <li>Sealed interface pairs dispatch over their permitted subtype pairs, one spec per pair.
+ *   <li>Generic records map as concrete instantiations (issue #624): {@code MappingSpec<Page<User>,
+ *       PageDto<UserDto>>} classifies every component under the substitution, and the instantiated
+ *       mapping nests into siblings like any other. Raw uses, wildcard arguments and generic specs
+ *       ({@code PageMapping<T>}) are diagnosed; threaded type parameters are not yet supported.
  *   <li>Every reference-typed {@code parse} read is null-guarded into a located {@code FieldError},
  *       on both wire shapes (issue #653): an unset bean property is null, and a JSON binder leaves
  *       a missing record component null just the same. A bean's guarded reads make {@code asIso()}

@@ -3213,8 +3213,10 @@ class MappingProcessorTest {
     }
 
     @Test
-    @DisplayName("generic records are rejected with a diagnostic, not undeclared type variables")
-    void genericRecordsRejected() {
+    @DisplayName(
+        "a concrete instantiation of a generic record is accepted, even with the type"
+            + " parameter unused (#624)")
+    void concretelyInstantiatedGenericRecordAccepted() {
       JavaFileObject spec =
           JavaFileObjects.forSourceString(
               "com.example.BoxMapping",
@@ -3238,9 +3240,9 @@ class MappingProcessorTest {
                   }
                   """),
               spec);
-      assertThat(compilation).failed();
-      assertThat(compilation)
-          .hadErrorContaining("'Box' is generic, which this mapper does not support");
+      assertThat(compilation).succeeded();
+      Assertions.assertThat(generatedSource(compilation, "com.example.BoxMappingImpl"))
+          .contains("public Records.BoxDto build(Records.Box<String> domain)");
     }
 
     @Test
@@ -3674,8 +3676,8 @@ class MappingProcessorTest {
     }
 
     @Test
-    @DisplayName("a generic wire record is rejected")
-    void genericWireRejected() {
+    @DisplayName("a concretely instantiated generic wire record is accepted (#624)")
+    void concretelyInstantiatedGenericWireAccepted() {
       JavaFileObject genericWire =
           records(
               """
@@ -3692,9 +3694,9 @@ class MappingProcessorTest {
                   "GenWireMapping",
                   "public interface GenWireMapping extends MappingSpec<Records.D,"
                       + " Records.WG<String>> {}"));
-      assertThat(compilation).failed();
-      assertThat(compilation)
-          .hadErrorContaining("'WG' is generic, which this mapper does not support");
+      assertThat(compilation).succeeded();
+      Assertions.assertThat(generatedSource(compilation, "com.example.GenWireMappingImpl"))
+          .contains("public Records.WG<String> build(Records.D domain)");
     }
 
     @Test
@@ -5243,6 +5245,253 @@ class MappingProcessorTest {
       } catch (ReflectiveOperationException e) {
         throw new AssertionError(e);
       }
+    }
+  }
+
+  @Nested
+  @DisplayName("Concrete instantiations of generic records (#624)")
+  class GenericInstantiations {
+
+    private static final JavaFileObject PAGE =
+        JavaFileObjects.forSourceString(
+            "com.example.Page",
+            """
+            package com.example;
+
+            import java.util.List;
+
+            public record Page<T>(List<T> items, int total) {}
+            """);
+
+    private static final JavaFileObject PAGE_DTO =
+        JavaFileObjects.forSourceString(
+            "com.example.PageDto",
+            """
+            package com.example;
+
+            import java.util.List;
+
+            public record PageDto<T>(List<T> items, int total) {}
+            """);
+
+    private static final JavaFileObject USER_PAGE_MAPPING =
+        JavaFileObjects.forSourceString(
+            "com.example.UserPageMapping",
+            """
+            package com.example;
+
+            import org.higherkindedj.optics.annotations.GenerateMapping;
+            import org.higherkindedj.optics.annotations.MappingSpec;
+
+            @GenerateMapping
+            public interface UserPageMapping extends MappingSpec<Page<User>, PageDto<UserDto>> {}
+            """);
+
+    @Test
+    @DisplayName(
+        "a concrete instantiation classifies under substitution: elements lift through"
+            + " the sibling spec, identity components copy")
+    void concreteInstantiationClassifies() {
+      Compilation compilation =
+          compile(EMAIL, DOMAIN, WIRE, SPEC, PAGE, PAGE_DTO, USER_PAGE_MAPPING);
+      assertThat(compilation).succeeded();
+      String generated = generatedSource(compilation, "com.example.UserPageMappingImpl");
+      Assertions.assertThat(generated)
+          .contains("public final class UserPageMappingImpl implements UserPageMapping")
+          .contains("public PageDto<UserDto> build(Page<User> domain)")
+          .contains(
+              "public Validated<NonEmptyList<FieldError>, Page<User>> parse(PageDto<UserDto>"
+                  + " wire)")
+          .contains(
+              ".field(\"items\", hkj$ifPresent(wire.items(),"
+                  + " UserMappingImpl.INSTANCE.asValidatedPrism()::parseAll))")
+          .contains(".field(\"total\", Validated.validNel(wire.total()))")
+          .doesNotContain("asIso");
+    }
+
+    @Test
+    @DisplayName(
+        "the whole stack composes at runtime: substitution, container lifting, the null"
+            + " doctrine and index location")
+    void instantiatedGenericRoundTripsAndLocates() {
+      Compilation compilation =
+          compile(EMAIL, DOMAIN, WIRE, SPEC, PAGE, PAGE_DTO, USER_PAGE_MAPPING);
+      assertThat(compilation).succeeded();
+      var result = new RuntimeCompilationHelper.CompiledResult(compilation);
+      try {
+        Object impl = result.instance("com.example.UserPageMappingImpl");
+        Object goodDto =
+            result
+                .loadClass("com.example.UserDto")
+                .getDeclaredConstructor(String.class, String.class, int.class)
+                .newInstance("Ada", "ada@x.com", 36);
+        Object badDto =
+            result
+                .loadClass("com.example.UserDto")
+                .getDeclaredConstructor(String.class, String.class, int.class)
+                .newInstance("Bob", "nope", 41);
+        Object pageDto =
+            result
+                .loadClass("com.example.PageDto")
+                .getDeclaredConstructor(List.class, int.class)
+                .newInstance(List.of(goodDto, badDto), 2);
+
+        @SuppressWarnings("unchecked")
+        Validated<NonEmptyList<FieldError>, Object> parsed =
+            (Validated<NonEmptyList<FieldError>, Object>) invoke(impl, "parse", pageDto);
+        Assertions.assertThat(parsed.isInvalid()).isTrue();
+        Assertions.assertThat(
+                parsed.getError().toJavaList().stream().map(FieldError::toString).toList())
+            .containsExactly("items.1.email: not an email address");
+      } catch (ReflectiveOperationException e) {
+        throw new AssertionError(e);
+      }
+    }
+
+    @Test
+    @DisplayName(
+        "an instantiated generic mapping registers like any other: siblings nest it by"
+            + " its concrete types")
+    void instantiatedGenericNestsIntoSiblings() {
+      JavaFileObject report =
+          JavaFileObjects.forSourceString(
+              "com.example.Report",
+              """
+              package com.example;
+
+              public record Report(String id, Page<User> results) {}
+              """);
+      JavaFileObject reportDto =
+          JavaFileObjects.forSourceString(
+              "com.example.ReportDto",
+              """
+              package com.example;
+
+              public record ReportDto(String id, PageDto<UserDto> results) {}
+              """);
+      JavaFileObject reportMapping =
+          JavaFileObjects.forSourceString(
+              "com.example.ReportMapping",
+              """
+              package com.example;
+
+              import org.higherkindedj.optics.annotations.GenerateMapping;
+              import org.higherkindedj.optics.annotations.MappingSpec;
+
+              @GenerateMapping
+              public interface ReportMapping extends MappingSpec<Report, ReportDto> {}
+              """);
+
+      Compilation compilation =
+          compile(
+              EMAIL,
+              DOMAIN,
+              WIRE,
+              SPEC,
+              PAGE,
+              PAGE_DTO,
+              USER_PAGE_MAPPING,
+              report,
+              reportDto,
+              reportMapping);
+      assertThat(compilation).succeeded();
+      Assertions.assertThat(generatedSource(compilation, "com.example.ReportMappingImpl"))
+          .contains(
+              ".field(\"results\", hkj$ifPresent(wire.results(),"
+                  + " UserPageMappingImpl.INSTANCE.asValidatedPrism()::parse))");
+    }
+
+    @Test
+    @DisplayName("raw, wildcard and generic-spec shapes stay diagnosed")
+    void unsupportedGenericShapesAreDiagnosed() {
+      JavaFileObject rawSpec =
+          JavaFileObjects.forSourceString(
+              "com.example.RawPageMapping",
+              """
+              package com.example;
+
+              import org.higherkindedj.optics.annotations.GenerateMapping;
+              import org.higherkindedj.optics.annotations.MappingSpec;
+
+              @SuppressWarnings("rawtypes")
+              @GenerateMapping
+              public interface RawPageMapping extends MappingSpec<Page, PageDto> {}
+              """);
+      Compilation raw = compile(EMAIL, DOMAIN, WIRE, SPEC, PAGE, PAGE_DTO, rawSpec);
+      assertThat(raw).failed();
+      assertThat(raw).hadErrorContaining("'Page' is used raw");
+
+      JavaFileObject wildcardSpec =
+          JavaFileObjects.forSourceString(
+              "com.example.WildPageMapping",
+              """
+              package com.example;
+
+              import org.higherkindedj.optics.annotations.GenerateMapping;
+              import org.higherkindedj.optics.annotations.MappingSpec;
+
+              @GenerateMapping
+              public interface WildPageMapping extends MappingSpec<Page<?>, PageDto<?>> {}
+              """);
+      Compilation wildcard = compile(EMAIL, DOMAIN, WIRE, SPEC, PAGE, PAGE_DTO, wildcardSpec);
+      assertThat(wildcard).failed();
+      assertThat(wildcard).hadErrorContaining("is not a concrete instantiation");
+
+      // The wire side is checked independently: a concrete domain does not excuse it.
+      JavaFileObject wildcardWireSpec =
+          JavaFileObjects.forSourceString(
+              "com.example.WildWireMapping",
+              """
+              package com.example;
+
+              import org.higherkindedj.optics.annotations.GenerateMapping;
+              import org.higherkindedj.optics.annotations.MappingSpec;
+
+              @GenerateMapping
+              public interface WildWireMapping extends MappingSpec<User, PageDto<?>> {}
+              """);
+      Compilation wildcardWire =
+          compile(EMAIL, DOMAIN, WIRE, SPEC, PAGE, PAGE_DTO, wildcardWireSpec);
+      assertThat(wildcardWire).failed();
+      assertThat(wildcardWire).hadErrorContaining("'PageDto<?>' is not a concrete instantiation");
+
+      // Concreteness is recursive: a wildcard nested inside an argument is caught too.
+      JavaFileObject nestedWildcardSpec =
+          JavaFileObjects.forSourceString(
+              "com.example.NestedWildMapping",
+              """
+              package com.example;
+
+              import java.util.List;
+              import org.higherkindedj.optics.annotations.GenerateMapping;
+              import org.higherkindedj.optics.annotations.MappingSpec;
+
+              @GenerateMapping
+              public interface NestedWildMapping
+                  extends MappingSpec<Page<List<?>>, PageDto<List<?>>> {}
+              """);
+      Compilation nestedWildcard =
+          compile(EMAIL, DOMAIN, WIRE, SPEC, PAGE, PAGE_DTO, nestedWildcardSpec);
+      assertThat(nestedWildcard).failed();
+      assertThat(nestedWildcard).hadErrorContaining("is not a concrete instantiation");
+
+      JavaFileObject genericSpec =
+          JavaFileObjects.forSourceString(
+              "com.example.PageMapping",
+              """
+              package com.example;
+
+              import org.higherkindedj.optics.annotations.GenerateMapping;
+              import org.higherkindedj.optics.annotations.MappingSpec;
+
+              @GenerateMapping
+              public interface PageMapping<T> extends MappingSpec<Page<T>, PageDto<T>> {}
+              """);
+      Compilation generic = compile(EMAIL, DOMAIN, WIRE, SPEC, PAGE, PAGE_DTO, genericSpec);
+      assertThat(generic).failed();
+      assertThat(generic)
+          .hadErrorContaining("'PageMapping' is generic, which this mapper does not support");
+      assertThat(generic).hadErrorContaining("Instantiate the mapping concretely");
     }
   }
 

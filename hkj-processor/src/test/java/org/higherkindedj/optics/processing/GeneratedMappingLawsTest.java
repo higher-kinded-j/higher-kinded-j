@@ -241,6 +241,96 @@ class GeneratedMappingLawsTest {
   }
 
   @Test
+  @DisplayName(
+      "generic instantiation tier (#624): a concretely instantiated generic pair stays"
+          + " lawful through the substituted container lifting")
+  void genericInstantiationIsLawful() throws ReflectiveOperationException {
+    JavaFileObject user =
+        JavaFileObjects.forSourceString(
+            "com.example.User",
+            """
+            package com.example;
+
+            public record User(String name, EmailAddress email) {}
+            """);
+    JavaFileObject userDto =
+        JavaFileObjects.forSourceString(
+            "com.example.UserDto",
+            """
+            package com.example;
+
+            public record UserDto(String name, String email) {}
+            """);
+    JavaFileObject userMapping =
+        JavaFileObjects.forSourceString(
+            "com.example.UserMapping",
+            """
+            package com.example;
+
+            import org.higherkindedj.hkt.validated.FieldError;
+            import org.higherkindedj.hkt.validated.Validated;
+            import org.higherkindedj.optics.annotations.GenerateMapping;
+            import org.higherkindedj.optics.annotations.MappingSpec;
+            import org.higherkindedj.optics.validated.ValidatedPrism;
+
+            @GenerateMapping
+            public interface UserMapping extends MappingSpec<User, UserDto> {
+              default ValidatedPrism<String, EmailAddress> email() {
+                return emailPrism();
+              }
+
+            """
+                + EMAIL_PRISM
+                + """
+            }
+            """);
+    JavaFileObject page =
+        JavaFileObjects.forSourceString(
+            "com.example.Page",
+            """
+            package com.example;
+
+            import java.util.List;
+
+            public record Page<T>(List<T> items, int total) {}
+            """);
+    JavaFileObject pageDto =
+        JavaFileObjects.forSourceString(
+            "com.example.PageDto",
+            """
+            package com.example;
+
+            import java.util.List;
+
+            public record PageDto<T>(List<T> items, int total) {}
+            """);
+    JavaFileObject pageMapping =
+        JavaFileObjects.forSourceString(
+            "com.example.UserPageMapping",
+            """
+            package com.example;
+
+            import org.higherkindedj.optics.annotations.GenerateMapping;
+            import org.higherkindedj.optics.annotations.MappingSpec;
+
+            @GenerateMapping
+            public interface UserPageMapping extends MappingSpec<Page<User>, PageDto<UserDto>> {}
+            """);
+
+    var result = compileMapping(EMAIL, user, userDto, userMapping, page, pageDto, pageMapping);
+    Object impl = result.instance("com.example.UserPageMappingImpl");
+    Object goodDto = result.newInstance("com.example.UserDto", "Ada", "ada@example.org");
+    Object badDto = result.newInstance("com.example.UserDto", "Bob", "not-an-email");
+    var pageDtoCtor =
+        result.loadClass("com.example.PageDto").getDeclaredConstructor(List.class, int.class);
+
+    MappingLaws.assertMappingLaws(
+        asValidatedPrism(impl),
+        pageDtoCtor.newInstance(List.of(goodDto), 1),
+        pageDtoCtor.newInstance(List.of(badDto), 1));
+  }
+
+  @Test
   @DisplayName("nested spec tier: a mapping delegating to a sibling impl stays lawful end to end")
   void nestedSpecTierIsLawful() throws ReflectiveOperationException {
     JavaFileObject customer =

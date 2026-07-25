@@ -150,6 +150,12 @@ public interface InvoiceMapping extends MappingSpec<Invoice, InvoiceDto> {}   //
 
 Recursive records (a `Tree` of `Tree`) work too.
 
+Generic records map as **concrete instantiations** (`extends MappingSpec<Page<User>, PageDto<UserDto>>`):
+components classify under the substitution, so leaves/nesting/containers and the null doctrine apply
+unchanged, and the instantiated mapping nests into siblings automatically. Raw (`Page`), wildcard
+(`Page<?>`) and generic-spec (`PageMapping<T>`) shapes are diagnosed — threaded type parameters are
+not yet supported.
+
 ### Sealed hierarchies dispatch exhaustively
 
 A `MappingSpec` may be declared over two **sealed interfaces**, not just two records. Give each
