@@ -364,6 +364,12 @@ public class MappingProcessor extends AbstractProcessor {
    * The two compose recursively, so {@code Page<List<T>>} is a supported threaded use.
    */
   private boolean supportedArgument(TypeElement spec, TypeMirror argument) {
+    // An unresolved argument steps aside so javac's cannot-find-symbol is the only diagnostic
+    // (the overrideEquivalent precedent, #654) — note ErrorType extends DeclaredType, so this
+    // check must run before the pattern switch.
+    if (argument.getKind() == TypeKind.ERROR) {
+      return true;
+    }
     if (argument instanceof javax.lang.model.type.TypeVariable variable) {
       return spec.getTypeParameters().contains(variable.asElement());
     }
@@ -2088,12 +2094,8 @@ public class MappingProcessor extends AbstractProcessor {
     if (lossless) {
       emitted.add(EmittedMember.of("asIso"));
     }
-    // A generic Impl also declares the static instance() singleton accessor (#624 slice 2); a
-    // spec method with that erased signature would clash with or shadow it in the generated file.
-    if (!spec.getTypeParameters().isEmpty()) {
-      emitted.add(EmittedMember.of("instance"));
-    }
-    if (!checkNoEmittedCollisions(spec, "a full mapping", emitted)) {
+    if (!checkNoEmittedCollisions(
+        spec, "a full mapping", reserveInstanceIfGeneric(spec, emitted))) {
       return;
     }
 
@@ -2252,14 +2254,11 @@ public class MappingProcessor extends AbstractProcessor {
     if (!checkNoEmittedCollisions(
         spec,
         "a leaf-carrying projection",
-        spec.getTypeParameters().isEmpty()
-            ? List.of(
+        reserveInstanceIfGeneric(
+            spec,
+            List.of(
                 EmittedMember.of("build", domainDeclared),
-                EmittedMember.of("patch", domainDeclared, wireUsed))
-            : List.of(
-                EmittedMember.of("build", domainDeclared),
-                EmittedMember.of("patch", domainDeclared, wireUsed),
-                EmittedMember.of("instance")))) {
+                EmittedMember.of("patch", domainDeclared, wireUsed))))) {
       return;
     }
 
@@ -2371,12 +2370,9 @@ public class MappingProcessor extends AbstractProcessor {
     if (!checkNoEmittedCollisions(
         spec,
         "a lossy projection",
-        spec.getTypeParameters().isEmpty()
-            ? List.of(EmittedMember.of("build", domainDeclared), EmittedMember.of("asLens"))
-            : List.of(
-                EmittedMember.of("build", domainDeclared),
-                EmittedMember.of("asLens"),
-                EmittedMember.of("instance")))) {
+        reserveInstanceIfGeneric(
+            spec,
+            List.of(EmittedMember.of("build", domainDeclared), EmittedMember.of("asLens"))))) {
       return;
     }
 
@@ -2707,6 +2703,21 @@ public class MappingProcessor extends AbstractProcessor {
     static EmittedMember of(String name, TypeMirror... params) {
       return new EmittedMember(name, List.of(params));
     }
+  }
+
+  /**
+   * A generic Impl also declares the static {@code instance()} singleton accessor (#624 slice 2); a
+   * spec method with that erased signature would clash with or shadow it in the generated file, so
+   * every record tier reserves it alongside its own members.
+   */
+  private static List<EmittedMember> reserveInstanceIfGeneric(
+      TypeElement spec, List<EmittedMember> base) {
+    if (spec.getTypeParameters().isEmpty()) {
+      return base;
+    }
+    List<EmittedMember> all = new ArrayList<>(base);
+    all.add(EmittedMember.of("instance"));
+    return all;
   }
 
   /**

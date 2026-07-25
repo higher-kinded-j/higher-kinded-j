@@ -365,8 +365,7 @@ class GeneratedMappingLawsTest {
             """);
 
     var result = compileMapping(pair, pairDto, spec);
-    Object impl =
-        result.loadClass("com.example.PairMappingImpl").getMethod("instance").invoke(null);
+    Object impl = result.genericInstance("com.example.PairMappingImpl");
     @SuppressWarnings("unchecked")
     Iso<Object, Object> iso = (Iso<Object, Object>) invoke(impl, "asIso");
 

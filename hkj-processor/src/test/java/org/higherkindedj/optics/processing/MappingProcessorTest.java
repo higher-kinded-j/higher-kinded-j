@@ -5004,8 +5004,7 @@ class MappingProcessorTest {
       assertThat(compilation).succeeded();
       var result = new RuntimeCompilationHelper.CompiledResult(compilation);
       try {
-        Object impl =
-            result.loadClass("com.example.PageMappingImpl").getMethod("instance").invoke(null);
+        Object impl = result.genericInstance("com.example.PageMappingImpl");
         Object page =
             result
                 .loadClass("com.example.Page")
@@ -5031,9 +5030,7 @@ class MappingProcessorTest {
             (Validated<NonEmptyList<FieldError>, Object>) invoke(impl, "parse", integerPage);
         Assertions.assertThat(integers.isValid()).isTrue();
         Assertions.assertThat(invoke(integers.get(), "items")).isEqualTo(List.of(7, 8));
-        Assertions.assertThat(
-                result.loadClass("com.example.PageMappingImpl").getMethod("instance").invoke(null))
-            .isSameAs(impl);
+        Assertions.assertThat(result.genericInstance("com.example.PageMappingImpl")).isSameAs(impl);
 
         // Identity legs copy the container verbatim — a null ELEMENT passes through untouched
         // (element location belongs to leaf/nested legs, #660); the deliberate asymmetry, pinned.
@@ -5336,7 +5333,7 @@ class MappingProcessorTest {
           .contains("public PageCountDto<T> build(Page<T> domain)");
       Assertions.assertThat(
               generatedSource(compilation, "com.example.ThreadedTiersSummaryMappingImpl"))
-          .contains("summary()");
+          .contains("summary().get(domain)");
       Assertions.assertThat(
               generatedSource(compilation, "com.example.ThreadedTiersDeepThreadedMappingImpl"))
           .contains("public PageDto<List<T>> build(Page<List<T>> domain)");
@@ -5362,7 +5359,34 @@ class MappingProcessorTest {
 
       Compilation compilation = compile(PAGE, PAGE_DTO, spec);
       assertThat(compilation).failed();
-      assertThat(compilation).hadErrorContaining("items");
+      assertThat(compilation)
+          .hadErrorContaining("target field 'PageDto.items' has no usable source");
+    }
+
+    @Test
+    @DisplayName("an unresolved type argument steps aside for javac's own diagnostic")
+    void unresolvedTypeArgumentsAreNotGateErrors() {
+      JavaFileObject spec =
+          JavaFileObjects.forSourceString(
+              "com.example.MissingArgMapping",
+              """
+              package com.example;
+
+              import org.higherkindedj.optics.annotations.GenerateMapping;
+              import org.higherkindedj.optics.annotations.MappingSpec;
+
+              @GenerateMapping
+              public interface MissingArgMapping
+                  extends MappingSpec<Page<Missing>, PageDto<Missing>> {}
+              """);
+
+      Compilation compilation = compile(PAGE, PAGE_DTO, spec);
+      assertThat(compilation).failed();
+      assertThat(compilation).hadErrorContaining("cannot find symbol");
+      Assertions.assertThat(compilation.errors())
+          .noneMatch(
+              diagnostic ->
+                  diagnostic.getMessage(null).contains("is not a supported instantiation"));
     }
 
     @Test
@@ -6209,7 +6233,7 @@ class MappingProcessorTest {
       // Wildcards stay wildcards even inside a generic holder (a member interface is static,
       // so the holder's variable cannot appear; genuinely foreign variables are unreachable and
       // the gate's check for them is defensive).
-      JavaFileObject foreignVariableSpec =
+      JavaFileObject wildcardInHolderSpec =
           JavaFileObjects.forSourceString(
               "com.example.ForeignVarHolder",
               """
@@ -6223,9 +6247,10 @@ class MappingProcessorTest {
                 interface Inner extends MappingSpec<Page<?>, PageDto<?>> {}
               }
               """);
-      Compilation foreign = compile(EMAIL, DOMAIN, WIRE, SPEC, PAGE, PAGE_DTO, foreignVariableSpec);
-      assertThat(foreign).failed();
-      assertThat(foreign)
+      Compilation wildcardInHolder =
+          compile(EMAIL, DOMAIN, WIRE, SPEC, PAGE, PAGE_DTO, wildcardInHolderSpec);
+      assertThat(wildcardInHolder).failed();
+      assertThat(wildcardInHolder)
           .hadErrorContaining("'com.example.Page<?>' is not a supported instantiation");
     }
   }
