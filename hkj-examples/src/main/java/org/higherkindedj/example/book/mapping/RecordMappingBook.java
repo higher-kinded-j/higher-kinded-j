@@ -69,6 +69,23 @@ public final class RecordMappingBook {
     // ANCHOR_END: projection_usage
     System.out.println(moved);
 
+    // ANCHOR: leaf_projection_usage
+    Subscriber subscriber = new Subscriber("7", new EmailAddress("ada@corp.example"), 36);
+
+    // The projected components validate and write back; the unprojected id survives untouched.
+    Validated<NonEmptyList<FieldError>, Subscriber> renewed =
+        SubscriberPatchMappingImpl.INSTANCE.patch(
+            subscriber, new SubscriberPatchDto("grace@corp.example", 37));
+    // Valid(Subscriber[id=7, email=EmailAddress[value=grace@corp.example], age=37])
+
+    // Dense semantics: every projected field applies - a null is a located error, never absence.
+    SubscriberPatchMappingImpl.INSTANCE.patch(subscriber, new SubscriberPatchDto(null, 37));
+    // Invalid(NonEmptyList[email: must not be null])
+    // ANCHOR_END: leaf_projection_usage
+    System.out.println(renewed);
+    System.out.println(
+        SubscriberPatchMappingImpl.INSTANCE.patch(subscriber, new SubscriberPatchDto(null, 37)));
+
     // ANCHOR: bean_usage
     Customer ada = new Customer("Ada", new EmailAddress("ada@corp.example"));
     ContactBean bean =
@@ -215,6 +232,25 @@ record EmployeeCardDto(String name, String department) {}
 interface EmployeeCardMapping extends MappingSpec<Employee, EmployeeCardDto> {}
 
 // ANCHOR_END: projection_spec
+
+// ANCHOR: leaf_projection_spec
+record Subscriber(String id, EmailAddress email, int age) {}
+
+record SubscriberPatchDto(String email, int age) {}
+
+@GenerateMapping
+interface SubscriberPatchMapping extends MappingSpec<Subscriber, SubscriberPatchDto> {
+  default ValidatedPrism<String, EmailAddress> email() {
+    return ValidatedPrism.of(
+        raw ->
+            raw.contains("@")
+                ? Validated.validNel(new EmailAddress(raw))
+                : Validated.invalidNel(FieldError.of("not an email address")),
+        EmailAddress::value);
+  }
+}
+
+// ANCHOR_END: leaf_projection_spec
 
 // ANCHOR: merge_spec
 record User(String name, String email) {}

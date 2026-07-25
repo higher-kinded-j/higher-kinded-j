@@ -175,7 +175,7 @@ Depending on what the mapping can honour:
 | Mapping is | You also get |
 |------------|--------------|
 | Lossless both ways | `asIso()` |
-| A lossy projection (domain -> wire only) | `asLens()`, and **no** `parse` |
+| A lossy projection (domain -> wire only) | all-identity: `asLens()`; any fallible correspondence: validated `patch(domain, wire) : Validated<NonEmptyList<FieldError>, Domain>` (dense, the opposite of `UpdateSpec`'s sparse `updateFrom` below; null reads become located errors); **no** `parse` either way. Law-check: `MappingLaws.assertMappingLaws(Impl.INSTANCE::patch, Impl.INSTANCE::build, current, validWire, invalidWire)` (the valid wire must parse and change the domain) |
 | Parse-capable | `asValidatedPrism()` |
 | Carrying **any** derived field | **no `asIso()`**: the round trip recomputes the derived component, so it is not an identity |
 
@@ -390,7 +390,7 @@ before rearranging the spec.
 | Mistake | Fix |
 |---------|-----|
 | Annotating the *record* with `@GenerateMapping` | It goes on the **spec interface**. That is what lets you map records you do not own |
-| Expecting `parse` from a lossy projection | A projection drops data, so it cannot be inverted. You get `asLens()`, not `parse` |
+| Expecting `parse` from a lossy projection | A projection drops data, so it cannot be inverted. You get `asLens()` (all-identity) or the validated `patch` (leaf-carrying), not `parse` |
 | Expecting `@GenerateMerge` to give you a reverse split | Merging is forward-only by design |
 | `Validated.fields()` will not take a 17th field | The **ladder** stops at 16. `@GenerateAssembly` has no ceiling, so annotate the record instead (`FOR_COMPREHENSION` is a separate ceiling, still 12) |
 | Two nested specs generating the same `Impl` | Nested specs join their enclosing simple names; rename one |

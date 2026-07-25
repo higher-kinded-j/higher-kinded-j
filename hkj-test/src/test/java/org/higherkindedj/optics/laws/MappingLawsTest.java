@@ -5,7 +5,9 @@ package org.higherkindedj.optics.laws;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.util.Locale;
+import java.util.function.BiFunction;
 import java.util.function.Function;
+import org.higherkindedj.hkt.nonemptylist.NonEmptyList;
 import org.higherkindedj.hkt.validated.FieldError;
 import org.higherkindedj.hkt.validated.Validated;
 import org.higherkindedj.optics.Iso;
@@ -95,6 +97,29 @@ class MappingLawsTest {
   private static final AccountPatch VALID_PATCH = new AccountPatch("Grace", "grace@example.org");
   private static final AccountPatch INVALID_PATCH = new AccountPatch(null, "not-an-email");
 
+  // Validated-patch tier (#625): a hand-written DENSE patch over an owner (identity, null-guarded)
+  // and a validated contact (leaf), mirroring what a leaf-carrying projection Impl emits: every
+  // reference read null-guards into a located error, and every leg is labelled.
+  private static final BiFunction<
+          Account, AccountPatch, Validated<NonEmptyList<FieldError>, Account>>
+      LAWFUL_DENSE_PATCH =
+          (account, patch) ->
+              Validated.fields()
+                  .field(
+                      "owner",
+                      patch.owner() == null
+                          ? Validated.invalidNel(FieldError.of("must not be null"))
+                          : Validated.validNel(patch.owner()))
+                  .field(
+                      "contact",
+                      patch.contact() == null
+                          ? Validated.invalidNel(FieldError.of("must not be null"))
+                          : EMAIL.parse(patch.contact()))
+                  .apply(Account::new);
+
+  private static final Function<Account, AccountPatch> DENSE_BUILD =
+      account -> new AccountPatch(account.owner(), account.contact().value());
+
   @Nested
   @DisplayName("Lawful mappings pass every tier's laws")
   class LawfulMappings {
@@ -132,6 +157,13 @@ class MappingLawsTest {
     void sparseUpdateTierPasses() {
       MappingLaws.assertMappingLaws(
           LAWFUL_UPDATE, ACCOUNT, ABSENT_PATCH, VALID_PATCH, INVALID_PATCH);
+    }
+
+    @Test
+    @DisplayName("the validated-patch tier passes identity, idempotence and located validation")
+    void patchTierPasses() {
+      MappingLaws.assertMappingLaws(
+          LAWFUL_DENSE_PATCH, DENSE_BUILD, ACCOUNT, VALID_PATCH, INVALID_PATCH);
     }
 
     @Test
@@ -235,6 +267,68 @@ class MappingLawsTest {
           .isInstanceOf(AssertionError.class)
           .hasMessageContaining("must fail");
     }
+
+    @Test
+    @DisplayName("a patch that rewrites its own projection fails the identity law")
+    void patchNonIdentityFails() {
+      // Uppercases the owner on the way back in, so the domain's own projection round-trips
+      // changed.
+      BiFunction<Account, AccountPatch, Validated<NonEmptyList<FieldError>, Account>> shouting =
+          (account, patch) ->
+              LAWFUL_DENSE_PATCH.apply(
+                  account,
+                  new AccountPatch(
+                      patch.owner() == null ? null : patch.owner().toUpperCase(Locale.ROOT),
+                      patch.contact()));
+
+      assertThatThrownBy(() -> MappingLaws.assertPatchIdentity(shouting, DENSE_BUILD, ACCOUNT))
+          .isInstanceOf(AssertionError.class)
+          .hasMessageContaining("Patch identity law");
+    }
+
+    @Test
+    @DisplayName("a modify-shaped patch fails the idempotence law")
+    void patchNonIdempotentFails() {
+      // Appends the wire owner to the current one, so applying twice differs from applying once.
+      BiFunction<Account, AccountPatch, Validated<NonEmptyList<FieldError>, Account>> appending =
+          (account, patch) ->
+              Validated.fields()
+                  .field("owner", Validated.validNel(account.owner() + patch.owner()))
+                  .field(
+                      "contact",
+                      patch.contact() == null
+                          ? Validated.invalidNel(FieldError.of("must not be null"))
+                          : EMAIL.parse(patch.contact()))
+                  .apply(Account::new);
+
+      assertThatThrownBy(() -> MappingLaws.assertPatchIdempotent(appending, ACCOUNT, VALID_PATCH))
+          .isInstanceOf(AssertionError.class)
+          .hasMessageContaining("idempotence law");
+    }
+
+    @Test
+    @DisplayName("a patch that ignores an invalid projected component fails the validation law")
+    void patchValidationDoesNotFail() {
+      BiFunction<Account, AccountPatch, Validated<NonEmptyList<FieldError>, Account>> ignores =
+          (account, patch) -> Validated.validNel(account);
+
+      assertThatThrownBy(
+              () -> MappingLaws.assertPatchValidationFails(ignores, ACCOUNT, INVALID_PATCH))
+          .isInstanceOf(AssertionError.class)
+          .hasMessageContaining("must fail");
+    }
+
+    @Test
+    @DisplayName("a patch whose failures carry no location fails the located-validation law")
+    void patchUnlocatedErrorsFail() {
+      BiFunction<Account, AccountPatch, Validated<NonEmptyList<FieldError>, Account>> unlocated =
+          (account, patch) -> Validated.invalidNel(FieldError.of("bad, but where?"));
+
+      assertThatThrownBy(
+              () -> MappingLaws.assertPatchValidationFails(unlocated, ACCOUNT, INVALID_PATCH))
+          .isInstanceOf(AssertionError.class)
+          .hasMessageContaining("located");
+    }
   }
 
   @Nested
@@ -313,6 +407,27 @@ class MappingLawsTest {
               () -> MappingLaws.assertSparseIdempotent(LAWFUL_UPDATE, ACCOUNT, INVALID_PATCH))
           .isInstanceOf(AssertionError.class)
           .hasMessageContaining("PARSES");
+    }
+
+    @Test
+    @DisplayName("the patch tier rejects a validWire that does not parse")
+    void patchTierRejectsNonParsingValidWire() {
+      assertThatThrownBy(
+              () -> MappingLaws.assertPatchIdempotent(LAWFUL_DENSE_PATCH, ACCOUNT, INVALID_PATCH))
+          .isInstanceOf(AssertionError.class)
+          .hasMessageContaining("PARSES");
+    }
+
+    @Test
+    @DisplayName("the patch tier rejects a validWire that does not change the domain")
+    void patchTierRejectsVacuousValidWire() {
+      // The domain's own projection changes nothing, making idempotence vacuously true.
+      assertThatThrownBy(
+              () ->
+                  MappingLaws.assertPatchIdempotent(
+                      LAWFUL_DENSE_PATCH, ACCOUNT, DENSE_BUILD.apply(ACCOUNT)))
+          .isInstanceOf(AssertionError.class)
+          .hasMessageContaining("CHANGES");
     }
   }
 }
