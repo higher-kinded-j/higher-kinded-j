@@ -119,8 +119,7 @@ class MappingProcessorBeanTest {
       assertThat(compilation).succeeded();
       var result = new RuntimeCompilationHelper.CompiledResult(compilation);
       try {
-        Object impl =
-            result.loadClass("com.example.UserMappingImpl").getField("INSTANCE").get(null);
+        Object impl = result.instance("com.example.UserMappingImpl");
         Object email = result.newInstance("com.example.EmailAddress", "ada@corp.example");
         Object user = result.newInstance("com.example.User", "Ada", email, 42);
 
@@ -147,8 +146,7 @@ class MappingProcessorBeanTest {
       assertThat(compilation).succeeded();
       var result = new RuntimeCompilationHelper.CompiledResult(compilation);
       try {
-        Object impl =
-            result.loadClass("com.example.UserMappingImpl").getField("INSTANCE").get(null);
+        Object impl = result.instance("com.example.UserMappingImpl");
         // name null and email null: both located, and the null email never reaches email().parse
         // (which would throw), proving the guard runs first.
         Object dto = result.loadClass("com.example.UserDto").getDeclaredConstructor().newInstance();
@@ -218,8 +216,7 @@ class MappingProcessorBeanTest {
 
       var result = new RuntimeCompilationHelper.CompiledResult(compilation);
       try {
-        Object impl =
-            result.loadClass("com.example.UserMappingImpl").getField("INSTANCE").get(null);
+        Object impl = result.instance("com.example.UserMappingImpl");
         Object dto = result.loadClass("com.example.UserDto").getDeclaredConstructor().newInstance();
         invoke(dto, "setEmail", "ada@corp.example");
         invoke(dto, "setAge", 42);
@@ -696,8 +693,7 @@ class MappingProcessorBeanTest {
 
       var result = new RuntimeCompilationHelper.CompiledResult(compilation);
       try {
-        Object impl =
-            result.loadClass("com.example.PointMappingImpl").getField("INSTANCE").get(null);
+        Object impl = result.instance("com.example.PointMappingImpl");
         Object point = result.newInstance("com.example.Point", 3, "origin");
         Object dto = invoke(impl, "build", point);
         Assertions.assertThat(invoke(dto, "getX")).isEqualTo(3);
@@ -820,7 +816,7 @@ class MappingProcessorBeanTest {
 
       var result = new RuntimeCompilationHelper.CompiledResult(compilation);
       try {
-        Object impl = result.loadClass("com.example.DocMappingImpl").getField("INSTANCE").get(null);
+        Object impl = result.instance("com.example.DocMappingImpl");
         Object doc =
             result
                 .loadClass("com.example.Doc")
@@ -937,8 +933,7 @@ class MappingProcessorBeanTest {
 
       var result = new RuntimeCompilationHelper.CompiledResult(compilation);
       try {
-        Object impl =
-            result.loadClass("com.example.ProfileMappingImpl").getField("INSTANCE").get(null);
+        Object impl = result.instance("com.example.ProfileMappingImpl");
         Object present =
             result
                 .loadClass("com.example.Profile")
@@ -1078,8 +1073,7 @@ class MappingProcessorBeanTest {
       assertThat(compilation).succeeded();
       var result = new RuntimeCompilationHelper.CompiledResult(compilation);
       try {
-        Object impl =
-            result.loadClass("com.example.AccountMappingImpl").getField("INSTANCE").get(null);
+        Object impl = result.instance("com.example.AccountMappingImpl");
         Object dto = result.newInstance("com.example.AccountDto");
         invoke(dto, "setEmail", "not-an-email");
 

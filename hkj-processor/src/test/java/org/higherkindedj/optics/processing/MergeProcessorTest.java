@@ -4,14 +4,19 @@ package org.higherkindedj.optics.processing;
 
 import static com.google.testing.compile.CompilationSubject.assertThat;
 import static com.google.testing.compile.Compiler.javac;
+import static org.higherkindedj.optics.processing.RuntimeCompilationHelper.invoke;
 
 import com.google.testing.compile.Compilation;
 import com.google.testing.compile.JavaFileObjects;
 import java.io.IOException;
+import java.util.List;
 import java.util.Optional;
 import javax.tools.JavaFileObject;
 import javax.tools.StandardLocation;
 import org.assertj.core.api.Assertions;
+import org.higherkindedj.hkt.nonemptylist.NonEmptyList;
+import org.higherkindedj.hkt.validated.FieldError;
+import org.higherkindedj.hkt.validated.Validated;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -100,7 +105,8 @@ class MergeProcessorTest {
           .contains("Objects.requireNonNull(settings, \"settings must not be null\")")
           .contains(
               "return new Records.Dashboard(user.name(), account.iban(), settings.darkMode())")
-          .doesNotContain("Validated");
+          .doesNotContain("Validated")
+          .doesNotContain("hkj$ifPresent");
     }
 
     @Test
@@ -130,10 +136,12 @@ class MergeProcessorTest {
       String generated = generatedSource(compilation, "com.example.TypedAssemblyImpl");
       Assertions.assertThat(generated)
           .contains("return Validated.fields()")
-          .contains(".field(\"name\", Validated.validNel(user.name()))")
-          .contains(".field(\"email\", email().parse(user.email()))")
+          // reference reads are null-guarded (#659); the primitive balance can never be null
+          .contains(".field(\"name\", hkj$ifPresent(user.name(), Validated::validNel))")
+          .contains(".field(\"email\", hkj$ifPresent(user.email(), email()::parse))")
           .contains(".field(\"balance\", Validated.validNel(account.balance()))")
-          .contains(".apply(Records.TypedDashboard::new)");
+          .contains(".apply(Records.TypedDashboard::new)")
+          .contains("private static <S, A> Validated<NonEmptyList<FieldError>, A> hkj$ifPresent(");
     }
   }
 
@@ -247,9 +255,62 @@ class MergeProcessorTest {
       String generated = generatedSource(compilation, "com.example.ProfileAssemblyImpl");
       Assertions.assertThat(generated)
           .contains(
-              ".field(\"customer\","
-                  + " CustomerMappingImpl.INSTANCE.asValidatedPrism().parse(wrapper.customer()))")
-          .contains(".field(\"name\", Validated.validNel(user.name()))");
+              ".field(\"customer\", hkj$ifPresent(wrapper.customer(),"
+                  + " CustomerMappingImpl.INSTANCE.asValidatedPrism()::parse))")
+          .contains(".field(\"name\", hkj$ifPresent(user.name(), Validated::validNel))");
+    }
+
+    @Test
+    @DisplayName(
+        "a null inside a nested source locates through the nesting from one assemble"
+            + " call (#653 + #659)")
+    void nestedNullsLocateThroughTheMergeSeam() {
+      Compilation compilation =
+          compileWithMapping(
+              RECORDS,
+              NESTED_RECORDS,
+              CUSTOMER_MAPPING,
+              PROJECTION_MAPPING,
+              DECOY_MAPPINGS,
+              spec(
+                  "ProfileAssembly",
+                  """
+                  public interface ProfileAssembly {
+                    Validated<NonEmptyList<FieldError>, Nested.Profile> assemble(
+                        Records.User user, Nested.Wrapper wrapper);
+                  }
+                  """));
+      assertThat(compilation).succeeded();
+      var result = new RuntimeCompilationHelper.CompiledResult(compilation);
+      try {
+        Object assembly = result.instance("com.example.ProfileAssemblyImpl");
+        Object customerDto =
+            result
+                .loadClass("com.example.Nested$CustomerDto")
+                .getDeclaredConstructor(String.class, String.class)
+                .newInstance("Bob", null);
+        Object wrapper =
+            result
+                .loadClass("com.example.Nested$Wrapper")
+                .getDeclaredConstructor(result.loadClass("com.example.Nested$CustomerDto"))
+                .newInstance(customerDto);
+        Object user =
+            result
+                .loadClass("com.example.Records$User")
+                .getDeclaredConstructor(String.class, String.class)
+                .newInstance(null, "ada@x.com");
+
+        @SuppressWarnings("unchecked")
+        Validated<NonEmptyList<FieldError>, Object> merged =
+            (Validated<NonEmptyList<FieldError>, Object>)
+                invoke(assembly, "assemble", user, wrapper);
+        Assertions.assertThat(merged.isInvalid()).isTrue();
+        Assertions.assertThat(
+                merged.getError().toJavaList().stream().map(FieldError::toString).toList())
+            .containsExactly("name: must not be null", "customer.email: must not be null");
+      } catch (ReflectiveOperationException e) {
+        throw new AssertionError(e);
+      }
     }
 
     @Test
@@ -275,8 +336,8 @@ class MergeProcessorTest {
       assertThat(compilation).succeeded();
       String generated = generatedSource(compilation, "com.example.LeafFirstAssemblyImpl");
       Assertions.assertThat(generated)
-          .contains(".field(\"customer\", customer().parse(wrapper.customer()))")
-          .doesNotContain("asValidatedPrism().parse");
+          .contains(".field(\"customer\", hkj$ifPresent(wrapper.customer(), customer()::parse))")
+          .doesNotContain("asValidatedPrism()::parse");
     }
 
     @Test
@@ -449,8 +510,8 @@ class MergeProcessorTest {
       assertThat(compilation).succeeded();
       String generated = generatedSource(compilation, "com.example.NormalisingAssemblyImpl");
       Assertions.assertThat(generated)
-          .contains(".field(\"name\", name().parse(user.name()))")
-          .contains(".field(\"iban\", Validated.validNel(account.iban()))");
+          .contains(".field(\"name\", hkj$ifPresent(user.name(), name()::parse))")
+          .contains(".field(\"iban\", hkj$ifPresent(account.iban(), Validated::validNel))");
     }
 
     @Test
@@ -1207,6 +1268,135 @@ class MergeProcessorTest {
                   """));
       assertThat(genericCase).failed();
       assertThat(genericCase).hadErrorContaining("'GenericAssembly' is generic");
+    }
+  }
+
+  @Nested
+  @DisplayName("Located nulls on fallible merges (#659)")
+  class LocatedNullsOnFallibleMerges {
+
+    private static final JavaFileObject TYPED_ASSEMBLY =
+        spec(
+            "TypedAssembly",
+            """
+            public interface TypedAssembly {
+              Validated<NonEmptyList<FieldError>, Records.TypedDashboard> assemble(
+                  Records.User user, Records.Account account);
+
+              default ValidatedPrism<String, Records.EmailAddress> email() {
+                return ValidatedPrism.of(
+                    raw ->
+                        raw.contains("@")
+                            ? Validated.validNel(new Records.EmailAddress(raw))
+                            : Validated.invalidNel(FieldError.of("not an email address")),
+                    Records.EmailAddress::value);
+              }
+            }
+            """);
+
+    private Object user(RuntimeCompilationHelper.CompiledResult result, String name, String email)
+        throws ReflectiveOperationException {
+      return result
+          .loadClass("com.example.Records$User")
+          .getDeclaredConstructor(String.class, String.class)
+          .newInstance(name, email);
+    }
+
+    private Object account(RuntimeCompilationHelper.CompiledResult result)
+        throws ReflectiveOperationException {
+      return result
+          .loadClass("com.example.Records$Account")
+          .getDeclaredConstructor(String.class, int.class)
+          .newInstance("DE00", 5);
+    }
+
+    private List<String> renderedErrors(Validated<NonEmptyList<FieldError>, Object> result) {
+      return result.getError().toJavaList().stream().map(FieldError::toString).toList();
+    }
+
+    @Test
+    @DisplayName(
+        "null source components are located, accumulated invalids — the guard beats the" + " leaf")
+    void nullSourceComponentsAccumulateLocated() {
+      Compilation compilation = compile(RECORDS, TYPED_ASSEMBLY);
+      assertThat(compilation).succeeded();
+      var result = new RuntimeCompilationHelper.CompiledResult(compilation);
+      try {
+        Object assembly = result.instance("com.example.TypedAssemblyImpl");
+
+        @SuppressWarnings("unchecked")
+        Validated<NonEmptyList<FieldError>, Object> merged =
+            (Validated<NonEmptyList<FieldError>, Object>)
+                invoke(assembly, "assemble", user(result, null, "not-an-email"), account(result));
+        Assertions.assertThat(merged.isInvalid()).isTrue();
+        Assertions.assertThat(renderedErrors(merged))
+            .containsExactly("name: must not be null", "email: not an email address");
+
+        // A null leaf read never reaches the leaf's prism (which would throw): guard first.
+        @SuppressWarnings("unchecked")
+        Validated<NonEmptyList<FieldError>, Object> nullLeaf =
+            (Validated<NonEmptyList<FieldError>, Object>)
+                invoke(assembly, "assemble", user(result, "Ada", null), account(result));
+        Assertions.assertThat(nullLeaf.isInvalid()).isTrue();
+        Assertions.assertThat(renderedErrors(nullLeaf)).containsExactly("email: must not be null");
+      } catch (ReflectiveOperationException e) {
+        throw new AssertionError(e);
+      }
+    }
+
+    @Test
+    @DisplayName("a null source argument stays the caller's error, not a located field")
+    void nullSourceArgumentStaysTheCallersError() {
+      Compilation compilation = compile(RECORDS, TYPED_ASSEMBLY);
+      assertThat(compilation).succeeded();
+      var result = new RuntimeCompilationHelper.CompiledResult(compilation);
+      try {
+        Object assembly = result.instance("com.example.TypedAssemblyImpl");
+        Object accountOnly = account(result);
+
+        Throwable thrown =
+            Assertions.catchThrowable(() -> invoke(assembly, "assemble", null, accountOnly));
+        Assertions.assertThat(thrown)
+            .rootCause()
+            .isInstanceOf(NullPointerException.class)
+            .hasMessage("user must not be null");
+      } catch (ReflectiveOperationException e) {
+        throw new AssertionError(e);
+      }
+    }
+
+    @Test
+    @DisplayName("a plain-return merge is total by declaration: nulls flow through unguarded")
+    void plainReturnMergeStaysTotalByDeclaration() {
+      Compilation compilation =
+          compile(
+              RECORDS,
+              spec(
+                  "DashboardAssembly",
+                  """
+                  public interface DashboardAssembly {
+                    Records.Dashboard assemble(
+                        Records.User user, Records.Account account, Records.Settings settings);
+                  }
+                  """));
+      assertThat(compilation).succeeded();
+      var result = new RuntimeCompilationHelper.CompiledResult(compilation);
+      try {
+        Object assembly = result.instance("com.example.DashboardAssemblyImpl");
+        Object settings =
+            result
+                .loadClass("com.example.Records$Settings")
+                .getDeclaredConstructor(boolean.class)
+                .newInstance(true);
+
+        Object dashboard =
+            invoke(
+                assembly, "assemble", user(result, null, "ada@x.com"), account(result), settings);
+        Assertions.assertThat(invoke(dashboard, "name")).isNull();
+        Assertions.assertThat(invoke(dashboard, "iban")).isEqualTo("DE00");
+      } catch (ReflectiveOperationException e) {
+        throw new AssertionError(e);
+      }
     }
   }
 }

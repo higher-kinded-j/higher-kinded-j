@@ -145,6 +145,21 @@ public class RuntimeCompilationHelper {
     }
 
     /**
+     * Loads a generated Impl's {@code INSTANCE} constant — the shared lookup for every processor
+     * test that exercises a generated singleton at runtime.
+     *
+     * @param className the Impl's fully qualified class name
+     * @return the INSTANCE value
+     */
+    public Object instance(String className) {
+      try {
+        return loadClass(className).getField("INSTANCE").get(null);
+      } catch (ReflectiveOperationException e) {
+        throw new AssertionError("could not load the INSTANCE of generated impl " + className, e);
+      }
+    }
+
+    /**
      * Creates a new instance of a record type.
      *
      * @param className fully qualified class name

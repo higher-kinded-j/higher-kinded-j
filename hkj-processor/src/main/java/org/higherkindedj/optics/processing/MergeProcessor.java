@@ -45,6 +45,13 @@ import org.higherkindedj.optics.processing.util.Diagnostics;
  * components are compile errors. Truthful types: with any fallible leaf the declared return type
  * must be {@code Validated<NonEmptyList<FieldError>, Target>}, and without one it must be the plain
  * target.
+ *
+ * <p>The fallible path carries the mapper family's null doctrine (issue #659, completing #653):
+ * every reference-typed source-component read is null-guarded through the shared {@code
+ * hkj$ifPresent} helper, so a null component is a located, accumulated {@code FieldError} ({@code
+ * must not be null}), never an exception — a null source <em>argument</em> stays the caller's
+ * {@code requireNonNull}. A merge whose method declares the plain target return is total by that
+ * declaration: nulls flow through to the target constructor exactly as {@code build} copies them.
  */
 @AutoService(Processor.class)
 @SupportedAnnotationTypes("org.higherkindedj.optics.annotations.GenerateMerge")
@@ -337,8 +344,12 @@ public class MergeProcessor extends AbstractProcessor {
     return new ReturnShape(target, fallibleDeclared);
   }
 
-  /** One target-component fill: from which source parameter, and through which leaf (if any). */
-  private record Fill(String component, String sourceParam, CodeBlock prism) {
+  /**
+   * One target-component fill: from which source parameter, through which leaf (if any), and
+   * whether the fallible path must null-guard the read — every prism read and every reference-typed
+   * identity read, mirroring {@code MappingProcessor.guardedRead} (issue #659).
+   */
+  private record Fill(String component, String sourceParam, CodeBlock prism, boolean guardedRead) {
     boolean fallible() {
       return prism != null;
     }
@@ -406,7 +417,12 @@ public class MergeProcessor extends AbstractProcessor {
           && processingEnv
               .getTypeUtils()
               .isSameType(sourceComponent.asType(), targetComponent.asType())) {
-        fills.add(new Fill(name, holder.getSimpleName().toString(), null));
+        fills.add(
+            new Fill(
+                name,
+                holder.getSimpleName().toString(),
+                null,
+                !sourceComponent.asType().getKind().isPrimitive()));
         continue;
       }
       if (leaf != null) {
@@ -414,7 +430,8 @@ public class MergeProcessor extends AbstractProcessor {
             new Fill(
                 name,
                 holder.getSimpleName().toString(),
-                CodeBlock.of("$L()", leaf.getSimpleName())));
+                CodeBlock.of("$L()", leaf.getSimpleName()),
+                true));
         continue;
       }
       List<MappingProcessor.RegisteredSpec> nested =
@@ -452,7 +469,8 @@ public class MergeProcessor extends AbstractProcessor {
             new Fill(
                 name,
                 holder.getSimpleName().toString(),
-                CodeBlock.of("$T.INSTANCE.asValidatedPrism()", nested.getFirst().impl())));
+                CodeBlock.of("$T.INSTANCE.asValidatedPrism()", nested.getFirst().impl()),
+                true));
         continue;
       }
       boolean primitiveInvolved =
@@ -575,13 +593,23 @@ public class MergeProcessor extends AbstractProcessor {
     if (shape.fallibleDeclared()) {
       CodeBlock.Builder chain = CodeBlock.builder().add("return $T.fields()", VALIDATED);
       for (Fill fill : fills) {
+        // Every reference read is null-guarded (issue #659, the #653 doctrine): a null source
+        // component is a located FieldError, never an exception. Primitive identity reads can
+        // never be null and copy directly.
         if (fill.fallible()) {
           chain.add(
-              "\n.field($S, $L.parse($L.$L()))",
+              "\n.field($S, hkj$$ifPresent($L.$L(), $L::parse))",
               fill.component(),
-              fill.prism(),
               fill.sourceParam(),
-              fill.component());
+              fill.component(),
+              fill.prism());
+        } else if (fill.guardedRead()) {
+          chain.add(
+              "\n.field($S, hkj$$ifPresent($L.$L(), $T::validNel))",
+              fill.component(),
+              fill.sourceParam(),
+              fill.component(),
+              VALIDATED);
         } else {
           chain.add(
               "\n.field($S, $T.validNel($L.$L()))",
@@ -606,7 +634,7 @@ public class MergeProcessor extends AbstractProcessor {
       method.addStatement("return new $T($L)", targetName, args.build());
     }
 
-    TypeSpec impl =
+    TypeSpec.Builder implBuilder =
         TypeSpec.classBuilder(implName)
             .addOriginatingElement(spec)
             .addModifiers(Modifier.PUBLIC, Modifier.FINAL)
@@ -622,9 +650,15 @@ public class MergeProcessor extends AbstractProcessor {
                     .initializer("new $T()", implName)
                     .build())
             .addMethod(MethodSpec.constructorBuilder().addModifiers(Modifier.PRIVATE).build())
-            .addMethod(method.build())
-            .build();
-    writeFile(spec, specName.packageName(), impl);
+            .addMethod(method.build());
+    // The guard rides only the fallible path; a plain-return merge is total by declaration and
+    // never references it. A fallible merge always references it: the return-type discipline
+    // rejects a Validated return over pure identities, and a fallible fill is always a guarded
+    // reference read.
+    if (shape.fallibleDeclared()) {
+      implBuilder.addMethod(MappingProcessor.ifPresentHelper());
+    }
+    writeFile(spec, specName.packageName(), implBuilder.build());
   }
 
   void writeFile(TypeElement spec, String packageName, TypeSpec impl) {
