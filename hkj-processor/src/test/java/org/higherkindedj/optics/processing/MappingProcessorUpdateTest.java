@@ -125,9 +125,8 @@ class MappingProcessorUpdateTest {
   @DisplayName("Runtime")
   class Runtime {
 
-    private Object impl(RuntimeCompilationHelper.CompiledResult result)
-        throws ReflectiveOperationException {
-      return result.loadClass("com.example.UserPatchMappingImpl").getField("INSTANCE").get(null);
+    private Object impl(RuntimeCompilationHelper.CompiledResult result) {
+      return result.instance("com.example.UserPatchMappingImpl");
     }
 
     private Object patchDto(
@@ -291,8 +290,7 @@ class MappingProcessorUpdateTest {
 
       var result = new RuntimeCompilationHelper.CompiledResult(compilation);
       try {
-        Object impl =
-            result.loadClass("com.example.AccountPatchMappingImpl").getField("INSTANCE").get(null);
+        Object impl = result.instance("com.example.AccountPatchMappingImpl");
         Object current = result.newInstance("com.example.Account", "Ada");
         Object patch =
             result.loadClass("com.example.AccountPatchDto").getDeclaredConstructor().newInstance();
@@ -404,8 +402,7 @@ class MappingProcessorUpdateTest {
 
       var result = new RuntimeCompilationHelper.CompiledResult(compilation);
       try {
-        Object impl =
-            result.loadClass("com.example.CustomerPatchMappingImpl").getField("INSTANCE").get(null);
+        Object impl = result.instance("com.example.CustomerPatchMappingImpl");
         Object oldAddress = result.newInstance("com.example.Address", "OldCity");
         Object current = result.newInstance("com.example.Customer", oldAddress);
 
@@ -442,8 +439,7 @@ class MappingProcessorUpdateTest {
       assertThat(compilation).succeeded();
       var result = new RuntimeCompilationHelper.CompiledResult(compilation);
       try {
-        Object impl =
-            result.loadClass("com.example.CustomerPatchMappingImpl").getField("INSTANCE").get(null);
+        Object impl = result.instance("com.example.CustomerPatchMappingImpl");
         Object oldAddress = result.newInstance("com.example.Address", "OldCity");
         Object current = result.newInstance("com.example.Customer", oldAddress);
         Object patch =

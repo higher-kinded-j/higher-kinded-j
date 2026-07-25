@@ -308,8 +308,7 @@ class MappingProcessorTest {
 
       var result = new RuntimeCompilationHelper.CompiledResult(compilation);
       try {
-        Object impl =
-            result.loadClass("com.example.DirectoryMappingImpl").getField("INSTANCE").get(null);
+        Object impl = result.instance("com.example.DirectoryMappingImpl");
         Map<String, Object> byKey = new LinkedHashMap<>();
         byKey.put("work", result.newInstance("com.example.EmailAddress", "ada@corp.example"));
         byKey.put("home", result.newInstance("com.example.EmailAddress", "ada@home.example"));
@@ -344,8 +343,7 @@ class MappingProcessorTest {
 
       var result = new RuntimeCompilationHelper.CompiledResult(compilation);
       try {
-        Object impl =
-            result.loadClass("com.example.DirectoryMappingImpl").getField("INSTANCE").get(null);
+        Object impl = result.instance("com.example.DirectoryMappingImpl");
         Map<String, String> byKey = new LinkedHashMap<>();
         byKey.put("work", "bad-one");
         byKey.put("home", "ada@home.example");
@@ -424,8 +422,7 @@ class MappingProcessorTest {
 
       var result = new RuntimeCompilationHelper.CompiledResult(compilation);
       try {
-        Object impl =
-            result.loadClass("com.example.TeamMappingImpl").getField("INSTANCE").get(null);
+        Object impl = result.instance("com.example.TeamMappingImpl");
         Map<String, Object> byKey = new LinkedHashMap<>();
         byKey.put("alice", result.newInstance("com.example.CustomerDto", "Alice", "nope"));
         Object dto =
@@ -732,8 +729,7 @@ class MappingProcessorTest {
 
       var result = new RuntimeCompilationHelper.CompiledResult(compilation);
       try {
-        Object impl =
-            result.loadClass("com.example.PersonMappingImpl").getField("INSTANCE").get(null);
+        Object impl = result.instance("com.example.PersonMappingImpl");
         Object domain = result.newInstance("com.example.Person", "Ada", "Lovelace");
 
         Object dto = invoke(impl, "build", domain);
@@ -842,8 +838,7 @@ class MappingProcessorTest {
 
       var result = new RuntimeCompilationHelper.CompiledResult(compilation);
       try {
-        Object impl =
-            result.loadClass("com.example.AccountMappingImpl").getField("INSTANCE").get(null);
+        Object impl = result.instance("com.example.AccountMappingImpl");
         Object emailValue = result.newInstance("com.example.EmailAddress", "ada@corp.example");
         Object account = result.newInstance("com.example.Account", "Ada", emailValue);
 
@@ -1798,14 +1793,6 @@ class MappingProcessorTest {
             }
             """);
 
-    private Object impl(RuntimeCompilationHelper.CompiledResult result, String implFqcn) {
-      try {
-        return result.loadClass(implFqcn).getField("INSTANCE").get(null);
-      } catch (ReflectiveOperationException e) {
-        throw new AssertionError(e);
-      }
-    }
-
     @SuppressWarnings("unchecked")
     private Validated<NonEmptyList<FieldError>, Object> patch(
         Object impl, Object domain, Object wire) {
@@ -1844,7 +1831,7 @@ class MappingProcessorTest {
       assertThat(compilation).succeeded();
       var result = new RuntimeCompilationHelper.CompiledResult(compilation);
       try {
-        Object impl = impl(result, "com.example.AccountPatchMappingImpl");
+        Object impl = result.instance("com.example.AccountPatchMappingImpl");
         Class<?> accountClass = result.loadClass("com.example.Account");
         Object domain =
             accountClass
@@ -1875,7 +1862,7 @@ class MappingProcessorTest {
       assertThat(compilation).succeeded();
       var result = new RuntimeCompilationHelper.CompiledResult(compilation);
       try {
-        Object impl = impl(result, "com.example.AccountPatchMappingImpl");
+        Object impl = result.instance("com.example.AccountPatchMappingImpl");
         Object domain =
             result
                 .loadClass("com.example.Account")
@@ -1898,7 +1885,7 @@ class MappingProcessorTest {
       assertThat(compilation).succeeded();
       var result = new RuntimeCompilationHelper.CompiledResult(compilation);
       try {
-        Object impl = impl(result, "com.example.AccountPatchMappingImpl");
+        Object impl = result.instance("com.example.AccountPatchMappingImpl");
         Object domain =
             result
                 .loadClass("com.example.Account")
@@ -1926,7 +1913,7 @@ class MappingProcessorTest {
       assertThat(compilation).succeeded();
       var result = new RuntimeCompilationHelper.CompiledResult(compilation);
       try {
-        Object impl = impl(result, "com.example.AccountPatchMappingImpl");
+        Object impl = result.instance("com.example.AccountPatchMappingImpl");
         Object domain =
             result
                 .loadClass("com.example.Account")
@@ -1991,7 +1978,7 @@ class MappingProcessorTest {
       assertThat(compilation).succeeded();
       var result = new RuntimeCompilationHelper.CompiledResult(compilation);
       try {
-        Object impl = impl(result, "com.example.MailPatchMappingImpl");
+        Object impl = result.instance("com.example.MailPatchMappingImpl");
         Object domain =
             result
                 .loadClass("com.example.Account")
@@ -2110,7 +2097,7 @@ class MappingProcessorTest {
       assertThat(compilation).succeeded();
       var result = new RuntimeCompilationHelper.CompiledResult(compilation);
       try {
-        Object impl = impl(result, "com.example.CustomerPatchMappingImpl");
+        Object impl = result.instance("com.example.CustomerPatchMappingImpl");
         Object domainAddress =
             result
                 .loadClass("com.example.Address")
@@ -2193,7 +2180,7 @@ class MappingProcessorTest {
       assertThat(compilation).succeeded();
       var result = new RuntimeCompilationHelper.CompiledResult(compilation);
       try {
-        Object impl = impl(result, "com.example.RosterPatchMappingImpl");
+        Object impl = result.instance("com.example.RosterPatchMappingImpl");
         Object domainEmail =
             result
                 .loadClass("com.example.EmailAddress")
@@ -2273,7 +2260,7 @@ class MappingProcessorTest {
       assertThat(compilation).succeeded();
       var result = new RuntimeCompilationHelper.CompiledResult(compilation);
       try {
-        Object impl = impl(result, "com.example.ProfilePatchMappingImpl");
+        Object impl = result.instance("com.example.ProfilePatchMappingImpl");
         Object domain =
             result
                 .loadClass("com.example.Profile")
@@ -2382,7 +2369,7 @@ class MappingProcessorTest {
       assertThat(compilation).succeeded();
       var result = new RuntimeCompilationHelper.CompiledResult(compilation);
       try {
-        Object impl = impl(result, "com.example.AddressBookPatchMappingImpl");
+        Object impl = result.instance("com.example.AddressBookPatchMappingImpl");
         Object domain =
             result
                 .loadClass("com.example.AddressBook")
@@ -2458,7 +2445,7 @@ class MappingProcessorTest {
 
       var result = new RuntimeCompilationHelper.CompiledResult(compilation);
       try {
-        Object impl = impl(result, "com.example.SitePatchMappingImpl");
+        Object impl = result.instance("com.example.SitePatchMappingImpl");
         Object domainValue =
             result
                 .loadClass("com.example.Site")
@@ -2806,8 +2793,7 @@ class MappingProcessorTest {
 
       var result = new RuntimeCompilationHelper.CompiledResult(compilation);
       try {
-        Object impl =
-            result.loadClass("com.example.HandlesMappingImpl").getField("INSTANCE").get(null);
+        Object impl = result.instance("com.example.HandlesMappingImpl");
         Object dto =
             result
                 .loadClass("com.example.HandlesDto")
@@ -2884,8 +2870,7 @@ class MappingProcessorTest {
 
       var result = new RuntimeCompilationHelper.CompiledResult(compilation);
       try {
-        Object impl =
-            result.loadClass("com.example.NicknameMappingImpl").getField("INSTANCE").get(null);
+        Object impl = result.instance("com.example.NicknameMappingImpl");
         Object dto =
             result
                 .loadClass("com.example.NicknameDto")
@@ -2958,8 +2943,7 @@ class MappingProcessorTest {
 
       var result = new RuntimeCompilationHelper.CompiledResult(compilation);
       try {
-        Object impl =
-            result.loadClass("com.example.ContactsMappingImpl").getField("INSTANCE").get(null);
+        Object impl = result.instance("com.example.ContactsMappingImpl");
         Object dto =
             result
                 .loadClass("com.example.ContactsDto")
@@ -4787,8 +4771,7 @@ class MappingProcessorTest {
 
       var result = new RuntimeCompilationHelper.CompiledResult(compilation);
       try {
-        Object impl =
-            result.loadClass("com.example.AccountPatchMappingImpl").getField("INSTANCE").get(null);
+        Object impl = result.instance("com.example.AccountPatchMappingImpl");
         Object domain =
             result
                 .loadClass("com.example.Account")
@@ -4921,14 +4904,6 @@ class MappingProcessorTest {
   @DisplayName("Located nulls on record wires (#653)")
   class LocatedNullsOnRecordWires {
 
-    private Object instance(RuntimeCompilationHelper.CompiledResult result, String implFqcn) {
-      try {
-        return result.loadClass(implFqcn).getField("INSTANCE").get(null);
-      } catch (ReflectiveOperationException e) {
-        throw new AssertionError(e);
-      }
-    }
-
     @SuppressWarnings("unchecked")
     private Validated<NonEmptyList<FieldError>, Object> parse(Object impl, Object wire) {
       return (Validated<NonEmptyList<FieldError>, Object>) invoke(impl, "parse", wire);
@@ -4947,7 +4922,7 @@ class MappingProcessorTest {
       assertThat(compilation).succeeded();
       var result = new RuntimeCompilationHelper.CompiledResult(compilation);
       try {
-        Object impl = instance(result, "com.example.UserMappingImpl");
+        Object impl = result.instance("com.example.UserMappingImpl");
         Object wire =
             result
                 .loadClass("com.example.UserDto")
@@ -5037,7 +5012,7 @@ class MappingProcessorTest {
       assertThat(compilation).succeeded();
       var result = new RuntimeCompilationHelper.CompiledResult(compilation);
       try {
-        Object impl = instance(result, "com.example.OrderMappingImpl");
+        Object impl = result.instance("com.example.OrderMappingImpl");
         Object innerNull =
             result
                 .loadClass("com.example.CustomerDto")
@@ -5128,7 +5103,7 @@ class MappingProcessorTest {
       assertThat(compilation).succeeded();
       var result = new RuntimeCompilationHelper.CompiledResult(compilation);
       try {
-        Object impl = instance(result, "com.example.CustomerPatchMappingImpl");
+        Object impl = result.instance("com.example.CustomerPatchMappingImpl");
         Object domainAddress =
             result
                 .loadClass("com.example.Address")
@@ -5215,7 +5190,7 @@ class MappingProcessorTest {
       assertThat(compilation).succeeded();
       var result = new RuntimeCompilationHelper.CompiledResult(compilation);
       try {
-        Object impl = instance(result, "com.example.RosterMappingImpl");
+        Object impl = result.instance("com.example.RosterMappingImpl");
         Object nullListWire =
             result
                 .loadClass("com.example.RosterDto")

@@ -68,15 +68,6 @@ class GeneratedMappingLawsTest {
     return new RuntimeCompilationHelper.CompiledResult(compilation);
   }
 
-  private static Object implInstance(
-      RuntimeCompilationHelper.CompiledResult result, String implClass) {
-    try {
-      return result.loadClass(implClass).getField("INSTANCE").get(null);
-    } catch (ReflectiveOperationException e) {
-      throw new AssertionError("could not load the INSTANCE of generated impl " + implClass, e);
-    }
-  }
-
   @SuppressWarnings("unchecked")
   private static ValidatedPrism<Object, Object> asValidatedPrism(Object impl) {
     return (ValidatedPrism<Object, Object>) invoke(impl, "asValidatedPrism");
@@ -120,7 +111,7 @@ class GeneratedMappingLawsTest {
             """);
 
     var result = compileMapping(domain, wire, spec);
-    Object impl = implInstance(result, "com.example.PersonMappingImpl");
+    Object impl = result.instance("com.example.PersonMappingImpl");
     @SuppressWarnings("unchecked")
     Iso<Object, Object> iso = (Iso<Object, Object>) invoke(impl, "asIso");
 
@@ -186,7 +177,7 @@ class GeneratedMappingLawsTest {
             """);
 
     var result = compileMapping(domain, wire, spec);
-    Object impl = implInstance(result, "com.example.EmployeeCardMappingImpl");
+    Object impl = result.instance("com.example.EmployeeCardMappingImpl");
     @SuppressWarnings("unchecked")
     Lens<Object, Object> lens = (Lens<Object, Object>) invoke(impl, "asLens");
 
@@ -241,7 +232,7 @@ class GeneratedMappingLawsTest {
             """);
 
     var result = compileMapping(EMAIL, domain, wire, spec);
-    Object impl = implInstance(result, "com.example.UserMappingImpl");
+    Object impl = result.instance("com.example.UserMappingImpl");
 
     MappingLaws.assertMappingLaws(
         asValidatedPrism(impl),
@@ -323,7 +314,7 @@ class GeneratedMappingLawsTest {
     var result =
         compileMapping(
             EMAIL, customer, customerDto, customerMapping, order, orderDto, orderMapping);
-    Object impl = implInstance(result, "com.example.OrderMappingImpl");
+    Object impl = result.instance("com.example.OrderMappingImpl");
 
     MappingLaws.assertMappingLaws(
         asValidatedPrism(impl),
@@ -405,7 +396,7 @@ class GeneratedMappingLawsTest {
             """);
 
     var result = compileMapping(EMAIL, domain, wire, spec);
-    Object impl = implInstance(result, "com.example.TeamMappingImpl");
+    Object impl = result.instance("com.example.TeamMappingImpl");
     var dtoConstructor =
         result
             .loadClass("com.example.TeamDto")
@@ -536,7 +527,7 @@ class GeneratedMappingLawsTest {
             cardMapping,
             bankMapping,
             paymentMapping);
-    Object impl = implInstance(result, "com.example.PaymentMappingImpl");
+    Object impl = result.instance("com.example.PaymentMappingImpl");
     ValidatedPrism<Object, Object> prism = asValidatedPrism(impl);
 
     // The fallible Card arm: full round trips plus no-parse through the dispatch switch.
@@ -589,7 +580,7 @@ class GeneratedMappingLawsTest {
             """);
 
     var result = compileMapping(domain, wire, spec);
-    Object impl = implInstance(result, "com.example.ProfileMappingImpl");
+    Object impl = result.instance("com.example.ProfileMappingImpl");
 
     // Parse is total (the derived component is ignored), so no non-parsing wire value exists:
     // the domain-sample overload asserts exactly the round trip a derived-field mapping offers.
@@ -656,7 +647,7 @@ class GeneratedMappingLawsTest {
             """);
 
     var result = compileMapping(EMAIL, domain, wire, spec);
-    Object impl = implInstance(result, "com.example.UserMappingImpl");
+    Object impl = result.instance("com.example.UserMappingImpl");
 
     // parse(build(user)) == Valid(user), compared on the domain record (the bean has no equals).
     // Exercises the null-guarded getter reads and the Optional<->nullable bridge on the round trip.
@@ -734,7 +725,7 @@ class GeneratedMappingLawsTest {
             """);
 
     var result = compileMapping(EMAIL, domain, wire, spec);
-    Object impl = implInstance(result, "com.example.UserPatchMappingImpl");
+    Object impl = result.instance("com.example.UserPatchMappingImpl");
 
     Function<Object, Edits.Accumulated<Object>> updateFrom =
         w -> asAccumulated(invoke(impl, "updateFrom", w));
@@ -799,7 +790,7 @@ class GeneratedMappingLawsTest {
             """);
 
     var result = compileMapping(EMAIL, domain, wire, spec);
-    Object impl = implInstance(result, "com.example.AccountPatchMappingImpl");
+    Object impl = result.instance("com.example.AccountPatchMappingImpl");
 
     BiFunction<Object, Object, Validated<NonEmptyList<FieldError>, Object>> patch =
         (d, w) -> asValidated(invoke(impl, "patch", d, w));

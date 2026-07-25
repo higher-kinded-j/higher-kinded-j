@@ -283,8 +283,7 @@ class MergeProcessorTest {
       assertThat(compilation).succeeded();
       var result = new RuntimeCompilationHelper.CompiledResult(compilation);
       try {
-        Object assembly =
-            result.loadClass("com.example.ProfileAssemblyImpl").getField("INSTANCE").get(null);
+        Object assembly = result.instance("com.example.ProfileAssemblyImpl");
         Object customerDto =
             result
                 .loadClass("com.example.Nested$CustomerDto")
@@ -1295,14 +1294,6 @@ class MergeProcessorTest {
             }
             """);
 
-    private Object impl(RuntimeCompilationHelper.CompiledResult result, String implFqcn) {
-      try {
-        return result.loadClass(implFqcn).getField("INSTANCE").get(null);
-      } catch (ReflectiveOperationException e) {
-        throw new AssertionError(e);
-      }
-    }
-
     private Object user(RuntimeCompilationHelper.CompiledResult result, String name, String email)
         throws ReflectiveOperationException {
       return result
@@ -1331,7 +1322,7 @@ class MergeProcessorTest {
       assertThat(compilation).succeeded();
       var result = new RuntimeCompilationHelper.CompiledResult(compilation);
       try {
-        Object assembly = impl(result, "com.example.TypedAssemblyImpl");
+        Object assembly = result.instance("com.example.TypedAssemblyImpl");
 
         @SuppressWarnings("unchecked")
         Validated<NonEmptyList<FieldError>, Object> merged =
@@ -1360,7 +1351,7 @@ class MergeProcessorTest {
       assertThat(compilation).succeeded();
       var result = new RuntimeCompilationHelper.CompiledResult(compilation);
       try {
-        Object assembly = impl(result, "com.example.TypedAssemblyImpl");
+        Object assembly = result.instance("com.example.TypedAssemblyImpl");
         Object accountOnly = account(result);
 
         Throwable thrown =
@@ -1391,7 +1382,7 @@ class MergeProcessorTest {
       assertThat(compilation).succeeded();
       var result = new RuntimeCompilationHelper.CompiledResult(compilation);
       try {
-        Object assembly = impl(result, "com.example.DashboardAssemblyImpl");
+        Object assembly = result.instance("com.example.DashboardAssemblyImpl");
         Object settings =
             result
                 .loadClass("com.example.Records$Settings")
