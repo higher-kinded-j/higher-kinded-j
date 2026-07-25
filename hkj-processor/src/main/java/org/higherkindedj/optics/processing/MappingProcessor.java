@@ -1910,9 +1910,10 @@ public class MappingProcessor extends AbstractProcessor {
    * it. The name lives in the {@code $} namespace, which JLS 3.8 reserves for mechanically
    * generated code, so no ordinary spec method can collide with the declaration or capture its call
    * sites through overload resolution (issue #654) — which is why the collision sweep needs no
-   * reservation for it.
+   * reservation for it. Shared with {@link MergeProcessor}, whose fallible merge legs carry the
+   * same guard (issue #659), like {@link #scanRegistry}.
    */
-  private static MethodSpec ifPresentHelper() {
+  static MethodSpec ifPresentHelper() {
     TypeVariableName s = TypeVariableName.get("S");
     TypeVariableName a = TypeVariableName.get("A");
     TypeName validatedOfA =

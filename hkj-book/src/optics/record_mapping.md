@@ -315,6 +315,8 @@ Each target component fills from the one source with a same-named component: ide
 
 Ambiguity (two sources carrying the component) and unfilled components are compile errors, and the return type must tell the truth: fallible fills demand the `Validated` return; an identity-only merge must declare the plain target.
 
+The fallible path carries the [same null doctrine as `parse`](#record-mapping): every reference-typed source-component read is null-guarded, so a null component is a located, accumulated `FieldError` (`must not be null`), never an exception — a null source *argument* stays the caller's `NullPointerException`. A plain-return merge is total *by its declaration*: nulls flow through to the target constructor exactly as `build` copies them; declare the `Validated` return to buy the guard.
+
 ---
 
 ## Generating error envelopes: `@GenerateErrorEnvelope`
