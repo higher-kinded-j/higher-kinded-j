@@ -1824,8 +1824,8 @@ class MappingProcessorTest {
           .contains("public Validated<NonEmptyList<FieldError>, Account> patch(")
           .contains("AccountPatchDto wire)")
           // reference reads are guarded into located FieldErrors; the primitive is not
-          .contains(".field(\"email\", ifPresent(wire.email(), email()::parse))")
-          .contains(".field(\"notes\", ifPresent(wire.notes(), Validated::validNel))")
+          .contains(".field(\"email\", hkj$ifPresent(wire.email(), email()::parse))")
+          .contains(".field(\"notes\", hkj$ifPresent(wire.notes(), Validated::validNel))")
           .contains(".field(\"age\", Validated.validNel(wire.age()))")
           // projected components bind by name; unprojected read from the domain argument
           .contains(".apply((email, notes, age) -> new Account(domain.id(), email, notes, age))")
@@ -4448,6 +4448,10 @@ class MappingProcessorTest {
   @DisplayName("Generated-member collision sweep (#654)")
   class GeneratedMemberCollisionSweep {
 
+    // Full-tier and projection-tier collisions live here; the sealed-tier test sits with its
+    // fixtures in SealedDispatch, the bean 'ifPresent' tests in MappingProcessorBeanTest, and
+    // the sparse-update tests in MappingProcessorUpdateTest.
+
     /** The full-tier spec (leaf on email, so not lossless) with one extra member spliced in. */
     private JavaFileObject fullSpecWith(String extraMember) {
       return JavaFileObjects.forSourceString(
@@ -4484,23 +4488,22 @@ class MappingProcessorTest {
     @Test
     @DisplayName("a default with the exact generated 'parse' signature is rejected, not overridden")
     void exactParseSignatureIsRejected() {
-      Compilation compilation =
-          compile(
-              EMAIL,
-              DOMAIN,
-              WIRE,
-              fullSpecWith(
-                  """
-                    default Validated<NonEmptyList<FieldError>, User> parse(UserDto wire) {
-                      return Validated.invalidNel(FieldError.of("never runs"));
-                    }
-                  """));
+      JavaFileObject colliding =
+          fullSpecWith(
+              """
+                default Validated<NonEmptyList<FieldError>, User> parse(UserDto wire) {
+                  return Validated.invalidNel(FieldError.of("never runs"));
+                }
+              """);
+
+      Compilation compilation = compile(EMAIL, DOMAIN, WIRE, colliding);
 
       assertThat(compilation).failed();
       assertThat(compilation)
           .hadErrorContaining(
               "'parse(UserDto)' collides with the 'parse' member the generated UserMappingImpl"
-                  + " emits");
+                  + " emits")
+          .inFile(colliding);
       assertThat(compilation).hadErrorContaining("a full mapping");
       assertThat(compilation).hadErrorContaining("silently overridden");
       assertThat(compilation)
@@ -4550,6 +4553,20 @@ class MappingProcessorTest {
     }
 
     @Test
+    @DisplayName("a bounded generic default whose erasure matches the member is a collision too")
+    void boundedGenericCollisionIsRejected() {
+      Compilation compilation =
+          compile(
+              EMAIL,
+              DOMAIN,
+              WIRE,
+              fullSpecWith("  default <T extends User> UserDto build(T value) { return null; }"));
+
+      assertThat(compilation).failed();
+      assertThat(compilation).hadErrorContaining("'build(T)' collides with the 'build' member");
+    }
+
+    @Test
     @DisplayName("'asIso' is reserved only when the mapping is lossless (tier-aware sets)")
     void asIsoReservedOnlyWhenLossless() {
       JavaFileObject point =
@@ -4588,19 +4605,19 @@ class MappingProcessorTest {
       assertThat(losslessCollision).hadErrorContaining("'asIso()' collides");
 
       // The leaf makes the User mapping fallible, so no asIso is emitted and the helper is legal.
-      Compilation fallibleSpec =
+      Compilation fallibleCompilation =
           compile(
               EMAIL,
               DOMAIN,
               WIRE,
               fullSpecWith("  default Iso<User, UserDto> asIso() { return null; }"));
-      assertThat(fallibleSpec).succeeded();
+      assertThat(fallibleCompilation).succeeded();
     }
 
     @Test
-    @DisplayName("overloads with a different erased signature stay legal")
+    @DisplayName("overloads with a different erased signature or arity stay legal")
     void overloadsStayLegal() {
-      Compilation overload =
+      Compilation compilation =
           compile(
               EMAIL,
               DOMAIN,
@@ -4610,12 +4627,13 @@ class MappingProcessorTest {
                     default Validated<NonEmptyList<FieldError>, User> parse(String raw) {
                       return Validated.invalidNel(FieldError.of(raw));
                     }
-                  """));
-      assertThat(overload).succeeded();
 
-      Compilation arityMismatch =
-          compile(EMAIL, DOMAIN, WIRE, fullSpecWith("  default UserDto build() { return null; }"));
-      assertThat(arityMismatch).succeeded();
+                    default UserDto build() {
+                      return null;
+                    }
+                  """));
+
+      assertThat(compilation).succeeded();
     }
 
     @Test
@@ -4732,43 +4750,65 @@ class MappingProcessorTest {
     }
 
     @Test
-    @DisplayName("the emitted 'ifPresent' guard is reserved; a concrete overload stays legal")
-    void ifPresentGuardIsSweptOnThePatchTier() {
-      Compilation collision =
+    @DisplayName(
+        "user 'ifPresent' helpers neither collide with nor capture the $-namespaced"
+            + " guard: every shape is legal and the guard still runs")
+    void ifPresentHelpersNeitherCollideNorCaptureTheGuard() {
+      // The generic helper matches the guard's own shape; the String one would be MORE specific
+      // than the guard for every String read, so it would capture an unqualified 'ifPresent'
+      // call. Both booby-trap their bodies: if generated code ever routed through them, patch
+      // would go invalid below.
+      Compilation compilation =
           compile(
               ACCOUNT,
               ACCOUNT_PATCH_DTO,
               patchSpecWith(
                   """
-                    default <T, B> Validated<NonEmptyList<FieldError>, B> ifPresent(
-                        T value, Function<? super T, Validated<NonEmptyList<FieldError>, B>> parse) {
-                      return parse.apply(value);
+                    default <S, A> Validated<NonEmptyList<FieldError>, A> ifPresent(
+                        S value, Function<? super S, Validated<NonEmptyList<FieldError>, A>> parse) {
+                      return Validated.invalidNel(FieldError.of("captured by the generic helper"));
                     }
-                  """));
-      assertThat(collision).failed();
-      assertThat(collision)
-          .hadErrorContaining("'ifPresent(T, Function)' collides with the 'ifPresent' member");
 
-      Compilation overload =
-          compile(
-              ACCOUNT,
-              ACCOUNT_PATCH_DTO,
-              patchSpecWith(
-                  """
                     default Validated<NonEmptyList<FieldError>, String> ifPresent(
                         String value,
                         Function<? super String, Validated<NonEmptyList<FieldError>, String>> parse) {
-                      return parse.apply(value);
+                      return Validated.invalidNel(FieldError.of("captured by the String helper"));
+                    }
+
+                    default boolean ifPresent(String value) {
+                      return value != null;
                     }
                   """));
-      assertThat(overload).succeeded();
+      assertThat(compilation).succeeded();
+
+      var result = new RuntimeCompilationHelper.CompiledResult(compilation);
+      try {
+        Object impl =
+            result.loadClass("com.example.AccountPatchMappingImpl").getField("INSTANCE").get(null);
+        Object domain =
+            result
+                .loadClass("com.example.Account")
+                .getDeclaredConstructor(String.class, String.class, String.class, int.class)
+                .newInstance("7", "ada@example.com", "notes", 30);
+        Object wire =
+            result
+                .loadClass("com.example.AccountPatchDto")
+                .getDeclaredConstructor(String.class, String.class, int.class)
+                .newInstance("grace@example.com", "updated", 31);
+
+        @SuppressWarnings("unchecked")
+        Validated<NonEmptyList<FieldError>, Object> patched =
+            (Validated<NonEmptyList<FieldError>, Object>) invoke(impl, "patch", domain, wire);
+        Assertions.assertThat(patched.isValid()).isTrue();
+      } catch (ReflectiveOperationException e) {
+        throw new AssertionError(e);
+      }
     }
 
     @Test
     @DisplayName(
-        "a default with the generated 'asLens' signature is rejected on an identity"
-            + " projection")
-    void asLensCollisionOnIdentityProjectionIsRejected() {
+        "a default with the generated 'asLens' signature is rejected on a lossy" + " projection")
+    void asLensCollisionOnLossyProjectionIsRejected() {
       JavaFileObject person =
           JavaFileObjects.forSourceString(
               "com.example.Person",
@@ -4808,7 +4848,68 @@ class MappingProcessorTest {
           .hadErrorContaining(
               "'asLens()' collides with the 'asLens' member the generated PersonProjectionImpl"
                   + " emits");
-      assertThat(compilation).hadErrorContaining("an identity projection");
+      assertThat(compilation).hadErrorContaining("a lossy projection");
+    }
+
+    @Test
+    @DisplayName("a @MapField rename named after a zero-parameter generated member is rejected")
+    void mapFieldRenameNamedAfterAZeroParamMemberIsRejected() {
+      JavaFileObject doc =
+          JavaFileObjects.forSourceString(
+              "com.example.Doc",
+              """
+              package com.example;
+
+              public record Doc(String asLens, String title, int pages) {}
+              """);
+      JavaFileObject docDto =
+          JavaFileObjects.forSourceString(
+              "com.example.DocDto",
+              """
+              package com.example;
+
+              public record DocDto(String lensField, int pages) {}
+              """);
+      JavaFileObject spec =
+          JavaFileObjects.forSourceString(
+              "com.example.DocProjection",
+              """
+              package com.example;
+
+              import org.higherkindedj.optics.annotations.GenerateMapping;
+              import org.higherkindedj.optics.annotations.MapField;
+              import org.higherkindedj.optics.annotations.MappingSpec;
+
+              @GenerateMapping
+              public interface DocProjection extends MappingSpec<Doc, DocDto> {
+                @MapField(to = "lensField")
+                String asLens();
+              }
+              """);
+
+      Compilation compilation = compile(doc, docDto, spec);
+
+      assertThat(compilation).failed();
+      assertThat(compilation).hadErrorContaining("'asLens()' collides with the 'asLens' member");
+      assertThat(compilation).hadErrorContaining("a lossy projection");
+    }
+
+    @Test
+    @DisplayName(
+        "an unresolved parameter type is never a collision, so the real cannot-find-symbol"
+            + " error is not shadowed")
+    void unresolvedParameterTypesAreNotCollisions() {
+      Compilation compilation =
+          compile(
+              EMAIL,
+              DOMAIN,
+              WIRE,
+              fullSpecWith("  default UserDto build(Missing missing) { return null; }"));
+
+      assertThat(compilation).failed();
+      assertThat(compilation).hadErrorContaining("cannot find symbol");
+      Assertions.assertThat(compilation.errors())
+          .noneMatch(diagnostic -> diagnostic.getMessage(null).contains("collides"));
     }
   }
 

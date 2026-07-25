@@ -105,10 +105,10 @@ class MappingProcessorBeanTest {
           .contains("wire.setEmail(email().build(domain.email()));")
           .contains("wire.setAge(domain.age());")
           .contains("return wire;")
-          .contains(".field(\"name\", ifPresent(wire.getName(), Validated::validNel))")
-          .contains(".field(\"email\", ifPresent(wire.getEmail(), email()::parse))")
+          .contains(".field(\"name\", hkj$ifPresent(wire.getName(), Validated::validNel))")
+          .contains(".field(\"email\", hkj$ifPresent(wire.getEmail(), email()::parse))")
           .contains(".field(\"age\", Validated.validNel(wire.getAge()))")
-          .contains("private static <S, A> Validated<NonEmptyList<FieldError>, A> ifPresent(")
+          .contains("private static <S, A> Validated<NonEmptyList<FieldError>, A> hkj$ifPresent(")
           .doesNotContain("asIso");
     }
 
@@ -168,9 +168,14 @@ class MappingProcessorBeanTest {
 
     @Test
     @DisplayName(
-        "a default override-equivalent to the emitted 'ifPresent' guard is rejected" + " (#654)")
-    void ifPresentCollisionOnBeanFullTierIsRejected() {
-      JavaFileObject colliding =
+        "a user 'ifPresent' helper stays legal beside the $-namespaced guard and never"
+            + " captures its calls (#654)")
+    void ifPresentHelperStaysLegalBesideTheGuard() {
+      // The generic shape mirrors the guard's own; the String one would be more specific than
+      // the guard for every String property read, so it would capture an unqualified call. Both
+      // are booby-trapped: if generated code ever routed through them, the null-name parse
+      // below would not report the guard's located FieldError.
+      JavaFileObject spec =
           JavaFileObjects.forSourceString(
               "com.example.UserMapping",
               """
@@ -197,19 +202,37 @@ class MappingProcessorBeanTest {
 
                 default <S, A> Validated<NonEmptyList<FieldError>, A> ifPresent(
                     S value, Function<? super S, Validated<NonEmptyList<FieldError>, A>> parse) {
-                  return parse.apply(value);
+                  return Validated.invalidNel(FieldError.of("captured by the generic helper"));
+                }
+
+                default Validated<NonEmptyList<FieldError>, String> ifPresent(
+                    String value,
+                    Function<? super String, Validated<NonEmptyList<FieldError>, String>> parse) {
+                  return Validated.invalidNel(FieldError.of("captured by the String helper"));
                 }
               }
               """);
 
-      Compilation compilation = compile(EMAIL, USER, USER_DTO, colliding);
+      Compilation compilation = compile(EMAIL, USER, USER_DTO, spec);
+      assertThat(compilation).succeeded();
 
-      assertThat(compilation).failed();
-      assertThat(compilation)
-          .hadErrorContaining(
-              "'ifPresent(S, Function)' collides with the 'ifPresent' member the generated"
-                  + " UserMappingImpl emits");
-      assertThat(compilation).hadErrorContaining("a full mapping");
+      var result = new RuntimeCompilationHelper.CompiledResult(compilation);
+      try {
+        Object impl =
+            result.loadClass("com.example.UserMappingImpl").getField("INSTANCE").get(null);
+        Object dto = result.loadClass("com.example.UserDto").getDeclaredConstructor().newInstance();
+        invoke(dto, "setEmail", "ada@corp.example");
+        invoke(dto, "setAge", 42);
+
+        @SuppressWarnings("unchecked")
+        Validated<NonEmptyList<FieldError>, Object> parsed =
+            (Validated<NonEmptyList<FieldError>, Object>) invoke(impl, "parse", dto);
+        Assertions.assertThat(parsed.isInvalid()).isTrue();
+        Assertions.assertThat(parsed.getError().toJavaList())
+            .containsExactly(new FieldError(List.of("name"), "must not be null"));
+      } catch (ReflectiveOperationException e) {
+        throw new AssertionError(e);
+      }
     }
   }
 
@@ -324,8 +347,8 @@ class MappingProcessorBeanTest {
       Assertions.assertThat(generated)
           .contains("wire.setName(domain.name());")
           .contains("wire.setRole(domain.role());")
-          .contains("ifPresent(wire.getName(), Validated::validNel)")
-          .contains("ifPresent(wire.getRole(), Validated::validNel)");
+          .contains("hkj$ifPresent(wire.getName(), Validated::validNel)")
+          .contains("hkj$ifPresent(wire.getRole(), Validated::validNel)");
     }
   }
 
@@ -378,7 +401,7 @@ class MappingProcessorBeanTest {
       String generated = generatedSource(compilation, "com.example.SiteMappingImpl");
       Assertions.assertThat(generated)
           .contains("wire.setURL(domain.link());")
-          .contains(".field(\"link\", ifPresent(wire.getURL(), Validated::validNel))");
+          .contains(".field(\"link\", hkj$ifPresent(wire.getURL(), Validated::validNel))");
     }
 
     @Test
@@ -433,7 +456,7 @@ class MappingProcessorBeanTest {
       String generated = generatedSource(compilation, "com.example.PersonMappingImpl");
       Assertions.assertThat(generated)
           .contains("wire.setDisplayName(displayName().get(domain));")
-          .contains(".field(\"first\", ifPresent(wire.getFirst(), Validated::validNel))")
+          .contains(".field(\"first\", hkj$ifPresent(wire.getFirst(), Validated::validNel))")
           .doesNotContain(".field(\"displayName\"")
           .doesNotContain("asIso");
     }
@@ -514,9 +537,9 @@ class MappingProcessorBeanTest {
           .contains("wire.setAll(all().buildAll(domain.all()));")
           .contains("wire.setTagged(tagged().buildValues(domain.tagged()));")
           .contains("wire.setPrimary(domain.primary().map(primary()::build));")
-          .contains(".field(\"all\", ifPresent(wire.getAll(), all()::parseAll))")
-          .contains(".field(\"tagged\", ifPresent(wire.getTagged(), tagged()::parseValues))")
-          .contains(".field(\"primary\", ifPresent(wire.getPrimary(), o -> o.map(v ->");
+          .contains(".field(\"all\", hkj$ifPresent(wire.getAll(), all()::parseAll))")
+          .contains(".field(\"tagged\", hkj$ifPresent(wire.getTagged(), tagged()::parseValues))")
+          .contains(".field(\"primary\", hkj$ifPresent(wire.getPrimary(), o -> o.map(v ->");
     }
 
     @Test
@@ -669,7 +692,7 @@ class MappingProcessorBeanTest {
           .contains("b.x(domain.x());")
           .contains("b.label(domain.label());")
           .contains("return b.build();")
-          .contains(".field(\"label\", ifPresent(wire.getLabel(), Validated::validNel))");
+          .contains(".field(\"label\", hkj$ifPresent(wire.getLabel(), Validated::validNel))");
 
       var result = new RuntimeCompilationHelper.CompiledResult(compilation);
       try {
@@ -793,7 +816,7 @@ class MappingProcessorBeanTest {
       Assertions.assertThat(generated)
           .contains("wire.setTitle(domain.title());")
           .contains("wire.getTags().addAll(domain.tags());")
-          .contains(".field(\"tags\", ifPresent(wire.getTags(), Validated::validNel))");
+          .contains(".field(\"tags\", hkj$ifPresent(wire.getTags(), Validated::validNel))");
 
       var result = new RuntimeCompilationHelper.CompiledResult(compilation);
       try {
