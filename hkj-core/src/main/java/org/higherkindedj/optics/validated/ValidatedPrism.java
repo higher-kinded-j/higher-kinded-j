@@ -163,13 +163,16 @@ public sealed interface ValidatedPrism<S, A> permits ValidatedPrism.Of {
   }
 
   /**
-   * Parses every element, accumulating all failures across the whole list.
+   * Parses every element, accumulating all failures across the whole list, each located by its
+   * index (issue #660): a failing element at position 1 under a field labelled {@code emails}
+   * renders as {@code emails.1: ...} — a plain positional segment, matching {@link
+   * #parseValues(Map)}' key segments. A null element is a located {@code must not be null} at its
+   * index, never an exception, completing the #653 null doctrine inside containers.
    *
-   * @param sources the wire values; neither the list nor its elements may be null
-   * @return {@code Valid(list)} or every located failure from every element, in list order
-   *     (non-null)
-   * @throws NullPointerException if {@code sources} or one of its elements is null (the message
-   *     names the offending index)
+   * @param sources the wire values; the list itself must not be null
+   * @return {@code Valid(list)} or every failure from every element, located by index, in list
+   *     order (non-null)
+   * @throws NullPointerException if {@code sources} is null
    */
   default Validated<NonEmptyList<FieldError>, List<A>> parseAll(List<? extends S> sources) {
     Objects.requireNonNull(sources, "sources must not be null");
@@ -177,16 +180,22 @@ public sealed interface ValidatedPrism<S, A> permits ValidatedPrism.Of {
     NonEmptyList<FieldError> failures = null;
     int i = 0;
     for (S source : sources) {
-      Objects.requireNonNull(source, "sources[" + i + "] must not be null");
-      i++;
-      Validated<NonEmptyList<FieldError>, A> parsed = parse(source);
-      if (parsed.isValid()) {
-        values.add(parsed.get());
-      } else if (failures == null) {
-        failures = parsed.getError();
+      int index = i++;
+      NonEmptyList<FieldError> located;
+      if (source == null) {
+        located = NonEmptyList.of(FieldError.of("must not be null").at(String.valueOf(index)));
       } else {
-        failures = NonEmptyList.<FieldError>semigroup().combine(failures, parsed.getError());
+        Validated<NonEmptyList<FieldError>, A> parsed = parse(source);
+        if (parsed.isValid()) {
+          values.add(parsed.get());
+          continue;
+        }
+        located = parsed.getError().map(err -> err.at(String.valueOf(index)));
       }
+      failures =
+          failures == null
+              ? located
+              : NonEmptyList.<FieldError>semigroup().combine(failures, located);
     }
     return failures == null ? Validated.valid(List.copyOf(values)) : Validated.invalid(failures);
   }
@@ -224,12 +233,14 @@ public sealed interface ValidatedPrism<S, A> permits ValidatedPrism.Of {
    * list stays exact, with the whole key as one segment. Distinct keys whose {@code toString()}
    * collide share a rendered location, but every error is still reported.
    *
-   * @param sources the wire values by key; neither the map, its keys, nor its values may be null
+   * @param sources the wire values by key; neither the map nor its keys may be null — a null
+   *     <em>value</em> is a located {@code must not be null} under its key (issue #660), never an
+   *     exception, completing the #653 null doctrine inside containers
    * @param <K> the key type, carried through unchanged
    * @return {@code Valid(map)} or every located failure from every entry, in entry order (non-null,
    *     immutable)
-   * @throws NullPointerException if {@code sources}, one of its keys, or one of its values is null
-   *     (the message names the offending key where one exists)
+   * @throws NullPointerException if {@code sources} or one of its keys is null (a null key is a
+   *     structurally broken map, not a wrong value)
    */
   default <K> Validated<NonEmptyList<FieldError>, Map<K, A>> parseValues(
       Map<K, ? extends S> sources) {
@@ -238,17 +249,22 @@ public sealed interface ValidatedPrism<S, A> permits ValidatedPrism.Of {
     NonEmptyList<FieldError> failures = null;
     for (Map.Entry<K, ? extends S> entry : sources.entrySet()) {
       K key = Objects.requireNonNull(entry.getKey(), "sources must not contain a null key");
-      S source = Objects.requireNonNull(entry.getValue(), "sources[" + key + "] must not be null");
-      Validated<NonEmptyList<FieldError>, A> parsed = parse(source);
-      if (parsed.isValid()) {
-        values.put(key, parsed.get());
+      S source = entry.getValue();
+      NonEmptyList<FieldError> located;
+      if (source == null) {
+        located = NonEmptyList.of(FieldError.of("must not be null").at(key.toString()));
       } else {
-        NonEmptyList<FieldError> located = parsed.getError().map(err -> err.at(key.toString()));
-        failures =
-            failures == null
-                ? located
-                : NonEmptyList.<FieldError>semigroup().combine(failures, located);
+        Validated<NonEmptyList<FieldError>, A> parsed = parse(source);
+        if (parsed.isValid()) {
+          values.put(key, parsed.get());
+          continue;
+        }
+        located = parsed.getError().map(err -> err.at(key.toString()));
       }
+      failures =
+          failures == null
+              ? located
+              : NonEmptyList.<FieldError>semigroup().combine(failures, located);
     }
     // Map.copyOf does not preserve entry order, so wrap the LinkedHashMap instead.
     return failures == null
