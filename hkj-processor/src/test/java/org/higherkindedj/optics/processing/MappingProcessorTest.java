@@ -12,6 +12,7 @@ import com.palantir.javapoet.TypeSpec;
 import java.io.IOException;
 import java.lang.reflect.Proxy;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -109,8 +110,8 @@ class MappingProcessorTest {
           .contains("new UserDto(domain.name(), email().build(domain.email()), domain.age())")
           .contains("public Validated<NonEmptyList<FieldError>, User> parse(UserDto wire)")
           .contains("return Validated.fields()")
-          .contains(".field(\"name\", Validated.validNel(wire.name()))")
-          .contains(".field(\"email\", email().parse(wire.email()))")
+          .contains(".field(\"name\", hkj$ifPresent(wire.name(), Validated::validNel))")
+          .contains(".field(\"email\", hkj$ifPresent(wire.email(), email()::parse))")
           .contains(".field(\"age\", Validated.validNel(wire.age()))")
           .contains(".apply(User::new)")
           .doesNotContain("asIso");
@@ -162,7 +163,7 @@ class MappingProcessorTest {
       String generated = generatedSource(compilation, "com.example.PersonMappingImpl");
       Assertions.assertThat(generated)
           .contains("new PersonDto(domain.name(), domain.age())")
-          .contains(".field(\"name\", Validated.validNel(wire.fullName()))")
+          .contains(".field(\"name\", hkj$ifPresent(wire.fullName(), Validated::validNel))")
           .contains("public Iso<Person, PersonDto> asIso()")
           .contains("return Iso.of(this::build, wire -> new Person(wire.fullName(), wire.age()))");
     }
@@ -236,8 +237,9 @@ class MappingProcessorTest {
       Assertions.assertThat(generated)
           .contains("members().buildAll(domain.members())")
           .contains("domain.lead().map(lead()::build)")
-          .contains(".field(\"members\", members().parseAll(wire.members()))")
-          .contains(".field(\"lead\", wire.lead().map(v -> lead().parse(v).map(Optional::of))")
+          .contains(".field(\"members\", hkj$ifPresent(wire.members(), members()::parseAll))")
+          .contains(
+              ".field(\"lead\", hkj$ifPresent(wire.lead(), o -> o.map(v -> lead().parse(v).map(Optional::of))")
           .doesNotContain("asIso");
     }
   }
@@ -301,7 +303,7 @@ class MappingProcessorTest {
       String generated = generatedSource(compilation, "com.example.DirectoryMappingImpl");
       Assertions.assertThat(generated)
           .contains("entries().buildValues(domain.entries())")
-          .contains(".field(\"entries\", entries().parseValues(wire.entries()))")
+          .contains(".field(\"entries\", hkj$ifPresent(wire.entries(), entries()::parseValues))")
           .doesNotContain("asIso");
 
       var result = new RuntimeCompilationHelper.CompiledResult(compilation);
@@ -417,8 +419,8 @@ class MappingProcessorTest {
       Assertions.assertThat(generated)
           .contains("CustomerMappingImpl.INSTANCE.asValidatedPrism().buildValues(domain.members())")
           .contains(
-              ".field(\"members\","
-                  + " CustomerMappingImpl.INSTANCE.asValidatedPrism().parseValues(wire.members()))");
+              ".field(\"members\", hkj$ifPresent(wire.members(),"
+                  + " CustomerMappingImpl.INSTANCE.asValidatedPrism()::parseValues))");
 
       var result = new RuntimeCompilationHelper.CompiledResult(compilation);
       try {
@@ -494,7 +496,8 @@ class MappingProcessorTest {
       Assertions.assertThat(generated)
           .contains("domain.owner().map(CustomerMappingImpl.INSTANCE.asValidatedPrism()::build)")
           .contains(
-              "wire.owner().map(v -> CustomerMappingImpl.INSTANCE.asValidatedPrism().parse(v)");
+              "hkj$ifPresent(wire.owner(), o -> o.map(v ->"
+                  + " CustomerMappingImpl.INSTANCE.asValidatedPrism().parse(v)");
     }
 
     @Test
@@ -538,7 +541,7 @@ class MappingProcessorTest {
       String generated = generatedSource(compilation, "com.example.LabelsMappingImpl");
       Assertions.assertThat(generated)
           .contains("new LabelsDto(domain.tags())")
-          .contains(".field(\"tags\", Validated.validNel(wire.tags()))")
+          .contains(".field(\"tags\", hkj$ifPresent(wire.tags(), Validated::validNel))")
           .contains("public Iso<Labels, LabelsDto> asIso()")
           .doesNotContain("parseValues")
           .doesNotContain("buildValues");
@@ -722,8 +725,8 @@ class MappingProcessorTest {
       String generated = generatedSource(compilation, "com.example.PersonMappingImpl");
       Assertions.assertThat(generated)
           .contains("new PersonDto(domain.first(), domain.last(), displayName().get(domain))")
-          .contains(".field(\"first\", Validated.validNel(wire.first()))")
-          .contains(".field(\"last\", Validated.validNel(wire.last()))")
+          .contains(".field(\"first\", hkj$ifPresent(wire.first(), Validated::validNel))")
+          .contains(".field(\"last\", hkj$ifPresent(wire.last(), Validated::validNel))")
           .doesNotContain(".field(\"displayName\"")
           .doesNotContain("asIso");
 
@@ -775,7 +778,7 @@ class MappingProcessorTest {
       String generated = generatedSource(compilation, "com.example.StampMappingImpl");
       Assertions.assertThat(generated)
           .contains("stamp().get(domain)")
-          .contains(".field(\"a\", Validated.validNel(wire.a()))")
+          .contains(".field(\"a\", hkj$ifPresent(wire.a(), Validated::validNel))")
           .contains("asValidatedPrism")
           .doesNotContain("asIso");
     }
@@ -832,8 +835,8 @@ class MappingProcessorTest {
           .contains(
               "new AccountDto(domain.name(), label().get(domain),"
                   + " email().build(domain.email()))")
-          .contains(".field(\"name\", Validated.validNel(wire.fullName()))")
-          .contains(".field(\"email\", email().parse(wire.email()))")
+          .contains(".field(\"name\", hkj$ifPresent(wire.fullName(), Validated::validNel))")
+          .contains(".field(\"email\", hkj$ifPresent(wire.email(), email()::parse))")
           .doesNotContain(".field(\"label\"")
           .doesNotContain("asIso");
 
@@ -902,8 +905,8 @@ class MappingProcessorTest {
       Assertions.assertThat(generated)
           .contains("InnerMappingImpl.INSTANCE.asValidatedPrism().build(domain.inner())")
           .contains(
-              ".field(\"inner\","
-                  + " InnerMappingImpl.INSTANCE.asValidatedPrism().parse(wire.inner()))");
+              ".field(\"inner\", hkj$ifPresent(wire.inner(),"
+                  + " InnerMappingImpl.INSTANCE.asValidatedPrism()::parse))");
     }
 
     @Test
@@ -1213,8 +1216,8 @@ class MappingProcessorTest {
       Assertions.assertThat(orderImpl)
           .contains("CustomerMappingImpl.INSTANCE.asValidatedPrism().build(domain.customer())")
           .contains(
-              ".field(\"customer\","
-                  + " CustomerMappingImpl.INSTANCE.asValidatedPrism().parse(wire.customer()))")
+              ".field(\"customer\", hkj$ifPresent(wire.customer(),"
+                  + " CustomerMappingImpl.INSTANCE.asValidatedPrism()::parse))")
           .doesNotContain("asIso");
     }
 
@@ -1261,8 +1264,8 @@ class MappingProcessorTest {
       Assertions.assertThat(generated)
           .contains("CustomerMappingImpl.INSTANCE.asValidatedPrism().buildAll(domain.customers())")
           .contains(
-              ".field(\"customers\","
-                  + " CustomerMappingImpl.INSTANCE.asValidatedPrism().parseAll(wire.customers()))");
+              ".field(\"customers\", hkj$ifPresent(wire.customers(),"
+                  + " CustomerMappingImpl.INSTANCE.asValidatedPrism()::parseAll))");
     }
 
     @Test
@@ -1307,8 +1310,8 @@ class MappingProcessorTest {
       Assertions.assertThat(generated)
           .contains("TreeMappingImpl.INSTANCE.asValidatedPrism().buildAll(domain.children())")
           .contains(
-              ".field(\"children\","
-                  + " TreeMappingImpl.INSTANCE.asValidatedPrism().parseAll(wire.children()))");
+              ".field(\"children\", hkj$ifPresent(wire.children(),"
+                  + " TreeMappingImpl.INSTANCE.asValidatedPrism()::parseAll))");
     }
 
     @Test
@@ -1548,8 +1551,8 @@ class MappingProcessorTest {
       Assertions.assertThat(generated)
           .contains("PaymentMappingImpl.INSTANCE.asValidatedPrism().build(domain.payment())")
           .contains(
-              ".field(\"payment\","
-                  + " PaymentMappingImpl.INSTANCE.asValidatedPrism().parse(wire.payment()))");
+              ".field(\"payment\", hkj$ifPresent(wire.payment(),"
+                  + " PaymentMappingImpl.INSTANCE.asValidatedPrism()::parse))");
     }
 
     @Test
@@ -2740,7 +2743,7 @@ class MappingProcessorTest {
       assertThat(compilation).succeeded();
       String generated = generatedSource(compilation, "com.example.AccountMappingImpl");
       Assertions.assertThat(generated)
-          .contains(".field(\"handle\", handle().parse(wire.handle()))")
+          .contains(".field(\"handle\", hkj$ifPresent(wire.handle(), handle()::parse))")
           .contains("handle().build(domain.handle())")
           .doesNotContain("asIso");
     }
@@ -2798,7 +2801,7 @@ class MappingProcessorTest {
       String generated = generatedSource(compilation, "com.example.HandlesMappingImpl");
       Assertions.assertThat(generated)
           .contains("tags().buildAll(domain.tags())")
-          .contains(".field(\"tags\", tags().parseAll(wire.tags()))")
+          .contains(".field(\"tags\", hkj$ifPresent(wire.tags(), tags()::parseAll))")
           .doesNotContain("asIso");
 
       var result = new RuntimeCompilationHelper.CompiledResult(compilation);
@@ -2875,7 +2878,8 @@ class MappingProcessorTest {
       String generated = generatedSource(compilation, "com.example.NicknameMappingImpl");
       Assertions.assertThat(generated)
           .contains("domain.alias().map(alias()::build)")
-          .contains(".field(\"alias\", wire.alias().map(v -> alias().parse(v).map(Optional::of))")
+          .contains(
+              ".field(\"alias\", hkj$ifPresent(wire.alias(), o -> o.map(v -> alias().parse(v).map(Optional::of))")
           .doesNotContain("asIso");
 
       var result = new RuntimeCompilationHelper.CompiledResult(compilation);
@@ -2949,7 +2953,7 @@ class MappingProcessorTest {
       String generated = generatedSource(compilation, "com.example.ContactsMappingImpl");
       Assertions.assertThat(generated)
           .contains("emails().buildValues(domain.emails())")
-          .contains(".field(\"emails\", emails().parseValues(wire.emails()))")
+          .contains(".field(\"emails\", hkj$ifPresent(wire.emails(), emails()::parseValues))")
           .doesNotContain("asIso");
 
       var result = new RuntimeCompilationHelper.CompiledResult(compilation);
@@ -4910,6 +4914,331 @@ class MappingProcessorTest {
       assertThat(compilation).hadErrorContaining("cannot find symbol");
       Assertions.assertThat(compilation.errors())
           .noneMatch(diagnostic -> diagnostic.getMessage(null).contains("collides"));
+    }
+  }
+
+  @Nested
+  @DisplayName("Located nulls on record wires (#653)")
+  class LocatedNullsOnRecordWires {
+
+    private Object instance(RuntimeCompilationHelper.CompiledResult result, String implFqcn) {
+      try {
+        return result.loadClass(implFqcn).getField("INSTANCE").get(null);
+      } catch (ReflectiveOperationException e) {
+        throw new AssertionError(e);
+      }
+    }
+
+    @SuppressWarnings("unchecked")
+    private Validated<NonEmptyList<FieldError>, Object> parse(Object impl, Object wire) {
+      return (Validated<NonEmptyList<FieldError>, Object>) invoke(impl, "parse", wire);
+    }
+
+    private List<String> renderedErrors(Validated<NonEmptyList<FieldError>, Object> result) {
+      return result.getError().toJavaList().stream().map(FieldError::toString).toList();
+    }
+
+    @Test
+    @DisplayName(
+        "null components are located, accumulated invalids, never an NPE — the guard"
+            + " beats the leaf")
+    void nullComponentsAccumulateLocated() {
+      Compilation compilation = compile(EMAIL, DOMAIN, WIRE, SPEC);
+      assertThat(compilation).succeeded();
+      var result = new RuntimeCompilationHelper.CompiledResult(compilation);
+      try {
+        Object impl = instance(result, "com.example.UserMappingImpl");
+        Object wire =
+            result
+                .loadClass("com.example.UserDto")
+                .getDeclaredConstructor(String.class, String.class, int.class)
+                .newInstance(null, "not-an-email", 36);
+
+        Validated<NonEmptyList<FieldError>, Object> parsed = parse(impl, wire);
+        Assertions.assertThat(parsed.isInvalid()).isTrue();
+        Assertions.assertThat(renderedErrors(parsed))
+            .containsExactly("name: must not be null", "email: not an email address");
+
+        // A null leaf read never reaches the leaf's prism (which would throw): guard first.
+        Object nullLeafWire =
+            result
+                .loadClass("com.example.UserDto")
+                .getDeclaredConstructor(String.class, String.class, int.class)
+                .newInstance("Ada", null, 36);
+        Assertions.assertThat(renderedErrors(parse(impl, nullLeafWire)))
+            .containsExactly("email: must not be null");
+      } catch (ReflectiveOperationException e) {
+        throw new AssertionError(e);
+      }
+    }
+
+    @Test
+    @DisplayName("a null inside a nested wire value locates through the nesting as a dotted path")
+    void nullsLocateThroughNesting() {
+      JavaFileObject customer =
+          JavaFileObjects.forSourceString(
+              "com.example.Customer",
+              """
+              package com.example;
+
+              public record Customer(String name) {}
+              """);
+      JavaFileObject customerDto =
+          JavaFileObjects.forSourceString(
+              "com.example.CustomerDto",
+              """
+              package com.example;
+
+              public record CustomerDto(String name) {}
+              """);
+      JavaFileObject customerMapping =
+          JavaFileObjects.forSourceString(
+              "com.example.CustomerMapping",
+              """
+              package com.example;
+
+              import org.higherkindedj.optics.annotations.GenerateMapping;
+              import org.higherkindedj.optics.annotations.MappingSpec;
+
+              @GenerateMapping
+              public interface CustomerMapping extends MappingSpec<Customer, CustomerDto> {}
+              """);
+      JavaFileObject order =
+          JavaFileObjects.forSourceString(
+              "com.example.Order",
+              """
+              package com.example;
+
+              public record Order(String id, Customer customer) {}
+              """);
+      JavaFileObject orderDto =
+          JavaFileObjects.forSourceString(
+              "com.example.OrderDto",
+              """
+              package com.example;
+
+              public record OrderDto(String id, CustomerDto customer) {}
+              """);
+      JavaFileObject orderMapping =
+          JavaFileObjects.forSourceString(
+              "com.example.OrderMapping",
+              """
+              package com.example;
+
+              import org.higherkindedj.optics.annotations.GenerateMapping;
+              import org.higherkindedj.optics.annotations.MappingSpec;
+
+              @GenerateMapping
+              public interface OrderMapping extends MappingSpec<Order, OrderDto> {}
+              """);
+
+      Compilation compilation =
+          compile(customer, customerDto, customerMapping, order, orderDto, orderMapping);
+      assertThat(compilation).succeeded();
+      var result = new RuntimeCompilationHelper.CompiledResult(compilation);
+      try {
+        Object impl = instance(result, "com.example.OrderMappingImpl");
+        Object innerNull =
+            result
+                .loadClass("com.example.CustomerDto")
+                .getDeclaredConstructor(String.class)
+                .newInstance((Object) null);
+        Object wire =
+            result
+                .loadClass("com.example.OrderDto")
+                .getDeclaredConstructor(String.class, result.loadClass("com.example.CustomerDto"))
+                .newInstance("7", innerNull);
+
+        Assertions.assertThat(renderedErrors(parse(impl, wire)))
+            .containsExactly("customer.name: must not be null");
+      } catch (ReflectiveOperationException e) {
+        throw new AssertionError(e);
+      }
+    }
+
+    @Test
+    @DisplayName("patch locates a nested null at depth: the 422 leg stays a 422, never a 500")
+    void patchLocatesNestedNullAtDepth() {
+      JavaFileObject address =
+          JavaFileObjects.forSourceString(
+              "com.example.Address",
+              """
+              package com.example;
+
+              public record Address(String zip) {}
+              """);
+      JavaFileObject addressDto =
+          JavaFileObjects.forSourceString(
+              "com.example.AddressDto",
+              """
+              package com.example;
+
+              public record AddressDto(String zip) {}
+              """);
+      JavaFileObject addressMapping =
+          JavaFileObjects.forSourceString(
+              "com.example.AddressMapping",
+              """
+              package com.example;
+
+              import org.higherkindedj.optics.annotations.GenerateMapping;
+              import org.higherkindedj.optics.annotations.MappingSpec;
+
+              @GenerateMapping
+              public interface AddressMapping extends MappingSpec<Address, AddressDto> {}
+              """);
+      JavaFileObject customer =
+          JavaFileObjects.forSourceString(
+              "com.example.Customer",
+              """
+              package com.example;
+
+              public record Customer(String id, Address address) {}
+              """);
+      JavaFileObject customerPatchDto =
+          JavaFileObjects.forSourceString(
+              "com.example.CustomerPatchDto",
+              """
+              package com.example;
+
+              public record CustomerPatchDto(AddressDto address) {}
+              """);
+      JavaFileObject customerPatchMapping =
+          JavaFileObjects.forSourceString(
+              "com.example.CustomerPatchMapping",
+              """
+              package com.example;
+
+              import org.higherkindedj.optics.annotations.GenerateMapping;
+              import org.higherkindedj.optics.annotations.MappingSpec;
+
+              @GenerateMapping
+              public interface CustomerPatchMapping
+                  extends MappingSpec<Customer, CustomerPatchDto> {}
+              """);
+
+      Compilation compilation =
+          compile(
+              address,
+              addressDto,
+              addressMapping,
+              customer,
+              customerPatchDto,
+              customerPatchMapping);
+      assertThat(compilation).succeeded();
+      var result = new RuntimeCompilationHelper.CompiledResult(compilation);
+      try {
+        Object impl = instance(result, "com.example.CustomerPatchMappingImpl");
+        Object domainAddress =
+            result
+                .loadClass("com.example.Address")
+                .getDeclaredConstructor(String.class)
+                .newInstance("12345");
+        Object domain =
+            result
+                .loadClass("com.example.Customer")
+                .getDeclaredConstructor(String.class, result.loadClass("com.example.Address"))
+                .newInstance("7", domainAddress);
+        Object wireAddress =
+            result
+                .loadClass("com.example.AddressDto")
+                .getDeclaredConstructor(String.class)
+                .newInstance((Object) null);
+        Object wire =
+            result
+                .loadClass("com.example.CustomerPatchDto")
+                .getDeclaredConstructor(result.loadClass("com.example.AddressDto"))
+                .newInstance(wireAddress);
+
+        @SuppressWarnings("unchecked")
+        Validated<NonEmptyList<FieldError>, Object> patched =
+            (Validated<NonEmptyList<FieldError>, Object>) invoke(impl, "patch", domain, wire);
+        Assertions.assertThat(patched.isInvalid()).isTrue();
+        Assertions.assertThat(renderedErrors(patched))
+            .containsExactly("address.zip: must not be null");
+      } catch (ReflectiveOperationException e) {
+        throw new AssertionError(e);
+      }
+    }
+
+    @Test
+    @DisplayName(
+        "a null container leg is located; a null element inside the container follows"
+            + " the container's own contract")
+    void containerLegNullsAreLocatedElementNullsAreNot() {
+      JavaFileObject roster =
+          JavaFileObjects.forSourceString(
+              "com.example.Roster",
+              """
+              package com.example;
+
+              import java.util.List;
+
+              public record Roster(String id, List<EmailAddress> emails) {}
+              """);
+      JavaFileObject rosterDto =
+          JavaFileObjects.forSourceString(
+              "com.example.RosterDto",
+              """
+              package com.example;
+
+              import java.util.List;
+
+              public record RosterDto(String id, List<String> emails) {}
+              """);
+      JavaFileObject rosterMapping =
+          JavaFileObjects.forSourceString(
+              "com.example.RosterMapping",
+              """
+              package com.example;
+
+              import org.higherkindedj.hkt.validated.FieldError;
+              import org.higherkindedj.hkt.validated.Validated;
+              import org.higherkindedj.optics.annotations.GenerateMapping;
+              import org.higherkindedj.optics.annotations.MappingSpec;
+              import org.higherkindedj.optics.validated.ValidatedPrism;
+
+              @GenerateMapping
+              public interface RosterMapping extends MappingSpec<Roster, RosterDto> {
+                default ValidatedPrism<String, EmailAddress> emails() {
+                  return ValidatedPrism.of(
+                      raw ->
+                          raw.contains("@")
+                              ? Validated.validNel(new EmailAddress(raw))
+                              : Validated.invalidNel(FieldError.of("not an email address")),
+                      EmailAddress::value);
+                }
+              }
+              """);
+
+      Compilation compilation = compile(EMAIL, roster, rosterDto, rosterMapping);
+      assertThat(compilation).succeeded();
+      var result = new RuntimeCompilationHelper.CompiledResult(compilation);
+      try {
+        Object impl = instance(result, "com.example.RosterMappingImpl");
+        Object nullListWire =
+            result
+                .loadClass("com.example.RosterDto")
+                .getDeclaredConstructor(String.class, List.class)
+                .newInstance("7", null);
+        Assertions.assertThat(renderedErrors(parse(impl, nullListWire)))
+            .containsExactly("emails: must not be null");
+
+        // The documented boundary: the leg guard covers the container read; a null ELEMENT
+        // follows parseAll's own contract and still throws.
+        Object nullElementWire =
+            result
+                .loadClass("com.example.RosterDto")
+                .getDeclaredConstructor(String.class, List.class)
+                .newInstance("7", Arrays.asList("a@b.c", null));
+        Throwable thrown = Assertions.catchThrowable(() -> invoke(impl, "parse", nullElementWire));
+        Assertions.assertThat(thrown)
+            .rootCause()
+            .isInstanceOf(NullPointerException.class)
+            .hasMessage("sources[1] must not be null");
+      } catch (ReflectiveOperationException e) {
+        throw new AssertionError(e);
+      }
     }
   }
 
