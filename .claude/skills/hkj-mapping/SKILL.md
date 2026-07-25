@@ -158,7 +158,7 @@ serves every instantiation via `PageMappingImpl.<T>instance()` (the `EitherMonad
 convention); same-variable elements copy by identity; multi-parameter and bounded variables thread.
 Both are record-to-record only (bean wires and `UpdateSpec` stay concrete). Raw (`Page`, incl. raw
 nested arguments) and wildcard (`Page<?>`) shapes are diagnosed; array arguments are concrete. A
-threaded spec is not yet nestable, and an ABSTRACT leaf (`ValidatedPrism<TDto, T> items();` — the
+threaded spec is not yet nestable, and an *abstract* leaf (`ValidatedPrism<TDto, T> items();` — the
 element-mapped form) stays diagnosed — both arrive with the element-mapped slice.
 
 ### Sealed hierarchies dispatch exhaustively

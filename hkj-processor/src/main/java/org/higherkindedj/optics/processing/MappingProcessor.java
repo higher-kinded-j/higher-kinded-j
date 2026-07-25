@@ -297,11 +297,12 @@ public class MappingProcessor extends AbstractProcessor {
   }
 
   /**
-   * Record pairs may instantiate generic records with concrete type arguments (issue #624): {@code
-   * MappingSpec<Page<User>, PageDto<UserDto>>} classifies with every component type substituted
-   * under the instantiation, so the existing leaf/nesting/container machinery applies unchanged. A
-   * generic <em>spec</em> (threaded type parameters) and raw, wildcard or type-variable arguments
-   * stay diagnosed.
+   * Record pairs may use generic records two ways (issue #624): concretely instantiated ({@code
+   * MappingSpec<Page<User>, PageDto<UserDto>>}) or threaded through the spec's own type parameters
+   * ({@code PageMapping<T> extends MappingSpec<Page<T>, PageDto<T>>}); the two compose recursively
+   * per argument. Raw uses, wildcards and foreign type variables stay diagnosed (the
+   * foreign-variable check is defensive — a direct extends clause can only name the spec's own
+   * variables).
    */
   private boolean checkGenericsSupported(
       TypeElement spec,
@@ -309,7 +310,8 @@ public class MappingProcessor extends AbstractProcessor {
       DeclaredType domainDeclared,
       TypeElement wire,
       DeclaredType wireDeclared) {
-    return supportedUse(spec, domain, domainDeclared) && supportedUse(spec, wire, wireDeclared);
+    return supportedUse(spec, domain, domainDeclared, "domain")
+        && supportedUse(spec, wire, wireDeclared, "wire");
   }
 
   /**
@@ -320,7 +322,8 @@ public class MappingProcessor extends AbstractProcessor {
    * diagnosed; an argument mixing a spec variable inside a concrete shape ({@code Page<List<T>>})
    * is threaded fine because the check is recursive on both sides.
    */
-  private boolean supportedUse(TypeElement spec, TypeElement record, DeclaredType used) {
+  private boolean supportedUse(
+      TypeElement spec, TypeElement record, DeclaredType used, String side) {
     if (record.getTypeParameters().isEmpty()) {
       return true;
     }
@@ -344,22 +347,16 @@ public class MappingProcessor extends AbstractProcessor {
             "'" + used + "' is not a supported instantiation.",
             "A type argument must be a concrete type or one of the spec's own type parameters;"
                 + " wildcards and raw nested uses leave component types unresolvable.",
-            "Use concrete arguments (e.g. '"
+            "Use concrete arguments on the "
+                + side
+                + " (e.g. '"
                 + record.getSimpleName()
-                + "<User>'), or thread the spec's type parameters ('interface "
-                + spec.getSimpleName()
-                + "<T> extends MappingSpec<"
-                + domainOrWireHint(record)
-                + ">').");
+                + "<User>'), or thread the spec's own type parameters (e.g. 'interface"
+                + " PageMapping<T> extends MappingSpec<Page<T>, PageDto<T>>').");
         return false;
       }
     }
     return true;
-  }
-
-  /** A worked fix-hint shape for the unsupported-instantiation diagnostic. */
-  private static String domainOrWireHint(TypeElement record) {
-    return record.getSimpleName() + "<T>, " + record.getSimpleName() + "Dto<T>";
   }
 
   /**
@@ -2091,6 +2088,11 @@ public class MappingProcessor extends AbstractProcessor {
     if (lossless) {
       emitted.add(EmittedMember.of("asIso"));
     }
+    // A generic Impl also declares the static instance() singleton accessor (#624 slice 2); a
+    // spec method with that erased signature would clash with or shadow it in the generated file.
+    if (!spec.getTypeParameters().isEmpty()) {
+      emitted.add(EmittedMember.of("instance"));
+    }
     if (!checkNoEmittedCollisions(spec, "a full mapping", emitted)) {
       return;
     }
@@ -2250,9 +2252,14 @@ public class MappingProcessor extends AbstractProcessor {
     if (!checkNoEmittedCollisions(
         spec,
         "a leaf-carrying projection",
-        List.of(
-            EmittedMember.of("build", domainDeclared),
-            EmittedMember.of("patch", domainDeclared, wireUsed)))) {
+        spec.getTypeParameters().isEmpty()
+            ? List.of(
+                EmittedMember.of("build", domainDeclared),
+                EmittedMember.of("patch", domainDeclared, wireUsed))
+            : List.of(
+                EmittedMember.of("build", domainDeclared),
+                EmittedMember.of("patch", domainDeclared, wireUsed),
+                EmittedMember.of("instance")))) {
       return;
     }
 
@@ -2364,7 +2371,12 @@ public class MappingProcessor extends AbstractProcessor {
     if (!checkNoEmittedCollisions(
         spec,
         "a lossy projection",
-        List.of(EmittedMember.of("build", domainDeclared), EmittedMember.of("asLens")))) {
+        spec.getTypeParameters().isEmpty()
+            ? List.of(EmittedMember.of("build", domainDeclared), EmittedMember.of("asLens"))
+            : List.of(
+                EmittedMember.of("build", domainDeclared),
+                EmittedMember.of("asLens"),
+                EmittedMember.of("instance")))) {
       return;
     }
 
