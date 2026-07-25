@@ -152,8 +152,9 @@ Recursive records (a `Tree` of `Tree`) work too.
 
 Generic records map as **concrete instantiations** (`extends MappingSpec<Page<User>, PageDto<UserDto>>`):
 components classify under the substitution, so leaves/nesting/containers and the null doctrine apply
-unchanged, and the instantiated mapping nests into siblings automatically. Record-record pairs only —
-a bean-shaped wire (and a sparse `UpdateSpec`) keeps its pair concrete for now. Raw (`Page`, incl.
+unchanged, and the instantiated mapping nests into siblings automatically. Supported for
+record-to-record mappings only: bean-shaped wires and `UpdateSpec` mappings do not support generic
+instantiations yet. Raw (`Page`, incl.
 raw nested arguments), wildcard (`Page<?>`) and generic-spec (`PageMapping<T>`) shapes are
 diagnosed; array arguments are concrete. Threaded type parameters are not yet supported.
 

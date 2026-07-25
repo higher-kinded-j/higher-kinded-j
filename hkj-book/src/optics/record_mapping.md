@@ -168,7 +168,7 @@ A generic record maps as a **concrete instantiation**: name the type arguments i
 {{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/mapping/RecordMappingBook.java:generic_usage}}
 ```
 
-An instantiated mapping registers like any other, so `Report(Page<Customer> results)` nests it automatically. Instantiations apply to **record-record pairs**: a bean-shaped wire (and a sparse `UpdateSpec`) keeps its pair concrete for now. Raw uses (`Page`, including raw *nested* arguments), wildcards (`Page<?>`) and **generic specs** (`PageMapping<T>` — threaded type parameters) are diagnosed; array arguments (`Page<String[]>`) are concrete and map fine. The threaded form arrives with the full mapper.
+An instantiated mapping registers like any other, so `Report(Page<Customer> results)` nests it automatically. Concrete generic instantiations are supported for **record-to-record mappings only**: bean-shaped wires and `UpdateSpec` mappings do not support them yet. Raw uses (`Page`, including raw *nested* arguments), wildcards (`Page<?>`) and **generic specs** (`PageMapping<T>` — threaded type parameters) are diagnosed; array arguments (`Page<String[]>`) are concrete and map fine. The threaded form arrives with the full mapper.
 
 ---
 

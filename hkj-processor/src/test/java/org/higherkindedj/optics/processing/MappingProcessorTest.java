@@ -5469,6 +5469,13 @@ class MappingProcessorTest {
               generatedSource(compilation, "com.example.FurtherShapesArrayPageMappingImpl"))
           .contains("public PageDto<String[]> build(Page<String[]> domain)");
       Assertions.assertThat(
+              generatedSource(
+                  compilation, "com.example.FurtherShapesPrimitiveArrayPageMappingImpl"))
+          .contains("public PageDto<int[]> build(Page<int[]> domain)");
+      Assertions.assertThat(
+              generatedSource(compilation, "com.example.FurtherShapesDeepPageMappingImpl"))
+          .contains("public PageDto<List<String>> build(Page<List<String>> domain)");
+      Assertions.assertThat(
               generatedSource(compilation, "com.example.FurtherShapesIntRankedMappingImpl"))
           .contains("public RankedDto<Integer> build(Ranked<Integer> domain)");
     }
