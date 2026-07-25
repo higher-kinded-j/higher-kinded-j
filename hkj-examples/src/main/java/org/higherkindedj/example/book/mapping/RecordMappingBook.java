@@ -76,6 +76,15 @@ public final class RecordMappingBook {
                 List.of(new CustomerDto("Ada", "ada@corp.example"), new CustomerDto("Bob", "nope")),
                 2)));
 
+    // ANCHOR: threaded_usage
+    // One generic Impl serves every instantiation; identity elements copy through.
+    Page<String> tags = new Page<>(List.of("fp", "hkt"), 2);
+    PageDto<String> tagsDto = PageMappingImpl.<String>instance().build(tags);
+    Validated<NonEmptyList<FieldError>, Page<Integer>> counts =
+        PageMappingImpl.<Integer>instance().parse(new PageDto<>(List.of(1, 2, 3), 3));
+    // ANCHOR_END: threaded_usage
+    System.out.println(tagsDto + " / " + counts);
+
     // ANCHOR: projection_usage
     Employee employee = new Employee("Ada", "Research", 36);
     Lens<Employee, EmployeeCardDto> badge = EmployeeCardMappingImpl.INSTANCE.asLens();
@@ -222,6 +231,14 @@ record PageDto<T>(List<T> items, int total) {}
 interface CustomerPageMapping extends MappingSpec<Page<Customer>, PageDto<CustomerDto>> {}
 
 // ANCHOR_END: generic_spec
+
+// ANCHOR: threaded_spec
+@GenerateMapping
+interface PageMapping<T> extends MappingSpec<Page<T>, PageDto<T>> {}
+
+// one Impl for every T: PageMappingImpl.<String>instance(), .<Integer>instance(), ...
+
+// ANCHOR_END: threaded_spec
 
 // ANCHOR: sealed_spec
 sealed interface Payment permits Card, Bank {}

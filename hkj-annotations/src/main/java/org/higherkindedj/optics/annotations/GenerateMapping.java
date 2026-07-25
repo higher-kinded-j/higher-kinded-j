@@ -29,13 +29,17 @@ import java.lang.annotation.Target;
  *   <li>Record components mapped by another spec in the same compilation nest automatically, and
  *       {@code List}/{@code Optional} components lift through the element's leaf or spec.
  *   <li>Sealed interface pairs dispatch over their permitted subtype pairs, one spec per pair.
- *   <li>Generic records map as concrete instantiations (issue #624): {@code MappingSpec<Page<User>,
- *       PageDto<UserDto>>} classifies every component under the substitution, and the instantiated
- *       mapping nests into siblings like any other. Concrete generic instantiations are supported
- *       for record-to-record mappings only: bean-shaped wires and {@code UpdateSpec} mappings do
- *       not support them yet. Raw uses (including raw nested arguments), wildcard arguments and
- *       generic specs ({@code PageMapping<T>}) are diagnosed; array arguments are concrete.
- *       Threaded type parameters are not yet supported.
+ *   <li>Generic records map two ways (issue #624). As concrete instantiations: {@code
+ *       MappingSpec<Page<User>, PageDto<UserDto>>} classifies every component under the
+ *       substitution, and the instantiated mapping nests into siblings like any other. As threaded
+ *       specs: {@code PageMapping<T> extends MappingSpec<Page<T>, PageDto<T>>} generates one
+ *       generic Impl serving every instantiation, reached through the {@code instance()}
+ *       generic-singleton convention ({@code EitherMonad.instance()}); elements sharing a variable
+ *       copy by identity. Both are record-to-record only (bean-shaped wires and {@code UpdateSpec}
+ *       mappings stay concrete); raw uses (including raw nested arguments) and wildcards are
+ *       diagnosed, array arguments are concrete, and a threaded spec is not yet nestable — that,
+ *       and the element-mapped form (an abstract {@code ValidatedPrism<TDto, T>} leaf), arrive with
+ *       the element-mapped slice.
  *   <li>Every reference-typed {@code parse} read is null-guarded into a located {@code FieldError},
  *       on both wire shapes (issue #653): an unset bean property is null, and a JSON binder leaves
  *       a missing record component null just the same. A bean's guarded reads make {@code asIso()}

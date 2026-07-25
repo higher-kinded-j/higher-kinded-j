@@ -150,13 +150,16 @@ public interface InvoiceMapping extends MappingSpec<Invoice, InvoiceDto> {}   //
 
 Recursive records (a `Tree` of `Tree`) work too.
 
-Generic records map as **concrete instantiations** (`extends MappingSpec<Page<User>, PageDto<UserDto>>`):
-components classify under the substitution, so leaves/nesting/containers and the null doctrine apply
-unchanged, and the instantiated mapping nests into siblings automatically. Supported for
-record-to-record mappings only: bean-shaped wires and `UpdateSpec` mappings do not support generic
-instantiations yet. Raw (`Page`, incl.
-raw nested arguments), wildcard (`Page<?>`) and generic-spec (`PageMapping<T>`) shapes are
-diagnosed; array arguments are concrete. Threaded type parameters are not yet supported.
+Generic records map two ways. **Concrete instantiations** (`extends MappingSpec<Page<User>,
+PageDto<UserDto>>`): components classify under the substitution, so leaves/nesting/containers and
+the null doctrine apply unchanged, and the instantiated mapping nests into siblings automatically.
+**Threaded specs** (`PageMapping<T> extends MappingSpec<Page<T>, PageDto<T>>`): one generic Impl
+serves every instantiation via `PageMappingImpl.<T>instance()` (the `EitherMonad.instance()`
+convention); same-variable elements copy by identity; multi-parameter and bounded variables thread.
+Both are record-to-record only (bean wires and `UpdateSpec` stay concrete). Raw (`Page`, incl. raw
+nested arguments) and wildcard (`Page<?>`) shapes are diagnosed; array arguments are concrete. A
+threaded spec is not yet nestable, and an ABSTRACT leaf (`ValidatedPrism<TDto, T> items();` — the
+element-mapped form) stays diagnosed — both arrive with the element-mapped slice.
 
 ### Sealed hierarchies dispatch exhaustively
 
