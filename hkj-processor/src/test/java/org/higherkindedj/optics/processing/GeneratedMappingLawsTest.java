@@ -14,6 +14,7 @@ import java.util.Optional;
 import java.util.function.BiFunction;
 import java.util.function.Function;
 import javax.tools.JavaFileObject;
+import org.assertj.core.api.Assertions;
 import org.higherkindedj.hkt.nonemptylist.NonEmptyList;
 import org.higherkindedj.hkt.validated.FieldError;
 import org.higherkindedj.hkt.validated.Validated;
@@ -128,6 +129,24 @@ class GeneratedMappingLawsTest {
         asValidatedPrism(impl),
         result.newInstance("com.example.Person", "Ada", 36),
         result.newInstance("com.example.PersonDto", "Grace", 41));
+
+    // The coherence law above is scoped to non-null wires (#653): a null-carrying wire is a
+    // located Invalid from parse — asIso() survives on a lossless record with a reference
+    // component precisely because this guard covers hostile bindings, not a representable state.
+    try {
+      Object nullWire =
+          result
+              .loadClass("com.example.PersonDto")
+              .getDeclaredConstructor(String.class, int.class)
+              .newInstance(null, 41);
+      Validated<NonEmptyList<FieldError>, Object> parsed = asValidatedPrism(impl).parse(nullWire);
+      Assertions.assertThat(parsed.isInvalid()).isTrue();
+      Assertions.assertThat(
+              parsed.getError().toJavaList().stream().map(FieldError::toString).toList())
+          .containsExactly("name: must not be null");
+    } catch (ReflectiveOperationException e) {
+      throw new AssertionError(e);
+    }
   }
 
   @Test

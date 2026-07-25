@@ -628,8 +628,8 @@ class MappingProcessorBeanTest {
       Assertions.assertThat(generated)
           .contains("CustomerMappingImpl.INSTANCE.asValidatedPrism().build(domain.customer())")
           .contains(
-              ".field(\"customer\","
-                  + " CustomerMappingImpl.INSTANCE.asValidatedPrism().parse(wire.customer()))");
+              ".field(\"customer\", hkj$ifPresent(wire.customer(),"
+                  + " CustomerMappingImpl.INSTANCE.asValidatedPrism()::parse))");
     }
   }
 

@@ -74,11 +74,19 @@ import org.higherkindedj.optics.processing.util.Diagnostics;
  * pairs dispatch {@code build}/{@code parse} over their permitted subtype pairs, each delegating to
  * its own spec.
  *
+ * <p>One null doctrine covers both wire shapes (issue #653): every reference-typed {@code parse}
+ * read is null-guarded into a located {@code FieldError} — an unset bean property is null, and a
+ * JSON binder leaves a missing record component null just the same — so a component-level null is a
+ * located, accumulated invalid, never an exception (a null wire itself stays the caller-contract
+ * {@code requireNonNull}, and a null <em>element</em> inside a {@code List}/{@code Map} value
+ * follows the container's own contract). What stays bean-only is the <em>absence</em> contract:
+ * only a bean property is legitimately unset, so only bean guards cost the Iso tier — {@code
+ * asIso()} is truthful for an all-primitive bean, while a lossless record mapping keeps it with the
+ * parse-iso coherence law scoped to wires whose reference components are non-null.
+ *
  * <p>The wire may be a bean-shaped class instead of a record (issue #628, {@link WireShape}):
- * {@code build} fills it through setters or a builder and {@code parse} reads it through getters.
- * Since an unset bean property is null, every reference-typed read is null-guarded into a located
- * {@code FieldError}, which makes {@code asIso()} truthful only for an all-primitive bean; a domain
- * {@code Optional<T>} bridges to a nullable bean property {@code T}. A reference-typed bean
+ * {@code build} fills it through setters or a builder and {@code parse} reads it through getters; a
+ * domain {@code Optional<T>} bridges to a nullable bean property {@code T}. A reference-typed bean
  * projection is deferred (the validated-patch tier); an all-primitive one keeps the {@code
  * asLens()} projection.
  *
@@ -1865,16 +1873,16 @@ public class MappingProcessor extends AbstractProcessor {
   }
 
   /**
-   * Whether a component's parse read must be null-guarded: only bean properties can be null, and
-   * only reference-typed ones (a primitive identity read cannot be null, and a derived field is not
-   * read at all).
+   * Whether a component's parse read must be null-guarded: every reference read, on both wire
+   * shapes (issue #653). An unset bean property is null, and Jackson binds a missing JSON property
+   * on a record component to null just the same — "a record can never read null" is false at every
+   * JSON boundary, so the guard policy is shape-independent. Only a primitive identity read (which
+   * cannot be null) goes unguarded.
    */
-  private static boolean beanGuard(Correspondence c, WireShape wire) {
+  private static boolean guardedRead(Correspondence c, WireShape wire) {
     // Derived fields are not read; an Optional bridge maps null to Optional.empty, so both are
     // null-safe and never guarded.
-    if (!(wire instanceof WireShape.BeanShape)
-        || c.kind() == Kind.DERIVED
-        || c.kind() == Kind.OPTIONAL_BRIDGE) {
+    if (c.kind() == Kind.DERIVED || c.kind() == Kind.OPTIONAL_BRIDGE) {
       return false;
     }
     if (c.kind() == Kind.IDENTITY) {
@@ -1884,12 +1892,25 @@ public class MappingProcessor extends AbstractProcessor {
   }
 
   /**
-   * The {@code hkj$ifPresent} guard emitted into bean-wire impls: a null property read becomes a
-   * located {@code FieldError} (the {@code fields()} ladder attaches the component label), so a
-   * null never reaches a leaf's {@code parse}, which rejects it. The name lives in the {@code $}
-   * namespace, which JLS 3.8 reserves for mechanically generated code, so no ordinary spec method
-   * can collide with the declaration or capture its call sites through overload resolution (issue
-   * #654) — which is why the collision sweep needs no reservation for it.
+   * Whether a guarded read costs the Iso tier: only on a bean wire. A bean's reference property is
+   * legitimately unset in normal use, so its guarded read is fallible and {@code asIso()} stays
+   * truthful only for an all-primitive bean. A record wire's guard exists for hostile input (a
+   * null-carrying JSON binding), not for a representable absent state, so a lossless record mapping
+   * keeps {@code asIso()} — the parse-iso coherence law is scoped to wires whose reference
+   * components are non-null (issue #653).
+   */
+  private static boolean lossyRead(Correspondence c, WireShape wire) {
+    return wire instanceof WireShape.BeanShape && guardedRead(c, wire);
+  }
+
+  /**
+   * The {@code hkj$ifPresent} guard emitted into impls with guarded reads (both wire shapes since
+   * issue #653): a null read becomes a located {@code FieldError} (the {@code fields()} ladder
+   * attaches the component label), so a null never reaches a leaf's {@code parse}, which rejects
+   * it. The name lives in the {@code $} namespace, which JLS 3.8 reserves for mechanically
+   * generated code, so no ordinary spec method can collide with the declaration or capture its call
+   * sites through overload resolution (issue #654) — which is why the collision sweep needs no
+   * reservation for it.
    */
   private static MethodSpec ifPresentHelper() {
     TypeVariableName s = TypeVariableName.get("S");
@@ -1909,8 +1930,8 @@ public class MappingProcessor extends AbstractProcessor {
         .addParameter(s, "value")
         .addParameter(parseFn, "parse")
         .addJavadoc(
-            "Guards a nullable bean-property read: a null becomes a located {@code FieldError},"
-                + " otherwise the value is parsed.\n")
+            "Guards a nullable wire read: a null becomes a located {@code FieldError}, otherwise"
+                + " the value is parsed.\n")
         .addStatement(
             "return value == null ? $T.invalidNel($T.of($S)) : parse.apply(value)",
             VALIDATED,
@@ -1931,10 +1952,11 @@ public class MappingProcessor extends AbstractProcessor {
 
     // Derived fields are non-identity, so they exclude the Iso tier too: wire -> domain -> wire
     // recomputes the derived component, an identity only for wire values already consistent. A
-    // bean's null-guarded reference reads are fallible too, so only an all-primitive bean stays
-    // lossless (its reads cannot be null).
-    boolean lossless = comps.stream().noneMatch(c -> c.fallible() || beanGuard(c, wire));
-    boolean needsGuardHelper = comps.stream().anyMatch(c -> beanGuard(c, wire));
+    // bean's null-guarded reference reads are fallible too (an unset property is a representable
+    // state), so only an all-primitive bean stays lossless; a record wire's guards are for
+    // hostile null bindings only and do not cost the Iso tier (issue #653).
+    boolean lossless = comps.stream().noneMatch(c -> c.fallible() || lossyRead(c, wire));
+    boolean needsGuardHelper = comps.stream().anyMatch(c -> guardedRead(c, wire));
 
     List<EmittedMember> emitted = new ArrayList<>();
     emitted.add(EmittedMember.of("build", domain.asType()));
@@ -1955,9 +1977,10 @@ public class MappingProcessor extends AbstractProcessor {
 
     CodeBlock.Builder parseChain = CodeBlock.builder().add("return $T.fields()", VALIDATED);
     for (Correspondence c : comps) {
-      // A bean property is null when unset, so its read is guarded before it reaches a leaf (whose
-      // parse rejects null) or the identity copy; the guard locates the null under the field label.
-      parseChain.add(parseLeg(c, wireRead(wire, c.wireName()), beanGuard(c, wire)));
+      // An unset bean property and a Jackson-bound missing record component both read null, so
+      // every reference read is guarded before it reaches a leaf (whose parse rejects null) or
+      // the identity copy; the guard locates the null under the field label (issue #653).
+      parseChain.add(parseLeg(c, wireRead(wire, c.wireName()), guardedRead(c, wire)));
     }
     parseChain.add("\n.apply($T::new)", domainName);
 
@@ -2017,49 +2040,33 @@ public class MappingProcessor extends AbstractProcessor {
 
   /**
    * One {@code Validated.fields()} leg for a correspondence — shared by the full tier's {@code
-   * parse} and the projection tier's {@code patch}. When {@code guard} is set the read is wrapped
-   * in the {@code hkj$ifPresent} helper, so a null becomes a located {@code FieldError} instead of
-   * reaching a leaf (whose parse rejects null) or the identity copy.
+   * parse} and the projection tier's {@code patch}. Since issue #653 every reference read is
+   * guarded (see {@link #guardedRead}), so the leaf and container legs always wrap their read in
+   * the {@code hkj$ifPresent} helper — a null becomes a located {@code FieldError} instead of
+   * reaching a leaf (whose parse rejects null). {@code guard} only varies the identity leg, whose
+   * primitive reads can never be null.
    */
   private CodeBlock parseLeg(Correspondence c, CodeBlock read, boolean guard) {
     ClassName optional = ClassName.get("java.util", "Optional");
     return switch (c.kind()) {
       case LEAF ->
-          guard
-              ? CodeBlock.of(
-                  "\n.field($S, hkj$$ifPresent($L, $L::parse))", c.name(), read, c.prism())
-              : CodeBlock.of("\n.field($S, $L.parse($L))", c.name(), c.prism(), read);
+          CodeBlock.of("\n.field($S, hkj$$ifPresent($L, $L::parse))", c.name(), read, c.prism());
       case LIST ->
-          guard
-              ? CodeBlock.of(
-                  "\n.field($S, hkj$$ifPresent($L, $L::parseAll))", c.name(), read, c.prism())
-              : CodeBlock.of("\n.field($S, $L.parseAll($L))", c.name(), c.prism(), read);
+          CodeBlock.of("\n.field($S, hkj$$ifPresent($L, $L::parseAll))", c.name(), read, c.prism());
       case OPTIONAL ->
-          guard
-              ? CodeBlock.of(
-                  "\n.field($S, hkj$$ifPresent($L, o -> o.map(v ->"
-                      + " $L.parse(v).map($T::of)).orElseGet(() ->"
-                      + " $T.validNel($T.empty()))))",
-                  c.name(),
-                  read,
-                  c.prism(),
-                  optional,
-                  VALIDATED,
-                  optional)
-              : CodeBlock.of(
-                  "\n.field($S, $L.map(v -> $L.parse(v).map($T::of)).orElseGet(() ->"
-                      + " $T.validNel($T.empty())))",
-                  c.name(),
-                  read,
-                  c.prism(),
-                  optional,
-                  VALIDATED,
-                  optional);
+          CodeBlock.of(
+              "\n.field($S, hkj$$ifPresent($L, o -> o.map(v ->"
+                  + " $L.parse(v).map($T::of)).orElseGet(() ->"
+                  + " $T.validNel($T.empty()))))",
+              c.name(),
+              read,
+              c.prism(),
+              optional,
+              VALIDATED,
+              optional);
       case MAP ->
-          guard
-              ? CodeBlock.of(
-                  "\n.field($S, hkj$$ifPresent($L, $L::parseValues))", c.name(), read, c.prism())
-              : CodeBlock.of("\n.field($S, $L.parseValues($L))", c.name(), c.prism(), read);
+          CodeBlock.of(
+              "\n.field($S, hkj$$ifPresent($L, $L::parseValues))", c.name(), read, c.prism());
       case IDENTITY ->
           guard
               ? CodeBlock.of(
@@ -2127,9 +2134,9 @@ public class MappingProcessor extends AbstractProcessor {
     for (Correspondence c : comps) {
       // A JSON-bound record leaves an absent component null, exactly like an unset bean
       // property, so every reference read is guarded into a located FieldError (the locked
-      // #625 null policy); a primitive read can never be null and copies directly.
-      patchChain.add(
-          parseLeg(c, wireRead(wire, c.wireName()), !isPrimitiveWireComponent(wire, c.wireName())));
+      // #625 null policy, the same guardedRead the full tier uses since #653); a primitive
+      // read can never be null and copies directly.
+      patchChain.add(parseLeg(c, wireRead(wire, c.wireName()), guardedRead(c, wire)));
     }
 
     // Lambda parameters are named after the projected components, but the enclosing method
@@ -2200,9 +2207,9 @@ public class MappingProcessor extends AbstractProcessor {
                             + " component name, and unprojected components stay untouched. Dense:"
                             + " every projected component applies, and a {@code null} reference"
                             + " read is a located error, never absence — contrast {@code"
-                            + " UpdateSpec}'s sparse {@code updateFrom}. The guard covers the"
-                            + " projected reads themselves; a null inside a nested wire value"
-                            + " follows the nested spec's own parse contract.\n")
+                            + " UpdateSpec}'s sparse {@code updateFrom}. Nulls locate through"
+                            + " nesting too: a nested wire value delegates to the nested spec's"
+                            + " parse, whose reference legs carry the same guard.\n")
                     .addStatement(
                         "$T.requireNonNull(domain, $S)", OBJECTS, "domain must not be null")
                     .addStatement("$T.requireNonNull(wire, $S)", OBJECTS, "wire must not be null")
@@ -2213,11 +2220,6 @@ public class MappingProcessor extends AbstractProcessor {
     // reference read, so the guard helper is always needed.
     implBuilder.addMethod(ifPresentHelper());
     writeFile(spec, specName.packageName(), implBuilder.build());
-  }
-
-  /** Whether the named wire component reads a primitive (a read that can never be null). */
-  private static boolean isPrimitiveWireComponent(WireShape wire, String wireName) {
-    return wire.componentNamed(wireName).map(c -> c.type().getKind().isPrimitive()).orElse(false);
   }
 
   private void writeLensImpl(

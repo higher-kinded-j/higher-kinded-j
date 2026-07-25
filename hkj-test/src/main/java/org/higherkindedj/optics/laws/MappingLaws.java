@@ -29,8 +29,10 @@ import org.higherkindedj.optics.validated.ValidatedPrism;
  *   <li>projection tier ({@code asLens()} present): pass the lens - the three lens laws;
  *   <li>fallible tier ({@code asValidatedPrism()} only): pass a parsing and a non-parsing wire
  *       value - both validated round-trip laws plus the no-parse sanity check;
- *   <li>total-parse mappings (no wire value can fail, e.g. derived wire fields over identity
- *       components): pass a domain sample - the round trip through {@code build}.
+ *   <li>total-parse mappings (no well-formed wire value can fail, e.g. derived wire fields over
+ *       identity components; since issue #653 a null reference component is a located invalid, so
+ *       "total" is scoped to wires whose reference components are non-null): pass a domain sample -
+ *       the round trip through {@code build}.
  *   <li>sparse-update tier ({@code updateFrom()} only, from an {@code UpdateSpec}): pass the {@code
  *       updateFrom} method reference, a domain sample, and an all-absent, a valid and an invalid
  *       wire - the identity, idempotence and validation laws.
@@ -100,6 +102,11 @@ public final class MappingLaws {
   /**
    * Parse-iso coherence: {@code parse(s) == Valid(asIso().reverseGet(s))} - a lossless parse is
    * total and agrees with the iso's independently generated reverse direction.
+   *
+   * <p>Scoped to wire samples whose reference components are non-null (issue #653): a null-carrying
+   * wire parses to a located {@code Invalid} while {@code reverseGet} copies the null verbatim, so
+   * coherence deliberately does not extend to hostile bindings. Feed such wires to {@code parse}
+   * directly and assert the located accumulation instead.
    */
   public static <D, W> void assertParseAgreesWithIso(
       Iso<D, W> iso, ValidatedPrism<W, D> mapping, W wireSample) {
@@ -138,9 +145,11 @@ public final class MappingLaws {
   /**
    * The round-trip law of a total-parse mapping (identity components, infallible leaves or derived
    * wire fields): exactly {@code parse(build(domainSample)) == Valid(domainSample)}, and nothing
-   * else. No non-parsing wire value exists for such a mapping, so there is no no-parse check; and
-   * the section law on {@code build(domainSample)} would be checking {@code build(a) == build(a)}
-   * once the round trip holds, so it is deliberately not asserted.
+   * else. No well-formed non-parsing wire value exists for such a mapping (since issue #653 a null
+   * reference component is a located invalid, so "total" is scoped to wires whose reference
+   * components are non-null — {@code build} only ever produces such wires), so there is no no-parse
+   * check; and the section law on {@code build(domainSample)} would be checking {@code build(a) ==
+   * build(a)} once the round trip holds, so it is deliberately not asserted.
    *
    * <p>This is the strongest guarantee a derived-field mapping offers: only NON-derived components
    * round-trip, and {@code build(domainSample)} is a wire value whose derived components are
