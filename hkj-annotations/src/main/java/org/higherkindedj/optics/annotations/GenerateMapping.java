@@ -9,7 +9,7 @@ import java.lang.annotation.Target;
 
 /**
  * Generates a compile-time, reflection-free bidirectional record mapping from a {@link MappingSpec}
- * interface (issue #600).
+ * interface.
  *
  * <p>The generated class is named {@code <Spec>Impl} beside the spec (a nested spec joins its
  * enclosing simple names, so {@code Shop.CustomerMapping} generates {@code
@@ -21,12 +21,12 @@ import java.lang.annotation.Target;
  *
  * <ul>
  *   <li>The spec extends {@code MappingSpec} directly, and may additionally extend plain
- *       <em>mix-in</em> interfaces (issue #623): renames, leaves and derived fields inherited from
- *       a mix-in (transitively) count exactly as if declared on the spec, with Java's own
- *       precedence — a local override hides the mix-in's member, unrelated mix-ins agreeing on an
- *       abstract rename count once, and conflicting rename targets are diagnosed naming both
- *       interfaces. A mix-in must not itself be a mapping spec, and must be non-generic;
- *       diagnostics about inherited members name the declaring interface.
+ *       <em>mix-in</em> interfaces: renames, leaves and derived fields inherited from a mix-in
+ *       (transitively) count exactly as if declared on the spec, with Java's own precedence — a
+ *       local override hides the mix-in's member, unrelated mix-ins agreeing on an abstract rename
+ *       count once, and conflicting rename targets are diagnosed naming both interfaces. A mix-in
+ *       must not itself be a mapping spec, and must be non-generic; diagnostics about inherited
+ *       members name the declaring interface.
  *   <li>Same-named, same-typed components match automatically; {@link MapField} declares renames.
  *   <li>A validated leaf is a zero-parameter {@code default} method named after the domain
  *       component, returning {@code ValidatedPrism<WireComponent, DomainComponent>}. An explicit
@@ -34,32 +34,35 @@ import java.lang.annotation.Target;
  *   <li>Record components mapped by another spec in the same compilation nest automatically, and
  *       {@code List}/{@code Optional} components lift through the element's leaf or spec.
  *   <li>Sealed interface pairs dispatch over their permitted subtype pairs, one spec per pair.
- *   <li>Generic records map two ways (issue #624). As concrete instantiations: {@code
- *       MappingSpec<Page<User>, PageDto<UserDto>>} classifies every component under the
- *       substitution, and the instantiated mapping nests into siblings like any other. As threaded
- *       specs: {@code PageMapping<T> extends MappingSpec<Page<T>, PageDto<T>>} generates one
- *       generic Impl serving every instantiation, reached through the {@code instance()}
- *       generic-singleton convention ({@code EitherMonad.instance()}); elements sharing a variable
- *       copy by identity. Both are record-to-record only (bean-shaped wires and {@code UpdateSpec}
- *       mappings stay concrete); raw uses (including raw nested arguments) and wildcards are
- *       diagnosed, array arguments are concrete, and a threaded spec is not yet nestable; that, and
- *       the element-mapped form (an abstract {@code ValidatedPrism<TDto, T>} leaf), are not
- *       supported yet.
+ *   <li>Generic records map three ways. As concrete instantiations: {@code MappingSpec<Page<User>,
+ *       PageDto<UserDto>>} classifies every component under the substitution. As threaded specs:
+ *       {@code PageMapping<T> extends MappingSpec<Page<T>, PageDto<T>>} generates one generic Impl
+ *       serving every instantiation, reached through the {@code instance()} generic-singleton
+ *       convention ({@code EitherMonad.instance()}); elements sharing a variable copy by identity.
+ *       As element-mapped specs: the two sides thread under different variables and an abstract
+ *       {@code ValidatedPrism<TDto, T>} leaf declares the element mapping, supplied at runtime
+ *       through the generated {@code of(...)} factory (one prism per leaf, declaration order; the
+ *       Impl carries them, so no singleton). All three nest: instantiated mappings register like
+ *       any other, threaded specs resolve at use sites by type-argument unification, element-mapped
+ *       specs compose in place ({@code of(entries())}) with an unresolvable element pair diagnosed.
+ *       Generic mappings are record-to-record only (bean-shaped wires and {@code UpdateSpec}
+ *       mappings stay concrete); raw uses and wildcards are diagnosed, array arguments are concrete
+ *       and unify structurally.
  *   <li>Every reference-typed {@code parse} read is null-guarded into a located {@code FieldError},
- *       on both wire shapes (issue #653): an unset bean property is null, and a JSON binder leaves
- *       a missing record component null just the same. A bean's guarded reads make {@code asIso()}
- *       truthful only for an all-primitive bean; a lossless record mapping keeps {@code asIso()},
- *       its guards covering hostile bindings only.
- *   <li>The wire may be a bean-shaped class (issue #628) instead of a record: a mutable class with
- *       a no-args constructor and getters/setters, or an immutable one with a builder. {@code
- *       build} fills it through setters or a builder and {@code parse} reads it through getters. A
- *       domain {@code Optional<T>} bridges to a nullable bean property {@code T} (empty maps to
- *       absent). The domain stays a record.
+ *       on both wire shapes: an unset bean property is null, and a JSON binder leaves a missing
+ *       record component null just the same. A bean's guarded reads make {@code asIso()} truthful
+ *       only for an all-primitive bean; a lossless record mapping keeps {@code asIso()}, its guards
+ *       covering hostile bindings only.
+ *   <li>The wire may be a bean-shaped class instead of a record: a mutable class with a no-args
+ *       constructor and getters/setters, or an immutable one with a builder. {@code build} fills it
+ *       through setters or a builder and {@code parse} reads it through getters. A domain {@code
+ *       Optional<T>} bridges to a nullable bean property {@code T} (empty maps to absent). The
+ *       domain stays a record.
  *   <li>A lossless mapping additionally gets {@code asIso()}; a wire record with fewer components
  *       maps as a projection with {@code asLens()} and no {@code parse} (truthful types); every
  *       parse-capable mapping gets {@code asValidatedPrism()} so it plugs in wherever a leaf does.
- *   <li>A spec extending {@link UpdateSpec} instead of {@link MappingSpec} (issue #645) opts into
- *       sparse null-as-absent PATCH: it generates only {@code updateFrom(Wire) :
+ *   <li>A spec extending {@link UpdateSpec} instead of {@link MappingSpec} opts into sparse
+ *       null-as-absent PATCH: it generates only {@code updateFrom(Wire) :
  *       Edits.Accumulated<Domain>}, folding the present (non-null) wire properties into an update
  *       and leaving absent ones unchanged.
  * </ul>

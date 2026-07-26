@@ -39,7 +39,9 @@ import javax.lang.model.element.Modifier;
 import javax.lang.model.element.RecordComponentElement;
 import javax.lang.model.element.TypeElement;
 import javax.lang.model.element.VariableElement;
+import javax.lang.model.type.ArrayType;
 import javax.lang.model.type.DeclaredType;
+import javax.lang.model.type.ExecutableType;
 import javax.lang.model.type.PrimitiveType;
 import javax.lang.model.type.TypeKind;
 import javax.lang.model.type.TypeMirror;
@@ -52,8 +54,7 @@ import org.higherkindedj.optics.annotations.MapField;
 import org.higherkindedj.optics.processing.util.Diagnostics;
 
 /**
- * Annotation processor for {@code @GenerateMapping}: the bidirectional record↔DTO mapper (issue
- * #600).
+ * Annotation processor for {@code @GenerateMapping}: the bidirectional record↔DTO mapper.
  *
  * <p>For an interface {@code UserMapping extends MappingSpec<User, UserDto>} it generates a
  * same-package {@code UserMappingImpl} with a total {@code build(User) : UserDto} and an
@@ -74,29 +75,27 @@ import org.higherkindedj.optics.processing.util.Diagnostics;
  * {@code asIso()}. A wire record with fewer components maps as a lossy projection: {@code build}
  * plus a lawful {@code asLens()} write-back when every projected component matches by identity, or
  * a validated {@code patch(domain, wire)} write-back when any component maps through a leaf, nested
- * spec or container (issue #625); no {@code parse} either way (truthful types). Sealed interface
- * pairs dispatch {@code build}/{@code parse} over their permitted subtype pairs, each delegating to
- * its own spec.
+ * spec or container; no {@code parse} either way (truthful types). Sealed interface pairs dispatch
+ * {@code build}/{@code parse} over their permitted subtype pairs, each delegating to its own spec.
  *
- * <p>One null doctrine covers both wire shapes (issue #653): every reference-typed {@code parse}
- * read is null-guarded into a located {@code FieldError} — an unset bean property is null, and a
- * JSON binder leaves a missing record component null just the same — so a component-level null is a
- * located, accumulated invalid, never an exception. The doctrine reaches inside containers too
- * (issue #660): a null <em>element</em> or map <em>value</em> locates by its index or key ({@code
- * emails.1: must not be null}). What stays the caller-contract {@code requireNonNull}: a null wire
- * itself, and a null map <em>key</em> (a structurally broken map, not a wrong value). What stays
- * bean-only is the <em>absence</em> contract: only a bean property is legitimately unset, so only
- * bean guards cost the Iso tier — {@code asIso()} is truthful for an all-primitive bean, while a
- * lossless record mapping keeps it with the parse-iso coherence law scoped to wires whose reference
- * components are non-null.
+ * <p>One null doctrine covers both wire shapes: every reference-typed {@code parse} read is
+ * null-guarded into a located {@code FieldError} — an unset bean property is null, and a JSON
+ * binder leaves a missing record component null just the same — so a component-level null is a
+ * located, accumulated invalid, never an exception. The doctrine reaches inside containers too: a
+ * null <em>element</em> or map <em>value</em> locates by its index or key ({@code emails.1: must
+ * not be null}). What stays the caller-contract {@code requireNonNull}: a null wire itself, and a
+ * null map <em>key</em> (a structurally broken map, not a wrong value). What stays bean-only is the
+ * <em>absence</em> contract: only a bean property is legitimately unset, so only bean guards cost
+ * the Iso tier — {@code asIso()} is truthful for an all-primitive bean, while a lossless record
+ * mapping keeps it with the parse-iso coherence law scoped to wires whose reference components are
+ * non-null.
  *
- * <p>The wire may be a bean-shaped class instead of a record (issue #628, {@link WireShape}):
- * {@code build} fills it through setters or a builder and {@code parse} reads it through getters; a
- * domain {@code Optional<T>} bridges to a nullable bean property {@code T}. A reference-typed bean
- * projection is deferred (the validated-patch tier); an all-primitive one keeps the {@code
- * asLens()} projection.
+ * <p>The wire may be a bean-shaped class instead of a record ({@link WireShape}): {@code build}
+ * fills it through setters or a builder and {@code parse} reads it through getters; a domain {@code
+ * Optional<T>} bridges to a nullable bean property {@code T}. A reference-typed bean projection is
+ * deferred (the validated-patch tier); an all-primitive one keeps the {@code asLens()} projection.
  *
- * <p>A spec extending {@code UpdateSpec<Domain, Wire>} (issue #645, {@link
+ * <p>A spec extending {@code UpdateSpec<Domain, Wire>} ({@link
  * org.higherkindedj.optics.annotations.UpdateSpec}) opts into the opposite null contract: a null
  * bean property means <em>absent — leave unchanged</em> rather than invalid. Such a spec emits only
  * {@code updateFrom(Wire) : Edits.Accumulated<Domain>}, folding the present (non-null) properties
@@ -105,12 +104,12 @@ import org.higherkindedj.optics.processing.util.Diagnostics;
  * and an {@code UpdateSpec} never registers for nesting (it has no {@code parse}).
  *
  * <p>A spec method that collides with a member the Impl emits for the classified tier is rejected
- * with a diagnostic at the spec (issue #654): a colliding {@code default} would otherwise be
- * silently overridden by the generated method, or — with a different return type — fail javac
- * inside the generated file. Overloads with a different erased signature, and static or private
- * spec methods (never inherited by the Impl), stay legal. The private static {@code hkj$ifPresent}
- * guard sits in the {@code $} namespace JLS 3.8 reserves for generated code, so no ordinary spec
- * method can collide with it or capture its call sites, and the sweep never reserves it.
+ * with a diagnostic at the spec: a colliding {@code default} would otherwise be silently overridden
+ * by the generated method, or — with a different return type — fail javac inside the generated
+ * file. Overloads with a different erased signature, and static or private spec methods (never
+ * inherited by the Impl), stay legal. The private static {@code hkj$ifPresent} guard sits in the
+ * {@code $} namespace JLS 3.8 reserves for generated code, so no ordinary spec method can collide
+ * with it or capture its call sites, and the sweep never reserves it.
  */
 @AutoService(Processor.class)
 @SupportedAnnotationTypes("org.higherkindedj.optics.annotations.GenerateMapping")
@@ -169,11 +168,9 @@ public class MappingProcessor extends AbstractProcessor {
         continue;
       }
       TypeElement spec = (TypeElement) element;
-      // A generic spec (threaded type parameters) is not yet nestable: resolving it at a
-      // concrete use site needs type-argument unification, so it stays out of the registry.
-      if (!spec.getTypeParameters().isEmpty()) {
-        continue;
-      }
+      // A generic spec registers with its declared mirrors (Page<T>, PageDto<TDto>); use sites
+      // resolve it by unification, an element-mapped one composing its of(...) factory from the
+      // element prisms resolved at the use site.
       DeclaredType specSuper = findMappingSpec(spec);
       if (specSuper == null || specSuper.getTypeArguments().size() != 2) {
         continue;
@@ -217,10 +214,10 @@ public class MappingProcessor extends AbstractProcessor {
   }
 
   /**
-   * The spec's vocabulary members (issue #623): its own declared methods plus everything inherited
-   * from mix-in interfaces, with Java's own precedence — an override hides its parents, and javac
-   * itself rejects genuinely conflicting parents before the processor runs. Interface statics and
-   * privates are not inherited, and {@code Object}'s members are filtered by kind.
+   * The spec's vocabulary members: its own declared methods plus everything inherited from mix-in
+   * interfaces, with Java's own precedence — an override hides its parents, and javac itself
+   * rejects genuinely conflicting parents before the processor runs. Interface statics and privates
+   * are not inherited, and {@code Object}'s members are filtered by kind.
    */
   private static List<ExecutableElement> specMembers(Elements elements, TypeElement spec) {
     return ElementFilter.methodsIn(elements.getAllMembers(spec)).stream()
@@ -232,7 +229,33 @@ public class MappingProcessor extends AbstractProcessor {
     return specMembers(processingEnv.getElementUtils(), spec);
   }
 
-  /** Names a member for diagnostics, noting its declaring mix-in when inherited (issue #623). */
+  /** Zero-parameter, {@code ValidatedPrism}-returning and bodiless: an element-mapped leaf. */
+  private static boolean isAbstractLeaf(ExecutableElement method) {
+    return method.getModifiers().contains(Modifier.ABSTRACT)
+        && method.getAnnotation(MapField.class) == null
+        && method.getParameters().isEmpty()
+        && method.getReturnType() instanceof DeclaredType returnType
+        && ((TypeElement) returnType.asElement()).getQualifiedName().contentEquals(VALIDATED_PRISM)
+        && returnType.getTypeArguments().size() == 2;
+  }
+
+  /**
+   * The spec's abstract leaves in declaration order (own members before inherited), deduplicated by
+   * name: unrelated mix-ins agreeing on a leaf declare one fact, and javac itself rejects
+   * override-equivalent abstracts whose prism types differ. Each becomes a constructor-supplied
+   * field of the generated Impl, surfaced through the {@code of(...)} factory.
+   */
+  private List<ExecutableElement> abstractLeaves(TypeElement spec) {
+    Map<String, ExecutableElement> leaves = new LinkedHashMap<>();
+    for (ExecutableElement method : specMembers(spec)) {
+      if (isAbstractLeaf(method)) {
+        leaves.putIfAbsent(method.getSimpleName().toString(), method);
+      }
+    }
+    return List.copyOf(leaves.values());
+  }
+
+  /** Names a member for diagnostics, noting its declaring mix-in when inherited. */
   private static String inheritedNote(ExecutableElement method, TypeElement spec) {
     return method.getEnclosingElement().equals(spec)
         ? ""
@@ -240,7 +263,7 @@ public class MappingProcessor extends AbstractProcessor {
   }
 
   /**
-   * Mix-in gate (issue #623): a spec may extend shared vocabulary interfaces besides its {@code
+   * Mix-in gate: a spec may extend shared vocabulary interfaces besides its {@code
    * MappingSpec}/{@code UpdateSpec} supertype — plain interfaces carrying {@code @MapField} renames
    * and leaf/derived {@code default} methods. A mix-in must not itself be (or extend) a mapping
    * spec, and must be non-generic for now.
@@ -330,6 +353,25 @@ public class MappingProcessor extends AbstractProcessor {
         continue;
       }
       if (mapField == null) {
+        if (isAbstractLeaf(method)) {
+          if (!sealedPair && !spec.getTypeParameters().isEmpty()) {
+            continue;
+          }
+          Diagnostics.error(
+              processingEnv.getMessager(),
+              method,
+              TAG,
+              "abstract leaf '"
+                  + method.getSimpleName()
+                  + "'"
+                  + inheritedNote(method, spec)
+                  + " needs a generic spec.",
+              "A concrete pair's leaf carries its own parser as a 'default' body; only a generic"
+                  + " spec defers the element mapping to the generated 'of(...)' factory.",
+              "Give the method a body ('default'), or make the spec generic in the element"
+                  + " types.");
+          return false;
+        }
         Diagnostics.error(
             processingEnv.getMessager(),
             method,
@@ -394,7 +436,7 @@ public class MappingProcessor extends AbstractProcessor {
   }
 
   /**
-   * Record pairs may use generic records two ways (issue #624): concretely instantiated ({@code
+   * Record pairs may use generic records two ways: concretely instantiated ({@code
    * MappingSpec<Page<User>, PageDto<UserDto>>}) or threaded through the spec's own type parameters
    * ({@code PageMapping<T> extends MappingSpec<Page<T>, PageDto<T>>}); the two compose recursively
    * per argument. Raw uses, wildcards and foreign type variables stay diagnosed (the
@@ -462,7 +504,7 @@ public class MappingProcessor extends AbstractProcessor {
    */
   private boolean supportedArgument(TypeElement spec, TypeMirror argument) {
     // An unresolved argument steps aside so javac's cannot-find-symbol is the only diagnostic
-    // (the overrideEquivalent precedent, #654) — note ErrorType extends DeclaredType, so this
+    // (the overrideEquivalent precedent) — note ErrorType extends DeclaredType, so this
     // check must run before the pattern switch.
     if (argument.getKind() == TypeKind.ERROR) {
       return true;
@@ -482,9 +524,9 @@ public class MappingProcessor extends AbstractProcessor {
   }
 
   /**
-   * A component's type as seen under the spec's instantiation of its record (issue #624). The
-   * substitution runs only for generic records, so concrete pairs stay on the exact
-   * pre-instantiation path (and never rely on {@code asMemberOf} accepting record components).
+   * A component's type as seen under the spec's instantiation of its record. The substitution runs
+   * only for generic records, so concrete pairs stay on the exact pre-instantiation path (and never
+   * rely on {@code asMemberOf} accepting record components).
    */
   private TypeMirror componentType(DeclaredType owner, RecordComponentElement component) {
     return ((TypeElement) owner.asElement()).getTypeParameters().isEmpty()
@@ -509,7 +551,7 @@ public class MappingProcessor extends AbstractProcessor {
     }
     TypeElement spec = (TypeElement) element;
 
-    // A spec extending UpdateSpec<Domain, Wire> opts into sparse null-as-absent PATCH (#645): it
+    // A spec extending UpdateSpec<Domain, Wire> opts into sparse null-as-absent PATCH: it
     // emits updateFrom() and nothing else. It never reaches scanRegistry (which matches the direct
     // MappingSpec supertype only), so an UpdateSpec is never nestable — it has no parse.
     DeclaredType updateSuper = findUpdateSpec(spec);
@@ -599,7 +641,8 @@ public class MappingProcessor extends AbstractProcessor {
         return;
       }
       // A bean projection with a reference property could read null, which neither the lawful
-      // lens nor the record-shaped patch tier covers yet (#625 ships records only) — deferred
+      // lens nor the record-shaped patch tier covers yet (the patch tier ships records only) —
+      // deferred
       // rather than emitted unlawfully. An all-primitive bean can never read null and projects
       // as a lawful lens.
       if (wireShape instanceof WireShape.BeanShape && !allPrimitive(wireShape)) {
@@ -612,7 +655,7 @@ public class MappingProcessor extends AbstractProcessor {
         return;
       }
       // An all-identity projection keeps the lawful total asLens(); any fallible correspondence
-      // makes the write-back partial, which maps as the validated patch tier instead (#625).
+      // makes the write-back partial, which maps as the validated patch tier instead.
       if (projection.stream().noneMatch(Correspondence::fallible)) {
         writeLensImpl(spec, domain, domainDeclared, wireShape, wireUsed, projection);
         return;
@@ -652,11 +695,11 @@ public class MappingProcessor extends AbstractProcessor {
   }
 
   /**
-   * Processes a sparse-update spec (issue #645, {@code extends UpdateSpec<Domain, Wire>}). The wire
-   * must be a bean-shaped class (a record cannot signal absence) and the domain a record; sealed
-   * pairs are deferred. Every present (non-null) wire property folds into an {@code Update} via
-   * {@code Edits.accumulate}; absent properties leave the domain unchanged. Only {@code updateFrom}
-   * is emitted — no {@code build}, {@code parse}, or {@code as*} tier.
+   * Processes a sparse-update spec ({@code extends UpdateSpec<Domain, Wire>}). The wire must be a
+   * bean-shaped class (a record cannot signal absence) and the domain a record; sealed pairs are
+   * deferred. Every present (non-null) wire property folds into an {@code Update} via {@code
+   * Edits.accumulate}; absent properties leave the domain unchanged. Only {@code updateFrom} is
+   * emitted — no {@code build}, {@code parse}, or {@code as*} tier.
    */
   private void processUpdateSpec(
       TypeElement spec, DeclaredType updateSuper, List<RegisteredSpec> registry) {
@@ -1131,7 +1174,8 @@ public class MappingProcessor extends AbstractProcessor {
                 implName,
                 specName,
                 "Generated sparse PATCH write-back for {@link $T}: folds the present wire fields into"
-                    + " an {@code Edits.Accumulated<Domain>} (issue #645).\n")
+                    + " an {@code Edits.Accumulated<Domain>}.\n",
+                List.of())
             .addMethod(updateFrom);
     addRenameStubs(implBuilder, spec);
     writeFile(spec, specName.packageName(), implBuilder.build());
@@ -1189,7 +1233,7 @@ public class MappingProcessor extends AbstractProcessor {
     LEAF,
     LIST,
     OPTIONAL,
-    // A domain Optional<T> bridged to a nullable bean property T (#628): empty <-> null/absent.
+    // A domain Optional<T> bridged to a nullable bean property T: empty <-> null/absent.
     OPTIONAL_BRIDGE,
     MAP,
     DERIVED
@@ -1223,13 +1267,25 @@ public class MappingProcessor extends AbstractProcessor {
       String name,
       TypeMirror wireType,
       TypeMirror domainType) {
+    return resolveNestedSpec(spec, registry, name, wireType, domainType, List.of());
+  }
+
+  /**
+   * The guarded overload: {@code active} carries the (domain, wire) pairs already being composed on
+   * the current element-mapped recursion, so a spec whose leaf pair covers itself is caught instead
+   * of overflowing the stack.
+   */
+  private PrismResolution resolveNestedSpec(
+      TypeElement spec,
+      List<RegisteredSpec> registry,
+      String name,
+      TypeMirror wireType,
+      TypeMirror domainType,
+      List<DeclaredType> active) {
     List<RegisteredSpec> nested =
         registry.stream()
             .filter(RegisteredSpec::parseCapable)
-            .filter(
-                r ->
-                    processingEnv.getTypeUtils().isSameType(r.domain(), domainType)
-                        && processingEnv.getTypeUtils().isSameType(r.wire(), wireType))
+            .filter(r -> covers(spec, r, domainType, wireType))
             .toList();
     if (nested.size() > 1) {
       Diagnostics.error(
@@ -1252,10 +1308,191 @@ public class MappingProcessor extends AbstractProcessor {
       return new PrismResolution(null, true);
     }
     if (nested.size() == 1) {
-      return new PrismResolution(
-          CodeBlock.of("$T.INSTANCE.asValidatedPrism()", nested.getFirst().impl()), false);
+      RegisteredSpec match = nested.getFirst();
+      if (match.spec().getTypeParameters().isEmpty()) {
+        return new PrismResolution(
+            CodeBlock.of("$T.INSTANCE.asValidatedPrism()", match.impl()), false);
+      }
+      Map<Element, TypeMirror> bindings = new LinkedHashMap<>();
+      unify(match.domain(), domainType, bindings);
+      unify(match.wire(), wireType, bindings);
+      List<ExecutableElement> leaves = abstractLeaves(match.spec());
+      if (leaves.isEmpty()) {
+        CodeBlock arguments =
+            match.spec().getTypeParameters().stream()
+                .map(variable -> CodeBlock.of("$T", TypeName.get(bindings.get(variable))))
+                .collect(CodeBlock.joining(", "));
+        return new PrismResolution(
+            CodeBlock.of("$T.<$L>instance().asValidatedPrism()", match.impl(), arguments), false);
+      }
+      return elementMappedComposition(
+          spec, registry, name, match, bindings, leaves, domainType, wireType, active);
     }
     return PrismResolution.NONE;
+  }
+
+  /**
+   * Composes an element-mapped nested call: {@code XImpl.of(prism, ...).asValidatedPrism()}, one
+   * prism per abstract leaf under the use site's bindings. A single-leaf spec's element pair may
+   * resolve through a leaf on the using spec named after the component (the container-leaf
+   * convention generalised); any pair may resolve through another registered mapping. An
+   * unresolvable pair is diagnosed with both levers.
+   */
+  private PrismResolution elementMappedComposition(
+      TypeElement spec,
+      List<RegisteredSpec> registry,
+      String name,
+      RegisteredSpec match,
+      Map<Element, TypeMirror> bindings,
+      List<ExecutableElement> leaves,
+      TypeMirror domainType,
+      TypeMirror wireType,
+      List<DeclaredType> active) {
+    Types types = processingEnv.getTypeUtils();
+    DeclaredType instantiated =
+        types.getDeclaredType(
+            match.spec(),
+            match.spec().getTypeParameters().stream()
+                .map(bindings::get)
+                .toArray(TypeMirror[]::new));
+    // A self-covering element mapping re-enters composition for the same instantiated spec; the
+    // instantiated type carries both sides, so one isSameType catches the cycle before it
+    // overflows the stack, while a legitimately shrinking recursion (Page<Page<T>>) never repeats.
+    if (active.stream().anyMatch(seen -> types.isSameType(seen, instantiated))) {
+      Diagnostics.error(
+          processingEnv.getMessager(),
+          spec,
+          TAG,
+          "field '"
+              + name
+              + "' nests the element-mapped '"
+              + match.spec().getSimpleName()
+              + "', which maps itself: resolving its leaf returns to the pair ("
+              + domainType
+              + ", "
+              + wireType
+              + ").",
+          "An of(...) composition needs a prism for every leaf; a self-covering element mapping"
+              + " would need its own prism as that input, so the composition never terminates.",
+          "Break the cycle with a leaf on this spec for the pair, or map the element with a"
+              + " non-recursive spec.");
+      return new PrismResolution(null, true);
+    }
+    List<DeclaredType> nestedActive = new ArrayList<>(active);
+    nestedActive.add(instantiated);
+    List<CodeBlock> prisms = new ArrayList<>();
+    for (ExecutableElement leaf : leaves) {
+      DeclaredType substituted =
+          (DeclaredType) ((ExecutableType) types.asMemberOf(instantiated, leaf)).getReturnType();
+      TypeMirror elementWire = substituted.getTypeArguments().get(0);
+      TypeMirror elementDomain = substituted.getTypeArguments().get(1);
+      ExecutableElement outerLeaf =
+          leaves.size() == 1 ? findLeaf(spec, name, elementWire, elementDomain) : null;
+      if (outerLeaf != null) {
+        prisms.add(CodeBlock.of("$L()", outerLeaf.getSimpleName()));
+        continue;
+      }
+      PrismResolution nested =
+          resolveNestedSpec(spec, registry, name, elementWire, elementDomain, nestedActive);
+      if (nested.ambiguous()) {
+        return nested;
+      }
+      if (nested.accessor() != null) {
+        prisms.add(nested.accessor());
+        continue;
+      }
+      Diagnostics.error(
+          processingEnv.getMessager(),
+          spec,
+          TAG,
+          "field '"
+              + name
+              + "' nests the element-mapped '"
+              + match.spec().getSimpleName()
+              + "', but the element pair ("
+              + elementDomain
+              + ", "
+              + elementWire
+              + ") for its leaf '"
+              + leaf.getSimpleName()
+              + "' has no mapping.",
+          "An element-mapped Impl is built by of(...), one ValidatedPrism per abstract leaf; the"
+              + " prism must come from a leaf on this spec or another mapping in this"
+              + " compilation.",
+          "Declare 'default ValidatedPrism<"
+              + elementWire
+              + ", "
+              + elementDomain
+              + "> "
+              + name
+              + "()' on this spec, or map the pair with its own @GenerateMapping spec.");
+      return new PrismResolution(null, true);
+    }
+    return new PrismResolution(
+        CodeBlock.of("$T.of($L).asValidatedPrism()", match.impl(), CodeBlock.join(prisms, ", ")),
+        false);
+  }
+
+  /**
+   * Whether a registered spec's declared pair covers a use site: a concrete registration must match
+   * exactly, a threaded one by unification — every spec variable bound consistently across both
+   * sides to an argument the using spec supports (concrete, or its own variables).
+   */
+  private boolean covers(
+      TypeElement user, RegisteredSpec candidate, TypeMirror domainType, TypeMirror wireType) {
+    Types types = processingEnv.getTypeUtils();
+    if (candidate.spec().getTypeParameters().isEmpty()) {
+      return types.isSameType(candidate.domain(), domainType)
+          && types.isSameType(candidate.wire(), wireType);
+    }
+    Map<Element, TypeMirror> bindings = new LinkedHashMap<>();
+    return unify(candidate.domain(), domainType, bindings)
+        && unify(candidate.wire(), wireType, bindings)
+        && bindings.size() == candidate.spec().getTypeParameters().size()
+        // unify binds only the candidate's own variables, so a full-size binding map is a total
+        // one; each bound argument must be usable by the spec at the use site.
+        && bindings.values().stream().allMatch(binding -> supportedArgument(user, binding));
+  }
+
+  /**
+   * Structural first-order unification of a declared mirror against a use-site mirror, binding the
+   * declared side's type variables. ERROR kinds step aside (never a spurious match); bindings must
+   * stay consistent across repeated occurrences.
+   */
+  private boolean unify(TypeMirror declared, TypeMirror actual, Map<Element, TypeMirror> bindings) {
+    Types types = processingEnv.getTypeUtils();
+    // The declared side comes from a registered spec, whose mirrors resolved (an unresolved pair
+    // never registers); only the use site can carry an ERROR, and it steps aside.
+    if (actual.getKind() == TypeKind.ERROR) {
+      return false;
+    }
+    if (declared instanceof javax.lang.model.type.TypeVariable variable) {
+      TypeMirror existing = bindings.get(variable.asElement());
+      if (existing != null) {
+        return types.isSameType(existing, actual);
+      }
+      bindings.put(variable.asElement(), actual);
+      return true;
+    }
+    if (declared instanceof DeclaredType declaredType
+        && actual instanceof DeclaredType actualType) {
+      List<? extends TypeMirror> declaredArguments = declaredType.getTypeArguments();
+      List<? extends TypeMirror> actualArguments = actualType.getTypeArguments();
+      if (!types.isSameType(types.erasure(declaredType), types.erasure(actualType))
+          || declaredArguments.size() != actualArguments.size()) {
+        return false;
+      }
+      for (int i = 0; i < declaredArguments.size(); i++) {
+        if (!unify(declaredArguments.get(i), actualArguments.get(i), bindings)) {
+          return false;
+        }
+      }
+      return true;
+    }
+    if (declared instanceof ArrayType declaredArray && actual instanceof ArrayType actualArray) {
+      return unify(declaredArray.getComponentType(), actualArray.getComponentType(), bindings);
+    }
+    return types.isSameType(declared, actual);
   }
 
   private Map<String, String> collectRenames(TypeElement spec, TypeElement domain, WireShape wire) {
@@ -1699,7 +1936,7 @@ public class MappingProcessor extends AbstractProcessor {
         return new Correspondence(name, wireName, Kind.OPTIONAL, lifted.accessor());
       }
     }
-    // Optional bridge (#628): a domain Optional<DE> maps to a nullable bean property PE, since
+    // Optional bridge: a domain Optional<DE> maps to a nullable bean property PE, since
     // beans never declare Optional. Empty <-> null/absent; the element is copied (identity) or
     // mapped through a leaf, exactly as an Optional element would be. (An Optional bridge through
     // a nested spec is a follow-up.)
@@ -1856,7 +2093,7 @@ public class MappingProcessor extends AbstractProcessor {
    * component must name a domain component. Each pair then resolves exactly like a full-tier
    * component (explicit leaf first, identity, nested specs, container lifting) via {@link
    * #resolveCorrespondence}. All-identity projections keep the lawful total {@code asLens()}
-   * write-back; any fallible correspondence selects the validated {@code patch} tier (#625).
+   * write-back; any fallible correspondence selects the validated {@code patch} tier.
    */
   private List<Correspondence> classifyProjection(
       TypeElement spec,
@@ -1993,8 +2230,10 @@ public class MappingProcessor extends AbstractProcessor {
   private ExecutableElement findLeaf(
       TypeElement spec, String name, TypeMirror wireType, TypeMirror domainType) {
     for (ExecutableElement method : specMembers(spec)) {
+      boolean leafShaped = method.isDefault() || method.getModifiers().contains(Modifier.ABSTRACT);
       if (!method.getSimpleName().contentEquals(name)
-          || !method.isDefault()
+          || !leafShaped
+          || method.getAnnotation(MapField.class) != null
           || !method.getParameters().isEmpty()) {
         continue;
       }
@@ -2107,9 +2346,9 @@ public class MappingProcessor extends AbstractProcessor {
 
   /**
    * Whether a component's parse read must be null-guarded: every reference read, on both wire
-   * shapes (issue #653). An unset bean property is null, and Jackson binds a missing JSON property
-   * on a record component to null just the same — "a record can never read null" is false at every
-   * JSON boundary, so the guard policy is shape-independent. Only a primitive identity read (which
+   * shapes. An unset bean property is null, and Jackson binds a missing JSON property on a record
+   * component to null just the same — "a record can never read null" is false at every JSON
+   * boundary, so the guard policy is shape-independent. Only a primitive identity read (which
    * cannot be null) goes unguarded.
    */
   private static boolean guardedRead(Correspondence c, WireShape wire) {
@@ -2130,21 +2369,21 @@ public class MappingProcessor extends AbstractProcessor {
    * truthful only for an all-primitive bean. A record wire's guard exists for hostile input (a
    * null-carrying JSON binding), not for a representable absent state, so a lossless record mapping
    * keeps {@code asIso()} — the parse-iso coherence law is scoped to wires whose reference
-   * components are non-null (issue #653).
+   * components are non-null.
    */
   private static boolean lossyRead(Correspondence c, WireShape wire) {
     return wire instanceof WireShape.BeanShape && guardedRead(c, wire);
   }
 
   /**
-   * The {@code hkj$ifPresent} guard emitted into impls with guarded reads (both wire shapes since
-   * issue #653): a null read becomes a located {@code FieldError} (the {@code fields()} ladder
-   * attaches the component label), so a null never reaches a leaf's {@code parse}, which rejects
-   * it. The name lives in the {@code $} namespace, which JLS 3.8 reserves for mechanically
-   * generated code, so no ordinary spec method can collide with the declaration or capture its call
-   * sites through overload resolution (issue #654) — which is why the collision sweep needs no
-   * reservation for it. Shared with {@link MergeProcessor}, whose fallible merge legs carry the
-   * same guard (issue #659), like {@link #scanRegistry}.
+   * The {@code hkj$ifPresent} guard emitted into impls with guarded reads (both wire shapes): a
+   * null read becomes a located {@code FieldError} (the {@code fields()} ladder attaches the
+   * component label), so a null never reaches a leaf's {@code parse}, which rejects it. The name
+   * lives in the {@code $} namespace, which JLS 3.8 reserves for mechanically generated code, so no
+   * ordinary spec method can collide with the declaration or capture its call sites through
+   * overload resolution — which is why the collision sweep needs no reservation for it. Shared with
+   * {@link MergeProcessor}, whose fallible merge legs carry the same guard, like {@link
+   * #scanRegistry}.
    */
   static MethodSpec ifPresentHelper() {
     TypeVariableName s = TypeVariableName.get("S");
@@ -2193,7 +2432,7 @@ public class MappingProcessor extends AbstractProcessor {
     // recomputes the derived component, an identity only for wire values already consistent. A
     // bean's null-guarded reference reads are fallible too (an unset property is a representable
     // state), so only an all-primitive bean stays lossless; a record wire's guards are for
-    // hostile null bindings only and do not cost the Iso tier (issue #653).
+    // hostile null bindings only and do not cost the Iso tier.
     boolean lossless = comps.stream().noneMatch(c -> c.fallible() || lossyRead(c, wire));
     boolean needsGuardHelper = comps.stream().anyMatch(c -> guardedRead(c, wire));
 
@@ -2204,8 +2443,7 @@ public class MappingProcessor extends AbstractProcessor {
     if (lossless) {
       emitted.add(EmittedMember.of("asIso"));
     }
-    if (!checkNoEmittedCollisions(
-        spec, "a full mapping", reserveInstanceIfGeneric(spec, emitted))) {
+    if (!checkNoEmittedCollisions(spec, "a full mapping", reserveFactoryIfGeneric(spec, emitted))) {
       return;
     }
 
@@ -2219,7 +2457,7 @@ public class MappingProcessor extends AbstractProcessor {
     for (Correspondence c : comps) {
       // An unset bean property and a Jackson-bound missing record component both read null, so
       // every reference read is guarded before it reaches a leaf (whose parse rejects null) or
-      // the identity copy; the guard locates the null under the field label (issue #653).
+      // the identity copy; the guard locates the null under the field label.
       parseChain.add(parseLeg(c, wireRead(wire, c.wireName()), guardedRead(c, wire)));
     }
     parseChain.add("\n.apply($T::new)", domainName);
@@ -2240,7 +2478,8 @@ public class MappingProcessor extends AbstractProcessor {
                 implName,
                 specName,
                 "Generated bidirectional mapping for {@link $T}: total {@code build} and"
-                    + " accumulating, located {@code parse}.\n")
+                    + " accumulating, located {@code parse}.\n",
+                abstractLeaves(spec))
             .addMethod(buildMethod(domainName, wireName, buildBody))
             .addMethod(
                 MethodSpec.methodBuilder("parse")
@@ -2280,11 +2519,11 @@ public class MappingProcessor extends AbstractProcessor {
 
   /**
    * One {@code Validated.fields()} leg for a correspondence — shared by the full tier's {@code
-   * parse} and the projection tier's {@code patch}. Since issue #653 every reference read is
-   * guarded (see {@link #guardedRead}), so the leaf and container legs always wrap their read in
-   * the {@code hkj$ifPresent} helper — a null becomes a located {@code FieldError} instead of
-   * reaching a leaf (whose parse rejects null). {@code guard} only varies the identity leg, whose
-   * primitive reads can never be null.
+   * parse} and the projection tier's {@code patch}. Every reference read is guarded (see {@link
+   * #guardedRead}), so the leaf and container legs always wrap their read in the {@code
+   * hkj$ifPresent} helper — a null becomes a located {@code FieldError} instead of reaching a leaf
+   * (whose parse rejects null). {@code guard} only varies the identity leg, whose primitive reads
+   * can never be null.
    */
   private CodeBlock parseLeg(Correspondence c, CodeBlock read, boolean guard) {
     ClassName optional = ClassName.get("java.util", "Optional");
@@ -2338,13 +2577,13 @@ public class MappingProcessor extends AbstractProcessor {
   }
 
   /**
-   * Emits the validated patch tier (issue #625): a projection whose wire carries fallible
-   * correspondences. {@code build} stays total; the write-back is {@code patch(domain, wire)}
-   * returning {@code Validated<NonEmptyList<FieldError>, Domain>} — every projected component
-   * validates (a null reference read becomes a located {@code FieldError}, matching the bean-parse
-   * convention), unprojected components are read from the domain argument, and all failures
-   * accumulate. Dense semantics: every projected component applies; contrast {@code UpdateSpec}'s
-   * sparse null-as-absent {@code updateFrom}.
+   * Emits the validated patch tier: a projection whose wire carries fallible correspondences.
+   * {@code build} stays total; the write-back is {@code patch(domain, wire)} returning {@code
+   * Validated<NonEmptyList<FieldError>, Domain>} — every projected component validates (a null
+   * reference read becomes a located {@code FieldError}, matching the bean-parse convention),
+   * unprojected components are read from the domain argument, and all failures accumulate. Dense
+   * semantics: every projected component applies; contrast {@code UpdateSpec}'s sparse
+   * null-as-absent {@code updateFrom}.
    */
   private void writePatchImpl(
       TypeElement spec,
@@ -2364,7 +2603,7 @@ public class MappingProcessor extends AbstractProcessor {
     if (!checkNoEmittedCollisions(
         spec,
         "a leaf-carrying projection",
-        reserveInstanceIfGeneric(
+        reserveFactoryIfGeneric(
             spec,
             List.of(
                 EmittedMember.of("build", domainDeclared),
@@ -2378,7 +2617,7 @@ public class MappingProcessor extends AbstractProcessor {
     for (Correspondence c : comps) {
       // A JSON-bound record leaves an absent component null, exactly like an unset bean
       // property, so every reference read is guarded into a located FieldError (the locked
-      // #625 null policy, the same guardedRead the full tier uses since #653); a primitive
+      // null policy, the same guardedRead the full tier uses); a primitive
       // read can never be null and copies directly.
       patchChain.add(parseLeg(c, wireRead(wire, c.wireName()), guardedRead(c, wire)));
     }
@@ -2437,7 +2676,8 @@ public class MappingProcessor extends AbstractProcessor {
                 specName,
                 "Generated projection mapping for {@link $T}: total {@code build} and a validated"
                     + " {@code patch} write-back. No {@code parse} is emitted — the dropped"
-                    + " components cannot be reconstructed (truthful types).\n")
+                    + " components cannot be reconstructed (truthful types).\n",
+                abstractLeaves(spec))
             .addMethod(buildMethod(domainName, wireName, buildBody))
             .addMethod(
                 MethodSpec.methodBuilder("patch")
@@ -2480,7 +2720,7 @@ public class MappingProcessor extends AbstractProcessor {
     if (!checkNoEmittedCollisions(
         spec,
         "a lossy projection",
-        reserveInstanceIfGeneric(
+        reserveFactoryIfGeneric(
             spec,
             List.of(EmittedMember.of("build", domainDeclared), EmittedMember.of("asLens"))))) {
       return;
@@ -2516,7 +2756,8 @@ public class MappingProcessor extends AbstractProcessor {
                 specName,
                 "Generated projection mapping for {@link $T}: total {@code build} and a lawful"
                     + " {@code asLens()} write-back. No {@code parse} is emitted — the dropped"
-                    + " components cannot be reconstructed (truthful types).\n")
+                    + " components cannot be reconstructed (truthful types).\n",
+                abstractLeaves(spec))
             .addMethod(buildMethod(domainName, wireName, buildBody))
             .addMethod(
                 MethodSpec.methodBuilder("asLens")
@@ -2686,7 +2927,8 @@ public class MappingProcessor extends AbstractProcessor {
                 specName,
                 "Generated sealed-dispatch mapping for {@link $T}: {@code build} and {@code"
                     + " parse} switch over the permitted subtype pairs, each delegating to its"
-                    + " own mapping.\n")
+                    + " own mapping.\n",
+                List.of())
             .addMethod(
                 buildMethod(
                     domainName,
@@ -2705,7 +2947,11 @@ public class MappingProcessor extends AbstractProcessor {
   }
 
   private static TypeSpec.Builder implSkeleton(
-      TypeElement spec, ClassName implName, ClassName specName, String javadoc) {
+      TypeElement spec,
+      ClassName implName,
+      ClassName specName,
+      String javadoc,
+      List<ExecutableElement> abstractLeaves) {
     List<TypeVariableName> variables =
         spec.getTypeParameters().stream().map(TypeVariableName::get).toList();
     TypeSpec.Builder builder =
@@ -2713,17 +2959,21 @@ public class MappingProcessor extends AbstractProcessor {
             .addOriginatingElement(spec)
             .addModifiers(Modifier.PUBLIC, Modifier.FINAL)
             .addAnnotation(GENERATED)
-            .addJavadoc(javadoc, specName)
-            .addMethod(MethodSpec.constructorBuilder().addModifiers(Modifier.PRIVATE).build());
+            .addJavadoc(javadoc, specName);
     if (variables.isEmpty()) {
       return builder
           .addSuperinterface(specName)
+          .addMethod(MethodSpec.constructorBuilder().addModifiers(Modifier.PRIVATE).build())
           .addField(
               FieldSpec.builder(
                       implName, "INSTANCE", Modifier.PUBLIC, Modifier.STATIC, Modifier.FINAL)
                   .initializer("new $T()", implName)
                   .build());
     }
+    if (!abstractLeaves.isEmpty()) {
+      return elementMappedSkeleton(builder, implName, specName, variables, abstractLeaves);
+    }
+    builder.addMethod(MethodSpec.constructorBuilder().addModifiers(Modifier.PRIVATE).build());
     // A generic Impl (threaded type parameters) cannot carry a typed static
     // INSTANCE, so it follows hkj-core's generic-singleton convention (EitherMonad.instance()):
     // one stateless cached instance behind an unchecked-but-sound cast.
@@ -2755,6 +3005,56 @@ public class MappingProcessor extends AbstractProcessor {
                         + " EitherMonad.instance()} convention).\n")
                 .addStatement("return ($T) INSTANCE", typedInstanceType)
                 .build());
+  }
+
+  /**
+   * The element-mapped skeleton: the spec's abstract leaves become constructor-supplied fields
+   * behind a public {@code of(...)} factory taking one {@code ValidatedPrism} per leaf, in
+   * declaration order. The Impl carries leaf-typed state, so unlike the stateless threaded form
+   * there is no shared singleton: every {@code of(...)} call is a fresh, immutable instance.
+   */
+  private static TypeSpec.Builder elementMappedSkeleton(
+      TypeSpec.Builder builder,
+      ClassName implName,
+      ClassName specName,
+      List<TypeVariableName> variables,
+      List<ExecutableElement> abstractLeaves) {
+    TypeName typed = ParameterizedTypeName.get(implName, variables.toArray(new TypeName[0]));
+    MethodSpec.Builder constructor = MethodSpec.constructorBuilder().addModifiers(Modifier.PRIVATE);
+    MethodSpec.Builder factory =
+        MethodSpec.methodBuilder("of")
+            .addModifiers(Modifier.PUBLIC, Modifier.STATIC)
+            .addTypeVariables(variables)
+            .returns(typed)
+            .addJavadoc(
+                "Creates the element-mapped mapping: each abstract leaf arrives as its {@code"
+                    + " ValidatedPrism}, in declaration order.\n");
+    StringJoiner arguments = new StringJoiner(", ");
+    for (ExecutableElement leaf : abstractLeaves) {
+      String name = leaf.getSimpleName().toString();
+      TypeName prismType = TypeName.get(leaf.getReturnType());
+      builder.addField(
+          FieldSpec.builder(prismType, name, Modifier.PRIVATE, Modifier.FINAL).build());
+      constructor
+          .addParameter(prismType, name)
+          .addStatement(
+              "this.$1L = $2T.requireNonNull($1L, $3S)", name, OBJECTS, name + " must not be null");
+      factory.addParameter(prismType, name);
+      arguments.add(name);
+      builder.addMethod(
+          MethodSpec.methodBuilder(name)
+              .addAnnotation(Override.class)
+              .addModifiers(Modifier.PUBLIC)
+              .returns(prismType)
+              .addStatement("return $L", name)
+              .build());
+    }
+    factory.addStatement("return new $T<>($L)", implName, arguments.toString());
+    return builder
+        .addTypeVariables(variables)
+        .addSuperinterface(ParameterizedTypeName.get(specName, variables.toArray(new TypeName[0])))
+        .addMethod(constructor.build())
+        .addMethod(factory.build());
   }
 
   /**
@@ -2809,8 +3109,8 @@ public class MappingProcessor extends AbstractProcessor {
   }
 
   /**
-   * One member the generated Impl will declare, described for the collision sweep (issue #654): its
-   * name and parameter types, compared against spec methods by erased signature.
+   * One member the generated Impl will declare, described for the collision sweep: its name and
+   * parameter types, compared against spec methods by erased signature.
    */
   private record EmittedMember(String name, List<TypeMirror> params) {
     static EmittedMember of(String name, TypeMirror... params) {
@@ -2819,30 +3119,38 @@ public class MappingProcessor extends AbstractProcessor {
   }
 
   /**
-   * A generic Impl also declares the static {@code instance()} singleton accessor; a spec method
-   * with that erased signature would clash with or shadow it in the generated file, so every record
-   * tier reserves it alongside its own members.
+   * A generic Impl also declares its static factory — the {@code instance()} singleton accessor
+   * when stateless, the {@code of(...)} constructor when element-mapped; a spec method with that
+   * erased signature would clash with or shadow it in the generated file, so every record tier
+   * reserves it alongside its own members.
    */
-  private static List<EmittedMember> reserveInstanceIfGeneric(
-      TypeElement spec, List<EmittedMember> base) {
+  private List<EmittedMember> reserveFactoryIfGeneric(TypeElement spec, List<EmittedMember> base) {
     if (spec.getTypeParameters().isEmpty()) {
       return base;
     }
     List<EmittedMember> all = new ArrayList<>(base);
-    all.add(EmittedMember.of("instance"));
+    List<ExecutableElement> leaves = abstractLeaves(spec);
+    if (leaves.isEmpty()) {
+      all.add(EmittedMember.of("instance"));
+    } else {
+      all.add(
+          EmittedMember.of(
+              "of",
+              leaves.stream().map(ExecutableElement::getReturnType).toArray(TypeMirror[]::new)));
+    }
     return all;
   }
 
   /**
    * Rejects spec methods that are override-equivalent (JLS 8.4.2: name plus erased parameter types)
-   * to a member the Impl emits for this tier (issue #654). Without the check, a colliding {@code
-   * default} is silently overridden by the generated method — the user's logic never runs on {@code
-   * INSTANCE} — or, with a different return type, the generated file fails javac with no diagnostic
-   * pointing at the spec. Static and private spec methods are not inherited by the Impl, so they
-   * can never collide; overloads with a different erased signature stay legal, and each tier
-   * reserves only the members it emits, so a helper named after another tier's member (say {@code
-   * patch} on a full mapping) stays legal too. The {@code hkj$ifPresent} guard needs no
-   * reservation: its {@code $} name is out of reach of ordinary spec methods.
+   * to a member the Impl emits for this tier. Without the check, a colliding {@code default} is
+   * silently overridden by the generated method — the user's logic never runs on {@code INSTANCE} —
+   * or, with a different return type, the generated file fails javac with no diagnostic pointing at
+   * the spec. Static and private spec methods are not inherited by the Impl, so they can never
+   * collide; overloads with a different erased signature stay legal, and each tier reserves only
+   * the members it emits, so a helper named after another tier's member (say {@code patch} on a
+   * full mapping) stays legal too. The {@code hkj$ifPresent} guard needs no reservation: its {@code
+   * $} name is out of reach of ordinary spec methods.
    */
   private boolean checkNoEmittedCollisions(
       TypeElement spec, String tier, List<EmittedMember> emitted) {
@@ -2971,7 +3279,7 @@ public class MappingProcessor extends AbstractProcessor {
     return null;
   }
 
-  /** The direct {@code UpdateSpec<Domain, Wire>} supertype (issue #645), or null if none. */
+  /** The direct {@code UpdateSpec<Domain, Wire>} supertype, or null if none. */
   private static DeclaredType findUpdateSpec(TypeElement spec) {
     for (TypeMirror iface : spec.getInterfaces()) {
       DeclaredType declared = (DeclaredType) iface;
@@ -3004,7 +3312,7 @@ public class MappingProcessor extends AbstractProcessor {
     return null;
   }
 
-  /** A concrete (non-abstract, non-record, non-enum) class: a candidate bean-shaped wire (#628). */
+  /** A concrete (non-abstract, non-record, non-enum) class: a candidate bean-shaped wire. */
   private static TypeElement asBean(TypeMirror mirror) {
     if (mirror instanceof DeclaredType declared) {
       TypeElement type = (TypeElement) declared.asElement();
@@ -3063,7 +3371,7 @@ public class MappingProcessor extends AbstractProcessor {
             + "' with a reference-typed property, which is not yet supported.",
         "A projection maps as build() plus a lawful asLens() write-back, but a bean's reference"
             + " property can read null, which a total lens set cannot honour. Record projections"
-            + " map that shape as a validated patch(domain, wire) (#625); the bean flavour is a"
+            + " map that shape as a validated patch(domain, wire); the bean flavour is a"
             + " follow-up to the bean mapper. An all-primitive bean projection (no null possible)"
             + " is supported today.",
         "Use a record wire for the projection (which supports the validated patch tier), or map"

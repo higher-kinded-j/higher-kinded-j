@@ -93,6 +93,15 @@ public final class RecordMappingBook {
     // ANCHOR_END: threaded_usage
     System.out.println(tagsDto + " / " + counts);
 
+    // ANCHOR: element_usage
+    // One spec, any element codec: each abstract leaf arrives as a prism through of(...).
+    Validated<NonEmptyList<FieldError>, Page<EmailAddress>> mail =
+        CodecPageMappingImpl.of(EmailCodecs.EMAIL)
+            .parse(new PageDto<>(List.of("ada@example.org", "nope"), 2));
+    // Invalid(NonEmptyList[items.1: not an email address])
+    // ANCHOR_END: element_usage
+    System.out.println(mail);
+
     // ANCHOR: projection_usage
     Employee employee = new Employee("Ada", "Research", 36);
     Lens<Employee, EmployeeCardDto> badge = EmployeeCardMappingImpl.INSTANCE.asLens();
@@ -275,6 +284,15 @@ interface PageMapping<T> extends MappingSpec<Page<T>, PageDto<T>> {}
 // one Impl for every T: PageMappingImpl.<String>instance(), .<Integer>instance(), ...
 
 // ANCHOR_END: threaded_spec
+
+// ANCHOR: element_spec
+// The element mapping is deliberately open: an abstract leaf, supplied at of(...) time.
+@GenerateMapping
+interface CodecPageMapping<T, TDto> extends MappingSpec<Page<T>, PageDto<TDto>> {
+  ValidatedPrism<TDto, T> items();
+}
+
+// ANCHOR_END: element_spec
 
 // ANCHOR: sealed_spec
 sealed interface Payment permits Card, Bank {}
