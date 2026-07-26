@@ -17,6 +17,7 @@ import com.palantir.javapoet.WildcardTypeName;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -43,6 +44,7 @@ import javax.lang.model.type.PrimitiveType;
 import javax.lang.model.type.TypeKind;
 import javax.lang.model.type.TypeMirror;
 import javax.lang.model.util.ElementFilter;
+import javax.lang.model.util.Elements;
 import javax.lang.model.util.Types;
 import org.higherkindedj.optics.annotations.ArityCeilings;
 import org.higherkindedj.optics.annotations.GenerateMapping;
@@ -197,7 +199,7 @@ public class MappingProcessor extends AbstractProcessor {
       boolean parseCapable =
           sealedPair
               || domainRecord.getRecordComponents().size()
-                  == wireCount - derivedCandidateCount(spec);
+                  == wireCount - derivedCandidateCount(env.getElementUtils(), spec);
       registry.add(new RegisteredSpec(domainArg, wireArg, implClassName(spec), spec, parseCapable));
     }
     return registry;
@@ -215,12 +217,99 @@ public class MappingProcessor extends AbstractProcessor {
   }
 
   /**
+   * The spec's vocabulary members (issue #623): its own declared methods plus everything inherited
+   * from mix-in interfaces, with Java's own precedence — an override hides its parents, and javac
+   * itself rejects genuinely conflicting parents before the processor runs. Interface statics and
+   * privates are not inherited, and {@code Object}'s members are filtered by kind.
+   */
+  private static List<ExecutableElement> specMembers(Elements elements, TypeElement spec) {
+    return ElementFilter.methodsIn(elements.getAllMembers(spec)).stream()
+        .filter(method -> method.getEnclosingElement().getKind() == ElementKind.INTERFACE)
+        .toList();
+  }
+
+  private List<ExecutableElement> specMembers(TypeElement spec) {
+    return specMembers(processingEnv.getElementUtils(), spec);
+  }
+
+  /** Names a member for diagnostics, noting its declaring mix-in when inherited (issue #623). */
+  private static String inheritedNote(ExecutableElement method, TypeElement spec) {
+    return method.getEnclosingElement().equals(spec)
+        ? ""
+        : " (inherited from '" + method.getEnclosingElement().getSimpleName() + "')";
+  }
+
+  /**
+   * Mix-in gate (issue #623): a spec may extend shared vocabulary interfaces besides its {@code
+   * MappingSpec}/{@code UpdateSpec} supertype — plain interfaces carrying {@code @MapField} renames
+   * and leaf/derived {@code default} methods. A mix-in must not itself be (or extend) a mapping
+   * spec, and must be non-generic for now.
+   */
+  private boolean checkMixins(TypeElement spec) {
+    for (TypeMirror parent : spec.getInterfaces()) {
+      // ErrorType extends DeclaredType, so unresolved parents step aside first: javac already
+      // reports the missing type, and there is nothing for the gate to judge.
+      if (parent.getKind() == TypeKind.ERROR) {
+        continue;
+      }
+      TypeElement parentElement = (TypeElement) ((DeclaredType) parent).asElement();
+      String parentName = parentElement.getQualifiedName().toString();
+      if (parentName.equals(MAPPING_SPEC) || parentName.equals(UPDATE_SPEC)) {
+        continue;
+      }
+      if (extendsMappingFamily(parentElement)) {
+        Diagnostics.error(
+            processingEnv.getMessager(),
+            spec,
+            TAG,
+            "mix-in '" + parentElement.getSimpleName() + "' is itself a mapping spec.",
+            "A mix-in shares vocabulary (renames, leaves, derived fields); a mapping spec"
+                + " generates an Impl of its own, and inheriting one spec from another would"
+                + " conflate the two.",
+            "Move the shared renames and leaves onto a plain interface and extend that instead.");
+        return false;
+      }
+      if (!parentElement.getTypeParameters().isEmpty()) {
+        Diagnostics.error(
+            processingEnv.getMessager(),
+            spec,
+            TAG,
+            "mix-in '" + parentElement.getSimpleName() + "' is generic.",
+            "Inherited member types are read as declared; a generic mix-in's members would need"
+                + " substitution under its instantiation, which is not supported yet.",
+            "Make the mix-in non-generic, or declare the members directly on the spec.");
+        return false;
+      }
+    }
+    return true;
+  }
+
+  /** Whether an interface is, or transitively extends, {@code MappingSpec}/{@code UpdateSpec}. */
+  private boolean extendsMappingFamily(TypeElement iface) {
+    String name = iface.getQualifiedName().toString();
+    if (name.equals(MAPPING_SPEC) || name.equals(UPDATE_SPEC)) {
+      return true;
+    }
+    for (TypeMirror parent : iface.getInterfaces()) {
+      // The same ERROR step-aside as checkMixins: an unresolved superinterface is javac's
+      // diagnostic, and an error type can neither be nor extend the mapping family.
+      if (parent.getKind() == TypeKind.ERROR) {
+        continue;
+      }
+      if (extendsMappingFamily((TypeElement) ((DeclaredType) parent).asElement())) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  /**
    * A spec's abstract methods must all be zero-parameter {@code @MapField} renames — anything else
    * would leave the generated Impl with an unimplemented member (or a meaningless rename on a
    * sealed mapping, which has no components).
    */
   private boolean validateSpecMethods(TypeElement spec, boolean sealedPair) {
-    for (ExecutableElement method : ElementFilter.methodsIn(spec.getEnclosedElements())) {
+    for (ExecutableElement method : specMembers(spec)) {
       MapField mapField = method.getAnnotation(MapField.class);
       if (!method.getModifiers().contains(Modifier.ABSTRACT)) {
         if (mapField != null) {
@@ -228,7 +317,11 @@ public class MappingProcessor extends AbstractProcessor {
               processingEnv.getMessager(),
               method,
               TAG,
-              "@MapField method '" + method.getSimpleName() + "' must be abstract.",
+              "@MapField method '"
+                  + method.getSimpleName()
+                  + "'"
+                  + inheritedNote(method, spec)
+                  + " must be abstract.",
               "A rename is a marker method the generated Impl stubs out; a method with a body"
                   + " (default, static or private) would double as callable code.",
               "Remove the body, or remove the @MapField annotation.");
@@ -241,7 +334,11 @@ public class MappingProcessor extends AbstractProcessor {
             processingEnv.getMessager(),
             method,
             TAG,
-            "abstract method '" + method.getSimpleName() + "' is neither a rename nor a leaf.",
+            "abstract method '"
+                + method.getSimpleName()
+                + "'"
+                + inheritedNote(method, spec)
+                + " is neither a rename nor a leaf.",
             "A spec declares zero-parameter @MapField renames and 'default' leaf methods; the"
                 + " generated Impl cannot implement anything else.",
             "Make it a 'default' method, or turn it into a '@MapField(to = ...)' rename.");
@@ -433,16 +530,7 @@ public class MappingProcessor extends AbstractProcessor {
       return;
     }
 
-    if (spec.getInterfaces().size() != 1) {
-      Diagnostics.error(
-          processingEnv.getMessager(),
-          element,
-          TAG,
-          "'" + spec.getSimpleName() + "' extends interfaces besides MappingSpec.",
-          "Renames and leaves declared on other supertypes are invisible to the processor's"
-              + " classification, so the generated Impl could silently miss inherited members.",
-          "Declare every rename and leaf directly on the spec; spec inheritance arrives with the"
-              + " full mapper.");
+    if (!checkMixins(spec)) {
       return;
     }
 
@@ -582,15 +670,7 @@ public class MappingProcessor extends AbstractProcessor {
           "Add 'extends UpdateSpec<Domain, Wire>' with both type arguments.");
       return;
     }
-    if (spec.getInterfaces().size() != 1) {
-      Diagnostics.error(
-          processingEnv.getMessager(),
-          spec,
-          TAG,
-          "'" + spec.getSimpleName() + "' extends interfaces besides UpdateSpec.",
-          "Renames and leaves declared on other supertypes are invisible to the processor's"
-              + " classification, so the generated Impl could silently miss inherited members.",
-          "Declare every rename and leaf directly on the spec.");
+    if (!checkMixins(spec)) {
       return;
     }
 
@@ -770,7 +850,7 @@ public class MappingProcessor extends AbstractProcessor {
    * A spec {@code default} method returning {@code Getter} (a derived field) has no sparse meaning.
    */
   private boolean checkNoDerivedFields(TypeElement spec) {
-    for (ExecutableElement method : ElementFilter.methodsIn(spec.getEnclosedElements())) {
+    for (ExecutableElement method : specMembers(spec)) {
       if (isDerivedCandidate(method)) {
         Diagnostics.error(
             processingEnv.getMessager(),
@@ -1180,7 +1260,8 @@ public class MappingProcessor extends AbstractProcessor {
 
   private Map<String, String> collectRenames(TypeElement spec, TypeElement domain, WireShape wire) {
     Map<String, String> renames = new LinkedHashMap<>();
-    for (ExecutableElement method : ElementFilter.methodsIn(spec.getEnclosedElements())) {
+    Map<String, ExecutableElement> renameSources = new LinkedHashMap<>();
+    for (ExecutableElement method : specMembers(spec)) {
       MapField mapField = method.getAnnotation(MapField.class);
       if (mapField == null) {
         continue;
@@ -1225,6 +1306,34 @@ public class MappingProcessor extends AbstractProcessor {
             "Point 'to' at an existing wire component.");
         return null;
       }
+      String existing = renames.get(name);
+      if (existing != null) {
+        // Unrelated mix-ins may both declare the abstract rename (JLS 9.4.1 lets
+        // override-equivalent abstracts coexist); two declarations of the same fact are one
+        // rename, but two different targets have no most-specific winner.
+        if (existing.equals(mapField.to())) {
+          continue;
+        }
+        ExecutableElement first = renameSources.get(name);
+        Diagnostics.error(
+            processingEnv.getMessager(),
+            method,
+            TAG,
+            "component '" + name + "' has conflicting renames.",
+            "'"
+                + name
+                + "' is renamed to '"
+                + existing
+                + "'"
+                + inheritedNote(first, spec)
+                + " and to '"
+                + mapField.to()
+                + "'"
+                + inheritedNote(method, spec)
+                + "; neither declaration overrides the other, so there is no winner.",
+            "Override the rename on the spec itself, or align the mix-ins on one target.");
+        return null;
+      }
       if (renames.containsValue(mapField.to())) {
         Diagnostics.error(
             processingEnv.getMessager(),
@@ -1241,6 +1350,7 @@ public class MappingProcessor extends AbstractProcessor {
         return null;
       }
       renames.put(name, mapField.to());
+      renameSources.put(name, method);
     }
     return renames;
   }
@@ -1257,8 +1367,8 @@ public class MappingProcessor extends AbstractProcessor {
   }
 
   /** Counts derived candidates for the registry's parse-capability arithmetic. */
-  private static long derivedCandidateCount(TypeElement spec) {
-    return ElementFilter.methodsIn(spec.getEnclosedElements()).stream()
+  private static long derivedCandidateCount(Elements elements, TypeElement spec) {
+    return specMembers(elements, spec).stream()
         .filter(MappingProcessor::isDerivedCandidate)
         .count();
   }
@@ -1277,7 +1387,7 @@ public class MappingProcessor extends AbstractProcessor {
       WireShape wire,
       Map<String, String> renames) {
     List<DerivedField> derived = new ArrayList<>();
-    for (ExecutableElement method : ElementFilter.methodsIn(spec.getEnclosedElements())) {
+    for (ExecutableElement method : specMembers(spec)) {
       if (!isDerivedCandidate(method)) {
         continue;
       }
@@ -1882,7 +1992,7 @@ public class MappingProcessor extends AbstractProcessor {
 
   private ExecutableElement findLeaf(
       TypeElement spec, String name, TypeMirror wireType, TypeMirror domainType) {
-    for (ExecutableElement method : ElementFilter.methodsIn(spec.getEnclosedElements())) {
+    for (ExecutableElement method : specMembers(spec)) {
       if (!method.getSimpleName().contentEquals(name)
           || !method.isDefault()
           || !method.getParameters().isEmpty()) {
@@ -1909,7 +2019,7 @@ public class MappingProcessor extends AbstractProcessor {
   }
 
   private String leafNearMissHint(TypeElement spec, String name) {
-    for (ExecutableElement method : ElementFilter.methodsIn(spec.getEnclosedElements())) {
+    for (ExecutableElement method : specMembers(spec)) {
       if (method.getSimpleName().contentEquals(name) && method.isDefault()) {
         return " A default method '"
             + name
@@ -2675,10 +2785,13 @@ public class MappingProcessor extends AbstractProcessor {
         .build();
   }
 
-  private static void addRenameStubs(TypeSpec.Builder implBuilder, TypeElement spec) {
-    for (ExecutableElement method : ElementFilter.methodsIn(spec.getEnclosedElements())) {
-      // Only abstract zero-parameter @MapField methods survive validateSpecMethods.
-      if (method.getAnnotation(MapField.class) == null) {
+  private void addRenameStubs(TypeSpec.Builder implBuilder, TypeElement spec) {
+    Set<String> stubbed = new HashSet<>();
+    for (ExecutableElement method : specMembers(spec)) {
+      // Only abstract zero-parameter @MapField methods survive validateSpecMethods. Unrelated
+      // mix-ins agreeing on a rename contribute one stub, not two.
+      if (method.getAnnotation(MapField.class) == null
+          || !stubbed.add(method.getSimpleName().toString())) {
         continue;
       }
       implBuilder.addMethod(
@@ -2733,7 +2846,7 @@ public class MappingProcessor extends AbstractProcessor {
    */
   private boolean checkNoEmittedCollisions(
       TypeElement spec, String tier, List<EmittedMember> emitted) {
-    for (ExecutableElement method : ElementFilter.methodsIn(spec.getEnclosedElements())) {
+    for (ExecutableElement method : specMembers(spec)) {
       if (method.getModifiers().contains(Modifier.STATIC)
           || method.getModifiers().contains(Modifier.PRIVATE)) {
         continue;
@@ -2748,7 +2861,9 @@ public class MappingProcessor extends AbstractProcessor {
             TAG,
             "'"
                 + methodSignature(method)
-                + "' collides with the '"
+                + "'"
+                + inheritedNote(method, spec)
+                + " collides with the '"
                 + member.name()
                 + "' member the generated "
                 + implClassName(spec).simpleName()

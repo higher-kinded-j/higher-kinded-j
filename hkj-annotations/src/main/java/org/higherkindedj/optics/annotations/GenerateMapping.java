@@ -20,8 +20,13 @@ import java.lang.annotation.Target;
  * <p>Supported spec shapes:
  *
  * <ul>
- *   <li>The spec extends {@code MappingSpec} and nothing else — every rename and leaf is declared
- *       directly on the spec (spec inheritance arrives with the full mapper).
+ *   <li>The spec extends {@code MappingSpec} directly, and may additionally extend plain
+ *       <em>mix-in</em> interfaces (issue #623): renames, leaves and derived fields inherited from
+ *       a mix-in (transitively) count exactly as if declared on the spec, with Java's own
+ *       precedence — a local override hides the mix-in's member, unrelated mix-ins agreeing on an
+ *       abstract rename count once, and conflicting rename targets are diagnosed naming both
+ *       interfaces. A mix-in must not itself be a mapping spec, and must be non-generic;
+ *       diagnostics about inherited members name the declaring interface.
  *   <li>Same-named, same-typed components match automatically; {@link MapField} declares renames.
  *   <li>A validated leaf is a zero-parameter {@code default} method named after the domain
  *       component, returning {@code ValidatedPrism<WireComponent, DomainComponent>}. An explicit

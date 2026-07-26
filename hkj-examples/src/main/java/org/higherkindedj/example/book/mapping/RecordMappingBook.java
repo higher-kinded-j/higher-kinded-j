@@ -56,6 +56,14 @@ public final class RecordMappingBook {
     // ANCHOR_END: derived_usage
     System.out.println(ProfileMappingImpl.INSTANCE.build(new Profile("Ada", "Lovelace")));
 
+    // ANCHOR: mixin_usage
+    // One vocabulary, two mappings - the inherited rename and leaf apply to both:
+    ClientMappingImpl.INSTANCE.parse(new ClientDto("Ada Lovelace", "ada@example.org"));
+    SupplierMappingImpl.INSTANCE.parse(new SupplierDto("Acme Ltd", "sales@acme.example", "01"));
+    // ANCHOR_END: mixin_usage
+    System.out.println(
+        ClientMappingImpl.INSTANCE.parse(new ClientDto("Ada Lovelace", "not-an-email")));
+
     // ANCHOR: nesting_usage
     InvoiceMappingImpl.INSTANCE.parse(new InvoiceDto("INV-2", new CustomerDto("Bob", "nope")));
     // Invalid(NonEmptyList[customer.email: not an email address])
@@ -211,6 +219,34 @@ interface ProfileMapping extends MappingSpec<Profile, ProfileDto> {
 }
 
 // ANCHOR_END: derived_spec
+
+// ANCHOR: mixin_spec
+// Plain vocabulary - not a spec itself. Any spec whose records share these
+// shapes extends it alongside MappingSpec.
+interface ContactVocabulary {
+  @MapField(to = "fullName")
+  String name();
+
+  default ValidatedPrism<String, EmailAddress> email() {
+    return EmailCodecs.EMAIL;
+  }
+}
+
+record Client(String name, EmailAddress email) {}
+
+record ClientDto(String fullName, String email) {}
+
+@GenerateMapping
+interface ClientMapping extends ContactVocabulary, MappingSpec<Client, ClientDto> {}
+
+record Supplier(String name, EmailAddress email, String phone) {}
+
+record SupplierDto(String fullName, String email, String phone) {}
+
+@GenerateMapping
+interface SupplierMapping extends ContactVocabulary, MappingSpec<Supplier, SupplierDto> {}
+
+// ANCHOR_END: mixin_spec
 
 // ANCHOR: nesting_spec
 record Invoice(String id, Customer customer) {}

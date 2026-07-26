@@ -1694,6 +1694,51 @@ class MappingProcessorTest {
     }
 
     @Test
+    @DisplayName("an inherited @MapField is just as meaningless on a sealed mapping")
+    void inheritedMapFieldOnSealedRejected() {
+      JavaFileObject vocabulary =
+          JavaFileObjects.forSourceString(
+              "com.example.RenameVocabulary",
+              """
+              package com.example;
+
+              import org.higherkindedj.optics.annotations.MapField;
+
+              public interface RenameVocabulary {
+                @MapField(to = "anything")
+                String number();
+              }
+              """);
+      JavaFileObject spec =
+          JavaFileObjects.forSourceString(
+              "com.example.PaymentMapping",
+              """
+              package com.example;
+
+              import org.higherkindedj.optics.annotations.GenerateMapping;
+              import org.higherkindedj.optics.annotations.MappingSpec;
+
+              @GenerateMapping
+              public interface PaymentMapping
+                  extends RenameVocabulary, MappingSpec<Payment, PaymentDto> {}
+              """);
+      Compilation compilation =
+          compile(
+              PAYMENT,
+              CARD,
+              BANK,
+              PAYMENT_DTO,
+              CARD_DTO,
+              BANK_DTO,
+              CARD_MAPPING,
+              BANK_MAPPING,
+              vocabulary,
+              spec);
+      assertThat(compilation).failed();
+      assertThat(compilation).hadErrorContaining("@MapField has no meaning on a sealed mapping");
+    }
+
+    @Test
     @DisplayName("a wire subtype no domain subtype produces is rejected")
     void uncoveredWireSubtypeRejected() {
       JavaFileObject widerWire =
@@ -3540,20 +3585,17 @@ class MappingProcessorTest {
             """);
 
     @Test
-    @DisplayName("a spec inheriting from another interface is rejected")
-    void specInheritanceRejected() {
+    @DisplayName("a mix-in that is itself a mapping spec is rejected")
+    void specExtendingSpecRejected() {
       JavaFileObject base =
           JavaFileObjects.forSourceString(
-              "com.example.BaseRenames",
+              "com.example.BaseMapping",
               """
               package com.example;
 
-              import org.higherkindedj.optics.annotations.MapField;
+              import org.higherkindedj.optics.annotations.MappingSpec;
 
-              public interface BaseRenames {
-                @MapField(to = "a")
-                String a();
-              }
+              public interface BaseMapping extends MappingSpec<Records.D, Records.W> {}
               """);
       JavaFileObject inheriting =
           JavaFileObjects.forSourceString(
@@ -3566,14 +3608,13 @@ class MappingProcessorTest {
 
               @GenerateMapping
               public interface InheritingMapping
-                  extends BaseRenames, MappingSpec<Records.D, Records.W> {}
+                  extends BaseMapping, MappingSpec<Records.D, Records.W> {}
               """);
       Compilation compilation = compile(PLAIN, base, inheriting);
       assertThat(compilation).failed();
+      assertThat(compilation).hadErrorContaining("mix-in 'BaseMapping' is itself a mapping spec");
       assertThat(compilation)
-          .hadErrorContaining("'InheritingMapping' extends interfaces besides MappingSpec");
-      assertThat(compilation)
-          .hadErrorContaining("Declare every rename and leaf directly on the spec");
+          .hadErrorContaining("Move the shared renames and leaves onto a plain interface");
     }
 
     @Test
@@ -6252,6 +6293,672 @@ class MappingProcessorTest {
       assertThat(wildcardInHolder).failed();
       assertThat(wildcardInHolder)
           .hadErrorContaining("'com.example.Page<?>' is not a supported instantiation");
+    }
+  }
+
+  @Nested
+  @DisplayName("Spec inheritance - shared mix-ins (#623)")
+  class SpecInheritance {
+
+    private static final JavaFileObject ACCOUNT =
+        JavaFileObjects.forSourceString(
+            "com.example.Account",
+            """
+            package com.example;
+
+            public record Account(String name, EmailAddress email) {}
+            """);
+
+    private static final JavaFileObject ACCOUNT_DTO =
+        JavaFileObjects.forSourceString(
+            "com.example.AccountDto",
+            """
+            package com.example;
+
+            public record AccountDto(String fullName, String email, String display) {}
+            """);
+
+    // The headline mix-in: a rename, a leaf and a derived field shared as plain vocabulary.
+    // The static helper pins JLS 8.4.8 - interface statics are not inherited, so it never
+    // reaches classification.
+    private static final JavaFileObject VOCABULARY =
+        JavaFileObjects.forSourceString(
+            "com.example.AccountVocabulary",
+            """
+            package com.example;
+
+            import org.higherkindedj.hkt.validated.FieldError;
+            import org.higherkindedj.hkt.validated.Validated;
+            import org.higherkindedj.optics.Getter;
+            import org.higherkindedj.optics.annotations.MapField;
+            import org.higherkindedj.optics.validated.ValidatedPrism;
+
+            public interface AccountVocabulary {
+              @MapField(to = "fullName")
+              String name();
+
+              default ValidatedPrism<String, EmailAddress> email() {
+                return ValidatedPrism.of(
+                    raw ->
+                        raw.contains("@")
+                            ? Validated.validNel(new EmailAddress(raw))
+                            : Validated.invalidNel(FieldError.of("not an email address")),
+                    EmailAddress::value);
+              }
+
+              default Getter<Account, String> display() {
+                return Getter.of(a -> a.name() + " <" + a.email().value() + ">");
+              }
+
+              static String ignoredHelper(String s) {
+                return s;
+              }
+            }
+            """);
+
+    private static final JavaFileObject ACCOUNT_MAPPING =
+        JavaFileObjects.forSourceString(
+            "com.example.AccountMapping",
+            """
+            package com.example;
+
+            import org.higherkindedj.optics.annotations.GenerateMapping;
+            import org.higherkindedj.optics.annotations.MappingSpec;
+
+            @GenerateMapping
+            public interface AccountMapping
+                extends AccountVocabulary, MappingSpec<Account, AccountDto> {}
+            """);
+
+    @Test
+    @DisplayName("inherited renames, leaves and derived fields drive the mapping")
+    void inheritedVocabularyDrivesTheMapping() {
+      Compilation compilation = compile(EMAIL, ACCOUNT, ACCOUNT_DTO, VOCABULARY, ACCOUNT_MAPPING);
+      assertThat(compilation).succeeded();
+      Assertions.assertThat(generatedSource(compilation, "com.example.AccountMappingImpl"))
+          .contains("public final class AccountMappingImpl implements AccountMapping")
+          .contains(
+              "new AccountDto(domain.name(), email().build(domain.email()),"
+                  + " display().get(domain))")
+          .contains(".field(\"name\", hkj$ifPresent(wire.fullName(), Validated::validNel))")
+          .contains(".field(\"email\", hkj$ifPresent(wire.email(), email()::parse))")
+          .doesNotContain(".field(\"display\"")
+          // the inherited rename still gets its marker stub
+          .contains("public String name()");
+    }
+
+    @Test
+    @DisplayName("inherited vocabulary behaves at runtime, null doctrine included")
+    void inheritedVocabularyBehavesAtRuntime() throws Exception {
+      Compilation compilation = compile(EMAIL, ACCOUNT, ACCOUNT_DTO, VOCABULARY, ACCOUNT_MAPPING);
+      assertThat(compilation).succeeded();
+      var result = new RuntimeCompilationHelper.CompiledResult(compilation);
+      Object impl = result.instance("com.example.AccountMappingImpl");
+      Object email =
+          result
+              .loadClass("com.example.EmailAddress")
+              .getDeclaredConstructor(String.class)
+              .newInstance("ada@example.org");
+      Object account =
+          result
+              .loadClass("com.example.Account")
+              .getDeclaredConstructor(String.class, result.loadClass("com.example.EmailAddress"))
+              .newInstance("Ada", email);
+
+      Object dto = invoke(impl, "build", account);
+      Assertions.assertThat(invoke(dto, "fullName")).isEqualTo("Ada");
+      Assertions.assertThat(invoke(dto, "display")).isEqualTo("Ada <ada@example.org>");
+
+      @SuppressWarnings("unchecked")
+      Validated<NonEmptyList<FieldError>, Object> back =
+          (Validated<NonEmptyList<FieldError>, Object>) invoke(impl, "parse", dto);
+      Assertions.assertThat(back.isValid()).isTrue();
+      Assertions.assertThat(back.get()).isEqualTo(account);
+
+      // An inherited leaf locates its failures like a local one - and the inherited rename's
+      // wire property is guarded by the #653 doctrine.
+      Object badDto =
+          result
+              .loadClass("com.example.AccountDto")
+              .getDeclaredConstructor(String.class, String.class, String.class)
+              .newInstance(null, "not-an-email", "x");
+      @SuppressWarnings("unchecked")
+      Validated<NonEmptyList<FieldError>, Object> bad =
+          (Validated<NonEmptyList<FieldError>, Object>) invoke(impl, "parse", badDto);
+      Assertions.assertThat(bad.isInvalid()).isTrue();
+      Assertions.assertThat(bad.getError().toJavaList())
+          .containsExactly(
+              new FieldError(List.of("name"), "must not be null"),
+              new FieldError(List.of("email"), "not an email address"));
+    }
+
+    @Test
+    @DisplayName("a local override hides the mix-in leaf - Java's own precedence")
+    void localOverrideWins() throws Exception {
+      JavaFileObject overriding =
+          JavaFileObjects.forSourceString(
+              "com.example.AccountMapping",
+              """
+              package com.example;
+
+              import org.higherkindedj.hkt.validated.Validated;
+              import org.higherkindedj.optics.annotations.GenerateMapping;
+              import org.higherkindedj.optics.annotations.MappingSpec;
+              import org.higherkindedj.optics.validated.ValidatedPrism;
+
+              @GenerateMapping
+              public interface AccountMapping
+                  extends AccountVocabulary, MappingSpec<Account, AccountDto> {
+                @Override
+                default ValidatedPrism<String, EmailAddress> email() {
+                  return ValidatedPrism.of(
+                      raw -> Validated.validNel(new EmailAddress(raw)), EmailAddress::value);
+                }
+              }
+              """);
+      Compilation compilation = compile(EMAIL, ACCOUNT, ACCOUNT_DTO, VOCABULARY, overriding);
+      assertThat(compilation).succeeded();
+      var result = new RuntimeCompilationHelper.CompiledResult(compilation);
+      Object impl = result.instance("com.example.AccountMappingImpl");
+      Object dto =
+          result
+              .loadClass("com.example.AccountDto")
+              .getDeclaredConstructor(String.class, String.class, String.class)
+              .newInstance("Ada", "not-an-email", "x");
+
+      // The mix-in's leaf would reject this; the spec's override accepts anything.
+      @SuppressWarnings("unchecked")
+      Validated<NonEmptyList<FieldError>, Object> parsed =
+          (Validated<NonEmptyList<FieldError>, Object>) invoke(impl, "parse", dto);
+      Assertions.assertThat(parsed.isValid()).isTrue();
+      Assertions.assertThat(invoke(invoke(parsed.get(), "email"), "value"))
+          .isEqualTo("not-an-email");
+    }
+
+    @Test
+    @DisplayName("vocabulary is collected across the whole hierarchy, not just direct parents")
+    void transitiveVocabularyIsCollected() {
+      JavaFileObject grandparent =
+          JavaFileObjects.forSourceString(
+              "com.example.NameVocabulary",
+              """
+              package com.example;
+
+              import org.higherkindedj.optics.annotations.MapField;
+
+              public interface NameVocabulary {
+                @MapField(to = "fullName")
+                String name();
+              }
+              """);
+      JavaFileObject parent =
+          JavaFileObjects.forSourceString(
+              "com.example.ContactVocabulary",
+              """
+              package com.example;
+
+              import org.higherkindedj.hkt.validated.FieldError;
+              import org.higherkindedj.hkt.validated.Validated;
+              import org.higherkindedj.optics.Getter;
+              import org.higherkindedj.optics.validated.ValidatedPrism;
+
+              public interface ContactVocabulary extends NameVocabulary {
+                default ValidatedPrism<String, EmailAddress> email() {
+                  return ValidatedPrism.of(
+                      raw ->
+                          raw.contains("@")
+                              ? Validated.validNel(new EmailAddress(raw))
+                              : Validated.invalidNel(FieldError.of("not an email address")),
+                      EmailAddress::value);
+                }
+
+                default Getter<Account, String> display() {
+                  return Getter.of(a -> a.name());
+                }
+              }
+              """);
+      JavaFileObject spec =
+          JavaFileObjects.forSourceString(
+              "com.example.AccountMapping",
+              """
+              package com.example;
+
+              import org.higherkindedj.optics.annotations.GenerateMapping;
+              import org.higherkindedj.optics.annotations.MappingSpec;
+
+              @GenerateMapping
+              public interface AccountMapping
+                  extends ContactVocabulary, MappingSpec<Account, AccountDto> {}
+              """);
+      Compilation compilation = compile(EMAIL, ACCOUNT, ACCOUNT_DTO, grandparent, parent, spec);
+      assertThat(compilation).succeeded();
+      Assertions.assertThat(generatedSource(compilation, "com.example.AccountMappingImpl"))
+          .contains(".field(\"name\", hkj$ifPresent(wire.fullName(), Validated::validNel))")
+          .contains(".field(\"email\", hkj$ifPresent(wire.email(), email()::parse))")
+          .contains("display().get(domain)");
+    }
+
+    @Test
+    @DisplayName("unrelated mix-ins agreeing on a rename count as one declaration")
+    void agreeingMixinRenamesCountOnce() {
+      // JLS 9.4.1 lets override-equivalent abstracts coexist, so javac accepts this hierarchy;
+      // two declarations of the same fact must fold into one rename and one stub.
+      JavaFileObject agreeing =
+          JavaFileObjects.forSourceString(
+              "com.example.AgreeingVocabulary",
+              """
+              package com.example;
+
+              import org.higherkindedj.optics.annotations.MapField;
+
+              public interface AgreeingVocabulary {
+                @MapField(to = "fullName")
+                String name();
+              }
+              """);
+      JavaFileObject spec =
+          JavaFileObjects.forSourceString(
+              "com.example.AccountMapping",
+              """
+              package com.example;
+
+              import org.higherkindedj.optics.annotations.GenerateMapping;
+              import org.higherkindedj.optics.annotations.MappingSpec;
+
+              @GenerateMapping
+              public interface AccountMapping
+                  extends AccountVocabulary, AgreeingVocabulary,
+                      MappingSpec<Account, AccountDto> {}
+              """);
+      Compilation compilation = compile(EMAIL, ACCOUNT, ACCOUNT_DTO, VOCABULARY, agreeing, spec);
+      assertThat(compilation).succeeded();
+      String generated = generatedSource(compilation, "com.example.AccountMappingImpl");
+      Assertions.assertThat(generated)
+          .contains(".field(\"name\", hkj$ifPresent(wire.fullName(), Validated::validNel))");
+      Assertions.assertThat(generated.split("public String name\\(\\)", -1)).hasSize(2);
+    }
+
+    @Test
+    @DisplayName("mix-ins renaming the same component to different targets are diagnosed")
+    void conflictingMixinRenamesAreDiagnosed() {
+      JavaFileObject conflicting =
+          JavaFileObjects.forSourceString(
+              "com.example.ConflictingVocabulary",
+              """
+              package com.example;
+
+              import org.higherkindedj.optics.annotations.MapField;
+
+              public interface ConflictingVocabulary {
+                @MapField(to = "display")
+                String name();
+              }
+              """);
+      JavaFileObject spec =
+          JavaFileObjects.forSourceString(
+              "com.example.AccountMapping",
+              """
+              package com.example;
+
+              import org.higherkindedj.optics.annotations.GenerateMapping;
+              import org.higherkindedj.optics.annotations.MappingSpec;
+
+              @GenerateMapping
+              public interface AccountMapping
+                  extends AccountVocabulary, ConflictingVocabulary,
+                      MappingSpec<Account, AccountDto> {}
+              """);
+      Compilation compilation = compile(EMAIL, ACCOUNT, ACCOUNT_DTO, VOCABULARY, conflicting, spec);
+      assertThat(compilation).failed();
+      assertThat(compilation).hadErrorContaining("component 'name' has conflicting renames");
+      assertThat(compilation).hadErrorContaining("(inherited from '");
+      assertThat(compilation)
+          .hadErrorContaining("Override the rename on the spec itself, or align the mix-ins");
+    }
+
+    @Test
+    @DisplayName("a local rename re-declaration hides the mix-in's, like any override")
+    void localRenameOverrideHidesTheMixins() {
+      JavaFileObject spec =
+          JavaFileObjects.forSourceString(
+              "com.example.AccountMapping",
+              """
+              package com.example;
+
+              import org.higherkindedj.optics.annotations.GenerateMapping;
+              import org.higherkindedj.optics.annotations.MapField;
+              import org.higherkindedj.optics.annotations.MappingSpec;
+
+              @GenerateMapping
+              public interface AccountMapping
+                  extends AccountVocabulary, MappingSpec<Account, AccountDto> {
+                @Override
+                @MapField(to = "fullName")
+                String name();
+              }
+              """);
+      Compilation compilation = compile(EMAIL, ACCOUNT, ACCOUNT_DTO, VOCABULARY, spec);
+      assertThat(compilation).succeeded();
+      Assertions.assertThat(
+              generatedSource(compilation, "com.example.AccountMappingImpl")
+                  .split("public String name\\(\\)", -1))
+          .hasSize(2);
+    }
+
+    @Test
+    @DisplayName("a mix-in reachable through two paths counts once (diamond)")
+    void diamondReachableMixinCountsOnce() {
+      JavaFileObject left =
+          JavaFileObjects.forSourceString(
+              "com.example.LeftVocabulary",
+              """
+              package com.example;
+
+              public interface LeftVocabulary extends ContactVocabulary {}
+              """);
+      JavaFileObject right =
+          JavaFileObjects.forSourceString(
+              "com.example.RightVocabulary",
+              """
+              package com.example;
+
+              public interface RightVocabulary extends ContactVocabulary {}
+              """);
+      JavaFileObject base =
+          JavaFileObjects.forSourceString(
+              "com.example.ContactVocabulary",
+              """
+              package com.example;
+
+              import org.higherkindedj.optics.annotations.MapField;
+
+              public interface ContactVocabulary {
+                @MapField(to = "fullName")
+                String name();
+              }
+              """);
+      JavaFileObject diamondDto =
+          JavaFileObjects.forSourceString(
+              "com.example.NameOnlyDto",
+              """
+              package com.example;
+
+              public record NameOnlyDto(String fullName) {}
+              """);
+      JavaFileObject nameOnly =
+          JavaFileObjects.forSourceString(
+              "com.example.NameOnly",
+              """
+              package com.example;
+
+              public record NameOnly(String name) {}
+              """);
+      JavaFileObject spec =
+          JavaFileObjects.forSourceString(
+              "com.example.NameOnlyMapping",
+              """
+              package com.example;
+
+              import org.higherkindedj.optics.annotations.GenerateMapping;
+              import org.higherkindedj.optics.annotations.MappingSpec;
+
+              @GenerateMapping
+              public interface NameOnlyMapping
+                  extends LeftVocabulary, RightVocabulary,
+                      MappingSpec<NameOnly, NameOnlyDto> {}
+              """);
+      Compilation compilation = compile(base, left, right, nameOnly, diamondDto, spec);
+      assertThat(compilation).succeeded();
+      Assertions.assertThat(
+              generatedSource(compilation, "com.example.NameOnlyMappingImpl")
+                  .split("public String name\\(\\)", -1))
+          .hasSize(2);
+    }
+
+    @Test
+    @DisplayName("an inherited abstract non-rename is diagnosed with its declaring interface")
+    void inheritedAbstractNonRenameIsDiagnosed() {
+      JavaFileObject broken =
+          JavaFileObjects.forSourceString(
+              "com.example.BrokenVocabulary",
+              """
+              package com.example;
+
+              public interface BrokenVocabulary {
+                String bogus();
+              }
+              """);
+      JavaFileObject spec =
+          JavaFileObjects.forSourceString(
+              "com.example.AccountMapping",
+              """
+              package com.example;
+
+              import org.higherkindedj.optics.annotations.GenerateMapping;
+              import org.higherkindedj.optics.annotations.MappingSpec;
+
+              @GenerateMapping
+              public interface AccountMapping
+                  extends BrokenVocabulary, MappingSpec<Account, AccountDto> {}
+              """);
+      Compilation compilation = compile(EMAIL, ACCOUNT, ACCOUNT_DTO, broken, spec);
+      assertThat(compilation).failed();
+      assertThat(compilation)
+          .hadErrorContaining(
+              "abstract method 'bogus' (inherited from 'BrokenVocabulary') is neither a rename"
+                  + " nor a leaf");
+    }
+
+    @Test
+    @DisplayName("a mix-in member colliding with an emitted member names its declaring interface")
+    void inheritedCollisionNamesTheDeclaringInterface() {
+      JavaFileObject colliding =
+          JavaFileObjects.forSourceString(
+              "com.example.BuildVocabulary",
+              """
+              package com.example;
+
+              public interface BuildVocabulary {
+                default AccountDto build(Account domain) {
+                  return null;
+                }
+              }
+              """);
+      JavaFileObject spec =
+          JavaFileObjects.forSourceString(
+              "com.example.AccountMapping",
+              """
+              package com.example;
+
+              import org.higherkindedj.optics.annotations.GenerateMapping;
+              import org.higherkindedj.optics.annotations.MappingSpec;
+
+              @GenerateMapping
+              public interface AccountMapping
+                  extends AccountVocabulary, BuildVocabulary, MappingSpec<Account, AccountDto> {}
+              """);
+      Compilation compilation = compile(EMAIL, ACCOUNT, ACCOUNT_DTO, VOCABULARY, colliding, spec);
+      assertThat(compilation).failed();
+      assertThat(compilation)
+          .hadErrorContaining(
+              "(inherited from 'BuildVocabulary') collides with the 'build' member");
+    }
+
+    @Test
+    @DisplayName("a generic mix-in is rejected")
+    void genericMixinIsRejected() {
+      JavaFileObject generic =
+          JavaFileObjects.forSourceString(
+              "com.example.ElementVocabulary",
+              """
+              package com.example;
+
+              public interface ElementVocabulary<T> {}
+              """);
+      JavaFileObject spec =
+          JavaFileObjects.forSourceString(
+              "com.example.AccountMapping",
+              """
+              package com.example;
+
+              import org.higherkindedj.optics.annotations.GenerateMapping;
+              import org.higherkindedj.optics.annotations.MappingSpec;
+
+              @GenerateMapping
+              public interface AccountMapping
+                  extends ElementVocabulary<String>, MappingSpec<Account, AccountDto> {}
+              """);
+      Compilation compilation = compile(EMAIL, ACCOUNT, ACCOUNT_DTO, generic, spec);
+      assertThat(compilation).failed();
+      assertThat(compilation).hadErrorContaining("mix-in 'ElementVocabulary' is generic");
+      assertThat(compilation)
+          .hadErrorContaining("Make the mix-in non-generic, or declare the members directly");
+    }
+
+    @Test
+    @DisplayName("a mix-in that transitively extends MappingSpec is rejected")
+    void indirectSpecMixinIsRejected() {
+      JavaFileObject base =
+          JavaFileObjects.forSourceString(
+              "com.example.BaseMapping",
+              """
+              package com.example;
+
+              import org.higherkindedj.optics.annotations.MappingSpec;
+
+              public interface BaseMapping extends MappingSpec<Account, AccountDto> {}
+              """);
+      JavaFileObject sneaky =
+          JavaFileObjects.forSourceString(
+              "com.example.Sneaky",
+              """
+              package com.example;
+
+              public interface Sneaky extends BaseMapping {}
+              """);
+      JavaFileObject spec =
+          JavaFileObjects.forSourceString(
+              "com.example.AccountMapping",
+              """
+              package com.example;
+
+              import org.higherkindedj.optics.annotations.GenerateMapping;
+              import org.higherkindedj.optics.annotations.MappingSpec;
+
+              @GenerateMapping
+              public interface AccountMapping
+                  extends Sneaky, MappingSpec<Account, AccountDto> {}
+              """);
+      Compilation compilation = compile(EMAIL, ACCOUNT, ACCOUNT_DTO, base, sneaky, spec);
+      assertThat(compilation).failed();
+      assertThat(compilation).hadErrorContaining("mix-in 'Sneaky' is itself a mapping spec");
+    }
+
+    @Test
+    @DisplayName("an unresolved mix-in is javac's error, not a mix-in diagnostic")
+    void unresolvedMixinStepsAside() {
+      JavaFileObject spec =
+          JavaFileObjects.forSourceString(
+              "com.example.AccountMapping",
+              """
+              package com.example;
+
+              import org.higherkindedj.optics.annotations.GenerateMapping;
+              import org.higherkindedj.optics.annotations.MappingSpec;
+
+              @GenerateMapping
+              public interface AccountMapping
+                  extends MissingVocabulary, MappingSpec<Account, AccountDto> {}
+              """);
+      Compilation compilation = compile(EMAIL, ACCOUNT, ACCOUNT_DTO, spec);
+      assertThat(compilation).failed();
+      assertThat(compilation).hadErrorContaining("MissingVocabulary");
+      Assertions.assertThat(compilation.diagnostics())
+          .noneMatch(d -> d.getMessage(null).contains("mix-in"));
+    }
+
+    @Test
+    @DisplayName("a mix-in with an unresolved superinterface is javac's error, not the gate's")
+    void unresolvedMixinParentStepsAside() {
+      JavaFileObject partial =
+          JavaFileObjects.forSourceString(
+              "com.example.PartialVocabulary",
+              """
+              package com.example;
+
+              public interface PartialVocabulary extends MissingBase {}
+              """);
+      JavaFileObject spec =
+          JavaFileObjects.forSourceString(
+              "com.example.AccountMapping",
+              """
+              package com.example;
+
+              import org.higherkindedj.optics.annotations.GenerateMapping;
+              import org.higherkindedj.optics.annotations.MappingSpec;
+
+              @GenerateMapping
+              public interface AccountMapping
+                  extends PartialVocabulary, MappingSpec<Account, AccountDto> {}
+              """);
+      Compilation compilation = compile(EMAIL, ACCOUNT, ACCOUNT_DTO, partial, spec);
+      assertThat(compilation).failed();
+      assertThat(compilation).hadErrorContaining("MissingBase");
+      Assertions.assertThat(compilation.diagnostics())
+          .noneMatch(d -> d.getMessage(null).contains("mix-in"));
+    }
+
+    @Test
+    @DisplayName("a threaded generic spec composes with a non-generic mix-in")
+    void threadedSpecComposesWithMixins() {
+      JavaFileObject box =
+          JavaFileObjects.forSourceString(
+              "com.example.Box",
+              """
+              package com.example;
+
+              public record Box<T>(T value, String label) {}
+              """);
+      JavaFileObject boxDto =
+          JavaFileObjects.forSourceString(
+              "com.example.BoxDto",
+              """
+              package com.example;
+
+              public record BoxDto<T>(T value, String tag) {}
+              """);
+      JavaFileObject vocabulary =
+          JavaFileObjects.forSourceString(
+              "com.example.BoxVocabulary",
+              """
+              package com.example;
+
+              import org.higherkindedj.optics.annotations.MapField;
+
+              public interface BoxVocabulary {
+                @MapField(to = "tag")
+                String label();
+              }
+              """);
+      JavaFileObject spec =
+          JavaFileObjects.forSourceString(
+              "com.example.BoxMapping",
+              """
+              package com.example;
+
+              import org.higherkindedj.optics.annotations.GenerateMapping;
+              import org.higherkindedj.optics.annotations.MappingSpec;
+
+              @GenerateMapping
+              public interface BoxMapping<T>
+                  extends BoxVocabulary, MappingSpec<Box<T>, BoxDto<T>> {}
+              """);
+      Compilation compilation = compile(box, boxDto, vocabulary, spec);
+      assertThat(compilation).succeeded();
+      Assertions.assertThat(generatedSource(compilation, "com.example.BoxMappingImpl"))
+          .contains("public final class BoxMappingImpl<T> implements BoxMapping<T>")
+          .contains("public static <T> BoxMappingImpl<T> instance()")
+          .contains(".field(\"label\", hkj$ifPresent(wire.tag(), Validated::validNel))");
     }
   }
 

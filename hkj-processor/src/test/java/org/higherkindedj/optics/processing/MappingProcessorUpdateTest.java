@@ -305,6 +305,63 @@ class MappingProcessorUpdateTest {
         throw new AssertionError(e);
       }
     }
+
+    @Test
+    @DisplayName("a rename inherited from a mix-in drives the sparse patch (#623)")
+    void inheritedRenameDrivesTheSparsePatch() {
+      JavaFileObject account =
+          JavaFileObjects.forSourceString(
+              "com.example.Account",
+              """
+              package com.example;
+
+              public record Account(String owner) {}
+              """);
+      JavaFileObject dto =
+          JavaFileObjects.forSourceString(
+              "com.example.AccountPatchDto",
+              """
+              package com.example;
+
+              public class AccountPatchDto {
+                private String holder;
+                public String getHolder() { return holder; }
+                public void setHolder(String holder) { this.holder = holder; }
+              }
+              """);
+      JavaFileObject vocabulary =
+          JavaFileObjects.forSourceString(
+              "com.example.OwnerVocabulary",
+              """
+              package com.example;
+
+              import org.higherkindedj.optics.annotations.MapField;
+
+              public interface OwnerVocabulary {
+                @MapField(to = "holder")
+                String owner();
+              }
+              """);
+      JavaFileObject spec =
+          JavaFileObjects.forSourceString(
+              "com.example.AccountPatchMapping",
+              """
+              package com.example;
+
+              import org.higherkindedj.optics.annotations.GenerateMapping;
+              import org.higherkindedj.optics.annotations.UpdateSpec;
+
+              @GenerateMapping
+              public interface AccountPatchMapping
+                  extends OwnerVocabulary, UpdateSpec<Account, AccountPatchDto> {}
+              """);
+
+      Compilation compilation = compile(account, dto, vocabulary, spec);
+      assertThat(compilation).succeeded();
+      Assertions.assertThat(generatedSource(compilation, "com.example.AccountPatchMappingImpl"))
+          .contains("wire.getHolder()")
+          .contains("public String owner()");
+    }
   }
 
   @Nested
@@ -513,7 +570,7 @@ class MappingProcessorUpdateTest {
     }
 
     @Test
-    @DisplayName("a spec extending another interface besides UpdateSpec is rejected")
+    @DisplayName("a mix-in carrying a leaf is accepted on an update spec")
     void extraSuperinterface() {
       JavaFileObject spec =
           JavaFileObjects.forSourceString(
@@ -521,17 +578,75 @@ class MappingProcessorUpdateTest {
               """
               package com.example;
 
+              import org.higherkindedj.hkt.validated.FieldError;
+              import org.higherkindedj.hkt.validated.Validated;
               import org.higherkindedj.optics.annotations.GenerateMapping;
               import org.higherkindedj.optics.annotations.UpdateSpec;
+              import org.higherkindedj.optics.validated.ValidatedPrism;
 
-              interface Marker {}
+              interface Marker {
+                default ValidatedPrism<String, EmailAddress> email() {
+                  return ValidatedPrism.of(
+                      raw ->
+                          raw.contains("@")
+                              ? Validated.validNel(new EmailAddress(raw))
+                              : Validated.invalidNel(FieldError.of("not an email address")),
+                      EmailAddress::value);
+                }
+              }
 
               @GenerateMapping
               public interface ExtraMapping extends UpdateSpec<User, UserPatchDto>, Marker {}
               """);
       Compilation compilation = compile(EMAIL, USER, USER_PATCH_DTO, spec);
+      assertThat(compilation).succeededWithoutWarnings();
+      assertThat(compilation).generatedSourceFile("com.example.ExtraMappingImpl");
+    }
+
+    @Test
+    @DisplayName("a generic mix-in is rejected on the update path too")
+    void genericMixinRejected() {
+      JavaFileObject spec =
+          JavaFileObjects.forSourceString(
+              "com.example.GenericMixinMapping",
+              """
+              package com.example;
+
+              import org.higherkindedj.optics.annotations.GenerateMapping;
+              import org.higherkindedj.optics.annotations.UpdateSpec;
+
+              interface Vocabulary<T> {}
+
+              @GenerateMapping
+              public interface GenericMixinMapping
+                  extends Vocabulary<String>, UpdateSpec<User, UserPatchDto> {}
+              """);
+      Compilation compilation = compile(EMAIL, USER, USER_PATCH_DTO, spec);
       assertThat(compilation).failed();
-      assertThat(compilation).hadErrorContaining("extends interfaces besides UpdateSpec");
+      assertThat(compilation).hadErrorContaining("mix-in 'Vocabulary' is generic");
+    }
+
+    @Test
+    @DisplayName("a mix-in that is itself an update spec is rejected")
+    void updateSpecMixinRejected() {
+      JavaFileObject spec =
+          JavaFileObjects.forSourceString(
+              "com.example.StackedPatchMapping",
+              """
+              package com.example;
+
+              import org.higherkindedj.optics.annotations.GenerateMapping;
+              import org.higherkindedj.optics.annotations.UpdateSpec;
+
+              interface BasePatch extends UpdateSpec<User, UserPatchDto> {}
+
+              @GenerateMapping
+              public interface StackedPatchMapping
+                  extends BasePatch, UpdateSpec<User, UserPatchDto> {}
+              """);
+      Compilation compilation = compile(EMAIL, USER, USER_PATCH_DTO, spec);
+      assertThat(compilation).failed();
+      assertThat(compilation).hadErrorContaining("mix-in 'BasePatch' is itself a mapping spec");
     }
 
     @Test
