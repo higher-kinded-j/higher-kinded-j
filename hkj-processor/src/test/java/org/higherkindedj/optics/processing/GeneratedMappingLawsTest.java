@@ -332,7 +332,7 @@ class GeneratedMappingLawsTest {
 
   @Test
   @DisplayName(
-      "threaded generic tier (#624 slice 2): one instance() singleton is lawful at any"
+      "threaded generic tier: one instance() singleton is lawful at any"
           + " instantiation, asIso included")
   void threadedGenericSpecIsLawful() throws ReflectiveOperationException {
     JavaFileObject pair =

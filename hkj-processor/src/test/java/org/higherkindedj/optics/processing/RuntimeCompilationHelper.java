@@ -152,8 +152,8 @@ public class RuntimeCompilationHelper {
      * @return the INSTANCE value
      */
     /**
-     * Loads a generic Impl's cached singleton through its {@code instance()} factory (#624 slice 2)
-     * — the generic-Impl counterpart of {@link #instance(String)}.
+     * Loads a generic Impl's cached singleton through its {@code instance()} factory: the
+     * generic-Impl counterpart of {@link #instance(String)}.
      *
      * @param className the Impl's fully qualified class name
      * @return the shared singleton

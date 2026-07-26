@@ -124,7 +124,7 @@ public class MergeProcessor extends AbstractProcessor {
           spec,
           TAG,
           "'" + spec.getSimpleName() + "' extends other interfaces.",
-          "The merge method and leaves declared on supertypes are invisible to this slice's"
+          "The merge method and leaves declared on supertypes are invisible to the processor's"
               + " classification, so the generated Impl could silently miss inherited members.",
           "Declare the merge method and every leaf directly on the spec.");
       return;

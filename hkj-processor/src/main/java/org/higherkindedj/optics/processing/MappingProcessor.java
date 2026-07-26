@@ -50,8 +50,8 @@ import org.higherkindedj.optics.annotations.MapField;
 import org.higherkindedj.optics.processing.util.Diagnostics;
 
 /**
- * Annotation processor for {@code @GenerateMapping} — the Step-0 slice of the bidirectional
- * record↔DTO mapper (issue #600).
+ * Annotation processor for {@code @GenerateMapping}: the bidirectional record↔DTO mapper (issue
+ * #600).
  *
  * <p>For an interface {@code UserMapping extends MappingSpec<User, UserDto>} it generates a
  * same-package {@code UserMappingImpl} with a total {@code build(User) : UserDto} and an
@@ -167,8 +167,8 @@ public class MappingProcessor extends AbstractProcessor {
         continue;
       }
       TypeElement spec = (TypeElement) element;
-      // A generic spec (threaded type parameters, #624 slice 2) is not yet nestable: resolving it
-      // at a concrete use site needs the slice-3 unification, so it stays out of the registry.
+      // A generic spec (threaded type parameters) is not yet nestable: resolving it at a
+      // concrete use site needs type-argument unification, so it stays out of the registry.
       if (!spec.getTypeParameters().isEmpty()) {
         continue;
       }
@@ -315,12 +315,12 @@ public class MappingProcessor extends AbstractProcessor {
   }
 
   /**
-   * A record use is supported when every type argument is either a concrete type (the #624 first
-   * slice) or one of the spec's own type parameters (identity-threaded generics, the #624 second
-   * slice): {@code PageMapping<T> extends MappingSpec<Page<T>, PageDto<T>>} threads {@code T}
-   * through {@code build}/{@code parse} and the emitted optics. Raw uses and wildcards stay
-   * diagnosed; an argument mixing a spec variable inside a concrete shape ({@code Page<List<T>>})
-   * is threaded fine because the check is recursive on both sides.
+   * A record use is supported when every type argument is either a concrete type or one of the
+   * spec's own type parameters (identity-threaded generics): {@code PageMapping<T> extends
+   * MappingSpec<Page<T>, PageDto<T>>} threads {@code T} through {@code build}/{@code parse} and the
+   * emitted optics. Raw uses and wildcards stay diagnosed; an argument mixing a spec variable
+   * inside a concrete shape ({@code Page<List<T>>}) is threaded fine because the check is recursive
+   * on both sides.
    */
   private boolean supportedUse(
       TypeElement spec, TypeElement record, DeclaredType used, String side) {
@@ -360,8 +360,8 @@ public class MappingProcessor extends AbstractProcessor {
   }
 
   /**
-   * A spec's own type variable threads through (slice 2); anything else must be concrete (slice 1).
-   * The two compose recursively, so {@code Page<List<T>>} is a supported threaded use.
+   * A spec's own type variable threads through; anything else must be concrete. The two compose
+   * recursively, so {@code Page<List<T>>} is a supported threaded use.
    */
   private boolean supportedArgument(TypeElement spec, TypeMirror argument) {
     // An unresolved argument steps aside so javac's cannot-find-symbol is the only diagnostic
@@ -439,7 +439,7 @@ public class MappingProcessor extends AbstractProcessor {
           element,
           TAG,
           "'" + spec.getSimpleName() + "' extends interfaces besides MappingSpec.",
-          "Renames and leaves declared on other supertypes are invisible to this slice's"
+          "Renames and leaves declared on other supertypes are invisible to the processor's"
               + " classification, so the generated Impl could silently miss inherited members.",
           "Declare every rename and leaf directly on the spec; spec inheritance arrives with the"
               + " full mapper.");
@@ -588,7 +588,7 @@ public class MappingProcessor extends AbstractProcessor {
           spec,
           TAG,
           "'" + spec.getSimpleName() + "' extends interfaces besides UpdateSpec.",
-          "Renames and leaves declared on other supertypes are invisible to this slice's"
+          "Renames and leaves declared on other supertypes are invisible to the processor's"
               + " classification, so the generated Impl could silently miss inherited members.",
           "Declare every rename and leaf directly on the spec.");
       return;
@@ -2614,7 +2614,7 @@ public class MappingProcessor extends AbstractProcessor {
                   .initializer("new $T()", implName)
                   .build());
     }
-    // A generic Impl (threaded type parameters, #624 slice 2) cannot carry a typed static
+    // A generic Impl (threaded type parameters) cannot carry a typed static
     // INSTANCE, so it follows hkj-core's generic-singleton convention (EitherMonad.instance()):
     // one stateless cached instance behind an unchecked-but-sound cast.
     TypeName[] wildcards = new TypeName[variables.size()];
@@ -2706,9 +2706,9 @@ public class MappingProcessor extends AbstractProcessor {
   }
 
   /**
-   * A generic Impl also declares the static {@code instance()} singleton accessor (#624 slice 2); a
-   * spec method with that erased signature would clash with or shadow it in the generated file, so
-   * every record tier reserves it alongside its own members.
+   * A generic Impl also declares the static {@code instance()} singleton accessor; a spec method
+   * with that erased signature would clash with or shadow it in the generated file, so every record
+   * tier reserves it alongside its own members.
    */
   private static List<EmittedMember> reserveInstanceIfGeneric(
       TypeElement spec, List<EmittedMember> base) {

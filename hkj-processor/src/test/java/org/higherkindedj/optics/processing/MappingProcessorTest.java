@@ -33,7 +33,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
-@DisplayName("MappingProcessor - the @GenerateMapping Step-0 slice")
+@DisplayName("MappingProcessor - @GenerateMapping")
 class MappingProcessorTest {
 
   private static final JavaFileObject DOMAIN =
@@ -3666,7 +3666,7 @@ class MappingProcessorTest {
     @Test
     @DisplayName(
         "a generic spec over concrete records is accepted: the unused variable threads"
-            + " through harmlessly (#624 slice 2)")
+            + " through harmlessly")
     void genericSpecOverConcreteRecordsAccepted() {
       Compilation compilation =
           compile(
@@ -4940,7 +4940,7 @@ class MappingProcessorTest {
   }
 
   @Nested
-  @DisplayName("Threaded generic specs (#624 slice 2)")
+  @DisplayName("Threaded generic specs (#624)")
   class ThreadedGenericSpecs {
 
     private static final JavaFileObject PAGE =
@@ -5148,7 +5148,7 @@ class MappingProcessorTest {
     }
 
     @Test
-    @DisplayName("an abstract leaf (the element-mapped shape) stays diagnosed until slice 3")
+    @DisplayName("an abstract leaf (the element-mapped shape) is not supported yet")
     void abstractLeafStaysDiagnosed() {
       JavaFileObject spec =
           JavaFileObjects.forSourceString(
@@ -5174,7 +5174,7 @@ class MappingProcessorTest {
     }
 
     @Test
-    @DisplayName("a threaded spec is not yet nestable: use sites need slice 3's unification")
+    @DisplayName("a threaded spec is not yet nestable: use sites need type-argument unification")
     void threadedSpecsAreNotYetNestable() {
       JavaFileObject report =
           JavaFileObjects.forSourceString(

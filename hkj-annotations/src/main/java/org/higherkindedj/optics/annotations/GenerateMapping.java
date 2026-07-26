@@ -37,9 +37,9 @@ import java.lang.annotation.Target;
  *       generic-singleton convention ({@code EitherMonad.instance()}); elements sharing a variable
  *       copy by identity. Both are record-to-record only (bean-shaped wires and {@code UpdateSpec}
  *       mappings stay concrete); raw uses (including raw nested arguments) and wildcards are
- *       diagnosed, array arguments are concrete, and a threaded spec is not yet nestable — that,
- *       and the element-mapped form (an abstract {@code ValidatedPrism<TDto, T>} leaf), arrive with
- *       the element-mapped slice.
+ *       diagnosed, array arguments are concrete, and a threaded spec is not yet nestable; that, and
+ *       the element-mapped form (an abstract {@code ValidatedPrism<TDto, T>} leaf), are not
+ *       supported yet.
  *   <li>Every reference-typed {@code parse} read is null-guarded into a located {@code FieldError},
  *       on both wire shapes (issue #653): an unset bean property is null, and a JSON binder leaves
  *       a missing record component null just the same. A bean's guarded reads make {@code asIso()}
