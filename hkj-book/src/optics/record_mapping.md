@@ -160,7 +160,7 @@ A domain subtype without a spec, or a wire subtype nothing produces, is a compil
 
 ## Generic records: concrete instantiations and threaded specs
 
-A generic record maps two ways. As a **concrete instantiation**, name the type arguments in the spec and every component classifies under that substitution — so the whole toolkit (leaves, nesting, containers, the null doctrine, index location) applies unchanged:
+A generic record maps two ways. As a **concrete instantiation**, name the type arguments in the spec and every component classifies under that substitution, so the whole toolkit (leaves, nesting, containers, the null doctrine, index location) applies unchanged:
 
 ``` java
 {{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/mapping/RecordMappingBook.java:generic_spec}}
@@ -170,7 +170,7 @@ A generic record maps two ways. As a **concrete instantiation**, name the type a
 
 An instantiated mapping registers like any other, so `Report(Page<Customer> results)` nests it automatically.
 
-As a **threaded spec**, declare the spec generic in its own type parameters and one mapping serves every instantiation — elements sharing a variable copy by identity, and the whole surface (`build`, `parse`, `asIso` on a lossless pair) is generic:
+As a **threaded spec**, declare the spec generic in its own type parameters and one mapping serves every instantiation. Same-variable elements copy by identity, and the whole surface (`build`, `parse`, `asIso` on a lossless pair) is generic:
 
 ``` java
 {{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/mapping/RecordMappingBook.java:threaded_spec}}
@@ -180,7 +180,7 @@ As a **threaded spec**, declare the spec generic in its own type parameters and 
 
 A generic Impl cannot carry a typed static `INSTANCE`, so it follows the library's generic-singleton convention (`EitherMonad.instance()`): one stateless cached instance behind `PageMappingImpl.instance()`. Multi-parameter and bounded specs thread too (`ResultMapping<E, A>`, `RankedMapping<T extends Number>`), and a same-typed `default` leaf (`ValidatedPrism<T, T>`) still routes elements.
 
-Boundaries: generic mappings are **record-to-record only** (bean-shaped wires and `UpdateSpec` mappings stay concrete); raw uses (including raw *nested* arguments) and wildcards are diagnosed, while array arguments (`Page<String[]>`) are concrete and map fine; a threaded spec is **not yet nestable** into siblings, and an *abstract* leaf (`ValidatedPrism<TDto, T> items();` — the element-mapped `Page<T> ↔ PageDto<TDto>` form) stays diagnosed — both arrive with the element-mapped slice of the full mapper.
+Boundaries: generic mappings are **record-to-record only** (bean-shaped wires and `UpdateSpec` mappings stay concrete); raw uses (including raw *nested* arguments) and wildcards are diagnosed, while array arguments (`Page<String[]>`) are concrete and map fine; a threaded spec is **not yet nestable** into siblings, and an *abstract* leaf (`ValidatedPrism<TDto, T> items();`, the element-mapped `Page<T> ↔ PageDto<TDto>` form) stays diagnosed; both arrive with the element-mapped slice of the full mapper.
 
 ---
 
@@ -395,7 +395,7 @@ Every rejection follows the processor's what/why/fix standard: the message state
 - `parse` is assembled with [`Validated.fields()`](../monads/validated_assembly.md), which locates up to **16 components**; group larger records into nested records, which nest through their own specs.
 - Nested and sealed resolution sees specs **in the same compilation**, and a spec extends `MappingSpec` and nothing else; inherited renames/leaves arrive with the full mapper.
 - `Map` components lift values only: keys are identity, so differing key types, raw `Map`s and wildcard type arguments are compile errors.
-- A projection with any fallible correspondence emits the [validated `patch`](#leaf-carrying-projections-the-validated-patch) write-back rather than `asLens()`; projections cannot carry derived fields (the write-back could never honour a recomputed component); generic records map as concrete instantiations or threaded specs ([above](#generic-records-concrete-instantiations-and-threaded-specs)); a threaded spec is not yet nestable into siblings, and an *abstract* element-mapped leaf stays diagnosed — both arrive with the element-mapped slice.
+- A projection with any fallible correspondence emits the [validated `patch`](#leaf-carrying-projections-the-validated-patch) write-back rather than `asLens()`; projections cannot carry derived fields (the write-back could never honour a recomputed component); generic records map as concrete instantiations or threaded specs ([above](#generic-records-concrete-instantiations-and-threaded-specs)); a threaded spec is not yet nestable into siblings, and an *abstract* element-mapped leaf stays diagnosed; both arrive with the element-mapped slice.
 
 ~~~admonish tip title="See Also"
 - [Validated Prisms](validated_prism.md) - The leaf optic every fallible correspondence is built from
