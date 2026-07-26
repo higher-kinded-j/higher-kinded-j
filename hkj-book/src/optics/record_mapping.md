@@ -119,7 +119,7 @@ Four shapes are rejected, each with a what/why/fix diagnostic:
 
 ## Shared vocabulary: mix-in interfaces
 
-The same rename or the same leaf tends to recur across an API's specs — every wire calls it `fullName`, every email parses the same way. Move the shared members onto a **plain interface** and extend it alongside `MappingSpec`:
+The same rename or the same leaf tends to recur across an API's specs: every wire calls it `fullName`, every email parses the same way. Move the shared members onto a **plain interface** and extend it alongside `MappingSpec`:
 
 ``` java
 {{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/mapping/RecordMappingBook.java:mixin_spec}}
@@ -127,14 +127,14 @@ The same rename or the same leaf tends to recur across an API's specs — every 
 {{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/mapping/RecordMappingBook.java:mixin_usage}}
 ```
 
-An inherited member counts exactly as if it were declared on the spec — renames, leaves *and* derived fields, collected across the whole hierarchy (a mix-in may extend further mix-ins, and a diamond counts once). Precedence is **Java's own**: a member re-declared on the spec (or on a nearer mix-in) hides the one it overrides, and conflicting inherited `default` methods are already a javac error before the processor runs. The one case javac leaves open — unrelated mix-ins both declaring the same *abstract* rename (override-equivalent abstracts may coexist, JLS 9.4.1) — folds into a single rename when the targets agree, and is rejected with a diagnostic naming both interfaces when they conflict. Interface `static` helpers are not inherited (JLS 8.4.8), so factory methods on a mix-in stay inert.
+An inherited member counts exactly as if it were declared on the spec: renames, leaves *and* derived fields, collected across the whole hierarchy (a mix-in may extend further mix-ins, and a diamond counts once). Precedence is **Java's own**: a member re-declared on the spec (or on a nearer mix-in) hides the one it overrides, and conflicting inherited `default` methods are already a javac error before the processor runs. The one case javac leaves open, unrelated mix-ins both declaring the same *abstract* rename (override-equivalent abstracts may coexist, JLS 9.4.1), folds into a single rename when the targets agree and is rejected with a diagnostic naming both interfaces when they conflict. Interface `static` helpers are not inherited (JLS 8.4.8), so factory methods on a mix-in stay inert.
 
 Two shapes are rejected, each naming the offender:
 
-- a mix-in that **is itself a mapping spec** (directly or transitively extends `MappingSpec`/`UpdateSpec`) — a mix-in shares vocabulary, a spec generates an Impl, and inheriting one spec from another would conflate the two;
-- a **generic** mix-in — inherited member types are read as declared, and substituting them under an instantiation is not supported yet.
+- a mix-in that **is itself a mapping spec** (directly or transitively extends `MappingSpec`/`UpdateSpec`): a mix-in shares vocabulary, a spec generates an Impl, and inheriting one spec from another would conflate the two;
+- a **generic** mix-in: inherited member types are read as declared, and substituting them under an instantiation is not supported yet.
 
-Diagnostics about an inherited member name its declaring interface — `abstract method 'bogus' (inherited from 'BrokenVocabulary') is neither a rename nor a leaf` — so the fix points at the right file. Mix-ins compose with the rest of the feature: [threaded generic specs](#generic-records-concrete-instantiations-and-threaded-specs) can extend (non-generic) mix-ins, and [`UpdateSpec`](#sparse-patch-write-back-updatespec) mappings inherit vocabulary the same way. `@GenerateMerge` specs still declare everything directly.
+Diagnostics about an inherited member name its declaring interface, `abstract method 'bogus' (inherited from 'BrokenVocabulary') is neither a rename nor a leaf`, so the fix points at the right file. Mix-ins compose with the rest of the feature: [threaded generic specs](#generic-records-concrete-instantiations-and-threaded-specs) can extend (non-generic) mix-ins, and [`UpdateSpec`](#sparse-patch-write-back-updatespec) mappings inherit vocabulary the same way. `@GenerateMerge` specs still declare everything directly.
 
 ---
 
