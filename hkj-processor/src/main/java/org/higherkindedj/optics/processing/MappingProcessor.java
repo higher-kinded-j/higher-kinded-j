@@ -217,11 +217,6 @@ public class MappingProcessor extends AbstractProcessor {
   }
 
   /**
-   * A spec's abstract methods must all be zero-parameter {@code @MapField} renames — anything else
-   * would leave the generated Impl with an unimplemented member (or a meaningless rename on a
-   * sealed mapping, which has no components).
-   */
-  /**
    * The spec's vocabulary members (issue #623): its own declared methods plus everything inherited
    * from mix-in interfaces, with Java's own precedence — an override hides its parents, and javac
    * itself rejects genuinely conflicting parents before the processor runs. Interface statics and
@@ -296,6 +291,11 @@ public class MappingProcessor extends AbstractProcessor {
       return true;
     }
     for (TypeMirror parent : iface.getInterfaces()) {
+      // The same ERROR step-aside as checkMixins: an unresolved superinterface is javac's
+      // diagnostic, and an error type can neither be nor extend the mapping family.
+      if (parent.getKind() == TypeKind.ERROR) {
+        continue;
+      }
       if (extendsMappingFamily((TypeElement) ((DeclaredType) parent).asElement())) {
         return true;
       }
@@ -303,6 +303,11 @@ public class MappingProcessor extends AbstractProcessor {
     return false;
   }
 
+  /**
+   * A spec's abstract methods must all be zero-parameter {@code @MapField} renames — anything else
+   * would leave the generated Impl with an unimplemented member (or a meaningless rename on a
+   * sealed mapping, which has no components).
+   */
   private boolean validateSpecMethods(TypeElement spec, boolean sealedPair) {
     for (ExecutableElement method : specMembers(spec)) {
       MapField mapField = method.getAnnotation(MapField.class);

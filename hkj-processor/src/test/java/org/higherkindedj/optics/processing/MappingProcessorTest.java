@@ -6878,6 +6878,37 @@ class MappingProcessorTest {
     }
 
     @Test
+    @DisplayName("a mix-in with an unresolved superinterface is javac's error, not the gate's")
+    void unresolvedMixinParentStepsAside() {
+      JavaFileObject partial =
+          JavaFileObjects.forSourceString(
+              "com.example.PartialVocabulary",
+              """
+              package com.example;
+
+              public interface PartialVocabulary extends MissingBase {}
+              """);
+      JavaFileObject spec =
+          JavaFileObjects.forSourceString(
+              "com.example.AccountMapping",
+              """
+              package com.example;
+
+              import org.higherkindedj.optics.annotations.GenerateMapping;
+              import org.higherkindedj.optics.annotations.MappingSpec;
+
+              @GenerateMapping
+              public interface AccountMapping
+                  extends PartialVocabulary, MappingSpec<Account, AccountDto> {}
+              """);
+      Compilation compilation = compile(EMAIL, ACCOUNT, ACCOUNT_DTO, partial, spec);
+      assertThat(compilation).failed();
+      assertThat(compilation).hadErrorContaining("MissingBase");
+      Assertions.assertThat(compilation.diagnostics())
+          .noneMatch(d -> d.getMessage(null).contains("mix-in"));
+    }
+
+    @Test
     @DisplayName("a threaded generic spec composes with a non-generic mix-in")
     void threadedSpecComposesWithMixins() {
       JavaFileObject box =
