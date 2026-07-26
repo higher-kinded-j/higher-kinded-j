@@ -73,7 +73,7 @@ class MappingLawsTest {
           d -> new FullNameDto(d.first(), d.last(), d.first() + " " + d.last()));
 
   // Sparse-update tier: a hand-written updateFrom over an owner (identity) and a validated contact
-  // (leaf), mirroring what an UpdateSpec Impl emits (issue #645).
+  // (leaf), mirroring what an UpdateSpec Impl emits.
   record Account(String owner, EmailAddress contact) {}
 
   record AccountPatch(String owner, String contact) {}
@@ -97,7 +97,7 @@ class MappingLawsTest {
   private static final AccountPatch VALID_PATCH = new AccountPatch("Grace", "grace@example.org");
   private static final AccountPatch INVALID_PATCH = new AccountPatch(null, "not-an-email");
 
-  // Validated-patch tier (#625): a hand-written DENSE patch over an owner (identity, null-guarded)
+  // Validated-patch tier: a hand-written DENSE patch over an owner (identity, null-guarded)
   // and a validated contact (leaf), mirroring what a leaf-carrying projection Impl emits: every
   // reference read null-guards into a located error, and every leg is labelled.
   private static final BiFunction<

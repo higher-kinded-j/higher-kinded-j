@@ -164,10 +164,10 @@ public sealed interface ValidatedPrism<S, A> permits ValidatedPrism.Of {
 
   /**
    * Parses every element, accumulating all failures across the whole list, each located by its
-   * index (issue #660): a failing element at position 1 under a field labelled {@code emails}
-   * renders as {@code emails.1: ...} — a plain positional segment, matching {@link
-   * #parseValues(Map)}' key segments. A null element is a located {@code must not be null} at its
-   * index, never an exception, completing the #653 null doctrine inside containers.
+   * index: a failing element at position 1 under a field labelled {@code emails} renders as {@code
+   * emails.1: ...} — a plain positional segment, matching {@link #parseValues(Map)}' key segments.
+   * A null element is a located {@code must not be null} at its index, never an exception,
+   * completing the null doctrine inside containers.
    *
    * @param sources the wire values; the list itself must not be null
    * @return {@code Valid(list)} or every failure from every element, located by index, in list
@@ -234,8 +234,8 @@ public sealed interface ValidatedPrism<S, A> permits ValidatedPrism.Of {
    * collide share a rendered location, but every error is still reported.
    *
    * @param sources the wire values by key; neither the map nor its keys may be null — a null
-   *     <em>value</em> is a located {@code must not be null} under its key (issue #660), never an
-   *     exception, completing the #653 null doctrine inside containers
+   *     <em>value</em> is a located {@code must not be null} under its key, never an exception,
+   *     completing the null doctrine inside containers
    * @param <K> the key type, carried through unchanged
    * @return {@code Valid(map)} or every located failure from every entry, in entry order (non-null,
    *     immutable)

@@ -26,9 +26,9 @@ import org.higherkindedj.optics.validated.ValidatedPrism;
  * by {@code parse}); nesting (a spec delegating to a sibling spec, failures located by dotted
  * path); a self-recursive mapping over a tree; sealed-interface dispatch over permitted subtype
  * pairs; a lossy projection (Lens tier) whose {@code asLens()} writes the projected components
- * back; and bean-shaped wire targets (issue #628) - a mutable getter/setter DTO and an immutable
- * builder DTO - where {@code build} fills through setters or a builder and {@code parse} reads
- * through getters, null-guarding every reference read into a located {@code FieldError}.
+ * back; and bean-shaped wire targets - a mutable getter/setter DTO and an immutable builder DTO -
+ * where {@code build} fills through setters or a builder and {@code parse} reads through getters,
+ * null-guarding every reference read into a located {@code FieldError}.
  *
  * <p>The law-checked guarantee is runnable too: {@code GenerateMappingExampleLawsTest} in this
  * module's test sources law-checks every mapping below through the published {@code MappingLaws}

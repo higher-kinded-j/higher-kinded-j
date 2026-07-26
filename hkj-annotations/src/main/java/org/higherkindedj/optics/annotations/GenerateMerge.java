@@ -9,8 +9,8 @@ import java.lang.annotation.Target;
 
 /**
  * Generates a compile-time, reflection-free assembly of one target record from several source
- * records (issue #613). Forward-only: the multi-source case has no general inverse, so none is
- * generated (truthful types).
+ * records. Forward-only: the multi-source case has no general inverse, so none is generated
+ * (truthful types).
  *
  * <p>The spec method's signature <em>is</em> the merge declaration — target and sources are carried
  * by a typed, refactor-safe abstract method, never by class-literal annotation attributes:
@@ -32,10 +32,10 @@ import java.lang.annotation.Target;
  * An ambiguous component (same name in two sources) or an unfilled one is a compile error. With any
  * fallible fill the declared return type must be {@code Validated<NonEmptyList<FieldError>,
  * Target>} — the types never over- or under-claim fallibility. On that fallible path every
- * reference-typed source-component read is null-guarded (issue #659): a null component is a
- * located, accumulated {@code FieldError} ({@code must not be null}), never an exception, while a
- * null source <em>argument</em> stays the caller's {@code NullPointerException}. A plain-return
- * merge is total by its declaration, and nulls flow through to the target constructor.
+ * reference-typed source-component read is null-guarded: a null component is a located, accumulated
+ * {@code FieldError} ({@code must not be null}), never an exception, while a null source
+ * <em>argument</em> stays the caller's {@code NullPointerException}. A plain-return merge is total
+ * by its declaration, and nulls flow through to the target constructor.
  */
 @Target(ElementType.TYPE)
 @Retention(RetentionPolicy.SOURCE)

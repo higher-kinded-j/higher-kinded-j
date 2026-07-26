@@ -4,7 +4,7 @@ package org.higherkindedj.optics.annotations;
 
 /**
  * The specification interface for a generated sparse PATCH write-back — the null-as-absent sibling
- * of {@link MappingSpec} (issue #645).
+ * of {@link MappingSpec}.
  *
  * <p>Declare an interface extending {@code UpdateSpec<Domain, Wire>} and annotate it with {@link
  * GenerateMapping}. Where a {@link MappingSpec} treats a null bean property as broken data (a

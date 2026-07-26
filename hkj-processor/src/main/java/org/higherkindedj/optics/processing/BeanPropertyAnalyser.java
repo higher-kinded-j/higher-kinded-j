@@ -20,9 +20,9 @@ import javax.lang.model.util.ElementFilter;
 import org.higherkindedj.optics.processing.util.Diagnostics;
 
 /**
- * Discovers the JavaBeans property model of a bean-shaped wire type for {@code @GenerateMapping}
- * (issue #628). A bean is read through {@code getX}/{@code isX} getters and constructed through one
- * of a fixed ladder of strategies, tried in order:
+ * Discovers the JavaBeans property model of a bean-shaped wire type for {@code @GenerateMapping} .
+ * A bean is read through {@code getX}/{@code isX} getters and constructed through one of a fixed
+ * ladder of strategies, tried in order:
  *
  * <ol>
  *   <li>a no-args constructor with {@code setX} setters (and, for a getter-only {@code List}, the

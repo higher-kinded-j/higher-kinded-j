@@ -87,7 +87,7 @@ class ValidatedPrismTest {
       Validated<NonEmptyList<FieldError>, List<Email>> failed =
           located.parseAll(List.of("bad-one", "a@b", "bad-two"));
       assertThatValidated(failed).isInvalid();
-      // Element failures locate by index (issue #660), a plain positional segment like a map key.
+      // Element failures locate by index, a plain positional segment like a map key.
       assertThat(failed.getError().toJavaList())
           .containsExactly(
               new FieldError(List.of("0"), "bad: bad-one"),
@@ -102,7 +102,7 @@ class ValidatedPrismTest {
       assertThatNullPointerException()
           .isThrownBy(() -> EMAIL.buildAll(null))
           .withMessage("values must not be null");
-      // A null element is a located invalid at its index (issue #660), never an exception; the
+      // A null element is a located invalid at its index, never an exception; the
       // build direction stays total-and-throwing.
       Validated<NonEmptyList<FieldError>, List<Email>> nullElement =
           EMAIL.parseAll(Arrays.asList("a@b", null));
@@ -163,7 +163,7 @@ class ValidatedPrismTest {
       assertThatNullPointerException()
           .isThrownBy(() -> EMAIL.parseValues(nullKey))
           .withMessage("sources must not contain a null key");
-      // A null value is a located invalid under its key (issue #660), never an exception; a null
+      // A null value is a located invalid under its key, never an exception; a null
       // key stays the caller's error — a structurally broken map, not a wrong value.
       Map<String, String> nullValue = new HashMap<>();
       nullValue.put("work", null);

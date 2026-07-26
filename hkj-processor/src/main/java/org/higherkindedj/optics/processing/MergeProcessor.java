@@ -35,9 +35,9 @@ import org.higherkindedj.optics.annotations.GenerateMerge;
 import org.higherkindedj.optics.processing.util.Diagnostics;
 
 /**
- * Annotation processor for {@code @GenerateMerge} (issue #613): forward-only assembly of one target
- * record from several source records, declared by the spec interface's single abstract method — the
- * signature carries target and sources, never class-literal attributes.
+ * Annotation processor for {@code @GenerateMerge}: forward-only assembly of one target record from
+ * several source records, declared by the spec interface's single abstract method — the signature
+ * carries target and sources, never class-literal attributes.
  *
  * <p>Each target component is filled from the one source with a same-named component: identity when
  * the types match, through a zero-parameter {@code default} leaf method returning {@code
@@ -46,12 +46,12 @@ import org.higherkindedj.optics.processing.util.Diagnostics;
  * must be {@code Validated<NonEmptyList<FieldError>, Target>}, and without one it must be the plain
  * target.
  *
- * <p>The fallible path carries the mapper family's null doctrine (issue #659, completing #653):
- * every reference-typed source-component read is null-guarded through the shared {@code
- * hkj$ifPresent} helper, so a null component is a located, accumulated {@code FieldError} ({@code
- * must not be null}), never an exception — a null source <em>argument</em> stays the caller's
- * {@code requireNonNull}. A merge whose method declares the plain target return is total by that
- * declaration: nulls flow through to the target constructor exactly as {@code build} copies them.
+ * <p>The fallible path carries the mapper family's null doctrine: every reference-typed
+ * source-component read is null-guarded through the shared {@code hkj$ifPresent} helper, so a null
+ * component is a located, accumulated {@code FieldError} ({@code must not be null}), never an
+ * exception — a null source <em>argument</em> stays the caller's {@code requireNonNull}. A merge
+ * whose method declares the plain target return is total by that declaration: nulls flow through to
+ * the target constructor exactly as {@code build} copies them.
  */
 @AutoService(Processor.class)
 @SupportedAnnotationTypes("org.higherkindedj.optics.annotations.GenerateMerge")
@@ -347,7 +347,7 @@ public class MergeProcessor extends AbstractProcessor {
   /**
    * One target-component fill: from which source parameter, through which leaf (if any), and
    * whether the fallible path must null-guard the read — every prism read and every reference-typed
-   * identity read, mirroring {@code MappingProcessor.guardedRead} (issue #659).
+   * identity read, mirroring {@code MappingProcessor.guardedRead}.
    */
   private record Fill(String component, String sourceParam, CodeBlock prism, boolean guardedRead) {
     boolean fallible() {
@@ -593,7 +593,7 @@ public class MergeProcessor extends AbstractProcessor {
     if (shape.fallibleDeclared()) {
       CodeBlock.Builder chain = CodeBlock.builder().add("return $T.fields()", VALIDATED);
       for (Fill fill : fills) {
-        // Every reference read is null-guarded (issue #659, the #653 doctrine): a null source
+        // Every reference read is null-guarded (the null doctrine): a null source
         // component is a located FieldError, never an exception. Primitive identity reads can
         // never be null and copy directly.
         if (fill.fallible()) {

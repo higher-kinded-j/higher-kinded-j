@@ -21,13 +21,13 @@ import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 
 /**
- * Slice test for the sparse PATCH endpoint (issue #645). Runs against the <b>real</b> {@link
- * UserService} (its pre-populated store), so a single PATCH exercises the whole path end to end:
- * the generated {@code updateFrom} mapping and persistence. (The service's atomicity is a
- * by-construction property of {@code ConcurrentHashMap.compute}, not something these sequential
- * requests exercise.) Each test targets a distinct pre-populated user, so they do not contend on
- * the shared store; a follow-up {@code GET} proves the write landed — or, for a validation failure
- * or an unknown id, that nothing was written.
+ * Slice test for the sparse PATCH endpoint. Runs against the <b>real</b> {@link UserService} (its
+ * pre-populated store), so a single PATCH exercises the whole path end to end: the generated {@code
+ * updateFrom} mapping and persistence. (The service's atomicity is a by-construction property of
+ * {@code ConcurrentHashMap.compute}, not something these sequential requests exercise.) Each test
+ * targets a distinct pre-populated user, so they do not contend on the shared store; a follow-up
+ * {@code GET} proves the write landed — or, for a validation failure or an unknown id, that nothing
+ * was written.
  */
 @WebMvcTest(UserController.class)
 @ImportAutoConfiguration({
@@ -36,7 +36,7 @@ import org.springframework.test.web.servlet.MockMvc;
   HkjWebMvcAutoConfiguration.class
 })
 @Import(UserService.class)
-@DisplayName("UserController sparse PATCH @WebMvcTest slice (#645)")
+@DisplayName("UserController sparse PATCH @WebMvcTest slice")
 class UserPatchWebMvcSliceTest {
 
   @Autowired private MockMvc mockMvc;

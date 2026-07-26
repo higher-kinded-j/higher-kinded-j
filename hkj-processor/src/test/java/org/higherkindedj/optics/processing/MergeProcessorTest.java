@@ -136,7 +136,7 @@ class MergeProcessorTest {
       String generated = generatedSource(compilation, "com.example.TypedAssemblyImpl");
       Assertions.assertThat(generated)
           .contains("return Validated.fields()")
-          // reference reads are null-guarded (#659); the primitive balance can never be null
+          // reference reads are null-guarded; the primitive balance can never be null
           .contains(".field(\"name\", hkj$ifPresent(user.name(), Validated::validNel))")
           .contains(".field(\"email\", hkj$ifPresent(user.email(), email()::parse))")
           .contains(".field(\"balance\", Validated.validNel(account.balance()))")
@@ -262,8 +262,7 @@ class MergeProcessorTest {
 
     @Test
     @DisplayName(
-        "a null inside a nested source locates through the nesting from one assemble"
-            + " call (#653 + #659)")
+        "a null inside a nested source locates through the nesting from one assemble" + " call")
     void nestedNullsLocateThroughTheMergeSeam() {
       Compilation compilation =
           compileWithMapping(
@@ -1272,7 +1271,7 @@ class MergeProcessorTest {
   }
 
   @Nested
-  @DisplayName("Located nulls on fallible merges (#659)")
+  @DisplayName("Located nulls on fallible merges")
   class LocatedNullsOnFallibleMerges {
 
     private static final JavaFileObject TYPED_ASSEMBLY =

@@ -425,7 +425,7 @@ class ValidationPathReturnValueHandlerTest {
     @Test
     @DisplayName("A dotted key is ambiguous in path but exact in segments - and round-trips")
     void dottedKeyStaysExactInSegments() throws Exception {
-      // "a.b" is ONE segment; the rendered path cannot distinguish it from nesting (#621),
+      // "a.b" is ONE segment; the rendered path cannot distinguish it from nesting,
       // so segments is the lossless location - proven by rebuilding the FieldError from the body.
       FieldError original = FieldError.of("not an email address").at("a.b");
       Validated<NonEmptyList<FieldError>, TestUser> invalid =

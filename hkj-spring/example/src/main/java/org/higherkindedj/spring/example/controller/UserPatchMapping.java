@@ -10,7 +10,7 @@ import org.higherkindedj.optics.validated.ValidatedPrism;
 import org.higherkindedj.spring.example.domain.User;
 
 /**
- * Sparse PATCH write-back (issue #645) for {@link User}: the generated {@code
+ * Sparse PATCH write-back for {@link User}: the generated {@code
  * UserPatchMappingImpl.updateFrom(UserPatchRequest)} folds the present (non-null) request fields
  * into an {@code Edits.Accumulated<User>}, leaving the absent ones — and the unmapped {@code id} —
  * untouched.

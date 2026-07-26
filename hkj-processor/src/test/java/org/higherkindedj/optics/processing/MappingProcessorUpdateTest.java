@@ -18,7 +18,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
-@DisplayName("MappingProcessor - sparse PATCH write-back via UpdateSpec (#645)")
+@DisplayName("MappingProcessor - sparse PATCH write-back via UpdateSpec")
 class MappingProcessorUpdateTest {
 
   private static final JavaFileObject EMAIL =
@@ -307,7 +307,7 @@ class MappingProcessorUpdateTest {
     }
 
     @Test
-    @DisplayName("a rename inherited from a mix-in drives the sparse patch (#623)")
+    @DisplayName("a rename inherited from a mix-in drives the sparse patch")
     void inheritedRenameDrivesTheSparsePatch() {
       JavaFileObject account =
           JavaFileObjects.forSourceString(
@@ -1216,7 +1216,7 @@ class MappingProcessorUpdateTest {
   }
 
   @Nested
-  @DisplayName("Generated-member collision sweep (#654)")
+  @DisplayName("Generated-member collision sweep")
   class GeneratedMemberCollisionSweep {
 
     @Test
