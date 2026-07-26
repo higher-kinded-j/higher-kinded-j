@@ -127,7 +127,7 @@ The same rename or the same leaf tends to recur across an API's specs — every 
 {{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/mapping/RecordMappingBook.java:mixin_usage}}
 ```
 
-An inherited member counts exactly as if it were declared on the spec — renames, leaves *and* derived fields, collected across the whole hierarchy (a mix-in may extend further mix-ins). Precedence is **Java's own**: a member re-declared on the spec (or on a nearer mix-in) hides the one it overrides, and genuinely conflicting parents are already a javac error before the processor runs. Interface `static` helpers are not inherited (JLS 8.4.8), so factory methods on a mix-in stay inert.
+An inherited member counts exactly as if it were declared on the spec — renames, leaves *and* derived fields, collected across the whole hierarchy (a mix-in may extend further mix-ins, and a diamond counts once). Precedence is **Java's own**: a member re-declared on the spec (or on a nearer mix-in) hides the one it overrides, and conflicting inherited `default` methods are already a javac error before the processor runs. The one case javac leaves open — unrelated mix-ins both declaring the same *abstract* rename (override-equivalent abstracts may coexist, JLS 9.4.1) — folds into a single rename when the targets agree, and is rejected with a diagnostic naming both interfaces when they conflict. Interface `static` helpers are not inherited (JLS 8.4.8), so factory methods on a mix-in stay inert.
 
 Two shapes are rejected, each naming the offender:
 

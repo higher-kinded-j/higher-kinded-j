@@ -17,6 +17,7 @@ import com.palantir.javapoet.WildcardTypeName;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -251,6 +252,11 @@ public class MappingProcessor extends AbstractProcessor {
    */
   private boolean checkMixins(TypeElement spec) {
     for (TypeMirror parent : spec.getInterfaces()) {
+      // ErrorType extends DeclaredType, so unresolved parents step aside first: javac already
+      // reports the missing type, and there is nothing for the gate to judge.
+      if (parent.getKind() == TypeKind.ERROR) {
+        continue;
+      }
       TypeElement parentElement = (TypeElement) ((DeclaredType) parent).asElement();
       String parentName = parentElement.getQualifiedName().toString();
       if (parentName.equals(MAPPING_SPEC) || parentName.equals(UPDATE_SPEC)) {
@@ -1249,6 +1255,7 @@ public class MappingProcessor extends AbstractProcessor {
 
   private Map<String, String> collectRenames(TypeElement spec, TypeElement domain, WireShape wire) {
     Map<String, String> renames = new LinkedHashMap<>();
+    Map<String, ExecutableElement> renameSources = new LinkedHashMap<>();
     for (ExecutableElement method : specMembers(spec)) {
       MapField mapField = method.getAnnotation(MapField.class);
       if (mapField == null) {
@@ -1294,6 +1301,34 @@ public class MappingProcessor extends AbstractProcessor {
             "Point 'to' at an existing wire component.");
         return null;
       }
+      String existing = renames.get(name);
+      if (existing != null) {
+        // Unrelated mix-ins may both declare the abstract rename (JLS 9.4.1 lets
+        // override-equivalent abstracts coexist); two declarations of the same fact are one
+        // rename, but two different targets have no most-specific winner.
+        if (existing.equals(mapField.to())) {
+          continue;
+        }
+        ExecutableElement first = renameSources.get(name);
+        Diagnostics.error(
+            processingEnv.getMessager(),
+            method,
+            TAG,
+            "component '" + name + "' has conflicting renames.",
+            "'"
+                + name
+                + "' is renamed to '"
+                + existing
+                + "'"
+                + inheritedNote(first, spec)
+                + " and to '"
+                + mapField.to()
+                + "'"
+                + inheritedNote(method, spec)
+                + "; neither declaration overrides the other, so there is no winner.",
+            "Override the rename on the spec itself, or align the mix-ins on one target.");
+        return null;
+      }
       if (renames.containsValue(mapField.to())) {
         Diagnostics.error(
             processingEnv.getMessager(),
@@ -1310,6 +1345,7 @@ public class MappingProcessor extends AbstractProcessor {
         return null;
       }
       renames.put(name, mapField.to());
+      renameSources.put(name, method);
     }
     return renames;
   }
@@ -2745,9 +2781,12 @@ public class MappingProcessor extends AbstractProcessor {
   }
 
   private void addRenameStubs(TypeSpec.Builder implBuilder, TypeElement spec) {
+    Set<String> stubbed = new HashSet<>();
     for (ExecutableElement method : specMembers(spec)) {
-      // Only abstract zero-parameter @MapField methods survive validateSpecMethods.
-      if (method.getAnnotation(MapField.class) == null) {
+      // Only abstract zero-parameter @MapField methods survive validateSpecMethods. Unrelated
+      // mix-ins agreeing on a rename contribute one stub, not two.
+      if (method.getAnnotation(MapField.class) == null
+          || !stubbed.add(method.getSimpleName().toString())) {
         continue;
       }
       implBuilder.addMethod(

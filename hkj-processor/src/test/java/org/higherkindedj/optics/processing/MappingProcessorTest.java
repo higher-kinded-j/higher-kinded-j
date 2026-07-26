@@ -6539,6 +6539,183 @@ class MappingProcessorTest {
     }
 
     @Test
+    @DisplayName("unrelated mix-ins agreeing on a rename count as one declaration")
+    void agreeingMixinRenamesCountOnce() {
+      // JLS 9.4.1 lets override-equivalent abstracts coexist, so javac accepts this hierarchy;
+      // two declarations of the same fact must fold into one rename and one stub.
+      JavaFileObject agreeing =
+          JavaFileObjects.forSourceString(
+              "com.example.AgreeingVocabulary",
+              """
+              package com.example;
+
+              import org.higherkindedj.optics.annotations.MapField;
+
+              public interface AgreeingVocabulary {
+                @MapField(to = "fullName")
+                String name();
+              }
+              """);
+      JavaFileObject spec =
+          JavaFileObjects.forSourceString(
+              "com.example.AccountMapping",
+              """
+              package com.example;
+
+              import org.higherkindedj.optics.annotations.GenerateMapping;
+              import org.higherkindedj.optics.annotations.MappingSpec;
+
+              @GenerateMapping
+              public interface AccountMapping
+                  extends AccountVocabulary, AgreeingVocabulary,
+                      MappingSpec<Account, AccountDto> {}
+              """);
+      Compilation compilation = compile(EMAIL, ACCOUNT, ACCOUNT_DTO, VOCABULARY, agreeing, spec);
+      assertThat(compilation).succeeded();
+      String generated = generatedSource(compilation, "com.example.AccountMappingImpl");
+      Assertions.assertThat(generated)
+          .contains(".field(\"name\", hkj$ifPresent(wire.fullName(), Validated::validNel))");
+      Assertions.assertThat(generated.split("public String name\\(\\)", -1)).hasSize(2);
+    }
+
+    @Test
+    @DisplayName("mix-ins renaming the same component to different targets are diagnosed")
+    void conflictingMixinRenamesAreDiagnosed() {
+      JavaFileObject conflicting =
+          JavaFileObjects.forSourceString(
+              "com.example.ConflictingVocabulary",
+              """
+              package com.example;
+
+              import org.higherkindedj.optics.annotations.MapField;
+
+              public interface ConflictingVocabulary {
+                @MapField(to = "display")
+                String name();
+              }
+              """);
+      JavaFileObject spec =
+          JavaFileObjects.forSourceString(
+              "com.example.AccountMapping",
+              """
+              package com.example;
+
+              import org.higherkindedj.optics.annotations.GenerateMapping;
+              import org.higherkindedj.optics.annotations.MappingSpec;
+
+              @GenerateMapping
+              public interface AccountMapping
+                  extends AccountVocabulary, ConflictingVocabulary,
+                      MappingSpec<Account, AccountDto> {}
+              """);
+      Compilation compilation = compile(EMAIL, ACCOUNT, ACCOUNT_DTO, VOCABULARY, conflicting, spec);
+      assertThat(compilation).failed();
+      assertThat(compilation).hadErrorContaining("component 'name' has conflicting renames");
+      assertThat(compilation).hadErrorContaining("(inherited from '");
+      assertThat(compilation)
+          .hadErrorContaining("Override the rename on the spec itself, or align the mix-ins");
+    }
+
+    @Test
+    @DisplayName("a local rename re-declaration hides the mix-in's, like any override")
+    void localRenameOverrideHidesTheMixins() {
+      JavaFileObject spec =
+          JavaFileObjects.forSourceString(
+              "com.example.AccountMapping",
+              """
+              package com.example;
+
+              import org.higherkindedj.optics.annotations.GenerateMapping;
+              import org.higherkindedj.optics.annotations.MapField;
+              import org.higherkindedj.optics.annotations.MappingSpec;
+
+              @GenerateMapping
+              public interface AccountMapping
+                  extends AccountVocabulary, MappingSpec<Account, AccountDto> {
+                @Override
+                @MapField(to = "fullName")
+                String name();
+              }
+              """);
+      Compilation compilation = compile(EMAIL, ACCOUNT, ACCOUNT_DTO, VOCABULARY, spec);
+      assertThat(compilation).succeeded();
+      Assertions.assertThat(
+              generatedSource(compilation, "com.example.AccountMappingImpl")
+                  .split("public String name\\(\\)", -1))
+          .hasSize(2);
+    }
+
+    @Test
+    @DisplayName("a mix-in reachable through two paths counts once (diamond)")
+    void diamondReachableMixinCountsOnce() {
+      JavaFileObject left =
+          JavaFileObjects.forSourceString(
+              "com.example.LeftVocabulary",
+              """
+              package com.example;
+
+              public interface LeftVocabulary extends ContactVocabulary {}
+              """);
+      JavaFileObject right =
+          JavaFileObjects.forSourceString(
+              "com.example.RightVocabulary",
+              """
+              package com.example;
+
+              public interface RightVocabulary extends ContactVocabulary {}
+              """);
+      JavaFileObject base =
+          JavaFileObjects.forSourceString(
+              "com.example.ContactVocabulary",
+              """
+              package com.example;
+
+              import org.higherkindedj.optics.annotations.MapField;
+
+              public interface ContactVocabulary {
+                @MapField(to = "fullName")
+                String name();
+              }
+              """);
+      JavaFileObject diamondDto =
+          JavaFileObjects.forSourceString(
+              "com.example.NameOnlyDto",
+              """
+              package com.example;
+
+              public record NameOnlyDto(String fullName) {}
+              """);
+      JavaFileObject nameOnly =
+          JavaFileObjects.forSourceString(
+              "com.example.NameOnly",
+              """
+              package com.example;
+
+              public record NameOnly(String name) {}
+              """);
+      JavaFileObject spec =
+          JavaFileObjects.forSourceString(
+              "com.example.NameOnlyMapping",
+              """
+              package com.example;
+
+              import org.higherkindedj.optics.annotations.GenerateMapping;
+              import org.higherkindedj.optics.annotations.MappingSpec;
+
+              @GenerateMapping
+              public interface NameOnlyMapping
+                  extends LeftVocabulary, RightVocabulary,
+                      MappingSpec<NameOnly, NameOnlyDto> {}
+              """);
+      Compilation compilation = compile(base, left, right, nameOnly, diamondDto, spec);
+      assertThat(compilation).succeeded();
+      Assertions.assertThat(
+              generatedSource(compilation, "com.example.NameOnlyMappingImpl")
+                  .split("public String name\\(\\)", -1))
+          .hasSize(2);
+    }
+
+    @Test
     @DisplayName("an inherited abstract non-rename is diagnosed with its declaring interface")
     void inheritedAbstractNonRenameIsDiagnosed() {
       JavaFileObject broken =
@@ -6675,6 +6852,29 @@ class MappingProcessorTest {
       Compilation compilation = compile(EMAIL, ACCOUNT, ACCOUNT_DTO, base, sneaky, spec);
       assertThat(compilation).failed();
       assertThat(compilation).hadErrorContaining("mix-in 'Sneaky' is itself a mapping spec");
+    }
+
+    @Test
+    @DisplayName("an unresolved mix-in is javac's error, not a mix-in diagnostic")
+    void unresolvedMixinStepsAside() {
+      JavaFileObject spec =
+          JavaFileObjects.forSourceString(
+              "com.example.AccountMapping",
+              """
+              package com.example;
+
+              import org.higherkindedj.optics.annotations.GenerateMapping;
+              import org.higherkindedj.optics.annotations.MappingSpec;
+
+              @GenerateMapping
+              public interface AccountMapping
+                  extends MissingVocabulary, MappingSpec<Account, AccountDto> {}
+              """);
+      Compilation compilation = compile(EMAIL, ACCOUNT, ACCOUNT_DTO, spec);
+      assertThat(compilation).failed();
+      assertThat(compilation).hadErrorContaining("MissingVocabulary");
+      Assertions.assertThat(compilation.diagnostics())
+          .noneMatch(d -> d.getMessage(null).contains("mix-in"));
     }
 
     @Test

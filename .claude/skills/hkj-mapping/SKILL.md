@@ -165,8 +165,9 @@ element-mapped form) stays diagnosed; both are planned follow-ups (#624).
 
 A spec may extend plain **mix-in interfaces** alongside `MappingSpec`/`UpdateSpec`; inherited
 renames, leaves and derived fields count as if declared on the spec, collected transitively with
-Java's own precedence (a local override hides the mix-in's member). Interface statics are not
-inherited. Rejected with diagnostics naming the offender: a mix-in that is itself a mapping spec
+Java's own precedence (a local override hides the mix-in's member; a diamond counts once;
+unrelated mix-ins agreeing on an abstract rename fold into one, conflicting targets are diagnosed
+naming both interfaces). Interface statics are not inherited. Rejected with diagnostics naming the offender: a mix-in that is itself a mapping spec
 (directly or transitively extends `MappingSpec`/`UpdateSpec`), and a generic mix-in. Threaded
 generic specs may extend (non-generic) mix-ins; `@GenerateMerge` specs still declare everything
 directly. Diagnostics about inherited members name the declaring interface.
