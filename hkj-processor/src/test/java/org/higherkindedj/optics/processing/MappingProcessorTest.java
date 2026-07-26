@@ -29,6 +29,7 @@ import org.assertj.core.api.InstanceOfAssertFactories;
 import org.higherkindedj.hkt.nonemptylist.NonEmptyList;
 import org.higherkindedj.hkt.validated.FieldError;
 import org.higherkindedj.hkt.validated.Validated;
+import org.higherkindedj.optics.validated.ValidatedPrism;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -1262,7 +1263,7 @@ class MappingProcessorTest {
               ".field(\"customers\", hkj$ifPresent(wire.customers(),"
                   + " CustomerMappingImpl.INSTANCE.asValidatedPrism()::parseAll))");
 
-      // The composed location, end to end (#660): field label, then element index, then the
+      // The composed location, end to end: field label, then element index, then the
       // nested spec's own path — customers.1.email, never customers.email.1.
       var result = new RuntimeCompilationHelper.CompiledResult(compilation);
       try {
@@ -1694,6 +1695,39 @@ class MappingProcessorTest {
     }
 
     @Test
+    @DisplayName("an abstract leaf has no meaning on a sealed mapping either")
+    void abstractLeafOnSealedRejected() {
+      JavaFileObject spec =
+          JavaFileObjects.forSourceString(
+              "com.example.PaymentMapping",
+              """
+              package com.example;
+
+              import org.higherkindedj.optics.annotations.GenerateMapping;
+              import org.higherkindedj.optics.annotations.MappingSpec;
+              import org.higherkindedj.optics.validated.ValidatedPrism;
+
+              @GenerateMapping
+              public interface PaymentMapping extends MappingSpec<Payment, PaymentDto> {
+                ValidatedPrism<String, String> number();
+              }
+              """);
+      Compilation compilation =
+          compile(
+              PAYMENT,
+              CARD,
+              BANK,
+              PAYMENT_DTO,
+              CARD_DTO,
+              BANK_DTO,
+              CARD_MAPPING,
+              BANK_MAPPING,
+              spec);
+      assertThat(compilation).failed();
+      assertThat(compilation).hadErrorContaining("abstract leaf 'number' needs a generic spec");
+    }
+
+    @Test
     @DisplayName("an inherited @MapField is just as meaningless on a sealed mapping")
     void inheritedMapFieldOnSealedRejected() {
       JavaFileObject vocabulary =
@@ -1778,9 +1812,7 @@ class MappingProcessorTest {
     }
 
     @Test
-    @DisplayName(
-        "a default with the generated 'parse' signature is rejected on a sealed mapping"
-            + " (#654)")
+    @DisplayName("a default with the generated 'parse' signature is rejected on a sealed mapping")
     void sealedParseCollisionIsRejected() {
       JavaFileObject colliding =
           JavaFileObjects.forSourceString(
@@ -1824,7 +1856,7 @@ class MappingProcessorTest {
   }
 
   @Nested
-  @DisplayName("Leaf-carrying projection (validated patch tier, #625)")
+  @DisplayName("Leaf-carrying projection (validated patch tier)")
   class LeafCarryingProjectionPatchTier {
 
     private static final JavaFileObject ACCOUNT =
@@ -2276,7 +2308,7 @@ class MappingProcessorTest {
 
         Validated<NonEmptyList<FieldError>, Object> patched = patch(impl, domain, wire);
         Assertions.assertThat(patched.isInvalid()).isTrue();
-        // "nope" at position 1: located by index since #660, making this test's name literal.
+        // "nope" at position 1: located by index, making this test's name literal.
         Assertions.assertThat(renderedErrors(patched))
             .containsExactly("emails.1: not an email address");
       } catch (ReflectiveOperationException e) {
@@ -2880,7 +2912,7 @@ class MappingProcessorTest {
         Validated<NonEmptyList<FieldError>, Object> parsed =
             (Validated<NonEmptyList<FieldError>, Object>) invoke(impl, "parse", dto);
         Assertions.assertThat(parsed.isInvalid()).isTrue();
-        // The failing element locates by index (#660): "bob" at position 1.
+        // The failing element locates by index: "bob" at position 1.
         Assertions.assertThat(parsed.getError().toJavaList())
             .containsExactly(new FieldError(List.of("tags", "1"), "handles start with @"));
       } catch (ReflectiveOperationException e) {
@@ -3260,7 +3292,7 @@ class MappingProcessorTest {
     @Test
     @DisplayName(
         "a concrete instantiation of a generic record is accepted, even with the type"
-            + " parameter unused (#624)")
+            + " parameter unused")
     void concretelyInstantiatedGenericRecordAccepted() {
       JavaFileObject spec =
           JavaFileObjects.forSourceString(
@@ -3722,7 +3754,7 @@ class MappingProcessorTest {
     }
 
     @Test
-    @DisplayName("a concretely instantiated generic wire record is accepted (#624)")
+    @DisplayName("a concretely instantiated generic wire record is accepted")
     void concretelyInstantiatedGenericWireAccepted() {
       JavaFileObject genericWire =
           records(
@@ -4513,7 +4545,7 @@ class MappingProcessorTest {
   }
 
   @Nested
-  @DisplayName("Generated-member collision sweep (#654)")
+  @DisplayName("Generated-member collision sweep")
   class GeneratedMemberCollisionSweep {
 
     // Full-tier and projection-tier collisions live here; the sealed-tier test sits with its
@@ -4744,7 +4776,7 @@ class MappingProcessorTest {
       assertThat(compilation).succeeded();
     }
 
-    /** The leaf-carrying projection spec (issue #625's shape) with one extra member spliced in. */
+    /** The leaf-carrying projection spec with one extra member spliced in. */
     private JavaFileObject patchSpecWith(String extraMember) {
       return JavaFileObjects.forSourceString(
           "com.example.AccountPatchMapping",
@@ -4981,7 +5013,7 @@ class MappingProcessorTest {
   }
 
   @Nested
-  @DisplayName("Threaded generic specs (#624)")
+  @DisplayName("Threaded generic specs")
   class ThreadedGenericSpecs {
 
     private static final JavaFileObject PAGE =
@@ -5074,7 +5106,7 @@ class MappingProcessorTest {
         Assertions.assertThat(result.genericInstance("com.example.PageMappingImpl")).isSameAs(impl);
 
         // Identity legs copy the container verbatim — a null ELEMENT passes through untouched
-        // (element location belongs to leaf/nested legs, #660); the deliberate asymmetry, pinned.
+        // (element location belongs to leaf/nested legs); the deliberate asymmetry, pinned.
         Object nullElementPage =
             result
                 .loadClass("com.example.PageDto")
@@ -5189,8 +5221,1215 @@ class MappingProcessorTest {
     }
 
     @Test
-    @DisplayName("an abstract leaf (the element-mapped shape) is not supported yet")
-    void abstractLeafStaysDiagnosed() {
+    @DisplayName("a generic outer spec threads its own variable into a nested threaded spec")
+    void genericOuterThreadsVariableIntoNestedSpec() {
+      JavaFileObject feed =
+          JavaFileObjects.forSourceString(
+              "com.example.Feed",
+              """
+              package com.example;
+
+              public record Feed<T>(String id, Page<T> results) {}
+              """);
+      JavaFileObject feedDto =
+          JavaFileObjects.forSourceString(
+              "com.example.FeedDto",
+              """
+              package com.example;
+
+              public record FeedDto<T>(String id, PageDto<T> results) {}
+              """);
+      JavaFileObject feedMapping =
+          JavaFileObjects.forSourceString(
+              "com.example.FeedMapping",
+              """
+              package com.example;
+
+              import org.higherkindedj.optics.annotations.GenerateMapping;
+              import org.higherkindedj.optics.annotations.MappingSpec;
+
+              @GenerateMapping
+              public interface FeedMapping<T> extends MappingSpec<Feed<T>, FeedDto<T>> {}
+              """);
+      Compilation compilation = compile(PAGE, PAGE_DTO, PAGE_MAPPING, feed, feedDto, feedMapping);
+      assertThat(compilation).succeeded();
+      Assertions.assertThat(generatedSource(compilation, "com.example.FeedMappingImpl"))
+          .contains("PageMappingImpl.<T>instance().asValidatedPrism()");
+    }
+
+    @Test
+    @DisplayName("a concrete and a threaded spec covering the same pair are ambiguous")
+    void concreteAndThreadedCoverageIsAmbiguous() {
+      JavaFileObject concrete =
+          JavaFileObjects.forSourceString(
+              "com.example.StringPageMapping",
+              """
+              package com.example;
+
+              import org.higherkindedj.optics.annotations.GenerateMapping;
+              import org.higherkindedj.optics.annotations.MappingSpec;
+
+              @GenerateMapping
+              public interface StringPageMapping
+                  extends MappingSpec<Page<String>, PageDto<String>> {}
+              """);
+      JavaFileObject report =
+          JavaFileObjects.forSourceString(
+              "com.example.Report",
+              """
+              package com.example;
+
+              public record Report(String id, Page<String> results) {}
+              """);
+      JavaFileObject reportDto =
+          JavaFileObjects.forSourceString(
+              "com.example.ReportDto",
+              """
+              package com.example;
+
+              public record ReportDto(String id, PageDto<String> results) {}
+              """);
+      JavaFileObject reportMapping =
+          JavaFileObjects.forSourceString(
+              "com.example.ReportMapping",
+              """
+              package com.example;
+
+              import org.higherkindedj.optics.annotations.GenerateMapping;
+              import org.higherkindedj.optics.annotations.MappingSpec;
+
+              @GenerateMapping
+              public interface ReportMapping extends MappingSpec<Report, ReportDto> {}
+              """);
+      Compilation compilation =
+          compile(PAGE, PAGE_DTO, PAGE_MAPPING, concrete, report, reportDto, reportMapping);
+      assertThat(compilation).failed();
+      assertThat(compilation).hadErrorContaining("matches more than one mapping spec");
+    }
+
+    @Test
+    @DisplayName("a nested threaded spec parses at runtime, failures located through the path")
+    void nestedThreadedSpecWorksAtRuntime() throws Exception {
+      JavaFileObject report =
+          JavaFileObjects.forSourceString(
+              "com.example.Report",
+              """
+              package com.example;
+
+              public record Report(String id, Page<String> results) {}
+              """);
+      JavaFileObject reportDto =
+          JavaFileObjects.forSourceString(
+              "com.example.ReportDto",
+              """
+              package com.example;
+
+              public record ReportDto(String id, PageDto<String> results) {}
+              """);
+      JavaFileObject reportMapping =
+          JavaFileObjects.forSourceString(
+              "com.example.ReportMapping",
+              """
+              package com.example;
+
+              import org.higherkindedj.optics.annotations.GenerateMapping;
+              import org.higherkindedj.optics.annotations.MappingSpec;
+
+              @GenerateMapping
+              public interface ReportMapping extends MappingSpec<Report, ReportDto> {}
+              """);
+      Compilation compilation =
+          compile(PAGE, PAGE_DTO, PAGE_MAPPING, report, reportDto, reportMapping);
+      assertThat(compilation).succeeded();
+      var result = new RuntimeCompilationHelper.CompiledResult(compilation);
+      Object impl = result.instance("com.example.ReportMappingImpl");
+
+      Object page =
+          result
+              .loadClass("com.example.Page")
+              .getDeclaredConstructor(List.class, int.class)
+              .newInstance(List.of("a", "b"), 2);
+      Object reportValue =
+          result
+              .loadClass("com.example.Report")
+              .getDeclaredConstructor(String.class, result.loadClass("com.example.Page"))
+              .newInstance("R1", page);
+      Object dto = invoke(impl, "build", reportValue);
+      @SuppressWarnings("unchecked")
+      Validated<NonEmptyList<FieldError>, Object> back =
+          (Validated<NonEmptyList<FieldError>, Object>) invoke(impl, "parse", dto);
+      Assertions.assertThat(back.isValid()).isTrue();
+      Assertions.assertThat(back.get()).isEqualTo(reportValue);
+
+      // The nested Page round-trips; a null on the outer id locates as its own component.
+      Object badPageDto =
+          result
+              .loadClass("com.example.PageDto")
+              .getDeclaredConstructor(List.class, int.class)
+              .newInstance(List.of("a"), 1);
+      Object badDto =
+          result
+              .loadClass("com.example.ReportDto")
+              .getDeclaredConstructor(String.class, result.loadClass("com.example.PageDto"))
+              .newInstance(null, badPageDto);
+      @SuppressWarnings("unchecked")
+      Validated<NonEmptyList<FieldError>, Object> bad =
+          (Validated<NonEmptyList<FieldError>, Object>) invoke(impl, "parse", badDto);
+      Assertions.assertThat(bad.isInvalid()).isTrue();
+      Assertions.assertThat(bad.getError().toJavaList())
+          .containsExactly(new FieldError(List.of("id"), "must not be null"));
+    }
+
+    @Test
+    @DisplayName("a wire-side container mismatch refuses to unify")
+    void wireSideContainerMismatchRefusesToUnify() {
+      JavaFileObject otherDto =
+          JavaFileObjects.forSourceString(
+              "com.example.OtherDto",
+              """
+              package com.example;
+
+              public record OtherDto<T>(java.util.List<T> items, int total) {}
+              """);
+      JavaFileObject mismatchedWire =
+          JavaFileObjects.forSourceString(
+              "com.example.Report",
+              """
+              package com.example;
+
+              public record Report(Page<String> results) {}
+              """);
+      JavaFileObject mismatchedWireDto =
+          JavaFileObjects.forSourceString(
+              "com.example.ReportDto",
+              """
+              package com.example;
+
+              public record ReportDto(OtherDto<String> results) {}
+              """);
+      JavaFileObject reportMapping =
+          JavaFileObjects.forSourceString(
+              "com.example.ReportMapping",
+              """
+              package com.example;
+
+              import org.higherkindedj.optics.annotations.GenerateMapping;
+              import org.higherkindedj.optics.annotations.MappingSpec;
+
+              @GenerateMapping
+              public interface ReportMapping extends MappingSpec<Report, ReportDto> {}
+              """);
+      Compilation wireRefuses =
+          compile(
+              PAGE,
+              PAGE_DTO,
+              PAGE_MAPPING,
+              otherDto,
+              mismatchedWire,
+              mismatchedWireDto,
+              reportMapping);
+      assertThat(wireRefuses).failed();
+      assertThat(wireRefuses)
+          .hadErrorContaining("target field 'ReportDto.results' has no usable source");
+      // The refusal is the wire-side container: OtherDto is not Page.
+      assertThat(wireRefuses).hadErrorContaining("com.example.OtherDto");
+    }
+
+    @Test
+    @DisplayName("an inconsistent binding refuses to unify: one variable, two arguments")
+    void inconsistentBindingRefusesToUnify() {
+      JavaFileObject mirror =
+          JavaFileObjects.forSourceString(
+              "com.example.Mirror",
+              """
+              package com.example;
+
+              public record Mirror<A, B>(A left, B right) {}
+              """);
+      JavaFileObject mirrorDto =
+          JavaFileObjects.forSourceString(
+              "com.example.MirrorDto",
+              """
+              package com.example;
+
+              public record MirrorDto<A, B>(A left, B right) {}
+              """);
+      JavaFileObject mirrorMapping =
+          JavaFileObjects.forSourceString(
+              "com.example.MirrorMapping",
+              """
+              package com.example;
+
+              import org.higherkindedj.optics.annotations.GenerateMapping;
+              import org.higherkindedj.optics.annotations.MappingSpec;
+
+              @GenerateMapping
+              public interface MirrorMapping<T> extends MappingSpec<Mirror<T, T>, MirrorDto<T, T>> {}
+              """);
+      JavaFileObject useSite =
+          JavaFileObjects.forSourceString(
+              "com.example.Holder3",
+              """
+              package com.example;
+
+              public final class Holder3 {
+                public record D(Mirror<String, Integer> pair) {}
+
+                public record W(MirrorDto<String, Integer> pair) {}
+              }
+              """);
+      JavaFileObject holderMapping =
+          JavaFileObjects.forSourceString(
+              "com.example.Holder3Mapping",
+              """
+              package com.example;
+
+              import org.higherkindedj.optics.annotations.GenerateMapping;
+              import org.higherkindedj.optics.annotations.MappingSpec;
+
+              @GenerateMapping
+              public interface Holder3Mapping extends MappingSpec<Holder3.D, Holder3.W> {}
+              """);
+      Compilation compilation = compile(mirror, mirrorDto, mirrorMapping, useSite, holderMapping);
+      assertThat(compilation).failed();
+      assertThat(compilation).hadErrorContaining("target field 'W.pair' has no usable source");
+
+      // The refusal is the inconsistent binding, not an unmappable shape: the same MirrorMapping
+      // resolves a homogeneous Mirror<String, String>, binding T once.
+      JavaFileObject homogeneous =
+          JavaFileObjects.forSourceString(
+              "com.example.HolderH",
+              """
+              package com.example;
+
+              public final class HolderH {
+                public record D(Mirror<String, String> pair) {}
+
+                public record W(MirrorDto<String, String> pair) {}
+              }
+              """);
+      JavaFileObject homogeneousMapping =
+          JavaFileObjects.forSourceString(
+              "com.example.HolderHMapping",
+              """
+              package com.example;
+
+              import org.higherkindedj.optics.annotations.GenerateMapping;
+              import org.higherkindedj.optics.annotations.MappingSpec;
+
+              @GenerateMapping
+              public interface HolderHMapping extends MappingSpec<HolderH.D, HolderH.W> {}
+              """);
+      Compilation resolves =
+          compile(mirror, mirrorDto, mirrorMapping, homogeneous, homogeneousMapping);
+      assertThat(resolves).succeeded();
+      Assertions.assertThat(generatedSource(resolves, "com.example.HolderHMappingImpl"))
+          .contains("MirrorMappingImpl.<String>instance().asValidatedPrism()");
+    }
+
+    private static final JavaFileObject REPORT =
+        JavaFileObjects.forSourceString(
+            "com.example.Report",
+            """
+            package com.example;
+
+            public record Report(Page<String> results) {}
+            """);
+
+    private static final JavaFileObject REPORT_DTO =
+        JavaFileObjects.forSourceString(
+            "com.example.ReportDto",
+            """
+            package com.example;
+
+            public record ReportDto(PageDto<String> results) {}
+            """);
+
+    private static final JavaFileObject REPORT_MAPPING =
+        JavaFileObjects.forSourceString(
+            "com.example.ReportMapping",
+            """
+            package com.example;
+
+            import org.higherkindedj.optics.annotations.GenerateMapping;
+            import org.higherkindedj.optics.annotations.MappingSpec;
+
+            @GenerateMapping
+            public interface ReportMapping extends MappingSpec<Report, ReportDto> {}
+            """);
+
+    @Test
+    @DisplayName("a spec with an unbound type variable refuses to unify at a use site")
+    void unboundSpecVariableRefusesToUnify() {
+      // PageMapping<T, U> never binds U, so no candidate can cover a concrete Page use site.
+      JavaFileObject unboundMapping =
+          JavaFileObjects.forSourceString(
+              "com.example.PageMapping",
+              """
+              package com.example;
+
+              import org.higherkindedj.optics.annotations.GenerateMapping;
+              import org.higherkindedj.optics.annotations.MappingSpec;
+
+              @GenerateMapping
+              public interface PageMapping<T, U> extends MappingSpec<Page<T>, PageDto<T>> {}
+              """);
+      Compilation unbound =
+          compile(PAGE, PAGE_DTO, unboundMapping, REPORT, REPORT_DTO, REPORT_MAPPING);
+      assertThat(unbound).failed();
+      assertThat(unbound)
+          .hadErrorContaining("target field 'ReportDto.results' has no usable source");
+    }
+
+    @Test
+    @DisplayName("a wildcard argument at a use site refuses to unify")
+    void wildcardArgumentRefusesToUnify() {
+      JavaFileObject wildcardReport =
+          JavaFileObjects.forSourceString(
+              "com.example.Report",
+              """
+              package com.example;
+
+              public record Report(Page<?> results) {}
+              """);
+      JavaFileObject wildcardReportDto =
+          JavaFileObjects.forSourceString(
+              "com.example.ReportDto",
+              """
+              package com.example;
+
+              public record ReportDto(PageDto<?> results) {}
+              """);
+      Compilation wildcard =
+          compile(PAGE, PAGE_DTO, PAGE_MAPPING, wildcardReport, wildcardReportDto, REPORT_MAPPING);
+      assertThat(wildcard).failed();
+      assertThat(wildcard)
+          .hadErrorContaining("target field 'ReportDto.results' has no usable source");
+    }
+
+    @Test
+    @DisplayName("raw and unresolved use sites step aside from unification")
+    void rawAndUnresolvedUseSitesStepAside() {
+      JavaFileObject reportMapping =
+          JavaFileObjects.forSourceString(
+              "com.example.ReportMapping",
+              """
+              package com.example;
+
+              import org.higherkindedj.optics.annotations.GenerateMapping;
+              import org.higherkindedj.optics.annotations.MappingSpec;
+
+              @GenerateMapping
+              public interface ReportMapping extends MappingSpec<Report, ReportDto> {}
+              """);
+
+      // A raw container at the use site: same erasure, no arguments to bind.
+      JavaFileObject rawReport =
+          JavaFileObjects.forSourceString(
+              "com.example.Report",
+              """
+              package com.example;
+
+              @SuppressWarnings("rawtypes")
+              public record Report(Page results) {}
+              """);
+      JavaFileObject rawReportDto =
+          JavaFileObjects.forSourceString(
+              "com.example.ReportDto",
+              """
+              package com.example;
+
+              @SuppressWarnings("rawtypes")
+              public record ReportDto(PageDto results) {}
+              """);
+      Compilation raw =
+          compile(PAGE, PAGE_DTO, PAGE_MAPPING, rawReport, rawReportDto, reportMapping);
+      assertThat(raw).failed();
+      assertThat(raw).hadErrorContaining("target field 'ReportDto.results' has no usable source");
+
+      // A raw ARGUMENT binds consistently but is not a supported instantiation argument.
+      JavaFileObject rawArgReport =
+          JavaFileObjects.forSourceString(
+              "com.example.Report",
+              """
+              package com.example;
+
+              import java.util.List;
+
+              @SuppressWarnings("rawtypes")
+              public record Report(Page<List> results) {}
+              """);
+      JavaFileObject rawArgReportDto =
+          JavaFileObjects.forSourceString(
+              "com.example.ReportDto",
+              """
+              package com.example;
+
+              import java.util.List;
+
+              @SuppressWarnings("rawtypes")
+              public record ReportDto(PageDto<List> results) {}
+              """);
+      Compilation rawArg =
+          compile(PAGE, PAGE_DTO, PAGE_MAPPING, rawArgReport, rawArgReportDto, reportMapping);
+      assertThat(rawArg).failed();
+      assertThat(rawArg)
+          .hadErrorContaining("target field 'ReportDto.results' has no usable source");
+
+      // An unresolved argument is javac's diagnostic, never a spurious match or a crash.
+      JavaFileObject unresolvedReport =
+          JavaFileObjects.forSourceString(
+              "com.example.Report",
+              """
+              package com.example;
+
+              public record Report(Page<Missing> results) {}
+              """);
+      JavaFileObject unresolvedReportDto =
+          JavaFileObjects.forSourceString(
+              "com.example.ReportDto",
+              """
+              package com.example;
+
+              public record ReportDto(PageDto<Missing> results) {}
+              """);
+      Compilation unresolved =
+          compile(
+              PAGE, PAGE_DTO, PAGE_MAPPING, unresolvedReport, unresolvedReportDto, reportMapping);
+      assertThat(unresolved).failed();
+      assertThat(unresolved).hadErrorContaining("Missing");
+    }
+
+    @Test
+    @DisplayName("array arguments unify structurally; a mismatched pair refuses")
+    void arrayArgumentsUnifyStructurally() {
+      JavaFileObject arrayMapping =
+          JavaFileObjects.forSourceString(
+              "com.example.ArrayPageMapping",
+              """
+              package com.example;
+
+              import org.higherkindedj.optics.annotations.GenerateMapping;
+              import org.higherkindedj.optics.annotations.MappingSpec;
+
+              @GenerateMapping
+              public interface ArrayPageMapping<T> extends MappingSpec<Page<T[]>, PageDto<T[]>> {}
+              """);
+      JavaFileObject report =
+          JavaFileObjects.forSourceString(
+              "com.example.Report",
+              """
+              package com.example;
+
+              public record Report(Page<String[]> results) {}
+              """);
+      JavaFileObject reportDto =
+          JavaFileObjects.forSourceString(
+              "com.example.ReportDto",
+              """
+              package com.example;
+
+              public record ReportDto(PageDto<String[]> results) {}
+              """);
+      JavaFileObject reportMapping =
+          JavaFileObjects.forSourceString(
+              "com.example.ReportMapping",
+              """
+              package com.example;
+
+              import org.higherkindedj.optics.annotations.GenerateMapping;
+              import org.higherkindedj.optics.annotations.MappingSpec;
+
+              @GenerateMapping
+              public interface ReportMapping extends MappingSpec<Report, ReportDto> {}
+              """);
+      Compilation matches = compile(PAGE, PAGE_DTO, arrayMapping, report, reportDto, reportMapping);
+      assertThat(matches).succeeded();
+      Assertions.assertThat(generatedSource(matches, "com.example.ReportMappingImpl"))
+          .contains("ArrayPageMappingImpl.<String>instance().asValidatedPrism()");
+
+      JavaFileObject mismatchedDto =
+          JavaFileObjects.forSourceString(
+              "com.example.ReportDto",
+              """
+              package com.example;
+
+              public record ReportDto(PageDto<String> results) {}
+              """);
+      Compilation refuses =
+          compile(PAGE, PAGE_DTO, arrayMapping, report, mismatchedDto, reportMapping);
+      assertThat(refuses).failed();
+      assertThat(refuses)
+          .hadErrorContaining("target field 'ReportDto.results' has no usable source");
+    }
+
+    private static final JavaFileObject ELEMENT_SPEC =
+        JavaFileObjects.forSourceString(
+            "com.example.ElementMappedPageMapping",
+            """
+            package com.example;
+
+            import org.higherkindedj.optics.annotations.GenerateMapping;
+            import org.higherkindedj.optics.annotations.MappingSpec;
+            import org.higherkindedj.optics.validated.ValidatedPrism;
+
+            @GenerateMapping
+            public interface ElementMappedPageMapping<T, TDto>
+                extends MappingSpec<Page<T>, PageDto<TDto>> {
+              ValidatedPrism<TDto, T> items();
+            }
+            """);
+
+    @Test
+    @DisplayName("an element-mapped spec nests through the using spec's component leaf")
+    void elementMappedSpecNestsThroughComponentLeaf() {
+      JavaFileObject catalogue =
+          JavaFileObjects.forSourceString(
+              "com.example.Catalogue",
+              """
+              package com.example;
+
+              public record Catalogue(Page<EmailAddress> entries) {}
+              """);
+      JavaFileObject catalogueDto =
+          JavaFileObjects.forSourceString(
+              "com.example.CatalogueDto",
+              """
+              package com.example;
+
+              public record CatalogueDto(PageDto<String> entries) {}
+              """);
+      JavaFileObject catalogueMapping =
+          JavaFileObjects.forSourceString(
+              "com.example.CatalogueMapping",
+              """
+              package com.example;
+
+              import org.higherkindedj.hkt.validated.FieldError;
+              import org.higherkindedj.hkt.validated.Validated;
+              import org.higherkindedj.optics.annotations.GenerateMapping;
+              import org.higherkindedj.optics.annotations.MappingSpec;
+              import org.higherkindedj.optics.validated.ValidatedPrism;
+
+              @GenerateMapping
+              public interface CatalogueMapping extends MappingSpec<Catalogue, CatalogueDto> {
+                default ValidatedPrism<String, EmailAddress> entries() {
+                  return ValidatedPrism.of(
+                      raw ->
+                          raw.contains("@")
+                              ? Validated.validNel(new EmailAddress(raw))
+                              : Validated.invalidNel(FieldError.of("not an email address")),
+                      EmailAddress::value);
+                }
+              }
+              """);
+      Compilation compilation =
+          compile(EMAIL, PAGE, PAGE_DTO, ELEMENT_SPEC, catalogue, catalogueDto, catalogueMapping);
+      assertThat(compilation).succeeded();
+      Assertions.assertThat(generatedSource(compilation, "com.example.CatalogueMappingImpl"))
+          .contains("ElementMappedPageMappingImpl.of(entries()).asValidatedPrism()");
+    }
+
+    @Test
+    @DisplayName("an element-mapped spec nests through another registered mapping recursively")
+    void elementMappedSpecNestsThroughRegisteredMapping() {
+      JavaFileObject customer =
+          JavaFileObjects.forSourceString(
+              "com.example.Customer2",
+              """
+              package com.example;
+
+              public record Customer2(String name) {}
+              """);
+      JavaFileObject customerDto =
+          JavaFileObjects.forSourceString(
+              "com.example.Customer2Dto",
+              """
+              package com.example;
+
+              public record Customer2Dto(String name) {}
+              """);
+      JavaFileObject customerMapping =
+          JavaFileObjects.forSourceString(
+              "com.example.Customer2Mapping",
+              """
+              package com.example;
+
+              import org.higherkindedj.optics.annotations.GenerateMapping;
+              import org.higherkindedj.optics.annotations.MappingSpec;
+
+              @GenerateMapping
+              public interface Customer2Mapping extends MappingSpec<Customer2, Customer2Dto> {}
+              """);
+      JavaFileObject catalogue =
+          JavaFileObjects.forSourceString(
+              "com.example.Catalogue",
+              """
+              package com.example;
+
+              public record Catalogue(Page<Customer2> entries) {}
+              """);
+      JavaFileObject catalogueDto =
+          JavaFileObjects.forSourceString(
+              "com.example.CatalogueDto",
+              """
+              package com.example;
+
+              public record CatalogueDto(PageDto<Customer2Dto> entries) {}
+              """);
+      JavaFileObject catalogueMapping =
+          JavaFileObjects.forSourceString(
+              "com.example.CatalogueMapping",
+              """
+              package com.example;
+
+              import org.higherkindedj.optics.annotations.GenerateMapping;
+              import org.higherkindedj.optics.annotations.MappingSpec;
+
+              @GenerateMapping
+              public interface CatalogueMapping extends MappingSpec<Catalogue, CatalogueDto> {}
+              """);
+      Compilation compilation =
+          compile(
+              PAGE,
+              PAGE_DTO,
+              ELEMENT_SPEC,
+              customer,
+              customerDto,
+              customerMapping,
+              catalogue,
+              catalogueDto,
+              catalogueMapping);
+      assertThat(compilation).succeeded();
+      Assertions.assertThat(generatedSource(compilation, "com.example.CatalogueMappingImpl"))
+          .contains(
+              "ElementMappedPageMappingImpl.of(Customer2MappingImpl.INSTANCE.asValidatedPrism())"
+                  + ".asValidatedPrism()");
+    }
+
+    @Test
+    @DisplayName("element-mapped composition recurses and terminates through nested containers")
+    void elementMappedCompositionRecurses() {
+      JavaFileObject outer =
+          JavaFileObjects.forSourceString(
+              "com.example.Outer",
+              """
+              package com.example;
+
+              public record Outer(Page<Page<String>> nested) {}
+              """);
+      JavaFileObject outerDto =
+          JavaFileObjects.forSourceString(
+              "com.example.OuterDto",
+              """
+              package com.example;
+
+              public record OuterDto(PageDto<PageDto<String>> nested) {}
+              """);
+      JavaFileObject outerMapping =
+          JavaFileObjects.forSourceString(
+              "com.example.OuterMapping",
+              """
+              package com.example;
+
+              import org.higherkindedj.hkt.validated.Validated;
+              import org.higherkindedj.optics.annotations.GenerateMapping;
+              import org.higherkindedj.optics.annotations.MappingSpec;
+              import org.higherkindedj.optics.validated.ValidatedPrism;
+
+              @GenerateMapping
+              public interface OuterMapping extends MappingSpec<Outer, OuterDto> {
+                default ValidatedPrism<String, String> nested() {
+                  return ValidatedPrism.of(Validated::validNel, s -> s);
+                }
+              }
+              """);
+      Compilation compilation =
+          compile(PAGE, PAGE_DTO, ELEMENT_SPEC, outer, outerDto, outerMapping);
+      assertThat(compilation).succeeded();
+      // The outer Page<Page<String>> resolves the element-mapped spec twice, the inner element
+      // pair (String, String) bottoming out on the nested() leaf: of(of(nested())).
+      Assertions.assertThat(generatedSource(compilation, "com.example.OuterMappingImpl"))
+          .contains(
+              "ElementMappedPageMappingImpl.of(ElementMappedPageMappingImpl.of(nested())"
+                  + ".asValidatedPrism()).asValidatedPrism()");
+    }
+
+    @Test
+    @DisplayName("a self-covering element-mapped spec is diagnosed, not overflowed")
+    void selfCoveringElementMappedSpecDiagnosed() {
+      JavaFileObject node =
+          JavaFileObjects.forSourceString(
+              "com.example.Node",
+              """
+              package com.example;
+
+              public record Node<T>(T value) {}
+              """);
+      JavaFileObject nodeDto =
+          JavaFileObjects.forSourceString(
+              "com.example.NodeDto",
+              """
+              package com.example;
+
+              public record NodeDto<U>(U value) {}
+              """);
+      // The abstract leaf's element pair (Node<T>, NodeDto<U>) is the spec's own declared pair,
+      // so an of() composition would need its own prism as input: a cycle.
+      JavaFileObject nodeMapping =
+          JavaFileObjects.forSourceString(
+              "com.example.NodeMapping",
+              """
+              package com.example;
+
+              import org.higherkindedj.optics.annotations.GenerateMapping;
+              import org.higherkindedj.optics.annotations.MappingSpec;
+              import org.higherkindedj.optics.validated.ValidatedPrism;
+
+              @GenerateMapping
+              public interface NodeMapping<T, U> extends MappingSpec<Node<T>, NodeDto<U>> {
+                ValidatedPrism<NodeDto<U>, Node<T>> value();
+              }
+              """);
+      JavaFileObject tree =
+          JavaFileObjects.forSourceString(
+              "com.example.Tree",
+              """
+              package com.example;
+
+              public record Tree(Node<String> root) {}
+              """);
+      JavaFileObject treeDto =
+          JavaFileObjects.forSourceString(
+              "com.example.TreeDto",
+              """
+              package com.example;
+
+              public record TreeDto(NodeDto<String> root) {}
+              """);
+      JavaFileObject treeMapping =
+          JavaFileObjects.forSourceString(
+              "com.example.TreeMapping",
+              """
+              package com.example;
+
+              import org.higherkindedj.optics.annotations.GenerateMapping;
+              import org.higherkindedj.optics.annotations.MappingSpec;
+
+              @GenerateMapping
+              public interface TreeMapping extends MappingSpec<Tree, TreeDto> {}
+              """);
+      Compilation compilation = compile(node, nodeDto, nodeMapping, tree, treeDto, treeMapping);
+      assertThat(compilation).failed();
+      assertThat(compilation).hadErrorContaining("which maps itself");
+      assertThat(compilation).hadErrorContaining("never terminates");
+    }
+
+    @Test
+    @DisplayName("a generic element-mapped outer threads its own variables into a nested of()")
+    void genericOuterElementMappedNestsElementMapped() {
+      JavaFileObject feed =
+          JavaFileObjects.forSourceString(
+              "com.example.Feed",
+              """
+              package com.example;
+
+              public record Feed<T>(Page<T> results) {}
+              """);
+      JavaFileObject feedDto =
+          JavaFileObjects.forSourceString(
+              "com.example.FeedDto",
+              """
+              package com.example;
+
+              public record FeedDto<D>(PageDto<D> results) {}
+              """);
+      JavaFileObject feedMapping =
+          JavaFileObjects.forSourceString(
+              "com.example.FeedMapping",
+              """
+              package com.example;
+
+              import org.higherkindedj.optics.annotations.GenerateMapping;
+              import org.higherkindedj.optics.annotations.MappingSpec;
+              import org.higherkindedj.optics.validated.ValidatedPrism;
+
+              @GenerateMapping
+              public interface FeedMapping<T, D> extends MappingSpec<Feed<T>, FeedDto<D>> {
+                ValidatedPrism<D, T> results();
+              }
+              """);
+      Compilation compilation = compile(PAGE, PAGE_DTO, ELEMENT_SPEC, feed, feedDto, feedMapping);
+      assertThat(compilation).succeeded();
+      // FeedMapping is itself element-mapped; its own leaf supplies the inner of()'s prism, and
+      // the type variables thread through unchanged.
+      Assertions.assertThat(generatedSource(compilation, "com.example.FeedMappingImpl"))
+          .contains("public final class FeedMappingImpl<T, D> implements FeedMapping<T, D>")
+          .contains("ElementMappedPageMappingImpl.of(results()).asValidatedPrism()");
+    }
+
+    @Test
+    @DisplayName("a nested element-mapped mapping works at runtime, failures located through it")
+    void nestedElementMappedMappingWorksAtRuntime() throws Exception {
+      JavaFileObject catalogue =
+          JavaFileObjects.forSourceString(
+              "com.example.Catalogue",
+              """
+              package com.example;
+
+              public record Catalogue(Page<EmailAddress> entries) {}
+              """);
+      JavaFileObject catalogueDto =
+          JavaFileObjects.forSourceString(
+              "com.example.CatalogueDto",
+              """
+              package com.example;
+
+              public record CatalogueDto(PageDto<String> entries) {}
+              """);
+      JavaFileObject catalogueMapping =
+          JavaFileObjects.forSourceString(
+              "com.example.CatalogueMapping",
+              """
+              package com.example;
+
+              import org.higherkindedj.hkt.validated.FieldError;
+              import org.higherkindedj.hkt.validated.Validated;
+              import org.higherkindedj.optics.annotations.GenerateMapping;
+              import org.higherkindedj.optics.annotations.MappingSpec;
+              import org.higherkindedj.optics.validated.ValidatedPrism;
+
+              @GenerateMapping
+              public interface CatalogueMapping extends MappingSpec<Catalogue, CatalogueDto> {
+                default ValidatedPrism<String, EmailAddress> entries() {
+                  return ValidatedPrism.of(
+                      raw ->
+                          raw.contains("@")
+                              ? Validated.validNel(new EmailAddress(raw))
+                              : Validated.invalidNel(FieldError.of("not an email address")),
+                      EmailAddress::value);
+                }
+              }
+              """);
+      Compilation compilation =
+          compile(EMAIL, PAGE, PAGE_DTO, ELEMENT_SPEC, catalogue, catalogueDto, catalogueMapping);
+      assertThat(compilation).succeeded();
+      var result = new RuntimeCompilationHelper.CompiledResult(compilation);
+      Object impl = result.instance("com.example.CatalogueMappingImpl");
+
+      Object ada =
+          result
+              .loadClass("com.example.EmailAddress")
+              .getDeclaredConstructor(String.class)
+              .newInstance("ada@corp.example");
+      Object page =
+          result
+              .loadClass("com.example.Page")
+              .getDeclaredConstructor(List.class, int.class)
+              .newInstance(List.of(ada), 1);
+      Object catalogueValue =
+          result
+              .loadClass("com.example.Catalogue")
+              .getDeclaredConstructor(result.loadClass("com.example.Page"))
+              .newInstance(page);
+      Object dto = invoke(impl, "build", catalogueValue);
+      @SuppressWarnings("unchecked")
+      Validated<NonEmptyList<FieldError>, Object> back =
+          (Validated<NonEmptyList<FieldError>, Object>) invoke(impl, "parse", dto);
+      Assertions.assertThat(back.isValid()).isTrue();
+      Assertions.assertThat(back.get()).isEqualTo(catalogueValue);
+
+      Object badPageDto =
+          result
+              .loadClass("com.example.PageDto")
+              .getDeclaredConstructor(List.class, int.class)
+              .newInstance(List.of("ada@corp.example", "nope"), 2);
+      Object badDto =
+          result
+              .loadClass("com.example.CatalogueDto")
+              .getDeclaredConstructor(result.loadClass("com.example.PageDto"))
+              .newInstance(badPageDto);
+      @SuppressWarnings("unchecked")
+      Validated<NonEmptyList<FieldError>, Object> bad =
+          (Validated<NonEmptyList<FieldError>, Object>) invoke(impl, "parse", badDto);
+      Assertions.assertThat(bad.isInvalid()).isTrue();
+      Assertions.assertThat(bad.getError().toJavaList())
+          .containsExactly(
+              new FieldError(List.of("entries", "items", "1"), "not an email address"));
+    }
+
+    @Test
+    @DisplayName("a multi-leaf element-mapped spec nests when every pair resolves by registry")
+    void multiLeafElementMappedSpecNests() {
+      JavaFileObject duo =
+          JavaFileObjects.forSourceString(
+              "com.example.Duo",
+              """
+              package com.example;
+
+              public record Duo<A, B>(A first, B second) {}
+              """);
+      JavaFileObject duoDto =
+          JavaFileObjects.forSourceString(
+              "com.example.DuoDto",
+              """
+              package com.example;
+
+              public record DuoDto<A, B>(A first, B second) {}
+              """);
+      JavaFileObject duoMapping =
+          JavaFileObjects.forSourceString(
+              "com.example.DuoMapping",
+              """
+              package com.example;
+
+              import org.higherkindedj.optics.annotations.GenerateMapping;
+              import org.higherkindedj.optics.annotations.MappingSpec;
+              import org.higherkindedj.optics.validated.ValidatedPrism;
+
+              @GenerateMapping
+              public interface DuoMapping<A, ADto, B, BDto>
+                  extends MappingSpec<Duo<A, B>, DuoDto<ADto, BDto>> {
+                ValidatedPrism<ADto, A> first();
+
+                ValidatedPrism<BDto, B> second();
+              }
+              """);
+      JavaFileObject left =
+          JavaFileObjects.forSourceString(
+              "com.example.LeftPart",
+              """
+              package com.example;
+
+              public record LeftPart(String v) {}
+              """);
+      JavaFileObject leftDto =
+          JavaFileObjects.forSourceString(
+              "com.example.LeftPartDto",
+              """
+              package com.example;
+
+              public record LeftPartDto(String v) {}
+              """);
+      JavaFileObject leftMapping =
+          JavaFileObjects.forSourceString(
+              "com.example.LeftPartMapping",
+              """
+              package com.example;
+
+              import org.higherkindedj.optics.annotations.GenerateMapping;
+              import org.higherkindedj.optics.annotations.MappingSpec;
+
+              @GenerateMapping
+              public interface LeftPartMapping extends MappingSpec<LeftPart, LeftPartDto> {}
+              """);
+      JavaFileObject right =
+          JavaFileObjects.forSourceString(
+              "com.example.RightPart",
+              """
+              package com.example;
+
+              public record RightPart(int v) {}
+              """);
+      JavaFileObject rightDto =
+          JavaFileObjects.forSourceString(
+              "com.example.RightPartDto",
+              """
+              package com.example;
+
+              public record RightPartDto(int v) {}
+              """);
+      JavaFileObject rightMapping =
+          JavaFileObjects.forSourceString(
+              "com.example.RightPartMapping",
+              """
+              package com.example;
+
+              import org.higherkindedj.optics.annotations.GenerateMapping;
+              import org.higherkindedj.optics.annotations.MappingSpec;
+
+              @GenerateMapping
+              public interface RightPartMapping extends MappingSpec<RightPart, RightPartDto> {}
+              """);
+      JavaFileObject basket =
+          JavaFileObjects.forSourceString(
+              "com.example.Basket",
+              """
+              package com.example;
+
+              public record Basket(Duo<LeftPart, RightPart> pair) {}
+              """);
+      JavaFileObject basketDto =
+          JavaFileObjects.forSourceString(
+              "com.example.BasketDto",
+              """
+              package com.example;
+
+              public record BasketDto(DuoDto<LeftPartDto, RightPartDto> pair) {}
+              """);
+      JavaFileObject basketMapping =
+          JavaFileObjects.forSourceString(
+              "com.example.BasketMapping",
+              """
+              package com.example;
+
+              import org.higherkindedj.optics.annotations.GenerateMapping;
+              import org.higherkindedj.optics.annotations.MappingSpec;
+
+              @GenerateMapping
+              public interface BasketMapping extends MappingSpec<Basket, BasketDto> {}
+              """);
+      Compilation compilation =
+          compile(
+              duo,
+              duoDto,
+              duoMapping,
+              left,
+              leftDto,
+              leftMapping,
+              right,
+              rightDto,
+              rightMapping,
+              basket,
+              basketDto,
+              basketMapping);
+      assertThat(compilation).succeeded();
+      Assertions.assertThat(generatedSource(compilation, "com.example.BasketMappingImpl"))
+          .contains(
+              "DuoMappingImpl.of(LeftPartMappingImpl.INSTANCE.asValidatedPrism(),"
+                  + " RightPartMappingImpl.INSTANCE.asValidatedPrism()).asValidatedPrism()");
+    }
+
+    @Test
+    @DisplayName("an ambiguous element pair propagates the ambiguity, not a spurious of()")
+    void ambiguousElementPairPropagates() {
+      JavaFileObject customer =
+          JavaFileObjects.forSourceString(
+              "com.example.Customer2",
+              """
+              package com.example;
+
+              public record Customer2(String name) {}
+              """);
+      JavaFileObject customerDto =
+          JavaFileObjects.forSourceString(
+              "com.example.Customer2Dto",
+              """
+              package com.example;
+
+              public record Customer2Dto(String name) {}
+              """);
+      JavaFileObject mappingOne =
+          JavaFileObjects.forSourceString(
+              "com.example.Customer2Mapping",
+              """
+              package com.example;
+
+              import org.higherkindedj.optics.annotations.GenerateMapping;
+              import org.higherkindedj.optics.annotations.MappingSpec;
+
+              @GenerateMapping
+              public interface Customer2Mapping extends MappingSpec<Customer2, Customer2Dto> {}
+              """);
+      JavaFileObject mappingTwo =
+          JavaFileObjects.forSourceString(
+              "com.example.Customer2MappingToo",
+              """
+              package com.example;
+
+              import org.higherkindedj.optics.annotations.GenerateMapping;
+              import org.higherkindedj.optics.annotations.MappingSpec;
+
+              @GenerateMapping
+              public interface Customer2MappingToo
+                  extends MappingSpec<Customer2, Customer2Dto> {}
+              """);
+      JavaFileObject catalogue =
+          JavaFileObjects.forSourceString(
+              "com.example.Catalogue",
+              """
+              package com.example;
+
+              public record Catalogue(Page<Customer2> entries) {}
+              """);
+      JavaFileObject catalogueDto =
+          JavaFileObjects.forSourceString(
+              "com.example.CatalogueDto",
+              """
+              package com.example;
+
+              public record CatalogueDto(PageDto<Customer2Dto> entries) {}
+              """);
+      JavaFileObject catalogueMapping =
+          JavaFileObjects.forSourceString(
+              "com.example.CatalogueMapping",
+              """
+              package com.example;
+
+              import org.higherkindedj.optics.annotations.GenerateMapping;
+              import org.higherkindedj.optics.annotations.MappingSpec;
+
+              @GenerateMapping
+              public interface CatalogueMapping extends MappingSpec<Catalogue, CatalogueDto> {}
+              """);
+      Compilation compilation =
+          compile(
+              PAGE,
+              PAGE_DTO,
+              ELEMENT_SPEC,
+              customer,
+              customerDto,
+              mappingOne,
+              mappingTwo,
+              catalogue,
+              catalogueDto,
+              catalogueMapping);
+      assertThat(compilation).failed();
+      assertThat(compilation).hadErrorContaining("matches more than one mapping spec");
+    }
+
+    @Test
+    @DisplayName("an unresolvable element pair is diagnosed with both levers")
+    void unresolvableElementPairDiagnosed() {
+      JavaFileObject catalogue =
+          JavaFileObjects.forSourceString(
+              "com.example.Catalogue",
+              """
+              package com.example;
+
+              public record Catalogue(Page<EmailAddress> entries) {}
+              """);
+      JavaFileObject catalogueDto =
+          JavaFileObjects.forSourceString(
+              "com.example.CatalogueDto",
+              """
+              package com.example;
+
+              public record CatalogueDto(PageDto<String> entries) {}
+              """);
+      JavaFileObject catalogueMapping =
+          JavaFileObjects.forSourceString(
+              "com.example.CatalogueMapping",
+              """
+              package com.example;
+
+              import org.higherkindedj.optics.annotations.GenerateMapping;
+              import org.higherkindedj.optics.annotations.MappingSpec;
+
+              @GenerateMapping
+              public interface CatalogueMapping extends MappingSpec<Catalogue, CatalogueDto> {}
+              """);
+      Compilation compilation =
+          compile(EMAIL, PAGE, PAGE_DTO, ELEMENT_SPEC, catalogue, catalogueDto, catalogueMapping);
+      assertThat(compilation).failed();
+      assertThat(compilation)
+          .hadErrorContaining("the element pair (com.example.EmailAddress, java.lang.String)");
+      assertThat(compilation).hadErrorContaining("has no mapping");
+    }
+
+    @Test
+    @DisplayName("an abstract leaf makes the spec element-mapped: of() instead of instance()")
+    void abstractLeafEmitsTheOfFactory() {
       JavaFileObject spec =
           JavaFileObjects.forSourceString(
               "com.example.ElementMappedPageMapping",
@@ -5209,14 +6448,364 @@ class MappingProcessorTest {
               """);
 
       Compilation compilation = compile(PAGE, PAGE_DTO, spec);
+      assertThat(compilation).succeeded();
+      String generated = generatedSource(compilation, "com.example.ElementMappedPageMappingImpl");
+      Assertions.assertThat(generated)
+          .contains(
+              "public final class ElementMappedPageMappingImpl<T, TDto> implements"
+                  + " ElementMappedPageMapping<T, TDto>")
+          .contains("private final ValidatedPrism<TDto, T> items;")
+          .contains(
+              "public static <T, TDto> ElementMappedPageMappingImpl<T, TDto> of(ValidatedPrism<TDto, T> items)")
+          .contains("public ValidatedPrism<TDto, T> items()")
+          .contains("public PageDto<TDto> build(Page<T> domain)")
+          .contains("public Validated<NonEmptyList<FieldError>, Page<T>> parse(PageDto<TDto> wire)")
+          // the leaf is fallible, so the Iso tier is out; and the Impl carries state, so no
+          // shared singleton exists in either spelling
+          .doesNotContain("asIso")
+          .doesNotContain("INSTANCE")
+          .doesNotContain("instance()");
+    }
+
+    @Test
+    @DisplayName("an element-mapped mapping parses through its of() prism, failures index-located")
+    void elementMappedMappingWorksAtRuntime() throws Exception {
+      JavaFileObject spec =
+          JavaFileObjects.forSourceString(
+              "com.example.ElementMappedPageMapping",
+              """
+              package com.example;
+
+              import org.higherkindedj.optics.annotations.GenerateMapping;
+              import org.higherkindedj.optics.annotations.MappingSpec;
+              import org.higherkindedj.optics.validated.ValidatedPrism;
+
+              @GenerateMapping
+              public interface ElementMappedPageMapping<T, TDto>
+                  extends MappingSpec<Page<T>, PageDto<TDto>> {
+                ValidatedPrism<TDto, T> items();
+              }
+              """);
+      Compilation compilation = compile(PAGE, PAGE_DTO, spec);
+      assertThat(compilation).succeeded();
+      var result = new RuntimeCompilationHelper.CompiledResult(compilation);
+
+      ValidatedPrism<String, Integer> numbers =
+          ValidatedPrism.of(
+              raw ->
+                  raw.chars().allMatch(Character::isDigit) && !raw.isEmpty()
+                      ? Validated.validNel(Integer.valueOf(raw))
+                      : Validated.invalidNel(FieldError.of("not a number")),
+              String::valueOf);
+      Object impl =
+          result
+              .loadClass("com.example.ElementMappedPageMappingImpl")
+              .getMethod("of", ValidatedPrism.class)
+              .invoke(null, numbers);
+
+      Object page =
+          result
+              .loadClass("com.example.Page")
+              .getDeclaredConstructor(List.class, int.class)
+              .newInstance(List.of(4, 2), 2);
+      Object dto = invoke(impl, "build", page);
+      Assertions.assertThat(invoke(dto, "items")).isEqualTo(List.of("4", "2"));
+
+      @SuppressWarnings("unchecked")
+      Validated<NonEmptyList<FieldError>, Object> back =
+          (Validated<NonEmptyList<FieldError>, Object>) invoke(impl, "parse", dto);
+      Assertions.assertThat(back.isValid()).isTrue();
+      Assertions.assertThat(back.get()).isEqualTo(page);
+
+      Object badDto =
+          result
+              .loadClass("com.example.PageDto")
+              .getDeclaredConstructor(List.class, int.class)
+              .newInstance(List.of("4", "x"), 2);
+      @SuppressWarnings("unchecked")
+      Validated<NonEmptyList<FieldError>, Object> bad =
+          (Validated<NonEmptyList<FieldError>, Object>) invoke(impl, "parse", badDto);
+      Assertions.assertThat(bad.isInvalid()).isTrue();
+      Assertions.assertThat(bad.getError().toJavaList())
+          .containsExactly(new FieldError(List.of("items", "1"), "not a number"));
+
+      // Two of() calls are two instances: the Impl carries the prism, so no singleton is shared.
+      Object other =
+          result
+              .loadClass("com.example.ElementMappedPageMappingImpl")
+              .getMethod("of", ValidatedPrism.class)
+              .invoke(null, numbers);
+      Assertions.assertThat(other).isNotSameAs(impl);
+    }
+
+    @Test
+    @DisplayName("a raw ValidatedPrism abstract is not a leaf shape")
+    void rawAbstractPrismIsNotALeaf() {
+      JavaFileObject spec =
+          JavaFileObjects.forSourceString(
+              "com.example.RawLeafPageMapping",
+              """
+              package com.example;
+
+              import org.higherkindedj.optics.annotations.GenerateMapping;
+              import org.higherkindedj.optics.annotations.MappingSpec;
+              import org.higherkindedj.optics.validated.ValidatedPrism;
+
+              @GenerateMapping
+              public interface RawLeafPageMapping<T, TDto>
+                  extends MappingSpec<Page<T>, PageDto<TDto>> {
+                @SuppressWarnings("rawtypes")
+                ValidatedPrism items();
+              }
+              """);
+      Compilation compilation = compile(PAGE, PAGE_DTO, spec);
       assertThat(compilation).failed();
       assertThat(compilation)
           .hadErrorContaining("abstract method 'items' is neither a rename nor a leaf");
     }
 
     @Test
-    @DisplayName("a threaded spec is not yet nestable: use sites need type-argument unification")
-    void threadedSpecsAreNotYetNestable() {
+    @DisplayName("an abstract leaf on a concrete spec is diagnosed: nothing defers its parser")
+    void abstractLeafOnConcreteSpecRejected() {
+      JavaFileObject spec =
+          JavaFileObjects.forSourceString(
+              "com.example.ConcreteLeafMapping",
+              """
+              package com.example;
+
+              import org.higherkindedj.optics.annotations.GenerateMapping;
+              import org.higherkindedj.optics.annotations.MappingSpec;
+              import org.higherkindedj.optics.validated.ValidatedPrism;
+
+              @GenerateMapping
+              public interface ConcreteLeafMapping extends MappingSpec<Records.D, Records.W> {
+                ValidatedPrism<String, String> a();
+              }
+              """);
+      JavaFileObject records =
+          JavaFileObjects.forSourceString(
+              "com.example.Records",
+              """
+              package com.example;
+
+              public final class Records {
+                public record D(String a) {}
+
+                public record W(String a) {}
+              }
+              """);
+      Compilation compilation = compile(records, spec);
+      assertThat(compilation).failed();
+      assertThat(compilation).hadErrorContaining("abstract leaf 'a' needs a generic spec");
+      assertThat(compilation).hadErrorContaining("Give the method a body ('default')");
+    }
+
+    @Test
+    @DisplayName("agreeing mix-in abstract leaves count as one of() parameter")
+    void agreeingMixinAbstractLeavesCountOnce() {
+      JavaFileObject leafA =
+          JavaFileObjects.forSourceString(
+              "com.example.ItemsVocabularyA",
+              """
+              package com.example;
+
+              import org.higherkindedj.optics.validated.ValidatedPrism;
+
+              public interface ItemsVocabularyA {
+                ValidatedPrism<String, Integer> items();
+              }
+              """);
+      JavaFileObject leafB =
+          JavaFileObjects.forSourceString(
+              "com.example.ItemsVocabularyB",
+              """
+              package com.example;
+
+              import org.higherkindedj.optics.validated.ValidatedPrism;
+
+              public interface ItemsVocabularyB {
+                ValidatedPrism<String, Integer> items();
+              }
+              """);
+      JavaFileObject spec =
+          JavaFileObjects.forSourceString(
+              "com.example.CountedPageMapping",
+              """
+              package com.example;
+
+              import org.higherkindedj.optics.annotations.GenerateMapping;
+              import org.higherkindedj.optics.annotations.MappingSpec;
+
+              @GenerateMapping
+              public interface CountedPageMapping<X>
+                  extends ItemsVocabularyA, ItemsVocabularyB,
+                      MappingSpec<Page<Integer>, PageDto<String>> {}
+              """);
+      Compilation compilation = compile(PAGE, PAGE_DTO, leafA, leafB, spec);
+      assertThat(compilation).succeeded();
+      String generated = generatedSource(compilation, "com.example.CountedPageMappingImpl");
+      // one field + one ctor param + one of() param + one override = four mentions, not eight
+      Assertions.assertThat(generated.split("ValidatedPrism<String, Integer> items", -1))
+          .hasSize(5);
+      Assertions.assertThat(generated).contains("of(ValidatedPrism<String, Integer> items)");
+    }
+
+    @Test
+    @DisplayName("an abstract String helper is still neither a rename nor a leaf")
+    void abstractStringHelperStaysDiagnosed() {
+      JavaFileObject spec =
+          JavaFileObjects.forSourceString(
+              "com.example.HelperPageMapping",
+              """
+              package com.example;
+
+              import org.higherkindedj.optics.annotations.GenerateMapping;
+              import org.higherkindedj.optics.annotations.MappingSpec;
+
+              @GenerateMapping
+              public interface HelperPageMapping<T> extends MappingSpec<Page<T>, PageDto<T>> {
+                String label();
+              }
+              """);
+      Compilation compilation = compile(PAGE, PAGE_DTO, spec);
+      assertThat(compilation).failed();
+      assertThat(compilation)
+          .hadErrorContaining("abstract method 'label' is neither a rename nor a leaf");
+    }
+
+    @Test
+    @DisplayName("a static prism-shaped method named after a component is not its leaf")
+    void staticPrismShapedMethodIsNotALeaf() {
+      JavaFileObject holder =
+          JavaFileObjects.forSourceString(
+              "com.example.Holder2",
+              """
+              package com.example;
+
+              public final class Holder2 {
+                public record D(Integer count) {}
+
+                public record W(String count) {}
+              }
+              """);
+      JavaFileObject spec =
+          JavaFileObjects.forSourceString(
+              "com.example.Holder2Mapping",
+              """
+              package com.example;
+
+              import org.higherkindedj.hkt.validated.Validated;
+              import org.higherkindedj.optics.annotations.GenerateMapping;
+              import org.higherkindedj.optics.annotations.MappingSpec;
+              import org.higherkindedj.optics.validated.ValidatedPrism;
+
+              @GenerateMapping
+              public interface Holder2Mapping extends MappingSpec<Holder2.D, Holder2.W> {
+                static ValidatedPrism<String, Integer> count() {
+                  return ValidatedPrism.of(
+                      raw -> Validated.validNel(Integer.valueOf(raw)), String::valueOf);
+                }
+              }
+              """);
+      // A static is not inherited by the Impl and is not a leaf declaration; the component's
+      // type mismatch stays honestly diagnosed instead of silently routing through the helper.
+      Compilation compilation = compile(holder, spec);
+      assertThat(compilation).failed();
+      assertThat(compilation).hadErrorContaining("has no usable source");
+    }
+
+    @Test
+    @DisplayName("a rename marker is never mistaken for the leaf its component still needs")
+    void renameMarkerIsNotALeaf() {
+      JavaFileObject holder =
+          JavaFileObjects.forSourceString(
+              "com.example.Holder",
+              """
+              package com.example;
+
+              public final class Holder {
+                public record D(Integer count) {}
+
+                public record W(String total) {}
+              }
+              """);
+      JavaFileObject spec =
+          JavaFileObjects.forSourceString(
+              "com.example.HolderMapping",
+              """
+              package com.example;
+
+              import org.higherkindedj.optics.annotations.GenerateMapping;
+              import org.higherkindedj.optics.annotations.MapField;
+              import org.higherkindedj.optics.annotations.MappingSpec;
+
+              @GenerateMapping
+              public interface HolderMapping extends MappingSpec<Holder.D, Holder.W> {
+                @MapField(to = "total")
+                Integer count();
+              }
+              """);
+      // The abstract marker method is named exactly like the component the leaf lookup runs
+      // for; it must be skipped as a rename, leaving the type mismatch honestly diagnosed.
+      Compilation compilation = compile(holder, spec);
+      assertThat(compilation).failed();
+      assertThat(compilation).hadErrorContaining("has no usable source");
+    }
+
+    @Test
+    @DisplayName("'of' is reserved on element-mapped specs; 'instance' is again free")
+    void ofIsReservedOnElementMappedSpecs() {
+      JavaFileObject colliding =
+          JavaFileObjects.forSourceString(
+              "com.example.ElementMappedPageMapping",
+              """
+              package com.example;
+
+              import org.higherkindedj.optics.annotations.GenerateMapping;
+              import org.higherkindedj.optics.annotations.MappingSpec;
+              import org.higherkindedj.optics.validated.ValidatedPrism;
+
+              @GenerateMapping
+              public interface ElementMappedPageMapping<T, TDto>
+                  extends MappingSpec<Page<T>, PageDto<TDto>> {
+                ValidatedPrism<TDto, T> items();
+
+                default String of(ValidatedPrism<TDto, T> ignored) {
+                  return "";
+                }
+              }
+              """);
+      Compilation collision = compile(PAGE, PAGE_DTO, colliding);
+      assertThat(collision).failed();
+      assertThat(collision).hadErrorContaining("collides with the 'of' member");
+
+      // instance() is not emitted on an element-mapped Impl, so the name is not reserved.
+      JavaFileObject instanceHelper =
+          JavaFileObjects.forSourceString(
+              "com.example.ElementMappedPageMapping",
+              """
+              package com.example;
+
+              import org.higherkindedj.optics.annotations.GenerateMapping;
+              import org.higherkindedj.optics.annotations.MappingSpec;
+              import org.higherkindedj.optics.validated.ValidatedPrism;
+
+              @GenerateMapping
+              public interface ElementMappedPageMapping<T, TDto>
+                  extends MappingSpec<Page<T>, PageDto<TDto>> {
+                ValidatedPrism<TDto, T> items();
+
+                default String instance() {
+                  return "helper";
+                }
+              }
+              """);
+      assertThat(compile(PAGE, PAGE_DTO, instanceHelper)).succeeded();
+    }
+
+    @Test
+    @DisplayName("a threaded spec nests at a concrete use site by unifying its type arguments")
+    void threadedSpecsNestByUnification() {
       JavaFileObject report =
           JavaFileObjects.forSourceString(
               "com.example.Report",
@@ -5248,9 +6837,9 @@ class MappingProcessorTest {
 
       Compilation compilation =
           compile(PAGE, PAGE_DTO, PAGE_MAPPING, report, reportDto, reportMapping);
-      assertThat(compilation).failed();
-      assertThat(compilation)
-          .hadErrorContaining("target field 'ReportDto.results' has no usable source");
+      assertThat(compilation).succeeded();
+      Assertions.assertThat(generatedSource(compilation, "com.example.ReportMappingImpl"))
+          .contains("PageMappingImpl.<String>instance().asValidatedPrism()");
     }
 
     @Test
@@ -5431,7 +7020,7 @@ class MappingProcessorTest {
     }
 
     @Test
-    @DisplayName("the #654 sweep runs on threaded specs with the threaded member set")
+    @DisplayName("the collision sweep runs on threaded specs with the threaded member set")
     void collisionSweepCoversThreadedSpecs() {
       JavaFileObject colliding =
           JavaFileObjects.forSourceString(
@@ -5457,7 +7046,7 @@ class MappingProcessorTest {
   }
 
   @Nested
-  @DisplayName("Located nulls on record wires (#653)")
+  @DisplayName("Located nulls on record wires")
   class LocatedNullsOnRecordWires {
 
     @SuppressWarnings("unchecked")
@@ -5694,8 +7283,7 @@ class MappingProcessorTest {
 
     @Test
     @DisplayName(
-        "a null container leg is located; a null element inside the container locates by index"
-            + " (#660)")
+        "a null container leg is located; a null element inside the container locates by index")
     void containerLegAndElementNullsAreLocated() {
       JavaFileObject roster =
           JavaFileObjects.forSourceString(
@@ -5755,7 +7343,7 @@ class MappingProcessorTest {
         Assertions.assertThat(renderedErrors(parse(impl, nullListWire)))
             .containsExactly("emails: must not be null");
 
-        // The #653 boundary retired by #660: a null ELEMENT is a located invalid at its index,
+        // A null ELEMENT is a located invalid at its index,
         // completing the doctrine inside containers.
         Object nullElementWire =
             result
@@ -5771,7 +7359,7 @@ class MappingProcessorTest {
   }
 
   @Nested
-  @DisplayName("Concrete instantiations of generic records (#624)")
+  @DisplayName("Concrete instantiations of generic records")
   class GenericInstantiations {
 
     private static final JavaFileObject PAGE =
@@ -6128,7 +7716,7 @@ class MappingProcessorTest {
 
     @Test
     @DisplayName(
-        "the #654 collision sweep runs on instantiated specs with the instantiated" + " member set")
+        "the collision sweep runs on instantiated specs with the instantiated" + " member set")
     void collisionSweepCoversInstantiatedSpecs() {
       JavaFileObject colliding =
           JavaFileObjects.forSourceString(
@@ -6232,7 +7820,7 @@ class MappingProcessorTest {
               "'com.example.Page<java.util.List<?>>' is not a supported instantiation");
 
       // Raw nested arguments are caught recursively — raw is less safe than the rejected
-      // wildcard (#624 panel finding).
+      // wildcard.
       JavaFileObject nestedRawSpec =
           JavaFileObjects.forSourceString(
               "com.example.NestedRawMapping",
@@ -6297,7 +7885,7 @@ class MappingProcessorTest {
   }
 
   @Nested
-  @DisplayName("Spec inheritance - shared mix-ins (#623)")
+  @DisplayName("Spec inheritance - shared mix-ins")
   class SpecInheritance {
 
     private static final JavaFileObject ACCOUNT =
@@ -6416,7 +8004,7 @@ class MappingProcessorTest {
       Assertions.assertThat(back.get()).isEqualTo(account);
 
       // An inherited leaf locates its failures like a local one - and the inherited rename's
-      // wire property is guarded by the #653 doctrine.
+      // wire property is guarded by the null doctrine.
       Object badDto =
           result
               .loadClass("com.example.AccountDto")
@@ -6725,7 +8313,7 @@ class MappingProcessorTest {
               package com.example;
 
               public interface BrokenVocabulary {
-                String bogus();
+                int bogus();
               }
               """);
       JavaFileObject spec =

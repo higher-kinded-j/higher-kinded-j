@@ -150,18 +150,25 @@ public interface InvoiceMapping extends MappingSpec<Invoice, InvoiceDto> {}   //
 
 Recursive records (a `Tree` of `Tree`) work too.
 
-Generic records map two ways. **Concrete instantiations** (`extends MappingSpec<Page<User>,
+Generic records map three ways. **Concrete instantiations** (`extends MappingSpec<Page<User>,
 PageDto<UserDto>>`): components classify under the substitution, so leaves/nesting/containers and
-the null doctrine apply unchanged, and the instantiated mapping nests into siblings automatically.
-**Threaded specs** (`PageMapping<T> extends MappingSpec<Page<T>, PageDto<T>>`): one generic Impl
-serves every instantiation via `PageMappingImpl.<T>instance()` (the `EitherMonad.instance()`
-convention); same-variable elements copy by identity; multi-parameter and bounded variables thread.
-Both are record-to-record only (bean wires and `UpdateSpec` stay concrete). Raw (`Page`, incl. raw
-nested arguments) and wildcard (`Page<?>`) shapes are diagnosed; array arguments are concrete. A
-threaded spec is not yet nestable, and an *abstract* leaf (`ValidatedPrism<TDto, T> items();`, the
-element-mapped form) stays diagnosed; both are planned follow-ups (#624).
+the null doctrine apply unchanged. **Threaded specs** (`PageMapping<T> extends MappingSpec<Page<T>,
+PageDto<T>>`): one generic Impl serves every instantiation via `PageMappingImpl.<T>instance()` (the
+`EitherMonad.instance()` convention); same-variable elements copy by identity; multi-parameter and
+bounded variables thread. **Element-mapped specs** (`Page<T> <-> PageDto<TDto>` with an abstract
+`ValidatedPrism<TDto, T> items();` leaf): the generated Impl takes one prism per abstract leaf
+through `XImpl.of(...)` (declaration order; stateful, so no singleton). All three NEST: concrete
+registrations directly, threaded specs by type-argument unification at the use site
+(`PageMappingImpl.<String>instance()`, incl. a generic outer passing its own variable), and
+element-mapped specs by composition (`of(entries())`, element pairs resolved via the using spec's
+component-named leaf for single-leaf specs, else recursively via the registry; unresolvable pairs
+diagnosed, failures
+located through the composed path `entries.items.1`). All generic mappings are record-to-record
+only (bean wires and `UpdateSpec` stay concrete). Raw and wildcard shapes are diagnosed; array
+arguments are concrete and unify structurally. An abstract leaf on a concrete or sealed spec is
+diagnosed (nothing defers its parser).
 
-### Shared vocabulary: mix-in interfaces (#623)
+### Shared vocabulary: mix-in interfaces
 
 A spec may extend plain **mix-in interfaces** alongside `MappingSpec`/`UpdateSpec`; inherited
 renames, leaves and derived fields count as if declared on the spec, collected transitively with

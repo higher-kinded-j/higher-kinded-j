@@ -121,7 +121,7 @@ class GeneratedMappingLawsTest {
         result.newInstance("com.example.Person", "Ada", 36),
         result.newInstance("com.example.PersonDto", "Grace", 41));
 
-    // The coherence law above is scoped to non-null wires (#653): a null-carrying wire is a
+    // The coherence law above is scoped to non-null wires: a null-carrying wire is a
     // located Invalid from parse — asIso() survives on a lossless record with a reference
     // component precisely because this guard covers hostile bindings, not a representable state.
     try {
@@ -242,7 +242,7 @@ class GeneratedMappingLawsTest {
 
   @Test
   @DisplayName(
-      "generic instantiation tier (#624): a concretely instantiated generic pair stays"
+      "generic instantiation tier: a concretely instantiated generic pair stays"
           + " lawful through the substituted container lifting")
   void genericInstantiationIsLawful() throws ReflectiveOperationException {
     JavaFileObject user =
@@ -380,6 +380,72 @@ class GeneratedMappingLawsTest {
             .loadClass("com.example.PairDto")
             .getDeclaredConstructor(Object.class, String.class)
             .newInstance("Grace", "b"));
+  }
+
+  @Test
+  @DisplayName("element-mapped tier: an of()-built mapping is lawful under its element prism")
+  void elementMappedSpecIsLawful() throws ReflectiveOperationException {
+    JavaFileObject page =
+        JavaFileObjects.forSourceString(
+            "com.example.Page",
+            """
+            package com.example;
+
+            import java.util.List;
+
+            public record Page<T>(List<T> items, int total) {}
+            """);
+    JavaFileObject pageDto =
+        JavaFileObjects.forSourceString(
+            "com.example.PageDto",
+            """
+            package com.example;
+
+            import java.util.List;
+
+            public record PageDto<T>(List<T> items, int total) {}
+            """);
+    JavaFileObject spec =
+        JavaFileObjects.forSourceString(
+            "com.example.ElementMappedPageMapping",
+            """
+            package com.example;
+
+            import org.higherkindedj.optics.annotations.GenerateMapping;
+            import org.higherkindedj.optics.annotations.MappingSpec;
+            import org.higherkindedj.optics.validated.ValidatedPrism;
+
+            @GenerateMapping
+            public interface ElementMappedPageMapping<T, TDto>
+                extends MappingSpec<Page<T>, PageDto<TDto>> {
+              ValidatedPrism<TDto, T> items();
+            }
+            """);
+
+    var result = compileMapping(page, pageDto, spec);
+    ValidatedPrism<String, Integer> numbers =
+        ValidatedPrism.of(
+            raw ->
+                !raw.isEmpty() && raw.chars().allMatch(Character::isDigit)
+                    ? Validated.validNel(Integer.valueOf(raw))
+                    : Validated.invalidNel(FieldError.of("not a number")),
+            String::valueOf);
+    Object impl =
+        result
+            .loadClass("com.example.ElementMappedPageMappingImpl")
+            .getMethod("of", ValidatedPrism.class)
+            .invoke(null, numbers);
+
+    MappingLaws.assertMappingLaws(
+        asValidatedPrism(impl),
+        result
+            .loadClass("com.example.PageDto")
+            .getDeclaredConstructor(List.class, int.class)
+            .newInstance(List.of("4", "2"), 2),
+        result
+            .loadClass("com.example.PageDto")
+            .getDeclaredConstructor(List.class, int.class)
+            .newInstance(List.of("4", "x"), 2));
   }
 
   @Test
