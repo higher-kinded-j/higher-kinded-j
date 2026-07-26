@@ -151,6 +151,22 @@ public class RuntimeCompilationHelper {
      * @param className the Impl's fully qualified class name
      * @return the INSTANCE value
      */
+    /**
+     * Loads a generic Impl's cached singleton through its {@code instance()} factory: the
+     * generic-Impl counterpart of {@link #instance(String)}.
+     *
+     * @param className the Impl's fully qualified class name
+     * @return the shared singleton
+     */
+    public Object genericInstance(String className) {
+      try {
+        return loadClass(className).getMethod("instance").invoke(null);
+      } catch (ReflectiveOperationException e) {
+        throw new AssertionError(
+            "could not load the instance() singleton of generated impl " + className, e);
+      }
+    }
+
     public Object instance(String className) {
       try {
         return loadClass(className).getField("INSTANCE").get(null);

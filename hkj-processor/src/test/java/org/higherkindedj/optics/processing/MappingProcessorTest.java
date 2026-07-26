@@ -33,7 +33,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
-@DisplayName("MappingProcessor - the @GenerateMapping Step-0 slice")
+@DisplayName("MappingProcessor - @GenerateMapping")
 class MappingProcessorTest {
 
   private static final JavaFileObject DOMAIN =
@@ -3242,7 +3242,9 @@ class MappingProcessorTest {
               spec);
       assertThat(compilation).succeeded();
       Assertions.assertThat(generatedSource(compilation, "com.example.BoxMappingImpl"))
-          .contains("public Records.BoxDto build(Records.Box<String> domain)");
+          .contains("public Records.BoxDto build(Records.Box<String> domain)")
+          // a lossless instantiation keeps the Iso tier (the issue's tiers-unchanged claim)
+          .contains("public Iso<Records.Box<String>, Records.BoxDto> asIso()");
     }
 
     @Test
@@ -3662,17 +3664,20 @@ class MappingProcessorTest {
     }
 
     @Test
-    @DisplayName("a generic spec interface is rejected")
-    void genericSpecInterfaceRejected() {
+    @DisplayName(
+        "a generic spec over concrete records is accepted: the unused variable threads"
+            + " through harmlessly")
+    void genericSpecOverConcreteRecordsAccepted() {
       Compilation compilation =
           compile(
               PLAIN,
               spec(
                   "GenMapping",
                   "public interface GenMapping<T> extends MappingSpec<Records.D, Records.W> {}"));
-      assertThat(compilation).failed();
-      assertThat(compilation)
-          .hadErrorContaining("'GenMapping' is generic, which this mapper does not support");
+      assertThat(compilation).succeeded();
+      Assertions.assertThat(generatedSource(compilation, "com.example.GenMappingImpl"))
+          .contains("public final class GenMappingImpl<T> implements GenMapping<T>")
+          .contains("public static <T> GenMappingImpl<T> instance()");
     }
 
     @Test
@@ -4935,6 +4940,482 @@ class MappingProcessorTest {
   }
 
   @Nested
+  @DisplayName("Threaded generic specs (#624)")
+  class ThreadedGenericSpecs {
+
+    private static final JavaFileObject PAGE =
+        JavaFileObjects.forSourceString(
+            "com.example.Page",
+            """
+            package com.example;
+
+            import java.util.List;
+
+            public record Page<T>(List<T> items, int total) {}
+            """);
+
+    private static final JavaFileObject PAGE_DTO =
+        JavaFileObjects.forSourceString(
+            "com.example.PageDto",
+            """
+            package com.example;
+
+            import java.util.List;
+
+            public record PageDto<T>(List<T> items, int total) {}
+            """);
+
+    private static final JavaFileObject PAGE_MAPPING =
+        JavaFileObjects.forSourceString(
+            "com.example.PageMapping",
+            """
+            package com.example;
+
+            import org.higherkindedj.optics.annotations.GenerateMapping;
+            import org.higherkindedj.optics.annotations.MappingSpec;
+
+            @GenerateMapping
+            public interface PageMapping<T> extends MappingSpec<Page<T>, PageDto<T>> {}
+            """);
+
+    @Test
+    @DisplayName("an identity-threaded spec emits a generic Impl behind the instance() singleton")
+    void identityThreadedSpecEmitsAGenericImpl() {
+      Compilation compilation = compile(PAGE, PAGE_DTO, PAGE_MAPPING);
+      assertThat(compilation).succeeded();
+      Assertions.assertThat(generatedSource(compilation, "com.example.PageMappingImpl"))
+          .contains("public final class PageMappingImpl<T> implements PageMapping<T>")
+          .contains("private static final PageMappingImpl<?> INSTANCE = new PageMappingImpl<>()")
+          .contains("@SuppressWarnings(\"unchecked\")")
+          .contains("public static <T> PageMappingImpl<T> instance()")
+          .contains("public PageDto<T> build(Page<T> domain)")
+          .contains("public Validated<NonEmptyList<FieldError>, Page<T>> parse(PageDto<T> wire)")
+          // identity elements copy under the guard; the primitive stays bare
+          .contains(".field(\"items\", hkj$ifPresent(wire.items(), Validated::validNel))")
+          .contains(".field(\"total\", Validated.validNel(wire.total()))")
+          // a lossless threaded mapping keeps the Iso tier, threaded
+          .contains("public Iso<Page<T>, PageDto<T>> asIso()");
+    }
+
+    @Test
+    @DisplayName("one Impl serves every instantiation at runtime, guards included")
+    void threadedSpecServesEveryInstantiation() {
+      Compilation compilation = compile(PAGE, PAGE_DTO, PAGE_MAPPING);
+      assertThat(compilation).succeeded();
+      var result = new RuntimeCompilationHelper.CompiledResult(compilation);
+      try {
+        Object impl = result.genericInstance("com.example.PageMappingImpl");
+        Object page =
+            result
+                .loadClass("com.example.Page")
+                .getDeclaredConstructor(List.class, int.class)
+                .newInstance(List.of("a", "b"), 2);
+
+        Object dto = invoke(impl, "build", page);
+        @SuppressWarnings("unchecked")
+        Validated<NonEmptyList<FieldError>, Object> back =
+            (Validated<NonEmptyList<FieldError>, Object>) invoke(impl, "parse", dto);
+        Assertions.assertThat(back.isValid()).isTrue();
+        Assertions.assertThat(back.get()).isEqualTo(page);
+
+        // The same singleton serves an Integer page: identity elements copy verbatim (element
+        // parsing belongs to leaf and nested legs), and instance() is genuinely cached.
+        Object integerPage =
+            result
+                .loadClass("com.example.PageDto")
+                .getDeclaredConstructor(List.class, int.class)
+                .newInstance(List.of(7, 8), 2);
+        @SuppressWarnings("unchecked")
+        Validated<NonEmptyList<FieldError>, Object> integers =
+            (Validated<NonEmptyList<FieldError>, Object>) invoke(impl, "parse", integerPage);
+        Assertions.assertThat(integers.isValid()).isTrue();
+        Assertions.assertThat(invoke(integers.get(), "items")).isEqualTo(List.of(7, 8));
+        Assertions.assertThat(result.genericInstance("com.example.PageMappingImpl")).isSameAs(impl);
+
+        // Identity legs copy the container verbatim — a null ELEMENT passes through untouched
+        // (element location belongs to leaf/nested legs, #660); the deliberate asymmetry, pinned.
+        Object nullElementPage =
+            result
+                .loadClass("com.example.PageDto")
+                .getDeclaredConstructor(List.class, int.class)
+                .newInstance(Arrays.asList("a", null), 2);
+        @SuppressWarnings("unchecked")
+        Validated<NonEmptyList<FieldError>, Object> copied =
+            (Validated<NonEmptyList<FieldError>, Object>) invoke(impl, "parse", nullElementPage);
+        Assertions.assertThat(copied.isValid()).isTrue();
+        Assertions.assertThat(invoke(copied.get(), "items")).isEqualTo(Arrays.asList("a", null));
+      } catch (ReflectiveOperationException e) {
+        throw new AssertionError(e);
+      }
+    }
+
+    @Test
+    @DisplayName("multi-parameter and bounded specs thread their variables and bounds")
+    void multiParameterAndBoundedSpecsThread() {
+      JavaFileObject result =
+          JavaFileObjects.forSourceString(
+              "com.example.Result",
+              """
+              package com.example;
+
+              public record Result<E, A>(E error, A value) {}
+              """);
+      JavaFileObject resultDto =
+          JavaFileObjects.forSourceString(
+              "com.example.ResultDto",
+              """
+              package com.example;
+
+              public record ResultDto<E, A>(E error, A value) {}
+              """);
+      JavaFileObject ranked =
+          JavaFileObjects.forSourceString(
+              "com.example.Ranked",
+              """
+              package com.example;
+
+              public record Ranked<T extends Number>(T score, String label) {}
+              """);
+      JavaFileObject rankedDto =
+          JavaFileObjects.forSourceString(
+              "com.example.RankedDto",
+              """
+              package com.example;
+
+              public record RankedDto<T extends Number>(T score, String label) {}
+              """);
+      JavaFileObject specs =
+          JavaFileObjects.forSourceString(
+              "com.example.ThreadedShapes",
+              """
+              package com.example;
+
+              import org.higherkindedj.optics.annotations.GenerateMapping;
+              import org.higherkindedj.optics.annotations.MappingSpec;
+
+              public final class ThreadedShapes {
+                @GenerateMapping
+                public interface ResultMapping<E, A>
+                    extends MappingSpec<Result<E, A>, ResultDto<E, A>> {}
+
+                @GenerateMapping
+                public interface RankedMapping<T extends Number>
+                    extends MappingSpec<Ranked<T>, RankedDto<T>> {}
+              }
+              """);
+
+      Compilation compilation = compile(result, resultDto, ranked, rankedDto, specs);
+      assertThat(compilation).succeeded();
+      Assertions.assertThat(
+              generatedSource(compilation, "com.example.ThreadedShapesResultMappingImpl"))
+          .contains(
+              "public final class ThreadedShapesResultMappingImpl<E, A> implements"
+                  + " ThreadedShapes.ResultMapping<E, A>")
+          .contains("public static <E, A> ThreadedShapesResultMappingImpl<E, A> instance()")
+          .contains("public ResultDto<E, A> build(Result<E, A> domain)");
+      Assertions.assertThat(
+              generatedSource(compilation, "com.example.ThreadedShapesRankedMappingImpl"))
+          .contains("class ThreadedShapesRankedMappingImpl<T extends Number>");
+    }
+
+    @Test
+    @DisplayName("a same-typed default leaf on a threaded component still routes the elements")
+    void sameTypedDefaultLeafThreads() {
+      JavaFileObject spec =
+          JavaFileObjects.forSourceString(
+              "com.example.NormalisingPageMapping",
+              """
+              package com.example;
+
+              import org.higherkindedj.hkt.validated.Validated;
+              import org.higherkindedj.optics.annotations.GenerateMapping;
+              import org.higherkindedj.optics.annotations.MappingSpec;
+              import org.higherkindedj.optics.validated.ValidatedPrism;
+
+              @GenerateMapping
+              public interface NormalisingPageMapping<T>
+                  extends MappingSpec<Page<T>, PageDto<T>> {
+                default ValidatedPrism<T, T> items() {
+                  return ValidatedPrism.of(Validated::validNel, t -> t);
+                }
+              }
+              """);
+
+      Compilation compilation = compile(PAGE, PAGE_DTO, spec);
+      assertThat(compilation).succeeded();
+      Assertions.assertThat(generatedSource(compilation, "com.example.NormalisingPageMappingImpl"))
+          .contains(".field(\"items\", hkj$ifPresent(wire.items(), items()::parseAll))");
+    }
+
+    @Test
+    @DisplayName("an abstract leaf (the element-mapped shape) is not supported yet")
+    void abstractLeafStaysDiagnosed() {
+      JavaFileObject spec =
+          JavaFileObjects.forSourceString(
+              "com.example.ElementMappedPageMapping",
+              """
+              package com.example;
+
+              import org.higherkindedj.optics.annotations.GenerateMapping;
+              import org.higherkindedj.optics.annotations.MappingSpec;
+              import org.higherkindedj.optics.validated.ValidatedPrism;
+
+              @GenerateMapping
+              public interface ElementMappedPageMapping<T, TDto>
+                  extends MappingSpec<Page<T>, PageDto<TDto>> {
+                ValidatedPrism<TDto, T> items();
+              }
+              """);
+
+      Compilation compilation = compile(PAGE, PAGE_DTO, spec);
+      assertThat(compilation).failed();
+      assertThat(compilation)
+          .hadErrorContaining("abstract method 'items' is neither a rename nor a leaf");
+    }
+
+    @Test
+    @DisplayName("a threaded spec is not yet nestable: use sites need type-argument unification")
+    void threadedSpecsAreNotYetNestable() {
+      JavaFileObject report =
+          JavaFileObjects.forSourceString(
+              "com.example.Report",
+              """
+              package com.example;
+
+              public record Report(String id, Page<String> results) {}
+              """);
+      JavaFileObject reportDto =
+          JavaFileObjects.forSourceString(
+              "com.example.ReportDto",
+              """
+              package com.example;
+
+              public record ReportDto(String id, PageDto<String> results) {}
+              """);
+      JavaFileObject reportMapping =
+          JavaFileObjects.forSourceString(
+              "com.example.ReportMapping",
+              """
+              package com.example;
+
+              import org.higherkindedj.optics.annotations.GenerateMapping;
+              import org.higherkindedj.optics.annotations.MappingSpec;
+
+              @GenerateMapping
+              public interface ReportMapping extends MappingSpec<Report, ReportDto> {}
+              """);
+
+      Compilation compilation =
+          compile(PAGE, PAGE_DTO, PAGE_MAPPING, report, reportDto, reportMapping);
+      assertThat(compilation).failed();
+      assertThat(compilation)
+          .hadErrorContaining("target field 'ReportDto.results' has no usable source");
+    }
+
+    @Test
+    @DisplayName(
+        "'instance' is reserved on threaded specs: the singleton accessor cannot be" + " shadowed")
+    void instanceIsReservedOnThreadedSpecs() {
+      JavaFileObject colliding =
+          JavaFileObjects.forSourceString(
+              "com.example.PageMapping",
+              """
+              package com.example;
+
+              import org.higherkindedj.optics.annotations.GenerateMapping;
+              import org.higherkindedj.optics.annotations.MappingSpec;
+
+              @GenerateMapping
+              public interface PageMapping<T> extends MappingSpec<Page<T>, PageDto<T>> {
+                default String instance() {
+                  return "shadowed";
+                }
+              }
+              """);
+
+      Compilation compilation = compile(PAGE, PAGE_DTO, colliding);
+      assertThat(compilation).failed();
+      assertThat(compilation)
+          .hadErrorContaining("'instance()' collides with the 'instance' member");
+    }
+
+    @Test
+    @DisplayName(
+        "threaded variables nest inside concrete argument shapes, and the other tiers,"
+            + " renames and derived fields all thread")
+    void threadedShapesAcrossTiers() {
+      JavaFileObject pageItemsDto =
+          JavaFileObjects.forSourceString(
+              "com.example.PageItemsDto",
+              """
+              package com.example;
+
+              import java.util.List;
+
+              public record PageItemsDto<T>(List<T> items) {}
+              """);
+      JavaFileObject pageSummaryDto =
+          JavaFileObjects.forSourceString(
+              "com.example.PageSummaryDto",
+              """
+              package com.example;
+
+              import java.util.List;
+
+              public record PageSummaryDto<T>(List<T> items, int total, String summary) {}
+              """);
+      JavaFileObject pageCountDto =
+          JavaFileObjects.forSourceString(
+              "com.example.PageCountDto",
+              """
+              package com.example;
+
+              import java.util.List;
+
+              public record PageCountDto<T>(List<T> items, int count) {}
+              """);
+      JavaFileObject specs =
+          JavaFileObjects.forSourceString(
+              "com.example.ThreadedTiers",
+              """
+              package com.example;
+
+              import java.util.List;
+              import org.higherkindedj.hkt.validated.Validated;
+              import org.higherkindedj.optics.Getter;
+              import org.higherkindedj.optics.annotations.GenerateMapping;
+              import org.higherkindedj.optics.annotations.MapField;
+              import org.higherkindedj.optics.annotations.MappingSpec;
+              import org.higherkindedj.optics.validated.ValidatedPrism;
+
+              public final class ThreadedTiers {
+                @GenerateMapping
+                public interface ItemsMapping<T> extends MappingSpec<Page<T>, PageItemsDto<T>> {}
+
+                @GenerateMapping
+                public interface PatchMapping<T> extends MappingSpec<Page<T>, PageItemsDto<T>> {
+                  default ValidatedPrism<T, T> items() {
+                    return ValidatedPrism.of(Validated::validNel, t -> t);
+                  }
+                }
+
+                @GenerateMapping
+                public interface RenamedMapping<T> extends MappingSpec<Page<T>, PageCountDto<T>> {
+                  @MapField(to = "count")
+                  int total();
+                }
+
+                @GenerateMapping
+                public interface SummaryMapping<T>
+                    extends MappingSpec<Page<T>, PageSummaryDto<T>> {
+                  default Getter<Page<T>, String> summary() {
+                    return Getter.of(p -> p.items().size() + " items");
+                  }
+                }
+
+                @GenerateMapping
+                public interface DeepThreadedMapping<T>
+                    extends MappingSpec<Page<List<T>>, PageDto<List<T>>> {}
+              }
+              """);
+
+      Compilation compilation =
+          compile(PAGE, PAGE_DTO, pageItemsDto, pageSummaryDto, pageCountDto, specs);
+      assertThat(compilation).succeeded();
+      Assertions.assertThat(
+              generatedSource(compilation, "com.example.ThreadedTiersItemsMappingImpl"))
+          .contains("public Lens<Page<T>, PageItemsDto<T>> asLens()");
+      Assertions.assertThat(
+              generatedSource(compilation, "com.example.ThreadedTiersPatchMappingImpl"))
+          .contains("public Validated<NonEmptyList<FieldError>, Page<T>> patch(Page<T> domain,");
+      Assertions.assertThat(
+              generatedSource(compilation, "com.example.ThreadedTiersRenamedMappingImpl"))
+          .contains("public PageCountDto<T> build(Page<T> domain)");
+      Assertions.assertThat(
+              generatedSource(compilation, "com.example.ThreadedTiersSummaryMappingImpl"))
+          .contains("summary().get(domain)");
+      Assertions.assertThat(
+              generatedSource(compilation, "com.example.ThreadedTiersDeepThreadedMappingImpl"))
+          .contains("public PageDto<List<T>> build(Page<List<T>> domain)");
+    }
+
+    @Test
+    @DisplayName(
+        "a variable on one side with a concrete on the other fails at the component,"
+            + " with the usual what/why/fix")
+    void mixedVariableAndConcreteArgumentsFailAtTheComponent() {
+      JavaFileObject spec =
+          JavaFileObjects.forSourceString(
+              "com.example.MixedMapping",
+              """
+              package com.example;
+
+              import org.higherkindedj.optics.annotations.GenerateMapping;
+              import org.higherkindedj.optics.annotations.MappingSpec;
+
+              @GenerateMapping
+              public interface MixedMapping<T> extends MappingSpec<Page<T>, PageDto<String>> {}
+              """);
+
+      Compilation compilation = compile(PAGE, PAGE_DTO, spec);
+      assertThat(compilation).failed();
+      assertThat(compilation)
+          .hadErrorContaining("target field 'PageDto.items' has no usable source");
+    }
+
+    @Test
+    @DisplayName("an unresolved type argument steps aside for javac's own diagnostic")
+    void unresolvedTypeArgumentsAreNotGateErrors() {
+      JavaFileObject spec =
+          JavaFileObjects.forSourceString(
+              "com.example.MissingArgMapping",
+              """
+              package com.example;
+
+              import org.higherkindedj.optics.annotations.GenerateMapping;
+              import org.higherkindedj.optics.annotations.MappingSpec;
+
+              @GenerateMapping
+              public interface MissingArgMapping
+                  extends MappingSpec<Page<Missing>, PageDto<Missing>> {}
+              """);
+
+      Compilation compilation = compile(PAGE, PAGE_DTO, spec);
+      assertThat(compilation).failed();
+      assertThat(compilation).hadErrorContaining("cannot find symbol");
+      Assertions.assertThat(compilation.errors())
+          .noneMatch(
+              diagnostic ->
+                  diagnostic.getMessage(null).contains("is not a supported instantiation"));
+    }
+
+    @Test
+    @DisplayName("the #654 sweep runs on threaded specs with the threaded member set")
+    void collisionSweepCoversThreadedSpecs() {
+      JavaFileObject colliding =
+          JavaFileObjects.forSourceString(
+              "com.example.PageMapping",
+              """
+              package com.example;
+
+              import org.higherkindedj.optics.annotations.GenerateMapping;
+              import org.higherkindedj.optics.annotations.MappingSpec;
+
+              @GenerateMapping
+              public interface PageMapping<T> extends MappingSpec<Page<T>, PageDto<T>> {
+                default PageDto<T> build(Page<T> domain) {
+                  return null;
+                }
+              }
+              """);
+
+      Compilation compilation = compile(PAGE, PAGE_DTO, colliding);
+      assertThat(compilation).failed();
+      assertThat(compilation).hadErrorContaining("'build(Page)' collides with the 'build' member");
+    }
+  }
+
+  @Nested
   @DisplayName("Located nulls on record wires (#653)")
   class LocatedNullsOnRecordWires {
 
@@ -5433,6 +5914,22 @@ class MappingProcessorTest {
 
               public record RankedDto<T extends Number>(T score, String label) {}
               """);
+      JavaFileObject duo =
+          JavaFileObjects.forSourceString(
+              "com.example.Duo",
+              """
+              package com.example;
+
+              public record Duo<E, A>(E left, A right) {}
+              """);
+      JavaFileObject duoDto =
+          JavaFileObjects.forSourceString(
+              "com.example.DuoDto",
+              """
+              package com.example;
+
+              public record DuoDto<E, A>(E left, A right) {}
+              """);
       JavaFileObject specs =
           JavaFileObjects.forSourceString(
               "com.example.FurtherShapes",
@@ -5459,11 +5956,15 @@ class MappingProcessorTest {
                 @GenerateMapping
                 public interface IntRankedMapping
                     extends MappingSpec<Ranked<Integer>, RankedDto<Integer>> {}
+
+                @GenerateMapping
+                public interface TwoParamMapping
+                    extends MappingSpec<Duo<String, Integer>, DuoDto<String, Integer>> {}
               }
               """);
 
       Compilation compilation =
-          compile(EMAIL, DOMAIN, WIRE, SPEC, PAGE, PAGE_DTO, ranked, rankedDto, specs);
+          compile(EMAIL, DOMAIN, WIRE, SPEC, PAGE, PAGE_DTO, ranked, rankedDto, duo, duoDto, specs);
       assertThat(compilation).succeeded();
       Assertions.assertThat(
               generatedSource(compilation, "com.example.FurtherShapesArrayPageMappingImpl"))
@@ -5478,6 +5979,9 @@ class MappingProcessorTest {
       Assertions.assertThat(
               generatedSource(compilation, "com.example.FurtherShapesIntRankedMappingImpl"))
           .contains("public RankedDto<Integer> build(Ranked<Integer> domain)");
+      Assertions.assertThat(
+              generatedSource(compilation, "com.example.FurtherShapesTwoParamMappingImpl"))
+          .contains("public DuoDto<String, Integer> build(Duo<String, Integer> domain)");
     }
 
     @Test
@@ -5643,7 +6147,7 @@ class MappingProcessorTest {
       Compilation wildcard = compile(EMAIL, DOMAIN, WIRE, SPEC, PAGE, PAGE_DTO, wildcardSpec);
       assertThat(wildcard).failed();
       assertThat(wildcard)
-          .hadErrorContaining("'com.example.Page<?>' is not a concrete instantiation");
+          .hadErrorContaining("'com.example.Page<?>' is not a supported instantiation");
 
       // The wire side is checked independently: a concrete domain does not excuse it.
       JavaFileObject wildcardWireSpec =
@@ -5662,7 +6166,7 @@ class MappingProcessorTest {
           compile(EMAIL, DOMAIN, WIRE, SPEC, PAGE, PAGE_DTO, wildcardWireSpec);
       assertThat(wildcardWire).failed();
       assertThat(wildcardWire)
-          .hadErrorContaining("'com.example.PageDto<?>' is not a concrete instantiation");
+          .hadErrorContaining("'com.example.PageDto<?>' is not a supported instantiation");
 
       // Concreteness is recursive: a wildcard nested inside an argument is caught too.
       JavaFileObject nestedWildcardSpec =
@@ -5684,7 +6188,7 @@ class MappingProcessorTest {
       assertThat(nestedWildcard).failed();
       assertThat(nestedWildcard)
           .hadErrorContaining(
-              "'com.example.Page<java.util.List<?>>' is not a concrete instantiation");
+              "'com.example.Page<java.util.List<?>>' is not a supported instantiation");
 
       // Raw nested arguments are caught recursively — raw is less safe than the rejected
       // wildcard (#624 panel finding).
@@ -5705,7 +6209,8 @@ class MappingProcessorTest {
       Compilation nestedRaw = compile(EMAIL, DOMAIN, WIRE, SPEC, PAGE, PAGE_DTO, nestedRawSpec);
       assertThat(nestedRaw).failed();
       assertThat(nestedRaw)
-          .hadErrorContaining("'com.example.Page<java.util.List>' is not a concrete instantiation");
+          .hadErrorContaining(
+              "'com.example.Page<java.util.List>' is not a supported instantiation");
 
       // The raw check fires on the wire leg too.
       JavaFileObject rawWireSpec =
@@ -5725,23 +6230,28 @@ class MappingProcessorTest {
       assertThat(rawWire).failed();
       assertThat(rawWire).hadErrorContaining("'PageDto' is used raw");
 
-      JavaFileObject genericSpec =
+      // Wildcards stay wildcards even inside a generic holder (a member interface is static,
+      // so the holder's variable cannot appear; genuinely foreign variables are unreachable and
+      // the gate's check for them is defensive).
+      JavaFileObject wildcardInHolderSpec =
           JavaFileObjects.forSourceString(
-              "com.example.PageMapping",
+              "com.example.ForeignVarHolder",
               """
               package com.example;
 
               import org.higherkindedj.optics.annotations.GenerateMapping;
               import org.higherkindedj.optics.annotations.MappingSpec;
 
-              @GenerateMapping
-              public interface PageMapping<T> extends MappingSpec<Page<T>, PageDto<T>> {}
+              public interface ForeignVarHolder<T> {
+                @GenerateMapping
+                interface Inner extends MappingSpec<Page<?>, PageDto<?>> {}
+              }
               """);
-      Compilation generic = compile(EMAIL, DOMAIN, WIRE, SPEC, PAGE, PAGE_DTO, genericSpec);
-      assertThat(generic).failed();
-      assertThat(generic)
-          .hadErrorContaining("'PageMapping' is generic, which this mapper does not support");
-      assertThat(generic).hadErrorContaining("Instantiate the mapping concretely");
+      Compilation wildcardInHolder =
+          compile(EMAIL, DOMAIN, WIRE, SPEC, PAGE, PAGE_DTO, wildcardInHolderSpec);
+      assertThat(wildcardInHolder).failed();
+      assertThat(wildcardInHolder)
+          .hadErrorContaining("'com.example.Page<?>' is not a supported instantiation");
     }
   }
 

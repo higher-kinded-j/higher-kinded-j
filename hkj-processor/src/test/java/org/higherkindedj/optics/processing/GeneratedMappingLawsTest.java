@@ -331,6 +331,58 @@ class GeneratedMappingLawsTest {
   }
 
   @Test
+  @DisplayName(
+      "threaded generic tier: one instance() singleton is lawful at any"
+          + " instantiation, asIso included")
+  void threadedGenericSpecIsLawful() throws ReflectiveOperationException {
+    JavaFileObject pair =
+        JavaFileObjects.forSourceString(
+            "com.example.Pair",
+            """
+            package com.example;
+
+            public record Pair<T>(T first, String tag) {}
+            """);
+    JavaFileObject pairDto =
+        JavaFileObjects.forSourceString(
+            "com.example.PairDto",
+            """
+            package com.example;
+
+            public record PairDto<T>(T first, String tag) {}
+            """);
+    JavaFileObject spec =
+        JavaFileObjects.forSourceString(
+            "com.example.PairMapping",
+            """
+            package com.example;
+
+            import org.higherkindedj.optics.annotations.GenerateMapping;
+            import org.higherkindedj.optics.annotations.MappingSpec;
+
+            @GenerateMapping
+            public interface PairMapping<T> extends MappingSpec<Pair<T>, PairDto<T>> {}
+            """);
+
+    var result = compileMapping(pair, pairDto, spec);
+    Object impl = result.genericInstance("com.example.PairMappingImpl");
+    @SuppressWarnings("unchecked")
+    Iso<Object, Object> iso = (Iso<Object, Object>) invoke(impl, "asIso");
+
+    MappingLaws.assertMappingLaws(
+        iso,
+        asValidatedPrism(impl),
+        result
+            .loadClass("com.example.Pair")
+            .getDeclaredConstructor(Object.class, String.class)
+            .newInstance("Ada", "a"),
+        result
+            .loadClass("com.example.PairDto")
+            .getDeclaredConstructor(Object.class, String.class)
+            .newInstance("Grace", "b"));
+  }
+
+  @Test
   @DisplayName("nested spec tier: a mapping delegating to a sibling impl stays lawful end to end")
   void nestedSpecTierIsLawful() throws ReflectiveOperationException {
     JavaFileObject customer =

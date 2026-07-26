@@ -3,6 +3,7 @@
 package org.higherkindedj.optics.processing;
 
 import com.google.auto.service.AutoService;
+import com.palantir.javapoet.AnnotationSpec;
 import com.palantir.javapoet.ClassName;
 import com.palantir.javapoet.CodeBlock;
 import com.palantir.javapoet.FieldSpec;
@@ -15,6 +16,7 @@ import com.palantir.javapoet.TypeVariableName;
 import com.palantir.javapoet.WildcardTypeName;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -48,8 +50,8 @@ import org.higherkindedj.optics.annotations.MapField;
 import org.higherkindedj.optics.processing.util.Diagnostics;
 
 /**
- * Annotation processor for {@code @GenerateMapping} — the Step-0 slice of the bidirectional
- * record↔DTO mapper (issue #600).
+ * Annotation processor for {@code @GenerateMapping}: the bidirectional record↔DTO mapper (issue
+ * #600).
  *
  * <p>For an interface {@code UserMapping extends MappingSpec<User, UserDto>} it generates a
  * same-package {@code UserMappingImpl} with a total {@code build(User) : UserDto} and an
@@ -165,6 +167,11 @@ public class MappingProcessor extends AbstractProcessor {
         continue;
       }
       TypeElement spec = (TypeElement) element;
+      // A generic spec (threaded type parameters) is not yet nestable: resolving it at a
+      // concrete use site needs type-argument unification, so it stays out of the registry.
+      if (!spec.getTypeParameters().isEmpty()) {
+        continue;
+      }
       DeclaredType specSuper = findMappingSpec(spec);
       if (specSuper == null || specSuper.getTypeArguments().size() != 2) {
         continue;
@@ -284,18 +291,18 @@ public class MappingProcessor extends AbstractProcessor {
         "'" + offender.getSimpleName() + "' is generic, which this mapper does not support.",
         "The generated Impl names the mapped types directly; type parameters would leave it"
             + " referencing undeclared type variables.",
-        "Map concrete types here; concrete instantiations of generic records are currently"
-            + " supported for record-record pairs only, and threaded type parameters arrive with"
-            + " the full mapper.");
+        "Map concrete types here; generic mappings (concrete instantiations and threaded specs)"
+            + " are currently supported for record-record pairs only.");
     return false;
   }
 
   /**
-   * Record pairs may instantiate generic records with concrete type arguments (issue #624): {@code
-   * MappingSpec<Page<User>, PageDto<UserDto>>} classifies with every component type substituted
-   * under the instantiation, so the existing leaf/nesting/container machinery applies unchanged. A
-   * generic <em>spec</em> (threaded type parameters) and raw, wildcard or type-variable arguments
-   * stay diagnosed.
+   * Record pairs may use generic records two ways (issue #624): concretely instantiated ({@code
+   * MappingSpec<Page<User>, PageDto<UserDto>>}) or threaded through the spec's own type parameters
+   * ({@code PageMapping<T> extends MappingSpec<Page<T>, PageDto<T>>}); the two compose recursively
+   * per argument. Raw uses, wildcards and foreign type variables stay diagnosed (the
+   * foreign-variable check is defensive — a direct extends clause can only name the spec's own
+   * variables).
    */
   private boolean checkGenericsSupported(
       TypeElement spec,
@@ -303,23 +310,20 @@ public class MappingProcessor extends AbstractProcessor {
       DeclaredType domainDeclared,
       TypeElement wire,
       DeclaredType wireDeclared) {
-    if (!spec.getTypeParameters().isEmpty()) {
-      Diagnostics.error(
-          processingEnv.getMessager(),
-          spec,
-          TAG,
-          "'" + spec.getSimpleName() + "' is generic, which this mapper does not support.",
-          "A generic spec threads its type parameters through build/parse; the generated Impl"
-              + " cannot yet do that. Concrete instantiations of generic records are supported.",
-          "Instantiate the mapping concretely (e.g. 'extends MappingSpec<Page<User>,"
-              + " PageDto<UserDto>>'), or wait for threaded type parameters.");
-      return false;
-    }
-    return concreteInstantiation(spec, domain, domainDeclared)
-        && concreteInstantiation(spec, wire, wireDeclared);
+    return supportedUse(spec, domain, domainDeclared, "domain")
+        && supportedUse(spec, wire, wireDeclared, "wire");
   }
 
-  private boolean concreteInstantiation(TypeElement spec, TypeElement record, DeclaredType used) {
+  /**
+   * A record use is supported when every type argument is either a concrete type or one of the
+   * spec's own type parameters (identity-threaded generics): {@code PageMapping<T> extends
+   * MappingSpec<Page<T>, PageDto<T>>} threads {@code T} through {@code build}/{@code parse} and the
+   * emitted optics. Raw uses and wildcards stay diagnosed; an argument mixing a spec variable
+   * inside a concrete shape ({@code Page<List<T>>}) is threaded fine because the check is recursive
+   * on both sides.
+   */
+  private boolean supportedUse(
+      TypeElement spec, TypeElement record, DeclaredType used, String side) {
     if (record.getTypeParameters().isEmpty()) {
       return true;
     }
@@ -329,21 +333,26 @@ public class MappingProcessor extends AbstractProcessor {
           spec,
           TAG,
           "'" + record.getSimpleName() + "' is used raw.",
-          "A generic record maps only as a concrete instantiation; a raw use leaves every"
+          "A generic record maps only through named type arguments; a raw use leaves every"
               + " parameterised component unresolvable.",
           "Declare the type arguments: '" + record.getSimpleName() + "<...>'.");
       return false;
     }
     for (TypeMirror argument : used.getTypeArguments()) {
-      if (!concreteArgument(argument)) {
+      if (!supportedArgument(spec, argument)) {
         Diagnostics.error(
             processingEnv.getMessager(),
             spec,
             TAG,
-            "'" + used + "' is not a concrete instantiation.",
-            "Wildcard, raw and type-variable arguments leave component types unresolvable; the"
-                + " classifier matches concrete substituted types.",
-            "Use concrete type arguments (e.g. '" + record.getSimpleName() + "<User>').");
+            "'" + used + "' is not a supported instantiation.",
+            "A type argument must be a concrete type or one of the spec's own type parameters;"
+                + " wildcards and raw nested uses leave component types unresolvable.",
+            "Use concrete arguments on the "
+                + side
+                + " (e.g. '"
+                + record.getSimpleName()
+                + "<User>'), or thread the spec's own type parameters (e.g. 'interface"
+                + " PageMapping<T> extends MappingSpec<Page<T>, PageDto<T>>').");
         return false;
       }
     }
@@ -351,18 +360,26 @@ public class MappingProcessor extends AbstractProcessor {
   }
 
   /**
-   * Concrete = a declared type that is itself fully instantiated with concrete arguments, an array
-   * of a concrete component, or (as an array component only) a primitive. A raw nested use has
-   * fewer arguments than its element declares parameters, so it is caught here — raw is strictly
-   * less safe than the wildcard this gate already rejects.
+   * A spec's own type variable threads through; anything else must be concrete. The two compose
+   * recursively, so {@code Page<List<T>>} is a supported threaded use.
    */
-  private boolean concreteArgument(TypeMirror argument) {
+  private boolean supportedArgument(TypeElement spec, TypeMirror argument) {
+    // An unresolved argument steps aside so javac's cannot-find-symbol is the only diagnostic
+    // (the overrideEquivalent precedent, #654) — note ErrorType extends DeclaredType, so this
+    // check must run before the pattern switch.
+    if (argument.getKind() == TypeKind.ERROR) {
+      return true;
+    }
+    if (argument instanceof javax.lang.model.type.TypeVariable variable) {
+      return spec.getTypeParameters().contains(variable.asElement());
+    }
     return switch (argument) {
-      case javax.lang.model.type.ArrayType array -> concreteArgument(array.getComponentType());
+      case javax.lang.model.type.ArrayType array ->
+          supportedArgument(spec, array.getComponentType());
       case DeclaredType declared ->
           ((TypeElement) declared.asElement()).getTypeParameters().size()
                   == declared.getTypeArguments().size()
-              && declared.getTypeArguments().stream().allMatch(this::concreteArgument);
+              && declared.getTypeArguments().stream().allMatch(a -> supportedArgument(spec, a));
       default -> argument.getKind().isPrimitive();
     };
   }
@@ -422,7 +439,7 @@ public class MappingProcessor extends AbstractProcessor {
           element,
           TAG,
           "'" + spec.getSimpleName() + "' extends interfaces besides MappingSpec.",
-          "Renames and leaves declared on other supertypes are invisible to this slice's"
+          "Renames and leaves declared on other supertypes are invisible to the processor's"
               + " classification, so the generated Impl could silently miss inherited members.",
           "Declare every rename and leaf directly on the spec; spec inheritance arrives with the"
               + " full mapper.");
@@ -571,7 +588,7 @@ public class MappingProcessor extends AbstractProcessor {
           spec,
           TAG,
           "'" + spec.getSimpleName() + "' extends interfaces besides UpdateSpec.",
-          "Renames and leaves declared on other supertypes are invisible to this slice's"
+          "Renames and leaves declared on other supertypes are invisible to the processor's"
               + " classification, so the generated Impl could silently miss inherited members.",
           "Declare every rename and leaf directly on the spec.");
       return;
@@ -2077,7 +2094,8 @@ public class MappingProcessor extends AbstractProcessor {
     if (lossless) {
       emitted.add(EmittedMember.of("asIso"));
     }
-    if (!checkNoEmittedCollisions(spec, "a full mapping", emitted)) {
+    if (!checkNoEmittedCollisions(
+        spec, "a full mapping", reserveInstanceIfGeneric(spec, emitted))) {
       return;
     }
 
@@ -2236,9 +2254,11 @@ public class MappingProcessor extends AbstractProcessor {
     if (!checkNoEmittedCollisions(
         spec,
         "a leaf-carrying projection",
-        List.of(
-            EmittedMember.of("build", domainDeclared),
-            EmittedMember.of("patch", domainDeclared, wireUsed)))) {
+        reserveInstanceIfGeneric(
+            spec,
+            List.of(
+                EmittedMember.of("build", domainDeclared),
+                EmittedMember.of("patch", domainDeclared, wireUsed))))) {
       return;
     }
 
@@ -2350,7 +2370,9 @@ public class MappingProcessor extends AbstractProcessor {
     if (!checkNoEmittedCollisions(
         spec,
         "a lossy projection",
-        List.of(EmittedMember.of("build", domainDeclared), EmittedMember.of("asLens")))) {
+        reserveInstanceIfGeneric(
+            spec,
+            List.of(EmittedMember.of("build", domainDeclared), EmittedMember.of("asLens"))))) {
       return;
     }
 
@@ -2574,18 +2596,55 @@ public class MappingProcessor extends AbstractProcessor {
 
   private static TypeSpec.Builder implSkeleton(
       TypeElement spec, ClassName implName, ClassName specName, String javadoc) {
-    return TypeSpec.classBuilder(implName)
-        .addOriginatingElement(spec)
-        .addModifiers(Modifier.PUBLIC, Modifier.FINAL)
-        .addAnnotation(GENERATED)
-        .addSuperinterface(specName)
-        .addJavadoc(javadoc, specName)
+    List<TypeVariableName> variables =
+        spec.getTypeParameters().stream().map(TypeVariableName::get).toList();
+    TypeSpec.Builder builder =
+        TypeSpec.classBuilder(implName)
+            .addOriginatingElement(spec)
+            .addModifiers(Modifier.PUBLIC, Modifier.FINAL)
+            .addAnnotation(GENERATED)
+            .addJavadoc(javadoc, specName)
+            .addMethod(MethodSpec.constructorBuilder().addModifiers(Modifier.PRIVATE).build());
+    if (variables.isEmpty()) {
+      return builder
+          .addSuperinterface(specName)
+          .addField(
+              FieldSpec.builder(
+                      implName, "INSTANCE", Modifier.PUBLIC, Modifier.STATIC, Modifier.FINAL)
+                  .initializer("new $T()", implName)
+                  .build());
+    }
+    // A generic Impl (threaded type parameters) cannot carry a typed static
+    // INSTANCE, so it follows hkj-core's generic-singleton convention (EitherMonad.instance()):
+    // one stateless cached instance behind an unchecked-but-sound cast.
+    TypeName[] wildcards = new TypeName[variables.size()];
+    Arrays.fill(wildcards, WildcardTypeName.subtypeOf(Object.class));
+    TypeName rawInstanceType = ParameterizedTypeName.get(implName, wildcards);
+    TypeName typedInstanceType =
+        ParameterizedTypeName.get(implName, variables.toArray(new TypeName[0]));
+    return builder
+        .addTypeVariables(variables)
+        .addSuperinterface(ParameterizedTypeName.get(specName, variables.toArray(new TypeName[0])))
         .addField(
             FieldSpec.builder(
-                    implName, "INSTANCE", Modifier.PUBLIC, Modifier.STATIC, Modifier.FINAL)
-                .initializer("new $T()", implName)
+                    rawInstanceType, "INSTANCE", Modifier.PRIVATE, Modifier.STATIC, Modifier.FINAL)
+                .initializer("new $T<>()", implName)
                 .build())
-        .addMethod(MethodSpec.constructorBuilder().addModifiers(Modifier.PRIVATE).build());
+        .addMethod(
+            MethodSpec.methodBuilder("instance")
+                .addModifiers(Modifier.PUBLIC, Modifier.STATIC)
+                .addTypeVariables(variables)
+                .returns(typedInstanceType)
+                .addAnnotation(
+                    AnnotationSpec.builder(SuppressWarnings.class)
+                        .addMember("value", "$S", "unchecked")
+                        .build())
+                .addJavadoc(
+                    "The stateless singleton, shared across instantiations — the cast is sound"
+                        + " because the Impl holds no state typed by its parameters (the {@code"
+                        + " EitherMonad.instance()} convention).\n")
+                .addStatement("return ($T) INSTANCE", typedInstanceType)
+                .build());
   }
 
   /**
@@ -2644,6 +2703,21 @@ public class MappingProcessor extends AbstractProcessor {
     static EmittedMember of(String name, TypeMirror... params) {
       return new EmittedMember(name, List.of(params));
     }
+  }
+
+  /**
+   * A generic Impl also declares the static {@code instance()} singleton accessor; a spec method
+   * with that erased signature would clash with or shadow it in the generated file, so every record
+   * tier reserves it alongside its own members.
+   */
+  private static List<EmittedMember> reserveInstanceIfGeneric(
+      TypeElement spec, List<EmittedMember> base) {
+    if (spec.getTypeParameters().isEmpty()) {
+      return base;
+    }
+    List<EmittedMember> all = new ArrayList<>(base);
+    all.add(EmittedMember.of("instance"));
+    return all;
   }
 
   /**
