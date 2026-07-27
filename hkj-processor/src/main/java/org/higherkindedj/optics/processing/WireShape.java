@@ -14,8 +14,8 @@ import javax.lang.model.type.TypeMirror;
  * The wire side of a {@code @GenerateMapping} pair, abstracted over how its components are
  * enumerated, read and constructed. A record wire ({@link RecordShape}) reads components
  * positionally through their accessors and constructs via the canonical constructor; a bean-shaped
- * wire ({@link BeanShape}, issue #628) reads through getters and constructs through setters or a
- * builder. The domain side is always a record (parse assembles it with {@code
+ * wire ({@link BeanShape}) reads through getters and constructs through setters or a builder. The
+ * domain side is always a record (parse assembles it with {@code
  * Validated.fields().apply(D::new)}), so only the wire is abstracted.
  *
  * <p>Classification ({@link MappingProcessor#classify}) and code generation ({@link
@@ -79,11 +79,11 @@ sealed interface WireShape permits WireShape.RecordShape, WireShape.BeanShape {
   }
 
   /**
-   * A bean-shaped wire (issue #628): components are read through getters and written through the
-   * {@link ConstructionStrategy}. Reads are null-hostile at parse time (an unset bean property is
-   * null), which the mapping processor guards; only the construction differs from a record. The
-   * bean build body is assembled by the processor (per-property writes, which the strategy frames),
-   * since an {@code Optional}-bridged property writes conditionally.
+   * A bean-shaped wire: components are read through getters and written through the {@link
+   * ConstructionStrategy}. Reads are null-hostile at parse time (an unset bean property is null),
+   * which the mapping processor guards; only the construction differs from a record. The bean build
+   * body is assembled by the processor (per-property writes, which the strategy frames), since an
+   * {@code Optional}-bridged property writes conditionally.
    */
   record BeanShape(
       TypeElement element, List<BeanProperty> properties, ConstructionStrategy strategy)

@@ -82,7 +82,7 @@ public class UserController {
   }
 
   /**
-   * Parse a wire-side user into the domain — the 422 leg (issue #627).
+   * Parse a wire-side user into the domain — the 422 leg.
    *
    * <p>The generated {@code UserMappingImpl.parse} validates every field at once, accumulating a
    * located {@code FieldError} per bad field, and the returned {@code Validated} is rendered by the
@@ -110,7 +110,7 @@ public class UserController {
   }
 
   /**
-   * Partially update a user (sparse PATCH, issue #645).
+   * Partially update a user (sparse PATCH).
    *
    * <p>The request bean carries only the fields to change; every omitted field is {@code null},
    * meaning <em>leave unchanged</em>. {@link UserPatchMapping}'s generated {@code updateFrom} folds

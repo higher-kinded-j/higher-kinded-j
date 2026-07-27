@@ -21,10 +21,10 @@ import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 
 /**
- * Slice test for the 422 leg (issue #627): the {@code POST /api/users/parse} endpoint returns the
- * generated {@code UserMappingImpl.parse} result directly, so the whole path is exercised end to
- * end — Jackson binds the wire DTO, the generated mapping accumulates located {@code FieldError}s,
- * and the {@code ValidationPathReturnValueHandler} renders them as one 422 with every bad field by
+ * Slice test for the 422 leg: the {@code POST /api/users/parse} endpoint returns the generated
+ * {@code UserMappingImpl.parse} result directly, so the whole path is exercised end to end —
+ * Jackson binds the wire DTO, the generated mapping accumulates located {@code FieldError}s, and
+ * the {@code ValidationPathReturnValueHandler} renders them as one 422 with every bad field by
  * path.
  */
 @WebMvcTest(UserController.class)
@@ -34,7 +34,7 @@ import org.springframework.test.web.servlet.MockMvc;
   HkjWebMvcAutoConfiguration.class
 })
 @Import(UserService.class)
-@DisplayName("UserController parse @WebMvcTest slice - the 422 leg (#627)")
+@DisplayName("UserController parse @WebMvcTest slice - the 422 leg")
 class UserParseWebMvcSliceTest {
 
   @Autowired private MockMvc mockMvc;

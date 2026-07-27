@@ -7,8 +7,8 @@ import org.higherkindedj.hkt.nonemptylist.NonEmptyList;
 import org.higherkindedj.hkt.validated.FieldError;
 
 /**
- * A validation failure from a sparse PATCH (issue #645): carries <em>every</em> located field error
- * at once, exactly as the sparse mapping accumulated them.
+ * A validation failure from a sparse PATCH: carries <em>every</em> located field error at once,
+ * exactly as the sparse mapping accumulated them.
  *
  * <p>The class name contains "Validation", so the {@code EitherReturnValueHandler} maps it to HTTP
  * 400 automatically, and the {@code errors} — a {@link NonEmptyList} of {@link FieldError} — are

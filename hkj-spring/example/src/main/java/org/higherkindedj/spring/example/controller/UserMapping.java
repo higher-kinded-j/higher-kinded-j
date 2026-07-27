@@ -10,11 +10,11 @@ import org.higherkindedj.optics.validated.ValidatedPrism;
 import org.higherkindedj.spring.example.domain.User;
 
 /**
- * Full bidirectional mapping between {@link User} and {@link UserDto} (issue #600), showcasing the
- * 422 leg (issue #627): a controller returns the generated {@code
- * UserMappingImpl.INSTANCE.parse(dto)} directly, and the {@code ValidationPathReturnValueHandler}
- * renders an invalid parse as one {@code hkj.web.validation-field-error-status} response (default
- * 422 Unprocessable Content) carrying every located {@code FieldError} by path.
+ * Full bidirectional mapping between {@link User} and {@link UserDto}, showcasing the 422 leg: a
+ * controller returns the generated {@code UserMappingImpl.INSTANCE.parse(dto)} directly, and the
+ * {@code ValidationPathReturnValueHandler} renders an invalid parse as one {@code
+ * hkj.web.validation-field-error-status} response (default 422 Unprocessable Content) carrying
+ * every located {@code FieldError} by path.
  *
  * <p>{@code email} and {@code firstName} are validated through leaves, so a request with both bad
  * accumulates both errors in a single response; {@code id} and {@code lastName} copy by identity.

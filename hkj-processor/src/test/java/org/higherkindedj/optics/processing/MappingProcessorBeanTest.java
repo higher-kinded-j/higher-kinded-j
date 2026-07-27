@@ -18,7 +18,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
-@DisplayName("MappingProcessor - bean-shaped wire targets (#628)")
+@DisplayName("MappingProcessor - bean-shaped wire targets")
 class MappingProcessorBeanTest {
 
   private static final JavaFileObject EMAIL =
@@ -166,8 +166,8 @@ class MappingProcessorBeanTest {
 
     @Test
     @DisplayName(
-        "an instantiated generic domain stays concrete-only on a bean wire (#624 is"
-            + " record-record for now)")
+        "an instantiated generic domain stays concrete-only on a bean wire (record-record"
+            + " for now)")
     void instantiatedGenericDomainRejectedOnBeanWire() {
       JavaFileObject page =
           JavaFileObjects.forSourceString(
@@ -202,7 +202,7 @@ class MappingProcessorBeanTest {
     @Test
     @DisplayName(
         "a user 'ifPresent' helper stays legal beside the $-namespaced guard and never"
-            + " captures its calls (#654)")
+            + " captures its calls")
     void ifPresentHelperStaysLegalBesideTheGuard() {
       // The generic shape mirrors the guard's own; the String one would be more specific than
       // the guard for every String property read, so it would capture an unqualified call. Both

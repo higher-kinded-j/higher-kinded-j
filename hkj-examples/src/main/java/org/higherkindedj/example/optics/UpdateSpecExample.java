@@ -11,8 +11,8 @@ import org.higherkindedj.optics.edit.Edits;
 import org.higherkindedj.optics.validated.ValidatedPrism;
 
 /**
- * A small end-to-end story for sparse PATCH write-back (issue #645): applying a partial update from
- * a bean-shaped request DTO to an immutable domain record.
+ * A small end-to-end story for sparse PATCH write-back: applying a partial update from a
+ * bean-shaped request DTO to an immutable domain record.
  *
  * <p>A REST {@code PATCH} body carries only the fields the client wants to change; every other
  * property of the bound request object arrives {@code null}, meaning <em>not provided, leave
