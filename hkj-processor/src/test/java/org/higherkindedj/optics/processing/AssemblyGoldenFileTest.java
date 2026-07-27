@@ -59,6 +59,10 @@ class AssemblyGoldenFileTest {
   void generatedCodeMatchesGolden(GoldenTestCase testCase) throws IOException {
     Compilation compilation = compile();
 
+    assertThat(compilation.status())
+        .as("Compilation should succeed for %s", testCase.generatedClassName())
+        .isEqualTo(Compilation.Status.SUCCESS);
+
     Optional<JavaFileObject> generatedFile =
         compilation.generatedSourceFile(testCase.generatedClassName());
     assertThat(generatedFile)
