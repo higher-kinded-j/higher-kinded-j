@@ -1274,6 +1274,69 @@ class MergeProcessorTest {
   @DisplayName("Located nulls on fallible merges")
   class LocatedNullsOnFallibleMerges {
 
+    @Test
+    @DisplayName("identity container fills are scanned: null elements and values locate")
+    void identityContainerFillsAreScanned() throws Exception {
+      JavaFileObject records =
+          JavaFileObjects.forSourceString(
+              "com.example.Bags",
+              """
+              package com.example;
+
+              import java.util.List;
+              import java.util.Map;
+
+              public final class Bags {
+                public record Source(List<String> tags, Map<String, Integer> scores) {}
+
+                public record Extra(String note) {}
+
+                public record Target(List<String> tags, Map<String, Integer> scores, String note) {}
+              }
+              """);
+      JavaFileObject spec =
+          spec(
+              "BagAssembly",
+              """
+              public interface BagAssembly {
+                Validated<NonEmptyList<FieldError>, Bags.Target> assemble(
+                    Bags.Source source, Bags.Extra extra);
+
+                default ValidatedPrism<String, String> note() {
+                  return ValidatedPrism.of(Validated::validNel, s -> s);
+                }
+              }
+              """);
+      Compilation compilation = compile(records, spec);
+      assertThat(compilation).succeeded();
+      Assertions.assertThat(generatedSource(compilation, "com.example.BagAssemblyImpl"))
+          .contains(".field(\"tags\", hkj$allPresent(source.tags()))")
+          .contains(".field(\"scores\", hkj$valuesPresent(source.scores()))");
+
+      var result = new RuntimeCompilationHelper.CompiledResult(compilation);
+      Object impl = result.instance("com.example.BagAssemblyImpl");
+      java.util.Map<String, Integer> scores = new java.util.LinkedHashMap<>();
+      scores.put("ada", null);
+      Object source =
+          result
+              .loadClass("com.example.Bags$Source")
+              .getDeclaredConstructor(List.class, java.util.Map.class)
+              .newInstance(java.util.Arrays.asList("a", null), scores);
+      Object extra =
+          result
+              .loadClass("com.example.Bags$Extra")
+              .getDeclaredConstructor(String.class)
+              .newInstance("n");
+      @SuppressWarnings("unchecked")
+      Validated<NonEmptyList<FieldError>, Object> merged =
+          (Validated<NonEmptyList<FieldError>, Object>) invoke(impl, "assemble", source, extra);
+      Assertions.assertThat(merged.isInvalid()).isTrue();
+      Assertions.assertThat(merged.getError().toJavaList())
+          .containsExactly(
+              new FieldError(List.of("tags", "1"), "must not be null"),
+              new FieldError(List.of("scores", "ada"), "must not be null"));
+    }
+
     private static final JavaFileObject TYPED_ASSEMBLY =
         spec(
             "TypedAssembly",

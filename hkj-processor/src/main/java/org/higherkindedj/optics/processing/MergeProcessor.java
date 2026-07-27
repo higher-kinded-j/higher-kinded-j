@@ -349,10 +349,32 @@ public class MergeProcessor extends AbstractProcessor {
    * whether the fallible path must null-guard the read — every prism read and every reference-typed
    * identity read, mirroring {@code MappingProcessor.guardedRead}.
    */
-  private record Fill(String component, String sourceParam, CodeBlock prism, boolean guardedRead) {
+  private record Fill(
+      String component,
+      String sourceParam,
+      CodeBlock prism,
+      boolean guardedRead,
+      ContainerKind containerKind) {
     boolean fallible() {
       return prism != null;
     }
+  }
+
+  /** Identity fills of List/Map components scan for null elements/values on the fallible path. */
+  private enum ContainerKind {
+    NONE,
+    LIST,
+    MAP
+  }
+
+  private static ContainerKind containerKind(TypeMirror type) {
+    if (MappingProcessor.isExactly(type, "java.util.List")) {
+      return ContainerKind.LIST;
+    }
+    if (MappingProcessor.isExactly(type, "java.util.Map")) {
+      return ContainerKind.MAP;
+    }
+    return ContainerKind.NONE;
   }
 
   private List<Fill> classify(
@@ -422,7 +444,8 @@ public class MergeProcessor extends AbstractProcessor {
                 name,
                 holder.getSimpleName().toString(),
                 null,
-                !sourceComponent.asType().getKind().isPrimitive()));
+                !sourceComponent.asType().getKind().isPrimitive(),
+                containerKind(sourceComponent.asType())));
         continue;
       }
       if (leaf != null) {
@@ -431,7 +454,8 @@ public class MergeProcessor extends AbstractProcessor {
                 name,
                 holder.getSimpleName().toString(),
                 CodeBlock.of("$L()", leaf.getSimpleName()),
-                true));
+                true,
+                ContainerKind.NONE));
         continue;
       }
       List<MappingProcessor.RegisteredSpec> nested =
@@ -470,7 +494,8 @@ public class MergeProcessor extends AbstractProcessor {
                 name,
                 holder.getSimpleName().toString(),
                 CodeBlock.of("$T.INSTANCE.asValidatedPrism()", nested.getFirst().impl()),
-                true));
+                true,
+                ContainerKind.NONE));
         continue;
       }
       boolean primitiveInvolved =
@@ -603,6 +628,18 @@ public class MergeProcessor extends AbstractProcessor {
               fill.sourceParam(),
               fill.component(),
               fill.prism());
+        } else if (fill.containerKind() == ContainerKind.LIST) {
+          chain.add(
+              "\n.field($S, hkj$$allPresent($L.$L()))",
+              fill.component(),
+              fill.sourceParam(),
+              fill.component());
+        } else if (fill.containerKind() == ContainerKind.MAP) {
+          chain.add(
+              "\n.field($S, hkj$$valuesPresent($L.$L()))",
+              fill.component(),
+              fill.sourceParam(),
+              fill.component());
         } else if (fill.guardedRead()) {
           chain.add(
               "\n.field($S, hkj$$ifPresent($L.$L(), $T::validNel))",
@@ -657,6 +694,12 @@ public class MergeProcessor extends AbstractProcessor {
     // reference read.
     if (shape.fallibleDeclared()) {
       implBuilder.addMethod(MappingProcessor.ifPresentHelper());
+      if (fills.stream().anyMatch(f -> f.containerKind() == ContainerKind.LIST)) {
+        implBuilder.addMethod(MappingProcessor.allPresentHelper());
+      }
+      if (fills.stream().anyMatch(f -> f.containerKind() == ContainerKind.MAP)) {
+        implBuilder.addMethod(MappingProcessor.valuesPresentHelper());
+      }
     }
     writeFile(spec, specName.packageName(), implBuilder.build());
   }

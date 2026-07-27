@@ -30,9 +30,12 @@ import org.higherkindedj.optics.validated.ValidatedPrism;
  *   <li>fallible tier ({@code asValidatedPrism()} only): pass a parsing and a non-parsing wire
  *       value - both validated round-trip laws plus the no-parse sanity check;
  *   <li>total-parse mappings (no well-formed wire value can fail, e.g. derived wire fields over
- *       identity components; a null reference component is a located invalid, so "total" is scoped
- *       to wires whose reference components are non-null): pass a domain sample - the round trip
- *       through {@code build}.
+ *       identity components; a null reference component - or a null element inside an identity
+ *       container - is a located invalid, so "total" is scoped to wires whose reference components
+ *       and container elements are non-null): pass a domain sample whose reference components and
+ *       identity-container elements are themselves non-null ({@code build} copies identity
+ *       containers verbatim, so a null element in the sample produces exactly the excluded wire and
+ *       the law fails) - the round trip through {@code build}.
  *   <li>sparse-update tier ({@code updateFrom()} only, from an {@code UpdateSpec}): pass the {@code
  *       updateFrom} method reference, a domain sample, and an all-absent, a valid and an invalid
  *       wire - the identity, idempotence and validation laws.
@@ -137,7 +140,7 @@ public final class MappingLaws {
    * consistent (exactly what {@code build} would produce); {@code parse} ignores them, so an
    * inconsistent value parses but rebuilds normalised and fails the section law by design.
    */
-  public static <W, D> void assertMappingLaws(
+  public static <D, W> void assertMappingLaws(
       ValidatedPrism<W, D> mapping, W parseableWire, W nonParseableWire) {
     ValidatedPrismLaws.assertValidatedPrismLaws(mapping, parseableWire, nonParseableWire);
   }
@@ -146,10 +149,13 @@ public final class MappingLaws {
    * The round-trip law of a total-parse mapping (identity components, infallible leaves or derived
    * wire fields): exactly {@code parse(build(domainSample)) == Valid(domainSample)}, and nothing
    * else. No well-formed non-parsing wire value exists for such a mapping (a null reference
-   * component is a located invalid, so "total" is scoped to wires whose reference components are
-   * non-null — {@code build} only ever produces such wires), so there is no no-parse check; and the
-   * section law on {@code build(domainSample)} would be checking {@code build(a) == build(a)} once
-   * the round trip holds, so it is deliberately not asserted.
+   * component, or a null element inside an identity container, is a located invalid, so "total" is
+   * scoped to wires whose reference components and container elements are non-null), so there is no
+   * no-parse check. The scoping is the caller's fixture contract: {@code build} copies identity
+   * containers verbatim, so {@code domainSample} must not carry a null reference component or a
+   * null identity-container element, or the round trip lands on exactly the excluded wire and this
+   * law (correctly) fails. And the section law on {@code build(domainSample)} would be checking
+   * {@code build(a) == build(a)} once the round trip holds, so it is deliberately not asserted.
    *
    * <p>This is the strongest guarantee a derived-field mapping offers: only NON-derived components
    * round-trip, and {@code build(domainSample)} is a wire value whose derived components are
@@ -160,7 +166,7 @@ public final class MappingLaws {
    * with a fallible leaf, use {@link #assertMappingLaws(ValidatedPrism, Object, Object)} with a
    * non-parsing wire sample instead.
    */
-  public static <W, D> void assertMappingLaws(ValidatedPrism<W, D> mapping, D domainSample) {
+  public static <D, W> void assertMappingLaws(ValidatedPrism<W, D> mapping, D domainSample) {
     ValidatedPrismLaws.assertParseBuild(mapping, domainSample);
   }
 
@@ -192,7 +198,7 @@ public final class MappingLaws {
    * @param validWire a wire with at least one present, valid property that changes the domain
    * @param invalidWire a wire with a present but invalid property
    */
-  public static <W, D> void assertMappingLaws(
+  public static <D, W> void assertMappingLaws(
       Function<? super W, Edits.Accumulated<D>> updateFrom,
       D domainSample,
       W allAbsentWire,
@@ -308,7 +314,7 @@ public final class MappingLaws {
    * Sparse identity law: an all-absent wire folds to the identity update, so {@code
    * updateFrom(allAbsentWire).apply(domainSample) == Valid(domainSample)}.
    */
-  public static <W, D> void assertSparseIdentity(
+  public static <D, W> void assertSparseIdentity(
       Function<? super W, Edits.Accumulated<D>> updateFrom, D domainSample, W allAbsentWire) {
     Validated<NonEmptyList<FieldError>, D> result =
         updateFrom.apply(allAbsentWire).apply(domainSample);
@@ -324,7 +330,7 @@ public final class MappingLaws {
    * that {@code validWire} parses and genuinely changes the domain, so the law is not vacuously
    * true.
    */
-  public static <W, D> void assertSparseIdempotent(
+  public static <D, W> void assertSparseIdempotent(
       Function<? super W, Edits.Accumulated<D>> updateFrom, D domainSample, W validWire) {
     Validated<NonEmptyList<FieldError>, D> once = updateFrom.apply(validWire).apply(domainSample);
     assertThat(once.isValid())
@@ -349,9 +355,11 @@ public final class MappingLaws {
 
   /**
    * Sparse validation law: a present but invalid field fails, so {@code
-   * updateFrom(invalidWire).apply(domainSample)} is {@code Invalid}.
+   * updateFrom(invalidWire).apply(domainSample)} is {@code Invalid}, and every accumulated error is
+   * located (a non-empty path) - the sparse tier's located-errors promise, mirroring the patch
+   * tier's clause.
    */
-  public static <W, D> void assertSparseValidationFails(
+  public static <D, W> void assertSparseValidationFails(
       Function<? super W, Edits.Accumulated<D>> updateFrom, D domainSample, W invalidWire) {
     Validated<NonEmptyList<FieldError>, D> result =
         updateFrom.apply(invalidWire).apply(domainSample);
@@ -361,5 +369,8 @@ public final class MappingLaws {
                 + " updateFrom(invalidWire).apply(%s) was %s",
             domainSample, result)
         .isTrue();
+    assertThat(result.getError().toJavaList())
+        .as("Sparse validation law: every accumulated error must be located (non-empty path)")
+        .allSatisfy(error -> assertThat(error.path()).isNotEmpty());
   }
 }

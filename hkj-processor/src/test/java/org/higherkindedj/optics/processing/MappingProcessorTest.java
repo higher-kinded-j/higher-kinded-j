@@ -539,7 +539,9 @@ class MappingProcessorTest {
       String generated = generatedSource(compilation, "com.example.LabelsMappingImpl");
       Assertions.assertThat(generated)
           .contains("new LabelsDto(domain.tags())")
-          .contains(".field(\"tags\", hkj$ifPresent(wire.tags(), Validated::validNel))")
+          // identity maps copy by reference, but parse scans values: a null value is a located
+          // invalid under its key, and the guard does not cost the Iso tier
+          .contains(".field(\"tags\", hkj$valuesPresent(wire.tags()))")
           .contains("public Iso<Labels, LabelsDto> asIso()")
           .doesNotContain("parseValues")
           .doesNotContain("buildValues");
@@ -1725,6 +1727,162 @@ class MappingProcessorTest {
               spec);
       assertThat(compilation).failed();
       assertThat(compilation).hadErrorContaining("abstract leaf 'number' needs a generic spec");
+    }
+
+    @Test
+    @DisplayName("local leaves and derived fields have no meaning on a sealed mapping")
+    void sealedLocalVocabularyRejected() {
+      JavaFileObject leafSpec =
+          JavaFileObjects.forSourceString(
+              "com.example.PaymentMapping",
+              """
+              package com.example;
+
+              import org.higherkindedj.hkt.validated.Validated;
+              import org.higherkindedj.optics.annotations.GenerateMapping;
+              import org.higherkindedj.optics.annotations.MappingSpec;
+              import org.higherkindedj.optics.validated.ValidatedPrism;
+
+              @GenerateMapping
+              public interface PaymentMapping extends MappingSpec<Payment, PaymentDto> {
+                default ValidatedPrism<String, String> number() {
+                  return ValidatedPrism.of(Validated::validNel, v -> v);
+                }
+              }
+              """);
+      Compilation leaf =
+          compile(
+              PAYMENT,
+              CARD,
+              BANK,
+              PAYMENT_DTO,
+              CARD_DTO,
+              BANK_DTO,
+              CARD_MAPPING,
+              BANK_MAPPING,
+              leafSpec);
+      assertThat(leaf).failed();
+      assertThat(leaf).hadErrorContaining("leaf 'number' has no meaning on a sealed mapping");
+      assertThat(leaf).hadErrorContaining("Move the method onto the subtype pair's own spec");
+
+      JavaFileObject getterSpec =
+          JavaFileObjects.forSourceString(
+              "com.example.PaymentMapping",
+              """
+              package com.example;
+
+              import org.higherkindedj.optics.Getter;
+              import org.higherkindedj.optics.annotations.GenerateMapping;
+              import org.higherkindedj.optics.annotations.MappingSpec;
+
+              @GenerateMapping
+              public interface PaymentMapping extends MappingSpec<Payment, PaymentDto> {
+                default Getter<Payment, String> display() {
+                  return Getter.of(Object::toString);
+                }
+              }
+              """);
+      Compilation getter =
+          compile(
+              PAYMENT,
+              CARD,
+              BANK,
+              PAYMENT_DTO,
+              CARD_DTO,
+              BANK_DTO,
+              CARD_MAPPING,
+              BANK_MAPPING,
+              getterSpec);
+      assertThat(getter).failed();
+      assertThat(getter)
+          .hadErrorContaining("derived field 'display' has no meaning on a sealed mapping");
+    }
+
+    @Test
+    @DisplayName("plain helpers stay legal on a sealed mapping: only vocabulary shapes bind")
+    void sealedPlainHelpersStayLegal() {
+      JavaFileObject spec =
+          JavaFileObjects.forSourceString(
+              "com.example.PaymentMapping",
+              """
+              package com.example;
+
+              import org.higherkindedj.optics.annotations.GenerateMapping;
+              import org.higherkindedj.optics.annotations.MappingSpec;
+
+              @GenerateMapping
+              public interface PaymentMapping extends MappingSpec<Payment, PaymentDto> {
+                static String currency() {
+                  return "GBP";
+                }
+
+                default int retries() {
+                  return 3;
+                }
+
+                default String label() {
+                  return "payments";
+                }
+              }
+              """);
+      Compilation compilation =
+          compile(
+              PAYMENT,
+              CARD,
+              BANK,
+              PAYMENT_DTO,
+              CARD_DTO,
+              BANK_DTO,
+              CARD_MAPPING,
+              BANK_MAPPING,
+              spec);
+      assertThat(compilation).succeeded();
+    }
+
+    @Test
+    @DisplayName("inherited vocabulary stays inert on a sealed mapping: shared mix-ins still fit")
+    void sealedInheritedVocabularyStaysInert() {
+      JavaFileObject vocabulary =
+          JavaFileObjects.forSourceString(
+              "com.example.SharedVocabulary",
+              """
+              package com.example;
+
+              import org.higherkindedj.hkt.validated.Validated;
+              import org.higherkindedj.optics.validated.ValidatedPrism;
+
+              public interface SharedVocabulary {
+                default ValidatedPrism<String, String> number() {
+                  return ValidatedPrism.of(Validated::validNel, v -> v);
+                }
+              }
+              """);
+      JavaFileObject spec =
+          JavaFileObjects.forSourceString(
+              "com.example.PaymentMapping",
+              """
+              package com.example;
+
+              import org.higherkindedj.optics.annotations.GenerateMapping;
+              import org.higherkindedj.optics.annotations.MappingSpec;
+
+              @GenerateMapping
+              public interface PaymentMapping
+                  extends SharedVocabulary, MappingSpec<Payment, PaymentDto> {}
+              """);
+      Compilation compilation =
+          compile(
+              PAYMENT,
+              CARD,
+              BANK,
+              PAYMENT_DTO,
+              CARD_DTO,
+              BANK_DTO,
+              CARD_MAPPING,
+              BANK_MAPPING,
+              vocabulary,
+              spec);
+      assertThat(compilation).succeeded();
     }
 
     @Test
@@ -5063,8 +5221,9 @@ class MappingProcessorTest {
           .contains("public static <T> PageMappingImpl<T> instance()")
           .contains("public PageDto<T> build(Page<T> domain)")
           .contains("public Validated<NonEmptyList<FieldError>, Page<T>> parse(PageDto<T> wire)")
-          // identity elements copy under the guard; the primitive stays bare
-          .contains(".field(\"items\", hkj$ifPresent(wire.items(), Validated::validNel))")
+          // identity elements copy by reference under the null-element scan; the primitive
+          // stays bare
+          .contains(".field(\"items\", hkj$allPresent(wire.items()))")
           .contains(".field(\"total\", Validated.validNel(wire.total()))")
           // a lossless threaded mapping keeps the Iso tier, threaded
           .contains("public Iso<Page<T>, PageDto<T>> asIso()");
@@ -5105,18 +5264,22 @@ class MappingProcessorTest {
         Assertions.assertThat(invoke(integers.get(), "items")).isEqualTo(List.of(7, 8));
         Assertions.assertThat(result.genericInstance("com.example.PageMappingImpl")).isSameAs(impl);
 
-        // Identity legs copy the container verbatim — a null ELEMENT passes through untouched
-        // (element location belongs to leaf/nested legs); the deliberate asymmetry, pinned.
+        // Identity legs copy the container by reference, but the null doctrine reaches
+        // inside: a null ELEMENT is a located, accumulating invalid at its index, exactly
+        // as a lifted leg would locate it.
         Object nullElementPage =
             result
                 .loadClass("com.example.PageDto")
                 .getDeclaredConstructor(List.class, int.class)
-                .newInstance(Arrays.asList("a", null), 2);
+                .newInstance(Arrays.asList("a", null, null), 3);
         @SuppressWarnings("unchecked")
-        Validated<NonEmptyList<FieldError>, Object> copied =
+        Validated<NonEmptyList<FieldError>, Object> scanned =
             (Validated<NonEmptyList<FieldError>, Object>) invoke(impl, "parse", nullElementPage);
-        Assertions.assertThat(copied.isValid()).isTrue();
-        Assertions.assertThat(invoke(copied.get(), "items")).isEqualTo(Arrays.asList("a", null));
+        Assertions.assertThat(scanned.isInvalid()).isTrue();
+        Assertions.assertThat(scanned.getError().toJavaList())
+            .containsExactly(
+                new FieldError(List.of("items", "1"), "must not be null"),
+                new FieldError(List.of("items", "2"), "must not be null"));
       } catch (ReflectiveOperationException e) {
         throw new AssertionError(e);
       }
@@ -7048,6 +7211,498 @@ class MappingProcessorTest {
   @Nested
   @DisplayName("Located nulls on record wires")
   class LocatedNullsOnRecordWires {
+
+    @Test
+    @DisplayName("a hand-written mapper signature gets the targeted answer, both directions")
+    void handMapperSignatureGetsTargetedDiagnostic() {
+      JavaFileObject records =
+          JavaFileObjects.forSourceString(
+              "com.example.Records",
+              """
+              package com.example;
+
+              public final class Records {
+                public record D(String a) {}
+
+                public record W(String a) {}
+              }
+              """);
+      JavaFileObject toDto =
+          JavaFileObjects.forSourceString(
+              "com.example.HandMapping",
+              """
+              package com.example;
+
+              import org.higherkindedj.optics.annotations.GenerateMapping;
+              import org.higherkindedj.optics.annotations.MappingSpec;
+
+              @GenerateMapping
+              public interface HandMapping extends MappingSpec<Records.D, Records.W> {
+                Records.W toDto(Records.D domain);
+              }
+              """);
+      Compilation outbound = compile(records, toDto);
+      assertThat(outbound).failed();
+      assertThat(outbound).hadErrorContaining("abstract method 'toDto' redeclares the mapping");
+      assertThat(outbound).hadErrorContaining("Delete the method and call the generated Impl");
+
+      JavaFileObject fromDto =
+          JavaFileObjects.forSourceString(
+              "com.example.HandMapping",
+              """
+              package com.example;
+
+              import org.higherkindedj.optics.annotations.GenerateMapping;
+              import org.higherkindedj.optics.annotations.MappingSpec;
+
+              @GenerateMapping
+              public interface HandMapping extends MappingSpec<Records.D, Records.W> {
+                Records.D toDomain(Records.W wire);
+              }
+              """);
+      Compilation inbound = compile(records, fromDto);
+      assertThat(inbound).failed();
+      assertThat(inbound).hadErrorContaining("abstract method 'toDomain' redeclares the mapping");
+
+      // A half-match is not the hand-mapper shape: it falls through to the ordinary diagnostic.
+      JavaFileObject domainHalf =
+          JavaFileObjects.forSourceString(
+              "com.example.HandMapping",
+              """
+              package com.example;
+
+              import org.higherkindedj.optics.annotations.GenerateMapping;
+              import org.higherkindedj.optics.annotations.MappingSpec;
+
+              @GenerateMapping
+              public interface HandMapping extends MappingSpec<Records.D, Records.W> {
+                String describe(Records.D domain);
+              }
+              """);
+      Compilation domainSide = compile(records, domainHalf);
+      assertThat(domainSide).failed();
+      assertThat(domainSide)
+          .hadErrorContaining("abstract method 'describe' is neither a rename nor a leaf");
+
+      JavaFileObject wireHalf =
+          JavaFileObjects.forSourceString(
+              "com.example.HandMapping",
+              """
+              package com.example;
+
+              import org.higherkindedj.optics.annotations.GenerateMapping;
+              import org.higherkindedj.optics.annotations.MappingSpec;
+
+              @GenerateMapping
+              public interface HandMapping extends MappingSpec<Records.D, Records.W> {
+                String describe(Records.W wire);
+              }
+              """);
+      Compilation wireSide = compile(records, wireHalf);
+      assertThat(wireSide).failed();
+      assertThat(wireSide)
+          .hadErrorContaining("abstract method 'describe' is neither a rename nor a leaf");
+    }
+
+    @Test
+    @DisplayName("a typo'd local leaf is an error with a nearest-name hint, never silently inert")
+    void typodLocalLeafIsDiagnosed() {
+      JavaFileObject spec =
+          JavaFileObjects.forSourceString(
+              "com.example.CustomerMapping2",
+              """
+              package com.example;
+
+              import org.higherkindedj.hkt.validated.FieldError;
+              import org.higherkindedj.hkt.validated.Validated;
+              import org.higherkindedj.optics.annotations.GenerateMapping;
+              import org.higherkindedj.optics.annotations.MappingSpec;
+              import org.higherkindedj.optics.validated.ValidatedPrism;
+
+              @GenerateMapping
+              public interface CustomerMapping2 extends MappingSpec<Records.D, Records.W> {
+                default ValidatedPrism<String, String> emial() {
+                  return ValidatedPrism.of(
+                      raw ->
+                          raw.contains("@")
+                              ? Validated.validNel(raw)
+                              : Validated.invalidNel(FieldError.of("not an email address")),
+                      v -> v);
+                }
+              }
+              """);
+      JavaFileObject records =
+          JavaFileObjects.forSourceString(
+              "com.example.Records",
+              """
+              package com.example;
+
+              public final class Records {
+                public record D(String email) {}
+
+                public record W(String email) {}
+              }
+              """);
+      Compilation compilation = compile(records, spec);
+      assertThat(compilation).failed();
+      assertThat(compilation).hadErrorContaining("leaf 'emial' names no component of D");
+      assertThat(compilation).hadErrorContaining("Did you mean 'email()'?");
+      assertThat(compilation).hadErrorContaining("would silently validate nothing");
+    }
+
+    @Test
+    @DisplayName("an unmatched local leaf with no near name lists the components, hint-free")
+    void unmatchedLocalLeafListsComponents() {
+      JavaFileObject spec =
+          JavaFileObjects.forSourceString(
+              "com.example.CustomerMapping2",
+              """
+              package com.example;
+
+              import org.higherkindedj.hkt.validated.Validated;
+              import org.higherkindedj.optics.annotations.GenerateMapping;
+              import org.higherkindedj.optics.annotations.MappingSpec;
+              import org.higherkindedj.optics.validated.ValidatedPrism;
+
+              @GenerateMapping
+              public interface CustomerMapping2 extends MappingSpec<Records.D, Records.W> {
+                default ValidatedPrism<String, String> currency() {
+                  return ValidatedPrism.of(Validated::validNel, v -> v);
+                }
+              }
+              """);
+      JavaFileObject records =
+          JavaFileObjects.forSourceString(
+              "com.example.Records",
+              """
+              package com.example;
+
+              public final class Records {
+                public record D(String email) {}
+
+                public record W(String email) {}
+              }
+              """);
+      Compilation compilation = compile(records, spec);
+      assertThat(compilation).failed();
+      assertThat(compilation).hadErrorContaining("leaf 'currency' names no component of D");
+      assertThat(compilation).hadErrorContaining("Found on D: [email]");
+      Assertions.assertThat(compilation.diagnostics())
+          .noneMatch(d -> d.getMessage(null).contains("Did you mean"));
+    }
+
+    @Test
+    @DisplayName("an inherited unmatched leaf stays inert: shared vocabulary fits partial shapes")
+    void inheritedUnmatchedLeafStaysInert() {
+      JavaFileObject vocabulary =
+          JavaFileObjects.forSourceString(
+              "com.example.WideVocabulary",
+              """
+              package com.example;
+
+              import org.higherkindedj.hkt.validated.Validated;
+              import org.higherkindedj.optics.validated.ValidatedPrism;
+
+              public interface WideVocabulary {
+                default ValidatedPrism<String, String> email() {
+                  return ValidatedPrism.of(Validated::validNel, v -> v);
+                }
+
+                default ValidatedPrism<String, String> phone() {
+                  return ValidatedPrism.of(Validated::validNel, v -> v);
+                }
+              }
+              """);
+      JavaFileObject spec =
+          JavaFileObjects.forSourceString(
+              "com.example.CustomerMapping2",
+              """
+              package com.example;
+
+              import org.higherkindedj.optics.annotations.GenerateMapping;
+              import org.higherkindedj.optics.annotations.MappingSpec;
+
+              @GenerateMapping
+              public interface CustomerMapping2
+                  extends WideVocabulary, MappingSpec<Records.D, Records.W> {}
+              """);
+      JavaFileObject records =
+          JavaFileObjects.forSourceString(
+              "com.example.Records",
+              """
+              package com.example;
+
+              public final class Records {
+                public record D(String email) {}
+
+                public record W(String email) {}
+              }
+              """);
+      // The spec has no 'phone' component; the inherited leaf for it stays inert by design.
+      Compilation compilation = compile(records, vocabulary, spec);
+      assertThat(compilation).succeeded();
+    }
+
+    @Test
+    @DisplayName("an unmatched local leaf is an error on the update path too")
+    void unmatchedLocalLeafOnUpdatePath() {
+      JavaFileObject domain =
+          JavaFileObjects.forSourceString(
+              "com.example.Account3",
+              """
+              package com.example;
+
+              public record Account3(String email) {}
+              """);
+      JavaFileObject wire =
+          JavaFileObjects.forSourceString(
+              "com.example.Account3PatchDto",
+              """
+              package com.example;
+
+              public class Account3PatchDto {
+                private String email;
+
+                public String getEmail() { return email; }
+                public void setEmail(String email) { this.email = email; }
+              }
+              """);
+      JavaFileObject spec =
+          JavaFileObjects.forSourceString(
+              "com.example.Account3PatchMapping",
+              """
+              package com.example;
+
+              import org.higherkindedj.hkt.validated.Validated;
+              import org.higherkindedj.optics.annotations.GenerateMapping;
+              import org.higherkindedj.optics.annotations.UpdateSpec;
+              import org.higherkindedj.optics.validated.ValidatedPrism;
+
+              @GenerateMapping
+              public interface Account3PatchMapping extends UpdateSpec<Account3, Account3PatchDto> {
+                default ValidatedPrism<String, String> emali() {
+                  return ValidatedPrism.of(Validated::validNel, v -> v);
+                }
+              }
+              """);
+      Compilation compilation = compile(domain, wire, spec);
+      assertThat(compilation).failed();
+      assertThat(compilation).hadErrorContaining("leaf 'emali' names no component of Account3");
+      assertThat(compilation).hadErrorContaining("Did you mean 'email()'?");
+    }
+
+    @Test
+    @DisplayName("identity list elements are scanned: null elements locate by index, accumulating")
+    void identityListElementsAreScanned() throws Exception {
+      JavaFileObject domain =
+          JavaFileObjects.forSourceString(
+              "com.example.Basket",
+              """
+              package com.example;
+
+              import java.util.List;
+
+              public record Basket(List<String> tags) {}
+              """);
+      JavaFileObject wire =
+          JavaFileObjects.forSourceString(
+              "com.example.BasketDto",
+              """
+              package com.example;
+
+              import java.util.List;
+
+              public record BasketDto(List<String> tags) {}
+              """);
+      JavaFileObject spec =
+          JavaFileObjects.forSourceString(
+              "com.example.BasketMapping",
+              """
+              package com.example;
+
+              import org.higherkindedj.optics.annotations.GenerateMapping;
+              import org.higherkindedj.optics.annotations.MappingSpec;
+
+              @GenerateMapping
+              public interface BasketMapping extends MappingSpec<Basket, BasketDto> {}
+              """);
+      Compilation compilation = compile(domain, wire, spec);
+      assertThat(compilation).succeeded();
+      // The scan is a guard, not fallibility: the identity mapping keeps its Iso tier.
+      Assertions.assertThat(generatedSource(compilation, "com.example.BasketMappingImpl"))
+          .contains(".field(\"tags\", hkj$allPresent(wire.tags()))")
+          .contains("public Iso<Basket, BasketDto> asIso()");
+
+      var result = new RuntimeCompilationHelper.CompiledResult(compilation);
+      Object impl = result.instance("com.example.BasketMappingImpl");
+
+      List<String> tags = List.of("a", "b");
+      Object dto =
+          result
+              .loadClass("com.example.BasketDto")
+              .getDeclaredConstructor(List.class)
+              .newInstance(tags);
+      @SuppressWarnings("unchecked")
+      Validated<NonEmptyList<FieldError>, Object> parsed =
+          (Validated<NonEmptyList<FieldError>, Object>) invoke(impl, "parse", dto);
+      Assertions.assertThat(parsed.isValid()).isTrue();
+      // Identity legs copy, they do not rebuild: the same list reference passes through.
+      Assertions.assertThat(invoke(parsed.get(), "tags")).isSameAs(tags);
+
+      Object badDto =
+          result
+              .loadClass("com.example.BasketDto")
+              .getDeclaredConstructor(List.class)
+              .newInstance(Arrays.asList(null, "b", null));
+      @SuppressWarnings("unchecked")
+      Validated<NonEmptyList<FieldError>, Object> bad =
+          (Validated<NonEmptyList<FieldError>, Object>) invoke(impl, "parse", badDto);
+      Assertions.assertThat(bad.isInvalid()).isTrue();
+      Assertions.assertThat(bad.getError().toJavaList())
+          .containsExactly(
+              new FieldError(List.of("tags", "0"), "must not be null"),
+              new FieldError(List.of("tags", "2"), "must not be null"));
+
+      // A null list itself stays the whole-component located invalid.
+      Object nullListDto =
+          result
+              .loadClass("com.example.BasketDto")
+              .getDeclaredConstructor(List.class)
+              .newInstance(new Object[] {null});
+      @SuppressWarnings("unchecked")
+      Validated<NonEmptyList<FieldError>, Object> nullList =
+          (Validated<NonEmptyList<FieldError>, Object>) invoke(impl, "parse", nullListDto);
+      Assertions.assertThat(nullList.getError().toJavaList())
+          .containsExactly(new FieldError(List.of("tags"), "must not be null"));
+    }
+
+    @Test
+    @DisplayName("identity map values are scanned: null values locate by key; keys stay structural")
+    void identityMapValuesAreScanned() throws Exception {
+      JavaFileObject domain =
+          JavaFileObjects.forSourceString(
+              "com.example.Scores",
+              """
+              package com.example;
+
+              import java.util.Map;
+
+              public record Scores(Map<String, Integer> byPlayer) {}
+              """);
+      JavaFileObject wire =
+          JavaFileObjects.forSourceString(
+              "com.example.ScoresDto",
+              """
+              package com.example;
+
+              import java.util.Map;
+
+              public record ScoresDto(Map<String, Integer> byPlayer) {}
+              """);
+      JavaFileObject spec =
+          JavaFileObjects.forSourceString(
+              "com.example.ScoresMapping",
+              """
+              package com.example;
+
+              import org.higherkindedj.optics.annotations.GenerateMapping;
+              import org.higherkindedj.optics.annotations.MappingSpec;
+
+              @GenerateMapping
+              public interface ScoresMapping extends MappingSpec<Scores, ScoresDto> {}
+              """);
+      Compilation compilation = compile(domain, wire, spec);
+      assertThat(compilation).succeeded();
+      var result = new RuntimeCompilationHelper.CompiledResult(compilation);
+      Object impl = result.instance("com.example.ScoresMappingImpl");
+
+      java.util.Map<String, Integer> withNull = new java.util.LinkedHashMap<>();
+      withNull.put("ada", 10);
+      withNull.put("bob", null);
+      Object badDto =
+          result
+              .loadClass("com.example.ScoresDto")
+              .getDeclaredConstructor(java.util.Map.class)
+              .newInstance(withNull);
+      @SuppressWarnings("unchecked")
+      Validated<NonEmptyList<FieldError>, Object> bad =
+          (Validated<NonEmptyList<FieldError>, Object>) invoke(impl, "parse", badDto);
+      Assertions.assertThat(bad.isInvalid()).isTrue();
+      Assertions.assertThat(bad.getError().toJavaList())
+          .containsExactly(new FieldError(List.of("byPlayer", "bob"), "must not be null"));
+
+      // A null KEY is a structurally broken map: the caller contract, matching parseValues.
+      java.util.Map<String, Integer> nullKey = new java.util.HashMap<>();
+      nullKey.put(null, 1);
+      Object nullKeyDto =
+          result
+              .loadClass("com.example.ScoresDto")
+              .getDeclaredConstructor(java.util.Map.class)
+              .newInstance(nullKey);
+      Assertions.assertThatThrownBy(() -> invoke(impl, "parse", nullKeyDto))
+          .hasRootCauseInstanceOf(NullPointerException.class)
+          .rootCause()
+          .hasMessageContaining("map keys must not be null");
+    }
+
+    @Test
+    @DisplayName("projected identity containers are scanned in the patch tier too")
+    void patchProjectedIdentityContainersAreScanned() {
+      JavaFileObject domain =
+          JavaFileObjects.forSourceString(
+              "com.example.Profile2",
+              """
+              package com.example;
+
+              import java.util.List;
+              import java.util.Map;
+
+              public record Profile2(
+                  String id, EmailAddress email, List<String> tags, Map<String, Integer> scores) {}
+              """);
+      JavaFileObject wire =
+          JavaFileObjects.forSourceString(
+              "com.example.Profile2Dto",
+              """
+              package com.example;
+
+              import java.util.List;
+              import java.util.Map;
+
+              public record Profile2Dto(
+                  String email, List<String> tags, Map<String, Integer> scores) {}
+              """);
+      JavaFileObject spec =
+          JavaFileObjects.forSourceString(
+              "com.example.Profile2Mapping",
+              """
+              package com.example;
+
+              import org.higherkindedj.hkt.validated.FieldError;
+              import org.higherkindedj.hkt.validated.Validated;
+              import org.higherkindedj.optics.annotations.GenerateMapping;
+              import org.higherkindedj.optics.annotations.MappingSpec;
+              import org.higherkindedj.optics.validated.ValidatedPrism;
+
+              @GenerateMapping
+              public interface Profile2Mapping extends MappingSpec<Profile2, Profile2Dto> {
+                default ValidatedPrism<String, EmailAddress> email() {
+                  return ValidatedPrism.of(
+                      raw ->
+                          raw.contains("@")
+                              ? Validated.validNel(new EmailAddress(raw))
+                              : Validated.invalidNel(FieldError.of("not an email address")),
+                      EmailAddress::value);
+                }
+              }
+              """);
+      Compilation compilation = compile(EMAIL, domain, wire, spec);
+      assertThat(compilation).succeeded();
+      Assertions.assertThat(generatedSource(compilation, "com.example.Profile2MappingImpl"))
+          .contains("public Validated<NonEmptyList<FieldError>, Profile2> patch(")
+          .contains(".field(\"tags\", hkj$allPresent(wire.tags()))")
+          .contains(".field(\"scores\", hkj$valuesPresent(wire.scores()))");
+    }
 
     @SuppressWarnings("unchecked")
     private Validated<NonEmptyList<FieldError>, Object> parse(Object impl, Object wire) {

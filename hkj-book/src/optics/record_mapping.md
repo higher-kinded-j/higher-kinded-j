@@ -35,7 +35,7 @@ The two directions have different shapes, and that asymmetry runs through the wh
 
 The generated class is `<Spec>Impl` beside the spec, used through its `INSTANCE` constant. A spec nested in an outer class joins the enclosing simple names: `Shop.CustomerMapping` generates `ShopCustomerMappingImpl`.
 
-**One null doctrine, both wire shapes.** A JSON binder leaves a missing property `null` — on a record component just as on an unset bean property — so every reference-typed `parse` read is null-guarded: a `null` component is a located `FieldError` (`must not be null`) that accumulates with every other bad field, never an exception, and it locates through nesting (`customer.name: must not be null`). A `null` never reaches a leaf's prism. The doctrine reaches inside containers too: a `null` element or map value locates by its index or key (`emails.1: must not be null`), and every failing container element is index- or key-located ([`parseAll`/`parseValues`](validated_prism.md#the-bulk-forms-parseall-and-parsevalues)) — a plain positional segment, matching the map-key grammar. What stays the caller's error (`NullPointerException`): a `null` *wire* itself, and a `null` map *key* (a structurally broken map, not a wrong value) — a `null` container *component* is guarded like any reference read (`emails: must not be null`); only calling the bulk forms directly with a `null` list or map is the caller's error. Absence-as-a-meaning remains exclusively the [sparse `UpdateSpec` tier](#sparse-patch-write-back-updatespec)'s: a record cannot express absence, it can only be wrong.
+**One null doctrine, both wire shapes.** A JSON binder leaves a missing property `null` (on a record component just as on an unset bean property), so every reference-typed `parse` read is null-guarded: a `null` component is a located `FieldError` (`must not be null`) that accumulates with every other bad field, never an exception, and it locates through nesting (`customer.name: must not be null`). A `null` never reaches a leaf's prism. The doctrine reaches inside containers too, identity-copied ones included: a `null` element or map value locates by its index or key (`emails.1: must not be null`), whether the container lifts through a leaf ([`parseAll`/`parseValues`](validated_prism.md#the-bulk-forms-parseall-and-parsevalues)) or copies by identity (`tags.1: must not be null`); the index is a plain positional segment, matching the map-key grammar. An identity container still copies by reference; the scan only locates nulls, it never rebuilds. What stays the caller's error (`NullPointerException`): a `null` *wire* itself, and a `null` map *key* (a structurally broken map, not a wrong value); a `null` container *component* is guarded like any reference read (`emails: must not be null`); only calling the bulk forms directly with a `null` list or map is the caller's error. Absence-as-a-meaning remains exclusively the [sparse `UpdateSpec` tier](#sparse-patch-write-back-updatespec)'s: a record cannot express absence, it can only be wrong.
 
 ~~~admonish tip title="At the Spring boundary: one 422, every bad field by path"
 In a Spring controller the parse result needs no wrapping: return it as-is and `hkj-spring` renders an `Invalid` as one **422 Unprocessable Content** response listing every located `FieldError` by path. See [the 422 leg](../spring/spring_boot_integration.md#the-422-leg): the "leg" is the response route an all-`FieldError` payload travels at the Spring boundary, in the railway sense.
@@ -68,6 +68,8 @@ A rename is an abstract method named after the *domain* component, with `to` nam
 ```
 
 Each wire component takes exactly one domain source; colliding renames are compile errors, not surprises.
+
+Located error paths use **domain** component names, renames included: a wire sending `fullName` gets its errors at `name`. Every path in the system (nesting, containers, the sparse tier's labels) is domain-named, so paths stay mutually consistent and stable under wire refactors; a client mapping errors back onto its own payload keys must apply the rename in reverse.
 
 ---
 
@@ -104,7 +106,9 @@ The optic is a `Getter` because a derived field is single-valued, exactly one fo
 **How the two `default` families are told apart.** Leaves are named after *domain* components and return `ValidatedPrism`; derived fields are named after *wire-only* components and return `Getter`. The processor matches the two differently:
 
 - A zero-parameter `default` returning `Getter` is *always* claimed as a derived field, and validated as one. So give getter-shaped utility helpers a parameter or a different return type, or they will be mistaken for derived fields.
-- A `default` returning `ValidatedPrism` is matched by name; an unmatched one stays an inert helper.
+- A `default` returning `ValidatedPrism` is matched by name against the domain's components, and a *locally declared* leaf **must** match: an unmatched local leaf is a compile error with a nearest-name hint (`leaf 'emial' names no component of Customer. Did you mean 'email()'?`), because a silently inert leaf would silently stop validating that field. Prism-returning helpers belong in `private` or `static` methods, which are never leaf-shaped.
+- *Inherited* mix-in leaves that match nothing stay inert by design: a shared vocabulary may carry leaves for components only some extending specs have.
+- On a **sealed** mapping, locally declared leaves and derived fields are rejected outright (a dispatch has no components); inherited vocabulary stays inert there too.
 
 Four shapes are rejected, each with a what/why/fix diagnostic:
 
@@ -191,7 +195,7 @@ A generic record maps two ways. As a **concrete instantiation**, name the type a
 
 An instantiated mapping registers like any other, so `Report(Page<Customer> results)` nests it automatically. A threaded spec nests too: a use site's type arguments unify against the spec's declared pair, so `Report(Page<String> results)` resolves `PageMapping<T>` as `PageMappingImpl.<String>instance()`, and a generic outer spec may thread its own variable straight through.
 
-As a **threaded spec**, declare the spec generic in its own type parameters and one mapping serves every instantiation. Same-variable elements copy by identity, and the whole surface (`build`, `parse`, `asIso` on a lossless pair) is generic:
+As a **threaded spec**, declare the spec generic in its own type parameters and one mapping serves every instantiation. Same-variable elements copy by identity under the null-element scan (a `null` element is `items.1: must not be null`, never a smuggled null), and the whole surface (`build`, `parse`, `asIso` on a lossless pair) is generic:
 
 ``` java
 {{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/mapping/RecordMappingBook.java:threaded_spec}}
@@ -200,6 +204,20 @@ As a **threaded spec**, declare the spec generic in its own type parameters and 
 ```
 
 A generic Impl cannot carry a typed static `INSTANCE`, so it follows the library's generic-singleton convention (`EitherMonad.instance()`): one stateless cached instance behind `PageMappingImpl.instance()`. Multi-parameter and bounded specs thread too (`ResultMapping<E, A>`, `RankedMapping<T extends Number>`), and a same-typed `default` leaf (`ValidatedPrism<T, T>`) still routes elements.
+
+In assignment context the witness is inferred, so plain `instance()` reads naturally; the explicit `PageMappingImpl.<String>instance()` form is only needed where Java cannot infer:
+
+``` java
+PageMapping<String> tags = PageMappingImpl.instance();   // witness inferred
+```
+
+The three access shapes are one rule, not three conventions: *how much state does the Impl carry?*
+
+| Spec shape | Access | Why |
+|---|---|---|
+| Concrete | `XImpl.INSTANCE` | stateless, monomorphic: a plain constant |
+| Threaded generic | `XImpl.<T>instance()` | stateless but generic: a typed constant is impossible, so the cached singleton sits behind a generic accessor (the `EitherMonad.instance()` convention) |
+| Element-mapped | `XImpl.of(prisms)` | carries its leaf prisms as state: every call is a fresh, immutable instance |
 
 The third form is **element-mapped**: thread the two sides under *different* variables (`Page<T> ↔ PageDto<TDto>`) and declare the element mapping as an **abstract leaf**. Nothing on the spec can parse a `TDto` into a `T`, so the generated Impl defers it: each abstract leaf becomes a constructor-supplied field behind a public `of(...)` factory, one `ValidatedPrism` per leaf in declaration order:
 
@@ -221,12 +239,14 @@ The field correspondences select what the Impl can lawfully offer; nothing is fa
 
 | Spec shape | Generated surface |
 |---|---|
-| All components identity-matched (lossless) | `build`, total `parse`, **`asIso()`** |
+| All components identity-matched (lossless) | `build`, guarded `parse`, **`asIso()`** |
 | Any fallible leaf, nested spec or derived field | `build`, accumulating `parse`, no `asIso` |
 | Wire record with *fewer* components, all identity (lossy projection) | `build` + **`asLens()`** whose `set` writes the projected components back, **no `parse`** (the dropped components cannot be reconstructed) |
 | Wire record with fewer components **and** any fallible correspondence | `build` + a validated **`patch(domain, wire)`** write-back, no `asLens` and no `parse`, [below](#leaf-carrying-projections-the-validated-patch) |
 | Every parse-capable mapping | **`asValidatedPrism()`**: the mapping as a leaf, so it nests and lifts |
 | A spec extending **`UpdateSpec`** (opt-in, bean wire) | only **`updateFrom(Wire)`**: a sparse PATCH fold, [below](#sparse-patch-write-back-updatespec) |
+
+Two honesty notes on the lossless row. "Guarded" because even a lossless record `parse` can fail on a hostile binding (a null reference component, or a null element inside an identity container, is a located invalid); the parse-iso coherence law is scoped accordingly. And `asIso().reverseGet` is a second, *unguarded* wire-to-domain direction: it exists for lawful in-memory round trips, so never feed a freshly bound wire to `reverseGet`; locating its nulls is `parse`'s job.
 
 ``` java
 {{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/mapping/RecordMappingBook.java:projection_spec}}
@@ -331,7 +351,7 @@ The Impl exposes a *single* method, `updateFrom(Wire) : Edits.Accumulated<Domain
 ```
 
 - **Present and valid** → the field is set, or parsed through its leaf, and folded in.
-- **Present and invalid** → a located `FieldError`, accumulating as usual: sparseness never weakens validation of what *was* sent. `Edits.Accumulated` also offers `applyPath(current)` to drop straight onto the [validation railway](../effect/path_validation.md), so a controller can answer `400` with the errors instead of persisting a partial write.
+- **Present and invalid** → a located `FieldError`, accumulating as usual: sparseness never weakens validation of what *was* sent. `Edits.Accumulated` also offers `applyPath(current)` to drop straight onto the [validation railway](../effect/path_validation.md), so a controller answers with every error at once instead of persisting a partial write (an all-`FieldError` payload takes [the 422 leg](../spring/spring_boot_integration.md#the-422-leg): `hkj.web.validation-field-error-status`, default 422).
 - **Absent (null)** → skipped; the domain's current value survives.
 
 The return type is exactly what a hand-written [`Edits.accumulate(...)`](multi_edit.md) PATCH builder produces, so the two compose and the same consumption story (`apply`, `applyPath`, `toValidated`) carries over.
@@ -341,8 +361,10 @@ The rules that keep the contract honest:
 - **A primitive wire property is rejected.** A primitive is always present (its default), so it can never carry the null-as-absent signal; use the wrapper type (`Integer`, `Boolean`). This is *forced*, not a style choice: an all-absent body must fold to the identity update, which a primitive would break.
 - **A domain `Optional<T>` component is rejected.** Under null-as-absent, `null` already means "leave unchanged", so "set to empty" has no encoding (and a null-clears rule would be JSON Merge Patch's opposite contract). Model the field as a nested record or a sentinel instead.
 - **A record wire is rejected.** A record component is always present, so absence is inexpressible - sparse PATCH is a bean-only shape.
+- **A sealed hierarchy is rejected**, on either side: dispatch has no sparse meaning (an absent property cannot choose a subtype to patch).
+- **A container whose elements need mapping** (`List<AddressDto>` wire against `List<Address>` domain) **is rejected**: element lifting is a dense concern. The workaround the diagnostic offers is a whole-container leaf (`ValidatedPrism<List<AddressDto>, List<Address>>`), which replaces wholesale through your prism.
 - **Coverage is one-sided.** Every wire property maps to a domain component, but a domain component with *no* wire property is simply never changed: a PATCH DTO deliberately covers a subset.
-- **A same-typed nested record, `List` or `Map` replaces wholesale** through identity; a nested record whose wire differs is patched wholesale through its own full mapping spec. Deep merge is out of scope.
+- **A same-typed nested record, `List` or `Map` replaces wholesale** through identity, elements included, unscanned: the sparse tier writes what was sent, it does not validate identity values. A nested record whose wire differs is patched wholesale through its own full mapping spec. Deep merge is out of scope.
 
 The sparse tier is law-checked like every other, through the same `MappingLaws` harness:
 

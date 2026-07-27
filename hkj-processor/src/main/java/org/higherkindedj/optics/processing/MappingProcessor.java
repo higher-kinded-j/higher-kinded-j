@@ -81,14 +81,14 @@ import org.higherkindedj.optics.processing.util.Diagnostics;
  * <p>One null doctrine covers both wire shapes: every reference-typed {@code parse} read is
  * null-guarded into a located {@code FieldError} — an unset bean property is null, and a JSON
  * binder leaves a missing record component null just the same — so a component-level null is a
- * located, accumulated invalid, never an exception. The doctrine reaches inside containers too: a
- * null <em>element</em> or map <em>value</em> locates by its index or key ({@code emails.1: must
- * not be null}). What stays the caller-contract {@code requireNonNull}: a null wire itself, and a
- * null map <em>key</em> (a structurally broken map, not a wrong value). What stays bean-only is the
- * <em>absence</em> contract: only a bean property is legitimately unset, so only bean guards cost
- * the Iso tier — {@code asIso()} is truthful for an all-primitive bean, while a lossless record
- * mapping keeps it with the parse-iso coherence law scoped to wires whose reference components are
- * non-null.
+ * located, accumulated invalid, never an exception. The doctrine reaches inside containers too,
+ * identity-copied ones included: a null <em>element</em> or map <em>value</em> locates by its index
+ * or key ({@code emails.1: must not be null}). What stays the caller-contract {@code
+ * requireNonNull}: a null wire itself, and a null map <em>key</em> (a structurally broken map, not
+ * a wrong value). What stays bean-only is the <em>absence</em> contract: only a bean property is
+ * legitimately unset, so only bean guards cost the Iso tier — {@code asIso()} is truthful for an
+ * all-primitive bean, while a lossless record mapping keeps it with the parse-iso coherence law
+ * scoped to wires whose reference components are non-null.
  *
  * <p>The wire may be a bean-shaped class instead of a record ({@link WireShape}): {@code build}
  * fills it through setters or a builder and {@code parse} reads it through getters; a domain {@code
@@ -331,7 +331,140 @@ public class MappingProcessor extends AbstractProcessor {
    * would leave the generated Impl with an unimplemented member (or a meaningless rename on a
    * sealed mapping, which has no components).
    */
-  private boolean validateSpecMethods(TypeElement spec, boolean sealedPair) {
+  /**
+   * A one-parameter abstract method over exactly the spec's declared pair, in either direction: the
+   * hand-written-mapper reflex ({@code UserDto toDto(User)}), deserving a targeted answer rather
+   * than the generic neither-rename-nor-leaf diagnostic.
+   */
+  private boolean isHandMapperShaped(
+      ExecutableElement method, TypeMirror domainArg, TypeMirror wireArg) {
+    if (method.getParameters().size() != 1) {
+      return false;
+    }
+    Types types = processingEnv.getTypeUtils();
+    TypeMirror parameter = method.getParameters().getFirst().asType();
+    TypeMirror returned = method.getReturnType();
+    return (types.isSameType(parameter, domainArg) && types.isSameType(returned, wireArg))
+        || (types.isSameType(parameter, wireArg) && types.isSameType(returned, domainArg));
+  }
+
+  /**
+   * Zero-parameter {@code default} returning a two-argument {@code ValidatedPrism}: leaf-shaped.
+   */
+  private static boolean isLeafShaped(ExecutableElement method) {
+    return method.isDefault()
+        && method.getParameters().isEmpty()
+        && method.getReturnType() instanceof DeclaredType returnType
+        && ((TypeElement) returnType.asElement()).getQualifiedName().contentEquals(VALIDATED_PRISM)
+        && returnType.getTypeArguments().size() == 2;
+  }
+
+  /**
+   * A locally declared leaf must name a domain component: an unmatched local leaf would silently
+   * validate nothing - the typo'd-leaf hazard. Inherited leaves stay inert instead, so a shared
+   * mix-in vocabulary may carry leaves for components only some extending specs have; helpers
+   * belong in {@code private} or {@code static} methods, which are not leaf-shaped.
+   */
+  private boolean checkLocalLeavesBind(TypeElement spec, TypeElement domain) {
+    List<String> components =
+        domain.getRecordComponents().stream().map(c -> c.getSimpleName().toString()).toList();
+    for (ExecutableElement method : specMembers(spec)) {
+      if (!method.getEnclosingElement().equals(spec) || !isLeafShaped(method)) {
+        continue;
+      }
+      String name = method.getSimpleName().toString();
+      if (components.contains(name)) {
+        continue;
+      }
+      // The one leaf-shaped name a generated member also carries: the collision sweep owns it
+      // and reports the collision, which is the better diagnostic for that mistake.
+      if (name.equals("asValidatedPrism")) {
+        continue;
+      }
+      Diagnostics.error(
+          processingEnv.getMessager(),
+          method,
+          TAG,
+          "leaf '" + name + "' names no component of " + domain.getSimpleName() + ".",
+          "A leaf is a zero-parameter 'default' named after the DOMAIN component it parses; an"
+              + " unmatched leaf would silently validate nothing."
+              + didYouMean(name, components)
+              + " Found on "
+              + domain.getSimpleName()
+              + ": "
+              + components
+              + ".",
+          "Rename the method to the component it parses, or make it 'private' or 'static' if it"
+              + " is a helper.");
+      return false;
+    }
+    return true;
+  }
+
+  /**
+   * A sealed dispatch has no components, so locally declared leaves and derived fields have nothing
+   * to bind to; inherited ones stay inert, so a shared mix-in vocabulary still fits.
+   */
+  private boolean checkNoSealedVocabulary(TypeElement spec) {
+    for (ExecutableElement method : specMembers(spec)) {
+      if (!method.getEnclosingElement().equals(spec)) {
+        continue;
+      }
+      boolean leaf = isLeafShaped(method);
+      if (!leaf && !isDerivedCandidate(method)) {
+        continue;
+      }
+      Diagnostics.error(
+          processingEnv.getMessager(),
+          method,
+          TAG,
+          (leaf ? "leaf '" : "derived field '")
+              + method.getSimpleName()
+              + "' has no meaning on a sealed mapping.",
+          "Leaves and derived fields bind to record components; a sealed mapping dispatches over"
+              + " its permitted subtypes and has no components.",
+          "Move the method onto the subtype pair's own spec.");
+      return false;
+    }
+    return true;
+  }
+
+  /** A nearest-name hint for the unmatched-leaf diagnostic, when one is close enough to help. */
+  private static String didYouMean(String name, List<String> candidates) {
+    String best = null;
+    int bestDistance = 3;
+    for (String candidate : candidates) {
+      int distance = levenshtein(name, candidate);
+      if (distance < bestDistance) {
+        bestDistance = distance;
+        best = candidate;
+      }
+    }
+    return best == null ? "" : " Did you mean '" + best + "()'?";
+  }
+
+  private static int levenshtein(String a, String b) {
+    int[] previous = new int[b.length() + 1];
+    int[] current = new int[b.length() + 1];
+    for (int j = 0; j <= b.length(); j++) {
+      previous[j] = j;
+    }
+    for (int i = 1; i <= a.length(); i++) {
+      current[0] = i;
+      for (int j = 1; j <= b.length(); j++) {
+        int substitution = a.charAt(i - 1) == b.charAt(j - 1) ? 0 : 1;
+        current[j] =
+            Math.min(Math.min(current[j - 1] + 1, previous[j] + 1), previous[j - 1] + substitution);
+      }
+      int[] swap = previous;
+      previous = current;
+      current = swap;
+    }
+    return previous[b.length()];
+  }
+
+  private boolean validateSpecMethods(
+      TypeElement spec, boolean sealedPair, TypeMirror domainArg, TypeMirror wireArg) {
     for (ExecutableElement method : specMembers(spec)) {
       MapField mapField = method.getAnnotation(MapField.class);
       if (!method.getModifiers().contains(Modifier.ABSTRACT)) {
@@ -353,6 +486,23 @@ public class MappingProcessor extends AbstractProcessor {
         continue;
       }
       if (mapField == null) {
+        if (isHandMapperShaped(method, domainArg, wireArg)) {
+          Diagnostics.error(
+              processingEnv.getMessager(),
+              method,
+              TAG,
+              "abstract method '"
+                  + method.getSimpleName()
+                  + "'"
+                  + inheritedNote(method, spec)
+                  + " redeclares the mapping itself.",
+              "The spec declares vocabulary (renames, leaves, derived fields); the mapping"
+                  + " methods are generated. This signature is what the generated Impl already"
+                  + " exposes.",
+              "Delete the method and call the generated Impl: 'build(Domain) : Wire' for the"
+                  + " outbound direction, 'parse(Wire)' for the accumulating inbound one.");
+          return false;
+        }
         if (isAbstractLeaf(method)) {
           if (!sealedPair && !spec.getTypeParameters().isEmpty()) {
             continue;
@@ -578,11 +728,18 @@ public class MappingProcessor extends AbstractProcessor {
 
     TypeElement sealedDomain = asSealed(specSuper.getTypeArguments().get(0));
     TypeElement sealedWire = asSealed(specSuper.getTypeArguments().get(1));
-    if (!validateSpecMethods(spec, sealedDomain != null && sealedWire != null)) {
+    if (!validateSpecMethods(
+        spec,
+        sealedDomain != null && sealedWire != null,
+        specSuper.getTypeArguments().get(0),
+        specSuper.getTypeArguments().get(1))) {
       return;
     }
     if (sealedDomain != null && sealedWire != null) {
       if (!checkNotGeneric(spec, sealedDomain, sealedWire)) {
+        return;
+      }
+      if (!checkNoSealedVocabulary(spec)) {
         return;
       }
       processSealedSpec(spec, registry, sealedDomain, sealedWire);
@@ -623,6 +780,10 @@ public class MappingProcessor extends AbstractProcessor {
         return;
       }
       wireUsed = wireBean.asType();
+    }
+
+    if (!checkLocalLeavesBind(spec, domain)) {
+      return;
     }
 
     Map<String, String> renames = collectRenames(spec, domain, wireShape);
@@ -733,7 +894,7 @@ public class MappingProcessor extends AbstractProcessor {
       return;
     }
 
-    if (!validateSpecMethods(spec, false)) {
+    if (!validateSpecMethods(spec, false, domainArg, wireArg)) {
       return;
     }
     if (!checkNoDerivedFields(spec)) {
@@ -743,6 +904,9 @@ public class MappingProcessor extends AbstractProcessor {
     TypeElement domain = asRecord(domainArg);
     if (domain == null) {
       reportUpdateDomainNotRecord(spec, domainArg);
+      return;
+    }
+    if (!checkLocalLeavesBind(spec, domain)) {
       return;
     }
 
@@ -1230,6 +1394,10 @@ public class MappingProcessor extends AbstractProcessor {
 
   private enum Kind {
     IDENTITY,
+    // Same-typed List/Map components: copied by identity, but parse scans for null
+    // elements/values so the located-null doctrine holds inside identity containers too.
+    IDENTITY_LIST,
+    IDENTITY_MAP,
     LEAF,
     LIST,
     OPTIONAL,
@@ -1245,8 +1413,33 @@ public class MappingProcessor extends AbstractProcessor {
    */
   private record Correspondence(String name, String wireName, Kind kind, CodeBlock prism) {
     boolean fallible() {
-      return kind != Kind.IDENTITY;
+      return switch (kind) {
+        // Identity-container null scans guard hostile bindings, like every identity guard;
+        // they do not make the mapping fallible for tier selection.
+        case IDENTITY, IDENTITY_LIST, IDENTITY_MAP -> false;
+        default -> true;
+      };
     }
+  }
+
+  /** Identity components copy verbatim; a same-typed List/Map additionally scans for nulls. */
+  private Kind identityKind(TypeMirror type) {
+    if (isExactly(type, "java.util.List")) {
+      return Kind.IDENTITY_LIST;
+    }
+    if (isExactly(type, "java.util.Map")) {
+      return Kind.IDENTITY_MAP;
+    }
+    return Kind.IDENTITY;
+  }
+
+  /**
+   * Whether a mirror is exactly the given container type (not a subtype). Shared with {@code
+   * MergeProcessor}, like the emitted guard helpers.
+   */
+  static boolean isExactly(TypeMirror type, String qualifiedName) {
+    return type instanceof DeclaredType declared
+        && ((TypeElement) declared.asElement()).getQualifiedName().contentEquals(qualifiedName);
   }
 
   private record PrismResolution(CodeBlock accessor, boolean ambiguous) {
@@ -1912,7 +2105,7 @@ public class MappingProcessor extends AbstractProcessor {
       return containerLeaf;
     }
     if (processingEnv.getTypeUtils().isSameType(domainType, wireType)) {
-      return new Correspondence(name, wireName, Kind.IDENTITY, null);
+      return new Correspondence(name, wireName, identityKind(domainType), null);
     }
     TypeMirror wireElement = containerElement(wireType, "java.util.List");
     TypeMirror domainElement = containerElement(domainType, "java.util.List");
@@ -2305,7 +2498,7 @@ public class MappingProcessor extends AbstractProcessor {
               ? CodeBlock.of("domain.$L()", c.name())
               : CodeBlock.of("domain.$L().map($L::build)", c.name(), c.prism());
       case MAP -> CodeBlock.of("$L.buildValues(domain.$L())", c.prism(), c.name());
-      case IDENTITY -> CodeBlock.of("domain.$L()", c.name());
+      case IDENTITY, IDENTITY_LIST, IDENTITY_MAP -> CodeBlock.of("domain.$L()", c.name());
       case DERIVED -> CodeBlock.of("$L.get(domain)", c.prism());
     };
   }
@@ -2364,6 +2557,14 @@ public class MappingProcessor extends AbstractProcessor {
   }
 
   /**
+   * Whether a leg's guard is the {@code hkj$ifPresent} wrapper. Identity containers guard through
+   * their own scanning helpers instead, so they need those emitted, not this one.
+   */
+  private static boolean usesIfPresent(Correspondence c, WireShape wire) {
+    return guardedRead(c, wire) && c.kind() != Kind.IDENTITY_LIST && c.kind() != Kind.IDENTITY_MAP;
+  }
+
+  /**
    * Whether a guarded read costs the Iso tier: only on a bean wire. A bean's reference property is
    * legitimately unset in normal use, so its guarded read is fallible and {@code asIso()} stays
    * truthful only for an all-primitive bean. A record wire's guard exists for hostile input (a
@@ -2373,6 +2574,108 @@ public class MappingProcessor extends AbstractProcessor {
    */
   private static boolean lossyRead(Correspondence c, WireShape wire) {
     return wire instanceof WireShape.BeanShape && guardedRead(c, wire);
+  }
+
+  /**
+   * The {@code hkj$allPresent} guard for identity-copied {@code List} components: total over a null
+   * list ({@code must not be null}, labelled by the ladder), and each null element is a located
+   * invalid at its index, accumulating - the same doctrine {@code ValidatedPrism#parseAll} enforces
+   * on lifted legs. Valid lists are passed through by reference; identity legs copy, they do not
+   * rebuild.
+   */
+  static MethodSpec allPresentHelper() {
+    TypeVariableName e = TypeVariableName.get("E");
+    TypeName listOfE = ParameterizedTypeName.get(ClassName.get("java.util", "List"), e);
+    TypeName validatedOfList =
+        ParameterizedTypeName.get(VALIDATED, ParameterizedTypeName.get(NEL, FIELD_ERROR), listOfE);
+    TypeName nelOfError = ParameterizedTypeName.get(NEL, FIELD_ERROR);
+    return MethodSpec.methodBuilder("hkj$allPresent")
+        .addModifiers(Modifier.PRIVATE, Modifier.STATIC)
+        .addTypeVariable(e)
+        .returns(validatedOfList)
+        .addParameter(listOfE, "values")
+        .addJavadoc(
+            "Guards an identity-copied list: a null element is a located invalid at its index,"
+                + " accumulating.\n")
+        .beginControlFlow("if (values == null)")
+        .addStatement("return $T.invalidNel($T.of($S))", VALIDATED, FIELD_ERROR, "must not be null")
+        .endControlFlow()
+        .addStatement("$T failures = null", nelOfError)
+        // iterate rather than index: values.get(i) is quadratic on a LinkedList
+        .addStatement("int i = 0")
+        .beginControlFlow("for (Object element : values)")
+        .beginControlFlow("if (element == null)")
+        .addStatement(
+            "$T located = $T.of($T.of($S).at($T.valueOf(i)))",
+            nelOfError,
+            NEL,
+            FIELD_ERROR,
+            "must not be null",
+            ClassName.get(String.class))
+        .addStatement(
+            "failures = failures == null ? located : $T.<$T>semigroup().combine(failures,"
+                + " located)",
+            NEL,
+            FIELD_ERROR)
+        .endControlFlow()
+        .addStatement("i++")
+        .endControlFlow()
+        .addStatement(
+            "return failures == null ? $T.valid(values) : $T.invalid(failures)",
+            VALIDATED,
+            VALIDATED)
+        .build();
+  }
+
+  /**
+   * The {@code hkj$valuesPresent} guard for identity-copied {@code Map} components: total over a
+   * null map, and each null value is a located invalid under its key, accumulating - matching
+   * {@code ValidatedPrism#parseValues}. Keys are structural: a null key stays the caller's {@code
+   * NullPointerException}, as in the bulk forms.
+   */
+  static MethodSpec valuesPresentHelper() {
+    TypeVariableName k = TypeVariableName.get("K");
+    TypeVariableName v = TypeVariableName.get("V");
+    TypeName mapOfKv = ParameterizedTypeName.get(ClassName.get("java.util", "Map"), k, v);
+    TypeName validatedOfMap =
+        ParameterizedTypeName.get(VALIDATED, ParameterizedTypeName.get(NEL, FIELD_ERROR), mapOfKv);
+    TypeName nelOfError = ParameterizedTypeName.get(NEL, FIELD_ERROR);
+    TypeName entry = ParameterizedTypeName.get(ClassName.get("java.util.Map", "Entry"), k, v);
+    return MethodSpec.methodBuilder("hkj$valuesPresent")
+        .addModifiers(Modifier.PRIVATE, Modifier.STATIC)
+        .addTypeVariable(k)
+        .addTypeVariable(v)
+        .returns(validatedOfMap)
+        .addParameter(mapOfKv, "values")
+        .addJavadoc(
+            "Guards an identity-copied map: a null value is a located invalid under its key,"
+                + " accumulating; a null key is the caller's NullPointerException.\n")
+        .beginControlFlow("if (values == null)")
+        .addStatement("return $T.invalidNel($T.of($S))", VALIDATED, FIELD_ERROR, "must not be null")
+        .endControlFlow()
+        .addStatement("$T failures = null", nelOfError)
+        .beginControlFlow("for ($T entry : values.entrySet())", entry)
+        .addStatement("$T.requireNonNull(entry.getKey(), $S)", OBJECTS, "map keys must not be null")
+        .beginControlFlow("if (entry.getValue() == null)")
+        .addStatement(
+            "$T located = $T.of($T.of($S).at($T.valueOf(entry.getKey())))",
+            nelOfError,
+            NEL,
+            FIELD_ERROR,
+            "must not be null",
+            ClassName.get(String.class))
+        .addStatement(
+            "failures = failures == null ? located : $T.<$T>semigroup().combine(failures,"
+                + " located)",
+            NEL,
+            FIELD_ERROR)
+        .endControlFlow()
+        .endControlFlow()
+        .addStatement(
+            "return failures == null ? $T.valid(values) : $T.invalid(failures)",
+            VALIDATED,
+            VALIDATED)
+        .build();
   }
 
   /**
@@ -2434,7 +2737,9 @@ public class MappingProcessor extends AbstractProcessor {
     // state), so only an all-primitive bean stays lossless; a record wire's guards are for
     // hostile null bindings only and do not cost the Iso tier.
     boolean lossless = comps.stream().noneMatch(c -> c.fallible() || lossyRead(c, wire));
-    boolean needsGuardHelper = comps.stream().anyMatch(c -> guardedRead(c, wire));
+    boolean needsGuardHelper = comps.stream().anyMatch(c -> usesIfPresent(c, wire));
+    boolean needsAllPresent = comps.stream().anyMatch(c -> c.kind() == Kind.IDENTITY_LIST);
+    boolean needsValuesPresent = comps.stream().anyMatch(c -> c.kind() == Kind.IDENTITY_MAP);
 
     List<EmittedMember> emitted = new ArrayList<>();
     emitted.add(EmittedMember.of("build", domainDeclared));
@@ -2496,6 +2801,12 @@ public class MappingProcessor extends AbstractProcessor {
     if (needsGuardHelper) {
       implBuilder.addMethod(ifPresentHelper());
     }
+    if (needsAllPresent) {
+      implBuilder.addMethod(allPresentHelper());
+    }
+    if (needsValuesPresent) {
+      implBuilder.addMethod(valuesPresentHelper());
+    }
 
     if (lossless) {
       ClassName iso = ClassName.get("org.higherkindedj.optics", "Iso");
@@ -2551,6 +2862,10 @@ public class MappingProcessor extends AbstractProcessor {
               ? CodeBlock.of(
                   "\n.field($S, hkj$$ifPresent($L, $T::validNel))", c.name(), read, VALIDATED)
               : CodeBlock.of("\n.field($S, $T.validNel($L))", c.name(), VALIDATED, read);
+      // Identity containers copy by reference, but a null element/value is a located invalid
+      // at its index/key - the same doctrine the lifted legs enforce via parseAll/parseValues.
+      case IDENTITY_LIST -> CodeBlock.of("\n.field($S, hkj$$allPresent($L))", c.name(), read);
+      case IDENTITY_MAP -> CodeBlock.of("\n.field($S, hkj$$valuesPresent($L))", c.name(), read);
       // A nullable bean read bridges to the domain Optional: null becomes Optional.empty, so
       // it is never guarded and never fails on absence.
       case OPTIONAL_BRIDGE ->
@@ -2703,6 +3018,12 @@ public class MappingProcessor extends AbstractProcessor {
     // A patch tier always carries at least one fallible correspondence, which is always a
     // reference read, so the guard helper is always needed.
     implBuilder.addMethod(ifPresentHelper());
+    if (comps.stream().anyMatch(c -> c.kind() == Kind.IDENTITY_LIST)) {
+      implBuilder.addMethod(allPresentHelper());
+    }
+    if (comps.stream().anyMatch(c -> c.kind() == Kind.IDENTITY_MAP)) {
+      implBuilder.addMethod(valuesPresentHelper());
+    }
     writeFile(spec, specName.packageName(), implBuilder.build());
   }
 
