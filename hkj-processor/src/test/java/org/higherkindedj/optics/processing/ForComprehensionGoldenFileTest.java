@@ -30,9 +30,8 @@ import org.junit.jupiter.params.provider.MethodSource;
  * <p>Golden files are stored in {@code src/test/resources/golden/forcomp/} and are loaded as
  * classpath resources at runtime.
  *
- * <p>Note: the overall compilation will not succeed because generated code references types from
- * {@code hkj-core} which is not on the test classpath. However, the annotation processor still runs
- * and generates source files which can be extracted for comparison.
+ * <p>The golden pins the generated source text; the fixture compiles cleanly (hkj-core is on the
+ * processor's test classpath), so the compilation status is asserted before the source is compared.
  *
  * <h3>Updating Golden Files</h3>
  *
@@ -190,8 +189,11 @@ class ForComprehensionGoldenFileTest {
   void generatedCodeMatchesGolden(GoldenTestCase testCase) throws IOException {
     Compilation compilation = compile();
 
-    // The generated source should exist even if overall compilation fails
-    // (it fails because generated code references hkj-core types not on test classpath)
+    assertThat(compilation.status())
+        .as("Compilation should succeed for %s", testCase.generatedClassName())
+        .isEqualTo(Compilation.Status.SUCCESS);
+
+    // The generated source is what the golden pins; the compilation status is asserted above.
     Optional<JavaFileObject> generatedFile =
         compilation.generatedSourceFile(testCase.generatedClassName());
     assertThat(generatedFile)
