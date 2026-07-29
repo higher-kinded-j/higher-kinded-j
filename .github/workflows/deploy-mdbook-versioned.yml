@@ -95,6 +95,19 @@ jobs:
           git checkout "refs/tags/${VERSION}" -- hkj-book/src
         shell: bash
 
+      - name: Sanitise hijacked pcollections.org links (issue 681)
+        run: |
+          # pcollections.org no longer belongs to the PCollections project and
+          # serves spam. Content restored from tags v0.4.4-v0.4.8 still links
+          # to it; rewrite to the project's GitHub repository. No-op for
+          # current sources, which already use the GitHub URL.
+          find "${BOOK_ROOT_DIR}/src" -name '*.md' -exec \
+            sed -i 's#https://pcollections\.org/#https://github.com/hrldcpr/pcollections#g' {} +
+          if grep -rn 'pcollections\.org' "${BOOK_ROOT_DIR}/src"; then
+            echo "::warning::pcollections.org references remain after sanitisation"
+          fi
+        shell: bash
+
       - name: Setup mdBook and Rust Environment
         uses: peaceiris/actions-mdbook@v2
         with:

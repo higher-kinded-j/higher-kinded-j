@@ -7,7 +7,7 @@
 - Where natural-ordering caveats apply for sorted variants
 ~~~
 
-[PCollections](https://pcollections.org/) persistent collections are first-class citizens of the optics generator system. Annotating a record whose components are `PVector`, `PStack`, `PSet`, `PSortedSet`, `PBag`, `PMap`, or `PSortedMap` produces traversal code that round-trips through the persistent type, with no production-code changes required.
+[PCollections](https://github.com/hrldcpr/pcollections) persistent collections are first-class citizens of the optics generator system. Annotating a record whose components are `PVector`, `PStack`, `PSet`, `PSortedSet`, `PBag`, `PMap`, or `PSortedMap` produces traversal code that round-trips through the persistent type, with no production-code changes required.
 
 This page documents the seven PCollections generator plugins. For the underlying compatibility hypothesis and benchmark numbers, see [PCollections Integration](pcollections_integration.md).
 

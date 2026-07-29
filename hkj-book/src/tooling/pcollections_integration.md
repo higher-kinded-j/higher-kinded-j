@@ -7,7 +7,7 @@
 - How to add PCollections to your own project as an opt-in dependency
 ~~~
 
-[PCollections](https://pcollections.org/) is a small, lightweight library of persistent immutable
+[PCollections](https://github.com/hrldcpr/pcollections) is a small, lightweight library of persistent immutable
 data structures whose types implement the standard `java.util` interfaces. `PVector` implements
 `List`, `PStack` implements `List`, `PSet` implements `Set`, and so on. That `java.util`
 compatibility makes PCollections a particularly easy fit for Higher-Kinded-J: any `PVector` or
