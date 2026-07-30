@@ -847,7 +847,7 @@ class MappingProcessorBeanTest {
       Assertions.assertThat(generated)
           .contains("wire.setTitle(domain.title());")
           .contains("wire.getTags().addAll(domain.tags());")
-          .contains(".field(\"tags\", hkj$ifPresent(wire.getTags(), Validated::validNel))");
+          .contains(".field(\"tags\", hkj$allPresent(wire.getTags()))");
 
       var result = new RuntimeCompilationHelper.CompiledResult(compilation);
       try {

@@ -114,17 +114,18 @@ public final class RecordMappingBook {
 
     // The projected components validate and write back; the unprojected id survives untouched.
     Validated<NonEmptyList<FieldError>, Subscriber> renewed =
-        SubscriberPatchMappingImpl.INSTANCE.patch(
-            subscriber, new SubscriberPatchDto("grace@corp.example", 37));
+        SubscriberDetailsMappingImpl.INSTANCE.patch(
+            subscriber, new SubscriberDetailsDto("grace@corp.example", 37));
     // Valid(Subscriber[id=7, email=EmailAddress[value=grace@corp.example], age=37])
 
     // Dense semantics: every projected field applies - a null is a located error, never absence.
-    SubscriberPatchMappingImpl.INSTANCE.patch(subscriber, new SubscriberPatchDto(null, 37));
+    SubscriberDetailsMappingImpl.INSTANCE.patch(subscriber, new SubscriberDetailsDto(null, 37));
     // Invalid(NonEmptyList[email: must not be null])
     // ANCHOR_END: leaf_projection_usage
     System.out.println(renewed);
     System.out.println(
-        SubscriberPatchMappingImpl.INSTANCE.patch(subscriber, new SubscriberPatchDto(null, 37)));
+        SubscriberDetailsMappingImpl.INSTANCE.patch(
+            subscriber, new SubscriberDetailsDto(null, 37)));
 
     // ANCHOR: bean_usage
     Customer ada = new Customer("Ada", new EmailAddress("ada@corp.example"));
@@ -331,10 +332,10 @@ interface EmployeeCardMapping extends MappingSpec<Employee, EmployeeCardDto> {}
 // ANCHOR: leaf_projection_spec
 record Subscriber(String id, EmailAddress email, int age) {}
 
-record SubscriberPatchDto(String email, int age) {}
+record SubscriberDetailsDto(String email, int age) {}
 
 @GenerateMapping
-interface SubscriberPatchMapping extends MappingSpec<Subscriber, SubscriberPatchDto> {
+interface SubscriberDetailsMapping extends MappingSpec<Subscriber, SubscriberDetailsDto> {
   default ValidatedPrism<String, EmailAddress> email() {
     return ValidatedPrism.of(
         raw ->

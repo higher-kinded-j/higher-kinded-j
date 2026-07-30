@@ -9,25 +9,25 @@ import org.higherkindedj.hkt.validated.Validated;
 import org.higherkindedj.optics.annotations.Generated;
 
 /**
- * Generated projection mapping for {@link SubscriberPatchMapping}: total {@code build} and a validated {@code patch} write-back. No {@code parse} is emitted — the dropped components cannot be reconstructed (truthful types).
+ * Generated projection mapping for {@link SubscriberDetailsMapping}: total {@code build} and a validated {@code patch} write-back. No {@code parse} is emitted — the dropped components cannot be reconstructed (truthful types).
  */
 @Generated
-public final class SubscriberPatchMappingImpl implements SubscriberPatchMapping {
-  public static final SubscriberPatchMappingImpl INSTANCE = new SubscriberPatchMappingImpl();
+public final class SubscriberDetailsMappingImpl implements SubscriberDetailsMapping {
+  public static final SubscriberDetailsMappingImpl INSTANCE = new SubscriberDetailsMappingImpl();
 
-  private SubscriberPatchMappingImpl() {
+  private SubscriberDetailsMappingImpl() {
   }
 
-  public SubscriberPatchDto build(Subscriber domain) {
+  public SubscriberDetailsDto build(Subscriber domain) {
     Objects.requireNonNull(domain, "domain must not be null");
-    return new SubscriberPatchDto(email().build(domain.email()), domain.age());
+    return new SubscriberDetailsDto(email().build(domain.email()), domain.age());
   }
 
   /**
    * Writes the wire's projected components onto {@code domain}, validating each one; every bad field is reported at once, located under its component name, and unprojected components stay untouched. Dense: every projected component applies, and a {@code null} reference read is a located error, never absence — contrast {@code UpdateSpec}'s sparse {@code updateFrom}. Nulls locate through nesting too: a nested wire value delegates to the nested spec's parse, whose reference legs carry the same guard.
    */
   public Validated<NonEmptyList<FieldError>, Subscriber> patch(Subscriber domain,
-      SubscriberPatchDto wire) {
+      SubscriberDetailsDto wire) {
     Objects.requireNonNull(domain, "domain must not be null");
     Objects.requireNonNull(wire, "wire must not be null");
     return Validated.fields()

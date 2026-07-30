@@ -48,15 +48,15 @@ package org.higherkindedj.optics.annotations;
  *   <li><b>Absent (null)</b> — skipped; the domain's current value survives.
  * </ul>
  *
- * <p>The wire type {@code B} must be a bean-shaped class (a record cannot distinguish an absent
+ * <p>The wire type {@code W} must be a bean-shaped class (a record cannot distinguish an absent
  * component from a null-typed one), and every wire property must be reference-typed — a primitive
  * property is always present, so it can never carry the null-as-absent signal and is rejected with
- * a diagnostic pointing at the wrapper type. The domain type {@code A} must be a record. Coverage
+ * a diagnostic pointing at the wrapper type. The domain type {@code D} must be a record. Coverage
  * is one-sided: every wire property maps to a domain component, but a domain component with no wire
  * property is simply never changed.
  *
- * @param <A> the domain type (a record)
- * @param <B> the wire type (a bean-shaped PATCH DTO)
+ * @param <D> the domain type (a record)
+ * @param <W> the wire type (a bean-shaped PATCH DTO)
  * @see MappingSpec
  */
-public interface UpdateSpec<A, B> extends MappingSpec<A, B> {}
+public interface UpdateSpec<D, W> {}

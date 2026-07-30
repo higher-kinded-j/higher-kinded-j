@@ -145,7 +145,7 @@ For services with complex domain workflows, Higher-Kinded-J provides algebraic-e
 
 The boundary between your domain records and the wire is usually hand-written mappers or a reflective bean-mapper. Higher-Kinded-J turns it into compile-time codegen that never loses an error:
 
-* **[`@GenerateMapping`](optics/record_mapping.md)** generates a total `build` **and** an accumulating `parse` returning `Validated<NonEmptyList<FieldError>, T>`; every emission tier is law-checked against `hkj-test`
+* **[`@GenerateMapping`](optics/record_mapping.md)** maps a record domain to the wire both ways, whatever the wire's shape: record or bean-shaped (getters/setters or builder) DTOs, generic records, sealed hierarchies, with shared mix-in vocabularies across specs. A total `build` out; an accumulating `parse` back returning `Validated<NonEmptyList<FieldError>, T>`; and both PATCH styles as write-backs (a dense validated `patch`, a sparse null-as-absent `updateFrom`). One null doctrine throughout: a missing value is a located error (`customer.email: must not be null`, `emails.1: ...`), never an exception. Every emission tier is law-checked against `hkj-test` and pinned by golden files
 * **[`@GenerateMerge`](optics/record_mapping.md)** assembles one target record from several source records, filling each component by name
 * **[Open-arity accumulating assembly](monads/validated_assembly.md)** (`fields()` / `accumulate()` / `@GenerateAssembly`) builds a record from N independently-validated fields, collecting every error in declaration order with no `Semigroup` ceremony
 * **[`@GenerateErrorEnvelope`](optics/record_mapping.md#generating-error-envelopes-generateerrorenvelope)** gives a sealed error hierarchy a typed context record (records-as-schema, not `Map<String, Object>`) with deterministic timestamps from a `TimeSource`
@@ -162,7 +162,7 @@ You don't need to learn an esoteric functional library to feel the benefit. Each
 |-------------|---------------------|---------------------------|
 | Nested `Optional`, thrown exceptions, and validation that stops at the first error | the standard library | one railway vocabulary (`map` / `via` / `recover`) across absence, typed errors, async, and **accumulating** validation |
 | `Option` / `Either` / `Try` from **Vavr** | the FP library most Java developers know | the same core types **plus** higher-kinded abstraction, a full optics suite, monad transformers, and an effect system, built natively on modern Java (records, sealed types, virtual threads), where Vavr keeps a Java 8 foundation |
-| **MapStruct** / ModelMapper for DTO↔domain mapping | annotation-driven mappers | `@GenerateMapping` with a total `build` **and** an accumulating `parse` that reports every bad field, law-checked at compile time |
+| **MapStruct** / ModelMapper for DTO↔domain mapping | annotation-driven mappers | `@GenerateMapping` over record, bean-shaped and generic wires: a total `build`, an accumulating `parse` that reports every bad field (nulls located, never an NPE), and generated PATCH write-backs, all law-checked by the build's test suite |
 | **Resilience4j** annotations for retry / circuit-breaker / bulkhead | AOP-style resilience | the same policies as composable path combinators (`withRetry` / `withCircuitBreaker` / `withBulkhead`) that treat a business `Left` as a value, never as a failure to retry |
 | Hand-written `wither` / copy-constructor updates on records | manual boilerplate | generated lenses, prisms, and traversals: the most comprehensive optics available for Java |
 
@@ -260,6 +260,7 @@ Building enterprise applications with Spring Boot? The **hkj-spring-boot-starter
 * **Return Functional Types from Controllers:** Use `Either<Error, Data>`, `Validated<Errors, Data>`, and `CompletableFuturePath` as return types with automatic HTTP response conversion.
 * **Eliminate Exception Handling Boilerplate:** No more try-catch blocks or `@ExceptionHandler` methods; errors are explicit in your return types.
 * **Compose Operations Naturally:** Chain operations with `map` and `via` whilst preserving type safety and error information.
+* **Render Validation as One 422:** A mapper `parse` or `patch` result returned from a controller (or an `updateFrom` update applied first, via `.applyPath(current)`) renders as one response listing every bad field by path, status `hkj.web.validation-field-error-status` (default 422); no exception handler, no manual error DTO.
 * **Call Other Services Safely:** Generate declarative HTTP clients with `@HkjHttpClient` that return `EitherPath`/`VTaskPath` and decode the response back into a typed error, keeping the error channel intact across services.
 * **Accumulate Validation Errors:** Use `Validated` to collect **all** validation errors in a single request, improving user experience.
 * **Handle Async Operations:** Use `CompletableFuturePath` to compose asynchronous operations seamlessly.

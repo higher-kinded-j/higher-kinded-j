@@ -61,8 +61,8 @@ class MappingGoldenFileTest {
             "EmployeeCardMappingImpl.java.golden"),
         new GoldenTestCase(
             "leaf-carrying projection (validated patch)",
-            "com.example.patch.SubscriberPatchMappingImpl",
-            "SubscriberPatchMappingImpl.java.golden"),
+            "com.example.patch.SubscriberDetailsMappingImpl",
+            "SubscriberDetailsMappingImpl.java.golden"),
         new GoldenTestCase(
             "sparse update (updateFrom)",
             "com.example.update.UserPatchMappingImpl",
@@ -169,6 +169,7 @@ class MappingGoldenFileTest {
             String name,
             EmailAddress email,
             List<EmailAddress> cc,
+            List<String> tags,
             Optional<EmailAddress> lead,
             Map<String, EmailAddress> contacts,
             Address address) {}
@@ -177,6 +178,7 @@ class MappingGoldenFileTest {
             String name,
             String email,
             List<String> cc,
+            List<String> tags,
             Optional<String> lead,
             Map<String, String> contacts,
             AddressDto address,
@@ -313,10 +315,10 @@ class MappingGoldenFileTest {
 
         record Subscriber(String id, EmailAddress email, int age) {}
 
-        record SubscriberPatchDto(String email, int age) {}
+        record SubscriberDetailsDto(String email, int age) {}
 
         @GenerateMapping
-        interface SubscriberPatchMapping extends MappingSpec<Subscriber, SubscriberPatchDto> {
+        interface SubscriberDetailsMapping extends MappingSpec<Subscriber, SubscriberDetailsDto> {
           default ValidatedPrism<String, EmailAddress> email() {
             return ValidatedPrism.of(
                 raw ->

@@ -43,7 +43,7 @@ import org.higherkindedj.hkt.validated.Validated;
  * }</pre>
  *
  * <p><b>Semantics — two phases.</b> Phase one validates each edit's incoming value independently
- * (validation never sees a source, so accumulation is sound and an accumulated patch is reusable
+ * (validation never sees a source, so accumulation is sound and an accumulated update is reusable
  * across sources). Phase two applies the writes by a single sequential left-to-right fold onto the
  * source. Application order is observable only when paths overlap: disjoint paths commute, while an
  * edit at an overlapping path sees the previous edit's result. Genuinely coupled fields should be
@@ -105,7 +105,7 @@ public final class Edits {
    * @param edits the edits, validated independently and applied in the given order; must not be
    *     null or contain null
    * @param <S> the type of the value being edited
-   * @return the accumulated patch (non-null)
+   * @return the accumulated update (non-null)
    * @throws NullPointerException if {@code edits} is null or contains null
    */
   @SafeVarargs
@@ -120,7 +120,7 @@ public final class Edits {
    * @param edits the edits, validated independently and applied in list order; must not be null or
    *     contain null
    * @param <S> the type of the value being edited
-   * @return the accumulated patch (non-null)
+   * @return the accumulated update (non-null)
    * @throws NullPointerException if {@code edits} is null or contains null
    */
   public static <S> Accumulated<S> accumulate(List<? extends FallibleEdit<S>> edits) {
@@ -134,11 +134,11 @@ public final class Edits {
   }
 
   /**
-   * An accumulated patch: either one folded {@link Update} ready to apply, or every validation
+   * An accumulated update: either one folded {@link Update} ready to apply, or every validation
    * failure, located and in edit order.
    *
    * <p>Validation happened when the patch was built, independently of any source, so one
-   * accumulated patch can be applied to many sources.
+   * accumulated update can be applied to many sources.
    *
    * @param <S> the type of the value being edited
    */
@@ -151,8 +151,8 @@ public final class Edits {
     }
 
     /**
-     * Applies the patch: {@code Valid(updated)} with every write performed left to right, or {@code
-     * Invalid} carrying every validation failure.
+     * Applies the update: {@code Valid(updated)} with every write performed left to right, or
+     * {@code Invalid} carrying every validation failure.
      *
      * @param source the value to edit; must not be null
      * @return the outcome (non-null)
@@ -164,7 +164,7 @@ public final class Edits {
     }
 
     /**
-     * Applies the patch onto the railway: the {@link ValidationPath} twin of {@link #apply}.
+     * Applies the update onto the railway: the {@link ValidationPath} twin of {@link #apply}.
      *
      * @param source the value to edit; must not be null
      * @return the outcome as a {@code ValidationPath} (non-null)
