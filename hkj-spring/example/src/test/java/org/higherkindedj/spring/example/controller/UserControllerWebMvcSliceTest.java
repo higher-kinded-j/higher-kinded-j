@@ -68,6 +68,8 @@ import org.springframework.test.web.servlet.MockMvc;
   HkjJacksonAutoConfiguration.class,
   HkjWebMvcAutoConfiguration.class
 })
+@org.springframework.context.annotation.Import(
+    org.higherkindedj.spring.example.config.MappingConfiguration.class)
 @DisplayName("UserController @WebMvcTest slice (with hkj-spring auto-config imported)")
 class UserControllerWebMvcSliceTest {
 

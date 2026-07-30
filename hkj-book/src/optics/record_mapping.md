@@ -441,6 +441,44 @@ Two verbs keep the two operations distinct: `ErrorEnvelope.withContext(D)` is th
 
 ---
 
+## Injecting and testing generated mappings
+
+A generated Impl is a stateless pure function reached through statics, and the spec interface deliberately declares nothing (`@Autowired UserMapping` injects nothing useful, by design). When you do want a Spring bean or a test double, register the **surface you consume**, per tier:
+
+| Tier surface | Injectable shape | From |
+|---|---|---|
+| parse-capable mapping | `ValidatedPrism<UserDto, User>` | `UserMappingImpl.INSTANCE.asValidatedPrism()` |
+| build only | `Function<User, UserDto>` | `UserMappingImpl.INSTANCE::build` |
+| validated `patch` | `BiFunction<User, UserCardDto, Validated<NonEmptyList<FieldError>, User>>` | `UserCardMappingImpl.INSTANCE::patch` |
+| sparse `updateFrom` | `Function<UserPatchDto, Edits.Accumulated<User>>` | `UserPatchMappingImpl.INSTANCE::updateFrom` |
+
+```java
+@Configuration
+class MappingConfiguration {
+  @Bean
+  ValidatedPrism<UserDto, User> userCodec() {
+    return UserMappingImpl.INSTANCE.asValidatedPrism();
+  }
+}
+```
+
+Spring resolves the full generic type, so codecs for different pairs coexist without ceremony; only two codecs for the *same* pair need a `@Qualifier`. An element-mapped Impl (`of(...)`) carries its prisms as state: construct it once, in the `@Bean` method.
+
+**Fakes are values, not mocks.** `ValidatedPrism` is sealed, so it cannot be hand-implemented, and a mocking framework cannot mock it either (sealed types are unmockable). That is the design, not a limitation: a test double is two lines of `ValidatedPrism.of(...)`:
+
+```java
+@Bean
+ValidatedPrism<UserDto, User> userCodec() {
+  return ValidatedPrism.of(
+      dto -> Validated.invalidNel(FieldError.of("rejected by the fake codec").at("email")),
+      user -> new UserDto());
+}
+```
+
+The [hkj-spring example app](../spring/spring_boot_integration.md) demonstrates the seam end to end: `MappingConfiguration` registers the codec, `UserController`'s parse endpoint injects it, and `UserParseFakeCodecSliceTest` substitutes the fake above in a `@WebMvcTest` slice and asserts the located 422 it produces. The same controller's PATCH endpoint deliberately calls `UserPatchMappingImpl.INSTANCE` directly: injection buys substitution, not lifecycle, and a team comfortable calling `INSTANCE` loses nothing.
+
+---
+
 ## Diagnostics and limits
 
 Every rejection follows the processor's what/why/fix standard: the message states what is wrong, why the mapper needs it, and the code to write. Current limits, each with its own diagnostic:
