@@ -3,7 +3,7 @@
 This page documents the evolution of Higher-Kinded-J from its initial release through to the current version. Each release builds on the foundations established by earlier versions, progressively adding type classes, monads, optics, and the Effect Path API.
 
 ~~~admonish info title="What You'll Find"
-- Detailed release notes for recent versions (0.3.0–0.4.9) with links to documentation
+- Detailed release notes for recent versions (0.3.0–0.4.10) with links to documentation
 - Summary release notes for earlier versions (pre-0.3.0)
 - Links to GitHub release pages for full changelogs
 ~~~
@@ -12,9 +12,11 @@ This page documents the evolution of Higher-Kinded-J from its initial release th
 
 ## Recent Releases
 
-### 0.4.9-SNAPSHOT (Latest)
+### 0.4.10-SNAPSHOT (Latest)
 
 _In development. Release notes will be added here as changes land on `main`._
+
+### [v0.4.9](https://github.com/higher-kinded-j/higher-kinded-j/releases/tag/v0.4.9) (31 July 2026)
 
 This release completes the `@GenerateMapping` **mapper programme**: every wire shape a REST boundary throws at a record domain now maps through one spec convention, under one null doctrine, rendering as one 422 response.
 
@@ -26,6 +28,8 @@ This release completes the `@GenerateMapping` **mapper programme**: every wire s
 - **Generic records, three ways, all nestable**: concrete instantiations (`MappingSpec<Page<User>, PageDto<UserDto>>`), threaded specs (one generic Impl behind `instance()`), and element-mapped specs (an abstract `ValidatedPrism<TDto, T>` leaf supplied through a generated `of(...)` factory), with use sites resolving by type-argument unification and composing `of(...)` in place. Record-to-record only; raw and wildcard uses are diagnosed. See [Generic records](optics/record_mapping.md#generic-records-concrete-threaded-and-element-mapped).
 - **Shared vocabulary**: specs may extend plain mix-in interfaces carrying renames, leaves and derived fields, collected with Java's own precedence and diagnosed with the declaring interface named. See [Shared vocabulary](optics/record_mapping.md#shared-vocabulary-mix-in-interfaces).
 - Every tier is law-checked through `MappingLaws` (including located-validation clauses on both write-backs) and pinned by per-tier golden Impls, so generator drift fails the build.
+- **Build tooling**: every annotation processor registers with Gradle's incremental annotation processing (nineteen in `hkj-processor`, plus the Spring client processor; [#677](https://github.com/higher-kinded-j/higher-kinded-j/issues/677)), so consuming source sets keep incremental compilation. Lombok interop is covered by test: a `@Data` class works as a bean-shaped wire, provided Lombok is listed **before** `hkj-processor` on the processor path (the reverse order is diagnosed). See [Manual setup](tooling/manual_setup.md).
+- **Injection and testing documented** ([#678](https://github.com/higher-kinded-j/higher-kinded-j/issues/678)): register the surface you consume as a bean (`ValidatedPrism` for parse-capable mappings; method references for `build`, `patch` and `updateFrom`), and fake it as a value with `ValidatedPrism.of(...)` (the interface is sealed, so mocking is impossible by design). The Spring example app demonstrates the seam end to end. See [Injecting and testing generated mappings](optics/record_mapping.md#injecting-and-testing-generated-mappings).
 
 **One null doctrine** ([#653](https://github.com/higher-kinded-j/higher-kinded-j/issues/653), [#659](https://github.com/higher-kinded-j/higher-kinded-j/issues/659), [#660](https://github.com/higher-kinded-j/higher-kinded-j/issues/660))
 
