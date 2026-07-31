@@ -397,6 +397,8 @@ When an `Invalid` payload consists **entirely** of located `FieldError`s, the ha
 }
 ```
 
+To inject the mapping behind such an endpoint as a bean, or substitute a fake in a `@WebMvcTest` slice, see [Injecting and testing generated mappings](../optics/record_mapping.md#injecting-and-testing-generated-mappings); the example app's `MappingConfiguration`, `UserController` and `UserParseFakeCodecSliceTest` demonstrate the pattern end to end.
+
 `path` is the dot-joined display key (`FieldError.pathString()`); `segments` is the exact structured location. Paths use **domain** component names: under a `@MapField(to = "fullName")` rename the client that sent `fullName` receives its error at `name`, so a client mapping errors onto its own payload keys must apply the rename in reverse. The distinction matters: a map key containing a dot is indistinguishable from nesting in the rendered `path` (`attributes."a.b".email` vs deeper nesting), so structured consumers should read `segments`, which stays exact. An unlabelled error renders `"path": ""` and `"segments": []`; treat it as object-level.
 
 The leg is selected purely by payload shape, so **any** all-`FieldError` payload takes it: `Path.fields()` assemblies, `@GenerateAssembly` results and hand-built `NonEmptyList<FieldError>`s included, not just a mapper `parse`. A pre-existing `Path.fields()` endpoint therefore moves from 400 to 422 on upgrade; set `hkj.web.validation-field-error-status: 400` to restore the old status.

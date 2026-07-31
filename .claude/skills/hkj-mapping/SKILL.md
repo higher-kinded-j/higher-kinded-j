@@ -179,6 +179,19 @@ naming both interfaces). Interface statics are not inherited. Rejected with diag
 generic specs may extend (non-generic) mix-ins; `@GenerateMerge` specs still declare everything
 directly. Diagnostics about inherited members name the declaring interface.
 
+### Injecting and faking (Spring)
+
+Register the surface you consume as a bean, not the spec or Impl: `ValidatedPrism<Wire, Domain>`
+via `Impl.INSTANCE.asValidatedPrism()` (concrete; threaded specs use `instance()`, element-mapped
+specs build the Impl once with `of(prisms)` in the `@Bean` method) for parse-capable mappings;
+`Function`/`BiFunction` method references for build-only, `patch` and `updateFrom`.
+`ValidatedPrism` is SEALED: fakes are built as values with `ValidatedPrism.of(...)`, never mocked
+(Mockito rejects sealed types). Spring resolves the generic type, so per-pair codecs coexist;
+same-pair duplicates need `@Qualifier`. Injection is optional: concrete and threaded Impls are
+stateless pure functions, element-mapped ones immutable values, and calling the Impl directly
+(`INSTANCE`, `instance()`, or one shared `of(...)` instance) loses nothing but the substitution
+seam.
+
 ### Sealed hierarchies dispatch exhaustively
 
 A `MappingSpec` may be declared over two **sealed interfaces**, not just two records. Give each

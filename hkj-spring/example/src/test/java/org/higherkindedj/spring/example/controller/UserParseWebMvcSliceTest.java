@@ -33,7 +33,7 @@ import org.springframework.test.web.servlet.MockMvc;
   HkjJacksonAutoConfiguration.class,
   HkjWebMvcAutoConfiguration.class
 })
-@Import(UserService.class)
+@Import({UserService.class, org.higherkindedj.spring.example.config.MappingConfiguration.class})
 @DisplayName("UserController parse @WebMvcTest slice - the 422 leg")
 class UserParseWebMvcSliceTest {
 

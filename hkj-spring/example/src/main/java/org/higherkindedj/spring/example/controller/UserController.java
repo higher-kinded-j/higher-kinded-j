@@ -8,6 +8,7 @@ import org.higherkindedj.hkt.either.Either;
 import org.higherkindedj.hkt.nonemptylist.NonEmptyList;
 import org.higherkindedj.hkt.validated.FieldError;
 import org.higherkindedj.hkt.validated.Validated;
+import org.higherkindedj.optics.validated.ValidatedPrism;
 import org.higherkindedj.spring.example.domain.DomainError;
 import org.higherkindedj.spring.example.domain.User;
 import org.higherkindedj.spring.example.domain.UserNotFoundError;
@@ -28,6 +29,7 @@ public class UserController {
 
   private final UserService userService;
   private final JsonMapper jsonMapper;
+  private final ValidatedPrism<UserDto, User> userCodec;
 
   /**
    * Constructs a UserController.
@@ -35,10 +37,15 @@ public class UserController {
    * @param userService the user service
    * @param jsonMapper the application's Jackson 3.x mapper, used by the debug endpoint to probe
    *     whether HkjJacksonModule is actually registered
+   * @param userCodec the generated user mapping's injectable surface (see {@code
+   *     MappingConfiguration}); the PATCH endpoint below deliberately calls the Impl directly
+   *     instead, showing the other idiom
    */
-  public UserController(UserService userService, JsonMapper jsonMapper) {
+  public UserController(
+      UserService userService, JsonMapper jsonMapper, ValidatedPrism<UserDto, User> userCodec) {
     this.userService = userService;
     this.jsonMapper = jsonMapper;
+    this.userCodec = userCodec;
   }
 
   /**
@@ -106,7 +113,7 @@ public class UserController {
    */
   @PostMapping("/parse")
   public Validated<NonEmptyList<FieldError>, User> parseUser(@RequestBody UserDto dto) {
-    return UserMappingImpl.INSTANCE.parse(dto);
+    return userCodec.parse(dto);
   }
 
   /**
