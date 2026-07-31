@@ -138,5 +138,23 @@ The [HKJ build plugin](gradle_plugin.md) handles all of the above (dependencies,
 
 ---
 
+## Incremental compilation
+
+The HKJ annotation processors register with Gradle's incremental annotation processing (as aggregating processors: cross-spec features such as nested mapping resolution may read any annotated element in the compilation). A source set using them keeps incremental compilation; no configuration is needed. Unregistered third-party processors on the same processor path disable incrementality for the whole source set, so if compile times regress, audit the other entries on the path first.
+
+## Lombok
+
+Lombok and the HKJ processors run in the same javac invocation, and the pairing is covered by a test in the HKJ build: a `@Data` class works as a bean-shaped `@GenerateMapping` wire, with the generated getters and setters visible to the bean analyser. **Order matters: list Lombok before `hkj-processor`** (within a javac round, processors run in listed order, and the bean analyser needs the accessors already materialised; the reverse order fails with a clear diagnostic). No binding artefact is needed beyond that:
+
+```gradle
+dependencies {
+    annotationProcessor("org.projectlombok:lombok:LOMBOK_VERSION")
+    annotationProcessor("io.github.higher-kinded-j:hkj-processor:LATEST_VERSION")
+    compileOnly("org.projectlombok:lombok:LOMBOK_VERSION")
+}
+```
+
+---
+
 **Previous:** [Build Plugins](gradle_plugin.md)
 **Next:** [Compile-Time Checks](compile_checks.md)
