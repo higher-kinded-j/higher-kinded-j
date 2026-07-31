@@ -443,7 +443,7 @@ Two verbs keep the two operations distinct: `ErrorEnvelope.withContext(D)` is th
 
 ## Injecting and testing generated mappings
 
-A generated Impl is a stateless pure function reached through statics, and the spec interface deliberately declares nothing (`@Autowired UserMapping` injects nothing useful, by design). When you do want a Spring bean or a test double, register the **surface you consume**, per tier:
+A concrete or threaded Impl is a stateless pure function reached through statics (`INSTANCE`, `instance()`); an element-mapped Impl is an immutable value built by `of(...)`, carrying its element prisms. The spec interface deliberately declares nothing either way (`@Autowired UserMapping` injects nothing useful, by design). When you do want a Spring bean or a test double, register the **surface you consume**, per tier:
 
 | Tier surface | Injectable shape | From |
 |---|---|---|
@@ -475,7 +475,7 @@ ValidatedPrism<UserDto, User> userCodec() {
 }
 ```
 
-The [hkj-spring example app](../spring/spring_boot_integration.md) demonstrates the seam end to end: `MappingConfiguration` registers the codec, `UserController`'s parse endpoint injects it, and `UserParseFakeCodecSliceTest` substitutes the fake above in a `@WebMvcTest` slice and asserts the located 422 it produces. The same controller's PATCH endpoint deliberately calls `UserPatchMappingImpl.INSTANCE` directly: injection buys substitution, not lifecycle, and a team comfortable calling `INSTANCE` loses nothing.
+The [hkj-spring example app](../spring/spring_boot_integration.md) demonstrates the seam end to end: `MappingConfiguration` registers the codec, `UserController`'s parse endpoint injects it, and `UserParseFakeCodecSliceTest` substitutes the fake above in a `@WebMvcTest` slice and asserts the located 422 it produces. The same controller's PATCH endpoint deliberately calls `UserPatchMappingImpl.INSTANCE` directly: injection buys substitution, not lifecycle, and a team comfortable calling the Impl directly (`INSTANCE`, `instance()`, or one shared `of(...)` instance) loses nothing.
 
 ---
 
