@@ -1,0 +1,29 @@
+# Gradle incremental annotation processing registration.
+#
+# Every processor is registered as AGGREGATING. The mapping family (MappingProcessor,
+# MergeProcessor, AssemblyProcessor) genuinely aggregates: nested and sealed resolution reads a
+# same-round registry of other annotated specs, so their outputs may depend on any annotated
+# element in the compilation. The per-type optics generators are likely ISOLATING-safe (one
+# annotated type, one origin per generated file), but an ISOLATING claim that turns out wrong
+# produces silently stale outputs, while AGGREGATING is behaviour-preserving for every processor
+# and already restores incremental compilation for consuming source sets. Refining individual
+# processors to ISOLATING needs a per-processor one-origin-per-file audit first.
+org.higherkindedj.optics.processing.AccumulatorProcessor,aggregating
+org.higherkindedj.optics.processing.AssemblyProcessor,aggregating
+org.higherkindedj.optics.processing.ErrorEnvelopeProcessor,aggregating
+org.higherkindedj.optics.processing.FocusProcessor,aggregating
+org.higherkindedj.optics.processing.FoldProcessor,aggregating
+org.higherkindedj.optics.processing.ForComprehensionProcessor,aggregating
+org.higherkindedj.optics.processing.GetterProcessor,aggregating
+org.higherkindedj.optics.processing.ImportOpticsProcessor,aggregating
+org.higherkindedj.optics.processing.IsoProcessor,aggregating
+org.higherkindedj.optics.processing.LensProcessor,aggregating
+org.higherkindedj.optics.processing.MappingProcessor,aggregating
+org.higherkindedj.optics.processing.MergeProcessor,aggregating
+org.higherkindedj.optics.processing.PrismProcessor,aggregating
+org.higherkindedj.optics.processing.SetterProcessor,aggregating
+org.higherkindedj.optics.processing.TraversalProcessor,aggregating
+org.higherkindedj.optics.processing.effect.ComposeEffectsProcessor,aggregating
+org.higherkindedj.optics.processing.effect.EffectAlgebraProcessor,aggregating
+org.higherkindedj.optics.processing.effect.PathProcessor,aggregating
+org.higherkindedj.optics.processing.effect.PathSourceProcessor,aggregating

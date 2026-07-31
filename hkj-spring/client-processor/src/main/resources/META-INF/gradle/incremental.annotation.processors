@@ -1,0 +1,4 @@
+# Gradle incremental annotation processing registration. AGGREGATING for the same reason as
+# hkj-processor's registration: behaviour-preserving without a per-processor ISOLATING audit,
+# and sufficient to restore incremental compilation for consuming source sets.
+org.higherkindedj.spring.client.processor.HkjHttpClientProcessor,aggregating
