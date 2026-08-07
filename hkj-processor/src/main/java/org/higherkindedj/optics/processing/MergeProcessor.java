@@ -12,6 +12,7 @@ import com.palantir.javapoet.TypeName;
 import com.palantir.javapoet.TypeSpec;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
 import javax.annotation.processing.AbstractProcessor;
@@ -650,12 +651,19 @@ public class MergeProcessor extends AbstractProcessor {
         chain.add("\n.apply($T::new)", targetName);
         method.addStatement("$L", chain.build());
       } else {
-        // Wider than one fields() ladder: chunked ladders, identical error semantics.
+        // Wider than one fields() ladder: chunked ladders, identical error semantics. The merge
+        // method's parameters carry the spec author's names, so they are reserved against the
+        // emitted chunk locals and lambda parameters.
+        Set<String> reserved = new LinkedHashSet<>();
+        for (VariableElement source : mergeMethod.getParameters()) {
+          reserved.add(source.getSimpleName().toString());
+        }
         method.addCode(
             ChunkedAssembly.emit(
                 legs,
                 VALIDATED,
                 NEL,
+                reserved,
                 values -> CodeBlock.of("new $T($L)", targetName, CodeBlock.join(values, ", "))));
       }
     } else {

@@ -3426,8 +3426,8 @@ class MappingProcessorTest {
     }
 
     @Test
-    @DisplayName("a 16-component record maps in one spec (the raised parse ceiling)")
-    void arityAtNewCeilingCompiles() {
+    @DisplayName("a 16-component record parses in one fields() ladder (no chunking)")
+    void sixteenComponentsParseInOneLadder() {
       String comps =
           IntStream.rangeClosed(1, 16)
               .mapToObj(i -> "String f" + i)
@@ -3454,7 +3454,9 @@ class MappingProcessorTest {
                       + ") {}\n}\n"),
               spec);
       assertThat(compilation).succeeded();
-      assertThat(compilation).generatedSourceFile("com.example.WideMappingImpl");
+      Assertions.assertThat(generatedSource(compilation, "com.example.WideMappingImpl"))
+          .contains(".apply(Records.D::new)")
+          .doesNotContain("Tuple16::new");
     }
 
     @Test

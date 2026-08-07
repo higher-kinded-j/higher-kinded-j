@@ -39,6 +39,13 @@ import org.higherkindedj.optics.processing.util.ExcludeFromJacocoGeneratedReport
  * Validated.ap} chain with {@code NonEmptyList.semigroup()} (the accumulator on the function side,
  * so errors emerge in component-declaration order), giving exact arity with no ceiling and no
  * mechanism beyond the #581 primitives.
+ *
+ * <p>This exact-arity curried chain deliberately differs from {@link ChunkedAssembly}, which the
+ * mappers use past 16 legs: the staged companion carries each component's type on its own stage
+ * field, needs no {@code TupleN}, and record arities stay well inside the range where javac's
+ * target-typing of the curried lambda is cheap. That inference cost grows superquadratically with
+ * arity and overflows the compiler's default stack near 200 components, so an emitter that must
+ * cover the full record-width range chunks instead.
  */
 @AutoService(Processor.class)
 @SupportedAnnotationTypes("org.higherkindedj.optics.annotations.GenerateAssembly")

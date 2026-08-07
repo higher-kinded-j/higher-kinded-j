@@ -2743,6 +2743,7 @@ public class MappingProcessor extends AbstractProcessor {
               parseLegs,
               VALIDATED,
               NEL,
+              Set.of("wire"),
               values -> CodeBlock.of("new $T($L)", domainName, CodeBlock.join(values, ", ")));
     }
 
@@ -2964,7 +2965,11 @@ public class MappingProcessor extends AbstractProcessor {
               patchLegs,
               VALIDATED,
               NEL,
+              Set.of("domain", "wire"),
               values -> {
+                // values align 1:1 with comps: every projected leg emits exactly one .field
+                // (a projection can never carry a DERIVED correspondence, the only empty leg),
+                // so index i pairs comps.get(i) with its parsed value.
                 Map<String, CodeBlock> valueFor = new LinkedHashMap<>();
                 for (int i = 0; i < comps.size(); i++) {
                   valueFor.put(comps.get(i).name(), values.get(i));

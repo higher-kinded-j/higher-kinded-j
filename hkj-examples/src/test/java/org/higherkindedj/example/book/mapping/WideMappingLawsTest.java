@@ -33,6 +33,7 @@ class WideMappingLawsTest {
   @Test
   @DisplayName("errors locate in declaration order across the chunk boundary")
   void errorsLocateInDeclarationOrderAcrossTheChunkBoundary() {
+    // ANCHOR: wide_laws
     // f1 fails in the first ladder, f17 and email in the second: one accumulated result,
     // declaration order preserved across the boundary.
     WideAccountDto wire =
@@ -65,6 +66,7 @@ class WideMappingLawsTest {
     assertThat(rendered(parsed))
         .containsExactly(
             "f1: must not be null", "f17: must not be null", "email: not an email address");
+    // ANCHOR_END: wide_laws
   }
 
   @Test

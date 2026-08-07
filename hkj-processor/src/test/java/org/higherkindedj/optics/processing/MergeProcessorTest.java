@@ -937,12 +937,62 @@ class MergeProcessorTest {
                     }
                   }
                   """));
+      // The chunked combine is the shared ChunkedAssembly emitter, pinned by the mapping tiers'
+      // wide goldens and law-checked at runtime by WideMappingLawsTest in hkj-examples; this
+      // test pins the merge-specific legs and shape.
       assertThat(compilation).succeeded();
       Assertions.assertThat(generatedSource(compilation, "com.example.WideAssemblyImpl"))
           .contains("Tuple16::new")
           .contains(".apply(v -> v)")
           .contains("NonEmptyList.semigroup()")
           .contains(".field(\"raw\"");
+    }
+
+    @Test
+    @DisplayName(
+        "chunk locals and lambda parameters take underscore suffixes when the merge method's own"
+            + " parameter names collide")
+    void chunkedIdentifiersDodgeParameterNames() {
+      String comps =
+          java.util.stream.IntStream.rangeClosed(1, 16)
+              .mapToObj(i -> "String f" + i)
+              .collect(java.util.stream.Collectors.joining(", "));
+      JavaFileObject wide =
+          JavaFileObjects.forSourceString(
+              "com.example.Wide",
+              "package com.example;\n"
+                  + "public final class Wide {\n"
+                  + "  public record Source("
+                  + comps
+                  + ", String raw) {}\n"
+                  + "  public record Extra(String tail) {}\n"
+                  + "  public record Target("
+                  + comps
+                  + ", Records.EmailAddress raw) {}\n"
+                  + "}\n");
+      Compilation compilation =
+          compile(
+              RECORDS,
+              wide,
+              spec(
+                  "CollidingAssembly",
+                  """
+                  public interface CollidingAssembly {
+                    Validated<NonEmptyList<FieldError>, Wide.Target> assemble(
+                        Wide.Source c1, Wide.Extra v);
+
+                    default ValidatedPrism<String, Records.EmailAddress> raw() {
+                      return ValidatedPrism.of(
+                          v -> Validated.validNel(new Records.EmailAddress(v)),
+                          Records.EmailAddress::value);
+                    }
+                  }
+                  """));
+      assertThat(compilation).succeeded();
+      Assertions.assertThat(generatedSource(compilation, "com.example.CollidingAssemblyImpl"))
+          .contains("var c1_ = ")
+          .contains(".apply(v_ -> v_)")
+          .contains("c1_.map(t1 -> t2 ->");
     }
 
     @org.junit.jupiter.params.ParameterizedTest(name = "{0}")

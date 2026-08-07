@@ -13,13 +13,16 @@ package org.higherkindedj.optics.annotations;
  *   <li>{@link #FOR_COMPREHENSION} bounds {@code @GenerateForComprehensions}: the For-comprehension
  *       step families and the shared {@code TupleN} records are generated for arities {@code
  *       2..FOR_COMPREHENSION}.
- *   <li>{@link #ASSEMBLY} bounds {@code @GenerateAccumulators} (and, built on it,
- *       {@code @GenerateMapping} / {@code @GenerateMerge}): the staged {@code accumulate()}/{@code
- *       fields()} ladder is generated for arities {@code 1..ASSEMBLY}. Because the ladder
- *       accumulates into a {@code TupleN} and applies a {@code FunctionN}, the accumulator
- *       processor fills the {@code TupleN} gap from {@code FOR_COMPREHENSION + 1} to {@code
- *       ASSEMBLY} itself (the hand-written {@code FunctionN} family already reaches {@code
- *       ASSEMBLY}).
+ *   <li>{@link #ASSEMBLY} bounds {@code @GenerateAccumulators}: the staged {@code
+ *       accumulate()}/{@code fields()} ladder is generated for arities {@code 1..ASSEMBLY}. Because
+ *       the ladder accumulates into a {@code TupleN} and applies a {@code FunctionN}, the
+ *       accumulator processor fills the {@code TupleN} gap from {@code FOR_COMPREHENSION + 1} to
+ *       {@code ASSEMBLY} itself (the hand-written {@code FunctionN} family already reaches {@code
+ *       ASSEMBLY}). The mappers built on the ladder ({@code @GenerateMapping} /
+ *       {@code @GenerateMerge}) are not bounded by it: past {@code ASSEMBLY} legs they assemble
+ *       through chunked ladders ({@code ChunkedAssembly} in hkj-processor), for which {@code
+ *       ASSEMBLY} is the chunk size — that emitter relies on the {@code TupleN} family reaching
+ *       exactly {@code ASSEMBLY}.
  * </ul>
  *
  * <p>Invariant: {@code ASSEMBLY >= FOR_COMPREHENSION}. Raising {@link #FOR_COMPREHENSION} past
@@ -40,8 +43,9 @@ public final class ArityCeilings {
   public static final int FOR_COMPREHENSION = 12;
 
   /**
-   * The arity up to which the {@code accumulate()}/{@code fields()} assembly ladder (and the
-   * mappers built on it) is generated. Must be {@code >= }{@link #FOR_COMPREHENSION}.
+   * The arity up to which the {@code accumulate()}/{@code fields()} assembly ladder is generated,
+   * and the chunk size of the mappers' chunked assembly above it. Must be {@code >= }{@link
+   * #FOR_COMPREHENSION}.
    */
   public static final int ASSEMBLY = 16;
 }

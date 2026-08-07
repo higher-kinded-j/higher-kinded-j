@@ -481,9 +481,16 @@ The [hkj-spring example app](../spring/spring_boot_integration.md) demonstrates 
 
 ## Diagnostics and limits
 
-Every rejection follows the processor's what/why/fix standard: the message states what is wrong, why the mapper needs it, and the code to write. Current limits, each with its own diagnostic:
+There is no component ceiling. `parse` (and the validated `patch`, and `@GenerateMerge`'s fallible merge) is assembled with [`Validated.fields()`](../monads/validated_assembly.md) ladders, chunked and combined applicatively past 16 legs, so an externally fixed flat 20-or-30-field wire maps without grouping components into nested records, and behaves exactly like a narrow one — same located labels, same declaration-order accumulation, across chunk boundaries:
 
-- **No component ceiling**: `parse` (and the validated `patch`, and `@GenerateMerge`'s fallible merge) is assembled with [`Validated.fields()`](../monads/validated_assembly.md) ladders, chunked and combined applicatively past 16 legs, so an externally fixed flat 20-or-30-field wire maps without nesting and behaves exactly like a narrow one: same located labels, same declaration-order accumulation, law-checked. The only width bound left is the JVM's 255-parameter constructor limit on the record itself (fewer with `long`/`double` components), which javac enforces at the record declaration. The hand-written `fields()` ladder keeps its 16-field arity; wider hand-written assemblies nest sub-records.
+``` java
+{{#include ../../../hkj-examples/src/test/java/org/higherkindedj/example/book/mapping/WideMappingLawsTest.java:wide_laws}}
+```
+
+The only width bound left is the JVM's constructor parameter-slot limit on the record itself (254 components in practice, fewer with `long`/`double`), which javac enforces at the record declaration. The hand-written `fields()` ladder keeps its 16-field arity; wider hand-written assemblies nest sub-records.
+
+Every rejection follows the processor's what/why/fix standard: the message states what is wrong, why the mapper needs it, and the code to write. The remaining limits, each with its own diagnostic:
+
 - Nested and sealed resolution sees specs **in the same compilation**. A spec extends `MappingSpec` directly, plus any plain [mix-in interfaces](#shared-vocabulary-mix-in-interfaces); a mix-in that is itself a mapping spec, or a generic one, is diagnosed.
 - `Map` components lift values only: keys are identity, so differing key types, raw `Map`s and wildcard type arguments are compile errors.
 - A projection with any fallible correspondence emits the [validated `patch`](#leaf-carrying-projections-the-validated-patch) write-back rather than `asLens()`; projections cannot carry derived fields (the write-back could never honour a recomputed component); generic records map as concrete instantiations, threaded specs or element-mapped specs ([above](#generic-records-concrete-threaded-and-element-mapped)), all three nestable; generic mappings stay record-to-record only.

@@ -9,11 +9,9 @@ import org.higherkindedj.optics.validated.ValidatedPrism;
 /**
  * A flat 20-component mapping, wider than one {@code Validated.fields()} ladder: the processor
  * assembles {@code parse} from chunked ladders, so an externally fixed flat DTO maps without
- * grouping components into nested records. {@link
- * org.higherkindedj.example.book.mapping.RecordMappingBookLawsTest}'s wide-law companion proves it
- * behaves exactly like a narrow mapping.
+ * grouping components into nested records. {@code WideMappingLawsTest} proves it behaves exactly
+ * like a narrow mapping, and the book's Record Mapping limits section includes that test.
  */
-// ANCHOR: wide_spec
 record WideAccount(
     String f1,
     String f2,
@@ -64,4 +62,3 @@ interface WideAccountMapping extends MappingSpec<WideAccount, WideAccountDto> {
     return EmailCodecs.EMAIL;
   }
 }
-// ANCHOR_END: wide_spec

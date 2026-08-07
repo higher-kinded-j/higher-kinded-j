@@ -31,6 +31,8 @@ public final class WideProfileMappingImpl implements WideProfileMapping {
       WideProfilePatchDto wire) {
     Objects.requireNonNull(domain, "domain must not be null");
     Objects.requireNonNull(wire, "wire must not be null");
+    // Wider than one fields() ladder: chunks combine applicatively; error order
+    // and located labels are exactly those of a single ladder.
     var c1 = Validated.fields()
         .field("f1", hkj$ifPresent(wire.f1(), Validated::validNel))
         .field("f2", hkj$ifPresent(wire.f2(), Validated::validNel))
