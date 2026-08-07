@@ -6,7 +6,7 @@ Every service boundary maps between a rich domain record and a flat wire DTO. Ha
 
 ~~~admonish info title="What You'll Learn"
 - How `@GenerateMapping` derives a compile-time, reflection-free mapper from an interface you own: a total `build` and an accumulating, field-located `parse`
-- Handling type-differing fields with `ValidatedPrism` leaves, renaming components with `@MapField`, and how nesting, containers, and recursion compose into dotted error paths
+- Handling type-differing fields with `ValidatedPrism` leaves, covering the standard families (dates, enums, money, identifiers) with the stock `StandardCodecs` vocabulary, renaming components with `@MapField`, and how nesting, containers, and recursion compose into dotted error paths
 - Dispatching a mapping over two sealed hierarchies, exhaustively in both directions
 - Reading the emission tiers so the generated surface (`asIso`, `asLens`, the validated `patch`, `asValidatedPrism`) only ever offers what the field correspondences can lawfully support
 - Assembling one target from several sources with `@GenerateMerge`
@@ -56,6 +56,40 @@ Where the two sides differ in type, the boundary conversion is a [`ValidatedPris
 ~~~admonish tip title="A leaf beats an identity match"
 An explicit leaf wins even when the two component types are identical, so a `ValidatedPrism<String, String>` can validate or normalise a field the types alone would copy verbatim.
 ~~~
+
+---
+
+## Standard codecs
+
+The common conversion families need no hand-written leaves: `StandardCodecs` ships one factory per family, so a typical DTO boundary (identifiers, dates, enums, money) maps out of the box:
+
+``` java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/mapping/StandardCodecsBook.java:codecs_spec}}
+```
+
+| Factory | Wire ↔ domain |
+|---|---|
+| `uuid()` | `String` ↔ `UUID` |
+| `uri()` | `String` ↔ `URI` |
+| `localDate()` / `localDate(DateTimeFormatter)` | `String` ↔ `LocalDate` |
+| `instant()` | `String` ↔ `Instant` (UTC, `Z`) |
+| `offsetDateTime()` / `offsetDateTime(DateTimeFormatter)` | `String` ↔ `OffsetDateTime` |
+| `enumByName(Class)` | `String` ↔ any enum, by exact constant name |
+| `bigDecimal()` | `String` ↔ `BigDecimal`, plain notation, scale preserved |
+| `intFromString()` / `longFromString()` / `doubleFromString()` | `String` ↔ boxed number |
+| `booleanStrict()` | `String` ↔ `Boolean`, exactly `true`/`false` |
+| `currency()` | `String` ↔ `Currency` (ISO 4217) |
+| `locale()` | `String` ↔ `Locale` (BCP 47 tag) |
+
+Every parse failure is a located `FieldError` with a copy-worthy message, so the codecs feed [the 422 leg](../spring/spring_boot_integration.md#the-422-leg) unchanged, and the enum message names the permitted constants:
+
+``` java
+{{#include ../../../hkj-examples/src/test/java/org/higherkindedj/example/book/mapping/StandardCodecsBookTest.java:codecs_errors}}
+```
+
+**Canonical forms only.** Each codec honours the [`ValidatedPrism` section law](validated_prism.md) by accepting exactly the form it renders: an accepted wire value always rebuilds to itself. A case-folded UUID, a leading zero, scientific notation or a lowercase language tag is a located rejection, never a silent normalisation, so `build(parse(dto))` round-trips byte-for-byte. For a format the stock vocabulary does not fix, pass a formatter (`localDate(DateTimeFormatter.ofPattern("dd/MM/yyyy"))`): the error message renders a sample date in that format, and the formatter must render what it parses for its values to be accepted.
+
+Codecs are ordinary leaves: share them across specs through a [mix-in interface](#shared-vocabulary-mix-in-interfaces) delegating to the stock factories, and conversions the vocabulary does not cover stay hand-written `ValidatedPrism.of(...)` leaves. The processor never applies a codec implicitly; a conversion exists only where a spec declares it.
 
 ---
 

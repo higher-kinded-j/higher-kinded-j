@@ -92,6 +92,29 @@ public interface CustomerMapping extends MappingSpec<Customer, CustomerDto> {
 A leaf `ValidatedPrism` beats an identity match, so declaring one is how you say "this component
 needs validating on the way in".
 
+The standard conversion families need no hand-written leaf: `StandardCodecs` (in
+`org.higherkindedj.optics.validated`) ships stock factories — `uuid()`, `uri()`, `localDate()` /
+`localDate(DateTimeFormatter)`, `instant()`, `offsetDateTime()` (+ formatter overload),
+`enumByName(Class)` (error names the permitted constants), `bigDecimal()`, `intFromString()`,
+`longFromString()`, `doubleFromString()`, `booleanStrict()`, `currency()`, `locale()`:
+
+<!-- verify -->
+```java
+import static org.higherkindedj.optics.validated.StandardCodecs.*;
+
+@GenerateMapping
+public interface OrderMapping extends MappingSpec<Order, OrderDto> {
+  default ValidatedPrism<String, LocalDate> placedOn() { return localDate(); }
+  default ValidatedPrism<String, OrderStatus> status() { return enumByName(OrderStatus.class); }
+  default ValidatedPrism<String, BigDecimal> total()   { return bigDecimal(); }
+  default ValidatedPrism<String, UUID> id()            { return uuid(); }
+}
+```
+
+Every codec accepts only the canonical form it renders (the `ValidatedPrism` section law): a
+case-folded UUID or scientific-notation number is a located rejection, never a normalisation.
+Codecs are never applied implicitly; a conversion exists only where a spec declares it.
+
 Renaming, and deriving a wire-only field:
 
 <!-- verify -->
