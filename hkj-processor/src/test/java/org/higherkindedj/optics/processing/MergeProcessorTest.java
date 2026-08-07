@@ -485,6 +485,32 @@ class MergeProcessorTest {
   @DisplayName("What/why/fix diagnostics")
   class Diagnostics {
 
+    /**
+     * A 17-component fallible target: 16 identity components plus a leaf, exactly one leg past one
+     * fields() ladder. Shared by both chunked-merge tests so they cross the ladder boundary
+     * together — a width change here would silently stop either from exercising the chunked path.
+     */
+    private static final JavaFileObject WIDE = wideFixture();
+
+    private static JavaFileObject wideFixture() {
+      String comps =
+          IntStream.rangeClosed(1, 16)
+              .mapToObj(i -> "String f" + i)
+              .collect(Collectors.joining(", "));
+      return JavaFileObjects.forSourceString(
+          "com.example.Wide",
+          "package com.example;\n"
+              + "public final class Wide {\n"
+              + "  public record Source("
+              + comps
+              + ", String raw) {}\n"
+              + "  public record Extra(String tail) {}\n"
+              + "  public record Target("
+              + comps
+              + ", Records.EmailAddress raw) {}\n"
+              + "}\n");
+    }
+
     @Test
     @DisplayName("a same-typed component still routes through an explicit validating leaf")
     void sameTypeLeafWinsOverIdentity() {
@@ -904,27 +930,10 @@ class MergeProcessorTest {
     @Test
     @DisplayName("a 17-component fallible target merges through chunked fields() ladders")
     void fallibleArityBeyondLadderCompilesChunked() {
-      String comps =
-          IntStream.rangeClosed(1, 16)
-              .mapToObj(i -> "String f" + i)
-              .collect(Collectors.joining(", "));
-      JavaFileObject wide =
-          JavaFileObjects.forSourceString(
-              "com.example.Wide",
-              "package com.example;\n"
-                  + "public final class Wide {\n"
-                  + "  public record Source("
-                  + comps
-                  + ", String raw) {}\n"
-                  + "  public record Extra(String tail) {}\n"
-                  + "  public record Target("
-                  + comps
-                  + ", Records.EmailAddress raw) {}\n"
-                  + "}\n");
       Compilation compilation =
           compile(
               RECORDS,
-              wide,
+              WIDE,
               spec(
                   "WideAssembly",
                   """
@@ -955,27 +964,10 @@ class MergeProcessorTest {
         "chunk locals and lambda parameters take underscore suffixes when the merge method's own"
             + " parameter names collide")
     void chunkedIdentifiersDodgeParameterNames() {
-      String comps =
-          IntStream.rangeClosed(1, 16)
-              .mapToObj(i -> "String f" + i)
-              .collect(Collectors.joining(", "));
-      JavaFileObject wide =
-          JavaFileObjects.forSourceString(
-              "com.example.Wide",
-              "package com.example;\n"
-                  + "public final class Wide {\n"
-                  + "  public record Source("
-                  + comps
-                  + ", String raw) {}\n"
-                  + "  public record Extra(String tail) {}\n"
-                  + "  public record Target("
-                  + comps
-                  + ", Records.EmailAddress raw) {}\n"
-                  + "}\n");
       Compilation compilation =
           compile(
               RECORDS,
-              wide,
+              WIDE,
               spec(
                   "CollidingAssembly",
                   """

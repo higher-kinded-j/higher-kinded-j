@@ -18,6 +18,7 @@ import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
 import javax.tools.JavaFileObject;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
@@ -35,6 +36,14 @@ import org.junit.jupiter.params.provider.MethodSource;
 class MappingGoldenFileTest {
 
   private static final String GOLDEN_RESOURCE_PATH = "/golden/mapping/";
+
+  /** One javac run covers every golden case; each parameterised case reads its own Impl from it. */
+  private static Compilation compilation;
+
+  @BeforeAll
+  static void compileFixtures() {
+    compilation = compile();
+  }
 
   record GoldenTestCase(String description, String generatedClassName, String goldenFileName) {
     @Override
@@ -91,8 +100,6 @@ class MappingGoldenFileTest {
   @MethodSource("goldenFileTestCases")
   @DisplayName("Generated Impl matches golden file")
   void generatedCodeMatchesGolden(GoldenTestCase testCase) throws IOException {
-    Compilation compilation = compile();
-
     assertThat(compilation.status())
         .as("Compilation should succeed for %s", testCase.generatedClassName())
         .isEqualTo(Compilation.Status.SUCCESS);
@@ -127,7 +134,7 @@ class MappingGoldenFileTest {
     assertThat(normalize(generated)).isEqualTo(normalize(golden));
   }
 
-  private Compilation compile() {
+  private static Compilation compile() {
     return javac()
         .withProcessors(new MappingProcessor())
         .compile(
@@ -144,7 +151,7 @@ class MappingGoldenFileTest {
   }
 
   // ---- lossless full: identity components on both sides, so asIso is emitted ----
-  private JavaFileObject lossless() {
+  private static JavaFileObject lossless() {
     return JavaFileObjects.forSourceString(
         "com.example.lossless.Fixtures",
         """
@@ -163,7 +170,7 @@ class MappingGoldenFileTest {
   }
 
   // ---- fallible full, record wire: leaf, nested spec, List/Optional/Map lifting, derived ----
-  private JavaFileObject fallible() {
+  private static JavaFileObject fallible() {
     return JavaFileObjects.forSourceString(
         "com.example.fallible.Fixtures",
         """
@@ -242,7 +249,7 @@ class MappingGoldenFileTest {
   }
 
   // ---- fallible full, bean wire: guarded getters, setter-based build, no asIso ----
-  private JavaFileObject beanWire() {
+  private static JavaFileObject beanWire() {
     return JavaFileObjects.forSourceString(
         "com.example.bean.Fixtures",
         """
@@ -303,7 +310,7 @@ class MappingGoldenFileTest {
   }
 
   // ---- identity projection: wire smaller than domain, all identity, so asLens is emitted ----
-  private JavaFileObject projection() {
+  private static JavaFileObject projection() {
     return JavaFileObjects.forSourceString(
         "com.example.projection.Fixtures",
         """
@@ -322,7 +329,7 @@ class MappingGoldenFileTest {
   }
 
   // ---- leaf-carrying projection: a fallible leaf on a projection selects the patch tier ----
-  private JavaFileObject leafProjection() {
+  private static JavaFileObject leafProjection() {
     return JavaFileObjects.forSourceString(
         "com.example.patch.Fixtures",
         """
@@ -355,7 +362,7 @@ class MappingGoldenFileTest {
   }
 
   // ---- sparse update: UpdateSpec over a bean PATCH wire, updateFrom only ----
-  private JavaFileObject update() {
+  private static JavaFileObject update() {
     return JavaFileObjects.forSourceString(
         "com.example.update.Fixtures",
         """
@@ -416,7 +423,7 @@ class MappingGoldenFileTest {
   }
 
   // ---- sealed dispatch: a MappingSpec over two sealed hierarchies, one spec per subtype pair ----
-  private JavaFileObject sealed() {
+  private static JavaFileObject sealed() {
     return JavaFileObjects.forSourceString(
         "com.example.sealeddispatch.Fixtures",
         """
@@ -449,7 +456,7 @@ class MappingGoldenFileTest {
   }
 
   // ---- wide full, record wire: 20 components, chunked as a 16-ladder plus a 4-ladder ----
-  private JavaFileObject wideRecord() {
+  private static JavaFileObject wideRecord() {
     String identityComps = components(1, 19);
     return JavaFileObjects.forSourceString(
         "com.example.widerecord.Fixtures",
@@ -484,7 +491,7 @@ class MappingGoldenFileTest {
   }
 
   // ---- wide bean wire: 17 properties, chunked as a 16-ladder plus a singleton ladder ----
-  private JavaFileObject wideBean() {
+  private static JavaFileObject wideBean() {
     StringBuilder properties = new StringBuilder();
     for (int i = 1; i <= 16; i++) {
       properties.append(beanProperty("String", "f" + i));
@@ -524,7 +531,7 @@ class MappingGoldenFileTest {
   }
 
   // ---- wide leaf-carrying projection: 17 of 18 components project, chunked patch ----
-  private JavaFileObject widePatch() {
+  private static JavaFileObject widePatch() {
     String projectedComps = components(1, 16);
     return JavaFileObjects.forSourceString(
         "com.example.widepatch.Fixtures",
