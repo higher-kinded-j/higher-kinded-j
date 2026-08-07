@@ -68,9 +68,8 @@ final class ChunkedAssembly {
       int size = Math.min(ArityCeilings.ASSEMBLY, legs.size() - leg);
       CodeBlock.Builder ladder =
           CodeBlock.builder().add("var $L = $T.fields()", chunkName, validated);
-      for (int i = 0; i < size; i++, leg++) {
-        ladder.add(legs.get(leg));
-      }
+      legs.subList(leg, leg + size).forEach(ladder::add);
+      leg += size;
       if (size == 1) {
         String identity = free("v", taken);
         ladder.add("\n.apply($L -> $L)", identity, identity);

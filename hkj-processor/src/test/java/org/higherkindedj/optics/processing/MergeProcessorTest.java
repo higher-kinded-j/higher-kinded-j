@@ -11,6 +11,8 @@ import com.google.testing.compile.JavaFileObjects;
 import java.io.IOException;
 import java.util.List;
 import java.util.Optional;
+import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 import javax.tools.JavaFileObject;
 import javax.tools.StandardLocation;
 import org.assertj.core.api.Assertions;
@@ -903,9 +905,9 @@ class MergeProcessorTest {
     @DisplayName("a 17-component fallible target merges through chunked fields() ladders")
     void fallibleArityBeyondLadderCompilesChunked() {
       String comps =
-          java.util.stream.IntStream.rangeClosed(1, 16)
+          IntStream.rangeClosed(1, 16)
               .mapToObj(i -> "String f" + i)
-              .collect(java.util.stream.Collectors.joining(", "));
+              .collect(Collectors.joining(", "));
       JavaFileObject wide =
           JavaFileObjects.forSourceString(
               "com.example.Wide",
@@ -954,9 +956,9 @@ class MergeProcessorTest {
             + " parameter names collide")
     void chunkedIdentifiersDodgeParameterNames() {
       String comps =
-          java.util.stream.IntStream.rangeClosed(1, 16)
+          IntStream.rangeClosed(1, 16)
               .mapToObj(i -> "String f" + i)
-              .collect(java.util.stream.Collectors.joining(", "));
+              .collect(Collectors.joining(", "));
       JavaFileObject wide =
           JavaFileObjects.forSourceString(
               "com.example.Wide",
