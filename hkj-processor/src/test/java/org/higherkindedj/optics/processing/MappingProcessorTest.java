@@ -2778,8 +2778,10 @@ class MappingProcessorTest {
     }
 
     @Test
-    @DisplayName("a projection wider than the fields() ladder is rejected with the ceiling")
-    void patchCeilingRejected() {
+    @DisplayName(
+        "a projection wider than one fields() ladder patches through chunked ladders,"
+            + " unprojected components still read from the domain")
+    void patchBeyondLadderCompilesChunked() {
       String domainComponents =
           IntStream.rangeClosed(1, 18)
               .mapToObj(i -> "String f" + i)
@@ -2817,10 +2819,13 @@ class MappingProcessorTest {
               """);
 
       Compilation compilation = compile(wideDomain, wideWire, spec);
-      assertThat(compilation).failed();
-      assertThat(compilation)
-          .hadErrorContaining(
-              "'WideWireDto' projects 17 components; the validated patch supports at most 16");
+      assertThat(compilation).succeeded();
+      String generated = generatedSource(compilation, "com.example.WideMappingImpl");
+      Assertions.assertThat(generated)
+          .contains("Tuple16::new")
+          .contains(".apply(v -> v)")
+          .contains("NonEmptyList.semigroup()")
+          .contains("domain.f18()");
     }
   }
 
@@ -3382,8 +3387,10 @@ class MappingProcessorTest {
     }
 
     @Test
-    @DisplayName("records beyond the 16-field parse ceiling get a diagnostic, not broken code")
-    void arityCeilingRejected() {
+    @DisplayName(
+        "a record wider than one fields() ladder parses through chunked ladders (a 17th"
+            + " component lands in a singleton trailing chunk)")
+    void arityBeyondLadderCompilesChunked() {
       String comps =
           IntStream.rangeClosed(1, 17)
               .mapToObj(i -> "String f" + i)
@@ -3409,10 +3416,13 @@ class MappingProcessorTest {
                       + comps
                       + ") {}\n}\n"),
               spec);
-      assertThat(compilation).failed();
-      assertThat(compilation)
-          .hadErrorContaining("has 17 components; the accumulating parse supports at most 16");
-      assertThat(compilation).hadErrorContaining("Group related components into nested records");
+      assertThat(compilation).succeeded();
+      String generated = generatedSource(compilation, "com.example.WideMappingImpl");
+      Assertions.assertThat(generated)
+          .contains("Tuple16::new")
+          .contains(".apply(v -> v)")
+          .contains("NonEmptyList.semigroup()")
+          .contains(".field(\"f17\"");
     }
 
     @Test

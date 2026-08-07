@@ -251,7 +251,10 @@ rejected outright: the projection's `asLens()` write-back could never honour a c
   filled with `getItems().addAll(...)`. `build` fills through setters or the builder, `parse` reads
   through getters under the same null guard as a record wire, and a domain `Optional<T>` bridges to
   a nullable bean property `T`. See `reference/mapping-example.md`.
-- **`parse` is capped at 16 components**: it is assembled via `Validated.fields()`.
+- **No component ceiling on `parse`**: it is assembled via `Validated.fields()` ladders, chunked
+  and combined applicatively past 16 legs, so a flat 20-30 field DTO maps without nesting. Error
+  semantics are identical to a narrow mapping. The only width bound is the JVM's 255-parameter
+  constructor limit on the record itself.
 - **It is law-checked.** Assert `build`/`parse` round-trip with `MappingLaws.assertMappingLaws(...)`
   from `hkj-test`.
 

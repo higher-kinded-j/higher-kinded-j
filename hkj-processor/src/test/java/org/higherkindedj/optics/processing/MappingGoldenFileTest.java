@@ -14,6 +14,8 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Optional;
+import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 import java.util.stream.Stream;
 import javax.tools.JavaFileObject;
 import org.junit.jupiter.api.DisplayName;
@@ -70,7 +72,19 @@ class MappingGoldenFileTest {
         new GoldenTestCase(
             "sealed dispatch",
             "com.example.sealeddispatch.PaymentMappingImpl",
-            "PaymentMappingImpl.java.golden"));
+            "PaymentMappingImpl.java.golden"),
+        new GoldenTestCase(
+            "fallible full mapping wider than one fields() ladder (chunked parse)",
+            "com.example.widerecord.WideOrderMappingImpl",
+            "WideOrderMappingImpl.java.golden"),
+        new GoldenTestCase(
+            "wide bean wire (chunked parse, singleton trailing chunk)",
+            "com.example.widebean.WideUserMappingImpl",
+            "WideUserMappingImpl.java.golden"),
+        new GoldenTestCase(
+            "wide leaf-carrying projection (chunked patch)",
+            "com.example.widepatch.WideProfileMappingImpl",
+            "WideProfileMappingImpl.java.golden"));
   }
 
   @ParameterizedTest(name = "{0}")
@@ -117,7 +131,16 @@ class MappingGoldenFileTest {
     return javac()
         .withProcessors(new MappingProcessor())
         .compile(
-            lossless(), fallible(), beanWire(), projection(), leafProjection(), update(), sealed());
+            lossless(),
+            fallible(),
+            beanWire(),
+            projection(),
+            leafProjection(),
+            update(),
+            sealed(),
+            wideRecord(),
+            wideBean(),
+            widePatch());
   }
 
   // ---- lossless full: identity components on both sides, so asIso is emitted ----
@@ -423,6 +446,130 @@ class MappingGoldenFileTest {
         @GenerateMapping
         interface PaymentMapping extends MappingSpec<Payment, PaymentDto> {}
         """);
+  }
+
+  // ---- wide full, record wire: 20 components, chunked as a 16-ladder plus a 4-ladder ----
+  private JavaFileObject wideRecord() {
+    String identityComps = components(1, 19);
+    return JavaFileObjects.forSourceString(
+        "com.example.widerecord.Fixtures",
+        """
+        package com.example.widerecord;
+
+        import org.higherkindedj.hkt.validated.FieldError;
+        import org.higherkindedj.hkt.validated.Validated;
+        import org.higherkindedj.optics.annotations.GenerateMapping;
+        import org.higherkindedj.optics.annotations.MappingSpec;
+        import org.higherkindedj.optics.validated.ValidatedPrism;
+
+        record EmailAddress(String value) {}
+
+        record WideOrder(%s, EmailAddress email) {}
+
+        record WideOrderDto(%s, String email) {}
+
+        @GenerateMapping
+        interface WideOrderMapping extends MappingSpec<WideOrder, WideOrderDto> {
+          default ValidatedPrism<String, EmailAddress> email() {
+            return ValidatedPrism.of(
+                raw ->
+                    raw.contains("@")
+                        ? Validated.validNel(new EmailAddress(raw))
+                        : Validated.invalidNel(FieldError.of("not an email address")),
+                EmailAddress::value);
+          }
+        }
+        """
+            .formatted(identityComps, identityComps));
+  }
+
+  // ---- wide bean wire: 17 properties, chunked as a 16-ladder plus a singleton ladder ----
+  private JavaFileObject wideBean() {
+    StringBuilder properties = new StringBuilder();
+    for (int i = 1; i <= 16; i++) {
+      properties.append(beanProperty("String", "f" + i));
+    }
+    properties.append(beanProperty("String", "email"));
+    return JavaFileObjects.forSourceString(
+        "com.example.widebean.Fixtures",
+        """
+        package com.example.widebean;
+
+        import org.higherkindedj.hkt.validated.FieldError;
+        import org.higherkindedj.hkt.validated.Validated;
+        import org.higherkindedj.optics.annotations.GenerateMapping;
+        import org.higherkindedj.optics.annotations.MappingSpec;
+        import org.higherkindedj.optics.validated.ValidatedPrism;
+
+        record EmailAddress(String value) {}
+
+        record WideUser(%s, EmailAddress email) {}
+
+        class WideUserDto {
+        %s}
+
+        @GenerateMapping
+        interface WideUserMapping extends MappingSpec<WideUser, WideUserDto> {
+          default ValidatedPrism<String, EmailAddress> email() {
+            return ValidatedPrism.of(
+                raw ->
+                    raw.contains("@")
+                        ? Validated.validNel(new EmailAddress(raw))
+                        : Validated.invalidNel(FieldError.of("not an email address")),
+                EmailAddress::value);
+          }
+        }
+        """
+            .formatted(components(1, 16), properties));
+  }
+
+  // ---- wide leaf-carrying projection: 17 of 18 components project, chunked patch ----
+  private JavaFileObject widePatch() {
+    String projectedComps = components(1, 16);
+    return JavaFileObjects.forSourceString(
+        "com.example.widepatch.Fixtures",
+        """
+        package com.example.widepatch;
+
+        import org.higherkindedj.hkt.validated.FieldError;
+        import org.higherkindedj.hkt.validated.Validated;
+        import org.higherkindedj.optics.annotations.GenerateMapping;
+        import org.higherkindedj.optics.annotations.MappingSpec;
+        import org.higherkindedj.optics.validated.ValidatedPrism;
+
+        record EmailAddress(String value) {}
+
+        record WideProfile(%s, EmailAddress email, String internalNote) {}
+
+        record WideProfilePatchDto(%s, String email) {}
+
+        @GenerateMapping
+        interface WideProfileMapping extends MappingSpec<WideProfile, WideProfilePatchDto> {
+          default ValidatedPrism<String, EmailAddress> email() {
+            return ValidatedPrism.of(
+                raw ->
+                    raw.contains("@")
+                        ? Validated.validNel(new EmailAddress(raw))
+                        : Validated.invalidNel(FieldError.of("not an email address")),
+                EmailAddress::value);
+          }
+        }
+        """
+            .formatted(projectedComps, projectedComps));
+  }
+
+  private static String components(int from, int to) {
+    return IntStream.rangeClosed(from, to)
+        .mapToObj(i -> "String f" + i)
+        .collect(Collectors.joining(", "));
+  }
+
+  private static String beanProperty(String type, String name) {
+    String upper = Character.toUpperCase(name.charAt(0)) + name.substring(1);
+    return ("  private %1$s %2$s;\n\n"
+            + "  public %1$s get%3$s() {\n    return %2$s;\n  }\n\n"
+            + "  public void set%3$s(%1$s %2$s) {\n    this.%2$s = %2$s;\n  }\n\n")
+        .formatted(type, name, upper);
   }
 
   private String readGoldenFile(String fileName) throws IOException {

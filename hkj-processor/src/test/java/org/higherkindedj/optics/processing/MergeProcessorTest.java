@@ -900,8 +900,8 @@ class MergeProcessorTest {
     }
 
     @Test
-    @DisplayName("a 17-component fallible target hits the fields() ceiling")
-    void fallibleArityCeilingRejected() {
+    @DisplayName("a 17-component fallible target merges through chunked fields() ladders")
+    void fallibleArityBeyondLadderCompilesChunked() {
       String comps =
           java.util.stream.IntStream.rangeClosed(1, 16)
               .mapToObj(i -> "String f" + i)
@@ -937,9 +937,12 @@ class MergeProcessorTest {
                     }
                   }
                   """));
-      assertThat(compilation).failed();
-      assertThat(compilation)
-          .hadErrorContaining("has 17 components; the accumulating merge supports at most 16");
+      assertThat(compilation).succeeded();
+      Assertions.assertThat(generatedSource(compilation, "com.example.WideAssemblyImpl"))
+          .contains("Tuple16::new")
+          .contains(".apply(v -> v)")
+          .contains("NonEmptyList.semigroup()")
+          .contains(".field(\"raw\"");
     }
 
     @org.junit.jupiter.params.ParameterizedTest(name = "{0}")
