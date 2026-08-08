@@ -54,7 +54,7 @@ Where the two sides differ in type, the boundary conversion is a [`ValidatedPris
 ```
 
 ~~~admonish tip title="A leaf beats an identity match"
-An explicit leaf wins even when the two component types are identical, so a `ValidatedPrism<String, String>` can validate or normalise a field the types alone would copy verbatim.
+An explicit leaf wins even when the two component types are identical, so a `ValidatedPrism<String, String>` can validate a field the types alone would copy verbatim. Validate, not normalise: a parse that trims or case-folds accepts a spelling its `build` cannot reproduce, which breaks the [section law](validated_prism.md#laws).
 ~~~
 
 ---
@@ -76,7 +76,7 @@ The common conversion families need no hand-written leaves: `StandardCodecs` shi
 | `offsetDateTime()` / `offsetDateTime(DateTimeFormatter)` | `String` ↔ `OffsetDateTime` |
 | `enumByName(Class)` | `String` ↔ any enum, by exact constant name |
 | `bigDecimal()` | `String` ↔ `BigDecimal`, plain notation, scale preserved |
-| `intFromString()` / `longFromString()` / `doubleFromString()` | `String` ↔ boxed number |
+| `intFromString()` / `longFromString()` / `doubleFromString()` | `String` ↔ boxed number, canonical spellings only (`"2"` is not a canonical double; `"2.0"` is) |
 | `booleanStrict()` | `String` ↔ `Boolean`, exactly `true`/`false` |
 | `currency()` | `String` ↔ `Currency` (ISO 4217) |
 | `locale()` | `String` ↔ `Locale` (BCP 47 tag) |
@@ -87,7 +87,31 @@ Every parse failure is a located `FieldError` with a copy-worthy message, so the
 {{#include ../../../hkj-examples/src/test/java/org/higherkindedj/example/book/mapping/StandardCodecsBookTest.java:codecs_errors}}
 ```
 
-**Canonical forms only.** Each codec honours the [`ValidatedPrism` section law](validated_prism.md) by accepting exactly the form it renders: an accepted wire value always rebuilds to itself. A case-folded UUID, a leading zero, scientific notation or a lowercase language tag is a located rejection, never a silent normalisation, so `build(parse(dto))` round-trips byte-for-byte. For a format the stock vocabulary does not fix, pass a formatter (`localDate(DateTimeFormatter.ofPattern("dd/MM/yyyy"))`): the error message renders a sample date in that format, and the formatter must render what it parses for its values to be accepted.
+**Canonical forms only.** Each codec honours the [`ValidatedPrism` section law](validated_prism.md#laws) by accepting exactly the form it renders: an accepted wire value always rebuilds to itself. A case-folded UUID, a leading zero, scientific notation or a lowercase language tag is a located rejection, never a silent normalisation, so `build(parse(dto))` round-trips byte-for-byte.
+
+The date-time canon deserves spelling out, because two very common producers collide with it. A zero offset must be spelled `Z`: `2026-07-28T12:34:56+00:00` (Python's `isoformat()`, PostgreSQL JSON) parses to UTC, which renders back as `Z`, so it is rejected. Fractional seconds render without trailing zeros: JavaScript's `toISOString()` always emits three-digit milliseconds, so `.500Z` and `.000Z` are rejected while `.5Z` parses. Both producers are served lawfully by the formatter overload — the canonical form is then *theirs*:
+
+``` java
+// A JavaScript toISOString() wire: fixed three-digit millis, Z for UTC
+offsetDateTime(DateTimeFormatter.ofPattern("uuuu-MM-dd'T'HH:mm:ss.SSSXXX"))
+
+// A +00:00-spelling wire (Python isoformat()): xxx renders the zero offset as +00:00
+offsetDateTime(DateTimeFormatter.ofPattern("uuuu-MM-dd'T'HH:mm:ssxxx"))
+```
+
+The same move covers any differently-canonical wire. An uppercase-UUID producer (SQL Server) is not forbidden by the law — only accepting *both* cases through one leaf is. A hand-written leaf whose canonical form is uppercase stays lawful:
+
+``` java
+default ValidatedPrism<String, UUID> id() {
+  return ValidatedPrism.of(
+      raw -> raw.equals(raw.toUpperCase(Locale.ROOT)) && isUuid(raw)
+          ? Validated.validNel(UUID.fromString(raw))
+          : Validated.invalidNel(FieldError.of("not an uppercase UUID")),
+      uuid -> uuid.toString().toUpperCase(Locale.ROOT));
+}
+```
+
+Two mechanical notes. The number and boolean codecs focus the **box types**: a `ValidatedPrism<String, int>` cannot exist, so an `int` component cannot take a leaf — declare it `Integer` (the mapper rejects the mismatch at compile time either way). And under the star import, a leaf whose component shares a factory's name (`currency`, `locale`, `uuid`) must qualify the call — `return StandardCodecs.currency();` — because the leaf method itself is the nearer `currency()` and an unqualified call recurses.
 
 Codecs are ordinary leaves: share them across specs through a [mix-in interface](#shared-vocabulary-mix-in-interfaces) delegating to the stock factories, and conversions the vocabulary does not cover stay hand-written `ValidatedPrism.of(...)` leaves. The processor never applies a codec implicitly; a conversion exists only where a spec declares it.
 

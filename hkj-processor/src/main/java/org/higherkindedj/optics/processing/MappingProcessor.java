@@ -2226,18 +2226,28 @@ public class MappingProcessor extends AbstractProcessor {
               + ": "
               + domainNames
               + ".",
-          "Add 'default ValidatedPrism<"
-              + wireType
-              + ", "
-              + domainType
-              + "> "
-              + name
-              + "()' to the spec, or declare a @GenerateMapping spec mapping those records in"
-              + " the same compilation."
-              + (projection
-                  ? " On a projection, adding the leaf makes the write-back fallible: the Impl"
-                      + " then emits the validated patch(domain, wire) instead of asLens()."
-                  : ""));
+          // A leaf cannot target a primitive component: a ValidatedPrism's domain argument is a
+          // reference type, so findLeaf's isSameType(wrapper, primitive) can never match, and
+          // suggesting 'ValidatedPrism<..., int>' would be uncompilable Java. Steer to
+          // alignment, as the sparse tier does.
+          domainType.getKind().isPrimitive()
+              ? "Make '"
+                  + name
+                  + "' a wrapper type (a ValidatedPrism cannot focus a primitive component), or"
+                  + " align the component types."
+              : "Add 'default ValidatedPrism<"
+                  + wireType
+                  + ", "
+                  + domainType
+                  + "> "
+                  + name
+                  + "()' to the spec, or declare a @GenerateMapping spec mapping those records in"
+                  + " the same compilation."
+                  + (projection
+                      ? " On a projection, adding the leaf makes the write-back fallible: the"
+                          + " Impl then emits the validated patch(domain, wire) instead of"
+                          + " asLens()."
+                      : ""));
       return null;
     }
     return new Correspondence(name, wireName, Kind.LEAF, direct.accessor());

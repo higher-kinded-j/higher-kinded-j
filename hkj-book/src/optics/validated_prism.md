@@ -91,7 +91,9 @@ A lawful validated boundary satisfies both round trips, verified with [`Validate
 {{#include ../../../hkj-examples/src/test/java/org/higherkindedj/example/book/optics/ValidatedPrismBookLawsTest.java:laws}}
 ```
 
-The second law is the subtle one. If `build` changes the value as it renders (zero-padding a code, trimming whitespace), the round trip no longer holds. Keep all normalising in `parse`, and let `build` render the value faithfully.
+The second law is the subtle one, and it cuts both ways. `build` must render the value faithfully (no zero-padding, no reformatting) — and `parse` must accept only the spelling `build` renders. A normalising parse (trimming whitespace, folding case) accepts an `s` that `build` cannot reproduce, which is exactly the lossy round trip the law forbids. Pick the wire's canonical form, accept it alone, and reject every other spelling with a located error.
+
+The stock vocabulary in [`StandardCodecs`](record_mapping.md#standard-codecs) ships lawful codecs built this way for the standard families (identifiers, dates, enums, money), each accepting exactly the canonical form it renders.
 
 ---
 

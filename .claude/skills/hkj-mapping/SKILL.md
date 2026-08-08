@@ -113,6 +113,13 @@ public interface OrderMapping extends MappingSpec<Order, OrderDto> {
 
 Every codec accepts only the canonical form it renders (the `ValidatedPrism` section law): a
 case-folded UUID or scientific-notation number is a located rejection, never a normalisation.
+For date-times that bites two common producers: a zero offset must be `Z` (`+00:00` is rejected)
+and fractions render without trailing zeros (JS `toISOString()`'s `.000Z`/`.500Z` are rejected) —
+serve both with the formatter overload (`offsetDateTime(ofPattern("uuuu-MM-dd'T'HH:mm:ss.SSSXXX"))`
+for JS, an `xxx` offset pattern for `+00:00`). The number/boolean codecs need **box-typed** domain
+components (`Integer`, not `int` — a `ValidatedPrism<String, int>` cannot exist). Under the star
+import, a leaf whose component shares a factory name (`currency`, `locale`, `uuid`) must qualify:
+`return StandardCodecs.currency();` — the unqualified call recurses into the leaf itself.
 Codecs are never applied implicitly; a conversion exists only where a spec declares it.
 
 Renaming, and deriving a wire-only field:

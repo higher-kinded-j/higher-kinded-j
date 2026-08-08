@@ -43,8 +43,8 @@ class StandardCodecsBookTest {
         .containsExactly(
             "id: not a UUID (expected e.g. 123e4567-e89b-12d3-a456-426614174000)",
             "placedOn: not an ISO-8601 date (expected e.g. 2026-07-28)",
-            "status: not a OrderStatus (expected one of NEW, PAID, CANCELLED)",
-            "total: not a number (expected e.g. 123.45)");
+            "status: unknown OrderStatus (expected one of NEW, PAID, CANCELLED)",
+            "total: not a number in plain notation (expected e.g. 123.45)");
     // ANCHOR_END: codecs_errors
   }
 

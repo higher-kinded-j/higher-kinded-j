@@ -53,13 +53,25 @@ import org.higherkindedj.hkt.validated.Validated;
  * first, and standalone {@code parse(null)} is the caller's error, per the {@code ValidatedPrism}
  * contract.
  *
+ * <p><b>Boxed components only.</b> The number and boolean codecs focus the box types: a {@code
+ * ValidatedPrism<String, int>} cannot exist, so a record component typed {@code int} cannot take a
+ * leaf — declare the component as {@code Integer} (the mapper rejects the mismatch at compile time
+ * either way).
+ *
+ * <p><b>Under the star import, qualify a leaf that shares its component's name.</b> A mapping leaf
+ * is a {@code default} method named after the domain component, and a method member beats a static
+ * import: for a component named {@code currency}, {@code locale} or {@code uuid}, an unqualified
+ * {@code return currency();} calls the leaf itself and overflows the stack — write {@code return
+ * StandardCodecs.currency();}.
+ *
  * <p>Parameterless factories return cached instances; the parameterised ones ({@link
  * #localDate(DateTimeFormatter)}, {@link #offsetDateTime(DateTimeFormatter)}, {@link
  * #enumByName(Class)}) construct per call and are cheap enough to sit in a spec's {@code default}
  * method. A custom formatter must render what it parses (the section law is enforced per value: a
  * value whose rendering differs from its source is rejected), and must be able to format the
- * temporal type — the factory formats a sample eagerly, so an unusable formatter fails at
- * construction, not first parse.
+ * temporal type — the factory formats a sample eagerly, so a formatter that can render nothing
+ * fails at construction; one that fails only on particular values yields located rejections for
+ * those values.
  */
 public final class StandardCodecs {
 
@@ -107,23 +119,39 @@ public final class StandardCodecs {
           OFFSET_DATE_TIME_RENDER::format);
 
   private static final ValidatedPrism<String, BigDecimal> BIG_DECIMAL_CODEC =
-      codec("not a number (expected e.g. 123.45)", BigDecimal::new, BigDecimal::toPlainString);
+      codec(
+          "not a number in plain notation (expected e.g. 123.45)",
+          source -> {
+            BigDecimal value = new BigDecimal(source);
+            // Plain notation always parses to 0 <= scale <= source length, so a value outside
+            // that band cannot equal its plain rendering - and must not reach it: toPlainString
+            // materialises the full plain form, which a 14-character exponent spelling
+            // ("1E+2147483647") would grow past the maximum String size.
+            if (value.scale() < 0 || value.scale() > source.length()) {
+              throw new IllegalArgumentException(source);
+            }
+            return value;
+          },
+          BigDecimal::toPlainString);
 
   private static final ValidatedPrism<String, Integer> INT_CODEC =
-      codec("not an integer (expected e.g. 42)", Integer::parseInt, String::valueOf);
+      codec("not a 32-bit integer (expected e.g. 42)", Integer::parseInt, String::valueOf);
 
   private static final ValidatedPrism<String, Long> LONG_CODEC =
-      codec("not an integer (expected e.g. 42)", Long::parseLong, String::valueOf);
+      codec("not a 64-bit integer (expected e.g. 42)", Long::parseLong, String::valueOf);
 
   private static final ValidatedPrism<String, Double> DOUBLE_CODEC =
-      codec("not a number (expected e.g. 3.14)", Double::parseDouble, String::valueOf);
+      codec(
+          "not a double in canonical form (expected e.g. 3.14)",
+          Double::parseDouble,
+          String::valueOf);
 
   private static final ValidatedPrism<String, Boolean> BOOLEAN_CODEC =
       codec(
           "not a boolean (expected true or false)",
           source -> {
-            // An equals chain, not a String switch: the switch's synthetic hash-collision
-            // branches are unreachable, which the coverage gate would count against it.
+            // An equals chain, not a String switch: a String switch compiles to a hashCode
+            // dispatch whose hash-collision equals branches are unreachable here.
             if (source.equals("true")) {
               return Boolean.TRUE;
             }
@@ -158,7 +186,9 @@ public final class StandardCodecs {
 
   /**
    * {@link URI}s by RFC 2396 syntax; the original text is preserved, so every accepted URI
-   * round-trips exactly.
+   * round-trips exactly. Any syntactically valid reference is accepted — relative references and
+   * the empty string included — so this is syntax acceptance, not URL validation; a boundary
+   * needing absolute-URL semantics wants a hand-written leaf.
    *
    * @return the cached codec (non-null)
    */
@@ -180,7 +210,11 @@ public final class StandardCodecs {
    *
    * <p>The formatter must render what it parses for its values to be accepted ({@code d/M/yyyy}
    * parses {@code 01/07/2026} but renders {@code 1/7/2026}, so the zero-padded form would be
-   * rejected — use {@code dd/MM/yyyy} for zero-padded wires).
+   * rejected — use {@code dd/MM/yyyy} for zero-padded wires). It must also be injective on the
+   * values it parses: with a two-digit-year pattern ({@code yy/MM/dd}) the guard cannot object —
+   * {@code build} renders {@code 1926-07-28} as {@code 26/07/28}, which silently re-parses to
+   * {@code 2026-07-28}. The eager sample format below catches a formatter that can render nothing;
+   * one that fails only on particular values yields located rejections for those values.
    *
    * @param formatter the wire format; must not be null and must be able to format a {@link
    *     LocalDate}
@@ -198,9 +232,12 @@ public final class StandardCodecs {
   }
 
   /**
-   * ISO-8601 instants in UTC ({@code 2026-07-28T12:34:56Z}). An offset form belongs to {@link
-   * #offsetDateTime()}: {@code Instant.parse} would normalise it to {@code Z}, so it is rejected as
-   * non-canonical here.
+   * ISO-8601 instants in UTC ({@code 2026-07-28T12:34:56Z}), fractional seconds in the three-digit
+   * groups {@code Instant.toString} renders ({@code .500Z} parses; {@code .5Z} and {@code .000Z}
+   * are rejections). A non-zero offset form belongs to {@link #offsetDateTime()}; a producer
+   * spelling UTC as {@code +00:00} needs {@link #offsetDateTime(DateTimeFormatter)} with an {@code
+   * xxx} offset pattern, because {@code Instant.parse} would normalise the offset away and the
+   * canonical guard rejects what does not render back.
    *
    * @return the cached codec (non-null)
    */
@@ -209,7 +246,14 @@ public final class StandardCodecs {
   }
 
   /**
-   * ISO-8601 date-times with offset ({@code 2026-07-28T12:34:56+01:00}), seconds always present.
+   * ISO-8601 date-times with offset ({@code 2026-07-28T12:34:56+01:00}): seconds always present, a
+   * zero offset spelled {@code Z} ({@code +00:00} is a rejection — it parses to UTC, which renders
+   * back as {@code Z}), and fractional seconds only when present, without trailing zeros ({@code
+   * .5Z} parses; {@code .000Z} and {@code .50Z} are rejections). A producer emitting fixed
+   * three-digit milliseconds (JavaScript's {@code toISOString}) or {@code +00:00} offsets needs the
+   * {@link #offsetDateTime(DateTimeFormatter)} overload: {@code
+   * DateTimeFormatter.ofPattern("uuuu-MM-dd'T'HH:mm:ss.SSSXXX")} accepts the former, an {@code xxx}
+   * offset pattern the latter.
    *
    * @return the cached codec (non-null)
    */
@@ -219,7 +263,8 @@ public final class StandardCodecs {
 
   /**
    * Date-times in the given format; the error message shows a sample rendered with it. The
-   * formatter must render what it parses, exactly as for {@link #localDate(DateTimeFormatter)}.
+   * formatter must render what it parses and be injective on the values it parses, exactly as for
+   * {@link #localDate(DateTimeFormatter)}.
    *
    * @param formatter the wire format; must not be null and must be able to format an {@link
    *     OffsetDateTime}
@@ -238,14 +283,17 @@ public final class StandardCodecs {
 
   /**
    * Enum constants by exact {@link Enum#name() name}; the error message lists the permitted
-   * constants.
+   * constants. For an enum with very many constants (country or currency scale) that listing is
+   * rendered into every failure — a hand-written leaf with a shorter message may serve a 422
+   * payload better there.
    *
    * @param enumType the enum class; must not be null
    * @param <E> the enum type
    * @return the codec (non-null)
    * @throws NullPointerException if {@code enumType} is null
-   * @throws IllegalArgumentException if {@code enumType} has no enum constants (a raw-cast non-enum
-   *     class, or the class of a constant declared with a body)
+   * @throws IllegalArgumentException if no enum constants are available: a raw-cast non-enum class
+   *     or the class of a constant declared with a body (both have none), or an enum declaring no
+   *     constants (nothing could ever parse)
    */
   public static <E extends Enum<E>> ValidatedPrism<String, E> enumByName(Class<E> enumType) {
     Objects.requireNonNull(enumType, "enumType must not be null");
@@ -253,16 +301,27 @@ public final class StandardCodecs {
     if (constants == null) {
       throw new IllegalArgumentException(enumType.getName() + " is not an enum type");
     }
+    if (constants.length == 0) {
+      throw new IllegalArgumentException(
+          enumType.getName() + " has no constants, so nothing could ever parse");
+    }
     String permitted = Arrays.stream(constants).map(Enum::name).collect(Collectors.joining(", "));
     return codec(
-        "not a " + enumType.getSimpleName() + " (expected one of " + permitted + ")",
+        "unknown " + enumType.getSimpleName() + " (expected one of " + permitted + ")",
         source -> Enum.valueOf(enumType, source),
         Enum::name);
   }
 
   /**
    * Plain-notation decimal numbers ({@code 123.45}), scale preserved ({@code 0.010} stays {@code
-   * 0.010}); scientific notation is rejected as non-canonical.
+   * 0.010}); scientific notation is rejected as non-canonical, before rendering, so an astronomical
+   * exponent cannot cost memory.
+   *
+   * <p>{@code parse} only ever produces plain-form values (scale {@code >= 0}), and the parse-build
+   * law holds on exactly those. A negative-scale domain value (for example a {@code
+   * stripTrailingZeros()} result such as {@code 1E+5}) still renders totally through {@code build},
+   * but its rendering re-parses to the plain-form value, equal by {@code compareTo} rather than
+   * {@code equals} — normalise with {@code setScale} before building if that distinction matters.
    *
    * @return the cached codec (non-null)
    */
@@ -331,25 +390,26 @@ public final class StandardCodecs {
   }
 
   /**
-   * A codec accepting only canonical wire forms: the throwing parse is guarded into the located
-   * {@code FieldError}, and an accepted source must render back to exactly itself — the build-parse
-   * section law enforced per value, so case-folding, leading zeros and alternate spellings are
-   * rejections, never normalisations.
+   * A codec accepting only canonical wire forms: an accepted source must render back to exactly
+   * itself — the build-parse section law enforced per value, so case-folding, leading zeros and
+   * alternate spellings are rejections, never normalisations. Both the throwing parse and the
+   * canonical-form rendering sit inside the guard: a caller-supplied formatter can fail to render a
+   * value its own lenient parse produced, and that too is a located rejection, never an exception
+   * on wire input.
    */
   private static <A> ValidatedPrism<String, A> codec(
       String message, Function<String, A> parse, Function<A, String> render) {
     FieldError error = FieldError.of(message);
     return ValidatedPrism.of(
         source -> {
-          A value;
           try {
-            value = parse.apply(source);
+            A value = parse.apply(source);
+            return render.apply(value).equals(source)
+                ? Validated.validNel(value)
+                : Validated.invalidNel(error);
           } catch (RuntimeException _) {
             return Validated.invalidNel(error);
           }
-          return render.apply(value).equals(source)
-              ? Validated.validNel(value)
-              : Validated.invalidNel(error);
         },
         render);
   }

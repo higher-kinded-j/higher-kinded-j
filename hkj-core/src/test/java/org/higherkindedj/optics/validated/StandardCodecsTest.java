@@ -17,6 +17,8 @@ import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeFormatterBuilder;
+import java.time.temporal.ChronoField;
 import java.util.Currency;
 import java.util.List;
 import java.util.Locale;
@@ -138,6 +140,43 @@ class StandardCodecsTest {
     }
 
     @Test
+    @DisplayName("instant: fractions parse in the three-digit groups Instant.toString renders")
+    void instantFractionCanonicality() {
+      assertValidatedPrismLaws(
+          StandardCodecs.instant(), "2026-07-28T12:34:56.500Z", "2026-07-28T12:34:56.5Z");
+      assertThatValidated(StandardCodecs.instant().parse("2026-07-28T12:34:56.000Z")).isInvalid();
+    }
+
+    @Test
+    @DisplayName("offsetDateTime: a zero offset must be spelled Z, never +00:00")
+    void offsetDateTimeZeroOffsetSpelledZ() {
+      assertValidatedPrismLaws(
+          StandardCodecs.offsetDateTime(), "2026-07-28T12:34:56Z", "2026-07-28T12:34:56+00:00");
+      assertThatValidated(StandardCodecs.offsetDateTime().parse("2026-07-28T12:34:56.000Z"))
+          .isInvalid();
+    }
+
+    @Test
+    @DisplayName(
+        "a formatter failing to render a value its lenient parse produced is a located"
+            + " rejection, not an exception")
+    void lenientFormatterRenderFailureIsLocated() {
+      var lenientYear =
+          new DateTimeFormatterBuilder()
+              .parseLenient()
+              .appendValue(ChronoField.YEAR, 4)
+              .appendLiteral('-')
+              .appendValue(ChronoField.MONTH_OF_YEAR, 2)
+              .appendLiteral('-')
+              .appendValue(ChronoField.DAY_OF_MONTH, 2)
+              .toFormatter(Locale.ROOT);
+      var codec = StandardCodecs.localDate(lenientYear);
+      // The lenient parse accepts the signed year; rendering it throws inside the guard, so the
+      // wire string is a located rejection.
+      assertThatValidated(codec.parse("-0500-01-01")).isInvalid();
+    }
+
+    @Test
     @DisplayName("offsetDateTime: seconds always present, zero seconds included")
     void offsetDateTimeCodec() {
       assertValidatedPrismLaws(
@@ -188,7 +227,7 @@ class StandardCodecsTest {
     void enumCodec() {
       assertValidatedPrismLaws(StandardCodecs.enumByName(OrderStatus.class), "PAID", "paid");
       assertThat(errors(StandardCodecs.enumByName(OrderStatus.class).parse("SHIPPED")))
-          .containsExactly("not a OrderStatus (expected one of NEW, PAID, CANCELLED)");
+          .containsExactly("unknown OrderStatus (expected one of NEW, PAID, CANCELLED)");
       assertThat(StandardCodecs.enumByName(OrderStatus.class).build(OrderStatus.CANCELLED))
           .isEqualTo("CANCELLED");
     }
@@ -205,6 +244,16 @@ class StandardCodecsTest {
           .isThrownBy(() -> StandardCodecs.enumByName(null))
           .withMessage("enumType must not be null");
     }
+
+    enum Uninhabited {}
+
+    @Test
+    @DisplayName("enumByName: an enum with no constants fails at construction, nothing can parse")
+    void emptyEnumRejectedAtConstruction() {
+      assertThatIllegalArgumentException()
+          .isThrownBy(() -> StandardCodecs.enumByName(Uninhabited.class))
+          .withMessageContaining("has no constants");
+    }
   }
 
   @Nested
@@ -217,8 +266,18 @@ class StandardCodecsTest {
       assertValidatedPrismLaws(StandardCodecs.bigDecimal(), "123.45", "1E+3");
       assertValidatedPrismLaws(StandardCodecs.bigDecimal(), "0.010", "abc");
       assertThat(errors(StandardCodecs.bigDecimal().parse("1E+3")))
-          .containsExactly("not a number (expected e.g. 123.45)");
+          .containsExactly("not a number in plain notation (expected e.g. 123.45)");
       assertThat(StandardCodecs.bigDecimal().build(new BigDecimal("0.010"))).isEqualTo("0.010");
+    }
+
+    @Test
+    @DisplayName(
+        "bigDecimal: an astronomical exponent is a located rejection before any rendering,"
+            + " never an OutOfMemoryError")
+    void bigDecimalHugeExponentRejectedCheaply() {
+      assertThatValidated(StandardCodecs.bigDecimal().parse("1E+2147483647")).isInvalid();
+      assertThatValidated(StandardCodecs.bigDecimal().parse("1E-2147483647")).isInvalid();
+      assertThatValidated(StandardCodecs.bigDecimal().parse("-1E+1000000")).isInvalid();
     }
 
     @Test
@@ -227,7 +286,7 @@ class StandardCodecsTest {
       assertValidatedPrismLaws(StandardCodecs.intFromString(), "42", "007");
       assertValidatedPrismLaws(StandardCodecs.intFromString(), "-7", "+7");
       assertThat(errors(StandardCodecs.intFromString().parse("nope")))
-          .containsExactly("not an integer (expected e.g. 42)");
+          .containsExactly("not a 32-bit integer (expected e.g. 42)");
     }
 
     @Test
@@ -235,7 +294,7 @@ class StandardCodecsTest {
     void longCodec() {
       assertValidatedPrismLaws(StandardCodecs.longFromString(), "9223372036854775807", "0x10");
       assertThat(errors(StandardCodecs.longFromString().parse("nope")))
-          .containsExactly("not an integer (expected e.g. 42)");
+          .containsExactly("not a 64-bit integer (expected e.g. 42)");
     }
 
     @Test
@@ -244,7 +303,7 @@ class StandardCodecsTest {
       assertValidatedPrismLaws(StandardCodecs.doubleFromString(), "3.14", "1e3");
       assertValidatedPrismLaws(StandardCodecs.doubleFromString(), "NaN", "nan");
       assertThat(errors(StandardCodecs.doubleFromString().parse("1e3")))
-          .containsExactly("not a number (expected e.g. 3.14)");
+          .containsExactly("not a double in canonical form (expected e.g. 3.14)");
     }
 
     @Test
@@ -298,7 +357,7 @@ class StandardCodecsTest {
       assertThat(errors(result))
           .containsExactly(
               "placedOn: not an ISO-8601 date (expected e.g. 2026-07-28)",
-              "total: not a number (expected e.g. 123.45)");
+              "total: not a number in plain notation (expected e.g. 123.45)");
     }
 
     @Test
