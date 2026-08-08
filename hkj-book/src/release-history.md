@@ -16,6 +16,8 @@ This page documents the evolution of Higher-Kinded-J from its initial release th
 
 _In development. Release notes will be added here as changes land on `main`._
 
+- **Mapper parse ceiling lifted** ([#670](https://github.com/higher-kinded-j/higher-kinded-j/issues/670)): `@GenerateMapping`'s `parse` and validated `patch`, and `@GenerateMerge`'s fallible merge, now assemble records wider than 16 components through chunked `Validated.fields()` ladders combined applicatively, so an externally fixed flat 20-30 field DTO maps without grouping into nested records. Error semantics are unchanged and law-checked at width: same located labels, same declaration-order accumulation. The only remaining width bound is the JVM's constructor parameter-slot limit on the record itself (254 components in practice, fewer with `long`/`double`), which javac enforces at the record declaration. The hand-written `fields()` ladder keeps its 16-field arity. See [Diagnostics and limits](optics/record_mapping.md#diagnostics-and-limits).
+
 ### [v0.4.9](https://github.com/higher-kinded-j/higher-kinded-j/releases/tag/v0.4.9) (31 July 2026)
 
 This release completes the `@GenerateMapping` **mapper programme**: every wire shape a REST boundary throws at a record domain now maps through one spec convention, under one null doctrine, rendering as one 422 response.

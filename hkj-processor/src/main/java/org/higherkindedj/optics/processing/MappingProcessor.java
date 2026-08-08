@@ -25,6 +25,7 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.StringJoiner;
+import java.util.function.Function;
 import javax.annotation.processing.AbstractProcessor;
 import javax.annotation.processing.FilerException;
 import javax.annotation.processing.ProcessingEnvironment;
@@ -819,25 +820,6 @@ public class MappingProcessor extends AbstractProcessor {
       // makes the write-back partial, which maps as the validated patch tier instead.
       if (projection.stream().noneMatch(Correspondence::fallible)) {
         writeLensImpl(spec, domain, domainDeclared, wireShape, wireUsed, projection);
-        return;
-      }
-      if (wireShape.componentCount() > ArityCeilings.ASSEMBLY) {
-        Diagnostics.error(
-            processingEnv.getMessager(),
-            spec,
-            TAG,
-            "'"
-                + wireShape.element().getSimpleName()
-                + "' projects "
-                + wireShape.componentCount()
-                + " components; the validated patch supports at most "
-                + ArityCeilings.ASSEMBLY
-                + ".",
-            "patch is assembled with Validated.fields(), which locates up to "
-                + ArityCeilings.ASSEMBLY
-                + " fields.",
-            "Group related components into nested records (each pair nests through its own"
-                + " spec), or map the record by hand.");
         return;
       }
       // Bean projections with reference properties are deferred above, and an all-primitive
@@ -1980,26 +1962,6 @@ public class MappingProcessor extends AbstractProcessor {
       return null;
     }
 
-    if (domain.getRecordComponents().size() > ArityCeilings.ASSEMBLY) {
-      Diagnostics.error(
-          processingEnv.getMessager(),
-          spec,
-          TAG,
-          "'"
-              + domain.getSimpleName()
-              + "' has "
-              + domain.getRecordComponents().size()
-              + " components; the accumulating parse supports at most "
-              + ArityCeilings.ASSEMBLY
-              + ".",
-          "parse is assembled with Validated.fields(), which locates up to "
-              + ArityCeilings.ASSEMBLY
-              + " fields.",
-          "Group related components into nested records (each pair nests through its own spec),"
-              + " or map the record by hand.");
-      return null;
-    }
-
     Map<String, String> claimedWire = new LinkedHashMap<>();
     for (RecordComponentElement domainComponent : domain.getRecordComponents()) {
       String name = domainComponent.getSimpleName().toString();
@@ -2758,14 +2720,32 @@ public class MappingProcessor extends AbstractProcessor {
           case WireShape.BeanShape b -> beanBuildBody(b, wireName, comps);
         };
 
-    CodeBlock.Builder parseChain = CodeBlock.builder().add("return $T.fields()", VALIDATED);
+    List<CodeBlock> parseLegs = new ArrayList<>();
     for (Correspondence c : comps) {
       // An unset bean property and a Jackson-bound missing record component both read null, so
       // every reference read is guarded before it reaches a leaf (whose parse rejects null) or
       // the identity copy; the guard locates the null under the field label.
-      parseChain.add(parseLeg(c, wireRead(wire, c.wireName()), guardedRead(c, wire)));
+      CodeBlock leg = parseLeg(c, wireRead(wire, c.wireName()), guardedRead(c, wire));
+      if (!leg.isEmpty()) {
+        parseLegs.add(leg);
+      }
     }
-    parseChain.add("\n.apply($T::new)", domainName);
+    CodeBlock parseBody;
+    if (parseLegs.size() <= ArityCeilings.ASSEMBLY) {
+      CodeBlock.Builder parseChain = CodeBlock.builder().add("return $T.fields()", VALIDATED);
+      parseLegs.forEach(parseChain::add);
+      parseChain.add("\n.apply($T::new)", domainName);
+      parseBody = CodeBlock.builder().addStatement("$L", parseChain.build()).build();
+    } else {
+      // Wider than one fields() ladder: chunked ladders, identical error semantics.
+      parseBody =
+          ChunkedAssembly.emit(
+              parseLegs,
+              VALIDATED,
+              NEL,
+              Set.of("wire"),
+              values -> CodeBlock.of("new $T($L)", domainName, CodeBlock.join(values, ", ")));
+    }
 
     CodeBlock.Builder reverseArgs = CodeBlock.builder();
     boolean firstReverse = true;
@@ -2792,7 +2772,7 @@ public class MappingProcessor extends AbstractProcessor {
                     .returns(parseReturn)
                     .addParameter(wireName, "wire")
                     .addStatement("$T.requireNonNull(wire, $S)", OBJECTS, "wire must not be null")
-                    .addStatement("$L", parseChain.build())
+                    .addCode(parseBody)
                     .build())
             .addMethod(asValidatedPrismMethod(wireName, domainName));
 
@@ -2928,61 +2908,76 @@ public class MappingProcessor extends AbstractProcessor {
 
     CodeBlock buildBody = wire.buildStatements(wireName, wc -> buildValue(wc, comps));
 
-    CodeBlock.Builder patchChain = CodeBlock.builder().add("return $T.fields()", VALIDATED);
+    List<CodeBlock> patchLegs = new ArrayList<>();
     for (Correspondence c : comps) {
       // A JSON-bound record leaves an absent component null, exactly like an unset bean
       // property, so every reference read is guarded into a located FieldError (the locked
       // null policy, the same guardedRead the full tier uses); a primitive
       // read can never be null and copies directly.
-      patchChain.add(parseLeg(c, wireRead(wire, c.wireName()), guardedRead(c, wire)));
+      patchLegs.add(parseLeg(c, wireRead(wire, c.wireName()), guardedRead(c, wire)));
     }
 
-    // Lambda parameters are named after the projected components, but the enclosing method
-    // already declares 'domain' and 'wire', and a lambda parameter may not shadow either (JLS
-    // 6.4). Colliding names take underscore suffixes until free of the method parameters AND of
-    // every component name (a renamed parameter must not capture another component's reference).
-    Set<String> takenParamNames = new LinkedHashSet<>(List.of("domain", "wire"));
-    for (RecordComponentElement domainComponent : domain.getRecordComponents()) {
-      takenParamNames.add(domainComponent.getSimpleName().toString());
-    }
-    Map<String, String> lambdaParamFor = new LinkedHashMap<>();
-    for (Correspondence c : comps) {
-      String candidate = c.name();
-      if (candidate.equals("domain") || candidate.equals("wire")) {
-        do {
-          candidate = candidate + "_";
-        } while (takenParamNames.contains(candidate));
-      }
-      takenParamNames.add(candidate);
-      lambdaParamFor.put(c.name(), candidate);
-    }
+    CodeBlock patchBody;
+    if (patchLegs.size() <= ArityCeilings.ASSEMBLY) {
+      CodeBlock.Builder patchChain = CodeBlock.builder().add("return $T.fields()", VALIDATED);
+      patchLegs.forEach(patchChain::add);
 
-    CodeBlock.Builder lambdaParams = CodeBlock.builder();
-    boolean firstParam = true;
-    for (Correspondence c : comps) {
-      if (!firstParam) {
-        lambdaParams.add(", ");
+      // Lambda parameters are named after the projected components, but the enclosing method
+      // already declares 'domain' and 'wire', and a lambda parameter may not shadow either (JLS
+      // 6.4). Colliding names take underscore suffixes until free of the method parameters AND of
+      // every component name (a renamed parameter must not capture another component's reference).
+      Set<String> takenParamNames = new LinkedHashSet<>(List.of("domain", "wire"));
+      for (RecordComponentElement domainComponent : domain.getRecordComponents()) {
+        takenParamNames.add(domainComponent.getSimpleName().toString());
       }
-      firstParam = false;
-      lambdaParams.add("$L", lambdaParamFor.get(c.name()));
+      Map<String, String> lambdaParamFor = new LinkedHashMap<>();
+      for (Correspondence c : comps) {
+        String candidate = c.name();
+        if (candidate.equals("domain") || candidate.equals("wire")) {
+          do {
+            candidate = candidate + "_";
+          } while (takenParamNames.contains(candidate));
+        }
+        takenParamNames.add(candidate);
+        lambdaParamFor.put(c.name(), candidate);
+      }
+
+      CodeBlock.Builder lambdaParams = CodeBlock.builder();
+      boolean firstParam = true;
+      for (Correspondence c : comps) {
+        if (!firstParam) {
+          lambdaParams.add(", ");
+        }
+        firstParam = false;
+        lambdaParams.add("$L", lambdaParamFor.get(c.name()));
+      }
+      patchChain.add(
+          "\n.apply(($L) -> new $T($L))",
+          lambdaParams.build(),
+          domainName,
+          patchCtorArgs(domain, comps, name -> CodeBlock.of("$L", lambdaParamFor.get(name))));
+      patchBody = CodeBlock.builder().addStatement("$L", patchChain.build()).build();
+    } else {
+      // Wider than one fields() ladder: chunked ladders; projected components read from the
+      // tuples, unprojected components from the domain argument, exactly as the lambda form.
+      patchBody =
+          ChunkedAssembly.emit(
+              patchLegs,
+              VALIDATED,
+              NEL,
+              Set.of("domain", "wire"),
+              values -> {
+                // values align 1:1 with comps: every projected leg emits exactly one .field
+                // (a projection can never carry a DERIVED correspondence, the only empty leg),
+                // so index i pairs comps.get(i) with its parsed value.
+                Map<String, CodeBlock> valueFor = new LinkedHashMap<>();
+                for (int i = 0; i < comps.size(); i++) {
+                  valueFor.put(comps.get(i).name(), values.get(i));
+                }
+                return CodeBlock.of(
+                    "new $T($L)", domainName, patchCtorArgs(domain, comps, valueFor::get));
+              });
     }
-    CodeBlock.Builder ctorArgs = CodeBlock.builder();
-    boolean firstArg = true;
-    for (RecordComponentElement domainComponent : domain.getRecordComponents()) {
-      String name = domainComponent.getSimpleName().toString();
-      boolean projected = comps.stream().anyMatch(c -> c.name().equals(name));
-      if (!firstArg) {
-        ctorArgs.add(", ");
-      }
-      firstArg = false;
-      if (projected) {
-        ctorArgs.add("$L", lambdaParamFor.get(name));
-      } else {
-        ctorArgs.add("domain.$L()", name);
-      }
-    }
-    patchChain.add(
-        "\n.apply(($L) -> new $T($L))", lambdaParams.build(), domainName, ctorArgs.build());
 
     TypeSpec.Builder implBuilder =
         implSkeleton(
@@ -3012,7 +3007,7 @@ public class MappingProcessor extends AbstractProcessor {
                     .addStatement(
                         "$T.requireNonNull(domain, $S)", OBJECTS, "domain must not be null")
                     .addStatement("$T.requireNonNull(wire, $S)", OBJECTS, "wire must not be null")
-                    .addStatement("$L", patchChain.build())
+                    .addCode(patchBody)
                     .build());
     addRenameStubs(implBuilder, spec);
     // A patch tier always carries at least one fallible correspondence, which is always a
@@ -3025,6 +3020,26 @@ public class MappingProcessor extends AbstractProcessor {
       implBuilder.addMethod(valuesPresentHelper());
     }
     writeFile(spec, specName.packageName(), implBuilder.build());
+  }
+
+  /**
+   * The patch constructor arguments: projected components take the supplied value expression,
+   * unprojected components read from the domain argument.
+   */
+  private static CodeBlock patchCtorArgs(
+      TypeElement domain, List<Correspondence> comps, Function<String, CodeBlock> projectedValue) {
+    CodeBlock.Builder args = CodeBlock.builder();
+    boolean first = true;
+    for (RecordComponentElement domainComponent : domain.getRecordComponents()) {
+      String name = domainComponent.getSimpleName().toString();
+      boolean projected = comps.stream().anyMatch(c -> c.name().equals(name));
+      if (!first) {
+        args.add(", ");
+      }
+      first = false;
+      args.add(projected ? projectedValue.apply(name) : CodeBlock.of("domain.$L()", name));
+    }
+    return args.build();
   }
 
   private void writeLensImpl(

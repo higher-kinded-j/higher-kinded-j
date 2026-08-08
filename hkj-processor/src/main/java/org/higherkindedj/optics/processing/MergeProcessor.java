@@ -12,6 +12,7 @@ import com.palantir.javapoet.TypeName;
 import com.palantir.javapoet.TypeSpec;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
 import javax.annotation.processing.AbstractProcessor;
@@ -64,6 +65,8 @@ public class MergeProcessor extends AbstractProcessor {
   private static final String FIELD_ERROR_FQN = "org.higherkindedj.hkt.validated.FieldError";
   private static final ClassName VALIDATED =
       ClassName.get("org.higherkindedj.hkt.validated", "Validated");
+  private static final ClassName NEL =
+      ClassName.get("org.higherkindedj.hkt.nonemptylist", "NonEmptyList");
   private static final ClassName GENERATED =
       ClassName.get("org.higherkindedj.optics.annotations", "Generated");
   private static final ClassName OBJECTS = ClassName.get("java.util", "Objects");
@@ -223,25 +226,6 @@ public class MergeProcessor extends AbstractProcessor {
           "Declare the plain '" + shape.target().getSimpleName() + "' return type.");
       return;
     }
-    if (fallible && shape.target().getRecordComponents().size() > ArityCeilings.ASSEMBLY) {
-      Diagnostics.error(
-          processingEnv.getMessager(),
-          mergeMethod,
-          TAG,
-          "'"
-              + shape.target().getSimpleName()
-              + "' has "
-              + shape.target().getRecordComponents().size()
-              + " components; the accumulating merge supports at most "
-              + ArityCeilings.ASSEMBLY
-              + ".",
-          "The fallible path is assembled with Validated.fields(), which locates up to "
-              + ArityCeilings.ASSEMBLY
-              + " fields.",
-          "Group related components into nested records, or map the record by hand.");
-      return;
-    }
-
     writeImpl(spec, mergeMethod, shape, fills);
   }
 
@@ -616,48 +600,72 @@ public class MergeProcessor extends AbstractProcessor {
     }
 
     if (shape.fallibleDeclared()) {
-      CodeBlock.Builder chain = CodeBlock.builder().add("return $T.fields()", VALIDATED);
+      List<CodeBlock> legs = new ArrayList<>();
       for (Fill fill : fills) {
         // Every reference read is null-guarded (the null doctrine): a null source
         // component is a located FieldError, never an exception. Primitive identity reads can
         // never be null and copy directly.
         if (fill.fallible()) {
-          chain.add(
-              "\n.field($S, hkj$$ifPresent($L.$L(), $L::parse))",
-              fill.component(),
-              fill.sourceParam(),
-              fill.component(),
-              fill.prism());
+          legs.add(
+              CodeBlock.of(
+                  "\n.field($S, hkj$$ifPresent($L.$L(), $L::parse))",
+                  fill.component(),
+                  fill.sourceParam(),
+                  fill.component(),
+                  fill.prism()));
         } else if (fill.containerKind() == ContainerKind.LIST) {
-          chain.add(
-              "\n.field($S, hkj$$allPresent($L.$L()))",
-              fill.component(),
-              fill.sourceParam(),
-              fill.component());
+          legs.add(
+              CodeBlock.of(
+                  "\n.field($S, hkj$$allPresent($L.$L()))",
+                  fill.component(),
+                  fill.sourceParam(),
+                  fill.component()));
         } else if (fill.containerKind() == ContainerKind.MAP) {
-          chain.add(
-              "\n.field($S, hkj$$valuesPresent($L.$L()))",
-              fill.component(),
-              fill.sourceParam(),
-              fill.component());
+          legs.add(
+              CodeBlock.of(
+                  "\n.field($S, hkj$$valuesPresent($L.$L()))",
+                  fill.component(),
+                  fill.sourceParam(),
+                  fill.component()));
         } else if (fill.guardedRead()) {
-          chain.add(
-              "\n.field($S, hkj$$ifPresent($L.$L(), $T::validNel))",
-              fill.component(),
-              fill.sourceParam(),
-              fill.component(),
-              VALIDATED);
+          legs.add(
+              CodeBlock.of(
+                  "\n.field($S, hkj$$ifPresent($L.$L(), $T::validNel))",
+                  fill.component(),
+                  fill.sourceParam(),
+                  fill.component(),
+                  VALIDATED));
         } else {
-          chain.add(
-              "\n.field($S, $T.validNel($L.$L()))",
-              fill.component(),
-              VALIDATED,
-              fill.sourceParam(),
-              fill.component());
+          legs.add(
+              CodeBlock.of(
+                  "\n.field($S, $T.validNel($L.$L()))",
+                  fill.component(),
+                  VALIDATED,
+                  fill.sourceParam(),
+                  fill.component()));
         }
       }
-      chain.add("\n.apply($T::new)", targetName);
-      method.addStatement("$L", chain.build());
+      if (legs.size() <= ArityCeilings.ASSEMBLY) {
+        CodeBlock.Builder chain = CodeBlock.builder().add("return $T.fields()", VALIDATED);
+        legs.forEach(chain::add);
+        chain.add("\n.apply($T::new)", targetName);
+        method.addStatement("$L", chain.build());
+      } else {
+        // Wider than one fields() ladder: chunked ladders, identical error semantics. The merge
+        // method's parameters carry the spec author's names, so they are reserved against the
+        // emitted chunk locals and lambda parameters.
+        Set<String> reserved = new LinkedHashSet<>();
+        for (VariableElement source : mergeMethod.getParameters()) {
+          reserved.add(source.getSimpleName().toString());
+        }
+        method.addCode(
+            ChunkedAssembly.emit(
+                legs,
+                VALIDATED,
+                NEL,
+                reserved,
+                values -> CodeBlock.of("new $T($L)", targetName, CodeBlock.join(values, ", "))));
+      }
     } else {
       CodeBlock.Builder args = CodeBlock.builder();
       boolean first = true;

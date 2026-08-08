@@ -11,6 +11,8 @@ import com.google.testing.compile.JavaFileObjects;
 import java.io.IOException;
 import java.util.List;
 import java.util.Optional;
+import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 import javax.tools.JavaFileObject;
 import javax.tools.StandardLocation;
 import org.assertj.core.api.Assertions;
@@ -483,6 +485,32 @@ class MergeProcessorTest {
   @DisplayName("What/why/fix diagnostics")
   class Diagnostics {
 
+    /**
+     * A 17-component fallible target: 16 identity components plus a leaf, exactly one leg past one
+     * fields() ladder. Shared by both chunked-merge tests so they cross the ladder boundary
+     * together — a width change here would silently stop either from exercising the chunked path.
+     */
+    private static final JavaFileObject WIDE = wideFixture();
+
+    private static JavaFileObject wideFixture() {
+      String comps =
+          IntStream.rangeClosed(1, 16)
+              .mapToObj(i -> "String f" + i)
+              .collect(Collectors.joining(", "));
+      return JavaFileObjects.forSourceString(
+          "com.example.Wide",
+          "package com.example;\n"
+              + "public final class Wide {\n"
+              + "  public record Source("
+              + comps
+              + ", String raw) {}\n"
+              + "  public record Extra(String tail) {}\n"
+              + "  public record Target("
+              + comps
+              + ", Records.EmailAddress raw) {}\n"
+              + "}\n");
+    }
+
     @Test
     @DisplayName("a same-typed component still routes through an explicit validating leaf")
     void sameTypeLeafWinsOverIdentity() {
@@ -900,29 +928,12 @@ class MergeProcessorTest {
     }
 
     @Test
-    @DisplayName("a 17-component fallible target hits the fields() ceiling")
-    void fallibleArityCeilingRejected() {
-      String comps =
-          java.util.stream.IntStream.rangeClosed(1, 16)
-              .mapToObj(i -> "String f" + i)
-              .collect(java.util.stream.Collectors.joining(", "));
-      JavaFileObject wide =
-          JavaFileObjects.forSourceString(
-              "com.example.Wide",
-              "package com.example;\n"
-                  + "public final class Wide {\n"
-                  + "  public record Source("
-                  + comps
-                  + ", String raw) {}\n"
-                  + "  public record Extra(String tail) {}\n"
-                  + "  public record Target("
-                  + comps
-                  + ", Records.EmailAddress raw) {}\n"
-                  + "}\n");
+    @DisplayName("a 17-component fallible target merges through chunked fields() ladders")
+    void fallibleArityBeyondLadderCompilesChunked() {
       Compilation compilation =
           compile(
               RECORDS,
-              wide,
+              WIDE,
               spec(
                   "WideAssembly",
                   """
@@ -937,9 +948,45 @@ class MergeProcessorTest {
                     }
                   }
                   """));
-      assertThat(compilation).failed();
-      assertThat(compilation)
-          .hadErrorContaining("has 17 components; the accumulating merge supports at most 16");
+      // The chunked combine is the shared ChunkedAssembly emitter, pinned by the mapping tiers'
+      // wide goldens and law-checked at runtime by WideMappingLawsTest in hkj-examples; this
+      // test pins the merge-specific legs and shape.
+      assertThat(compilation).succeeded();
+      Assertions.assertThat(generatedSource(compilation, "com.example.WideAssemblyImpl"))
+          .contains("Tuple16::new")
+          .contains(".apply(v -> v)")
+          .contains("NonEmptyList.semigroup()")
+          .contains(".field(\"raw\"");
+    }
+
+    @Test
+    @DisplayName(
+        "chunk locals and lambda parameters take underscore suffixes when the merge method's own"
+            + " parameter names collide")
+    void chunkedIdentifiersDodgeParameterNames() {
+      Compilation compilation =
+          compile(
+              RECORDS,
+              WIDE,
+              spec(
+                  "CollidingAssembly",
+                  """
+                  public interface CollidingAssembly {
+                    Validated<NonEmptyList<FieldError>, Wide.Target> assemble(
+                        Wide.Source c1, Wide.Extra v);
+
+                    default ValidatedPrism<String, Records.EmailAddress> raw() {
+                      return ValidatedPrism.of(
+                          v -> Validated.validNel(new Records.EmailAddress(v)),
+                          Records.EmailAddress::value);
+                    }
+                  }
+                  """));
+      assertThat(compilation).succeeded();
+      Assertions.assertThat(generatedSource(compilation, "com.example.CollidingAssemblyImpl"))
+          .contains("var c1_ = ")
+          .contains(".apply(v_ -> v_)")
+          .contains("c1_.map(t1 -> t2 ->");
     }
 
     @org.junit.jupiter.params.ParameterizedTest(name = "{0}")
