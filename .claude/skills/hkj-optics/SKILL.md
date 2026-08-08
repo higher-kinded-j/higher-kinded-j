@@ -243,6 +243,10 @@ Gotcha: `andThen`'s argument must be typed `Update<S>` / `UnaryOperator<S>`. Pas
 `org.higherkindedj.optics.validated.ValidatedPrism<S, A>`: the smart-constructor optic. `parse`
 accumulates *reasons* for rejection; `build` is total.
 
+Before hand-writing a leaf for a standard family (UUID, URI, dates, enums, BigDecimal, numbers,
+boolean, Currency, Locale), check `StandardCodecs` in the same package: it ships lawful,
+canonical-form codecs for all of them (see `/hkj-mapping`).
+
 <!-- verify -->
 ```java
 ValidatedPrism<String, EmailAddress> EMAIL =

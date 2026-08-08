@@ -3277,6 +3277,47 @@ class MappingProcessorTest {
     }
 
     @Test
+    @DisplayName(
+        "a type-differing primitive component steers to a wrapper type, never to an"
+            + " uncompilable ValidatedPrism over a primitive")
+    void primitiveComponentSteersToWrapper() {
+      JavaFileObject spec =
+          JavaFileObjects.forSourceString(
+              "com.example.OrderMapping",
+              """
+              package com.example;
+
+              import org.higherkindedj.hkt.validated.Validated;
+              import org.higherkindedj.optics.annotations.GenerateMapping;
+              import org.higherkindedj.optics.annotations.MappingSpec;
+              import org.higherkindedj.optics.validated.ValidatedPrism;
+
+              @GenerateMapping
+              public interface OrderMapping extends MappingSpec<Records.Order, Records.OrderDto> {
+                default ValidatedPrism<String, Integer> quantity() {
+                  return ValidatedPrism.of(
+                      raw -> Validated.validNel(Integer.valueOf(raw)), String::valueOf);
+                }
+              }
+              """);
+      Compilation compilation =
+          compile(
+              records(
+                  """
+                  public final class Records {
+                    public record Order(int quantity, String note) {}
+
+                    public record OrderDto(String quantity, String note) {}
+                  }
+                  """),
+              spec);
+      assertThat(compilation).failed();
+      assertThat(compilation).hadErrorContaining("Make 'quantity' a wrapper type");
+      Assertions.assertThat(compilation.errors().toString())
+          .doesNotContain("ValidatedPrism<java.lang.String, int>");
+    }
+
+    @Test
     @DisplayName("a rename colliding with a same-named component is rejected, not a crash")
     void renameCollisionRejected() {
       JavaFileObject spec =

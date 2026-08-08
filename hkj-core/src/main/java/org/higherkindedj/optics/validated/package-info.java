@@ -8,6 +8,10 @@
  * located {@link org.higherkindedj.hkt.validated.FieldError}s; the backward direction ({@code
  * build}, domain to wire) is total. Nested composition short-circuits; sibling fields accumulate
  * through the assembly builders or the {@code Edits} builder.
+ *
+ * <p>{@link org.higherkindedj.optics.validated.StandardCodecs} is the stock vocabulary: one lawful
+ * codec factory per standard conversion family (identifiers, dates, enums, money), each accepting
+ * only the canonical form it renders.
  */
 @NullMarked
 package org.higherkindedj.optics.validated;

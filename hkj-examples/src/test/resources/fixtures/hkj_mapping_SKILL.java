@@ -18,8 +18,11 @@
 // NOTE: the imports below look unused *here*. They are for the snippet this file is spliced into.
 // That is why spotless excludes src/test/resources/fixtures (see build.gradle.kts).
 
+import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 import java.util.function.UnaryOperator;
 import org.higherkindedj.hkt.error.ErrorEnvelope;
 import org.higherkindedj.hkt.nonemptylist.NonEmptyList;
@@ -38,6 +41,17 @@ import org.higherkindedj.optics.validated.ValidatedPrism;
 import org.jspecify.annotations.Nullable;
 
 record EmailAddress(String value) {}
+
+// The record <-> DTO pair the StandardCodecs snippet maps: every conversion is a stock codec.
+enum OrderStatus {
+  NEW,
+  PAID,
+  CANCELLED
+}
+
+record Order(UUID id, LocalDate placedOn, OrderStatus status, BigDecimal total) {}
+
+record OrderDto(String id, String placedOn, String status, String total) {}
 
 record Team(String name, List<EmailAddress> members, Optional<EmailAddress> lead) {}
 
