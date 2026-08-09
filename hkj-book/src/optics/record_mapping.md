@@ -99,21 +99,20 @@ offsetDateTime(DateTimeFormatter.ofPattern("uuuu-MM-dd'T'HH:mm:ss.SSSXXX"))
 offsetDateTime(DateTimeFormatter.ofPattern("uuuu-MM-dd'T'HH:mm:ssxxx"))
 ```
 
-The same move covers any differently-canonical wire. An uppercase-UUID producer (SQL Server) is not forbidden by the law — only accepting *both* cases through one leaf is. A hand-written leaf whose canonical form is uppercase stays lawful:
+The same move covers any differently-canonical wire. An uppercase-UUID producer (SQL Server) is not forbidden by the law — only accepting *both* cases through one leaf is. [`ValidatedPrism.canonical`](validated_prism.md#laws) makes such a leaf lawful by construction: the lenient, throwing `UUID.fromString` is fine, because the render defines the canon and the per-value guard rejects every spelling it cannot reproduce:
 
 ``` java
 default ValidatedPrism<String, UUID> id() {
-  return ValidatedPrism.of(
-      raw -> raw.equals(raw.toUpperCase(Locale.ROOT)) && isUuid(raw)
-          ? Validated.validNel(UUID.fromString(raw))
-          : Validated.invalidNel(FieldError.of("not an uppercase UUID")),
-      uuid -> uuid.toString().toUpperCase(Locale.ROOT));
+  return ValidatedPrism.canonical(
+      "not an uppercase UUID",
+      UUID::fromString,                                  // throwing parse, lenient is fine
+      uuid -> uuid.toString().toUpperCase(Locale.ROOT)); // render defines the canon
 }
 ```
 
 Two mechanical notes. The number and boolean codecs focus the **box types**: a `ValidatedPrism<String, int>` cannot exist, so an `int` component cannot take a leaf — declare it `Integer` (the mapper rejects the mismatch at compile time either way). And under the star import, a leaf whose component shares a factory's name (`currency`, `locale`, `uuid`) must qualify the call — `return StandardCodecs.currency();` — because the leaf method itself is the nearer `currency()` and an unqualified call recurses.
 
-Codecs are ordinary leaves: share them across specs through a [mix-in interface](#shared-vocabulary-mix-in-interfaces) delegating to the stock factories, and conversions the vocabulary does not cover stay hand-written `ValidatedPrism.of(...)` leaves. The processor never applies a codec implicitly; a conversion exists only where a spec declares it.
+Codecs are ordinary leaves: share them across specs through a [mix-in interface](#shared-vocabulary-mix-in-interfaces) delegating to the stock factories, and conversions the vocabulary does not cover stay hand-written leaves — `ValidatedPrism.canonical(...)` where a throwing parser and a render exist, `ValidatedPrism.of(...)` for full control. The processor never applies a codec implicitly; a conversion exists only where a spec declares it.
 
 ---
 

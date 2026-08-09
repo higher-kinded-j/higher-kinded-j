@@ -22,4 +22,14 @@ class ValidatedPrismBookLawsTest {
     // build-parse: parse(s) == Valid(a)  =>  build(a) == s   (no lossy parse-normalise)
     // ANCHOR_END: laws
   }
+
+  @Test
+  void canonicalUppercaseUuidObeysTheLaws() {
+    // ANCHOR: canonical_laws
+    ValidatedPrismLaws.assertValidatedPrismLaws(
+        ValidatedPrismBook.UPPER_UUID,
+        "123E4567-E89B-12D3-A456-426614174000", // the canonical spelling parses
+        "123e4567-e89b-12d3-a456-426614174000"); // the one render cannot reproduce is rejected
+    // ANCHOR_END: canonical_laws
+  }
 }

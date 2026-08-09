@@ -2,6 +2,8 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.example.book.optics;
 
+import java.util.Locale;
+import java.util.UUID;
 import org.higherkindedj.hkt.effect.ValidationPath;
 import org.higherkindedj.hkt.nonemptylist.NonEmptyList;
 import org.higherkindedj.hkt.validated.FieldError;
@@ -22,6 +24,16 @@ public final class ValidatedPrismBook {
           EmailAddress::value); // EmailAddress -> String   (total)
 
   // ANCHOR_END: prism
+
+  // ANCHOR: canonical
+  // An uppercase-UUID wire (SQL Server): the canonical form is THEIRS, lawfully
+  static final ValidatedPrism<String, UUID> UPPER_UUID =
+      ValidatedPrism.canonical(
+          "not an uppercase UUID",
+          UUID::fromString, // throwing parse, lenient is fine
+          uuid -> uuid.toString().toUpperCase(Locale.ROOT)); // render defines the canon
+
+  // ANCHOR_END: canonical
 
   private ValidatedPrismBook() {}
 

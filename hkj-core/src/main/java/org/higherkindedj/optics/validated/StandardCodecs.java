@@ -19,7 +19,6 @@ import java.util.UUID;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import org.higherkindedj.hkt.validated.FieldError;
-import org.higherkindedj.hkt.validated.Validated;
 
 /**
  * The stock codec vocabulary: one {@link ValidatedPrism} factory per standard conversion family, so
@@ -390,27 +389,12 @@ public final class StandardCodecs {
   }
 
   /**
-   * A codec accepting only canonical wire forms: an accepted source must render back to exactly
-   * itself — the build-parse section law enforced per value, so case-folding, leading zeros and
-   * alternate spellings are rejections, never normalisations. Both the throwing parse and the
-   * canonical-form rendering sit inside the guard: a caller-supplied formatter can fail to render a
-   * value its own lenient parse produced, and that too is a located rejection, never an exception
-   * on wire input.
+   * The per-value section-law guard, by delegation to the public {@link
+   * ValidatedPrism#canonical(String, Function, Function)} factory — the pattern has exactly one
+   * implementation, and a user codec gets it from the same place.
    */
   private static <A> ValidatedPrism<String, A> codec(
       String message, Function<String, A> parse, Function<A, String> render) {
-    FieldError error = FieldError.of(message);
-    return ValidatedPrism.of(
-        source -> {
-          try {
-            A value = parse.apply(source);
-            return render.apply(value).equals(source)
-                ? Validated.validNel(value)
-                : Validated.invalidNel(error);
-          } catch (RuntimeException _) {
-            return Validated.invalidNel(error);
-          }
-        },
-        render);
+    return ValidatedPrism.canonical(message, parse, render);
   }
 }

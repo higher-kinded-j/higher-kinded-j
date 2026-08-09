@@ -353,6 +353,88 @@ public sealed interface ValidatedPrism<S, A> permits ValidatedPrism.Of {
   }
 
   /**
+   * Creates a codec from a throwing parse and a total render, with the build-parse section law
+   * guarded per value: an accepted source must render back to exactly itself, so a spelling the
+   * render cannot reproduce is a located rejection, never a silent normalisation.
+   *
+   * <p>The natural way to write a codec — wrap a throwing JDK parser, render on the way out —
+   * silently violates the section law whenever the parser is more lenient than the renderer ({@code
+   * UUID.fromString} accepts uppercase, {@code toString} renders lowercase). Here the lenient parse
+   * is fine, because {@code render} defines the canonical form and the guard rejects every other
+   * spelling:
+   *
+   * <pre>{@code
+   * // An uppercase-UUID wire (SQL Server): the canonical form is THEIRS, lawfully
+   * ValidatedPrism<String, UUID> id = ValidatedPrism.canonical(
+   *     "not an uppercase UUID",
+   *     UUID::fromString,                                  // throwing parse, lenient is fine
+   *     uuid -> uuid.toString().toUpperCase(Locale.ROOT)); // render defines the canon
+   * }</pre>
+   *
+   * <p>Any {@code RuntimeException} thrown inside the guard — by the parse on malformed input, or
+   * by the render on a value the lenient parse produced — is the located rejection: a validated
+   * boundary never throws on wire input. The outward {@link #build} direction is {@code render}
+   * itself and stays total by contract; a render that throws on a domain value is the caller's
+   * error there.
+   *
+   * <p><b>Injectivity caveat.</b> The per-value guard cannot catch a non-injective render: with a
+   * two-digit-year date format, {@code build} renders 1926-07-28 as {@code 26/07/28}, which the
+   * guard happily accepts — and which re-parses to 2026-07-28, breaking the parse-build law. Both
+   * laws hold by construction only when {@code render} is injective on the values {@code parse}
+   * produces; verify a custom codec with {@code ValidatedPrismLaws} from {@code hkj-test}.
+   *
+   * <p>The stock {@code StandardCodecs} vocabulary is built on this factory.
+   *
+   * @param message the failure message for every rejection; must not be null
+   * @param parse the lenient, throwing forward direction; must not be null
+   * @param render the total backward direction, defining the canonical form; must not be null
+   * @param <S> the source type
+   * @param <A> the domain type
+   * @return the prism (non-null)
+   * @throws NullPointerException if {@code message}, {@code parse} or {@code render} is null
+   */
+  static <S, A> ValidatedPrism<S, A> canonical(
+      String message,
+      Function<? super S, ? extends A> parse,
+      Function<? super A, ? extends S> render) {
+    return canonical(FieldError.of(message), parse, render);
+  }
+
+  /**
+   * Creates a codec with the section law guarded per value, rejecting with the given located
+   * reason; exactly {@link #canonical(String, Function, Function)} with a pre-built {@link
+   * FieldError} (matching {@link #fromPrism}'s parameter shape).
+   *
+   * @param reason the failure for every rejection; must not be null
+   * @param parse the lenient, throwing forward direction; must not be null
+   * @param render the total backward direction, defining the canonical form; must not be null
+   * @param <S> the source type
+   * @param <A> the domain type
+   * @return the prism (non-null)
+   * @throws NullPointerException if {@code reason}, {@code parse} or {@code render} is null
+   */
+  static <S, A> ValidatedPrism<S, A> canonical(
+      FieldError reason,
+      Function<? super S, ? extends A> parse,
+      Function<? super A, ? extends S> render) {
+    Objects.requireNonNull(reason, "reason must not be null");
+    Objects.requireNonNull(parse, "parse must not be null");
+    Objects.requireNonNull(render, "render must not be null");
+    return of(
+        source -> {
+          try {
+            A value = parse.apply(source);
+            return render.apply(value).equals(source)
+                ? Validated.validNel(value)
+                : Validated.invalidNel(reason);
+          } catch (RuntimeException _) {
+            return Validated.invalidNel(reason);
+          }
+        },
+        render);
+  }
+
+  /**
    * The leaf implementation wrapping the two directions.
    *
    * <p>Created by the static factories; not usually named directly.
