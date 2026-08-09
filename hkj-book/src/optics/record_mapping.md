@@ -99,7 +99,7 @@ offsetDateTime(DateTimeFormatter.ofPattern("uuuu-MM-dd'T'HH:mm:ss.SSSXXX"))
 offsetDateTime(DateTimeFormatter.ofPattern("uuuu-MM-dd'T'HH:mm:ssxxx"))
 ```
 
-The same move covers any differently-canonical wire. An uppercase-UUID producer (SQL Server) is not forbidden by the law — only accepting *both* cases through one leaf is. [`ValidatedPrism.canonical`](validated_prism.md#laws) makes such a leaf lawful by construction: the lenient, throwing `UUID.fromString` is fine, because the render defines the canon and the per-value guard rejects every spelling it cannot reproduce:
+The same move covers any differently-canonical wire. An uppercase-UUID producer (SQL Server) is not forbidden by the law — only accepting *both* cases through one leaf is. [`ValidatedPrism.canonical`](validated_prism.md#laws) supplies the guard such a leaf needs: the lenient, throwing `UUID.fromString` is fine, because the render defines the canon and the per-value guard rejects every spelling it cannot reproduce:
 
 ``` java
 default ValidatedPrism<String, UUID> id() {
