@@ -322,8 +322,19 @@ Validated<NonEmptyList<FieldError>, User> updated = update.apply(user);  // or a
 
 - **Present + valid** -> set (or parsed through its leaf), folded in. **Present + invalid** -> a
   located `FieldError`, accumulating. **Absent (null)** -> skipped.
-- A **primitive** or **`Optional`-typed** wire property is rejected (neither can carry the absent
-  signal); use a wrapper type, or a nested record/sentinel for the Optional.
+- A **primitive** wire property is rejected (it can never be absent); use a wrapper type. A domain
+  `Optional<T>` bridged from a plain property is rejected too ("set to empty" has no encoding) —
+  an `Optional`-typed wire property expresses it instead: present-empty sets empty, absent (null)
+  leaves unchanged. Caveats: Jackson binds an explicit JSON `null` to `Optional.empty()` (sent-null
+  clears on this property shape), and the bean field must default to `null`, NOT `Optional.empty()`,
+  or omitting the field clears the domain value.
+- A present **container** (a pair declared as exactly `List`/`Optional`/`Map`) parses through the
+  element leaf named after the component — the same vocabulary the dense tiers lift, so one mix-in
+  serves a full spec and its PATCH sibling. Replacement is wholesale; each failing element is
+  located (`phones.1`). A whole-container leaf (`ValidatedPrism<List<S>, List<A>>`) wins as the
+  more specific declaration. Nested specs do not lift here — delegate via an element leaf to the
+  nested Impl's `asValidatedPrism()`. Same-typed identity containers are null-scanned
+  (`tags.1: must not be null`) when properly parameterised; raw/wildcard ones are written as sent.
 - Coverage is one-sided: a domain component with no wire property is simply never changed.
 - Law-check it with the sparse overload:
   `MappingLaws.assertMappingLaws(Impl.INSTANCE::updateFrom, current, absentWire, validWire, invalidWire)`.

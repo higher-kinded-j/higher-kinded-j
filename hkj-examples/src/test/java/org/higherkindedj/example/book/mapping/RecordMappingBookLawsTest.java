@@ -2,6 +2,10 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.example.book.mapping;
 
+import static org.assertj.core.api.Assertions.assertThat;
+
+import java.util.List;
+import org.higherkindedj.hkt.validated.FieldError;
 import org.higherkindedj.optics.laws.MappingLaws;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -50,10 +54,38 @@ class RecordMappingBookLawsTest {
     // ANCHOR_END: patch_laws
   }
 
+  @Test
+  void rosterPatchMappingObeysTheSparseLawsOverContainerElements() {
+    // ANCHOR: update_container_laws
+    MappingLaws.assertMappingLaws(
+        RosterPatchMappingImpl.INSTANCE::updateFrom,
+        new Roster("core", List.of(new PhoneNumber("+44"))), // the current value
+        rosterPatch(null, null), // all-absent    -> identity
+        rosterPatch(null, List.of("+1", "+353")), // present valid -> wholesale replacement
+        rosterPatch(null, List.of("+1", "nope"))); // bad element   -> located phones.1
+    // ANCHOR_END: update_container_laws
+
+    // The located element error, exactly:
+    assertThat(
+            RosterPatchMappingImpl.INSTANCE
+                .updateFrom(rosterPatch(null, List.of("+1", "nope")))
+                .apply(new Roster("core", List.of(new PhoneNumber("+44"))))
+                .getError()
+                .toJavaList())
+        .containsExactly(new FieldError(List.of("phones", "1"), "not a phone number"));
+  }
+
   private static ContactPatchBean patch(String name, String email) {
     ContactPatchBean bean = new ContactPatchBean();
     bean.setName(name);
     bean.setEmail(email);
+    return bean;
+  }
+
+  private static RosterPatchBean rosterPatch(String team, List<String> phones) {
+    RosterPatchBean bean = new RosterPatchBean();
+    bean.setTeam(team);
+    bean.setPhones(phones);
     return bean;
   }
 }

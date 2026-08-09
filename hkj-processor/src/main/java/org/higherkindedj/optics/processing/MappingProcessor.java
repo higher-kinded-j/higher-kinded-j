@@ -840,9 +840,9 @@ public class MappingProcessor extends AbstractProcessor {
   /**
    * Processes a sparse-update spec ({@code extends UpdateSpec<Domain, Wire>}). The wire must be a
    * bean-shaped class (a record cannot signal absence) and the domain a record; sealed pairs are
-   * deferred. Every present (non-null) wire property folds into an {@code Update} via {@code
-   * Edits.accumulate}; absent properties leave the domain unchanged. Only {@code updateFrom} is
-   * emitted — no {@code build}, {@code parse}, or {@code as*} tier.
+   * rejected (dispatch has no sparse meaning). Every present (non-null) wire property folds into an
+   * {@code Update} via {@code Edits.accumulate}; absent properties leave the domain unchanged. Only
+   * {@code updateFrom} is emitted — no {@code build}, {@code parse}, or {@code as*} tier.
    */
   private void processUpdateSpec(
       TypeElement spec, DeclaredType updateSuper, List<RegisteredSpec> registry) {
@@ -926,25 +926,27 @@ public class MappingProcessor extends AbstractProcessor {
 
   /**
    * One folded edit of a sparse update: the domain component it writes, the wire property it reads,
-   * and — when the present value must be validated — the {@code ValidatedPrism} expression to parse
-   * it through (a whole-component leaf, or a nested spec's {@code asValidatedPrism()}). A pure
-   * (identity) edit carries no prism and folds as {@code Edit.setIfPresent}; a validated edit folds
-   * as {@code Edit.parseIfPresent(...).at(name)}. (Container element-lifting — {@code
-   * parseAll}/{@code parseValues} — is deferred; when it lands, the parse method is selected from
-   * the container shape, as {@link Correspondence} does with its {@code Kind}.)
+   * the {@link Kind} selecting the parse method for the emission (exactly as {@link Correspondence}
+   * does for the dense tiers), and — when the present value parses through a prism — the {@code
+   * ValidatedPrism} expression (a whole-component leaf, an element leaf lifted over its container,
+   * or a nested spec's {@code asValidatedPrism()}). A plain identity edit folds as {@code
+   * Edit.setIfPresent}; every other edit folds as {@code Edit.parseIfPresent(...).at(name)}, the
+   * parser chosen by kind ({@code parse}, {@code parseAll}, {@code parseValues}, the
+   * element-of-Optional lambda, or — for identity containers, which carry no prism yet still parse
+   * — the emitted null-scan helper).
    */
-  private record UpdateEdit(String domainName, String wireName, CodeBlock prism) {
+  private record UpdateEdit(String domainName, String wireName, Kind kind, CodeBlock prism) {
 
-    static UpdateEdit identity(String domainName, String wireName) {
-      return new UpdateEdit(domainName, wireName, null);
+    static UpdateEdit identity(String domainName, String wireName, Kind kind) {
+      return new UpdateEdit(domainName, wireName, kind, null);
     }
 
-    static UpdateEdit validated(String domainName, String wireName, CodeBlock prism) {
-      return new UpdateEdit(domainName, wireName, prism);
+    static UpdateEdit validated(String domainName, String wireName, Kind kind, CodeBlock prism) {
+      return new UpdateEdit(domainName, wireName, kind, prism);
     }
 
     boolean parsed() {
-      return prism != null;
+      return prism != null || kind == Kind.IDENTITY_LIST || kind == Kind.IDENTITY_MAP;
     }
   }
 
@@ -952,10 +954,24 @@ public class MappingProcessor extends AbstractProcessor {
    * Classifies each wire property against the domain for a sparse update. Coverage is one-sided:
    * every wire property must map to a domain component (a dangling wire property is an error), but
    * a domain component with no wire property is simply never edited. Each property matches by an
-   * explicit leaf (named after the domain component), or by identity — the same type, or a wrapper
-   * of a primitive domain component (so an {@code Integer} property can patch an {@code int}
-   * field). A primitive wire property can never be absent and is rejected. Returns null after
-   * reporting.
+   * explicit leaf (named after the domain component) — whole-component first, then an element leaf
+   * lifted over a {@code List}, {@code Optional} or {@code Map} value, exactly the dense tiers'
+   * vocabulary — or by identity: the same type, or a wrapper of a primitive domain component (so an
+   * {@code Integer} property can patch an {@code int} field). A primitive wire property can never
+   * be absent and is rejected. Returns null after reporting.
+   *
+   * <p><b>Tie-break.</b> A whole-container leaf ({@code ValidatedPrism<List<S>, List<A>>}) wins
+   * over the element interpretation, as the more specific declaration — the same order the dense
+   * tiers check. Genuine ambiguity cannot arise: a leaf is one zero-parameter method with one
+   * return type, and no {@code ValidatedPrism}'s type arguments can match a container pair and its
+   * own element pair at once.
+   *
+   * <p>Identity containers keep wholesale replacement but gain the dense tiers' null scan: a
+   * present same-typed {@code List}/{@code Map} passes by reference only when no element/value is
+   * null; a null inside is a located, accumulating invalid at its index/key, so the located-null
+   * doctrine holds on the sparse tier too. The scan requires a properly parameterised container
+   * (see {@link #sparseIdentityKind}); raw and wildcard-argument containers stay plain identity
+   * writes.
    */
   private List<UpdateEdit> classifyUpdate(
       TypeElement spec,
@@ -995,26 +1011,48 @@ public class MappingProcessor extends AbstractProcessor {
       TypeMirror domainType = domainComp.asType();
 
       // An explicit whole-component leaf wins even over a same-typed match, so it can validate or
-      // normalise a copied field.
+      // normalise a copied field; on a container pair it also beats the element interpretation,
+      // as the more specific declaration.
       ExecutableElement leaf = findLeaf(spec, domainName, wireType, domainType);
       if (leaf != null) {
         edits.add(
             UpdateEdit.validated(
-                domainName, property.name(), CodeBlock.of("$L()", leaf.getSimpleName())));
+                domainName,
+                property.name(),
+                Kind.LEAF,
+                CodeBlock.of("$L()", leaf.getSimpleName())));
+        continue;
+      }
+
+      // An element leaf lifted over a List, Optional or Map value — the same vocabulary the dense
+      // tiers accept, so one mix-in serves a full spec and an update spec alike. Checked before
+      // identity so a normalising element ValidatedPrism<X, X> still runs on a same-typed
+      // container; replacement stays wholesale, only element validation and location improve.
+      Correspondence containerLeaf =
+          containerLeafCorrespondence(spec, domainName, property.name(), wireType, domainType);
+      if (containerLeaf != null) {
+        edits.add(
+            UpdateEdit.validated(
+                domainName, property.name(), containerLeaf.kind(), containerLeaf.prism()));
         continue;
       }
 
       // Same type (or a wrapper of a primitive component) — including a same-typed List, Map or
-      // nested record — writes the present value straight in (wholesale replacement).
+      // nested record — writes the present value straight in (wholesale replacement); identity
+      // containers additionally scan for null elements/values, as in the dense tiers.
       if (identityMatch(wireType, domainType)) {
-        edits.add(UpdateEdit.identity(domainName, property.name()));
+        edits.add(UpdateEdit.identity(domainName, property.name(), sparseIdentityKind(domainType)));
         continue;
       }
 
-      // A domain Optional<T> component is the null-as-absent bridge shape (a same-typed Optional
-      // wire was already matched by identity above), which sparseness cannot express: null already
-      // means "leave unchanged", so "set to empty" has no encoding.
-      if (containerElement(domainType, "java.util.Optional") != null) {
+      // A domain Optional<T> component under a non-Optional wire property is the null-as-absent
+      // bridge shape (a same-typed Optional wire was matched by identity, a differently-typed one
+      // by an element leaf above), which sparseness cannot express: null already means "leave
+      // unchanged", so "set to empty" has no encoding. An Optional-typed wire property CAN express
+      // emptiness (a present empty Optional), so a leafless Optional pair falls through to the
+      // no-update-source diagnostic, whose fix names the element leaf.
+      if (containerElement(domainType, "java.util.Optional") != null
+          && containerElement(wireType, "java.util.Optional") == null) {
         reportOptionalBridge(spec, domain, property, domainComp);
         return null;
       }
@@ -1025,7 +1063,7 @@ public class MappingProcessor extends AbstractProcessor {
         return null;
       }
       if (nested.accessor() != null) {
-        edits.add(UpdateEdit.validated(domainName, property.name(), nested.accessor()));
+        edits.add(UpdateEdit.validated(domainName, property.name(), Kind.LEAF, nested.accessor()));
         continue;
       }
 
@@ -1167,8 +1205,11 @@ public class MappingProcessor extends AbstractProcessor {
   }
 
   /**
-   * A domain {@code Optional<T>} component under sparseness: null already means absent, so "set to
-   * empty" is inexpressible (and null-clears would be JSON Merge Patch's opposite contract).
+   * A domain {@code Optional<T>} component bridged from a non-Optional wire property under
+   * sparseness: null already means absent, so "set to empty" is inexpressible (and null-clears
+   * would be JSON Merge Patch's opposite contract). An Optional-typed wire property never lands
+   * here — it patches by identity or elementwise through an element leaf, and leafless it reaches
+   * the no-update-source diagnostic instead.
    */
   private void reportOptionalBridge(
       TypeElement spec,
@@ -1191,7 +1232,10 @@ public class MappingProcessor extends AbstractProcessor {
         "Under null-as-absent a null property means 'leave unchanged', so setting the component to"
             + " an empty Optional has no encoding; a null-clears rule would be the opposite contract"
             + " (JSON Merge Patch).",
-        "Model the field as a nested record or a sentinel value instead of Optional.");
+        "Model the field as a nested record or a sentinel value instead of Optional, or declare the"
+            + " PATCH property as Optional<"
+            + containerElement(domainComp.asType(), "java.util.Optional")
+            + "> (a present empty Optional then encodes 'set to empty').");
   }
 
   /** Two wire properties resolve to the same domain component (a same-named one and a rename). */
@@ -1237,7 +1281,9 @@ public class MappingProcessor extends AbstractProcessor {
             + domainComp.asType()
             + ").",
         "A sparse update writes a present property by identity (same type, or a wrapper of a"
-            + " primitive component) or through a leaf named after the domain component."
+            + " primitive component), through a leaf named after the domain component, or — for a"
+            + " pair declared as exactly List, Optional or Map — through an element leaf lifted"
+            + " over the container."
             + leafNearMissHint(spec, domainComp.getSimpleName().toString()),
         // A leaf cannot target a primitive component: a ValidatedPrism's domain arg is a reference
         // type, so findLeaf's isSameType(wrapper, primitive) can never match. Steer to alignment.
@@ -1247,21 +1293,76 @@ public class MappingProcessor extends AbstractProcessor {
                 + "' a wrapper type, or match the wire property to "
                 + domainComp.asType()
                 + "."
-            : "Declare a leaf 'default ValidatedPrism<"
-                + property.type()
-                + ", "
-                + domainComp.asType()
-                + "> "
-                + domainComp.getSimpleName()
-                + "()', or align the types.");
+            : updateLeafSuggestion(property, domainComp));
+  }
+
+  /**
+   * The fix line for {@link #reportNoUpdateSource}: for a container pair the element leaf comes
+   * first (the shared-vocabulary form, lifted over the container), with the whole-container leaf as
+   * the more specific alternative; scalar pairs keep the whole-component suggestion.
+   */
+  private String updateLeafSuggestion(
+      WireShape.WireComponent property, RecordComponentElement domainComp) {
+    TypeMirror wireType = property.type();
+    TypeMirror domainType = domainComp.asType();
+    String name = domainComp.getSimpleName().toString();
+    TypeMirror wireElement = null;
+    TypeMirror domainElement = null;
+    for (String container : List.of("java.util.List", "java.util.Optional")) {
+      wireElement = containerElement(wireType, container);
+      domainElement = containerElement(domainType, container);
+      if (wireElement != null && domainElement != null) {
+        break;
+      }
+    }
+    if (wireElement == null || domainElement == null) {
+      // The same gate containerLeafCorrespondence applies: mismatched key types reject the pair
+      // before any leaf is consulted, so suggesting an element (value) leaf there would be futile.
+      DeclaredType[] mapPair = liftableMapPair(wireType, domainType);
+      if (mapPair != null) {
+        wireElement = mapPair[0].getTypeArguments().get(1);
+        domainElement = mapPair[1].getTypeArguments().get(1);
+      }
+    }
+    // A wildcard element type can never match a leaf (isSameType is false for wildcards), so the
+    // element form is only offered when a leaf declaring it could actually bind.
+    if (wireElement != null
+        && domainElement != null
+        && wireElement.getKind() != TypeKind.WILDCARD
+        && domainElement.getKind() != TypeKind.WILDCARD) {
+      return "Declare an element leaf 'default ValidatedPrism<"
+          + wireElement
+          + ", "
+          + domainElement
+          + "> "
+          + name
+          + "()' (lifted over the container; it may delegate to a nested Impl's"
+          + " asValidatedPrism()), a whole-container leaf 'default ValidatedPrism<"
+          + wireType
+          + ", "
+          + domainType
+          + "> "
+          + name
+          + "()', or align the types.";
+    }
+    return "Declare a leaf 'default ValidatedPrism<"
+        + wireType
+        + ", "
+        + domainType
+        + "> "
+        + name
+        + "()', or align the types.";
   }
 
   /**
    * Emits the sparse-update Impl: a single {@code updateFrom(Wire) : Edits.Accumulated<Domain>}
    * that folds each present wire property into an {@code Update}. Identity edits use {@code
-   * Edit.setIfPresent} against an inline {@code Setter} that rebuilds the record; leaf edits use
-   * {@code Edit.parseIfPresent(...).at(name)}, so a present-but-invalid value accumulates a located
-   * {@code FieldError}. No {@code build}/{@code parse}/{@code as*} tier is emitted.
+   * Edit.setIfPresent} against an inline {@code Setter} that rebuilds the record; validated edits
+   * use {@code Edit.parseIfPresent(...).at(name)} with the parse method their {@link Kind} selects
+   * ({@code parse}, element-lifted {@code parseAll}/{@code parseValues}, the element-of-Optional
+   * lambda, or the identity-container null scan), so a present-but-invalid value accumulates a
+   * located {@code FieldError} — {@code phones.1: ...} for a bad second element. No {@code
+   * build}/{@code parse}/{@code as*} tier is emitted.
    */
   private void writeUpdateImpl(
       TypeElement spec, TypeElement domain, WireShape wire, List<UpdateEdit> edits) {
@@ -1288,12 +1389,24 @@ public class MappingProcessor extends AbstractProcessor {
       CodeBlock setter = setterExpr(domainClass, domain, edit.domainName());
       CodeBlock read = wireRead(wire, edit.wireName());
       if (edit.parsed()) {
+        CodeBlock parser =
+            switch (edit.kind()) {
+              case LIST -> CodeBlock.of("$L::parseAll", edit.prism());
+              case MAP -> CodeBlock.of("$L::parseValues", edit.prism());
+              case OPTIONAL -> elementOfOptionalParser(edit.prism());
+              case IDENTITY_LIST -> CodeBlock.of("$T::hkj$$allPresent", implName);
+              case IDENTITY_MAP -> CodeBlock.of("$T::hkj$$valuesPresent", implName);
+              // LEAF; the dense-only kinds (OPTIONAL_BRIDGE, DERIVED) and plain IDENTITY are
+              // never constructed as parsed sparse edits, and the Kind-canary test forces a
+              // deliberate arm here before any new Kind can reach this switch.
+              default -> CodeBlock.of("$L::parse", edit.prism());
+            };
         call.add(
-            "    $T.parseIfPresent($L, $L, $L::parse).at($S)",
+            "    $T.parseIfPresent($L, $L, $L).at($S)",
             EDIT,
             setter,
             read,
-            edit.prism(),
+            parser,
             edit.domainName());
       } else {
         call.add("    $T.setIfPresent($L, $L)", EDIT, setter, read);
@@ -1324,6 +1437,12 @@ public class MappingProcessor extends AbstractProcessor {
                 List.of())
             .addMethod(updateFrom);
     addRenameStubs(implBuilder, spec);
+    if (edits.stream().anyMatch(e -> e.kind() == Kind.IDENTITY_LIST)) {
+      implBuilder.addMethod(allPresentHelper());
+    }
+    if (edits.stream().anyMatch(e -> e.kind() == Kind.IDENTITY_MAP)) {
+      implBuilder.addMethod(valuesPresentHelper());
+    }
     writeFile(spec, specName.packageName(), implBuilder.build());
   }
 
@@ -1374,7 +1493,9 @@ public class MappingProcessor extends AbstractProcessor {
     return new WireShape.RecordShape(wire, components);
   }
 
-  private enum Kind {
+  // Package-visible for the Kind-canary test, which pins the constant list so a new kind must
+  // choose its sparse emission (writeUpdateImpl's parser switch) before it can land.
+  enum Kind {
     IDENTITY,
     // Same-typed List/Map components: copied by identity, but parse scans for null
     // elements/values so the located-null doctrine holds inside identity containers too.
@@ -1404,6 +1525,24 @@ public class MappingProcessor extends AbstractProcessor {
     }
   }
 
+  /**
+   * The sparse tier's identity kind: the null scan applies only where the emitted generic helper
+   * can type — an exactly-{@code List}/{@code Map} component whose type arguments are proper types.
+   * A raw or wildcard-argument container stays a plain identity write ({@code setIfPresent}): the
+   * helper's method reference must produce the component's exact type, and a wildcard captures
+   * differently on the argument and return sides while a raw type erases the call, so either shape
+   * would fail to compile inside the user's generated Impl.
+   */
+  private Kind sparseIdentityKind(TypeMirror type) {
+    Kind kind = identityKind(type);
+    if (kind == Kind.IDENTITY) {
+      return Kind.IDENTITY;
+    }
+    DeclaredType declared = (DeclaredType) type;
+    boolean scanTypable = !declared.getTypeArguments().isEmpty() && !hasWildcardArgument(declared);
+    return scanTypable ? kind : Kind.IDENTITY;
+  }
+
   /** Identity components copy verbatim; a same-typed List/Map additionally scans for nulls. */
   private Kind identityKind(TypeMirror type) {
     if (isExactly(type, "java.util.List")) {
@@ -1431,10 +1570,10 @@ public class MappingProcessor extends AbstractProcessor {
   /**
    * Resolves the ValidatedPrism carrying a (wireType -> domainType) correspondence through a single
    * same-round mapping spec for the pair (via its generated impl's {@code asValidatedPrism()}).
-   * Explicit leaves are matched by {@link #classify} before identity classification ever runs —
-   * whole-component leaves directly, container ELEMENT/VALUE leaves through {@link
-   * #containerLeafCorrespondence} — so by the time a nested spec is consulted no leaf exists for
-   * the pair. More than one candidate spec is reported as an error.
+   * Explicit leaves are matched by {@link #classify} and {@link #classifyUpdate} before identity
+   * classification ever runs — whole-component leaves directly, container ELEMENT/VALUE leaves
+   * through {@link #containerLeafCorrespondence} — so by the time a nested spec is consulted no
+   * leaf exists for the pair. More than one candidate spec is reported as an error.
    */
   private PrismResolution resolveNestedSpec(
       TypeElement spec,
@@ -2339,11 +2478,12 @@ public class MappingProcessor extends AbstractProcessor {
 
   /**
    * The container analogue of the whole-component leaf check, applied BEFORE the identity
-   * short-circuit: an explicit ELEMENT/VALUE-typed leaf on a {@code List}, {@code Optional} or
-   * {@code Map} component wins even when both sides declare the same container type, so a
-   * normalising {@code ValidatedPrism<X, X>} still runs. For {@code Map} the key types must already
-   * match (keys are identity-only); mismatches fall through to the post-identity diagnostics.
-   * Returns null when no such leaf exists.
+   * short-circuit (by the dense tiers and {@link #classifyUpdate} alike): an explicit
+   * ELEMENT/VALUE-typed leaf on a {@code List}, {@code Optional} or {@code Map} component wins even
+   * when both sides declare the same container type, so a normalising {@code ValidatedPrism<X, X>}
+   * still runs. For {@code Map} the key types must already match (keys are identity-only);
+   * mismatches fall through to the post-identity diagnostics. Returns null when no such leaf
+   * exists.
    */
   private Correspondence containerLeafCorrespondence(
       TypeElement spec, String name, String wireName, TypeMirror wireType, TypeMirror domainType) {
@@ -2358,25 +2498,38 @@ public class MappingProcessor extends AbstractProcessor {
       return elementLeafCorrespondence(
           spec, name, wireName, Kind.OPTIONAL, wireElement, domainElement);
     }
-    DeclaredType wireMap = asMapType(wireType);
-    DeclaredType domainMap = asMapType(domainType);
-    if (wireMap != null
-        && domainMap != null
-        && wireMap.getTypeArguments().size() == 2
-        && domainMap.getTypeArguments().size() == 2
-        && processingEnv
-            .getTypeUtils()
-            .isSameType(
-                wireMap.getTypeArguments().getFirst(), domainMap.getTypeArguments().getFirst())) {
+    DeclaredType[] mapPair = liftableMapPair(wireType, domainType);
+    if (mapPair != null) {
       return elementLeafCorrespondence(
           spec,
           name,
           wireName,
           Kind.MAP,
-          wireMap.getTypeArguments().get(1),
-          domainMap.getTypeArguments().get(1));
+          mapPair[0].getTypeArguments().get(1),
+          mapPair[1].getTypeArguments().get(1));
     }
     return null;
+  }
+
+  /**
+   * The (wire, domain) pair as value-liftable {@code Map} types, else null: both sides
+   * parameterised {@code Map}s whose key types match — the single gate shared by {@link
+   * #containerLeafCorrespondence} and the sparse no-update-source suggestion, so the suggestion can
+   * never offer a value leaf the resolver would refuse to consult.
+   */
+  private DeclaredType[] liftableMapPair(TypeMirror wireType, TypeMirror domainType) {
+    DeclaredType wireMap = asMapType(wireType);
+    DeclaredType domainMap = asMapType(domainType);
+    return wireMap != null
+            && domainMap != null
+            && wireMap.getTypeArguments().size() == 2
+            && domainMap.getTypeArguments().size() == 2
+            && processingEnv
+                .getTypeUtils()
+                .isSameType(
+                    wireMap.getTypeArguments().getFirst(), domainMap.getTypeArguments().getFirst())
+        ? new DeclaredType[] {wireMap, domainMap}
+        : null;
   }
 
   private Correspondence elementLeafCorrespondence(
@@ -2826,6 +2979,21 @@ public class MappingProcessor extends AbstractProcessor {
    * (whose parse rejects null). {@code guard} only varies the identity leg, whose primitive reads
    * can never be null.
    */
+  /**
+   * The element-of-Optional parser lambda, shared by the dense {@code OPTIONAL} leg and the sparse
+   * {@code OPTIONAL} edit so the two tiers cannot drift: a present element parses through the leaf,
+   * an empty Optional is valid emptiness.
+   */
+  private static CodeBlock elementOfOptionalParser(CodeBlock prism) {
+    ClassName optional = ClassName.get("java.util", "Optional");
+    return CodeBlock.of(
+        "o -> o.map(v -> $L.parse(v).map($T::of)).orElseGet(() -> $T.validNel($T.empty()))",
+        prism,
+        optional,
+        VALIDATED,
+        optional);
+  }
+
   private CodeBlock parseLeg(Correspondence c, CodeBlock read, boolean guard) {
     ClassName optional = ClassName.get("java.util", "Optional");
     return switch (c.kind()) {
@@ -2835,15 +3003,10 @@ public class MappingProcessor extends AbstractProcessor {
           CodeBlock.of("\n.field($S, hkj$$ifPresent($L, $L::parseAll))", c.name(), read, c.prism());
       case OPTIONAL ->
           CodeBlock.of(
-              "\n.field($S, hkj$$ifPresent($L, o -> o.map(v ->"
-                  + " $L.parse(v).map($T::of)).orElseGet(() ->"
-                  + " $T.validNel($T.empty()))))",
+              "\n.field($S, hkj$$ifPresent($L, $L))",
               c.name(),
               read,
-              c.prism(),
-              optional,
-              VALIDATED,
-              optional);
+              elementOfOptionalParser(c.prism()));
       case MAP ->
           CodeBlock.of(
               "\n.field($S, hkj$$ifPresent($L, $L::parseValues))", c.name(), read, c.prism());

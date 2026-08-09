@@ -195,7 +195,7 @@ Two shapes are rejected, each naming the offender:
 - a mix-in that **is itself a mapping spec** (directly or transitively extends `MappingSpec`/`UpdateSpec`): a mix-in shares vocabulary, a spec generates an Impl, and inheriting one spec from another would conflate the two;
 - a **generic** mix-in: inherited member types are read as declared, and substituting them under an instantiation is not supported yet.
 
-Diagnostics about an inherited member name its declaring interface, `abstract method 'bogus' (inherited from 'BrokenVocabulary') is neither a rename nor a leaf`, so the fix points at the right file. Mix-ins compose with the rest of the feature: [threaded generic specs](#generic-records-concrete-threaded-and-element-mapped) can extend (non-generic) mix-ins, and [`UpdateSpec`](#sparse-patch-write-back-updatespec) mappings inherit vocabulary the same way. `@GenerateMerge` specs still declare everything directly.
+Diagnostics about an inherited member name its declaring interface, `abstract method 'bogus' (inherited from 'BrokenVocabulary') is neither a rename nor a leaf`, so the fix points at the right file. Mix-ins compose with the rest of the feature: [threaded generic specs](#generic-records-concrete-threaded-and-element-mapped) can extend (non-generic) mix-ins, and [`UpdateSpec`](#sparse-patch-write-back-updatespec) mappings inherit vocabulary the same way — element leaves included, so the leaf a full spec lifts over a `List` serves its PATCH sibling unchanged. `@GenerateMerge` specs still declare everything directly.
 
 ---
 
@@ -395,13 +395,13 @@ A bean *projection* (a bean with fewer properties than the domain) with a refere
 
 ## Sparse PATCH write-back: `UpdateSpec`
 
-A `parse` reads a null bean property as **broken data** - a located `FieldError`. But a REST `PATCH` body means the opposite: the client sends only the fields it wants to change, and every other property of the bound request arrives `null`, meaning *not provided, leave unchanged*. The two meanings of `null` are a property of the DTO's contract, not something the mapper can infer, so sparse semantics are an **explicit opt-in**: the spec extends `UpdateSpec<Domain, Wire>` instead of `MappingSpec`.
+A `parse` reads a null bean property as **broken data** — a located `FieldError`. But a REST `PATCH` body means the opposite: the client sends only the fields it wants to change, and every other property of the bound request arrives `null`, meaning *not provided, leave unchanged*. The two meanings of `null` are a property of the DTO's contract, not something the mapper can infer, so sparse semantics are an **explicit opt-in**: the spec extends `UpdateSpec<Domain, Wire>` instead of `MappingSpec`.
 
 ``` java
 {{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/mapping/RecordMappingBook.java:update_spec}}
 ```
 
-The Impl exposes a *single* method, `updateFrom(Wire) : Edits.Accumulated<Domain>` - no `build`, `parse`, or `as*` tier (a sparse mapping is not a projection of information, and an all-null wire is *valid*, not a total parse). It folds the present properties into an [`Update<Domain>`](multi_edit.md), leaving the absent ones alone:
+The Impl exposes a *single* method, `updateFrom(Wire) : Edits.Accumulated<Domain>` — no `build`, `parse`, or `as*` tier (a sparse mapping is not a projection of information, and an all-null wire is *valid*, not a total parse). It folds the present properties into an [`Update<Domain>`](multi_edit.md), leaving the absent ones alone:
 
 ``` java
 {{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/mapping/RecordMappingBook.java:update_usage}}
@@ -416,12 +416,22 @@ The return type is exactly what a hand-written [`Edits.accumulate(...)`](multi_e
 The rules that keep the contract honest:
 
 - **A primitive wire property is rejected.** A primitive is always present (its default), so it can never carry the null-as-absent signal; use the wrapper type (`Integer`, `Boolean`). This is *forced*, not a style choice: an all-absent body must fold to the identity update, which a primitive would break.
-- **A domain `Optional<T>` component is rejected.** Under null-as-absent, `null` already means "leave unchanged", so "set to empty" has no encoding (and a null-clears rule would be JSON Merge Patch's opposite contract). Model the field as a nested record or a sentinel instead.
-- **A record wire is rejected.** A record component is always present, so absence is inexpressible - sparse PATCH is a bean-only shape.
+- **A domain `Optional<T>` component bridged from a non-Optional property is rejected.** Under null-as-absent, `null` already means "leave unchanged", so "set to empty" has no encoding through a plain property (and a null-clears rule would be JSON Merge Patch's opposite contract). An `Optional`-typed wire property, though, *can* express it — a present empty Optional sets empty, absent (`null`) leaves unchanged — patching by identity or through an element leaf. Two binder caveats come with that power: Jackson's JDK8 handling binds an explicit JSON `null` to `Optional.empty()`, so on this one property shape a sent `null` means *clear*, not *leave unchanged*; and the bean field must default to `null`, not the idiomatic `Optional.empty()`, or every request that omits the field clears the domain value.
+- **A record wire is rejected.** A record component is always present, so absence is inexpressible — sparse PATCH is a bean-only shape.
 - **A sealed hierarchy is rejected**, on either side: dispatch has no sparse meaning (an absent property cannot choose a subtype to patch).
-- **A container whose elements need mapping** (`List<AddressDto>` wire against `List<Address>` domain) **is rejected**: element lifting is a dense concern. The workaround the diagnostic offers is a whole-container leaf (`ValidatedPrism<List<AddressDto>, List<Address>>`), which replaces wholesale through your prism.
+- **A present container parses through the element vocabulary.** A `List`, `Optional` or `Map`-valued property (a pair declared as exactly those container types) routes through the element leaf named after the component — the same leaf the dense tiers lift, so one mix-in vocabulary serves a full spec and its PATCH sibling. Replacement stays wholesale; each failing element is located by index or key (`phones.1`). A whole-container leaf (`ValidatedPrism<List<S>, List<A>>`) is the more specific declaration and wins over the element interpretation. A nested *spec* still does not lift through a sparse container — give the component an element leaf delegating to the nested Impl's `asValidatedPrism()` if its elements need a whole mapping.
 - **Coverage is one-sided.** Every wire property maps to a domain component, but a domain component with *no* wire property is simply never changed: a PATCH DTO deliberately covers a subset.
-- **A same-typed nested record, `List` or `Map` replaces wholesale** through identity, elements included, unscanned: the sparse tier writes what was sent, it does not validate identity values. A nested record whose wire differs is patched wholesale through its own full mapping spec. Deep merge is out of scope.
+- **A same-typed nested record, `List` or `Map` replaces wholesale** through identity. Identity containers carry the dense tiers' null scan: a null element or value is a located, accumulating invalid (`tags.1: must not be null`), never written into the domain — a valid container still passes by reference, unrebuilt. The scan needs a properly parameterised container; a raw or wildcard-argument one is written as sent. A nested record whose wire differs is patched wholesale through its own full mapping spec. Deep merge is out of scope.
+
+One vocabulary, both tiers — the element leaf a full spec lifts elementwise is exactly the leaf its PATCH sibling lifts:
+
+``` java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/mapping/RecordMappingBook.java:update_container}}
+```
+
+``` java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/mapping/RecordMappingBook.java:update_container_usage}}
+```
 
 The sparse tier is law-checked like every other, through the same `MappingLaws` harness:
 
@@ -429,7 +439,11 @@ The sparse tier is law-checked like every other, through the same `MappingLaws` 
 {{#include ../../../hkj-examples/src/test/java/org/higherkindedj/example/book/mapping/RecordMappingBookLawsTest.java:update_laws}}
 ```
 
-Identity (an all-absent wire is the identity update), idempotence (applying the same patch twice equals applying it once - which holds because the generated edits *set* and *parse*, never *modify*), and validation (a present invalid field fails).
+Identity (an all-absent wire is the identity update), idempotence (applying the same patch twice equals applying it once — which holds because the generated edits *set* and *parse*, never *modify*), and validation (a present invalid field fails). The same laws hold over container elements:
+
+``` java
+{{#include ../../../hkj-examples/src/test/java/org/higherkindedj/example/book/mapping/RecordMappingBookLawsTest.java:update_container_laws}}
+```
 
 ---
 

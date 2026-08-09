@@ -149,6 +149,19 @@ public final class RecordMappingBook {
     // ANCHOR_END: update_usage
     System.out.println(patched);
 
+    // ANCHOR: update_container_usage
+    Roster roster = new Roster("core", List.of(new PhoneNumber("+44")));
+
+    RosterPatchBean rosterPatch = new RosterPatchBean();
+    rosterPatch.setPhones(List.of("+1", "nope")); // a present list replaces wholesale...
+
+    Validated<NonEmptyList<FieldError>, Roster> rosterPatched =
+        RosterPatchMappingImpl.INSTANCE.updateFrom(rosterPatch).apply(roster);
+    // ...but each element parses through the phones() leaf, located:
+    // Invalid(NonEmptyList[phones.1: not a phone number])
+    // ANCHOR_END: update_container_usage
+    System.out.println(rosterPatched);
+
     // ANCHOR: merge_usage
     Dashboard dashboard =
         DashboardAssemblyImpl.INSTANCE.assemble(
@@ -433,6 +446,60 @@ interface ContactPatchMapping extends UpdateSpec<Customer, ContactPatchBean> {
 }
 
 // ANCHOR_END: update_spec
+
+// ANCHOR: update_container
+record PhoneNumber(String value) {}
+
+record Roster(String team, List<PhoneNumber> phones) {}
+
+record RosterDto(String team, List<String> phones) {} // the full tier's wire
+
+// A PATCH bean whose phones property is a whole-list replacement, absent when null.
+class RosterPatchBean {
+  private String team;
+  private List<String> phones;
+
+  public String getTeam() {
+    return team;
+  }
+
+  public void setTeam(String team) {
+    this.team = team;
+  }
+
+  public List<String> getPhones() {
+    return phones;
+  }
+
+  public void setPhones(List<String> phones) {
+    this.phones = phones;
+  }
+}
+
+// ONE element vocabulary: the leaf names the component and parses ELEMENTS.
+interface PhoneVocabulary {
+  default ValidatedPrism<String, PhoneNumber> phones() {
+    return ValidatedPrism.of(
+        raw ->
+            raw.startsWith("+")
+                ? Validated.validNel(new PhoneNumber(raw))
+                : Validated.invalidNel(FieldError.of("not a phone number")),
+        PhoneNumber::value);
+  }
+}
+
+@GenerateMapping
+interface RosterMapping extends PhoneVocabulary, MappingSpec<Roster, RosterDto> {}
+
+// The full tier lifts the leaf elementwise: a bad element parses as phones.1.
+
+@GenerateMapping
+interface RosterPatchMapping extends PhoneVocabulary, UpdateSpec<Roster, RosterPatchBean> {}
+
+// The sparse tier lifts the SAME leaf: a present list replaces wholesale, each element parsed,
+// failures located phones.1 - one vocabulary, both tiers.
+
+// ANCHOR_END: update_container
 
 // ANCHOR: nested_merge_spec
 record Wrapper(CustomerDto customer) {} // the wire side
