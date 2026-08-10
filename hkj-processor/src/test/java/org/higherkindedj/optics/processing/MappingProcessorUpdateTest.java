@@ -418,12 +418,15 @@ class MappingProcessorUpdateTest {
         Assertions.assertThat(untouched.isValid()).isTrue();
         Assertions.assertThat(invoke(untouched.get(), "phones")).isEqualTo(List.of(oldPhone));
 
-        // A bad second element is a located, accumulating failure: phones.1.
+        // Every bad element is a located failure, accumulating across the whole list — never
+        // stopping at the first: phones.0 AND phones.2, in list order.
         Validated<NonEmptyList<FieldError>, Object> located =
-            apply(result, patchDto(result, null, List.of("+1", "nope")), current);
+            apply(result, patchDto(result, null, List.of("nope", "+1", "bad")), current);
         Assertions.assertThat(located.isInvalid()).isTrue();
         Assertions.assertThat(located.getError().toJavaList())
-            .containsExactly(new FieldError(List.of("phones", "1"), "not a phone number"));
+            .containsExactly(
+                new FieldError(List.of("phones", "0"), "not a phone number"),
+                new FieldError(List.of("phones", "2"), "not a phone number"));
       } catch (ReflectiveOperationException e) {
         throw new AssertionError(e);
       }
@@ -557,14 +560,20 @@ class MappingProcessorUpdateTest {
         Object impl = result.instance("com.example.ProfilePatchMappingImpl");
         Object dto =
             result.loadClass("com.example.ProfilePatchDto").getDeclaredConstructor().newInstance();
-        invoke(dto, "setContacts", java.util.Map.of("work", "nope"));
+        // Two bad values: every failure locates under its key, accumulating in entry order.
+        java.util.Map<String, String> contacts = new java.util.LinkedHashMap<>();
+        contacts.put("work", "nope");
+        contacts.put("home", "also-bad");
+        invoke(dto, "setContacts", contacts);
         Object accumulated = invoke(impl, "updateFrom", dto);
         @SuppressWarnings("unchecked")
         Validated<NonEmptyList<FieldError>, Object> patched =
             (Validated<NonEmptyList<FieldError>, Object>) invoke(accumulated, "apply", current);
         Assertions.assertThat(patched.isInvalid()).isTrue();
         Assertions.assertThat(patched.getError().toJavaList())
-            .containsExactly(new FieldError(List.of("contacts", "work"), "not an email address"));
+            .containsExactly(
+                new FieldError(List.of("contacts", "work"), "not an email address"),
+                new FieldError(List.of("contacts", "home"), "not an email address"));
       } catch (ReflectiveOperationException e) {
         throw new AssertionError(e);
       }
@@ -759,13 +768,20 @@ class MappingProcessorUpdateTest {
         Object dto =
             result.loadClass("com.example.TaggedPatchDto").getDeclaredConstructor().newInstance();
         invoke(dto, "setTags", java.util.Arrays.asList("new", null));
+        // Both container scans run and accumulate: the null list element at its index AND the
+        // null map value under its key, in edit order.
+        java.util.Map<String, String> labels = new java.util.LinkedHashMap<>();
+        labels.put("tier", null);
+        invoke(dto, "setLabels", labels);
         Object accumulated = invoke(impl, "updateFrom", dto);
         @SuppressWarnings("unchecked")
         Validated<NonEmptyList<FieldError>, Object> scanned =
             (Validated<NonEmptyList<FieldError>, Object>) invoke(accumulated, "apply", current);
         Assertions.assertThat(scanned.isInvalid()).isTrue();
         Assertions.assertThat(scanned.getError().toJavaList())
-            .containsExactly(new FieldError(List.of("tags", "1"), "must not be null"));
+            .containsExactly(
+                new FieldError(List.of("tags", "1"), "must not be null"),
+                new FieldError(List.of("labels", "tier"), "must not be null"));
 
         // A clean identity container still replaces wholesale, by reference.
         Object cleanDto =
