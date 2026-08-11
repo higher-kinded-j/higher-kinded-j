@@ -170,6 +170,7 @@ String wire = emailPrism.build(email);                     // total
 | `ValidatedPrism.of(parse, build)` | `ValidatedPrism<S, A>` | `parse: S -> Validated<NEL<FieldError>, A>`, `build: A -> S` |
 | `ValidatedPrism.fromIso(Iso<S, A>)` | `ValidatedPrism<S, A>` | An `Iso` never fails; lifts for free |
 | `ValidatedPrism.fromPrism(Prism<S, A>, FieldError)` | `ValidatedPrism<S, A>` | Supply the reason a non-match reports |
+| `ValidatedPrism.canonical(message, parse, render)` | `ValidatedPrism<S, A>` | Wrap a throwing parser; render defines the canon, spellings it cannot reproduce reject (section law guarded per value; injective render stays your obligation) |
 | `StandardCodecs.uuid()` / `localDate()` / `enumByName(Class)` / ... | `ValidatedPrism<String, X>` | Stock lawful codecs for the standard families; see `/hkj-mapping` |
 | `.parse(S)` | `Validated<NEL<FieldError>, A>` | Accumulates every reason |
 | `.parsePath(S)` | `ValidationPath<NEL<FieldError>, A>` | The bridge into the effects world |

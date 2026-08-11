@@ -268,7 +268,10 @@ String back = EMAIL.build(address);                                             
 
 Compose with another `ValidatedPrism` (short-circuits), an `Iso`, or a `Prism` (supplying the
 `FieldError` for the no-match case). Build one from an existing optic with `ValidatedPrism.fromIso`
-/ `fromPrism`.
+/ `fromPrism`, or wrap a throwing parser with `ValidatedPrism.canonical(message, parse, render)`:
+the render defines the canonical form and the per-value guard rejects every spelling it cannot
+reproduce, so the section law needs no hand-written check (render injectivity stays your
+obligation — verify with `ValidatedPrismLaws`).
 
 **You cannot compose a `ValidatedPrism` with a `Lens`, and that is deliberate**: a `Lens` has no
 total `B -> S` build, so the result could not honour `build`. To validate sibling fields, use

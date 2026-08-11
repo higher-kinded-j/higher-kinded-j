@@ -8,12 +8,16 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.Assertions.entry;
 import static org.higherkindedj.hkt.assertions.ValidatedAssert.assertThatValidated;
 
+import java.time.Month;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
+import java.util.UUID;
+import java.util.function.Function;
 import org.higherkindedj.hkt.nonemptylist.NonEmptyList;
 import org.higherkindedj.hkt.validated.FieldError;
 import org.higherkindedj.hkt.validated.Validated;
@@ -326,6 +330,97 @@ class ValidatedPrismTest {
       assertThatNullPointerException()
           .isThrownBy(() -> EMAIL.andThen(null, FieldError.of("r")))
           .withMessage("prism must not be null");
+    }
+  }
+
+  @Nested
+  @DisplayName("canonical - the section law by construction")
+  class CanonicalFactory {
+
+    private final ValidatedPrism<String, UUID> upperUuid =
+        ValidatedPrism.canonical(
+            "not an uppercase UUID",
+            UUID::fromString,
+            uuid -> uuid.toString().toUpperCase(Locale.ROOT));
+
+    @Test
+    @DisplayName("a custom canon obeys both laws; the leniently-parseable spelling is rejected")
+    void customCanonObeysLaws() {
+      ValidatedPrismLaws.assertValidatedPrismLaws(
+          upperUuid,
+          "123E4567-E89B-12D3-A456-426614174000",
+          "123e4567-e89b-12d3-a456-426614174000");
+      // UUID.fromString would happily parse the lowercase spelling; the guard rejects what the
+      // render cannot reproduce, so lowercase is a located rejection, not a normalisation.
+      Validated<NonEmptyList<FieldError>, UUID> folded =
+          upperUuid.parse("123e4567-e89b-12d3-a456-426614174000");
+      assertThatValidated(folded).isInvalid();
+      assertThat(folded.getError().head()).hasToString("not an uppercase UUID");
+    }
+
+    @Test
+    @DisplayName("a throwing parse is the same located rejection, never an exception")
+    void throwingParseIsLocated() {
+      Validated<NonEmptyList<FieldError>, UUID> garbage = upperUuid.parse("not-a-uuid");
+      assertThatValidated(garbage).isInvalid();
+      assertThat(garbage.getError().head()).hasToString("not an uppercase UUID");
+    }
+
+    @Test
+    @DisplayName("a render failing on a value the lenient parse produced is a located rejection")
+    void renderFailureIsLocated() {
+      ValidatedPrism<String, String> fussyRender =
+          ValidatedPrism.canonical(
+              "not renderable",
+              raw -> raw,
+              value -> {
+                if (value.isEmpty()) {
+                  throw new IllegalStateException("nothing to render");
+                }
+                return value;
+              });
+      assertThatValidated(fussyRender.parse("")).isInvalid();
+      assertThatValidated(fussyRender.parse("ok")).isValid().hasValue("ok");
+    }
+
+    @Test
+    @DisplayName("the FieldError overload carries the located reason through unchanged")
+    void fieldErrorOverload() {
+      FieldError located = FieldError.of("not an uppercase UUID").at("id");
+      ValidatedPrism<String, UUID> prism =
+          ValidatedPrism.canonical(
+              located, UUID::fromString, uuid -> uuid.toString().toUpperCase(Locale.ROOT));
+      ValidatedPrismLaws.assertValidatedPrismLaws(
+          prism, "123E4567-E89B-12D3-A456-426614174000", "nope");
+      assertThat(prism.parse("nope").getError().head()).isEqualTo(located);
+    }
+
+    @Test
+    @DisplayName("generic in the source type: the guard is render-equals-source, nothing more")
+    void genericInSource() {
+      ValidatedPrism<Integer, Month> month =
+          ValidatedPrism.canonical("not a month number", Month::of, Month::getValue);
+      ValidatedPrismLaws.assertValidatedPrismLaws(month, 7, 13);
+      assertThat(month.build(Month.JULY)).isEqualTo(7);
+    }
+
+    @Test
+    @DisplayName("both overloads eagerly reject nulls")
+    void nullGuards() {
+      Function<String, UUID> parse = UUID::fromString;
+      Function<UUID, String> render = UUID::toString;
+      assertThatNullPointerException()
+          .isThrownBy(() -> ValidatedPrism.canonical((String) null, parse, render))
+          .withMessage("message must not be null");
+      assertThatNullPointerException()
+          .isThrownBy(() -> ValidatedPrism.canonical((FieldError) null, parse, render))
+          .withMessage("reason must not be null");
+      assertThatNullPointerException()
+          .isThrownBy(() -> ValidatedPrism.canonical("m", null, render))
+          .withMessage("parse must not be null");
+      assertThatNullPointerException()
+          .isThrownBy(() -> ValidatedPrism.canonical("m", parse, null))
+          .withMessage("render must not be null");
     }
   }
 

@@ -120,6 +120,11 @@ for JS, an `xxx` offset pattern for `+00:00`). The number/boolean codecs need **
 components (`Integer`, not `int` — a `ValidatedPrism<String, int>` cannot exist). Under the star
 import, a leaf whose component shares a factory name (`currency`, `locale`, `uuid`) must qualify:
 `return StandardCodecs.currency();` — the unqualified call recurses into the leaf itself.
+A wire whose canon the stock codecs and formatter overloads don't cover (an uppercase-UUID
+producer, say) keeps its canon lawfully via `ValidatedPrism.canonical(message, parse, render)`:
+the lenient throwing parser is fine because the render defines the canonical form and every
+spelling the render cannot reproduce is a located rejection (render injectivity stays your
+obligation — verify with `ValidatedPrismLaws`).
 Codecs are never applied implicitly; a conversion exists only where a spec declares it.
 
 Renaming, and deriving a wire-only field:

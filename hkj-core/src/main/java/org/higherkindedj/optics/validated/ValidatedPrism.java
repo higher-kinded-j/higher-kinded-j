@@ -353,6 +353,96 @@ public sealed interface ValidatedPrism<S, A> permits ValidatedPrism.Of {
   }
 
   /**
+   * Creates a codec from a throwing parse and a total render, with the build-parse section law
+   * guarded per value: an accepted source must render back to itself (compared by {@code equals}),
+   * so a spelling the render cannot reproduce is a located rejection, never a silent normalisation.
+   *
+   * <p>The natural way to write a codec — wrap a throwing JDK parser, render on the way out —
+   * silently violates the section law whenever the parser is more lenient than the renderer ({@code
+   * UUID.fromString} accepts uppercase, {@code toString} renders lowercase). Here the lenient parse
+   * is fine, because {@code render} defines the canonical form and the guard rejects every other
+   * spelling:
+   *
+   * <pre>{@code
+   * // An uppercase-UUID wire (SQL Server): the canonical form is THEIRS, lawfully
+   * ValidatedPrism<String, UUID> id = ValidatedPrism.canonical(
+   *     "not an uppercase UUID",
+   *     UUID::fromString,                                  // throwing parse, lenient is fine
+   *     uuid -> uuid.toString().toUpperCase(Locale.ROOT)); // render defines the canon
+   * }</pre>
+   *
+   * <p>Any {@code RuntimeException} thrown inside the guard — by the parse on malformed input, by
+   * the render on a value the lenient parse produced, or via a parse that returns null — is the
+   * located rejection, never an exception on wire input. The outward {@link #build} direction is
+   * {@code render} itself and stays total by contract; a render that throws on a domain value is
+   * the caller's error there. Both functions should be pure and stateless: the render runs on every
+   * parse as well as on build, and the returned prism is only as shareable across threads as the
+   * functions it wraps (a captured {@code SimpleDateFormat} would race).
+   *
+   * <p><b>What stays your obligation.</b> The guard compares by {@code equals}, so {@code S} needs
+   * value equality — with an array-typed source every parse would be rejected. The parse must
+   * accept what the render produces: a mismatched pair (render {@code dd/MM/uuuu}, parse {@code
+   * MM/dd/uuuu}) breaks the parse-build law loudly, as rejections. And the render must be injective
+   * on the values the parse produces — the one trap the guard cannot catch: with a two-digit-year
+   * date format, {@code build} renders 1926-07-28 as {@code 26/07/28}, which the guard happily
+   * accepts — and which re-parses to 2026-07-28, breaking the parse-build law silently. Verify a
+   * custom codec with {@code ValidatedPrismLaws} from {@code hkj-test}.
+   *
+   * <p>The stock {@link StandardCodecs} vocabulary is built on this factory.
+   *
+   * @param message the failure message for every rejection; must not be null
+   * @param parse the forward direction; may be lenient and may throw — the guard handles both; must
+   *     not be null
+   * @param render the total backward direction, defining the canonical form; must not be null
+   * @param <S> the source type
+   * @param <A> the domain type
+   * @return the prism (non-null)
+   * @throws NullPointerException if {@code message}, {@code parse} or {@code render} is null
+   */
+  static <S, A> ValidatedPrism<S, A> canonical(
+      String message,
+      Function<? super S, ? extends A> parse,
+      Function<? super A, ? extends S> render) {
+    Objects.requireNonNull(message, "message must not be null");
+    return canonical(FieldError.of(message), parse, render);
+  }
+
+  /**
+   * Creates a codec with the section law guarded per value, rejecting with the given located
+   * reason; exactly {@link #canonical(String, Function, Function)} taking a pre-built {@link
+   * FieldError}, as {@link #fromPrism} does.
+   *
+   * @param reason the failure for every rejection; must not be null
+   * @param parse the forward direction; may be lenient and may throw — the guard handles both; must
+   *     not be null
+   * @param render the total backward direction, defining the canonical form; must not be null
+   * @param <S> the source type
+   * @param <A> the domain type
+   * @return the prism (non-null)
+   * @throws NullPointerException if {@code reason}, {@code parse} or {@code render} is null
+   */
+  static <S, A> ValidatedPrism<S, A> canonical(
+      FieldError reason,
+      Function<? super S, ? extends A> parse,
+      Function<? super A, ? extends S> render) {
+    Objects.requireNonNull(reason, "reason must not be null");
+    Objects.requireNonNull(parse, "parse must not be null");
+    Objects.requireNonNull(render, "render must not be null");
+    return of(
+        source -> {
+          try {
+            A value = parse.apply(source);
+            return render.apply(value).equals(source)
+                ? Validated.validNel(value)
+                : Validated.invalidNel(reason);
+          } catch (RuntimeException _) {
+            return Validated.invalidNel(reason);
+          }
+        },
+        render);
+  }
+
+  /**
    * The leaf implementation wrapping the two directions.
    *
    * <p>Created by the static factories; not usually named directly.
