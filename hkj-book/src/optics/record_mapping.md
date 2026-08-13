@@ -401,7 +401,7 @@ A `parse` reads a null bean property as **broken data** — a located `FieldErro
 {{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/mapping/RecordMappingBook.java:update_spec}}
 ```
 
-The Impl exposes a *single* method, `updateFrom(Wire) : Edits.Accumulated<Domain>` — no `build`, `parse`, or `as*` tier (a sparse mapping is not a projection of information, and an all-null wire is *valid*, not a total parse). It folds the present properties into an [`Update<Domain>`](multi_edit.md), leaving the absent ones alone:
+The Impl exposes a *single* method, `updateFrom(Wire) : Edits.Accumulated<Domain>` — no `build`, `parse`, or `as*` tier (a sparse mapping is not a projection of information, and an all-absent wire is *valid*, not a total parse). It folds the present properties into an [`Update<Domain>`](multi_edit.md), leaving the absent ones alone:
 
 ``` java
 {{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/mapping/RecordMappingBook.java:update_usage}}
