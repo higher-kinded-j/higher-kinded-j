@@ -111,8 +111,8 @@ ones:
                                  │
                wait for all ◀────┘
                                       Emit order:  r₂, r₃, r₁
-  Emit order:  r₁, r₂, r₃            (fastest first — 20ms to first result)
-  (input order — 120ms to first result)
+  Emit order:  r₁, r₂, r₃            (fastest first - 20ms to first result)
+  (input order - 120ms to first result)
 ```
 
 ```java
@@ -268,7 +268,7 @@ backpressure protocol. Three properties make it unnecessary:
        │                         │ consumer asks.
        ▼                         ▼
    Source and workers          Virtual threads
-   park (free) until           park while waiting —
+   park (free) until           park while waiting -
    next pull arrives.          no OS thread consumed.
 ```
 

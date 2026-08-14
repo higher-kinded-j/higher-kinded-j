@@ -128,7 +128,7 @@ Kind<ListKind.Witness, Integer> expanded = listMonad.flatMap(branch, values);
 Function<Integer, Kind<ListKind.Witness, String>> evenOnly =
     i -> (i % 2 == 0)
         ? LIST.widen(Arrays.asList("even", String.valueOf(i)))
-        : LIST.widen(List.of()); // empty — odd numbers are dropped
+        : LIST.widen(List.of()); // empty: odd numbers are dropped
 
 Kind<ListKind.Witness, String> filtered = listMonad.flatMap(evenOnly, values);
 // ["even", "2"]

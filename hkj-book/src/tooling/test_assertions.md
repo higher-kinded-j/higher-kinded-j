@@ -192,7 +192,7 @@ assertThatVStream(failingStream)
 
 ## Assertions for the Error Envelope
 
-`ErrorEnvelopeAssert` covers the generated `ErrorEnvelope<C>` (see [`@GenerateErrorEnvelope`](../optics/record_mapping.md#generating-error-envelopes-generateerrorenvelope)). Because envelope timestamps come from a `TimeSource`, a frozen clock makes the whole envelope, the timestamp included, exactly assertable:
+`ErrorEnvelopeAssert` covers the generated `ErrorEnvelope<C>` (see [`@GenerateErrorEnvelope`](../mapping/merge_envelopes.md#generating-error-envelopes-generateerrorenvelope)). Because envelope timestamps come from a `TimeSource`, a frozen clock makes the whole envelope, the timestamp included, exactly assertable:
 
 ```java
 import static org.higherkindedj.hkt.assertions.ErrorEnvelopeAssert.assertThatErrorEnvelope;
@@ -314,7 +314,27 @@ void statusPrismIsLawful() {
 
 `ValidatedPrismLaws` joins the family for the validated-boundary optic (parse-build and the section law build-parse). Each family also exposes the individual laws (`assertGetSet`, `assertBuildMatch`, `assertSetNoOpWhenAbsent`, …) for targeted checks, and failures name the violated law with the offending values: `"Lens set-get: get(set(Grace, …)) == the value set; got Ada"`. Guard rails reject vacuous fixtures (equal set-set values, non-matching prism sources). Drive broader coverage with `@ParameterizedTest` or property fixtures at the call site.
 
-`MappingLaws` completes the family for [`@GenerateMapping`](../optics/record_mapping.md) Impls, law-checking a mapping through its exposed surface with one `assertMappingLaws` overload per emission tier: `asIso()` plus `asValidatedPrism()` for a lossless mapping (delegating to `IsoLaws` and adding the coherence checks between the two surfaces), `asLens()` for a projection (delegating to `LensLaws`), `asValidatedPrism()` with a parsing and a non-parsing wire value for the fallible tier (delegating to `ValidatedPrismLaws`), and a domain-sample overload for total-parse mappings such as those with derived wire fields, where only non-derived components round-trip.
+`MappingLaws` completes the family for [`@GenerateMapping`](../mapping/ch_intro.md) Impls, law-checking a mapping through its exposed surface. There is one `assertMappingLaws` overload per emission tier:
+
+- **Lossless:** pass `asIso()` plus `asValidatedPrism()`; delegates to `IsoLaws` and adds the coherence checks between the two surfaces.
+- **Projection:** pass `asLens()`; delegates to `LensLaws`.
+- **Fallible:** pass `asValidatedPrism()` with a parsing and a non-parsing wire value; delegates to `ValidatedPrismLaws`.
+- **Total-parse** (a mapping with derived wire fields, whose parse cannot fail): pass a domain sample; only the non-derived components round-trip, and the overload asserts exactly that.
+
+``` java
+import org.higherkindedj.optics.laws.MappingLaws;
+
+@Test
+void personMappingIsLawful() {
+    // Fallible tier: a wire that parses, and one that must not
+    MappingLaws.assertMappingLaws(
+        PersonMappingImpl.INSTANCE.asValidatedPrism(),
+        new PersonDto("Ada", "ada@corp.example"),
+        new PersonDto("Ada", "not-an-email"));
+}
+```
+
+For asserting on the located failures themselves, `assertThatFieldError` pairs with `assertThatValidated`: it matches a `FieldError`'s path (`hasPath("address.zip")`) and message (`hasMessage`, `hasMessageContaining`) alongside the usual `Validated` assertions.
 
 ~~~admonish tip title="See Also"
 - [Manual Gradle and Maven Setup](manual_setup.md) - Adding hkj-test to projects that do not use the HKJ build plugin

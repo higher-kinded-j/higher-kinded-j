@@ -141,14 +141,14 @@ For services with complex domain workflows, Higher-Kinded-J provides algebraic-e
 * **Mock-free testing** via `Id` monad interpreters
 * **[Program inspection](effect/effect_handlers.md#program-analysis)** with `ProgramAnalyser` before any side effects execute
 
-### [Record Mapping and Typed-Error Codegen](optics/record_mapping.md)
+### [Record Mapping and Typed-Error Codegen](mapping/ch_intro.md)
 
 The boundary between your domain records and the wire is usually hand-written mappers or a reflective bean-mapper. Higher-Kinded-J turns it into compile-time codegen that never loses an error:
 
-* **[`@GenerateMapping`](optics/record_mapping.md)** maps a record domain to the wire both ways, whatever the wire's shape: record or bean-shaped (getters/setters or builder) DTOs, generic records, sealed hierarchies, with shared mix-in vocabularies across specs. A total `build` out; an accumulating `parse` back returning `Validated<NonEmptyList<FieldError>, T>`; and both PATCH styles as write-backs (a dense validated `patch`, a sparse null-as-absent `updateFrom`). One null doctrine throughout: a missing value is a located error (`customer.email: must not be null`, `emails.1: ...`), never an exception. Every emission tier is law-checked against `hkj-test` and pinned by golden files
-* **[`@GenerateMerge`](optics/record_mapping.md)** assembles one target record from several source records, filling each component by name
+* **[`@GenerateMapping`](mapping/ch_intro.md)** maps a record domain to the wire both ways, whatever the wire's shape: record or bean-shaped (getters/setters or builder) DTOs, generic records, sealed hierarchies, with shared mix-in vocabularies across specs. A total `build` out; an accumulating `parse` back returning `Validated<NonEmptyList<FieldError>, T>`; and both PATCH styles as write-backs (a dense validated `patch`, a sparse null-as-absent `updateFrom`). One null doctrine throughout: a missing value is a located error (`customer.email: must not be null`, `emails.1: ...`), never an exception. Every emission tier is law-checked against `hkj-test` and pinned by golden files
+* **[`@GenerateMerge`](mapping/merge_envelopes.md)** assembles one target record from several source records, filling each component by name
 * **[Open-arity accumulating assembly](monads/validated_assembly.md)** (`fields()` / `accumulate()` / `@GenerateAssembly`) builds a record from N independently-validated fields, collecting every error in declaration order with no `Semigroup` ceremony
-* **[`@GenerateErrorEnvelope`](optics/record_mapping.md#generating-error-envelopes-generateerrorenvelope)** gives a sealed error hierarchy a typed context record (records-as-schema, not `Map<String, Object>`) with deterministic timestamps from a `TimeSource`
+* **[`@GenerateErrorEnvelope`](mapping/merge_envelopes.md#generating-error-envelopes-generateerrorenvelope)** gives a sealed error hierarchy a typed context record (records-as-schema, not `Map<String, Object>`) with deterministic timestamps from a `TimeSource`
 
 ---
 

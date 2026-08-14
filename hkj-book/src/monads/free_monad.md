@@ -243,7 +243,7 @@ public class TestInterpreter {
     public List<String> getOutput() { return output; }
 }
 
-// Pure test — no console, no I/O, no flakiness
+// Pure test: no console, no I/O, no flakiness
 @Test void testGreeting() {
     var test = new TestInterpreter(List.of("Alice"));
     test.run(greetingProgram);
@@ -263,13 +263,13 @@ Free<ConsoleOpKind.Witness, String> askQuestion(String question) {
 }
 
 Free<ConsoleOpKind.Witness, Unit> confirm(String action) {
-    return askQuestion(action + " — sure? (yes/no)")
+    return askQuestion(action + " - sure? (yes/no)")
         .flatMap(answer -> answer.equalsIgnoreCase("yes")
             ? printLine("Confirmed.")
             : printLine("Cancelled."));
 }
 
-// Composed program — built from pieces
+// Composed program: built from pieces
 Free<ConsoleOpKind.Witness, Unit> registration() {
     return askQuestion("Username:")
         .flatMap(user -> askQuestion("Email:")
@@ -285,7 +285,7 @@ Each building block is independently testable and reusable.
 Java struggles to infer the functor type `F` when chaining operations on `Free.pure()`:
 
 ```java
-// Fails to compile — Java can't infer F
+// Fails to compile: Java can't infer F
 Free<IdKind.Witness, Integer> result = Free.pure(2).map(x -> x * 2); // ERROR
 
 // FreeFactory captures F once, then inference works everywhere

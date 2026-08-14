@@ -41,6 +41,7 @@ import org.springframework.test.web.servlet.MockMvc;
 @DisplayName("UserController parse slice with a fake codec bean substituted")
 class UserParseFakeCodecSliceTest {
 
+  // ANCHOR: fake_codec
   /** A stub codec: every parse fails with one located error; build renders a fixed DTO. */
   @TestConfiguration
   static class RejectEverythingCodec {
@@ -51,6 +52,8 @@ class UserParseFakeCodecSliceTest {
           user -> new UserDto());
     }
   }
+
+  // ANCHOR_END: fake_codec
 
   @Autowired private MockMvc mockMvc;
 

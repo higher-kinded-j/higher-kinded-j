@@ -115,7 +115,7 @@ Learn the staged assembly builder: build a record from N validated fields with e
 
 **Key insight**: Tutorial 03's `mapN` family stops at five fields and reports unlocated errors. The assembly builder is the everyday front door: open arity, located errors, and the same shape on `Validated`, `ValidationPath`, and `EitherOrBoth`.
 
-**Real-world application**: request DTO to domain aggregate mapping, form validation with per-field messages, lenient configuration parsing.
+**Real-world application**: request DTO to domain aggregate mapping, form validation with per-field messages, lenient configuration parsing. When the DTO pair is regular, [Record Mapping](../../mapping/ch_intro.md) generates this whole assembly; [Tutorial 26](../optics/boundary_mapping_journey.md) is the hands-on follow-on.
 
 **Links to documentation**: [Accumulating Assembly](../../monads/validated_assembly.md) | [Validated Monad](../../monads/validated_monad.md)
 

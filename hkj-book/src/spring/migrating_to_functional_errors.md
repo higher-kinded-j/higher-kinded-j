@@ -398,7 +398,7 @@ public class UserController {
 }
 ```
 
-`Path.accumulate()` opens an open-arity accumulating assembly: each `.and(...)` adds an independently validated field, and `.apply(...)` builds the result only when every field is valid — otherwise **all** errors are collected, in declaration order. Raw `Validated<List<ValidationError>, User>` works as a return type too (the same handler accepts it); the example module's `UserService.validateAndCreate` shows that style using `ValidatedMonad.instance(Semigroups.list())` with `Applicative.map3`.
+`Path.accumulate()` opens an open-arity accumulating assembly: each `.and(...)` adds an independently validated field, and `.apply(...)` builds the result only when every field is valid; otherwise **all** errors are collected, in declaration order. Raw `Validated<List<ValidationError>, User>` works as a return type too (the same handler accepts it); the example module's `UserService.validateAndCreate` shows that style using `ValidatedMonad.instance(Semigroups.list())` with `Applicative.map3`.
 
 **Why it helps:**
 - ✅ Returns **all** validation errors at once
@@ -517,7 +517,7 @@ public class AsyncOrderService {
             })
             .map(payment -> createOrder(request, payment));
 
-        // Linear composition — the failure short-circuits the chain
+        // Linear composition: the failure short-circuits the chain
     }
 }
 
@@ -533,12 +533,12 @@ public class OrderController {
 ```
 
 **Improvements:**
-- ✅ Clean, linear composition with `via`/`map` — no `.handle()` / `.exceptionally()` pyramid
+- ✅ Clean, linear composition with `via`/`map`: no `.handle()` / `.exceptionally()` pyramid
 - ✅ Automatic short-circuiting on failure
 - ✅ Framework handles async processing (non-blocking request thread)
 
 ~~~admonish warning title="Failure mapping is coarse-grained"
-`CompletableFuturePath` (and `VTaskPath`) carry failures as **exceptions**, not typed `Left` values. A failed future maps to the configured `hkj.web.async-failure-status` (default 500) — the per-error-class `ErrorStatusCodeStrategy` mapping does not apply, because by the time the handler sees the failure it is a `Throwable`. If an endpoint needs `Left(UserNotFoundError)` → 404 semantics, keep the typed `Either` at the boundary (a synchronous `Either` return, possibly computed off-thread inside the service) rather than folding the error into an exception. This mirrors `AsyncUserService` in the example module, where `UserNotFoundException` deliberately surfaces as the configured async failure status.
+`CompletableFuturePath` (and `VTaskPath`) carry failures as **exceptions**, not typed `Left` values. A failed future maps to the configured `hkj.web.async-failure-status` (default 500); the per-error-class `ErrorStatusCodeStrategy` mapping does not apply, because by the time the handler sees the failure it is a `Throwable`. If an endpoint needs `Left(UserNotFoundError)` → 404 semantics, keep the typed `Either` at the boundary (a synchronous `Either` return, possibly computed off-thread inside the service) rather than folding the error into an exception. This mirrors `AsyncUserService` in the example module, where `UserNotFoundException` deliberately surfaces as the configured async failure status.
 ~~~
 
 ### Migration Steps
@@ -578,7 +578,7 @@ public CompletableFuturePath<Order> getOrder(@PathVariable String id) {
 
 ### Alternative: VTaskPath on Virtual Threads
 
-If you are on virtual threads, `VTaskPath` gives the same handler integration with no executor bean at all — the computation is deferred and runs on a virtual thread when the handler invokes it:
+If you are on virtual threads, `VTaskPath` gives the same handler integration with no executor bean at all; the computation is deferred and runs on a virtual thread when the handler invokes it:
 
 ```java
 public VTaskPath<User> findById(String id) {

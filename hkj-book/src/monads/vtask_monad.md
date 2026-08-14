@@ -142,7 +142,7 @@ try {
     Integer result = computation.run();
     System.out.println("Result: " + result);
 } catch (VTaskExecutionException e) {
-    // Checked exception wrapped — original available via e.getCause()
+    // Checked exception wrapped - original available via e.getCause()
     System.err.println("Wrapped: " + e.getCause().getMessage());
 } catch (RuntimeException e) {
     System.err.println("Failed: " + e.getMessage());
@@ -270,7 +270,7 @@ result.foldFailureFirst(
     data -> System.out.println("Got data: " + data)
 );
 
-// Option 2: Use run() — TimeoutException is wrapped in VTaskExecutionException
+// Option 2: Use run() - TimeoutException is wrapped in VTaskExecutionException
 try {
     withTimeout.run();
 } catch (VTaskExecutionException e) {

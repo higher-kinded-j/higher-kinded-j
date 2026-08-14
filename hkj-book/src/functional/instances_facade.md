@@ -3,7 +3,7 @@
 Every type class in Higher-Kinded-J has a canonical instance for each data type. Historically, reaching that instance required knowing three independent things per type: the **instance class name**, its **package**, and **which access idiom** that class uses. The idiom was not uniform:
 
 ```java
-// The old idioms — four spellings of one concept
+// The old idioms: four spellings of one concept
 Semigroup<String>            semi  = Semigroups.string();   // for Validated error accumulation
 Monad<OptionalKind.Witness>  outer = OptionalMonad.INSTANCE; // outer monad for the transformer
 

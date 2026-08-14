@@ -71,8 +71,8 @@ Arrows indicate "can be used as" relationships. A Lens can stand in wherever a G
 - **Fundamentals** – Lens, Prism, Affine, and Iso: the four optics for working with single values. Introduces the composition rules and the paired-lens pattern for fields that share invariants. Start here if you are new to optics.
 - **Collections** – Traversals and Folds for zero-or-more focus, plus the asymmetric specialists Getter (read-only) and Setter (write-only). Covers the ready-made traversals for Java's standard collections and monoid-based aggregation.
 - **Precision and Filtering** – Narrow focus by predicate or index. Filtered and indexed traversals, the `Each`, `At`, and `Ixed` type classes, character-level string traversals, and advanced Prism patterns like `nearly` and `doesNotMatch`.
-- **Java-Friendly APIs** – Three complementary APIs that make optics feel native to Java: the Focus DSL for path-based navigation, the Fluent API for validation-aware updates, and the Free Monad DSL for programs-as-data. Backed by annotation-driven code generation (`@GenerateLenses`, `@GenerateFocus`, `@GeneratePrisms`, and friends).
-- **Integration and Recipes** – A complete walkthrough composing Lens, Prism, and Traversal into a validation pipeline, integration with the library's core types (Either, Maybe, Validated, Optional), and a cookbook of ready-to-use solutions for the nested-update problems you will actually meet in production.
+- **Java-Friendly APIs** – Three complementary APIs that make optics feel native to Java: the Focus DSL for path-based navigation, the Fluent API for validation-aware updates, and the Free Monad DSL for programs-as-data. Backed by annotation-driven code generation (`@GenerateLenses`, `@GenerateFocus`, `@GeneratePrisms`, and friends). For the domain ↔ DTO boundary, see the dedicated [Mapping at the Boundary](../mapping/ch_intro.md) chapter.
+- **Integration and Recipes** – A complete walkthrough composing Lens, Prism, and Traversal into a validation pipeline, integration with the library's core types (Either, Maybe, Validated, Optional), multi-edit and sparse REST PATCH updates, and a cookbook of ready-to-use solutions for the nested-update problems you will actually meet in production.
 ~~~
 
 ---
@@ -84,8 +84,8 @@ Arrows indicate "can be used as" relationships. A Lens can stand in wherever a G
 3. [Fundamentals](ch1_intro.md) - Lens, Prism, Affine, Iso, composition rules, coupled fields
 4. [Collections](ch2_intro.md) - Traversal, Fold, Getter, Setter, and collection patterns
 5. [Precision and Filtering](ch3_intro.md) - Filtered, indexed, and predicate-based optics
-6. [Java-Friendly APIs](ch4_intro.md) - Focus DSL, Fluent API, Free Monad DSL, code generation
-7. [Integration and Recipes](ch5_intro.md) - Validation workflows, core-type integration, cookbook
+6. [Java-Friendly APIs](ch4_intro.md) - Focus DSL, Fluent API, code generation
+7. [Integration and Recipes](ch5_intro.md) - Validation workflows, multi-edit and PATCH, cookbook
 
 ---
 
@@ -93,6 +93,7 @@ Arrows indicate "can be used as" relationships. A Lens can stand in wherever a G
 - **Want to see optics in action?** Read the [Quickstart](quickstart.md), three runnable examples in 100 lines.
 - **Looking for a specific annotation?** [Annotations at a Glance](annotations_at_a_glance.md) is the lookup table.
 - **Just need to update a nested record right now?** Skip straight to the [Focus DSL](focus_dsl.md) and come back to the foundational material when you need it.
+- **Mapping a domain record to/from a wire DTO?** Go straight to [Record Mapping](../mapping/ch_intro.md); it needs none of the optics curriculum first.
 - **New to the concepts?** Start with [Fundamentals](ch1_intro.md).
 ~~~
 

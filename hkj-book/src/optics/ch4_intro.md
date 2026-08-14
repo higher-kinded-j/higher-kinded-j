@@ -101,6 +101,7 @@ For programs-as-data, audit trails, and dry-runs, the Free Monad DSL lives in [A
 ~~~admonish info title="In This Chapter"
 - **Focus DSL** – The recommended starting point for most users, replacing manual lens composition with fluent, path-based navigation. The compiler tracks every step, so the IDE can autocomplete the full path through your data.
 - **Optics for External Types** – Generate optics for types you do not own (Jackson, JOOQ, Lombok, JDK classes) using `@ImportOptics` for shapes the processor can analyse directly. For trickier types, an interface that extends `OpticsSpec<S>` lets you declare the optics you want and tell the processor how to build them.
+- **Record Mapping (own chapter)** – The compile-time domain ↔ DTO boundary grew into its own chapter, [Mapping at the Boundary](../mapping/ch_intro.md): a total `build` outward and an accumulating `parse` back that reports every bad field at once, each located by path.
 - **Kind Field Support** – Records that contain a `Kind<F, A>` field are bridged into optics automatically. The processor reads cardinality semantics from your `KindSemantics` choice and generates the right path type, joining optics with the rest of the Higher-Kinded-J effect ecosystem.
 - **Fluent API** – When a modification can fail, accumulates errors, or runs asynchronously, the `OpticOps` class is the right tool. Static methods cover one-off cases; the fluent builders give you discoverable chaining for composing with `Either`, `Maybe`, `Validated`, and any other `Applicative`.
 ~~~
@@ -122,6 +123,8 @@ For Free Monad DSL and Interpreters, see the [Advanced Optics](ch6_intro.md) cha
 5. [Focus DSL with External Libraries](focus_external_bridging.md) - Bridging Focus navigation into Immutables, Lombok, and beyond
 6. [Kind Field Support](kind_field_support.md) - Automatic traversal for Kind<F, A> record fields
 7. [Fluent API](fluent_api.md) - Static methods and builders for validation-aware modifications
+
+For the domain ↔ DTO boundary (`@GenerateMapping` and friends), see the dedicated [Mapping at the Boundary](../mapping/ch_intro.md) chapter.
 
 For Free Monad DSL and Interpreters, see [Advanced Optics](ch6_intro.md).
 

@@ -60,11 +60,11 @@ External types like `LocalDate`, Jackson's `JsonNode`, JOOQ records, and Protobu
 
 | Annotation | Apply to | Generates | When to reach for it |
 |---|---|---|---|
-| [`@GenerateMapping`](record_mapping.md) | interface extending `MappingSpec<Domain, Wire>` | `XMappingImpl` with a total `build` and an accumulating, located `parse` | Bidirectional boundary mapping with validation: every bad field reported at once |
-| [`@GenerateMapping`](record_mapping.md#sparse-patch-write-back-updatespec) | interface extending `UpdateSpec<Domain, Wire>` (bean wire) | `XMappingImpl` with only `updateFrom(Wire) : Edits.Accumulated<Domain>` | Sparse PATCH write-back: fold the present (non-null) request fields into an update, leave the absent ones |
-| [`@MapField(to = "...")`](record_mapping.md) | abstract method on the spec, named after the domain component | a rename in both directions | Domain and wire components with different names |
+| [`@GenerateMapping`](../mapping/ch_intro.md) | interface extending `MappingSpec<Domain, Wire>` | `XMappingImpl` with a total `build` and an accumulating, located `parse` | Bidirectional boundary mapping with validation: every bad field reported at once |
+| [`@GenerateMapping`](../mapping/beans_patch.md#sparse-patch-write-back-updatespec) | interface extending `UpdateSpec<Domain, Wire>` (bean wire) | `XMappingImpl` with only `updateFrom(Wire) : Edits.Accumulated<Domain>` | Sparse PATCH write-back: fold the present (non-null) request fields into an update, leave the absent ones |
+| [`@MapField(to = "...")`](../mapping/ch_intro.md) | abstract method on the spec, named after the domain component | a rename in both directions | Domain and wire components with different names |
 
-Leaves, nesting, `List`/`Optional` lifting, sealed dispatch, the `asIso()`/`asLens()` tiers, and the sparse `UpdateSpec` tier are covered in [Record Mapping](record_mapping.md).
+Leaves, nesting, `List`/`Optional` lifting, sealed dispatch, the `asIso()`/`asLens()` tiers, and the sparse `UpdateSpec` tier are covered in [Record Mapping](../mapping/ch_intro.md).
 
 ---
 
@@ -136,7 +136,7 @@ For compile-time path-type checking, see [Compile-Time Checks](../tooling/compil
 - **New to optics?** Start with the [Quickstart](quickstart.md), three runnable examples in 100 lines.
 - **Updating a nested record right now?** Jump to the [Focus DSL](focus_dsl.md).
 - **Working with external types?** See [Optics for External Types](importing_optics.md) and [Taming JSON with Jackson](optics_spec_interfaces.md).
-- **Mapping DTOs at a service boundary?** See [Record Mapping](record_mapping.md).
+- **Mapping DTOs at a service boundary?** See [Record Mapping](../mapping/ch_intro.md).
 - **Want hands-on practice?** The [Lens & Prism Journey](../tutorials/optics/lens_prism_journey.md) is 40 minutes, 30 exercises.
 
 ---

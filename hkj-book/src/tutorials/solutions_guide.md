@@ -14,7 +14,7 @@ Every solution file contains the working code **and** per-exercise teaching comm
 
 ```java
 /**
- * Why this is idiomatic: explains what makes the chosen form the standard one — the
+ * Why this is idiomatic: explains what makes the chosen form the standard one, the
  *   single sentence you'd give a reviewer who asked "why this and not the obvious thing?"
  *
  * <p>Alternative: at least one other shape that also works, with the trade-off named.
@@ -331,7 +331,7 @@ solutions/
 │   ├── TutorialVStreamParallel_Solution.java
 │   ├── TutorialVStreamPath_Solution.java
 │   └── TutorialVStreamAdvanced_Solution.java
-├── optics/                     (20 solutions)
+├── optics/                     (26 solutions)
 │   ├── Tutorial01_LensBasics_Solution.java
 │   ├── Tutorial02_LensComposition_Solution.java
 │   ├── Tutorial03_PrismBasics_Solution.java
@@ -351,7 +351,13 @@ solutions/
 │   ├── Tutorial17_VStreamOptics_Solution.java
 │   ├── Tutorial18_FoldCombination_Solution.java
 │   ├── Tutorial19_NavigatorGeneration_Solution.java
-│   └── Tutorial20_ContainerNavigation_Solution.java
+│   ├── Tutorial20_ContainerNavigation_Solution.java
+│   ├── Tutorial21_OpticBatching_Solution.java
+│   ├── Tutorial22_OpticBatchingGuardrails_Solution.java
+│   ├── Tutorial23_CoupledLenses_Solution.java
+│   ├── Tutorial24_MultiEdit_Solution.java
+│   ├── Tutorial25_ValidatedPrism_Solution.java
+│   └── Tutorial26_RecordMapping_Solution.java
 ├── expression/                 (4 solutions)
 │   ├── Tutorial01_ForStateBasics_Solution.java
 │   ├── Tutorial02_ForPathParallel_Solution.java

@@ -28,7 +28,7 @@ Three round-trips. Three frustrations. Three errors that were all knowable from 
 This is fail-fast validation. With a monadic chain (`flatMap`), each step depends on the previous one succeeding, so the first failure stops everything:
 
 ```java
-// flatMap chain — validation stops at the FIRST error
+// flatMap chain: validation stops at the FIRST error
 validateName("")         // Invalid(["Name is required"])   <-- STOPS HERE
   .flatMap(name ->
     validateEmail("x@@")   // never reached
@@ -143,7 +143,7 @@ Kind<ValidatedKind.Witness<List<String>>, String> failed =
             email -> VALIDATED.valid("User: " + name + " <" + email + ">"),
             VALIDATED.widen(validateEmail("bad@@"))      // never reached
         ),
-        VALIDATED.widen(validateName(""))                 // Invalid — stops here
+        VALIDATED.widen(validateName(""))                 // Invalid - stops here
     );
 // Invalid(["Name is required"])
 ```
@@ -159,7 +159,7 @@ Validated<List<String>, String>  name  = validateName("");           // Invalid
 Validated<List<String>, String>  email = validateEmail("bad@@");     // Invalid
 Validated<List<String>, Integer> age   = validateAge(15);            // Invalid
 
-// Using map3 to combine — ALL errors are collected:
+// Using map3 to combine - ALL errors are collected:
 Kind<ValidatedKind.Witness<List<String>>, String> result = validatedMonad.map3(
     VALIDATED.widen(name),
     VALIDATED.widen(email),
@@ -199,28 +199,28 @@ The `mapN` family remains the right tool inside `Kind`-generic code. See [Accumu
 Kind<ValidatedKind.Witness<List<String>>, Integer> failed =
     validatedMonad.raiseError(List.of("Something went wrong"));
 
-// handleErrorWith — recover to a Valid state
+// handleErrorWith: recover to a Valid state
 Kind<ValidatedKind.Witness<List<String>>, Integer> recovered =
     validatedMonad.handleErrorWith(failed, errors -> validatedMonad.of(0));
 // Valid(0)
 
-// handleErrorWith — transform the error
+// handleErrorWith: transform the error
 Kind<ValidatedKind.Witness<List<String>>, Integer> transformed =
     validatedMonad.handleErrorWith(failed,
         errors -> validatedMonad.raiseError(
             List.of("Transformed: " + errors.getFirst())));
 // Invalid(["Transformed: Something went wrong"])
 
-// handleError — recover with a plain value
+// handleError: recover with a plain value
 Kind<ValidatedKind.Witness<List<String>>, Integer> fallback =
     validatedMonad.handleError(failed, errors -> -1);
 // Valid(-1)
 
-// Valid values pass through untouched — handler is never called
+// Valid values pass through untouched - handler is never called
 Kind<ValidatedKind.Witness<List<String>>, Integer> ok = validatedMonad.of(42);
 Kind<ValidatedKind.Witness<List<String>>, Integer> stillOk =
     validatedMonad.handleErrorWith(ok, errors -> validatedMonad.of(0));
-// Valid(42) — handler was never invoked
+// Valid(42) - handler was never invoked
 ```
 ~~~
 

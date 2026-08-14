@@ -69,7 +69,7 @@ Each request field maps to exactly one slot; an absent field simply contributes 
                     write email             identity           qty += 3
                           └─────────────────────┼──────────────────┘
                                                 ▼
-                  order' — email and quantity changed, sku untouched
+                  order': email and quantity changed, sku untouched
 ```
 
 ~~~admonish warning title="Absent and null are deliberately the same"
@@ -95,7 +95,7 @@ A path from a `@GenerateFocus` companion carries its record-component name as a 
 For the railway, `applyPath(order)` is the `ValidationPath` twin of `apply(order)`, and `toValidated()` exposes the folded `Update` itself for reuse.
 
 ~~~admonish tip title="Generate this when the shape is regular"
-When the request DTO's fields line up one-to-one with a domain record — the common REST PATCH case — you need not hand-write the fold at all: `@GenerateMapping` on an [`UpdateSpec<Domain, Wire>`](record_mapping.md#sparse-patch-write-back-updatespec) generates exactly this `Edits.accumulate` over the present fields, as `updateFrom(wire) : Edits.Accumulated<Domain>` (the same `apply`/`applyPath`/`toValidated` surface). Reach for the hand-written `Edits` here when the edits are irregular — a `qtyDelta` that *modifies*, coupled fields, a computed target; reach for `UpdateSpec` when each present field maps to one slot.
+When the request DTO's fields line up one-to-one with a domain record (the common REST PATCH case), you need not hand-write the fold at all: `@GenerateMapping` on an [`UpdateSpec<Domain, Wire>`](../mapping/beans_patch.md#sparse-patch-write-back-updatespec) generates exactly this `Edits.accumulate` over the present fields, as `updateFrom(wire) : Edits.Accumulated<Domain>` (the same `apply`/`applyPath`/`toValidated` surface). Reach for the hand-written `Edits` here when the edits are irregular (a `qtyDelta` that *modifies*, coupled fields, a computed target); reach for `UpdateSpec` when each present field maps to one slot.
 ~~~
 
 ---
@@ -127,7 +127,7 @@ An accumulated patch works in two phases:
 2. **Apply**: only if every edit validated, the writes run as a single left-to-right fold.
 
 ```
-  Phase 1 — validate every edit independently (no source involved)
+  Phase 1: validate every edit independently (no source involved)
 
     setIfPresent(SKU, null)     parseIfPresent(EMAIL, raw)      modifyIfPresent(QTY, 3)
              │                            │                             │
@@ -138,10 +138,10 @@ An accumulated patch works in two phases:
                                           │
                         all Valid?  ──────┴──────  any Invalid?
                              │                          │
-  Phase 2 — one              ▼                          ▼
+  Phase 2: one               ▼                          ▼
   left-to-right fold   Valid(order')          Invalid(NEL[ email: … ])
   of the writes        only the present       every bad field, located,
-                       fields changed         in edit order — no writes run
+                       fields changed         in edit order; no writes run
 ```
 
 Application order is observable only when paths overlap: disjoint paths commute; an edit at an overlapping path sees the previous edit's result (a `modify` reads the *current* value at application time). Genuinely coupled fields belong in one atomic edit (see [Coupled Fields](coupled_fields.md) and `Lens.paired`).
@@ -164,7 +164,7 @@ Practice the whole model in [Tutorial 24: Multi-Edit and Sparse Updates](https:/
 - [Semigroup and Monoid](../functional/semigroup_and_monoid.md) - The `Update` monoid that powers `combine`
 - [Accumulating Assembly](../monads/validated_assembly.md) - The same all-errors-at-once model for *constructing* values
 - [Coupled Fields](coupled_fields.md) - Atomic updates of interdependent fields
-- [Record Mapping — sparse PATCH (`UpdateSpec`)](record_mapping.md#sparse-patch-write-back-updatespec) - Generate this `Edits.accumulate` fold when the DTO maps one-to-one
+- [Record Mapping, sparse PATCH (`UpdateSpec`)](../mapping/beans_patch.md#sparse-patch-write-back-updatespec) - Generate this `Edits.accumulate` fold when the DTO maps one-to-one
 ~~~
 
 ---

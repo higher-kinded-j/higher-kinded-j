@@ -152,12 +152,13 @@ Same composition, same vocabulary, applied to a type you can't modify. See [Tami
 
 - **Looking up an annotation?** [Annotations at a Glance](annotations_at_a_glance.md) lists every `@Generate*` and `@OpticsSpec` hint with its target and what it produces.
 - **Just want to update a nested record?** Continue with the [Focus DSL](focus_dsl.md).
+- **Mapping a domain record to/from a wire DTO?** [Record Mapping](../mapping/ch_intro.md) generates both directions at compile time, with every bad field reported at once.
 - **Choosing between Focus DSL, Fluent API, or Free Monad DSL?** The [Java-Friendly APIs](ch4_intro.md) chapter has a decision tree.
 - **Choosing which optic for your data shape?** [Integration and Recipes](ch5_intro.md) carries a flowchart and a complete pipeline example.
 - **Theory first?** [What Are Optics?](optics_intro.md) is the conceptual introduction.
 
 ~~~admonish tip title="Ready for hands-on?"
-The [Optics Tutorial Track](../tutorials/optics/ch_intro.md) is exercise-driven. Four journeys (~150 minutes total, 108 exercises) cover Lens & Prism, Traversals, Fluent & Free DSL, and the Focus DSL. Recommended once you've finished this Quickstart.
+The [Optics Tutorial Track](../tutorials/optics/ch_intro.md) is exercise-driven. Six journeys (~225 minutes total, 134 exercises) run from Lens & Prism through the Focus DSL to batching, coupled updates, and the generated DTO boundary. Recommended once you've finished this Quickstart.
 ~~~
 
 ---

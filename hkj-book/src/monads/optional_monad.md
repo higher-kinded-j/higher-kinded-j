@@ -90,7 +90,7 @@ MonadError<OptionalKind.Witness, Unit> optionalMonad = Instances.monadError(opti
 Optional<String> fromDb = Optional.of("Alice");
 OptionalKind<String> wrapped = OPTIONAL.widen(fromDb);
 
-// Lift a raw value — null becomes empty automatically
+// Lift a raw value - null becomes empty automatically
 Kind<OptionalKind.Witness, String> present = optionalMonad.of("Hello");   // Optional.of("Hello")
 Kind<OptionalKind.Witness, String> absent  = optionalMonad.of(null);      // Optional.empty()
 
@@ -161,7 +161,7 @@ Kind<OptionalKind.Witness, String> absent  = OPTIONAL.widen(Optional.empty());
 Function<Unit, Kind<OptionalKind.Witness, String>> recover =
     unit -> OPTIONAL.widen(Optional.of("Default Value"));
 
-// Present value passes through — handler is never called
+// Present value passes through - handler is never called
 Kind<OptionalKind.Witness, String> handledPresent =
     optionalMonad.handleErrorWith(present, recover);
 // OPTIONAL.narrow(handledPresent) => Optional.of("Found")

@@ -234,7 +234,7 @@ public class UserController {
 - `Right(user)` → HTTP 200 with the value unwrapped as JSON: `{"id": "1", "email": "alice@example.com", ...}`
 - `Left(UserNotFoundError)` → HTTP 404 with the error wrapped in an envelope: `{"success": false, "error": {"userId": "999", ...}}`
 
-The error object inside the envelope is the error record serialised as-is — there is no automatic `type` discriminator. If your clients need one, add it to the error type with Jackson's `@JsonTypeInfo(use = Id.NAME, ...)` on the sealed interface.
+The error object inside the envelope is the error record serialised as-is; there is no automatic `type` discriminator. If your clients need one, add it to the error type with Jackson's `@JsonTypeInfo(use = Id.NAME, ...)` on the sealed interface.
 
 #### Error Type to HTTP Status Mapping {#error-type-http-status-mapping}
 
@@ -355,7 +355,7 @@ public class UserService {
 This mirrors `UserService.validateAndCreate` in the example module. (`VALIDATED` is the `ValidatedKindHelper.VALIDATED` widening/narrowing helper.)
 
 ~~~admonish tip title="Prefer the Path builders for new code"
-The `ValidationPath` accumulating builders avoid the widen/narrow ceremony entirely — controllers can return `ValidationPath` directly and the same handler applies. Each field validator returns `ValidationPath<NonEmptyList<ValidationError>, String>` (built with `Path.validNel` / `Path.invalidNel`):
+The `ValidationPath` accumulating builders avoid the widen/narrow ceremony entirely: controllers can return `ValidationPath` directly and the same handler applies. Each field validator returns `ValidationPath<NonEmptyList<ValidationError>, String>` (built with `Path.validNel` / `Path.invalidNel`):
 
 ```java
 public ValidationPath<NonEmptyList<ValidationError>, User> validateAndCreate(UserRequest request) {
@@ -375,7 +375,7 @@ See the [Effect Path API](../effect/path_types.md) for `Path.accumulate()` and i
 
 A *leg* is one of the routes a value returned from a controller can travel to become an HTTP response: a segment of the [railway](../glossary/effect-paths.md#railway-oriented-programming) journey, as in a leg of a relay. A `Left(DomainError)` travels the **Either leg** to its mapped error status; a generic `Invalid` travels the standard **validation leg** to 400. This section describes a third: the leg an all-`FieldError` payload takes to a 422, chosen (like a railway switch) by the shape of the value itself.
 
-A [`@GenerateMapping`](../optics/record_mapping.md) spec's `parse` returns `Validated<NonEmptyList<FieldError>, Domain>`: every bad field reported at once, each located by a structured path. (`FieldError` here is HKJ's `org.higherkindedj.hkt.validated.FieldError`, not Spring's `org.springframework.validation.FieldError`.) A controller returns it directly, with no service call and no error wrapping:
+A [`@GenerateMapping`](../mapping/ch_intro.md) spec's `parse` returns `Validated<NonEmptyList<FieldError>, Domain>`: every bad field reported at once, each located by a structured path. (`FieldError` here is HKJ's `org.higherkindedj.hkt.validated.FieldError`, not Spring's `org.springframework.validation.FieldError`.) A controller returns it directly, with no service call and no error wrapping:
 
 ```java
 @PostMapping("/parse")
@@ -397,7 +397,7 @@ When an `Invalid` payload consists **entirely** of located `FieldError`s, the ha
 }
 ```
 
-To inject the mapping behind such an endpoint as a bean, or substitute a fake in a `@WebMvcTest` slice, see [Injecting and testing generated mappings](../optics/record_mapping.md#injecting-and-testing-generated-mappings); the example app's `MappingConfiguration`, `UserController` and `UserParseFakeCodecSliceTest` demonstrate the pattern end to end.
+To inject the mapping behind such an endpoint as a bean, or substitute a fake in a `@WebMvcTest` slice, see [Injecting and testing generated mappings](../mapping/testing.md#injecting-and-testing-generated-mappings); the example app's `MappingConfiguration`, `UserController` and `UserParseFakeCodecSliceTest` demonstrate the pattern end to end.
 
 `path` is the dot-joined display key (`FieldError.pathString()`); `segments` is the exact structured location. Paths use **domain** component names: under a `@MapField(to = "fullName")` rename the client that sent `fullName` receives its error at `name`, so a client mapping errors onto its own payload keys must apply the rename in reverse. The distinction matters: a map key containing a dot is indistinguishable from nesting in the rendered `path` (`attributes."a.b".email` vs deeper nesting), so structured consumers should read `segments`, which stays exact. An unlabelled error renders `"path": ""` and `"segments": []`; treat it as object-level.
 
@@ -405,13 +405,50 @@ The leg is selected purely by payload shape, so **any** all-`FieldError` payload
 
 Mixed, empty or non-`FieldError` payloads keep the generic rendering and `hkj.web.validation-invalid-status` (default 400): nothing to enable, nothing else affected.
 
-The example module's `POST /api/users/parse` endpoint shows the full leg; its PATCH sibling deliberately stays on the Either leg because a PATCH mixes not-found with validation, and one `Either` channel carries both.
+The example module's `POST /api/users/parse` endpoint shows the full leg; its PATCH sibling deliberately travels a different one, [below](#sparse-patch).
 
 **Key Difference from Either:**
 - `Either` short-circuits on first error (fail-fast)
 - `Validated` accumulates all errors (fail-slow)
 
 See the [Validated Monad documentation](../monads/validated_monad.md) for detailed usage.
+
+#### Sparse PATCH: absent means "leave unchanged" {#sparse-patch}
+
+A PATCH body is the parse boundary's mirror image. The client sends only the fields it wants to change; every property it omits arrives `null` from the binder, meaning *not provided, leave unchanged* (`UpdateSpec` rejects primitive properties at compile time, precisely so that every property can carry that signal), and a present-but-invalid field must still fail with located errors. A spec extending [`UpdateSpec`](../mapping/beans_patch.md#sparse-patch-write-back-updatespec) opts into exactly that contract: the generated `updateFrom(wire)` folds the present fields (validated through their leaves) into an `Edits.Accumulated<Domain>`, leaving absent fields and unmapped domain components untouched.
+
+A PATCH endpoint has two failure kinds, though, not one: the resource may not exist, *and* a present field may be invalid. The example app folds both into one `Either<DomainError, User>` channel (this mirrors `UserController.patchUser` and `UserService.patch` in the example module):
+
+```java
+@PatchMapping("/{id}")
+public Either<DomainError, User> patchUser(
+        @PathVariable String id, @RequestBody UserPatchRequest request) {
+    // updateFrom validates and folds the present fields once; the service then
+    // applies the accumulated update to the current user atomically.
+    return userService.patch(id, UserPatchMappingImpl.INSTANCE.updateFrom(request));
+}
+```
+
+```java
+// In the service: apply the pre-validated patch to the stored value
+patch.apply(current)                 // Validated<NonEmptyList<FieldError>, User>
+    .toEither()
+    .mapLeft(PatchValidationError::new);
+```
+
+The three outcomes travel the Either leg:
+
+| Outcome | Result | Status |
+|---|---|---|
+| unknown id | `Left(UserNotFoundError)` | 404 |
+| any present field invalid | `Left(PatchValidationError)` carrying **every** located `FieldError`; nothing is written | 400 |
+| all present fields valid | `Right(patched)` | 200 |
+
+Staying on the Either leg is deliberate: [the 422 leg](#the-422-leg) is selected by an all-`FieldError` `Validated` payload, and a PATCH that mixes not-found with validation needs one error channel for both. Wrapping the accumulated errors in a domain error (here a record whose name carries `Validation` as a CamelCase token, so the status heuristic maps it to 400) keeps the status decision with the error type; map it elsewhere with `hkj.web.error-status-mappings` or an `ErrorStatusCodeStrategy` if your API prefers 422 for PATCH validation failures.
+
+A PATCH boundary *without* a not-found case (the current value is already in hand) can instead return `patch.applyPath(current)`: the `ValidationPath` flavour of the same fold, whose all-`FieldError` invalid takes the 422 leg like any other, under `hkj.web.validation-field-error-status`.
+
+The example app demonstrates the whole shape end to end: `PATCH /api/users/{id}` (`UserController`, `UserPatchMapping`, `UserPatchRequest`), with `UserPatchWebMvcSliceTest` asserting all three outcomes. The sparse tier's rules (wrapper-typed properties, `Optional` bridging, container element leaves, wholesale replacement) are on the [Record Mapping page](../mapping/beans_patch.md#sparse-patch-write-back-updatespec).
 
 ---
 
@@ -555,7 +592,7 @@ public VStreamPath<TickEvent> streamTicks(@RequestParam(defaultValue = "10") int
 
 ### 6. EitherOrBoth: Success with Warnings {#eitherorboth-success-with-warnings}
 
-`EitherOrBoth<W, A>` is the inclusive-or: a computation that fails with warnings (`Left`), succeeds cleanly (`Right`), or **succeeds while also carrying non-fatal warnings** (`Both`). Controllers can return either the raw `EitherOrBoth` or its Path wrapper `EitherOrBothPath` — both are handled by `EitherOrBothPathReturnValueHandler`.
+`EitherOrBoth<W, A>` is the inclusive-or: a computation that fails with warnings (`Left`), succeeds cleanly (`Right`), or **succeeds while also carrying non-fatal warnings** (`Both`). Controllers can return either the raw `EitherOrBoth` or its Path wrapper `EitherOrBothPath`; both are handled by `EitherOrBothPathReturnValueHandler`.
 
 #### Basic Usage
 
@@ -571,7 +608,7 @@ public EitherOrBothPath<NonEmptyList<ImportWarning>, ImportSummary> importBatch(
 
 | Result | Status | Body | Extra |
 |--------|--------|------|-------|
-| `Right(value)` | success status (200, or `@ResponseStatus` on the handler) | the value, unwrapped | — |
+| `Right(value)` | success status (200, or `@ResponseStatus` on the handler) | the value, unwrapped | (none) |
 | `Both(warnings, value)` | the **same** success status | the value, unwrapped | warnings JSON-encoded into the `X-Hkj-Warnings` response header |
 | `Left(warnings)` | resolved by `ErrorStatusCodeStrategy` (same as `EitherPath`) | `{"success": false, "error": <warnings>}` | `HttpHeaderCarrier` headers applied if implemented |
 
@@ -710,7 +747,7 @@ Two different mechanisms produce JSON for functional types, and it matters which
 
 When a controller returns a functional type directly, the return-value handler shapes the response:
 
-- **Success values are unwrapped.** `Right(user)`, `Valid(user)`, a completed `CompletableFuturePath<User>`, etc. all produce the bare value as the body: `{"id": "1", "email": "alice@example.com"}` — no envelope.
+- **Success values are unwrapped.** `Right(user)`, `Valid(user)`, a completed `CompletableFuturePath<User>`, etc. all produce the bare value as the body: `{"id": "1", "email": "alice@example.com"}`, with no envelope.
 - **Either errors** produce `{"success": false, "error": <error record serialised as-is>}`.
 - **Validated errors** produce `{"valid": false, "errors": [...], "errorCount": n}`.
 - **EitherOrBoth `Both`** produces the unwrapped value plus the `X-Hkj-Warnings` header (see [above](#eitherorboth-success-with-warnings)).
@@ -735,7 +772,7 @@ When an `Either`, `Validated`, `EitherOrBoth`, or `NonEmptyList` appears **insid
 {"kind": "both", "left": [...warnings...], "right": ...}
 ```
 
-These shapes are fixed — there is no format-toggle property. The only Jackson-related switch is:
+These shapes are fixed: there is no format-toggle property. The only Jackson-related switch is:
 
 ```yaml
 hkj:
@@ -744,7 +781,7 @@ hkj:
 ```
 
 ~~~admonish warning title="No Maybe or Try Jackson support"
-The Jackson module covers `Either`, `Validated`, `EitherOrBoth`, and `NonEmptyList`. `Maybe` and `Try` have **no** nested-serialisation support — return them at the top level (where the handlers apply) or convert them to a supported type before embedding them in a DTO.
+The Jackson module covers `Either`, `Validated`, `EitherOrBoth`, and `NonEmptyList`. `Maybe` and `Try` have **no** nested-serialisation support; return them at the top level (where the handlers apply) or convert them to a supported type before embedding them in a DTO.
 ~~~
 
 For complete serialisation details, see [hkj-spring/JACKSON_SERIALIZATION.md](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-spring/JACKSON_SERIALIZATION.md).
@@ -778,7 +815,7 @@ The canonical key for the EitherPath default error status is `hkj.web.either.def
 
 ### Async Executor Configuration
 
-The starter does **not** create or configure a thread pool for `CompletableFuturePath` operations — your application defines its own executor bean and passes it to `CompletableFuture.supplyAsync(...)` in the service layer. The example module's `AsyncConfig` shows the pattern:
+The starter does **not** create or configure a thread pool for `CompletableFuturePath` operations; your application defines its own executor bean and passes it to `CompletableFuture.supplyAsync(...)` in the service layer. The example module's `AsyncConfig` shows the pattern:
 
 ```java
 @Configuration
@@ -966,14 +1003,14 @@ hkj:
     either-authentication: true         # Use Either for authentication
     either-authorization: true          # Use Either for authorisation
     # Opt-in (default: false). Only enable when you will register accounts: once it is the sole
-    # UserDetailsService bean, Spring Security adopts it as the application-wide user store — and it
+    # UserDetailsService bean, Spring Security adopts it as the application-wide user store, and it
     # starts EMPTY, so enabling it without adding users fails every form/basic login.
     # validated-user-details: true
 ```
 
 ### Functional User Details Service
 
-`ValidatedUserDetailsService` validates the username with `Validated`, accumulating **all** format errors (too short *and* illegal characters, not just the first) before looking the user up. It starts **empty** — register accounts explicitly:
+`ValidatedUserDetailsService` validates the username with `Validated`, accumulating **all** format errors (too short *and* illegal characters, not just the first) before looking the user up. It starts **empty**; register accounts explicitly:
 
 ```java
 @Bean
@@ -989,12 +1026,12 @@ public UserDetailsService userDetailsService(PasswordEncoder encoder) {
 ```
 
 ~~~admonish warning title="Sample users are opt-in, demos only"
-`ValidatedUserDetailsService.withSampleUsers()` returns an instance pre-populated with well-known accounts (`admin`/`admin123`, `user`/`user123`, `disabled`/`disabled123`) using plaintext `{noop}` passwords. It exists for demos and tests — never use it in production. The no-argument constructor registers **no** users.
+`ValidatedUserDetailsService.withSampleUsers()` returns an instance pre-populated with well-known accounts (`admin`/`admin123`, `user`/`user123`, `disabled`/`disabled123`) using plaintext `{noop}` passwords. It exists for demos and tests; never use it in production. The no-argument constructor registers **no** users.
 ~~~
 
 ### Functional Authentication
 
-`EitherAuthenticationConverter` converts JWTs to `Authentication` using `Either` internally. A **malformed** authorities claim (wrong type, or a collection with a non-string element) always folds the `Left` into a thrown `BadCredentialsException`, so such a token is **rejected** (HTTP 401) — it never produces an authenticated token. A **missing** claim is rejected the same way only while `hkj.security.reject-missing-authorities-claim` stays `true` (the default); set it to `false` to allow legitimately role-less tokens (e.g. client-credentials) to authenticate with empty authorities:
+`EitherAuthenticationConverter` converts JWTs to `Authentication` using `Either` internally. A **malformed** authorities claim (wrong type, or a collection with a non-string element) always folds the `Left` into a thrown `BadCredentialsException`, so such a token is **rejected** (HTTP 401); it never produces an authenticated token. A **missing** claim is rejected the same way only while `hkj.security.reject-missing-authorities-claim` stays `true` (the default); set it to `false` to allow legitimately role-less tokens (e.g. client-credentials) to authenticate with empty authorities:
 
 ```java
 @Bean
@@ -1031,7 +1068,7 @@ management:
         include: health,info,metrics,hkj
 ```
 
-The `hkj-async` health indicator only registers when your application defines an `Executor` bean named `hkjAsyncExecutor` (see [Async Executor Configuration](#async-executor-configuration)) — without that bean there is nothing to monitor. Any `Executor` is accepted: a `ThreadPoolTaskExecutor` reports full pool statistics, while other types (e.g. a virtual-thread executor) report `UP` with a `type` detail (or `DOWN` if shut down).
+The `hkj-async` health indicator only registers when your application defines an `Executor` bean named `hkjAsyncExecutor` (see [Async Executor Configuration](#async-executor-configuration)); without that bean there is nothing to monitor. Any `Executor` is accepted: a `ThreadPoolTaskExecutor` reports full pool statistics, while other types (e.g. a virtual-thread executor) report `UP` with a `type` detail (or `DOWN` if shut down).
 
 ### Available Metrics
 
@@ -1159,7 +1196,7 @@ class UserControllerTest {
     void shouldReturn200ForExistingUser() throws Exception {
         mockMvc.perform(get("/api/users/1"))
             .andExpect(status().isOk())
-            // Success bodies are unwrapped — no envelope fields
+            // Success bodies are unwrapped: no envelope fields
             .andExpect(jsonPath("$.id").value("1"))
             .andExpect(jsonPath("$.email").value("alice@example.com"));
     }
@@ -1169,7 +1206,7 @@ class UserControllerTest {
         mockMvc.perform(get("/api/users/999"))
             .andExpect(status().isNotFound())
             .andExpect(jsonPath("$.success").value(false))
-            // The error record is embedded as-is — assert on its own fields
+            // The error record is embedded as-is; assert on its own fields
             .andExpect(jsonPath("$.error.userId").value("999"));
     }
 }

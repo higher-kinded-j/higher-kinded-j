@@ -23,6 +23,7 @@ import org.springframework.context.annotation.Configuration;
  * function, and calling {@code UserMappingImpl.INSTANCE} directly (as this app's PATCH endpoint
  * does) loses nothing but the substitution seam.
  */
+// ANCHOR: mapping_configuration
 @Configuration
 public class MappingConfiguration {
 
@@ -36,3 +37,4 @@ public class MappingConfiguration {
     return UserMappingImpl.INSTANCE.asValidatedPrism();
   }
 }
+// ANCHOR_END: mapping_configuration

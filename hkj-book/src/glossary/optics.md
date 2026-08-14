@@ -105,6 +105,23 @@ Validated<NonEmptyList<FieldError>, Order> patched =
 
 ---
 
+## ErrorEnvelope
+
+**Definition:** The record that carries an error's envelope as one value: `ErrorEnvelope<C>(String code, String message, Instant timestamp, C context)`, where `C` is a typed context record rather than a `Map<String, Object>`. A sealed error hierarchy declares one `ErrorEnvelope<C>` component per variant, and [@GenerateErrorEnvelope](#generateerrorenvelope) generates the factories and builders around it. Two verbs keep enrichment honest: `withContext(D)` is the record wither that *replaces* the context (and may change its type), while the generated `editContext` *transforms* the existing one.
+
+**Example:**
+```java
+record OutOfStock(List<ProductId> products, ErrorEnvelope<OrderErrorContext> envelope)
+    implements OrderError {}
+
+ErrorEnvelope<OrderErrorContext> envelope =
+    ErrorEnvelope.of(timeSource, "OUT_OF_STOCK", "Out of stock", context);
+```
+
+**Related:** [@GenerateErrorEnvelope](#generateerrorenvelope), [Merge and Error Envelopes](../mapping/merge_envelopes.md#generating-error-envelopes-generateerrorenvelope), [TimeSource](data-effects.md#timesource)
+
+---
+
 ## FieldError
 
 **Definition:** A single validation failure carrying a composable path to the offending field plus a message. It is a small record (path segments plus a message) with a `pathString()` such as `"address.zip"`. Accumulating validation collects `FieldError`s into a [NonEmptyList](data-effects.md#nonemptylist) in declaration order, so a failed parse reports *which* fields were wrong and *where* they sit in a nested structure, not merely that validation failed.
@@ -290,7 +307,7 @@ OrderError error = OrderErrors.outOfStock(products)
     .editContext(ctx -> ctx.orderId(orderId).traceId(traceId));  // typed context, not map.put
 ```
 
-**Related:** [Record Mapping](../optics/record_mapping.md#generating-error-envelopes-generateerrorenvelope), [TimeSource](data-effects.md#timesource), [@GenerateMapping](#generatemapping)
+**Related:** [Record Mapping](../mapping/merge_envelopes.md#generating-error-envelopes-generateerrorenvelope), [TimeSource](data-effects.md#timesource), [@GenerateMapping](#generatemapping)
 
 ---
 
@@ -310,7 +327,7 @@ Validated<NonEmptyList<FieldError>, Person> back =
 
 **Truthful emission tiers:** the generated mapper offers only what the shape supports: `asIso` when lossless, `asLens` when total one way, and the accumulating `parse` otherwise. A spec extending [UpdateSpec](#updatespec) instead opts into the sparse PATCH tier (only `updateFrom`). Every tier is law-checked against the published `hkj-test` harness.
 
-**Related:** [Record Mapping](../optics/record_mapping.md), [ValidatedPrism](#validatedprism), [FieldError](#fielderror), [@GenerateMerge](#generatemerge), [UpdateSpec](#updatespec)
+**Related:** [Record Mapping](../mapping/ch_intro.md), [ValidatedPrism](#validatedprism), [FieldError](#fielderror), [@GenerateMerge](#generatemerge), [UpdateSpec](#updatespec)
 
 ---
 
@@ -329,7 +346,7 @@ Dashboard dashboard =
     DashboardAssemblyImpl.INSTANCE.assemble(user, account, settings);
 ```
 
-**Related:** [Record Mapping](../optics/record_mapping.md), [@GenerateMapping](#generatemapping), [ValidatedPrism](#validatedprism)
+**Related:** [Record Mapping](../mapping/ch_intro.md), [@GenerateMapping](#generatemapping), [ValidatedPrism](#validatedprism)
 
 ---
 
@@ -393,11 +410,41 @@ Employee updated = employeeToStreet.set("456 New St", originalEmployee);
 
 ---
 
+## MappingLaws
+
+**Definition:** The `hkj-test` law harness for generated mappings. One `assertMappingLaws` call per [@GenerateMapping](#generatemapping) Impl verifies the laws of its emission tier: the iso laws plus parse-iso coherence for a lossless mapping, the lens laws for a projection, the round-trip and no-parse laws for a fallible mapping, the patch laws (projection identity, idempotence, located validation) for a validated `patch`, and the identity/idempotence/validation laws for a sparse [UpdateSpec](#updatespec) `updateFrom`. The same harness law-checks every golden Impl in the library's own build.
+
+**Example:**
+```java
+import org.higherkindedj.optics.laws.MappingLaws;
+
+MappingLaws.assertMappingLaws(
+    PersonMappingImpl.INSTANCE.asValidatedPrism(), validDto, invalidDto);
+```
+
+**Related:** [Record Mapping](../mapping/tiers.md#law-checked-in-the-repo-and-in-your-tests), [Testing With hkj-test](../tooling/test_assertions.md#optic-laws), [@GenerateMapping](#generatemapping)
+
+---
+
+## MappingSpec
+
+**Definition:** The marker interface a mapping spec extends to name its pair: `interface UserMapping extends MappingSpec<Domain, Wire> {}`. The interface deliberately declares nothing callable (the generated `UserMappingImpl` carries the surface); the spec's members are the *declaration vocabulary*: `default` `ValidatedPrism` methods are leaves, `@MapField` abstracts are renames, `default` `Getter` methods are derived wire fields. Its sparse sibling is [UpdateSpec](#updatespec), which swaps the whole generated surface for a single `updateFrom`.
+
+**Example:**
+```java
+@GenerateMapping
+public interface UserMapping extends MappingSpec<User, UserDto> {}
+```
+
+**Related:** [@GenerateMapping](#generatemapping), [Record Mapping Basics](../mapping/basics.md), [UpdateSpec](#updatespec)
+
+---
+
 ## Parse, Don't Validate
 
 **Definition:** The principle that a boundary should turn unstructured input into a typed value **once**, at the edge, and keep that guarantee in the type thereafter, rather than re-checking the same data repeatedly downstream. Higher-Kinded-J expresses it with types whose *parse* is fallible and accumulating and whose *build* is total: [ValidatedPrism](#validatedprism) for a single value, [Validated Assembly](#validated-assembly) for a whole record, and [@GenerateMapping](#generatemapping) for a record-to-DTO boundary. Failures are [FieldError](#fielderror)s, so a rejected input reports every bad field at once, each located.
 
-**Related:** [Record Mapping](../optics/record_mapping.md), [ValidatedPrism](#validatedprism), [Validated](data-effects.md#validated)
+**Related:** [Record Mapping](../mapping/ch_intro.md), [ValidatedPrism](#validatedprism), [Validated](data-effects.md#validated)
 
 ---
 
@@ -474,6 +521,23 @@ Company normalised = allEmployeeEmails.modify(String::toLowerCase, company);
 
 ---
 
+## StandardCodecs
+
+**Definition:** The stock [ValidatedPrism](#validatedprism) vocabulary for the common wire-to-domain conversion families: one static factory per family (`uuid()`, `uri()`, `localDate()`, `instant()`, `offsetDateTime()`, `enumByName(Class)`, `bigDecimal()`, `intFromString()`, `booleanStrict()`, `currency()`, `locale()`, and friends). Each codec is lawful by construction (built on `ValidatedPrism.canonical`, accepting exactly the canonical form it renders) and every failure is a located [FieldError](#fielderror) with a copy-worthy message. Codecs are ordinary leaves: a spec declares them as `default` methods, and nothing is ever applied implicitly.
+
+**Example:**
+```java
+@GenerateMapping
+public interface OrderMapping extends MappingSpec<Order, OrderDto> {
+  default ValidatedPrism<String, UUID> id() { return StandardCodecs.uuid(); }
+  default ValidatedPrism<String, LocalDate> placed() { return StandardCodecs.localDate(); }
+}
+```
+
+**Related:** [Standard codecs](../mapping/codecs.md#standard-codecs), [ValidatedPrism](#validatedprism), [@GenerateMapping](#generatemapping)
+
+---
+
 ## Traversal
 
 **Definition:** An optic for working with multiple values within a structure (lists, sets, trees). Allows bulk operations on all elements.
@@ -503,7 +567,7 @@ Order discounted = orderItems.modify(
 
 ## UpdateSpec
 
-**Definition:** The sparse-PATCH sibling of [MappingSpec](#generatemapping). Annotate an interface extending `UpdateSpec<Domain, Wire>` (with `@GenerateMapping`) to opt into the null-as-absent contract: a null bean property means *not provided, leave unchanged* rather than broken data. The processor generates a single method, `updateFrom(Wire) : Edits.Accumulated<Domain>` — no `build`, `parse`, or `as*` tier — folding the present (non-null) properties into an [Update](#edits) and skipping the absent ones. The wire must be bean-shaped, and a primitive property is rejected (it can never be absent); a leafless domain `Optional` is patchable only from an `Optional`-typed property (a present empty Optional encodes "set to empty"). A present container parses through the element leaf lifted over it — the same vocabulary the dense tiers lift, each failing element located (`phones.1`) — with a whole-container leaf winning as the more specific declaration. Present-but-invalid fields still fail, located and accumulating.
+**Definition:** The sparse-PATCH sibling of [MappingSpec](#mappingspec). Annotate an interface extending `UpdateSpec<Domain, Wire>` (with `@GenerateMapping`) to opt into the null-as-absent contract: a null bean property means *not provided, leave unchanged* rather than broken data. The processor generates a single method, `updateFrom(Wire) : Edits.Accumulated<Domain>` (no `build`, `parse`, or `as*` tier), folding the present (non-null) properties into an [Update](#edits) and skipping the absent ones. The wire must be bean-shaped, and a primitive property is rejected (it can never be absent); a leafless domain `Optional` is patchable only from an `Optional`-typed property (a present empty Optional encodes "set to empty"). A present container parses through the element leaf lifted over it (the same vocabulary the dense tiers lift, each failing element located: `phones.1`), with a whole-container leaf winning as the more specific declaration. Present-but-invalid fields still fail, located and accumulating.
 
 **Example:**
 ```java
@@ -514,7 +578,7 @@ Edits.Accumulated<User> patch = UserPatchMappingImpl.INSTANCE.updateFrom(dto);
 Validated<NonEmptyList<FieldError>, User> updated = patch.apply(current); // absent fields survive
 ```
 
-**Related:** [Record Mapping](../optics/record_mapping.md#sparse-patch-write-back-updatespec), [@GenerateMapping](#generatemapping), [Edits](#edits)
+**Related:** [Record Mapping](../mapping/beans_patch.md#sparse-patch-write-back-updatespec), [@GenerateMapping](#generatemapping), [Edits](#edits)
 
 ---
 
@@ -550,7 +614,7 @@ Validated<NonEmptyList<FieldError>, EmailAddress> parsed = email.parse("  NOPE "
 String rendered = email.build(addr);   // always succeeds
 ```
 
-**Composition:** nested composition short-circuits whilst sibling fields accumulate, so a whole record parses in one pass with every bad field reported. `ValidatedPrism.canonical(message, parse, render)` wraps a throwing parser with the section law guarded per value — the render defines the canonical form and every spelling it cannot reproduce is a located rejection (an injective render stays your obligation); `ValidatedPrism.fromIso(iso)` is a parse that never fails; `ValidatedPrism.fromPrism(prism, reason)` lifts a plain prism by supplying the reason its empty case cannot express. Both round-trip laws ship as `ValidatedPrismLaws` in `hkj-test`.
+**Composition:** nested composition short-circuits whilst sibling fields accumulate, so a whole record parses in one pass with every bad field reported. `ValidatedPrism.canonical(message, parse, render)` wraps a throwing parser with the section law guarded per value: the render defines the canonical form and every spelling it cannot reproduce is a located rejection (an injective render stays your obligation); `ValidatedPrism.fromIso(iso)` is a parse that never fails; `ValidatedPrism.fromPrism(prism, reason)` lifts a plain prism by supplying the reason its empty case cannot express. Both round-trip laws ship as `ValidatedPrismLaws` in `hkj-test`.
 
 **Related:** [ValidatedPrism](../optics/validated_prism.md), [Prism](#prism), [FieldError](#fielderror), [Validated](data-effects.md#validated)
 

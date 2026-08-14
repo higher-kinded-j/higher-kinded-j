@@ -18,7 +18,7 @@ import org.higherkindedj.optics.validated.ValidatedPrism;
 
 /**
  * The code shown on the book's <a
- * href="https://higher-kinded-j.github.io/optics/record_mapping.html">Record Mapping</a> page.
+ * href="https://higher-kinded-j.github.io/mapping/ch_intro.html">Record Mapping</a> page.
  *
  * <p>The book does not paraphrase this file: it {@code {{#include}}}s the anchored regions below,
  * so the page cannot drift from the API. Change a spec here and the page changes with it; break one
@@ -92,6 +92,11 @@ public final class RecordMappingBook {
         PageMappingImpl.<Integer>instance().parse(new PageDto<>(List.of(1, 2, 3), 3));
     // ANCHOR_END: threaded_usage
     System.out.println(tagsDto + " / " + counts);
+
+    // ANCHOR: threaded_inferred
+    PageMapping<String> inferredWitness = PageMappingImpl.instance(); // witness inferred
+    // ANCHOR_END: threaded_inferred
+    System.out.println(inferredWitness);
 
     // ANCHOR: element_usage
     // One spec, any element codec: each abstract leaf arrives as a prism through of(...).
