@@ -17,7 +17,7 @@ package org.higherkindedj.optics.annotations;
  *
  * <p>The generated {@code <Spec>Impl} exposes a single method and nothing else — no {@code build},
  * no {@code parse}, no {@code asIso}/{@code asLens}/{@code asValidatedPrism} (a sparse mapping is
- * not a projection of information, and an all-null wire is <em>valid</em>, not a total parse):
+ * not a projection of information, and an all-absent wire is <em>valid</em>, not a total parse):
  *
  * <pre>{@code
  * public record User(String name, EmailAddress email, int age) {}

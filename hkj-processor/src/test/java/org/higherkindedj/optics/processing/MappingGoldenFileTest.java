@@ -79,6 +79,10 @@ class MappingGoldenFileTest {
             "com.example.update.UserPatchMappingImpl",
             "UserPatchMappingImpl.java.golden"),
         new GoldenTestCase(
+            "sparse update with element lifting (parseAll/parseValues/Optional + identity scans)",
+            "com.example.updatelifting.CustomerPatchMappingImpl",
+            "CustomerPatchMappingImpl.java.golden"),
+        new GoldenTestCase(
             "sealed dispatch",
             "com.example.sealeddispatch.PaymentMappingImpl",
             "PaymentMappingImpl.java.golden"),
@@ -144,6 +148,7 @@ class MappingGoldenFileTest {
             projection(),
             leafProjection(),
             update(),
+            updateElementLifting(),
             sealed(),
             wideRecord(),
             wideBean(),
@@ -417,6 +422,112 @@ class MappingGoldenFileTest {
                         ? Validated.validNel(new EmailAddress(raw))
                         : Validated.invalidNel(FieldError.of("not an email address")),
                 EmailAddress::value);
+          }
+        }
+        """);
+  }
+
+  // ---- sparse update with element lifting: element leaves over List/Map/Optional properties,
+  // plus identity containers carrying the null scans ----
+  private static JavaFileObject updateElementLifting() {
+    return JavaFileObjects.forSourceString(
+        "com.example.updatelifting.Fixtures",
+        """
+        package com.example.updatelifting;
+
+        import java.util.List;
+        import java.util.Map;
+        import java.util.Optional;
+        import org.higherkindedj.hkt.validated.FieldError;
+        import org.higherkindedj.hkt.validated.Validated;
+        import org.higherkindedj.optics.annotations.GenerateMapping;
+        import org.higherkindedj.optics.annotations.UpdateSpec;
+        import org.higherkindedj.optics.validated.ValidatedPrism;
+
+        record PhoneNumber(String value) {}
+
+        record Customer(
+            String name,
+            List<PhoneNumber> phones,
+            Map<String, PhoneNumber> speedDial,
+            Optional<PhoneNumber> fax,
+            List<String> tags,
+            Map<String, String> labels) {}
+
+        class CustomerPatchDto {
+          private String name;
+          private List<String> phones;
+          private Map<String, String> speedDial;
+          private Optional<String> fax;
+          private List<String> tags;
+          private Map<String, String> labels;
+
+          public String getName() {
+            return name;
+          }
+
+          public void setName(String name) {
+            this.name = name;
+          }
+
+          public List<String> getPhones() {
+            return phones;
+          }
+
+          public void setPhones(List<String> phones) {
+            this.phones = phones;
+          }
+
+          public Map<String, String> getSpeedDial() {
+            return speedDial;
+          }
+
+          public void setSpeedDial(Map<String, String> speedDial) {
+            this.speedDial = speedDial;
+          }
+
+          public Optional<String> getFax() {
+            return fax;
+          }
+
+          public void setFax(Optional<String> fax) {
+            this.fax = fax;
+          }
+
+          public List<String> getTags() {
+            return tags;
+          }
+
+          public void setTags(List<String> tags) {
+            this.tags = tags;
+          }
+
+          public Map<String, String> getLabels() {
+            return labels;
+          }
+
+          public void setLabels(Map<String, String> labels) {
+            this.labels = labels;
+          }
+        }
+
+        @GenerateMapping
+        interface CustomerPatchMapping extends UpdateSpec<Customer, CustomerPatchDto> {
+          default ValidatedPrism<String, PhoneNumber> phones() {
+            return ValidatedPrism.of(
+                raw ->
+                    raw.startsWith("+")
+                        ? Validated.validNel(new PhoneNumber(raw))
+                        : Validated.invalidNel(FieldError.of("not a phone number")),
+                PhoneNumber::value);
+          }
+
+          default ValidatedPrism<String, PhoneNumber> speedDial() {
+            return phones();
+          }
+
+          default ValidatedPrism<String, PhoneNumber> fax() {
+            return phones();
           }
         }
         """);
