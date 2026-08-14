@@ -29,6 +29,8 @@ Practice this section in the [Lens & Prism Journey](../tutorials/optics/lens_pri
 ~~~admonish info title="In This Chapter"
 - **Lenses** – Focus on exactly one field within a record. A Lens guarantees the field exists and provides both get and set operations.
 - **Prisms** – Handle sum types (sealed interfaces) where a value might be one of several variants. A Prism can attempt to match a variant and construct new instances.
+- **The Prism Toolkit** – Ready-made prisms and combinators for everyday matching: type tests, predicates, enum constants, and non-sealed hierarchies.
+- **Validated Prisms** – The smart-constructor optic for boundaries: a fallible, accumulating `parse` paired with a total `build`, the leaf every generated record mapping is built from.
 - **Affines** – For optional fields that may or may not be present. An Affine targets zero-or-one values, making it perfect for nullable fields or conditional access.
 - **Isomorphisms** – Bidirectional, lossless conversions between equivalent types. An Iso can convert in both directions without losing information.
 - **Composition** – Chain optics together to navigate arbitrarily deep structures. The composition of a Lens with a Prism produces an Affine, following predictable rules.
@@ -43,6 +45,8 @@ Practice this section in the [Lens & Prism Journey](../tutorials/optics/lens_pri
 1. [What Are Optics?](optics_intro.md) - Introduction to composable, reusable paths through data
 2. [Lenses](lenses.md) - Focusing on required fields within records
 3. [Prisms](prisms.md) - Safely handling sum types and optional variants
+   - [Prism Toolkit](prism_toolkit.md) - Ready-made prisms and matching combinators
+   - [Validated Prisms](validated_prism.md) - The parse-don't-validate boundary optic
 4. [Affines](affine.md) - Working with optional fields (zero-or-one focus)
 5. [Isomorphisms](iso.md) - Lossless conversions between equivalent types
 6. [Composition Rules](composition_rules.md) - A reference for what type results from combining optics

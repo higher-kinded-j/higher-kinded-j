@@ -393,6 +393,22 @@ Employee updated = employeeToStreet.set("456 New St", originalEmployee);
 
 ---
 
+## MappingLaws
+
+**Definition:** The `hkj-test` law harness for generated mappings. One `assertMappingLaws` call per [@GenerateMapping](#generatemapping) Impl verifies the laws of its emission tier: the iso laws plus parse-iso coherence for a lossless mapping, the lens laws for a projection, the round-trip and no-parse laws for a fallible mapping, the patch laws (projection identity, idempotence, located validation) for a validated `patch`, and the identity/idempotence/validation laws for a sparse [UpdateSpec](#updatespec) `updateFrom`. The same harness law-checks every golden Impl in the library's own build.
+
+**Example:**
+```java
+import org.higherkindedj.optics.laws.MappingLaws;
+
+MappingLaws.assertMappingLaws(
+    PersonMappingImpl.INSTANCE.asValidatedPrism(), validDto, invalidDto);
+```
+
+**Related:** [Record Mapping](../optics/record_mapping.md#law-checked-in-the-repo-and-in-your-tests), [Testing With hkj-test](../tooling/test_assertions.md#optic-laws), [@GenerateMapping](#generatemapping)
+
+---
+
 ## Parse, Don't Validate
 
 **Definition:** The principle that a boundary should turn unstructured input into a typed value **once**, at the edge, and keep that guarantee in the type thereafter, rather than re-checking the same data repeatedly downstream. Higher-Kinded-J expresses it with types whose *parse* is fallible and accumulating and whose *build* is total: [ValidatedPrism](#validatedprism) for a single value, [Validated Assembly](#validated-assembly) for a whole record, and [@GenerateMapping](#generatemapping) for a record-to-DTO boundary. Failures are [FieldError](#fielderror)s, so a rejected input reports every bad field at once, each located.
@@ -471,6 +487,23 @@ Company normalised = allEmployeeEmails.modify(String::toLowerCase, company);
 - Composing write-only operations
 
 **Related:** [Traversal](#traversal), [Fold](#fold)
+
+---
+
+## StandardCodecs
+
+**Definition:** The stock [ValidatedPrism](#validatedprism) vocabulary for the common wire-to-domain conversion families: one static factory per family (`uuid()`, `uri()`, `localDate()`, `instant()`, `offsetDateTime()`, `enumByName(Class)`, `bigDecimal()`, `intFromString()`, `booleanStrict()`, `currency()`, `locale()`, and friends). Each codec is lawful by construction (built on `ValidatedPrism.canonical`, accepting exactly the canonical form it renders) and every failure is a located [FieldError](#fielderror) with a copy-worthy message. Codecs are ordinary leaves: a spec declares them as `default` methods, and nothing is ever applied implicitly.
+
+**Example:**
+```java
+@GenerateMapping
+public interface OrderMapping extends MappingSpec<Order, OrderDto> {
+  default ValidatedPrism<String, UUID> id() { return StandardCodecs.uuid(); }
+  default ValidatedPrism<String, LocalDate> placed() { return StandardCodecs.localDate(); }
+}
+```
+
+**Related:** [Standard codecs](../optics/record_mapping.md#standard-codecs), [ValidatedPrism](#validatedprism), [@GenerateMapping](#generatemapping)
 
 ---
 

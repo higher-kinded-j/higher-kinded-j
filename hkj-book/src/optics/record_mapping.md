@@ -5,12 +5,13 @@ _One interface, both directions: a total `build` from domain to DTO, and an accu
 Every service boundary maps between a rich domain record and a flat wire DTO. Hand-written mappers drift; reflection-based mappers fail at runtime and know nothing about validation. `@GenerateMapping` derives the mapping **at compile time, reflection-free**, from an interface you own, and because the fallible direction returns `Validated<NonEmptyList<FieldError>, Domain>`, a bad DTO reports **every** bad field at once, each located by name.
 
 ~~~admonish info title="What You'll Learn"
-- How `@GenerateMapping` derives a compile-time, reflection-free mapper from an interface you own: a total `build` and an accumulating, field-located `parse`
-- Handling type-differing fields with `ValidatedPrism` leaves, covering the standard families (dates, enums, money, identifiers) with the stock `StandardCodecs` vocabulary, renaming components with `@MapField`, and how nesting, containers, and recursion compose into dotted error paths
+- How `@GenerateMapping` derives a compile-time, reflection-free mapper from an interface you own
+- Converting type-differing fields with `ValidatedPrism` leaves and the stock `StandardCodecs` vocabulary
+- Renaming components with `@MapField`, and how nesting, containers, and recursion compose into dotted error paths
 - Dispatching a mapping over two sealed hierarchies, exhaustively in both directions
-- Reading the emission tiers so the generated surface (`asIso`, `asLens`, the validated `patch`, `asValidatedPrism`) only ever offers what the field correspondences can lawfully support
-- Assembling one target from several sources with `@GenerateMerge`
-- Typing an error's diagnostic context, and retiring the untyped `Map<String, Object>`, with `@GenerateErrorEnvelope`
+- Reading the emission tiers: the generated surface only offers what the correspondences can lawfully support
+- Sparse PATCH write-back with `UpdateSpec`, and mapping bean-shaped wire types
+- Merging several sources with `@GenerateMerge`, and typing error context with `@GenerateErrorEnvelope`
 ~~~
 
 ~~~admonish example title="See Example Code"
@@ -35,7 +36,19 @@ The two directions have different shapes, and that asymmetry runs through the wh
 
 The generated class is `<Spec>Impl` beside the spec, used through its `INSTANCE` constant. A spec nested in an outer class joins the enclosing simple names: `Shop.CustomerMapping` generates `ShopCustomerMappingImpl`.
 
-**One null doctrine, both wire shapes.** A JSON binder leaves a missing property `null` (on a record component just as on an unset bean property), so every reference-typed `parse` read is null-guarded: a `null` component is a located `FieldError` (`must not be null`) that accumulates with every other bad field, never an exception, and it locates through nesting (`customer.name: must not be null`). A `null` never reaches a leaf's prism. The doctrine reaches inside containers too, identity-copied ones included: a `null` element or map value locates by its index or key (`emails.1: must not be null`), whether the container lifts through a leaf ([`parseAll`/`parseValues`](validated_prism.md#the-bulk-forms-parseall-and-parsevalues)) or copies by identity (`tags.1: must not be null`); the index is a plain positional segment, matching the map-key grammar. An identity container still copies by reference; the scan only locates nulls, it never rebuilds. What stays the caller's error (`NullPointerException`): a `null` *wire* itself, and a `null` map *key* (a structurally broken map, not a wrong value); a `null` container *component* is guarded like any reference read (`emails: must not be null`); only calling the bulk forms directly with a `null` list or map is the caller's error. Absence-as-a-meaning remains exclusively the [sparse `UpdateSpec` tier](#sparse-patch-write-back-updatespec)'s: a record cannot express absence, it can only be wrong.
+## One null doctrine, both wire shapes {#null-doctrine}
+
+A JSON binder leaves a missing property `null`, on a record component just as on an unset bean property. So every reference-typed `parse` read is null-guarded: a `null` component is a located `FieldError` (`must not be null`) that accumulates with every other bad field, never an exception, and it locates through nesting (`customer.name: must not be null`). A `null` never reaches a leaf's prism.
+
+The doctrine reaches inside containers too, identity-copied ones included:
+
+- A `null` element or map value locates by its index or key (`emails.1: must not be null`), whether the container lifts through a leaf ([`parseAll`/`parseValues`](validated_prism.md#the-bulk-forms-parseall-and-parsevalues)) or copies by identity. The index is a plain positional segment, matching the map-key grammar.
+- An identity container still copies by reference; the scan only locates nulls, it never rebuilds.
+- A `null` container *component* is guarded like any reference read (`emails: must not be null`).
+
+What stays the caller's error (`NullPointerException`), by contract: a `null` *wire* itself, a `null` map *key* (a structurally broken map, not a wrong value), and calling the bulk forms directly with a `null` list or map.
+
+Absence-as-a-meaning remains exclusively the [sparse `UpdateSpec` tier](#sparse-patch-write-back-updatespec)'s: a record cannot express absence, it can only be wrong.
 
 ~~~admonish tip title="At the Spring boundary: one 422, every bad field by path"
 In a Spring controller the parse result needs no wrapping: return it as-is and `hkj-spring` renders an `Invalid` as one **422 Unprocessable Content** response listing every located `FieldError` by path. See [the 422 leg](../spring/spring_boot_integration.md#the-422-leg): the "leg" is the response route an all-`FieldError` payload travels at the Spring boundary, in the railway sense.
@@ -89,7 +102,7 @@ Every parse failure is a located `FieldError` with a copy-worthy message, so the
 
 **Canonical forms only.** Each codec honours the [`ValidatedPrism` section law](validated_prism.md#laws) by accepting exactly the form it renders: an accepted wire value always rebuilds to itself. A case-folded UUID, a leading zero, scientific notation or a lowercase language tag is a located rejection, never a silent normalisation, so `build(parse(dto))` round-trips byte-for-byte.
 
-The date-time canon deserves spelling out, because two very common producers collide with it. A zero offset must be spelled `Z`: `2026-07-28T12:34:56+00:00` (Python's `isoformat()`, PostgreSQL JSON) parses to UTC, which renders back as `Z`, so it is rejected. Fractional seconds render without trailing zeros: JavaScript's `toISOString()` always emits three-digit milliseconds, so `.500Z` and `.000Z` are rejected while `.5Z` parses. Both producers are served lawfully by the formatter overload — the canonical form is then *theirs*:
+The date-time canon deserves spelling out, because two very common producers collide with it. A zero offset must be spelled `Z`: `2026-07-28T12:34:56+00:00` (Python's `isoformat()`, PostgreSQL JSON) parses to UTC, which renders back as `Z`, so it is rejected. Fractional seconds render without trailing zeros: JavaScript's `toISOString()` always emits three-digit milliseconds, so `.500Z` and `.000Z` are rejected while `.5Z` parses. Both producers are served lawfully by the formatter overload; the canonical form is then *theirs*:
 
 ``` java
 // A JavaScript toISOString() wire: fixed three-digit millis, Z for UTC
@@ -99,7 +112,7 @@ offsetDateTime(DateTimeFormatter.ofPattern("uuuu-MM-dd'T'HH:mm:ss.SSSXXX"))
 offsetDateTime(DateTimeFormatter.ofPattern("uuuu-MM-dd'T'HH:mm:ssxxx"))
 ```
 
-The same move covers any differently-canonical wire. An uppercase-UUID producer (SQL Server) is not forbidden by the law — only accepting *both* cases through one leaf is. [`ValidatedPrism.canonical`](validated_prism.md#laws) supplies the guard such a leaf needs: the lenient, throwing `UUID.fromString` is fine, because the render defines the canon and the per-value guard rejects every spelling it cannot reproduce:
+The same move covers any differently-canonical wire. An uppercase-UUID producer (SQL Server) is not forbidden by the law; only accepting *both* cases through one leaf is. [`ValidatedPrism.canonical`](validated_prism.md#laws) supplies the guard such a leaf needs: the lenient, throwing `UUID.fromString` is fine, because the render defines the canon and the per-value guard rejects every spelling it cannot reproduce:
 
 ``` java
 default ValidatedPrism<String, UUID> id() {
@@ -110,9 +123,9 @@ default ValidatedPrism<String, UUID> id() {
 }
 ```
 
-Two mechanical notes. The number and boolean codecs focus the **box types**: a `ValidatedPrism<String, int>` cannot exist, so an `int` component cannot take a leaf — declare it `Integer` (the mapper rejects the mismatch at compile time either way). And under the star import, a leaf whose component shares a factory's name (`currency`, `locale`, `uuid`) must qualify the call — `return StandardCodecs.currency();` — because the leaf method itself is the nearer `currency()` and an unqualified call recurses.
+Two mechanical notes. The number and boolean codecs focus the **box types**: a `ValidatedPrism<String, int>` cannot exist, so an `int` component cannot take a leaf; declare it `Integer` (the mapper rejects the mismatch at compile time either way). And under the star import, a leaf whose component shares a factory's name (`currency`, `locale`, `uuid`) must qualify the call (`return StandardCodecs.currency();`) because the leaf method itself is the nearer `currency()` and an unqualified call recurses.
 
-Codecs are ordinary leaves: share them across specs through a [mix-in interface](#shared-vocabulary-mix-in-interfaces) delegating to the stock factories, and conversions the vocabulary does not cover stay hand-written leaves — `ValidatedPrism.canonical(...)` where a throwing parser and a render exist, `ValidatedPrism.of(...)` for full control. The processor never applies a codec implicitly; a conversion exists only where a spec declares it.
+Codecs are ordinary leaves: share them across specs through a [mix-in interface](#shared-vocabulary-mix-in-interfaces) delegating to the stock factories. Conversions the vocabulary does not cover stay hand-written leaves: `ValidatedPrism.canonical(...)` where a throwing parser and a render exist, `ValidatedPrism.of(...)` for full control. The processor never applies a codec implicitly; a conversion exists only where a spec declares it.
 
 ---
 
@@ -195,7 +208,7 @@ Two shapes are rejected, each naming the offender:
 - a mix-in that **is itself a mapping spec** (directly or transitively extends `MappingSpec`/`UpdateSpec`): a mix-in shares vocabulary, a spec generates an Impl, and inheriting one spec from another would conflate the two;
 - a **generic** mix-in: inherited member types are read as declared, and substituting them under an instantiation is not supported yet.
 
-Diagnostics about an inherited member name its declaring interface, `abstract method 'bogus' (inherited from 'BrokenVocabulary') is neither a rename nor a leaf`, so the fix points at the right file. Mix-ins compose with the rest of the feature: [threaded generic specs](#generic-records-concrete-threaded-and-element-mapped) can extend (non-generic) mix-ins, and [`UpdateSpec`](#sparse-patch-write-back-updatespec) mappings inherit vocabulary the same way — element leaves included, so the leaf a full spec lifts over a `List` serves its PATCH sibling unchanged. `@GenerateMerge` specs still declare everything directly.
+Diagnostics about an inherited member name its declaring interface, `abstract method 'bogus' (inherited from 'BrokenVocabulary') is neither a rename nor a leaf`, so the fix points at the right file. Mix-ins compose with the rest of the feature: [threaded generic specs](#generic-records-concrete-threaded-and-element-mapped) can extend (non-generic) mix-ins, and [`UpdateSpec`](#sparse-patch-write-back-updatespec) mappings inherit vocabulary the same way, element leaves included, so the leaf a full spec lifts over a `List` serves its PATCH sibling unchanged. `@GenerateMerge` specs still declare everything directly.
 
 ---
 
@@ -381,7 +394,7 @@ The wire side need not be a record. A **bean** (a mutable class with a no-args c
 
 The design decisions worth knowing:
 
-- **Null is located, never thrown — like every wire.** The null guard is universal ([one doctrine](#record-mapping), both shapes), so a `null` property read becomes a located `FieldError` (`must not be null`) exactly as on a record wire. What is bean-*specific* is why nulls are expected at all: an unset property is a representable, ordinary state of a mutable bean, not just a hostile binding.
+- **Null is located, never thrown, like every wire.** The null guard is universal ([one doctrine](#null-doctrine), both shapes), so a `null` property read is a located `FieldError` exactly as on a record wire. What is bean-*specific* is why nulls are expected at all: an unset property is a representable, ordinary state of a mutable bean, not just a hostile binding.
 - **Honest tiers.** Because an unset property is ordinary, a bean's guarded reference reads count as fallible and the mapping withholds `asIso()` automatically; an all-primitive bean (whose reads can never be null) still earns it. A record wire's guards exist for hostile bindings only, so a lossless record mapping keeps `asIso()`, with the parse-iso coherence law scoped to wires whose reference components are non-null. Nesting is unaffected: a bean mapping exposes `asValidatedPrism()` like any other, so record specs nest it and containers lift it.
 - **Construction strategy** is detected from the bean's shape, tried in order: a public no-args constructor with `setX` setters (and, for a getter-only `List`, the JAXB convention `getItems().addAll(...)`); then a static `builder()`/`newBuilder()` whose setters fill it and whose `build()` yields the wire. A bean that fits neither gets a what/why/fix diagnostic.
 - **Optionality bridges through `null`.** On a full mapping, a domain `Optional<T>` maps to a nullable bean property `T` (bean conventions leave `Optional` off property types): empty bridges to absent (`build` skips the write, leaving the property unset; `parse` reads `Optional.ofNullable(...)`), and a present value still validates through its leaf. The [sparse tier](#sparse-patch-write-back-updatespec) is the deliberate exception: there `null` already means "leave unchanged", so a PATCH bean encodes "set to empty" with an `Optional`-typed property instead.
@@ -395,13 +408,13 @@ A bean *projection* (a bean with fewer properties than the domain) with a refere
 
 ## Sparse PATCH write-back: `UpdateSpec`
 
-A `parse` reads a null bean property as **broken data** — a located `FieldError`. But a REST `PATCH` body means the opposite: the client sends only the fields it wants to change, and every other property of the bound request arrives `null`, meaning *not provided, leave unchanged*. The two meanings of `null` are a property of the DTO's contract, not something the mapper can infer, so sparse semantics are an **explicit opt-in**: the spec extends `UpdateSpec<Domain, Wire>` instead of `MappingSpec`.
+A `parse` reads a null bean property as **broken data**: a located `FieldError`. But a REST `PATCH` body means the opposite: the client sends only the fields it wants to change, and every other property of the bound request arrives `null`, meaning *not provided, leave unchanged*. The two meanings of `null` are a property of the DTO's contract, not something the mapper can infer, so sparse semantics are an **explicit opt-in**: the spec extends `UpdateSpec<Domain, Wire>` instead of `MappingSpec`.
 
 ``` java
 {{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/mapping/RecordMappingBook.java:update_spec}}
 ```
 
-The Impl exposes a *single* method, `updateFrom(Wire) : Edits.Accumulated<Domain>` — no `build`, `parse`, or `as*` tier (a sparse mapping is not a projection of information, and an all-absent wire is *valid*, not a total parse). It folds the present properties into an [`Update<Domain>`](multi_edit.md), leaving the absent ones alone:
+The Impl exposes a *single* method, `updateFrom(Wire) : Edits.Accumulated<Domain>`. There is no `build`, `parse`, or `as*` tier (a sparse mapping is not a projection of information, and an all-absent wire is *valid*, not a total parse). `updateFrom` folds the present properties into an [`Update<Domain>`](multi_edit.md), leaving the absent ones alone:
 
 ``` java
 {{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/mapping/RecordMappingBook.java:update_usage}}
@@ -416,14 +429,14 @@ The return type is exactly what a hand-written [`Edits.accumulate(...)`](multi_e
 The rules that keep the contract honest:
 
 - **A primitive wire property is rejected.** A primitive is always present (its default), so it can never carry the null-as-absent signal; use the wrapper type (`Integer`, `Boolean`). This is *forced*, not a style choice: an all-absent body must fold to the identity update, which a primitive would break.
-- **A domain `Optional<T>` component bridged from a non-Optional property is rejected.** Under null-as-absent, `null` already means "leave unchanged", so "set to empty" has no encoding through a plain property (and a null-clears rule would be JSON Merge Patch's opposite contract). An `Optional`-typed wire property, though, *can* express it — a present empty Optional sets empty, absent (`null`) leaves unchanged — patching by identity or through an element leaf. Two binder caveats come with that power: Jackson binds an explicit JSON `null` on an `Optional`-typed property to `Optional.empty()`, so on this one property shape a sent `null` means *clear*, not *leave unchanged*; and the bean field must default to `null`, not the idiomatic `Optional.empty()`, or every request that omits the field clears the domain value.
-- **A record wire is rejected.** A record component is always present, so absence is inexpressible — sparse PATCH is a bean-only shape.
+- **A domain `Optional<T>` component bridged from a non-Optional property is rejected.** Under null-as-absent, `null` already means "leave unchanged", so "set to empty" has no encoding through a plain property (and a null-clears rule would be JSON Merge Patch's opposite contract). An `Optional`-typed wire property, though, *can* express it, patching by identity or through an element leaf: a present empty Optional sets empty; an absent (`null`) one leaves unchanged. Two binder caveats come with that power: Jackson binds an explicit JSON `null` on an `Optional`-typed property to `Optional.empty()`, so on this one property shape a sent `null` means *clear*, not *leave unchanged*; and the bean field must default to `null`, not the idiomatic `Optional.empty()`, or every request that omits the field clears the domain value.
+- **A record wire is rejected.** A record component is always present, so absence is inexpressible; sparse PATCH is a bean-only shape.
 - **A sealed hierarchy is rejected**, on either side: dispatch has no sparse meaning (an absent property cannot choose a subtype to patch).
-- **A present container parses through the element vocabulary.** A `List`, `Optional` or `Map`-valued property (a pair declared as exactly those container types) routes through the element leaf named after the component — the same leaf the dense tiers lift, so one mix-in vocabulary serves a full spec and its PATCH sibling. Replacement stays wholesale; each failing element is located by index or key (`phones.1`). A whole-container leaf (`ValidatedPrism<List<S>, List<A>>`) is the more specific declaration and wins over the element interpretation. A nested *spec* still does not lift through a sparse container — give the component an element leaf delegating to the nested Impl's `asValidatedPrism()` if its elements need a whole mapping.
+- **A present container parses through the element vocabulary.** A `List`, `Optional` or `Map`-valued property (a pair declared as exactly those container types) routes through the element leaf named after the component: the same leaf the dense tiers lift, so one mix-in vocabulary serves a full spec and its PATCH sibling. Replacement stays wholesale; each failing element is located by index or key (`phones.1`). A whole-container leaf (`ValidatedPrism<List<S>, List<A>>`) is the more specific declaration and wins over the element interpretation. A nested *spec* still does not lift through a sparse container; give the component an element leaf delegating to the nested Impl's `asValidatedPrism()` if its elements need a whole mapping.
 - **Coverage is one-sided.** Every wire property maps to a domain component, but a domain component with *no* wire property is simply never changed: a PATCH DTO deliberately covers a subset.
-- **A same-typed nested record, `Optional`, `List` or `Map` replaces wholesale** through identity — the fallback when no more specific leaf applies. A same-typed `List` or `Map` additionally carries the dense tiers' null scan: a null element or value is a located, accumulating invalid (`tags.1: must not be null`), never written into the domain — a valid container still passes by reference, unrebuilt. The scan needs a properly parameterised container; a raw or wildcard-argument one is written as sent. A same-typed `Optional` needs no scan (it cannot hold a null element), so its identity write is unconditional: a present empty sets empty, absent leaves unchanged. A nested record whose wire differs is patched wholesale through its own full mapping spec. Deep merge is out of scope.
+- **A same-typed nested record, `Optional`, `List` or `Map` replaces wholesale** through identity, the fallback when no more specific leaf applies. A same-typed `List` or `Map` additionally carries the dense tiers' null scan: a null element or value is a located, accumulating invalid (`tags.1: must not be null`), never written into the domain; a valid container still passes by reference, unrebuilt. The scan needs a properly parameterised container; a raw or wildcard-argument one is written as sent. A same-typed `Optional` needs no scan (it cannot hold a null element), so its identity write is unconditional: a present empty sets empty, absent leaves unchanged. A nested record whose wire differs is patched wholesale through its own full mapping spec. Deep merge is out of scope.
 
-One vocabulary, both tiers — the element leaf a full spec lifts elementwise is exactly the leaf its PATCH sibling lifts:
+One vocabulary, both tiers. The element leaf a full spec lifts elementwise is exactly the leaf its PATCH sibling lifts:
 
 ``` java
 {{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/mapping/RecordMappingBook.java:update_container}}
@@ -439,7 +452,7 @@ The sparse tier is law-checked like every other, through the same `MappingLaws` 
 {{#include ../../../hkj-examples/src/test/java/org/higherkindedj/example/book/mapping/RecordMappingBookLawsTest.java:update_laws}}
 ```
 
-Identity (an all-absent wire is the identity update), idempotence (applying the same patch twice equals applying it once — which holds because the generated edits *set* and *parse*, never *modify*), and validation (a present invalid field fails). The same laws hold over container elements:
+Identity (an all-absent wire is the identity update), idempotence (applying the same patch twice equals applying it once, which holds because the generated edits *set* and *parse*, never *modify*), and validation (a present invalid field fails). The same laws hold over container elements:
 
 ``` java
 {{#include ../../../hkj-examples/src/test/java/org/higherkindedj/example/book/mapping/RecordMappingBookLawsTest.java:update_container_laws}}
@@ -465,7 +478,7 @@ Each target component fills from the one source with a same-named component: ide
 
 Ambiguity (two sources carrying the component) and unfilled components are compile errors, and the return type must tell the truth: fallible fills demand the `Validated` return; an identity-only merge must declare the plain target.
 
-The fallible path carries the [same null doctrine as `parse`](#record-mapping): every reference-typed source-component read is null-guarded, so a null component is a located, accumulated `FieldError` (`must not be null`), never an exception — a null source *argument* stays the caller's `NullPointerException`. A plain-return merge is total *by its declaration*: nulls flow through to the target constructor exactly as `build` copies them. (The return type follows the fills, so the guard cannot be bought by declaration alone — an identity-only merge that wants it should add a normalising `ValidatedPrism<X, X>` leaf, which makes the merge fallible and brings the `Validated` return with it.)
+The fallible path carries the [same null doctrine as `parse`](#null-doctrine): a null source-component read is a located, accumulated `FieldError`, never an exception, while a null source *argument* stays the caller's `NullPointerException`. A plain-return merge is total *by its declaration*: nulls flow through to the target constructor exactly as `build` copies them. (The return type follows the fills, so the guard cannot be bought by declaration alone: an identity-only merge that wants it should add a normalising `ValidatedPrism<X, X>` leaf, which makes the merge fallible and brings the `Validated` return with it.)
 
 ---
 
@@ -552,7 +565,7 @@ The [hkj-spring example app](../spring/spring_boot_integration.md) demonstrates 
 
 ## Diagnostics and limits
 
-There is no component ceiling. `parse` (and the validated `patch`, and `@GenerateMerge`'s fallible merge) is assembled with [`Validated.fields()`](../monads/validated_assembly.md) ladders, chunked and combined applicatively past 16 legs, so an externally fixed flat 20-or-30-field wire maps without grouping components into nested records, and behaves exactly like a narrow one — same located labels, same declaration-order accumulation, across chunk boundaries:
+There is no component ceiling. `parse` (and the validated `patch`, and `@GenerateMerge`'s fallible merge) is assembled with [`Validated.fields()`](../monads/validated_assembly.md) ladders, chunked and combined applicatively past 16 legs, so an externally fixed flat 20-or-30-field wire maps without grouping components into nested records, and behaves exactly like a narrow one (same located labels, same declaration-order accumulation, across chunk boundaries):
 
 ``` java
 {{#include ../../../hkj-examples/src/test/java/org/higherkindedj/example/book/mapping/WideMappingLawsTest.java:wide_laws}}
@@ -565,6 +578,14 @@ Every rejection follows the processor's what/why/fix standard: the message state
 - Nested and sealed resolution sees specs **in the same compilation**. A spec extends `MappingSpec` directly, plus any plain [mix-in interfaces](#shared-vocabulary-mix-in-interfaces); a mix-in that is itself a mapping spec, or a generic one, is diagnosed.
 - `Map` components lift values only: keys are identity, so differing key types, raw `Map`s and wildcard type arguments are compile errors.
 - A projection with any fallible correspondence emits the [validated `patch`](#leaf-carrying-projections-the-validated-patch) write-back rather than `asLens()`; projections cannot carry derived fields (the write-back could never honour a recomputed component); generic records map as concrete instantiations, threaded specs or element-mapped specs ([above](#generic-records-concrete-threaded-and-element-mapped)), all three nestable; generic mappings stay record-to-record only.
+
+~~~admonish info title="Key Takeaways"
+* **Two directions, two shapes**: `build` is total; `parse` reports every bad field at once, each located by a domain-named path
+* **Leaves are the vocabulary**: a `ValidatedPrism` per type-differing field, `StandardCodecs` for the stock families, mix-in interfaces to share them across specs
+* **The tiers tell the truth**: `asIso`, `asLens`, the validated `patch`, or the sparse `updateFrom` exist only where the field correspondences lawfully support them
+* **Null is located, never thrown**: one doctrine across record wires, bean wires, containers, and merges; absence-as-a-meaning belongs to the sparse tier alone
+* **Every tier is law-checked**: one `MappingLaws` call in a test gives your specs the same guarantee the library's own build enforces
+~~~
 
 ~~~admonish tip title="See Also"
 - [Validated Prisms](validated_prism.md) - The leaf optic every fallible correspondence is built from

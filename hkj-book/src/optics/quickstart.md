@@ -152,6 +152,7 @@ Same composition, same vocabulary, applied to a type you can't modify. See [Tami
 
 - **Looking up an annotation?** [Annotations at a Glance](annotations_at_a_glance.md) lists every `@Generate*` and `@OpticsSpec` hint with its target and what it produces.
 - **Just want to update a nested record?** Continue with the [Focus DSL](focus_dsl.md).
+- **Mapping a domain record to/from a wire DTO?** [Record Mapping](record_mapping.md) generates both directions at compile time, with every bad field reported at once.
 - **Choosing between Focus DSL, Fluent API, or Free Monad DSL?** The [Java-Friendly APIs](ch4_intro.md) chapter has a decision tree.
 - **Choosing which optic for your data shape?** [Integration and Recipes](ch5_intro.md) carries a flowchart and a complete pipeline example.
 - **Theory first?** [What Are Optics?](optics_intro.md) is the conceptual introduction.

@@ -91,9 +91,9 @@ A lawful validated boundary satisfies both round trips, verified with [`Validate
 {{#include ../../../hkj-examples/src/test/java/org/higherkindedj/example/book/optics/ValidatedPrismBookLawsTest.java:laws}}
 ```
 
-The second law is the subtle one, and it constrains the pair, not either direction alone: every accepted wire value must rebuild to exactly itself — `build(parse(s).get()) == s` whenever `s` parses. `build` is free to define the canonical spelling (zero-padded dates, lowercase hex); what the law demands is that `parse` accept exactly the spelling `build` renders. A normalising parse (trimming whitespace, folding case) accepts an `s` that `build` cannot reproduce, which is exactly the lossy round trip the law forbids. Pick the wire's canonical form — the one `build` renders — accept it alone, and reject every other spelling with a located error.
+The second law is the subtle one, and it constrains the pair, not either direction alone: every accepted wire value must rebuild to exactly itself: `build(parse(s).get()) == s` whenever `s` parses. `build` is free to define the canonical spelling (zero-padded dates, lowercase hex); what the law demands is that `parse` accept exactly the spelling `build` renders. A normalising parse (trimming whitespace, folding case) accepts an `s` that `build` cannot reproduce, which is exactly the lossy round trip the law forbids. Pick the wire's canonical form (the one `build` renders), accept it alone, and reject every other spelling with a located error.
 
-That discipline need not be hand-written. The natural way to write a codec — wrap a throwing JDK parser, render on the way out — silently violates the section law whenever the parser is more lenient than the renderer (`UUID.fromString` accepts uppercase; `toString` renders lowercase). `ValidatedPrism.canonical(message, parse, render)` builds the guard into the leaf: every accepted source is checked to render back to exactly itself, so the lenient parse is fine — the render defines the canon, and any spelling it cannot reproduce is a located rejection, never a silent normalisation. Any `RuntimeException` from the parse or the render inside the guard is the same located rejection, never an exception on wire input. The canonical form is whatever `render` says it is, so a wire whose canon differs from the JDK's is served lawfully:
+That discipline need not be hand-written. The natural way to write a codec (wrap a throwing JDK parser, render on the way out) silently violates the section law whenever the parser is more lenient than the renderer (`UUID.fromString` accepts uppercase; `toString` renders lowercase). `ValidatedPrism.canonical(message, parse, render)` builds the guard into the leaf: every accepted source is checked to render back to exactly itself, so the lenient parse is fine. The render defines the canon, and any spelling it cannot reproduce is a located rejection, never a silent normalisation. Any `RuntimeException` from the parse or the render inside the guard is the same located rejection, never an exception on wire input. The canonical form is whatever `render` says it is, so a wire whose canon differs from the JDK's is served lawfully:
 
 ``` java
 {{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/optics/ValidatedPrismBook.java:canonical}}
@@ -101,7 +101,7 @@ That discipline need not be hand-written. The natural way to write a codec — w
 
 An overload takes a pre-built `FieldError` in place of the message, the same reason type `fromPrism` takes.
 
-Two obligations stay yours. The parse must accept what the render produces — a mismatched pair (render `dd/MM/uuuu`, parse `MM/dd/uuuu`) breaks the parse-build law *loudly*, as rejections. The subtler trap is a **non-injective render**, which the per-value guard cannot catch: with a two-digit-year date format, `build` renders 1926-07-28 as `26/07/28` — a perfectly parseable spelling, of *2026*-07-28. The guard, which only ever sees one value at a time, cannot object, and the parse-build law breaks silently. Check a custom canon with the laws:
+Two obligations stay yours. The parse must accept what the render produces: a mismatched pair (render `dd/MM/uuuu`, parse `MM/dd/uuuu`) breaks the parse-build law *loudly*, as rejections. The subtler trap is a **non-injective render**, which the per-value guard cannot catch: with a two-digit-year date format, `build` renders 1926-07-28 as `26/07/28` (a perfectly parseable spelling, of *2026*-07-28). The guard, which only ever sees one value at a time, cannot object, and the parse-build law breaks silently. Check a custom canon with the laws:
 
 ``` java
 {{#include ../../../hkj-examples/src/test/java/org/higherkindedj/example/book/optics/ValidatedPrismBookLawsTest.java:canonical_laws}}
@@ -111,26 +111,29 @@ The stock vocabulary in [`StandardCodecs`](record_mapping.md#standard-codecs) is
 
 ---
 
+## The bulk forms: `parseAll` and `parseValues`
+
+One prism lifts over whole containers. `parseAll(List<? extends S>)` parses every element and accumulates **every** failure, each located by its index: a plain positional segment, so a bad second element under a field labelled `emails` renders as `emails.1: not an email address` (through a nested spec, `customers.1.email: ...`). `parseValues(Map<K, ? extends S>)` parses a map's values the same way, each failure located by its key (`attributes.en: ...`); keys pass through untouched.
+
+The [null doctrine](record_mapping.md#null-doctrine) reaches inside both: a `null` element or map value is a located, accumulating `must not be null` at its index or key, never an exception, while a `null` list, map, or map key stays the caller's error. The build direction (`buildAll`, `buildValues`) is total like `build` and rejects nulls outright.
+
+(Bracketed index rendering, `emails[1]`, is deliberately deferred to the future sealed path-segment model; today's paths are flat dotted segments, and the positional segment matches the map-key grammar.)
+
+---
+
 ~~~admonish info title="Key Takeaways"
 * **`parse` is fallible and accumulating** (`Validated<NonEmptyList<FieldError>, A>`); **`build` is total**: the parse-don't-validate asymmetry as an optic
 * **Nesting short-circuits; siblings accumulate** via the assembly builders or `Edits`
 * **Only build-preserving compositions exist**: `ValidatedPrism`, `Iso`, and `Prism`-with-a-reason; `Lens` deliberately not
 * **Both round-trip laws are published** in `hkj-test`; the section law forbids lossy build-normalisation
-* **`canonical(message, parse, render)` guards the section law per value**: the render defines the canonical form and every spelling it cannot reproduce is rejected — that the parse accepts the renderings, injectively, stays your obligation (check with `ValidatedPrismLaws`)
+* **`canonical(message, parse, render)` guards the section law per value**: the render defines the canonical form and every spelling it cannot reproduce is rejected; that the parse accepts the renderings, injectively, stays your obligation (check with `ValidatedPrismLaws`)
+* **One prism lifts over containers**: `parseAll`/`parseValues` accumulate every element failure, located by index or key
 * **`parsePath` lands on the railway** (`ValidationPath`) directly
 ~~~
 
 ~~~admonish info title="Hands-On Learning"
 Practice the boundary in [Tutorial 25: ValidatedPrism](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/test/java/org/higherkindedj/tutorial/optics/Tutorial25_ValidatedPrism.java) (3 exercises, ~10 minutes), and see the runnable [`ValidatedPrismExample`](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/optics/ValidatedPrismExample.java).
 ~~~
-
-## The bulk forms: `parseAll` and `parseValues`
-
-One prism lifts over whole containers. `parseAll(List<? extends S>)` parses every element and accumulates **every** failure, each located by its index — a plain positional segment, so a bad second element under a field labelled `emails` renders as `emails.1: not an email address` (through a nested spec, `customers.1.email: ...`). `parseValues(Map<K, ? extends S>)` parses a map's values the same way, each failure located by its key (`attributes.en: ...`); keys pass through untouched.
-
-The [null doctrine](record_mapping.md#record-mapping) reaches inside both: a `null` element or map value is a located, accumulating `must not be null` at its index or key, never an exception. Three edges stay the caller's `NullPointerException`, by contract: a `null` list or map itself, and a `null` map *key* — a structurally broken map, not a wrong value. The build direction (`buildAll`, `buildValues`) is total like `build` and rejects nulls outright.
-
-(Bracketed index rendering — `emails[1]` — is deliberately deferred to the future sealed path-segment model; today's paths are flat dotted segments, and the positional segment matches the map-key grammar.)
 
 ~~~admonish tip title="See Also"
 - [Prisms](prisms.md) - The yes/no match this type upgrades

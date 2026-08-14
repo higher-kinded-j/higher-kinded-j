@@ -1,10 +1,6 @@
-# Accumulating Assembly:
-## _Building a Record from N Validated Fields_
+# Accumulating Assembly
 
-~~~admonish example title="See Example Code"
-**The code on this page is [ValidatedAssemblyBook.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/book/monads/assembly/ValidatedAssemblyBook.java)** - the page includes it directly, so it is compiled and run by the build.
-~~~
-
+_Building a record from N validated fields: every error reported at once._
 
 ~~~admonish info title="What You'll Learn"
 - Assembling a record from independently validated fields with `Validated.fields()` and `Validated.accumulate()`: every error reported at once, no `Semigroup` argument, no arity wall, no `Kind`
@@ -14,7 +10,9 @@
 - When to reach for the builder versus `zipWithAccum` or the `mapN` family
 ~~~
 
-~~~admonish example title="See Example Code:"
+~~~admonish example title="See Example Code"
+**The code on this page is [ValidatedAssemblyBook.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/book/monads/assembly/ValidatedAssemblyBook.java)** - the page includes it directly, so it is compiled and run by the build.
+
 [ValidatedAssemblyExample.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/basic/validated/ValidatedAssemblyExample.java)
 ~~~
 
