@@ -46,6 +46,10 @@ public sealed interface OrderError {
 }
 ```
 
+~~~admonish tip title="Typing the envelope"
+A hierarchy like this tends to grow the same `code`/`message`/`timestamp`/`context` components on every variant. [`@GenerateErrorEnvelope`](../mapping/merge_envelopes.md#generating-error-envelopes-generateerrorenvelope) generates that envelope and types the context; the book's running example there is exactly an `OrderError`.
+~~~
+
 ### For → toState → ForState Comprehension
 
 The workflow uses `For` to gather initial values, then bridges to `ForState` via `toState()` for named field access through the remaining steps:

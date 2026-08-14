@@ -87,6 +87,10 @@ This is not a MapStruct competitor on breadth, and does not try to be: MapStruct
 - **Capstone: One 422, Every Bad Field** – The whole chapter on one order-intake boundary: a five-defect request answered by a single located-errors response, with PATCH, merge, and envelope encores, all proven by a green test.
 ~~~
 
+~~~admonish info title="Hands-On Learning"
+Practise the whole lane in the [Boundary Mapping Journey](../tutorials/optics/boundary_mapping_journey.md) (3 tutorials, 13 exercises, ~35 minutes): hand-written multi-edits, the `ValidatedPrism` leaf, and the generated boundary of Tutorial 26.
+~~~
+
 ## Chapter Contents
 
 1. [Record Mapping Basics](basics.md) - The spec interface, build/parse asymmetry, leaves, renames

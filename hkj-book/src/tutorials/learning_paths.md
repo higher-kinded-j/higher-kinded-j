@@ -18,6 +18,7 @@ Each journey is designed to be completed in a single sitting (25–40 minutes). 
 | [Optics: Traversals & Practice](optics/traversals_journey.md) | ~40 min | 27 | Intermediate |
 | [Optics: Fluent & Free DSL](optics/fluent_free_journey.md) | ~35 min | 22 | Advanced |
 | [Optics: Focus DSL](optics/focus_dsl_journey.md) | ~35 min | 29 | Intermediate |
+| [Optics: Boundary Mapping](optics/boundary_mapping_journey.md) | ~35 min | 13 | Intermediate |
 | [Expression: ForState](expression/forstate_journey.md) | ~25 min | 11 | Intermediate |
 | [Resilience Patterns](resilience/resilience_journey.md) | ~45 min | 22 | Intermediate |
 
@@ -101,10 +102,11 @@ Each journey is designed to be completed in a single sitting (25–40 minutes). 
 | 2 | [Optics: Traversals & Practice](optics/traversals_journey.md) | ~40 min |
 | 3 | [Optics: Fluent & Free DSL](optics/fluent_free_journey.md) | ~35 min |
 | 4 | [Optics: Focus DSL](optics/focus_dsl_journey.md) | ~35 min |
+| 5 | [Optics: Boundary Mapping](optics/boundary_mapping_journey.md) | ~35 min |
 
-**Total**: 4 sessions, ~150 min across sessions
+**Total**: 5 sessions, ~185 min across sessions
 
-**Best for**: Developers working with complex immutable data structures who want to master optics.
+**Best for**: Developers working with complex immutable data structures who want to master optics, through to the generated DTO boundary.
 
 ---
 
@@ -126,8 +128,9 @@ Each journey is designed to be completed in a single sitting (25–40 minutes). 
 | 11 | [Optics: Traversals & Practice](optics/traversals_journey.md) | ~40 min |
 | 12 | [Optics: Fluent & Free DSL](optics/fluent_free_journey.md) | ~35 min |
 | 13 | [Optics: Focus DSL](optics/focus_dsl_journey.md) | ~35 min |
+| 14 | [Optics: Boundary Mapping](optics/boundary_mapping_journey.md) | ~35 min |
 
-**Total**: 13 sessions, ~470 min across sessions
+**Total**: 14 sessions, ~505 min across sessions
 
 **Best for**: Comprehensive mastery of Higher-Kinded-J.
 

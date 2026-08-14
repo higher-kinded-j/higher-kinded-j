@@ -322,4 +322,4 @@ Congratulations! You've completed the Optics track. You now understand:
 ---
 
 **Previous:** [Optics: Fluent & Free DSL](fluent_free_journey.md)
-**Next:** [Expression: ForState](../expression/forstate_journey.md)
+**Next:** [Optics: Boundary Mapping](boundary_mapping_journey.md)
