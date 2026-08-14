@@ -305,7 +305,7 @@ path.traverseOver(ListTraverse.INSTANCE)
 
 ## What's Next?
 
-Congratulations! You've completed the Optics track. You now understand:
+One journey remains in the Optics track. You now understand:
 - Lens, Prism, Affine, and Traversal
 - Optic composition rules
 - Generated optics with annotations
@@ -314,10 +314,10 @@ Congratulations! You've completed the Optics track. You now understand:
 
 **Recommended next steps**:
 
-1. **Effect API Journey**: Combine optics with Effect paths
-2. **Use @GenerateFocus**: Annotate your records for automatic path generation
-3. **Study Production Examples**: See [Draughts Game](../../hkts/draughts.md)
-4. **Explore Core Types**: Understand the HKT foundation powering `modifyF`
+1. **Boundary Mapping Journey**: Finish the track where the optics meet the wire, from multi-edits and `ValidatedPrism` to the generated DTO boundary
+2. **Effect API Journey**: Combine optics with Effect paths
+3. **Use @GenerateFocus**: Annotate your records for automatic path generation
+4. **Study Production Examples**: See [Draughts Game](../../hkts/draughts.md)
 
 ---
 

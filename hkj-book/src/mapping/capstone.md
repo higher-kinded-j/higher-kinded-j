@@ -42,7 +42,7 @@ The [chapter opened](ch_intro.md) with a sketch of this mapper; here it is at fu
 {{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/mapping/capstone/BoundaryCapstoneBook.java:capstone_before}}
 ```
 
-Count the ways the five-defect request below defeats it. It reports **one** problem (whichever throws first); the message carries **no field path**; five call sites throw four different exception types (`NullPointerException`, `IllegalArgumentException`, `DateTimeParseException`, `NumberFormatException`), needing three unrelated catch clauses; and when `Order` grows a component next quarter, nothing warns that this method no longer covers it.
+Count the ways the five-defect request below defeats it. It reports **one** problem (whichever throws first); the message carries **no field path**; seven call sites throw four different exception types (`NullPointerException`, `IllegalArgumentException`, `DateTimeParseException`, `NumberFormatException`), needing three unrelated catch clauses; and when `Order` grows a component next quarter, nothing warns that this method no longer covers it.
 
 ---
 

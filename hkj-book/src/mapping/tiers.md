@@ -58,7 +58,7 @@ The overloads follow the tiers:
 - **Derived-field (total-parse) mapping:** `build` recomputes what `parse` ignores, so only the non-derived components round-trip. The domain-sample overload `assertMappingLaws(prism, domainValue)` asserts exactly that and nothing stronger.
 - **Sparse-update (`UpdateSpec`) mapping:** pass the `updateFrom` method reference, a domain value, and an all-absent, a valid and an invalid wire to check the identity, idempotence and validation laws ([Beans and Sparse PATCH](beans_patch.md#sparse-patch-write-back-updatespec)).
 
-A spec with a derived field *and* a fallible leaf is better served by the fallible overload, given a parseable wire value whose derived components match what `build` would produce (this keeps the no-parse check). Reserve the domain-sample overload for total-parse mappings, where no wire value can fail.
+A spec with a derived field *and* a fallible leaf is better served by the fallible overload, given a parseable wire value whose derived components match what `build` would produce (this keeps the no-parse check). Reserve the domain-sample overload for total-parse mappings, where no well-formed wire value can fail.
 
 ~~~admonish tip title="Mapping types you don't own"
 The annotation sits on *your* spec interface, never on the mapped types, so third-party records, sealed hierarchies, and bean-shaped DTOs from compiled libraries map without being annotatable: `interface VendorOrderMapping extends MappingSpec<com.vendor.OrderRecord, OrderDto> {}` works today. Bean-shaped wire types (getter/setter DTOs) are covered too; see [Beans and Sparse PATCH](beans_patch.md#bean-shaped-wire-targets).

@@ -415,7 +415,7 @@ See the [Validated Monad documentation](../monads/validated_monad.md) for detail
 
 #### Sparse PATCH: absent means "leave unchanged" {#sparse-patch}
 
-A PATCH body is the parse boundary's mirror image. The client sends only the fields it wants to change; every property it omits arrives `null` from the binder, meaning *not provided, leave unchanged*, and a present-but-invalid field must still fail with located errors. A spec extending [`UpdateSpec`](../mapping/beans_patch.md#sparse-patch-write-back-updatespec) opts into exactly that contract: the generated `updateFrom(wire)` folds the present fields (validated through their leaves) into an `Edits.Accumulated<Domain>`, leaving absent fields and unmapped domain components untouched.
+A PATCH body is the parse boundary's mirror image. The client sends only the fields it wants to change; every property it omits arrives `null` from the binder, meaning *not provided, leave unchanged* (`UpdateSpec` rejects primitive properties at compile time, precisely so that every property can carry that signal), and a present-but-invalid field must still fail with located errors. A spec extending [`UpdateSpec`](../mapping/beans_patch.md#sparse-patch-write-back-updatespec) opts into exactly that contract: the generated `updateFrom(wire)` folds the present fields (validated through their leaves) into an `Edits.Accumulated<Domain>`, leaving absent fields and unmapped domain components untouched.
 
 A PATCH endpoint has two failure kinds, though, not one: the resource may not exist, *and* a present field may be invalid. The example app folds both into one `Either<DomainError, User>` channel (this mirrors `UserController.patchUser` and `UserService.patch` in the example module):
 

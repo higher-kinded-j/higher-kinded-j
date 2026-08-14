@@ -116,7 +116,7 @@ The two directions are asymmetric: `build` computes the derived component, `pars
                           └── displayName dropped, never read
 ```
 
-`build` fills the component by applying the getter to the whole domain value. `parse` **ignores** it: the data is derivable, so parse stays total and accumulating over the remaining components. (A mapping whose only extra is a derived field is *total-parse*: the accumulating parse still runs, it simply cannot fail.)
+`build` fills the component by applying the getter to the whole domain value. `parse` **ignores** it: the data is derivable, so parse stays accumulating over the remaining components. (A mapping whose only extra is a derived field is *total-parse*: no **well-formed** wire value can fail it. The [null doctrine](#null-doctrine)'s guards still apply, so a hostile null component is a located invalid, exactly as everywhere else.)
 
 The optic is a `Getter` because a derived field is single-valued, exactly one focus computed from the whole domain value. A `Fold`, with its zero-to-many focuses, has no single-component meaning here.
 
