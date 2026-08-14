@@ -128,6 +128,7 @@
   - [Generic Specs](mapping/generics.md)
   - [Merge and Error Envelopes](mapping/merge_envelopes.md)
   - [Injecting, Testing, and Diagnostics](mapping/testing.md)
+  - [Capstone: One 422, Every Bad Field](mapping/capstone.md)
 
 - [Monad Transformers & MTL](transformers/ch_intro.md)
   - [Path or Transformer?](transformers/when_to_drop_to_transformers.md)

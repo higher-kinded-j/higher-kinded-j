@@ -42,7 +42,7 @@ class BookIncludeTest {
    * with a stale hand-copied fence, would otherwise be invisible: the remaining includes would
    * still all resolve, and the snippet gate no longer covers those pages.
    */
-  private static final int MINIMUM_INCLUDES = 53;
+  private static final int MINIMUM_INCLUDES = 95;
 
   /** Any include, in any form, so an unanchored one cannot slip past unchecked. */
   private static final Pattern ANY_INCLUDE = Pattern.compile("\\{\\{#include\\s+([^}]+)}}");

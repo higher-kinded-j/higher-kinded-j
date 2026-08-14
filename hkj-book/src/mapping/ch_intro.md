@@ -84,6 +84,7 @@ This is not a MapStruct competitor on breadth, and does not try to be: MapStruct
 - **Generic Specs** – Concrete instantiations, threaded type parameters, and element-mapped specs whose codecs arrive at construction time.
 - **Merge and Error Envelopes** – `@GenerateMerge` assembles one target from several sources with truthful return types; `@GenerateErrorEnvelope` retires the copy-pasted `code`/`message`/`timestamp` and types the error context.
 - **Injecting, Testing, and Diagnostics** – Register the surface you consume, fake codecs as two-line values, and lean on what/why/fix diagnostics; there is no component ceiling.
+- **Capstone: One 422, Every Bad Field** – The whole chapter on one order-intake boundary: a five-defect request answered by a single located-errors response, with PATCH, merge, and envelope encores, all proven by a green test.
 ~~~
 
 ## Chapter Contents
@@ -96,6 +97,7 @@ This is not a MapStruct competitor on breadth, and does not try to be: MapStruct
 6. [Generic Specs](generics.md) - Concrete, threaded, and element-mapped generics
 7. [Merge and Error Envelopes](merge_envelopes.md) - Multi-source assembly and typed error context
 8. [Injecting, Testing, and Diagnostics](testing.md) - Beans, fakes, and limits
+9. [Capstone: One 422, Every Bad Field](capstone.md) - The whole chapter on one boundary, proven
 
 ---
 
