@@ -34,7 +34,7 @@ But that's exactly the point. Id is to monads what 1 is to multiplication: multi
        return monad.map(n -> "Hello, " + n + "!", name);
    }
 
-   // Test with Id — no effects, fully predictable
+   // Test with Id - no effects, fully predictable
    Monad<IdKind.Witness> idMonad = Instances.monad(id());
    Kind<IdKind.Witness, String> result = greet(idMonad, idMonad.of("Alice"));
    // result contains "Hello, Alice!"
@@ -83,14 +83,14 @@ Id<String> idNull = Id.of(null); // Id can wrap null
 ```java
 Monad<IdKind.Witness> idMonad = Instances.monad(id());
 
-// of — lift a value into Id
+// of: lift a value into Id
 Kind<IdKind.Witness, Integer> kindInt = idMonad.of(42);
 
-// map — transform the wrapped value
+// map: transform the wrapped value
 Kind<IdKind.Witness, String> mapped = idMonad.map(i -> "Value is " + i, kindInt);
 ID.narrow(mapped).value(); // "Value is 42"
 
-// flatMap — chain with a function that returns Id
+// flatMap: chain with a function that returns Id
 Kind<IdKind.Witness, String> chained = idMonad.flatMap(
     i -> Id.of("Doubled: " + (i * 2)),
     kindInt
@@ -101,7 +101,7 @@ ID.narrow(chained).value(); // "Doubled: 84"
 Id<String> direct = Id.of(42).flatMap(i -> Id.of("Direct: " + i));
 direct.value(); // "Direct: 42"
 
-// ap — apply a wrapped function to a wrapped value
+// ap: apply a wrapped function to a wrapped value
 Kind<IdKind.Witness, Function<Integer, String>> funcKind = idMonad.of(i -> "Applied: " + i);
 Kind<IdKind.Witness, String> applied = idMonad.ap(funcKind, kindInt);
 ID.narrow(applied).value(); // "Applied: 42"

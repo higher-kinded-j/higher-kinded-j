@@ -14,7 +14,7 @@ Every solution file contains the working code **and** per-exercise teaching comm
 
 ```java
 /**
- * Why this is idiomatic: explains what makes the chosen form the standard one — the
+ * Why this is idiomatic: explains what makes the chosen form the standard one, the
  *   single sentence you'd give a reviewer who asked "why this and not the obvious thing?"
  *
  * <p>Alternative: at least one other shape that also works, with the trade-off named.

@@ -12,7 +12,7 @@ A generated Impl is a pure function, so most code should just call it. This page
 ~~~
 
 ~~~admonish example title="See Example Code"
-**The width proof on this page is [WideMappingLawsTest.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/test/java/org/higherkindedj/example/book/mapping/WideMappingLawsTest.java)** - the page includes it directly, so it is compiled and run by the build. The injection and fake snippets mirror the hkj-spring example app's `MappingConfiguration` and `UserParseFakeCodecSliceTest`.
+**The width proof on this page is [WideMappingLawsTest.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/test/java/org/higherkindedj/example/book/mapping/WideMappingLawsTest.java)**, and the injection and fake snippets are included straight from the hkj-spring example app's [`MappingConfiguration`](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-spring/example/src/main/java/org/higherkindedj/spring/example/config/MappingConfiguration.java) and [`UserParseFakeCodecSliceTest`](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-spring/example/src/test/java/org/higherkindedj/spring/example/controller/UserParseFakeCodecSliceTest.java) - everything on this page is compiled and run by the build.
 ~~~
 
 ## Injecting and testing generated mappings
@@ -26,27 +26,18 @@ A concrete or threaded Impl is a stateless pure function reached through statics
 | validated `patch` | `BiFunction<User, UserCardDto, Validated<NonEmptyList<FieldError>, User>>` | `UserCardMappingImpl.INSTANCE::patch` |
 | sparse `updateFrom` | `Function<UserPatchDto, Edits.Accumulated<User>>` | `UserPatchMappingImpl.INSTANCE::updateFrom` |
 
+This is the hkj-spring example app's real configuration, included from source:
+
 ```java
-@Configuration
-class MappingConfiguration {
-  @Bean
-  ValidatedPrism<UserDto, User> userCodec() {
-    return UserMappingImpl.INSTANCE.asValidatedPrism();
-  }
-}
+{{#include ../../../hkj-spring/example/src/main/java/org/higherkindedj/spring/example/config/MappingConfiguration.java:mapping_configuration}}
 ```
 
 Spring resolves the full generic type, so codecs for different pairs coexist without ceremony; only two codecs for the *same* pair need a `@Qualifier`. An element-mapped Impl (`of(...)`) carries its prisms as state: construct it once, in the `@Bean` method.
 
-**Fakes are values, not mocks.** `ValidatedPrism` is sealed, so it cannot be hand-implemented, and a mocking framework cannot mock it either (sealed types are unmockable). That is the design, not a limitation: a test double is two lines of `ValidatedPrism.of(...)`:
+**Fakes are values, not mocks.** `ValidatedPrism` is sealed, so it cannot be hand-implemented, and a mocking framework cannot mock it either (sealed types are unmockable). That is the design, not a limitation: a test double is two lines of `ValidatedPrism.of(...)`, here as the example app's real `@WebMvcTest` substitution:
 
 ```java
-@Bean
-ValidatedPrism<UserDto, User> userCodec() {
-  return ValidatedPrism.of(
-      dto -> Validated.invalidNel(FieldError.of("rejected by the fake codec").at("email")),
-      user -> new UserDto());
-}
+{{#include ../../../hkj-spring/example/src/test/java/org/higherkindedj/spring/example/controller/UserParseFakeCodecSliceTest.java:fake_codec}}
 ```
 
 The [hkj-spring example app](../spring/spring_boot_integration.md) demonstrates the seam end to end: `MappingConfiguration` registers the codec, `UserController`'s parse endpoint injects it, and `UserParseFakeCodecSliceTest` substitutes the fake above in a `@WebMvcTest` slice and asserts the located 422 it produces. The same controller's PATCH endpoint deliberately calls `UserPatchMappingImpl.INSTANCE` directly: injection buys substitution, not lifecycle, and a team comfortable calling the Impl directly (`INSTANCE`, `instance()`, or one shared `of(...)` instance) loses nothing.

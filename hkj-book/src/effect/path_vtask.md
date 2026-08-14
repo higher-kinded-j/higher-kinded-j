@@ -121,7 +121,7 @@ VTaskPath<Integer> task = Path.vtask(() -> compute());
 try {
     Integer result = task.unsafeRun();
 } catch (VTaskExecutionException e) {
-    // Checked exception wrapped — original available via e.getCause()
+    // Checked exception wrapped: original available via e.getCause()
     handleError(e.getCause());
 } catch (RuntimeException e) {
     handleError(e);

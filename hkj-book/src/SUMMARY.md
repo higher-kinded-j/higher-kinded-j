@@ -257,6 +257,7 @@
     - [Traversals & Practice](tutorials/optics/traversals_journey.md)
     - [Fluent & Free DSL](tutorials/optics/fluent_free_journey.md)
     - [Focus DSL](tutorials/optics/focus_dsl_journey.md)
+    - [Batching & Coupled Updates](tutorials/optics/batching_journey.md)
     - [Boundary Mapping](tutorials/optics/boundary_mapping_journey.md)
   - [Expression](tutorials/expression/ch_intro.md)
     - [ForState](tutorials/expression/forstate_journey.md)

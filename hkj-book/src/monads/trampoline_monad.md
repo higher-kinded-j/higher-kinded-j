@@ -245,7 +245,7 @@ The Higher-Kinded-J trampoline implementation was directly influenced by Scott L
 3. **The trampoline pattern**: a sealed interface with two states: `Done(result)` for a completed value and `More(thunk)` for a suspended step. A `run()` loop unwraps `More` thunks iteratively in a single stack frame until it reaches `Done`:
 
 ```java
-// From the blog post — the core idea Higher-Kinded-J builds on
+// From the blog post: the core idea Higher-Kinded-J builds on
 public sealed interface Trampoline<T> permits Done, More {
     static <T> T run(Supplier<Trampoline<T>> initialThunk) {
         Trampoline<T> current = initialThunk.get();

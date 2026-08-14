@@ -81,5 +81,5 @@ The boundary, generated: `@GenerateMapping` derives a total `build` and an accum
 
 ---
 
-**Previous:** [Focus DSL](focus_dsl_journey.md)
+**Previous:** [Optics: Batching & Coupled Updates](batching_journey.md)
 **Next:** [Expression: ForState](../expression/forstate_journey.md)

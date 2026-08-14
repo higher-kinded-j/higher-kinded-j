@@ -53,7 +53,7 @@ We can take the journeys bottom-up (Foundations → Effect API → applications)
 - **Core Types Journeys** – Three journeys building from `Kind<F, A>` through `MonadError` to advanced patterns like Coyoneda and Free Applicative.
 - **Effect API Journey** – The recommended user-facing API for working with functional effects in Java.
 - **Concurrency Journeys** – Two journeys on virtual threads and structured concurrency with `VTask`, `Scope`, and `Resource`.
-- **Optics Journeys** – Four journeys progressing from Lens basics through Traversals, the Free Monad DSL, and the Focus DSL.
+- **Optics Journeys** – Six journeys progressing from Lens basics through Traversals, the Free Monad DSL, and the Focus DSL to batching, coupled updates, and the generated DTO boundary.
 - **Expression Journeys** – Two journeys on comprehension patterns: `ForState` for named state workflows and `ForPath.par` for parallel composition.
 - **Resilience Patterns** – Circuit Breaker, Saga, Retry, and Bulkhead, applied to `VTask` and the Path API.
 - **Learning Paths, Solutions Guide, Troubleshooting** – Curated sequences, how to use solutions effectively, and fixes for common stumbles.

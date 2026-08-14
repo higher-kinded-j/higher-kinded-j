@@ -93,6 +93,11 @@ public final class RecordMappingBook {
     // ANCHOR_END: threaded_usage
     System.out.println(tagsDto + " / " + counts);
 
+    // ANCHOR: threaded_inferred
+    PageMapping<String> inferredWitness = PageMappingImpl.instance(); // witness inferred
+    // ANCHOR_END: threaded_inferred
+    System.out.println(inferredWitness);
+
     // ANCHOR: element_usage
     // One spec, any element codec: each abstract leaf arrives as a prism through of(...).
     Validated<NonEmptyList<FieldError>, Page<EmailAddress>> mail =

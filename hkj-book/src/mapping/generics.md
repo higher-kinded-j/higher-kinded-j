@@ -44,7 +44,7 @@ A generic Impl cannot carry a typed static `INSTANCE`, so it follows the library
 In assignment context the witness is inferred, so plain `instance()` reads naturally; the explicit `PageMappingImpl.<String>instance()` form is only needed where Java cannot infer:
 
 ``` java
-PageMapping<String> tags = PageMappingImpl.instance();   // witness inferred
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/mapping/RecordMappingBook.java:threaded_inferred}}
 ```
 
 ---

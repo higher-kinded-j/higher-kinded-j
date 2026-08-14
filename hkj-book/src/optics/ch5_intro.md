@@ -17,7 +17,7 @@ The cookbook provides ready-to-use recipes for common problems: updating nested 
 Copy freely. That's what they're for.
 
 ~~~admonish info title="Hands-On Learning"
-The [Optics Tutorial Track](../tutorials/optics/ch_intro.md) groups all four journeys (108 exercises, ~150 minutes).
+The [Optics Tutorial Track](../tutorials/optics/ch_intro.md) groups all six journeys (134 exercises, ~225 minutes).
 ~~~
 
 ~~~admonish tip title="See Also"

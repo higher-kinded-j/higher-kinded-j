@@ -37,7 +37,7 @@ loud.
 ```java
 EitherPath<AppError, User> findUser(String id) {
     User user = repository.findById(id);
-    return Path.right(user);  // E bound to AppError from the return type — fine
+    return Path.right(user);  // E bound to AppError from the return type - fine
 }
 
 var p = Path.right(user);     // nothing constrains E -> E = Object, compiles silently
@@ -67,7 +67,7 @@ EitherPath<AppError, User> path = Path.right(user);   // E = AppError (from the 
 Without one, `E` becomes `Object` silently:
 
 ```java
-var path = Path.right(user);                          // E = Object — add the witness
+var path = Path.right(user);                          // E = Object - add the witness
 ```
 
 The witness costs nothing at runtime and keeps the error type honest.

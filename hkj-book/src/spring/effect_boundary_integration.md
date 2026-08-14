@@ -183,7 +183,7 @@ public class StubGatewayInterpreter
 }
 ```
 
-An interpreter with a `profile` attribute is only **eligible** when that profile is active (the registrar filters candidates with `Environment.acceptsProfiles`); one with no `profile` is always eligible. A profile-restricted interpreter is more **specific** and shadows an unrestricted one — run with `--spring.profiles.active=test` and the stub is selected for `PaymentGatewayOp` even though the profile-less `StripeGatewayInterpreter` is still eligible. Only two or more interpreters at the *same* specificity (two unrestricted beans, or two active profiled beans) fail startup with a hard error naming the ambiguous algebra.
+An interpreter with a `profile` attribute is only **eligible** when that profile is active (the registrar filters candidates with `Environment.acceptsProfiles`); one with no `profile` is always eligible. A profile-restricted interpreter is more **specific** and shadows an unrestricted one: run with `--spring.profiles.active=test` and the stub is selected for `PaymentGatewayOp` even though the profile-less `StripeGatewayInterpreter` is still eligible. Only two or more interpreters at the *same* specificity (two unrestricted beans, or two active profiled beans) fail startup with a hard error naming the ambiguous algebra.
 
 ---
 
@@ -209,7 +209,7 @@ The `@EnableEffectBoundary` registrar:
 4. Constructs the `EitherF` nesting order automatically (left-to-right = outer-to-inner)
 5. Calls `Interpreters.combine()` with the discovered interpreters
 6. Registers the single `effectBoundary` bean (`EffectBoundary<ComposedWitness>`) as a singleton
-7. Validates at startup: a missing interpreter — or two equally-specific eligible interpreters for one algebra — produces a clear error naming the offending algebra
+7. Validates at startup: a missing interpreter (or two equally-specific eligible interpreters for one algebra) produces a clear error naming the offending algebra
 
 The registrar honours the `hkj.effect-boundary.enabled` master switch (default `true`); when set to `false`, no boundary bean is registered.
 
@@ -267,7 +267,7 @@ class OrderServicePureTest {
 }
 ```
 
-These tests run in milliseconds. The same `OrderService` program that runs against real infrastructure in production runs against in-memory stubs here, with no code changes. Composing several algebras works the same way — build the boundary with `TestBoundary.of(Interpreters.combine(orderStub, inventoryStub, notifyStub))`.
+These tests run in milliseconds. The same `OrderService` program that runs against real infrastructure in production runs against in-memory stubs here, with no code changes. Composing several algebras works the same way: build the boundary with `TestBoundary.of(Interpreters.combine(orderStub, inventoryStub, notifyStub))`.
 
 ### @EffectTest Test Slice
 
@@ -352,7 +352,7 @@ hkj:
     enabled: true                     # master switch consulted by the registrar (default: true)
 ```
 
-Setting `hkj.effect-boundary.enabled: false` prevents the registrar from creating the boundary bean at all. Interpreter validation is always fail-fast: a missing or ambiguous interpreter is a startup error, not a warning — there is no property to relax it. Environment-specific interpreter switching is done with the `@Interpreter(profile = ...)` attribute (see [Level 3](#level-3-interpreters-as-spring-beans)), not with configuration keys.
+Setting `hkj.effect-boundary.enabled: false` prevents the registrar from creating the boundary bean at all. Interpreter validation is always fail-fast: a missing or ambiguous interpreter is a startup error, not a warning; there is no property to relax it. Environment-specific interpreter switching is done with the `@Interpreter(profile = ...)` attribute (see [Level 3](#level-3-interpreters-as-spring-beans)), not with configuration keys.
 
 ---
 

@@ -26,7 +26,7 @@ For `MonadZero` types like `Maybe`, short-circuiting works as expected:
 Kind<MaybeKind.Witness, String> result =
     For.par(maybeMonad, MAYBE.just("Alice"), MAYBE.<Integer>nothing())
         .yield((name, age) -> name + " is " + age);
-// Nothing — the second computation failed
+// Nothing: the second computation failed
 ```
 
 ## Instance `par()` for Dependent Branches

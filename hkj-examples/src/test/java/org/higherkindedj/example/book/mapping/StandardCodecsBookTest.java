@@ -62,6 +62,27 @@ class StandardCodecsBookTest {
             new OrderDto("123e4567-e89b-12d3-a456-426614174000", "2026-07-28", "PAID", "99.95"));
   }
 
+  @Test
+  void formatterOverloadsMakeTheProducersCanonTheCanon() {
+    assertThatValidated(WireFormats.JS_WIRE.parse("2026-07-28T12:34:56.500Z")).isValid();
+    assertThatValidated(WireFormats.JS_WIRE.parse("2026-07-28T12:34:56.5Z")).isInvalid();
+    assertThatValidated(WireFormats.PYTHON_WIRE.parse("2026-07-28T12:34:56+00:00")).isValid();
+  }
+
+  @Test
+  void theCanonicalLeafAcceptsExactlyWhatItsRenderProduces() {
+    String upper = "123E4567-E89B-12D3-A456-426614174000";
+    Asset asset = new Asset(UUID.fromString(upper), "rack");
+
+    assertThat(AssetMappingImpl.INSTANCE.build(asset).id()).isEqualTo(upper);
+    assertThatValidated(AssetMappingImpl.INSTANCE.parse(new AssetDto(upper, "rack"))).isValid();
+    // The JDK parses lowercase happily; the render cannot reproduce it, so the guard rejects it.
+    assertThatValidated(
+            AssetMappingImpl.INSTANCE.parse(
+                new AssetDto(upper.toLowerCase(java.util.Locale.ROOT), "rack")))
+        .isInvalid();
+  }
+
   private static List<String> rendered(Validated<NonEmptyList<FieldError>, ?> result) {
     return result.fold(nel -> nel.map(FieldError::toString).toJavaList(), _ -> List.of());
   }

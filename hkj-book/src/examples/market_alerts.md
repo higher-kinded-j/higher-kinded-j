@@ -110,7 +110,7 @@ public VTask<Unit> dispatchOne(Alert alert) {
 ```
 
 ```
-  Scope.allSucceed — fan-out to all channels
+  Scope.allSucceed - fan-out to all channels
   ════════════════════════════════════════════
 
   Alert₁ ──▶ Scope.allSucceed()

@@ -50,11 +50,7 @@ Each codec honours the [`ValidatedPrism` section law](../optics/validated_prism.
 The date-time canon deserves spelling out, because two very common producers collide with it. A zero offset must be spelled `Z`: `2026-07-28T12:34:56+00:00` (Python's `isoformat()`, PostgreSQL JSON) parses to UTC, which renders back as `Z`, so it is rejected. Fractional seconds render without trailing zeros: JavaScript's `toISOString()` always emits three-digit milliseconds, so `.500Z` and `.000Z` are rejected while `.5Z` parses. Both producers are served lawfully by the formatter overload; the canonical form is then *theirs*:
 
 ``` java
-// A JavaScript toISOString() wire: fixed three-digit millis, Z for UTC
-offsetDateTime(DateTimeFormatter.ofPattern("uuuu-MM-dd'T'HH:mm:ss.SSSXXX"))
-
-// A +00:00-spelling wire (Python isoformat()): xxx renders the zero offset as +00:00
-offsetDateTime(DateTimeFormatter.ofPattern("uuuu-MM-dd'T'HH:mm:ssxxx"))
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/mapping/StandardCodecsBook.java:codecs_formatters}}
 ```
 
 ### Your own canon: `ValidatedPrism.canonical`
@@ -62,12 +58,7 @@ offsetDateTime(DateTimeFormatter.ofPattern("uuuu-MM-dd'T'HH:mm:ssxxx"))
 The same move covers any differently-canonical wire. An uppercase-UUID producer (SQL Server) is not forbidden by the law; only accepting *both* cases through one leaf is. [`ValidatedPrism.canonical`](../optics/validated_prism.md#laws) supplies the guard such a leaf needs: the lenient, throwing `UUID.fromString` is fine, because the render defines the canon and the per-value guard rejects every spelling it cannot reproduce:
 
 ``` java
-default ValidatedPrism<String, UUID> id() {
-  return ValidatedPrism.canonical(
-      "not an uppercase UUID",
-      UUID::fromString,                                  // throwing parse, lenient is fine
-      uuid -> uuid.toString().toUpperCase(Locale.ROOT)); // render defines the canon
-}
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/mapping/StandardCodecsBook.java:canonical_leaf}}
 ```
 
 Conversions the vocabulary does not cover stay hand-written leaves: `ValidatedPrism.canonical(...)` where a throwing parser and a render exist, `ValidatedPrism.of(...)` for full control. The processor never applies a codec implicitly; a conversion exists only where a spec declares it.

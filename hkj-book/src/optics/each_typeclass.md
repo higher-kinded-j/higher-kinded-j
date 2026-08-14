@@ -85,7 +85,7 @@ public interface Each<S, A> {
 }
 
 // Containers with a meaningful index implement EachIndexed, which fixes the
-// index type I at the type level — no Optional, no cast.
+// index type I at the type level: no Optional, no cast.
 public interface EachIndexed<I, S, A> extends Each<S, A> {
     IndexedTraversal<I, S, A> indexedTraversal();
 }

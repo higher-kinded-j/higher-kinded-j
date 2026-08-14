@@ -29,7 +29,7 @@ Short-circuiting works as expected for types with failure semantics; if any bran
 MaybePath<String> result =
     ForPath.par(Path.just("Bob"), Path.<Integer>nothing())
         .yield((name, age) -> name + " is " + age);
-// Nothing — the second computation failed
+// Nothing: the second computation failed
 ```
 
 ## VTaskPath: True Parallel Execution

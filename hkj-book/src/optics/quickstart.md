@@ -158,7 +158,7 @@ Same composition, same vocabulary, applied to a type you can't modify. See [Tami
 - **Theory first?** [What Are Optics?](optics_intro.md) is the conceptual introduction.
 
 ~~~admonish tip title="Ready for hands-on?"
-The [Optics Tutorial Track](../tutorials/optics/ch_intro.md) is exercise-driven. Four journeys (~150 minutes total, 108 exercises) cover Lens & Prism, Traversals, Fluent & Free DSL, and the Focus DSL. Recommended once you've finished this Quickstart.
+The [Optics Tutorial Track](../tutorials/optics/ch_intro.md) is exercise-driven. Six journeys (~225 minutes total, 134 exercises) run from Lens & Prism through the Focus DSL to batching, coupled updates, and the generated DTO boundary. Recommended once you've finished this Quickstart.
 ~~~
 
 ---

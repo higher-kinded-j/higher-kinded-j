@@ -161,7 +161,7 @@ This is where `CompletableFutureMonad` shines. Unlike `exceptionally` which retu
    Kind<CompletableFutureKind.Witness, String> failedKind =
            futureMonad.raiseError(new IllegalStateException("Processing Failed"));
 
-   // Recovery handler — inspect the error and return a new async computation
+   // Recovery handler: inspect the error and return a new async computation
    Function<Throwable, Kind<CompletableFutureKind.Witness, String>> recoveryHandler =
            error -> {
               if (error instanceof IllegalStateException) {
@@ -174,13 +174,13 @@ This is where `CompletableFutureMonad` shines. Unlike `exceptionally` which retu
                       new RuntimeException("Recovery failed", error));
            };
 
-   // Apply the handler — transforms the failed future into a recovered one
+   // Apply the handler: transforms the failed future into a recovered one
    Kind<CompletableFutureKind.Witness, String> recovered =
            futureMonad.handleErrorWith(failedKind, recoveryHandler);
    System.out.println(FUTURE.join(recovered));
    // Output: Recovered from: Processing Failed
 
-   // Success values pass through untouched — the handler is never called
+   // Success values pass through untouched - the handler is never called
    Kind<CompletableFutureKind.Witness, String> successKind = futureMonad.of("All Good");
    Kind<CompletableFutureKind.Witness, String> handledSuccess =
            futureMonad.handleErrorWith(successKind, recoveryHandler);

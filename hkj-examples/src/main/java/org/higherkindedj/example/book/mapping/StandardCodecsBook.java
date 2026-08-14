@@ -5,10 +5,14 @@ package org.higherkindedj.example.book.mapping;
 import static org.higherkindedj.optics.validated.StandardCodecs.bigDecimal;
 import static org.higherkindedj.optics.validated.StandardCodecs.enumByName;
 import static org.higherkindedj.optics.validated.StandardCodecs.localDate;
+import static org.higherkindedj.optics.validated.StandardCodecs.offsetDateTime;
 import static org.higherkindedj.optics.validated.StandardCodecs.uuid;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.OffsetDateTime;
+import java.time.format.DateTimeFormatter;
+import java.util.Locale;
 import java.util.UUID;
 import org.higherkindedj.optics.annotations.GenerateMapping;
 import org.higherkindedj.optics.annotations.MappingSpec;
@@ -47,4 +51,39 @@ interface OrderMapping extends MappingSpec<Order, OrderDto> {
     return bigDecimal();
   }
 }
+
 // ANCHOR_END: codecs_spec
+
+// ANCHOR: codecs_formatters
+final class WireFormats {
+  // A JavaScript toISOString() wire: fixed three-digit millis, Z for UTC
+  static final ValidatedPrism<String, OffsetDateTime> JS_WIRE =
+      offsetDateTime(DateTimeFormatter.ofPattern("uuuu-MM-dd'T'HH:mm:ss.SSSXXX"));
+
+  // A +00:00-spelling wire (Python isoformat()): xxx renders the zero offset as +00:00
+  static final ValidatedPrism<String, OffsetDateTime> PYTHON_WIRE =
+      offsetDateTime(DateTimeFormatter.ofPattern("uuuu-MM-dd'T'HH:mm:ssxxx"));
+
+  private WireFormats() {}
+}
+
+// ANCHOR_END: codecs_formatters
+
+// ANCHOR: canonical_leaf
+record Asset(UUID id, String label) {}
+
+record AssetDto(String id, String label) {}
+
+@GenerateMapping
+interface AssetMapping extends MappingSpec<Asset, AssetDto> {
+  // An uppercase-UUID wire (SQL Server): the lenient, throwing parse is fine,
+  // because the render defines the canon and the per-value guard rejects
+  // every spelling it cannot reproduce.
+  default ValidatedPrism<String, UUID> id() {
+    return ValidatedPrism.canonical(
+        "not an uppercase UUID",
+        UUID::fromString,
+        uuid -> uuid.toString().toUpperCase(Locale.ROOT));
+  }
+}
+// ANCHOR_END: canonical_leaf

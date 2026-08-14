@@ -18,7 +18,7 @@
 Consider a method that loads configuration, connects to a database, and logs the result:
 
 ```java
-// Every call executes immediately — untestable, unrepeatable, order-dependent
+// Every call executes immediately - untestable, unrepeatable, order-dependent
 Config config = loadConfig();                     // reads disk
 Connection conn = connectToDb(config);            // opens network socket
 logger.info("Connected to " + conn.endpoint());   // writes to stdout
@@ -30,7 +30,7 @@ Each line performs a side effect the instant it runs. You can't test `connectToD
 The `IO` monad solves this by separating **description** from **execution**. An `IO<A>` value is a *recipe* for a computation that will produce an `A` when run, but nothing happens until you explicitly say "go." This means you can build, compose, and inspect entire programs as pure values, then execute them once at the application boundary.
 
 ```java
-// Describe effects — nothing executes yet
+// Describe effects - nothing executes yet
 Kind<IOKind.Witness, Config>     loadCfg  = IO_OP.delay(() -> loadConfig());
 Kind<IOKind.Witness, Connection> connect  = ioMonad.flatMap(
     cfg -> IO_OP.delay(() -> connectToDb(cfg)), loadCfg);
@@ -84,19 +84,19 @@ Use `IO_OP.delay` to capture side effects. Use `ioMonad.of` for pure values with
 Monad<IOKind.Witness> ioMonad = Instances.monad(io());
 java.util.Scanner scanner = new java.util.Scanner(System.in);
 
-// IO action to print a message — nothing happens yet
+// IO action to print a message - nothing happens yet
 Kind<IOKind.Witness, Unit> printHello = IO_OP.delay(() -> {
     System.out.println("Hello from IO!");
     return Unit.INSTANCE;
 });
 
-// IO action to read a line from the console — nothing happens yet
+// IO action to read a line from the console - nothing happens yet
 Kind<IOKind.Witness, String> readLine = IO_OP.delay(() -> {
     System.out.print("Enter your name: ");
     return scanner.nextLine();
 });
 
-// Lift a pure value — no side effect at all
+// Lift a pure value - no side effect at all
 Kind<IOKind.Witness, Integer> pureValueIO = ioMonad.of(42);
 
 // Capture a time-dependent side effect
@@ -113,7 +113,7 @@ None of these execute when created. The `Supplier` inside `delay` is stored, not
 Use `IO_OP.unsafeRunSync` to run the computation. This is the "end of the world"; call it at application boundaries, not deep inside your logic.
 
 ```java
-// Execute printHello — now the effect happens
+// Execute printHello - now the effect happens
 IO_OP.unsafeRunSync(printHello); // prints "Hello from IO!"
 
 // Execute pureValueIO
@@ -123,7 +123,7 @@ System.out.println("Fetched: " + value); // Output: 42
 // Running the same action again re-executes the effect
 IO_OP.unsafeRunSync(printHello); // prints "Hello from IO!" again
 
-// Exceptions propagate — handle at the boundary
+// Exceptions propagate - handle at the boundary
 Kind<IOKind.Witness, String> risky = IO_OP.delay(() -> {
     if (Math.random() < 0.5) throw new RuntimeException("Boom!");
     return "OK";
@@ -169,7 +169,7 @@ Function<String, Kind<IOKind.Witness, Unit>> printGreeting = name ->
         return Unit.INSTANCE;
     });
 
-// Combine — nothing runs until unsafeRunSync
+// Combine - nothing runs until unsafeRunSync
 Kind<IOKind.Witness, Unit> combinedAction = ioMonad.flatMap(printGreeting, getName);
 
 IO_OP.unsafeRunSync(combinedAction);
@@ -193,11 +193,11 @@ Function<String, Kind<IOKind.Witness, Unit>> printGreeting = name ->
 
 Function<String, Kind<IOKind.Witness, Unit>> doNothing = name -> ioMonad.of(Unit.INSTANCE);
 
-// peek — log without affecting the pipeline
+// peek: log without affecting the pipeline
 Kind<IOKind.Witness, String> logged =
     ioMonad.peek(name -> System.out.println("LOG: Name -> " + name), getAliceName);
 
-// flatMapIfOrElse — conditional branching
+// flatMapIfOrElse: conditional branching
 Kind<IOKind.Witness, Unit> conditionalGreeting =
     ioMonad.flatMapIfOrElse(
         name -> !name.equalsIgnoreCase("admin"),  // predicate
@@ -206,7 +206,7 @@ Kind<IOKind.Witness, Unit> conditionalGreeting =
         logged                                      // input value
     );
 
-// as — replace the result, keeping the effect
+// as: replace the result, keeping the effect
 Kind<IOKind.Witness, Unit> finalProgram =
     ioMonad.as(
         Unit.INSTANCE,
