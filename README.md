@@ -157,7 +157,7 @@ For services with complex domain workflows, Higher-Kinded-J provides algebraic-e
 * **Mock-free testing** via `Id` monad interpreters; no mocking frameworks needed
 * **Program inspection** with `ProgramAnalyser` before any side effects execute
 
-### [Record Mapping and Typed-Error Codegen](https://higher-kinded-j.github.io/latest/optics/record_mapping.html)
+### [Record Mapping and Typed-Error Codegen](https://higher-kinded-j.github.io/latest/mapping/ch_intro.html)
 
 The boundary between your domain records and the wire is usually hand-written mappers or a reflective bean-mapper. Higher-Kinded-J turns it into compile-time codegen that never loses an error:
 

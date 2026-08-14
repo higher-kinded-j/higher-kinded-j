@@ -18,7 +18,7 @@ import org.higherkindedj.optics.validated.ValidatedPrism;
 
 /**
  * The code shown on the book's <a
- * href="https://higher-kinded-j.github.io/optics/record_mapping.html">Record Mapping</a> page.
+ * href="https://higher-kinded-j.github.io/mapping/ch_intro.html">Record Mapping</a> page.
  *
  * <p>The book does not paraphrase this file: it {@code {{#include}}}s the anchored regions below,
  * so the page cannot drift from the API. Change a spec here and the page changes with it; break one

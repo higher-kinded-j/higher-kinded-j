@@ -290,7 +290,7 @@ OrderError error = OrderErrors.outOfStock(products)
     .editContext(ctx -> ctx.orderId(orderId).traceId(traceId));  // typed context, not map.put
 ```
 
-**Related:** [Record Mapping](../optics/record_mapping.md#generating-error-envelopes-generateerrorenvelope), [TimeSource](data-effects.md#timesource), [@GenerateMapping](#generatemapping)
+**Related:** [Record Mapping](../mapping/merge_envelopes.md#generating-error-envelopes-generateerrorenvelope), [TimeSource](data-effects.md#timesource), [@GenerateMapping](#generatemapping)
 
 ---
 
@@ -310,7 +310,7 @@ Validated<NonEmptyList<FieldError>, Person> back =
 
 **Truthful emission tiers:** the generated mapper offers only what the shape supports: `asIso` when lossless, `asLens` when total one way, and the accumulating `parse` otherwise. A spec extending [UpdateSpec](#updatespec) instead opts into the sparse PATCH tier (only `updateFrom`). Every tier is law-checked against the published `hkj-test` harness.
 
-**Related:** [Record Mapping](../optics/record_mapping.md), [ValidatedPrism](#validatedprism), [FieldError](#fielderror), [@GenerateMerge](#generatemerge), [UpdateSpec](#updatespec)
+**Related:** [Record Mapping](../mapping/ch_intro.md), [ValidatedPrism](#validatedprism), [FieldError](#fielderror), [@GenerateMerge](#generatemerge), [UpdateSpec](#updatespec)
 
 ---
 
@@ -329,7 +329,7 @@ Dashboard dashboard =
     DashboardAssemblyImpl.INSTANCE.assemble(user, account, settings);
 ```
 
-**Related:** [Record Mapping](../optics/record_mapping.md), [@GenerateMapping](#generatemapping), [ValidatedPrism](#validatedprism)
+**Related:** [Record Mapping](../mapping/ch_intro.md), [@GenerateMapping](#generatemapping), [ValidatedPrism](#validatedprism)
 
 ---
 
@@ -405,7 +405,7 @@ MappingLaws.assertMappingLaws(
     PersonMappingImpl.INSTANCE.asValidatedPrism(), validDto, invalidDto);
 ```
 
-**Related:** [Record Mapping](../optics/record_mapping.md#law-checked-in-the-repo-and-in-your-tests), [Testing With hkj-test](../tooling/test_assertions.md#optic-laws), [@GenerateMapping](#generatemapping)
+**Related:** [Record Mapping](../mapping/tiers.md#law-checked-in-the-repo-and-in-your-tests), [Testing With hkj-test](../tooling/test_assertions.md#optic-laws), [@GenerateMapping](#generatemapping)
 
 ---
 
@@ -413,7 +413,7 @@ MappingLaws.assertMappingLaws(
 
 **Definition:** The principle that a boundary should turn unstructured input into a typed value **once**, at the edge, and keep that guarantee in the type thereafter, rather than re-checking the same data repeatedly downstream. Higher-Kinded-J expresses it with types whose *parse* is fallible and accumulating and whose *build* is total: [ValidatedPrism](#validatedprism) for a single value, [Validated Assembly](#validated-assembly) for a whole record, and [@GenerateMapping](#generatemapping) for a record-to-DTO boundary. Failures are [FieldError](#fielderror)s, so a rejected input reports every bad field at once, each located.
 
-**Related:** [Record Mapping](../optics/record_mapping.md), [ValidatedPrism](#validatedprism), [Validated](data-effects.md#validated)
+**Related:** [Record Mapping](../mapping/ch_intro.md), [ValidatedPrism](#validatedprism), [Validated](data-effects.md#validated)
 
 ---
 
@@ -503,7 +503,7 @@ public interface OrderMapping extends MappingSpec<Order, OrderDto> {
 }
 ```
 
-**Related:** [Standard codecs](../optics/record_mapping.md#standard-codecs), [ValidatedPrism](#validatedprism), [@GenerateMapping](#generatemapping)
+**Related:** [Standard codecs](../mapping/codecs.md#standard-codecs), [ValidatedPrism](#validatedprism), [@GenerateMapping](#generatemapping)
 
 ---
 
@@ -547,7 +547,7 @@ Edits.Accumulated<User> patch = UserPatchMappingImpl.INSTANCE.updateFrom(dto);
 Validated<NonEmptyList<FieldError>, User> updated = patch.apply(current); // absent fields survive
 ```
 
-**Related:** [Record Mapping](../optics/record_mapping.md#sparse-patch-write-back-updatespec), [@GenerateMapping](#generatemapping), [Edits](#edits)
+**Related:** [Record Mapping](../mapping/beans_patch.md#sparse-patch-write-back-updatespec), [@GenerateMapping](#generatemapping), [Edits](#edits)
 
 ---
 

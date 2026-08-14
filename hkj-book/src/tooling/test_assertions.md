@@ -192,7 +192,7 @@ assertThatVStream(failingStream)
 
 ## Assertions for the Error Envelope
 
-`ErrorEnvelopeAssert` covers the generated `ErrorEnvelope<C>` (see [`@GenerateErrorEnvelope`](../optics/record_mapping.md#generating-error-envelopes-generateerrorenvelope)). Because envelope timestamps come from a `TimeSource`, a frozen clock makes the whole envelope, the timestamp included, exactly assertable:
+`ErrorEnvelopeAssert` covers the generated `ErrorEnvelope<C>` (see [`@GenerateErrorEnvelope`](../mapping/merge_envelopes.md#generating-error-envelopes-generateerrorenvelope)). Because envelope timestamps come from a `TimeSource`, a frozen clock makes the whole envelope, the timestamp included, exactly assertable:
 
 ```java
 import static org.higherkindedj.hkt.assertions.ErrorEnvelopeAssert.assertThatErrorEnvelope;
@@ -314,7 +314,7 @@ void statusPrismIsLawful() {
 
 `ValidatedPrismLaws` joins the family for the validated-boundary optic (parse-build and the section law build-parse). Each family also exposes the individual laws (`assertGetSet`, `assertBuildMatch`, `assertSetNoOpWhenAbsent`, …) for targeted checks, and failures name the violated law with the offending values: `"Lens set-get: get(set(Grace, …)) == the value set; got Ada"`. Guard rails reject vacuous fixtures (equal set-set values, non-matching prism sources). Drive broader coverage with `@ParameterizedTest` or property fixtures at the call site.
 
-`MappingLaws` completes the family for [`@GenerateMapping`](../optics/record_mapping.md) Impls, law-checking a mapping through its exposed surface. There is one `assertMappingLaws` overload per emission tier:
+`MappingLaws` completes the family for [`@GenerateMapping`](../mapping/ch_intro.md) Impls, law-checking a mapping through its exposed surface. There is one `assertMappingLaws` overload per emission tier:
 
 - **Lossless:** pass `asIso()` plus `asValidatedPrism()`; delegates to `IsoLaws` and adds the coherence checks between the two surfaces.
 - **Projection:** pass `asLens()`; delegates to `LensLaws`.

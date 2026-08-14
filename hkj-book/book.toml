@@ -25,6 +25,7 @@ level = 1
 "/draughts.html" = "https://higher-kinded-j.github.io/hkts/draughts.html"
 "/extending-simulation.html" = "https://higher-kinded-j.github.io/hkts/extending-simulation.html"
 "/for-comprehension.html" = "https://higher-kinded-j.github.io/functional/for-comprehension.html"
+"/optics/record_mapping.html" = "https://higher-kinded-j.github.io/mapping/ch_intro.html"
 
 [preprocessor.alerts]
 [preprocessor.admonish]

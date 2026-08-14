@@ -10,7 +10,7 @@ import org.jspecify.annotations.Nullable;
 
 /**
  * The {@code @GenerateErrorEnvelope} code shown on the book's <a
- * href="https://higher-kinded-j.github.io/optics/record_mapping.html">Record Mapping</a> page. The
+ * href="https://higher-kinded-j.github.io/mapping/merge_envelopes.html">Record Mapping</a> page. The
  * page {@code {{#include}}}s the anchored regions, so it cannot drift from the API.
  *
  * <p>This exists because the page's {@code editContext} example is an interface {@code default}

@@ -107,7 +107,7 @@ Two obligations stay yours. The parse must accept what the render produces: a mi
 {{#include ../../../hkj-examples/src/test/java/org/higherkindedj/example/book/optics/ValidatedPrismBookLawsTest.java:canonical_laws}}
 ```
 
-The stock vocabulary in [`StandardCodecs`](record_mapping.md#standard-codecs) is built on this same factory: lawful codecs for the standard families (identifiers, dates, enums, money), each accepting exactly the canonical form it renders.
+The stock vocabulary in [`StandardCodecs`](../mapping/codecs.md#standard-codecs) is built on this same factory: lawful codecs for the standard families (identifiers, dates, enums, money), each accepting exactly the canonical form it renders.
 
 ---
 
@@ -115,7 +115,7 @@ The stock vocabulary in [`StandardCodecs`](record_mapping.md#standard-codecs) is
 
 One prism lifts over whole containers. `parseAll(List<? extends S>)` parses every element and accumulates **every** failure, each located by its index: a plain positional segment, so a bad second element under a field labelled `emails` renders as `emails.1: not an email address` (through a nested spec, `customers.1.email: ...`). `parseValues(Map<K, ? extends S>)` parses a map's values the same way, each failure located by its key (`attributes.en: ...`); keys pass through untouched.
 
-The [null doctrine](record_mapping.md#null-doctrine) reaches inside both: a `null` element or map value is a located, accumulating `must not be null` at its index or key, never an exception, while a `null` list, map, or map key stays the caller's error. The build direction (`buildAll`, `buildValues`) is total like `build` and rejects nulls outright.
+The [null doctrine](../mapping/basics.md#null-doctrine) reaches inside both: a `null` element or map value is a located, accumulating `must not be null` at its index or key, never an exception, while a `null` list, map, or map key stays the caller's error. The build direction (`buildAll`, `buildValues`) is total like `build` and rejects nulls outright.
 
 (Bracketed index rendering, `emails[1]`, is deliberately deferred to the future sealed path-segment model; today's paths are flat dotted segments, and the positional segment matches the map-key grammar.)
 
@@ -139,7 +139,7 @@ Practice the boundary in [Tutorial 25: ValidatedPrism](https://github.com/higher
 - [Prisms](prisms.md) - The yes/no match this type upgrades
 - [Accumulating Assembly](../monads/validated_assembly.md) - Sibling-field accumulation for multi-field parses
 - [Multi-Edit and Sparse Updates](multi_edit.md) - The update-side counterpart
-- [Record Mapping](record_mapping.md) - `@GenerateMapping` derives whole-record `parse`/`build` from these leaves
+- [Record Mapping](../mapping/ch_intro.md) - `@GenerateMapping` derives whole-record `parse`/`build` from these leaves
 ~~~
 
 ---

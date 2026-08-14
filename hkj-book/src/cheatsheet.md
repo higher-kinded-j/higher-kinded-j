@@ -104,10 +104,10 @@ Compile-time domain ↔ wire codecs, generated from a spec interface you own:
 
 | Surface | What It Does | Where |
 |---------|-------------|-------|
-| `build(domain)` | Total domain → wire render | [`@GenerateMapping`](optics/record_mapping.md) on `MappingSpec<Domain, Wire>` |
+| `build(domain)` | Total domain → wire render | [`@GenerateMapping`](mapping/ch_intro.md) on `MappingSpec<Domain, Wire>` |
 | `parse(wire)` | Accumulating parse: every bad field at once, each located by path | the generated `XMappingImpl.INSTANCE` |
-| `updateFrom(wire)` | Sparse PATCH fold: absent means "leave unchanged" | [`UpdateSpec`](optics/record_mapping.md#sparse-patch-write-back-updatespec) |
-| `StandardCodecs.uuid()`, `localDate()`, `enumByName(...)`, ... | Stock `ValidatedPrism` leaves for identifiers, dates, enums, money | [Standard codecs](optics/record_mapping.md#standard-codecs) |
+| `updateFrom(wire)` | Sparse PATCH fold: absent means "leave unchanged" | [`UpdateSpec`](mapping/beans_patch.md#sparse-patch-write-back-updatespec) |
+| `StandardCodecs.uuid()`, `localDate()`, `enumByName(...)`, ... | Stock `ValidatedPrism` leaves for identifiers, dates, enums, money | [Standard codecs](mapping/codecs.md#standard-codecs) |
 | `Edits.accumulate(...)` | Hand-written validated multi-edit (irregular PATCH shapes) | [Multi-Edit](optics/multi_edit.md) |
 | `MappingLaws.assertMappingLaws(...)` | Law-check any generated mapping in one test call | [hkj-test](tooling/test_assertions.md#optic-laws) |
 

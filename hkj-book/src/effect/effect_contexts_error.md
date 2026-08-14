@@ -15,7 +15,7 @@ API calls fail. Database queries timeout. Files go missing. The "whole thing" of
 ~~~
 
 ~~~admonish note title="Not the error envelope's context"
-This `ErrorContext` is an effect type: a deferred IO computation with typed-error semantics. It is distinct from the *typed context* an error value carries under [`@GenerateErrorEnvelope`](../optics/record_mapping.md#generating-error-envelopes-generateerrorenvelope), which is diagnostic metadata (records-as-schema), not a way of running effects.
+This `ErrorContext` is an effect type: a deferred IO computation with typed-error semantics. It is distinct from the *typed context* an error value carries under [`@GenerateErrorEnvelope`](../mapping/merge_envelopes.md#generating-error-envelopes-generateerrorenvelope), which is diagnostic metadata (records-as-schema), not a way of running effects.
 ~~~
 
 ---
