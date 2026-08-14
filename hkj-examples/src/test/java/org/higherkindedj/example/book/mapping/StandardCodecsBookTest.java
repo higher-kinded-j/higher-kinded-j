@@ -70,6 +70,15 @@ class StandardCodecsBookTest {
   }
 
   @Test
+  void aFormatterCanonIsThePatternsNotTheProducersOutputSet() {
+    // toISOString() only ever emits Z, but the pattern round-trips any offset: lawful.
+    assertThatValidated(WireFormats.JS_WIRE.parse("2026-07-28T12:34:56.500+01:00")).isValid();
+    // The pattern also fixes the precision: extra fractional digits do not fit it.
+    assertThatValidated(WireFormats.JS_WIRE.parse("2026-07-28T12:34:56.5001Z")).isInvalid();
+    assertThatValidated(WireFormats.PYTHON_WIRE.parse("2026-07-28T12:34:56.5+00:00")).isInvalid();
+  }
+
+  @Test
   void theCanonicalLeafAcceptsExactlyWhatItsRenderProduces() {
     String upper = "123E4567-E89B-12D3-A456-426614174000";
     Asset asset = new Asset(UUID.fromString(upper), "rack");

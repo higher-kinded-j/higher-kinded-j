@@ -6,7 +6,7 @@
 
 ---
 
-Reading about functional programming is one thing. Writing it is another entirely. This chapter is the writing part: thirteen short journeys, each a single test file we open in our IDE and complete by replacing `answerRequired()` with working code. Tests stay red until the solution is right, which makes feedback immediate and the loop tight.
+Reading about functional programming is one thing. Writing it is another entirely. This chapter is the writing part: fifteen short journeys, each a single test file we open in our IDE and complete by replacing `answerRequired()` with working code. Tests stay red until the solution is right, which makes feedback immediate and the loop tight.
 
 We can read every other chapter in the book without ever opening this one (the Effect Path API, Optics, and Monad Transformers chapters are designed for that), but most readers find that the patterns "click" only after they have spent forty minutes typing them out. That is what this chapter is for.
 
@@ -61,7 +61,7 @@ We can take the journeys bottom-up (Foundations → Effect API → applications)
 
 ---
 
-## Thirteen Journeys
+## Fifteen Journeys
 
 | Journey | Focus | Duration | Exercises |
 |---------|-------|----------|-----------|
@@ -75,6 +75,8 @@ We can take the journeys bottom-up (Foundations → Effect API → applications)
 | **Optics: Traversals** | Traversals, composition, practical applications | ~40 min | 27 |
 | **Optics: Fluent & Free** | Fluent API, Free Monad DSL | ~35 min | 22 |
 | **Optics: Focus DSL** | Type-safe path navigation, container widening | ~35 min | 29 |
+| **Optics: Batching & Coupled Updates** | Request batching, plan guardrails, coupled lenses | ~40 min | 13 |
+| **Optics: Boundary Mapping** | Multi-edit, ValidatedPrism, generated record mapping | ~35 min | 13 |
 | **Expression: ForState** | Named record state, lens threading, zoom | ~25 min | 11 |
 | **Expression: ForPath Parallel** | Applicative parallel composition for Path types | ~20 min | 9 |
 | **Resilience Patterns** | Circuit Breaker, Saga, Retry, Bulkhead, Path API resilience | ~40 min | 22 |
@@ -114,7 +116,7 @@ The loop is simple. The understanding it produces is not. Expect moments of conf
 2. [Core Types Journeys](coretypes/ch_intro.md) - `Kind` basics through advanced patterns
 3. [Effect API](effect/effect_journey.md) - The recommended user-facing API
 4. [Concurrency Journeys](concurrency/ch_intro.md) - VTask, Scope, Resource
-5. [Optics Journeys](optics/ch_intro.md) - Lens, Prism, Traversal, Focus DSL
+5. [Optics Journeys](optics/ch_intro.md) - Lens through Focus DSL, batching, boundary mapping
 6. [Expression Journeys](expression/ch_intro.md) - ForState and ForPath.par
 7. [Resilience Patterns](resilience/resilience_journey.md) - Circuit Breaker, Saga, Retry, Bulkhead
 8. [Learning Paths](learning_paths.md) - Recommended journey sequences

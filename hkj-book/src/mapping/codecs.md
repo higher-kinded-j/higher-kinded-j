@@ -53,6 +53,8 @@ The date-time canon deserves spelling out, because two very common producers col
 {{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/mapping/StandardCodecsBook.java:codecs_formatters}}
 ```
 
+Two properties of a formatter canon are worth knowing. The canon is the *pattern's*, not the producer's output set: any spelling the pattern round-trips is accepted, so `JS_WIRE` admits a `+01:00` offset a real `toISOString()` would never emit, lawfully. And the pattern fixes the canon's *precision*: extra fractional digits on the wire are rejected (they do not fit the pattern), while a domain value carrying finer precision than the pattern renders truncated on `build`, which is a [non-injective render](../optics/validated_prism.md#laws), the obligation the laws page leaves with you. Pick a pattern whose precision matches what the domain actually stores, and check a custom canon with the laws.
+
 ### Your own canon: `ValidatedPrism.canonical`
 
 The same move covers any differently-canonical wire. An uppercase-UUID producer (SQL Server) is not forbidden by the law; only accepting *both* cases through one leaf is. [`ValidatedPrism.canonical`](../optics/validated_prism.md#laws) supplies the guard such a leaf needs: the lenient, throwing `UUID.fromString` is fine, because the render defines the canon and the per-value guard rejects every spelling it cannot reproduce:

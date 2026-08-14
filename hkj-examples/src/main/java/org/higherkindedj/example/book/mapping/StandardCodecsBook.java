@@ -56,11 +56,14 @@ interface OrderMapping extends MappingSpec<Order, OrderDto> {
 
 // ANCHOR: codecs_formatters
 final class WireFormats {
-  // A JavaScript toISOString() wire: fixed three-digit millis, Z for UTC
+  // Serves a JavaScript toISOString() producer: fixed three-digit millis, Z for UTC.
+  // The canon is the formatter's, not that producer's output set: any spelling the
+  // pattern round-trips (a +01:00 offset, say) is accepted as lawfully canonical.
   static final ValidatedPrism<String, OffsetDateTime> JS_WIRE =
       offsetDateTime(DateTimeFormatter.ofPattern("uuuu-MM-dd'T'HH:mm:ss.SSSXXX"));
 
-  // A +00:00-spelling wire (Python isoformat()): xxx renders the zero offset as +00:00
+  // Serves a +00:00-spelling producer (Python isoformat()): xxx renders the zero
+  // offset as +00:00
   static final ValidatedPrism<String, OffsetDateTime> PYTHON_WIRE =
       offsetDateTime(DateTimeFormatter.ofPattern("uuuu-MM-dd'T'HH:mm:ssxxx"));
 
