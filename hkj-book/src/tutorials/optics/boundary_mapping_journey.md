@@ -40,6 +40,8 @@ Apply N independent edits at different paths in one reusable operation, includin
 
 **Key insight**: validation is source-independent and runs first; the writes run as one fold only if everything validated.
 
+---
+
 ## Tutorial 25: ValidatedPrism (~10 minutes)
 **File**: `Tutorial25_ValidatedPrism.java` | **Exercises**: 3
 
@@ -52,6 +54,8 @@ The smart-constructor optic: a `Prism` whose match says *why not*, and all the r
 - Verifying both round-trip laws with `ValidatedPrismLaws`
 
 **Key insight**: the section law forbids a normalising `build`; the prism's parse is exactly the leaf shape the mapper and the `Edits` builder consume.
+
+---
 
 ## Tutorial 26: Record Mapping (~12 minutes)
 **File**: `Tutorial26_RecordMapping.java` | **Exercises**: 5

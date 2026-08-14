@@ -11,6 +11,10 @@ A generated Impl is a pure function, so most code should just call it. This page
 - The remaining limits, each with a what/why/fix diagnostic
 ~~~
 
+~~~admonish example title="See Example Code"
+**The width proof on this page is [WideMappingLawsTest.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/test/java/org/higherkindedj/example/book/mapping/WideMappingLawsTest.java)** - the page includes it directly, so it is compiled and run by the build. The injection and fake snippets mirror the hkj-spring example app's `MappingConfiguration` and `UserParseFakeCodecSliceTest`.
+~~~
+
 ## Injecting and testing generated mappings
 
 A concrete or threaded Impl is a stateless pure function reached through statics (`INSTANCE`, `instance()`); an element-mapped Impl is an immutable value built by `of(...)`, carrying its element prisms. The spec interface deliberately declares nothing either way (`@Autowired UserMapping` injects nothing useful, by design). When you do want a Spring bean or a test double, register the **surface you consume**, per tier:
@@ -59,11 +63,15 @@ There is no component ceiling. `parse` (and the validated `patch`, and `@Generat
 
 The only width bound left is the JVM's constructor parameter-slot limit on the record itself (254 components in practice, fewer with `long`/`double`), which javac enforces at the record declaration. The hand-written `fields()` ladder keeps its 16-field arity; wider hand-written assemblies nest sub-records.
 
-Every rejection follows the processor's what/why/fix standard: the message states what is wrong, why the mapper needs it, and the code to write. The remaining limits, each with its own diagnostic:
+Every rejection follows the processor's what/why/fix standard: the message states what is wrong, why the mapper needs it, and the code to write. The limits themselves are each explained where their feature lives; this table is the index:
 
-- Nested and sealed resolution sees specs **in the same compilation**. A spec extends `MappingSpec` directly, plus any plain [mix-in interfaces](codecs.md#shared-vocabulary-mix-in-interfaces); a mix-in that is itself a mapping spec, or a generic one, is diagnosed.
-- `Map` components lift values only: keys are identity, so differing key types, raw `Map`s and wildcard type arguments are compile errors.
-- A projection with any fallible correspondence emits the [validated `patch`](tiers.md#leaf-carrying-projections-the-validated-patch) write-back rather than `asLens()`; projections cannot carry derived fields (the write-back could never honour a recomputed component); generic records map as concrete instantiations, threaded specs or element-mapped specs ([Generic Specs](generics.md)), all three nestable; generic mappings stay record-to-record only.
+| Limit | Where it is explained |
+|---|---|
+| Nested and sealed resolution sees specs in the same compilation; mix-ins must be plain, non-generic interfaces | [Shared vocabulary](codecs.md#shared-vocabulary-mix-in-interfaces) |
+| `Map` components lift values only; keys are identity, so differing key types, raw `Map`s and wildcards are rejected | [Nesting and containers](structure.md) |
+| A fallible projection emits the validated `patch`, never a fake `asLens()`; projections cannot carry derived fields | [The Emission Tiers](tiers.md#leaf-carrying-projections-the-validated-patch), [Derived wire fields](basics.md#derived-wire-fields) |
+| Generic mappings come in exactly three forms and stay record-to-record | [Generic Specs](generics.md) |
+| Sparse PATCH is bean-only, wrapper-typed, and never deep-merges | [Beans and Sparse PATCH](beans_patch.md#sparse-patch-write-back-updatespec) |
 
 ---
 

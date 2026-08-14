@@ -11,7 +11,7 @@
 ~~~
 
 ~~~admonish example title="See Example Code"
-**The code on this page is [BoundaryCapstoneBook.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/book/mapping/capstone/BoundaryCapstoneBook.java)** and its **[BoundaryCapstoneBookLawsTest.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/test/java/org/higherkindedj/example/book/mapping/capstone/BoundaryCapstoneBookLawsTest.java)** - the page includes both directly, so everything shown is compiled, run, and asserted by the build.
+**The code on this page is [BoundaryCapstoneBook.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/book/mapping/capstone/BoundaryCapstoneBook.java)** and its **[BoundaryCapstoneBookLawsTest.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/test/java/org/higherkindedj/example/book/mapping/capstone/BoundaryCapstoneBookLawsTest.java)** - the page includes both directly, so every Java block on this page is compiled, run, and asserted by the build.
 ~~~
 
 ---
@@ -36,13 +36,13 @@ The wire is what clients actually send: strings, a rename (`fullName`), and one 
 
 ## The Imperative Approach
 
-The mapper most codebases carry:
+The [chapter opened](ch_intro.md) with a sketch of this mapper; here it is at full scale:
 
 ``` java
 {{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/mapping/capstone/BoundaryCapstoneBook.java:capstone_before}}
 ```
 
-Count the ways the five-defect request below defeats it. It reports **one** problem (whichever throws first), the message carries **no field path**, four exception types need catching (`NullPointerException`, `IllegalArgumentException`, `DateTimeParseException`, `NumberFormatException`), and when `Order` grows a component next quarter, nothing warns that this method no longer covers it.
+Count the ways the five-defect request below defeats it. It reports **one** problem (whichever throws first); the message carries **no field path**; five call sites throw four different exception types (`NullPointerException`, `IllegalArgumentException`, `DateTimeParseException`, `NumberFormatException`), needing three unrelated catch clauses; and when `Order` grows a component next quarter, nothing warns that this method no longer covers it.
 
 ---
 
@@ -60,7 +60,7 @@ Three specs declare the whole boundary. Every conversion is named after its comp
 {{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/mapping/capstone/BoundaryCapstoneBook.java:capstone_spec}}
 ```
 
-That is the entire declaration: no mapper class, no Bean Validation annotations, no exception handler. `build` is total (the derived `displayTotal` is computed, not copied):
+That is the entire declaration: no mapper class, no Bean Validation annotations, no exception handler. Honesty note: it is not *shorter* than the hand-written mapper (three small interfaces, a vocabulary, and one custom leaf against fourteen lines); what changed is the behaviour per line, because these lines also carry the validation, the locations, the reverse direction, and the laws. `build` is total (the derived `displayTotal` is computed, not copied):
 
 ``` java
 {{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/mapping/capstone/BoundaryCapstoneBook.java:capstone_build}}
@@ -92,7 +92,7 @@ Five defects, one value, every error located, in declaration order. In a Spring 
 }
 ```
 
-The client fixes all five and resubmits once. Compare that with the imperative version's five round trips of `400 Bad Request: bad email`.
+The client fixes all five and resubmits once, where the hand-written mapper would have surfaced them one 400 at a time. A Bean Validation stack accumulates better than that, but its errors describe the *DTO*; these describe the domain's components, they come from the same declarations that produce the `Order`, and the parse that reported them is the only way in.
 
 ### What happened, error by error
 
@@ -101,7 +101,7 @@ The client fixes all five and resubmits once. Compare that with the imperative v
 | `id: not a UUID (...)` | the stock [`uuid()` codec](codecs.md#standard-codecs) |
 | `customer.email: not an email address` | the hand-written leaf, located **through the nested spec** |
 | `lines.1.price: not a number in plain notation (...)` | `bigDecimal()`, lifted over the list, located **by element index** |
-| `placedAt: not an ISO-8601 instant (...)` | `instant()`, rejecting the non-canonical spelling |
+| `placedAt: not an ISO-8601 instant (...)` | `instant()`, rejecting a format it does not speak |
 | `status: unknown OrderStatus (...)` | `enumByName`, naming the permitted constants |
 
 Every piece of the chapter fired at once, and none of it was written by hand.
@@ -110,7 +110,7 @@ Every piece of the chapter fired at once, and none of it was written by hand.
 
 ## The Encores
 
-The same boundary, three more tiers, almost no new code.
+The same boundary, two more tiers in a handful of lines, and a third generator by pointer.
 
 **A sparse PATCH.** The email leaf is already in the vocabulary, so the PATCH sibling is one bean and one empty spec. Absent means keep; a present bad value still fails, located:
 
@@ -132,31 +132,25 @@ The same boundary, three more tiers, almost no new code.
 {{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/mapping/capstone/BoundaryCapstoneBook.java:capstone_merge_usage}}
 ```
 
-**A typed error envelope.** When the service behind this boundary fails, its sealed `OrderError` carries a generated envelope and a typed context instead of a copy-pasted `code`/`message`/`timestamp` and a `Map<String, Object>`:
-
-``` java
-{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/mapping/OrderErrorBook.java:error_envelope}}
-```
-
-``` java
-{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/mapping/OrderErrorBook.java:edit_context}}
-```
+**A typed error envelope.** When the service behind a boundary like this fails, its sealed error hierarchy tends to re-declare `code`/`message`/`timestamp`/`context` on every variant, with `context` an untyped `Map<String, Object>`. [`@GenerateErrorEnvelope`](merge_envelopes.md#generating-error-envelopes-generateerrorenvelope) generates that envelope and types the context; its running example is an order-domain `OrderError`, worked in full on the [Merge and Error Envelopes](merge_envelopes.md) page.
 
 ---
 
 ## The Proof
 
-"Lawful" is a passing test, not an adjective. The payoff above is asserted, message for message:
+"Lawful" is a passing test, not an adjective. First, the payoff above is asserted message for message, in order: the five-defect wire must produce exactly those five located errors:
 
 ``` java
 {{#include ../../../hkj-examples/src/test/java/org/higherkindedj/example/book/mapping/capstone/BoundaryCapstoneBookLawsTest.java:capstone_errors}}
 ```
 
-And the mappings obey their tiers' laws, through the same `MappingLaws` harness the library's own build runs:
+Second, the full mapping obeys the fallible tier's laws (round trip on a parsing wire, guaranteed rejection on a non-parsing one, coherence with `build`), through the same `MappingLaws` harness the library's own build runs:
 
 ``` java
 {{#include ../../../hkj-examples/src/test/java/org/higherkindedj/example/book/mapping/capstone/BoundaryCapstoneBookLawsTest.java:capstone_laws}}
 ```
+
+Third, the PATCH sibling obeys the sparse laws: an all-absent form is the identity update, a valid present field changes the domain, an invalid one fails located:
 
 ``` java
 {{#include ../../../hkj-examples/src/test/java/org/higherkindedj/example/book/mapping/capstone/BoundaryCapstoneBookLawsTest.java:capstone_patch_laws}}

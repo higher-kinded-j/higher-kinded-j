@@ -375,7 +375,7 @@ ValidationPath<List<String>, User> user =
 // All three validations run; all errors collected
 ```
 
-See [ValidationPath](path_types.md#validationpath) for the full API.
+See [ValidationPath](path_validation.md) for the full API.
 
 ### Strategy 5: _Error Enrichment_
 

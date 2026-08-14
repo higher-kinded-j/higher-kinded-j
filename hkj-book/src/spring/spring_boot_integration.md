@@ -444,7 +444,7 @@ The three outcomes travel the Either leg:
 | any present field invalid | `Left(PatchValidationError)` carrying **every** located `FieldError`; nothing is written | 400 |
 | all present fields valid | `Right(patched)` | 200 |
 
-Staying on the Either leg is deliberate: [the 422 leg](#the-422-leg) is selected by an all-`FieldError` `Validated` payload, and a PATCH that mixes not-found with validation needs one error channel for both. Wrapping the accumulated errors in a domain error (here a record whose name contains "Validation", so the status heuristic maps it to 400) keeps the status decision with the error type; map it elsewhere with `hkj.web.error-status-mappings` or an `ErrorStatusCodeStrategy` if your API prefers 422 for PATCH validation failures.
+Staying on the Either leg is deliberate: [the 422 leg](#the-422-leg) is selected by an all-`FieldError` `Validated` payload, and a PATCH that mixes not-found with validation needs one error channel for both. Wrapping the accumulated errors in a domain error (here a record whose name carries `Validation` as a CamelCase token, so the status heuristic maps it to 400) keeps the status decision with the error type; map it elsewhere with `hkj.web.error-status-mappings` or an `ErrorStatusCodeStrategy` if your API prefers 422 for PATCH validation failures.
 
 A PATCH boundary *without* a not-found case (the current value is already in hand) can instead return `patch.applyPath(current)`: the `ValidationPath` flavour of the same fold, whose all-`FieldError` invalid takes the 422 leg like any other, under `hkj.web.validation-field-error-status`.
 

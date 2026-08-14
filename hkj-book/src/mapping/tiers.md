@@ -37,7 +37,9 @@ The field correspondences select what the Impl can lawfully offer:
 "Guarded" because even a lossless record `parse` can fail on a hostile binding (a null reference component, or a null element inside an identity container, is a located invalid); the parse-iso coherence law is scoped accordingly. And `asIso().reverseGet` is a second, *unguarded* wire-to-domain direction: it exists for lawful in-memory round trips, so never feed a freshly bound wire to `reverseGet`; locating its nulls is `parse`'s job.
 ~~~
 
-### Law-checked, in the repo and in your tests
+---
+
+## Law-checked, in the repo and in your tests
 
 "Lawfully offer" is verified, not promised: every emission tier above (lossless iso, projection lens, fallible leaf, nested spec, `List`/`Optional`/`Map` lifting, sealed dispatch, derived fields) is compiled and law-checked in the Higher-Kinded-J build itself, against the published [`hkj-test` law harness](../tooling/test_assertions.md#optic-laws). Your own specs get the same guarantee with one call from a test, where `hkj-test` lives:
 

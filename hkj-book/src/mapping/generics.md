@@ -2,7 +2,7 @@
 
 _Concrete, threaded, and element-mapped: three ways to map a generic record, one rule for how you reach the Impl._
 
-A generic record (`Page<T>`, `Result<E, A>`) raises a question a monomorphic pair never does: is the mapping *for one instantiation*, *for all of them*, or *parameterised by codecs the spec cannot know*? All three are supported, and which one you have determines how the generated Impl is accessed.
+A generic record (`Page<T>`, `Result<E, A>`) raises a question a monomorphic pair never does: is the mapping *for one instantiation*, *for all of them*, or *parameterised by codecs the spec cannot know*? All three are supported, and which one you have determines how the generated Impl is accessed. (No generic records at your boundary? Skip ahead to [Merge and Error Envelopes](merge_envelopes.md) and return when a `Page<T>` appears.)
 
 ~~~admonish info title="What You'll Learn"
 - Mapping a concrete instantiation, where the whole toolkit applies under the substitution
@@ -27,6 +27,8 @@ As a **concrete instantiation**, name the type arguments in the spec and every c
 
 An instantiated mapping registers like any other, so `Report(Page<Customer> results)` nests it automatically. A threaded spec nests too: a use site's type arguments unify against the spec's declared pair, so `Report(Page<String> results)` resolves `PageMapping<T>` as `PageMappingImpl.<String>instance()`, and a generic outer spec may thread its own variable straight through.
 
+---
+
 ## Threaded specs
 
 As a **threaded spec**, declare the spec generic in its own type parameters and one mapping serves every instantiation. Same-variable elements copy by identity under the null-element scan (a `null` element is `items.1: must not be null`, never a smuggled null), and the whole surface (`build`, `parse`, `asIso` on a lossless pair) is generic:
@@ -45,6 +47,8 @@ In assignment context the witness is inferred, so plain `instance()` reads natur
 PageMapping<String> tags = PageMappingImpl.instance();   // witness inferred
 ```
 
+---
+
 ## One rule, three access shapes
 
 The three access shapes are one rule, not three conventions: *how much state does the Impl carry?*
@@ -54,6 +58,8 @@ The three access shapes are one rule, not three conventions: *how much state doe
 | Concrete | `XImpl.INSTANCE` | stateless, monomorphic: a plain constant |
 | Threaded generic | `XImpl.<T>instance()` | stateless but generic: a typed constant is impossible, so the cached singleton sits behind a generic accessor (the `EitherMonad.instance()` convention) |
 | Element-mapped | `XImpl.of(prisms)` | carries its leaf prisms as state: every call is a fresh, immutable instance |
+
+---
 
 ## Element-mapped specs
 

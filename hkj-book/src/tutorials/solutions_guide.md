@@ -331,7 +331,7 @@ solutions/
 │   ├── TutorialVStreamParallel_Solution.java
 │   ├── TutorialVStreamPath_Solution.java
 │   └── TutorialVStreamAdvanced_Solution.java
-├── optics/                     (20 solutions)
+├── optics/                     (26 solutions)
 │   ├── Tutorial01_LensBasics_Solution.java
 │   ├── Tutorial02_LensComposition_Solution.java
 │   ├── Tutorial03_PrismBasics_Solution.java
@@ -351,9 +351,13 @@ solutions/
 │   ├── Tutorial17_VStreamOptics_Solution.java
 │   ├── Tutorial18_FoldCombination_Solution.java
 │   ├── Tutorial19_NavigatorGeneration_Solution.java
-│   └── Tutorial20_ContainerNavigation_Solution.java
-│       (Tutorials 21-26 are exercise-only: each exercise carries its answer in its
-│        hint block, and the reference page for the topic walks the full solution)
+│   ├── Tutorial20_ContainerNavigation_Solution.java
+│   ├── Tutorial21_OpticBatching_Solution.java
+│   ├── Tutorial22_OpticBatchingGuardrails_Solution.java
+│   ├── Tutorial23_CoupledLenses_Solution.java
+│   ├── Tutorial24_MultiEdit_Solution.java
+│   ├── Tutorial25_ValidatedPrism_Solution.java
+│   └── Tutorial26_RecordMapping_Solution.java
 ├── expression/                 (4 solutions)
 │   ├── Tutorial01_ForStateBasics_Solution.java
 │   ├── Tutorial02_ForPathParallel_Solution.java

@@ -53,14 +53,14 @@ What stays the caller's error (`NullPointerException`), by contract: a `null` *w
 Absence-as-a-meaning remains exclusively the [sparse `UpdateSpec` tier](beans_patch.md#sparse-patch-write-back-updatespec)'s: a record cannot express absence, it can only be wrong.
 
 ~~~admonish tip title="At the Spring boundary: one 422, every bad field by path"
-In a Spring controller the parse result needs no wrapping: return it as-is and `hkj-spring` renders an `Invalid` as one **422 Unprocessable Content** response listing every located `FieldError` by path. See [the 422 leg](../spring/spring_boot_integration.md#the-422-leg): the "leg" is the response route an all-`FieldError` payload travels at the Spring boundary, in the railway sense.
+In a Spring controller the parse result needs no wrapping: return it as-is and `hkj-spring` renders an `Invalid` as one **422 Unprocessable Content** response listing every located `FieldError` by path. See [the 422 leg](../spring/spring_boot_integration.md#the-422-leg).
 ~~~
 
 ---
 
 ## Validated leaves
 
-Where the two sides differ in type, the boundary conversion is a [`ValidatedPrism`](../optics/validated_prism.md) supplied as a **zero-parameter `default` method named after the domain component**:
+A **leaf** is the conversion at a single field: the point where the mapping stops delegating and one wire value becomes one domain value. Where the two sides differ in type, the leaf is a [`ValidatedPrism`](../optics/validated_prism.md), supplied as a **zero-parameter `default` method named after the domain component**:
 
 ``` java
 {{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/mapping/RecordMappingBook.java:leaf_spec}}
@@ -71,7 +71,7 @@ Where the two sides differ in type, the boundary conversion is a [`ValidatedPris
 The stock conversion families (identifiers, dates, enums, money) need no hand-written leaves at all; [Standard Codecs](codecs.md) covers them.
 
 ~~~admonish tip title="A leaf beats an identity match"
-An explicit leaf wins even when the two component types are identical, so a `ValidatedPrism<String, String>` can validate a field the types alone would copy verbatim. Validate, not normalise: a parse that trims or case-folds accepts a spelling its `build` cannot reproduce, which breaks the [section law](../optics/validated_prism.md#laws).
+An explicit leaf wins even when the two component types are identical, so a `ValidatedPrism<String, String>` can validate a field the types alone would copy verbatim. Validate, not normalise: a parse that trims or case-folds accepts a spelling its `build` cannot reproduce, which breaks the [section law](../optics/validated_prism.md#laws) (an accepted wire value must rebuild to exactly itself).
 ~~~
 
 ---

@@ -19,6 +19,8 @@ import org.higherkindedj.example.tutorials.mapping.GuestPatchMappingImpl;
 import org.higherkindedj.hkt.nonemptylist.NonEmptyList;
 import org.higherkindedj.hkt.validated.FieldError;
 import org.higherkindedj.hkt.validated.Validated;
+import org.higherkindedj.optics.laws.MappingLaws;
+import org.higherkindedj.optics.validated.ValidatedPrism;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -158,12 +160,12 @@ public class Tutorial26_RecordMapping {
     /**
      * Exercise 4: prove it lawful.
      *
-     * <p>Task: law-check the booking mapping in one call: a wire that parses, and one that must
-     * not.
+     * <p>Task: obtain the mapping's leaf surface, then the given {@code MappingLaws} line checks
+     * the fallible tier's laws against a wire that parses and one that must not.
      *
      * <pre>
-     *   // Hint 1: the fallible overload takes {@code asValidatedPrism()} plus the two wires.
-     *   // Hint 2: reuse {@code BookingMappingImpl.INSTANCE.build(BOOKING)} as the parsing wire.
+     *   // Hint 1: every parse-capable mapping exposes {@code asValidatedPrism()}.
+     *   // Hint 2: {@code BookingMappingImpl.INSTANCE.asValidatedPrism()}.
      * </pre>
      */
     @Test
@@ -173,9 +175,10 @@ public class Tutorial26_RecordMapping {
       BookingDto bad =
           new BookingDto("NOPE", new GuestDto("Ada Lovelace", "ada@corp.example"), "2026-07-28", 3);
 
-      // TODO: assert the mapping laws for the booking mapping.
-      Runnable check = answerRequired();
-      check.run();
+      // TODO: the mapping as a ValidatedPrism leaf.
+      ValidatedPrism<BookingDto, Booking> mapping = answerRequired();
+
+      MappingLaws.assertMappingLaws(mapping, good, bad);
     }
   }
 

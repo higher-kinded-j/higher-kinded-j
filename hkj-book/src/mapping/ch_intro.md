@@ -28,17 +28,17 @@ It works, until it doesn't, and it fails three ways at once:
 2. **It stops at the first error.** The client fixes the email, resubmits, and only then learns the date was bad too. One round trip per defect.
 3. **Its errors have no address.** `IllegalArgumentException: bad email` says nothing a client can map onto a form field, so a handler somewhere turns it into a vague 400.
 
-The usual patch is a pipeline: bind with Jackson, validate with Bean Validation annotations, translate with a mapper, and catch what leaks in a `@ControllerAdvice`. Four tools, the format rules written twice, and the domain type still constructed from data that was checked *somewhere else*.
+The usual patch is a pipeline: bind with Jackson, annotate the DTO with Bean Validation, translate with a mapper, and catch what leaks in a `@ControllerAdvice`. And, to be fair to that stack, `@Valid` *does* accumulate errors, and they *do* carry field names. What it cannot do is produce `User`. The annotations guard the DTO; the domain constructor still runs on data that was checked *somewhere else*; the format rule lives in a third place neither record enforces; and the mapper in the middle can still throw. Parsing and validating stay separate steps, and the type system never learns that either happened.
 
-This chapter replaces that pipeline with one step, derived at compile time from an interface you own:
+This chapter replaces that pipeline with one step, derived at compile time from an interface you own. Where a field needs converting or checking, the spec declares a **leaf**: the conversion at that one field, as a [`ValidatedPrism`](../optics/validated_prism.md):
 
 ``` java
-{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/mapping/RecordMappingBook.java:basics_spec}}
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/mapping/RecordMappingBook.java:leaf_spec}}
 
-{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/mapping/RecordMappingBook.java:basics_usage}}
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/mapping/RecordMappingBook.java:leaf_usage}}
 ```
 
-Outbound, `build` is a total function: it cannot fail. Inbound, `parse` is a *parser* in Alexis King's sense: it returns your typed domain value, or `Validated<NonEmptyList<FieldError>, Domain>` carrying **every** bad field at once, each located by a dotted path (`customer.email: not a valid email address`). Nothing drifts, because the processor re-derives the mapping from the records on every compile and rejects what it cannot honour. And in a Spring controller the parse result is already a response: one 422 listing every defect, [the 422 leg](../spring/spring_boot_integration.md#the-422-leg).
+Outbound, `build` is a total function: it cannot fail. Inbound, `parse` is a *parser* in Alexis King's sense: it returns your typed domain value, or `Validated<NonEmptyList<FieldError>, Domain>` carrying **every** bad field at once, each located by a dotted path. Nothing drifts, because the processor re-derives the mapping from the records on every compile and rejects what it cannot honour. And in a Spring controller the parse result is already a response: one 422 listing every defect, travelling [the 422 leg](../spring/spring_boot_integration.md#the-422-leg) (a *leg* is the route a returned value travels to become an HTTP response, in the railway sense).
 
 ---
 
@@ -56,18 +56,17 @@ The generated surface follows the shape of the pair. That decision is the map of
   and type                   codecs, nested specs         the domain
         │                           │                           │
         ▼                           ▼                 ┌─────────┴─────────┐
-  build + guarded parse      build + accumulating     ▼                   ▼
-  + asIso()                  parse                all identity        any leaf
-  (lossless round trip)      (no asIso: the       asLens():          validated
-                             round trip can       lawful             patch(d, w):
-                             reject)              write-back         write-back
-                                                                     that can fail
+  reversible both ways       one-way render, plus     ▼                   ▼
+  (build, a guarded          an accumulating      all identity:      any converting
+  parse, a lawful asIso)     parse back           a lawful           field: a
+                             (the round trip      write-back         write-back that
+                             can reject)          lens (asLens)      can fail (patch)
 
   ...and a PATCH request bean, where null means "leave unchanged"?
                     extend UpdateSpec ──▶ updateFrom only
 ```
 
-Nothing here is fabricated: a mapping only offers the operations its field correspondences can lawfully support, and every tier is verified against a published law harness, in the library's build and in yours. [The Emission Tiers](tiers.md) is the full story.
+Nothing here is fabricated: a mapping only offers the operations its field correspondences can lawfully support. [The Emission Tiers](tiers.md) names each of these surfaces and the laws it obeys, verified in the library's own build and repeatable in yours with one test call.
 
 ~~~admonish note title="If you know MapStruct"
 This is not a MapStruct competitor on breadth, and does not try to be: MapStruct keeps its ground for mutable JPA entities, nested-path flattening, and Bean-Validation-centric shops. What this generator does differently is **boundary correctness for record domains**: the inbound direction is a validating parser with located, accumulated errors (where MapStruct throws on the first bad conversion, or silently maps an invalid value), the outbound direction is provably total, and no operation is generated whose laws the pair cannot satisfy. Adopt it where the boundary is the product; keep MapStruct where its breadth pays.
@@ -90,6 +89,8 @@ This is not a MapStruct competitor on breadth, and does not try to be: MapStruct
 ~~~admonish info title="Hands-On Learning"
 Practise the whole lane in the [Boundary Mapping Journey](../tutorials/optics/boundary_mapping_journey.md) (3 tutorials, 13 exercises, ~35 minutes): hand-written multi-edits, the `ValidatedPrism` leaf, and the generated boundary of Tutorial 26.
 ~~~
+
+---
 
 ## Chapter Contents
 
