@@ -16,6 +16,13 @@ import org.junit.jupiter.api.Test;
 @DisplayName("HKJCheckerPlugin")
 class HKJCheckerPluginTest {
 
+  /** Compiles the given sources with the checker enabled at its default severities. */
+  private static Compilation compile(JavaFileObject... sources) {
+    return javac()
+        .withOptions("-Xplugin:HKJChecker", "--enable-preview", "--release", "25")
+        .compile(sources);
+  }
+
   /**
    * Counts diagnostics whose message contains {@code fragment}. The fixture statement trips two
    * checks at once — {@code path-type-mismatch} and {@code discarded-effect} — so counting one of
@@ -91,12 +98,6 @@ class HKJCheckerPluginTest {
           }
           """
               .formatted(imports, annotation));
-    }
-
-    private Compilation compile(JavaFileObject... sources) {
-      return javac()
-          .withOptions("-Xplugin:HKJChecker", "--enable-preview", "--release", "25")
-          .compile(sources);
     }
 
     @Test
@@ -214,12 +215,6 @@ class HKJCheckerPluginTest {
               .formatted(onClass, onMethod));
     }
 
-    private Compilation compile(JavaFileObject source) {
-      return javac()
-          .withOptions("-Xplugin:HKJChecker", "--enable-preview", "--release", "25")
-          .compile(source);
-    }
-
     private static final String MISMATCH = "Path type mismatch in via()";
     private static final String DISCARDED = "built but never used";
 
@@ -294,10 +289,7 @@ class HKJCheckerPluginTest {
                   }
               }
               """);
-      Compilation compilation =
-          javac()
-              .withOptions("-Xplugin:HKJChecker", "--enable-preview", "--release", "25")
-              .compile(suppressed, plain);
+      Compilation compilation = compile(suppressed, plain);
 
       // Exactly one file is suppressed; the scanner is reused across both.
       Assertions.assertThat(diagnosticsMatching(compilation, MISMATCH)).isOne();
