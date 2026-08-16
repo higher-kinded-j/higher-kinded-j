@@ -37,8 +37,15 @@ import org.jspecify.annotations.NullMarked;
  * composition. These casts are safe because the runtime dispatch (Left/Right nesting) is identical.
  *
  * <p>All other code (PaymentService, interpreters, tests) is fully type-safe with no raw types.
+ *
+ * <p>{@code @ComposeEffects} generates a {@code PaymentEffectsSupport} for the same composition,
+ * and the {@code migration-nudge} check points at it. This class stays hand-written because that
+ * generated form is weaker here: its {@code Inject} and {@code Functor} factories are raw, its
+ * {@code BoundSet} components are {@code Object}, and it has no {@code interpret}. Prefer the
+ * generated Support once it carries the composed types.
  */
 @NullMarked
+@SuppressWarnings("migration-nudge") // hand-wired for the parameterised Inject types
 public final class PaymentEffectsWiring {
 
   private PaymentEffectsWiring() {}
