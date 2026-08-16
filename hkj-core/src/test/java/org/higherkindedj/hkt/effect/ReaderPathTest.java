@@ -20,7 +20,6 @@ import org.junit.jupiter.api.Test;
  * and conversions. ReaderPath represents computations that read from an environment.
  */
 @DisplayName("ReaderPath<R, A> Complete Test Suite")
-@SuppressWarnings("path-type-mismatch") // the mismatch is the behaviour under test
 class ReaderPathTest {
 
   private static final String TEST_VALUE = "test";
@@ -193,6 +192,7 @@ class ReaderPathTest {
 
     @Test
     @DisplayName("via() validates result is ReaderPath")
+    @SuppressWarnings("path-type-mismatch") // the mismatch is the behaviour under test
     void viaValidatesResultType() {
       ReaderPath<Config, String> path = Path.readerPure(TEST_VALUE);
 
@@ -226,6 +226,7 @@ class ReaderPathTest {
 
     @Test
     @DisplayName("then() throws for incompatible path type")
+    @SuppressWarnings("path-type-mismatch") // the mismatch is the behaviour under test
     void thenThrowsForIncompatibleType() {
       ReaderPath<Config, String> path = Path.asks(Config::host);
 
@@ -268,6 +269,7 @@ class ReaderPathTest {
 
     @Test
     @DisplayName("zipWith() throws when given non-ReaderPath")
+    @SuppressWarnings("path-type-mismatch") // the mismatch is the behaviour under test
     void zipWithThrowsWhenGivenNonReaderPath() {
       ReaderPath<Config, String> path = Path.asks(Config::host);
       IdPath<Integer> idPath = Path.id(42);

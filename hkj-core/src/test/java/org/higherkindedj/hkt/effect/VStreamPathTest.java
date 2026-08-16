@@ -34,7 +34,6 @@ import org.junit.jupiter.api.Test;
  * operations, terminal operations, focus bridge, conversions, and null validation.
  */
 @DisplayName("VStreamPath<A> Complete Test Suite")
-@SuppressWarnings("path-type-mismatch") // the mismatch is the behaviour under test
 class VStreamPathTest {
 
   private static final String TEST_VALUE = "test";
@@ -298,6 +297,7 @@ class VStreamPathTest {
 
     @Test
     @DisplayName("via() rejects non-VStreamPath return")
+    @SuppressWarnings("path-type-mismatch") // the mismatch is the behaviour under test
     void viaRejectsNonVStreamPath() {
       VStreamPath<Integer> path = Path.vstreamPure(1);
 
@@ -380,6 +380,7 @@ class VStreamPathTest {
 
     @Test
     @DisplayName("zipWith() rejects non-VStreamPath other")
+    @SuppressWarnings("path-type-mismatch") // the mismatch is the behaviour under test
     void zipWithRejectsNonVStreamPath() {
       VStreamPath<Integer> path = Path.vstreamPure(1);
       StreamPath<Integer> other = StreamPath.pure(2);

@@ -25,7 +25,6 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
 @DisplayName("ErrorOp Test Suite")
-@SuppressWarnings("migration-nudge") // exercises the Free/Inject primitives directly
 class ErrorOpTest {
 
   @Nested
@@ -170,6 +169,7 @@ class ErrorOpTest {
 
     @Test
     @DisplayName("boundTo creates Bound instance")
+    @SuppressWarnings("migration-nudge") // exercises the Free/Inject primitives directly
     void boundToCreatesBound() {
       Inject<
               ErrorOpKind.Witness<String>,
@@ -186,6 +186,7 @@ class ErrorOpTest {
 
     @Test
     @DisplayName("Bound.raise translates error into combined effect type")
+    @SuppressWarnings("migration-nudge") // exercises the Free/Inject primitives directly
     void boundRaiseTranslates() {
       Inject<
               ErrorOpKind.Witness<String>,

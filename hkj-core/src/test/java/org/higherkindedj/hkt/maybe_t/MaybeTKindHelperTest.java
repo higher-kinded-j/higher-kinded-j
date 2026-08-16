@@ -22,7 +22,6 @@ import org.junit.jupiter.api.Test;
 
 @DisplayName("MaybeTKindHelper Tests")
 //  [F=OptionalKind.Witness]
-@SuppressWarnings("raw-kind") // a raw Kind is the input under test
 class MaybeTKindHelperTest {
 
   private static final String TYPE_NAME = "MaybeT";
@@ -122,6 +121,7 @@ class MaybeTKindHelperTest {
 
     @Test
     @DisplayName("narrow should throw KindUnwrapException when given incorrect Kind type")
+    @SuppressWarnings("raw-kind") // a raw Kind is the input under test
     void narrow_incorrectKindType_shouldThrowKindUnwrapException() {
       OtherKind<Integer> incorrectKind = new OtherKind<>();
 

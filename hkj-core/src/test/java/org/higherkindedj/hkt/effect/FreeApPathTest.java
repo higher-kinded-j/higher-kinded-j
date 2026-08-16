@@ -29,7 +29,6 @@ import org.junit.jupiter.api.Test;
  * via foldMap and foldMapKind, and object methods.
  */
 @DisplayName("FreeApPath<F, A> Complete Test Suite")
-@SuppressWarnings("path-type-mismatch") // the mismatch is the behaviour under test
 class FreeApPathTest {
 
   private static final Monad<MaybeKind.Witness> MAYBE_MONAD = Instances.monadError(maybe());
@@ -332,6 +331,7 @@ class FreeApPathTest {
 
     @Test
     @DisplayName("zipWith() throws when given non-FreeApPath")
+    @SuppressWarnings("path-type-mismatch") // the mismatch is the behaviour under test
     void zipWithThrowsWhenGivenNonFreeApPath() {
       FreeApPath<MaybeKind.Witness, Integer> path =
           FreeApPath.pure(42, Instances.monadError(maybe()));

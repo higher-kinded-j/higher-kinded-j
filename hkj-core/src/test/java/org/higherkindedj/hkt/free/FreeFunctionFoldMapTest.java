@@ -30,7 +30,6 @@ import org.junit.jupiter.api.Test;
  * FreeHandleErrorTest and FreeApTest.
  */
 @DisplayName("Free function-based foldMap: HandleError and Ap coverage")
-@SuppressWarnings("migration-nudge") // exercises the Free/Inject primitives directly
 class FreeFunctionFoldMapTest {
 
   private final IdentityMonad identityMonad = IdentityMonad.INSTANCE;
@@ -59,6 +58,7 @@ class FreeFunctionFoldMapTest {
 
     @Test
     @DisplayName("HandleError recovers via function-based foldMap with MonadError")
+    @SuppressWarnings("migration-nudge") // exercises the Free/Inject primitives directly
     void handleErrorRecoversViaFunction() {
       Function<Kind<IdentityKind.Witness, ?>, Kind<TryKind.Witness, ?>> failingTransform =
           _ -> tryMonad.raiseError(new RuntimeException("boom"));
@@ -76,6 +76,7 @@ class FreeFunctionFoldMapTest {
 
     @Test
     @DisplayName("HandleError re-raises on type mismatch via function foldMap")
+    @SuppressWarnings("migration-nudge") // exercises the Free/Inject primitives directly
     void handleErrorReRaisesViaFunction() {
       Function<Kind<IdentityKind.Witness, ?>, Kind<TryKind.Witness, ?>> failingTransform =
           _ -> tryMonad.raiseError(new RuntimeException("boom"));
@@ -117,6 +118,7 @@ class FreeFunctionFoldMapTest {
 
     @Test
     @DisplayName("Translated HandleError handler executes correctly during foldMap")
+    @SuppressWarnings("migration-nudge") // exercises the Free/Inject primitives directly
     void translatedHandlerExecutesDuringFoldMap() {
       // Build program with HandleError
       Free<IdentityKind.Witness, String> program =

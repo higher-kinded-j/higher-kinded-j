@@ -36,7 +36,6 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
 @DisplayName("StateOp Test Suite")
-@SuppressWarnings("migration-nudge") // exercises the Free/Inject primitives directly
 class StateOpTest {
 
   // === Test fixtures ===
@@ -537,6 +536,7 @@ class StateOpTest {
   @DisplayName("StateOps.Bound")
   class BoundTests {
 
+    @SuppressWarnings("migration-nudge") // exercises the Free/Inject primitives directly
     private static final Inject<
             StateOpKind.Witness<Person>,
             EitherFKind.Witness<StateOpKind.Witness<Person>, IdentityKind.Witness>>

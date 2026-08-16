@@ -21,7 +21,6 @@ import org.junit.jupiter.api.Test;
  * conversions.
  */
 @DisplayName("WriterPath<W, A> Complete Test Suite")
-@SuppressWarnings("path-type-mismatch") // the mismatch is the behaviour under test
 class WriterPathTest {
 
   private static final String TEST_VALUE = "test";
@@ -264,6 +263,7 @@ class WriterPathTest {
 
     @Test
     @DisplayName("via() validates result is WriterPath")
+    @SuppressWarnings("path-type-mismatch") // the mismatch is the behaviour under test
     void viaValidatesResultType() {
       WriterPath<String, String> path = WriterPath.pure(TEST_VALUE, STRING_MONOID);
 
@@ -306,6 +306,7 @@ class WriterPathTest {
 
     @Test
     @DisplayName("then() throws for incompatible path type")
+    @SuppressWarnings("path-type-mismatch") // the mismatch is the behaviour under test
     void thenThrowsForIncompatibleType() {
       WriterPath<String, String> path = WriterPath.pure(TEST_VALUE, STRING_MONOID);
 
@@ -349,6 +350,7 @@ class WriterPathTest {
 
     @Test
     @DisplayName("zipWith() throws when given non-WriterPath")
+    @SuppressWarnings("path-type-mismatch") // the mismatch is the behaviour under test
     void zipWithThrowsWhenGivenNonWriterPath() {
       WriterPath<String, String> path = WriterPath.pure(TEST_VALUE, STRING_MONOID);
       IdPath<Integer> idPath = Path.id(42);

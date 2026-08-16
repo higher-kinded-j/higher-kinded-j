@@ -33,7 +33,6 @@ import org.junit.jupiter.api.Test;
  * handling, timeout, and object methods.
  */
 @DisplayName("VTaskPath<A> Complete Test Suite")
-@SuppressWarnings("path-type-mismatch") // the mismatch is the behaviour under test
 class VTaskPathTest {
 
   private static final String TEST_VALUE = "test";
@@ -365,6 +364,7 @@ class VTaskPathTest {
 
     @Test
     @DisplayName("via() validates result is VTaskPath")
+    @SuppressWarnings("path-type-mismatch") // the mismatch is the behaviour under test
     void viaValidatesResultType() {
       VTaskPath<String> path = Path.vtaskPure(TEST_VALUE);
 
@@ -532,6 +532,7 @@ class VTaskPathTest {
 
     @Test
     @DisplayName("zipWith() throws when given non-VTaskPath")
+    @SuppressWarnings("path-type-mismatch") // the mismatch is the behaviour under test
     void zipWithThrowsWhenGivenNonVTaskPath() {
       VTaskPath<String> path = Path.vtaskPure(TEST_VALUE);
       MaybePath<Integer> maybePath = Path.just(TEST_INT);
@@ -976,6 +977,7 @@ class VTaskPathTest {
 
     @Test
     @DisplayName("via() throws IllegalArgumentException for non-VTaskPath result")
+    @SuppressWarnings("path-type-mismatch") // the mismatch is the behaviour under test
     void viaThrowsForNonVTaskPathResult() {
       VTaskPath<String> path = Path.vtaskPure("hello");
 
@@ -1001,6 +1003,7 @@ class VTaskPathTest {
 
     @Test
     @DisplayName("then() throws IllegalArgumentException for non-VTaskPath result")
+    @SuppressWarnings("path-type-mismatch") // the mismatch is the behaviour under test
     void thenThrowsForNonVTaskPathResult() {
       VTaskPath<String> path = Path.vtaskPure("hello");
 

@@ -18,7 +18,6 @@ import org.junit.jupiter.api.Test;
  * methods, and object methods.
  */
 @DisplayName("TryPath<A> Complete Test Suite")
-@SuppressWarnings("path-type-mismatch") // the mismatch is the behaviour under test
 class TryPathTest {
 
   private static final String TEST_VALUE = "test";
@@ -371,6 +370,7 @@ class TryPathTest {
 
     @Test
     @DisplayName("via() returns failure when mapper returns wrong type")
+    @SuppressWarnings("path-type-mismatch") // the mismatch is the behaviour under test
     void viaReturnsFailureWhenMapperReturnsWrongType() {
       TryPath<String> path = Path.success(TEST_VALUE);
 
@@ -428,6 +428,7 @@ class TryPathTest {
 
     @Test
     @DisplayName("then() throws when supplier returns wrong type")
+    @SuppressWarnings("path-type-mismatch") // the mismatch is the behaviour under test
     void thenThrowsWhenSupplierReturnsWrongType() {
       TryPath<String> path = Path.success(TEST_VALUE);
 
@@ -529,6 +530,7 @@ class TryPathTest {
 
     @Test
     @DisplayName("zipWith() throws when given non-TryPath")
+    @SuppressWarnings("path-type-mismatch") // the mismatch is the behaviour under test
     void zipWithThrowsWhenGivenNonTryPath() {
       TryPath<String> path = Path.success(TEST_VALUE);
       MaybePath<Integer> maybePath = Path.just(TEST_INT);
@@ -681,7 +683,10 @@ class TryPathTest {
 
     @Test
     @DisplayName("recoverWith() throws when recovery returns wrong type")
-    @SuppressWarnings("unchecked")
+    @SuppressWarnings({
+      "path-type-mismatch",
+      "unchecked"
+    }) // the mismatch is the behaviour under test
     void recoverWithThrowsWhenRecoveryReturnsWrongType() {
       TryPath<String> path = Path.failure(TEST_EXCEPTION);
 
@@ -697,7 +702,10 @@ class TryPathTest {
 
     @Test
     @DisplayName("orElse() throws when alternative returns wrong type")
-    @SuppressWarnings("unchecked")
+    @SuppressWarnings({
+      "path-type-mismatch",
+      "unchecked"
+    }) // the mismatch is the behaviour under test
     void orElseThrowsWhenAlternativeReturnsWrongType() {
       TryPath<String> path = Path.failure(TEST_EXCEPTION);
 

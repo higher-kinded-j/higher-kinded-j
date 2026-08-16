@@ -40,7 +40,6 @@ import org.junit.jupiter.params.provider.MethodSource;
  * {@link FunctorLaws}/{@link ApplicativeLaws}/{@link MonadLaws} over {@link FreeLawFixtures}.
  */
 @DisplayName("FreeMonad Tests")
-@SuppressWarnings("migration-nudge") // exercises the Free/Inject primitives directly
 class FreeMonadTest extends FreeTestBase {
 
   private FreeMonad<IdentityKind.Witness> monad;
@@ -250,6 +249,7 @@ class FreeMonadTest extends FreeTestBase {
 
     @Test
     @DisplayName("liftF creates a suspended computation")
+    @SuppressWarnings("migration-nudge") // exercises the Free/Inject primitives directly
     void liftFCreatesSuspendedComputation() {
       Free<IdentityKind.Witness, Integer> free =
           Free.liftF(IdentityKindHelper.IDENTITY.widen(new Identity<>(42)), IdentityMonad.INSTANCE);
@@ -312,6 +312,7 @@ class FreeMonadTest extends FreeTestBase {
 
     @Test
     @DisplayName("suspend creates a Suspend structure")
+    @SuppressWarnings("migration-nudge") // exercises the Free/Inject primitives directly
     void suspendCreatesSuspendStructure() {
       Kind<IdentityKind.Witness, Free<IdentityKind.Witness, Integer>> wrapped =
           IdentityKindHelper.IDENTITY.widen(new Identity<>(Free.pure(100)));
@@ -347,6 +348,7 @@ class FreeMonadTest extends FreeTestBase {
 
     @Test
     @DisplayName("Nested Suspend and FlatMapped combinations")
+    @SuppressWarnings("migration-nudge") // exercises the Free/Inject primitives directly
     void nestedSuspendAndFlatMapped() {
       // Create a Suspend containing a FlatMapped Free
       Kind<IdentityKind.Witness, Free<IdentityKind.Witness, Integer>> wrapped =
@@ -373,6 +375,7 @@ class FreeMonadTest extends FreeTestBase {
     @Test
     @DisplayName(
         "deeply nested Suspend chains should not StackOverflow when interpreted into Identity")
+    @SuppressWarnings("migration-nudge") // exercises the Free/Inject primitives directly
     void deepSuspendChainsShouldNotOverflow() {
       // Build a deep chain of Suspend nodes: suspend(identity(suspend(identity(...pure(0)))))
       Free<IdentityKind.Witness, Integer> program = Free.pure(0);
@@ -439,6 +442,7 @@ class FreeMonadTest extends FreeTestBase {
 
     @Test
     @DisplayName("interpretFree lazy branch: Suspend via IO monad (Function-based)")
+    @SuppressWarnings("migration-nudge") // exercises the Free/Inject primitives directly
     void interpretFreeLazyBranchWithSuspend() {
       // Suspend wraps a value in Identity, which the transform converts to IO
       Kind<IdentityKind.Witness, Free<IdentityKind.Witness, Integer>> suspended =
@@ -451,6 +455,7 @@ class FreeMonadTest extends FreeTestBase {
 
     @Test
     @DisplayName("interpretFreeNatural lazy branch: Suspend via IO monad (Natural-based)")
+    @SuppressWarnings("migration-nudge") // exercises the Free/Inject primitives directly
     void interpretFreeNaturalLazyBranchWithSuspend() {
       Kind<IdentityKind.Witness, Free<IdentityKind.Witness, Integer>> suspended =
           IDENTITY.widen(new Identity<>(Free.pure(42)));
@@ -462,6 +467,7 @@ class FreeMonadTest extends FreeTestBase {
 
     @Test
     @DisplayName("interpretFree lazy branch: FlatMapped with Suspend via IO monad")
+    @SuppressWarnings("migration-nudge") // exercises the Free/Inject primitives directly
     void interpretFreeLazyBranchWithFlatMappedSuspend() {
       Kind<IdentityKind.Witness, Free<IdentityKind.Witness, Integer>> suspended =
           IDENTITY.widen(new Identity<>(Free.pure(10)));
@@ -474,6 +480,7 @@ class FreeMonadTest extends FreeTestBase {
 
     @Test
     @DisplayName("interpretFreeNatural lazy branch: FlatMapped with Suspend via IO monad")
+    @SuppressWarnings("migration-nudge") // exercises the Free/Inject primitives directly
     void interpretFreeNaturalLazyBranchWithFlatMappedSuspend() {
       Kind<IdentityKind.Witness, Free<IdentityKind.Witness, Integer>> suspended =
           IDENTITY.widen(new Identity<>(Free.pure(10)));

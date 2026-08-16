@@ -25,7 +25,6 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
 @DisplayName("EitherOrBothPath<L, A> Complete Test Suite")
-@SuppressWarnings("path-type-mismatch") // the mismatch is the behaviour under test
 class EitherOrBothPathTest {
 
   private static final Semigroup<String> CONCAT = Semigroups.string();
@@ -229,6 +228,7 @@ class EitherOrBothPathTest {
     }
 
     @Test
+    @SuppressWarnings("path-type-mismatch") // the mismatch is the behaviour under test
     void viaRejectsNonEitherOrBothPathResult() {
       assertThatThrownBy(() -> right().via(a -> Path.just(a)))
           .isInstanceOf(IllegalArgumentException.class)
@@ -266,6 +266,7 @@ class EitherOrBothPathTest {
     }
 
     @Test
+    @SuppressWarnings("path-type-mismatch") // the mismatch is the behaviour under test
     void zipWithRejectsNonEitherOrBothPath() {
       assertThatThrownBy(() -> right().zipWith(Path.just(1), Integer::sum))
           .isInstanceOf(IllegalArgumentException.class)
@@ -384,6 +385,7 @@ class EitherOrBothPathTest {
     }
 
     @Test
+    @SuppressWarnings("path-type-mismatch") // the mismatch is the behaviour under test
     void recoverWithRejectsNonEitherOrBothPath() {
       assertThatThrownBy(
               () -> left().recoverWith(l -> Path.<String, Integer>either(Either.right(0))))

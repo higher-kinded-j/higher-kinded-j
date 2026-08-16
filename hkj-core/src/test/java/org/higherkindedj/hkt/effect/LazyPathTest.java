@@ -19,7 +19,6 @@ import org.junit.jupiter.api.Test;
  * operations, and conversions.
  */
 @DisplayName("LazyPath<A> Complete Test Suite")
-@SuppressWarnings("path-type-mismatch") // the mismatch is the behaviour under test
 class LazyPathTest {
 
   private static final String TEST_VALUE = "test";
@@ -317,6 +316,7 @@ class LazyPathTest {
 
     @Test
     @DisplayName("via() validates result is LazyPath")
+    @SuppressWarnings("path-type-mismatch") // the mismatch is the behaviour under test
     void viaValidatesResultType() {
       LazyPath<String> path = Path.lazyNow(TEST_VALUE);
 
@@ -359,6 +359,7 @@ class LazyPathTest {
 
     @Test
     @DisplayName("then() throws for incompatible path type")
+    @SuppressWarnings("path-type-mismatch") // the mismatch is the behaviour under test
     void thenThrowsForIncompatibleType() {
       LazyPath<String> path = Path.lazyNow(TEST_VALUE);
 
@@ -415,6 +416,7 @@ class LazyPathTest {
 
     @Test
     @DisplayName("zipWith() throws when given non-LazyPath")
+    @SuppressWarnings("path-type-mismatch") // the mismatch is the behaviour under test
     void zipWithThrowsWhenGivenNonLazyPath() {
       LazyPath<String> path = Path.lazyNow(TEST_VALUE);
       IdPath<Integer> idPath = Path.id(42);

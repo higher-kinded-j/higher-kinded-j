@@ -103,14 +103,19 @@ public final class DiagnosticMessages {
   }
 
   /**
-   * Formats the diagnostic for a lazy effect built then discarded as a bare statement.
+   * Formats the diagnostic for a deferred effect built then discarded as a bare statement.
    *
-   * <p>Effects ({@code Path}/{@code IO}/{@code Free} and the rest of the {@code Chainable}
-   * hierarchy) are deferred values: composing one and not assigning, returning, or running it does
-   * nothing at all. There is no javac error here — the code type-checks — so without this check the
-   * no-op is entirely silent.
+   * <p>A {@code Deferred} path ({@code IOPath}, {@code VTaskPath}, {@code LazyPath}, {@code
+   * FreePath} and the rest of that capability's permits clause) describes a computation that has
+   * not run: composing one and not assigning, returning, or running it does nothing at all. There
+   * is no javac error here — the code type-checks — so without this check the no-op is entirely
+   * silent.
    *
-   * @param typeName the discarded effect's simple type name (e.g. "EitherPath")
+   * <p>Eager paths are outside the rule. {@code MaybePath} and friends hold a value that already
+   * exists, so discarding one drops a result rather than skipping work, and this wording would not
+   * describe what happened.
+   *
+   * @param typeName the discarded effect's simple type name (e.g. "IOPath")
    * @return a formatted error message
    */
   public static String discardedEffect(String typeName) {

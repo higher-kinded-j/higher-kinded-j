@@ -31,7 +31,6 @@ import org.junit.jupiter.api.Test;
  * <p>Uses a minimal in-test DSL to avoid depending on external modules.
  */
 @DisplayName("EffectBoundary Tests")
-@SuppressWarnings("migration-nudge") // exercises the Free/Inject primitives directly
 class EffectBoundaryTest {
 
   // ===== Minimal test DSL =====
@@ -76,11 +75,13 @@ class EffectBoundaryTest {
       };
 
   /** Smart constructor: lift a Store operation into Free. */
+  @SuppressWarnings("migration-nudge") // exercises the Free/Inject primitives directly
   static Free<TestOpKind.Witness, String> store(String value) {
     return Free.liftF(widen(new TestOp.Store<>(value, Function.identity())), TEST_FUNCTOR);
   }
 
   /** Smart constructor: lift a Fail operation into Free. */
+  @SuppressWarnings("migration-nudge") // exercises the Free/Inject primitives directly
   static <A> Free<TestOpKind.Witness, A> fail(String message) {
     return Free.liftF(widen(new TestOp.Fail<A>(message)), TEST_FUNCTOR);
   }

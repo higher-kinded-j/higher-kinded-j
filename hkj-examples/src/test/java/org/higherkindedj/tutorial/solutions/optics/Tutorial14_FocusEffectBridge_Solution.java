@@ -39,7 +39,6 @@ import org.junit.jupiter.api.Test;
  * href="../../../../../../../../../hkj-book/src/tutorials/solutions_guide.md">Solutions Guide</a>
  * in the book.
  */
-@SuppressWarnings("error-type-mismatch") // the erased error type is the behaviour under test
 public class Tutorial14_FocusEffectBridge_Solution {
 
   // Test Data
@@ -108,6 +107,7 @@ public class Tutorial14_FocusEffectBridge_Solution {
    * AffinePath.toEitherPath(error)} when failure must be encoded.
    */
   @Test
+  @SuppressWarnings("error-type-mismatch") // the erased error type is the behaviour under test
   void exercise2_focusPathToEitherPath() {
     FocusPath<Company, Address> addressPath = FocusPath.of(companyAddressLens);
     Company company = new Company("TechCorp", new Address("123 Main St", "London"), List.of());

@@ -26,7 +26,7 @@ import org.junit.jupiter.api.Test;
 
 @DisplayName("StateTKindHelper Tests ")
 // (F=OptionalKind.Witness)
-@SuppressWarnings({"removal", "raw-kind"}) // deprecated-for-removal accessors; raw Kind inputs
+@SuppressWarnings("removal") // exercises deprecated-for-removal accessors
 class StateTKindHelperTest {
 
   private static final String TYPE_NAME = "StateT";
@@ -112,6 +112,7 @@ class StateTKindHelperTest {
 
     @Test
     @DisplayName("narrow should throw KindUnwrapException when given incorrect Kind type")
+    @SuppressWarnings("raw-kind") // a raw Kind is the input under test
     void narrow_incorrectKindType_shouldThrowKindUnwrapException() {
       OtherKind<String, OptionalKind.Witness, Integer> incorrectKind = new OtherKind<>();
 

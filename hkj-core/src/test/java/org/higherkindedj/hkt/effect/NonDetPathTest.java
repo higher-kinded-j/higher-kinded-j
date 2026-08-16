@@ -17,7 +17,6 @@ import org.junit.jupiter.api.Test;
  * operations, and conversions.
  */
 @DisplayName("NonDetPath<A> Complete Test Suite")
-@SuppressWarnings("path-type-mismatch") // the mismatch is the behaviour under test
 class NonDetPathTest {
 
   private static final String TEST_VALUE = "test";
@@ -227,6 +226,7 @@ class NonDetPathTest {
 
     @Test
     @DisplayName("via() validates result is NonDetPath")
+    @SuppressWarnings("path-type-mismatch") // the mismatch is the behaviour under test
     void viaValidatesResultType() {
       NonDetPath<String> path = NonDetPath.pure(TEST_VALUE);
 
@@ -300,6 +300,7 @@ class NonDetPathTest {
 
     @Test
     @DisplayName("zipWith() throws when given non-NonDetPath")
+    @SuppressWarnings("path-type-mismatch") // the mismatch is the behaviour under test
     void zipWithThrowsWhenGivenNonNonDetPath() {
       NonDetPath<String> path = NonDetPath.pure(TEST_VALUE);
       IdPath<Integer> idPath = Path.id(42);

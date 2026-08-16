@@ -24,7 +24,6 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
 @DisplayName("Free.HandleError Test Suite")
-@SuppressWarnings("migration-nudge") // exercises the Free/Inject primitives directly
 class FreeHandleErrorTest {
 
   private final IdentityMonad identityMonad = IdentityMonad.INSTANCE;
@@ -148,6 +147,7 @@ class FreeHandleErrorTest {
 
     @Test
     @DisplayName("HandleError recovers from matching error via MonadError")
+    @SuppressWarnings("migration-nudge") // exercises the Free/Inject primitives directly
     void handleErrorRecoversFromMatchingError() {
       // Build a program that raises an error during interpretation via TryMonad.raiseError
       // We use a Natural that converts the Identity instruction to a Failure
@@ -172,6 +172,7 @@ class FreeHandleErrorTest {
 
     @Test
     @DisplayName("HandleError re-raises when error type does not match")
+    @SuppressWarnings("migration-nudge") // exercises the Free/Inject primitives directly
     void handleErrorReRaisesOnTypeMismatch() {
       Natural<IdentityKind.Witness, TryKind.Witness> failingInterp =
           new Natural<>() {
@@ -194,6 +195,7 @@ class FreeHandleErrorTest {
 
     @Test
     @DisplayName("HandleError matches subclass errors")
+    @SuppressWarnings("migration-nudge") // exercises the Free/Inject primitives directly
     void handleErrorMatchesSubclass() {
       Natural<IdentityKind.Witness, TryKind.Witness> failingInterp =
           new Natural<>() {

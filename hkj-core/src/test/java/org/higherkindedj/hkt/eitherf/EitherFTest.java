@@ -26,7 +26,6 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
 @DisplayName("EitherF Test Suite")
-@SuppressWarnings("migration-nudge") // exercises the Free/Inject primitives directly
 class EitherFTest {
 
   private Kind<IdentityKind.Witness, String> identityOp(String value) {
@@ -263,6 +262,7 @@ class EitherFTest {
 
     @Test
     @DisplayName("End-to-end: two-effect program via Inject, translate, combine, foldMap")
+    @SuppressWarnings("migration-nudge") // exercises the Free/Inject primitives directly
     void endToEndTwoEffectProgram() {
       // Build a program in Identity
       var identityMonad = IdentityMonad.INSTANCE;

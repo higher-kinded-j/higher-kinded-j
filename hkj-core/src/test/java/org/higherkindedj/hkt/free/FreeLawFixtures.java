@@ -29,7 +29,7 @@ import org.junit.jupiter.params.provider.Arguments;
  * interpreter and compares results — deferred ({@code Suspend}/{@code FlatMapped}) fixtures are
  * therefore fine.
  */
-@SuppressWarnings({"unused", "migration-nudge"}) // reflective @MethodSource; builds Free directly
+@SuppressWarnings("unused") // referenced reflectively via @MethodSource
 final class FreeLawFixtures {
 
   private FreeLawFixtures() {}
@@ -53,6 +53,7 @@ final class FreeLawFixtures {
       EQ = (k1, k2) -> Objects.equals(runFree(k1), runFree(k2));
 
   /** {@code Suspend} wrapping {@code pure(7)} in the Identity functor. */
+  @SuppressWarnings("migration-nudge") // exercises the Free/Inject primitives directly
   private static Kind<FreeKind.Witness<IdentityKind.Witness>, Integer> suspend7() {
     Kind<IdentityKind.Witness, Free<IdentityKind.Witness, Integer>> wrapped =
         IDENTITY.widen(new Identity<>(Free.pure(7)));

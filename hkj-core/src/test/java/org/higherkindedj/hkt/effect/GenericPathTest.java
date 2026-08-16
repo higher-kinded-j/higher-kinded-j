@@ -35,7 +35,6 @@ import org.junit.jupiter.api.Test;
  * <p>Uses {@link MaybeMonad} as a concrete Monad implementation for testing.
  */
 @DisplayName("GenericPath")
-@SuppressWarnings("path-type-mismatch") // the mismatch is the behaviour under test
 class GenericPathTest {
 
   private static final MonadError<MaybeKind.Witness, Unit> MONAD = Instances.monadError(maybe());
@@ -423,6 +422,7 @@ class GenericPathTest {
 
     @Test
     @DisplayName("via() throws when mapper returns non-GenericPath")
+    @SuppressWarnings("path-type-mismatch") // the mismatch is the behaviour under test
     void viaThrowsOnNonGenericPath() {
       GenericPath<MaybeKind.Witness, Integer> path = GenericPath.pure(5, MONAD);
 

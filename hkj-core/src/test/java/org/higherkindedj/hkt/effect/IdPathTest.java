@@ -17,7 +17,6 @@ import org.junit.jupiter.api.Test;
  * object methods. IdPath is the simplest path type with no error handling.
  */
 @DisplayName("IdPath<A> Complete Test Suite")
-@SuppressWarnings("path-type-mismatch") // the mismatch is the behaviour under test
 class IdPathTest {
 
   private static final String TEST_VALUE = "test";
@@ -167,6 +166,7 @@ class IdPathTest {
 
     @Test
     @DisplayName("via() validates result is IdPath")
+    @SuppressWarnings("path-type-mismatch") // the mismatch is the behaviour under test
     void viaValidatesResultType() {
       IdPath<String> path = Path.id(TEST_VALUE);
 
@@ -201,6 +201,7 @@ class IdPathTest {
 
     @Test
     @DisplayName("then() throws when supplier returns wrong type")
+    @SuppressWarnings("path-type-mismatch") // the mismatch is the behaviour under test
     void thenThrowsWhenSupplierReturnsWrongType() {
       IdPath<String> path = Path.id(TEST_VALUE);
 
@@ -241,6 +242,7 @@ class IdPathTest {
 
     @Test
     @DisplayName("zipWith() throws when given non-IdPath")
+    @SuppressWarnings("path-type-mismatch") // the mismatch is the behaviour under test
     void zipWithThrowsWhenGivenNonIdPath() {
       IdPath<String> path = Path.id(TEST_VALUE);
       EitherPath<String, Integer> eitherPath = Path.right(TEST_INT);

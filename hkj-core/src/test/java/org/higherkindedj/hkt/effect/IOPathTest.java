@@ -34,7 +34,6 @@ import org.junit.jupiter.api.Test;
  * methods, and object methods.
  */
 @DisplayName("IOPath<A> Complete Test Suite")
-@SuppressWarnings("path-type-mismatch") // the mismatch is the behaviour under test
 class IOPathTest {
 
   private static final String TEST_VALUE = "test";
@@ -276,6 +275,7 @@ class IOPathTest {
 
     @Test
     @DisplayName("via() validates result is IOPath")
+    @SuppressWarnings("path-type-mismatch") // the mismatch is the behaviour under test
     void viaValidatesResultType() {
       IOPath<String> path = Path.ioPure(TEST_VALUE);
 
@@ -342,6 +342,7 @@ class IOPathTest {
 
     @Test
     @DisplayName("then() throws when supplier returns wrong type")
+    @SuppressWarnings("path-type-mismatch") // the mismatch is the behaviour under test
     void thenThrowsWhenSupplierReturnsWrongType() {
       IOPath<String> path = Path.ioPure(TEST_VALUE);
 
@@ -427,6 +428,7 @@ class IOPathTest {
 
     @Test
     @DisplayName("zipWith() throws when given non-IOPath")
+    @SuppressWarnings("path-type-mismatch") // the mismatch is the behaviour under test
     void zipWithThrowsWhenGivenNonIOPath() {
       IOPath<String> path = Path.ioPure(TEST_VALUE);
       MaybePath<Integer> maybePath = Path.just(TEST_INT);

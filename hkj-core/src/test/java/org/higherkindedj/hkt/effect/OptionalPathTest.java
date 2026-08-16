@@ -21,7 +21,6 @@ import org.junit.jupiter.api.Test;
  * object methods. OptionalPath bridges java.util.Optional with the Path API.
  */
 @DisplayName("OptionalPath<A> Complete Test Suite")
-@SuppressWarnings("path-type-mismatch") // the mismatch is the behaviour under test
 class OptionalPathTest {
 
   private static final String TEST_VALUE = "test";
@@ -285,6 +284,7 @@ class OptionalPathTest {
 
     @Test
     @DisplayName("via() validates result is OptionalPath")
+    @SuppressWarnings("path-type-mismatch") // the mismatch is the behaviour under test
     void viaValidatesResultType() {
       OptionalPath<String> path = Path.present(TEST_VALUE);
 
@@ -318,6 +318,7 @@ class OptionalPathTest {
 
     @Test
     @DisplayName("then() validates result is OptionalPath")
+    @SuppressWarnings("path-type-mismatch") // the mismatch is the behaviour under test
     void thenValidatesResultType() {
       OptionalPath<String> path = Path.present(TEST_VALUE);
 
@@ -366,6 +367,7 @@ class OptionalPathTest {
 
     @Test
     @DisplayName("zipWith() throws when given non-OptionalPath")
+    @SuppressWarnings("path-type-mismatch") // the mismatch is the behaviour under test
     void zipWithThrowsWhenGivenNonOptionalPath() {
       OptionalPath<String> path = Path.present(TEST_VALUE);
       EitherPath<String, Integer> eitherPath = Path.right(TEST_INT);
