@@ -262,6 +262,55 @@ class DiscardedEffectCheckerTest {
     }
 
     @Test
+    @DisplayName("a guard wrapping a freshly built effect is still flagged")
+    void guardAroundFreshEffect_flagged() {
+      // The guard forwards its argument, and here the argument is the construction: the
+      // statement really does build an effect and drop it. Looking through the guard rather
+      // than skipping it is what keeps this case visible.
+      Compilation c =
+          compile(
+              "severity=warn",
+              src(
+                  "test.GuardAroundFresh",
+                  """
+                  package test;
+                  import java.util.Objects;
+                  import org.higherkindedj.hkt.effect.Path;
+                  public class GuardAroundFresh {
+                      void m() {
+                          Objects.requireNonNull(Path.io(() -> 1));
+                      }
+                  }
+                  """));
+
+      assertThat(c).succeeded();
+      assertThat(c).hadWarningContaining("IOPath is built but never used");
+    }
+
+    @Test
+    @DisplayName("nested guards unwrap the whole way down")
+    void nestedGuards_flagged() {
+      Compilation c =
+          compile(
+              "severity=warn",
+              src(
+                  "test.NestedGuards",
+                  """
+                  package test;
+                  import java.util.Objects;
+                  import org.higherkindedj.hkt.effect.Path;
+                  public class NestedGuards {
+                      void m() {
+                          Objects.requireNonNull(Objects.requireNonNull(Path.io(() -> 1)));
+                      }
+                  }
+                  """));
+
+      assertThat(c).succeeded();
+      assertThat(c).hadWarningContaining("IOPath is built but never used");
+    }
+
+    @Test
     @DisplayName("a genuine discard beside a guard is still flagged")
     void genuineDiscard_stillFlagged() {
       Compilation c =
