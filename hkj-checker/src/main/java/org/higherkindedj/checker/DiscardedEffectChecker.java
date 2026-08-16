@@ -8,10 +8,14 @@ import com.sun.source.tree.MethodInvocationTree;
 import com.sun.source.tree.NewClassTree;
 import com.sun.source.util.TreePath;
 import com.sun.source.util.Trees;
+import javax.lang.model.element.Element;
+import javax.lang.model.element.ExecutableElement;
 import javax.lang.model.element.TypeElement;
+import javax.lang.model.element.VariableElement;
 import javax.lang.model.type.DeclaredType;
 import javax.lang.model.type.TypeKind;
 import javax.lang.model.type.TypeMirror;
+import javax.lang.model.type.TypeVariable;
 import javax.lang.model.util.Elements;
 import javax.lang.model.util.Types;
 import javax.tools.Diagnostic;
@@ -41,6 +45,11 @@ import javax.tools.Diagnostic;
  *       i++} are expression statements too, but the value is consumed; restricting to
  *       invocation/constructor expressions excludes them. Returned/passed effects are not
  *       statements at all.
+ *   <li><b>Pass-through calls build nothing.</b> A guard such as {@code
+ *       Objects.requireNonNull(path, "…")} hands back the very effect it was given, so its value is
+ *       not a discard: the effect already exists and is used further down. Any method whose return
+ *       type is one of its own type variables, used again among its parameters, is pass-through by
+ *       signature and is skipped.
  * </ul>
  *
  * <p><b>Accepted scope boundary:</b> a local declared and never run ({@code EitherPath<…> x =
@@ -88,6 +97,7 @@ public final class DiscardedEffectChecker implements CheckVisitor {
   public void onExpressionStatement(ExpressionStatementTree node, TreePath path) {
     ExpressionTree expr = node.getExpression();
     if ((expr instanceof MethodInvocationTree || expr instanceof NewClassTree)
+        && !isPassThrough(expr, path)
         && isChainable(expr, path)) {
       trees.printMessage(
           severity,
@@ -95,6 +105,33 @@ public final class DiscardedEffectChecker implements CheckVisitor {
           node,
           path.getCompilationUnit());
     }
+  }
+
+  /**
+   * Reports whether the call returns one of the arguments it was handed, rather than producing a
+   * new value. {@code <T> T requireNonNull(T, String)} is the archetype: the return type is a type
+   * variable of the method that also types a parameter, so the result is necessarily an argument
+   * and the statement discards nothing that the call itself created.
+   */
+  private boolean isPassThrough(ExpressionTree expr, TreePath path) {
+    Element invoked;
+    try {
+      invoked = trees.getElement(new TreePath(path, expr));
+    } catch (RuntimeException e) {
+      return false;
+    }
+    if (!(invoked instanceof ExecutableElement method)
+        || !(method.getReturnType() instanceof TypeVariable returned)) {
+      return false;
+    }
+    Element returnedDeclaration = returned.asElement();
+    for (VariableElement parameter : method.getParameters()) {
+      if (parameter.asType() instanceof TypeVariable given
+          && given.asElement().equals(returnedDeclaration)) {
+        return true;
+      }
+    }
+    return false;
   }
 
   private boolean isChainable(ExpressionTree expr, TreePath path) {
