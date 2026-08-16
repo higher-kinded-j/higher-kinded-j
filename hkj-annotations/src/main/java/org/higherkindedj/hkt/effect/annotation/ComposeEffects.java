@@ -14,8 +14,11 @@ import java.lang.annotation.Target;
  * <p>The annotated record must have 2-4 fields, each declared {@code Class<XOp<?>>} naming an
  * effect algebra annotated with {@link EffectAlgebra @EffectAlgebra}. A field of any other shape is
  * a compile error: the algebra's type is what lets the generated support spell the composed
- * witness, so {@code Class<?>} is not enough. An algebra with more than one type parameter cannot
- * take part, since its witness would itself be generic.
+ * witness, so {@code Class<?>} is not enough. The wildcard is equally required — a class literal
+ * cannot be written for a parameterised type, so the argument names the algebra and fixes nothing,
+ * and {@code Class<XOp<String>>} would read as though the composition were pinned to {@code
+ * String}. An algebra with more than one type parameter cannot take part, since its witness would
+ * itself be generic.
  *
  * <h2>Generated Classes</h2>
  *
