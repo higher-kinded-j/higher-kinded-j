@@ -88,8 +88,8 @@ The `@EffectAlgebra` processor generates:
 
 ## Composing Effects
 
-For programs using multiple effects, `@ComposeEffects` generates composition infrastructure.
-A `PaymentEffectsWiring` class provides inject instances, a composed functor, and a `BoundSet`:
+For programs using multiple effects, `@ComposeEffects` generates composition infrastructure —
+inject instances, a composed functor, and a `BoundSet`:
 
 ```java
 @ComposeEffects
@@ -97,6 +97,19 @@ public record AppEffects(
     Class<ConsoleOp<?>> console,
     Class<DbOp<?>> db) {}
 ```
+
+Each field must be a `Class<XOp<?>>` naming an `@EffectAlgebra`. That is what lets the generated
+`AppEffectsSupport` spell the composed witness, so its factories are typed rather than raw:
+
+```java
+public static Inject<
+        ConsoleOpKind.Witness,
+        EitherFKind.Witness<ConsoleOpKind.Witness, DbOpKind.Witness>>
+    injectConsole() { ... }
+```
+
+The composition fixes the witness, so `BoundSet` takes no type parameter and each of its
+components is that algebra's `Bound` at the composed type.
 
 ## Writing Programs
 

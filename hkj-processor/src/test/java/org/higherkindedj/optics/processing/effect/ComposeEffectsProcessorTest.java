@@ -26,37 +26,75 @@ class ComposeEffectsProcessorTest {
   // Test fixtures
   // ---------------------------------------------------------------------------
 
-  private static JavaFileObject twoEffectComposition() {
+  /**
+   * A minimal {@code @EffectAlgebra}. The composition generator reads each field's {@code
+   * Class<XOp<?>>} to name {@code XOpKind.Witness} and {@code XOpOps}, so the fixtures have to be
+   * real algebras rather than stand-in types.
+   */
+  private static JavaFileObject algebra(String name) {
     return JavaFileObjects.forSourceString(
-        "test.pkg.AppEffects",
+        "test.pkg." + name,
         """
         package test.pkg;
 
-        import org.higherkindedj.hkt.effect.annotation.ComposeEffects;
+        import java.util.function.Function;
+        import org.higherkindedj.hkt.Unit;
+        import org.higherkindedj.hkt.effect.annotation.EffectAlgebra;
 
-        @ComposeEffects
-        public record AppEffects(
-            Integer console,
-            String db
-        ) {}
-        """);
+        @EffectAlgebra
+        public sealed interface %s<A> permits %s.Only {
+            <B> %s<B> mapK(Function<? super A, ? extends B> f);
+
+            record Only<A>(String text, Function<Unit, A> k) implements %s<A> {
+                @Override
+                public <B> %s<B> mapK(Function<? super A, ? extends B> f) {
+                    return new Only<>(text, k.andThen(f));
+                }
+            }
+        }
+        """
+            .formatted(name, name, name, name, name));
   }
 
-  private static JavaFileObject threeEffectComposition() {
+  private static JavaFileObject composition(String recordName, String... fields) {
+    StringBuilder components = new StringBuilder();
+    for (int i = 0; i < fields.length; i++) {
+      if (i > 0) components.append(",\n    ");
+      components.append("Class<").append(algebraFor(fields[i])).append("<?>> ").append(fields[i]);
+    }
     return JavaFileObjects.forSourceString(
-        "test.pkg.TripleEffects",
+        "test.pkg." + recordName,
         """
         package test.pkg;
 
         import org.higherkindedj.hkt.effect.annotation.ComposeEffects;
 
         @ComposeEffects
-        public record TripleEffects(
-            Integer console,
-            String db,
-            Long logging
+        public record %s(
+            %s
         ) {}
-        """);
+        """
+            .formatted(recordName, components));
+  }
+
+  /** Field {@code console} is served by algebra {@code ConsoleOp}. */
+  private static String algebraFor(String field) {
+    return Character.toUpperCase(field.charAt(0)) + field.substring(1) + "Op";
+  }
+
+  private static JavaFileObject[] twoEffectComposition() {
+    return new JavaFileObject[] {
+      algebra("ConsoleOp"), algebra("DbOp"), composition("AppEffects", "console", "db")
+    };
+  }
+
+  private static JavaFileObject[] threeEffectComposition() {
+    return new JavaFileObject[] {
+      algebra("ConsoleOp"),
+      algebra("DbOp"),
+      algebra("LoggingOp"),
+      composition("TripleEffects", "console", "db", "logging")
+    };
   }
 
   @Test
@@ -80,7 +118,9 @@ class ComposeEffectsProcessorTest {
   }
 
   private Compilation compile(JavaFileObject... sources) {
-    return javac().withProcessors(new ComposeEffectsProcessor()).compile(sources);
+    return javac()
+        .withProcessors(new EffectAlgebraProcessor(), new ComposeEffectsProcessor())
+        .compile(sources);
   }
 
   private String getGeneratedSource(Compilation compilation, String className) throws IOException {
@@ -152,30 +192,81 @@ class ComposeEffectsProcessorTest {
       Compilation compilation = compile(twoEffectComposition());
       String source = getGeneratedSource(compilation, "test.pkg.AppEffectsSupport");
 
-      assertThat(source).contains("record BoundSet<F");
-      assertThat(source).contains("Object console");
-      assertThat(source).contains("Object db");
+      assertThat(source).contains("record BoundSet(");
+      assertThat(source).doesNotContain("Object console");
+      assertThat(source)
+          .contains(
+              "ConsoleOpOps.Bound<EitherFKind.Witness<ConsoleOpKind.Witness, DbOpKind.Witness>> console");
+      assertThat(source)
+          .contains(
+              "DbOpOps.Bound<EitherFKind.Witness<ConsoleOpKind.Witness, DbOpKind.Witness>> db");
+    }
+
+    @Test
+    @DisplayName("Inject factories carry the composed witness, not a raw Inject")
+    void injectFactoriesAreTyped() throws IOException {
+      Compilation compilation = compile(twoEffectComposition());
+      String source = getGeneratedSource(compilation, "test.pkg.AppEffectsSupport");
+
+      assertThat(source)
+          .contains(
+              "Inject<ConsoleOpKind.Witness, EitherFKind.Witness<ConsoleOpKind.Witness,"
+                  + " DbOpKind.Witness>> injectConsole(");
+      assertThat(source)
+          .contains(
+              "Inject<DbOpKind.Witness, EitherFKind.Witness<ConsoleOpKind.Witness,"
+                  + " DbOpKind.Witness>> injectDb(");
+    }
+
+    @Test
+    @DisplayName("functor() takes and returns typed Functors")
+    void functorIsTyped() throws IOException {
+      Compilation compilation = compile(twoEffectComposition());
+      String source = getGeneratedSource(compilation, "test.pkg.AppEffectsSupport");
+
+      assertThat(source)
+          .contains("EitherFFunctor<ConsoleOpKind.Witness, DbOpKind.Witness> functor(");
+      assertThat(source).contains("Functor<ConsoleOpKind.Witness> consoleFunctor");
+      assertThat(source).contains("Functor<DbOpKind.Witness> dbFunctor");
+    }
+
+    @Test
+    @DisplayName("The generated support needs no blanket unchecked/rawtypes suppression")
+    void noBlanketSuppression() throws IOException {
+      Compilation compilation = compile(twoEffectComposition());
+      String source = getGeneratedSource(compilation, "test.pkg.AppEffectsSupport");
+
+      // Declaring the composed witness lets InjectInstances infer, so nothing is cast.
+      assertThat(source).doesNotContain("SuppressWarnings");
+    }
+
+    @Test
+    @DisplayName("The last effect descends exactly as far as the nesting is deep")
+    void lastEffectNestingDepth() throws IOException {
+      // injectRight() already consumes the final level, so the last effect takes one fewer
+      // injectRightThen than its position: at arity 2 it is injectRight() alone. Typing the
+      // return is what makes this checkable at all.
+      String two =
+          getGeneratedSource(compile(twoEffectComposition()), "test.pkg.AppEffectsSupport");
+      assertThat(two).contains("return InjectInstances.injectRight();");
+
+      String three =
+          getGeneratedSource(compile(threeEffectComposition()), "test.pkg.TripleEffectsSupport");
+      assertThat(three)
+          .contains("return InjectInstances.injectRightThen(InjectInstances.injectRight());");
     }
 
     @Test
     @DisplayName("Should generate inject methods for 4-effect composition")
     void generatesInjectMethodsFor4Effects() throws IOException {
       var source =
-          JavaFileObjects.forSourceString(
-              "test.pkg.QuadEffects",
-              """
-              package test.pkg;
-
-              import org.higherkindedj.hkt.effect.annotation.ComposeEffects;
-
-              @ComposeEffects
-              public record QuadEffects(
-                  Integer console,
-                  String db,
-                  Long logging,
-                  Double metrics
-              ) {}
-              """);
+          new JavaFileObject[] {
+            algebra("ConsoleOp"),
+            algebra("DbOp"),
+            algebra("LoggingOp"),
+            algebra("MetricsOp"),
+            composition("QuadEffects", "console", "db", "logging", "metrics")
+          };
 
       Compilation compilation = compile(source);
       assertThat(compilation.errors()).isEmpty();
@@ -463,23 +554,69 @@ class ComposeEffectsProcessorTest {
     @DisplayName("Custom targetPackage should be used for Support class")
     void customTargetPackage() throws IOException {
       var source =
+          new JavaFileObject[] {
+            algebra("ConsoleOp"),
+            algebra("DbOp"),
+            JavaFileObjects.forSourceString(
+                "test.pkg.MyEffects",
+                """
+                package test.pkg;
+
+                import org.higherkindedj.hkt.effect.annotation.ComposeEffects;
+
+                @ComposeEffects(targetPackage = "test.gen")
+                public record MyEffects(
+                    Class<ConsoleOp<?>> console,
+                    Class<DbOp<?>> db
+                ) {}
+                """)
+          };
+
+      Compilation compilation = compile(source);
+      assertThat(compilation.errors()).isEmpty();
+      assertThat(compilation.generatedSourceFile("test.gen.MyEffectsSupport")).isPresent();
+    }
+
+    @Test
+    @DisplayName("A field that is not a Class<XOp<?>> should produce error")
+    void nonClassFieldShouldError() {
+      var source =
           JavaFileObjects.forSourceString(
-              "test.pkg.MyEffects",
+              "test.pkg.LooseEffects",
               """
               package test.pkg;
 
               import org.higherkindedj.hkt.effect.annotation.ComposeEffects;
 
-              @ComposeEffects(targetPackage = "test.gen")
-              public record MyEffects(
-                  Integer console,
-                  String db
-              ) {}
+              @ComposeEffects
+              public record LooseEffects(Integer console, String db) {}
               """);
 
       Compilation compilation = compile(source);
-      assertThat(compilation.errors()).isEmpty();
-      assertThat(compilation.generatedSourceFile("test.gen.MyEffectsSupport")).isPresent();
+      CompilationSubject.assertThat(compilation).failed();
+      CompilationSubject.assertThat(compilation)
+          .hadErrorContaining("must be declared Class<XOp<?>>");
+    }
+
+    @Test
+    @DisplayName("A Class field naming a type without @EffectAlgebra should produce error")
+    void nonAlgebraFieldShouldError() {
+      var source =
+          JavaFileObjects.forSourceString(
+              "test.pkg.NotAlgebraEffects",
+              """
+              package test.pkg;
+
+              import org.higherkindedj.hkt.effect.annotation.ComposeEffects;
+
+              @ComposeEffects
+              public record NotAlgebraEffects(Class<String> console, Class<Integer> db) {}
+              """);
+
+      Compilation compilation = compile(source);
+      CompilationSubject.assertThat(compilation).failed();
+      CompilationSubject.assertThat(compilation)
+          .hadErrorContaining("is not annotated @EffectAlgebra");
     }
 
     @Test

@@ -16,10 +16,12 @@ import javax.annotation.processing.RoundEnvironment;
 import javax.annotation.processing.SupportedAnnotationTypes;
 import javax.lang.model.SourceVersion;
 import javax.lang.model.element.*;
+import javax.lang.model.type.DeclaredType;
 import javax.lang.model.type.MirroredTypeException;
 import javax.lang.model.type.TypeMirror;
 import javax.tools.Diagnostic;
 import org.higherkindedj.hkt.effect.annotation.ComposeEffects;
+import org.higherkindedj.hkt.effect.annotation.EffectAlgebra;
 import org.higherkindedj.hkt.effect.annotation.Handles;
 import org.higherkindedj.optics.processing.util.ExcludeFromJacocoGeneratedReport;
 
@@ -73,6 +75,96 @@ public class ComposeEffectsProcessor extends AbstractProcessor {
       ClassName.get("org.jspecify.annotations", "NullMarked");
   private static final ClassName OBJECTS = ClassName.get("java.util", "Objects");
   private static final ClassName FREE = ClassName.get("org.higherkindedj.hkt.free", "Free");
+
+  /**
+   * One composed effect, resolved from a {@code Class<XOp<?>>} record component.
+   *
+   * @param field the record component's name, which names the generated accessor
+   * @param witness the algebra's {@code XKind.Witness}
+   * @param ops the algebra's generated {@code XOps}, whose {@code Bound} types the BoundSet
+   */
+  private record EffectBinding(String field, ClassName witness, ClassName ops) {}
+
+  /**
+   * Resolves each record component to the algebra it names, or null when one does not name an
+   * effect algebra.
+   *
+   * <p>{@code @ComposeEffects} documents each field as {@code Class<XOp<?>>} where {@code XOp}
+   * carries {@code @EffectAlgebra}. Reading that type is what lets the generated support spell the
+   * composed witness instead of falling back to raw {@code Inject} and {@code Functor}, so the
+   * shape is now required rather than assumed.
+   */
+  private List<EffectBinding> resolveBindings(List<? extends RecordComponentElement> components) {
+    List<EffectBinding> bindings = new ArrayList<>();
+    for (RecordComponentElement component : components) {
+      TypeElement algebra = effectAlgebraOf(component);
+      if (algebra == null) {
+        return null;
+      }
+      String algebraName = algebra.getSimpleName().toString();
+      String packageName = effectAlgebraPackage(algebra);
+      bindings.add(
+          new EffectBinding(
+              component.getSimpleName().toString(),
+              ClassName.get(packageName, algebraName + "Kind", "Witness"),
+              ClassName.get(packageName, algebraName + "Ops")));
+    }
+    return bindings;
+  }
+
+  /** The effect algebra a component names, or null (having reported why) when it names none. */
+  private TypeElement effectAlgebraOf(RecordComponentElement component) {
+    String expected =
+        "@ComposeEffects fields must be declared Class<XOp<?>> where XOp is annotated"
+            + " @EffectAlgebra; field '"
+            + component.getSimpleName()
+            + "' is ";
+    if (!(component.asType() instanceof DeclaredType declared)
+        || !((TypeElement) declared.asElement()).getQualifiedName().contentEquals("java.lang.Class")
+        || declared.getTypeArguments().size() != 1) {
+      error(expected + component.asType(), component);
+      return null;
+    }
+    if (!(declared.getTypeArguments().get(0) instanceof DeclaredType algebraType)
+        || !(algebraType.asElement() instanceof TypeElement algebra)) {
+      error(expected + component.asType(), component);
+      return null;
+    }
+    if (algebra.getAnnotation(EffectAlgebra.class) == null) {
+      error(
+          "@ComposeEffects field '"
+              + component.getSimpleName()
+              + "' names "
+              + algebra.getQualifiedName()
+              + ", which is not annotated @EffectAlgebra, so its Kind and Ops are not generated.",
+          component);
+      return null;
+    }
+    return algebra;
+  }
+
+  /** Where {@code @EffectAlgebra} puts the algebra's generated types. */
+  private String effectAlgebraPackage(TypeElement algebra) {
+    String targetPackage = algebra.getAnnotation(EffectAlgebra.class).targetPackage();
+    return targetPackage.isEmpty()
+        ? processingEnv.getElementUtils().getPackageOf(algebra).getQualifiedName().toString()
+        : targetPackage;
+  }
+
+  /**
+   * The composed witness from position {@code from} onwards: the last effect's own witness, and
+   * every earlier one an {@code EitherFKind.Witness} over it and the rest. Position 0 is the
+   * composition itself.
+   */
+  private static TypeName composedWitness(List<EffectBinding> bindings, int from) {
+    if (from == bindings.size() - 1) {
+      return bindings.get(from).witness();
+    }
+    return ParameterizedTypeName.get(
+        EITHERF_KIND.nestedClass("Witness"),
+        bindings.get(from).witness(),
+        composedWitness(bindings, from + 1));
+  }
 
   @Override
   public boolean process(Set<? extends TypeElement> annotations, RoundEnvironment roundEnv) {
@@ -155,26 +247,15 @@ public class ComposeEffectsProcessor extends AbstractProcessor {
     String supportName = baseName + "Support";
     int arity = components.size();
 
-    // Extract effect names from field names
-    List<String> effectNames = new ArrayList<>();
-    for (RecordComponentElement comp : components) {
-      effectNames.add(comp.getSimpleName().toString());
+    List<EffectBinding> bindings = resolveBindings(components);
+    if (bindings == null) {
+      return; // the fields do not name effect algebras; errors already reported
     }
-
-    TypeVariableName typeF =
-        TypeVariableName.get(
-            "F",
-            ParameterizedTypeName.get(
-                WITNESS_ARITY, ClassName.get("org.higherkindedj.hkt", "TypeArity", "Unary")));
 
     TypeSpec.Builder supportBuilder =
         TypeSpec.classBuilder(supportName)
             .addAnnotation(NULL_MARKED)
             .addAnnotation(GENERATED)
-            .addAnnotation(
-                AnnotationSpec.builder(SuppressWarnings.class)
-                    .addMember("value", "{$S, $S}", "unchecked", "rawtypes")
-                    .build()) // generated dispatch code performs witness-erased casts
             .addModifiers(Modifier.PUBLIC, Modifier.FINAL)
             .addMethod(MethodSpec.constructorBuilder().addModifiers(Modifier.PRIVATE).build())
             .addOriginatingElement(source);
@@ -184,14 +265,14 @@ public class ComposeEffectsProcessor extends AbstractProcessor {
     // For 3: injectLeft(), injectRightThen(injectLeft()), injectRightThen(injectRight())
     // For 4: similar nesting
     for (int i = 0; i < arity; i++) {
-      supportBuilder.addMethod(generateInjectMethod(effectNames.get(i), i, arity));
+      supportBuilder.addMethod(generateInjectMethod(bindings, i));
     }
 
     // Generate functor() method
-    supportBuilder.addMethod(generateFunctorMethod(effectNames, arity));
+    supportBuilder.addMethod(generateFunctorMethod(bindings));
 
     // Generate BoundSet record
-    supportBuilder.addType(generateBoundSetRecord(effectNames, arity));
+    supportBuilder.addType(generateBoundSetRecord(bindings));
 
     supportBuilder.addJavadoc(
         "Support infrastructure for the {@link $L} effect composition.\n\n"
@@ -223,21 +304,27 @@ public class ComposeEffectsProcessor extends AbstractProcessor {
    * @param arity total number of effects (2-4)
    * @return the generated method spec
    */
-  private MethodSpec generateInjectMethod(String effectName, int position, int arity) {
+  private MethodSpec generateInjectMethod(List<EffectBinding> bindings, int position) {
+    EffectBinding binding = bindings.get(position);
+    String effectName = binding.field();
     String methodName =
         "inject" + effectName.substring(0, 1).toUpperCase(Locale.ROOT) + effectName.substring(1);
 
+    // Declaring the composed witness lets InjectInstances' type parameters infer from the
+    // return type, so the nesting is checked rather than cast into place.
     MethodSpec.Builder builder =
         MethodSpec.methodBuilder(methodName)
             .addModifiers(Modifier.PUBLIC, Modifier.STATIC)
-            .returns(INJECT)
+            .returns(
+                ParameterizedTypeName.get(INJECT, binding.witness(), composedWitness(bindings, 0)))
             .addJavadoc(
                 "Creates an Inject instance for the {@code $L} effect.\n\n"
-                    + "@return An Inject instance for embedding the effect into the composed type\n",
-                effectName);
+                    + "@return An Inject embedding {@code $T} into the composed effect type\n",
+                effectName,
+                binding.witness());
 
     // Build the inject expression using CodeBlock for safety
-    CodeBlock injectExpr = buildInjectExpression(position, arity);
+    CodeBlock injectExpr = buildInjectExpression(position, bindings.size());
     builder.addCode("return $L;\n", injectExpr);
 
     return builder.build();
@@ -255,7 +342,9 @@ public class ComposeEffectsProcessor extends AbstractProcessor {
       return CodeBlock.of("$T.injectLeft()", INJECT_INSTANCES);
     }
 
-    // For the last position, the innermost call is injectRight(); otherwise injectLeft()
+    // For the last position, the innermost call is injectRight(); otherwise injectLeft().
+    // injectRight() already descends the final level, so the last effect needs one fewer
+    // injectRightThen than its position: at arity 2 the second effect is injectRight() alone.
     boolean isLast = (position == arity - 1);
     CodeBlock inner =
         isLast
@@ -264,17 +353,23 @@ public class ComposeEffectsProcessor extends AbstractProcessor {
 
     // Wrap with injectRightThen() for each nesting level
     CodeBlock result = inner;
-    for (int i = 0; i < position; i++) {
+    int wraps = isLast ? position - 1 : position;
+    for (int i = 0; i < wraps; i++) {
       result = CodeBlock.of("$T.injectRightThen($L)", INJECT_INSTANCES, result);
     }
     return result;
   }
 
-  private MethodSpec generateFunctorMethod(List<String> effectNames, int arity) {
+  private MethodSpec generateFunctorMethod(List<EffectBinding> bindings) {
+    int arity = bindings.size();
+    List<String> effectNames = bindings.stream().map(EffectBinding::field).toList();
+
     MethodSpec.Builder builder =
         MethodSpec.methodBuilder("functor")
             .addModifiers(Modifier.PUBLIC, Modifier.STATIC)
-            .returns(FUNCTOR)
+            .returns(
+                ParameterizedTypeName.get(
+                    EITHERF_FUNCTOR, bindings.getFirst().witness(), composedWitness(bindings, 1)))
             .addJavadoc(
                 "Returns a composed Functor for the combined effect type.\n\n"
                     + "@return The composed Functor instance\n");
@@ -283,8 +378,9 @@ public class ComposeEffectsProcessor extends AbstractProcessor {
     // For 2: EitherFFunctor.of(functor1, functor2)
     // For 3: EitherFFunctor.of(functor1, EitherFFunctor.of(functor2, functor3))
     // We need the individual functors as parameters
-    for (int i = 0; i < arity; i++) {
-      builder.addParameter(FUNCTOR, effectNames.get(i) + "Functor");
+    for (EffectBinding binding : bindings) {
+      builder.addParameter(
+          ParameterizedTypeName.get(FUNCTOR, binding.witness()), binding.field() + "Functor");
     }
 
     if (arity == 2) {
@@ -316,27 +412,24 @@ public class ComposeEffectsProcessor extends AbstractProcessor {
     return builder.build();
   }
 
-  private TypeSpec generateBoundSetRecord(List<String> effectNames, int arity) {
-    TypeVariableName typeF =
-        TypeVariableName.get(
-            "F",
-            ParameterizedTypeName.get(
-                WITNESS_ARITY, ClassName.get("org.higherkindedj.hkt", "TypeArity", "Unary")));
+  private TypeSpec generateBoundSetRecord(List<EffectBinding> bindings) {
+    TypeName composed = composedWitness(bindings, 0);
 
-    // Build record constructor whose parameters become record components
+    // The composition fixes the witness, so BoundSet needs no type parameter of its own:
+    // each component is that algebra's Bound at the composed type.
     MethodSpec.Builder ctorBuilder = MethodSpec.constructorBuilder();
-    for (String name : effectNames) {
-      ctorBuilder.addParameter(ClassName.OBJECT, name);
+    TypeSpec.Builder record =
+        TypeSpec.recordBuilder("BoundSet")
+            .addModifiers(Modifier.PUBLIC, Modifier.STATIC)
+            .addJavadoc("Convenience record holding Bound instances for all composed effects.\n\n");
+
+    for (EffectBinding binding : bindings) {
+      ctorBuilder.addParameter(
+          ParameterizedTypeName.get(binding.ops().nestedClass("Bound"), composed), binding.field());
+      record.addJavadoc("@param $L bound {@code $T} operations\n", binding.field(), binding.ops());
     }
 
-    return TypeSpec.recordBuilder("BoundSet")
-        .addModifiers(Modifier.PUBLIC, Modifier.STATIC)
-        .addTypeVariable(typeF)
-        .recordConstructor(ctorBuilder.build())
-        .addJavadoc(
-            "Convenience record holding Bound instances for all composed effects.\n\n"
-                + "@param <F> The composed effect witness type\n")
-        .build();
+    return record.recordConstructor(ctorBuilder.build()).build();
   }
 
   // =========================================================================
