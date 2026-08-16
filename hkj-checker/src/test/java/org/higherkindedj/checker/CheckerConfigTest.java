@@ -145,4 +145,39 @@ class CheckerConfigTest {
       assertThat(config.severity()).isEqualTo(Diagnostic.Kind.WARNING);
     }
   }
+
+  /**
+   * The ids are a published vocabulary: they are spelled as bare strings in {@code disable=} and
+   * {@code severity:<id>=} plugin arguments, in {@code @SuppressWarnings} tokens across hkj-core
+   * and downstream code, and in the book. Nothing outside this module can reference the constants,
+   * so renaming one would silently stop honouring every existing spelling — pin them here.
+   */
+  @Nested
+  @DisplayName("the id vocabulary")
+  class IdVocabulary {
+
+    @Test
+    @DisplayName("every check id keeps its published spelling")
+    void checkIds_arePinned() {
+      assertThat(CheckerConfig.PATH_TYPE_MISMATCH).isEqualTo("path-type-mismatch");
+      assertThat(CheckerConfig.EFFECT_COMPOSITION).isEqualTo("effect-composition");
+      assertThat(CheckerConfig.TRANSFORMER_MISSING_MONAD).isEqualTo("transformer-missing-monad");
+      assertThat(CheckerConfig.FREE_SWITCH_EXHAUSTIVE).isEqualTo("free-switch-exhaustive");
+      assertThat(CheckerConfig.DISCARDED_EFFECT).isEqualTo("discarded-effect");
+      assertThat(CheckerConfig.STATE_T_MAPT_ARITY).isEqualTo("state-t-mapt-arity");
+      assertThat(CheckerConfig.ERROR_TYPE_MISMATCH).isEqualTo("error-type-mismatch");
+      assertThat(CheckerConfig.KIND_VALUE_NARROW).isEqualTo("kind-value-narrow");
+      assertThat(CheckerConfig.WITNESS_ARITY).isEqualTo("witness-arity");
+      assertThat(CheckerConfig.VIA_NON_PATH).isEqualTo("via-non-path");
+      assertThat(CheckerConfig.MAP_NESTS_EFFECT).isEqualTo("map-nests-effect");
+      assertThat(CheckerConfig.MIGRATION_NUDGE).isEqualTo("migration-nudge");
+      assertThat(CheckerConfig.RAW_KIND).isEqualTo("raw-kind");
+    }
+
+    @Test
+    @DisplayName("the blanket suppression token keeps its published spelling")
+    void suppressAll_isPinned() {
+      assertThat(CheckerConfig.SUPPRESS_ALL).isEqualTo("hkj-checker");
+    }
+  }
 }

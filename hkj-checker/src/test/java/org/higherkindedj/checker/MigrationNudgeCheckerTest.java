@@ -124,6 +124,84 @@ class MigrationNudgeCheckerTest {
   class NoFalsePositives {
 
     @Test
+    @DisplayName("@Generated code is not nudged: it is the very code the nudge points at")
+    void generatedCode() {
+      Compilation c =
+          compile(
+              src(
+                  "test.GenFree",
+                  """
+                  package test;
+                  import org.higherkindedj.hkt.free.Free;
+                  import org.higherkindedj.hkt.Kind;
+                  import org.higherkindedj.hkt.Functor;
+                  import org.higherkindedj.hkt.WitnessArity;
+                  import org.higherkindedj.hkt.TypeArity;
+                  import org.higherkindedj.optics.annotations.Generated;
+                  @Generated
+                  public class GenFree {
+                      <F extends WitnessArity<TypeArity.Unary>, A> void m(
+                          Kind<F, A> fa, Functor<F> fn, Kind<F, Free<F, A>> comp) {
+                          var a = Free.liftF(fa, fn);
+                          var b = Free.suspend(comp);
+                      }
+                  }
+                  """));
+      assertThat(c).succeeded();
+      Assertions.assertThat(nudged(c)).isFalse();
+    }
+
+    @Test
+    @DisplayName("@Generated silences the Inject nudge in the generated Support class")
+    void generatedSupport() {
+      Compilation c =
+          compile(
+              src(
+                  "test.GenInject",
+                  """
+                  package test;
+                  import org.higherkindedj.optics.annotations.Generated;
+                  import org.higherkindedj.hkt.inject.InjectInstances;
+                  import org.higherkindedj.hkt.WitnessArity;
+                  @Generated
+                  public class GenInject {
+                      <F extends WitnessArity<?>, G extends WitnessArity<?>> void m() {
+                          var i = InjectInstances.<F, G>injectLeft();
+                      }
+                  }
+                  """));
+      assertThat(c).succeeded();
+      Assertions.assertThat(nudged(c)).isFalse();
+    }
+
+    @Test
+    @DisplayName("a hand-written smart-constructor layer can opt out per declaration")
+    void suppressedAtTheDeclaration() {
+      Compilation c =
+          compile(
+              src(
+                  "test.HandWrittenOps",
+                  """
+                  package test;
+                  import org.higherkindedj.hkt.free.Free;
+                  import org.higherkindedj.hkt.Kind;
+                  import org.higherkindedj.hkt.Functor;
+                  import org.higherkindedj.hkt.WitnessArity;
+                  import org.higherkindedj.hkt.TypeArity;
+                  @SuppressWarnings("migration-nudge")
+                  public class HandWrittenOps {
+                      <F extends WitnessArity<TypeArity.Unary>, A> void m(
+                          Kind<F, A> fa, Functor<F> fn, Kind<F, Free<F, A>> comp) {
+                          var a = Free.liftF(fa, fn);
+                          var b = Free.suspend(comp);
+                      }
+                  }
+                  """));
+      assertThat(c).succeeded();
+      Assertions.assertThat(nudged(c)).isFalse();
+    }
+
+    @Test
     @DisplayName("unrelated same-named methods are not flagged (FQN gate)")
     void unrelatedMethods() {
       Compilation c =
