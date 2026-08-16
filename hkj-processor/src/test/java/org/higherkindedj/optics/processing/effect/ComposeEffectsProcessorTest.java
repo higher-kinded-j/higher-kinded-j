@@ -496,26 +496,6 @@ class ComposeEffectsProcessorTest {
     }
 
     @Test
-    @DisplayName("The same algebra twice is a duplicate even through different Class arguments")
-    void sameAlgebraTwiceShouldError() {
-      var source =
-          JavaFileObjects.forSourceString(
-              "test.pkg.SameTwice",
-              """
-              package test.pkg;
-
-              import org.higherkindedj.hkt.effect.annotation.ComposeEffects;
-
-              @ComposeEffects
-              public record SameTwice(Class<ConsoleOp<?>> a, Class<ConsoleOp<String>> b) {}
-              """);
-
-      Compilation compilation = compile(algebra("ConsoleOp"), source);
-      CompilationSubject.assertThat(compilation).failed();
-      CompilationSubject.assertThat(compilation).hadErrorContaining("Duplicate effect algebra");
-    }
-
-    @Test
     @DisplayName("An algebra's targetPackage is where its Kind and Ops are looked for")
     void algebraTargetPackageIsHonoured() throws IOException {
       var relocated =
@@ -766,6 +746,87 @@ class ComposeEffectsProcessorTest {
       // One type parameter, so the multi-parameter explanation must not appear.
       assertThat(compilation.errors().stream().map(d -> d.getMessage(null)).toList())
           .noneMatch(m -> m.contains("type parameters cannot carry it"));
+    }
+
+    @Test
+    @DisplayName("A type argument that fixes the algebra's parameter is rejected by shape")
+    void nonWildcardTypeArgumentShouldError() {
+      // A class literal cannot be written for a parameterised type, so Class<ConsoleOp<String>>
+      // reads as though the composition were fixed to String. It is not: the argument only
+      // names the algebra.
+      var source =
+          JavaFileObjects.forSourceString(
+              "test.pkg.FixedArgEffects",
+              """
+              package test.pkg;
+
+              import org.higherkindedj.hkt.effect.annotation.ComposeEffects;
+
+              @ComposeEffects
+              public record FixedArgEffects(Class<ConsoleOp<String>> a, Class<DbOp<?>> b) {}
+              """);
+
+      Compilation compilation = compile(algebra("ConsoleOp"), algebra("DbOp"), source);
+      CompilationSubject.assertThat(compilation).failed();
+      CompilationSubject.assertThat(compilation).hadErrorContaining("write Class<ConsoleOp<?>>");
+    }
+
+    @Test
+    @DisplayName("A raw Class of the algebra is rejected by shape")
+    void rawAlgebraArgumentShouldError() {
+      var source =
+          JavaFileObjects.forSourceString(
+              "test.pkg.RawArgEffects",
+              """
+              package test.pkg;
+
+              import org.higherkindedj.hkt.effect.annotation.ComposeEffects;
+
+              @ComposeEffects
+              public record RawArgEffects(Class<ConsoleOp> a, Class<DbOp<?>> b) {}
+              """);
+
+      Compilation compilation = compile(algebra("ConsoleOp"), algebra("DbOp"), source);
+      CompilationSubject.assertThat(compilation).failed();
+      CompilationSubject.assertThat(compilation).hadErrorContaining("write Class<ConsoleOp<?>>");
+    }
+
+    @Test
+    @DisplayName("A bounded wildcard is rejected by shape")
+    void boundedWildcardArgumentShouldError() {
+      var source =
+          JavaFileObjects.forSourceString(
+              "test.pkg.BoundedEffects",
+              """
+              package test.pkg;
+
+              import org.higherkindedj.hkt.effect.annotation.ComposeEffects;
+
+              @ComposeEffects
+              public record BoundedEffects(
+                  Class<ConsoleOp<? extends Number>> a, Class<DbOp<?>> b) {}
+              """);
+
+      Compilation compilation = compile(algebra("ConsoleOp"), algebra("DbOp"), source);
+      CompilationSubject.assertThat(compilation).failed();
+      CompilationSubject.assertThat(compilation).hadErrorContaining("write Class<ConsoleOp<?>>");
+
+      var lowerBounded =
+          JavaFileObjects.forSourceString(
+              "test.pkg.SuperBoundedEffects",
+              """
+              package test.pkg;
+
+              import org.higherkindedj.hkt.effect.annotation.ComposeEffects;
+
+              @ComposeEffects
+              public record SuperBoundedEffects(
+                  Class<ConsoleOp<? super Number>> a, Class<DbOp<?>> b) {}
+              """);
+
+      Compilation lower = compile(algebra("ConsoleOp"), algebra("DbOp"), lowerBounded);
+      CompilationSubject.assertThat(lower).failed();
+      CompilationSubject.assertThat(lower).hadErrorContaining("write Class<ConsoleOp<?>>");
     }
 
     @Test

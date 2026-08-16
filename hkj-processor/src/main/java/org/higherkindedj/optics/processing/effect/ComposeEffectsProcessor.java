@@ -20,6 +20,7 @@ import javax.lang.model.type.DeclaredType;
 import javax.lang.model.type.MirroredTypeException;
 import javax.lang.model.type.TypeKind;
 import javax.lang.model.type.TypeMirror;
+import javax.lang.model.type.WildcardType;
 import javax.tools.Diagnostic;
 import org.higherkindedj.hkt.effect.annotation.ComposeEffects;
 import org.higherkindedj.hkt.effect.annotation.EffectAlgebra;
@@ -137,7 +138,37 @@ public class ComposeEffectsProcessor extends AbstractProcessor {
       return null;
     }
     TypeElement algebra = (TypeElement) algebraType.asElement();
-    return isComposableAlgebra(algebra, component) ? algebra : null;
+    if (!isComposableAlgebra(algebra, component)) {
+      return null;
+    }
+    if (!namesAlgebraOnly(algebraType, algebra)) {
+      // A class literal cannot be written for a parameterised type, so the argument here is a
+      // marker naming the algebra and nothing more. Spelling it Class<XOp<String>> reads as
+      // though the composition were fixed to String, which it is not.
+      error(
+          expected + component.asType() + "; write Class<" + algebra.getSimpleName() + "<?>>",
+          component);
+      return null;
+    }
+    return algebra;
+  }
+
+  /**
+   * Reports whether the type argument names the algebra and fixes nothing: every one of its own
+   * arguments an unbounded wildcard, as many as the algebra declares.
+   */
+  private static boolean namesAlgebraOnly(DeclaredType algebraType, TypeElement algebra) {
+    if (algebraType.getTypeArguments().size() != algebra.getTypeParameters().size()) {
+      return false;
+    }
+    for (TypeMirror argument : algebraType.getTypeArguments()) {
+      if (!(argument instanceof WildcardType wildcard)
+          || wildcard.getExtendsBound() != null
+          || wildcard.getSuperBound() != null) {
+        return false;
+      }
+    }
+    return true;
   }
 
   /**
