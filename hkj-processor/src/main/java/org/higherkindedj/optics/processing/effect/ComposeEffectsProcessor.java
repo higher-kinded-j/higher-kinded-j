@@ -132,11 +132,11 @@ public class ComposeEffectsProcessor extends AbstractProcessor {
     if (argument.getKind() == TypeKind.ERROR) {
       return null; // as above
     }
-    if (!(argument instanceof DeclaredType algebraType)
-        || !(algebraType.asElement() instanceof TypeElement algebra)) {
+    if (!(argument instanceof DeclaredType algebraType)) {
       error(expected + component.asType(), component);
       return null;
     }
+    TypeElement algebra = (TypeElement) algebraType.asElement();
     return isComposableAlgebra(algebra, component) ? algebra : null;
   }
 
@@ -150,14 +150,24 @@ public class ComposeEffectsProcessor extends AbstractProcessor {
    */
   private boolean isComposableAlgebra(TypeElement algebra, RecordComponentElement component) {
     if (algebra.getAnnotation(EffectAlgebra.class) == null) {
+      // An algebra with several type parameters can never carry @EffectAlgebra, so say that
+      // rather than leaving the reader to wonder which annotation to add. ErrorOp and StateOp
+      // are hand-written for exactly this reason and are the likeliest names to land here.
+      String reason =
+          algebra.getTypeParameters().size() == 1
+              ? "."
+              : ", and an algebra with "
+                  + algebra.getTypeParameters().size()
+                  + " type parameters cannot carry it, because its witness would itself be"
+                  + " generic.";
       error(
           "@ComposeEffects field '"
               + component.getSimpleName()
               + "' names "
               + algebra.getQualifiedName()
               + ", which is not annotated @EffectAlgebra. Composition derives the witness and Ops"
-              + " from that annotation, so an algebra with more than one type parameter (whose"
-              + " witness would itself be generic) cannot take part.",
+              + " from that annotation"
+              + reason,
           component);
       return false;
     }

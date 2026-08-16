@@ -11,7 +11,12 @@
 
 **Example:**
 ```java
-var bounds = AppEffectsWiring.boundSet();
+var functor = AppEffectsSupport.functor(
+    ConsoleOpFunctor.instance(), DbOpFunctor.instance());
+var bounds = new AppEffectsSupport.BoundSet(
+    ConsoleOpOps.boundTo(AppEffectsSupport.injectConsole(), functor),
+    DbOpOps.boundTo(AppEffectsSupport.injectDb(), functor));
+
 var console = bounds.console();  // Bound<ComposedType> for ConsoleOp
 var db = bounds.db();            // Bound<ComposedType> for DbOp
 
@@ -34,7 +39,7 @@ Free<ComposedType, String> program =
 public record AppEffects(
     Class<ConsoleOp<?>> console,
     Class<DbOp<?>> db) {}
-// Generates: AppEffectsSupport with typed injectConsole()/injectDb(), functor(), BoundSet
+// Generates: AppEffectsSupport with typed injectConsole()/injectDb(), functor(...), BoundSet
 ```
 
 **Related:** [EitherF](#eitherf), [Inject](#inject), [BoundSet](#boundset)
