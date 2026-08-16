@@ -329,4 +329,37 @@ class PathTypeMismatchCheckerTest {
       assertThat(compilation).succeeded();
     }
   }
+
+  @Nested
+  @DisplayName("diagnostic location")
+  class DiagnosticLocation {
+
+    @Test
+    @DisplayName("the mismatch is anchored to the offending source line")
+    void mismatch_carriesSourcePosition() {
+      JavaFileObject source =
+          JavaFileObjects.forSourceString(
+              "test.Anchored",
+              """
+              package test;
+
+              import org.higherkindedj.hkt.effect.Path;
+
+              public class Anchored {
+                  public void mismatched() {
+                      var p = Path.just(1).via(_ -> Path.io(() -> 2));
+                  }
+              }
+              """);
+
+      Compilation compilation = compileWithChecker(source);
+
+      // Without the compilation unit javac prints the message with no file:line and no
+      // caret, leaving the reader to find the call site by hand.
+      assertThat(compilation)
+          .hadErrorContaining("Path type mismatch in via()")
+          .inFile(source)
+          .onLine(7);
+    }
+  }
 }

@@ -115,4 +115,39 @@ class EffectCompositionCheckerTest {
                       .isEqualTo("Trees"));
     }
   }
+
+  @Nested
+  @DisplayName("diagnostic location")
+  class DiagnosticLocation {
+
+    @Test
+    @DisplayName("the arity error is anchored to the offending source line")
+    void arityError_carriesSourcePosition() {
+      JavaFileObject source =
+          JavaFileObjects.forSourceString(
+              "test.Anchored",
+              """
+              package test;
+
+              public class Anchored {
+                  static class Interpreters {
+                      static String combine(String... xs) { return ""; }
+                  }
+
+                  public void tooFew() {
+                      Interpreters.combine("only-one");
+                  }
+              }
+              """);
+
+      Compilation compilation = compileWithChecker(source);
+
+      // Without the compilation unit javac prints the message with no file:line and no
+      // caret, leaving the reader to find the call site by hand.
+      assertThat(compilation)
+          .hadErrorContaining("Interpreters.combine() accepts 2-4 interpreters")
+          .inFile(source)
+          .onLine(9);
+    }
+  }
 }
