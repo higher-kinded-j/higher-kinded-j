@@ -24,6 +24,7 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
 @DisplayName("Free.HandleError Test Suite")
+@SuppressWarnings("migration-nudge") // exercises the Free/Inject primitives directly
 class FreeHandleErrorTest {
 
   private final IdentityMonad identityMonad = IdentityMonad.INSTANCE;

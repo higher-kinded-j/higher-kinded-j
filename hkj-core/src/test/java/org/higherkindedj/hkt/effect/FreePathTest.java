@@ -25,6 +25,7 @@ import org.junit.jupiter.api.Test;
  * foldMap, and object methods.
  */
 @DisplayName("FreePath<F, A> Complete Test Suite")
+@SuppressWarnings("path-type-mismatch") // the mismatch is the behaviour under test
 class FreePathTest {
 
   private static final Monad<MaybeKind.Witness> MAYBE_MONAD = Instances.monadError(maybe());

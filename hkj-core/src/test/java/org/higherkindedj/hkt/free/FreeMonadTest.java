@@ -40,6 +40,7 @@ import org.junit.jupiter.params.provider.MethodSource;
  * {@link FunctorLaws}/{@link ApplicativeLaws}/{@link MonadLaws} over {@link FreeLawFixtures}.
  */
 @DisplayName("FreeMonad Tests")
+@SuppressWarnings("migration-nudge") // exercises the Free/Inject primitives directly
 class FreeMonadTest extends FreeTestBase {
 
   private FreeMonad<IdentityKind.Witness> monad;

@@ -27,6 +27,7 @@ import org.junit.jupiter.api.Test;
  * <p>Uses a minimal in-test DSL to avoid depending on external modules.
  */
 @DisplayName("TestBoundary Tests")
+@SuppressWarnings("migration-nudge") // exercises the Free/Inject primitives directly
 class TestBoundaryTest {
 
   // ===== Minimal test DSL (same structure as EffectBoundaryTest) =====

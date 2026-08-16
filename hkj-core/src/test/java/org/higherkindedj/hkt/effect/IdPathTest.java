@@ -17,6 +17,7 @@ import org.junit.jupiter.api.Test;
  * object methods. IdPath is the simplest path type with no error handling.
  */
 @DisplayName("IdPath<A> Complete Test Suite")
+@SuppressWarnings("path-type-mismatch") // the mismatch is the behaviour under test
 class IdPathTest {
 
   private static final String TEST_VALUE = "test";

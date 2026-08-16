@@ -37,6 +37,7 @@ import org.junit.jupiter.api.Test;
  *
  * <p>Replace each placeholder with the correct code to make the tests pass.
  */
+@SuppressWarnings("migration-nudge") // exercises the Free/Inject primitives directly
 public class Tutorial05_ProgramInspection {
 
   private static <T> T answerRequired() {

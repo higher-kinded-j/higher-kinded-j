@@ -21,6 +21,7 @@ import org.junit.jupiter.api.Test;
  * conversions.
  */
 @DisplayName("WriterPath<W, A> Complete Test Suite")
+@SuppressWarnings("path-type-mismatch") // the mismatch is the behaviour under test
 class WriterPathTest {
 
   private static final String TEST_VALUE = "test";

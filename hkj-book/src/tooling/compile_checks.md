@@ -51,7 +51,7 @@ soak.
 | `effect-composition` | `Interpreters.combine()` called with an unsupported arity | error | Companion |
 | `transformer-missing-monad` | Zero-arg construction of `EitherT`/`OptionalT`/`MaybeT`/`ReaderT`/`StateT`/`WriterTMonad` (the outer `Monad<F>`, and `Monoid<W>` for WriterT, is required) | error | Companion |
 | `free-switch-exhaustive` | A `switch` over `Free` matching `Pure`/`Suspend`/`FlatMapped` but missing `HandleError`/`Ap` | error | Companion |
-| `discarded-effect` | A lazy effect (`Path`/`IO`/`Free`, the `Chainable` hierarchy) built then dropped as a bare statement, a silent no-op | error | No: sole signal |
+| `discarded-effect` | A **deferred** path (`IOPath`/`VTaskPath`/`LazyPath`/`FreePath` — the `Deferred` capability) built then dropped as a bare statement, a silent no-op. Eager paths are out of scope: their work has already happened | error | No: sole signal |
 | `state-t-mapt-arity` | `StateT.mapT(f)` missing the leading `Monad<G>` (only `StateT.mapT` takes it) | error | Companion |
 | `error-type-mismatch` | An Either chain step whose error type `E` differs from the chain's and is silently erased through `Chainable<B>` (latent `ClassCastException`) | **warn** | No: sole signal |
 | `kind-value-narrow` | `.value()` on a bare `Kind` (it is on the concrete transformer; narrow first) | error | Companion |
@@ -65,6 +65,23 @@ soak.
 cryptic error. "Sole signal" / "advisory" checks are the only
 compile-time signal (the code otherwise compiles), which is why the
 heuristic and advisory ones default to *warn*.
+
+~~~admonish tip title="Eager and deferred paths"
+`discarded-effect` fires only on the `Deferred` capability, because only
+there is a dropped statement a no-op:
+
+```java
+Path.just(1).peek(log);      // MaybePath: eager — log() has already run
+Path.io(() -> 1).peek(log);  // IOPath: deferred — log() never runs
+```
+
+Both discard their result; only the second did nothing. `Deferred` is a
+sealed capability over `IOPath`, `VTaskPath`, `VResultPath`,
+`ReaderPath`, `WithStatePath`, `LazyPath`, `StreamPath`, `VStreamPath`,
+`TrampolinePath` and `FreePath`. `CompletableFuturePath` is excluded —
+its future is already in flight — and so is `GenericPath`, whose
+laziness depends on the `F` it wraps.
+~~~
 
 ~~~admonish info title="Generated sources are not checked"
 Every check is advice you are expected to act on, and nobody edits
@@ -154,6 +171,21 @@ generated code for a silent switch-off to be safe, so an HKJ opt-out is
 always spelled explicitly.
 
 ### Manual setup
+
+~~~admonish note title="HKJ compiles under its own checker"
+Every module in this repository compiles with `-Xplugin:HKJChecker`
+(`hkj-checker` itself excepted — it cannot run itself while being built,
+and its fixtures violate the checks on purpose). The repo sits at zero
+findings, and the `-Werror` ratchet makes a regression a build failure.
+
+That is not ceremony: the library is the checks' most demanding user, and
+two false positives — a `requireNonNull` guard read as a discarded
+effect, and eager paths judged by the deferred rule — survived precisely
+because the checker had never been pointed at this codebase. Deliberate
+exceptions are spelled `@SuppressWarnings("<check-id>")` on the narrowest
+enclosing declaration; the test suites carry them wherever a violation is
+the behaviour under test.
+~~~
 
 The HKJ Gradle/Maven plugin enables the checker by default and passes
 the `-Xplugin` argument through; see

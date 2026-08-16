@@ -33,6 +33,7 @@ import org.junit.jupiter.api.Test;
  * handling, timeout, and object methods.
  */
 @DisplayName("VTaskPath<A> Complete Test Suite")
+@SuppressWarnings("path-type-mismatch") // the mismatch is the behaviour under test
 class VTaskPathTest {
 
   private static final String TEST_VALUE = "test";

@@ -18,6 +18,7 @@ import org.junit.jupiter.api.Test;
  * methods, and object methods.
  */
 @DisplayName("TryPath<A> Complete Test Suite")
+@SuppressWarnings("path-type-mismatch") // the mismatch is the behaviour under test
 class TryPathTest {
 
   private static final String TEST_VALUE = "test";

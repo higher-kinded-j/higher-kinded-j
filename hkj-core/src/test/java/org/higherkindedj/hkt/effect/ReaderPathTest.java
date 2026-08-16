@@ -20,6 +20,7 @@ import org.junit.jupiter.api.Test;
  * and conversions. ReaderPath represents computations that read from an environment.
  */
 @DisplayName("ReaderPath<R, A> Complete Test Suite")
+@SuppressWarnings("path-type-mismatch") // the mismatch is the behaviour under test
 class ReaderPathTest {
 
   private static final String TEST_VALUE = "test";

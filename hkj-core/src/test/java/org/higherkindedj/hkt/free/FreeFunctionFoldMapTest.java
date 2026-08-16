@@ -30,6 +30,7 @@ import org.junit.jupiter.api.Test;
  * FreeHandleErrorTest and FreeApTest.
  */
 @DisplayName("Free function-based foldMap: HandleError and Ap coverage")
+@SuppressWarnings("migration-nudge") // exercises the Free/Inject primitives directly
 class FreeFunctionFoldMapTest {
 
   private final IdentityMonad identityMonad = IdentityMonad.INSTANCE;

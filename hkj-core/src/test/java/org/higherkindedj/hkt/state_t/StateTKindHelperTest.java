@@ -26,7 +26,7 @@ import org.junit.jupiter.api.Test;
 
 @DisplayName("StateTKindHelper Tests ")
 // (F=OptionalKind.Witness)
-@SuppressWarnings("removal") // exercises deprecated-for-removal accessors
+@SuppressWarnings({"removal", "raw-kind"}) // deprecated-for-removal accessors; raw Kind inputs
 class StateTKindHelperTest {
 
   private static final String TYPE_NAME = "StateT";

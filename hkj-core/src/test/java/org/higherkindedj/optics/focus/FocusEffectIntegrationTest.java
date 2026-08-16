@@ -28,6 +28,7 @@ import org.junit.jupiter.api.Test;
  * <p>Tests realistic scenarios combining optics-based navigation with effect-based computations.
  */
 @DisplayName("FocusPath-EffectPath Integration Tests")
+@SuppressWarnings("error-type-mismatch") // the erased error type is the behaviour under test
 class FocusEffectIntegrationTest {
 
   // Domain model

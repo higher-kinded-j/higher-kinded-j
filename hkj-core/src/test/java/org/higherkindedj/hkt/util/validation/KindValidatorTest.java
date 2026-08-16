@@ -30,6 +30,7 @@ import org.junit.jupiter.params.provider.NullSource;
 import org.junit.jupiter.params.provider.ValueSource;
 
 @DisplayName("KindValidator - Enhanced Coverage")
+@SuppressWarnings("raw-kind") // a raw Kind is the input under test
 class KindValidatorTest {
 
   private static final class TestType {}

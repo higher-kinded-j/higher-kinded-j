@@ -34,6 +34,7 @@ import org.junit.jupiter.api.Test;
  * href="../../../../../../../../../hkj-book/src/tutorials/solutions_guide.md">Solutions Guide</a>
  * in the book.
  */
+@SuppressWarnings("migration-nudge") // exercises the Free/Inject primitives directly
 public class Tutorial05_ProgramInspection_Solution {
 
   private static final Functor<IdKind.Witness> ID_FUNCTOR =

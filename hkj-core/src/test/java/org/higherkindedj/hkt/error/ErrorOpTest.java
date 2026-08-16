@@ -25,6 +25,7 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
 @DisplayName("ErrorOp Test Suite")
+@SuppressWarnings("migration-nudge") // exercises the Free/Inject primitives directly
 class ErrorOpTest {
 
   @Nested

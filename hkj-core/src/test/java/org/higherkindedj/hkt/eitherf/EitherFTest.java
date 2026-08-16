@@ -26,6 +26,7 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
 @DisplayName("EitherF Test Suite")
+@SuppressWarnings("migration-nudge") // exercises the Free/Inject primitives directly
 class EitherFTest {
 
   private Kind<IdentityKind.Witness, String> identityOp(String value) {

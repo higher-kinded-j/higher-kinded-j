@@ -19,6 +19,7 @@ import org.junit.jupiter.api.Test;
  * operations, and conversions.
  */
 @DisplayName("StreamPath<A> Complete Test Suite")
+@SuppressWarnings("path-type-mismatch") // the mismatch is the behaviour under test
 class StreamPathTest {
 
   private static final String TEST_VALUE = "test";

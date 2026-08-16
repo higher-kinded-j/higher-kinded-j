@@ -23,6 +23,7 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
 @DisplayName("OptionalTKindHelper Tests")
+@SuppressWarnings("raw-kind") // a raw Kind is the input under test
 class OptionalTKindHelperTest {
 
   private Monad<IOKind.Witness> outerMonad;

@@ -34,6 +34,7 @@ import org.junit.jupiter.api.Test;
  * operations, terminal operations, focus bridge, conversions, and null validation.
  */
 @DisplayName("VStreamPath<A> Complete Test Suite")
+@SuppressWarnings("path-type-mismatch") // the mismatch is the behaviour under test
 class VStreamPathTest {
 
   private static final String TEST_VALUE = "test";

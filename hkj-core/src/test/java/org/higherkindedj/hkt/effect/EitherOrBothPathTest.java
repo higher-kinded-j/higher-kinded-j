@@ -25,6 +25,7 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
 @DisplayName("EitherOrBothPath<L, A> Complete Test Suite")
+@SuppressWarnings("path-type-mismatch") // the mismatch is the behaviour under test
 class EitherOrBothPathTest {
 
   private static final Semigroup<String> CONCAT = Semigroups.string();

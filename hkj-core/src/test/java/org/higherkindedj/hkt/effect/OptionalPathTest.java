@@ -21,6 +21,7 @@ import org.junit.jupiter.api.Test;
  * object methods. OptionalPath bridges java.util.Optional with the Path API.
  */
 @DisplayName("OptionalPath<A> Complete Test Suite")
+@SuppressWarnings("path-type-mismatch") // the mismatch is the behaviour under test
 class OptionalPathTest {
 
   private static final String TEST_VALUE = "test";

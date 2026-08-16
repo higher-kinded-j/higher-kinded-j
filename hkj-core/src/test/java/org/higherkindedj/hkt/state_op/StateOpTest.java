@@ -36,6 +36,7 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
 @DisplayName("StateOp Test Suite")
+@SuppressWarnings("migration-nudge") // exercises the Free/Inject primitives directly
 class StateOpTest {
 
   // === Test fixtures ===

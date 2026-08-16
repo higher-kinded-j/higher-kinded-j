@@ -21,6 +21,7 @@ import org.junit.jupiter.api.Test;
  * methods, and object methods.
  */
 @DisplayName("ValidationPath<E, A> Complete Test Suite")
+@SuppressWarnings("path-type-mismatch") // the mismatch is the behaviour under test
 class ValidationPathTest {
 
   private static final String TEST_VALUE = "test";

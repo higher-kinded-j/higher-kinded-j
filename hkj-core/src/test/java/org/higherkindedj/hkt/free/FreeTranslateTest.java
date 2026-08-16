@@ -28,6 +28,7 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
 @DisplayName("Free.translate Test Suite")
+@SuppressWarnings("migration-nudge") // exercises the Free/Inject primitives directly
 class FreeTranslateTest {
 
   private final IdentityMonad identityMonad = IdentityMonad.INSTANCE;

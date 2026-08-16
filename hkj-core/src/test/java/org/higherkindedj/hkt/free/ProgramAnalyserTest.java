@@ -21,6 +21,7 @@ import org.junit.jupiter.api.Test;
 
 /** Tests for {@link ProgramAnalyser} and {@link ProgramAnalysis}. */
 @DisplayName("ProgramAnalyser")
+@SuppressWarnings("migration-nudge") // exercises the Free/Inject primitives directly
 class ProgramAnalyserTest {
 
   /** Simple functor for testing. */

@@ -18,6 +18,7 @@ import org.junit.jupiter.api.Test;
  * <p>Tests cover factory methods, list operations, positional zipWith, and conversions.
  */
 @DisplayName("ListPath<A> Complete Test Suite")
+@SuppressWarnings("path-type-mismatch") // the mismatch is the behaviour under test
 class ListPathTest {
 
   @Nested

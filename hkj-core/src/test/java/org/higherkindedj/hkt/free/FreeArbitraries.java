@@ -18,6 +18,7 @@ import org.higherkindedj.hkt.free.test.IdentityKind;
  * <p>The per-test {@code @Provide} methods delegate here so the {@code Free<Integer>} generator and
  * the function pools are defined once rather than copy-pasted into {@code FreeMonadPropertyTest}.
  */
+@SuppressWarnings("migration-nudge") // exercises the Free/Inject primitives directly
 final class FreeArbitraries {
 
   private FreeArbitraries() {}

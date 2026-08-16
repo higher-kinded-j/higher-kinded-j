@@ -39,6 +39,7 @@ import org.junit.jupiter.api.Test;
  * href="../../../../../../../../../hkj-book/src/tutorials/solutions_guide.md">Solutions Guide</a>
  * in the book.
  */
+@SuppressWarnings("error-type-mismatch") // the erased error type is the behaviour under test
 public class Tutorial14_FocusEffectBridge_Solution {
 
   // Test Data

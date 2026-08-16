@@ -20,6 +20,7 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
 @DisplayName("Inject Test Suite")
+@SuppressWarnings("migration-nudge") // exercises the Free/Inject primitives directly
 class InjectTest {
 
   private Kind<IdentityKind.Witness, String> identityOp(String value) {

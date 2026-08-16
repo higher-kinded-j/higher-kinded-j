@@ -21,6 +21,7 @@ import org.junit.jupiter.api.Test;
 
 @DisplayName("ReaderTKindHelper Tests ")
 // (F=OptionalKind.Witness, R=String)
+@SuppressWarnings("raw-kind") // a raw Kind is the input under test
 class ReaderTKindHelperTest {
 
   private static final String TYPE_NAME = "ReaderT";

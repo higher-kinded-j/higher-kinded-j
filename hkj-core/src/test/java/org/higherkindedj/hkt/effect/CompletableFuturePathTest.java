@@ -22,6 +22,7 @@ import org.junit.jupiter.api.Test;
  * <p>Tests cover factory methods, async operations, error recovery, and conversions.
  */
 @DisplayName("CompletableFuturePath<A> Complete Test Suite")
+@SuppressWarnings("path-type-mismatch") // the mismatch is the behaviour under test
 class CompletableFuturePathTest {
 
   private static final String TEST_VALUE = "test";

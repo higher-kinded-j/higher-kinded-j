@@ -22,6 +22,7 @@ import org.junit.jupiter.api.Test;
 
 @DisplayName("EitherTKindHelper Tests")
 //  (F=OptionalKind.Witness)
+@SuppressWarnings("raw-kind") // a raw Kind is the input under test
 class EitherTKindHelperTest {
 
   private static final String TYPE_NAME = "EitherT";

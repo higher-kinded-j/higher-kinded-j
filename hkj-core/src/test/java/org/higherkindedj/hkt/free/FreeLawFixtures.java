@@ -29,7 +29,7 @@ import org.junit.jupiter.params.provider.Arguments;
  * interpreter and compares results — deferred ({@code Suspend}/{@code FlatMapped}) fixtures are
  * therefore fine.
  */
-@SuppressWarnings("unused") // referenced reflectively via @MethodSource
+@SuppressWarnings({"unused", "migration-nudge"}) // reflective @MethodSource; builds Free directly
 final class FreeLawFixtures {
 
   private FreeLawFixtures() {}

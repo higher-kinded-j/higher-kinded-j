@@ -17,6 +17,7 @@ import org.junit.jupiter.api.Test;
  * operations, and conversions.
  */
 @DisplayName("NonDetPath<A> Complete Test Suite")
+@SuppressWarnings("path-type-mismatch") // the mismatch is the behaviour under test
 class NonDetPathTest {
 
   private static final String TEST_VALUE = "test";

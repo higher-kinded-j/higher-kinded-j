@@ -18,6 +18,7 @@ import org.junit.jupiter.api.Test;
  * conversions.
  */
 @DisplayName("TrampolinePath<A> Complete Test Suite")
+@SuppressWarnings("path-type-mismatch") // the mismatch is the behaviour under test
 class TrampolinePathTest {
 
   @Nested
