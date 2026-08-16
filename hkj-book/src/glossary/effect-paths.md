@@ -7,7 +7,7 @@
 
 ## BoundSet
 
-**Definition:** A generated container holding `Bound` instances for each effect algebra in a composition. Each `Bound` provides smart constructors that automatically inject operations into the correct position in the composed `EitherF` chain. Obtained from the generated `*Wiring.boundSet()` method.
+**Definition:** A generated container holding `Bound` instances for each effect algebra in a composition. Each `Bound` provides smart constructors that automatically inject operations into the correct position in the composed `EitherF` chain. Obtained by constructing the generated `*Support.BoundSet`, whose components are each algebra's `Bound` at the composed witness.
 
 **Example:**
 ```java
@@ -26,7 +26,7 @@ Free<ComposedType, String> program =
 
 ## @ComposeEffects
 
-**Definition:** An annotation processor that generates composition infrastructure for multiple effect algebras: `Inject` instances, a composed `Functor`, and a `BoundSet` for program construction. Annotate a record whose fields are `Class<?>` references to the effect algebras being composed.
+**Definition:** An annotation processor that generates composition infrastructure for multiple effect algebras: `Inject` instances, a composed `Functor`, and a `BoundSet` for program construction. Annotate a record whose fields are declared `Class<XOp<?>>`, each naming an `@EffectAlgebra`.
 
 **Example:**
 ```java
@@ -34,7 +34,7 @@ Free<ComposedType, String> program =
 public record AppEffects(
     Class<ConsoleOp<?>> console,
     Class<DbOp<?>> db) {}
-// Generates: AppEffectsWiring with boundSet(), interpret(), etc.
+// Generates: AppEffectsSupport with typed injectConsole()/injectDb(), functor(), BoundSet
 ```
 
 **Related:** [EitherF](#eitherf), [Inject](#inject), [BoundSet](#boundset)

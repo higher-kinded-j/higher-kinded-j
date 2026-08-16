@@ -159,7 +159,7 @@ Inject routing:
 | LedgerOp | Right > Right > Left | `injectLedger()` |
 | NotificationOp | Right > Right > Right | `injectNotification()` |
 
-The example's integration point is the hand-written `PaymentEffectsWiring`, which types the generated (raw) injects to the concrete composition and is what `PaymentService` and the interpreters use:
+`@ComposeEffects` generates `PaymentEffectsSupport` with the typed injects, the composed functor and the `BoundSet`. The example's integration point is `PaymentEffectsWiring`, a thin facade over it that adds what a composition cannot derive, and is what `PaymentService` and the interpreters use:
 
 ```java
 PaymentEffectsWiring.functor()    // Composed EitherFFunctor

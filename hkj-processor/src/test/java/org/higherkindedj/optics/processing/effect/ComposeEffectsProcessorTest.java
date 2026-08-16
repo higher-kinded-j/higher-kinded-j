@@ -203,6 +203,20 @@ class ComposeEffectsProcessorTest {
     }
 
     @Test
+    @DisplayName("BoundSet components carry the composed witness at arity 3")
+    void boundSetIsTypedAtArityThree() throws IOException {
+      Compilation compilation = compile(threeEffectComposition());
+      String source = getGeneratedSource(compilation, "test.pkg.TripleEffectsSupport");
+
+      String composed =
+          "EitherFKind.Witness<ConsoleOpKind.Witness, EitherFKind.Witness<DbOpKind.Witness,"
+              + " LoggingOpKind.Witness>>";
+      assertThat(source).contains("ConsoleOpOps.Bound<" + composed + "> console");
+      assertThat(source).contains("DbOpOps.Bound<" + composed + "> db");
+      assertThat(source).contains("LoggingOpOps.Bound<" + composed + "> logging");
+    }
+
+    @Test
     @DisplayName("Inject factories carry the composed witness, not a raw Inject")
     void injectFactoriesAreTyped() throws IOException {
       Compilation compilation = compile(twoEffectComposition());
@@ -244,8 +258,7 @@ class ComposeEffectsProcessorTest {
     @DisplayName("The last effect descends exactly as far as the nesting is deep")
     void lastEffectNestingDepth() throws IOException {
       // injectRight() already consumes the final level, so the last effect takes one fewer
-      // injectRightThen than its position: at arity 2 it is injectRight() alone. Typing the
-      // return is what makes this checkable at all.
+      // injectRightThen than its position: at arity 2 it is injectRight() alone.
       String two =
           getGeneratedSource(compile(twoEffectComposition()), "test.pkg.AppEffectsSupport");
       assertThat(two).contains("return InjectInstances.injectRight();");
@@ -620,6 +633,76 @@ class ComposeEffectsProcessorTest {
     }
 
     @Test
+    @DisplayName("A Class<?> field is rejected by shape, not misreported as a duplicate")
+    void wildcardClassFieldShouldError() {
+      // Two Class<?> fields are the same type as each other, so resolving the algebras has to
+      // happen before the duplicate check or this reports the wrong fault.
+      var source =
+          JavaFileObjects.forSourceString(
+              "test.pkg.WildcardEffects",
+              """
+              package test.pkg;
+
+              import org.higherkindedj.hkt.effect.annotation.ComposeEffects;
+
+              @ComposeEffects
+              public record WildcardEffects(Class<?> console, Class<?> db) {}
+              """);
+
+      Compilation compilation = compile(source);
+      CompilationSubject.assertThat(compilation).failed();
+      CompilationSubject.assertThat(compilation)
+          .hadErrorContaining("must be declared Class<XOp<?>>");
+      CompilationSubject.assertThat(compilation).hadErrorContaining("field 'console'");
+      CompilationSubject.assertThat(compilation).hadErrorContaining("field 'db'");
+    }
+
+    @Test
+    @DisplayName("An algebra @EffectAlgebra itself rejects gives one pointed error")
+    void nonSealedAlgebraShouldGiveOneError() {
+      // Generating a support that names types @EffectAlgebra declined to write would bury the
+      // real diagnostic under "package does not exist" from the generated source.
+      var plain =
+          JavaFileObjects.forSourceString(
+              "test.pkg.PlainOp",
+              """
+              package test.pkg;
+
+              import org.higherkindedj.hkt.effect.annotation.EffectAlgebra;
+
+              @EffectAlgebra
+              public interface PlainOp<A> {}
+              """);
+      Compilation compilation =
+          compile(plain, algebra("DbOp"), composition("BadEffects", "plain", "db"));
+
+      CompilationSubject.assertThat(compilation).failed();
+      CompilationSubject.assertThat(compilation).hadErrorContaining("it is not a sealed interface");
+      assertThat(compilation.errors().stream().map(d -> d.getMessage(null)).toList())
+          .noneMatch(m -> m.contains("does not exist"));
+    }
+
+    @Test
+    @DisplayName("The same algebra twice is a duplicate even through different Class arguments")
+    void sameAlgebraTwiceShouldError() {
+      var source =
+          JavaFileObjects.forSourceString(
+              "test.pkg.SameTwice",
+              """
+              package test.pkg;
+
+              import org.higherkindedj.hkt.effect.annotation.ComposeEffects;
+
+              @ComposeEffects
+              public record SameTwice(Class<ConsoleOp<?>> a, Class<ConsoleOp<String>> b) {}
+              """);
+
+      Compilation compilation = compile(algebra("ConsoleOp"), source);
+      CompilationSubject.assertThat(compilation).failed();
+      CompilationSubject.assertThat(compilation).hadErrorContaining("Duplicate effect algebra");
+    }
+
+    @Test
     @DisplayName("Duplicate effect types should produce error with field name")
     void duplicateEffectTypesShouldError() {
       var source =
@@ -632,19 +715,15 @@ class ComposeEffectsProcessorTest {
 
               @ComposeEffects
               public record DupEffects(
-                  String first,
-                  String second
+                  Class<ConsoleOp<?>> first,
+                  Class<ConsoleOp<?>> second
               ) {}
               """);
 
-      Compilation compilation = compile(source);
-      assertThat(compilation.errors()).isNotEmpty();
-      String errors =
-          compilation.errors().stream()
-              .map(d -> d.getMessage(null))
-              .reduce("", (a, b) -> a + " " + b);
-      assertThat(errors).contains("Duplicate effect algebra type");
-      assertThat(errors).contains("second");
+      Compilation compilation = compile(algebra("ConsoleOp"), source);
+      CompilationSubject.assertThat(compilation).failed();
+      CompilationSubject.assertThat(compilation).hadErrorContaining("Duplicate effect algebra");
+      CompilationSubject.assertThat(compilation).hadErrorContaining("second");
     }
   }
 }

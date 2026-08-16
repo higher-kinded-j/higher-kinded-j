@@ -11,8 +11,11 @@ import java.lang.annotation.Target;
  * Marks a record type as a composition of multiple {@link EffectAlgebra @EffectAlgebra} effect
  * algebras, triggering generation of support infrastructure.
  *
- * <p>The annotated record must have 2-4 fields, each referencing a {@code Class<?>} of an effect
- * algebra annotated with {@link EffectAlgebra @EffectAlgebra}.
+ * <p>The annotated record must have 2-4 fields, each declared {@code Class<XOp<?>>} naming an
+ * effect algebra annotated with {@link EffectAlgebra @EffectAlgebra}. A field of any other shape is
+ * a compile error: the algebra's type is what lets the generated support spell the composed
+ * witness, so {@code Class<?>} is not enough. An algebra with more than one type parameter cannot
+ * take part, since its witness would itself be generic.
  *
  * <h2>Generated Classes</h2>
  *
@@ -20,9 +23,11 @@ import java.lang.annotation.Target;
  * class with:
  *
  * <ul>
- *   <li>Static factory methods for all {@code Inject} instance combinations
- *   <li>A {@code BoundSet} record containing {@code Bound} instances for all effects
- *   <li>A {@code functor()} method returning the composed {@code Functor} instance
+ *   <li>An {@code injectX()} per field, returning {@code Inject<XKind.Witness, W>} where {@code W}
+ *       is the composed, right-nested {@code EitherFKind.Witness}
+ *   <li>A {@code BoundSet} record whose components are each algebra's {@code Bound} at {@code W}
+ *   <li>A {@code functor(...)} method taking one {@code Functor} per effect and returning the
+ *       composed {@code EitherFFunctor}
  * </ul>
  *
  * <h2>Example</h2>

@@ -18,6 +18,7 @@ import javax.lang.model.SourceVersion;
 import javax.lang.model.element.*;
 import javax.lang.model.type.DeclaredType;
 import javax.lang.model.type.MirroredTypeException;
+import javax.lang.model.type.TypeKind;
 import javax.lang.model.type.TypeMirror;
 import javax.tools.Diagnostic;
 import org.higherkindedj.hkt.effect.annotation.ComposeEffects;
@@ -65,51 +66,50 @@ public class ComposeEffectsProcessor extends AbstractProcessor {
   private static final ClassName INJECT_INSTANCES =
       ClassName.get("org.higherkindedj.hkt.inject", "InjectInstances");
   private static final ClassName FUNCTOR = ClassName.get("org.higherkindedj.hkt", "Functor");
-  private static final ClassName KIND = ClassName.get("org.higherkindedj.hkt", "Kind");
-  private static final ClassName TYPE_ARITY = ClassName.get("org.higherkindedj.hkt", "TypeArity");
-  private static final ClassName WITNESS_ARITY =
-      ClassName.get("org.higherkindedj.hkt", "WitnessArity");
   private static final ClassName GENERATED =
       ClassName.get("org.higherkindedj.optics.annotations", "Generated");
   private static final ClassName NULL_MARKED =
       ClassName.get("org.jspecify.annotations", "NullMarked");
-  private static final ClassName OBJECTS = ClassName.get("java.util", "Objects");
-  private static final ClassName FREE = ClassName.get("org.higherkindedj.hkt.free", "Free");
 
   /**
    * One composed effect, resolved from a {@code Class<XOp<?>>} record component.
    *
    * @param field the record component's name, which names the generated accessor
+   * @param algebra the algebra's qualified name, for diagnostics
    * @param witness the algebra's {@code XKind.Witness}
    * @param ops the algebra's generated {@code XOps}, whose {@code Bound} types the BoundSet
    */
-  private record EffectBinding(String field, ClassName witness, ClassName ops) {}
+  private record EffectBinding(String field, String algebra, ClassName witness, ClassName ops) {}
 
   /**
-   * Resolves each record component to the algebra it names, or null when one does not name an
-   * effect algebra.
+   * Resolves every record component to the algebra it names, or null when any component does not
+   * name one.
    *
-   * <p>{@code @ComposeEffects} documents each field as {@code Class<XOp<?>>} where {@code XOp}
-   * carries {@code @EffectAlgebra}. Reading that type is what lets the generated support spell the
-   * composed witness instead of falling back to raw {@code Inject} and {@code Functor}, so the
-   * shape is now required rather than assumed.
+   * <p>{@code @ComposeEffects} requires each field to be {@code Class<XOp<?>>} where {@code XOp}
+   * carries {@code @EffectAlgebra}: reading that type is what lets the generated support spell the
+   * composed witness.
+   *
+   * <p>Every bad component is reported before giving up, so one recompile shows the whole list.
    */
   private List<EffectBinding> resolveBindings(List<? extends RecordComponentElement> components) {
     List<EffectBinding> bindings = new ArrayList<>();
+    boolean resolved = true;
     for (RecordComponentElement component : components) {
       TypeElement algebra = effectAlgebraOf(component);
       if (algebra == null) {
-        return null;
+        resolved = false;
+        continue;
       }
       String algebraName = algebra.getSimpleName().toString();
       String packageName = effectAlgebraPackage(algebra);
       bindings.add(
           new EffectBinding(
               component.getSimpleName().toString(),
+              algebra.getQualifiedName().toString(),
               ClassName.get(packageName, algebraName + "Kind", "Witness"),
               ClassName.get(packageName, algebraName + "Ops")));
     }
-    return bindings;
+    return resolved ? bindings : null;
   }
 
   /** The effect algebra a component names, or null (having reported why) when it names none. */
@@ -119,28 +119,71 @@ public class ComposeEffectsProcessor extends AbstractProcessor {
             + " @EffectAlgebra; field '"
             + component.getSimpleName()
             + "' is ";
+    if (component.asType().getKind() == TypeKind.ERROR) {
+      return null; // javac already reports the unresolvable type; a second message adds nothing
+    }
     if (!(component.asType() instanceof DeclaredType declared)
         || !((TypeElement) declared.asElement()).getQualifiedName().contentEquals("java.lang.Class")
         || declared.getTypeArguments().size() != 1) {
       error(expected + component.asType(), component);
       return null;
     }
-    if (!(declared.getTypeArguments().get(0) instanceof DeclaredType algebraType)
+    TypeMirror argument = declared.getTypeArguments().get(0);
+    if (argument.getKind() == TypeKind.ERROR) {
+      return null; // as above
+    }
+    if (!(argument instanceof DeclaredType algebraType)
         || !(algebraType.asElement() instanceof TypeElement algebra)) {
       error(expected + component.asType(), component);
       return null;
     }
+    return isComposableAlgebra(algebra, component) ? algebra : null;
+  }
+
+  /**
+   * Reports whether an algebra can be composed, given what {@code @EffectAlgebra} generates.
+   *
+   * <p>Composition names {@code XKind.Witness} and {@code XOps.Bound}, so the algebra has to be one
+   * {@code @EffectAlgebra} actually generates those for. Checking here keeps a rejected algebra to
+   * a single pointed diagnostic; emitting a support class that names types the other processor
+   * declined to write would bury it under a page of "package does not exist".
+   */
+  private boolean isComposableAlgebra(TypeElement algebra, RecordComponentElement component) {
     if (algebra.getAnnotation(EffectAlgebra.class) == null) {
       error(
           "@ComposeEffects field '"
               + component.getSimpleName()
               + "' names "
               + algebra.getQualifiedName()
-              + ", which is not annotated @EffectAlgebra, so its Kind and Ops are not generated.",
+              + ", which is not annotated @EffectAlgebra. Composition derives the witness and Ops"
+              + " from that annotation, so an algebra with more than one type parameter (whose"
+              + " witness would itself be generic) cannot take part.",
           component);
-      return null;
+      return false;
     }
-    return algebra;
+    if (!algebra.getModifiers().contains(Modifier.SEALED)) {
+      error(
+          "@ComposeEffects field '"
+              + component.getSimpleName()
+              + "' names "
+              + algebra.getQualifiedName()
+              + ", which @EffectAlgebra rejects because it is not a sealed interface, so its Kind"
+              + " and Ops are not generated.",
+          component);
+      return false;
+    }
+    if (algebra.getTypeParameters().size() != 1) {
+      error(
+          "@ComposeEffects field '"
+              + component.getSimpleName()
+              + "' names "
+              + algebra.getQualifiedName()
+              + ", which @EffectAlgebra rejects because it does not have exactly one type"
+              + " parameter, so its Kind and Ops are not generated.",
+          component);
+      return false;
+    }
+    return true;
   }
 
   /** Where {@code @EffectAlgebra} puts the algebra's generated types. */
@@ -194,40 +237,43 @@ public class ComposeEffectsProcessor extends AbstractProcessor {
         continue;
       }
 
-      // Check for duplicates using proper type comparison
-      List<RecordComponentElement> seenComponents = new ArrayList<>();
+      // Resolve the algebras before looking for duplicates: a field's declared type may be
+      // Class<X> for several X that share one algebra, and two malformed fields are the same
+      // java.lang.Class as each other, which would otherwise be reported as a duplicate.
+      List<EffectBinding> bindings = resolveBindings(components);
+      if (bindings == null) {
+        continue; // fields do not name effect algebras; errors already reported
+      }
+
+      Set<String> seenWitnesses = new HashSet<>();
       boolean hasDuplicates = false;
-      for (RecordComponentElement comp : components) {
-        for (RecordComponentElement prev : seenComponents) {
-          if (processingEnv.getTypeUtils().isSameType(comp.asType(), prev.asType())) {
-            error(
-                "Duplicate effect algebra type: "
-                    + comp.asType()
-                    + " (field '"
-                    + comp.getSimpleName()
-                    + "'). Each effect algebra may only appear once.",
-                comp);
-            hasDuplicates = true;
-            break;
-          }
+      for (int i = 0; i < bindings.size(); i++) {
+        if (!seenWitnesses.add(bindings.get(i).witness().toString())) {
+          error(
+              "Duplicate effect algebra: "
+                  + bindings.get(i).algebra()
+                  + " (field '"
+                  + bindings.get(i).field()
+                  + "'). Each effect algebra may only appear once.",
+              components.get(i));
+          hasDuplicates = true;
         }
-        seenComponents.add(comp);
       }
       if (hasDuplicates) continue;
 
-      writeSupport(typeElement, components, element);
+      writeSupport(typeElement, bindings, element);
     }
   }
 
   @ExcludeFromJacocoGeneratedReport
   private void writeSupport(
-      TypeElement typeElement, List<? extends RecordComponentElement> components, Element element) {
+      TypeElement typeElement, List<EffectBinding> bindings, Element element) {
     try {
       ComposeEffects ann = typeElement.getAnnotation(ComposeEffects.class);
       String packageName = resolveTargetPackage(typeElement, ann);
       String baseName = typeElement.getSimpleName().toString();
 
-      generateSupport(packageName, baseName, typeElement, components);
+      generateSupport(packageName, baseName, typeElement, bindings);
     } catch (IOException e) {
       error(
           "Failed to generate support class for "
@@ -239,18 +285,10 @@ public class ComposeEffectsProcessor extends AbstractProcessor {
   }
 
   private void generateSupport(
-      String packageName,
-      String baseName,
-      TypeElement source,
-      List<? extends RecordComponentElement> components)
+      String packageName, String baseName, TypeElement source, List<EffectBinding> bindings)
       throws IOException {
     String supportName = baseName + "Support";
-    int arity = components.size();
-
-    List<EffectBinding> bindings = resolveBindings(components);
-    if (bindings == null) {
-      return; // the fields do not name effect algebras; errors already reported
-    }
+    int arity = bindings.size();
 
     TypeSpec.Builder supportBuilder =
         TypeSpec.classBuilder(supportName)
@@ -299,10 +337,9 @@ public class ComposeEffectsProcessor extends AbstractProcessor {
    *   <li>Position 2 (H): {@code InjectInstances.injectRightThen(InjectInstances.injectRight())}
    * </ul>
    *
-   * @param effectName the field name of the effect
-   * @param position zero-based position in the composition
-   * @param arity total number of effects (2-4)
-   * @return the generated method spec
+   * @param bindings the resolved effects, in declaration order
+   * @param position the effect this factory injects
+   * @return the generated factory method
    */
   private MethodSpec generateInjectMethod(List<EffectBinding> bindings, int position) {
     EffectBinding binding = bindings.get(position);
@@ -311,7 +348,7 @@ public class ComposeEffectsProcessor extends AbstractProcessor {
         "inject" + effectName.substring(0, 1).toUpperCase(Locale.ROOT) + effectName.substring(1);
 
     // Declaring the composed witness lets InjectInstances' type parameters infer from the
-    // return type, so the nesting is checked rather than cast into place.
+    // return type, so javac checks the nesting.
     MethodSpec.Builder builder =
         MethodSpec.methodBuilder(methodName)
             .addModifiers(Modifier.PUBLIC, Modifier.STATIC)
@@ -370,9 +407,12 @@ public class ComposeEffectsProcessor extends AbstractProcessor {
             .returns(
                 ParameterizedTypeName.get(
                     EITHERF_FUNCTOR, bindings.getFirst().witness(), composedWitness(bindings, 1)))
-            .addJavadoc(
-                "Returns a composed Functor for the combined effect type.\n\n"
-                    + "@return The composed Functor instance\n");
+            .addJavadoc("Returns a composed Functor for the combined effect type.\n\n");
+    for (EffectBinding binding : bindings) {
+      builder.addJavadoc(
+          "@param $LFunctor the Functor for {@code $T}\n", binding.field(), binding.witness());
+    }
+    builder.addJavadoc("@return The composed Functor over the full effect type\n");
 
     // Build nested EitherFFunctor construction
     // For 2: EitherFFunctor.of(functor1, functor2)

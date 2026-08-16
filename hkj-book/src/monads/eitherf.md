@@ -169,7 +169,7 @@ For most users, `EitherF` is an implementation detail. The [`@ComposeEffects`](.
 public record AppEffects(
     Class<ConsoleOp<?>> console,
     Class<DbOp<?>> db) {}
-// Generates: AppEffectsWiring with Inject instances, composed Functor, BoundSet
+// Generates: AppEffectsSupport with typed Inject instances, composed Functor, BoundSet
 ```
 
 The generated `BoundSet` provides smart constructors that handle injection automatically. You write programs using `bounds.console().readLine(...)` and `bounds.db().save(...)` without thinking about `EitherF`, `Inject`, or nesting.

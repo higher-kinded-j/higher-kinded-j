@@ -174,7 +174,7 @@ The four effect algebras are composed via `@ComposeEffects`. The composition use
 └──────────────────────────────────────────────────────────────────────┘
 ```
 
-`PaymentEffectsWiring` provides inject instances, a composed functor, and a `BoundSet`:
+`@ComposeEffects` generates `PaymentEffectsSupport` with the inject instances, the composed functor and the `BoundSet`, each typed to the composed witness. `PaymentEffectsWiring` is a thin facade over it, adding a `boundSet()` wired to each algebra's Functor and an `interpret()` that spells the witness once:
 
 ```java
 @ComposeEffects

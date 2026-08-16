@@ -99,7 +99,7 @@ public record AppEffects(
 ```
 
 Each field must be a `Class<XOp<?>>` naming an `@EffectAlgebra`. That is what lets the generated
-`AppEffectsSupport` spell the composed witness, so its factories are typed rather than raw:
+`AppEffectsSupport` spell the composed witness, so its factories carry it:
 
 ```java
 public static Inject<

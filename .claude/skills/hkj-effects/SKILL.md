@@ -109,7 +109,7 @@ public record AppEffects(
 |----------------|---------|
 | `{Effects}Support.injectXxx()` | An `Inject` per effect, routing it to its position in the `EitherF` nesting |
 | `{Effects}Support.functor(...)` | The composed `EitherFFunctor`, from one `Functor` per effect |
-| `{Effects}Support.BoundSet<F>` | Record holding the `Bound` instances for all effect types |
+| `{Effects}Support.BoundSet` | Record holding the `Bound` instances for all effect types |
 
 The processor takes the record name and appends `Support` (e.g., `AppEffects` -> `AppEffectsSupport`).
 
