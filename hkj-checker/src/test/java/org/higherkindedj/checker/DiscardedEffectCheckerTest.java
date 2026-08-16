@@ -50,12 +50,12 @@ class DiscardedEffectCheckerTest {
                   import org.higherkindedj.hkt.effect.Path;
                   public class BareChain {
                       void m() {
-                          Path.<String, Integer>right(1).map(x -> x + 1);
+                          Path.io(() -> 1).map(x -> x + 1);
                       }
                   }
                   """));
       assertThat(c).failed();
-      assertThat(c).hadErrorContaining("EitherPath is built but never used");
+      assertThat(c).hadErrorContaining("IOPath is built but never used");
       assertThat(c).hadErrorContaining("effect/capabilities.html");
     }
 
@@ -213,7 +213,7 @@ class DiscardedEffectCheckerTest {
             package test;
             import org.higherkindedj.hkt.effect.Path;
             public class Discard {
-                void m() { Path.<String, Integer>right(1).map(x -> x); }
+                void m() { Path.io(() -> 1).map(x -> x); }
             }
             """);
 
@@ -229,7 +229,7 @@ class DiscardedEffectCheckerTest {
     void warn() {
       Compilation c = compile("severity=warn", DISCARD);
       assertThat(c).succeeded();
-      assertThat(c).hadWarningContaining("EitherPath is built but never used");
+      assertThat(c).hadWarningContaining("IOPath is built but never used");
     }
   }
 
@@ -249,9 +249,9 @@ class DiscardedEffectCheckerTest {
                   """
                   package test;
                   import java.util.Objects;
-                  import org.higherkindedj.hkt.effect.EitherPath;
+                  import org.higherkindedj.hkt.effect.IOPath;
                   public class Guarded {
-                      EitherPath<String, Integer> m(EitherPath<String, Integer> other) {
+                      IOPath<Integer> m(IOPath<Integer> other) {
                           Objects.requireNonNull(other, "other must not be null");
                           return other;
                       }
@@ -326,18 +326,68 @@ class DiscardedEffectCheckerTest {
                   public class GuardedAndDiscarded {
                       void m(EitherPath<String, Integer> other) {
                           Objects.requireNonNull(other, "other must not be null");
-                          Path.<String, Integer>right(1).map(x -> x);
+                          Path.io(() -> 1).map(x -> x);
                       }
                   }
                   """));
 
       assertThat(c).succeeded();
-      assertThat(c).hadWarningContaining("EitherPath is built but never used");
+      assertThat(c).hadWarningContaining("IOPath is built but never used");
       Assertions.assertThat(
               c.diagnostics().stream()
                   .filter(d -> String.valueOf(d.getMessage(null)).contains("built but never used"))
                   .count())
           .isOne();
+    }
+  }
+
+  @Nested
+  @DisplayName("eager paths")
+  class EagerPaths {
+
+    @Test
+    @DisplayName("a discarded eager chain is not flagged: its work has already happened")
+    void eagerDiscard_notFlagged() {
+      // MaybePath holds a value that already exists, so map() applies immediately. The
+      // statement drops the result, but nothing was deferred and nothing was skipped —
+      // "it describes work that has not run" would simply be untrue.
+      Compilation c =
+          compile(
+              src(
+                  "test.Eager",
+                  """
+                  package test;
+                  import org.higherkindedj.hkt.effect.Path;
+                  public class Eager {
+                      void m() {
+                          Path.just(1).peek(v -> System.out.println(v));
+                          Path.<String, Integer>right(1).map(x -> x + 1);
+                          Path.listPathPure(1).map(x -> x + 1);
+                      }
+                  }
+                  """));
+
+      assertThat(c).succeeded();
+    }
+
+    @Test
+    @DisplayName("CompletableFuturePath is eager: its future is already in flight")
+    void completableFuture_notFlagged() {
+      Compilation c =
+          compile(
+              src(
+                  "test.InFlight",
+                  """
+                  package test;
+                  import org.higherkindedj.hkt.effect.Path;
+                  public class InFlight {
+                      void m() {
+                          Path.futureCompleted(1).map(x -> x + 1);
+                      }
+                  }
+                  """));
+
+      assertThat(c).succeeded();
     }
   }
 }

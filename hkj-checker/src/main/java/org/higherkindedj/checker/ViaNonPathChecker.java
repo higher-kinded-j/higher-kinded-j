@@ -79,7 +79,7 @@ public final class ViaNonPathChecker implements CheckVisitor {
         || node.getArguments().isEmpty()) {
       return;
     }
-    TypeElement chainable = elements.getTypeElement(DiscardedEffectChecker.CHAINABLE_FQN);
+    TypeElement chainable = elements.getTypeElement(PathTypeRegistry.CHAINABLE_FQN);
     if (chainable == null) {
       return; // effect API not on the classpath
     }

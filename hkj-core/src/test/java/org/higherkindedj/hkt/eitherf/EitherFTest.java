@@ -262,6 +262,7 @@ class EitherFTest {
 
     @Test
     @DisplayName("End-to-end: two-effect program via Inject, translate, combine, foldMap")
+    @SuppressWarnings("migration-nudge") // exercises the Free/Inject primitives directly
     void endToEndTwoEffectProgram() {
       // Build a program in Identity
       var identityMonad = IdentityMonad.INSTANCE;

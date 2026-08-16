@@ -66,6 +66,7 @@ public class Tutorial05_ProgramInspection {
    */
   @Test
   @DisplayName("Exercise 1: Count Instructions")
+  @SuppressWarnings("migration-nudge") // exercises the Free/Inject primitives directly
   void exercise1_countInstructions() {
     Free<IdKind.Witness, String> program = Free.liftF(new Id<>("hello"), ID_FUNCTOR);
 

@@ -296,6 +296,7 @@ class ListPathTest {
 
     @Test
     @DisplayName("zipWith() throws for non-ListPath")
+    @SuppressWarnings("path-type-mismatch") // the mismatch is the behaviour under test
     void zipWithThrowsForNonListPath() {
       ListPath<Integer> path = ListPath.of(1, 2, 3);
 
@@ -365,6 +366,7 @@ class ListPathTest {
 
     @Test
     @DisplayName("via() throws for non-ListPath result")
+    @SuppressWarnings("path-type-mismatch") // the mismatch is the behaviour under test
     void viaThrowsForNonListPathResult() {
       ListPath<Integer> path = ListPath.of(1, 2, 3);
 

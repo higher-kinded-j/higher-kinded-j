@@ -64,6 +64,7 @@ class TestBoundaryTest {
         }
       };
 
+  @SuppressWarnings("migration-nudge") // exercises the Free/Inject primitives directly
   static Free<TestOpKind.Witness, String> store(String value) {
     return Free.liftF(widen(new TestOp.Store<>(value, Function.identity())), TEST_FUNCTOR);
   }

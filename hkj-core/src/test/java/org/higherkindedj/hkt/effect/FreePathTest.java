@@ -281,6 +281,7 @@ class FreePathTest {
 
     @Test
     @DisplayName("via() throws when mapper returns non-FreePath")
+    @SuppressWarnings("path-type-mismatch") // the mismatch is the behaviour under test
     void viaThrowsWhenMapperReturnsNonFreePath() {
       FreePath<MaybeKind.Witness, Integer> path = FreePath.pure(42, Instances.monadError(maybe()));
 
@@ -342,6 +343,7 @@ class FreePathTest {
 
     @Test
     @DisplayName("zipWith() throws when given non-FreePath")
+    @SuppressWarnings("path-type-mismatch") // the mismatch is the behaviour under test
     void zipWithThrowsWhenGivenNonFreePath() {
       FreePath<MaybeKind.Witness, Integer> path = FreePath.pure(42, Instances.monadError(maybe()));
       MaybePath<Integer> maybePath = Path.just(10);

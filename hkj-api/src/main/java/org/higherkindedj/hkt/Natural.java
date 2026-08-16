@@ -292,7 +292,7 @@ public interface Natural<F extends WitnessArity<?>, G extends WitnessArity<?>> {
   }
 
   /** Cached identity instance to avoid allocations on each call. */
-  @SuppressWarnings("rawtypes")
+  @SuppressWarnings({"rawtypes", "raw-kind"}) // one cached instance for every witness
   Natural IDENTITY =
       new Natural() {
         @Override

@@ -830,7 +830,10 @@ class KindValidatorTest {
 
     @Test
     @DisplayName("should validate complete narrow-widen cycle")
-    @SuppressWarnings("unchecked") // raw Either.class keeps the validation chain unchecked
+    @SuppressWarnings({
+      "raw-kind",
+      "unchecked"
+    }) // raw Either.class keeps the validation chain unchecked; a raw Kind is the input under test
     void shouldValidateCompleteNarrowWidenCycle() {
       // Create original
       var original = Either.<String, Integer>right(42);
@@ -860,7 +863,10 @@ class KindValidatorTest {
 
     @Test
     @DisplayName("should handle validation chain with multiple operations")
-    @SuppressWarnings("unchecked") // raw Either.class keeps the validation chain unchecked
+    @SuppressWarnings({
+      "raw-kind",
+      "unchecked"
+    }) // raw Either.class keeps the validation chain unchecked; a raw Kind is the input under test
     void shouldHandleValidationChainWithMultipleOperations() {
       var either = Either.<String, String>right("test");
 
@@ -903,7 +909,10 @@ class KindValidatorTest {
 
     @Test
     @DisplayName("should handle concurrent validation requests")
-    @SuppressWarnings("unchecked") // raw Either.class keeps the validation chain unchecked
+    @SuppressWarnings({
+      "raw-kind",
+      "unchecked"
+    }) // raw Either.class keeps the validation chain unchecked; a raw Kind is the input under test
     void shouldHandleConcurrentValidationRequests() throws InterruptedException {
       int threadCount = 10;
       CountDownLatch startLatch = new CountDownLatch(1);

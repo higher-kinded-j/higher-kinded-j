@@ -228,6 +228,7 @@ class EitherOrBothPathTest {
     }
 
     @Test
+    @SuppressWarnings("path-type-mismatch") // the mismatch is the behaviour under test
     void viaRejectsNonEitherOrBothPathResult() {
       assertThatThrownBy(() -> right().via(a -> Path.just(a)))
           .isInstanceOf(IllegalArgumentException.class)
@@ -265,6 +266,7 @@ class EitherOrBothPathTest {
     }
 
     @Test
+    @SuppressWarnings("path-type-mismatch") // the mismatch is the behaviour under test
     void zipWithRejectsNonEitherOrBothPath() {
       assertThatThrownBy(() -> right().zipWith(Path.just(1), Integer::sum))
           .isInstanceOf(IllegalArgumentException.class)
@@ -383,6 +385,7 @@ class EitherOrBothPathTest {
     }
 
     @Test
+    @SuppressWarnings("path-type-mismatch") // the mismatch is the behaviour under test
     void recoverWithRejectsNonEitherOrBothPath() {
       assertThatThrownBy(
               () -> left().recoverWith(l -> Path.<String, Integer>either(Either.right(0))))

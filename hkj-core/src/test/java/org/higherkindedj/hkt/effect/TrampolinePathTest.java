@@ -203,6 +203,7 @@ class TrampolinePathTest {
 
     @Test
     @DisplayName("via() throws when mapper returns wrong type")
+    @SuppressWarnings("path-type-mismatch") // the mismatch is the behaviour under test
     void viaThrowsWhenMapperReturnsWrongType() {
       TrampolinePath<Integer> path = TrampolinePath.done(42);
 
@@ -273,6 +274,7 @@ class TrampolinePathTest {
 
     @Test
     @DisplayName("zipWith() throws when given non-TrampolinePath")
+    @SuppressWarnings("path-type-mismatch") // the mismatch is the behaviour under test
     void zipWithThrowsWhenGivenNonTrampolinePath() {
       TrampolinePath<Integer> path = TrampolinePath.done(42);
       MaybePath<Integer> maybePath = Path.just(10);

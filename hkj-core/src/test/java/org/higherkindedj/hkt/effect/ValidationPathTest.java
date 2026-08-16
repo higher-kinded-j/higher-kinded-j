@@ -376,6 +376,7 @@ class ValidationPathTest {
 
     @Test
     @DisplayName("via() validates result is ValidationPath")
+    @SuppressWarnings("path-type-mismatch") // the mismatch is the behaviour under test
     void viaValidatesResultType() {
       ValidationPath<String, String> path = Path.valid(TEST_VALUE, STRING_SEMIGROUP);
 
@@ -410,6 +411,7 @@ class ValidationPathTest {
 
     @Test
     @DisplayName("then() validates result is ValidationPath")
+    @SuppressWarnings("path-type-mismatch") // the mismatch is the behaviour under test
     void thenValidatesResultType() {
       ValidationPath<String, String> path = Path.valid(TEST_VALUE, STRING_SEMIGROUP);
 
@@ -605,6 +607,7 @@ class ValidationPathTest {
 
     @Test
     @DisplayName("zipWith() throws when given non-ValidationPath")
+    @SuppressWarnings("path-type-mismatch") // the mismatch is the behaviour under test
     void zipWithThrowsWhenGivenNonValidationPath() {
       ValidationPath<String, String> path = Path.valid(TEST_VALUE, STRING_SEMIGROUP);
       EitherPath<String, Integer> eitherPath = Path.right(42);
@@ -824,6 +827,7 @@ class ValidationPathTest {
 
     @Test
     @DisplayName("recoverWith() throws when recovery returns non-ValidationPath")
+    @SuppressWarnings("path-type-mismatch") // the mismatch is the behaviour under test
     void recoverWithThrowsWhenRecoveryReturnsNonValidationPath() {
       ValidationPath<String, String> path = Path.invalid(TEST_ERROR, STRING_SEMIGROUP);
 
@@ -834,6 +838,7 @@ class ValidationPathTest {
 
     @Test
     @DisplayName("orElse() throws when alternative returns non-ValidationPath")
+    @SuppressWarnings("path-type-mismatch") // the mismatch is the behaviour under test
     void orElseThrowsWhenAlternativeReturnsNonValidationPath() {
       ValidationPath<String, String> path = Path.invalid(TEST_ERROR, STRING_SEMIGROUP);
 

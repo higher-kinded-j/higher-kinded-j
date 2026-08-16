@@ -57,6 +57,7 @@ public class Tutorial05_ProgramInspection_Solution {
    * suspend; only {@code Free.liftF} adds to the suspend count.
    */
   @Test
+  @SuppressWarnings("migration-nudge") // exercises the Free/Inject primitives directly
   void exercise1_countInstructions() {
     Free<IdKind.Witness, String> program = Free.liftF(new Id<>("hello"), ID_FUNCTOR);
     ProgramAnalysis analysis = ProgramAnalyser.analyse(program);
@@ -78,6 +79,7 @@ public class Tutorial05_ProgramInspection_Solution {
    * than rely on static guarantees.
    */
   @Test
+  @SuppressWarnings("migration-nudge") // exercises the Free/Inject primitives directly
   void exercise2_detectOpaqueRegions() {
     Free<IdKind.Witness, String> program =
         Free.liftF(new Id<>("a"), ID_FUNCTOR).flatMap(s -> Free.pure(s + "b"));

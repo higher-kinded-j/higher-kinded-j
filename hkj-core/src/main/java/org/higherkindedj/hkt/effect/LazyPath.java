@@ -9,6 +9,7 @@ import java.util.function.Function;
 import java.util.function.Supplier;
 import org.higherkindedj.hkt.effect.capability.Chainable;
 import org.higherkindedj.hkt.effect.capability.Combinable;
+import org.higherkindedj.hkt.effect.capability.Deferred;
 import org.higherkindedj.hkt.function.Function3;
 import org.higherkindedj.hkt.id.Id;
 import org.higherkindedj.hkt.lazy.Lazy;
@@ -67,7 +68,7 @@ import org.higherkindedj.hkt.trymonad.Try;
  *
  * @param <A> the type of the computed value
  */
-public final class LazyPath<A> implements Chainable<A> {
+public final class LazyPath<A> implements Chainable<A>, Deferred<A> {
 
   private final Lazy<A> lazy;
 

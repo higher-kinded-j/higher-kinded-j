@@ -23,6 +23,7 @@ final class FreeArbitraries {
   private FreeArbitraries() {}
 
   /** Wraps a pure value in a {@code Suspend} over the Identity functor. */
+  @SuppressWarnings("migration-nudge") // exercises the Free/Inject primitives directly
   private static Kind<FreeKind.Witness<IdentityKind.Witness>, Integer> suspend(int value) {
     Kind<IdentityKind.Witness, Free<IdentityKind.Witness, Integer>> wrapped =
         IDENTITY.widen(new Identity<>(Free.pure(value)));
@@ -58,6 +59,7 @@ final class FreeArbitraries {
   }
 
   /** A small pool of {@code Integer -> Kind<Free, String>} functions, mixing pure/suspend. */
+  @SuppressWarnings("migration-nudge") // exercises the Free/Inject primitives directly
   static Arbitrary<Function<Integer, Kind<FreeKind.Witness<IdentityKind.Witness>, String>>>
       intToFreeString() {
     return Arbitraries.of(
@@ -69,6 +71,7 @@ final class FreeArbitraries {
   }
 
   /** A small pool of {@code String -> Kind<Free, String>} functions, mixing pure/suspend. */
+  @SuppressWarnings("migration-nudge") // exercises the Free/Inject primitives directly
   static Arbitrary<Function<String, Kind<FreeKind.Witness<IdentityKind.Witness>, String>>>
       stringToFreeString() {
     return Arbitraries.of(

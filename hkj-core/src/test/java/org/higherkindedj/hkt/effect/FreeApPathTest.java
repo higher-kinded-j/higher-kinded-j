@@ -331,6 +331,7 @@ class FreeApPathTest {
 
     @Test
     @DisplayName("zipWith() throws when given non-FreeApPath")
+    @SuppressWarnings("path-type-mismatch") // the mismatch is the behaviour under test
     void zipWithThrowsWhenGivenNonFreeApPath() {
       FreeApPath<MaybeKind.Witness, Integer> path =
           FreeApPath.pure(42, Instances.monadError(maybe()));

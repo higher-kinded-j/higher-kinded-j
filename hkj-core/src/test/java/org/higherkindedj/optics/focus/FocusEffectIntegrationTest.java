@@ -124,6 +124,7 @@ class FocusEffectIntegrationTest {
 
     @Test
     @DisplayName("validate user fields using focus and effects")
+    @SuppressWarnings("error-type-mismatch") // the erased error type is the behaviour under test
     void validateUserFieldsUsingFocusAndEffects() {
       FocusPath<User, String> namePath = FocusPath.of(userNameLens);
 
@@ -148,6 +149,7 @@ class FocusEffectIntegrationTest {
 
     @Test
     @DisplayName("accumulate validation errors using ValidationPath")
+    @SuppressWarnings("error-type-mismatch") // the erased error type is the behaviour under test
     void accumulateValidationErrorsUsingValidationPath() {
       FocusPath<User, String> namePath = FocusPath.of(userNameLens);
       FocusPath<User, String> idPath = FocusPath.of(userIdLens);

@@ -256,6 +256,7 @@ class WithStatePathTest {
 
     @Test
     @DisplayName("via() validates result is WithStatePath")
+    @SuppressWarnings("path-type-mismatch") // the mismatch is the behaviour under test
     void viaValidatesResultType() {
       WithStatePath<Integer, String> path = WithStatePath.pure(TEST_VALUE);
 
@@ -292,6 +293,7 @@ class WithStatePathTest {
 
     @Test
     @DisplayName("then() throws for incompatible path type")
+    @SuppressWarnings("path-type-mismatch") // the mismatch is the behaviour under test
     void thenThrowsForIncompatibleType() {
       WithStatePath<Integer, String> path = WithStatePath.pure(TEST_VALUE);
 
@@ -336,6 +338,7 @@ class WithStatePathTest {
 
     @Test
     @DisplayName("zipWith() throws when given non-WithStatePath")
+    @SuppressWarnings("path-type-mismatch") // the mismatch is the behaviour under test
     void zipWithThrowsWhenGivenNonWithStatePath() {
       WithStatePath<Integer, String> path = WithStatePath.pure(TEST_VALUE);
       IdPath<Integer> idPath = Path.id(42);

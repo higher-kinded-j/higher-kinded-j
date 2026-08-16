@@ -11,6 +11,7 @@ import java.util.function.Supplier;
 import org.higherkindedj.hkt.Unit;
 import org.higherkindedj.hkt.effect.capability.Chainable;
 import org.higherkindedj.hkt.effect.capability.Combinable;
+import org.higherkindedj.hkt.effect.capability.Deferred;
 import org.higherkindedj.hkt.effect.capability.Effectful;
 import org.higherkindedj.hkt.either.Either;
 import org.higherkindedj.hkt.function.Function3;
@@ -90,7 +91,8 @@ import org.higherkindedj.optics.focus.FocusPath;
  * @see IOPath
  * @see org.higherkindedj.hkt.vtask.Par
  */
-public sealed interface VTaskPath<A> extends VTaskKind<A>, Effectful<A> permits DefaultVTaskPath {
+public sealed interface VTaskPath<A> extends VTaskKind<A>, Effectful<A>, Deferred<A>
+    permits DefaultVTaskPath {
 
   /**
    * Returns the underlying VTask value.

@@ -59,6 +59,38 @@ subprojects {
         )
     }
 
+    // Run HKJ's own compile-time checks over HKJ. The checks exist for HKJ shapes, so the
+    // library is their most demanding user: the two false positives fixed alongside this
+    // wiring (a requireNonNull guard read as a discarded effect, and eager paths judged by
+    // the lazy-effect rule) were both invisible while the checker never saw this codebase.
+    //
+    // severity=warn keeps a new finding advisory at the checker's own level; -Werror above
+    // still turns it into a build failure, which is the intent — the repo is at zero
+    // findings and a regression should stop the build. A deliberate exception is spelled
+    // @SuppressWarnings("<check-id>") on the narrowest enclosing declaration.
+    //
+    // hkj-checker is excluded: it cannot run itself while being built, and its fixtures
+    // violate the checks on purpose.
+    if (project.name !in platformModules && project.name != "hkj-checker") {
+        dependencies {
+            add("annotationProcessor", project(":hkj-checker"))
+            add("testAnnotationProcessor", project(":hkj-checker"))
+        }
+        tasks.withType<JavaCompile>().configureEach {
+            options.compilerArgs.add("-Xplugin:HKJChecker severity=warn")
+            // The checker reads jdk.compiler internals, which the compiler JVM must export.
+            options.isFork = true
+            options.forkOptions.jvmArgs?.addAll(
+                listOf(
+                    "--add-exports", "jdk.compiler/com.sun.tools.javac.api=ALL-UNNAMED",
+                    "--add-exports", "jdk.compiler/com.sun.tools.javac.code=ALL-UNNAMED",
+                    "--add-exports", "jdk.compiler/com.sun.tools.javac.tree=ALL-UNNAMED",
+                    "--add-exports", "jdk.compiler/com.sun.tools.javac.util=ALL-UNNAMED"
+                )
+            )
+        }
+    }
+
     tasks.withType<Test>().configureEach {
         jvmArgs("--enable-preview")
     }

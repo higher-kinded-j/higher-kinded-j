@@ -143,6 +143,7 @@ class OptionalTKindHelperTest {
 
     @Test
     @DisplayName("should throw KindUnwrapException when unwrapping an incorrect Kind type")
+    @SuppressWarnings("raw-kind") // a raw Kind is the input under test
     void narrow_incorrectKindType_shouldThrowKindUnwrapException() {
       OtherKind<String> incorrectKind = new OtherKind<>();
 

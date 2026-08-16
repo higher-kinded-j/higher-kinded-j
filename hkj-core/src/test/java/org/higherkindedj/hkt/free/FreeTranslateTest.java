@@ -65,6 +65,7 @@ class FreeTranslateTest {
 
     @Test
     @DisplayName("translate liftF preserves computation")
+    @SuppressWarnings("migration-nudge") // exercises the Free/Inject primitives directly
     void translateLiftFPreservesComputation() {
       // Create a simple program: liftF an Identity instruction, then map
       Kind<IdentityKind.Witness, Integer> instruction = IDENTITY.widen(new Identity<>(42));
@@ -110,6 +111,7 @@ class FreeTranslateTest {
 
     @Test
     @DisplayName("translate preserves flatMap chains")
+    @SuppressWarnings("migration-nudge") // exercises the Free/Inject primitives directly
     void translatePreservesFlatMapChains() {
       // Build a program with flatMap
       Kind<IdentityKind.Witness, Integer> instruction = IDENTITY.widen(new Identity<>(10));

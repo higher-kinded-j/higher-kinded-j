@@ -275,6 +275,7 @@ class StreamPathTest {
 
     @Test
     @DisplayName("via() validates result is StreamPath")
+    @SuppressWarnings("path-type-mismatch") // the mismatch is the behaviour under test
     void viaValidatesResultType() {
       StreamPath<String> path = StreamPath.pure(TEST_VALUE);
 
@@ -338,6 +339,7 @@ class StreamPathTest {
 
     @Test
     @DisplayName("zipWith() throws when given non-StreamPath")
+    @SuppressWarnings("path-type-mismatch") // the mismatch is the behaviour under test
     void zipWithThrowsWhenGivenNonStreamPath() {
       StreamPath<String> path = StreamPath.pure(TEST_VALUE);
       IdPath<Integer> idPath = Path.id(42);

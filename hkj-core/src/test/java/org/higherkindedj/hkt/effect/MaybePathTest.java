@@ -279,6 +279,7 @@ class MaybePathTest {
 
     @Test
     @DisplayName("via() validates result is MaybePath")
+    @SuppressWarnings("path-type-mismatch") // the mismatch is the behaviour under test
     void viaValidatesResultType() {
       MaybePath<String> path = Path.just(TEST_VALUE);
 
@@ -325,6 +326,7 @@ class MaybePathTest {
 
     @Test
     @DisplayName("then() throws when supplier returns wrong type")
+    @SuppressWarnings("path-type-mismatch") // the mismatch is the behaviour under test
     void thenThrowsWhenSupplierReturnsWrongType() {
       MaybePath<String> path = Path.just(TEST_VALUE);
 
@@ -399,6 +401,7 @@ class MaybePathTest {
 
     @Test
     @DisplayName("zipWith() throws when given non-MaybePath")
+    @SuppressWarnings("path-type-mismatch") // the mismatch is the behaviour under test
     void zipWithThrowsWhenGivenNonMaybePath() {
       MaybePath<String> path = Path.just(TEST_VALUE);
       EitherPath<String, Integer> eitherPath = Path.right(TEST_INT);
@@ -533,6 +536,7 @@ class MaybePathTest {
 
     @Test
     @DisplayName("recoverWith() throws when recovery returns wrong type")
+    @SuppressWarnings("path-type-mismatch") // the mismatch is the behaviour under test
     void recoverWithThrowsWhenRecoveryReturnsWrongType() {
       MaybePath<String> path = Path.nothing();
 
@@ -543,6 +547,7 @@ class MaybePathTest {
 
     @Test
     @DisplayName("orElse() throws when alternative returns wrong type")
+    @SuppressWarnings("path-type-mismatch") // the mismatch is the behaviour under test
     void orElseThrowsWhenAlternativeReturnsWrongType() {
       MaybePath<String> path = Path.nothing();
 

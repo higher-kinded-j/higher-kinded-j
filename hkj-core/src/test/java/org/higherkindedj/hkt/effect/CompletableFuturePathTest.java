@@ -353,6 +353,7 @@ class CompletableFuturePathTest {
 
     @Test
     @DisplayName("via() throws for incompatible path type")
+    @SuppressWarnings("path-type-mismatch") // the mismatch is the behaviour under test
     void viaThrowsForIncompatibleType() {
       CompletableFuturePath<String> path = CompletableFuturePath.completed("hello");
 
@@ -366,6 +367,7 @@ class CompletableFuturePathTest {
 
     @Test
     @DisplayName("then() throws for incompatible path type")
+    @SuppressWarnings("path-type-mismatch") // the mismatch is the behaviour under test
     void thenThrowsForIncompatibleType() {
       CompletableFuturePath<String> path = CompletableFuturePath.completed("hello");
 
@@ -421,6 +423,7 @@ class CompletableFuturePathTest {
 
     @Test
     @DisplayName("zipWith() throws for incompatible path type")
+    @SuppressWarnings("path-type-mismatch") // the mismatch is the behaviour under test
     void zipWithThrowsForIncompatibleType() {
       CompletableFuturePath<String> path = CompletableFuturePath.completed("hello");
       IdPath<Integer> idPath = Path.id(42);
@@ -977,6 +980,7 @@ class CompletableFuturePathTest {
 
     @Test
     @DisplayName("recoverWith() throws when recovery returns non-CompletableFuturePath")
+    @SuppressWarnings("path-type-mismatch") // the mismatch is the behaviour under test
     void recoverWithThrowsForNonCompletableFuturePath() {
       CompletableFuturePath<String> failedPath =
           CompletableFuturePath.failed(new RuntimeException("test error"));

@@ -20,6 +20,7 @@ import java.util.stream.Stream;
 import org.higherkindedj.hkt.Monoid;
 import org.higherkindedj.hkt.effect.capability.Chainable;
 import org.higherkindedj.hkt.effect.capability.Combinable;
+import org.higherkindedj.hkt.effect.capability.Deferred;
 import org.higherkindedj.hkt.maybe.Maybe;
 
 /**
@@ -70,7 +71,7 @@ import org.higherkindedj.hkt.maybe.Maybe;
  *
  * @param <A> the element type
  */
-public final class StreamPath<A> implements Chainable<A> {
+public final class StreamPath<A> implements Chainable<A>, Deferred<A> {
 
   private final Supplier<Stream<A>> streamSupplier;
 

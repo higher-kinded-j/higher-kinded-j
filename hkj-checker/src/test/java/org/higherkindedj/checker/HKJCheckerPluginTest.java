@@ -208,7 +208,7 @@ class HKJCheckerPluginTest {
           public class MismatchVia {
               %s
               public void mismatchedVia() {
-                  Path.just(1).via(_ -> Path.io(() -> 2));
+                  Path.io(() -> 1).via(_ -> Path.just(2));
               }
           }
           """
@@ -319,11 +319,11 @@ class HKJCheckerPluginTest {
                   public class MismatchVia {
                       @SuppressWarnings("hkj-checker")
                       public void suppressed() {
-                          Path.just(1).via(_ -> Path.io(() -> 2));
+                          Path.io(() -> 1).via(_ -> Path.just(2));
                       }
 
                       public void notSuppressed() {
-                          Path.just(1).via(_ -> Path.io(() -> 2));
+                          Path.io(() -> 1).via(_ -> Path.just(2));
                       }
                   }
                   """));

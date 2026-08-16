@@ -52,6 +52,7 @@ class ProgramAnalyserTest {
 
     @Test
     @DisplayName("should count Suspend nodes")
+    @SuppressWarnings("migration-nudge") // exercises the Free/Inject primitives directly
     void countsSuspend() {
       Free<IdKind.Witness, String> program = Free.liftF(new Id<>("hello"), ID_FUNCTOR);
       ProgramAnalysis analysis = ProgramAnalyser.analyse(program);
@@ -65,6 +66,7 @@ class ProgramAnalyserTest {
 
     @Test
     @DisplayName("should count FlatMapped nodes and mark opaque regions")
+    @SuppressWarnings("migration-nudge") // exercises the Free/Inject primitives directly
     void countsFlatMapped() {
       Free<IdKind.Witness, String> program =
           Free.liftF(new Id<>("hello"), ID_FUNCTOR).flatMap(s -> Free.pure(s + " world"));
@@ -77,6 +79,7 @@ class ProgramAnalyserTest {
 
     @Test
     @DisplayName("should count HandleError nodes as recovery points")
+    @SuppressWarnings("migration-nudge") // exercises the Free/Inject primitives directly
     void countsHandleError() {
       Free<IdKind.Witness, String> program =
           Free.liftF(new Id<>("hello"), ID_FUNCTOR)
@@ -89,6 +92,7 @@ class ProgramAnalyserTest {
 
     @Test
     @DisplayName("should count nested HandleError correctly")
+    @SuppressWarnings("migration-nudge") // exercises the Free/Inject primitives directly
     void countsNestedHandleError() {
       Free<IdKind.Witness, String> inner =
           Free.liftF(new Id<>("hello"), ID_FUNCTOR)

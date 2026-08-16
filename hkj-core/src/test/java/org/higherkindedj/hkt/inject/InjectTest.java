@@ -36,6 +36,7 @@ class InjectTest {
 
     @Test
     @DisplayName("injectLeft wraps value in EitherF.Left")
+    @SuppressWarnings("migration-nudge") // exercises the Free/Inject primitives directly
     void injectLeftWrapsInLeft() {
       Inject<IdentityKind.Witness, EitherFKind.Witness<IdentityKind.Witness, MaybeKind.Witness>>
           inject = InjectInstances.injectLeft();
@@ -64,6 +65,7 @@ class InjectTest {
 
     @Test
     @DisplayName("injectRight wraps value in EitherF.Right")
+    @SuppressWarnings("migration-nudge") // exercises the Free/Inject primitives directly
     void injectRightWrapsInRight() {
       Inject<MaybeKind.Witness, EitherFKind.Witness<IdentityKind.Witness, MaybeKind.Witness>>
           inject = InjectInstances.injectRight();
@@ -92,6 +94,7 @@ class InjectTest {
 
     @Test
     @DisplayName("injectRightThen navigates through right side")
+    @SuppressWarnings("migration-nudge") // exercises the Free/Inject primitives directly
     void injectRightThenNavigatesThrough() {
       // Compose three effects: Identity, Maybe, Identity
       // Inject Identity (the third) into EitherF<Identity, EitherF<Maybe, Identity>>
@@ -141,6 +144,7 @@ class InjectTest {
 
     @Test
     @DisplayName("injectRightThen rejects null inner Inject")
+    @SuppressWarnings("migration-nudge") // exercises the Free/Inject primitives directly
     void injectRightThenRejectsNull() {
       Assertions.assertThatThrownBy(() -> InjectInstances.injectRightThen(null))
           .isInstanceOf(NullPointerException.class);

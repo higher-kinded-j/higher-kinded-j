@@ -28,6 +28,10 @@ import org.junit.jupiter.api.Test;
  * methods, and object methods.
  */
 @DisplayName("EitherPath<E, A> Complete Test Suite")
+@SuppressWarnings({
+  "error-type-mismatch",
+  "path-type-mismatch"
+}) // the erased error type is the behaviour under test / the mismatch is the behaviour under test
 class EitherPathTest {
 
   private static final String TEST_VALUE = "test";

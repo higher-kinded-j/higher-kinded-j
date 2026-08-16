@@ -9,6 +9,7 @@ import java.util.function.Function;
 import java.util.function.Supplier;
 import org.higherkindedj.hkt.effect.capability.Chainable;
 import org.higherkindedj.hkt.effect.capability.Combinable;
+import org.higherkindedj.hkt.effect.capability.Deferred;
 import org.higherkindedj.hkt.io.IO;
 import org.higherkindedj.hkt.trampoline.Trampoline;
 
@@ -45,7 +46,7 @@ import org.higherkindedj.hkt.trampoline.Trampoline;
  *
  * @param <A> the result type
  */
-public final class TrampolinePath<A> implements Chainable<A> {
+public final class TrampolinePath<A> implements Chainable<A>, Deferred<A> {
 
   private final Trampoline<A> trampoline;
 
