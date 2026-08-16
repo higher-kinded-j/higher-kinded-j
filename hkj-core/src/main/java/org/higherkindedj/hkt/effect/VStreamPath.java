@@ -17,6 +17,7 @@ import org.higherkindedj.hkt.Monoid;
 import org.higherkindedj.hkt.Unit;
 import org.higherkindedj.hkt.effect.capability.Chainable;
 import org.higherkindedj.hkt.effect.capability.Combinable;
+import org.higherkindedj.hkt.effect.capability.Deferred;
 import org.higherkindedj.hkt.function.Function3;
 import org.higherkindedj.hkt.vstream.VStream;
 import org.higherkindedj.hkt.vtask.VTask;
@@ -92,7 +93,8 @@ import org.higherkindedj.optics.util.Traversals;
  * @see VTaskPath
  * @see StreamPath
  */
-public sealed interface VStreamPath<A> extends Chainable<A> permits DefaultVStreamPath {
+public sealed interface VStreamPath<A> extends Chainable<A>, Deferred<A>
+    permits DefaultVStreamPath {
 
   // ===== Core access =====
 

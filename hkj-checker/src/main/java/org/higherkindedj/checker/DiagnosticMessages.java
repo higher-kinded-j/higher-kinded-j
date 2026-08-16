@@ -115,7 +115,7 @@ public final class DiagnosticMessages {
    */
   public static String discardedEffect(String typeName) {
     String body =
-        ("This %s is built but never used: effects are lazy and do nothing until run. "
+        ("This %s is built but never used: it describes work that has not run. "
                 + "Assign it, return it, pass it on, or run it (e.g. unsafeRun()/an interpreter) — "
                 + "as a bare statement it is a silent no-op.")
             .formatted(typeName);

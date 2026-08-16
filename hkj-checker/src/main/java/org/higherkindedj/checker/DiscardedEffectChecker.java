@@ -24,24 +24,29 @@ import javax.tools.Diagnostic;
 /**
  * Detects a lazy HKJ effect that is built then discarded as a bare statement.
  *
- * <p>Every {@code Path}/{@code IO}/{@code Free} value is a deferred description of a computation
- * (see {@code Effectful}: "deferred until you explicitly run it"). Composing one and then dropping
- * it on the floor — {@code Path.right(x).map(f);} as a statement — compiles cleanly but does
- * nothing. The library ships no {@code @CheckReturnValue}, so this whole class of silent no-op is
- * otherwise invisible.
+ * <p>A {@code Deferred} path describes a computation that has not run: {@code IOPath}, {@code
+ * VTaskPath}, {@code LazyPath}, {@code FreePath} and the rest of the {@code Deferred} permits
+ * clause. Composing one and then dropping it on the floor — {@code Path.io(() -> x).map(f);} as a
+ * statement — compiles cleanly but does nothing at all. The library ships no
+ * {@code @CheckReturnValue}, so this whole class of silent no-op is otherwise invisible.
+ *
+ * <p>Eager paths are deliberately out of scope. {@code Path.just(x).map(f)} discards its result
+ * too, but {@code f} has already run, so the statement is not a no-op and the diagnostic's advice
+ * ("nothing happened") would be false. {@code Deferred} draws that line as a type-level fact, so
+ * this check needs no list of its own and a newly added path type has to choose a side.
  *
  * <h2>Rule</h2>
  *
  * <p>An {@link ExpressionStatementTree} whose expression is a <em>result-producing</em> call (a
- * {@link MethodInvocationTree} or {@link NewClassTree}) and whose attributed type erase-assignable
- * to {@code org.higherkindedj.hkt.effect.capability.Chainable}, the sealed Path root.
+ * {@link MethodInvocationTree} or {@link NewClassTree}) and whose attributed type is
+ * erase-assignable to {@code org.higherkindedj.hkt.effect.capability.Deferred}.
  *
  * <p>Two consequences keep this false-positive-free:
  *
  * <ul>
  *   <li><b>Run effects exclude themselves.</b> Terminal operations ({@code unsafeRun()}, an
- *       interpreter {@code run}) return the contained value {@code A}, not a {@code Chainable}, so
- *       a statement that actually runs the effect is not flagged.
+ *       interpreter {@code run}) return the contained value {@code A}, not a {@code Deferred}, so a
+ *       statement that actually runs the effect is not flagged.
  *   <li><b>Only genuine discards are considered.</b> Assignments, compound assignments and {@code
  *       i++} are expression statements too, but the value is consumed; restricting to
  *       invocation/constructor expressions excludes them. Returned/passed effects are not
@@ -59,8 +64,6 @@ import javax.tools.Diagnostic;
  * code, violating the no-false-positives policy.
  */
 public final class DiscardedEffectChecker implements CheckVisitor {
-
-  static final String CHAINABLE_FQN = "org.higherkindedj.hkt.effect.capability.Chainable";
 
   private final Trees trees;
   private final Types types;
@@ -97,7 +100,7 @@ public final class DiscardedEffectChecker implements CheckVisitor {
   @Override
   public void onExpressionStatement(ExpressionStatementTree node, TreePath path) {
     ExpressionTree built = constructedExpression(node.getExpression(), path);
-    if (built != null && isChainable(built, path)) {
+    if (built != null && isDeferred(built, path)) {
       trees.printMessage(
           severity,
           DiagnosticMessages.discardedEffect(simpleName(built, path)),
@@ -166,7 +169,7 @@ public final class DiscardedEffectChecker implements CheckVisitor {
     return null;
   }
 
-  private boolean isChainable(ExpressionTree expr, TreePath path) {
+  private boolean isDeferred(ExpressionTree expr, TreePath path) {
     TypeMirror t;
     try {
       t = trees.getTypeMirror(new TreePath(path, expr));
@@ -180,11 +183,11 @@ public final class DiscardedEffectChecker implements CheckVisitor {
         || t.getKind().isPrimitive()) {
       return false;
     }
-    TypeElement chainable = elements.getTypeElement(CHAINABLE_FQN);
-    if (chainable == null) {
+    TypeElement deferred = elements.getTypeElement(PathTypeRegistry.DEFERRED_FQN);
+    if (deferred == null) {
       return false; // the effect API is not on this compilation's classpath
     }
-    return types.isAssignable(types.erasure(t), types.erasure(chainable.asType()));
+    return types.isAssignable(types.erasure(t), types.erasure(deferred.asType()));
   }
 
   private String simpleName(ExpressionTree expr, TreePath path) {

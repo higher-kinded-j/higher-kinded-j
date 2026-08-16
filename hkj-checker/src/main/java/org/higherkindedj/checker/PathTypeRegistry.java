@@ -17,6 +17,15 @@ public final class PathTypeRegistry {
 
   private PathTypeRegistry() {}
 
+  /** The sealed Path root: every concrete Path type is assignable to it. */
+  public static final String CHAINABLE_FQN = "org.higherkindedj.hkt.effect.capability.Chainable";
+
+  /**
+   * The capability marking paths whose work has not run yet. Narrower than {@link #CHAINABLE_FQN}:
+   * an eager path such as {@code MaybePath} holds a value that already exists.
+   */
+  public static final String DEFERRED_FQN = "org.higherkindedj.hkt.effect.capability.Deferred";
+
   /** Set of all registered Path type simple names. */
   private static final Set<String> PATH_SIMPLE_NAMES =
       Set.of(

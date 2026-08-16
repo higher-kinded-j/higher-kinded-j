@@ -14,6 +14,7 @@ import java.util.function.Predicate;
 import java.util.function.Supplier;
 import org.higherkindedj.hkt.effect.capability.Chainable;
 import org.higherkindedj.hkt.effect.capability.Combinable;
+import org.higherkindedj.hkt.effect.capability.Deferred;
 import org.higherkindedj.hkt.effect.capability.Recoverable;
 import org.higherkindedj.hkt.either.Either;
 import org.higherkindedj.hkt.function.Function3;
@@ -104,7 +105,7 @@ import org.higherkindedj.hkt.vtask.VTask;
  * @see VTaskPath
  * @see CompletableFuturePath
  */
-public final class VResultPath<E, A> implements Recoverable<E, A> {
+public final class VResultPath<E, A> implements Recoverable<E, A>, Deferred<A> {
 
   private final VTask<Either<E, A>> task;
 

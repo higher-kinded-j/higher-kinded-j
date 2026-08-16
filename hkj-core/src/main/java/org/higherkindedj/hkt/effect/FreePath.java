@@ -15,6 +15,7 @@ import org.higherkindedj.hkt.TypeArity;
 import org.higherkindedj.hkt.WitnessArity;
 import org.higherkindedj.hkt.effect.capability.Chainable;
 import org.higherkindedj.hkt.effect.capability.Combinable;
+import org.higherkindedj.hkt.effect.capability.Deferred;
 import org.higherkindedj.hkt.either.Either;
 import org.higherkindedj.hkt.free.Free;
 import org.higherkindedj.hkt.free.FreeKind;
@@ -58,7 +59,8 @@ import org.higherkindedj.hkt.free.FreeKindHelper;
  * @param <F> the functor witness type for the DSL
  * @param <A> the result type
  */
-public final class FreePath<F extends WitnessArity<TypeArity.Unary>, A> implements Chainable<A> {
+public final class FreePath<F extends WitnessArity<TypeArity.Unary>, A>
+    implements Chainable<A>, Deferred<A> {
 
   private final Free<F, A> free;
   private final Functor<F> functor;
