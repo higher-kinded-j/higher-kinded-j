@@ -66,6 +66,25 @@ cryptic error. "Sole signal" / "advisory" checks are the only
 compile-time signal (the code otherwise compiles), which is why the
 heuristic and advisory ones default to *warn*.
 
+~~~admonish info title="Generated sources are not checked"
+Every check is advice you are expected to act on, and nobody edits
+annotation-processor output — so the checker skips any type annotated
+`org.higherkindedj.optics.annotations.Generated`, wherever it sits in
+its file, along with everything nested inside it.
+
+Without that gate, `@EffectAlgebra`'s generated `*Ops` class would carry
+a `migration-nudge` telling you to use the generated `*Ops` smart
+constructors — from inside the very class that provides them. Your own
+call sites are checked as normal.
+
+Only HKJ's own marker gates this. `javax.annotation.processing.Generated`
+and its `jakarta` counterpart are *not* honoured: JaCoCo excludes any
+type carrying an annotation named `Generated`, so those markers are
+routinely hand-applied to hand-written code — as HKJ does itself with
+`org.higherkindedj.annotation.Generated`. Honouring them would let a
+coverage marker silently switch off every check on a file.
+~~~
+
 ---
 
 ## Configuration
@@ -95,9 +114,50 @@ else the warn-default checks stay `warn`; else the global `severity`.
 Unknown ids and unparseable values are ignored rather than failing the
 build. A typo in a compiler argument must never break compilation.
 
+### Opting out one declaration
+
+`disable=` is project-wide. To accept a single deliberate call site,
+name the check id in `@SuppressWarnings` on the enclosing class, method
+or variable — `hkj-checker` covers every check at once:
+
+```java
+@SuppressWarnings("migration-nudge") // the ergonomic layer the nudge points at
+public final class StateOps {
+    public static <S, A> Free<StateOpKind.Witness<S>, A> view(Getter<S, A> optic) {
+        // ...
+        return Free.liftF(StateOpKindHelper.STATE_OP.widen(op), functor());
+    }
+}
+```
+
+A local variable takes the token too, which is the narrowest scope
+available:
+
+```java
+@SuppressWarnings("path-type-mismatch") // deliberate: converted downstream
+var mixed = Path.just(1).via(_ -> Path.io(() -> 2));
+```
+
+Suppression is per check and accumulates outward-in: a token on a class
+reaches everything inside it, other checks on the same statement keep
+running, and a sibling declaration is unaffected. HKJ's own smart-
+constructor layer (`StateOps`, `ErrorOps`, `OpticPrograms`) and the
+`FreePath`/`FreeFactory` fluent API use exactly this — they are the
+layer `migration-nudge` steers callers towards, so they must build the
+`Free` primitives directly.
+
+Two deliberate limits. The tokens reach the *error*-default checks as
+well as the advisory ones, so `@SuppressWarnings("path-type-mismatch")`
+will silence a build-failing diagnostic — scope it narrowly. And javac's
+blanket `"all"` is **not** honoured: it is too common on legacy and
+generated code for a silent switch-off to be safe, so an HKJ opt-out is
+always spelled explicitly.
+
+### Manual setup
+
 The HKJ Gradle/Maven plugin enables the checker by default and passes
-this argument through; see [Build Plugins](gradle_plugin.md). Manual
-setup without the build plugin:
+the `-Xplugin` argument through; see
+[Build Plugins](gradle_plugin.md). Without the build plugin:
 
 **Gradle**
 
@@ -148,7 +208,7 @@ silently**. The library's runtime checks remain the safety net for
 anything the compiler cannot see.
 
 ~~~admonish info title="Key Takeaways"
-* The checker catches 12 classes of HKJ mistake at compile time,
+* The checker catches 13 classes of HKJ mistake at compile time,
   including several that are otherwise entirely silent.
 * Configure via `-Xplugin:HKJChecker disable=<id> severity=...`.
 * javac-plugin-only: IDEs/non-javac builds still rely on the

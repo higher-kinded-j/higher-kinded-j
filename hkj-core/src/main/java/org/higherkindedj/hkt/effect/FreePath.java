@@ -99,6 +99,7 @@ public final class FreePath<F extends WitnessArity<TypeArity.Unary>, A> implemen
    * @return a FreePath containing the lifted instruction
    * @throws NullPointerException if fa or functor is null
    */
+  @SuppressWarnings("migration-nudge") // the ergonomic layer the nudge points at
   public static <F extends WitnessArity<TypeArity.Unary>, A> FreePath<F, A> liftF(
       Kind<F, A> fa, Functor<F> functor) {
     Objects.requireNonNull(fa, "fa must not be null");

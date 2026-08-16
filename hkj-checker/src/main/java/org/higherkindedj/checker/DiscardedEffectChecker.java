@@ -8,10 +8,15 @@ import com.sun.source.tree.MethodInvocationTree;
 import com.sun.source.tree.NewClassTree;
 import com.sun.source.util.TreePath;
 import com.sun.source.util.Trees;
+import java.util.List;
+import javax.lang.model.element.Element;
+import javax.lang.model.element.ExecutableElement;
 import javax.lang.model.element.TypeElement;
+import javax.lang.model.element.VariableElement;
 import javax.lang.model.type.DeclaredType;
 import javax.lang.model.type.TypeKind;
 import javax.lang.model.type.TypeMirror;
+import javax.lang.model.type.TypeVariable;
 import javax.lang.model.util.Elements;
 import javax.lang.model.util.Types;
 import javax.tools.Diagnostic;
@@ -41,6 +46,11 @@ import javax.tools.Diagnostic;
  *       i++} are expression statements too, but the value is consumed; restricting to
  *       invocation/constructor expressions excludes them. Returned/passed effects are not
  *       statements at all.
+ *   <li><b>Pass-through calls build nothing.</b> A guard such as {@code
+ *       Objects.requireNonNull(path, "…")} hands back the very effect it was given, so its value is
+ *       not a discard: the effect already exists and is used further down. Any method whose return
+ *       type is one of its own type variables, used again among its parameters, is pass-through by
+ *       signature and is skipped.
  * </ul>
  *
  * <p><b>Accepted scope boundary:</b> a local declared and never run ({@code EitherPath<…> x =
@@ -86,15 +96,74 @@ public final class DiscardedEffectChecker implements CheckVisitor {
 
   @Override
   public void onExpressionStatement(ExpressionStatementTree node, TreePath path) {
-    ExpressionTree expr = node.getExpression();
-    if ((expr instanceof MethodInvocationTree || expr instanceof NewClassTree)
-        && isChainable(expr, path)) {
+    ExpressionTree built = constructedExpression(node.getExpression(), path);
+    if (built != null && isChainable(built, path)) {
       trees.printMessage(
           severity,
-          DiagnosticMessages.discardedEffect(simpleName(expr, path)),
+          DiagnosticMessages.discardedEffect(simpleName(built, path)),
           node,
           path.getCompilationUnit());
     }
+  }
+
+  /**
+   * Resolves the expression that actually produced the discarded value, looking through
+   * pass-through calls, or null when the statement built nothing.
+   *
+   * <p>A guard such as {@code Objects.requireNonNull(path, "…")} hands back the argument it was
+   * given, so what the statement discards is whatever that argument was. Unwrapping rather than
+   * skipping keeps both readings right: the argument is a name, so {@code
+   * Objects.requireNonNull(existing, "…")} built nothing and is silent, while {@code
+   * Objects.requireNonNull(Path.io(() -> 1))} did build an effect and is still reported. Nested
+   * pass-throughs unwrap the whole way down.
+   */
+  private ExpressionTree constructedExpression(ExpressionTree expr, TreePath path) {
+    ExpressionTree current = expr;
+    // Bounded by the nesting depth of the expression, which is finite.
+    while (current instanceof MethodInvocationTree || current instanceof NewClassTree) {
+      ExpressionTree forwarded = passedThroughArgument(current, path);
+      if (forwarded == null) {
+        return current; // this call is what produced the value
+      }
+      current = forwarded;
+    }
+    return null; // a name, a field read, a literal: nothing was constructed here
+  }
+
+  /**
+   * For a call that returns one of its own arguments, the argument it returns; null for any other
+   * call. {@code <T> T requireNonNull(T, String)} is the archetype: the return type is a type
+   * variable of the method that also types a parameter, so the result is necessarily that argument.
+   *
+   * <p>When several parameters share the returned type variable the first is followed. Guards take
+   * one value, so the distinction has no practical instance; a wrong guess here can only make the
+   * check quieter, never noisier.
+   */
+  private ExpressionTree passedThroughArgument(ExpressionTree expr, TreePath path) {
+    if (!(expr instanceof MethodInvocationTree invocation)) {
+      return null;
+    }
+    Element invoked;
+    try {
+      invoked = trees.getElement(new TreePath(path, expr));
+    } catch (RuntimeException e) {
+      return null;
+    }
+    if (!(invoked instanceof ExecutableElement method)
+        || !(method.getReturnType() instanceof TypeVariable returned)) {
+      return null;
+    }
+    Element returnedDeclaration = returned.asElement();
+    List<? extends VariableElement> parameters = method.getParameters();
+    List<? extends ExpressionTree> arguments = invocation.getArguments();
+    int positions = Math.min(parameters.size(), arguments.size());
+    for (int i = 0; i < positions; i++) {
+      if (parameters.get(i).asType() instanceof TypeVariable given
+          && given.asElement().equals(returnedDeclaration)) {
+        return arguments.get(i);
+      }
+    }
+    return null;
   }
 
   private boolean isChainable(ExpressionTree expr, TreePath path) {

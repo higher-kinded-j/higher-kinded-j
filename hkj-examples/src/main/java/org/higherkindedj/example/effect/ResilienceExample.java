@@ -250,9 +250,12 @@ public class ResilienceExample {
 
     AtomicInteger attempts = new AtomicInteger(0);
 
-    // CompletableFuturePath also supports retry
+    RetryPolicy policy = RetryPolicy.fixed(5, Duration.ofMillis(100));
+
+    // The policy has to wrap the supplier, not the future: a CompletableFuture caches its
+    // outcome, so retrying a future that has already failed only replays that failure.
     CompletableFuturePath<String> asyncOp =
-        CompletableFuturePath.supplyAsync(
+        CompletableFuturePath.supplyAsyncWithRetry(
             () -> {
               int attempt = attempts.incrementAndGet();
               System.out.println("  Async attempt " + attempt);
@@ -260,12 +263,11 @@ public class ResilienceExample {
                 throw new RuntimeException("Async failure");
               }
               return "Async success!";
-            });
-
-    RetryPolicy policy = RetryPolicy.fixed(5, Duration.ofMillis(100));
+            },
+            policy);
 
     System.out.println("Retrying async operation:");
-    String result = asyncOp.withRetry(policy).join();
+    String result = asyncOp.join();
     System.out.println("Result: " + result);
 
     System.out.println();

@@ -47,7 +47,7 @@ public final class ErrorOps {
    * @param <A> The phantom result type
    * @return A Free program that raises the error
    */
-  @SuppressWarnings("unchecked")
+  @SuppressWarnings({"unchecked", "migration-nudge"}) // stateless functor; the ergonomic layer
   public static <E, A> Free<ErrorOpKind.Witness<E>, A> raise(E error) {
     Validation.function().require(error, "error", LIFT_F);
     ErrorOp<E, A> op = new ErrorOp.Raise<>(error);

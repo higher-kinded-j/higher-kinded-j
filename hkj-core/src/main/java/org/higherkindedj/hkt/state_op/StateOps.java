@@ -39,6 +39,7 @@ import org.jspecify.annotations.NullMarked;
  * @see StateOpKind
  */
 @NullMarked
+@SuppressWarnings("migration-nudge") // the ergonomic layer the nudge points at
 public final class StateOps {
 
   private static final StateOpFunctor<?> FUNCTOR = StateOpFunctor.instance();

@@ -92,6 +92,8 @@ repositories {
 
 If any of these are missing, check your `hkj { }` block for `checks { pathTypeMismatch = false }`.
 
+If the plugin *is* running, two gates silence checks by design: the code sits inside a type annotated with `org.higherkindedj.optics.annotations.Generated`, or an enclosing class, method or variable carries `@SuppressWarnings` naming the check id (or `hkj-checker`). See [Opting out one declaration](compile_checks.md#opting-out-one-declaration).
+
 ### Version Mismatch Between Modules
 
 **Symptom:** Runtime errors from incompatible HKJ module versions.

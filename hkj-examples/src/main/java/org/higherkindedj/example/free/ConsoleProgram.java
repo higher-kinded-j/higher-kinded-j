@@ -82,6 +82,7 @@ public class ConsoleProgram {
   }
 
   /** DSL operations for building Console programs. */
+  @SuppressWarnings("migration-nudge") // the ergonomic layer the nudge points at
   public static class ConsoleOps {
     /** Prints a line to the console. */
     public static Free<ConsoleOpKind.Witness, Unit> printLine(String text) {

@@ -110,6 +110,7 @@ public final class FreeFactory<F extends WitnessArity<TypeArity.Unary>> {
    * @param <A> The result type of the Free monad
    * @return A {@link Free} monad suspending the computation. Never null.
    */
+  @SuppressWarnings("migration-nudge") // the ergonomic layer the nudge points at
   public <A> Free<F, A> suspend(Kind<F, Free<F, A>> computation) {
     return Free.suspend(computation);
   }
@@ -128,6 +129,7 @@ public final class FreeFactory<F extends WitnessArity<TypeArity.Unary>> {
    * @param <A> The result type
    * @return A {@link Free} monad that will execute the lifted computation. Never null.
    */
+  @SuppressWarnings("migration-nudge") // the ergonomic layer the nudge points at
   public <A> Free<F, A> liftF(Kind<F, A> fa, Functor<F> functor) {
     return Free.liftF(fa, functor);
   }

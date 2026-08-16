@@ -77,6 +77,10 @@ public class HkjHttpClientProcessor extends AbstractProcessor {
   private static final String ON_STATUS = "org.higherkindedj.spring.client.OnStatus";
   private static final String ON_STATUSES = "org.higherkindedj.spring.client.OnStatuses";
 
+  /** Marks generated types so HKJ tooling (the compile checker, JaCoCo) can skip them. */
+  private static final ClassName GENERATED =
+      ClassName.get("org.higherkindedj.optics.annotations", "Generated");
+
   private static final ClassName HKJ_CLIENT_EXCHANGE =
       ClassName.get("org.higherkindedj.spring.client", "HkjClientExchange");
   private static final ClassName DECODER_FACTORY =
@@ -217,6 +221,7 @@ public class HkjHttpClientProcessor extends AbstractProcessor {
     TypeSpec.Builder builder =
         TypeSpec.interfaceBuilder(nativeName)
             .addModifiers(Modifier.PUBLIC)
+            .addAnnotation(GENERATED)
             .addTypeVariables(typeVars)
             .addJavadoc(
                 "Native Spring {@link $T}-style interface proxied for {@link $T}. Generated; do not edit.\n",
@@ -271,6 +276,7 @@ public class HkjHttpClientProcessor extends AbstractProcessor {
     TypeSpec.Builder builder =
         TypeSpec.classBuilder(facadeName)
             .addModifiers(Modifier.PUBLIC, Modifier.FINAL)
+            .addAnnotation(GENERATED)
             .addTypeVariables(typeVars)
             .addSuperinterface(ifaceType)
             .addJavadoc("Generated Effect-Path client. Do not edit.\n")
@@ -445,6 +451,7 @@ public class HkjHttpClientProcessor extends AbstractProcessor {
 
     return TypeSpec.classBuilder(simpleName + "ClientConfiguration")
         .addModifiers(Modifier.PUBLIC)
+        .addAnnotation(GENERATED)
         .addJavadoc(
             "Registers the {@link $T} HTTP Service group and the client bean. Generated; do not edit.\n",
             nativeName)

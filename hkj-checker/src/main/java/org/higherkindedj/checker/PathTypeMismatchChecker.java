@@ -2,6 +2,7 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.checker;
 
+import com.sun.source.tree.CompilationUnitTree;
 import com.sun.source.tree.ExpressionTree;
 import com.sun.source.tree.LambdaExpressionTree;
 import com.sun.source.tree.MemberSelectTree;
@@ -75,11 +76,12 @@ public class PathTypeMismatchChecker implements CheckVisitor {
   public void onMethodInvocation(MethodInvocationTree node, TreePath path) {
     String methodName = extractMethodName(node);
     if (methodName != null && CHECKED_METHODS.contains(methodName)) {
-      checkPathTypeMismatch(node, methodName);
+      checkPathTypeMismatch(node, methodName, path.getCompilationUnit());
     }
   }
 
-  private void checkPathTypeMismatch(MethodInvocationTree node, String methodName) {
+  private void checkPathTypeMismatch(
+      MethodInvocationTree node, String methodName, CompilationUnitTree unit) {
     // Resolve the receiver type
     Optional<String> receiverType = resolveReceiverPathType(node);
     if (receiverType.isEmpty()) {
@@ -87,9 +89,9 @@ public class PathTypeMismatchChecker implements CheckVisitor {
     }
 
     if (ARGUMENT_TYPE_METHODS.contains(methodName)) {
-      checkArgumentTypes(node, methodName, receiverType.get());
+      checkArgumentTypes(node, methodName, receiverType.get(), unit);
     } else if (LAMBDA_RETURN_METHODS.contains(methodName)) {
-      checkLambdaReturnType(node, methodName, receiverType.get());
+      checkLambdaReturnType(node, methodName, receiverType.get(), unit);
     }
   }
 
@@ -97,36 +99,46 @@ public class PathTypeMismatchChecker implements CheckVisitor {
    * For zipWith/zipWith3, check the concrete type of the first argument (and second for zipWith3).
    */
   private void checkArgumentTypes(
-      MethodInvocationTree node, String methodName, String receiverCategory) {
+      MethodInvocationTree node,
+      String methodName,
+      String receiverCategory,
+      CompilationUnitTree unit) {
     List<? extends ExpressionTree> args = node.getArguments();
     if (args.isEmpty()) {
       return;
     }
 
     // Check the first argument (the "other" Combinable)
-    checkArgumentType(node, args.getFirst(), methodName, receiverCategory);
+    checkArgumentType(node, args.getFirst(), methodName, receiverCategory, unit);
 
     // For zipWith3, also check the second argument
     if ("zipWith3".equals(methodName) && args.size() >= 2) {
-      checkArgumentType(node, args.get(1), methodName, receiverCategory);
+      checkArgumentType(node, args.get(1), methodName, receiverCategory, unit);
     }
   }
 
   private void checkArgumentType(
-      MethodInvocationTree node, ExpressionTree arg, String methodName, String receiverCategory) {
+      MethodInvocationTree node,
+      ExpressionTree arg,
+      String methodName,
+      String receiverCategory,
+      CompilationUnitTree unit) {
     Optional<String> argType = resolveExpressionPathType(arg);
     if (argType.isEmpty()) {
       return;
     }
 
     if (!argType.get().equals(receiverCategory)) {
-      reportMismatch(node, methodName, receiverCategory, argType.get());
+      reportMismatch(node, methodName, receiverCategory, argType.get(), unit);
     }
   }
 
   /** For via/flatMap/then/recoverWith/orElse, check the return type of the lambda/supplier. */
   private void checkLambdaReturnType(
-      MethodInvocationTree node, String methodName, String receiverCategory) {
+      MethodInvocationTree node,
+      String methodName,
+      String receiverCategory,
+      CompilationUnitTree unit) {
     List<? extends ExpressionTree> args = node.getArguments();
     if (args.isEmpty()) {
       return;
@@ -141,7 +153,7 @@ public class PathTypeMismatchChecker implements CheckVisitor {
     }
 
     if (!returnType.get().equals(receiverCategory)) {
-      reportMismatch(node, methodName, receiverCategory, returnType.get());
+      reportMismatch(node, methodName, receiverCategory, returnType.get(), unit);
     }
   }
 
@@ -250,11 +262,19 @@ public class PathTypeMismatchChecker implements CheckVisitor {
     return null;
   }
 
-  /** Reports a Path type mismatch diagnostic at the given node's source location. */
+  /**
+   * Reports a Path type mismatch at the node's source location. The compilation unit is what gives
+   * the diagnostic its {@code file:line:} prefix and caret; without it javac prints the message
+   * alone, unanchored.
+   */
   private void reportMismatch(
-      MethodInvocationTree node, String methodName, String expectedType, String actualType) {
+      MethodInvocationTree node,
+      String methodName,
+      String expectedType,
+      String actualType,
+      CompilationUnitTree unit) {
     String message = DiagnosticMessages.pathTypeMismatch(methodName, expectedType, actualType);
-    trees.printMessage(severity, message, node, null);
+    trees.printMessage(severity, message, node, unit);
   }
 
   /**

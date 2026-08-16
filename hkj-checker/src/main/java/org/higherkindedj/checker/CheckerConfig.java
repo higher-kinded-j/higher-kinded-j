@@ -77,6 +77,13 @@ public final class CheckerConfig {
   public static final String RAW_KIND = "raw-kind";
 
   /**
+   * The {@code @SuppressWarnings} token that silences every HKJ check on a declaration, for code
+   * that deliberately sits below the API the checks steer towards. A single check id suppresses
+   * just that check; this suppresses all of them.
+   */
+  public static final String SUPPRESS_ALL = "hkj-checker";
+
+  /**
    * Checks whose built-in default is {@code WARNING}: they are the sole compile-time signal over
    * code javac accepts, so they only nudge until a per-check override promotes them.
    */

@@ -8,6 +8,7 @@ import static com.google.testing.compile.Compiler.javac;
 import com.google.testing.compile.Compilation;
 import com.google.testing.compile.JavaFileObjects;
 import javax.tools.JavaFileObject;
+import org.assertj.core.api.Assertions;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -229,6 +230,114 @@ class DiscardedEffectCheckerTest {
       Compilation c = compile("severity=warn", DISCARD);
       assertThat(c).succeeded();
       assertThat(c).hadWarningContaining("EitherPath is built but never used");
+    }
+  }
+
+  @Nested
+  @DisplayName("pass-through calls")
+  class PassThrough {
+
+    @Test
+    @DisplayName("a requireNonNull guard on an effect is not a discard")
+    void requireNonNullGuard_notFlagged() {
+      // The guard hands back the effect it was given: nothing was built, and the effect is
+      // used on the next line. hkj-core spells its null guards exactly this way.
+      Compilation c =
+          compile(
+              src(
+                  "test.Guarded",
+                  """
+                  package test;
+                  import java.util.Objects;
+                  import org.higherkindedj.hkt.effect.EitherPath;
+                  public class Guarded {
+                      EitherPath<String, Integer> m(EitherPath<String, Integer> other) {
+                          Objects.requireNonNull(other, "other must not be null");
+                          return other;
+                      }
+                  }
+                  """));
+
+      assertThat(c).succeeded();
+    }
+
+    @Test
+    @DisplayName("a guard wrapping a freshly built effect is still flagged")
+    void guardAroundFreshEffect_flagged() {
+      // The guard forwards its argument, and here the argument is the construction: the
+      // statement really does build an effect and drop it. Looking through the guard rather
+      // than skipping it is what keeps this case visible.
+      Compilation c =
+          compile(
+              "severity=warn",
+              src(
+                  "test.GuardAroundFresh",
+                  """
+                  package test;
+                  import java.util.Objects;
+                  import org.higherkindedj.hkt.effect.Path;
+                  public class GuardAroundFresh {
+                      void m() {
+                          Objects.requireNonNull(Path.io(() -> 1));
+                      }
+                  }
+                  """));
+
+      assertThat(c).succeeded();
+      assertThat(c).hadWarningContaining("IOPath is built but never used");
+    }
+
+    @Test
+    @DisplayName("nested guards unwrap the whole way down")
+    void nestedGuards_flagged() {
+      Compilation c =
+          compile(
+              "severity=warn",
+              src(
+                  "test.NestedGuards",
+                  """
+                  package test;
+                  import java.util.Objects;
+                  import org.higherkindedj.hkt.effect.Path;
+                  public class NestedGuards {
+                      void m() {
+                          Objects.requireNonNull(Objects.requireNonNull(Path.io(() -> 1)));
+                      }
+                  }
+                  """));
+
+      assertThat(c).succeeded();
+      assertThat(c).hadWarningContaining("IOPath is built but never used");
+    }
+
+    @Test
+    @DisplayName("a genuine discard beside a guard is still flagged")
+    void genuineDiscard_stillFlagged() {
+      Compilation c =
+          compile(
+              "severity=warn",
+              src(
+                  "test.GuardedAndDiscarded",
+                  """
+                  package test;
+                  import java.util.Objects;
+                  import org.higherkindedj.hkt.effect.EitherPath;
+                  import org.higherkindedj.hkt.effect.Path;
+                  public class GuardedAndDiscarded {
+                      void m(EitherPath<String, Integer> other) {
+                          Objects.requireNonNull(other, "other must not be null");
+                          Path.<String, Integer>right(1).map(x -> x);
+                      }
+                  }
+                  """));
+
+      assertThat(c).succeeded();
+      assertThat(c).hadWarningContaining("EitherPath is built but never used");
+      Assertions.assertThat(
+              c.diagnostics().stream()
+                  .filter(d -> String.valueOf(d.getMessage(null)).contains("built but never used"))
+                  .count())
+          .isOne();
     }
   }
 }

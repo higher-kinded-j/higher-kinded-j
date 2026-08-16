@@ -2,6 +2,7 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.checker;
 
+import com.sun.source.tree.CompilationUnitTree;
 import com.sun.source.tree.ExpressionTree;
 import com.sun.source.tree.MemberSelectTree;
 import com.sun.source.tree.MethodInvocationTree;
@@ -60,7 +61,7 @@ public class EffectCompositionChecker implements CheckVisitor {
   public void onMethodInvocation(MethodInvocationTree node, TreePath path) {
     String methodName = extractMethodName(node);
     if (COMBINE_METHOD.equals(methodName)) {
-      checkCombineArity(node);
+      checkCombineArity(node, path.getCompilationUnit());
     }
   }
 
@@ -68,7 +69,7 @@ public class EffectCompositionChecker implements CheckVisitor {
    * Checks that Interpreters.combine() is called with the correct number of arguments.
    * Interpreters.combine() accepts 2, 3, or 4 interpreters.
    */
-  private void checkCombineArity(MethodInvocationTree node) {
+  private void checkCombineArity(MethodInvocationTree node, CompilationUnitTree unit) {
     if (!isCallOnClass(node, INTERPRETERS_CLASS)) {
       return;
     }
@@ -79,6 +80,7 @@ public class EffectCompositionChecker implements CheckVisitor {
     if (argCount < 2 || argCount > 4) {
       reportError(
           node,
+          unit,
           String.format(
               "Interpreters.combine() accepts 2-4 interpreters, got %d. "
                   + "Each interpreter handles one effect algebra in the EitherF composition.",
@@ -116,7 +118,11 @@ public class EffectCompositionChecker implements CheckVisitor {
     return null;
   }
 
-  private void reportError(MethodInvocationTree node, String message) {
-    trees.printMessage(severity, message, node, null);
+  /**
+   * Reports at the node's source location. The compilation unit is what gives the diagnostic its
+   * {@code file:line:} prefix and caret; without it javac prints the message alone, unanchored.
+   */
+  private void reportError(MethodInvocationTree node, CompilationUnitTree unit, String message) {
+    trees.printMessage(severity, message, node, unit);
   }
 }

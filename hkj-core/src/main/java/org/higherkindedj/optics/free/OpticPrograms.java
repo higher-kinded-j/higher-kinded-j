@@ -89,6 +89,7 @@ public final class OpticPrograms {
    * @param <A> The result type
    * @return A Free monad program
    */
+  @SuppressWarnings("migration-nudge") // the ergonomic layer the nudge points at
   private static <A> Free<OpticOpKind.Witness, A> liftOp(OpticOp<?, A> op) {
     Kind<OpticOpKind.Witness, A> kindOp = OpticOpKindHelper.OP.widen(op);
     return Free.liftF(kindOp, OpticOpFunctor.INSTANCE);
