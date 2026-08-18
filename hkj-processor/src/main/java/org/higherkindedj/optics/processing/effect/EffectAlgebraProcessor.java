@@ -152,7 +152,7 @@ public class EffectAlgebraProcessor extends AbstractProcessor {
     List<TypeElement> permits = new ArrayList<>();
     for (TypeMirror mirror : permitted) {
       Element permitElement = processingEnv.getTypeUtils().asElement(mirror);
-      if (permitElement == null || permitElement.getKind() != ElementKind.RECORD) {
+      if (permitElement.getKind() != ElementKind.RECORD) {
         error("Permit must be a record type: " + mirror, sealedInterface);
         return null;
       }
@@ -198,9 +198,12 @@ public class EffectAlgebraProcessor extends AbstractProcessor {
    * <p>Pinning it instead — {@code Fixed<A> implements ConsoleOp<String>} — leaves the arity check
    * satisfied while making the generated {@code Algebra<A> op = new Permit<>(…)} unassignable, so
    * the failure would land in generated source rather than on the declaration that caused it.
+   *
+   * <p>Any type variable found here is necessarily the permit's own: it declares exactly one, and a
+   * record nested in an interface is implicitly static, so no enclosing parameter is in scope. That
+   * is the same fact {@link #substituted} relies on.
    */
   private boolean carriesResultType(TypeElement permitType, TypeElement sealedInterface) {
-    Element parameter = permitType.getTypeParameters().getFirst();
     TypeMirror algebra = processingEnv.getTypeUtils().erasure(sealedInterface.asType());
     return permitType.getInterfaces().stream()
         .filter(DeclaredType.class::isInstance)
@@ -213,8 +216,7 @@ public class EffectAlgebraProcessor extends AbstractProcessor {
         .anyMatch(
             implemented ->
                 implemented.getTypeArguments().size() == 1
-                    && implemented.getTypeArguments().getFirst() instanceof TypeVariable variable
-                    && variable.asElement().equals(parameter));
+                    && implemented.getTypeArguments().getFirst() instanceof TypeVariable);
   }
 
   // =========================================================================

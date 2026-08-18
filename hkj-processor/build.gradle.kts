@@ -105,6 +105,7 @@ tasks.jacocoTestCoverageVerification {
                 "org.higherkindedj.optics.processing.MergeProcessor*",
                 "org.higherkindedj.optics.processing.BeanPropertyAnalyser*",
                 "org.higherkindedj.optics.processing.WireShape*",
+                "org.higherkindedj.optics.processing.effect.EffectAlgebraProcessor*",
             )
             limit {
                 counter = "LINE"

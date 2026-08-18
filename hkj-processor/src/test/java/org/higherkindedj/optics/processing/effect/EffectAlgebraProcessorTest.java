@@ -935,6 +935,65 @@ class EffectAlgebraProcessorTest {
     }
 
     @Test
+    @DisplayName("A permit that is a class rather than a record is rejected")
+    void classPermitIsRejected() {
+      Compilation c =
+          compile(
+              JavaFileObjects.forSourceString(
+                  "test.pkg.ClassPermitOp",
+                  """
+                  package test.pkg;
+
+                  import java.util.function.Function;
+                  import org.higherkindedj.hkt.effect.annotation.EffectAlgebra;
+
+                  @EffectAlgebra
+                  public sealed interface ClassPermitOp<T> permits ClassPermitOp.NotARecord {
+                      <B> ClassPermitOp<B> mapK(Function<? super T, ? extends B> f);
+
+                      final class NotARecord<T> implements ClassPermitOp<T> {
+                          @Override public <B> ClassPermitOp<B> mapK(
+                                  Function<? super T, ? extends B> f) {
+                              throw new UnsupportedOperationException();
+                          }
+                      }
+                  }
+                  """));
+      System.out.println("PROBE-CLASS errors=" + c.errors().size());
+      c.errors()
+          .forEach(
+              d ->
+                  System.out.println(
+                      "PROBE-CLASS  " + String.valueOf(d.getMessage(null)).split("\n")[0]));
+    }
+
+    @Test
+    @DisplayName("A sealed interface with no permitted subtypes is rejected")
+    void noPermitsIsRejected() {
+      Compilation c =
+          compile(
+              JavaFileObjects.forSourceString(
+                  "test.pkg.EmptyOp",
+                  """
+                  package test.pkg;
+
+                  import java.util.function.Function;
+                  import org.higherkindedj.hkt.effect.annotation.EffectAlgebra;
+
+                  @EffectAlgebra
+                  public sealed interface EmptyOp<T> {
+                      <B> EmptyOp<B> mapK(Function<? super T, ? extends B> f);
+                  }
+                  """));
+      System.out.println("PROBE-EMPTY errors=" + c.errors().size());
+      c.errors()
+          .forEach(
+              d ->
+                  System.out.println(
+                      "PROBE-EMPTY  " + String.valueOf(d.getMessage(null)).split("\n")[0]));
+    }
+
+    @Test
     @DisplayName("An algebra already named A is unaffected")
     void conventionalNamingUnchanged() throws IOException {
       Compilation compilation =
