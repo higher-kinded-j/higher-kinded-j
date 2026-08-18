@@ -712,4 +712,412 @@ class EffectAlgebraProcessorTest {
       assertThat(compilation.generatedSourceFile("test.pkg.SingleOpInterpreter")).isPresent();
     }
   }
+
+  // ===========================================================================
+  // Type-parameter naming
+  // ===========================================================================
+
+  @Nested
+  @DisplayName("Type parameter naming")
+  class TypeParameterNaming {
+
+    /** An algebra whose parameter is named something other than A, used at several depths. */
+    private JavaFileObject renamedAlgebra() {
+      return JavaFileObjects.forSourceString(
+          "test.pkg.RenamedOp",
+          """
+          package test.pkg;
+
+          import java.util.List;
+          import java.util.Map;
+          import java.util.function.Function;
+          import org.higherkindedj.hkt.Unit;
+          import org.higherkindedj.hkt.effect.annotation.EffectAlgebra;
+
+          @EffectAlgebra
+          public sealed interface RenamedOp<T> permits RenamedOp.Only, RenamedOp.Deep {
+              <B> RenamedOp<B> mapK(Function<? super T, ? extends B> f);
+
+              record Only<T>(String text, Function<Unit, T> k) implements RenamedOp<T> {
+                  @Override public <B> RenamedOp<B> mapK(Function<? super T, ? extends B> f) {
+                      return new Only<>(text, k.andThen(f));
+                  }
+              }
+
+              record Deep<T>(
+                  List<Map<String, T>> nested,
+                  T[] array,
+                  Function<? super T, ? extends T> fn,
+                  Function<Unit, T> k) implements RenamedOp<T> {
+                  @Override public <B> RenamedOp<B> mapK(Function<? super T, ? extends B> f) {
+                      throw new UnsupportedOperationException();
+                  }
+              }
+          }
+          """);
+    }
+
+    @Test
+    @DisplayName("An algebra whose parameter is not named A still generates compiling code")
+    void renamedParameterGenerates() {
+      // A generated method declares its own <A>; copying a component type verbatim would leave
+      // the algebra's own name with no declaration in scope.
+      Compilation compilation = compile(renamedAlgebra());
+
+      CompilationSubject.assertThat(compilation).succeeded();
+    }
+
+    @Test
+    @DisplayName("The smart constructor spells components in terms of the generated A")
+    void opsUsesGeneratedResultType() throws IOException {
+      Compilation compilation = compile(renamedAlgebra());
+      String source = getGeneratedSource(compilation, "test.pkg.RenamedOpOps");
+
+      assertThat(source).contains("Function<Unit, A> k");
+      assertThat(source).doesNotContain(" T ");
+      assertThat(source).doesNotContain("<T>");
+      assertThat(source).doesNotContain(", T>");
+    }
+
+    @Test
+    @DisplayName("Substitution reaches nested arguments, arrays and wildcards")
+    void substitutionReachesEveryPosition() throws IOException {
+      Compilation compilation = compile(renamedAlgebra());
+      String source = getGeneratedSource(compilation, "test.pkg.RenamedOpOps");
+
+      assertThat(source).contains("List<Map<String, A>> nested");
+      assertThat(source).contains("A[] array");
+      assertThat(source).contains("Function<? super A, ? extends A> fn");
+    }
+
+    @Test
+    @DisplayName("Bound spells them the same way")
+    void boundUsesGeneratedResultType() throws IOException {
+      Compilation compilation = compile(renamedAlgebra());
+      String source = getGeneratedSource(compilation, "test.pkg.RenamedOpOps");
+
+      // Bound is nested in Ops; both call sites copy component types.
+      assertThat(source).contains("public <A> Free<G, A> only(String text, Function<Unit, A> k)");
+    }
+
+    @Test
+    @DisplayName("A permit that drops the algebra's parameter is named at the record")
+    void permitWithoutParameterIsRejected() {
+      // Generated code writes Permit<A> throughout, so a permit without the parameter would
+      // only fail once the generated source is compiled.
+      Compilation compilation =
+          compile(
+              JavaFileObjects.forSourceString(
+                  "test.pkg.ZeroOp",
+                  """
+                  package test.pkg;
+
+                  import java.util.function.Function;
+                  import org.higherkindedj.hkt.Unit;
+                  import org.higherkindedj.hkt.effect.annotation.EffectAlgebra;
+
+                  @EffectAlgebra
+                  public sealed interface ZeroOp<A> permits ZeroOp.NoParam {
+                      <B> ZeroOp<B> mapK(Function<? super A, ? extends B> f);
+
+                      record NoParam(String only) implements ZeroOp<Unit> {
+                          @Override public <B> ZeroOp<B> mapK(
+                                  Function<? super Unit, ? extends B> f) {
+                              throw new UnsupportedOperationException();
+                          }
+                      }
+                  }
+                  """));
+
+      CompilationSubject.assertThat(compilation).failed();
+      CompilationSubject.assertThat(compilation)
+          .hadErrorContaining("must declare the algebra's result type parameter");
+    }
+
+    @Test
+    @DisplayName("A permit that pins the algebra's result is named at the record")
+    void permitWithFixedResultIsRejected() {
+      // Declaring a parameter satisfies the arity check, but pinning the algebra to String
+      // makes the generated "FixedOp<A> op = new Fixed<>(...)" unassignable.
+      Compilation compilation =
+          compile(
+              JavaFileObjects.forSourceString(
+                  "test.pkg.FixedOp",
+                  """
+                  package test.pkg;
+
+                  import java.util.function.Function;
+                  import org.higherkindedj.hkt.effect.annotation.EffectAlgebra;
+
+                  @EffectAlgebra
+                  public sealed interface FixedOp<T> permits FixedOp.Fixed {
+                      <B> FixedOp<B> mapK(Function<? super T, ? extends B> f);
+
+                      record Fixed<T>(String text) implements FixedOp<String> {
+                          @Override public <B> FixedOp<B> mapK(
+                                  Function<? super String, ? extends B> f) {
+                              throw new UnsupportedOperationException();
+                          }
+                      }
+                  }
+                  """));
+
+      CompilationSubject.assertThat(compilation).failed();
+      CompilationSubject.assertThat(compilation)
+          .hadErrorContaining("must pass its own type parameter to FixedOp");
+      // The diagnostic replaces the generated-source errors rather than adding to them.
+      assertThat(
+              compilation.errors().stream().map(d -> String.valueOf(d.getMessage(null))).toList())
+          .noneMatch(m -> m.contains("cannot infer type arguments"));
+    }
+
+    @Test
+    @DisplayName("A permit may implement other interfaces alongside the algebra")
+    void permitWithExtraInterfaceIsAccepted() {
+      Compilation compilation =
+          compile(
+              JavaFileObjects.forSourceString(
+                  "test.pkg.ExtraOp",
+                  """
+                  package test.pkg;
+
+                  import java.io.Serializable;
+                  import java.util.function.Function;
+                  import org.higherkindedj.hkt.Unit;
+                  import org.higherkindedj.hkt.effect.annotation.EffectAlgebra;
+
+                  @EffectAlgebra
+                  public sealed interface ExtraOp<T> permits ExtraOp.Only {
+                      <B> ExtraOp<B> mapK(Function<? super T, ? extends B> f);
+
+                      record Only<T>(String text, Function<Unit, T> k)
+                              implements Serializable, ExtraOp<T> {
+                          @Override public <B> ExtraOp<B> mapK(
+                                  Function<? super T, ? extends B> f) {
+                              return new Only<>(text, k.andThen(f));
+                          }
+                      }
+                  }
+                  """));
+
+      CompilationSubject.assertThat(compilation).succeeded();
+    }
+
+    @Test
+    @DisplayName("A permit implementing the algebra raw is named at the record")
+    void permitImplementingRawAlgebraIsRejected() {
+      Compilation compilation =
+          compile(
+              JavaFileObjects.forSourceString(
+                  "test.pkg.RawImplOp",
+                  """
+                  package test.pkg;
+
+                  import java.util.function.Function;
+                  import org.higherkindedj.hkt.effect.annotation.EffectAlgebra;
+
+                  @EffectAlgebra
+                  public sealed interface RawImplOp<T> permits RawImplOp.Only {
+                      <B> RawImplOp<B> mapK(Function<? super T, ? extends B> f);
+
+                      @SuppressWarnings({"rawtypes", "unchecked"})
+                      record Only<T>(String text) implements RawImplOp {
+                          @Override public <B> RawImplOp<B> mapK(Function f) {
+                              throw new UnsupportedOperationException();
+                          }
+                      }
+                  }
+                  """));
+
+      CompilationSubject.assertThat(compilation).failed();
+      CompilationSubject.assertThat(compilation)
+          .hadErrorContaining("must pass its own type parameter to RawImplOp");
+    }
+
+    @Test
+    @DisplayName("A permit that is a class rather than a record is rejected")
+    void classPermitIsRejected() {
+      Compilation c =
+          compile(
+              JavaFileObjects.forSourceString(
+                  "test.pkg.ClassPermitOp",
+                  """
+                  package test.pkg;
+
+                  import java.util.function.Function;
+                  import org.higherkindedj.hkt.effect.annotation.EffectAlgebra;
+
+                  @EffectAlgebra
+                  public sealed interface ClassPermitOp<T> permits ClassPermitOp.NotARecord {
+                      <B> ClassPermitOp<B> mapK(Function<? super T, ? extends B> f);
+
+                      final class NotARecord<T> implements ClassPermitOp<T> {
+                          @Override public <B> ClassPermitOp<B> mapK(
+                                  Function<? super T, ? extends B> f) {
+                              throw new UnsupportedOperationException();
+                          }
+                      }
+                  }
+                  """));
+      CompilationSubject.assertThat(c).failed();
+      CompilationSubject.assertThat(c).hadErrorContaining("Permit must be a record type");
+    }
+
+    @Test
+    @DisplayName("A sealed interface with no permitted subtypes is rejected")
+    void noPermitsIsRejected() {
+      Compilation c =
+          compile(
+              JavaFileObjects.forSourceString(
+                  "test.pkg.EmptyOp",
+                  """
+                  package test.pkg;
+
+                  import java.util.function.Function;
+                  import org.higherkindedj.hkt.effect.annotation.EffectAlgebra;
+
+                  @EffectAlgebra
+                  public sealed interface EmptyOp<T> {
+                      <B> EmptyOp<B> mapK(Function<? super T, ? extends B> f);
+                  }
+                  """));
+      CompilationSubject.assertThat(c).failed();
+      CompilationSubject.assertThat(c)
+          .hadErrorContaining("Sealed interface has no permitted subtypes");
+    }
+
+    @Test
+    @DisplayName("A bounded algebra result parameter is named at the algebra")
+    void boundedAlgebraParameterIsRejected() {
+      // Kind<Witness, A> and Functor<Witness> range over every type, so a bound has nowhere to
+      // live; generating anyway produced eleven errors across the generated sources.
+      Compilation compilation =
+          compile(
+              JavaFileObjects.forSourceString(
+                  "test.pkg.AllBoundedOp",
+                  """
+                  package test.pkg;
+
+                  import java.util.function.Function;
+                  import org.higherkindedj.hkt.effect.annotation.EffectAlgebra;
+
+                  @EffectAlgebra
+                  public sealed interface AllBoundedOp<T extends Number>
+                          permits AllBoundedOp.Only {
+                      <B extends Number> AllBoundedOp<B> mapK(
+                              Function<? super T, ? extends B> f);
+
+                      record Only<T extends Number>(Function<Integer, T> k)
+                              implements AllBoundedOp<T> {
+                          @Override public <B extends Number> AllBoundedOp<B> mapK(
+                                  Function<? super T, ? extends B> f) {
+                              throw new UnsupportedOperationException();
+                          }
+                      }
+                  }
+                  """));
+
+      CompilationSubject.assertThat(compilation).failed();
+      CompilationSubject.assertThat(compilation)
+          .hadErrorContaining("result type parameter must be unbounded");
+    }
+
+    @Test
+    @DisplayName("An algebra parameter with several bounds is rejected too")
+    void multiBoundedAlgebraParameterIsRejected() {
+      Compilation compilation =
+          compile(
+              JavaFileObjects.forSourceString(
+                  "test.pkg.MultiBoundOp",
+                  """
+                  package test.pkg;
+
+                  import java.util.function.Function;
+                  import org.higherkindedj.hkt.effect.annotation.EffectAlgebra;
+
+                  @EffectAlgebra
+                  public sealed interface MultiBoundOp<T extends Number & Comparable<T>>
+                          permits MultiBoundOp.Only {
+                      <B extends Number & Comparable<B>> MultiBoundOp<B> mapK(
+                              Function<? super T, ? extends B> f);
+
+                      record Only<T extends Number & Comparable<T>>(Function<Integer, T> k)
+                              implements MultiBoundOp<T> {
+                          @Override
+                          public <B extends Number & Comparable<B>> MultiBoundOp<B> mapK(
+                                  Function<? super T, ? extends B> f) {
+                              throw new UnsupportedOperationException();
+                          }
+                      }
+                  }
+                  """));
+
+      CompilationSubject.assertThat(compilation).failed();
+      CompilationSubject.assertThat(compilation)
+          .hadErrorContaining("result type parameter must be unbounded");
+    }
+
+    @Test
+    @DisplayName("A bounded permit parameter is named at the record")
+    void boundedPermitParameterIsRejected() {
+      Compilation compilation =
+          compile(
+              JavaFileObjects.forSourceString(
+                  "test.pkg.BoundedOp",
+                  """
+                  package test.pkg;
+
+                  import java.util.function.Function;
+                  import org.higherkindedj.hkt.effect.annotation.EffectAlgebra;
+
+                  @EffectAlgebra
+                  public sealed interface BoundedOp<T> permits BoundedOp.Only {
+                      <B> BoundedOp<B> mapK(Function<? super T, ? extends B> f);
+
+                      record Only<T extends Number>(Function<Integer, T> k)
+                              implements BoundedOp<T> {
+                          @Override public <B> BoundedOp<B> mapK(
+                                  Function<? super T, ? extends B> f) {
+                              throw new UnsupportedOperationException();
+                          }
+                      }
+                  }
+                  """));
+
+      CompilationSubject.assertThat(compilation).failed();
+      CompilationSubject.assertThat(compilation)
+          .hadErrorContaining("must declare its result type parameter unbounded");
+    }
+
+    @Test
+    @DisplayName("An algebra already named A is unaffected")
+    void conventionalNamingUnchanged() throws IOException {
+      Compilation compilation =
+          compile(
+              JavaFileObjects.forSourceString(
+                  "test.pkg.PlainOp",
+                  """
+                  package test.pkg;
+
+                  import java.util.function.Function;
+                  import org.higherkindedj.hkt.Unit;
+                  import org.higherkindedj.hkt.effect.annotation.EffectAlgebra;
+
+                  @EffectAlgebra
+                  public sealed interface PlainOp<A> permits PlainOp.Only {
+                      <B> PlainOp<B> mapK(Function<? super A, ? extends B> f);
+
+                      record Only<A>(String text, Function<Unit, A> k) implements PlainOp<A> {
+                          @Override public <B> PlainOp<B> mapK(Function<? super A, ? extends B> f) {
+                              return new Only<>(text, k.andThen(f));
+                          }
+                      }
+                  }
+                  """));
+
+      CompilationSubject.assertThat(compilation).succeeded();
+      assertThat(getGeneratedSource(compilation, "test.pkg.PlainOpOps"))
+          .contains("Function<Unit, A> k");
+    }
+  }
 }

@@ -105,6 +105,7 @@ tasks.jacocoTestCoverageVerification {
                 "org.higherkindedj.optics.processing.MergeProcessor*",
                 "org.higherkindedj.optics.processing.BeanPropertyAnalyser*",
                 "org.higherkindedj.optics.processing.WireShape*",
+                "org.higherkindedj.optics.processing.effect.EffectAlgebraProcessor*",
             )
             limit {
                 counter = "LINE"
@@ -113,6 +114,11 @@ tasks.jacocoTestCoverageVerification {
             }
             limit {
                 counter = "BRANCH"
+                value = "COVEREDRATIO"
+                minimum = "1.00".toBigDecimal()
+            }
+            limit {
+                counter = "INSTRUCTION"
                 value = "COVEREDRATIO"
                 minimum = "1.00".toBigDecimal()
             }
