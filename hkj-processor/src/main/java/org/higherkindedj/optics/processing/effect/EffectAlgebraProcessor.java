@@ -163,6 +163,16 @@ public class EffectAlgebraProcessor extends AbstractProcessor {
             permitType);
         return null;
       }
+      // The generated smart constructors and interpreter both write Permit<A>, so a permit that
+      // drops the parameter yields code that cannot compile. Say so at the declaration.
+      if (permitType.getTypeParameters().size() < parentParamCount) {
+        error(
+            "Permit "
+                + permitType.getSimpleName()
+                + " must declare the algebra's result type parameter",
+            permitType);
+        return null;
+      }
       permits.add(permitType);
     }
     return permits;
@@ -527,7 +537,7 @@ public class EffectAlgebraProcessor extends AbstractProcessor {
 
     // Add parameters for all record components
     for (RecordComponentElement component : components) {
-      builder.addParameter(TypeName.get(component.asType()), component.getSimpleName().toString());
+      builder.addParameter(componentTypeIn(component, typeA), component.getSimpleName().toString());
     }
 
     // Return type: Free<Witness, A>
@@ -614,6 +624,54 @@ public class EffectAlgebraProcessor extends AbstractProcessor {
     return boundBuilder.build();
   }
 
+  /**
+   * The type of a record component as the generated code must spell it.
+   *
+   * <p>A generated method declares its own result type variable, always {@code A}, while a
+   * component's declared type mentions whatever the permitted record called its parameter. Copying
+   * that type verbatim leaves a name with no declaration in scope, so the record's type variable is
+   * rewritten to the generated one.
+   *
+   * @param component the record component whose type is being copied
+   * @param resultType the type variable the generated method declares
+   * @return the component's type, expressed in the generated method's scope
+   */
+  private static TypeName componentTypeIn(
+      RecordComponentElement component, TypeVariableName resultType) {
+    return substituted(TypeName.get(component.asType()), resultType);
+  }
+
+  /**
+   * Rewrites every type variable in {@code type} to {@code resultType}.
+   *
+   * <p>A permitted record declares the algebra's result type parameter and may declare no other,
+   * and a sealed interface is implicitly static so no enclosing class's parameter is in scope
+   * either. Every type variable a component can mention is therefore that one.
+   */
+  private static TypeName substituted(TypeName type, TypeVariableName resultType) {
+    if (type instanceof TypeVariableName) {
+      return resultType;
+    }
+    if (type instanceof ParameterizedTypeName parameterized) {
+      TypeName[] arguments =
+          parameterized.typeArguments().stream()
+              .map(argument -> substituted(argument, resultType))
+              .toArray(TypeName[]::new);
+      return ParameterizedTypeName.get(parameterized.rawType(), arguments);
+    }
+    if (type instanceof ArrayTypeName array) {
+      return ArrayTypeName.of(substituted(array.componentType(), resultType));
+    }
+    if (type instanceof WildcardTypeName wildcard) {
+      if (!wildcard.lowerBounds().isEmpty()) {
+        return WildcardTypeName.supertypeOf(
+            substituted(wildcard.lowerBounds().getFirst(), resultType));
+      }
+      return WildcardTypeName.subtypeOf(substituted(wildcard.upperBounds().getFirst(), resultType));
+    }
+    return type;
+  }
+
   private MethodSpec generateBoundMethod(
       TypeElement permit,
       String baseName,
@@ -630,7 +688,7 @@ public class EffectAlgebraProcessor extends AbstractProcessor {
 
     // Add parameters for record components
     for (RecordComponentElement component : components) {
-      builder.addParameter(TypeName.get(component.asType()), component.getSimpleName().toString());
+      builder.addParameter(componentTypeIn(component, typeA), component.getSimpleName().toString());
     }
 
     builder.returns(ParameterizedTypeName.get(FREE, typeG, typeA));

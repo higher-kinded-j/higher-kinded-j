@@ -712,4 +712,157 @@ class EffectAlgebraProcessorTest {
       assertThat(compilation.generatedSourceFile("test.pkg.SingleOpInterpreter")).isPresent();
     }
   }
+
+  // ===========================================================================
+  // Type-parameter naming
+  // ===========================================================================
+
+  @Nested
+  @DisplayName("Type parameter naming")
+  class TypeParameterNaming {
+
+    /** An algebra whose parameter is named something other than A, used at several depths. */
+    private JavaFileObject renamedAlgebra() {
+      return JavaFileObjects.forSourceString(
+          "test.pkg.RenamedOp",
+          """
+          package test.pkg;
+
+          import java.util.List;
+          import java.util.Map;
+          import java.util.function.Function;
+          import org.higherkindedj.hkt.Unit;
+          import org.higherkindedj.hkt.effect.annotation.EffectAlgebra;
+
+          @EffectAlgebra
+          public sealed interface RenamedOp<T> permits RenamedOp.Only, RenamedOp.Deep {
+              <B> RenamedOp<B> mapK(Function<? super T, ? extends B> f);
+
+              record Only<T>(String text, Function<Unit, T> k) implements RenamedOp<T> {
+                  @Override public <B> RenamedOp<B> mapK(Function<? super T, ? extends B> f) {
+                      return new Only<>(text, k.andThen(f));
+                  }
+              }
+
+              record Deep<T>(
+                  List<Map<String, T>> nested,
+                  T[] array,
+                  Function<? super T, ? extends T> fn,
+                  Function<Unit, T> k) implements RenamedOp<T> {
+                  @Override public <B> RenamedOp<B> mapK(Function<? super T, ? extends B> f) {
+                      throw new UnsupportedOperationException();
+                  }
+              }
+          }
+          """);
+    }
+
+    @Test
+    @DisplayName("An algebra whose parameter is not named A still generates compiling code")
+    void renamedParameterGenerates() {
+      // A generated method declares its own <A>; copying a component type verbatim would leave
+      // the algebra's own name with no declaration in scope.
+      Compilation compilation = compile(renamedAlgebra());
+
+      CompilationSubject.assertThat(compilation).succeeded();
+    }
+
+    @Test
+    @DisplayName("The smart constructor spells components in terms of the generated A")
+    void opsUsesGeneratedResultType() throws IOException {
+      Compilation compilation = compile(renamedAlgebra());
+      String source = getGeneratedSource(compilation, "test.pkg.RenamedOpOps");
+
+      assertThat(source).contains("Function<Unit, A> k");
+      assertThat(source).doesNotContain(" T ");
+      assertThat(source).doesNotContain("<T>");
+      assertThat(source).doesNotContain(", T>");
+    }
+
+    @Test
+    @DisplayName("Substitution reaches nested arguments, arrays and wildcards")
+    void substitutionReachesEveryPosition() throws IOException {
+      Compilation compilation = compile(renamedAlgebra());
+      String source = getGeneratedSource(compilation, "test.pkg.RenamedOpOps");
+
+      assertThat(source).contains("List<Map<String, A>> nested");
+      assertThat(source).contains("A[] array");
+      assertThat(source).contains("Function<? super A, ? extends A> fn");
+    }
+
+    @Test
+    @DisplayName("Bound spells them the same way")
+    void boundUsesGeneratedResultType() throws IOException {
+      Compilation compilation = compile(renamedAlgebra());
+      String source = getGeneratedSource(compilation, "test.pkg.RenamedOpOps");
+
+      // Bound is nested in Ops; both call sites copy component types.
+      assertThat(source).contains("public <A> Free<G, A> only(String text, Function<Unit, A> k)");
+    }
+
+    @Test
+    @DisplayName("A permit that drops the algebra's parameter is named at the record")
+    void permitWithoutParameterIsRejected() {
+      // Generated code writes Permit<A> throughout, so a permit without the parameter would
+      // only fail once the generated source is compiled.
+      Compilation compilation =
+          compile(
+              JavaFileObjects.forSourceString(
+                  "test.pkg.ZeroOp",
+                  """
+                  package test.pkg;
+
+                  import java.util.function.Function;
+                  import org.higherkindedj.hkt.Unit;
+                  import org.higherkindedj.hkt.effect.annotation.EffectAlgebra;
+
+                  @EffectAlgebra
+                  public sealed interface ZeroOp<A> permits ZeroOp.NoParam {
+                      <B> ZeroOp<B> mapK(Function<? super A, ? extends B> f);
+
+                      record NoParam(String only) implements ZeroOp<Unit> {
+                          @Override public <B> ZeroOp<B> mapK(
+                                  Function<? super Unit, ? extends B> f) {
+                              throw new UnsupportedOperationException();
+                          }
+                      }
+                  }
+                  """));
+
+      CompilationSubject.assertThat(compilation).failed();
+      CompilationSubject.assertThat(compilation)
+          .hadErrorContaining("must declare the algebra's result type parameter");
+    }
+
+    @Test
+    @DisplayName("An algebra already named A is unaffected")
+    void conventionalNamingUnchanged() throws IOException {
+      Compilation compilation =
+          compile(
+              JavaFileObjects.forSourceString(
+                  "test.pkg.PlainOp",
+                  """
+                  package test.pkg;
+
+                  import java.util.function.Function;
+                  import org.higherkindedj.hkt.Unit;
+                  import org.higherkindedj.hkt.effect.annotation.EffectAlgebra;
+
+                  @EffectAlgebra
+                  public sealed interface PlainOp<A> permits PlainOp.Only {
+                      <B> PlainOp<B> mapK(Function<? super A, ? extends B> f);
+
+                      record Only<A>(String text, Function<Unit, A> k) implements PlainOp<A> {
+                          @Override public <B> PlainOp<B> mapK(Function<? super A, ? extends B> f) {
+                              return new Only<>(text, k.andThen(f));
+                          }
+                      }
+                  }
+                  """));
+
+      CompilationSubject.assertThat(compilation).succeeded();
+      assertThat(getGeneratedSource(compilation, "test.pkg.PlainOpOps"))
+          .contains("Function<Unit, A> k");
+    }
+  }
 }
