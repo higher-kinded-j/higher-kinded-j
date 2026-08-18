@@ -835,6 +835,106 @@ class EffectAlgebraProcessorTest {
     }
 
     @Test
+    @DisplayName("A permit that pins the algebra's result is named at the record")
+    void permitWithFixedResultIsRejected() {
+      // Declaring a parameter satisfies the arity check, but pinning the algebra to String
+      // makes the generated "FixedOp<A> op = new Fixed<>(...)" unassignable.
+      Compilation compilation =
+          compile(
+              JavaFileObjects.forSourceString(
+                  "test.pkg.FixedOp",
+                  """
+                  package test.pkg;
+
+                  import java.util.function.Function;
+                  import org.higherkindedj.hkt.effect.annotation.EffectAlgebra;
+
+                  @EffectAlgebra
+                  public sealed interface FixedOp<T> permits FixedOp.Fixed {
+                      <B> FixedOp<B> mapK(Function<? super T, ? extends B> f);
+
+                      record Fixed<T>(String text) implements FixedOp<String> {
+                          @Override public <B> FixedOp<B> mapK(
+                                  Function<? super String, ? extends B> f) {
+                              throw new UnsupportedOperationException();
+                          }
+                      }
+                  }
+                  """));
+
+      CompilationSubject.assertThat(compilation).failed();
+      CompilationSubject.assertThat(compilation)
+          .hadErrorContaining("must pass its own type parameter to FixedOp");
+      // The diagnostic replaces the generated-source errors rather than adding to them.
+      assertThat(
+              compilation.errors().stream().map(d -> String.valueOf(d.getMessage(null))).toList())
+          .noneMatch(m -> m.contains("cannot infer type arguments"));
+    }
+
+    @Test
+    @DisplayName("A permit may implement other interfaces alongside the algebra")
+    void permitWithExtraInterfaceIsAccepted() {
+      Compilation compilation =
+          compile(
+              JavaFileObjects.forSourceString(
+                  "test.pkg.ExtraOp",
+                  """
+                  package test.pkg;
+
+                  import java.io.Serializable;
+                  import java.util.function.Function;
+                  import org.higherkindedj.hkt.Unit;
+                  import org.higherkindedj.hkt.effect.annotation.EffectAlgebra;
+
+                  @EffectAlgebra
+                  public sealed interface ExtraOp<T> permits ExtraOp.Only {
+                      <B> ExtraOp<B> mapK(Function<? super T, ? extends B> f);
+
+                      record Only<T>(String text, Function<Unit, T> k)
+                              implements Serializable, ExtraOp<T> {
+                          @Override public <B> ExtraOp<B> mapK(
+                                  Function<? super T, ? extends B> f) {
+                              return new Only<>(text, k.andThen(f));
+                          }
+                      }
+                  }
+                  """));
+
+      CompilationSubject.assertThat(compilation).succeeded();
+    }
+
+    @Test
+    @DisplayName("A permit implementing the algebra raw is named at the record")
+    void permitImplementingRawAlgebraIsRejected() {
+      Compilation compilation =
+          compile(
+              JavaFileObjects.forSourceString(
+                  "test.pkg.RawImplOp",
+                  """
+                  package test.pkg;
+
+                  import java.util.function.Function;
+                  import org.higherkindedj.hkt.effect.annotation.EffectAlgebra;
+
+                  @EffectAlgebra
+                  public sealed interface RawImplOp<T> permits RawImplOp.Only {
+                      <B> RawImplOp<B> mapK(Function<? super T, ? extends B> f);
+
+                      @SuppressWarnings({"rawtypes", "unchecked"})
+                      record Only<T>(String text) implements RawImplOp {
+                          @Override public <B> RawImplOp<B> mapK(Function f) {
+                              throw new UnsupportedOperationException();
+                          }
+                      }
+                  }
+                  """));
+
+      CompilationSubject.assertThat(compilation).failed();
+      CompilationSubject.assertThat(compilation)
+          .hadErrorContaining("must pass its own type parameter to RawImplOp");
+    }
+
+    @Test
     @DisplayName("An algebra already named A is unaffected")
     void conventionalNamingUnchanged() throws IOException {
       Compilation compilation =

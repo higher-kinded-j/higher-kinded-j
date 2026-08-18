@@ -15,7 +15,9 @@ import javax.annotation.processing.RoundEnvironment;
 import javax.annotation.processing.SupportedAnnotationTypes;
 import javax.lang.model.SourceVersion;
 import javax.lang.model.element.*;
+import javax.lang.model.type.DeclaredType;
 import javax.lang.model.type.TypeMirror;
+import javax.lang.model.type.TypeVariable;
 import javax.tools.Diagnostic;
 import org.higherkindedj.hkt.effect.annotation.EffectAlgebra;
 import org.higherkindedj.optics.processing.util.ExcludeFromJacocoGeneratedReport;
@@ -163,8 +165,9 @@ public class EffectAlgebraProcessor extends AbstractProcessor {
             permitType);
         return null;
       }
-      // The generated smart constructors and interpreter both write Permit<A>, so a permit that
-      // drops the parameter yields code that cannot compile. Say so at the declaration.
+      // The generated smart constructors and interpreter both write Permit<A> and assign it to
+      // Algebra<A>, so a permit that drops the parameter, or that pins the algebra to a concrete
+      // result, yields code that cannot compile. Say so at the declaration.
       if (permitType.getTypeParameters().size() < parentParamCount) {
         error(
             "Permit "
@@ -173,9 +176,45 @@ public class EffectAlgebraProcessor extends AbstractProcessor {
             permitType);
         return null;
       }
+      if (!carriesResultType(permitType, sealedInterface)) {
+        error(
+            "Permit "
+                + permitType.getSimpleName()
+                + " must pass its own type parameter to "
+                + sealedInterface.getSimpleName()
+                + ", so that a program's result type stays open",
+            permitType);
+        return null;
+      }
       permits.add(permitType);
     }
     return permits;
+  }
+
+  /**
+   * Reports whether a permit hands its own type parameter to the algebra, as {@code Only<A>
+   * implements ConsoleOp<A>} does.
+   *
+   * <p>Pinning it instead — {@code Fixed<A> implements ConsoleOp<String>} — leaves the arity check
+   * satisfied while making the generated {@code Algebra<A> op = new Permit<>(…)} unassignable, so
+   * the failure would land in generated source rather than on the declaration that caused it.
+   */
+  private boolean carriesResultType(TypeElement permitType, TypeElement sealedInterface) {
+    Element parameter = permitType.getTypeParameters().getFirst();
+    TypeMirror algebra = processingEnv.getTypeUtils().erasure(sealedInterface.asType());
+    return permitType.getInterfaces().stream()
+        .filter(DeclaredType.class::isInstance)
+        .map(DeclaredType.class::cast)
+        .filter(
+            implemented ->
+                processingEnv
+                    .getTypeUtils()
+                    .isSameType(processingEnv.getTypeUtils().erasure(implemented), algebra))
+        .anyMatch(
+            implemented ->
+                implemented.getTypeArguments().size() == 1
+                    && implemented.getTypeArguments().getFirst() instanceof TypeVariable variable
+                    && variable.asElement().equals(parameter));
   }
 
   // =========================================================================
