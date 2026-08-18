@@ -117,6 +117,11 @@ tasks.jacocoTestCoverageVerification {
                 value = "COVEREDRATIO"
                 minimum = "1.00".toBigDecimal()
             }
+            limit {
+                counter = "INSTRUCTION"
+                value = "COVEREDRATIO"
+                minimum = "1.00".toBigDecimal()
+            }
         }
     }
 }

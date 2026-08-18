@@ -959,12 +959,8 @@ class EffectAlgebraProcessorTest {
                       }
                   }
                   """));
-      System.out.println("PROBE-CLASS errors=" + c.errors().size());
-      c.errors()
-          .forEach(
-              d ->
-                  System.out.println(
-                      "PROBE-CLASS  " + String.valueOf(d.getMessage(null)).split("\n")[0]));
+      CompilationSubject.assertThat(c).failed();
+      CompilationSubject.assertThat(c).hadErrorContaining("Permit must be a record type");
     }
 
     @Test
@@ -985,12 +981,112 @@ class EffectAlgebraProcessorTest {
                       <B> EmptyOp<B> mapK(Function<? super T, ? extends B> f);
                   }
                   """));
-      System.out.println("PROBE-EMPTY errors=" + c.errors().size());
-      c.errors()
-          .forEach(
-              d ->
-                  System.out.println(
-                      "PROBE-EMPTY  " + String.valueOf(d.getMessage(null)).split("\n")[0]));
+      CompilationSubject.assertThat(c).failed();
+      CompilationSubject.assertThat(c)
+          .hadErrorContaining("Sealed interface has no permitted subtypes");
+    }
+
+    @Test
+    @DisplayName("A bounded algebra result parameter is named at the algebra")
+    void boundedAlgebraParameterIsRejected() {
+      // Kind<Witness, A> and Functor<Witness> range over every type, so a bound has nowhere to
+      // live; generating anyway produced eleven errors across the generated sources.
+      Compilation compilation =
+          compile(
+              JavaFileObjects.forSourceString(
+                  "test.pkg.AllBoundedOp",
+                  """
+                  package test.pkg;
+
+                  import java.util.function.Function;
+                  import org.higherkindedj.hkt.effect.annotation.EffectAlgebra;
+
+                  @EffectAlgebra
+                  public sealed interface AllBoundedOp<T extends Number>
+                          permits AllBoundedOp.Only {
+                      <B extends Number> AllBoundedOp<B> mapK(
+                              Function<? super T, ? extends B> f);
+
+                      record Only<T extends Number>(Function<Integer, T> k)
+                              implements AllBoundedOp<T> {
+                          @Override public <B extends Number> AllBoundedOp<B> mapK(
+                                  Function<? super T, ? extends B> f) {
+                              throw new UnsupportedOperationException();
+                          }
+                      }
+                  }
+                  """));
+
+      CompilationSubject.assertThat(compilation).failed();
+      CompilationSubject.assertThat(compilation)
+          .hadErrorContaining("result type parameter must be unbounded");
+    }
+
+    @Test
+    @DisplayName("An algebra parameter with several bounds is rejected too")
+    void multiBoundedAlgebraParameterIsRejected() {
+      Compilation compilation =
+          compile(
+              JavaFileObjects.forSourceString(
+                  "test.pkg.MultiBoundOp",
+                  """
+                  package test.pkg;
+
+                  import java.util.function.Function;
+                  import org.higherkindedj.hkt.effect.annotation.EffectAlgebra;
+
+                  @EffectAlgebra
+                  public sealed interface MultiBoundOp<T extends Number & Comparable<T>>
+                          permits MultiBoundOp.Only {
+                      <B extends Number & Comparable<B>> MultiBoundOp<B> mapK(
+                              Function<? super T, ? extends B> f);
+
+                      record Only<T extends Number & Comparable<T>>(Function<Integer, T> k)
+                              implements MultiBoundOp<T> {
+                          @Override
+                          public <B extends Number & Comparable<B>> MultiBoundOp<B> mapK(
+                                  Function<? super T, ? extends B> f) {
+                              throw new UnsupportedOperationException();
+                          }
+                      }
+                  }
+                  """));
+
+      CompilationSubject.assertThat(compilation).failed();
+      CompilationSubject.assertThat(compilation)
+          .hadErrorContaining("result type parameter must be unbounded");
+    }
+
+    @Test
+    @DisplayName("A bounded permit parameter is named at the record")
+    void boundedPermitParameterIsRejected() {
+      Compilation compilation =
+          compile(
+              JavaFileObjects.forSourceString(
+                  "test.pkg.BoundedOp",
+                  """
+                  package test.pkg;
+
+                  import java.util.function.Function;
+                  import org.higherkindedj.hkt.effect.annotation.EffectAlgebra;
+
+                  @EffectAlgebra
+                  public sealed interface BoundedOp<T> permits BoundedOp.Only {
+                      <B> BoundedOp<B> mapK(Function<? super T, ? extends B> f);
+
+                      record Only<T extends Number>(Function<Integer, T> k)
+                              implements BoundedOp<T> {
+                          @Override public <B> BoundedOp<B> mapK(
+                                  Function<? super T, ? extends B> f) {
+                              throw new UnsupportedOperationException();
+                          }
+                      }
+                  }
+                  """));
+
+      CompilationSubject.assertThat(compilation).failed();
+      CompilationSubject.assertThat(compilation)
+          .hadErrorContaining("must declare its result type parameter unbounded");
     }
 
     @Test

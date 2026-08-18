@@ -101,6 +101,13 @@ public class EffectAlgebraProcessor extends AbstractProcessor {
               element);
           continue;
         }
+        if (!isUnbounded(typeElement.getTypeParameters().getFirst())) {
+          error(
+              "Effect algebra's result type parameter must be unbounded: the generated Kind and"
+                  + " Functor range over every type, so there is nowhere to carry a bound",
+              element);
+          continue;
+        }
 
         // Validate all permits are records with no extra type params
         List<TypeElement> permits = getPermittedRecords(typeElement);
@@ -176,6 +183,15 @@ public class EffectAlgebraProcessor extends AbstractProcessor {
             permitType);
         return null;
       }
+      if (!isUnbounded(permitType.getTypeParameters().getFirst())) {
+        error(
+            "Permit "
+                + permitType.getSimpleName()
+                + " must declare its result type parameter unbounded, for the same reason the"
+                + " algebra must: the generated methods declare a plain <A>",
+            permitType);
+        return null;
+      }
       if (!carriesResultType(permitType, sealedInterface)) {
         error(
             "Permit "
@@ -189,6 +205,17 @@ public class EffectAlgebraProcessor extends AbstractProcessor {
       permits.add(permitType);
     }
     return permits;
+  }
+
+  /** Reports whether a type parameter declares no bound beyond the implicit {@code Object}. */
+  private boolean isUnbounded(TypeParameterElement parameter) {
+    List<? extends TypeMirror> bounds = parameter.getBounds();
+    return bounds.size() == 1
+        && processingEnv
+            .getTypeUtils()
+            .isSameType(
+                bounds.getFirst(),
+                processingEnv.getElementUtils().getTypeElement("java.lang.Object").asType());
   }
 
   /**

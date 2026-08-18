@@ -13,7 +13,9 @@ import java.lang.annotation.Target;
  * <p>The annotated interface must be:
  *
  * <ul>
- *   <li>A {@code sealed interface} with exactly one type parameter (the result type {@code A})
+ *   <li>A {@code sealed interface} with exactly one type parameter, the result type. It must be
+ *       unbounded: the generated {@code Kind} and {@code Functor} range over every type, so a bound
+ *       has nowhere to live
  *   <li>All permitted subtypes must be record types
  *   <li>Permitted records must declare the algebra's result type parameter, pass it to the algebra
  *       ({@code record Only<T>(…) implements ConsoleOp<T>}), and declare no other. The name is free
