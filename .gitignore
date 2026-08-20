@@ -55,3 +55,6 @@ bin/
 /CLAUDE.md
 
 docs/plans/
+# Repo-local pinned mdbook toolchain installed by hkj-book/serve.sh
+/hkj-book/.tools/
+/.github/scripts/mermaid-check/node_modules/

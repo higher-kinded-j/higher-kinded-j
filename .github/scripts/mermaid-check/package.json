@@ -1,0 +1,9 @@
+{
+  "name": "mermaid-check",
+  "private": true,
+  "description": "Parse-checks the book mermaid fences against the pinned mermaid library",
+  "type": "commonjs",
+  "dependencies": {
+    "jsdom": "^30.0.1"
+  }
+}

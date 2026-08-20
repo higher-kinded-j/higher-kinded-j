@@ -27,6 +27,13 @@
 set -euo pipefail
 cd "$(dirname "$0")"
 
+# Prefer the repo-local pinned toolchain if serve.sh has installed it
+# (mdbook 0.4.51 + mdbook-mermaid 0.14.1; a global mdbook 0.5.x cannot
+# build this book).
+if [[ -d .tools/bin ]]; then
+  export PATH="$PWD/.tools/bin:$PATH"
+fi
+
 BASE="${1:-}"
 PORT="${2:-3000}"
 
