@@ -17,21 +17,27 @@ A circuit breaker solves this by tracking recent failures and, when enough accum
 
 ## The State Machine
 
-```
-    Normal operation              Service failing              Probing recovery
-    ┌────────────────┐           ┌────────────────┐           ┌────────────────┐
-    │                │  failures │                │  timeout  │                │
-    │     CLOSED     │  reach    │      OPEN      │  expires  │   HALF_OPEN    │
-    │                │  threshold│                │           │                │
-    │  All calls     │──────────▶│  All calls     │──────────▶│  One probe     │
-    │  flow through  │           │  rejected with │           │  call allowed  │
-    │                │           │  CircuitOpen-  │           │                │
-    │  Failures      │           │  Exception     │           │  Success:      │
-    │  counted       │           │                │           │  close circuit │
-    │                │◀──────────│                │◀──────────│                │
-    │  Successes     │  probes   │  No calls      │  probe    │  Failure:      │
-    │  reset count   │  succeed  │  reach service │  fails    │  re-open       │
-    └────────────────┘           └────────────────┘           └────────────────┘
+```mermaid
+stateDiagram-v2
+    direction LR
+    [*] --> CLOSED
+    CLOSED --> OPEN : consecutive failures reach failureThreshold
+    OPEN --> HALF_OPEN : openDuration expires
+    HALF_OPEN --> CLOSED : successThreshold probes succeed
+    HALF_OPEN --> OPEN : any probe fails
+    CLOSED --> CLOSED : a success resets the failure count
+
+    note right of OPEN
+        calls rejected immediately
+        with CircuitOpenException
+    end note
+
+    classDef closed fill:#a6d189,stroke:#40a02b,color:#232634
+    classDef open fill:#e78284,stroke:#d20f39,color:#232634
+    classDef probing fill:#e5c890,stroke:#df8e1d,color:#232634
+    class CLOSED closed
+    class OPEN open
+    class HALF_OPEN probing
 ```
 
 | State | Behaviour | Transitions to |
