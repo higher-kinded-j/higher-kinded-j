@@ -17,7 +17,7 @@ Two more generators complete the family. `@GenerateMerge` covers the assembly a 
 
 ## Merging several sources: `@GenerateMerge`
 
-The forward-only sibling: assemble one target from **several** sources, declared entirely by the spec method's signature, no class literals, no inverse (truthful types):
+A merge is declared entirely by a spec method's signature: **several** sources in, one target out. No class literals are needed, and no inverse is generated (a merge is not invertible, so offering one would be a lie the tiers never tell):
 
 ``` java
 {{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/mapping/RecordMappingBook.java:merge_spec}}
@@ -51,9 +51,9 @@ The *typed context* here is diagnostic metadata attached to an error value: a re
 
 For `OrderError` the processor generates a companion named `OrderErrors` with three pieces:
 
-- **A factory per variant.** `code` is the UPPER_SNAKE variant name and `message` its humanised form; the timestamp is read from a [`TimeSource`](../monads/io_monad.md), so an overload takes one explicitly and the convenience uses `TimeSource.system()`.
+- **A factory per variant.** `code` is the UPPER_SNAKE variant name and `message` its humanised form; the timestamp is read from a [`TimeSource`](../monads/io_monad.md): each factory has an overload taking one explicitly, and the convenience overload uses `TimeSource.system()`.
 - **A fluent `context()` builder** over the context record's components.
-- **An `editContext(error, edit)` wither** that rebuilds the concrete variant through an exhaustive switch.
+- **An `editContext(error, edit)` wither** (a copy-with-changes method) that rebuilds the concrete variant through an exhaustive switch.
 
 Add a one-line `default` so the wither reads as an instance method, and construction plus enrichment matches the shape you would hand-write:
 

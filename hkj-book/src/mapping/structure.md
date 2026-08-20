@@ -30,6 +30,21 @@ Containers lift the same way:
 - `List` and `Optional` components lift through the element's leaf or spec; each failing list element is located by its index, so a bad second element reports as `emails.1` (`customers.1.email` through a nested spec).
 - `Map` components lift their **values**; keys pass through untouched, and each entry's failures are located by its key, so a bad value under key `en` reports as `attributes.en.email`.
 
+A failure deep in the structure surfaces with its full address because each delegating spec prefixes its own component name as the error travels out:
+
+```mermaid
+flowchart TD
+    L["email leaf fails:<br/>not an email address"] --> C["CustomerMapping locates it:<br/><code>email</code>"]
+    C --> I["InvoiceMapping prefixes its component:<br/><code>customer.email</code>"]
+    I --> R["the client reads:<br/>customer.email: not an email address"]
+
+    classDef error fill:#e78284,stroke:#d20f39,color:#232634
+    classDef tier fill:#a6d189,stroke:#40a02b,color:#232634
+    class L error
+    class C,I tier
+    class R error
+```
+
 Because nesting is *delegation* (each spec's `Impl` exposes [`asValidatedPrism()`](tiers.md), so a whole mapping plugs in wherever a leaf does), recursion terminates by construction: a self-referential `Tree(String value, List<Tree> children)` maps with an empty spec and round-trips any finite tree.
 
 ~~~admonish note title="Map keys are located by `toString()`"

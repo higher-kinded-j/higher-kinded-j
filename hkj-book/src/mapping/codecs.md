@@ -1,6 +1,6 @@
 # Standard Codecs and Shared Vocabulary
 
-_The stock leaf vocabulary for the standard families, and the mix-in pattern that shares it across an API._
+_The stock conversions for the standard families, and the mix-in pattern that shares them across an API._
 
 A typical DTO boundary converts the same handful of families every time: identifiers, dates, enums, money. Writing a `ValidatedPrism` by hand for each would be busywork, and writing it *lawfully* (accepting exactly the spelling it renders) is subtle. `StandardCodecs` ships that vocabulary ready-made, and a plain mix-in interface shares it, together with your own leaves and renames, across every spec in an API.
 
@@ -45,9 +45,22 @@ Every parse failure is a located `FieldError` with a copy-worthy message, so the
 
 ### Canonical forms only
 
-Each codec honours the [`ValidatedPrism` section law](../optics/validated_prism.md#laws) by accepting exactly the form it renders: an accepted wire value always rebuilds to itself. A case-folded UUID, a leading zero, scientific notation or a lowercase language tag is a located rejection, never a silent normalisation, so `build(parse(dto))` round-trips byte-for-byte.
+Each codec accepts exactly the form it renders, honouring the [`ValidatedPrism` section law](../optics/validated_prism.md#laws). A case-folded UUID, a leading zero, scientific notation or a lowercase language tag is a located rejection, never a silent normalisation, so `build(parse(dto))` round-trips byte-for-byte.
 
-The date-time canon deserves spelling out, because two very common producers collide with it. A zero offset must be spelled `Z`: `2026-07-28T12:34:56+00:00` (Python's `isoformat()`, PostgreSQL JSON) parses to UTC, which renders back as `Z`, so it is rejected. Fractional seconds render without trailing zeros: JavaScript's `toISOString()` always emits three-digit milliseconds, so `.500Z` and `.000Z` are rejected while `.5Z` parses. Both producers are served lawfully by the formatter overload; the canonical form is then *theirs*:
+~~~admonish tip title="Why this matters"
+Silent normalisation is data mutation nobody asked for. A mapper that quietly lowercases a UUID or reformats a timestamp makes an echo endpoint return different bytes than it received, breaks cache keys and payload signatures, and bakes a client's spelling bug into the contract without anyone deciding to. The strictness here is not pedantry: it is the property that makes round trips *provable*, and every codec is law-checked to accept exactly what it renders. When a producer legitimately speaks a different canon, you do not weaken the law; you declare that canon (below) and keep the same guarantee on their spelling.
+~~~
+
+The date-time canons collide with two very common producers, and the fix is the same for both:
+
+| Producer | Sends | Default canon says | Fix |
+|---|---|---|---|
+| Python `isoformat()`, PostgreSQL JSON | `2026-07-28T12:34:56+00:00` | rejected: a zero offset must be spelled `Z` | formatter overload |
+| JavaScript `toISOString()` | `2026-07-28T12:34:56.000Z` | rejected: a zero fraction renders as no fraction at all, so `.000Z` never round-trips | formatter overload |
+
+Non-zero fractions expose that the two date-time codecs have *different* canons, each honestly its own render: `instant()` follows `Instant.toString()`'s three-digit groups (`.500Z` parses, `.5Z` is rejected), while `offsetDateTime()` renders without trailing zeros (`.5Z` parses, `.500Z` is rejected). The rule never changes, only the render: each codec accepts exactly the spelling it produces.
+
+The formatter overload makes the canonical form *theirs*:
 
 ``` java
 {{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/mapping/StandardCodecsBook.java:codecs_formatters}}

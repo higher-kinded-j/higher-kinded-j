@@ -76,7 +76,7 @@ Now the five-defect request. A bad id, a bad email inside the nested customer, a
 {{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/mapping/capstone/BoundaryCapstoneBook.java:capstone_payoff}}
 ```
 
-Five defects, one value, every error located, in declaration order. In a Spring controller this result needs no wrapping: return it as-is and [the 422 leg](../spring/spring_boot_integration.md#the-422-leg) renders it as one response:
+Five defects, one value, every error located, in declaration order. In a Spring controller this result needs no wrapping: return it as-is and [the 422 leg](../spring/spring_boot_integration.md#the-422-leg) renders it as one response, the very response [the chapter's introduction](ch_intro.md) promised:
 
 ```json
 {
@@ -92,7 +92,7 @@ Five defects, one value, every error located, in declaration order. In a Spring 
 }
 ```
 
-The client fixes all five and resubmits once, where the hand-written mapper would have surfaced them one 400 at a time. A Bean Validation stack accumulates better than that, but its errors describe the *DTO*; these describe the domain's components, they come from the same declarations that produce the `Order`, and the parse that reported them is the only way in.
+The client fixes all five and resubmits once, where the hand-written mapper would have surfaced them one 400 at a time. A Bean Validation stack accumulates better than that, but its errors describe the *DTO*; these describe the domain's components; they come from the same declarations that produce the `Order`, and the parse that reported them is the only way in.
 
 ### What happened, error by error
 
