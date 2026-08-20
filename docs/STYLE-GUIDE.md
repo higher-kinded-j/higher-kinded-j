@@ -197,6 +197,51 @@ Notes:
 
 ## Content Patterns
 
+### The 80/20 Page Shape
+
+Order every content page so that the 80% use case is served before the 20% is even mentioned:
+
+1. **The practical lane first**: the happy path, worked with real code and *visible results*, written so a reader can stop after it and ship
+2. **The refinements**: the declarations and options most boundaries reach for
+3. **The fine print last**: precise contracts, edge cases, and processor rules, gathered in a clearly labelled trailing section (a `## The fine print` heading or admonitions), never interleaved with the teaching flow
+
+A reader should never meet a corner case before the feature it is a corner of. Precision is not lost by this ordering; it is *findable* instead of ambient.
+
+### Show the Output Early
+
+If a feature's payoff is an error message, a response payload, or a diagnostic, show that output verbatim at the first opportunity, ideally on the chapter's introduction page. Nothing motivates like the artefact itself: a JSON error response with located paths sells accumulating validation better than any paragraph describing it. Code-comment outputs inside compiled includes (`// Invalid(NonEmptyList[email: ...])`) count and are preferred, since the build proves them.
+
+### Selling Points: the "Why this matters" Admonition
+
+Where the library does something genuinely differentiating (law-checked guarantees, canonical-form strictness, located errors), say so explicitly in a `tip` admonition titled **"Why this matters"**, placed beside the strict rule or law it justifies:
+
+```markdown
+~~~admonish tip title="Why this matters"
+Silent normalisation is data mutation nobody asked for. The strictness here is the
+property that makes round trips provable, and it is law-checked in every build.
+~~~
+```
+
+Guidelines: contrast with what the reader has debugged elsewhere (NPE stack traces, silently normalising mappers); state the guarantee and where it is verified; keep the tone confident and concrete, never marketing-brochure. One per page is usually right; they lose force in crowds.
+
+### Signposting Integrations: the "At the Spring boundary" Admonition
+
+Pages whose feature has a Spring (or other framework) integration signpost it in a `tip` admonition whose title begins **"At the Spring boundary"**. The consistent title makes the integration story scannable across the book: a reader wiring a controller can skim for the phrase.
+
+### Documenting What Does Not Exist
+
+An unsupported capability gets **one sentence and a tracking-issue link**, in prose, never a paragraph or an admonition labouring what cannot be done:
+
+```markdown
+Bean projections with reference properties are not supported yet ([#702](https://github.com/...)).
+```
+
+The issue carries the design discussion; the book carries the pointer. (This mirrors the "not supported yet" comment convention in code.)
+
+### House Terminology Budget
+
+Coined terms (*leaf*, *wire*, *tier*, *leg*, *canon*) are good names, but every page must survive a reader who has not memorised them. On each page: define or link a coinage at first use (the glossary is the target), and prefer restating plainly over compounding coinages ("a wire `null` becomes a located error" rather than "the doctrine applies"). If a sentence needs three coinages to parse, rewrite it.
+
 ### Question-Style Headings
 
 Use question-style headings to engage readers and address common concerns:
@@ -250,7 +295,7 @@ This structure:
 
 Example:
 
-```markdown
+````markdown
 ### Fallback Chain
 
 **The problem:** You have multiple sources for the same data, each with different trade-offs.
@@ -266,7 +311,7 @@ EitherPath<Error, Config> config =
 ```
 
 Each `recoverWith` only triggers if the previous step failed.
-```
+````
 
 ### Type Class/Monad Page Structure
 
@@ -285,6 +330,32 @@ Pages documenting type classes or monadic types should follow this structure:
 11. **Further Reading** (external links)
 12. **Navigation** (Previous/Next)
 
+## Diagrams
+
+Two diagram media are in use, each with its ground:
+
+- **Mermaid** (rendered by `mdbook-mermaid`) for *flows and decisions*: decision trees ("which tier does my spec get?"), boundary flows (request → parse → response), sequence-like mechanisms (error paths composing outward), and before/after contrasts. Prefer mermaid wherever the reader follows arrows to an outcome.
+- **ASCII** for *type shapes and railways*: boxed type diagrams, the railway view, and signature asymmetries (`build : Domain ──▶ DTO`). Transformer pages keep their existing all-ASCII rule (see "Monad Transformer Pages").
+
+### Theme-Safe Mermaid Colours
+
+The book renders in both light (Latte) and dark (Frappé/Macchiato/Mocha) themes, and mermaid renders **once at page load** (a theme switch between light and dark triggers a reload via `mermaid-init.js`). Every diagram must therefore be self-contained:
+
+- Give **every node** an explicit `classDef` with both `fill` and `color` (text); never inherit the page background
+- Use the house palette: mid-tone pastel fills with near-black text, readable on both light and dark page backgrounds:
+
+```
+classDef wire fill:#8caaee,stroke:#1e66f5,color:#232634
+classDef domain fill:#a6d189,stroke:#40a02b,color:#232634
+classDef tier fill:#a6d189,stroke:#40a02b,color:#232634
+classDef error fill:#e78284,stroke:#d20f39,color:#232634
+classDef decision fill:#e5c890,stroke:#df8e1d,color:#232634
+```
+
+- Semantics stay consistent across the book: blue = wire/outside data, green = domain/trusted/generated surface, red = errors/rejections, yellow = decision points
+- Never encode meaning in colour alone; every node carries a label that works in monochrome
+- Keep diagrams small (roughly 12 nodes or fewer); a diagram that needs scrolling should be two diagrams
+
 ## Admonishment Types
 
 Use the following admonishment types consistently:
@@ -292,7 +363,7 @@ Use the following admonishment types consistently:
 | Type | Usage |
 |------|-------|
 | `info` | "What You'll Learn", "Key Takeaways", "Hands-On Learning", "In This Chapter" |
-| `tip` | "Further Reading", "See Also" |
+| `tip` | "Further Reading", "See Also", "Why this matters", "At the Spring boundary" |
 | `example` | Links to example code |
 | `note` | Important clarifications, "Related Types", additional context |
 | `warning` | Potential pitfalls or common mistakes |
@@ -320,11 +391,11 @@ See `hkj-examples/BOOK-SNIPPETS.md`, and run `gradle :hkj-examples:bookVerify`.
 
 Use triple backticks with language specifier:
 
-```markdown
+````markdown
 ```java
 // Java code here
 ```
-```
+````
 
 ### Inline Code
 
