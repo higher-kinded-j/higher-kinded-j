@@ -54,6 +54,16 @@ if command -v mdbook-admonish >/dev/null 2>&1; then
   mdbook-admonish install . >/dev/null 2>&1 || true
 fi
 
+# Mermaid fences need the mdbook-mermaid preprocessor. Its install step also
+# generates mermaid.min.js (gitignored); the customised mermaid-init.js is
+# committed and `install` leaves existing files alone.
+if command -v mdbook-mermaid >/dev/null 2>&1; then
+  mdbook-mermaid install . >/dev/null 2>&1 || true
+else
+  echo "warning: mdbook-mermaid not found; mermaid diagrams will not render." >&2
+  echo "         Install with: cargo install mdbook-mermaid --version 0.14.1 --locked" >&2
+fi
+
 echo "Change-tracking preview:"
 echo "  new:      current working tree"
 echo "  baseline: ${BASE}"

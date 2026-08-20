@@ -7,7 +7,7 @@ multilingual = false
 src = "src"
 [output.html]
 additional-css = ["./mdbook-admonish.css", "./theme/catppuccin.css", "./theme/catppuccin-admonish.css", "./theme/catppuccin-alerts.css", "./theme/additional-hkj.css", "./theme/change-tracking.css"]
-additional-js = ["./theme/version-switcher.js", "./theme/sidebar-nav-link.js", "./theme/chapter-title.js", "./theme/change-tracking.js"]
+additional-js = ["./theme/version-switcher.js", "./theme/sidebar-nav-link.js", "./theme/chapter-title.js", "./theme/change-tracking.js", "mermaid.min.js", "mermaid-init.js"]
 default-theme = "latte"
 preferred-dark-theme = "macchiato"
 site-url = "https://higher-kinded-j.github.io"
@@ -39,4 +39,7 @@ assets_version = "3.0.3" # do not edit: managed by `mdbook-admonish install`
 [preprocessor.hkj-changes]
 command = "python3 ../.github/scripts/hkj_changes_preprocessor.py"
 before = ["admonish", "alerts"]
+
+[preprocessor.mermaid]
+command = "mdbook-mermaid"
 
