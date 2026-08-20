@@ -3,7 +3,6 @@ title = "Higher-Kinded-J: Composable Effects and Advanced Optics for Java"
 description = "The most comprehensive functional programming library for Java. Unify error handling, optional values, and immutable data navigation with the Effect Path API and Focus DSL. Features advanced optics with code generation for Java records, filtered traversals, indexed optics, and seamless Spring Boot integration."
 authors = ["The Higher-Kinded-J Team"]
 language = "en"
-multilingual = false
 src = "src"
 [output.html]
 additional-css = ["./mdbook-admonish.css", "./theme/catppuccin.css", "./theme/catppuccin-admonish.css", "./theme/catppuccin-alerts.css", "./theme/additional-hkj.css", "./theme/change-tracking.css"]
