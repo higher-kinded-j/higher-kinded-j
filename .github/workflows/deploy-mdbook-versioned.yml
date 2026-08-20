@@ -131,10 +131,9 @@ jobs:
         run: |
           mdbook-admonish install .
 
-      - name: Setup mdbook-mermaid assets
-        working-directory: ./${{ env.BOOK_ROOT_DIR }}
+      - name: Fetch mermaid.js (pinned, see .github/scripts/fetch_mermaid.sh)
         run: |
-          mdbook-mermaid install .
+          .github/scripts/fetch_mermaid.sh
 
       - name: Setup Python
         uses: actions/setup-python@v5

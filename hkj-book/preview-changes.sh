@@ -54,14 +54,22 @@ if command -v mdbook-admonish >/dev/null 2>&1; then
   mdbook-admonish install . >/dev/null 2>&1 || true
 fi
 
-# Mermaid fences need the mdbook-mermaid preprocessor. Its install step also
-# generates mermaid.min.js (gitignored); the customised mermaid-init.js is
-# committed and `install` leaves existing files alone.
-if command -v mdbook-mermaid >/dev/null 2>&1; then
-  mdbook-mermaid install . >/dev/null 2>&1 || true
-else
+# Mermaid fences need the mdbook-mermaid preprocessor (binary) plus the
+# browser-side library. The library is pinned and fetched by
+# ../.github/scripts/fetch_mermaid.sh (gitignored mermaid.min.js); the
+# customised mermaid-init.js is committed. If the fetch fails (offline), fall
+# back to the preprocessor's older bundled copy.
+if ! command -v mdbook-mermaid >/dev/null 2>&1; then
   echo "warning: mdbook-mermaid not found; mermaid diagrams will not render." >&2
   echo "         Install with: cargo install mdbook-mermaid --version 0.14.1 --locked" >&2
+fi
+if ! ../.github/scripts/fetch_mermaid.sh >/dev/null 2>&1; then
+  if command -v mdbook-mermaid >/dev/null 2>&1; then
+    echo "warning: mermaid fetch failed; using mdbook-mermaid's older bundled copy." >&2
+    mdbook-mermaid install . >/dev/null 2>&1 || true
+  else
+    echo "warning: no mermaid.min.js available; diagrams will not render." >&2
+  fi
 fi
 
 echo "Change-tracking preview:"

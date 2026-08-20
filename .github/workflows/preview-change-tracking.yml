@@ -79,9 +79,8 @@ jobs:
         working-directory: ./${{ env.BOOK_ROOT_DIR }}
         run: mdbook-admonish install .
 
-      - name: Setup mdbook-mermaid assets
-        working-directory: ./${{ env.BOOK_ROOT_DIR }}
-        run: mdbook-mermaid install .
+      - name: Fetch mermaid.js (pinned, see .github/scripts/fetch_mermaid.sh)
+        run: .github/scripts/fetch_mermaid.sh
 
       - name: Build mdBook with change tracking
         working-directory: ./${{ env.BOOK_ROOT_DIR }}
