@@ -38,7 +38,7 @@ The two directions have different shapes, and that asymmetry runs through the wh
                                Validated<NonEmptyList<FieldError>, Domain>
 ```
 
-The generated class is `<Spec>Impl` beside the spec, used through its `INSTANCE` constant. (A spec nested in an outer class joins the enclosing simple names: `Shop.CustomerMapping` generates `ShopCustomerMappingImpl`.)
+The generated class is `<Spec>Impl` beside the spec; a concrete spec like this one is used through its `INSTANCE` constant ([generic specs](generics.md#one-rule-three-access-shapes) use `instance()` or `of(...)` instead). A spec nested in an outer class joins the enclosing simple names: `Shop.CustomerMapping` generates `ShopCustomerMappingImpl`.
 
 ---
 

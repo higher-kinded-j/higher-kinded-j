@@ -19,13 +19,13 @@ The field correspondences select what the Impl can lawfully offer. As a decision
 
 ```mermaid
 flowchart TD
-    S["Your MappingSpec&lt;Domain, Wire&gt;"] --> U{"extends<br/>UpdateSpec?"}
+    S["Your spec interface"] --> U{"extends UpdateSpec<br/>(instead of MappingSpec)?"}
     U -->|yes| UT(["updateFrom() only:<br/>a sparse PATCH fold"])
     U -->|no| W{"wire has fewer<br/>components?"}
     W -->|yes| F{"any fallible correspondence<br/>on a projected component?<br/>(leaf, nested spec, container)"}
     F -->|no| LT(["build + asLens():<br/>lawful write-back, no parse"])
     F -->|yes| PT(["build + validated patch():<br/>a write-back that can fail"])
-    W -->|no| D{"any fallible leaf, nested<br/>spec or derived field?"}
+    W -->|no| D{"any fallible leaf, nested spec,<br/>derived field, or guarded<br/>bean property read?"}
     D -->|no| IT(["build + guarded parse<br/>+ lawful asIso()"])
     D -->|yes| VT(["build + accumulating parse,<br/>no asIso()"])
     IT --> VP(["asValidatedPrism():<br/>the whole mapping as a leaf,<br/>so it nests and lifts"])
@@ -38,6 +38,8 @@ flowchart TD
     class UT,LT,PT,IT,VT,VP tier
     class U,W,F,D decision
 ```
+
+(The bean-read leg of that last decision: on a bean wire an unset reference property is an ordinary state, so its guarded reads count as fallible and a lossless-*looking* bean mapping still lands on the accumulating branch, withholding `asIso()`; see [Beans and Sparse PATCH](beans_patch.md#bean-shaped-wire-targets).)
 
 And as the reference table:
 

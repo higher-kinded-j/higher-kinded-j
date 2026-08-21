@@ -45,7 +45,7 @@ Every parse failure is a located `FieldError` with a copy-worthy message, so the
 
 ### Canonical forms only
 
-Each codec accepts exactly the form it renders, honouring the [`ValidatedPrism` section law](../optics/validated_prism.md#laws). A case-folded UUID, a leading zero, scientific notation or a lowercase language tag is a located rejection, never a silent normalisation, so `build(parse(dto))` round-trips byte-for-byte.
+Each codec accepts exactly the form it renders, honouring the [`ValidatedPrism` section law](../optics/validated_prism.md#laws). A case-folded UUID, a leading zero, scientific notation or a lowercase language tag is a located rejection, never a silent normalisation, so whatever `parse` accepts, `build` reproduces byte-for-byte (`build(parse(s).get()) == s` whenever `s` parses).
 
 ~~~admonish tip title="Why this matters"
 Silent normalisation is data mutation nobody asked for. A mapper that quietly lowercases a UUID or reformats a timestamp makes an echo endpoint return different bytes than it received, breaks cache keys and payload signatures, and bakes a client's spelling bug into the contract without anyone deciding to. The strictness here is not pedantry: it is the property that makes round trips *provable*, and every codec is law-checked to accept exactly what it renders. When a producer legitimately speaks a different canon, you do not weaken the law; you declare that canon (below) and keep the same guarantee on their spelling.

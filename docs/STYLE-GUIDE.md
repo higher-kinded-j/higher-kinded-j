@@ -344,7 +344,7 @@ The book renders in both light (Latte) and dark (Frappé/Macchiato/Mocha) themes
 - Give **every node** an explicit `classDef` with both `fill` and `color` (text); never inherit the page background
 - Use the house palette: mid-tone pastel fills with near-black text, readable on both light and dark page backgrounds:
 
-```
+```text
 classDef wire fill:#8caaee,stroke:#1e66f5,color:#232634
 classDef domain fill:#a6d189,stroke:#40a02b,color:#232634
 classDef tier fill:#a6d189,stroke:#40a02b,color:#232634

@@ -7,47 +7,33 @@
 // (mdBook applies the resolved theme name to <html> before this runs).
 
 (() => {
-    const darkThemes = ['frappe', 'macchiato', 'mocha'];
-    const lightThemes = ['latte', 'light', 'rust'];
+    const darkThemes = ['frappe', 'macchiato', 'mocha', 'ayu', 'navy', 'coal'];
 
-    const classList = document.getElementsByTagName('html')[0].classList;
-
-    let lastThemeWasLight = true;
-    for (const cssClass of classList) {
-        if (darkThemes.includes(cssClass)) {
-            lastThemeWasLight = false;
-            break;
+    const isLight = () => {
+        for (const cssClass of document.documentElement.classList) {
+            if (darkThemes.includes(cssClass)) {
+                return false;
+            }
         }
-    }
-
-    const theme = lastThemeWasLight ? 'default' : 'dark';
-    mermaid.initialize({ startOnLoad: true, theme });
-
-    // Mermaid renders once at load, so switching between a light and a dark
-    // page theme needs a refresh to re-render the diagrams to match.
-
-    const prefersDark = () =>
-        window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
-
-    const reloadIfLightnessChanges = (selectedIsLight) => {
-        if (selectedIsLight !== lastThemeWasLight) {
-            window.location.reload();
-        }
+        return true;
     };
 
-    for (const darkTheme of darkThemes) {
-        document.getElementById(darkTheme)?.addEventListener('click', () => {
-            reloadIfLightnessChanges(false);
-        });
-    }
+    const lastThemeWasLight = isLight();
+    mermaid.initialize({
+        startOnLoad: true,
+        theme: lastThemeWasLight ? 'default' : 'dark',
+    });
 
-    for (const lightTheme of lightThemes) {
-        document.getElementById(lightTheme)?.addEventListener('click', () => {
-            reloadIfLightnessChanges(true);
-        });
-    }
-
-    document.getElementById('default_theme')?.addEventListener('click', () => {
-        reloadIfLightnessChanges(!prefersDark());
+    // Mermaid renders once at load. mdBook swaps the <html> theme class both
+    // on theme-menu clicks and, in Auto mode, when the system colour scheme
+    // changes, so watch the class itself and re-render (via a reload)
+    // whenever the lightness actually changes.
+    new MutationObserver(() => {
+        if (isLight() !== lastThemeWasLight) {
+            window.location.reload();
+        }
+    }).observe(document.documentElement, {
+        attributes: true,
+        attributeFilter: ['class'],
     });
 })();
