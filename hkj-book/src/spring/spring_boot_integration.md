@@ -397,6 +397,28 @@ When an `Invalid` payload consists **entirely** of located `FieldError`s, the ha
 }
 ```
 
+The whole leg, end to end. The switching happens in `ValidationPathReturnValueHandler` (registered by `HkjWebMvcAutoConfiguration`), and the controller never sees it:
+
+```mermaid
+sequenceDiagram
+    actor Client
+    participant C@{ "type": "control" } as UserController
+    participant M@{ "type": "boundary" } as UserMappingImpl
+    participant H@{ "type": "control" } as ValidationPathReturnValueHandler
+
+    Client->>C: POST /api/users/parse<br/>(Jackson binds UserDto: strings and nulls)
+    C->>M: parse(dto)
+    M-->>C: Validated#lt;NonEmptyList#lt;FieldError#gt;, User#gt;
+    C->>H: returned as-is
+    alt Valid(user)
+        H-->>Client: 200 OK: the User
+    else Invalid: every error a located FieldError
+        H-->>Client: 422: each error rendered by path
+    else Invalid: mixed or non-FieldError errors
+        H-->>Client: 400: the generic validation leg
+    end
+```
+
 To inject the mapping behind such an endpoint as a bean, or substitute a fake in a `@WebMvcTest` slice, see [Injecting and testing generated mappings](../mapping/testing.md#injecting-and-testing-generated-mappings); the example app's `MappingConfiguration`, `UserController` and `UserParseFakeCodecSliceTest` demonstrate the pattern end to end.
 
 `path` is the dot-joined display key (`FieldError.pathString()`); `segments` is the exact structured location. Paths use **domain** component names: under a `@MapField(to = "fullName")` rename the client that sent `fullName` receives its error at `name`, so a client mapping errors onto its own payload keys must apply the rename in reverse. The distinction matters: a map key containing a dot is indistinguishable from nesting in the rendered `path` (`attributes."a.b".email` vs deeper nesting), so structured consumers should read `segments`, which stays exact. An unlabelled error renders `"path": ""` and `"segments": []`; treat it as object-level.

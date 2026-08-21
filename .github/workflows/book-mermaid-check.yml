@@ -1,0 +1,47 @@
+name: Book Mermaid Parse Check
+
+# Parse-checks every ```mermaid fence in hkj-book/src against the pinned
+# browser-side mermaid library, so a diagram syntax error fails the PR
+# instead of reaching the published book as a render-time error box.
+# No branches filter on pull_request: stacked PRs are checked too.
+on:
+  pull_request:
+    paths:
+      - 'hkj-book/src/**'
+      - '.github/scripts/fetch_mermaid.sh'
+      - '.github/scripts/mermaid-check/**'
+      - '.github/workflows/book-mermaid-check.yml'
+  push:
+    branches: [ "main" ]
+    paths:
+      - 'hkj-book/src/**'
+      - '.github/scripts/fetch_mermaid.sh'
+      - '.github/scripts/mermaid-check/**'
+      - '.github/workflows/book-mermaid-check.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  parse-check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Fetch pinned mermaid library
+        run: .github/scripts/fetch_mermaid.sh
+
+      - name: Install check dependencies
+        working-directory: .github/scripts/mermaid-check
+        run: npm ci --no-audit --no-fund
+
+      - name: Parse-check mermaid diagrams
+        run: node .github/scripts/mermaid-check/check.cjs

@@ -135,6 +135,16 @@ jobs:
         run: |
           .github/scripts/fetch_mermaid.sh
 
+      - name: Set up Node for the mermaid parse check
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Parse-check mermaid diagrams
+        run: |
+          npm ci --no-audit --no-fund --prefix .github/scripts/mermaid-check
+          node .github/scripts/mermaid-check/check.cjs
+
       - name: Setup Python
         uses: actions/setup-python@v5
         with:
