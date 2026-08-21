@@ -22,6 +22,7 @@ jobs:
     env:
       MDBOOK_ADMONISH_VERSION: "1.19.0"
       MDBOOK_ALERTS_VERSION:  "0.7.0"
+      MDBOOK_MERMAID_VERSION: "0.14.1"
       BOOK_ROOT_DIR: "hkj-book"
 
     permissions:
@@ -44,10 +45,18 @@ jobs:
         run: |
           cargo install mdbook-alerts --version ${{ env.MDBOOK_ALERTS_VERSION }} --locked
 
+      - name: Install 'mdbook-mermaid'
+        run: |
+          cargo install mdbook-mermaid --version ${{ env.MDBOOK_MERMAID_VERSION }} --locked
+
       - name: Setup mdbook-admonish assets
         working-directory: ./${{ env.BOOK_ROOT_DIR }}
         run: |
           mdbook-admonish install . 
+
+      - name: Fetch mermaid.js (pinned, see .github/scripts/fetch_mermaid.sh)
+        run: |
+          .github/scripts/fetch_mermaid.sh
 
       - name: Setup Python
         uses: actions/setup-python@v5

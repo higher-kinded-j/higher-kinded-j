@@ -2,7 +2,7 @@
 
 _Concrete, threaded, and element-mapped: three ways to map a generic record, one rule for how you reach the Impl._
 
-A generic record (`Page<T>`, `Result<E, A>`) raises a question a monomorphic pair never does: is the mapping *for one instantiation*, *for all of them*, or *parameterised by codecs the spec cannot know*? All three are supported, and which one you have determines how the generated Impl is accessed. (No generic records at your boundary? Skip ahead to [Merge and Error Envelopes](merge_envelopes.md) and return when a `Page<T>` appears.)
+A generic record (`Page<T>`, `Result<E, A>`) raises a question a non-generic pair never does: is the mapping *for one instantiation*, *for all of them*, or *parameterised by codecs the spec cannot know*? All three are supported, and which one you have determines how the generated Impl is accessed. (No generic records at your boundary? Skip ahead to [Merge and Error Envelopes](merge_envelopes.md) and return when a `Page<T>` appears.)
 
 ~~~admonish info title="What You'll Learn"
 - Mapping a concrete instantiation, where the whole toolkit applies under the substitution
@@ -25,7 +25,7 @@ As a **concrete instantiation**, name the type arguments in the spec and every c
 {{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/mapping/RecordMappingBook.java:generic_usage}}
 ```
 
-An instantiated mapping registers like any other, so `Report(Page<Customer> results)` nests it automatically. A threaded spec nests too: a use site's type arguments unify against the spec's declared pair, so `Report(Page<String> results)` resolves `PageMapping<T>` as `PageMappingImpl.<String>instance()`, and a generic outer spec may thread its own variable straight through.
+An instantiated mapping registers like any other, so `Report(Page<Customer> results)` nests it automatically.
 
 ---
 
@@ -46,6 +46,8 @@ In assignment context the witness is inferred, so plain `instance()` reads natur
 ``` java
 {{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/mapping/RecordMappingBook.java:threaded_inferred}}
 ```
+
+A threaded spec nests too: a use site's type arguments unify against the spec's declared pair, so `Report(Page<String> results)` resolves `PageMapping<T>` as `PageMappingImpl.<String>instance()`, and a generic outer spec may thread its own variable straight through.
 
 ---
 
@@ -75,10 +77,10 @@ The Impl carries the prisms as state, so there is no singleton in either spellin
 
 Element-mapped mappings nest as **compositions**. A use site whose pair unifies against one resolves each element pair in turn:
 
-- through a leaf on the using spec named after the component (single-leaf specs; a spec with several abstract leaves resolves each pair through the registry),
+- through a leaf on the using spec named after the component (single-leaf specs; a spec with several abstract leaves resolves each pair against the other specs in the same compilation),
 - or recursively through another registered mapping,
 
-and emits `CodecPageMappingImpl.of(entries()).asValidatedPrism()` in place. Failures locate through the whole composed path (`entries.items.1: not an email address`); an unresolvable element pair is a compile error naming the pair and both levers.
+and emits `CodecPageMappingImpl.of(entries()).asValidatedPrism()` in place. Failures locate through the whole composed path (`entries.items.1: not an email address`); an unresolvable element pair is a compile error naming the pair and both ways to supply it (a leaf on the using spec, or another registered mapping).
 
 ~~~admonish note title="Boundaries"
 Generic mappings are **record-to-record only** (bean-shaped wires and `UpdateSpec` mappings stay concrete); raw uses (including raw *nested* arguments) and wildcards are diagnosed, while array arguments (`Page<String[]>`) are concrete, map fine, and unify structurally at nested use sites. An abstract leaf belongs to a generic spec: on a concrete or sealed one it is diagnosed, since nothing defers its parser.

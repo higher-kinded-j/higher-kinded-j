@@ -7,7 +7,7 @@ A generated Impl is a pure function, so most code should just call it. This page
 ~~~admonish info title="What You'll Learn"
 - Why the spec interface deliberately injects nothing, and which surface to register per tier
 - Test doubles as two-line `ValidatedPrism.of(...)` values, no mocking framework involved
-- The width story: no component ceiling, chunked `fields()` ladders past 16 legs
+- The width story: no component ceiling, chunked `fields()` ladders past 16 fields
 - The remaining limits, each with a what/why/fix diagnostic
 ~~~
 
@@ -40,13 +40,13 @@ Spring resolves the full generic type, so codecs for different pairs coexist wit
 {{#include ../../../hkj-spring/example/src/test/java/org/higherkindedj/spring/example/controller/UserParseFakeCodecSliceTest.java:fake_codec}}
 ```
 
-The [hkj-spring example app](../spring/spring_boot_integration.md) demonstrates the seam end to end: `MappingConfiguration` registers the codec, `UserController`'s parse endpoint injects it, and `UserParseFakeCodecSliceTest` substitutes the fake above in a `@WebMvcTest` slice and asserts the located 422 it produces. The same controller's PATCH endpoint deliberately calls `UserPatchMappingImpl.INSTANCE` directly: injection buys substitution, not lifecycle, and a team comfortable calling the Impl directly (`INSTANCE`, `instance()`, or one shared `of(...)` instance) loses nothing.
+The [hkj-spring example app](../spring/spring_boot_integration.md) demonstrates the seam end to end: `MappingConfiguration` registers the codec, `UserController`'s parse endpoint injects it, and `UserParseFakeCodecSliceTest` substitutes the fake above in a `@WebMvcTest` slice and asserts the located 422 it produces. The same controller's PATCH endpoint deliberately calls `UserPatchMappingImpl.INSTANCE` directly, and a team comfortable calling the Impl that way (`INSTANCE`, `instance()`, or one shared `of(...)` instance) loses nothing: injection buys substitution, not lifecycle.
 
 ---
 
 ## Diagnostics and limits
 
-There is no component ceiling. `parse` (and the validated `patch`, and `@GenerateMerge`'s fallible merge) is assembled with [`Validated.fields()`](../monads/validated_assembly.md) ladders, chunked and combined applicatively past 16 legs, so an externally fixed flat 20-or-30-field wire maps without grouping components into nested records, and behaves exactly like a narrow one (same located labels, same declaration-order accumulation, across chunk boundaries):
+There is no component ceiling. `parse` (and the validated `patch`, and `@GenerateMerge`'s fallible merge) is assembled with [`Validated.fields()`](../monads/validated_assembly.md) ladders, chunked and combined applicatively past 16 fields, so a flat 20-or-30-field wire whose shape you do not control maps without grouping components into nested records, and behaves exactly like a narrow one (same located labels, same declaration-order accumulation, across chunk boundaries):
 
 ``` java
 {{#include ../../../hkj-examples/src/test/java/org/higherkindedj/example/book/mapping/WideMappingLawsTest.java:wide_laws}}
