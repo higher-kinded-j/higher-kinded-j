@@ -63,7 +63,10 @@ function markdownFiles(dir) {
   return out;
 }
 
-function mermaidFences(source) {
+function mermaidFences(rawSource) {
+  // Normalise CRLF so a Windows-authored file cannot slip its fences past
+  // the gate; line numbers are unaffected.
+  const source = rawSource.replace(/\r\n/g, "\n");
   const fences = [];
   const re = /^```mermaid[ \t]*\n([\s\S]*?)^```[ \t]*$/gm;
   let match;

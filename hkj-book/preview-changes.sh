@@ -27,11 +27,18 @@
 set -euo pipefail
 cd "$(dirname "$0")"
 
-# Prefer the repo-local pinned toolchain if serve.sh has installed it
-# (mdbook 0.4.51 + mdbook-mermaid 0.14.1; a global mdbook 0.5.x cannot
-# build this book).
+# Prefer the repo-local pinned toolchain if serve.sh has installed it, but
+# only when it is complete and on-pin: mixing one local binary with global
+# preprocessors would produce an inconsistent preview.
+# shellcheck source=toolchain-pins.sh
+source ./toolchain-pins.sh
 if [[ -d .tools/bin ]]; then
-  export PATH="$PWD/.tools/bin:$PATH"
+  if tools_complete "$PWD/.tools/bin"; then
+    export PATH="$PWD/.tools/bin:$PATH"
+  else
+    echo "warning: hkj-book/.tools is incomplete or off-pin; run ./serve.sh once to repair it." >&2
+    echo "         Falling back to the tools on your PATH." >&2
+  fi
 fi
 
 BASE="${1:-}"
@@ -70,7 +77,7 @@ fi
 # still serves, with mermaid fences rendered as plain code blocks.
 if ! command -v mdbook-mermaid >/dev/null 2>&1; then
   echo "warning: mdbook-mermaid not found; mermaid fences will render as plain code blocks." >&2
-  echo "         Install with: cargo install mdbook-mermaid --version 0.14.1 --locked" >&2
+  echo "         Install with: cargo install mdbook-mermaid --version ${MDBOOK_MERMAID_VERSION} --locked" >&2
 fi
 if ! ../.github/scripts/fetch_mermaid.sh >/dev/null 2>&1; then
   if command -v mdbook-mermaid >/dev/null 2>&1; then
