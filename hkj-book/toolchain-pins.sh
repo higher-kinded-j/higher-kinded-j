@@ -11,9 +11,14 @@ MDBOOK_ADMONISH_VERSION="1.19.0"
 MDBOOK_ALERTS_VERSION="0.7.0"
 MDBOOK_MERMAID_VERSION="0.14.1"
 
-# tool_matches BIN VERSION: BIN exists, is executable, and reports VERSION.
+# tool_matches BIN VERSION: BIN exists, is executable, and its --version
+# reports exactly VERSION as its version token (an optional leading 'v' is
+# tolerated; a substring such as 0.4.510 against a 0.4.51 pin is not).
 tool_matches() {
-  [[ -x "$1" ]] && "$1" --version 2>/dev/null | grep -qF "$2"
+  [[ -x "$1" ]] || return 1
+  local reported
+  reported=$("$1" --version 2>/dev/null | grep -oE 'v?[0-9]+(\.[0-9]+)+' | head -n1) || return 1
+  [[ "${reported#v}" == "$2" ]]
 }
 
 # tools_complete DIR: all four pinned binaries present in DIR at the pins.
