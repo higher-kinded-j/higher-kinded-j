@@ -13,8 +13,7 @@ to (2) when a page needs a shape that cannot be a runnable example (an abstract 
 `VResultPath<E, A>` written against type variables).
 
 The exact counts live in the two ratchets (`MINIMUM_INCLUDES`, `MINIMUM_VERIFIED_SNIPPETS`) rather
-than here, so they cannot go stale. Today the only markers left are `path_vresult`'s catalogue of
-shapes written against abstract type variables, which is the one thing an include cannot express.
+than here, so they cannot go stale. Markers today cover `path_vresult`'s catalogue of shapes written against abstract type variables (the one thing an include cannot express) and short teaser snippets such as the optics Fundamentals payoff, whose fixture-backed domain would be noise in a runnable example
 
 The book-facing examples live under `org.higherkindedj.example.book.*`, **one package per page**: the
 types must be top-level (so the processor generates the names the book teaches), and two pages that

@@ -13,11 +13,7 @@
 - When to use prisms vs pattern matching vs traditional type checking
 ~~~
 
-~~~admonish title="Hands On Practice"
-[Tutorial03_PrismBasics.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/test/java/org/higherkindedj/tutorial/optics/Tutorial03_PrismBasics.java)
-~~~
-
-~~~admonish title="Example Code"
+~~~admonish example title="See Example Code"
 [PrismUsageExample](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/optics/PrismUsageExample.java)
 [PrismConvenienceMethodsExample](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/optics/PrismConvenienceMethodsExample.java)
 [PrismsUtilityExample](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/optics/PrismsUtilityExample.java)
@@ -25,7 +21,7 @@
 
 The previous guide demonstrated how a **`Lens`** gives us a powerful, composable way to work with "has-a" relationships: a field that is guaranteed to exist within a record.
 
-But what happens when the data doesn't have a guaranteed structure? What if a value can be one of *several different types*? This is the domain of "is-a" relationships, or **sum types**, commonly modeled in Java using `sealed interface` or `enum`.
+But what happens when the data doesn't have a guaranteed structure? What if a value can be one of *several different types*? This is the domain of "is-a" relationships, or **sum types**, commonly modelled in Java using `sealed interface` or `enum`.
 
 For this, we need a different kind of optic: the **Prism**.
 
@@ -49,6 +45,7 @@ public sealed interface JsonValue {}
 
 public record JsonString(String value) implements JsonValue {}
 public record JsonNumber(double value) implements JsonValue {}
+public record JsonBoolean(boolean value) implements JsonValue {}
 
 @GenerateLenses // We can still use Lenses on the product types within the sum type
 public record JsonObject(Map<String, JsonValue> fields) implements JsonValue {}
@@ -136,8 +133,8 @@ Prism<JsonValue, JsonString> jsonStringPrism = JsonValuePrisms.jsonString();
 Lens<JsonObject, Map<String, JsonValue>> fieldsLens = JsonObjectLenses.fields();
 Lens<JsonString, String> valueLens = JsonStringLenses.value();
 
-// Direct composition: Prism >>> Lens = Traversal
-Traversal<JsonValue, String> jsonStringValue =
+// Direct composition: Prism >>> Lens = Affine
+Affine<JsonValue, String> jsonStringValue =
     jsonStringPrism.andThen(valueLens);
 
 // The composed optic: safely navigate from JsonObject -> userLogin field -> name field -> string value
@@ -147,7 +144,7 @@ Traversal<JsonObject, String> userNameTraversal =
         .andThen(jsonObjectPrism.asTraversal())   // -> JsonObject (if it's an object)
         .andThen(fieldsLens.asTraversal())        // -> Map<String, JsonValue>
         .andThen(Traversals.forMap("name"))       // -> JsonValue (if "name" key exists)
-        .andThen(jsonStringValue);                // -> String (if it's a string)
+        .andThen(jsonStringValue.asTraversal());  // -> String (if it's a string)
 ```
 
 This composed `Traversal` now represents a safe, deep path that will only succeed if every step in the chain matches.
@@ -264,6 +261,9 @@ Prisms are optimised for type safety and composability:
 
 ```java
 public class JsonOptics {
+    private static final Lens<JsonObject, Map<String, JsonValue>> fieldsLens =
+        JsonObjectLenses.fields();
+
     public static final Prism<JsonValue, JsonString> STRING = 
         JsonValuePrisms.jsonString();
   
@@ -345,14 +345,15 @@ public class PrismUsageExample {
     public sealed interface JsonValue {}
     public record JsonString(String value) implements JsonValue {}
     public record JsonNumber(double value) implements JsonValue {}
-  
+    public record JsonBoolean(boolean value) implements JsonValue {}
+
     @GenerateLenses
     public record JsonObject(Map<String, JsonValue> fields) implements JsonValue {}
 
 
     public static void main(String[] args) {
         // 2. Create the initial nested structure.
-        var userData = Map.of(
+        Map<String, JsonValue> userData = Map.of(
             "userLogin", new JsonObject(Map.of(
                 "name", new JsonString("Alice"),
                 "age", new JsonNumber(30),
@@ -402,13 +403,14 @@ public class PrismUsageExample {
                 .andThen(jsonStringPrism.asTraversal())
                 .andThen(jsonStringValueLens.asTraversal());
 
-          // 6. Use the composed traversal to perform safe updates
-        JsonObject updatedData = Traversals.modify(userNameTraversal, String::toUpperCase, data);
+        // 6. Use the composed traversal to perform safe updates
+        System.out.println("--- Composed Traversal Operations ---");
+        JsonObject updatedData = Traversals.modify(userToJsonName, String::toUpperCase, data);
         System.out.println("After safe `modify`:  " + updatedData);
     
         // 7. Demonstrate that the traversal safely handles missing paths
         var dataWithoutUser = new JsonObject(Map.of("metadata", new JsonString("test")));
-        JsonObject safeUpdate = Traversals.modify(userNameTraversal, String::toUpperCase, dataWithoutUser);
+        JsonObject safeUpdate = Traversals.modify(userToJsonName, String::toUpperCase, dataWithoutUser);
         System.out.println("Safe update on missing path: " + safeUpdate);
     
         System.out.println("Original is unchanged: " + data);
@@ -456,23 +458,17 @@ Extracted strings only: [hello, world]
 
 ---
 
-~~~admonish tip title="See Also"
-- [Prism Toolkit](prism_toolkit.md), the full convenience-method catalogue and the `Prisms` utility factory methods for `Optional`, `Either`, `Maybe`, `Try`, and list decomposition.
-- [Validated Prisms](validated_prism.md) - When the *no* needs to carry located, accumulated reasons (a validated boundary)
+~~~admonish info title="Key Takeaways"
+* **A prism is a failable focus on one variant**: `getOptional` is the safe cast, `build` the constructor back into the sum type
+* **`Lens` handles the "what", `Prism` the "what if"**: a prism is the type-safe `instanceof` plus cast, composable and reusable
+* **Composition tells the truth**: a prism in the chain makes the result an `Affine` or `Traversal`, so the possibility of no match is visible in the type
+* **Reuse beats repetition**: build prisms and composed paths once and store them as constants; changes to the data model surface as compile errors at the optic, never as runtime surprises
 ~~~
 
----
-
-## Why Prisms are Essential
-
-`Lens` handles the "what" and `Prism` handles the "what if." Together, they allow you to model and operate on virtually any immutable data structure you can design. Prisms are essential for:
-
-* **Safety**: Eliminating `instanceof` checks and unsafe casts.
-* **Clarity**: Expressing failable focus in a clean, functional way.
-* **Composability**: Combining checks for different data shapes into a single, reusable optic.
-* **Maintainability**: Creating type-safe paths that won't break when data structures evolve.
-
-By adding Prisms to your toolkit, you can write even more robust, declarative, and maintainable code that gracefully handles the complexity of real-world data structures.
+~~~admonish tip title="See Also"
+- [Prism Toolkit](prism_toolkit.md): the full convenience-method catalogue and the `Prisms` utility factory methods for `Optional`, `Either`, `Maybe`, `Try`, and list decomposition
+- [Validated Prisms](validated_prism.md): when the *no* needs to carry located, accumulated reasons (a validated boundary)
+~~~
 
 ~~~admonish tip title="Ready for More?"
 Once you're comfortable with these prism fundamentals, explore [Advanced Prism Patterns](advanced_prism_patterns.md) for production-ready patterns including:
@@ -484,7 +480,7 @@ Once you're comfortable with these prism fundamentals, explore [Advanced Prism P
 ~~~
 
 ~~~admonish tip title="For Comprehension Integration"
-Prisms integrate with For comprehensions via the `match()` operation, which provides prism-based pattern matching with short-circuit semantics. When the prism match fails, the computation short-circuits using the monad's zero value (empty list, Nothing, etc.). See [For Comprehensions: Pattern Matching with match()](../functional/for_comprehension.md#pattern-matching-with-match).
+Prisms integrate with For comprehensions via the `match()` operation, which provides prism-based pattern matching with short-circuit semantics. When the prism match fails, the computation short-circuits using the monad's zero value (empty list, Nothing, etc.). See [For Comprehensions: Pattern Matching with match()](../functional/for_optics.md#filtering-with-pattern-matching-via-match).
 ~~~
 
 ~~~admonish info title="Hands-On Learning"

@@ -2,7 +2,7 @@
 
 ![Diagram showing optics as composable lenses focusing on nested data structures](../images/optics.jpg)
 
-~~~admonish tip title="Learn Optics Hands-On"
+~~~admonish info title="Hands-On Learning"
 Ready to master optics through practice? The **[Optics Tutorial Track](../tutorials/optics/ch_intro.md)** offers six interactive journeys covering Lenses, Prisms, Traversals, the Fluent and Free DSLs, the Focus DSL, batching, and the generated DTO boundary (134 exercises, ~225 minutes total).
 ~~~
 
@@ -64,7 +64,7 @@ The real power comes from their **composability**. You can chain optics together
 
 ## The Optics Family in Higher-Kinded-J
 
-The `higher-kinded-j` library provides the foundation for a rich optics library, primarily focused on three main types. Each is designed to solve a specific kind of data access problem.
+The `higher-kinded-j` library provides the foundation for a rich optics library built around five core types. Each is designed to solve a specific kind of data access problem.
 
 ### 1. Lens: For "Has-A" Relationships
 
@@ -77,7 +77,7 @@ A **Lens** is the most common optic. It focuses on a single, required piece of d
   2. Convenient **`with*` helper methods** for easy updates (e.g., `UserLenses.withAddress(...)`).
 * **Example (Deep Update with Lenses)**:
 
-  * To solve our initial problem of updating the user's street name, we compose lenses:
+  * To solve our initial problem of updating the user's street name (the same path the chapter opened with), we compose lenses:
 
 ```java
     // Compose lenses to create a direct path to the nested data
@@ -86,7 +86,7 @@ A **Lens** is the most common optic. It focuses on a single, required piece of d
         .andThen(StreetLenses.name());
   
     // Perform the deep update in a single, readable line
-    User updatedUser = userToStreetName.set("New Street", userLogin);
+    User updatedUser = userToStreetName.set("New Street", user);
 ```
 
 * **Example (Shallow Update with `with*` Helpers)**:
@@ -95,10 +95,10 @@ A **Lens** is the most common optic. It focuses on a single, required piece of d
 
 ```java
 // Before: Using the lens directly
-User userWithNewName = UserLenses.name().set("Bob", userLogin);
+User userWithNewName = UserLenses.name().set("Bob", user);
 
 // After: Using the generated helper method
-User userWithNewName = UserLenses.withName(userLogin, "Bob");
+User userWithNewName = UserLenses.withName(user, "Bob");
 ```
 
 ### 2. Iso: For "Is-Equivalent-To" Relationships
@@ -230,38 +230,37 @@ This brings us to the unique advantages `higher-kinded-j` offers for optics in J
 
 ### Decision Guide
 
-* **Need to focus on a required field?** → **Lens**
-* **Need to work with optional variants?** → **Prism**
-* **Need to convert between equivalent types?** → **Iso**
-* **Need to modify collections?** → **Traversal**
+The [decision flow at the chapter opening](ch1_intro.md#which-optic-do-you-need) routes the core choices; two further tools complete the family:
+
 * **Need to query or extract data without modification?** → **Fold**
-* **Need to adapt existing optics?** → **Profunctor operations**
+* **Need to adapt existing optics to other types?** → **Profunctor operations**
 
 ## Common Pitfalls
 
 **Don't do this:**
 
-java
-
 ```java
 // Calling get() multiple times is inefficient
-var street = employeeToStreet.get(employee);
-var newEmployee = employeeToStreet.set(street.toUpperCase(), employee);
+var street = userToStreetName.get(user);
+var updatedUser = userToStreetName.set(street.toUpperCase(), user);
 ```
 
 **Do this instead:**
 
-java
-
 ```java
 // Use modify() for transformations
-var newEmployee = employeeToStreet.modify(String::toUpperCase, employee);
+var updatedUser = userToStreetName.modify(String::toUpperCase, user);
 ```
 
-This level of abstraction enables you to write highly reusable and testable business logic that is completely decoupled from the details of state management, asynchrony, or error handling.
+~~~admonish info title="Key Takeaways"
+* **Optics are composable, reusable paths**: first-class getter/setter objects you chain with `andThen` to reach any depth, replacing the copy-and-update cascade
+* **Five core types, one decision**: Lens (always there), Prism (might match), Iso (same information, different shape), Traversal (many targets), Fold (read-only queries)
+* **The annotations write the boilerplate**: `@GenerateLenses`, `@GeneratePrisms`, `@GenerateIsos`, `@GenerateTraversals`, and `@GenerateFolds` keep the optics in sync with your records
+* **`modifyF` makes any settable path effect-ready**: failable, accumulating, or asynchronous updates through the same optic; [Lenses](lenses.md) shows it in action
+~~~
 
 ~~~admonish tip title="See Also"
-- [Java-Friendly APIs](ch4_intro.md) – Three Java-native ways to use optics: the Focus DSL for path-based navigation, the Fluent API for validation-aware updates, and the Free Monad DSL for programs-as-data.
+- [Java-Friendly APIs](ch4_intro.md): Three Java-native ways to use optics: the Focus DSL for path-based navigation, the Fluent API for validation-aware updates, and the Free Monad DSL for programs-as-data.
 ~~~
 
 ---

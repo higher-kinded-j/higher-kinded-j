@@ -268,33 +268,28 @@ public class OrderProcessor {
 
 The `orElse()` method chains prisms to try multiple matches:
 
+Both prisms must share the same target type:
+
 ```java
-Prism<JsonValue, JsonNumber> intPrism = JsonValuePrisms.jsonInt();
-Prism<JsonValue, JsonNumber> doublePrism = JsonValuePrisms.jsonDouble();
+// Accept two spellings of the same flag
+Prism<String, Unit> affirmative = Prisms.only("yes").orElse(Prisms.only("y"));
 
-// Try int first, fall back to double
-Prism<JsonValue, JsonNumber> anyNumber = intPrism.orElse(doublePrism);
-
-Optional<JsonNumber> result = anyNumber.getOptional(jsonValue);
-// Matches either integer or double JSON values
+boolean saidYes = affirmative.matches(input);
 
 // Building always uses the first prism's constructor
-JsonValue built = anyNumber.build(new JsonNumber(42)); // Uses intPrism.build
+String built = affirmative.build(Unit.INSTANCE); // "yes"
 ```
 
 **Real-World Example**: Handling multiple error types in API responses:
 
-```java
-Prism<ApiResponse, String> errorMessage =
-    ApiResponsePrisms.validationError()
-        .andThen(ValidationErrorLenses.message())
-        .orElse(
-            ApiResponsePrisms.serverError()
-                .andThen(ServerErrorLenses.message())
-        );
+When the variants hold *different* target types, `orElse` cannot chain them (and a Prism-then-Lens composition is an `Affine`, which has no `orElse`); extract per prism and fall through on the `Optional`s instead:
 
-// Extracts error message from either error type
-Optional<String> message = errorMessage.getOptional(response);
+```java
+Optional<String> message =
+    ApiResponsePrisms.validationError()
+        .mapOptional(ValidationError::message, response)
+        .or(() -> ApiResponsePrisms.serverError()
+            .mapOptional(ServerError::message, response));
 ```
 
 ~~~admonish tip title="When to Use Convenience Methods"
@@ -358,11 +353,12 @@ Either<String, Integer> error = Either.left("Failed");
 Optional<String> errorMsg = leftPrism.getOptional(error); // Optional.of("Failed")
 Optional<Integer> noValue = rightPrism.getOptional(error); // Optional.empty()
 
-// Compose with lenses for deep access
+// Compose with lenses for deep access (Prism >>> Lens = Affine)
+@GenerateLenses
 record ValidationError(String code, String message) {}
 Lens<ValidationError, String> messageLens = ValidationErrorLenses.message();
 
-Prism<Either<ValidationError, Data>, String> errorMessage =
+Affine<Either<ValidationError, Data>, String> errorMessage =
     Prisms.<ValidationError, Data>left()
         .andThen(messageLens);
 
@@ -506,11 +502,13 @@ record Config(Optional<Either<String, DatabaseSettings>> database) {}
 record DatabaseSettings(String host, int port) {}
 
 // Build a path through Optional -> Either -> Settings -> host
-Prism<Config, String> databaseHost =
+// (a chain through asTraversal is a Traversal, not a Prism)
+Traversal<Config, String> databaseHost =
     ConfigLenses.database()                    // Lens<Config, Optional<Either<...>>>
         .asTraversal()
-        .andThen(Prisms.some().asTraversal())  // -> Either<String, DatabaseSettings>
-        .andThen(Prisms.right().asTraversal()) // -> DatabaseSettings
+        // explicit witnesses: chained receivers lose the target types
+        .andThen(Prisms.<Either<String, DatabaseSettings>>some().asTraversal())
+        .andThen(Prisms.<String, DatabaseSettings>right().asTraversal())
         .andThen(DatabaseSettingsLenses.host().asTraversal()); // -> String
 
 Config config = loadConfig();
@@ -530,6 +528,21 @@ public class AppPrisms {
 ```
 ~~~
 
+
+---
+
+~~~admonish info title="Key Takeaways"
+* **The convenience methods close the gaps**: `matches`, `getOrElse`, `mapOptional`, `modify`, `modifyWhen`, `setWhen`, and `orElse` cover the everyday patterns without manual `Optional` plumbing
+* **`Prisms` ships the standard library**: `some()`, `left()`/`right()`, `only()`, `notNull()`, `instanceOf()`, and the list accessors mean the common cases are one call, not boilerplate
+* **The list prisms are for reading**: `listHead()`/`listLast()` build singleton lists and `listAt` cannot build at all; modify lists through a `Traversal` or `Lens`
+* **Utility prisms are stateless**: cache them as constants or create them on demand, whichever reads better
+~~~
+
+~~~admonish tip title="See Also"
+- [Prisms](prisms.md): the concepts these conveniences are built on
+- [Validated Prisms](validated_prism.md): when a failed match needs to say why
+- [List Decomposition](list_decomposition.md): cons/snoc patterns and stack-safe list optics
+~~~
 
 ---
 
