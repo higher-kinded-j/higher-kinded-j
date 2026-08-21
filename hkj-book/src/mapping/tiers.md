@@ -21,8 +21,10 @@ The field correspondences select what the Impl can lawfully offer. As a decision
 flowchart TD
     S["Your spec interface"] --> U{"extends UpdateSpec<br/>(instead of MappingSpec)?"}
     U -->|yes| UT(["updateFrom() only:<br/>a sparse PATCH fold"])
-    U -->|no| W{"wire has fewer<br/>components?"}
-    W -->|yes| F{"any fallible correspondence<br/>on a projected component?<br/>(leaf, nested spec, container)"}
+    U -->|no| W{"wire has fewer components?<br/>(derived fields don't count)"}
+    W -->|yes| B{"bean-shaped wire with<br/>any reference property?"}
+    B -->|yes| BX(["rejected: the bean projection<br/>flavour is not supported yet"])
+    B -->|no| F{"any fallible correspondence<br/>on a projected component?<br/>(leaf, nested spec, container)"}
     F -->|no| LT(["build + asLens():<br/>lawful write-back, no parse"])
     F -->|yes| PT(["build + validated patch():<br/>a write-back that can fail"])
     W -->|no| D{"any fallible leaf, nested spec,<br/>derived field, or guarded<br/>bean property read?"}
@@ -34,12 +36,14 @@ flowchart TD
     classDef wire fill:#8caaee,stroke:#1e66f5,color:#232634
     classDef tier fill:#a6d189,stroke:#40a02b,color:#232634
     classDef decision fill:#e5c890,stroke:#df8e1d,color:#232634
+    classDef error fill:#e78284,stroke:#d20f39,color:#232634
     class S wire
     class UT,LT,PT,IT,VT,VP tier
-    class U,W,F,D decision
+    class U,W,B,F,D decision
+    class BX error
 ```
 
-(The bean-read leg of that last decision: on a bean wire an unset reference property is an ordinary state, so its guarded reads count as fallible and a lossless-*looking* bean mapping still lands on the accumulating branch, withholding `asIso()`; see [Beans and Sparse PATCH](beans_patch.md#bean-shaped-wire-targets).)
+(The bean-read leg of that last decision: on a bean wire an unset reference property is an ordinary state, so its guarded reads count as fallible and a lossless-*looking* bean mapping still lands on the accumulating branch, withholding `asIso()`; see [Beans and Sparse PATCH](beans_patch.md#bean-shaped-wire-targets). The rejected bean projection is [#702](https://github.com/higher-kinded-j/higher-kinded-j/issues/702); an all-primitive bean projection, whose reads can never be null, takes the `asLens()` branch. And a projection that also declares a [derived field](basics.md#derived-wire-fields) is rejected outright, which is why derived fields do not count towards the wire tally.)
 
 And as the reference table:
 
