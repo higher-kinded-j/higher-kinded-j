@@ -72,7 +72,7 @@ A critical dependency usually needs several at once; [Combined Patterns](combine
 
 ~~~admonish example title="See Example Code"
 - [ResilienceExample.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/effect/ResilienceExample.java): Retry policies, backoff strategies, and combined patterns
-- [ConfigurableOrderWorkflow.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/order/workflow/ConfigurableOrderWorkflow.java): Production-style per-step resilience; retry confined to an idempotent pre-flight, the commit run exactly once under a typed timeout
+- [ConfigurableOrderWorkflow.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/order/workflow/ConfigurableOrderWorkflow.java): Production-style per-step resilience; retry confined to an idempotent pre-flight, the commit given a single attempt under a typed timeout
 ~~~
 
 ~~~admonish info title="Hands-On Learning"

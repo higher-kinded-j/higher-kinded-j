@@ -239,7 +239,7 @@ An exception-only retry layer cannot see the difference between "the network dro
 Internally both typed carriers are backed by one shared railway-aware retry implementation, so `EitherPath` and `VResultPath` behave identically; the only difference is eager-static versus lazy-instance.
 
 ~~~admonish warning title="Never Retry a Non-Idempotent Step"
-Retry re-invokes the whole step. Wrapping a step with side effects that must happen at most once (a payment, an email, an inventory *commit*) risks performing them twice: an attempt can succeed remotely and still throw on the way back. Confine retry to idempotent steps (reads, validations, reservations that can safely be re-issued) and run everything else exactly once. See [Combined Patterns](combined.md#path-native-resilience-per-step-protection) for a worked per-step example.
+Retry re-invokes the whole step. Wrapping a step with side effects that must happen at most once (a payment, an email, an inventory *commit*) risks performing them twice: an attempt can succeed remotely and still throw on the way back. Confine retry to idempotent steps (reads, validations, reservations that can safely be re-issued) and give everything else a single attempt. See [Combined Patterns](combined.md#path-native-resilience-per-step-protection) for a worked per-step example.
 ~~~
 
 ---
