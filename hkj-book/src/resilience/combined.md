@@ -116,6 +116,10 @@ Response response = resilientCall.run();
 
 The builder methods can be called in any order; patterns are always applied in the correct sequence.
 
+~~~admonish tip title="Why this matters"
+The ordering bug is silent: hand-wired resilience with retry accidentally inside the breaker compiles, runs, and even works in tests, then misreports service health in production, where one logical failure counts once instead of once per attempt. `ResilienceBuilder` makes that mistake unrepresentable: whatever order you call the methods in, the layers land as timeout, bulkhead, retry, breaker. The principle is the same as the mapper's [truthful tiers](../mapping/tiers.md): make the wrong composition unrepresentable rather than documented.
+~~~
+
 ## Convenience Methods
 
 For simpler combinations, the `Resilience` utility class provides direct methods:
@@ -153,7 +157,9 @@ The `with*` vocabulary is available across the Path family, so resilience compos
 | `withBulkhead(bulkhead)` | ✓ | ✓ | ✓ | ✓ |
 | `withBulkhead(bulkhead, onFull)`: rejection as a typed `Left` | · | · | ✓ | ✓ |
 
-The typed carriers (`EitherPath`, `VResultPath`) are **railway-aware** throughout, sharing one retry lowering internally:
+(✓ = available; · = not applicable on that carrier.)
+
+The typed carriers (`EitherPath`, `VResultPath`) are **railway-aware** throughout, backed by one shared retry implementation:
 
 - A business `Left` is a value, not a fault: it is **never retried** by default, and it **never trips a circuit breaker** (only thrown exceptions count as failures).
 - The typed `withRetry(retryOn, policy)` overload opts selected transient errors in; on exhaustion the **last `Left`** is returned, staying on the typed channel.
@@ -211,7 +217,7 @@ The layering inside the inventory step follows [the correct order](#the-ordering
 Since a timed-out computation is not interrupted, `Left(timeout)` on the payment step means the charge's outcome is *unknown*, not that it did not happen. Never respond to a payment timeout by simply retrying; reconcile with the payment provider, or use a [Saga](saga.md) to compensate.
 ~~~
 
-The same shape works on the async railway: `VResultPath` carries these combinators as instance methods, so a lazy pipeline chains `.withRetry(retryOn, policy).withCircuitBreaker(breaker, onOpen)` directly. The order example's [`ConfigurableOrderWorkflow`](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/order/workflow/ConfigurableOrderWorkflow.java) applies this per-step discipline in full: retry confined to an idempotent pre-flight, the committing phase run exactly once under a typed timeout; see [Order Workflow: Production Patterns](../hkts/order-production.md).
+The same shape works on the async railway: `VResultPath` carries these combinators as instance methods, and **fluent order is nesting order**: each combinator wraps everything chained before it, so the earlier combinator sits inside. `.withCircuitBreaker(breaker, onOpen).withRetry(retryOn, policy)` therefore keeps the breaker innermost, each attempt individually recorded, with the retry predicate refusing the open-circuit `Left` exactly as above. Chaining the breaker *after* the retry instead is a deliberate simplification the combinators' own documentation offers: an open circuit is then never retried against without any predicate, at the cost of the breaker seeing the whole retry loop as a single call. The order example's [`ConfigurableOrderWorkflow`](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/order/workflow/ConfigurableOrderWorkflow.java) applies this per-step discipline in full: retry confined to an idempotent pre-flight, the committing phase run exactly once under a typed timeout; see [Order Workflow: Production Patterns](../hkts/order-production.md).
 
 ## Stream Integration
 
@@ -250,23 +256,7 @@ List<UserProfile> profiles = Path.vstreamFromList(userIds)
 
 ## Pattern Selection Guide
 
-Not every service needs every pattern. Choose based on the failure characteristics:
-
-```
-    Is the service likely to fail?
-    │
-    ├── Occasionally (transient)
-    │   └── Retry only
-    │
-    ├── Sometimes for extended periods
-    │   └── Retry + Circuit Breaker
-    │
-    ├── Has limited capacity
-    │   └── Retry + Bulkhead
-    │
-    └── Critical service, all failure modes possible
-        └── Retry + Circuit Breaker + Bulkhead + Timeout
-```
+Not every service needs every pattern. The [chapter introduction's decision flow](ch_intro.md#which-pattern-do-you-need) chooses by failure mode; this is the same choice as a reference table:
 
 | Failure mode | Pattern | Why |
 |-------------|---------|-----|
@@ -314,6 +304,13 @@ VTask<PaymentResult> chargePayment = Resilience.<PaymentResult>builder(
 // Execute
 PaymentResult result = chargePayment.run();
 ```
+
+~~~admonish info title="Key Takeaways"
+* **Order is meaning**: timeout outermost bounds everything including waits; the breaker innermost sees every attempt individually; retry inside a breaker misreports health
+* **The builder makes the right order the only order**: call `with*` in any sequence and `ResilienceBuilder` layers them correctly
+* **Grant resilience per step, not per workflow**: idempotent steps earn retry and a breaker; non-idempotent steps get only a typed time budget, run exactly once
+* **A typed timeout is not a rollback**: the losing computation keeps running unobserved, so a payment timeout means *unknown*, and the answer is reconciliation or a [Saga](saga.md), never a blind retry
+~~~
 
 ~~~admonish tip title="See Also"
 - [Retry](retry.md) - backoff strategies and retry configuration

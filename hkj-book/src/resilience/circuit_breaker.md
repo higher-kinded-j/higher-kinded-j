@@ -141,6 +141,10 @@ VTaskPath<String> guardedAsync = Path.vtask(() -> paymentService.getStatus(order
 
 On the typed-error carriers the breaker is railway-aware: a `Left` is a *successfully computed value* (the service answered, just not with a `Right`), so it does **not** count as a breaker failure. Only thrown exceptions (defects) trip the circuit. A stream of "customer not found" responses will never open the circuit; a stream of connection resets will.
 
+~~~admonish tip title="Why this matters"
+A circuit breaker measures *service health*, not business outcomes. A breaker that counts every non-success trips on a healthy service the moment clients send a burst of bad requests, taking the service away from everyone else exactly when it was answering correctly. On the typed carriers the largest class of non-successes, business `Left`s, is excluded by construction; `recordFailure` then only has to classify what still arrives as a thrown exception.
+~~~
+
 The typed overloads keep an open-circuit rejection on the typed channel instead of surfacing `CircuitOpenException`:
 
 ```java
@@ -204,15 +208,15 @@ VTask<String> resilient = Retry.retryTask(
         .retryIf(ex -> !(ex instanceof CircuitOpenException)));
 ```
 
-Note the retry predicate: `CircuitOpenException` should *not* be retried, because the circuit breaker has already determined the service is unhealthy. Use `ResilienceBuilder` for correct ordering without manual wiring:
+Note the retry predicate: `CircuitOpenException` should *not* be retried, because the circuit breaker has already determined the service is unhealthy. [Combined Patterns](combined.md) introduces `ResilienceBuilder`, which applies this ordering for you without manual wiring.
 
-```java
-VTask<String> resilient = Resilience.<String>builder(
-        VTask.of(() -> paymentService.get(url)))
-    .withCircuitBreaker(paymentBreaker)
-    .withRetry(RetryPolicy.exponentialBackoff(3, Duration.ofMillis(200)))
-    .build();
-```
+~~~admonish info title="Key Takeaways"
+* **Three states**: CLOSED counts consecutive failures and opens at `failureThreshold`; OPEN rejects instantly for `openDuration`
+* **Recovery is probed**: HALF_OPEN needs `successThreshold` probe successes to close, and any probe failure re-opens
+* **One breaker per dependency**: `protect()` is generic, so a single instance guards every call to the same endpoint and they share failure state
+* **Only faults trip it**: on the typed carriers a business `Left` never counts; the `onOpen` overload lands rejections as typed `Left`s
+* **Tune `recordFailure`**: a 400 or a validation error reflects the request, not the service; count only what signals an unhealthy dependency
+~~~
 
 ~~~admonish tip title="See Also"
 - [Retry](retry.md) - backoff strategies and retry configuration

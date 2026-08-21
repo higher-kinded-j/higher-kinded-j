@@ -29,25 +29,18 @@ Use `Resource` for files, connections, and locks. Use `Saga` for multi-step busi
 
 ## The Flow
 
-```
-    Forward execution (left to right):
+```mermaid
+flowchart LR
+    C["Charge Payment<br/>result: pay-123"] --> R["Reserve Stock<br/>result: res-456"] --> S["Schedule Shipping"]
+    S -->|"fails: compensate completed<br/>steps, newest first"| U1["1. Release res-456"]
+    U1 --> U2["2. Refund pay-123"]
 
-    ┌──────────┐    ┌──────────┐    ┌──────────┐
-    │  Charge  │───▶│ Reserve  │───▶│ Schedule │
-    │ Payment  │    │ Stock    │    │ Shipping │
-    │          │    │          │    │          │
-    │ result:  │    │ result:  │    │  FAILS   │
-    │ pay-123  │    │ res-456  │    │    ✗     │
-    └──────────┘    └──────────┘    └──────────┘
-
-    Compensation (right to left):
-
-    ┌──────────┐    ┌──────────┐
-    │  Refund  │◀───│ Release  │
-    │ pay-123  │    │ res-456  │
-    │          │    │          │
-    │    ✓     │    │    ✓     │
-    └──────────┘    └──────────┘
+    classDef tier fill:#a6d189,stroke:#40a02b,color:#232634
+    classDef error fill:#e78284,stroke:#d20f39,color:#232634
+    classDef comp fill:#8caaee,stroke:#1e66f5,color:#232634
+    class C,R tier
+    class S error
+    class U1,U2 comp
 ```
 
 Key points:
@@ -128,14 +121,21 @@ SagaBuilder.<Unit>start()
 ```java
 VTask<String> execution = orderSaga.run();
 
-Try<String> result = execution.runSafe();
-result.foldFailureFirst(
-    error -> log.error("Order failed: {}", error.getMessage()),
-    trackingId -> log.info("Order complete: {}", trackingId)
-);
+try {
+    String trackingId = execution.run();
+    log.info("Order complete: {}", trackingId);
+} catch (SagaExecutionException e) {
+    // a compensation also failed; e carries the full SagaError
+    log.error("Order failed and compensation was incomplete: {}", e.getMessage());
+} catch (Exception original) {
+    // all compensations succeeded; the original step failure surfaces directly
+    log.error("Order failed, fully compensated: {}", original.getMessage());
+}
 ```
 
 If all compensations succeed, the original exception is thrown directly. If any compensation also fails, a `SagaExecutionException` is thrown containing the full `SagaError`.
+
+The saga's own `runSafe()` (distinct from `VTask.runSafe()`, which returns a `Try`) keeps the failure structured instead of thrown:
 
 ### runSafe(): Either with Full Details
 
@@ -207,6 +207,13 @@ idempotent where possible.
 | `saga.andThen(fn)` | Chain another saga step |
 | `saga.map(fn)` | Transform the final result |
 | `saga.flatMap(fn)` | Chain with another saga |
+
+~~~admonish info title="Key Takeaways"
+* **Every forward step registers its undo**: on failure, compensations for the *completed* steps run in reverse order; the failed step itself has nothing to undo
+* **Saga is for business cleanup, Resource for infrastructure**: refunds and releases belong here; files, connections, and locks belong to `Resource`
+* **`runSafe()` tells the whole story**: `SagaError` names the failed step and carries every compensation result, so partial compensation is detectable, not silent
+* **Compensation is best-effort**: all compensations are attempted even when some fail; design them idempotent so a repeated undo is harmless
+~~~
 
 ~~~admonish tip title="See Also"
 - [Combined Patterns](combined.md) - using saga alongside retry and circuit breaker

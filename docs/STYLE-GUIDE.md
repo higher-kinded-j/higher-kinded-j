@@ -194,6 +194,7 @@ Notes:
 - The first page in a chapter should only have a **Next** link
 - The last page in a chapter should only have a **Previous** link
 - Chapter introduction pages (`ch_intro.md`) should only have a **Next** link
+- Exception: a chapter **nested inside another chapter's reading order** (per SUMMARY.md) links both ways at its boundaries, so its `ch_intro.md` carries a Previous link to the preceding sibling page and its last page a Next link onward, each reciprocated by the neighbouring page
 
 ## Content Patterns
 
@@ -352,7 +353,7 @@ classDef error fill:#e78284,stroke:#d20f39,color:#232634
 classDef decision fill:#e5c890,stroke:#df8e1d,color:#232634
 ```
 
-- Semantics stay consistent across the book: blue = wire/outside data, green = domain/trusted/generated surface, red = errors/rejections, yellow = decision points
+- Semantics stay consistent across the book: blue = wire/outside data or neutral process steps, green = domain/trusted/successful outcomes, red = errors/rejections/failing steps, yellow = decision points
 - Never encode meaning in colour alone; every node carries a label that works in monochrome
 - Keep diagrams small (roughly 12 nodes or fewer); a diagram that needs scrolling should be two diagrams
 - The explicit-`classDef` rule applies to flowcharts and state diagrams (states take the same palette via `classDef`/`class`). Sequence diagrams have no per-node `classDef`: their lines, lifelines and typed-participant icons are theme-managed by `mermaid-init.js`'s light/dark switch, which is already theme-safe; merge specific `themeVariables` only when a filled element needs the palette, and never override `theme` per diagram (a fixed theme would break whichever page background it was not designed for)
@@ -522,6 +523,6 @@ When creating a chapter introduction page (`ch_intro.md`), ensure:
 - [ ] "In This Chapter" admonishment with **expanded descriptions** (1-2 sentences per item, not just brief phrases)
 - [ ] "Chapter Contents" section with numbered links and brief descriptions
 - [ ] "In This Chapter" and "Chapter Contents" are distinct (expanded context vs. brief navigation)
-- [ ] **Next** link to the first page in the chapter (no Previous link)
+- [ ] **Next** link to the first page in the chapter (no Previous link, unless the chapter is nested inside another chapter's reading order; see Navigation Links)
 - [ ] British English spelling throughout
 - [ ] No decorative emojis (the ✅/❌ status markers are allowed)

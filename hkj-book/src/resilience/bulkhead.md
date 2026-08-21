@@ -125,7 +125,7 @@ Without the `onFull` argument, `BulkheadFullException` propagates as-is.
 
 ## Bulkhead vs VStreamPar
 
-Both limit concurrency, but at different scopes:
+Both limit concurrency, but at different scopes (`VStreamPar` is the stream `parEvalMap` family):
 
 | | Bulkhead | VStreamPar |
 |---|----------|------------|
@@ -155,6 +155,13 @@ Here, `parEvalMap(4, ...)` limits the stream to 4 in-flight elements, whilst `se
 int available = dbBulkhead.availablePermits();  // How many more callers can enter
 int active = dbBulkhead.activeCount();           // How many callers are currently executing
 ```
+
+~~~admonish info title="Key Takeaways"
+* **A bulkhead protects everyone else**: capping concurrent access to one slow dependency keeps its failure from exhausting the threads the healthy dependencies need
+* **One instance per resource**: like a breaker, a bulkhead is shared application-wide; `protect()` is generic across return types
+* **Rejection is explicit**: a full bulkhead throws `BulkheadFullException`, or lands as a typed `Left` via the `onFull` overload on the railway carriers
+* **Different scope from `parEvalMap`**: VStreamPar bounds one pipeline's parallelism; a bulkhead bounds a shared resource across the whole application, and the two compose
+~~~
 
 ~~~admonish tip title="See Also"
 - [Circuit Breaker](circuit_breaker.md) - detecting and responding to service failures
