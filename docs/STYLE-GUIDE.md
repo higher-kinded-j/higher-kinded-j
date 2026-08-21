@@ -353,7 +353,7 @@ classDef error fill:#e78284,stroke:#d20f39,color:#232634
 classDef decision fill:#e5c890,stroke:#df8e1d,color:#232634
 ```
 
-- Semantics stay consistent across the book: blue = wire/outside data or neutral process steps, green = domain/trusted/successful outcomes, red = errors/rejections/failing steps, yellow = decision points
+- Semantics stay consistent across the book: blue = wire/outside data or neutral process steps, green = domain/trusted/successful outcomes (including the outcome leaves of a decision flow), red = errors/rejections/failing steps, yellow = decision points
 - Never encode meaning in colour alone; every node carries a label that works in monochrome
 - Keep diagrams small (roughly 12 nodes or fewer); a diagram that needs scrolling should be two diagrams
 - The explicit-`classDef` rule applies to flowcharts and state diagrams (states take the same palette via `classDef`/`class`). Sequence diagrams have no per-node `classDef`: their lines, lifelines and typed-participant icons are theme-managed by `mermaid-init.js`'s light/dark switch, which is already theme-safe; merge specific `themeVariables` only when a filled element needs the palette, and never override `theme` per diagram (a fixed theme would break whichever page background it was not designed for)

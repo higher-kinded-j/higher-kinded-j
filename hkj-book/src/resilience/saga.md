@@ -127,8 +127,9 @@ try {
 } catch (SagaExecutionException e) {
     // a compensation also failed; e carries the full SagaError
     log.error("Order failed and compensation was incomplete: {}", e.getMessage());
-} catch (Exception original) {
-    // all compensations succeeded; the original step failure surfaces directly
+} catch (RuntimeException original) {
+    // all compensations succeeded; the step's failure surfaces directly
+    // (a checked exception arrives wrapped in VTaskExecutionException)
     log.error("Order failed, fully compensated: {}", original.getMessage());
 }
 ```
@@ -209,7 +210,7 @@ idempotent where possible.
 | `saga.flatMap(fn)` | Chain with another saga |
 
 ~~~admonish info title="Key Takeaways"
-* **Every forward step registers its undo**: on failure, compensations for the *completed* steps run in reverse order; the failed step itself has nothing to undo
+* **Each compensatable completed step registers an undo**: compensations run in reverse order over the steps that finished; the failed step itself, a `stepNoCompensation` step, and anything a partially applied action did before failing have nothing registered to undo
 * **Saga is for business cleanup, Resource for infrastructure**: refunds and releases belong here; files, connections, and locks belong to `Resource`
 * **`runSafe()` tells the whole story**: `SagaError` names the failed step and carries every compensation result, so partial compensation is detectable, not silent
 * **Compensation is best-effort**: all compensations are attempted even when some fail; design them idempotent so a repeated undo is harmless

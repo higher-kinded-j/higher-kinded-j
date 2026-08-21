@@ -22,19 +22,21 @@ Networks are unreliable. Services restart. Databases hiccup during failover. Mos
 ```java
 // Fixed delay: same wait between every attempt
 RetryPolicy fixed = RetryPolicy.fixed(3, Duration.ofMillis(100));
-// Delays: 100ms, 100ms, 100ms
+// Waits between the 3 attempts: 100ms, 100ms (no wait after the final attempt)
 
 // Exponential backoff: doubling delays
 RetryPolicy exponential = RetryPolicy.exponentialBackoff(5, Duration.ofSeconds(1));
-// Delays: 1s, 2s, 4s, 8s, 16s (capped via withMaxDelay, below)
+// Waits between the 5 attempts: 1s, 2s, 4s, 8s
+// (the factory caps delays at 5 minutes; adjust with withMaxDelay, below)
 
 // Exponential with jitter: randomised to prevent thundering herd
 RetryPolicy jittered = RetryPolicy.exponentialBackoffWithJitter(5, Duration.ofSeconds(1));
-// Delays: ~1s, ~2s, ~4s, ~8s, ~16s (each randomised between 0 and the calculated delay)
+// Waits: 1s, then random in [0, 2s], [0, 4s], [0, 8s]
+// (the first delay is fixed; full jitter applies from the second)
 
 // Linear backoff: delays increase by a fixed increment
 RetryPolicy linear = RetryPolicy.linear(5, Duration.ofMillis(200));
-// Delays: 200ms, 400ms, 600ms, 800ms, 1000ms
+// Waits between the 5 attempts: 200ms, 400ms, 600ms, 800ms
 
 // No retry: fail immediately
 RetryPolicy none = RetryPolicy.noRetry();
@@ -265,7 +267,7 @@ The `onRetry` listener receives a `RetryEvent` before each retry attempt:
 ```java
 RetryPolicy monitored = RetryPolicy.exponentialBackoff(5, Duration.ofSeconds(1))
     .onRetry(event -> {
-        log.warn("Attempt {} failed after {}: {}",
+        log.warn("Attempt {} failed; retrying in {}: {}",
             event.attemptNumber(),
             event.nextDelay(),
             event.lastException().getMessage());

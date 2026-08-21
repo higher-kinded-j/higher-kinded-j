@@ -12,6 +12,7 @@ This chapter introduces four resilience patterns that encode this discipline int
 
 Here is the destination, before any theory: one step of an order pipeline, guarded on the [typed railway](../effect/effect_path_overview.md). The whole policy is visible in the chain, and the time budget lands as a typed `Left` on the same channel as every other domain error:
 
+<!-- verify -->
 ```java
 VResultPath<OrderError, Reservation> guarded =
     reserveInventory(order)

@@ -306,7 +306,7 @@ PaymentResult result = chargePayment.run();
 ```
 
 ~~~admonish info title="Key Takeaways"
-* **Order is meaning**: timeout outermost bounds everything including waits; the breaker innermost sees every attempt individually; retry inside a breaker misreports health
+* **Order is meaning**: the timeout, outermost of the protection layers, bounds everything including waits (a `withFallback` recovery runs after it, outside the budget); the breaker innermost sees every attempt individually; retry inside a breaker misreports health
 * **The builder makes the right order the only order**: call `with*` in any sequence and `ResilienceBuilder` layers them correctly
 * **Grant resilience per step, not per workflow**: idempotent steps earn retry and a breaker; non-idempotent steps get only a typed time budget, run exactly once
 * **A typed timeout is not a rollback**: the losing computation keeps running unobserved, so a payment timeout means *unknown*, and the answer is reconciliation or a [Saga](saga.md), never a blind retry

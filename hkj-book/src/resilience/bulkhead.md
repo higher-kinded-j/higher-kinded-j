@@ -157,7 +157,7 @@ int active = dbBulkhead.activeCount();           // How many callers are current
 ```
 
 ~~~admonish info title="Key Takeaways"
-* **A bulkhead protects everyone else**: capping concurrent access to one slow dependency keeps its failure from exhausting the threads the healthy dependencies need
+* **A bulkhead protects everyone else**: capping concurrent access to one slow dependency keeps the shared capacity available to healthy ones; waiting for a permit is itself bounded by `waitTimeout`, and `maxWait` bounds the queue
 * **One instance per resource**: like a breaker, a bulkhead is shared application-wide; `protect()` is generic across return types
 * **Rejection is explicit**: a full bulkhead throws `BulkheadFullException`, or lands as a typed `Left` via the `onFull` overload on the railway carriers
 * **Different scope from `parEvalMap`**: VStreamPar bounds one pipeline's parallelism; a bulkhead bounds a shared resource across the whole application, and the two compose

@@ -213,7 +213,7 @@ Note the retry predicate: `CircuitOpenException` should *not* be retried, becaus
 ~~~admonish info title="Key Takeaways"
 * **Three states**: CLOSED counts consecutive failures and opens at `failureThreshold`; OPEN rejects instantly for `openDuration`
 * **Recovery is probed**: HALF_OPEN needs `successThreshold` probe successes to close, and any probe failure re-opens
-* **One breaker per dependency**: `protect()` is generic, so a single instance guards every call to the same endpoint and they share failure state
+* **One breaker per protected endpoint**: `protect()` is generic, so a single instance guards every call to that endpoint and they share failure state; unrelated endpoints get their own breakers
 * **Only faults trip it**: on the typed carriers a business `Left` never counts; the `onOpen` overload lands rejections as typed `Left`s
 * **Tune `recordFailure`**: a 400 or a validation error reflects the request, not the service; count only what signals an unhealthy dependency
 ~~~
