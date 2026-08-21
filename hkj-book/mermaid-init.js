@@ -20,9 +20,28 @@
 
     const lastThemeWasLight = isLight();
     mermaid.initialize({
-        startOnLoad: true,
+        startOnLoad: false,
         theme: lastThemeWasLight ? 'default' : 'dark',
     });
+
+    // Render ourselves at window load instead of startOnLoad, so we run after
+    // every DOMContentLoaded script has finished with the page. Mermaid reads
+    // each element's markup as diagram source, so first collapse anything
+    // another script injected into a diagram (change-tracking word underlines,
+    // for instance) back to plain text.
+    const renderAll = () => {
+        document.querySelectorAll('pre.mermaid').forEach((el) => {
+            if (el.firstElementChild) {
+                el.textContent = el.textContent;
+            }
+        });
+        mermaid.run().catch((err) => console.error('mermaid render failed', err));
+    };
+    if (document.readyState === 'complete') {
+        renderAll();
+    } else {
+        window.addEventListener('load', renderAll);
+    }
 
     // Mermaid renders once at load. mdBook swaps the <html> theme class both
     // on theme-menu clicks and, in Auto mode, when the system colour scheme
