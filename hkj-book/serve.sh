@@ -2,23 +2,24 @@
 #
 # Serve the book locally with the CI-pinned toolchain.
 #
-# This book builds with mdbook 0.4.51 and mdbook-mermaid 0.14.1 (the versions
-# CI pins); a globally installed mdbook 0.5.x cannot build it. Both binaries
-# are kept under hkj-book/.tools (gitignored), so a different global mdbook
-# for other projects is untouched. The first run installs them via cargo;
-# after that startup is instant.
+# This book builds with mdbook 0.4.51, mdbook-admonish 1.19.0, mdbook-alerts
+# 0.7.0 and mdbook-mermaid 0.14.1 (exactly the versions CI pins); a globally
+# installed mdbook 0.5.x cannot build it, and a newer global mdbook-admonish
+# rewrites book.toml's assets_version, dirtying the working tree. All four
+# binaries are kept under hkj-book/.tools (gitignored), so different global
+# versions for other projects are untouched. The first run installs them via
+# cargo; after that startup is instant.
 #
 # Usage:
 #   ./serve.sh [PORT]     # defaults to 3000
-#
-# mdbook-admonish and mdbook-alerts are taken from your PATH: their installed
-# versions speak the 0.4 preprocessor protocol and work here as-is.
 set -euo pipefail
 cd "$(dirname "$0")"
 
 PORT="${1:-3000}"
 TOOLS="$PWD/.tools"
 MDBOOK_VERSION="0.4.51"
+MDBOOK_ADMONISH_VERSION="1.19.0"
+MDBOOK_ALERTS_VERSION="0.7.0"
 MDBOOK_MERMAID_VERSION="0.14.1"
 
 ensure_tool() { # crate version
@@ -29,14 +30,15 @@ ensure_tool() { # crate version
   fi
 }
 ensure_tool mdbook "$MDBOOK_VERSION"
+ensure_tool mdbook-admonish "$MDBOOK_ADMONISH_VERSION"
+ensure_tool mdbook-alerts "$MDBOOK_ALERTS_VERSION"
 ensure_tool mdbook-mermaid "$MDBOOK_MERMAID_VERSION"
 
 export PATH="$TOOLS/bin:$PATH"
 
-# Refresh mdbook-admonish assets if the binary is available (safe to re-run).
-if command -v mdbook-admonish >/dev/null 2>&1; then
-  mdbook-admonish install . >/dev/null 2>&1 || true
-fi
+# Refresh mdbook-admonish assets with the pinned version (safe to re-run;
+# keeps book.toml's assets_version at the value CI expects).
+mdbook-admonish install . >/dev/null 2>&1 || true
 
 # Pinned browser-side mermaid; fall back to the preprocessor's bundled copy
 # when offline (see preview-changes.sh for the same dance).
