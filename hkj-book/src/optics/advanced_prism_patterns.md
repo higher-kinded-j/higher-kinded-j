@@ -2,7 +2,7 @@
 
 ## _Real-World Applications of Prisms in Production Systems_
 
-![prism-advanced.jpeg](../images/prism.jpeg)
+![prism.jpeg](../images/prism.jpeg)
 
 ~~~admonish info title="What You'll Learn"
 - Configuration management with layered prism composition
@@ -11,21 +11,15 @@
 - Event processing systems with prism-based routing
 - State machine implementations using prisms for transitions
 - Plugin architectures with type-safe variant handling
-- Performance optimisation patterns for production systems
-- Testing strategies for prism-heavy codebases
 ~~~
 
-~~~admonish title="Hands On Practice"
-[Tutorial10_AdvancedPrismPatterns.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/test/java/org/higherkindedj/tutorial/optics/Tutorial10_AdvancedPrismPatterns.java)
-~~~
-
-~~~admonish title="Example Code"
-[ConfigurationManagementExample](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/optics/ConfigurationManagementExample.java)
-[ApiResponseHandlingExample](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/optics/ApiResponseHandlingExample.java)
-[DataValidationPipelineExample](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/optics/DataValidationPipelineExample.java)
-[EventProcessingExample](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/optics/EventProcessingExample.java)
-[StateMachineExample](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/optics/StateMachineExample.java)
-[PluginSystemExample](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/optics/PluginSystemExample.java)
+~~~admonish example title="See Example Code"
+- [ConfigurationManagementExample](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/optics/ConfigurationManagementExample.java)
+- [ApiResponseHandlingExample](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/optics/ApiResponseHandlingExample.java)
+- [DataValidationPipelineExample](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/optics/DataValidationPipelineExample.java)
+- [EventProcessingExample](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/optics/EventProcessingExample.java)
+- [StateMachineExample](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/optics/StateMachineExample.java)
+- [PluginSystemExample](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/optics/PluginSystemExample.java)
 ~~~
 
 This guide explores sophisticated prism patterns encountered in production Java applications. We'll move beyond basic type matching to examine how prisms enable elegant solutions to complex architectural problems.
@@ -73,6 +67,7 @@ sealed interface ConfigValue permits StringValue, IntValue, BoolValue, NestedCon
 record StringValue(String value) implements ConfigValue {}
 record IntValue(int value) implements ConfigValue {}
 record BoolValue(boolean value) implements ConfigValue {}
+@GenerateLenses
 record NestedConfig(Map<String, ConfigValue> values) implements ConfigValue {}
 
 public class ConfigResolver {
@@ -158,7 +153,6 @@ if (response.status() == 200) {
 
 ```java
 @GeneratePrisms
-@GenerateLenses
 sealed interface ApiResponse permits Success, ValidationError, ServerError,
                                      RateLimitError, AuthError, NotFoundError {}
 
@@ -294,19 +288,15 @@ public class ValidationPipeline {
         return row.stream()
             .flatMap(value -> Stream.concat(
                 // Validate strings
-                STRING.mapOptional(
-                    s -> s.value().length() > MAX_STRING_LENGTH
-                        ? Optional.of("String too long: " + s.value())
-                        : Optional.empty(),
-                    value
-                ).stream(),
+                STRING.getOptional(value)
+                    .filter(s -> s.value().length() > MAX_STRING_LENGTH)
+                    .map(s -> "String too long: " + s.value())
+                    .stream(),
                 // Validate integers
-                INT.mapOptional(
-                    i -> i.value() < 0
-                        ? Optional.of("Negative integer: " + i.value())
-                        : Optional.empty(),
-                    value
-                ).stream()
+                INT.getOptional(value)
+                    .filter(i -> i.value() < 0)
+                    .map(i -> "Negative integer: " + i.value())
+                    .stream()
             ))
             .collect(Collectors.toList());
     }
@@ -417,7 +407,6 @@ public void handleEvent(Event event) {
 
 ```java
 @GeneratePrisms
-@GenerateLenses
 sealed interface DomainEvent permits UserCreated, UserDeleted, UserUpdated,
                                      OrderPlaced, OrderCancelled, PaymentProcessed {}
 
@@ -632,7 +621,7 @@ public class OrderStateMachine {
 ### Advanced: Transition Table
 
 ```java
-import org.higherkindedj.optics.util.Pair; // Pair utility from hkj-optics
+import org.higherkindedj.optics.indexed.Pair; // Pair record from hkj-api
 
 public class AdvancedStateMachine {
     // Define transitions as a declarative table
@@ -641,13 +630,13 @@ public class AdvancedStateMachine {
         BiFunction<OrderState, OrderEvent, OrderState>
     > TRANSITIONS = Map.of(
         Pair.of(PENDING, PAYMENT),
-        (state, event) -> PAYMENT.mapOptional(
+        (state, event) -> PAYMENT.<OrderState>mapOptional(
             p -> new Processing(p.transactionId(), Instant.now()),
             event
         ).orElse(state),
 
         Pair.of(PROCESSING, SHIPPING),
-        (state, event) -> SHIPPING.mapOptional(
+        (state, event) -> SHIPPING.<OrderState>mapOptional(
             s -> new Shipped(s.trackingNumber(), Instant.now()),
             event
         ).orElse(state)
@@ -847,8 +836,66 @@ public class CompositePlugin {
 
 ---
 
+## Predicate Matching with `Prisms.nearly`
+
+Every prism so far has matched on *type*: is this `JsonString`, is this `ShippingError`. Two utilities extend that to matching on a *condition*, and to expressing the negative case.
+
+### `Prisms.nearly`: match a category of values
+
+`Prisms.only(expected)` matches one exact value. `Prisms.nearly(defaultValue, predicate)` is its predicate-based complement: it matches any value satisfying the predicate, and because a matched value carries no extra information, the focus is `Unit`. The default value is what `build` produces when you run the prism backwards.
+
+<!-- verify -->
+```java
+// Match any non-empty string
+Prism<String, Unit> nonEmpty = Prisms.nearly("default", s -> !s.isEmpty());
+
+Optional<Unit> hit = nonEmpty.getOptional("hello");  // Optional.of(Unit.INSTANCE)
+Optional<Unit> miss = nonEmpty.getOptional("");      // Optional.empty()
+String built = nonEmpty.build(Unit.INSTANCE);        // "default"
+```
+
+The point is not the `Unit` itself but composition: a `nearly` prism drops into any chain where you would otherwise break out into an `if`. Routing a value only when it looks like an email address, for instance:
+
+<!-- verify -->
+```java
+Prism<String, Unit> emailish =
+    Prisms.nearly("user@example.com", s -> s.contains("@") && s.contains("."));
+
+boolean looksLikeEmail = emailish.matches(candidate);
+```
+
+~~~admonish note title="`nearly` matches a predicate, not proximity"
+Despite the name, `nearly` has nothing to do with numeric closeness. It reads as "nearly `only`": where `only` demands an exact value, `nearly` accepts anything the predicate admits.
+~~~
+
+### `doesNotMatch`: the negative case, named
+
+`doesNotMatch(source)` is exactly `!matches(source)`, but naming it keeps filter pipelines readable and stops the reader parsing a negation inside a lambda:
+
+<!-- verify -->
+```java
+// Collect everything the prism does NOT match
+List<JsonValue> nonStrings = values.stream()
+    .filter(JsonValuePrisms.jsonString()::doesNotMatch)
+    .toList();
+```
+
+Use it for exclusion filtering and for guard clauses; use `matches` everywhere else, so the positive case stays the default reading.
+
+---
+
+~~~admonish info title="Key Takeaways"
+* **A prism is a routing primitive**: configuration layers, API responses, events, states, and plugins are all "which variant is this?" questions
+* **Compose the prism once, reuse it everywhere**: layered fallbacks and deep extractions are values, not call-site logic
+* **`matches`/`modifyWhen` keep intent visible**: conditional processing reads as the rule, not as an `instanceof` cascade
+* **Sealed hierarchies make routing exhaustive**: adding a variant breaks compilation where a string-keyed router would fail silently
+* **Production patterns are compositions of the basics**: `getOptional`, `matches`, `mapOptional`, and `modifyWhen` carry every pattern here
+~~~
+
 ~~~admonish tip title="See Also"
-- [Advanced Prism Patterns: Recipes](advanced_prism_patterns_recipes.md), copy-paste recipes for caching composed prisms, bulk-processing utilities, and test strategies.
+- [Advanced Prism Patterns: Recipes](advanced_prism_patterns_recipes.md): copy-paste recipes for caching composed prisms, bulk-processing utilities, and test strategies
+- [Prisms](prisms.md): the fundamentals these patterns build on
+- [Prism Toolkit](prism_toolkit.md): the ready-made utility prisms
 ~~~
 
 ~~~admonish info title="Hands-On Learning"

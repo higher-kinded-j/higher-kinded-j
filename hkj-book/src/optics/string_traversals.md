@@ -11,7 +11,7 @@
 - Performance characteristics and best practices
 ~~~
 
-~~~admonish title="Example Code"
+~~~admonish example title="See Example Code"
 [StringTraversalsExample](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/optics/StringTraversalsExample.java)
 ~~~
 
@@ -148,7 +148,7 @@ The `lined()` traversal splits by line separators (`\n`, `\r\n`, or `\r`), treat
 **Key Semantics**:
 - All line endings are normalised to `\n` in output
 - Empty strings produce no lines
-- Trailing newlines are preserved in individual line processing
+- Trailing newlines are dropped: `split` discards trailing empty segments, and the lines are rejoined with `\n`
 
 ```java
 Traversal<String, String> lineTraversal = StringTraversals.lined();
@@ -197,8 +197,7 @@ public class EmailNormaliser {
     public static String normalise(String email) {
         Traversal<String, String> words = StringTraversals.worded();
 
-        // Split email by @ symbol (treated as whitespace separator for this example)
-        // In production, you'd want more robust parsing
+                // In production, you'd want more robust parsing
         String lowercased = Traversals.modify(words, String::toLowerCase, email);
 
         return lowercased.trim();
@@ -231,21 +230,21 @@ public class EmailNormaliser {
 
 The power emerges when combining string traversals with other optics:
 
-### With Filtered Traversals – Pattern Matching
+### With Filtered Traversals: Pattern Matching
 
 ```java
 // Find and transform lines starting with a prefix
 Traversal<String, String> commentLines =
     StringTraversals.lined().filtered(line -> line.trim().startsWith("#"));
 
-String withoutComments = Traversals.modify(
+String commentsBlanked = Traversals.modify(
     commentLines,
     line -> "",  // Remove comment lines by replacing with empty
     sourceCode
 );
 ```
 
-### With Nested Structures – Bulk Text Processing
+### With Nested Structures: Bulk Text Processing
 
 ```java
 @GenerateLenses
@@ -264,7 +263,7 @@ Document formatted = Traversals.modify(
 );
 ```
 
-### With Effectful Operations – Validation
+### With Effectful Operations: Validation
 
 ```java
 import org.higherkindedj.hkt.optional.OptionalMonad;
@@ -451,10 +450,8 @@ List<Character> extracted = Traversals.getAll(vowels, "banana");
 
 String traversals are optimised for immutability:
 
-* **Single pass**: Text is decomposed and reconstructed in one traversal
-* **No intermediate strings**: Operates on character/word lists internally
-* **Structural sharing**: For filtered operations, unchanged portions reference original
-* **Lazy bounds checking**: Minimal overhead for validation
+* **Single pass**: text is decomposed and reconstructed in one traversal
+* **List-based internals**: transformation happens on the decomposed units, with the string rebuilt once at the end
 
 **Best Practice**: For frequently used string transformations, create traversals as constants:
 
@@ -478,16 +475,13 @@ public class TextProcessing {
 
 ---
 
-## Integration with Functional Java Ecosystem
+## Effectful Text Processing with Validated
 
-String traversals complement existing functional libraries:
-
-### Cyclops Integration
+Like every traversal, string traversals accept effects through `modifyF`. Validating each word and accumulating every failure:
 
 ```java
-import cyclops.control.Validated;
+import static org.higherkindedj.hkt.instances.Witnesses.validated;
 
-// Validate each word using Cyclops Validated
 Traversal<String, String> words = StringTraversals.worded();
 
 Function<String, Kind<ValidatedKind.Witness<List<String>>, String>> validateLength =
@@ -496,26 +490,31 @@ Function<String, Kind<ValidatedKind.Witness<List<String>>, String>> validateLeng
         : VALIDATED.widen(Validated.invalid(List.of("Word too long: " + word)));
 
 Validated<List<String>, String> result = VALIDATED.narrow(
-    words.modifyF(validateLength, input, validatedApplicative)
+    words.modifyF(validateLength, input, Instances.validated(Semigroups.list()))
 );
 ```
 
 ---
 
-## Related Resources
+~~~admonish info title="Key Takeaways"
+* **Three decompositions cover most text work**: `chars()`, `worded()`, and `lined()` turn a string into traversable units and rebuild it afterwards
+* **Composition replaces regex ceremony**: `lined().filtered(...)` reads as the rule it implements, and the pieces are reusable
+* **Shape is preserved, whitespace is not**: modification rebuilds the same units, but `worded()` collapses runs of whitespace and `lined()` normalises line endings, so an identity modify is not always the identity
+* **Effects work here too**: `modifyF` with `Validated` accumulates every bad word or line in one pass
+* **Reach for regex or Streams when reshaping**: string traversals transform in place; they do not split, join, or regroup
+~~~
 
-**Functional Java Libraries**:
-- [Cyclops](https://github.com/aol/cyclops) - Functional control structures and higher-kinded types
-- [jOOλ](https://github.com/jOOQ/jOOL) - Functional utilities complementing Java Streams
+~~~admonish tip title="See Also"
+- [Filtered Optics](filtered_optics.md): the predicate composition used throughout this page
+- [Traversals](traversals.md): the underlying bulk-update optic
+- [List Decomposition](list_decomposition.md): head/tail patterns for the lists these traversals produce
+~~~
 
-**Further Reading**:
-- *Functional Programming in Java* by Venkat Subramaniam - Practical FP patterns
-- *Modern Java in Action* by Raoul-Gabriel Urma - Streams, lambdas, and functional style
-- [Optics By Example](https://leanpub.com/optics-by-example) by Chris Penner - Haskell optics comprehensive guide
-
-**Comparison with Other Languages**:
-- Haskell's [`Data.Text`](https://hackage.haskell.org/package/text-2.0.2/docs/Data-Text.html) - Similar text processing with optics
-- Scala's [Monocle](https://www.optics.dev/Monocle/) - String traversals via `Traversal[String, Char]`
+~~~admonish tip title="Further Reading"
+- **Chris Penner**: [Optics By Example](https://leanpub.com/optics-by-example): comprehensive optics guide (Haskell)
+- **Haskell**: [`Data.Text`](https://hackage.haskell.org/package/text-2.0.2/docs/Data-Text.html): similar text processing with optics
+- **Scala**: [Monocle](https://www.optics.dev/Monocle/): string traversals via `Traversal[String, Char]`
+~~~
 
 ---
 

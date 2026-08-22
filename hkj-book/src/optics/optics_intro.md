@@ -225,13 +225,9 @@ A **Fold** is a read-only optic designed specifically for querying and extractin
 
 ## Advanced Capabilities: Profunctor Adaptations
 
-One of the most powerful features of `higher-kinded-j` optics is their **profunctor** nature. Every optic can be adapted to work with different source and target types using three key operations:
+Every optic is fundamentally an `Optic<S, T, A, B>`, and that interface carries the **profunctor** operations `contramap`, `map`, and `dimap`, which adapt the types an optic works between: where it reads from, and what an update produces.
 
-* **`contramap`**: Adapt an optic to work with a different source type
-* **`map`**: Transform the result type of an optic
-* **`dimap`**: Adapt both source and target types simultaneously
-
-This makes optics incredibly flexible for real-world scenarios like API integration, legacy system support, and working with different data representations. For a detailed exploration of these capabilities, see the [Profunctor Optics Guide](profunctor_optics.md).
+In practice most adaptation is done by composing (when the new source contains the old) or by bridging through an [Iso](iso.md) (when two shapes hold the same information), both of which keep the full optic API. The raw profunctor operations return an `Optic`, and come into their own in effectful `modifyF` pipelines. The [Profunctor Optics Guide](profunctor_optics.md) works through which route fits which job.
 
 ## How `higher-kinded-j` Provides Optics
 
