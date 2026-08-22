@@ -98,7 +98,7 @@ The key insight: positional focus becomes part of your optic's *identity*, not a
 
 ## Five Ways to Limit Focus by Index
 
-Higher-Kinded-J's `ListTraversals` utility class provides five complementary index-based factory methods (three predicate-based companions follow later on this page):
+Higher-Kinded-J's `ListTraversals` utility class provides five complementary index-based factory methods (two predicate-based companions and a single-element accessor follow later on this page):
 
 | Method | Description | SQL Equivalent |
 |--------|-------------|----------------|
@@ -208,7 +208,7 @@ List<Product> sliced = Traversals.getAll(slice, products);
 
 ## Predicate-Based Focusing: Beyond Fixed Indices
 
-Whilst index-based limiting is powerful, many real-world scenarios require **conditional focusing**: stopping when a condition is met rather than at a fixed position. `ListTraversals` provides three predicate-based methods that complement the fixed-index approaches:
+Whilst index-based limiting is powerful, many real-world scenarios require **conditional focusing**: stopping when a condition is met rather than at a fixed position. `ListTraversals` provides two predicate-based methods, plus a single-element accessor, that complement the fixed-index approaches:
 
 | Method | Description | Use Case |
 |--------|-------------|----------|

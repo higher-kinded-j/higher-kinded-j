@@ -517,12 +517,12 @@ Tuple2<Integer, String> updated = new Tuple2<>(
 
 ## Performance Notes
 
-Structure traversals are optimised for immutability:
+Structure traversals are optimised for immutability, not for raw throughput:
 
-* **Single pass**: No intermediate collections
-* **Structural sharing**: Unchanged portions reuse original references
-* **No boxing overhead**: Direct map operations without streams
-* **Lazy evaluation**: Short-circuits on empty optionals
+* **Structural sharing**: values the function leaves alone are reused by reference; only the container is rebuilt
+* **Zero targets cost nothing**: an empty `Optional` or an empty map never calls the function, so `modify` reduces to a single `of`
+* **No hidden laziness**: every present value is visited, and `forMapValues()` reassembles the map inside the applicative, so a large map allocates more than a hand-written `stream().collect()` would
+* **They earn their keep by nesting**: the win is composing the map or optional into a deeper path, not out-running a stream over a flat structure
 
 **Best Practice**: Store commonly-used structure traversals as constants:
 
@@ -551,8 +551,8 @@ public class ConfigOptics {
 
 ~~~admonish info title="Key Takeaways"
 * **`forOptional()` treats absence as zero targets**: modifications on an empty `Optional` are safe no-ops, so nested optional fields compose without `.map()` chains
-* **`forMapValues()` rewrites values, never keys**: bulk map transformations keep the key set and iteration semantics intact
-* **`forMapValuesCollecting()` reaches beyond JDK maps**: persistent and third-party maps traverse through a collector you supply
+* **`forMapValues()` rewrites values, never keys**: the key set survives a bulk transformation intact, but the result is rebuilt as a `HashMap`, so a `LinkedHashMap` or `TreeMap` source does not keep its iteration order
+* **`forMapValuesCollecting()` reaches beyond JDK maps**: persistent and third-party maps traverse through a collector you supply, and that collector, not the traversal, decides the rebuilt map's type and ordering
 * **`TupleTraversals.both()` updates a pair in one pass**: homogeneous pairs stop needing two separate reconstructions
 * **They are ordinary traversals**: everything from `modifyF` effects to `asFold()` queries applies unchanged
 ~~~

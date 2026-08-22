@@ -36,17 +36,26 @@ This section covers both, along with Getters and Setters (the asymmetric special
 
 ```mermaid
 flowchart TD
-    Q{"How will you touch<br/>the focused values?"}
-    Q -->|"read and write<br/>zero-or-more elements"| T(["Traversal"])
-    Q -->|"query or aggregate,<br/>never write"| F(["Fold"])
-    Q -->|"read exactly one value,<br/>never write"| G(["Getter"])
+    Q{"Which way does the<br/>path need to travel?"}
+    Q -->|"read and write"| RW{"How many values<br/>does it focus?"}
+    Q -->|"read, never write"| RO{"How many values<br/>does it focus?"}
     Q -->|"write or transform,<br/>never read out"| S(["Setter"])
+
+    RW -->|"zero-or-more"| T(["Traversal"])
+    RW -->|"exactly one,<br/>or zero-or-one"| L(["Lens, Prism, Affine:<br/>see Fundamentals"])
+
+    RO -->|"zero-or-more"| F(["Fold"])
+    RO -->|"exactly one"| G(["Getter"])
 
     classDef decision fill:#e5c890,stroke:#df8e1d,color:#232634
     classDef tier fill:#a6d189,stroke:#40a02b,color:#232634
-    class Q decision
+    classDef elsewhere fill:#8caaee,stroke:#1e66f5,color:#232634
+    class Q,RW,RO decision
     class T,F,G,S tier
+    class L elsewhere
 ```
+
+The diagram signposts Lens, Prism, and Affine rather than covering them: those single-value optics belong to [Fundamentals](ch1_intro.md). The four this section owns are Traversal, Fold, Getter, and Setter.
 
 ## Traversal vs Fold
 

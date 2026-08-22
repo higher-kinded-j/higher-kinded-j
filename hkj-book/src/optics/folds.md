@@ -200,7 +200,7 @@ int itemCount = itemsFold.length(order);
 // Result: 3
 ```
 
-The query operations above all speak `Optional`; if your codebase prefers the library's `Maybe` type, the [Maybe-based extensions](#maybe-based-fold-extensions) later on this page mirror them one for one.
+Of the operations above, only `preview` and `find` speak `Optional`; the rest hand back a `List`, a `boolean`, or an `int`. If your codebase prefers the library's `Maybe` type, the [Maybe-based extensions](#maybe-based-fold-extensions) later on this page mirror `preview`, `find`, and `getAll`.
 
 ### Step 3: Composing Folds for Deep Queries
 
@@ -646,12 +646,12 @@ Maybe<List<Product>> allMaybe = getAllMaybe(itemsFold, order);      // Maybe-wra
 
 ```java
 // Convert Optional to Maybe
-Optional<Product> optional = itemsFold.preview(order);
-Maybe<Product> maybe = Maybe.fromOptional(optional);
+Optional<Product> firstOptional = itemsFold.preview(order);
+Maybe<Product> liftedToMaybe = Maybe.fromOptional(firstOptional);
 
 // Convert Maybe to Optional (there is no direct method; go through map/orElse)
-Maybe<Product> maybe = previewMaybe(itemsFold, order);
-Optional<Product> optional = maybe.map(Optional::of).orElse(Optional.empty());
+Maybe<Product> firstMaybe = previewMaybe(itemsFold, order);
+Optional<Product> loweredToOptional = firstMaybe.map(Optional::of).orElse(Optional.empty());
 ```
 
 #### Performance Considerations

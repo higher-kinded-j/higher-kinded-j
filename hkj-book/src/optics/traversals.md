@@ -546,11 +546,13 @@ List<Product> result = productPrices.set(partialPrices, products);
 **More elements than positions**: Extra elements are ignored.
 
 ```java
-// Original: 3 products
+// A three-product source, prices [100, 200, 300]
+List<Product> threeProducts = products.subList(0, 3);
 List<Double> extraPrices = List.of(10.0, 20.0, 30.0, 40.0, 50.0); // 5 values
 
-List<Product> result = productPrices.set(extraPrices, products);
-// Result: Only first 3 prices used, 40.0 and 50.0 ignored
+List<Product> trimmed = productPrices.set(extraPrices, threeProducts);
+// Result prices: [10.0, 20.0, 30.0]
+// Only the first 3 values are consumed; 40.0 and 50.0 are never read
 ```
 
 This graceful degradation makes `partsOf` safe to use even when you're not certain about the exact number of targets.
