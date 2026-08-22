@@ -13,7 +13,7 @@
 - Building batch update and normalisation pipelines
 ~~~
 
-~~~admonish title="Example Code"
+~~~admonish example title="See Example Code"
 [SetterUsageExample](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/optics/SetterUsageExample.java)
 ~~~
 
@@ -107,17 +107,7 @@ Plus convenience methods:
 * `UserSetters.withEmail(user, newEmail)` → `User`
 * etc.
 
-#### Customising the Generated Package
-
-By default, generated classes are placed in the same package as the annotated record. You can specify a different package using the `targetPackage` attribute:
-
-```java
-// Generated class will be placed in org.example.generated.optics
-@GenerateSetters(targetPackage = "org.example.generated.optics")
-public record User(String username, String email, int loginCount, UserSettings settings) {}
-```
-
-This is useful when you need to avoid name collisions or organise generated code separately.
+As with every generator in this chapter, a `targetPackage` attribute relocates the generated class; see [Customising the Generated Package](traversals.md#customising-the-generated-package).
 
 #### Using Factory Methods
 
@@ -606,17 +596,20 @@ Company inflated = ALL_PRODUCT_PRICES.modify(p -> p * 1.05, company);
 ## Complete, Runnable Example
 
 ```java
+import static org.higherkindedj.hkt.instances.Witnesses.optional;
+
 import org.higherkindedj.optics.Setter;
 import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.instances.Instances;
 import org.higherkindedj.hkt.optional.OptionalKind;
 import org.higherkindedj.hkt.optional.OptionalKindHelper;
-import org.higherkindedj.hkt.optional.OptionalMonad;
 import java.util.*;
 import java.util.function.Function;
 
 public class SetterExample {
 
     public record User(String username, String email, int loginCount, UserSettings settings) {}
+    // A trimmed UserSettings, so the runnable example stays small
     public record UserSettings(String theme, boolean notifications, int fontSize) {}
     public record Product(String name, double price, int stock) {}
 
@@ -756,20 +749,19 @@ Normalised product names:
 
 ---
 
-## Why Setters Are Important
+~~~admonish info title="Key Takeaways"
+* **A setter is write-only by construction**: the modification function sees each focused value, but the caller never reads one out
+* **Compose for depth, `forList`/`forMapValues` for breadth**: deep nested updates and bulk collection rewrites use the same `andThen` chains
+* **Build with `fromGetSet` when effects matter**: `Setter.of` cannot support `modifyF`; the get-set form can
+* **Normalisation pipelines are the sweet spot**: trimming, lower-casing, and currency conversion across a whole structure in one pass
+* **Reach for `Lens` or `Traversal` when you also read**: a Setter documents pure write intent in the type
+~~~
 
-`Setter` provides a focused, write-only approach to data modification:
-
-* **Clear intent**: Explicitly write-only, preventing accidental reads
-* **Composability**: Chains beautifully for deep, nested modifications
-* **Batch operations**: Natural fit for updating collections
-* **Effectful support**: Integrates with validation and error handling via Applicatives
-* **Type safety**: Compile-time guarantees on modification paths
-* **Immutability-friendly**: Designed for functional, immutable data structures
-
-By adding `Setter` to your optics toolkit alongside `Getter`, `Lens`, `Prism`, `Iso`, `Traversal`, and `Fold`, you gain fine-grained control over both reading and writing patterns. Use `Setter` when you need composable write-only access, `Getter` for read-only extraction, and `Lens` when you need both.
-
-The key insight: **Setters make modifications first-class composable operations**, allowing you to build sophisticated data transformation pipelines with clarity, type safety, and clear functional intent.
+~~~admonish tip title="See Also"
+- [Getters](getters.md): the read-only mirror of this page
+- [Traversals](traversals.md): when bulk modification also needs `getAll` and queries
+- [Lenses](lenses.md): when the same field needs reading and writing
+~~~
 
 ---
 
