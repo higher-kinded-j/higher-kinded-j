@@ -13,12 +13,8 @@
 - When to use lenses vs direct field access
 ~~~
 
-~~~admonish title="Hands On Practice"
-[Tutorial01_LensBasics.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/test/java/org/higherkindedj/tutorial/optics/Tutorial01_LensBasics.java) | [Tutorial07_GeneratedOptics.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/test/java/org/higherkindedj/tutorial/optics/Tutorial07_GeneratedOptics.java)
-~~~
-
-~~~admonish title="Example Code"
-[LensesExample](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/optics/LensUsageExample.java)
+~~~admonish example title="See Example Code"
+[LensUsageExample.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/optics/LensUsageExample.java)
 ~~~
 
 A Lens focuses on a single, required field within a record: the `address` in a `User`, the `street` in an `Address`. It exposes `get`, `set`, and `modify`, and composes with other lenses to reach any depth without hand-written copy cascades.
@@ -169,15 +165,15 @@ Employee uppercased = streetLens.modify(String::toUpperCase, employee);
 ```
 
 ~~~admonish tip title="Cross-Optic Composition"
-Lenses can also compose with other optic types. When you compose a `Lens` with a `Prism`, you get a `Traversal`:
+Lenses can also compose with other optic types. When you compose a `Lens` with a `Prism`, you get an `Affine` (the prism may not match, so the focus becomes zero-or-one):
 
 ```java
-// Lens >>> Prism = Traversal
+// Lens >>> Prism = Affine
 record User(Optional<Settings> settings) {}
 Lens<User, Optional<Settings>> settingsLens = UserLenses.settings();
 Prism<Optional<Settings>, Settings> somePrism = Prisms.some();
 
-Traversal<User, Settings> userSettings = settingsLens.andThen(somePrism);
+Affine<User, Settings> userSettings = settingsLens.andThen(somePrism);
 ```
 
 See [Composition Rules](composition_rules.md) for the complete reference on how different optics compose.
@@ -283,6 +279,7 @@ import org.higherkindedj.example.lens.LensUsageExampleLenses.CompanyLenses;
 import org.higherkindedj.example.lens.LensUsageExampleLenses.EmployeeLenses;
 import org.higherkindedj.optics.Lens;
 import org.higherkindedj.optics.annotations.GenerateLenses;
+import java.util.List;
 
 public class LensUsageExample {
 
@@ -369,7 +366,11 @@ As you can see, the generated optics provide a clean, declarative, and type-safe
 
 While `set` and `modify` are for simple, pure updates, the `Lens` interface also supports effectful operations through `modifyF`. This method allows you to perform updates within a context like an `Optional`, `Validated`, or `CompletableFuture`.
 
-This means you can use the same `employeeToStreet` lens to perform a street name update that involves failable validation or an asynchronous API call, making your business logic incredibly reusable and robust.
+This means you can use the same `employeeToStreet` lens to perform a street name update that involves failable validation or an asynchronous API call.
+
+~~~admonish tip title="Why this matters"
+This is the point where these lenses part company with hand-rolled `withX` helpers and reflective mappers: the *path* and the *effect* are independent. You define `employeeToStreet` once; whether an update through it is pure, validated with every error accumulated, or awaited from an async call is decided at the call site by the `Applicative` you hand to `modifyF`. No second path to maintain, and no way for the effectful variant to drift from the pure one.
+~~~
 
 ```java
 // Example: Street validation that might fail
@@ -385,12 +386,19 @@ Kind<ValidatedKind.Witness<String>, Employee> result =
 
 ~~~admonish tip title="For Comprehension Integration"
 Lenses integrate with For comprehensions in two ways:
-- Use `focus()` within a For comprehension to extract values via lens-like accessors. See [For Comprehensions: Extracting Values with focus()](../functional/for_comprehension.md#extracting-values-with-focus).
-- Use `ForState` for stateful lens operations that thread updates through a workflow. See [For Comprehensions: Stateful Updates with ForState](../functional/for_comprehension.md#stateful-updates-with-forstate).
+- Use `focus()` within a For comprehension to extract values via lens-like accessors. See [For Comprehensions: Extracting Values with focus()](../functional/for_optics.md#extracting-nested-values-with-focus).
+- Use `ForState` for stateful lens operations that thread updates through a workflow. See [For Comprehensions: Stateful Updates with ForState](../functional/for_mtl.md#stateful-updates-with-forstate).
 ~~~
 
 ~~~admonish warning title="Coupled Fields"
 When record fields share an invariant (e.g., `lo <= hi` in a `Range`), sequential lens updates can fail due to invalid intermediate states. Use `Lens.paired` to update coupled fields atomically. See [Coupled Fields](coupled_fields.md) for details.
+~~~
+
+~~~admonish info title="Key Takeaways"
+* **A lens is a first-class path to a required field**: `get`, `set`, and `modify`, with the copy-and-update cascade handled for you
+* **Compose with `andThen` to any depth**: build the path once, store it as a constant, reuse it everywhere
+* **`with*` helpers for shallow, composed lenses for deep**: the generated helpers cover top-level updates; composition covers the rest
+* **Prefer `modify` over get-then-set**, and `modifyF` when the update carries an effect (validation, async) through the same path
 ~~~
 
 ~~~admonish info title="Hands-On Learning"

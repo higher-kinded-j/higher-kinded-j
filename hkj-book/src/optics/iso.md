@@ -12,7 +12,7 @@
 - When to use isos vs direct conversion methods vs manual adapters
 ~~~
 
-~~~admonish title="Example Code"
+~~~admonish example title="See Example Code"
 [IsoUsageExample](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/optics/IsoUsageExample.java)
 ~~~
 
@@ -340,73 +340,7 @@ public class DataIsos {
 
 ---
 
-## Real-World Examples
-
-### 1. API Data Transformation
-
-```java
-// Internal model
-public record Customer(String name, String email, LocalDate birthDate) {}
-
-// External API model
-public record CustomerDto(String fullName, String emailAddress, String birthDateString) {}
-
-public class CustomerIsos {
-    public static final Iso<Customer, CustomerDto> CUSTOMER_DTO = Iso.of(
-        // Convert to DTO
-        customer -> new CustomerDto(
-            customer.name(),
-            customer.email(),
-            customer.birthDate().format(DateTimeFormatter.ISO_LOCAL_DATE)
-        ),
-        // Convert from DTO
-        dto -> new Customer(
-            dto.fullName(),
-            dto.emailAddress(),
-            LocalDate.parse(dto.birthDateString(), DateTimeFormatter.ISO_LOCAL_DATE)
-        )
-    );
-
-    // Now any Customer lens can work with DTOs
-    public static final Lens<CustomerDto, String> DTO_NAME =
-        CUSTOMER_DTO.reverse().andThen(CustomerLenses.name()).andThen(CUSTOMER_DTO);
-}
-```
-
-### 2. Configuration Format Conversion
-
-```java
-// Different configuration representations
-public record DatabaseConfig(String host, int port, String database) {}
-public record ConnectionString(String value) {}
-
-public class ConfigIsos {
-    public static final Iso<DatabaseConfig, ConnectionString> DB_CONNECTION = Iso.of(
-        // To connection string
-        config -> new ConnectionString(
-            "jdbc:postgresql://" + config.host() + ":" + config.port() + "/" + config.database()
-        ),
-        // From connection string
-        conn -> {
-            // Simple parser for this example
-            String url = conn.value();
-            String[] parts = url.replace("jdbc:postgresql://", "").split("[:/]");
-            return new DatabaseConfig(parts[0], Integer.parseInt(parts[1]), parts[2]);
-        }
-    );
-
-    // Use with existing configuration lenses
-    public static final Lens<DatabaseConfig, String> CONNECTION_STRING_HOST =
-        DB_CONNECTION.andThen(
-            Lens.of(
-                cs -> cs.value().split("//")[1].split(":")[0],
-                (cs, host) -> new ConnectionString(cs.value().replaceFirst("//[^:]+:", "//" + host + ":"))
-            )
-        ).andThen(DB_CONNECTION.reverse());
-}
-```
-
-### 3. Wrapper Type Integration
+## Real-World Example: Wrapper Type Integration
 
 ```java
 // Strongly-typed wrappers
@@ -428,6 +362,10 @@ public class WrapperIsos {
     }
 }
 ```
+
+~~~admonish warning title="When it is not an Iso"
+A tempting use of an Iso is a bridge between a domain record and its wire DTO (`Customer` <-> `CustomerDto` with a date rendered as a string). It is **not** one: parsing the string back can fail, and a conversion that can fail in either direction has no lawful `reverseGet`. That boundary belongs to the fallible optic built for it, the [Validated Prism](validated_prism.md), and to [`@GenerateMapping`](../mapping/ch_intro.md), which derives the whole record conversion. Where a pair really is lossless, the generated mapping exposes it as an Iso, so the two worlds meet exactly where the laws allow.
+~~~
 
 ## Complete, Runnable Example
 
@@ -555,6 +493,7 @@ public class IsoUsageExample {
         System.out.println("Shifted centre tuple: " + shiftedCentre);
         System.out.println("New circle: " + newCircle);
     }
+}
 ```
 
 **Expected Output:**
@@ -580,11 +519,11 @@ Point to String conversion:
 --- Scenario 2: Reverse Operations ---
 Tuple: Tuple2[_1=30, _2=40] -> Point: Point[x=30, y=40]
 
---- Scenario 3: Working with Different Representations ---
+--- Scenario 3: Composition with Lenses ---
 Original point: Point[x=10, y=20]
 After moving X by 5: Point[x=15, y=20]
 
---- Scenario 4: Conversion Workflows ---
+--- Scenario 4: Iso Composition ---
 Point as tuple: Tuple2[_1=10, _2=20]
 Modified tuple: Tuple2[_1=20, _2=20]
 Back to point: Point[x=20, y=20]
@@ -603,16 +542,18 @@ New circle: Circle[centre=Point[x=20, y=30], radius=5]
 
 ---
 
-## Why Isos are a Powerful Bridge
+~~~admonish info title="Key Takeaways"
+* **An Iso is a lossless two-way street**: `get` and `reverseGet` convert between equivalent representations, and `reverse()` flips the direction for free
+* **Isos are the composition bridge**: composed with a Lens, Prism, or Affine they preserve that optic's shape (`asTraversal()` bridges to Traversals), so a generic optic works on your domain type
+* **Losslessness is the law**: a conversion that drops information or can fail in either direction is not an Iso; test the round trip, and reach for [Validated Prisms](validated_prism.md) when parsing can fail
+* **Reuse as constants**: define each Iso once, test it, and compose it everywhere the representation boundary appears
+~~~
 
-`Lens`, `Prism`, and `Iso` form a powerful trio for modelling any data operation. An `Iso` is the essential bridge that enables you to:
-
-* **Work with the Best Representation**: Convert data to the most suitable format for each operation, then convert back when needed.
-* **Enable Library Integration**: Adapt your internal data types to work seamlessly with external libraries without changing your core domain model.
-* **Maintain Type Safety**: All conversions are checked at compile time, eliminating runtime conversion errors.
-* **Build Reusable Converters**: Create tested, reusable conversion components that can be used throughout your application.
-
-The step-by-step conversion approach shown in the examples is the most practical way to use Isos in real applications, providing clear, maintainable code that leverages the strengths of different data representations.
+~~~admonish tip title="See Also"
+- [Composition Rules](composition_rules.md): why `Iso >>> X = X` for every optic `X`
+- [Validated Prisms](validated_prism.md): the fallible sibling for conversions that can reject
+- [The Emission Tiers](../mapping/tiers.md): where a lossless generated record mapping earns its `asIso()`
+~~~
 
 ---
 

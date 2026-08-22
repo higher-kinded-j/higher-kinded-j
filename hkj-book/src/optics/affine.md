@@ -11,11 +11,7 @@
 - When to use Affines vs Prisms vs Lenses
 ~~~
 
-~~~admonish title="Hands On Practice"
-[Tutorial04_AffineBasics.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/test/java/org/higherkindedj/tutorial/optics/Tutorial04_AffineBasics.java)
-~~~
-
-~~~admonish title="Example Code"
+~~~admonish example title="See Example Code"
 [AffineUsageExample](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/optics/AffineUsageExample.java)
 ~~~
 
@@ -321,7 +317,7 @@ Affine<A, C> result = affineAB.andThen(prismBC);
 Affine<A, C> result = affineAB.andThen(isoBC);
 
 // Affine >>> Traversal = Traversal
-Traversal<A, C> result = affineAB.asTraversal().andThen(traversalBC);
+Traversal<A, C> result = affineAB.andThen(traversalBC);
 ```
 
 ### Deep Optional Access Example
@@ -658,16 +654,18 @@ public class UserOptics {
 
 ---
 
-## Why Affines are Essential
+~~~admonish info title="Key Takeaways"
+* **An Affine focuses on exactly zero or one value**: `getOptional` may come back empty, and updates go through an existing structure (there is no `build` from nothing)
+* **It is the honest type for Lens-then-Prism**: the composition can never produce more than one focus, and Affine says so more precisely than Traversal would
+* **Optional fields without the flatMap chains**: compose affines through nested `Optional`s and the absence handling is done once, in the optic
+* **Prism constructs, Affine only updates**: reach for a Prism on sum types you can build; reach for an Affine on optional fields inside product types
+~~~
 
-Affines fill an important gap in the optic hierarchy:
-
-* **Precision**: More precise than Traversal for zero-or-one access
-* **Composability**: Natural result of Lens + Prism composition
-* **Safety**: Eliminate null checks and `Optional.flatMap` chains
-* **Expressiveness**: Clearly communicate "optional field" intent
-
-By adding Affines to your toolkit, you can write cleaner, safer code that handles optional data with the same elegance as required fields.
+~~~admonish tip title="See Also"
+- [Prisms](prisms.md): the constructing sibling for sum types
+- [Composition Rules](composition_rules.md): why `Lens >>> Prism = Affine`, and everything else
+- [Coupled Fields](coupled_fields.md): when sibling fields must change together
+~~~
 
 ---
 
@@ -676,7 +674,7 @@ By adding Affines to your toolkit, you can write cleaner, safer code that handle
 - **Baeldung**: [Handling Optionality in Java](https://www.baeldung.com/java-optional) - Guide to Java Optional, the underlying type Affine often works with
 ~~~
 
-~~~admonish tip title="Terminology Note"
+~~~admonish note title="Terminology Note"
 In some functional programming libraries (notably Scala's Monocle), the Affine optic is called an **Optional**. This can cause confusion with Java's `java.util.Optional`. In higher-kinded-j, we use the term "Affine" to avoid this ambiguity whilst maintaining mathematical precision.
 ~~~
 
