@@ -12,7 +12,7 @@
 - When to use At vs Ixed vs direct collection operations
 ~~~
 
-~~~admonish title="Example Code"
+~~~admonish example title="See Example Code"
 - [AtUsageExample](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/optics/AtUsageExample.java)
 - [IxedUsageExample](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/optics/IxedUsageExample.java)
 ~~~
@@ -46,7 +46,7 @@ Use **Ixed** when you want safe read/update that never accidentally modifies str
 
 ---
 
-## Part 1: At – Full CRUD Operations
+## Part 1: At (Full CRUD Operations)
 
 ### Creating At Instances
 
@@ -171,7 +171,7 @@ Config withoutDebug = debugSettingLens.set(Optional.empty(), withDebug);
 
 ---
 
-## Part 2: Ixed – Safe Partial Access
+## Part 2: Ixed (Safe Partial Access)
 
 ### Creating Ixed Instances
 
@@ -391,15 +391,28 @@ result.remove("c");
 
 | Use Case | Tool | Why |
 |----------|------|-----|
-| Add new map entry | `At.insertOrUpdate()` | Only At can insert |
-| Delete map entry | `At.remove()` | Only At can delete |
-| Update if exists, else no-op | `Ixed.update()` | Safe, structure-preserving |
-| Safe list access without exceptions | `Ixed.get()` | Returns Optional.empty() for invalid indices |
+| Add new map entry | `at.insertOrUpdate(key, value, map)` | Only At can insert |
+| Delete map entry | `at.remove(key, map)` | Only At can delete |
+| Update if exists, else no-op | `IxedInstances.update(ixed, i, value, source)` | Safe, structure-preserving |
+| Safe list access without exceptions | `IxedInstances.get(ixed, i, source)` | Returns `Optional.empty()` for invalid indices |
 | Deep nested CRUD | At + Lens composition | Full control over nested maps |
 | Deep nested read/update | Ixed + Lens composition | Safe partial access |
 
-Both type classes maintain immutability and compose naturally with the rest of the optics ecosystem.
+~~~admonish info title="Key Takeaways"
+* **At is the CRUD optic**: a `Lens<S, Optional<A>>` per key, so insert, update, and delete are all `set` in disguise
+* **Ixed never changes shape**: a missing index makes the operation a no-op instead of an exception or an insert
+* **The `Optional` is the honesty**: At shows absence in the type; `Prisms.some()` unwraps it when composing deeper
+* **Every modification copies the collection**: batch first with plain mutation, then hold the result immutably
+* **Indexed optics answer a different question**: At/Ixed target *one* key; [Indexed Optics](indexed_optics.md) traverse *all* elements with their positions
+~~~
+
+~~~admonish tip title="See Also"
+- [Indexed Optics](indexed_optics.md): traversing every element with its position
+- [Prisms](prisms.md): `Prisms.some()` for unwrapping the `Optional` that At exposes
+- [Common Data Structures](common_data_structure_traversals.md): whole-map value traversals
+~~~
 
 ---
 
-[Previous: String Traversals](string_traversals.md) | [Next: Advanced Prism Patterns](advanced_prism_patterns.md)
+**Previous:** [String Traversals](string_traversals.md)
+**Next:** [Advanced Prism Patterns](advanced_prism_patterns.md)

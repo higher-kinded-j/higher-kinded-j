@@ -30,15 +30,16 @@ public class OptimisedPrismCache {
         return (T) OPTIC_CACHE.computeIfAbsent(key, k -> factory.get());
     }
 
-    // Example usage: caching a composed traversal
-    private static final Traversal<Config, String> DATABASE_HOST =
-        getCached("config.database.host", () ->
-            ConfigLenses.database()
+    // Example usage: a composition keyed by a value only known at runtime,
+    // so it cannot simply be a `static final` constant.
+    // Note the explicit witnesses: a bare Prisms.some() would infer Object here.
+    public static Traversal<Settings, String> settingAt(String key) {
+        return getCached("settings." + key, () ->
+            SettingsLenses.entries()
                 .asTraversal()
-                .andThen(Prisms.some().asTraversal())
-                .andThen(Prisms.right().asTraversal())
-                .andThen(DatabaseSettingsLenses.host().asTraversal())
-        );
+                .andThen(Traversals.forMap(key))
+                .andThen(Prisms.<String>some().asTraversal()));
+    }
 }
 ```
 
@@ -130,16 +131,22 @@ public class PrismTestPatterns {
 
 ---
 
+~~~admonish info title="Key Takeaways"
+* **Compose once, cache deliberately**: prism composition is cheap but not free; long-running systems should hold composed prisms as constants or in a keyed cache
+* **Partition with prisms, not instanceof**: bulk helpers that split a mixed list by variant keep the type knowledge in one place
+* **Test both directions**: cover the match and the non-match, and test composed prisms end to end rather than only their parts
+~~~
+
+
+~~~admonish tip title="Further Reading"
+- **Monocle**: [Scala Optics Library](https://www.optics.dev/Monocle/): production-ready Scala optics with extensive patterns
+- **Haskell Lens**: [Canonical Reference](https://hackage.haskell.org/package/lens): the original comprehensive optics library
+- **Lens Tutorial**: [A Little Lens Starter Tutorial](https://www.schoolofhaskell.com/school/to-infinity-and-beyond/pick-of-the-week/a-little-lens-starter-tutorial): beginner-friendly introduction
+~~~
+
 ~~~admonish info title="Hands-On Learning"
 Practice advanced prism patterns in [Tutorial 10: Advanced Prism Patterns](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/test/java/org/higherkindedj/tutorial/optics/Tutorial10_AdvancedPrismPatterns.java) (8 exercises, ~12 minutes).
 ~~~
-
-~~~admonish tip title="Further Reading"
-- **Monocle**: [Scala Optics Library](https://www.optics.dev/Monocle/) - Production-ready Scala optics with extensive patterns
-- **Haskell Lens**: [Canonical Reference](https://hackage.haskell.org/package/lens) - The original comprehensive optics library
-- **Lens Tutorial**: [A Little Lens Starter Tutorial](https://www.schoolofhaskell.com/school/to-infinity-and-beyond/pick-of-the-week/a-little-lens-starter-tutorial) - Beginner-friendly introduction
-~~~
-
 ---
 
 **Previous:** [Advanced Prism Patterns](advanced_prism_patterns.md)
