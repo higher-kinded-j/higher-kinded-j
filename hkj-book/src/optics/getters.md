@@ -14,7 +14,7 @@
 - Building data transformation pipelines with clear read-only intent
 ~~~
 
-~~~admonish title="Example Code"
+~~~admonish example title="See Example Code"
 [GetterUsageExample](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/optics/GetterUsageExample.java)
 ~~~
 
@@ -43,8 +43,8 @@ public record Company(String name, Person ceo, List<Person> employees, Address h
 
 **Common Extraction Needs:**
 * "Get the CEO's full name"
-* "Extract the company's headquarters city"
-* "Calculate the CEO's age group"
+* "Extract the CEO's city"
+* "Check whether the CEO passes an age threshold"
 * "Generate an employee's email address"
 * "Compute the length of a person's full name"
 
@@ -102,17 +102,7 @@ Plus convenience methods:
 * `PersonGetters.getLastName(person)` → `String`
 * etc.
 
-#### Customising the Generated Package
-
-By default, generated classes are placed in the same package as the annotated record. You can specify a different package using the `targetPackage` attribute:
-
-```java
-// Generated class will be placed in org.example.generated.optics
-@GenerateGetters(targetPackage = "org.example.generated.optics")
-public record Person(String firstName, String lastName, int age, Address address) {}
-```
-
-This is useful when you need to avoid name collisions or organise generated code separately.
+As with every generator in this chapter, a `targetPackage` attribute relocates the generated class; see [Customising the Generated Package](traversals.md#customising-the-generated-package).
 
 #### Using Factory Methods
 
@@ -225,7 +215,7 @@ boolean empty = ageGetter.isEmpty(person);
 
 ### Step 5: Combining Getters with Folds
 
-Compose Getters with Folds for powerful queries:
+Compose Getters with Folds for powerful queries. Two small tools make it work: `Fold.of` builds a fold from any function that lists the targets (here, the list itself), and `asFold()` moves a `Getter` into `Fold` position so the fold-composing `andThen` overload applies (a Getter already *is* a single-target Fold, so the conversion costs nothing):
 
 ```java
 Getter<Company, List<Person>> employeesGetter = Getter.of(Company::employees);
@@ -248,8 +238,8 @@ boolean hasExperienced = listFold.andThen(Getter.of(Person::age).asFold())
 
 ### Step 6: Maybe-Based Getter Extension
 
-~~~admonish title="Extension Method"
-Higher-kinded-j provides the `getMaybe` extension method that integrates `Getter` with the `Maybe` type, enabling null-safe navigation through potentially nullable fields. This extension is available via static import from `GetterExtensions`.
+~~~admonish note title="Maybe-Based Extension"
+Higher-Kinded-J provides the `getMaybe` extension method that integrates `Getter` with the `Maybe` type, enabling null-safe navigation through potentially nullable fields. It is available via static import from `GetterExtensions`. `Maybe` itself, and the Maybe-versus-Optional trade-offs, were covered in [Folds: Maybe-Based Fold Extensions](folds.md#maybe-based-fold-extensions); this section shows only the Getter side.
 ~~~
 
 #### The Challenge: Null-Safe Navigation
@@ -399,20 +389,20 @@ Maybe<String> uppercaseCity = getMaybe(addressGetter, person)
 // Extract with default
 String cityOrDefault = getMaybe(addressGetter, person)
     .flatMap(addr -> getMaybe(cityGetter, addr))
-    .getOrElse("Unknown");
+    .orElse("Unknown");
 // Result: "London"
 
-// Extract and filter
+// Extract and keep only values passing a test (Maybe has no filter; use flatMap)
 Maybe<String> longCityName = getMaybe(addressGetter, person)
     .flatMap(addr -> getMaybe(cityGetter, addr))
-    .filter(name -> name.length() > 5);
+    .flatMap(name -> name.length() > 5 ? Maybe.just(name) : Maybe.nothing());
 // Result: Just("London") (length is 6)
 
 // Chain multiple operations
 String report = getMaybe(addressGetter, person)
     .flatMap(addr -> getMaybe(cityGetter, addr))
     .map(city -> "Person lives in " + city)
-    .getOrElse("Address unknown");
+    .orElse("Address unknown");
 // Result: "Person lives in London"
 ```
 
@@ -487,14 +477,14 @@ public class EmployeeService {
     public String generateWelcomeMessage(Employee employee) {
         return getEmployeeCity(employee)
             .map(city -> "Welcome to our " + city + " office!")
-            .getOrElse("Welcome to our company!");
+            .orElse("Welcome to our company!");
     }
 
     // Check if employee is in specific city
     public boolean isEmployeeInCity(Employee employee, String targetCity) {
         return getEmployeeCity(employee)
-            .filter(city -> city.equalsIgnoreCase(targetCity))
-            .isJust();
+            .map(city -> city.equalsIgnoreCase(targetCity))
+            .orElse(false);
     }
 
     // Collect all cities from employee list (skipping unknowns)
@@ -519,7 +509,7 @@ public class EmployeeService {
             .flatMap(addr -> getMaybe(CITY, addr));
 
         // If not found, could try emergency contact (simplified example)
-        return primaryCity.getOrElse("Location unknown");
+        return primaryCity.orElse("Location unknown");
     }
 }
 ```
@@ -573,7 +563,7 @@ public class SafeGetters {
 }
 ```
 
-~~~admonish title="Complete Example"
+~~~admonish example title="See Example Code"
 See [GetterExtensionsExample.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/optics/extensions/GetterExtensionsExample.java) for a runnable demonstration of `getMaybe` with practical scenarios.
 ~~~
 
@@ -912,20 +902,19 @@ All Employees from UK: true
 
 ---
 
-## Why Getters Are Important
+~~~admonish info title="Key Takeaways"
+* **A getter is a pure function in optic form**: exactly one value out, never a write, composable with everything else
+* **Computed values need no storage**: derive full names, flags, and metrics through `Getter.of` without adding fields
+* **A Getter is already a Fold of one element**: `exists`, `all`, and `find` work directly; `asFold()` just restates the type where a `Fold` is wanted
+* **`getMaybe` makes nulls explicit**: navigation through nullable fields returns `Maybe` instead of risking an NPE
+* **Reach for `Lens` only when you also write**: using a Getter documents read-only intent in the type
+~~~
 
-`Getter` completes the read-only optics family by providing:
-
-* **Single-element focus**: Guarantees exactly one value (unlike Fold's zero-or-more)
-* **Composability**: Chains beautifully with other optics
-* **Computed values**: Derive data without storage overhead
-* **Clear intent**: Explicitly read-only, preventing accidental modifications
-* **Type safety**: Compile-time guarantees on extraction paths
-* **Fold inheritance**: Leverages query operations (exists, all, find) for single values
-
-By adding `Getter` to your optics toolkit alongside `Lens`, `Prism`, `Iso`, `Traversal`, and `Fold`, you have precise control over read-only access patterns. Use `Getter` when you need composable value extraction, `Fold` when you query collections, and `Lens` when you need both reading and writing.
-
-The key insight: **Getters make pure functions first-class composable citizens**, allowing you to build sophisticated data extraction pipelines with clarity and type safety.
+~~~admonish tip title="See Also"
+- [Folds](folds.md): the zero-or-more counterpart with monoid aggregation
+- [Setters](setters.md): the write-only mirror of this page
+- [Lenses](lenses.md): when the same field needs reading and writing
+~~~
 
 ---
 

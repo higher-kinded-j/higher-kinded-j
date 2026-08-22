@@ -5,6 +5,7 @@
 ~~~admonish info title="What You'll Learn"
 - How to focus on specific portions of lists (first n, last n, slices)
 - Using `ListTraversals` factory methods for index-based operations
+- Predicate-based slicing with `takingWhile`/`droppingWhile`, and single elements with `element`
 - The difference between limiting traversals and Stream's `limit()`/`skip()`
 - Composing limiting traversals with lenses, prisms, and filtered optics
 - Understanding edge case handling (negative indices, bounds exceeding list size)
@@ -12,7 +13,7 @@
 - When to use limiting traversals vs Stream API vs manual loops
 ~~~
 
-~~~admonish title="Example Code"
+~~~admonish example title="See Example Code"
 [ListTraversalsExample](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/optics/ListTraversalsExample.java)
 
 [PaginationExample](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/optics/PaginationExample.java)
@@ -24,7 +25,7 @@
 [PredicateListTraversalsExample](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/optics/PredicateListTraversalsExample.java)
 ~~~
 
-In our journey through optics, we've seen how **Traversal** handles bulk operations on all elements of a collection, and how **filtered optics** let us focus on elements matching a predicate. But what about focusing on elements by *position*: the first few items, the last few, or a specific slice?
+In our journey through optics, we've seen how **Traversal** handles bulk operations on all elements of a collection (and the next chapter's [Filtered Optics](filtered_optics.md) will focus on elements matching a predicate). But what about focusing on elements by *position*: the first few items, the last few, or a specific slice?
 
 Traditionally, working with list portions requires breaking out of your optic composition to use streams or manual index manipulation. **Limiting traversals** solve this elegantly by making positional focus a first-class part of your optic composition.
 
@@ -95,9 +96,9 @@ The key insight: positional focus becomes part of your optic's *identity*, not a
 
 ---
 
-## Five Ways to Limit Focus
+## Five Ways to Limit Focus by Index
 
-Higher-kinded-j's `ListTraversals` utility class provides five complementary factory methods:
+Higher-Kinded-J's `ListTraversals` utility class provides five complementary index-based factory methods (three predicate-based companions follow later on this page):
 
 | Method | Description | SQL Equivalent |
 |--------|-------------|----------------|
@@ -113,7 +114,7 @@ Each serves different needs, and they can be combined with other optics for powe
 
 ## A Step-by-Step Walkthrough
 
-### Step 1: Basic Usage – `taking(int n)`
+### Step 1: Basic Usage with `taking(int n)`
 
 The most intuitive method: focus on at most the first `n` elements.
 
@@ -143,7 +144,7 @@ List<Product> firstThree = Traversals.getAll(first3, products);
 
 **Critical Semantic**: During **modification**, non-focused elements are *preserved unchanged* in the structure. During **queries** (like `getAll`), they are *excluded* from the results. This preserves the overall structure whilst focusing operations on the subset you care about.
 
-### Step 2: Skipping Elements – `dropping(int n)`
+### Step 2: Skipping Elements with `dropping(int n)`
 
 Focus on all elements *after* skipping the first `n`:
 
@@ -158,7 +159,7 @@ List<Product> skipped = Traversals.getAll(afterFirst2, products);
 // Returns: [Gizmo, Doohickey, Thingamajig]
 ```
 
-### Step 3: Focusing on the End – `takingLast(int n)`
+### Step 3: Focusing on the End with `takingLast(int n)`
 
 Focus on the last `n` elements, perfect for "most recent" scenarios:
 
@@ -173,7 +174,7 @@ List<Product> lastTwo = Traversals.getAll(last2, products);
 // Returns: [Doohickey, Thingamajig]
 ```
 
-### Step 4: Excluding from the End – `droppingLast(int n)`
+### Step 4: Excluding from the End with `droppingLast(int n)`
 
 Focus on all elements *except* the last `n`:
 
@@ -188,7 +189,7 @@ List<Product> allButLastTwo = Traversals.getAll(exceptLast2, products);
 // Returns: [Widget, Gadget, Gizmo]
 ```
 
-### Step 5: Precise Slicing – `slicing(int from, int to)`
+### Step 5: Precise Slicing with `slicing(int from, int to)`
 
 Focus on elements within a half-open range `[from, to)`, exactly like `List.subList()`:
 
@@ -302,15 +303,19 @@ List<Product> focused = Traversals.getAll(wellStocked, products);
 - **Protocol parsing**: Discard handshake, process payload
 
 ```java
-// Skip configuration lines in log file
-Traversal<String, String> runtimeLogs =
-    StringTraversals.lined()
-        .filtered(line -> !line.startsWith("[CONFIG]"));
+// Skip the leading configuration block in a log
+Traversal<List<String>, String> runtimeLogs =
+    ListTraversals.droppingWhile(line -> line.startsWith("[CONFIG]"));
 
 // Apply to log data
-String logs = "[CONFIG] Database URL\n[CONFIG] Port\nINFO: System started\nERROR: Connection failed";
-String result = Traversals.modify(runtimeLogs, String::toUpperCase, logs);
-// Result: "[CONFIG] Database URL\n[CONFIG] Port\nINFO: SYSTEM STARTED\nERROR: CONNECTION FAILED"
+List<String> logs = List.of(
+    "[CONFIG] Database URL", "[CONFIG] Port",
+    "INFO: System started", "ERROR: Connection failed");
+List<String> result = Traversals.modify(runtimeLogs, String::toUpperCase, logs);
+// Result: ["[CONFIG] Database URL", "[CONFIG] Port",
+//          "INFO: SYSTEM STARTED", "ERROR: CONNECTION FAILED"]
+// Note: a [CONFIG] line appearing AFTER runtime lines would be modified too;
+// droppingWhile only skips the leading prefix
 ```
 
 ### Step 8: Single Element Access with `element(int)`
@@ -352,30 +357,30 @@ List<Product> outOfBounds = Traversals.getAll(
 - **`Ixed`**: For dynamic indexed access, more general type class approach
 
 ```java
-// Compose element() with nested structures
+// Compose element() with nested structures (the explicit witness pins the element type)
 Traversal<List<List<Product>>, Product> secondListThirdProduct =
-    ListTraversals.element(1)  // Second list
+    ListTraversals.<List<Product>>element(1)  // Second list
         .andThen(ListTraversals.element(2));  // Third product in that list
 
-// Ixed for dynamic access
-IxedInstances.listIxed().ix(userProvidedIndex).getOptional(products);
+// Ixed for dynamic access (see Indexed Access, next chapter)
+Optional<Product> chosen =
+    IxedInstances.get(IxedInstances.listIx(), userProvidedIndex, products);
 ```
 
 ### Combining Predicate-Based and Index-Based Traversals
 
-The real power emerges when mixing approaches:
+One thing `andThen` cannot do: chain two list-level slices. `ListTraversals.taking(10).andThen(ListTraversals.takingWhile(...))` does not compile, because `andThen` continues from the *element* type, and a second slice needs the *list*. Apply slices in sequence instead:
 
 ```java
-// Take first 10 products where stock > 0, then filter by price
-Traversal<List<Product>, Product> topAffordableInStock =
-    ListTraversals.taking(10)
-        .andThen(ListTraversals.takingWhile(p -> p.stock() > 0))
-        .filtered(p -> p.price() < 30.0);
+// Take the first 10 products, then the leading in-stock run of those
+List<Product> firstTen =
+    Traversals.getAll(ListTraversals.taking(10), products);
+List<Product> steadyPrefix =
+    Traversals.getAll(ListTraversals.takingWhile(p -> p.stock() > 0), firstTen);
 
-// Skip warmup period, then take next 100 events
-Traversal<List<Event>, Event> steadyState =
-    ListTraversals.droppingWhile(e -> e.isWarmup())
-        .andThen(ListTraversals.taking(100));
+// A slice does compose with element-level optics: filter within the first ten
+Traversal<List<Product>, Product> affordableOfFirstTen =
+    ListTraversals.<Product>taking(10).filtered(p -> p.price() < 30.0);
 ```
 
 ---
@@ -386,10 +391,10 @@ All limiting traversal methods handle edge cases gracefully and consistently:
 
 | Edge Case | Behaviour | Rationale |
 |-----------|-----------|-----------|
-| **`n < 0`** | Treated as 0 (identity traversal) | Graceful degradation, no exceptions |
+| **`n < 0`** | Treated as 0: `taking`/`takingLast` focus nothing; `dropping`/`droppingLast` focus everything | Graceful degradation, no exceptions |
 | **`n > list.size()`** | Clamped to list bounds | Focus on all available elements |
 | **Empty list** | Returns empty list unchanged | No elements to focus on |
-| **`from >= to` in slicing** | Identity traversal (no focus) | Empty range semantics |
+| **`from >= to` in slicing** | Empty traversal (no focus) | Empty range semantics |
 | **Negative `from` in slicing** | Clamped to 0 | Start from beginning |
 
 ```java
@@ -400,9 +405,10 @@ List<Integer> numbers = List.of(1, 2, 3);
 List<Integer> result1 = Traversals.getAll(ListTraversals.taking(100), numbers);
 // Returns: [1, 2, 3]
 
-// Negative n: identity (no focus)
+// Negative n with taking: treated as 0, so no focus
 List<Integer> result2 = Traversals.getAll(ListTraversals.taking(-5), numbers);
 // Returns: []
+// (dropping(-5) is also treated as dropping(0), which focuses on EVERY element)
 
 // Inverted range: no focus
 List<Integer> result3 = Traversals.getAll(ListTraversals.slicing(3, 1), numbers);
@@ -542,7 +548,7 @@ List<Product> result = Traversals.getAll(ListTraversals.taking(5), products)
 
 // Wrong expectation: Thinking it removes elements
 Traversal<List<Product>, Product> first3 = ListTraversals.taking(3);
-List<Product> modified = Traversals.modify(first3, Product::applyDiscount, products);
+List<Product> modified = Traversals.modify(first3, p -> p.applyDiscount(0.1), products);
 // modified.size() == products.size()! Structure preserved, not truncated
 
 // Over-engineering: Using slicing for single element
@@ -729,7 +735,7 @@ Regular stock: [Laptop, Mouse, Keyboard, Monitor, Webcam, Headset]
 
 ## The Relationship to Functional Programming Libraries
 
-For those familiar with functional programming, higher-kinded-j's limiting traversals are inspired by similar patterns in:
+For those familiar with functional programming, Higher-Kinded-J's limiting traversals are inspired by similar patterns in:
 
 ### Haskell's Lens Library
 
@@ -763,43 +769,42 @@ val firstN: Traversal[List[A], A] = ...
 * **Additional methods** like `takingLast` and `droppingLast` not standard in Haskell lens
 * **Edge case handling** follows Java conventions (no exceptions, graceful clamping)
 
-**Further Reading:**
-
-* [Haskell Lens Tutorial](https://hackage.haskell.org/package/lens-tutorial-1.0.4/docs/Control-Lens-Tutorial.html) - Original inspiration for optics
-* [Optics By Example](https://leanpub.com/optics-by-example) by Chris Penner - Comprehensive book on optics in Haskell
-* [Monocle Documentation](https://www.optics.dev/Monocle/) - Scala optics library with similar patterns
-* [Java Stream API](https://docs.oracle.com/en/java/javase/21/docs/api/java.base/java/util/stream/Stream.html) - Comparison with `limit()` and `skip()`
-
 ---
 
 ## Summary: The Power of Limiting Traversals
 
 Limiting traversals bring **positional focus** into the heart of your optic compositions:
 
-* **`taking(n)`**: Focus on first n elements
-* **`dropping(n)`**: Skip first n, focus on rest
-* **`takingLast(n)`**: Focus on last n elements
-* **`droppingLast(n)`**: Focus on all except last n
-* **`slicing(from, to)`**: Focus on index range [from, to)
+| Method | Focus |
+|--------|-------|
+| `taking(n)` | First n elements |
+| `dropping(n)` | Everything after the first n |
+| `takingLast(n)` | Last n elements |
+| `droppingLast(n)` | Everything except the last n |
+| `slicing(from, to)` | The index range [from, to) |
+| `takingWhile(p)` / `droppingWhile(p)` | The prefix a predicate accepts, or everything after it |
+| `element(i)` | The single element at index i |
 
-These tools transform how you work with list portions in immutable data structures:
+~~~admonish info title="Key Takeaways"
+* **Positional focus stays inside the composition**: "the first ten products" is an optic, chainable with lenses and filters, not a stream detour
+* **Out-of-range never throws**: every limiting traversal degrades to fewer (or zero) targets instead of an `IndexOutOfBoundsException`
+* **Predicates complement indices**: `takingWhile`/`droppingWhile` slice by condition where `taking`/`dropping` slice by count
+* **Structure is preserved**: only the focused elements change; the list keeps its length and order
+* **This is Stream's `limit`/`skip`, made composable**: the same intent, expressed as a reusable, type-safe path
+~~~
 
-| Before (Imperative) | After (Declarative) |
-|---------------------|---------------------|
-| Manual `subList()` with bounds checking | Single limiting traversal |
-| Index manipulation breaking composition | Positional focus as part of optic chain |
-| Explicit list reconstruction | Automatic structural preservation |
-| Mix of "what" and "how" | Pure expression of intent |
+~~~admonish tip title="See Also"
+- [List Decomposition](list_decomposition.md): head/tail and init/last access as prisms and affines
+- [Filtered Optics](filtered_optics.md): focusing by predicate across the whole list
+- [Traversals](traversals.md): the unrestricted bulk-update optic these methods refine
+~~~
 
-By incorporating limiting traversals into your toolkit, you gain:
-
-* **Expressiveness**: Say "first 10 products" once, compose with other optics
-* **Safety**: No `IndexOutOfBoundsException`; graceful edge case handling
-* **Composability**: Chain with lenses, prisms, filtered traversals seamlessly
-* **Immutability**: Structure preserved, only focused elements transformed
-* **Clarity**: Business logic separate from index arithmetic
-
-Limiting traversals represent the natural evolution of optics for list manipulation: where Stream's `limit()` and `skip()` meet the composable, type-safe world of functional optics, all whilst maintaining full referential transparency and structural preservation.
+~~~admonish tip title="Further Reading"
+- **Haskell**: [Lens Tutorial](https://hackage.haskell.org/package/lens-tutorial-1.0.4/docs/Control-Lens-Tutorial.html): original inspiration for optics
+- **Chris Penner**: [Optics By Example](https://leanpub.com/optics-by-example): comprehensive book on optics (Haskell)
+- **Scala**: [Monocle Documentation](https://www.optics.dev/Monocle/): optics library with similar patterns
+- **Java**: [Stream API](https://docs.oracle.com/en/java/javase/21/docs/api/java.base/java/util/stream/Stream.html): comparison with `limit()` and `skip()`
+~~~
 
 ---
 
