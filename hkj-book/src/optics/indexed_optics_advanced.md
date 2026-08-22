@@ -12,7 +12,7 @@ This page collects the advanced composition patterns and reference material that
 
 ---
 
-## Part II: Advanced Topics
+## Advanced Composition Patterns
 
 ### Composing Indexed Optics with Paired Indices
 
@@ -106,38 +106,20 @@ for (Pair<Pair<Integer, Integer>, LineItem> entry : all) {
 
 ---
 
-### Index Transformation and Mapping
+### Index Transformation
 
-You can transform indices whilst preserving the optic composition.
+There is no separate re-indexing combinator; transform the index inside the `imodify` function. Converting zero-based positions to one-based display numbers looks like this:
 
 ```java
-// Start with integer indices (0, 1, 2...)
 IndexedTraversal<Integer, List<LineItem>, LineItem> zeroIndexed =
     IndexedTraversals.forList();
 
-// Transform to 1-based indices (1, 2, 3...)
-IndexedTraversal<Integer, List<LineItem>, LineItem> oneIndexed =
-    zeroIndexed.reindex(i -> i + 1);
-
-List<LineItem> items = List.of(/* ... */);
-
-List<String> numbered = oneIndexed.imodify(
-    (index, item) -> "Item " + index + ": " + item.productName(),
-    items
-).stream()
-    .map(LineItem::productName)
-    .toList();
-// ["Item 1: Laptop", "Item 2: Mouse", "Item 3: Keyboard"]
-```
-
-**Note**: The `reindex` method is conceptual. In practice, you'd transform indices in your `imodify` function:
-
-```java
-IndexedTraversals.imodify(zeroIndexed, (zeroBasedIndex, item) -> {
+List<LineItem> numbered = IndexedTraversals.imodify(zeroIndexed, (zeroBasedIndex, item) -> {
     int oneBasedIndex = zeroBasedIndex + 1;
     return new LineItem("Item " + oneBasedIndex + ": " + item.productName(),
                         item.quantity(), item.price());
 }, items);
+// productNames: ["Item 1: Laptop", "Item 2: Mouse", "Item 3: Keyboard"]
 ```
 
 ---
@@ -248,14 +230,14 @@ When debugging complex nested updates, indexed optics reveal the complete path t
 // Nested structure with multiple levels
 record Item(String name, double price) {}
 record Order(List<Item> items) {}
-record Customer(String name, List<Order> orders) {}
+record Buyer(String name, List<Order> orders) {}
 
 // Build an indexed path through the structure
-IndexedTraversal<Integer, List<Customer>, Customer> customersIdx =
+IndexedTraversal<Integer, List<Buyer>, Buyer> buyersIdx =
     IndexedTraversals.forList();
 
-Lens<Customer, List<Order>> ordersLens =
-    Lens.of(Customer::orders, (c, o) -> new Customer(c.name(), o));
+Lens<Buyer, List<Order>> ordersLens =
+    Lens.of(Buyer::orders, (b, o) -> new Buyer(b.name(), o));
 
 IndexedTraversal<Integer, List<Order>, Order> ordersIdx =
     IndexedTraversals.forList();
@@ -270,36 +252,36 @@ Lens<Item, Double> priceLens =
     Lens.of(Item::price, (item, price) -> new Item(item.name(), price));
 
 // Compose the full indexed path
-IndexedTraversal<Pair<Pair<Integer, Integer>, Integer>, List<Customer>, Double> fullPath =
-    customersIdx
+IndexedTraversal<Pair<Pair<Integer, Integer>, Integer>, List<Buyer>, Double> fullPath =
+    buyersIdx
         .andThen(ordersLens.asTraversal())
         .iandThen(ordersIdx)
         .andThen(itemsLens.asTraversal())
         .iandThen(itemsIdx)
         .andThen(priceLens.asTraversal());
 
-List<Customer> customers = List.of(/* ... */);
+List<Buyer> buyers = List.of(/* ... */);
 
 // Modify with full path visibility
-List<Customer> updated = IndexedTraversals.imodify(fullPath,
+List<Buyer> updated = IndexedTraversals.imodify(fullPath,
     (indices, price) -> {
-        int customerIdx = indices.first().first();
+        int buyerIdx = indices.first().first();
         int orderIdx = indices.first().second();
         int itemIdx = indices.second();
 
         System.out.printf(
-            "Updating price at [customer=%d, order=%d, item=%d]: %.2f → %.2f%n",
-            customerIdx, orderIdx, itemIdx, price, price * 1.1
+            "Updating price at [buyer=%d, order=%d, item=%d]: %.2f -> %.2f%n",
+            buyerIdx, orderIdx, itemIdx, price, price * 1.1
         );
 
         return price * 1.1;  // 10% increase
     },
-    customers
+    buyers
 );
 // Output shows complete path to every modified price:
-// Updating price at [customer=0, order=0, item=0]: 999.99 → 1099.99
-// Updating price at [customer=0, order=0, item=1]: 24.99 → 27.49
-// Updating price at [customer=0, order=1, item=0]: 79.99 → 87.99
+// Updating price at [buyer=0, order=0, item=0]: 999.99 -> 1099.99
+// Updating price at [buyer=0, order=0, item=1]: 24.99 -> 27.49
+// Updating price at [buyer=0, order=1, item=0]: 79.99 -> 87.99
 // ...
 ```
 
@@ -372,6 +354,14 @@ public class OrderFulfilmentDashboard {
         Map<String, String> metadata
     ) {}
 
+    private static Map<String, String> metadataInOrder() {
+        Map<String, String> metadata = new LinkedHashMap<>();
+        metadata.put("priority", "express");
+        metadata.put("gift-wrap", "true");
+        metadata.put("delivery-note", "Leave at door");
+        return metadata;
+    }
+
     public static void main(String[] args) {
         Order order = new Order(
             "ORD-12345",
@@ -381,11 +371,9 @@ public class OrderFulfilmentDashboard {
                 new LineItem("Keyboard", 1, 79.99),
                 new LineItem("Monitor", 1, 299.99)
             ),
-            new LinkedHashMap<>(Map.of(
-                "priority", "express",
-                "gift-wrap", "true",
-                "delivery-note", "Leave at door"
-            ))
+            // Insertion order matters for the output below, so put() in order:
+            // wrapping Map.of would inherit its randomised iteration order.
+            metadataInOrder()
         );
 
         System.out.println("=== ORDER FULFILMENT DASHBOARD ===\n");
@@ -397,8 +385,8 @@ public class OrderFulfilmentDashboard {
         // --- Task 2: Apply Position-Based Discounts ---
         System.out.println("\n--- Position-Based Discounts ---");
         Order discounted = applyPositionDiscounts(order);
-        System.out.println("Original total: £" + calculateTotal(order));
-        System.out.println("Discounted total: £" + calculateTotal(discounted));
+        System.out.printf("Original total: £%.2f%n", calculateTotal(order));
+        System.out.printf("Discounted total: £%.2f%n", calculateTotal(discounted));
 
         // --- Task 3: Process Metadata with Key Awareness ---
         System.out.println("\n--- Metadata Processing ---");
@@ -544,7 +532,7 @@ Discounted total: £1417.95
 
 ## The Relationship to Haskell's Lens Library
 
-For those familiar with functional programming, higher-kinded-j's indexed optics are inspired by Haskell's [lens library](https://hackage.haskell.org/package/lens), specifically indexed traversals and indexed folds.
+For those familiar with functional programming, Higher-Kinded-J's indexed optics are inspired by Haskell's [lens library](https://hackage.haskell.org/package/lens), specifically indexed traversals and indexed folds.
 
 In Haskell:
 ```haskell
@@ -554,19 +542,10 @@ itraversed :: IndexedTraversal Int ([] a) a
 This creates an indexed traversal over lists where the index is an integer: exactly what our `IndexedTraversals.forList()` provides.
 
 **Key differences:**
-- Higher-kinded-j uses explicit `Applicative` instances rather than implicit type class resolution
+- Higher-Kinded-J uses explicit `Applicative` instances rather than implicit type class resolution
 - Java's type system requires explicit `Pair<I, A>` for index-value pairs
 - The `imodify` and `iget` methods provide a more Java-friendly API
 - Map-based traversals (`forMap`) are a practical extension for Java's collection library
-
-**Further Reading:**
-- [Haskell Lens Tutorial: Indexed Optics](https://hackage.haskell.org/package/lens-tutorial-1.0.4/docs/Control-Lens-Tutorial.html) - Original inspiration
-- [Optics By Example](https://leanpub.com/optics-by-example) by Chris Penner - Chapter on indexed optics
-- [Monocle (Scala)](https://www.optics.dev/Monocle/) - Similar indexed optics for Scala
-
-~~~admonish tip title="For Comprehension Integration"
-For a fluent, comprehension-style API for indexed traversal operations, see [For Comprehensions: Position-Aware Traversals with ForIndexed](../functional/for_comprehension.md#position-aware-traversals-with-forindexed). This provides an alternative syntax for position-based filtering, modifying, and collecting traversal targets.
-~~~
 
 ---
 
@@ -588,19 +567,27 @@ These tools transform how you work with collections and records:
 | Complex audit logging logic | Field tracking with `IndexedLens` |
 | Scattered position logic | Composable indexed transformations |
 
-By incorporating indexed optics into your toolkit, you gain:
+~~~admonish info title="Key Takeaways"
+* **`iandThen` pairs the indices**: composing indexed traversals yields `Pair<I, J>` paths, so "customer 0, order 1, item 2" is a value, not a log line
+* **Transform indices inside `imodify`**: there is no separate re-indexing combinator, and none is needed
+* **Layered filters compose**: `filterIndex` for position, `filtered` for value, `filteredWithIndex` for both at once
+* **`IndexedLens` powers audit trails**: the field name arrives with the old value, so change logging needs no reflection
+* **`Pair` is a first-class utility**: `withFirst`/`withSecond`/`swap`, plus `pairToTuple2`/`tuple2ToPair` to bridge into hkj-core
+~~~
 
-* **Expressiveness**: Say "numbered list items" declaratively
-* **Type safety**: Compile-time checked index types
-* **Composability**: Chain indexed optics, filter by position, compose with standard optics
-* **Debugging power**: Track complete paths through nested structures
-* **Audit trails**: Record which fields changed, not just values
-* **Performance**: Minimal overhead, lazy index computation
+~~~admonish tip title="See Also"
+- [Indexed Optics](indexed_optics.md): the basics this page builds on
+- [Position-Aware Traversals with ForIndexed](../functional/for_optics.md#position-aware-traversals-with-forindexed): comprehension-style position-aware filtering, modifying, and collecting
+- [Indexed Access](indexed_access.md): At and Ixed for single-key operations
+~~~
 
-Indexed optics represent the fusion of position awareness with functional composition: enabling you to write code that is simultaneously more declarative, more powerful, and more maintainable than traditional index-tracking approaches.
+~~~admonish tip title="Further Reading"
+- **Haskell**: [Lens Tutorial: Indexed Optics](https://hackage.haskell.org/package/lens-tutorial-1.0.4/docs/Control-Lens-Tutorial.html): original inspiration
+- **Chris Penner**: [Optics By Example](https://leanpub.com/optics-by-example): chapter on indexed optics
+- **Scala**: [Monocle](https://www.optics.dev/Monocle/): similar indexed optics for Scala
+~~~
 
 ---
 
 **Previous:** [Indexed Optics](indexed_optics.md)
 **Next:** [Each Typeclass](each_typeclass.md)
-

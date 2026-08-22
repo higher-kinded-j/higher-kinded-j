@@ -2,23 +2,21 @@
 
 ## *Adapting Optics to Different Data Types*
 
-
 ~~~admonish info title="What You'll Learn"
-- How to adapt existing optics to work with different data types
-- Using `contramap` to change source types and `map` to change target types
-- Combining both adaptations with `dimap` for complete format conversion
-- Creating reusable adapter patterns for API integration
-- Working with type-safe wrapper classes and legacy system integration
-- When to use profunctor adaptations vs creating new optics from scratch
+- Why every optic is a profunctor, and what `contramap`, `map`, and `dimap` really adapt
+- The write-side asymmetry: why `contramap` alone changes where reads come from but not what updates produce
+- Getting a fully-typed optic back: composition for nested sources, `Iso` for equivalent shapes, `Lens.of` for hand-rolled adapters
+- When the raw `Optic`-level operations are the right tool (one-way conversions, effectful pipelines)
+- When to adapt an existing optic versus creating a new one from scratch
 ~~~
 
-~~~admonish title="Example Code"
+~~~admonish example title="See Example Code"
 [OpticProfunctorExample](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/optics/profunctor/OpticProfunctorExample.java)
 ~~~
 
 In the previous optics guides, we explored how to work with data structures directly using `Lens`, `Prism`, `Iso`, and `Traversal`. But what happens when you need to use an optic designed for one data type with a completely different data structure? What if you want to adapt an existing optic to work with new input or output formats?
 
-This is where the **profunctor** nature of optics becomes invaluable. Every optic in higher-kinded-j is fundamentally a profunctor, which means it can be adapted to work with different source and target types using powerful transformation operations.
+This is where the **profunctor** nature of optics becomes invaluable. Every optic in Higher-Kinded-J is fundamentally an `Optic<S, T, A, B>`, and that shared interface carries the profunctor operations. Just as importantly, the everyday answers to "adapt this optic" are often the composition tools you already know; this page shows you which tool fits which job.
 
 ---
 
@@ -40,125 +38,107 @@ Consider this scenario: you have a well-tested `Lens` that operates on a `Person
 * **Lens filters**: Modifying what the optic sees (input) and what it produces (output)
 * **Pipeline adapters**: Connecting optics that weren't originally designed to work together
 
+---
+
 ## The Three Profunctor Operations
 
-Every optic provides three powerful adaptation methods that mirror the core profunctor operations:
+Every optic extends `Optic<S, T, A, B>`, which provides three adaptation methods:
 
-### 1. **`contramap`**: Adapting the Source Type
+| Operation | Signature (simplified) | Adapts |
+|-----------|------------------------|--------|
+| `contramap(f)` | `(C -> S) -> Optic<C, T, A, B>` | Where reads come *from* |
+| `map(g)` | `(T -> U) -> Optic<S, U, A, B>` | What updates *produce* |
+| `dimap(f, g)` | `(C -> S, T -> U) -> Optic<C, U, A, B>` | Both at once |
 
-The `contramap` operation allows you to adapt an optic to work with a different source type by providing a function that converts from the new source to the original source.
+Two things about this API matter in practice:
 
-**Use Case**: You have a `Lens<Person, String>` for getting a person's first name, but you want to use it with `Employee` objects.
+1. **The result is an `Optic`, not a `Lens` or `Traversal`.** An `Optic` supports `andThen` and the effectful `modifyF`, but not the convenience surface (`get`, `set`, `modify`). The profunctor operations shine in effectful pipelines; for everyday field access you usually want one of the typed routes below.
+2. **`contramap` alone is asymmetric.** `EmployeeLenses.department().contramap(dtoToEmployee)` reads from an `EmployeeDto`, but a modification still *produces* an `Employee` (the original structure type `T`). To get a full bridge you must also `map` the output back, which is exactly what `dimap` does:
 
+<!-- verify -->
 ```java
-// Original lens: Person -> String (first name)
-Lens<Person, String> firstNameLens = PersonLenses.firstName();
+Optic<EmployeeDto, EmployeeDto, String, String> departmentBridge =
+    EmployeeLenses.department().dimap(Adapters::dtoToEmployee, Adapters::employeeToDto);
 
-// Adapt it to work with Employee by providing the conversion
-Lens<Employee, String> employeeFirstNameLens = 
-    firstNameLens.contramap(employee -> employee.personalInfo());
-
-// Now you can use the adapted lens directly on Employee objects
-Employee employee = new Employee(123, new Person("Alice", "Johnson", ...), "Engineering");
-String firstName = employeeFirstNameLens.get(employee); // "Alice"
+// An Optic is driven through modifyF. Id is the no-op effect: it runs the
+// update purely, with no failure, async, or accumulation behaviour attached.
+EmployeeDto promoted =
+    ID.narrow(departmentBridge.modifyF(
+            dept -> Id.of("Senior " + dept), dto, IdMonad.instance()))
+        .value();
 ```
 
-### 2. **`map`**: Adapting the Target Type
+~~~admonish tip title="Why this matters"
+The profunctor operations are what make `modifyF` pipelines adaptable without rebuilding them: a validating update written against your domain model can be pointed at a wire DTO by supplying the two conversion functions, and nothing else changes. When you find yourself *also* wanting `get` and `set` on the adapted optic, that is the signal you have an isomorphism, and the next section gives you the full API back.
+~~~
 
-The `map` operation adapts an optic to work with a different target type by providing a function that converts from the original target to the new target.
+---
 
-**Use Case**: You have a `Lens<Person, LocalDate>` for birth dates, but you want to work with formatted strings instead.
+## Getting a Typed Optic Back
 
+The raw operations return `Optic`. In most day-to-day code you want a real `Lens` or `Traversal` back, and there are three idiomatic routes.
+
+### Route 1: Composition, when the new source *contains* the old
+
+The most common "contramap" wish is really a nested-field access, and `andThen` already does it, keeping every convenience method:
+
+<!-- verify -->
 ```java
-// Original lens: Person -> LocalDate
-Lens<Person, LocalDate> birthDateLens = PersonLenses.birthDate();
+// Employee contains a Person; compose instead of adapting
+Lens<Employee, String> employeeFirstName =
+    EmployeeLenses.personalInfo().andThen(PersonLenses.firstName());
 
-// Adapt it to work with formatted strings
-Lens<Person, String> birthDateStringLens = 
-    birthDateLens.map(date -> date.format(DateTimeFormatter.ISO_LOCAL_DATE));
-
-// The adapted lens now returns strings
-Person person = new Person("Bob", "Smith", LocalDate.of(1985, 12, 25), ...);
-String dateString = birthDateStringLens.get(person); // "1985-12-25"
+String name = employeeFirstName.get(employee);
+Employee shouted = employeeFirstName.modify(String::toUpperCase, employee);
 ```
 
-### 3. **`dimap`**: Adapting Both Source and Target Types
+### Route 2: An `Iso`, when the two shapes hold the same information
 
-The `dimap` operation is the most powerful: it adapts both the source and target types simultaneously. This is perfect for converting between completely different data representations.
+If your conversion functions form a lossless pair, they are an [Iso](iso.md), and composing with one keeps the whole API in either direction (`Lens >>> Iso = Lens`, and `Iso >>> Lens = Lens`). This is `dimap` with the power retained:
 
-**Use Case**: You have optics designed for internal `Person` objects but need to work with external `PersonDto` objects that use different field structures.
+<!-- verify -->
+```java
+// UserId is a wrapper around String: a textbook Iso
+Iso<UserId, String> userIdValue = Iso.of(UserId::value, UserId::new);
+
+// Reuse any String-side optic against the wrapper
+Lens<Account, UserId> accountUser = AccountLenses.userId();
+Lens<Account, String> accountUserRaw = accountUser.andThen(userIdValue);
+
+Account renamed = accountUserRaw.modify(String::toUpperCase, account);
+```
+
+### Route 3: `Lens.of`, when the adaptation is genuinely one-off
+
+When neither composition nor an Iso fits (the conversion is lopsided, or you only need one field bridged), build the adapted lens directly. This is the "profunctor-style" adaptation the runnable example demonstrates:
 
 ```java
-// Original traversal: Person -> String (hobbies)
-Traversal<Person, String> hobbiesTraversal = PersonTraversals.hobbies();
-
-// Adapt it to work with PersonDto (different source) and call them "interests" (different context)
-Traversal<PersonDto, String> interestsTraversal = 
-    hobbiesTraversal.dimap(
-        // Convert PersonDto to Person
-        dto -> new Person(
-            dto.fullName().split(" ")[0],
-            dto.fullName().split(" ")[1], 
-            LocalDate.parse(dto.birthDateString()),
-            dto.interests()
-        ),
-        // Convert Person back to PersonDto  
-        person -> new PersonDto(
-            person.firstName() + " " + person.lastName(),
-            person.birthDate().format(DateTimeFormatter.ISO_LOCAL_DATE),
-            person.hobbies()
-        )
-    );
+Lens<Employee, String> employeeFirstNameLens =
+    Lens.of(
+        employee -> PersonLenses.firstName().get(employee.personalInfo()),
+        (employee, newName) ->
+            new Employee(
+                employee.id(),
+                PersonLenses.firstName().set(newName, employee.personalInfo()),
+                employee.department()));
 ```
 
 ---
 
-## Decision Guide: When to Use Each Operation
+## Decision Guide: Which Adaptation Do You Need?
 
-### Use `contramap` When:
+```mermaid
+flowchart TD
+    Q{"How do the two<br/>types relate?"}
+    Q -->|"new source contains<br/>the old as a field"| C(["Compose with andThen"])
+    Q -->|"same information,<br/>two lossless shapes"| I(["Iso, then compose"])
+    Q -->|"one-way conversion,<br/>effectful modifyF pipeline"| D(["Optic contramap / map / dimap"])
+    Q -->|"anything lopsided<br/>or one-off"| L(["Hand-build with Lens.of"])
 
-* **Different source type, same target** - Existing optic works perfectly, just need different input
-* **Extracting nested data** - Your new type contains the old type as a field
-* **Wrapper type handling** - Working with strongly-typed wrappers around base types
-
-java
-
-```java
-// Perfect for extracting nested data
-Lens<Order, String> customerNameLens = 
-    OrderLenses.customer().contramap(invoice -> invoice.order());
-```
-
-### Use `map` When:
-
-* **Same source, different target format** - You want to transform the output
-* **Data presentation** - Converting raw data to display formats
-* **Type strengthening** - Wrapping raw values in type-safe containers
-
-java
-
-```java
-// Perfect for presentation formatting
-Lens<Product, String> formattedPriceLens = 
-    ProductLenses.price().map(price -> "£" + price.setScale(2));
-```
-
-### Use `dimap` When:
-
-* **Complete format conversion** - Both input and output need transformation
-* **API integration** - External systems use completely different data structures
-* **Legacy system support** - Bridging between old and new data formats
-* **Data migration** - Supporting multiple data representations simultaneously
-
-java
-
-```java
-// Perfect for API integration
-Traversal<ApiUserDto, String> apiRolesTraversal = 
-    UserTraversals.roles().dimap(
-        dto -> convertApiDtoToUser(dto),
-        userLogin -> convertUserToApiDto(userLogin)
-    );
+    classDef decision fill:#e5c890,stroke:#df8e1d,color:#232634
+    classDef tier fill:#a6d189,stroke:#40a02b,color:#232634
+    class Q decision
+    class C,I,D,L tier
 ```
 
 ---
@@ -167,190 +147,89 @@ Traversal<ApiUserDto, String> apiRolesTraversal =
 
 ### Don't Do This:
 
-
 ```java
-// Creating adapters inline repeatedly
-var lens1 = PersonLenses.firstName().contramap(emp -> emp.person());
-var lens2 = PersonLenses.firstName().contramap(emp -> emp.person());
-var lens3 = PersonLenses.firstName().contramap(emp -> emp.person());
+// Rebuilding the same adapter inline repeatedly
+var lens1 = EmployeeLenses.personalInfo().andThen(PersonLenses.firstName());
+var lens2 = EmployeeLenses.personalInfo().andThen(PersonLenses.firstName());
 
-// Over-adapting simple cases
-Lens<Person, String> nameUpper = PersonLenses.firstName()
-    .map(String::toUpperCase)
-    .map(s -> s.trim())
-    .map(s -> s.replace(" ", "_")); // Just write one function!
+// Expecting contramap alone to give a full bridge
+// (reads take a DTO, but updates still produce an Employee)
+var readOnlyBridge = EmployeeLenses.department().contramap(Adapters::dtoToEmployee);
 
-// Forgetting null safety in conversions
-Lens<EmployeeDto, String> unsafeLens = PersonLenses.firstName()
-    .contramap(dto -> dto.person()); // What if dto.person() is null?
-
-// Complex conversions without error handling
-Traversal<String, LocalDate> fragileParser = 
-    Iso.of(LocalDate::toString, LocalDate::parse).asTraversal()
-    .contramap(complexString -> extractDatePart(complexString)); // Might throw!
+// Pretending a lossy conversion is an Iso
+Iso<PersonDto, Person> lossy = Iso.of(
+    dto -> new Person(dto.fullName().split(" ")[0], "", null, List.of()),
+    person -> new PersonDto(person.firstName(), "", List.of()));  // Round trip loses data!
 ```
 
 ### Do This Instead:
 
 ```java
 // Create adapters once, reuse everywhere
-public static final Lens<Employee, String> EMPLOYEE_FIRST_NAME = 
-    PersonLenses.firstName().contramap(Employee::personalInfo);
+public static final Lens<Employee, String> EMPLOYEE_FIRST_NAME =
+    EmployeeLenses.personalInfo().andThen(PersonLenses.firstName());
 
-// Combine transformations efficiently
-Function<String, String> normalise = name -> 
-    name.toUpperCase().trim().replace(" ", "_");
-Lens<Person, String> normalisedNameLens = PersonLenses.firstName().map(normalise);
+// Use dimap when you need the bridge, and drive it through modifyF
+public static final Optic<EmployeeDto, EmployeeDto, String, String> DEPARTMENT_BRIDGE =
+    EmployeeLenses.department().dimap(Adapters::dtoToEmployee, Adapters::employeeToDto);
 
-// Handle null safety explicitly
-Lens<EmployeeDto, Optional<String>> safeNameLens = PersonLenses.firstName()
-    .contramap((EmployeeDto dto) -> Optional.ofNullable(dto.person()))
-    .map(Optional::of);
-
-// Use safe conversions with proper error handling
-Function<String, Either<String, LocalDate>> safeParse = str -> {
-    try {
-        return Either.right(LocalDate.parse(extractDatePart(str)));
-    } catch (Exception e) {
-        return Either.left("Invalid date: " + str);
-    }
-};
+// Reserve Iso for genuinely lossless pairs (wrappers, equivalent records)
+public static final Iso<UserId, String> USER_ID_VALUE = Iso.of(UserId::value, UserId::new);
 ```
+
+~~~admonish warning title="An Iso must not lose data"
+`Iso.of(get, reverseGet)` promises a lossless round trip, and the `IsoLaws` [law harness](../tooling/test_assertions.md) will hold you to it. A DTO conversion that drops or invents fields is not an Iso; route it through `@GenerateMapping` or a [Validated Prism](validated_prism.md) instead.
+~~~
+
 ---
 
 ## Performance Notes
 
-Profunctor adaptations are designed for efficiency:
-
-* **Automatic fusion**: Multiple `contramap` or `map` operations are automatically combined
-* **Lazy evaluation**: Conversions only happen when the optic is actually used
-* **No boxing overhead**: Simple transformations are inlined by the JVM
-* **Reusable adapters**: Create once, use many times without additional overhead
-
-**Best Practice**: Create adapted optics as constants and reuse them:
-
-
-```java
-public class OpticAdapters {
-    // Create once, use everywhere
-    public static final Lens<Employee, String> FIRST_NAME = 
-        PersonLenses.firstName().contramap(Employee::personalInfo);
-  
-    public static final Lens<Employee, String> FORMATTED_BIRTH_DATE = 
-        PersonLenses.birthDate()
-            .contramap(Employee::personalInfo)
-            .map(date -> date.format(DateTimeFormatter.DD_MM_YYYY));
-      
-    public static final Traversal<CompanyDto, String> EMPLOYEE_EMAILS = 
-        CompanyTraversals.employees()
-            .contramap((CompanyDto dto) -> convertDtoToCompany(dto))
-            .andThen(EmployeeTraversals.contacts())
-            .andThen(ContactLenses.email().asTraversal());
-}
-```
+* **Adapters are thin**: each operation wraps the underlying optic with the conversion functions; there is no reflection and no copying beyond what the conversions themselves do
+* **Reuse beats rebuilding**: store composed or adapted optics as constants, the same discipline as every other page
+* **Conversion cost is your cost**: a `dimap` bridge runs your two functions on every pass, so keep them cheap and total
 
 ---
 
 ## Real-World Example: API Integration
 
-Let's explore a comprehensive example where you need to integrate with an external API that uses different field names and data structures than your internal models.
+The runnable [OpticProfunctorExample](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/optics/profunctor/OpticProfunctorExample.java) walks a complete integration: an internal `Employee`/`Person` model, an external `EmployeeDto`/`PersonDto` wire format, and adapters hand-built with `Lens.of` (Route 3), including a formatted-date bridge that reads through a formatter and writes back through a parser, plus a conversion pair driven through `modifyF`. It compiles and runs on every build, so it is the reference when you wire your own.
 
-**The Scenario**: Your internal system uses `Employee` records, but the external API expects `EmployeeDto` objects with different field names:
-
-```java
-// Internal model
-@GenerateLenses
-@GenerateTraversals
-public record Employee(int id, Person personalInfo, String department) {}
-
-@GenerateLenses
-@GenerateTraversals  
-public record Person(String firstName, String lastName, LocalDate birthDate, List<String> skills) {}
-
-// External API model  
-@GenerateLenses
-public record EmployeeDto(int employeeId, PersonDto person, String dept) {}
-
-@GenerateLenses
-public record PersonDto(String fullName, String birthDateString, List<String> expertise) {}
-```
-
-**The Solution**: Create an adapter that converts between these formats while reusing your existing optics:
+The shape to copy:
 
 ```java
 public class ApiIntegration {
-  
-    // Conversion utilities
-    private static Employee dtoToEmployee(EmployeeDto dto) {
-        PersonDto personDto = dto.person();
-        String[] nameParts = personDto.fullName().split(" ", 2);
-        Person person = new Person(
-            nameParts[0],
-            nameParts.length > 1 ? nameParts[1] : "",
-            LocalDate.parse(personDto.birthDateString()),
-            personDto.expertise()
-        );
-        return new Employee(dto.employeeId(), person, dto.dept());
-    }
-  
-    private static EmployeeDto employeeToDto(Employee employee) {
-        Person person = employee.personalInfo();
-        PersonDto personDto = new PersonDto(
-            person.firstName() + " " + person.lastName(),
-            person.birthDate().toString(),
-            person.skills()
-        );
-        return new EmployeeDto(employee.id(), personDto, employee.department());
-    }
-  
-    // Adapted optics for API integration
-    public static final Lens<EmployeeDto, String> API_EMPLOYEE_DEPARTMENT = 
+
+    // One pair of conversion utilities, written once and tested
+    static Employee dtoToEmployee(EmployeeDto dto) { /* ... */ }
+    static EmployeeDto employeeToDto(Employee employee) { /* ... */ }
+
+    // Typed optics for everyday access, via composition
+    public static final Lens<Employee, String> FIRST_NAME =
+        EmployeeLenses.personalInfo().andThen(PersonLenses.firstName());
+
+    // A dimap bridge where the pipeline is effectful anyway
+    public static final Optic<EmployeeDto, EmployeeDto, String, String> DEPARTMENT =
         EmployeeLenses.department().dimap(
             ApiIntegration::dtoToEmployee,
-            ApiIntegration::employeeToDto
-        );
-  
-    public static final Lens<EmployeeDto, String> API_EMPLOYEE_FIRST_NAME = 
-        EmployeeLenses.personalInfo()
-            .andThen(PersonLenses.firstName())
-            .dimap(
-                ApiIntegration::dtoToEmployee,
-                ApiIntegration::employeeToDto
-            );
-  
-    public static final Traversal<EmployeeDto, String> API_EMPLOYEE_SKILLS = 
-        EmployeeTraversals.personalInfo()
-            .andThen(PersonTraversals.skills())
-            .dimap(
-                ApiIntegration::dtoToEmployee,
-                ApiIntegration::employeeToDto
-            );
-  
-    // Use the adapters seamlessly with external data
-    public void processApiData(EmployeeDto externalEmployee) {
-        // Update department using existing business logic
-        EmployeeDto promoted = API_EMPLOYEE_DEPARTMENT.modify(
-            dept -> "Senior " + dept, 
-            externalEmployee
-        );
-    
-        // Normalise skills using existing traversal logic
-        EmployeeDto normalisedSkills = Traversals.modify(
-            API_EMPLOYEE_SKILLS,
-            skill -> skill.toLowerCase().trim(),
-            externalEmployee
-        );
-    
-        sendToApi(promoted);
-        sendToApi(normalisedSkills);
-    }
+            ApiIntegration::employeeToDto);
 }
 ```
 
 ---
 
+~~~admonish info title="Key Takeaways"
+* **Every optic is an `Optic<S, T, A, B>`**: `contramap`, `map`, and `dimap` live there, adapting the `modifyF` pipeline and returning an `Optic`
+* **`contramap` alone is read-side only**: updates still produce the original structure type; a full bridge needs `dimap`
+* **Composition is the everyday "contramap"**: when the new source contains the old, `andThen` keeps the full typed API
+* **A lossless pair is an `Iso`**: compose it and keep `get`/`set`/`modify`; that is `dimap` with the power retained
+* **`Lens.of` is the honest fallback**: hand-build the adapter when the relationship is lopsided or one-off
+~~~
+
 ~~~admonish tip title="See Also"
-- [Profunctor Optics: Recipes](profunctor_optics_recipes.md), wrapper-type recipes, V1/V2 migration adapters, and a complete runnable example.
+- [Profunctor Optics: Recipes](profunctor_optics_recipes.md): wrapper-type recipes, V1/V2 migration adapters, and a complete runnable example
+- [Isomorphisms](iso.md): the lossless conversions that keep the full optic API
+- [Composition Rules](composition_rules.md): what `andThen` yields for every optic pairing
 ~~~
 
 ---

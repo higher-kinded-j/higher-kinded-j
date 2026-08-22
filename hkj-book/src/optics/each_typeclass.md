@@ -1,6 +1,6 @@
 # Each: Canonical Element-Wise Traversal
 
-## _Simplicity is the ultimate sophistication_
+## _One Canonical Traversal per Container_
 
 > *"Simplicity is the ultimate sophistication."*
 >
@@ -16,7 +16,7 @@
 - When to use `Each` vs direct `Traversal` creation
 ~~~
 
-~~~admonish title="Example Code"
+~~~admonish example title="See Example Code"
 [EachInstancesExample](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/optics/EachInstancesExample.java)
 ~~~
 
@@ -69,8 +69,6 @@ The key insight: `Each` abstracts the *how* of traversal, letting you focus on t
 
 ## The Each Type Class
 
-![each_typeclass.svg](../images/puml/each_typeclass.svg)
-
 ```java
 @FunctionalInterface
 public interface Each<S, A> {
@@ -78,7 +76,9 @@ public interface Each<S, A> {
     // The canonical traversal for all elements
     Traversal<S, A> each();
 
-    // Check if indexed access is supported (i.e. this is an EachIndexed)
+    // Check if indexed access is supported (i.e. this is an EachIndexed).
+    // The real body also falls back to the deprecated eachWithIndex() for
+    // back-compatibility; that member is omitted here for clarity.
     default boolean supportsIndexed() {
         return this instanceof EachIndexed<?, ?, ?>;
     }
@@ -197,8 +197,8 @@ List<String> all = Traversals.getAll(traversal, names);
 List<String> upper = Traversals.modify(traversal, String::toUpperCase, names);
 // Result: ["ALICE", "BOB", "CHARLIE"]
 
-// Set all elements to the same value
-List<String> same = Traversals.set(traversal, "anonymous", names);
+// Set all elements to the same value (set is modify with a constant)
+List<String> same = Traversals.modify(traversal, _ -> "anonymous", names);
 // Result: ["anonymous", "anonymous", "anonymous"]
 ```
 
@@ -231,18 +231,26 @@ IndexedTraversal<String, Map<String, Integer>, Integer> indexed = mapEach.indexe
 
 Map<String, Integer> scores = Map.of("alice", 100, "bob", 85, "charlie", 92);
 
-// Add key prefix to each value's string representation
-Map<String, String> labelled = IndexedTraversals.imodify(
+// Award a bonus point to one particular entrant, by key
+Map<String, Integer> adjusted = IndexedTraversals.imodify(
     indexed,
-    (key, value) -> key + ": " + value,
+    (key, value) -> key.equals("bob") ? value + 5 : value,
     scores
 );
-// Result: {"alice": "alice: 100", "bob": "bob: 85", ...}
+// Result: {"alice": 100, "bob": 90, "charlie": 92}
+
+// A traversal cannot change the value type: imodify takes A -> A and returns the
+// same map type. To build a differently-typed map, extract the pairs and collect:
+Map<String, String> labelled =
+    IndexedTraversals.toIndexedList(indexed, scores).stream()
+        .collect(toMap(Pair::first, pair -> pair.first() + ": " + pair.second()));
 ```
 
 ---
 
 ## Integration with Focus DSL
+
+The Focus DSL is covered properly in [Java-Friendly APIs](focus_dsl.md); this section shows only where `Each` plugs into it, so skim it now and return when you reach that chapter.
 
 The Focus DSL provides an `.each(Each)` method on `FocusPath`, `AffinePath`, and `TraversalPath`. This enables fluent navigation through custom container types:
 
@@ -275,6 +283,8 @@ This is particularly useful when the container type isn't a standard `List` that
 ---
 
 ## Creating Custom Each Instances
+
+A custom instance implements `each()` by writing the traversal's `modifyF` directly; its `F extends WitnessArity<TypeArity.Unary>` bound is the same one `Traversal.modifyF` carries, naming the applicative effect the traversal runs in.
 
 For custom container types, implement the `Each` interface:
 
@@ -361,11 +371,11 @@ Each<List<Order>, Order> orderEach = EachInstances.listEach();
 Traversal<List<Order>, Order> allOrders = orderEach.each();
 
 // Validate all orders, accumulating errors
-Validated<List<String>, List<Order>> result = allOrders.modifyF(
+Validated<List<String>, List<Order>> result = VALIDATED.narrow(allOrders.modifyF(
     order -> validateOrder(order),
     orders,
-    ValidatedApplicative.instance(Semigroups.list())
-);
+    Instances.validated(Semigroups.list())
+));
 ```
 
 ### Conditional Modification with Index
@@ -428,10 +438,10 @@ User updated = allTasks.modifyAll(Task::markReviewed, user);
 ~~~
 
 ~~~admonish tip title="See Also"
-- [Traversals](traversals.md) - Understanding the Traversal optic
-- [Indexed Optics](indexed_optics.md) - Position-aware operations with IndexedTraversal
-- [Focus DSL](focus_dsl.md) - Fluent path-based navigation
-- [Foldable and Traverse](../functional/foldable_and_traverse.md) - The HKT Traverse type class
+- [Traversals](traversals.md): understanding the Traversal optic
+- [Indexed Optics](indexed_optics.md): position-aware operations with IndexedTraversal
+- [Focus DSL](focus_dsl.md): fluent path-based navigation
+- [Foldable and Traverse](../functional/foldable_and_traverse.md): the HKT Traverse type class
 ~~~
 
 ---
