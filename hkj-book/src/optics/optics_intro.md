@@ -155,6 +155,8 @@ An **Affine** focuses on **zero or one** value: an optional field, a nullable pr
 @GenerateLenses
 record ContactInfo(String email, Optional<String> phone) {}
 
+ContactInfo contact = new ContactInfo("ada@example.com", Optional.of("020 7946 0958"));
+
 // Lens into the Optional field, then Affines.some() into its content
 Affine<ContactInfo, String> contactToPhone =
     ContactInfoLenses.phone().andThen(Affines.some());
