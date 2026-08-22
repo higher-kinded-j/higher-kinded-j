@@ -344,7 +344,7 @@ The result type of a composition is not a convenience, it is a promise. When `Le
 
 ~~~admonish info title="Key Takeaways"
 * **The result is the most specific type that honours both**: composing two optics yields the least powerful interface both operations can satisfy
-* **A prism anywhere makes absence possible**: expect an `Affine` (zero-or-one) or `Traversal` (zero-or-more) as soon as matching can fail
+* **A prism anywhere makes absence possible**: mixed with a `Lens` or `Affine` the chain drops to `Affine`, and through a `Traversal` the whole chain is a `Traversal`; `Prism >>> Prism` itself stays a `Prism`, still zero-or-one but keeping `build`
 * **`Iso` is invisible in composition**: `Iso >>> X = X`, which is what makes it the universal adapter
 * **`andThen` keeps precise types; `asTraversal` is the generic fallback**; `plus()` combines parallel paths read-only, as a `Fold`
 * **Store complex compositions as constants**: the rules make their types predictable, so name them once and reuse

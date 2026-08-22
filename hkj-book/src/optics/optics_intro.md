@@ -8,7 +8,7 @@ Ready to master optics through practice? The **[Optics Tutorial Track](../tutori
 
 ~~~admonish info title="What You'll Learn"
 - What optics are and how they solve the nested immutable data update problem in Java
-- The five core optic types: Lens, Iso, Prism, Traversal, and Fold, and when to use each
+- The six core optic types: Lens, Iso, Prism, Affine, Traversal, and Fold, and when to use each
 - How to compose optics to navigate and modify deeply nested structures
 - Using annotation-driven code generation to create type-safe optics automatically
 - Performing effectful modifications with Higher-Kinded Types using `modifyF` and Applicatives
@@ -51,6 +51,7 @@ Think of an optic as a *zoom lens* for your data. It's a first-class object that
 
 * **Lens**: A magnifying glass that focuses on one specific part
 * **Prism**: A tool that splits light, but only works with certain types of light
+* **Affine**: A magnifying glass for a slot that may be empty
 * **Iso**: A universal translator between equivalent languages
 * **Traversal**: A spotlight that can illuminate many targets at once
 * **Fold**: A read-only query tool that extracts and aggregates data
@@ -60,11 +61,13 @@ Every optic provides two basic capabilities:
 1. **`get`**: Focus on a structure `S` and retrieve a part `A`.
 2. **`set`**: Focus on a structure `S`, provide a new part `A`, and receive a new `S` with the part updated. This is always an immutable operation: a new copy of `S` is returned.
 
+The read-only `Fold` is the deliberate exception: it queries but never writes.
+
 The real power comes from their **composability**. You can chain optics together to peer deeply into nested structures and perform targeted updates with ease.
 
 ## The Optics Family in Higher-Kinded-J
 
-The `higher-kinded-j` library provides the foundation for a rich optics library built around five core types. Each is designed to solve a specific kind of data access problem.
+The `higher-kinded-j` library provides the foundation for a rich optics library built around six core types. Each is designed to solve a specific kind of data access problem.
 
 ### 1. Lens: For "Has-A" Relationships
 
@@ -141,7 +144,26 @@ DomainErrorPrisms.shippingError()
    .ifPresent(this::handleRecovery); // Perform action only if it's the right type
 ```
 
-### 4. Traversal: For "Has-Many" Relationships
+### 4. Affine: For "Might-Be-There" Relationships
+
+An **Affine** focuses on **zero or one** value: an optional field, a nullable property, or any path where the target may be absent but can never occur twice. It behaves like a Lens whose focus is not guaranteed, and it is exactly what you get when you compose a Lens with a Prism.
+
+* **Problem it solves**: Safely reading and updating a value inside an `Optional` field without unwrapping it by hand.
+* **Example**: To reach a phone number stored as `Optional<String>`:
+
+```java
+@GenerateLenses
+record ContactInfo(String email, Optional<String> phone) {}
+
+// Lens into the Optional field, then Affines.some() into its content
+Affine<ContactInfo, String> contactToPhone =
+    ContactInfoLenses.phone().andThen(Affines.some());
+
+Optional<String> phone = contactToPhone.getOptional(contact);       // empty when absent
+ContactInfo updated = contactToPhone.modify(String::trim, contact); // no-op when absent
+```
+
+### 5. Traversal: For "Has-Many" Relationships
 
 A **Traversal** is an optic that can focus on multiple targets at once, typically all the items within a collection inside a larger structure.
 
@@ -162,7 +184,7 @@ A **Traversal** is an optic that can focus on multiple targets at once, typicall
   );
   ```
 
-### 5. Fold: For "Has-Many" Queries
+### 6. Fold: For "Has-Many" Queries
 
 A **Fold** is a read-only optic designed specifically for querying and extracting data without modification. Think of it as a `Traversal` that has given up the ability to modify in exchange for a clearer expression of intent and additional query-focused operations.
 
@@ -240,7 +262,7 @@ The [decision flow at the chapter opening](ch1_intro.md#which-optic-do-you-need)
 **Don't do this:**
 
 ```java
-// Calling get() multiple times is inefficient
+// Get-then-set traverses the path twice
 var street = userToStreetName.get(user);
 var updatedUser = userToStreetName.set(street.toUpperCase(), user);
 ```
@@ -254,7 +276,7 @@ var updatedUser = userToStreetName.modify(String::toUpperCase, user);
 
 ~~~admonish info title="Key Takeaways"
 * **Optics are composable, reusable paths**: first-class getter/setter objects you chain with `andThen` to reach any depth, replacing the copy-and-update cascade
-* **Five core types, one decision**: Lens (always there), Prism (might match), Iso (same information, different shape), Traversal (many targets), Fold (read-only queries)
+* **Six core types, one decision**: Lens (always there), Prism (might match), Affine (might be there), Iso (same information, different shape), Traversal (many targets), Fold (read-only queries)
 * **The annotations write the boilerplate**: `@GenerateLenses`, `@GeneratePrisms`, `@GenerateIsos`, `@GenerateTraversals`, and `@GenerateFolds` keep the optics in sync with your records
 * **`modifyF` makes any settable path effect-ready**: failable, accumulating, or asynchronous updates through the same optic; [Lenses](lenses.md) shows it in action
 ~~~

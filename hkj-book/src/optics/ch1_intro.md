@@ -43,7 +43,7 @@ flowchart TD
 ```
 
 ~~~admonish tip title="Why this matters"
-Three things separate these optics from a bag of getter helpers. They are **generated**: annotate a record and the boilerplate is the processor's problem, forever in sync with the fields. They are **effect-ready**: the same path that does a pure `set` today runs a validating, accumulating, or asynchronous update tomorrow through `modifyF`, because every optic is generic over an `Applicative`. And they are **lawful**: the round-trip laws each optic must satisfy are published in `hkj-test` and checked, not assumed.
+Three things separate these optics from a bag of getter helpers. They are **generated**: annotate a record and the boilerplate is the processor's problem, forever in sync with the fields. They are **effect-ready**: the same path that does a pure `set` today runs a validating, accumulating, or asynchronous update tomorrow through `modifyF`, because every settable optic is generic over an `Applicative`. And they are **lawful**: the round-trip laws each optic must satisfy are published in `hkj-test` and checked, not assumed.
 ~~~
 
 This section introduces the fundamental optics: Lens for product types (records with fields), Prism for sum types (sealed interfaces with variants), Affine for zero-or-one focus, and Iso for reversible conversions. By the end, you'll understand not only how each works, but when to reach for one over another.
