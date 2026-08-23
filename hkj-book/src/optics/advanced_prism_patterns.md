@@ -888,7 +888,7 @@ Use it for exclusion filtering and for guard clauses; use `matches` everywhere e
 * **A prism is a routing primitive**: configuration layers, API responses, events, states, and plugins are all "which variant is this?" questions
 * **Compose the prism once, reuse it everywhere**: layered fallbacks and deep extractions are values, not call-site logic
 * **`matches`/`modifyWhen` keep intent visible**: conditional processing reads as the rule, not as an `instanceof` cascade
-* **Sealed hierarchies make routing exhaustive**: adding a variant breaks compilation where a string-keyed router would fail silently
+* **Sealed hierarchies make the variants explicit**: the compiler knows the whole set, so an exhaustive pattern `switch` fails to compile when one is added. Prism-based routing does not get that check for free, so pair it with a `switch` where coverage has to be guaranteed
 * **Production patterns are compositions of the basics**: `getOptional`, `matches`, `mapOptional`, and `modifyWhen` carry every pattern here
 ~~~
 

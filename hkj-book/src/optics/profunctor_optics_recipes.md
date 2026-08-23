@@ -46,12 +46,15 @@ public class WrapperAdapters {
 
     // Usage examples
     public User normaliseUser(User user) {
-        return USER_NAME_STRING.modify(name ->
-            Arrays.stream(name.toLowerCase().split(" "))
+        return USER_NAME_STRING.modify(name -> {
+            String trimmed = name.trim();
+            if (trimmed.isEmpty()) {
+                return name;   // split("\\s+") on "" yields one empty token, and charAt(0) would throw
+            }
+            return Arrays.stream(trimmed.toLowerCase().split("\\s+"))
                 .map(word -> Character.toUpperCase(word.charAt(0)) + word.substring(1))
-                .collect(joining(" ")),
-            user
-        );
+                .collect(joining(" "));
+        }, user);
     }
 
     public User updateEmailDomain(User user, String newDomain) {
@@ -86,7 +89,9 @@ public class MigrationAdapters {
     // A V1-shaped "name" view over V2 data: reads join, writes split
     public static final Lens<PersonV2, String> V2_FULL_NAME =
         Lens.of(
-            v2 -> v2.firstName() + " " + v2.lastName(),
+            v2 -> v2.lastName().isEmpty()
+                ? v2.firstName()                                 // no trailing separator, so set-then-get round-trips
+                : v2.firstName() + " " + v2.lastName(),
             (v2, name) -> {
                 String[] parts = name.split(" ", 2);
                 return new PersonV2(

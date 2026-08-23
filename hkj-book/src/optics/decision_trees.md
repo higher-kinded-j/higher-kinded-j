@@ -105,7 +105,7 @@ The decision trees that appear in scattered form across the chapter intros are c
 | Build optic operations as data, run later | [Free Monad DSL](free_monad_dsl.md) |
 | Audit trail of every optic operation | [Free Monad DSL with logging interpreter](interpreters.md) |
 | Reuse an optic for a type you cannot annotate | [`@ImportOptics`](importing_optics.md) or an [`OpticsSpec`](optics_spec_interfaces.md) interface |
-| Adapt an optic to a different data shape | [Compose, or bridge with an `Iso`](profunctor_optics.md) |
+| Adapt an optic to a different data shape | [Compose when the source nests, an `Iso` when the shapes are equivalent, `Lens.of` when it is lopsided, `dimap` when it is one-way](profunctor_optics.md) |
 
 ---
 

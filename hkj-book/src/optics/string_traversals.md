@@ -480,7 +480,7 @@ public class TextProcessing {
 Like every traversal, string traversals accept effects through `modifyF`. Validating each word and accumulating every failure:
 
 ```java
-import static org.higherkindedj.hkt.instances.Witnesses.validated;
+import static org.higherkindedj.hkt.validated.ValidatedKindHelper.VALIDATED;
 
 Traversal<String, String> words = StringTraversals.worded();
 
@@ -501,7 +501,7 @@ Validated<List<String>, String> result = VALIDATED.narrow(
 * **Composition replaces regex ceremony**: `lined().filtered(...)` reads as the rule it implements, and the pieces are reusable
 * **Shape is preserved, whitespace is not**: modification rebuilds the same units, but `worded()` collapses runs of whitespace and `lined()` normalises line endings, so an identity modify is not always the identity
 * **Effects work here too**: `modifyF` with `Validated` accumulates every bad word or line in one pass
-* **Reach for regex or Streams when reshaping**: string traversals transform in place; they do not split, join, or regroup
+* **Reach for regex or Streams when reshaping**: a string traversal splits the text and rebuilds it, but you only get to transform the units it found. Changing how many there are, or how they group, is outside what it can express
 ~~~
 
 ~~~admonish tip title="See Also"

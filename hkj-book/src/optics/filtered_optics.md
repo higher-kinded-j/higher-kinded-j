@@ -422,8 +422,8 @@ boolean isActive = user.active();
 
 Filtered optics are optimised for efficiency:
 
-* **No intermediate collections**: filtering happens during traversal, not before
-* **Structural sharing**: unmodified parts of the structure are reused
+* **No pre-filtering pass**: the predicate is applied during the traversal, not in a separate pass beforehand
+* **Element reuse**: elements the predicate rejects are carried over by reference; the list container itself is rebuilt by `ListTraverse.traverse`
 * **Single pass**: both filtering and transformation occur in one traversal (every element is visited; the predicate decides whether the function applies)
 
 **Best Practice**: Store frequently-used filtered traversals as constants:

@@ -648,7 +648,7 @@ List<Pair<Integer, String>> renumbered = IntStream.range(0, pairs.size())
 Indexed optics are designed to be efficient:
 
 * **No additional traversals**: the index is computed during the normal iteration
-* **Minimal overhead**: index tracking adds one counter and a `Pair` per focused element
+* **Minimal overhead**: `forList()` and `forMap()` hand the index and value straight to your function, so nothing is allocated per focus. A `Pair` appears only where one is the result: `toIndexedList`, indexed folds, and `iandThen` composition
 * **Reusable compositions**: indexed optics can be composed once and cached
 
 **Best Practice**: Create indexed optics once and store as constants:

@@ -34,6 +34,7 @@ public class OptimisedPrismCache {
     // so it cannot simply be a `static final` constant.
     // Note the explicit witnesses: a bare Prisms.some() would infer Object here.
     public static Traversal<Settings, String> settingAt(String key) {
+        Objects.requireNonNull(key, "key");   // else settingAt(null) and settingAt("null") share a cache entry
         return getCached("settings." + key, () ->
             SettingsLenses.entries()
                 .asTraversal()
