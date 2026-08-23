@@ -19,7 +19,7 @@
 
 It's quarter to five. The on-call channel pings: "What did that endpoint *actually* do? It just hammered the user service with twelve thousand ids in one call and the SREs are unhappy." You look at the code. It's an optic traversal. It batched, just as designed. The optic did exactly what you asked it to do. The problem is that nobody asked beforehand whether that was a sensible thing to ask.
 
-That is what this chapter is about. Three things you want, once an optic run has any chance of producing a sizeable batch.
+That is what this page is about. Three things you want, once an optic run has any chance of producing a sizeable batch.
 
 | Question | When you ask it | Answer |
 |---|---|---|
@@ -33,9 +33,32 @@ Two small primitives, one familiar railway pattern, no surprises.
 
 ## "What Would Round 1 Be?"
 
-A `Fetch` program is a value. It hasn't run yet. You can pull its first round's pending-key set out without touching a backend, which is what `Plans.preflight` does:
+A `Fetch` program is a value. It hasn't run yet. `program` throughout this page is the one built on [Optic-Driven Batching](optic_batching.md): an optic over a team's member ids with `FetchApplicative` as the strategy, not yet handed to a runner. You can pull its first round's pending-key set out without touching a backend, which is what `Plans.preflight` does:
 
-![optic_batching_preflight.svg](../images/puml/optic_batching_preflight.svg)
+```mermaid
+sequenceDiagram
+    participant C as Caller
+    participant P as Fetch program
+    participant R as Runner
+    participant B as Backend
+
+    Note over C,B: Online: Fetch.runCached, real I/O
+    C->>R: runCached(program, resolver)
+    R->>P: pending()
+    P-->>R: { id_1 ... id_N }
+    R->>B: resolver({ id_1 ... id_N })
+    B-->>R: { id_1: v_1 ... id_N: v_N }
+    R-->>C: RunResult(value, rounds=1, fetchedBatches=[...])
+
+    Note over C,B: Offline: Plans.preflight, no I/O
+    C->>R: preflight(program)
+    R->>P: pending()
+    P-->>R: { id_1 ... id_N }
+    Note right of R: resume with stub nulls:<br/>no backend, no values, no side effects
+    R->>P: resume(stub map)
+    P-->>R: Done, or another Blocked
+    R-->>C: Plan(fetchedBatches=[...], truncated=?)
+```
 
 Top half: the real run, the one that bills your cloud account. Bottom half: the inspection, the one you can put inside an `assertThat`. Same keysets. Different boundary.
 
@@ -62,7 +85,29 @@ A traversal that collapses N foci to a single batched call is *one round*. Its k
 
 The other half of the chapter doesn't ask offline; it asks at the round boundary, during the real run, just before each dispatch. That's a `Guard`:
 
-![optic_batching_guard.svg](../images/puml/optic_batching_guard.svg)
+```mermaid
+sequenceDiagram
+    participant C as Caller
+    participant R as Runner
+    participant G as Guard
+    participant B as Resolver
+
+    C->>R: runCached(program, resolver, guard)
+    loop per round
+        R->>R: compute uncached keyset
+        R->>G: check(keys, roundIndex)
+        alt keys within budget
+            G-->>R: pass
+            R->>B: resolver(keys)
+            B-->>R: values
+        else budget exceeded
+            G-->>R: throw GuardViolationException
+            Note over R,B: resolver is never called
+            R-->>C: exception, or Either.left via SafeFetch
+        end
+    end
+    R-->>C: RunResult
+```
 
 ```java
 // Refuse a round that would dispatch more than 500 keys.

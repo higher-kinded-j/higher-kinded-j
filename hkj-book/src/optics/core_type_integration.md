@@ -91,7 +91,7 @@ Without these, a `Maybe` or an `Either` in the middle of a path forces you out o
 
 Higher-Kinded-J provides two integrated solutions for working with core types and optics:
 
-### 1. Core Type Prisms – Pattern Matching on Functional Types
+### 1. Core Type Prisms: Pattern Matching on Functional Types
 
 Extract values from `Maybe`, `Either`, `Validated`, and `Try` using prisms, just as you would with sealed interfaces.
 
@@ -108,7 +108,7 @@ Optional<Order> order = successPrism.getOptional(tryOrder);
 
 **Best for:** Safe extraction and pattern matching on core types, composing with other optics.
 
-### 2. Optics Extensions – Safety Rails for Lens and Traversal
+### 2. Optics Extensions: Safety Rails for Lens and Traversal
 
 Augment lenses and traversals with built-in null safety, validation, and exception handling.
 
@@ -135,7 +135,7 @@ Validated<List<String>, List<Order>> result = modifyAllValidated(
 
 **Best for:** Individual field operations with validation, bulk operations, exception handling.
 
-[Learn more about Optics Extensions →](optics_extensions.md)
+Optics Extensions are covered on [their own page](optics_extensions.md).
 
 ---
 
@@ -345,13 +345,11 @@ dbResults.stream()
 
 ---
 
-## Example Code
-
-~~~admonish example title="Runnable Examples"
-- [CoreTypePrismsExample](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/optics/CoreTypePrismsExample.java) – API response processing
-- [LensExtensionsExample](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/optics/LensExtensionsExample.java) – User profile validation
-- [TraversalExtensionsExample](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/optics/TraversalExtensionsExample.java) – Bulk order processing
-- [IntegrationPatternsExample](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/optics/IntegrationPatternsExample.java) – Complete e-commerce workflow
+~~~admonish example title="See Example Code"
+- [CoreTypePrismsExample](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/optics/CoreTypePrismsExample.java): aPI response processing
+- [LensExtensionsExample](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/optics/LensExtensionsExample.java): user profile validation
+- [TraversalExtensionsExample](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/optics/TraversalExtensionsExample.java): bulk order processing
+- [IntegrationPatternsExample](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/optics/IntegrationPatternsExample.java): complete e-commerce workflow
 ~~~
 
 ---

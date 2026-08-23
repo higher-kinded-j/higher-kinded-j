@@ -1,6 +1,6 @@
 # Auditing Complex Data with Optics
 
-## _A Real-World Deep Dive_: The Power of Optics
+## _A Real-World Deep Dive into Conditional Config Auditing_
 
 ~~~admonish info title="What You'll Learn"
 - Solving complex, real-world data processing challenges with optics
@@ -13,15 +13,11 @@
 
 In modern software, we often work with complex, nested data structures. Performing a seemingly simple task, like "find and decode all production database passwords", can lead to messy, error-prone code with nested loops, `if` statements, and manual type casting.
 
-This tutorial demonstrates how to solve a sophisticated, real-world problem elegantly using the full power of **higher-kinded-j optics**. We'll build a single, declarative, type-safe optic that performs a deep, conditional data transformation.
+This page builds a single, declarative, type-safe optic that performs a deep, conditional data transformation.
 
-~~~admonish title="Example Code"
-
-All the example code for this tutorial can be found in the  `org.higherkindedj.example package in the [Config Audit example](https://github.com/higher-kinded-j/higher-kinded-j/tree/main/hkj-examples/src/main/java/org/higherkindedj/example/configaudit).
-
-Other examples of using Optics can be found here.
-[Optics examples](https://github.com/higher-kinded-j/higher-kinded-j/tree/main/hkj-examples/src/main/java/org/higherkindedj/example/optics).
-
+~~~admonish example title="See Example Code"
+- [Config Audit example](https://github.com/higher-kinded-j/higher-kinded-j/tree/main/hkj-examples/src/main/java/org/higherkindedj/example/configaudit): the worked audit this page builds
+- [Optics examples](https://github.com/higher-kinded-j/higher-kinded-j/tree/main/hkj-examples/src/main/java/org/higherkindedj/example/optics): the wider optics example set
 ~~~
 
 ---
@@ -48,7 +44,7 @@ Doing this imperatively is a recipe for complexity. Let's build it with optics i
 - **A treasure hunt with conditional maps**: Only certain maps (GCP/Live configs) contain the treasures (encrypted passwords)
 - **A selective mining operation**: Drill down only into the right geological formations (config types) to extract specific minerals (encrypted data)
 - **A security scanner with filters**: Only scan certain types of systems (matching deployment criteria) for specific vulnerabilities (encrypted values)
-- **A data archaeology expedition**: Excavate only specific sites (qualified configs) to uncover particular artifacts (encoded passwords)
+- **A data archaeology expedition**: Excavate only specific sites (qualified configs) to uncover particular artefacts (encoded passwords)
 
 ---
 
@@ -94,9 +90,13 @@ A `Traversal` lets us operate on zero or more targets within a larger structure.
 - **Declarative data processing** - Building self-documenting processing pipelines
 
 ```java
-
-// Perfect for reusable, conditional audit logic Traversal<ServerConfig, byte[]> sensitiveDataAuditor = ServerConfigTraversals.environments() .andThen(EnvironmentPrisms.production().asTraversal()) .andThen(EnvironmentTraversals.credentials()) .andThen(CredentialPrisms.encrypted().asTraversal()) .andThen(EncryptedCredentialIsos.base64ToBytes.asTraversal());
-
+// Perfect for reusable, conditional audit logic
+Traversal<ServerConfig, byte[]> sensitiveDataAuditor =
+    ServerConfigTraversals.environments()
+        .andThen(EnvironmentPrisms.production().asTraversal())
+        .andThen(EnvironmentTraversals.credentials())
+        .andThen(CredentialPrisms.encrypted().asTraversal())
+        .andThen(EncryptedCredentialIsos.base64ToBytes.asTraversal());
 ```
 
 ### Use Stream Processing When:
@@ -106,9 +106,11 @@ A `Traversal` lets us operate on zero or more targets within a larger structure.
 - **Aggregation logic** - Computing statistics or summaries
 
 ```java
-
-// Better with streams for simple collection processing List<String> allConfigNames = configs.stream() .map(AppConfig::name) .filter(name -> name.startsWith("prod-")) .collect(toList());
-
+// Better with streams for simple collection processing
+List<String> allConfigNames = configs.stream()
+    .map(AppConfig::name)
+    .filter(name -> name.startsWith("prod-"))
+    .collect(toList());
 ```
 
 ### Use Manual Iteration When:
@@ -118,9 +120,13 @@ A `Traversal` lets us operate on zero or more targets within a larger structure.
 - **Legacy integration** - Working with existing imperative codebases
 
 ```java
-
-// Sometimes manual loops are clearest for complex logic for (AppConfig config : configs) { if (shouldAudit(config) && hasEncryptedData(config)) { auditResults.add(performDetailedAudit(config)); if (auditResults.size() >= MAX\_AUDITS) break; } }
-
+// Sometimes manual loops are clearest for complex logic
+for (AppConfig config : configs) {
+    if (shouldAudit(config) && hasEncryptedData(config)) {
+        auditResults.add(performDetailedAudit(config));
+        if (auditResults.size() >= MAX_AUDITS) break;
+    }
+}
 ```
 
 ---
@@ -130,48 +136,80 @@ A `Traversal` lets us operate on zero or more targets within a larger structure.
 ### Don't Do This:
 
 ```java
+// Over-engineering simple cases
+Traversal<String, String> stringIdentity = Iso.of(s -> s, s -> s).asTraversal();
+// Just use the string directly
 
-// Over-engineering simple cases Traversal<String, String> stringIdentity = Iso.of(s -> s, s -> s).asTraversal(); // Just use the string directly!
+// Creating complex compositions inline
+var passwords = AppConfigLenses.settings().asTraversal()
+    .andThen(SettingLenses.value().asTraversal())
+    .andThen(SettingValuePrisms.encryptedValue().asTraversal())
+    // ... ten more lines of composition
+    .getAll(config);
+// Hard to understand, impossible to reuse
 
-// Creating complex compositions inline var passwords = AppConfigLenses.settings().asTraversal() .andThen(SettingLenses.value().asTraversal()) .andThen(SettingValuePrisms.encryptedValue().asTraversal()) // ... 10 more lines of composition .getAll(config); // Hard to understand and reuse
+// Ignoring error handling in transformations
+Iso<String, byte[]> unsafeBase64 = Iso.of(
+    Base64.getDecoder()::decode,        // can throw IllegalArgumentException
+    Base64.getEncoder()::encodeToString);
 
-// Ignoring error handling in transformations Iso<String, byte[]> unsafeBase64 = Iso.of( Base64.getDecoder()::decode,  // Can throw IllegalArgumentException! Base64.getEncoder()::encodeToString );
-
-// Forgetting to test round-trip properties // No verification that encode(decode(x)) == x
-
+// Forgetting to test round-trip properties:
+// nothing verifies that encode(decode(x)) == x
 ```
 
 ### Do This Instead:
 
 ```java
+// Use appropriate tools for simple cases
+String configName = config.name();   // direct access is fine
 
-// Use appropriate tools for simple cases String configName = config.name(); // Direct access is fine
+// Create well-named, reusable compositions
+public static final Traversal<AppConfig, byte[]> GCP_LIVE_ENCRYPTED_PASSWORDS =
+    gcpLiveOnlyPrism.asTraversal()
+        .andThen(AppConfigTraversals.settings())
+        .andThen(SettingLenses.value().asTraversal())
+        .andThen(SettingValuePrisms.encryptedValue().asTraversal())
+        .andThen(EncryptedValueLenses.base64Value().asTraversal())
+        .andThen(EncryptedValueIsos.base64.asTraversal());
 
-// Create well-named, reusable compositions public static final Traversal<AppConfig, byte[]> GCP\_LIVE\_ENCRYPTED\_PASSWORDS = gcpLiveOnlyPrism.asTraversal() .andThen(AppConfigTraversals.settings()) .andThen(SettingLenses.value().asTraversal()) .andThen(SettingValuePrisms.encryptedValue().asTraversal()) .andThen(EncryptedValueLenses.base64Value().asTraversal()) .andThen(EncryptedValueIsos.base64.asTraversal());
+// Handle errors gracefully
+Prism<String, byte[]> safeBase64Prism = Prism.of(
+    str -> {
+        try {
+            return Optional.of(Base64.getDecoder().decode(str));
+        } catch (IllegalArgumentException e) {
+            return Optional.empty();
+        }
+    },
+    bytes -> Base64.getEncoder().encodeToString(bytes));
 
-// Handle errors gracefully Prism<String, byte[]> safeBase64Prism = Prism.of( str -> { try { return Optional.of(Base64.getDecoder().decode(str)); } catch (IllegalArgumentException e) { return Optional.empty(); } }, bytes -> Base64.getEncoder().encodeToString(bytes) );
-
-// Test your compositions @Test public void testBase64RoundTrip() { String original = "test data"; String encoded = Base64.getEncoder().encodeToString(original.getBytes()); byte[] decoded = EncryptedValueIsos.base64.get(encoded); String roundTrip = new String(decoded); assertEquals(original, roundTrip); }
-
+// Test your compositions
+@Test
+public void testBase64RoundTrip() {
+    String original = "test data";
+    String encoded = Base64.getEncoder().encodeToString(original.getBytes());
+    byte[] decoded = EncryptedValueIsos.base64.get(encoded);
+    assertEquals(original, new String(decoded));
+}
 ```
 
 ---
 
 ## Performance Notes
 
-Optic compositions are optimised for complex data processing:
+Optic compositions trade a little throughput for composability, and it is worth being precise about which:
 
-- **Lazy evaluation**: Complex filters only run when data actually matches
-- **Single-pass processing**: Compositions traverse data structures only once
-- **Memory efficient**: Only creates new objects for actual transformations
-- **Compile-time optimisation**: Complex optic chains are inlined by the JVM
-- **Structural sharing**: Unchanged parts of data structures are reused
+- **Element references are shared**: values a transformation leaves alone are reused, not copied; the containers along the path are rebuilt
+- **A prism that does not match costs nothing further**: a non-matching branch puts nothing in focus, so the rest of the chain is never entered for that element
+- **No hidden laziness**: every element the path reaches is visited when you call `getAll` or `modify`, so cost is proportional to the number of foci
+- **The composition is not free**: a deep chain is a chain of objects, and a hot loop over a flat structure will still favour a stream
 
 **Best Practice**: Profile your specific use case and compare with stream-based alternatives:
 
 ```java
+public class AuditPerformance {
 
-public class AuditPerformance { // For frequent auditing, create optics once and reuse 
+    // For frequent auditing, create the optic once and reuse it
     private static final Traversal<AppConfig, byte[]> AUDIT_TRAVERSAL = createAuditTraversal();
 
     @Benchmark

@@ -24,7 +24,28 @@ This is the N+1, and optics by themselves do not save you from it. A `Traversal`
 
 The `org.higherkindedj.optics.fetch` package changes the strategy and leaves the optic alone:
 
-![optic_batching_n_plus_one.svg](../images/puml/optic_batching_n_plus_one.svg)
+```mermaid
+sequenceDiagram
+    autonumber
+    participant C as Caller
+    participant T as Traversal over N ids
+    participant B as Backend
+
+    Note over C,B: Without batching: N+1
+    C->>T: modifyF(loadOne, ids)
+    loop N times, one per focus
+        T->>B: loadOne(id)
+        B-->>T: entity
+    end
+    T-->>C: List of entities
+
+    Note over C,B: With FetchApplicative: one round
+    C->>T: modifyF(Fetch.fetch, ids, FetchApplicative)
+    Note right of T: ap() merges pending request sets,<br/>so foci share a single round
+    T->>B: batchResolver({id_1 ... id_N})
+    B-->>T: Map of id to entity
+    T-->>C: List of entities
+```
 
 Top half: the loop you didn't mean to write. Bottom half: the same traversal, the same source, the same backend, plus one new piece, `FetchApplicative`. One round, one batched call, every focus resolved.
 
@@ -38,9 +59,29 @@ The usual fix for an N+1 is a hand-written pre-fetch: collect the ids, load them
 
 The pipeline has three pieces. The optic owns the shape. The applicative is the strategy. The runner is the boundary that actually talks to the backend:
 
-![optic_batching_pipeline.svg](../images/puml/optic_batching_pipeline.svg)
+```mermaid
+flowchart LR
+    OP(["Traversal<br/>(or any Optic)"]) -->|"modifyF(f, s, applicative)"| FA(["FetchApplicative"])
+    FA -->|"produces"| F(["Fetch&lt;K, V, A&gt;<br/>a value, not an action"])
 
-Everything else in this chapter is a variation on those three pieces.
+    F -->|"sync"| RC(["Fetch.runCached"])
+    F -->|"async"| RA(["Fetch.runAsync"])
+    F -->|"railway (Either)"| SC(["SafeFetch.runCached"])
+
+    RC -->|"one keyset per round"| BL(["BatchLoader"])
+    RA --> BL
+    RA -->|"fan out per source"| SR(["SourceRouter.routed"])
+    RA -->|"cap dispatch size"| BC(["BatchLoaders.chunked"])
+
+    classDef shape fill:#e5c890,stroke:#df8e1d,color:#232634
+    classDef wire fill:#8caaee,stroke:#1e66f5,color:#232634
+    classDef tier fill:#a6d189,stroke:#40a02b,color:#232634
+    class OP,FA shape
+    class F,RC,RA,SC wire
+    class BL,SR,BC tier
+```
+
+Everything else on this page is a variation on those three pieces.
 
 ```java
 // 1. The optic describes the shape (a list-traversal here).
@@ -149,7 +190,29 @@ A backend that returns no entry for a requested key is surfaced as `MissingKeyEx
 
 Applicative composition collapses because the arguments are independent. `flatMap` cannot collapse, because the continuation's requests depend on the value the previous round produced. The library does not paper over this; it lays the boundary out where you can see it:
 
-![optic_batching_rounds.svg](../images/puml/optic_batching_rounds.svg)
+```mermaid
+sequenceDiagram
+    participant P as Program
+    participant R as Runner
+    participant B as Backend
+
+    Note over P,B: Pure applicative: N foci, 1 round
+    P->>R: ap(ap(f, fetch a), fetch b), fetch c)
+    R->>B: { a, b, c }
+    B-->>R: { a:..., b:..., c:... }
+    R-->>P: value
+
+    Note over P,B: flatMap dependency chain: 3 rounds
+    P->>R: fetch(a).flatMap(x -> fetch(x.next))
+    R->>B: { a }
+    B-->>R: { a:... }
+    Note right of R: only now do we know<br/>what to ask for next
+    R->>B: { a.next }
+    B-->>R: { a.next:... }
+    R->>B: { a.next.next }
+    B-->>R: { ... }
+    R-->>P: value
+```
 
 The practical rule is one line: *anything you can express with `map2`, `ap`, or an optic traversal collapses to one round; every `flatMap` in a chain is another round.* Express data dependencies as `flatMap` when you have one; do not reach for it when you don't.
 

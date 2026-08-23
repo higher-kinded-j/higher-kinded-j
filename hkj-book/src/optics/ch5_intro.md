@@ -24,6 +24,8 @@ Validated<String, Form> checked =
 // A Guest principal would simply have no permissions in focus, and validate clean.
 ```
 
+The sample `Form` holds a `User` with two permissions, `PERM_READ` and `PERM_FLY`, and only the first is on the allowed list. `Fixture` is the compiled example's own setup, not library API.
+
 ~~~admonish tip title="Why this matters"
 Four optics of three different kinds compose into one value, and that value is reusable in both directions: run it with a plain function to update every permission, or with an `Applicative` to validate them and accumulate the failures. The prism in the middle is what makes it safe. A `Form` holding a `Guest` has nothing in focus, so the same expression returns a clean result rather than a `ClassCastException`, and no branch had to be written for that case.
 ~~~
@@ -32,7 +34,9 @@ This section brings together everything from the previous four into practical pa
 
 The integration sections cover how optics work with higher-kinded-j's core types: extending Lenses and Traversals with additional capabilities, using Prisms for Optional, Either, and other standard containers. If you've wondered how to combine optics with the rest of the library, this is where you'll find answers.
 
-The cookbook provides ready-to-use recipes for common problems: updating nested optionals, modifying specific sum type variants, bulk collection operations with filtering, configuration management, and audit trail generation. Each recipe includes the problem statement, solution code, and explanation of why it works.
+Three pages then deal with the operations that fall between one edit and one query. **Multi-Edit** applies N independent edits at different paths in a single reusable operation, including the sparse REST `PATCH` that reports every bad field at once. **Optic-Driven Batching** attaches a batching strategy to a traversal, so N foci become one backend call, and **Plan Introspection and Guardrails** lets you see and bound that call before it leaves the JVM.
+
+The cookbook provides ready-to-use recipes for common problems: updating nested optionals, modifying specific sum type variants, bulk collection operations with filtering, and configuration management. Each recipe states the problem and gives the solution, with a note on why it works where the mechanism is not obvious. Audit trail generation gets a page of its own after it.
 
 Copy freely. That's what they're for.
 
@@ -41,7 +45,7 @@ The [Optics Tutorial Track](../tutorials/optics/ch_intro.md) groups all six jour
 ~~~
 
 ~~~admonish tip title="See Also"
-- [Annotations at a Glance](annotations_at_a_glance.md), every optic in the recipes below is annotation-generated.
+- [Annotations at a Glance](annotations_at_a_glance.md): every optic in the recipes below is annotation-generated
 ~~~
 
 ---
@@ -90,11 +94,7 @@ Optics compose to handle complex real-world scenarios:
      ▼
     User
      │
-     │ UserTraversals.permissions()  ← TRAVERSAL (list of perms)
-     ▼
-    List<Permission>
-     │
-     │ each                          ← focus on each
+     │ UserTraversals.permissions()  ← TRAVERSAL (each permission)
      ▼
     Permission
      │
@@ -104,10 +104,10 @@ Optics compose to handle complex real-world scenarios:
      │
      │ validate(name)                ← effectful modification
      ▼
-    Validated<Error, String>
+    Validated<String, String>
 
     ═══════════════════════════════════════════════════════════
-    Result: Validated<List<Error>, Form>
+    Result: Validated<String, Form>
 ```
 
 All permissions validated. All errors accumulated. Original structure preserved.

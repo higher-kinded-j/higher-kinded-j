@@ -8,10 +8,6 @@
 - Best practices for production code
 ~~~
 
-~~~admonish title="Hands On Practice"
-[Tutorial08_RealWorldOptics.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/test/java/org/higherkindedj/tutorial/optics/Tutorial08_RealWorldOptics.java)
-~~~
-
 This cookbook provides practical recipes for common optics problems. Each recipe includes the problem statement, solution, and explanation.
 
 ---
@@ -839,9 +835,9 @@ Inventory cleared = allProducts.modifyWhen(
 ```
 
 ~~~admonish info title="Key Takeaways"
-* **Every recipe is the same three steps.** Name the path, choose the optic whose cardinality matches the target, then pick the operation: `get`, `modify`, or an effectful `modifyF`.
+* **Every recipe is the same two steps, then a choice.** Name the path and choose the optic whose cardinality matches the target; the last step is whichever operation the answer needs, from `get` and `modify` through `foldMap`, `sorted` and an effectful `modifyF`.
 * **Reach for a prism the moment a shape is conditional.** Optional fields, sum-type variants and parse-or-fail boundaries are all "this may not be here", and a prism keeps the absent case from becoming a branch.
-* **`modifyWhen` beats filtering then modifying.** The predicate travels with the path, so the structure is rebuilt once and the intent reads as the business rule.
+* **Put the predicate in the path.** Whether you spell it `Traversals.filtered(...)` mid-composition or `modifyWhen` at the call site, the selection rule travels with the optic instead of living in an `if` around it: the structure is rebuilt once and the code reads as the business rule.
 * **Store the path, not the operation.** A composed optic in a `static final` field is reusable across reads, writes and validations; recomposing it per call site is where drift starts.
 * **Copy freely, then name it.** These recipes are starting points; the value appears when the composition gets a domain name and the rest of the code stops mentioning the shape.
 ~~~
