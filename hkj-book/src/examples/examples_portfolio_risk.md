@@ -322,7 +322,7 @@ changes.
 | [Tutorial20_ContainerNavigation.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/test/java/org/higherkindedj/tutorial/optics/Tutorial20_ContainerNavigation.java) | Hands-on tutorial exercises |
 
 ~~~admonish tip title="See Also"
-- [Focus DSL Reference](../optics/focus_dsl.md) - Full annotation processor documentation
+- [Focus DSL Reference](../optics/focus_reference.md): the full path-type and operation reference
 ~~~
 
 ~~~admonish info title="Hands-On Learning"

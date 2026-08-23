@@ -289,7 +289,7 @@ Traversal<ApiResponse, String> emailPath = dataLens
     .andThen(customerLens.asTraversal())
     .andThen(emailLens.asTraversal());
 
-List<String> emails = Traversals.toListOf(emailPath, response);
+List<String> emails = Traversals.getAll(emailPath, response);
 // Result: ["customer@example.com"] or [] if no order data
 ```
 

@@ -2,624 +2,295 @@
 
 ## _Copy Strategies for Builder-Based Types_
 
-> "First, solve the problem. Then, write the code."
-> — John Johnson
+> *"First, solve the problem. Then, write the code."*
+>
+> – attributed to John Johnson
 
-Johnson's advice is deceptively simple, yet it cuts to the heart of what we're doing here. The *problem* isn't "how do I update a field in a JOOQ record." The problem is: "how do I express my domain transformations clearly while respecting immutability?" Builders solve immutability; optics solve composition. Together, they let us solve the real problem first (describing what our business logic does) and then write concise code that does exactly that.
+---
 
-When we use `@ViaBuilder`, we're encoding our understanding of the problem (this type uses a builder pattern) so the processor can generate code that lets us focus on business logic rather than mechanical copying.
+The problem is not "how do I update a field in a JOOQ record". It is "how do I express a domain transformation clearly while respecting immutability". Builders solve the immutability half; optics solve the composition half. A copy strategy is how you tell the processor which builder-shaped door this particular type opens.
 
 ~~~admonish info title="What You'll Learn"
-- How `@ViaBuilder` creates lenses for builder-pattern types
-- Working with JOOQ-generated immutable POJOs
-- When to use each copy strategy annotation
-- Building a complete database-to-domain transformation layer
+- How `@ViaBuilder` turns a builder-pattern type into lenses
+- The other three strategies (`@Wither`, `@ViaConstructor`, `@ViaCopyAndSet`) and when each applies
+- `@ThroughField`, which gives you a traversal into a collection field
+- Which types need no strategy at all
 ~~~
 
 ---
 
 ## The JOOQ Pattern
 
-JOOQ generates immutable record classes with a fluent builder pattern. If we're using JOOQ for database access, we've seen code like this:
+JOOQ generates immutable POJOs that copy through a builder, and it is far from alone: Lombok's `@Builder`, Immutables, AutoValue, Protocol Buffers and most hand-written immutable classes do the same.
 
 ```java
-// JOOQ-generated record
-CustomerRecord customer = ctx.newRecord(CUSTOMER);
-customer.setName("Alice");
-customer.setEmail("alice@example.com");
-customer.setCreatedAt(LocalDateTime.now());
+public final class Customer {
+  public String name() { ... }
+  public BigDecimal creditLimit() { ... }
+  public Builder toBuilder() { ... }
 
-// To "update" a field immutably, we use the builder
-CustomerRecord updated = customer.into(CustomerRecord.class)
-    .with(CUSTOMER.NAME, "Alicia");
-```
-
-Or with JOOQ's immutable POJO generation:
-
-```java
-// Generated immutable POJO with builder
-@Immutable
-public class Customer {
-    private final String name;
-    private final String email;
-    private final BigDecimal creditLimit;
-
-    public Builder toBuilder() { ... }
-
-    public static class Builder {
-        public Builder name(String name) { ... }
-        public Builder email(String email) { ... }
-        public Builder creditLimit(BigDecimal limit) { ... }
-        public Customer build() { ... }
-    }
+  public static final class Builder {
+    public Builder name(String name) { ... }
+    public Builder creditLimit(BigDecimal limit) { ... }
+    public Customer build() { ... }
+  }
 }
 ```
 
-This builder pattern is everywhere: Lombok's `@Builder`, Immutables, AutoValue, Protocol Buffers, and hand-written immutable classes. But `@ImportOptics` cannot auto-detect it because there is no standard naming convention the processor can rely on.
+There is no wither and no all-args constructor, so `@ImportOptics` auto-detection has nothing to latch onto. Declare the shape instead:
 
-**This is where `@ViaBuilder` comes in.**
+<!-- verify -->
+```java
+@ImportOptics
+interface CustomerOpticsSpec extends OpticsSpec<Customer> {
+
+  @ViaBuilder
+  Lens<Customer, String> name();
+
+  @ViaBuilder
+  Lens<Customer, BigDecimal> creditLimit();
+}
+```
+
+`@ViaBuilder` with no arguments assumes the common conventions: the getter and the builder setter are both named after the optic method, the builder comes from `toBuilder()`, and it finishes with `build()`. That is enough to generate real lenses:
+
+<!-- verify -->
+```java
+Customer promoted =
+    CustomerOptics.creditLimit().modify(limit -> limit.multiply(new BigDecimal("1.1")), alice);
+// creditLimit 1000 becomes 1100.0; alice itself is unchanged
+
+String name = CustomerOptics.name().get(alice);   // "Alice"
+```
+
+~~~admonish tip title="Why this matters"
+Four annotated lines replaced a copy method per field, and what you get back is not a bespoke helper: it is a `Lens`, so it composes with every other optic in the library. `OrderOptics.customer().andThen(CustomerOptics.creditLimit())` is a lens from an order to a credit limit, and it obeys the lens laws whatever the builder does underneath.
+~~~
 
 ---
 
-## Our First Builder Lens
+## Non-Standard Naming
 
-Let's create optics for a JOOQ-style customer record:
-
-```java
-// The external type (imagine JOOQ generated this)
-public class Customer {
-    private final Long id;
-    private final String name;
-    private final String email;
-    private final BigDecimal creditLimit;
-
-    public Long id() { return id; }
-    public String name() { return name; }
-    public String email() { return email; }
-    public BigDecimal creditLimit() { return creditLimit; }
-
-    public Builder toBuilder() {
-        return new Builder()
-            .id(id).name(name).email(email).creditLimit(creditLimit);
-    }
-
-    public static class Builder {
-        private Long id;
-        private String name;
-        private String email;
-        private BigDecimal creditLimit;
-
-        public Builder id(Long id) { this.id = id; return this; }
-        public Builder name(String name) { this.name = name; return this; }
-        public Builder email(String email) { this.email = email; return this; }
-        public Builder creditLimit(BigDecimal limit) {
-            this.creditLimit = limit; return this;
-        }
-        public Customer build() { return new Customer(id, name, email, creditLimit); }
-    }
-}
-```
-
-The spec interface tells the processor how to use this builder:
+Conventions vary, so every part of the interaction is nameable:
 
 ```java
-@ImportOptics
-public interface CustomerOptics extends OpticsSpec<Customer> {
+// Lombok: @Builder(toBuilder = true, setterPrefix = "with"), JavaBean getters
+@ViaBuilder(getter = "getOrderId", setter = "withOrderId")
+Lens<Order, String> orderId();
 
-    @ViaBuilder
-    Lens<Customer, Long> id();
-
-    @ViaBuilder
-    Lens<Customer, String> name();
-
-    @ViaBuilder
-    Lens<Customer, String> email();
-
-    @ViaBuilder
-    Lens<Customer, BigDecimal> creditLimit();
-}
-```
-
-The `@ViaBuilder` annotation with no parameters uses sensible defaults:
-- **getter**: method name matches the optic name (`name()` for the `name` lens)
-- **toBuilder**: `"toBuilder"`
-- **setter**: method name matches the optic name on the builder
-- **build**: `"build"`
-
-The processor generates:
-
-```java
-public final class CustomerOptics {
-
-    public static Lens<Customer, String> name() {
-        return Lens.of(
-            customer -> customer.name(),
-            (customer, newName) -> customer.toBuilder()
-                .name(newName)
-                .build()
-        );
-    }
-
-    // ... similar for id, email, creditLimit
-}
-```
-
-Now we can update customer records functionally:
-
-```java
-// Apply a loyalty discount
-Customer discounted = CustomerOptics.creditLimit()
-    .modify(limit -> limit.multiply(BigDecimal.valueOf(1.1)), customer);
-
-// Update email
-Customer updated = CustomerOptics.email()
-    .set("newemail@example.com", customer);
-```
-
----
-
-## Handling Non-Standard Naming
-
-Not all builders follow the same conventions. JOOQ's own conventions sometimes differ, and libraries like Lombok allow customisation. The `@ViaBuilder` annotation handles this:
-
-```java
-// Lombok with @Builder(toBuilder = true, setterPrefix = "with")
-@Builder(toBuilder = true, setterPrefix = "with")
-public class Order {
-    private final String orderId;
-    private final List<LineItem> items;
-    private final OrderStatus status;
-
-    // Lombok generates:
-    // - getOrderId(), getItems(), getStatus() (standard getters)
-    // - toBuilder() returning OrderBuilder
-    // - OrderBuilder.withOrderId(), withItems(), withStatus()
-    // - OrderBuilder.build()
-}
-```
-
-```java
-@ImportOptics
-public interface OrderOptics extends OpticsSpec<Order> {
-
-    @ViaBuilder(getter = "getOrderId", setter = "withOrderId")
-    Lens<Order, String> orderId();
-
-    @ViaBuilder(getter = "getItems", setter = "withItems")
-    Lens<Order, List<LineItem>> items();
-
-    @ViaBuilder(getter = "getStatus", setter = "withStatus")
-    Lens<Order, OrderStatus> status();
-
-    // Traversal into items - traversal type is auto-detected from List<LineItem>
-    @ThroughField(field = "items")
-    Traversal<Order, LineItem> eachItem();
-}
-```
-
-### @ThroughField Auto-Detection
-
-The `@ThroughField` annotation creates traversals that compose a lens to a container field with a standard traversal for that container type. **The processor automatically detects which traversal to use based on the field's type.**
-
-| Field Type | Auto-Detected Traversal |
-|------------|------------------------|
-| `List<A>` | `Traversals.forList()` |
-| `Set<A>` | `Traversals.forSet()` |
-| `Optional<A>` | `Traversals.forOptional()` |
-| `A[]` | `Traversals.forArray()` |
-| `Map<K, V>` | `Traversals.forMapValues()` |
-
-**Subtypes are supported.** If your field is `ArrayList<String>`, `HashSet<Integer>`, or `HashMap<String, BigDecimal>`, the processor correctly detects the parent container type:
-
-```java
-// This class uses concrete collection types
-public class Order {
-    private final ArrayList<LineItem> items;  // ArrayList, not List
-    public ArrayList<LineItem> getItems() { return items; }
-    // ...
-}
-
-@ImportOptics
-public interface OrderOptics extends OpticsSpec<Order> {
-    @ViaBuilder(getter = "getItems", setter = "withItems")
-    Lens<Order, ArrayList<LineItem>> items();
-
-    // Auto-detects ArrayList as List, uses Traversals.forList()
-    @ThroughField(field = "items")
-    Traversal<Order, LineItem> eachItem();
-}
-```
-
-**When explicit traversal is needed:** If you have a custom container type that doesn't extend `List`, `Set`, `Map`, or `Optional`, you can specify the traversal explicitly:
-
-```java
-@ThroughField(
-    field = "entries",
-    traversal = "com.example.CustomTraversals.forMyContainer()"
-)
-Traversal<MyType, Entry> eachEntry();
-```
-
-We can customise any part of the builder interaction:
-
-```java
+// A legacy type that spells all four differently
 @ViaBuilder(
-    getter = "getName",           // How to get the current value
-    toBuilder = "newBuilder",     // How to get a builder (some use "builder()")
-    setter = "setName",           // How to set on the builder
-    build = "create"              // How to build (some use "finish()")
-)
+    getter = "getName",       // how to read the current value
+    toBuilder = "newBuilder",  // how to obtain a builder
+    setter = "setName",        // how to set on the builder
+    build = "create")          // how to finish
 Lens<LegacyType, String> name();
 ```
 
 ---
 
-## A Real Workflow: Order Processing
+## Reaching Into Collections with `@ThroughField`
 
-Let's build a complete order processing pipeline using JOOQ-style records:
+A lens to a `List` field is rarely what you want; you want a traversal into its elements. `@ThroughField` composes the two, detecting the right element traversal from the field's type:
 
+<!-- verify -->
 ```java
-// Domain types (imagine JOOQ generated these)
-public class Order {
-    public String orderId() { ... }
-    public Customer customer() { ... }
-    public List<LineItem> items() { ... }
-    public OrderStatus status() { ... }
-    public LocalDateTime createdAt() { ... }
-    public Builder toBuilder() { ... }
-}
+@ImportOptics
+interface OrderOpticsSpec extends OpticsSpec<Order> {
 
-public class LineItem {
-    public String productId() { ... }
-    public int quantity() { ... }
-    public BigDecimal unitPrice() { ... }
-    public Builder toBuilder() { ... }
+  @ViaBuilder
+  Lens<Order, List<Customer>> customers();
+
+  @ThroughField(field = "customers")
+  Traversal<Order, Customer> eachCustomer();
 }
 ```
 
+<!-- verify -->
 ```java
-// Spec interfaces
-@ImportOptics
-public interface OrderOptics extends OpticsSpec<Order> {
+// Read every customer's credit limit
+List<BigDecimal> limits =
+    Traversals.getAll(
+        OrderOptics.eachCustomer().andThen(CustomerOptics.creditLimit()), order);
+// [1000, 500]
 
-    @ViaBuilder Lens<Order, String> orderId();
-    @ViaBuilder Lens<Order, Customer> customer();
-    @ViaBuilder Lens<Order, List<LineItem>> items();
-    @ViaBuilder Lens<Order, OrderStatus> status();
-    @ViaBuilder Lens<Order, LocalDateTime> createdAt();
+// Raise all of them by 5%
+Order raised =
+    Traversals.modify(
+        OrderOptics.eachCustomer().andThen(CustomerOptics.creditLimit()),
+        limit -> limit.multiply(new BigDecimal("1.05")),
+        order);
 
-    @ThroughField(field = "items")
-    Traversal<Order, LineItem> eachItem();
-}
-
-@ImportOptics
-public interface LineItemOptics extends OpticsSpec<LineItem> {
-
-    @ViaBuilder Lens<LineItem, String> productId();
-    @ViaBuilder Lens<LineItem, Integer> quantity();
-    @ViaBuilder Lens<LineItem, BigDecimal> unitPrice();
-}
-```
-
-Now we build the order processing service:
-
-```java
-public class OrderService {
-
-    /**
-     * Calculate the total value of an order.
-     */
-    public BigDecimal calculateTotal(Order order) {
-        return OrderOptics.eachItem()
-            .toListOf(order)
-            .stream()
-            .map(item -> LineItemOptics.unitPrice().get(item)
-                .multiply(BigDecimal.valueOf(LineItemOptics.quantity().get(item))))
-            .reduce(BigDecimal.ZERO, BigDecimal::add);
-    }
-
-    /**
-     * Apply a percentage discount to all items.
-     */
-    public Order applyDiscount(Order order, BigDecimal discountPercent) {
-        BigDecimal multiplier = BigDecimal.ONE.subtract(
-            discountPercent.divide(BigDecimal.valueOf(100))
-        );
-
-        return OrderOptics.eachItem()
-            .andThen(LineItemOptics.unitPrice())
-            .modify(price -> price.multiply(multiplier), order);
-    }
-
-    /**
-     * Update the customer's credit limit based on order history.
-     */
-    public Order updateCustomerCredit(Order order, BigDecimal newLimit) {
-        return OrderOptics.customer()
+// Only the ones already above a threshold
+Order topUp =
+    Traversals.modify(
+        OrderOptics.eachCustomer()
             .andThen(CustomerOptics.creditLimit())
-            .set(newLimit, order);
-    }
-
-    /**
-     * Mark order as shipped and record timestamp.
-     */
-    public Order shipOrder(Order order) {
-        return OrderOptics.status().set(OrderStatus.SHIPPED,
-            OrderOptics.createdAt().set(LocalDateTime.now(), order)
-        );
-    }
-
-    /**
-     * Increase quantity for a specific product.
-     */
-    public Order increaseQuantity(Order order, String productId, int additionalQty) {
-        return OrderOptics.eachItem()
-            .filter(item -> LineItemOptics.productId().get(item).equals(productId))
-            .andThen(LineItemOptics.quantity())
-            .modify(qty -> qty + additionalQty, order);
-    }
-}
+            .filtered(limit -> limit.compareTo(new BigDecimal("750")) > 0),
+        limit -> limit.add(new BigDecimal("100")),
+        order);
 ```
 
-Every method is a composition of optics. The business logic is clear and the immutable updates are handled automatically.
+### `@ThroughField` Auto-Detection
 
----
+| Field Type | Auto-detected traversal |
+|------------|-------------------------|
+| `List<A>` (including `ArrayList`, `LinkedList`, ...) | `Traversals.forList()` |
+| `Set<A>` (including `HashSet`, `TreeSet`, ...) | `Traversals.forSet()` |
+| `Optional<A>` | `Traversals.forOptional()` |
+| `A[]` | `Traversals.forArray()` |
+| `Map<K, V>` (including `HashMap`, `TreeMap`, ...) | `Traversals.forMapValues()` |
 
-## Working with JOOQ Result Sets
-
-JOOQ's `Result<R>` type implements `List<R>`, so we do not need a spec interface at all. Just use the standard list traversal:
+Subtypes are recognised, so a field declared `ArrayList<LineItem>` still detects as a list. For a container outside that set, name the traversal yourself:
 
 ```java
-// Fetch customers from database
-Result<CustomerRecord> customers = ctx
-    .selectFrom(CUSTOMER)
-    .where(CUSTOMER.ACTIVE.isTrue())
-    .fetch();
-
-// Result implements List, so Traversals.list() works directly
-Traversal<Result<CustomerRecord>, CustomerRecord> eachCustomer =
-    Traversals.list();
-
-// Apply credit increase to all customers
-Result<CustomerRecord> updated = eachCustomer
-    .andThen(CustomerOptics.creditLimit())
-    .modify(limit -> limit.multiply(BigDecimal.valueOf(1.05)), customers);
+@ThroughField(field = "entries", traversal = "com.example.CustomTraversals.forMyContainer()")
+Traversal<MyType, Entry> eachEntry();
 ```
 
-This is a key insight: **not every external type needs a spec interface**. When the type already implements a standard interface (`List`, `Map`, `Optional`), the existing traversals work perfectly.
-
----
-
-## Beyond Builders: Other Copy Strategies
-
-While `@ViaBuilder` handles the most common case, some types need different approaches:
-
-### @Wither - For Types with withX() Methods
-
-JDK types like `LocalDate` and many immutable libraries use the wither pattern:
-
-```java
-@ImportOptics
-public interface LocalDateOptics extends OpticsSpec<LocalDate> {
-
-    @Wither(value = "withYear", getter = "getYear")
-    Lens<LocalDate, Integer> year();
-
-    @Wither(value = "withMonth", getter = "getMonthValue")
-    Lens<LocalDate, Integer> month();
-
-    @Wither(value = "withDayOfMonth", getter = "getDayOfMonth")
-    Lens<LocalDate, Integer> day();
-}
-```
-
-### @ViaConstructor - For Constructor-Only Types
-
-Some immutable types have no builder or withers, just a constructor:
-
-```java
-// Simple immutable type
-public class Point {
-    private final int x, y;
-    public Point(int x, int y) { this.x = x; this.y = y; }
-    public int x() { return x; }
-    public int y() { return y; }
-}
-```
-
-```java
-@ImportOptics
-public interface PointOptics extends OpticsSpec<Point> {
-
-    @ViaConstructor(parameterOrder = {"x", "y"})
-    Lens<Point, Integer> x();
-
-    @ViaConstructor(parameterOrder = {"x", "y"})
-    Lens<Point, Integer> y();
-}
-```
-
-The `parameterOrder` tells the processor which getters to call and in what order to pass them to the constructor.
-
-### @ViaCopyAndSet - For Copy Constructor + Setter Types
-
-Legacy types sometimes have a copy constructor and setters:
-
-```java
-public class Config {
-    public Config(Config other) { /* copy fields */ }
-    public void setHost(String host) { this.host = host; }
-}
-```
-
-```java
-@ImportOptics
-public interface ConfigOptics extends OpticsSpec<Config> {
-
-    @ViaCopyAndSet(setter = "setHost")
-    Lens<Config, String> host();
-}
-```
-
-~~~admonish warning title="Lens Law Caution"
-`@ViaCopyAndSet` creates mutable intermediate objects. Ensure the copy constructor truly copies all fields, or modifications may affect the original.
+~~~admonish warning title="`Traversal` has no instance `modify`"
+Reads and writes through a bare `Traversal` go through the `Traversals` utility: `Traversals.getAll(traversal, source)` and `Traversals.modify(traversal, f, source)`. The instance methods are `andThen`, `filtered`, `filterBy`, `asFold`, `modifyF`, `modifyWhen` and `branch`; `asFold()` is how you reach the read side, as in `traversal.asFold().foldMap(...)`. (A `TraversalPath` from the [Focus DSL](focus_dsl.md) does carry `getAll` and `modifyAll` directly, which is often the more comfortable surface.)
 ~~~
 
 ---
 
-## Taking It Further: Focus DSL Bridging
+## The Other Three Strategies
 
-When our local domain records reference external types (JOOQ records, Immutables values, etc.), we can **bridge** Focus DSL navigation into those types using spec interface optics:
+### `@Wither`: types with `withX()` methods
+
+<!-- verify -->
+```java
+@ImportOptics
+interface MoneyOpticsSpec extends OpticsSpec<Money> {
+
+  @Wither(value = "withAmount", getter = "getAmount")
+  Lens<Money, Long> amount();
+}
+```
+
+Naming both halves explicitly is what makes this strategy work where auto-detection cannot: `@ImportOptics` requires the getter's return type to match the wither's parameter exactly, and here you simply say which pair to use.
+
+### `@ViaConstructor`: constructor-only value types
+
+<!-- verify -->
+```java
+@ImportOptics
+interface PointOpticsSpec extends OpticsSpec<Point> {
+
+  @ViaConstructor(parameterOrder = {"x", "y"})
+  Lens<Point, Integer> x();
+
+  @ViaConstructor(parameterOrder = {"x", "y"})
+  Lens<Point, Integer> y();
+}
+```
+
+`parameterOrder` names the getters to call, in the order the constructor takes them. It has an empty default in the annotation, but the generated code needs it: without it the optic throws `UnsupportedOperationException` when invoked, so treat it as required.
+
+### `@ViaCopyAndSet`: legacy types with a copy constructor and setters
+
+<!-- verify -->
+```java
+@ImportOptics
+interface ConfigOpticsSpec extends OpticsSpec<Config> {
+
+  @ViaCopyAndSet(setter = "setHost")
+  Lens<Config, String> host();
+}
+```
+
+~~~admonish warning title="Lens laws and mutable types"
+`@ViaCopyAndSet` copies, then mutates the copy. That is lawful only if the copy constructor really copies everything: a shallow copy that shares a mutable field means a "set" can be seen through the original, which breaks the lens laws in the most confusing way possible. Verify with `LensLaws` on a type where this matters.
+~~~
+
+---
+
+## When You Need No Strategy at All
+
+JOOQ's `Result<R>` implements `List<R>`, and standard collections are already covered by the standard traversals:
 
 ```java
-// Focus for local navigation, spec optics for external types
-Lens<Company, String> hqCity = CompanyFocus.headquarters().toLens()
-    .andThen(AddressOptics.city());
+Result<CustomerRecord> customers = ctx.selectFrom(CUSTOMER).where(CUSTOMER.ACTIVE.isTrue()).fetch();
 
-// Now we get IDE autocomplete through the entire chain
-String city = hqCity.get(company);
-Company relocated = hqCity.set("New York", company);
+// Read straight through the list traversal
+List<BigDecimal> limits =
+    Traversals.getAll(
+        Traversals.<CustomerRecord>forList().andThen(CustomerOptics.creditLimit()), customers);
 ```
 
-The `.toLens()` method converts a Focus path into a composable optic, which we can then chain with spec interface optics for external types.
-
-**For a complete guide** including Immutables integration, deep traversals across boundaries, and domain service patterns, see **[Focus DSL with External Libraries](focus_external_bridging.md)**.
+Reading is free. Writing is where the shortcut ends: `Traversals.forList()` is a `Traversal<List<A>, A>`, so a modification rebuilds a plain `List`, not a `Result`. When you need the container type preserved, use `Traversals.forIterableCollecting(collector)` and supply the rebuild.
 
 ---
 
-## Choosing the Right Strategy
+## Choosing a Strategy
 
-```
-              ┌─────────────────────────────────────────────┐
-              │     Which copy strategy should I use?       │
-              └─────────────────────────────────────────────┘
-                                   │
-                                   ▼
-               ┌───────────────────────────────────────┐
-               │ Does it have toBuilder().build()?     │
-               └───────────────────────────────────────┘
-                      │ YES                    │ NO
-                      ▼                        ▼
-            ┌──────────────────┐    ┌───────────────────────┐
-            │   @ViaBuilder    │    │ Does it have withX()? │
-            │                  │    └───────────────────────┘
-            │ JOOQ, Lombok,    │           │ YES       │ NO
-            │ Immutables,      │           ▼           ▼
-            │ AutoValue        │    ┌──────────┐  ┌──────────────────────┐
-            └──────────────────┘    │ @Wither  │  │ Does it have an      │
-                                    │          │  │ all-args constructor?│
-                                    │LocalDate,│  └──────────────────────┘
-                                    │java.time │       │ YES       │ NO
-                                    └──────────┘       ▼           ▼
-                                             ┌───────────────┐ ┌──────────────┐
-                                             │@ViaConstructor│ │@ViaCopyAndSet│
-                                             │               │ │              │
-                                             │ Simple value  │ │ Legacy types │
-                                             │ objects       │ │ with setters │
-                                             └───────────────┘ └──────────────┘
+```mermaid
+flowchart TD
+    Q{"How does the type<br/>make a modified copy?"}
+    Q -->|"toBuilder().field(x).build()"| B(["@ViaBuilder<br/>JOOQ, Lombok, Immutables, AutoValue"])
+    Q -->|"withField(x)"| W(["@Wither<br/>java.time, Guava, Immutables"])
+    Q -->|"an all-args constructor"| C(["@ViaConstructor<br/>simple value objects"])
+    Q -->|"a copy constructor<br/>plus setters"| S(["@ViaCopyAndSet<br/>legacy mutable types"])
+    Q -->|"it is already a<br/>List, Map or Optional"| N(["nothing:<br/>use the standard traversals"])
+
+    classDef decision fill:#e5c890,stroke:#df8e1d,color:#232634
+    classDef tier fill:#a6d189,stroke:#40a02b,color:#232634
+    class Q decision
+    class B,W,C,S,N tier
 ```
 
-| Type Pattern | Annotation | Example Types |
-|--------------|------------|---------------|
-| Has `toBuilder().field(x).build()` | `@ViaBuilder` | JOOQ POJOs, Lombok @Builder, Immutables |
-| Has `withField(x)` methods | `@Wither` | java.time, Guava Immutables |
-| Has all-args constructor only | `@ViaConstructor` | Simple value objects |
-| Has copy constructor + setters | `@ViaCopyAndSet` | Legacy mutable types |
-| Implements List/Map/Optional | None needed | JOOQ Result, standard collections |
-
-Start with `@ViaBuilder` as it is the most common pattern. Fall back to others when the type does not fit.
+Start with `@ViaBuilder`: it is the pattern most generated code uses. Fall back to the others when the type does not fit.
 
 ---
 
-## Quick Reference
+## The fine print: strategy parameters
 
-~~~admonish tip title="@ViaBuilder Parameters"
+~~~admonish note title="Every parameter, with its default"
 ```java
 @ViaBuilder(
-    getter = "getName",      // Default: optic method name
-    toBuilder = "toBuilder", // Default: "toBuilder"
-    setter = "name",         // Default: optic method name
-    build = "build"          // Default: "build"
-)
-```
-~~~
+    getter = "",              // default: the optic method's name
+    toBuilder = "toBuilder",
+    setter = "",              // default: the optic method's name
+    build = "build")
 
-~~~admonish tip title="@Wither Parameters"
-```java
 @Wither(
-    value = "withName",      // Required: wither method name
-    getter = "getName"       // Default: optic method name
-)
-```
-~~~
+    value = "withName",       // required: the wither method
+    getter = "")              // default: the optic method's name
 
-~~~admonish tip title="@ViaConstructor Parameters"
-```java
 @ViaConstructor(
-    parameterOrder = {"x", "y", "z"}  // Effectively required: constructor parameter order
-)
-```
-**Note:** While `parameterOrder` has a default empty value in the annotation definition, you must provide it for the processor to generate working code. Omitting it results in a runtime `UnsupportedOperationException`. Future versions may support auto-detection of constructor parameters.
-~~~
+    parameterOrder = {"x", "y"})   // effectively required, see above
 
-~~~admonish tip title="@ThroughField Parameters"
-```java
+@ViaCopyAndSet(
+    copyConstructor = "",     // default: the copy constructor
+    setter = "setHost")       // required
+
 @ThroughField(
-    field = "items",                  // Required: name of the container field
-    traversal = ""                    // Optional: auto-detected from field type
-)
+    field = "items",          // required: the container field
+    traversal = "")           // default: auto-detected from the field type
 ```
-**Auto-detection:** The `traversal` parameter is automatically determined based on the field's type:
-- `List<A>` (including `ArrayList`, `LinkedList`, etc.) → `Traversals.forList()`
-- `Set<A>` (including `HashSet`, `TreeSet`, etc.) → `Traversals.forSet()`
-- `Optional<A>` → `Traversals.forOptional()`
-- `A[]` → `Traversals.forArray()`
-- `Map<K, V>` (including `HashMap`, `TreeMap`, etc.) → `Traversals.forMapValues()`
 ~~~
 
 ---
 
 ~~~admonish info title="Key Takeaways"
-* `@ViaBuilder` is your go-to for JOOQ, Lombok, and most immutable types
-* `@ThroughField` auto-detects traversals for `List`, `Set`, `Optional`, arrays, and `Map` fields (including subtypes)
-* JOOQ's `Result<R>` implements `List` - use standard traversals directly
-* Match the copy strategy to the type's API - builder, wither, constructor, or copy+set
-* Compose optics freely across different strategies - they all produce standard `Lens` instances
+* **`@ViaBuilder` is the default choice**, and covers JOOQ, Lombok, AutoValue and Protobuf between them. Immutables generates both a builder and withers, so either strategy works there.
+* **Every name is overridable.** Getter, builder accessor, setter and build method can each be spelled out when a library's conventions differ.
+* **`@ThroughField` reaches into collection fields**, auto-detecting the traversal for lists, sets, optionals, arrays and maps, subtypes included.
+* **`Traversal` reads and writes through `Traversals`**, not through a plain instance `modify`; `andThen`, `filtered`, `filterBy`, `asFold`, `modifyF`, `modifyWhen` and `branch` do live on the optic.
+* **Not everything needs a strategy.** A type that already implements `List`, `Map` or `Optional` works with the standard traversals for reads, though rebuilding the exact container type needs `forIterableCollecting`.
 ~~~
 
----
-
-## Making Your JOOQ Integration Even Better
-
-~~~admonish tip title="Extending the Integration"
-Consider these opportunities to enhance your database optics:
-
-- **Generate spec interfaces from JOOQ schema**: Write a build step that generates `*Optics` interfaces alongside JOOQ's code generation
-- **Batch updates**: Compose traversals for bulk modifications that can be converted back to SQL updates
-- **Audit trails**: Wrap optics with logging to track all field modifications before persistence
-- **Validation pipelines**: Combine with `Validated` to accumulate all validation errors before database writes
-- **Optimistic locking**: Create optics that automatically handle version field increments
+~~~admonish tip title="See Also"
+- [Optics for External Types](importing_optics.md): `@ImportOptics` and what auto-detection covers
+- [Taming JSON with Jackson](optics_spec_interfaces.md): spec interfaces for predicate-based type discrimination
+- [Focus DSL with External Libraries](focus_external_bridging.md): bridging Focus navigation into these generated optics
 ~~~
 
----
-
-## Further Reading
-
-**JOOQ:**
-- [JOOQ Official Site](https://www.jooq.org/) - Type-safe SQL in Java
-- [JOOQ Immutables Integration](https://www.jooq.org/doc/latest/manual/code-generation/codegen-pojos/) - Generating immutable POJOs
-- [JOOQ Record Patterns](https://www.jooq.org/doc/latest/manual/sql-execution/fetching/record-vs-pojo/) - Records vs POJOs
-
-**Builder Pattern Libraries:**
-- [Lombok](https://projectlombok.org/) - `@Builder`, `@Value`, and more
-- [Immutables](https://immutables.github.io/) - Annotation-driven immutable objects
-- [AutoValue](https://github.com/google/auto/tree/main/value) - Google's immutable value types
-- [Protocol Buffers](https://protobuf.dev/reference/java/java-generated/) - Generated builders for message types
-
-**Related Higher-Kinded-J Features:**
-- Focus DSL Bridging - See [next chapter](focus_external_bridging.md)
-- Traversal utilities - Batch operations on collections
-- Monoid-based aggregation - Combine values across traversals
+~~~admonish tip title="Further Reading"
+- **jOOQ**: [jooq.org](https://www.jooq.org/): type-safe SQL in Java, and its [immutable POJO generation](https://www.jooq.org/doc/latest/manual/code-generation/codegen-pojos/)
+- **Lombok**: [projectlombok.org](https://projectlombok.org/): `@Builder`, `@Value`, and the `setterPrefix` option this page's naming examples assume
+- **Protocol Buffers**: [protobuf.dev](https://protobuf.dev/reference/java/java-generated/): generated builders, a natural `@ViaBuilder` target
+~~~
 
 ---
 

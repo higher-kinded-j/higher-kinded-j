@@ -1,21 +1,20 @@
 # Focus DSL: Custom Containers and Code Generation
 
 ~~~admonish info title="What You'll Learn"
-- What the annotation processor generates for each field type
-- How container cardinality (`ZERO_OR_ONE` vs `ZERO_OR_MORE`) determines the generated path type
-- The full table of supported container types across HKJ, JDK, Eclipse Collections, Guava, Vavr, Apache Commons, and PCollections
-- How to register your own container types via the `TraversableGenerator` SPI
+- What the annotation processor emits for each field shape
+- How container cardinality (`ZERO_OR_ONE` versus `ZERO_OR_MORE`) determines the generated path type
+- What `widenCollections = true` changes, and when you want it
+- The container types supported out of the box, across HKJ, the JDK, Eclipse Collections, Guava, Vavr, Apache Commons, and PCollections
+- How to register your own container type through the `TraversableGenerator` SPI
 ~~~
 
-~~~admonish title="Hands On Practice"
-[Tutorial20_ContainerNavigation.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/test/java/org/higherkindedj/tutorial/optics/Tutorial20_ContainerNavigation.java) (4 exercises, ~10 minutes)
-~~~
+The Focus DSL never asks you which path type you want. It reads the field's type and picks: exactly one, zero or one, or zero or more. This page is the rule book for that choice.
 
 ---
 
 ## Generated Class Structure
 
-For a record like:
+Given a record with one field of each interesting shape:
 
 ```java
 @GenerateLenses
@@ -24,231 +23,191 @@ record Employee(
     String name,
     int age,
     Optional<String> email,
-    @Nullable String nickname,
-    List<Skill> skills
-) {}
+    List<Skill> skills,
+    Either<String, Integer> timeout,
+    Map<String, Integer> scores) {}
 ```
 
-The processor generates:
+the processor generates one method per component, each already carrying the widening its type calls for:
 
+<!-- verify -->
 ```java
-@Generated
-public final class EmployeeFocus {
-    private EmployeeFocus() {}
+FocusPath<Employee, String> name = EmployeeFocus.name();          // plain field
+FocusPath<Employee, Integer> age = EmployeeFocus.age();           // boxed primitive
 
-    // Required fields -> FocusPath
-    public static FocusPath<Employee, String> name() {
-        return FocusPath.of(EmployeeLenses.name());
-    }
+AffinePath<Employee, String> email = EmployeeFocus.email();       // .some()
+TraversalPath<Employee, Skill> skills = EmployeeFocus.skills();   // .each()
 
-    public static FocusPath<Employee, Integer> age() {
-        return FocusPath.of(EmployeeLenses.age());
-    }
+// SPI ZERO_OR_ONE: .some(Affines.eitherRight())
+AffinePath<Employee, Integer> timeout = EmployeeFocus.timeout();
 
-    // Optional<T> field -> AffinePath (automatically unwraps with .some())
-    public static AffinePath<Employee, String> email() {
-        return FocusPath.of(EmployeeLenses.email()).some();
-    }
-
-    // @Nullable field -> AffinePath (automatically handles null with .nullable())
-    public static AffinePath<Employee, String> nickname() {
-        return FocusPath.of(EmployeeLenses.nickname()).nullable();
-    }
-
-    // List<T> field -> TraversalPath (traverses elements)
-    public static TraversalPath<Employee, Skill> skills() {
-        return FocusPath.of(EmployeeLenses.skills()).each();
-    }
-
-    // Indexed access to List<T> -> AffinePath
-    public static AffinePath<Employee, Skill> skill(int index) {
-        return FocusPath.of(EmployeeLenses.skills()).at(index);
-    }
-
-    // Either<String, Integer> field -> AffinePath (SPI widening with .some(Affine))
-    public static AffinePath<Employee, Integer> timeout() {
-        return FocusPath.of(EmployeeLenses.timeout()).some(Affines.eitherRight());
-    }
-
-    // Map<String, Integer> field -> TraversalPath (SPI widening with .each(Each))
-    public static TraversalPath<Employee, Integer> scores() {
-        return FocusPath.of(EmployeeLenses.scores()).each(EachInstances.mapValuesEach());
-    }
-}
+// SPI ZERO_OR_MORE: not widened by default, so the path still focuses the Map
+FocusPath<Employee, Map<String, Integer>> scores = EmployeeFocus.scores();
+TraversalPath<Employee, Integer> allScores = scores.each(EachInstances.mapValuesEach());
 ```
+
+Two things are worth noticing. There is exactly one method per component, so indexed accessors such as `skill(0)` are not generated; index with `.at(0)` from `FocusPath.of(EmployeeLenses.skills())` instead. And the `Map` field is the odd one out, which the next section explains.
 
 ---
 
-## Custom Container Types
+## Cardinality: the Rule Behind the Choice
 
-The Focus DSL automatically recognises `Optional`, `List`, and `Set` fields. But what about `Either`, `Try`, `Map`, or your own container types?
+Every container holds its values in one of two ways. It either wraps *at most one* value (`Either` holds a success or a failure) or *zero or more* (a `Map` holds many entries). The Focus DSL calls this the container's **cardinality**, and it decides the generated path type:
 
-Every container type holds its values in one of two ways: it either wraps *at most one* value (like `Either`, which holds a success *or* a failure), or it holds *zero or more* values (like `Map`, which holds a collection of entries). The Focus DSL calls this the container's **cardinality**, and it determines the generated path type:
+```mermaid
+flowchart TD
+    C{"How many values<br/>can the container hold?"}
+    C -->|"exactly one<br/>(a plain field)"| F(["FocusPath"])
+    C -->|"zero or one<br/>Optional, Maybe, Either, Try, Validated"| A(["AffinePath"])
+    C -->|"zero or more<br/>List, Set, Map, arrays, third-party collections"| T(["TraversalPath"])
 
-- **Zero or one** (e.g., `Either<L, R>`, `Try<A>`, `Validated<E, A>`) produces an `AffinePath`; the value may or may not be present.
-- **Zero or more** (e.g., `Map<K, V>`, `T[]`) produces a `TraversalPath`; there may be many values to iterate over.
-
-The `TraversableGenerator` SPI lets any container type participate in this path widening. When `@GenerateFocus` encounters a registered container field, it generates the correct `AffinePath` or `TraversalPath` automatically, with no manual composition needed.
-
-Nested container patterns such as `Optional<List<String>>` or `Either<E, Map<K, V>>` are also detected automatically. The processor generates composed widening chains (e.g., `.some().each()`) and selects the correct return type using the widening lattice. See [Nested Container Widening](focus_navigation.md#nested-container-widening) for details.
-
-### How It Works
-
-For a record with an `Either` field:
-
-```java
-@GenerateFocus
-record ApiResponse(int status, Either<String, UserData> body) {}
+    classDef decision fill:#e5c890,stroke:#df8e1d,color:#232634
+    classDef tier fill:#a6d189,stroke:#40a02b,color:#232634
+    class C decision
+    class F,A,T tier
 ```
 
-The processor generates:
+Nested containers compose the same rule up to three levels: `Optional<List<String>>` becomes `.some().each()` and lands on a `TraversalPath`. See [Nested Container Widening](focus_navigation.md#nested-container-widening).
 
+### The `ZERO_OR_MORE` Asymmetry, and `widenCollections`
+
+`List`, `Set` and `Collection` are recognised directly by the processor and widened at the static method. Every *other* `ZERO_OR_MORE` container arrives through the service-provider interface (SPI) (`Map`, arrays, and the third-party collections below) and is left un-widened by default, for backwards compatibility. One flag turns the widening on:
+
+<!-- verify -->
 ```java
-// body() returns AffinePath, not FocusPath, because Either is a ZERO_OR_ONE container
-public static AffinePath<ApiResponse, UserData> body() {
-    return FocusPath.of(Lens.of(ApiResponse::body, ...)).some(Affines.eitherRight());
-}
+// Default: the static method stops at the container
+FocusPath<Employee, Map<String, Integer>> scores = EmployeeFocus.scores();
+
+// @GenerateFocus(widenCollections = true): the static method steps into it
+TraversalPath<WidenedEmployee, Integer> widened = WidenedEmployeeFocus.scores();
 ```
 
-The `.some(Affines.eitherRight())` call composes an `Affine` that focuses on the `Right` value, widening the path from `FocusPath` to `AffinePath`. For `ZERO_OR_MORE` SPI types (like `Map`), the static Focus method returns `FocusPath` for backwards compatibility; users call `.each(EachInstances.mapValuesEach())` manually to widen to `TraversalPath`. Navigator methods, however, widen automatically.
-
-### Supported Container Types
-
-The tables below show both the **navigator path** (the return type when navigating through a navigator chain) and the **static Focus method** return type (the type returned by a top-level `XxxFocus.field()` call). These differ for `ZERO_OR_MORE` SPI types; see the note after the tables.
-
-#### HKJ and JDK types
-
-| Container | Cardinality | Navigator path | Static Focus method | Optic used |
-|-----------|-------------|---------------|---------------------|------------|
-| `Either<L, R>` | Zero or one | `AffinePath` | `AffinePath` | `Affines.eitherRight()` |
-| `Try<A>` | Zero or one | `AffinePath` | `AffinePath` | `Affines.trySuccess()` |
-| `Validated<E, A>` | Zero or one | `AffinePath` | `AffinePath` | `Affines.validatedValid()` |
-| `Maybe<A>` | Zero or one | `AffinePath` | `AffinePath` | `Affines.just()` |
-| `Optional<A>` | Zero or one | `AffinePath` | `AffinePath` | `.some()` (built-in) |
-| `Map<K, V>` | Zero or more | `TraversalPath` | **`FocusPath`** ¹ | `EachInstances.mapValuesEach()` |
-| `T[]` (arrays) | Zero or more | `TraversalPath` | **`FocusPath`** ¹ | `EachInstances.arrayEach()` |
-| `List<A>` | Zero or more | `TraversalPath` | `TraversalPath` | `.each()` (built-in) |
-| `Set<A>` | Zero or more | `TraversalPath` | `TraversalPath` | `.each()` (built-in) |
-
-¹ SPI `ZERO_OR_MORE` types return `FocusPath` from static Focus methods for backwards compatibility. Call `.each(eachInstance)` to widen manually.
-
-#### Eclipse Collections
-
-| Container | Cardinality | Navigator path | Static Focus method | Optic used |
-|-----------|-------------|---------------|---------------------|------------|
-| `ImmutableList<A>` | Zero or more | `TraversalPath` | **`FocusPath`** ¹ | `fromIterableCollecting(list -> Lists.immutable.ofAll(list))` |
-| `MutableList<A>` | Zero or more | `TraversalPath` | **`FocusPath`** ¹ | `fromIterableCollecting(list -> Lists.mutable.ofAll(list))` |
-| `ImmutableSet<A>` | Zero or more | `TraversalPath` | **`FocusPath`** ¹ | `fromIterableCollecting(list -> Sets.immutable.ofAll(list))` |
-| `MutableSet<A>` | Zero or more | `TraversalPath` | **`FocusPath`** ¹ | `fromIterableCollecting(list -> Sets.mutable.ofAll(list))` |
-| `ImmutableBag<A>` | Zero or more | `TraversalPath` | **`FocusPath`** ¹ | `fromIterableCollecting(list -> Bags.immutable.ofAll(list))` |
-| `MutableBag<A>` | Zero or more | `TraversalPath` | **`FocusPath`** ¹ | `fromIterableCollecting(list -> Bags.mutable.ofAll(list))` |
-| `ImmutableSortedSet<A>` | Zero or more | `TraversalPath` | **`FocusPath`** ¹ | `fromIterableCollecting(list -> SortedSets.immutable.ofAll(list))` |
-| `MutableSortedSet<A>` | Zero or more | `TraversalPath` | **`FocusPath`** ¹ | `fromIterableCollecting(list -> SortedSets.mutable.ofAll(list))` |
-
-#### Guava, Vavr, and Apache Commons
-
-| Container | Library | Cardinality | Navigator path | Static Focus method | Optic used |
-|-----------|---------|-------------|---------------|---------------------|------------|
-| `ImmutableList<A>` | Guava | Zero or more | `TraversalPath` | **`FocusPath`** ¹ | `fromIterableCollecting(ImmutableList::copyOf)` |
-| `ImmutableSet<A>` | Guava | Zero or more | `TraversalPath` | **`FocusPath`** ¹ | `fromIterableCollecting(ImmutableSet::copyOf)` |
-| `io.vavr.collection.List<A>` | Vavr | Zero or more | `TraversalPath` | **`FocusPath`** ¹ | `fromIterableCollecting(list -> List.ofAll(list))` |
-| `io.vavr.collection.Set<A>` | Vavr | Zero or more | `TraversalPath` | **`FocusPath`** ¹ | `fromIterableCollecting(list -> HashSet.ofAll(list))` |
-| `HashBag<A>` | Apache Commons | Zero or more | `TraversalPath` | **`FocusPath`** ¹ | `fromIterableCollecting(HashBag::new)` |
-| `UnmodifiableList<A>` | Apache Commons | Zero or more | `TraversalPath` | **`FocusPath`** ¹ | `fromIterableCollecting(UnmodifiableList::new)` |
-
-All third-party generators use `EachInstances.fromIterableCollecting(collector)`, a generic factory that iterates the container, traverses elements with the applicative functor, and reconstructs the container via the provided collector function. No additional modules are needed; the user's project already has the third-party library on the classpath since it declared the container type in its record.
-
-~~~admonish note title="ZERO_OR_MORE static method behaviour"
-For `ZERO_OR_MORE` SPI types (all collection-like containers above), the static Focus method returns `FocusPath`, not `TraversalPath`. This preserves backwards compatibility. To traverse manually, call `.each(eachInstance)`:
-
-```java
-// Static method returns FocusPath<AssetClass, ImmutableList<Position>>
-var positions = AssetClassFocus.positions();
-
-// Manually widen to TraversalPath
-TraversalPath<AssetClass, Position> traversal = positions.each(
-    EachInstances.fromIterableCollecting(list -> Lists.immutable.ofAll(list)));
-```
-
-Navigator generation handles `ZERO_OR_MORE` automatically; navigator methods for third-party collection fields return `TraversalPath` without manual widening.
+~~~admonish tip title="Why this matters"
+`widenCollections = true` is usually what you want on a new record: it makes `Map` fields behave exactly like `List` fields, and the same flag applies one level down inside a nested container. It is opt-in only because turning it on changes a method's return type, and that is a source-breaking change for anyone already calling it. New code has nothing to break.
 ~~~
+
+Navigator methods widen either way, so a `Map<String, Address>` field on a navigator-enabled record already gives you a `TraversalPath` over the addresses without the flag.
+
+---
+
+## Supported Container Types
+
+`ZERO_OR_ONE` containers, which produce an `AffinePath`:
+
+| Container | Source | Optic used |
+|-----------|--------|------------|
+| `Optional<A>` | JDK | `.some()` (recognised directly) |
+| `Maybe<A>` | HKJ | `Affines.just()` |
+| `Either<L, R>` | HKJ | `Affines.eitherRight()` |
+| `Try<A>` | HKJ | `Affines.trySuccess()` |
+| `Validated<E, A>` | HKJ | `Affines.validatedValid()` |
+
+`ZERO_OR_MORE` containers, which produce a `TraversalPath` (at the static method only for the first row, or for the rest under `widenCollections = true`):
+
+| Container | Source | Optic used |
+|-----------|--------|------------|
+| `List<A>`, `Set<A>`, `Collection<A>` | JDK | `.each()` (recognised directly) |
+| `Map<K, V>` | JDK | `EachInstances.mapValuesEach()` |
+| `A[]` | JDK | `EachInstances.arrayEach()` |
+| `ImmutableList`, `MutableList`, `ImmutableSet`, `MutableSet`, `ImmutableBag`, `MutableBag`, `ImmutableSortedSet`, `MutableSortedSet` | Eclipse Collections | `EachInstances.fromIterableCollecting(...)` |
+| `ImmutableList`, `ImmutableSet` | Guava | `EachInstances.fromIterableCollecting(...)` |
+| `List`, `Set` | Vavr | `EachInstances.fromIterableCollecting(...)` |
+| `HashBag`, `UnmodifiableList` | Apache Commons | `EachInstances.fromIterableCollecting(...)` |
+| `PVector`, `PStack`, `PSet`, `PSortedSet`, `PBag` | PCollections | `EachInstances.fromIterableCollecting(...)` |
+| `PMap`, `PSortedMap` | PCollections | `EachInstances.mapValuesEachCollecting(...)` |
+
+Every third-party *collection* generator goes through `EachInstances.fromIterableCollecting(collector)`, a generic factory that iterates the container, traverses the elements with the applicative, and rebuilds the container through the collector it is given; the map-shaped ones go through `mapValuesEachCollecting` instead. No extra module is needed: a project that names one of these types in a record already has the library on its classpath.
+
+<!-- verify -->
+```java
+// Eclipse Collections, no manual wiring: the SPI generator supplies the Each instance
+FocusPath<AssetClass, ImmutableList<Position>> positions = AssetClassFocus.positions();
+
+TraversalPath<AssetClass, Position> eachPosition =
+    positions.each(EachInstances.fromIterableCollecting(list -> Lists.immutable.ofAll(list)));
+
+AssetClass rebalanced =
+    eachPosition
+        .via(PositionFocus.weight())
+        .modifyAll(w -> w * 1.05, assetClass);
+```
 
 ### Cross-Ecosystem Navigation
 
-Real-world Java projects often mix collection libraries: JDK collections for standard code, Eclipse Collections for high-performance immutable data, HKJ types (`Either`, `Try`, `Validated`) for typed error handling. The Focus DSL navigates across all of these with a single annotation, composing navigator chains that cross ecosystem boundaries transparently.
+Real projects mix collection libraries: JDK collections for ordinary code, Eclipse Collections for high-performance immutable data, HKJ types for typed error handling. Focus navigates all of them from one annotation, composing chains that cross ecosystem boundaries without ceremony. For a full walkthrough on a financial portfolio model, see [Portfolio Risk Analysis](../examples/examples_portfolio_risk.md).
 
-For a detailed walkthrough of cross-ecosystem navigation with a financial portfolio domain model, see the [Portfolio Risk Analysis](../examples/examples_portfolio_risk.md) example in the Examples Gallery.
+---
 
-### Registering Your Own Container Types
+## The fine print: registering your own container type
 
-Third-party libraries can register their own container types by implementing `TraversableGenerator` and registering it via `META-INF/services`.
-
-**Step 1: Implement the SPI interface**
+A library can teach the processor about its own container by implementing `TraversableGenerator`. The interface is small: say which types you handle, what cardinality they have, which type argument is the focus, what optic expression to emit, and (the one method with no default) how to emit `modifyF`.
 
 ```java
-package com.example.optics;
+@ServiceProvider(TraversableGenerator.class)
+public final class ResultGenerator extends BaseTraversableGenerator {
 
-import org.higherkindedj.optics.processing.spi.TraversableGenerator;
-import java.util.Set;
+  @Override
+  public boolean supports(TypeMirror type) {
+    return type instanceof DeclaredType d && d.asElement().toString().equals("com.example.Result");
+  }
 
-public class ResultGenerator extends BaseTraversableGenerator {
+  @Override
+  public Cardinality getCardinality() {
+    return Cardinality.ZERO_OR_ONE;   // Result holds zero or one success value
+  }
 
-    @Override
-    public String supportedTypeName() {
-        return "com.example.Result";
-    }
+  @Override
+  public int getFocusTypeArgumentIndex() {
+    return 1;                          // Result<E, A> focuses on A
+  }
 
-    @Override
-    public Cardinality getCardinality() {
-        return Cardinality.ZERO_OR_ONE;  // Result holds zero or one success value
-    }
+  @Override
+  public String generateOpticExpression() {
+    return "ResultAffines.success()";  // a Java expression returning an Affine
+  }
 
-    @Override
-    public int getFocusTypeArgumentIndex() {
-        return 1;  // Result<E, A> focuses on A (index 1)
-    }
+  @Override
+  public Set<String> getRequiredImports() {
+    return Set.of("com.example.optics.ResultAffines");
+  }
 
-    @Override
-    public String generateOpticExpression() {
-        return "ResultAffines.success()";  // Java expression returning an Affine
-    }
-
-    @Override
-    public Set<String> getRequiredImports() {
-        return Set.of("com.example.optics.ResultAffines");
-    }
-
-    // ... implement remaining methods from BaseTraversableGenerator
+  @Override
+  public CodeBlock generateModifyF(
+      RecordComponentElement component,
+      ClassName recordClassName,
+      List<? extends RecordComponentElement> allComponents) {
+    // The body of the generated Traversal.modifyF for this container.
+    // EitherGenerator in hkj-processor-plugins is a worked implementation.
+  }
 }
 ```
 
-**Step 2: Register via `META-INF/services`**
+`generateModifyF` is the only member without a default, so a generator that omits it will not compile: `BaseTraversableGenerator` supplies the generic-type and constructor-argument helpers, not this.
 
-Create the file `src/main/resources/META-INF/services/org.higherkindedj.optics.processing.spi.TraversableGenerator`:
+`@ServiceProvider` (from Avaje) writes the `META-INF/services` entry and checks the `module-info.java` `provides` clause for you. Once the generator is on the annotation processor path, any `@GenerateFocus` record with a `Result<E, A>` field generates an `AffinePath` that calls `.some(ResultAffines.success())`.
 
-```
-com.example.optics.ResultGenerator
-```
+~~~admonish tip title="See Also"
+[Traversal Generator Plugins](../tooling/generator_plugins.md) is the full implementation guide: generator discovery, priority, the `modifyF` code generation hook, and the testing approach.
+~~~
 
-**Step 3: Module system configuration** (if using JPMS)
+---
 
-```java
-module com.example.optics {
-    requires org.higherkindedj.processor;
-    provides org.higherkindedj.optics.processing.spi.TraversableGenerator
-        with com.example.optics.ResultGenerator;
-}
-```
-
-Once registered, any `@GenerateFocus` record with a `Result<E, A>` field will automatically generate an `AffinePath` that calls `.some(ResultAffines.success())`.
+~~~admonish info title="Key Takeaways"
+* **The field type picks the path type, through cardinality.** Zero or one gives an `AffinePath`, `List`/`Set`/`Collection` a `TraversalPath`, anything else a `FocusPath`. Every other zero-or-more container stops at the container until `widenCollections` says otherwise.
+* **`List`, `Set`, `Collection` and `Optional` are built in.** Everything else, including `Map` and arrays, arrives through the `TraversableGenerator` SPI.
+* **`widenCollections = true` removes the one asymmetry.** Without it, SPI `ZERO_OR_MORE` containers stop at the container in static Focus methods; navigator methods widen regardless.
+* **Third-party collections need no extra module.** One generic `fromIterableCollecting` factory covers Eclipse Collections, Guava, Vavr, Apache Commons and PCollections.
+* **The SPI is open.** Implement `supports`, `getCardinality`, `getFocusTypeArgumentIndex`, `generateOpticExpression` and the one method with no default, `generateModifyF`; register with `@ServiceProvider`, and your container becomes a first-class Focus field.
+~~~
 
 ~~~admonish info title="Hands-On Learning"
-Practice container type navigation in [Tutorial 20: Custom Container Navigation](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/test/java/org/higherkindedj/tutorial/optics/Tutorial20_ContainerNavigation.java) (4 exercises, ~10 minutes).
+Practice container navigation in [Tutorial 20: Custom Container Navigation](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/test/java/org/higherkindedj/tutorial/optics/Tutorial20_ContainerNavigation.java) (4 exercises, ~10 minutes).
 ~~~
 
 ~~~admonish tip title="See Also"
-- [Traversal Generator Plugins](../tooling/generator_plugins.md) - Full SPI implementation guide
-- [Portfolio Risk Analysis](../examples/examples_portfolio_risk.md) - Cross-ecosystem navigation example
+- [Navigation and Composition](focus_navigation.md): widening rules, navigators, and nested containers
+- [Traversal Generator Plugins](../tooling/generator_plugins.md): the full SPI implementation guide
+- [Portfolio Risk Analysis](../examples/examples_portfolio_risk.md): cross-ecosystem navigation end to end
 ~~~
 
 ---

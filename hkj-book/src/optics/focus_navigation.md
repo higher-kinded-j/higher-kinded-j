@@ -2,137 +2,100 @@
 
 ~~~admonish info title="What You'll Learn"
 - Collection navigation with `.each()`, `.each(Each)`, `.at()`, `.atKey()`, `.some()`, `.some(Affine)`, and `.nullable()`
-- List decomposition with `.via()` and `ListPrisms`
-- Composing Focus paths with existing Lenses, Prisms, and Traversals
-- Fluent cross-type navigation with generated navigators (no `.via()` needed)
-- SPI-aware path widening and compound widening rules
+- Path widening: how a field's container decides the path type, on its own and nested
+- List decomposition with `ListPrisms`, and why it starts from the lens rather than the generated path
+- Composing Focus paths with existing lenses, prisms, and traversals through `.via()`
+- Which fields get a generated navigator, and what a navigator can and cannot do
+- SPI-aware widening, compound widening, and nested container chains
 - Controlling navigator generation with depth limits and field filters
 ~~~
 
-~~~admonish title="Hands On Practice"
-- [Tutorial12_FocusDSL.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/test/java/org/higherkindedj/tutorial/optics/Tutorial12_FocusDSL.java) 
-- [Tutorial19_NavigatorGeneration.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/test/java/org/higherkindedj/tutorial/optics/Tutorial19_NavigatorGeneration.java)
-~~~
-
-~~~admonish title="Example Code"
+~~~admonish example title="See Example Code"
 [NavigatorExample](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/optics/focus/NavigatorExample.java) | [ContainerNavigationExample](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/optics/focus/ContainerNavigationExample.java)
 ~~~
+
+The previous page gave you one method per record component. This page is about the hops the processor did not generate for you: stepping into a container it does not recognise, indexing a list, unwrapping an `Either`, and joining a path to an optic that came from somewhere else. One rule sits under all of them, and it has a name: widening.
 
 ---
 
 ## Collection Navigation
 
-The Focus DSL provides intuitive methods for navigating collections:
+### `.each()`: Traverse All Elements
 
-### `.each()` - Traverse All Elements
+`.each()` steps from a collection into its elements. For a `List` or `Set` field the generated method has already applied it, which is why `ContainerFocus.items()` focuses each `Item`:
 
-Converts a collection field to a traversal over its elements:
-
+<!-- verify -->
 ```java
-// List<Department> -> traversal over Department
-TraversalPath<Company, Department> allDepts = CompanyFocus.departments();
+// Generated: FocusPath.of(lens).each()
+TraversalPath<Container, Item> allItems = ContainerFocus.items();
+List<Item> items = allItems.getAll(container);
 
-// Equivalent to calling .each() on a FocusPath to List<T>
+// Applying .each() yourself, starting from the lens to the whole list
+TraversalPath<Container, Item> sameThing = FocusPath.of(ContainerLenses.items()).each();
 ```
 
-### `.each(Each)` - Traverse with Custom Each Instance
+### `.each(Each)`: Traverse with a Custom Each Instance
 
-For containers that aren't automatically recognised by `.each()`, provide an explicit `Each` instance:
+For containers `.each()` does not recognise, hand it an explicit `Each` instance. This works on `FocusPath`, `AffinePath` and `TraversalPath` alike:
 
+<!-- verify -->
 ```java
-import org.higherkindedj.optics.each.EachInstances;
-import org.higherkindedj.optics.extensions.EachExtensions;
+// A Map field: traverse the values
+TraversalPath<Config, Setting> allSettings =
+    ConfigFocus.settings().each(EachInstances.mapValuesEach());
 
-// Custom container with Each instance
-record Container(Map<String, Value> values) {}
-
-Lens<Container, Map<String, Value>> valuesLens =
-    Lens.of(Container::values, (c, v) -> new Container(v));
-
-// Use mapValuesEach() to traverse map values
-TraversalPath<Container, Value> allValues =
-    FocusPath.of(valuesLens).each(EachInstances.mapValuesEach());
-
-// HKT types via EachExtensions
-record Wrapper(Maybe<Config> config) {}
-
-TraversalPath<Wrapper, Config> maybeConfig =
-    FocusPath.of(configLens).each(EachExtensions.maybeEach());
+// An HKJ container held behind a hand-written lens
+TraversalPath<Wrapper, Setting> maybeSetting =
+    FocusPath.of(Fixture.settingLens).each(EachExtensions.maybeEach());
 ```
 
-This method is available on `FocusPath`, `AffinePath`, and `TraversalPath`, enabling fluent navigation through any container type with an `Each` instance.
+For available `Each` instances and how to create your own, see [Each](each_typeclass.md).
 
-~~~admonish tip title="See Also"
-For available `Each` instances and how to create custom ones, see [Each Typeclass](each_typeclass.md).
+### Access by Index
+
+`.at(index)` focuses a single element of a list, and `.atKey(key)` a single value of a map. On a `FocusPath` or an `AffinePath` both return an `AffinePath`, because the position may not be occupied; on a `TraversalPath` the result stays a `TraversalPath`.
+
+The generated Focus class has exactly one method per record component, so there is no generated `container.item(0)` accessor. Index from the path that still focuses the container. When the result feeds straight into another composition, spell the element type out (`FocusPath.of(ContainerLenses.items()).<Item>at(0)`): nothing in the argument list mentions `Item`, so inference has nothing to work from.
+
+<!-- verify -->
+```java
+// A List field: start from the lens, because the generated path is element-level
+AffinePath<Container, Item> firstItem = FocusPath.of(ContainerLenses.items()).at(0);
+Optional<Item> first = firstItem.getOptional(container);   // empty if out of bounds
+
+// Or narrow the generated traversal to its first element. Mind the asymmetry:
+// headOption reads the first element but writes to all of them
+AffinePath<Container, Item> alsoFirst = ContainerFocus.items().headOption();
+
+// A Map field: the generated path still focuses the whole map, so .atKey() applies
+AffinePath<Config, Setting> database = ConfigFocus.settings().atKey("database");
+Optional<Setting> setting = database.getOptional(config);
+```
+
+~~~admonish warning title="Element-level versus container-level"
+`ContainerFocus.items()` focuses each `Item`; `FocusPath.of(ContainerLenses.items())` focuses the `List<Item>`. Anything that operates on the container as a whole (indexing, `ListPrisms`, a custom list-level optic) has to start from the second. Reach for the generated path when you want to act on every element, and for the lens when you want to act on the collection.
 ~~~
 
-### `.at(index)` - Access by Index
+### `.some()`: Unwrap Optional
 
-Focuses on a single element at a specific index:
+An `Optional<T>` field is unwrapped for you: the generated method applies `.some()` and returns an `AffinePath`. Call `.some()` yourself when the `Optional` sits behind a hand-written lens.
 
+### `.some(Affine)`: Navigate SPI Container Types
+
+Container types registered through the `TraversableGenerator` service-provider interface (SPI) that hold zero or one element take an `Affine` describing which side to focus:
+
+<!-- verify -->
 ```java
-// Focus on first department
-AffinePath<Company, Department> firstDept = CompanyFocus.department(0);
+// Either<String, String> field: the generated method already applies
+// .some(Affines.eitherRight()), focusing the Right value
+AffinePath<Warehouse, String> verified = WarehouseFocus.verifiedName();
 
-// Focus on third employee in second department
-AffinePath<Company, Employee> specificEmployee =
-    CompanyFocus.department(1).employee(2);
-
-// Returns empty if index out of bounds
-Optional<Department> maybe = firstDept.getOptional(emptyCompany);
+Optional<String> name = verified.getOptional(warehouse);   // empty for a Left
+Warehouse renamed = verified.set("Northern", warehouse);   // replaces the Left with Right("Northern")
+Warehouse untouched = verified.modify(String::toUpperCase, warehouse);   // this one is the no-op
 ```
 
-### `.atKey(key)` - Access Map Values
-
-For `Map<K, V>` fields, access values by key:
-
-```java
-@GenerateLenses
-@GenerateFocus
-record Config(Map<String, Setting> settings) {}
-
-// Focus on specific setting
-AffinePath<Config, Setting> dbSetting = ConfigFocus.setting("database");
-
-Optional<Setting> setting = dbSetting.getOptional(config);
-```
-
-### `.some()` - Unwrap Optional
-
-For `Optional<T>` fields, unwrap to the inner value:
-
-```java
-// Email is Optional<String>
-AffinePath<Employee, String> emailPath = EmployeeFocus.email();
-
-// Internally uses .some() to unwrap the Optional
-Optional<String> email = emailPath.getOptional(employee);
-```
-
-### `.some(Affine)` - Navigate SPI Container Types
-
-For container types registered via the `TraversableGenerator` SPI that hold zero or one element, provide an `Affine` instance to focus on the contained value:
-
-```java
-import org.higherkindedj.optics.util.Affines;
-
-// Either<String, Integer> field - focus on the Right value
-record Config(int port, Either<String, Integer> timeout) {}
-
-Lens<Config, Either<String, Integer>> timeoutLens =
-    Lens.of(Config::timeout, (c, t) -> new Config(c.port(), t));
-
-AffinePath<Config, Integer> timeoutPath =
-    FocusPath.of(timeoutLens).some(Affines.eitherRight());
-
-// Get: returns Optional.of(30) for Right(30), Optional.empty() for Left("disabled")
-Optional<Integer> value = timeoutPath.getOptional(config);
-
-// Set: replaces the Right value, no-op if Left
-Config updated = timeoutPath.set(60, config);
-```
-
-The following `Affine` instances are provided for built-in SPI types:
+The following `Affine` instances cover the built-in SPI types:
 
 | Container type | Affine instance | Focuses on |
 |----------------|-----------------|------------|
@@ -141,37 +104,30 @@ The following `Affine` instances are provided for built-in SPI types:
 | `Validated<E, A>` | `Affines.validatedValid()` | The `Valid` value |
 | `Maybe<A>` | `Affines.just()` | The `Just` value |
 
-When `@GenerateFocus` is used on a record with these field types, the generated Focus methods automatically call `.some(...)` with the appropriate `Affine`, producing an `AffinePath`.
-
-~~~admonish tip title="See Also"
 For a runnable example covering all container types, see [ContainerNavigationExample.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/optics/focus/ContainerNavigationExample.java).
-~~~
 
-### List Decomposition with `.via()`
+### List Decomposition with `ListPrisms`
 
-For list decomposition patterns (cons/snoc), compose with `ListPrisms` using `.via()`:
+`ListPrisms` optics work on the list itself, so compose them onto a path that focuses the whole list:
 
+<!-- verify -->
 ```java
-import org.higherkindedj.optics.util.ListPrisms;
+FocusPath<Container, List<Item>> items = FocusPath.of(ContainerLenses.items());
 
-// Focus on the first item in a container
-TraversalPath<Container, Item> items = ContainerFocus.items();
 AffinePath<Container, Item> firstItem = items.via(ListPrisms.head());
 Optional<Item> first = firstItem.getOptional(container);
 
-// Focus on the last element
 AffinePath<Container, Item> lastItem = items.via(ListPrisms.last());
 
 // Pattern match with cons (head, tail)
-TraversalPath<Container, Pair<Item, List<Item>>> consPath = items.via(ListPrisms.cons());
-consPath.preview(container).ifPresent(pair -> {
-    Item head = pair.first();
-    List<Item> tail = pair.second();
-    // Process head and tail...
-});
-
-// Alternative: use headOption() for first element access
-AffinePath<Container, Item> firstViaHeadOption = items.headOption();
+AffinePath<Container, Pair<Item, List<Item>>> consPath = items.via(ListPrisms.cons());
+consPath
+    .getOptional(container)
+    .ifPresent(
+        pair -> {
+          Item head = pair.first();
+          List<Item> tail = pair.second();
+        });
 ```
 
 | ListPrisms Method | Type | Description |
@@ -183,206 +139,195 @@ AffinePath<Container, Item> firstViaHeadOption = items.headOption();
 | `ListPrisms.cons()` | `Prism<List<A>, Pair<A, List<A>>>` | Decompose as (head, tail) |
 | `ListPrisms.snoc()` | `Prism<List<A>, Pair<List<A>, A>>` | Decompose as (init, last) |
 
-~~~admonish tip title="See Also"
-For comprehensive documentation on list decomposition patterns, including stack-safe operations for large lists, see [List Decomposition](list_decomposition.md).
-~~~
+The same decompositions are available directly on a path focusing a list, as `.head()`, `.last()`, `.tail()`, `.init()`, `.cons()` and `.snoc()`.
 
-### `.nullable()` - Handle Null Values
+For the full treatment, including stack-safe operations on large lists, see [List Decomposition](list_decomposition.md).
 
-For fields that may be null, use `.nullable()` to treat null as absent:
+### `.nullable()`: Handle Null Values
 
+For a field that may be null, `.nullable()` turns null into absence:
+
+<!-- verify -->
 ```java
-record LegacyUser(String name, @Nullable String nickname) {}
-
-// If @Nullable is detected, the processor generates this automatically
-// Otherwise, chain with .nullable() manually:
 FocusPath<LegacyUser, String> rawPath = LegacyUserFocus.nickname();
 AffinePath<LegacyUser, String> safePath = rawPath.nullable();
 
-// Null is treated as absent (empty Optional)
-LegacyUser user = new LegacyUser("Alice", null);
-Optional<String> result = safePath.getOptional(user);  // Optional.empty()
+Optional<String> missing = safePath.getOptional(new LegacyUser("Alice", null));
+// Optional.empty()
 
-// Non-null values work normally
-LegacyUser withNick = new LegacyUser("Bob", "Bobby");
-Optional<String> present = safePath.getOptional(withNick);  // Optional.of("Bobby")
+Optional<String> present = safePath.getOptional(new LegacyUser("Bob", "Bobby"));
+// Optional.of("Bobby")
 ```
 
-~~~admonish tip title="Automatic @Nullable Detection"
-When a field is annotated with `@Nullable` (from JSpecify, JSR-305, JetBrains, etc.), the `@GenerateFocus` processor automatically generates an `AffinePath` with `.nullable()` applied. No manual chaining required.
+~~~admonish warning title="`@Nullable` is not detected automatically yet"
+The processor widens a field to an `AffinePath` only when a recognised `@Nullable` reaches the record component, which depends on that annotation's own `@Target`. JSpecify's is `TYPE_USE`, so `@Nullable String nickname` compiles to a plain `FocusPath` and you chain `.nullable()` yourself; other vendors' annotations differ, so check yours rather than assuming. Modelling the absence as `Optional<T>` avoids the question altogether ([#711](https://github.com/higher-kinded-j/higher-kinded-j/issues/711)).
 ~~~
 
 ---
 
 ## Composition with Existing Optics
 
-Focus paths compose seamlessly with existing optics using `.via()`:
+`.via()` composes a path with any optic, and the result type follows the widening lattice:
 
-### Path + Lens = Path (or Affine)
-
+<!-- verify -->
 ```java
-// Existing lens for a computed property
-Lens<Employee, String> fullNameLens = Lens.of(
-    e -> e.firstName() + " " + e.lastName(),
-    (e, name) -> { /* setter logic */ }
-);
+// Path + Lens = Path
+FocusPath<Company, String> hqStreet =
+    FocusPath.of(CompanyLenses.headquarters()).via(AddressLenses.street());
 
-// Compose Focus path with existing lens
-FocusPath<Department, String> employeeFullName =
-    DepartmentFocus.manager().via(fullNameLens);
+// Path + Affine (a prism is one) = AffinePath
+AffinePath<Container, Item> firstItem =
+    FocusPath.of(ContainerLenses.items()).via(ListPrisms.head());
+
+// Path + Traversal = TraversalPath
+TraversalPath<Company, Employee> allEmployees =
+    CompanyFocus.departments().via(DepartmentFocus.employees());
 ```
 
-### Path + Prism = AffinePath
-
-```java
-// Prism for sealed interface variant
-Prism<Shape, Circle> circlePrism = ShapePrisms.circle();
-
-// Compose to get AffinePath
-AffinePath<Drawing, Circle> firstCircle =
-    DrawingFocus.shape(0).via(circlePrism);
-```
-
-### Path + Traversal = TraversalPath
-
-```java
-// Custom traversal
-Traversal<String, Character> charsTraversal = StringTraversals.chars();
-
-// Compose for character-level access
-TraversalPath<Employee, Character> nameChars =
-    EmployeeFocus.name().via(charsTraversal);
-```
+`.via()` also accepts another Focus path, which is how you cross a type boundary the navigator did not cover: `.via(DepartmentFocus.employees())` above is `.via(DepartmentFocus.employees().toTraversal())` with the ceremony removed, and with the path labelling kept (the path overload concatenates `segments()`, the raw-optic one leaves them alone).
 
 ---
 
 ## Fluent Navigation with Generated Navigators
 
-~~~admonish tip title="Zero-Boilerplate Cross-Type Navigation"
-When navigating across multiple record types, the standard approach requires explicit `.via()` calls at each boundary. Generated navigators eliminate this boilerplate, enabling chains like `CompanyFocus.headquarters().city()` directly.
-~~~
-
-### The Problem: Explicit Composition
-
-Without navigators, cross-type navigation requires `.via()` at each type boundary:
+Set `generateNavigators = true` and the processor emits a small wrapper class per navigable field, so the next hop is a method call rather than a `.via()`:
 
 ```java
-// Without navigators - explicit .via() at each step
-String city = CompanyFocus.headquarters()
-    .via(AddressFocus.city().toLens())
-    .get(company);
-
-// Deep navigation becomes verbose
-String managerCity = CompanyFocus.departments()
-    .each()
-    .via(DepartmentFocus.manager().toLens())
-    .via(PersonFocus.address().toLens())
-    .via(AddressFocus.city().toLens())
-    .get(company);
-```
-
-### The Solution: Generated Navigators
-
-Enable navigator generation with `generateNavigators = true`:
-
-```java
-@GenerateFocus(generateNavigators = true)
-record Company(String name, Address headquarters) {}
-
 @GenerateFocus(generateNavigators = true)
 record Address(String street, String city) {}
 
-// With navigators - fluent chaining
+@GenerateFocus(generateNavigators = true)
+record Company(String name, Address headquarters) {}
+```
+
+```java
+// With navigators
 String city = CompanyFocus.headquarters().city().get(company);
 
-// Navigators chain naturally
-Company updated = CompanyFocus.headquarters().city()
-    .modify(String::toUpperCase, company);
+// Without them, the same path, spelled out
+String same = FocusPath.of(CompanyLenses.headquarters()).via(AddressFocus.city()).get(company);
 ```
 
-### How Navigators Work
+### Which Fields Get a Navigator
 
-When `generateNavigators = true`, the processor generates navigator wrapper classes for fields whose types are also annotated with `@GenerateFocus`. The generated code looks like:
+Not every field does, and knowing which is the difference between a chain that compiles and one that does not:
+
+```mermaid
+flowchart TD
+    F{"The field's type is..."}
+    F -->|"a record annotated<br/>@GenerateFocus"| N(["Navigator<br/>chain with a method call"])
+    F -->|"Optional, List, Set,<br/>Collection"| W(["Widened path<br/>chain with .via()"])
+    F -->|"an SPI container whose<br/>element type is annotated"| N
+    F -->|"anything else"| P(["Plain path<br/>chain with .via()"])
+
+    classDef decision fill:#e5c890,stroke:#df8e1d,color:#232634
+    classDef tier fill:#a6d189,stroke:#40a02b,color:#232634
+    class F decision
+    class N,W,P tier
+```
+
+The middle branch is the one that surprises people. `Optional`, `List`, `Set` and `Collection` are widened by the processor before navigators are considered, so a `List<Department> departments` field gives you a `TraversalPath<Company, Department>` and never a `DepartmentsNavigator`. Container types that arrive through the SPI (a `Map`, an Eclipse Collections `ImmutableList`, an `Either`) *are* eligible, and get a navigator when their element type is itself annotated.
+
+<!-- verify -->
+```java
+// headquarters is a plain navigable field: navigator, so .city() chains
+String city = CompanyFocus.headquarters().city().get(company);
+
+// departments is a List: a TraversalPath, so the next hop is .via()
+List<String> employeeNames =
+    CompanyFocus.departments()
+        .via(DepartmentFocus.employees())
+        .via(EmployeeFocus.name())
+        .getAll(company);
+```
+
+### What a Navigator Provides
+
+A navigator is a thin wrapper around one path, so it exposes that path's core operations plus one method per field of the target type:
+
+| Wrapped path | Operations on the navigator |
+|--------------|-----------------------------|
+| `FocusPath` | `get`, `set`, `modify`, `toLens`, `toPath` |
+| `AffinePath` | `getOptional`, `set`, `modify`, `matches`, `toPath` |
+| `TraversalPath` | `getAll`, `setAll`, `modifyAll`, `count`, `isEmpty`, `toPath` |
+
+Everything else (`filter`, `modifyF`, `traced`, `via`, `foldMap`) lives on the path, so call `toPath()` first:
+
+<!-- verify -->
+```java
+Company relocated =
+    CompanyFocus.headquarters()
+        .toPath()
+        .traced((source, address) -> System.out.println("HQ: " + address.city()))
+        .modify(a -> new Address(a.street(), "Manchester"), company);
+```
+
+### Controlling Navigator Generation
+
+**Depth limiting** stops the processor generating navigator classes all the way down a deep graph:
 
 ```java
-// Generated in CompanyFocus.java
-public static HeadquartersNavigator<Company> headquarters() {
-    return new HeadquartersNavigator<>(
-        FocusPath.of(Lens.of(Company::headquarters, ...))
-    );
-}
+@GenerateFocus(generateNavigators = true, maxNavigatorDepth = 2)
+record Root(Level1 child) {}
 
-// Generated inner class
-public static final class HeadquartersNavigator<S> {
-    private final FocusPath<S, Address> delegate;
-
-    // Delegate methods - same as FocusPath
-    public Address get(S source) { return delegate.get(source); }
-    public S set(Address value, S source) { return delegate.set(value, source); }
-    public S modify(Function<Address, Address> f, S source) { ... }
-
-    // Navigation methods for Address fields
-    public FocusPath<S, String> street() {
-        return delegate.via(AddressFocus.street().toLens());
-    }
-
-    public FocusPath<S, String> city() {
-        return delegate.via(AddressFocus.city().toLens());
-    }
-
-    // Access underlying path
-    public FocusPath<S, Address> toPath() { return delegate; }
-}
+// Depth 1: child() returns a navigator
+// Depth 2: child().nested() returns a navigator
+// Depth 3 and beyond: a plain path; compose with .via()
 ```
 
-### Path Type Widening
-
-Navigators automatically widen path types when navigating through optional or collection fields:
-
-| Source Field Type | Navigator Returns |
-|-------------------|-------------------|
-| Regular field (`Address address`) | `FocusPath` methods |
-| Optional field (`Optional<Address>`) | `AffinePath` methods |
-| Collection field (`List<Address>`) | `TraversalPath` methods |
+**Field filtering** picks which fields are worth a navigator:
 
 ```java
-@GenerateFocus(generateNavigators = true)
-record User(String name, Optional<Address> homeAddress, List<Address> workAddresses) {}
+// Only these fields get one
+@GenerateFocus(generateNavigators = true, includeFields = {"primary"})
+record MultiAddress(Address primary, Address secondary, Address backup) {}
 
-// homeAddress navigator methods return AffinePath
-Optional<String> homeCity = UserFocus.homeAddress().city().getOptional(user);
-
-// workAddresses navigator methods return TraversalPath
-List<String> workCities = UserFocus.workAddresses().city().getAll(user);
+// All but these do
+@GenerateFocus(generateNavigators = true, excludeFields = {"internal"})
+record Settings(Config user, Config internal) {}
 ```
 
-### SPI-Aware Navigator Path Widening
+### When to Use Navigators
 
-The path widening table above covers `Optional`, `Maybe`, `List`, `Set`, and `Collection` types, which are recognised by hardcoded checks. However, many useful container types are registered through the `TraversableGenerator` SPI, and these are also recognised for navigator widening.
+**Enable them when** you navigate across record types often, deep navigation is common, or you want the IDE to autocomplete the whole path.
 
-Each SPI generator declares a `Cardinality` value that determines the navigator path type:
+**Leave them off when** the fields reference types you cannot annotate, generated-code size matters, or the structures are shallow enough that `.via()` costs nothing.
 
-| Cardinality | Navigator Path | Types |
-|-------------|---------------|-------|
+---
+
+## Path Widening
+
+Widening is what turns a lens to a field into the path type the field's shape deserves: a container that may hold nothing widens to an `AffinePath`, one that may hold many widens to a `TraversalPath`. It happens for every path, navigators or not.
+
+~~~admonish tip title="Why this matters"
+Widening is settled at compile time from the declared type, which means the path type cannot lie about cardinality. A field that may hold nothing cannot hand you a `FocusPath` whose `get` quietly returns null, and a field that may hold many cannot hand you something with a singular `get` at all. The shape of your data becomes the shape of the API, and the mistakes that shape rules out are compilation errors rather than production ones.
+~~~
+
+### SPI containers
+
+Each SPI generator declares a `Cardinality`, the number of values its container can hold, and that decides the path type:
+
+| Cardinality | Path | Types |
+|-------------|------|-------|
 | `ZERO_OR_ONE` | `AffinePath` | `Either<L,R>`, `Try<A>`, `Validated<E,A>`, `Optional<A>`, `Maybe<A>` |
 | `ZERO_OR_MORE` | `TraversalPath` | `Map<K,V>`, arrays, Eclipse Collections, Guava, Vavr, Apache Commons |
 
-For example, a record with a `Map` field and an `Either` field:
-
+<!-- verify -->
 ```java
-@GenerateFocus(generateNavigators = true)
-record Warehouse(String name, Map<String, Integer> inventory, Either<String, String> verifiedName) {}
+// Either is ZERO_OR_ONE via the SPI: AffinePath
+AffinePath<Warehouse, String> verified = WarehouseFocus.verifiedName();
 
-// inventory -> TraversalPath (Map is ZERO_OR_MORE via MapValueGenerator SPI)
-List<Integer> quantities = WarehouseFocus.inventory().getAll(warehouse);
-
-// verifiedName -> AffinePath (Either is ZERO_OR_ONE via EitherGenerator SPI)
-Optional<String> verified = WarehouseFocus.verifiedName().getOptional(warehouse);
+// Map is ZERO_OR_MORE via the SPI, but a static Focus method widens it only
+// under widenCollections; otherwise the path still focuses the whole map
+FocusPath<Warehouse, Map<String, Integer>> inventory = WarehouseFocus.inventory();
+TraversalPath<Warehouse, Integer> quantities = inventory.each(EachInstances.mapValuesEach());
 ```
 
-#### Compound Widening
+`ZERO_OR_MORE` SPI types are the one asymmetry: a static Focus method leaves them un-widened by default, for backwards compatibility. Add `widenCollections = true` to the annotation and `WarehouseFocus.inventory()` returns the `TraversalPath` directly. Navigator methods widen either way. [Custom Containers and Code Generation](focus_containers.md#the-zero_or_more-asymmetry-and-widencollections) states the rule in full, alongside the table of every supported container.
 
-When navigating through multiple container types, the path widens according to lattice rules:
+### Compound widening
+
+Composing paths widens according to a small lattice:
 
 | Current | + Field | = Result |
 |---------|---------|----------|
@@ -392,27 +337,13 @@ When navigating through multiple container types, the path widens according to l
 | AFFINE | TRAVERSAL | TRAVERSAL |
 | TRAVERSAL | anything | TRAVERSAL |
 
-For instance, navigating through `Optional<Address>` (AFFINE) where `Address` has a `Map<String, String>` field (TRAVERSAL via SPI) produces a `TraversalPath`:
-
-```java
-@GenerateFocus(generateNavigators = true)
-record Company(String name, Optional<Address> backup) {}
-
-@GenerateFocus(generateNavigators = true)
-record Address(String street, Map<String, String> metadata) {}
-
-// Optional (AFFINE) + Map (TRAVERSAL via SPI) = TRAVERSAL
-TraversalPath<Company, String> metadataValues =
-    CompanyFocus.backup().metadata();  // Returns TraversalPath
-```
-
 ~~~admonish note title="Custom Generators"
-If you write a custom `TraversableGenerator` for your own container type, override `getCardinality()` to return `ZERO_OR_ONE` for optional-like types. The default is `ZERO_OR_MORE`, which is correct for collection-like types. See [Traversal Generator Plugins](../tooling/generator_plugins.md) for details.
+If you write a `TraversableGenerator` for your own container type, override `getCardinality()` to return `ZERO_OR_ONE` for optional-like types. The default is `ZERO_OR_MORE`, which is correct for collection-like types. See [Traversal Generator Plugins](../tooling/generator_plugins.md).
 ~~~
 
-### Nested Container Widening
+### Nested container widening
 
-Fields with nested container types are automatically detected and generate composed widening chains. Previously, only the outermost container was widened; the inner container required manual navigation.
+A field whose type nests containers gets a composed chain, up to three levels deep:
 
 | Field Type | Generated Chain | Return Type |
 |-----------|----------------|-------------|
@@ -420,111 +351,52 @@ Fields with nested container types are automatically detected and generate compo
 | `List<Optional<String>>` | `.each().some()` | `TraversalPath` |
 | `Optional<Optional<String>>` | `.some().some()` | `AffinePath` |
 | `List<List<String>>` | `.each().each()` | `TraversalPath` |
-| `Either<E, Map<K, V>>` | `.some(Affines.eitherRight()).each(EachInstances.mapValuesEach())` | `TraversalPath` |
 | `Optional<Either<E, String>>` | `.some().some(Affines.eitherRight())` | `AffinePath` |
+| `Either<E, List<Integer>>` | `.some(Affines.eitherRight()).each()` | `TraversalPath` |
+| `Either<E, Map<K, V>>` | `.some(Affines.eitherRight())` | `AffinePath` to the `Map` |
+| `Either<E, Map<K, V>>` with `widenCollections = true` | `.some(Affines.eitherRight()).each(EachInstances.mapValuesEach())` | `TraversalPath` |
 
-The widening lattice composes across nesting levels:
+The last two rows are the rule in miniature. `Optional`, `List`, `Set` and `Collection` nest unconditionally, but an inner container that arrives through the SPI is stepped into only when it is `ZERO_OR_ONE`, or `ZERO_OR_MORE` with `widenCollections` on. Otherwise the path stops at the container.
 
-- **Focus + Affine = Affine** (e.g., a plain field containing an Optional)
-- **Focus + Traversal = Traversal** (e.g., a plain field containing a List)
-- **Affine + Traversal = Traversal** (e.g., `Optional<List<...>>`)
-- **Traversal + anything = Traversal** (e.g., `List<Optional<...>>`, `List<List<...>>`)
-
+<!-- verify -->
 ```java
-@GenerateFocus
-record Config(
-    String name,
-    Optional<List<String>> tags,           // TraversalPath via .some().each()
-    List<Optional<String>> items,          // TraversalPath via .each().some()
-    Optional<Optional<String>> nested,     // AffinePath via .some().some()
-    Either<String, List<Integer>> data     // TraversalPath via .some(eitherRight()).each()
-) {}
+TraversalPath<NestedConfig, String> allTags = NestedConfigFocus.tags();
+List<String> tagValues = allTags.getAll(nestedConfig);
 
-// Usage
-TraversalPath<Config, String> allTags = ConfigFocus.tags();
-List<String> tagValues = allTags.getAll(config);
+AffinePath<NestedConfig, String> nestedOpt = NestedConfigFocus.nested();
+Optional<String> innerValue = nestedOpt.getOptional(nestedConfig);
 
-AffinePath<Config, String> nestedOpt = ConfigFocus.nested();
-Optional<String> innerValue = nestedOpt.getOptional(config);
+// Either<String, List<Integer>>: a nested List is stepped into unconditionally
+TraversalPath<NestedConfig, Integer> data = NestedConfigFocus.data();
+
+// Either<String, Map<String, Integer>>: an SPI ZERO_OR_MORE stops at the Map...
+AffinePath<NestedConfig, Map<String, Integer>> meta = NestedConfigFocus.meta();
+
+// ...unless widenCollections is on
+TraversalPath<WidenedConfig, Integer> hits = WidenedConfigFocus.meta();
 ```
 
-Nesting is detected up to three levels deep. For deeper nesting, use manual `.via()` composition on the generated path.
+Beyond three levels, compose the rest with `.via()`.
 
-~~~admonish note title="Navigator Path Kind Propagation"
-Navigators also correctly compose path kinds for nested containers. If a field is `Optional<List<Address>>` and `Address` is a navigable type, the navigator will use `TraversalPath` (the composed result of Affine + Traversal) for all navigation methods on the inner `Address` fields.
+---
+
+~~~admonish info title="Key Takeaways"
+* **A generated collection method is element-level; a generated `Map` method is not.** `.at(i)` and `ListPrisms` start from `FocusPath.of(theLens())`, because there is no generated `container.item(0)`. `.atKey(k)` applies straight to the generated path, because that path still focuses the whole map.
+* **Navigators cover plain navigable fields and SPI containers.** `Optional`, `List`, `Set` and `Collection` are widened before navigators are considered and never produce one, so those hops use `.via()`.
+* **`toPath()` is the escape hatch.** A navigator carries only the core operations; `filter`, `modifyF`, `traced` and `via` are one `toPath()` away.
+* **`widenCollections = true` fixes the `ZERO_OR_MORE` asymmetry.** It widens `Map`, arrays and third-party collections at the static method, including one level down inside a nested container.
 ~~~
 
-### Controlling Navigator Generation
+~~~admonish info title="Hands-On Learning"
+- [Tutorial12_FocusDSL.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/test/java/org/higherkindedj/tutorial/optics/Tutorial12_FocusDSL.java)
+- [Tutorial19_NavigatorGeneration.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/test/java/org/higherkindedj/tutorial/optics/Tutorial19_NavigatorGeneration.java)
+~~~
 
-#### Depth Limiting
-
-Prevent excessive code generation for deeply nested structures:
-
-```java
-@GenerateFocus(generateNavigators = true, maxNavigatorDepth = 2)
-record Root(Level1 child) {}
-
-// Depth 1: child() returns Level1Navigator
-// Depth 2: child().nested() returns FocusPath (not a navigator)
-// Beyond depth 2: use .via() for further navigation
-
-FocusPath<Root, String> deepPath = RootFocus.child().nested()
-    .via(Level3Focus.value().toLens());
-```
-
-#### Field Filtering
-
-Include only specific fields in navigator generation:
-
-```java
-@GenerateFocus(generateNavigators = true, includeFields = {"primary"})
-record MultiAddress(Address primary, Address secondary, Address backup) {}
-
-// primary() returns navigator with navigation methods
-// secondary() and backup() return standard FocusPath<MultiAddress, Address>
-```
-
-Or exclude specific fields:
-
-```java
-@GenerateFocus(generateNavigators = true, excludeFields = {"internal"})
-record Config(Settings user, Settings internal) {}
-
-// user() returns navigator
-// internal() returns standard FocusPath (no nested navigation)
-```
-
-### When to Use Navigators
-
-**Enable navigators when:**
-- Navigating across multiple record types frequently
-- Deep navigation is common in your codebase
-- You want IDE autocomplete for nested fields
-- Teaching or onboarding developers
-
-**Keep navigators disabled when:**
-- Fields reference third-party types (not annotated with `@GenerateFocus`)
-- You need minimal generated code footprint
-- The project has shallow data structures
-
-### Combining Navigators with Other Features
-
-Navigators work seamlessly with all Focus DSL features:
-
-```java
-// With type class operations
-Company validated = CompanyFocus.headquarters().city()
-    .modifyF(this::validateCity, company, Instances.monad(either()));
-
-// With conditional modification
-Company updated = CompanyFocus.departments()
-    .each()
-    .modifyWhen(d -> d.name().equals("Engineering"), this::promote, company);
-
-// With tracing for debugging
-FocusPath<Company, String> traced = CompanyFocus.headquarters().city()
-    .traced((company, city) -> System.out.println("City: " + city));
-```
+~~~admonish tip title="See Also"
+- [Custom Containers and Code Generation](focus_containers.md): what the processor emits per field type, and the SPI
+- [Each](each_typeclass.md): the `Each` instances `.each(Each)` takes
+- [List Decomposition](list_decomposition.md): `ListPrisms` in full
+~~~
 
 ---
 

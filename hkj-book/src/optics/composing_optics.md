@@ -821,7 +821,7 @@ See [FluentValidationExample.java](https://github.com/higher-kinded-j/higher-kin
 ~~~
 
 ~~~admonish tip title="See Also"
-For a complete guide to validation-aware modifications including fluent builder API, integration with Jakarta Bean Validation, and performance optimisation, see [Fluent API for Optics](fluent_api.md#part-25-validation-aware-modifications).
+For the four validation strategies, the fluent builders, and when to drop to `modifyF`, see [Fluent API for Optics](fluent_api.md#part-2-validation-aware-modification).
 ~~~
 
 ~~~admonish info title="Hands-On Learning"

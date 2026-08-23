@@ -1,239 +1,192 @@
 # Fluent API Field Guide
 
-## _Decision guide, idiom catalogue, performance notes, and pitfalls_
+## _Style choice, idiom catalogue, performance notes, and pitfalls_
 
 ~~~admonish info title="What You'll Learn"
-- When to reach for the static-method style versus the fluent-builder style.
-- Common patterns and idioms (composition shortcuts, conditional updates, error handling).
-- Performance considerations and integration tactics for existing Java codebases.
-- Common pitfalls and how to avoid them.
+- When to reach for the static-method style and when for the fluent builders
+- The idioms that recur: pipelines, conditional updates, filtered bulk operations
+- How optics and the Stream API fit together
+- The performance rule that actually matters, and the pitfalls worth knowing
 ~~~
 
-This page is the lookup shelf for the Fluent API. The narrative explanation, side-by-side comparison, and worked examples live in [Fluent API](fluent_api.md); use this page when you already know the style choices and need a quick answer.
+This page is the lookup shelf for the Fluent API. The narrative, the side-by-side comparison and the worked validation examples live in [Fluent API](fluent_api.md); come here when you already know the style choices and want a quick answer.
 
 ---
 
-## When to Use Each Style
+## Which Style?
 
-### Use Static Methods When:
+**Static methods** for short, one-off operations, where naming the operation twice would be noise:
 
-**Performing simple, one-off operations**
+<!-- verify -->
 ```java
-// Clear and concise
-String name = OpticOps.get(person, PersonLenses.name());
+String name = OpticOps.get(alice, PersonLenses.name());
+Person older = OpticOps.modify(alice, PersonLenses.age(), a -> a + 1);
 ```
 
-**Chaining is not needed**
+**Fluent builders** when the optic expression is long, when the call site is teaching material, or when you want the IDE to enumerate what is possible:
+
+<!-- verify -->
 ```java
-// Direct transformation
-Person older = OpticOps.modify(person, PersonLenses.age(), a -> a + 1);
+List<String> bigOrders =
+    OpticOps.getting(order).allThrough(OrderTraversals.items()).stream()
+        .filter(item -> item.quantity() > 10)
+        .map(OrderItem::productId)
+        .collect(toList());
 ```
 
-**Performance is critical** (slightly less object allocation)
-
-### Use Fluent Builders When:
-
-**Building complex workflows**
-```java
-import static java.util.stream.Collectors.toList;
-
-// Clear intent at each step
-return OpticOps.getting(order)
-    .allThrough(OrderTraversals.items())
-    .stream()
-    .filter(item -> item.quantity() > 10)
-    .map(OrderItem::productId)
-    .collect(toList());
-```
-
-**IDE autocomplete is important** (great for discovery)
-
-**Code reviews matter** (explicit intent)
-
-**Teaching or documentation** (self-explanatory)
+Note which builder that is: `getting(...)` reads values out, so it is the one that returns a `List` you can stream. `querying(...)` answers questions (`anyMatch`, `count`, `findFirst`) and never hands you the whole collection, though `findFirst` returns at most one element.
 
 ---
 
-## Common Patterns and Idioms
+## Idioms
 
-### Pattern 1: Pipeline Transformations
+### Pipeline Transformations
 
+Each stage takes the previous result, so a multi-step transformation is a sequence of named locals rather than one unreadable expression:
+
+<!-- verify -->
 ```java
-// Sequential transformations for multi-step pipeline
-// Note: Result and Data should be your application's domain types with appropriate lenses
-Result processData(Data input) {
-    Data afterStage1 = OpticOps.modifying(input)
-        .through(DataLenses.stage1(), this::transformStage1);
+Order discounted =
+    OpticOps.modifying(order).allThrough(Fixture.itemPrices, price -> price.multiply(new BigDecimal("0.9")));
 
-    Data afterStage2 = OpticOps.modifying(afterStage1)
-        .through(DataLenses.stage2(), this::transformStage2);
-
-    return OpticOps.modifying(afterStage2)
-        .through(DataLenses.stage3(), this::transformStage3);
-}
+Order rounded =
+    OpticOps.modifying(discounted)
+        .allThrough(Fixture.itemPrices, price -> price.setScale(2, java.math.RoundingMode.HALF_UP));
 ```
 
-### Pattern 2: Conditional Updates
+### Conditional Updates
 
+Read once, decide, then write. `modify` is not the tool when the *decision* depends on the value and the update targets a different field:
+
+<!-- verify -->
 ```java
-// Static style for simple conditionals
-Person updateIfAdult(Person person) {
-    int age = OpticOps.get(person, PersonLenses.age());
-    return age >= 18
-        ? OpticOps.set(person, PersonLenses.status(), "ADULT")
-        : person;
-}
+Person classified =
+    OpticOps.get(alice, PersonLenses.age()) >= 18
+        ? OpticOps.set(alice, PersonLenses.status(), "ADULT")
+        : alice;
 ```
 
-### Pattern 3: Bulk Operations with Filtering
+### Bulk Operations, Narrowed by a Predicate
 
+`filtered` narrows the traversal itself, so the update only reaches the elements that qualify and no membership test leaks into the modification function:
+
+<!-- verify -->
 ```java
-// Combine both styles for clarity
-Team updateTopPerformers(Team team, int threshold) {
-    // Use fluent for query
-    List<Player> topPerformers = OpticOps.querying(team)
-        .allThrough(TeamTraversals.players())
-        .stream()
-        .filter(p -> p.score() >= threshold)
-        .toList();
+Traversal<Team, Player> topPerformers =
+    TeamTraversals.players().filtered(player -> player.score() >= 90);
 
-    // Use static for transformation
-    return OpticOps.modifyAll(
-        team,
-        TeamTraversals.players(),
-        player -> topPerformers.contains(player)
-            ? OpticOps.set(player, PlayerLenses.status(), "STAR")
-            : player
-    );
-}
+Team starred =
+    Traversals.modify(
+        topPerformers.andThen(PlayerLenses.status().asTraversal()), status -> "STAR", team);
+
+List<Player> stars = OpticOps.getAll(team, topPerformers);
 ```
 
----
+### Aggregation
 
-## Performance Considerations
+A `Fold` collapses every focused element through a `Monoid`, which is usually clearer than collecting to a list and reducing. A `Traversal` is not itself a `Fold`, so it converts with `asFold()`:
 
-### Object Allocation
-
-- **Static methods**: Minimal allocation (just the result)
-- **Fluent builders**: Create intermediate builder objects
-- **Impact**: Negligible for most applications; avoid in tight loops
-
-### Optic Composition
-
-Both styles benefit from composing optics once and reusing them:
-
+<!-- verify -->
 ```java
-// Good: Compose once, use many times
-Lens<Order, BigDecimal> orderToTotalPrice =
+int totalQuantity =
     OrderTraversals.items()
-        .andThen(OrderItemLenses.price().asTraversal())
-        .andThen(someAggregationLens);
-
-orders.stream()
-    .map(order -> OpticOps.getAll(order, orderToTotalPrice))
-    .collect(toList());
-
-// Avoid: Recomposing in loop
-orders.stream()
-    .map(order -> OpticOps.getAll(
-        order,
-        OrderTraversals.items()
-            .andThen(OrderItemLenses.price().asTraversal())  // Recomposed each time!
-    ))
-    .collect(toList());
+        .andThen(OrderItemLenses.quantity().asTraversal())
+        .asFold()
+        .foldMap(Monoids.integerAddition(), q -> q, order);
+// 15
 ```
 
 ---
 
-## Integration with Existing Java Code
+## Working with Existing Java Code
 
-### Working with Streams
+### Streams
 
+Optics get the values out; the Stream API does the rest:
+
+<!-- verify -->
 ```java
-// Optics integrate naturally with Stream API
-List<String> highScorerNames = OpticOps.getting(team)
-    .allThrough(TeamTraversals.players())
-    .stream()
-    .filter(p -> p.score() > 90)
-    .map(p -> OpticOps.get(p, PlayerLenses.name()))
-    .collect(toList());
+List<String> highScorerNames =
+    OpticOps.getting(team).allThrough(TeamTraversals.players()).stream()
+        .filter(p -> p.score() > 90)
+        .map(p -> OpticOps.get(p, PlayerLenses.name()))
+        .collect(toList());
 ```
 
-### Working with Optional
+### Optional
 
+<!-- verify -->
 ```java
-// Optics and Optional work together
-Optional<Person> maybePerson = findPerson(id);
+Optional<Person> maybePerson = Fixture.findPerson("alice");
 
-Optional<Integer> age = maybePerson
-    .map(p -> OpticOps.get(p, PersonLenses.age()));
+Optional<Integer> age = maybePerson.map(p -> OpticOps.get(p, PersonLenses.age()));
 
-Person updated = maybePerson
-    .map(p -> OpticOps.modify(p, PersonLenses.age(), a -> a + 1))
-    .orElse(new Person("Default", 0, "UNKNOWN"));
+Person updated =
+    maybePerson
+        .map(p -> OpticOps.modify(p, PersonLenses.age(), a -> a + 1))
+        .orElse(new Person("Unknown", 0, "UNKNOWN"));
 ```
 
 ---
 
-## Common Pitfalls
+## Performance
 
-### Don't: Call `get` then `set`
+**Object allocation.** Static methods allocate only the result. Builders allocate one short-lived builder as well. The difference is real and almost never the reason your code is slow; avoid builders in a tight inner loop and stop thinking about it.
 
+**Optic composition is the one that counts.** Composing an optic walks the chain and builds new objects, so composing inside a loop repeats that work per iteration:
+
+<!-- verify -->
 ```java
-// Inefficient - two traversals
-int age = OpticOps.get(person, PersonLenses.age());
-Person updated = OpticOps.set(person, PersonLenses.age(), age + 1);
-```
+// Compose once, above the loop
+Traversal<Order, BigDecimal> prices =
+    OrderTraversals.items().andThen(OrderItemLenses.price().asTraversal());
 
-### Do: Use `modify`
-
-```java
-// Efficient - single traversal
-Person updated = OpticOps.modify(person, PersonLenses.age(), a -> a + 1);
-```
-
-### Don't: Recompose optics unnecessarily
-
-```java
-// Bad - composing in a loop
-for (Order order : orders) {
-    var itemPrices = OrderTraversals.items()
-        .andThen(OrderItemLenses.price().asTraversal());  // Composed each iteration!
-    process(OpticOps.getAll(order, itemPrices));
-}
-```
-
-### Do: Compose once, reuse
-
-```java
-// Good - compose outside loop
-var itemPrices = OrderTraversals.items()
-    .andThen(OrderItemLenses.price().asTraversal());
-
-for (Order order : orders) {
-    process(OpticOps.getAll(order, itemPrices));
+for (Order o : Fixture.orders) {
+  List<BigDecimal> values = OpticOps.getAll(o, prices);
 }
 ```
 
 ---
 
-~~~admonish tip title="Further Reading"
-- **Martin Fowler**: [Fluent Interface](https://martinfowler.com/bliki/FluentInterface.html) - The original pattern description
-- **Haskell Lens**: [Lens Tutorial](https://hackage.haskell.org/package/lens-tutorial) - Deeper theoretical understanding
+## Pitfalls
+
+**Do not `get` then `set` when you mean `modify`.** Two traversals where one would do, and a race between them if anything else can touch the structure:
+
+<!-- verify -->
+```java
+// Instead of get-then-set
+Person older = OpticOps.modify(alice, PersonLenses.age(), a -> a + 1);
+```
+
+**Do not recompose optics in a loop.** As above: hoist the composition.
+
+**Do not reach for `querying` when you want the elements.** `querying` answers `anyMatch`, `allMatch`, `findFirst`, `count` and `isEmpty`; only `findFirst` returns a value, and only one. To get them all, use `getting(...).allThrough(...)`.
+
+**Do not expect an instance `modify` on a bare `Traversal`.** Reads and writes go through the `Traversals` utility, or through `OpticOps`, or through a `TraversalPath` from the [Focus DSL](focus_dsl.md), which does carry `getAll` and `modifyAll` directly.
+
+---
+
+~~~admonish info title="Key Takeaways"
+* **Static for short, builders for long.** They compile to the same operations, so the choice is about the reader.
+* **`getting` returns values, `querying` returns answers.** Reaching for `querying` when you wanted the elements is the mistake this page exists to prevent.
+* **Compose optics once.** Hoisting the composition out of a loop is the performance rule that matters; builder allocation is not.
+* **`filtered` belongs on the optic, not in the function.** The predicate then travels with the path and cannot be forgotten at a call site.
+* **Aggregate with a `Monoid`.** `asFold().foldMap(...)` beats collecting a list and reducing it.
 ~~~
 
 ~~~admonish info title="Hands-On Learning"
 Practice the fluent API in [Tutorial 09: Fluent Optics API](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/test/java/org/higherkindedj/tutorial/optics/Tutorial09_FluentOpticsAPI.java) (7 exercises, ~10 minutes).
 ~~~
 
----
+~~~admonish tip title="See Also"
+- [Fluent API](fluent_api.md): the narrative version, with the four validation strategies
+- [Composing Optics](composing_optics.md): building the optics this page consumes
+- [Free Monad DSL](free_monad_dsl.md): when the plan itself is the artefact
+~~~
 
-**Next Steps:**
-
-- [Free Monad DSL for Optics](free_monad_dsl.md) - Build composable programs
-- [Optic Interpreters](interpreters.md) - Multiple execution strategies
-- [Advanced Patterns](composing_optics.md) - Complex real-world scenarios
-
+~~~admonish tip title="Further Reading"
+- **Martin Fowler**: [Fluent Interface](https://martinfowler.com/bliki/FluentInterface.html): the original description of the pattern
+~~~
 
 ---
 
