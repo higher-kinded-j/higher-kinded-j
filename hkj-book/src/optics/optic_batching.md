@@ -30,6 +30,10 @@ Top half: the loop you didn't mean to write. Bottom half: the same traversal, th
 
 ---
 
+~~~admonish tip title="Why this matters"
+The usual fix for an N+1 is a hand-written pre-fetch: collect the ids, load them in one query, build a map, then thread that map through the code that needed it. It works, and it decays, because nothing stops the next edit reintroducing a per-element load. Here the batching lives in the strategy attached to the traversal, and `RunResult.backendCalls()` makes the guarantee assertable in a unit test, so a regression fails the build instead of the pager.
+~~~
+
 ## The Pattern, Drawn
 
 The pipeline has three pieces. The optic owns the shape. The applicative is the strategy. The runner is the boundary that actually talks to the backend:
@@ -179,20 +183,29 @@ In tests, this is exactly what you want: `assertThat(result.backendCalls()).isEq
 
 ---
 
+~~~admonish info title="Key Takeaways"
+* **The optic names the keys; the runtime batches them.** One traversal over a collection becomes one keyset and one backend call, instead of one call per element.
+* **Applicative collapses, `flatMap` does not.** Anything expressible with `map2`, `ap` or a traversal folds into a single round; every genuine data dependency costs another. That is the Haxl law, not a gap in the library.
+* **`RunResult` makes the win assertable.** `backendCalls()` is how you prove in a test that the N+1 is gone rather than merely hidden, and `cacheHits()` shows what the per-run cache absorbed.
+* **The cache is per invocation and in-JVM.** Two concurrent runs need two cache maps; nothing here is a distributed cache.
+* **Optics filter after the fetch.** The backend sees the keyset, never the predicate, so narrowing an optic does not narrow the query.
+~~~
+
 ~~~admonish info title="Hands-On Learning"
 Practice the four pieces (batching, heterogeneous fetch, multi-source routing, railway errors) in [Tutorial 21: Optic-Driven Request Batching](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/test/java/org/higherkindedj/tutorial/optics/Tutorial21_OpticBatching.java) (5 exercises, ~15 minutes).
 ~~~
 
 ~~~admonish tip title="See Also"
-- [Traversals](traversals.md) - The optic shape this strategy attaches to.
-- [Optics Extensions](optics_extensions.md) - Validated, per-element error handling on the value side.
-- [Core Type Integration](core_type_integration.md) - `Either`, `Try`, `Validated` as railway types.
+- [Traversals](traversals.md): the optic shape this strategy attaches to
+- [Optics Extensions](optics_extensions.md): validated, per-element error handling on the value side
+- [Core Type Integration](core_type_integration.md): `Either`, `Try` and `Validated` as railway types
 ~~~
 
 ~~~admonish tip title="Further Reading"
-- **Apollo Tutorials**: [Data loaders under the hood](https://www.apollographql.com/tutorials/dataloaders-dgs/03-data-loaders-under-the-hood) - A diagrammed, language-agnostic walk through the same batching idea Haxl popularised (Java framing in the worked example, accessible without prior functional-programming background).
+- **Apollo Tutorials**: [Data loaders under the hood](https://www.apollographql.com/tutorials/dataloaders-dgs/03-data-loaders-under-the-hood): a diagrammed, language-agnostic walk through the same batching idea Haxl popularised (Java framing in the worked example, accessible without prior functional-programming background).
 ~~~
 
 ---
 
-[Previous: Optics Extensions](optics_extensions.md) | [Next: Plan Introspection and Guardrails](optic_batching_guardrails.md)
+**Previous:** [Optics Extensions](optics_extensions.md)
+**Next:** [Plan Introspection and Guardrails](optic_batching_guardrails.md)

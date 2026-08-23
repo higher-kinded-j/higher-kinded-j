@@ -130,14 +130,22 @@ return outcome.fold(
 
 ---
 
+~~~admonish info title="Key Takeaways"
+* **A plan is inspectable before it runs.** `Plans.preflight` gives you round 1's keyset with no I/O, which is both a logging hook and a test assertion.
+* **Round 1 is the honest boundary.** Beyond it, preflight only walks programs whose combines tolerate `null`; the rest report `Plan.truncated()` rather than guessing.
+* **Guards refuse, they do not retry.** A violated bound aborts the run. Size capping with continuation is `BatchLoaders.chunked` upstream, a different tool.
+* **Refusal can be a value.** `SafeFetch.runCachedWithGuard` puts the `GuardViolationException` on `Either.left`, so the run never throws and controllers keep the shape they already have.
+* **An all-cached round is free.** `maxBackendCalls` counts only rounds that reach the resolver, so caching does not silently consume the budget.
+~~~
+
 ~~~admonish info title="Hands-On Learning"
 Practice the five exercises (preflight, truncation, refusal, audit, railway) in [Tutorial 22: Plan Introspection and Guardrails](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/test/java/org/higherkindedj/tutorial/optics/Tutorial22_OpticBatchingGuardrails.java) (5 exercises, ~12 minutes).
 ~~~
 
 ~~~admonish tip title="See Also"
-- [Optic-Driven Batching](optic_batching.md): The substrate this chapter builds on.
-- [Optics Extensions](optics_extensions.md): Validated, per-element error handling on the value side.
-- [Core Type Integration](core_type_integration.md): `Either` as the railway type for guard refusal.
+- [Optic-Driven Batching](optic_batching.md): the substrate this page builds on
+- [Optics Extensions](optics_extensions.md): validated, per-element error handling on the value side
+- [Core Type Integration](core_type_integration.md): `Either` as the railway type for guard refusal
 ~~~
 
 ~~~admonish tip title="Further Reading"
@@ -146,4 +154,5 @@ Practice the five exercises (preflight, truncation, refusal, audit, railway) in 
 
 ---
 
-[Previous: Optic-Driven Batching](optic_batching.md) | [Next: Cookbook](cookbook.md)
+**Previous:** [Optic-Driven Batching](optic_batching.md)
+**Next:** [Cookbook](cookbook.md)

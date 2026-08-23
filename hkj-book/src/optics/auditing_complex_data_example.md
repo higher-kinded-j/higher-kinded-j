@@ -391,8 +391,21 @@ public static AuditReport generateAuditReport(List<AppConfig> configs, String au
 }
 ```
 
-This combination of composability, type safety, and profunctor adaptability makes higher-kinded-j optics incredibly powerful for real-world data processing scenarios, particularly in enterprise environments where data formats, security requirements, and compliance needs are constantly evolving.
+~~~admonish info title="Key Takeaways"
+* **An audit is a read-only traversal with a shape.** The same composition that would update settings instead projects each one into an `AuditEntry`, and nothing in the source is touched.
+* **The prism carries the condition.** "Only live GCP configs" lives in the path rather than in an `if` at the call site, so the filter cannot be forgotten by the next caller.
+* **Filtering and mapping both belong in the optic.** By the time you call `getAll`, the selection rule and the projection are already part of the value you named.
+* **The composition is the specification.** Reading the optic tells you which records qualify and what is recorded, which is the property that makes it reviewable by someone who does not read Java well.
+* **It survives shape changes.** When the config format moves, the optic is what changes; the reporting code above it does not.
+~~~
+
+~~~admonish tip title="See Also"
+- [Composing Optics](composing_optics.md): the same four-optic composition, used for validation instead of reporting
+- [Filtered Optics](filtered_optics.md): the predicate narrowing this example depends on
+- [Folds](folds.md): the read-only optic to reach for when nothing will be written
+~~~
 
 ---
 
 **Previous:** [Cookbook](cookbook.md)
+**Next:** [Advanced Optics](ch6_intro.md)

@@ -1,5 +1,7 @@
 # Multi-Edit and Sparse Updates
 
+## _N Edits in One Operation, and the REST PATCH Shape_
+
 ~~~admonish example title="See Example Code"
 **The code on this page is [MultiEditBook.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/book/optics/MultiEditBook.java)** - the page includes it directly, so it is compiled and run by the build.
 ~~~

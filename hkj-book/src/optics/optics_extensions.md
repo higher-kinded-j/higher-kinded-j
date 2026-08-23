@@ -473,6 +473,21 @@ Maybe<String> safeBio = maybeProfile.flatMap(p -> getMaybe(bioLens, p));
 | `countValid` | `int` | Count valid elements |
 | `collectErrors` | `List<E>` | Gather all errors |
 
+~~~admonish info title="Key Takeaways"
+* **The extensions are the error-handling half of an optic.** A `Lens` gets you to a field; `getEither`, `modifyEither` and `modifyTry` decide what happens when getting there, or changing it, can fail.
+* **The suffix names the failure shape, not the operation.** `Maybe` for "no detail", `Either` for "first error", `Try` for "it threw", `Validated` for "every error at once". Pick the suffix from what the caller needs to hear.
+* **`modifyAll*` is the bulk family.** All-or-nothing, fail-fast and accumulating are three different answers to one traversal, and the return type states which you chose.
+* **`modifyWherePossible` is deliberately total.** It never fails; elements that cannot be modified are left as they are, which makes it the right tool for best-effort passes and the wrong one for validation.
+* **`countValid` and `collectErrors` inspect without writing.** They answer "would this succeed, and why not" before you commit to a modification.
+~~~
+
+~~~admonish tip title="See Also"
+- [Core Type Integration](core_type_integration.md): the prisms and traversals for the `Maybe`/`Either`/`Validated`/`Try` these methods return
+- [Fluent API](fluent_api.md): the same validation strategies as `OpticOps` statics and builders
+- [Composing Optics](composing_optics.md): the capstone these operations shorten
+~~~
+
 ---
 
-[Previous: Multi-Edit and Sparse Updates](multi_edit.md) | [Next: Optic-Driven Batching](optic_batching.md)
+**Previous:** [Multi-Edit and Sparse Updates](multi_edit.md)
+**Next:** [Optic-Driven Batching](optic_batching.md)

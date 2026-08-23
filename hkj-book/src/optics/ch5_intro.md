@@ -6,7 +6,27 @@
 
 ---
 
-Theory is useful; working code is better.
+Theory is useful; working code is better. Here is the chapter's capstone in miniature, before any of the reasoning behind it. One path runs from a form, through a sealed principal, across a list of permissions, down to each permission's name; one call validates every one of them and collects the failures. Every line compiles against the real library on every build:
+
+<!-- verify -->
+```java
+Traversal<Form, String> everyPermissionName =
+    FormLenses.principal().asTraversal()
+        .andThen(PrincipalPrisms.user().asTraversal())
+        .andThen(UserTraversals.permissions())
+        .andThen(PermissionLenses.name().asTraversal());
+
+Validated<String, Form> checked =
+    VALIDATED.narrow(
+        everyPermissionName.modifyF(
+            Fixture::validatePermission, Fixture.form, Instances.validated(Semigroups.string("; "))));
+// Invalid("Invalid permission: PERM_FLY")
+// A Guest principal would simply have no permissions in focus, and validate clean.
+```
+
+~~~admonish tip title="Why this matters"
+Four optics of three different kinds compose into one value, and that value is reusable in both directions: run it with a plain function to update every permission, or with an `Applicative` to validate them and accumulate the failures. The prism in the middle is what makes it safe. A `Form` holding a `Guest` has nothing in focus, so the same expression returns a clean result rather than a `ClassCastException`, and no branch had to be written for that case.
+~~~
 
 This section brings together everything from the previous four into practical patterns you can apply directly. The capstone example demonstrates a complete validation workflow: composing Lens, Prism, and Traversal to validate permissions nested deep within a form structure. It's the sort of problem that would require dozens of lines of imperative code, handled in a few declarative compositions.
 
@@ -30,48 +50,28 @@ The [Optics Tutorial Track](../tutorials/optics/ch_intro.md) groups all six jour
 
 When facing a new problem, this flowchart helps:
 
+```mermaid
+flowchart TD
+    Q{"What are you doing<br/>to the focus?"}
+    Q -->|"reading only"| R{"How many<br/>targets?"}
+    Q -->|"reading and writing"| M{"How many<br/>targets?"}
+    Q -->|"converting between<br/>equivalent types"| I(["Iso"])
+
+    R -->|"exactly one"| G(["Getter"])
+    R -->|"zero or more"| F(["Fold"])
+
+    M -->|"exactly one"| L(["Lens"])
+    M -->|"zero or one:<br/>the field may be absent"| A(["Affine"])
+    M -->|"zero or one:<br/>the value may be another variant"| P(["Prism"])
+    M -->|"zero or more"| T(["Traversal"])
+
+    classDef decision fill:#e5c890,stroke:#df8e1d,color:#232634
+    classDef tier fill:#a6d189,stroke:#40a02b,color:#232634
+    class Q,R,M decision
+    class I,G,F,L,A,P,T tier
 ```
-                     ┌─────────────────────┐
-                     │ What are you doing? │
-                     └──────────┬──────────┘
-                                │
-           ┌────────────────────┼────────────────────┐
-           ▼                    ▼                    ▼
-    ┌─────────────┐     ┌─────────────┐     ┌─────────────┐
-    │   Reading   │     │  Modifying  │     │ Transforming│
-    │    only?    │     │   values?   │     │   types?    │
-    └──────┬──────┘     └──────┬──────┘     └──────┬──────┘
-           │                   │                   │
-           ▼                   │                   ▼
-    ┌─────────────┐            │            ┌─────────────┐
-    │How many     │            │            │    ISO      │
-    │targets?     │            │            └─────────────┘
-    └──────┬──────┘            │
-           │                   │
-    ┌──────┴──────┐            │
-    ▼             ▼            ▼
-┌───────┐   ┌──────────┐  ┌─────────────┐
-│ One   │   │Zero-more │  │How many     │
-│       │   │          │  │targets?     │
-└───┬───┘   └────┬─────┘  └──────┬──────┘
-    │            │               │
-    ▼            ▼        ┌──────┴──────┐
-┌───────┐   ┌────────┐    ▼             ▼
-│GETTER │   │ FOLD   │ ┌───────┐  ┌──────────┐
-└───────┘   └────────┘ │ One   │  │Zero-more │
-                       └───┬───┘  └────┬─────┘
-                           │           │
-                 ┌─────────┴───┐       │
-                 ▼             ▼       ▼
-           ┌──────────┐ ┌─────────┐ ┌──────────┐
-           │ Required │ │Optional │ │TRAVERSAL │
-           └────┬─────┘ └────┬────┘ └──────────┘
-                │            │
-                ▼            ▼
-           ┌────────┐   ┌─────────┐
-           │  LENS  │   │ PRISM   │
-           └────────┘   └─────────┘
-```
+
+The two zero-or-one branches are the ones worth reading twice. An `Affine` reaches a value that may not be there, such as an optional field. A `Prism` reaches a value that may be a *different variant*, and can build the structure back up from it. The capstone above uses a `Prism` for exactly that reason: a `Principal` is either a `User` or a `Guest`.
 
 ---
 

@@ -838,6 +838,20 @@ Inventory cleared = allProducts.modifyWhen(
 );
 ```
 
+~~~admonish info title="Key Takeaways"
+* **Every recipe is the same three steps.** Name the path, choose the optic whose cardinality matches the target, then pick the operation: `get`, `modify`, or an effectful `modifyF`.
+* **Reach for a prism the moment a shape is conditional.** Optional fields, sum-type variants and parse-or-fail boundaries are all "this may not be here", and a prism keeps the absent case from becoming a branch.
+* **`modifyWhen` beats filtering then modifying.** The predicate travels with the path, so the structure is rebuilt once and the intent reads as the business rule.
+* **Store the path, not the operation.** A composed optic in a `static final` field is reusable across reads, writes and validations; recomposing it per call site is where drift starts.
+* **Copy freely, then name it.** These recipes are starting points; the value appears when the composition gets a domain name and the rest of the code stops mentioning the shape.
+~~~
+
+~~~admonish tip title="See Also"
+- [Composing Optics](composing_optics.md): the capstone these recipes are miniatures of
+- [Optics Extensions](optics_extensions.md): the validated variants of the operations used here
+- [Focus DSL](focus_dsl.md): the fluent path syntax several recipes use
+~~~
+
 ~~~admonish info title="Hands-On Learning"
 Practice real-world optics patterns in [Tutorial 08: Real World Optics](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/test/java/org/higherkindedj/tutorial/optics/Tutorial08_RealWorldOptics.java) (6 exercises, ~10 minutes).
 ~~~
