@@ -159,8 +159,8 @@ Optional<String> present = safePath.getOptional(new LegacyUser("Bob", "Bobby"));
 // Optional.of("Bobby")
 ```
 
-~~~admonish warning title="`@Nullable` is not detected automatically yet"
-The processor widens a field to an `AffinePath` only when a recognised `@Nullable` reaches the record component, which depends on that annotation's own `@Target`. JSpecify's is `TYPE_USE`, so `@Nullable String nickname` compiles to a plain `FocusPath` and you chain `.nullable()` yourself; other vendors' annotations differ, so check yours rather than assuming. Modelling the absence as `Optional<T>` avoids the question altogether ([#711](https://github.com/higher-kinded-j/higher-kinded-j/issues/711)).
+~~~admonish tip title="A recognised `@Nullable` saves you the chain"
+Annotate the component and the generated method hands you the `AffinePath` already: the processor reads all six recognised annotations wherever their own `@Target` puts them (JSpecify's `TYPE_USE` on the component's type, JetBrains', AndroidX's and SpotBugs' on the accessor, JSR-305's and Jakarta's on the component itself). Chain `.nullable()` yourself for a field nobody annotated, as `LegacyUser` above. Two rules worth knowing: a container decides its own widening, so `@Nullable List<T>` is still `.each()`, and position counts as Java defines it, so `String @Nullable []` is a nullable array while `@Nullable String[]` and `List<@Nullable String>` annotate the elements.
 ~~~
 
 ---

@@ -250,10 +250,11 @@ Yes. Navigate as far as the generated paths go, then `.via()` a hand-written or 
 In order of preference:
 
 1. **Model the absence as `Optional<T>`.** The generated method applies `.some()` and hands you an `AffinePath`, with no extra step at all.
-2. **Chain `.nullable()`** on the generated `FocusPath`. It turns null into an empty focus.
-3. **Build the path with `AffinePath.ofNullable(getter, setter)`** when there is no generated companion to start from.
+2. **Annotate the component `@Nullable`.** Any of the six recognised annotations will do, wherever that annotation's own `@Target` puts it, and the generated method applies `.nullable()` for you.
+3. **Chain `.nullable()`** on the generated `FocusPath`. It turns null into an empty focus.
+4. **Build the path with `AffinePath.ofNullable(getter, setter)`** when there is no generated companion to start from.
 
-A `@Nullable` annotation is not always enough: the processor widens only when the annotation actually reaches the record component, and a `TYPE_USE` annotation such as JSpecify's does not ([#711](https://github.com/higher-kinded-j/higher-kinded-j/issues/711)).
+Two rules govern the annotated form. A container decides its own widening, so `@Nullable List<T>` is `.each()` and `@Nullable Optional<T>` is `.some()`. And position counts as Java defines it: `String @Nullable []` is a nullable array, while `@Nullable String[]` and `List<@Nullable String>` annotate the elements and leave the field itself non-null.
 
 ### Can I build Focus paths at runtime?
 
