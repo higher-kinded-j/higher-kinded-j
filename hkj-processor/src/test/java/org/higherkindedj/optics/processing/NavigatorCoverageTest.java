@@ -5,6 +5,7 @@ package org.higherkindedj.optics.processing;
 import static com.google.testing.compile.CompilationSubject.assertThat;
 import static com.google.testing.compile.Compiler.javac;
 import static org.higherkindedj.optics.processing.GeneratorTestHelper.assertGeneratedCodeContains;
+import static org.higherkindedj.optics.processing.GeneratorTestHelper.assertGeneratedCodeDoesNotContain;
 
 import com.google.testing.compile.Compilation;
 import com.google.testing.compile.JavaFileObjects;
@@ -1062,6 +1063,55 @@ class NavigatorCoverageTest {
       // DeptsNavigator (SPI ZERO_OR_MORE wrapping a navigable inner type).
       assertGeneratedCodeContains(
           compilation, "com.example.CompanyFocus", "AddressFocus.DeptsNavigator<S> depts()");
+    }
+
+    @Test
+    @DisplayName("should stop wrapping an SPI container of a navigable type at the depth limit")
+    void shouldNotWrapSpiContainerBeyondDepthLimit() {
+      final JavaFileObject deptSource =
+          JavaFileObjects.forSourceString(
+              "com.example.Dept",
+              """
+              package com.example;
+              import org.higherkindedj.optics.annotations.GenerateFocus;
+              @GenerateFocus(generateNavigators = true)
+              public record Dept(String title) {}
+              """);
+
+      final JavaFileObject addressSource =
+          JavaFileObjects.forSourceString(
+              "com.example.Address",
+              """
+              package com.example;
+              import java.util.Map;
+              import org.higherkindedj.optics.annotations.GenerateFocus;
+              @GenerateFocus(generateNavigators = true)
+              public record Address(String street, Map<String, Dept> depts) {}
+              """);
+
+      final JavaFileObject companySource =
+          JavaFileObjects.forSourceString(
+              "com.example.ShallowCompany",
+              """
+              package com.example;
+              import org.higherkindedj.optics.annotations.GenerateFocus;
+              @GenerateFocus(generateNavigators = true, maxNavigatorDepth = 1)
+              public record ShallowCompany(String name, Address hq) {}
+              """);
+
+      Compilation compilation =
+          javac()
+              .withProcessors(new FocusProcessor())
+              .compile(deptSource, addressSource, companySource);
+
+      assertThat(compilation).succeeded();
+
+      // HqNavigator sits at the depth limit, so its Map<String, Dept> field keeps the plain
+      // traversal path instead of being wrapped in AddressFocus.DeptsNavigator.
+      assertGeneratedCodeContains(
+          compilation, "com.example.ShallowCompanyFocus", "TraversalPath<S, Dept> depts()");
+      assertGeneratedCodeDoesNotContain(
+          compilation, "com.example.ShallowCompanyFocus", "AddressFocus.DeptsNavigator<S> depts()");
     }
   }
 

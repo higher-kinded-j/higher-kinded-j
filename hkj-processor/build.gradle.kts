@@ -96,7 +96,8 @@ tasks.jacocoTestCoverageVerification {
                 minimum = "0.97".toBigDecimal()
             }
         }
-        // MappingProcessor is held at 100% (see PR #605).
+        // Classes held at 100%: every branch each of these has is one a test can reach, so a new
+        // unreachable one is a design signal rather than a residual to be waived.
         rule {
             element = "CLASS"
             includes = listOf(
@@ -105,6 +106,7 @@ tasks.jacocoTestCoverageVerification {
                 "org.higherkindedj.optics.processing.MergeProcessor*",
                 "org.higherkindedj.optics.processing.BeanPropertyAnalyser*",
                 "org.higherkindedj.optics.processing.WireShape*",
+                "org.higherkindedj.optics.processing.NavigatorClassGenerator*",
                 "org.higherkindedj.optics.processing.effect.EffectAlgebraProcessor*",
             )
             limit {
