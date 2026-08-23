@@ -25,12 +25,12 @@ An interpreter takes a program and executes it in a specific way. By providing d
 
 - **DirectOpticInterpreter**: Executes operations immediately (production use)
 - **LoggingOpticInterpreter**: Records every operation for audit trails
-- **ValidationOpticInterpreter**: Checks constraints without modifying data
+- **ValidationOpticInterpreter**: runs the program and reports problems instead of the result
 - **Custom interpreters**: Performance profiling, testing, mocking, and more
 
 This separation of concerns, *what to do* vs *how to do it*, is the essence of the Interpreter pattern and the key to the Free monad's flexibility.
 
-~~~admonish tip title="The Core Benefit"
+~~~admonish tip title="Why this matters"
 Write your business logic once as a program. Execute it in multiple ways: validate it in tests, log it in production, mock it during development, and optimise it for performance, all without changing the business logic itself.
 ~~~
 
@@ -63,10 +63,10 @@ Different situations require different execution strategies:
 |--------------|----------------|---------|
 | Production execution | Direct | Fast, straightforward |
 | Compliance & auditing | Logging | Records every change |
-| Pre-flight checks | Validation | Verifies without executing |
+| Pre-flight checks | Validation | Runs it and reports what failed |
 | Unit testing | Mock/Custom | No real data needed |
 | Performance tuning | Profiling/Custom | Measures execution time |
-| Dry-run simulations | Validation | See what would happen |
+| Structural analysis | `ProgramAnalyser` | Counts the steps, executes none |
 
 ---
 
@@ -90,7 +90,7 @@ Free<OpticOpKind.Witness, Person> program =
 DirectOpticInterpreter interpreter = OpticInterpreters.direct();
 Person result = interpreter.run(program);
 
-System.out.println(result);  // Person("Alice", 26)
+System.out.println(result);  // Person[name=Alice, age=26]
 ```
 
 ### When to Use
@@ -101,9 +101,9 @@ System.out.println(result);  // Person("Alice", 26)
 
 ### Characteristics
 
-- **Fast**: No additional processing
+- **Fastest of the three**: no log, no validation pass. Still slower than calling the optic directly, because a program is allocated and folded
 - **Simple**: Executes exactly as described
-- **No Side Effects**: Pure optic operations only
+- **No side effects of its own**: the interpreter adds none, though your modifiers may have their own
 
 ~~~admonish example title="Production Workflow"
 ```java
@@ -160,7 +160,7 @@ Account result = logger.run(program);
 List<String> log = logger.getLog();
 log.forEach(System.out::println);
 /* Output:
-MODIFY: AccountLenses.balance() from 1000.00 to 900.00
+MODIFY: Lens$7 from 1000.00 to 900.00
 */
 ```
 
@@ -217,27 +217,30 @@ logger.getLog().forEach(entry -> auditService.record(txn.txnId(), entry));
 
 The logging interpreter provides detailed, human-readable logs:
 
+```text
+GET: OpticPrograms$$Lambda/0x... -> 250.00
+MODIFY: Lens$3 from 1000.00 to 750.00
+MODIFY: Lens$3 from 500.00 to 750.00
 ```
-GET: TransactionLenses.amount() -> 250.00
-MODIFY: TransactionLenses.from().andThen(AccountLenses.balance()) from 1000.00 to 750.00
-MODIFY: TransactionLenses.to().andThen(AccountLenses.balance()) from 500.00 to 750.00
-```
+
+~~~admonish warning title="The log names optics by runtime class, not by accessor"
+`LoggingOpticInterpreter` identifies an optic with `getClass().getSimpleName()`. Generated and composed optics are anonymous classes, so what you actually see is `Lens$N`, and a `get` is wrapped in a `Getter` first, so it shows as an `OpticPrograms` lambda. The log tells you which **operation** ran and what changed, not which named accessor was used. For meaningful names, label the path (`segments()`/`pathString()`) or write an interpreter that carries the label.
+~~~
 
 ### Managing Logs
 
 ```java
 LoggingOpticInterpreter logger = OpticInterpreters.logging();
 
-// Run first program
+// getLog() is a LIVE unmodifiable view over the interpreter's list, not a
+// snapshot: copy it if it must survive clearLog().
 logger.run(program1);
-List<String> firstLog = logger.getLog();
+List<String> firstLog = List.copyOf(logger.getLog());
 
-// Clear for next program
 logger.clearLog();
 
-// Run second program
 logger.run(program2);
-List<String> secondLog = logger.getLog();
+List<String> secondLog = List.copyOf(logger.getLog());
 ```
 
 ~~~admonish warning title="Performance Consideration"
@@ -251,11 +254,19 @@ The logging interpreter does add overhead (string formatting, list management). 
 
 ## Part 4: The Validation Interpreter
 
-The `ValidationOpticInterpreter` performs a "dry-run" of your program, checking constraints and collecting errors/warnings **without actually executing the operations**. This is perfect for:
+The `ValidationOpticInterpreter` runs your program and hands back the problems it met instead of the value it produced.
+
+~~~admonish warning title="It executes: this is a checked run, not a dry run"
+The name suggests inspection, but `validate` **executes** every operation, by design: the library's own javadoc says operations are run so `flatMap` chaining produces the right values. A `modify` modifier is applied twice, once when checking it and once when performing it. Use it for pure modifiers over immutable data; do not use it to preview anything with a side effect.
+
+For inspection that genuinely runs nothing, `ProgramAnalyser.analyse(program)` walks the `Free` tree structurally.
+~~~
+
+It suits:
 
 - **Pre-flight checks**: Validate before committing
-- **Testing**: Verify logic without side effects
-- **What-if scenarios**: See what would happen
+- **Testing**: check that a program's operations all succeed on given data
+- **Pre-flight checks**: collect every problem before you accept the result
 
 ### Basic Usage
 
@@ -269,7 +280,7 @@ Person person = new Person("Alice", 25);
 Free<OpticOpKind.Witness, Person> program =
     OpticPrograms.set(person, PersonLenses.name(), null);  // Oops!
 
-// Validate without executing
+// Run it, and take the report rather than the value
 ValidationOpticInterpreter validator = OpticInterpreters.validating();
 ValidationOpticInterpreter.ValidationResult result = validator.validate(program);
 
@@ -281,7 +292,8 @@ if (!result.isValid()) {
 if (result.hasWarnings()) {
     // Has warnings
     result.warnings().forEach(System.out::println);
-    // Output: "SET operation with null value: PersonLenses.name()"
+    // Output: "SET operation with null value: org.higherkindedj.optics.Lens$7@31befd9f"
+// The optic is identified by toString(), so the message names the operation, not the field.
 }
 ```
 
@@ -289,9 +301,17 @@ if (result.hasWarnings()) {
 
 The validation interpreter checks for:
 
-1. **Null values**: Warns when setting null
-2. **Modifier failures**: Errors when modifiers throw exceptions
-3. **Custom constraints**: (via custom interpreter subclass)
+1. **Null values**: warns when a `set` would write `null`
+2. **Modifier failures**: records an error when a modifier function throws
+
+A `modify` whose modifier returns `null` produces a *warning*; a modifier that throws produces an error, and for a `modify` that error is recorded twice, once from the check and once from the execution.
+
+~~~admonish warning title="Only modifier failures are caught"
+The interpreter wraps the function you pass to `set`, `modify` and their `All` variants. A throw from inside a `flatMap` *continuation* runs outside that guard and propagates out of `validate`, so a loop that expects to collect failures will die on the first one instead. Put the check in a modifier if you want it reported rather than thrown.
+~~~
+
+Anything beyond those two belongs in an interpreter of your own. `ValidationOpticInterpreter`
+is `final`, so there is nothing to subclass; see [Creating Custom Interpreters](#part-5-creating-custom-interpreters).
 
 ### Real-World Example: Data Migration Validation
 
@@ -391,7 +411,7 @@ public record ValidationResult(
 ```
 
 ~~~admonish tip title="Testing Tip"
-Use the validation interpreter in unit tests to verify program structure without executing operations:
+Use the validation interpreter in unit tests to assert that a program's operations all succeed against given data:
 
 ```java
 @Test
@@ -414,15 +434,24 @@ void testProgramLogic() {
 
 You can create custom interpreters for specific needs: performance profiling, mocking, optimisation, or any other execution strategy.
 
-### The Interpreter Interface
+### What an interpreter actually is
 
-All interpreters implement a natural transformation from `OpticOp` to some effect type (usually `Id` for simplicity):
+There is no `OpticInterpreter` interface to implement. `DirectOpticInterpreter`,
+`LoggingOpticInterpreter` and `ValidationOpticInterpreter` are three independent
+`final` classes, and they deliberately do not share a supertype: the first two expose
+`run`, while `validating()` exposes `validate`, because it never executes anything.
+
+What they have in common is the shape inside them. Each supplies a natural
+transformation, a function taking one `OpticOp` to a value in some effect type, and
+folds it over the whole program:
 
 ```java
-public interface OpticInterpreter {
-    <A> A run(Free<OpticOpKind.Witness, A> program);
-}
+// One OpticOp in, one effect out. foldMap walks the program applying it.
+Function<Kind<OpticOpKind.Witness, ?>, Kind<IdKind.Witness, ?>> transform = op -> ...;
 ```
+
+Your own interpreter is a class that does the same. It does not extend or implement
+anything from the library.
 
 ### Example 1: Performance Profiling Interpreter
 
@@ -451,7 +480,7 @@ public final class ProfilingOpticInterpreter {
                 executionTimes.merge(opName, duration, Long::sum);
                 executionCounts.merge(opName, 1, Integer::sum);
 
-                return Id.of(result);
+                return Id.of(Free.pure(result));   // the fold expects the next Free node, not the bare value
             };
 
         Kind<IdKind.Witness, A> resultKind =
@@ -478,18 +507,28 @@ public final class ProfilingOpticInterpreter {
         };
     }
 
+    // Each mention of a wildcard pattern variable is a FRESH capture, so
+    // op.optic() and op.source() would not agree in a single expression.
+    // Dispatch to a generic helper, which is what every library interpreter does.
     private Object executeOperation(OpticOp<?, ?> op) {
-        // Execute using direct interpretation logic
         return switch (op) {
-            case OpticOp.Get<?, ?> get -> get.optic().get(get.source());
-            case OpticOp.Set<?, ?> set -> set.optic().set(set.newValue(), set.source());
-            case OpticOp.Modify<?, ?> mod -> {
-                var current = mod.optic().get(mod.source());
-                var updated = mod.modifier().apply(current);
-                yield mod.optic().set(updated, mod.source());
-            }
-            // ... other cases
+            case OpticOp.Get<?, ?> get -> executeGet(get);
+            case OpticOp.Set<?, ?> set -> executeSet(set);
+            case OpticOp.Modify<?, ?> mod -> executeModify(mod);
+            default -> throw new UnsupportedOperationException(op.getClass().getSimpleName());
         };
+    }
+
+    private <S, A> A executeGet(OpticOp.Get<S, A> op) {
+        return op.optic().get(op.source());
+    }
+
+    private <S, A> S executeSet(OpticOp.Set<S, A> op) {
+        return op.optic().set(op.newValue(), op.source());
+    }
+
+    private <S, A> S executeModify(OpticOp.Modify<S, A> op) {
+        return op.optic().modify(op.modifier(), op.source());
     }
 }
 ```
@@ -541,7 +580,7 @@ public final class MockOpticInterpreter<S> {
                     );
                 };
 
-                return Id.of(result);
+                return Id.of(Free.pure(result));   // the fold expects the next Free node, not the bare value
             };
 
         Kind<IdKind.Witness, A> resultKind =
@@ -727,15 +766,10 @@ try {
 
 ---
 
-~~~admonish tip title="Further Reading"
-- **Bartosz Milewski**: [Category Theory for Programmers](https://bartoszmilewski.com/2014/10/28/category-theory-for-programmers-the-preface/): natural transformations and functors
-- **Gabriel Gonzalez**: [Why Free Monads Matter](https://www.haskellforall.com/2012/06/you-could-have-invented-free-monads.html): free monad interpreters
-~~~
-
 ~~~admonish info title="Key Takeaways"
-* **An interpreter is a natural transformation.** It maps each `OpticOp` into some target effect, which is why swapping one changes everything about how a program runs and nothing about what it says.
-* **Three come with the library.** `direct()` executes, `logging()` executes and records, `validating()` inspects without executing at all.
-* **`validating()` does not run your program.** It has `validate`, not `run`, and hands back a `ValidationResult` carrying errors and warnings; that is what makes a dry run a dry run.
+* **An interpreter is a natural transformation, not an implemented interface.** It maps each `OpticOp` into some target effect, which is why swapping one changes everything about how a program runs and nothing about what it says. There is no supertype to implement, and the three built-ins are `final`.
+* **Three come with the library, and all three execute.** `direct()` returns the value, `logging()` returns it and records the steps, `validating()` discards it and returns a report.
+* **`validate` names the return type, not the behaviour.** It still runs the program, and applies a `modify` modifier twice. `ProgramAnalyser.analyse` is the facility that inspects without executing.
 * **The log belongs to the interpreter, not the program.** `LoggingOpticInterpreter.getLog()` accumulates across runs, so `clearLog()` between them is on you.
 * **Your own interpreter is the extension point.** Anything that can fold an `OpticOp` into an effect qualifies: mocking, metrics, permission checks, replay.
 ~~~
@@ -744,6 +778,11 @@ try {
 - [Free Monad DSL](free_monad_dsl.md): building the programs these interpreters consume
 - [Fluent API](fluent_api.md): direct execution, when no description is needed
 - [Effect Handlers](../effect/effect_handlers_intro.md): the same idea applied to computations rather than optics
+~~~
+
+~~~admonish tip title="Further Reading"
+- **Bartosz Milewski**: [Category Theory for Programmers](https://bartoszmilewski.com/2014/10/28/category-theory-for-programmers-the-preface/): natural transformations and functors
+- **Gabriel Gonzalez**: [Why Free Monads Matter](https://www.haskellforall.com/2012/06/you-could-have-invented-free-monads.html): free monad interpreters
 ~~~
 
 ---

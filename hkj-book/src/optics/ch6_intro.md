@@ -26,15 +26,25 @@ Account settled = direct.run(withdrawal);
 LoggingOpticInterpreter logging = OpticInterpreters.logging();
 Account audited = logging.run(withdrawal);
 List<String> trail = logging.getLog();
+// one entry per optic operation the program performed
 
-// Or do not run it at all: inspect what it would do
+// Or run it and get a report of what went wrong instead of the result
 ValidationOpticInterpreter validator = OpticInterpreters.validating();
 ValidationOpticInterpreter.ValidationResult check = validator.validate(withdrawal);
 boolean safeToRun = check.isValid();
+// true: no nulls written, no modifier threw
 ```
 
+The account starts on 100 and the withdrawal is 30. `Fixture` is the compiled example's own setup, not library API.
+
+~~~admonish warning title="`validating()` is a checked run, not a dry run"
+Despite the name, `validate` **executes** the program. Its own javadoc is explicit: operations are run so that `flatMap` chaining produces the right values, and the validation is collected alongside. A `modify` modifier is applied twice, once to check it and once to perform it. So it is safe for pure modifiers over immutable data, and unsafe for anything with a side effect.
+
+For genuine inspection with nothing executed, use `ProgramAnalyser.analyse(program)`, whose traversal is structural and never runs a step.
+~~~
+
 ~~~admonish tip title="Why this matters"
-The three blocks differ by one line. `withdrawal` is an ordinary value: it can be stored in a field, passed to a method, returned from one, and run later or never. That is the property the rest of this chapter trades on. An audit trail stops being logging statements scattered through the code and becomes a second interpreter over the same description; a dry run stops being a boolean flag threaded through every method and becomes a decision not to call `run`.
+The three blocks differ by one line. `withdrawal` is an ordinary value: it can be stored in a field, passed to a method, returned from one, and run later or never. That is the property the rest of this chapter trades on. An audit trail stops being logging statements scattered through the code and becomes a second interpreter over the same description; a structural analysis of what a program contains stops being guesswork and becomes a walk over the value.
 ~~~
 
 If you have not yet hit a problem that needs this, you do not need this chapter. Come back when an audit requirement, a testability concern, or a multi-mode execution scenario forces the issue.
@@ -58,7 +68,7 @@ flowchart TD
     Q{"What do you want<br/>from the program?"}
     Q -->|"the result"| D(["direct()<br/>run it"])
     Q -->|"the result, and<br/>a record of the steps"| L(["logging()<br/>run it and keep a trail"])
-    Q -->|"only to know what<br/>it would do"| V(["validating()<br/>inspect, never run"])
+    Q -->|"the result discarded,<br/>and a report instead"| V(["validating()<br/>run it and report problems"])
     Q -->|"something else:<br/>mocks, metrics, permissions"| O(["your own<br/>natural transformation"])
 
     classDef decision fill:#e5c890,stroke:#df8e1d,color:#232634
@@ -69,7 +79,7 @@ flowchart TD
     class O wire
 ```
 
-Note the third branch: `validating()` carries `validate`, not `run`. Choosing it is choosing not to execute.
+Note the third branch: `validating()` carries `validate`, not `run`. That names the *return type*, not the behaviour. It still executes; what you get back is a report rather than the value. Genuine no-execution inspection is `ProgramAnalyser.analyse`.
 
 ---
 
