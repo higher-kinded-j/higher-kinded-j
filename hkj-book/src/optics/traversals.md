@@ -7,16 +7,13 @@
 - Using `@GenerateTraversals` for automatic collection optics
 - Composing traversals with lenses and prisms for deep bulk updates
 - The `Traversals.modify()` and `Traversals.getAll()` utility methods
+- Treating all focused elements as one list with `partsOf` (sorting, reversing, deduplicating)
 - Converting a Traversal to a read-only Fold with `asFold()` for queries and aggregation
 - Understanding zero-or-more target semantics
 - When to use traversals vs streams vs manual loops for collection processing
 ~~~
 
-~~~admonish title="Hands On Practice"
-[Tutorial05_TraversalBasics.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/test/java/org/higherkindedj/tutorial/optics/Tutorial05_TraversalBasics.java)
-~~~
-
-~~~admonish title="Example Code"
+~~~admonish example title="See Example Code"
 [TraversalUsageExample](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/optics/TraversalUsageExample.java)
 ~~~
 
@@ -24,6 +21,7 @@ So far, our journey through optics has shown us how to handle singular focus:
 
 * A **`Lens`** targets a part that *must* exist.
 * A **`Prism`** targets a part that *might* exist in one specific shape.
+* An **`Affine`** targets a part that may be absent: zero or one.
 * An **`Iso`** provides a two-way bridge between *equivalent* types.
 
 But what about operating on *many* items at once? How do we apply a single change to every element in a nested list? For this, we need the most general and powerful optic in our toolkit: the **Traversal**.
@@ -156,6 +154,19 @@ The `Traversals` utility class provides convenient helper methods to perform the
 
 ## When to Use Traversals vs Other Approaches
 
+```mermaid
+flowchart TD
+    Q{"Bulk work on values<br/>inside a structure?"}
+    Q -->|"same shape back,<br/>values updated in place"| T(["Traversal"])
+    Q -->|"filter, regroup, or<br/>reshape the collection"| S(["Stream API"])
+    Q -->|"early exit or<br/>imperative control flow"| L(["Manual loop"])
+
+    classDef decision fill:#e5c890,stroke:#df8e1d,color:#232634
+    classDef tier fill:#a6d189,stroke:#40a02b,color:#232634
+    class Q decision
+    class T,S,L tier
+```
+
 ### Use Traversals When:
 
 * **Bulk operations on nested collections** - Applying the same operation to many items
@@ -166,8 +177,8 @@ The `Traversals` utility class provides convenient helper methods to perform the
 ```java
 // Perfect for bulk updates with type safety
 Traversal<Company, String> allEmails = CompanyTraversals.employees()
-    .andThen(EmployeeTraversals.contacts())
-    .andThen(ContactLenses.email().asTraversal());
+    .andThen(EmployeeTraversals.contactInfo())
+    .andThen(ContactInfoLenses.email().asTraversal());
 
 Company withNormalisedEmails = Traversals.modify(allEmails, String::toLowerCase, company);
 ```
@@ -255,10 +266,9 @@ OptionalDouble average = allScores.stream().mapToInt(Integer::intValue).average(
 
 Traversals are optimised for immutable updates:
 
-* **Memory efficient**: Only creates new objects along the path that changes
-* **Lazy evaluation**: Stops early if no changes are needed
+* **Structural sharing**: only the spine along the focused path is rebuilt; branches the path does not touch are reused as-is
 * **Batch operations**: `modifyF` processes all targets in a single pass
-* **Structural sharing**: Unchanged parts of the data structure are reused
+* **No hidden laziness**: every focused element is visited and the path spine is rebuilt on each `modify`, so cost is proportional to the number of targets
 
 **Best Practice**: For frequently used traversal combinations, create them once and store as constants:
 
@@ -284,7 +294,7 @@ public class LeagueOptics {
 
 
 ```java
-// Validate all email addresses in a userLogin list
+// Validate every email address in the company
 Traversal<Company, String> allEmails = CompanyTraversals.employees()
     .andThen(EmployeeTraversals.contactInfo())
     .andThen(ContactInfoLenses.email().asTraversal());
@@ -295,9 +305,13 @@ Function<String, Kind<ValidatedKind.Witness<List<String>>, String>> validateEmai
         : VALIDATED.widen(Validated.invalid(List.of("Invalid email: " + email)));
 
 Validated<List<String>, Company> result = VALIDATED.narrow(
-    allEmails.modifyF(validateEmail, company, validatedApplicative)
+    allEmails.modifyF(validateEmail, company, Instances.validated(Semigroups.list()))
 );
 ```
+
+~~~admonish tip title="Why this matters"
+This is the pattern streams cannot express cleanly: one composed path, one pass, and every invalid element reported, not just the first. The same traversal that added bonus points earlier is here running a `Validated` effect through `modifyF`; swap in `CompletableFuture` and it becomes an asynchronous fan-out. The path is fixed once; the effect is a parameter.
+~~~
 
 ### Conditional Updates
 
@@ -334,13 +348,13 @@ League normalisedLeague = Traversals.modify(
 ### Asynchronous Operations
 
 ```java
-// Fetch additional player statistics asynchronously
-Function<Integer, CompletableFuture<Integer>> fetchBonusPoints = 
-    playerId -> statsService.getBonusPoints(playerId);
+// Recalculate every score asynchronously (FUTURE is CompletableFutureKindHelper.FUTURE)
+Function<Integer, CompletableFuture<Integer>> recalculateScore =
+    score -> statsService.recalculate(score);
 
-CompletableFuture<League> enrichedLeague = CF.narrow(
+CompletableFuture<League> enrichedLeague = FUTURE.narrow(
     LeagueOptics.ALL_PLAYER_SCORES.modifyF(
-        score -> CF.widen(fetchBonusPoints.apply(score)),
+        score -> FUTURE.widen(recalculateScore.apply(score)),
         league,
         Instances.monadError(completableFuture())
     )
@@ -349,19 +363,54 @@ CompletableFuture<League> enrichedLeague = CF.narrow(
 
 ---
 
+## Real-World Example: Configuration Validation
+
+The same `modifyF` pattern scales from one composed path to a whole configuration model:
+
+```java
+// Configuration model
+@GenerateLenses
+@GenerateTraversals
+public record ServerConfig(String name, List<DatabaseConfig> databases) {}
+
+@GenerateLenses  
+public record DatabaseConfig(String host, int port, String name) {}
+
+// Validation traversal
+public class ConfigValidation {
+    private static final Traversal<ServerConfig, Integer> ALL_DB_PORTS = 
+        ServerConfigTraversals.databases()
+            .andThen(DatabaseConfigLenses.port().asTraversal());
+  
+    public static Validated<List<String>, ServerConfig> validateConfig(ServerConfig config) {
+        Function<Integer, Kind<ValidatedKind.Witness<List<String>>, Integer>> validatePort = 
+            port -> {
+                if (port >= 1024 && port <= 65535) {
+                    return VALIDATED.widen(Validated.valid(port));
+                } else {
+                    return VALIDATED.widen(Validated.invalid(
+                        List.of("Port " + port + " is out of valid range (1024-65535)")
+                    ));
+                }
+            };
+  
+        return VALIDATED.narrow(
+            ALL_DB_PORTS.modifyF(
+                validatePort, 
+                config, 
+                Instances.validated(Semigroups.list())
+            )
+        );
+    }
+}
+```
+
+
 ## List Manipulation with `partsOf`
 
 ### _Treating Traversal Focuses as Collections_
 
-~~~admonish info title="What You'll Learn"
-- Converting a Traversal into a Lens on a List of elements
-- Using `partsOf` for sorting, reversing, and deduplicating focused elements
-- Convenience methods: `sorted`, `reversed`, `distinct`
-- Understanding size mismatch behaviour and graceful degradation
-- When list-level operations on traversal targets are appropriate
-~~~
-
-~~~admonish title="Example Code"
+~~~admonish example title="See Example Code"
 [PartsOfTraversalExample](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/optics/PartsOfTraversalExample.java)
 ~~~
 
@@ -484,10 +533,12 @@ A crucial aspect of `partsOf` is how it handles size mismatches between the new 
 **Fewer elements than positions**: Original values are preserved in remaining positions.
 
 ```java
+Lens<List<Product>, List<Double>> productPrices = Traversals.partsOf(priceTraversal);
+
 // Original: 5 products with prices [100, 200, 300, 400, 500]
 List<Double> partialPrices = List.of(10.0, 20.0, 30.0); // Only 3 values
 
-List<Product> result = pricesLens.set(partialPrices, products);
+List<Product> result = productPrices.set(partialPrices, products);
 // Result prices: [10.0, 20.0, 30.0, 400, 500]
 // First 3 updated, last 2 unchanged
 ```
@@ -495,11 +546,13 @@ List<Product> result = pricesLens.set(partialPrices, products);
 **More elements than positions**: Extra elements are ignored.
 
 ```java
-// Original: 3 products
+// A three-product source, prices [100, 200, 300]
+List<Product> threeProducts = products.subList(0, 3);
 List<Double> extraPrices = List.of(10.0, 20.0, 30.0, 40.0, 50.0); // 5 values
 
-List<Product> result = pricesLens.set(extraPrices, products);
-// Result: Only first 3 prices used, 40.0 and 50.0 ignored
+List<Product> trimmed = productPrices.set(extraPrices, threeProducts);
+// Result prices: [10.0, 20.0, 30.0]
+// Only the first 3 values are consumed; 40.0 and 50.0 are never read
 ```
 
 This graceful degradation makes `partsOf` safe to use even when you're not certain about the exact number of targets.
@@ -517,6 +570,8 @@ When sizes don't match, the laws still hold for the elements that *are* provided
 ### Advanced Use Cases
 
 #### Combining with Filtered Traversals
+
+Filtered optics are covered properly in [Filtered Optics](filtered_optics.md); here it is enough that `filtered` narrows a traversal to the elements a predicate accepts:
 
 ```java
 // Sort only in-stock product prices
@@ -596,7 +651,7 @@ prices.forEach(p -> System.out.println(p)); // Just use Traversals.getAll()!
 ```java
 // Understand that structure is preserved, only values redistribute
 List<Product> result = Traversals.distinct(nameTraversal, products);
-// Third product keeps original price, gets redistributed unique name
+// The distinct names fill the first positions; the third product keeps its original name
 
 // Use partsOf when you need list-level operations
 Lens<List<Product>, List<Double>> lens = Traversals.partsOf(priceTraversal);
@@ -625,61 +680,15 @@ Traversals.getAll(priceTraversal, products).forEach(System.out::println);
 
 ---
 
-## Real-World Example: Configuration Validation
-
-
-```java
-// Configuration model
-@GenerateLenses
-@GenerateTraversals
-public record ServerConfig(String name, List<DatabaseConfig> databases) {}
-
-@GenerateLenses  
-public record DatabaseConfig(String host, int port, String name) {}
-
-// Validation traversal
-public class ConfigValidation {
-    private static final Traversal<ServerConfig, Integer> ALL_DB_PORTS = 
-        ServerConfigTraversals.databases()
-            .andThen(DatabaseConfigLenses.port().asTraversal());
-  
-    public static Validated<List<String>, ServerConfig> validateConfig(ServerConfig config) {
-        Function<Integer, Kind<ValidatedKind.Witness<List<String>>, Integer>> validatePort = 
-            port -> {
-                if (port >= 1024 && port <= 65535) {
-                    return VALIDATED.widen(Validated.valid(port));
-                } else {
-                    return VALIDATED.widen(Validated.invalid(
-                        List.of("Port " + port + " is out of valid range (1024-65535)")
-                    ));
-                }
-            };
-  
-        return VALIDATED.narrow(
-            ALL_DB_PORTS.modifyF(
-                validatePort, 
-                config, 
-                Instances.validated(Semigroups.list())
-            )
-        );
-    }
-}
-```
-
-
 ## Complete, Runnable Example
 
 This example demonstrates how to use the `with*` helpers for a targeted update and how to use a composed `Traversal` with the new utility methods for bulk operations.
 
 ```java
 package org.higherkindedj.example.optics;
-import org.higherkindedj.hkt.instances.Instances;
-import org.higherkindedj.hkt.instances.Witnesses;
-import static org.higherkindedj.hkt.instances.Witnesses.*;
 
 import java.util.ArrayList;
 import java.util.List;
-import org.higherkindedj.optics.Lens;
 import org.higherkindedj.optics.Traversal;
 import org.higherkindedj.optics.annotations.GenerateLenses;
 import org.higherkindedj.optics.annotations.GenerateTraversals;
@@ -821,7 +830,7 @@ League[name=Pro League, teams=[Team[name=Team Alpha, players=[Player[name=Alice,
 After converting all names to uppercase:
 League[name=Pro League, teams=[Team[name=Team Alpha, players=[Player[name=ALICE, score=100], Player[name=BOB, score=90]]], Team[name=Team Bravo, players=[Player[name=CHARLIE, score=110], Player[name=DIANA, score=120]]]]]
 
---- Scenario 6: Working with Empty Collections ---
+--- Scenario 6: Empty Collections ---
 Empty league: League[name=Empty League, teams=[]]
 Scores from empty league: []
 Empty league after update: League[name=Empty League, teams=[]]
@@ -829,11 +838,7 @@ Empty league after update: League[name=Empty League, teams=[]]
 Original league unchanged: League[name=Pro League, teams=[Team[name=Team Alpha, players=[Player[name=Alice, score=100], Player[name=Bob, score=90]]], Team[name=Team Bravo, players=[Player[name=Charlie, score=110], Player[name=Diana, score=120]]]]]
 ```
 
----
-
-~~~admonish tip title="For Comprehension Integration"
-For a fluent, comprehension-style API for traversal operations, see [Optics Integration: Bulk Operations with ForTraversal](../functional/for_optics.md#bulk-operations-with-fortraversal). This provides an alternative syntax for filtering, modifying, and collecting traversal targets within an applicative context.
-~~~
+The repository copy of [TraversalUsageExample](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/optics/TraversalUsageExample.java) adds three further scenarios: converting the traversal to a `Fold` for aggregation (which the next section covers), selective updates with `modifyWhen`, and branching.
 
 ---
 
@@ -879,47 +884,7 @@ int playerCount = scoresFold.length(league);
 Optional<Integer> firstScore = scoresFold.preview(league);
 ```
 
-### Filtered Traversals as Folds
-
-Converting a filtered traversal to a fold is particularly useful for conditional queries:
-
-```java
-// Filtered traversal: only active players (score > 0)
-Traversal<League, Player> activePlayers =
-    LeagueTraversals.teams()
-        .andThen(TeamTraversals.players())
-        .filtered(p -> p.score() > 0);
-
-// Convert to fold for aggregation
-Fold<League, Player> activePlayersFold = activePlayers.asFold();
-int activeCount = activePlayersFold.length(league);
-boolean anyHighScorer = activePlayersFold
-    .andThen(PlayerLenses.score().asFold())
-    .exists(s -> s > 100, league);
-```
-
-### Combining with Other Folds Using `plus()`
-
-One of the most powerful patterns is combining a traversal-derived fold with other folds using `plus()` for multi-path extraction:
-
-```java
-// Fold from a traversal: all member emails
-Fold<Team, String> memberEmails =
-    TeamTraversals.players()
-        .andThen(PlayerLenses.email().asTraversal())
-        .asFold();
-
-// Fold from a lens: team lead email
-Fold<Team, String> leadEmail =
-    TeamLenses.lead().asFold()
-        .andThen(PlayerLenses.email().asFold());
-
-// Combine both paths into a single fold
-Fold<Team, String> allEmails = leadEmail.plus(memberEmails);
-
-List<String> emails = allEmails.getAll(team);
-// Result: lead email followed by all member emails
-```
+That is deliberately just a taste: `foldMap`, monoids, and combining several folds into one multi-path query with `plus()` are the whole subject of the next page, [Folds](folds.md).
 
 ### How It Works Internally
 
@@ -935,13 +900,29 @@ This means `asFold()` traverses the structure exactly once, making it efficient 
 
 ## Unifying the Concepts
 
-A `Traversal` is the most general of the core optics. In fact, all other optics can be seen as specialised `Traversal`s:
+A `Traversal` is the most general of the write-capable core optics. In fact, the others can all be seen as specialised `Traversal`s:
 
 * A `Lens` is just a `Traversal` that always focuses on **exactly one** item.
-* A `Prism` is just a `Traversal` that focuses on **zero or one** item.
+* A `Prism` or an `Affine` is just a `Traversal` that focuses on **zero or one** item.
 * An `Iso` is just a `Traversal` that focuses on **exactly one** item and is reversible.
 
-This is the reason they can all be composed together so seamlessly. By mastering `Traversal`, you complete your understanding of the core optics family, enabling you to build powerful, declarative, and safe data transformations that work efficiently across any number of targets.
+This is the reason they can all be composed together so seamlessly.
+
+~~~admonish info title="Key Takeaways"
+* **A traversal is a bulk path**: zero-or-more targets, one declarative route to get, set, or modify them all
+* **Compose down, then act once**: chain generated traversals and lenses with `andThen`, store the result as a constant, reuse it everywhere
+* **`modifyF` makes bulk updates effectful**: validation with accumulated errors or asynchronous enrichment through the same path
+* **`partsOf` bridges to list algorithms**: sort, reverse, or deduplicate focused values while the structure keeps its shape
+* **`asFold()` declares read-only intent**: the full query API (`foldMap`, `exists`, `length`, `plus`) with no ability to write
+~~~
+
+~~~admonish tip title="See Also"
+- [Folds](folds.md): the read-only side of this page, with monoid-based aggregation
+- [Common Data Structures](common_data_structure_traversals.md): ready-made traversals for Optional, Map, and tuple types
+- [Limiting Traversals](limiting_traversals.md): focusing on slices of a list instead of every element
+- [Composition Rules](composition_rules.md): why `asTraversal()` appears at the end of composed chains
+- [Bulk Operations with ForTraversal](../functional/for_optics.md#bulk-operations-with-fortraversal): comprehension-style filtering, modifying, and collecting through a traversal
+~~~
 
 ~~~admonish info title="Hands-On Learning"
 Practice traversal basics in [Tutorial 05: Traversal Basics](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/test/java/org/higherkindedj/tutorial/optics/Tutorial05_TraversalBasics.java) (8 exercises, ~12 minutes).
@@ -949,5 +930,5 @@ Practice traversal basics in [Tutorial 05: Traversal Basics](https://github.com/
 
 ---
 
-**Previous:** [Introduction to Collection Optics](ch2_intro.md)
+**Previous:** [Collections](ch2_intro.md)
 **Next:** [Folds: Querying Immutable Data](folds.md)

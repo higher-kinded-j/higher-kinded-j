@@ -11,7 +11,7 @@
 - When to use structure traversals vs direct access vs Stream API
 ~~~
 
-~~~admonish title="Example Code"
+~~~admonish example title="See Example Code"
 [OptionalMapTraversalsExample](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/optics/OptionalMapTraversalsExample.java)
 
 [TupleTraversalsExample](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/optics/TupleTraversalsExample.java)
@@ -19,7 +19,7 @@
 
 So far, we've explored traversals for collections: lists, sets, and arrays. But Java applications work with many other data structures that benefit from traversal operations: Optional values that might be empty, Map collections where we need to transform values whilst preserving keys, and Tuple pairs that represent related data.
 
-These structures share a common need: **apply a transformation uniformly across their contents whilst maintaining structural integrity**. Higher-kinded-j's traversal combinators make this declarative, composable, and type-safe.
+These structures share a common need: **apply a transformation uniformly across their contents whilst maintaining structural integrity**. Higher-Kinded-J's traversal combinators make this declarative, composable, and type-safe.
 
 ---
 
@@ -37,9 +37,9 @@ The key insight: these aren't special cases; they're **traversals with specific 
 
 ---
 
-## Three Categories of Structure Traversals
+## The Structure Traversal Toolkit
 
-Higher-kinded-j provides factory methods in `Traversals` and dedicated utility classes:
+Higher-Kinded-J provides factory methods in `Traversals` and dedicated utility classes:
 
 | Structure | Method | Cardinality | Use Case |
 |-----------|--------|-------------|----------|
@@ -70,13 +70,13 @@ public record ApplicationConfig(
     Optional<ServerConfig> server
 ) {}
 
-// Traditional: Nested map() calls
+// Traditional: Nested map() calls and manual reconstruction
 ApplicationConfig updated = config.server()
     .map(server -> server.port()
-        .map(p -> server.withPort(Optional.of(p + 1000)))  // Offset ports
+        .map(p -> new ServerConfig(server.hostname(), Optional.of(p + 1000), server.sslCertPath()))  // Offset ports
         .orElse(server)
     )
-    .map(newServer -> config.withServer(Optional.of(newServer)))
+    .map(newServer -> new ApplicationConfig(config.appName(), Optional.of(newServer)))
     .orElse(config);
 ```
 
@@ -182,15 +182,16 @@ The `forMapValues()` method creates a traversal focusing on **all values** whils
 // Create a Map values traversal
 Traversal<Map<String, Double>, Double> priceTraversal = Traversals.forMapValues();
 
-// Apply 10% increase to all values
-Map<String, Double> inflated = Traversals.modify(priceTraversal, price -> price * 1.1, prices);
-// Result: {widget=11.0, gadget=27.5, gizmo=16.5}
+// Add a flat 1.50 handling charge to every value
+Map<String, Double> inflated = Traversals.modify(priceTraversal, price -> price + 1.5, prices);
+// Result: {widget=11.5, gadget=26.5, gizmo=16.5}
 
 // Extract all values
 List<Double> allPrices = Traversals.getAll(priceTraversal, prices);
 // Result: [10.0, 25.0, 15.0]
 
 // Compose with filtered for conditional updates
+// (filtered optics are covered properly in the next chapter)
 Traversal<Map<String, Double>, Double> expensiveItems =
     priceTraversal.filtered(price -> price > 20.0);
 
@@ -228,7 +229,7 @@ public class ConfigNormaliser {
 
     // Redact sensitive values (password, token)
     public static DatabaseConfig redactSensitive(DatabaseConfig config) {
-        // Use an indexed traversal to access both key and value during modification
+        // An indexed traversal sees both key and value (covered in Indexed Optics, next chapter)
         IndexedTraversal<String, Map<String, String>, String> allProperties =
             IndexedTraversals.forMap();
 
@@ -516,12 +517,12 @@ Tuple2<Integer, String> updated = new Tuple2<>(
 
 ## Performance Notes
 
-Structure traversals are optimised for immutability:
+Structure traversals are optimised for immutability, not for raw throughput:
 
-* **Single pass**: No intermediate collections
-* **Structural sharing**: Unchanged portions reuse original references
-* **No boxing overhead**: Direct map operations without streams
-* **Lazy evaluation**: Short-circuits on empty optionals
+* **Structural sharing**: values the function leaves alone are reused by reference; only the container is rebuilt
+* **Zero targets cost nothing**: an empty `Optional` or an empty map never calls the function, so `modify` reduces to a single `of`
+* **No hidden laziness**: every present value is visited, and `forMapValues()` reassembles the map inside the applicative, so a large map allocates more than a hand-written `stream().collect()` would
+* **They earn their keep by nesting**: the win is composing the map or optional into a deeper path, not out-running a stream over a flat structure
 
 **Best Practice**: Store commonly-used structure traversals as constants:
 
@@ -546,47 +547,26 @@ public class ConfigOptics {
 
 ---
 
-## Related Resources
-
-**Functional Java Libraries**:
-- [Cyclops](https://github.com/aol/cyclops) - Functional control structures
-- [Functional Java](https://github.com/functionaljava/functionaljava) - Classic FP utilities
-
-**Further Reading**:
-- *Functional Programming in Java* by Venkat Subramaniam - Optional and immutable patterns
-- *Modern Java in Action* by Raoul-Gabriel Urma - Functional data processing
-- [Optics By Example](https://leanpub.com/optics-by-example) - Comprehensive optics guide (Haskell)
-
-**Type Theory Background**:
-- **Affine Traversals**: Focusing on 0 or 1 element (Optional)
-- **Bitraversable**: Traversing structures with two type parameters (Tuple2, Either)
-- [Profunctor Optics: Modular Data Accessors](https://arxiv.org/abs/1703.10857) - Theoretical foundation
-
----
-
 ## Summary
 
-Structure traversals extend the traversal pattern to common Java data types:
+~~~admonish info title="Key Takeaways"
+* **`forOptional()` treats absence as zero targets**: modifications on an empty `Optional` are safe no-ops, so nested optional fields compose without `.map()` chains
+* **`forMapValues()` rewrites values, never keys**: the key set survives a bulk transformation intact, but the result is rebuilt as a `HashMap`, so a `LinkedHashMap` or `TreeMap` source does not keep its iteration order
+* **`forMapValuesCollecting()` reaches beyond JDK maps**: persistent and third-party maps traverse through a collector you supply, and that collector, not the traversal, decides the rebuilt map's type and ordering
+* **`TupleTraversals.both()` updates a pair in one pass**: homogeneous pairs stop needing two separate reconstructions
+* **They are ordinary traversals**: everything from `modifyF` effects to `asFold()` queries applies unchanged
+~~~
 
-| Structure | Traversal | Key Benefit |
-|-----------|-----------|-------------|
-| **Optional** | `forOptional()` | Null-safe composition without `.map()` chains |
-| **Map Values** | `forMapValues()` / `forMapValuesCollecting()` | Bulk value transformation preserving keys, JDK or persistent maps |
-| **Tuple2 Pairs** | `both()` | Parallel operations on homogeneous pairs |
+~~~admonish tip title="See Also"
+- [Traversals](traversals.md): the core bulk-update optic these combinators extend
+- [Affines](affine.md): the zero-or-one optic behind `Optional` field access
+- [Limiting Traversals](limiting_traversals.md): slicing lists instead of traversing every element
+~~~
 
-These tools transform how you work with wrapped and paired values:
-
-**Before** (Imperative):
-- Manual Optional chaining
-- Stream + collect for Maps
-- Repetitive tuple updates
-
-**After** (Declarative):
-- Composable Optional traversals
-- Direct map value transformations
-- Unified tuple operations
-
-By incorporating structure traversals into your optics toolkit, you gain the ability to express complex transformations declaratively, compose them seamlessly with other optics, and maintain type safety throughout, all whilst preserving the immutability and referential transparency that make functional programming powerful.
+~~~admonish tip title="Further Reading"
+- **Pickering, Gibbons & Wu**: [Profunctor Optics: Modular Data Accessors](https://arxiv.org/abs/1703.10857): the theoretical foundation
+- **Chris Penner**: [Optics By Example](https://leanpub.com/optics-by-example): comprehensive optics guide (Haskell)
+~~~
 
 ---
 

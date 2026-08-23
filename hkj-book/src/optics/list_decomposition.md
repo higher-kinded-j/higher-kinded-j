@@ -12,10 +12,6 @@
 - Integration with the Focus DSL for fluent list manipulation
 ~~~
 
-~~~admonish title="Hands On Practice"
-[Tutorial15_ListPrisms.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/test/java/org/higherkindedj/tutorial/optics/Tutorial15_ListPrisms.java)
-~~~
-
 ~~~admonish example title="See Example Code"
 [ListDecompositionExample.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/optics/ListDecompositionExample.java)
 ~~~
@@ -73,8 +69,6 @@ The `ListPrisms` class provides prisms and affines for list decomposition. It of
 | `tail()` | – | `Affine<List<A>, List<A>>` | Focus on all but first |
 | `init()` | – | `Affine<List<A>, List<A>>` | Focus on all but last |
 | `empty()` | – | `Prism<List<A>, Unit>` | Matches empty lists |
-
-![list_prisms.svg](../images/puml/list_prisms.svg)
 
 ---
 
@@ -181,6 +175,10 @@ List<String> created = head.set("New", List.of());
 // created = ["New"]
 ```
 
+~~~admonish note title="A deliberate deviation"
+The convention [Affines](affine.md) taught is that `set` on an absent focus is a no-op. `head()` deliberately deviates: setting through it on an empty list *creates* a singleton, which makes it handy for upsert-style code. Keep the difference in mind when reasoning with affine laws on empty lists.
+~~~
+
 ### Accessing the Last Element
 
 ```java
@@ -284,28 +282,22 @@ The list decomposition prisms compose with the Focus DSL using `.via()`:
 @GenerateFocus
 record Container(String name, List<Item> items) {}
 
-// Navigate to the first item using ListPrisms
-AffinePath<Container, Item> firstItem = ContainerFocus.items()
-    .via(ListPrisms.head());     // Compose with head affine
-
+// ContainerFocus.items() is already ELEMENT-level: a TraversalPath<Container, Item>.
+// The first element is therefore one call away:
+AffinePath<Container, Item> firstItem = ContainerFocus.items().headOption();
 Optional<Item> first = firstItem.getOptional(container);
 
-// Navigate to the last item
-AffinePath<Container, Item> lastItem = ContainerFocus.items()
-    .via(ListPrisms.last());
-
-// Decompose with cons pattern
-TraversalPath<Container, Pair<Item, List<Item>>> consPath = ContainerFocus.items()
-    .via(ListPrisms.cons());
-
-// You can also compose directly on the traversal
-TraversalPath<Container, Item> allItems = ContainerFocus.items();
-AffinePath<Container, Item> firstViaHeadOption = allItems.headOption();
+// The optics in ListPrisms are LIST-level, so compose them from a path
+// to the list itself, not from the element-level traversal:
+AffinePath<Container, Item> lastItem =
+    FocusPath.of(ContainerLenses.items()).via(ListPrisms.last());
 ```
 
 ### Available ListPrisms for Composition
 
-| ListPrisms Method | Type | Use with `.via()` |
+These are list-level optics: reach them from a path to the list (`FocusPath.of(ContainerLenses.items())`), never from the element-level `ContainerFocus.items()`.
+
+| ListPrisms Method | Type | Focus |
 |-------------------|------|-------------------|
 | `ListPrisms.head()` | `Affine<List<A>, A>` | Focus on first element |
 | `ListPrisms.last()` | `Affine<List<A>, A>` | Focus on last element |
@@ -347,15 +339,16 @@ List prisms compose naturally with other optics for deep list manipulation:
 
 ```java
 // Focus on the name of the first player in a team
+// (Lens >>> Affine and Affine >>> Lens both compose to Affine)
 Affine<Team, String> firstPlayerName =
-    TeamLenses.players().asAffine()
+    TeamLenses.players()
         .andThen(ListPrisms.head())
-        .andThen(PlayerLenses.name().asAffine());
+        .andThen(PlayerLenses.name());
 
 // Modify the score of the last player
-Team updated = TeamLenses.players().asAffine()
+Team updated = TeamLenses.players()
     .andThen(ListPrisms.last())
-    .andThen(PlayerLenses.score().asAffine())
+    .andThen(PlayerLenses.score())
     .modify(score -> score + 10, team);
 ```
 
@@ -370,18 +363,18 @@ Team updated = TeamLenses.players().asAffine()
 * **Focus DSL integration** provides fluent navigation into list structure
 ~~~
 
-~~~admonish info title="Hands-On Learning"
-Practice list decomposition patterns in [Tutorial 15: List Prisms](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/test/java/org/higherkindedj/tutorial/optics/Tutorial15_ListPrisms.java) (19 exercises, ~12 minutes).
-~~~
-
 ---
 
 ~~~admonish tip title="See Also"
-- [Prisms](prisms.md) - The underlying optic type for pattern matching
-- [Affines](affine.md) - Optics for "zero or one" targets
-- [Focus DSL](focus_dsl.md) - Fluent API for building optic paths
-- [Traversals](traversals.md) - Working with all list elements
-- [Trampoline](../monads/trampoline_monad.md) - Stack-safe recursion
+- [Prisms](prisms.md): the underlying optic type for pattern matching
+- [Affines](affine.md): optics for "zero or one" targets
+- [Focus DSL](focus_dsl.md): fluent API for building optic paths
+- [Traversals](traversals.md): working with all list elements
+- [Trampoline](../monads/trampoline_monad.md): stack-safe recursion
+~~~
+
+~~~admonish info title="Hands-On Learning"
+Practice list decomposition patterns in [Tutorial 15: List Prisms](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/test/java/org/higherkindedj/tutorial/optics/Tutorial15_ListPrisms.java) (19 exercises, ~12 minutes).
 ~~~
 
 ---
