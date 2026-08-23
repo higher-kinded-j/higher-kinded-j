@@ -15,7 +15,6 @@ import javax.lang.model.type.TypeMirror;
  * <ul>
  *   <li>The source type {@code S} from {@code OpticsSpec<S>}
  *   <li>Abstract methods requiring generation (annotated with copy strategies)
- *   <li>Default methods to copy unchanged
  *   <li>The target package for generated code
  * </ul>
  *
@@ -23,14 +22,12 @@ import javax.lang.model.type.TypeMirror;
  * @param sourceType the source type {@code S} from {@code OpticsSpec<S>}
  * @param sourceTypeElement the source type as a TypeElement (for generating code)
  * @param opticMethods abstract methods that define optics to generate
- * @param defaultMethods default methods to copy into the generated class
  */
 public record SpecAnalysis(
     TypeElement specInterface,
     TypeMirror sourceType,
     TypeElement sourceTypeElement,
-    List<OpticMethodInfo> opticMethods,
-    List<ExecutableElement> defaultMethods) {
+    List<OpticMethodInfo> opticMethods) {
 
   /** The kind of optic defined by a method. */
   public enum OpticKind {

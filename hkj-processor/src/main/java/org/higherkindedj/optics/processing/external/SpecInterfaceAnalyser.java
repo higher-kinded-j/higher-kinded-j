@@ -26,6 +26,7 @@ import org.higherkindedj.optics.processing.external.SpecAnalysis.PrismHintInfo;
 import org.higherkindedj.optics.processing.external.SpecAnalysis.PrismHintKind;
 import org.higherkindedj.optics.processing.external.SpecAnalysis.TraversalHintInfo;
 import org.higherkindedj.optics.processing.external.SpecAnalysis.TraversalHintKind;
+import org.higherkindedj.optics.processing.util.Diagnostics;
 import org.higherkindedj.optics.processing.util.ProcessorUtils;
 
 /**
@@ -36,9 +37,12 @@ import org.higherkindedj.optics.processing.util.ProcessorUtils;
  * <ul>
  *   <li>The source type {@code S} from {@code OpticsSpec<S>}
  *   <li>Abstract methods that need optic implementations generated
- *   <li>Default methods that should be copied to the generated class
  *   <li>Annotations and their parsed values for each method
  * </ul>
+ *
+ * <p>A {@code default} method is rejected: its body cannot be read during annotation processing, so
+ * it has no home in the generated class. Composition belongs in a static method or an ordinary
+ * utility class that calls the generated statics.
  */
 public class SpecInterfaceAnalyser {
 
@@ -110,14 +114,26 @@ public class SpecInterfaceAnalyser {
       return Optional.empty();
     }
 
-    // Categorise methods
-    List<OpticMethodInfo> opticMethods = new ArrayList<>();
-    List<ExecutableElement> defaultMethods = new ArrayList<>();
+    List<ExecutableElement> methods = ElementFilter.methodsIn(specInterface.getEnclosedElements());
 
-    for (ExecutableElement method : ElementFilter.methodsIn(specInterface.getEnclosedElements())) {
+    // A default method has no home in the generated class: a body cannot be read during
+    // annotation processing, so reject it here rather than generating a stub that throws.
+    boolean rejected = false;
+    for (ExecutableElement method : methods) {
       if (method.isDefault()) {
-        defaultMethods.add(method);
-      } else if (method.getModifiers().contains(Modifier.ABSTRACT)) {
+        reportDefaultMethod(specInterface, method);
+        rejected = true;
+      }
+    }
+    if (rejected) {
+      return Optional.empty();
+    }
+
+    List<OpticMethodInfo> opticMethods = new ArrayList<>();
+    for (ExecutableElement method : methods) {
+      // Static methods are left alone: they stay on the interface and can call the generated
+      // statics, so they are a home for composition rather than something to generate.
+      if (method.getModifiers().contains(Modifier.ABSTRACT)) {
         Optional<OpticMethodInfo> opticInfo =
             analyseOpticMethod(method, sourceType, sourceTypeElement, specInterface);
         if (opticInfo.isPresent()) {
@@ -127,12 +143,34 @@ public class SpecInterfaceAnalyser {
           return Optional.empty();
         }
       }
-      // Skip static methods, they're not relevant
     }
 
     return Optional.of(
-        new SpecAnalysis(
-            specInterface, sourceType, sourceTypeElement, opticMethods, defaultMethods));
+        new SpecAnalysis(specInterface, sourceType, sourceTypeElement, opticMethods));
+  }
+
+  /**
+   * Reports a {@code default} method on a spec interface, naming the two places composition can
+   * live instead.
+   *
+   * @param specInterface the spec interface declaring the method
+   * @param method the offending default method
+   */
+  private void reportDefaultMethod(TypeElement specInterface, ExecutableElement method) {
+    Diagnostics.error(
+        messager,
+        method,
+        "@ImportOptics",
+        "'"
+            + specInterface.getSimpleName()
+            + "."
+            + method.getSimpleName()
+            + "' is a default method.",
+        "A spec interface declares the optics to generate, and a method body cannot be read during"
+            + " annotation processing, so the generated class could only carry a stub that throws.",
+        "Make it an abstract method carrying a copy strategy or hint annotation, or move the"
+            + " composition to a static method on this interface or to an ordinary utility class"
+            + " that calls the generated statics.");
   }
 
   /**

@@ -49,6 +49,12 @@ This page is for the moment a build fails and you want to know what the message 
 
 **Fix.** Add the appropriate hint based on how the source type is copied. See [Optics for External Types](importing_optics.md) and [Database Records with JOOQ](copy_strategies.md) for the full strategy table.
 
+### "'XOpticsSpec.foo' is a default method"
+
+**Cause.** A spec interface declares a `default` method. A method body cannot be read during annotation processing, so there is nothing for the generated class to carry.
+
+**Fix.** Keep the spec interface to annotated abstract methods. Composed optics belong in a `static` method on the interface, or in an ordinary utility class; either one calls the generated statics by name, for example `JsonNodeOptics.object().andThen(...)`.
+
 ### "@InstanceOf: target subtype not assignable to source type"
 
 **Cause.** The class passed to `@InstanceOf(SubType.class)` is not a subclass of the optic's source type.

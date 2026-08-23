@@ -346,8 +346,8 @@ class SpecInterfaceAnalyserTest {
     }
 
     @Test
-    @DisplayName("should identify default methods to copy")
-    void shouldIdentifyDefaultMethods() {
+    @DisplayName("should reject a default method rather than analysing the interface")
+    void shouldRejectDefaultMethods() {
       var person =
           JavaFileObjects.forSourceString(
               "com.test.Person",
@@ -376,13 +376,9 @@ class SpecInterfaceAnalyserTest {
               """);
 
       Optional<SpecAnalysis> result =
-          analyseSpec("com.test.PersonOptics", person, spec, VIA_BUILDER);
+          analyseSpecAllowingErrors("com.test.PersonOptics", person, spec, VIA_BUILDER);
 
-      assertThat(result).isPresent();
-      assertThat(result.get().opticMethods()).hasSize(1);
-      assertThat(result.get().defaultMethods()).hasSize(1);
-      assertThat(result.get().defaultMethods().get(0).getSimpleName().toString())
-          .isEqualTo("firstName");
+      assertThat(result).isEmpty();
     }
 
     @Test

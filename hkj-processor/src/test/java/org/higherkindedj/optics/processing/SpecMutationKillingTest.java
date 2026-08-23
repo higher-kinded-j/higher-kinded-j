@@ -748,8 +748,8 @@ class SpecMutationKillingTest {
     }
 
     @Test
-    @DisplayName("Default methods are preserved in generated class")
-    void defaultMethodsArePreserved() {
+    @DisplayName("A default method fails the compilation instead of becoming a stub")
+    void defaultMethodsAreRejected() {
       var data =
           JavaFileObjects.forSourceString(
               "com.external.Data",
@@ -781,7 +781,6 @@ class SpecMutationKillingTest {
                   @ViaBuilder
                   Lens<Data, String> value();
 
-                  // Default method should be preserved
                   default String getDescription() {
                       return "Data lens";
                   }
@@ -791,8 +790,8 @@ class SpecMutationKillingTest {
       Compilation compilation =
           javac().withProcessors(new ImportOpticsProcessor()).compile(data, spec);
 
-      assertThat(compilation).succeeded();
-      // Default methods are preserved in the generated implementation
+      assertThat(compilation).failed();
+      assertThat(compilation).hadErrorContaining("'DataSpec.getDescription' is a default method");
     }
   }
 
