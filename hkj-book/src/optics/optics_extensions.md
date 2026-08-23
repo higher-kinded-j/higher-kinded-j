@@ -218,9 +218,9 @@ Maybe<List<OrderItem>> updated = modifyAllMaybe(
 Use for **atomic updates** where all modifications must succeed or none should apply, for example, applying currency conversion where partial conversion would leave data inconsistent.
 ~~~
 
-#### `modifyAllEither`: Fail-Fast Validation
+#### `modifyAllEither`: First Error Only
 
-Returns `Either.right(updated)` if **all** validations pass, `Either.left(firstError)` if **any** fail. **Stops at first error**.
+Returns `Either.right(updated)` if **all** validations pass, `Either.left(firstError)` if **any** fail. The result keeps only the first error; the traversal still visits every element.
 
 ```java
 Either<String, List<OrderItem>> result = modifyAllEither(
@@ -233,11 +233,11 @@ Either<String, List<OrderItem>> result = modifyAllEither(
     },
     items
 );
-// Stops at first invalid price
+// Left("Price cannot be negative"): the first failure wins, though every price is checked
 ```
 
 ~~~admonish tip title="When to Use modifyAllEither"
-Use for **fail-fast validation** where you want to stop immediately at the first error, for example, API request validation where you reject immediately if any field is invalid.
+Use when **one error is all the caller will act on**, for example an API request you reject as soon as it is known to be invalid. Note this shapes the answer, not the work: every element is still validated before the `Either` collapses.
 ~~~
 
 #### `modifyAllValidated`: Error Accumulation
@@ -257,13 +257,14 @@ Validated<List<String>, List<OrderItem>> result = modifyAllValidated(
 );
 // Checks ALL items and collects ALL errors
 
-result.match(
-    errors -> {
-        System.out.println("Validation failed with " + errors.size() + " errors:");
-        errors.forEach(err -> System.out.println("   - " + err));
-    },
-    updated -> System.out.println("All items valid")
-);
+// Validated exposes fold, not match
+if (result.isInvalid()) {
+    List<String> errors = result.getError();
+    System.out.println("Validation failed with " + errors.size() + " errors:");
+    errors.forEach(err -> System.out.println("   - " + err));
+} else {
+    System.out.println("All items valid");
+}
 ```
 
 ~~~admonish tip title="When to Use modifyAllValidated"
@@ -414,7 +415,7 @@ private Either<String, Integer> validateQuantity(Integer qty) {
 **Fail-fast (`modifyAllEither`):**
 - API requests (reject immediately)
 - Critical validations (stop on first error)
-- Performance-sensitive operations
+- Internal callers that act on the first problem
 
 **Error accumulation (`modifyAllValidated`):**
 - Form validation (show all errors)
@@ -472,6 +473,10 @@ Maybe<String> safeBio = maybeProfile.flatMap(p -> getMaybe(bioLens, p));
 | `modifyWherePossible` | `S` | Selective modification |
 | `countValid` | `int` | Count valid elements |
 | `collectErrors` | `List<E>` | Gather all errors |
+| `getValidated` | `Validated<E, A>` | Access, accumulating the failure |
+| `modifyValidated` | `Validated<E, S>` | Single-field modification, accumulating |
+| `setIfValid` | `S` | Write only when the new value passes |
+| `getAllMaybe` | `Maybe<List<A>>` | Extract all, or nothing when empty |
 
 ~~~admonish info title="Key Takeaways"
 * **The extensions are the error-handling half of an optic.** A `Lens` gets you to a field; `getEither`, `modifyEither` and `modifyTry` decide what happens when getting there, or changing it, can fail.

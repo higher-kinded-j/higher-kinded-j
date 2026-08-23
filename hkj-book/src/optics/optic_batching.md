@@ -68,8 +68,8 @@ flowchart LR
     F -->|"async"| RA(["Fetch.runAsync"])
     F -->|"railway (Either)"| SC(["SafeFetch.runCached"])
 
-    RC -->|"one keyset per round"| BL(["BatchLoader"])
-    RA --> BL
+    RC -->|"one keyset per round"| FN(["Function&lt;Set&lt;K&gt;, Map&lt;K, V&gt;&gt;"])
+    RA -->|"one keyset per round"| BL(["BatchLoader"])
     RA -->|"fan out per source"| SR(["SourceRouter.routed"])
     RA -->|"cap dispatch size"| BC(["BatchLoaders.chunked"])
 
@@ -78,7 +78,7 @@ flowchart LR
     classDef tier fill:#a6d189,stroke:#40a02b,color:#232634
     class OP,FA shape
     class F,RC,RA,SC wire
-    class BL,SR,BC tier
+    class FN,BL,SR,BC tier
 ```
 
 Everything else on this page is a variation on those three pieces.

@@ -95,7 +95,7 @@ sequenceDiagram
     C->>R: runCached(program, resolver, guard)
     loop per round
         R->>R: compute uncached keyset
-        R->>G: check(keys, roundIndex)
+        R->>G: check(keys, roundIndex, backendCallsSoFar)
         alt keys within budget
             G-->>R: pass
             R->>B: resolver(keys)

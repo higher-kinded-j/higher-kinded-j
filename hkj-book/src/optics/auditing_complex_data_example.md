@@ -145,7 +145,8 @@ var passwords = AppConfigLenses.settings().asTraversal()
     .andThen(SettingLenses.value().asTraversal())
     .andThen(SettingValuePrisms.encryptedValue().asTraversal())
     // ... ten more lines of composition
-    .getAll(config);
+    ;
+var inlineResult = Traversals.getAll(passwords, config);
 // Hard to understand, impossible to reuse
 
 // Ignoring error handling in transformations
@@ -335,8 +336,9 @@ If the DTO and the domain config hold the same information, the conversion pair 
 // A lossless pair: ConfigDto <-> AppConfig
 Iso<ConfigDto, AppConfig> dtoIso = Iso.of(Auditing::toAppConfig, Auditing::toConfigDto);
 
-// Iso >>> Traversal = Traversal, so every operation still works
-Traversal<ConfigDto, byte[]> legacyAuditor = dtoIso.andThen(finalAuditor);
+// Iso has andThen overloads for Lens, Prism, Affine and Iso, but not Traversal.
+// Widen it first: Traversal >>> Traversal = Traversal.
+Traversal<ConfigDto, byte[]> legacyAuditor = dtoIso.asTraversal().andThen(finalAuditor);
 
 List<byte[]> passwords = Traversals.getAll(legacyAuditor, someDto);
 ```
@@ -378,8 +380,10 @@ public static final Map<String, Traversal<AppConfig, byte[]>> ENVIRONMENT_AUDITO
 );
 
 public static List<byte[]> auditForEnvironment(String environment, AppConfig config) {
-    return ENVIRONMENT_AUDITORS.getOrDefault(environment, Traversal.empty())
-        .getAll(config);
+    // Traversal has no static empty() and no instance getAll: reads go through
+    // the Traversals utility, and the absent case is handled here.
+    Traversal<AppConfig, byte[]> auditor = ENVIRONMENT_AUDITORS.get(environment);
+    return auditor == null ? List.of() : Traversals.getAll(auditor, config);
 }
 ```
 
@@ -389,9 +393,11 @@ Use the same optics to validate your configuration. You could compose a traversa
 
 
 ```java
-public static final Traversal<AppConfig, Integer> SERVER_PORTS = 
+// Narrowing by key is a filter, not a generated optic; and IntValue needs
+// @GenerateLenses on the record before IntValueLenses exists.
+public static final Traversal<AppConfig, Integer> SERVER_PORTS =
     AppConfigTraversals.settings()
-        .andThen(settingWithKey("server.port"))
+        .andThen(Traversals.filtered(setting -> setting.key().equals("server.port")))
         .andThen(SettingLenses.value().asTraversal())
         .andThen(SettingValuePrisms.intValue().asTraversal())
         .andThen(IntValueLenses.value().asTraversal());

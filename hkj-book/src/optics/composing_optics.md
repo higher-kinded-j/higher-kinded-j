@@ -261,13 +261,12 @@ var result = FORM_TO_PERMISSION_NAMES.modifyF(validatePermissionName, form, vali
 
 ## Performance Notes
 
-Optic composition is designed for efficiency:
+Optic composition trades a little throughput for composability, and it is worth being precise about which:
 
-* **Lazy evaluation**: Only processes data when actually used
-* **Structural sharing**: Unchanged parts of data structures are reused
-* **Single-pass processing**: `modifyF` traverses the structure only once
-* **Memory efficient**: Only creates new objects for changed data
-* **JIT compiler optimisation**: Complex compositions are optimised by the JVM's just-in-time compiler through method inlining
+* **Element references are shared**: values a modification leaves alone are reused, not copied; the containers along the path are rebuilt
+* **No hidden laziness**: every focus the path reaches is visited, so cost is proportional to the number of foci
+* **Single pass**: one `modifyF` walks the structure once, whatever the effect
+* **A prism that does not match costs nothing further**: the rest of the chain is never entered for that element
 
 **Best Practice**: Create composed optics as constants for reuse:
 
@@ -728,18 +727,16 @@ Either<String, OrderForm> validated = modifyAllEither(
 ```
 
 **Use `modifyMaybe` when:**
-* Invalid items should be **silently filtered**
-* Building **data enrichment** pipelines
-* Failures are **expected and ignorable**
+* A **single** optional modification either lands or yields nothing
+* Building **data enrichment** pipelines where a miss means "leave the whole thing alone"
+* Failure needs **no detail**, only presence or absence
 
 ```java
-// Perfect for optional enrichment
-Maybe<OrderForm> enriched = modifyMaybe(
-    ORDER_TO_OPTIONAL_DISCOUNTS,
-    discount -> tryApplyDiscount(discount),
-    orderForm
-);
+// modifyMaybe focuses ONE field through a Lens: nothing() discards the whole update
+Maybe<OrderForm> enriched = modifyMaybe(orderForm, ORDER_DISCOUNT, OrderRules::tryApplyDiscount);
 ```
+
+It is all-or-nothing on that one focus, not a per-element filter. For "modify what you can and keep the rest", reach for `TraversalExtensions.modifyWherePossible`.
 
 **Use traditional `modifyF` when:**
 * Working with **custom Applicative** functors
