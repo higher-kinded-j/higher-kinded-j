@@ -16,7 +16,6 @@ import java.util.List;
 import javax.annotation.processing.Filer;
 import javax.annotation.processing.Messager;
 import javax.lang.model.element.Element;
-import javax.lang.model.element.ExecutableElement;
 import javax.lang.model.element.Modifier;
 import javax.lang.model.element.TypeElement;
 import javax.lang.model.element.TypeParameterElement;
@@ -38,8 +37,8 @@ import org.higherkindedj.optics.processing.util.ExcludeFromJacocoGeneratedReport
  * defined in the spec interface. For each abstract method, it generates the appropriate optic using
  * the configured copy strategy, prism hint, or traversal hint.
  *
- * <p>Default methods from the spec interface are copied unchanged to the generated class, converted
- * to static methods.
+ * <p>Every method in the analysis is an abstract optic declaration: the analyser rejects {@code
+ * default} methods, whose bodies cannot be read during annotation processing.
  */
 public class SpecInterfaceGenerator {
 
@@ -102,12 +101,6 @@ public class SpecInterfaceGenerator {
       MethodSpec method =
           generateOpticMethod(
               opticMethod, analysis.sourceType(), analysis.sourceTypeElement(), className);
-      classBuilder.addMethod(method);
-    }
-
-    // Copy default methods (converted to static)
-    for (ExecutableElement defaultMethod : analysis.defaultMethods()) {
-      MethodSpec method = copyDefaultMethod(defaultMethod, analysis.sourceType());
       classBuilder.addMethod(method);
     }
 
@@ -258,53 +251,6 @@ public class SpecInterfaceGenerator {
         sourceType,
         focusType,
         className);
-  }
-
-  /**
-   * Copies a default method from the spec interface, converting it to a static method.
-   *
-   * <p>Note: The method body is copied as-is. Users must use explicit class-qualified references
-   * (e.g., {@code PersonOptics.name()}) in their default method implementations.
-   *
-   * @param defaultMethod the default method to copy
-   * @param sourceType the source type
-   * @return the generated static method
-   */
-  private MethodSpec copyDefaultMethod(ExecutableElement defaultMethod, TypeMirror sourceType) {
-    String methodName = defaultMethod.getSimpleName().toString();
-
-    MethodSpec.Builder methodBuilder =
-        MethodSpec.methodBuilder(methodName)
-            .addModifiers(Modifier.PUBLIC, Modifier.STATIC)
-            .returns(TypeName.get(defaultMethod.getReturnType()))
-            .addJavadoc(
-                "Copied from spec interface default method.\n\n" + "@return The optic instance.");
-
-    // Copy type parameters
-    for (TypeParameterElement typeParam : defaultMethod.getTypeParameters()) {
-      methodBuilder.addTypeVariable(TypeVariableName.get(typeParam));
-    }
-
-    // Copy parameters (default methods shouldn't have parameters for optics, but handle anyway)
-    defaultMethod
-        .getParameters()
-        .forEach(
-            param ->
-                methodBuilder.addParameter(
-                    TypeName.get(param.asType()), param.getSimpleName().toString()));
-
-    // For default methods, we cannot easily copy the body in annotation processing
-    // The user is expected to use explicit static references like PersonOptics.name()
-    // We generate a placeholder that throws - in practice, the user should override
-    // or the spec interface compilation will handle this
-    methodBuilder.addCode(
-        "// Default method body cannot be copied during annotation processing.\n"
-            + "// Ensure the spec interface is compiled and this class is regenerated.\n"
-            + "throw new $T(\"Default method '$L' requires manual implementation or spec recompilation\");\n",
-        UnsupportedOperationException.class,
-        methodName);
-
-    return methodBuilder.build();
   }
 
   /**

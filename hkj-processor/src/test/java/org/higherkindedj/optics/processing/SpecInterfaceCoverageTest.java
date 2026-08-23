@@ -5,9 +5,11 @@ package org.higherkindedj.optics.processing;
 import static com.google.testing.compile.CompilationSubject.assertThat;
 import static com.google.testing.compile.Compiler.javac;
 import static org.higherkindedj.optics.processing.GeneratorTestHelper.assertGeneratedCodeContains;
+import static org.higherkindedj.optics.processing.GeneratorTestHelper.assertGeneratedCodeDoesNotContain;
 
 import com.google.testing.compile.Compilation;
 import com.google.testing.compile.JavaFileObjects;
+import javax.tools.JavaFileObject;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -295,8 +297,8 @@ class SpecInterfaceCoverageTest {
   class SpecInterfaceGeneratorCoverage {
 
     @Test
-    @DisplayName("should generate optics for spec interface with default method")
-    void shouldHandleDefaultMethodInSpec() {
+    @DisplayName("should generate optics beside a static helper that calls the generated class")
+    void shouldHandleStaticHelperInSpec() {
       final var externalClass =
           JavaFileObjects.forSourceString(
               "com.external.Config",
@@ -334,7 +336,7 @@ class SpecInterfaceCoverageTest {
                   @Wither("withPort")
                   Lens<Config, Integer> port();
 
-                  default Lens<Config, String> defaultHostLens() {
+                  static Lens<Config, String> aliasedHost() {
                       return ConfigOptics.host();
                   }
               }
@@ -344,8 +346,9 @@ class SpecInterfaceCoverageTest {
           javac().withProcessors(new ImportOpticsProcessor()).compile(externalClass, specInterface);
 
       assertThat(compilation).succeeded();
-      // Default method should be copied to generated class
-      assertGeneratedCodeContains(compilation, "com.myapp.ConfigOptics", "defaultHostLens");
+      // The static helper stays on the spec interface; only the declared optics are generated.
+      assertGeneratedCodeContains(compilation, "com.myapp.ConfigOptics", "host()");
+      assertGeneratedCodeDoesNotContain(compilation, "com.myapp.ConfigOptics", "aliasedHost");
     }
 
     @Test
@@ -927,28 +930,29 @@ class SpecInterfaceCoverageTest {
   }
 
   @Nested
-  @DisplayName("Spec interface with default methods having parameters")
-  class DefaultMethodsWithParameters {
+  @DisplayName("Default methods on a spec interface")
+  class DefaultMethodRejection {
+
+    /** A wither class the specs below build lenses over. */
+    private static final JavaFileObject CONFIG =
+        JavaFileObjects.forSourceString(
+            "com.external.Config",
+            """
+            package com.external;
+            public class Config {
+                private final String key;
+                private final String value;
+                public Config(String key, String value) { this.key = key; this.value = value; }
+                public String getKey() { return key; }
+                public String getValue() { return value; }
+                public Config withKey(String key) { return new Config(key, this.value); }
+                public Config withValue(String value) { return new Config(this.key, value); }
+            }
+            """);
 
     @Test
-    @DisplayName("should handle spec with default method that has parameters")
-    void shouldHandleDefaultMethodWithParameters() {
-      final var externalRecord =
-          JavaFileObjects.forSourceString(
-              "com.external.Config",
-              """
-              package com.external;
-              public class Config {
-                  private final String key;
-                  private final String value;
-                  public Config(String key, String value) { this.key = key; this.value = value; }
-                  public String getKey() { return key; }
-                  public String getValue() { return value; }
-                  public Config withKey(String key) { return new Config(key, this.value); }
-                  public Config withValue(String value) { return new Config(this.key, value); }
-              }
-              """);
-
+    @DisplayName("a parameterised default method is rejected at the declaration")
+    void shouldRejectParameterisedDefaultMethod() {
       final var specInterface =
           JavaFileObjects.forSourceString(
               "com.myapp.ConfigOpticsSpec",
@@ -967,17 +971,119 @@ class SpecInterfaceCoverageTest {
                   Lens<Config, String> key();
 
                   default Lens<Config, String> keyWithDefault(String prefix) {
-                      return key();
+                      return null;
                   }
               }
               """);
 
       Compilation compilation =
-          javac()
-              .withProcessors(new ImportOpticsProcessor())
-              .compile(externalRecord, specInterface);
+          javac().withProcessors(new ImportOpticsProcessor()).compile(CONFIG, specInterface);
 
-      assertThat(compilation).succeeded();
+      assertThat(compilation).failed();
+      assertThat(compilation)
+          .hadErrorContaining("'ConfigOpticsSpec.keyWithDefault' is a default method");
+    }
+
+    @Test
+    @DisplayName("the diagnostic names both homes for the composition")
+    void shouldNameTheAlternatives() {
+      final var specInterface =
+          JavaFileObjects.forSourceString(
+              "com.myapp.ConfigOpticsSpec",
+              """
+              package com.myapp;
+
+              import org.higherkindedj.optics.Lens;
+              import org.higherkindedj.optics.annotations.ImportOptics;
+              import org.higherkindedj.optics.annotations.OpticsSpec;
+              import org.higherkindedj.optics.annotations.Wither;
+              import com.external.Config;
+
+              @ImportOptics
+              public interface ConfigOpticsSpec extends OpticsSpec<Config> {
+                  @Wither(value = "withKey", getter = "getKey")
+                  Lens<Config, String> key();
+
+                  default Lens<Config, String> aliasedKey() {
+                      return null;
+                  }
+              }
+              """);
+
+      Compilation compilation =
+          javac().withProcessors(new ImportOpticsProcessor()).compile(CONFIG, specInterface);
+
+      assertThat(compilation).failed();
+      assertThat(compilation).hadErrorContaining("a method body cannot be read");
+      assertThat(compilation).hadErrorContaining("static method on this interface");
+      assertThat(compilation).hadErrorContaining("ordinary utility class");
+    }
+
+    @Test
+    @DisplayName("every default method is reported, not just the first")
+    void shouldReportEveryDefaultMethod() {
+      final var specInterface =
+          JavaFileObjects.forSourceString(
+              "com.myapp.ConfigOpticsSpec",
+              """
+              package com.myapp;
+
+              import org.higherkindedj.optics.Lens;
+              import org.higherkindedj.optics.annotations.ImportOptics;
+              import org.higherkindedj.optics.annotations.OpticsSpec;
+              import org.higherkindedj.optics.annotations.Wither;
+              import com.external.Config;
+
+              @ImportOptics
+              public interface ConfigOpticsSpec extends OpticsSpec<Config> {
+                  @Wither(value = "withKey", getter = "getKey")
+                  Lens<Config, String> key();
+
+                  default Lens<Config, String> first() { return null; }
+
+                  default String describe() { return "config"; }
+              }
+              """);
+
+      Compilation compilation =
+          javac().withProcessors(new ImportOpticsProcessor()).compile(CONFIG, specInterface);
+
+      assertThat(compilation).failed();
+      assertThat(compilation).hadErrorContaining("'ConfigOpticsSpec.first' is a default method");
+      assertThat(compilation).hadErrorContaining("'ConfigOpticsSpec.describe' is a default method");
+    }
+
+    @Test
+    @DisplayName("a generic default method is rejected too")
+    void shouldRejectGenericDefaultMethod() {
+      final var specInterface =
+          JavaFileObjects.forSourceString(
+              "com.myapp.ConfigOpticsSpec",
+              """
+              package com.myapp;
+
+              import org.higherkindedj.optics.Lens;
+              import org.higherkindedj.optics.annotations.ImportOptics;
+              import org.higherkindedj.optics.annotations.OpticsSpec;
+              import org.higherkindedj.optics.annotations.Wither;
+              import com.external.Config;
+
+              @ImportOptics
+              public interface ConfigOpticsSpec extends OpticsSpec<Config> {
+                  @Wither(value = "withKey", getter = "getKey")
+                  Lens<Config, String> key();
+
+                  default <T> Lens<Config, T> generic() {
+                      return null;
+                  }
+              }
+              """);
+
+      Compilation compilation =
+          javac().withProcessors(new ImportOpticsProcessor()).compile(CONFIG, specInterface);
+
+      assertThat(compilation).failed();
+      assertThat(compilation).hadErrorContaining("'ConfigOpticsSpec.generic' is a default method");
     }
   }
 
@@ -1052,60 +1158,6 @@ class SpecInterfaceCoverageTest {
       assertThat(compilation).succeeded();
       // Should generate lenses for the record fields
       assertGeneratedCodeContains(compilation, "com.myapp.TeamLenses", "Lens<Team, String> name()");
-    }
-  }
-
-  @Nested
-  @DisplayName("Default method copying")
-  class DefaultMethodCopying {
-
-    @Test
-    @DisplayName("should copy type parameters of a generic default method")
-    void shouldCopyTypeParametersOfGenericDefaultMethod() {
-      final var externalClass =
-          JavaFileObjects.forSourceString(
-              "com.external.Config",
-              """
-              package com.external;
-
-              public class Config {
-                  private final String host;
-                  public Config(String host) { this.host = host; }
-                  public String getHost() { return host; }
-                  public Config withHost(String host) { return new Config(host); }
-              }
-              """);
-
-      final var specInterface =
-          JavaFileObjects.forSourceString(
-              "com.myapp.ConfigOpticsSpec",
-              """
-              package com.myapp;
-
-              import org.higherkindedj.optics.Lens;
-              import org.higherkindedj.optics.annotations.ImportOptics;
-              import org.higherkindedj.optics.annotations.OpticsSpec;
-              import org.higherkindedj.optics.annotations.Wither;
-              import com.external.Config;
-
-              @ImportOptics
-              public interface ConfigOpticsSpec extends OpticsSpec<Config> {
-
-                  @Wither(value = "withHost", getter = "getHost")
-                  Lens<Config, String> host();
-
-                  default <T> Lens<Config, T> generic() {
-                      return null;
-                  }
-              }
-              """);
-
-      Compilation compilation =
-          javac().withProcessors(new ImportOpticsProcessor()).compile(externalClass, specInterface);
-
-      assertThat(compilation).succeeded();
-      assertGeneratedCodeContains(
-          compilation, "com.myapp.ConfigOptics", "public static <T> Lens<Config, T> generic()");
     }
   }
 }

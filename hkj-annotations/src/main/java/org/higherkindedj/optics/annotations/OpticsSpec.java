@@ -38,9 +38,12 @@ package org.higherkindedj.optics.annotations;
  *   <li>{@link ThroughField} - field-based traversal
  * </ul>
  *
- * <p>Default methods are copied unchanged to the generated class, allowing manual implementations
- * for complex compositions. Note: default method bodies must use explicit class-qualified
- * references (e.g., {@code PersonOptics.name()}) rather than unqualified method calls.
+ * <h2>Composition</h2>
+ *
+ * <p>A spec interface declares primitives only. A {@code default} method is rejected at the
+ * declaration: annotation processing cannot read a method body, so the generated class could only
+ * carry a stub that throws. Composed optics belong in a {@code static} method on the interface, or
+ * in an ordinary utility class; either one calls the generated statics.
  *
  * <p>Example:
  *
@@ -54,8 +57,8 @@ package org.higherkindedj.optics.annotations;
  *     @ViaBuilder
  *     Lens<Person, Integer> age();
  *
- *     // Manual implementation for complex cases
- *     default Lens<Person, String> firstName() {
+ *     // Composition lives in a static method, referring to the generated class by name
+ *     static Lens<Person, String> firstName() {
  *         return PersonOptics.name().andThen(
  *             Lens.of(
  *                 n -> n.split(" ")[0],
@@ -66,7 +69,8 @@ package org.higherkindedj.optics.annotations;
  * }
  * }</pre>
  *
- * <p>The processor generates a static utility class (note: "Spec" suffix removed):
+ * <p>The processor generates a static utility class from the abstract methods (note: "Spec" suffix
+ * removed):
  *
  * <pre>{@code
  * // Generated from PersonOpticsSpec
@@ -74,7 +78,6 @@ package org.higherkindedj.optics.annotations;
  *     private PersonOptics() {}
  *     public static Lens<Person, String> name() { ... }
  *     public static Lens<Person, Integer> age() { ... }
- *     public static Lens<Person, String> firstName() { ... }
  * }
  * }</pre>
  *
