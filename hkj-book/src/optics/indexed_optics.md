@@ -4,7 +4,7 @@
 
 > *"Give me a place to stand, and I shall move the earth."*
 >
-> — Archimedes
+> – Archimedes
 
 ![indexed-optics.jpg](../images/indexed-optics.jpg)
 
@@ -14,17 +14,15 @@
 - Using IndexedFold for queries that need position information
 - Using IndexedLens for field name tracking and debugging
 - Creating indexed traversals for Lists and Maps with IndexedTraversals utility
-- Composing indexed optics with paired indices (Pair<I, J>)
 - Converting between indexed and non-indexed optics
 - When to use indexed optics vs standard optics
-- Real-world patterns for debugging, audit trails, and position-based logic
 ~~~
 
-~~~admonish title="Example Code"
+~~~admonish example title="See Example Code"
 [IndexedOpticsExample](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/optics/IndexedOpticsExample.java)
 ~~~
 
-In our journey through optics, we've mastered how to focus on parts of immutable data structures, whether it's a single field with **Lens**, an optional value with **Prism**, or multiple elements with **Traversal**. But sometimes, knowing *where* you are is just as important as knowing *what* you're looking at.
+In our journey through optics, we've mastered how to focus on parts of immutable data structures, whether it's a single field with **Lens**, one variant with **Prism**, an optional value with **Affine**, or multiple elements with **Traversal**. But sometimes, knowing *where* you are is just as important as knowing *what* you're looking at.
 
 Consider these scenarios:
 - **Numbering items** in a packing list: "Item 1: Laptop, Item 2: Mouse..."
@@ -139,11 +137,9 @@ The key insight: indexed optics make *position* a first-class citizen, accessibl
 
 ---
 
-## Part I: The Basics
+## The Three Indexed Optics
 
-### The Three Indexed Optics
-
-Higher-kinded-j provides three indexed optics that mirror their standard counterparts:
+Higher-Kinded-J provides three indexed optics that mirror their standard counterparts:
 
 | Standard Optic | Indexed Variant | Index Type | Use Case |
 |----------------|-----------------|------------|----------|
@@ -199,7 +195,7 @@ IndexedTraversal<Integer, List<String>, String> indexed = listEach.indexedTraver
 
 This is useful when working with custom containers that implement `EachIndexed` or when integrating with the Focus DSL.
 
-The older `Each.eachWithIndex()`, which returned an `Optional<IndexedTraversal>` and let the caller pick the index type freely, is **deprecated (for removal in 0.5.0)** in favour of `EachIndexed.indexedTraversal()`.
+(`Each.eachWithIndex()` is the deprecated predecessor; [Each](each_typeclass.md) covers the migration.)
 ~~~
 
 ---
@@ -304,9 +300,8 @@ List<LineItem> discounted = IndexedTraversals.imodify(
     items
 );
 
-// Position 0 (Laptop): £999.99 → £899.99
-// Position 1 (Mouse): £24.99 (unchanged)
-// Position 2 (Keyboard): £79.99 → £71.99
+// Positions 0 (Laptop) and 2 (Keyboard) are discounted by 10%
+// Position 1 (Mouse) is unchanged
 ```
 
 #### Map Processing with Key Awareness
@@ -458,7 +453,7 @@ List<LineItem> uppercased = Traversals.modify(
 
 ---
 
-### When to Use Indexed Optics vs Standard Optics
+## When to Use Indexed Optics vs Standard Optics
 
 Understanding when indexed optics add value is crucial for writing clear, maintainable code.
 
@@ -506,7 +501,7 @@ List<Product> inflated = Traversals.modify(prices, price -> price * 1.1, product
 
 ---
 
-### Common Patterns: Position-Based Operations
+## Common Patterns: Position-Based Operations
 
 #### Pattern 1: Adding Sequence Numbers
 
@@ -585,7 +580,7 @@ List<String> odd = IndexedTraversals.getAll(oddPositions, values);
 
 ---
 
-### Common Pitfalls
+## Common Pitfalls
 
 #### Don't Do This:
 
@@ -648,15 +643,13 @@ List<Pair<Integer, String>> renumbered = IntStream.range(0, pairs.size())
 
 ---
 
-### Performance Notes
+## Performance Notes
 
 Indexed optics are designed to be efficient:
 
-* **No additional traversals** - Index computed during normal iteration
-* **Lazy index creation** - `Pair<I, A>` objects only created when needed
-* **Minimal overhead** - Index tracking adds negligible cost
-* **Reusable compositions** - Indexed optics can be composed and cached
-* **No boxing for primitives** - When using integer indices directly
+* **No additional traversals**: the index is computed during the normal iteration
+* **Minimal overhead**: `forList()` and `forMap()` hand the index and value straight to your function, so nothing is allocated per focus. A `Pair` appears only where one is the result: `toIndexedList`, indexed folds, and `iandThen` composition
+* **Reusable compositions**: indexed optics can be composed once and cached
 
 **Best Practice**: Create indexed optics once and store as constants:
 
@@ -676,8 +669,18 @@ public class OrderOptics {
 
 ---
 
+~~~admonish info title="Key Takeaways"
+* **Indexed optics pair every value with where it lives**: list positions, map keys, or field names become part of the focus
+* **`imodify` is the workhorse**: one call replaces manual counter threading, `AtomicInteger` hacks, and entry-set rebuilding
+* **`filterIndex` and `filteredWithIndex` narrow by position, value, or both**: original indices are preserved, never renumbered
+* **`IndexedLens` names the field it touches**: audit trails can record *which* field changed without reflection
+* **Drop the index when it stops earning its keep**: `asTraversal()` converts back, and a lambda that ignores its index parameter is a sign to do so
+~~~
+
 ~~~admonish tip title="See Also"
-- [Indexed Optics: Advanced Patterns](indexed_optics_advanced.md), advanced composition with paired indices, the Haskell heritage, and the trade-off summary.
+- [Indexed Optics: Advanced Patterns](indexed_optics_advanced.md): composition with paired indices, the Haskell heritage, and the trade-off summary
+- [Indexed Access](indexed_access.md): the At and Ixed type classes for single-key operations
+- [Each Typeclass](each_typeclass.md): `EachIndexed.indexedTraversal()` as an alternative source of indexed traversals
 ~~~
 
 ---

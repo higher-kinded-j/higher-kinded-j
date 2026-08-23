@@ -105,7 +105,7 @@ The decision trees that appear in scattered form across the chapter intros are c
 | Build optic operations as data, run later | [Free Monad DSL](free_monad_dsl.md) |
 | Audit trail of every optic operation | [Free Monad DSL with logging interpreter](interpreters.md) |
 | Reuse an optic for a type you cannot annotate | [`@ImportOptics`](importing_optics.md) or an [`OpticsSpec`](optics_spec_interfaces.md) interface |
-| Adapt an optic to a different data shape | [Profunctor `contramap` / `map` / `dimap`](profunctor_optics.md) |
+| Adapt an optic to a different data shape | [Compose when the source nests, an `Iso` when the shapes are equivalent, `Lens.of` when it is lopsided, `dimap` when it is one-way](profunctor_optics.md) |
 
 ---
 
@@ -138,10 +138,10 @@ The decision trees that appear in scattered form across the chapter intros are c
 | "Access by key in a `Map`" | [Indexed Access](indexed_access.md) and the [`At`](each_typeclass.md) typeclass |
 | "Apply over every element of a custom container" | [Each Typeclass](each_typeclass.md) |
 | "Operate on individual characters of a `String`" | [String Traversals](string_traversals.md) |
-| "Adapt a lens for a different source record type" | `lens.contramap(...)` ([Profunctor Optics](profunctor_optics.md)) |
-| "Adapt a lens for a different target type" | `lens.map(...)` ([Profunctor Optics](profunctor_optics.md)) |
-| "Both source and target need adapting" | `lens.dimap(...)` ([Profunctor Optics](profunctor_optics.md)) |
-| "Match a sum-type variant by a predicate, not type" | [Advanced Prism Patterns: `nearly` and `doesNotMatch`](advanced_prism_patterns.md) |
+| "Adapt a lens for a different source record type" | Compose: `outerLens.andThen(innerLens)` ([Profunctor Optics](profunctor_optics.md)) |
+| "The two shapes hold the same information" | An [`Iso`](iso.md), then compose: `Iso >>> Lens = Lens` |
+| "One-way conversion inside an effectful pipeline" | `optic.dimap(...)` ([Profunctor Optics](profunctor_optics.md)) |
+| "Match a value by a predicate, not by type" | [`Prisms.nearly`](advanced_prism_patterns.md#predicate-matching-with-prismsnearly) |
 
 ---
 

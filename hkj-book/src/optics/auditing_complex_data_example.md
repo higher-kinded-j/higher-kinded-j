@@ -289,21 +289,30 @@ AppConfig updatedConfig = Traversals.modify(finalAuditor, reEncryptFunction, ori
 
 ### 3. **Profunctor Adaptations for Legacy Systems**
 
-Suppose your audit service expects a different data format: perhaps it works with `ConfigDto` objects instead of `AppConfig`. Rather than rewriting your carefully crafted optic, you can adapt it using profunctor operations:
+Suppose your audit service expects a different data format: perhaps it works with `ConfigDto` objects instead of `AppConfig`. Rather than rewriting your carefully crafted optic, you can adapt it.
 
+If the DTO and the domain config hold the same information, the conversion pair is an [Iso](iso.md), and composing through it keeps the full `Traversal` API:
 
 ```java
-// Adapt the auditor to work with legacy DTO format
-Traversal<ConfigDto, byte[]> legacyAuditor = finalAuditor.contramap(dto -> convertToAppConfig(dto));
+// A lossless pair: ConfigDto <-> AppConfig
+Iso<ConfigDto, AppConfig> dtoIso = Iso.of(Auditing::toAppConfig, Auditing::toConfigDto);
 
-// Or adapt both input and output formats simultaneously
-Traversal<ConfigDto, AuditRecord> fullyAdaptedAuditor = finalAuditor.dimap(
-    dto -> convertToAppConfig(dto),           // Convert input format
-    bytes -> new AuditRecord(bytes, timestamp()) // Convert output format
-);
+// Iso >>> Traversal = Traversal, so every operation still works
+Traversal<ConfigDto, byte[]> legacyAuditor = dtoIso.andThen(finalAuditor);
+
+List<byte[]> passwords = Traversals.getAll(legacyAuditor, someDto);
 ```
 
-This profunctor capability means your core business logic (the auditing path) remains unchanged whilst adapting to different system interfaces: a powerful example of the [Profunctor Optics](profunctor_optics.md) capabilities.
+When the conversion is one-way or lossy, use the `Optic`-level `dimap` bridge instead, and drive it through `modifyF`:
+
+```java
+// dimap adapts the SOURCE (ConfigDto -> AppConfig) and the STRUCTURE the update
+// produces (AppConfig -> ConfigDto); the focus stays byte[] throughout.
+Optic<ConfigDto, ConfigDto, byte[], byte[]> dtoAuditor =
+    finalAuditor.dimap(Auditing::toAppConfig, Auditing::toConfigDto);
+```
+
+Either way your core business logic (the auditing path) remains unchanged whilst adapting to different system interfaces. [Profunctor Optics](profunctor_optics.md) explains when each route applies.
 
 ### 4. **More Complex Filters**
 

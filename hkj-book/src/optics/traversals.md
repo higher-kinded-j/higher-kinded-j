@@ -158,7 +158,7 @@ The `Traversals` utility class provides convenient helper methods to perform the
 flowchart TD
     Q{"Bulk work on values<br/>inside a structure?"}
     Q -->|"same shape back,<br/>values updated in place"| T(["Traversal"])
-    Q -->|"filter, regroup, or<br/>reshape the collection"| S(["Stream API"])
+    Q -->|"drop elements or<br/>reshape the collection"| S(["Stream API"])
     Q -->|"early exit or<br/>imperative control flow"| L(["Manual loop"])
 
     classDef decision fill:#e5c890,stroke:#df8e1d,color:#232634
