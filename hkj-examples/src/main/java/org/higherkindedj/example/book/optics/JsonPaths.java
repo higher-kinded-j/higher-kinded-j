@@ -20,8 +20,9 @@ import tools.jackson.databind.node.StringNode;
  * the API.
  *
  * <p>Composed optics live in an ordinary utility class rather than in default methods on the spec
- * interface: the processor copies a default method into the generated class as a stub that throws,
- * so a spec interface is for declaring primitives, not for building on them.
+ * interface: the processor rejects a default method at the declaration, because its body cannot be
+ * read during annotation processing. A spec interface declares primitives; building on them happens
+ * here, or in a static method on the interface itself.
  */
 public final class JsonPaths {
 
