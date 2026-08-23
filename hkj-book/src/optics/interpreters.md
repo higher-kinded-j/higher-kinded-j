@@ -1,5 +1,7 @@
 # Optic Interpreters: Multiple Execution Strategies
 
+## _One Program, Several Answers_
+
 <img src="../images/the-interpreter.jpg" alt="Illustration of an interpreter translating a Free Monad program into a concrete execution strategy" style="width: 100%;" />
 
 ~~~admonish info title="What You'll Learn"
@@ -11,7 +13,7 @@
 - Real-world applications: audit trails, testing, and optimisation
 ~~~
 
-~~~admonish title="Example Code"
+~~~admonish example title="See Example Code"
 [OpticInterpretersExample](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/optics/fluent/OpticInterpretersExample.java)
 ~~~
 
@@ -726,18 +728,25 @@ try {
 ---
 
 ~~~admonish tip title="Further Reading"
-- **Bartosz Milewski**: [Category Theory for Programmers](https://bartoszmilewski.com/2014/10/28/category-theory-for-programmers-the-preface/) - Natural transformations and functors
-- **Gabriel Gonzalez**: [Why Free Monads Matter](https://www.haskellforall.com/2012/06/you-could-have-invented-free-monads.html) - Free monad interpreters
+- **Bartosz Milewski**: [Category Theory for Programmers](https://bartoszmilewski.com/2014/10/28/category-theory-for-programmers-the-preface/): natural transformations and functors
+- **Gabriel Gonzalez**: [Why Free Monads Matter](https://www.haskellforall.com/2012/06/you-could-have-invented-free-monads.html): free monad interpreters
+~~~
+
+~~~admonish info title="Key Takeaways"
+* **An interpreter is a natural transformation.** It maps each `OpticOp` into some target effect, which is why swapping one changes everything about how a program runs and nothing about what it says.
+* **Three come with the library.** `direct()` executes, `logging()` executes and records, `validating()` inspects without executing at all.
+* **`validating()` does not run your program.** It has `validate`, not `run`, and hands back a `ValidationResult` carrying errors and warnings; that is what makes a dry run a dry run.
+* **The log belongs to the interpreter, not the program.** `LoggingOpticInterpreter.getLog()` accumulates across runs, so `clearLog()` between them is on you.
+* **Your own interpreter is the extension point.** Anything that can fold an `OpticOp` into an effect qualifies: mocking, metrics, permission checks, replay.
+~~~
+
+~~~admonish tip title="See Also"
+- [Free Monad DSL](free_monad_dsl.md): building the programs these interpreters consume
+- [Fluent API](fluent_api.md): direct execution, when no description is needed
+- [Effect Handlers](../effect/effect_handlers_intro.md): the same idea applied to computations rather than optics
 ~~~
 
 ---
 
-**Next Steps:**
-
-- [Free Monad DSL for Optics](free_monad_dsl.md) - Building composable programs
-- [Fluent API for Optics](fluent_api.md) - Direct execution patterns
-- [Cookbook](cookbook.md) - Real-world recipes and patterns
-
----
-
 **Previous:** [Free Monad DSL](free_monad_dsl.md)
+**Next:** [Reference](ch7_intro.md)

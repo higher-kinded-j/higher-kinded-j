@@ -1,5 +1,7 @@
 # Free Monad DSL: Composable Optic Programs
 
+## _Optic Operations as Data You Can Inspect, Replay and Refuse_
+
 ![free_monad.jpg](../images/lens2.jpg)
 
 ~~~admonish info title="What You'll Learn"
@@ -11,11 +13,7 @@
 - Creating reusable program fragments
 ~~~
 
-~~~admonish title="Hands On Practice"
-[Tutorial11_AdvancedOpticsDSL.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/test/java/org/higherkindedj/tutorial/optics/Tutorial11_AdvancedOpticsDSL.java)
-~~~
-
-~~~admonish title="Example Code"
+~~~admonish example title="See Example Code"
 [FreeMonadOpticDSLExample](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/optics/fluent/FreeMonadOpticDSLExample.java)
 ~~~
 
@@ -655,21 +653,27 @@ logger.getLog().forEach(System.out::println);  // Side effect here is fine
 ---
 
 ~~~admonish tip title="Further Reading"
-- **Gabriel Gonzalez**: [Why Free Monads Matter](https://www.haskellforall.com/2012/06/you-could-have-invented-free-monads.html) - The foundational explanation
-- **Scott Wlaschin**: [Railway Oriented Programming](https://fsharpforfunandprofit.com/rop/) - Error handling patterns
+- **Gabriel Gonzalez**: [Why Free Monads Matter](https://www.haskellforall.com/2012/06/you-could-have-invented-free-monads.html): the foundational explanation
+- **Scott Wlaschin**: [Railway Oriented Programming](https://fsharpforfunandprofit.com/rop/): error-handling patterns
 ~~~
 
 ~~~admonish info title="Hands-On Learning"
 Practice the Free Monad DSL in [Tutorial 11: Advanced Optics DSL](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/test/java/org/higherkindedj/tutorial/optics/Tutorial11_AdvancedOpticsDSL.java) (7 exercises, ~12 minutes).
 ~~~
 
----
+~~~admonish info title="Key Takeaways"
+* **A program is a value, not an action.** `OpticPrograms.get`/`set`/`modify` build a `Free<OpticOpKind.Witness, A>` and run nothing; execution is a separate, later decision.
+* **`flatMap` is where the sequencing lives.** Each step sees the previous step's result, so a multi-stage workflow reads top to bottom while still being pure data.
+* **The same description supports several answers.** Run it, log it, validate it without running, or hand it to an interpreter of your own; the program does not change.
+* **The cost is indirection.** Every operation allocates a node and every interpreter walks the tree, so reach for this when you need inspection or multiple execution modes, not for a single update.
+* **`pure` lifts a plain value in.** It is how a branch that has nothing to do still returns something the rest of the chain can `flatMap` over.
+~~~
 
-**Next Steps:**
-
-- [Optic Interpreters](interpreters.md) - Deep dive into execution strategies
-- [Fluent API for Optics](fluent_api.md) - Direct execution patterns
-- [Advanced Patterns](composing_optics.md) - Complex real-world scenarios
+~~~admonish tip title="See Also"
+- [Interpreters](interpreters.md): the execution strategies these programs are handed to
+- [Fluent API](fluent_api.md): the direct-execution counterpart, when a description buys you nothing
+- [Composing Optics](composing_optics.md): the optics these programs navigate with
+~~~
 
 ---
 
