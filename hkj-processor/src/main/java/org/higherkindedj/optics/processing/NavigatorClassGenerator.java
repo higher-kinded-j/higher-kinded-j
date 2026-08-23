@@ -146,12 +146,15 @@ public class NavigatorClassGenerator {
    * @return AFFINE for optional/nullable types, TRAVERSAL for collection types, FOCUS otherwise
    */
   private PathKind getFieldPathKind(RecordComponentElement component, TypeMirror type) {
-    // Check for @Nullable annotation first
-    if (component != null && NullableAnnotations.hasNullableAnnotation(component)) {
+    PathKind kind = getFieldPathKindRecursive(type, 0);
+    // A container decides the path kind on its own; @Nullable only widens a field that would
+    // otherwise be a plain focus, which is the same precedence the static Focus methods use.
+    if (kind == PathKind.FOCUS
+        && component != null
+        && NullableAnnotations.hasNullableAnnotation(component)) {
       return PathKind.AFFINE;
     }
-
-    return getFieldPathKindRecursive(type, 0);
+    return kind;
   }
 
   /** Maximum recursion depth for nested container path kind analysis. */
@@ -1246,8 +1249,11 @@ public class NavigatorClassGenerator {
       return "";
     }
 
-    // Check if @Nullable annotation drives the widening
-    if (component != null && NullableAnnotations.hasNullableAnnotation(component)) {
+    // @Nullable widens a field the container and SPI analysis left as a plain focus, so it is
+    // read before either of them can claim the field for a widening it does not have.
+    if (getFieldPathKindRecursive(fieldType, 0) == PathKind.FOCUS
+        && component != null
+        && NullableAnnotations.hasNullableAnnotation(component)) {
       return ".nullable()";
     }
 

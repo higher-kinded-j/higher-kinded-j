@@ -1503,17 +1503,6 @@ class MutationKillingPhase3Test {
     @Test
     @DisplayName("Nullable navigable field should return AFFINE path kind in navigator")
     void nullableNavigableFieldShouldReturnAffinePath() throws IOException {
-      // Provide @Nullable annotation as a source file for the compilation
-      var nullableAnnotation =
-          JavaFileObjects.forSourceString(
-              "org.jspecify.annotations.Nullable",
-              """
-              package org.jspecify.annotations;
-              import java.lang.annotation.*;
-              @Target({ElementType.TYPE_USE, ElementType.PARAMETER, ElementType.FIELD, ElementType.RECORD_COMPONENT})
-              @Retention(RetentionPolicy.RUNTIME)
-              public @interface Nullable {}
-              """);
       var inner =
           JavaFileObjects.forSourceString(
               "com.example.Note",
@@ -1534,8 +1523,7 @@ class MutationKillingPhase3Test {
               public record Document(String title, @Nullable Note footnote) {}
               """);
 
-      Compilation compilation =
-          javac().withProcessors(new FocusProcessor()).compile(nullableAnnotation, inner, outer);
+      Compilation compilation = javac().withProcessors(new FocusProcessor()).compile(inner, outer);
 
       assertThat(compilation).succeeded();
 

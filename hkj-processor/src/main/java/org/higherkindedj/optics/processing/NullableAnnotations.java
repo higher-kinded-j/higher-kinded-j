@@ -2,7 +2,9 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.optics.processing;
 
+import java.util.List;
 import java.util.Set;
+import javax.lang.model.element.AnnotationMirror;
 import javax.lang.model.element.RecordComponentElement;
 
 /**
@@ -44,12 +46,40 @@ public final class NullableAnnotations {
   /**
    * Checks if a record component has a {@code @Nullable} annotation.
    *
+   * <p>An annotation written on a record component does not necessarily land on the component
+   * element. javac copies a declaration annotation to every declaration it is applicable to, and a
+   * {@code TYPE_USE} annotation lands on the component's type instead, so where it ends up is
+   * decided by the annotation's own {@code @Target}. Three sites between them cover every
+   * recognised name:
+   *
+   * <ul>
+   *   <li>the component itself: an annotation that declares no {@code @Target} at all, which makes
+   *       it applicable to every declaration context (JSR-305's and Jakarta's)
+   *   <li>the component's type: a {@code TYPE_USE} annotation (JSpecify's and JetBrains')
+   *   <li>the accessor: an annotation targeting {@code METHOD} (JetBrains', AndroidX's and
+   *       SpotBugs')
+   * </ul>
+   *
+   * <p>The backing field and the canonical constructor parameter carry the same declaration
+   * annotation as the accessor, so they are not probed separately: every recognised name that
+   * targets {@code FIELD} or {@code PARAMETER} also targets {@code METHOD}.
+   *
+   * <p>Only the component's own type counts. A {@code TYPE_USE} annotation on a type argument, as
+   * in {@code List<@Nullable String>}, describes the elements rather than the field and leaves the
+   * field itself non-null.
+   *
    * @param component the record component to check
    * @return {@code true} if the component has a recognised nullable annotation
    */
   public static boolean hasNullableAnnotation(RecordComponentElement component) {
-    return component.getAnnotationMirrors().stream()
-        .map(am -> am.getAnnotationType().toString())
+    return hasNullable(component.getAnnotationMirrors())
+        || hasNullable(component.asType().getAnnotationMirrors())
+        || hasNullable(component.getAccessor().getAnnotationMirrors());
+  }
+
+  private static boolean hasNullable(List<? extends AnnotationMirror> mirrors) {
+    return mirrors.stream()
+        .map(mirror -> mirror.getAnnotationType().toString())
         .anyMatch(NULLABLE_ANNOTATION_NAMES::contains);
   }
 }

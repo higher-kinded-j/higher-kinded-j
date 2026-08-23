@@ -586,17 +586,6 @@ class NavigatorCoverageTest {
     @Test
     @DisplayName("should skip navigator field that collides with AffinePath delegate 'matches'")
     void shouldSkipFieldCollidingWithMatchesDelegate() {
-      final JavaFileObject nullableAnnotation =
-          JavaFileObjects.forSourceString(
-              "org.jspecify.annotations.Nullable",
-              """
-              package org.jspecify.annotations;
-              import java.lang.annotation.*;
-              @Target({ElementType.TYPE_USE, ElementType.PARAMETER, ElementType.FIELD,
-                       ElementType.RECORD_COMPONENT})
-              @Retention(RetentionPolicy.RUNTIME)
-              public @interface Nullable {}
-              """);
 
       final JavaFileObject innerSource =
           JavaFileObjects.forSourceString(
@@ -620,9 +609,7 @@ class NavigatorCoverageTest {
               """);
 
       Compilation compilation =
-          javac()
-              .withProcessors(new FocusProcessor())
-              .compile(nullableAnnotation, innerSource, outerSource);
+          javac().withProcessors(new FocusProcessor()).compile(innerSource, outerSource);
 
       assertThat(compilation).succeeded();
 
@@ -791,17 +778,6 @@ class NavigatorCoverageTest {
     @Test
     @DisplayName("should widen from AFFINE to TRAVERSAL when @Nullable navigable has List field")
     void shouldWidenAffineToTraversalInNavigator() {
-      final JavaFileObject nullableAnnotation =
-          JavaFileObjects.forSourceString(
-              "org.jspecify.annotations.Nullable",
-              """
-              package org.jspecify.annotations;
-              import java.lang.annotation.*;
-              @Target({ElementType.TYPE_USE, ElementType.PARAMETER, ElementType.FIELD,
-                       ElementType.RECORD_COMPONENT})
-              @Retention(RetentionPolicy.RUNTIME)
-              public @interface Nullable {}
-              """);
 
       final JavaFileObject innerSource =
           JavaFileObjects.forSourceString(
@@ -826,9 +802,7 @@ class NavigatorCoverageTest {
               """);
 
       Compilation compilation =
-          javac()
-              .withProcessors(new FocusProcessor())
-              .compile(nullableAnnotation, innerSource, outerSource);
+          javac().withProcessors(new FocusProcessor()).compile(innerSource, outerSource);
 
       assertThat(compilation).succeeded();
 
@@ -1098,17 +1072,6 @@ class NavigatorCoverageTest {
     @Test
     @DisplayName("should handle raw, wildcard, array and subtype container fields in navigators")
     void shouldHandleRawWildcardArrayAndSubtypeContainerFields() {
-      final JavaFileObject nullableAnnotation =
-          JavaFileObjects.forSourceString(
-              "org.jspecify.annotations.Nullable",
-              """
-              package org.jspecify.annotations;
-              import java.lang.annotation.*;
-              @Target({ElementType.TYPE_USE, ElementType.PARAMETER, ElementType.FIELD,
-                       ElementType.RECORD_COMPONENT})
-              @Retention(RetentionPolicy.RUNTIME)
-              public @interface Nullable {}
-              """);
 
       final JavaFileObject targetSource =
           JavaFileObjects.forSourceString(
@@ -1127,7 +1090,7 @@ class NavigatorCoverageTest {
                   String label,
                   Optional rawOpt,
                   Optional<?> wildOpt,
-                  @Nullable int[] scores,
+                  int @Nullable [] scores,
                   ArrayList<String> tags,
                   ArrayList<?> wildTags,
                   ArrayList rawTags,
@@ -1146,9 +1109,7 @@ class NavigatorCoverageTest {
               """);
 
       Compilation compilation =
-          javac()
-              .withProcessors(new FocusProcessor())
-              .compile(nullableAnnotation, targetSource, rootSource);
+          javac().withProcessors(new FocusProcessor()).compile(targetSource, rootSource);
 
       assertThat(compilation).succeeded();
 
@@ -1158,7 +1119,8 @@ class NavigatorCoverageTest {
       // Optional<?>: the unbounded wildcard resolves to Object.
       assertGeneratedCodeContains(
           compilation, "com.example.WideRootFocus", "AffinePath<S, Object> wildOpt()");
-      // @Nullable int[]: non-declared type, no inner extraction, widened via .nullable().
+      // int @Nullable []: a nullable array is a non-declared type, so there is no inner
+      // extraction and the path widens via .nullable().
       assertGeneratedCodeContains(
           compilation, "com.example.WideRootFocus", "AffinePath<S, int[]> scores()");
       // ArrayList<String>: Collection subtype resolved through the interface walk.

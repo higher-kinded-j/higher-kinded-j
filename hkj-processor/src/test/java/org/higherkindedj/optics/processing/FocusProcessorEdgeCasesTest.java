@@ -21,18 +21,6 @@ import org.junit.jupiter.api.Test;
 @DisplayName("FocusProcessor Edge Cases")
 class FocusProcessorEdgeCasesTest {
 
-  private static final JavaFileObject NULLABLE_ANNOTATION =
-      JavaFileObjects.forSourceString(
-          "org.jspecify.annotations.Nullable",
-          """
-          package org.jspecify.annotations;
-          import java.lang.annotation.*;
-          @Target({ElementType.TYPE_USE, ElementType.PARAMETER, ElementType.FIELD,
-                   ElementType.RECORD_COMPONENT})
-          @Retention(RetentionPolicy.RUNTIME)
-          public @interface Nullable {}
-          """);
-
   @Nested
   @DisplayName("@Nullable Field Widening Precedence")
   class NullableFieldPrecedence {
@@ -54,8 +42,7 @@ class FocusProcessorEdgeCasesTest {
               public record Order(String id, @Nullable Optional<String> note) {}
               """);
 
-      Compilation compilation =
-          javac().withProcessors(new FocusProcessor()).compile(NULLABLE_ANNOTATION, sourceFile);
+      Compilation compilation = javac().withProcessors(new FocusProcessor()).compile(sourceFile);
 
       assertThat(compilation).succeeded();
 
@@ -79,8 +66,7 @@ class FocusProcessorEdgeCasesTest {
               public record Config(String name, @Nullable String description) {}
               """);
 
-      Compilation compilation =
-          javac().withProcessors(new FocusProcessor()).compile(NULLABLE_ANNOTATION, sourceFile);
+      Compilation compilation = javac().withProcessors(new FocusProcessor()).compile(sourceFile);
 
       assertThat(compilation).succeeded();
 

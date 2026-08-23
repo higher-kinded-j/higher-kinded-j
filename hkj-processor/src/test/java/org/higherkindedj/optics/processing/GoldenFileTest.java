@@ -169,22 +169,6 @@ class GoldenFileTest {
         """);
   }
 
-  /** Custom Nullable annotation for test environment */
-  private static JavaFileObject nullableAnnotation() {
-    return JavaFileObjects.forSourceString(
-        "org.jspecify.annotations.Nullable",
-        """
-        package org.jspecify.annotations;
-
-        import java.lang.annotation.*;
-
-        @Target({ElementType.TYPE_USE, ElementType.PARAMETER, ElementType.FIELD,
-                 ElementType.RECORD_COMPONENT})
-        @Retention(RetentionPolicy.RUNTIME)
-        public @interface Nullable {}
-        """);
-  }
-
   /** Record with @Nullable fields for verifying nullable annotation handling */
   private static JavaFileObject nullableFieldsRecord() {
     return JavaFileObjects.forSourceString(
@@ -292,7 +276,6 @@ class GoldenFileTest {
             "com.test.optics.NullableFieldsLenses",
             "NullableFieldsLenses.java.golden",
             nullableFieldsRecord(),
-            nullableAnnotation(),
             packageInfo("com.test.NullableFields")));
   }
 
