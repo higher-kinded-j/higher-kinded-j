@@ -542,7 +542,7 @@ public class FocusProcessorNavigatorTest {
               import org.higherkindedj.optics.annotations.GenerateFocus;
               import java.util.Map;
 
-              @GenerateFocus(generateNavigators = true)
+              @GenerateFocus(generateNavigators = true, widenCollections = true)
               public record Address(String street, Map<String, String> metadata) {}
               """);
 
@@ -553,7 +553,7 @@ public class FocusProcessorNavigatorTest {
 
       // Inside HeadquartersNavigator, the metadata() method should return TraversalPath
       // with the inner value type (Map values are String), because Map is recognised as
-      // ZERO_OR_MORE by the SPI and the navigator applies .each(opticExpr) to unwrap.
+      // ZERO_OR_MORE by the SPI and Address widens its collections.
       final String expectedMetadataTraversal =
           """
           public TraversalPath<S, String> metadata() {
@@ -561,6 +561,52 @@ public class FocusProcessorNavigatorTest {
 
       assertGeneratedCodeContains(
           compilation, "com.example.CompanyFocus", expectedMetadataTraversal);
+      // The static method on the declaring record reports the same path type.
+      assertGeneratedCodeContains(
+          compilation, "com.example.AddressFocus", "TraversalPath<Address, String> metadata()");
+    }
+
+    @Test
+    @DisplayName("should leave a Map field a FocusPath in a navigator without widenCollections")
+    void shouldLeaveMapFieldAFocusPathWithoutWidenCollections() {
+      final JavaFileObject companySource =
+          JavaFileObjects.forSourceString(
+              "com.example.Company",
+              """
+              package com.example;
+
+              import org.higherkindedj.optics.annotations.GenerateFocus;
+
+              @GenerateFocus(generateNavigators = true)
+              public record Company(String name, Address headquarters) {}
+              """);
+
+      final JavaFileObject addressSource =
+          JavaFileObjects.forSourceString(
+              "com.example.Address",
+              """
+              package com.example;
+
+              import org.higherkindedj.optics.annotations.GenerateFocus;
+              import java.util.Map;
+
+              @GenerateFocus(generateNavigators = true)
+              public record Address(String street, Map<String, String> metadata) {}
+              """);
+
+      Compilation compilation =
+          javac().withProcessors(new FocusProcessor()).compile(companySource, addressSource);
+
+      assertThat(compilation).succeeded();
+
+      // A ZERO_OR_MORE SPI container is left un-widened until the record that declares it says
+      // otherwise, and the navigator reads that record's setting rather than its own (#719).
+      assertGeneratedCodeContains(
+          compilation, "com.example.CompanyFocus", "FocusPath<S, Map<String, String>> metadata()");
+      assertGeneratedCodeContains(
+          compilation,
+          "com.example.AddressFocus",
+          "FocusPath<Address, Map<String, String>> metadata()");
     }
 
     @Test
@@ -723,7 +769,7 @@ public class FocusProcessorNavigatorTest {
               import org.higherkindedj.hkt.either.Either;
               import java.util.Map;
 
-              @GenerateFocus(generateNavigators = true)
+              @GenerateFocus(generateNavigators = true, widenCollections = true)
               public record Address(
                   String street,
                   Either<String, String> validated,

@@ -106,7 +106,7 @@ class SpiGeneratorConflictTest {
               import com.example.hkjtest.Solo;
               import org.higherkindedj.optics.annotations.GenerateFocus;
 
-              @GenerateFocus(generateNavigators = true)
+              @GenerateFocus(generateNavigators = true, widenCollections = true)
               @SuppressWarnings("rawtypes")
               public record NavTarget(
                   String label, Dup<String> d, Solo<String> s, Dup rawDup, Dup<?> wildDup,

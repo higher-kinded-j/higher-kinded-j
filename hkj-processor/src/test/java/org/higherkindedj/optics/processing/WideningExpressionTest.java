@@ -8,42 +8,41 @@ import com.palantir.javapoet.ClassName;
 import java.util.ArrayList;
 import java.util.List;
 import org.higherkindedj.optics.annotations.KindSemantics;
-import org.higherkindedj.optics.processing.FocusProcessor.WideningStep;
-import org.higherkindedj.optics.processing.FocusProcessor.WideningType;
+import org.higherkindedj.optics.processing.WideningAnalysis.Step;
+import org.higherkindedj.optics.processing.WideningAnalysis.StepKind;
 import org.higherkindedj.optics.processing.kind.KindFieldInfo;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 /**
- * Direct unit tests for {@link FocusProcessor#buildWideningChainExpression}.
+ * Direct unit tests for {@link WideningAnalysis#expression}.
  *
- * <p>{@code analyseNestedType} only ever emits OPTIONAL, COLLECTION and SPI steps, so the NULLABLE,
- * KIND and default arms of the chain switch are unreachable through compile-testing fixtures. The
- * method is pure (no processing environment), so fabricated chains cover those arms directly.
+ * <p>The analysis reads a Kind from the component's own declaration, so a {@code KIND_*} layer only
+ * ever arrives outermost and never after another layer. The fold that renders a chain does not know
+ * that, and the mixed chains below pin what it would emit if it ever did. Rendering needs no
+ * processing environment, so they are fabricated rather than compiled.
  */
-@DisplayName("FocusProcessor widening chain expression")
-class FocusProcessorWideningChainTest {
+@DisplayName("Widening expression")
+class WideningExpressionTest {
 
-  private final FocusProcessor processor = new FocusProcessor();
-
-  private static WideningStep step(WideningType type) {
-    return new WideningStep(type, null, null, null);
+  private static Step step(StepKind kind) {
+    return new Step(kind, null, null, null);
   }
 
-  private static WideningStep kindStep(WideningType type, KindSemantics semantics) {
+  private static Step kindStep(StepKind kind, KindSemantics semantics) {
     KindFieldInfo kindInfo =
         KindFieldInfo.of("W", ClassName.get(String.class), "T.INSTANCE", semantics);
-    return new WideningStep(type, kindInfo, null, null);
+    return new Step(kind, kindInfo, null, null);
   }
 
-  private String build(WideningStep... steps) {
-    return processor.buildWideningChainExpression(List.of(steps), new ArrayList<>());
+  private static String build(Step... steps) {
+    return WideningAnalysis.expression(List.of(steps), new ArrayList<>());
   }
 
   @Test
   @DisplayName("should append .nullable() for a NULLABLE step")
   void shouldAppendNullableForNullableStep() {
-    String expression = build(step(WideningType.OPTIONAL), step(WideningType.NULLABLE));
+    String expression = build(step(StepKind.OPTIONAL), step(StepKind.NULLABLE));
 
     assertThat(expression).isEqualTo(".some().nullable()");
   }
@@ -53,8 +52,8 @@ class FocusProcessorWideningChainTest {
   void shouldAppendHeadOptionForKindZeroOrOne() {
     String expression =
         build(
-            step(WideningType.OPTIONAL),
-            kindStep(WideningType.KIND_ZERO_OR_ONE, KindSemantics.ZERO_OR_ONE));
+            step(StepKind.OPTIONAL),
+            kindStep(StepKind.KIND_ZERO_OR_ONE, KindSemantics.ZERO_OR_ONE));
 
     assertThat(expression)
         .isEqualTo(".some().<W, java.lang.String>traverseOver(T.INSTANCE).headOption()");
@@ -65,8 +64,8 @@ class FocusProcessorWideningChainTest {
   void shouldAppendHeadOptionForKindExactlyOne() {
     String expression =
         build(
-            step(WideningType.OPTIONAL),
-            kindStep(WideningType.KIND_EXACTLY_ONE, KindSemantics.EXACTLY_ONE));
+            step(StepKind.OPTIONAL),
+            kindStep(StepKind.KIND_EXACTLY_ONE, KindSemantics.EXACTLY_ONE));
 
     assertThat(expression)
         .isEqualTo(".some().<W, java.lang.String>traverseOver(T.INSTANCE).headOption()");
@@ -77,17 +76,15 @@ class FocusProcessorWideningChainTest {
   void shouldAppendTraverseOverForKindZeroOrMore() {
     String expression =
         build(
-            step(WideningType.COLLECTION),
-            kindStep(WideningType.KIND_ZERO_OR_MORE, KindSemantics.ZERO_OR_MORE));
+            step(StepKind.COLLECTION),
+            kindStep(StepKind.KIND_ZERO_OR_MORE, KindSemantics.ZERO_OR_MORE));
 
     assertThat(expression).isEqualTo(".each().<W, java.lang.String>traverseOver(T.INSTANCE)");
   }
 
   @Test
-  @DisplayName("should ignore NONE and NESTED steps in a chain")
-  void shouldIgnoreNoneAndNestedSteps() {
-    String expression = build(step(WideningType.NONE), step(WideningType.NESTED));
-
-    assertThat(expression).isEmpty();
+  @DisplayName("should render nothing for a component nothing widens")
+  void shouldRenderNothingWhenNothingWidens() {
+    assertThat(build()).isEmpty();
   }
 }

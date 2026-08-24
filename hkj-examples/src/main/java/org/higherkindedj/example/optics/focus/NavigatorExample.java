@@ -106,12 +106,14 @@ public class NavigatorExample {
    * A warehouse with inventory tracked as a Map and a location address.
    *
    * <p>The {@code inventory} field is a {@code Map<String, Integer>}, which the SPI recognises via
-   * {@code MapValueGenerator} with {@code ZERO_OR_MORE} cardinality. Navigator methods for this
-   * field will return {@code TraversalPath} instead of {@code FocusPath}.
+   * {@code MapValueGenerator} with {@code ZERO_OR_MORE} cardinality. Its values are not themselves
+   * navigable, so the path stops at the map until {@code widenCollections} says otherwise — the
+   * same answer whether the field is reached through {@code WarehouseFocus.inventory()} or through
+   * a navigator on a record holding a {@code Warehouse}.
    *
    * <p>The {@code verifiedName} field is an {@code Either<String, String>}, which the SPI
-   * recognises via {@code EitherGenerator} with {@code ZERO_OR_ONE} cardinality. Navigator methods
-   * for this field will return {@code AffinePath} instead of {@code FocusPath}.
+   * recognises via {@code EitherGenerator} with {@code ZERO_OR_ONE} cardinality. A zero-or-one
+   * container is always stepped into, so that path is an {@code AffinePath}.
    */
   @GenerateFocus(generateNavigators = true)
   public record Warehouse(
@@ -253,23 +255,25 @@ public class NavigatorExample {
    *
    * <p>The {@code TraversableGenerator} SPI allows the processor to recognise container types
    * beyond the hardcoded {@code Optional}, {@code Maybe}, {@code List}, {@code Set}, and {@code
-   * Collection}. Each SPI generator declares a {@code Cardinality}:
+   * Collection}. Each SPI generator declares a {@code Cardinality}, which decides the tier its
+   * container reaches:
    *
    * <ul>
-   *   <li>{@code ZERO_OR_ONE} (Either, Try, Validated) → navigator returns {@code AffinePath}
-   *   <li>{@code ZERO_OR_MORE} (Map, arrays, third-party collections) → navigator returns {@code
-   *       TraversalPath}
+   *   <li>{@code ZERO_OR_ONE} (Either, Try, Validated) → {@code AffinePath}, always
+   *   <li>{@code ZERO_OR_MORE} (Map, arrays, third-party collections) → {@code TraversalPath} under
+   *       {@code widenCollections = true}, or when the element is itself a navigable record and the
+   *       container has to be stepped into to reach it
    * </ul>
    *
-   * <p>This means navigators correctly handle SPI-registered types without falling back to {@code
-   * FocusPath}:
+   * <p>A navigator method reports the same path type as the static Focus method for the same
+   * component, so this rule is read once and holds whichever way the field is reached:
    *
    * <pre>{@code
-   * // Map<String, Integer> field → TraversalPath (via MapValueGenerator SPI)
-   * WarehouseFocus.inventory()  // Returns TraversalPath<Warehouse, Integer>
-   *
    * // Either<String, String> field → AffinePath (via EitherGenerator SPI)
    * WarehouseFocus.verifiedName()  // Returns AffinePath<Warehouse, String>
+   *
+   * // Map<String, Integer> field → the path stops at the map without widenCollections
+   * WarehouseFocus.inventory()  // Returns FocusPath<Warehouse, Map<String, Integer>>
    * }</pre>
    */
   static void spiAwareNavigationExample() {
@@ -295,9 +299,10 @@ public class NavigatorExample {
     System.out.println("name():               " + name);
 
     System.out.println();
-    System.out.println("SPI cardinality summary:");
+    System.out.println("Path tier by container:");
     System.out.println("  ZERO_OR_ONE  → AffinePath:    Either, Try, Validated, Optional, Maybe");
-    System.out.println("  ZERO_OR_MORE → TraversalPath:  Map, List, Set, Collection");
+    System.out.println("  ZERO_OR_MORE → TraversalPath: List, Set, Collection (built in)");
+    System.out.println("                                Map and the rest under widenCollections");
     System.out.println();
   }
 

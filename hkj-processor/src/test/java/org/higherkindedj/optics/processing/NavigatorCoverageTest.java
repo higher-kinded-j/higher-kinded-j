@@ -17,10 +17,9 @@ import org.junit.jupiter.api.Test;
 /**
  * Coverage tests for NavigatorClassGenerator targeting missed branches.
  *
- * <p>Covers: FocusPath navigator delegate methods, widened navigation methods via
- * buildViaStatement, buildPathWidening for Optional/Collection within navigators, navigator
- * filtering via include/exclude fields, field name collision with delegate methods, and navigator
- * depth limiting.
+ * <p>Covers: FocusPath navigator delegate methods, widened navigation methods via navigation-method
+ * composition, widening for Optional/Collection within navigators, navigator filtering via
+ * include/exclude fields, field name collision with delegate methods, and navigator depth limiting.
  */
 @DisplayName("Navigator Coverage Tests")
 class NavigatorCoverageTest {
@@ -184,7 +183,7 @@ class NavigatorCoverageTest {
   }
 
   @Nested
-  @DisplayName("buildViaStatement Widening")
+  @DisplayName("Composed Widening")
   class BuildViaStatementWidening {
 
     @Test
@@ -1147,16 +1146,17 @@ class NavigatorCoverageTest {
       Compilation compilation =
           javac().withProcessors(new FocusProcessor()).compile(innerSource, outerSource);
 
-      // Optional<List<String>> composes to TRAVERSAL, so .some() alone would hand back an
-      // AffinePath where the method declares a TraversalPath: the generated source would not
-      // compile. Both the static method and the navigator chain through to the element.
+      // Optional<List<String>> composes to TRAVERSAL, and the chain runs to the element rather
+      // than stopping at the first layer. The navigator composes the static method that carries
+      // it, so the two report the same path type without chaining anything themselves.
       assertThat(compilation).succeeded();
       assertGeneratedCodeContains(
           compilation, "com.example.BundleFocus", "TraversalPath<Bundle, String> notes()");
       assertGeneratedCodeContains(compilation, "com.example.BundleFocus", ".some().each()");
       assertGeneratedCodeContains(
           compilation, "com.example.ShipmentFocus", "TraversalPath<S, String> notes()");
-      assertGeneratedCodeContains(compilation, "com.example.ShipmentFocus", ".some().each()");
+      assertGeneratedCodeContains(
+          compilation, "com.example.ShipmentFocus", "delegate.via(BundleFocus.notes())");
     }
   }
 
@@ -1208,9 +1208,12 @@ class NavigatorCoverageTest {
 
       assertThat(compilation).succeeded();
 
-      // Raw Optional: no inner type argument, so the field type itself is the focus.
+      // Raw Optional: no inner type argument to infer from, so the focus falls back to Object,
+      // which is what the static method's .some() already reported.
       assertGeneratedCodeContains(
-          compilation, "com.example.WideRootFocus", "AffinePath<S, Optional> rawOpt()");
+          compilation, "com.example.WideRootFocus", "AffinePath<S, Object> rawOpt()");
+      assertGeneratedCodeContains(
+          compilation, "com.example.WideTargetFocus", "AffinePath<WideTarget, Object> rawOpt()");
       // Optional<?>: the unbounded wildcard resolves to Object.
       assertGeneratedCodeContains(
           compilation, "com.example.WideRootFocus", "AffinePath<S, Object> wildOpt()");
@@ -1218,21 +1221,20 @@ class NavigatorCoverageTest {
       // extraction and the path widens via .nullable().
       assertGeneratedCodeContains(
           compilation, "com.example.WideRootFocus", "AffinePath<S, int[]> scores()");
-      // ArrayList<String>: Collection subtype resolved through the interface walk.
+      // ArrayList and its raw and wildcard forms: a Collection subtype is not a recognised
+      // container, so the path stops at the container exactly as the static method's does.
       assertGeneratedCodeContains(
-          compilation, "com.example.WideRootFocus", "TraversalPath<S, String> tags()");
-      // ArrayList<?>: wildcard element resolves to Object.
+          compilation, "com.example.WideRootFocus", "FocusPath<S, ArrayList<String>> tags()");
       assertGeneratedCodeContains(
-          compilation, "com.example.WideRootFocus", "TraversalPath<S, Object> wildTags()");
-      // Raw ArrayList: no type argument, the field type itself is the focus.
+          compilation, "com.example.WideRootFocus", "FocusPath<S, ArrayList<?>> wildTags()");
       assertGeneratedCodeContains(
-          compilation, "com.example.WideRootFocus", "TraversalPath<S, ArrayList> rawTags()");
-      // Map<String, String>: SPI widening with a real optic expression.
+          compilation, "com.example.WideRootFocus", "FocusPath<S, ArrayList> rawTags()");
+      // Map<String, String>: a ZERO_OR_MORE SPI container the record does not widen.
       assertGeneratedCodeContains(
-          compilation, "com.example.WideRootFocus", "TraversalPath<S, String> attrs()");
-      // List<List<List<String>>>: nesting beyond the depth cap still composes to TRAVERSAL.
+          compilation, "com.example.WideRootFocus", "FocusPath<S, Map<String, String>> attrs()");
+      // List<List<List<String>>>: the chain composes to the leaf, three layers deep.
       assertGeneratedCodeContains(
-          compilation, "com.example.WideRootFocus", "TraversalPath<S, List<List<String>>> deep()");
+          compilation, "com.example.WideRootFocus", "TraversalPath<S, String> deep()");
     }
   }
 }
