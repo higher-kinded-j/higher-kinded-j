@@ -68,10 +68,11 @@ public interface TraversableGenerator {
    * <p>This determines the appropriate path type in the Focus DSL:
    *
    * <ul>
-   *   <li>{@link Cardinality#ZERO_OR_ONE} → {@code AffinePath} (for types like Optional, Maybe,
-   *       Either, Try, Validated)
-   *   <li>{@link Cardinality#ZERO_OR_MORE} → {@code TraversalPath} (for types like List, Set, Map,
-   *       arrays, and third-party collections)
+   *   <li>{@link Cardinality#ZERO_OR_ONE} → {@code AffinePath}, always (for types like Optional,
+   *       Maybe, Either, Try, Validated)
+   *   <li>{@link Cardinality#ZERO_OR_MORE} → {@code TraversalPath} when the container is widened,
+   *       which it is under {@code widenCollections = true} or when its element is itself a
+   *       navigable record (for types like List, Set, Map, arrays, and third-party collections)
    * </ul>
    *
    * <p>The default implementation returns {@link Cardinality#ZERO_OR_MORE}, which is correct for

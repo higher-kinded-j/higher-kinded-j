@@ -255,16 +255,18 @@ public class NavigatorExample {
    *
    * <p>The {@code TraversableGenerator} SPI allows the processor to recognise container types
    * beyond the hardcoded {@code Optional}, {@code Maybe}, {@code List}, {@code Set}, and {@code
-   * Collection}. Each SPI generator declares a {@code Cardinality}:
+   * Collection}. Each SPI generator declares a {@code Cardinality}, which decides the tier its
+   * container reaches:
    *
    * <ul>
-   *   <li>{@code ZERO_OR_ONE} (Either, Try, Validated) → navigator returns {@code AffinePath}
-   *   <li>{@code ZERO_OR_MORE} (Map, arrays, third-party collections) → navigator returns {@code
-   *       TraversalPath}
+   *   <li>{@code ZERO_OR_ONE} (Either, Try, Validated) → {@code AffinePath}, always
+   *   <li>{@code ZERO_OR_MORE} (Map, arrays, third-party collections) → {@code TraversalPath} under
+   *       {@code widenCollections = true}, or when the element is itself a navigable record and the
+   *       container has to be stepped into to reach it
    * </ul>
    *
-   * <p>This means navigators correctly handle SPI-registered types without falling back to {@code
-   * FocusPath}:
+   * <p>A navigator method reports the same path type as the static Focus method for the same
+   * component, so this rule is read once and holds whichever way the field is reached:
    *
    * <pre>{@code
    * // Either<String, String> field → AffinePath (via EitherGenerator SPI)
@@ -297,10 +299,10 @@ public class NavigatorExample {
     System.out.println("name():               " + name);
 
     System.out.println();
-    System.out.println("SPI cardinality summary:");
+    System.out.println("Path tier by container:");
     System.out.println("  ZERO_OR_ONE  → AffinePath:    Either, Try, Validated, Optional, Maybe");
-    System.out.println("  ZERO_OR_MORE → TraversalPath:  List, Set, Collection");
-    System.out.println("                                 Map and the rest under widenCollections");
+    System.out.println("  ZERO_OR_MORE → TraversalPath: List, Set, Collection (built in)");
+    System.out.println("                                Map and the rest under widenCollections");
     System.out.println();
   }
 

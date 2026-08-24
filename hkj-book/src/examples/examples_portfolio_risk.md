@@ -179,10 +179,14 @@ annotation processor handles each one via the SPI:
 | `Try<ValuationResult>` | HKJ | ZERO_OR_ONE | `AffinePath` | `TryGenerator` |
 | `Validated<List<String>, RiskReport>` | HKJ | ZERO_OR_ONE | `AffinePath` | `ValidatedGenerator` |
 | `Optional<StopLoss>` | JDK | ZERO_OR_ONE | `AffinePath` | `OptionalGenerator` |
-| `Map<String, Double>` | JDK | ZERO_OR_MORE | `TraversalPath` | `MapValueGenerator` |
+| `Map<String, Double>` | JDK | ZERO_OR_MORE | `FocusPath`, or `TraversalPath` under `widenCollections` | `MapValueGenerator` |
 
-No manual widening is needed in navigator chains. The generated code calls the
-appropriate `each()` or `some()` method automatically.
+No manual widening is needed for any of these but the last: the generated code calls
+the appropriate `each()` or `some()` for you. A `ZERO_OR_MORE` container holding a
+non-navigable element — `Map<String, Double>` here — stops at the container until the
+record declaring it sets `widenCollections = true`, which is what `WidenedAssetClass`
+below demonstrates. Static Focus methods and navigator methods report the same path
+type for the same component.
 
 ---
 

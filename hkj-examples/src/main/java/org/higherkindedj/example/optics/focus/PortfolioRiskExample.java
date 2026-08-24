@@ -99,7 +99,7 @@ public class PortfolioRiskExample {
       String className,
       ImmutableList<Position> positions, // Eclipse Collections → TraversalPath
       Try<ValuationResult> latestValuation, // HKJ Try            → AffinePath
-      Map<String, Double> exposures // JDK Map            → TraversalPath
+      Map<String, Double> exposures // JDK Map            → FocusPath, see WidenedAssetClass
       ) {}
 
   /**

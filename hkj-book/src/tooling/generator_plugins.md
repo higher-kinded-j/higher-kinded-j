@@ -191,10 +191,11 @@ public interface TraversableGenerator {
     boolean supports(TypeMirror type);
 
     /**
-     * Declares the cardinality of elements in this container type.
-     * Used by navigator generation to determine the correct path type:
-     *   ZERO_OR_ONE  → AffinePath  (Optional, Either, Try, Validated)
-     *   ZERO_OR_MORE → TraversalPath (List, Map, arrays, third-party collections)
+     * Declares the cardinality of elements in this container type, which decides
+     * the path tier the Focus DSL gives the field:
+     *   ZERO_OR_ONE  → AffinePath, always  (Optional, Either, Try, Validated)
+     *   ZERO_OR_MORE → TraversalPath under widenCollections, or when the element
+     *                  is itself a navigable record
      *
      * Default is ZERO_OR_MORE, which is correct for collection-like types.
      */
@@ -335,7 +336,7 @@ The `TraversalProcessor` will now discover your `NonEmptyListGenerator` via `Ser
 * **Third-party support activates automatically** when the library is on the classpath; no configuration required
 * **The SPI is extensible**: implement `TraversableGenerator`, register it with `@ServiceProvider`, and the processor discovers it at compile time
 * **Most generators follow a common pattern**: convert to `java.util.List`, traverse with `Traversals.traverseList()`, convert back to the original type
-* **Cardinality drives navigator widening**: `ZERO_OR_ONE` produces `AffinePath`; `ZERO_OR_MORE` produces `TraversalPath` in generated navigators
+* **Cardinality drives widening**: `ZERO_OR_ONE` produces an `AffinePath`, always; `ZERO_OR_MORE` produces a `TraversalPath` under `widenCollections = true`, or when the container's element is itself a navigable record. Static Focus methods and navigator methods read the same answer
 ~~~
 
 ~~~admonish tip title="See Also"
