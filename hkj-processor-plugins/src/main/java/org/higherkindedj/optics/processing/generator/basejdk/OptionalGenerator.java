@@ -9,7 +9,6 @@ import com.palantir.javapoet.TypeName;
 import com.palantir.javapoet.TypeVariableName;
 import io.avaje.spi.ServiceProvider;
 import java.util.List;
-import java.util.Optional;
 import java.util.Set;
 import javax.lang.model.element.Element;
 import javax.lang.model.element.RecordComponentElement;
@@ -75,7 +74,7 @@ public class OptionalGenerator extends BaseTraversableGenerator {
     return CodeBlock.builder()
         // Directly use the concrete Optional from the source record.
         .addStatement(
-            "final $T<$T> optional = source.$L()", Optional.class, genericTypeName, componentName)
+            "final $T optional = source.$L()", TypeName.get(component.asType()), componentName)
         .beginControlFlow("if (optional.isPresent())")
         // If present, apply the effectful function.
         .addStatement("final var g_of_b = f.apply(optional.get())")

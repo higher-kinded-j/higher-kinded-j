@@ -71,7 +71,8 @@ public class TryGenerator extends BaseTraversableGenerator {
         generateConstructorArgs(componentName, "Try.success(newValue)", allComponents);
 
     return CodeBlock.builder()
-        .addStatement("final $T<$T> tryA = source.$L()", Try.class, genericTypeName, componentName)
+        .addStatement(
+            "final $T tryA = source.$L()", TypeName.get(component.asType()), componentName)
         // Use the safe `foldFailureFirst` method to handle both cases without throwing exceptions.
         .addStatement(
             "return tryA.foldFailureFirst(\n"

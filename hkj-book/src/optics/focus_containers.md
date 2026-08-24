@@ -156,6 +156,8 @@ The built-in `Optional`, `List` and `Set` widenings take a wildcard without comp
 A `ZERO_OR_MORE` SPI container is rejected only when something actually widens it — `widenCollections = true`, or a navigator taking it. At the default settings it stays a `FocusPath`, and the wildcard costs it nothing. Nor does one beneath it: `Map<String, Either<String, ? extends Leaf>>` compiles at the default settings, because the `Map` is never widened and so the `Either` inside it is never asked for an optic.
 
 A generator that names no optic expression is exempt: it widens through `.nullable()` or `.each()`, whose free type variable takes a raw or wildcard argument without complaint. Every generator shipped with HKJ names one.
+
+This is a rule about **composing an optic instance**, so it is `@GenerateFocus`'s alone. `@GenerateTraversals` reads the same component and emits a `Traversal` over the type the wildcard stands for: nothing is inferred, so there is nothing to fail. Where a path does widen — the built-in `Optional`, `List` and `Set` above — it reaches that same element type. See [Wildcard Element Types](traversals.md#wildcard-element-types).
 ~~~
 
 ### Cross-Ecosystem Navigation

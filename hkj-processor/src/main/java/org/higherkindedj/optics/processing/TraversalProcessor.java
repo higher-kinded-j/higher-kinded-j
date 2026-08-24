@@ -33,6 +33,7 @@ import org.higherkindedj.optics.Traversal;
 import org.higherkindedj.optics.annotations.GenerateTraversals;
 import org.higherkindedj.optics.processing.spi.TraversableGenerator;
 import org.higherkindedj.optics.processing.util.ExcludeFromJacocoGeneratedReport;
+import org.higherkindedj.optics.processing.util.ProcessorUtils;
 
 /** Annotation processor that generates Traversal optics for record types. */
 @AutoService(Processor.class)
@@ -145,7 +146,10 @@ public class TraversalProcessor extends AbstractProcessor {
       if (declaredType.getTypeArguments().size() <= typeArgumentIndex) {
         return null; // Not enough type arguments for this generator.
       }
-      focusType = TypeName.get(declaredType.getTypeArguments().get(typeArgumentIndex)).box();
+      TypeMirror focusArgument =
+          ProcessorUtils.resolveWildcard(declaredType.getTypeArguments().get(typeArgumentIndex));
+      focusType =
+          focusArgument == null ? ClassName.get(Object.class) : TypeName.get(focusArgument).box();
 
     } else {
       return null; // Not a type we can handle.

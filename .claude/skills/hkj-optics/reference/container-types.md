@@ -136,6 +136,7 @@ record Holder(Either<String, Leaf> either) {}
 - The built-in `Optional`, `List` and `Set` widenings take a wildcard without complaint, because `.some()` and `.each()` are methods with a free type variable and no optic argument to unify.
 - A `ZERO_OR_MORE` SPI container is rejected only when something actually widens it: `widenCollections = true`, or a navigator reaching a navigable element inside it. At the default settings it stays a `FocusPath`, and so does everything beneath it — `Map<String, Either<String, ? extends Leaf>>` compiles by default, because the un-widened `Map` means the `Either` is never asked for an optic.
 - A custom generator that names no optic expression is exempt: it widens through `.nullable()` or `.each()`, whose free type variable takes a raw or wildcard argument without complaint. Every generator shipped with HKJ names one.
+- This is a rule about composing an optic instance, so it is `@GenerateFocus`'s alone. `@GenerateTraversals` reads the same component and emits a `Traversal` over the type the wildcard stands for: `? extends T` is `T`, and `?` or `? super T` is `Object`.
 
 ## ZERO_OR_MORE Manual Widening
 

@@ -490,9 +490,14 @@ public final class Traversals {
    *     context.
    */
   public static <F extends WitnessArity<TypeArity.Unary>, A, B> Kind<F, List<B>> traverseList(
-      final List<A> list, final Function<A, Kind<F, B>> f, final Applicative<F> applicative) {
+      final List<? extends A> list,
+      final Function<? super A, ? extends Kind<F, ? extends B>> f,
+      final Applicative<F> applicative) {
 
-    final List<Kind<F, B>> listOfEffects = list.stream().map(f).collect(Collectors.toList());
+    @SuppressWarnings("unchecked") // f produces Kind of (? extends B); B is the result element
+    final Function<? super A, Kind<F, B>> effect = (Function<? super A, Kind<F, B>>) f;
+
+    final List<Kind<F, B>> listOfEffects = list.stream().map(effect).collect(Collectors.toList());
     final Kind<ListKind.Witness, Kind<F, B>> effectsAsKind =
         ListKindHelper.LIST.widen(listOfEffects);
     final var effectOfKindList = ListTraverse.INSTANCE.sequenceA(applicative, effectsAsKind);
@@ -563,22 +568,25 @@ public final class Traversals {
       return applicative.of(new HashMap<>());
     }
 
-    Kind<F, Map<K, W>> result = applicative.of(new HashMap<>(map.size()));
-    for (Map.Entry<K, V> entry : map.entrySet()) {
-      @SuppressWarnings("unchecked")
-      final Kind<F, W> newFValue = (Kind<F, W>) f.apply(entry.getValue());
-      final K key = entry.getKey();
-      result =
-          applicative.map2(
-              result,
-              newFValue,
-              (m, w) -> {
-                final Map<K, W> updated = new HashMap<>(m);
-                updated.put(key, w);
-                return updated;
-              });
+    // The values are traversed as a list and the keys zipped back onto the result, which walks the
+    // map once. Accumulating into the effect an entry at a time copies the map being built on every
+    // entry, and that is quadratic in the size of the map.
+    final List<K> keys = new ArrayList<>(map.size());
+    final List<V> values = new ArrayList<>(map.size());
+    for (final Map.Entry<K, V> entry : map.entrySet()) {
+      keys.add(entry.getKey());
+      values.add(entry.getValue());
     }
-    return result;
+
+    return applicative.map(
+        newValues -> {
+          final Map<K, W> result = new HashMap<>(newValues.size());
+          for (int index = 0; index < newValues.size(); index++) {
+            result.put(keys.get(index), newValues.get(index));
+          }
+          return result;
+        },
+        traverseList(values, f, applicative));
   }
 
   /**
@@ -611,9 +619,7 @@ public final class Traversals {
     }
 
     // Convert to list, traverse efficiently, then convert back to set
-    @SuppressWarnings("unchecked")
-    final Function<A, Kind<F, B>> fCast = (Function<A, Kind<F, B>>) f;
-    Kind<F, List<B>> listResult = traverseList(new ArrayList<>(set), fCast, applicative);
+    final Kind<F, List<B>> listResult = traverseList(new ArrayList<>(set), f, applicative);
     return applicative.map(LinkedHashSet::new, listResult);
   }
 
@@ -648,9 +654,7 @@ public final class Traversals {
     }
 
     // Convert to list and traverse efficiently
-    @SuppressWarnings("unchecked")
-    final Function<A, Kind<F, B>> fCast = (Function<A, Kind<F, B>>) f;
-    return traverseList(Arrays.asList(array), fCast, applicative);
+    return traverseList(Arrays.asList(array), f, applicative);
   }
 
   /**

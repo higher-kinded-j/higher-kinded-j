@@ -8,6 +8,7 @@ import java.util.List;
 import java.util.stream.Collectors;
 import javax.lang.model.element.RecordComponentElement;
 import javax.lang.model.type.DeclaredType;
+import javax.lang.model.type.TypeMirror;
 import org.higherkindedj.optics.processing.spi.TraversableGenerator;
 
 /**
@@ -22,19 +23,40 @@ public abstract class BaseTraversableGenerator implements TraversableGenerator {
   /**
    * Extracts the primary generic type from a container-like record component.
    *
-   * <p>For example, for a component of type {@code List<String>}, this returns "String".
+   * <p>For example, for a component of type {@code List<String>}, this returns "String". A wildcard
+   * argument is resolved to the type it stands for, as {@link #getTypeArgumentName} describes.
    *
    * @param component The record component to inspect.
    * @return The {@link TypeName} of the first generic argument, or {@code Object} as a fallback.
    */
   protected TypeName getGenericTypeName(final RecordComponentElement component) {
-    if (component.asType() instanceof DeclaredType containerType) {
-      if (containerType.getTypeArguments().isEmpty()) {
-        return ClassName.get(Object.class);
+    return getTypeArgumentName(component, 0);
+  }
+
+  /**
+   * Extracts one type argument of a container-like record component, named so that it can be
+   * written into generated source.
+   *
+   * <p>A wildcard argument is resolved to the type it stands for: {@code ? extends T} is named
+   * {@code T}, and {@code ?} or {@code ? super T} is named {@code Object}. A wildcard is not
+   * denotable on its own, so naming it verbatim would emit source that does not compile; the type
+   * it resolves to is both denotable and the one {@code @GenerateFocus} reads for the same
+   * component.
+   *
+   * @param component The record component to inspect.
+   * @param index The type argument to read.
+   * @return The {@link TypeName} of that argument, or {@code Object} when the component has no such
+   *     argument.
+   */
+  protected TypeName getTypeArgumentName(final RecordComponentElement component, final int index) {
+    if (component.asType() instanceof DeclaredType containerType
+        && containerType.getTypeArguments().size() > index) {
+      final TypeMirror resolved = resolveEffectiveType(containerType.getTypeArguments().get(index));
+      if (resolved != null) {
+        return TypeName.get(resolved).box();
       }
-      return TypeName.get(containerType.getTypeArguments().getFirst()).box();
     }
-    return ClassName.get(Object.class); // Fallback for raw types or non-declared types
+    return ClassName.get(Object.class); // Raw, absent, or a wildcard standing for anything at all.
   }
 
   /**

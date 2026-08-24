@@ -54,6 +54,45 @@ public class TraversalProcessorIntegrationTest {
   }
 
   @Test
+  @DisplayName("a wildcard type argument is focused as the type it stands for")
+  void shouldFocusTheTypeAWildcardStandsFor() {
+    // A wildcard cannot be written into the generated optic, so what is named is the type it
+    // resolves to: an upper bound where there is one, and Object where the wildcard stands for
+    // anything at all.
+    final var sourceFile =
+        JavaFileObjects.forSourceString(
+            "com.example.Wildcards",
+            """
+            package com.example;
+
+            import org.higherkindedj.optics.annotations.GenerateTraversals;
+            import java.util.List;
+
+            @GenerateTraversals
+            public record Wildcards(
+                List<? extends CharSequence> bounded,
+                List<?> unbounded,
+                List<? super String> superBounded) {}
+            """);
+
+    var compilation = javac().withProcessors(new TraversalProcessor()).compile(sourceFile);
+
+    assertThat(compilation).succeeded();
+
+    final String generatedClassName = "com.example.WildcardsTraversals";
+    assertGeneratedCodeContains(
+        compilation,
+        generatedClassName,
+        "public static Traversal<Wildcards, CharSequence> bounded()");
+    assertGeneratedCodeContains(
+        compilation, generatedClassName, "public static Traversal<Wildcards, Object> unbounded()");
+    assertGeneratedCodeContains(
+        compilation,
+        generatedClassName,
+        "public static Traversal<Wildcards, Object> superBounded()");
+  }
+
+  @Test
   @DisplayName("a component whose generator focus index exceeds its type arguments is skipped")
   void shouldSkipComponentWhenGeneratorFocusIndexExceedsTypeArguments() {
     // The test-scope BoxIndexOneGenerator supports com.example.hkjtest.Box but focuses on type

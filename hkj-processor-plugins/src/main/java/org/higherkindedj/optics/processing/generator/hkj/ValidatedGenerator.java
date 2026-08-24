@@ -68,7 +68,6 @@ public class ValidatedGenerator extends BaseTraversableGenerator {
       final List<? extends RecordComponentElement> allComponents) {
 
     final String componentName = component.getSimpleName().toString();
-    final TypeName errorTypeName = getErrorTypeName(component);
     final TypeName genericTypeName = getGenericTypeName(component);
 
     // Use the inherited helper to generate the constructor arguments.
@@ -79,11 +78,7 @@ public class ValidatedGenerator extends BaseTraversableGenerator {
     return CodeBlock.builder()
         // Directly use the concrete Validated type from the source record.
         .addStatement(
-            "final $T<$T, $T> validated = source.$L()",
-            Validated.class,
-            errorTypeName,
-            genericTypeName,
-            componentName)
+            "final $T validated = source.$L()", TypeName.get(component.asType()), componentName)
         .beginControlFlow("if (validated.isValid())")
         // If Valid, apply the effectful function.
         .addStatement("final var g_of_b = f.apply(validated.get())")
@@ -110,25 +105,7 @@ public class ValidatedGenerator extends BaseTraversableGenerator {
    */
   @Override
   protected TypeName getGenericTypeName(final RecordComponentElement component) {
-    if (component.asType() instanceof DeclaredType containerType) {
-      if (containerType.getTypeArguments().size() < 2) {
-        return ClassName.get(Object.class); // Fallback
-      }
-      // For Validated<E, A>, the 'valid' type A is the second argument.
-      return TypeName.get(containerType.getTypeArguments().get(1));
-    }
-    return ClassName.get(Object.class);
-  }
-
-  /** Gets the 'error' type from a {@code Validated<E, A>} component. */
-  private TypeName getErrorTypeName(final RecordComponentElement component) {
-    if (component.asType() instanceof DeclaredType containerType) {
-      if (containerType.getTypeArguments().isEmpty()) {
-        return ClassName.get(Object.class); // Fallback
-      }
-      // For Validated<E, A>, the 'error' type E is the first argument.
-      return TypeName.get(containerType.getTypeArguments().getFirst());
-    }
-    return ClassName.get(Object.class);
+    // For Validated<E, A>, the 'valid' type A is the second argument.
+    return getTypeArgumentName(component, 1);
   }
 }

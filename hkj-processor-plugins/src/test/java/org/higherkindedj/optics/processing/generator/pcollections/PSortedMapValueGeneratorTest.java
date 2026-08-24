@@ -37,13 +37,7 @@ public class PSortedMapValueGeneratorTest {
 
     final String expectedBody =
         """
-        final var sourceEntries = new ArrayList<>(source.properties().entrySet());
-        final Function<Map.Entry<String, Integer>, Kind<F, Map.Entry<String, Integer>>> entryF =
-            entry -> applicative.map(newValue -> Map.entry(entry.getKey(), newValue), f.apply(entry.getValue()));
-        final var effectOfEntries = Traversals.traverseList(sourceEntries, entryF, applicative);
-        final var effectOfMap = applicative.map(
-            newEntries -> newEntries.stream().collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue)),
-            effectOfEntries);
+        final var effectOfMap = Traversals.traverseMapValues(source.properties(), f, applicative);
         return applicative.map(
             jdkMap -> new Config(source.id(), TreePMap.from(jdkMap)),
             effectOfMap);

@@ -322,9 +322,9 @@ The `TraversalProcessor` will now discover your `NonEmptyListGenerator` via `Ser
 
 ### Implementation Tips
 
-- **Extend `BaseTraversableGenerator`** to inherit `getGenericTypeName()` and `generateConstructorArgs()` helper methods.
+- **Extend `BaseTraversableGenerator`** to inherit `getGenericTypeName()`, `getTypeArgumentName(component, index)` and `generateConstructorArgs()` helper methods. Read every type argument through one of the first two: they resolve a wildcard to the type it stands for, and a wildcard written into generated source does not compile.
 - **Use fully qualified names** in `supports()` to avoid false matches with similarly named types.
-- **Reuse `Traversals.traverseList()`** when your type can be converted to a `java.util.List`. Most third-party generators follow this pattern: convert to list, traverse, convert back.
+- **Reuse `Traversals.traverseList()`** when your type can be converted to a `java.util.List`. Most third-party generators follow this pattern: convert to list, traverse, convert back. A map-shaped type hands itself to `Traversals.traverseMapValues()` instead, which keeps the keys and gives back a JDK `Map` to rebuild from.
 - **Override `getFocusTypeArgumentIndex()`** if your type's traversal target is not the first type parameter (e.g. `Either<L, R>` focuses on index 1).
 - **Override `getCardinality()`** to return `Cardinality.ZERO_OR_ONE` for optional-like types (e.g. `Either`, `Try`, `Validated`). The default `ZERO_OR_MORE` is correct for collection-like types and does not need overriding.
 - **Write integration tests** using Google's compile-testing library to verify generated code compiles and contains the expected statements.
@@ -335,7 +335,7 @@ The `TraversalProcessor` will now discover your `NonEmptyListGenerator` via `Ser
 * **30 built-in generators** cover JDK types, HKJ core types, Eclipse Collections, Guava, Vavr, Apache Commons, and PCollections
 * **Third-party support activates automatically** when the library is on the classpath; no configuration required
 * **The SPI is extensible**: implement `TraversableGenerator`, register it with `@ServiceProvider`, and the processor discovers it at compile time
-* **Most generators follow a common pattern**: convert to `java.util.List`, traverse with `Traversals.traverseList()`, convert back to the original type
+* **Most generators follow a common pattern**: convert to `java.util.List`, traverse with `Traversals.traverseList()`, convert back to the original type; map-shaped ones traverse with `Traversals.traverseMapValues()` and rebuild from the JDK `Map` it returns
 * **Cardinality drives widening**: `ZERO_OR_ONE` produces an `AffinePath`, always; `ZERO_OR_MORE` produces a `TraversalPath` under `widenCollections = true`, or when the container's element is itself a navigable record. Static Focus methods and navigator methods read the same answer
 ~~~
 

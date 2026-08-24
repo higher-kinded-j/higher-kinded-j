@@ -17,9 +17,7 @@ import javax.lang.model.type.DeclaredType;
 import javax.lang.model.type.TypeKind;
 import javax.lang.model.type.TypeMirror;
 import org.higherkindedj.optics.processing.generator.basejdk.ArrayGenerator;
-import org.higherkindedj.optics.processing.generator.basejdk.MapValueGenerator;
 import org.higherkindedj.optics.processing.generator.hkj.EitherGenerator;
-import org.higherkindedj.optics.processing.generator.hkj.ValidatedGenerator;
 import org.higherkindedj.optics.processing.generator.pcollections.PBagGenerator;
 import org.higherkindedj.optics.processing.generator.pcollections.PMapValueGenerator;
 import org.higherkindedj.optics.processing.generator.pcollections.PSetGenerator;
@@ -32,11 +30,15 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
 /**
- * Tests the defensive fallback paths in type-extraction methods across all generators. These
+ * Tests the defensive fallback paths in type-extraction methods across the generators. These
  * fallbacks are unreachable through the normal annotation processor pipeline because the
  * TraversalProcessor validates type arguments before calling generateModifyF(). We exercise them
  * directly using proxy-based mocks to verify the defensive code is correct and to achieve full
  * coverage.
+ *
+ * <p>Generators that read a type argument share one reader, {@link
+ * BaseTraversableGenerator#getTypeArgumentName}, so its fallbacks are asserted once against the
+ * base rather than once per generator.
  */
 @DisplayName("Type extraction fallback paths")
 class TypeExtractionFallbackTest {
@@ -145,7 +147,7 @@ class TypeExtractionFallbackTest {
   // ── Tests ─────────────────────────────────────────────────────────────────
 
   @Nested
-  @DisplayName("BaseTraversableGenerator.getGenericTypeName")
+  @DisplayName("BaseTraversableGenerator.getTypeArgumentName")
   class BaseTraversableGeneratorFallbacks {
 
     @Test
@@ -190,76 +192,6 @@ class TypeExtractionFallbackTest {
       var gen = new EitherGenerator();
       var type = declaredType(null, List.of());
       assertFalse(gen.supports(type));
-    }
-
-    @Test
-    @DisplayName("generateModifyF falls back to Object for DeclaredType with no type arguments")
-    void fallsBackToObjectForEmptyTypeArgs() {
-      var gen = new EitherGenerator();
-      var component = componentOf("data", declaredType(null, List.of()));
-      var code = gen.generateModifyF(component, DUMMY_CLASS, List.of(component));
-      assertNotNull(code);
-      assertTrue(code.toString().contains("Object"));
-    }
-
-    @Test
-    @DisplayName("generateModifyF falls back to Object for non-DeclaredType component")
-    void fallsBackToObjectForNonDeclaredType() {
-      var gen = new EitherGenerator();
-      var component = componentOf("data", nonDeclaredType());
-      var code = gen.generateModifyF(component, DUMMY_CLASS, List.of(component));
-      assertNotNull(code);
-      assertTrue(code.toString().contains("Object"));
-    }
-  }
-
-  @Nested
-  @DisplayName("ValidatedGenerator fallbacks")
-  class ValidatedGeneratorFallbacks {
-
-    @Test
-    @DisplayName("generateModifyF falls back to Object for DeclaredType with no type arguments")
-    void fallsBackToObjectForEmptyTypeArgs() {
-      var gen = new ValidatedGenerator();
-      var component = componentOf("data", declaredType(null, List.of()));
-      var code = gen.generateModifyF(component, DUMMY_CLASS, List.of(component));
-      assertNotNull(code);
-      assertTrue(code.toString().contains("Object"));
-    }
-
-    @Test
-    @DisplayName("generateModifyF falls back to Object for non-DeclaredType component")
-    void fallsBackToObjectForNonDeclaredType() {
-      var gen = new ValidatedGenerator();
-      var component = componentOf("data", nonDeclaredType());
-      var code = gen.generateModifyF(component, DUMMY_CLASS, List.of(component));
-      assertNotNull(code);
-      assertTrue(code.toString().contains("Object"));
-    }
-  }
-
-  @Nested
-  @DisplayName("MapValueGenerator fallbacks")
-  class MapValueGeneratorFallbacks {
-
-    @Test
-    @DisplayName("generateModifyF falls back to Object for DeclaredType with no type arguments")
-    void fallsBackToObjectForEmptyTypeArgs() {
-      var gen = new MapValueGenerator();
-      var component = componentOf("data", declaredType(null, List.of()));
-      var code = gen.generateModifyF(component, DUMMY_CLASS, List.of(component));
-      assertNotNull(code);
-      assertTrue(code.toString().contains("Object"));
-    }
-
-    @Test
-    @DisplayName("generateModifyF falls back to Object for non-DeclaredType component")
-    void fallsBackToObjectForNonDeclaredType() {
-      var gen = new MapValueGenerator();
-      var component = componentOf("data", nonDeclaredType());
-      var code = gen.generateModifyF(component, DUMMY_CLASS, List.of(component));
-      assertNotNull(code);
-      assertTrue(code.toString().contains("Object"));
     }
   }
 
@@ -319,26 +251,6 @@ class TypeExtractionFallbackTest {
     void supportsRejectsNullElement() {
       assertFalse(new PMapValueGenerator().supports(declaredType(null, List.of())));
     }
-
-    @Test
-    @DisplayName("generateModifyF falls back to Object for DeclaredType with no type arguments")
-    void fallsBackToObjectForEmptyTypeArgs() {
-      var gen = new PMapValueGenerator();
-      var component = componentOf("data", declaredType(null, List.of()));
-      var code = gen.generateModifyF(component, DUMMY_CLASS, List.of(component));
-      assertNotNull(code);
-      assertTrue(code.toString().contains("Object"));
-    }
-
-    @Test
-    @DisplayName("generateModifyF falls back to Object for non-DeclaredType component")
-    void fallsBackToObjectForNonDeclaredType() {
-      var gen = new PMapValueGenerator();
-      var component = componentOf("data", nonDeclaredType());
-      var code = gen.generateModifyF(component, DUMMY_CLASS, List.of(component));
-      assertNotNull(code);
-      assertTrue(code.toString().contains("Object"));
-    }
   }
 
   @Nested
@@ -355,26 +267,6 @@ class TypeExtractionFallbackTest {
     @DisplayName("supports returns false when element is null")
     void supportsRejectsNullElement() {
       assertFalse(new PSortedMapValueGenerator().supports(declaredType(null, List.of())));
-    }
-
-    @Test
-    @DisplayName("generateModifyF falls back to Object for DeclaredType with no type arguments")
-    void fallsBackToObjectForEmptyTypeArgs() {
-      var gen = new PSortedMapValueGenerator();
-      var component = componentOf("data", declaredType(null, List.of()));
-      var code = gen.generateModifyF(component, DUMMY_CLASS, List.of(component));
-      assertNotNull(code);
-      assertTrue(code.toString().contains("Object"));
-    }
-
-    @Test
-    @DisplayName("generateModifyF falls back to Object for non-DeclaredType component")
-    void fallsBackToObjectForNonDeclaredType() {
-      var gen = new PSortedMapValueGenerator();
-      var component = componentOf("data", nonDeclaredType());
-      var code = gen.generateModifyF(component, DUMMY_CLASS, List.of(component));
-      assertNotNull(code);
-      assertTrue(code.toString().contains("Object"));
     }
   }
 }

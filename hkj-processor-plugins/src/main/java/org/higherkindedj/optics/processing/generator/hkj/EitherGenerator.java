@@ -68,19 +68,16 @@ public class EitherGenerator extends BaseTraversableGenerator {
       final List<? extends RecordComponentElement> allComponents) {
 
     final String componentName = component.getSimpleName().toString();
-    final TypeName leftTypeName = getLeftTypeName(component);
     final TypeName rightTypeName = getRightTypeName(component);
 
     final String constructorArgs =
         generateConstructorArgs(componentName, "Either.right(newValue)", allComponents);
 
     return CodeBlock.builder()
+        // The local keeps the component's own type, wildcards and all, so that the accessor
+        // assigns to it; every other mention names the type a wildcard resolves to.
         .addStatement(
-            "final $T<$T, $T> either = source.$L()",
-            Either.class,
-            leftTypeName,
-            rightTypeName,
-            componentName)
+            "final $T either = source.$L()", TypeName.get(component.asType()), componentName)
         .beginControlFlow("if (either.isRight())")
         .addStatement("final var g_of_b = f.apply(either.getRight())")
         .addStatement(
@@ -97,23 +94,8 @@ public class EitherGenerator extends BaseTraversableGenerator {
         .build();
   }
 
+  /** Gets the 'right' type from an {@code Either<L, R>} component. */
   private TypeName getRightTypeName(final RecordComponentElement component) {
-    if (component.asType() instanceof DeclaredType containerType) {
-      if (containerType.getTypeArguments().size() < 2) {
-        return ClassName.get(Object.class);
-      }
-      return TypeName.get(containerType.getTypeArguments().get(1));
-    }
-    return ClassName.get(Object.class);
-  }
-
-  private TypeName getLeftTypeName(final RecordComponentElement component) {
-    if (component.asType() instanceof DeclaredType containerType) {
-      if (containerType.getTypeArguments().isEmpty()) {
-        return ClassName.get(Object.class);
-      }
-      return TypeName.get(containerType.getTypeArguments().getFirst());
-    }
-    return ClassName.get(Object.class);
+    return getTypeArgumentName(component, 1);
   }
 }
