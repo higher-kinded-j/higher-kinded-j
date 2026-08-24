@@ -317,6 +317,20 @@ Person result = OpticInterpreters.direct().run(program);
 3. Is the IDE indexing the generated sources directory? Refresh the project after a build.
 4. If it is none of these, please file an issue at the [Higher-Kinded-J GitHub repository](https://github.com/higher-kinded-j/higher-kinded-j) with the minimal reproducer and the full error.
 
+~~~admonish info title="Key Takeaways"
+* **"cannot find symbol: XLenses" is almost always a build problem**, not a code problem: the processor did not run, or the IDE has not indexed the generated sources.
+* **The annotations are shape-specific.** `@GenerateLenses` wants a record, `@GeneratePrisms` wants a sealed interface or enum, and using one on the other is rejected at the declaration.
+* **A spec interface needs a copy strategy** for every lens method, because the processor has no way to guess how your external type rebuilds itself.
+* **Focus DSL inference errors usually mean a missing witness.** An intermediate `each()` or a receiver-position generic cannot infer its element type from nothing.
+* **Read the processor's own message first.** It names the element it rejected, which is faster than working backwards from the downstream "cannot find symbol".
+~~~
+
+~~~admonish tip title="See Also"
+- [Annotations at a Glance](annotations_at_a_glance.md): which annotation to reach for, and what it generates
+- [Optics for External Types](importing_optics.md): the `@ImportOptics` and spec-interface rules these errors enforce
+- [Build Plugins](../tooling/gradle_plugin.md): the canonical processor setup
+~~~
+
 ---
 
 **Previous:** [Conversions](conversions.md)

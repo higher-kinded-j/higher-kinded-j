@@ -26,17 +26,17 @@ For a single update on a small record, the cost is below noise. For tight inner 
 
 ### `modifyF` and effect handlers
 
-`modifyF(f, source, applicative)` runs `f` once per focused element and threads the results through the supplied `Applicative`. The cost is one call to `f` plus whatever the applicative's `ap` and `pure` do. Validation accumulates errors at the cost of not short-circuiting; `Either` short-circuits on the first failure.
+`modifyF(f, source, applicative)` runs `f` once per focused element and threads the results through the supplied `Applicative`. The cost is one call to `f` plus whatever the applicative's `ap` and `pure` do. `Validated` accumulates every error and `Either` keeps only the first, but neither skips work: the traversal applies `f` to every focused element before the applicative combines the results, so the choice shapes the answer rather than the cost.
 
 ### Traversal allocation
 
-`Traversal.modify(f, source)` over a `List<A>` allocates one new list. If the function returns the same value for every element (a no-op modify), the list is still rebuilt; optics do not currently exploit reference equality to skip rebuilding.
+`Traversals.modify(traversal, f, source)` over a `List<A>` allocates one new list. (Reads and writes on a bare `Traversal` go through the `Traversals` utility; the interface itself declares only `modifyF`.) If the function returns the same value for every element (a no-op modify), the list is still rebuilt; optics do not currently exploit reference equality to skip rebuilding.
 
 ---
 
 ## Caching optics
 
-A lens or focus path is a value, not a function. Building the path has a one-off allocation cost; using it has none. For paths used repeatedly, store them as `static final`:
+A lens or focus path is a value, not a function. Building the path has a one-off allocation cost, which caching removes; applying it still allocates the rebuilt structure, which nothing removes. For paths used repeatedly, store them as `static final`:
 
 ```java
 private static final Lens<Company, String> COMPANY_NAME =
@@ -98,6 +98,20 @@ These are not mandates, just patterns observed in production codebases that adop
 - **Use `Fold` when you only read.** Even when a `Lens` would work, expressing read-only intent makes reviews easier and prevents accidental mutations.
 - **Reach for the Focus DSL first.** Manual `andThen` composition is fine and sometimes clearer, but the DSL gives you better IDE support and shorter call sites for nested updates.
 - **Reserve the Free Monad DSL for problems that demand it.** If you do not have an audit, dry-run, or multi-mode requirement, the everyday APIs are simpler.
+
+~~~admonish info title="Key Takeaways"
+* **Immutability is the cost, not optics.** A composed lens allocates one record per touched layer, the same count a hand-written `with*` cascade would.
+* **A path is a value: build it once.** `static final` removes the construction cost; it cannot remove the cost of rebuilding the structure you update.
+* **A no-op modify still rebuilds.** Optics do not compare references to skip work.
+* **Neither error strategy saves work.** `Validated` accumulates and `Either` keeps the first, but every element is visited either way.
+* **Annotation processing is a build-time cost, paid once per compile**, and it buys compile-time errors instead of runtime ones.
+~~~
+
+~~~admonish tip title="See Also"
+- [Optic Capabilities](optic_capabilities.md): what each optic can do before you tune how it does it
+- [Optic-Driven Batching](optic_batching.md): the one place where an optic's cost is I/O rather than allocation
+- [Decision Trees](decision_trees.md): choosing the API whose cost profile suits the task
+~~~
 
 ---
 
