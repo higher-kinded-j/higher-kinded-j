@@ -21,23 +21,21 @@ This page is for the moment a build fails and you want to know what the message 
 
 **Fix.** Run a build (`./gradlew build` or `mvn compile`). After the build completes, refresh the project in your IDE so it indexes `build/generated/sources/annotationProcessor/java/main` (Gradle) or `target/generated-sources/annotations` (Maven).
 
-### "annotation @GenerateLenses not allowed on this type"
+### "@GenerateLenses: can only be applied to records, but 'Foo' is a class"
 
-**Cause.** `@GenerateLenses`, `@GenerateFocus`, `@GenerateFolds`, `@GenerateGetters`, `@GenerateSetters`, and `@GenerateTraversals` only apply to records.
+**Cause.** `@GenerateLenses`, `@GenerateFocus`, `@GenerateFolds`, `@GenerateGetters`, `@GenerateSetters` and `@GenerateTraversals` only apply to records. The annotations target `TYPE`, so javac itself is happy; the message comes from the processor. The wording varies: `@GenerateLenses` and `@GenerateFocus` name the offending type, while the others emit the shorter "The @GenerateTraversals annotation can only be applied to records."
 
 **Fix.** Convert the class to a record. If the type is third-party and you cannot change it, use [`@ImportOptics`](importing_optics.md) on a `package-info.java` or a spec interface instead.
 
-### "annotation @GeneratePrisms not allowed on this type"
+### "The @GeneratePrisms annotation can only be applied to sealed interfaces or enums."
 
-**Cause.** `@GeneratePrisms` requires either a `sealed interface` or an `enum`. Plain interfaces and abstract classes are not supported.
+**Cause.** `@GeneratePrisms` requires a `sealed interface` or an `enum`. A sealed *abstract class* is rejected too, despite being sealed, because the processor tests the element kind rather than the modifier.
 
-**Fix.** Make the type sealed and declare its `permits` clause, or convert to an enum.
+**Fix.** Make the type a sealed interface and declare its `permits` clause, or convert it to an enum.
 
-### "method must return Iso<...>"
-
-**Cause.** `@GenerateIsos` is applied to a method whose return type is not `Iso`.
-
-**Fix.** Ensure the annotated method returns `Iso<A, B>`. The processor reads the type parameters to generate the static field.
+~~~admonish warning title="A plain interface fails silently instead"
+A non-sealed *interface* passes the processor's guard and produces an **empty** `XPrisms` class with no diagnostic at all. If your prisms class exists but has no methods, an unsealed interface is why.
+~~~
 
 ### "@GenerateIsos: the iso returned by 'x' names a type variable"
 
@@ -83,7 +81,7 @@ Note this is about what the *iso* names, not what the method declares: `<T> Iso<
 
 ### "@ImportOptics: Lens method 'x' carries no copy strategy annotation"
 
-**Cause.** A method on an `OpticsSpec` interface returning `Lens<S, A>` lacks one of `@Wither`, `@ViaBuilder`, `@ViaConstructor`, or `@ViaCopyAndSet`.
+**Cause.** A method on an `OpticsSpec` interface returning `Lens<S, A>` carries none of those four hints, so the processor has no way to know how the external type rebuilds itself.
 
 **Fix.** Add the appropriate hint based on how the source type is copied. See [Optics for External Types](importing_optics.md) and [Database Records with JOOQ](copy_strategies.md) for the full strategy table.
 
@@ -101,7 +99,7 @@ Note this is about what the *iso* names, not what the method declares: `<T> Iso<
 
 A source type that is itself generic is supported, and the spec names its own type parameters: `interface BoxOpticsSpec<U> extends OpticsSpec<Box<U>>` generates `static <U> Lens<Box<U>, String> label()`. See [Spec Interfaces](optics_spec_interfaces.md#generic-spec-interfaces) for which parameters a generated method declares. It is only a bare type variable, standing for the whole source type, that has no source to read.
 
-### "@InstanceOf: target subtype not assignable to source type"
+### "@InstanceOf target 'com.example.Foo' is not a subtype of source type 'com.example.Base'"
 
 **Cause.** The class passed to `@InstanceOf(SubType.class)` is not a subclass of the optic's source type.
 
@@ -161,11 +159,17 @@ A source type that is itself generic is supported, and the spec names its own ty
 
 **Fix.** Focus the variant that carries the value — `TextNode` rather than `String` — and read the payload with a further optic. Where the value type is the point, write that prism by hand with `Prism.of` and a build side that constructs the source, such as `TextNode::valueOf`.
 
-### "@MatchWhen: predicate / getter method not found on source"
+### "cannot find symbol", inside the generated `XPrisms.java`, after using `@MatchWhen`
 
-**Cause.** The string passed to `@MatchWhen(predicate = "isFoo", getter = "asFoo")` does not match a real method on the source type.
+**Cause.** The processor does **not** validate the strings in `@MatchWhen(predicate = "isFoo", getter = "asFoo")`. It splices them into the generated source verbatim, so a typo surfaces as an ordinary javac error inside generated code rather than as a processor message.
 
-**Fix.** Check the method names against the source type's API. Both methods must take no arguments; the predicate returns `boolean` and the getter returns the prism's target type.
+**Fix.** Check the names against the source type's API. Both methods must take no arguments; the predicate returns `boolean` and the getter returns the prism's target type.
+
+### "Prism method 'x' requires a prism hint annotation: @InstanceOf or @MatchWhen"
+
+**Cause.** A spec-interface method returning `Prism<S, A>` with neither hint.
+
+**Fix.** Add `@InstanceOf` for a real subtype, or `@MatchWhen` for a check-and-extract API. The same rule applies to traversals: "Traversal method 'x' requires a traversal hint annotation: @TraverseWith or @ThroughField".
 
 ---
 
@@ -262,19 +266,38 @@ TraversalPath<User, Role> allRoles =
 
 ### "Incompatible types when chaining .each().via()"
 
-**Cause.** Long Focus DSL chains overflow Java's type inference budget.
+**Cause.** Usually one `.each()` too many. A generated accessor for a collection component is *already* element-level, so `CompanyFocus.departments()` is a `TraversalPath<Company, Department>` and adding `.each()` steps into a `Department` as though it were a list. Long chains can also overflow Java's inference budget.
 
-**Fix.** Break the chain into intermediate variables; each one carries a concrete type the compiler can reason about:
+**Fix.** Drop the extra `.each()`, and break long chains into intermediate variables so each carries a concrete type:
 
 ```java
-TraversalPath<Company, Department> depts = CompanyFocus.departments().each();
-TraversalPath<Company, Employee>   employees = depts.via(DepartmentFocus.employees()).each();
-TraversalPath<Company, Integer>    salaries = employees.via(EmployeeFocus.salary());
+TraversalPath<Company, Department> depts     = CompanyFocus.departments();
+TraversalPath<Company, Employee>   employees = depts.via(DepartmentFocus.employees());
+TraversalPath<Company, Integer>    salaries  = employees.via(EmployeeFocus.salary());
+```
+
+~~~admonish warning title="The extra `.each()` compiles"
+`each()` is `<E> TraversalPath<S, E>` and infers `E` from the assignment target, so a surplus hop type-checks and then fails at runtime when the list traversal is applied to something that is not a list. It is not caught by the compiler, which is why it belongs on this page rather than in a debugging note.
+~~~
+
+### "Cannot infer type argument(s)" on an intermediate `.each()`
+
+**Cause.** Only the *final* `each()` in a chain can infer its element type from the target type. An intermediate one has nothing to infer from.
+
+**Fix.** Spell the element type at the intermediate hop:
+
+```java
+TraversalPath<Company, Integer> allSalaries =
+    FocusPath.of(CompanyLenses.departments())
+        .<Department>each()
+        .via(DepartmentLenses.employees())
+        .<Employee>each()
+        .via(EmployeeLenses.salary());
 ```
 
 ### "Method reference ::new doesn't work with single-field records as BiFunction"
 
-**Cause.** Java's overload resolution struggles to pick `Foo::new` as a `BiFunction` when the record has a single component.
+**Cause.** A single-component record has no two-argument constructor, and `Lens.of`'s setter is a `BiFunction<S, A, S>` taking `(source, newValue)`. It is an arity mismatch, not an inference wobble.
 
 **Fix.** Use an explicit lambda:
 
@@ -321,7 +344,7 @@ Person result = OpticInterpreters.direct().run(program);
 * **"cannot find symbol: XLenses" is almost always a build problem**, not a code problem: the processor did not run, or the IDE has not indexed the generated sources.
 * **The annotations are shape-specific.** `@GenerateLenses` wants a record, `@GeneratePrisms` wants a sealed interface or enum, and using one on the other is rejected at the declaration.
 * **A spec interface needs a copy strategy** for every lens method, because the processor has no way to guess how your external type rebuilds itself.
-* **Focus DSL inference errors usually mean a missing witness.** An intermediate `each()` or a receiver-position generic cannot infer its element type from nothing.
+* **Most Focus DSL errors are one hop too many, or one witness too few.** A generated collection accessor is already element-level, so an extra `.each()` is the common cause; and only the final `each()` in a chain can infer its element type.
 * **Read the processor's own message first.** It names the element it rejected, which is faster than working backwards from the downstream "cannot find symbol".
 ~~~
 

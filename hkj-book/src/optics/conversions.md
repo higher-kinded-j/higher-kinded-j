@@ -35,7 +35,7 @@ This page covers (1). For (2), see the rules table.
 | `setter.asTraversal()` | `Setter<S, A>` | `Traversal<S, A>` | Lifting a setter for use in traversal-shaped pipelines. |
 | `traversal.asFold()` | `Traversal<S, A>` | `Fold<S, A>` | Discarding write capability to express read-only intent or to call fold-only operations. |
 
-You cannot widen the other direction: a `Traversal` does not become a `Lens` because it has no guarantee of focusing on exactly one element.
+You cannot widen the other direction: a `Traversal` does not become a `Lens`, because it has no guarantee of focusing on exactly one element. The nearest thing is [`Traversals.partsOf`](traversals.md), which gives you a `Lens<S, List<A>>` onto the focused elements as a list: a lens onto *all* of them, not onto *one* of them, which is precisely the guarantee a `Traversal` cannot make.
 
 ---
 
@@ -69,7 +69,7 @@ You only need an explicit `asTraversal()` when the API you are calling requires 
 
 ~~~admonish info title="Key Takeaways"
 * **Conversion is one optic changing shape; composition is two optics meeting.** `asTraversal()` is the first, `andThen` is the second, and you rarely need both at once.
-* **Every conversion loses something.** `asFold()` drops writing, `asLens()` drops `reverseGet`, and nothing converts back up: a `Traversal` cannot become a `Lens`, because it cannot promise exactly one focus.
+* **Widening loses capability.** `asFold()` drops writing, `asLens()` drops `reverseGet`, and nothing converts back up: a `Traversal` cannot become a `Lens`, because it cannot promise exactly one focus.
 * **`andThen` already widens for you.** Converting before composing is redundant; the [Composition Rules](composition_rules.md) settle the result type.
 * **Convert when a type demands it**, storing an optic in a typed field or handing it to a utility that takes a `Traversal`.
 * **`reverse()` is the one conversion that loses nothing.** An `Iso` is symmetric, so reversing it just swaps `get` and `reverseGet`.

@@ -34,25 +34,21 @@ A `✓` means the interface **declares** the method, so you can call it directly
 
 That distinction matters, because most optics reach most operations *eventually*. A `Lens` has no `getAll`, but `lens.asFold().getAll(source)` works; a `Traversal` has no `modify`, but `Traversals.modify(traversal, f, source)` does. The table below is about what is on the type; [Conversions](conversions.md) is about how to get from one type to another.
 
-One deliberate exception: `Fold` inherits `modifyF` from `Optic` for compositional reasons but cannot reconstruct the source, so it is marked unavailable rather than `✓`.
+One deliberate exception: `Fold` declares its own read-only `modifyF`, which runs the effects and returns the input unchanged. `Getter` extends `Fold` and inherits exactly that, so both are marked `✗` rather than `✓`. `Setter` inherits `modifyF` as an abstract obligation from `Optic`, so every concrete `Setter` implements it for real.
 
 | Method | Lens | Iso | Prism | Affine | Traversal | Fold | Getter | Setter |
 |---|---|---|---|---|---|---|---|---|
 | `get(S) → A` | ✓ | ✓ |   |   |   |   | ✓ |   |
-| `getOptional(S) → Optional<A>` |   |   | ✓ | ✓ |   | via `preview` |   |   |
+| `getOptional(S) → Optional<A>` |   |   | ✓ | ✓ |   | via `preview` | via `preview` |   |
 | `getAll(S) → List<A>` | via `asFold()` | via `asFold()` | via `asFold()` | via `asFold()` | via `asFold()` or [`Traversals`](traversals.md) | ✓ | ✓ |   |
 | `preview(S) → Optional<A>` | via `asFold()` | via `asFold()` | via `asFold()` | via `asFold()` | via `asFold()` | ✓ | ✓ |   |
 | `matches(S) → boolean` |   |   | ✓ | ✓ |   |   |   |   |
-| `set(A, S) → S` | ✓ |   |   | ✓ | via [`Traversals`](traversals.md) |   |   | ✓ |
+| `set(A, S) → S` | ✓ |   |   | ✓ | via `Traversals.modify(t, a -> v, s)` |   |   | ✓ |
 | `modify(f, S) → S` | ✓ |   | ✓ | ✓ | via [`Traversals`](traversals.md) |   |   | ✓ |
-| `modifyF(f, S, App) → Kind<F, S>` | ✓ | ✓ | ✓ | ✓ | ✓ |   | ✓ | ✓ |
+| `modifyF(f, S, App) → Kind<F, S>` | ✓ | ✓ | ✓ | ✓ | ✓ | ✗ (see note) | ✗ (see note) | ✓ |
 | `build(A) → S` |   | ✓ (`reverseGet`) | ✓ |   |   |   |   |   |
 | `foldMap(monoid, f, S) → M` | via `asFold()` | via `asFold()` | via `asFold()` | via `asFold()` | via `asFold()` | ✓ | ✓ |   |
-| `exists(predicate, S) → boolean` |   |   |   |   | via `asFold()` | ✓ | ✓ |   |
-| `all(predicate, S) → boolean` |   |   |   |   | via `asFold()` | ✓ | ✓ |   |
-| `find(predicate, S) → Optional<A>` |   |   |   |   | via `asFold()` | ✓ | ✓ |   |
-| `isEmpty(S) → boolean` |   |   |   |   | via `asFold()` | ✓ | ✓ |   |
-| `length(S) → int` |   |   |   |   | via `asFold()` | ✓ | ✓ |   |
+| `exists`, `all`, `find`, `isEmpty`, `length` | via `asFold()` | via `asFold()` | via `asFold()` | via `asFold()` | via `asFold()` | ✓ | ✓ |   |
 
 Two rows are worth reading twice. `Iso` carries only `get`, `reverseGet` and `modifyF`: it has no `set` and no `modify` of its own, because `reverseGet` already rebuilds the whole structure from the focus. And `Getter` extends `Fold`, so it inherits the entire query family, `getAll` and `preview` included; every other read-only capability in the `Fold` column applies to `Getter` too.
 
@@ -84,9 +80,9 @@ Stay in the static-method utility for one-off bulk operations; reach for the [Fl
 All optic types expose `andThen(other)` for composition; the result type follows the rules in [Composition Rules](composition_rules.md). The conversion methods between optic types are catalogued in [Conversions](conversions.md).
 
 ~~~admonish info title="Key Takeaways"
-* **A `✓` means the method is on the type.** Anything else is reachable, but only after `asFold()`, `asTraversal()` or a `Traversals` utility call.
+* **A `✓` means the method is on the type.** A cell naming a conversion means you can still get there, one `asFold()`, `asTraversal()` or `Traversals` call later. An empty cell means the optic genuinely cannot: a `Setter` has no read at all, and `matches` is meaningless on an optic that always hits.
 * **`Iso` is smaller than it looks.** `get`, `reverseGet` and `modifyF`: no `set` and no `modify`, because `reverseGet` already rebuilds the whole structure.
-* **`Traversal` declares only `modifyF`.** Every read and every write goes through `Traversals` or through `asFold()`.
+* **`Traversal` declares no plain read or write.** It has `modifyF` (plus `filtered`, `filterBy`, `branch` and `modifyWhen`); every `get`, `set` and `modify` goes through `Traversals` or `asFold()`.
 * **`Getter` extends `Fold`**, so it inherits the whole query family: `getAll`, `preview`, `exists`, `all`, `find`, `isEmpty` and `length`.
 * **`Setter` is zero-or-more and write-only.** It has `set` and `modify` and no way to read at all.
 ~~~
