@@ -181,14 +181,18 @@ TRAVERSAL + anything = TRAVERSAL
 **Example**:
 ```java
 @GenerateFocus(generateNavigators = true)
-record Company(String name, Optional<Address> backup) {}
+record Company(String name, Either<String, Address> backup) {}
 
 @GenerateFocus(generateNavigators = true)
 record Address(String street, Map<String, String> metadata) {}
 
-// Optional (AFFINE) + Map (TRAVERSAL via SPI) = TRAVERSAL
+// Either (AFFINE via SPI) + Map (TRAVERSAL via SPI) = TRAVERSAL
 TraversalPath<Company, String> values = CompanyFocus.backup().metadata();
 ```
+
+Note the container: `Optional`, `Maybe`, `List`, `Set` and `Collection` are widened
+by the processor before navigators are considered, so those fields never produce a
+navigator. Containers that arrive through the SPI, such as `Either` here, do.
 
 **Links to documentation**: [Focus DSL](../../optics/focus_dsl.md) | [Traversal Generator Plugins](../../tooling/generator_plugins.md)
 

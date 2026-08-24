@@ -3,833 +3,275 @@
 ![Illustration of fluent API patterns for Java-friendly optic operations](../images/lens2.jpg)
 
 ~~~admonish info title="What You'll Learn"
-- Two styles of optic operations: static methods and fluent builders
-- When to use each style for maximum clarity and productivity
-- How to perform common optic operations with Java-friendly syntax
-- Validation-aware modifications with `Either`, `Maybe`, and `Validated`
-- Four validation strategies for different error-handling scenarios
-- Effectful modifications using type classes
-- Practical patterns for real-world Java applications
+- Two styles of optic operation: static methods and fluent builders
+- Reading, writing and querying through any optic with `OpticOps`
+- Four validation strategies, and which one each situation wants
+- Effectful modification with `modifyF`, and when the dedicated methods replace it
 ~~~
 
-~~~admonish title="Hands On Practice"
-[Tutorial09_FluentOpticsAPI.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/test/java/org/higherkindedj/tutorial/optics/Tutorial09_FluentOpticsAPI.java)
+~~~admonish example title="See Example Code"
+[FluentOpticOpsExample](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/optics/fluent/FluentOpticOpsExample.java) | [FluentValidationExample](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/optics/fluent/FluentValidationExample.java)
 ~~~
 
-~~~admonish title="Example Code"
-[FluentOpticOpsExample](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/optics/fluent/FluentOpticOpsExample.java)
-~~~
+Optics arrived in Java from Haskell, and the traditional names came with them: `view`, `over`, `preview`, with the value before the source. `OpticOps` restates the same operations in the order and vocabulary a Java developer expects, and adds the thing plain optics do not have: a modification that is allowed to fail.
 
-## Introduction: Making Optics Feel Natural in Java
+Here is the payoff first, an update that validates every element and reports *all* the failures:
 
-While optics provide immense power for working with immutable data structures, their traditional functional programming syntax can feel foreign to Java developers. Method names like `view`, `over`, and `preview` don't match Java conventions, and the order of parameters can be unintuitive.
+<!-- verify -->
+```java
+Validated<List<String>, Order> checked =
+    OpticOps.modifyAllValidated(order, Fixture.orderPrices, Fixture::validatePrice);
+// Invalid(["Price cannot be negative: -10.00", "Price exceeds maximum: 15000.00"])
+```
 
-The `OpticOps` fluent API bridges this gap, providing two complementary styles that make optics feel natural in Java:
-
-1. **Static methods** - Concise, direct operations for simple cases
-2. **Fluent builders** - Method chaining with IDE-discoverable operations
-
-Both styles operate on the same underlying optics, so you can mix and match based on what feels most natural for each situation.
+One call, both bad prices named. No `Applicative` wiring, no `Kind` in sight.
 
 ---
 
-## The Two Styles: A Quick Comparison
+## The Two Styles
 
-Let's see both styles in action with a simple example:
+Nearly every operation exists as a concise static method and as a fluent builder. They compile to the same thing; pick per call site:
 
+<!-- verify -->
 ```java
-@GenerateLenses
-public record Person(String name, int age, String status) {}
+// Static style
+int age = OpticOps.get(alice, PersonLenses.age());
+Person older = OpticOps.modify(alice, PersonLenses.age(), a -> a + 1);
 
-Person person = new Person("Alice", 25, "ACTIVE");
-Lens<Person, Integer> ageLens = PersonLenses.age();
+// Builder style
+int sameAge = OpticOps.getting(alice).through(PersonLenses.age());
+Person alsoOlder = OpticOps.modifying(alice).through(PersonLenses.age(), a -> a + 1);
 ```
 
-### Static Method Style (Concise)
-
-```java
-// Get a value
-int age = OpticOps.get(person, ageLens);
-
-// Set a value
-Person updated = OpticOps.set(person, ageLens, 30);
-
-// Modify a value
-Person modified = OpticOps.modify(person, ageLens, a -> a + 1);
-```
-
-### Fluent Builder Style (Explicit)
-
-```java
-// Get a value
-int age = OpticOps.getting(person).through(ageLens);
-
-// Set a value
-Person updated = OpticOps.setting(person).through(ageLens, 30);
-
-// Modify a value
-Person modified = OpticOps.modifying(person).through(ageLens, a -> a + 1);
-```
-
-Both produce identical results. The choice is about **readability** and **discoverability** for your specific use case.
+The static form is shorter; the builder form reads better when the optic expression is long, and the IDE's completion list after `OpticOps.modifying(order).` is a decent map of what is possible.
 
 ---
 
-## Part 1: Static Methods - Simple and Direct
+## Part 1: Reading, Writing, Querying
 
-Static methods provide the most concise syntax. They follow a consistent pattern: operation name, source object, optic, and optional parameters.
+`OpticOps` is overloaded on the optic type, so the same names work whatever you hand them:
 
-### Getting Values
-
-#### Basic Get Operations
-
+<!-- verify -->
 ```java
-// Get a required value (Lens or Getter)
-String name = OpticOps.get(person, PersonLenses.name());
+// Read
+String name = OpticOps.get(alice, PersonLenses.name());
+List<Integer> scores = OpticOps.getAll(team, Fixture.playerScores);
+Optional<Integer> firstScore = OpticOps.preview(team, Fixture.playerScores);
 
-// Get an optional value (Prism or Traversal)
-Optional<Address> address = OpticOps.preview(person, PersonPrisms.homeAddress());
+// Write
+Person updated = OpticOps.set(alice, PersonLenses.age(), 30);
+Team flattened = OpticOps.setAll(team, Fixture.playerScores, 100);
+Team doubled = OpticOps.modifyAll(team, Fixture.playerScores, score -> score * 2);
 
-// Get all values (Traversal or Fold)
-List<String> playerNames = OpticOps.getAll(team, TeamTraversals.playerNames());
-```
-
-~~~admonish example title="Practical Example: Extracting Data"
-```java
-@GenerateLenses
-@GenerateTraversals
-public record Team(String name, List<Player> players) {}
-
-@GenerateLenses
-public record Player(String name, int score) {}
-
-Team team = new Team("Wildcats",
-    List.of(
-        new Player("Alice", 100),
-        new Player("Bob", 85)
-    ));
-
-// Get all player names
-List<String> names = OpticOps.getAll(
-    team,
-    TeamTraversals.players().andThen(PlayerLenses.name().asTraversal())
-);
-// Result: ["Alice", "Bob"]
-```
-~~~
-
-### Setting Values
-
-```java
-// Set a single value (Lens)
-Person updated = OpticOps.set(person, PersonLenses.age(), 30);
-
-// Set all values (Traversal)
-Team teamWithBonuses = OpticOps.setAll(
-    team,
-    TeamTraversals.players().andThen(PlayerLenses.score().asTraversal()),
-    100  // Everyone gets 100 points!
-);
-```
-
-### Modifying Values
-
-The `modify` operations are particularly powerful because they transform existing values rather than replacing them:
-
-```java
-// Modify a single value
-Person olderPerson = OpticOps.modify(
-    person,
-    PersonLenses.age(),
-    age -> age + 1
-);
-
-// Modify all values
-Team teamWithDoubledScores = OpticOps.modifyAll(
-    team,
-    TeamTraversals.players().andThen(PlayerLenses.score().asTraversal()),
-    score -> score * 2
-);
-```
-
-### Querying Data
-
-These operations work with `Fold` and `Traversal` to query data without modification:
-
-```java
-// Check if any element matches
-boolean hasHighScorer = OpticOps.exists(
-    team,
-    TeamTraversals.players().andThen(PlayerLenses.score().asTraversal()),
-    score -> score > 90
-);
-
-// Check if all elements match
-boolean allPassed = OpticOps.all(
-    team,
-    TeamTraversals.players().andThen(PlayerLenses.score().asTraversal()),
-    score -> score >= 50
-);
-
-// Count elements
+// Query, without modifying anything
+boolean hasHighScorer = OpticOps.exists(team, Fixture.playerScores, score -> score > 90);
+boolean allPassed = OpticOps.all(team, Fixture.playerScores, score -> score >= 50);
 int playerCount = OpticOps.count(team, TeamTraversals.players());
-
-// Check if empty
-boolean noPlayers = OpticOps.isEmpty(team, TeamTraversals.players());
-
-// Find first matching element
-Optional<Player> topScorer = OpticOps.find(
-    team,
-    TeamTraversals.players(),
-    player -> player.score() > 90
-);
+boolean empty = OpticOps.isEmpty(team, TeamTraversals.players());
+Optional<Player> top = OpticOps.find(team, TeamTraversals.players(), p -> p.score() > 90);
 ```
 
-### Effectful Modifications
+The builders cover the same ground under four verbs:
 
-These are the most powerful operations, allowing modifications that can fail, accumulate errors, or execute asynchronously:
+<!-- verify -->
+```java
+List<Integer> allScores = OpticOps.getting(team).allThrough(Fixture.playerScores);
+Team reset = OpticOps.setting(team).allThrough(Fixture.playerScores, 0);
+Team bumped = OpticOps.modifying(team).allThrough(Fixture.playerScores, s -> s + 5);
+boolean any = OpticOps.querying(team).anyMatch(Fixture.playerScores, s -> s > 90);
+```
+
+| Builder | Verbs |
+|---------|-------|
+| `getting(source)` | `through`, `maybeThrough`, `allThrough` |
+| `setting(source)` | `through`, `allThrough` |
+| `modifying(source)` | `through`, `allThrough`, `throughF`, `allThroughF` |
+| `querying(source)` | `anyMatch`, `allMatch`, `findFirst`, `count`, `isEmpty` |
+| `modifyingWithValidation(source)` | `throughEither`, `throughMaybe`, `allThroughValidated`, `allThroughEither` |
+
+---
+
+## Part 2: Validation-Aware Modification
+
+An ordinary `modify` assumes the transformation succeeds. Real updates often cannot:
 
 ```java
-// Modify with an effect (e.g., validation)
-// Note: Error should be your application's error type (e.g., String, List<String>, or a custom error class)
-Functor<Validated.Witness<Error>> validatedFunctor =
-    ValidatedApplicative.instance(ErrorSemigroup.instance());
+// The problem: no way to reject the new value
+Person updated = OpticOps.modify(alice, PersonLenses.age(), age -> age + 1);
+// What if the result is out of range? modify has nowhere to put that.
+```
 
-Validated<Error, Person> result = OpticOps.modifyF(
-    person,
-    PersonLenses.age(),
-    age -> validateAge(age + 1),  // Returns Validated<Error, Integer>
-    validatedFunctor
-);
+Four methods close the gap, differing only in what they do with failure:
 
-// Modify all with effects (e.g., async operations)
-Applicative<CompletableFutureKind.Witness> cfApplicative =
-    Instances.monadError(completableFuture());
+| Method | Result | Behaviour | Best for |
+|--------|--------|-----------|----------|
+| `modifyEither` | `Either<E, S>` | First error wins | Sequential validation, fail fast |
+| `modifyMaybe` | `Maybe<S>` | Success or nothing, no detail | Optional enrichment |
+| `modifyAllValidated` | `Validated<List<E>, S>` | Accumulates every error | Forms, imports, user feedback |
+| `modifyAllEither` | `Either<E, S>` | First error wins (every element is still evaluated) | Large collections, one error is enough |
 
-CompletableFuture<Team> asyncResult = OpticOps.modifyAllF(
-    team,
-    TeamTraversals.players().andThen(PlayerLenses.score().asTraversal()),
-    score -> fetchBonusAsync(score),  // Returns CompletableFuture<Integer>
-    cfApplicative
-).thenApply(CompletableFutureKind::narrow);
+```mermaid
+flowchart TD
+    Q{"What does the caller<br/>need to know?"}
+    Q -->|"why it failed,<br/>as soon as it failed"| E(["modifyEither<br/>Either, first error"])
+    Q -->|"only whether<br/>it worked"| M(["modifyMaybe<br/>Maybe, no detail"])
+    Q -->|"everything that is wrong,<br/>in one pass"| V(["modifyAllValidated<br/>Validated, all errors"])
+    Q -->|"that something is wrong,<br/>over a large collection"| A(["modifyAllEither<br/>Either, first error only"])
+
+    classDef decision fill:#e5c890,stroke:#df8e1d,color:#232634
+    classDef tier fill:#a6d189,stroke:#40a02b,color:#232634
+    class Q decision
+    class E,M,V,A tier
+```
+
+### One Field, Fail Fast
+
+<!-- verify -->
+```java
+Either<String, User> result =
+    OpticOps.modifyEither(user, UserLenses.email(), Fixture::validateEmail);
+
+String message = result.fold(error -> "rejected: " + error, u -> "accepted: " + u.email());
+```
+
+### One Field, Silent Failure
+
+<!-- verify -->
+```java
+Maybe<User> normalised =
+    OpticOps.modifyMaybe(user, UserLenses.username(), Fixture::normaliseUsername);
+// Just(user with a trimmed username), or Nothing when it is the wrong length
+
+User safe = normalised.orElse(user);
+```
+
+`modifyMaybe` has the same shape as `modifyEither`, minus the explanation. Use it when the caller's next move is a fallback rather than a message.
+
+### Every Element, Every Error
+
+<!-- verify -->
+```java
+Validated<List<String>, Order> accumulated =
+    OpticOps.modifyAllValidated(order, Fixture.orderPrices, Fixture::validatePrice);
+
+String report =
+    accumulated.fold(
+        errors -> errors.size() + " invalid prices: " + String.join("; ", errors),
+        valid -> "all prices accepted");
+// "2 invalid prices: Price cannot be negative: -10.00; Price exceeds maximum: 15000.00"
+```
+
+Note the error type: your validator returns `Validated<E, A>` and the result collects them as `Validated<List<E>, S>`. The lifting into a list is done for you.
+
+### Every Element, First Error Only
+
+<!-- verify -->
+```java
+Either<String, Order> firstFailure =
+    OpticOps.modifyAllEither(order, Fixture.orderPrices, Fixture::validatePriceEither);
+// Left("Price cannot be negative: -10.00"): the first failure wins, though every price is validated
+```
+
+~~~admonish tip title="Why this matters"
+The difference between these two is a product decision, not a technical one. A user filling in a form wants every problem at once; a batch job wants one error and no report. Both are one method call, and the type you get back tells the next reader which decision was made. Note what `Either` does and does not buy you: the *result* keeps only the first error, but the traversal still applies your function to every element before the applicative combines them, so this is not a way to avoid the work.
+~~~
+
+### The Same Four, as Builders
+
+<!-- verify -->
+```java
+Either<String, User> a =
+    OpticOps.modifyingWithValidation(user).throughEither(UserLenses.email(), Fixture::validateEmail);
+
+Validated<List<String>, Order> b =
+    OpticOps.modifyingWithValidation(order)
+        .allThroughValidated(Fixture.orderPrices, Fixture::validatePrice);
+
+Either<String, Order> c =
+    OpticOps.modifyingWithValidation(order)
+        .allThroughEither(Fixture.orderPrices, Fixture::validatePriceEither);
+```
+
+### Sequential Validation
+
+`Either` chains, so a fail-fast registration flow is a `flatMap` per field:
+
+<!-- verify -->
+```java
+Either<String, User> registered =
+    OpticOps.modifyEither(user, UserLenses.email(), Fixture::validateEmail)
+        .flatMap(
+            u ->
+                OpticOps.modifyEither(
+                    u,
+                    UserLenses.username(),
+                    name ->
+                        name.length() >= 3
+                            ? Either.right(name)
+                            : Either.left("Username must be at least 3 characters")));
 ```
 
 ---
 
-## Part 2: Fluent Builders - Explicit and Discoverable
+## Part 3: Arbitrary Effects with `modifyF`
 
-Fluent builders provide excellent IDE support through method chaining. They make the intent of your code crystal clear.
+The four validation methods cover `Either`, `Maybe` and `Validated`. For anything else, `modifyF` takes the effect's `Applicative` and speaks `Kind`:
 
-### The GetBuilder Pattern
-
+<!-- verify -->
 ```java
-// Start with getting(source), then specify the optic
-int age = OpticOps.getting(person).through(PersonLenses.age());
+Applicative<CompletableFutureKind.Witness> futures = Instances.applicative(completableFuture());
 
-Optional<Address> addr = OpticOps.getting(person)
-    .maybeThrough(PersonPrisms.homeAddress());
+Kind<CompletableFutureKind.Witness, Team> pending =
+    OpticOps.modifyAllF(
+        team, Fixture.playerScores, score -> FUTURE.widen(Fixture.fetchBonus(score)), futures);
 
-List<String> names = OpticOps.getting(team)
-    .allThrough(TeamTraversals.playerNames());
+CompletableFuture<Team> withBonuses = FUTURE.narrow(pending);
 ```
 
-### The SetBuilder Pattern
+The same call with a `Validated` applicative is what `modifyAllValidated` does for you, widening and narrowing included:
 
+<!-- verify -->
 ```java
-// Start with setting(source), then specify optic and value
-Person updated = OpticOps.setting(person)
-    .through(PersonLenses.age(), 30);
-
-Team updatedTeam = OpticOps.setting(team)
-    .allThrough(
-        TeamTraversals.players().andThen(PlayerLenses.score().asTraversal()),
-        100
-    );
-```
-
-### The ModifyBuilder Pattern
-
-```java
-// Start with modifying(source), then specify optic and function
-Person modified = OpticOps.modifying(person)
-    .through(PersonLenses.age(), age -> age + 1);
-
-Team modifiedTeam = OpticOps.modifying(team)
-    .allThrough(
-        TeamTraversals.players().andThen(PlayerLenses.score().asTraversal()),
-        score -> score * 2
-    );
-
-// Effectful modifications
-Validated<Error, Person> result = OpticOps.modifying(person)
-    .throughF(
-        PersonLenses.age(),
-        age -> validateAge(age + 1),
-        validatedFunctor
-    );
-```
-
-### The QueryBuilder Pattern
-
-```java
-// Start with querying(source), then specify checks
-boolean hasHighScorer = OpticOps.querying(team)
-    .anyMatch(
-        TeamTraversals.players().andThen(PlayerLenses.score().asTraversal()),
-        score -> score > 90
-    );
-
-boolean allPassed = OpticOps.querying(team)
-    .allMatch(
-        TeamTraversals.players().andThen(PlayerLenses.score().asTraversal()),
-        score -> score >= 50
-    );
-
-Optional<Player> found = OpticOps.querying(team)
-    .findFirst(TeamTraversals.players(), player -> player.score() > 90);
-
-int count = OpticOps.querying(team)
-    .count(TeamTraversals.players());
-
-boolean empty = OpticOps.querying(team)
-    .isEmpty(TeamTraversals.players());
-```
-
----
-
-## Part 2.5: Validation-Aware Modifications
-
-~~~admonish tip title="Core Types Integration"
-This section demonstrates optics core types integration, which brings validation-aware modifications directly into `OpticOps`. These methods integrate seamlessly with higher-kinded-j's core types (`Either`, `Maybe`, `Validated`) to provide type-safe, composable validation workflows.
-~~~
-
-~~~admonish title="Comprehensive Example"
-[FluentValidationExample](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/optics/fluent/FluentValidationExample.java)
-~~~
-
-### Think of Validation-Aware Modifications Like...
-
-- **A quality control checkpoint** - Every modification must pass validation before being applied
-- **Airport security screening** - Some checks stop at the first issue (fast-track), others collect all problems (thorough inspection)
-- **Form validation on a website** - You can show either the first error or all errors at once
-- **Code review process** - Accumulate all feedback rather than stopping at the first comment
-
-### The Challenge: Validation During Updates
-
-Traditional optic operations assume modifications always succeed. But in real applications, updates often need validation:
-
-```java
-// Problem: No validation during modification
-Person updated = OpticOps.modify(person, PersonLenses.age(), age -> age + 1);
-// What if the new age is invalid? No way to handle errors!
-
-// Problem: Manual validation is verbose and error-prone
-int currentAge = OpticOps.get(person, PersonLenses.age());
-if (currentAge + 1 >= 0 && currentAge + 1 <= 120) {
-    person = OpticOps.set(person, PersonLenses.age(), currentAge + 1);
-} else {
-    // Handle error... but how do we return both success and failure?
-}
-```
-
-**Validation-aware modifications** solve this by integrating validation directly into the optic operation, returning a result type that represents either success or failure.
-
-### The Solution: Four Validation Strategies
-
-`OpticOps` provides four complementary validation methods, each suited to different scenarios:
-
-| Method | Core Type | Behaviour | Best For |
-|--------|-----------|-----------|----------|
-| `modifyEither` | `Either<E, S>` | Short-circuit on first error | Sequential validation, fail-fast workflows |
-| `modifyMaybe` | `Maybe<S>` | Success or nothing (no error details) | Optional enrichment, silent failure |
-| `modifyAllValidated` | `Validated<List<E>, S>` | Accumulate ALL errors | Form validation, comprehensive feedback |
-| `modifyAllEither` | `Either<E, S>` | Stop at first error in collection | Performance-critical batch validation |
-
-~~~admonish example title="Quick Comparison"
-```java
-// Same validation logic, different error handling strategies
-Order order = new Order("ORD-123", List.of(
-    new BigDecimal("-10.00"),    // Invalid: negative
-    new BigDecimal("15000.00")   // Invalid: too high
-));
-
-// Strategy 1: Either - stops at FIRST error
-Either<String, Order> result1 = OpticOps.modifyAllEither(
-    order, orderPricesTraversal, price -> validatePrice(price)
-);
-// Result: Left("Price cannot be negative: -10.00")
-
-// Strategy 2: Validated - collects ALL errors
-Validated<List<String>, Order> result2 = OpticOps.modifyAllValidated(
-    order, orderPricesTraversal, price -> validatePrice(price)
-);
-// Result: Invalid(["Price cannot be negative: -10.00",
-//                  "Price exceeds maximum: 15000.00"])
-```
-~~~
-
-### Static Method Style: Validation Operations
-
-#### Single-Field Validation with `modifyEither`
-
-Perfect for validating and modifying a single field where you want to fail fast with detailed error messages.
-
-```java
-@GenerateLenses
-public record User(String username, String email, int age) {}
-
-// Validate email format
-Either<String, User> result = OpticOps.modifyEither(
-    user,
-    UserLenses.email(),
-    email -> {
-        if (email.matches("^[A-Za-z0-9+_.-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}$")) {
-            return Either.right(email);  // Valid
-        } else {
-            return Either.left("Invalid email format: " + email);  // Error
-        }
-    }
-);
-
-// Handle the result
-result.fold(
-    error -> {
-        log.error("Validation failed: {}", error);
-        return null;
-    },
-    validUser -> {
-        log.info("User updated: {}", validUser.email());
-        return null;
-    }
-);
-```
-
-#### Optional Validation with `modifyMaybe`
-
-Useful when validation failure shouldn't produce error messages: either it works or it doesn't.
-
-```java
-// Trim and validate bio (silent failure if too long)
-Maybe<User> result = OpticOps.modifyMaybe(
-    user,
-    UserLenses.bio(),
-    bio -> {
-        String trimmed = bio.trim();
-        if (trimmed.length() <= 500) {
-            return Maybe.just(trimmed);  // Success
-        } else {
-            return Maybe.nothing();  // Too long, fail silently
-        }
-    }
-);
-
-// Check if validation succeeded
-if (result.isJust()) {
-    User validUser = result.get();
-    // Proceed with valid user
-} else {
-    // Validation failed, use fallback logic
-}
-```
-
-#### Multi-Field Validation with Error Accumulation
-
-The most powerful option: validate multiple fields and collect **all** validation errors, not just the first one.
-
-```java
-@GenerateTraversals
-public record Order(String orderId, List<BigDecimal> itemPrices) {}
-
-// Validate ALL prices and accumulate errors
-Validated<List<String>, Order> result = OpticOps.modifyAllValidated(
-    order,
-    orderPricesTraversal,
-    price -> {
-        if (price.compareTo(BigDecimal.ZERO) < 0) {
-            return Validated.invalid("Price cannot be negative: " + price);
-        } else if (price.compareTo(new BigDecimal("10000")) > 0) {
-            return Validated.invalid("Price exceeds maximum: " + price);
-        } else {
-            return Validated.valid(price);  // Valid price
-        }
-    }
-);
-
-// Handle accumulated errors
-result.fold(
-    errors -> {
-        System.out.println("Validation failed with " + errors.size() + " errors:");
-        errors.forEach(error -> System.out.println("  - " + error));
-        return null;
-    },
-    validOrder -> {
-        System.out.println("All prices validated successfully!");
-        return null;
-    }
-);
-```
-
-#### Multi-Field Validation with Short-Circuiting
-
-When you have many fields to validate but want to stop at the first error (better performance, less detailed feedback):
-
-```java
-// Validate all prices, stop at FIRST error
-Either<String, Order> result = OpticOps.modifyAllEither(
-    order,
-    orderPricesTraversal,
-    price -> validatePrice(price)  // Returns Either<String, BigDecimal>
-);
-
-// Only the first error is reported
-result.fold(
-    firstError -> System.out.println("Failed: " + firstError),
-    validOrder -> System.out.println("Success!")
-);
-```
-
-### Fluent Builder Style: ModifyingWithValidation
-
-The fluent API provides a dedicated builder for validation-aware modifications, making the intent even clearer:
-
-```java
-// Start with modifyingWithValidation(source), then choose validation strategy
-
-// Single field with Either
-Either<String, User> result1 = OpticOps.modifyingWithValidation(user)
-    .throughEither(UserLenses.email(), email -> validateEmail(email));
-
-// Single field with Maybe
-Maybe<User> result2 = OpticOps.modifyingWithValidation(user)
-    .throughMaybe(UserLenses.bio(), bio -> validateBio(bio));
-
-// All fields with Validated (error accumulation)
-Validated<List<String>, Order> result3 = OpticOps.modifyingWithValidation(order)
-    .allThroughValidated(orderPricesTraversal, price -> validatePrice(price));
-
-// All fields with Either (short-circuit)
-Either<String, Order> result4 = OpticOps.modifyingWithValidation(order)
-    .allThroughEither(orderPricesTraversal, price -> validatePrice(price));
-```
-
-### Real-World Scenario: User Registration
-
-Let's see how to use validation-aware modifications for a complete user registration workflow:
-
-```java
-@GenerateLenses
-public record UserRegistration(String username, String email, int age, String bio) {}
-
-// Scenario: Sequential validation (stop at first error)
-Either<String, UserRegistration> validateRegistration(UserRegistration form) {
-    return OpticOps.modifyEither(form, UserLenses.username(), this::validateUsername)
-        .flatMap(user -> OpticOps.modifyEither(user, UserLenses.email(), this::validateEmail))
-        .flatMap(user -> OpticOps.modifyEither(user, UserLenses.age(), this::validateAge))
-        .flatMap(user -> OpticOps.modifyEither(user, UserLenses.bio(), this::validateBio));
-}
-
-private Either<String, String> validateUsername(String username) {
-    if (username.length() < 3) {
-        return Either.left("Username must be at least 3 characters");
-    }
-    if (username.length() > 20) {
-        return Either.left("Username must not exceed 20 characters");
-    }
-    if (!username.matches("^[a-zA-Z0-9_]+$")) {
-        return Either.left("Username can only contain letters, numbers, and underscores");
-    }
-    return Either.right(username);
-}
-
-// Usage
-validateRegistration(formData).fold(
-    error -> {
-        System.out.println("Registration failed: " + error);
-        // Show error to user, stop processing
-        return null;
-    },
-    validForm -> {
-        System.out.println("Registration successful!");
-        // Proceed with user creation
-        return null;
-    }
-);
-```
-
-### Real-World Scenario: Bulk Data Import
-
-When importing data, you often want to collect **all** validation errors to give comprehensive feedback:
-
-```java
-@GenerateTraversals
-public record DataImport(List<String> emailAddresses, String importedBy) {}
-
-// Validate all emails, accumulate ALL errors
-Validated<List<String>, DataImport> validateImport(DataImport importData) {
-    return OpticOps.modifyingWithValidation(importData)
-        .allThroughValidated(
-            DataImportTraversals.emailAddresses(),
-            email -> {
-                if (!email.matches("^[A-Za-z0-9+_.-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}$")) {
-                    return Validated.invalid("Invalid email: " + email);
-                } else {
-                    return Validated.valid(email.toLowerCase().trim());  // Normalise
-                }
-            }
-        );
-}
-
-// Usage
-validateImport(importBatch).fold(
-    errors -> {
-        System.out.println("Import failed with " + errors.size() + " invalid emails:");
-        errors.forEach(error -> System.out.println("  - " + error));
-        // User can fix ALL errors at once
-        return null;
-    },
-    validImport -> {
-        System.out.println("Import successful! " +
-                          validImport.emailAddresses().size() +
-                          " emails validated.");
-        return null;
-    }
-);
-```
-
-### When to Use Each Validation Strategy
-
-#### Use `modifyEither` When:
-
-**Sequential workflows** where you want to stop at the first error
-```java
-// Login validation - stop at first failure
-OpticOps.modifyEither(credentials, CredentialsLenses.username(), this::validateUsername)
-    .flatMap(c -> OpticOps.modifyEither(c, CredentialsLenses.password(), this::checkPassword))
-```
-
-**Single-field validation** with detailed error messages
-
-**Early exit is beneficial** (no point continuing if a critical field is invalid)
-
-#### Use `modifyMaybe` When:
-
-**Optional enrichment** where failure is acceptable
-```java
-// Try to geocode address, but it's okay if it fails
-OpticOps.modifyMaybe(order, OrderLenses.address(), addr -> geocodeAddress(addr))
-```
-
-**Error details aren't needed** (just success/failure)
-
-**Silent failures are acceptable**
-
-#### Use `modifyAllValidated` When:
-
-**Form validation** where users need to see all errors at once
-```java
-// Show all validation errors on a registration form
-OpticOps.modifyAllValidated(form, formFieldsTraversal, this::validateField)
-```
-
-**Comprehensive feedback is important**
-
-**User experience matters** (fixing all errors in one go)
-
-#### Use `modifyAllEither` When:
-
-**Performance is critical** and you have many fields to validate
-
-**First error is sufficient** for debugging or logging
-
-**Resource-intensive validation** where stopping early saves time
-
-### Comparison with Traditional `modifyF`
-
-The validation methods simplify common patterns that previously required manual `Applicative` wiring:
-
-**Before (using `modifyF`):**
-```java
-// Manual applicative construction with explicit error type conversion
-Applicative<Validated.Witness<List<String>>> app =
-    ValidatedApplicative.instance(ListSemigroup.instance());
-
-Validated<List<String>, Order> result = OpticOps.modifyAllF(
-    order,
-    orderPricesTraversal,
-    price -> {
-        Validated<String, BigDecimal> validatedPrice = validatePrice(price);
-        // Must convert error type from String to List<String>
-        return ValidatedKindHelper.VALIDATED.widen(
-            validatedPrice.bimap(List::of, Function.identity())
-        );
-    },
-    app
-).narrow();
-```
-
-**After (using `modifyAllValidated`):**
-```java
-// Clean, concise, and clear intent
-Validated<List<String>, Order> result = OpticOps.modifyAllValidated(
-    order,
-    orderPricesTraversal,
-    price -> validatePrice(price)
-);
-```
-
-~~~admonish info title="When to Use modifyF"
-The traditional `modifyF` methods are still valuable for:
-- Custom effect types beyond `Either`, `Maybe`, and `Validated`
-- Advanced applicative scenarios with custom combinators
-- Asynchronous validation (e.g., `CompletableFuture`)
-- Integration with third-party effect systems
-
-For standard validation scenarios, the dedicated methods are clearer and more concise.
-~~~
-
-### Performance Considerations
-
-- **`Either` short-circuiting**: Stops at first error, potentially faster for large collections
-- **`Validated` accumulation**: Checks all elements, more work but better UX
-- **`Maybe`**: Minimal overhead, just success/nothing
-- **Object allocation**: All methods create new result objects (standard immutable pattern)
-
-~~~admonish tip title="Optimisation Strategy"
-For performance-critical code with large collections:
-1. Use `modifyAllEither` if first-error is acceptable
-2. Use `modifyAllValidated` if comprehensive errors are required
-3. Consider pre-filtering with `Stream` API before validation
-4. Cache compiled validators (e.g., compiled regex patterns)
-~~~
-
-### Integration with Existing Validation
-
-Validation-aware modifications work seamlessly with existing validation libraries:
-
-```java
-// Jakarta Bean Validation integration
-import jakarta.validation.Validator;
-import jakarta.validation.ConstraintViolation;
-
-Either<List<String>, User> validateWithJakarta(User user, Validator validator) {
-    return OpticOps.modifyEither(
-        user,
-        UserLenses.email(),
-        email -> {
-            Set<ConstraintViolation<String>> violations =
-                validator.validate(email);
-
-            if (violations.isEmpty()) {
-                return Either.right(email);
-            } else {
-                return Either.left(
-                    violations.stream()
-                        .map(ConstraintViolation::getMessage)
-                        .collect(Collectors.toList())
-                );
-            }
-        }
-    );
-}
-```
-
----
-
-## Part 3: Real-World Examples
-
-### Example 1: E-Commerce Order Processing
-
-```java
-@GenerateLenses
-@GenerateTraversals
-public record Order(String orderId,
-                    OrderStatus status,
-                    List<OrderItem> items,
-                    ShippingAddress address) {}
-
-@GenerateLenses
-public record OrderItem(String productId, int quantity, BigDecimal price) {}
-
-@GenerateLenses
-public record ShippingAddress(String street, String city, String postCode) {}
-
-// Scenario: Apply bulk discount and update shipping
-Order processOrder(Order order, BigDecimal discountPercent) {
-    // Apply discount using fluent API
-    Order discountedOrder = OpticOps.modifying(order)
-        .allThrough(
-            OrderTraversals.items().andThen(OrderItemLenses.price().asTraversal()),
-            price -> price.multiply(BigDecimal.ONE.subtract(discountPercent))
-        );
-
-    // Update status using static method
-    return OpticOps.set(
-        discountedOrder,
-        OrderLenses.status(),
-        OrderStatus.PROCESSING
-    );
-}
-```
-
-### Example 2: Validation with Error Accumulation
-
-```java
-// Using Validated to accumulate all validation errors
-Validated<List<String>, Order> validateOrder(Order order) {
-    Applicative<Validated.Witness<List<String>>> applicative =
-        ValidatedApplicative.instance(ListSemigroup.instance());
-
-    // Validate all item quantities
-    return OpticOps.modifyAllF(
+// The long way round, for comparison
+Applicative<ValidatedKind.Witness<List<String>>> validated =
+    Instances.validated(Semigroups.<String>list());
+
+Kind<ValidatedKind.Witness<List<String>>, Order> kind =
+    OpticOps.modifyAllF(
         order,
-        OrderTraversals.items().andThen(OrderItemLenses.quantity().asTraversal()),
-        qty -> {
-            if (qty > 0 && qty <= 1000) {
-                return Validated.valid(qty);
-            } else {
-                return Validated.invalid(List.of(
-                    "Quantity must be between 1 and 1000, got: " + qty
-                ));
-            }
-        },
-        applicative
-    ).narrow();
-}
+        Fixture.orderPrices,
+        price -> VALIDATED.widen(Fixture.validatePrice(price).mapError(List::of)),
+        validated);
+
+Validated<List<String>, Order> sameAsBefore = VALIDATED.narrow(kind);
 ```
 
-### Example 3: Async Database Updates
+~~~admonish note title="When `modifyF` is still the right tool"
+- Effects beyond `Either`, `Maybe` and `Validated`: `IO`, `CompletableFuture`, `VTask`, your own
+- Asynchronous validation, where the check itself is an effect
+- Anywhere you already hold an `Applicative` and want the optic to use it
 
-```java
-// Using CompletableFuture for async operations
-CompletableFuture<Team> updatePlayerScoresAsync(
-    Team team,
-    Function<Player, CompletableFuture<Integer>> fetchNewScore
-) {
-    Applicative<CompletableFutureKind.Witness> cfApplicative =
-        Instances.monadError(completableFuture());
-
-    return OpticOps.modifyAllF(
-        team,
-        TeamTraversals.players(),
-        player -> fetchNewScore.apply(player)
-            .thenApply(newScore ->
-                OpticOps.set(player, PlayerLenses.score(), newScore)
-            )
-            .thenApply(CompletableFutureKind::of),
-        cfApplicative
-    ).thenApply(kind -> CompletableFutureKind.narrow(kind).join());
-}
-```
+For the three common cases, the dedicated methods say the same thing with less ceremony and no `Kind` at the call site.
+~~~
 
 ---
 
-
-~~~admonish tip title="See Also"
-- [Fluent API Field Guide](fluent_api_field_guide.md), decision guide, common idioms, performance notes, and pitfalls.
+~~~admonish info title="Key Takeaways"
+* **Two styles, one implementation.** Static methods for short call sites, builders when the optic expression is long or discoverability matters.
+* **`OpticOps` is overloaded on the optic.** `get`, `getAll`, `preview`, `set`, `setAll`, `modify`, `modifyAll` and the query family all take whichever optic fits.
+* **Four validation strategies, chosen by what the caller needs to hear.** Accumulate every error for humans, keep only the first for machines; neither skips evaluating an element.
+* **The validation methods do the widening.** Your function returns `Either`, `Maybe` or `Validated`; no `Kind` appears at the call site.
+* **`modifyF` remains the general case.** Any `Applicative`, at the price of `widen` and `narrow` around the edges.
 ~~~
 
 ~~~admonish info title="Hands-On Learning"
 Practice the fluent API in [Tutorial 09: Fluent Optics API](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/test/java/org/higherkindedj/tutorial/optics/Tutorial09_FluentOpticsAPI.java) (7 exercises, ~10 minutes).
+~~~
+
+~~~admonish tip title="See Also"
+- [Fluent API Field Guide](fluent_api_field_guide.md): style choice, idioms, performance notes, and pitfalls
+- [Focus DSL](focus_dsl.md): path-based navigation, which produces the optics `OpticOps` consumes
+- [Validated](../monads/validated_monad.md): the accumulating type behind `modifyAllValidated`
 ~~~
 
 ---

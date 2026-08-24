@@ -1,7 +1,7 @@
 # Focus DSL: Type Class and Effect Integration
 
 ~~~admonish info title="What You'll Learn"
-- Effectful modification with `modifyF()` using Applicative and Monad instances
+- Effectful modification with `modifyF()` using an `Applicative` or `Monad` instance
 - Monoid-based aggregation with `foldMap()` on traversal paths
 - Generic collection traversal with `traverseOver()` for `Kind<F, A>` fields
 - Conditional modification with `modifyWhen()` and sum type access with `instanceOf()`
@@ -9,228 +9,198 @@
 - Bridging between Focus paths and Effect paths in both directions
 ~~~
 
-~~~admonish title="Hands On Practice"
-[Tutorial13_AdvancedFocusDSL.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/test/java/org/higherkindedj/tutorial/optics/Tutorial13_AdvancedFocusDSL.java)
+~~~admonish example title="See Example Code"
+[TraverseIntegrationExample](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/optics/focus/TraverseIntegrationExample.java) | [ValidationPipelineExample](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/optics/focus/ValidationPipelineExample.java)
 ~~~
 
-~~~admonish title="Example Code"
-[TraverseIntegrationExample](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/optics/focus/TraverseIntegrationExample.java) | [ValidationPipelineExample](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/optics/focus/ValidationPipelineExample.java)
+The examples here use a flatter model than the previous pages: an `Agency` holding its `Employee`s directly. Two sections need shapes an `Agency` does not have and name their own: a `RoleBox` holding a `Kind<ListKind.Witness, Role>`, and a `Drawing` holding a sealed `Shape` that permits `Circle` and `Square`.
+
+An ordinary `modify` takes `A -> A`. Once the transformation can fail, accumulate errors, or reach out to the network, it returns `A` wrapped in an effect, and the update has to thread that effect back out through the structure. That is what this page is about: the same paths, with effects along for the ride.
+
+---
+
+## Effectful Modification with `modifyF()`
+
+~~~admonish tip title="Why this matters"
+The path does not change. The same `AgencyFocus.employees().via(EmployeeFocus.salary())` you use for a pure `modifyAll` serves an accumulating validation, an `Either` that stops at the first problem, and an asynchronous fetch, with only the `Applicative` you hand it differing. Navigation and effect are separate concerns here, so adding validation to an update is not a rewrite of how you reach the data.
+~~~
+
+Every path type has `modifyF()`. The function returns the new value inside a `Kind`, and the whole modified structure comes back inside the same effect. The effect is chosen by the instance you pass, not by the path:
+
+<!-- verify -->
+```java
+// A side-effecting read, deferred in IO
+Kind<IOKind.Witness, Agency> deferred =
+    AgencyFocus.name()
+        .modifyF(
+            name -> IO_OP.widen(IO.delay(() -> name.trim())), agency, Instances.monad(io()));
+```
+
+~~~admonish warning title="`modifyF` speaks `Kind`, not the concrete type"
+The function must return `Kind<F, A>` and the result is `Kind<F, S>`, so an `IO` goes in through `IO_OP.widen(...)` and a `Validated` comes out through `VALIDATED.narrow(...)`. The [Fluent API](fluent_api.md#part-2-validation-aware-modification)'s four validation methods do that widening for you for `Either`, `Maybe` and `Validated`; reach for `modifyF` when the effect is something else, or when you already hold the `Applicative`.
+~~~
+
+Accumulating validation is the same call with a `Validated` applicative, and shows the one piece of ceremony worth knowing about: the witness has to be written out, because nothing in the argument list mentions `List<String>`.
+
+<!-- verify -->
+```java
+// Validate every employee email, accumulating all failures
+Applicative<ValidatedKind.Witness<List<String>>> applicative =
+    Instances.validated(Semigroups.<String>list());
+
+Kind<ValidatedKind.Witness<List<String>>, Agency> result =
+    AgencyFocus.employees()
+        .via(EmployeeFocus.email())
+        .modifyF(email -> VALIDATED.widen(Fixture.validateEmail(email)), agency, applicative);
+
+Validated<List<String>, Agency> validated = VALIDATED.narrow(result);
+// Valid(agency) when every address holds; Invalid([...]) listing every one that does not
+```
+
+---
+
+## Monoid-Based Aggregation with `foldMap()`
+
+`TraversalPath` folds every focused element into a single value through a `Monoid`:
+
+<!-- verify -->
+```java
+TraversalPath<Agency, Employee> employees = AgencyFocus.employees();
+
+int payroll = employees.foldMap(Monoids.integerAddition(), Employee::salary, agency);
+// 115000
+
+String roster = employees.foldMap(Monoids.string(), Employee::name, agency);
+// "AliceBob"
+```
+
+`fold(monoid, source)` is the same operation when the focused type is already the monoid's type.
+
+---
+
+## Generic Collection Traversal with `traverseOver()`
+
+When a field holds `Kind<F, A>` rather than a plain collection, `traverseOver()` steps into it with a `Traverse` instance:
+
+<!-- verify -->
+```java
+FocusPath<RoleBox, Kind<ListKind.Witness, Role>> rolesPath = FocusPath.of(Fixture.rolesLens);
+
+TraversalPath<RoleBox, Role> allRoles =
+    rolesPath.<ListKind.Witness, Role>traverseOver(ListTraverse.INSTANCE);
+
+List<Role> roles = allRoles.getAll(roleBox);
+RoleBox promoted = allRoles.modifyAll(Fixture::promote, roleBox);
+```
+
+The explicit type witnesses are load-bearing: Java cannot infer `F` and `E` from the `Traverse` argument alone. (A *witness* is the marker type that stands in for the higher-kinded `F`; see [Higher-Kinded Types](../hkts/hkt_introduction.md) if the term is new.)
+
+| Field shape | Use |
+|-------------|-----|
+| `List<T>`, `Set<T>` | `each()`, already applied by the generated method |
+| `Kind<F, T>` on an annotated record | nothing: the processor applies `traverseOver` for you |
+| `Kind<F, T>` behind a hand-written lens | `traverseOver(SomeTraverse.INSTANCE)` |
+
+~~~admonish tip title="See Also"
+When the `Kind<F, A>` field is on a `@GenerateFocus` record, the processor recognises the witness and generates the traversal itself. See [Kind Field Support](kind_field_support.md).
 ~~~
 
 ---
 
-## Type Class Integration
+## Conditional Modification with `modifyWhen()`
 
-The Focus DSL integrates deeply with Higher-Kinded-J type classes, enabling effectful operations, monoid-based aggregation, and generic collection traversal.
+`modifyWhen` applies the transformation only to elements that satisfy a predicate, leaving the rest untouched:
 
-### Effectful Modification with `modifyF()`
-
-All path types support `modifyF()` for effectful transformations:
-
+<!-- verify -->
 ```java
-// Validation - accumulate all errors
-Kind<ValidatedKind.Witness<List<String>>, User> result = userPath.modifyF(
-    email -> EmailValidator.validate(email),
-    user,
-    ValidatedApplicative.instance()
-);
-
-// Async updates with CompletableFuture
-Kind<CompletableFutureKind.Witness, Config> asyncResult = configPath.modifyF(
-    key -> fetchNewApiKey(key),  // Returns CompletableFuture
-    config,
-    CompletableFutureApplicative.INSTANCE
-);
-
-// IO operations
-Kind<IOKind.Witness, User> ioResult = userPath.modifyF(
-    name -> IO.of(() -> readFromDatabase(name)),
-    user,
-    Instances.monad(io())
-);
+Agency afterRise =
+    AgencyFocus.employees()
+        .modifyWhen(
+            e -> e.salary() < 58000,
+            e -> new Employee(e.name(), e.email(), e.nickname(), e.salary() + 2000),
+            agency);
 ```
 
-### Monoid-Based Aggregation with `foldMap()`
+It is `filter(...).modifyAll(...)` with one fewer intermediate, and it reads as the business rule it encodes.
 
-`TraversalPath` supports `foldMap()` for aggregating values:
+---
 
+## Working with Sum Types using `instanceOf()`
+
+`AffinePath.instanceOf(Class)` focuses one variant of a sealed hierarchy, matching when the runtime type fits and doing nothing when it does not:
+
+<!-- verify -->
 ```java
-// Sum all salaries using integer addition monoid
-int totalSalary = employeesPath.foldMap(
-    Monoids.integerAddition(),
-    Employee::salary,
-    company
-);
-
-// Concatenate all names
-String allNames = employeesPath.foldMap(
-    Monoids.string(),
-    Employee::name,
-    company
-);
-
-// Custom monoid for set union
-Set<String> allSkills = employeesPath.foldMap(
-    Monoids.set(),
-    e -> e.skills(),
-    company
-);
-```
-
-### Generic Collection Traversal with `traverseOver()`
-
-When working with collections wrapped in `Kind<F, A>`, use `traverseOver()` with a `Traverse` instance:
-
-```java
-// Given a field with Kind<ListKind.Witness, Role> type
-FocusPath<User, Kind<ListKind.Witness, Role>> rolesPath = UserFocus.roles();
-
-// Traverse into the collection
-TraversalPath<User, Role> allRoles =
-    rolesPath.<ListKind.Witness, Role>traverseOver(ListTraverse.INSTANCE);
-
-// Now operate on individual roles
-List<Role> roles = allRoles.getAll(user);
-User updated = allRoles.modifyAll(Role::promote, user);
-```
-
-**When to use `traverseOver()` vs `each()`:**
-
-| Method | Use Case |
-|--------|----------|
-| `each()` | Standard `List<T>` or `Set<T>` fields |
-| `traverseOver()` | `Kind<F, T>` fields with custom Traverse |
-
-```java
-// For List<T> - use each()
-TraversalPath<Team, User> members = TeamFocus.membersList().each();
-
-// For Kind<ListKind.Witness, T> - use traverseOver()
-TraversalPath<Team, User> members = TeamFocus.membersKind()
-    .<ListKind.Witness, User>traverseOver(ListTraverse.INSTANCE);
-```
-
-### Conditional Modification with `modifyWhen()`
-
-Modify only elements that match a predicate:
-
-```java
-// Give raises only to senior employees
-Company updated = CompanyFocus.employees()
-    .modifyWhen(
-        e -> e.yearsOfService() > 5,
-        e -> e.withSalary(e.salary().multiply(1.10)),
-        company
-    );
-
-// Enable only premium features
-Config updated = ConfigFocus.features()
-    .modifyWhen(
-        f -> f.tier() == Tier.PREMIUM,
-        Feature::enable,
-        config
-    );
-```
-
-### Working with Sum Types using `instanceOf()`
-
-Focus on specific variants of sealed interfaces:
-
-```java
-sealed interface Shape permits Circle, Rectangle, Triangle {}
-
-// Focus on circles only
-AffinePath<Shape, Circle> circlePath = AffinePath.instanceOf(Circle.class);
-
-// Compose with other paths
+// Only the circles, and only their radii
 TraversalPath<Drawing, Double> circleRadii =
-    DrawingFocus.shapes()
-        .via(AffinePath.instanceOf(Circle.class))
-        .via(CircleFocus.radius());
+    DrawingFocus.shapes().via(AffinePath.instanceOf(Circle.class)).via(CircleFocus.radius());
 
-// Modify only circles
-Drawing updated = DrawingFocus.shapes()
-    .via(AffinePath.instanceOf(Circle.class))
-    .modifyAll(c -> c.withRadius(c.radius() * 2), drawing);
+List<Double> radii = circleRadii.getAll(drawing);          // the squares are skipped
+Drawing doubled = circleRadii.modifyAll(r -> r * 2, drawing);
 ```
 
-### Path Debugging with `traced()`
+For a sealed interface you own, `@GeneratePrisms` gives the same access with a name per variant; `instanceOf` is the answer when the hierarchy is someone else's.
 
-Debug complex path navigation by observing values:
+---
 
+## Path Debugging with `traced()`
+
+`traced()` returns the same path with an observer attached, so you can see what a chain actually focused without dismantling it:
+
+<!-- verify -->
 ```java
-// Add tracing to see what values are accessed
-FocusPath<Company, String> debugPath = CompanyFocus.ceo().name()
-    .traced((company, name) ->
-        System.out.println("Accessing CEO name: " + name + " from " + company.name()));
+TraversalPath<Agency, Employee> traced =
+    AgencyFocus.employees()
+        .traced((source, found) -> System.out.println("focused " + found.size() + " employees"));
 
-// Every get() call now logs the accessed value
-String name = debugPath.get(company);
-
-// For TraversalPath, observe all values
-TraversalPath<Company, Employee> tracedEmployees = CompanyFocus.employees()
-    .traced((company, employees) ->
-        System.out.println("Found " + employees.size() + " employees"));
+List<Employee> employees = traced.getAll(agency);
 ```
+
+The observer receives the focused values in the shape the path guarantees: an `A` for `FocusPath`, an `Optional<A>` for `AffinePath`, and a `List<A>` for `TraversalPath`.
 
 ---
 
 ## Bridging to Effect Paths
 
-Focus paths and Effect paths share the same `via` composition operator but navigate different
-domains. The bridge API enables seamless transitions between them.
+Focus paths and Effect paths share the `via` composition operator but navigate different domains: one moves through structure, the other through failure. The bridge runs both ways.
 
-```
-                    FOCUS-EFFECT BRIDGE
+What the crossing costs is set by the effect, not by the direction of travel. A `FocusPath` always has a value, so it enters an effect as a success either way. An `AffinePath` may not, and then the effect decides: `Maybe` and `Optional` already model absence, so they take it as it comes. The failure-carrying effects have no such slot, so they want the absent case named going in (`toEitherPath` an error, `toTryPath` a `Supplier`) and equally coming back, which is why `EitherPath.focus(path, error)` below asks for one too:
 
-    ┌─────────────────────────────────────────────────────┐
-    │                   Optics Domain                     │
-    │  FocusPath<S, A> ───────────────────────────────────│
-    │  AffinePath<S, A> ──────────────────────────────────│
-    │  TraversalPath<S, A> ───────────────────────────────│
-    └──────────────────────────┬──────────────────────────┘
-                               │
-                               │ toMaybePath(source)
-                               │ toEitherPath(source, error)
-                               │ toTryPath(source, supplier)
-                               ▼
-    ┌─────────────────────────────────────────────────────┐
-    │                   Effects Domain                    │
-    │  MaybePath<A> ──────────────────────────────────────│
-    │  EitherPath<E, A> ──────────────────────────────────│
-    │  TryPath<A> ────────────────────────────────────────│
-    │  IOPath<A> ─────────────────────────────────────────│
-    │  ValidationPath<E, A> ──────────────────────────────│
-    └──────────────────────────┬──────────────────────────┘
-                               │
-                               │ focus(FocusPath)
-                               │ focus(AffinePath, error)
-                               ▼
-    ┌─────────────────────────────────────────────────────┐
-    │           Back to Optics (within effect)            │
-    │  EffectPath<B> ─────────────────────────────────────│
-    └─────────────────────────────────────────────────────┘
+```mermaid
+flowchart TD
+    P{"Which path is<br/>crossing over?"}
+    P -->|"FocusPath:<br/>always a value"| S(["toMaybePath, toEitherPath,<br/>toTryPath, toIdPath"])
+    P -->|"TraversalPath:<br/>zero or more"| L(["toListPath, toStreamPath,<br/>toMaybePath"])
+    P -->|"AffinePath:<br/>may be absent"| N(["Maybe/Optional take absence as is;<br/>Either/Try need it named"])
+    S --> E["in the effects domain:<br/>via, recoverWith, ..."]
+    L --> E
+    N --> E
+
+    classDef decision fill:#e5c890,stroke:#df8e1d,color:#232634
+    classDef tier fill:#a6d189,stroke:#40a02b,color:#232634
+    classDef wire fill:#8caaee,stroke:#1e66f5,color:#232634
+    class P decision
+    class S,L,N tier
+    class E wire
 ```
 
-### Direction 1: FocusPath to EffectPath
+### Direction 1: Focus Path to Effect Path
 
-Extract a value using optics and wrap it in an effect for further processing:
+Extract a value with optics and continue in an effect pipeline. A `FocusPath` always succeeds, so its bridges never produce the failure case; an `AffinePath` may be empty, so its bridges take the value to use when it is:
 
+<!-- verify -->
 ```java
-// FocusPath always has a value, so these always succeed
-FocusPath<User, String> namePath = UserFocus.name();
-MaybePath<String> maybeName = namePath.toMaybePath(user);          // -> Just(name)
-EitherPath<E, String> eitherName = namePath.toEitherPath(user);    // -> Right(name)
-TryPath<String> tryName = namePath.toTryPath(user);                // -> Success(name)
+// FocusPath: always present
+MaybePath<String> name = AgencyFocus.name().toMaybePath(agency);
+EitherPath<String, String> alwaysRight = AgencyFocus.name().toEitherPath(agency);
 
-// AffinePath may not have a value
-AffinePath<User, String> emailPath = UserFocus.email();  // Optional<String> -> String
-MaybePath<String> maybeEmail = emailPath.toMaybePath(user);        // -> Just or Nothing
-EitherPath<String, String> eitherEmail =
-    emailPath.toEitherPath(user, "Email not configured");          // -> Right or Left
+// AffinePath: absence is a real outcome, so name it
+EitherPath<String, String> nickname =
+    EmployeeFocus.nickname().toEitherPath(alice, "No nickname on file");
+// Left("No nickname on file"), because Alice has none
 ```
 
-**Bridge Methods on FocusPath:**
+**Bridge methods on `FocusPath`:**
 
 | Method | Return Type | Description |
 |--------|-------------|-------------|
@@ -239,115 +209,93 @@ EitherPath<String, String> eitherEmail =
 | `toTryPath(S)` | `TryPath<A>` | Always `Success(value)` |
 | `toIdPath(S)` | `IdPath<A>` | Trivial effect wrapper |
 
-**Bridge Methods on AffinePath:**
+**Bridge methods on `AffinePath`:**
 
 | Method | Return Type | Description |
 |--------|-------------|-------------|
 | `toMaybePath(S)` | `MaybePath<A>` | `Just` if present, `Nothing` otherwise |
 | `toEitherPath(S, E)` | `EitherPath<E, A>` | `Right` if present, `Left(error)` otherwise |
 | `toTryPath(S, Supplier<Throwable>)` | `TryPath<A>` | `Success` or `Failure` |
-| `toOptionalPath(S)` | `OptionalPath<A>` | Wraps in Java `Optional` effect |
+| `toOptionalPath(S)` | `OptionalPath<A>` | Wraps in the Java `Optional` effect |
 
-**Bridge Methods on TraversalPath:**
+**Bridge methods on `TraversalPath`:**
 
 | Method | Return Type | Description |
 |--------|-------------|-------------|
-| `toListPath(S)` | `ListPath<A>` | All focused values as list |
-| `toStreamPath(S)` | `StreamPath<A>` | Lazy stream of values |
-| `toMaybePath(S)` | `MaybePath<A>` | First value if any |
+| `toListPath(S)` | `ListPath<A>` | All focused values as a list |
+| `toStreamPath(S)` | `StreamPath<A>` | Lazy stream of the values |
+| `toVStreamPath(S)` | `VStreamPath<A>` | Virtual-thread stream of the values |
+| `toMaybePath(S)` | `MaybePath<A>` | The first value, if any |
 
-### Direction 2: EffectPath.focus()
+### Direction 2: `EffectPath.focus()`
 
-Apply structural navigation inside an effect context:
+When a service call has already put the structure inside an effect, `focus()` navigates without unwrapping:
 
+<!-- verify -->
 ```java
-// Start with an effect containing a complex structure
-EitherPath<Error, User> userPath = Path.right(user);
+EitherPath<String, Agency> loaded = Path.right(agency);
 
-// Navigate within the effect using optics
-EitherPath<Error, String> namePath = userPath.focus(UserFocus.name());
+EitherPath<String, String> agencyName = loaded.focus(AgencyFocus.name());
 
-// AffinePath requires an error for the absent case
-EitherPath<Error, String> emailPath =
-    userPath.focus(UserFocus.email(), new Error("Email required"));
+// An AffinePath needs the error for the absent case
+EitherPath<String, String> firstNickname =
+    loaded
+        .focus(AgencyFocus.employees().headOption(), "No employees")
+        .focus(EmployeeFocus.nickname(), "No nickname on file");
 ```
 
-**focus() Method Signatures:**
+**`focus()` signatures:**
 
-| Effect Type | FocusPath Signature | AffinePath Signature |
-|-------------|---------------------|----------------------|
-| `MaybePath<A>` | `focus(FocusPath<A, B>)` -> `MaybePath<B>` | `focus(AffinePath<A, B>)` -> `MaybePath<B>` |
-| `EitherPath<E, A>` | `focus(FocusPath<A, B>)` -> `EitherPath<E, B>` | `focus(AffinePath<A, B>, E)` -> `EitherPath<E, B>` |
-| `TryPath<A>` | `focus(FocusPath<A, B>)` -> `TryPath<B>` | `focus(AffinePath<A, B>, Supplier<Throwable>)` -> `TryPath<B>` |
-| `IOPath<A>` | `focus(FocusPath<A, B>)` -> `IOPath<B>` | `focus(AffinePath<A, B>, Supplier<RuntimeException>)` -> `IOPath<B>` |
-| `ValidationPath<E, A>` | `focus(FocusPath<A, B>)` -> `ValidationPath<E, B>` | `focus(AffinePath<A, B>, E)` -> `ValidationPath<E, B>` |
-| `IdPath<A>` | `focus(FocusPath<A, B>)` -> `IdPath<B>` | `focus(AffinePath<A, B>)` -> `MaybePath<B>` |
+| Effect Type | With a `FocusPath` | With an `AffinePath` |
+|-------------|--------------------|----------------------|
+| `MaybePath<A>` | `MaybePath<B>` | `MaybePath<B>` |
+| `EitherPath<E, A>` | `EitherPath<E, B>` | `EitherPath<E, B>`, given an `E` |
+| `TryPath<A>` | `TryPath<B>` | `TryPath<B>`, given a `Supplier<Throwable>` |
+| `IOPath<A>` | `IOPath<B>` | `IOPath<B>`, given a `Supplier<RuntimeException>` |
+| `ValidationPath<E, A>` | `ValidationPath<E, B>` | `ValidationPath<E, B>`, given an `E` |
+| `OptionalPath<A>` | `OptionalPath<B>` | `OptionalPath<B>` |
+| `IdPath<A>` | `IdPath<B>` | `MaybePath<B>` |
 
-### When to Use Each Direction
+`IdPath` is the one row that changes effect: `Id` has nowhere to record an absent focus, so focusing an `AffinePath` through one hands back a `MaybePath`.
 
-**Use FocusPath to EffectPath when:**
-- You have data and want to start an effect pipeline
-- Extracting values that need validation or async processing
-- Converting optic results into monadic workflows
+### Which Direction?
 
+**Start in the optics domain** when you hold the data and want an effect pipeline: extract a value, then validate or fetch.
+
+**Start in the effects domain** when a call has already returned an effect and you want to drill into its payload.
+
+<!-- verify -->
 ```java
-// Extract and validate
-EitherPath<ValidationError, String> validated =
-    UserFocus.email()
-        .toEitherPath(user, new ValidationError("Email required"))
-        .via(email -> validateEmailFormat(email));
+// Optics first: extract, then validate
+EitherPath<String, String> checked =
+    EmployeeFocus.nickname()
+        .toEitherPath(bob, "No nickname on file")
+        .via(nick -> nick.length() >= 3 ? Path.right(nick) : Path.left("Nickname too short"));
+
+// Effect first: navigate what the call returned
+EitherPath<String, Integer> salary =
+    Path.<String, Employee>right(bob).focus(EmployeeFocus.salary());
 ```
 
-**Use EffectPath.focus() when:**
-- You're already in an effect context (e.g., after a service call)
-- Drilling down into effect results
-- Building validation pipelines that extract and check nested fields
+---
 
-```java
-// Service returns effect, then navigate
-EitherPath<Error, Order> orderResult = orderService.findById(orderId);
-EitherPath<Error, String> customerName =
-    orderResult
-        .focus(OrderFocus.customer())
-        .focus(CustomerFocus.name());
-```
+~~~admonish info title="Key Takeaways"
+* **`modifyF` is the effectful `modify`.** The instance you pass picks the effect; the path is unchanged. Widen going in, narrow coming out.
+* **`foldMap` turns a traversal into a query.** Any `Monoid` will do, so sums, joins and set unions are the same call.
+* **`traverseOver` is `each` for `Kind<F, A>`.** Explicit type witnesses are required, because inference cannot recover `F` from the `Traverse` argument.
+* **`instanceOf` reaches into sealed hierarchies you do not own.** For your own sealed types, `@GeneratePrisms` names the variants.
+* **The bridge runs both ways, and the effect sets the toll.** `toMaybePath`/`toEitherPath`/`toTryPath` move optics results into an effect; `focus()` moves optic navigation inside one. In either direction an `AffinePath` meeting a failure-carrying effect must name the absent case, while `Maybe` and `Optional` take absence as it comes.
+~~~
 
-### Practical Example: Validation Pipeline
-
-Combining both directions for a complete validation workflow:
-
-```java
-// Domain model
-record RegistrationForm(String username, Optional<String> email, Address address) {}
-record Address(String street, Optional<String> postcode) {}
-
-// Validation using Focus-Effect bridge
-EitherPath<List<String>, RegistrationForm> validateForm(RegistrationForm form) {
-    var formPath = Path.<List<String>, RegistrationForm>right(form);
-
-    // Validate username (always present)
-    var usernameValid = formPath
-        .focus(FormFocus.username())
-        .via(name -> name.length() >= 3
-            ? Path.right(name)
-            : Path.left(List.of("Username too short")));
-
-    // Validate email if present
-    var emailValid = formPath
-        .focus(FormFocus.email(), List.of("Email required for notifications"))
-        .via(email -> email.contains("@")
-            ? Path.right(email)
-            : Path.left(List.of("Invalid email format")));
-
-    // Combine validations
-    return usernameValid.via(u -> emailValid.map(e -> form));
-}
-```
+~~~admonish info title="Hands-On Learning"
+[Tutorial13_AdvancedFocusDSL.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/test/java/org/higherkindedj/tutorial/optics/Tutorial13_AdvancedFocusDSL.java)
+~~~
 
 ~~~admonish tip title="See Also"
-- [Effect Path Overview](../effect/effect_path_overview.md) - Railway model and effect composition
-- [Focus-Effect Integration](../effect/focus_integration.md) - Complete bridging guide
-- [Capability Interfaces](../effect/capabilities.md) - Powers behind effect operations
+- [Effect Path Overview](../effect/effect_path_overview.md): railway model and effect composition
+- [Focus-Effect Integration](../effect/focus_integration.md): the complete bridging guide
+- [Capability Interfaces](../effect/capabilities.md): the powers behind effect operations
+- [Fluent API](fluent_api.md): validation-aware modification without hand-wiring an `Applicative`
 ~~~
 
 ---

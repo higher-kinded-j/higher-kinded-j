@@ -80,7 +80,7 @@ The decision trees that appear in scattered form across the chapter intros are c
 │  ┌─────────────────┐                                                        │
 │  │  Focus DSL      │ ◄─── START HERE                                        │
 │  │  (Recommended)  │      Path-based navigation with full type safety       │
-│  └────────┬────────┘      CompanyFocus.departments().employees().name()     │
+│  └────────┬────────┘      CompanyFocus.headquarters().city()                │
 │           │                                                                 │
 │           │  Need validation-aware modifications?                           │
 │           │  Working with Either/Maybe/Validated?                           │

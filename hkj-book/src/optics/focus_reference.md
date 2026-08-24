@@ -1,154 +1,117 @@
 # Focus DSL Reference
 
 ~~~admonish info title="What You'll Learn"
-- When to use Focus DSL vs manual optic composition
-- Common patterns: batch updates, safe deep access, and validation
-- Performance considerations and how to optimise hot paths
-- Customising generated code: target packages, depth limits, and field filters
-- Common pitfalls and how to avoid them
-- Troubleshooting compilation errors and runtime issues
+- When to reach for the Focus DSL and when to compose optics by hand
+- The patterns that come up most: batch updates, safe deep access, validation
+- Performance considerations, and how to keep hot paths cheap
+- Customising the generated code: target package, navigators, depth limits, field filters
+- Common pitfalls, compiler errors, and the answers to the questions that keep recurring
 ~~~
 
----
-
-## Integration with Free Monad DSL
-
-Focus paths integrate with `OpticPrograms` for complex workflows:
-
-```java
-// Build a program using Focus paths
-Free<OpticOpKind.Witness, Company> program = OpticPrograms
-    .get(company, CompanyFocus.name().toLens())
-    .flatMap(name -> {
-        if (name.startsWith("Acme")) {
-            return OpticPrograms.modifyAll(
-                company,
-                CompanyFocus.departments().employees().age().toTraversal(),
-                age -> age + 1
-            );
-        } else {
-            return OpticPrograms.pure(company);
-        }
-    });
-
-// Execute with interpreter
-Company result = OpticInterpreters.direct().run(program);
-```
+This page is the lookup shelf. The teaching lives in [Focus DSL](focus_dsl.md), [Navigation and Composition](focus_navigation.md) and [Type Class and Effect Integration](focus_effects.md); come here when you already know the shape of what you want.
 
 ---
 
-## When to Use Focus DSL vs Manual Composition
+## Focus DSL or Manual Composition?
 
-### Use Focus DSL When:
+**Reach for the Focus DSL** when you are navigating nested structures and want the IDE to lead:
 
-- **Navigating deeply nested structures** with many levels
-- **IDE autocomplete is important** for discoverability
-
+<!-- verify -->
 ```java
-// Focus DSL - clear intent, discoverable
-List<String> emails = CompanyFocus
-    .departments()
-    .employees()
-    .email()
-    .getAll(company);
+List<String> names =
+    CompanyFocus.departments()
+        .via(DepartmentFocus.employees())
+        .via(EmployeeFocus.name())
+        .getAll(company);
 ```
 
-### Use Manual Composition When:
+**Compose optics by hand** for custom optics (computed properties, validated updates), for reusable optic libraries, and where the optic itself carries conditional logic.
 
-- **Custom optics** (computed properties, validated updates)
-- **Performance-critical code** (avoid intermediate allocations)
-- **Reusable optic libraries** (compose once, use everywhere)
-- **Complex conditional logic** in the optic itself
+**In practice, do both.** Navigate with Focus, then extract the composed optic once and reuse it:
 
+<!-- verify -->
 ```java
-// Manual composition - more control, reusable
-public static final Lens<Company, String> CEO_NAME =
-    CompanyLenses.ceo()
-        .andThen(ExecutiveLenses.person())
-        .andThen(PersonLenses.fullName());
-```
+// Build the path once, keep the optic
+Traversal<Company, String> allEmails =
+    CompanyFocus.departments()
+        .via(DepartmentFocus.employees())
+        .via(EmployeeFocus.email())
+        .toTraversal();
 
-### Hybrid Approach (Recommended)
-
-Use Focus DSL for navigation, then extract for reuse:
-
-```java
-// Use Focus for exploration
-var path = CompanyFocus.departments().employees().email();
-
-// Extract and store the composed optic
-public static final Traversal<Company, String> ALL_EMAILS =
-    path.toTraversal();
-
-// Reuse the extracted optic
-List<String> emails = Traversals.getAll(ALL_EMAILS, company);
+List<String> emails = Traversals.getAll(allEmails, company);
 ```
 
 ---
 
 ## Common Patterns
 
-### Pattern 1: Batch Updates
+### Pattern 1: Batch Updates, Narrowed by a Predicate
 
+`filter` lives on `TraversalPath`, so narrow first and compose afterwards:
+
+<!-- verify -->
 ```java
-// Give all employees in Engineering a raise
-Company updated = CompanyFocus
-    .departments()
-    .filter(d -> d.name().equals("Engineering"))
-    .employees()
-    .salary()
-    .modifyAll(s -> s.multiply(new BigDecimal("1.10")), company);
+Company updated =
+    CompanyFocus.departments()
+        .filter(d -> d.name().equals("Engineering"))
+        .via(DepartmentFocus.employees())
+        .via(EmployeeFocus.age())
+        .modifyAll(age -> age + 1, company);
 ```
 
 ### Pattern 2: Safe Deep Access
 
-```java
-// Safely access deeply nested optional
-Optional<String> managerEmail = CompanyFocus
-    .department(0)
-    .manager()
-    .email()
-    .getOptional(company);
+Index into a collection from the path that still focuses it, then keep navigating:
 
-// Handle absence gracefully
-String email = managerEmail.orElse("no-manager@company.com");
+<!-- verify -->
+```java
+Optional<String> firstEmail =
+    FocusPath.of(CompanyLenses.departments())
+        .<Department>at(0)
+        .via(DepartmentFocus.employees())
+        .via(EmployeeFocus.email())
+        .preview(company);
+
+String email = firstEmail.orElse("nobody@example.com");
 ```
 
-### Pattern 3: Validation with Focus
+Two details earn their place. `.at(0)` needs its element type spelled out, because nothing in the argument list mentions `Department`. And `.at(0)` yields an `AffinePath`, which composing with a traversal widens back out, so the read is `preview` (the first focus, if any) rather than `getOptional`.
 
+### Pattern 3: Validation Across a Traversal
+
+<!-- verify -->
 ```java
-// Validate all employee ages
-Validated<List<String>, Company> result = OpticOps.modifyAllValidated(
-    company,
-    CompanyFocus.departments().employees().age().toTraversal(),
-    age -> age >= 18 && age <= 100
-        ? Validated.valid(age)
-        : Validated.invalid("Invalid age: " + age)
-);
+Validated<List<String>, Company> checked =
+    OpticOps.modifyAllValidated(
+        company,
+        CompanyFocus.departments()
+            .via(DepartmentFocus.employees())
+            .via(EmployeeFocus.age())
+            .toTraversal(),
+        Fixture::validateAge);
+// Invalid(["Invalid age: 17"]) for the fixture above
 ```
 
 ---
 
 ## Performance Considerations
 
-Focus paths add a thin abstraction layer over raw optics:
+A Focus path is a thin wrapper over the underlying optic:
 
-- **Path creation**: Minimal overhead (simple wrapper objects)
-- **Traversal**: Identical to underlying optic performance
-- **Memory**: One additional object per path segment
+- **Path creation**: a few small objects, one per segment
+- **Traversal**: identical to the optic it wraps
+- **Memory**: one extra object per path segment
 
-**Best Practice**: For hot paths, extract the underlying optic:
+The rule that matters is *build the path once*. Rebuilding it inside a loop re-runs the composition on every iteration:
 
+<!-- verify -->
 ```java
-// Cold path - Focus DSL is fine
-var result = CompanyFocus.departments().name().getAll(company);
+// Compose once, outside the loop
+Traversal<Company, String> deptNames =
+    CompanyFocus.departments().via(DepartmentFocus.name()).toTraversal();
 
-// Hot path - extract and cache the optic
-private static final Traversal<Company, String> DEPT_NAMES =
-    CompanyFocus.departments().name().toTraversal();
-
-for (Company c : manyCompanies) {
-    var names = Traversals.getAll(DEPT_NAMES, c);  // Faster
+for (Company c : companies) {
+  List<String> names = Traversals.getAll(deptNames, c);
 }
 ```
 
@@ -156,379 +119,173 @@ for (Company c : manyCompanies) {
 
 ## Customising Generated Code
 
-### Target Package
-
 ```java
+// Where the generated class lands
 @GenerateFocus(targetPackage = "com.myapp.optics.focus")
 record User(String name) {}
-// Generates: com.myapp.optics.focus.UserFocus
-```
 
-### Navigator Generation
-
-Enable fluent cross-type navigation with generated navigator classes:
-
-```java
+// Fluent cross-type navigation
 @GenerateFocus(generateNavigators = true)
 record Company(String name, Address headquarters) {}
 
-@GenerateFocus(generateNavigators = true)
-record Address(String street, String city) {}
-
-// Now navigate fluently without .via():
-String city = CompanyFocus.headquarters().city().get(company);
-```
-
-### Navigator Depth Limiting
-
-Control how deep navigator generation goes with `maxNavigatorDepth`:
-
-```java
+// How deep navigator generation goes (default 3)
 @GenerateFocus(generateNavigators = true, maxNavigatorDepth = 2)
 record Organisation(Division division) {}
 
-// Depth 1: Returns DivisionNavigator
-// Depth 2: Returns FocusPath (not a navigator)
-// Beyond: Use .via() for further navigation
-```
-
-### Field Filtering
-
-Control which fields get navigator generation:
-
-```java
-// Only generate navigators for specific fields
+// Which fields get a navigator
 @GenerateFocus(generateNavigators = true, includeFields = {"homeAddress"})
 record Person(String name, Address homeAddress, Address workAddress) {}
 
-// Or exclude specific fields
 @GenerateFocus(generateNavigators = true, excludeFields = {"backup"})
 record Config(Settings main, Settings backup) {}
+
+// Widen Map, array and third-party collection fields at the static method
+@GenerateFocus(widenCollections = true)
+record Warehouse(Map<String, Integer> inventory) {}
 ```
 
 ---
 
-## Lens Fallback for Non-Annotated Types
+## Integration with the Free Monad DSL
 
-When navigating to a type without `@GenerateFocus`, you can continue with `.via()`:
+`OpticPrograms` accepts Focus paths directly, so a path can become a step in a program that is interpreted later:
 
+<!-- verify -->
 ```java
-// ThirdPartyRecord doesn't have @GenerateFocus
-@GenerateLenses
-@GenerateFocus
-record MyRecord(ThirdPartyRecord external) {}
+Free<OpticOpKind.Witness, Company> program =
+    OpticPrograms.get(company, CompanyFocus.name())
+        .flatMap(
+            name ->
+                name.startsWith("Acme")
+                    ? OpticPrograms.modifyAll(
+                        company,
+                        CompanyFocus.departments()
+                            .via(DepartmentFocus.employees())
+                            .via(EmployeeFocus.age())
+                            .toTraversal(),
+                        age -> age + 1)
+                    : OpticPrograms.pure(company));
 
-// Navigate as far as Focus allows, then use .via() with existing lens
-FocusPath<MyRecord, ThirdPartyRecord> externalPath = MyRecordFocus.external();
-FocusPath<MyRecord, String> deepPath = externalPath.via(ThirdPartyLenses.someField());
+Company result = OpticInterpreters.direct().run(program);
 ```
+
+Swap `direct()` for `logging()` or `validating()` to run the same program another way. See [Free Monad DSL](free_monad_dsl.md) and [Interpreters](interpreters.md).
 
 ---
 
 ## Common Pitfalls
 
-### Don't: Recreate paths in loops
+**Do not rebuild paths in a loop.** Hoist the path (or the extracted optic) above the loop, as in the performance section above.
 
+**Do not reach for `get` on a path that may miss.** Use the operation the path type guarantees:
+
+<!-- verify -->
 ```java
-// Bad - creates new path objects each iteration
-for (Company c : companies) {
-    var names = CompanyFocus.departments().name().getAll(c);
-}
+String name = EmployeeFocus.name().get(alice);              // FocusPath: always there
+Optional<String> email = EmployeeFocus.email().getOptional(alice);   // AffinePath: may be empty
+List<Employee> all = DepartmentFocus.employees().getAll(department); // TraversalPath: many
 ```
 
-### Do: Extract and reuse
-
-```java
-// Good - create path once
-var deptNames = CompanyFocus.departments().name();
-for (Company c : companies) {
-    var names = deptNames.getAll(c);
-}
-```
-
-### Don't: Ignore the path type
-
-```java
-// Confusing - what does this return?
-var result = somePath.get(source);  // Might fail if AffinePath!
-```
-
-### Do: Use the appropriate method
-
-```java
-// Clear - FocusPath always has a value
-String name = namePath.get(employee);
-
-// Clear - AffinePath might be empty
-Optional<String> email = emailPath.getOptional(employee);
-
-// Clear - TraversalPath has multiple values
-List<String> names = namesPath.getAll(department);
-```
+**Do not expect a collection field to be container-level.** `CompanyFocus.departments()` focuses each department; the `List` itself lives behind `FocusPath.of(CompanyLenses.departments())`.
 
 ---
 
-## Troubleshooting and FAQ
+## Troubleshooting
 
-### Compilation Errors
+### "Cannot infer type arguments for traverseOver"
 
-#### "Cannot infer type arguments for traverseOver"
+Java cannot recover the witness from the `Traverse` argument. Supply it:
 
-**Problem:**
 ```java
-// This fails to compile
-TraversalPath<User, Role> allRoles = rolesPath.traverseOver(ListTraverse.INSTANCE);
-```
-
-**Solution:** Provide explicit type parameters:
-```java
-// Add explicit type witnesses
 TraversalPath<User, Role> allRoles =
     rolesPath.<ListKind.Witness, Role>traverseOver(ListTraverse.INSTANCE);
 ```
 
-Java's type inference struggles with higher-kinded types. Explicit type parameters help the compiler.
+The same applies to receiver-position generics generally: `Instances.validated(Semigroups.<String>list())` needs its witness for the same reason.
 
-#### "Incompatible types when chaining .each().via()"
+### "Incompatible types" on a long chain
 
-**Problem:**
-```java
-// Type inference fails on long chains
-TraversalPath<Company, Integer> salaries =
-    FocusPath.of(companyDeptLens).each().via(deptEmployeesLens).each().via(salaryLens);
-```
+Break the chain into intermediate variables with declared types. The first line that will not compile is the step that widened differently from your expectation, and naming the types makes it obvious which one.
 
-**Solution:** Break the chain into intermediate variables:
-```java
-// Use intermediate variables
-TraversalPath<Company, Department> depts = FocusPath.of(companyDeptLens).each();
-TraversalPath<Company, Employee> employees = depts.via(deptEmployeesLens).each();
-TraversalPath<Company, Integer> salaries = employees.via(salaryLens);
-```
+### "Sealed or non-sealed local classes are not allowed"
 
-#### "Sealed or non-sealed local classes are not allowed"
+Sealed interfaces cannot be declared inside a method. Move them to class level, alongside their permitted records.
 
-**Problem:** Defining sealed interfaces inside test methods fails:
-```java
-@Test void myTest() {
-    sealed interface Wrapper permits A, B {}  // Compilation error!
-    record A() implements Wrapper {}
-}
-```
+### "Method reference `::new` does not work as a BiFunction"
 
-**Solution:** Move sealed interfaces to class level:
-```java
-class MyTest {
-    sealed interface Wrapper permits A, B {}
-    record A() implements Wrapper {}
+A single-component record's canonical constructor is a `Function`, not a `BiFunction`, so `Lens.of(Outer::inner, Outer::new)` will not compile. Write the lambda: `Lens.of(Outer::inner, (o, i) -> new Outer(i))`.
 
-    @Test void myTest() {
-        // Use Wrapper here
-    }
-}
-```
+### `getAll()` returns an empty list
 
-#### "Method reference ::new doesn't work with single-field records as BiFunction"
-
-**Problem:**
-```java
-// This fails for single-field records
-Lens<Outer, Inner> lens = Lens.of(Outer::inner, Outer::new);  // Error!
-```
-
-**Solution:** Use explicit lambda:
-```java
-Lens<Outer, Inner> lens = Lens.of(Outer::inner, (o, i) -> new Outer(i));
-```
-
-### Runtime Issues
-
-#### "getAll() returns empty unexpectedly"
-
-**Checklist:**
-1. Check if the AffinePath in the chain has focus (use `matches()` to verify)
-2. Verify `instanceOf()` matches the actual runtime type
-3. Ensure the source data actually contains elements
-
-```java
-// Debug with traced()
-TraversalPath<User, Role> traced = rolesPath.traced(
-    (user, roles) -> System.out.println("Found " + roles.size() + " roles")
-);
-List<Role> roles = traced.getAll(user);
-```
-
-#### "modifyAll() doesn't change anything"
-
-**Causes:**
-- The traversal has no focus (AffinePath didn't match)
-- The predicate in `modifyWhen()` never matches
-- The source collection is empty
-
-```java
-// Check focus exists
-int count = path.count(source);
-System.out.println("Path focuses on " + count + " elements");
-```
-
-### FAQ
-
-#### Q: When should I use `each()` vs `traverseOver()`?
-
-| Scenario | Use |
-|----------|-----|
-| Field is `List<T>` | `each()` |
-| Field is `Set<T>` | `each()` |
-| Field is `Kind<ListKind.Witness, T>` | `traverseOver(ListTraverse.INSTANCE)` |
-| Field is `Kind<MaybeKind.Witness, T>` | `traverseOver(MaybeTraverse.INSTANCE)` |
-| Custom traversable type | `traverseOver(YourTraverse.INSTANCE)` |
-
-#### Q: Why use `Instances.monadError(maybe())` for `modifyF()` instead of a dedicated Applicative?
-
-`MaybeMonad` extends `Applicative`, so it works for `modifyF()`. Higher-Kinded-J doesn't provide a separate `MaybeApplicative` because:
-- Monad already provides all Applicative operations
-- Having one instance simplifies the API
-- Most effects you'll use with `modifyF()` are monadic anyway
-
-```java
-// Use MaybeMonad for Maybe-based validation
-Kind<MaybeKind.Witness, Config> result =
-    keyPath.modifyF(validateKey, config, Instances.monadError(maybe()));
-```
-
-#### Q: Can I use Focus DSL with third-party types?
-
-Yes, use `.via()` to compose with manually created optics:
-
-```java
-// Create lens for third-party type
-Lens<ThirdPartyType, String> fieldLens = Lens.of(
-    ThirdPartyType::getField,
-    (obj, value) -> obj.toBuilder().field(value).build()
-);
-
-// Compose with Focus path
-FocusPath<MyRecord, String> path = MyRecordFocus.external().via(fieldLens);
-```
-
-#### Q: How do I handle nullable fields?
-
-The Focus DSL provides four approaches for handling nullable fields, from most to least automated:
-
-**Option 1: Use `@Nullable` annotation (Recommended)**
-
-Annotate nullable fields with `@Nullable` from JSpecify, JSR-305, or similar. The processor automatically generates `AffinePath` with null-safe access:
-
-```java
-import org.jspecify.annotations.Nullable;
-
-@GenerateFocus
-record User(String name, @Nullable String nickname) {}
-
-// Generated: AffinePath that handles null automatically
-AffinePath<User, String> nicknamePath = UserFocus.nickname();
-
-User user = new User("Alice", null);
-Optional<String> result = nicknamePath.getOptional(user);  // Optional.empty()
-
-User withNick = new User("Bob", "Bobby");
-Optional<String> present = nicknamePath.getOptional(withNick);  // Optional.of("Bobby")
-```
-
-Supported nullable annotations:
-- `org.jspecify.annotations.Nullable`
-- `javax.annotation.Nullable`
-- `jakarta.annotation.Nullable`
-- `org.jetbrains.annotations.Nullable`
-- `androidx.annotation.Nullable`
-- `edu.umd.cs.findbugs.annotations.Nullable`
-
-**Option 2: Use `.nullable()` method**
-
-For existing `FocusPath` instances, chain with `.nullable()` to handle nulls:
-
-```java
-// If you have a FocusPath to a nullable field
-FocusPath<LegacyUser, String> rawPath = LegacyUserFocus.nickname();
-
-// Chain with nullable() for null-safe access
-AffinePath<LegacyUser, String> safePath = rawPath.nullable();
-
-Optional<String> result = safePath.getOptional(user);  // Empty if null
-```
-
-**Option 3: Use `AffinePath.ofNullable()` factory**
-
-For manual creation without code generation:
-
-```java
-// Create a nullable-aware AffinePath directly
-AffinePath<User, String> nicknamePath = AffinePath.ofNullable(
-    User::nickname,
-    (user, nickname) -> new User(user.name(), nickname)
-);
-```
-
-**Option 4: Wrap in `Optional` (Alternative design)**
-
-If you control the data model, consider using `Optional<T>` instead of nullable fields:
-
-```java
-// Model absence explicitly with Optional
-record User(String name, Optional<String> email) {}
-
-// Focus DSL handles it naturally with .some()
-AffinePath<User, String> emailPath = UserFocus.email();  // Uses .some() internally
-```
-
-#### Q: What's the performance overhead of Focus DSL?
-
-- **Path creation**: Negligible (thin wrapper objects)
-- **Operations**: Same as underlying optics
-- **Hot paths**: Extract and cache the optic
-
-```java
-// For performance-critical code, cache the extracted optic
-private static final Traversal<Company, String> EMPLOYEE_NAMES =
-    CompanyFocus.departments().employees().name().toTraversal();
-
-// Use the cached optic in hot loops
-for (Company c : companies) {
-    List<String> names = Traversals.getAll(EMPLOYEE_NAMES, c);
-}
-```
-
-#### Q: Can I create Focus paths programmatically (at runtime)?
-
-Focus paths are designed for compile-time type safety. For runtime-dynamic paths, use the underlying optics directly:
-
-```java
-// Build optics dynamically
-Traversal<JsonNode, String> dynamicPath = buildTraversalFromJsonPath(jsonPathString);
-
-// Wrap in a path if needed
-TraversalPath<JsonNode, String> path = TraversalPath.of(dynamicPath);
-```
+Check, in order: whether an `AffinePath` in the chain actually matches (`matches(source)`), whether an `instanceOf` step matches the runtime type, and whether the source collection is empty. `traced()` shows you which step lost the focus, and `count(source)` tells you how many survived.
 
 ---
 
-~~~admonish tip title="Further Reading"
-- **Monocle**: [Focus DSL](https://www.optics.dev/Monocle/docs/focus) - Scala's equivalent, inspiration for this design
-~~~
+## FAQ
 
-~~~admonish tip title="See Also"
-- [Focus DSL](focus_dsl.md) - Core concepts and path types
-- [Lenses](lenses.md) - Foundation concepts
-- [Fluent API](fluent_api.md) - Alternative fluent patterns
-- [Free Monad DSL](free_monad_dsl.md) - Composable optic programs
+### When should I use `each()` versus `traverseOver()`?
+
+| Field is | Use |
+|----------|-----|
+| `List<T>` or `Set<T>` | `each()`, already applied by the generated method |
+| `Kind<F, T>` on a `@GenerateFocus` record | nothing: the processor generates the traversal |
+| `Kind<F, T>` behind a hand-written lens | `traverseOver(SomeTraverse.INSTANCE)` |
+
+### Why pass `Instances.monadError(maybe())` to `modifyF()` rather than an Applicative?
+
+`modifyF` asks for a `Functor` (on `FocusPath`) or an `Applicative` (on the wider paths), and every `Monad` is both. Higher-Kinded-J does not ship a separate `MaybeApplicative` because the monad instance already provides those operations:
+
+<!-- verify -->
+```java
+Kind<MaybeKind.Witness, Employee> result =
+    EmployeeFocus.email().modifyF(Fixture::checkEmail, alice, Instances.monadError(maybe()));
+```
+
+### Can I use the Focus DSL with third-party types?
+
+Yes. Navigate as far as the generated paths go, then `.via()` a hand-written or generated optic for the external type. [Optics for External Types](importing_optics.md) generates those optics for you, and [Focus DSL with External Libraries](focus_external_bridging.md) works through the bridge end to end.
+
+### How do I handle nullable fields?
+
+In order of preference:
+
+1. **Model the absence as `Optional<T>`.** The generated method applies `.some()` and hands you an `AffinePath`, with no extra step at all.
+2. **Annotate the component `@Nullable`.** Any of the six recognised annotations will do, wherever that annotation's own `@Target` puts it, and the generated method applies `.nullable()` for you.
+3. **Chain `.nullable()`** on the generated `FocusPath`. It turns null into an empty focus.
+4. **Build the path with `AffinePath.ofNullable(getter, setter)`** when there is no generated companion to start from.
+
+Two rules govern the annotated form. A container decides its own widening, so `@Nullable List<T>` is `.each()` and `@Nullable Optional<T>` is `.some()`. And position counts as Java defines it: `String @Nullable []` is a nullable array, while `@Nullable String[]` and `List<@Nullable String>` annotate the elements and leave the field itself non-null.
+
+### Can I build Focus paths at runtime?
+
+Focus paths are designed for compile-time type safety. When the path is only known at runtime, build the optic dynamically and wrap it: `TraversalPath.of(someTraversal)` and `FocusPath.of(someLens)` accept any optic.
+
+---
+
+~~~admonish info title="Key Takeaways"
+* **Build the path once.** Path creation is cheap but not free, and hoisting it out of a loop is the only performance rule that matters.
+* **`filter` narrows, then you keep composing.** It is on `TraversalPath`, so apply it before the next `.via()`.
+* **Let the path type pick the read.** `get`, `getOptional`, `preview` and `getAll` are not interchangeable; the type is telling you what it can promise.
+* **The annotation has more knobs than most people use.** `targetPackage`, `generateNavigators`, `maxNavigatorDepth`, `includeFields`, `excludeFields` and `widenCollections` between them cover nearly every generated-code complaint.
+* **A path is an optic underneath.** `toLens()`, `toAffine()` and `toTraversal()` hand it to `OpticOps`, `OpticPrograms` or anything else that speaks optics.
 ~~~
 
 ~~~admonish info title="Hands-On Learning"
-Practice the Focus DSL in:
 - [Tutorial 12: Focus DSL](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/test/java/org/higherkindedj/tutorial/optics/Tutorial12_FocusDSL.java) (10 exercises, ~10 minutes)
 - [Tutorial 13: Advanced Focus DSL](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/test/java/org/higherkindedj/tutorial/optics/Tutorial13_AdvancedFocusDSL.java) (8 exercises, ~10 minutes)
-- [Tutorial 19: Navigator Generation](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/test/java/org/higherkindedj/tutorial/optics/Tutorial19_NavigatorGeneration.java) (7 exercises, ~10 minutes)
-- [Tutorial 20: Custom Container Navigation](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/test/java/org/higherkindedj/tutorial/optics/Tutorial20_ContainerNavigation.java) (4 exercises, ~10 minutes).
+- [Tutorial 19: Navigator Generation](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/test/java/org/higherkindedj/tutorial/optics/Tutorial19_NavigatorGeneration.java) (8 exercises, ~10 minutes)
+- [Tutorial 20: Custom Container Navigation](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/test/java/org/higherkindedj/tutorial/optics/Tutorial20_ContainerNavigation.java) (4 exercises, ~10 minutes)
+~~~
+
+~~~admonish tip title="See Also"
+- [Focus DSL](focus_dsl.md): core concepts and path types
+- [Lenses](lenses.md): the optic underneath a `FocusPath`
+- [Fluent API](fluent_api.md): validation-aware modification through `OpticOps`
+- [Free Monad DSL](free_monad_dsl.md): optic programs and interpreters
+~~~
+
+~~~admonish tip title="Further Reading"
+- **Monocle**: [Focus DSL](https://www.optics.dev/Monocle/docs/focus): scala's equivalent, and the inspiration for this design
 ~~~
 
 ---

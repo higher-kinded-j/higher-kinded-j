@@ -591,8 +591,11 @@ TraversalPath<Company, Integer> allSalaries = allEmployees.via(employeeSalaryLen
 // Give everyone a 5% raise
 Company updated = allSalaries.modifyAll(s -> (int) (s * 1.05), company);
 
-// Or use generated Focus classes (with @GenerateFocus)
-Company updated = CompanyFocus.departments().employees().salary()
+// Or use generated Focus classes (with @GenerateFocus). A List field is already
+// element-level, so each hop across a record boundary is a .via(...)
+Company raised = CompanyFocus.departments()
+    .via(DepartmentFocus.employees())
+    .via(EmployeeFocus.salary())
     .modifyAll(s -> (int) (s * 1.05), company);
 ```
 

@@ -30,6 +30,7 @@ import org.higherkindedj.optics.annotations.Wither;
  * Address relocated = AddressOptics.city().set("New York", address);
  * }</pre>
  */
+// ANCHOR: spec
 @ImportOptics
 public interface AddressOpticsSpec extends OpticsSpec<Address> {
 
@@ -45,3 +46,4 @@ public interface AddressOpticsSpec extends OpticsSpec<Address> {
   @Wither(value = "withCountry", getter = "country")
   Lens<Address, String> country();
 }
+// ANCHOR_END: spec

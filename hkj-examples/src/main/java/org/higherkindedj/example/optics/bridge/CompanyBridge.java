@@ -25,7 +25,7 @@ import org.higherkindedj.optics.focus.TraversalPath;
  *
  * <pre>{@code
  * // 1. Use Focus to navigate local types
- * CompanyFocus.headquarters()  // Focus<Company, Address>
+ * CompanyFocus.headquarters()  // FocusPath<Company, Address>
  *
  * // 2. Convert to Lens and compose with external optics
  *     .toLens()                 // Lens<Company, Address>
@@ -64,8 +64,11 @@ public final class CompanyBridge {
    *
    * <p>Path: Company → headquarters (Focus) → city (AddressOptics)
    */
+  // ANCHOR: lens_bridge
   public static final Lens<Company, String> HEADQUARTERS_CITY =
       CompanyFocus.headquarters().toLens().andThen(AddressOptics.city());
+
+  // ANCHOR_END: lens_bridge
 
   /** Lens from Company to headquarters postcode. */
   public static final Lens<Company, String> HEADQUARTERS_POSTCODE =
@@ -143,6 +146,7 @@ public final class CompanyBridge {
    *
    * <p>Path: Company → departments[] → staff[] → contact → email
    */
+  // ANCHOR: traversal_bridge
   public static TraversalPath<Company, String> allCompanyEmails() {
     // departments() returns TraversalPath<Company, Department>
     // via(TraversalPath) composes to TraversalPath<Company, Employee>
@@ -151,6 +155,8 @@ public final class CompanyBridge {
         .via(EmployeeFocus.contact())
         .via(ContactInfoOptics.email());
   }
+
+  // ANCHOR_END: traversal_bridge
 
   /** TraversalPath over all employee phone numbers across the entire company. */
   public static TraversalPath<Company, String> allCompanyPhones() {

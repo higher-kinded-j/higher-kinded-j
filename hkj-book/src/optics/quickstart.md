@@ -33,13 +33,13 @@ With `@GenerateLenses` and `@GenerateFocus` on each record, the same operation b
 import org.higherkindedj.optics.annotations.GenerateLenses;
 import org.higherkindedj.optics.annotations.GenerateFocus;
 
-@GenerateLenses @GenerateFocus
+@GenerateLenses @GenerateFocus(generateNavigators = true)
 public record Street(String name, int number) {}
 
-@GenerateLenses @GenerateFocus
+@GenerateLenses @GenerateFocus(generateNavigators = true)
 public record Address(Street street, String city) {}
 
-@GenerateLenses @GenerateFocus
+@GenerateLenses @GenerateFocus(generateNavigators = true)
 public record User(String name, Address address) {}
 ```
 
@@ -50,7 +50,7 @@ User updated = UserFocus.address().street().name().set("New Street", user);
 The annotation processor runs at compile time and produces `StreetLenses`, `StreetFocus`, `AddressLenses`, `AddressFocus`, `UserLenses`, and `UserFocus` for you. There is no reflection at runtime; the path you wrote is just a chain of typed method calls.
 
 ~~~admonish tip title="Why two annotations?"
-`@GenerateLenses` produces classic lenses (`UserLenses.address()`) plus `withFoo` helpers for shallow updates. `@GenerateFocus` adds the path-based DSL (`UserFocus.address().street().name()`) for deep navigation. Most records benefit from both.
+`@GenerateLenses` produces classic lenses (`UserLenses.address()`) plus `withFoo` helpers for shallow updates. `@GenerateFocus` adds the path-based DSL (`UserFocus.address()`) for deep navigation, and `generateNavigators = true` is what lets the next hop chain off it as `.street()` rather than `.via(AddressFocus.street())`. Most records benefit from both annotations.
 ~~~
 
 ---
