@@ -79,6 +79,8 @@ public static AffinePath<Employee, String> nickname() {
 }
 ```
 
+Any of the six recognised `@Nullable` annotations does this, wherever that annotation's own `@Target` puts it (JSpecify's `TYPE_USE` on the component's type, JetBrains', AndroidX's and SpotBugs' on the accessor, JSR-305's and Jakarta's on the component itself). A container decides its own widening, so `@Nullable List<T>` is `.each()` and `@Nullable Optional<T>` is `.some()`; and position counts as Java defines it, so `String @Nullable []` is a nullable array while `@Nullable String[]` and `List<@Nullable String>` annotate the elements.
+
 ### List<T> -> TraversalPath (element traversal)
 <!-- verify -->
 ```java

@@ -823,7 +823,7 @@ class MutationKillingPhase2Test {
   // =============================================================================
   // NullableAnnotations Tests
   // Targets: hasNullableAnnotation : replaced boolean return with false
-  //          lambda$hasNullableAnnotation$0 : replaced return value with ""
+  //          lambda$hasNullable$0 : replaced return value with ""
   // =============================================================================
 
   @Nested
@@ -833,16 +833,6 @@ class MutationKillingPhase2Test {
     @Test
     @DisplayName("@Nullable field should widen to AffinePath")
     void nullableFieldShouldWidenToAffinePath() throws IOException {
-      var annotationSource =
-          JavaFileObjects.forSourceString(
-              "org.jspecify.annotations.Nullable",
-              """
-              package org.jspecify.annotations;
-              import java.lang.annotation.*;
-              @Target({ElementType.TYPE_USE, ElementType.PARAMETER, ElementType.FIELD, ElementType.RECORD_COMPONENT})
-              @Retention(RetentionPolicy.RUNTIME)
-              public @interface Nullable {}
-              """);
       var source =
           JavaFileObjects.forSourceString(
               "com.example.Person",
@@ -854,8 +844,7 @@ class MutationKillingPhase2Test {
               public record Person(String name, @Nullable String nickname) {}
               """);
 
-      Compilation compilation =
-          javac().withProcessors(new FocusProcessor()).compile(annotationSource, source);
+      Compilation compilation = javac().withProcessors(new FocusProcessor()).compile(source);
 
       assertThat(compilation).succeeded();
 

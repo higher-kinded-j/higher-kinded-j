@@ -5,6 +5,7 @@ package org.higherkindedj.optics.processing;
 import static com.google.testing.compile.CompilationSubject.assertThat;
 import static com.google.testing.compile.Compiler.javac;
 import static org.higherkindedj.optics.processing.GeneratorTestHelper.assertGeneratedCodeContains;
+import static org.higherkindedj.optics.processing.GeneratorTestHelper.assertGeneratedCodeDoesNotContain;
 
 import com.google.testing.compile.Compilation;
 import com.google.testing.compile.JavaFileObjects;
@@ -586,17 +587,6 @@ class NavigatorCoverageTest {
     @Test
     @DisplayName("should skip navigator field that collides with AffinePath delegate 'matches'")
     void shouldSkipFieldCollidingWithMatchesDelegate() {
-      final JavaFileObject nullableAnnotation =
-          JavaFileObjects.forSourceString(
-              "org.jspecify.annotations.Nullable",
-              """
-              package org.jspecify.annotations;
-              import java.lang.annotation.*;
-              @Target({ElementType.TYPE_USE, ElementType.PARAMETER, ElementType.FIELD,
-                       ElementType.RECORD_COMPONENT})
-              @Retention(RetentionPolicy.RUNTIME)
-              public @interface Nullable {}
-              """);
 
       final JavaFileObject innerSource =
           JavaFileObjects.forSourceString(
@@ -620,9 +610,7 @@ class NavigatorCoverageTest {
               """);
 
       Compilation compilation =
-          javac()
-              .withProcessors(new FocusProcessor())
-              .compile(nullableAnnotation, innerSource, outerSource);
+          javac().withProcessors(new FocusProcessor()).compile(innerSource, outerSource);
 
       assertThat(compilation).succeeded();
 
@@ -791,17 +779,6 @@ class NavigatorCoverageTest {
     @Test
     @DisplayName("should widen from AFFINE to TRAVERSAL when @Nullable navigable has List field")
     void shouldWidenAffineToTraversalInNavigator() {
-      final JavaFileObject nullableAnnotation =
-          JavaFileObjects.forSourceString(
-              "org.jspecify.annotations.Nullable",
-              """
-              package org.jspecify.annotations;
-              import java.lang.annotation.*;
-              @Target({ElementType.TYPE_USE, ElementType.PARAMETER, ElementType.FIELD,
-                       ElementType.RECORD_COMPONENT})
-              @Retention(RetentionPolicy.RUNTIME)
-              public @interface Nullable {}
-              """);
 
       final JavaFileObject innerSource =
           JavaFileObjects.forSourceString(
@@ -826,9 +803,7 @@ class NavigatorCoverageTest {
               """);
 
       Compilation compilation =
-          javac()
-              .withProcessors(new FocusProcessor())
-              .compile(nullableAnnotation, innerSource, outerSource);
+          javac().withProcessors(new FocusProcessor()).compile(innerSource, outerSource);
 
       assertThat(compilation).succeeded();
 
@@ -1089,6 +1064,100 @@ class NavigatorCoverageTest {
       assertGeneratedCodeContains(
           compilation, "com.example.CompanyFocus", "AddressFocus.DeptsNavigator<S> depts()");
     }
+
+    @Test
+    @DisplayName("should stop wrapping an SPI container of a navigable type at the depth limit")
+    void shouldNotWrapSpiContainerBeyondDepthLimit() {
+      final JavaFileObject deptSource =
+          JavaFileObjects.forSourceString(
+              "com.example.Dept",
+              """
+              package com.example;
+              import org.higherkindedj.optics.annotations.GenerateFocus;
+              @GenerateFocus(generateNavigators = true)
+              public record Dept(String title) {}
+              """);
+
+      final JavaFileObject addressSource =
+          JavaFileObjects.forSourceString(
+              "com.example.Address",
+              """
+              package com.example;
+              import java.util.Map;
+              import org.higherkindedj.optics.annotations.GenerateFocus;
+              @GenerateFocus(generateNavigators = true)
+              public record Address(String street, Map<String, Dept> depts) {}
+              """);
+
+      final JavaFileObject companySource =
+          JavaFileObjects.forSourceString(
+              "com.example.ShallowCompany",
+              """
+              package com.example;
+              import org.higherkindedj.optics.annotations.GenerateFocus;
+              @GenerateFocus(generateNavigators = true, maxNavigatorDepth = 1)
+              public record ShallowCompany(String name, Address hq) {}
+              """);
+
+      Compilation compilation =
+          javac()
+              .withProcessors(new FocusProcessor())
+              .compile(deptSource, addressSource, companySource);
+
+      assertThat(compilation).succeeded();
+
+      // HqNavigator sits at the depth limit, so its Map<String, Dept> field keeps the plain
+      // traversal path instead of being wrapped in AddressFocus.DeptsNavigator.
+      assertGeneratedCodeContains(
+          compilation, "com.example.ShallowCompanyFocus", "TraversalPath<S, Dept> depts()");
+      assertGeneratedCodeDoesNotContain(
+          compilation, "com.example.ShallowCompanyFocus", "AddressFocus.DeptsNavigator<S> depts()");
+    }
+  }
+
+  @Nested
+  @DisplayName("Nested Container Widening")
+  class NestedContainerWidening {
+
+    @Test
+    @DisplayName("should chain the widening until it reaches the path kind the method declares")
+    void shouldChainWideningForNestedContainers() {
+      final JavaFileObject innerSource =
+          JavaFileObjects.forSourceString(
+              "com.example.Bundle",
+              """
+              package com.example;
+              import java.util.List;
+              import java.util.Optional;
+              import org.higherkindedj.optics.annotations.GenerateFocus;
+              @GenerateFocus(generateNavigators = true)
+              public record Bundle(String id, Optional<List<String>> notes) {}
+              """);
+
+      final JavaFileObject outerSource =
+          JavaFileObjects.forSourceString(
+              "com.example.Shipment",
+              """
+              package com.example;
+              import org.higherkindedj.optics.annotations.GenerateFocus;
+              @GenerateFocus(generateNavigators = true)
+              public record Shipment(String reference, Bundle bundle) {}
+              """);
+
+      Compilation compilation =
+          javac().withProcessors(new FocusProcessor()).compile(innerSource, outerSource);
+
+      // Optional<List<String>> composes to TRAVERSAL, so .some() alone would hand back an
+      // AffinePath where the method declares a TraversalPath: the generated source would not
+      // compile. Both the static method and the navigator chain through to the element.
+      assertThat(compilation).succeeded();
+      assertGeneratedCodeContains(
+          compilation, "com.example.BundleFocus", "TraversalPath<Bundle, String> notes()");
+      assertGeneratedCodeContains(compilation, "com.example.BundleFocus", ".some().each()");
+      assertGeneratedCodeContains(
+          compilation, "com.example.ShipmentFocus", "TraversalPath<S, String> notes()");
+      assertGeneratedCodeContains(compilation, "com.example.ShipmentFocus", ".some().each()");
+    }
   }
 
   @Nested
@@ -1098,17 +1167,6 @@ class NavigatorCoverageTest {
     @Test
     @DisplayName("should handle raw, wildcard, array and subtype container fields in navigators")
     void shouldHandleRawWildcardArrayAndSubtypeContainerFields() {
-      final JavaFileObject nullableAnnotation =
-          JavaFileObjects.forSourceString(
-              "org.jspecify.annotations.Nullable",
-              """
-              package org.jspecify.annotations;
-              import java.lang.annotation.*;
-              @Target({ElementType.TYPE_USE, ElementType.PARAMETER, ElementType.FIELD,
-                       ElementType.RECORD_COMPONENT})
-              @Retention(RetentionPolicy.RUNTIME)
-              public @interface Nullable {}
-              """);
 
       final JavaFileObject targetSource =
           JavaFileObjects.forSourceString(
@@ -1127,7 +1185,7 @@ class NavigatorCoverageTest {
                   String label,
                   Optional rawOpt,
                   Optional<?> wildOpt,
-                  @Nullable int[] scores,
+                  int @Nullable [] scores,
                   ArrayList<String> tags,
                   ArrayList<?> wildTags,
                   ArrayList rawTags,
@@ -1146,9 +1204,7 @@ class NavigatorCoverageTest {
               """);
 
       Compilation compilation =
-          javac()
-              .withProcessors(new FocusProcessor())
-              .compile(nullableAnnotation, targetSource, rootSource);
+          javac().withProcessors(new FocusProcessor()).compile(targetSource, rootSource);
 
       assertThat(compilation).succeeded();
 
@@ -1158,7 +1214,8 @@ class NavigatorCoverageTest {
       // Optional<?>: the unbounded wildcard resolves to Object.
       assertGeneratedCodeContains(
           compilation, "com.example.WideRootFocus", "AffinePath<S, Object> wildOpt()");
-      // @Nullable int[]: non-declared type, no inner extraction, widened via .nullable().
+      // int @Nullable []: a nullable array is a non-declared type, so there is no inner
+      // extraction and the path widens via .nullable().
       assertGeneratedCodeContains(
           compilation, "com.example.WideRootFocus", "AffinePath<S, int[]> scores()");
       // ArrayList<String>: Collection subtype resolved through the interface walk.

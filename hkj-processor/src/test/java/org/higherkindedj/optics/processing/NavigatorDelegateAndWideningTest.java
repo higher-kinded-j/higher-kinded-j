@@ -32,18 +32,6 @@ import org.junit.jupiter.api.Test;
 @DisplayName("Navigator Delegate and Widening Coverage Tests")
 class NavigatorDelegateAndWideningTest {
 
-  private static final JavaFileObject NULLABLE_ANNOTATION =
-      JavaFileObjects.forSourceString(
-          "org.jspecify.annotations.Nullable",
-          """
-          package org.jspecify.annotations;
-          import java.lang.annotation.*;
-          @Target({ElementType.TYPE_USE, ElementType.PARAMETER, ElementType.FIELD,
-                   ElementType.RECORD_COMPONENT})
-          @Retention(RetentionPolicy.RUNTIME)
-          public @interface Nullable {}
-          """);
-
   @Nested
   @DisplayName("AffinePath Navigator Delegate Methods")
   class AffinePathDelegates {
@@ -73,9 +61,7 @@ class NavigatorDelegateAndWideningTest {
               """);
 
       Compilation compilation =
-          javac()
-              .withProcessors(new FocusProcessor())
-              .compile(NULLABLE_ANNOTATION, innerSource, outerSource);
+          javac().withProcessors(new FocusProcessor()).compile(innerSource, outerSource);
 
       assertThat(compilation).succeeded();
 
@@ -197,9 +183,7 @@ class NavigatorDelegateAndWideningTest {
               """);
 
       Compilation compilation =
-          javac()
-              .withProcessors(new FocusProcessor())
-              .compile(NULLABLE_ANNOTATION, innerSource, outerSource);
+          javac().withProcessors(new FocusProcessor()).compile(innerSource, outerSource);
 
       assertThat(compilation).succeeded();
 
@@ -248,7 +232,7 @@ class NavigatorDelegateAndWideningTest {
       Compilation compilation =
           javac()
               .withProcessors(new FocusProcessor())
-              .compile(NULLABLE_ANNOTATION, leafSource, branchSource, rootSource);
+              .compile(leafSource, branchSource, rootSource);
 
       assertThat(compilation).succeeded();
 
@@ -276,8 +260,7 @@ class NavigatorDelegateAndWideningTest {
               public record Wrapper(String name, @Nullable Integer count) {}
               """);
 
-      Compilation compilation =
-          javac().withProcessors(new FocusProcessor()).compile(NULLABLE_ANNOTATION, sourceFile);
+      Compilation compilation = javac().withProcessors(new FocusProcessor()).compile(sourceFile);
 
       assertThat(compilation).succeeded();
 

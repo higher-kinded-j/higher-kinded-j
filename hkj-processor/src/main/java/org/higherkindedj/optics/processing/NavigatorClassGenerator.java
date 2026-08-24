@@ -141,17 +141,18 @@ public class NavigatorClassGenerator {
    * composes path kinds for nested container types (e.g., Optional&lt;List&lt;String&gt;&gt;
    * produces TRAVERSAL).
    *
-   * @param component the record component (may be null for nested navigation)
+   * @param component the record component the field belongs to
    * @param type the field type to analyse
    * @return AFFINE for optional/nullable types, TRAVERSAL for collection types, FOCUS otherwise
    */
   private PathKind getFieldPathKind(RecordComponentElement component, TypeMirror type) {
-    // Check for @Nullable annotation first
-    if (component != null && NullableAnnotations.hasNullableAnnotation(component)) {
+    PathKind kind = getFieldPathKindRecursive(type, 0);
+    // A container decides the path kind on its own; @Nullable only widens a field that would
+    // otherwise be a plain focus, which is the same precedence the static Focus methods use.
+    if (kind == PathKind.FOCUS && NullableAnnotations.hasNullableAnnotation(component)) {
       return PathKind.AFFINE;
     }
-
-    return getFieldPathKindRecursive(type, 0);
+    return kind;
   }
 
   /** Maximum recursion depth for nested container path kind analysis. */
@@ -182,14 +183,13 @@ public class NavigatorClassGenerator {
       return PathKind.TRAVERSAL.widen(innerKind);
     }
 
-    // Check for subtypes of Collection
+    // Check for subtypes of Collection. A superinterface is always a declared type, error types
+    // included, so the element is read without a kind check.
     for (TypeMirror iface : typeElement.getInterfaces()) {
-      if (iface.getKind() == TypeKind.DECLARED) {
-        TypeElement ifaceElement = (TypeElement) ((DeclaredType) iface).asElement();
-        if (COLLECTION_TYPES.contains(ifaceElement.getQualifiedName().toString())) {
-          PathKind innerKind = getInnerPathKind(declaredType, 0, depth);
-          return PathKind.TRAVERSAL.widen(innerKind);
-        }
+      TypeElement ifaceElement = (TypeElement) ((DeclaredType) iface).asElement();
+      if (COLLECTION_TYPES.contains(ifaceElement.getQualifiedName().toString())) {
+        PathKind innerKind = getInnerPathKind(declaredType, 0, depth);
+        return PathKind.TRAVERSAL.widen(innerKind);
       }
     }
 
@@ -265,13 +265,9 @@ public class NavigatorClassGenerator {
 
       TypeMirror fieldType = component.asType();
 
-      if (isNavigableType(fieldType)) {
+      TypeElement fieldTypeElement = navigableTypeElement(fieldType);
+      if (fieldTypeElement != null) {
         // Direct navigable type (e.g., Address headquarters)
-        TypeElement fieldTypeElement = getTypeElement(fieldType);
-        if (fieldTypeElement == null) {
-          continue;
-        }
-
         PathKind fieldKind = getFieldPathKind(component, fieldType);
         PathKind widenedKind = currentPathKind.widen(fieldKind);
 
@@ -281,34 +277,21 @@ public class NavigatorClassGenerator {
         focusClassBuilder.addType(navigatorClass);
 
       } else {
-        // Check if the field is an SPI container wrapping a navigable inner type
+        // Otherwise the field may be an SPI container wrapping a navigable inner type
         // (e.g., Either<String, Address> where Address is navigable).
-        // Skip types already handled by hardcoded OPTIONAL_TYPES/COLLECTION_TYPES
-        // (e.g., Optional<Branch>, List<Leaf>) as they have their own widening.
-        TraversableGenerator generator =
-            isHardcodedWideningType(fieldType) ? null : findSpiGenerator(fieldType);
-        if (generator != null && fieldType.getKind() == TypeKind.DECLARED) {
-          DeclaredType declaredType = (DeclaredType) fieldType;
-          int focusIdx = generator.getFocusTypeArgumentIndex();
-          if (focusIdx < declaredType.getTypeArguments().size()) {
-            TypeMirror innerType = declaredType.getTypeArguments().get(focusIdx);
-            if (isNavigableType(innerType)) {
-              TypeElement innerTypeElement = getTypeElement(innerType);
-              if (innerTypeElement != null) {
-                PathKind spiKind =
-                    switch (generator.getCardinality()) {
-                      case ZERO_OR_ONE -> PathKind.AFFINE;
-                      case ZERO_OR_MORE -> PathKind.TRAVERSAL;
-                    };
-                PathKind widenedKind = currentPathKind.widen(spiKind);
+        SpiNavigable spiNavigable = spiNavigable(fieldType);
+        if (spiNavigable != null) {
+          PathKind spiKind =
+              switch (spiNavigable.generator().getCardinality()) {
+                case ZERO_OR_ONE -> PathKind.AFFINE;
+                case ZERO_OR_MORE -> PathKind.TRAVERSAL;
+              };
+          PathKind widenedKind = currentPathKind.widen(spiKind);
 
-                TypeSpec navigatorClass =
-                    generateNavigatorClass(
-                        component, recordElement, innerTypeElement, currentDepth, widenedKind);
-                focusClassBuilder.addType(navigatorClass);
-              }
-            }
-          }
+          TypeSpec navigatorClass =
+              generateNavigatorClass(
+                  component, recordElement, spiNavigable.element(), currentDepth, widenedKind);
+          focusClassBuilder.addType(navigatorClass);
         }
       }
     }
@@ -386,6 +369,16 @@ public class NavigatorClassGenerator {
     return navigatorBuilder.build();
   }
 
+  /** Adds the delegate methods one path kind's navigator forwards to its underlying path. */
+  @FunctionalInterface
+  private interface DelegateMethods {
+    void addTo(
+        TypeSpec.Builder navigatorBuilder,
+        TypeVariableName sourceTypeVar,
+        TypeName targetTypeName,
+        ParameterizedTypeName delegateType);
+  }
+
   /** Adds delegate methods that forward to the underlying path. */
   private void addDelegateMethods(
       TypeSpec.Builder navigatorBuilder,
@@ -394,17 +387,15 @@ public class NavigatorClassGenerator {
       ParameterizedTypeName delegateType,
       PathKind pathKind) {
 
-    switch (pathKind) {
-      case FOCUS ->
-          addFocusPathDelegateMethods(
-              navigatorBuilder, sourceTypeVar, targetTypeName, delegateType);
-      case AFFINE ->
-          addAffinePathDelegateMethods(
-              navigatorBuilder, sourceTypeVar, targetTypeName, delegateType);
-      case TRAVERSAL ->
-          addTraversalPathDelegateMethods(
-              navigatorBuilder, sourceTypeVar, targetTypeName, delegateType);
-    }
+    // Selected as a value rather than dispatched to as a statement: the three kinds are the whole
+    // enum, and a switch expression says so without a default arm nothing can reach.
+    DelegateMethods delegates =
+        switch (pathKind) {
+          case FOCUS -> this::addFocusPathDelegateMethods;
+          case AFFINE -> this::addAffinePathDelegateMethods;
+          case TRAVERSAL -> this::addTraversalPathDelegateMethods;
+        };
+    delegates.addTo(navigatorBuilder, sourceTypeVar, targetTypeName, delegateType);
   }
 
   /** Adds delegate methods for FocusPath navigators. */
@@ -811,18 +802,11 @@ public class NavigatorClassGenerator {
                         : "source." + c.getSimpleName() + "()")
             .collect(Collectors.joining(", "));
 
-    // Compute the widening expression and collect any $T args for SPI optic expressions
+    // Compute the widening chain and collect any $T args for SPI optic expressions
     List<Object> wideningArgs = new ArrayList<>();
-    String wideningExpr = buildPathWidening(component, fieldType, fieldKind, wideningArgs);
-
-    // Determine the inner type that the widening produces.
-    // For containers (Optional, List, SPI types), this is the element type inside.
-    // For @Nullable, this is the field type itself.
-    TypeName innerTypeName = extractInnerType(fieldType);
-    if (innerTypeName == null) {
-      // Fallback: no inner type extraction possible (shouldn't happen for widened types)
-      innerTypeName = TypeName.get(fieldType).box();
-    }
+    Widening widening = widening(fieldType, fieldKind, wideningArgs);
+    String wideningExpr = widening.expression();
+    TypeName innerTypeName = widening.focusType();
 
     // Set the correct return type using the inner type.
     // The widening methods (.some(), .each(), .nullable()) on the path types automatically
@@ -832,23 +816,19 @@ public class NavigatorClassGenerator {
         ParameterizedTypeName.get(pathClass, sourceTypeVar, innerTypeName);
     methodBuilder.returns(innerReturnType);
 
-    // Check if the inner type is navigable and we should wrap in a navigator.
-    // Only wrap for SPI ZERO_OR_MORE types, not hardcoded collection types (List, Set, Collection),
-    // because generateNavigatorsWithPathKind only generates navigator classes for SPI containers
-    // and directly navigable types, not for hardcoded collection types.
+    // An SPI ZERO_OR_MORE field whose element type is navigable is wrapped in that element's
+    // navigator. A hardcoded collection (List, Set, Collection) is not, because
+    // generateNavigatorsWithPathKind only emits navigator classes for SPI containers and for
+    // directly navigable fields.
     boolean wrapInNavigator = false;
     ClassName navigatorFromTargetFocus = null;
-    if (fieldKind == PathKind.TRAVERSAL && !isHardcodedWideningType(fieldType)) {
-      // For SPI ZERO_OR_MORE TRAVERSAL fields, check if inner type is navigable
-      TypeElement innerTypeElement = extractInnerTypeElement(fieldType);
-      if (currentDepth < maxDepth
-          && innerTypeElement != null
-          && innerTypeElement.getAnnotation(GenerateFocus.class) != null) {
-        wrapInNavigator = true;
-        String innerNavigatorClassName = ProcessorUtils.capitalise(fieldName) + "Navigator";
-        navigatorFromTargetFocus =
-            ClassName.get(targetPackage, targetFocusClassName, innerNavigatorClassName);
-      }
+    if (fieldKind == PathKind.TRAVERSAL
+        && currentDepth < maxDepth
+        && spiNavigable(fieldType) != null) {
+      wrapInNavigator = true;
+      String innerNavigatorClassName = ProcessorUtils.capitalise(fieldName) + "Navigator";
+      navigatorFromTargetFocus =
+          ClassName.get(targetPackage, targetFocusClassName, innerNavigatorClassName);
     }
 
     // Build the statement: delegate.via(Lens.of(Record::field, setter)).widen().kindWiden()
@@ -886,82 +866,38 @@ public class NavigatorClassGenerator {
     }
   }
 
-  /**
-   * Extracts the inner type from a container type.
-   *
-   * <p>For {@code Optional<T>}, {@code List<T>}, {@code Set<T>} returns T. For SPI types, returns
-   * the focus type argument. Returns null if the type is not a recognised container.
-   */
-  private TypeName extractInnerType(TypeMirror type) {
-    if (type.getKind() != TypeKind.DECLARED) {
-      return null;
-    }
-    DeclaredType declaredType = (DeclaredType) type;
-    TypeElement typeElement = (TypeElement) declaredType.asElement();
-    String qualifiedName = typeElement.getQualifiedName().toString();
-
-    // Hardcoded Optional and Collection types use first type argument
-    if (OPTIONAL_TYPES.contains(qualifiedName) || COLLECTION_TYPES.contains(qualifiedName)) {
-      List<? extends TypeMirror> typeArgs = declaredType.getTypeArguments();
-      if (!typeArgs.isEmpty()) {
-        TypeMirror resolved = ProcessorUtils.resolveWildcard(typeArgs.get(0));
-        return resolved != null ? TypeName.get(resolved).box() : ClassName.get(Object.class);
-      }
-      return null;
-    }
-
-    // Check Collection subtypes
-    for (TypeMirror iface : typeElement.getInterfaces()) {
-      if (iface.getKind() == TypeKind.DECLARED) {
-        TypeElement ifaceElement = (TypeElement) ((DeclaredType) iface).asElement();
-        if (COLLECTION_TYPES.contains(ifaceElement.getQualifiedName().toString())) {
-          List<? extends TypeMirror> typeArgs = declaredType.getTypeArguments();
-          if (!typeArgs.isEmpty()) {
-            TypeMirror resolved = ProcessorUtils.resolveWildcard(typeArgs.get(0));
-            return resolved != null ? TypeName.get(resolved).box() : ClassName.get(Object.class);
-          }
-        }
-      }
-    }
-
-    // SPI types: use the focus type argument index
-    TraversableGenerator generator = findSpiGenerator(type);
-    if (generator != null) {
-      int focusIdx = generator.getFocusTypeArgumentIndex();
-      List<? extends TypeMirror> typeArgs = declaredType.getTypeArguments();
-      if (focusIdx < typeArgs.size()) {
-        TypeMirror resolved = ProcessorUtils.resolveWildcard(typeArgs.get(focusIdx));
-        return resolved != null ? TypeName.get(resolved).box() : ClassName.get(Object.class);
-      }
-    }
-
-    return null;
-  }
+  /** An SPI container's generator, paired with the navigable element it focuses on. */
+  private record SpiNavigable(TraversableGenerator generator, TypeElement element) {}
 
   /**
-   * Extracts the inner TypeElement from a container type, for checking navigability.
+   * Returns the generator and navigable element of an SPI container focused on a navigable type, or
+   * {@code null} when the field is not one.
    *
-   * <p>Returns null if no inner type element can be determined.
+   * <p>Every site that asks reads the answer from here, so the navigator class, the method's return
+   * type and the wrapping decision cannot disagree about which fields have one. Hardcoded
+   * Optional/Collection fields are excluded because they widen through their own path and never get
+   * a navigator class.
    */
-  private TypeElement extractInnerTypeElement(TypeMirror type) {
-    if (type.getKind() != TypeKind.DECLARED) {
+  private SpiNavigable spiNavigable(TypeMirror fieldType) {
+    if (fieldType.getKind() != TypeKind.DECLARED || isHardcodedWideningType(fieldType)) {
       return null;
     }
-    DeclaredType declaredType = (DeclaredType) type;
-
-    // The sole caller filters out hardcoded Optional/Collection types, so only SPI
-    // containers reach this point.
-    TypeMirror innerType = null;
-    TraversableGenerator generator = findSpiGenerator(type);
-    if (generator != null) {
-      int focusIdx = generator.getFocusTypeArgumentIndex();
-      List<? extends TypeMirror> typeArgs = declaredType.getTypeArguments();
-      if (focusIdx < typeArgs.size()) {
-        innerType = ProcessorUtils.resolveWildcard(typeArgs.get(focusIdx));
-      }
+    TraversableGenerator generator = findSpiGenerator(fieldType);
+    if (generator == null) {
+      // A Collection subtype such as ArrayList is widened by the interface walk rather than by a
+      // generator, so there is no focus type argument to read.
+      return null;
     }
-
-    return innerType != null ? getTypeElement(innerType) : null;
+    List<? extends TypeMirror> typeArgs = ((DeclaredType) fieldType).getTypeArguments();
+    int focusIdx = generator.getFocusTypeArgumentIndex();
+    if (focusIdx >= typeArgs.size()) {
+      return null; // a raw container carries no type argument
+    }
+    // The argument is resolved first: `Map<String, ? extends Address>` focuses on Address, and
+    // an unbounded or super-bounded wildcard resolves to no type at all.
+    TypeMirror innerType = ProcessorUtils.resolveWildcard(typeArgs.get(focusIdx));
+    TypeElement element = innerType == null ? null : navigableTypeElement(innerType);
+    return element == null ? null : new SpiNavigable(generator, element);
   }
 
   /**
@@ -1009,29 +945,25 @@ public class NavigatorClassGenerator {
 
   /** Checks if a type is navigable (has @GenerateFocus annotation). */
   boolean isNavigableType(TypeMirror type) {
-    if (type.getKind() != TypeKind.DECLARED) {
-      return false;
-    }
-    DeclaredType declaredType = (DeclaredType) type;
-    TypeElement typeElement = (TypeElement) declaredType.asElement();
-    String qualifiedName = typeElement.getQualifiedName().toString();
-
-    // Check if the type is in our set of navigable types
-    if (navigableTypes.contains(qualifiedName)) {
-      return true;
-    }
-
-    // Also check if the type has @GenerateFocus annotation
-    return typeElement.getAnnotation(GenerateFocus.class) != null;
+    return navigableTypeElement(type) != null;
   }
 
-  /** Gets the TypeElement for a TypeMirror. */
-  private TypeElement getTypeElement(TypeMirror type) {
+  /**
+   * Returns the element of a navigable type, or {@code null} when the type is not navigable.
+   *
+   * <p>Navigability and the element are answered together because they are never useful apart: only
+   * a declared type can be navigable, so a caller holding a navigable type already holds its
+   * element.
+   */
+  private TypeElement navigableTypeElement(TypeMirror type) {
     if (type.getKind() != TypeKind.DECLARED) {
       return null;
     }
-    DeclaredType declaredType = (DeclaredType) type;
-    return (TypeElement) declaredType.asElement();
+    TypeElement typeElement = (TypeElement) ((DeclaredType) type).asElement();
+    boolean navigable =
+        navigableTypes.contains(typeElement.getQualifiedName().toString())
+            || typeElement.getAnnotation(GenerateFocus.class) != null;
+    return navigable ? typeElement : null;
   }
 
   /**
@@ -1068,14 +1000,11 @@ public class NavigatorClassGenerator {
   }
 
   /**
-   * Checks if a type is handled by the hardcoded OPTIONAL_TYPES or COLLECTION_TYPES sets. These
-   * types have their own widening mechanisms and should not be treated as SPI containers for
-   * navigator generation.
+   * Checks if a declared type is handled by the hardcoded OPTIONAL_TYPES or COLLECTION_TYPES sets.
+   * These types have their own widening mechanisms and should not be treated as SPI containers for
+   * navigator generation. The caller has established that the type is declared.
    */
   private boolean isHardcodedWideningType(TypeMirror type) {
-    if (type.getKind() != TypeKind.DECLARED) {
-      return false;
-    }
     TypeElement typeElement = (TypeElement) ((DeclaredType) type).asElement();
     String qualifiedName = typeElement.getQualifiedName().toString();
     return OPTIONAL_TYPES.contains(qualifiedName) || COLLECTION_TYPES.contains(qualifiedName);
@@ -1107,35 +1036,16 @@ public class NavigatorClassGenerator {
     }
 
     // Check direct navigability first
-    boolean directlyNavigable = false;
-    TypeElement fieldTypeElement = getTypeElement(fieldType);
-    if (fieldTypeElement != null && isNavigableType(fieldType)) {
-      directlyNavigable = true;
-    }
+    TypeElement fieldTypeElement = navigableTypeElement(fieldType);
+    boolean directlyNavigable = fieldTypeElement != null;
 
-    // Check if field is an SPI container wrapping a navigable inner type
-    // (e.g., Either<String, Address> where Address is navigable).
-    // Skip types already handled by hardcoded OPTIONAL_TYPES/COLLECTION_TYPES
-    // (Optional<Branch> fields are handled by createFocusPathMethod via .some() widening).
-    boolean spiContainerNavigable = false;
-    TraversableGenerator spiGenerator = null;
-    TypeElement innerNavigableType = null;
-    if (!directlyNavigable
-        && fieldType.getKind() == TypeKind.DECLARED
-        && !isHardcodedWideningType(fieldType)) {
-      spiGenerator = findSpiGenerator(fieldType);
-      if (spiGenerator != null) {
-        DeclaredType declaredType = (DeclaredType) fieldType;
-        int focusIdx = spiGenerator.getFocusTypeArgumentIndex();
-        if (focusIdx < declaredType.getTypeArguments().size()) {
-          TypeMirror innerType = declaredType.getTypeArguments().get(focusIdx);
-          if (isNavigableType(innerType)) {
-            innerNavigableType = getTypeElement(innerType);
-            spiContainerNavigable = innerNavigableType != null;
-          }
-        }
-      }
-    }
+    // Otherwise the field may be an SPI container wrapping a navigable inner type
+    // (e.g., Either<String, Address> where Address is navigable). Hardcoded Optional/Collection
+    // fields are excluded: createFocusPathMethod widens those through .some()/.each() instead.
+    SpiNavigable spiNavigable = directlyNavigable ? null : spiNavigable(fieldType);
+    boolean spiContainerNavigable = spiNavigable != null;
+    TraversableGenerator spiGenerator = spiContainerNavigable ? spiNavigable.generator() : null;
+    TypeElement innerNavigableType = spiContainerNavigable ? spiNavigable.element() : null;
 
     if (!directlyNavigable && !spiContainerNavigable) {
       return null; // Not navigable, use standard method
@@ -1192,7 +1102,7 @@ public class NavigatorClassGenerator {
     // Determine path kind to apply correct widening for @Nullable fields and SPI types
     PathKind fieldKind = getFieldPathKind(component, fieldType);
     List<Object> wideningArgs = new ArrayList<>();
-    String pathWidening = buildPathWidening(component, fieldType, fieldKind, wideningArgs);
+    String pathWidening = widening(fieldType, fieldKind, wideningArgs).expression();
 
     // Generate: return new ComponentNavigator<>(FocusPath.of(Lens.of(...))widening);
     if (wideningArgs.isEmpty()) {
@@ -1230,66 +1140,115 @@ public class NavigatorClassGenerator {
     return methodBuilder.build();
   }
 
+  /** The widening a navigator method applies, and the type the widened path focuses on. */
+  private record Widening(String expression, TypeName focusType) {}
+
+  /** One peeled container layer: how the path widens, and the type argument it then focuses on. */
+  private record Layer(String expression, PathKind kind, TypeMirror argument) {}
+
   /**
-   * Builds the path widening expression for a field. Uses SPI optic expressions when available,
-   * otherwise falls back to the standard widening methods.
+   * Builds the widening a field needs, together with the type the widened path focuses on.
    *
-   * <p>The returned string may contain {@code $T} placeholders for types from SPI generators. The
+   * <p>The expression may contain {@code $T} placeholders for types from SPI generators. The
    * corresponding {@link ClassName} objects are appended to {@code wideningArgs}.
    */
-  private String buildPathWidening(
-      RecordComponentElement component,
-      TypeMirror fieldType,
-      PathKind fieldKind,
-      List<Object> wideningArgs) {
+  private Widening widening(TypeMirror fieldType, PathKind fieldKind, List<Object> wideningArgs) {
+    TypeName fieldTypeName = TypeName.get(fieldType).box();
     if (fieldKind == PathKind.FOCUS) {
-      return "";
+      return new Widening("", fieldTypeName);
     }
 
-    // Check if @Nullable annotation drives the widening
-    if (component != null && NullableAnnotations.hasNullableAnnotation(component)) {
-      return ".nullable()";
+    // The caller's kind comes from getFieldPathKind, so a field the container and SPI analysis
+    // leaves as a plain focus can only have been widened by @Nullable, which focuses the field
+    // itself. Everything past this point was widened by that analysis, and only a declared type
+    // ever is.
+    if (getFieldPathKindRecursive(fieldType, 0) == PathKind.FOCUS) {
+      return new Widening(".nullable()", fieldTypeName);
     }
 
-    // Check hardcoded Optional types
-    if (fieldType.getKind() == TypeKind.DECLARED) {
-      DeclaredType declaredType = (DeclaredType) fieldType;
-      TypeElement typeElement = (TypeElement) declaredType.asElement();
-      String qualifiedName = typeElement.getQualifiedName().toString();
-      if (OPTIONAL_TYPES.contains(qualifiedName)) {
-        return ".some()";
+    // Peel one container layer at a time until the chain reaches the kind the method declares.
+    // Optional<List<String>> declares a TraversalPath, so .some() on its own would hand back an
+    // AffinePath: it takes .some().each() to arrive, focusing String. The walk mirrors the fold
+    // in getFieldPathKindRecursive layer for layer, so it always reaches that kind, and a layer
+    // with no type argument to descend into ends it in any case.
+    StringBuilder expression = new StringBuilder();
+    TypeMirror current = fieldType;
+    PathKind reached = PathKind.FOCUS;
+    while (true) {
+      Layer layer = peelLayer(current, wideningArgs);
+      expression.append(layer.expression());
+      reached = reached.widen(layer.kind());
+      if (layer.argument() == null) {
+        // A raw container has no argument, so the field type itself is the focus.
+        return new Widening(expression.toString(), fieldTypeName);
       }
-      if (COLLECTION_TYPES.contains(qualifiedName)) {
-        return ".each()";
+      TypeMirror resolved = ProcessorUtils.resolveWildcard(layer.argument());
+      if (resolved == null) {
+        // An unbounded or super-bounded wildcard focuses Object.
+        return new Widening(expression.toString(), ClassName.get(Object.class));
       }
+      if (reached == fieldKind) {
+        return new Widening(expression.toString(), TypeName.get(resolved).box());
+      }
+      current = resolved;
+    }
+  }
+
+  /**
+   * Peels one container layer off a type the widening analysis has already recognised.
+   *
+   * <p>A generator is consulted before the Collection-subtype walk, which is the one place this
+   * order differs from {@link #getFieldPathKindRecursive}: a Guava {@code ImmutableList} implements
+   * {@code java.util.List}, so the walk would widen it with a bare {@code .each()} and lose the
+   * generator's copying optic. Both routes report TRAVERSAL over the same type argument, so the
+   * kind the two agree on is unaffected.
+   */
+  private Layer peelLayer(TypeMirror type, List<Object> wideningArgs) {
+    DeclaredType declaredType = (DeclaredType) type;
+    TypeElement typeElement = (TypeElement) declaredType.asElement();
+    String qualifiedName = typeElement.getQualifiedName().toString();
+    if (OPTIONAL_TYPES.contains(qualifiedName)) {
+      return new Layer(".some()", PathKind.AFFINE, typeArgument(declaredType, 0));
+    }
+    if (COLLECTION_TYPES.contains(qualifiedName)) {
+      return new Layer(".each()", PathKind.TRAVERSAL, typeArgument(declaredType, 0));
     }
 
-    // Consult SPI generators for the optic expression
-    for (TraversableGenerator generator : traversableGenerators) {
-      if (generator.supports(fieldType)) {
-        String opticExpr = generator.generateOpticExpression();
-        if (!opticExpr.isEmpty()) {
-          String resolvedExpr =
-              OpticExpressionResolver.resolve(
-                  opticExpr, generator.getRequiredImports(), wideningArgs);
-          return switch (generator.getCardinality()) {
+    TraversableGenerator generator = findSpiGenerator(type);
+    if (generator == null) {
+      // No generator, so the analysis recognised this layer through the Collection-subtype walk.
+      return new Layer(".each()", PathKind.TRAVERSAL, typeArgument(declaredType, 0));
+    }
+    PathKind kind =
+        switch (generator.getCardinality()) {
+          case ZERO_OR_ONE -> PathKind.AFFINE;
+          case ZERO_OR_MORE -> PathKind.TRAVERSAL;
+        };
+    String opticExpr = generator.generateOpticExpression();
+    String expression;
+    if (opticExpr.isEmpty()) {
+      // A generator with no optic expression widens through the built-in methods.
+      expression =
+          switch (generator.getCardinality()) {
+            case ZERO_OR_ONE -> ".nullable()";
+            case ZERO_OR_MORE -> ".each()";
+          };
+    } else {
+      String resolvedExpr =
+          OpticExpressionResolver.resolve(opticExpr, generator.getRequiredImports(), wideningArgs);
+      expression =
+          switch (generator.getCardinality()) {
             case ZERO_OR_ONE -> ".some(" + resolvedExpr + ")";
             case ZERO_OR_MORE -> ".each(" + resolvedExpr + ")";
           };
-        }
-        // Fallback to simple widening if no optic expression
-        return switch (generator.getCardinality()) {
-          case ZERO_OR_ONE -> ".nullable()";
-          case ZERO_OR_MORE -> ".each()";
-        };
-      }
     }
+    return new Layer(
+        expression, kind, typeArgument(declaredType, generator.getFocusTypeArgumentIndex()));
+  }
 
-    // Fallback
-    return switch (fieldKind) {
-      case AFFINE -> ".nullable()";
-      case TRAVERSAL -> ".each()";
-      default -> "";
-    };
+  /** The type argument at the index, or {@code null} when the container is raw. */
+  private static TypeMirror typeArgument(DeclaredType declaredType, int index) {
+    List<? extends TypeMirror> typeArgs = declaredType.getTypeArguments();
+    return index < typeArgs.size() ? typeArgs.get(index) : null;
   }
 }

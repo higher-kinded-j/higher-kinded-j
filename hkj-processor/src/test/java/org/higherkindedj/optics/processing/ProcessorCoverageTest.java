@@ -126,18 +126,6 @@ class ProcessorCoverageTest {
       // @Nullable widening interacts with navigator generation.
       // When a field is both @Nullable and a @GenerateFocus record, the processor generates
       // a Navigator wrapper class for composition. The navigator internally manages the path.
-      // Use custom @Nullable with RECORD_COMPONENT target for test environment detection.
-      final JavaFileObject nullableAnnotation =
-          JavaFileObjects.forSourceString(
-              "org.jspecify.annotations.Nullable",
-              """
-              package org.jspecify.annotations;
-              import java.lang.annotation.*;
-              @Target({ElementType.TYPE_USE, ElementType.PARAMETER, ElementType.FIELD,
-                       ElementType.RECORD_COMPONENT})
-              @Retention(RetentionPolicy.RUNTIME)
-              public @interface Nullable {}
-              """);
 
       final JavaFileObject innerSource =
           JavaFileObjects.forSourceString(
@@ -161,9 +149,7 @@ class ProcessorCoverageTest {
               """);
 
       Compilation compilation =
-          javac()
-              .withProcessors(new FocusProcessor())
-              .compile(nullableAnnotation, innerSource, outerSource);
+          javac().withProcessors(new FocusProcessor()).compile(innerSource, outerSource);
 
       assertThat(compilation).succeeded();
       // @Nullable record field with @GenerateFocus produces a Navigator class for composition
@@ -179,18 +165,6 @@ class ProcessorCoverageTest {
     @Test
     @DisplayName("should handle @Nullable field with String type")
     void shouldHandleNullableStringField() {
-      // Use custom @Nullable with RECORD_COMPONENT target to ensure detection in test environment
-      final var nullableAnnotation =
-          JavaFileObjects.forSourceString(
-              "org.jspecify.annotations.Nullable",
-              """
-              package org.jspecify.annotations;
-              import java.lang.annotation.*;
-              @Target({ElementType.TYPE_USE, ElementType.PARAMETER, ElementType.FIELD,
-                       ElementType.RECORD_COMPONENT})
-              @Retention(RetentionPolicy.RUNTIME)
-              public @interface Nullable {}
-              """);
 
       final var sourceFile =
           JavaFileObjects.forSourceString(
@@ -203,8 +177,7 @@ class ProcessorCoverageTest {
               public record NullableStr(String name, @Nullable String label) {}
               """);
 
-      Compilation compilation =
-          javac().withProcessors(new FocusProcessor()).compile(nullableAnnotation, sourceFile);
+      Compilation compilation = javac().withProcessors(new FocusProcessor()).compile(sourceFile);
 
       assertThat(compilation).succeeded();
       assertGeneratedCodeContains(
@@ -212,20 +185,8 @@ class ProcessorCoverageTest {
     }
 
     @Test
-    @DisplayName("should handle @Nullable on array field (non-declared type)")
+    @DisplayName("should handle a nullable array field (non-declared type)")
     void shouldHandleNullableArrayField() {
-      // Use custom @Nullable with RECORD_COMPONENT target to ensure detection in test environment
-      final var nullableAnnotation =
-          JavaFileObjects.forSourceString(
-              "org.jspecify.annotations.Nullable",
-              """
-              package org.jspecify.annotations;
-              import java.lang.annotation.*;
-              @Target({ElementType.TYPE_USE, ElementType.PARAMETER, ElementType.FIELD,
-                       ElementType.RECORD_COMPONENT})
-              @Retention(RetentionPolicy.RUNTIME)
-              public @interface Nullable {}
-              """);
 
       final var sourceFile =
           JavaFileObjects.forSourceString(
@@ -235,14 +196,15 @@ class ProcessorCoverageTest {
               import org.higherkindedj.optics.annotations.GenerateFocus;
               import org.jspecify.annotations.Nullable;
               @GenerateFocus
-              public record NullableArr(String name, @Nullable int[] values) {}
+              public record NullableArr(String name, int @Nullable [] values) {}
               """);
 
-      Compilation compilation =
-          javac().withProcessors(new FocusProcessor()).compile(nullableAnnotation, sourceFile);
+      Compilation compilation = javac().withProcessors(new FocusProcessor()).compile(sourceFile);
 
       assertThat(compilation).succeeded();
-      // @Nullable on a non-declared type (array) should produce AffinePath with boxed type
+      // A nullable array is a non-declared type, so it widens with no inner extraction.
+      // The annotation sits after the element type: `int @Nullable []` is a nullable array,
+      // whereas `@Nullable int[]` would describe the elements.
       assertGeneratedCodeContains(
           compilation, "com.example.NullableArrFocus", "AffinePath<NullableArr,");
     }
@@ -250,18 +212,6 @@ class ProcessorCoverageTest {
     @Test
     @DisplayName("should handle @Nullable on primitive int field (non-declared, non-array type)")
     void shouldHandleNullablePrimitiveIntField() {
-      // Use custom @Nullable with RECORD_COMPONENT target to ensure detection in test environment
-      final var nullableAnnotation =
-          JavaFileObjects.forSourceString(
-              "org.jspecify.annotations.Nullable",
-              """
-              package org.jspecify.annotations;
-              import java.lang.annotation.*;
-              @Target({ElementType.TYPE_USE, ElementType.PARAMETER, ElementType.FIELD,
-                       ElementType.RECORD_COMPONENT})
-              @Retention(RetentionPolicy.RUNTIME)
-              public @interface Nullable {}
-              """);
 
       final var sourceFile =
           JavaFileObjects.forSourceString(
@@ -274,8 +224,7 @@ class ProcessorCoverageTest {
               public record NullablePrim(String name, @Nullable int score) {}
               """);
 
-      Compilation compilation =
-          javac().withProcessors(new FocusProcessor()).compile(nullableAnnotation, sourceFile);
+      Compilation compilation = javac().withProcessors(new FocusProcessor()).compile(sourceFile);
 
       assertThat(compilation).succeeded();
       // @Nullable on a primitive type should produce AffinePath with boxed type
@@ -286,17 +235,6 @@ class ProcessorCoverageTest {
     @Test
     @DisplayName("should handle @Nullable on primitive double field")
     void shouldHandleNullablePrimitiveDoubleField() {
-      final var nullableAnnotation =
-          JavaFileObjects.forSourceString(
-              "org.jspecify.annotations.Nullable",
-              """
-              package org.jspecify.annotations;
-              import java.lang.annotation.*;
-              @Target({ElementType.TYPE_USE, ElementType.PARAMETER, ElementType.FIELD,
-                       ElementType.RECORD_COMPONENT})
-              @Retention(RetentionPolicy.RUNTIME)
-              public @interface Nullable {}
-              """);
 
       final var sourceFile =
           JavaFileObjects.forSourceString(
@@ -309,8 +247,7 @@ class ProcessorCoverageTest {
               public record NullableDbl(String name, @Nullable double value) {}
               """);
 
-      Compilation compilation =
-          javac().withProcessors(new FocusProcessor()).compile(nullableAnnotation, sourceFile);
+      Compilation compilation = javac().withProcessors(new FocusProcessor()).compile(sourceFile);
 
       assertThat(compilation).succeeded();
       // @Nullable on a primitive double should produce AffinePath with boxed type
@@ -1155,17 +1092,6 @@ class ProcessorCoverageTest {
     @Test
     @DisplayName("should skip field colliding with AffinePath delegate 'getOptional'")
     void shouldSkipFieldCollidingWithAffineDelegate() {
-      final JavaFileObject nullableAnnotation =
-          JavaFileObjects.forSourceString(
-              "org.jspecify.annotations.Nullable",
-              """
-              package org.jspecify.annotations;
-              import java.lang.annotation.*;
-              @Target({ElementType.TYPE_USE, ElementType.PARAMETER, ElementType.FIELD,
-                       ElementType.RECORD_COMPONENT})
-              @Retention(RetentionPolicy.RUNTIME)
-              public @interface Nullable {}
-              """);
 
       final JavaFileObject innerSource =
           JavaFileObjects.forSourceString(
@@ -1189,9 +1115,7 @@ class ProcessorCoverageTest {
               """);
 
       Compilation compilation =
-          javac()
-              .withProcessors(new FocusProcessor())
-              .compile(nullableAnnotation, innerSource, outerSource);
+          javac().withProcessors(new FocusProcessor()).compile(innerSource, outerSource);
 
       assertThat(compilation).succeeded();
     }
