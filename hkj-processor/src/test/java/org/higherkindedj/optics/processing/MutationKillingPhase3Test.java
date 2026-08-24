@@ -27,7 +27,7 @@ import org.junit.jupiter.api.Test;
  * <p>This test class targets mutations that survived across:
  *
  * <ul>
- *   <li>NavigatorClassGenerator - buildViaStatement path widening, depth limiting, capitalise
+ *   <li>NavigatorClassGenerator - composed path widening, depth limiting, capitalise
  *   <li>FocusProcessor - generateFocusFile conditionals, buildTraverseOverCall
  *   <li>TraversalProcessor - createTraversalMethod type argument handling
  *   <li>ForComprehensionProcessor - process boundary conditions
@@ -43,8 +43,8 @@ import org.junit.jupiter.api.Test;
 class MutationKillingPhase3Test {
 
   // =============================================================================
-  // NavigatorClassGenerator - buildViaStatement path widening
-  // Targets: buildViaStatement lines 647, 651, 654 - all conditional mutations
+  // NavigatorClassGenerator - composed path widening
+  // Targets: the conditionals that pick a navigation method's path tier
   // The via statement should append .asTraversal() when widening from Focus/Affine to Traversal
   // =============================================================================
 
@@ -1411,7 +1411,7 @@ class MutationKillingPhase3Test {
   }
 
   // =============================================================================
-  // NavigatorClassGenerator - getFieldPathKind NullReturnValsMutator
+  // NavigatorClassGenerator - navigation-method widening, NullReturnValsMutator
   // Targets: lines 133, 150, 174 - replaced return value with null
   // These are critical: null PathKind would cause NPE downstream
   // =============================================================================
@@ -1445,7 +1445,7 @@ class MutationKillingPhase3Test {
 
       Compilation compilation = javac().withProcessors(new FocusProcessor()).compile(inner, outer);
 
-      // Should succeed - if getFieldPathKind returned null, it would NPE
+      // Should succeed - a widening the analysis could not answer would NPE
       assertThat(compilation).succeeded();
 
       String code =
@@ -1590,20 +1590,21 @@ class MutationKillingPhase3Test {
   }
 
   // =============================================================================
-  // NavigatorClassGenerator - getFieldPathKind interface subtype checks
+  // NavigatorClassGenerator - the recognised-container table
   // Targets: lines 145, 149, 157, 160, 166, 168 - various conditional checks
-  // These cover the full getFieldPathKind decision tree
+  // These cover the full widening decision tree a navigation method reads
   // =============================================================================
 
   @Nested
-  @DisplayName("Navigator GetFieldPathKind Decision Tree Tests")
-  class NavigatorGetFieldPathKindDecisionTreeTests {
+  @DisplayName("Navigator Widening Decision Tree Tests")
+  class NavigatorWideningDecisionTreeTests {
 
     @Test
-    @DisplayName("Collection subtype (ArrayList) should be detected as TRAVERSAL")
-    void collectionSubtypeShouldBeDetectedAsTraversal() throws IOException {
-      // The inner record has an ArrayList field - the navigator for this record
-      // should detect ArrayList as a collection subtype and use TraversalPath
+    @DisplayName("Collection subtype (ArrayList) should stay a FocusPath, as in the static method")
+    void collectionSubtypeShouldStayAFocusPath() throws IOException {
+      // ArrayList is a Collection subtype, which neither analysis recognises: the traversal
+      // .each() carries rebuilds a plain List, which the component's declared type will not
+      // accept. The navigator reports what the static method reports (issue #719).
       var inner =
           JavaFileObjects.forSourceString(
               "com.example.Data",
@@ -1635,8 +1636,8 @@ class MutationKillingPhase3Test {
               .getCharContent(true)
               .toString();
 
-      // ArrayList implements Collection → TraversalPath in the navigator
-      assertThat(code).contains("TraversalPath");
+      assertThat(code).contains("FocusPath<S, ArrayList<String>> values()");
+      assertThat(code).doesNotContain("TraversalPath");
     }
 
     @Test

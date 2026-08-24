@@ -98,8 +98,12 @@ Company updated = allNames.modifyAll(String::toUpperCase, company);
 ```
 
 Navigators are generated for **nested record** fields (`UserFocus.address().city()` above) and for
-SPI container types; `List`, `Set`, `Optional` and `Maybe` fields are widened instead, so you chain
-them with `.via(...)`.
+SPI container types holding one; `List`, `Set`, `Optional` and `Maybe` fields are widened instead,
+so you chain them with `.via(...)`.
+
+A navigator method composes the static Focus method for the field it navigates to, so the two always
+report the same path type: `UserFocus.address().tags()` is whatever `AddressFocus.tags()` is, one
+source type further out.
 
 ---
 

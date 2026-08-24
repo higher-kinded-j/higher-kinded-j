@@ -310,7 +310,7 @@ Each SPI generator declares a `Cardinality`, the number of values its container 
 | Cardinality | Path | Types |
 |-------------|------|-------|
 | `ZERO_OR_ONE` | `AffinePath` | `Either<L,R>`, `Try<A>`, `Validated<E,A>`, `Optional<A>`, `Maybe<A>` |
-| `ZERO_OR_MORE` | `TraversalPath` (from a navigator; from a static method only under `widenCollections`) | `Map<K,V>`, arrays, Eclipse Collections, Guava, Vavr, Apache Commons |
+| `ZERO_OR_MORE` | `TraversalPath`, under `widenCollections` or when the element is itself navigable | `Map<K,V>`, arrays, Eclipse Collections, Guava, Vavr, Apache Commons |
 
 <!-- verify -->
 ```java
@@ -323,7 +323,7 @@ FocusPath<Warehouse, Map<String, Integer>> inventory = WarehouseFocus.inventory(
 TraversalPath<Warehouse, Integer> quantities = inventory.each(EachInstances.mapValuesEach());
 ```
 
-`ZERO_OR_MORE` SPI types are the one asymmetry: a static Focus method leaves them un-widened by default, for backwards compatibility. Add `widenCollections = true` to the annotation and `WarehouseFocus.inventory()` returns the `TraversalPath` directly. Navigator methods widen either way. [Custom Containers and Code Generation](focus_containers.md#the-zero_or_more-asymmetry-and-widencollections) states the rule in full, alongside the table of every supported container.
+`ZERO_OR_MORE` SPI types are the one asymmetry: a Focus method leaves them un-widened by default, for backwards compatibility. Add `widenCollections = true` to the annotation and `WarehouseFocus.inventory()` returns the `TraversalPath` directly. A navigator method reports the same path type as the static method for the same component — the container is stepped into either way only when its element is a navigable record, which is how the navigator reaches it. [Custom Containers and Code Generation](focus_containers.md#the-zero_or_more-asymmetry-and-widencollections) states the rule in full, alongside the table of every supported container.
 
 ### Compound widening
 
@@ -384,7 +384,7 @@ Beyond three levels, compose the rest with `.via()`.
 * **A generated collection method is element-level; a generated `Map` method is not.** `.at(i)` and `ListPrisms` start from `FocusPath.of(theLens())`, because there is no generated `container.item(0)`. `.atKey(k)` applies straight to the generated path, because that path still focuses the whole map.
 * **Navigators cover plain navigable fields and SPI containers.** `Optional`, `List`, `Set` and `Collection` are widened before navigators are considered and never produce one, so those hops use `.via()`.
 * **`toPath()` is the escape hatch.** A navigator carries only the core operations; `filter`, `modifyF`, `traced` and `via` are one `toPath()` away.
-* **`widenCollections = true` fixes the `ZERO_OR_MORE` asymmetry.** It widens `Map`, arrays and third-party collections at the static method, including one level down inside a nested container.
+* **`widenCollections = true` fixes the `ZERO_OR_MORE` asymmetry.** It widens `Map`, arrays and third-party collections, including one level down inside a nested container, and a navigator method reports what the static method reports.
 ~~~
 
 ~~~admonish info title="Hands-On Learning"

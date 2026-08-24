@@ -25,8 +25,8 @@ import org.junit.jupiter.api.Test;
  *   <li>{@code @Nullable} field widening in navigator navigation methods
  *   <li>Navigator for Optional&lt;Navigable&gt; wrapping in AffinePath navigator
  *   <li>{@code @Nullable} on primitive type fields in FocusProcessor
- *   <li>buildViaStatement AFFINE→TRAVERSAL asTraversal() conversion
- *   <li>Collection subtype interface check in getFieldPathKindRecursive
+ *   <li>composing a navigator delegate with a target Focus method across path tiers
+ *   <li>Container recognition shared with the static Focus methods
  * </ul>
  */
 @DisplayName("Navigator Delegate and Widening Coverage Tests")
@@ -445,7 +445,7 @@ class NavigatorDelegateAndWideningTest {
   }
 
   @Nested
-  @DisplayName("Navigator buildViaStatement Widening Paths")
+  @DisplayName("Navigator Composition Widening Paths")
   class BuildViaStatementPaths {
 
     @Test
@@ -489,7 +489,7 @@ class NavigatorDelegateAndWideningTest {
     @DisplayName("should use asAffine() when navigating from FOCUS to AFFINE kind via SPI")
     void shouldApplyAsAffineConversion() {
       // An SPI ZERO_OR_ONE type containing a navigable type should produce asAffine() in
-      // buildViaStatement. We test this with a simple navigable wrapped in Optional.
+      // the composed via. We test this with a simple navigable wrapped in Optional.
       final JavaFileObject addressSource =
           JavaFileObjects.forSourceString(
               "com.example.Address",

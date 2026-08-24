@@ -106,12 +106,14 @@ public class NavigatorExample {
    * A warehouse with inventory tracked as a Map and a location address.
    *
    * <p>The {@code inventory} field is a {@code Map<String, Integer>}, which the SPI recognises via
-   * {@code MapValueGenerator} with {@code ZERO_OR_MORE} cardinality. Navigator methods for this
-   * field will return {@code TraversalPath} instead of {@code FocusPath}.
+   * {@code MapValueGenerator} with {@code ZERO_OR_MORE} cardinality. Its values are not themselves
+   * navigable, so the path stops at the map until {@code widenCollections} says otherwise — the
+   * same answer whether the field is reached through {@code WarehouseFocus.inventory()} or through
+   * a navigator on a record holding a {@code Warehouse}.
    *
    * <p>The {@code verifiedName} field is an {@code Either<String, String>}, which the SPI
-   * recognises via {@code EitherGenerator} with {@code ZERO_OR_ONE} cardinality. Navigator methods
-   * for this field will return {@code AffinePath} instead of {@code FocusPath}.
+   * recognises via {@code EitherGenerator} with {@code ZERO_OR_ONE} cardinality. A zero-or-one
+   * container is always stepped into, so that path is an {@code AffinePath}.
    */
   @GenerateFocus(generateNavigators = true)
   public record Warehouse(
@@ -265,11 +267,11 @@ public class NavigatorExample {
    * FocusPath}:
    *
    * <pre>{@code
-   * // Map<String, Integer> field → TraversalPath (via MapValueGenerator SPI)
-   * WarehouseFocus.inventory()  // Returns TraversalPath<Warehouse, Integer>
-   *
    * // Either<String, String> field → AffinePath (via EitherGenerator SPI)
    * WarehouseFocus.verifiedName()  // Returns AffinePath<Warehouse, String>
+   *
+   * // Map<String, Integer> field → the path stops at the map without widenCollections
+   * WarehouseFocus.inventory()  // Returns FocusPath<Warehouse, Map<String, Integer>>
    * }</pre>
    */
   static void spiAwareNavigationExample() {
@@ -297,7 +299,8 @@ public class NavigatorExample {
     System.out.println();
     System.out.println("SPI cardinality summary:");
     System.out.println("  ZERO_OR_ONE  → AffinePath:    Either, Try, Validated, Optional, Maybe");
-    System.out.println("  ZERO_OR_MORE → TraversalPath:  Map, List, Set, Collection");
+    System.out.println("  ZERO_OR_MORE → TraversalPath:  List, Set, Collection");
+    System.out.println("                                 Map and the rest under widenCollections");
     System.out.println();
   }
 

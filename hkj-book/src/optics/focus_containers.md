@@ -88,7 +88,9 @@ TraversalPath<WidenedEmployee, Integer> widened = WidenedEmployeeFocus.scores();
 `widenCollections = true` is usually what you want on a new record: it makes `Map` fields behave exactly like `List` fields, and the same flag applies one level down inside a nested container. It is opt-in only because turning it on changes a method's return type, and that is a source-breaking change for anyone already calling it. New code has nothing to break.
 ~~~
 
-Navigator methods widen either way, so a `Map<String, Address>` field on a navigator-enabled record already gives you a `TraversalPath` over the addresses without the flag.
+There is one exception, and it is the one navigators need: a container whose *element* is itself a `@GenerateFocus` record is always stepped into, because the navigator that record's field hands back has to reach it. So `Map<String, Address>` on a navigator-enabled record gives you an `AddressNavigator` over the values without the flag, while `Map<String, String>` waits for it.
+
+Whichever way you reach a field — the static method, or a navigator on a record that holds this one — you get the same path type. The setting that decides it belongs to the record that *declares* the component, not to the one navigating to it.
 
 ---
 
@@ -219,7 +221,7 @@ public final class ResultGenerator extends BaseTraversableGenerator {
 ~~~admonish info title="Key Takeaways"
 * **The field type picks the path type, through cardinality.** Zero or one gives an `AffinePath`, `List`/`Set`/`Collection` a `TraversalPath`, anything else a `FocusPath`. Every other zero-or-more container stops at the container until `widenCollections` says otherwise.
 * **`List`, `Set`, `Collection` and `Optional` are built in.** Everything else, including `Map` and arrays, arrives through the `TraversableGenerator` SPI.
-* **`widenCollections = true` removes the one asymmetry.** Without it, SPI `ZERO_OR_MORE` containers stop at the container in static Focus methods; navigator methods widen regardless.
+* **`widenCollections = true` removes the asymmetry.** Without it, an SPI `ZERO_OR_MORE` container stops at the container, in static Focus methods and navigator methods alike; a container holding a navigable element is stepped into either way, because that is how its navigator reaches the element.
 * **Third-party collections need no extra HKJ module.** One generic `fromIterableCollecting` factory covers Eclipse Collections, Guava, Vavr, Apache Commons and PCollections, on top of the ecosystem dependency you already declare to name the type.
 * **The SPI is open.** Implement `supports`, `getCardinality`, `getFocusTypeArgumentIndex`, `generateOpticExpression` and the one method with no default, `generateModifyF`; register with `@ServiceProvider`, and your container becomes a first-class Focus field.
 ~~~

@@ -5,6 +5,7 @@ package org.higherkindedj.optics.processing;
 import static com.google.testing.compile.CompilationSubject.assertThat;
 import static com.google.testing.compile.Compiler.javac;
 import static org.higherkindedj.optics.processing.GeneratorTestHelper.assertGeneratedCodeContains;
+import static org.higherkindedj.optics.processing.GeneratorTestHelper.assertGeneratedCodeContainsRaw;
 
 import com.google.testing.compile.Compilation;
 import com.google.testing.compile.JavaFileObjects;
@@ -1225,6 +1226,32 @@ class ProcessorCoverageTest {
       // (AFFINE.widen(TRAVERSAL) = TRAVERSAL)
       assertGeneratedCodeContains(
           compilation, "com.example.NestedSpiFocus", "TraversalPath<NestedSpi, Integer> config()");
+    }
+
+    @Test
+    @DisplayName("should write a type witness on a collection wrapping an SPI container")
+    void shouldWriteATypeWitnessOnACollectionWrappingAnSpiContainer() {
+      final var sourceFile =
+          JavaFileObjects.forSourceString(
+              "com.example.ListOfMaps",
+              """
+              package com.example;
+              import org.higherkindedj.optics.annotations.GenerateFocus;
+              import java.util.List;
+              import java.util.Map;
+              @GenerateFocus(widenCollections = true)
+              public record ListOfMaps(String name, List<Map<String, Integer>> rows) {}
+              """);
+
+      Compilation compilation = javac().withProcessors(new FocusProcessor()).compile(sourceFile);
+
+      assertThat(compilation).succeeded();
+      // The generator's Each instance has its type arguments inferred from what .each() hands it,
+      // so the no-arg step in front of it spells its element out.
+      assertGeneratedCodeContains(
+          compilation, "com.example.ListOfMapsFocus", "TraversalPath<ListOfMaps, Integer> rows()");
+      assertGeneratedCodeContainsRaw(
+          compilation, "com.example.ListOfMapsFocus", ".<Map<String, Integer>>each()");
     }
 
     @Test

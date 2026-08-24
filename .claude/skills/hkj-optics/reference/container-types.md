@@ -134,7 +134,7 @@ record Holder(Either<String, Leaf> either) {}
 - Both of the container's own type arguments count, focused or not: `Either<?, Leaf>` is rejected too.
 - A wildcard nested *inside* an argument is fine: `Either<String, List<? extends Leaf>>` has a ground instantiation and widens to `.some(Affines.eitherRight()).each()`.
 - The built-in `Optional`, `List` and `Set` widenings take a wildcard without complaint, because `.some()` and `.each()` are methods with a free type variable and no optic argument to unify.
-- A `ZERO_OR_MORE` SPI container is rejected only when something actually widens it: `widenCollections = true`, or a navigator taking it. At the default settings it stays a `FocusPath`, and so does everything beneath it — `Map<String, Either<String, ? extends Leaf>>` compiles by default, because the un-widened `Map` means the `Either` is never asked for an optic.
+- A `ZERO_OR_MORE` SPI container is rejected only when something actually widens it: `widenCollections = true`, or a navigator reaching a navigable element inside it. At the default settings it stays a `FocusPath`, and so does everything beneath it — `Map<String, Either<String, ? extends Leaf>>` compiles by default, because the un-widened `Map` means the `Either` is never asked for an optic.
 - A custom generator that names no optic expression is exempt: it widens through `.nullable()` or `.each()`, whose free type variable takes a raw or wildcard argument without complaint. Every generator shipped with HKJ names one.
 
 ## ZERO_OR_MORE Manual Widening
@@ -151,7 +151,10 @@ TraversalPath<AssetClass, Position> traversal = positions.each(
     EachInstances.fromIterableCollecting(list -> Lists.immutable.ofAll(list)));
 ```
 
-Navigator generation handles `ZERO_OR_MORE` automatically: navigator methods return `TraversalPath` without manual widening.
+A navigator method reports the same path type as the static method for the same component, so
+widening it is the same decision either way. The exception is a container whose element is
+itself a `@GenerateFocus` record: that one is always stepped into, because the navigator it
+hands back has to reach the element.
 
 ## Registering Custom Container Types (TraversableGenerator SPI)
 

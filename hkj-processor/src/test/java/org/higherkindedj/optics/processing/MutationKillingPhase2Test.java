@@ -26,7 +26,7 @@ import org.junit.jupiter.api.Test;
  * <p>This test class targets mutations that survived in:
  *
  * <ul>
- *   <li>NavigatorClassGenerator (widen, getFieldPathKind, isNavigableType, buildViaStatement,
+ *   <li>NavigatorClassGenerator (tier widening, navigability, method composition,
  *       addNavigationMethods, capitalise)
  *   <li>FoldProcessor (isIterableType, getElementType, targetPackage)
  *   <li>IsoProcessor (process, processMethod conditionals)
@@ -1010,12 +1010,12 @@ class MutationKillingPhase2Test {
   }
 
   // =============================================================================
-  // Navigator buildViaStatement Tests
-  // Targets: buildViaStatement conditionals for path widening
+  // Navigator Composition Tests
+  // Targets: the conditionals that pick a navigation method's path tier
   // =============================================================================
 
   @Nested
-  @DisplayName("Navigator buildViaStatement Tests")
+  @DisplayName("Navigator Composition Tests")
   class NavigatorBuildViaStatementTests {
 
     @Test
@@ -1067,9 +1067,8 @@ class MutationKillingPhase2Test {
       assertThat(code).contains("delegate");
       // CompanyFocus should have an OfficeNavigator inner class
       assertThat(code).contains("OfficeNavigator");
-      // The via statement for the delegate's fields should use toLens()
-      assertThat(code).contains("delegate.via(OfficeFocus.");
-      assertThat(code).contains(".toLens())");
+      // A navigation method composes the target's own Focus method rather than rebuilding its lens
+      assertThat(code).contains("delegate.via(OfficeFocus.name())");
       // Verify the navigator has methods for each field of the target record
       assertThat(code).contains("FocusPath<S, String>");
 
@@ -1195,7 +1194,7 @@ class MutationKillingPhase2Test {
 
   // =============================================================================
   // Navigator with Collection subtype fields
-  // Targets: getFieldPathKind : interface checking for Collection subtypes
+  // Targets: the recognised-container table the widening analysis reads
   // =============================================================================
 
   @Nested
