@@ -2,7 +2,11 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.optics.processing.util;
 
+import java.util.List;
 import java.util.Locale;
+import javax.lang.model.element.TypeElement;
+import javax.lang.model.type.DeclaredType;
+import javax.lang.model.type.TypeKind;
 import javax.lang.model.type.TypeMirror;
 import javax.lang.model.type.WildcardType;
 
@@ -42,6 +46,37 @@ public final class ProcessorUtils {
       return null;
     }
     return type;
+  }
+
+  /**
+   * Whether a container's type arguments leave an optic instance composed over it undenotable.
+   *
+   * <p>An optic handed to a Focus path — {@code .some(Affines.eitherRight())}, {@code
+   * .each(EachInstances.mapValuesEach())} — has its own type arguments inferred from the field
+   * type. A raw container offers none to infer them from and a wildcard has no ground
+   * instantiation, so in either case javac cannot instantiate the optic's own type variables and
+   * the composition call does not apply to the path.
+   *
+   * <p>Only the container's own arguments count: {@code Either<String, ? extends Leaf>} is
+   * undenotable, {@code Either<String, List<? extends Leaf>>} is not, because the wildcard there
+   * belongs to the {@code List} and {@code Either} still has a ground instantiation.
+   *
+   * @param type the type to inspect
+   * @return true when {@code type} is a declared generic type that is raw or carries a wildcard
+   *     type argument
+   * @since 0.4.10
+   */
+  public static boolean hasUndenotableTypeArguments(TypeMirror type) {
+    if (type.getKind() != TypeKind.DECLARED) {
+      return false;
+    }
+    DeclaredType declaredType = (DeclaredType) type;
+    List<? extends TypeMirror> typeArguments = declaredType.getTypeArguments();
+    if (typeArguments.isEmpty()) {
+      // A generic element with no arguments is raw; a non-generic one simply has none to give.
+      return !((TypeElement) declaredType.asElement()).getTypeParameters().isEmpty();
+    }
+    return typeArguments.stream().anyMatch(arg -> arg.getKind() == TypeKind.WILDCARD);
   }
 
   /**

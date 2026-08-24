@@ -194,7 +194,7 @@ public class NavigatorClassGenerator {
     }
 
     // Consult TraversableGenerator SPI for additional container types.
-    TraversableGenerator matched = findSpiGenerator(type);
+    TraversableGenerator matched = wideningGenerator(type);
     if (matched != null) {
       PathKind spiKind =
           switch (matched.getCardinality()) {
@@ -882,7 +882,17 @@ public class NavigatorClassGenerator {
     if (fieldType.getKind() != TypeKind.DECLARED || isHardcodedWideningType(fieldType)) {
       return null;
     }
-    TraversableGenerator generator = findSpiGenerator(fieldType);
+    return spiNavigableUnder(fieldType, wideningGenerator(fieldType));
+  }
+
+  /**
+   * The navigable element a declared, non-hardcoded container focuses on under {@code generator},
+   * or {@code null} when there is none.
+   *
+   * <p>Split from {@link #spiNavigable} so that {@link #widensUndenotableSpiContainer} can ask the
+   * same question of a generator the widening guard has already turned away.
+   */
+  private SpiNavigable spiNavigableUnder(TypeMirror fieldType, TraversableGenerator generator) {
     if (generator == null) {
       // A Collection subtype such as ArrayList is widened by the interface walk rather than by a
       // generator, so there is no focus type argument to read.
@@ -997,6 +1007,62 @@ public class NavigatorClassGenerator {
       }
     }
     return matched;
+  }
+
+  /**
+   * The generator that widens {@code type}, or {@code null} when none matches or the widening it
+   * would emit cannot be written.
+   *
+   * <p>Every widening site reads its generator from here, so the path kind, the navigator class and
+   * the composition call cannot disagree about which containers widen.
+   */
+  private TraversableGenerator wideningGenerator(TypeMirror type) {
+    TraversableGenerator matched = findSpiGenerator(type);
+    return matched != null && widensUndenotably(matched, type) ? null : matched;
+  }
+
+  /**
+   * Whether {@code generator} cannot write the widening it would emit for {@code type}.
+   *
+   * <p>A generator that names an optic instance — {@code .some(Affines.eitherRight())}, {@code
+   * .each(EachInstances.mapValuesEach())} — has that instance's type arguments inferred from the
+   * field type, which a raw or wildcard-carrying container gives javac no way to do. A generator
+   * with no optic expression widens through {@code .nullable()} or {@code .each()} instead, whose
+   * free type variable takes either without complaint.
+   *
+   * <p>Such a container is left un-widened here, and the declaration is rejected by {@code
+   * FocusProcessor}, which sees the component it is written on.
+   */
+  private static boolean widensUndenotably(TraversableGenerator generator, TypeMirror type) {
+    return !generator.generateOpticExpression().isEmpty()
+        && ProcessorUtils.hasUndenotableTypeArguments(type);
+  }
+
+  /**
+   * Whether a navigator for {@code component} would widen through an SPI container whose type
+   * arguments leave the optic instance undenotable.
+   *
+   * <p>Answered here because the navigator generator decides which fields get a navigator; the
+   * diagnostic is reported by {@code FocusProcessor}, which sees each component once.
+   *
+   * @param component the record component to inspect
+   * @return true when only the type arguments stand between this component and a navigator
+   */
+  boolean widensUndenotableSpiContainer(RecordComponentElement component) {
+    TypeMirror fieldType = component.asType();
+    // The guards run in the order the navigator itself decides: a filtered-out or directly
+    // navigable field never reaches the SPI question, and Optional and the collections widen
+    // through their own path.
+    if (!shouldGenerateNavigator(component)
+        || fieldType.getKind() != TypeKind.DECLARED
+        || navigableTypeElement(fieldType) != null
+        || isHardcodedWideningType(fieldType)) {
+      return false;
+    }
+    TraversableGenerator generator = findSpiGenerator(fieldType);
+    return generator != null
+        && widensUndenotably(generator, fieldType)
+        && spiNavigableUnder(fieldType, generator) != null;
   }
 
   /**
@@ -1214,7 +1280,7 @@ public class NavigatorClassGenerator {
       return new Layer(".each()", PathKind.TRAVERSAL, typeArgument(declaredType, 0));
     }
 
-    TraversableGenerator generator = findSpiGenerator(type);
+    TraversableGenerator generator = wideningGenerator(type);
     if (generator == null) {
       // No generator, so the analysis recognised this layer through the Collection-subtype walk.
       return new Layer(".each()", PathKind.TRAVERSAL, typeArgument(declaredType, 0));

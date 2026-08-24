@@ -134,6 +134,28 @@ AssetClass rebalanced =
         .modifyAll(w -> w * 1.05, assetClass);
 ```
 
+~~~admonish warning title="Raw and wildcard container type arguments"
+An SPI container widens by receiving an optic **instance** — `.some(Affines.eitherRight())`, `.each(EachInstances.mapValuesEach())` — whose own type arguments javac infers from the field type. A raw container offers none to infer from, and a wildcard has no ground instantiation, so `@GenerateFocus` rejects the component rather than emitting a call that cannot compile:
+
+```java
+// Rejected: no Affine can be denoted for a wildcard type argument
+@GenerateFocus
+public record Holder(Either<String, ? extends Leaf> boundedEither) {}
+
+// Accepted
+@GenerateFocus
+public record Holder(Either<String, Leaf> either) {}
+```
+
+Both of the container's own type arguments count, focused or not, so `Either<?, Leaf>` is rejected too. A wildcard nested *inside* an argument is fine: `Either<String, List<? extends Leaf>>` still has a ground instantiation and widens to `.some(Affines.eitherRight()).each()`.
+
+The built-in `Optional`, `List` and `Set` widenings take a wildcard without complaint, because `.some()` and `.each()` are methods with a free type variable and no optic argument to unify. `List<? extends Leaf>` widens to `TraversalPath<Holder, Leaf>` as usual.
+
+A `ZERO_OR_MORE` SPI container is rejected only when something actually widens it — `widenCollections = true`, or a navigator taking it. At the default settings it stays a `FocusPath`, and the wildcard costs it nothing. Nor does one beneath it: `Map<String, Either<String, ? extends Leaf>>` compiles at the default settings, because the `Map` is never widened and so the `Either` inside it is never asked for an optic.
+
+A generator that names no optic expression is exempt: it widens through `.nullable()` or `.each()`, whose free type variable takes a raw or wildcard argument without complaint. Every generator shipped with HKJ names one.
+~~~
+
 ### Cross-Ecosystem Navigation
 
 Real projects mix collection libraries: JDK collections for ordinary code, Eclipse Collections for high-performance immutable data, HKJ types for typed error handling. Focus navigates all of them from one annotation, composing chains that cross ecosystem boundaries without ceremony. For a full walkthrough on a financial portfolio model, see [Portfolio Risk Analysis](../examples/examples_portfolio_risk.md).

@@ -11,10 +11,19 @@ import com.google.testing.compile.Compilation;
 import com.google.testing.compile.JavaFileObjects;
 import com.palantir.javapoet.ClassName;
 import com.palantir.javapoet.CodeBlock;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import javax.annotation.processing.AbstractProcessor;
+import javax.annotation.processing.RoundEnvironment;
+import javax.lang.model.SourceVersion;
+import javax.lang.model.element.Element;
 import javax.lang.model.element.RecordComponentElement;
+import javax.lang.model.element.TypeElement;
 import javax.lang.model.type.TypeMirror;
 import javax.tools.JavaFileObject;
+import org.higherkindedj.optics.annotations.GenerateFocus;
 import org.higherkindedj.optics.processing.spi.TraversableGenerator;
 import org.higherkindedj.optics.processing.util.ProcessorUtils;
 import org.junit.jupiter.api.DisplayName;
@@ -437,6 +446,250 @@ public class FocusProcessorSpiEnhancementsTest {
   }
 
   @Nested
+  @DisplayName("Raw and wildcard type arguments in SPI containers")
+  class SpiContainerTypeArguments {
+
+    /**
+     * The type these records' containers focus on, navigable so that a navigator is generated for
+     * the ones a wildcard bounds by it.
+     */
+    private static final JavaFileObject LEAF =
+        JavaFileObjects.forSourceString(
+            "com.example.Leaf",
+            """
+            package com.example;
+
+            import org.higherkindedj.optics.annotations.GenerateFocus;
+
+            @GenerateFocus
+            public record Leaf(String name) {}
+            """);
+
+    private static JavaFileObject holder(String attributes, String component) {
+      return JavaFileObjects.forSourceString(
+          "com.example.Holder",
+          """
+          package com.example;
+
+          import org.higherkindedj.optics.annotations.GenerateFocus;
+          import org.higherkindedj.hkt.either.Either;
+          import java.util.List;
+          import java.util.Map;
+          import java.util.Optional;
+
+          @GenerateFocus(%s)
+          public record Holder(%s) {}
+          """
+              .formatted(attributes, component));
+    }
+
+    private static Compilation compile(String attributes, String component) {
+      return javac()
+          .withProcessors(new FocusProcessor())
+          .compile(holder(attributes, component), LEAF);
+    }
+
+    @Test
+    @DisplayName("should reject a wildcard in the focused type argument")
+    void shouldRejectWildcardInFocusedTypeArgument() {
+      Compilation compilation = compile("", "Either<String, ? extends Leaf> boundedEither");
+
+      assertThat(compilation)
+          .hadErrorContaining(
+              "@GenerateFocus: record component 'Holder.boundedEither' has a wildcard type"
+                  + " argument in Either<String, ? extends Leaf>.");
+      assertThat(compilation)
+          .hadErrorContaining(
+              "Declare the component with concrete type arguments, such as"
+                  + " Either<String, Leaf>.");
+    }
+
+    @Test
+    @DisplayName("should reject a wildcard in a type argument the generator does not focus on")
+    void shouldRejectWildcardInUnfocusedTypeArgument() {
+      // Affines.eitherRight() infers both of Either's type arguments, so a wildcard on the left
+      // leaves the optic just as undenotable as one on the right.
+      Compilation compilation = compile("", "Either<?, Leaf> unfocusedWildcard");
+
+      assertThat(compilation)
+          .hadErrorContaining("has a wildcard type argument in Either<?, Leaf>.");
+      assertThat(compilation).hadErrorContaining("such as Either<Object, Leaf>.");
+    }
+
+    @Test
+    @DisplayName("should name Object as the alternative for an unbounded wildcard")
+    void shouldNameObjectForUnboundedWildcard() {
+      Compilation compilation = compile("", "Either<String, ?> unbounded");
+
+      assertThat(compilation).hadErrorContaining("such as Either<String, Object>.");
+    }
+
+    @Test
+    @DisplayName("should reject a wildcard container nested inside a widening chain")
+    void shouldRejectWildcardContainerNestedInChain() {
+      Compilation compilation = compile("", "Optional<Either<String, ? extends Leaf>> nested");
+
+      assertThat(compilation)
+          .hadErrorContaining(
+              "record component 'Holder.nested' has a wildcard type argument in Either<String, ?"
+                  + " extends Leaf>.");
+    }
+
+    @Test
+    @DisplayName("should accept a wildcard nested inside a type argument")
+    void shouldAcceptWildcardNestedInsideTypeArgument() {
+      // Either<String, List<? extends Leaf>> has a ground instantiation: the wildcard belongs to
+      // the List, which widens through the free type variable of .each().
+      Compilation compilation = compile("", "Either<String, List<? extends Leaf>> groundEither");
+
+      assertThat(compilation).succeeded();
+      assertGeneratedCodeContains(
+          compilation, "com.example.HolderFocus", ".some(Affines.eitherRight()).each()");
+    }
+
+    @Test
+    @DisplayName("should leave a ZERO_OR_MORE container alone when it is not widened anyway")
+    void shouldLeaveUnwidenedZeroOrMoreContainerAlone() {
+      // The static method leaves every ZERO_OR_MORE SPI field a plain FocusPath, so the wildcard
+      // costs this record nothing and there is nothing to report.
+      Compilation compilation = compile("", "Map<String, ? extends Leaf> values");
+
+      assertThat(compilation).succeeded();
+      assertGeneratedCodeContains(
+          compilation,
+          "com.example.HolderFocus",
+          "public static FocusPath<Holder, Map<String, ? extends Leaf>> values()");
+    }
+
+    @Test
+    @DisplayName("should reject a ZERO_OR_MORE container once widenCollections asks for it")
+    void shouldRejectZeroOrMoreContainerWhenCollectionsWiden() {
+      Compilation compilation =
+          compile("widenCollections = true", "Map<String, ? extends Leaf> values");
+
+      assertThat(compilation)
+          .hadErrorContaining("has a wildcard type argument in Map<String, ? extends Leaf>.");
+      assertThat(compilation).hadErrorContaining("such as Map<String, Leaf>.");
+    }
+
+    @Test
+    @DisplayName("should reject a ZERO_OR_MORE container once a navigator takes it")
+    void shouldRejectZeroOrMoreContainerWhenNavigatorTakesIt() {
+      Compilation compilation =
+          compile("generateNavigators = true", "Map<String, ? extends Leaf> values");
+
+      assertThat(compilation)
+          .hadErrorContaining("has a wildcard type argument in Map<String, ? extends Leaf>.");
+    }
+
+    @Test
+    @DisplayName("should accept a navigator record whose wildcard container has no navigable inner")
+    void shouldAcceptNavigatorRecordWithoutNavigableInner() {
+      // No navigator is generated for Map<String, ? extends String>, so nothing widens it and the
+      // wildcard is harmless.
+      Compilation compilation =
+          compile("generateNavigators = true", "Map<String, ? extends String> labels");
+
+      assertThat(compilation).succeeded();
+      assertGeneratedCodeContains(
+          compilation,
+          "com.example.HolderFocus",
+          "public static FocusPath<Holder, Map<String, ? extends String>> labels()");
+    }
+
+    @Test
+    @DisplayName("should accept a nested ZERO_OR_MORE container a navigator does not reach")
+    void shouldAcceptNestedZeroOrMoreContainerNavigatorDoesNotReach() {
+      // A navigator only reads the component's own type, and the chain leaves a nested
+      // ZERO_OR_MORE SPI container un-widened, so the Map is never asked for an optic.
+      Compilation compilation =
+          compile("generateNavigators = true", "Optional<Map<String, ? extends Leaf>> nested");
+
+      assertThat(compilation).succeeded();
+      assertGeneratedCodeContains(
+          compilation,
+          "com.example.HolderFocus",
+          "public static AffinePath<Holder, Map<String, ? extends Leaf>> nested()");
+    }
+
+    @Test
+    @DisplayName("should accept a wildcard container a filter excludes from navigation")
+    void shouldAcceptWildcardContainerExcludedFromNavigation() {
+      Compilation compilation =
+          compile(
+              "generateNavigators = true, excludeFields = \"values\"",
+              "Map<String, ? extends Leaf> values");
+
+      assertThat(compilation).succeeded();
+    }
+
+    @Test
+    @DisplayName("should reject a raw SPI container")
+    void shouldRejectRawSpiContainer() {
+      // A raw container offers no type arguments at all, which leaves the optic just as
+      // undenotable as a wildcard does.
+      Compilation compilation = compile("", "Either raw");
+
+      assertThat(compilation).hadErrorContaining("record component 'Holder.raw' has a raw Either.");
+      assertThat(compilation)
+          .hadErrorContaining("a raw type offers no type arguments to infer it from.");
+      assertThat(compilation).hadErrorContaining("such as Either<Object, Object>.");
+    }
+
+    @Test
+    @DisplayName("should leave a raw ZERO_OR_MORE container alone when it is not widened anyway")
+    void shouldLeaveUnwidenedRawZeroOrMoreContainerAlone() {
+      Compilation compilation = compile("", "Map values");
+
+      assertThat(compilation).succeeded();
+    }
+
+    @Test
+    @DisplayName("should accept a wildcard container deeper than the analysis descends")
+    void shouldAcceptWildcardContainerBelowMaxDepth() {
+      // The widening analysis stops at three layers, so the Either is never widened and its
+      // wildcard is never asked for an optic.
+      Compilation compilation =
+          compile("", "Optional<Optional<Optional<Either<String, ? extends Leaf>>>> deep");
+
+      assertThat(compilation).succeeded();
+    }
+
+    @Test
+    @DisplayName("should accept a primitive component in a navigator record")
+    void shouldAcceptPrimitiveComponentInNavigatorRecord() {
+      // A primitive is not a declared type, so it never reaches the container question at all.
+      Compilation compilation = compile("generateNavigators = true", "int count");
+
+      assertThat(compilation).succeeded();
+    }
+
+    @Test
+    @DisplayName("should accept a wildcard container no generator claims")
+    void shouldAcceptWildcardContainerNoGeneratorClaims() {
+      // Nothing widens a Function, so its wildcard is never asked for an optic.
+      Compilation compilation =
+          compile(
+              "generateNavigators = true",
+              "java.util.function.Function<String, ? extends Leaf> lookup");
+
+      assertThat(compilation).succeeded();
+    }
+
+    @Test
+    @DisplayName("should still widen an SPI container with concrete type arguments")
+    void shouldStillWidenConcreteSpiContainer() {
+      Compilation compilation = compile("", "Either<String, Leaf> concrete");
+
+      assertThat(compilation).succeeded();
+      assertGeneratedCodeContains(
+          compilation,
+          "com.example.HolderFocus",
+          "public static AffinePath<Holder, Leaf> concrete()");
+    }
+  }
+
+  @Nested
   @DisplayName("ProcessorUtils.resolveWildcard")
   class ResolveWildcardUnit {
 
@@ -447,6 +700,79 @@ public class FocusProcessorSpiEnhancementsTest {
       // by verifying the compile tests produce correct results (no unit test for TypeMirror
       // without a processing environment).
       assertNotNull(ProcessorUtils.class, "ProcessorUtils should be accessible");
+    }
+  }
+
+  @Nested
+  @DisplayName("ProcessorUtils.hasUndenotableTypeArguments")
+  class UndenotableTypeArguments {
+
+    @Test
+    @DisplayName("should answer for every shape a record component's type can take")
+    void shouldAnswerForEveryComponentShape() {
+      // A raw List and a List<?> differ in ways only javac can produce, so the predicate is put
+      // to real type mirrors rather than to stand-ins.
+      assertEquals(
+          Map.of(
+              "primitive", false, // not a declared type at all
+              "plain", false, // declared, but with no type parameters to leave unfilled
+              "concrete", false,
+              "wildcard", true,
+              "raw", true),
+          answers(
+              "int primitive, String plain, List<String> concrete, List<?> wildcard, List raw"));
+    }
+
+    /** What the predicate answers for each component of a record, keyed by component name. */
+    private Map<String, Boolean> answers(String components) {
+      ComponentTypeProbe probe = new ComponentTypeProbe();
+      Compilation compilation =
+          javac()
+              .withProcessors(probe)
+              .compile(
+                  JavaFileObjects.forSourceString(
+                      "com.example.Probe",
+                      """
+                      package com.example;
+
+                      import org.higherkindedj.optics.annotations.GenerateFocus;
+                      import java.util.List;
+
+                      @GenerateFocus
+                      @SuppressWarnings("rawtypes")
+                      public record Probe(%s) {}
+                      """
+                          .formatted(components)));
+      assertThat(compilation).succeeded();
+      return probe.answers;
+    }
+  }
+
+  /** Puts {@link ProcessorUtils#hasUndenotableTypeArguments} to each component of a record. */
+  private static final class ComponentTypeProbe extends AbstractProcessor {
+
+    private final Map<String, Boolean> answers = new LinkedHashMap<>();
+
+    @Override
+    public Set<String> getSupportedAnnotationTypes() {
+      return Set.of("org.higherkindedj.optics.annotations.GenerateFocus");
+    }
+
+    @Override
+    public SourceVersion getSupportedSourceVersion() {
+      return SourceVersion.latestSupported();
+    }
+
+    @Override
+    public boolean process(Set<? extends TypeElement> annotations, RoundEnvironment roundEnv) {
+      for (Element element : roundEnv.getElementsAnnotatedWith(GenerateFocus.class)) {
+        for (RecordComponentElement component : ((TypeElement) element).getRecordComponents()) {
+          answers.put(
+              component.getSimpleName().toString(),
+              ProcessorUtils.hasUndenotableTypeArguments(component.asType()));
+        }
+      }
+      return true;
     }
   }
 }

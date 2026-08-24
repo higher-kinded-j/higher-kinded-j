@@ -177,6 +177,39 @@ class SpiGeneratorConflictTest {
     }
 
     @Test
+    @DisplayName("should widen wildcard containers whose generator names no optic")
+    void shouldWidenWildcardContainersWithoutOpticExpression() {
+      // Solo and Dup widen through .nullable() and .each(), whose free type variable takes a
+      // wildcard without complaint, so neither needs a denotable instantiation.
+      final JavaFileObject source =
+          JavaFileObjects.forSourceString(
+              "com.example.WildcardSpiInner",
+              """
+              package com.example;
+
+              import com.example.hkjtest.Dup;
+              import com.example.hkjtest.Solo;
+              import org.higherkindedj.optics.annotations.GenerateFocus;
+
+              @GenerateFocus(widenCollections = true)
+              public record WildcardSpiInner(Solo<? extends String> s, Dup<? extends String> d) {}
+              """);
+
+      Compilation compilation =
+          javac().withProcessors(new FocusProcessor()).compile(DUP_MARKER, SOLO_MARKER, source);
+
+      assertThat(compilation).succeeded();
+      assertGeneratedCodeContains(
+          compilation,
+          "com.example.WildcardSpiInnerFocus",
+          "AffinePath<WildcardSpiInner, String> s()");
+      assertGeneratedCodeContains(
+          compilation,
+          "com.example.WildcardSpiInnerFocus",
+          "TraversalPath<WildcardSpiInner, String> d()");
+    }
+
+    @Test
     @DisplayName("should widen Box fields to Object when the focus index has no type argument")
     void shouldWidenBoxFieldsToObjectWhenFocusIndexOutOfRange() {
       // BoxIndexOneGenerator focuses on type argument 1, which Box<T> never has, so the focus

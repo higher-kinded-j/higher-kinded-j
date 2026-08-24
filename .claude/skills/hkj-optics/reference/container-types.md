@@ -117,6 +117,26 @@ public static TraversalPath<Employee, Integer> scores() {
 
 Patterns like `Optional<List<String>>` or `Either<E, Map<K, V>>` are detected automatically. The processor generates composed widening chains (e.g., `.some().each()`).
 
+## Raw and Wildcard Container Type Arguments
+
+An SPI container widens by receiving an optic instance — `.some(Affines.eitherRight())`, `.each(EachInstances.mapValuesEach())` — whose own type arguments javac infers from the field type. A raw container offers none to infer from, and a wildcard has no ground instantiation, so `@GenerateFocus` rejects the component rather than emitting a call that cannot compile.
+
+```java
+// Rejected: no Affine can be denoted for a wildcard type argument
+@GenerateFocus
+record Holder(Either<String, ? extends Leaf> boundedEither) {}
+
+// Accepted
+@GenerateFocus
+record Holder(Either<String, Leaf> either) {}
+```
+
+- Both of the container's own type arguments count, focused or not: `Either<?, Leaf>` is rejected too.
+- A wildcard nested *inside* an argument is fine: `Either<String, List<? extends Leaf>>` has a ground instantiation and widens to `.some(Affines.eitherRight()).each()`.
+- The built-in `Optional`, `List` and `Set` widenings take a wildcard without complaint, because `.some()` and `.each()` are methods with a free type variable and no optic argument to unify.
+- A `ZERO_OR_MORE` SPI container is rejected only when something actually widens it: `widenCollections = true`, or a navigator taking it. At the default settings it stays a `FocusPath`, and so does everything beneath it — `Map<String, Either<String, ? extends Leaf>>` compiles by default, because the un-widened `Map` means the `Either` is never asked for an optic.
+- A custom generator that names no optic expression is exempt: it widens through `.nullable()` or `.each()`, whose free type variable takes a raw or wildcard argument without complaint. Every generator shipped with HKJ names one.
+
 ## ZERO_OR_MORE Manual Widening
 
 For SPI `ZERO_OR_MORE` types, static Focus methods return `FocusPath`. Widen manually:
