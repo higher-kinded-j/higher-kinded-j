@@ -13,6 +13,7 @@ import com.tngtech.archunit.core.importer.ImportOption;
 import com.tngtech.archunit.lang.ArchCondition;
 import com.tngtech.archunit.lang.ConditionEvents;
 import com.tngtech.archunit.lang.SimpleConditionEvent;
+import java.util.Set;
 import javax.annotation.processing.AbstractProcessor;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.DisplayName;
@@ -34,6 +35,14 @@ import org.junit.jupiter.api.Test;
 class ProcessorArchitectureRules {
 
   private static final String BASE_PACKAGE = "org.higherkindedj";
+
+  /** The SPI generator lookup that every widening site must reach through the guard. */
+  private static final String SPI_LOOKUP = "findSpiGenerator";
+
+  /** The methods that may reach the lookup directly: the guard itself, and the diagnostic walk. */
+  private static final Set<String> SPI_LOOKUP_CALLERS =
+      Set.of("wideningGenerator", "reportUndenotableSpiWidening", "widensUndenotableSpiContainer");
+
   private static JavaClasses classes;
 
   @BeforeAll
@@ -204,6 +213,26 @@ class ProcessorArchitectureRules {
   }
 
   /**
+   * Every widening site must read its SPI generator through the guard.
+   *
+   * <p>A generator widens by handing the path an optic instance whose type arguments javac infers
+   * from the field type, which a raw or wildcard-carrying container gives it no way to do (#718).
+   * {@code wideningGenerator} is the one place such a container is turned away, so a site that
+   * looks a generator up itself would widen it anyway and emit source that cannot compile. The
+   * diagnostic walk is exempt: it exists to report the container the guard turned away.
+   */
+  @Test
+  @DisplayName("SPI generator lookups should go through the widening guard")
+  void spi_generator_lookups_should_go_through_the_widening_guard() {
+    classes()
+        .that()
+        .resideInAPackage("..processing..")
+        .should(lookUpSpiGeneratorsOnlyFrom(SPI_LOOKUP_CALLERS))
+        .allowEmptyShould(true)
+        .check(classes);
+  }
+
+  /**
    * Custom condition checking for final or static fields only.
    *
    * @return the arch condition
@@ -224,6 +253,36 @@ class ProcessorArchitectureRules {
                             String.format(
                                 "Processor %s has mutable instance field '%s'",
                                 javaClass.getName(), field.getName()))));
+      }
+    };
+  }
+
+  /**
+   * Custom condition that no method outside {@code allowed} looks an SPI generator up directly.
+   *
+   * @param allowed the names of the methods that may call the lookup
+   * @return the arch condition
+   */
+  private static ArchCondition<JavaClass> lookUpSpiGeneratorsOnlyFrom(Set<String> allowed) {
+    return new ArchCondition<>("look SPI generators up only from " + allowed) {
+      @Override
+      public void check(JavaClass javaClass, ConditionEvents events) {
+        javaClass.getMethodCallsFromSelf().stream()
+            .filter(call -> call.getTarget().getName().equals(SPI_LOOKUP))
+            .filter(call -> !allowed.contains(call.getOrigin().getName()))
+            .forEach(
+                call ->
+                    events.add(
+                        SimpleConditionEvent.violated(
+                            javaClass,
+                            String.format(
+                                "%s.%s calls %s directly. Read the generator from"
+                                    + " wideningGenerator instead, so that a raw or"
+                                    + " wildcard-carrying container is turned away rather than"
+                                    + " widened into source that cannot compile.",
+                                javaClass.getSimpleName(),
+                                call.getOrigin().getName(),
+                                SPI_LOOKUP))));
       }
     };
   }

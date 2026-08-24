@@ -13,6 +13,7 @@ import java.util.Optional;
 import java.util.ServiceLoader;
 import java.util.Set;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 import javax.annotation.processing.*;
 import javax.lang.model.SourceVersion;
 import javax.lang.model.element.Element;
@@ -243,6 +244,7 @@ public class FocusProcessor extends AbstractProcessor {
 
     // Generate FocusPath methods for each component
     for (RecordComponentElement component : components) {
+      reportUndenotableSpiWidening(component, widenCollections, navigatorGenerator);
       MethodSpec method = null;
 
       // Try to create a navigator method if navigators are enabled
@@ -709,7 +711,7 @@ public class FocusProcessor extends AbstractProcessor {
     // otherwise they remain FocusPath for backwards compatibility.
     // Generators are pre-sorted by priority descending; highest-priority match wins.
     // Only equal-priority conflicts emit a warning.
-    TraversableGenerator matchedGenerator = findSpiGenerator(type, component);
+    TraversableGenerator matchedGenerator = wideningGenerator(type, component);
     if (matchedGenerator != null && matchedGenerator.getCardinality() == Cardinality.ZERO_OR_ONE) {
       int typeArgIndex = matchedGenerator.getFocusTypeArgumentIndex();
       TypeMirror innerTypeMirror = getTypeArgumentAt(declaredType, typeArgIndex);
@@ -755,6 +757,138 @@ public class FocusProcessor extends AbstractProcessor {
   }
 
   /**
+   * Rejects a component whose SPI container is raw or carries a wildcard type argument, where the
+   * widening that container would otherwise receive cannot be written.
+   *
+   * <p>The walk mirrors the one {@link #analyseNestedType} makes, so it reaches the same containers
+   * and stops where that one stops. A layer the current settings do not widen ends it: a {@code
+   * ZERO_OR_MORE} SPI field is left a plain {@code FocusPath} unless collections are widened or a
+   * navigator takes it, and the analysis then neither widens it nor looks inside it, so neither
+   * that layer nor anything under it can be reported.
+   *
+   * @param component the record component to inspect
+   * @param widenCollections whether ZERO_OR_MORE SPI types widen
+   * @param navigatorGenerator the navigator generator, or null when navigators are off
+   */
+  private void reportUndenotableSpiWidening(
+      RecordComponentElement component,
+      boolean widenCollections,
+      NavigatorClassGenerator navigatorGenerator) {
+
+    // A navigator only ever reads the component's own type, and the walk reaches a nested
+    // container only when that type denotes its own arguments, so this answer belongs to the
+    // first layer alone.
+    boolean navigatorWidens =
+        navigatorGenerator != null && navigatorGenerator.widensUndenotableSpiContainer(component);
+
+    TypeMirror current = component.asType();
+    for (int depth = 0; depth < MAX_NESTING_DEPTH; depth++) {
+      if (current.getKind() != TypeKind.DECLARED) {
+        return;
+      }
+      DeclaredType declaredType = (DeclaredType) current;
+      TypeElement typeElement = (TypeElement) declaredType.asElement();
+      String qualifiedName = typeElement.getQualifiedName().toString();
+      boolean hardcoded =
+          OPTIONAL_TYPES.contains(qualifiedName) || COLLECTION_TYPES.contains(qualifiedName);
+
+      // Optional and the collections widen through .some()/.each(), whose free type variable
+      // takes an undenotable argument without complaint. Only a generator's container, which
+      // widens through an inferred optic instance, is at risk.
+      TraversableGenerator generator = hardcoded ? null : findSpiGenerator(current, null);
+      if (!hardcoded && generator == null) {
+        return;
+      }
+      if (!widensHere(generator, widenCollections, navigatorWidens)) {
+        return;
+      }
+      if (generator != null && widensUndenotably(generator, declaredType)) {
+        reportUndenotableContainer(component, declaredType);
+        return;
+      }
+      int typeArgIndex = generator == null ? 0 : generator.getFocusTypeArgumentIndex();
+      current = getTypeArgumentAt(declaredType, typeArgIndex);
+      if (current == null) {
+        return;
+      }
+    }
+  }
+
+  /**
+   * Whether the analysis widens this layer, and so goes on to look inside it.
+   *
+   * <p>Optional and the collections always do, and so does a {@code ZERO_OR_ONE} generator. A
+   * {@code ZERO_OR_MORE} generator only does when collections are widened or a navigator takes the
+   * field; left alone it stays a plain {@code FocusPath}, and the type arguments of everything
+   * beneath it are never asked for an optic.
+   *
+   * @param generator the generator for this layer, or null when Optional or a collection widens it
+   * @param widenCollections whether ZERO_OR_MORE SPI types widen
+   * @param navigatorWidens whether a navigator widens the component's own type
+   */
+  private static boolean widensHere(
+      TraversableGenerator generator, boolean widenCollections, boolean navigatorWidens) {
+    return generator == null
+        || generator.getCardinality() == Cardinality.ZERO_OR_ONE
+        || widenCollections
+        || navigatorWidens;
+  }
+
+  /**
+   * Reports the container the widening cannot be written for, in the terms it went wrong in: a raw
+   * container has no type arguments to infer from, a parameterised one has a wildcard among them.
+   */
+  private void reportUndenotableContainer(
+      RecordComponentElement component, DeclaredType declaredType) {
+    boolean raw = declaredType.getTypeArguments().isEmpty();
+    String qualifiedComponent =
+        component.getEnclosingElement().getSimpleName() + "." + component.getSimpleName();
+    Diagnostics.error(
+        processingEnv.getMessager(),
+        component,
+        "@GenerateFocus",
+        raw
+            ? "record component '"
+                + qualifiedComponent
+                + "' has a raw "
+                + declaredType.asElement().getSimpleName()
+                + "."
+            : "record component '"
+                + qualifiedComponent
+                + "' has a wildcard type argument in "
+                + simpleTypeName(declaredType)
+                + ".",
+        "The optic instance that widens that container is inferred from the field type, and "
+            + (raw
+                ? "a raw type offers no type arguments to infer it from."
+                : "a wildcard has no ground instantiation to infer it from."),
+        "Declare the component with concrete type arguments, such as "
+            + concreteAlternative(declaredType)
+            + ".");
+  }
+
+  /**
+   * The container written with concrete type arguments: each wildcard replaced by the type it
+   * resolves to, and a raw container filled in from the bounds its type parameters declare.
+   */
+  private static String concreteAlternative(DeclaredType declaredType) {
+    TypeElement element = (TypeElement) declaredType.asElement();
+    Stream<String> arguments =
+        declaredType.getTypeArguments().isEmpty()
+            ? element.getTypeParameters().stream()
+                .map(parameter -> simpleTypeName(parameter.getBounds().getFirst()))
+            : declaredType.getTypeArguments().stream()
+                .map(ProcessorUtils::resolveWildcard)
+                .map(resolved -> resolved == null ? "Object" : simpleTypeName(resolved));
+    return element.getSimpleName() + "<" + arguments.collect(Collectors.joining(", ")) + ">";
+  }
+
+  /** Renders a type for a diagnostic, with package qualifiers dropped and type arguments spaced. */
+  private static String simpleTypeName(TypeMirror type) {
+    return type.toString().replaceAll("\\b(?:[a-z][\\p{Alnum}_]*\\.)+", "").replace(",", ", ");
+  }
+
+  /**
    * Finds the highest-priority SPI generator that supports the given type.
    *
    * @param type the type to check
@@ -788,6 +922,37 @@ public class FocusProcessor extends AbstractProcessor {
       }
     }
     return matchedGenerator;
+  }
+
+  /**
+   * The generator that widens {@code type}, or {@code null} when none matches or the widening it
+   * would emit cannot be written.
+   *
+   * @param type the type to widen
+   * @param component the record component for diagnostic messages (may be null)
+   * @return the generator to widen with, or null
+   */
+  private TraversableGenerator wideningGenerator(TypeMirror type, Element component) {
+    TraversableGenerator matched = findSpiGenerator(type, component);
+    return matched != null && widensUndenotably(matched, type) ? null : matched;
+  }
+
+  /**
+   * Whether {@code generator} cannot write the widening it would emit for {@code type}.
+   *
+   * <p>A generator that names an optic instance — {@code .some(Affines.eitherRight())}, {@code
+   * .each(EachInstances.mapValuesEach())} — has that instance's type arguments inferred from the
+   * field type, which a raw or wildcard-carrying container gives javac no way to do. A generator
+   * with no optic expression widens through {@code .nullable()} or {@code .each()} instead, whose
+   * free type variable takes either without complaint.
+   *
+   * <p>Such a container is left un-widened, and its declaration is rejected by {@link
+   * #reportUndenotableSpiWidening} so that the mistake is reported where it is written rather than
+   * inside generated source.
+   */
+  private static boolean widensUndenotably(TraversableGenerator generator, TypeMirror type) {
+    return !generator.generateOpticExpression().isEmpty()
+        && ProcessorUtils.hasUndenotableTypeArguments(type);
   }
 
   /**
@@ -858,7 +1023,7 @@ public class FocusProcessor extends AbstractProcessor {
     }
 
     // Check for SPI types
-    TraversableGenerator gen = findSpiGenerator(type, null);
+    TraversableGenerator gen = wideningGenerator(type, null);
     if (gen != null && gen.getCardinality() == Cardinality.ZERO_OR_ONE) {
       List<WideningStep> steps = new ArrayList<>();
       TypeMirror innerTypeMirror = getTypeArgumentAt(declaredType, gen.getFocusTypeArgumentIndex());
