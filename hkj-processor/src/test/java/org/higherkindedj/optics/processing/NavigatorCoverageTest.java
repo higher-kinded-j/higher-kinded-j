@@ -1116,6 +1116,51 @@ class NavigatorCoverageTest {
   }
 
   @Nested
+  @DisplayName("Nested Container Widening")
+  class NestedContainerWidening {
+
+    @Test
+    @DisplayName("should chain the widening until it reaches the path kind the method declares")
+    void shouldChainWideningForNestedContainers() {
+      final JavaFileObject innerSource =
+          JavaFileObjects.forSourceString(
+              "com.example.Bundle",
+              """
+              package com.example;
+              import java.util.List;
+              import java.util.Optional;
+              import org.higherkindedj.optics.annotations.GenerateFocus;
+              @GenerateFocus(generateNavigators = true)
+              public record Bundle(String id, Optional<List<String>> notes) {}
+              """);
+
+      final JavaFileObject outerSource =
+          JavaFileObjects.forSourceString(
+              "com.example.Shipment",
+              """
+              package com.example;
+              import org.higherkindedj.optics.annotations.GenerateFocus;
+              @GenerateFocus(generateNavigators = true)
+              public record Shipment(String reference, Bundle bundle) {}
+              """);
+
+      Compilation compilation =
+          javac().withProcessors(new FocusProcessor()).compile(innerSource, outerSource);
+
+      // Optional<List<String>> composes to TRAVERSAL, so .some() alone would hand back an
+      // AffinePath where the method declares a TraversalPath: the generated source would not
+      // compile. Both the static method and the navigator chain through to the element.
+      assertThat(compilation).succeeded();
+      assertGeneratedCodeContains(
+          compilation, "com.example.BundleFocus", "TraversalPath<Bundle, String> notes()");
+      assertGeneratedCodeContains(compilation, "com.example.BundleFocus", ".some().each()");
+      assertGeneratedCodeContains(
+          compilation, "com.example.ShipmentFocus", "TraversalPath<S, String> notes()");
+      assertGeneratedCodeContains(compilation, "com.example.ShipmentFocus", ".some().each()");
+    }
+  }
+
+  @Nested
   @DisplayName("Widened Navigator Target Fields")
   class WidenedNavigatorTargetFields {
 
