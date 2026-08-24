@@ -164,7 +164,7 @@ The observer receives the focused values in the shape the path guarantees: an `A
 
 Focus paths and Effect paths share the `via` composition operator but navigate different domains: one moves through structure, the other through failure. The bridge runs both ways.
 
-The crossing costs something in one direction only, and then only for some destinations. A `FocusPath` always has a value, so it enters an effect as a success. An `AffinePath` may not, and what that costs depends on where it is heading: `toMaybePath` and `toOptionalPath` carry absence straight across, because `Maybe` and `Optional` already model it. The failure-carrying bridges have no such slot, so `toEitherPath` wants an error and `toTryPath` a `Supplier`:
+What the crossing costs is set by the effect, not by the direction of travel. A `FocusPath` always has a value, so it enters an effect as a success either way. An `AffinePath` may not, and then the effect decides: `Maybe` and `Optional` already model absence, so they take it as it comes. The failure-carrying effects have no such slot, so they want the absent case named going in (`toEitherPath` an error, `toTryPath` a `Supplier`) and equally coming back, which is why `EitherPath.focus(path, error)` below asks for one too:
 
 ```mermaid
 flowchart TD
@@ -284,7 +284,7 @@ EitherPath<String, Integer> salary =
 * **`foldMap` turns a traversal into a query.** Any `Monoid` will do, so sums, joins and set unions are the same call.
 * **`traverseOver` is `each` for `Kind<F, A>`.** Explicit type witnesses are required, because inference cannot recover `F` from the `Traverse` argument.
 * **`instanceOf` reaches into sealed hierarchies you do not own.** For your own sealed types, `@GeneratePrisms` names the variants.
-* **The bridge runs both ways, at unequal cost.** `toMaybePath`/`toEitherPath`/`toTryPath` move optics results into an effect; `focus()` moves optic navigation inside one. Only one direction charges anything: an `AffinePath` crossing into a failure-carrying effect must name the absent case.
+* **The bridge runs both ways, and the effect sets the toll.** `toMaybePath`/`toEitherPath`/`toTryPath` move optics results into an effect; `focus()` moves optic navigation inside one. In either direction an `AffinePath` meeting a failure-carrying effect must name the absent case, while `Maybe` and `Optional` take absence as it comes.
 ~~~
 
 ~~~admonish info title="Hands-On Learning"

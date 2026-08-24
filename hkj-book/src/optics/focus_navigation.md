@@ -300,7 +300,7 @@ record Settings(Config user, Config internal) {}
 Widening is what turns a lens to a field into the path type the field's shape deserves: a container that may hold nothing widens to an `AffinePath`, one that may hold many widens to a `TraversalPath`. It happens for every path, navigators or not.
 
 ~~~admonish tip title="Why this matters"
-Widening is settled at compile time from the declared type, which means the path type cannot lie about cardinality. A field that may hold nothing cannot hand you a `FocusPath` whose `get` quietly returns null, and a field that may hold many cannot hand you something with a singular `get` at all. The shape of your data becomes the shape of the API, and the mistakes that shape rules out are compilation errors rather than production ones.
+Widening is settled at compile time from the declared type, which means the path type cannot lie about cardinality. A field whose type admits absence, whether an `Optional`, a `Maybe` or a recognised `@Nullable`, cannot hand you a `FocusPath` whose `get` quietly returns null, and a field that may hold many cannot hand you something with a singular `get` at all. The gap is the bare nullable reference nobody annotated: its declared type says `String`, so you get a `FocusPath` and chain `.nullable()` yourself, as `LegacyUser` does above. The shape of your data becomes the shape of the API, and the mistakes that shape rules out are compilation errors rather than production ones.
 ~~~
 
 ### SPI containers

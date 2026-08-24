@@ -219,7 +219,7 @@ Three habits keep the layer honest:
 ```java
 @Test
 void headquartersCityBridgeIsLawful() {
-  LensLaws.assertLensLaws(CompanyBridge.HEADQUARTERS_CITY, acme, "Boston", "New York");
+  LensLaws.assertLensLaws(CompanyBridge.HEADQUARTERS_CITY, acme, "Boston", "Seattle");
 }
 ```
 

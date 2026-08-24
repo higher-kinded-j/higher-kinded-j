@@ -188,7 +188,7 @@ Reach for optics to *navigate*, and for one of those to *diagnose*.
 
 ## Beyond Jackson
 
-The same pattern fits any external type that resists auto-detection: Protocol Buffers (`@InstanceOf` on oneof wrappers), XML DOM (prisms for element types), compiler or parser ASTs, and awkward legacy library types. The next page covers the other half of the story, the copy strategies (`@ViaBuilder`, `@Wither`, `@ViaConstructor`, `@ViaCopyAndSet`) that give you lenses rather than prisms.
+The same pattern fits any external type that resists auto-detection: Protocol Buffers (`@MatchWhen` on the generated `hasX`/`getX` oneof accessors), XML DOM (prisms for element types), compiler or parser ASTs, and awkward legacy library types. The next page covers the other half of the story, the copy strategies (`@ViaBuilder`, `@Wither`, `@ViaConstructor`, `@ViaCopyAndSet`) that give you lenses rather than prisms.
 
 ---
 

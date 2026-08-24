@@ -231,7 +231,7 @@ flowchart TD
     Q -->|"withField(x)"| W(["@Wither<br/>java.time, Guava, Immutables"])
     Q -->|"an all-args constructor"| C(["@ViaConstructor<br/>simple value objects"])
     Q -->|"a copy constructor<br/>plus setters"| S(["@ViaCopyAndSet<br/>legacy mutable types"])
-    Q -->|"it is already a<br/>List, Map or Optional"| N(["nothing:<br/>use the standard traversals"])
+    Q -->|"it is already a List, Set,<br/>Map, Optional or array"| N(["nothing:<br/>use the standard traversals"])
 
     classDef decision fill:#e5c890,stroke:#df8e1d,color:#232634
     classDef tier fill:#a6d189,stroke:#40a02b,color:#232634
@@ -261,7 +261,7 @@ Start with `@ViaBuilder`: it is the pattern most generated code uses. Fall back 
     parameterOrder = {"x", "y"})   // effectively required, see above
 
 @ViaCopyAndSet(
-    copyConstructor = "",     // default: the copy constructor
+    copyConstructor = "",     // not honoured yet: the source type's copy constructor is always used
     setter = "setHost")       // required
 
 @ThroughField(
