@@ -310,7 +310,7 @@ Each SPI generator declares a `Cardinality`, the number of values its container 
 | Cardinality | Path | Types |
 |-------------|------|-------|
 | `ZERO_OR_ONE` | `AffinePath` | `Either<L,R>`, `Try<A>`, `Validated<E,A>`, `Optional<A>`, `Maybe<A>` |
-| `ZERO_OR_MORE` | `TraversalPath` | `Map<K,V>`, arrays, Eclipse Collections, Guava, Vavr, Apache Commons |
+| `ZERO_OR_MORE` | `TraversalPath` (from a navigator; from a static method only under `widenCollections`) | `Map<K,V>`, arrays, Eclipse Collections, Guava, Vavr, Apache Commons |
 
 <!-- verify -->
 ```java

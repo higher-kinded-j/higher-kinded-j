@@ -64,7 +64,7 @@ String name = CustomerOptics.name().get(alice);   // "Alice"
 ```
 
 ~~~admonish tip title="Why this matters"
-Four annotated lines replaced a copy method per field, and what you get back is not a bespoke helper: it is a `Lens`, so it composes with every other optic in the library. `OrderOptics.customer().andThen(CustomerOptics.creditLimit())` is a lens from an order to a credit limit, and it obeys the lens laws whatever the builder does underneath.
+Four annotated lines replaced a copy method per field, and what you get back is not a bespoke helper: it is a `Lens`, so it composes with every other optic in the library. `OrderOptics.customer().andThen(CustomerOptics.creditLimit())` is a lens from an order to a credit limit. It obeys the lens laws as long as the builder round-trips faithfully: `toBuilder()`, the setter and `build()` have to give back the value they were handed and leave every other component alone. A builder that normalises, defaults or drops a field breaks that, and no annotation can detect it for you.
 ~~~
 
 ---

@@ -67,6 +67,8 @@ flowchart TD
     class F,A,T tier
 ```
 
+The diagram gives the tier a container's cardinality *implies*. Which of them a static Focus method actually widens to is the next section's subject: `List`, `Set` and `Collection` always do, and the rest wait for `widenCollections`.
+
 Nested containers compose the same rule up to three levels: `Optional<List<String>>` becomes `.some().each()` and lands on a `TraversalPath`. See [Nested Container Widening](focus_navigation.md#nested-container-widening).
 
 ### The `ZERO_OR_MORE` Asymmetry, and `widenCollections`

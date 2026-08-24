@@ -197,7 +197,7 @@ See [Database Records with JOOQ](copy_strategies.md) for the strategies in full.
 
 ## Organising the Bridge Layer
 
-```
+```text
 com.myapp.optics/
 ├── external/
 │   ├── AddressOpticsSpec.java       # spec, generates AddressOptics

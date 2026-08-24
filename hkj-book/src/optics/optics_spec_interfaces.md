@@ -42,7 +42,7 @@ The page includes these directly, so the build compiles every line above. The ou
 Point `@ImportOptics` at `JsonNode` and it has nothing to work with:
 
 1. **No sealed hierarchy.** `ObjectNode`, `ArrayNode` and `StringNode` exist, but `JsonNode` is not sealed, so the processor cannot enumerate the variants.
-2. **No copy mechanism.** `JsonNode` is effectively immutable but has no builder, no withers, and no all-args constructor; new nodes come from factories.
+2. **No copy strategy to detect.** `ObjectNode` and `ArrayNode` are mutable, and `deepCopy()` will isolate an edit, which is what `JsonPaths.field` below does before calling `set`. What is missing is anything declarative: no builder, no withers, no all-args constructor for the processor to rebuild a changed node through.
 3. **Predicate-based type checks.** Jackson offers `isObject()` and `isArray()`, which auto-detection has no rule for.
 
 Types like this need you to say what you want. That is a **spec interface**.

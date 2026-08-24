@@ -79,7 +79,8 @@ Team starred =
     Traversals.modify(
         topPerformers.andThen(PlayerLenses.status().asTraversal()), status -> "STAR", team);
 
-List<Player> stars = OpticOps.getAll(team, topPerformers);
+List<Player> stars = OpticOps.getAll(starred, topPerformers);
+// read back from `starred`: the same players, now carrying status "STAR"
 ```
 
 ### Aggregation
@@ -160,7 +161,7 @@ Person older = OpticOps.modify(alice, PersonLenses.age(), a -> a + 1);
 
 **Do not recompose optics in a loop.** As above: hoist the composition.
 
-**Do not reach for `querying` when you want the elements.** `querying` answers `anyMatch`, `allMatch`, `findFirst`, `count` and `isEmpty`; only `findFirst` returns a value, and only one. To get them all, use `getting(...).allThrough(...)`.
+**Do not reach for `querying` when you want the elements.** `querying` answers `anyMatch`, `allMatch`, `findFirst`, `count` and `isEmpty`; `findFirst` is the only one that hands back a focused element, and at most one. To get them all, use `getting(...).allThrough(...)`.
 
 **Do not expect an instance `modify` on a bare `Traversal`.** Reads and writes go through the `Traversals` utility, or through `OpticOps`, or through a `TraversalPath` from the [Focus DSL](focus_dsl.md), which does carry `getAll` and `modifyAll` directly.
 

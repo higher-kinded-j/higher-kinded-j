@@ -87,6 +87,9 @@ public final class JsonApiBook {
 
   private static String mask(String email) {
     int at = email.indexOf('@');
+    if (at < 0) {
+      return "***";
+    }
     return at <= 1 ? "***" + email.substring(at) : email.charAt(0) + "***" + email.substring(at);
   }
 }

@@ -22,7 +22,7 @@ An ordinary `modify` takes `A -> A`. Once the transformation can fail, accumulat
 ## Effectful Modification with `modifyF()`
 
 ~~~admonish tip title="Why this matters"
-The path does not change. The same `AgencyFocus.employees().salary()` you use for a pure `modifyAll` serves an accumulating validation, an `Either` that stops at the first problem, and an asynchronous fetch, with only the `Applicative` you hand it differing. Navigation and effect are separate concerns here, so adding validation to an update is not a rewrite of how you reach the data.
+The path does not change. The same `AgencyFocus.employees().via(EmployeeFocus.salary())` you use for a pure `modifyAll` serves an accumulating validation, an `Either` that stops at the first problem, and an asynchronous fetch, with only the `Applicative` you hand it differing. Navigation and effect are separate concerns here, so adding validation to an update is not a rewrite of how you reach the data.
 ~~~
 
 Every path type has `modifyF()`. The function returns the new value inside a `Kind`, and the whole modified structure comes back inside the same effect. The effect is chosen by the instance you pass, not by the path:
@@ -164,14 +164,14 @@ The observer receives the focused values in the shape the path guarantees: an `A
 
 Focus paths and Effect paths share the `via` composition operator but navigate different domains: one moves through structure, the other through failure. The bridge runs both ways.
 
-The crossing costs something in one direction only. A `FocusPath` always has a value, so it enters an effect as a success; an `AffinePath` may not, so it has to say what absence means in the effect it is entering:
+The crossing costs something in one direction only, and then only for some destinations. A `FocusPath` always has a value, so it enters an effect as a success. An `AffinePath` may not, and what that costs depends on where it is heading: `toMaybePath` and `toOptionalPath` carry absence straight across, because `Maybe` and `Optional` already model it. The failure-carrying bridges have no such slot, so `toEitherPath` wants an error and `toTryPath` a `Supplier`:
 
 ```mermaid
 flowchart TD
     P{"Which path is<br/>crossing over?"}
     P -->|"FocusPath:<br/>always a value"| S(["toMaybePath, toEitherPath,<br/>toTryPath, toIdPath"])
     P -->|"TraversalPath:<br/>zero or more"| L(["toListPath, toStreamPath,<br/>toMaybePath"])
-    P -->|"AffinePath:<br/>may be absent"| N(["name the absent case:<br/>an error, or a Supplier"])
+    P -->|"AffinePath:<br/>may be absent"| N(["Maybe/Optional take absence as is;<br/>Either/Try need it named"])
     S --> E["in the effects domain:<br/>via, recoverWith, ..."]
     L --> E
     N --> E
