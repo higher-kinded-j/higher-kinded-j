@@ -4,6 +4,8 @@ package org.higherkindedj.optics.processing.util;
 
 import java.util.List;
 import java.util.Locale;
+import java.util.Set;
+import java.util.stream.Collectors;
 import javax.lang.model.element.TypeElement;
 import javax.lang.model.type.DeclaredType;
 import javax.lang.model.type.TypeKind;
@@ -46,6 +48,32 @@ public final class ProcessorUtils {
       return null;
     }
     return type;
+  }
+
+  /**
+   * The name the effect's type variable takes in a traversal generated for this record, which the
+   * record must not have taken for itself.
+   *
+   * <p>{@code modifyF} is generated inside a method that carries the record's type variables, so a
+   * record declaring its own {@code F} would have the effect shadowed by it, and the traversal
+   * would then be written in terms of the wrong one. Both the processor, which declares the
+   * variable, and the generators, which write uses of it into the body, read the name from here so
+   * that they cannot disagree about it.
+   *
+   * @param recordElement the annotated record
+   * @return {@code F}, or {@code F} followed by the first number the record leaves free
+   * @since 0.4.10
+   */
+  public static String effectVariableName(TypeElement recordElement) {
+    Set<String> taken =
+        recordElement.getTypeParameters().stream()
+            .map(parameter -> parameter.getSimpleName().toString())
+            .collect(Collectors.toSet());
+    String name = "F";
+    for (int suffix = 1; taken.contains(name); suffix++) {
+      name = "F" + suffix;
+    }
+    return name;
   }
 
   /**

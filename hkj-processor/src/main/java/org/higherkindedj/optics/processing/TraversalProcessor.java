@@ -21,6 +21,7 @@ import javax.lang.model.element.ElementKind;
 import javax.lang.model.element.Modifier;
 import javax.lang.model.element.RecordComponentElement;
 import javax.lang.model.element.TypeElement;
+import javax.lang.model.element.TypeParameterElement;
 import javax.lang.model.type.ArrayType;
 import javax.lang.model.type.DeclaredType;
 import javax.lang.model.type.TypeMirror;
@@ -33,6 +34,7 @@ import org.higherkindedj.optics.Traversal;
 import org.higherkindedj.optics.annotations.GenerateTraversals;
 import org.higherkindedj.optics.processing.spi.TraversableGenerator;
 import org.higherkindedj.optics.processing.util.ExcludeFromJacocoGeneratedReport;
+import org.higherkindedj.optics.processing.util.ProcessorUtils;
 
 /** Annotation processor that generates Traversal optics for record types. */
 @AutoService(Processor.class)
@@ -126,6 +128,7 @@ public class TraversalProcessor extends AbstractProcessor {
 
     final String componentName = component.getSimpleName().toString();
     final ClassName recordClassName = ClassName.get(recordElement);
+    final TypeName recordTypeName = recordTypeName(recordElement, recordClassName);
 
     final TypeName focusType;
     final TypeMirror componentType = component.asType();
@@ -145,14 +148,17 @@ public class TraversalProcessor extends AbstractProcessor {
       if (declaredType.getTypeArguments().size() <= typeArgumentIndex) {
         return null; // Not enough type arguments for this generator.
       }
-      focusType = TypeName.get(declaredType.getTypeArguments().get(typeArgumentIndex)).box();
+      TypeMirror focusArgument =
+          ProcessorUtils.resolveWildcard(declaredType.getTypeArguments().get(typeArgumentIndex));
+      focusType =
+          focusArgument == null ? ClassName.get(Object.class) : TypeName.get(focusArgument).box();
 
     } else {
       return null; // Not a type we can handle.
     }
 
     final ParameterizedTypeName traversalTypeName =
-        ParameterizedTypeName.get(ClassName.get(Traversal.class), recordClassName, focusType);
+        ParameterizedTypeName.get(ClassName.get(Traversal.class), recordTypeName, focusType);
 
     final CodeBlock modifyFBody =
         generator.generateModifyF(component, recordClassName, recordElement.getRecordComponents());
@@ -161,6 +167,8 @@ public class TraversalProcessor extends AbstractProcessor {
     final ParameterizedTypeName witnessArityBound =
         ParameterizedTypeName.get(
             ClassName.get(WitnessArity.class), ClassName.get(TypeArity.class).nestedClass("Unary"));
+    final TypeVariableName effect =
+        TypeVariableName.get(ProcessorUtils.effectVariableName(recordElement), witnessArityBound);
 
     final TypeSpec traversalImpl =
         TypeSpec.anonymousClassBuilder("")
@@ -169,27 +177,31 @@ public class TraversalProcessor extends AbstractProcessor {
                 MethodSpec.methodBuilder("modifyF")
                     .addAnnotation(Override.class)
                     .addModifiers(Modifier.PUBLIC)
-                    .addTypeVariable(TypeVariableName.get("F", witnessArityBound))
+                    .addTypeVariable(effect)
                     .addParameter(
                         ParameterizedTypeName.get(
                             ClassName.get(Function.class),
                             focusType,
                             ParameterizedTypeName.get(
-                                ClassName.get(Kind.class), TypeVariableName.get("F"), focusType)),
+                                ClassName.get(Kind.class), effect, focusType)),
                         "f")
-                    .addParameter(recordClassName, "source")
+                    .addParameter(recordTypeName, "source")
                     .addParameter(
-                        ParameterizedTypeName.get(
-                            ClassName.get(Applicative.class), TypeVariableName.get("F")),
+                        ParameterizedTypeName.get(ClassName.get(Applicative.class), effect),
                         "applicative")
                     .returns(
                         ParameterizedTypeName.get(
-                            ClassName.get(Kind.class), TypeVariableName.get("F"), recordClassName))
+                            ClassName.get(Kind.class), effect, recordTypeName))
                     .addCode(modifyFBody)
                     .build())
             .build();
 
-    return MethodSpec.methodBuilder(componentName)
+    final MethodSpec.Builder methodBuilder = MethodSpec.methodBuilder(componentName);
+    for (TypeParameterElement typeParameter : recordElement.getTypeParameters()) {
+      methodBuilder.addTypeVariable(TypeVariableName.get(typeParameter));
+    }
+
+    return methodBuilder
         .addModifiers(Modifier.PUBLIC, Modifier.STATIC)
         .addJavadoc(
             "Creates a {@link $T} for the {@code $L} field of a {@link $T}.\n"
@@ -201,11 +213,29 @@ public class TraversalProcessor extends AbstractProcessor {
             component.getSimpleName(),
             recordClassName,
             component.getSimpleName(),
-            recordClassName,
+            recordTypeName,
             focusType.box())
         .returns(traversalTypeName)
         .addStatement("return $L", traversalImpl)
         .build();
+  }
+
+  /**
+   * The record's type as the generated method must write it: {@code Holder<T>} for a generic
+   * record, and the class name itself for every other record.
+   *
+   * @param recordElement the annotated record
+   * @param recordClassName the record's class name
+   * @return the record's type name, carrying its type variables where it declares any
+   */
+  private TypeName recordTypeName(TypeElement recordElement, ClassName recordClassName) {
+    List<? extends TypeParameterElement> typeParameters = recordElement.getTypeParameters();
+    if (typeParameters.isEmpty()) {
+      return recordClassName;
+    }
+    return ParameterizedTypeName.get(
+        recordClassName,
+        typeParameters.stream().map(TypeVariableName::get).toArray(TypeName[]::new));
   }
 
   private void error(String msg, Element e) {

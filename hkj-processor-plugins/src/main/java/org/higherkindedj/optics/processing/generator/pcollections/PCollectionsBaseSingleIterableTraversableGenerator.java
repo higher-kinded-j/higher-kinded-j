@@ -133,7 +133,7 @@ public abstract class PCollectionsBaseSingleIterableTraversableGenerator
         // 4. Reconstruct the record with the rebuilt persistent collection.
         .addStatement(
             "return applicative.map(converted -> new $T($L), effectOfConvertBack)",
-            recordClassName,
+            recordTypeName(component, recordClassName),
             constructorArgs)
         .build();
   }

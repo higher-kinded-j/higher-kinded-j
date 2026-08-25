@@ -54,6 +54,93 @@ public class TraversalProcessorIntegrationTest {
   }
 
   @Test
+  @DisplayName("a wildcard type argument is focused as the type it stands for")
+  void shouldFocusTheTypeAWildcardStandsFor() {
+    // A wildcard cannot be written into the generated optic, so what is named is the type it
+    // resolves to: an upper bound where there is one, and Object where the wildcard stands for
+    // anything at all.
+    final var sourceFile =
+        JavaFileObjects.forSourceString(
+            "com.example.Wildcards",
+            """
+            package com.example;
+
+            import org.higherkindedj.optics.annotations.GenerateTraversals;
+            import java.util.List;
+
+            @GenerateTraversals
+            public record Wildcards(
+                List<? extends CharSequence> bounded,
+                List<?> unbounded,
+                List<? super String> superBounded) {}
+            """);
+
+    var compilation = javac().withProcessors(new TraversalProcessor()).compile(sourceFile);
+
+    assertThat(compilation).succeeded();
+
+    final String generatedClassName = "com.example.WildcardsTraversals";
+    assertGeneratedCodeContains(
+        compilation,
+        generatedClassName,
+        "public static Traversal<Wildcards, CharSequence> bounded()");
+    assertGeneratedCodeContains(
+        compilation, generatedClassName, "public static Traversal<Wildcards, Object> unbounded()");
+    assertGeneratedCodeContains(
+        compilation,
+        generatedClassName,
+        "public static Traversal<Wildcards, Object> superBounded()");
+  }
+
+  @Test
+  @DisplayName("a generic record's type variables reach the method generated for it")
+  void shouldCarryTheRecordsTypeVariables() {
+    // A traversal over Holder<T> focuses T, so the static method has to declare T itself. The
+    // effect is declared alongside it, and takes another name where the record has claimed F.
+    final var sourceFile =
+        JavaFileObjects.forSourceString(
+            "com.example.Holder",
+            """
+            package com.example;
+
+            import org.higherkindedj.optics.annotations.GenerateTraversals;
+            import java.util.List;
+
+            @GenerateTraversals
+            public record Holder<T>(String label, List<T> items) {}
+            """);
+    final var effectNamedSource =
+        JavaFileObjects.forSourceString(
+            "com.example.Claimed",
+            """
+            package com.example;
+
+            import org.higherkindedj.optics.annotations.GenerateTraversals;
+            import java.util.List;
+
+            @GenerateTraversals
+            public record Claimed<F>(List<F> items) {}
+            """);
+
+    var compilation =
+        javac().withProcessors(new TraversalProcessor()).compile(sourceFile, effectNamedSource);
+
+    assertThat(compilation).succeeded();
+    assertGeneratedCodeContains(
+        compilation,
+        "com.example.HolderTraversals",
+        "public static <T> Traversal<Holder<T>, T> items()");
+    assertGeneratedCodeContains(
+        compilation, "com.example.HolderTraversals", "new Holder<T>(source.label(), newList)");
+    assertGeneratedCodeContains(
+        compilation,
+        "com.example.ClaimedTraversals",
+        "public static <F> Traversal<Claimed<F>, F> items()");
+    assertGeneratedCodeContains(
+        compilation, "com.example.ClaimedTraversals", "F1 extends WitnessArity<TypeArity.Unary>");
+  }
+
+  @Test
   @DisplayName("a component whose generator focus index exceeds its type arguments is skipped")
   void shouldSkipComponentWhenGeneratorFocusIndexExceedsTypeArguments() {
     // The test-scope BoxIndexOneGenerator supports com.example.hkjtest.Box but focuses on type

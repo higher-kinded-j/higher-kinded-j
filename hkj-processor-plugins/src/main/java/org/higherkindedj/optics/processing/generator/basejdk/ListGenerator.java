@@ -68,7 +68,7 @@ public class ListGenerator extends BaseTraversableGenerator {
         // 2. Map over the final effect to reconstruct the record with the new list.
         .addStatement(
             "return applicative.map(newList -> new $T($L), effectOfList)",
-            recordClassName,
+            recordTypeName(component, recordClassName),
             constructorArgs)
         .build();
   }

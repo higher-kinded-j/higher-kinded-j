@@ -6,7 +6,6 @@ import com.palantir.javapoet.ClassName;
 import com.palantir.javapoet.CodeBlock;
 import com.palantir.javapoet.ParameterizedTypeName;
 import com.palantir.javapoet.TypeName;
-import com.palantir.javapoet.TypeVariableName;
 import io.avaje.spi.ServiceProvider;
 import java.util.List;
 import java.util.Set;
@@ -75,17 +74,17 @@ public class MaybeGenerator extends BaseTraversableGenerator {
     return CodeBlock.builder()
         // Directly use the concrete Maybe from the source record.
         .addStatement(
-            "final $T<$T> maybe = source.$L()", Maybe.class, genericTypeName, componentName)
+            "final $T maybe = source.$L()", TypeName.get(component.asType()), componentName)
         .beginControlFlow("if (maybe.isJust())")
         // If Just, apply the effectful function.
         .addStatement("final var g_of_b = f.apply(maybe.get())")
         .addStatement(
             "@SuppressWarnings(\"unchecked\") final var g_of_b_casted = ($T) g_of_b",
             ParameterizedTypeName.get(
-                ClassName.get(Kind.class), TypeVariableName.get("F"), genericTypeName.box()))
+                ClassName.get(Kind.class), effectVariable(component), genericTypeName.box()))
         .addStatement(
             "return applicative.map(newValue -> new $T($L), g_of_b_casted)",
-            recordClassName,
+            recordTypeName(component, recordClassName),
             constructorArgs)
         .nextControlFlow("else")
         .addStatement("return applicative.of(source)")

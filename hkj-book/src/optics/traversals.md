@@ -114,6 +114,38 @@ public record Team(String name, List<Player> players) {}
 
 This is useful when you need to avoid name collisions or organise generated code separately.
 
+#### Wildcard Element Types
+
+A container's element type may be written as a wildcard. The generated traversal focuses **the type the wildcard stands for**: `? extends Player` is focused as `Player`, and `?` or `? super Player` as `Object`.
+
+<!-- verify -->
+```java
+@GenerateTraversals
+record Roster(String coach, List<? extends Player> players) {}
+
+// `? extends Player` is focused as `Player`
+Traversal<Roster, Player> everyPlayer = RosterTraversals.players();
+```
+
+A wildcard cannot be written into the generated source — `Traversal<Roster, ? extends Player>` is not a type an implementation can be declared with — so the bound is what the method hands back. It is the element type [`@GenerateFocus`](focus_containers.md) reads wherever it looks inside a container, so a Focus path over the same component reaches `Player` too. That annotation has the stricter job of composing an optic instance to widen an **SPI** container, and rejects a wildcard there rather than guessing one.
+
+Modifying through the traversal builds a **fresh** container and hands it to the record's constructor, so a narrower list the field was constructed from is never written into.
+
+#### Generic Records
+
+A record that declares type parameters of its own gets them on the generated method, so a traversal over `Holder<T>` focuses `T` rather than losing it:
+
+<!-- verify -->
+```java
+@GenerateTraversals
+record Squad<T>(String coach, List<T> members) {}
+
+// Generated: public static <T> Traversal<Squad<T>, T> members()
+Traversal<Squad<Player>, Player> everyMember = SquadTraversals.members();
+```
+
+Arrays work the same way, whatever their element type: an `int[]` is focused as `Integer` and boxed on the way through, and an element type the traversal cannot name in a `new` expression — `List<Player>[]`, `Player[][]`, `T[]` — is rebuilt by copying the source array to length, which keeps its runtime component type.
+
 ### Step 2: Composing a Deep Traversal
 
 Just like other optics, `Traversal`s can be composed with `andThen`. We can chain them together to create a single, deep traversal from the `League` all the way down to each player's `score`.

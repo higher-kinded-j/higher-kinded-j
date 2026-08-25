@@ -74,7 +74,7 @@ public class SetGenerator extends BaseTraversableGenerator {
         // 4. Map over the final effect to reconstruct the record with the new Set.
         .addStatement(
             "return applicative.map(newSet -> new $T($L), effectOfSet)",
-            recordClassName,
+            recordTypeName(component, recordClassName),
             constructorArgs)
         .build();
   }

@@ -6,12 +6,10 @@ import java.lang.Integer;
 import java.lang.Object;
 import java.lang.Override;
 import java.lang.String;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.function.Function;
-import java.util.stream.Collectors;
 import org.higherkindedj.hkt.Applicative;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.TypeArity;
@@ -108,13 +106,7 @@ public final class NestedGenericsLenses {
       public <F extends WitnessArity<TypeArity.Unary>> Kind<F, NestedGenerics> modifyF(
           Function<List<Integer>, Kind<F, List<Integer>>> f, NestedGenerics source,
           Applicative<F> applicative) {
-        final var sourceEntries = new ArrayList<>(source.index().entrySet());
-        final Function<Map.Entry<String, List<Integer>>, Kind<F, Map.Entry<String, List<Integer>>>> entryF = 
-                entry -> applicative.map(newValue -> Map.entry(entry.getKey(), newValue), f.apply(entry.getValue()));
-        final var effectOfEntries = Traversals.traverseList(sourceEntries, entryF, applicative);
-        final var effectOfMap = applicative.map(
-                newEntries -> newEntries.stream().collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue)),
-                effectOfEntries);
+        final var effectOfMap = Traversals.traverseMapValues(source.index(), f, applicative);
         return applicative.map(newMap -> new NestedGenerics(newMap, source.optionalTags(), source.entries()), effectOfMap);
       }
     };
