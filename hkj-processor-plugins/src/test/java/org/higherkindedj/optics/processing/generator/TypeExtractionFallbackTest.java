@@ -174,6 +174,7 @@ class TypeExtractionFallbackTest {
     void returnsObjectForNonDeclaredType() {
       var gen = baseGenerator();
       var component = componentOf("field", nonDeclaredType());
+      assertEquals(ClassName.get(Object.class), gen.getTypeArgumentName(component, 0));
       assertEquals(ClassName.get(Object.class), gen.getGenericTypeName(component));
     }
 
@@ -182,7 +183,16 @@ class TypeExtractionFallbackTest {
     void returnsObjectForEmptyTypeArgs() {
       var gen = baseGenerator();
       var component = componentOf("field", declaredType(null, List.of()));
+      assertEquals(ClassName.get(Object.class), gen.getTypeArgumentName(component, 0));
       assertEquals(ClassName.get(Object.class), gen.getGenericTypeName(component));
+    }
+
+    @Test
+    @DisplayName("returns Object for an index the component has no argument at")
+    void returnsObjectForIndexBeyondTypeArgs() {
+      var gen = baseGenerator();
+      var component = componentOf("field", declaredType(null, List.of(nonDeclaredType())));
+      assertEquals(ClassName.get(Object.class), gen.getTypeArgumentName(component, 1));
     }
   }
 

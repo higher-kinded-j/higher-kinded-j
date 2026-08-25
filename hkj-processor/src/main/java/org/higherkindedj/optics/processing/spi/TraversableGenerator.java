@@ -172,6 +172,24 @@ public interface TraversableGenerator {
   }
 
   /**
+   * The effect's type variable, as the generated {@code modifyF} declares it: {@code F}, unless the
+   * record has claimed that name for a type parameter of its own.
+   *
+   * <p>Write uses of the effect through this rather than naming {@code F} directly. A traversal is
+   * generated inside a method carrying the record's type variables, so a body that says {@code F}
+   * where the record declares {@code F} is written in terms of the record's variable, not the
+   * effect.
+   *
+   * @param component the record component the traversal is generated for
+   * @return the type variable the generated method declares the effect under
+   * @since 0.4.10
+   */
+  default TypeVariableName effectVariable(final RecordComponentElement component) {
+    return TypeVariableName.get(
+        ProcessorUtils.effectVariableName((TypeElement) component.getEnclosingElement()));
+  }
+
+  /**
    * Generates the body of the `modifyF` method for a Traversal.
    *
    * @param component The record component being processed (e.g., the 'items' field).

@@ -6,7 +6,6 @@ import com.palantir.javapoet.ClassName;
 import com.palantir.javapoet.CodeBlock;
 import com.palantir.javapoet.ParameterizedTypeName;
 import com.palantir.javapoet.TypeName;
-import com.palantir.javapoet.TypeVariableName;
 import io.avaje.spi.ServiceProvider;
 import java.util.List;
 import java.util.Set;
@@ -93,7 +92,7 @@ public class TryGenerator extends BaseTraversableGenerator {
                 + ")",
             // Type for the g_of_b_casted variable
             ParameterizedTypeName.get(
-                ClassName.get(Kind.class), TypeVariableName.get("F"), genericTypeName.box()),
+                ClassName.get(Kind.class), effectVariable(component), genericTypeName.box()),
             // The record's class name for reconstruction
             recordTypeName(component, recordClassName),
             // The argument list for the record's constructor

@@ -6,7 +6,6 @@ import com.palantir.javapoet.ClassName;
 import com.palantir.javapoet.CodeBlock;
 import com.palantir.javapoet.ParameterizedTypeName;
 import com.palantir.javapoet.TypeName;
-import com.palantir.javapoet.TypeVariableName;
 import io.avaje.spi.ServiceProvider;
 import java.util.List;
 import java.util.Set;
@@ -83,7 +82,7 @@ public class EitherGenerator extends BaseTraversableGenerator {
         .addStatement(
             "@SuppressWarnings(\"unchecked\") final var g_of_b_casted = ($T) g_of_b",
             ParameterizedTypeName.get(
-                ClassName.get(Kind.class), TypeVariableName.get("F"), rightTypeName.box()))
+                ClassName.get(Kind.class), effectVariable(component), rightTypeName.box()))
         .addStatement(
             "return applicative.map(newValue -> new $T($L), g_of_b_casted)",
             recordTypeName(component, recordClassName),

@@ -10,7 +10,6 @@ import java.util.List;
 import java.util.ServiceLoader;
 import java.util.Set;
 import java.util.function.Function;
-import java.util.stream.Collectors;
 import javax.annotation.processing.AbstractProcessor;
 import javax.annotation.processing.ProcessingEnvironment;
 import javax.annotation.processing.Processor;
@@ -169,7 +168,7 @@ public class TraversalProcessor extends AbstractProcessor {
         ParameterizedTypeName.get(
             ClassName.get(WitnessArity.class), ClassName.get(TypeArity.class).nestedClass("Unary"));
     final TypeVariableName effect =
-        TypeVariableName.get(effectVariableName(recordElement), witnessArityBound);
+        TypeVariableName.get(ProcessorUtils.effectVariableName(recordElement), witnessArityBound);
 
     final TypeSpec traversalImpl =
         TypeSpec.anonymousClassBuilder("")
@@ -237,28 +236,6 @@ public class TraversalProcessor extends AbstractProcessor {
     return ParameterizedTypeName.get(
         recordClassName,
         typeParameters.stream().map(TypeVariableName::get).toArray(TypeName[]::new));
-  }
-
-  /**
-   * The name to declare the effect's type variable under, which the record must not have taken.
-   *
-   * <p>{@code modifyF} is generated inside a method that carries the record's type variables, so a
-   * record declaring its own {@code F} would have it shadowed, and the traversal would then be
-   * written in terms of the wrong one.
-   *
-   * @param recordElement the annotated record
-   * @return {@code F}, or {@code F} followed by the first number that the record leaves free
-   */
-  private String effectVariableName(TypeElement recordElement) {
-    Set<String> taken =
-        recordElement.getTypeParameters().stream()
-            .map(parameter -> parameter.getSimpleName().toString())
-            .collect(Collectors.toSet());
-    String name = "F";
-    for (int suffix = 1; taken.contains(name); suffix++) {
-      name = "F" + suffix;
-    }
-    return name;
   }
 
   private void error(String msg, Element e) {

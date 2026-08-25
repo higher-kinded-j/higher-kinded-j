@@ -279,7 +279,7 @@ public class NonEmptyListGenerator extends BaseTraversableGenerator {
                 "final var effectOfNonEmptyList = applicative.map(list -> com.example.NonEmptyList.of(list), effectOfList)")
             .addStatement(
                 "return applicative.map(newNonEmptyList -> new $T($L), effectOfNonEmptyList)",
-                recordClassName, constructorArgs)
+                recordTypeName(component, recordClassName), constructorArgs)
             .build();
     }
 }
@@ -324,6 +324,7 @@ The `TraversalProcessor` will now discover your `NonEmptyListGenerator` via `Ser
 
 - **Extend `BaseTraversableGenerator`** to inherit `getGenericTypeName()`, `getTypeArgumentName(component, index)` and `generateConstructorArgs()` helper methods. Read every type argument through one of the first two: they resolve a wildcard to the type it stands for, and a wildcard written into generated source does not compile.
 - **Construct the record through `recordTypeName(component, recordClassName)`**, not the class name you were handed: a generic record's traversal is generated in a method carrying its type variables, and naming the record without them constructs a raw instance.
+- **Name the effect through `effectVariable(component)`** wherever the body you emit writes a `Kind<F, …>`: a record is free to declare a type parameter called `F`, and the generated method then declares the effect under another name.
 - **Use fully qualified names** in `supports()` to avoid false matches with similarly named types.
 - **Reuse `Traversals.traverseList()`** when your type can be converted to a `java.util.List`. Most third-party generators follow this pattern: convert to list, traverse, convert back. A map-shaped type hands itself to `Traversals.traverseMapValues()` instead, which keeps the keys and gives back a JDK `Map` to rebuild from.
 - **Override `getFocusTypeArgumentIndex()`** if your type's traversal target is not the first type parameter (e.g. `Either<L, R>` focuses on index 1).

@@ -209,9 +209,14 @@ class GeneratedTraversalSourceCompilesTest {
             """
             package com.example;
 
+            import org.higherkindedj.hkt.either.Either;
+            import org.higherkindedj.hkt.maybe.Maybe;
+            import org.higherkindedj.hkt.trymonad.Try;
+            import org.higherkindedj.hkt.validated.Validated;
             import org.higherkindedj.optics.annotations.GenerateTraversals;
             import java.util.List;
             import java.util.Map;
+            import java.util.Optional;
 
             @GenerateTraversals
             public %s
@@ -242,9 +247,23 @@ class GeneratedTraversalSourceCompilesTest {
             "record Holder<T extends Leaf>(List<T> f0) {}",
             "public static <T extends Leaf> Traversal<Holder<T>, T> f0()"),
         // A record is free to call a type parameter F, which is what the effect is called; the
-        // effect takes another name rather than being shadowed by it.
+        // effect takes another name rather than being shadowed by it. Every container that writes
+        // the effect into the body it generates has to read that name from the same place.
         Arguments.of(
-            "record Holder<F>(List<F> f0) {}", "public static <F> Traversal<Holder<F>, F> f0()"));
+            "record Holder<F>(List<F> f0) {}", "public static <F> Traversal<Holder<F>, F> f0()"),
+        Arguments.of(
+            "record Holder<F>(Optional<F> f0) {}",
+            "public static <F> Traversal<Holder<F>, F> f0()"),
+        Arguments.of(
+            "record Holder<F>(Maybe<F> f0) {}", "public static <F> Traversal<Holder<F>, F> f0()"),
+        Arguments.of(
+            "record Holder<F>(Try<F> f0) {}", "public static <F> Traversal<Holder<F>, F> f0()"),
+        Arguments.of(
+            "record Holder<F>(Either<String, F> f0) {}",
+            "public static <F> Traversal<Holder<F>, F> f0()"),
+        Arguments.of(
+            "record Holder<F>(Validated<String, F> f0) {}",
+            "public static <F> Traversal<Holder<F>, F> f0()"));
   }
 
   /** The signature each component of the shape must generate, in the order they are declared. */

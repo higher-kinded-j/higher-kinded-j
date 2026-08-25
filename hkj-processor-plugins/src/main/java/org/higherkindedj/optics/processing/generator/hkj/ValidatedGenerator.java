@@ -6,7 +6,6 @@ import com.palantir.javapoet.ClassName;
 import com.palantir.javapoet.CodeBlock;
 import com.palantir.javapoet.ParameterizedTypeName;
 import com.palantir.javapoet.TypeName;
-import com.palantir.javapoet.TypeVariableName;
 import io.avaje.spi.ServiceProvider;
 import java.util.List;
 import java.util.Set;
@@ -85,7 +84,7 @@ public class ValidatedGenerator extends BaseTraversableGenerator {
         .addStatement(
             "@SuppressWarnings(\"unchecked\") final var g_of_b_casted = ($T) g_of_b",
             ParameterizedTypeName.get(
-                ClassName.get(Kind.class), TypeVariableName.get("F"), genericTypeName.box()))
+                ClassName.get(Kind.class), effectVariable(component), genericTypeName.box()))
         // Map the result to reconstruct the parent record with the new Validated value.
         .addStatement(
             "return applicative.map(newValue -> new $T($L), g_of_b_casted)",
