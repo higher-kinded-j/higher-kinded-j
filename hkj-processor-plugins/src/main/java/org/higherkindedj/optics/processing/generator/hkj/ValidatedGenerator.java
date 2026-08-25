@@ -89,7 +89,7 @@ public class ValidatedGenerator extends BaseTraversableGenerator {
         // Map the result to reconstruct the parent record with the new Validated value.
         .addStatement(
             "return applicative.map(newValue -> new $T($L), g_of_b_casted)",
-            recordClassName,
+            recordTypeName(component, recordClassName),
             constructorArgs)
         .nextControlFlow("else")
         // If Invalid, the traversal has no effect. Return the original source record lifted into

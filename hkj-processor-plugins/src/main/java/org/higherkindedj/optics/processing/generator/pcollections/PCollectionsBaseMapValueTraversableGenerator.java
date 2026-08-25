@@ -110,7 +110,7 @@ public abstract class PCollectionsBaseMapValueTraversableGenerator
         //    on {@code from(Map)} (e.g. TreePMap's {@code K extends Comparable<? super K>}).
         .addStatement(
             "return applicative.map(\n    jdkMap -> new $T($L),\n    effectOfMap)",
-            recordClassName,
+            recordTypeName(component, recordClassName),
             buildConstructorArgsWithFromCall(componentName, allComponents))
         .build();
   }

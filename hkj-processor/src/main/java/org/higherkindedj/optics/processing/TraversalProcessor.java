@@ -10,6 +10,7 @@ import java.util.List;
 import java.util.ServiceLoader;
 import java.util.Set;
 import java.util.function.Function;
+import java.util.stream.Collectors;
 import javax.annotation.processing.AbstractProcessor;
 import javax.annotation.processing.ProcessingEnvironment;
 import javax.annotation.processing.Processor;
@@ -21,6 +22,7 @@ import javax.lang.model.element.ElementKind;
 import javax.lang.model.element.Modifier;
 import javax.lang.model.element.RecordComponentElement;
 import javax.lang.model.element.TypeElement;
+import javax.lang.model.element.TypeParameterElement;
 import javax.lang.model.type.ArrayType;
 import javax.lang.model.type.DeclaredType;
 import javax.lang.model.type.TypeMirror;
@@ -127,6 +129,7 @@ public class TraversalProcessor extends AbstractProcessor {
 
     final String componentName = component.getSimpleName().toString();
     final ClassName recordClassName = ClassName.get(recordElement);
+    final TypeName recordTypeName = recordTypeName(recordElement, recordClassName);
 
     final TypeName focusType;
     final TypeMirror componentType = component.asType();
@@ -156,7 +159,7 @@ public class TraversalProcessor extends AbstractProcessor {
     }
 
     final ParameterizedTypeName traversalTypeName =
-        ParameterizedTypeName.get(ClassName.get(Traversal.class), recordClassName, focusType);
+        ParameterizedTypeName.get(ClassName.get(Traversal.class), recordTypeName, focusType);
 
     final CodeBlock modifyFBody =
         generator.generateModifyF(component, recordClassName, recordElement.getRecordComponents());
@@ -165,6 +168,8 @@ public class TraversalProcessor extends AbstractProcessor {
     final ParameterizedTypeName witnessArityBound =
         ParameterizedTypeName.get(
             ClassName.get(WitnessArity.class), ClassName.get(TypeArity.class).nestedClass("Unary"));
+    final TypeVariableName effect =
+        TypeVariableName.get(effectVariableName(recordElement), witnessArityBound);
 
     final TypeSpec traversalImpl =
         TypeSpec.anonymousClassBuilder("")
@@ -173,27 +178,31 @@ public class TraversalProcessor extends AbstractProcessor {
                 MethodSpec.methodBuilder("modifyF")
                     .addAnnotation(Override.class)
                     .addModifiers(Modifier.PUBLIC)
-                    .addTypeVariable(TypeVariableName.get("F", witnessArityBound))
+                    .addTypeVariable(effect)
                     .addParameter(
                         ParameterizedTypeName.get(
                             ClassName.get(Function.class),
                             focusType,
                             ParameterizedTypeName.get(
-                                ClassName.get(Kind.class), TypeVariableName.get("F"), focusType)),
+                                ClassName.get(Kind.class), effect, focusType)),
                         "f")
-                    .addParameter(recordClassName, "source")
+                    .addParameter(recordTypeName, "source")
                     .addParameter(
-                        ParameterizedTypeName.get(
-                            ClassName.get(Applicative.class), TypeVariableName.get("F")),
+                        ParameterizedTypeName.get(ClassName.get(Applicative.class), effect),
                         "applicative")
                     .returns(
                         ParameterizedTypeName.get(
-                            ClassName.get(Kind.class), TypeVariableName.get("F"), recordClassName))
+                            ClassName.get(Kind.class), effect, recordTypeName))
                     .addCode(modifyFBody)
                     .build())
             .build();
 
-    return MethodSpec.methodBuilder(componentName)
+    final MethodSpec.Builder methodBuilder = MethodSpec.methodBuilder(componentName);
+    for (TypeParameterElement typeParameter : recordElement.getTypeParameters()) {
+      methodBuilder.addTypeVariable(TypeVariableName.get(typeParameter));
+    }
+
+    return methodBuilder
         .addModifiers(Modifier.PUBLIC, Modifier.STATIC)
         .addJavadoc(
             "Creates a {@link $T} for the {@code $L} field of a {@link $T}.\n"
@@ -205,11 +214,51 @@ public class TraversalProcessor extends AbstractProcessor {
             component.getSimpleName(),
             recordClassName,
             component.getSimpleName(),
-            recordClassName,
+            recordTypeName,
             focusType.box())
         .returns(traversalTypeName)
         .addStatement("return $L", traversalImpl)
         .build();
+  }
+
+  /**
+   * The record's type as the generated method must write it: {@code Holder<T>} for a generic
+   * record, and the class name itself for every other record.
+   *
+   * @param recordElement the annotated record
+   * @param recordClassName the record's class name
+   * @return the record's type name, carrying its type variables where it declares any
+   */
+  private TypeName recordTypeName(TypeElement recordElement, ClassName recordClassName) {
+    List<? extends TypeParameterElement> typeParameters = recordElement.getTypeParameters();
+    if (typeParameters.isEmpty()) {
+      return recordClassName;
+    }
+    return ParameterizedTypeName.get(
+        recordClassName,
+        typeParameters.stream().map(TypeVariableName::get).toArray(TypeName[]::new));
+  }
+
+  /**
+   * The name to declare the effect's type variable under, which the record must not have taken.
+   *
+   * <p>{@code modifyF} is generated inside a method that carries the record's type variables, so a
+   * record declaring its own {@code F} would have it shadowed, and the traversal would then be
+   * written in terms of the wrong one.
+   *
+   * @param recordElement the annotated record
+   * @return {@code F}, or {@code F} followed by the first number that the record leaves free
+   */
+  private String effectVariableName(TypeElement recordElement) {
+    Set<String> taken =
+        recordElement.getTypeParameters().stream()
+            .map(parameter -> parameter.getSimpleName().toString())
+            .collect(Collectors.toSet());
+    String name = "F";
+    for (int suffix = 1; taken.contains(name); suffix++) {
+      name = "F" + suffix;
+    }
+    return name;
   }
 
   private void error(String msg, Element e) {

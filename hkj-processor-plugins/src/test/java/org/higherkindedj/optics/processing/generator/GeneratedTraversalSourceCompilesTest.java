@@ -136,6 +136,21 @@ class GeneratedTraversalSourceCompilesTest {
                       "Optional<Map<String, ? extends Leaf>>", "Map<String, ? extends Leaf>"),
                   new Component("Map<String, List<? extends Leaf>>", "List<? extends Leaf>"),
                   new Component("List<Optional<? extends Leaf>>", "Optional<? extends Leaf>"))),
+          // An array's element type decides how the traversal can allocate the array it hands
+          // back, and only a plain class can be named in a `new` expression.
+          new Shape(
+              "array of a type that cannot be created by name",
+              List.of(
+                  new Component("List<Leaf>[]", "List<Leaf>"),
+                  new Component("List<? extends Leaf>[]", "List<? extends Leaf>"),
+                  new Component("Leaf[][]", "Leaf[]"))),
+          new Shape(
+              "array of a primitive",
+              List.of(
+                  new Component("int[]", "Integer"),
+                  new Component("boolean[]", "Boolean"),
+                  new Component("double[]", "Double"),
+                  new Component("char[]", "Character"))),
           // Every other container reaches the processor through the SPI, and reads its type
           // argument through the same generator base.
           shape(
@@ -182,6 +197,54 @@ class GeneratedTraversalSourceCompilesTest {
     assertThat(expectedMethods(shape))
         .as("%s: a component focuses a type the generated method does not declare", label)
         .allSatisfy(method -> assertThat(generated).contains(method));
+  }
+
+  @ParameterizedTest(name = "{0}")
+  @MethodSource("genericRecords")
+  @DisplayName("should carry a generic record's type variables into the method it generates")
+  void shouldCarryTheRecordsTypeVariables(final String declaration, final String expectedMethod) {
+    final JavaFileObject holder =
+        JavaFileObjects.forSourceString(
+            "com.example.Holder",
+            """
+            package com.example;
+
+            import org.higherkindedj.optics.annotations.GenerateTraversals;
+            import java.util.List;
+            import java.util.Map;
+
+            @GenerateTraversals
+            public %s
+            """
+                .formatted(declaration));
+
+    final Compilation compilation =
+        javac().withProcessors(new TraversalProcessor()).compile(holder, LEAF);
+
+    assertThat(compilation.errors().stream().map(GeneratedTraversalSourceCompilesTest::describe))
+        .as("%s: the generated traversals should compile", declaration)
+        .isEmpty();
+    assertThat(generatedSource(compilation))
+        .as("%s: the record's type variables should reach the generated method", declaration)
+        .contains(expectedMethod);
+  }
+
+  static Stream<Arguments> genericRecords() {
+    return Stream.of(
+        Arguments.of(
+            "record Holder<T>(List<T> f0) {}", "public static <T> Traversal<Holder<T>, T> f0()"),
+        Arguments.of(
+            "record Holder<T>(T[] f0) {}", "public static <T> Traversal<Holder<T>, T> f0()"),
+        Arguments.of(
+            "record Holder<K, V>(Map<K, V> f0) {}",
+            "public static <K, V> Traversal<Holder<K, V>, V> f0()"),
+        Arguments.of(
+            "record Holder<T extends Leaf>(List<T> f0) {}",
+            "public static <T extends Leaf> Traversal<Holder<T>, T> f0()"),
+        // A record is free to call a type parameter F, which is what the effect is called; the
+        // effect takes another name rather than being shadowed by it.
+        Arguments.of(
+            "record Holder<F>(List<F> f0) {}", "public static <F> Traversal<Holder<F>, F> f0()"));
   }
 
   /** The signature each component of the shape must generate, in the order they are declared. */

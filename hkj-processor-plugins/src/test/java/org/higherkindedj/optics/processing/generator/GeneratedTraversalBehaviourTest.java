@@ -22,14 +22,15 @@ import org.junit.jupiter.api.Test;
 
 /**
  * A generated traversal reaches every element of its container and puts the results back where it
- * found them, whether the container's element type is written as a wildcard or concretely.
+ * found them.
  *
- * <p>The element type a wildcard stands for is what the generated source names, so these traversals
- * compile; what that leaves open is whether they still traverse. Each case below runs the generated
- * class rather than reading it.
+ * <p>The shapes below are the ones whose generated source names something other than the component
+ * type as written — the type a wildcard stands for, a boxed primitive, an array the traversal
+ * cannot create by name, a record's own type variables. Compiling proves only that what was named
+ * is denotable; each case here runs the generated class to show that it still traverses.
  */
 @DisplayName("A generated traversal")
-class WildcardContainerTraversalTest {
+class GeneratedTraversalBehaviourTest {
 
   private static final JavaFileObject LEAF =
       JavaFileObjects.forSourceString(
@@ -93,8 +94,69 @@ class WildcardContainerTraversalTest {
     assertThat(names(List.copyOf(newEntries.values()))).containsExactlyInAnyOrder("A", "B");
   }
 
+  @Test
+  @DisplayName("should reach every element of a primitive array, unboxing them back into it")
+  void shouldTraversePrimitiveArray() throws Exception {
+    var compiled = compile("int[] counts");
+    Object holder = compiled.holder(int[].class, new int[] {1, 2, 3});
+
+    assertThat(Traversals.getAll(compiled.traversal("counts"), holder)).containsExactly(1, 2, 3);
+
+    Object updated =
+        Traversals.modify(compiled.traversal("counts"), count -> ((Integer) count) + 1, holder);
+
+    assertThat((int[]) compiled.component(updated, "counts")).containsExactly(2, 3, 4);
+  }
+
+  @Test
+  @DisplayName(
+      "should reach every element of an array whose element type cannot be created by name")
+  void shouldTraverseArrayOfParameterisedElements() throws Exception {
+    var compiled = compileDeclaration("record Holder(List<Leaf>[] rows) {}");
+    Object rows = java.lang.reflect.Array.newInstance(List.class, 2);
+    java.lang.reflect.Array.set(rows, 0, List.of(compiled.leaf("a")));
+    java.lang.reflect.Array.set(rows, 1, List.of(compiled.leaf("b")));
+    Object holder = compiled.holder(List[].class, rows);
+
+    Object updated =
+        Traversals.modify(
+            compiled.traversal("rows"),
+            row -> List.copyOf(((List<?>) row).stream().map(compiled::shout).toList()),
+            holder);
+
+    Object[] newRows = (Object[]) compiled.component(updated, "rows");
+    assertThat(newRows).hasSize(2);
+    assertThat(names((List<?>) newRows[0])).containsExactly("A");
+    assertThat(names((List<?>) newRows[1])).containsExactly("B");
+  }
+
+  @Test
+  @DisplayName("should traverse a generic record, which is generated with its type variables")
+  void shouldTraverseGenericRecord() throws Exception {
+    var compiled = compileDeclaration("record Holder<T>(String label, List<T> items) {}");
+    Object holder =
+        compiled
+            .loader()
+            .load("com.example.Holder")
+            .getConstructor(String.class, List.class)
+            .newInstance("squad", List.of(compiled.leaf("a"), compiled.leaf("b")));
+
+    assertThat(names(Traversals.getAll(compiled.traversal("items"), holder)))
+        .containsExactly("a", "b");
+
+    Object updated = Traversals.modify(compiled.traversal("items"), compiled::shout, holder);
+
+    assertThat(names((List<?>) compiled.component(updated, "items"))).containsExactly("A", "B");
+    assertThat(compiled.component(updated, "label")).isEqualTo("squad");
+  }
+
   /** Compiles a one-component record through the processor and loads what came out. */
   private static Compiled compile(String component) {
+    return compileDeclaration("record Holder(%s) {}".formatted(component));
+  }
+
+  /** Compiles a record written out in full, for the shapes one component cannot express. */
+  private static Compiled compileDeclaration(String declaration) {
     JavaFileObject holder =
         JavaFileObjects.forSourceString(
             "com.example.Holder",
@@ -106,9 +168,9 @@ class WildcardContainerTraversalTest {
             import java.util.Map;
 
             @GenerateTraversals
-            public record Holder(%s) {}
+            public %s
             """
-                .formatted(component));
+                .formatted(declaration));
 
     Compilation compilation =
         javac().withProcessors(new TraversalProcessor()).compile(holder, LEAF);
@@ -154,7 +216,7 @@ class WildcardContainerTraversalTest {
   }
 
   private static List<String> names(List<?> leaves) {
-    return leaves.stream().map(WildcardContainerTraversalTest::name).toList();
+    return leaves.stream().map(GeneratedTraversalBehaviourTest::name).toList();
   }
 
   private static String name(Object leaf) {
@@ -174,7 +236,7 @@ class WildcardContainerTraversalTest {
     private final Map<String, byte[]> bytecode = new HashMap<>();
 
     GeneratedClassLoader(Compilation compilation) {
-      super(WildcardContainerTraversalTest.class.getClassLoader());
+      super(GeneratedTraversalBehaviourTest.class.getClassLoader());
       for (JavaFileObject file : compilation.generatedFiles()) {
         if (file.getKind() != JavaFileObject.Kind.CLASS) {
           continue;

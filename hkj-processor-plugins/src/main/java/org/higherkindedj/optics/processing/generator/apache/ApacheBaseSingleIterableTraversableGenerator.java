@@ -95,7 +95,7 @@ public abstract class ApacheBaseSingleIterableTraversableGenerator
         // 4. Map over the final effect to reconstruct the record with the original type.
         .addStatement(
             "return applicative.map(converted -> new $T($L), effectOfConvertBack)",
-            recordClassName,
+            recordTypeName(component, recordClassName),
             constructorArgs)
         .build();
   }

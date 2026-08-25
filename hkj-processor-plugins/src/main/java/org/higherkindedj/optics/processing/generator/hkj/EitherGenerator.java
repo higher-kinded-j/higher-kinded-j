@@ -86,7 +86,7 @@ public class EitherGenerator extends BaseTraversableGenerator {
                 ClassName.get(Kind.class), TypeVariableName.get("F"), rightTypeName.box()))
         .addStatement(
             "return applicative.map(newValue -> new $T($L), g_of_b_casted)",
-            recordClassName,
+            recordTypeName(component, recordClassName),
             constructorArgs)
         .nextControlFlow("else")
         .addStatement("return applicative.of(source)")

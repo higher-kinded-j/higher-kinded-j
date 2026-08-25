@@ -13,6 +13,7 @@ import java.util.Set;
 import javax.lang.model.element.Element;
 import javax.lang.model.element.Name;
 import javax.lang.model.element.RecordComponentElement;
+import javax.lang.model.element.TypeElement;
 import javax.lang.model.type.DeclaredType;
 import javax.lang.model.type.TypeKind;
 import javax.lang.model.type.TypeMirror;
@@ -71,8 +72,26 @@ class TypeExtractionFallbackTest {
         (proxy, method, args) ->
             switch (method.getName()) {
               case "asType" -> type;
+              // The record a component belongs to: a generator reads its type parameters to name
+              // the type it constructs. This one declares none.
+              case "getEnclosingElement" -> recordOf();
               case "getSimpleName" -> nameOf(name);
               case "toString" -> name;
+              case "hashCode" -> System.identityHashCode(proxy);
+              case "equals" -> proxy == args[0];
+              default -> throw new UnsupportedOperationException(method.getName());
+            });
+  }
+
+  /** Creates the TypeElement of a record that declares no type parameters. */
+  private static TypeElement recordOf() {
+    return proxy(
+        TypeElement.class,
+        (proxy, method, args) ->
+            switch (method.getName()) {
+              case "getTypeParameters" -> List.of();
+              case "getSimpleName", "getQualifiedName" -> nameOf("Dummy");
+              case "toString" -> "com.example.Dummy";
               case "hashCode" -> System.identityHashCode(proxy);
               case "equals" -> proxy == args[0];
               default -> throw new UnsupportedOperationException(method.getName());

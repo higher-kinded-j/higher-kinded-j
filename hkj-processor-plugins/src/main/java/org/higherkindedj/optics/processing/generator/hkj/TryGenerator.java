@@ -95,7 +95,7 @@ public class TryGenerator extends BaseTraversableGenerator {
             ParameterizedTypeName.get(
                 ClassName.get(Kind.class), TypeVariableName.get("F"), genericTypeName.box()),
             // The record's class name for reconstruction
-            recordClassName,
+            recordTypeName(component, recordClassName),
             // The argument list for the record's constructor
             constructorArgs)
         .build();

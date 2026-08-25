@@ -4,9 +4,14 @@ package org.higherkindedj.optics.processing.spi;
 
 import com.palantir.javapoet.ClassName;
 import com.palantir.javapoet.CodeBlock;
+import com.palantir.javapoet.ParameterizedTypeName;
+import com.palantir.javapoet.TypeName;
+import com.palantir.javapoet.TypeVariableName;
 import java.util.List;
 import java.util.Set;
 import javax.lang.model.element.RecordComponentElement;
+import javax.lang.model.element.TypeElement;
+import javax.lang.model.element.TypeParameterElement;
 import javax.lang.model.type.TypeMirror;
 import org.higherkindedj.optics.processing.util.ProcessorUtils;
 
@@ -139,6 +144,31 @@ public interface TraversableGenerator {
    */
   default TypeMirror resolveEffectiveType(TypeMirror type) {
     return ProcessorUtils.resolveWildcard(type);
+  }
+
+  /**
+   * The record's type as it must be written where an instance of it is constructed: {@code
+   * Holder<T>} for a generic record, and the class name itself for every other record.
+   *
+   * <p>A generated traversal method is declared with the record's own type variables, so naming the
+   * record without them constructs a raw instance. That is an unchecked conversion, and it warns
+   * wherever the generated source is compiled.
+   *
+   * @param component the record component the traversal is generated for
+   * @param recordClassName the record's class name, as handed to {@link #generateModifyF}
+   * @return the record's type name, carrying its type variables where it declares any
+   * @since 0.4.10
+   */
+  default TypeName recordTypeName(
+      final RecordComponentElement component, final ClassName recordClassName) {
+    final List<? extends TypeParameterElement> typeParameters =
+        ((TypeElement) component.getEnclosingElement()).getTypeParameters();
+    if (typeParameters.isEmpty()) {
+      return recordClassName;
+    }
+    return ParameterizedTypeName.get(
+        recordClassName,
+        typeParameters.stream().map(TypeVariableName::get).toArray(TypeName[]::new));
   }
 
   /**

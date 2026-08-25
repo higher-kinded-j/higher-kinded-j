@@ -131,6 +131,21 @@ A wildcard cannot be written into the generated source — `Traversal<Roster, ? 
 
 Modifying through the traversal builds a **fresh** container and hands it to the record's constructor, so a narrower list the field was constructed from is never written into.
 
+#### Generic Records
+
+A record that declares type parameters of its own gets them on the generated method, so a traversal over `Holder<T>` focuses `T` rather than losing it:
+
+<!-- verify -->
+```java
+@GenerateTraversals
+record Squad<T>(String coach, List<T> members) {}
+
+// Generated: public static <T> Traversal<Squad<T>, T> members()
+Traversal<Squad<Player>, Player> everyMember = SquadTraversals.members();
+```
+
+Arrays work the same way, whatever their element type: an `int[]` is focused as `Integer` and boxed on the way through, and an element type the traversal cannot name in a `new` expression — `List<Player>[]`, `Player[][]`, `T[]` — is rebuilt by copying the source array to length, which keeps its runtime component type.
+
 ### Step 2: Composing a Deep Traversal
 
 Just like other optics, `Traversal`s can be composed with `andThen`. We can chain them together to create a single, deep traversal from the `League` all the way down to each player's `score`.

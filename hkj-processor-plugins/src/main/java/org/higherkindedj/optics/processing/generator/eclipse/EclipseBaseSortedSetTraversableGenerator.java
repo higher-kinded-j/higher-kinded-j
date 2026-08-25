@@ -78,7 +78,7 @@ public abstract class EclipseBaseSortedSetTraversableGenerator
         // 4. Map over the final effect to reconstruct the record with the new Set.
         .addStatement(
             "return applicative.map(converted -> new $T($L), effectOfConvertBack)",
-            recordClassName,
+            recordTypeName(component, recordClassName),
             constructorArgs)
         .build();
   }

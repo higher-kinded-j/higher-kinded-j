@@ -67,7 +67,7 @@ public class MapValueGenerator extends BaseTraversableGenerator {
         // 2. Map over the final effect to reconstruct the record with the new map.
         .addStatement(
             "return applicative.map(newMap -> new $T($L), effectOfMap)",
-            recordClassName,
+            recordTypeName(component, recordClassName),
             constructorArgs)
         .build();
   }

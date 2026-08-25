@@ -86,7 +86,7 @@ public class OptionalGenerator extends BaseTraversableGenerator {
         // The result of the map now reconstructs the record.
         .addStatement(
             "return applicative.map(newValue -> new $T($L), g_of_b_casted)",
-            recordClassName,
+            recordTypeName(component, recordClassName),
             constructorArgs)
         .nextControlFlow("else")
         // If empty, lift the *original* source record into the applicative, as it's unchanged.
