@@ -170,10 +170,28 @@ public class NavigatorClassGenerator {
     TypeMirror fieldType = component.asType();
     TypeElement direct = navigableTypeElement(fieldType);
     if (direct != null) {
-      return direct;
+      return generic(direct) ? null : direct;
     }
     SpiNavigable spiNavigable = spiNavigable(fieldType);
-    return spiNavigable == null ? null : spiNavigable.element();
+    if (spiNavigable == null) {
+      return null;
+    }
+    return generic(spiNavigable.element()) ? null : spiNavigable.element();
+  }
+
+  /**
+   * Whether a navigable type declares type parameters of its own.
+   *
+   * <p>A navigator is an inner class parameterised by the source type alone, and its navigation
+   * methods read the target's components from the target's own declaration. Both would name the
+   * target's variables, which are in scope on neither. The component keeps its plain path method,
+   * which carries the instantiation and composes the same way.
+   *
+   * @param navigable the navigable type the component reaches
+   * @return true when it declares type parameters
+   */
+  private boolean generic(TypeElement navigable) {
+    return !navigable.getTypeParameters().isEmpty();
   }
 
   /**

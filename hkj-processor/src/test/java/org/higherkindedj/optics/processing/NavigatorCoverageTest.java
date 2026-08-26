@@ -1237,4 +1237,75 @@ class NavigatorCoverageTest {
           compilation, "com.example.WideRootFocus", "TraversalPath<S, String> deep()");
     }
   }
+
+  @Test
+  @DisplayName("a generic navigable target keeps its plain path method instead of a navigator")
+  void genericNavigableTargetKeepsThePlainPathMethod() {
+    final var inner =
+        JavaFileObjects.forSourceString(
+            "com.myapp.Inner",
+            """
+            package com.myapp;
+
+            import org.higherkindedj.optics.annotations.GenerateFocus;
+
+            @GenerateFocus(generateNavigators = true)
+            public record Inner<T>(T value, String label) {}
+            """);
+
+    final var outer =
+        JavaFileObjects.forSourceString(
+            "com.myapp.Outer",
+            """
+            package com.myapp;
+
+            import org.higherkindedj.optics.annotations.GenerateFocus;
+
+            @GenerateFocus(generateNavigators = true)
+            public record Outer(Inner<String> inner, String tag) {}
+            """);
+
+    // A navigator is parameterised by the source type alone and reads its target's components from
+    // the target's own declaration, so a generic target would name variables in scope on neither.
+    var compilation = javac().withProcessors(new FocusProcessor()).compile(inner, outer);
+
+    assertThat(compilation).succeeded();
+    assertGeneratedCodeDoesNotContain(compilation, "com.myapp.OuterFocus", "class InnerNavigator");
+  }
+
+  @Test
+  @DisplayName("a generic navigable inside a container keeps its plain path method too")
+  void genericNavigableInsideAContainerKeepsThePlainPathMethod() {
+    final var inner =
+        JavaFileObjects.forSourceString(
+            "com.myapp.Inner",
+            """
+            package com.myapp;
+
+            import org.higherkindedj.optics.annotations.GenerateFocus;
+
+            @GenerateFocus(generateNavigators = true)
+            public record Inner<T>(T value, String label) {}
+            """);
+
+    final var outer =
+        JavaFileObjects.forSourceString(
+            "com.myapp.Outer",
+            """
+            package com.myapp;
+
+            import java.util.Map;
+            import org.higherkindedj.optics.annotations.GenerateFocus;
+
+            @GenerateFocus(generateNavigators = true)
+            public record Outer(Map<String, Inner<String>> inners, String tag) {}
+            """);
+
+    // The element of a container reaches a navigator the same way a component does, so it is asked
+    // the same question.
+    var compilation = javac().withProcessors(new FocusProcessor()).compile(inner, outer);
+
+    assertThat(compilation).succeeded();
+    assertGeneratedCodeDoesNotContain(compilation, "com.myapp.OuterFocus", "class InnersNavigator");
+  }
 }
