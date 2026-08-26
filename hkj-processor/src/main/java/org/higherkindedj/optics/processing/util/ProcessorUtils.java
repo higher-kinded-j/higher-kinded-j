@@ -7,14 +7,17 @@ import java.util.Locale;
 import java.util.Set;
 import java.util.stream.Collectors;
 import javax.lang.model.element.Element;
+import javax.lang.model.element.ExecutableElement;
 import javax.lang.model.element.TypeElement;
 import javax.lang.model.type.ArrayType;
 import javax.lang.model.type.DeclaredType;
+import javax.lang.model.type.ExecutableType;
 import javax.lang.model.type.IntersectionType;
 import javax.lang.model.type.TypeKind;
 import javax.lang.model.type.TypeMirror;
 import javax.lang.model.type.TypeVariable;
 import javax.lang.model.type.WildcardType;
+import javax.lang.model.util.Types;
 
 /**
  * Shared utility methods for annotation processors in the optics module.
@@ -68,6 +71,58 @@ public final class ProcessorUtils {
    */
   public static boolean hasTypeArguments(TypeMirror type) {
     return type instanceof DeclaredType declared && !declared.getTypeArguments().isEmpty();
+  }
+
+  /**
+   * A method's return type as the given owner sees it.
+   *
+   * @param types the round's type utilities; must not be null
+   * @param owner the instantiated type the method is read on; must not be null
+   * @param method the method to read; must not be null
+   * @return the return type under {@code owner}'s instantiation
+   * @since 0.4.10
+   */
+  public static TypeMirror returnTypeIn(Types types, DeclaredType owner, ExecutableElement method) {
+    return memberIn(types, owner, method) instanceof ExecutableType member
+        ? member.getReturnType()
+        : method.getReturnType();
+  }
+
+  /**
+   * A method's first parameter type as the given owner sees it.
+   *
+   * @param types the round's type utilities; must not be null
+   * @param owner the instantiated type the method is read on; must not be null
+   * @param method the method to read, which must take at least one parameter; must not be null
+   * @return the first parameter's type under {@code owner}'s instantiation
+   * @since 0.4.10
+   */
+  public static TypeMirror firstParameterTypeIn(
+      Types types, DeclaredType owner, ExecutableElement method) {
+    return memberIn(types, owner, method) instanceof ExecutableType member
+        ? member.getParameterTypes().getFirst()
+        : method.getParameters().getFirst().asType();
+  }
+
+  /**
+   * A member's type as the given owner sees it, or the member's own type where the owner has
+   * nothing to say.
+   *
+   * <p>Read off the element, a member speaks the variables of whichever type declared it - the
+   * owner's own, or a generic supertype's. Read through the owner it speaks the owner's, which is
+   * what every comparison against another type is really asking about.
+   *
+   * <p>A <em>raw</em> owner is the exception. javac erases every member of a raw type, including
+   * one whose declared type names no variable at all, so a field typed {@code List<String>} on a
+   * raw {@code Holder} would come back as {@code List}. There is nothing to substitute there, so
+   * the member is read as declared. An owner that simply declares no parameters is not raw: its
+   * inherited members may still need the walk.
+   */
+  private static TypeMirror memberIn(Types types, DeclaredType owner, Element member) {
+    boolean raw =
+        !((TypeElement) owner.asElement()).getTypeParameters().isEmpty()
+            && owner.getTypeArguments().isEmpty();
+    return raw ? member.asType() : types.asMemberOf(owner, member);
   }
 
   /**
