@@ -300,7 +300,11 @@ public class MappingProcessor extends AbstractProcessor {
             "Move the shared renames and leaves onto a plain interface and extend that instead.");
         return false;
       }
-      if (!parentElement.getTypeParameters().isEmpty()) {
+      // A direct parent is judged as it always was. An ancestor the spec never listed is judged
+      // only on what it contributes: without that, a plain marker extending Comparable refuses the
+      // spec and tells the author to make a JDK type non-generic.
+      if (!parentElement.getTypeParameters().isEmpty()
+          && (inherited.reachedThrough() == null || carriesVocabulary(parentElement))) {
         Diagnostics.error(
             processingEnv.getMessager(),
             spec,
@@ -372,6 +376,23 @@ public class MappingProcessor extends AbstractProcessor {
    * @param inherited the ancestor and the parent it was reached through
    * @return a parenthetical naming the route, or the empty string when it is a direct parent
    */
+  /**
+   * Whether a mix-in contributes anything the spec would read off it.
+   *
+   * <p>The gate exists because inherited member types are read as declared, so an ancestor that
+   * contributes no vocabulary cannot carry an unsubstituted variable into anything. It is asked
+   * only of an ancestor the spec never listed: without it a plain marker extending {@code
+   * Comparable} refuses the spec and tells the author to make a JDK type non-generic. A parent the
+   * spec does list is judged as it always was, whatever it carries.
+   *
+   * @param mixin the inherited interface
+   * @return true when it declares a default method or a {@code @MapField} rename
+   */
+  private boolean carriesVocabulary(TypeElement mixin) {
+    return ElementFilter.methodsIn(mixin.getEnclosedElements()).stream()
+        .anyMatch(method -> method.isDefault() || method.getAnnotation(MapField.class) != null);
+  }
+
   private String reachedVia(Inherited inherited) {
     return inherited.reachedThrough() == null
         ? ""

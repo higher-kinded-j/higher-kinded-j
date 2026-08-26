@@ -95,7 +95,7 @@ public class PrismProcessorIntegrationTest {
             import org.higherkindedj.optics.annotations.GeneratePrisms;
 
             @GeneratePrisms
-            public sealed interface GShape<T> permits GCircle, GTagged, GPair {}
+            public sealed interface GShape<T> permits GCircle, GTagged {}
             """);
     final var circle =
         JavaFileObjects.forSourceString(
@@ -113,17 +113,7 @@ public class PrismProcessorIntegrationTest {
 
             public record GTagged(String label) implements GShape<String> {}
             """);
-    final var pair =
-        JavaFileObjects.forSourceString(
-            "com.example.GPair",
-            """
-            package com.example;
-
-            public record GPair<A, B>(A a, B b) implements GShape<A> {}
-            """);
-
-    var compilation =
-        javac().withProcessors(new PrismProcessor()).compile(shape, circle, tagged, pair);
+    var compilation = javac().withProcessors(new PrismProcessor()).compile(shape, circle, tagged);
 
     // The @GeneratePrisms and @ImportOptics generators carry the same reading, so both are pinned;
     // the @ImportOptics half is GenericImportedTypeAxisTest.
@@ -136,14 +126,7 @@ public class PrismProcessorIntegrationTest {
         compilation,
         "com.example.GShapePrisms",
         "public static Prism<GShape<String>, GTagged> gTagged()");
-    assertGeneratedCodeContains(
-        compilation,
-        "com.example.GShapePrisms",
-        "public static <A, B> Prism<GShape<A>, GPair<A, B>> gPair()");
-    // Only the subtype carrying a parameter the hierarchy does not bind narrows uncheckedly.
-    assertGeneratedCodeDoesNotContain(
-        compilation,
-        "com.example.GShapePrisms",
-        "@SuppressWarnings(\"unchecked\") public static <T> Prism<GShape<T>");
+    // Nothing narrows uncheckedly: a subtype the hierarchy cannot pin is refused, not suppressed.
+    assertGeneratedCodeDoesNotContain(compilation, "com.example.GShapePrisms", "@SuppressWarnings");
   }
 }

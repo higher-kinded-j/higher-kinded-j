@@ -4,6 +4,7 @@ package org.higherkindedj.optics.processing.external;
 
 import com.palantir.javapoet.*;
 import java.io.IOException;
+import java.util.List;
 import java.util.Optional;
 import javax.annotation.processing.Filer;
 import javax.annotation.processing.Messager;
@@ -14,6 +15,7 @@ import javax.lang.model.element.TypeParameterElement;
 import javax.lang.model.type.DeclaredType;
 import javax.tools.Diagnostic;
 import org.higherkindedj.optics.Prism;
+import org.higherkindedj.optics.processing.util.Diagnostics;
 import org.higherkindedj.optics.processing.util.ExcludeFromJacocoGeneratedReport;
 import org.higherkindedj.optics.processing.util.ProcessorUtils;
 
@@ -66,7 +68,10 @@ public class ExternalPrismGenerator {
 
     // Generate prism methods for each permitted subtype
     for (TypeElement subtype : analysis.permittedSubtypes()) {
-      prismsClassBuilder.addMethod(createPrismMethodForSubtype(sealedInterface, subtype));
+      MethodSpec prism = createPrismMethodForSubtype(sealedInterface, subtype);
+      if (prism != null) {
+        prismsClassBuilder.addMethod(prism);
+      }
     }
 
     writeFile(targetPackage, prismsClassBuilder.build());
@@ -103,6 +108,64 @@ public class ExternalPrismGenerator {
     writeFile(targetPackage, prismsClassBuilder.build());
   }
 
+  /**
+   * Reports a permitted subtype the sum type cannot pin, and returns whether it did.
+   *
+   * <p>A prism narrows by {@code instanceof}, which tests an erasure. Where the subtype's clause
+   * binds every one of its parameters - {@code Circle<T> implements Shape<T>} - the hierarchy pins
+   * them and the cast is one javac proves. A parameter the clause leaves free is pinned by nothing,
+   * so two callers can read one value at different types and the second gets a {@link
+   * ClassCastException} from a call site that compiled without a warning.
+   *
+   * @param messager the round's messager
+   * @param tag the annotation tag, for the diagnostic
+   * @param sumType the sealed type
+   * @param subtype the permitted subtype
+   * @param namedSumType the sum type as the subtype's clause names it, or null
+   * @return true when the subtype was rejected and an error reported
+   */
+  private static boolean rejectsUnboundParameter(
+      Messager messager,
+      String tag,
+      TypeElement sumType,
+      TypeElement subtype,
+      DeclaredType namedSumType) {
+
+    if (namedSumType == null) {
+      return false;
+    }
+    List<String> unbound =
+        subtype.getTypeParameters().stream()
+            .filter(parameter -> !ProcessorUtils.mentions(namedSumType, parameter))
+            .map(parameter -> parameter.getSimpleName().toString())
+            .toList();
+    if (unbound.isEmpty()) {
+      return false;
+    }
+    Diagnostics.error(
+        messager,
+        subtype,
+        tag,
+        "'"
+            + subtype.getSimpleName()
+            + "' declares "
+            + unbound
+            + ", which '"
+            + sumType.getSimpleName()
+            + "' does not bind.",
+        "A prism narrows by instanceof, which tests an erasure, so only what the clause pins is"
+            + " checked; a free parameter lets two callers read one value at different types, and"
+            + " the second gets a ClassCastException from a call site that compiled cleanly.",
+        "Bind it in the clause, as '"
+            + subtype.getSimpleName()
+            + " implements "
+            + sumType.getSimpleName()
+            + "<"
+            + String.join(", ", unbound)
+            + ">', or write the prism by hand where the unsoundness is visible.");
+    return true;
+  }
+
   private MethodSpec createPrismMethodForSubtype(TypeElement sumType, TypeElement subtype) {
     String methodName = ProcessorUtils.toCamelCase(subtype.getSimpleName().toString());
 
@@ -112,6 +175,10 @@ public class ExternalPrismGenerator {
     DeclaredType namedSumType = ProcessorUtils.sumTypeAsNamedBy(sumType, subtype);
     TypeName sourceTypeName =
         namedSumType == null ? ClassName.get(sumType) : TypeName.get(namedSumType);
+    if (rejectsUnboundParameter(messager, "@ImportOptics", sumType, subtype, namedSumType)) {
+      return null;
+    }
+
     TypeName subTypeName =
         subtype.getTypeParameters().isEmpty()
             ? ClassName.get(subtype)
@@ -140,22 +207,6 @@ public class ExternalPrismGenerator {
 
     for (TypeParameterElement typeParameter : subtype.getTypeParameters()) {
       methodBuilder.addTypeVariable(TypeVariableName.get(typeParameter));
-    }
-
-    // instanceof tests an erasure, so a parameterised subtype narrows through the raw name. Where
-    // every one of its parameters appears in the clause, the hierarchy still pins them - a
-    // Shape<T> that is a Circle can only be a Circle<T> - and javac sees it, so nothing warns.
-    // A parameter the clause does not bind is the one javac cannot pin, and the only case that
-    // needs answering here rather than in the consuming build.
-    boolean unbound =
-        namedSumType != null
-            && subtype.getTypeParameters().stream()
-                .anyMatch(parameter -> !ProcessorUtils.mentions(namedSumType, parameter));
-    if (unbound) {
-      methodBuilder.addAnnotation(
-          AnnotationSpec.builder(SuppressWarnings.class)
-              .addMember("value", "$S", "unchecked")
-              .build());
     }
 
     return methodBuilder

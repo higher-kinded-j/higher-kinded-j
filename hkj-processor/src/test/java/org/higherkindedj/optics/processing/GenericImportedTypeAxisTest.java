@@ -201,7 +201,7 @@ class GenericImportedTypeAxisTest {
   }
 
   @Test
-  @DisplayName("a permitted subtype that pins the argument, and one that adds its own")
+  @DisplayName("a permitted subtype that pins the argument, and one the sum type cannot pin")
   void sealedSubtypeParameterShapes() {
     var shape =
         JavaFileObjects.forSourceString(
@@ -230,18 +230,12 @@ class GenericImportedTypeAxisTest {
 
     var compilation = compile("com.external.MixShape.class", shape, tagged, pair);
 
-    assertThat(compilation).succeeded();
-    // The clause pins the argument, so the method declares nothing.
-    assertGeneratedCodeContains(
-        compilation,
-        "com.myapp.optics.MixShapePrisms",
-        "public static Prism<MixShape<String>, MixTagged> mixTagged()");
-    // B is the subtype's own and appears in the focus, so it is declared even though the sum type
-    // does not bind it - what the author wrote, rather than a parameter invented for them.
-    assertGeneratedCodeContains(
-        compilation,
-        "com.myapp.optics.MixShapePrisms",
-        "public static <A, B> Prism<MixShape<A>, MixPair<A, B>> mixPair()");
+    // MixPair's B is pinned by nothing, so two callers could read one value at different types and
+    // the second would get a ClassCastException from a call site that compiled cleanly.
+    assertThat(compilation).failed();
+    assertThat(compilation)
+        .hadErrorContaining("'MixPair' declares [B], which 'MixShape' does not bind");
+    assertThat(compilation).hadErrorContaining("implements MixShape<B>");
   }
 
   @Test

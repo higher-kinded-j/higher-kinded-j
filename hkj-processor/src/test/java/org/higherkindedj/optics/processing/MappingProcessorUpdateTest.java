@@ -1630,7 +1630,11 @@ class MappingProcessorUpdateTest {
               import org.higherkindedj.optics.annotations.GenerateMapping;
               import org.higherkindedj.optics.annotations.UpdateSpec;
 
-              interface BaseVocabulary<T> {}
+              interface BaseVocabulary<T> {
+                  default org.higherkindedj.optics.validated.ValidatedPrism<String, T> shared() {
+                      return null;
+                  }
+              }
 
               interface Vocabulary extends BaseVocabulary<String> {}
 

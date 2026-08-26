@@ -211,7 +211,10 @@ class GenericMappingWireAxisTest {
             """
             package com.example;
 
-            public interface BaseVocab<T> {}
+            public interface BaseVocab<T> {
+                @org.higherkindedj.optics.annotations.MapField(to = "name")
+                T shared();
+            }
             """);
 
     var mixin =
@@ -251,5 +254,51 @@ class GenericMappingWireAxisTest {
 
     assertThat(compilation).failed();
     assertThat(compilation).hadErrorContaining("mix-in 'BaseVocab' is generic");
+  }
+
+  @Test
+  @DisplayName("a generic ancestor that carries no vocabulary does not refuse the spec")
+  void genericAncestorCarryingNoVocabulary() {
+    var marker =
+        JavaFileObjects.forSourceString(
+            "com.example.Ordered",
+            """
+            package com.example;
+
+            public interface Ordered extends Comparable<Ordered> {
+                @Override
+                default int compareTo(Ordered other) { return 0; }
+            }
+            """);
+
+    var wire =
+        JavaFileObjects.forSourceString(
+            "com.example.OrderedWire",
+            """
+            package com.example;
+
+            public record OrderedWire(String id, String name) {}
+            """);
+
+    var spec =
+        JavaFileObjects.forSourceString(
+            "com.example.OrderedMapping",
+            """
+            package com.example;
+
+            import org.higherkindedj.optics.annotations.GenerateMapping;
+            import org.higherkindedj.optics.annotations.MappingSpec;
+
+            @GenerateMapping
+            public interface OrderedMapping extends MappingSpec<Dom, OrderedWire>, Ordered {}
+            """);
+
+    // Comparable is generic and two levels up, but contributes no rename and no leaf, so nothing
+    // it declares can carry an unsubstituted variable into the mapping - and a remedy naming a JDK
+    // type could not be followed anyway.
+    var compilation = compile(DOMAIN, marker, wire, spec);
+
+    assertThat(compilation).succeeded();
+    assertThat(compilation).generatedSourceFile("com.example.OrderedMappingImpl");
   }
 }
