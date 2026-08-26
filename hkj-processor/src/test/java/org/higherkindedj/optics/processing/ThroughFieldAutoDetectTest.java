@@ -1141,4 +1141,59 @@ class ThroughFieldAutoDetectTest {
 
     assertThat(compilation).succeeded();
   }
+
+  @Test
+  @DisplayName("auto-detects on a raw source type, whose members are not substituted")
+  void autoDetectsOnARawSourceType() {
+    final var holder =
+        JavaFileObjects.forSourceString(
+            "com.external.RawHolder",
+            """
+            package com.external;
+
+            import java.util.List;
+
+            public class RawHolder<T> {
+                private List<String> items;
+                public List<String> items() { return items; }
+                public RawHolder<T> withItems(List<String> items) {
+                    RawHolder<T> copy = new RawHolder<>();
+                    copy.items = items;
+                    return copy;
+                }
+            }
+            """);
+
+    final var specInterface =
+        JavaFileObjects.forSourceString(
+            "com.myapp.RawOpticsSpec",
+            """
+            package com.myapp;
+
+            import com.external.RawHolder;
+            import java.util.List;
+            import org.higherkindedj.optics.Lens;
+            import org.higherkindedj.optics.Traversal;
+            import org.higherkindedj.optics.annotations.ImportOptics;
+            import org.higherkindedj.optics.annotations.OpticsSpec;
+            import org.higherkindedj.optics.annotations.ThroughField;
+            import org.higherkindedj.optics.annotations.Wither;
+
+            @ImportOptics
+            @SuppressWarnings("rawtypes")
+            public interface RawOpticsSpec extends OpticsSpec<RawHolder> {
+                @Wither("withItems")
+                Lens<RawHolder, List<String>> items();
+
+                @ThroughField(field = "items")
+                Traversal<RawHolder, String> eachItem();
+            }
+            """);
+
+    // Under a raw site javac erases every member, so asking it to substitute would turn a field
+    // typed List<String> into a raw List and match no container. There is nothing to substitute.
+    Compilation compilation = compile(holder, specInterface);
+
+    assertThat(compilation).succeeded();
+  }
 }

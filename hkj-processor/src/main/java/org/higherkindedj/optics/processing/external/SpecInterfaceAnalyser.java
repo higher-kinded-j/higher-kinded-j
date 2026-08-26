@@ -1053,7 +1053,7 @@ public class SpecInterfaceAnalyser {
           "Cannot auto-detect traversal for field '"
               + fieldName
               + "' of type '"
-              + fieldType
+              + ProcessorUtils.simpleTypeName(fieldType)
               + "'. "
               + "Supported types: List, Set, Optional, Map, arrays. "
               + "Please specify traversal() explicitly, e.g.: "
@@ -1072,14 +1072,6 @@ public class SpecInterfaceAnalyser {
   }
 
   /**
-   * Finds the type of a field on a type element by looking for accessor methods or record
-   * components.
-   *
-   * @param typeElement the type to search
-   * @param fieldName the field name to find
-   * @return the field's type, or null if not found
-   */
-  /**
    * A member's type as the instantiated source type sees it, unwrapping an accessor's return.
    *
    * <p>Read off the element, a member of {@code Holder<T>} speaks {@code T}; the spec instantiated
@@ -1088,15 +1080,33 @@ public class SpecInterfaceAnalyser {
    * names a variable the spec never wrote.
    *
    * @param sourceType the instantiated source type {@code S}
-   * @param member the accessor or component to read
+   * @param member the accessor to read
    * @return the member's type under {@code sourceType}'s instantiation
    */
   private TypeMirror memberTypeOf(DeclaredType sourceType, ExecutableElement member) {
+    // A source type with no arguments has nothing to substitute, and asking anyway would lose
+    // what the member does declare: under a raw site javac erases every member, so a field typed
+    // List<String> on a raw Holder would come back as List and match no container.
+    if (sourceType.getTypeArguments().isEmpty()) {
+      return member.getReturnType();
+    }
+    // Total: asMemberOf answers with an ExecutableType for an executable member, and the one shape
+    // that would not - an unresolvable source type, whose members resolve to itself - enumerates
+    // no members for the caller to have found.
     return ((ExecutableType) typeUtils.asMemberOf(sourceType, member)).getReturnType();
   }
 
+  /**
+   * The type a named field has on the instantiated source type.
+   *
+   * @param sourceType the instantiated source type to search
+   * @param fieldName the field name to find
+   * @return the field's type under that instantiation, or null if not found
+   */
   private TypeMirror findFieldType(TypeMirror sourceType, String fieldName) {
-    // The source type is always declared by the time an optic method is read.
+    // analyse() admits a source type only when asElement gives a TypeElement, which on javac
+    // leaves DECLARED, ERROR and INTERSECTION - every one of them a DeclaredType. That is what
+    // makes the cast total, the same reasoning parseCopyStrategy's spells out.
     DeclaredType declaredSource = (DeclaredType) sourceType;
     TypeElement typeElement = (TypeElement) declaredSource.asElement();
 
@@ -1139,7 +1149,9 @@ public class SpecInterfaceAnalyser {
         VariableElement field = (VariableElement) enclosed;
         if (field.getSimpleName().contentEquals(fieldName)
             && field.getModifiers().contains(Modifier.PUBLIC)) {
-          return typeUtils.asMemberOf(declaredSource, field);
+          return declaredSource.getTypeArguments().isEmpty()
+              ? field.asType()
+              : typeUtils.asMemberOf(declaredSource, field);
         }
       }
     }
