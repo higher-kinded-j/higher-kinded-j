@@ -254,7 +254,12 @@ public class SpecInterfaceAnalyser {
   }
 
   /**
-   * Whether a type is the given variable, or is parameterised by it at any depth.
+   * Whether a type is the given variable, or names it at any depth.
+   *
+   * <p>A variable can hide in an enclosing type as well as in a type argument: {@code
+   * Outer<S>.Inner} names {@code S} without taking it as an argument of its own. An enclosing type
+   * that is absent, or a static member type, is a {@code NoType}, which matches nothing and ends
+   * the walk.
    *
    * @param type the type to search; must not be null
    * @param variable the variable to look for; must not be null
@@ -266,7 +271,9 @@ public class SpecInterfaceAnalyser {
     }
     return switch (type) {
       case DeclaredType declared ->
-          declared.getTypeArguments().stream().anyMatch(argument -> mentions(argument, variable));
+          mentions(declared.getEnclosingType(), variable)
+              || declared.getTypeArguments().stream()
+                  .anyMatch(argument -> mentions(argument, variable));
       case ArrayType array -> mentions(array.getComponentType(), variable);
       default -> false;
     };

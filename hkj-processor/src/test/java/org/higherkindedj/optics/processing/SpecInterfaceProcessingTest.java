@@ -1570,12 +1570,26 @@ class SpecInterfaceProcessingTest {
               public class Box {}
               """);
 
+      // A generic outer with an inner class: the one shape where the variable hides in an
+      // enclosing type rather than in a type argument.
+      final var outerClass =
+          JavaFileObjects.forSourceString(
+              "com.external.Outer",
+              """
+              package com.external;
+
+              public class Outer<X> {
+                  public class Inner {}
+              }
+              """);
+
       record Case(String name, String declaration) {}
       var cases =
           List.of(
               new Case("IntersectionSpec", "<S extends Box & java.io.Serializable>"),
               new Case("SelfReferentialSpec", "<S extends Comparable<S>>"),
               new Case("SelfReferentialArraySpec", "<S extends java.util.List<S[]>>"),
+              new Case("SelfReferentialEnclosingSpec", "<S extends Outer<S>.Inner>"),
               new Case("VariableBoundSpec", "<T extends Box, S extends T>"));
 
       for (Case testCase : cases) {
@@ -1586,6 +1600,7 @@ class SpecInterfaceProcessingTest {
                 package com.myapp;
 
                 import com.external.Box;
+                import com.external.Outer;
                 import org.higherkindedj.optics.annotations.ImportOptics;
                 import org.higherkindedj.optics.annotations.OpticsSpec;
 
@@ -1597,11 +1612,11 @@ class SpecInterfaceProcessingTest {
         var compilation =
             javac()
                 .withProcessors(new ImportOpticsProcessor())
-                .compile(externalClass, specInterface);
+                .compile(externalClass, outerClass, specInterface);
 
         assertThat(compilation).failed();
-        assertThat(compilation)
-            .hadErrorContaining("Name the type the optics are for as the type argument.");
+        // Anchored: the fix sentence must end there, with no suggestion appended after it.
+        assertThat(compilation).hadErrorContainingMatch("type argument\\.$");
       }
     }
 
@@ -1628,6 +1643,45 @@ class SpecInterfaceProcessingTest {
       assertThat(compilation).failed();
       // T is declared on the spec, so naming it in the suggestion still yields a valid declaration.
       assertThat(compilation).hadErrorContaining("as the type argument: 'OpticsSpec<List<T>>'.");
+    }
+
+    @Test
+    @DisplayName(
+        "should suggest an enclosing type parameterised by another variable the spec declares")
+    void shouldSuggestEnclosingTypeParameterisedByAnotherVariable() {
+      final var externalClass =
+          JavaFileObjects.forSourceString(
+              "com.external.Outer",
+              """
+              package com.external;
+
+              public class Outer<X> {
+                  public class Inner {}
+              }
+              """);
+
+      final var specInterface =
+          JavaFileObjects.forSourceString(
+              "com.myapp.EnclosingOpticsSpec",
+              """
+              package com.myapp;
+
+              import com.external.Outer;
+              import org.higherkindedj.optics.annotations.ImportOptics;
+              import org.higherkindedj.optics.annotations.OpticsSpec;
+
+              @ImportOptics
+              public interface EnclosingOpticsSpec<T, S extends Outer<T>.Inner>
+                      extends OpticsSpec<S> {}
+              """);
+
+      var compilation =
+          javac().withProcessors(new ImportOpticsProcessor()).compile(externalClass, specInterface);
+
+      assertThat(compilation).failed();
+      // Only the variable being replaced makes a suggestion circular; T is the spec's to name.
+      assertThat(compilation)
+          .hadErrorContaining("as the type argument: 'OpticsSpec<Outer<T>.Inner>'.");
     }
 
     @Test
