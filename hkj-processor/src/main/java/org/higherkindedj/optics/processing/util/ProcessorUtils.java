@@ -2,7 +2,6 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.optics.processing.util;
 
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 import java.util.Set;
@@ -84,18 +83,22 @@ public final class ProcessorUtils {
    *
    * @param sumType the sealed type; must not be null
    * @param subtype the permitted subtype whose clause names it; must not be null
-   * @return the sum type as {@code subtype} names it, or null when it does not name it directly
+   * @return the sum type as {@code subtype} names it, or the sum type itself when the clause does
+   *     not resolve and javac's own error is the one worth reading
    * @since 0.4.10
    */
   public static DeclaredType sumTypeAsNamedBy(TypeElement sumType, TypeElement subtype) {
-    List<TypeMirror> candidates = new ArrayList<>(subtype.getInterfaces());
-    candidates.add(subtype.getSuperclass());
-    for (TypeMirror candidate : candidates) {
-      if (candidate instanceof DeclaredType declared && declared.asElement().equals(sumType)) {
+    // Only the implemented interfaces: a sealed type reached here is an interface, so a subtype
+    // that is permitted by it names it there. A superclass could never be the match.
+    for (TypeMirror candidate : subtype.getInterfaces()) {
+      // Cast, not a pattern: an implements clause yields declared types only - an unresolvable one
+      // is an ErrorType, which is a DeclaredType too - so there is no other kind to test for.
+      DeclaredType declared = (DeclaredType) candidate;
+      if (declared.asElement().equals(sumType)) {
         return declared;
       }
     }
-    return null;
+    return (DeclaredType) sumType.asType();
   }
 
   /**

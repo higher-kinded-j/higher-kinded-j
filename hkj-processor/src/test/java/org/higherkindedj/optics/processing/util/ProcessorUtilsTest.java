@@ -7,6 +7,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import com.google.testing.compile.JavaFileObjects;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import javax.annotation.processing.AbstractProcessor;
@@ -204,6 +205,88 @@ class ProcessorUtilsTest {
 
       assertThat(processor.bounded).isTrue();
       assertThat(processor.unbounded).isFalse();
+    }
+  }
+
+  /** Contract tests for {@link ProcessorUtils#sumTypeAsNamedBy}, against javac's own mirrors. */
+  @Nested
+  @DisplayName("sumTypeAsNamedBy")
+  class SumTypeAsNamedBy {
+
+    /** Captures the answer for each permitted subtype, keyed by its simple name. */
+    private static final class CapturingProcessor extends AbstractProcessor {
+      private final Map<String, String> named = new LinkedHashMap<>();
+
+      @Override
+      public Set<String> getSupportedAnnotationTypes() {
+        return Set.of("*");
+      }
+
+      @Override
+      public SourceVersion getSupportedSourceVersion() {
+        return SourceVersion.latestSupported();
+      }
+
+      @Override
+      public boolean process(Set<? extends TypeElement> annotations, RoundEnvironment round) {
+        var elements = processingEnv.getElementUtils();
+        TypeElement shape = elements.getTypeElement("com.test.Shape");
+        if (shape == null) {
+          return false;
+        }
+        for (String subtypeName : List.of("com.test.Circle", "com.test.Tagged", "com.test.Loose")) {
+          TypeElement subtype = elements.getTypeElement(subtypeName);
+          named.put(
+              subtype.getSimpleName().toString(),
+              ProcessorUtils.sumTypeAsNamedBy(shape, subtype).toString());
+        }
+        return false;
+      }
+    }
+
+    @Test
+    @DisplayName("answers with the sum type as the subtype's own clause names it")
+    void answersWithTheClausesInstantiation() {
+      var sources =
+          JavaFileObjects.forSourceString(
+              "com.test.Shape",
+              """
+              package com.test;
+              public sealed interface Shape<T> permits Circle, Tagged {}
+              """);
+      var circle =
+          JavaFileObjects.forSourceString(
+              "com.test.Circle",
+              """
+              package com.test;
+              // Serializable first, so the scan passes an interface that is not the sum type.
+              public record Circle<T>(T tag) implements java.io.Serializable, Shape<T> {}
+              """);
+      var tagged =
+          JavaFileObjects.forSourceString(
+              "com.test.Tagged",
+              """
+              package com.test;
+              public record Tagged(String label) implements Shape<String> {}
+              """);
+      // Not permitted by Shape at all: the clause it would be found in does not name it, which is
+      // the shape a subtype whose clause fails to resolve presents.
+      var loose =
+          JavaFileObjects.forSourceString(
+              "com.test.Loose",
+              """
+              package com.test;
+              public record Loose(String v) {}
+              """);
+
+      var processor = new CapturingProcessor();
+      javac().withProcessors(processor).compile(sources, circle, tagged, loose);
+
+      assertThat(processor.named)
+          .containsEntry("Circle", "com.test.Shape<T>")
+          .containsEntry("Tagged", "com.test.Shape<java.lang.String>")
+          // Nothing to read, so the sum type answers for itself rather than null.
+          .containsEntry("Loose", "com.test.Shape<T>");
     }
   }
 }

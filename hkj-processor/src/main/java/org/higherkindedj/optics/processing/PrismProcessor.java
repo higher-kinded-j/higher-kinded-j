@@ -171,7 +171,7 @@ public class PrismProcessor extends AbstractProcessor {
    * @param tag the annotation tag, for the diagnostic
    * @param sumType the sealed type
    * @param subtype the permitted subtype
-   * @param namedSumType the sum type as the subtype's clause names it, or null
+   * @param namedSumType the sum type as the subtype's clause names it
    * @return true when the subtype was rejected and an error reported
    */
   private static boolean rejectsUnboundParameter(
@@ -181,9 +181,6 @@ public class PrismProcessor extends AbstractProcessor {
       TypeElement subtype,
       DeclaredType namedSumType) {
 
-    if (namedSumType == null) {
-      return false;
-    }
     List<String> unbound =
         subtype.getTypeParameters().stream()
             .filter(parameter -> !ProcessorUtils.mentions(namedSumType, parameter))
@@ -223,8 +220,7 @@ public class PrismProcessor extends AbstractProcessor {
     // its own extends/implements clause instantiates it. Reading the sum type's declaration
     // instead would name variables the method never declares.
     DeclaredType namedSumType = ProcessorUtils.sumTypeAsNamedBy(sumType, subtype);
-    TypeName sourceTypeName =
-        namedSumType == null ? ClassName.get(sumType) : TypeName.get(namedSumType);
+    TypeName sourceTypeName = TypeName.get(namedSumType);
     if (rejectsUnboundParameter(
         processingEnv.getMessager(), "@GeneratePrisms", sumType, subtype, namedSumType)) {
       return null;

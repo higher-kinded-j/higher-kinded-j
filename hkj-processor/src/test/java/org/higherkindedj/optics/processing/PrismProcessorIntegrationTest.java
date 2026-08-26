@@ -129,4 +129,36 @@ public class PrismProcessorIntegrationTest {
     // Nothing narrows uncheckedly: a subtype the hierarchy cannot pin is refused, not suppressed.
     assertGeneratedCodeDoesNotContain(compilation, "com.example.GShapePrisms", "@SuppressWarnings");
   }
+
+  @Test
+  @DisplayName("should refuse a permitted subtype the hierarchy cannot pin")
+  void shouldRefuseASubtypeTheHierarchyCannotPin() {
+    final var shape =
+        JavaFileObjects.forSourceString(
+            "com.example.UShape",
+            """
+            package com.example;
+
+            import org.higherkindedj.optics.annotations.GeneratePrisms;
+
+            @GeneratePrisms
+            public sealed interface UShape<T> permits UPair {}
+            """);
+    final var pair =
+        JavaFileObjects.forSourceString(
+            "com.example.UPair",
+            """
+            package com.example;
+
+            public record UPair<A, B>(A a, B b) implements UShape<A> {}
+            """);
+
+    var compilation = javac().withProcessors(new PrismProcessor()).compile(shape, pair);
+
+    // B is pinned by nothing, so the prism would let two callers read one value at different types.
+    assertThat(compilation).failed();
+    assertThat(compilation)
+        .hadErrorContaining("'UPair' declares [B], which 'UShape' does not bind");
+    assertThat(compilation).hadErrorContaining("implements UShape<B>");
+  }
 }
