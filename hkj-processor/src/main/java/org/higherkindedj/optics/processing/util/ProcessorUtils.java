@@ -2,6 +2,7 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.optics.processing.util;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 import java.util.Set;
@@ -71,6 +72,30 @@ public final class ProcessorUtils {
    */
   public static boolean hasTypeArguments(TypeMirror type) {
     return type instanceof DeclaredType declared && !declared.getTypeArguments().isEmpty();
+  }
+
+  /**
+   * The sum type as one of its permitted subtypes instantiates it.
+   *
+   * <p>A prism for a subtype is written against the sum type the <em>subtype</em> names, not the
+   * sum type's own declaration: {@code GenCircle<T> implements GenShape<T>} focuses {@code
+   * GenShape<T>}, while {@code Tagged implements GenShape<String>} focuses {@code GenShape<String>}
+   * and needs no parameter of its own.
+   *
+   * @param subtype the permitted subtype; must not be null
+   * @param sumType the sealed type it is permitted by; must not be null
+   * @return the sum type as {@code subtype} names it, or null when it does not name it directly
+   * @since 0.4.10
+   */
+  public static DeclaredType sumTypeAsNamedBy(TypeElement subtype, TypeElement sumType) {
+    List<TypeMirror> candidates = new ArrayList<>(subtype.getInterfaces());
+    candidates.add(subtype.getSuperclass());
+    for (TypeMirror candidate : candidates) {
+      if (candidate instanceof DeclaredType declared && declared.asElement().equals(sumType)) {
+        return declared;
+      }
+    }
+    return null;
   }
 
   /**
