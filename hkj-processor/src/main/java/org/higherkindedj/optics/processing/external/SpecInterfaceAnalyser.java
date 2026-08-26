@@ -923,8 +923,10 @@ public class SpecInterfaceAnalyser {
         reportMissingPrismHint(method);
         return Optional.empty();
       }
-      // Validate subtype relationship (Decision 6)
-      if (!typeUtils.isSubtype(targetType, sourceType)) {
+      // Erasures, because that is what the generated 'source instanceof Target' tests. The
+      // annotation carries a class constant, which is always raw, so comparing it against an
+      // instantiated source would reject every generic hierarchy.
+      if (!typeUtils.isSubtype(typeUtils.erasure(targetType), typeUtils.erasure(sourceType))) {
         error(
             "@InstanceOf target '"
                 + targetType
