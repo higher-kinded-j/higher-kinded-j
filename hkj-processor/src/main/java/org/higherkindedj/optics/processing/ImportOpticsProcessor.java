@@ -157,7 +157,7 @@ public class ImportOpticsProcessor extends AbstractProcessor {
             processingEnv.getElementUtils(),
             processingEnv.getMessager());
 
-    Optional<SpecAnalysis> analysisOpt = analyser.analyse(specInterface);
+    Optional<SpecAnalysis> analysisOpt = analyser.analyse(specInterface, targetPackage);
     note("Analysis result present: " + analysisOpt.isPresent(), specInterface);
 
     if (analysisOpt.isEmpty()) {

@@ -201,7 +201,32 @@ interface ConfigOpticsSpec extends OpticsSpec<Config> {
 
 ~~~admonish warning title="Lens laws and mutable types"
 `@ViaCopyAndSet` copies, then mutates the copy. That is lawful only if the copy constructor really copies everything: a shallow copy that shares a mutable field means a "set" can be seen through the original, which breaks the lens laws in the most confusing way possible. Verify with `LensLaws` on a type where this matters.
+
+`copyConstructor` adds a second way to lose state, and it is quieter. Naming a supertype selects the constructor that takes it, and that constructor can only copy what it can see: if `balance` is declared on `Ledger` and you name `LedgerBase`, every `set` returns a copy with `balance` back at its default. That is a perfectly *deep* copy of everything in scope — the field is simply not in scope. The processor cannot check this for you, so the narrower the type you name, the more `LensLaws` is worth running.
 ~~~
+
+`copyConstructor` is for the one case the default cannot express: an overloaded constructor. `new Config(source)` picks the most specific applicable overload, which is what you want almost always — a lone `Config(BaseConfig other)` already takes the source by widening. Name a supertype, fully qualified, and the source is passed under that type instead:
+
+```java
+public class Endpoint extends BaseEndpoint implements Audited {
+  public Endpoint(BaseEndpoint other) { ... }
+  public Endpoint(Audited other) { ... }   // new Endpoint(source) is ambiguous
+  public void setHost(String host) { ... }
+}
+```
+
+<!-- verify -->
+```java
+@ImportOptics
+interface EndpointOpticsSpec extends OpticsSpec<Endpoint> {
+
+  @ViaCopyAndSet(copyConstructor = "org.higherkindedj.example.book.optics.BaseEndpoint",
+                 setter = "setHost")
+  Lens<Endpoint, String> host();          // new Endpoint((BaseEndpoint) source)
+}
+```
+
+The name is a plain string, so it is not resolved against the interface's imports: give it fully qualified, the class alone with no type arguments, and a nested class as `com.example.Outer.Base`. Four names are rejected at the declaration rather than generating a cast javac cannot compile: one that does not resolve, one naming a type `Endpoint` does not extend or implement, one the generated class cannot see, and one no `Endpoint` constructor accepts. What the processor cannot check is whether the constructor it picks copies everything — see the warning above.
 
 ---
 
@@ -261,7 +286,7 @@ Start with `@ViaBuilder`: it is the pattern most generated code uses. Fall back 
     parameterOrder = {"x", "y"})   // effectively required, see above
 
 @ViaCopyAndSet(
-    copyConstructor = "",     // not honoured yet: the source type's copy constructor is always used
+    copyConstructor = "",     // default: pass the source unchanged; else a fully qualified supertype of S
     setter = "setHost")       // required
 
 @ThroughField(
@@ -274,7 +299,7 @@ Start with `@ViaBuilder`: it is the pattern most generated code uses. Fall back 
 
 ~~~admonish info title="Key Takeaways"
 * **`@ViaBuilder` is the default choice**, and covers JOOQ, Lombok, AutoValue and Protobuf between them. Immutables generates both a builder and withers, so either strategy works there.
-* **Every name is overridable.** Getter, builder accessor, setter and build method can each be spelled out when a library's conventions differ.
+* **Every name is overridable.** Getter, builder accessor, setter and build method can each be spelled out when a library's conventions differ, and `@ViaCopyAndSet(copyConstructor = ...)` picks between overloaded copy constructors.
 * **`@ThroughField` reaches into collection fields**, auto-detecting the traversal for lists, sets, optionals, arrays and maps, subtypes included.
 * **`Traversal` reads and writes through `Traversals`**, not through a plain instance `modify`; `andThen`, `filtered`, `filterBy`, `asFold`, `modifyF`, `modifyWhen` and `branch` do live on the optic.
 * **Not everything needs a strategy.** A type that already implements `List`, `Map` or `Optional` works with the standard traversals for reads, though rebuilding the exact container type needs `forIterableCollecting`.

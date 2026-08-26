@@ -152,6 +152,12 @@ public class CopyStrategyCodeGenerator {
    * }
    * }</pre>
    *
+   * <p>{@code @ViaCopyAndSet(copyConstructor = ...)} names the copy constructor's parameter type,
+   * which the analyser has resolved to a supertype of {@code S}. It is emitted as a cast on the
+   * argument, {@code new Type((Base) source)}, so that an overloaded constructor resolves to the
+   * intended one. The analyser leaves it null when there is no cast to make, so the rule here is
+   * just that: a null parameter type passes the source unchanged.
+   *
    * @param info the @ViaCopyAndSet annotation values
    * @param sourceType the source type
    * @return the code block
@@ -160,28 +166,21 @@ public class CopyStrategyCodeGenerator {
     TypeName sourceTypeName = TypeName.get(sourceType);
     String setter = info.setter();
 
-    // If copyConstructor is specified, use that type; otherwise use source type
-    if (!info.copyConstructor().isEmpty()) {
-      // Complex case with different copy constructor type - not commonly needed
-      return CodeBlock.of(
-          "(source, newValue) -> {\n"
-              + "  $T copy = new $T(source);\n"
-              + "  copy.$L(newValue);\n"
-              + "  return copy;\n"
-              + "}",
-          sourceTypeName,
-          sourceTypeName,
-          setter);
-    }
+    TypeMirror parameterType = info.copyConstructorParameterType();
+    CodeBlock argument =
+        parameterType == null
+            ? CodeBlock.of("source")
+            : CodeBlock.of("($T) source", TypeName.get(parameterType));
 
     return CodeBlock.of(
         "(source, newValue) -> {\n"
-            + "  $T copy = new $T(source);\n"
+            + "  $T copy = new $T($L);\n"
             + "  copy.$L(newValue);\n"
             + "  return copy;\n"
             + "}",
         sourceTypeName,
         sourceTypeName,
+        argument,
         setter);
   }
 

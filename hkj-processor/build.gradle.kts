@@ -109,6 +109,8 @@ tasks.jacocoTestCoverageVerification {
                 "org.higherkindedj.optics.processing.NavigatorClassGenerator*",
                 "org.higherkindedj.optics.processing.WideningAnalysis*",
                 "org.higherkindedj.optics.processing.effect.EffectAlgebraProcessor*",
+                "org.higherkindedj.optics.processing.external.SpecInterfaceAnalyser*",
+                "org.higherkindedj.optics.processing.external.CopyStrategyCodeGenerator*",
             )
             limit {
                 counter = "LINE"

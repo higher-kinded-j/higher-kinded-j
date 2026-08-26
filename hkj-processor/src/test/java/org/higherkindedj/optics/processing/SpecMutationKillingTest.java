@@ -200,7 +200,7 @@ class SpecMutationKillingTest {
     }
 
     @Test
-    @DisplayName("VIA_COPY_AND_SET with empty copyConstructor uses source type")
+    @DisplayName("VIA_COPY_AND_SET with no copy constructor parameter type passes source unchanged")
     void viaCopyAndSetWithEmptyCopyConstructor() {
       var source =
           JavaFileObjects.forSourceString(
@@ -218,7 +218,7 @@ class SpecMutationKillingTest {
           runGeneratorInProcessor(
               "com.test.Mutable",
               proc -> {
-                CopyStrategyInfo info = CopyStrategyInfo.forCopyAndSet("", "setValue");
+                CopyStrategyInfo info = CopyStrategyInfo.forCopyAndSet(null, "setValue");
                 return generator
                     .generateSetterLambda(
                         CopyStrategyKind.VIA_COPY_AND_SET,
@@ -235,15 +235,24 @@ class SpecMutationKillingTest {
     }
 
     @Test
-    @DisplayName("VIA_COPY_AND_SET with specified copyConstructor uses it")
+    @DisplayName("VIA_COPY_AND_SET casts the source to the copy constructor parameter type")
     void viaCopyAndSetWithSpecifiedCopyConstructor() {
+      var base =
+          JavaFileObjects.forSourceString(
+              "com.test.Base",
+              """
+              package com.test;
+              public class Base {
+                  protected String value;
+              }
+              """);
       var source =
           JavaFileObjects.forSourceString(
               "com.test.Custom",
               """
               package com.test;
-              public class Custom {
-                  private String value;
+              public class Custom extends Base {
+                  public Custom(Base other) { this.value = other.value; }
                   public Custom(Custom other) { this.value = other.value; }
                   public void setValue(String v) { this.value = v; }
               }
@@ -253,7 +262,8 @@ class SpecMutationKillingTest {
           runGeneratorInProcessor(
               "com.test.Custom",
               proc -> {
-                CopyStrategyInfo info = CopyStrategyInfo.forCopyAndSet("Custom", "setValue");
+                CopyStrategyInfo info =
+                    CopyStrategyInfo.forCopyAndSet(proc.getTypeMirror("com.test.Base"), "setValue");
                 return generator
                     .generateSetterLambda(
                         CopyStrategyKind.VIA_COPY_AND_SET,
@@ -263,8 +273,10 @@ class SpecMutationKillingTest {
                         null)
                     .toString();
               },
+              base,
               source);
 
+      assertThat(result).contains("new com.test.Custom((com.test.Base) source)");
       assertThat(result).contains("setValue(newValue)");
     }
 
@@ -1282,6 +1294,12 @@ class SpecMutationKillingTest {
 
     TypeMirror getTypeMirror() {
       return typeMirror;
+    }
+
+    /** Resolves a type other than the target, for values that name a second type. */
+    TypeMirror getTypeMirror(String otherTypeName) {
+      TypeElement element = processingEnv.getElementUtils().getTypeElement(otherTypeName);
+      return element == null ? null : element.asType();
     }
 
     String getResult() {

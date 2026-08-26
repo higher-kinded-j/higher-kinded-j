@@ -548,6 +548,8 @@ class ThroughFieldAutoDetectTest {
       assertThat(compilation).failed();
       assertThat(compilation).hadErrorContaining("Cannot auto-detect traversal");
       assertThat(compilation).hadErrorContaining("Supported types: List, Set, Optional, Map");
+      // One problem, one error: a rejected hint must not also draw the missing-hint error.
+      assertThat(compilation).hadErrorCount(1);
     }
 
     @Test
@@ -599,6 +601,8 @@ class ThroughFieldAutoDetectTest {
       Compilation compilation = compile(raw, spec);
       assertThat(compilation).failed();
       assertThat(compilation).hadErrorContaining("Cannot auto-detect traversal");
+      // One problem, one error: a rejected hint must not also draw the missing-hint error.
+      assertThat(compilation).hadErrorCount(1);
     }
   }
 

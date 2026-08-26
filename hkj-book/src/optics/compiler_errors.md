@@ -43,7 +43,7 @@ This page is for the moment a build fails and you want to know what the message 
 
 ## `@ImportOptics` and `OpticsSpec` interfaces
 
-### "no copy strategy specified for lens method"
+### "@ImportOptics: Lens method 'x' carries no copy strategy annotation"
 
 **Cause.** A method on an `OpticsSpec` interface returning `Lens<S, A>` lacks one of `@Wither`, `@ViaBuilder`, `@ViaConstructor`, or `@ViaCopyAndSet`.
 
@@ -60,6 +60,30 @@ This page is for the moment a build fails and you want to know what the message 
 **Cause.** The class passed to `@InstanceOf(SubType.class)` is not a subclass of the optic's source type.
 
 **Fix.** Verify that `SubType` extends or implements the spec's `<S>` parameter. If you are working with sum types that don't use a sealed hierarchy (such as Jackson's pre-3.x `JsonNode`), use `@MatchWhen` with predicate and getter method names instead.
+
+### "@ViaCopyAndSet: copyConstructor names '...', which does not resolve to a type"
+
+**Cause.** `copyConstructor` is a plain string, resolved as a fully qualified class name only: it is not read against the spec interface's imports, and it takes no type arguments.
+
+**Fix.** Give the class's fully qualified name (`com.example.BaseConfig`; a nested class is `com.example.Outer.Base`), the class alone without type arguments — the processor supplies those from the source type's own `extends` clause. Drop the attribute to pass the source unchanged.
+
+### "@ViaCopyAndSet: copyConstructor names '...', which 'S' does not extend or implement"
+
+**Cause.** The generated setter passes the source to the copy constructor as `(ParameterType) source`, so only a supertype of `S` can be named there.
+
+**Fix.** Name a class or interface `S` extends or implements, or drop the attribute.
+
+### "@ViaCopyAndSet: copyConstructor names '...', which is not public and so cannot be named from '...'"
+
+**Cause.** The generated optics class has to write the cast, so it has to be able to name the type. A package-private supertype is invisible from the package the optics class is generated into, even though `new S(source)` — which never names it — would have compiled.
+
+**Fix.** Name a public supertype, generate into that package with `@ImportOptics(targetPackage = ...)`, or drop the attribute.
+
+### "@ViaCopyAndSet: copyConstructor names '...', which no constructor of '...' accepts"
+
+**Cause.** The name is a genuine supertype, but no single-argument constructor of `S` takes it — `java.lang.Object` and marker interfaces such as `Serializable` reach this often. The message lists the single-argument constructors that do exist.
+
+**Fix.** Name one of the types those constructors take, or drop the attribute. The attribute is only needed when the copy constructor is overloaded — see [Copy Strategies](copy_strategies.md#viacopyandset-legacy-types-with-a-copy-constructor-and-setters).
 
 ### "@MatchWhen: predicate / getter method not found on source"
 

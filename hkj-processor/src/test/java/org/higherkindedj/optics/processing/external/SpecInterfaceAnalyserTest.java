@@ -186,7 +186,7 @@ class SpecInterfaceAnalyserTest {
                 processingEnv.getTypeUtils(),
                 processingEnv.getElementUtils(),
                 processingEnv.getMessager());
-        result = analyser.analyse(typeElement);
+        result = analyser.analyse(typeElement, "com.test");
       }
 
       return false;

@@ -10,8 +10,10 @@ import javax.lang.model.element.Element;
 import javax.lang.model.element.ElementKind;
 import javax.lang.model.element.ExecutableElement;
 import javax.lang.model.element.Modifier;
+import javax.lang.model.element.Name;
 import javax.lang.model.element.TypeElement;
 import javax.lang.model.element.VariableElement;
+import javax.lang.model.type.ArrayType;
 import javax.lang.model.type.DeclaredType;
 import javax.lang.model.type.TypeMirror;
 import javax.lang.model.util.ElementFilter;
@@ -89,9 +91,11 @@ public class SpecInterfaceAnalyser {
    * Analyses a spec interface to determine what optics to generate.
    *
    * @param specInterface the interface extending {@code OpticsSpec<S>}
+   * @param targetPackage the package the optics class is generated into, which decides what the
+   *     generated code is allowed to name
    * @return the analysis result, or empty if the interface is invalid
    */
-  public Optional<SpecAnalysis> analyse(TypeElement specInterface) {
+  public Optional<SpecAnalysis> analyse(TypeElement specInterface, String targetPackage) {
     // Verify it's an interface
     if (specInterface.getKind() != ElementKind.INTERFACE) {
       error("@ImportOptics on a type extending OpticsSpec must be an interface", specInterface);
@@ -135,7 +139,7 @@ public class SpecInterfaceAnalyser {
       // statics, so they are a home for composition rather than something to generate.
       if (method.getModifiers().contains(Modifier.ABSTRACT)) {
         Optional<OpticMethodInfo> opticInfo =
-            analyseOpticMethod(method, sourceType, sourceTypeElement, specInterface);
+            analyseOpticMethod(method, sourceType, sourceTypeElement, specInterface, targetPackage);
         if (opticInfo.isPresent()) {
           opticMethods.add(opticInfo.get());
         } else {
@@ -202,13 +206,15 @@ public class SpecInterfaceAnalyser {
    * @param sourceType the source type S
    * @param sourceTypeElement the resolved element for the source type
    * @param specInterface the spec interface (for error reporting)
+   * @param targetPackage the package the optics class is generated into
    * @return the optic method info, or empty if invalid
    */
   private Optional<OpticMethodInfo> analyseOpticMethod(
       ExecutableElement method,
       TypeMirror sourceType,
       TypeElement sourceTypeElement,
-      TypeElement specInterface) {
+      TypeElement specInterface,
+      String targetPackage) {
 
     // Validate method signature: no parameters allowed
     if (!method.getParameters().isEmpty()) {
@@ -268,14 +274,10 @@ public class SpecInterfaceAnalyser {
 
     switch (opticKind) {
       case LENS -> {
-        var copyResult = parseCopyStrategy(method);
+        var copyResult = parseCopyStrategy(method, sourceType, sourceTypeElement, targetPackage);
         if (copyResult.isEmpty()) {
-          error(
-              "Lens method '"
-                  + method.getSimpleName()
-                  + "' requires a copy strategy annotation: "
-                  + "@ViaBuilder, @Wither, @ViaConstructor, or @ViaCopyAndSet",
-              method);
+          // parseCopyStrategy has reported why: either no strategy annotation at all, or one
+          // whose values were rejected.
           return Optional.empty();
         }
         copyStrategy = copyResult.get().kind();
@@ -284,12 +286,7 @@ public class SpecInterfaceAnalyser {
       case PRISM -> {
         var prismResult = parsePrismHint(method, sourceType, specInterface);
         if (prismResult.isEmpty()) {
-          error(
-              "Prism method '"
-                  + method.getSimpleName()
-                  + "' requires a prism hint annotation: "
-                  + "@InstanceOf or @MatchWhen",
-              method);
+          // parsePrismHint has reported why.
           return Optional.empty();
         }
         prismHint = prismResult.get().kind();
@@ -298,12 +295,7 @@ public class SpecInterfaceAnalyser {
       case TRAVERSAL -> {
         var traversalResult = parseTraversalHint(method, sourceTypeElement, specInterface);
         if (traversalResult.isEmpty()) {
-          error(
-              "Traversal method '"
-                  + method.getSimpleName()
-                  + "' requires a traversal hint annotation: "
-                  + "@TraverseWith or @ThroughField",
-              method);
+          // parseTraversalHint has reported why.
           return Optional.empty();
         }
         traversalHint = traversalResult.get().kind();
@@ -367,7 +359,21 @@ public class SpecInterfaceAnalyser {
 
   private record CopyStrategyResult(CopyStrategyKind kind, CopyStrategyInfo info) {}
 
-  private Optional<CopyStrategyResult> parseCopyStrategy(ExecutableElement method) {
+  /**
+   * Reads the copy strategy annotation on a lens method.
+   *
+   * @param method the abstract lens method
+   * @param sourceType the source type {@code S}, which annotation values are resolved against
+   * @param sourceTypeElement the resolved element for {@code S}
+   * @param targetPackage the package the optics class is generated into
+   * @return the strategy and its values, or empty if the method carries no strategy annotation or
+   *     one whose values were rejected; either way an error has been reported
+   */
+  private Optional<CopyStrategyResult> parseCopyStrategy(
+      ExecutableElement method,
+      TypeMirror sourceType,
+      TypeElement sourceTypeElement,
+      String targetPackage) {
     // Check for @ViaBuilder
     AnnotationMirror viaBuilder = findAnnotation(method, VIA_BUILDER_FQN);
     if (viaBuilder != null) {
@@ -405,13 +411,299 @@ public class SpecInterfaceAnalyser {
     if (viaCopyAndSet != null) {
       String copyConstructor = getAnnotationString(viaCopyAndSet, "copyConstructor", "");
       String setter = getAnnotationString(viaCopyAndSet, "setter", "");
-      return Optional.of(
-          new CopyStrategyResult(
-              CopyStrategyKind.VIA_COPY_AND_SET,
-              CopyStrategyInfo.forCopyAndSet(copyConstructor, setter)));
+      if (copyConstructor.isEmpty()) {
+        return Optional.of(
+            new CopyStrategyResult(
+                CopyStrategyKind.VIA_COPY_AND_SET, CopyStrategyInfo.forCopyAndSet(null, setter)));
+      }
+      return resolveCopyConstructorParameterType(
+              method, sourceType, sourceTypeElement, targetPackage, copyConstructor)
+          .map(
+              parameterType ->
+                  new CopyStrategyResult(
+                      CopyStrategyKind.VIA_COPY_AND_SET,
+                      // Naming S itself is honoured by casting to nothing: a cast to the
+                      // argument's own type says nothing, and javac reports it as redundant.
+                      // Answering it here, with Types, leaves the generator one rule - a null
+                      // parameter type means no cast - rather than a comparison of rendered names.
+                      CopyStrategyInfo.forCopyAndSet(
+                          typeUtils.isSameType(parameterType, sourceType) ? null : parameterType,
+                          setter)));
     }
 
+    Diagnostics.error(
+        messager,
+        method,
+        "@ImportOptics",
+        "Lens method '" + method.getSimpleName() + "' carries no copy strategy annotation.",
+        "A lens has to rebuild '"
+            + sourceType
+            + "' to set through it, and only the strategy says how that type is copied.",
+        "Add @ViaBuilder, @Wither, @ViaConstructor, or @ViaCopyAndSet to the method.");
     return Optional.empty();
+  }
+
+  /**
+   * Resolves the type named by {@code @ViaCopyAndSet(copyConstructor = ...)} to the supertype of
+   * {@code S} that the generated cast will name.
+   *
+   * <p>The attribute names the copy constructor's <em>parameter</em> type, so the emitted argument
+   * is {@code (ParameterType) source}. Four things have to hold for that to compile, and each is
+   * checked here rather than left to javac, which would report it inside a generated file the user
+   * did not write: the name resolves, it names a supertype of {@code S}, the generated class is
+   * allowed to name it, and {@code S} has a constructor that accepts it.
+   *
+   * <p>The supertype is returned as {@code S}'s own {@code extends}/{@code implements} clause
+   * instantiates it, so a base declared {@code Holder<String>} is named with its argument rather
+   * than raw. A clause that is itself raw is named raw, which is what the source says.
+   *
+   * <p>Naming {@code S} itself resolves to {@code S}; the generator then emits no cast, since a
+   * cast to the argument's own type says nothing.
+   *
+   * @param method the annotated optic method, for error reporting
+   * @param sourceType the source type {@code S}
+   * @param sourceTypeElement the resolved element for {@code S}
+   * @param targetPackage the package the optics class is generated into
+   * @param copyConstructor the fully qualified name from the annotation; never empty
+   * @return the resolved supertype, or empty if it was rejected (an error has been reported)
+   */
+  private Optional<TypeMirror> resolveCopyConstructorParameterType(
+      ExecutableElement method,
+      TypeMirror sourceType,
+      TypeElement sourceTypeElement,
+      String targetPackage,
+      String copyConstructor) {
+
+    TypeElement parameterElement = elementUtils.getTypeElement(copyConstructor);
+    if (parameterElement == null) {
+      Diagnostics.error(
+          messager,
+          method,
+          "@ViaCopyAndSet",
+          "copyConstructor names '" + copyConstructor + "', which does not resolve to a type.",
+          "The attribute is a plain string, so it is not resolved against the spec interface's"
+              + " imports, and it takes no type arguments.",
+          "Give the copy constructor's parameter type as a fully qualified class name - a nested"
+              + " class as 'com.example.Outer.Base', a generic base as the class alone - or drop"
+              + " the attribute to pass '"
+              + sourceType
+              + "' unchanged.");
+      return Optional.empty();
+    }
+
+    Optional<TypeMirror> supertype = resolveSupertype(method, sourceType, parameterElement);
+    if (supertype.isEmpty()) {
+      return Optional.empty();
+    }
+
+    if (!isVisibleFrom(parameterElement, targetPackage)) {
+      Diagnostics.error(
+          messager,
+          method,
+          "@ViaCopyAndSet",
+          "copyConstructor names '"
+              + parameterElement.getQualifiedName()
+              + "', which is not public and so cannot be named from '"
+              + targetPackage
+              + "'.",
+          "The generated optics class writes the cast as '("
+              + parameterElement.getSimpleName()
+              + ") source', so it has to be able to name the type; passing the source unchanged"
+              + " never names it.",
+          "Name a public supertype, generate into '"
+              + elementUtils.getPackageOf(parameterElement).getQualifiedName()
+              + "' with @ImportOptics(targetPackage = ...), or drop the attribute.");
+      return Optional.empty();
+    }
+
+    if (!hasConstructorAccepting(sourceTypeElement, supertype.get(), targetPackage)) {
+      Diagnostics.error(
+          messager,
+          method,
+          "@ViaCopyAndSet",
+          "copyConstructor names '"
+              + parameterElement.getQualifiedName()
+              + "', which no constructor of '"
+              + sourceType
+              + "' accepts.",
+          "The generated set function calls 'new "
+              + sourceTypeElement.getSimpleName()
+              + "(("
+              + parameterElement.getSimpleName()
+              + ") source)'. Found "
+              + describeSingleArgumentConstructors(sourceTypeElement, targetPackage)
+              + ".",
+          "Name a type one of those constructors takes, or drop the attribute to pass '"
+              + sourceType
+              + "' unchanged.");
+      return Optional.empty();
+    }
+
+    return supertype;
+  }
+
+  /**
+   * Finds the supertype relation the cast depends on, reporting when it does not hold.
+   *
+   * <p>A hierarchy containing a type this round cannot resolve - one another processor has yet to
+   * generate, say - reads as having no supertypes at all, which would make every name look wrong.
+   * The compiler is asked directly before any name is rejected, so an unreadable hierarchy costs
+   * the instantiation rather than drawing an error that blames the attribute for a missing type
+   * javac is already reporting.
+   *
+   * @param method the annotated optic method, for error reporting
+   * @param sourceType the source type {@code S}
+   * @param parameterElement the resolved element the attribute names
+   * @return the supertype to name, or empty if it was rejected (an error has been reported)
+   */
+  private Optional<TypeMirror> resolveSupertype(
+      ExecutableElement method, TypeMirror sourceType, TypeElement parameterElement) {
+
+    TypeMirror walked = findSupertype(sourceType, parameterElement);
+    if (walked != null) {
+      return Optional.of(walked);
+    }
+
+    TypeMirror erased = typeUtils.erasure(parameterElement.asType());
+    if (typeUtils.isAssignable(typeUtils.erasure(sourceType), erased)) {
+      return Optional.of(erased);
+    }
+
+    Diagnostics.error(
+        messager,
+        method,
+        "@ViaCopyAndSet",
+        "copyConstructor names '"
+            + parameterElement.getQualifiedName()
+            + "', which '"
+            + sourceType
+            + "' does not extend or implement.",
+        "The generated set function passes the source to the copy constructor as '("
+            + parameterElement.getSimpleName()
+            + ") source', and only a supertype of the source can be cast to there.",
+        "Name a supertype of '" + sourceType + "', or drop the attribute to pass it unchanged.");
+    return Optional.empty();
+  }
+
+  /**
+   * Returns whether the generated class may name {@code type}.
+   *
+   * @param type the type the generated cast would name
+   * @param targetPackage the package the optics class is generated into
+   * @return true if {@code type} is public, or package-private in the generated class's own package
+   */
+  private boolean isVisibleFrom(TypeElement type, String targetPackage) {
+    for (Element enclosing = type; enclosing instanceof TypeElement nested; ) {
+      if (!nested.getModifiers().contains(Modifier.PUBLIC)) {
+        return elementUtils.getPackageOf(type).getQualifiedName().contentEquals(targetPackage);
+      }
+      enclosing = nested.getEnclosingElement();
+    }
+    return true;
+  }
+
+  /**
+   * Returns whether the generated class may call a constructor of {@code member}'s kind.
+   *
+   * <p>{@code protected} is package access here: it reaches a subclass, and the generated optics
+   * class is not one.
+   *
+   * @param member the constructor being considered
+   * @param targetPackage the package the optics class is generated into
+   * @return true if the generated class can call it
+   */
+  private boolean isAccessibleFrom(Element member, String targetPackage) {
+    Set<Modifier> modifiers = member.getModifiers();
+    if (modifiers.contains(Modifier.PRIVATE)) {
+      return false;
+    }
+    if (modifiers.contains(Modifier.PUBLIC)) {
+      return true;
+    }
+    return elementUtils.getPackageOf(member).getQualifiedName().contentEquals(targetPackage);
+  }
+
+  /**
+   * Returns whether {@code sourceTypeElement} declares a constructor the generated class can call a
+   * single {@code argument} through.
+   *
+   * @param sourceTypeElement the source type {@code S}
+   * @param argument the type the generated cast produces
+   * @param targetPackage the package the optics class is generated into
+   * @return true if some constructor it can reach accepts it
+   */
+  private boolean hasConstructorAccepting(
+      TypeElement sourceTypeElement, TypeMirror argument, String targetPackage) {
+    for (ExecutableElement constructor :
+        ElementFilter.constructorsIn(sourceTypeElement.getEnclosedElements())) {
+      List<? extends VariableElement> parameters = constructor.getParameters();
+      // A constructor the generated class cannot call is no use, however well it fits.
+      if (parameters.size() != 1 || !isAccessibleFrom(constructor, targetPackage)) {
+        continue;
+      }
+      TypeMirror parameterType = parameters.getFirst().asType();
+      if (typeUtils.isAssignable(argument, parameterType)) {
+        return true;
+      }
+      // A varargs parameter is always an array type, so the component is there to read.
+      if (constructor.isVarArgs()
+          && typeUtils.isAssignable(argument, ((ArrayType) parameterType).getComponentType())) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  /**
+   * Names the single-argument constructors the generated class can call, for the rejection message.
+   *
+   * <p>Only the reachable ones: naming a constructor the generated class cannot call would send the
+   * reader after a type that fails the same way.
+   *
+   * @param sourceTypeElement the source type {@code S}
+   * @param targetPackage the package the optics class is generated into
+   * @return the parameter types it takes one at a time, or a phrase saying it takes none
+   */
+  private String describeSingleArgumentConstructors(
+      TypeElement sourceTypeElement, String targetPackage) {
+    List<String> parameterTypes =
+        ElementFilter.constructorsIn(sourceTypeElement.getEnclosedElements()).stream()
+            .filter(constructor -> constructor.getParameters().size() == 1)
+            .filter(constructor -> isAccessibleFrom(constructor, targetPackage))
+            .map(constructor -> constructor.getParameters().getFirst().asType().toString())
+            .toList();
+    return parameterTypes.isEmpty()
+        ? "no single-argument constructor it can call"
+        : "single-argument constructors taking " + parameterTypes;
+  }
+
+  /**
+   * Finds the supertype of {@code type} declared by {@code target}, instantiated with the type
+   * arguments it is reached by.
+   *
+   * @param type the type to search from; {@code type} itself counts as a match
+   * @param target the declaring element to look for
+   * @return the instantiated supertype, or null if {@code target} is not a supertype
+   */
+  private TypeMirror findSupertype(TypeMirror type, TypeElement target) {
+    Name targetName = target.getQualifiedName();
+    Deque<TypeMirror> queue = new ArrayDeque<>();
+    Set<String> seen = new HashSet<>();
+    queue.add(type);
+    while (!queue.isEmpty()) {
+      TypeMirror current = queue.poll();
+      if (!seen.add(current.toString())) {
+        continue;
+      }
+      // The search starts at the source type, which the caller has already resolved to a
+      // TypeElement, and every supertype of a declared type is itself declared.
+      TypeElement element = (TypeElement) ((DeclaredType) current).asElement();
+      if (element.getQualifiedName().contentEquals(targetName)) {
+        return current;
+      }
+      queue.addAll(typeUtils.directSupertypes(current));
+    }
+    return null;
   }
 
   // ----- Prism Hint Parsing -----
@@ -428,6 +720,7 @@ public class SpecInterfaceAnalyser {
       // not a TypeMirror - so this CAN be null and must fall through to the hint diagnostic.
       TypeMirror targetType = getAnnotationTypeMirror(instanceOf, "value");
       if (targetType == null) {
+        reportMissingPrismHint(method);
         return Optional.empty();
       }
       // Validate subtype relationship (Decision 6)
@@ -458,7 +751,22 @@ public class SpecInterfaceAnalyser {
               PrismHintKind.MATCH_WHEN, PrismHintInfo.forMatchWhen(predicate, getter)));
     }
 
+    reportMissingPrismHint(method);
     return Optional.empty();
+  }
+
+  /**
+   * Reports that a prism method carries no hint annotation.
+   *
+   * @param method the offending method
+   */
+  private void reportMissingPrismHint(ExecutableElement method) {
+    error(
+        "Prism method '"
+            + method.getSimpleName()
+            + "' requires a prism hint annotation: "
+            + "@InstanceOf or @MatchWhen",
+        method);
   }
 
   // ----- Traversal Hint Parsing -----
@@ -500,6 +808,12 @@ public class SpecInterfaceAnalyser {
               TraversalHintInfo.forThroughField(fieldName, traversal)));
     }
 
+    error(
+        "Traversal method '"
+            + method.getSimpleName()
+            + "' requires a traversal hint annotation: "
+            + "@TraverseWith or @ThroughField",
+        method);
     return Optional.empty();
   }
 
