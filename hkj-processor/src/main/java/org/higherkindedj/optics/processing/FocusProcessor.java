@@ -444,7 +444,7 @@ public class FocusProcessor extends AbstractProcessor {
             : "record component '"
                 + qualifiedComponent
                 + "' has a wildcard type argument in "
-                + simpleTypeName(declaredType)
+                + ProcessorUtils.simpleTypeName(declaredType)
                 + ".",
         "The optic instance that widens that container is inferred from the field type, and "
             + (raw
@@ -464,15 +464,12 @@ public class FocusProcessor extends AbstractProcessor {
     Stream<String> arguments =
         declaredType.getTypeArguments().isEmpty()
             ? element.getTypeParameters().stream()
-                .map(parameter -> simpleTypeName(parameter.getBounds().getFirst()))
+                .map(parameter -> ProcessorUtils.simpleTypeName(parameter.getBounds().getFirst()))
             : declaredType.getTypeArguments().stream()
                 .map(ProcessorUtils::resolveWildcard)
-                .map(resolved -> resolved == null ? "Object" : simpleTypeName(resolved));
+                .map(
+                    resolved ->
+                        resolved == null ? "Object" : ProcessorUtils.simpleTypeName(resolved));
     return element.getSimpleName() + "<" + arguments.collect(Collectors.joining(", ")) + ">";
-  }
-
-  /** Renders a type for a diagnostic, with package qualifiers dropped and type arguments spaced. */
-  private static String simpleTypeName(TypeMirror type) {
-    return type.toString().replaceAll("\\b(?:[a-z][\\p{Alnum}_]*\\.)+", "").replace(",", ", ");
   }
 }

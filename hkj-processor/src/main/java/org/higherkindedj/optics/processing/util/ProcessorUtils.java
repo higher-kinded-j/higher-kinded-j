@@ -51,6 +51,22 @@ public final class ProcessorUtils {
   }
 
   /**
+   * Renders a type for a diagnostic, with package qualifiers dropped and type arguments spaced.
+   *
+   * <p>Type arguments and enclosing types are kept, so {@code java.util.List<java.lang.String>}
+   * reads as {@code List<String>} and {@code com.external.Outer.Inner} as {@code Outer.Inner}. A
+   * diagnostic that offers a corrected declaration needs both: a rendering that drops either one
+   * suggests source that does not compile.
+   *
+   * @param type the type to render; must not be null
+   * @return the rendered name (non-null)
+   * @since 0.4.10
+   */
+  public static String simpleTypeName(TypeMirror type) {
+    return type.toString().replaceAll("\\b(?:[a-z][\\p{Alnum}_]*\\.)+", "").replace(",", ", ");
+  }
+
+  /**
    * The name the effect's type variable takes in a traversal generated for this record, which the
    * record must not have taken for itself.
    *

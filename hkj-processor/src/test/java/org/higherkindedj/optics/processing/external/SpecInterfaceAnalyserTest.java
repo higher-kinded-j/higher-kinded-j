@@ -857,7 +857,7 @@ class SpecInterfaceAnalyserTest {
   class CoverageHardening {
 
     @Test
-    @DisplayName("should report error when source type is not a valid type element")
+    @DisplayName("should report an array source type rather than analysing it")
     void shouldReportErrorForArraySourceType() {
       var spec =
           JavaFileObjects.forSourceString(

@@ -81,7 +81,14 @@ package org.higherkindedj.optics.annotations;
  * }
  * }</pre>
  *
- * @param <S> the source type to create optics for
+ * <p>{@code S} names one class, record or interface. It is read for its members and rebuilt through
+ * a constructor, wither or setter, so a type parameter of the spec interface itself, {@code
+ * interface BoxOpticsSpec<S extends Box> extends OpticsSpec<S>}, has nothing to generate from and
+ * is rejected. A source type that is itself generic is supported, declared under the same type
+ * parameter names the source type uses: {@code interface BoxOpticsSpec<T> extends
+ * OpticsSpec<Box<T>>}.
+ *
+ * @param <S> the source type to create optics for; one class, record or interface
  * @see ImportOptics
  * @see ViaBuilder
  * @see Wither

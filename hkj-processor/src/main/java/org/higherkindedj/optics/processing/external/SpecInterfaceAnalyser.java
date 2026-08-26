@@ -99,19 +99,30 @@ public class SpecInterfaceAnalyser {
    * @return the analysis result, or empty if the interface is invalid
    */
   public Optional<SpecAnalysis> analyse(TypeElement specInterface, String targetPackage) {
-    // Verify it's an interface
     if (specInterface.getKind() != ElementKind.INTERFACE) {
-      error("@ImportOptics on a type extending OpticsSpec must be an interface", specInterface);
+      Diagnostics.error(
+          messager,
+          specInterface,
+          "@ImportOptics",
+          "'" + specInterface.getSimpleName() + "' implements OpticsSpec but is not an interface.",
+          "A spec is read for its abstract methods, one per optic to generate, which is a shape"
+              + " only an interface has.",
+          "Declare it as an interface.");
       return Optional.empty();
     }
 
-    // Extract source type from OpticsSpec<S>
+    // The processor only routes a type here when OpticsSpec is one of its direct super-interfaces,
+    // so the one way to reach this is to have named it raw.
     TypeMirror sourceType = extractSourceType(specInterface);
     if (sourceType == null) {
-      error(
-          "Cannot determine source type. Interface must extend OpticsSpec<S> "
-              + "with a concrete type argument",
-          specInterface);
+      Diagnostics.error(
+          messager,
+          specInterface,
+          "@ImportOptics",
+          "'" + specInterface.getSimpleName() + "' extends OpticsSpec with no type argument.",
+          "The source type the optics are generated against is read from that argument, and a raw"
+              + " OpticsSpec names none.",
+          "Name the type the optics are for: 'OpticsSpec<Box>'.");
       return Optional.empty();
     }
 
@@ -190,10 +201,11 @@ public class SpecInterfaceAnalyser {
    * @param sourceType the offending type argument to {@code OpticsSpec}
    */
   private void reportUnusableSourceType(TypeElement specInterface, TypeMirror sourceType) {
-    // A type variable prints as a bare 'S', which reads like a class name the compiler failed to
-    // resolve; every other rejected kind prints as itself and needs no naming.
-    String kind =
-        sourceType.getKind() == TypeKind.TYPEVAR ? "a type variable" : "not a class or interface";
+    // A type variable and an array are the only two kinds that reach here. OpticsSpec takes a
+    // reference type, so a wildcard or primitive argument never compiles; an unresolvable one
+    // resolves to an element that is still a TypeElement, and javac reports it first; and an
+    // intersection cannot be written as a type argument at all.
+    String kind = sourceType.getKind() == TypeKind.TYPEVAR ? "a type variable" : "an array type";
     Diagnostics.error(
         messager,
         specInterface,
@@ -201,7 +213,7 @@ public class SpecInterfaceAnalyser {
         "'"
             + specInterface.getSimpleName()
             + "' declares OpticsSpec<"
-            + sourceType
+            + ProcessorUtils.simpleTypeName(sourceType)
             + ">, which is "
             + kind
             + ".",
@@ -213,19 +225,51 @@ public class SpecInterfaceAnalyser {
 
   /**
    * Names the type a variable is bounded by, so that {@code <S extends Box>} is answered with the
-   * declaration the author almost certainly meant.
+   * declaration that bound points at.
+   *
+   * <p>A bound only answers the question when it names one type that could stand in the variable's
+   * place. Several cannot, and each is left unanswered rather than guessed at: {@code Object},
+   * which every variable is bounded by and which says nothing; an intersection, {@code Box &
+   * Serializable}, which names two; another type variable, which moves the question rather than
+   * settling it; and a bound that names the variable it bounds, {@code Comparable<S>}, which is
+   * circular.
    *
    * @param sourceType the offending type argument to {@code OpticsSpec}
-   * @return the hint to append to the fix sentence, or the empty string when there is nothing
-   *     better to suggest than the bound of every type: {@code Object}
+   * @return the hint to append to the fix sentence, or the empty string when the bound has no one
+   *     type to offer
    */
   private String boundHint(TypeMirror sourceType) {
+    // getKind(), not instanceof: javac's intersection type implements DeclaredType, and asking it
+    // for a simple name yields the empty string. That is the mistake #728 was, one bound along.
     if (sourceType instanceof TypeVariable typeVariable
         && typeVariable.getUpperBound() instanceof DeclaredType bound
-        && !typeUtils.isSameType(bound, elementUtils.getTypeElement(OBJECT_FQN).asType())) {
-      return ", here OpticsSpec<" + bound.asElement().getSimpleName() + ">";
+        && bound.getKind() == TypeKind.DECLARED
+        // isSameType, not a name comparison: it also answers true for an unresolvable bound, whose
+        // own 'cannot find symbol' is the error worth reading.
+        && !typeUtils.isSameType(bound, elementUtils.getTypeElement(OBJECT_FQN).asType())
+        && !mentions(bound, typeVariable)) {
+      return ": 'OpticsSpec<" + ProcessorUtils.simpleTypeName(bound) + ">'";
     }
     return "";
+  }
+
+  /**
+   * Whether a type is the given variable, or is parameterised by it at any depth.
+   *
+   * @param type the type to search; must not be null
+   * @param variable the variable to look for; must not be null
+   * @return true when substituting {@code type} for {@code variable} would be circular
+   */
+  private boolean mentions(TypeMirror type, TypeVariable variable) {
+    if (typeUtils.isSameType(type, variable)) {
+      return true;
+    }
+    return switch (type) {
+      case DeclaredType declared ->
+          declared.getTypeArguments().stream().anyMatch(argument -> mentions(argument, variable));
+      case ArrayType array -> mentions(array.getComponentType(), variable);
+      default -> false;
+    };
   }
 
   /**

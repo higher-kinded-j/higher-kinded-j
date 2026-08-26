@@ -10,6 +10,7 @@ import static org.junit.jupiter.api.Assertions.fail;
 
 import com.google.testing.compile.Compilation;
 import com.google.testing.compile.JavaFileObjects;
+import java.util.List;
 import javax.tools.JavaFileObject;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -1465,7 +1466,7 @@ class SpecInterfaceProcessingTest {
           .hadErrorContaining("'BoxOpticsSpec' declares OpticsSpec<S>, which is a type variable.");
       assertThat(compilation)
           .hadErrorContaining(
-              "Name the type the optics are for as the type argument, here" + " OpticsSpec<Box>.");
+              "Name the type the optics are for as the type argument: 'OpticsSpec<Box>'.");
     }
 
     @Test
@@ -1492,10 +1493,145 @@ class SpecInterfaceProcessingTest {
               "'UnboundedOpticsSpec' declares OpticsSpec<S>, which is a type variable.");
       assertThat(compilation)
           .hadErrorContaining("Name the type the optics are for as the type argument.");
+      // Object bounds every variable, so suggesting it would be no answer at all.
+      assertThat(compilation).hadErrorContainingMatch("type argument\\.$");
     }
 
     @Test
-    @DisplayName("should reject an array source type by naming what it is not")
+    @DisplayName("should name a parameterised bound in full rather than raw")
+    void shouldNameParameterisedBoundInFull() {
+      final var specInterface =
+          JavaFileObjects.forSourceString(
+              "com.myapp.ListOpticsSpec",
+              """
+              package com.myapp;
+
+              import java.util.List;
+              import org.higherkindedj.optics.annotations.ImportOptics;
+              import org.higherkindedj.optics.annotations.OpticsSpec;
+
+              @ImportOptics
+              public interface ListOpticsSpec<S extends List<String>> extends OpticsSpec<S> {}
+              """);
+
+      var compilation = javac().withProcessors(new ImportOpticsProcessor()).compile(specInterface);
+
+      assertThat(compilation).failed();
+      assertThat(compilation)
+          .hadErrorContaining("as the type argument: 'OpticsSpec<List<String>>'.");
+    }
+
+    @Test
+    @DisplayName("should name a nested bound by its enclosing type so the suggestion resolves")
+    void shouldNameNestedBoundWithEnclosingType() {
+      final var externalClass =
+          JavaFileObjects.forSourceString(
+              "com.external.Outer",
+              """
+              package com.external;
+
+              public class Outer {
+                  public static class Inner {}
+              }
+              """);
+
+      final var specInterface =
+          JavaFileObjects.forSourceString(
+              "com.myapp.InnerOpticsSpec",
+              """
+              package com.myapp;
+
+              import com.external.Outer;
+              import org.higherkindedj.optics.annotations.ImportOptics;
+              import org.higherkindedj.optics.annotations.OpticsSpec;
+
+              @ImportOptics
+              public interface InnerOpticsSpec<S extends Outer.Inner> extends OpticsSpec<S> {}
+              """);
+
+      var compilation =
+          javac().withProcessors(new ImportOpticsProcessor()).compile(externalClass, specInterface);
+
+      assertThat(compilation).failed();
+      assertThat(compilation)
+          .hadErrorContaining("as the type argument: 'OpticsSpec<Outer.Inner>'.");
+    }
+
+    @Test
+    @DisplayName(
+        "should offer no bound when the bound names two types, another variable, or itself")
+    void shouldOfferNoBoundWhenItNamesNoSingleType() {
+      final var externalClass =
+          JavaFileObjects.forSourceString(
+              "com.external.Box",
+              """
+              package com.external;
+
+              public class Box {}
+              """);
+
+      record Case(String name, String declaration) {}
+      var cases =
+          List.of(
+              new Case("IntersectionSpec", "<S extends Box & java.io.Serializable>"),
+              new Case("SelfReferentialSpec", "<S extends Comparable<S>>"),
+              new Case("SelfReferentialArraySpec", "<S extends java.util.List<S[]>>"),
+              new Case("VariableBoundSpec", "<T extends Box, S extends T>"));
+
+      for (Case testCase : cases) {
+        final var specInterface =
+            JavaFileObjects.forSourceString(
+                "com.myapp." + testCase.name(),
+                """
+                package com.myapp;
+
+                import com.external.Box;
+                import org.higherkindedj.optics.annotations.ImportOptics;
+                import org.higherkindedj.optics.annotations.OpticsSpec;
+
+                @ImportOptics
+                public interface %s%s extends OpticsSpec<S> {}
+                """
+                    .formatted(testCase.name(), testCase.declaration()));
+
+        var compilation =
+            javac()
+                .withProcessors(new ImportOpticsProcessor())
+                .compile(externalClass, specInterface);
+
+        assertThat(compilation).failed();
+        assertThat(compilation)
+            .hadErrorContaining("Name the type the optics are for as the type argument.");
+      }
+    }
+
+    @Test
+    @DisplayName("should suggest a bound parameterised by another variable the spec declares")
+    void shouldSuggestBoundParameterisedByAnotherVariable() {
+      final var specInterface =
+          JavaFileObjects.forSourceString(
+              "com.myapp.OtherVariableOpticsSpec",
+              """
+              package com.myapp;
+
+              import java.util.List;
+              import org.higherkindedj.optics.annotations.ImportOptics;
+              import org.higherkindedj.optics.annotations.OpticsSpec;
+
+              @ImportOptics
+              public interface OtherVariableOpticsSpec<T, S extends List<T>>
+                      extends OpticsSpec<S> {}
+              """);
+
+      var compilation = javac().withProcessors(new ImportOpticsProcessor()).compile(specInterface);
+
+      assertThat(compilation).failed();
+      // T is declared on the spec, so naming it in the suggestion still yields a valid declaration.
+      assertThat(compilation).hadErrorContaining("as the type argument: 'OpticsSpec<List<T>>'.");
+    }
+
+    @Test
+    @DisplayName("should reject an array source type by naming the kind it is")
     void shouldRejectArraySourceType() {
       final var specInterface =
           JavaFileObjects.forSourceString(
@@ -1515,8 +1651,7 @@ class SpecInterfaceProcessingTest {
       assertThat(compilation).failed();
       assertThat(compilation)
           .hadErrorContaining(
-              "'ArrayOpticsSpec' declares OpticsSpec<java.lang.String[]>, which is not a class or"
-                  + " interface.");
+              "'ArrayOpticsSpec' declares OpticsSpec<String[]>, which is an array type.");
     }
   }
 }
