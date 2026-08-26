@@ -87,11 +87,17 @@ A source type that is itself generic is supported, and the spec names its own ty
 
 **Fix.** Name a public supertype, generate into that package with `@ImportOptics(targetPackage = ...)`, or drop the attribute.
 
-### "@ViaCopyAndSet: copyConstructor names '...', which no constructor of '...' accepts"
+### "@ViaCopyAndSet: copyConstructor names '...', which '...' reaches as '...', and no constructor accepts"
 
-**Cause.** The name is a genuine supertype, but no single-argument constructor of `S` takes it — `java.lang.Object` and marker interfaces such as `Serializable` reach this often. The message lists the single-argument constructors that do exist.
+**Cause.** The name is a genuine supertype, but no single-argument constructor of `S` takes the type `S` actually reaches it as — `java.lang.Object` and marker interfaces such as `Serializable` reach this often. The message names both the type you gave and the one `S` reaches, which differ when `S`'s own `extends` clause pins the arguments: `class PNode<X> extends PBase<String>` reaches `PBase` as `PBase<String>`, whatever `X` is.
 
-**Fix.** Name one of the types those constructors take, or drop the attribute. The attribute is only needed when the copy constructor is overloaded — see [Copy Strategies](copy_strategies.md#viacopyandset-legacy-types-with-a-copy-constructor-and-setters).
+**Fix.** Name a supertype of `S` that one of the listed constructors takes, as the class alone without type arguments, or drop the attribute. The list carries type arguments and the attribute does not, so read it to recognise your supertype in it rather than to copy from it — and a listed type that is not a supertype of `S` cannot be named at all. The attribute is only needed when the copy constructor is overloaded — see [Copy Strategies](copy_strategies.md#viacopyandset-legacy-types-with-a-copy-constructor-and-setters).
+
+### "@ViaCopyAndSet: '...' is written with a wildcard type argument"
+
+**Cause.** The source type carries a wildcard, `OpticsSpec<Node<?>>`, and the strategy rebuilds it through a constructor. `new Node<?>(...)` is not something that can be written, whatever the arguments. `@ViaConstructor` reports the same thing for the same reason. An inner class draws the sibling message, because its constructor call needs an enclosing instance the generated class has no way to reach.
+
+**Fix.** Name the type the wildcard stands for, or switch to `@Wither`, which rebuilds through a method and names no constructor — a wildcard source type is no obstacle there.
 
 ### "@MatchWhen: predicate / getter method not found on source"
 
