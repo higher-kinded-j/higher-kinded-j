@@ -9108,7 +9108,7 @@ class MappingProcessorTest {
       assertThat(compilation).failed();
       assertThat(compilation).hadErrorContaining("mix-in 'ElementVocabulary' is generic");
       assertThat(compilation)
-          .hadErrorContaining("Make the mix-in non-generic, or declare the members directly");
+          .hadErrorContaining("non-generic, or declare its members directly on the spec");
     }
 
     @Test

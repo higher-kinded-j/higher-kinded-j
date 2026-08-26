@@ -3,10 +3,6 @@
 package org.higherkindedj.optics.processing.external;
 
 import com.palantir.javapoet.*;
-import com.palantir.javapoet.AnnotationSpec;
-import com.palantir.javapoet.ParameterizedTypeName;
-import com.palantir.javapoet.TypeName;
-import com.palantir.javapoet.TypeVariableName;
 import java.io.IOException;
 import java.util.Optional;
 import javax.annotation.processing.Filer;
@@ -58,8 +54,6 @@ public class ExternalPrismGenerator {
     TypeElement sealedInterface = analysis.typeElement();
     String interfaceName = sealedInterface.getSimpleName().toString();
     String prismsClassName = interfaceName + "Prisms";
-
-    ClassName sumTypeName = ClassName.get(sealedInterface);
 
     TypeSpec.Builder prismsClassBuilder =
         TypeSpec.classBuilder(prismsClassName)
@@ -115,8 +109,9 @@ public class ExternalPrismGenerator {
     // The prism is written in the subtype's vocabulary: its own parameters, and the sum type as
     // its own extends/implements clause instantiates it. Reading the sum type's declaration
     // instead would name variables the method never declares.
-    DeclaredType named = ProcessorUtils.sumTypeAsNamedBy(subtype, sumType);
-    TypeName sourceTypeName = named == null ? ClassName.get(sumType) : TypeName.get(named);
+    DeclaredType namedSumType = ProcessorUtils.sumTypeAsNamedBy(sumType, subtype);
+    TypeName sourceTypeName =
+        namedSumType == null ? ClassName.get(sumType) : TypeName.get(namedSumType);
     TypeName subTypeName =
         subtype.getTypeParameters().isEmpty()
             ? ClassName.get(subtype)
@@ -147,15 +142,19 @@ public class ExternalPrismGenerator {
       methodBuilder.addTypeVariable(TypeVariableName.get(typeParameter));
     }
 
-    if (!subtype.getTypeParameters().isEmpty()) {
-      // instanceof tests an erasure, so a parameterised subtype narrows through the raw name and
-      // is handed back parameterised. The sealed hierarchy is what makes that sound - a GenShape<T>
-      // that is a GenCircle can only be a GenCircle<T> - but javac cannot see it, so the warning
-      // is answered here rather than left for the consuming build.
+    // instanceof tests an erasure, so a parameterised subtype narrows through the raw name. Where
+    // every one of its parameters appears in the clause, the hierarchy still pins them - a
+    // Shape<T> that is a Circle can only be a Circle<T> - and javac sees it, so nothing warns.
+    // A parameter the clause does not bind is the one javac cannot pin, and the only case that
+    // needs answering here rather than in the consuming build.
+    boolean unbound =
+        namedSumType != null
+            && subtype.getTypeParameters().stream()
+                .anyMatch(parameter -> !ProcessorUtils.mentions(namedSumType, parameter));
+    if (unbound) {
       methodBuilder.addAnnotation(
           AnnotationSpec.builder(SuppressWarnings.class)
               .addMember("value", "$S", "unchecked")
-              .addMember("value", "$S", "rawtypes")
               .build());
     }
 

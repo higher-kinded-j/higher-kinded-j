@@ -20,10 +20,6 @@ import org.junit.jupiter.api.Test;
  * reads a component's own type arguments disagree. The two agree for every non-generic shape, so
  * the fault is invisible without this half — which is how a generic record's traversal named a type
  * parameter it never declared, in a class whose lens methods declared theirs correctly.
- *
- * <p>Where the generic form is not yet generated as it should be, the case pins what <em>is</em>
- * emitted and names the gap, so that closing it shows up here as a test to update rather than as a
- * cell nobody was looking at.
  */
 @DisplayName("Every imported shape, generic and not")
 class GenericImportedTypeAxisTest {

@@ -39,6 +39,7 @@ import javax.lang.model.element.Element;
 import javax.lang.model.element.ElementKind;
 import javax.lang.model.element.ExecutableElement;
 import javax.lang.model.element.Modifier;
+import javax.lang.model.element.Name;
 import javax.lang.model.element.RecordComponentElement;
 import javax.lang.model.element.TypeElement;
 import javax.lang.model.element.VariableElement;
@@ -271,36 +272,12 @@ public class MappingProcessor extends AbstractProcessor {
    * and leaf/derived {@code default} methods. A mix-in must not itself be (or extend) a mapping
    * spec, and must be non-generic for now.
    */
-  /**
-   * Every interface {@code spec} inherits, directly or through another, in declaration order.
-   *
-   * @param spec the spec interface to walk
-   * @return its transitive super-interfaces (non-null, possibly empty)
-   */
-  private List<TypeMirror> allSuperInterfaces(TypeElement spec) {
-    List<TypeMirror> found = new ArrayList<>();
-    Deque<TypeMirror> pending = new ArrayDeque<>(spec.getInterfaces());
-    Set<String> seen = new LinkedHashSet<>();
-    while (!pending.isEmpty()) {
-      TypeMirror parent = pending.removeFirst();
-      if (parent.getKind() != TypeKind.DECLARED
-          || !seen.add(((DeclaredType) parent).asElement().toString())) {
-        // An unresolved parent is an ErrorType, which javac already reports; a repeated one has
-        // been walked.
-        found.add(parent);
-        continue;
-      }
-      found.add(parent);
-      pending.addAll(((TypeElement) ((DeclaredType) parent).asElement()).getInterfaces());
-    }
-    return found;
-  }
-
   private boolean checkMixins(TypeElement spec) {
     // Every ancestor, not just the direct parents: members are collected with getAllMembers, which
     // walks the whole ancestry, so a gate that reads one level lets a non-generic mix-in carry in
     // a generic one's members and the free variable reaches the diagnostics.
-    for (TypeMirror parent : allSuperInterfaces(spec)) {
+    for (Inherited inherited : allSuperInterfaces(spec)) {
+      TypeMirror parent = inherited.type();
       // ErrorType extends DeclaredType, so unresolved parents step aside first: javac already
       // reports the missing type, and there is nothing for the gate to judge.
       if (parent.getKind() == TypeKind.ERROR) {
@@ -328,14 +305,77 @@ public class MappingProcessor extends AbstractProcessor {
             processingEnv.getMessager(),
             spec,
             TAG,
-            "mix-in '" + parentElement.getSimpleName() + "' is generic.",
+            "mix-in '"
+                + parentElement.getSimpleName()
+                + "' is generic"
+                + reachedVia(inherited)
+                + ".",
             "Inherited member types are read as declared; a generic mix-in's members would need"
                 + " substitution under its instantiation, which is not supported yet.",
-            "Make the mix-in non-generic, or declare the members directly on the spec.");
+            "Make '"
+                + parentElement.getSimpleName()
+                + "' non-generic, or declare its members directly on the spec.");
         return false;
       }
     }
     return true;
+  }
+
+  /**
+   * Every interface {@code spec} inherits, directly or through another, each once.
+   *
+   * <p>Breadth-first from the direct parents, so a diamond yields the shared ancestor once however
+   * many paths reach it. An unresolved parent is kept for the caller to step over, since javac
+   * already reports it and there is nothing beyond it to walk.
+   *
+   * @param spec the spec interface to walk
+   * @return its transitive super-interfaces (non-null, possibly empty)
+   */
+  private List<Inherited> allSuperInterfaces(TypeElement spec) {
+    List<Inherited> found = new ArrayList<>();
+    Deque<Inherited> pending = new ArrayDeque<>();
+    spec.getInterfaces().forEach(parent -> pending.addLast(new Inherited(parent, null)));
+    Set<Name> seen = new HashSet<>();
+    while (!pending.isEmpty()) {
+      Inherited current = pending.removeFirst();
+      if (current.type().getKind() != TypeKind.DECLARED) {
+        found.add(current);
+        continue;
+      }
+      TypeElement element = (TypeElement) ((DeclaredType) current.type()).asElement();
+      // The qualified name, not toString(): two same-named types from different packages are not
+      // the same ancestor, and toString()'s form is the implementation's to choose.
+      if (!seen.add(element.getQualifiedName())) {
+        continue;
+      }
+      found.add(current);
+      TypeElement route = current.reachedThrough() == null ? element : current.reachedThrough();
+      element.getInterfaces().forEach(parent -> pending.addLast(new Inherited(parent, route)));
+    }
+    return found;
+  }
+
+  /**
+   * An inherited interface, and the direct parent the spec lists that reaches it.
+   *
+   * @param type the inherited interface
+   * @param reachedThrough the spec's own parent it was reached through, or null when it is one
+   */
+  private record Inherited(TypeMirror type, TypeElement reachedThrough) {}
+
+  /**
+   * Names the parent a spec actually lists, when the offending ancestor is not one.
+   *
+   * <p>The gate walks the whole ancestry, so it can name a type the spec's own extends clause never
+   * mentions; without the route there is nothing on that line for the author to act on.
+   *
+   * @param inherited the ancestor and the parent it was reached through
+   * @return a parenthetical naming the route, or the empty string when it is a direct parent
+   */
+  private String reachedVia(Inherited inherited) {
+    return inherited.reachedThrough() == null
+        ? ""
+        : " (reached through '" + inherited.reachedThrough().getSimpleName() + "')";
   }
 
   /** Whether an interface is, or transitively extends, {@code MappingSpec}/{@code UpdateSpec}. */

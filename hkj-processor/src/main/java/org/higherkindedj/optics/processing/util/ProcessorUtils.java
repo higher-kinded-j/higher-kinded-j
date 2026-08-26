@@ -82,12 +82,12 @@ public final class ProcessorUtils {
    * GenShape<T>}, while {@code Tagged implements GenShape<String>} focuses {@code GenShape<String>}
    * and needs no parameter of its own.
    *
-   * @param subtype the permitted subtype; must not be null
-   * @param sumType the sealed type it is permitted by; must not be null
+   * @param sumType the sealed type; must not be null
+   * @param subtype the permitted subtype whose clause names it; must not be null
    * @return the sum type as {@code subtype} names it, or null when it does not name it directly
    * @since 0.4.10
    */
-  public static DeclaredType sumTypeAsNamedBy(TypeElement subtype, TypeElement sumType) {
+  public static DeclaredType sumTypeAsNamedBy(TypeElement sumType, TypeElement subtype) {
     List<TypeMirror> candidates = new ArrayList<>(subtype.getInterfaces());
     candidates.add(subtype.getSuperclass());
     for (TypeMirror candidate : candidates) {
@@ -108,9 +108,7 @@ public final class ProcessorUtils {
    * @since 0.4.10
    */
   public static TypeMirror returnTypeIn(Types types, DeclaredType owner, ExecutableElement method) {
-    return memberIn(types, owner, method) instanceof ExecutableType member
-        ? member.getReturnType()
-        : method.getReturnType();
+    return memberOf(types, owner, method).getReturnType();
   }
 
   /**
@@ -124,30 +122,24 @@ public final class ProcessorUtils {
    */
   public static TypeMirror firstParameterTypeIn(
       Types types, DeclaredType owner, ExecutableElement method) {
-    return memberIn(types, owner, method) instanceof ExecutableType member
-        ? member.getParameterTypes().getFirst()
-        : method.getParameters().getFirst().asType();
+    return memberOf(types, owner, method).getParameterTypes().getFirst();
   }
 
   /**
-   * A member's type as the given owner sees it, or the member's own type where the owner has
-   * nothing to say.
+   * The member as the owner sees it.
    *
-   * <p>Read off the element, a member speaks the variables of whichever type declared it - the
-   * owner's own, or a generic supertype's. Read through the owner it speaks the owner's, which is
-   * what every comparison against another type is really asking about.
+   * <p>Cast, not a fallback: {@code asMemberOf} answers with an {@link ExecutableType} for an
+   * executable member, and a member read as declared where a substitution was wanted is the very
+   * defect these helpers close - better to fail than to quietly return it.
    *
-   * <p>A <em>raw</em> owner is the exception. javac erases every member of a raw type, including
-   * one whose declared type names no variable at all, so a field typed {@code List<String>} on a
-   * raw {@code Holder} would come back as {@code List}. There is nothing to substitute there, so
-   * the member is read as declared. An owner that simply declares no parameters is not raw: its
-   * inherited members may still need the walk.
+   * <p>A member reached through a <em>raw</em> supertype comes back erased, which is what the
+   * language says a raw type's members are. Nothing is done to soften that: reading the declaration
+   * instead lets analysis pass and leaves the generator emitting a call the erased member cannot
+   * take.
    */
-  private static TypeMirror memberIn(Types types, DeclaredType owner, Element member) {
-    boolean raw =
-        !((TypeElement) owner.asElement()).getTypeParameters().isEmpty()
-            && owner.getTypeArguments().isEmpty();
-    return raw ? member.asType() : types.asMemberOf(owner, member);
+  private static ExecutableType memberOf(
+      Types types, DeclaredType owner, ExecutableElement member) {
+    return (ExecutableType) types.asMemberOf(owner, member);
   }
 
   /**

@@ -5,8 +5,10 @@ package org.higherkindedj.optics.processing;
 import static com.google.testing.compile.CompilationSubject.assertThat;
 import static com.google.testing.compile.Compiler.javac;
 import static org.higherkindedj.optics.processing.GeneratorTestHelper.assertGeneratedCodeContains;
+import static org.higherkindedj.optics.processing.GeneratorTestHelper.assertGeneratedCodeDoesNotContain;
 
 import com.google.testing.compile.JavaFileObjects;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 public class PrismProcessorIntegrationTest {
@@ -79,5 +81,69 @@ public class PrismProcessorIntegrationTest {
 
     assertThat(compilation).succeeded();
     assertThat(compilation).generatedSourceFile("com.example.PlainPrisms").isNotNull();
+  }
+
+  @Test
+  @DisplayName("should name both sides of a prism for a generic sealed hierarchy")
+  void shouldNameBothSidesForAGenericHierarchy() {
+    final var shape =
+        JavaFileObjects.forSourceString(
+            "com.example.GShape",
+            """
+            package com.example;
+
+            import org.higherkindedj.optics.annotations.GeneratePrisms;
+
+            @GeneratePrisms
+            public sealed interface GShape<T> permits GCircle, GTagged, GPair {}
+            """);
+    final var circle =
+        JavaFileObjects.forSourceString(
+            "com.example.GCircle",
+            """
+            package com.example;
+
+            public record GCircle<T>(T tag) implements GShape<T> {}
+            """);
+    final var tagged =
+        JavaFileObjects.forSourceString(
+            "com.example.GTagged",
+            """
+            package com.example;
+
+            public record GTagged(String label) implements GShape<String> {}
+            """);
+    final var pair =
+        JavaFileObjects.forSourceString(
+            "com.example.GPair",
+            """
+            package com.example;
+
+            public record GPair<A, B>(A a, B b) implements GShape<A> {}
+            """);
+
+    var compilation =
+        javac().withProcessors(new PrismProcessor()).compile(shape, circle, tagged, pair);
+
+    // The @GeneratePrisms and @ImportOptics generators carry the same reading, so both are pinned;
+    // the @ImportOptics half is GenericImportedTypeAxisTest.
+    assertThat(compilation).succeeded();
+    assertGeneratedCodeContains(
+        compilation,
+        "com.example.GShapePrisms",
+        "public static <T> Prism<GShape<T>, GCircle<T>> gCircle()");
+    assertGeneratedCodeContains(
+        compilation,
+        "com.example.GShapePrisms",
+        "public static Prism<GShape<String>, GTagged> gTagged()");
+    assertGeneratedCodeContains(
+        compilation,
+        "com.example.GShapePrisms",
+        "public static <A, B> Prism<GShape<A>, GPair<A, B>> gPair()");
+    // Only the subtype carrying a parameter the hierarchy does not bind narrows uncheckedly.
+    assertGeneratedCodeDoesNotContain(
+        compilation,
+        "com.example.GShapePrisms",
+        "@SuppressWarnings(\"unchecked\") public static <T> Prism<GShape<T>");
   }
 }
