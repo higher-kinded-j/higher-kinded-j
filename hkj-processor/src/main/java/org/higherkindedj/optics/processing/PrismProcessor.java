@@ -3,11 +3,14 @@
 package org.higherkindedj.optics.processing;
 
 import com.google.auto.service.AutoService;
+import com.palantir.javapoet.AnnotationSpec;
 import com.palantir.javapoet.ClassName;
 import com.palantir.javapoet.JavaFile;
 import com.palantir.javapoet.MethodSpec;
 import com.palantir.javapoet.ParameterizedTypeName;
+import com.palantir.javapoet.TypeName;
 import com.palantir.javapoet.TypeSpec;
+import com.palantir.javapoet.TypeVariableName;
 import java.io.IOException;
 import java.util.List;
 import java.util.Optional;
@@ -22,7 +25,9 @@ import javax.lang.model.element.Element;
 import javax.lang.model.element.ElementKind;
 import javax.lang.model.element.Modifier;
 import javax.lang.model.element.TypeElement;
+import javax.lang.model.element.TypeParameterElement;
 import javax.lang.model.element.VariableElement;
+import javax.lang.model.type.DeclaredType;
 import javax.tools.Diagnostic;
 import org.higherkindedj.optics.Prism;
 import org.higherkindedj.optics.annotations.GeneratePrisms;
@@ -151,29 +156,60 @@ public class PrismProcessor extends AbstractProcessor {
    */
   private MethodSpec createPrismMethodForSubtype(TypeElement sumType, TypeElement subtype) {
     String methodName = ProcessorUtils.toCamelCase(subtype.getSimpleName().toString());
-    ClassName sumTypeName = ClassName.get(sumType);
-    ClassName subTypeName = ClassName.get(subtype);
+
+    // The prism is written in the subtype's vocabulary: its own parameters, and the sum type as
+    // its own extends/implements clause instantiates it. Reading the sum type's declaration
+    // instead would name variables the method never declares.
+    DeclaredType named = ProcessorUtils.sumTypeAsNamedBy(subtype, sumType);
+    TypeName sourceTypeName = named == null ? ClassName.get(sumType) : TypeName.get(named);
+    TypeName subTypeName =
+        subtype.getTypeParameters().isEmpty()
+            ? ClassName.get(subtype)
+            : ParameterizedTypeName.get(
+                ClassName.get(subtype),
+                subtype.getTypeParameters().stream()
+                    .map(TypeVariableName::get)
+                    .toArray(TypeName[]::new));
 
     ParameterizedTypeName prismTypeName =
-        ParameterizedTypeName.get(ClassName.get(Prism.class), sumTypeName, subTypeName);
+        ParameterizedTypeName.get(ClassName.get(Prism.class), sourceTypeName, subTypeName);
 
-    return MethodSpec.methodBuilder(methodName)
-        .addJavadoc(
-            "Creates a {@link $T} that focuses on the {@link $T} subtype of the {@link $T} sum"
-                + " type.\n\n"
-                + "@return A non-null {@code Prism<$T, $T>}.",
-            Prism.class,
-            subTypeName,
-            sumTypeName,
-            sumTypeName,
-            subTypeName)
-        .addModifiers(Modifier.PUBLIC, Modifier.STATIC)
-        .returns(prismTypeName)
+    MethodSpec.Builder methodBuilder =
+        MethodSpec.methodBuilder(methodName)
+            .addJavadoc(
+                "Creates a {@link $T} that focuses on the {@link $T} subtype of the {@link $T} sum"
+                    + " type.\n\n"
+                    + "@return A non-null {@code Prism<$T, $T>}.",
+                Prism.class,
+                ClassName.get(subtype),
+                ClassName.get(sumType),
+                sourceTypeName,
+                subTypeName)
+            .addModifiers(Modifier.PUBLIC, Modifier.STATIC)
+            .returns(prismTypeName);
+
+    for (TypeParameterElement typeParameter : subtype.getTypeParameters()) {
+      methodBuilder.addTypeVariable(TypeVariableName.get(typeParameter));
+    }
+
+    if (!subtype.getTypeParameters().isEmpty()) {
+      // instanceof tests an erasure, so a parameterised subtype narrows through the raw name and
+      // is handed back parameterised. The sealed hierarchy is what makes that sound - a GenShape<T>
+      // that is a GenCircle can only be a GenCircle<T> - but javac cannot see it, so the warning
+      // is answered here rather than left for the consuming build.
+      methodBuilder.addAnnotation(
+          AnnotationSpec.builder(SuppressWarnings.class)
+              .addMember("value", "$S", "unchecked")
+              .addMember("value", "$S", "rawtypes")
+              .build());
+    }
+
+    return methodBuilder
         .addStatement(
             "return $T.of(source -> source instanceof $T ? $T.of(($T) source) : $T.empty(), value"
                 + " -> value)",
             Prism.class,
-            subTypeName,
+            ClassName.get(subtype),
             Optional.class,
             subTypeName,
             Optional.class)

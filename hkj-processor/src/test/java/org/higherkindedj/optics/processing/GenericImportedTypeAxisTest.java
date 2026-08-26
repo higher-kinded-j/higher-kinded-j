@@ -151,7 +151,7 @@ class GenericImportedTypeAxisTest {
   }
 
   @Test
-  @DisplayName("a sealed interface, and a generic one, whose prisms are still named raw")
+  @DisplayName("a sealed interface, and a generic one, whose prisms name both sides")
   void sealedInterfaces() {
     var plainShape =
         JavaFileObjects.forSourceString(
@@ -196,13 +196,56 @@ class GenericImportedTypeAxisTest {
 
     var genericCompilation = compile("com.external.GenShape.class", genShape, genCircle);
     assertThat(genericCompilation).succeeded();
-    // Both sides are named raw, so the prism does not compose with an optic that carries the
-    // hierarchy's argument. Generating Prism<GenShape<T>, GenCircle<T>> is issue #742; this pins
-    // what is emitted until then, rather than leaving the cell unexercised.
+    // The prism is written in the subtype's vocabulary: its own parameter, and the sum type as its
+    // own implements clause instantiates it, so it composes with an optic carrying the argument.
     assertGeneratedCodeContains(
         genericCompilation,
         "com.myapp.optics.GenShapePrisms",
-        "public static Prism<GenShape, GenCircle> genCircle()");
+        "public static <T> Prism<GenShape<T>, GenCircle<T>> genCircle()");
+  }
+
+  @Test
+  @DisplayName("a permitted subtype that pins the argument, and one that adds its own")
+  void sealedSubtypeParameterShapes() {
+    var shape =
+        JavaFileObjects.forSourceString(
+            "com.external.MixShape",
+            """
+            package com.external;
+
+            public sealed interface MixShape<T> permits MixTagged, MixPair {}
+            """);
+    var tagged =
+        JavaFileObjects.forSourceString(
+            "com.external.MixTagged",
+            """
+            package com.external;
+
+            public record MixTagged(String label) implements MixShape<String> {}
+            """);
+    var pair =
+        JavaFileObjects.forSourceString(
+            "com.external.MixPair",
+            """
+            package com.external;
+
+            public record MixPair<A, B>(A a, B b) implements MixShape<A> {}
+            """);
+
+    var compilation = compile("com.external.MixShape.class", shape, tagged, pair);
+
+    assertThat(compilation).succeeded();
+    // The clause pins the argument, so the method declares nothing.
+    assertGeneratedCodeContains(
+        compilation,
+        "com.myapp.optics.MixShapePrisms",
+        "public static Prism<MixShape<String>, MixTagged> mixTagged()");
+    // B is the subtype's own and appears in the focus, so it is declared even though the sum type
+    // does not bind it - what the author wrote, rather than a parameter invented for them.
+    assertGeneratedCodeContains(
+        compilation,
+        "com.myapp.optics.MixShapePrisms",
+        "public static <A, B> Prism<MixShape<A>, MixPair<A, B>> mixPair()");
   }
 
   @Test
