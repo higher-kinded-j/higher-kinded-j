@@ -12,6 +12,7 @@ import javax.lang.model.element.ExecutableElement;
 import javax.lang.model.element.Modifier;
 import javax.lang.model.element.Name;
 import javax.lang.model.element.TypeElement;
+import javax.lang.model.element.TypeParameterElement;
 import javax.lang.model.element.VariableElement;
 import javax.lang.model.type.ArrayType;
 import javax.lang.model.type.DeclaredType;
@@ -247,36 +248,10 @@ public class SpecInterfaceAnalyser {
         // isSameType, not a name comparison: it also answers true for an unresolvable bound, whose
         // own 'cannot find symbol' is the error worth reading.
         && !typeUtils.isSameType(bound, elementUtils.getTypeElement(OBJECT_FQN).asType())
-        && !mentions(bound, typeVariable)) {
+        && !ProcessorUtils.mentions(bound, (TypeParameterElement) typeVariable.asElement())) {
       return ": 'OpticsSpec<" + ProcessorUtils.simpleTypeName(bound) + ">'";
     }
     return "";
-  }
-
-  /**
-   * Whether a type is the given variable, or names it at any depth.
-   *
-   * <p>A variable can hide in an enclosing type as well as in a type argument: {@code
-   * Outer<S>.Inner} names {@code S} without taking it as an argument of its own. An enclosing type
-   * that is absent, or a static member type, is a {@code NoType}, which matches nothing and ends
-   * the walk.
-   *
-   * @param type the type to search; must not be null
-   * @param variable the variable to look for; must not be null
-   * @return true when substituting {@code type} for {@code variable} would be circular
-   */
-  private boolean mentions(TypeMirror type, TypeVariable variable) {
-    if (typeUtils.isSameType(type, variable)) {
-      return true;
-    }
-    return switch (type) {
-      case DeclaredType declared ->
-          mentions(declared.getEnclosingType(), variable)
-              || declared.getTypeArguments().stream()
-                  .anyMatch(argument -> mentions(argument, variable));
-      case ArrayType array -> mentions(array.getComponentType(), variable);
-      default -> false;
-    };
   }
 
   /**

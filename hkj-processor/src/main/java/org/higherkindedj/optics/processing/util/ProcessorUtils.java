@@ -7,9 +7,12 @@ import java.util.Locale;
 import java.util.Set;
 import java.util.stream.Collectors;
 import javax.lang.model.element.TypeElement;
+import javax.lang.model.element.TypeParameterElement;
+import javax.lang.model.type.ArrayType;
 import javax.lang.model.type.DeclaredType;
 import javax.lang.model.type.TypeKind;
 import javax.lang.model.type.TypeMirror;
+import javax.lang.model.type.TypeVariable;
 import javax.lang.model.type.WildcardType;
 
 /**
@@ -48,6 +51,34 @@ public final class ProcessorUtils {
       return null;
     }
     return type;
+  }
+
+  /**
+   * Whether a type is the given type parameter, or names it at any depth.
+   *
+   * <p>A parameter can hide in more places than a type argument. {@code Outer<T>.Inner} names
+   * {@code T} through its enclosing type, {@code List<? extends T>} through a wildcard bound, and
+   * {@code T[]} through an array component. An enclosing type that is absent, or a static member
+   * type, is a {@code NoType}, which matches nothing and ends the walk.
+   *
+   * @param type the type to search; must not be null
+   * @param parameter the type parameter to look for; must not be null
+   * @return true when {@code type} names {@code parameter}
+   * @since 0.4.10
+   */
+  public static boolean mentions(TypeMirror type, TypeParameterElement parameter) {
+    return switch (type) {
+      case TypeVariable variable -> variable.asElement().equals(parameter);
+      case DeclaredType declared ->
+          mentions(declared.getEnclosingType(), parameter)
+              || declared.getTypeArguments().stream().anyMatch(a -> mentions(a, parameter));
+      case ArrayType array -> mentions(array.getComponentType(), parameter);
+      case WildcardType wildcard ->
+          (wildcard.getExtendsBound() != null && mentions(wildcard.getExtendsBound(), parameter))
+              || (wildcard.getSuperBound() != null
+                  && mentions(wildcard.getSuperBound(), parameter));
+      default -> false;
+    };
   }
 
   /**
