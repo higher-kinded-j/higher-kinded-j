@@ -1523,7 +1523,7 @@ class SpecInterfaceProcessingTest {
 
     @Test
     @DisplayName("should suggest a bound whose wildcard does not name the variable")
-    void shouldSuggestBoundWhoseWildcardNamesSomethingElse() {
+    void shouldSuggestBoundWhoseWildcardDoesNotNameTheVariable() {
       record Case(String name, String wildcard) {}
       var cases =
           List.of(
@@ -1749,8 +1749,8 @@ class SpecInterfaceProcessingTest {
   }
 
   @Nested
-  @DisplayName("Generic Spec Interfaces")
-  class GenericSpecInterfaces {
+  @DisplayName("Type Parameters on Generated Methods")
+  class TypeParametersOnGeneratedMethods {
 
     private final JavaFileObject box =
         JavaFileObjects.forSourceString(
@@ -1824,7 +1824,7 @@ class SpecInterfaceProcessingTest {
     }
 
     @Test
-    @DisplayName("should declare only the parameters the signature names, not the source type's")
+    @DisplayName("should declare only the parameters the signature reaches, not the source type's")
     void shouldDropParametersTheSignatureDoesNotName() {
       var compilation =
           compile(
@@ -1862,8 +1862,8 @@ class SpecInterfaceProcessingTest {
     }
 
     @Test
-    @DisplayName("should keep a parameter the focus type alone names")
-    void shouldKeepParameterNamedOnlyByFocusType() {
+    @DisplayName("should keep a parameter only the focus type reaches")
+    void shouldKeepParameterOnlyFocusReaches() {
       var compilation =
           compile(
               """
@@ -1939,8 +1939,13 @@ class SpecInterfaceProcessingTest {
               }
               """);
 
+      // The consuming build's flags, not javac's defaults: an @InstanceOf prism narrows through a
+      // raw instanceof, so a parameterised target warns unless the generator answers it.
       var compilation =
-          javac().withProcessors(new ImportOpticsProcessor()).compile(shape, circle, specInterface);
+          javac()
+              .withProcessors(new ImportOpticsProcessor())
+              .withOptions("-Xlint:unchecked,rawtypes", "-Werror")
+              .compile(shape, circle, specInterface);
 
       assertCompilationSucceeded(compilation);
       // Shape declares no parameters, so reading them from the source type would declare none.
@@ -1951,8 +1956,82 @@ class SpecInterfaceProcessingTest {
     }
 
     @Test
-    @DisplayName("should drop a parameter no kept parameter's bound names either")
-    void shouldDropUnusedParameterNotReachedThroughABound() {
+    @DisplayName("should not suppress warnings for a @MatchWhen prism onto a parameterised target")
+    void shouldNotSuppressForMatchWhenPrism() {
+      final var node =
+          JavaFileObjects.forSourceString(
+              "com.external.Node",
+              """
+              package com.external;
+
+              public class Node<T> {
+                  public boolean isLeaf() { return true; }
+                  public Leaf<T> asLeaf() { return null; }
+              }
+              """);
+
+      final var leaf =
+          JavaFileObjects.forSourceString(
+              "com.external.Leaf",
+              """
+              package com.external;
+
+              public class Leaf<T> extends Node<T> {}
+              """);
+
+      final var specInterface =
+          JavaFileObjects.forSourceString(
+              "com.myapp.NodeOpticsSpec",
+              """
+              package com.myapp;
+
+              import com.external.Leaf;
+              import com.external.Node;
+              import org.higherkindedj.optics.Prism;
+              import org.higherkindedj.optics.annotations.ImportOptics;
+              import org.higherkindedj.optics.annotations.MatchWhen;
+              import org.higherkindedj.optics.annotations.OpticsSpec;
+
+              @ImportOptics
+              public interface NodeOpticsSpec<U> extends OpticsSpec<Node<U>> {
+                  @MatchWhen(predicate = "isLeaf", getter = "asLeaf")
+                  Prism<Node<U>, Leaf<U>> leaf();
+              }
+              """);
+
+      var compilation =
+          javac()
+              .withProcessors(new ImportOpticsProcessor())
+              .withOptions("-Xlint:unchecked,rawtypes", "-Werror")
+              .compile(node, leaf, specInterface);
+
+      assertCompilationSucceeded(compilation);
+      assertGeneratedCodeContains(
+          compilation, "com.myapp.NodeOptics", "public static <U> Prism<Node<U>, Leaf<U>> leaf()");
+      // The source type's own getter does the narrowing, so there is no warning to answer.
+      assertGeneratedCodeDoesNotContain(compilation, "com.myapp.NodeOptics", "@SuppressWarnings");
+    }
+
+    @Test
+    @DisplayName("should reject an optic method that declares its own type parameters")
+    void shouldRejectMethodLevelTypeParameters() {
+      var compilation =
+          compile(
+              """
+              public interface SubjectOpticsSpec extends OpticsSpec<Box<String>> {
+                  @Wither("withContent")
+                  <X> Lens<Box<String>, X> content();
+              }""");
+
+      assertThat(compilation).failed();
+      assertThat(compilation)
+          .hadErrorContaining("'SubjectOpticsSpec.content' declares its own type parameters.");
+      assertThat(compilation).hadErrorContaining("Move the parameter to the spec interface");
+    }
+
+    @Test
+    @DisplayName("should drop a parameter that no kept parameter's bound reaches")
+    void shouldDropParameterNoBoundReaches() {
       var compilation =
           compile(
               """
@@ -1971,7 +2050,7 @@ class SpecInterfaceProcessingTest {
     }
 
     @Test
-    @DisplayName("should keep a parameter that only a kept parameter's bound names")
+    @DisplayName("should keep a parameter that only a kept parameter's bound reaches")
     void shouldKeepParameterReachedThroughABound() {
       var compilation =
           compile(

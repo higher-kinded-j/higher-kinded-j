@@ -81,6 +81,12 @@ package org.higherkindedj.optics.annotations;
  * }
  * }</pre>
  *
+ * <p>Each generated method declares the type parameters its own source and focus types reach, so a
+ * spec parameter neither reaches is dropped, and one only the focus reaches is kept: {@code
+ * interface ShapeOpticsSpec<T> extends OpticsSpec<Shape>} declaring {@code Prism<Shape, Circle<T>>
+ * circle()} generates {@code static <T> Prism<Shape, Circle<T>> circle()} over a source type with
+ * no parameters of its own. An optic method may not declare parameters of its own.
+ *
  * <p>{@code S} names one class, record or interface. It is read for its members and rebuilt through
  * a constructor, wither or setter, so a type parameter of the spec interface itself, {@code
  * interface BoxOpticsSpec<S extends Box> extends OpticsSpec<S>}, has nothing to generate from and

@@ -174,6 +174,37 @@ Now a service reads `UserJson.emails()`, and the wire format is an implementatio
 
 ---
 
+## Generic Spec Interfaces
+
+A spec interface can carry type parameters of its own, and the source type can name them:
+
+```java
+@ImportOptics
+public interface BoxOpticsSpec<U> extends OpticsSpec<Box<U>> {
+    @Wither("withLabel")
+    Lens<Box<U>, String> label();
+}
+```
+
+generates `public static <U> Lens<Box<U>, String> label()`. The parameters are the *spec's*, not the source type's, so you name them: `Box<T>`'s own `T` never appears.
+
+Each method declares the parameters **its own** source and focus types reach, which is what makes the two edges work:
+
+| the spec declares | the method | why |
+|---|---|---|
+| `<U>`, source `Box<U>` | `static <U> Lens<Box<U>, String>` | reached by the source type |
+| nothing, source `Box<String>` | `static Lens<Box<String>, String>` | a concrete instantiation reaches nothing |
+| `<T>`, source `Shape` | `static <T> Prism<Shape, Circle<T>>` | reached by the **focus** alone |
+| `<T, UNUSED>`, source `Box<T>` | `static <T> Lens<Box<T>, String>` | `UNUSED` is reached by neither |
+
+The third row is worth noting: the source type need not be generic at all. A prism or traversal whose *focus* is parameterised brings the parameter in on its own.
+
+One parameter is carried without being reached directly — one that a kept parameter's bound names, since the bound has to resolve. `interface SubjectOpticsSpec<T, V extends List<T>> extends OpticsSpec<Box<V>>` focused through `V` generates `static <T, V extends List<T>> Lens<Box<V>, String> label()`: `T` appears nowhere in the signature's source or focus, and is declared anyway so that `V`'s bound means something.
+
+An optic method cannot declare parameters of its own. The source type is fixed by `OpticsSpec<S>`, so nothing could ever bind them, and `<X> Lens<Box<String>, X> content()` is rejected at the declaration rather than generating a method no call could resolve.
+
+---
+
 ## The fine print: error reporting
 
 A raw optic answers "is it there?" and nothing more: a missing field and a field of the wrong type both come back as an empty `Optional`. When you need to know *which* it was, the answer is not a special optic but the surrounding machinery:

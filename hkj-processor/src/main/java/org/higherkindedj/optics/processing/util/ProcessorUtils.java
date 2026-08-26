@@ -6,10 +6,11 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Set;
 import java.util.stream.Collectors;
+import javax.lang.model.element.Element;
 import javax.lang.model.element.TypeElement;
-import javax.lang.model.element.TypeParameterElement;
 import javax.lang.model.type.ArrayType;
 import javax.lang.model.type.DeclaredType;
+import javax.lang.model.type.IntersectionType;
 import javax.lang.model.type.TypeKind;
 import javax.lang.model.type.TypeMirror;
 import javax.lang.model.type.TypeVariable;
@@ -18,7 +19,8 @@ import javax.lang.model.type.WildcardType;
 /**
  * Shared utility methods for annotation processors in the optics module.
  *
- * <p>This class provides common string manipulation utilities used across multiple processors.
+ * <p>The helpers here read the type model and derive names. They live together so that a subtlety
+ * settled for one processor is settled for all of them.
  */
 public final class ProcessorUtils {
 
@@ -54,21 +56,44 @@ public final class ProcessorUtils {
   }
 
   /**
+   * Whether a type is a declared type that carries type arguments.
+   *
+   * <p>{@code List<String>} does; {@code List}, {@code String}, {@code int[]} and a type variable
+   * do not. A generator asks this to decide whether a value it narrows by erasure needs the warning
+   * answering.
+   *
+   * @param type the type to test; must not be null
+   * @return true when {@code type} is a parameterised declared type
+   * @since 0.4.10
+   */
+  public static boolean hasTypeArguments(TypeMirror type) {
+    return type instanceof DeclaredType declared && !declared.getTypeArguments().isEmpty();
+  }
+
+  /**
    * Whether a type is the given type parameter, or names it at any depth.
    *
    * <p>A parameter can hide in more places than a type argument. {@code Outer<T>.Inner} names
-   * {@code T} through its enclosing type, {@code List<? extends T>} through a wildcard bound, and
-   * {@code T[]} through an array component. An enclosing type that is absent, or a static member
-   * type, is a {@code NoType}, which matches nothing and ends the walk.
+   * {@code T} through its enclosing type, {@code List<? extends T>} through a wildcard bound,
+   * {@code T[]} through an array component, and {@code Foo & Bar<T>} through one arm of an
+   * intersection. An enclosing type that is absent, or a static member type, is a {@code NoType},
+   * which matches nothing and ends the walk.
    *
    * @param type the type to search; must not be null
-   * @param parameter the type parameter to look for; must not be null
+   *     <p>A type variable is a leaf: this answers whether the variable is named, not what its own
+   *     bound goes on to name, so a self-referential type terminates.
+   * @param parameter the element of the type parameter to look for; must not be null
    * @return true when {@code type} names {@code parameter}
    * @since 0.4.10
    */
-  public static boolean mentions(TypeMirror type, TypeParameterElement parameter) {
+  public static boolean mentions(TypeMirror type, Element parameter) {
     return switch (type) {
       case TypeVariable variable -> variable.asElement().equals(parameter);
+      // Before DeclaredType: javac's intersection implements that interface, so the other order
+      // sends an intersection down the declared arm, where it reports no arguments and no
+      // enclosing type, and every bound it names is missed.
+      case IntersectionType intersection ->
+          intersection.getBounds().stream().anyMatch(bound -> mentions(bound, parameter));
       case DeclaredType declared ->
           mentions(declared.getEnclosingType(), parameter)
               || declared.getTypeArguments().stream().anyMatch(a -> mentions(a, parameter));

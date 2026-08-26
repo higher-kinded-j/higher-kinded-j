@@ -12,7 +12,6 @@ import javax.lang.model.element.ExecutableElement;
 import javax.lang.model.element.Modifier;
 import javax.lang.model.element.Name;
 import javax.lang.model.element.TypeElement;
-import javax.lang.model.element.TypeParameterElement;
 import javax.lang.model.element.VariableElement;
 import javax.lang.model.type.ArrayType;
 import javax.lang.model.type.DeclaredType;
@@ -248,7 +247,7 @@ public class SpecInterfaceAnalyser {
         // isSameType, not a name comparison: it also answers true for an unresolvable bound, whose
         // own 'cannot find symbol' is the error worth reading.
         && !typeUtils.isSameType(bound, elementUtils.getTypeElement(OBJECT_FQN).asType())
-        && !ProcessorUtils.mentions(bound, (TypeParameterElement) typeVariable.asElement())) {
+        && !ProcessorUtils.mentions(bound, typeVariable.asElement())) {
       return ": 'OpticsSpec<" + ProcessorUtils.simpleTypeName(bound) + ">'";
     }
     return "";
@@ -303,6 +302,26 @@ public class SpecInterfaceAnalyser {
               + method.getParameters().size()
               + " parameter(s)",
           method);
+      return Optional.empty();
+    }
+
+    // A parameter of the method's own can only appear in the focus, and the focus is reached from
+    // a source type the spec has already fixed, so nothing could ever bind it.
+    if (!method.getTypeParameters().isEmpty()) {
+      Diagnostics.error(
+          messager,
+          method,
+          "@ImportOptics",
+          "'"
+              + specInterface.getSimpleName()
+              + "."
+              + method.getSimpleName()
+              + "' declares its own type parameters.",
+          "An optic is generated against the source type the spec names, so the only types in play"
+              + " are that type's and the spec's own; a parameter declared here has nothing that"
+              + " could infer it.",
+          "Move the parameter to the spec interface, where the source type can name it, or drop"
+              + " it.");
       return Optional.empty();
     }
 

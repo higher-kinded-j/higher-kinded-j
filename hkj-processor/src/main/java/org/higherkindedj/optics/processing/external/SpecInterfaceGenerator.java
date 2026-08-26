@@ -95,8 +95,8 @@ public class SpecInterfaceGenerator {
             .addJavadoc(
                 "Generated optics for {@link $T}. Do not edit.\n\n"
                     + "<p>Generated from spec interface {@link $T}.",
-                analysis.sourceTypeElement(),
-                specInterface)
+                ClassName.get(analysis.sourceTypeElement()),
+                ClassName.get(specInterface))
             .addModifiers(Modifier.PUBLIC, Modifier.FINAL)
             .addMethod(MethodSpec.constructorBuilder().addModifiers(Modifier.PRIVATE).build())
             .addOriginatingElement(originatingElement);
@@ -155,6 +155,23 @@ public class SpecInterfaceGenerator {
               .build());
     }
 
+    // An @InstanceOf prism tests a class constant, which carries no type arguments, so a
+    // parameterised target narrows through a raw instanceof and is handed back parameterised.
+    // Erasure leaves nothing to test, so the warning is answered here rather than left for the
+    // consuming build, which may run under -Werror. @MatchWhen narrows through the source type's
+    // own getter and needs none of this.
+    if (opticKind == OpticKind.PRISM
+        && opticMethod.prismHint() == SpecAnalysis.PrismHintKind.INSTANCE_OF
+        && ProcessorUtils.hasTypeArguments(focusType)) {
+      // Both lints: the instanceof names the class raw, and the narrowed value is handed back
+      // parameterised.
+      methodBuilder.addAnnotation(
+          AnnotationSpec.builder(SuppressWarnings.class)
+              .addMember("value", "$S", "unchecked")
+              .addMember("value", "$S", "rawtypes")
+              .build());
+    }
+
     // The method's type parameters are the spec's, not the source type's declaration: the source
     // type may instantiate that declaration under other names, or only in part, and only the
     // variables this signature actually names can be inferred at the call.
@@ -186,7 +203,9 @@ public class SpecInterfaceGenerator {
   private static List<TypeParameterElement> methodTypeParameters(
       TypeElement specInterface, TypeMirror sourceType, TypeMirror focusType) {
 
-    List<? extends TypeParameterElement> declared = specInterface.getTypeParameters();
+    // Copied, not the live view: this needs a List<TypeParameterElement> rather than the
+    // wildcard-typed one getTypeParameters() returns, so the filtered result types cleanly.
+    List<TypeParameterElement> declared = List.copyOf(specInterface.getTypeParameters());
     Set<TypeParameterElement> named = new LinkedHashSet<>();
     Deque<TypeParameterElement> pending = new ArrayDeque<>();
     for (TypeParameterElement candidate : declared) {
@@ -209,7 +228,7 @@ public class SpecInterfaceGenerator {
       }
     }
 
-    return declared.stream().filter(named::contains).map(TypeParameterElement.class::cast).toList();
+    return declared.stream().filter(named::contains).toList();
   }
 
   /**
