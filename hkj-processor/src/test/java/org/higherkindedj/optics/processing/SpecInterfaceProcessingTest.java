@@ -1420,5 +1420,103 @@ class SpecInterfaceProcessingTest {
       assertThat(compilation).failed();
       assertThat(compilation).hadErrorContaining("must have no parameters");
     }
+
+    @Test
+    @DisplayName("should report a type variable source type rather than crashing")
+    void shouldRejectTypeVariableSourceType() {
+      final var externalClass =
+          JavaFileObjects.forSourceString(
+              "com.external.Box",
+              """
+              package com.external;
+
+              public class Box {
+                  private String v;
+                  public String getV() { return v; }
+                  public void setV(String v) { this.v = v; }
+              }
+              """);
+
+      final var specInterface =
+          JavaFileObjects.forSourceString(
+              "com.myapp.BoxOpticsSpec",
+              """
+              package com.myapp;
+
+              import org.higherkindedj.optics.Lens;
+              import org.higherkindedj.optics.annotations.ImportOptics;
+              import org.higherkindedj.optics.annotations.OpticsSpec;
+              import org.higherkindedj.optics.annotations.ViaCopyAndSet;
+              import com.external.Box;
+
+              @ImportOptics
+              public interface BoxOpticsSpec<S extends Box> extends OpticsSpec<S> {
+
+                  @ViaCopyAndSet(setter = "setV")
+                  Lens<S, String> v();
+              }
+              """);
+
+      var compilation =
+          javac().withProcessors(new ImportOpticsProcessor()).compile(externalClass, specInterface);
+
+      assertThat(compilation).failed();
+      assertThat(compilation)
+          .hadErrorContaining("'BoxOpticsSpec' declares OpticsSpec<S>, which is a type variable.");
+      assertThat(compilation)
+          .hadErrorContaining(
+              "Name the type the optics are for as the type argument, here" + " OpticsSpec<Box>.");
+    }
+
+    @Test
+    @DisplayName("should reject an unbounded type variable without suggesting Object")
+    void shouldRejectUnboundedTypeVariableSourceType() {
+      final var specInterface =
+          JavaFileObjects.forSourceString(
+              "com.myapp.UnboundedOpticsSpec",
+              """
+              package com.myapp;
+
+              import org.higherkindedj.optics.annotations.ImportOptics;
+              import org.higherkindedj.optics.annotations.OpticsSpec;
+
+              @ImportOptics
+              public interface UnboundedOpticsSpec<S> extends OpticsSpec<S> {}
+              """);
+
+      var compilation = javac().withProcessors(new ImportOpticsProcessor()).compile(specInterface);
+
+      assertThat(compilation).failed();
+      assertThat(compilation)
+          .hadErrorContaining(
+              "'UnboundedOpticsSpec' declares OpticsSpec<S>, which is a type variable.");
+      assertThat(compilation)
+          .hadErrorContaining("Name the type the optics are for as the type argument.");
+    }
+
+    @Test
+    @DisplayName("should reject an array source type by naming what it is not")
+    void shouldRejectArraySourceType() {
+      final var specInterface =
+          JavaFileObjects.forSourceString(
+              "com.myapp.ArrayOpticsSpec",
+              """
+              package com.myapp;
+
+              import org.higherkindedj.optics.annotations.ImportOptics;
+              import org.higherkindedj.optics.annotations.OpticsSpec;
+
+              @ImportOptics
+              public interface ArrayOpticsSpec extends OpticsSpec<String[]> {}
+              """);
+
+      var compilation = javac().withProcessors(new ImportOpticsProcessor()).compile(specInterface);
+
+      assertThat(compilation).failed();
+      assertThat(compilation)
+          .hadErrorContaining(
+              "'ArrayOpticsSpec' declares OpticsSpec<java.lang.String[]>, which is not a class or"
+                  + " interface.");
+    }
   }
 }

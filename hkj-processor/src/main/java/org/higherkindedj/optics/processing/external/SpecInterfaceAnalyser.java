@@ -15,7 +15,9 @@ import javax.lang.model.element.TypeElement;
 import javax.lang.model.element.VariableElement;
 import javax.lang.model.type.ArrayType;
 import javax.lang.model.type.DeclaredType;
+import javax.lang.model.type.TypeKind;
 import javax.lang.model.type.TypeMirror;
+import javax.lang.model.type.TypeVariable;
 import javax.lang.model.util.ElementFilter;
 import javax.lang.model.util.Elements;
 import javax.lang.model.util.Types;
@@ -49,6 +51,7 @@ import org.higherkindedj.optics.processing.util.ProcessorUtils;
 public class SpecInterfaceAnalyser {
 
   private static final String OPTICS_SPEC_FQN = "org.higherkindedj.optics.annotations.OpticsSpec";
+  private static final String OBJECT_FQN = "java.lang.Object";
   private static final String LENS_FQN = "org.higherkindedj.optics.Lens";
   private static final String PRISM_FQN = "org.higherkindedj.optics.Prism";
   private static final String TRAVERSAL_FQN = "org.higherkindedj.optics.Traversal";
@@ -112,9 +115,11 @@ public class SpecInterfaceAnalyser {
       return Optional.empty();
     }
 
-    TypeElement sourceTypeElement = (TypeElement) typeUtils.asElement(sourceType);
-    if (sourceTypeElement == null) {
-      error("Source type " + sourceType + " is not a valid type element", specInterface);
+    // A type variable and an array each fail here, in different ways: asElement returns a
+    // TypeParameterElement for the first and null for the second. The pattern match covers both,
+    // and keeps a source type that is not a declared type out of the analysis that follows.
+    if (!(typeUtils.asElement(sourceType) instanceof TypeElement sourceTypeElement)) {
+      reportUnusableSourceType(specInterface, sourceType);
       return Optional.empty();
     }
 
@@ -175,6 +180,52 @@ public class SpecInterfaceAnalyser {
         "Make it an abstract method carrying a copy strategy or hint annotation, or move the"
             + " composition to a static method on this interface or to an ordinary utility class"
             + " that calls the generated statics.");
+  }
+
+  /**
+   * Reports a source type that no optic can be generated against, naming the kind it turned out to
+   * be so that a bare {@code S} does not read as a class name.
+   *
+   * @param specInterface the spec interface declaring the source type
+   * @param sourceType the offending type argument to {@code OpticsSpec}
+   */
+  private void reportUnusableSourceType(TypeElement specInterface, TypeMirror sourceType) {
+    // A type variable prints as a bare 'S', which reads like a class name the compiler failed to
+    // resolve; every other rejected kind prints as itself and needs no naming.
+    String kind =
+        sourceType.getKind() == TypeKind.TYPEVAR ? "a type variable" : "not a class or interface";
+    Diagnostics.error(
+        messager,
+        specInterface,
+        "@ImportOptics",
+        "'"
+            + specInterface.getSimpleName()
+            + "' declares OpticsSpec<"
+            + sourceType
+            + ">, which is "
+            + kind
+            + ".",
+        "An optic reads the members of its source type and rebuilds it through a constructor,"
+            + " wither or setter, so that type has to be a class, record or interface named at the"
+            + " declaration.",
+        "Name the type the optics are for as the type argument" + boundHint(sourceType) + ".");
+  }
+
+  /**
+   * Names the type a variable is bounded by, so that {@code <S extends Box>} is answered with the
+   * declaration the author almost certainly meant.
+   *
+   * @param sourceType the offending type argument to {@code OpticsSpec}
+   * @return the hint to append to the fix sentence, or the empty string when there is nothing
+   *     better to suggest than the bound of every type: {@code Object}
+   */
+  private String boundHint(TypeMirror sourceType) {
+    if (sourceType instanceof TypeVariable typeVariable
+        && typeVariable.getUpperBound() instanceof DeclaredType bound
+        && !typeUtils.isSameType(bound, elementUtils.getTypeElement(OBJECT_FQN).asType())) {
+      return ", here OpticsSpec<" + bound.asElement().getSimpleName() + ">";
+    }
+    return "";
   }
 
   /**

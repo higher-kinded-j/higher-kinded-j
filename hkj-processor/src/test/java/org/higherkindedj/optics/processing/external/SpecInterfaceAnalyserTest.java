@@ -874,6 +874,32 @@ class SpecInterfaceAnalyserTest {
     }
 
     @Test
+    @DisplayName("should report, not crash, when the source type is a type variable")
+    void shouldReportErrorForTypeVariableSourceType() {
+      var box =
+          JavaFileObjects.forSourceString(
+              "com.test.Box",
+              """
+              package com.test;
+              public record Box(String value) {}
+              """);
+
+      var spec =
+          JavaFileObjects.forSourceString(
+              "com.test.GenericSourceSpec",
+              """
+              package com.test;
+              import org.higherkindedj.optics.annotations.OpticsSpec;
+              public interface GenericSourceSpec<S extends Box> extends OpticsSpec<S> {}
+              """);
+
+      Optional<SpecAnalysis> result =
+          analyseSpecAllowingErrors("com.test.GenericSourceSpec", box, spec);
+
+      assertThat(result).isEmpty();
+    }
+
+    @Test
     @DisplayName("should skip non-OpticsSpec super-interfaces when extracting the source type")
     void shouldSkipNonOpticsSpecSuperInterfaces() {
       var person =
