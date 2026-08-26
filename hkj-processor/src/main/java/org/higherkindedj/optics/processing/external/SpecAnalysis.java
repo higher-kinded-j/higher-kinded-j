@@ -18,9 +18,13 @@ import javax.lang.model.type.TypeMirror;
  *   <li>The target package for generated code
  * </ul>
  *
+ * <p>The analyser only produces this for a source type that is a class, record or interface, so
+ * {@code sourceType} is always a declared type and {@code sourceTypeElement} is always its element.
+ * A type variable or array is rejected at the declaration instead.
+ *
  * @param specInterface the analysed spec interface element
- * @param sourceType the source type {@code S} from {@code OpticsSpec<S>}
- * @param sourceTypeElement the source type as a TypeElement (for generating code)
+ * @param sourceType the source type {@code S} from {@code OpticsSpec<S>}, always a declared type
+ * @param sourceTypeElement the element of {@code sourceType} (for generating code)
  * @param opticMethods abstract methods that define optics to generate
  */
 public record SpecAnalysis(

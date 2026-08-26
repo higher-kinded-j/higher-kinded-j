@@ -857,7 +857,7 @@ class SpecInterfaceAnalyserTest {
   class CoverageHardening {
 
     @Test
-    @DisplayName("should report error when source type is not a valid type element")
+    @DisplayName("should report an array source type rather than analysing it")
     void shouldReportErrorForArraySourceType() {
       var spec =
           JavaFileObjects.forSourceString(
@@ -869,6 +869,32 @@ class SpecInterfaceAnalyserTest {
               """);
 
       Optional<SpecAnalysis> result = analyseSpecAllowingErrors("com.test.BadSourceSpec", spec);
+
+      assertThat(result).isEmpty();
+    }
+
+    @Test
+    @DisplayName("should report, not crash, when the source type is a type variable")
+    void shouldReportErrorForTypeVariableSourceType() {
+      var box =
+          JavaFileObjects.forSourceString(
+              "com.test.Box",
+              """
+              package com.test;
+              public record Box(String value) {}
+              """);
+
+      var spec =
+          JavaFileObjects.forSourceString(
+              "com.test.GenericSourceSpec",
+              """
+              package com.test;
+              import org.higherkindedj.optics.annotations.OpticsSpec;
+              public interface GenericSourceSpec<S extends Box> extends OpticsSpec<S> {}
+              """);
+
+      Optional<SpecAnalysis> result =
+          analyseSpecAllowingErrors("com.test.GenericSourceSpec", box, spec);
 
       assertThat(result).isEmpty();
     }

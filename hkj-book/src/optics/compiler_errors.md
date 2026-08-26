@@ -55,6 +55,14 @@ This page is for the moment a build fails and you want to know what the message 
 
 **Fix.** Keep the spec interface to annotated abstract methods. Composed optics belong in a `static` method on the interface, or in an ordinary utility class; either one calls the generated statics by name, for example `JsonNodeOptics.object().andThen(...)`.
 
+### "'XOpticsSpec' declares OpticsSpec<S>, which is a type variable"
+
+**Cause.** The spec interface is generic, and its own type parameter is the source type: `interface BoxOpticsSpec<S extends Box> extends OpticsSpec<S>`. Optics are generated against one named type, read for its members and rebuilt through its constructor, wither or setter, so a type parameter standing for whatever a caller picks has nothing to generate from. An array source type produces the same diagnostic with a different opening, `declares OpticsSpec<String[]>, which is an array type`, and the same remedy.
+
+**Fix.** Name the type the optics are for as the type argument: `OpticsSpec<Box>`. Where the bound names a single type, the message suggests it for you.
+
+A source type that is itself generic is supported. Declare the spec's type parameters under the same names, and with the same arity, that the source type uses: `Box<T>` is matched by `interface BoxOpticsSpec<T> extends OpticsSpec<Box<T>>`, which generates `static <T> Lens<Box<T>, String> label()`. The generated signature takes its type parameters from the source type's own declaration, so a spec that renames or drops them is not currently diagnosed — it generates a signature naming a parameter that is not in scope. It is only a bare type variable that has no source to read at all.
+
 ### "@InstanceOf: target subtype not assignable to source type"
 
 **Cause.** The class passed to `@InstanceOf(SubType.class)` is not a subclass of the optic's source type.
