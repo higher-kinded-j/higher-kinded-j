@@ -15,6 +15,7 @@ import javax.lang.model.element.TypeElement;
 import javax.lang.model.element.VariableElement;
 import javax.lang.model.type.ArrayType;
 import javax.lang.model.type.DeclaredType;
+import javax.lang.model.type.ExecutableType;
 import javax.lang.model.type.TypeKind;
 import javax.lang.model.type.TypeMirror;
 import javax.lang.model.type.TypeVariable;
@@ -612,7 +613,7 @@ public class SpecInterfaceAnalyser {
       return Optional.empty();
     }
 
-    if (!hasConstructorAccepting(sourceTypeElement, supertype.get(), targetPackage)) {
+    if (!hasConstructorAccepting(sourceTypeElement, sourceType, supertype.get(), targetPackage)) {
       Diagnostics.error(
           messager,
           method,
@@ -627,7 +628,7 @@ public class SpecInterfaceAnalyser {
               + "(("
               + parameterElement.getSimpleName()
               + ") source)'. Found "
-              + describeSingleArgumentConstructors(sourceTypeElement, targetPackage)
+              + describeSingleArgumentConstructors(sourceTypeElement, sourceType, targetPackage)
               + ".",
           "Name a type one of those constructors takes, or drop the attribute to pass '"
               + sourceType
@@ -729,7 +730,10 @@ public class SpecInterfaceAnalyser {
    * @return true if some constructor it can reach accepts it
    */
   private boolean hasConstructorAccepting(
-      TypeElement sourceTypeElement, TypeMirror argument, String targetPackage) {
+      TypeElement sourceTypeElement,
+      TypeMirror sourceType,
+      TypeMirror argument,
+      String targetPackage) {
     for (ExecutableElement constructor :
         ElementFilter.constructorsIn(sourceTypeElement.getEnclosedElements())) {
       List<? extends VariableElement> parameters = constructor.getParameters();
@@ -737,7 +741,7 @@ public class SpecInterfaceAnalyser {
       if (parameters.size() != 1 || !isAccessibleFrom(constructor, targetPackage)) {
         continue;
       }
-      TypeMirror parameterType = parameters.getFirst().asType();
+      TypeMirror parameterType = parameterTypeAsSeenBy(sourceType, constructor);
       if (typeUtils.isAssignable(argument, parameterType)) {
         return true;
       }
@@ -751,6 +755,27 @@ public class SpecInterfaceAnalyser {
   }
 
   /**
+   * The constructor's single parameter as the instantiated source type sees it.
+   *
+   * <p>Read off the constructor directly, the parameter speaks the source type's own declaration:
+   * {@code Holder<X>} declaring {@code Holder(Base<X> other)} gives {@code Base<X>}. The argument
+   * it is compared against comes from a supertype walk over the instantiated type, so it speaks the
+   * spec's variables, {@code Base<U>}. The two can never match until one is rewritten in the
+   * other's terms.
+   *
+   * @param sourceType the instantiated source type S
+   * @param constructor the constructor whose parameter to read
+   * @return the parameter type under {@code sourceType}'s instantiation
+   */
+  private TypeMirror parameterTypeAsSeenBy(TypeMirror sourceType, ExecutableElement constructor) {
+    // analyse() rejects a source type that is not a declared type before any optic method is read,
+    // which is the invariant SpecAnalysis records.
+    ExecutableType asMember =
+        (ExecutableType) typeUtils.asMemberOf((DeclaredType) sourceType, constructor);
+    return asMember.getParameterTypes().getFirst();
+  }
+
+  /**
    * Names the single-argument constructors the generated class can call, for the rejection message.
    *
    * <p>Only the reachable ones: naming a constructor the generated class cannot call would send the
@@ -761,12 +786,14 @@ public class SpecInterfaceAnalyser {
    * @return the parameter types it takes one at a time, or a phrase saying it takes none
    */
   private String describeSingleArgumentConstructors(
-      TypeElement sourceTypeElement, String targetPackage) {
+      TypeElement sourceTypeElement, TypeMirror sourceType, String targetPackage) {
+    // The same instantiation the check uses, so the list names the types the author would have to
+    // write rather than the ones the source type declared them under.
     List<String> parameterTypes =
         ElementFilter.constructorsIn(sourceTypeElement.getEnclosedElements()).stream()
             .filter(constructor -> constructor.getParameters().size() == 1)
             .filter(constructor -> isAccessibleFrom(constructor, targetPackage))
-            .map(constructor -> constructor.getParameters().getFirst().asType().toString())
+            .map(constructor -> parameterTypeAsSeenBy(sourceType, constructor).toString())
             .toList();
     return parameterTypes.isEmpty()
         ? "no single-argument constructor it can call"

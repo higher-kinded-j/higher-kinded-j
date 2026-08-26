@@ -586,6 +586,134 @@ class SpecInterfaceProcessingTest {
     }
 
     @Test
+    @DisplayName("should match a copy constructor through the spec's own type parameter")
+    void shouldMatchCopyConstructorOnGenericSpec() {
+      final var base =
+          JavaFileObjects.forSourceString(
+              "com.external.Base",
+              """
+              package com.external;
+
+              public class Base<X> {
+                  protected String name;
+              }
+              """);
+
+      final var node =
+          JavaFileObjects.forSourceString(
+              "com.external.Node",
+              """
+              package com.external;
+
+              public class Node<X> extends Base<X> {
+                  public Node(Base<X> other) { this.name = other.name; }
+                  public String name() { return name; }
+                  public void setName(String name) { this.name = name; }
+              }
+              """);
+
+      final var specInterface =
+          JavaFileObjects.forSourceString(
+              "com.myapp.NodeOpticsSpec",
+              """
+              package com.myapp;
+
+              import com.external.Node;
+              import org.higherkindedj.optics.Lens;
+              import org.higherkindedj.optics.annotations.ImportOptics;
+              import org.higherkindedj.optics.annotations.OpticsSpec;
+              import org.higherkindedj.optics.annotations.ViaCopyAndSet;
+
+              // The spec reuses the source type's own parameter name, so that what is asserted
+              // here is the constructor match alone.
+              @ImportOptics
+              public interface NodeOpticsSpec<X> extends OpticsSpec<Node<X>> {
+
+                  @ViaCopyAndSet(copyConstructor = "com.external.Base", setter = "setName")
+                  Lens<Node<X>, String> name();
+              }
+              """);
+
+      Compilation compilation =
+          javac().withProcessors(new ImportOpticsProcessor()).compile(base, node, specInterface);
+
+      // Node declares Node(Base<X> other) against its own X; the supertype walk hands over the
+      // spec's X. Same name, different variable, so reading the parameter as declared never
+      // matched.
+      assertCompilationSucceeded(compilation);
+      assertGeneratedCodeContains(
+          compilation, "com.myapp.NodeOptics", "new Node<X>((Base<X>) source)");
+    }
+
+    @Test
+    @DisplayName("should name the instantiated parameter types when no constructor matches")
+    void shouldNameInstantiatedParameterTypesWhenNoConstructorMatches() {
+      final var base =
+          JavaFileObjects.forSourceString(
+              "com.external.Base",
+              """
+              package com.external;
+
+              public class Base<X> {
+                  protected String name;
+              }
+              """);
+
+      final var other =
+          JavaFileObjects.forSourceString(
+              "com.external.Other",
+              """
+              package com.external;
+
+              public class Other<X> extends Base<X> {}
+              """);
+
+      final var node =
+          JavaFileObjects.forSourceString(
+              "com.external.Node",
+              """
+              package com.external;
+
+              public class Node<X> extends Base<X> {
+                  public Node(Other<X> other) {}
+                  public String name() { return name; }
+                  public void setName(String name) { this.name = name; }
+              }
+              """);
+
+      final var specInterface =
+          JavaFileObjects.forSourceString(
+              "com.myapp.NodeOpticsSpec",
+              """
+              package com.myapp;
+
+              import com.external.Node;
+              import org.higherkindedj.optics.Lens;
+              import org.higherkindedj.optics.annotations.ImportOptics;
+              import org.higherkindedj.optics.annotations.OpticsSpec;
+              import org.higherkindedj.optics.annotations.ViaCopyAndSet;
+
+              @ImportOptics
+              public interface NodeOpticsSpec<U> extends OpticsSpec<Node<U>> {
+
+                  @ViaCopyAndSet(copyConstructor = "com.external.Base", setter = "setName")
+                  Lens<Node<U>, String> name();
+              }
+              """);
+
+      Compilation compilation =
+          javac()
+              .withProcessors(new ImportOpticsProcessor())
+              .compile(base, other, node, specInterface);
+
+      assertThat(compilation).failed();
+      // Under Node<U> the parameter is Other<U>; naming it Other<X> would send the author looking
+      // for a variable their own declaration does not have.
+      assertThat(compilation).hadErrorContaining("single-argument constructors taking");
+      assertThat(compilation).hadErrorContaining("com.external.Other<U>");
+    }
+
+    @Test
     @DisplayName("should not cast when the copy constructor names the source type itself")
     void shouldOmitCastWhenCopyConstructorNamesSourceType() {
       Compilation compilation =
