@@ -12,6 +12,9 @@
 
 import java.math.BigDecimal;
 import java.util.List;
+import org.higherkindedj.example.book.optics.Audited;
+import org.higherkindedj.example.book.optics.BaseEndpoint;
+import org.higherkindedj.example.book.optics.Endpoint;
 import org.higherkindedj.optics.Lens;
 import org.higherkindedj.optics.Traversal;
 import org.higherkindedj.optics.annotations.ImportOptics;

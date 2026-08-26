@@ -21,6 +21,7 @@ import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.DynamicTest;
 import org.junit.jupiter.api.Nested;
+import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestFactory;
 
 /**
@@ -347,6 +348,114 @@ class SpecGeneratedOpticLawsTest {
           }
           """);
 
+  // ==================== @ViaCopyAndSet SOURCES ====================
+
+  // All the state lives on the base, so both copy constructors are full copies and it does not
+  // matter which one the cast reaches.
+  private static final JavaFileObject EXTERNAL_FULL_BASE =
+      JavaFileObjects.forSourceString(
+          "com.external.FullBase",
+          """
+          package com.external;
+
+          public class FullBase {
+              protected String owner;
+              protected int balance;
+          }
+          """);
+
+  private static final JavaFileObject EXTERNAL_FULL =
+      JavaFileObjects.forSourceString(
+          "com.external.Full",
+          """
+          package com.external;
+
+          import java.util.Objects;
+
+          public class Full extends FullBase {
+              public Full(String owner, int balance) { this.owner = owner; this.balance = balance; }
+              public Full(FullBase other) { this(other.owner, other.balance); }
+              public Full(Full other) { this(other.owner, other.balance); }
+              public String owner() { return owner; }
+              public void setOwner(String owner) { this.owner = owner; }
+              public int balance() { return balance; }
+              @Override public boolean equals(Object o) {
+                  return o instanceof Full f && balance == f.balance && Objects.equals(owner, f.owner);
+              }
+              @Override public int hashCode() { return Objects.hash(owner, balance); }
+          }
+          """);
+
+  // 'balance' is declared on the subclass, so Narrow(NarrowBase) cannot copy it. Naming the base
+  // as the copy constructor parameter type is therefore a lossy copy - the documented hazard.
+  private static final JavaFileObject EXTERNAL_NARROW_BASE =
+      JavaFileObjects.forSourceString(
+          "com.external.NarrowBase",
+          """
+          package com.external;
+
+          public class NarrowBase {
+              protected String owner;
+          }
+          """);
+
+  private static final JavaFileObject EXTERNAL_NARROW =
+      JavaFileObjects.forSourceString(
+          "com.external.Narrow",
+          """
+          package com.external;
+
+          public class Narrow extends NarrowBase {
+              private int balance;
+              public Narrow(String owner, int balance) { this.owner = owner; this.balance = balance; }
+              public Narrow(NarrowBase other) { this.owner = other.owner; }
+              public Narrow(Narrow other) { this.owner = other.owner; this.balance = other.balance; }
+              public String owner() { return owner; }
+              public void setOwner(String owner) { this.owner = owner; }
+              public int balance() { return balance; }
+          }
+          """);
+
+  private static final JavaFileObject FULL_SPEC =
+      JavaFileObjects.forSourceString(
+          "com.test.FullSpec",
+          """
+          package com.test;
+
+          import org.higherkindedj.optics.Lens;
+          import org.higherkindedj.optics.annotations.ImportOptics;
+          import org.higherkindedj.optics.annotations.OpticsSpec;
+          import org.higherkindedj.optics.annotations.ViaCopyAndSet;
+          import com.external.Full;
+
+          @ImportOptics
+          public interface FullSpec extends OpticsSpec<Full> {
+
+              @ViaCopyAndSet(copyConstructor = "com.external.FullBase", setter = "setOwner")
+              Lens<Full, String> owner();
+          }
+          """);
+
+  private static final JavaFileObject NARROW_SPEC =
+      JavaFileObjects.forSourceString(
+          "com.test.NarrowSpec",
+          """
+          package com.test;
+
+          import org.higherkindedj.optics.Lens;
+          import org.higherkindedj.optics.annotations.ImportOptics;
+          import org.higherkindedj.optics.annotations.OpticsSpec;
+          import org.higherkindedj.optics.annotations.ViaCopyAndSet;
+          import com.external.Narrow;
+
+          @ImportOptics
+          public interface NarrowSpec extends OpticsSpec<Narrow> {
+
+              @ViaCopyAndSet(copyConstructor = "com.external.NarrowBase", setter = "setOwner")
+              Lens<Narrow, String> owner();
+          }
+          """);
+
   // ==================== COMPILED RESULTS ====================
 
   private static SpecCompiledResult compiled;
@@ -365,10 +474,16 @@ class SpecGeneratedOpticLawsTest {
                 EXTERNAL_RESULT,
                 EXTERNAL_SUCCESS,
                 EXTERNAL_FAILURE,
+                EXTERNAL_FULL_BASE,
+                EXTERNAL_FULL,
+                EXTERNAL_NARROW_BASE,
+                EXTERNAL_NARROW,
                 PERSON_SPEC,
                 POINT_SPEC,
                 SHAPE_SPEC,
-                RESULT_SPEC);
+                RESULT_SPEC,
+                FULL_SPEC,
+                NARROW_SPEC);
 
     assertThat(compilation.status())
         .as("Compilation should succeed")
@@ -405,6 +520,38 @@ class SpecGeneratedOpticLawsTest {
       return Stream.of(
           lensPutPutTest("Person.name", "com.test.Person", "name", "Name1", "Name2", "Alice", 30),
           lensPutPutTest("Person.age", "com.test.Person", "age", 35, 40, "Alice", 30));
+    }
+  }
+
+  // ==================== @ViaCopyAndSet LENS LAWS ====================
+
+  @Nested
+  @DisplayName("@ViaCopyAndSet Generated Lens Laws")
+  class ViaCopyAndSetLensLaws {
+
+    @TestFactory
+    @DisplayName("@ViaCopyAndSet lenses satisfy the lens laws when the copy constructor is total")
+    Stream<DynamicTest> viaCopyAndSetLensesSatisfyLaws() {
+      return Stream.of(
+          lensGetPutTest("Full.owner", "com.test.Full", "owner", "Ada", 100),
+          lensPutGetTest("Full.owner", "com.test.Full", "owner", "Grace", "Ada", 100),
+          lensPutPutTest("Full.owner", "com.test.Full", "owner", "Grace", "Alan", "Ada", 100));
+    }
+
+    @Test
+    @DisplayName("a copyConstructor naming a base the state does not live on drops that state")
+    void narrowingCopyConstructorDropsSubclassState() throws Exception {
+      Object lens = compiled.invokeStatic("com.test.Narrow", "owner");
+      Object source = compiled.newInstance("com.external.Narrow", "Ada", 100);
+
+      Object updated = compiled.invokeLensSet(lens, "Grace", source);
+
+      // The cast reaches Narrow(NarrowBase), which cannot see 'balance'. The lens laws do NOT
+      // hold, and the documentation says so. Pinned here so the loss is deliberate rather than a
+      // surprise: the field the named constructor cannot reach comes back at its default.
+      assertThat(compiled.invokeLensGet(lens, updated)).isEqualTo("Grace");
+      assertThat(source.getClass().getMethod("balance").invoke(source)).isEqualTo(100);
+      assertThat(updated.getClass().getMethod("balance").invoke(updated)).isEqualTo(0);
     }
   }
 
@@ -797,6 +944,8 @@ class SpecGeneratedOpticLawsTest {
       case "com.test.Point" -> "com.external.Point";
       case "com.test.Shape" -> "com.external.Shape";
       case "com.test.Result" -> "com.external.Result";
+      case "com.test.Full" -> "com.external.Full";
+      case "com.test.Narrow" -> "com.external.Narrow";
       default -> throw new IllegalArgumentException("Unknown spec class: " + specClass);
     };
   }

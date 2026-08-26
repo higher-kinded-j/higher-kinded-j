@@ -18,8 +18,9 @@ import org.junit.jupiter.api.Test;
  * Tests targeting coverage gaps in SpecInterfaceAnalyser, SpecInterfaceGenerator, and related
  * classes.
  *
- * <p>Covers @ViaConstructor, @ViaCopyAndSet strategies, Affine/Iso/Getter/Fold optic kinds, type
- * parameters on source types, and various error paths.
+ * <p>Covers the @ViaConstructor strategy, Affine/Iso/Getter/Fold optic kinds, type parameters on
+ * source types, and various error paths. The copy strategies are exercised for behaviour in {@link
+ * SpecInterfaceProcessingTest}.
  */
 @DisplayName("Spec Interface Coverage Tests")
 class SpecInterfaceCoverageTest {
@@ -77,62 +78,6 @@ class SpecInterfaceCoverageTest {
       assertThat(compilation).succeeded();
       assertGeneratedCodeContains(
           compilation, "com.myapp.CoordOptics", "public static Lens<Coord, Integer> x()");
-    }
-  }
-
-  @Nested
-  @DisplayName("ViaCopyAndSet copy strategy")
-  class ViaCopyAndSetStrategy {
-
-    @Test
-    @DisplayName("should generate lens with @ViaCopyAndSet strategy")
-    void shouldGenerateLensWithViaCopyAndSet() {
-      final var externalClass =
-          JavaFileObjects.forSourceString(
-              "com.external.MutablePoint",
-              """
-              package com.external;
-
-              public class MutablePoint {
-                  private int x;
-                  private int y;
-                  public MutablePoint() {}
-                  public MutablePoint(MutablePoint other) { this.x = other.x; this.y = other.y; }
-                  public int x() { return x; }
-                  public void setX(int x) { this.x = x; }
-                  public int y() { return y; }
-                  public void setY(int y) { this.y = y; }
-              }
-              """);
-
-      final var specInterface =
-          JavaFileObjects.forSourceString(
-              "com.myapp.MutablePointOpticsSpec",
-              """
-              package com.myapp;
-
-              import org.higherkindedj.optics.Lens;
-              import org.higherkindedj.optics.annotations.ImportOptics;
-              import org.higherkindedj.optics.annotations.OpticsSpec;
-              import org.higherkindedj.optics.annotations.ViaCopyAndSet;
-              import com.external.MutablePoint;
-
-              @ImportOptics
-              public interface MutablePointOpticsSpec extends OpticsSpec<MutablePoint> {
-
-                  @ViaCopyAndSet(setter = "setX")
-                  Lens<MutablePoint, Integer> x();
-              }
-              """);
-
-      Compilation compilation =
-          javac().withProcessors(new ImportOpticsProcessor()).compile(externalClass, specInterface);
-
-      assertThat(compilation).succeeded();
-      assertGeneratedCodeContains(
-          compilation,
-          "com.myapp.MutablePointOptics",
-          "public static Lens<MutablePoint, Integer> x()");
     }
   }
 
@@ -681,7 +626,7 @@ class SpecInterfaceCoverageTest {
               .compile(externalRecord, specInterface);
 
       assertThat(compilation).failed();
-      assertThat(compilation).hadErrorContaining("requires a copy strategy annotation");
+      assertThat(compilation).hadErrorContaining("carries no copy strategy annotation");
     }
 
     @Test

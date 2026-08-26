@@ -4838,7 +4838,7 @@ class MutationKillingTest {
       assertThat(info.setter()).isEmpty();
       assertThat(info.build()).isEmpty();
       assertThat(info.witherMethod()).isEmpty();
-      assertThat(info.copyConstructor()).isEmpty();
+      assertThat(info.copyConstructorParameterType()).isNull();
       assertThat(info.parameterOrder()).isEmpty();
     }
 

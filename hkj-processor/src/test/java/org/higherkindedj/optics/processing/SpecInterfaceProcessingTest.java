@@ -5,10 +5,12 @@ package org.higherkindedj.optics.processing;
 import static com.google.testing.compile.CompilationSubject.assertThat;
 import static com.google.testing.compile.Compiler.javac;
 import static org.higherkindedj.optics.processing.GeneratorTestHelper.assertGeneratedCodeContains;
+import static org.higherkindedj.optics.processing.GeneratorTestHelper.assertGeneratedCodeDoesNotContain;
 import static org.junit.jupiter.api.Assertions.fail;
 
 import com.google.testing.compile.Compilation;
 import com.google.testing.compile.JavaFileObjects;
+import javax.tools.JavaFileObject;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -399,6 +401,573 @@ class SpecInterfaceProcessingTest {
   }
 
   @Nested
+  @DisplayName("@ViaCopyAndSet Copy Strategy")
+  class ViaCopyAndSetStrategy {
+
+    private static final JavaFileObject OVERLOADED_BASE =
+        JavaFileObjects.forSourceString(
+            "com.external.Base",
+            """
+            package com.external;
+
+            public class Base {
+                protected String name;
+            }
+            """);
+
+    // Two constructors: new Node(source) alone would pick Node(Node), so the cast is what
+    // reaches Node(Base). Serializable gives the supertype walk a second route to Object, so a
+    // search that finds nothing meets the same supertype twice. 'tag' is declared on Node, so
+    // Node(Base) cannot see it - which is how a test tells the two copies apart.
+    private static final JavaFileObject OVERLOADED_NODE =
+        JavaFileObjects.forSourceString(
+            "com.external.Node",
+            """
+            package com.external;
+
+            import java.io.Serializable;
+
+            public class Node extends Base implements Serializable {
+                private String tag = "";
+                public Node(Base other) { this.name = other.name; }
+                public Node(Node other) { this.name = other.name; this.tag = other.tag; }
+                public String name() { return name; }
+                public void setName(String name) { this.name = name; }
+                public String tag() { return tag; }
+                public void setTag(String tag) { this.tag = tag; }
+            }
+            """);
+
+    private static JavaFileObject overloadedSpec(String copyConstructor) {
+      return JavaFileObjects.forSourceString(
+          "com.myapp.NodeOpticsSpec",
+          """
+          package com.myapp;
+
+          import org.higherkindedj.optics.Lens;
+          import org.higherkindedj.optics.annotations.ImportOptics;
+          import org.higherkindedj.optics.annotations.OpticsSpec;
+          import org.higherkindedj.optics.annotations.ViaCopyAndSet;
+          import com.external.Node;
+
+          @ImportOptics
+          public interface NodeOpticsSpec extends OpticsSpec<Node> {
+
+              @ViaCopyAndSet(copyConstructor = "%s", setter = "setName")
+              Lens<Node, String> name();
+          }
+          """
+              .formatted(copyConstructor));
+    }
+
+    @Test
+    @DisplayName("should generate lens with @ViaCopyAndSet strategy")
+    void shouldGenerateLensWithViaCopyAndSet() {
+      final var externalClass =
+          JavaFileObjects.forSourceString(
+              "com.external.MutablePoint",
+              """
+              package com.external;
+
+              public class MutablePoint {
+                  private int x;
+                  private int y;
+                  public MutablePoint() {}
+                  public MutablePoint(MutablePoint other) { this.x = other.x; this.y = other.y; }
+                  public int x() { return x; }
+                  public void setX(int x) { this.x = x; }
+                  public int y() { return y; }
+                  public void setY(int y) { this.y = y; }
+              }
+              """);
+
+      final var specInterface =
+          JavaFileObjects.forSourceString(
+              "com.myapp.MutablePointOpticsSpec",
+              """
+              package com.myapp;
+
+              import org.higherkindedj.optics.Lens;
+              import org.higherkindedj.optics.annotations.ImportOptics;
+              import org.higherkindedj.optics.annotations.OpticsSpec;
+              import org.higherkindedj.optics.annotations.ViaCopyAndSet;
+              import com.external.MutablePoint;
+
+              @ImportOptics
+              public interface MutablePointOpticsSpec extends OpticsSpec<MutablePoint> {
+
+                  @ViaCopyAndSet(setter = "setX")
+                  Lens<MutablePoint, Integer> x();
+              }
+              """);
+
+      Compilation compilation =
+          javac().withProcessors(new ImportOpticsProcessor()).compile(externalClass, specInterface);
+
+      assertThat(compilation).succeeded();
+      assertGeneratedCodeContains(
+          compilation,
+          "com.myapp.MutablePointOptics",
+          "public static Lens<MutablePoint, Integer> x()");
+      assertGeneratedCodeContains(
+          compilation, "com.myapp.MutablePointOptics", "new MutablePoint(source)");
+    }
+
+    @Test
+    @DisplayName("should cast the source to the named copy constructor parameter type")
+    void shouldCastToNamedCopyConstructorParameterType() {
+      Compilation compilation =
+          javac()
+              .withProcessors(new ImportOpticsProcessor())
+              .compile(OVERLOADED_BASE, OVERLOADED_NODE, overloadedSpec("com.external.Base"));
+
+      assertThat(compilation).succeeded();
+      assertGeneratedCodeContains(compilation, "com.myapp.NodeOptics", "new Node((Base) source)");
+    }
+
+    @Test
+    @DisplayName("should name the copy constructor parameter type with its type arguments")
+    void shouldNameGenericCopyConstructorParameterType() {
+      final var genericBase =
+          JavaFileObjects.forSourceString(
+              "com.external.Holder",
+              """
+              package com.external;
+
+              public class Holder<T> {
+                  protected String label;
+              }
+              """);
+
+      final var externalClass =
+          JavaFileObjects.forSourceString(
+              "com.external.Labelled",
+              """
+              package com.external;
+
+              public class Labelled extends Holder<String> {
+                  public Labelled(Holder<String> other) { this.label = other.label; }
+                  public String label() { return label; }
+                  public void setLabel(String label) { this.label = label; }
+              }
+              """);
+
+      final var specInterface =
+          JavaFileObjects.forSourceString(
+              "com.myapp.LabelledOpticsSpec",
+              """
+              package com.myapp;
+
+              import org.higherkindedj.optics.Lens;
+              import org.higherkindedj.optics.annotations.ImportOptics;
+              import org.higherkindedj.optics.annotations.OpticsSpec;
+              import org.higherkindedj.optics.annotations.ViaCopyAndSet;
+              import com.external.Labelled;
+
+              @ImportOptics
+              public interface LabelledOpticsSpec extends OpticsSpec<Labelled> {
+
+                  @ViaCopyAndSet(copyConstructor = "com.external.Holder", setter = "setLabel")
+                  Lens<Labelled, String> label();
+              }
+              """);
+
+      Compilation compilation =
+          javac()
+              .withProcessors(new ImportOpticsProcessor())
+              .compile(genericBase, externalClass, specInterface);
+
+      // The instantiated supertype, not the raw one: a raw cast would be an unchecked conversion
+      // at the constructor call.
+      assertThat(compilation).succeeded();
+      assertGeneratedCodeContains(
+          compilation, "com.myapp.LabelledOptics", "new Labelled((Holder<String>) source)");
+    }
+
+    @Test
+    @DisplayName("should not cast when the copy constructor names the source type itself")
+    void shouldOmitCastWhenCopyConstructorNamesSourceType() {
+      Compilation compilation =
+          javac()
+              .withProcessors(new ImportOpticsProcessor())
+              .compile(OVERLOADED_BASE, OVERLOADED_NODE, overloadedSpec("com.external.Node"));
+
+      assertThat(compilation).succeeded();
+      assertGeneratedCodeContains(compilation, "com.myapp.NodeOptics", "new Node(source)");
+      assertGeneratedCodeDoesNotContain(compilation, "com.myapp.NodeOptics", "(Node) source");
+    }
+
+    @Test
+    @DisplayName("should reject a copyConstructor name that does not resolve")
+    void shouldRejectUnresolvableCopyConstructor() {
+      Compilation compilation =
+          javac()
+              .withProcessors(new ImportOpticsProcessor())
+              .compile(OVERLOADED_BASE, OVERLOADED_NODE, overloadedSpec("Base"));
+
+      assertThat(compilation).failed();
+      assertThat(compilation).hadErrorContaining("does not resolve to a type");
+      assertThat(compilation).hadErrorContaining("not resolved against the spec interface's");
+      // One problem, one error: a rejected value must not also draw the missing-strategy error.
+      assertThat(compilation).hadErrorCount(1);
+    }
+
+    @Test
+    @DisplayName("should reject a copyConstructor naming a type the source does not extend")
+    void shouldRejectUnrelatedCopyConstructor() {
+      Compilation compilation =
+          javac()
+              .withProcessors(new ImportOpticsProcessor())
+              .compile(OVERLOADED_BASE, OVERLOADED_NODE, overloadedSpec("java.lang.Thread"));
+
+      assertThat(compilation).failed();
+      assertThat(compilation).hadErrorContaining("does not extend or implement");
+    }
+
+    @Test
+    @DisplayName("should reject a copyConstructor no constructor of the source accepts")
+    void shouldRejectCopyConstructorWithNoMatchingConstructor() {
+      // Node implements Serializable, so this passes the supertype check - but no Node
+      // constructor takes one, so the cast would fail inside the generated file.
+      Compilation compilation =
+          javac()
+              .withProcessors(new ImportOpticsProcessor())
+              .compile(OVERLOADED_BASE, OVERLOADED_NODE, overloadedSpec("java.io.Serializable"));
+
+      assertThat(compilation).failed();
+      assertThat(compilation).hadErrorContaining("which no constructor of");
+      assertThat(compilation).hadErrorContaining("single-argument constructors taking");
+      assertThat(compilation).hadErrorCount(1);
+    }
+
+    @Test
+    @DisplayName("should accept a varargs copy constructor")
+    void shouldAcceptVarargsCopyConstructor() {
+      final var base =
+          JavaFileObjects.forSourceString(
+              "com.external.VarBase",
+              """
+              package com.external;
+
+              public class VarBase { protected String name; }
+              """);
+      final var externalClass =
+          JavaFileObjects.forSourceString(
+              "com.external.VarNode",
+              """
+              package com.external;
+
+              public class VarNode extends VarBase {
+                  // The first varargs constructor does not take a VarBase; the second does.
+                  public VarNode(String... labels) { this.name = ""; }
+                  public VarNode(VarBase... others) {
+                      this.name = others.length == 0 ? "" : others[0].name;
+                  }
+                  public String name() { return name; }
+                  public void setName(String name) { this.name = name; }
+              }
+              """);
+      final var specInterface =
+          JavaFileObjects.forSourceString(
+              "com.myapp.VarNodeOpticsSpec",
+              """
+              package com.myapp;
+
+              import org.higherkindedj.optics.Lens;
+              import org.higherkindedj.optics.annotations.ImportOptics;
+              import org.higherkindedj.optics.annotations.OpticsSpec;
+              import org.higherkindedj.optics.annotations.ViaCopyAndSet;
+              import com.external.VarNode;
+
+              @ImportOptics
+              public interface VarNodeOpticsSpec extends OpticsSpec<VarNode> {
+
+                  @ViaCopyAndSet(copyConstructor = "com.external.VarBase", setter = "setName")
+                  Lens<VarNode, String> name();
+              }
+              """);
+
+      Compilation compilation =
+          javac()
+              .withProcessors(new ImportOpticsProcessor())
+              .compile(base, externalClass, specInterface);
+
+      // new VarNode((VarBase) source) is a varargs invocation with one argument.
+      assertThat(compilation).succeeded();
+      assertGeneratedCodeContains(
+          compilation, "com.myapp.VarNodeOptics", "new VarNode((VarBase) source)");
+    }
+
+    @Test
+    @DisplayName("should say so when the source has no single-argument constructor at all")
+    void shouldReportWhenNoSingleArgumentConstructorExists() {
+      final var base =
+          JavaFileObjects.forSourceString(
+              "com.external.PairBase",
+              """
+              package com.external;
+
+              public class PairBase { protected String name; }
+              """);
+      final var externalClass =
+          JavaFileObjects.forSourceString(
+              "com.external.Pair",
+              """
+              package com.external;
+
+              public class Pair extends PairBase {
+                  private int count;
+                  public Pair() {}
+                  public Pair(String name, int count) { this.name = name; this.count = count; }
+                  public String name() { return name; }
+                  public void setName(String name) { this.name = name; }
+              }
+              """);
+      final var specInterface =
+          JavaFileObjects.forSourceString(
+              "com.myapp.PairOpticsSpec",
+              """
+              package com.myapp;
+
+              import org.higherkindedj.optics.Lens;
+              import org.higherkindedj.optics.annotations.ImportOptics;
+              import org.higherkindedj.optics.annotations.OpticsSpec;
+              import org.higherkindedj.optics.annotations.ViaCopyAndSet;
+              import com.external.Pair;
+
+              @ImportOptics
+              public interface PairOpticsSpec extends OpticsSpec<Pair> {
+
+                  @ViaCopyAndSet(copyConstructor = "com.external.PairBase", setter = "setName")
+                  Lens<Pair, String> name();
+              }
+              """);
+
+      Compilation compilation =
+          javac()
+              .withProcessors(new ImportOpticsProcessor())
+              .compile(base, externalClass, specInterface);
+
+      assertThat(compilation).failed();
+      assertThat(compilation).hadErrorContaining("no single-argument constructor it can call");
+      assertThat(compilation).hadErrorCount(1);
+    }
+
+    @Test
+    @DisplayName("should not count a constructor the generated class cannot call")
+    void shouldRejectWhenTheOnlyMatchingConstructorIsInaccessible() {
+      final var base =
+          JavaFileObjects.forSourceString(
+              "com.external.ShutBase",
+              """
+              package com.external;
+
+              public class ShutBase { protected String name; }
+              """);
+      final var externalClass =
+          JavaFileObjects.forSourceString(
+              "com.external.Shut",
+              """
+              package com.external;
+
+              public class Shut extends ShutBase {
+                  private Shut(ShutBase other) { this.name = other.name; }
+                  Shut(Object other) { this.name = String.valueOf(other); }
+                  public Shut(Shut other) { this.name = other.name; }
+                  public String name() { return name; }
+                  public void setName(String name) { this.name = name; }
+              }
+              """);
+      final var specInterface =
+          JavaFileObjects.forSourceString(
+              "com.myapp.ShutOpticsSpec",
+              """
+              package com.myapp;
+
+              import org.higherkindedj.optics.Lens;
+              import org.higherkindedj.optics.annotations.ImportOptics;
+              import org.higherkindedj.optics.annotations.OpticsSpec;
+              import org.higherkindedj.optics.annotations.ViaCopyAndSet;
+              import com.external.Shut;
+
+              @ImportOptics
+              public interface ShutOpticsSpec extends OpticsSpec<Shut> {
+
+                  @ViaCopyAndSet(copyConstructor = "com.external.ShutBase", setter = "setName")
+                  Lens<Shut, String> name();
+              }
+              """);
+
+      Compilation compilation =
+          javac()
+              .withProcessors(new ImportOpticsProcessor())
+              .compile(base, externalClass, specInterface);
+
+      // Shut(ShutBase) fits but is private; Shut(Object) is package-private and com.myapp is not
+      // that package. Only the public Shut(Shut) is reachable, and it does not take a ShutBase.
+      assertThat(compilation).failed();
+      assertThat(compilation).hadErrorContaining("which no constructor of");
+      assertThat(compilation).hadErrorContaining("taking [com.external.Shut]");
+      assertThat(compilation).hadErrorCount(1);
+    }
+
+    @Test
+    @DisplayName("should count a package-private constructor when generating into that package")
+    void shouldAcceptPackagePrivateConstructorInTheSamePackage() {
+      final var base =
+          JavaFileObjects.forSourceString(
+              "com.external.NearBase",
+              """
+              package com.external;
+
+              public class NearBase { protected String name; }
+              """);
+      final var externalClass =
+          JavaFileObjects.forSourceString(
+              "com.external.Near",
+              """
+              package com.external;
+
+              public class Near extends NearBase {
+                  Near(NearBase other) { this.name = other.name; }
+                  public Near(Near other) { this.name = other.name; }
+                  public String name() { return name; }
+                  public void setName(String name) { this.name = name; }
+              }
+              """);
+      final var specInterface =
+          JavaFileObjects.forSourceString(
+              "com.myapp.NearOpticsSpec",
+              """
+              package com.myapp;
+
+              import org.higherkindedj.optics.Lens;
+              import org.higherkindedj.optics.annotations.ImportOptics;
+              import org.higherkindedj.optics.annotations.OpticsSpec;
+              import org.higherkindedj.optics.annotations.ViaCopyAndSet;
+              import com.external.Near;
+
+              @ImportOptics(targetPackage = "com.external")
+              public interface NearOpticsSpec extends OpticsSpec<Near> {
+
+                  @ViaCopyAndSet(copyConstructor = "com.external.NearBase", setter = "setName")
+                  Lens<Near, String> name();
+              }
+              """);
+
+      Compilation compilation =
+          javac()
+              .withProcessors(new ImportOpticsProcessor())
+              .compile(base, externalClass, specInterface);
+
+      // The optics class lands in com.external, so the package-private constructor is callable.
+      assertThat(compilation).succeeded();
+      assertGeneratedCodeContains(
+          compilation, "com.external.NearOptics", "new Near((NearBase) source)");
+    }
+
+    @Test
+    @DisplayName("should reject a copyConstructor the generated class cannot name")
+    void shouldRejectInvisibleCopyConstructor() {
+      final var packagePrivateBase =
+          JavaFileObjects.forSourceString(
+              "com.external.Hidden",
+              """
+              package com.external;
+
+              class Hidden { protected String name; }
+              """);
+      final var externalClass =
+          JavaFileObjects.forSourceString(
+              "com.external.Visible",
+              """
+              package com.external;
+
+              public class Visible extends Hidden {
+                  public Visible(Hidden other) { this.name = other.name; }
+                  public Visible(Visible other) { this.name = other.name; }
+                  public String name() { return name; }
+                  public void setName(String name) { this.name = name; }
+              }
+              """);
+      final var specInterface =
+          JavaFileObjects.forSourceString(
+              "com.myapp.VisibleOpticsSpec",
+              """
+              package com.myapp;
+
+              import org.higherkindedj.optics.Lens;
+              import org.higherkindedj.optics.annotations.ImportOptics;
+              import org.higherkindedj.optics.annotations.OpticsSpec;
+              import org.higherkindedj.optics.annotations.ViaCopyAndSet;
+              import com.external.Visible;
+
+              @ImportOptics
+              public interface VisibleOpticsSpec extends OpticsSpec<Visible> {
+
+                  @ViaCopyAndSet(copyConstructor = "com.external.Hidden", setter = "setName")
+                  Lens<Visible, String> name();
+              }
+              """);
+
+      Compilation compilation =
+          javac()
+              .withProcessors(new ImportOpticsProcessor())
+              .compile(packagePrivateBase, externalClass, specInterface);
+
+      assertThat(compilation).failed();
+      assertThat(compilation).hadErrorContaining("is not public and so cannot be named from");
+      assertThat(compilation).hadErrorCount(1);
+    }
+
+    @Test
+    @DisplayName("should not blame the attribute when the hierarchy cannot be read")
+    void shouldNotRejectWhenASupertypeIsUnresolved() {
+      // Node's base is absent from the compilation, so the supertype walk reads no supertypes at
+      // all. javac reports the missing type; the attribute must not be blamed for it as well.
+      final var brokenNode =
+          JavaFileObjects.forSourceString(
+              "com.external.Broken",
+              """
+              package com.external;
+
+              public class Broken extends com.external.Absent {
+                  public Broken(Object other) {}
+                  public String name() { return null; }
+                  public void setName(String name) {}
+              }
+              """);
+      final var specInterface =
+          JavaFileObjects.forSourceString(
+              "com.myapp.BrokenOpticsSpec",
+              """
+              package com.myapp;
+
+              import org.higherkindedj.optics.Lens;
+              import org.higherkindedj.optics.annotations.ImportOptics;
+              import org.higherkindedj.optics.annotations.OpticsSpec;
+              import org.higherkindedj.optics.annotations.ViaCopyAndSet;
+              import com.external.Broken;
+
+              @ImportOptics
+              public interface BrokenOpticsSpec extends OpticsSpec<Broken> {
+
+                  @ViaCopyAndSet(copyConstructor = "java.lang.Object", setter = "setName")
+                  Lens<Broken, String> name();
+              }
+              """);
+
+      Compilation compilation =
+          javac().withProcessors(new ImportOpticsProcessor()).compile(brokenNode, specInterface);
+
+      assertThat(compilation).failed();
+      assertThat(compilation).hadErrorContaining("cannot find symbol");
+      assertThat(compilation).hadErrorContaining("Absent");
+      assertThat(compilation).hadErrorCount(1);
+    }
+  }
+
+  @Nested
   @DisplayName("@InstanceOf Prism Hint")
   class InstanceOfPrismHint {
 
@@ -520,6 +1089,8 @@ class SpecInterfaceProcessingTest {
 
       assertThat(compilation).failed();
       assertThat(compilation).hadErrorContaining("not a subtype");
+      // One problem, one error: a rejected hint must not also draw the missing-hint error.
+      assertThat(compilation).hadErrorCount(1);
     }
   }
 
@@ -718,7 +1289,7 @@ class SpecInterfaceProcessingTest {
           javac().withProcessors(new ImportOpticsProcessor()).compile(externalClass, specInterface);
 
       assertThat(compilation).failed();
-      assertThat(compilation).hadErrorContaining("requires a copy strategy annotation");
+      assertThat(compilation).hadErrorContaining("carries no copy strategy annotation");
     }
 
     @Test

@@ -33,6 +33,8 @@ import java.lang.annotation.Target;
  *   <li>The setter has side effects beyond setting the field
  *   <li>The copy constructor does not create a true deep copy
  *   <li>The object maintains internal invariants that the setter does not preserve
+ *   <li>{@link #copyConstructor()} names a supertype the state does not live on, so the constructor
+ *       it selects cannot copy the source's own fields
  * </ul>
  *
  * <p>Prefer {@link ViaBuilder} or {@link Wither} when available, as they typically provide stronger
@@ -60,6 +62,9 @@ import java.lang.annotation.Target;
  * }
  * }</pre>
  *
+ * <p>An overloaded copy constructor is disambiguated with {@link #copyConstructor()}, which names
+ * the parameter type to cast the source to.
+ *
  * @see OpticsSpec
  * @see ViaBuilder
  * @see Wither
@@ -71,13 +76,34 @@ public @interface ViaCopyAndSet {
   /**
    * The copy constructor parameter type.
    *
-   * <p>If empty (the default), assumes a copy constructor that takes an instance of the source
-   * type: {@code new SourceType(source)}.
+   * <p>If empty (the default), the source is passed unchanged: {@code new SourceType(source)}.
    *
-   * <p>Specify a fully qualified class name if the copy constructor takes a different type (e.g., a
-   * base class or interface).
+   * <p>Give a fully qualified class name naming a supertype of the source type to pass the source
+   * under that type: {@code new SourceType((Base) source)}. Name the class alone - no type
+   * arguments, since the processor supplies them from the source type's own {@code extends} clause
+   * - and a nested class as {@code com.example.Outer.Base}. The attribute is a plain string, so it
+   * is not resolved against this interface's imports.
    *
-   * @return the copy constructor parameter type, or empty to use the source type
+   * <p>The processor rejects a name that does not resolve, one naming a type the source does not
+   * extend or implement, one the generated class cannot see, and one no constructor of the source
+   * accepts. What it cannot check is whether the constructor it selects copies everything: see the
+   * warning above.
+   *
+   * <p>Only the overloaded case needs it. A sole {@code SourceType(Base other)} already accepts the
+   * source by widening; the cast is what picks between {@code SourceType(Base)} and {@code
+   * SourceType(SourceType)}, or resolves a call left ambiguous by two unrelated supertypes:
+   *
+   * <pre>{@code
+   * public class Custom implements Base, Auditable {
+   *     public Custom(Base other) { ... }
+   *     public Custom(Auditable other) { ... }   // new Custom(source) is ambiguous
+   * }
+   *
+   * @ViaCopyAndSet(copyConstructor = "com.example.Base", setter = "setName")
+   * Lens<Custom, String> name();                  // new Custom((Base) source)
+   * }</pre>
+   *
+   * @return the copy constructor parameter type, or empty to pass the source type unchanged
    */
   String copyConstructor() default "";
 

@@ -151,7 +151,8 @@ public record SpecAnalysis(
    * @param build the build method name (for @ViaBuilder)
    * @param witherMethod the wither method name (for @Wither)
    * @param parameterOrder the constructor parameter order (for @ViaConstructor)
-   * @param copyConstructor the copy constructor type (for @ViaCopyAndSet)
+   * @param copyConstructorParameterType the resolved type the copy constructor takes (for
+   *     &#64;ViaCopyAndSet), or null to pass the source type unchanged
    */
   public record CopyStrategyInfo(
       String getter,
@@ -160,7 +161,7 @@ public record SpecAnalysis(
       String build,
       String witherMethod,
       String[] parameterOrder,
-      String copyConstructor) {
+      TypeMirror copyConstructorParameterType) {
 
     /**
      * Creates an empty copy strategy info.
@@ -168,7 +169,7 @@ public record SpecAnalysis(
      * @return an empty CopyStrategyInfo
      */
     public static CopyStrategyInfo empty() {
-      return new CopyStrategyInfo("", "", "", "", "", new String[0], "");
+      return new CopyStrategyInfo("", "", "", "", "", new String[0], null);
     }
 
     /**
@@ -182,7 +183,7 @@ public record SpecAnalysis(
      */
     public static CopyStrategyInfo forBuilder(
         String getter, String toBuilder, String setter, String build) {
-      return new CopyStrategyInfo(getter, toBuilder, setter, build, "", new String[0], "");
+      return new CopyStrategyInfo(getter, toBuilder, setter, build, "", new String[0], null);
     }
 
     /**
@@ -193,7 +194,7 @@ public record SpecAnalysis(
      * @return a CopyStrategyInfo for wither pattern
      */
     public static CopyStrategyInfo forWither(String getter, String witherMethod) {
-      return new CopyStrategyInfo(getter, "", "", "", witherMethod, new String[0], "");
+      return new CopyStrategyInfo(getter, "", "", "", witherMethod, new String[0], null);
     }
 
     /**
@@ -203,18 +204,21 @@ public record SpecAnalysis(
      * @return a CopyStrategyInfo for constructor pattern
      */
     public static CopyStrategyInfo forConstructor(String[] parameterOrder) {
-      return new CopyStrategyInfo("", "", "", "", "", parameterOrder, "");
+      return new CopyStrategyInfo("", "", "", "", "", parameterOrder, null);
     }
 
     /**
      * Creates info for {@code @ViaCopyAndSet} annotation.
      *
-     * @param copyConstructor the copy constructor type
+     * @param copyConstructorParameterType the resolved type the copy constructor takes, or null to
+     *     pass the source type unchanged
      * @param setter the setter method name
      * @return a CopyStrategyInfo for copy-and-set pattern
      */
-    public static CopyStrategyInfo forCopyAndSet(String copyConstructor, String setter) {
-      return new CopyStrategyInfo("", "", setter, "", "", new String[0], copyConstructor);
+    public static CopyStrategyInfo forCopyAndSet(
+        TypeMirror copyConstructorParameterType, String setter) {
+      return new CopyStrategyInfo(
+          "", "", setter, "", "", new String[0], copyConstructorParameterType);
     }
   }
 

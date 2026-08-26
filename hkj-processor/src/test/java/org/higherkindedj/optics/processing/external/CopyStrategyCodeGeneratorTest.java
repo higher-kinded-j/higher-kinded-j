@@ -10,11 +10,13 @@ import com.google.testing.compile.Compilation;
 import com.google.testing.compile.JavaFileObjects;
 import com.palantir.javapoet.CodeBlock;
 import java.util.Set;
+import java.util.function.Function;
 import javax.annotation.processing.AbstractProcessor;
 import javax.annotation.processing.RoundEnvironment;
 import javax.lang.model.SourceVersion;
 import javax.lang.model.element.TypeElement;
 import javax.lang.model.type.TypeMirror;
+import javax.lang.model.util.Elements;
 import javax.tools.JavaFileObject;
 import org.higherkindedj.optics.processing.external.SpecAnalysis.CopyStrategyInfo;
 import org.higherkindedj.optics.processing.external.SpecAnalysis.CopyStrategyKind;
@@ -40,7 +42,7 @@ class CopyStrategyCodeGeneratorTest {
     private final String sourceTypeName;
     private final String focusTypeName;
     private final CopyStrategyKind strategy;
-    private final CopyStrategyInfo info;
+    private final Function<Elements, CopyStrategyInfo> infoFactory;
     private final String fieldName;
     private String getterResult;
     private String setterResult;
@@ -49,12 +51,12 @@ class CopyStrategyCodeGeneratorTest {
         String sourceTypeName,
         String focusTypeName,
         CopyStrategyKind strategy,
-        CopyStrategyInfo info,
+        Function<Elements, CopyStrategyInfo> infoFactory,
         String fieldName) {
       this.sourceTypeName = sourceTypeName;
       this.focusTypeName = focusTypeName;
       this.strategy = strategy;
-      this.info = info;
+      this.infoFactory = infoFactory;
       this.fieldName = fieldName;
     }
 
@@ -81,6 +83,7 @@ class CopyStrategyCodeGeneratorTest {
         TypeMirror sourceType = sourceElement.asType();
         TypeMirror focusType = focusElement.asType();
 
+        CopyStrategyInfo info = infoFactory.apply(processingEnv.getElementUtils());
         CopyStrategyCodeGenerator generator = new CopyStrategyCodeGenerator();
 
         CodeBlock getter = generator.generateGetterLambda(fieldName, info, sourceType);
@@ -110,9 +113,21 @@ class CopyStrategyCodeGeneratorTest {
       CopyStrategyInfo info,
       String fieldName,
       JavaFileObject... sources) {
+    return generateCode(strategy, _ -> info, fieldName, sources);
+  }
+
+  /**
+   * Runs the generator over an info built inside the round, for the strategies whose values are
+   * resolved types rather than plain names.
+   */
+  private GeneratedCode generateCode(
+      CopyStrategyKind strategy,
+      Function<Elements, CopyStrategyInfo> infoFactory,
+      String fieldName,
+      JavaFileObject... sources) {
     GeneratorTestProcessor processor =
         new GeneratorTestProcessor(
-            "com.test.Person", "java.lang.String", strategy, info, fieldName);
+            "com.test.Person", "java.lang.String", strategy, infoFactory, fieldName);
     Compilation compilation = javac().withProcessors(processor).compile(sources);
     assertThat(compilation).succeeded();
     return new GeneratedCode(processor.getGetterResult(), processor.getSetterResult());
@@ -123,13 +138,16 @@ class CopyStrategyCodeGeneratorTest {
           "com.test.Person",
           """
           package com.test;
-          public record Person(String name, int age) {
+          public record Person(String name, int age) implements Named {
               public static Builder toBuilder() { return new Builder(); }
               public static class Builder {
                   public Builder name(String name) { return this; }
                   public Person build() { return null; }
               }
           }
+
+          // A supertype Person really has, so the cast asserted below is one javac accepts.
+          interface Named { String name(); }
           """);
 
   @Nested
@@ -208,7 +226,7 @@ class CopyStrategyCodeGeneratorTest {
 
       GeneratorTestProcessor processor =
           new GeneratorTestProcessor(
-              "com.test.Person", "java.lang.String", CopyStrategyKind.WITHER, info, "year");
+              "com.test.Person", "java.lang.String", CopyStrategyKind.WITHER, _ -> info, "year");
 
       Compilation compilation = javac().withProcessors(processor).compile(localDate);
       assertThat(compilation).succeeded();
@@ -254,7 +272,7 @@ class CopyStrategyCodeGeneratorTest {
     @Test
     @DisplayName("should generate copy and set setter")
     void shouldGenerateCopyAndSetSetter() {
-      CopyStrategyInfo info = CopyStrategyInfo.forCopyAndSet("", "setName");
+      CopyStrategyInfo info = CopyStrategyInfo.forCopyAndSet(null, "setName");
 
       GeneratedCode code =
           generateCode(CopyStrategyKind.VIA_COPY_AND_SET, info, "name", PERSON_SOURCE);
@@ -265,15 +283,21 @@ class CopyStrategyCodeGeneratorTest {
     }
 
     @Test
-    @DisplayName("should generate copy and set setter with explicit copyConstructor")
+    @DisplayName("should cast the source to the configured copy constructor parameter type")
     void shouldGenerateCopyAndSetSetterWithCopyConstructor() {
-      CopyStrategyInfo info = CopyStrategyInfo.forCopyAndSet("PersonCopy", "setName");
-
+      // A supertype Person actually has: the emitted cast is one javac would accept, so this
+      // pins generated code rather than a string.
       GeneratedCode code =
-          generateCode(CopyStrategyKind.VIA_COPY_AND_SET, info, "name", PERSON_SOURCE);
+          generateCode(
+              CopyStrategyKind.VIA_COPY_AND_SET,
+              elements ->
+                  CopyStrategyInfo.forCopyAndSet(
+                      elements.getTypeElement("com.test.Named").asType(), "setName"),
+              "name",
+              PERSON_SOURCE);
 
-      // When copyConstructor is non-empty, the branch at line 164-175 is triggered
-      assertThat(code.setter()).contains("com.test.Person copy = new com.test.Person(source)");
+      assertThat(code.setter())
+          .contains("com.test.Person copy = new com.test.Person((com.test.Named) source)");
       assertThat(code.setter()).contains("copy.setName(newValue)");
       assertThat(code.setter()).contains("return copy");
     }

@@ -39,10 +39,12 @@ You are helping a developer use HKJ's optics system for type-safe immutable data
 
 | Annotation | When To Use | Example |
 |------------|-------------|---------|
-| `@ViaBuilder` | Type has a builder pattern | `@ViaBuilder("toBuilder")` |
-| `@Wither` | Type has `withX()` methods | `@Wither` (default, autodetected) |
-| `@ViaCopyAndSet` | Mutable type with setters | `@ViaCopyAndSet(copy = "clone")` |
-| `@ViaConstructor` | Reconstruct via constructor | `@ViaConstructor` |
+| `@ViaBuilder` | Type has a builder pattern | `@ViaBuilder(toBuilder = "toBuilder")` |
+| `@Wither` | Type has `withX()` methods | `@Wither(value = "withAmount", getter = "getAmount")` |
+| `@ViaCopyAndSet` | Mutable type with setters | `@ViaCopyAndSet(setter = "setHost")` |
+| `@ViaConstructor` | Reconstruct via constructor | `@ViaConstructor(parameterOrder = {"x", "y"})` |
+
+`@ViaCopyAndSet` takes `copyConstructor = "com.example.BaseConfig"` — a fully qualified **supertype** — only when the copy constructor is overloaded; the default passes the source unchanged. `@ViaConstructor` needs `parameterOrder`: without it the generated optic throws.
 
 ---
 
