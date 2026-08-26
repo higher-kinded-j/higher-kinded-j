@@ -969,6 +969,46 @@ class SpecInterfaceAnalyserTest {
     }
 
     @Test
+    @DisplayName("should read a public field under the instantiation the spec names")
+    void shouldReadPublicFieldUnderTheInstantiation() {
+      var squad =
+          JavaFileObjects.forSourceString(
+              "com.test.GenericSquad",
+              """
+              package com.test;
+              public class GenericSquad<T> {
+                  public T members;
+                  public GenericSquad() {}
+              }
+              """);
+
+      var spec =
+          JavaFileObjects.forSourceString(
+              "com.test.GenericSquadSpec",
+              """
+              package com.test;
+              import java.util.List;
+              import org.higherkindedj.optics.Traversal;
+              import org.higherkindedj.optics.annotations.OpticsSpec;
+              import org.higherkindedj.optics.annotations.ThroughField;
+
+              public interface GenericSquadSpec extends OpticsSpec<GenericSquad<List<String>>> {
+                  @ThroughField(field = "members")
+                  Traversal<GenericSquad<List<String>>, String> members();
+              }
+              """);
+
+      // Declared T, instantiated List<String>. Read off the element there is no container to
+      // detect; read under the instantiation there is.
+      Optional<SpecAnalysis> result =
+          analyseSpec("com.test.GenericSquadSpec", squad, spec, THROUGH_FIELD);
+
+      assertThat(result).isPresent();
+      var method = result.get().opticMethods().getFirst();
+      assertThat(method.traversalHint()).isEqualTo(TraversalHintKind.THROUGH_FIELD);
+    }
+
+    @Test
     @DisplayName("should return empty parameter order for default @ViaConstructor")
     void shouldReturnEmptyParameterOrderForDefaultViaConstructor() {
       var coord =

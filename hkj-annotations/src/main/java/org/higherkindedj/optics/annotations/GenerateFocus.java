@@ -75,7 +75,8 @@ public @interface GenerateFocus {
    *
    * <p>This enables patterns like {@code PersonFocus.address().city()} without explicit {@code
    * .via()} calls. Navigator classes are generated for fields whose types are also annotated with
-   * {@code @GenerateFocus}.
+   * {@code @GenerateFocus} and declare no type parameters of their own; a field whose type is
+   * generic keeps its plain {@code FocusPath} method, composed with {@code .via()}.
    *
    * <p>The navigator classes:
    *

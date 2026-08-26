@@ -9,6 +9,7 @@ import static org.higherkindedj.optics.processing.GeneratorTestHelper.assertGene
 
 import com.google.testing.compile.Compilation;
 import com.google.testing.compile.JavaFileObjects;
+import java.util.List;
 import javax.tools.JavaFileObject;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -1235,6 +1236,228 @@ class NavigatorCoverageTest {
       // List<List<List<String>>>: the chain composes to the leaf, three layers deep.
       assertGeneratedCodeContains(
           compilation, "com.example.WideRootFocus", "TraversalPath<S, String> deep()");
+    }
+  }
+
+  @Nested
+  @DisplayName("Generic Navigable Targets")
+  class GenericNavigableTargets {
+
+    @Test
+    @DisplayName("a generic navigable target keeps its plain path method instead of a navigator")
+    void genericNavigableTargetKeepsThePlainPathMethod() {
+      final var inner =
+          JavaFileObjects.forSourceString(
+              "com.myapp.Inner",
+              """
+              package com.myapp;
+
+              import org.higherkindedj.optics.annotations.GenerateFocus;
+
+              @GenerateFocus(generateNavigators = true)
+              public record Inner<T>(T value, String label) {}
+              """);
+
+      final var outer =
+          JavaFileObjects.forSourceString(
+              "com.myapp.Outer",
+              """
+              package com.myapp;
+
+              import org.higherkindedj.optics.annotations.GenerateFocus;
+
+              @GenerateFocus(generateNavigators = true)
+              public record Outer(Inner<String> inner, String tag) {}
+              """);
+
+      // A navigator is parameterised by the source type alone and reads its target's components
+      // from
+      // the target's own declaration, so a generic target would name variables in scope on neither.
+      var compilation = javac().withProcessors(new FocusProcessor()).compile(inner, outer);
+
+      assertThat(compilation).succeeded();
+      assertGeneratedCodeDoesNotContain(
+          compilation, "com.myapp.OuterFocus", "class InnerNavigator");
+    }
+
+    @Test
+    @DisplayName("a generic navigable inside a container keeps its plain path method too")
+    void genericNavigableInsideAContainerKeepsThePlainPathMethod() {
+      final var inner =
+          JavaFileObjects.forSourceString(
+              "com.myapp.Inner",
+              """
+              package com.myapp;
+
+              import org.higherkindedj.optics.annotations.GenerateFocus;
+
+              @GenerateFocus(generateNavigators = true)
+              public record Inner<T>(T value, String label) {}
+              """);
+
+      final var outer =
+          JavaFileObjects.forSourceString(
+              "com.myapp.Outer",
+              """
+              package com.myapp;
+
+              import java.util.Map;
+              import org.higherkindedj.optics.annotations.GenerateFocus;
+
+              @GenerateFocus(generateNavigators = true)
+              public record Outer(Map<String, Inner<String>> inners, String tag) {}
+              """);
+
+      // The element of a container reaches a navigator the same way a component does, so it is
+      // asked
+      // the same question.
+      var compilation = javac().withProcessors(new FocusProcessor()).compile(inner, outer);
+
+      assertThat(compilation).succeeded();
+      assertGeneratedCodeDoesNotContain(
+          compilation, "com.myapp.OuterFocus", "class InnersNavigator");
+    }
+
+    @Test
+    @DisplayName("a record navigating into one keeps a focus path, not a widened traversal")
+    void aRecordNavigatingIntoOneKeepsAFocusPath() {
+      final var inner =
+          JavaFileObjects.forSourceString(
+              "com.myapp.Inner",
+              """
+              package com.myapp;
+
+              import org.higherkindedj.optics.annotations.GenerateFocus;
+
+              @GenerateFocus(generateNavigators = true)
+              public record Inner<T>(T value, String label) {}
+              """);
+
+      final var mid =
+          JavaFileObjects.forSourceString(
+              "com.myapp.Mid",
+              """
+              package com.myapp;
+
+              import java.util.Map;
+              import org.higherkindedj.optics.annotations.GenerateFocus;
+
+              @GenerateFocus(generateNavigators = true)
+              public record Mid(Map<String, Inner<String>> inners, String tag) {}
+              """);
+
+      final var root =
+          JavaFileObjects.forSourceString(
+              "com.myapp.Root",
+              """
+              package com.myapp;
+
+              import org.higherkindedj.optics.annotations.GenerateFocus;
+
+              @GenerateFocus(generateNavigators = true)
+              public record Root(Mid mid, String name) {}
+              """);
+
+      // The widening decides the return type before the navigator question is asked, so a
+      // container whose element gets no navigator must not be widened into either - or the
+      // method declares a traversal and returns a focus.
+      var compilation = javac().withProcessors(new FocusProcessor()).compile(inner, mid, root);
+
+      assertThat(compilation).succeeded();
+    }
+
+    @Test
+    @DisplayName("a container whose navigator is declined for any reason is not widened into")
+    void aContainerWhoseNavigatorIsDeclinedIsNotWidenedInto() {
+      record Case(String name, String midAnnotation) {}
+      var cases =
+          List.of(
+              new Case("NavigatorsOff", "@GenerateFocus(generateNavigators = false)"),
+              new Case(
+                  "FieldExcluded",
+                  "@GenerateFocus(generateNavigators = true, excludeFields = \"leaves\")"));
+
+      for (Case testCase : cases) {
+        final var leaf =
+            JavaFileObjects.forSourceString(
+                "com.myapp.Leaf",
+                """
+                package com.myapp;
+
+                import org.higherkindedj.optics.annotations.GenerateFocus;
+
+                @GenerateFocus(generateNavigators = true)
+                public record Leaf(String value) {}
+                """);
+
+        final var mid =
+            JavaFileObjects.forSourceString(
+                "com.myapp.Mid",
+                """
+                package com.myapp;
+
+                import java.util.Map;
+                import org.higherkindedj.optics.annotations.GenerateFocus;
+
+                %s
+                public record Mid(Map<String, Leaf> leaves, String tag) {}
+                """
+                    .formatted(testCase.midAnnotation()));
+
+        final var root =
+            JavaFileObjects.forSourceString(
+                "com.myapp.Root",
+                """
+                package com.myapp;
+
+                import org.higherkindedj.optics.annotations.GenerateFocus;
+
+                @GenerateFocus(generateNavigators = true)
+                public record Root(Mid mid, String name) {}
+                """);
+
+        // The widening fixes the navigation method's return type before the navigator question is
+        // asked, so the two have to be the same question however the answer comes out.
+        var compilation = javac().withProcessors(new FocusProcessor()).compile(leaf, mid, root);
+
+        assertThat(compilation).succeeded();
+      }
+    }
+
+    @Test
+    @DisplayName("says why the navigator the record asked for is not there")
+    void saysWhyTheNavigatorIsNotThere() {
+      final var inner =
+          JavaFileObjects.forSourceString(
+              "com.myapp.Inner",
+              """
+              package com.myapp;
+
+              import org.higherkindedj.optics.annotations.GenerateFocus;
+
+              @GenerateFocus(generateNavigators = true)
+              public record Inner<T>(T value, String label) {}
+              """);
+
+      final var outer =
+          JavaFileObjects.forSourceString(
+              "com.myapp.Outer",
+              """
+              package com.myapp;
+
+              import org.higherkindedj.optics.annotations.GenerateFocus;
+
+              @GenerateFocus(generateNavigators = true)
+              public record Outer(Inner<String> inner, String tag) {}
+              """);
+
+      var compilation = javac().withProcessors(new FocusProcessor()).compile(inner, outer);
+
+      // The record asked for navigators and gets one fewer than its components suggest, which is
+      // the same surprise a delegate-name collision reports.
+      assertThat(compilation).succeeded();
+      assertThat(compilation).hadNoteContaining("Navigator for field 'inner' is not generated");
+      assertThat(compilation).hadNoteContaining("OuterFocus.inner().via(InnerFocus.");
     }
   }
 }

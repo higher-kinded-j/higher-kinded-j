@@ -391,7 +391,7 @@ public class SpecInterfaceAnalyser {
         prismHintInfo = prismResult.get().info();
       }
       case TRAVERSAL -> {
-        var traversalResult = parseTraversalHint(method, sourceTypeElement, specInterface);
+        var traversalResult = parseTraversalHint(method, sourceType, specInterface);
         if (traversalResult.isEmpty()) {
           // parseTraversalHint has reported why.
           return Optional.empty();
@@ -976,7 +976,7 @@ public class SpecInterfaceAnalyser {
   private record TraversalHintResult(TraversalHintKind kind, TraversalHintInfo info) {}
 
   private Optional<TraversalHintResult> parseTraversalHint(
-      ExecutableElement method, TypeElement sourceTypeElement, TypeElement specInterface) {
+      ExecutableElement method, TypeMirror sourceType, TypeElement specInterface) {
     // Check for @TraverseWith
     AnnotationMirror traverseWith = findAnnotation(method, TRAVERSE_WITH_FQN);
     if (traverseWith != null) {
@@ -995,8 +995,7 @@ public class SpecInterfaceAnalyser {
 
       // Auto-detect traversal if not specified
       if (traversal.isEmpty()) {
-        Optional<String> autoDetected =
-            autoDetectTraversalForField(fieldName, sourceTypeElement, method);
+        Optional<String> autoDetected = autoDetectTraversalForField(fieldName, sourceType, method);
         if (autoDetected.isEmpty()) {
           // Error already reported in autoDetectTraversalForField
           return Optional.empty();
@@ -1023,21 +1022,21 @@ public class SpecInterfaceAnalyser {
    * Auto-detects the appropriate traversal for a field based on its type.
    *
    * @param fieldName the name of the field to look up
-   * @param sourceTypeElement the resolved element for the source type containing the field
+   * @param sourceType the instantiated source type containing the field
    * @param method the method element (for error reporting)
    * @return the traversal reference string, or empty if detection failed
    */
   private Optional<String> autoDetectTraversalForField(
-      String fieldName, TypeElement sourceTypeElement, ExecutableElement method) {
+      String fieldName, TypeMirror sourceType, ExecutableElement method) {
 
     // Look up the field's type on the source type
-    TypeMirror fieldType = findFieldType(sourceTypeElement, fieldName);
+    TypeMirror fieldType = findFieldType(sourceType, fieldName);
     if (fieldType == null) {
       error(
           "Cannot auto-detect traversal: field '"
               + fieldName
               + "' not found on type '"
-              + sourceTypeElement.getQualifiedName()
+              + ProcessorUtils.simpleTypeName(sourceType)
               + "'. "
               + "Check that the field name matches an accessor method or record component.",
           method);
@@ -1054,7 +1053,7 @@ public class SpecInterfaceAnalyser {
           "Cannot auto-detect traversal for field '"
               + fieldName
               + "' of type '"
-              + fieldType
+              + ProcessorUtils.simpleTypeName(fieldType)
               + "'. "
               + "Supported types: List, Set, Optional, Map, arrays. "
               + "Please specify traversal() explicitly, e.g.: "
@@ -1073,19 +1072,49 @@ public class SpecInterfaceAnalyser {
   }
 
   /**
-   * Finds the type of a field on a type element by looking for accessor methods or record
-   * components.
+   * A member's type as the instantiated source type sees it, unwrapping an accessor's return.
    *
-   * @param typeElement the type to search
-   * @param fieldName the field name to find
-   * @return the field's type, or null if not found
+   * <p>Read off the element, a member of {@code Holder<T>} speaks {@code T}; the spec instantiated
+   * it as {@code Holder<List<String>>}, so what the traversal has to be detected for is {@code
+   * List<String>}. Reading the declaration instead both rejects a container it could have found and
+   * names a variable the spec never wrote.
+   *
+   * @param sourceType the instantiated source type {@code S}
+   * @param member the accessor to read
+   * @return the member's type under {@code sourceType}'s instantiation
    */
-  private TypeMirror findFieldType(TypeElement typeElement, String fieldName) {
+  private TypeMirror memberTypeOf(DeclaredType sourceType, ExecutableElement member) {
+    // A source type with no arguments has nothing to substitute, and asking anyway would lose
+    // what the member does declare: under a raw site javac erases every member, so a field typed
+    // List<String> on a raw Holder would come back as List and match no container.
+    if (sourceType.getTypeArguments().isEmpty()) {
+      return member.getReturnType();
+    }
+    // Total: asMemberOf answers with an ExecutableType for an executable member, and the one shape
+    // that would not - an unresolvable source type, whose members resolve to itself - enumerates
+    // no members for the caller to have found.
+    return ((ExecutableType) typeUtils.asMemberOf(sourceType, member)).getReturnType();
+  }
+
+  /**
+   * The type a named field has on the instantiated source type.
+   *
+   * @param sourceType the instantiated source type to search
+   * @param fieldName the field name to find
+   * @return the field's type under that instantiation, or null if not found
+   */
+  private TypeMirror findFieldType(TypeMirror sourceType, String fieldName) {
+    // analyse() admits a source type only when asElement gives a TypeElement, which on javac
+    // leaves DECLARED, ERROR and INTERSECTION - every one of them a DeclaredType. That is what
+    // makes the cast total, the same reasoning parseCopyStrategy's spells out.
+    DeclaredType declaredSource = (DeclaredType) sourceType;
+    TypeElement typeElement = (TypeElement) declaredSource.asElement();
+
     // For records, check record components first
     if (typeElement.getKind() == ElementKind.RECORD) {
       for (var component : typeElement.getRecordComponents()) {
         if (component.getSimpleName().contentEquals(fieldName)) {
-          return component.asType();
+          return memberTypeOf(declaredSource, component.getAccessor());
         }
       }
     }
@@ -1110,7 +1139,7 @@ public class SpecInterfaceAnalyser {
           && method.getParameters().isEmpty()
           && method.getModifiers().contains(Modifier.PUBLIC)
           && !method.getModifiers().contains(Modifier.STATIC)) {
-        return method.getReturnType();
+        return memberTypeOf(declaredSource, method);
       }
     }
 
@@ -1120,7 +1149,9 @@ public class SpecInterfaceAnalyser {
         VariableElement field = (VariableElement) enclosed;
         if (field.getSimpleName().contentEquals(fieldName)
             && field.getModifiers().contains(Modifier.PUBLIC)) {
-          return field.asType();
+          return declaredSource.getTypeArguments().isEmpty()
+              ? field.asType()
+              : typeUtils.asMemberOf(declaredSource, field);
         }
       }
     }
