@@ -247,36 +247,10 @@ public class SpecInterfaceAnalyser {
         // isSameType, not a name comparison: it also answers true for an unresolvable bound, whose
         // own 'cannot find symbol' is the error worth reading.
         && !typeUtils.isSameType(bound, elementUtils.getTypeElement(OBJECT_FQN).asType())
-        && !mentions(bound, typeVariable)) {
+        && !ProcessorUtils.mentions(bound, typeVariable.asElement())) {
       return ": 'OpticsSpec<" + ProcessorUtils.simpleTypeName(bound) + ">'";
     }
     return "";
-  }
-
-  /**
-   * Whether a type is the given variable, or names it at any depth.
-   *
-   * <p>A variable can hide in an enclosing type as well as in a type argument: {@code
-   * Outer<S>.Inner} names {@code S} without taking it as an argument of its own. An enclosing type
-   * that is absent, or a static member type, is a {@code NoType}, which matches nothing and ends
-   * the walk.
-   *
-   * @param type the type to search; must not be null
-   * @param variable the variable to look for; must not be null
-   * @return true when substituting {@code type} for {@code variable} would be circular
-   */
-  private boolean mentions(TypeMirror type, TypeVariable variable) {
-    if (typeUtils.isSameType(type, variable)) {
-      return true;
-    }
-    return switch (type) {
-      case DeclaredType declared ->
-          mentions(declared.getEnclosingType(), variable)
-              || declared.getTypeArguments().stream()
-                  .anyMatch(argument -> mentions(argument, variable));
-      case ArrayType array -> mentions(array.getComponentType(), variable);
-      default -> false;
-    };
   }
 
   /**
@@ -328,6 +302,26 @@ public class SpecInterfaceAnalyser {
               + method.getParameters().size()
               + " parameter(s)",
           method);
+      return Optional.empty();
+    }
+
+    // A parameter of the method's own can only appear in the focus, and the focus is reached from
+    // a source type the spec has already fixed, so nothing could ever bind it.
+    if (!method.getTypeParameters().isEmpty()) {
+      Diagnostics.error(
+          messager,
+          method,
+          "@ImportOptics",
+          "'"
+              + specInterface.getSimpleName()
+              + "."
+              + method.getSimpleName()
+              + "' declares its own type parameters.",
+          "An optic is generated against the source type the spec names, so the only types in play"
+              + " are that type's and the spec's own; a parameter declared here has nothing that"
+              + " could infer it.",
+          "Move the parameter to the spec interface, where the source type can name it, or drop"
+              + " it.");
       return Optional.empty();
     }
 

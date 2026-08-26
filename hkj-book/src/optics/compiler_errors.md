@@ -61,7 +61,7 @@ This page is for the moment a build fails and you want to know what the message 
 
 **Fix.** Name the type the optics are for as the type argument: `OpticsSpec<Box>`. Where the bound names a single type, the message suggests it for you.
 
-A source type that is itself generic is supported. Declare the spec's type parameters under the same names, and with the same arity, that the source type uses: `Box<T>` is matched by `interface BoxOpticsSpec<T> extends OpticsSpec<Box<T>>`, which generates `static <T> Lens<Box<T>, String> label()`. The generated signature takes its type parameters from the source type's own declaration, so a spec that renames or drops them is not currently diagnosed — it generates a signature naming a parameter that is not in scope. It is only a bare type variable that has no source to read at all.
+A source type that is itself generic is supported, and the spec names its own type parameters: `interface BoxOpticsSpec<U> extends OpticsSpec<Box<U>>` generates `static <U> Lens<Box<U>, String> label()`. See [Spec Interfaces](optics_spec_interfaces.md#generic-spec-interfaces) for which parameters a generated method declares. It is only a bare type variable, standing for the whole source type, that has no source to read.
 
 ### "@InstanceOf: target subtype not assignable to source type"
 

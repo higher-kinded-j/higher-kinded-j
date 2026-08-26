@@ -12,7 +12,11 @@ import com.palantir.javapoet.TypeName;
 import com.palantir.javapoet.TypeSpec;
 import com.palantir.javapoet.TypeVariableName;
 import java.io.IOException;
+import java.util.ArrayDeque;
+import java.util.Deque;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Set;
 import javax.annotation.processing.Filer;
 import javax.annotation.processing.Messager;
 import javax.lang.model.element.Element;
@@ -29,6 +33,7 @@ import org.higherkindedj.optics.processing.external.SpecAnalysis.CopyStrategyInf
 import org.higherkindedj.optics.processing.external.SpecAnalysis.OpticKind;
 import org.higherkindedj.optics.processing.external.SpecAnalysis.OpticMethodInfo;
 import org.higherkindedj.optics.processing.util.ExcludeFromJacocoGeneratedReport;
+import org.higherkindedj.optics.processing.util.ProcessorUtils;
 
 /**
  * Generates concrete utility classes from spec interface analyses.
@@ -90,8 +95,8 @@ public class SpecInterfaceGenerator {
             .addJavadoc(
                 "Generated optics for {@link $T}. Do not edit.\n\n"
                     + "<p>Generated from spec interface {@link $T}.",
-                analysis.sourceTypeElement(),
-                specInterface)
+                ClassName.get(analysis.sourceTypeElement()),
+                ClassName.get(specInterface))
             .addModifiers(Modifier.PUBLIC, Modifier.FINAL)
             .addMethod(MethodSpec.constructorBuilder().addModifiers(Modifier.PRIVATE).build())
             .addOriginatingElement(originatingElement);
@@ -99,8 +104,7 @@ public class SpecInterfaceGenerator {
     // Generate optic methods for abstract methods
     for (OpticMethodInfo opticMethod : analysis.opticMethods()) {
       MethodSpec method =
-          generateOpticMethod(
-              opticMethod, analysis.sourceType(), analysis.sourceTypeElement(), className);
+          generateOpticMethod(opticMethod, analysis.sourceType(), specInterface, className);
       classBuilder.addMethod(method);
     }
 
@@ -112,14 +116,14 @@ public class SpecInterfaceGenerator {
    *
    * @param opticMethod the optic method info
    * @param sourceType the source type S
-   * @param sourceTypeElement the source type element
+   * @param specInterface the spec interface, whose type parameters the method's are drawn from
    * @param className the generated class name
    * @return the generated method spec
    */
   private MethodSpec generateOpticMethod(
       OpticMethodInfo opticMethod,
       TypeMirror sourceType,
-      TypeElement sourceTypeElement,
+      TypeElement specInterface,
       String className) {
 
     String methodName = opticMethod.methodName();
@@ -151,8 +155,28 @@ public class SpecInterfaceGenerator {
               .build());
     }
 
-    // Add type parameters if source type has them
-    for (TypeParameterElement typeParam : sourceTypeElement.getTypeParameters()) {
+    // An @InstanceOf prism tests a class constant, which carries no type arguments, so a
+    // parameterised target narrows through a raw instanceof and is handed back parameterised.
+    // Erasure leaves nothing to test, so the warning is answered here rather than left for the
+    // consuming build, which may run under -Werror. @MatchWhen narrows through the source type's
+    // own getter and needs none of this.
+    if (opticKind == OpticKind.PRISM
+        && opticMethod.prismHint() == SpecAnalysis.PrismHintKind.INSTANCE_OF
+        && ProcessorUtils.hasTypeArguments(focusType)) {
+      // Both lints: the instanceof names the class raw, and the narrowed value is handed back
+      // parameterised.
+      methodBuilder.addAnnotation(
+          AnnotationSpec.builder(SuppressWarnings.class)
+              .addMember("value", "$S", "unchecked")
+              .addMember("value", "$S", "rawtypes")
+              .build());
+    }
+
+    // The method's type parameters are the spec's, not the source type's declaration: the source
+    // type may instantiate that declaration under other names, or only in part, and only the
+    // variables this signature actually names can be inferred at the call.
+    for (TypeParameterElement typeParam :
+        methodTypeParameters(specInterface, sourceType, focusType)) {
       methodBuilder.addTypeVariable(TypeVariableName.get(typeParam));
     }
 
@@ -161,6 +185,50 @@ public class SpecInterfaceGenerator {
     methodBuilder.addCode(body);
 
     return methodBuilder.build();
+  }
+
+  /**
+   * The spec's type parameters that this method's signature names, in the order the spec declares
+   * them.
+   *
+   * <p>A parameter earns its place by appearing in the source or focus type, or in the bound of a
+   * parameter that does: {@code <T, V extends List<T>>} focused through {@code V} needs {@code T}
+   * declared alongside it for {@code V}'s own bound to resolve.
+   *
+   * @param specInterface the spec interface declaring the parameters
+   * @param sourceType the source type S
+   * @param focusType the type the optic focuses on
+   * @return the parameters to declare on the generated method (non-null, possibly empty)
+   */
+  private static List<TypeParameterElement> methodTypeParameters(
+      TypeElement specInterface, TypeMirror sourceType, TypeMirror focusType) {
+
+    // Copied, not the live view: this needs a List<TypeParameterElement> rather than the
+    // wildcard-typed one getTypeParameters() returns, so the filtered result types cleanly.
+    List<TypeParameterElement> declared = List.copyOf(specInterface.getTypeParameters());
+    Set<TypeParameterElement> named = new LinkedHashSet<>();
+    Deque<TypeParameterElement> pending = new ArrayDeque<>();
+    for (TypeParameterElement candidate : declared) {
+      if (ProcessorUtils.mentions(sourceType, candidate)
+          || ProcessorUtils.mentions(focusType, candidate)) {
+        named.add(candidate);
+        pending.addLast(candidate);
+      }
+    }
+
+    while (!pending.isEmpty()) {
+      TypeParameterElement current = pending.removeFirst();
+      for (TypeMirror bound : current.getBounds()) {
+        for (TypeParameterElement candidate : declared) {
+          if (!named.contains(candidate) && ProcessorUtils.mentions(bound, candidate)) {
+            named.add(candidate);
+            pending.addLast(candidate);
+          }
+        }
+      }
+    }
+
+    return declared.stream().filter(named::contains).toList();
   }
 
   /**

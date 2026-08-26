@@ -1522,6 +1522,43 @@ class SpecInterfaceProcessingTest {
     }
 
     @Test
+    @DisplayName("should suggest a bound whose wildcard does not name the variable")
+    void shouldSuggestBoundWhoseWildcardDoesNotNameTheVariable() {
+      record Case(String name, String wildcard) {}
+      var cases =
+          List.of(
+              new Case("UnboundedWildcardSpec", "?"),
+              new Case("ExtendsWildcardSpec", "? extends String"),
+              new Case("SuperWildcardSpec", "? super String"));
+
+      for (Case testCase : cases) {
+        final var specInterface =
+            JavaFileObjects.forSourceString(
+                "com.myapp." + testCase.name(),
+                """
+                package com.myapp;
+
+                import java.util.List;
+                import org.higherkindedj.optics.annotations.ImportOptics;
+                import org.higherkindedj.optics.annotations.OpticsSpec;
+
+                @ImportOptics
+                public interface %s<S extends List<%s>> extends OpticsSpec<S> {}
+                """
+                    .formatted(testCase.name(), testCase.wildcard()));
+
+        var compilation =
+            javac().withProcessors(new ImportOpticsProcessor()).compile(specInterface);
+
+        assertThat(compilation).failed();
+        // A wildcard that does not lead back to S leaves the suggestion usable.
+        assertThat(compilation)
+            .hadErrorContaining(
+                "as the type argument: 'OpticsSpec<List<" + testCase.wildcard() + ">>'.");
+      }
+    }
+
+    @Test
     @DisplayName("should name a nested bound by its enclosing type so the suggestion resolves")
     void shouldNameNestedBoundWithEnclosingType() {
       final var externalClass =
@@ -1590,6 +1627,8 @@ class SpecInterfaceProcessingTest {
               new Case("SelfReferentialSpec", "<S extends Comparable<S>>"),
               new Case("SelfReferentialArraySpec", "<S extends java.util.List<S[]>>"),
               new Case("SelfReferentialEnclosingSpec", "<S extends Outer<S>.Inner>"),
+              new Case("SelfReferentialWildcardSpec", "<S extends java.util.List<? extends S>>"),
+              new Case("SelfReferentialSuperWildcardSpec", "<S extends java.util.List<? super S>>"),
               new Case("VariableBoundSpec", "<T extends Box, S extends T>"));
 
       for (Case testCase : cases) {
@@ -1706,6 +1745,328 @@ class SpecInterfaceProcessingTest {
       assertThat(compilation)
           .hadErrorContaining(
               "'ArrayOpticsSpec' declares OpticsSpec<String[]>, which is an array type.");
+    }
+  }
+
+  @Nested
+  @DisplayName("Type Parameters on Generated Methods")
+  class TypeParametersOnGeneratedMethods {
+
+    private final JavaFileObject box =
+        JavaFileObjects.forSourceString(
+            "com.external.Box",
+            """
+            package com.external;
+
+            public class Box<T> {
+                private final T content;
+                private final String label;
+                public Box(T content, String label) { this.content = content; this.label = label; }
+                public T content() { return content; }
+                public String label() { return label; }
+                public Box<T> withLabel(String label) { return new Box<>(content, label); }
+                public Box<T> withContent(T content) { return new Box<>(content, label); }
+            }
+            """);
+
+    private final JavaFileObject pair =
+        JavaFileObjects.forSourceString(
+            "com.external.Pair",
+            """
+            package com.external;
+
+            public class Pair<A, B> {
+                private final A left;
+                private final B right;
+                public Pair(A left, B right) { this.left = left; this.right = right; }
+                public A left() { return left; }
+                public B right() { return right; }
+                public Pair<A, B> withLeft(A left) { return new Pair<>(left, right); }
+            }
+            """);
+
+    private Compilation compile(String specBody) {
+      var specInterface =
+          JavaFileObjects.forSourceString(
+              "com.myapp.SubjectOpticsSpec",
+              """
+              package com.myapp;
+
+              import com.external.Box;
+              import com.external.Pair;
+              import java.util.List;
+              import org.higherkindedj.optics.Lens;
+              import org.higherkindedj.optics.annotations.ImportOptics;
+              import org.higherkindedj.optics.annotations.OpticsSpec;
+              import org.higherkindedj.optics.annotations.Wither;
+
+              @ImportOptics
+              %s
+              """
+                  .formatted(specBody));
+      return javac().withProcessors(new ImportOpticsProcessor()).compile(box, pair, specInterface);
+    }
+
+    @Test
+    @DisplayName("should take the spec's parameter name, not the source type's")
+    void shouldUseSpecParameterName() {
+      var compilation =
+          compile(
+              """
+              public interface SubjectOpticsSpec<U> extends OpticsSpec<Box<U>> {
+                  @Wither("withLabel")
+                  Lens<Box<U>, String> label();
+              }""");
+
+      assertCompilationSucceeded(compilation);
+      assertGeneratedCodeContains(
+          compilation, "com.myapp.SubjectOptics", "public static <U> Lens<Box<U>, String> label()");
+    }
+
+    @Test
+    @DisplayName("should declare only the parameters the signature reaches, not the source type's")
+    void shouldDropParametersTheSignatureDoesNotName() {
+      var compilation =
+          compile(
+              """
+              public interface SubjectOpticsSpec<A> extends OpticsSpec<Pair<A, String>> {
+                  @Wither("withLeft")
+                  Lens<Pair<A, String>, A> left();
+              }""");
+
+      assertCompilationSucceeded(compilation);
+      assertGeneratedCodeContains(
+          compilation,
+          "com.myapp.SubjectOptics",
+          "public static <A> Lens<Pair<A, String>, A> left()");
+      // B is Pair's second parameter: nothing in the signature names it, so nothing could infer it.
+      assertGeneratedCodeDoesNotContain(compilation, "com.myapp.SubjectOptics", "<A, B>");
+    }
+
+    @Test
+    @DisplayName("should generate no type parameters for a concrete instantiation")
+    void shouldGenerateNoTypeParametersForConcreteInstantiation() {
+      var compilation =
+          compile(
+              """
+              public interface SubjectOpticsSpec extends OpticsSpec<Box<String>> {
+                  @Wither("withLabel")
+                  Lens<Box<String>, String> label();
+              }""");
+
+      assertCompilationSucceeded(compilation);
+      assertGeneratedCodeContains(
+          compilation,
+          "com.myapp.SubjectOptics",
+          "public static Lens<Box<String>, String> label()");
+    }
+
+    @Test
+    @DisplayName("should keep a parameter only the focus type reaches")
+    void shouldKeepParameterOnlyFocusReaches() {
+      var compilation =
+          compile(
+              """
+              public interface SubjectOpticsSpec<U> extends OpticsSpec<Box<U>> {
+                  @Wither("withContent")
+                  Lens<Box<U>, U> content();
+              }""");
+
+      assertCompilationSucceeded(compilation);
+      assertGeneratedCodeContains(
+          compilation, "com.myapp.SubjectOptics", "public static <U> Lens<Box<U>, U> content()");
+    }
+
+    @Test
+    @DisplayName("should carry the bound the spec declares")
+    void shouldCarryTheSpecBound() {
+      var compilation =
+          compile(
+              """
+              public interface SubjectOpticsSpec<U extends Comparable<U>>
+                      extends OpticsSpec<Box<U>> {
+                  @Wither("withLabel")
+                  Lens<Box<U>, String> label();
+              }""");
+
+      assertCompilationSucceeded(compilation);
+      assertGeneratedCodeContains(
+          compilation,
+          "com.myapp.SubjectOptics",
+          "public static <U extends Comparable<U>> Lens<Box<U>, String> label()");
+    }
+
+    @Test
+    @DisplayName("should declare a parameter only the focus type names, on a non-generic source")
+    void shouldDeclareParameterNamedOnlyByFocusOfNonGenericSource() {
+      final var shape =
+          JavaFileObjects.forSourceString(
+              "com.external.Shape",
+              """
+              package com.external;
+
+              public class Shape {}
+              """);
+
+      final var circle =
+          JavaFileObjects.forSourceString(
+              "com.external.Circle",
+              """
+              package com.external;
+
+              public class Circle<T> extends Shape {
+                  public T tag() { return null; }
+              }
+              """);
+
+      final var specInterface =
+          JavaFileObjects.forSourceString(
+              "com.myapp.ShapeOpticsSpec",
+              """
+              package com.myapp;
+
+              import com.external.Circle;
+              import com.external.Shape;
+              import org.higherkindedj.optics.Prism;
+              import org.higherkindedj.optics.annotations.ImportOptics;
+              import org.higherkindedj.optics.annotations.InstanceOf;
+              import org.higherkindedj.optics.annotations.OpticsSpec;
+
+              @ImportOptics
+              public interface ShapeOpticsSpec<T> extends OpticsSpec<Shape> {
+                  @InstanceOf(Circle.class)
+                  Prism<Shape, Circle<T>> circle();
+              }
+              """);
+
+      // The consuming build's flags, not javac's defaults: an @InstanceOf prism narrows through a
+      // raw instanceof, so a parameterised target warns unless the generator answers it.
+      var compilation =
+          javac()
+              .withProcessors(new ImportOpticsProcessor())
+              .withOptions("-Xlint:unchecked,rawtypes", "-Werror")
+              .compile(shape, circle, specInterface);
+
+      assertCompilationSucceeded(compilation);
+      // Shape declares no parameters, so reading them from the source type would declare none.
+      assertGeneratedCodeContains(
+          compilation,
+          "com.myapp.ShapeOptics",
+          "public static <T> Prism<Shape, Circle<T>> circle()");
+    }
+
+    @Test
+    @DisplayName("should not suppress warnings for a @MatchWhen prism onto a parameterised target")
+    void shouldNotSuppressForMatchWhenPrism() {
+      final var node =
+          JavaFileObjects.forSourceString(
+              "com.external.Node",
+              """
+              package com.external;
+
+              public class Node<T> {
+                  public boolean isLeaf() { return true; }
+                  public Leaf<T> asLeaf() { return null; }
+              }
+              """);
+
+      final var leaf =
+          JavaFileObjects.forSourceString(
+              "com.external.Leaf",
+              """
+              package com.external;
+
+              public class Leaf<T> extends Node<T> {}
+              """);
+
+      final var specInterface =
+          JavaFileObjects.forSourceString(
+              "com.myapp.NodeOpticsSpec",
+              """
+              package com.myapp;
+
+              import com.external.Leaf;
+              import com.external.Node;
+              import org.higherkindedj.optics.Prism;
+              import org.higherkindedj.optics.annotations.ImportOptics;
+              import org.higherkindedj.optics.annotations.MatchWhen;
+              import org.higherkindedj.optics.annotations.OpticsSpec;
+
+              @ImportOptics
+              public interface NodeOpticsSpec<U> extends OpticsSpec<Node<U>> {
+                  @MatchWhen(predicate = "isLeaf", getter = "asLeaf")
+                  Prism<Node<U>, Leaf<U>> leaf();
+              }
+              """);
+
+      var compilation =
+          javac()
+              .withProcessors(new ImportOpticsProcessor())
+              .withOptions("-Xlint:unchecked,rawtypes", "-Werror")
+              .compile(node, leaf, specInterface);
+
+      assertCompilationSucceeded(compilation);
+      assertGeneratedCodeContains(
+          compilation, "com.myapp.NodeOptics", "public static <U> Prism<Node<U>, Leaf<U>> leaf()");
+      // The source type's own getter does the narrowing, so there is no warning to answer.
+      assertGeneratedCodeDoesNotContain(compilation, "com.myapp.NodeOptics", "@SuppressWarnings");
+    }
+
+    @Test
+    @DisplayName("should reject an optic method that declares its own type parameters")
+    void shouldRejectMethodLevelTypeParameters() {
+      var compilation =
+          compile(
+              """
+              public interface SubjectOpticsSpec extends OpticsSpec<Box<String>> {
+                  @Wither("withContent")
+                  <X> Lens<Box<String>, X> content();
+              }""");
+
+      assertThat(compilation).failed();
+      assertThat(compilation)
+          .hadErrorContaining("'SubjectOpticsSpec.content' declares its own type parameters.");
+      assertThat(compilation).hadErrorContaining("Move the parameter to the spec interface");
+    }
+
+    @Test
+    @DisplayName("should drop a parameter that no kept parameter's bound reaches")
+    void shouldDropParameterNoBoundReaches() {
+      var compilation =
+          compile(
+              """
+              public interface SubjectOpticsSpec<T, V extends List<String>>
+                      extends OpticsSpec<Box<V>> {
+                  @Wither("withLabel")
+                  Lens<Box<V>, String> label();
+              }""");
+
+      assertCompilationSucceeded(compilation);
+      // V's bound names String, not T, so T is declared by the spec but earns no place here.
+      assertGeneratedCodeContains(
+          compilation,
+          "com.myapp.SubjectOptics",
+          "public static <V extends List<String>> Lens<Box<V>, String> label()");
+    }
+
+    @Test
+    @DisplayName("should keep a parameter that only a kept parameter's bound reaches")
+    void shouldKeepParameterReachedThroughABound() {
+      var compilation =
+          compile(
+              """
+              public interface SubjectOpticsSpec<T, V extends List<T>>
+                      extends OpticsSpec<Box<V>> {
+                  @Wither("withLabel")
+                  Lens<Box<V>, String> label();
+              }""");
+
+      assertCompilationSucceeded(compilation);
+      // V's own bound names T, so T has to be declared alongside it for the bound to resolve.
+      assertGeneratedCodeContains(
+          compilation,
+          "com.myapp.SubjectOptics",
+          "public static <T, V extends List<T>> Lens<Box<V>, String> label()");
     }
   }
 }
