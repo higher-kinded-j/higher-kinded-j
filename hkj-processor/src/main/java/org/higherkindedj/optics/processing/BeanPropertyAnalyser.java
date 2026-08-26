@@ -18,6 +18,7 @@ import javax.lang.model.type.TypeKind;
 import javax.lang.model.type.TypeMirror;
 import javax.lang.model.util.ElementFilter;
 import org.higherkindedj.optics.processing.util.Diagnostics;
+import org.higherkindedj.optics.processing.util.ProcessorUtils;
 
 /**
  * Discovers the JavaBeans property model of a bean-shaped wire type for {@code @GenerateMapping} .
@@ -53,6 +54,9 @@ final class BeanPropertyAnalyser {
    * neither a mutable JavaBean nor a builder-based bean with a readable property.
    */
   WireShape.BeanShape analyse(TypeElement spec, TypeElement bean, String tag) {
+    // A bean inherits properties from its superclasses, so a member read off its declaring element
+    // speaks that element's variables: 'T getId()' on BaseDto<T> is String on UserDto.
+    DeclaredType beanType = (DeclaredType) bean.asType();
     Map<String, ExecutableElement> getters = collectGetters(bean);
 
     if (hasUsableNoArgsConstructor(spec, bean)) {
@@ -60,11 +64,12 @@ final class BeanPropertyAnalyser {
       List<WireShape.BeanProperty> properties = new ArrayList<>();
       for (Map.Entry<String, ExecutableElement> entry : getters.entrySet()) {
         String name = entry.getKey();
-        TypeMirror getterType = entry.getValue().getReturnType();
+        TypeMirror getterType =
+            ProcessorUtils.returnTypeIn(env.getTypeUtils(), beanType, entry.getValue());
         String getter = entry.getValue().getSimpleName().toString();
         ExecutableElement setter = setters.get(name);
         if (setter != null) {
-          if (typesDiffer(spec, bean, tag, name, getterType, paramType(setter))) {
+          if (typesDiffer(spec, bean, tag, name, getterType, paramType(beanType, setter))) {
             return null;
           }
           properties.add(
@@ -87,6 +92,7 @@ final class BeanPropertyAnalyser {
 
     BuilderModel builder = findBuilderModel(bean);
     if (builder != null) {
+      DeclaredType builderType = (DeclaredType) builder.builderType().asType();
       Map<String, ExecutableElement> builderSetters = collectBuilderSetters(builder.builderType());
       List<WireShape.BeanProperty> properties = new ArrayList<>();
       for (Map.Entry<String, ExecutableElement> entry : getters.entrySet()) {
@@ -95,8 +101,9 @@ final class BeanPropertyAnalyser {
         if (builderSetter == null) {
           continue;
         }
-        TypeMirror getterType = entry.getValue().getReturnType();
-        if (typesDiffer(spec, bean, tag, name, getterType, paramType(builderSetter))) {
+        TypeMirror getterType =
+            ProcessorUtils.returnTypeIn(env.getTypeUtils(), beanType, entry.getValue());
+        if (typesDiffer(spec, bean, tag, name, getterType, paramType(builderType, builderSetter))) {
           return null;
         }
         properties.add(
@@ -120,12 +127,18 @@ final class BeanPropertyAnalyser {
 
   /** The number of mappable properties under the selected strategy, for the parse arithmetic. */
   int propertyCount(TypeElement spec, TypeElement bean) {
+    DeclaredType beanType = (DeclaredType) bean.asType();
     Map<String, ExecutableElement> getters = collectGetters(bean);
     if (hasUsableNoArgsConstructor(spec, bean)) {
       Map<String, ExecutableElement> setters = collectSetters(bean);
       long count =
           getters.entrySet().stream()
-              .filter(e -> setters.containsKey(e.getKey()) || isList(e.getValue().getReturnType()))
+              .filter(
+                  e ->
+                      setters.containsKey(e.getKey())
+                          || isList(
+                              ProcessorUtils.returnTypeIn(
+                                  env.getTypeUtils(), beanType, e.getValue())))
               .count();
       if (count > 0) {
         return (int) count;
@@ -312,8 +325,8 @@ final class BeanPropertyAnalyser {
         && ((TypeElement) declared.asElement()).getQualifiedName().contentEquals(LIST);
   }
 
-  private TypeMirror paramType(ExecutableElement setter) {
-    return setter.getParameters().getFirst().asType();
+  private TypeMirror paramType(DeclaredType owner, ExecutableElement setter) {
+    return ProcessorUtils.firstParameterTypeIn(env.getTypeUtils(), owner, setter);
   }
 
   /**

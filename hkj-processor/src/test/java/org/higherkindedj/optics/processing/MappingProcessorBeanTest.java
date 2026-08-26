@@ -1886,4 +1886,65 @@ class MappingProcessorBeanTest {
             })
         .orElseThrow(() -> new AssertionError("generated source not found: " + qualifiedName));
   }
+
+  @Test
+  @DisplayName("a bean inheriting a property from a generic base maps it")
+  void beanInheritingFromAGenericBase() {
+    final var base =
+        JavaFileObjects.forSourceString(
+            "com.example.BaseDto",
+            """
+            package com.example;
+
+            public class BaseDto<T> {
+                private T id;
+                public T getId() { return id; }
+                public void setId(T id) { this.id = id; }
+            }
+            """);
+
+    final var dto =
+        JavaFileObjects.forSourceString(
+            "com.example.InheritedDto",
+            """
+            package com.example;
+
+            public class InheritedDto extends BaseDto<String> {
+                private String name;
+                public InheritedDto() {}
+                public String getName() { return name; }
+                public void setName(String name) { this.name = name; }
+            }
+            """);
+
+    final var domain =
+        JavaFileObjects.forSourceString(
+            "com.example.Inherited",
+            """
+            package com.example;
+
+            public record Inherited(String id, String name) {}
+            """);
+
+    final var spec =
+        JavaFileObjects.forSourceString(
+            "com.example.InheritedMapping",
+            """
+            package com.example;
+
+            import org.higherkindedj.optics.annotations.GenerateMapping;
+            import org.higherkindedj.optics.annotations.MappingSpec;
+
+            @GenerateMapping
+            public interface InheritedMapping extends MappingSpec<Inherited, InheritedDto> {}
+            """);
+
+    // getId() is declared 'T getId()' on BaseDto. Read off that element it is T, which matches no
+    // domain field and whose remedy - a ValidatedPrism<T, String> - names a variable the author
+    // cannot write; read under InheritedDto it is String.
+    Compilation compilation = compile(base, dto, domain, spec);
+
+    assertThat(compilation).succeeded();
+    assertThat(compilation).generatedSourceFile("com.example.InheritedMappingImpl");
+  }
 }

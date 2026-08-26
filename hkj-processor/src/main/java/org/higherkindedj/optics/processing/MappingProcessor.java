@@ -15,8 +15,10 @@ import com.palantir.javapoet.TypeSpec;
 import com.palantir.javapoet.TypeVariableName;
 import com.palantir.javapoet.WildcardTypeName;
 import java.io.IOException;
+import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Deque;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
@@ -269,8 +271,36 @@ public class MappingProcessor extends AbstractProcessor {
    * and leaf/derived {@code default} methods. A mix-in must not itself be (or extend) a mapping
    * spec, and must be non-generic for now.
    */
+  /**
+   * Every interface {@code spec} inherits, directly or through another, in declaration order.
+   *
+   * @param spec the spec interface to walk
+   * @return its transitive super-interfaces (non-null, possibly empty)
+   */
+  private List<TypeMirror> allSuperInterfaces(TypeElement spec) {
+    List<TypeMirror> found = new ArrayList<>();
+    Deque<TypeMirror> pending = new ArrayDeque<>(spec.getInterfaces());
+    Set<String> seen = new LinkedHashSet<>();
+    while (!pending.isEmpty()) {
+      TypeMirror parent = pending.removeFirst();
+      if (parent.getKind() != TypeKind.DECLARED
+          || !seen.add(((DeclaredType) parent).asElement().toString())) {
+        // An unresolved parent is an ErrorType, which javac already reports; a repeated one has
+        // been walked.
+        found.add(parent);
+        continue;
+      }
+      found.add(parent);
+      pending.addAll(((TypeElement) ((DeclaredType) parent).asElement()).getInterfaces());
+    }
+    return found;
+  }
+
   private boolean checkMixins(TypeElement spec) {
-    for (TypeMirror parent : spec.getInterfaces()) {
+    // Every ancestor, not just the direct parents: members are collected with getAllMembers, which
+    // walks the whole ancestry, so a gate that reads one level lets a non-generic mix-in carry in
+    // a generic one's members and the free variable reaches the diagnostics.
+    for (TypeMirror parent : allSuperInterfaces(spec)) {
       // ErrorType extends DeclaredType, so unresolved parents step aside first: javac already
       // reports the missing type, and there is nothing for the gate to judge.
       if (parent.getKind() == TypeKind.ERROR) {
