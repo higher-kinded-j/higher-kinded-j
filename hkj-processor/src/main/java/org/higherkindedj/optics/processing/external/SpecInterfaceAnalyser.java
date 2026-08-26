@@ -11,6 +11,7 @@ import javax.lang.model.element.ElementKind;
 import javax.lang.model.element.ExecutableElement;
 import javax.lang.model.element.Modifier;
 import javax.lang.model.element.Name;
+import javax.lang.model.element.NestingKind;
 import javax.lang.model.element.TypeElement;
 import javax.lang.model.element.VariableElement;
 import javax.lang.model.type.ArrayType;
@@ -494,9 +495,17 @@ public class SpecInterfaceAnalyser {
               CopyStrategyKind.WITHER, CopyStrategyInfo.forWither(getter, witherMethod)));
     }
 
+    // analyse() admits a source type only when asElement gives a TypeElement, which on javac
+    // leaves DECLARED, ERROR and INTERSECTION - every one of them a DeclaredType. That is what
+    // makes the cast total; 'is a declared type' on its own would not, as #728 found.
+    DeclaredType declaredSource = (DeclaredType) sourceType;
+
     // Check for @ViaConstructor
     AnnotationMirror viaConstructor = findAnnotation(method, VIA_CONSTRUCTOR_FQN);
     if (viaConstructor != null) {
+      if (rebuildsThroughUnwritableConstructor(method, declaredSource, "@ViaConstructor")) {
+        return Optional.empty();
+      }
       String[] parameterOrder = getAnnotationStringArray(viaConstructor, "parameterOrder");
       return Optional.of(
           new CopyStrategyResult(
@@ -506,6 +515,9 @@ public class SpecInterfaceAnalyser {
     // Check for @ViaCopyAndSet
     AnnotationMirror viaCopyAndSet = findAnnotation(method, VIA_COPY_AND_SET_FQN);
     if (viaCopyAndSet != null) {
+      if (rebuildsThroughUnwritableConstructor(method, declaredSource, "@ViaCopyAndSet")) {
+        return Optional.empty();
+      }
       String copyConstructor = getAnnotationString(viaCopyAndSet, "copyConstructor", "");
       String setter = getAnnotationString(viaCopyAndSet, "setter", "");
       if (copyConstructor.isEmpty()) {
@@ -514,7 +526,7 @@ public class SpecInterfaceAnalyser {
                 CopyStrategyKind.VIA_COPY_AND_SET, CopyStrategyInfo.forCopyAndSet(null, setter)));
       }
       return resolveCopyConstructorParameterType(
-              method, sourceType, sourceTypeElement, targetPackage, copyConstructor)
+              method, declaredSource, targetPackage, copyConstructor)
           .map(
               parameterType ->
                   new CopyStrategyResult(
@@ -541,6 +553,62 @@ public class SpecInterfaceAnalyser {
   }
 
   /**
+   * Reports a source type whose own constructor call cannot be written, and returns whether it did.
+   *
+   * <p>A strategy that rebuilds through a constructor emits {@code new S(...)}, and a wildcard
+   * cannot be written as a type argument there: {@code new Node<?>(...)} is not Java, whatever the
+   * arguments. The strategies that rebuild through a wither or a builder name no constructor and
+   * are unaffected, so this is asked per strategy rather than of the source type as a whole.
+   *
+   * <p>Only the outermost arguments matter. A wildcard nested inside one, {@code Node<List<?>>},
+   * writes perfectly well.
+   *
+   * @param method the annotated optic method, for error reporting
+   * @param declared the source type {@code S}
+   * @param annotation the strategy annotation tag, for the diagnostic
+   * @return true when the source type was rejected and an error reported
+   */
+  private boolean rebuildsThroughUnwritableConstructor(
+      ExecutableElement method, DeclaredType declared, String annotation) {
+
+    boolean wildcard =
+        declared.getTypeArguments().stream()
+            .anyMatch(argument -> argument.getKind() == TypeKind.WILDCARD);
+    // A DeclaredType's element is always a TypeElement. Only a member type that is not static
+    // carries an enclosing instance; a nested interface, enum or record is implicitly static.
+    TypeElement element = (TypeElement) declared.asElement();
+    boolean innerClass =
+        element.getNestingKind() == NestingKind.MEMBER
+            && !element.getModifiers().contains(Modifier.STATIC);
+    if (!wildcard && !innerClass) {
+      return false;
+    }
+    String name = ProcessorUtils.simpleTypeName(declared);
+    Diagnostics.error(
+        messager,
+        method,
+        annotation,
+        "'"
+            + name
+            + "' is "
+            + (wildcard ? "written with a wildcard type argument" : "an inner class")
+            + ", and this strategy rebuilds it through a constructor.",
+        "The generated set function calls 'new "
+            + name
+            + "(...)', which is not something that can be written for "
+            + (wildcard
+                ? "a wildcard: a constructor call has to name the type argument."
+                : "an inner class: the call needs an enclosing instance the generated class has"
+                    + " no way to reach."),
+        wildcard
+            ? "Name the type the wildcard stands for, or use @Wither, which rebuilds through a"
+                + " method and needs no constructor."
+            : "Declare the source type static, or use @Wither, which rebuilds through a method and"
+                + " needs no constructor.");
+    return true;
+  }
+
+  /**
    * Resolves the type named by {@code @ViaCopyAndSet(copyConstructor = ...)} to the supertype of
    * {@code S} that the generated cast will name.
    *
@@ -559,15 +627,13 @@ public class SpecInterfaceAnalyser {
    *
    * @param method the annotated optic method, for error reporting
    * @param sourceType the source type {@code S}
-   * @param sourceTypeElement the resolved element for {@code S}
    * @param targetPackage the package the optics class is generated into
    * @param copyConstructor the fully qualified name from the annotation; never empty
    * @return the resolved supertype, or empty if it was rejected (an error has been reported)
    */
   private Optional<TypeMirror> resolveCopyConstructorParameterType(
       ExecutableElement method,
-      TypeMirror sourceType,
-      TypeElement sourceTypeElement,
+      DeclaredType sourceType,
       String targetPackage,
       String copyConstructor) {
 
@@ -613,26 +679,31 @@ public class SpecInterfaceAnalyser {
       return Optional.empty();
     }
 
-    if (!hasConstructorAccepting(sourceTypeElement, sourceType, supertype.get(), targetPackage)) {
+    // The cast that will be emitted, not the name the attribute gave: where S pins the supertype's
+    // arguments the two differ, and only the emitted one explains the rejection.
+    if (!hasConstructorAccepting(sourceType, supertype.get(), targetPackage)) {
       Diagnostics.error(
           messager,
           method,
           "@ViaCopyAndSet",
           "copyConstructor names '"
               + parameterElement.getQualifiedName()
-              + "', which no constructor of '"
-              + sourceType
-              + "' accepts.",
+              + "', which '"
+              + ProcessorUtils.simpleTypeName(sourceType)
+              + "' reaches as '"
+              + ProcessorUtils.simpleTypeName(supertype.get())
+              + "', and no constructor accepts.",
           "The generated set function calls 'new "
-              + sourceTypeElement.getSimpleName()
+              + ProcessorUtils.simpleTypeName(sourceType)
               + "(("
-              + parameterElement.getSimpleName()
+              + ProcessorUtils.simpleTypeName(supertype.get())
               + ") source)'. Found "
-              + describeSingleArgumentConstructors(sourceTypeElement, sourceType, targetPackage)
+              + describeSingleArgumentConstructors(sourceType, targetPackage)
               + ".",
-          "Name a type one of those constructors takes, or drop the attribute to pass '"
-              + sourceType
-              + "' unchanged.");
+          "Name a supertype of '"
+              + ProcessorUtils.simpleTypeName(sourceType)
+              + "' that one of those constructors takes, as the class alone without type"
+              + " arguments, or drop the attribute to pass the source unchanged.");
       return Optional.empty();
     }
 
@@ -721,27 +792,24 @@ public class SpecInterfaceAnalyser {
   }
 
   /**
-   * Returns whether {@code sourceTypeElement} declares a constructor the generated class can call a
-   * single {@code argument} through.
+   * Returns whether {@code sourceType} declares a constructor the generated class can call a single
+   * {@code argument} through.
    *
-   * @param sourceTypeElement the source type {@code S}
+   * @param sourceType the instantiated source type {@code S}, which the constructors are read under
    * @param argument the type the generated cast produces
    * @param targetPackage the package the optics class is generated into
    * @return true if some constructor it can reach accepts it
    */
   private boolean hasConstructorAccepting(
-      TypeElement sourceTypeElement,
-      TypeMirror sourceType,
-      TypeMirror argument,
-      String targetPackage) {
+      DeclaredType sourceType, TypeMirror argument, String targetPackage) {
     for (ExecutableElement constructor :
-        ElementFilter.constructorsIn(sourceTypeElement.getEnclosedElements())) {
+        ElementFilter.constructorsIn(sourceType.asElement().getEnclosedElements())) {
       List<? extends VariableElement> parameters = constructor.getParameters();
       // A constructor the generated class cannot call is no use, however well it fits.
       if (parameters.size() != 1 || !isAccessibleFrom(constructor, targetPackage)) {
         continue;
       }
-      TypeMirror parameterType = parameterTypeAsSeenBy(sourceType, constructor);
+      TypeMirror parameterType = constructorParameterType(sourceType, constructor);
       if (typeUtils.isAssignable(argument, parameterType)) {
         return true;
       }
@@ -755,23 +823,28 @@ public class SpecInterfaceAnalyser {
   }
 
   /**
-   * The constructor's single parameter as the instantiated source type sees it.
+   * The constructor's one parameter as seen under the source type's instantiation.
    *
    * <p>Read off the constructor directly, the parameter speaks the source type's own declaration:
-   * {@code Holder<X>} declaring {@code Holder(Base<X> other)} gives {@code Base<X>}. The argument
-   * it is compared against comes from a supertype walk over the instantiated type, so it speaks the
-   * spec's variables, {@code Base<U>}. The two can never match until one is rewritten in the
-   * other's terms.
+   * {@code Node<X>} declaring {@code Node(Base<X> other)} gives {@code Base<X>}. The argument it is
+   * compared against comes from a supertype walk over the instantiated type, so it speaks the
+   * spec's variables, {@code Base<U>}. Where the source type declares parameters of its own the two
+   * can never match until one is rewritten in the other's terms; where it declares none, the
+   * rewrite is a no-op and the declared parameter was already the answer.
    *
-   * @param sourceType the instantiated source type S
-   * @param constructor the constructor whose parameter to read
+   * <p>Only the class's own variables are substituted. A constructor that declares parameters of
+   * its own keeps them, and is left to be rejected.
+   *
+   * @param sourceType the instantiated source type {@code S}
+   * @param constructor a single-argument constructor, whose one parameter is read
    * @return the parameter type under {@code sourceType}'s instantiation
    */
-  private TypeMirror parameterTypeAsSeenBy(TypeMirror sourceType, ExecutableElement constructor) {
-    // analyse() rejects a source type that is not a declared type before any optic method is read,
-    // which is the invariant SpecAnalysis records.
-    ExecutableType asMember =
-        (ExecutableType) typeUtils.asMemberOf((DeclaredType) sourceType, constructor);
+  private TypeMirror constructorParameterType(
+      DeclaredType sourceType, ExecutableElement constructor) {
+    // Total: asMemberOf answers with an ExecutableType for an executable member, and the only
+    // shape that would not - an unresolvable source type, whose members resolve to itself - never
+    // reaches here, because such a type enumerates no constructors for the caller to loop over.
+    ExecutableType asMember = (ExecutableType) typeUtils.asMemberOf(sourceType, constructor);
     return asMember.getParameterTypes().getFirst();
   }
 
@@ -781,19 +854,23 @@ public class SpecInterfaceAnalyser {
    * <p>Only the reachable ones: naming a constructor the generated class cannot call would send the
    * reader after a type that fails the same way.
    *
-   * @param sourceTypeElement the source type {@code S}
+   * @param sourceType the instantiated source type {@code S}, so the list names the parameters as
+   *     it sees them
    * @param targetPackage the package the optics class is generated into
    * @return the parameter types it takes one at a time, or a phrase saying it takes none
    */
-  private String describeSingleArgumentConstructors(
-      TypeElement sourceTypeElement, TypeMirror sourceType, String targetPackage) {
-    // The same instantiation the check uses, so the list names the types the author would have to
-    // write rather than the ones the source type declared them under.
+  private String describeSingleArgumentConstructors(DeclaredType sourceType, String targetPackage) {
+    // The same instantiation the check uses, so a reader comparing the list against the name they
+    // gave is comparing like with like. The names carry type arguments and the attribute does not,
+    // so the list is there to be recognised rather than copied from.
     List<String> parameterTypes =
-        ElementFilter.constructorsIn(sourceTypeElement.getEnclosedElements()).stream()
+        ElementFilter.constructorsIn(sourceType.asElement().getEnclosedElements()).stream()
             .filter(constructor -> constructor.getParameters().size() == 1)
             .filter(constructor -> isAccessibleFrom(constructor, targetPackage))
-            .map(constructor -> parameterTypeAsSeenBy(sourceType, constructor).toString())
+            .map(
+                constructor ->
+                    ProcessorUtils.simpleTypeName(
+                        constructorParameterType(sourceType, constructor)))
             .toList();
     return parameterTypes.isEmpty()
         ? "no single-argument constructor it can call"

@@ -624,8 +624,9 @@ class SpecInterfaceProcessingTest {
               import org.higherkindedj.optics.annotations.OpticsSpec;
               import org.higherkindedj.optics.annotations.ViaCopyAndSet;
 
-              // The spec reuses the source type's own parameter name, so that what is asserted
-              // here is the constructor match alone.
+              // <X> repeats the source type's own parameter name on purpose. Node's X and the
+              // spec's X are distinct variables despite the shared spelling, which is the shape
+              // the bug had, so renaming this to <U> would prove less than it looks like it does.
               @ImportOptics
               public interface NodeOpticsSpec<X> extends OpticsSpec<Node<X>> {
 
@@ -638,15 +639,15 @@ class SpecInterfaceProcessingTest {
           javac().withProcessors(new ImportOpticsProcessor()).compile(base, node, specInterface);
 
       // Node declares Node(Base<X> other) against its own X; the supertype walk hands over the
-      // spec's X. Same name, different variable, so reading the parameter as declared never
-      // matched.
+      // spec's X. Same name, different variable, so the parameter has to be read under Node<X>'s
+      // instantiation rather than as declared.
       assertCompilationSucceeded(compilation);
       assertGeneratedCodeContains(
           compilation, "com.myapp.NodeOptics", "new Node<X>((Base<X>) source)");
     }
 
     @Test
-    @DisplayName("should name the instantiated parameter types when no constructor matches")
+    @DisplayName("should name the parameter types with the source type's own arguments")
     void shouldNameInstantiatedParameterTypesWhenNoConstructorMatches() {
       final var base =
           JavaFileObjects.forSourceString(
@@ -710,7 +711,385 @@ class SpecInterfaceProcessingTest {
       // Under Node<U> the parameter is Other<U>; naming it Other<X> would send the author looking
       // for a variable their own declaration does not have.
       assertThat(compilation).hadErrorContaining("single-argument constructors taking");
-      assertThat(compilation).hadErrorContaining("com.external.Other<U>");
+      assertThat(compilation).hadErrorContaining("Other<U>");
+    }
+
+    @Test
+    @DisplayName("should substitute the spec's parameter name into the emitted cast")
+    void shouldSubstituteSpecParameterNameIntoTheCast() {
+      final var base =
+          JavaFileObjects.forSourceString(
+              "com.external.Base",
+              """
+              package com.external;
+
+              public class Base<X> {
+                  protected String name;
+              }
+              """);
+
+      final var node =
+          JavaFileObjects.forSourceString(
+              "com.external.Node",
+              """
+              package com.external;
+
+              public class Node<X> extends Base<X> {
+                  public Node(Base<X> other) { this.name = other.name; }
+                  public String name() { return name; }
+                  public void setName(String name) { this.name = name; }
+              }
+              """);
+
+      final var specInterface =
+          JavaFileObjects.forSourceString(
+              "com.myapp.NodeOpticsSpec",
+              """
+              package com.myapp;
+
+              import com.external.Node;
+              import org.higherkindedj.optics.Lens;
+              import org.higherkindedj.optics.annotations.ImportOptics;
+              import org.higherkindedj.optics.annotations.OpticsSpec;
+              import org.higherkindedj.optics.annotations.ViaCopyAndSet;
+
+              @ImportOptics
+              public interface NodeOpticsSpec<U> extends OpticsSpec<Node<U>> {
+
+                  @ViaCopyAndSet(copyConstructor = "com.external.Base", setter = "setName")
+                  Lens<Node<U>, String> name();
+              }
+              """);
+
+      Compilation compilation =
+          javac().withProcessors(new ImportOpticsProcessor()).compile(base, node, specInterface);
+
+      // The cast names the spec's U, not Node's own X, which is what pins the direction of the
+      // substitution rather than merely that one happened.
+      assertCompilationSucceeded(compilation);
+      assertGeneratedCodeContains(
+          compilation, "com.myapp.NodeOptics", "new Node<U>((Base<U>) source)");
+    }
+
+    @Test
+    @DisplayName("should match a varargs copy constructor through the source type's instantiation")
+    void shouldMatchVarargsCopyConstructorOnGenericSpec() {
+      final var base =
+          JavaFileObjects.forSourceString(
+              "com.external.Base",
+              """
+              package com.external;
+
+              public class Base<X> {
+                  protected String name;
+              }
+              """);
+
+      final var node =
+          JavaFileObjects.forSourceString(
+              "com.external.Node",
+              """
+              package com.external;
+
+              public class Node<X> extends Base<X> {
+                  @SafeVarargs
+                  public Node(Base<X>... others) { this.name = others[0].name; }
+                  public String name() { return name; }
+                  public void setName(String name) { this.name = name; }
+              }
+              """);
+
+      final var specInterface =
+          JavaFileObjects.forSourceString(
+              "com.myapp.NodeOpticsSpec",
+              """
+              package com.myapp;
+
+              import com.external.Node;
+              import org.higherkindedj.optics.Lens;
+              import org.higherkindedj.optics.annotations.ImportOptics;
+              import org.higherkindedj.optics.annotations.OpticsSpec;
+              import org.higherkindedj.optics.annotations.ViaCopyAndSet;
+
+              @ImportOptics
+              public interface NodeOpticsSpec<U> extends OpticsSpec<Node<U>> {
+
+                  @ViaCopyAndSet(copyConstructor = "com.external.Base", setter = "setName")
+                  Lens<Node<U>, String> name();
+              }
+              """);
+
+      Compilation compilation =
+          javac().withProcessors(new ImportOpticsProcessor()).compile(base, node, specInterface);
+
+      // Substituting into an array type gives an array type, so the component is still there to
+      // read for the varargs arm.
+      assertCompilationSucceeded(compilation);
+      assertGeneratedCodeContains(
+          compilation, "com.myapp.NodeOptics", "new Node<U>((Base<U>) source)");
+    }
+
+    @Test
+    @DisplayName("should reject a source type whose constructor call cannot be written")
+    void shouldRejectSourceTypeWhoseConstructorCallCannotBeWritten() {
+      final var base =
+          JavaFileObjects.forSourceString(
+              "com.external.Base",
+              """
+              package com.external;
+
+              public class Base<X> {
+                  protected String name;
+              }
+              """);
+
+      final var node =
+          JavaFileObjects.forSourceString(
+              "com.external.Node",
+              """
+              package com.external;
+
+              public class Node<X> extends Base<X> {
+                  public Node() {}
+                  public Node(Base<X> other) { this.name = other.name; }
+                  public String name() { return name; }
+                  public void setName(String name) { this.name = name; }
+                  public Node<X> withName(String name) {
+                      Node<X> n = new Node<>();
+                      n.name = name;
+                      return n;
+                  }
+              }
+              """);
+
+      record Case(String name, String annotation) {}
+      var cases =
+          List.of(
+              new Case(
+                  "CopyAndSetSpec",
+                  "@ViaCopyAndSet(setter = \"setName\","
+                      + " copyConstructor = \"com.external.Base\")"),
+              new Case("PlainCopyAndSetSpec", "@ViaCopyAndSet(setter = \"setName\")"));
+
+      for (Case testCase : cases) {
+        final var specInterface =
+            JavaFileObjects.forSourceString(
+                "com.myapp." + testCase.name(),
+                """
+                package com.myapp;
+
+                import com.external.Node;
+                import org.higherkindedj.optics.Lens;
+                import org.higherkindedj.optics.annotations.ImportOptics;
+                import org.higherkindedj.optics.annotations.OpticsSpec;
+                import org.higherkindedj.optics.annotations.ViaCopyAndSet;
+
+                @ImportOptics
+                public interface %s extends OpticsSpec<Node<?>> {
+                    %s
+                    Lens<Node<?>, String> name();
+                }
+                """
+                    .formatted(testCase.name(), testCase.annotation()));
+
+        Compilation compilation =
+            javac().withProcessors(new ImportOpticsProcessor()).compile(base, node, specInterface);
+
+        // Reported at the spec, not left to javac inside a file the author never wrote.
+        assertThat(compilation).failed();
+        assertThat(compilation).hadErrorContaining("is written with a wildcard type argument");
+        assertThat(compilation).hadErrorContaining("Name the type the wildcard stands for");
+      }
+    }
+
+    @Test
+    @DisplayName("should reject a wildcard source type for @ViaConstructor too")
+    void shouldRejectWildcardSourceTypeForViaConstructor() {
+      final var bag =
+          JavaFileObjects.forSourceString(
+              "com.external.Bag",
+              """
+              package com.external;
+
+              public record Bag<T>(String name, T value) {}
+              """);
+
+      final var specInterface =
+          JavaFileObjects.forSourceString(
+              "com.myapp.BagOpticsSpec",
+              """
+              package com.myapp;
+
+              import com.external.Bag;
+              import org.higherkindedj.optics.Lens;
+              import org.higherkindedj.optics.annotations.ImportOptics;
+              import org.higherkindedj.optics.annotations.OpticsSpec;
+              import org.higherkindedj.optics.annotations.ViaConstructor;
+
+              @ImportOptics
+              public interface BagOpticsSpec extends OpticsSpec<Bag<?>> {
+                  @ViaConstructor(parameterOrder = {"name", "value"})
+                  Lens<Bag<?>, String> name();
+              }
+              """);
+
+      Compilation compilation =
+          javac().withProcessors(new ImportOpticsProcessor()).compile(bag, specInterface);
+
+      // @ViaConstructor rebuilds the same way, so it is asked the same question.
+      assertThat(compilation).failed();
+      assertThat(compilation).hadErrorContaining("@ViaConstructor");
+      assertThat(compilation).hadErrorContaining("is written with a wildcard type argument");
+    }
+
+    @Test
+    @DisplayName("should accept a static nested source type, which needs no enclosing instance")
+    void shouldAcceptStaticNestedSourceType() {
+      final var outer =
+          JavaFileObjects.forSourceString(
+              "com.external.Outer",
+              """
+              package com.external;
+
+              public class Outer {
+                  public static class Nested {
+                      private String name;
+                      public Nested() {}
+                      public Nested(Nested other) { this.name = other.name; }
+                      public String name() { return name; }
+                      public void setName(String name) { this.name = name; }
+                  }
+              }
+              """);
+
+      final var specInterface =
+          JavaFileObjects.forSourceString(
+              "com.myapp.NestedOpticsSpec",
+              """
+              package com.myapp;
+
+              import com.external.Outer;
+              import org.higherkindedj.optics.Lens;
+              import org.higherkindedj.optics.annotations.ImportOptics;
+              import org.higherkindedj.optics.annotations.OpticsSpec;
+              import org.higherkindedj.optics.annotations.ViaCopyAndSet;
+
+              @ImportOptics
+              public interface NestedOpticsSpec extends OpticsSpec<Outer.Nested> {
+                  @ViaCopyAndSet(setter = "setName")
+                  Lens<Outer.Nested, String> name();
+              }
+              """);
+
+      Compilation compilation =
+          javac().withProcessors(new ImportOpticsProcessor()).compile(outer, specInterface);
+
+      // Static, so 'new Outer.Nested(...)' writes perfectly well and the guard stands aside.
+      assertCompilationSucceeded(compilation);
+    }
+
+    @Test
+    @DisplayName("should reject an inner class source type, whose call needs an enclosing instance")
+    void shouldRejectInnerClassSourceType() {
+      final var outer =
+          JavaFileObjects.forSourceString(
+              "com.external.Outer",
+              """
+              package com.external;
+
+              public class Outer {
+                  public class Inner {
+                      protected String name;
+                      public Inner() {}
+                      public String name() { return name; }
+                      public void setName(String name) { this.name = name; }
+                  }
+              }
+              """);
+
+      final var specInterface =
+          JavaFileObjects.forSourceString(
+              "com.myapp.InnerOpticsSpec",
+              """
+              package com.myapp;
+
+              import com.external.Outer;
+              import org.higherkindedj.optics.Lens;
+              import org.higherkindedj.optics.annotations.ImportOptics;
+              import org.higherkindedj.optics.annotations.OpticsSpec;
+              import org.higherkindedj.optics.annotations.ViaCopyAndSet;
+
+              @ImportOptics
+              public interface InnerOpticsSpec extends OpticsSpec<Outer.Inner> {
+                  @ViaCopyAndSet(setter = "setName")
+                  Lens<Outer.Inner, String> name();
+              }
+              """);
+
+      Compilation compilation =
+          javac().withProcessors(new ImportOpticsProcessor()).compile(outer, specInterface);
+
+      assertThat(compilation).failed();
+      assertThat(compilation).hadErrorContaining("is an inner class");
+      assertThat(compilation).hadErrorContaining("Declare the source type static");
+    }
+
+    @Test
+    @DisplayName("should leave a wildcard source type to @Wither, which names no constructor")
+    void shouldAllowWildcardSourceTypeWithWither() {
+      final var base =
+          JavaFileObjects.forSourceString(
+              "com.external.Base",
+              """
+              package com.external;
+
+              public class Base<X> {
+                  protected String name;
+              }
+              """);
+
+      final var node =
+          JavaFileObjects.forSourceString(
+              "com.external.Node",
+              """
+              package com.external;
+
+              public class Node<X> extends Base<X> {
+                  public Node() {}
+                  public String name() { return name; }
+                  public Node<X> withName(String name) {
+                      Node<X> n = new Node<>();
+                      n.name = name;
+                      return n;
+                  }
+              }
+              """);
+
+      final var specInterface =
+          JavaFileObjects.forSourceString(
+              "com.myapp.WitherOpticsSpec",
+              """
+              package com.myapp;
+
+              import com.external.Node;
+              import org.higherkindedj.optics.Lens;
+              import org.higherkindedj.optics.annotations.ImportOptics;
+              import org.higherkindedj.optics.annotations.OpticsSpec;
+              import org.higherkindedj.optics.annotations.Wither;
+
+              @ImportOptics
+              public interface WitherOpticsSpec extends OpticsSpec<Node<?>> {
+                  @Wither("withName")
+                  Lens<Node<?>, String> name();
+              }
+              """);
+
+      Compilation compilation =
+          javac().withProcessors(new ImportOpticsProcessor()).compile(base, node, specInterface);
+
+      // The guard is asked per strategy: a wither rebuilds through a method, so the wildcard the
+      // constructor arms cannot write is no obstacle here.
+      assertCompilationSucceeded(compilation);
     }
 
     @Test
@@ -764,7 +1143,7 @@ class SpecInterfaceProcessingTest {
               .compile(OVERLOADED_BASE, OVERLOADED_NODE, overloadedSpec("java.io.Serializable"));
 
       assertThat(compilation).failed();
-      assertThat(compilation).hadErrorContaining("which no constructor of");
+      assertThat(compilation).hadErrorContaining("and no constructor accepts");
       assertThat(compilation).hadErrorContaining("single-argument constructors taking");
       assertThat(compilation).hadErrorCount(1);
     }
@@ -935,8 +1314,8 @@ class SpecInterfaceProcessingTest {
       // Shut(ShutBase) fits but is private; Shut(Object) is package-private and com.myapp is not
       // that package. Only the public Shut(Shut) is reachable, and it does not take a ShutBase.
       assertThat(compilation).failed();
-      assertThat(compilation).hadErrorContaining("which no constructor of");
-      assertThat(compilation).hadErrorContaining("taking [com.external.Shut]");
+      assertThat(compilation).hadErrorContaining("and no constructor accepts");
+      assertThat(compilation).hadErrorContaining("taking [Shut]");
       assertThat(compilation).hadErrorCount(1);
     }
 
