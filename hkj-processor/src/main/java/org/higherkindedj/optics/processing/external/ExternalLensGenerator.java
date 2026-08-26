@@ -345,8 +345,10 @@ public class ExternalLensGenerator {
     }
 
     final ClassName recordClassName = ClassName.get(recordElement);
+    // The instantiated name, not the raw one: the generated method declares the record's own type
+    // parameters, so every use of the record in this signature has to name them.
     final ParameterizedTypeName traversalTypeName =
-        ParameterizedTypeName.get(ClassName.get(Traversal.class), recordClassName, focusType);
+        ParameterizedTypeName.get(ClassName.get(Traversal.class), recordTypeName, focusType);
 
     final CodeBlock modifyFBody =
         generator.generateModifyF(component, recordClassName, allComponents);
@@ -356,6 +358,11 @@ public class ExternalLensGenerator {
         ParameterizedTypeName.get(
             ClassName.get(WitnessArity.class), ClassName.get(TypeArity.class).nestedClass("Unary"));
 
+    // A record that claims F for a parameter of its own takes the effect elsewhere, read from the
+    // one place the generators writing uses of it also read.
+    final TypeVariableName effect =
+        TypeVariableName.get(ProcessorUtils.effectVariableName(recordElement), witnessArityBound);
+
     final TypeSpec traversalImpl =
         TypeSpec.anonymousClassBuilder("")
             .addSuperinterface(traversalTypeName)
@@ -363,45 +370,50 @@ public class ExternalLensGenerator {
                 MethodSpec.methodBuilder("modifyF")
                     .addAnnotation(Override.class)
                     .addModifiers(Modifier.PUBLIC)
-                    .addTypeVariable(TypeVariableName.get("F", witnessArityBound))
+                    .addTypeVariable(effect)
                     .addParameter(
                         ParameterizedTypeName.get(
                             ClassName.get(Function.class),
                             focusType,
                             ParameterizedTypeName.get(
-                                ClassName.get(Kind.class), TypeVariableName.get("F"), focusType)),
+                                ClassName.get(Kind.class), effect, focusType)),
                         "f")
-                    .addParameter(recordClassName, "source")
+                    .addParameter(recordTypeName, "source")
                     .addParameter(
-                        ParameterizedTypeName.get(
-                            ClassName.get(Applicative.class), TypeVariableName.get("F")),
+                        ParameterizedTypeName.get(ClassName.get(Applicative.class), effect),
                         "applicative")
                     .returns(
                         ParameterizedTypeName.get(
-                            ClassName.get(Kind.class), TypeVariableName.get("F"), recordClassName))
+                            ClassName.get(Kind.class), effect, recordTypeName))
                     .addCode(modifyFBody)
                     .build())
             .build();
 
     String methodName = field.name() + "Traversal";
 
-    return MethodSpec.methodBuilder(methodName)
-        .addModifiers(Modifier.PUBLIC, Modifier.STATIC)
-        .addJavadoc(
-            "Creates a {@link $T} for the {@code $L} field of a {@link $T}.\n"
-                + "<p>This traversal focuses on all items within the {@code $L} collection,"
-                + " allowing an effectful function\n"
-                + "to be applied to each one.\n\n"
-                + "@return A non-null {@code Traversal<$T, $T>}.",
-            ClassName.get(Traversal.class),
-            field.name(),
-            recordClassName,
-            field.name(),
-            recordClassName,
-            focusType.box())
-        .returns(traversalTypeName)
-        .addStatement("return $L", traversalImpl)
-        .build();
+    final MethodSpec.Builder methodBuilder =
+        MethodSpec.methodBuilder(methodName)
+            .addModifiers(Modifier.PUBLIC, Modifier.STATIC)
+            .addJavadoc(
+                "Creates a {@link $T} for the {@code $L} field of a {@link $T}.\n"
+                    + "<p>This traversal focuses on all items within the {@code $L} collection,"
+                    + " allowing an effectful function\n"
+                    + "to be applied to each one.\n\n"
+                    + "@return A non-null {@code Traversal<$T, $T>}.",
+                ClassName.get(Traversal.class),
+                field.name(),
+                recordClassName,
+                field.name(),
+                recordTypeName,
+                focusType.box())
+            .returns(traversalTypeName);
+
+    // The record's own parameters, as the lens methods beside this one already declare them.
+    for (TypeParameterElement typeParameter : recordElement.getTypeParameters()) {
+      methodBuilder.addTypeVariable(TypeVariableName.get(typeParameter));
+    }
+
+    return methodBuilder.addStatement("return $L", traversalImpl).build();
   }
 
   // Package-private for tests.
