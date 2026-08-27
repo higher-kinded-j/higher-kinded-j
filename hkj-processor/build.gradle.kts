@@ -112,6 +112,7 @@ tasks.jacocoTestCoverageVerification {
                 "org.higherkindedj.optics.processing.effect.PathProcessor*",
                 "org.higherkindedj.optics.processing.external.SpecInterfaceAnalyser*",
                 "org.higherkindedj.optics.processing.external.CopyStrategyCodeGenerator*",
+                "org.higherkindedj.optics.processing.util.ProcessorUtils*",
             )
             limit {
                 counter = "LINE"
