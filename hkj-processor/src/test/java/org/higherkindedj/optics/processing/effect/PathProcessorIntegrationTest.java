@@ -1368,6 +1368,56 @@ class PathProcessorIntegrationTest {
 
       assertThat(parameter).failed();
       assertThat(parameter).hadErrorContaining("the signature of 'find' names the raw type 'List'");
+
+      // A wildcard's bound is written out with the wildcard that carries it, so it is as much a
+      // position as the argument beside it.
+      var wildcardBound =
+          compile(
+              JavaFileObjects.forSourceString(
+                  "com.example.RawWild",
+                  """
+                  package com.example;
+
+                  import java.util.List;
+                  import java.util.Optional;
+                  import org.higherkindedj.hkt.effect.annotation.GeneratePathBridge;
+                  import org.higherkindedj.hkt.effect.annotation.PathVia;
+
+                  @GeneratePathBridge
+                  @SuppressWarnings("rawtypes")
+                  public interface RawWild {
+                      @PathVia
+                      Optional<? extends List> all();
+                  }
+                  """));
+
+      assertThat(wildcardBound).failed();
+      assertThat(wildcardBound)
+          .hadErrorContaining("the signature of 'all' names the raw type 'List'");
+
+      // And the interface's own bounds, which the bridge repeats in its own declaration.
+      var interfaceBound =
+          compile(
+              JavaFileObjects.forSourceString(
+                  "com.example.RawBound",
+                  """
+                  package com.example;
+
+                  import java.util.List;
+                  import java.util.Optional;
+                  import org.higherkindedj.hkt.effect.annotation.GeneratePathBridge;
+                  import org.higherkindedj.hkt.effect.annotation.PathVia;
+
+                  @GeneratePathBridge
+                  @SuppressWarnings("rawtypes")
+                  public interface RawBound<T extends List> {
+                      @PathVia
+                      Optional<String> byId(T id);
+                  }
+                  """));
+
+      assertThat(interfaceBound).failed();
+      assertThat(interfaceBound).hadErrorContaining("the bound on 'T' names the raw type 'List'");
     }
 
     @Test

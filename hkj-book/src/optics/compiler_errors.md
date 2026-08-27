@@ -143,11 +143,11 @@ A source type that is itself generic is supported, and the spec names its own ty
 
 Every message on this page is quoted as the processor emits it, with `'x'` standing in for the name it prints.
 
-The bridge is a file you never wrote and cannot edit, so each of these refuses a shape at your own declaration rather than emitting source that would fail, or warn, in the build that consumes it.
+The bridge is a file you never wrote and cannot edit, so the errors below refuse a shape at your own declaration rather than emitting source that would fail, or warn, in the build that consumes it. The last entry is a warning rather than an error: the bridge it describes is written, it just has nothing in it.
 
 ### "@PathVia: the return type of 'x' is 'Y', which no Path wraps"
 
-**Cause.** The method returns something outside the bridged set: `Optional`, `Maybe`, `Either`, `Try`, `Validated`, `IO`. `CompletableFuture` is the one most often met here.
+**Cause.** The method returns a type the bridge has no Path for. The bridged set is `Optional`, `Maybe`, `Either`, `Try`, `Validated` and `IO`; `CompletableFuture` is the type most often met outside it.
 
 **Fix.** Return one of the six, or drop `@PathVia` and wrap the call by hand.
 
@@ -199,7 +199,7 @@ Only a collision the signature actually depends on is refused. `<T> Optional<T> 
 
 ### "@GeneratePathBridge: no @PathVia method was found among 'X's members" (a warning)
 
-**Cause.** Neither the interface nor anything it extends has a `@PathVia` method, so the bridge is written with a constructor and nothing else.
+**Cause.** No `@PathVia` method survives among the interface's members, so the bridge is written with a constructor and nothing else. Usually that means none was ever written; it can also mean one was hidden, which the note below covers.
 
 Inherited methods do count: a bridge for `StringStore extends Store<String>` picks up `Store`'s, read under `String`. But `@PathVia` is *not* inherited by an override, so a method that overrides an annotated one hides it unless it is annotated too, and that is the usual cause of this message on an interface whose parent is annotated.
 

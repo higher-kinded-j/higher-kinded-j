@@ -20,6 +20,7 @@ import javax.lang.model.type.ExecutableType;
 import javax.lang.model.type.TypeKind;
 import javax.lang.model.type.TypeMirror;
 import javax.lang.model.type.TypeVariable;
+import javax.lang.model.type.WildcardType;
 import javax.lang.model.util.ElementFilter;
 import javax.lang.model.util.Elements;
 import javax.lang.model.util.Types;
@@ -167,6 +168,25 @@ public class PathProcessor extends AbstractProcessor {
           interfaceElement,
           interfaceElement,
           packageName)) {
+        return;
+      }
+      TypeElement rawBound = firstRawIn(parameter.getBounds());
+      if (rawBound != null) {
+        Diagnostics.error(
+            processingEnv.getMessager(),
+            interfaceElement,
+            BRIDGE_TAG,
+            "on '"
+                + interfaceName
+                + "', the bound on '"
+                + parameter.getSimpleName()
+                + "' names the raw type '"
+                + rawBound.getSimpleName()
+                + "'.",
+            "The bridge repeats the bound in its own declaration, and a raw type in generated"
+                + " source is a [rawtypes] warning that the suppression on your own declaration"
+                + " does not cover.",
+            "Name '" + rawBound.getSimpleName() + "'s type arguments.");
         return;
       }
     }
@@ -407,7 +427,7 @@ public class PathProcessor extends AbstractProcessor {
     // A raw type is copied into the generated file as written, and lands there as a warning the
     // author's own @SuppressWarnings does not reach - their file is not the one that carries it.
     // Every supported effect is generic, so a bare 'Optional' head is caught by the same walk.
-    TypeElement raw = firstRawIn(types, written);
+    TypeElement raw = firstRawIn(written);
     if (raw != null) {
       rejectMethod(
           method,
@@ -753,9 +773,9 @@ public class PathProcessor extends AbstractProcessor {
    * type, {@code Optional<List>} as its argument, {@code List} as a parameter. The bridge copies
    * each verbatim, and every one of them is a {@code [rawtypes]} warning in the file it lands in.
    */
-  private static TypeElement firstRawIn(Types types, List<? extends TypeMirror> written) {
+  private static TypeElement firstRawIn(List<? extends TypeMirror> written) {
     for (TypeMirror type : written) {
-      TypeElement raw = firstRawIn(types, type);
+      TypeElement raw = firstRawIn(type);
       if (raw != null) {
         return raw;
       }
@@ -763,10 +783,25 @@ public class PathProcessor extends AbstractProcessor {
     return null;
   }
 
-  private static TypeElement firstRawIn(Types types, TypeMirror type) {
+  private static TypeElement firstRawIn(TypeMirror type) {
     switch (type.getKind()) {
       case ARRAY -> {
-        return firstRawIn(types, ((ArrayType) type).getComponentType());
+        return firstRawIn(((ArrayType) type).getComponentType());
+      }
+      case WILDCARD -> {
+        // A bound is written out with the wildcard that carries it, so `? extends List` puts a
+        // raw List in the generated file as surely as a bare one does.
+        WildcardType wildcard = (WildcardType) type;
+        for (TypeMirror bound :
+            new TypeMirror[] {wildcard.getExtendsBound(), wildcard.getSuperBound()}) {
+          if (bound != null) {
+            TypeElement raw = firstRawIn(bound);
+            if (raw != null) {
+              return raw;
+            }
+          }
+        }
+        return null;
       }
       case DECLARED -> {
         DeclaredType declared = (DeclaredType) type;
@@ -775,12 +810,14 @@ public class PathProcessor extends AbstractProcessor {
           return element;
         }
         for (TypeMirror argument : declared.getTypeArguments()) {
-          TypeElement raw = firstRawIn(types, argument);
+          TypeElement raw = firstRawIn(argument);
           if (raw != null) {
             return raw;
           }
         }
-        return null;
+        // The enclosing link too: `Outer.Inner` is raw in `Outer` even where `Inner` declares
+        // nothing of its own. An absent or static enclosing type is a NoType, which ends the walk.
+        return firstRawIn(declared.getEnclosingType());
       }
       default -> {
         return null;

@@ -102,9 +102,9 @@ import java.lang.annotation.Target;
  *       caller supplies; a wildcard is a different captured type at each mention, so no caller
  *       could satisfy both. Wildcards elsewhere, {@code Validated}'s value type included, are named
  *       once and carry through
- *   <li>a method <strong>type parameter sharing a name</strong> with one of the interface's that
- *       the same signature needs. The bridge declares both in one scope, which the delegate never
- *       does, and the method's would hide the interface's
+ *   <li>a method <strong>type parameter sharing a name</strong> with one the interface declares,
+ *       where the signature needs the interface's. The bridge declares both sets in one scope,
+ *       which the delegate never does, so the method's type parameter would hide the interface's
  *   <li>a {@code static} or {@code private} method, which the delegate reference cannot call
  *   <li>a {@code @PathVia(name = ...)} that is not a Java identifier, or that lands on a signature
  *       another {@code @PathVia} already bridges to
