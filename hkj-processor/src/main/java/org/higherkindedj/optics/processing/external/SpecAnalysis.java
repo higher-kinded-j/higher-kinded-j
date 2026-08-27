@@ -229,7 +229,7 @@ public record SpecAnalysis(
   /**
    * Parsed values from a prism hint annotation.
    *
-   * @param targetType the target subtype (for @InstanceOf)
+   * @param targetType the type the generated {@code instanceof} names (for @InstanceOf)
    * @param predicate the predicate method name (for @MatchWhen)
    * @param getter the getter method name (for @MatchWhen)
    */
@@ -247,7 +247,8 @@ public record SpecAnalysis(
     /**
      * Creates info for {@code @InstanceOf} annotation.
      *
-     * @param targetType the target subtype
+     * @param targetType the type the generated {@code instanceof} names: the annotation's class
+     *     under the type arguments the source type pins down
      * @return a PrismHintInfo for instanceof matching
      */
     public static PrismHintInfo forInstanceOf(TypeMirror targetType) {

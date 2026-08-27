@@ -153,6 +153,51 @@ Prism<Value, String> string();
 
 Both produce a `Prism`, so both compose the same way afterwards. Pick by what the library gives you: a type to test, or a method to ask.
 
+### Parameterised Targets
+
+`@InstanceOf` takes a class constant, which is always raw, and the generated test runs after erasure. A parameterised target may therefore only be narrowed to the type arguments the source type *pins down* — the ones a value of that source type must already have had to reach the test at all.
+
+```mermaid
+flowchart TD
+    T["@InstanceOf(Circle.class)<br/>Prism&lt;S, Circle&lt;T&gt;&gt;"] --> Q{"Does S carry the<br/>argument Circle is<br/>reached under?"}
+    Q -->|"Shape&lt;T&gt;, and<br/>Circle&lt;X&gt; implements Shape&lt;X&gt;"| P(["source instanceof Circle&lt;T&gt;<br/>javac checks it"])
+    Q -->|"Shape, which<br/>declares nothing"| E(["Rejected: declare<br/>Circle&lt;?&gt;, or use @MatchWhen"])
+
+    classDef decision fill:#e5c890,stroke:#df8e1d,color:#232634
+    classDef tier fill:#a6d189,stroke:#40a02b,color:#232634
+    classDef error fill:#e78284,stroke:#d20f39,color:#232634
+    class T tier
+    class Q decision
+    class P tier
+    class E error
+```
+
+A generic hierarchy pins its own argument, so the prism can promise it:
+
+```java
+sealed interface Shape<X> permits Circle {}
+record Circle<X>(X tag) implements Shape<X> {}
+
+@InstanceOf(Circle.class)
+Prism<Shape<T>, Circle<T>> circle();
+// generates: source instanceof Circle<T> t ? Optional.of(t) : Optional.empty()
+```
+
+A base that says nothing about the argument pins nothing. Every instantiation passes the same test, so a prism promising one of them is rejected at the declaration:
+
+```java
+class Shape {}
+class Circle<X> extends Shape {}
+
+@InstanceOf(Circle.class)
+Prism<Shape, Circle<T>> circle();   // rejected
+Prism<Shape, Circle<?>> circle();   // accepted: what the test earns
+```
+
+~~~admonish info title="Where the argument matters"
+Widening to `Circle<?>` keeps the prism, at the cost of the argument. Where you need the argument, `@MatchWhen` is the sound alternative: it narrows through a predicate and getter of the source type, so the argument is the source's to honour rather than the test's to invent.
+~~~
+
 ---
 
 ## Layering Domain Optics

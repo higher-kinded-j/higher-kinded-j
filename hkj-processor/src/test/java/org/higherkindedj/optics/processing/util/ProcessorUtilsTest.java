@@ -55,7 +55,6 @@ class ProcessorUtilsTest {
     /** Captures each probe method's parameter type, keyed by method name. */
     private static final class CapturingProcessor extends AbstractProcessor {
       private final Map<String, Boolean> mentionsT = new LinkedHashMap<>();
-      private final Map<String, Boolean> parameterised = new LinkedHashMap<>();
 
       @Override
       public Set<String> getSupportedAnnotationTypes() {
@@ -77,14 +76,12 @@ class ProcessorUtilsTest {
         for (ExecutableElement method : ElementFilter.methodsIn(subject.getEnclosedElements())) {
           TypeMirror searched = method.getParameters().getFirst().asType();
           mentionsT.put(method.getSimpleName().toString(), ProcessorUtils.mentions(searched, t));
-          parameterised.put(
-              method.getSimpleName().toString(), ProcessorUtils.hasTypeArguments(searched));
         }
         return false;
       }
     }
 
-    /** Compiles the subject once and hands back the processor holding both answer maps. */
+    /** Compiles the subject once and hands back the processor holding the answers. */
     private CapturingProcessor probe() {
       var outer =
           JavaFileObjects.forSourceString(
@@ -120,20 +117,6 @@ class ProcessorUtilsTest {
       var processor = new CapturingProcessor();
       javac().withProcessors(processor).compile(outer, subject);
       return processor;
-    }
-
-    @Test
-    @DisplayName("hasTypeArguments holds only for a parameterised declared type")
-    void hasTypeArgumentsHoldsOnlyForAParameterisedDeclaredType() {
-      assertThat(probe().parameterised)
-          .containsEntry("argument", true)
-          .containsEntry("nestedArgument", true)
-          .containsEntry("enclosingType", false)
-          .containsEntry("rawDeclared", false)
-          .containsEntry("unrelated", false)
-          .containsEntry("primitive", false)
-          .containsEntry("arrayComponent", false)
-          .containsEntry("variable", false);
     }
 
     @Test

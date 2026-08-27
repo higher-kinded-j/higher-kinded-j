@@ -60,6 +60,11 @@ public class PrismCodeGenerator {
    * )
    * }</pre>
    *
+   * <p>The target arrives already narrowed to what the test can check: the annotation's class under
+   * the arguments the source type pins down, and an unbounded wildcard wherever it pins none. So
+   * the test written here is one javac accepts as checked, and the method needs no warning
+   * suppressing (issue #733).
+   *
    * @param info the @InstanceOf annotation values
    * @param sourceType the source type
    * @param focusType the focus/target type

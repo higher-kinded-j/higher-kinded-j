@@ -10,7 +10,6 @@ import javax.lang.model.element.Element;
 import javax.lang.model.element.ElementKind;
 import javax.lang.model.element.ExecutableElement;
 import javax.lang.model.element.Modifier;
-import javax.lang.model.element.Name;
 import javax.lang.model.element.NestingKind;
 import javax.lang.model.element.TypeElement;
 import javax.lang.model.element.VariableElement;
@@ -78,6 +77,7 @@ public class SpecInterfaceAnalyser {
   private final Types typeUtils;
   private final Elements elementUtils;
   private final Messager messager;
+  private final InstanceOfNarrowing instanceOfNarrowing;
 
   /**
    * Creates a new SpecInterfaceAnalyser.
@@ -90,6 +90,7 @@ public class SpecInterfaceAnalyser {
     this.typeUtils = typeUtils;
     this.elementUtils = elementUtils;
     this.messager = messager;
+    this.instanceOfNarrowing = new InstanceOfNarrowing(typeUtils);
   }
 
   /**
@@ -382,7 +383,8 @@ public class SpecInterfaceAnalyser {
         copyStrategyInfo = copyResult.get().info();
       }
       case PRISM -> {
-        var prismResult = parsePrismHint(method, sourceType, specInterface);
+        var prismResult =
+            parsePrismHint(method, sourceType, sourceTypeElement, focusType, specInterface);
         if (prismResult.isEmpty()) {
           // parsePrismHint has reported why.
           return Optional.empty();
@@ -727,7 +729,7 @@ public class SpecInterfaceAnalyser {
   private Optional<TypeMirror> resolveSupertype(
       ExecutableElement method, TypeMirror sourceType, TypeElement parameterElement) {
 
-    TypeMirror walked = findSupertype(sourceType, parameterElement);
+    TypeMirror walked = ProcessorUtils.supertypeOf(typeUtils, sourceType, parameterElement);
     if (walked != null) {
       return Optional.of(walked);
     }
@@ -877,41 +879,16 @@ public class SpecInterfaceAnalyser {
         : "single-argument constructors taking " + parameterTypes;
   }
 
-  /**
-   * Finds the supertype of {@code type} declared by {@code target}, instantiated with the type
-   * arguments it is reached by.
-   *
-   * @param type the type to search from; {@code type} itself counts as a match
-   * @param target the declaring element to look for
-   * @return the instantiated supertype, or null if {@code target} is not a supertype
-   */
-  private TypeMirror findSupertype(TypeMirror type, TypeElement target) {
-    Name targetName = target.getQualifiedName();
-    Deque<TypeMirror> queue = new ArrayDeque<>();
-    Set<String> seen = new HashSet<>();
-    queue.add(type);
-    while (!queue.isEmpty()) {
-      TypeMirror current = queue.poll();
-      if (!seen.add(current.toString())) {
-        continue;
-      }
-      // The search starts at the source type, which the caller has already resolved to a
-      // TypeElement, and every supertype of a declared type is itself declared.
-      TypeElement element = (TypeElement) ((DeclaredType) current).asElement();
-      if (element.getQualifiedName().contentEquals(targetName)) {
-        return current;
-      }
-      queue.addAll(typeUtils.directSupertypes(current));
-    }
-    return null;
-  }
-
   // ----- Prism Hint Parsing -----
 
   private record PrismHintResult(PrismHintKind kind, PrismHintInfo info) {}
 
   private Optional<PrismHintResult> parsePrismHint(
-      ExecutableElement method, TypeMirror sourceType, TypeElement specInterface) {
+      ExecutableElement method,
+      TypeMirror sourceType,
+      TypeElement sourceTypeElement,
+      TypeMirror focusType,
+      TypeElement specInterface) {
     // Check for @InstanceOf
     AnnotationMirror instanceOf = findAnnotation(method, INSTANCE_OF_FQN);
     if (instanceOf != null) {
@@ -939,8 +916,20 @@ public class SpecInterfaceAnalyser {
             method);
         return Optional.empty();
       }
+      if (InstanceOfNarrowing.isUnnameable(targetType)) {
+        reportUnnameableInstanceOfTarget(method, specInterface, sourceType, targetType);
+        return Optional.empty();
+      }
+      // The class constant is raw, so the arguments of the type handed back are only ever the
+      // ones the source pins down. What the test earns is what the prism may promise.
+      var narrowing = instanceOfNarrowing.narrow(targetType, sourceType, sourceTypeElement);
+      if (!typeUtils.isAssignable(narrowing.testedType(), focusType)) {
+        reportUntestableInstanceOf(method, specInterface, sourceType, focusType, narrowing);
+        return Optional.empty();
+      }
       return Optional.of(
-          new PrismHintResult(PrismHintKind.INSTANCE_OF, PrismHintInfo.forInstanceOf(targetType)));
+          new PrismHintResult(
+              PrismHintKind.INSTANCE_OF, PrismHintInfo.forInstanceOf(narrowing.testedType())));
     }
 
     // Check for @MatchWhen
@@ -969,6 +958,112 @@ public class SpecInterfaceAnalyser {
             + "' requires a prism hint annotation: "
             + "@InstanceOf or @MatchWhen",
         method);
+  }
+
+  /**
+   * Reports an {@code @InstanceOf} target the generated test could not name.
+   *
+   * @param method the offending optic method
+   * @param specInterface the spec declaring it, for the name the user reads
+   * @param sourceType the source type {@code S}
+   * @param targetType the class the annotation names
+   */
+  private void reportUnnameableInstanceOfTarget(
+      ExecutableElement method,
+      TypeElement specInterface,
+      TypeMirror sourceType,
+      TypeMirror targetType) {
+
+    TypeElement targetElement = (TypeElement) typeUtils.asElement(targetType);
+    Diagnostics.error(
+        messager,
+        method,
+        "@InstanceOf",
+        "'"
+            + specInterface.getSimpleName()
+            + "."
+            + method.getSimpleName()
+            + "' names '"
+            + ProcessorUtils.simpleTypeName(targetType)
+            + "', which carries type parameters of its own and is a member of a generic type.",
+        "The test names the type it checks, and a member of a generic type cannot be written with"
+            + " its own type arguments unless the enclosing type is written with its, which an"
+            + " instanceof cannot do.",
+        "Declare '"
+            + targetElement.getSimpleName()
+            + "' static, so that it can be named on its own, or narrow through a predicate and"
+            + " getter of '"
+            + ProcessorUtils.simpleTypeName(sourceType)
+            + "' with @MatchWhen.");
+  }
+
+  /**
+   * Reports an {@code @InstanceOf} prism whose focus type the test cannot narrow to.
+   *
+   * <p>Two ways to get there, and they want different remedies. The class constant is raw, so a
+   * target parameter the source type pins nothing to is checked by nothing: {@code Circle<X>
+   * extends Shape} narrowed from {@code Shape} passes for every instantiation, and a focus of
+   * {@code Circle<T>} would hand the wrong one back to fail on the first read (issue #733). The
+   * other way is a target that simply is not one the focus accepts, which is a naming mistake.
+   *
+   * @param method the offending optic method
+   * @param specInterface the spec declaring it, for the name the user reads
+   * @param sourceType the source type {@code S}
+   * @param focusType the focus type the prism promises
+   * @param narrowing what the test earns, and what it left free
+   */
+  private void reportUntestableInstanceOf(
+      ExecutableElement method,
+      TypeElement specInterface,
+      TypeMirror sourceType,
+      TypeMirror focusType,
+      InstanceOfNarrowing.Narrowing narrowing) {
+
+    String declaration = specInterface.getSimpleName() + "." + method.getSimpleName();
+    String tested = ProcessorUtils.simpleTypeName(narrowing.testedType());
+    String focus = ProcessorUtils.simpleTypeName(focusType);
+
+    if (!narrowing.freeParameters().isEmpty()
+        && typeUtils.isAssignable(
+            typeUtils.erasure(narrowing.testedType()), typeUtils.erasure(focusType))) {
+      Diagnostics.error(
+          messager,
+          method,
+          "@InstanceOf",
+          "'"
+              + declaration
+              + "' declares its focus as '"
+              + focus
+              + "', which the test cannot"
+              + " narrow to.",
+          "@InstanceOf carries a class constant, which is raw, so the test runs after erasure and"
+              + " '"
+              + ProcessorUtils.simpleTypeName(sourceType)
+              + "' pins nothing to "
+              + String.join(", ", narrowing.freeParameters())
+              + ": every instantiation passes it, and would be handed back as '"
+              + focus
+              + "' to fail on the first read.",
+          "Narrow through a predicate and getter of '"
+              + ProcessorUtils.simpleTypeName(sourceType)
+              + "' with @MatchWhen, which reads the argument off the source rather than inventing"
+              + " it, or declare the focus as '"
+              + tested
+              + "', which is what the test earns.");
+      return;
+    }
+
+    Diagnostics.error(
+        messager,
+        method,
+        "@InstanceOf",
+        "'" + declaration + "' narrows to '" + tested + "', which is not a '" + focus + "'.",
+        "The prism hands back the value the test narrowed, so the class the annotation names has"
+            + " to be one the focus type accepts.",
+        "Name the class the focus declares in @InstanceOf, or declare the focus as a supertype of"
+            + " '"
+            + tested
+            + "'.");
   }
 
   // ----- Traversal Hint Parsing -----
