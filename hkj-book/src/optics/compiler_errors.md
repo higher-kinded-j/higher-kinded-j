@@ -101,6 +101,24 @@ A source type that is itself generic is supported, and the spec names its own ty
 
 **Fix.** Verify that `SubType` extends or implements the spec's `<S>` parameter. If you are working with sum types that don't use a sealed hierarchy (such as Jackson's pre-3.x `JsonNode`), use `@MatchWhen` with predicate and getter method names instead.
 
+### "@InstanceOf: '...' declares its focus as 'Circle<T>', which the test cannot narrow to"
+
+**Cause.** The prism promises a type argument the test cannot check. `@InstanceOf` takes a class constant, which is raw, and the generated `instanceof` runs after erasure, so the only arguments the narrowed value is known to have are the ones the source type pins down. `class Circle<X> extends Shape` reached from a `Shape` that declares no parameters pins none: every instantiation passes the same test, and a `Prism<Shape, Circle<T>>` would hand any of them back as the `T` the caller asked for, to fail on the first read.
+
+**Fix.** Declare the focus as `Circle<?>`, which is what the test earns, or narrow through a predicate and getter of the source type with `@MatchWhen`, which reads the argument off the source rather than inventing it. Where the source type does carry the argument — `Circle<X> implements Shape<X>`, reached from `Shape<T>` — the prism may promise it, and the generated test names it. See [Spec Interfaces](optics_spec_interfaces.md#parameterised-targets).
+
+### "@InstanceOf: '...' names '...', which carries type parameters of its own and is a member of a generic type"
+
+**Cause.** The test has to name the type it checks, and `Outer<X>.Inner<Y>` cannot be written with its own type arguments unless the enclosing type is written with its — which an `instanceof` cannot do. The remaining `Outer.Inner` is raw: it checks nothing about `Y`, and it is a `rawtypes` warning in the consuming build besides. A member of a *non-generic* type is unaffected, since `Outer.Inner<Y>` names itself perfectly well.
+
+**Fix.** Declare the member `static`, so it can be named on its own, or narrow through a predicate and getter with `@MatchWhen`.
+
+### "@InstanceOf: '...' narrows to '...', which is not a '...'"
+
+**Cause.** The class the annotation names is not one the prism's focus type accepts. Either the two are unrelated, or the source type pins the target's argument to something the focus does not agree with: `OpticsSpec<Node<String>>` narrowed to `Leaf` can only be a `Leaf<String>`, whatever a `Prism<Node<String>, Leaf<U>>` says.
+
+**Fix.** Name the class the focus declares, or declare the focus as a supertype of the narrowed type. A prism whose focus is deliberately wider than the test — `@InstanceOf(ArrayList.class) Prism<Collection<T>, List<T>>` — is fine; it is only a focus the narrowed value cannot be assigned to that is rejected.
+
 ### "@ViaCopyAndSet: copyConstructor names '...', which does not resolve to a type"
 
 **Cause.** `copyConstructor` is a plain string, resolved as a fully qualified class name only: it is not read against the spec interface's imports, and it takes no type arguments.

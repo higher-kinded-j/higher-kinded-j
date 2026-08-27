@@ -2,6 +2,9 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.optics.processing.util;
 
+import java.util.ArrayDeque;
+import java.util.Deque;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Set;
@@ -10,6 +13,7 @@ import javax.lang.model.element.Element;
 import javax.lang.model.element.ElementKind;
 import javax.lang.model.element.ExecutableElement;
 import javax.lang.model.element.Modifier;
+import javax.lang.model.element.Name;
 import javax.lang.model.element.TypeElement;
 import javax.lang.model.type.ArrayType;
 import javax.lang.model.type.DeclaredType;
@@ -62,18 +66,39 @@ public final class ProcessorUtils {
   }
 
   /**
-   * Whether a type is a declared type that carries type arguments.
+   * The supertype of {@code type} declared by {@code target}, instantiated with the type arguments
+   * it is reached by.
    *
-   * <p>{@code List<String>} does; {@code List}, {@code String}, {@code int[]} and a type variable
-   * do not. A generator asks this to decide whether a value it narrows by erasure needs the warning
-   * answering.
+   * <p>The instantiation is the point: {@code Box<X> extends Base<X>} reached from {@code Box<U>}
+   * answers {@code Base<U>}, which is the type a generated cast has to name and the type a match
+   * against the source has to be made against. {@code type} itself counts as a match, so a caller
+   * asking for a type's own element gets it back under its own arguments.
    *
-   * @param type the type to test; must not be null
-   * @return true when {@code type} is a parameterised declared type
+   * @param typeUtils the round's type utilities; must not be null
+   * @param type the declared type to search from; must not be null
+   * @param target the declaring element to look for; must not be null
+   * @return the instantiated supertype, or null when {@code target} does not declare one
    * @since 0.4.10
    */
-  public static boolean hasTypeArguments(TypeMirror type) {
-    return type instanceof DeclaredType declared && !declared.getTypeArguments().isEmpty();
+  public static TypeMirror supertypeOf(Types typeUtils, TypeMirror type, TypeElement target) {
+    Name targetName = target.getQualifiedName();
+    Deque<TypeMirror> queue = new ArrayDeque<>();
+    Set<String> seen = new HashSet<>();
+    queue.add(type);
+    while (!queue.isEmpty()) {
+      TypeMirror current = queue.poll();
+      if (!seen.add(current.toString())) {
+        continue;
+      }
+      // Callers search from a type they have already resolved to a TypeElement, and every
+      // supertype of a declared type is itself declared.
+      TypeElement element = (TypeElement) ((DeclaredType) current).asElement();
+      if (element.getQualifiedName().contentEquals(targetName)) {
+        return current;
+      }
+      queue.addAll(typeUtils.directSupertypes(current));
+    }
+    return null;
   }
 
   /**

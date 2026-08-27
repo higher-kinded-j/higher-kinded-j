@@ -79,6 +79,8 @@ Apply these to abstract methods inside an interface that extends `OpticsSpec<S>`
 | `@InstanceOf(SubType.class)` | Java `instanceof` pattern matching (e.g. Jackson's `ObjectNode`, `ArrayNode`) |
 | `@MatchWhen` | Predicate method (`isFoo()`) plus a getter (`asFoo()`), for type-checking APIs that don't use sealed types |
 
+A parameterised `@InstanceOf` target may only promise the type arguments the source type pins down — the class constant is raw, and the test runs after erasure. See [Parameterised Targets](optics_spec_interfaces.md#parameterised-targets).
+
 ### Lens hints, copy strategies for legacy Java
 
 External record-like types rarely have a single copy mechanism. The processor uses these hints to know how to rebuild the object after a `set` or `modify`.

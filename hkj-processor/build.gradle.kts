@@ -110,6 +110,7 @@ tasks.jacocoTestCoverageVerification {
                 "org.higherkindedj.optics.processing.WideningAnalysis*",
                 "org.higherkindedj.optics.processing.effect.EffectAlgebraProcessor*",
                 "org.higherkindedj.optics.processing.effect.PathProcessor*",
+                "org.higherkindedj.optics.processing.external.InstanceOfNarrowing*",
                 "org.higherkindedj.optics.processing.external.SpecInterfaceAnalyser*",
                 "org.higherkindedj.optics.processing.external.CopyStrategyCodeGenerator*",
                 "org.higherkindedj.optics.processing.util.ProcessorUtils*",

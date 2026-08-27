@@ -269,7 +269,7 @@ class GenericSpecInterfaceAxisTest {
   }
 
   @Test
-  @DisplayName("@InstanceOf narrows a generic sealed hierarchy, which erasure is what tests")
+  @DisplayName("@InstanceOf narrows a generic sealed hierarchy under the argument the source pins")
   void instanceOfOnAGenericSpec() {
     var compilation =
         compile(
@@ -279,9 +279,11 @@ class GenericSpecInterfaceAxisTest {
                 Prism<Shape<U>, Circle<U>> circle();
             }""");
 
-    // The annotation carries a class constant, which is always raw, so the subtype check has to
-    // ask what the generated 'source instanceof Circle' asks.
     assertGeneratedSignature(compilation, "public static <U> Prism<Shape<U>, Circle<U>> circle()");
+    // The annotation carries a class constant, which is always raw, but Circle<X> reaches Shape as
+    // Shape<X>, so U is what the source pins X to and the test can name it.
+    assertGeneratedCodeContains(
+        compilation, "com.myapp.SubjectOptics", "source instanceof Circle<U>");
   }
 
   @Test

@@ -155,23 +155,6 @@ public class SpecInterfaceGenerator {
               .build());
     }
 
-    // An @InstanceOf prism tests a class constant, which carries no type arguments, so a
-    // parameterised target narrows through a raw instanceof and is handed back parameterised.
-    // Erasure leaves nothing to test, so the warning is answered here rather than left for the
-    // consuming build, which may run under -Werror. @MatchWhen narrows through the source type's
-    // own getter and needs none of this.
-    if (opticKind == OpticKind.PRISM
-        && opticMethod.prismHint() == SpecAnalysis.PrismHintKind.INSTANCE_OF
-        && ProcessorUtils.hasTypeArguments(focusType)) {
-      // Both lints: the instanceof names the class raw, and the narrowed value is handed back
-      // parameterised.
-      methodBuilder.addAnnotation(
-          AnnotationSpec.builder(SuppressWarnings.class)
-              .addMember("value", "$S", "unchecked")
-              .addMember("value", "$S", "rawtypes")
-              .build());
-    }
-
     // The method's type parameters are the spec's, not the source type's declaration: the source
     // type may instantiate that declaration under other names, or only in part, and only the
     // variables this signature actually names can be inferred at the call.

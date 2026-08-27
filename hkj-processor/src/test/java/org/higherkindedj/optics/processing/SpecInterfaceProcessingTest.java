@@ -2406,60 +2406,61 @@ class SpecInterfaceProcessingTest {
     @Test
     @DisplayName("should declare a parameter only the focus type names, on a non-generic source")
     void shouldDeclareParameterNamedOnlyByFocusOfNonGenericSource() {
-      final var shape =
+      final var empty =
           JavaFileObjects.forSourceString(
-              "com.external.Shape",
+              "com.external.Empty",
               """
               package com.external;
 
-              public class Shape {}
+              public class Empty {}
               """);
 
-      final var circle =
+      // A traversal over no elements is a traversal of any element type, so the element parameter
+      // is the spec's to name and the source type never mentions it. That is the shape a signature
+      // needs a parameter for that reading the source type alone would not declare.
+      final var emptyTraversals =
           JavaFileObjects.forSourceString(
-              "com.external.Circle",
+              "org.higherkindedj.optics.EmptyTraversals",
               """
-              package com.external;
+              package org.higherkindedj.optics;
 
-              public class Circle<T> extends Shape {
-                  public T tag() { return null; }
+              import com.external.Empty;
+
+              public final class EmptyTraversals {
+                  private EmptyTraversals() {}
+                  public static <U> Traversal<Empty, U> nothing() { return null; }
               }
               """);
 
       final var specInterface =
           JavaFileObjects.forSourceString(
-              "com.myapp.ShapeOpticsSpec",
+              "com.myapp.EmptyOpticsSpec",
               """
               package com.myapp;
 
-              import com.external.Circle;
-              import com.external.Shape;
-              import org.higherkindedj.optics.Prism;
+              import com.external.Empty;
+              import org.higherkindedj.optics.Traversal;
               import org.higherkindedj.optics.annotations.ImportOptics;
-              import org.higherkindedj.optics.annotations.InstanceOf;
               import org.higherkindedj.optics.annotations.OpticsSpec;
+              import org.higherkindedj.optics.annotations.TraverseWith;
 
               @ImportOptics
-              public interface ShapeOpticsSpec<T> extends OpticsSpec<Shape> {
-                  @InstanceOf(Circle.class)
-                  Prism<Shape, Circle<T>> circle();
+              public interface EmptyOpticsSpec<U> extends OpticsSpec<Empty> {
+                  @TraverseWith("org.higherkindedj.optics.EmptyTraversals.nothing()")
+                  Traversal<Empty, U> nothing();
               }
               """);
 
-      // The consuming build's flags, not javac's defaults: an @InstanceOf prism narrows through a
-      // raw instanceof, so a parameterised target warns unless the generator answers it.
       var compilation =
           javac()
               .withProcessors(new ImportOpticsProcessor())
               .withOptions("-Xlint:unchecked,rawtypes", "-Werror")
-              .compile(shape, circle, specInterface);
+              .compile(empty, emptyTraversals, specInterface);
 
       assertCompilationSucceeded(compilation);
-      // Shape declares no parameters, so reading them from the source type would declare none.
+      // Empty declares no parameters, so reading them from the source type would declare none.
       assertGeneratedCodeContains(
-          compilation,
-          "com.myapp.ShapeOptics",
-          "public static <T> Prism<Shape, Circle<T>> circle()");
+          compilation, "com.myapp.EmptyOptics", "public static <U> Traversal<Empty, U> nothing()");
     }
 
     @Test
