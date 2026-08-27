@@ -4,6 +4,7 @@ package org.higherkindedj.optics.processing.effect;
 
 import static com.google.testing.compile.CompilationSubject.assertThat;
 import static com.google.testing.compile.Compiler.javac;
+import static org.higherkindedj.optics.processing.GeneratorTestHelper.assertGeneratedCodeContainsRaw;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.fail;
 
@@ -352,6 +353,128 @@ class PathProcessorIntegrationTest {
   @Nested
   @DisplayName("Error Cases")
   class ErrorCases {
+
+    @Test
+    @DisplayName("refuses a bound the target package cannot name")
+    void refusesABoundTheTargetPackageCannotName() {
+      var hidden =
+          JavaFileObjects.forSourceString(
+              "com.example.Hidden",
+              """
+              package com.example;
+
+              class Hidden {}
+              """);
+
+      var onTheInterface =
+          javac()
+              .withProcessors(new PathProcessor())
+              .compile(
+                  hidden,
+                  JavaFileObjects.forSourceString(
+                      "com.example.Repo",
+                      """
+                      package com.example;
+
+                      import java.util.Optional;
+                      import org.higherkindedj.hkt.effect.annotation.GeneratePathBridge;
+                      import org.higherkindedj.hkt.effect.annotation.PathVia;
+
+                      @GeneratePathBridge(targetPackage = "com.other")
+                      public interface Repo<T extends Hidden> {
+                          @PathVia
+                          Optional<String> byId(T id);
+                      }
+                      """));
+
+      assertThat(onTheInterface).failed();
+      assertThat(onTheInterface)
+          .hadErrorContaining("the bound on 'T' names 'Hidden', which cannot be reached");
+
+      var onTheMethod =
+          javac()
+              .withProcessors(new PathProcessor())
+              .compile(
+                  hidden,
+                  JavaFileObjects.forSourceString(
+                      "com.example.MethodRepo",
+                      """
+                      package com.example;
+
+                      import java.util.Optional;
+                      import org.higherkindedj.hkt.effect.annotation.GeneratePathBridge;
+                      import org.higherkindedj.hkt.effect.annotation.PathVia;
+
+                      @GeneratePathBridge(targetPackage = "com.other")
+                      public interface MethodRepo {
+                          @PathVia
+                          <T extends Hidden> Optional<String> byId(T id);
+                      }
+                      """));
+
+      assertThat(onTheMethod).failed();
+      assertThat(onTheMethod)
+          .hadErrorContaining("the bound on 'T' names 'Hidden', which cannot be reached");
+
+      // Beside the interface, the same bound is nameable and nothing is refused.
+      var beside =
+          javac()
+              .withProcessors(new PathProcessor())
+              .compile(
+                  hidden,
+                  JavaFileObjects.forSourceString(
+                      "com.example.NearRepo",
+                      """
+                      package com.example;
+
+                      import java.util.Optional;
+                      import org.higherkindedj.hkt.effect.annotation.GeneratePathBridge;
+                      import org.higherkindedj.hkt.effect.annotation.PathVia;
+
+                      @GeneratePathBridge
+                      public interface NearRepo<T extends Hidden> {
+                          @PathVia
+                          Optional<String> byId(T id);
+                      }
+                      """));
+
+      assertThat(beside).succeeded();
+    }
+
+    @Test
+    @DisplayName("writes the description before the block tags it belongs above")
+    void writesTheDescriptionBeforeTheBlockTags() {
+      var compilation =
+          javac()
+              .withProcessors(new PathProcessor())
+              .compile(
+                  JavaFileObjects.forSourceString(
+                      "com.example.DocSvc",
+                      """
+                      package com.example;
+
+                      import java.util.Optional;
+                      import org.higherkindedj.hkt.effect.annotation.GeneratePathBridge;
+                      import org.higherkindedj.hkt.effect.annotation.PathVia;
+
+                      @GeneratePathBridge
+                      public interface DocSvc {
+                          @PathVia(doc = "Finds a thing by its type.")
+                          <T> Optional<T> find(Class<T> type);
+                      }
+                      """));
+
+      // A tag written before the description swallows it: javadoc reads everything after a block
+      // tag as that tag's own text, so the sentence became part of the @param.
+      assertThat(compilation).succeeded();
+      assertGeneratedCodeContainsRaw(
+          compilation,
+          "com.example.DocSvcPaths",
+          "   * Finds a thing by its type.\n"
+              + "   *\n"
+              + "   * @param <T> as declared by the delegate method\n"
+              + "   * @return Path-wrapped result from {@link DocSvc#find}");
+    }
 
     @Test
     @DisplayName("refuses a @PathVia method the delegate cannot be asked for")

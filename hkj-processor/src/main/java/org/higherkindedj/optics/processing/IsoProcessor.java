@@ -26,6 +26,7 @@ import org.higherkindedj.optics.Iso;
 import org.higherkindedj.optics.annotations.GenerateIsos;
 import org.higherkindedj.optics.processing.util.Diagnostics;
 import org.higherkindedj.optics.processing.util.ExcludeFromJacocoGeneratedReport;
+import org.higherkindedj.optics.processing.util.ProcessorUtils;
 
 /**
  * An annotation processor that generates a container class with static Iso fields for each method
@@ -136,7 +137,36 @@ public final class IsoProcessor extends AbstractProcessor {
           "Take the arguments away, or drop @GenerateIsos and call '" + name + "(...)' directly.");
       return true;
     }
-    if (!reachableFrom(method, targetPackage)) {
+    final TypeElement unreachable =
+        returned.getTypeArguments().stream()
+            .map(
+                argument ->
+                    ProcessorUtils.firstUnreachableIn(
+                        processingEnv.getElementUtils(), argument, targetPackage))
+            .filter(java.util.Objects::nonNull)
+            .findFirst()
+            .orElse(null);
+    if (unreachable != null) {
+      Diagnostics.error(
+          processingEnv.getMessager(),
+          method,
+          TAG,
+          "the iso returned by '"
+              + name
+              + "' names '"
+              + unreachable.getSimpleName()
+              + "', which cannot be reached from '"
+              + targetPackage
+              + "'.",
+          "The generated field writes its own type out in full, so every type named inside it has"
+              + " to be visible where the field is declared.",
+          "Make '"
+              + unreachable.getSimpleName()
+              + "' and the types enclosing it public, or generate into the package they are"
+              + " already visible from.");
+      return true;
+    }
+    if (!ProcessorUtils.reachableFrom(processingEnv.getElementUtils(), method, targetPackage)) {
       Diagnostics.error(
           processingEnv.getMessager(),
           method,
@@ -188,32 +218,6 @@ public final class IsoProcessor extends AbstractProcessor {
       }
       default -> false;
     };
-  }
-
-  /**
-   * Whether a member, and every type enclosing it, is visible from the generated package.
-   *
-   * <p>{@code protected} counts as package access here: the generated class extends nothing, so
-   * being a subclass is never how it reaches the member.
-   */
-  private boolean reachableFrom(final Element member, final String targetPackage) {
-    for (Element current = member;
-        current.getKind() != ElementKind.PACKAGE;
-        current = current.getEnclosingElement()) {
-      final Set<Modifier> modifiers = current.getModifiers();
-      if (modifiers.contains(Modifier.PRIVATE)) {
-        return false;
-      }
-      if (!modifiers.contains(PUBLIC)
-          && !processingEnv
-              .getElementUtils()
-              .getPackageOf(current)
-              .getQualifiedName()
-              .contentEquals(targetPackage)) {
-        return false;
-      }
-    }
-    return true;
   }
 
   private void processMethod(final ExecutableElement method) throws IOException {

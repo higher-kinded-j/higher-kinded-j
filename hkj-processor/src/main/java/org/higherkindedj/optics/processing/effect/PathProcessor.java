@@ -14,10 +14,12 @@ import javax.lang.model.SourceVersion;
 import javax.lang.model.element.*;
 import javax.lang.model.type.DeclaredType;
 import javax.lang.model.type.TypeMirror;
+import javax.lang.model.util.Elements;
 import javax.tools.Diagnostic;
 import org.higherkindedj.hkt.effect.annotation.GeneratePathBridge;
 import org.higherkindedj.hkt.effect.annotation.PathVia;
 import org.higherkindedj.optics.processing.util.ExcludeFromJacocoGeneratedReport;
+import org.higherkindedj.optics.processing.util.ProcessorUtils;
 
 /**
  * Annotation processor that generates Path bridge classes for service interfaces.
@@ -120,6 +122,13 @@ public class PathProcessor extends AbstractProcessor {
             : ParameterizedTypeName.get(
                 interfaceClassName, interfaceVariables.toArray(TypeName[]::new));
 
+    // A bound is written into the bridge's own declaration, so it has to be nameable there. Only
+    // targetPackage can make that false: written beside the interface, whatever the interface can
+    // name the bridge can name too.
+    if (rejectsUnnameableBound(interfaceElement, interfaceElement, packageName)) {
+      return;
+    }
+
     // Build the bridge class
     TypeSpec.Builder classBuilder =
         TypeSpec.classBuilder(bridgeClassName)
@@ -159,6 +168,9 @@ public class PathProcessor extends AbstractProcessor {
         ExecutableElement method = (ExecutableElement) enclosed;
         PathVia pathVia = method.getAnnotation(PathVia.class);
         if (pathVia != null) {
+          if (rejectsUnnameableBound(method, interfaceElement, packageName)) {
+            continue;
+          }
           MethodSpec bridgeMethod = createBridgeMethod(method, pathVia);
           if (bridgeMethod != null) {
             classBuilder.addMethod(bridgeMethod);
@@ -174,6 +186,49 @@ public class PathProcessor extends AbstractProcessor {
             .build();
 
     javaFile.writeTo(processingEnv.getFiler());
+  }
+
+  /**
+   * Reports a type parameter whose bound the generated package cannot name, and returns whether it
+   * did.
+   *
+   * <p>The bridge repeats its delegate's bounds verbatim, so a bound naming a package-private type
+   * lands in a declaration that cannot see it. Only {@code targetPackage} makes this reachable: a
+   * bridge written beside its interface can name everything the interface can.
+   *
+   * @param declarer the interface or method whose parameters are being copied
+   * @param interfaceElement the annotated interface, which the diagnostic is reported against
+   * @param packageName the package the bridge is written into
+   * @return true when a bound was rejected and an error reported
+   */
+  private boolean rejectsUnnameableBound(
+      Parameterizable declarer, TypeElement interfaceElement, String packageName) {
+
+    Elements elements = processingEnv.getElementUtils();
+    for (TypeParameterElement parameter : declarer.getTypeParameters()) {
+      for (TypeMirror bound : parameter.getBounds()) {
+        TypeElement unreachable = ProcessorUtils.firstUnreachableIn(elements, bound, packageName);
+        if (unreachable != null) {
+          error(
+              "@GeneratePathBridge on '"
+                  + interfaceElement.getSimpleName()
+                  + "': the bound on '"
+                  + parameter.getSimpleName()
+                  + "' names '"
+                  + unreachable.getSimpleName()
+                  + "', which cannot be reached from '"
+                  + packageName
+                  + "'. The bridge repeats the bound in its own declaration, and it is not visible"
+                  + " there. Fix: make '"
+                  + unreachable.getSimpleName()
+                  + "' public, or drop targetPackage so the bridge is written beside the"
+                  + " interface.",
+              declarer);
+          return true;
+        }
+      }
+    }
+    return false;
   }
 
   private MethodSpec createBridgeMethod(ExecutableElement method, PathVia pathVia) {
@@ -217,19 +272,19 @@ public class PathProcessor extends AbstractProcessor {
     // A generic delegate method's parameters are named by the return type and the arguments copied
     // below, so the bridge method has to declare them itself; the interface's own are in scope
     // already, from the class.
-    method.getTypeParameters().stream()
-        .map(TypeVariableName::get)
-        .forEach(
-            variable -> {
-              methodBuilder.addTypeVariable(variable);
-              methodBuilder.addJavadoc(
-                  "@param <$L> as declared by the delegate method\n", variable.name());
-            });
+    List<TypeVariableName> methodVariables =
+        method.getTypeParameters().stream().map(TypeVariableName::get).toList();
+    methodVariables.forEach(methodBuilder::addTypeVariable);
 
-    // Add documentation
+    // Description first, then the block tags in order. A tag written before the description takes
+    // the description into itself, which is what javadoc does with any text following a tag.
     if (!doc.isEmpty()) {
       methodBuilder.addJavadoc("$L\n\n", doc);
     }
+    methodVariables.forEach(
+        variable ->
+            methodBuilder.addJavadoc(
+                "@param <$L> as declared by the delegate method\n", variable.name()));
     methodBuilder.addJavadoc(
         "@return Path-wrapped result from {@link $L#$L}\n",
         method.getEnclosingElement().getSimpleName(),

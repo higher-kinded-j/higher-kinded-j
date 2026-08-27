@@ -102,6 +102,51 @@ public class IsoProcessorIntegrationTest {
     assertThat(notVisible).failed();
     assertThat(notVisible).hadErrorContaining("cannot be reached from 'com.example'");
 
+    // Reaching the method is not enough: the field writes its own type out, so what the iso names
+    // has to be visible where the field is declared.
+    var typeArgumentNotVisible =
+        compileIso(
+            "Conv",
+            """
+            public class Conv {
+                private record Secret(String v) {}
+                @GenerateIsos
+                public static Iso<Secret, String> secretIso() {
+                    return Iso.of(Secret::v, Secret::new);
+                }
+            }""");
+    assertThat(typeArgumentNotVisible).failed();
+    assertThat(typeArgumentNotVisible)
+        .hadErrorContaining("names 'Secret', which cannot be reached from 'com.example'");
+
+    // And it looks inside the arguments, not only at their heads.
+    var nestedArgumentNotVisible =
+        compileIso(
+            "Nested",
+            """
+            public class Nested {
+                private record Secret(String v) {}
+                public record Box<A>(A value) {}
+                @GenerateIsos
+                public static Iso<Box<Secret>, String> boxIso() { return null; }
+            }""");
+    assertThat(nestedArgumentNotVisible).failed();
+    assertThat(nestedArgumentNotVisible).hadErrorContaining("names 'Secret'");
+
+    // Including through a wildcard bound, which is written out with the rest of the type.
+    var wildcardBoundNotVisible =
+        compileIso(
+            "Wild",
+            """
+            public class Wild {
+                private interface Secret {}
+                public record Box<A>(A value) {}
+                @GenerateIsos
+                public static Iso<Box<? extends Secret>, String> boxIso() { return null; }
+            }""");
+    assertThat(wildcardBoundNotVisible).failed();
+    assertThat(wildcardBoundNotVisible).hadErrorContaining("names 'Secret'");
+
     // The enclosing type has to be visible too: the field names it to make the call.
     var enclosingNotVisible =
         compileIso(
