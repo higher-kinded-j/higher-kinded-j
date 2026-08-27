@@ -19,21 +19,22 @@ import org.junit.jupiter.api.Test;
  * One row per generating annotation: what it does when the thing it is put on is generic.
  *
  * <p>Every annotation here answers a generic declaration one of exactly two ways — it generates
- * source that compiles, or it refuses at the declaration and says why. There is no third answer,
- * and the two that had no row took it: both accepted the declaration and emitted source naming a
- * type variable nothing brought into scope, which the author met as {@code cannot find symbol} in a
- * file they never wrote.
+ * source that compiles, or it refuses at the declaration and says why. A processor that does
+ * neither accepts the declaration and emits source naming a type variable nothing brings into
+ * scope, which the author meets as {@code cannot find symbol} in a file they never wrote.
  *
- * <p>The accepted rows assert compilation under the consuming build's own {@code -Werror} flags,
- * not a signature, because that is the whole claim: what comes out has to build where it lands. The
- * refusing rows assert the wording, and one row per refusal follows the remedy it names, because a
+ * <p>The accepted rows assert the generated signature, compiled under the consuming build's own
+ * {@code -Werror} flags, because that is the whole claim: what comes out has to build where it
+ * lands, and on javac's defaults an annotation that drops its type parameters altogether looks
+ * exactly like success. The refusing rows assert the remedy as well as the complaint, because a
  * refusal that cannot be acted on is the other half of the same fault.
  *
- * <p>Two annotations are answered elsewhere. {@code @ImportOptics} has an axis of its own in {@link
- * GenericSpecInterfaceAxisTest}, one case per copy strategy and optic hint against a spec that
- * declares its own parameter. {@code @GeneratePrisms} has no row anywhere: on a generic hierarchy
- * it accepts the declaration and emits raw-typed prisms, which is neither answer, and what it
- * should emit instead is not settled yet (#742).
+ * <p>The rest are answered elsewhere, or the question does not arise. {@code @ImportOptics} has an
+ * axis of its own in {@link GenericSpecInterfaceAxisTest}, one case per copy strategy and optic
+ * hint against a spec that declares its own parameter. {@code @GenerateAccumulators} and
+ * {@code @GenerateForComprehensions} target a package rather than a declaration, so nothing they
+ * see can be generic; {@code @EffectAlgebra} and {@code @PathSource} require a parameter, so
+ * generic is the only shape they take, and their arity rules are tested with them.
  */
 @DisplayName("What every generating annotation does with a generic declaration")
 class GenericsAcceptanceAxisTest {
@@ -153,6 +154,35 @@ class GenericsAcceptanceAxisTest {
           compilation,
           "com.example.ConvIsos",
           "public static final Iso<Conv.Box, String> boxIso = Conv.boxIso();");
+    }
+
+    @Test
+    @DisplayName("@GeneratePrisms on a generic sealed hierarchy")
+    void generatePrisms() {
+      var compilation =
+          compile(
+              new PrismProcessor(),
+              JavaFileObjects.forSourceString(
+                  "com.example.Shape",
+                  """
+                  package com.example;
+
+                  import org.higherkindedj.optics.annotations.GeneratePrisms;
+
+                  @GeneratePrisms
+                  public sealed interface Shape<T> {
+                      record Circle<T>(T radius) implements Shape<T> {}
+                      record Square<T>(T side) implements Shape<T> {}
+                  }
+                  """));
+
+      // Both sides of the prism are written in the subtype's own vocabulary (#742). Emitting the
+      // pair raw also compiles - just not under the flags the consuming build uses.
+      assertThat(compilation).succeeded();
+      assertGeneratedCodeContains(
+          compilation,
+          "com.example.ShapePrisms",
+          "public static <T> Prism<Shape<T>, Shape.Circle<T>> circle()");
     }
 
     @Test
