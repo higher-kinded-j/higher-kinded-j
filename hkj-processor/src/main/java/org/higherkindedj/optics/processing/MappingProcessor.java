@@ -56,6 +56,7 @@ import org.higherkindedj.optics.annotations.ArityCeilings;
 import org.higherkindedj.optics.annotations.GenerateMapping;
 import org.higherkindedj.optics.annotations.MapField;
 import org.higherkindedj.optics.processing.util.Diagnostics;
+import org.higherkindedj.optics.processing.util.ProcessorUtils;
 
 /**
  * Annotation processor for {@code @GenerateMapping}: the bidirectional record↔DTO mapper.
@@ -259,6 +260,49 @@ public class MappingProcessor extends AbstractProcessor {
     return List.copyOf(leaves.values());
   }
 
+  /**
+   * A spec member's return type as the spec has it, not as its declaring interface wrote it.
+   *
+   * <p>A member inherited from a generic mix-in is declared in that mix-in's own vocabulary: {@code
+   * Emails<T>} carrying {@code ValidatedPrism<String, T>} says {@code T}, and the spec saying
+   * {@code extends Emails<EmailAddress>} is what makes it {@code EmailAddress}. Read as declared it
+   * is then compared with, and emitted beside, types derived from the spec's instantiation - the
+   * two vocabularies agreeing only by name coincidence, which is the whole of this defect family.
+   *
+   * <p>Total for any member of the spec: {@code spec.asType()} is the prototypical type, never a
+   * wildcard instantiation, so a member declared on the spec itself substitutes to itself and a
+   * generic spec's own parameters survive as themselves - which is right, because the generated
+   * Impl declares them. A <em>raw</em> supertype is the one shape this cannot answer for, and it is
+   * refused before reaching here.
+   *
+   * @param spec the annotated spec interface; must not be null
+   * @param member one of its members, own or inherited; must not be null
+   * @return the member's return type under the spec's instantiation
+   */
+  private TypeMirror specMemberType(TypeElement spec, ExecutableElement member) {
+    return ProcessorUtils.returnTypeIn(
+        processingEnv.getTypeUtils(), (DeclaredType) spec.asType(), member);
+  }
+
+  /**
+   * An abstract leaf as the generated Impl carries it: its name, and its prism type under the spec.
+   *
+   * <p>Resolved once, here, rather than at the emission site: the skeleton builders take these
+   * instead of the elements, so there is no {@code getReturnType()} left down there to read as
+   * declared by mistake.
+   */
+  private record LeafField(String name, TypeName prismType) {}
+
+  /** The spec's abstract leaves, each with its prism type under the spec's instantiation. */
+  private List<LeafField> leafFields(TypeElement spec) {
+    return abstractLeaves(spec).stream()
+        .map(
+            leaf ->
+                new LeafField(
+                    leaf.getSimpleName().toString(), TypeName.get(specMemberType(spec, leaf))))
+        .toList();
+  }
+
   /** Names a member for diagnostics, noting its declaring mix-in when inherited. */
   private static String inheritedNote(ExecutableElement method, TypeElement spec) {
     return method.getEnclosingElement().equals(spec)
@@ -428,13 +472,16 @@ public class MappingProcessor extends AbstractProcessor {
    * than the generic neither-rename-nor-leaf diagnostic.
    */
   private boolean isHandMapperShaped(
-      ExecutableElement method, TypeMirror domainArg, TypeMirror wireArg) {
+      TypeElement spec, ExecutableElement method, TypeMirror domainArg, TypeMirror wireArg) {
     if (method.getParameters().size() != 1) {
       return false;
     }
     Types types = processingEnv.getTypeUtils();
-    TypeMirror parameter = method.getParameters().getFirst().asType();
-    TypeMirror returned = method.getReturnType();
+    // Both halves under the spec: the pair it is compared against is instantiated, so a member
+    // read as declared would match only where the two vocabularies happen to share a name.
+    ExecutableType asMember = ProcessorUtils.memberOf(types, (DeclaredType) spec.asType(), method);
+    TypeMirror parameter = asMember.getParameterTypes().getFirst();
+    TypeMirror returned = asMember.getReturnType();
     return (types.isSameType(parameter, domainArg) && types.isSameType(returned, wireArg))
         || (types.isSameType(parameter, wireArg) && types.isSameType(returned, domainArg));
   }
@@ -582,7 +629,7 @@ public class MappingProcessor extends AbstractProcessor {
         continue;
       }
       if (mapField == null) {
-        if (isHandMapperShaped(method, domainArg, wireArg)) {
+        if (isHandMapperShaped(spec, method, domainArg, wireArg)) {
           Diagnostics.error(
               processingEnv.getMessager(),
               method,
@@ -2077,7 +2124,7 @@ public class MappingProcessor extends AbstractProcessor {
             "Rename the method after the wire component it derives, or remove it.");
         return null;
       }
-      DeclaredType returnType = (DeclaredType) method.getReturnType();
+      DeclaredType returnType = (DeclaredType) specMemberType(spec, method);
       boolean shapeMatches =
           returnType.getTypeArguments().size() == 2
               && processingEnv
@@ -2098,7 +2145,7 @@ public class MappingProcessor extends AbstractProcessor {
                 + ", "
                 + wireComponent.type()
                 + "> but returns '"
-                + method.getReturnType()
+                + specMemberType(spec, method)
                 + "'.",
             "build fills the wire component by applying the getter to the whole domain value, so"
                 + " the first type argument must be the domain record and the second the wire"
@@ -2650,7 +2697,7 @@ public class MappingProcessor extends AbstractProcessor {
           || !method.getParameters().isEmpty()) {
         continue;
       }
-      if (!(method.getReturnType() instanceof DeclaredType returnType)) {
+      if (!(specMemberType(spec, method) instanceof DeclaredType returnType)) {
         continue;
       }
       TypeElement raw = (TypeElement) returnType.asElement();
@@ -2676,7 +2723,7 @@ public class MappingProcessor extends AbstractProcessor {
         return " A default method '"
             + name
             + "()' exists but returns '"
-            + method.getReturnType()
+            + specMemberType(spec, method)
             + "'"
             + (method.getParameters().isEmpty() ? "" : " and declares parameters")
             + " — a leaf must be a zero-parameter default method returning exactly"
@@ -3022,7 +3069,7 @@ public class MappingProcessor extends AbstractProcessor {
                 specName,
                 "Generated bidirectional mapping for {@link $T}: total {@code build} and"
                     + " accumulating, located {@code parse}.\n",
-                abstractLeaves(spec))
+                leafFields(spec))
             .addMethod(buildMethod(domainName, wireName, buildBody))
             .addMethod(
                 MethodSpec.methodBuilder("parse")
@@ -3255,7 +3302,7 @@ public class MappingProcessor extends AbstractProcessor {
                 "Generated projection mapping for {@link $T}: total {@code build} and a validated"
                     + " {@code patch} write-back. No {@code parse} is emitted — the dropped"
                     + " components cannot be reconstructed (truthful types).\n",
-                abstractLeaves(spec))
+                leafFields(spec))
             .addMethod(buildMethod(domainName, wireName, buildBody))
             .addMethod(
                 MethodSpec.methodBuilder("patch")
@@ -3361,7 +3408,7 @@ public class MappingProcessor extends AbstractProcessor {
                 "Generated projection mapping for {@link $T}: total {@code build} and a lawful"
                     + " {@code asLens()} write-back. No {@code parse} is emitted — the dropped"
                     + " components cannot be reconstructed (truthful types).\n",
-                abstractLeaves(spec))
+                leafFields(spec))
             .addMethod(buildMethod(domainName, wireName, buildBody))
             .addMethod(
                 MethodSpec.methodBuilder("asLens")
@@ -3555,7 +3602,7 @@ public class MappingProcessor extends AbstractProcessor {
       ClassName implName,
       ClassName specName,
       String javadoc,
-      List<ExecutableElement> abstractLeaves) {
+      List<LeafField> abstractLeaves) {
     List<TypeVariableName> variables =
         spec.getTypeParameters().stream().map(TypeVariableName::get).toList();
     TypeSpec.Builder builder =
@@ -3622,7 +3669,7 @@ public class MappingProcessor extends AbstractProcessor {
       ClassName implName,
       ClassName specName,
       List<TypeVariableName> variables,
-      List<ExecutableElement> abstractLeaves) {
+      List<LeafField> abstractLeaves) {
     TypeName typed = ParameterizedTypeName.get(implName, variables.toArray(new TypeName[0]));
     MethodSpec.Builder constructor = MethodSpec.constructorBuilder().addModifiers(Modifier.PRIVATE);
     MethodSpec.Builder factory =
@@ -3634,9 +3681,9 @@ public class MappingProcessor extends AbstractProcessor {
                 "Creates the element-mapped mapping: each abstract leaf arrives as its {@code"
                     + " ValidatedPrism}, in declaration order.\n");
     StringJoiner arguments = new StringJoiner(", ");
-    for (ExecutableElement leaf : abstractLeaves) {
-      String name = leaf.getSimpleName().toString();
-      TypeName prismType = TypeName.get(leaf.getReturnType());
+    for (LeafField leaf : abstractLeaves) {
+      String name = leaf.name();
+      TypeName prismType = leaf.prismType();
       builder.addField(
           FieldSpec.builder(prismType, name, Modifier.PRIVATE, Modifier.FINAL).build());
       constructor
@@ -3702,7 +3749,7 @@ public class MappingProcessor extends AbstractProcessor {
           MethodSpec.methodBuilder(method.getSimpleName().toString())
               .addAnnotation(Override.class)
               .addModifiers(Modifier.PUBLIC)
-              .returns(TypeName.get(method.getReturnType()))
+              .returns(TypeName.get(specMemberType(spec, method)))
               .addJavadoc("Rename declaration only; not invocable.\n")
               .addStatement(
                   "throw new $T($S)",
@@ -3740,7 +3787,7 @@ public class MappingProcessor extends AbstractProcessor {
       all.add(
           EmittedMember.of(
               "of",
-              leaves.stream().map(ExecutableElement::getReturnType).toArray(TypeMirror[]::new)));
+              leaves.stream().map(leaf -> specMemberType(spec, leaf)).toArray(TypeMirror[]::new)));
     }
     return all;
   }
