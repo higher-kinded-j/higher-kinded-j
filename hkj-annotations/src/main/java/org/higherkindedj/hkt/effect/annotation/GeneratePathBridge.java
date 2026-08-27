@@ -78,24 +78,38 @@ import java.lang.annotation.Target;
  *
  * <p>The bridge wraps the {@link PathVia} methods the interface <em>has</em>, not only those it
  * declares: a bridge for {@code StringStore extends Store<String>} picks up {@code Store}'s, read
- * under {@code String}. Java's own precedence applies, so an overridden method is bridged once, as
- * the override declares it. An interface with no {@code @PathVia} method anywhere is reported
- * rather than yielding a bridge with a constructor and nothing else.
+ * under {@code String}. An overridden method is bridged once, and so is one that two unrelated
+ * superinterfaces both declare. Note that {@code @PathVia} is not inherited by an override: a
+ * method that overrides an annotated one hides it unless it carries the annotation too.
  *
- * <h2>Return Types the Bridge Refuses</h2>
+ * <p>An interface with no {@code @PathVia} method anywhere draws a warning; the bridge is still
+ * written, with a constructor and nothing else. A processor warning is not suppressible, so a build
+ * running {@code -Werror} treats it as an error.
  *
- * <p>Two shapes in the table above are accepted by the language and have no bridge that compiles
- * where it lands, so they are refused at the declaration instead:
+ * <h2>What the Bridge Refuses</h2>
+ *
+ * <p>The bridge is source the author never wrote and cannot edit. Every shape below is one the
+ * language accepts and the bridge has no compiling, warning-free rendering of, so it is refused at
+ * the declaration, where it can be acted on:
  *
  * <ul>
- *   <li>a <strong>raw</strong> effect - {@code Optional} rather than {@code Optional<Item>} - which
- *       the bridge could only pass on as an unchecked conversion, in a file that cannot carry the
- *       suppression
+ *   <li>a <strong>raw</strong> type anywhere the bridge writes it down: {@code Optional} as a
+ *       return type, {@code Optional<List>} as its argument, {@code List} as a parameter. Each is a
+ *       {@code [rawtypes]} warning in a file the author's own {@code @SuppressWarnings} does not
+ *       reach
  *   <li>a {@code Validated} whose <strong>error type is a wildcard</strong>, which the bridge has
  *       to name twice, once in the {@code ValidationPath} and once in the {@code Semigroup} the
  *       caller supplies; a wildcard is a different captured type at each mention, so no caller
- *       could satisfy both. Wildcards elsewhere - including {@code Validated}'s value type - are
- *       named once and carry through
+ *       could satisfy both. Wildcards elsewhere, {@code Validated}'s value type included, are named
+ *       once and carry through
+ *   <li>a method <strong>type parameter sharing a name</strong> with one of the interface's that
+ *       the same signature needs. The bridge declares both in one scope, which the delegate never
+ *       does, and the method's would hide the interface's
+ *   <li>a {@code static} or {@code private} method, which the delegate reference cannot call
+ *   <li>a {@code @PathVia(name = ...)} that is not a Java identifier, or that lands on a signature
+ *       another {@code @PathVia} already bridges to
+ *   <li>with {@code targetPackage}, any type in the signature or in a bound that the target package
+ *       cannot see
  * </ul>
  *
  * <h2>Varargs</h2>

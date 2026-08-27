@@ -328,6 +328,7 @@ for setup and details.
 | Wrong error type at runtime, no compile error | `E` silently erased across a chain step | Unify `E` / `mapError`; the `error-type-mismatch` check warns (§5) |
 
 ~~~admonish tip title="See Also"
+- [Optics Compiler Errors](../optics/compiler_errors.md#generatepathbridge-and-pathvia) - What `@GeneratePathBridge` and `@PathVia` report, and why
 - [Type Conversions](conversions.md) - Full reference for converting between Path types
 - [Troubleshooting](../tutorials/troubleshooting.md) - Tutorial-specific issues (Kind types, annotation processors, IDE setup)
 - [Cheat Sheet](../cheatsheet.md) - Quick reference for Path types and operators

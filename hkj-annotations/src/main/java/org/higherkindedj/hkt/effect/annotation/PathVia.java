@@ -70,10 +70,14 @@ import java.lang.annotation.Target;
  * <h2>What the Method Has to Be</h2>
  *
  * <p>The bridge reaches the method through its delegate, so it must be an abstract or {@code
- * default} instance method - a {@code static} or {@code private} interface method is refused. The
- * return type must name its type arguments: a raw effect, and a {@code Validated} whose error type
- * is a wildcard, have no bridge that compiles and are refused at the declaration. An inherited
- * {@code @PathVia} counts as much as a declared one.
+ * default} instance method; a {@code static} or {@code private} interface method is refused. The
+ * signature must name no raw type, and a {@code Validated}'s error type must not be a wildcard,
+ * because neither has a bridge that compiles without a warning. An inherited {@code @PathVia}
+ * counts as much as a declared one, but the annotation is not inherited by an override. The full
+ * list is on {@link GeneratePathBridge}.
+ *
+ * <p>A varargs method stays varargs on the bridge, and a {@code throws} clause is carried across
+ * unchanged.
  *
  * @see GeneratePathBridge
  */

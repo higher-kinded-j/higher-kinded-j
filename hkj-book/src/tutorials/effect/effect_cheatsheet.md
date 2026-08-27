@@ -150,9 +150,9 @@ public final class RepoPaths<T extends Comparable<T>> {
 }
 ```
 
-Inherited `@PathVia` methods are bridged too, read under the instantiation the annotated interface gives them — `StringStore extends Store<String>` gets `Store`'s methods with `T` already `String`. An interface with no `@PathVia` method anywhere draws a warning rather than a silently empty bridge.
+Inherited `@PathVia` methods are bridged too, read under the instantiation the annotated interface gives them: `StringStore extends Store<String>` gets `Store`'s methods with `T` already `String`. An overridden method is bridged once, and so is one two unrelated superinterfaces both declare. The annotation itself is not inherited, though, so a method that overrides an annotated one hides it unless it is annotated too; an interface left with no `@PathVia` method anywhere draws a warning rather than a silently empty bridge. A `throws` clause and a varargs parameter both carry across unchanged.
 
-Two return types are refused where the language would accept them, because neither has a bridge that compiles in the build that consumes it: a raw effect (`Optional` rather than `Optional<Item>`), and a `Validated` whose error type is a wildcard — the bridge would have to name that type twice, once in the `ValidationPath` and once in the `Semigroup`, and a wildcard captures separately at each. [Common Compiler Errors](../../optics/compiler_errors.md#generatepathbridge-and-pathvia) has both messages.
+The bridge is a file you never wrote and cannot edit, so a handful of shapes the language accepts are refused at your own declaration instead: a raw type anywhere in the signature, a `Validated` whose error type is a wildcard, a method type parameter that hides one of the interface's, a `static` or `private` method, and, under `targetPackage`, anything the target package cannot see. [Common Compiler Errors](../../optics/compiler_errors.md#generatepathbridge-and-pathvia) quotes each message with its cause and remedy.
 
 ---
 

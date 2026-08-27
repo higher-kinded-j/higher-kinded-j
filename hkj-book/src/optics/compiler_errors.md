@@ -141,43 +141,69 @@ A source type that is itself generic is supported, and the spec names its own ty
 
 ## `@GeneratePathBridge` and `@PathVia`
 
-### "Unsupported return type for @PathVia"
+Every message on this page is quoted as the processor emits it, with `'x'` standing in for the name it prints.
 
-**Cause.** The method returns something outside the bridged table — `Optional`, `Maybe`, `Either`, `Try`, `Validated`, `IO`. `CompletableFuture` is the one most often met here.
+The bridge is a file you never wrote and cannot edit, so each of these refuses a shape at your own declaration rather than emitting source that would fail, or warn, in the build that consumes it.
+
+### "@PathVia: the return type of 'x' is 'Y', which no Path wraps"
+
+**Cause.** The method returns something outside the bridged set: `Optional`, `Maybe`, `Either`, `Try`, `Validated`, `IO`. `CompletableFuture` is the one most often met here.
 
 **Fix.** Return one of the six, or drop `@PathVia` and wrap the call by hand.
 
-### "@PathVia: the return type is a raw 'Optional'"
+### "@PathVia: the signature of 'x' names the raw type 'Y'"
 
-**Cause.** The effect is written without its type argument. The bridge would pass it to the `Path` factory as an unchecked conversion, and the warning lands in generated source — the one file where a `@SuppressWarnings` cannot be added.
+**Cause.** A generic type is written without its arguments somewhere the bridge copies verbatim: `Optional` as the return type, `Optional<List>` as its argument, `List` as a parameter. Each becomes a `[rawtypes]` warning in the generated file, and the `@SuppressWarnings` on your own declaration does not cover a file it does not appear in.
 
-**Fix.** Name the type argument: `Optional<Item>` rather than `Optional`.
+**Fix.** Name the type arguments: `Optional<Item>` rather than `Optional`.
 
-### "@PathVia: the error type of the returned 'Validated' is the wildcard '...'"
+### "@PathVia: the error type of the 'Validated' returned by 'x' is the wildcard '?'"
 
-**Cause.** A `Validated` bridge names its error type twice — in the `ValidationPath` it returns, and in the `Semigroup` it asks the caller for. A wildcard is a *different* captured type at each mention, so there is no argument a caller could pass that satisfies both.
+**Cause.** A `Validated` bridge names its error type twice: in the `ValidationPath` it returns, and in the `Semigroup` it asks the caller for. A wildcard is a *different* captured type at each mention, so no argument satisfies both.
 
-Only the error position is affected. `Validated<String, ? extends Number>` is fine, and so are wildcards in `Optional`, `Maybe`, `Either` and `Try` returns: those name the captured type once and javac unifies it.
+Only the error position is affected. `Validated<String, ? extends Number>` is fine, `Validated<List<? extends CharSequence>, String>` is fine because the wildcard is nested and denotes one type at both mentions, and so are wildcards in `Optional`, `Maybe`, `Either` and `Try` returns.
 
 **Fix.** Name the error type.
 
-### "@PathVia: a static / private interface method cannot be called that way"
+### "@PathVia: the type parameter 'T' on 'x' has the same name as 'Y's"
 
-**Cause.** The bridge reaches its delegate through an interface reference, which gets at abstract and `default` members and nothing else.
+**Cause.** The bridge declares the interface's type parameters and the method's side by side, which the delegate never does; where the names collide, the method's hides the interface's. An inherited `<T extends U>` on a `Derived<T>` would be written `<T extends T>`, and a parameter typed by the interface's `T` would silently become the method's.
 
-**Fix.** Make the method an abstract or `default` instance method, or drop `@PathVia` from it.
+Only a collision the signature actually depends on is refused. `<T> Optional<T> get(T t)` on a `Derived<T>` names nothing it hides, and is generated unchanged.
 
-### "@GeneratePathBridge: the bound on 'T' names '...', which cannot be reached from '...'"
+**Fix.** Rename the method's type parameter.
 
-**Cause.** The bridge repeats the interface's bounds in its own declaration, and `targetPackage` has put that declaration somewhere the bound is not visible.
+### "@PathVia: the bridge cannot call 'x'"
 
-**Fix.** Make the bound's type public, or drop `targetPackage` so the bridge is written beside the interface.
+**Cause.** The method is `static` or `private`. The bridge reaches its delegate through an interface reference, which gets at abstract and `default` members and nothing else.
 
-### "@GeneratePathBridge: no @PathVia method was found" (a warning)
+**Fix.** Make it an abstract or `default` instance method, or drop `@PathVia` from it.
+
+### "@PathVia: the bridge signature for 'x' is already taken"
+
+**Cause.** Two `@PathVia` methods land on the same generated name and parameter types, usually through `@PathVia(name = ...)`. One class cannot declare both.
+
+**Fix.** Give one of them a distinct name, or drop `@PathVia` from it.
+
+### "@PathVia: @PathVia(name = "...") is not a method name"
+
+**Cause.** The `name` attribute is not a Java identifier, or it is a keyword. The bridge declares a method called exactly that.
+
+**Fix.** Give a plain identifier, or drop the attribute to keep the delegate's own name.
+
+### "@GeneratePathBridge: on 'X', the signature names 'Y', which cannot be reached from 'p'"
+
+**Cause.** `targetPackage` puts the bridge in package `p`, and something the bridge writes down, a parameter type, a return type, a bound or the delegate itself, is not visible there. The same message names *the bound on 'T'* when the culprit is a type parameter's bound.
+
+**Fix.** Make the type public, or drop `targetPackage` so the bridge is written beside the interface.
+
+### "@GeneratePathBridge: no @PathVia method was found among 'X's members" (a warning)
 
 **Cause.** Neither the interface nor anything it extends has a `@PathVia` method, so the bridge is written with a constructor and nothing else.
 
-Inherited methods do count — a bridge for `StringStore extends Store<String>` picks up `Store`'s `@PathVia` methods, read under `String`. Seeing this warning means there were none anywhere.
+Inherited methods do count: a bridge for `StringStore extends Store<String>` picks up `Store`'s, read under `String`. But `@PathVia` is *not* inherited by an override, so a method that overrides an annotated one hides it unless it is annotated too, and that is the usual cause of this message on an interface whose parent is annotated.
+
+A processor warning cannot be suppressed, so a build running `-Werror` treats this as an error.
 
 **Fix.** Put `@PathVia` on the methods to bridge, or drop `@GeneratePathBridge`.
 

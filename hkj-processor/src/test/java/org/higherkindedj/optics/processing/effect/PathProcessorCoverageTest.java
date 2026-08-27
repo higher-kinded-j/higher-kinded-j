@@ -81,7 +81,7 @@ class PathProcessorCoverageTest {
       var compilation = javac().withProcessors(new PathProcessor()).compile(sourceFile);
 
       assertThat(compilation).failed();
-      assertThat(compilation).hadErrorContaining("Unsupported return type");
+      assertThat(compilation).hadErrorContaining("which no Path wraps");
     }
 
     @Test
@@ -109,7 +109,7 @@ class PathProcessorCoverageTest {
       var compilation = javac().withProcessors(new PathProcessor()).compile(sourceFile);
 
       assertThat(compilation).failed();
-      assertThat(compilation).hadErrorContaining("Unsupported return type");
+      assertThat(compilation).hadErrorContaining("which no Path wraps");
     }
 
     @Test
@@ -130,7 +130,7 @@ class PathProcessorCoverageTest {
       var compilation = javac().withProcessors(new PathProcessor()).compile(sourceFile);
 
       assertThat(compilation).failed();
-      assertThat(compilation).hadErrorContaining("can only be applied to interfaces");
+      assertThat(compilation).hadErrorContaining("is not an interface");
     }
   }
 
