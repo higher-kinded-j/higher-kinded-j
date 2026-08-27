@@ -369,6 +369,12 @@ public sealed interface FocusPath<S, A> permits LensFocusPath {
    * <p>This method requires that the focused type {@code A} is a {@code List<E>}. It returns a
    * TraversalPath that focuses on each element in the list.
    *
+   * <p>The traversal it carries is a {@code List} one, so any other container — a {@code Set}, a
+   * {@code Collection}, a {@code Map} — needs {@link #each(Each)} and the {@code Each} that
+   * rebuilds it: {@code each(EachInstances.setEach())}, {@code
+   * each(EachInstances.collectionEach())} and so on. A generated Focus method already picks the
+   * right one for the component it reads.
+   *
    * <p>Example:
    *
    * <pre>{@code
@@ -379,6 +385,7 @@ public sealed interface FocusPath<S, A> permits LensFocusPath {
    * @param <E> the element type of the list
    * @return a TraversalPath over list elements
    * @throws ClassCastException if the focused type {@code A} is not a {@code List}
+   * @see #each(Each)
    */
   @SuppressWarnings("unchecked")
   default <E> TraversalPath<S, E> each() {

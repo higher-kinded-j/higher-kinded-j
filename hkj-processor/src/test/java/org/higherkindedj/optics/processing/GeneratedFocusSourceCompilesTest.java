@@ -69,6 +69,7 @@ class GeneratedFocusSourceCompilesTest {
                   "Map<String, Leaf>",
                   "List<Leaf>",
                   "Set<Leaf>",
+                  "Collection<Leaf>",
                   "Leaf[]")),
           new Shape(
               "wildcard in the focused type argument",
@@ -80,7 +81,8 @@ class GeneratedFocusSourceCompilesTest {
                   "Optional<? extends Leaf>",
                   "Map<String, ? extends Leaf>",
                   "List<? extends Leaf>",
-                  "Set<? extends Leaf>")),
+                  "Set<? extends Leaf>",
+                  "Collection<? extends Leaf>")),
           new Shape(
               "wildcard in a type argument the generator does not focus on",
               List.of("Either<?, Leaf>", "Validated<?, Leaf>", "Map<?, Leaf>")),
@@ -94,24 +96,37 @@ class GeneratedFocusSourceCompilesTest {
                   "Optional<?>",
                   "Map<String, ?>",
                   "List<?>",
-                  "Set<?>")),
+                  "Set<?>",
+                  "Collection<?>")),
           new Shape(
               "super-bounded wildcard",
               List.of(
                   "Either<String, ? super Leaf>",
                   "Map<String, ? super Leaf>",
                   "List<? super Leaf>",
+                  "Set<? super Leaf>",
+                  "Collection<? super Leaf>",
                   "Optional<? super Leaf>")),
           new Shape(
               "raw container",
-              List.of("Either", "Try", "Validated", "Maybe", "Optional", "Map", "List", "Set")),
+              List.of(
+                  "Either",
+                  "Try",
+                  "Validated",
+                  "Maybe",
+                  "Optional",
+                  "Map",
+                  "List",
+                  "Set",
+                  "Collection")),
           new Shape(
               "wildcard nested inside a type argument",
               List.of(
                   "Either<String, List<? extends Leaf>>",
                   "Optional<Map<String, ? extends Leaf>>",
                   "Map<String, List<? extends Leaf>>",
-                  "List<Optional<? extends Leaf>>")));
+                  "List<Optional<? extends Leaf>>",
+                  "Set<Optional<? extends Leaf>>")));
 
   /** The widening settings a container can be read under. */
   private static final List<String> SETTINGS =
@@ -165,9 +180,10 @@ class GeneratedFocusSourceCompilesTest {
 
   private static final List<StillCompiles> CORPUS =
       List.of(
-          // The built-in widenings take a wildcard: .some() and .each() unify nothing.
+          // The no-argument widenings take a wildcard: .some() and .each() unify nothing. A Set or
+          // a Collection is not among them -- each names the Each that rebuilds it, which a
+          // wildcard leaves uninstantiable, so those are rejected rather than left alone (#725).
           new StillCompiles("List<? extends Leaf> f", ""),
-          new StillCompiles("Set<? extends Leaf> f", ""),
           new StillCompiles("Optional<? extends Leaf> f", ""),
           new StillCompiles("Optional<? super Leaf> f", ""),
           // A ZERO_OR_MORE SPI container is not widened by the static method on its own. With
@@ -185,6 +201,9 @@ class GeneratedFocusSourceCompilesTest {
           new StillCompiles("Optional<Optional<Optional<Either<String, ? extends Leaf>>>> f", ""),
           // Concrete containers widen exactly as they always did.
           new StillCompiles("Either<String, Leaf> f", ""),
+          new StillCompiles("Set<Leaf> f", ""),
+          new StillCompiles("Collection<Leaf> f", ""),
+          new StillCompiles("Set<Optional<Leaf>> f", ""),
           new StillCompiles("Map<String, Leaf> f", "widenCollections = true"),
           new StillCompiles("Map<String, Leaf> f", "generateNavigators = true"));
 
@@ -239,6 +258,7 @@ class GeneratedFocusSourceCompilesTest {
         import org.higherkindedj.hkt.trymonad.Try;
         import org.higherkindedj.hkt.validated.Validated;
         import org.higherkindedj.optics.annotations.GenerateFocus;
+        import java.util.Collection;
         import java.util.List;
         import java.util.Map;
         import java.util.Optional;

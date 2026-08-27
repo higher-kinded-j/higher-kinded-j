@@ -45,7 +45,8 @@ import org.higherkindedj.optics.processing.util.ProcessorUtils;
  * <ul>
  *   <li><b>Standard fields</b> - Generate {@code FocusPath}
  *   <li><b>Optional/Maybe fields</b> - Generate {@code AffinePath} via {@code .some()}
- *   <li><b>Collection fields</b> (List, Set) - Generate {@code TraversalPath} via {@code .each()}
+ *   <li><b>Collection fields</b> (List, Set, Collection) - Generate {@code TraversalPath}, each
+ *       through the {@code Each} that rebuilds it
  *   <li><b>Kind&lt;F, A&gt; fields</b> - Generate appropriate path via {@code .traverseOver()}
  * </ul>
  *
@@ -380,9 +381,10 @@ public class FocusProcessor extends AbstractProcessor {
       DeclaredType declaredType = (DeclaredType) current;
       boolean recognised = analysis.recognisedContainer(current);
 
-      // Optional and the collections widen through .some()/.each(), whose free type variable
-      // takes an undenotable argument without complaint. Only a generator's container, which
-      // widens through an inferred optic instance, is at risk.
+      // Optional, Maybe and List widen through .some()/.each(), whose free type variable takes an
+      // undenotable argument without complaint. Every other container -- a generator's, and the
+      // Set and Collection that name a stock Each -- widens through an inferred optic instance,
+      // and is at risk.
       TraversableGenerator generator = recognised ? null : analysis.findSpiGenerator(current, null);
       if (!recognised && generator == null) {
         return;
@@ -390,7 +392,11 @@ public class FocusProcessor extends AbstractProcessor {
       if (!widensHere(generator, widenCollections, navigatorWidens)) {
         return;
       }
-      if (generator != null && WideningAnalysis.widensUndenotably(generator, declaredType)) {
+      boolean undenotable =
+          recognised
+              ? analysis.recognisedWidensUndenotably(declaredType)
+              : WideningAnalysis.widensUndenotably(generator, declaredType);
+      if (undenotable) {
         reportUndenotableContainer(component, declaredType);
         return;
       }

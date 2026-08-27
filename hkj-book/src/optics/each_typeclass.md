@@ -109,6 +109,7 @@ Earlier releases exposed `Each.eachWithIndex()`, which returned an `Optional<Ind
 ├──────────────────────────────────────────────────────────────┤
 │  List<A>       │   ✓     │       ✓         │  Integer       │
 │  Set<A>        │   ✓     │       ✗         │     -          │
+│  Collection<A> │   ✓     │       ✗         │     -          │
 │  Map<K, V>     │   ✓     │       ✓         │     K          │
 │  Optional<A>   │   ✓     │       ✗         │     -          │
 │  A[]           │   ✓     │       ✓         │  Integer       │
@@ -126,6 +127,9 @@ Each<List<String>, String> listEach = EachInstances.listEach();
 
 // Set traversal (no meaningful index)
 Each<Set<Integer>, Integer> setEach = EachInstances.setEach();
+
+// Collection traversal: a set comes back a set, anything else comes back a list
+Each<Collection<String>, String> collectionEach = EachInstances.collectionEach();
 
 // Map values traversal with key as index
 Each<Map<String, Double>, Double> mapEach = EachInstances.mapValuesEach();

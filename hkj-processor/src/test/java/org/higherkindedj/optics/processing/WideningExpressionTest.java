@@ -25,6 +25,12 @@ import org.junit.jupiter.api.Test;
 @DisplayName("Widening expression")
 class WideningExpressionTest {
 
+  /**
+   * The class the stock {@code Each} factories are read from, which a step collects as an import.
+   */
+  private static final ClassName EACH_INSTANCES =
+      ClassName.get("org.higherkindedj.optics.each", "EachInstances");
+
   private static Step step(StepKind kind) {
     return new Step(kind, null, null, null);
   }
@@ -76,10 +82,31 @@ class WideningExpressionTest {
   void shouldAppendTraverseOverForKindZeroOrMore() {
     String expression =
         build(
-            step(StepKind.COLLECTION),
-            kindStep(StepKind.KIND_ZERO_OR_MORE, KindSemantics.ZERO_OR_MORE));
+            step(StepKind.LIST), kindStep(StepKind.KIND_ZERO_OR_MORE, KindSemantics.ZERO_OR_MORE));
 
     assertThat(expression).isEqualTo(".each().<W, java.lang.String>traverseOver(T.INSTANCE)");
+  }
+
+  @Test
+  @DisplayName("should append the Each that rebuilds a set for a SET step")
+  void shouldAppendSetEachForSetStep() {
+    List<Object> args = new ArrayList<>();
+
+    String expression = WideningAnalysis.expression(List.of(step(StepKind.SET)), args);
+
+    assertThat(expression).isEqualTo(".each($T.setEach())");
+    assertThat(args).containsExactly(EACH_INSTANCES);
+  }
+
+  @Test
+  @DisplayName("should append the Each that rebuilds a collection for a COLLECTION step")
+  void shouldAppendCollectionEachForCollectionStep() {
+    List<Object> args = new ArrayList<>();
+
+    String expression = WideningAnalysis.expression(List.of(step(StepKind.COLLECTION)), args);
+
+    assertThat(expression).isEqualTo(".each($T.collectionEach())");
+    assertThat(args).containsExactly(EACH_INSTANCES);
   }
 
   @Test

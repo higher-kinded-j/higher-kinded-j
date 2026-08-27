@@ -528,8 +528,13 @@ public sealed interface TraversalPath<S, A> permits TraversalFocusPath, TracedTr
   /**
    * When each focused element is a {@code List<E>}, flattens to traverse all nested elements.
    *
+   * <p>The traversal it carries is a {@code List} one, so any other container needs {@link
+   * #each(Each)} and the {@code Each} that rebuilds it.
+   *
    * @param <E> the element type of the nested lists
    * @return a TraversalPath over all nested list elements
+   * @throws ClassCastException if the focused element type {@code A} is not a {@code List}
+   * @see #each(Each)
    */
   @SuppressWarnings("unchecked")
   default <E> TraversalPath<S, E> each() {

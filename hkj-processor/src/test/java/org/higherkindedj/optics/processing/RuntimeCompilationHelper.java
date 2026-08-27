@@ -14,6 +14,7 @@ import java.lang.reflect.Method;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
+import javax.annotation.processing.Processor;
 import javax.tools.JavaFileObject;
 import javax.tools.StandardLocation;
 
@@ -53,7 +54,22 @@ public class RuntimeCompilationHelper {
    * @return a CompiledResult providing access to generated classes
    */
   public static CompiledResult compile(JavaFileObject... sources) {
-    Compilation compilation = javac().withProcessors(new ImportOpticsProcessor()).compile(sources);
+    return compileWith(new ImportOpticsProcessor(), sources);
+  }
+
+  /**
+   * Compiles the given source files with the given processor.
+   *
+   * <p>The companion to {@link #compile} for the processors whose output is only wrong at runtime:
+   * a widening call that compiles and then fails its first cast is invisible to compile-testing,
+   * and only running the generated path finds it.
+   *
+   * @param processor the processor to run
+   * @param sources the source files to compile
+   * @return a CompiledResult providing access to generated classes
+   */
+  public static CompiledResult compileWith(Processor processor, JavaFileObject... sources) {
+    Compilation compilation = javac().withProcessors(processor).compile(sources);
 
     assertThat(compilation.status())
         .as("Compilation should succeed")

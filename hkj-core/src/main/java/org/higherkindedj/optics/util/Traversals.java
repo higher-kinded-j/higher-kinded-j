@@ -4,6 +4,7 @@ package org.higherkindedj.optics.util;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
@@ -273,6 +274,49 @@ public final class Traversals {
       public <F extends WitnessArity<TypeArity.Unary>> Kind<F, Set<A>> modifyF(
           final Function<A, Kind<F, A>> f, final Set<A> source, final Applicative<F> applicative) {
         return traverseSet(source, f, applicative);
+      }
+    };
+  }
+
+  /**
+   * Creates a {@code Traversal} for all elements of a {@link Collection}.
+   *
+   * <p>A {@code Collection} names no more than "holds elements", so the traversal rebuilds the
+   * shape it was handed rather than settling on one: a {@link Set} source comes back a {@link
+   * LinkedHashSet}, and every other source comes back the {@link List} the traversal collects into.
+   * Rebuilding a set as a list would let a modification that maps two elements onto the same value
+   * leave duplicates in a collection that had none, and the identity modification would no longer
+   * return an equal collection.
+   *
+   * <p>Example:
+   *
+   * <pre>{@code
+   * Traversal<Collection<String>, String> traversal = Traversals.forCollection();
+   *
+   * Collection<String> fromASet = Set.of("alice", "bob");
+   * Traversals.modify(traversal, String::toUpperCase, fromASet);
+   * // a LinkedHashSet holding ALICE and BOB
+   *
+   * Collection<String> fromAList = List.of("alice", "alice");
+   * Traversals.modify(traversal, String::toUpperCase, fromAList);
+   * // a List holding ALICE twice
+   * }</pre>
+   *
+   * @param <A> The element type of the collection.
+   * @return A {@code Traversal} for the elements of a collection.
+   * @since 0.4.10
+   */
+  public static <A> Traversal<Collection<A>, A> forCollection() {
+    return new Traversal<>() {
+      @Override
+      public <F extends WitnessArity<TypeArity.Unary>> Kind<F, Collection<A>> modifyF(
+          final Function<A, Kind<F, A>> f,
+          final Collection<A> source,
+          final Applicative<F> applicative) {
+        final boolean fromASet = source instanceof Set<A>;
+        final Kind<F, List<A>> traversed = traverseList(new ArrayList<>(source), f, applicative);
+        return applicative.map(
+            modified -> fromASet ? new LinkedHashSet<>(modified) : modified, traversed);
       }
     };
   }

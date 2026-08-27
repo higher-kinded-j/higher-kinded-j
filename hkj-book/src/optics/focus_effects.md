@@ -97,7 +97,7 @@ The explicit type witnesses are load-bearing: Java cannot infer `F` and `E` from
 
 | Field shape | Use |
 |-------------|-----|
-| `List<T>`, `Set<T>` | `each()`, already applied by the generated method |
+| `List<T>`, `Set<T>`, `Collection<T>` | `each()`, already applied by the generated method with the `Each` that rebuilds the container |
 | `Kind<F, T>` on an annotated record | nothing: the processor applies `traverseOver` for you |
 | `Kind<F, T>` behind a hand-written lens | `traverseOver(SomeTraverse.INSTANCE)` |
 

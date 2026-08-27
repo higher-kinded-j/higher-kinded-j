@@ -148,6 +148,52 @@ class EachInstancesTest {
   }
 
   @Nested
+  @DisplayName("Collection Each Instance")
+  class CollectionEachTests {
+
+    private final Each<Collection<String>, String> collectionEach = EachInstances.collectionEach();
+
+    @Test
+    @DisplayName("each() should traverse all elements")
+    void eachTraversesAllElements() {
+      Collection<String> collection = List.of("a", "b", "c");
+      Traversal<Collection<String>, String> traversal = collectionEach.each();
+
+      List<String> elements = Traversals.getAll(traversal, collection);
+
+      assertThat(elements).containsExactly("a", "b", "c");
+    }
+
+    @Test
+    @DisplayName("each() should modify all elements")
+    void eachModifiesAllElements() {
+      Collection<String> collection = List.of("hello", "world");
+      Traversal<Collection<String>, String> traversal = collectionEach.each();
+
+      Collection<String> modified = Traversals.modify(traversal, String::toUpperCase, collection);
+
+      assertThat(modified).containsExactly("HELLO", "WORLD");
+    }
+
+    @Test
+    @DisplayName("each() should give a set back a set")
+    void eachGivesASetBackASet() {
+      Collection<String> collection = new HashSet<>(List.of("hello", "world"));
+      Traversal<Collection<String>, String> traversal = collectionEach.each();
+
+      Collection<String> modified = Traversals.modify(traversal, String::toUpperCase, collection);
+
+      assertThat(modified).isInstanceOf(Set.class).containsExactlyInAnyOrder("HELLO", "WORLD");
+    }
+
+    @Test
+    @DisplayName("supportsIndexed() should return false for Collection")
+    void supportsIndexedReturnsFalse() {
+      assertThat(collectionEach.supportsIndexed()).isFalse();
+    }
+  }
+
+  @Nested
   @DisplayName("Map Values Each Instance")
   class MapValuesEachTests {
 
