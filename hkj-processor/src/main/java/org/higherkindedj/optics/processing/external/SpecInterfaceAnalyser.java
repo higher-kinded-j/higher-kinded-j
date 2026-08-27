@@ -1084,10 +1084,7 @@ public class SpecInterfaceAnalyser {
    * @return the member's type under {@code sourceType}'s instantiation
    */
   private TypeMirror memberTypeOf(DeclaredType sourceType, ExecutableElement member) {
-    // A source type with no arguments has nothing to substitute, and asking anyway would lose
-    // what the member does declare: under a raw site javac erases every member, so a field typed
-    // List<String> on a raw Holder would come back as List and match no container.
-    if (sourceType.getTypeArguments().isEmpty()) {
+    if (!ProcessorUtils.carriesInstantiation(sourceType)) {
       return member.getReturnType();
     }
     // Total: asMemberOf answers with an ExecutableType for an executable member, and the one shape
@@ -1149,9 +1146,9 @@ public class SpecInterfaceAnalyser {
         VariableElement field = (VariableElement) enclosed;
         if (field.getSimpleName().contentEquals(fieldName)
             && field.getModifiers().contains(Modifier.PUBLIC)) {
-          return declaredSource.getTypeArguments().isEmpty()
-              ? field.asType()
-              : typeUtils.asMemberOf(declaredSource, field);
+          return ProcessorUtils.carriesInstantiation(declaredSource)
+              ? typeUtils.asMemberOf(declaredSource, field)
+              : field.asType();
         }
       }
     }

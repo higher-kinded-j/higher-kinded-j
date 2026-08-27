@@ -368,15 +368,6 @@ public class MappingProcessor extends AbstractProcessor {
   private record Inherited(TypeMirror type, TypeElement reachedThrough) {}
 
   /**
-   * Names the parent a spec actually lists, when the offending ancestor is not one.
-   *
-   * <p>The gate walks the whole ancestry, so it can name a type the spec's own extends clause never
-   * mentions; without the route there is nothing on that line for the author to act on.
-   *
-   * @param inherited the ancestor and the parent it was reached through
-   * @return a parenthetical naming the route, or the empty string when it is a direct parent
-   */
-  /**
    * Whether a mix-in contributes anything the spec would read off it.
    *
    * <p>The gate exists because inherited member types are read as declared, so an ancestor that
@@ -386,13 +377,26 @@ public class MappingProcessor extends AbstractProcessor {
    * spec does list is judged as it always was, whatever it carries.
    *
    * @param mixin the inherited interface
-   * @return true when it declares a default method or a {@code @MapField} rename
+   * @return true when it declares a default method, a {@code @MapField} rename, or an abstract leaf
    */
   private boolean carriesVocabulary(TypeElement mixin) {
     return ElementFilter.methodsIn(mixin.getEnclosedElements()).stream()
-        .anyMatch(method -> method.isDefault() || method.getAnnotation(MapField.class) != null);
+        .anyMatch(
+            method ->
+                method.isDefault()
+                    || method.getAnnotation(MapField.class) != null
+                    || isAbstractLeaf(method));
   }
 
+  /**
+   * Names the parent a spec actually lists, when the offending ancestor is not one.
+   *
+   * <p>The gate walks the whole ancestry, so it can name a type the spec's own extends clause never
+   * mentions; without the route there is nothing on that line for the author to act on.
+   *
+   * @param inherited the ancestor and the parent it was reached through
+   * @return a parenthetical naming the route, or the empty string when it is a direct parent
+   */
   private String reachedVia(Inherited inherited) {
     return inherited.reachedThrough() == null
         ? ""
@@ -418,11 +422,6 @@ public class MappingProcessor extends AbstractProcessor {
     return false;
   }
 
-  /**
-   * A spec's abstract methods must all be zero-parameter {@code @MapField} renames — anything else
-   * would leave the generated Impl with an unimplemented member (or a meaningless rename on a
-   * sealed mapping, which has no components).
-   */
   /**
    * A one-parameter abstract method over exactly the spec's declared pair, in either direction: the
    * hand-written-mapper reflex ({@code UserDto toDto(User)}), deserving a targeted answer rather
@@ -555,6 +554,11 @@ public class MappingProcessor extends AbstractProcessor {
     return previous[b.length()];
   }
 
+  /**
+   * A spec's abstract methods must all be zero-parameter {@code @MapField} renames — anything else
+   * would leave the generated Impl with an unimplemented member (or a meaningless rename on a
+   * sealed mapping, which has no components).
+   */
   private boolean validateSpecMethods(
       TypeElement spec, boolean sealedPair, TypeMirror domainArg, TypeMirror wireArg) {
     for (ExecutableElement method : specMembers(spec)) {
@@ -3063,14 +3067,6 @@ public class MappingProcessor extends AbstractProcessor {
   }
 
   /**
-   * One {@code Validated.fields()} leg for a correspondence — shared by the full tier's {@code
-   * parse} and the projection tier's {@code patch}. Every reference read is guarded (see {@link
-   * #guardedRead}), so the leaf and container legs always wrap their read in the {@code
-   * hkj$ifPresent} helper — a null becomes a located {@code FieldError} instead of reaching a leaf
-   * (whose parse rejects null). {@code guard} only varies the identity leg, whose primitive reads
-   * can never be null.
-   */
-  /**
    * The element-of-Optional parser lambda, shared by the dense {@code OPTIONAL} leg and the sparse
    * {@code OPTIONAL} edit so the two tiers cannot drift: a present element parses through the leaf,
    * an empty Optional is valid emptiness.
@@ -3085,6 +3081,14 @@ public class MappingProcessor extends AbstractProcessor {
         optional);
   }
 
+  /**
+   * One {@code Validated.fields()} leg for a correspondence — shared by the full tier's {@code
+   * parse} and the projection tier's {@code patch}. Every reference read is guarded (see {@link
+   * #guardedRead}), so the leaf and container legs always wrap their read in the {@code
+   * hkj$ifPresent} helper — a null becomes a located {@code FieldError} instead of reaching a leaf
+   * (whose parse rejects null). {@code guard} only varies the identity leg, whose primitive reads
+   * can never be null.
+   */
   private CodeBlock parseLeg(Correspondence c, CodeBlock read, boolean guard) {
     ClassName optional = ClassName.get("java.util", "Optional");
     return switch (c.kind()) {

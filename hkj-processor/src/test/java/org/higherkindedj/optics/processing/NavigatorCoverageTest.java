@@ -11,6 +11,7 @@ import com.google.testing.compile.Compilation;
 import com.google.testing.compile.JavaFileObjects;
 import java.util.List;
 import javax.tools.JavaFileObject;
+import org.assertj.core.api.Assertions;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -1458,6 +1459,154 @@ class NavigatorCoverageTest {
       assertThat(compilation).succeeded();
       assertThat(compilation).hadNoteContaining("Navigator for field 'inner' is not generated");
       assertThat(compilation).hadNoteContaining("OuterFocus.inner().via(InnerFocus.");
+    }
+
+    @Test
+    @DisplayName("says nothing about a generic target the record itself filtered out")
+    void saysNothingAboutAFilteredField() {
+      final var inner =
+          JavaFileObjects.forSourceString(
+              "com.myapp.Inner",
+              """
+              package com.myapp;
+
+              import org.higherkindedj.optics.annotations.GenerateFocus;
+
+              @GenerateFocus(generateNavigators = true)
+              public record Inner<T>(T value, String label) {}
+              """);
+
+      final var outer =
+          JavaFileObjects.forSourceString(
+              "com.myapp.Outer",
+              """
+              package com.myapp;
+
+              import org.higherkindedj.optics.annotations.GenerateFocus;
+
+              @GenerateFocus(generateNavigators = true, excludeFields = "inner")
+              public record Outer(Inner<String> inner, String tag) {}
+              """);
+
+      var compilation = javac().withProcessors(new FocusProcessor()).compile(inner, outer);
+
+      // The field has no navigator because the record said so. Reporting its target's genericity
+      // as the reason would name something the author cannot act on, and did not ask about.
+      assertThat(compilation).succeeded();
+      Assertions.assertThat(compilation.notes())
+          .noneMatch(note -> note.getMessage(null).contains("Navigator for field 'inner'"));
+    }
+
+    @Test
+    @DisplayName("names the container step when the field is one the Focus method keeps in focus")
+    void namesTheContainerStepForAnUnwidenedContainer() {
+      final var inner =
+          JavaFileObjects.forSourceString(
+              "com.myapp.Inner",
+              """
+              package com.myapp;
+
+              import org.higherkindedj.optics.annotations.GenerateFocus;
+
+              @GenerateFocus(generateNavigators = true)
+              public record Inner<T>(T value, String label) {}
+              """);
+
+      final var outer =
+          JavaFileObjects.forSourceString(
+              "com.myapp.Outer",
+              """
+              package com.myapp;
+
+              import java.util.Map;
+              import org.higherkindedj.optics.annotations.GenerateFocus;
+
+              @GenerateFocus(generateNavigators = true)
+              public record Outer(Map<String, Inner<String>> inners, String tag) {}
+              """);
+
+      var compilation = javac().withProcessors(new FocusProcessor()).compile(inner, outer);
+
+      // A ZERO_OR_MORE SPI container is not stepped into by default, so inners() is focused on the
+      // Map itself and the element's own Focus methods compose with nothing it offers.
+      assertThat(compilation).succeeded();
+      assertThat(compilation).hadNoteContaining("Navigator for field 'inners' is not generated");
+      assertThat(compilation).hadNoteContaining("add widenCollections = true to step into it");
+      assertThat(compilation).hadNoteContaining("OuterFocus.inners().via(InnerFocus.");
+    }
+
+    @Test
+    @DisplayName("a zero-or-one container is stepped into already, so the plain chain stands")
+    void namesThePlainChainForAZeroOrOneContainer() {
+      final var inner =
+          JavaFileObjects.forSourceString(
+              "com.myapp.Inner",
+              """
+              package com.myapp;
+
+              import org.higherkindedj.optics.annotations.GenerateFocus;
+
+              @GenerateFocus(generateNavigators = true)
+              public record Inner<T>(T value, String label) {}
+              """);
+
+      final var outer =
+          JavaFileObjects.forSourceString(
+              "com.myapp.Outer",
+              """
+              package com.myapp;
+
+              import org.higherkindedj.hkt.either.Either;
+              import org.higherkindedj.optics.annotations.GenerateFocus;
+
+              @GenerateFocus(generateNavigators = true)
+              public record Outer(Either<String, Inner<String>> inner, String tag) {}
+              """);
+
+      var compilation = javac().withProcessors(new FocusProcessor()).compile(inner, outer);
+
+      // A ZERO_OR_ONE container is widened whatever widenCollections says, so inner()
+      // already focuses the element.
+      assertThat(compilation).succeeded();
+      assertThat(compilation).hadNoteContaining("OuterFocus.inner().via(InnerFocus.");
+      assertThat(compilation).hadNoteContaining("to chain through it.");
+    }
+
+    @Test
+    @DisplayName("a container the record already widens needs no further step named")
+    void namesThePlainChainWhenTheRecordWidensContainers() {
+      final var inner =
+          JavaFileObjects.forSourceString(
+              "com.myapp.Inner",
+              """
+              package com.myapp;
+
+              import org.higherkindedj.optics.annotations.GenerateFocus;
+
+              @GenerateFocus(generateNavigators = true)
+              public record Inner<T>(T value, String label) {}
+              """);
+
+      final var outer =
+          JavaFileObjects.forSourceString(
+              "com.myapp.Outer",
+              """
+              package com.myapp;
+
+              import java.util.Map;
+              import org.higherkindedj.optics.annotations.GenerateFocus;
+
+              @GenerateFocus(generateNavigators = true, widenCollections = true)
+              public record Outer(Map<String, Inner<String>> inners, String tag) {}
+              """);
+
+      var compilation = javac().withProcessors(new FocusProcessor()).compile(inner, outer);
+
+      // The record asked for the container to be stepped into, so inners() already reaches the
+      // element and the chain composes as written.
+      assertThat(compilation).succeeded();
+      assertThat(compilation).hadNoteContaining("OuterFocus.inners().via(InnerFocus.");
+      assertThat(compilation).hadNoteContaining("to chain through it.");
     }
   }
 }

@@ -17,6 +17,8 @@ import javax.lang.model.element.Element;
 import javax.lang.model.element.ExecutableElement;
 import javax.lang.model.element.TypeElement;
 import javax.lang.model.element.TypeParameterElement;
+import javax.lang.model.element.VariableElement;
+import javax.lang.model.type.DeclaredType;
 import javax.lang.model.type.TypeMirror;
 import javax.lang.model.util.ElementFilter;
 import org.junit.jupiter.api.DisplayName;
@@ -287,6 +289,99 @@ class ProcessorUtilsTest {
           .containsEntry("Tagged", "com.test.Shape<java.lang.String>")
           // Nothing to read, so the sum type answers for itself rather than null.
           .containsEntry("Loose", "com.test.Shape<T>");
+    }
+  }
+
+  /**
+   * Contract tests for {@link ProcessorUtils#carriesInstantiation}, against javac's own mirrors.
+   *
+   * <p>The subject declares one field per shape; each field's type is the type to ask about. The
+   * member-of-a-generic-outer case is the one worth having: {@code Holder} carries no arguments of
+   * its own, so a reader asking only for those calls it uninstantiated and hands its members back
+   * speaking the outer's variables.
+   */
+  @Nested
+  @DisplayName("carriesInstantiation")
+  class CarriesInstantiation {
+
+    /** Captures the answer for each probe field, keyed by field name. */
+    private static final class CapturingProcessor extends AbstractProcessor {
+      private final Map<String, Boolean> carries = new LinkedHashMap<>();
+
+      @Override
+      public Set<String> getSupportedAnnotationTypes() {
+        return Set.of("*");
+      }
+
+      @Override
+      public SourceVersion getSupportedSourceVersion() {
+        return SourceVersion.latestSupported();
+      }
+
+      @Override
+      public boolean process(Set<? extends TypeElement> annotations, RoundEnvironment round) {
+        TypeElement subject = processingEnv.getElementUtils().getTypeElement("com.test.Subject");
+        if (subject == null) {
+          return false;
+        }
+        for (VariableElement field : ElementFilter.fieldsIn(subject.getEnclosedElements())) {
+          carries.put(
+              field.getSimpleName().toString(),
+              ProcessorUtils.carriesInstantiation((DeclaredType) field.asType()));
+        }
+        return false;
+      }
+    }
+
+    @Test
+    @DisplayName("reads the whole enclosing chain, not the type's own arguments alone")
+    void readsTheEnclosingChain() {
+      var outer =
+          JavaFileObjects.forSourceString(
+              "com.test.Outer",
+              """
+              package com.test;
+              public class Outer<X> {
+                public class Holder {}
+                public static class Nested {}
+              }
+              """);
+      var plain =
+          JavaFileObjects.forSourceString(
+              "com.test.Plain",
+              """
+              package com.test;
+              public class Plain {}
+              """);
+      var subject =
+          JavaFileObjects.forSourceString(
+              "com.test.Subject",
+              """
+              package com.test;
+              import java.util.List;
+              @SuppressWarnings({"rawtypes", "unused"})
+              public class Subject {
+                List<String> parameterised;
+                List raw;
+                Plain nonGeneric;
+                Outer<List<String>>.Holder memberOfGenericOuter;
+                Outer.Nested staticallyNested;
+              }
+              """);
+
+      var processor = new CapturingProcessor();
+      javac().withProcessors(processor).compile(outer, plain, subject);
+
+      assertThat(processor.carries)
+          .containsEntry("parameterised", true)
+          // Raw and non-generic both have nothing to substitute, and asMemberOf would erase the
+          // first rather than leave it alone.
+          .containsEntry("raw", false)
+          .containsEntry("nonGeneric", false)
+          // Holder declares no parameters; the instantiation is entirely its outer's.
+          .containsEntry("memberOfGenericOuter", true)
+          // A static nested class has no enclosing instance type, so the outer cannot reach it.
+          .containsEntry("staticallyNested", false);
     }
   }
 }

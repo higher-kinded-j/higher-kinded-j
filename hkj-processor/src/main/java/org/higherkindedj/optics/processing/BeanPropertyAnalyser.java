@@ -92,8 +92,9 @@ final class BeanPropertyAnalyser {
 
     BuilderModel builder = findBuilderModel(bean);
     if (builder != null) {
-      DeclaredType builderType = (DeclaredType) builder.builderType().asType();
-      Map<String, ExecutableElement> builderSetters = collectBuilderSetters(builder.builderType());
+      DeclaredType builderType = builder.builderType();
+      Map<String, ExecutableElement> builderSetters =
+          collectBuilderSetters(builder.builderElement());
       List<WireShape.BeanProperty> properties = new ArrayList<>();
       for (Map.Entry<String, ExecutableElement> entry : getters.entrySet()) {
         String name = entry.getKey();
@@ -149,7 +150,8 @@ final class BeanPropertyAnalyser {
     }
     BuilderModel builder = findBuilderModel(bean);
     if (builder != null) {
-      Map<String, ExecutableElement> builderSetters = collectBuilderSetters(builder.builderType());
+      Map<String, ExecutableElement> builderSetters =
+          collectBuilderSetters(builder.builderElement());
       long count = getters.keySet().stream().filter(builderSetters::containsKey).count();
       if (count > 0) {
         return (int) count;
@@ -249,8 +251,25 @@ final class BeanPropertyAnalyser {
     return merged;
   }
 
-  /** A builder factory + terminal build method discovered on a bean. */
-  private record BuilderModel(String factory, String buildMethod, TypeElement builderType) {}
+  /**
+   * A builder factory + terminal build method discovered on a bean.
+   *
+   * <p>{@code builderType} is the factory's return type as written - {@code Builder<String>}, not
+   * {@code Builder<T>}. Re-deriving it from the element would put the builder's own variables back
+   * where the factory named actual arguments, and every setter would then be read at a variable the
+   * bean's author never wrote.
+   *
+   * @param factory the static factory method's name
+   * @param buildMethod the terminal build method's name
+   * @param builderType the builder as the factory instantiates it
+   */
+  private record BuilderModel(String factory, String buildMethod, DeclaredType builderType) {
+
+    /** The builder's element, for the members that are read off the declaration itself. */
+    TypeElement builderElement() {
+      return (TypeElement) builderType.asElement();
+    }
+  }
 
   private BuilderModel findBuilderModel(TypeElement bean) {
     ExecutableElement factory = builderFactory(bean, "builder");
@@ -261,9 +280,9 @@ final class BeanPropertyAnalyser {
       return null;
     }
     // builderFactory only returns a factory whose return kind is DECLARED, so the cast is total.
-    TypeElement builderType = (TypeElement) ((DeclaredType) factory.getReturnType()).asElement();
+    DeclaredType builderType = (DeclaredType) factory.getReturnType();
     boolean buildsWire =
-        publicInstanceMethods(builderType).stream()
+        publicInstanceMethods((TypeElement) builderType.asElement()).stream()
             .anyMatch(
                 m ->
                     m.getSimpleName().contentEquals("build")

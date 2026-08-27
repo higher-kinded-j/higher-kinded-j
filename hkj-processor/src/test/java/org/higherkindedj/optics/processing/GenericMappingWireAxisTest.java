@@ -301,4 +301,124 @@ class GenericMappingWireAxisTest {
     assertThat(compilation).succeeded();
     assertThat(compilation).generatedSourceFile("com.example.OrderedMappingImpl");
   }
+
+  @Test
+  @DisplayName("a bean wire built through a builder the factory instantiates")
+  void beanWireBuiltThroughAnInstantiatedGenericBuilder() {
+    var wire =
+        JavaFileObjects.forSourceString(
+            "com.example.BuiltWire",
+            """
+            package com.example;
+
+            public class BuiltWire {
+                private final String id;
+                private final String name;
+                private BuiltWire(String id, String name) {
+                    this.id = id;
+                    this.name = name;
+                }
+                public String getId() { return id; }
+                public String getName() { return name; }
+                public static Builder<String> builder() { return new Builder<>(); }
+
+                public static final class Builder<T> {
+                    private T id;
+                    private String name;
+                    public Builder<T> setId(T id) { this.id = id; return this; }
+                    public Builder<T> setName(String name) { this.name = name; return this; }
+                    public BuiltWire build() { return new BuiltWire(String.valueOf(id), name); }
+                }
+            }
+            """);
+
+    var spec =
+        JavaFileObjects.forSourceString(
+            "com.example.BuiltMapping",
+            """
+            package com.example;
+
+            import org.higherkindedj.optics.annotations.GenerateMapping;
+            import org.higherkindedj.optics.annotations.MappingSpec;
+
+            @GenerateMapping
+            public interface BuiltMapping extends MappingSpec<Dom, BuiltWire> {}
+            """);
+
+    // The factory says Builder<String>; rebuilding the builder from its element says Builder<T>,
+    // and setId is then read at a variable this wire's author never wrote.
+    var compilation = compile(DOMAIN, wire, spec);
+
+    assertThat(compilation).succeeded();
+    assertThat(compilation).generatedSourceFile("com.example.BuiltMappingImpl");
+  }
+
+  @Test
+  @DisplayName("a generic ancestor contributing only an abstract leaf is judged on it")
+  void genericAncestorCarryingOnlyAnAbstractLeaf() {
+    var domain =
+        JavaFileObjects.forSourceString(
+            "com.example.Page",
+            """
+            package com.example;
+
+            import java.util.List;
+
+            public record Page<T>(List<T> items, String cursor) {}
+            """);
+
+    var wire =
+        JavaFileObjects.forSourceString(
+            "com.example.PageDto",
+            """
+            package com.example;
+
+            import java.util.List;
+
+            public record PageDto<T>(List<T> items, String cursor) {}
+            """);
+
+    var base =
+        JavaFileObjects.forSourceString(
+            "com.example.LeafBase",
+            """
+            package com.example;
+
+            import org.higherkindedj.optics.validated.ValidatedPrism;
+
+            public interface LeafBase<X> {
+                ValidatedPrism<X, String> items();
+            }
+            """);
+
+    var mixin =
+        JavaFileObjects.forSourceString(
+            "com.example.LeafVocab",
+            """
+            package com.example;
+
+            public interface LeafVocab extends LeafBase<String> {}
+            """);
+
+    var spec =
+        JavaFileObjects.forSourceString(
+            "com.example.LeafPageMapping",
+            """
+            package com.example;
+
+            import org.higherkindedj.optics.annotations.GenerateMapping;
+            import org.higherkindedj.optics.annotations.MappingSpec;
+
+            @GenerateMapping
+            public interface LeafPageMapping<T> extends MappingSpec<Page<T>, PageDto<T>>, LeafVocab {}
+            """);
+
+    // An abstract leaf is neither a default method nor a rename, so a gate reading only those two
+    // lets LeafBase through - and the record path then writes its declared ValidatedPrism<X, ...>
+    // into an Impl that declares no X.
+    var compilation = compile(domain, wire, base, mixin, spec);
+
+    assertThat(compilation).failed();
+    assertThat(compilation).hadErrorContaining("mix-in 'LeafBase' is generic");
+  }
 }

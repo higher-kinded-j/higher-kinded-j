@@ -74,6 +74,36 @@ public final class ProcessorUtils {
   }
 
   /**
+   * Whether a declared type carries an instantiation for {@code asMemberOf} to substitute.
+   *
+   * <p>Asked before reading a member under a type, because {@code asMemberOf} does the wrong thing
+   * at both ends of the question. Where there is nothing to substitute it can still lose what the
+   * member declares: under a raw site javac erases every member, so a field typed {@code
+   * List<String>} on a raw {@code Holder} comes back as {@code List} and matches no container.
+   * Where there is something to substitute, skipping it hands back a variable the caller never
+   * wrote.
+   *
+   * <p>The enclosing chain counts, not just the type's own arguments. A member of {@code
+   * Outer<List<String>>.Holder} speaks {@code Outer}'s variables even though {@code Holder}
+   * declares none of its own, and a chain that ends without arguments anywhere is either wholly
+   * non-generic or raw - in both of which the declaration was already the answer.
+   *
+   * @param type the instantiated type a member is about to be read under; must not be null
+   * @return true when some link of its enclosing chain carries type arguments
+   * @since 0.4.10
+   */
+  public static boolean carriesInstantiation(DeclaredType type) {
+    TypeMirror current = type;
+    while (current instanceof DeclaredType declared) {
+      if (!declared.getTypeArguments().isEmpty()) {
+        return true;
+      }
+      current = declared.getEnclosingType();
+    }
+    return false;
+  }
+
+  /**
    * The sum type as one of its permitted subtypes instantiates it.
    *
    * <p>A prism for a subtype is written against the sum type the <em>subtype</em> names, not the

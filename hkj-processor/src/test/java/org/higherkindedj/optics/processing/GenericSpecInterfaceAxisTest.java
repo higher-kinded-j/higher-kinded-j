@@ -120,6 +120,30 @@ class GenericSpecInterfaceAxisTest {
           public class Leaf<X> extends Node<X> {}
           """);
 
+  /**
+   * A generic class whose member class declares no parameters of its own.
+   *
+   * <p>{@code Holder} is where the enclosing instantiation is the only instantiation: it carries no
+   * type arguments, so a reader that asks only for its own answers "nothing to substitute" and
+   * hands back {@code X}. This is the one fixture whose spec names a concrete argument rather than
+   * its own {@code U} — the enclosing type has to supply a real container for the difference
+   * between {@code X} and {@code List<String>} to be visible at all.
+   */
+  private static final JavaFileObject OUTER =
+      JavaFileObjects.forSourceString(
+          "com.external.Outer",
+          """
+          package com.external;
+
+          public class Outer<X> {
+              public class Holder {
+                  private X items;
+                  public X items() { return items; }
+                  public Holder withItems(X items) { return this; }
+              }
+          }
+          """);
+
   private static final JavaFileObject BOX_TRAVERSALS =
       JavaFileObjects.forSourceString(
           "org.higherkindedj.optics.BoxTraversals",
@@ -150,6 +174,7 @@ class GenericSpecInterfaceAxisTest {
             import com.external.Circle;
             import com.external.Leaf;
             import com.external.Node;
+            import com.external.Outer;
             import com.external.Shape;
             import java.util.List;
             import org.higherkindedj.optics.Lens;
@@ -175,7 +200,7 @@ class GenericSpecInterfaceAxisTest {
     // the import rather than on anything the test is about.
     return javac()
         .withProcessors(new ImportOpticsProcessor())
-        .compile(BASE, BOX, SHAPE, CIRCLE, NODE, LEAF, BOX_TRAVERSALS, specInterface);
+        .compile(BASE, BOX, SHAPE, CIRCLE, NODE, LEAF, OUTER, BOX_TRAVERSALS, specInterface);
   }
 
   private void assertGeneratedSignature(Compilation compilation, String signature) {
@@ -302,5 +327,25 @@ class GenericSpecInterfaceAxisTest {
             }""");
 
     assertGeneratedSignature(compilation, "public static <U> Traversal<Box<U>, U> eachItem()");
+  }
+
+  @Test
+  @DisplayName("@ThroughField reads an accessor under the enclosing type's instantiation")
+  void throughFieldOnAMemberOfAGenericOuter() {
+    var compilation =
+        compile(
+            """
+            public interface SubjectOpticsSpec extends OpticsSpec<Outer<List<String>>.Holder> {
+                @Wither("withItems")
+                Lens<Outer<List<String>>.Holder, List<String>> items();
+
+                @ThroughField(field = "items")
+                Traversal<Outer<List<String>>.Holder, String> eachItem();
+            }""");
+
+    // items() is declared 'X items()'. Read as declared it is a type variable and no container at
+    // all, so auto-detection turns away a List the spec plainly named.
+    assertGeneratedSignature(
+        compilation, "public static Traversal<Outer<List<String>>.Holder, String> eachItem()");
   }
 }

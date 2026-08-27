@@ -19,6 +19,7 @@ import org.higherkindedj.optics.Lens;
 import org.higherkindedj.optics.annotations.GenerateFocus;
 import org.higherkindedj.optics.processing.WideningAnalysis.Tier;
 import org.higherkindedj.optics.processing.WideningAnalysis.Widening;
+import org.higherkindedj.optics.processing.spi.Cardinality;
 import org.higherkindedj.optics.processing.spi.TraversableGenerator;
 import org.higherkindedj.optics.processing.util.ProcessorUtils;
 
@@ -147,14 +148,19 @@ public class NavigatorClassGenerator {
       TypeSpec.Builder focusClassBuilder, TypeElement recordElement, int currentDepth) {
 
     for (RecordComponentElement component : recordElement.getRecordComponents()) {
-      TypeElement target = navigatorTarget(recordElement, component);
-      if (target == null) {
-        reportGenericTargetSkipped(recordElement, component);
+      // The two reasons a candidate gets no navigator are told apart here, because only one of
+      // them is the component's target being generic; navigatorTarget conflates them by design.
+      TypeElement candidate = navigatorCandidate(recordElement, component);
+      if (candidate == null) {
+        continue;
+      }
+      if (declaresTypeParameters(candidate)) {
+        reportGenericTargetSkipped(recordElement, component, candidate);
         continue;
       }
       focusClassBuilder.addType(
           generateNavigatorClass(
-              component, target, currentDepth, widening(recordElement, component).tier()));
+              component, candidate, currentDepth, widening(recordElement, component).tier()));
     }
   }
 
@@ -169,15 +175,19 @@ public class NavigatorClassGenerator {
    *
    * @param recordElement the record declaring the component
    * @param component the component whose navigator was not generated
+   * @param navigable the generic target it reaches, already established by the caller
    */
   private void reportGenericTargetSkipped(
-      TypeElement recordElement, RecordComponentElement component) {
+      TypeElement recordElement, RecordComponentElement component, TypeElement navigable) {
 
-    TypeElement navigable = navigableTarget(component);
-    if (navigable == null || !declaresTypeParameters(navigable)) {
-      return;
-    }
     String componentName = component.getSimpleName().toString();
+    String chain =
+        focusClassOf(recordElement).simpleName()
+            + "."
+            + componentName
+            + "().via("
+            + focusClassOf(navigable).simpleName()
+            + ".…())";
     processingEnv
         .getMessager()
         .printMessage(
@@ -186,14 +196,34 @@ public class NavigatorClassGenerator {
                 + componentName
                 + "' is not generated: "
                 + navigable.getSimpleName()
-                + " declares type parameters, which a navigator has no way to name. Use "
-                + focusClassOf(recordElement).simpleName()
-                + "."
-                + componentName
-                + "().via("
-                + focusClassOf(navigable).simpleName()
-                + ".…()) to chain through it.",
+                + " declares type parameters, which a navigator has no way to name. "
+                + (keepsContainerInFocus(recordElement, component)
+                    ? "Its Focus method keeps the container itself in focus, so add"
+                        + " widenCollections = true to step into it, then chain "
+                        + chain
+                        + " through the element."
+                    : "Use " + chain + " to chain through it."),
             component);
+  }
+
+  /**
+   * Whether a component's Focus method stops at its container rather than the element inside it.
+   *
+   * <p>A {@code ZERO_OR_MORE} SPI container is left un-widened unless the record asks for it, so
+   * its path is focused on the container and composes with nothing the element declares. Every
+   * other navigable shape — a direct field, a built-in collection, an {@code Optional}, a {@code
+   * ZERO_OR_ONE} container — is already stepped into by the time the note is written, and chains
+   * through the element as written.
+   *
+   * @param record the record that declares the component
+   * @param component the component
+   * @return true when the container is still in focus, so the element is a step further on
+   */
+  private boolean keepsContainerInFocus(TypeElement record, RecordComponentElement component) {
+    SpiNavigable spiNavigable = spiNavigable(component.asType());
+    return spiNavigable != null
+        && spiNavigable.generator().getCardinality() == Cardinality.ZERO_OR_MORE
+        && !focusSettings(record).widenCollections();
   }
 
   /**
@@ -228,15 +258,29 @@ public class NavigatorClassGenerator {
    * @return the navigable type its Focus method reaches, or null
    */
   private TypeElement navigatorTarget(TypeElement record, RecordComponentElement component) {
+    TypeElement candidate = navigatorCandidate(record, component);
+    return candidate == null || declaresTypeParameters(candidate) ? null : candidate;
+  }
+
+  /**
+   * The navigable type a component would get a navigator for, before its own type parameters are
+   * considered.
+   *
+   * <p>Split from {@link #navigatorTarget} so that the note explaining a generic target and the
+   * gate declining it read one answer rather than two. Re-deriving it would report the target's
+   * genericity as the reason a field the record itself filtered out has no navigator, which is a
+   * reason its author cannot act on.
+   *
+   * @param record the record that declares the component
+   * @param component the component
+   * @return the navigable type it reaches while asking for a navigator, or null
+   */
+  private TypeElement navigatorCandidate(TypeElement record, RecordComponentElement component) {
     if (!focusSettings(record).generateNavigators()
         || !shouldGenerateNavigator(record, component)) {
       return null;
     }
-    TypeElement navigable = navigableTarget(component);
-    if (navigable == null) {
-      return null;
-    }
-    return declaresTypeParameters(navigable) ? null : navigable;
+    return navigableTarget(component);
   }
 
   /**
