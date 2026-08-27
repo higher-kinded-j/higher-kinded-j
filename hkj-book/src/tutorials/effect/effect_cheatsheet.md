@@ -150,6 +150,10 @@ public final class RepoPaths<T extends Comparable<T>> {
 }
 ```
 
+Inherited `@PathVia` methods are bridged too, read under the instantiation the annotated interface gives them: `StringStore extends Store<String>` gets `Store`'s methods with `T` already `String`. An overridden method is bridged once, and so is a method that two unrelated superinterfaces both declare. The annotation itself is not inherited, though, so a method that overrides an annotated one hides it unless it is annotated too; an interface left with no `@PathVia` method anywhere draws a warning rather than a silently empty bridge. A `throws` clause and a varargs parameter both carry across unchanged.
+
+The bridge is a file you never wrote and cannot edit, so a handful of shapes the language accepts are refused at your own declaration instead: a raw type anywhere in the signature, a `Validated` whose error type is a wildcard, a method type parameter that hides one of the interface's, a `static` or `private` method, and, under `targetPackage`, anything the target package cannot see. [Common Compiler Errors](../../optics/compiler_errors.md#generatepathbridge-and-pathvia) quotes each message with its cause and remedy.
+
 ---
 
 ## Focus-Effect bridge

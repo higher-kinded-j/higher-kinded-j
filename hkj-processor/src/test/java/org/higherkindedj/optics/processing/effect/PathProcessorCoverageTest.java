@@ -21,44 +21,6 @@ import org.junit.jupiter.api.Test;
 class PathProcessorCoverageTest {
 
   @Nested
-  @DisplayName("IO return type")
-  class IOReturnType {
-
-    @Test
-    @DisplayName("should process IO return type and generate bridge code")
-    void shouldProcessIOReturnType() {
-      // Path.io() expects Supplier<A>, not IO<A>, so the generated code won't
-      // recompile successfully. But we still verify the processor handles IO types
-      // in determinePathType and produces the correct structure.
-      final var sourceFile =
-          JavaFileObjects.forSourceString(
-              "com.example.IOService",
-              """
-              package com.example;
-
-              import org.higherkindedj.hkt.io.IO;
-              import org.higherkindedj.hkt.effect.annotation.GeneratePathBridge;
-              import org.higherkindedj.hkt.effect.annotation.PathVia;
-
-              @GeneratePathBridge
-              public interface IOService {
-
-                  @PathVia
-                  IO<String> loadData();
-              }
-              """);
-
-      var compilation = javac().withProcessors(new PathProcessor()).compile(sourceFile);
-
-      // The processor generates a file, but it fails to compile because Path.io()
-      // expects Supplier<A>, not IO<A>. The IO branch in determinePathType is still
-      // exercised by the processor before the generated code is compiled.
-      assertThat(compilation).failed();
-      assertThat(compilation).hadErrorContaining("io");
-    }
-  }
-
-  @Nested
   @DisplayName("Target package configuration")
   class TargetPackage {
 
@@ -119,7 +81,7 @@ class PathProcessorCoverageTest {
       var compilation = javac().withProcessors(new PathProcessor()).compile(sourceFile);
 
       assertThat(compilation).failed();
-      assertThat(compilation).hadErrorContaining("Unsupported return type");
+      assertThat(compilation).hadErrorContaining("which no Path wraps");
     }
 
     @Test
@@ -147,40 +109,7 @@ class PathProcessorCoverageTest {
       var compilation = javac().withProcessors(new PathProcessor()).compile(sourceFile);
 
       assertThat(compilation).failed();
-      assertThat(compilation).hadErrorContaining("Unsupported return type");
-    }
-
-    @Test
-    @DisplayName("should handle raw Optional return type (defensive Object fallback)")
-    void shouldHandleRawOptionalReturnType() {
-      // A raw Optional has no type arguments, exercising the typeArgOrObject()
-      // fallback to Object. This is the only coverage case for the helper's
-      // out-of-bounds branch.
-      final var sourceFile =
-          JavaFileObjects.forSourceString(
-              "com.example.RawService",
-              """
-              package com.example;
-
-              import java.util.Optional;
-              import org.higherkindedj.hkt.effect.annotation.GeneratePathBridge;
-              import org.higherkindedj.hkt.effect.annotation.PathVia;
-
-              @GeneratePathBridge
-              @SuppressWarnings("rawtypes")
-              public interface RawService {
-
-                  @PathVia
-                  Optional findItem();
-              }
-              """);
-
-      var compilation = javac().withProcessors(new PathProcessor()).compile(sourceFile);
-
-      // Processor accepts raw Optional, falls back to Object value type
-      assertThat(compilation).succeeded();
-      assertGeneratedCodeContains(
-          compilation, "com.example.RawServicePaths", "OptionalPath<Object> findItem()");
+      assertThat(compilation).hadErrorContaining("which no Path wraps");
     }
 
     @Test
@@ -201,7 +130,7 @@ class PathProcessorCoverageTest {
       var compilation = javac().withProcessors(new PathProcessor()).compile(sourceFile);
 
       assertThat(compilation).failed();
-      assertThat(compilation).hadErrorContaining("can only be applied to interfaces");
+      assertThat(compilation).hadErrorContaining("is not an interface");
     }
   }
 

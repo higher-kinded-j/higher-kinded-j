@@ -255,10 +255,36 @@ public final class ProcessorUtils {
    * language says a raw type's members are. Nothing is done to soften that: reading the declaration
    * instead lets analysis pass and leaves the generator emitting a call the erased member cannot
    * take.
+   *
+   * @param types the round's type utilities; must not be null
+   * @param owner the instantiated type the member is read on; must not be null
+   * @param member the member to read; must not be null
+   * @return the member's signature under {@code owner}'s instantiation
+   * @since 0.4.10
    */
-  private static ExecutableType memberOf(
-      Types types, DeclaredType owner, ExecutableElement member) {
+  public static ExecutableType memberOf(Types types, DeclaredType owner, ExecutableElement member) {
     return (ExecutableType) types.asMemberOf(owner, member);
+  }
+
+  /**
+   * The bounds a type variable is written with, as whoever reads it sees them.
+   *
+   * <p>Kind, not {@code instanceof}: an intersection type implements {@link DeclaredType} too, so a
+   * pattern would take the first arm of {@code A & B} for the whole bound. Read off a variable
+   * rather than a {@link javax.lang.model.element.TypeParameterElement} so that a member read under
+   * an instantiation reports the bounds it has <em>there</em> - an inherited {@code <R extends T>}
+   * is {@code <R extends String>} under {@code Base<String>}, and {@code T} is a name the reader
+   * cannot write.
+   *
+   * @param variable the type variable to read; must not be null
+   * @return its upper bound, or the arms of that bound when it is an intersection
+   * @since 0.4.10
+   */
+  public static List<? extends TypeMirror> boundsOf(TypeVariable variable) {
+    TypeMirror upperBound = variable.getUpperBound();
+    return upperBound.getKind() == TypeKind.INTERSECTION
+        ? ((IntersectionType) upperBound).getBounds()
+        : List.of(upperBound);
   }
 
   /**

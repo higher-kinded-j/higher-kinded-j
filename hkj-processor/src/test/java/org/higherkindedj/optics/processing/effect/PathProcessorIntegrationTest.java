@@ -26,6 +26,20 @@ import org.junit.jupiter.api.Test;
 @DisplayName("PathProcessor Integration Tests")
 class PathProcessorIntegrationTest {
 
+  /**
+   * Compiles under the consuming build's own flags rather than javac's defaults.
+   *
+   * <p>Generated source is the claim here, and on defaults a bridge that converts unchecked or
+   * names a raw type looks exactly like success - the warnings only become a failure in the build
+   * that consumes the file, which is also the one place a suppression cannot be written.
+   */
+  private static Compilation compile(JavaFileObject... sources) {
+    return javac()
+        .withOptions("-Xlint:unchecked,rawtypes", "-Werror")
+        .withProcessors(new PathProcessor())
+        .compile(sources);
+  }
+
   @Nested
   @DisplayName("Basic Code Generation")
   class BasicCodeGeneration {
@@ -51,7 +65,7 @@ class PathProcessorIntegrationTest {
               }
               """);
 
-      var compilation = javac().withProcessors(new PathProcessor()).compile(sourceFile);
+      var compilation = compile(sourceFile);
 
       assertThat(compilation).succeeded();
 
@@ -65,7 +79,7 @@ class PathProcessorIntegrationTest {
       assertGeneratedCodeContains(
           compilation, generatedClassName, "public OptionalPath<String> findById(Long id)");
       assertGeneratedCodeContains(
-          compilation, generatedClassName, "Path.optional(delegate.findById(id))");
+          compilation, generatedClassName, "Path.optional(this.delegate.findById(id))");
     }
 
     @Test
@@ -89,7 +103,7 @@ class PathProcessorIntegrationTest {
               }
               """);
 
-      var compilation = javac().withProcessors(new PathProcessor()).compile(sourceFile);
+      var compilation = compile(sourceFile);
 
       assertThat(compilation).succeeded();
 
@@ -99,7 +113,7 @@ class PathProcessorIntegrationTest {
           generatedClassName,
           "public EitherPath<String, Integer> processOrder(String orderId)");
       assertGeneratedCodeContains(
-          compilation, generatedClassName, "Path.either(delegate.processOrder(orderId))");
+          compilation, generatedClassName, "Path.either(this.delegate.processOrder(orderId))");
     }
 
     @Test
@@ -123,14 +137,15 @@ class PathProcessorIntegrationTest {
               }
               """);
 
-      var compilation = javac().withProcessors(new PathProcessor()).compile(sourceFile);
+      var compilation = compile(sourceFile);
 
       assertThat(compilation).succeeded();
 
       final String generatedClassName = "com.example.CacheServicePaths";
       assertGeneratedCodeContains(
           compilation, generatedClassName, "public MaybePath<String> get(String key)");
-      assertGeneratedCodeContains(compilation, generatedClassName, "Path.maybe(delegate.get(key))");
+      assertGeneratedCodeContains(
+          compilation, generatedClassName, "Path.maybe(this.delegate.get(key))");
     }
 
     @Test
@@ -154,7 +169,7 @@ class PathProcessorIntegrationTest {
               }
               """);
 
-      var compilation = javac().withProcessors(new PathProcessor()).compile(sourceFile);
+      var compilation = compile(sourceFile);
 
       assertThat(compilation).succeeded();
 
@@ -162,7 +177,38 @@ class PathProcessorIntegrationTest {
       assertGeneratedCodeContains(
           compilation, generatedClassName, "public TryPath<String> readFile(String path)");
       assertGeneratedCodeContains(
-          compilation, generatedClassName, "Path.tryPath(delegate.readFile(path))");
+          compilation, generatedClassName, "Path.tryPath(this.delegate.readFile(path))");
+    }
+
+    @Test
+    @DisplayName("generates bridge class for interface with IO method")
+    void shouldGenerateBridgeForIoMethod() {
+      var compilation =
+          compile(
+              JavaFileObjects.forSourceString(
+                  "com.example.ConfigService",
+                  """
+                  package com.example;
+
+                  import org.higherkindedj.hkt.io.IO;
+                  import org.higherkindedj.hkt.effect.annotation.GeneratePathBridge;
+                  import org.higherkindedj.hkt.effect.annotation.PathVia;
+
+                  @GeneratePathBridge
+                  public interface ConfigService {
+
+                      @PathVia
+                      IO<String> load(String key);
+                  }
+                  """));
+
+      // Path.io takes a Supplier and IO is not one, so every bridge written against that factory
+      // was source javac refused - in a file whose author had no way to correct it.
+      assertThat(compilation).succeeded();
+      assertGeneratedCodeContains(
+          compilation, "com.example.ConfigServicePaths", "public IOPath<String> load(String key)");
+      assertGeneratedCodeContains(
+          compilation, "com.example.ConfigServicePaths", "Path.ioPath(this.delegate.load(key))");
     }
 
     @Test
@@ -188,7 +234,7 @@ class PathProcessorIntegrationTest {
               }
               """);
 
-      var compilation = javac().withProcessors(new PathProcessor()).compile(sourceFile);
+      var compilation = compile(sourceFile);
 
       assertThat(compilation).succeeded();
 
@@ -199,7 +245,644 @@ class PathProcessorIntegrationTest {
           generatedClassName,
           "ValidationPath<List<String>, String> validate(String input, Semigroup<List<String>> semigroup)");
       assertGeneratedCodeContains(
-          compilation, generatedClassName, "Path.validated(delegate.validate(input), semigroup)");
+          compilation,
+          generatedClassName,
+          "Path.validated(this.delegate.validate(input), semigroup)");
+    }
+  }
+
+  @Nested
+  @DisplayName("Method type parameters")
+  class MethodTypeParameters {
+
+    @Test
+    @DisplayName("declares both arms of an intersection bound")
+    void declaresBothArmsOfAnIntersectionBound() {
+      var compilation =
+          compile(
+              JavaFileObjects.forSourceString(
+                  "com.example.Sorter",
+                  """
+                  package com.example;
+
+                  import java.util.Optional;
+                  import org.higherkindedj.hkt.effect.annotation.GeneratePathBridge;
+                  import org.higherkindedj.hkt.effect.annotation.PathVia;
+
+                  @GeneratePathBridge
+                  public interface Sorter {
+                      @PathVia
+                      <R extends CharSequence & Comparable<R>> Optional<R> least(R first, R second);
+                  }
+                  """));
+
+      // A bound is read as one upper bound or as the arms of an intersection; taking the first
+      // arm for the whole would drop the half the delegate's own signature relies on.
+      assertThat(compilation).succeeded();
+      assertGeneratedCodeContains(
+          compilation,
+          "com.example.SorterPaths",
+          "public <R extends CharSequence & Comparable<R>> OptionalPath<R> least(R first,"
+              + " R second)");
+    }
+  }
+
+  @Nested
+  @DisplayName("Inherited @PathVia methods")
+  class InheritedMethods {
+
+    @Test
+    @DisplayName("bridges a @PathVia the interface inherits rather than declares")
+    void bridgesAnInheritedPathVia() {
+      var compilation =
+          compile(
+              JavaFileObjects.forSourceString(
+                  "com.example.Store",
+                  """
+                  package com.example;
+
+                  import java.util.Optional;
+                  import org.higherkindedj.hkt.effect.annotation.PathVia;
+
+                  public interface Store<T> {
+                      @PathVia
+                      Optional<String> byId(T id);
+                  }
+                  """),
+              JavaFileObjects.forSourceString(
+                  "com.example.StringStore",
+                  """
+                  package com.example;
+
+                  import org.higherkindedj.hkt.effect.annotation.GeneratePathBridge;
+
+                  @GeneratePathBridge
+                  public interface StringStore extends Store<String> {}
+                  """));
+
+      // Enclosed elements would have found nothing here, and said nothing about it either.
+      assertThat(compilation).succeeded();
+      assertGeneratedCodeContains(
+          compilation,
+          "com.example.StringStorePaths",
+          "public OptionalPath<String> byId(String id)");
+      assertGeneratedCodeContains(
+          compilation, "com.example.StringStorePaths", "Path.optional(this.delegate.byId(id))");
+    }
+
+    @Test
+    @DisplayName("reads an inherited method under the instantiation, bounds included")
+    void readsAnInheritedMethodUnderTheInstantiation() {
+      var compilation =
+          compile(
+              JavaFileObjects.forSourceString(
+                  "com.other.Picker",
+                  """
+                  package com.other;
+
+                  import java.util.Optional;
+                  import org.higherkindedj.hkt.effect.annotation.PathVia;
+
+                  public interface Picker<T> {
+                      @PathVia
+                      <R extends T> Optional<R> pick(R candidate, T from);
+                  }
+                  """),
+              JavaFileObjects.forSourceString(
+                  "com.example.TextPicker",
+                  """
+                  package com.example;
+
+                  import com.other.Picker;
+                  import java.util.Optional;
+                  import org.higherkindedj.hkt.effect.annotation.GeneratePathBridge;
+                  import org.higherkindedj.hkt.effect.annotation.PathVia;
+
+                  @GeneratePathBridge
+                  public interface TextPicker extends Picker<CharSequence> {
+                      @PathVia
+                      Optional<Integer> own(int n);
+                  }
+                  """));
+
+      // 'R extends T' is 'R extends CharSequence' here. Copying the declaration would put
+      // Picker's own parameter into a bridge that never declares it.
+      assertThat(compilation).succeeded();
+      assertGeneratedCodeContains(
+          compilation,
+          "com.example.TextPickerPaths",
+          "public <R extends CharSequence> OptionalPath<R> pick(R candidate, CharSequence from)");
+      // Own methods before inherited ones, so a supertype gaining a member does not reshuffle
+      // the bridge's existing methods.
+      assertGeneratedCodeInOrder(
+          compilation, "com.example.TextPickerPaths", "own(int n)", "pick(R candidate");
+    }
+
+    @Test
+    @DisplayName("bridges an overridden method once, as the override declares it")
+    void bridgesAnOverriddenMethodOnce() {
+      var compilation =
+          compile(
+              JavaFileObjects.forSourceString(
+                  "com.example.Reader",
+                  """
+                  package com.example;
+
+                  import java.util.Optional;
+                  import org.higherkindedj.hkt.effect.annotation.PathVia;
+
+                  public interface Reader {
+                      @PathVia
+                      Optional<String> byId(String id);
+                  }
+                  """),
+              JavaFileObjects.forSourceString(
+                  "com.example.CachingReader",
+                  """
+                  package com.example;
+
+                  import java.util.Optional;
+                  import org.higherkindedj.hkt.effect.annotation.GeneratePathBridge;
+                  import org.higherkindedj.hkt.effect.annotation.PathVia;
+
+                  @GeneratePathBridge
+                  public interface CachingReader extends Reader {
+                      @Override
+                      @PathVia
+                      Optional<String> byId(String id);
+                  }
+                  """));
+
+      // Java's own precedence: the override hides what it overrides, so the bridge declares one
+      // byId rather than two the class cannot hold at once.
+      assertThat(compilation).succeeded();
+      assertGeneratedCodeOccursOnce(
+          compilation, "com.example.CachingReaderPaths", "OptionalPath<String> byId(String id)");
+    }
+
+    @Test
+    @DisplayName("reads an inherited return type under the instantiation")
+    void readsAnInheritedReturnTypeUnderTheInstantiation() {
+      var compilation =
+          compile(
+              JavaFileObjects.forSourceString(
+                  "com.example.Ledger",
+                  """
+                  package com.example;
+
+                  import java.util.Optional;
+                  import org.higherkindedj.hkt.validated.Validated;
+                  import org.higherkindedj.hkt.effect.annotation.PathVia;
+
+                  public interface Ledger<T, E> {
+                      @PathVia
+                      Optional<T> byId(String id);
+
+                      @PathVia
+                      Validated<E, T> check(String id);
+                  }
+                  """),
+              JavaFileObjects.forSourceString(
+                  "com.example.StringLedger",
+                  """
+                  package com.example;
+
+                  import java.util.List;
+                  import org.higherkindedj.hkt.effect.annotation.GeneratePathBridge;
+
+                  @GeneratePathBridge
+                  public interface StringLedger extends Ledger<String, List<String>> {}
+                  """));
+
+      // The return type has to be read under the instantiation as much as the parameters do:
+      // copying the declaration would name Ledger's T and E in a bridge that declares neither,
+      // and for Validated it would name E twice - in the ValidationPath and in the Semigroup.
+      assertThat(compilation).succeeded();
+      assertGeneratedCodeContains(
+          compilation,
+          "com.example.StringLedgerPaths",
+          "public OptionalPath<String> byId(String id)");
+      assertGeneratedCodeContains(
+          compilation,
+          "com.example.StringLedgerPaths",
+          "public ValidationPath<List<String>, String> check(String id,"
+              + " Semigroup<List<String>> semigroup)");
+    }
+
+    @Test
+    @DisplayName("bridges one method when two unrelated superinterfaces declare it")
+    void bridgesOneMethodWhenTwoSuperinterfacesDeclareIt() {
+      var compilation =
+          compile(
+              JavaFileObjects.forSourceString(
+                  "com.example.Readable",
+                  """
+                  package com.example;
+
+                  import java.util.Optional;
+                  import org.higherkindedj.hkt.effect.annotation.PathVia;
+
+                  public interface Readable {
+                      @PathVia
+                      Optional<String> load(String key);
+                  }
+                  """),
+              JavaFileObjects.forSourceString(
+                  "com.example.Cacheable",
+                  """
+                  package com.example;
+
+                  import java.util.Optional;
+                  import org.higherkindedj.hkt.effect.annotation.PathVia;
+
+                  public interface Cacheable {
+                      @PathVia
+                      Optional<String> load(String key);
+                  }
+                  """),
+              JavaFileObjects.forSourceString(
+                  "com.example.Both",
+                  """
+                  package com.example;
+
+                  import org.higherkindedj.hkt.effect.annotation.GeneratePathBridge;
+
+                  @GeneratePathBridge
+                  public interface Both extends Readable, Cacheable {}
+                  """));
+
+      // Neither declaration overrides the other, so Java's own precedence collapses nothing and
+      // both members arrive. A bridge declaring load twice is a generated file that does not
+      // compile, from a declaration javac itself accepts.
+      assertThat(compilation).succeeded();
+      assertGeneratedCodeOccursOnce(
+          compilation, "com.example.BothPaths", "OptionalPath<String> load(String key)");
+    }
+
+    @Test
+    @DisplayName("refuses a method type parameter that hides one the signature needs")
+    void refusesAMethodTypeParameterThatHidesOneTheSignatureNeeds() {
+      var compilation =
+          compile(
+              JavaFileObjects.forSourceString(
+                  "com.example.Narrower",
+                  """
+                  package com.example;
+
+                  import java.util.Optional;
+                  import org.higherkindedj.hkt.effect.annotation.PathVia;
+
+                  public interface Narrower<U> {
+                      @PathVia
+                      <T extends U> Optional<T> narrow(T candidate);
+                  }
+                  """),
+              JavaFileObjects.forSourceString(
+                  "com.example.TextNarrower",
+                  """
+                  package com.example;
+
+                  import org.higherkindedj.hkt.effect.annotation.GeneratePathBridge;
+
+                  @GeneratePathBridge
+                  public interface TextNarrower<T> extends Narrower<T> {}
+                  """));
+
+      // The bridge declares the interface's parameters and the method's in one scope, which the
+      // delegate never does. Emitted as written this is '<T extends T>', a cycle.
+      assertThat(compilation).failed();
+      assertThat(compilation)
+          .hadErrorContaining(
+              "the type parameter 'T' on 'narrow', inherited from 'Narrower', has the same name as"
+                  + " 'TextNarrower's");
+      assertThat(compilation).hadErrorContaining("Rename the method's type parameter.");
+    }
+
+    @Test
+    @DisplayName("keeps a method type parameter that hides one the signature never names")
+    void keepsAMethodTypeParameterThatHidesOneTheSignatureNeverNames() {
+      var compilation =
+          compile(
+              JavaFileObjects.forSourceString(
+                  "com.example.Echo",
+                  """
+                  package com.example;
+
+                  import java.util.Optional;
+                  import org.higherkindedj.hkt.effect.annotation.PathVia;
+
+                  public interface Echo<U> {
+                      @PathVia
+                      <T> Optional<T> echo(T value);
+                  }
+                  """),
+              JavaFileObjects.forSourceString(
+                  "com.example.TextEcho",
+                  """
+                  package com.example;
+
+                  import org.higherkindedj.hkt.effect.annotation.GeneratePathBridge;
+
+                  @GeneratePathBridge
+                  public interface TextEcho<T> extends Echo<T> {}
+                  """));
+
+      // Shadowing is only a problem where the signature depends on what is hidden. Here it names
+      // the method's T throughout, and writes down exactly as the delegate declares it.
+      assertThat(compilation).succeeded();
+      assertGeneratedCodeContains(
+          compilation, "com.example.TextEchoPaths", "public <T> OptionalPath<T> echo(T value)");
+    }
+
+    @Test
+    @DisplayName("says so when nothing is annotated @PathVia")
+    void saysSoWhenNothingIsAnnotated() {
+      // Javac's defaults, deliberately: -Werror turns this warning into the build failure it
+      // deserves to be, and the point of the case is the bridge that is written regardless.
+      var compilation =
+          javac()
+              .withProcessors(new PathProcessor())
+              .compile(
+                  JavaFileObjects.forSourceString(
+                      "com.example.Untagged",
+                      """
+                      package com.example;
+
+                      import java.util.Optional;
+                      import org.higherkindedj.hkt.effect.annotation.GeneratePathBridge;
+
+                      @GeneratePathBridge
+                      public interface Untagged {
+                          Optional<String> byId(String id);
+                      }
+                      """));
+
+      assertThat(compilation).succeeded();
+      assertThat(compilation).hadWarningContaining("no @PathVia method was found");
+      assertGeneratedCodeDoesNotContain(compilation, "com.example.UntaggedPaths", "byId");
+    }
+  }
+
+  @Nested
+  @DisplayName("What the bridge copies across")
+  class CopiedAcross {
+
+    @Test
+    @DisplayName("carries the delegate's throws clause")
+    void carriesTheDelegatesThrowsClause() {
+      var compilation =
+          compile(
+              JavaFileObjects.forSourceString(
+                  "com.example.Loader",
+                  """
+                  package com.example;
+
+                  import java.io.IOException;
+                  import java.util.Optional;
+                  import org.higherkindedj.hkt.effect.annotation.GeneratePathBridge;
+                  import org.higherkindedj.hkt.effect.annotation.PathVia;
+
+                  @GeneratePathBridge
+                  public interface Loader {
+                      @PathVia
+                      Optional<String> read(String key) throws IOException;
+                  }
+                  """));
+
+      // The bridge only passes the call on. Dropping the clause left every caller with an
+      // unreported checked exception, in a file they could not add it to.
+      assertThat(compilation).succeeded();
+      assertGeneratedCodeContains(
+          compilation,
+          "com.example.LoaderPaths",
+          "public OptionalPath<String> read(String key) throws IOException");
+    }
+
+    @Test
+    @DisplayName("calls through this.delegate, so a parameter cannot shadow the field")
+    void callsThroughThisDelegate() {
+      var compilation =
+          compile(
+              JavaFileObjects.forSourceString(
+                  "com.example.Shadowed",
+                  """
+                  package com.example;
+
+                  import java.util.Optional;
+                  import org.higherkindedj.hkt.effect.annotation.GeneratePathBridge;
+                  import org.higherkindedj.hkt.effect.annotation.PathVia;
+
+                  @GeneratePathBridge
+                  public interface Shadowed {
+                      @PathVia
+                      Optional<String> find(String delegate);
+                  }
+                  """));
+
+      // The body is written as text, so a parameter of this name had turned the call into one
+      // on itself - which compiles or not depending only on what the parameter's type declares.
+      assertThat(compilation).succeeded();
+      assertGeneratedCodeContains(
+          compilation, "com.example.ShadowedPaths", "Path.optional(this.delegate.find(delegate))");
+    }
+
+    @Test
+    @DisplayName("names the Semigroup around a parameter that has taken the name")
+    void namesTheSemigroupAroundAParameterThatTookIt() {
+      var compilation =
+          compile(
+              JavaFileObjects.forSourceString(
+                  "com.example.Namer",
+                  """
+                  package com.example;
+
+                  import java.util.List;
+                  import org.higherkindedj.hkt.validated.Validated;
+                  import org.higherkindedj.hkt.effect.annotation.GeneratePathBridge;
+                  import org.higherkindedj.hkt.effect.annotation.PathVia;
+
+                  @GeneratePathBridge
+                  public interface Namer {
+                      @PathVia
+                      Validated<List<String>, Integer> parse(String semigroup);
+                  }
+                  """));
+
+      assertThat(compilation).succeeded();
+      assertGeneratedCodeContains(
+          compilation,
+          "com.example.NamerPaths",
+          "public ValidationPath<List<String>, Integer> parse(String semigroup,"
+              + " Semigroup<List<String>> semigroup2)");
+      assertGeneratedCodeContains(
+          compilation,
+          "com.example.NamerPaths",
+          "Path.validated(this.delegate.parse(semigroup), semigroup2)");
+    }
+
+    @Test
+    @DisplayName("pins the delegate's own inference with a type witness")
+    void pinsTheDelegatesOwnInferenceWithATypeWitness() {
+      var compilation =
+          compile(
+              JavaFileObjects.forSourceString(
+                  "com.example.Ranker",
+                  """
+                  package com.example;
+
+                  import java.util.Optional;
+                  import org.higherkindedj.hkt.effect.annotation.GeneratePathBridge;
+                  import org.higherkindedj.hkt.effect.annotation.PathVia;
+
+                  @GeneratePathBridge
+                  public interface Ranker {
+                      @PathVia
+                      <R extends Enum<R>> Optional<R> best();
+                  }
+                  """));
+
+      // A self-referential bound leaves nothing for the Path factory's argument position to
+      // infer R from, and javac reports "inferred type does not conform to equality constraints".
+      assertThat(compilation).succeeded();
+      assertGeneratedCodeContains(
+          compilation, "com.example.RankerPaths", "Path.optional(this.delegate.<R>best())");
+    }
+
+    @Test
+    @DisplayName("links a declaring type the bridge's package cannot see through the interface")
+    void linksAnUnreachableDeclarerThroughTheInterface() {
+      var compilation =
+          compile(
+              JavaFileObjects.forSourceString(
+                  "com.example.HiddenSource",
+                  """
+                  package com.example;
+
+                  import java.util.Optional;
+                  import org.higherkindedj.hkt.effect.annotation.PathVia;
+
+                  interface HiddenSource {
+                      @PathVia
+                      Optional<String> fetch(String key);
+                  }
+                  """),
+              JavaFileObjects.forSourceString(
+                  "com.example.PublicFacade",
+                  """
+                  package com.example;
+
+                  import org.higherkindedj.hkt.effect.annotation.GeneratePathBridge;
+
+                  @GeneratePathBridge(targetPackage = "com.other")
+                  public interface PublicFacade extends HiddenSource {}
+                  """));
+
+      // A {@link} to a type javapoet has to import is a real import. Naming the package-private
+      // declarer would have put one in the file that javac then rejects, for a doc link.
+      assertThat(compilation).succeeded();
+      // Raw, not normalised: the claim is about the javadoc, which normalising strips.
+      assertGeneratedCodeContainsRaw(
+          compilation,
+          "com.other.PublicFacadePaths",
+          "@return Path-wrapped result from {@link PublicFacade#fetch}");
+      assertGeneratedCodeDoesNotContainRaw(
+          compilation, "com.other.PublicFacadePaths", "import com.example.HiddenSource;");
+    }
+  }
+
+  @Nested
+  @DisplayName("Varargs")
+  class Varargs {
+
+    @Test
+    @DisplayName("keeps a varargs delegate varargs")
+    void keepsAVarargsDelegateVarargs() {
+      var compilation =
+          compile(
+              JavaFileObjects.forSourceString(
+                  "com.example.Chooser",
+                  """
+                  package com.example;
+
+                  import java.util.Optional;
+                  import org.higherkindedj.hkt.effect.annotation.GeneratePathBridge;
+                  import org.higherkindedj.hkt.effect.annotation.PathVia;
+
+                  @GeneratePathBridge
+                  public interface Chooser {
+                      @PathVia
+                      Optional<String> first(String... candidates);
+                  }
+                  """));
+
+      // The bridge mirrors the delegate, so call sites keep their shape rather than growing an
+      // array literal the delegate never asked for.
+      assertThat(compilation).succeeded();
+      assertGeneratedCodeContains(
+          compilation,
+          "com.example.ChooserPaths",
+          "public OptionalPath<String> first(String... candidates)");
+    }
+
+    @Test
+    @DisplayName("takes the array when a Semigroup follows the varargs")
+    void takesTheArrayWhenASemigroupFollows() {
+      var compilation =
+          compile(
+              JavaFileObjects.forSourceString(
+                  "com.example.Checker",
+                  """
+                  package com.example;
+
+                  import java.util.List;
+                  import org.higherkindedj.hkt.validated.Validated;
+                  import org.higherkindedj.hkt.effect.annotation.GeneratePathBridge;
+                  import org.higherkindedj.hkt.effect.annotation.PathVia;
+
+                  @GeneratePathBridge
+                  public interface Checker {
+                      @PathVia
+                      Validated<List<String>, String> check(String... parts);
+                  }
+                  """));
+
+      // The Semigroup is appended after the caller's own arguments, which leaves the array no
+      // longer last - the one position the language reserves for a varargs parameter.
+      assertThat(compilation).succeeded();
+      assertGeneratedCodeContains(
+          compilation,
+          "com.example.CheckerPaths",
+          "public ValidationPath<List<String>, String> check(String[] parts,"
+              + " Semigroup<List<String>> semigroup)");
+    }
+
+    @Test
+    @DisplayName("takes the array when the element type is not reifiable")
+    void takesTheArrayWhenTheElementTypeIsNotReifiable() {
+      var compilation =
+          compile(
+              JavaFileObjects.forSourceString(
+                  "com.example.Bag",
+                  """
+                  package com.example;
+
+                  import java.util.Optional;
+                  import org.higherkindedj.hkt.effect.annotation.GeneratePathBridge;
+                  import org.higherkindedj.hkt.effect.annotation.PathVia;
+
+                  @GeneratePathBridge
+                  public interface Bag<T> {
+                      @PathVia
+                      @SuppressWarnings("unchecked")
+                      Optional<T> first(T... candidates);
+                  }
+                  """));
+
+      // A T[] parameter is warning-free; repeating the varargs would be a second "possible heap
+      // pollution", in a file where the author cannot write the suppression they put on theirs.
+      assertThat(compilation).succeeded();
+      assertGeneratedCodeContains(
+          compilation, "com.example.BagPaths", "public OptionalPath<T> first(T[] candidates)");
     }
   }
 
@@ -228,7 +911,7 @@ class PathProcessorIntegrationTest {
               }
               """);
 
-      var compilation = javac().withProcessors(new PathProcessor()).compile(sourceFile);
+      var compilation = compile(sourceFile);
 
       assertThat(compilation).succeeded();
 
@@ -258,7 +941,7 @@ class PathProcessorIntegrationTest {
               }
               """);
 
-      var compilation = javac().withProcessors(new PathProcessor()).compile(sourceFile);
+      var compilation = compile(sourceFile);
 
       assertThat(compilation).succeeded();
 
@@ -289,7 +972,7 @@ class PathProcessorIntegrationTest {
               }
               """);
 
-      var compilation = javac().withProcessors(new PathProcessor()).compile(sourceFile);
+      var compilation = compile(sourceFile);
 
       assertThat(compilation).succeeded();
 
@@ -335,7 +1018,7 @@ class PathProcessorIntegrationTest {
               }
               """);
 
-      var compilation = javac().withProcessors(new PathProcessor()).compile(sourceFile);
+      var compilation = compile(sourceFile);
 
       assertThat(compilation).succeeded();
 
@@ -367,13 +1050,11 @@ class PathProcessorIntegrationTest {
               """);
 
       var onTheInterface =
-          javac()
-              .withProcessors(new PathProcessor())
-              .compile(
-                  hidden,
-                  JavaFileObjects.forSourceString(
-                      "com.example.Repo",
-                      """
+          compile(
+              hidden,
+              JavaFileObjects.forSourceString(
+                  "com.example.Repo",
+                  """
                       package com.example;
 
                       import java.util.Optional;
@@ -392,13 +1073,11 @@ class PathProcessorIntegrationTest {
           .hadErrorContaining("the bound on 'T' names 'Hidden', which cannot be reached");
 
       var onTheMethod =
-          javac()
-              .withProcessors(new PathProcessor())
-              .compile(
-                  hidden,
-                  JavaFileObjects.forSourceString(
-                      "com.example.MethodRepo",
-                      """
+          compile(
+              hidden,
+              JavaFileObjects.forSourceString(
+                  "com.example.MethodRepo",
+                  """
                       package com.example;
 
                       import java.util.Optional;
@@ -418,13 +1097,11 @@ class PathProcessorIntegrationTest {
 
       // Beside the interface, the same bound is nameable and nothing is refused.
       var beside =
-          javac()
-              .withProcessors(new PathProcessor())
-              .compile(
-                  hidden,
-                  JavaFileObjects.forSourceString(
-                      "com.example.NearRepo",
-                      """
+          compile(
+              hidden,
+              JavaFileObjects.forSourceString(
+                  "com.example.NearRepo",
+                  """
                       package com.example;
 
                       import java.util.Optional;
@@ -439,18 +1116,20 @@ class PathProcessorIntegrationTest {
                       """));
 
       assertThat(beside).succeeded();
+      assertGeneratedCodeContains(
+          beside,
+          "com.example.NearRepoPaths",
+          "public final class NearRepoPaths<T extends Hidden>");
     }
 
     @Test
     @DisplayName("writes the description before the block tags it belongs above")
     void writesTheDescriptionBeforeTheBlockTags() {
       var compilation =
-          javac()
-              .withProcessors(new PathProcessor())
-              .compile(
-                  JavaFileObjects.forSourceString(
-                      "com.example.DocSvc",
-                      """
+          compile(
+              JavaFileObjects.forSourceString(
+                  "com.example.DocSvc",
+                  """
                       package com.example;
 
                       import java.util.Optional;
@@ -480,12 +1159,10 @@ class PathProcessorIntegrationTest {
     @DisplayName("refuses a @PathVia method the delegate cannot be asked for")
     void refusesStaticAndPrivatePathViaMethods() {
       var statics =
-          javac()
-              .withProcessors(new PathProcessor())
-              .compile(
-                  JavaFileObjects.forSourceString(
-                      "com.example.StaticSvc",
-                      """
+          compile(
+              JavaFileObjects.forSourceString(
+                  "com.example.StaticSvc",
+                  """
                       package com.example;
 
                       import java.util.Optional;
@@ -503,12 +1180,10 @@ class PathProcessorIntegrationTest {
       assertThat(statics).hadErrorContaining("a static interface method cannot be called that way");
 
       var privates =
-          javac()
-              .withProcessors(new PathProcessor())
-              .compile(
-                  JavaFileObjects.forSourceString(
-                      "com.example.PrivateSvc",
-                      """
+          compile(
+              JavaFileObjects.forSourceString(
+                  "com.example.PrivateSvc",
+                  """
                       package com.example;
 
                       import java.util.Optional;
@@ -528,6 +1203,372 @@ class PathProcessorIntegrationTest {
     }
 
     @Test
+    @DisplayName("refuses a raw return type rather than converting unchecked")
+    void refusesARawReturnType() {
+      var compilation =
+          compile(
+              JavaFileObjects.forSourceString(
+                  "com.example.RawRepo",
+                  """
+                  package com.example;
+
+                  import java.util.Optional;
+                  import org.higherkindedj.hkt.effect.annotation.GeneratePathBridge;
+                  import org.higherkindedj.hkt.effect.annotation.PathVia;
+
+                  @GeneratePathBridge
+                  @SuppressWarnings("rawtypes")
+                  public interface RawRepo {
+                      @PathVia
+                      Optional byId(Long id);
+                  }
+                  """));
+
+      // Substituting Object had made the delegate call an unchecked conversion three times over,
+      // in a file whose only place for a suppression is generated too.
+      assertThat(compilation).failed();
+      assertThat(compilation)
+          .hadErrorContaining("the signature of 'byId' names the raw type 'Optional'");
+      assertThat(compilation).hadErrorContaining("Name 'Optional's type arguments");
+    }
+
+    @Test
+    @DisplayName("refuses a wildcard error type on Validated, which the bridge names twice")
+    void refusesAWildcardErrorTypeOnValidated() {
+      var compilation =
+          compile(
+              JavaFileObjects.forSourceString(
+                  "com.example.WildValidator",
+                  """
+                  package com.example;
+
+                  import org.higherkindedj.hkt.validated.Validated;
+                  import org.higherkindedj.hkt.effect.annotation.GeneratePathBridge;
+                  import org.higherkindedj.hkt.effect.annotation.PathVia;
+
+                  @GeneratePathBridge
+                  public interface WildValidator {
+                      @PathVia
+                      Validated<? extends CharSequence, String> check(String in);
+                  }
+                  """));
+
+      assertThat(compilation).failed();
+      assertThat(compilation)
+          .hadErrorContaining(
+              "the error type of the 'Validated' returned by 'check' is the wildcard '? extends"
+                  + " CharSequence'");
+      assertThat(compilation).hadErrorContaining("Name the error type.");
+    }
+
+    @Test
+    @DisplayName("accepts the wildcards that do not have to be named twice")
+    void acceptsTheWildcardsThatNeedNamingOnce() {
+      var compilation =
+          compile(
+              JavaFileObjects.forSourceString(
+                  "com.example.WildRepo",
+                  """
+                  package com.example;
+
+                  import java.util.List;
+                  import java.util.Optional;
+                  import org.higherkindedj.hkt.either.Either;
+                  import org.higherkindedj.hkt.validated.Validated;
+                  import org.higherkindedj.hkt.effect.annotation.GeneratePathBridge;
+                  import org.higherkindedj.hkt.effect.annotation.PathVia;
+
+                  @GeneratePathBridge
+                  public interface WildRepo {
+                      @PathVia
+                      Optional<? extends CharSequence> name();
+
+                      @PathVia
+                      Either<? extends CharSequence, ? extends Number> reading();
+
+                      @PathVia
+                      Validated<String, ? extends Number> value();
+
+                      @PathVia
+                      Validated<List<? extends CharSequence>, String> nested();
+                  }
+                  """));
+
+      // Only a wildcard the Semigroup has to name a second time is refused. Everywhere else the
+      // capture happens once and javac unifies it, so the bridge mirrors what was written.
+      assertThat(compilation).succeeded();
+      assertGeneratedCodeContains(
+          compilation,
+          "com.example.WildRepoPaths",
+          "public OptionalPath<? extends CharSequence> name()");
+      assertGeneratedCodeContains(
+          compilation,
+          "com.example.WildRepoPaths",
+          "public ValidationPath<String, ? extends Number> value(Semigroup<String> semigroup)");
+      assertGeneratedCodeContains(
+          compilation,
+          "com.example.WildRepoPaths",
+          "public EitherPath<? extends CharSequence, ? extends Number> reading()");
+      // The near miss the error-type guard must not over-refuse: the wildcard is nested inside
+      // the error type, so it is one type at both mentions and javac unifies it.
+      assertGeneratedCodeContains(
+          compilation,
+          "com.example.WildRepoPaths",
+          "public ValidationPath<List<? extends CharSequence>, String> nested("
+              + "Semigroup<List<? extends CharSequence>> semigroup)");
+    }
+
+    @Test
+    @DisplayName("refuses a raw type anywhere the bridge writes it down")
+    void refusesARawTypeAnywhereTheBridgeWritesItDown() {
+      var argument =
+          compile(
+              JavaFileObjects.forSourceString(
+                  "com.example.RawArg",
+                  """
+                  package com.example;
+
+                  import java.util.List;
+                  import java.util.Optional;
+                  import org.higherkindedj.hkt.effect.annotation.GeneratePathBridge;
+                  import org.higherkindedj.hkt.effect.annotation.PathVia;
+
+                  @GeneratePathBridge
+                  @SuppressWarnings("rawtypes")
+                  public interface RawArg {
+                      @PathVia
+                      Optional<List> all();
+                  }
+                  """));
+
+      // The author's own suppression covers their own file, not the generated one. The head of
+      // the return type was never the only place a raw type could be written.
+      assertThat(argument).failed();
+      assertThat(argument).hadErrorContaining("the signature of 'all' names the raw type 'List'");
+
+      var parameter =
+          compile(
+              JavaFileObjects.forSourceString(
+                  "com.example.RawParam",
+                  """
+                  package com.example;
+
+                  import java.util.List;
+                  import java.util.Optional;
+                  import org.higherkindedj.hkt.effect.annotation.GeneratePathBridge;
+                  import org.higherkindedj.hkt.effect.annotation.PathVia;
+
+                  @GeneratePathBridge
+                  @SuppressWarnings("rawtypes")
+                  public interface RawParam {
+                      @PathVia
+                      Optional<String> find(List keys);
+                  }
+                  """));
+
+      assertThat(parameter).failed();
+      assertThat(parameter).hadErrorContaining("the signature of 'find' names the raw type 'List'");
+
+      // A wildcard's bound is written out with the wildcard that carries it, so it is as much a
+      // position as the argument beside it.
+      var wildcardBound =
+          compile(
+              JavaFileObjects.forSourceString(
+                  "com.example.RawWild",
+                  """
+                  package com.example;
+
+                  import java.util.List;
+                  import java.util.Optional;
+                  import org.higherkindedj.hkt.effect.annotation.GeneratePathBridge;
+                  import org.higherkindedj.hkt.effect.annotation.PathVia;
+
+                  @GeneratePathBridge
+                  @SuppressWarnings("rawtypes")
+                  public interface RawWild {
+                      @PathVia
+                      Optional<? extends List> all();
+                  }
+                  """));
+
+      assertThat(wildcardBound).failed();
+      assertThat(wildcardBound)
+          .hadErrorContaining("the signature of 'all' names the raw type 'List'");
+
+      // And the interface's own bounds, which the bridge repeats in its own declaration.
+      var interfaceBound =
+          compile(
+              JavaFileObjects.forSourceString(
+                  "com.example.RawBound",
+                  """
+                  package com.example;
+
+                  import java.util.List;
+                  import java.util.Optional;
+                  import org.higherkindedj.hkt.effect.annotation.GeneratePathBridge;
+                  import org.higherkindedj.hkt.effect.annotation.PathVia;
+
+                  @GeneratePathBridge
+                  @SuppressWarnings("rawtypes")
+                  public interface RawBound<T extends List> {
+                      @PathVia
+                      Optional<String> byId(T id);
+                  }
+                  """));
+
+      assertThat(interfaceBound).failed();
+      assertThat(interfaceBound).hadErrorContaining("the bound on 'T' names the raw type 'List'");
+    }
+
+    @Test
+    @DisplayName("refuses a signature the target package cannot name")
+    void refusesASignatureTheTargetPackageCannotName() {
+      var compilation =
+          compile(
+              JavaFileObjects.forSourceString(
+                  "com.example.Secret",
+                  """
+                  package com.example;
+
+                  class Secret {}
+                  """),
+              JavaFileObjects.forSourceString(
+                  "com.example.SecretRepo",
+                  """
+                  package com.example;
+
+                  import java.util.Optional;
+                  import org.higherkindedj.hkt.effect.annotation.GeneratePathBridge;
+                  import org.higherkindedj.hkt.effect.annotation.PathVia;
+
+                  @GeneratePathBridge(targetPackage = "com.other")
+                  public interface SecretRepo {
+                      @PathVia
+                      Optional<String> find(Secret token);
+                  }
+                  """));
+
+      // A bound was never the only thing the bridge writes down: the parameter and return types
+      // land in the same declaration and have to be nameable from the same place.
+      assertThat(compilation).failed();
+      assertThat(compilation)
+          .hadErrorContaining(
+              "the signature names 'Secret', which cannot be reached from" + " 'com.other'");
+    }
+
+    @Test
+    @DisplayName("refuses two @PathVia methods that bridge to one signature")
+    void refusesTwoMethodsThatBridgeToOneSignature() {
+      var compilation =
+          compile(
+              JavaFileObjects.forSourceString(
+                  "com.example.Renamer",
+                  """
+                  package com.example;
+
+                  import java.util.Optional;
+                  import org.higherkindedj.hkt.effect.annotation.GeneratePathBridge;
+                  import org.higherkindedj.hkt.effect.annotation.PathVia;
+
+                  @GeneratePathBridge
+                  public interface Renamer {
+                      @PathVia
+                      Optional<String> lookup(String key);
+
+                      @PathVia(name = "lookup")
+                      Optional<String> search(String key);
+                  }
+                  """));
+
+      assertThat(compilation).failed();
+      assertThat(compilation)
+          .hadErrorContaining("the bridge signature for 'search' is already taken");
+    }
+
+    @Test
+    @DisplayName("refuses a @PathVia name that is not an identifier")
+    void refusesAPathViaNameThatIsNotAnIdentifier() {
+      var compilation =
+          compile(
+              JavaFileObjects.forSourceString(
+                  "com.example.OddName",
+                  """
+                  package com.example;
+
+                  import java.util.Optional;
+                  import org.higherkindedj.hkt.effect.annotation.GeneratePathBridge;
+                  import org.higherkindedj.hkt.effect.annotation.PathVia;
+
+                  @GeneratePathBridge
+                  public interface OddName {
+                      @PathVia(name = "find by id")
+                      Optional<String> byId(String key);
+                  }
+                  """));
+
+      // Left ungated this reached javapoet, which threw, and the author was shown an annotation
+      // processor stack trace rather than the attribute they mistyped.
+      assertThat(compilation).failed();
+      assertThat(compilation)
+          .hadErrorContaining("@PathVia(name = \"find by id\") is not a method name");
+    }
+
+    @Test
+    @DisplayName("refuses a @PathVia name that is a keyword")
+    void refusesAPathViaNameThatIsAKeyword() {
+      var compilation =
+          compile(
+              JavaFileObjects.forSourceString(
+                  "com.example.Keyworded",
+                  """
+                  package com.example;
+
+                  import java.util.Optional;
+                  import org.higherkindedj.hkt.effect.annotation.GeneratePathBridge;
+                  import org.higherkindedj.hkt.effect.annotation.PathVia;
+
+                  @GeneratePathBridge
+                  public interface Keyworded {
+                      @PathVia(name = "class")
+                      Optional<String> type(String key);
+                  }
+                  """));
+
+      // An identifier by shape, but not one javac will accept as a method name.
+      assertThat(compilation).failed();
+      assertThat(compilation).hadErrorContaining("@PathVia(name = \"class\") is not a method name");
+    }
+
+    @Test
+    @DisplayName("refuses a delegate the target package cannot name")
+    void refusesADelegateTheTargetPackageCannotName() {
+      var compilation =
+          compile(
+              JavaFileObjects.forSourceString(
+                  "com.example.Internal",
+                  """
+                  package com.example;
+
+                  import java.util.Optional;
+                  import org.higherkindedj.hkt.effect.annotation.GeneratePathBridge;
+                  import org.higherkindedj.hkt.effect.annotation.PathVia;
+
+                  @GeneratePathBridge(targetPackage = "com.other")
+                  interface Internal {
+                      @PathVia
+                      Optional<String> find(String key);
+                  }
+                  """));
+
+      // The delegate field and the constructor both name the interface itself, so it is as much
+      // a type the bridge has to be able to see as anything in a signature.
+      assertThat(compilation).failed();
+      assertThat(compilation)
+          .hadErrorContaining(
+              "the delegate names 'Internal', which cannot be reached from 'com.other'");
+    }
+
+    @Test
     @DisplayName("fails when @GeneratePathBridge is applied to a class")
     void shouldFailForClass() {
       final var sourceFile =
@@ -542,11 +1583,10 @@ class PathProcessorIntegrationTest {
               public class NotAnInterface {}
               """);
 
-      var compilation = javac().withProcessors(new PathProcessor()).compile(sourceFile);
+      var compilation = compile(sourceFile);
 
       assertThat(compilation).failed();
-      assertThat(compilation)
-          .hadErrorContaining("@GeneratePathBridge can only be applied to interfaces");
+      assertThat(compilation).hadErrorContaining("'NotAnInterface' is not an interface");
     }
 
     @Test
@@ -569,10 +1609,12 @@ class PathProcessorIntegrationTest {
               }
               """);
 
-      var compilation = javac().withProcessors(new PathProcessor()).compile(sourceFile);
+      var compilation = compile(sourceFile);
 
       assertThat(compilation).failed();
-      assertThat(compilation).hadErrorContaining("Unsupported return type for @PathVia");
+      assertThat(compilation)
+          .hadErrorContaining(
+              "the return type of 'notAnEffectType' is 'String', which no Path wraps");
     }
   }
 
@@ -624,6 +1666,64 @@ class PathProcessorIntegrationTest {
     } catch (IOException e) {
       fail("Could not read content from generated file: " + generatedFileName, e);
     }
+  }
+
+  /** Asserts the fragments appear in the generated file in the order given. */
+  private static void assertGeneratedCodeInOrder(
+      Compilation compilation, String generatedFileName, String... expectedInOrder) {
+    String generated = normaliseCode(readGenerated(compilation, generatedFileName));
+    int cursor = 0;
+    for (String fragment : expectedInOrder) {
+      String normalised = normaliseCode(fragment);
+      int found = generated.indexOf(normalised, cursor);
+      assertTrue(
+          found >= 0,
+          String.format(
+              "Expected generated code to contain '%s' after index %d:%n---%n%s%n---",
+              fragment, cursor, generated));
+      // Past the match, not at it: overlapping fragments would otherwise satisfy an ordering
+      // that the generated file does not actually have.
+      cursor = found + normalised.length();
+    }
+  }
+
+  /** Asserts the fragment appears exactly once in the generated file. */
+  private static void assertGeneratedCodeOccursOnce(
+      Compilation compilation, String generatedFileName, String expectedCode) {
+    String generated = normaliseCode(readGenerated(compilation, generatedFileName));
+    String expected = normaliseCode(expectedCode);
+    int occurrences = 0;
+    for (int at = generated.indexOf(expected); at >= 0; at = generated.indexOf(expected, at + 1)) {
+      occurrences++;
+    }
+    assertTrue(
+        occurrences == 1,
+        String.format(
+            "Expected exactly one '%s' in the generated code, found %d:%n---%n%s%n---",
+            expected, occurrences, generated));
+  }
+
+  private static String readGenerated(Compilation compilation, String generatedFileName) {
+    Optional<JavaFileObject> generatedSourceFile =
+        compilation.generatedSourceFile(generatedFileName);
+
+    if (generatedSourceFile.isEmpty()) {
+      fail("Generated source file not found: " + generatedFileName);
+    }
+
+    try {
+      return generatedSourceFile.orElseThrow().getCharContent(true).toString();
+    } catch (IOException e) {
+      fail("Could not read content from generated file: " + generatedFileName, e);
+      throw new AssertionError(e);
+    }
+  }
+
+  private static void assertGeneratedCodeDoesNotContainRaw(
+      Compilation compilation, String generatedFileName, String unexpectedText) {
+    assertTrue(
+        !readGenerated(compilation, generatedFileName).contains(unexpectedText),
+        "Expected generated code NOT to contain (raw): " + unexpectedText);
   }
 
   private static void assertGeneratedCodeDoesNotContain(
