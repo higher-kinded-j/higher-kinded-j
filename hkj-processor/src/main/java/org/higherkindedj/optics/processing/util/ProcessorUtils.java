@@ -7,7 +7,9 @@ import java.util.Locale;
 import java.util.Set;
 import java.util.stream.Collectors;
 import javax.lang.model.element.Element;
+import javax.lang.model.element.ElementKind;
 import javax.lang.model.element.ExecutableElement;
+import javax.lang.model.element.Modifier;
 import javax.lang.model.element.TypeElement;
 import javax.lang.model.type.ArrayType;
 import javax.lang.model.type.DeclaredType;
@@ -17,6 +19,7 @@ import javax.lang.model.type.TypeKind;
 import javax.lang.model.type.TypeMirror;
 import javax.lang.model.type.TypeVariable;
 import javax.lang.model.type.WildcardType;
+import javax.lang.model.util.Elements;
 import javax.lang.model.util.Types;
 
 /**
@@ -71,6 +74,89 @@ public final class ProcessorUtils {
    */
   public static boolean hasTypeArguments(TypeMirror type) {
     return type instanceof DeclaredType declared && !declared.getTypeArguments().isEmpty();
+  }
+
+  /**
+   * Whether a member, and every type enclosing it, is visible from a generated class's package.
+   *
+   * <p>Generated code names what it calls; a member it cannot see is a compile error in a file its
+   * author never wrote. {@code protected} counts as package access here, because a generated
+   * companion extends nothing — being a subclass is never how it reaches anything.
+   *
+   * @param elements the round's element utilities
+   * @param member the member or type to test
+   * @param targetPackage the package the generated class is written into
+   * @return true when the member and every type enclosing it can be named from there
+   * @since 0.4.10
+   */
+  public static boolean reachableFrom(Elements elements, Element member, String targetPackage) {
+    for (Element current = member;
+        current.getKind() != ElementKind.PACKAGE;
+        current = current.getEnclosingElement()) {
+      Set<Modifier> modifiers = current.getModifiers();
+      if (modifiers.contains(Modifier.PRIVATE)) {
+        return false;
+      }
+      if (!modifiers.contains(Modifier.PUBLIC)
+          && !elements.getPackageOf(current).getQualifiedName().contentEquals(targetPackage)) {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  /**
+   * The first type named anywhere inside {@code type} that a generated class in {@code
+   * targetPackage} could not name, or null when every one of them is reachable.
+   *
+   * <p>Written out, a type names more than its own head: {@code Iso<Box<Secret>, String>} names
+   * {@code Secret}, and a field declaring it does not compile wherever {@code Secret} cannot be
+   * seen. So the walk descends through type arguments, array components, wildcard bounds and
+   * enclosing types, the same layers a type variable can hide in.
+   *
+   * @param elements the round's element utilities
+   * @param type the type the generated source will write out
+   * @param targetPackage the package the generated class is written into
+   * @return the first unreachable type element, or null
+   * @since 0.4.10
+   */
+  public static TypeElement firstUnreachableIn(
+      Elements elements, TypeMirror type, String targetPackage) {
+    switch (type.getKind()) {
+      case ARRAY -> {
+        return firstUnreachableIn(elements, ((ArrayType) type).getComponentType(), targetPackage);
+      }
+      case WILDCARD -> {
+        WildcardType wildcard = (WildcardType) type;
+        for (TypeMirror bound :
+            new TypeMirror[] {wildcard.getExtendsBound(), wildcard.getSuperBound()}) {
+          if (bound != null) {
+            TypeElement unreachable = firstUnreachableIn(elements, bound, targetPackage);
+            if (unreachable != null) {
+              return unreachable;
+            }
+          }
+        }
+        return null;
+      }
+      case DECLARED -> {
+        DeclaredType declared = (DeclaredType) type;
+        TypeElement element = (TypeElement) declared.asElement();
+        if (!reachableFrom(elements, element, targetPackage)) {
+          return element;
+        }
+        for (TypeMirror argument : declared.getTypeArguments()) {
+          TypeElement unreachable = firstUnreachableIn(elements, argument, targetPackage);
+          if (unreachable != null) {
+            return unreachable;
+          }
+        }
+        return firstUnreachableIn(elements, declared.getEnclosingType(), targetPackage);
+      }
+      default -> {
+        return null;
+      }
+    }
   }
 
   /**

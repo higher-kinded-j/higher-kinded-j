@@ -67,6 +67,13 @@ import java.lang.annotation.Target;
  *   <li>{@code IO<T>} → {@code IOPath<T>}
  * </ul>
  *
+ * <h2>Type Parameters</h2>
+ *
+ * <p>The bridge holds one delegate of the annotated interface, so it declares whatever that
+ * interface declares, bounds and all: {@code Repo<T>} yields {@code RepoPaths<T>} wrapping a {@code
+ * Repo<T>}. A {@link PathVia} method that declares parameters of its own keeps them on the bridge
+ * method, where its arguments and return type name them.
+ *
  * @see PathVia
  */
 @Target(ElementType.TYPE)
