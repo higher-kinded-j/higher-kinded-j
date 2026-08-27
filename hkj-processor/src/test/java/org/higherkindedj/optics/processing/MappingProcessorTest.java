@@ -9081,8 +9081,8 @@ class MappingProcessorTest {
     }
 
     @Test
-    @DisplayName("a generic mix-in is rejected")
-    void genericMixinIsRejected() {
+    @DisplayName("a generic mix-in is read under the spec")
+    void genericMixinIsResolved() {
       JavaFileObject generic =
           JavaFileObjects.forSourceString(
               "com.example.ElementVocabulary",
@@ -9102,13 +9102,17 @@ class MappingProcessorTest {
 
               @GenerateMapping
               public interface AccountMapping
-                  extends ElementVocabulary<String>, MappingSpec<Account, AccountDto> {}
+                  extends ElementVocabulary<String>,
+                      AccountVocabulary,
+                      MappingSpec<Account, AccountDto> {}
               """);
-      Compilation compilation = compile(EMAIL, ACCOUNT, ACCOUNT_DTO, generic, spec);
-      assertThat(compilation).failed();
-      assertThat(compilation).hadErrorContaining("mix-in 'ElementVocabulary' is generic");
-      assertThat(compilation)
-          .hadErrorContaining("non-generic, or declare its members directly on the spec");
+      // Generic is no longer the question: a mix-in's members are read under the spec, so what
+      // matters is whether the route to it can be substituted, not whether it declares parameters.
+      // The working vocabulary rides alongside, so what is asserted is a mapping that completes
+      // rather than one the gate stopped before it started.
+      Compilation compilation = compile(EMAIL, ACCOUNT, ACCOUNT_DTO, VOCABULARY, generic, spec);
+      assertThat(compilation).succeeded();
+      assertThat(compilation).generatedSourceFile("com.example.AccountMappingImpl");
     }
 
     @Test

@@ -63,6 +63,35 @@ The three access shapes are one rule, not three conventions: *how much state doe
 
 ---
 
+## Generic mix-ins
+
+A mix-in may declare type parameters of its own. Its members are read under the spec's instantiation, so a shared vocabulary interface parameterised by the type it validates contributes at the type the spec gives it:
+
+```java
+public interface Emails<T> {
+    default ValidatedPrism<String, T> email() { return EmailCodecs.EMAIL; }
+}
+
+public interface CustomerVocabulary extends Emails<EmailAddress> {}
+
+@GenerateMapping
+public interface CustomerMapping
+    extends MappingSpec<Customer, CustomerDto>, CustomerVocabulary {}
+```
+
+`email()` says `ValidatedPrism<String, T>` where it is declared, and `ValidatedPrism<String, EmailAddress>` where the spec has it. That is what the generated Impl carries, and it holds however many interfaces separate the two: a spec's own parameters survive as themselves, because the Impl declares them.
+
+The one shape this cannot answer for is a **raw** supertype anywhere on the route. Raw erases every member of the type below it, whatever that member declares, so `extends Emails` would contribute a bare `ValidatedPrism` rather than the pair it was written with. That is refused at the declaration, naming the clause to correct:
+
+```
+@GenerateMapping: mix-in 'Emails' is reached raw. Its members are read under the spec's
+instantiation, and a raw supertype erases every one of them whatever they declare, so the
+spec would inherit a bare ValidatedPrism rather than the pair it was written with. Name the
+type arguments on the extends clause, as 'extends Emails<...>'.
+```
+
+Erasure travels downwards, so the link the spec lists can be perfectly ordinary while one above it is not; the message names the route in that case.
+
 ## Element-mapped specs
 
 The third form is **element-mapped**: thread the two sides under *different* variables (`Page<T> ↔ PageDto<TDto>`) and declare the element mapping as an **abstract leaf**. Nothing on the spec can parse a `TDto` into a `T`, so the generated Impl defers it: each abstract leaf becomes a constructor-supplied field behind a public `of(...)` factory, one `ValidatedPrism` per leaf in declaration order:

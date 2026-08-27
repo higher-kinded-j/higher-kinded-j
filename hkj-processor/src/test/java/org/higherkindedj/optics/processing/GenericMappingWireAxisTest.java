@@ -4,6 +4,7 @@ package org.higherkindedj.optics.processing;
 
 import static com.google.testing.compile.CompilationSubject.assertThat;
 import static com.google.testing.compile.Compiler.javac;
+import static org.higherkindedj.optics.processing.GeneratorTestHelper.assertGeneratedCodeContains;
 
 import com.google.testing.compile.Compilation;
 import com.google.testing.compile.JavaFileObjects;
@@ -203,7 +204,7 @@ class GenericMappingWireAxisTest {
   }
 
   @Test
-  @DisplayName("a mix-in carrying a generic ancestor's members is rejected by name")
+  @DisplayName("a mix-in reached through a generic ancestor is read under the spec")
   void mixinWithAGenericAncestor() {
     var base =
         JavaFileObjects.forSourceString(
@@ -212,8 +213,8 @@ class GenericMappingWireAxisTest {
             package com.example;
 
             public interface BaseVocab<T> {
-                @org.higherkindedj.optics.annotations.MapField(to = "name")
-                T shared();
+                @org.higherkindedj.optics.annotations.MapField(to = "label")
+                T name();
             }
             """);
 
@@ -232,7 +233,7 @@ class GenericMappingWireAxisTest {
             """
             package com.example;
 
-            public record MixWire(String id, String name) {}
+            public record MixWire(String id, String label) {}
             """);
 
     var spec =
@@ -248,12 +249,299 @@ class GenericMappingWireAxisTest {
             public interface MixMapping extends MappingSpec<Dom, MixWire>, Vocab {}
             """);
 
-    // Members are collected across the whole ancestry, so the gate is too, and it names the
-    // ancestor that is actually generic rather than the one the spec lists.
+    // 'T name()' is declared in BaseVocab's vocabulary and instantiated by the interface below
+    // it, so the spec has it at String. Read as declared it was compared with the wire's own
+    // String and matched only by coincidence; refusing it was the answer before #752.
     var compilation = compile(DOMAIN, base, mixin, wire, spec);
 
-    assertThat(compilation).failed();
-    assertThat(compilation).hadErrorContaining("mix-in 'BaseVocab' is generic");
+    assertThat(compilation).succeeded();
+    assertThat(compilation).generatedSourceFile("com.example.MixMappingImpl");
+  }
+
+  @Test
+  @DisplayName("a generic mix-in extended directly is read under the spec")
+  void genericMixinExtendedDirectly() {
+    var base =
+        JavaFileObjects.forSourceString(
+            "com.example.DirectVocab",
+            """
+            package com.example;
+
+            public interface DirectVocab<T> {
+                @org.higherkindedj.optics.annotations.MapField(to = "label")
+                T name();
+            }
+            """);
+
+    var wire =
+        JavaFileObjects.forSourceString(
+            "com.example.DirectWire",
+            """
+            package com.example;
+
+            public record DirectWire(String id, String label) {}
+            """);
+
+    var spec =
+        JavaFileObjects.forSourceString(
+            "com.example.DirectMapping",
+            """
+            package com.example;
+
+            import org.higherkindedj.optics.annotations.GenerateMapping;
+            import org.higherkindedj.optics.annotations.MappingSpec;
+
+            @GenerateMapping
+            public interface DirectMapping
+                extends MappingSpec<Dom, DirectWire>, DirectVocab<String> {}
+            """);
+
+    var compilation = compile(DOMAIN, base, wire, spec);
+
+    assertThat(compilation).succeeded();
+    assertThat(compilation).generatedSourceFile("com.example.DirectMappingImpl");
+  }
+
+  @Test
+  @DisplayName("a generic mix-in's leaf arrives at the type the spec gives it")
+  void genericMixinCarryingALeaf() {
+    var email =
+        JavaFileObjects.forSourceString(
+            "com.example.Email",
+            """
+            package com.example;
+
+            public record Email(String value) {}
+            """);
+
+    var domain =
+        JavaFileObjects.forSourceString(
+            "com.example.LeafDom",
+            """
+            package com.example;
+
+            public record LeafDom(String id, Email name) {}
+            """);
+
+    var wire =
+        JavaFileObjects.forSourceString(
+            "com.example.LeafWire",
+            """
+            package com.example;
+
+            public record LeafWire(String id, String name) {}
+            """);
+
+    var leaves =
+        JavaFileObjects.forSourceString(
+            "com.example.Leaves",
+            """
+            package com.example;
+
+            import org.higherkindedj.optics.validated.ValidatedPrism;
+
+            public interface Leaves<T> {
+                default ValidatedPrism<String, T> name() {
+                    return ValidatedPrism.of(w -> null, d -> null);
+                }
+            }
+            """);
+
+    var spec =
+        JavaFileObjects.forSourceString(
+            "com.example.LeafMapping",
+            """
+            package com.example;
+
+            import org.higherkindedj.optics.annotations.GenerateMapping;
+            import org.higherkindedj.optics.annotations.MappingSpec;
+
+            @GenerateMapping
+            public interface LeafMapping extends MappingSpec<LeafDom, LeafWire>, Leaves<Email> {}
+            """);
+
+    // The sharper half: a leaf is matched by its two type arguments against the wire and domain
+    // components, so a leaf read as 'ValidatedPrism<String, T>' matches nothing and the author is
+    // told to declare what they already wrote one interface along.
+    var compilation = compile(email, domain, wire, leaves, spec);
+
+    assertThat(compilation).succeeded();
+    assertThat(compilation).generatedSourceFile("com.example.LeafMappingImpl");
+  }
+
+  @Test
+  @DisplayName("a mix-in reached raw is refused, directly and through a child")
+  void rawMixinIsRefused() {
+    var base =
+        JavaFileObjects.forSourceString(
+            "com.example.RawVocab",
+            """
+            package com.example;
+
+            public interface RawVocab<T> {
+                @org.higherkindedj.optics.annotations.MapField(to = "label")
+                T name();
+            }
+            """);
+
+    var wire =
+        JavaFileObjects.forSourceString(
+            "com.example.RawWire",
+            """
+            package com.example;
+
+            public record RawWire(String id, String label) {}
+            """);
+
+    var direct =
+        JavaFileObjects.forSourceString(
+            "com.example.RawMapping",
+            """
+            package com.example;
+
+            import org.higherkindedj.optics.annotations.GenerateMapping;
+            import org.higherkindedj.optics.annotations.MappingSpec;
+
+            @GenerateMapping
+            @SuppressWarnings("rawtypes")
+            public interface RawMapping extends MappingSpec<Dom, RawWire>, RawVocab {}
+            """);
+
+    // Substitution has nothing to work from: a raw supertype erases every member, whatever it
+    // declares, so the spec would inherit Object where it was written with String.
+    var directly = compile(DOMAIN, base, wire, direct);
+
+    assertThat(directly).failed();
+    assertThat(directly).hadErrorContaining("mix-in 'RawVocab' is reached raw");
+
+    // Generic, and extended raw by the spec below: the link the spec lists is what erases, and
+    // the vocabulary beneath it is written with its argument intact. Its contribution is a
+    // default method, the third of the three shapes a mix-in can carry.
+    var routeVocab =
+        JavaFileObjects.forSourceString(
+            "com.example.RawRouteVocab",
+            """
+            package com.example;
+
+            import org.higherkindedj.optics.validated.ValidatedPrism;
+
+            public interface RawRouteVocab<T> {
+                default ValidatedPrism<String, T> label() {
+                    return ValidatedPrism.of(raw -> null, value -> "");
+                }
+            }
+            """);
+
+    var mid =
+        JavaFileObjects.forSourceString(
+            "com.example.RawMid",
+            """
+            package com.example;
+
+            public interface RawMid<T> extends RawRouteVocab<T> {}
+            """);
+
+    var throughChild =
+        JavaFileObjects.forSourceString(
+            "com.example.RawRouteMapping",
+            """
+            package com.example;
+
+            import org.higherkindedj.optics.annotations.GenerateMapping;
+            import org.higherkindedj.optics.annotations.MappingSpec;
+
+            @GenerateMapping
+            @SuppressWarnings("rawtypes")
+            public interface RawRouteMapping extends MappingSpec<Dom, RawWire>, RawMid {}
+            """);
+
+    // Rawness erases downwards, so the link the spec lists can be perfectly ordinary while the
+    // one above it is not. The route is named, because that is the clause to correct.
+    var throughAChild = compile(DOMAIN, routeVocab, wire, mid, throughChild);
+
+    assertThat(throughAChild).failed();
+    assertThat(throughAChild)
+        .hadErrorContaining("mix-in 'RawRouteVocab' is reached raw (reached through 'RawMid')");
+
+    // The vocabulary test reads the three things a mix-in can contribute, and a rename is not a
+    // default method: an ancestor carrying only an abstract leaf is as much a reason to refuse a
+    // raw route as one carrying a rename.
+    var leafBase =
+        JavaFileObjects.forSourceString(
+            "com.example.RawLeafVocab",
+            """
+            package com.example;
+
+            import org.higherkindedj.optics.validated.ValidatedPrism;
+
+            public interface RawLeafVocab<T> {
+                ValidatedPrism<String, T> label();
+            }
+            """);
+
+    var leafSpec =
+        JavaFileObjects.forSourceString(
+            "com.example.RawLeafMapping",
+            """
+            package com.example;
+
+            import org.higherkindedj.optics.annotations.GenerateMapping;
+            import org.higherkindedj.optics.annotations.MappingSpec;
+
+            @GenerateMapping
+            @SuppressWarnings("rawtypes")
+            public interface RawLeafMapping extends MappingSpec<Dom, RawWire>, RawLeafVocab {}
+            """);
+
+    var carryingALeaf = compile(DOMAIN, leafBase, wire, leafSpec);
+
+    assertThat(carryingALeaf).failed();
+    assertThat(carryingALeaf).hadErrorContaining("mix-in 'RawLeafVocab' is reached raw");
+
+    // A raw ancestor that contributes nothing carries nothing in, so it is no reason to refuse.
+    // An interface static is the shape that reads as a method and is not inherited (JLS 8.4.8),
+    // so it exercises the vocabulary test's negative answer without leaving an unimplemented
+    // member behind.
+    var inert =
+        JavaFileObjects.forSourceString(
+            "com.example.RawInert",
+            """
+            package com.example;
+
+            public interface RawInert<T> {
+                static String describe() {
+                    return "inert";
+                }
+            }
+            """);
+
+    var inertSpec =
+        JavaFileObjects.forSourceString(
+            "com.example.RawInertMapping",
+            """
+            package com.example;
+
+            import org.higherkindedj.optics.annotations.GenerateMapping;
+            import org.higherkindedj.optics.annotations.MappingSpec;
+
+            @GenerateMapping
+            @SuppressWarnings("rawtypes")
+            public interface RawInertMapping extends MappingSpec<Dom, InertWire>, RawInert {}
+            """);
+
+    var inertWire =
+        JavaFileObjects.forSourceString(
+            "com.example.InertWire",
+            """
+            package com.example;
+
+            public record InertWire(String id, String name) {}
+            """);
+
+    var carryingNothing = compile(DOMAIN, inert, inertWire, inertSpec);
+
+    assertThat(carryingNothing).succeeded();
+    assertThat(carryingNothing).generatedSourceFile("com.example.RawInertMappingImpl");
   }
 
   @Test
@@ -413,12 +701,13 @@ class GenericMappingWireAxisTest {
             public interface LeafPageMapping<T> extends MappingSpec<Page<T>, PageDto<T>>, LeafVocab {}
             """);
 
-    // An abstract leaf is neither a default method nor a rename, so a gate reading only those two
-    // lets LeafBase through - and the record path then writes its declared ValidatedPrism<X, ...>
-    // into an Impl that declares no X.
+    // The leaf is declared 'ValidatedPrism<X, String>' in LeafBase's vocabulary, and the interface
+    // below it says X is String. The Impl declares T, not X, so the leaf field is only nameable
+    // there once it is read under the spec.
     var compilation = compile(domain, wire, base, mixin, spec);
 
-    assertThat(compilation).failed();
-    assertThat(compilation).hadErrorContaining("mix-in 'LeafBase' is generic");
+    assertThat(compilation).succeeded();
+    assertGeneratedCodeContains(
+        compilation, "com.example.LeafPageMappingImpl", "ValidatedPrism<String, String> items");
   }
 }

@@ -327,7 +327,8 @@ public class MappingProcessor extends AbstractProcessor {
       if (parent.getKind() == TypeKind.ERROR) {
         continue;
       }
-      TypeElement parentElement = (TypeElement) ((DeclaredType) parent).asElement();
+      DeclaredType parentType = (DeclaredType) parent;
+      TypeElement parentElement = (TypeElement) parentType.asElement();
       String parentName = parentElement.getQualifiedName().toString();
       if (parentName.equals(MAPPING_SPEC) || parentName.equals(UPDATE_SPEC)) {
         continue;
@@ -344,25 +345,27 @@ public class MappingProcessor extends AbstractProcessor {
             "Move the shared renames and leaves onto a plain interface and extend that instead.");
         return false;
       }
-      // A direct parent is judged as it always was. An ancestor the spec never listed is judged
-      // only on what it contributes: without that, a plain marker extending Comparable refuses the
-      // spec and tells the author to make a JDK type non-generic.
-      if (!parentElement.getTypeParameters().isEmpty()
-          && (inherited.reachedThrough() == null || carriesVocabulary(parentElement))) {
+      // A generic mix-in resolves: its members are read under the spec's instantiation, so
+      // 'Emails<T>' extended as 'Emails<EmailAddress>' carries ValidatedPrism<String,
+      // EmailAddress> in. A raw route is the one thing substitution cannot answer for, and only
+      // where the ancestor contributes something to read - a marker extending a raw JDK type
+      // carries nothing in, and refusing it would tell the author to fix a type they do not own.
+      if ((isRaw(parentType) || inherited.rawRoute()) && carriesVocabulary(parentElement)) {
         Diagnostics.error(
             processingEnv.getMessager(),
             spec,
             TAG,
             "mix-in '"
                 + parentElement.getSimpleName()
-                + "' is generic"
+                + "' is reached raw"
                 + reachedVia(inherited)
                 + ".",
-            "Inherited member types are read as declared; a generic mix-in's members would need"
-                + " substitution under its instantiation, which is not supported yet.",
-            "Make '"
+            "Its members are read under the spec's instantiation, and a raw supertype erases every"
+                + " one of them whatever they declare, so the spec would inherit a bare"
+                + " ValidatedPrism rather than the pair it was written with.",
+            "Name the type arguments on the extends clause, as 'extends "
                 + parentElement.getSimpleName()
-                + "' non-generic, or declare its members directly on the spec.");
+                + "<...>'.");
         return false;
       }
     }
@@ -382,7 +385,7 @@ public class MappingProcessor extends AbstractProcessor {
   private List<Inherited> allSuperInterfaces(TypeElement spec) {
     List<Inherited> found = new ArrayList<>();
     Deque<Inherited> pending = new ArrayDeque<>();
-    spec.getInterfaces().forEach(parent -> pending.addLast(new Inherited(parent, null)));
+    spec.getInterfaces().forEach(parent -> pending.addLast(new Inherited(parent, null, false)));
     Set<Name> seen = new HashSet<>();
     while (!pending.isEmpty()) {
       Inherited current = pending.removeFirst();
@@ -398,7 +401,8 @@ public class MappingProcessor extends AbstractProcessor {
       }
       found.add(current);
       TypeElement route = current.reachedThrough() == null ? element : current.reachedThrough();
-      element.getInterfaces().forEach(parent -> pending.addLast(new Inherited(parent, route)));
+      boolean raw = current.rawRoute() || isRaw((DeclaredType) current.type());
+      element.getInterfaces().forEach(parent -> pending.addLast(new Inherited(parent, route, raw)));
     }
     return found;
   }
@@ -409,7 +413,26 @@ public class MappingProcessor extends AbstractProcessor {
    * @param type the inherited interface
    * @param reachedThrough the spec's own parent it was reached through, or null when it is one
    */
-  private record Inherited(TypeMirror type, TypeElement reachedThrough) {}
+  /**
+   * An inherited interface, the parent it was reached through, and whether that route passed
+   * through a raw link.
+   *
+   * <p>Rawness is carried rather than asked at the end because it erases <em>downwards</em>: a spec
+   * extending a raw {@code Mid} gets erased members from {@code Emails<T>} above it, even though
+   * {@code Mid implements Emails<T>} is written with its argument intact.
+   */
+  private record Inherited(TypeMirror type, TypeElement reachedThrough, boolean rawRoute) {}
+
+  /**
+   * Whether a written type names a generic element with no arguments: raw, not merely bare.
+   *
+   * <p>Takes the declared type rather than a mirror: an interface's supertypes are declared types,
+   * an unresolved one included, and both callers have already stepped past the kinds that are not.
+   */
+  private static boolean isRaw(DeclaredType declared) {
+    return !((TypeElement) declared.asElement()).getTypeParameters().isEmpty()
+        && declared.getTypeArguments().isEmpty();
+  }
 
   /**
    * Whether a mix-in contributes anything the spec would read off it.
