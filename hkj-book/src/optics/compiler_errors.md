@@ -139,6 +139,50 @@ A source type that is itself generic is supported, and the spec names its own ty
 
 ---
 
+## `@GeneratePathBridge` and `@PathVia`
+
+### "Unsupported return type for @PathVia"
+
+**Cause.** The method returns something outside the bridged table — `Optional`, `Maybe`, `Either`, `Try`, `Validated`, `IO`. `CompletableFuture` is the one most often met here.
+
+**Fix.** Return one of the six, or drop `@PathVia` and wrap the call by hand.
+
+### "@PathVia: the return type is a raw 'Optional'"
+
+**Cause.** The effect is written without its type argument. The bridge would pass it to the `Path` factory as an unchecked conversion, and the warning lands in generated source — the one file where a `@SuppressWarnings` cannot be added.
+
+**Fix.** Name the type argument: `Optional<Item>` rather than `Optional`.
+
+### "@PathVia: the error type of the returned 'Validated' is the wildcard '...'"
+
+**Cause.** A `Validated` bridge names its error type twice — in the `ValidationPath` it returns, and in the `Semigroup` it asks the caller for. A wildcard is a *different* captured type at each mention, so there is no argument a caller could pass that satisfies both.
+
+Only the error position is affected. `Validated<String, ? extends Number>` is fine, and so are wildcards in `Optional`, `Maybe`, `Either` and `Try` returns: those name the captured type once and javac unifies it.
+
+**Fix.** Name the error type.
+
+### "@PathVia: a static / private interface method cannot be called that way"
+
+**Cause.** The bridge reaches its delegate through an interface reference, which gets at abstract and `default` members and nothing else.
+
+**Fix.** Make the method an abstract or `default` instance method, or drop `@PathVia` from it.
+
+### "@GeneratePathBridge: the bound on 'T' names '...', which cannot be reached from '...'"
+
+**Cause.** The bridge repeats the interface's bounds in its own declaration, and `targetPackage` has put that declaration somewhere the bound is not visible.
+
+**Fix.** Make the bound's type public, or drop `targetPackage` so the bridge is written beside the interface.
+
+### "@GeneratePathBridge: no @PathVia method was found" (a warning)
+
+**Cause.** Neither the interface nor anything it extends has a `@PathVia` method, so the bridge is written with a constructor and nothing else.
+
+Inherited methods do count — a bridge for `StringStore extends Store<String>` picks up `Store`'s `@PathVia` methods, read under `String`. Seeing this warning means there were none anywhere.
+
+**Fix.** Put `@PathVia` on the methods to bridge, or drop `@GeneratePathBridge`.
+
+---
+
 ## Focus DSL chains
 
 ### `traverseOver` and the higher-kinded witness type

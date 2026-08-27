@@ -6,15 +6,23 @@ import com.google.auto.service.AutoService;
 import com.palantir.javapoet.*;
 import java.io.IOException;
 import java.util.*;
+import java.util.stream.Stream;
 import javax.annotation.processing.AbstractProcessor;
 import javax.annotation.processing.Processor;
 import javax.annotation.processing.RoundEnvironment;
 import javax.annotation.processing.SupportedAnnotationTypes;
 import javax.lang.model.SourceVersion;
 import javax.lang.model.element.*;
+import javax.lang.model.type.ArrayType;
 import javax.lang.model.type.DeclaredType;
+import javax.lang.model.type.ExecutableType;
+import javax.lang.model.type.IntersectionType;
+import javax.lang.model.type.TypeKind;
 import javax.lang.model.type.TypeMirror;
+import javax.lang.model.type.TypeVariable;
+import javax.lang.model.util.ElementFilter;
 import javax.lang.model.util.Elements;
+import javax.lang.model.util.Types;
 import javax.tools.Diagnostic;
 import org.higherkindedj.hkt.effect.annotation.GeneratePathBridge;
 import org.higherkindedj.hkt.effect.annotation.PathVia;
@@ -125,7 +133,7 @@ public class PathProcessor extends AbstractProcessor {
     // A bound is written into the bridge's own declaration, so it has to be nameable there. Only
     // targetPackage can make that false: written beside the interface, whatever the interface can
     // name the bridge can name too.
-    if (rejectsUnnameableBound(interfaceElement, interfaceElement, packageName)) {
+    if (rejectsUnnameableBounds(interfaceElement, interfaceElement, packageName)) {
       return;
     }
 
@@ -163,19 +171,24 @@ public class PathProcessor extends AbstractProcessor {
             .build());
 
     // Process @PathVia methods
-    for (Element enclosed : interfaceElement.getEnclosedElements()) {
-      if (enclosed.getKind() == ElementKind.METHOD) {
-        ExecutableElement method = (ExecutableElement) enclosed;
-        PathVia pathVia = method.getAnnotation(PathVia.class);
-        if (pathVia != null) {
-          if (rejectsUnnameableBound(method, interfaceElement, packageName)) {
-            continue;
-          }
-          MethodSpec bridgeMethod = createBridgeMethod(method, pathVia);
-          if (bridgeMethod != null) {
-            classBuilder.addMethod(bridgeMethod);
-          }
-        }
+    List<ExecutableElement> pathViaMethods = pathViaMethodsOf(interfaceElement);
+    if (pathViaMethods.isEmpty()) {
+      // A bridge with a constructor and nothing else is never what was asked for, and silence
+      // leaves the author reading the generated file to find that out.
+      warn(
+          "@GeneratePathBridge on '"
+              + interfaceName
+              + "': no @PathVia method was found, on the interface or on anything it extends, so"
+              + " the bridge has a constructor and nothing else. Fix: put @PathVia on the methods"
+              + " to bridge, or drop @GeneratePathBridge.",
+          interfaceElement);
+    }
+    DeclaredType interfaceType = (DeclaredType) interfaceElement.asType();
+    for (ExecutableElement method : pathViaMethods) {
+      MethodSpec bridgeMethod =
+          createBridgeMethod(method, interfaceType, interfaceElement, packageName);
+      if (bridgeMethod != null) {
+        classBuilder.addMethod(bridgeMethod);
       }
     }
 
@@ -189,6 +202,36 @@ public class PathProcessor extends AbstractProcessor {
   }
 
   /**
+   * The {@code @PathVia} methods the bridge is to wrap, inherited ones included.
+   *
+   * <p>Members, not enclosed elements: a bridge for {@code Derived extends Base<String>} is asked
+   * for the methods {@code Derived} <em>has</em>, and reading only what it declares had produced a
+   * bridge with a constructor and nothing else. Java's own precedence applies - an override hides
+   * the method it overrides - and interface statics and privates are not inherited at all, so
+   * anything reached here through a supertype is callable through the delegate. {@code Object}'s
+   * members are filtered by the kind of what declares them.
+   *
+   * @param interfaceElement the annotated interface; must not be null
+   * @return its own {@code @PathVia} methods first, then the inherited ones
+   */
+  private List<ExecutableElement> pathViaMethodsOf(TypeElement interfaceElement) {
+    List<ExecutableElement> annotated =
+        ElementFilter.methodsIn(processingEnv.getElementUtils().getAllMembers(interfaceElement))
+            .stream()
+            .filter(method -> method.getEnclosingElement().getKind() == ElementKind.INTERFACE)
+            .filter(method -> method.getAnnotation(PathVia.class) != null)
+            .toList();
+    // Own before inherited, so the generated file reads in the order the author wrote, and a
+    // supertype gaining a member does not reshuffle the methods already there.
+    return Stream.concat(
+            annotated.stream()
+                .filter(method -> interfaceElement.equals(method.getEnclosingElement())),
+            annotated.stream()
+                .filter(method -> !interfaceElement.equals(method.getEnclosingElement())))
+        .toList();
+  }
+
+  /**
    * Reports a type parameter whose bound the generated package cannot name, and returns whether it
    * did.
    *
@@ -196,42 +239,74 @@ public class PathProcessor extends AbstractProcessor {
    * lands in a declaration that cannot see it. Only {@code targetPackage} makes this reachable: a
    * bridge written beside its interface can name everything the interface can.
    *
-   * @param declarer the interface or method whose parameters are being copied
+   * @param declarer the interface whose parameters are being copied
    * @param interfaceElement the annotated interface, which the diagnostic is reported against
    * @param packageName the package the bridge is written into
    * @return true when a bound was rejected and an error reported
    */
-  private boolean rejectsUnnameableBound(
+  private boolean rejectsUnnameableBounds(
       Parameterizable declarer, TypeElement interfaceElement, String packageName) {
 
-    Elements elements = processingEnv.getElementUtils();
     for (TypeParameterElement parameter : declarer.getTypeParameters()) {
-      for (TypeMirror bound : parameter.getBounds()) {
-        TypeElement unreachable = ProcessorUtils.firstUnreachableIn(elements, bound, packageName);
-        if (unreachable != null) {
-          error(
-              "@GeneratePathBridge on '"
-                  + interfaceElement.getSimpleName()
-                  + "': the bound on '"
-                  + parameter.getSimpleName()
-                  + "' names '"
-                  + unreachable.getSimpleName()
-                  + "', which cannot be reached from '"
-                  + packageName
-                  + "'. The bridge repeats the bound in its own declaration, and it is not visible"
-                  + " there. Fix: make '"
-                  + unreachable.getSimpleName()
-                  + "' public, or drop targetPackage so the bridge is written beside the"
-                  + " interface.",
-              declarer);
-          return true;
-        }
+      if (rejectsUnnameableBound(
+          parameter.getSimpleName(),
+          parameter.getBounds(),
+          declarer,
+          interfaceElement,
+          packageName)) {
+        return true;
       }
     }
     return false;
   }
 
-  private MethodSpec createBridgeMethod(ExecutableElement method, PathVia pathVia) {
+  /**
+   * Reports one bound the generated package cannot name, and returns whether it did.
+   *
+   * @param parameterName the type parameter the bounds belong to; must not be null
+   * @param bounds the bounds as the bridge will write them; must not be null
+   * @param site the declaration the diagnostic is attached to; must not be null
+   * @param interfaceElement the annotated interface, which the diagnostic names
+   * @param packageName the package the bridge is written into
+   * @return true when a bound was rejected and an error reported
+   */
+  private boolean rejectsUnnameableBound(
+      CharSequence parameterName,
+      List<? extends TypeMirror> bounds,
+      Element site,
+      TypeElement interfaceElement,
+      String packageName) {
+
+    Elements elements = processingEnv.getElementUtils();
+    for (TypeMirror bound : bounds) {
+      TypeElement unreachable = ProcessorUtils.firstUnreachableIn(elements, bound, packageName);
+      if (unreachable != null) {
+        error(
+            "@GeneratePathBridge on '"
+                + interfaceElement.getSimpleName()
+                + "': the bound on '"
+                + parameterName
+                + "' names '"
+                + unreachable.getSimpleName()
+                + "', which cannot be reached from '"
+                + packageName
+                + "'. The bridge repeats the bound in its own declaration, and it is not visible"
+                + " there. Fix: make '"
+                + unreachable.getSimpleName()
+                + "' public, or drop targetPackage so the bridge is written beside the"
+                + " interface.",
+            site);
+        return true;
+      }
+    }
+    return false;
+  }
+
+  private MethodSpec createBridgeMethod(
+      ExecutableElement method,
+      DeclaredType interfaceType,
+      TypeElement interfaceElement,
+      String packageName) {
     // The bridge calls the method through its delegate, which reaches an abstract or default
     // member and nothing else. Left ungated, both of these emitted a call javac refuses, against
     // a file the author never wrote.
@@ -248,14 +323,32 @@ public class PathProcessor extends AbstractProcessor {
       return null;
     }
 
-    String methodName =
-        pathVia.name().isEmpty() ? method.getSimpleName().toString() : pathVia.name();
-    String doc = pathVia.doc();
+    // The method as the annotated interface has it, not as its declaration reads: a @PathVia
+    // inherited from Base<T> into Derived extends Base<String> speaks String here, and copying
+    // the declaration would put Base's own parameter into a bridge that never declares it.
+    Types types = processingEnv.getTypeUtils();
+    ExecutableType asMember = (ExecutableType) types.asMemberOf(interfaceType, method);
 
-    TypeMirror returnType = method.getReturnType();
-    PathTypeMapping mapping = determinePathType(returnType);
+    // A generic delegate method's parameters are named by the return type and the arguments copied
+    // below, so the bridge method has to declare them itself; the interface's own are in scope
+    // already, from the class. Their bounds are read under the instantiation too - an inherited
+    // `<R extends T>` is `<R extends String>` here, and `T` is a name the bridge cannot write.
+    List<TypeVariableName> methodVariables = new ArrayList<>();
+    for (TypeVariable variable : asMember.getTypeVariables()) {
+      Name variableName = variable.asElement().getSimpleName();
+      List<? extends TypeMirror> bounds = boundsOf(variable);
+      if (rejectsUnnameableBound(variableName, bounds, method, interfaceElement, packageName)) {
+        return null;
+      }
+      methodVariables.add(
+          TypeVariableName.get(
+              variableName.toString(),
+              bounds.stream().map(TypeName::get).toArray(TypeName[]::new)));
+    }
 
-    if (mapping == null) {
+    TypeMirror returnType = asMember.getReturnType();
+    Effect effect = effectFor(returnType);
+    if (effect == null) {
       error(
           "Unsupported return type for @PathVia: "
               + returnType
@@ -264,16 +357,57 @@ public class PathProcessor extends AbstractProcessor {
       return null;
     }
 
+    // Cast, not a pattern: effectFor answers non-null only for a declared type it recognised.
+    List<? extends TypeMirror> typeArgs = ((DeclaredType) returnType).getTypeArguments();
+
+    // Every supported effect is generic, so no arguments means the return type was written raw.
+    // Substituting Object had made the delegate call an unchecked conversion, and the warning
+    // lands in a file whose only place for a suppression is generated too.
+    if (typeArgs.isEmpty()) {
+      error(
+          "@PathVia on '"
+              + method.getSimpleName()
+              + "': the return type is a raw '"
+              + effect.effectName()
+              + "'. The bridge passes it to Path."
+              + effect.factoryMethod()
+              + ", which is an unchecked conversion, and the warning would land in generated"
+              + " source that cannot carry a suppression. Fix: name the type argument, as '"
+              + effect.effectName()
+              + "<...>'.",
+          method);
+      return null;
+    }
+
+    // The Semigroup added below names the error type a second time, and a wildcard captures
+    // separately at each mention, so no argument could satisfy both.
+    if (effect.requiresSemigroup() && typeArgs.getFirst().getKind() == TypeKind.WILDCARD) {
+      error(
+          "@PathVia on '"
+              + method.getSimpleName()
+              + "': the error type of the returned '"
+              + effect.effectName()
+              + "' is the wildcard '"
+              + typeArgs.getFirst()
+              + "'. The bridge names it twice - in the "
+              + effect.pathType().simpleName()
+              + " it returns and in the Semigroup the caller supplies - and a wildcard is a"
+              + " different captured type at each, so no caller could satisfy both. Fix: name the"
+              + " error type.",
+          method);
+      return null;
+    }
+
+    PathVia pathVia = method.getAnnotation(PathVia.class);
+    String methodName =
+        pathVia.name().isEmpty() ? method.getSimpleName().toString() : pathVia.name();
+    String doc = pathVia.doc();
+
+    TypeName[] effectArguments = typeArgs.stream().map(TypeName::get).toArray(TypeName[]::new);
     MethodSpec.Builder methodBuilder =
         MethodSpec.methodBuilder(methodName)
             .addModifiers(Modifier.PUBLIC)
-            .returns(mapping.pathType());
-
-    // A generic delegate method's parameters are named by the return type and the arguments copied
-    // below, so the bridge method has to declare them itself; the interface's own are in scope
-    // already, from the class.
-    List<TypeVariableName> methodVariables =
-        method.getTypeParameters().stream().map(TypeVariableName::get).toList();
+            .returns(ParameterizedTypeName.get(effect.pathType(), effectArguments));
     methodVariables.forEach(methodBuilder::addTypeVariable);
 
     // Description first, then the block tags in order. A tag written before the description takes
@@ -285,123 +419,144 @@ public class PathProcessor extends AbstractProcessor {
         variable ->
             methodBuilder.addJavadoc(
                 "@param <$L> as declared by the delegate method\n", variable.name()));
+    // $T, not the simple name: an inherited method is declared elsewhere, and a link naming a
+    // type the generated file never imports is one doclint rejects.
     methodBuilder.addJavadoc(
-        "@return Path-wrapped result from {@link $L#$L}\n",
-        method.getEnclosingElement().getSimpleName(),
+        "@return Path-wrapped result from {@link $T#$L}\n",
+        ClassName.get((TypeElement) method.getEnclosingElement()),
         method.getSimpleName());
 
-    // Copy parameters
-    List<String> paramNames = new ArrayList<>();
-    for (VariableElement param : method.getParameters()) {
-      String paramName = param.getSimpleName().toString();
-      paramNames.add(paramName);
-      methodBuilder.addParameter(TypeName.get(param.asType()), paramName);
+    // Copy parameters, under the instantiation as the signature above is.
+    List<String> argumentNames = new ArrayList<>();
+    List<? extends TypeMirror> parameterTypes = asMember.getParameterTypes();
+    List<? extends VariableElement> parameters = method.getParameters();
+    for (int index = 0; index < parameters.size(); index++) {
+      String parameterName = parameters.get(index).getSimpleName().toString();
+      argumentNames.add(parameterName);
+      methodBuilder.addParameter(TypeName.get(parameterTypes.get(index)), parameterName);
     }
 
-    // Add Semigroup parameter for Validated types
-    if (mapping.requiresSemigroup()) {
+    methodBuilder.varargs(copiesVarargs(method, asMember, effect));
+
+    // Add Semigroup parameter for Validated types. It is the bridge's own, not the delegate's,
+    // so it stays out of the call built below.
+    if (effect.requiresSemigroup()) {
       methodBuilder.addParameter(
-          ParameterizedTypeName.get(SEMIGROUP, mapping.errorType()), "semigroup");
-      paramNames.add("semigroup");
+          ParameterizedTypeName.get(SEMIGROUP, effectArguments[0]), "semigroup");
     }
 
     // Build the method body
     String delegateCall =
-        "delegate."
-            + method.getSimpleName()
-            + "("
-            + String.join(", ", paramNames.subList(0, method.getParameters().size()))
-            + ")";
+        "delegate." + method.getSimpleName() + "(" + String.join(", ", argumentNames) + ")";
 
-    if (mapping.requiresSemigroup()) {
+    if (effect.requiresSemigroup()) {
       methodBuilder.addStatement(
-          "return $T.$L($L, semigroup)", PATH, mapping.factoryMethod(), delegateCall);
+          "return $T.$L($L, semigroup)", PATH, effect.factoryMethod(), delegateCall);
     } else {
-      methodBuilder.addStatement("return $T.$L($L)", PATH, mapping.factoryMethod(), delegateCall);
+      methodBuilder.addStatement("return $T.$L($L)", PATH, effect.factoryMethod(), delegateCall);
     }
 
     return methodBuilder.build();
   }
 
-  private PathTypeMapping determinePathType(TypeMirror returnType) {
+  /**
+   * Whether the bridge method repeats the delegate's varargs, rather than taking the array.
+   *
+   * <p>The bridge mirrors the delegate, so a varargs delegate stays varargs and existing call sites
+   * keep their shape. Two things stop that:
+   *
+   * <ul>
+   *   <li>a {@code Semigroup} is appended after the caller's own arguments, which leaves the array
+   *       no longer last - the one position the language reserves for it
+   *   <li>a non-reifiable element type ({@code T...}, {@code List<String>...}) makes the bridge
+   *       method a second "possible heap pollution" warning, in a file where the author cannot
+   *       write the suppression they put on their own declaration
+   * </ul>
+   *
+   * <p>Erasure is the reifiability test, and it is deliberately the conservative one: it also rules
+   * out {@code List<?>...}, which the language does reify, in favour of an array the caller can
+   * always write.
+   *
+   * @param method the delegate method; must not be null
+   * @param asMember the same method under the annotated interface's instantiation; must not be null
+   * @param effect the Path the return type bridges to; must not be null
+   * @return true when the bridge method is to be declared varargs
+   */
+  private boolean copiesVarargs(ExecutableElement method, ExecutableType asMember, Effect effect) {
+    if (!method.isVarArgs() || effect.requiresSemigroup()) {
+      return false;
+    }
+    Types types = processingEnv.getTypeUtils();
+    // Cast, not a pattern: a varargs method's last parameter is an array by definition, and one
+    // that is not is a javac invariant broken rather than a shape to fall back from.
+    TypeMirror element = ((ArrayType) asMember.getParameterTypes().getLast()).getComponentType();
+    return types.isSameType(element, types.erasure(element));
+  }
+
+  /**
+   * The bounds a type variable is written with, as the annotated interface sees them.
+   *
+   * <p>Kind, not {@code instanceof}: an intersection type implements {@link DeclaredType} too, so a
+   * pattern would take the first arm of {@code A & B} for the whole bound.
+   *
+   * @param variable the type variable to read; must not be null
+   * @return its upper bound, or the arms of it when that bound is an intersection
+   */
+  private static List<? extends TypeMirror> boundsOf(TypeVariable variable) {
+    TypeMirror upperBound = variable.getUpperBound();
+    return upperBound.getKind() == TypeKind.INTERSECTION
+        ? ((IntersectionType) upperBound).getBounds()
+        : List.of(upperBound);
+  }
+
+  /**
+   * The Path a supported return type bridges to, or null when the type is not one of them.
+   *
+   * @param returnType the {@code @PathVia} method's return type under the interface's
+   *     instantiation; must not be null
+   * @return the mapping, or null when nothing is declared for the type
+   */
+  private static Effect effectFor(TypeMirror returnType) {
     if (!(returnType instanceof DeclaredType declaredType)) {
       return null;
     }
 
-    Element typeElement = declaredType.asElement();
+    // Cast, not a pattern: a declared type's element is a type element, an unresolved one
+    // included, and there is no other kind for the fallback arm to have answered for.
+    TypeElement typeElement = (TypeElement) declaredType.asElement();
     String typeName = typeElement.getSimpleName().toString();
-    String qualifiedName =
-        typeElement instanceof TypeElement te ? te.getQualifiedName().toString() : typeName;
 
-    List<? extends TypeMirror> typeArgs = declaredType.getTypeArguments();
-
-    return switch (qualifiedName) {
-      case "java.util.Optional" ->
-          new PathTypeMapping(
-              ParameterizedTypeName.get(OPTIONAL_PATH, typeArgOrObject(typeArgs, 0)),
-              "optional",
-              false,
-              null);
-      case "org.higherkindedj.hkt.maybe.Maybe" ->
-          new PathTypeMapping(
-              ParameterizedTypeName.get(MAYBE_PATH, typeArgOrObject(typeArgs, 0)),
-              "maybe",
-              false,
-              null);
-      case "org.higherkindedj.hkt.either.Either" -> {
-        TypeName errorType = typeArgOrObject(typeArgs, 0);
-        TypeName valueType = typeArgOrObject(typeArgs, 1);
-        yield new PathTypeMapping(
-            ParameterizedTypeName.get(EITHER_PATH, errorType, valueType), "either", false, null);
-      }
-      case "org.higherkindedj.hkt.trymonad.Try" ->
-          new PathTypeMapping(
-              ParameterizedTypeName.get(TRY_PATH, typeArgOrObject(typeArgs, 0)),
-              "tryPath",
-              false,
-              null);
-      case "org.higherkindedj.hkt.validated.Validated" -> {
-        TypeName errorType = typeArgOrObject(typeArgs, 0);
-        TypeName valueType = typeArgOrObject(typeArgs, 1);
-        yield new PathTypeMapping(
-            ParameterizedTypeName.get(VALIDATION_PATH, errorType, valueType),
-            "validated",
-            true,
-            errorType);
-      }
-      case "org.higherkindedj.hkt.io.IO" ->
-          new PathTypeMapping(
-              ParameterizedTypeName.get(IO_PATH, typeArgOrObject(typeArgs, 0)), "io", false, null);
+    return switch (typeElement.getQualifiedName().toString()) {
+      case "java.util.Optional" -> new Effect(typeName, OPTIONAL_PATH, "optional", false);
+      case "org.higherkindedj.hkt.maybe.Maybe" -> new Effect(typeName, MAYBE_PATH, "maybe", false);
+      case "org.higherkindedj.hkt.either.Either" ->
+          new Effect(typeName, EITHER_PATH, "either", false);
+      case "org.higherkindedj.hkt.trymonad.Try" -> new Effect(typeName, TRY_PATH, "tryPath", false);
+      case "org.higherkindedj.hkt.validated.Validated" ->
+          new Effect(typeName, VALIDATION_PATH, "validated", true);
+      // ioPath, not io: Path.io takes a Supplier, and IO is not one - every IO bridge written
+      // against that factory was source javac refused.
+      case "org.higherkindedj.hkt.io.IO" -> new Effect(typeName, IO_PATH, "ioPath", false);
       default -> null;
     };
-  }
-
-  /**
-   * Returns the type argument at the given index, or {@code Object} if the list is too short.
-   *
-   * <p>Defensive fallback for raw or malformed generic return types (e.g. a {@code @PathVia} method
-   * declared to return raw {@code Optional} rather than {@code Optional<T>}). In well-formed code
-   * every branch of {@link #determinePathType} supplies enough type arguments, so the out-of-bounds
-   * branch is rare but not dead — it is exercised by the raw-type coverage test.
-   */
-  private static TypeName typeArgOrObject(List<? extends TypeMirror> typeArgs, int index) {
-    return index < typeArgs.size()
-        ? TypeName.get(typeArgs.get(index))
-        : ClassName.get(Object.class);
   }
 
   private void error(String message, Element element) {
     processingEnv.getMessager().printMessage(Diagnostic.Kind.ERROR, message, element);
   }
 
+  private void warn(String message, Element element) {
+    processingEnv.getMessager().printMessage(Diagnostic.Kind.WARNING, message, element);
+  }
+
   /**
-   * Represents the mapping from a source type to a Path type.
+   * A supported return type and the Path it bridges to.
    *
-   * @param pathType the Path type to use
-   * @param factoryMethod the Path factory method name
-   * @param requiresSemigroup whether a Semigroup parameter is needed
-   * @param errorType the error type (for Validated)
+   * @param effectName the effect's simple name, as diagnostics name it
+   * @param pathType the Path class the bridge method returns
+   * @param factoryMethod the {@code Path} factory that wraps what the delegate answers
+   * @param requiresSemigroup whether the bridge appends a {@code Semigroup} over the error type
    */
-  private record PathTypeMapping(
-      TypeName pathType, String factoryMethod, boolean requiresSemigroup, TypeName errorType) {}
+  private record Effect(
+      String effectName, ClassName pathType, String factoryMethod, boolean requiresSemigroup) {}
 }

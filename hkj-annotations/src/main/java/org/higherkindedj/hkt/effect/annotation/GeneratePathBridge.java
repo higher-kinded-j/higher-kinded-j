@@ -74,6 +74,37 @@ import java.lang.annotation.Target;
  * Repo<T>}. A {@link PathVia} method that declares parameters of its own keeps them on the bridge
  * method, where its arguments and return type name them.
  *
+ * <h2>Inherited Methods</h2>
+ *
+ * <p>The bridge wraps the {@link PathVia} methods the interface <em>has</em>, not only those it
+ * declares: a bridge for {@code StringStore extends Store<String>} picks up {@code Store}'s, read
+ * under {@code String}. Java's own precedence applies, so an overridden method is bridged once, as
+ * the override declares it. An interface with no {@code @PathVia} method anywhere is reported
+ * rather than yielding a bridge with a constructor and nothing else.
+ *
+ * <h2>Return Types the Bridge Refuses</h2>
+ *
+ * <p>Two shapes in the table above are accepted by the language and have no bridge that compiles
+ * where it lands, so they are refused at the declaration instead:
+ *
+ * <ul>
+ *   <li>a <strong>raw</strong> effect - {@code Optional} rather than {@code Optional<Item>} - which
+ *       the bridge could only pass on as an unchecked conversion, in a file that cannot carry the
+ *       suppression
+ *   <li>a {@code Validated} whose <strong>error type is a wildcard</strong>, which the bridge has
+ *       to name twice, once in the {@code ValidationPath} and once in the {@code Semigroup} the
+ *       caller supplies; a wildcard is a different captured type at each mention, so no caller
+ *       could satisfy both. Wildcards elsewhere - including {@code Validated}'s value type - are
+ *       named once and carry through
+ * </ul>
+ *
+ * <h2>Varargs</h2>
+ *
+ * <p>A varargs delegate method stays varargs on the bridge, so call sites keep their shape. Two
+ * things make the bridge take the array instead: a {@code Semigroup} appended after it, which
+ * leaves the array no longer last, and a non-reifiable element type ({@code T...}), which would
+ * make the bridge method a second heap-pollution warning.
+ *
  * @see PathVia
  */
 @Target(ElementType.TYPE)

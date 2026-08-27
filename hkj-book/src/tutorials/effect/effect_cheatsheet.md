@@ -150,6 +150,10 @@ public final class RepoPaths<T extends Comparable<T>> {
 }
 ```
 
+Inherited `@PathVia` methods are bridged too, read under the instantiation the annotated interface gives them — `StringStore extends Store<String>` gets `Store`'s methods with `T` already `String`. An interface with no `@PathVia` method anywhere draws a warning rather than a silently empty bridge.
+
+Two return types are refused where the language would accept them, because neither has a bridge that compiles in the build that consumes it: a raw effect (`Optional` rather than `Optional<Item>`), and a `Validated` whose error type is a wildcard — the bridge would have to name that type twice, once in the `ValidationPath` and once in the `Semigroup`, and a wildcard captures separately at each. [Common Compiler Errors](../../optics/compiler_errors.md#generatepathbridge-and-pathvia) has both messages.
+
 ---
 
 ## Focus-Effect bridge
