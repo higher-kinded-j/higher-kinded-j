@@ -75,6 +75,42 @@ class ImportOpticsProcessorTest {
     }
 
     @Test
+    @DisplayName("should generate a traversal with type parameters for a generic record")
+    void shouldGenerateTraversalWithTypeParametersForGenericRecord() {
+      final var externalRecord =
+          JavaFileObjects.forSourceString(
+              "com.external.Bag",
+              """
+              package com.external;
+
+              import java.util.List;
+
+              public record Bag<T>(String name, List<T> items) {}
+              """);
+
+      final var packageInfo =
+          JavaFileObjects.forSourceString(
+              "com.myapp.optics.package-info",
+              """
+              @ImportOptics({com.external.Bag.class})
+              package com.myapp.optics;
+
+              import org.higherkindedj.optics.annotations.ImportOptics;
+              """);
+
+      var compilation =
+          javac().withProcessors(new ImportOpticsProcessor()).compile(externalRecord, packageInfo);
+
+      // The lens methods beside it already declared the record's parameters; the traversal named
+      // the record raw and declared none, so the container's element type had nothing to bind to.
+      assertThat(compilation).succeeded();
+      assertGeneratedCodeContains(
+          compilation,
+          "com.myapp.optics.BagLenses",
+          "public static <T> Traversal<Bag<T>, T> itemsTraversal()");
+    }
+
+    @Test
     @DisplayName("should generate lenses with type parameters for generic record")
     void shouldGenerateLensesForGenericRecord() {
       final var externalRecord =

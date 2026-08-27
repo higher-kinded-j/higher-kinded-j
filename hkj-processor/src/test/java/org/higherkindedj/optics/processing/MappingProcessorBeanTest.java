@@ -1886,4 +1886,128 @@ class MappingProcessorBeanTest {
             })
         .orElseThrow(() -> new AssertionError("generated source not found: " + qualifiedName));
   }
+
+  @Nested
+  @DisplayName("Inherited Properties")
+  class InheritedProperties {
+
+    @Test
+    @DisplayName("a bean inheriting a property from a generic base maps it")
+    void beanInheritingFromAGenericBase() {
+      final var base =
+          JavaFileObjects.forSourceString(
+              "com.example.BaseDto",
+              """
+              package com.example;
+
+              public class BaseDto<T> {
+                  private T id;
+                  public T getId() { return id; }
+                  public void setId(T id) { this.id = id; }
+              }
+              """);
+
+      final var dto =
+          JavaFileObjects.forSourceString(
+              "com.example.InheritedDto",
+              """
+              package com.example;
+
+              public class InheritedDto extends BaseDto<String> {
+                  private String name;
+                  public InheritedDto() {}
+                  public String getName() { return name; }
+                  public void setName(String name) { this.name = name; }
+              }
+              """);
+
+      final var domain =
+          JavaFileObjects.forSourceString(
+              "com.example.Inherited",
+              """
+              package com.example;
+
+              public record Inherited(String id, String name) {}
+              """);
+
+      final var spec =
+          JavaFileObjects.forSourceString(
+              "com.example.InheritedMapping",
+              """
+              package com.example;
+
+              import org.higherkindedj.optics.annotations.GenerateMapping;
+              import org.higherkindedj.optics.annotations.MappingSpec;
+
+              @GenerateMapping
+              public interface InheritedMapping extends MappingSpec<Inherited, InheritedDto> {}
+              """);
+
+      // getId() is declared 'T getId()' on BaseDto. Read off that element it is T, which matches no
+      // domain field and whose remedy - a ValidatedPrism<T, String> - names a variable the author
+      // cannot write; read under InheritedDto it is String.
+      Compilation compilation = compile(base, dto, domain, spec);
+
+      assertThat(compilation).succeeded();
+      assertThat(compilation).generatedSourceFile("com.example.InheritedMappingImpl");
+    }
+
+    @Test
+    @DisplayName("a property whose inherited accessors disagree names where they are declared")
+    void inheritedAccessorsThatDisagreeNameTheirDeclaringType() {
+      final var base =
+          JavaFileObjects.forSourceString(
+              "com.example.SkewBase",
+              """
+              package com.example;
+
+              public class SkewBase<R, W> {
+                  private R id;
+                  public R getId() { return id; }
+                  public void setId(W id) {}
+              }
+              """);
+
+      final var dto =
+          JavaFileObjects.forSourceString(
+              "com.example.SkewDto",
+              """
+              package com.example;
+
+              public class SkewDto extends SkewBase<String, Integer> {
+                  public SkewDto() {}
+              }
+              """);
+
+      final var domain =
+          JavaFileObjects.forSourceString(
+              "com.example.SkewDom",
+              """
+              package com.example;
+
+              public record SkewDom(String id) {}
+              """);
+
+      final var spec =
+          JavaFileObjects.forSourceString(
+              "com.example.SkewMapping",
+              """
+              package com.example;
+
+              import org.higherkindedj.optics.annotations.GenerateMapping;
+              import org.higherkindedj.optics.annotations.MappingSpec;
+
+              @GenerateMapping
+              public interface SkewMapping extends MappingSpec<SkewDom, SkewDto> {}
+              """);
+
+      Compilation compilation = compile(base, dto, domain, spec);
+
+      assertThat(compilation).failed();
+      // Read under SkewDto the two are String and Integer, so the skew is real - but there is
+      // nothing in SkewDto to align, and the message has to say where the accessors live.
+      assertThat(compilation).hadErrorContaining("(declared on 'SkewBase')");
+      assertThat(compilation).hadErrorContaining("(String vs Integer)");
+    }
+  }
 }

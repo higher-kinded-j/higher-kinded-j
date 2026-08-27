@@ -5,8 +5,10 @@ package org.higherkindedj.optics.processing;
 import static com.google.testing.compile.CompilationSubject.assertThat;
 import static com.google.testing.compile.Compiler.javac;
 import static org.higherkindedj.optics.processing.GeneratorTestHelper.assertGeneratedCodeContains;
+import static org.higherkindedj.optics.processing.GeneratorTestHelper.assertGeneratedCodeDoesNotContain;
 
 import com.google.testing.compile.JavaFileObjects;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 public class PrismProcessorIntegrationTest {
@@ -79,5 +81,84 @@ public class PrismProcessorIntegrationTest {
 
     assertThat(compilation).succeeded();
     assertThat(compilation).generatedSourceFile("com.example.PlainPrisms").isNotNull();
+  }
+
+  @Test
+  @DisplayName("should name both sides of a prism for a generic sealed hierarchy")
+  void shouldNameBothSidesForAGenericHierarchy() {
+    final var shape =
+        JavaFileObjects.forSourceString(
+            "com.example.GShape",
+            """
+            package com.example;
+
+            import org.higherkindedj.optics.annotations.GeneratePrisms;
+
+            @GeneratePrisms
+            public sealed interface GShape<T> permits GCircle, GTagged {}
+            """);
+    final var circle =
+        JavaFileObjects.forSourceString(
+            "com.example.GCircle",
+            """
+            package com.example;
+
+            public record GCircle<T>(T tag) implements GShape<T> {}
+            """);
+    final var tagged =
+        JavaFileObjects.forSourceString(
+            "com.example.GTagged",
+            """
+            package com.example;
+
+            public record GTagged(String label) implements GShape<String> {}
+            """);
+    var compilation = javac().withProcessors(new PrismProcessor()).compile(shape, circle, tagged);
+
+    // The @GeneratePrisms and @ImportOptics generators carry the same reading, so both are pinned;
+    // the @ImportOptics half is GenericImportedTypeAxisTest.
+    assertThat(compilation).succeeded();
+    assertGeneratedCodeContains(
+        compilation,
+        "com.example.GShapePrisms",
+        "public static <T> Prism<GShape<T>, GCircle<T>> gCircle()");
+    assertGeneratedCodeContains(
+        compilation,
+        "com.example.GShapePrisms",
+        "public static Prism<GShape<String>, GTagged> gTagged()");
+    // Nothing narrows uncheckedly: a subtype the hierarchy cannot pin is refused, not suppressed.
+    assertGeneratedCodeDoesNotContain(compilation, "com.example.GShapePrisms", "@SuppressWarnings");
+  }
+
+  @Test
+  @DisplayName("should refuse a permitted subtype the hierarchy cannot pin")
+  void shouldRefuseASubtypeTheHierarchyCannotPin() {
+    final var shape =
+        JavaFileObjects.forSourceString(
+            "com.example.UShape",
+            """
+            package com.example;
+
+            import org.higherkindedj.optics.annotations.GeneratePrisms;
+
+            @GeneratePrisms
+            public sealed interface UShape<T> permits UPair {}
+            """);
+    final var pair =
+        JavaFileObjects.forSourceString(
+            "com.example.UPair",
+            """
+            package com.example;
+
+            public record UPair<A, B>(A a, B b) implements UShape<A> {}
+            """);
+
+    var compilation = javac().withProcessors(new PrismProcessor()).compile(shape, pair);
+
+    // B is pinned by nothing, so the prism would let two callers read one value at different types.
+    assertThat(compilation).failed();
+    assertThat(compilation)
+        .hadErrorContaining("'UPair' declares [B], which 'UShape' does not bind");
+    assertThat(compilation).hadErrorContaining("implements UShape<B>");
   }
 }

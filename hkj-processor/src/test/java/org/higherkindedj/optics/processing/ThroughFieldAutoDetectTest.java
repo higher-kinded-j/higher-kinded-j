@@ -1089,4 +1089,111 @@ class ThroughFieldAutoDetectTest {
           .contains("Traversals.forOptional()");
     }
   }
+
+  @Test
+  @DisplayName("auto-detects through a field whose type the spec instantiates")
+  void autoDetectsThroughAnInstantiatedFieldType() {
+    final var holder =
+        JavaFileObjects.forSourceString(
+            "com.external.Holder",
+            """
+            package com.external;
+
+            public class Holder<T> {
+                private T items;
+                public T items() { return items; }
+                public Holder<T> withItems(T items) {
+                    Holder<T> copy = new Holder<>();
+                    copy.items = items;
+                    return copy;
+                }
+            }
+            """);
+
+    final var specInterface =
+        JavaFileObjects.forSourceString(
+            "com.myapp.HolderOpticsSpec",
+            """
+            package com.myapp;
+
+            import com.external.Holder;
+            import java.util.List;
+            import org.higherkindedj.optics.Lens;
+            import org.higherkindedj.optics.Traversal;
+            import org.higherkindedj.optics.annotations.ImportOptics;
+            import org.higherkindedj.optics.annotations.OpticsSpec;
+            import org.higherkindedj.optics.annotations.ThroughField;
+            import org.higherkindedj.optics.annotations.Wither;
+
+            @ImportOptics
+            public interface HolderOpticsSpec extends OpticsSpec<Holder<List<String>>> {
+                @Wither("withItems")
+                Lens<Holder<List<String>>, List<String>> items();
+
+                @ThroughField(field = "items")
+                Traversal<Holder<List<String>>, String> eachItem();
+            }
+            """);
+
+    // The accessor is declared 'T items()'. Read off the element that is a type variable, which
+    // no container detection can match; under Holder<List<String>> it is List<String>.
+    Compilation compilation = compile(holder, specInterface);
+
+    assertThat(compilation).succeeded();
+  }
+
+  @Test
+  @DisplayName("auto-detects on a raw source type, whose members are not substituted")
+  void autoDetectsOnARawSourceType() {
+    final var holder =
+        JavaFileObjects.forSourceString(
+            "com.external.RawHolder",
+            """
+            package com.external;
+
+            import java.util.List;
+
+            public class RawHolder<T> {
+                private List<String> items;
+                public List<String> items() { return items; }
+                public RawHolder<T> withItems(List<String> items) {
+                    RawHolder<T> copy = new RawHolder<>();
+                    copy.items = items;
+                    return copy;
+                }
+            }
+            """);
+
+    final var specInterface =
+        JavaFileObjects.forSourceString(
+            "com.myapp.RawOpticsSpec",
+            """
+            package com.myapp;
+
+            import com.external.RawHolder;
+            import java.util.List;
+            import org.higherkindedj.optics.Lens;
+            import org.higherkindedj.optics.Traversal;
+            import org.higherkindedj.optics.annotations.ImportOptics;
+            import org.higherkindedj.optics.annotations.OpticsSpec;
+            import org.higherkindedj.optics.annotations.ThroughField;
+            import org.higherkindedj.optics.annotations.Wither;
+
+            @ImportOptics
+            @SuppressWarnings("rawtypes")
+            public interface RawOpticsSpec extends OpticsSpec<RawHolder> {
+                @Wither("withItems")
+                Lens<RawHolder, List<String>> items();
+
+                @ThroughField(field = "items")
+                Traversal<RawHolder, String> eachItem();
+            }
+            """);
+
+    // Under a raw site javac erases every member, so asking it to substitute would turn a field
+    // typed List<String> into a raw List and match no container. There is nothing to substitute.
+    Compilation compilation = compile(holder, specInterface);
+
+    assertThat(compilation).succeeded();
+  }
 }

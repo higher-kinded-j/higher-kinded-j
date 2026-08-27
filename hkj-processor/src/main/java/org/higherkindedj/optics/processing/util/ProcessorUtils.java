@@ -7,14 +7,17 @@ import java.util.Locale;
 import java.util.Set;
 import java.util.stream.Collectors;
 import javax.lang.model.element.Element;
+import javax.lang.model.element.ExecutableElement;
 import javax.lang.model.element.TypeElement;
 import javax.lang.model.type.ArrayType;
 import javax.lang.model.type.DeclaredType;
+import javax.lang.model.type.ExecutableType;
 import javax.lang.model.type.IntersectionType;
 import javax.lang.model.type.TypeKind;
 import javax.lang.model.type.TypeMirror;
 import javax.lang.model.type.TypeVariable;
 import javax.lang.model.type.WildcardType;
+import javax.lang.model.util.Types;
 
 /**
  * Shared utility methods for annotation processors in the optics module.
@@ -68,6 +71,108 @@ public final class ProcessorUtils {
    */
   public static boolean hasTypeArguments(TypeMirror type) {
     return type instanceof DeclaredType declared && !declared.getTypeArguments().isEmpty();
+  }
+
+  /**
+   * Whether a declared type carries an instantiation for {@code asMemberOf} to substitute.
+   *
+   * <p>Asked before reading a member under a type, because {@code asMemberOf} does the wrong thing
+   * at both ends of the question. Where there is nothing to substitute it can still lose what the
+   * member declares: under a raw site javac erases every member, so a field typed {@code
+   * List<String>} on a raw {@code Holder} comes back as {@code List} and matches no container.
+   * Where there is something to substitute, skipping it hands back a variable the caller never
+   * wrote.
+   *
+   * <p>The enclosing chain counts, not just the type's own arguments. A member of {@code
+   * Outer<List<String>>.Holder} speaks {@code Outer}'s variables even though {@code Holder}
+   * declares none of its own, and a chain that ends without arguments anywhere is either wholly
+   * non-generic or raw - in both of which the declaration was already the answer.
+   *
+   * @param type the instantiated type a member is about to be read under; must not be null
+   * @return true when some link of its enclosing chain carries type arguments
+   * @since 0.4.10
+   */
+  public static boolean carriesInstantiation(DeclaredType type) {
+    TypeMirror current = type;
+    while (current instanceof DeclaredType declared) {
+      if (!declared.getTypeArguments().isEmpty()) {
+        return true;
+      }
+      current = declared.getEnclosingType();
+    }
+    return false;
+  }
+
+  /**
+   * The sum type as one of its permitted subtypes instantiates it.
+   *
+   * <p>A prism for a subtype is written against the sum type the <em>subtype</em> names, not the
+   * sum type's own declaration: {@code GenCircle<T> implements GenShape<T>} focuses {@code
+   * GenShape<T>}, while {@code Tagged implements GenShape<String>} focuses {@code GenShape<String>}
+   * and needs no parameter of its own.
+   *
+   * @param sumType the sealed type; must not be null
+   * @param subtype the permitted subtype whose clause names it; must not be null
+   * @return the sum type as {@code subtype} names it, or the sum type itself when the clause does
+   *     not resolve and javac's own error is the one worth reading
+   * @since 0.4.10
+   */
+  public static DeclaredType sumTypeAsNamedBy(TypeElement sumType, TypeElement subtype) {
+    // Only the implemented interfaces: a sealed type reached here is an interface, so a subtype
+    // that is permitted by it names it there. A superclass could never be the match.
+    for (TypeMirror candidate : subtype.getInterfaces()) {
+      // Cast, not a pattern: an implements clause yields declared types only - an unresolvable one
+      // is an ErrorType, which is a DeclaredType too - so there is no other kind to test for.
+      DeclaredType declared = (DeclaredType) candidate;
+      if (declared.asElement().equals(sumType)) {
+        return declared;
+      }
+    }
+    return (DeclaredType) sumType.asType();
+  }
+
+  /**
+   * A method's return type as the given owner sees it.
+   *
+   * @param types the round's type utilities; must not be null
+   * @param owner the instantiated type the method is read on; must not be null
+   * @param method the method to read; must not be null
+   * @return the return type under {@code owner}'s instantiation
+   * @since 0.4.10
+   */
+  public static TypeMirror returnTypeIn(Types types, DeclaredType owner, ExecutableElement method) {
+    return memberOf(types, owner, method).getReturnType();
+  }
+
+  /**
+   * A method's first parameter type as the given owner sees it.
+   *
+   * @param types the round's type utilities; must not be null
+   * @param owner the instantiated type the method is read on; must not be null
+   * @param method the method to read, which must take at least one parameter; must not be null
+   * @return the first parameter's type under {@code owner}'s instantiation
+   * @since 0.4.10
+   */
+  public static TypeMirror firstParameterTypeIn(
+      Types types, DeclaredType owner, ExecutableElement method) {
+    return memberOf(types, owner, method).getParameterTypes().getFirst();
+  }
+
+  /**
+   * The member as the owner sees it.
+   *
+   * <p>Cast, not a fallback: {@code asMemberOf} answers with an {@link ExecutableType} for an
+   * executable member, and a member read as declared where a substitution was wanted is the very
+   * defect these helpers close - better to fail than to quietly return it.
+   *
+   * <p>A member reached through a <em>raw</em> supertype comes back erased, which is what the
+   * language says a raw type's members are. Nothing is done to soften that: reading the declaration
+   * instead lets analysis pass and leaves the generator emitting a call the erased member cannot
+   * take.
+   */
+  private static ExecutableType memberOf(
+      Types types, DeclaredType owner, ExecutableElement member) {
+    return (ExecutableType) types.asMemberOf(owner, member);
   }
 
   /**

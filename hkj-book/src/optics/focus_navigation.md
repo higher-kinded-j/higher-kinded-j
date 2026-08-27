@@ -215,9 +215,10 @@ Not every field does, and knowing which is the difference between a chain that c
 ```mermaid
 flowchart TD
     F{"The field's type is..."}
-    F -->|"a record annotated<br/>@GenerateFocus"| N(["Navigator<br/>chain with a method call"])
+    F -->|"a non-generic record<br/>annotated @GenerateFocus"| N(["Navigator<br/>chain with a method call"])
     F -->|"Optional, List, Set,<br/>Collection"| W(["Widened path<br/>chain with .via()"])
-    F -->|"an SPI container whose<br/>element type is annotated"| N
+    F -->|"an SPI container whose<br/>element type is annotated<br/>and non-generic"| N
+    F -->|"a generic record annotated<br/>@GenerateFocus"| P
     F -->|"anything else"| P(["Plain path<br/>chain with .via()"])
 
     classDef decision fill:#e5c890,stroke:#df8e1d,color:#232634
@@ -227,6 +228,8 @@ flowchart TD
 ```
 
 The middle branch is the one that surprises people. `Optional`, `List`, `Set` and `Collection` are widened by the processor before navigators are considered, so a `List<Department> departments` field gives you a `TraversalPath<Company, Department>` and never a `DepartmentsNavigator`. Container types that arrive through the SPI (a `Map`, an Eclipse Collections `ImmutableList`, an `Either`) *are* eligible, and get a navigator when their element type is itself annotated.
+
+A target that declares type parameters of its own does not. A navigator is an inner class parameterised by the source type alone, so it has no way to name them — `Inner<String> inner` keeps the plain path, chained with `.via()`. `Map<String, Inner<String>> inners` keeps the plain path too, but focused on the *map*: an SPI container of this shape is only stepped into when `widenCollections = true` says so, and the `.via()` chain reaches the element only after that. The processor says so as a note against the field, naming the chain to write in each case.
 
 <!-- verify -->
 ```java

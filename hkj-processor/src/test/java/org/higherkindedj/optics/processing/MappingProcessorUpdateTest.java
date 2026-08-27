@@ -1619,6 +1619,39 @@ class MappingProcessorUpdateTest {
     }
 
     @Test
+    @DisplayName("a generic mix-in reached through a non-generic one is rejected by name")
+    void transitiveGenericMixinRejected() {
+      JavaFileObject spec =
+          JavaFileObjects.forSourceString(
+              "com.example.TransitiveMixinMapping",
+              """
+              package com.example;
+
+              import org.higherkindedj.optics.annotations.GenerateMapping;
+              import org.higherkindedj.optics.annotations.UpdateSpec;
+
+              interface BaseVocabulary<T> {
+                  default org.higherkindedj.optics.validated.ValidatedPrism<String, T> shared() {
+                      return null;
+                  }
+              }
+
+              interface Vocabulary extends BaseVocabulary<String> {}
+
+              @GenerateMapping
+              public interface TransitiveMixinMapping
+                  extends Vocabulary, UpdateSpec<User, UserPatchDto> {}
+              """);
+
+      // Members are collected with getAllMembers, which walks the whole ancestry, so the gate has
+      // to as well - and it names the ancestor that is actually generic.
+      Compilation compilation = compile(EMAIL, USER, USER_PATCH_DTO, spec);
+
+      assertThat(compilation).failed();
+      assertThat(compilation).hadErrorContaining("mix-in 'BaseVocabulary' is generic");
+    }
+
+    @Test
     @DisplayName("a mix-in that is itself an update spec is rejected")
     void updateSpecMixinRejected() {
       JavaFileObject spec =

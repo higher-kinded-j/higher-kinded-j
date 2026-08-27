@@ -7,6 +7,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import com.google.testing.compile.JavaFileObjects;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import javax.annotation.processing.AbstractProcessor;
@@ -16,6 +17,8 @@ import javax.lang.model.element.Element;
 import javax.lang.model.element.ExecutableElement;
 import javax.lang.model.element.TypeElement;
 import javax.lang.model.element.TypeParameterElement;
+import javax.lang.model.element.VariableElement;
+import javax.lang.model.type.DeclaredType;
 import javax.lang.model.type.TypeMirror;
 import javax.lang.model.util.ElementFilter;
 import org.junit.jupiter.api.DisplayName;
@@ -204,6 +207,181 @@ class ProcessorUtilsTest {
 
       assertThat(processor.bounded).isTrue();
       assertThat(processor.unbounded).isFalse();
+    }
+  }
+
+  /** Contract tests for {@link ProcessorUtils#sumTypeAsNamedBy}, against javac's own mirrors. */
+  @Nested
+  @DisplayName("sumTypeAsNamedBy")
+  class SumTypeAsNamedBy {
+
+    /** Captures the answer for each permitted subtype, keyed by its simple name. */
+    private static final class CapturingProcessor extends AbstractProcessor {
+      private final Map<String, String> named = new LinkedHashMap<>();
+
+      @Override
+      public Set<String> getSupportedAnnotationTypes() {
+        return Set.of("*");
+      }
+
+      @Override
+      public SourceVersion getSupportedSourceVersion() {
+        return SourceVersion.latestSupported();
+      }
+
+      @Override
+      public boolean process(Set<? extends TypeElement> annotations, RoundEnvironment round) {
+        var elements = processingEnv.getElementUtils();
+        TypeElement shape = elements.getTypeElement("com.test.Shape");
+        if (shape == null) {
+          return false;
+        }
+        for (String subtypeName : List.of("com.test.Circle", "com.test.Tagged", "com.test.Loose")) {
+          TypeElement subtype = elements.getTypeElement(subtypeName);
+          named.put(
+              subtype.getSimpleName().toString(),
+              ProcessorUtils.sumTypeAsNamedBy(shape, subtype).toString());
+        }
+        return false;
+      }
+    }
+
+    @Test
+    @DisplayName("answers with the sum type as the subtype's own clause names it")
+    void answersWithTheClausesInstantiation() {
+      var sources =
+          JavaFileObjects.forSourceString(
+              "com.test.Shape",
+              """
+              package com.test;
+              public sealed interface Shape<T> permits Circle, Tagged {}
+              """);
+      var circle =
+          JavaFileObjects.forSourceString(
+              "com.test.Circle",
+              """
+              package com.test;
+              // Serializable first, so the scan passes an interface that is not the sum type.
+              public record Circle<T>(T tag) implements java.io.Serializable, Shape<T> {}
+              """);
+      var tagged =
+          JavaFileObjects.forSourceString(
+              "com.test.Tagged",
+              """
+              package com.test;
+              public record Tagged(String label) implements Shape<String> {}
+              """);
+      // Not permitted by Shape at all: the clause it would be found in does not name it, which is
+      // the shape a subtype whose clause fails to resolve presents.
+      var loose =
+          JavaFileObjects.forSourceString(
+              "com.test.Loose",
+              """
+              package com.test;
+              public record Loose(String v) {}
+              """);
+
+      var processor = new CapturingProcessor();
+      javac().withProcessors(processor).compile(sources, circle, tagged, loose);
+
+      assertThat(processor.named)
+          .containsEntry("Circle", "com.test.Shape<T>")
+          .containsEntry("Tagged", "com.test.Shape<java.lang.String>")
+          // Nothing to read, so the sum type answers for itself rather than null.
+          .containsEntry("Loose", "com.test.Shape<T>");
+    }
+  }
+
+  /**
+   * Contract tests for {@link ProcessorUtils#carriesInstantiation}, against javac's own mirrors.
+   *
+   * <p>The subject declares one field per shape; each field's type is the type to ask about. The
+   * member-of-a-generic-outer case is the one worth having: {@code Holder} carries no arguments of
+   * its own, so a reader asking only for those calls it uninstantiated and hands its members back
+   * speaking the outer's variables.
+   */
+  @Nested
+  @DisplayName("carriesInstantiation")
+  class CarriesInstantiation {
+
+    /** Captures the answer for each probe field, keyed by field name. */
+    private static final class CapturingProcessor extends AbstractProcessor {
+      private final Map<String, Boolean> carries = new LinkedHashMap<>();
+
+      @Override
+      public Set<String> getSupportedAnnotationTypes() {
+        return Set.of("*");
+      }
+
+      @Override
+      public SourceVersion getSupportedSourceVersion() {
+        return SourceVersion.latestSupported();
+      }
+
+      @Override
+      public boolean process(Set<? extends TypeElement> annotations, RoundEnvironment round) {
+        TypeElement subject = processingEnv.getElementUtils().getTypeElement("com.test.Subject");
+        if (subject == null) {
+          return false;
+        }
+        for (VariableElement field : ElementFilter.fieldsIn(subject.getEnclosedElements())) {
+          carries.put(
+              field.getSimpleName().toString(),
+              ProcessorUtils.carriesInstantiation((DeclaredType) field.asType()));
+        }
+        return false;
+      }
+    }
+
+    @Test
+    @DisplayName("reads the whole enclosing chain, not the type's own arguments alone")
+    void readsTheEnclosingChain() {
+      var outer =
+          JavaFileObjects.forSourceString(
+              "com.test.Outer",
+              """
+              package com.test;
+              public class Outer<X> {
+                public class Holder {}
+                public static class Nested {}
+              }
+              """);
+      var plain =
+          JavaFileObjects.forSourceString(
+              "com.test.Plain",
+              """
+              package com.test;
+              public class Plain {}
+              """);
+      var subject =
+          JavaFileObjects.forSourceString(
+              "com.test.Subject",
+              """
+              package com.test;
+              import java.util.List;
+              @SuppressWarnings({"rawtypes", "unused"})
+              public class Subject {
+                List<String> parameterised;
+                List raw;
+                Plain nonGeneric;
+                Outer<List<String>>.Holder memberOfGenericOuter;
+                Outer.Nested staticallyNested;
+              }
+              """);
+
+      var processor = new CapturingProcessor();
+      javac().withProcessors(processor).compile(outer, plain, subject);
+
+      assertThat(processor.carries)
+          .containsEntry("parameterised", true)
+          // Raw and non-generic both have nothing to substitute, and asMemberOf would erase the
+          // first rather than leave it alone.
+          .containsEntry("raw", false)
+          .containsEntry("nonGeneric", false)
+          // Holder declares no parameters; the instantiation is entirely its outer's.
+          .containsEntry("memberOfGenericOuter", true)
+          // A static nested class has no enclosing instance type, so the outer cannot reach it.
+          .containsEntry("staticallyNested", false);
     }
   }
 }

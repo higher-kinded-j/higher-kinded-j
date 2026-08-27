@@ -19,6 +19,7 @@ import org.higherkindedj.optics.Lens;
 import org.higherkindedj.optics.annotations.GenerateFocus;
 import org.higherkindedj.optics.processing.WideningAnalysis.Tier;
 import org.higherkindedj.optics.processing.WideningAnalysis.Widening;
+import org.higherkindedj.optics.processing.spi.Cardinality;
 import org.higherkindedj.optics.processing.spi.TraversableGenerator;
 import org.higherkindedj.optics.processing.util.ProcessorUtils;
 
@@ -101,11 +102,19 @@ public class NavigatorClassGenerator {
   /**
    * Whether the Focus method for this component steps into a {@code ZERO_OR_MORE} container.
    *
-   * <p>A container holding a navigable element always does — reaching that element is what its
-   * navigator exists for — and otherwise the declaring record's {@code widenCollections} decides.
+   * <p>A container whose element reaches a navigator always does — reaching that element is what
+   * the navigator exists for — and otherwise the declaring record's {@code widenCollections}
+   * decides.
+   *
+   * <p>The question is the one {@link #navigatorTarget} answers, not merely whether the element is
+   * navigable. A container the widening steps into but no navigator is offered for would leave the
+   * navigation method declaring a traversal and returning a focus, and every reason a navigator is
+   * declined — the element is generic, the record turned navigators off, the field is filtered out
+   * — reaches that same disagreement.
    */
   private boolean widensContainers(TypeElement record, RecordComponentElement component) {
-    return spiNavigable(component.asType()) != null || focusSettings(record).widenCollections();
+    return (spiNavigable(component.asType()) != null && navigatorTarget(record, component) != null)
+        || focusSettings(record).widenCollections();
   }
 
   /**
@@ -139,34 +148,92 @@ public class NavigatorClassGenerator {
       TypeSpec.Builder focusClassBuilder, TypeElement recordElement, int currentDepth) {
 
     for (RecordComponentElement component : recordElement.getRecordComponents()) {
-      TypeElement target = navigatorTarget(recordElement, component);
-      if (target == null) {
+      // The two reasons a candidate gets no navigator are told apart here, because only one of
+      // them is the component's target being generic; navigatorTarget conflates them by design.
+      TypeElement candidate = navigatorCandidate(recordElement, component);
+      if (candidate == null) {
+        continue;
+      }
+      if (declaresTypeParameters(candidate)) {
+        reportGenericTargetSkipped(recordElement, component, candidate);
         continue;
       }
       focusClassBuilder.addType(
           generateNavigatorClass(
-              component, target, currentDepth, widening(recordElement, component).tier()));
+              component, candidate, currentDepth, widening(recordElement, component).tier()));
     }
   }
 
   /**
-   * The type a record's Focus method for this component navigates to, or null when that method
-   * hands back a path instead.
+   * Says why a component asking for a navigator did not get one, when the reason is that its target
+   * is generic.
    *
-   * <p>A component reaches a navigator either by being a navigable type itself or by being an SPI
-   * container of one. Every site that asks — the navigator class, the method that returns it, and a
-   * navigation method composing it from another record — reads the answer from here, so they cannot
-   * disagree about which components have one.
+   * <p>The declaring record asked for navigators and gets one fewer than the components suggest,
+   * which is the same surprise a delegate-name collision produces and is reported the same way.
+   * Every other reason a component has no navigator is visible in what it is: not navigable, or
+   * filtered out by the record's own include/exclude.
+   *
+   * @param recordElement the record declaring the component
+   * @param component the component whose navigator was not generated
+   * @param navigable the generic target it reaches, already established by the caller
+   */
+  private void reportGenericTargetSkipped(
+      TypeElement recordElement, RecordComponentElement component, TypeElement navigable) {
+
+    String componentName = component.getSimpleName().toString();
+    String chain =
+        focusClassOf(recordElement).simpleName()
+            + "."
+            + componentName
+            + "().via("
+            + focusClassOf(navigable).simpleName()
+            + ".…())";
+    processingEnv
+        .getMessager()
+        .printMessage(
+            Diagnostic.Kind.NOTE,
+            "Navigator for field '"
+                + componentName
+                + "' is not generated: "
+                + navigable.getSimpleName()
+                + " declares type parameters, which a navigator has no way to name. "
+                + (keepsContainerInFocus(recordElement, component)
+                    ? "Its Focus method keeps the container itself in focus, so add"
+                        + " widenCollections = true to step into it, then chain "
+                        + chain
+                        + " through the element."
+                    : "Use " + chain + " to chain through it."),
+            component);
+  }
+
+  /**
+   * Whether a component's Focus method stops at its container rather than the element inside it.
+   *
+   * <p>A {@code ZERO_OR_MORE} SPI container is left un-widened unless the record asks for it, so
+   * its path is focused on the container and composes with nothing the element declares. Every
+   * other navigable shape — a direct field, a built-in collection, an {@code Optional}, a {@code
+   * ZERO_OR_ONE} container — is already stepped into by the time the note is written, and chains
+   * through the element as written.
    *
    * @param record the record that declares the component
    * @param component the component
-   * @return the navigable type its Focus method reaches, or null
+   * @return true when the container is still in focus, so the element is a step further on
    */
-  private TypeElement navigatorTarget(TypeElement record, RecordComponentElement component) {
-    if (!focusSettings(record).generateNavigators()
-        || !shouldGenerateNavigator(record, component)) {
-      return null;
-    }
+  private boolean keepsContainerInFocus(TypeElement record, RecordComponentElement component) {
+    SpiNavigable spiNavigable = spiNavigable(component.asType());
+    return spiNavigable != null
+        && spiNavigable.generator().getCardinality() == Cardinality.ZERO_OR_MORE
+        && !focusSettings(record).widenCollections();
+  }
+
+  /**
+   * The navigable type a component reaches, generic or not, before the navigator question is asked
+   * of it.
+   *
+   * @param component the component to read
+   * @return the navigable type it reaches, or null when it reaches none
+   */
+  private TypeElement navigableTarget(RecordComponentElement component) {
     TypeMirror fieldType = component.asType();
     TypeElement direct = navigableTypeElement(fieldType);
     if (direct != null) {
@@ -174,6 +241,61 @@ public class NavigatorClassGenerator {
     }
     SpiNavigable spiNavigable = spiNavigable(fieldType);
     return spiNavigable == null ? null : spiNavigable.element();
+  }
+
+  /**
+   * The type a record's Focus method for this component navigates to, or null when that method
+   * hands back a path instead.
+   *
+   * <p>A component reaches a navigator by being a navigable type itself, or by being an SPI
+   * container of one, and in either case only when that type declares no type parameters of its
+   * own. Every site that asks — the navigator class, the method that returns it, and a navigation
+   * method composing it from another record — reads the answer from here, so they cannot disagree
+   * about which components have one.
+   *
+   * @param record the record that declares the component
+   * @param component the component
+   * @return the navigable type its Focus method reaches, or null
+   */
+  private TypeElement navigatorTarget(TypeElement record, RecordComponentElement component) {
+    TypeElement candidate = navigatorCandidate(record, component);
+    return candidate == null || declaresTypeParameters(candidate) ? null : candidate;
+  }
+
+  /**
+   * The navigable type a component would get a navigator for, before its own type parameters are
+   * considered.
+   *
+   * <p>Split from {@link #navigatorTarget} so that the note explaining a generic target and the
+   * gate declining it read one answer rather than two. Re-deriving it would report the target's
+   * genericity as the reason a field the record itself filtered out has no navigator, which is a
+   * reason its author cannot act on.
+   *
+   * @param record the record that declares the component
+   * @param component the component
+   * @return the navigable type it reaches while asking for a navigator, or null
+   */
+  private TypeElement navigatorCandidate(TypeElement record, RecordComponentElement component) {
+    if (!focusSettings(record).generateNavigators()
+        || !shouldGenerateNavigator(record, component)) {
+      return null;
+    }
+    return navigableTarget(component);
+  }
+
+  /**
+   * Whether a navigable type declares type parameters of its own.
+   *
+   * <p>A navigator is an inner class parameterised by the source type alone, and its navigation
+   * methods read the target's components from the target's own declaration. Both would name the
+   * target's variables, which are in scope on neither. The component keeps its plain path method,
+   * which carries the instantiation and composes the same way.
+   *
+   * @param navigable the navigable type the component reaches
+   * @return true when it declares type parameters
+   */
+  private static boolean declaresTypeParameters(TypeElement navigable) {
+    return !navigable.getTypeParameters().isEmpty();
   }
 
   /**
@@ -756,8 +878,8 @@ public class NavigatorClassGenerator {
 
     String componentName = component.getSimpleName().toString();
 
-    // A component whose type reaches a navigable one — directly, or as the element of an SPI
-    // container — gets this navigator method in place of the plain path method. Hardcoded
+    // A component whose type reaches a non-generic navigable one — directly, or as the element of
+    // an SPI container — gets this navigator method in place of the plain path method. Hardcoded
     // Optional/Collection fields are not among them: createFocusPathMethod widens those through
     // .some()/.each() instead.
     TypeElement target = navigatorTarget(recordElement, component);

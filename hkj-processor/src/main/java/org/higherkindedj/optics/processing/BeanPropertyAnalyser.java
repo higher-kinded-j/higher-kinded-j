@@ -18,6 +18,7 @@ import javax.lang.model.type.TypeKind;
 import javax.lang.model.type.TypeMirror;
 import javax.lang.model.util.ElementFilter;
 import org.higherkindedj.optics.processing.util.Diagnostics;
+import org.higherkindedj.optics.processing.util.ProcessorUtils;
 
 /**
  * Discovers the JavaBeans property model of a bean-shaped wire type for {@code @GenerateMapping} .
@@ -53,6 +54,9 @@ final class BeanPropertyAnalyser {
    * neither a mutable JavaBean nor a builder-based bean with a readable property.
    */
   WireShape.BeanShape analyse(TypeElement spec, TypeElement bean, String tag) {
+    // A bean inherits properties from its superclasses, so a member read off its declaring element
+    // speaks that element's variables: 'T getId()' on BaseDto<T> is String on UserDto.
+    DeclaredType beanType = (DeclaredType) bean.asType();
     Map<String, ExecutableElement> getters = collectGetters(bean);
 
     if (hasUsableNoArgsConstructor(spec, bean)) {
@@ -60,11 +64,12 @@ final class BeanPropertyAnalyser {
       List<WireShape.BeanProperty> properties = new ArrayList<>();
       for (Map.Entry<String, ExecutableElement> entry : getters.entrySet()) {
         String name = entry.getKey();
-        TypeMirror getterType = entry.getValue().getReturnType();
+        TypeMirror getterType = getterType(beanType, entry.getValue());
         String getter = entry.getValue().getSimpleName().toString();
         ExecutableElement setter = setters.get(name);
         if (setter != null) {
-          if (typesDiffer(spec, bean, tag, name, getterType, paramType(setter))) {
+          if (typesDiffer(
+              spec, bean, entry.getValue(), tag, name, getterType, paramType(beanType, setter))) {
             return null;
           }
           properties.add(
@@ -87,7 +92,9 @@ final class BeanPropertyAnalyser {
 
     BuilderModel builder = findBuilderModel(bean);
     if (builder != null) {
-      Map<String, ExecutableElement> builderSetters = collectBuilderSetters(builder.builderType());
+      DeclaredType builderType = builder.builderType();
+      Map<String, ExecutableElement> builderSetters =
+          collectBuilderSetters(builder.builderElement());
       List<WireShape.BeanProperty> properties = new ArrayList<>();
       for (Map.Entry<String, ExecutableElement> entry : getters.entrySet()) {
         String name = entry.getKey();
@@ -95,8 +102,15 @@ final class BeanPropertyAnalyser {
         if (builderSetter == null) {
           continue;
         }
-        TypeMirror getterType = entry.getValue().getReturnType();
-        if (typesDiffer(spec, bean, tag, name, getterType, paramType(builderSetter))) {
+        TypeMirror getterType = getterType(beanType, entry.getValue());
+        if (typesDiffer(
+            spec,
+            bean,
+            entry.getValue(),
+            tag,
+            name,
+            getterType,
+            paramType(builderType, builderSetter))) {
           return null;
         }
         properties.add(
@@ -120,12 +134,15 @@ final class BeanPropertyAnalyser {
 
   /** The number of mappable properties under the selected strategy, for the parse arithmetic. */
   int propertyCount(TypeElement spec, TypeElement bean) {
+    DeclaredType beanType = (DeclaredType) bean.asType();
     Map<String, ExecutableElement> getters = collectGetters(bean);
     if (hasUsableNoArgsConstructor(spec, bean)) {
       Map<String, ExecutableElement> setters = collectSetters(bean);
       long count =
           getters.entrySet().stream()
-              .filter(e -> setters.containsKey(e.getKey()) || isList(e.getValue().getReturnType()))
+              .filter(
+                  e ->
+                      setters.containsKey(e.getKey()) || isList(getterType(beanType, e.getValue())))
               .count();
       if (count > 0) {
         return (int) count;
@@ -133,7 +150,8 @@ final class BeanPropertyAnalyser {
     }
     BuilderModel builder = findBuilderModel(bean);
     if (builder != null) {
-      Map<String, ExecutableElement> builderSetters = collectBuilderSetters(builder.builderType());
+      Map<String, ExecutableElement> builderSetters =
+          collectBuilderSetters(builder.builderElement());
       long count = getters.keySet().stream().filter(builderSetters::containsKey).count();
       if (count > 0) {
         return (int) count;
@@ -145,6 +163,7 @@ final class BeanPropertyAnalyser {
   private boolean typesDiffer(
       TypeElement spec,
       TypeElement bean,
+      ExecutableElement getter,
       String tag,
       String name,
       TypeMirror getterType,
@@ -160,14 +179,17 @@ final class BeanPropertyAnalyser {
             + name
             + "' on '"
             + bean.getSimpleName()
-            + "' is read and written at different types ("
-            + getterType
+            + "'"
+            + declaredOn(bean, getter)
+            + " is read and written at different types ("
+            + ProcessorUtils.simpleTypeName(getterType)
             + " vs "
-            + writerType
+            + ProcessorUtils.simpleTypeName(writerType)
             + ").",
         "A mappable property has one type; the mapper cannot guess which of the two the component"
             + " should carry.",
-        "Align the getter and its setter (or builder setter) on the bean, or drop one of them.");
+        "Align the getter and its setter (or builder setter) where they are declared, or drop one"
+            + " of them.");
     return true;
   }
 
@@ -229,8 +251,25 @@ final class BeanPropertyAnalyser {
     return merged;
   }
 
-  /** A builder factory + terminal build method discovered on a bean. */
-  private record BuilderModel(String factory, String buildMethod, TypeElement builderType) {}
+  /**
+   * A builder factory + terminal build method discovered on a bean.
+   *
+   * <p>{@code builderType} is the factory's return type as written - {@code Builder<String>}, not
+   * {@code Builder<T>}. Re-deriving it from the element would put the builder's own variables back
+   * where the factory named actual arguments, and every setter would then be read at a variable the
+   * bean's author never wrote.
+   *
+   * @param factory the static factory method's name
+   * @param buildMethod the terminal build method's name
+   * @param builderType the builder as the factory instantiates it
+   */
+  private record BuilderModel(String factory, String buildMethod, DeclaredType builderType) {
+
+    /** The builder's element, for the members that are read off the declaration itself. */
+    TypeElement builderElement() {
+      return (TypeElement) builderType.asElement();
+    }
+  }
 
   private BuilderModel findBuilderModel(TypeElement bean) {
     ExecutableElement factory = builderFactory(bean, "builder");
@@ -241,9 +280,9 @@ final class BeanPropertyAnalyser {
       return null;
     }
     // builderFactory only returns a factory whose return kind is DECLARED, so the cast is total.
-    TypeElement builderType = (TypeElement) ((DeclaredType) factory.getReturnType()).asElement();
+    DeclaredType builderType = (DeclaredType) factory.getReturnType();
     boolean buildsWire =
-        publicInstanceMethods(builderType).stream()
+        publicInstanceMethods((TypeElement) builderType.asElement()).stream()
             .anyMatch(
                 m ->
                     m.getSimpleName().contentEquals("build")
@@ -312,8 +351,27 @@ final class BeanPropertyAnalyser {
         && ((TypeElement) declared.asElement()).getQualifiedName().contentEquals(LIST);
   }
 
-  private TypeMirror paramType(ExecutableElement setter) {
-    return setter.getParameters().getFirst().asType();
+  /**
+   * Names the type a property is declared on, when that is not the bean itself.
+   *
+   * <p>A bean inherits properties, so the accessors a reader has to go and align may be in a file
+   * the bean's own source never mentions.
+   *
+   * @param bean the wire being analysed
+   * @param getter the property's getter
+   * @return a parenthetical naming the declaring type, or the empty string when it is the bean
+   */
+  private String declaredOn(TypeElement bean, ExecutableElement getter) {
+    Element declaring = getter.getEnclosingElement();
+    return declaring.equals(bean) ? "" : " (declared on '" + declaring.getSimpleName() + "')";
+  }
+
+  private TypeMirror getterType(DeclaredType owner, ExecutableElement getter) {
+    return ProcessorUtils.returnTypeIn(env.getTypeUtils(), owner, getter);
+  }
+
+  private TypeMirror paramType(DeclaredType owner, ExecutableElement setter) {
+    return ProcessorUtils.firstParameterTypeIn(env.getTypeUtils(), owner, setter);
   }
 
   /**

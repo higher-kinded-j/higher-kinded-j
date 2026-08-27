@@ -14,6 +14,7 @@ import javax.tools.Diagnostic;
 import org.higherkindedj.optics.Prism;
 import org.higherkindedj.optics.processing.util.ExcludeFromJacocoGeneratedReport;
 import org.higherkindedj.optics.processing.util.ProcessorUtils;
+import org.higherkindedj.optics.processing.util.SubtypePrismGenerator;
 
 /**
  * Generates prism classes for external types (sealed interfaces and enums).
@@ -53,8 +54,6 @@ public class ExternalPrismGenerator {
     String interfaceName = sealedInterface.getSimpleName().toString();
     String prismsClassName = interfaceName + "Prisms";
 
-    ClassName sumTypeName = ClassName.get(sealedInterface);
-
     TypeSpec.Builder prismsClassBuilder =
         TypeSpec.classBuilder(prismsClassName)
             .addAnnotation(GENERATED_ANNOTATION)
@@ -66,7 +65,11 @@ public class ExternalPrismGenerator {
 
     // Generate prism methods for each permitted subtype
     for (TypeElement subtype : analysis.permittedSubtypes()) {
-      prismsClassBuilder.addMethod(createPrismMethodForSubtype(sumTypeName, subtype));
+      MethodSpec prism =
+          SubtypePrismGenerator.prismMethodFor(messager, "@ImportOptics", sealedInterface, subtype);
+      if (prism != null) {
+        prismsClassBuilder.addMethod(prism);
+      }
     }
 
     writeFile(targetPackage, prismsClassBuilder.build());
@@ -101,36 +104,6 @@ public class ExternalPrismGenerator {
     }
 
     writeFile(targetPackage, prismsClassBuilder.build());
-  }
-
-  private MethodSpec createPrismMethodForSubtype(ClassName sumTypeName, TypeElement subtype) {
-    String methodName = ProcessorUtils.toCamelCase(subtype.getSimpleName().toString());
-    ClassName subTypeName = ClassName.get(subtype);
-
-    ParameterizedTypeName prismTypeName =
-        ParameterizedTypeName.get(ClassName.get(Prism.class), sumTypeName, subTypeName);
-
-    return MethodSpec.methodBuilder(methodName)
-        .addJavadoc(
-            "Creates a {@link $T} that focuses on the {@link $T} subtype of the {@link $T} sum"
-                + " type.\n\n"
-                + "@return A non-null {@code Prism<$T, $T>}.",
-            Prism.class,
-            subTypeName,
-            sumTypeName,
-            sumTypeName,
-            subTypeName)
-        .addModifiers(Modifier.PUBLIC, Modifier.STATIC)
-        .returns(prismTypeName)
-        .addStatement(
-            "return $T.of(source -> source instanceof $T ? $T.of(($T) source) : $T.empty(), value"
-                + " -> value)",
-            Prism.class,
-            subTypeName,
-            Optional.class,
-            subTypeName,
-            Optional.class)
-        .build();
   }
 
   private MethodSpec createPrismMethodForEnumConstant(
