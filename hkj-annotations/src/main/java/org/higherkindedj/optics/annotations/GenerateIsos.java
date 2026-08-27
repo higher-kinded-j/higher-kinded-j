@@ -13,6 +13,13 @@ import java.lang.annotation.Target;
  * <p>This should be placed on a method that returns an Iso. The annotation processor will then
  * generate a static field containing the Iso instance.
  *
+ * <p>The method has to be {@code static} and declare no type parameters of its own, because the
+ * generated field is a {@code public static final} one initialised by calling it: a field has
+ * nowhere to declare type parameters, and a static initialiser has no instance to call an instance
+ * method on. A method that is either is refused at the declaration rather than generated for. Fix
+ * the type arguments where the method is declared - {@code Iso<Box<String>, String>} rather than
+ * {@code <T> Iso<Box<T>, T>} - or expose the method itself instead of a generated field.
+ *
  * <p>By default, the generated class is placed in the same package as the enclosing class. Use the
  * {@link #targetPackage()} element to specify a different package for the generated class.
  */

@@ -131,6 +131,21 @@ The annotation processor generates `UserServicePaths` with:
 
 The wrapper is exactly the one-liner shown in Tutorial 02 Exercise 6, generated so we never have to write it.
 
+Type parameters carry through. A generic service gives a generic bridge — `Repo<T>` yields `RepoPaths<T>` wrapping a `Repo<T>`, bounds included — and a generic `@PathVia` method keeps its own parameters on the bridge method:
+
+```java
+@GeneratePathBridge
+public interface Repo<T extends Comparable<T>> {
+    @PathVia
+    <R> Optional<R> convert(T from, Class<R> to);
+}
+
+// generated
+public final class RepoPaths<T extends Comparable<T>> {
+    public <R> OptionalPath<R> convert(T from, Class<R> to) { ... }
+}
+```
+
 ---
 
 ## Focus-Effect bridge

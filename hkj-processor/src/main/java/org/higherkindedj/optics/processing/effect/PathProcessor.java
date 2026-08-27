@@ -109,6 +109,16 @@ public class PathProcessor extends AbstractProcessor {
     String bridgeClassName = interfaceName + suffix;
 
     ClassName interfaceClassName = ClassName.get(interfaceElement);
+    // The bridge holds one delegate of the annotated interface, so it declares whatever that
+    // interface declares. Naming it raw instead would leave every method that mentions one of
+    // those parameters pointing at a variable the bridge never brings into scope.
+    List<TypeVariableName> interfaceVariables =
+        interfaceElement.getTypeParameters().stream().map(TypeVariableName::get).toList();
+    TypeName delegateType =
+        interfaceVariables.isEmpty()
+            ? interfaceClassName
+            : ParameterizedTypeName.get(
+                interfaceClassName, interfaceVariables.toArray(TypeName[]::new));
 
     // Build the bridge class
     TypeSpec.Builder classBuilder =
@@ -118,17 +128,17 @@ public class PathProcessor extends AbstractProcessor {
                 "Generated Path bridge for {@link $T}.\n\n<p>Do not edit.\n", interfaceClassName)
             .addModifiers(Modifier.PUBLIC, Modifier.FINAL)
             .addOriginatingElement(interfaceElement);
+    interfaceVariables.forEach(classBuilder::addTypeVariable);
 
     // Add delegate field
     classBuilder.addField(
-        FieldSpec.builder(interfaceClassName, "delegate", Modifier.PRIVATE, Modifier.FINAL)
-            .build());
+        FieldSpec.builder(delegateType, "delegate", Modifier.PRIVATE, Modifier.FINAL).build());
 
     // Add constructor
     classBuilder.addMethod(
         MethodSpec.constructorBuilder()
             .addModifiers(Modifier.PUBLIC)
-            .addParameter(interfaceClassName, "delegate")
+            .addParameter(delegateType, "delegate")
             .addJavadoc(
                 "Creates a new Path bridge wrapping the given delegate.\n\n"
                     + "@param delegate the service to wrap; must not be null\n")
@@ -182,6 +192,13 @@ public class PathProcessor extends AbstractProcessor {
         MethodSpec.methodBuilder(methodName)
             .addModifiers(Modifier.PUBLIC)
             .returns(mapping.pathType());
+
+    // A generic delegate method's parameters are named by the return type and the arguments copied
+    // below, so the bridge method has to declare them itself; the interface's own are in scope
+    // already, from the class.
+    method.getTypeParameters().stream()
+        .map(TypeVariableName::get)
+        .forEach(methodBuilder::addTypeVariable);
 
     // Add documentation
     if (!doc.isEmpty()) {

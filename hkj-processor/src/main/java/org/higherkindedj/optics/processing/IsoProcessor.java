@@ -22,6 +22,7 @@ import javax.lang.model.type.TypeMirror;
 import javax.tools.Diagnostic;
 import org.higherkindedj.optics.Iso;
 import org.higherkindedj.optics.annotations.GenerateIsos;
+import org.higherkindedj.optics.processing.util.Diagnostics;
 import org.higherkindedj.optics.processing.util.ExcludeFromJacocoGeneratedReport;
 
 /**
@@ -31,6 +32,8 @@ import org.higherkindedj.optics.processing.util.ExcludeFromJacocoGeneratedReport
 @AutoService(Processor.class)
 @SupportedAnnotationTypes("org.higherkindedj.optics.annotations.GenerateIsos")
 public final class IsoProcessor extends AbstractProcessor {
+
+  private static final String TAG = "@GenerateIsos";
 
   @Override
   public SourceVersion getSupportedSourceVersion() {
@@ -62,7 +65,48 @@ public final class IsoProcessor extends AbstractProcessor {
     }
   }
 
+  /**
+   * Reports a method the generated field cannot be written for, and returns whether it did.
+   *
+   * <p>The iso is published as a {@code public static final} field initialised by calling the
+   * method. A field has nowhere to declare type parameters, and a static initialiser has no
+   * instance to call an instance method on, so both shapes are turned away here rather than left to
+   * javac to report against source the author did not write.
+   *
+   * @param method the annotated method
+   * @return true when the method was rejected and an error reported
+   */
+  private boolean rejectsUnwritableMethod(final ExecutableElement method) {
+    if (!method.getTypeParameters().isEmpty()) {
+      Diagnostics.error(
+          processingEnv.getMessager(),
+          method,
+          TAG,
+          "'" + method.getSimpleName() + "' declares type parameters.",
+          "The iso is published as a static final field, which has nowhere to declare them; the"
+              + " field would name a variable nothing brings into scope.",
+          "Fix the type arguments at the declaration, as 'Iso<Box<String>, String>', or drop"
+              + " @GenerateIsos and expose the method itself.");
+      return true;
+    }
+    if (!method.getModifiers().contains(STATIC)) {
+      Diagnostics.error(
+          processingEnv.getMessager(),
+          method,
+          TAG,
+          "'" + method.getSimpleName() + "' is not static.",
+          "The generated field initialises itself by calling the method, and a static initialiser"
+              + " has no instance to call it on.",
+          "Make '" + method.getSimpleName() + "' static.");
+      return true;
+    }
+    return false;
+  }
+
   private void processMethod(final ExecutableElement method) throws IOException {
+    if (rejectsUnwritableMethod(method)) {
+      return;
+    }
     final TypeElement classElement = (TypeElement) method.getEnclosingElement();
     final String methodName = method.getSimpleName().toString();
     final String className = classElement.getSimpleName().toString();

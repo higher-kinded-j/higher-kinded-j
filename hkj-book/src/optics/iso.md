@@ -99,6 +99,8 @@ public class Converters {
 
 This is useful when you need to avoid name collisions or organise generated code separately.
 
+The annotated method has to be `static` and declare no type parameters of its own. What gets generated is a `public static final` field initialised by calling the method, and a field has nowhere to put a `<T>` — so `@GenerateIsos` on `<T> Iso<Box<T>, T> boxIso()` is refused where it is written, rather than generating a field naming a `T` that nothing declares. Fix the type arguments at the declaration (`Iso<Box<String>, String>`), or expose the method itself and skip the generated field.
+
 ### Step 2: The Core Iso Operations
 
 An `Iso` provides two fundamental, lossless operations:
