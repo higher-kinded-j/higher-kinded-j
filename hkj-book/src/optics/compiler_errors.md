@@ -71,6 +71,12 @@ Note this is about what the *iso* names, not what the method declares: `<T> Iso<
 
 **Fix.** Make the method and its enclosing types public, or generate into the package they are already visible from.
 
+### "@GenerateFocus: record component 'X.y' has a wildcard type argument in Set<? extends T>"
+
+**Cause.** Also reported as *"has a raw Set"*, and for `Collection`, `Map`, `Either`, `Try` and every other container the processor widens through an optic **instance**. That instance — `EachInstances.setEach()`, `Affines.eitherRight()` — has its own type arguments inferred from the component's type, and a raw container offers none to infer from while a wildcard has no ground instantiation. `Optional`, `Maybe` and `List` are exempt: they widen through the no-argument `.some()` and `.each()`, whose free type variable takes either without complaint.
+
+**Fix.** Name the type argument — `Set<Leaf>` rather than `Set<? extends Leaf>` — or drop `@GenerateFocus` from the record and keep `@GenerateLenses` and `@GenerateTraversals`, which compose no optic instance and take the component as written. See [Custom Containers](focus_containers.md#supported-container-types).
+
 ---
 
 ## `@ImportOptics` and `OpticsSpec` interfaces

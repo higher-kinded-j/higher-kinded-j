@@ -501,7 +501,7 @@ public class FocusProcessorSpiEnhancementsTest {
       assertThat(compilation)
           .hadErrorContaining(
               "Declare the component with concrete type arguments, such as"
-                  + " Either<String, Leaf>.");
+                  + " Either<String, Leaf>, or drop @GenerateFocus from the record");
     }
 
     @Test
@@ -513,7 +513,7 @@ public class FocusProcessorSpiEnhancementsTest {
 
       assertThat(compilation)
           .hadErrorContaining("has a wildcard type argument in Either<?, Leaf>.");
-      assertThat(compilation).hadErrorContaining("such as Either<Object, Leaf>.");
+      assertThat(compilation).hadErrorContaining("such as Either<Object, Leaf>,");
     }
 
     @Test
@@ -521,7 +521,7 @@ public class FocusProcessorSpiEnhancementsTest {
     void shouldNameObjectForUnboundedWildcard() {
       Compilation compilation = compile("", "Either<String, ?> unbounded");
 
-      assertThat(compilation).hadErrorContaining("such as Either<String, Object>.");
+      assertThat(compilation).hadErrorContaining("such as Either<String, Object>,");
     }
 
     @Test
@@ -569,7 +569,7 @@ public class FocusProcessorSpiEnhancementsTest {
 
       assertThat(compilation)
           .hadErrorContaining("has a wildcard type argument in Map<String, ? extends Leaf>.");
-      assertThat(compilation).hadErrorContaining("such as Map<String, Leaf>.");
+      assertThat(compilation).hadErrorContaining("such as Map<String, Leaf>,");
     }
 
     @Test
@@ -633,7 +633,7 @@ public class FocusProcessorSpiEnhancementsTest {
       assertThat(compilation).hadErrorContaining("record component 'Holder.raw' has a raw Either.");
       assertThat(compilation)
           .hadErrorContaining("a raw type offers no type arguments to infer it from.");
-      assertThat(compilation).hadErrorContaining("such as Either<Object, Object>.");
+      assertThat(compilation).hadErrorContaining("such as Either<Object, Object>,");
     }
 
     @Test

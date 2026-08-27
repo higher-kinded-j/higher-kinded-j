@@ -24,8 +24,6 @@ public class SetGeneratorTest {
 
             import org.higherkindedj.optics.annotations.GenerateTraversals;
             import java.util.Set;
-            import java.util.ArrayList;
-            import java.util.stream.Collectors;
             import org.higherkindedj.optics.util.Traversals;
 
             @GenerateTraversals
@@ -34,9 +32,7 @@ public class SetGeneratorTest {
 
     final String expectedBody =
         """
-        final var sourceList = new ArrayList<>(source.keywords());
-        final var effectOfList = Traversals.traverseList(sourceList, f, applicative);
-        final var effectOfSet = applicative.map(newList -> newList.stream().collect(Collectors.toSet()), effectOfList);
+        final var effectOfSet = Traversals.traverseSet(source.keywords(), f, applicative);
         return applicative.map(newSet -> new Article(source.id(), newSet), effectOfSet);
         """;
 

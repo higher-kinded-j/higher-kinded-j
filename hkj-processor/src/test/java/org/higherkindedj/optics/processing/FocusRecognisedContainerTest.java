@@ -284,5 +284,34 @@ class FocusRecognisedContainerTest {
       assertThat(compile(component))
           .hadErrorContaining("record component 'Holder.f' has a raw " + component + ".");
     }
+
+    @ParameterizedTest(name = "{0}")
+    @ValueSource(strings = {"Set<?>", "Set<? extends CharSequence>", "Collection<?>", "Set"})
+    @DisplayName(
+        "the remedy the diagnostic offers compiles: the sibling annotations take it as written")
+    void theRemedyTheDiagnosticOffersCompiles(String component) {
+      Compilation compilation =
+          javac()
+              .withProcessors(new LensProcessor(), new TraversalProcessor())
+              .compile(
+                  JavaFileObjects.forSourceString(
+                      "com.example.Holder",
+                      """
+                      package com.example;
+
+                      import java.util.Collection;
+                      import java.util.Set;
+                      import org.higherkindedj.optics.annotations.GenerateLenses;
+                      import org.higherkindedj.optics.annotations.GenerateTraversals;
+
+                      @GenerateLenses
+                      @GenerateTraversals
+                      @SuppressWarnings("rawtypes")
+                      public record Holder(%s f) {}
+                      """
+                          .formatted(component)));
+
+      assertThat(compilation).succeeded();
+    }
   }
 }

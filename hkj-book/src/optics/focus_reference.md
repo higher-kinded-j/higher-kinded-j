@@ -227,7 +227,8 @@ Check, in order: whether an `AffinePath` in the chain actually matches (`matches
 
 | Field is | Use |
 |----------|-----|
-| `List<T>`, `Set<T>` or `Collection<T>` | `each()`, already applied by the generated method with the `Each` that rebuilds the container |
+| `List<T>` | `each()`, already applied by the generated method |
+| `Set<T>`, `Collection<T>` | `each(EachInstances.setEach())` / `each(EachInstances.collectionEach())`, already applied by the generated method; the no-argument `each()` is `List`-only |
 | `Kind<F, T>` on a `@GenerateFocus` record | nothing: the processor generates the traversal |
 | `Kind<F, T>` behind a hand-written lens | `traverseOver(SomeTraverse.INSTANCE)` |
 

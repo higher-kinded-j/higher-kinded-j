@@ -219,7 +219,7 @@ public class FocusProcessor extends AbstractProcessor {
 
     // Generate FocusPath methods for each component
     for (RecordComponentElement component : components) {
-      reportUndenotableSpiWidening(component, widenCollections, navigatorGenerator, analysis);
+      reportUndenotableWidening(component, widenCollections, navigatorGenerator, analysis);
       MethodSpec method = null;
 
       // Try to create a navigator method if navigators are enabled
@@ -347,8 +347,8 @@ public class FocusProcessor extends AbstractProcessor {
   }
 
   /**
-   * Rejects a component whose SPI container is raw or carries a wildcard type argument, where the
-   * widening that container would otherwise receive cannot be written.
+   * Rejects a component whose container is raw or carries a wildcard type argument, where the
+   * widening it would otherwise receive names an optic instance and so cannot be written.
    *
    * <p>The walk mirrors the one {@link WideningAnalysis} makes, so it reaches the same containers
    * and stops where that one stops. A layer the current settings do not widen ends it: a {@code
@@ -361,7 +361,7 @@ public class FocusProcessor extends AbstractProcessor {
    * @param navigatorGenerator the navigator generator, or null when navigators are off
    * @param analysis the widening analysis whose walk this one mirrors
    */
-  private void reportUndenotableSpiWidening(
+  private void reportUndenotableWidening(
       RecordComponentElement component,
       boolean widenCollections,
       NavigatorClassGenerator navigatorGenerator,
@@ -458,7 +458,8 @@ public class FocusProcessor extends AbstractProcessor {
                 : "a wildcard has no ground instantiation to infer it from."),
         "Declare the component with concrete type arguments, such as "
             + concreteAlternative(declaredType)
-            + ".");
+            + ", or drop @GenerateFocus from the record: @GenerateLenses and @GenerateTraversals"
+            + " compose no optic instance and take the component as written.");
   }
 
   /**

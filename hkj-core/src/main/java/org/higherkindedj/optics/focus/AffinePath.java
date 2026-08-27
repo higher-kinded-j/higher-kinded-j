@@ -404,7 +404,8 @@ public sealed interface AffinePath<S, A> permits AffineFocusPath {
    *
    * @param <E> the element type of the list
    * @return a TraversalPath over list elements
-   * @throws ClassCastException if the focused type {@code A} is not a {@code List}
+   * @throws ClassCastException when the returned path is run, if the focused type {@code A} is not
+   *     a {@code List}
    * @see #each(Each)
    */
   @SuppressWarnings("unchecked")

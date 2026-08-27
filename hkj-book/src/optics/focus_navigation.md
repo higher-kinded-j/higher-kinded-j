@@ -22,7 +22,7 @@ The previous page gave you one method per record component. This page is about t
 
 ### `.each()`: Traverse All Elements
 
-`.each()` steps from a collection into its elements. For a `List`, `Set` or `Collection` field the generated method has already applied it, which is why `ContainerFocus.items()` focuses each `Item`:
+`.each()` steps from a collection into its elements. For a `List`, `Set` or `Collection` field the generated method has already applied the right one, which is why `ContainerFocus.items()` focuses each `Item`:
 
 <!-- verify -->
 ```java
@@ -36,9 +36,7 @@ TraversalPath<Container, Item> sameThing = FocusPath.of(ContainerLenses.items())
 
 ### `.each(Each)`: Traverse with a Custom Each Instance
 
-The no-argument `.each()` carries a `List` traversal and nothing else, so a hand-built path over a `Set` or a `Collection` needs the argument form below. The generated method already uses it: a `Set` field is widened with `EachInstances.setEach()` and a `Collection` field with `EachInstances.collectionEach()`.
-
-For containers `.each()` does not recognise, hand it an explicit `Each` instance. This works on `FocusPath`, `AffinePath` and `TraversalPath` alike:
+The no-argument `.each()` carries a `List` traversal and nothing else. Every other container — a `Set`, a `Collection`, a `Map`, an array, a third-party collection — takes an explicit `Each` instead. The generated method already does this for you: `EachInstances.setEach()` for a `Set` field, `EachInstances.collectionEach()` for a `Collection`. Hand-built paths have to say it themselves, and this works on `FocusPath`, `AffinePath` and `TraversalPath` alike:
 
 <!-- verify -->
 ```java

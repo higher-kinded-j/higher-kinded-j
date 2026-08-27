@@ -3,6 +3,7 @@
 package org.higherkindedj.optics.util;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.higherkindedj.hkt.instances.Witnesses.*;
 import static org.higherkindedj.hkt.optional.OptionalKindHelper.OPTIONAL;
 
@@ -3189,6 +3190,59 @@ class TraversalsTest {
           new HashSet<>(List.of("alice", "bob")),
           String::toUpperCase,
           name -> name + "!");
+      TraversalLaws.assertTraversalLaws(
+          traversal,
+          new LinkedHashSet<>(List.of("alice", "bob")),
+          String::toUpperCase,
+          name -> name + "!");
+    }
+
+    @Test
+    @DisplayName("forCollection() should keep a set source's iteration order")
+    void forCollection_keepsASetSourcesIterationOrder() {
+      Collection<String> ordered = new LinkedHashSet<>(List.of("echo", "alpha", "delta", "bravo"));
+
+      assertThat(Traversals.modify(traversal, String::toUpperCase, ordered))
+          .containsExactly("ECHO", "ALPHA", "DELTA", "BRAVO");
+    }
+
+    @Test
+    @DisplayName("forCollection() should carry a null element through rather than reject it")
+    void forCollection_carriesANullElementThrough() {
+      Collection<String> withNull = new LinkedHashSet<>();
+      withNull.add("alice");
+      withNull.add(null);
+
+      assertThat(Traversals.modify(traversal, Function.identity(), withNull))
+          .containsExactly("alice", null);
+    }
+
+    @Test
+    @DisplayName("forCollection() should hand back an unmodifiable collection either way")
+    void forCollection_handsBackAnUnmodifiableCollection() {
+      Collection<String> fromASet =
+          Traversals.modify(traversal, Function.identity(), new HashSet<>(List.of("alice")));
+      Collection<String> fromAList =
+          Traversals.modify(traversal, Function.identity(), List.of("alice"));
+
+      assertThatThrownBy(() -> fromASet.add("bob"))
+          .isInstanceOf(UnsupportedOperationException.class);
+      assertThatThrownBy(() -> fromAList.add("bob"))
+          .isInstanceOf(UnsupportedOperationException.class);
+    }
+
+    @Test
+    @DisplayName(
+        "forCollection() should rebuild a collection that is neither list nor set as a list")
+    void forCollection_rebuildsAQueueAsAList() {
+      // A Deque inherits identity equals, so no rebuild could return an equal collection; the
+      // elements survive, the container type does not. Pinned so the limit stays deliberate.
+      Collection<String> queue = new ArrayDeque<>(List.of("alice", "bob"));
+
+      Collection<String> result = Traversals.modify(traversal, String::toUpperCase, queue);
+
+      assertThat(result).isInstanceOf(List.class).containsExactly("ALICE", "BOB");
+      assertThat(Traversals.modify(traversal, Function.identity(), queue)).isNotEqualTo(queue);
     }
   }
 

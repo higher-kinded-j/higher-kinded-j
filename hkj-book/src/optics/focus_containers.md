@@ -130,11 +130,11 @@ The three JDK collections are recognised by name rather than by the SPI, but the
 TraversalPath<Team, Skill> teamSkills = TeamFocus.skills();
 TraversalPath<Team, String> teamTags = TeamFocus.tags();
 
-// The Set comes back a Set, so the record accepts it
-Team promoted = teamSkills.via(SkillFocus.level()).modifyAll(level -> level + 1, Fixture.team);
+// The path is a TraversalPath, so the Set widened at the static method
+Team promoted = teamSkills.via(SkillFocus.level()).modifyAll(level -> level + 1, team);
 ```
 
-A `Collection` names no ordering and no uniqueness, so `collectionEach()` rebuilds whichever it was given: a set-valued `Collection` comes back a set, and anything else comes back a `List`.
+A `Collection` names no ordering and no uniqueness, so `collectionEach()` rebuilds whichever it was given: a set-valued `Collection` comes back a set — a `LinkedHashSet`, so a `TreeSet` or other `SortedSet` source keeps its elements but not its ordering contract — and anything else comes back a `List`. A `Collection` that is neither, such as an `ArrayDeque`, also comes back a `List`; those types inherit identity `equals`, so no rebuild could return a collection equal to the one it was handed.
 
 Every third-party *collection* generator goes through `EachInstances.fromIterableCollecting(collector)`, a generic factory that iterates the container, traverses the elements with the applicative, and rebuilds the container through the collector it is given; the map-shaped ones go through `mapValuesEachCollecting` instead. No extra HKJ module is needed: the library itself you supply, and a project that names one of these types in a record already has it on the classpath.
 

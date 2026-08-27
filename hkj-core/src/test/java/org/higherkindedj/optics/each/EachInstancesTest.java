@@ -5,6 +5,7 @@ package org.higherkindedj.optics.each;
 import static org.assertj.core.api.Assertions.*;
 
 import java.util.*;
+import java.util.function.Function;
 import java.util.stream.Stream;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Traverse;
@@ -138,6 +139,37 @@ class EachInstancesTest {
       Set<String> modified = Traversals.modify(traversal, String::toUpperCase, set);
 
       assertThat(modified).containsExactlyInAnyOrder("HELLO", "WORLD");
+    }
+
+    @Test
+    @DisplayName("each() should keep the source's iteration order")
+    void eachKeepsTheSourcesIterationOrder() {
+      Set<String> ordered = new LinkedHashSet<>(List.of("echo", "alpha", "delta", "bravo"));
+
+      Set<String> modified = Traversals.modify(setEach.each(), String::toUpperCase, ordered);
+
+      assertThat(modified).containsExactly("ECHO", "ALPHA", "DELTA", "BRAVO");
+    }
+
+    @Test
+    @DisplayName("each() should carry a null element through rather than reject it")
+    void eachCarriesANullElementThrough() {
+      Set<String> withNull = new LinkedHashSet<>();
+      withNull.add("alice");
+      withNull.add(null);
+
+      assertThat(Traversals.modify(setEach.each(), Function.identity(), withNull))
+          .containsExactly("alice", null);
+    }
+
+    @Test
+    @DisplayName("each() should hand back an unmodifiable set")
+    void eachHandsBackAnUnmodifiableSet() {
+      Set<String> modified =
+          Traversals.modify(setEach.each(), Function.identity(), Set.of("alice"));
+
+      assertThatThrownBy(() -> modified.add("bob"))
+          .isInstanceOf(UnsupportedOperationException.class);
     }
 
     @Test

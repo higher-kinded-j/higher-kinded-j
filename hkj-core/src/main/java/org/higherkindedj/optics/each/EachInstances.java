@@ -114,8 +114,9 @@ public final class EachInstances {
   /**
    * Creates an {@link Each} instance for {@link Set} types.
    *
-   * <p>The returned {@code Each} traverses all elements. Traversal order depends on the Set
-   * implementation. Does not support indexed access.
+   * <p>The returned {@code Each} traverses all elements in the source set's iteration order, and
+   * rebuilds an unmodifiable set that preserves it. A modification that maps two elements onto the
+   * same value collapses them, as a set requires. Does not support indexed access.
    *
    * @param <A> The element type of the set
    * @return An {@code Each} instance for sets
@@ -127,7 +128,7 @@ public final class EachInstances {
   private static final class SetEach<A> implements Each<Set<A>, A> {
     @Override
     public Traversal<Set<A>, A> each() {
-      return TraverseTraversals.forSet();
+      return Traversals.forSet();
     }
     // No indexed traversal for Set
   }

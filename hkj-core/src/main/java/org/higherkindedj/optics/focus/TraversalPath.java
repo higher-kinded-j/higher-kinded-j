@@ -533,7 +533,8 @@ public sealed interface TraversalPath<S, A> permits TraversalFocusPath, TracedTr
    *
    * @param <E> the element type of the nested lists
    * @return a TraversalPath over all nested list elements
-   * @throws ClassCastException if the focused element type {@code A} is not a {@code List}
+   * @throws ClassCastException when the returned path is run, if the focused element type {@code A}
+   *     is not a {@code List}
    * @see #each(Each)
    */
   @SuppressWarnings("unchecked")

@@ -63,6 +63,7 @@ Bulk operations on `Traversal` values typically live on the `Traversals` utility
 | `Traversals.filtered(predicate)` | A traversal that focuses only on matching elements |
 | `Traversals.forList()` | Standard traversal over `List<A>` elements |
 | `Traversals.forSet()` | Standard traversal over `Set<A>` elements |
+| `Traversals.forCollection()` | Traversal over `Collection<A>` elements; a set source is rebuilt as a set, anything else as a `List` |
 | `Traversals.forMap(key)` | Traversal focused on the value at `key` in a `Map` |
 | `Traversals.forMapValues()` | Traversal over every value in a `Map` |
 | `Traversals.forOptional()` | Traversal that focuses zero or one elements of an `Optional` |

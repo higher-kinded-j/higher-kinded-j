@@ -47,6 +47,12 @@ import org.higherkindedj.optics.processing.util.ProcessorUtils;
  *       layer only, because the analysis reads it from the component's own declaration.
  *   <li>Every other container arrives through the SPI. A {@code ZERO_OR_ONE} generator always
  *       widens; a {@code ZERO_OR_MORE} one waits for {@code widenCollections}.
+ *   <li>A widening that names an optic instance cannot be written for a raw or wildcard-carrying
+ *       container, so that declaration is rejected (issue #718). {@code Set} and {@code Collection}
+ *       fall under that rule; {@code List} deliberately does not, and keeps the no-argument {@code
+ *       .each()} whose free type variable takes either without complaint. Routing {@code List}
+ *       through an instance too would drag {@code List<?>} and raw {@code List} into the rejection
+ *       for no runtime gain, since that traversal is the one they already work with.
  *   <li>{@code @Nullable} widens a component the containers leave alone, and nothing else.
  * </ul>
  *

@@ -41,7 +41,7 @@ class ProcessorArchitectureRules {
 
   /** The methods that may reach the lookup directly: the guard itself, and the diagnostic walk. */
   private static final Set<String> SPI_LOOKUP_CALLERS =
-      Set.of("wideningGenerator", "reportUndenotableSpiWidening", "widensUndenotableSpiContainer");
+      Set.of("wideningGenerator", "reportUndenotableWidening", "widensUndenotableSpiContainer");
 
   private static JavaClasses classes;
 

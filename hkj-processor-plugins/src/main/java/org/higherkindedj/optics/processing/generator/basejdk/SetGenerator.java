@@ -5,10 +5,8 @@ package org.higherkindedj.optics.processing.generator.basejdk;
 import com.palantir.javapoet.ClassName;
 import com.palantir.javapoet.CodeBlock;
 import io.avaje.spi.ServiceProvider;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
-import java.util.stream.Collectors;
 import javax.lang.model.element.Element;
 import javax.lang.model.element.RecordComponentElement;
 import javax.lang.model.type.DeclaredType;
@@ -56,22 +54,17 @@ public class SetGenerator extends BaseTraversableGenerator {
     final String constructorArgs = generateConstructorArgs(componentName, "newSet", allComponents);
 
     return CodeBlock.builder()
-        // 1. Get the source Set and convert it to a List to ensure ordering for traversal.
+        // 1. Traverse the set through the one helper that rebuilds one: source iteration order
+        // preserved, nulls carried through, and the result unmodifiable. Every other route to a
+        // Set traversal -- @GenerateFocus through EachInstances.setEach(), @ImportOptics and
+        // @ThroughField through Traversals.forSet() -- bottoms out here too, so a Set component
+        // rebuilds the same way whichever annotation reads it (issue #725).
         .addStatement(
-            "final var sourceList = new $T<>(source.$L())", ArrayList.class, componentName)
+            "final var effectOfSet = $T.traverseSet(source.$L(), f, applicative)",
+            Traversals.class,
+            componentName)
 
-        // 2. Call the static helper to traverse the list, yielding Kind<F, List<B>>.
-        .addStatement(
-            "final var effectOfList = $T.traverseList(sourceList, f, applicative)",
-            Traversals.class)
-
-        // 3. Map over the effect to convert the inner List back to a Set.
-        .addStatement(
-            "final var effectOfSet = applicative.map("
-                + "newList -> newList.stream().collect($T.toSet()), effectOfList)",
-            Collectors.class)
-
-        // 4. Map over the final effect to reconstruct the record with the new Set.
+        // 2. Map over the final effect to reconstruct the record with the new Set.
         .addStatement(
             "return applicative.map(newSet -> new $T($L), effectOfSet)",
             recordTypeName(component, recordClassName),

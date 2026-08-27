@@ -8,7 +8,7 @@
 
 ~~~admonish info title="What You'll Learn"
 - How the `Each` type class provides canonical traversals for container types
-- Using `EachInstances` for Java collections (List, Set, Map, Optional, arrays, Stream, VStream, String)
+- Using `EachInstances` for Java collections (List, Set, Collection, Map, Optional, arrays, Stream, VStream, String)
 - Using `EachExtensions` for HKT types (Maybe, Either, Try, Validated)
 - Indexed traversal support via `EachIndexed.indexedTraversal()` for position-aware operations
 - Integration with Focus DSL using `.each(Each)` method
@@ -434,7 +434,7 @@ User updated = allTasks.modifyAll(Task::markReviewed, user);
 
 ~~~admonish info title="Key Takeaways"
 * **Each<S, A>** provides a canonical `Traversal<S, A>` for any container type
-* **EachInstances** covers Java collections: List, Set, Map, Optional, arrays, Stream, VStream, String
+* **EachInstances** covers Java collections: List, Set, Collection, Map, Optional, arrays, Stream, VStream, String
 * **EachExtensions** covers HKT types: Maybe, Either, Try, Validated
 * **EachIndexed.indexedTraversal()** returns an `IndexedTraversal` when the container supports meaningful indices (`eachWithIndex()` is deprecated for removal in 0.5.0)
 * **Focus DSL integration** via `.each(Each)` enables fluent navigation through custom containers
