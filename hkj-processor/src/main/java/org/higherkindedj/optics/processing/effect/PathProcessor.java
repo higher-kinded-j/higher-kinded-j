@@ -128,7 +128,12 @@ public class PathProcessor extends AbstractProcessor {
                 "Generated Path bridge for {@link $T}.\n\n<p>Do not edit.\n", interfaceClassName)
             .addModifiers(Modifier.PUBLIC, Modifier.FINAL)
             .addOriginatingElement(interfaceElement);
-    interfaceVariables.forEach(classBuilder::addTypeVariable);
+    interfaceVariables.forEach(
+        variable -> {
+          classBuilder.addTypeVariable(variable);
+          // Doclint wants one per parameter, and nobody can add it to a generated file by hand.
+          classBuilder.addJavadoc("\n@param <$L> as declared by the delegate\n", variable.name());
+        });
 
     // Add delegate field
     classBuilder.addField(
@@ -172,6 +177,22 @@ public class PathProcessor extends AbstractProcessor {
   }
 
   private MethodSpec createBridgeMethod(ExecutableElement method, PathVia pathVia) {
+    // The bridge calls the method through its delegate, which reaches an abstract or default
+    // member and nothing else. Left ungated, both of these emitted a call javac refuses, against
+    // a file the author never wrote.
+    Set<Modifier> modifiers = method.getModifiers();
+    if (modifiers.contains(Modifier.STATIC) || modifiers.contains(Modifier.PRIVATE)) {
+      error(
+          "@PathVia on '"
+              + method.getSimpleName()
+              + "': the bridge reaches the method through its delegate, and a "
+              + (modifiers.contains(Modifier.STATIC) ? "static" : "private")
+              + " interface method cannot be called that way. Fix: make it an abstract or default"
+              + " instance method, or drop @PathVia from it.",
+          method);
+      return null;
+    }
+
     String methodName =
         pathVia.name().isEmpty() ? method.getSimpleName().toString() : pathVia.name();
     String doc = pathVia.doc();
@@ -198,7 +219,12 @@ public class PathProcessor extends AbstractProcessor {
     // already, from the class.
     method.getTypeParameters().stream()
         .map(TypeVariableName::get)
-        .forEach(methodBuilder::addTypeVariable);
+        .forEach(
+            variable -> {
+              methodBuilder.addTypeVariable(variable);
+              methodBuilder.addJavadoc(
+                  "@param <$L> as declared by the delegate method\n", variable.name());
+            });
 
     // Add documentation
     if (!doc.isEmpty()) {

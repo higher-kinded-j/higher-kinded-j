@@ -99,7 +99,9 @@ public class Converters {
 
 This is useful when you need to avoid name collisions or organise generated code separately.
 
-The annotated method has to be `static` and declare no type parameters of its own. What gets generated is a `public static final` field initialised by calling the method, and a field has nowhere to put a `<T>` — so `@GenerateIsos` on `<T> Iso<Box<T>, T> boxIso()` is refused where it is written, rather than generating a field naming a `T` that nothing declares. Fix the type arguments at the declaration (`Iso<Box<String>, String>`), or expose the method itself and skip the generated field.
+The annotated method has to be `static`, take no arguments, be reachable from the generated package, and return an `Iso` whose two type arguments name no type variable. Each of those is a question about the *field*: `@GenerateIsos` publishes the iso as a `public static final` field, and a field has nowhere to declare a `<T>` and no receiver to call an instance method on. It is alone in this among the optics annotations — the rest generate static *methods*, which can declare type parameters and do.
+
+So `<T> Iso<Box<T>, T> boxIso()` is refused where it is written rather than generating a field naming a `T` that nothing declares. Note the rule is about what the **iso** names, not what the method declares: `<T> Iso<Box, String> boxIso()` generates fine, because `T` is inferred at the call and never reaches the field's type. Give the iso concrete type arguments (`Iso<Box<String>, String>`), or call the method directly and skip the generated field.
 
 ### Step 2: The Core Iso Operations
 

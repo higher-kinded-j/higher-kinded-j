@@ -354,6 +354,57 @@ class PathProcessorIntegrationTest {
   class ErrorCases {
 
     @Test
+    @DisplayName("refuses a @PathVia method the delegate cannot be asked for")
+    void refusesStaticAndPrivatePathViaMethods() {
+      var statics =
+          javac()
+              .withProcessors(new PathProcessor())
+              .compile(
+                  JavaFileObjects.forSourceString(
+                      "com.example.StaticSvc",
+                      """
+                      package com.example;
+
+                      import java.util.Optional;
+                      import org.higherkindedj.hkt.effect.annotation.GeneratePathBridge;
+                      import org.higherkindedj.hkt.effect.annotation.PathVia;
+
+                      @GeneratePathBridge
+                      public interface StaticSvc {
+                          @PathVia
+                          static Optional<String> lookup(String k) { return Optional.of(k); }
+                      }
+                      """));
+
+      assertThat(statics).failed();
+      assertThat(statics).hadErrorContaining("a static interface method cannot be called that way");
+
+      var privates =
+          javac()
+              .withProcessors(new PathProcessor())
+              .compile(
+                  JavaFileObjects.forSourceString(
+                      "com.example.PrivateSvc",
+                      """
+                      package com.example;
+
+                      import java.util.Optional;
+                      import org.higherkindedj.hkt.effect.annotation.GeneratePathBridge;
+                      import org.higherkindedj.hkt.effect.annotation.PathVia;
+
+                      @GeneratePathBridge
+                      public interface PrivateSvc {
+                          @PathVia
+                          private Optional<String> hidden(String k) { return Optional.of(k); }
+                      }
+                      """));
+
+      assertThat(privates).failed();
+      assertThat(privates)
+          .hadErrorContaining("a private interface method cannot be called that way");
+    }
+
+    @Test
     @DisplayName("fails when @GeneratePathBridge is applied to a class")
     void shouldFailForClass() {
       final var sourceFile =

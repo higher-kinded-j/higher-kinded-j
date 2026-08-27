@@ -6,7 +6,9 @@ import static com.google.testing.compile.CompilationSubject.assertThat;
 import static com.google.testing.compile.Compiler.javac;
 import static org.higherkindedj.optics.processing.GeneratorTestHelper.assertGeneratedCodeContains;
 
+import com.google.testing.compile.Compilation;
 import com.google.testing.compile.JavaFileObjects;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 public class IsoProcessorIntegrationTest {
@@ -52,5 +54,171 @@ public class IsoProcessorIntegrationTest {
     // Verify the generated class and its content
     final String generatedClassName = "com.example.PointConvertersIsos";
     assertGeneratedCodeContains(compilation, generatedClassName, expectedIsoField);
+  }
+
+  private static Compilation compileIso(String name, String body) {
+    return javac()
+        .withProcessors(new IsoProcessor())
+        .compile(
+            JavaFileObjects.forSourceString(
+                "com.example." + name,
+                """
+                package com.example;
+
+                import org.higherkindedj.optics.Iso;
+                import org.higherkindedj.optics.annotations.GenerateIsos;
+
+                %s
+                """
+                    .formatted(body)));
+  }
+
+  @Test
+  @DisplayName("refuses a method the generated field cannot call")
+  void refusesAMethodTheFieldCannotCall() {
+    var takesArguments =
+        compileIso(
+            "Args",
+            """
+            public class Args {
+                public record Box(String value) {}
+                @GenerateIsos
+                public static Iso<Box, String> boxIso(String prefix) {
+                    return Iso.of(Box::value, Box::new);
+                }
+            }""");
+    assertThat(takesArguments).failed();
+    assertThat(takesArguments).hadErrorContaining("'boxIso' takes parameters");
+
+    var notVisible =
+        compileIso(
+            "Hidden",
+            """
+            public class Hidden {
+                public record Box(String value) {}
+                @GenerateIsos
+                private static Iso<Box, String> boxIso() { return Iso.of(Box::value, Box::new); }
+            }""");
+    assertThat(notVisible).failed();
+    assertThat(notVisible).hadErrorContaining("cannot be reached from 'com.example'");
+
+    // The enclosing type has to be visible too: the field names it to make the call.
+    var enclosingNotVisible =
+        compileIso(
+            "Outer",
+            """
+            public class Outer {
+                public record Box(String value) {}
+                private static class Nested {
+                    @GenerateIsos
+                    public static Iso<Box, String> boxIso() { return Iso.of(Box::value, Box::new); }
+                }
+            }""");
+    assertThat(enclosingNotVisible).failed();
+    assertThat(enclosingNotVisible).hadErrorContaining("cannot be reached from 'com.example'");
+
+    // Package access is enough when the field lands in that same package.
+    var packagePrivateSamePackage =
+        compileIso(
+            "Near",
+            """
+            public class Near {
+                public record Box(String value) {}
+                @GenerateIsos
+                static Iso<Box, String> boxIso() { return Iso.of(Box::value, Box::new); }
+            }""");
+    assertThat(packagePrivateSamePackage).succeeded();
+
+    // targetPackage moves the field away from what package access reaches.
+    var packagePrivateAcrossPackages =
+        compileIso(
+            "Moved",
+            """
+            public class Moved {
+                public record Box(String value) {}
+                @GenerateIsos(targetPackage = "com.other")
+                static Iso<Box, String> boxIso() { return Iso.of(Box::value, Box::new); }
+            }""");
+    assertThat(packagePrivateAcrossPackages).failed();
+    assertThat(packagePrivateAcrossPackages)
+        .hadErrorContaining("cannot be reached from 'com.other'");
+  }
+
+  @Test
+  @DisplayName("refuses a return type it cannot read two arguments off, without crashing")
+  void refusesAReturnTypeItCannotRead() {
+    for (String returned :
+        java.util.List.of(
+            "public static void boxIso() {}",
+            "public static int boxIso() { return 0; }",
+            "public static String[] boxIso() { return null; }",
+            "public static java.util.Map<String, Integer> boxIso() { return null; }")) {
+      var compilation =
+          compileIso(
+              "Ret",
+              """
+              public class Ret {
+                  @GenerateIsos
+                  %s
+              }"""
+                  .formatted(returned));
+
+      // Every one of these used to reach a cast: void, primitive and array threw
+      // ClassCastException out of the processor with no diagnostic at all. A raw Iso reached the
+      // arity check instead, and keeps its own case in ProcessorCoverageTest.
+      assertThat(compilation).failed();
+      assertThat(compilation).hadErrorContaining("does not return an Iso with both type arguments");
+    }
+  }
+
+  @Test
+  @DisplayName("sees a type variable through every layer it can be buried in")
+  void seesATypeVariableThroughEveryLayer() {
+    // One method per layer the walk has an arm for. Each is refused on its own, so a layer the
+    // walk cannot see through would generate a field naming the variable it missed.
+    for (String returned :
+        java.util.List.of(
+            "Iso<Box<T[]>, String>",
+            "Iso<Box<? extends T>, String>",
+            "Iso<Box<? super T>, String>",
+            "Iso<Outer<T>.Inner, String>",
+            "Iso<Box<java.util.List<T>>, String>")) {
+      var compilation =
+          compileIso(
+              "Layers",
+              """
+              public class Layers {
+                  public record Box<A>(A value) {}
+                  public static class Outer<A> { public class Inner {} }
+                  @GenerateIsos
+                  public static <T> %s buried() { return null; }
+              }"""
+                  .formatted(returned));
+
+      assertThat(compilation).failed();
+      assertThat(compilation)
+          .hadErrorContaining("the iso returned by 'buried' names a type variable");
+    }
+
+    // The controls: a wildcard with no bound at all, and bounds naming no variable, are layers
+    // the walk has to see all the way through and find nothing.
+    for (String returned :
+        java.util.List.of(
+            "Iso<Box<String[]>, String>",
+            "Iso<Box<?>, String>",
+            "Iso<Box<? extends CharSequence>, String>",
+            "Iso<Box<? super String>, String>")) {
+      var concrete =
+          compileIso(
+              "Plain",
+              """
+              public class Plain {
+                  public record Box<A>(A value) {}
+                  @GenerateIsos
+                  public static %s buried() { return null; }
+              }"""
+                  .formatted(returned));
+      assertThat(concrete).succeeded();
+    }
   }
 }

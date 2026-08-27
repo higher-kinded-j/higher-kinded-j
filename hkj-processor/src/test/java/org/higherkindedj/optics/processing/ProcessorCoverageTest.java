@@ -464,7 +464,8 @@ class ProcessorCoverageTest {
       Compilation compilation = javac().withProcessors(new IsoProcessor()).compile(sourceFile);
 
       assertThat(compilation).failed();
-      assertThat(compilation).hadErrorContaining("two type arguments");
+      assertThat(compilation)
+          .hadErrorContaining("'iso' does not return an Iso with both type arguments");
     }
   }
 

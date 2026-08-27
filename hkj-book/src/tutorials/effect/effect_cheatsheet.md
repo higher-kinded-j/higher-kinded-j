@@ -124,10 +124,14 @@ The annotation processor generates `UserServicePaths` with:
 
 | Original return | Generated wrapper |
 |-----------------|--------------------|
-| `Optional<T>` | `OptionalPath<T>` (or `MaybePath<T>` with `@PathVia(MAYBE)`) |
+| `Optional<T>` | `OptionalPath<T>` |
+| `Maybe<T>` | `MaybePath<T>` |
 | `Either<E, T>` | `EitherPath<E, T>` |
-| `T` (with `@PathVia(IO)`) | `IOPath<T>` |
-| `CompletableFuture<T>` | `VTaskPath<T>` (or `CompletableFuturePath<T>`) |
+| `Try<T>` | `TryPath<T>` |
+| `Validated<E, T>` | `ValidationPath<E, T>` (adds a `Semigroup<E>` parameter) |
+| `IO<T>` | `IOPath<T>` |
+
+The wrapper is chosen from the declared return type alone; `@PathVia` takes `name`, `doc` and `composable`, none of which select it. A return type outside this table is refused with *"Unsupported return type for @PathVia"* — `CompletableFuture` among them, so wrap it in a `VTaskPath` or `CompletableFuturePath` by hand.
 
 The wrapper is exactly the one-liner shown in Tutorial 02 Exercise 6, generated so we never have to write it.
 

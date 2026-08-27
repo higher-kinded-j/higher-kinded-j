@@ -28,7 +28,7 @@ Apply these to your own records and sealed types. The generated class is placed 
 | [`@GenerateSetters`](setters.md) | `record` | `XSetters` (asymmetric write-only) | When you specifically want a `Setter` rather than a full `Lens` |
 | [`@GenerateTraversals`](traversals.md) | `record` containing `List<T>` etc. | `XTraversals` (one traversal per traversable field) | Bulk operations on a collection embedded in a record |
 | [`@GeneratePrisms`](prisms.md) | `sealed interface` **or** `enum` | `XPrisms` (one prism per variant) | Sum types, including both sealed hierarchies and enum constants |
-| [`@GenerateIsos`](iso.md) | **method** returning `Iso<A, B>` | companion class with the iso as a static field | Lossless conversions between equivalent representations |
+| [`@GenerateIsos`](iso.md) | **static, no-argument method** returning `Iso<A, B>`, naming no type variable | companion class with the iso as a static field | Lossless conversions between equivalent representations |
 
 ~~~admonish tip title="Annotations stack"
 You almost always want at least `@GenerateLenses` and `@GenerateFocus` together. Add `@GenerateTraversals` if the record contains a collection field and `@GenerateFolds` if you also need read-only queries.

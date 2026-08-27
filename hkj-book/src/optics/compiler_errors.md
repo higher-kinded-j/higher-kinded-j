@@ -39,6 +39,38 @@ This page is for the moment a build fails and you want to know what the message 
 
 **Fix.** Ensure the annotated method returns `Iso<A, B>`. The processor reads the type parameters to generate the static field.
 
+### "@GenerateIsos: the iso returned by 'x' names a type variable"
+
+**Cause.** One of the returned `Iso`'s two type arguments is, or contains, a type variable — `<T> Iso<Box<T>, T> boxIso()`, or an instance method of a `Holder<X>` returning `Iso<Box<X>, X>`. What gets generated is a `public static final` field, and a field has nowhere to declare one, so it would name a variable nothing brings into scope.
+
+Note this is about what the *iso* names, not what the method declares: `<T> Iso<Box, String> boxIso()` is fine, because `T` is inferred at the call and never reaches the field's type.
+
+**Fix.** Give the iso concrete type arguments where the method is declared (`Iso<Box<String>, String>`), or drop `@GenerateIsos` and call the method directly.
+
+### "@GenerateIsos: 'x' is not static"
+
+**Cause.** The annotated method is an instance method. The generated field initialises itself with a static call, and there is no instance to make it on.
+
+**Fix.** Make the method `static`.
+
+### "@GenerateIsos: 'x' takes parameters"
+
+**Cause.** The generated field initialises itself by calling the method with no arguments, and there is nothing for it to pass.
+
+**Fix.** Take the arguments away, or drop `@GenerateIsos` and call the method directly.
+
+### "@GenerateIsos: 'x' does not return an Iso with both type arguments"
+
+**Cause.** The generated field is typed from the two arguments of the returned `Iso`. A `void`, primitive, array, raw or non-`Iso` return has nothing to read them off.
+
+**Fix.** Return `Iso<S, A>` naming both, as `Iso<Point, Tuple2<Integer, Integer>>`.
+
+### "@GenerateIsos: 'x' cannot be reached from 'p'"
+
+**Cause.** The generated class lives in package `p` and calls the method from there, but the method — or a type enclosing it — is `private`, `protected` or package-private somewhere else. Most often seen with `targetPackage`.
+
+**Fix.** Make the method and its enclosing types public, or generate into the package they are already visible from.
+
 ---
 
 ## `@ImportOptics` and `OpticsSpec` interfaces
