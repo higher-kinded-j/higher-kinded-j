@@ -260,6 +260,42 @@ class InstanceOfNarrowingTest {
     }
 
     @Test
+    @DisplayName("narrows an array target through its component")
+    void narrowsAnArrayThroughItsComponent() {
+      var specInterface =
+          JavaFileObjects.forSourceString(
+              "com.myapp.SubjectOpticsSpec",
+              """
+              package com.myapp;
+
+              import java.util.List;
+              import org.higherkindedj.optics.Prism;
+              import org.higherkindedj.optics.annotations.ImportOptics;
+              import org.higherkindedj.optics.annotations.InstanceOf;
+              import org.higherkindedj.optics.annotations.OpticsSpec;
+
+              @ImportOptics
+              public interface SubjectOpticsSpec extends OpticsSpec<Object> {
+                  @InstanceOf(List[].class)
+                  Prism<Object, List<?>[]> rows();
+              }""");
+
+      // List[].class is exactly as raw as List.class, and an Object source pins none of List's own
+      // parameter, so the component earns the wildcard the whole array is then written under.
+      var compilation =
+          javac()
+              .withProcessors(new ImportOpticsProcessor())
+              .withOptions("-Xlint:unchecked,rawtypes", "-Werror")
+              .compile(specInterface);
+
+      assertThat(compilation).succeeded();
+      assertGeneratedCodeContains(
+          compilation, "com.myapp.SubjectOptics", "source instanceof List<?>[]");
+      assertGeneratedCodeDoesNotContain(
+          compilation, "com.myapp.SubjectOptics", "@SuppressWarnings");
+    }
+
+    @Test
     @DisplayName("leaves a reifiable array target alone, which checks itself")
     void leavesAnArrayTargetAlone() {
       var specInterface =
@@ -454,6 +490,35 @@ class InstanceOfNarrowingTest {
     }
 
     @Test
+    @DisplayName("rejects an array focus asking for an argument its component cannot check")
+    void rejectsAParameterisedArrayFocus() {
+      var specInterface =
+          JavaFileObjects.forSourceString(
+              "com.myapp.SubjectOpticsSpec",
+              """
+              package com.myapp;
+
+              import java.util.List;
+              import org.higherkindedj.optics.Prism;
+              import org.higherkindedj.optics.annotations.ImportOptics;
+              import org.higherkindedj.optics.annotations.InstanceOf;
+              import org.higherkindedj.optics.annotations.OpticsSpec;
+
+              @ImportOptics
+              public interface SubjectOpticsSpec extends OpticsSpec<Object> {
+                  @InstanceOf(List[].class)
+                  Prism<Object, List<String>[]> rows();
+              }""");
+
+      var compilation = javac().withProcessors(new ImportOpticsProcessor()).compile(specInterface);
+
+      assertThat(compilation).failed();
+      assertThat(compilation).hadErrorContaining("'Object' pins nothing to E");
+      assertThat(compilation).hadErrorContaining("declare the focus as 'List<?>[]'");
+      assertThat(compilation).hadErrorCount(1);
+    }
+
+    @Test
     @DisplayName("pins nothing from a raw source type")
     void pinsNothingFromARawSource() {
       var compilation =
@@ -516,6 +581,47 @@ class InstanceOfNarrowingTest {
       assertThat(compilation)
           .hadErrorContaining("names 'Outer.Inner', which carries type parameters of its own");
       assertThat(compilation).hadErrorContaining("Declare 'Inner' static");
+      assertThat(compilation).hadErrorCount(1);
+    }
+
+    @Test
+    @DisplayName("sees a parameterised member of a generic type through an array")
+    void seesThroughAnArrayToAMemberOfAGenericType() {
+      var outer =
+          JavaFileObjects.forSourceString(
+              "com.external.Outer",
+              """
+              package com.external;
+
+              public class Outer<X> {
+                  public class Inner<Y> {}
+              }
+              """);
+      var specInterface =
+          JavaFileObjects.forSourceString(
+              "com.myapp.SubjectOpticsSpec",
+              """
+              package com.myapp;
+
+              import com.external.Outer;
+              import org.higherkindedj.optics.Prism;
+              import org.higherkindedj.optics.annotations.ImportOptics;
+              import org.higherkindedj.optics.annotations.InstanceOf;
+              import org.higherkindedj.optics.annotations.OpticsSpec;
+
+              @ImportOptics
+              public interface SubjectOpticsSpec<U> extends OpticsSpec<Object> {
+                  @InstanceOf(Outer.Inner[].class)
+                  Prism<Object, Outer<?>.Inner<U>[]> inners();
+              }""");
+
+      // Narrowing an array reaches its component, so a component with nowhere to write its own
+      // arguments has to be turned away before the walk gets there.
+      var compilation =
+          javac().withProcessors(new ImportOpticsProcessor()).compile(outer, specInterface);
+
+      assertThat(compilation).failed();
+      assertThat(compilation).hadErrorContaining("which carries type parameters of its own");
       assertThat(compilation).hadErrorCount(1);
     }
 

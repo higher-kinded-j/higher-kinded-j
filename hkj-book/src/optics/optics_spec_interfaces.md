@@ -172,26 +172,45 @@ flowchart TD
     class E error
 ```
 
-A generic hierarchy pins its own argument, so the prism can promise it:
+A generic hierarchy pins its own argument, so the prism can promise it. `T` is the spec's own type parameter, and `Circle<X> implements Shape<X>` is what lets the test check it:
 
 ```java
 sealed interface Shape<X> permits Circle {}
 record Circle<X>(X tag) implements Shape<X> {}
 
-@InstanceOf(Circle.class)
-Prism<Shape<T>, Circle<T>> circle();
-// generates: source instanceof Circle<T> t ? Optional.of(t) : Optional.empty()
+@ImportOptics
+interface ShapeOpticsSpec<T> extends OpticsSpec<Shape<T>> {
+
+    @InstanceOf(Circle.class)
+    Prism<Shape<T>, Circle<T>> circle();
+    // generates: source instanceof Circle<T> t ? Optional.of(t) : Optional.empty()
+}
 ```
 
-A base that says nothing about the argument pins nothing. Every instantiation passes the same test, so a prism promising one of them is rejected at the declaration:
+A base that says nothing about the argument pins nothing. Every instantiation passes the same test, so the same declaration is rejected:
 
 ```java
 class Shape {}
 class Circle<X> extends Shape {}
 
-@InstanceOf(Circle.class)
-Prism<Shape, Circle<T>> circle();   // rejected
-Prism<Shape, Circle<?>> circle();   // accepted: what the test earns
+@ImportOptics
+interface ShapeOpticsSpec<T> extends OpticsSpec<Shape> {
+
+    @InstanceOf(Circle.class)
+    Prism<Shape, Circle<T>> circle();   // rejected: nothing checks T
+}
+```
+
+Widened to the wildcard, which is what the test earns, it is accepted — and the spec needs no type parameter of its own once the prism stops promising one:
+
+```java
+@ImportOptics
+interface ShapeOpticsSpec extends OpticsSpec<Shape> {
+
+    @InstanceOf(Circle.class)
+    Prism<Shape, Circle<?>> circle();
+    // generates: source instanceof Circle<?> t ? Optional.of(t) : Optional.empty()
+}
 ```
 
 ~~~admonish info title="Where the argument matters"

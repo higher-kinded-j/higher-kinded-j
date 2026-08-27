@@ -60,42 +60,60 @@ final class InstanceOfNarrowing {
   record Narrowing(TypeMirror testedType, List<String> freeParameters) {}
 
   /**
-   * Whether no test could name {@code targetType} with type arguments of its own.
+   * The element of {@code targetType} that no test could name with type arguments of its own, or
+   * null when every layer of it can be named.
    *
    * <p>A parameterised member of a generic type is the one shape with no rendering: {@code
    * Outer<X>.Inner<Y>} can only carry its own arguments alongside the enclosing type's, and an
    * {@code instanceof} names neither. The remaining raw {@code Outer.Inner} checks nothing about
    * {@code Y} and is a {@code rawtypes} warning in the consuming build besides, so the caller
-   * rejects this rather than narrowing it.
+   * rejects this rather than narrowing it. An array of one is the same type one layer out, and
+   * {@link #narrow} would reach the component regardless.
+   *
+   * <p>The element is answered rather than a yes or no because it is the element, not the array
+   * wrapped around it, that the diagnostic has to name.
    *
    * @param targetType the type the annotation's class constant resolves to; must not be null
-   * @return true when the target's own type arguments have nowhere to be written
+   * @return the offending element, or null when the target can be named
    */
-  static boolean isUnnameable(TypeMirror targetType) {
+  static TypeElement unnameableElement(TypeMirror targetType) {
+    if (targetType instanceof ArrayType array) {
+      return unnameableElement(array.getComponentType());
+    }
     if (!(targetType instanceof DeclaredType declared)) {
-      return false;
+      return null;
     }
     // A declared type's element is a TypeElement, and it is that element's own prototype - not the
     // annotation's mirror - that carries the enclosing type's arguments.
     TypeElement element = (TypeElement) declared.asElement();
     DeclaredType prototype = (DeclaredType) element.asType();
-    return !element.getTypeParameters().isEmpty()
-        && prototype.getEnclosingType() instanceof DeclaredType enclosing
-        && !enclosing.getTypeArguments().isEmpty();
+    boolean unnameable =
+        !element.getTypeParameters().isEmpty()
+            && prototype.getEnclosingType() instanceof DeclaredType enclosing
+            && !enclosing.getTypeArguments().isEmpty();
+    return unnameable ? element : null;
   }
 
   /**
    * Narrows the {@code @InstanceOf} target as far as the source type allows.
    *
    * @param targetType the type the annotation's class constant resolves to, which {@link
-   *     #isUnnameable} has already passed; must not be null
+   *     #unnameableElement} has already cleared; an array is narrowed through its component; must
+   *     not be null
    * @param sourceType the source type {@code S} the prism starts from; must not be null
    * @param sourceTypeElement the element {@code sourceType} instantiates; must not be null
    * @return the narrowing (non-null)
    */
   Narrowing narrow(TypeMirror targetType, TypeMirror sourceType, TypeElement sourceTypeElement) {
-    // A class constant can name an array - int[].class - and an array type is reifiable, so the
-    // test already checks everything the type says.
+    // An array target asks the same question one layer down: List[].class is exactly as raw as
+    // List.class, and only its component can carry arguments. An array of a reifiable component -
+    // int[], String[] - narrows to itself, because the recursion finds nothing to wildcard.
+    if (targetType instanceof ArrayType targetArray) {
+      Narrowing component = narrow(targetArray.getComponentType(), sourceType, sourceTypeElement);
+      return new Narrowing(
+          typeUtils.getArrayType(component.testedType()), component.freeParameters());
+    }
+    // A primitive component, or anything else a class constant can name that carries no arguments.
     if (!(targetType instanceof DeclaredType declaredTarget)) {
       return new Narrowing(targetType, List.of());
     }

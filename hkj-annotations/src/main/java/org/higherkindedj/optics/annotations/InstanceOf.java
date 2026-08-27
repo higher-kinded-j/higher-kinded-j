@@ -57,26 +57,47 @@ import java.lang.annotation.Target;
  * erasure. A parameterised target may therefore only be narrowed to the type arguments the source
  * type pins down, and the processor rejects a prism that promises more.
  *
- * <p>The source type pins an argument when the target reaches it carrying that argument:
+ * <p>The source type pins an argument when the target reaches it carrying that argument. The spec's
+ * own type parameter is what the prism promises, and {@code Circle<X> implements Shape<X>} is what
+ * lets the test check it:
  *
  * <pre>{@code
  * sealed interface Shape<X> permits Circle {}
  * record Circle<X>(X tag) implements Shape<X> {}
  *
- * @InstanceOf(Circle.class)
- * Prism<Shape<T>, Circle<T>> circle();   // Circle<X> reaches Shape as Shape<X>, so T pins X
+ * @ImportOptics
+ * interface ShapeOpticsSpec<T> extends OpticsSpec<Shape<T>> {
+ *
+ *     @InstanceOf(Circle.class)
+ *     Prism<Shape<T>, Circle<T>> circle();   // Circle reaches Shape as Shape<X>, so T pins X
+ * }
  * }</pre>
  *
  * <p>A base that says nothing about the argument pins nothing, and every instantiation passes the
- * same test:
+ * same test, so the same declaration is rejected:
  *
  * <pre>{@code
  * class Shape {}
  * class Circle<X> extends Shape {}
  *
- * @InstanceOf(Circle.class)
- * Prism<Shape, Circle<T>> circle();      // rejected: nothing checks T
- * Prism<Shape, Circle<?>> circle();      // accepted: what the test earns
+ * @ImportOptics
+ * interface ShapeOpticsSpec<T> extends OpticsSpec<Shape> {
+ *
+ *     @InstanceOf(Circle.class)
+ *     Prism<Shape, Circle<T>> circle();      // rejected: nothing checks T
+ * }
+ * }</pre>
+ *
+ * <p>Widened to the wildcard, which is what the test earns, it is accepted. The spec needs no type
+ * parameter of its own once the prism stops promising one:
+ *
+ * <pre>{@code
+ * @ImportOptics
+ * interface ShapeOpticsSpec extends OpticsSpec<Shape> {
+ *
+ *     @InstanceOf(Circle.class)
+ *     Prism<Shape, Circle<?>> circle();      // accepted
+ * }
  * }</pre>
  *
  * <p>Where the argument matters, {@link MatchWhen} is the sound alternative: it narrows through a

@@ -916,8 +916,9 @@ public class SpecInterfaceAnalyser {
             method);
         return Optional.empty();
       }
-      if (InstanceOfNarrowing.isUnnameable(targetType)) {
-        reportUnnameableInstanceOfTarget(method, specInterface, sourceType, targetType);
+      TypeElement unnameable = InstanceOfNarrowing.unnameableElement(targetType);
+      if (unnameable != null) {
+        reportUnnameableInstanceOfTarget(method, specInterface, sourceType, targetType, unnameable);
         return Optional.empty();
       }
       // The class constant is raw, so the arguments of the type handed back are only ever the
@@ -967,14 +968,16 @@ public class SpecInterfaceAnalyser {
    * @param specInterface the spec declaring it, for the name the user reads
    * @param sourceType the source type {@code S}
    * @param targetType the class the annotation names
+   * @param unnameable the element within it that cannot be named, which an array target holds one
+   *     layer down
    */
   private void reportUnnameableInstanceOfTarget(
       ExecutableElement method,
       TypeElement specInterface,
       TypeMirror sourceType,
-      TypeMirror targetType) {
+      TypeMirror targetType,
+      TypeElement unnameable) {
 
-    TypeElement targetElement = (TypeElement) typeUtils.asElement(targetType);
     Diagnostics.error(
         messager,
         method,
@@ -990,7 +993,7 @@ public class SpecInterfaceAnalyser {
             + " its own type arguments unless the enclosing type is written with its, which an"
             + " instanceof cannot do.",
         "Declare '"
-            + targetElement.getSimpleName()
+            + unnameable.getSimpleName()
             + "' static, so that it can be named on its own, or narrow through a predicate and"
             + " getter of '"
             + ProcessorUtils.simpleTypeName(sourceType)
