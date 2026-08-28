@@ -32,42 +32,30 @@ Consider these scenarios:
 
 Standard optics give you the *value*. **Indexed optics** give you both the *index* and the *value*.
 
-```
-               STANDARD OPTICS vs INDEXED OPTICS
+```mermaid
+flowchart LR
+    subgraph std["Standard traversal: the value only"]
+        direction LR
+        S1(["List&lt;Item&gt;"]) --> S2(["Traversal"]) --> S3["Laptop<br/>Mouse<br/>Keyboard"]
+    end
+    subgraph idx["Indexed traversal: the value and where it sat"]
+        direction LR
+        I1(["List&lt;Item&gt;"]) --> I2(["IndexedTraversal"]) --> I3["(0, Laptop)<br/>(1, Mouse)<br/>(2, Keyboard)"]
+    end
 
-  ┌─────────────────────────────────────────────────────────────┐
-  │  STANDARD TRAVERSAL                                         │
-  │  ═══════════════════                                        │
-  │                                                             │
-  │    List<Item>  ──▶  Traversal  ──▶  Item, Item, Item        │
-  │                                                             │
-  │    You get: "Laptop", "Mouse", "Keyboard"                   │
-  │    You lose: Where each item is in the list                 │
-  │                                                             │
-  ├─────────────────────────────────────────────────────────────┤
-  │  INDEXED TRAVERSAL                                          │
-  │  ══════════════════                                         │
-  │                                                             │
-  │    List<Item>  ──▶  IndexedTraversal  ──▶  (0, Item),       │
-  │                                            (1, Item),       │
-  │                                            (2, Item)        │
-  │                                                             │
-  │    You get: (0, "Laptop"), (1, "Mouse"), (2, "Keyboard")    │
-  │    Position becomes a first-class citizen                   │
-  │                                                             │
-  └─────────────────────────────────────────────────────────────┘
-
-                    ┌───────────────────────┐
-                    │   Pair<Index, A>      │
-                    │  ┌───────┬──────────┐ │
-                    │  │ Index │ Value    │ │
-                    │  ├───────┼──────────┤ │
-                    │  │   0   │ Laptop   │ │
-                    │  │   1   │ Mouse    │ │
-                    │  │   2   │ Keyboard │ │
-                    │  └───────┴──────────┘ │
-                    └───────────────────────┘
+    classDef tier fill:#a6d189,stroke:#40a02b,color:#232634
+    classDef out fill:#e5c890,stroke:#df8e1d,color:#232634
+    class S1,S2,I1,I2 tier
+    class S3,I3 out
 ```
+
+A standard traversal hands back each `Item` and forgets where it was; an indexed one hands back a `Pair<Index, A>`, so the position travels with the value:
+
+| Index | Value |
+|---|---|
+| `0` | `Laptop` |
+| `1` | `Mouse` |
+| `2` | `Keyboard` |
 
 Archimedes understood that position is power. With the right fulcrum point, a lever can move the world. Similarly, with the right index, an optic can transform data in ways that value-only access cannot. Position-based discounts, numbered lists, audit trails showing *which* field changed: all require knowing *where* you are, not just *what* you have.
 

@@ -18,37 +18,28 @@ This page collects the advanced composition patterns and reference material that
 
 When you compose two indexed optics, the indices form a **pair** representing the path through nested structures.
 
-```
-        COMPOSING INDEXED OPTICS: NESTED PATH TRACKING
+```mermaid
+flowchart TD
+    A(["IndexedTraversal&lt;Integer, List&lt;Order&gt;, Order&gt;"])
+    B(["IndexedTraversal&lt;Integer, List&lt;Item&gt;, Item&gt;"])
+    R["Pair&lt;Pair&lt;Integer, Integer&gt;, Item&gt;<br/>the outer index and the inner one, kept together"]
+    A -->|"iandThen"| B --> R
 
-   List<Order>                    List<Item>
-  ┌───────────┐                  ┌───────────┐
-  │ Order 0   │──┐               │ Item 0    │──▶ Pair(0, 0)
-  │           │  │    items      │ Item 1    │──▶ Pair(0, 1)
-  │ Order 1   │──┼──────────────▶├───────────┤
-  │           │  │               │ Item 0    │──▶ Pair(1, 0)
-  │ Order 2   │──┘               │ Item 1    │──▶ Pair(1, 1)
-  └───────────┘                  │ Item 2    │──▶ Pair(1, 2)
-                                 └───────────┘
-
-  IndexedTraversal<Integer, List<Order>, Order>
-                    │
-                    │ iandThen
-                    ▼
-  IndexedTraversal<Integer, List<Item>, Item>
-                    │
-                    │ Result: Pair<Pair<Integer, Integer>, Item>
-                    ▼
-            ┌───────────────────────────────────┐
-            │  (orderIndex, itemIndex) → Item   │
-            │  ─────────────────────────────────│
-            │  ((0, 0), Laptop)                 │
-            │  ((0, 1), Mouse)                  │
-            │  ((1, 0), Keyboard)               │
-            │  ((1, 1), Monitor)                │
-            │  ((1, 2), Cable)                  │
-            └───────────────────────────────────┘
+    classDef tier fill:#a6d189,stroke:#40a02b,color:#232634
+    classDef out fill:#e5c890,stroke:#df8e1d,color:#232634
+    class A,B tier
+    class R out
 ```
+
+Each item arrives carrying the whole path that reached it, outer index first:
+
+| Path | Item |
+|---|---|
+| `(0, 0)` | `Laptop` |
+| `(0, 1)` | `Mouse` |
+| `(1, 0)` | `Keyboard` |
+| `(1, 1)` | `Monitor` |
+| `(1, 2)` | `Cable` |
 
 ```java
 import org.higherkindedj.optics.indexed.Pair;

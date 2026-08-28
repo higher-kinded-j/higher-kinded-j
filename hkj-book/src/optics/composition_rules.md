@@ -15,23 +15,27 @@ When composing optics, the resulting optic type follows precise mathematical rul
 
 ## The Optic Hierarchy
 
-Optics form a hierarchy from most specific (most operations available) to most general (fewest operations available):
+Optics order themselves by capability, from most specific (most operations available) to most general (fewest). An arrow points from an optic to one that can do less:
 
+```mermaid
+flowchart TD
+    I(["Iso"]) --> L(["Lens"])
+    I --> P(["Prism"])
+    L --> G(["Getter"])
+    L --> F(["Fold"])
+    P --> A(["Affine"])
+    A --> F
+    A --> T(["Traversal"])
+    P --> T
+    T --> St(["Setter"])
+
+    classDef tier fill:#a6d189,stroke:#40a02b,color:#232634
+    class I,L,P,G,F,A,T,St tier
 ```
-Iso ──────────────────────────────────────────┐
- │                                            │
- ├──> Lens ──> Getter                         │
- │       │                                    │
- │       └──────────────────────┐             │
- │                              │             │
- └──> Prism ──> Affine ─────> Fold            │
-          │         │                         │
-          │         └──────────────┐          │
-          │                        v          │
-          └──────────────────> Traversal ─────┘
-                                    │
-                                    └──> Setter
-```
+
+~~~admonish note title="Capability, not Java subtyping"
+These arrows rank what each optic can do; they are not `extends` edges. `Getter extends Fold` is the only inheritance between two optic types, and every other step across this diagram is an explicit conversion such as `asFold()` or `asTraversal()`. [Conversions](conversions.md) lists the ones that exist, and [Optic Capabilities](optic_capabilities.md) has the per-method table.
+~~~
 
 **What is Affine?** An Affine optic focuses on **zero or one** element within a structure. It combines the partial access of a Prism with the update capability of a Lens. Common use cases include:
 

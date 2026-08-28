@@ -65,19 +65,19 @@ The [Traversals & Practice Journey](../tutorials/optics/traversals_journey.md) (
 
 The concept is straightforward; the power is in the composition:
 
-```
-    Order Items: [Laptop, Mouse, Monitor, Keyboard]
-                    │       │       │        │
-                    ▼       ▼       ▼        ▼
-    Unfiltered:   [✓]     [✓]     [✓]      [✓]
+```mermaid
+flowchart TD
+    Items(["Laptop, Mouse, Monitor, Keyboard"])
+    Items --> Filter{"price &gt; £100?"}
+    Filter -->|"yes"| Kept(["Laptop, Monitor"])
+    Filter -->|"no"| Skipped(["Mouse, Keyboard<br/>left untouched"])
+    Kept --> Mod(["modify(applyDiscount)"])
 
-    filtered(price > £100):
-                  [✓]     [ ]     [✓]      [ ]
-                   │               │
-                   ▼               ▼
-    Focused:   [Laptop]       [Monitor]
-
-    → modify(applyDiscount) only affects Laptop and Monitor
+    classDef tier fill:#a6d189,stroke:#40a02b,color:#232634
+    classDef decision fill:#e5c890,stroke:#df8e1d,color:#232634
+    class Items,Kept,Mod tier
+    class Filter decision
+    class Skipped tier
 ```
 
 The filter becomes part of the optic itself, not scattered through your business logic.
@@ -88,19 +88,16 @@ The filter becomes part of the optic itself, not scattered through your business
 
 When position matters:
 
-```
-    List: ["A", "B", "C", "D"]
-           │     │     │     │
-    Index: 0     1     2     3
+```mermaid
+flowchart LR
+    L(["List: A, B, C, D"]) --> IT(["IndexedTraversal"])
+    IT --> TL["toIndexedList<br/>(0, A), (1, B), (2, C), (3, D)"]
+    IT --> IM["imodify((i, v) -&gt; v + i)<br/>A0, B1, C2, D3"]
 
-    ┌─────────────────────────────────────────────┐
-    │  IndexedTraversal                           │
-    │                                             │
-    │  toIndexedList → [(0,"A"), (1,"B"), ...]    │
-    │                                             │
-    │  imodify((i, v) -> v + i)                   │
-    │    → ["A0", "B1", "C2", "D3"]               │
-    └─────────────────────────────────────────────┘
+    classDef tier fill:#a6d189,stroke:#40a02b,color:#232634
+    classDef out fill:#e5c890,stroke:#df8e1d,color:#232634
+    class L,IT tier
+    class TL,IM out
 ```
 
 ---
