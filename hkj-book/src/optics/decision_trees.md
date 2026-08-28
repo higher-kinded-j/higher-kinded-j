@@ -46,7 +46,7 @@ Write-only access is the one case the tree does not reach: that is a [Setter](se
 | A collection field | Apply an operation to every element | [Traversal](traversals.md) |
 | A collection field, read-only | Query, search, aggregate | [Fold](folds.md) |
 | Read-only access to a single field | Get only | [Getter](getters.md) |
-| Write-only access, one or many targets | Set only | [Setter](setters.md) |
+| Write-only access, one or many targets | Set or modify, never read | [Setter](setters.md) |
 
 ---
 

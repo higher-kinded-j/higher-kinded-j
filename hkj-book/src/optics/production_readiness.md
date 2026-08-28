@@ -48,7 +48,9 @@ private static final TraversalPath<Order, BigDecimal> ALL_PRICES =
     OrderFocus.items().via(ItemFocus.price());
 ```
 
-This matters most for paths constructed by `andThen` chains, where the whole composition is rebuilt on every call. It is worth doing even for a single accessor: a generated accessor is a factory, not a constant. `CompanyLenses.name()` calls `Lens.of(...)` and allocates a fresh `Lens` every time, and `CompanyFocus.name()` allocates a `Lens` and a `FocusPath`. Caching removes that per-call allocation.
+This matters most for paths constructed by `andThen` chains, where the whole composition is rebuilt on every call. The saving is smaller but real for a single accessor too, because a generated accessor is a factory rather than a constant: `CompanyLenses.name()` calls `Lens.of(...)` and allocates a fresh `Lens` every time, and `CompanyFocus.name()` allocates a `Lens` and a `FocusPath`.
+
+Both cases assume the path is used more than once. A path used once has no allocation to amortise, which is why the table above still says to inline it at the call site.
 
 ---
 

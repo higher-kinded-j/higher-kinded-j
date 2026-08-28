@@ -80,8 +80,8 @@ Stay in the static-method utility for one-off bulk operations; reach for the [Fl
 All optic types expose `andThen(other)` for composition; the result type follows the rules in [Composition Rules](composition_rules.md). The conversion methods between optic types are catalogued in [Conversions](conversions.md).
 
 ~~~admonish info title="Key Takeaways"
-* **A `✓` means the method is on the type.** A cell naming a conversion means you can still get there, one `asFold()`, `asTraversal()` or `Traversals` call later. An empty cell means the optic genuinely cannot: a `Setter` has no read at all, and `matches` is meaningless on an optic that always hits.
-* **`Iso` is smaller than it looks.** `get`, `reverseGet` and `modifyF`: no `set` and no `modify`, because `reverseGet` already rebuilds the whole structure.
+* **A `✓` means the method is on the type.** A cell naming a conversion means you can still get there, one `asFold()`, `asTraversal()` or `Traversals` call later. An empty cell means only that the type does not declare it. Sometimes the operation is meaningless there — a `Setter` has no read at all, and `matches` never fails on an optic that always hits — and sometimes a conversion still reaches it, as `iso.asLens().set(...)` does.
+* **`Iso` is smaller than it looks.** `get`, `reverseGet` and `modifyF`: no `set` and no `modify` of its own, because `reverseGet` already rebuilds the whole structure. `asLens()` is the route when you want them.
 * **`Traversal` declares no plain read or write.** It has `modifyF` (plus `filtered`, `filterBy`, `branch` and `modifyWhen`); every `get`, `set` and `modify` goes through `Traversals` or `asFold()`.
 * **`Getter` extends `Fold`**, so it inherits the whole query family: `getAll`, `preview`, `exists`, `all`, `find`, `isEmpty` and `length`.
 * **`Setter` is zero-or-more and write-only.** It has `set` and `modify` and no way to read at all.
