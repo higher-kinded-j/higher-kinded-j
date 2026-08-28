@@ -1656,7 +1656,8 @@ class MappingProcessorUpdateTest {
               """);
 
       // 'ValidatedPrism<String, T>' is BaseVocabulary's vocabulary; the interface below it says T
-      // is String, and the spec has it at that. The update path reads members the same way the
+      // is EmailAddress, and the spec has it at that. The update path reads members the same way
+      // the
       // mapping path does, so it resolves here too.
       Compilation compilation = compile(EMAIL, USER, USER_PATCH_DTO, spec);
 

@@ -4,6 +4,7 @@ package org.higherkindedj.optics.processing;
 
 import static com.google.testing.compile.CompilationSubject.assertThat;
 import static com.google.testing.compile.Compiler.javac;
+import static org.higherkindedj.optics.processing.GeneratorTestHelper.assertGeneratedCodeContains;
 import static org.higherkindedj.optics.processing.RuntimeCompilationHelper.invoke;
 
 import com.google.testing.compile.Compilation;
@@ -9089,7 +9090,10 @@ class MappingProcessorTest {
               """
               package com.example;
 
-              public interface ElementVocabulary<T> {}
+              public interface ElementVocabulary<T> {
+                  @org.higherkindedj.optics.annotations.MapField(to = "fullName")
+                  T name();
+              }
               """);
       JavaFileObject spec =
           JavaFileObjects.forSourceString(
@@ -9112,7 +9116,10 @@ class MappingProcessorTest {
       // rather than one the gate stopped before it started.
       Compilation compilation = compile(EMAIL, ACCOUNT, ACCOUNT_DTO, VOCABULARY, generic, spec);
       assertThat(compilation).succeeded();
-      assertThat(compilation).generatedSourceFile("com.example.AccountMappingImpl");
+      // The rename arrives from the generic mix-in at String, which is what the stub declares;
+      // an empty mix-in would have proved only that the old gate is gone.
+      assertGeneratedCodeContains(
+          compilation, "com.example.AccountMappingImpl", "public String name()");
     }
 
     @Test

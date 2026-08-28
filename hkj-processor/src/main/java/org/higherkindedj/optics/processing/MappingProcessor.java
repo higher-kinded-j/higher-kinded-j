@@ -200,7 +200,7 @@ public class MappingProcessor extends AbstractProcessor {
       boolean parseCapable =
           sealedPair
               || domainRecord.getRecordComponents().size()
-                  == wireCount - derivedCandidateCount(env.getElementUtils(), spec);
+                  == wireCount - derivedCandidateCount(env, spec);
       registry.add(new RegisteredSpec(domainArg, wireArg, implClassName(spec), spec, parseCapable));
     }
     return registry;
@@ -234,11 +234,11 @@ public class MappingProcessor extends AbstractProcessor {
   }
 
   /** Zero-parameter, {@code ValidatedPrism}-returning and bodiless: an element-mapped leaf. */
-  private static boolean isAbstractLeaf(ExecutableElement method) {
+  private boolean isAbstractLeaf(TypeElement owner, ExecutableElement method) {
     return method.getModifiers().contains(Modifier.ABSTRACT)
         && method.getAnnotation(MapField.class) == null
         && method.getParameters().isEmpty()
-        && method.getReturnType() instanceof DeclaredType returnType
+        && memberTypeIn(owner, method) instanceof DeclaredType returnType
         && ((TypeElement) returnType.asElement()).getQualifiedName().contentEquals(VALIDATED_PRISM)
         && returnType.getTypeArguments().size() == 2;
   }
@@ -252,7 +252,7 @@ public class MappingProcessor extends AbstractProcessor {
   private List<ExecutableElement> abstractLeaves(TypeElement spec) {
     Map<String, ExecutableElement> leaves = new LinkedHashMap<>();
     for (ExecutableElement method : specMembers(spec)) {
-      if (isAbstractLeaf(method)) {
+      if (isAbstractLeaf(spec, method)) {
         leaves.putIfAbsent(method.getSimpleName().toString(), method);
       }
     }
@@ -279,14 +279,14 @@ public class MappingProcessor extends AbstractProcessor {
    * @param member one of its members, own or inherited; must not be null
    * @return the member's return type under the spec's instantiation
    */
-  private ExecutableType specMemberSignature(TypeElement spec, ExecutableElement member) {
+  private ExecutableType memberSignatureIn(TypeElement owner, ExecutableElement member) {
     return ProcessorUtils.memberOf(
-        processingEnv.getTypeUtils(), (DeclaredType) spec.asType(), member);
+        processingEnv.getTypeUtils(), (DeclaredType) owner.asType(), member);
   }
 
-  /** The return half of {@link #specMemberSignature}, which is what most readers want. */
-  private TypeMirror specMemberType(TypeElement spec, ExecutableElement member) {
-    return specMemberSignature(spec, member).getReturnType();
+  /** The return half of {@link #memberSignatureIn}, which is what most readers want. */
+  private TypeMirror memberTypeIn(TypeElement owner, ExecutableElement member) {
+    return memberSignatureIn(owner, member).getReturnType();
   }
 
   /**
@@ -304,7 +304,7 @@ public class MappingProcessor extends AbstractProcessor {
         .map(
             leaf ->
                 new LeafField(
-                    leaf.getSimpleName().toString(), TypeName.get(specMemberType(spec, leaf))))
+                    leaf.getSimpleName().toString(), TypeName.get(memberTypeIn(spec, leaf))))
         .toList();
   }
 
@@ -325,6 +325,39 @@ public class MappingProcessor extends AbstractProcessor {
     // Every ancestor, not just the direct parents: members are collected with getAllMembers, which
     // walks the whole ancestry, so a gate that reads one level lets a non-generic mix-in carry in
     // a generic one's members and the free variable reaches the diagnostics.
+    // The arguments the spec itself writes are checked as its MappingSpec clause is: a member is
+    // emitted into the Impl at the argument given here, and a raw or wildcard one leaves a type
+    // the Impl cannot name. Only the spec's own clauses: an argument further up belongs to the
+    // interface that wrote it, whose own parameters asMemberOf substitutes for.
+    for (TypeMirror parent : spec.getInterfaces()) {
+      if (parent.getKind() != TypeKind.DECLARED) {
+        continue;
+      }
+      DeclaredType declared = (DeclaredType) parent;
+      TypeElement element = (TypeElement) declared.asElement();
+      String name = element.getQualifiedName().toString();
+      if (name.equals(MAPPING_SPEC) || name.equals(UPDATE_SPEC)) {
+        continue;
+      }
+      if (!declared.getTypeArguments().stream()
+          .allMatch(argument -> supportedArgument(spec, argument))) {
+        Diagnostics.error(
+            processingEnv.getMessager(),
+            spec,
+            TAG,
+            "mix-in '"
+                + element.getSimpleName()
+                + "' is used at an unsupported instantiation: '"
+                + declared
+                + "'.",
+            "Its members are written into the generated Impl at the arguments given here, and a raw"
+                + " or wildcard argument leaves a type the Impl cannot name.",
+            "Give '"
+                + element.getSimpleName()
+                + "' concrete arguments, or the spec's own type parameters.");
+        return false;
+      }
+    }
     for (Inherited inherited : allSuperInterfaces(spec)) {
       TypeMirror parent = inherited.type();
       // ErrorType extends DeclaredType, so unresolved parents step aside first: javac already
@@ -355,25 +388,38 @@ public class MappingProcessor extends AbstractProcessor {
       // EmailAddress> in. A raw route is the one thing substitution cannot answer for, and only
       // where the ancestor contributes something to read - a marker extending a raw JDK type
       // carries nothing in, and refusing it would tell the author to fix a type they do not own.
-      TypeElement rawLink = ProcessorUtils.isRaw(parentType) ? parentElement : inherited.rawLink();
-      if (rawLink != null && carriesVocabulary(parentElement)) {
+      // Erasure through a raw supertype only reaches members whose own declaring interface is
+      // generic: javac substitutes nothing for a non-generic one, so nothing of its is lost, and
+      // refusing it would name a clause the author may not own. Asking this also makes the verdict
+      // independent of extends-clause order, because a generic ancestor reached both raw and
+      // instantiated is rejected by javac itself.
+      TypeElement rawLink = inherited.rawLink();
+      if (rawLink != null
+          && !parentElement.getTypeParameters().isEmpty()
+          && carriesVocabulary(parentElement)) {
+        TypeElement extender = inherited.rawExtender();
+        String where = extender.equals(spec) ? "the spec" : "'" + extender.getSimpleName() + "'";
         Diagnostics.error(
             processingEnv.getMessager(),
             spec,
             TAG,
             rawLink.equals(parentElement)
-                ? "mix-in '" + parentElement.getSimpleName() + "' is written raw."
+                ? "mix-in '" + parentElement.getSimpleName() + "' is extended raw by " + where + "."
                 : "mix-in '"
                     + parentElement.getSimpleName()
-                    + "' is reached through the raw '"
+                    + "' is reached through '"
                     + rawLink.getSimpleName()
-                    + "'.",
+                    + "', which "
+                    + where
+                    + " extends raw.",
             "Its members are read under the spec's instantiation, and a raw supertype erases every"
                 + " one of them whatever they declare: a 'ValidatedPrism<String, Email>' arrives"
                 + " bare, and a 'T' arrives as Object.",
-            "Name the type arguments where '"
+            "Name the type arguments where "
+                + where
+                + " extends '"
                 + rawLink.getSimpleName()
-                + "' is extended, as 'extends "
+                + "', as 'extends "
                 + rawLink.getSimpleName()
                 + "<...>'.");
         return false;
@@ -395,7 +441,8 @@ public class MappingProcessor extends AbstractProcessor {
   private List<Inherited> allSuperInterfaces(TypeElement spec) {
     List<Inherited> found = new ArrayList<>();
     Deque<Inherited> pending = new ArrayDeque<>();
-    spec.getInterfaces().forEach(parent -> pending.addLast(new Inherited(parent, null)));
+    spec.getInterfaces()
+        .forEach(parent -> pending.addLast(inheritedFrom(spec, parent, null, null)));
     Set<Name> seen = new HashSet<>();
     while (!pending.isEmpty()) {
       Inherited current = pending.removeFirst();
@@ -410,15 +457,38 @@ public class MappingProcessor extends AbstractProcessor {
         continue;
       }
       found.add(current);
-      // The first raw clause on the route is the one to name: correcting it restores every member
-      // below it, and correcting anything further down cannot.
-      TypeElement rawLink =
-          current.rawLink() != null
-              ? current.rawLink()
-              : ProcessorUtils.isRaw((DeclaredType) current.type()) ? element : null;
-      element.getInterfaces().forEach(parent -> pending.addLast(new Inherited(parent, rawLink)));
+      element
+          .getInterfaces()
+          .forEach(
+              parent ->
+                  pending.addLast(
+                      inheritedFrom(element, parent, current.rawLink(), current.rawExtender())));
     }
     return found;
+  }
+
+  /**
+   * One entry of the ancestry walk, recording who wrote its clause raw.
+   *
+   * <p>The first raw clause on the route is the one to name: correcting it restores every member
+   * below it, and correcting anything further down cannot. The interface that wrote it is carried
+   * alongside because that is the file the author has to open, and it is not always the spec.
+   *
+   * @param writer the interface whose extends clause names {@code parent}; must not be null
+   * @param parent the clause as written; must not be null
+   * @param routeLink the raw link already on this route, or null
+   * @param routeExtender the interface that wrote {@code routeLink} raw, or null
+   * @return the entry, carrying whichever raw clause comes first
+   */
+  private static Inherited inheritedFrom(
+      TypeElement writer, TypeMirror parent, TypeElement routeLink, TypeElement routeExtender) {
+    if (routeLink != null || parent.getKind() != TypeKind.DECLARED) {
+      return new Inherited(parent, routeLink, routeExtender);
+    }
+    DeclaredType declared = (DeclaredType) parent;
+    return ProcessorUtils.isRaw(declared)
+        ? new Inherited(parent, (TypeElement) declared.asElement(), writer)
+        : new Inherited(parent, null, null);
   }
 
   /**
@@ -432,8 +502,9 @@ public class MappingProcessor extends AbstractProcessor {
    *
    * @param type the inherited interface
    * @param rawLink the generic interface written raw on the way here, or null when none was
+   * @param rawExtender the interface whose own clause wrote it raw, or null with {@code rawLink}
    */
-  private record Inherited(TypeMirror type, TypeElement rawLink) {}
+  private record Inherited(TypeMirror type, TypeElement rawLink, TypeElement rawExtender) {}
 
   /**
    * Whether a mix-in contributes anything the spec would read off it.
@@ -452,7 +523,7 @@ public class MappingProcessor extends AbstractProcessor {
             method ->
                 method.isDefault()
                     || method.getAnnotation(MapField.class) != null
-                    || isAbstractLeaf(method));
+                    || isAbstractLeaf(mixin, method));
   }
 
   /** Whether an interface is, or transitively extends, {@code MappingSpec}/{@code UpdateSpec}. */
@@ -487,7 +558,7 @@ public class MappingProcessor extends AbstractProcessor {
     Types types = processingEnv.getTypeUtils();
     // Both halves under the spec: the pair it is compared against is instantiated, so a member
     // read as declared would match only where the two vocabularies happen to share a name.
-    ExecutableType asMember = specMemberSignature(spec, method);
+    ExecutableType asMember = memberSignatureIn(spec, method);
     TypeMirror parameter = asMember.getParameterTypes().getFirst();
     TypeMirror returned = asMember.getReturnType();
     return (types.isSameType(parameter, domainArg) && types.isSameType(returned, wireArg))
@@ -497,10 +568,10 @@ public class MappingProcessor extends AbstractProcessor {
   /**
    * Zero-parameter {@code default} returning a two-argument {@code ValidatedPrism}: leaf-shaped.
    */
-  private static boolean isLeafShaped(ExecutableElement method) {
+  private boolean isLeafShaped(TypeElement owner, ExecutableElement method) {
     return method.isDefault()
         && method.getParameters().isEmpty()
-        && method.getReturnType() instanceof DeclaredType returnType
+        && memberTypeIn(owner, method) instanceof DeclaredType returnType
         && ((TypeElement) returnType.asElement()).getQualifiedName().contentEquals(VALIDATED_PRISM)
         && returnType.getTypeArguments().size() == 2;
   }
@@ -515,7 +586,7 @@ public class MappingProcessor extends AbstractProcessor {
     List<String> components =
         domain.getRecordComponents().stream().map(c -> c.getSimpleName().toString()).toList();
     for (ExecutableElement method : specMembers(spec)) {
-      if (!method.getEnclosingElement().equals(spec) || !isLeafShaped(method)) {
+      if (!method.getEnclosingElement().equals(spec) || !isLeafShaped(spec, method)) {
         continue;
       }
       String name = method.getSimpleName().toString();
@@ -556,8 +627,8 @@ public class MappingProcessor extends AbstractProcessor {
       if (!method.getEnclosingElement().equals(spec)) {
         continue;
       }
-      boolean leaf = isLeafShaped(method);
-      if (!leaf && !isDerivedCandidate(method)) {
+      boolean leaf = isLeafShaped(spec, method);
+      if (!leaf && !isDerivedCandidate(processingEnv.getTypeUtils(), spec, method)) {
         continue;
       }
       Diagnostics.error(
@@ -654,7 +725,7 @@ public class MappingProcessor extends AbstractProcessor {
                   + " outbound direction, 'parse(Wire)' for the accumulating inbound one.");
           return false;
         }
-        if (isAbstractLeaf(method)) {
+        if (isAbstractLeaf(spec, method)) {
           if (!sealedPair && !spec.getTypeParameters().isEmpty()) {
             continue;
           }
@@ -1228,7 +1299,7 @@ public class MappingProcessor extends AbstractProcessor {
    */
   private boolean checkNoDerivedFields(TypeElement spec) {
     for (ExecutableElement method : specMembers(spec)) {
-      if (isDerivedCandidate(method)) {
+      if (isDerivedCandidate(processingEnv.getTypeUtils(), spec, method)) {
         Diagnostics.error(
             processingEnv.getMessager(),
             method,
@@ -2060,17 +2131,19 @@ public class MappingProcessor extends AbstractProcessor {
   private record DerivedField(String wireName) {}
 
   /** True for a zero-parameter {@code default} method returning {@code Getter} (any type args). */
-  private static boolean isDerivedCandidate(ExecutableElement method) {
+  private static boolean isDerivedCandidate(
+      Types types, TypeElement owner, ExecutableElement method) {
     return method.isDefault()
         && method.getParameters().isEmpty()
-        && method.getReturnType() instanceof DeclaredType returnType
+        && ProcessorUtils.returnTypeIn(types, (DeclaredType) owner.asType(), method)
+            instanceof DeclaredType returnType
         && ((TypeElement) returnType.asElement()).getQualifiedName().contentEquals(GETTER);
   }
 
   /** Counts derived candidates for the registry's parse-capability arithmetic. */
-  private static long derivedCandidateCount(Elements elements, TypeElement spec) {
-    return specMembers(elements, spec).stream()
-        .filter(MappingProcessor::isDerivedCandidate)
+  private static long derivedCandidateCount(ProcessingEnvironment env, TypeElement spec) {
+    return specMembers(env.getElementUtils(), spec).stream()
+        .filter(method -> isDerivedCandidate(env.getTypeUtils(), spec, method))
         .count();
   }
 
@@ -2089,7 +2162,7 @@ public class MappingProcessor extends AbstractProcessor {
       Map<String, String> renames) {
     List<DerivedField> derived = new ArrayList<>();
     for (ExecutableElement method : specMembers(spec)) {
-      if (!isDerivedCandidate(method)) {
+      if (!isDerivedCandidate(processingEnv.getTypeUtils(), spec, method)) {
         continue;
       }
       String name = method.getSimpleName().toString();
@@ -2132,7 +2205,7 @@ public class MappingProcessor extends AbstractProcessor {
             "Rename the method after the wire component it derives, or remove it.");
         return null;
       }
-      DeclaredType returnType = (DeclaredType) specMemberType(spec, method);
+      DeclaredType returnType = (DeclaredType) memberTypeIn(spec, method);
       boolean shapeMatches =
           returnType.getTypeArguments().size() == 2
               && processingEnv
@@ -2153,7 +2226,7 @@ public class MappingProcessor extends AbstractProcessor {
                 + ", "
                 + wireComponent.type()
                 + "> but returns '"
-                + specMemberType(spec, method)
+                + memberTypeIn(spec, method)
                 + "'.",
             "build fills the wire component by applying the getter to the whole domain value, so"
                 + " the first type argument must be the domain record and the second the wire"
@@ -2705,7 +2778,7 @@ public class MappingProcessor extends AbstractProcessor {
           || !method.getParameters().isEmpty()) {
         continue;
       }
-      if (!(specMemberType(spec, method) instanceof DeclaredType returnType)) {
+      if (!(memberTypeIn(spec, method) instanceof DeclaredType returnType)) {
         continue;
       }
       TypeElement raw = (TypeElement) returnType.asElement();
@@ -2731,7 +2804,7 @@ public class MappingProcessor extends AbstractProcessor {
         return " A default method '"
             + name
             + "()' exists but returns '"
-            + specMemberType(spec, method)
+            + memberTypeIn(spec, method)
             + "'"
             + (method.getParameters().isEmpty() ? "" : " and declares parameters")
             + " — a leaf must be a zero-parameter default method returning exactly"
@@ -3757,7 +3830,7 @@ public class MappingProcessor extends AbstractProcessor {
           MethodSpec.methodBuilder(method.getSimpleName().toString())
               .addAnnotation(Override.class)
               .addModifiers(Modifier.PUBLIC)
-              .returns(TypeName.get(specMemberType(spec, method)))
+              .returns(TypeName.get(memberTypeIn(spec, method)))
               .addJavadoc("Rename declaration only; not invocable.\n")
               .addStatement(
                   "throw new $T($S)",
@@ -3795,7 +3868,7 @@ public class MappingProcessor extends AbstractProcessor {
       all.add(
           EmittedMember.of(
               "of",
-              leaves.stream().map(leaf -> specMemberType(spec, leaf)).toArray(TypeMirror[]::new)));
+              leaves.stream().map(leaf -> memberTypeIn(spec, leaf)).toArray(TypeMirror[]::new)));
     }
     return all;
   }
@@ -3865,7 +3938,7 @@ public class MappingProcessor extends AbstractProcessor {
     // Under the spec, as the members it is compared against are: an inherited 'build(D)' erases
     // to 'build(Object)' where it is declared, which collides with nothing, and the generated
     // Impl then declares a second 'build' the author never sees until javac rejects their file.
-    List<? extends TypeMirror> specParams = specMemberSignature(spec, method).getParameterTypes();
+    List<? extends TypeMirror> specParams = memberSignatureIn(spec, method).getParameterTypes();
     for (int i = 0; i < member.params().size(); i++) {
       TypeMirror specParam = specParams.get(i);
       // An unresolved parameter type matches everything under javac's isSameType; treat it as no
@@ -3885,7 +3958,7 @@ public class MappingProcessor extends AbstractProcessor {
    */
   private String methodSignature(TypeElement spec, ExecutableElement method) {
     StringJoiner params = new StringJoiner(", ", "(", ")");
-    for (TypeMirror parameter : specMemberSignature(spec, method).getParameterTypes()) {
+    for (TypeMirror parameter : memberSignatureIn(spec, method).getParameterTypes()) {
       params.add(simpleTypeName(parameter));
     }
     return method.getSimpleName() + params.toString();

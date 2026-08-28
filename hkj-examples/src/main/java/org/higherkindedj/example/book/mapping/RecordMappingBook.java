@@ -274,6 +274,8 @@ record SupplierDto(String fullName, String email, String phone) {}
 @GenerateMapping
 interface SupplierMapping extends ContactVocabulary, MappingSpec<Supplier, SupplierDto> {}
 
+// ANCHOR_END: mixin_spec
+
 // ANCHOR: generic_mixin_spec
 // Vocabulary parameterised by the type it speaks about: one interface, reused wherever the
 // domain component happens to land.
@@ -297,8 +299,6 @@ interface ContractorMapping extends TextRenames, MappingSpec<Contractor, Contrac
 }
 
 // ANCHOR_END: generic_mixin_spec
-
-// ANCHOR_END: mixin_spec
 
 // ANCHOR: nesting_spec
 record Invoice(String id, Customer customer) {}
