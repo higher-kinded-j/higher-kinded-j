@@ -389,6 +389,13 @@ public class SpecInterfaceAnalyser {
           // parsePrismHint has reported why.
           return Optional.empty();
         }
+        // Both hints generate the same build side, so the focus is held to the same requirement
+        // whichever one narrowed it. Asked after the hint, so a method carrying none is told that
+        // first: it is the nearer problem.
+        if (!typeUtils.isAssignable(focusType, sourceType)) {
+          reportFocusThatCannotBuildTheSource(method, specInterface, sourceType, focusType);
+          return Optional.empty();
+        }
         prismHint = prismResult.get().kind();
         prismHintInfo = prismResult.get().info();
       }
@@ -959,6 +966,52 @@ public class SpecInterfaceAnalyser {
             + "' requires a prism hint annotation: "
             + "@InstanceOf or @MatchWhen",
         method);
+  }
+
+  /**
+   * Reports a prism whose focus type cannot rebuild the source it was narrowed from.
+   *
+   * <p>A generated prism is built with identity as its build side, so it hands back exactly the
+   * value the getter read. That only stands up {@code Prism.build} when the focus is a type the
+   * source accepts. A focus that is a value rather than a variant of the source - {@code
+   * Prism<JsonNode, String>} - has no build side the processor could write, and reaches javac as an
+   * error inside a file the author never wrote (issue #755).
+   *
+   * @param method the offending optic method
+   * @param specInterface the spec declaring it, for the name the user reads
+   * @param sourceType the source type {@code S}
+   * @param focusType the focus type the prism promises
+   */
+  private void reportFocusThatCannotBuildTheSource(
+      ExecutableElement method,
+      TypeElement specInterface,
+      TypeMirror sourceType,
+      TypeMirror focusType) {
+
+    String source = ProcessorUtils.simpleTypeName(sourceType);
+    Diagnostics.error(
+        messager,
+        method,
+        "@ImportOptics",
+        "'"
+            + specInterface.getSimpleName()
+            + "."
+            + method.getSimpleName()
+            + "' focuses '"
+            + ProcessorUtils.simpleTypeName(focusType)
+            + "', which is not a '"
+            + source
+            + "'.",
+        "A prism runs both ways, and the generated one builds back with identity: it returns the"
+            + " value it narrowed. That is only a '"
+            + source
+            + "' when the focus is one, and nothing else here could rebuild one.",
+        "Focus a type that is a '"
+            + source
+            + "' - the variant, not the value it carries - or, where the value is the point, write"
+            + " the prism by hand with Prism.of and a build side that constructs a '"
+            + source
+            + "'.");
   }
 
   /**

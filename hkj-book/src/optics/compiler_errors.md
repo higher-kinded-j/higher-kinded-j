@@ -149,6 +149,12 @@ A source type that is itself generic is supported, and the spec names its own ty
 
 **Fix.** Name the type the wildcard stands for, or switch to `@Wither`, which rebuilds through a method and names no constructor — a wildcard source type is no obstacle there.
 
+### "@ImportOptics: '...' focuses '...', which is not a '...'"
+
+**Cause.** A prism runs both ways, and the generated one builds back with identity — it returns the value it narrowed. That is only a source when the focus is one, so a focus that is a *value* rather than a variant has no build side the processor could write: `Prism<JsonNode, String>` would need to rebuild a `JsonNode` from a bare `String`, and nothing in the declaration says how. The requirement belongs to the prism rather than to either hint, so `@InstanceOf` and `@MatchWhen` are both held to it — including an `@InstanceOf` whose narrowing is sound but reaches the focus through a supertype the source does not share, `Prism<Base, Marker>` for a `Sub implements Base, Marker`.
+
+**Fix.** Focus the variant that carries the value — `TextNode` rather than `String` — and read the payload with a further optic. Where the value type is the point, write that prism by hand with `Prism.of` and a build side that constructs the source, such as `TextNode::valueOf`.
+
 ### "@MatchWhen: predicate / getter method not found on source"
 
 **Cause.** The string passed to `@MatchWhen(predicate = "isFoo", getter = "asFoo")` does not match a real method on the source type.
