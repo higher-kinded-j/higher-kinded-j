@@ -1,5 +1,7 @@
 # Free Monad DSL: Composable Optic Programs
 
+## _Optic Operations as Data You Can Inspect, Replay and Refuse_
+
 ![free_monad.jpg](../images/lens2.jpg)
 
 ~~~admonish info title="What You'll Learn"
@@ -11,11 +13,7 @@
 - Creating reusable program fragments
 ~~~
 
-~~~admonish title="Hands On Practice"
-[Tutorial11_AdvancedOpticsDSL.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/test/java/org/higherkindedj/tutorial/optics/Tutorial11_AdvancedOpticsDSL.java)
-~~~
-
-~~~admonish title="Example Code"
+~~~admonish example title="See Example Code"
 [FreeMonadOpticDSLExample](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/optics/fluent/FreeMonadOpticDSLExample.java)
 ~~~
 
@@ -29,11 +27,11 @@ Consider these real-world requirements:
 - **Validation**: Check all constraints before making any changes
 - **Testing**: Verify your logic without touching real data
 - **Optimisation**: Analyse and fuse multiple operations for efficiency
-- **Dry-runs**: See what would change without actually changing it
+- **Structural analysis**: count what a program contains, with `ProgramAnalyser.analyse`, without running a step
 
-This is where the Free monad DSL comes in. It lets you **describe** a sequence of optic operations as data, then **interpret** that description in different ways.
+This is where the Free Monad DSL comes in. It lets you **describe** a sequence of optic operations as data, then **interpret** that description in different ways.
 
-~~~admonish tip title="The Core Insight"
+~~~admonish tip title="Why this matters"
 A Free monad program is like a recipe. Writing the recipe doesn't cook the meal; it just describes what to do. You can review the recipe, validate it, translate it, or follow it to cook. The Free monad DSL gives you that same power with optic operations.
 ~~~
 
@@ -66,7 +64,7 @@ Person result = OpticInterpreters.direct().run(program);
 By separating **description** from **execution**, you can:
 
 1. **Review** the program before running it
-2. **Validate** all operations without executing them
+2. **Check** every operation and collect the problems, instead of the result
 3. **Log** every operation for audit trails
 4. **Test** the logic with mock data
 5. **Transform** the program (optimise, translate, etc.)
@@ -74,6 +72,10 @@ By separating **description** from **execution**, you can:
 For optics specifically, this means you can build complex data transformation workflows and then choose how to execute them based on your needs.
 
 ---
+
+~~~admonish note title="Reading the type"
+`Free<OpticOpKind.Witness, Person>` is a program whose steps are optic operations and whose answer is a `Person`. The first parameter names the vocabulary of steps (`OpticOpKind.Witness` is the marker for "optic operations"); the second is what you get back when someone runs it. The builders live in `OpticPrograms`, and `OpticOps` is the same set of operations executed immediately, with no program in between. All of it is in `org.higherkindedj.optics.free`.
+~~~
 
 ## Part 2: Building Your First Optic Program
 
@@ -156,7 +158,7 @@ You can chain multiple `flatMap` calls to build sophisticated workflows:
 @GenerateLenses
 public record Employee(String name, int salary, EmployeeStatus status) {}
 
-enum EmployeeStatus { JUNIOR, SENIOR, RETIRED }
+enum EmployeeStatus { JUNIOR, SENIOR, PROBATION, RETIRED }
 
 // Program: Annual review and potential promotion
 Free<OpticOpKind.Witness, Employee> annualReviewProgram(Employee employee) {
@@ -195,7 +197,7 @@ Employee promoted = OpticInterpreters.direct().run(program);
 
 ## Part 3: Working with Collections (Traversals and Folds)
 
-The DSL works beautifully with traversals for batch operations:
+The DSL supports batch operations through traversals:
 
 ```java
 @GenerateLenses
@@ -298,7 +300,7 @@ By building the migration as a program, you can:
 - Validate the entire migration plan before executing
 - Log every transformation for audit purposes
 - Test the migration logic without touching real data
-- Roll back if any step fails
+- Recover from a failing step with `handleError`, when the target monad is a `MonadError` (against `Id` the handler is ignored)
 ~~~
 
 ---
@@ -349,15 +351,15 @@ Transaction result = logger.run(program);
 // Review audit trail
 logger.getLog().forEach(System.out::println);
 /* Output:
-GET: TransactionLenses.amount() -> 100.00
-MODIFY: TransactionLenses.from().andThen(AccountLenses.balance()) from 1000.00 to 900.00
+GET: OpticPrograms$$Lambda/0x... -> 100.00
+MODIFY: Lens$3 from 1000.00 to 900.00
 MODIFY: TransactionLenses.to().andThen(AccountLenses.balance()) from 500.00 to 600.00
 */
 ```
 
 ---
 
-### Scenario 3: Dry-Run Validation Before Production
+### Scenario 3: Checked Run Before Committing the Result
 
 ```java
 @GenerateLenses
@@ -380,7 +382,7 @@ Free<OpticOpKind.Witness, ProductCatalogue> bulkPriceUpdate(
     );
 }
 
-// First, validate without executing
+// First, run it under the validating interpreter and read the report
 ProductCatalogue catalogue = new ProductCatalogue(
     List.of(
         new Product("P001", new BigDecimal("99.99"), 10),
@@ -512,7 +514,8 @@ record ProcessingStats(int processed, int modified, int skipped) {}
 Free<OpticOpKind.Witness, Tuple2<Team, ProcessingStats>> processTeamWithStats(
     Team team
 ) {
-    // This is simplified - in practice you'd thread stats through flatMaps
+    // The stats are derived after the fact here; threading them through the
+// flatMaps would make the program carry them itself
     return OpticPrograms.getAll(team, TeamTraversals.players())
         .flatMap(players -> {
             int processed = players.size();
@@ -596,8 +599,13 @@ logger.getLog().forEach(System.out::println);
 ValidationOpticInterpreter validator = OpticInterpreters.validating();
 ValidationResult validation = validator.validate(program);
 
-// Test it with mocks
-MockOpticInterpreter mock = new MockOpticInterpreter();
+// Test it with mocks. A stub per operation, because `modify` yields the source type
+// while a `get` would yield the focus type; see Interpreters for the class itself.
+Person mockPerson = new Person("Mock", 99, "ACTIVE");
+MockOpticInterpreter mock = new MockOpticInterpreter(op -> switch (op) {
+    case OpticOp.Modify<?, ?> ignored -> mockPerson;   // this program is a single modify
+    default -> throw new UnsupportedOperationException(op.getClass().getSimpleName());
+});
 Person mockResult = mock.run(program);
 ```
 
@@ -654,22 +662,28 @@ logger.getLog().forEach(System.out::println);  // Side effect here is fine
 
 ---
 
-~~~admonish tip title="Further Reading"
-- **Gabriel Gonzalez**: [Why Free Monads Matter](https://www.haskellforall.com/2012/06/you-could-have-invented-free-monads.html) - The foundational explanation
-- **Scott Wlaschin**: [Railway Oriented Programming](https://fsharpforfunandprofit.com/rop/) - Error handling patterns
-~~~
-
 ~~~admonish info title="Hands-On Learning"
-Practice the Free Monad DSL in [Tutorial 11: Advanced Optics DSL](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/test/java/org/higherkindedj/tutorial/optics/Tutorial11_AdvancedOpticsDSL.java) (7 exercises, ~12 minutes).
+Practice the Free Monad DSL in [Tutorial 11: Advanced Optics DSL](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/test/java/org/higherkindedj/tutorial/optics/Tutorial11_AdvancedOpticsDSL.java) (7 exercises, ~15 minutes).
 ~~~
 
----
+~~~admonish info title="Key Takeaways"
+* **A program is a value, not an action.** `OpticPrograms.get`/`set`/`modify` build a `Free<OpticOpKind.Witness, A>` and run nothing; execution is a separate, later decision.
+* **`flatMap` is where the sequencing lives.** Each step sees the previous step's result, so a multi-stage workflow reads top to bottom while still being pure data.
+* **The same description supports several answers.** Run it, log it, run it for a report instead of a result, or hand it to an interpreter of your own; the program does not change.
+* **The cost is a layer of indirection.** The same edit takes a program value, an interpreter and a `run` call where direct execution took one line, so reach for this when you need inspection or several execution modes, not for a single update.
+* **`pure` lifts a plain value in.** It is how a branch that has nothing to do still returns something the rest of the chain can `flatMap` over.
+~~~
 
-**Next Steps:**
+~~~admonish tip title="See Also"
+- [Interpreters](interpreters.md): the execution strategies these programs are handed to
+- [Fluent API](fluent_api.md): the direct-execution counterpart, when a description buys you nothing
+- [Composing Optics](composing_optics.md): the optics these programs navigate with
+~~~
 
-- [Optic Interpreters](interpreters.md) - Deep dive into execution strategies
-- [Fluent API for Optics](fluent_api.md) - Direct execution patterns
-- [Advanced Patterns](composing_optics.md) - Complex real-world scenarios
+~~~admonish tip title="Further Reading"
+- **Gabriel Gonzalez**: [Why Free Monads Matter](https://www.haskellforall.com/2012/06/you-could-have-invented-free-monads.html): the foundational explanation
+- **Scott Wlaschin**: [Railway Oriented Programming](https://fsharpforfunandprofit.com/rop/): error-handling patterns
+~~~
 
 ---
 
