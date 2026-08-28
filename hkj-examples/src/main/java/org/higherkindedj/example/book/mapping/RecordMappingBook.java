@@ -276,6 +276,30 @@ interface SupplierMapping extends ContactVocabulary, MappingSpec<Supplier, Suppl
 
 // ANCHOR_END: mixin_spec
 
+// ANCHOR: generic_mixin_spec
+// Vocabulary parameterised by the type it speaks about: one interface, reused wherever the
+// domain component happens to land.
+interface Renames<T> {
+  @MapField(to = "fullName")
+  T name();
+}
+
+// The interface below it says what T is. The spec never repeats it, and never sees a T.
+interface TextRenames extends Renames<String> {}
+
+record Contractor(String name, EmailAddress email) {}
+
+record ContractorDto(String fullName, String email) {}
+
+@GenerateMapping
+interface ContractorMapping extends TextRenames, MappingSpec<Contractor, ContractorDto> {
+  default ValidatedPrism<String, EmailAddress> email() {
+    return EmailCodecs.EMAIL;
+  }
+}
+
+// ANCHOR_END: generic_mixin_spec
+
 // ANCHOR: nesting_spec
 record Invoice(String id, Customer customer) {}
 

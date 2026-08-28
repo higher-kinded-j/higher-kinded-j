@@ -1596,8 +1596,8 @@ class MappingProcessorUpdateTest {
     }
 
     @Test
-    @DisplayName("a generic mix-in is rejected on the update path too")
-    void genericMixinRejected() {
+    @DisplayName("a generic mix-in is read under the spec on the update path too")
+    void genericMixinResolved() {
       JavaFileObject spec =
           JavaFileObjects.forSourceString(
               "com.example.GenericMixinMapping",
@@ -1607,20 +1607,28 @@ class MappingProcessorUpdateTest {
               import org.higherkindedj.optics.annotations.GenerateMapping;
               import org.higherkindedj.optics.annotations.UpdateSpec;
 
-              interface Vocabulary<T> {}
+              interface Vocabulary<T> {
+                  default org.higherkindedj.optics.validated.ValidatedPrism<String, T> email() {
+                      return org.higherkindedj.optics.validated.ValidatedPrism.of(
+                          raw ->
+                              org.higherkindedj.hkt.validated.Validated.invalidNel(
+                                  org.higherkindedj.hkt.validated.FieldError.of("not supplied")),
+                          value -> "");
+                  }
+              }
 
               @GenerateMapping
               public interface GenericMixinMapping
-                  extends Vocabulary<String>, UpdateSpec<User, UserPatchDto> {}
+                  extends Vocabulary<EmailAddress>, UpdateSpec<User, UserPatchDto> {}
               """);
       Compilation compilation = compile(EMAIL, USER, USER_PATCH_DTO, spec);
-      assertThat(compilation).failed();
-      assertThat(compilation).hadErrorContaining("mix-in 'Vocabulary' is generic");
+      assertThat(compilation).succeeded();
+      assertThat(compilation).generatedSourceFile("com.example.GenericMixinMappingImpl");
     }
 
     @Test
-    @DisplayName("a generic mix-in reached through a non-generic one is rejected by name")
-    void transitiveGenericMixinRejected() {
+    @DisplayName("a generic mix-in reached through a non-generic one is read under the spec")
+    void transitiveGenericMixinResolved() {
       JavaFileObject spec =
           JavaFileObjects.forSourceString(
               "com.example.TransitiveMixinMapping",
@@ -1631,24 +1639,30 @@ class MappingProcessorUpdateTest {
               import org.higherkindedj.optics.annotations.UpdateSpec;
 
               interface BaseVocabulary<T> {
-                  default org.higherkindedj.optics.validated.ValidatedPrism<String, T> shared() {
-                      return null;
+                  default org.higherkindedj.optics.validated.ValidatedPrism<String, T> email() {
+                      return org.higherkindedj.optics.validated.ValidatedPrism.of(
+                          raw ->
+                              org.higherkindedj.hkt.validated.Validated.invalidNel(
+                                  org.higherkindedj.hkt.validated.FieldError.of("not supplied")),
+                          value -> "");
                   }
               }
 
-              interface Vocabulary extends BaseVocabulary<String> {}
+              interface Vocabulary extends BaseVocabulary<EmailAddress> {}
 
               @GenerateMapping
               public interface TransitiveMixinMapping
                   extends Vocabulary, UpdateSpec<User, UserPatchDto> {}
               """);
 
-      // Members are collected with getAllMembers, which walks the whole ancestry, so the gate has
-      // to as well - and it names the ancestor that is actually generic.
+      // 'ValidatedPrism<String, T>' is BaseVocabulary's vocabulary; the interface below it says T
+      // is EmailAddress, and the spec has it at that. The update path reads members the same way
+      // the
+      // mapping path does, so it resolves here too.
       Compilation compilation = compile(EMAIL, USER, USER_PATCH_DTO, spec);
 
-      assertThat(compilation).failed();
-      assertThat(compilation).hadErrorContaining("mix-in 'BaseVocabulary' is generic");
+      assertThat(compilation).succeeded();
+      assertThat(compilation).generatedSourceFile("com.example.TransitiveMixinMappingImpl");
     }
 
     @Test

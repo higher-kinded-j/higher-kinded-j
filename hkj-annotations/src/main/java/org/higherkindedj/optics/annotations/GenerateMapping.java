@@ -43,8 +43,12 @@ import java.lang.annotation.Target;
  *       (transitively) count exactly as if declared on the spec, with Java's own precedence — a
  *       local override hides the mix-in's member, unrelated mix-ins agreeing on an abstract rename
  *       count once, and conflicting rename targets are diagnosed naming both interfaces. A mix-in
- *       must not itself be a mapping spec, and must be non-generic; diagnostics about inherited
- *       members name the declaring interface.
+ *       may be generic: its members are read under the spec's instantiation, so {@code Emails<T>}
+ *       extended as {@code Emails<EmailAddress>} contributes {@code ValidatedPrism<String,
+ *       EmailAddress>}. It must not itself be a mapping spec, and must not be raw nor reached
+ *       through a raw supertype: raw erases every member of the type below it, so a mix-in that
+ *       contributes one is refused, while one contributing nothing is left alone. Diagnostics about
+ *       inherited members name the declaring interface.
  *   <li>Same-named, same-typed components match automatically; {@link MapField} declares renames.
  *   <li>A validated leaf is a zero-parameter {@code default} method named after the domain
  *       component, returning {@code ValidatedPrism<WireComponent, DomainComponent>}. An explicit

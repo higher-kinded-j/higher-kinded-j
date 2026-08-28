@@ -9081,19 +9081,56 @@ class MappingProcessorTest {
     }
 
     @Test
-    @DisplayName("a generic mix-in is rejected")
-    void genericMixinIsRejected() {
+    @DisplayName("a generic mix-in is read under the spec")
+    void genericMixinIsResolved() {
+      // A pair of its own, because the shared fixtures claim every wire component between them:
+      // the generic mix-in has to contribute a member no other vocabulary declares, or the stub
+      // it is judged by could have come from the one that already says String.
+      JavaFileObject domain =
+          JavaFileObjects.forSourceString(
+              "com.example.Contact",
+              """
+              package com.example;
+
+              public record Contact(String name, String nickname) {}
+              """);
+      JavaFileObject wire =
+          JavaFileObjects.forSourceString(
+              "com.example.ContactDto",
+              """
+              package com.example;
+
+              public record ContactDto(String fullName, String alias) {}
+              """);
+      JavaFileObject plain =
+          JavaFileObjects.forSourceString(
+              "com.example.ContactVocabulary",
+              """
+              package com.example;
+
+              import org.higherkindedj.optics.annotations.MapField;
+
+              public interface ContactVocabulary {
+                @MapField(to = "fullName")
+                String name();
+              }
+              """);
       JavaFileObject generic =
           JavaFileObjects.forSourceString(
               "com.example.ElementVocabulary",
               """
               package com.example;
 
-              public interface ElementVocabulary<T> {}
+              import org.higherkindedj.optics.annotations.MapField;
+
+              public interface ElementVocabulary<T> {
+                @MapField(to = "alias")
+                T nickname();
+              }
               """);
       JavaFileObject spec =
           JavaFileObjects.forSourceString(
-              "com.example.AccountMapping",
+              "com.example.ContactMapping",
               """
               package com.example;
 
@@ -9101,14 +9138,23 @@ class MappingProcessorTest {
               import org.higherkindedj.optics.annotations.MappingSpec;
 
               @GenerateMapping
-              public interface AccountMapping
-                  extends ElementVocabulary<String>, MappingSpec<Account, AccountDto> {}
+              public interface ContactMapping
+                  extends ElementVocabulary<String>,
+                      ContactVocabulary,
+                      MappingSpec<Contact, ContactDto> {}
               """);
-      Compilation compilation = compile(EMAIL, ACCOUNT, ACCOUNT_DTO, generic, spec);
-      assertThat(compilation).failed();
-      assertThat(compilation).hadErrorContaining("mix-in 'ElementVocabulary' is generic");
-      assertThat(compilation)
-          .hadErrorContaining("non-generic, or declare its members directly on the spec");
+      // Generic is no longer the question: a mix-in's members are read under the spec, so what
+      // matters is whether the route to it can be substituted, not whether it declares parameters.
+      // A non-generic mix-in rides alongside, so what is asserted is a mapping that completes
+      // rather than one the gate stopped before it started.
+      Compilation compilation = compile(domain, wire, plain, generic, spec);
+      assertThat(compilation).succeeded();
+      // 'nickname' is declared only on the generic mix-in, so only the substitution can give its
+      // stub a String: read as declared it would be Object, which does not implement the spec.
+      // 'name' alongside it says the plain mix-in still contributes as it always did.
+      Assertions.assertThat(generatedSource(compilation, "com.example.ContactMappingImpl"))
+          .contains("public String nickname()")
+          .contains("public String name()");
     }
 
     @Test

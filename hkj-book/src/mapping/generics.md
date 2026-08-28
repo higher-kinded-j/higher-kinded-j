@@ -63,6 +63,29 @@ The three access shapes are one rule, not three conventions: *how much state doe
 
 ---
 
+## Generic mix-ins
+
+A mix-in may declare type parameters of its own. Its members are read under the spec's instantiation, so a shared vocabulary interface parameterised by the type it speaks about contributes at the type the spec gives it:
+
+``` java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/mapping/RecordMappingBook.java:generic_mixin_spec}}
+```
+
+`name()` says `T` where it is declared and `String` where the spec has it, and that is what the generated Impl carries. It holds however many interfaces separate the two, and a spec's own parameters survive as themselves, because the Impl declares them.
+
+The one shape this cannot answer for is a **raw** supertype anywhere on the route. Raw erases every member of the type below it, whatever that member declares, so `extends Renames` would contribute `Object name()` rather than the `String` it was written with. A raw ancestor that contributes nothing is left alone, since nothing of its is read; one that contributes a rename, a leaf or a derived field is refused at the declaration:
+
+```
+@GenerateMapping: mix-in 'Renames' is written raw. Its members are read under the spec's
+instantiation, and a raw supertype erases every one of them whatever they declare: a
+'ValidatedPrism<String, Email>' arrives bare, and a 'T' arrives as Object. Name the type
+arguments where 'Renames' is extended, as 'extends Renames<...>'.
+```
+
+Erasure travels downwards, so the raw clause is not always the interface whose members went missing: with `TextRenames extends Renames<String>` and a spec saying `extends TextRenames` raw, it is `TextRenames` that has to be given its argument. The message names the raw clause in both cases, because that is the line to edit.
+
+---
+
 ## Element-mapped specs
 
 The third form is **element-mapped**: thread the two sides under *different* variables (`Page<T> ↔ PageDto<TDto>`) and declare the element mapping as an **abstract leaf**. Nothing on the spec can parse a `TDto` into a `T`, so the generated Impl defers it: each abstract leaf becomes a constructor-supplied field behind a public `of(...)` factory, one `ValidatedPrism` per leaf in declaration order:
