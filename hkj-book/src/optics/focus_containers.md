@@ -106,11 +106,13 @@ Whichever way you reach a field — the static method, or a navigator on a recor
 | `Try<A>` | HKJ | `Affines.trySuccess()` |
 | `Validated<E, A>` | HKJ | `Affines.validatedValid()` |
 
-`ZERO_OR_MORE` containers, which produce a `TraversalPath` (at the static method only for the first row, or for the rest under `widenCollections = true`):
+`ZERO_OR_MORE` containers, which produce a `TraversalPath` (at the static method for the first three rows, which are recognised by name, and for the rest only under `widenCollections = true`):
 
 | Container | Source | Optic used |
 |-----------|--------|------------|
-| `List<A>`, `Set<A>`, `Collection<A>` | JDK | `.each()` (recognised directly) |
+| `List<A>` | JDK | `.each()` (recognised directly) |
+| `Set<A>` | JDK | `EachInstances.setEach()` (recognised directly) |
+| `Collection<A>` | JDK | `EachInstances.collectionEach()` (recognised directly) |
 | `Map<K, V>` | JDK | `EachInstances.mapValuesEach()` |
 | `A[]` | JDK | `EachInstances.arrayEach()` |
 | `ImmutableList`, `MutableList`, `ImmutableSet`, `MutableSet`, `ImmutableBag`, `MutableBag`, `ImmutableSortedSet`, `MutableSortedSet` | Eclipse Collections | `EachInstances.fromIterableCollecting(...)` |
@@ -119,6 +121,20 @@ Whichever way you reach a field — the static method, or a navigator on a recor
 | `HashBag`, `UnmodifiableList` | Apache Commons | `EachInstances.fromIterableCollecting(...)` |
 | `PVector`, `PStack`, `PSet`, `PSortedSet`, `PBag` | PCollections | `EachInstances.fromIterableCollecting(...)` |
 | `PMap`, `PSortedMap` | PCollections | `EachInstances.mapValuesEachCollecting(...)` |
+
+The three JDK collections are recognised by name rather than by the SPI, but they do not share one traversal: the no-argument `.each()` carries a `List` one, so a `Set` field is widened with `EachInstances.setEach()` and a `Collection` field with `EachInstances.collectionEach()`. Each rebuilds a value the component can take back, which is what lets the modified result go home:
+
+<!-- verify -->
+```java
+// Each of these widened at the static method, through its own Each instance
+TraversalPath<Team, Skill> teamSkills = TeamFocus.skills();
+TraversalPath<Team, String> teamTags = TeamFocus.tags();
+
+// The path is a TraversalPath, so the Set widened at the static method
+Team promoted = teamSkills.via(SkillFocus.level()).modifyAll(level -> level + 1, team);
+```
+
+A `Collection` names no ordering and no uniqueness, so `collectionEach()` rebuilds whichever it was given: a set-valued `Collection` comes back a set — a `LinkedHashSet`, so a `TreeSet` or other `SortedSet` source keeps its elements but not its ordering contract — and anything else comes back a `List`. A `Collection` that is neither, such as an `ArrayDeque`, also comes back a `List`; those types inherit identity `equals`, so no rebuild could return a collection equal to the one it was handed.
 
 Every third-party *collection* generator goes through `EachInstances.fromIterableCollecting(collector)`, a generic factory that iterates the container, traverses the elements with the applicative, and rebuilds the container through the collector it is given; the map-shaped ones go through `mapValuesEachCollecting` instead. No extra HKJ module is needed: the library itself you supply, and a project that names one of these types in a record already has it on the classpath.
 
@@ -151,13 +167,15 @@ public record Holder(Either<String, Leaf> either) {}
 
 Both of the container's own type arguments count, focused or not, so `Either<?, Leaf>` is rejected too. A wildcard nested *inside* an argument is fine: `Either<String, List<? extends Leaf>>` still has a ground instantiation and widens to `.some(Affines.eitherRight()).each()`.
 
-The built-in `Optional`, `List` and `Set` widenings take a wildcard without complaint, because `.some()` and `.each()` are methods with a free type variable and no optic argument to unify. `List<? extends Leaf>` widens to `TraversalPath<Holder, Leaf>` as usual.
+The recognised `Optional`, `Maybe` and `List` widenings take a wildcard without complaint, because `.some()` and the no-argument `.each()` are methods with a free type variable and no optic argument to unify. `List<? extends Leaf>` widens to `TraversalPath<Holder, Leaf>` as usual.
+
+`Set` and `Collection` are recognised directly too, but each widens by naming an `Each` instance, so the rule above applies to them exactly as it does to an SPI container: `Set<?>`, `Set<? extends Leaf>` and a raw `Set` are rejected at the declaration.
 
 A `ZERO_OR_MORE` SPI container is rejected only when something actually widens it — `widenCollections = true`, or a navigator taking it. At the default settings it stays a `FocusPath`, and the wildcard costs it nothing. Nor does one beneath it: `Map<String, Either<String, ? extends Leaf>>` compiles at the default settings, because the `Map` is never widened and so the `Either` inside it is never asked for an optic.
 
 A generator that names no optic expression is exempt: it widens through `.nullable()` or `.each()`, whose free type variable takes a raw or wildcard argument without complaint. Every generator shipped with HKJ names one.
 
-This is a rule about **composing an optic instance**, so it is `@GenerateFocus`'s alone. `@GenerateTraversals` reads the same component and emits a `Traversal` over the type the wildcard stands for: nothing is inferred, so there is nothing to fail. Where a path does widen — the built-in `Optional`, `List` and `Set` above — it reaches that same element type. See [Wildcard Element Types](traversals.md#wildcard-element-types).
+This is a rule about **composing an optic instance**, so it is `@GenerateFocus`'s alone. `@GenerateTraversals` reads the same component and emits a `Traversal` over the type the wildcard stands for: nothing is inferred, so there is nothing to fail. Where a path does widen — the recognised `Optional`, `Maybe` and `List` above — it reaches that same element type. See [Wildcard Element Types](traversals.md#wildcard-element-types).
 ~~~
 
 ### Cross-Ecosystem Navigation

@@ -399,8 +399,14 @@ public sealed interface AffinePath<S, A> permits AffineFocusPath {
   /**
    * When the focused type is {@code List<E>}, traverses all elements.
    *
+   * <p>The traversal it carries is a {@code List} one, so any other container needs {@link
+   * #each(Each)} and the {@code Each} that rebuilds it.
+   *
    * @param <E> the element type of the list
    * @return a TraversalPath over list elements
+   * @throws ClassCastException when the returned path is run, if the focused type {@code A} is not
+   *     a {@code List}
+   * @see #each(Each)
    */
   @SuppressWarnings("unchecked")
   default <E> TraversalPath<S, E> each() {

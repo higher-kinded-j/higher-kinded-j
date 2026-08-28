@@ -5,6 +5,7 @@ package org.higherkindedj.optics.each;
 import static org.assertj.core.api.Assertions.*;
 
 import java.util.*;
+import java.util.function.Function;
 import java.util.stream.Stream;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Traverse;
@@ -141,9 +142,86 @@ class EachInstancesTest {
     }
 
     @Test
+    @DisplayName("each() should keep the source's iteration order")
+    void eachKeepsTheSourcesIterationOrder() {
+      Set<String> ordered = new LinkedHashSet<>(List.of("echo", "alpha", "delta", "bravo"));
+
+      Set<String> modified = Traversals.modify(setEach.each(), String::toUpperCase, ordered);
+
+      assertThat(modified).containsExactly("ECHO", "ALPHA", "DELTA", "BRAVO");
+    }
+
+    @Test
+    @DisplayName("each() should carry a null element through rather than reject it")
+    void eachCarriesANullElementThrough() {
+      Set<String> withNull = new LinkedHashSet<>();
+      withNull.add("alice");
+      withNull.add(null);
+
+      assertThat(Traversals.modify(setEach.each(), Function.identity(), withNull))
+          .containsExactly("alice", null);
+    }
+
+    @Test
+    @DisplayName("each() should hand back an unmodifiable set")
+    void eachHandsBackAnUnmodifiableSet() {
+      Set<String> modified =
+          Traversals.modify(setEach.each(), Function.identity(), Set.of("alice"));
+
+      assertThatThrownBy(() -> modified.add("bob"))
+          .isInstanceOf(UnsupportedOperationException.class);
+    }
+
+    @Test
     @DisplayName("supportsIndexed() should return false for Set")
     void supportsIndexedReturnsFalse() {
       assertThat(setEach.supportsIndexed()).isFalse();
+    }
+  }
+
+  @Nested
+  @DisplayName("Collection Each Instance")
+  class CollectionEachTests {
+
+    private final Each<Collection<String>, String> collectionEach = EachInstances.collectionEach();
+
+    @Test
+    @DisplayName("each() should traverse all elements")
+    void eachTraversesAllElements() {
+      Collection<String> collection = List.of("a", "b", "c");
+      Traversal<Collection<String>, String> traversal = collectionEach.each();
+
+      List<String> elements = Traversals.getAll(traversal, collection);
+
+      assertThat(elements).containsExactly("a", "b", "c");
+    }
+
+    @Test
+    @DisplayName("each() should modify all elements")
+    void eachModifiesAllElements() {
+      Collection<String> collection = List.of("hello", "world");
+      Traversal<Collection<String>, String> traversal = collectionEach.each();
+
+      Collection<String> modified = Traversals.modify(traversal, String::toUpperCase, collection);
+
+      assertThat(modified).containsExactly("HELLO", "WORLD");
+    }
+
+    @Test
+    @DisplayName("each() should give a set back a set")
+    void eachGivesASetBackASet() {
+      Collection<String> collection = new HashSet<>(List.of("hello", "world"));
+      Traversal<Collection<String>, String> traversal = collectionEach.each();
+
+      Collection<String> modified = Traversals.modify(traversal, String::toUpperCase, collection);
+
+      assertThat(modified).isInstanceOf(Set.class).containsExactlyInAnyOrder("HELLO", "WORLD");
+    }
+
+    @Test
+    @DisplayName("supportsIndexed() should return false for Collection")
+    void supportsIndexedReturnsFalse() {
+      assertThat(collectionEach.supportsIndexed()).isFalse();
     }
   }
 

@@ -148,7 +148,8 @@ public class FocusProcessorNestedContainerTest {
     }
 
     @Test
-    @DisplayName("Set<Optional<String>> should produce .each().some() returning TraversalPath")
+    @DisplayName(
+        "Set<Optional<String>> should produce .each(setEach()).some() returning TraversalPath")
     void setOfOptionalShouldProduceEachThenSome() {
       final JavaFileObject source =
           JavaFileObjects.forSourceString(
@@ -167,7 +168,7 @@ public class FocusProcessorNestedContainerTest {
       final String expectedMethod =
           """
           public static TraversalPath<Config, String> items() {
-              return FocusPath.of(Lens.of(Config::items, (source, newValue) -> new Config(source.name(), newValue)), "items").each().some();
+              return FocusPath.of(Lens.of(Config::items, (source, newValue) -> new Config(source.name(), newValue)), "items").each(EachInstances.setEach()).some();
           }
           """;
 

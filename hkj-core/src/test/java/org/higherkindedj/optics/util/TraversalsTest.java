@@ -3,6 +3,7 @@
 package org.higherkindedj.optics.util;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.higherkindedj.hkt.instances.Witnesses.*;
 import static org.higherkindedj.hkt.optional.OptionalKindHelper.OPTIONAL;
 
@@ -25,6 +26,7 @@ import org.higherkindedj.hkt.tuple.Tuple2;
 import org.higherkindedj.hkt.tuple.Tuple2Lenses;
 import org.higherkindedj.optics.Lens;
 import org.higherkindedj.optics.Traversal;
+import org.higherkindedj.optics.laws.TraversalLaws;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -3108,6 +3110,139 @@ class TraversalsTest {
       Set<String> result = Traversals.modify(setTraversal, String::toUpperCase, single);
 
       assertThat(result).containsExactly("ONLY");
+    }
+  }
+
+  @Nested
+  @DisplayName("forCollection() Tests")
+  class ForCollectionTests {
+
+    private final Traversal<Collection<String>, String> traversal = Traversals.forCollection();
+
+    @Test
+    @DisplayName("forCollection() should modify all elements of a list")
+    void forCollection_modifiesAllElementsOfAList() {
+      Collection<String> names = List.of("alice", "bob", "charlie");
+
+      Collection<String> result = Traversals.modify(traversal, String::toUpperCase, names);
+
+      assertThat(result).containsExactly("ALICE", "BOB", "CHARLIE");
+    }
+
+    @Test
+    @DisplayName("forCollection() should modify all elements of a set")
+    void forCollection_modifiesAllElementsOfASet() {
+      Collection<String> names = new HashSet<>(List.of("alice", "bob", "charlie"));
+
+      Collection<String> result = Traversals.modify(traversal, String::toUpperCase, names);
+
+      assertThat(result).containsExactlyInAnyOrder("ALICE", "BOB", "CHARLIE");
+    }
+
+    @Test
+    @DisplayName("forCollection() should return all elements via getAll")
+    void forCollection_getAllReturnsAllElements() {
+      Collection<String> names = new LinkedHashSet<>(List.of("alice", "bob"));
+
+      List<String> result = Traversals.getAll(traversal, names);
+
+      assertThat(result).containsExactly("alice", "bob");
+    }
+
+    @Test
+    @DisplayName("forCollection() should handle an empty collection")
+    void forCollection_handlesEmptyCollection() {
+      Collection<String> empty = List.of();
+
+      assertThat(Traversals.modify(traversal, String::toUpperCase, empty)).isEmpty();
+      assertThat(Traversals.getAll(traversal, empty)).isEmpty();
+    }
+
+    @Test
+    @DisplayName("forCollection() should rebuild a set as a set, keeping uniqueness")
+    void forCollection_rebuildsASetAsASet() {
+      Collection<Integer> numbers = new HashSet<>(List.of(1, 2, 3));
+      Traversal<Collection<Integer>, Integer> ints = Traversals.forCollection();
+
+      Collection<Integer> result = Traversals.modify(ints, i -> 1, numbers);
+
+      assertThat(result).isInstanceOf(Set.class).containsExactly(1);
+    }
+
+    @Test
+    @DisplayName("forCollection() should rebuild a list as a list, keeping duplicates")
+    void forCollection_rebuildsAListAsAList() {
+      Collection<Integer> numbers = List.of(1, 2, 3);
+      Traversal<Collection<Integer>, Integer> ints = Traversals.forCollection();
+
+      Collection<Integer> result = Traversals.modify(ints, i -> 1, numbers);
+
+      assertThat(result).isInstanceOf(List.class).containsExactly(1, 1, 1);
+    }
+
+    @Test
+    @DisplayName("forCollection() should obey the traversal laws for a list and for a set")
+    void forCollection_obeysTheTraversalLaws() {
+      TraversalLaws.assertTraversalLaws(
+          traversal, List.of("alice", "bob"), String::toUpperCase, name -> name + "!");
+      TraversalLaws.assertTraversalLaws(
+          traversal,
+          new HashSet<>(List.of("alice", "bob")),
+          String::toUpperCase,
+          name -> name + "!");
+      TraversalLaws.assertTraversalLaws(
+          traversal,
+          new LinkedHashSet<>(List.of("alice", "bob")),
+          String::toUpperCase,
+          name -> name + "!");
+    }
+
+    @Test
+    @DisplayName("forCollection() should keep a set source's iteration order")
+    void forCollection_keepsASetSourcesIterationOrder() {
+      Collection<String> ordered = new LinkedHashSet<>(List.of("echo", "alpha", "delta", "bravo"));
+
+      assertThat(Traversals.modify(traversal, String::toUpperCase, ordered))
+          .containsExactly("ECHO", "ALPHA", "DELTA", "BRAVO");
+    }
+
+    @Test
+    @DisplayName("forCollection() should carry a null element through rather than reject it")
+    void forCollection_carriesANullElementThrough() {
+      Collection<String> withNull = new LinkedHashSet<>();
+      withNull.add("alice");
+      withNull.add(null);
+
+      assertThat(Traversals.modify(traversal, Function.identity(), withNull))
+          .containsExactly("alice", null);
+    }
+
+    @Test
+    @DisplayName("forCollection() should hand back an unmodifiable collection either way")
+    void forCollection_handsBackAnUnmodifiableCollection() {
+      Collection<String> fromASet =
+          Traversals.modify(traversal, Function.identity(), new HashSet<>(List.of("alice")));
+      Collection<String> fromAList =
+          Traversals.modify(traversal, Function.identity(), List.of("alice"));
+
+      assertThatThrownBy(() -> fromASet.add("bob"))
+          .isInstanceOf(UnsupportedOperationException.class);
+      assertThatThrownBy(() -> fromAList.add("bob"))
+          .isInstanceOf(UnsupportedOperationException.class);
+    }
+
+    @Test
+    @DisplayName(
+        "forCollection() should rebuild a collection that is neither list nor set as a list")
+    void forCollection_rebuildsAQueueAsAList() {
+      // A Deque inherits identity equals, so no rebuild could return an equal collection; the
+      // elements survive, the container type does not. Pinned so the limit stays deliberate.
+      Collection<String> queue = new ArrayDeque<>(List.of("alice", "bob"));
+
+      Collection<String> result = Traversals.modify(traversal, String::toUpperCase, queue);
+
+      assertThat(result).isInstanceOf(List.class).containsExactly("ALICE", "BOB");
+      assertThat(Traversals.modify(traversal, Function.identity(), queue)).isNotEqualTo(queue);
     }
   }
 

@@ -3,6 +3,7 @@
 package org.higherkindedj.optics.each;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -34,6 +35,7 @@ import org.jspecify.annotations.NullMarked;
  * <ul>
  *   <li>{@link List} - traverses all elements with Integer index support
  *   <li>{@link Set} - traverses all elements (no index support)
+ *   <li>{@link Collection} - traverses all elements, rebuilding a set as a set (no index support)
  *   <li>{@link Map} - traverses all values with key as index
  *   <li>{@link Optional} - traverses the value if present (0 or 1 element)
  *   <li>Arrays - traverses all elements with Integer index support
@@ -112,8 +114,9 @@ public final class EachInstances {
   /**
    * Creates an {@link Each} instance for {@link Set} types.
    *
-   * <p>The returned {@code Each} traverses all elements. Traversal order depends on the Set
-   * implementation. Does not support indexed access.
+   * <p>The returned {@code Each} traverses all elements in the source set's iteration order, and
+   * rebuilds an unmodifiable set that preserves it. A modification that maps two elements onto the
+   * same value collapses them, as a set requires. Does not support indexed access.
    *
    * @param <A> The element type of the set
    * @return An {@code Each} instance for sets
@@ -125,9 +128,35 @@ public final class EachInstances {
   private static final class SetEach<A> implements Each<Set<A>, A> {
     @Override
     public Traversal<Set<A>, A> each() {
-      return TraverseTraversals.forSet();
+      return Traversals.forSet();
     }
     // No indexed traversal for Set
+  }
+
+  // ===== Collection =====
+
+  /**
+   * Creates an {@link Each} instance for {@link Collection} types.
+   *
+   * <p>The returned {@code Each} traverses all elements. Because a {@code Collection} says nothing
+   * about ordering or uniqueness, the traversal rebuilds the shape it was handed: a {@link Set}
+   * comes back a set, and every other collection comes back a {@link List}. Does not support
+   * indexed access.
+   *
+   * @param <A> The element type of the collection
+   * @return An {@code Each} instance for collections
+   * @since 0.4.10
+   */
+  public static <A> Each<Collection<A>, A> collectionEach() {
+    return new CollectionEach<>();
+  }
+
+  private static final class CollectionEach<A> implements Each<Collection<A>, A> {
+    @Override
+    public Traversal<Collection<A>, A> each() {
+      return Traversals.forCollection();
+    }
+    // No indexed traversal for Collection
   }
 
   // ===== Map Values =====

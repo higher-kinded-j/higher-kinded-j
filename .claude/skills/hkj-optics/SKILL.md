@@ -289,7 +289,9 @@ total `B -> S` build, so the result could not honour `build`. To validate siblin
 
 | Method | On Path Type | Produces | Description |
 |--------|-------------|----------|-------------|
-| `.each()` | FocusPath on `List`/`Set` | TraversalPath | Traverse all elements |
+| `.each()` | FocusPath on `List` | TraversalPath | Traverse all elements (`List` only) |
+| `.each(EachInstances.setEach())` | FocusPath on `Set` | TraversalPath | Traverse all elements, rebuilding the set |
+| `.each(EachInstances.collectionEach())` | FocusPath on `Collection` | TraversalPath | Traverse all elements, rebuilding a set as a set and anything else as a list |
 | `.each(Each)` | FocusPath on custom container | TraversalPath | Traverse with custom Each instance |
 | `.at(index)` | FocusPath on `List` | AffinePath | Access specific index |
 | `.some()` | FocusPath on `Optional` | AffinePath | Unwrap Optional |

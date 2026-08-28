@@ -9,9 +9,11 @@
 // src/test/resources so an "unused import" cleanup cannot break fixtures
 // (see build.gradle.kts).
 
+import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import org.eclipse.collections.api.factory.Lists;
 import org.eclipse.collections.api.list.ImmutableList;
 import org.higherkindedj.hkt.either.Either;
@@ -37,6 +39,10 @@ record Employee(
     Map<String, Integer> scores) {}
 
 @GenerateLenses
+@GenerateFocus
+record Team(String name, Set<Skill> skills, Collection<String> tags) {}
+
+@GenerateLenses
 @GenerateFocus(widenCollections = true)
 record WidenedEmployee(String name, Map<String, Integer> scores) {}
 
@@ -57,6 +63,9 @@ class Fixture {
           List.of(new Skill("Java", 9)),
           Either.right(30),
           Map.of("q1", 90));
+
+  static final Team team =
+      new Team("Platform", Set.of(new Skill("Java", 9)), Set.of("backend", "jvm"));
 
   static final AssetClass assetClass =
       new AssetClass("Equities", Lists.immutable.of(new Position("ACME", 0.4)));
