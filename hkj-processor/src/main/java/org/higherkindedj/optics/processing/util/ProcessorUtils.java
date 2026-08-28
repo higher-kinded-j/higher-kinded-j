@@ -185,6 +185,22 @@ public final class ProcessorUtils {
   }
 
   /**
+   * Whether a type is written raw: a generic element named with no arguments at all.
+   *
+   * <p>Raw, not merely bare. A non-generic type has no arguments either and is not raw, and the
+   * difference matters because a raw supertype erases every member of the type below it, whatever
+   * that member declares.
+   *
+   * @param declared the type as it was written; must not be null
+   * @return true when its element declares type parameters and the type supplies none
+   * @since 0.4.10
+   */
+  public static boolean isRaw(DeclaredType declared) {
+    return !((TypeElement) declared.asElement()).getTypeParameters().isEmpty()
+        && declared.getTypeArguments().isEmpty();
+  }
+
+  /**
    * Whether a declared type carries an instantiation for {@code asMemberOf} to substitute.
    *
    * <p>Asked before reading a member under a type, because {@code asMemberOf} does the wrong thing
@@ -198,6 +214,12 @@ public final class ProcessorUtils {
    * Outer<List<String>>.Holder} speaks {@code Outer}'s variables even though {@code Holder}
    * declares none of its own, and a chain that ends without arguments anywhere is either wholly
    * non-generic or raw - in both of which the declaration was already the answer.
+   *
+   * <p>This asks about the <em>site's own</em> arguments, which is not the same question as whether
+   * substitution has anything to do. A member inherited from {@code Emails<Email>} is substituted
+   * under a non-generic spec, whose chain carries no arguments at all; guarding that read with this
+   * would read the declaration and defeat the substitution. Use it where the member is declared on
+   * the site itself.
    *
    * @param type the instantiated type a member is about to be read under; must not be null
    * @return true when some link of its enclosing chain carries type arguments

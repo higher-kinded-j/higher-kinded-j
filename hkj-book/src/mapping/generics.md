@@ -81,16 +81,18 @@ public interface CustomerMapping
 
 `email()` says `ValidatedPrism<String, T>` where it is declared, and `ValidatedPrism<String, EmailAddress>` where the spec has it. That is what the generated Impl carries, and it holds however many interfaces separate the two: a spec's own parameters survive as themselves, because the Impl declares them.
 
-The one shape this cannot answer for is a **raw** supertype anywhere on the route. Raw erases every member of the type below it, whatever that member declares, so `extends Emails` would contribute a bare `ValidatedPrism` rather than the pair it was written with. That is refused at the declaration, naming the clause to correct:
+The one shape this cannot answer for is a **raw** supertype anywhere on the route. Raw erases every member of the type below it, whatever that member declares, so `extends Emails` would contribute a bare `ValidatedPrism` rather than the pair it was written with. A raw ancestor that contributes nothing is left alone, since nothing of its is read; one that contributes a rename, a leaf or a derived field is refused at the declaration, naming the clause to correct:
 
 ```
-@GenerateMapping: mix-in 'Emails' is reached raw. Its members are read under the spec's
-instantiation, and a raw supertype erases every one of them whatever they declare, so the
-spec would inherit a bare ValidatedPrism rather than the pair it was written with. Name the
-type arguments on the extends clause, as 'extends Emails<...>'.
+@GenerateMapping: mix-in 'Emails' is written raw. Its members are read under the spec's
+instantiation, and a raw supertype erases every one of them whatever they declare: a
+'ValidatedPrism<String, Email>' arrives bare, and a 'T' arrives as Object. Name the type
+arguments where 'Emails' is extended, as 'extends Emails<...>'.
 ```
 
-Erasure travels downwards, so the link the spec lists can be perfectly ordinary while one above it is not; the message names the route in that case.
+Erasure travels downwards, so the raw clause is not always the interface whose members went missing: with `CustomerVocabulary extends Emails<EmailAddress>` and a spec saying `extends CustomerVocabulary` raw, it is `CustomerVocabulary` that has to be given its argument. The message names the raw clause in both cases, because that is the line to edit.
+
+---
 
 ## Element-mapped specs
 

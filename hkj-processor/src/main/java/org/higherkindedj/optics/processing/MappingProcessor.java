@@ -42,7 +42,6 @@ import javax.lang.model.element.Modifier;
 import javax.lang.model.element.Name;
 import javax.lang.model.element.RecordComponentElement;
 import javax.lang.model.element.TypeElement;
-import javax.lang.model.element.VariableElement;
 import javax.lang.model.type.ArrayType;
 import javax.lang.model.type.DeclaredType;
 import javax.lang.model.type.ExecutableType;
@@ -272,16 +271,22 @@ public class MappingProcessor extends AbstractProcessor {
    * <p>Total for any member of the spec: {@code spec.asType()} is the prototypical type, never a
    * wildcard instantiation, so a member declared on the spec itself substitutes to itself and a
    * generic spec's own parameters survive as themselves - which is right, because the generated
-   * Impl declares them. A <em>raw</em> supertype is the one shape this cannot answer for, and it is
-   * refused before reaching here.
+   * Impl declares them. A <em>raw</em> supertype is the one shape this cannot answer for: one
+   * carrying vocabulary is refused before reaching here, and one carrying none arrives with its
+   * members erased, which is what the language says they are.
    *
    * @param spec the annotated spec interface; must not be null
    * @param member one of its members, own or inherited; must not be null
    * @return the member's return type under the spec's instantiation
    */
-  private TypeMirror specMemberType(TypeElement spec, ExecutableElement member) {
-    return ProcessorUtils.returnTypeIn(
+  private ExecutableType specMemberSignature(TypeElement spec, ExecutableElement member) {
+    return ProcessorUtils.memberOf(
         processingEnv.getTypeUtils(), (DeclaredType) spec.asType(), member);
+  }
+
+  /** The return half of {@link #specMemberSignature}, which is what most readers want. */
+  private TypeMirror specMemberType(TypeElement spec, ExecutableElement member) {
+    return specMemberSignature(spec, member).getReturnType();
   }
 
   /**
@@ -314,7 +319,7 @@ public class MappingProcessor extends AbstractProcessor {
    * Mix-in gate: a spec may extend shared vocabulary interfaces besides its {@code
    * MappingSpec}/{@code UpdateSpec} supertype — plain interfaces carrying {@code @MapField} renames
    * and leaf/derived {@code default} methods. A mix-in must not itself be (or extend) a mapping
-   * spec, and must be non-generic for now.
+   * spec, and must not be reached through a raw supertype, which erases its members.
    */
   private boolean checkMixins(TypeElement spec) {
     // Every ancestor, not just the direct parents: members are collected with getAllMembers, which
@@ -350,21 +355,26 @@ public class MappingProcessor extends AbstractProcessor {
       // EmailAddress> in. A raw route is the one thing substitution cannot answer for, and only
       // where the ancestor contributes something to read - a marker extending a raw JDK type
       // carries nothing in, and refusing it would tell the author to fix a type they do not own.
-      if ((isRaw(parentType) || inherited.rawRoute()) && carriesVocabulary(parentElement)) {
+      TypeElement rawLink = ProcessorUtils.isRaw(parentType) ? parentElement : inherited.rawLink();
+      if (rawLink != null && carriesVocabulary(parentElement)) {
         Diagnostics.error(
             processingEnv.getMessager(),
             spec,
             TAG,
-            "mix-in '"
-                + parentElement.getSimpleName()
-                + "' is reached raw"
-                + reachedVia(inherited)
-                + ".",
+            rawLink.equals(parentElement)
+                ? "mix-in '" + parentElement.getSimpleName() + "' is written raw."
+                : "mix-in '"
+                    + parentElement.getSimpleName()
+                    + "' is reached through the raw '"
+                    + rawLink.getSimpleName()
+                    + "'.",
             "Its members are read under the spec's instantiation, and a raw supertype erases every"
-                + " one of them whatever they declare, so the spec would inherit a bare"
-                + " ValidatedPrism rather than the pair it was written with.",
-            "Name the type arguments on the extends clause, as 'extends "
-                + parentElement.getSimpleName()
+                + " one of them whatever they declare: a 'ValidatedPrism<String, Email>' arrives"
+                + " bare, and a 'T' arrives as Object.",
+            "Name the type arguments where '"
+                + rawLink.getSimpleName()
+                + "' is extended, as 'extends "
+                + rawLink.getSimpleName()
                 + "<...>'.");
         return false;
       }
@@ -385,7 +395,7 @@ public class MappingProcessor extends AbstractProcessor {
   private List<Inherited> allSuperInterfaces(TypeElement spec) {
     List<Inherited> found = new ArrayList<>();
     Deque<Inherited> pending = new ArrayDeque<>();
-    spec.getInterfaces().forEach(parent -> pending.addLast(new Inherited(parent, null, false)));
+    spec.getInterfaces().forEach(parent -> pending.addLast(new Inherited(parent, null)));
     Set<Name> seen = new HashSet<>();
     while (!pending.isEmpty()) {
       Inherited current = pending.removeFirst();
@@ -400,48 +410,38 @@ public class MappingProcessor extends AbstractProcessor {
         continue;
       }
       found.add(current);
-      TypeElement route = current.reachedThrough() == null ? element : current.reachedThrough();
-      boolean raw = current.rawRoute() || isRaw((DeclaredType) current.type());
-      element.getInterfaces().forEach(parent -> pending.addLast(new Inherited(parent, route, raw)));
+      // The first raw clause on the route is the one to name: correcting it restores every member
+      // below it, and correcting anything further down cannot.
+      TypeElement rawLink =
+          current.rawLink() != null
+              ? current.rawLink()
+              : ProcessorUtils.isRaw((DeclaredType) current.type()) ? element : null;
+      element.getInterfaces().forEach(parent -> pending.addLast(new Inherited(parent, rawLink)));
     }
     return found;
   }
 
   /**
-   * An inherited interface, and the direct parent the spec lists that reaches it.
-   *
-   * @param type the inherited interface
-   * @param reachedThrough the spec's own parent it was reached through, or null when it is one
-   */
-  /**
-   * An inherited interface, the parent it was reached through, and whether that route passed
-   * through a raw link.
+   * An inherited interface, and the raw clause on the way to it, if there was one.
    *
    * <p>Rawness is carried rather than asked at the end because it erases <em>downwards</em>: a spec
    * extending a raw {@code Mid} gets erased members from {@code Emails<T>} above it, even though
-   * {@code Mid implements Emails<T>} is written with its argument intact.
-   */
-  private record Inherited(TypeMirror type, TypeElement reachedThrough, boolean rawRoute) {}
-
-  /**
-   * Whether a written type names a generic element with no arguments: raw, not merely bare.
+   * {@code Mid implements Emails<T>} is written with its argument intact. The link is carried
+   * rather than a flag because it is the clause the author has to correct, and it is not
+   * necessarily the interface whose members went missing.
    *
-   * <p>Takes the declared type rather than a mirror: an interface's supertypes are declared types,
-   * an unresolved one included, and both callers have already stepped past the kinds that are not.
+   * @param type the inherited interface
+   * @param rawLink the generic interface written raw on the way here, or null when none was
    */
-  private static boolean isRaw(DeclaredType declared) {
-    return !((TypeElement) declared.asElement()).getTypeParameters().isEmpty()
-        && declared.getTypeArguments().isEmpty();
-  }
+  private record Inherited(TypeMirror type, TypeElement rawLink) {}
 
   /**
    * Whether a mix-in contributes anything the spec would read off it.
    *
-   * <p>The gate exists because inherited member types are read as declared, so an ancestor that
-   * contributes no vocabulary cannot carry an unsubstituted variable into anything. It is asked
-   * only of an ancestor the spec never listed: without it a plain marker extending {@code
-   * Comparable} refuses the spec and tells the author to make a JDK type non-generic. A parent the
-   * spec does list is judged as it always was, whatever it carries.
+   * <p>Asked of every ancestor on a raw route, direct parents included, because a raw supertype
+   * erases only what is read off it: an ancestor contributing nothing carries nothing in, and
+   * refusing it would tell the author to correct a clause on a type they may not own. A plain
+   * marker extending a raw JDK interface is accepted for exactly that reason.
    *
    * @param mixin the inherited interface
    * @return true when it declares a default method, a {@code @MapField} rename, or an abstract leaf
@@ -453,21 +453,6 @@ public class MappingProcessor extends AbstractProcessor {
                 method.isDefault()
                     || method.getAnnotation(MapField.class) != null
                     || isAbstractLeaf(method));
-  }
-
-  /**
-   * Names the parent a spec actually lists, when the offending ancestor is not one.
-   *
-   * <p>The gate walks the whole ancestry, so it can name a type the spec's own extends clause never
-   * mentions; without the route there is nothing on that line for the author to act on.
-   *
-   * @param inherited the ancestor and the parent it was reached through
-   * @return a parenthetical naming the route, or the empty string when it is a direct parent
-   */
-  private String reachedVia(Inherited inherited) {
-    return inherited.reachedThrough() == null
-        ? ""
-        : " (reached through '" + inherited.reachedThrough().getSimpleName() + "')";
   }
 
   /** Whether an interface is, or transitively extends, {@code MappingSpec}/{@code UpdateSpec}. */
@@ -502,7 +487,7 @@ public class MappingProcessor extends AbstractProcessor {
     Types types = processingEnv.getTypeUtils();
     // Both halves under the spec: the pair it is compared against is instantiated, so a member
     // read as declared would match only where the two vocabularies happen to share a name.
-    ExecutableType asMember = ProcessorUtils.memberOf(types, (DeclaredType) spec.asType(), method);
+    ExecutableType asMember = specMemberSignature(spec, method);
     TypeMirror parameter = asMember.getParameterTypes().getFirst();
     TypeMirror returned = asMember.getReturnType();
     return (types.isSameType(parameter, domainArg) && types.isSameType(returned, wireArg))
@@ -1862,7 +1847,7 @@ public class MappingProcessor extends AbstractProcessor {
     List<CodeBlock> prisms = new ArrayList<>();
     for (ExecutableElement leaf : leaves) {
       DeclaredType substituted =
-          (DeclaredType) ((ExecutableType) types.asMemberOf(instantiated, leaf)).getReturnType();
+          (DeclaredType) ProcessorUtils.returnTypeIn(types, instantiated, leaf);
       TypeMirror elementWire = substituted.getTypeArguments().get(0);
       TypeMirror elementDomain = substituted.getTypeArguments().get(1);
       ExecutableElement outerLeaf =
@@ -3834,7 +3819,7 @@ public class MappingProcessor extends AbstractProcessor {
         continue;
       }
       for (EmittedMember member : emitted) {
-        if (!overrideEquivalent(method, member)) {
+        if (!overrideEquivalent(spec, method, member)) {
           continue;
         }
         Diagnostics.error(
@@ -3842,7 +3827,7 @@ public class MappingProcessor extends AbstractProcessor {
             method,
             TAG,
             "'"
-                + methodSignature(method)
+                + methodSignature(spec, method)
                 + "'"
                 + inheritedNote(method, spec)
                 + " collides with the '"
@@ -3870,14 +3855,19 @@ public class MappingProcessor extends AbstractProcessor {
    * Override-equivalence (JLS 8.4.2) against a member that does not exist yet: same name and same
    * erased parameter types.
    */
-  private boolean overrideEquivalent(ExecutableElement method, EmittedMember member) {
+  private boolean overrideEquivalent(
+      TypeElement spec, ExecutableElement method, EmittedMember member) {
     if (!method.getSimpleName().contentEquals(member.name())
         || method.getParameters().size() != member.params().size()) {
       return false;
     }
     Types types = processingEnv.getTypeUtils();
+    // Under the spec, as the members it is compared against are: an inherited 'build(D)' erases
+    // to 'build(Object)' where it is declared, which collides with nothing, and the generated
+    // Impl then declares a second 'build' the author never sees until javac rejects their file.
+    List<? extends TypeMirror> specParams = specMemberSignature(spec, method).getParameterTypes();
     for (int i = 0; i < member.params().size(); i++) {
-      TypeMirror specParam = method.getParameters().get(i).asType();
+      TypeMirror specParam = specParams.get(i);
       // An unresolved parameter type matches everything under javac's isSameType; treat it as no
       // collision, so the real cannot-find-symbol diagnostic is not shadowed by a spurious one.
       if (specParam.getKind() == TypeKind.ERROR
@@ -3888,11 +3878,15 @@ public class MappingProcessor extends AbstractProcessor {
     return true;
   }
 
-  /** Renders a spec method as {@code name(SimpleParamType, ...)} for the collision diagnostic. */
-  private static String methodSignature(ExecutableElement method) {
+  /**
+   * Renders a spec method as {@code name(SimpleParamType, ...)} for the collision diagnostic, under
+   * the spec: an inherited member named as declared would print a type variable the author's own
+   * file never mentions.
+   */
+  private String methodSignature(TypeElement spec, ExecutableElement method) {
     StringJoiner params = new StringJoiner(", ", "(", ")");
-    for (VariableElement parameter : method.getParameters()) {
-      params.add(simpleTypeName(parameter.asType()));
+    for (TypeMirror parameter : specMemberSignature(spec, method).getParameterTypes()) {
+      params.add(simpleTypeName(parameter));
     }
     return method.getSimpleName() + params.toString();
   }

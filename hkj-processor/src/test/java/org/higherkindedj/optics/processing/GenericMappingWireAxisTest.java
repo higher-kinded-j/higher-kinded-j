@@ -370,6 +370,56 @@ class GenericMappingWireAxisTest {
   }
 
   @Test
+  @DisplayName("an inherited member colliding with a generated one is caught under the spec")
+  void inheritedCollisionIsCaughtUnderTheSpec() {
+    var auditable =
+        JavaFileObjects.forSourceString(
+            "com.example.Auditable",
+            """
+            package com.example;
+
+            public interface Auditable<D> {
+                default String build(D value) {
+                    return "";
+                }
+            }
+            """);
+
+    var wire =
+        JavaFileObjects.forSourceString(
+            "com.example.AuditWire",
+            """
+            package com.example;
+
+            public record AuditWire(String id, String name) {}
+            """);
+
+    var spec =
+        JavaFileObjects.forSourceString(
+            "com.example.AuditMapping",
+            """
+            package com.example;
+
+            import org.higherkindedj.optics.annotations.GenerateMapping;
+            import org.higherkindedj.optics.annotations.MappingSpec;
+
+            @GenerateMapping
+            public interface AuditMapping extends MappingSpec<Dom, AuditWire>, Auditable<Dom> {}
+            """);
+
+    // The collision check compares a spec member's parameters against the members the Impl is
+    // about to emit, which are instantiated. Read as declared, 'build(D)' erases to
+    // 'build(Object)', matches nothing, and the Impl then declares a second 'build' that javac
+    // rejects in a file the author never wrote. The reachable shape only exists because a generic
+    // mix-in is accepted at all.
+    var compilation = compile(DOMAIN, auditable, wire, spec);
+
+    assertThat(compilation).failed();
+    assertThat(compilation).hadErrorContaining("'build(Dom)'");
+    assertThat(compilation).hadErrorContaining("collides with the 'build' member");
+  }
+
+  @Test
   @DisplayName("a mix-in reached raw is refused, directly and through a child")
   void rawMixinIsRefused() {
     var base =
@@ -412,7 +462,8 @@ class GenericMappingWireAxisTest {
     var directly = compile(DOMAIN, base, wire, direct);
 
     assertThat(directly).failed();
-    assertThat(directly).hadErrorContaining("mix-in 'RawVocab' is reached raw");
+    assertThat(directly).hadErrorContaining("mix-in 'RawVocab' is written raw");
+    assertThat(directly).hadErrorContaining("Name the type arguments where 'RawVocab' is extended");
 
     // Generic, and extended raw by the spec below: the link the spec lists is what erases, and
     // the vocabulary beneath it is written with its argument intact. Its contribution is a
@@ -460,8 +511,12 @@ class GenericMappingWireAxisTest {
     var throughAChild = compile(DOMAIN, routeVocab, wire, mid, throughChild);
 
     assertThat(throughAChild).failed();
+    // The raw clause is RawMid, not the vocabulary beneath it, so that is what the remedy names:
+    // 'extends RawRouteVocab<...>' is not a line the author's spec has.
     assertThat(throughAChild)
-        .hadErrorContaining("mix-in 'RawRouteVocab' is reached raw (reached through 'RawMid')");
+        .hadErrorContaining("mix-in 'RawRouteVocab' is reached through the raw 'RawMid'");
+    assertThat(throughAChild)
+        .hadErrorContaining("Name the type arguments where 'RawMid' is extended");
 
     // The vocabulary test reads the three things a mix-in can contribute, and a rename is not a
     // default method: an ancestor carrying only an abstract leaf is as much a reason to refuse a
@@ -496,7 +551,7 @@ class GenericMappingWireAxisTest {
     var carryingALeaf = compile(DOMAIN, leafBase, wire, leafSpec);
 
     assertThat(carryingALeaf).failed();
-    assertThat(carryingALeaf).hadErrorContaining("mix-in 'RawLeafVocab' is reached raw");
+    assertThat(carryingALeaf).hadErrorContaining("mix-in 'RawLeafVocab' is written raw");
 
     // A raw ancestor that contributes nothing carries nothing in, so it is no reason to refuse.
     // An interface static is the shape that reads as a method and is not inherited (JLS 8.4.8),
