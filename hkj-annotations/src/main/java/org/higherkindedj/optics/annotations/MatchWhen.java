@@ -66,8 +66,8 @@ import java.lang.annotation.Target;
  * }</pre>
  *
  * <p>Focus the variant that carries the value — {@code TextNode} — and read the payload with a
- * further optic. Where the value type is the point, write that prism by hand with {@link
- * org.higherkindedj.optics.Prism#of} and a build side that constructs the source.
+ * further optic. Where the value type is the point, write that prism by hand with {@code Prism.of}
+ * and a build side that constructs the source.
  *
  * @see OpticsSpec
  * @see InstanceOf
