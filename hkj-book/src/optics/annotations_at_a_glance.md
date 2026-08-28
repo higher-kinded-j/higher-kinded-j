@@ -5,7 +5,7 @@
 ~~~admonish info title="What You'll Learn"
 - Which annotation to apply for each optic type, and what target each annotation expects (record, sealed interface, enum, method, package-info).
 - How to choose between `@ImportOptics` and an `OpticsSpec` interface for types you don't own.
-- The eight spec-method hints that drive optic generation for external types: prism matchers, lens copy strategies, traversal hints, and `Kind`-field configuration.
+- The eight spec-method hints that drive optic generation for external types: two prism matchers, four lens copy strategies, and two traversal hints.
 - Where in the book to look for the in-depth treatment of each annotation.
 ~~~
 
@@ -63,6 +63,9 @@ External types like `LocalDate`, Jackson's `JsonNode`, JOOQ records, and Protobu
 | [`@GenerateMapping`](../mapping/ch_intro.md) | interface extending `MappingSpec<Domain, Wire>` | `XMappingImpl` with a total `build` and an accumulating, located `parse` | Bidirectional boundary mapping with validation: every bad field reported at once |
 | [`@GenerateMapping`](../mapping/beans_patch.md#sparse-patch-write-back-updatespec) | interface extending `UpdateSpec<Domain, Wire>` (bean wire) | `XMappingImpl` with only `updateFrom(Wire) : Edits.Accumulated<Domain>` | Sparse PATCH write-back: fold the present (non-null) request fields into an update, leave the absent ones |
 | [`@MapField(to = "...")`](../mapping/ch_intro.md) | abstract method on the spec, named after the domain component | a rename in both directions | Domain and wire components with different names |
+| [`@GenerateAssembly`](../monads/validated_assembly.md) | `record` | `XAssembly`, a staged builder over `Validated<NonEmptyList<FieldError>, R>` with one method per component | Building a record from independently validated parts, collecting every error, with no arity ceiling |
+| [`@GenerateMerge`](../mapping/merge_envelopes.md) | interface whose abstract method names target and sources | a forward-only assembly of one target record from several sources | Merging several records into one; no inverse is generated, because the multi-source case has none |
+| [`@GenerateErrorEnvelope`](../mapping/merge_envelopes.md) | `sealed interface` whose variants each carry one `ErrorEnvelope<C>` | per-variant factories, a fluent context builder, and a context wither | Giving a sealed error hierarchy a typed context without repeating it on every variant |
 
 Leaves, nesting, `List`/`Optional` lifting, sealed dispatch, the `asIso()`/`asLens()` tiers, and the sparse `UpdateSpec` tier are covered in [Record Mapping](../mapping/ch_intro.md).
 
@@ -99,15 +102,19 @@ External record-like types rarely have a single copy mechanism. The processor us
 | `@ThroughField` | A traversal composing a lens-to-field with the auto-detected container traversal |
 | `@TraverseWith` | A traversal using an explicitly named `Traverse` instance |
 
-### Kind-field configuration
+---
 
-| Annotation | Effect |
-|---|---|
-| [`@TraverseField`](kind_field_support.md) | Configures how a `Kind<F, A>` field is processed by the Focus DSL generator. Pair with `KindSemantics` to declare cardinality (`EXACTLY_ONE`, `ZERO_OR_ONE`, `ZERO_OR_MORE`). |
+## 5. Kind-field configuration (on a record component)
+
+This one is not a spec-method hint: it targets a **record component**, so it goes on the field of your own record, not on a method of an `OpticsSpec` interface.
+
+| Annotation | Apply to | Effect |
+|---|---|---|
+| [`@TraverseField`](kind_field_support.md) | record component of type `Kind<F, A>` | Configures how the Focus DSL generator treats the field. Pair with `KindSemantics` to declare cardinality (`EXACTLY_ONE`, `ZERO_OR_ONE`, `ZERO_OR_MORE`). |
 
 ---
 
-## 5. Build setup
+## 6. Build setup
 
 The HKJ Gradle and Maven plugins wire the annotation processor in for you. Apply the plugin and every annotation on this page is available immediately. See [Build Plugins: One-Line HKJ Setup](../tooling/gradle_plugin.md) for the plugin DSL, or [Manual Setup](../tooling/manual_setup.md) if you need to configure dependencies by hand.
 
@@ -115,7 +122,7 @@ For compile-time path-type checking, see [Compile-Time Checks](../tooling/compil
 
 ---
 
-## 6. Quick decision guide
+## 7. Quick decision guide
 
 | You have... | You want to... | Reach for |
 |---|---|---|
@@ -133,13 +140,22 @@ For compile-time path-type checking, see [Compile-Time Checks](../tooling/compil
 
 ---
 
-## Where next?
+~~~admonish info title="Key Takeaways"
+* **The target tells you which annotation you want.** A record takes `@GenerateLenses` and friends, a sealed interface or enum takes `@GeneratePrisms`, a static method takes `@GenerateIsos`, and a type you do not own is reached through `@ImportOptics` or an `OpticsSpec` interface.
+* **Annotations stack rather than compete.** Each generates its own companion class, so a record carrying three of them gets three, and you pick the entry point that matches the task.
+* **The spec-method hints exist because external types have no single copy mechanism.** Four of the eight say how to rebuild the object; two say how to narrow a variant; two say how to reach a container.
+* **`@TraverseField` is the odd one out.** It goes on a record component of your own, not on a spec method, which is why it has a section to itself.
+~~~
 
-- **New to optics?** Start with the [Quickstart](quickstart.md), three runnable examples in 100 lines.
-- **Updating a nested record right now?** Jump to the [Focus DSL](focus_dsl.md).
-- **Working with external types?** See [Optics for External Types](importing_optics.md) and [Taming JSON with Jackson](optics_spec_interfaces.md).
-- **Mapping DTOs at a service boundary?** See [Record Mapping](../mapping/ch_intro.md).
-- **Want hands-on practice?** The [Lens & Prism Journey](../tutorials/optics/lens_prism_journey.md) is 40 minutes, 30 exercises.
+---
+
+~~~admonish tip title="See Also"
+- [Quickstart](quickstart.md): the same annotations doing real work, in three examples
+- [Optics for External Types](importing_optics.md): the `@ImportOptics` route in full
+- [Taming JSON with Jackson](optics_spec_interfaces.md): the spec-interface route, and when to prefer it
+- [Record Mapping](../mapping/ch_intro.md): the mapping and assembly generators in section 3
+- [Lens & Prism Journey](../tutorials/optics/lens_prism_journey.md): 40 minutes and 30 exercises, hands-on
+~~~
 
 ---
 

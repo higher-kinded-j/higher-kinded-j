@@ -27,43 +27,35 @@ public record User(String name, Address address) {}
 User updated = UserFocus.address().street().name().set("New Street", user);
 ```
 
-The same record can carry several annotations, each generating its own companion class for a different use case. The five sections of this chapter take you from the foundational optics through the Java-friendly APIs and into a cookbook of practical recipes.
+The same record can carry several annotations, each generating its own companion class for a different use case. The seven sections of this chapter take you from the foundational optics through the Java-friendly APIs and the recipe cookbook, and end at a reference you can look things up in.
 
 ---
 
-## The Optics Hierarchy
+## How the optic types relate
 
-Before diving in, it helps to see how the optic types relate to one another:
+Eight optic types, one shared supertype, and one real specialisation between them:
 
-```
-                    ┌─────────┐
-                    │  Fold   │  (read-only, zero-or-more)
-                    └────┬────┘
-                         │
-              ┌──────────┴──────────┐
-              │                     │
-         ┌────┴────┐          ┌─────┴─────┐
-         │ Getter  │          │ Traversal │  (read-write, zero-or-more)
-         └────┬────┘          └─────┬─────┘
-              │                     │
-              │               ┌─────┴─────┐
-              │               │           │
-         ┌────┴────┐    ┌─────┴─────┐ ┌───┴───┐
-         │  Lens   │    │  Affine   │ │Setter │
-         └────┬────┘    └─────┬─────┘ └───────┘
-              │         (zero-or-one)
-              │               │
-              │         ┌─────┴─────┐
-              │         │   Prism   │
-              │         └─────┬─────┘
-              │               │
-              └───────┬───────┘
-                 ┌────┴────┐
-                 │   Iso   │  (exactly-one, reversible)
-                 └─────────┘
+```mermaid
+flowchart TD
+    O(["Optic"])
+    O --> F(["Fold<br/>read, zero or more"])
+    O --> T(["Traversal<br/>read+write, zero or more"])
+    O --> St(["Setter<br/>write, zero or more"])
+    O --> L(["Lens<br/>read+write, exactly one"])
+    O --> A(["Affine<br/>read+write, zero or one"])
+    O --> P(["Prism<br/>read+write, one variant"])
+    O --> I(["Iso<br/>read+write, reversible"])
+    F --> G(["Getter<br/>read, exactly one"])
+
+    classDef root fill:#8caaee,stroke:#1e66f5,color:#232634
+    classDef tier fill:#a6d189,stroke:#40a02b,color:#232634
+    class O root
+    class F,T,St,L,A,P,I,G tier
 ```
 
-Arrows indicate "can be used as" relationships. A Lens can stand in wherever a Getter or Fold is expected; an Iso, the most specific optic, can stand in as any of the others. Affine sits between Traversal and Prism, representing precisely zero-or-one focus, which makes it ideal for optional fields.
+The arrows are `extends`, and `Getter extends Fold` is the **only** one between two optic types: everything else extends `Optic` directly, which makes them siblings rather than a hierarchy. So a `Lens` is not a `Fold`, and you cannot pass one where a `Fold` is expected. `lens.asFold()` is an explicit conversion, and [Conversions](conversions.md) lists every conversion that exists.
+
+What the diagram groups instead is capability, and that is the useful question: how many values does the optic focus, and may you write through it? Those two answers pick your optic, which is what [Decision Trees](decision_trees.md) walks you through.
 
 ---
 
@@ -73,6 +65,8 @@ Arrows indicate "can be used as" relationships. A Lens can stand in wherever a G
 - **Precision and Filtering** – Narrow focus by predicate or index. Filtered and indexed traversals, the `Each`, `At`, and `Ixed` type classes, character-level string traversals, and advanced Prism patterns, including predicate matching with `nearly`.
 - **Java-Friendly APIs** – Three complementary APIs that make optics feel native to Java: the Focus DSL for path-based navigation, the Fluent API for validation-aware updates, and the Free Monad DSL for programs-as-data. Backed by annotation-driven code generation (`@GenerateLenses`, `@GenerateFocus`, `@GeneratePrisms`, and friends). For the domain ↔ DTO boundary, see the dedicated [Mapping at the Boundary](../mapping/ch_intro.md) chapter.
 - **Integration and Recipes** – A complete walkthrough composing Lens, Prism, and Traversal into a validation pipeline, integration with the library's core types (Either, Maybe, Validated, Optional), multi-edit and sparse REST PATCH updates, and a cookbook of ready-to-use solutions for the nested-update problems you will actually meet in production.
+- **Advanced Optics** – Optic operations built as a value first and executed second: the Free Monad DSL that describes the program, and the interpreters that run, log or check it.
+- **Reference** – The lookup half of the chapter. What each optic type declares, how to convert between them, what the processor's error messages mean, and the decision trees for picking one.
 ~~~
 
 ---
@@ -86,6 +80,8 @@ Arrows indicate "can be used as" relationships. A Lens can stand in wherever a G
 5. [Precision and Filtering](ch3_intro.md) - Filtered, indexed, and predicate-based optics
 6. [Java-Friendly APIs](ch4_intro.md) - Focus DSL, Fluent API, code generation
 7. [Integration and Recipes](ch5_intro.md) - Validation workflows, multi-edit and PATCH, cookbook
+8. [Advanced Optics](ch6_intro.md) - Free Monad DSL, interpreters, programs as data
+9. [Reference](ch7_intro.md) - Capabilities, conversions, compiler errors, decision trees
 
 ---
 
@@ -95,6 +91,15 @@ Arrows indicate "can be used as" relationships. A Lens can stand in wherever a G
 - **Just need to update a nested record right now?** Skip straight to the [Focus DSL](focus_dsl.md) and come back to the foundational material when you need it.
 - **Mapping a domain record to/from a wire DTO?** Go straight to [Record Mapping](../mapping/ch_intro.md); it needs none of the optics curriculum first.
 - **New to the concepts?** Start with [Fundamentals](ch1_intro.md).
+~~~
+
+---
+
+~~~admonish tip title="See Also"
+- [Decision Trees](decision_trees.md): pick the optic, the API and the annotation by answering a question at a time
+- [Optic Capabilities](optic_capabilities.md): what each optic type declares, and what it reaches only by conversion
+- [Mapping at the Boundary](../mapping/ch_intro.md): the domain to wire problem, which needs none of this chapter first
+- [Optics Tutorial Track](../tutorials/optics/ch_intro.md): the same material as exercises, if you learn by doing
 ~~~
 
 ---
