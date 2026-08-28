@@ -36,16 +36,15 @@ The same record can carry several annotations, each generating its own companion
 Eight optic types, one shared supertype, and one real specialisation between them:
 
 ```mermaid
-flowchart TD
-    O(["Optic"])
-    O --> F(["Fold<br/>read, zero or more"])
-    O --> T(["Traversal<br/>read+write, zero or more"])
-    O --> St(["Setter<br/>write, zero or more"])
-    O --> L(["Lens<br/>read+write, exactly one"])
-    O --> A(["Affine<br/>read+write, zero or one"])
-    O --> P(["Prism<br/>read+write, one variant"])
-    O --> I(["Iso<br/>read+write, reversible"])
-    F --> G(["Getter<br/>read, exactly one"])
+flowchart BT
+    F(["Fold<br/>read, zero or more"]) --> O(["Optic"])
+    T(["Traversal<br/>read+write, zero or more"]) --> O
+    St(["Setter<br/>write, zero or more"]) --> O
+    L(["Lens<br/>read+write, exactly one"]) --> O
+    A(["Affine<br/>read+write, zero or one"]) --> O
+    P(["Prism<br/>read+write, one variant"]) --> O
+    I(["Iso<br/>read+write, reversible"]) --> O
+    G(["Getter<br/>read, exactly one"]) --> F
 
     classDef root fill:#8caaee,stroke:#1e66f5,color:#232634
     classDef tier fill:#a6d189,stroke:#40a02b,color:#232634
@@ -53,7 +52,7 @@ flowchart TD
     class F,T,St,L,A,P,I,G tier
 ```
 
-The arrows are `extends`, and `Getter extends Fold` is the **only** one between two optic types: everything else extends `Optic` directly, which makes them siblings rather than a hierarchy. So a `Lens` is not a `Fold`, and you cannot pass one where a `Fold` is expected. `lens.asFold()` is an explicit conversion, and [Conversions](conversions.md) lists every conversion that exists.
+Each arrow reads *extends*, pointing from a type to the one it extends: `Fold extends Optic`, `Getter extends Fold`. That last is the **only** inheritance between two optic types: everything else extends `Optic` directly, which makes them siblings rather than a hierarchy. So a `Lens` is not a `Fold`, and you cannot pass one where a `Fold` is expected. `lens.asFold()` is an explicit conversion, and [Conversions](conversions.md) lists every conversion that exists.
 
 What the diagram groups instead is capability, and that is the useful question: how many values does the optic focus, and may you write through it? Those two answers pick your optic, which is what [Decision Trees](decision_trees.md) walks you through.
 

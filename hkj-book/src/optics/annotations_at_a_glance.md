@@ -110,7 +110,17 @@ This one is not a spec-method hint: it targets a **record component**, so it goe
 
 | Annotation | Apply to | Effect |
 |---|---|---|
-| [`@TraverseField`](kind_field_support.md) | record component of type `Kind<F, A>` | Configures how the Focus DSL generator treats the field. Pair with `KindSemantics` to declare cardinality (`EXACTLY_ONE`, `ZERO_OR_ONE`, `ZERO_OR_MORE`). |
+| [`@TraverseField`](kind_field_support.md) | record component of type `Kind<F, A>` | Names the `Traverse<F>` instance the Focus DSL generator should walk the field with, and the cardinality that decides the path type it generates |
+
+`KindSemantics` is an enum, not a second annotation: it is the value of `@TraverseField`'s own `semantics` element. `traverse` is required and takes a fully qualified expression yielding a `Traverse<F>`, such as a singleton field or a factory call:
+
+```java
+@TraverseField(
+    traverse = "com.example.TreeTraverse.INSTANCE",
+    semantics = KindSemantics.ZERO_OR_ONE)
+```
+
+`semantics` defaults to `ZERO_OR_MORE`, which generates a `TraversalPath`; `EXACTLY_ONE` and `ZERO_OR_ONE` both generate an `AffinePath`.
 
 ---
 
