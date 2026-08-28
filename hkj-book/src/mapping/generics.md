@@ -65,32 +65,24 @@ The three access shapes are one rule, not three conventions: *how much state doe
 
 ## Generic mix-ins
 
-A mix-in may declare type parameters of its own. Its members are read under the spec's instantiation, so a shared vocabulary interface parameterised by the type it validates contributes at the type the spec gives it:
+A mix-in may declare type parameters of its own. Its members are read under the spec's instantiation, so a shared vocabulary interface parameterised by the type it speaks about contributes at the type the spec gives it:
 
-```java
-public interface Emails<T> {
-    default ValidatedPrism<String, T> email() { return EmailCodecs.EMAIL; }
-}
-
-public interface CustomerVocabulary extends Emails<EmailAddress> {}
-
-@GenerateMapping
-public interface CustomerMapping
-    extends MappingSpec<Customer, CustomerDto>, CustomerVocabulary {}
+``` java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/mapping/RecordMappingBook.java:generic_mixin_spec}}
 ```
 
-`email()` says `ValidatedPrism<String, T>` where it is declared, and `ValidatedPrism<String, EmailAddress>` where the spec has it. That is what the generated Impl carries, and it holds however many interfaces separate the two: a spec's own parameters survive as themselves, because the Impl declares them.
+`name()` says `T` where it is declared and `String` where the spec has it, and that is what the generated Impl carries. It holds however many interfaces separate the two, and a spec's own parameters survive as themselves, because the Impl declares them.
 
-The one shape this cannot answer for is a **raw** supertype anywhere on the route. Raw erases every member of the type below it, whatever that member declares, so `extends Emails` would contribute a bare `ValidatedPrism` rather than the pair it was written with. A raw ancestor that contributes nothing is left alone, since nothing of its is read; one that contributes a rename, a leaf or a derived field is refused at the declaration, naming the clause to correct:
+The one shape this cannot answer for is a **raw** supertype anywhere on the route. Raw erases every member of the type below it, whatever that member declares, so `extends Renames` would contribute `Object name()` rather than the `String` it was written with. A raw ancestor that contributes nothing is left alone, since nothing of its is read; one that contributes a rename, a leaf or a derived field is refused at the declaration:
 
 ```
-@GenerateMapping: mix-in 'Emails' is written raw. Its members are read under the spec's
+@GenerateMapping: mix-in 'Renames' is written raw. Its members are read under the spec's
 instantiation, and a raw supertype erases every one of them whatever they declare: a
 'ValidatedPrism<String, Email>' arrives bare, and a 'T' arrives as Object. Name the type
-arguments where 'Emails' is extended, as 'extends Emails<...>'.
+arguments where 'Renames' is extended, as 'extends Renames<...>'.
 ```
 
-Erasure travels downwards, so the raw clause is not always the interface whose members went missing: with `CustomerVocabulary extends Emails<EmailAddress>` and a spec saying `extends CustomerVocabulary` raw, it is `CustomerVocabulary` that has to be given its argument. The message names the raw clause in both cases, because that is the line to edit.
+Erasure travels downwards, so the raw clause is not always the interface whose members went missing: with `TextRenames extends Renames<String>` and a spec saying `extends TextRenames` raw, it is `TextRenames` that has to be given its argument. The message names the raw clause in both cases, because that is the line to edit.
 
 ---
 
