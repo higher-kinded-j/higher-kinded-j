@@ -197,7 +197,7 @@ Employee promoted = OpticInterpreters.direct().run(program);
 
 ## Part 3: Working with Collections (Traversals and Folds)
 
-The DSL carries the DSL's batch operations with traversals for batch operations:
+The DSL supports batch operations through traversals:
 
 ```java
 @GenerateLenses
@@ -599,8 +599,13 @@ logger.getLog().forEach(System.out::println);
 ValidationOpticInterpreter validator = OpticInterpreters.validating();
 ValidationResult validation = validator.validate(program);
 
-// Test it with mocks
-MockOpticInterpreter<Person> mock = new MockOpticInterpreter<>(mockPerson);   // yours to write; see Interpreters
+// Test it with mocks. A stub per operation, because `modify` yields the source type
+// while a `get` would yield the focus type; see Interpreters for the class itself.
+Person mockPerson = new Person("Mock", 99, "ACTIVE");
+MockOpticInterpreter mock = new MockOpticInterpreter(op -> switch (op) {
+    case OpticOp.Modify<?, ?> ignored -> mockPerson;   // this program is a single modify
+    default -> throw new UnsupportedOperationException(op.getClass().getSimpleName());
+});
 Person mockResult = mock.run(program);
 ```
 

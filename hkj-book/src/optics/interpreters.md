@@ -264,9 +264,9 @@ For inspection that genuinely runs nothing, `ProgramAnalyser.analyse(program)` w
 
 It suits:
 
-- **Pre-flight checks**: Validate before committing
+- **Pre-flight checks**: validate before committing
 - **Testing**: check that a program's operations all succeed on given data
-- **Pre-flight checks**: collect every problem before you accept the result
+- **Error reports**: collect every problem before you accept the result
 
 ### Basic Usage
 
@@ -329,22 +329,23 @@ public record UserV2(
 
 // Migration program
 Free<OpticOpKind.Witness, UserV2> migrateUser(UserV1 oldUser) {
-    return OpticPrograms.get(oldUser, UserV1Lenses.age())
-        .flatMap(age -> {
+    // The check goes in the modifier, where the interpreter can catch it. Thrown from
+    // the flatMap continuation below it would escape validate() and kill the loop.
+    return OpticPrograms.modify(oldUser, UserV1Lenses.age(), age -> {
             if (age == null) {
-                // This would fail!
                 throw new IllegalArgumentException("Age cannot be null in V2");
             }
-
-            UserV2 newUser = new UserV2(
-                oldUser.username(),
-                oldUser.email(),
-                age,
-                false
-            );
-
-            return OpticPrograms.pure(newUser);
-        });
+            return age;
+        })
+        // A caught modifier error leaves the source unchanged, so the program carries on
+        // with the null age. Unboxing it here would throw from the continuation, outside
+        // the guard, which is exactly what the check above was moved out of.
+        .flatMap(checked -> OpticPrograms.pure(new UserV2(
+            checked.username(),
+            checked.email(),
+            checked.age() == null ? 0 : checked.age(),
+            false
+        )));
 }
 
 // Validate migration for each user
@@ -439,7 +440,8 @@ You can create custom interpreters for specific needs: performance profiling, mo
 There is no `OpticInterpreter` interface to implement. `DirectOpticInterpreter`,
 `LoggingOpticInterpreter` and `ValidationOpticInterpreter` are three independent
 `final` classes, and they deliberately do not share a supertype: the first two expose
-`run`, while `validating()` exposes `validate`, because it never executes anything.
+`run`, while `validating()` exposes `validate`, which runs the program and hands back a
+report instead of the result.
 
 What they have in common is the shape inside them. Each supplies a natural
 transformation, a function taking one `OpticOp` to a value in some effect type, and
@@ -553,11 +555,15 @@ avgTimes.forEach((op, time) ->
 ### Example 2: Mock Interpreter for Testing
 
 ```java
-public final class MockOpticInterpreter<S> {
-    private final S mockData;
+// The stubs are the caller's, because no single canned value can be type-correct for a
+// whole program: `get` through a Lens<Person, String> must yield a String, while `set`
+// must yield a Person. Returning one object for both is a ClassCastException waiting in
+// the next continuation.
+public final class MockOpticInterpreter {
+    private final Function<OpticOp<?, ?>, Object> stubs;
 
-    public MockOpticInterpreter(S mockData) {
-        this.mockData = mockData;
+    public MockOpticInterpreter(Function<OpticOp<?, ?>, Object> stubs) {
+        this.stubs = stubs;
     }
 
     @SuppressWarnings("unchecked")
@@ -568,17 +574,8 @@ public final class MockOpticInterpreter<S> {
                     (Kind<OpticOpKind.Witness, Object>) kind
                 );
 
-                // All operations just return mock data
-                Object result = switch (op) {
-                    case OpticOp.Get<?, ?> ignored -> mockData;
-                    case OpticOp.Set<?, ?> ignored -> mockData;
-                    case OpticOp.Modify<?, ?> ignored -> mockData;
-                    case OpticOp.GetAll<?, ?> ignored -> List.of(mockData);
-                    case OpticOp.Preview<?, ?> ignored -> Optional.of(mockData);
-                    default -> throw new UnsupportedOperationException(
-                        "Unsupported operation: " + op.getClass().getSimpleName()
-                    );
-                };
+                // Each operation gets the stub the caller supplied for it.
+                Object result = stubs.apply(op);
 
                 return Id.of(Free.pure(result));   // the fold expects the next Free node, not the bare value
             };

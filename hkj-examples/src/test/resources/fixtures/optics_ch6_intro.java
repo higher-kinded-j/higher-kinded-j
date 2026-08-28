@@ -2,7 +2,7 @@
 //
 // The page's payoff snippet builds one optic program as a value and then runs
 // it three ways: directly, through the logging interpreter, and through the
-// validating interpreter without executing it at all. The record lives here and
+// validating interpreter, which runs it too and reports on it. The record lives here and
 // the annotation processor generates AccountLenses during snippet compilation.
 //
 // NOTE: imports in a fixture serve the snippet this file is spliced into.
