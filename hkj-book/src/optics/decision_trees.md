@@ -14,48 +14,28 @@ The decision trees that appear in scattered form across the chapter intros are c
 
 ## Tree 1: Which optic do I need?
 
+```mermaid
+flowchart TD
+    Q{"What are you doing<br/>to the focus?"}
+    Q -->|"reading only"| R{"How many<br/>targets?"}
+    Q -->|"reading and writing"| M{"How many<br/>targets?"}
+    Q -->|"converting between<br/>equivalent types"| I(["Iso"])
+
+    R -->|"exactly one"| G(["Getter"])
+    R -->|"zero or more"| F(["Fold"])
+
+    M -->|"exactly one"| L(["Lens"])
+    M -->|"zero or one:<br/>the field may be absent"| A(["Affine"])
+    M -->|"zero or one:<br/>the value may be another variant"| P(["Prism"])
+    M -->|"zero or more"| T(["Traversal"])
+
+    classDef decision fill:#e5c890,stroke:#df8e1d,color:#232634
+    classDef tier fill:#a6d189,stroke:#40a02b,color:#232634
+    class Q,R,M decision
+    class I,G,F,L,A,P,T tier
 ```
-                     ┌─────────────────────┐
-                     │ What are you doing? │
-                     └──────────┬──────────┘
-                                │
-           ┌────────────────────┼────────────────────┐
-           ▼                    ▼                    ▼
-    ┌─────────────┐     ┌─────────────┐     ┌─────────────┐
-    │   Reading   │     │  Modifying  │     │ Transforming│
-    │    only?    │     │   values?   │     │   types?    │
-    └──────┬──────┘     └──────┬──────┘     └──────┬──────┘
-           │                   │                   │
-           ▼                   │                   ▼
-    ┌─────────────┐            │            ┌─────────────┐
-    │ How many    │            │            │     ISO     │
-    │ targets?    │            │            └─────────────┘
-    └──────┬──────┘            │
-           │                   │
-    ┌──────┴──────┐            │
-    ▼             ▼            ▼
-┌───────┐   ┌──────────┐  ┌─────────────┐
-│ One   │   │Zero-more │  │ How many    │
-│       │   │          │  │ targets?    │
-└───┬───┘   └────┬─────┘  └──────┬──────┘
-    │            │               │
-    ▼            ▼        ┌──────┴──────┐
-┌───────┐   ┌────────┐    ▼             ▼
-│GETTER │   │ FOLD   │ ┌───────┐  ┌──────────┐
-└───────┘   └────────┘ │ One   │  │Zero-more │
-                       └───┬───┘  └────┬─────┘
-                           │           │
-                 ┌─────────┴───┐       │
-                 ▼             ▼       ▼
-           ┌──────────┐ ┌─────────┐ ┌──────────┐
-           │ Required │ │Optional │ │TRAVERSAL │
-           └────┬─────┘ └────┬────┘ └──────────┘
-                │            │
-                ▼            ▼
-           ┌────────┐   ┌─────────┐
-           │  LENS  │   │ PRISM   │
-           └────────┘   └─────────┘
-```
+
+Write-only access is the one case the tree does not reach: that is a [Setter](setters.md), and you arrive at it by knowing you never read.
 
 | You have... | You want to... | Reach for |
 |---|---|---|
@@ -66,34 +46,25 @@ The decision trees that appear in scattered form across the chapter intros are c
 | A collection field | Apply an operation to every element | [Traversal](traversals.md) |
 | A collection field, read-only | Query, search, aggregate | [Fold](folds.md) |
 | Read-only access to a single field | Get only | [Getter](getters.md) |
-| Write-only access to a single field | Set only | [Setter](setters.md) |
+| Write-only access, one or many targets | Set or modify, never read | [Setter](setters.md) |
 
 ---
 
 ## Tree 2: Which API style?
 
-```
-┌─────────────────────────────────────────────────────────────────────────────┐
-│                        CHOOSING YOUR API                                    │
-├─────────────────────────────────────────────────────────────────────────────┤
-│                                                                             │
-│  ┌─────────────────┐                                                        │
-│  │  Focus DSL      │ ◄─── START HERE                                        │
-│  │  (Recommended)  │      Path-based navigation with full type safety       │
-│  └────────┬────────┘      CompanyFocus.headquarters().city()                │
-│           │                                                                 │
-│           │  Need validation-aware modifications?                           │
-│           │  Working with Either/Maybe/Validated?                           │
-│           ▼                                                                 │
-│  ┌─────────────────┐                                                        │
-│  │  Fluent API     │      Static methods + builders for effectful ops       │
-│  │  (OpticOps)     │      OpticOps.modifyEither(user, lens, validator)      │
-│  └─────────────────┘                                                        │
-│                                                                             │
-│  Need audit trails, dry-runs, or multiple execution strategies?             │
-│  See Advanced Optics for the Free Monad DSL.                                │
-│                                                                             │
-└─────────────────────────────────────────────────────────────────────────────┘
+```mermaid
+flowchart TD
+    S(["Start: Focus DSL<br/>CompanyFocus.headquarters().city()"]) --> Q{"Does the update<br/>need more?"}
+    Q -->|"no: plain nested update"| S2(["stay on the Focus DSL"])
+    Q -->|"it can fail, or accumulate errors"| FA(["Fluent API: OpticOps<br/>modifyEither, modifyAllValidated"])
+    Q -->|"it must be inspected,<br/>audited or run several ways"| FM(["Free Monad DSL<br/>see Advanced Optics"])
+
+    classDef decision fill:#e5c890,stroke:#df8e1d,color:#232634
+    classDef tier fill:#a6d189,stroke:#40a02b,color:#232634
+    classDef wire fill:#8caaee,stroke:#1e66f5,color:#232634
+    class Q decision
+    class S2,FA,FM tier
+    class S wire
 ```
 
 | Your task | Use |
@@ -111,31 +82,24 @@ The decision trees that appear in scattered form across the chapter intros are c
 
 ## Tree 3: Which advanced feature?
 
-```
-                  ┌─────────────────────────────┐
-                  │ What is the constraint?     │
-                  └──────────────┬──────────────┘
-                                 │
-        ┌────────────────────────┼────────────────────────┐
-        ▼                        ▼                        ▼
-   ┌──────────┐           ┌────────────┐           ┌──────────────┐
-   │ Subset   │           │ Position   │           │ Type adapter │
-   │ matters  │           │ matters    │           │ for source/  │
-   │          │           │            │           │ target       │
-   └────┬─────┘           └─────┬──────┘           └──────┬───────┘
-        │                       │                         │
-        ▼                       ▼                         ▼
-   ┌──────────┐           ┌────────────┐           ┌──────────────┐
-   │ Filtered │           │  Indexed   │           │  Profunctor  │
-   │ optics   │           │  optics    │           │  optics      │
-   └──────────┘           └────────────┘           └──────────────┘
+```mermaid
+flowchart TD
+    Q{"What is the<br/>constraint?"}
+    Q -->|"only some elements<br/>should be touched"| F(["Filtered optics"])
+    Q -->|"the position matters<br/>as well as the value"| I(["Indexed optics"])
+    Q -->|"the source or target<br/>is the wrong shape"| P(["Profunctor optics"])
+
+    classDef decision fill:#e5c890,stroke:#df8e1d,color:#232634
+    classDef tier fill:#a6d189,stroke:#40a02b,color:#232634
+    class Q decision
+    class F,I,P tier
 ```
 
 | Your problem | Reach for |
 |---|---|
 | "Apply only to elements matching a predicate" | [Filtered Optics](filtered_optics.md) |
 | "I need the index alongside each element" | [Indexed Optics](indexed_optics.md) |
-| "Access by key in a `Map`" | [Indexed Access](indexed_access.md) and the [`At`](each_typeclass.md) typeclass |
+| "Access by key in a `Map`" | [Indexed Access](indexed_access.md): the `At` (full CRUD) and `Ixed` (read/update) type classes |
 | "Apply over every element of a custom container" | [Each Typeclass](each_typeclass.md) |
 | "Operate on individual characters of a `String`" | [String Traversals](string_traversals.md) |
 | "Adapt a lens for a different source record type" | Compose: `outerLens.andThen(innerLens)` ([Profunctor Optics](profunctor_optics.md)) |
@@ -145,12 +109,21 @@ The decision trees that appear in scattered form across the chapter intros are c
 
 ---
 
-## See also
+~~~admonish info title="Key Takeaways"
+* **Direction first, cardinality second.** The tree asks what you are doing to the focus, then how many values it reaches; those two answers pick the optic between them.
+* **The two zero-or-one optics are not interchangeable.** An `Affine` reaches a value that may be absent; a `Prism` reaches a value that may be another variant, and can rebuild the structure from it.
+* **Start on the Focus DSL and leave it only when forced.** Failure, accumulation and effects move you to `OpticOps`; inspection and multi-mode execution move you to the Free Monad DSL.
+* **The advanced features are constraint-shaped.** Subset means filtered, position means indexed, wrong shape means an adapter.
+* **These are entry points, not conclusions.** Every leaf here has a page; the trees route, the pages decide.
+~~~
 
-- [Optic Capabilities](optic_capabilities.md), what each optic can do once you have chosen one.
-- [Composition Rules](composition_rules.md), what type results from composing two optics.
-- [Annotations at a Glance](annotations_at_a_glance.md), which annotation generates each optic.
+~~~admonish tip title="See Also"
+- [Optic Capabilities](optic_capabilities.md): what each optic can do once you have chosen one
+- [Composition Rules](composition_rules.md): what type results from composing two optics
+- [Annotations at a Glance](annotations_at_a_glance.md): which annotation generates each optic
+~~~
 
 ---
 
 **Previous:** [Production Readiness](production_readiness.md)
+**Next:** [Mapping at the Boundary](../mapping/ch_intro.md)

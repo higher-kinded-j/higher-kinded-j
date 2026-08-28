@@ -29,13 +29,13 @@ This page covers (1). For (2), see the rules table.
 | `affine.asFold()` | `Affine<S, A>` | `Fold<S, A>` | Read-only access to the optional field. |
 | `iso.asLens()` | `Iso<S, A>` | `Lens<S, A>` | When you only need the forward direction; the `reverseGet` capability is dropped. |
 | `iso.asTraversal()` | `Iso<S, A>` | `Traversal<S, A>` | Same lifting as for a lens. |
-| `iso.asFold()` | `Iso<S, A>` | `Fold<S, A>` | Read-only access; both `reverseGet` and `set` are dropped. |
+| `iso.asFold()` | `Iso<S, A>` | `Fold<S, A>` | Read-only access; `reverseGet` is dropped. |
 | `iso.reverse()` | `Iso<S, A>` | `Iso<A, S>` | Swaps the direction of the iso. The new optic's `get` is the old `reverseGet` and vice versa. |
 | `getter.asFold()` | `Getter<S, A>` | `Fold<S, A>` | Lifting a getter into a context that expects a fold. |
 | `setter.asTraversal()` | `Setter<S, A>` | `Traversal<S, A>` | Lifting a setter for use in traversal-shaped pipelines. |
 | `traversal.asFold()` | `Traversal<S, A>` | `Fold<S, A>` | Discarding write capability to express read-only intent or to call fold-only operations. |
 
-You cannot widen the other direction: a `Traversal` does not become a `Lens` because it has no guarantee of focusing on exactly one element.
+You cannot widen the other direction: a `Traversal` does not become a `Lens`, because it has no guarantee of focusing on exactly one element. The nearest thing is [`Traversals.partsOf`](traversals.md), which gives you a `Lens<S, List<A>>` onto the focused elements as a list: a lens onto *all* of them, not onto *one* of them, which is precisely the guarantee a `Traversal` cannot make.
 
 ---
 
@@ -67,10 +67,19 @@ You only need an explicit `asTraversal()` when the API you are calling requires 
 
 ---
 
-## See also
+~~~admonish info title="Key Takeaways"
+* **Conversion is one optic changing shape; composition is two optics meeting.** `asTraversal()` is the first, `andThen` is the second, and you rarely need both at once.
+* **Widening loses capability.** `asFold()` drops writing, `asLens()` drops `reverseGet`, and nothing converts back up: a `Traversal` cannot become a `Lens`, because it cannot promise exactly one focus.
+* **`andThen` already widens for you.** Converting before composing is redundant; the [Composition Rules](composition_rules.md) settle the result type.
+* **Convert when a type demands it**, storing an optic in a typed field or handing it to a utility that takes a `Traversal`.
+* **`reverse()` is the one conversion that loses nothing.** An `Iso` is symmetric, so reversing it just swaps `get` and `reverseGet`.
+~~~
 
-- [Composition Rules](composition_rules.md), the rules table for what type results from `andThen`.
-- [Optic Capabilities](optic_capabilities.md), which methods are available on each optic.
+~~~admonish tip title="See Also"
+- [Composition Rules](composition_rules.md): the rules table for what type results from `andThen`
+- [Optic Capabilities](optic_capabilities.md): which methods are available on each optic
+- [Decision Trees](decision_trees.md): choosing the optic before you convert it
+~~~
 
 ---
 

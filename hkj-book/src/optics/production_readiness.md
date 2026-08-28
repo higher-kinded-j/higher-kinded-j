@@ -20,43 +20,47 @@ This page does not offer a marketing case for using optics in production; it off
 
 Every `set` or `modify` call on a `Lens` over a record allocates one new record per layer of nesting touched. A composed lens through three layers allocates three new records, plus any intermediate captures. There is no in-place mutation; that is the cost of immutability and not specific to optics.
 
-Compared to a hand-written `with*` cascade for the same nested update, generated optics typically incur the same allocation count. The difference at the byte-code level is the two or three lambda objects that the composition captures, which the JIT inlines after the path becomes hot.
+Compared to a hand-written `with*` cascade for the same nested update, generated optics typically incur the same allocation count. The difference is the two or three anonymous `Lens` and `FocusPath` objects the composition allocates.
 
-For a single update on a small record, the cost is below noise. For tight inner loops, see the caching note below.
+For a single update on a small record, the cost is unlikely to matter. For tight inner loops, see the caching note below.
+
+These are engineering estimates from the shape of the generated code, not benchmark output: the [JMH suite](../benchmarks.md) covers `Fold.plus` but not lens or traversal allocation.
 
 ### `modifyF` and effect handlers
 
-`modifyF(f, source, applicative)` runs `f` once per focused element and threads the results through the supplied `Applicative`. The cost is one call to `f` plus whatever the applicative's `ap` and `pure` do. Validation accumulates errors at the cost of not short-circuiting; `Either` short-circuits on the first failure.
+`modifyF(f, source, applicative)` runs `f` once per focused element and threads the results through the supplied `Applicative`. The cost is one call to `f` plus whatever the applicative's `ap` and `pure` do. `Validated` accumulates every error and `Either` keeps only the first, but neither skips work: the traversal applies `f` to every focused element before the applicative combines the results, so the choice shapes the answer rather than the cost.
 
 ### Traversal allocation
 
-`Traversal.modify(f, source)` over a `List<A>` allocates one new list. If the function returns the same value for every element (a no-op modify), the list is still rebuilt; optics do not currently exploit reference equality to skip rebuilding.
+`Traversals.modify(traversal, f, source)` over a `List<A>` allocates one new list, plus a small constant number of short-lived objects *per element*: the traversal threads each result through the `Id` applicative and an immutable cons-list before flattening. Budget O(n) allocations, not O(1). (Reads and writes on a bare `Traversal` go through the `Traversals` utility; the interface itself declares no plain read or write.) If the function returns the same value for every element (a no-op modify), the list is still rebuilt; optics do not compare references to skip rebuilding.
 
 ---
 
 ## Caching optics
 
-A lens or focus path is a value, not a function. Building the path has a one-off allocation cost; using it has none. For paths used repeatedly, store them as `static final`:
+A lens or focus path is a value, not a function. Building the path has a one-off allocation cost, which caching removes; applying it still allocates the rebuilt structure, which nothing removes. For paths used repeatedly, store them as `static final`:
 
 ```java
 private static final Lens<Company, String> COMPANY_NAME =
     CompanyLenses.name();
 
 private static final TraversalPath<Order, BigDecimal> ALL_PRICES =
-    OrderFocus.items().each().price();
+    OrderFocus.items().via(ItemFocus.price());
 ```
 
-This matters most for paths constructed by `andThen` chains; the work of composing the path is paid once instead of per call. For a single annotation-generated lens like `CompanyLenses.name()`, the path object is already a singleton-like static method result and additional caching gains nothing.
+This matters most for paths constructed by `andThen` chains, where the whole composition is rebuilt on every call. The saving is smaller but real for a single accessor too, because a generated accessor is a factory rather than a constant: `CompanyLenses.name()` calls `Lens.of(...)` and allocates a fresh `Lens` every time, and `CompanyFocus.name()` allocates a `Lens` and a `FocusPath`.
+
+Both cases assume the path is used more than once. A path used once has no allocation to amortise, which is why the table above still says to inline it at the call site.
 
 ---
 
 ## Build-time impact
 
-The annotation processor adds a single round of code generation to compilation. On a codebase with around a hundred annotated records the additional time is in the low single digits of seconds; large codebases scale roughly linearly with the number of annotated types.
+The annotation processor adds one code-generation pass to compilation. On a codebase with around a hundred annotated records the additional time is in the low single digits of seconds; large codebases scale roughly linearly with the number of annotated types.
 
 Generated sources land under `build/generated/sources/annotationProcessor/java/main` (Gradle) or `target/generated-sources/annotations` (Maven). Most IDEs index these automatically after the first build. If autocomplete cannot see `XLenses` or `XFocus` types, a rebuild and project refresh resolves it.
 
-Incremental compilation works as you would expect: changing a record's component triggers regeneration of just that record's companion classes.
+Incremental compilation is supported, conservatively: every processor is registered with Gradle as *aggregating*, so a change to any annotated type re-runs generation across the source set rather than regenerating one companion class. That is deliberate, an isolating claim that turned out wrong would produce silently stale output, and consuming source sets stay incremental regardless.
 
 ---
 
@@ -90,14 +94,28 @@ When upgrading across minor versions, regenerate by rebuilding. Generated code i
 
 ## Team conventions that work
 
-These are not mandates, just patterns observed in production codebases that adopted optics without regret.
+These are the conventions the library's own examples and tests follow. Treat them as defaults, not mandates.
 
-- **Annotate aggressively.** Add `@GenerateLenses` and `@GenerateFocus` to every record you own at the time you write it, even if you are not yet sure which optics you will use. The cost is one annotation; the benefit is that future code can reach for an optic without a refactor.
+- **Annotate the records you own as you write them.** Adding `@GenerateLenses` later is mechanical, but discovering mid-task that the optic does not exist is not. Weigh it against the build-time note above: generation scales with the number of annotated types, so "every record in the monorepo" is a different proposition from "every record in this module".
 - **Place optic constants near the domain type.** A static `Optics` utility class next to the record carries the well-known paths.
 - **Name paths after the field they end at.** `companyName`, not `companyToName` or `getCompanyName`. The receiver-style naming reads naturally at call sites: `Optics.companyName.set("...", company)`.
 - **Use `Fold` when you only read.** Even when a `Lens` would work, expressing read-only intent makes reviews easier and prevents accidental mutations.
 - **Reach for the Focus DSL first.** Manual `andThen` composition is fine and sometimes clearer, but the DSL gives you better IDE support and shorter call sites for nested updates.
 - **Reserve the Free Monad DSL for problems that demand it.** If you do not have an audit, dry-run, or multi-mode requirement, the everyday APIs are simpler.
+
+~~~admonish info title="Key Takeaways"
+* **Immutability is the cost, not optics.** A composed lens allocates one record per touched layer, the same count a hand-written `with*` cascade would.
+* **A path is a value: build it once.** `static final` removes the construction cost; it cannot remove the cost of rebuilding the structure you update.
+* **A no-op modify still rebuilds.** Optics do not compare references to skip work.
+* **Neither error strategy saves work.** `Validated` accumulates and `Either` keeps the first, but every element is visited either way.
+* **Annotation processing is a build-time cost, paid once per compile**, and it buys compile-time errors instead of runtime ones.
+~~~
+
+~~~admonish tip title="See Also"
+- [Optic Capabilities](optic_capabilities.md): what each optic can do before you tune how it does it
+- [Optic-Driven Batching](optic_batching.md): the one place where an optic's cost is I/O rather than allocation
+- [Decision Trees](decision_trees.md): choosing the API whose cost profile suits the task
+~~~
 
 ---
 
