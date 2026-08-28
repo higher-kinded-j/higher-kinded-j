@@ -26,31 +26,12 @@ Higher-Kinded-J brings these patterns to Java through the `ListPrisms` utility c
 
 Lists can be viewed from either end. This simple observation leads to two complementary decomposition strategies:
 
-```
-┌─────────────────────────────────────────────────────────────────────────┐
-│                          CONS (head/tail)                               │
-│                                                                         │
-│   List:     [ A  |  B  |  C  |  D  |  E ]                               │
-│               ↓     └──────────┬────────┘                               │
-│             head            tail                                        │
-│                                                                         │
-│   Pair.of(A, [B, C, D, E])                                              │
-│                                                                         │
-│   "Begin at the beginning..."                                           │
-└─────────────────────────────────────────────────────────────────────────┘
+| Pattern | Splits `[A, B, C, D, E]` into | Result |
+|---|---|---|
+| **CONS** (head/tail) | `head` = `A`, `tail` = `[B, C, D, E]` | `Pair.of(A, [B, C, D, E])` |
+| **SNOC** (init/last) | `init` = `[A, B, C, D]`, `last` = `E` | `Pair.of([A, B, C, D], E)` |
 
-┌─────────────────────────────────────────────────────────────────────────┐
-│                          SNOC (init/last)                               │
-│                                                                         │
-│   List:     [ A  |  B  |  C  |  D  |  E ]                               │
-│              └──────────┬────────┘    ↓                                 │
-│                       init          last                                │
-│                                                                         │
-│   Pair.of([A, B, C, D], E)                                              │
-│                                                                         │
-│   "...and go on till you come to the end"                               │
-└─────────────────────────────────────────────────────────────────────────┘
-```
+CONS begins at the beginning; SNOC goes on till it comes to the end.
 
 Both patterns return `Optional.empty()` for empty lists, making them safe to use without null checks.
 

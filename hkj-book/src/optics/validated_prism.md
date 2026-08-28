@@ -20,17 +20,22 @@ A `Prism<S, A>` answers one question about a value: does it match this shape, ye
 
 `ValidatedPrism<S, A>` captures that asymmetry as two directions with different shapes. `parse` is fallible and accumulating; `build` is total:
 
-```
-                 parse  (fallible, accumulating)
-   wire value  ───────────────────────────────▶  domain value
-   String                                          EmailAddress
-   (unvalidated)  ◀───────────────────────────────  (always valid)
-                 build  (total, always succeeds)
+```mermaid
+flowchart LR
+    W(["wire value<br/>String, unvalidated"])
+    D(["domain value<br/>EmailAddress, always valid"])
+    W -->|"parse: fallible, accumulating"| D
+    D -->|"build: total, never fails"| W
 
-   parse("  NOPE ")          =  Invalid[ "not an email" ]   (every reason at once)
-   parse("ada@corp.example") =  Valid(EmailAddress)
-   build(addr)               =  "ada@corp.example"          (never fails)
+    classDef tier fill:#a6d189,stroke:#40a02b,color:#232634
+    class W,D tier
 ```
+
+| Call | Result |
+|---|---|
+| `parse("  NOPE ")` | `Invalid[ "not an email" ]`, every reason at once |
+| `parse("ada@corp.example")` | `Valid(EmailAddress)` |
+| `build(addr)` | `"ada@corp.example"`, never fails |
 
 In code:
 
@@ -52,16 +57,27 @@ Prisms combine in two ways, and the two behave differently when a parse fails.
 
 **Sibling fields accumulate.** To report every bad field of a record at once, parse each field with its own prism and combine the results with [`fields()` / `accumulate()`](../monads/validated_assembly.md) or the [`Edits` builder](multi_edit.md). Because the fields are independent, every reason is collected, not just the first.
 
-```
-   Nesting: andThen, deeper into one value       =>  short-circuit
-     outer.parse ✗ ─────────────────────────▶  stop, the first reason wins
-     outer.parse ✓ ──▶ inner.parse ─────────▶  keep going
+```mermaid
+flowchart TD
+    subgraph nest["Nesting with andThen: deeper into one value, so it short-circuits"]
+        direction TB
+        O{"outer.parse"}
+        O -->|"fails"| Stop(["stop, the first reason wins"])
+        O -->|"succeeds"| Inner(["inner.parse<br/>keep going"])
+    end
+    subgraph sib["Siblings with fields() or accumulate(): independent, so they accumulate"]
+        direction TB
+        N(["name ✓"]) --> All(["Invalid[ all reasons at once ]"])
+        E(["email ✗ not an email"]) --> All
+        A(["age ✗ must be positive"]) --> All
+    end
 
-   Siblings: fields() / accumulate(), one prism per field    =>  accumulate
-     name   ✓
-     email  ✗  "not an email"      ┐
-     age    ✗  "must be positive"  ├──▶  Invalid[ all reasons at once ]
-                                   ┘
+    classDef tier fill:#a6d189,stroke:#40a02b,color:#232634
+    classDef decision fill:#e5c890,stroke:#df8e1d,color:#232634
+    classDef bad fill:#e78284,stroke:#d20f39,color:#232634
+    class Inner,N tier
+    class O decision
+    class Stop,All,E,A bad
 ```
 
 Only compositions that preserve the **total build** yield a `ValidatedPrism`:

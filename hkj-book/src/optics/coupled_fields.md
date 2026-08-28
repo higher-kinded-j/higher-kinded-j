@@ -31,24 +31,22 @@ The hidden culprit? Standard lens composition assumes fields are independent, th
 
 When we compose lenses with `andThen`, we are drilling *vertically* through nested structures:
 
-```
-VERTICAL COMPOSITION (andThen)        HORIZONTAL COMPOSITION (paired)
-══════════════════════════════        ══════════════════════════════
+```mermaid
+flowchart TD
+    subgraph vert["Vertical: andThen, drilling deeper"]
+        direction TB
+        V1(["Lens&lt;S, A&gt;"]) -->|"andThen"| V2(["Lens&lt;A, B&gt;"]) --> V3(["Lens&lt;S, B&gt;<br/>one nested field"])
+    end
+    subgraph horiz["Horizontal: paired, two fields at once"]
+        direction TB
+        H1(["Lens&lt;S, A&gt;"]) --> H3(["Lens&lt;S, Pair&lt;A, B&gt;&gt;<br/>two sibling fields"])
+        H2(["Lens&lt;S, B&gt;"]) --> H3
+    end
 
-    Lens<S, A>                            Lens<S, A>    Lens<S, B>
-         │                                     │            │
-         ▼ andThen                             └─────┬──────┘
-    Lens<A, B>                                       │
-         │                                           ▼ paired
-         ▼                                           │
-    Lens<S, B>                            Lens<S, Pair<A, B>>
-
-
-    Focus: NESTED fields                  Focus: SIBLING fields
-    (drilling deeper)                     (same level, same source)
-
-    Example:                              Example:
-    User → Address → Street               Range → (lo, hi)
+    classDef tier fill:#a6d189,stroke:#40a02b,color:#232634
+    classDef out fill:#e5c890,stroke:#df8e1d,color:#232634
+    class V1,V2,H1,H2 tier
+    class V3,H3 out
 ```
 
 Vertical composition (`andThen`) assumes that once you have focused on a field, you can update it independently. This works beautifully for nested structures like `Employee → Company → Address → Street`.
@@ -118,32 +116,28 @@ The "correct" order depends on the direction of change!
 
 ## Why This Happens
 
+```mermaid
+flowchart TD
+    subgraph seq["Sequential: one field at a time"]
+        direction TB
+        S1(["Range(1, 2)"]) -->|"loLens.set(11)"| S2(["Range(11, 2)"]) --> S3(["invariant broken:<br/>11 &gt; 2"])
+    end
+    subgraph pair["Paired: both bounds together"]
+        direction TB
+        P1(["Range(1, 2)"]) -->|"boundsLens.get"| P2(["Pair(1, 2)"])
+        P2 -->|"transform"| P3(["Pair(11, 12)"])
+        P3 -->|"Range::new"| P4(["Range(11, 12)<br/>invariant held"])
+    end
+
+    classDef tier fill:#a6d189,stroke:#40a02b,color:#232634
+    classDef out fill:#e5c890,stroke:#df8e1d,color:#232634
+    classDef bad fill:#e78284,stroke:#d20f39,color:#232634
+    class S1,S2,P1,P2,P3 tier
+    class P4 out
+    class S3 bad
 ```
-Record: Range(lo=1, hi=2)          Invariant: lo ≤ hi
-════════════════════════════════════════════════════════════════
 
-Goal: Shift both bounds by +10 to get Range(11, 12)
-
-SEQUENTIAL APPROACH                 PAIRED APPROACH
-───────────────────                 ───────────────
-
-    Range(1, 2)                         Range(1, 2)
-         │                                   │
-         ▼ loLens.set(11)                    ▼ boundsLens.get
-    Range(11, 2)                        Pair(1, 2)
-         │                                   │
-    ╔════╧════════╗                          ▼ transform
-    ║  INVALID!   ║                     Pair(11, 12)
-    ║   11 > 2    ║                          │
-    ║   THROWS    ║                          ▼ reconstruct via Range::new
-    ╚═════════════╝                     Range(11, 12)
-                                             │
-                                        ╔════╧════╗
-                                        ║ VALID!  ║
-                                        ╚═════════╝
-
-The paired lens bypasses the intermediate state entirely.
-```
+The goal is to shift both bounds by ten, from `Range(1, 2)` to `Range(11, 12)`, under the invariant `lo <= hi`.
 
 Sequential lens updates create intermediate states. When fields are coupled by an invariant, these intermediate states can be invalid, even when both the starting and ending states are perfectly valid.
 

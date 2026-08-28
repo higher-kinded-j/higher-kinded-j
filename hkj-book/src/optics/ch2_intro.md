@@ -61,34 +61,32 @@ The diagram signposts Lens, Prism, and Affine rather than covering them: those s
 
 The distinction is worth understanding clearly:
 
-```
-┌─────────────────────────────────────────────────────────────┐
-│                      TRAVERSAL                              │
-│  ┌─────┐   ┌─────┐   ┌─────┐   ┌─────┐                      │
-│  │  A  │   │  B  │   │  C  │   │  D  │  ← Focuses on all    │
-│  └──┬──┘   └──┬──┘   └──┬──┘   └──┬──┘                      │
-│     │        │        │        │                            │
-│     ▼        ▼        ▼        ▼                            │
-│   getAll ──────────────────────────→ [A, B, C, D]           │
-│   modify(f) ───────────────────────→ [f(A), f(B), ...]      │
-│   set(X) ──────────────────────────→ [X, X, X, X]           │
-└─────────────────────────────────────────────────────────────┘
+```mermaid
+flowchart LR
+    subgraph tr["Traversal: reads and writes"]
+        direction LR
+        T1(["A, B, C, D"]) --> T2(["Traversal"]) --> T3["read them all<br/>modify every one<br/>set every one"]
+    end
+    subgraph fo["Fold: reads only"]
+        direction LR
+        F1(["A, B, C, D"]) --> F2(["Fold"]) --> F3["read them all<br/>combine them<br/>ask a question of them"]
+    end
 
-┌─────────────────────────────────────────────────────────────┐
-│                        FOLD                                 │
-│  ┌─────┐   ┌─────┐   ┌─────┐   ┌─────┐                      │
-│  │  A  │   │  B  │   │  C  │   │  D  │  ← Read-only         │
-│  └──┬──┘   └──┬──┘   └──┬──┘   └──┬──┘                      │
-│     │        │        │        │                            │
-│     ▼        ▼        ▼        ▼                            │
-│   getAll ──────────────────────────→ [A, B, C, D]           │
-│   foldMap(monoid, f) ──────────────→ combined result        │
-│   exists(predicate) ───────────────→ true/false             │
-│   ✗ NO set or modify                                        │
-└─────────────────────────────────────────────────────────────┘
+    classDef tier fill:#a6d189,stroke:#40a02b,color:#232634
+    classDef out fill:#e5c890,stroke:#df8e1d,color:#232634
+    class T1,T2,F1,F2 tier
+    class T3,F3 out
 ```
 
-Both can read. Only Traversal can write. Choose based on intent. (For a `Traversal`, `getAll` and `modify` live on the `Traversals` utility class, and `set` is simply modify-with-a-constant.)
+Both focus zero or more elements, and both can read. Only a `Traversal` can write. Where the operation *lives* differs too, which is the part that trips people up: a `Fold` declares its query family directly, while a `Traversal` declares only `modifyF` and reaches the rest through the `Traversals` utility or `asFold()`.
+
+| You want to | On a `Traversal` | On a `Fold` |
+|---|---|---|
+| read every focus | `Traversals.getAll(t, s)` | `getAll(s)` |
+| combine the focuses | `t.asFold().foldMap(...)` | `foldMap(monoid, f, s)` |
+| ask whether any matches | `t.asFold().exists(...)` | `exists(p, s)` |
+| change every focus | `Traversals.modify(t, f, s)` | not available |
+| set every focus | `Traversals.modify(t, a -> x, s)` | not available |
 
 ~~~admonish info title="Hands-On Learning"
 Practice this section in the [Traversals & Practice Journey](../tutorials/optics/traversals_journey.md) (27 exercises, ~40 minutes).

@@ -64,14 +64,20 @@ The `…IfPresent` factories treat `null` as *absent*: the edit contributes the 
 
 Each request field maps to exactly one slot; an absent field simply contributes nothing to the fold:
 
-```
-    PatchRequest { email: "a@b.example",   sku: null,        qtyDelta: 3 }
-                          │                     │                  │
-                          ▼                     ▼                  ▼
-                    write email             identity           qty += 3
-                          └─────────────────────┼──────────────────┘
-                                                ▼
-                  order': email and quantity changed, sku untouched
+```mermaid
+flowchart TD
+    Req(["PatchRequest<br/>email: a@b.example, sku: null, qtyDelta: 3"])
+    Req --> E(["email present<br/>write it"])
+    Req --> S(["sku absent<br/>identity, no change"])
+    Req --> Q(["qtyDelta present<br/>qty += 3"])
+    E --> Out(["order': email and quantity changed,<br/>sku untouched"])
+    S --> Out
+    Q --> Out
+
+    classDef tier fill:#a6d189,stroke:#40a02b,color:#232634
+    classDef out fill:#e5c890,stroke:#df8e1d,color:#232634
+    class Req,E,S,Q tier
+    class Out out
 ```
 
 ~~~admonish warning title="Absent and null are deliberately the same"
@@ -106,17 +112,23 @@ When the request DTO's fields line up one-to-one with a domain record (the commo
 
 `combine` accepts only pure edits; `accumulate` accepts both. That is not a rule you have to remember: it is carried by the type of each edit. `set`, `modify`, and the `…IfPresent` forms produce an `Edit` (cannot fail); `parseIfPresent` produces a `FallibleEdit` (may fail). Passing a `FallibleEdit` to `combine` does not compile, so a validation failure can never be silently dropped.
 
-```
-    FallibleEdit<S>            may fail: carries Validated<NEL<FieldError>, Update<S>>
-        ▲       ▲
-        │       └── FallibleEdit.Parsed     the fallible leaf   (from parseIfPresent)
-        │
-    Edit<S>                    cannot fail: carries the Update<S> directly
-        ▲
-        └────────── Edit.Infallible         the infallible leaf (from set / modify / …IfPresent)
+```mermaid
+flowchart TD
+    FE(["FallibleEdit&lt;S&gt;<br/>may fail: carries Validated&lt;NEL&lt;FieldError&gt;, Update&lt;S&gt;&gt;"])
+    ED(["Edit&lt;S&gt;<br/>cannot fail: carries the Update&lt;S&gt; directly"])
+    P(["FallibleEdit.Parsed<br/>from parseIfPresent"]) --> FE
+    I(["Edit.Infallible<br/>from set, modify, …IfPresent"]) --> ED
+    ED --> FE
 
-    Edits.combine(Edit<S>...)          ← only pure edits fit: a FallibleEdit is a compile error
-    Edits.accumulate(FallibleEdit<S>...) ← both fit: a pure edit is one that always validates
+    C["Edits.combine(Edit…)<br/>only pure edits fit:<br/>a FallibleEdit is a compile error"]
+    A["Edits.accumulate(FallibleEdit…)<br/>both fit: a pure edit<br/>is one that always validates"]
+    ED --> C
+    FE --> A
+
+    classDef tier fill:#a6d189,stroke:#40a02b,color:#232634
+    classDef out fill:#e5c890,stroke:#df8e1d,color:#232634
+    class FE,ED,P,I tier
+    class C,A out
 ```
 
 ---
@@ -128,22 +140,26 @@ An accumulated patch works in two phases:
 1. **Validate**: each edit's incoming value is checked independently. Validation never sees a source, which is what makes accumulation sound *and* lets one patch apply to many sources.
 2. **Apply**: only if every edit validated, the writes run as a single left-to-right fold.
 
-```
-  Phase 1: validate every edit independently (no source involved)
+```mermaid
+flowchart TD
+    subgraph one["Phase 1: validate each edit independently, no source involved"]
+        direction TB
+        S1(["setIfPresent(SKU, null)<br/>absent → identity"]) --> V1(["Valid, a no-op"])
+        S2(["parseIfPresent(EMAIL, raw)<br/>the parser runs"]) --> V2(["Valid(write)<br/>or Invalid(errors)"])
+        S3(["modifyIfPresent(QTY, 3)<br/>present → write"]) --> V3(["Valid(write)"])
+    end
+    V1 --> Q{"every edit Valid?"}
+    V2 --> Q
+    V3 --> Q
+    Q -->|"yes"| Ok(["Phase 2: one left-to-right fold<br/>Valid(order'), only the present fields written"])
+    Q -->|"no"| Bad(["Invalid(NEL[email: …])<br/>every bad field, located"])
 
-    setIfPresent(SKU, null)     parseIfPresent(EMAIL, raw)      modifyIfPresent(QTY, 3)
-             │                            │                             │
-      absent → identity              parser runs                 present → write
-             │                            │                             │
-        Valid(no-op)          Valid(write) or Invalid(errors)      Valid(write)
-             └────────────────────────────┼─────────────────────────────┘
-                                          │
-                        all Valid?  ──────┴──────  any Invalid?
-                             │                          │
-  Phase 2: one               ▼                          ▼
-  left-to-right fold   Valid(order')          Invalid(NEL[ email: … ])
-  of the writes        only the present       every bad field, located,
-                       fields changed         in edit order; no writes run
+    classDef tier fill:#a6d189,stroke:#40a02b,color:#232634
+    classDef decision fill:#e5c890,stroke:#df8e1d,color:#232634
+    classDef bad fill:#e78284,stroke:#d20f39,color:#232634
+    class S1,S2,S3,V1,V2,V3,Ok tier
+    class Q decision
+    class Bad bad
 ```
 
 Application order is observable only when paths overlap: disjoint paths commute; an edit at an overlapping path sees the previous edit's result (a `modify` reads the *current* value at application time). Genuinely coupled fields belong in one atomic edit (see [Coupled Fields](coupled_fields.md) and `Lens.paired`).

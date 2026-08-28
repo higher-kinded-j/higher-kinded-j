@@ -83,31 +83,18 @@ The two zero-or-one branches are the ones worth reading twice. An `Affine` reach
 
 Optics compose to handle complex real-world scenarios:
 
-```
-    Form
-     │
-     │ FormLenses.principal()        ← LENS (required field)
-     ▼
-    Principal (sealed interface)
-     │
-     │ PrincipalPrisms.user()        ← PRISM (might be Guest)
-     ▼
-    User
-     │
-     │ UserTraversals.permissions()  ← TRAVERSAL (each permission)
-     ▼
-    Permission
-     │
-     │ PermissionLenses.name()       ← LENS (required field)
-     ▼
-    String
-     │
-     │ validate(name)                ← effectful modification
-     ▼
-    Validated<String, String>
+```mermaid
+flowchart TD
+    Form(["Form"]) -->|"FormLenses.principal()<br/>LENS, a required field"| Principal(["Principal<br/>sealed interface"])
+    Principal -->|"PrincipalPrisms.user()<br/>PRISM, it might be a Guest"| User(["User"])
+    User -->|"UserTraversals.permissions()<br/>TRAVERSAL, every permission"| Permission(["Permission"])
+    Permission -->|"PermissionLenses.name()<br/>LENS, a required field"| Name(["String"])
+    Name -->|"validate(name)<br/>effectful modification"| Result(["Validated&lt;String, Form&gt;"])
 
-    ═══════════════════════════════════════════════════════════
-    Result: Validated<String, Form>
+    classDef tier fill:#a6d189,stroke:#40a02b,color:#232634
+    classDef out fill:#e5c890,stroke:#df8e1d,color:#232634
+    class Form,Principal,User,Permission,Name tier
+    class Result out
 ```
 
 All permissions validated. All errors accumulated. Original structure preserved.

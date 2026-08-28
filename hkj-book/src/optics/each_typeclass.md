@@ -103,21 +103,17 @@ Earlier releases exposed `Each.eachWithIndex()`, which returned an `Optional<Ind
 
 ### Standard Java Types (EachInstances)
 
-```
-┌──────────────────────────────────────────────────────────────┐
-│  Type          │ each()  │  EachIndexed?   │ Index Type     │
-├──────────────────────────────────────────────────────────────┤
-│  List<A>       │   ✓     │       ✓         │  Integer       │
-│  Set<A>        │   ✓     │       ✗         │     -          │
-│  Collection<A> │   ✓     │       ✗         │     -          │
-│  Map<K, V>     │   ✓     │       ✓         │     K          │
-│  Optional<A>   │   ✓     │       ✗         │     -          │
-│  A[]           │   ✓     │       ✓         │  Integer       │
-│  Stream<A>     │   ✓     │       ✗         │     -          │
-│  VStream<A>    │   ✓     │       ✗         │     -          │
-│  String        │   ✓     │       ✓         │  Integer       │
-└──────────────────────────────────────────────────────────────┘
-```
+| Type | `each()` | Indexed? | Index type | Factory |
+|---|---|---|---|---|
+| `List<A>` | ✓ | ✓ | `Integer` | `listEach()` |
+| `Set<A>` | ✓ |   |   | `setEach()` |
+| `Collection<A>` | ✓ |   |   | `collectionEach()` |
+| `Map<K, V>` | ✓ | ✓ | `K` | `mapValuesEach()` |
+| `Optional<A>` | ✓ |   |   | `optionalEach()` |
+| `A[]` | ✓ | ✓ | `Integer` | `arrayEach()` |
+| `Stream<A>` | ✓ |   |   | `streamEach()` |
+| `VStream<A>` | ✓ |   |   | `vstreamEach()` |
+| `String` | ✓ | ✓ | `Integer` | `stringCharsEach()`, focusing `Character` |
 
 ```java
 import org.higherkindedj.optics.each.EachInstances;
@@ -154,16 +150,12 @@ Each<String, Character> stringEach = EachInstances.stringCharsEach();
 
 For Higher-Kinded-J core types, use `EachExtensions`:
 
-```
-┌──────────────────────────────────────────────────────────────┐
-│  Type            │ each()  │  EachIndexed?   │ Index Type   │
-├──────────────────────────────────────────────────────────────┤
-│  Maybe<A>        │   ✓     │       ✗         │     -        │
-│  Either<L, R>    │   ✓     │       ✗         │     -        │
-│  Try<A>          │   ✓     │       ✗         │     -        │
-│  Validated<E, A> │   ✓     │       ✗         │     -        │
-└──────────────────────────────────────────────────────────────┘
-```
+| Type | `each()` | Indexed? | Factory | Focuses |
+|---|---|---|---|---|
+| `Maybe<A>` | ✓ |   | `maybeEach()` | the value when present |
+| `Either<L, R>` | ✓ |   | `eitherRightEach()` | the right side only |
+| `Try<A>` | ✓ |   | `trySuccessEach()` | the success only |
+| `Validated<E, A>` | ✓ |   | `validatedEach()` | the valid side only |
 
 ```java
 import org.higherkindedj.optics.extensions.EachExtensions;
