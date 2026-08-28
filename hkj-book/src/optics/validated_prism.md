@@ -1,11 +1,10 @@
 # Validated Prisms
 
+## _The smart-constructor optic: a `Prism` whose match says why not, and all the reasons at once_
+
 ~~~admonish example title="See Example Code"
 **The code on this page is [ValidatedPrismBook.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/book/optics/ValidatedPrismBook.java)** - the page includes it directly, so it is compiled and run by the build.
 ~~~
-
-
-_The smart-constructor optic: a `Prism` whose match says **why not**, and all the reasons at once._
 
 ~~~admonish info title="What You'll Learn"
 - Why a validated boundary needs a fallible, accumulating `parse` and a total `build`: the "parse, don't validate" asymmetry captured as an optic
@@ -152,10 +151,10 @@ Practice the boundary in [Tutorial 25: ValidatedPrism](https://github.com/higher
 ~~~
 
 ~~~admonish tip title="See Also"
-- [Prisms](prisms.md) - The yes/no match this type upgrades
-- [Accumulating Assembly](../monads/validated_assembly.md) - Sibling-field accumulation for multi-field parses
-- [Multi-Edit and Sparse Updates](multi_edit.md) - The update-side counterpart
-- [Record Mapping](../mapping/ch_intro.md) - `@GenerateMapping` derives whole-record `parse`/`build` from these leaves
+- [Prisms](prisms.md): the yes/no match this type upgrades
+- [Accumulating Assembly](../monads/validated_assembly.md): sibling-field accumulation for multi-field parses
+- [Multi-Edit and Sparse Updates](multi_edit.md): the update-side counterpart
+- [Record Mapping](../mapping/ch_intro.md): `@GenerateMapping` derives whole-record `parse`/`build` from these leaves
 ~~~
 
 ---

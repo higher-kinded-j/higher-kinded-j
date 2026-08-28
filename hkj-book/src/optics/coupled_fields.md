@@ -4,7 +4,7 @@
 <img src="../images/coupled_mr_robot.png" alt="Illustration for coupled fields and atomic updates" style="width: 100%;" />
 > *"A bug is never just a mistake. It represents something bigger. An error of thinking that makes you who you are."*
 >
-> — Elliot Alderson, *Mr. Robot*
+> – Elliot Alderson, *Mr. Robot*
 
 When a lens update throws an exception, it is not the lens that is broken; it is our assumption about field independence. What looks like a bug often reveals a deeper truth about the relationship between fields in our data structures.
 
@@ -147,7 +147,7 @@ Sequential lens updates create intermediate states. When fields are coupled by a
 
 > *"They're all tied in together."*
 >
-> — Sergeant Pinback, *Dark Star*
+> – Sergeant Pinback, *Dark Star*
 
 This boils down to: if fields are coupled, update them together. `Lens.paired` combines two lenses into one that focuses on both values as a `Pair`:
 
@@ -442,27 +442,28 @@ These are verified by property-based tests in `LensPairedLawsPropertyTest.java`.
 ---
 
 ~~~admonish info title="Key Takeaways"
-1. **Standard lenses assume field independence** - updating one field should not affect another
-2. **Coupled fields violate this assumption** - invariants create dependencies between fields
-3. **Sequential updates create invalid intermediate states** - even when start and end are valid
-4. **`Lens.paired` provides atomic multi-field updates** - bypassing intermediate states entirely
-5. **Order independence** - paired lenses do not care which direction you are transforming
+* **Standard lenses assume field independence**: updating one field should not affect another
+* **Coupled fields violate that assumption**: an invariant makes two fields constrain each other
+* **Sequential updates pass through invalid intermediate states**, even when the start and the end are both valid
+* **`Lens.paired` updates the group atomically**: no intermediate state exists for the constructor to reject
+* **`CoupledLenses.coupled3` to `coupled9` is the same shape for more fields**, generated into `org.higherkindedj.optics.util`
+* **Order independence follows**: a paired lens does not care which direction you are transforming
 ~~~
 
 ~~~admonish info title="Hands-On Learning"
-Practice the binary form in [Tutorial 04: Affine Basics](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/test/java/org/higherkindedj/tutorial/optics/Tutorial04_AffineBasics.java), then move up the arity ladder in [Tutorial 23: N-ary Coupled Lenses](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/test/java/org/higherkindedj/tutorial/optics/Tutorial23_CoupledLenses.java) (3 exercises, ~10 minutes).
+Practice both the binary form and the arity ladder in [Tutorial 23: N-ary Coupled Lenses](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/test/java/org/higherkindedj/tutorial/optics/Tutorial23_CoupledLenses.java) (3 exercises, ~10 minutes).
 ~~~
 
 ~~~admonish tip title="See Also"
-- [Lenses](lenses.md) - Core lens concepts and operations
-- [Composition Rules](composition_rules.md) - How different optics compose
-- [Isomorphisms](iso.md) - For transforming between constrained and unconstrained representations
+- [Lenses](lenses.md): core lens concepts and operations
+- [Composition Rules](composition_rules.md): how different optics compose
+- [Isomorphisms](iso.md): transforming between constrained and unconstrained representations
 ~~~
 
 ~~~admonish tip title="Further Reading"
-**Chris Penner**: [Virtual Record Fields Using Lenses](https://chrispenner.ca/posts/virtual-fields) - Introduces "virtual fields" as computed properties accessed through lenses. Penner demonstrates how hiding data constructors and exporting only lenses creates a stable public interface that absorbs internal refactoring. His treatment of data invariants is relevant here: where we use `Lens.paired` to *enforce* invariants during updates, Penner uses lenses to *hide* representation details and maintain invariants transparently. He also candidly notes that breaking lens laws is "usually perfectly fine" for pragmatism, echoing our observation that real-world records often have constraints that do not fit the idealised lens model.
+**Chris Penner**: [Virtual Record Fields Using Lenses](https://chrispenner.ca/posts/virtual-fields): introduces "virtual fields" as computed properties accessed through lenses. Penner demonstrates how hiding data constructors and exporting only lenses creates a stable public interface that absorbs internal refactoring. His treatment of data invariants is relevant here: where we use `Lens.paired` to *enforce* invariants during updates, Penner uses lenses to *hide* representation details and maintain invariants transparently. He also candidly notes that breaking lens laws is "usually perfectly fine" for pragmatism, echoing our observation that real-world records often have constraints that do not fit the idealised lens model.
 
-**Gunnar Morling**: [Enforcing Java Record Invariants With Bean Validation](https://www.morling.dev/blog/enforcing-java-record-invariants-with-bean-validation/) - Tackles record invariants from a different angle, using Bean Validation annotations to enforce constraints automatically at construction time. The article explicitly discusses multi-field invariants like "end must be greater than begin", precisely the kind of coupled constraint that breaks sequential lens updates. Morling's approach guarantees the invariant holds but does not help you *transform* a valid object when both fields must change together. This is where `Lens.paired` complements Bean Validation: validation solves the construction problem; paired lenses solve the transformation problem. In a robust system, you would use both.
+**Gunnar Morling**: [Enforcing Java Record Invariants With Bean Validation](https://www.morling.dev/blog/enforcing-java-record-invariants-with-bean-validation/): tackles record invariants from a different angle, using Bean Validation annotations to enforce constraints automatically at construction time. The article explicitly discusses multi-field invariants like "end must be greater than begin", precisely the kind of coupled constraint that breaks sequential lens updates. Morling's approach guarantees the invariant holds but does not help you *transform* a valid object when both fields must change together. This is where `Lens.paired` complements Bean Validation: validation solves the construction problem; paired lenses solve the transformation problem. In a robust system, you would use both.
 ~~~
 
 ---
