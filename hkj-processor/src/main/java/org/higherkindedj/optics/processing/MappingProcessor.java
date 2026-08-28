@@ -260,7 +260,7 @@ public class MappingProcessor extends AbstractProcessor {
   }
 
   /**
-   * A spec member's return type as the spec has it, not as its declaring interface wrote it.
+   * A member's whole signature as its owner has it, not as its declaring interface wrote it.
    *
    * <p>A member inherited from a generic mix-in is declared in that mix-in's own vocabulary: {@code
    * Emails<T>} carrying {@code ValidatedPrism<String, T>} says {@code T}, and the spec saying
@@ -268,23 +268,32 @@ public class MappingProcessor extends AbstractProcessor {
    * is then compared with, and emitted beside, types derived from the spec's instantiation - the
    * two vocabularies agreeing only by name coincidence, which is the whole of this defect family.
    *
-   * <p>Total for any member of the spec: {@code spec.asType()} is the prototypical type, never a
+   * <p>Total for any member of the owner: {@code owner.asType()} is the prototypical type, never a
    * wildcard instantiation, so a member declared on the spec itself substitutes to itself and a
    * generic spec's own parameters survive as themselves - which is right, because the generated
    * Impl declares them. A <em>raw</em> supertype is the one shape this cannot answer for: one
    * carrying vocabulary is refused before reaching here, and one carrying none arrives with its
    * members erased, which is what the language says they are.
    *
-   * @param spec the annotated spec interface; must not be null
+   * @param owner the type the member is read under: the annotated spec, or a mix-in being
+   *     classified in its own right; must not be null
    * @param member one of its members, own or inherited; must not be null
-   * @return the member's return type under the spec's instantiation
+   * @return the member's signature - parameters and return type - under {@code owner}'s
+   *     instantiation
    */
   private ExecutableType memberSignatureIn(TypeElement owner, ExecutableElement member) {
     return ProcessorUtils.memberOf(
         processingEnv.getTypeUtils(), (DeclaredType) owner.asType(), member);
   }
 
-  /** The return half of {@link #memberSignatureIn}, which is what most readers want. */
+  /**
+   * The return half of {@link #memberSignatureIn}, which is what most readers want: the member's
+   * return type as the owner has it.
+   *
+   * @param owner the type the member is read under; must not be null
+   * @param member one of its members, own or inherited; must not be null
+   * @return the member's return type under {@code owner}'s instantiation
+   */
   private TypeMirror memberTypeIn(TypeElement owner, ExecutableElement member) {
     return memberSignatureIn(owner, member).getReturnType();
   }

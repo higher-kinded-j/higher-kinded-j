@@ -438,7 +438,7 @@ public final class ProcessorUtils {
     List<? extends TypeMirror> typeArguments = declaredType.getTypeArguments();
     if (typeArguments.isEmpty()) {
       // A generic element with no arguments is raw; a non-generic one simply has none to give.
-      return !((TypeElement) declaredType.asElement()).getTypeParameters().isEmpty();
+      return isRaw(declaredType);
     }
     return typeArguments.stream().anyMatch(arg -> arg.getKind() == TypeKind.WILDCARD);
   }
