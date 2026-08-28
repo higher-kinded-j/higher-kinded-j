@@ -37,7 +37,7 @@ import java.lang.annotation.Target;
  *     public boolean isObject() { ... }
  *     public ObjectNode asObject() { ... }
  *     public boolean isText() { ... }
- *     public String asText() { ... }
+ *     public TextNode asText() { ... }
  * }
  *
  * @ImportOptics
@@ -50,9 +50,24 @@ import java.lang.annotation.Target;
  *     Prism<JsonNode, ObjectNode> object();
  *
  *     @MatchWhen(predicate = "isText", getter = "asText")
- *     Prism<JsonNode, String> text();
+ *     Prism<JsonNode, TextNode> text();
  * }
  * }</pre>
+ *
+ * <h2>The focus has to be a variant of the source</h2>
+ *
+ * <p>A prism runs both ways, and the generated one builds back with identity: it returns the value
+ * the getter read. That is only a source when the focus is one, so a getter's <em>value</em> type
+ * is rejected at the declaration:
+ *
+ * <pre>{@code
+ * @MatchWhen(predicate = "isText", getter = "asText")
+ * Prism<JsonNode, String> text();   // rejected: a String is not a JsonNode
+ * }</pre>
+ *
+ * <p>Focus the variant that carries the value — {@code TextNode} — and read the payload with a
+ * further optic. Where the value type is the point, write that prism by hand with {@link
+ * org.higherkindedj.optics.Prism#of} and a build side that constructs the source.
  *
  * @see OpticsSpec
  * @see InstanceOf

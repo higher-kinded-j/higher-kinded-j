@@ -146,12 +146,23 @@ Prism<JsonNode, ObjectNode> object();
 **`@MatchWhen`** is for libraries that expose a check-then-extract pair instead of subtypes:
 
 ```java
-@MatchWhen(predicate = "isString", getter = "asString")
-Prism<Value, String> string();
-// generates: value.isString() ? Optional.of(value.asString()) : Optional.empty()
+@MatchWhen(predicate = "isObject", getter = "asObject")
+Prism<Value, ObjectValue> object();
+// generates: value.isObject() ? Optional.of(value.asObject()) : Optional.empty()
 ```
 
 Both produce a `Prism`, so both compose the same way afterwards. Pick by what the library gives you: a type to test, or a method to ask.
+
+~~~admonish warning title="The focus has to be a variant, not the value it carries"
+A prism runs both ways. The generated one builds back with identity — it returns the value it narrowed — so the focus must be a type the source accepts:
+
+```java
+@MatchWhen(predicate = "isString", getter = "asString")
+Prism<Value, String> string();   // rejected: a String is not a Value
+```
+
+There is nothing the processor could rebuild a `Value` from a bare `String` with. Focus the variant that carries it — `StringValue`, `TextNode` — and read the payload with a lens or a further optic. Where the value type really is the point, write that prism by hand with `Prism.of` and a build side that constructs the source, such as `TextNode::valueOf`.
+~~~
 
 ### Parameterised Targets
 
@@ -283,7 +294,7 @@ Reach for optics to *navigate*, and for one of those to *diagnose*.
 
 ## Beyond Jackson
 
-The same pattern fits any external type that resists auto-detection: Protocol Buffers (`@MatchWhen` on the generated `hasX`/`getX` oneof accessors), XML DOM (prisms for element types), compiler or parser ASTs, and awkward legacy library types. The next page covers the other half of the story, the copy strategies (`@ViaBuilder`, `@Wither`, `@ViaConstructor`, `@ViaCopyAndSet`) that give you lenses rather than prisms.
+The same pattern fits any external type that resists auto-detection: Protocol Buffers (`@MatchWhen` on the generated `hasX`/`getX` oneof accessors, where the field is a message type rather than a scalar), XML DOM (prisms for element types), compiler or parser ASTs, and awkward legacy library types. The next page covers the other half of the story, the copy strategies (`@ViaBuilder`, `@Wither`, `@ViaConstructor`, `@ViaCopyAndSet`) that give you lenses rather than prisms.
 
 ---
 
