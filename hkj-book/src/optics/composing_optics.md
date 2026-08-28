@@ -1,6 +1,4 @@
-# Capstone Example:
-
-## _Composing Optics for Deep Validation_
+# Capstone: Composing Optics for Deep Validation
 
 ~~~admonish info title="What You'll Learn"
 - How to compose multiple optic types into powerful processing pipelines
@@ -12,11 +10,7 @@
 - Advanced patterns for multi-level and conditional validation scenarios
 ~~~
 
-~~~admonish title="Hands On Practice"
-[Tutorial06_OpticsComposition.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/test/java/org/higherkindedj/tutorial/optics/Tutorial06_OpticsComposition.java)
-~~~
-
-~~~admonish title="Example Code"
+~~~admonish example title="See Example Code"
 [ValidatedTraversalExample](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/optics/ValidatedTraversalExample.java)
 ~~~
 
@@ -28,6 +22,10 @@ This guide showcases the true power of the optics approach by composing multiple
 
 ---
 
+~~~admonish tip title="Why this matters"
+The alternative to this composition is a nested loop that pattern-matches the principal, iterates the permissions, collects errors into a mutable list, and rebuilds the form field by field. That version cannot be reused for anything else, and every new rule reopens it. The composed optic is a value: the same `Traversal<Form, String>` validates, updates, counts and reports, and adding a rule means handing `modifyF` a different function rather than editing a traversal.
+~~~
+
 ## The Scenario: Validating User Permissions
 
 Imagine a data model for a form that can be filled out by either a registered `User` or a `Guest`. Our goal is to validate that every `Permission` held by a `User` has a valid name.
@@ -36,7 +34,7 @@ This single task requires us to:
 
 1. Focus on the form's `principal` field (**a job for a Lens**).
 2. Safely "select" the `User` case, ignoring any `Guest`s (**a job for a Prism**).
-3. Operate on every `Permission` in the userLogin's list (**a job for a Traversal**).
+3. Operate on every `Permission` in the user's list (**a job for a Traversal**).
 
 ---
 
@@ -127,7 +125,7 @@ Before diving into the code, let's understand why we need each type of optic and
 
 ### 4. Composing the Master Optic
 
-Now for the main event. We will compose our generated optics to create a single `Traversal` that declaratively represents the path from a `Form` all the way down to each permission `name`. While the new `with*` helpers are great for simple, shallow updates, a deep and conditional update like this requires composition.
+Now for the main event. We will compose our generated optics to create a single `Traversal` that declaratively represents the path from a `Form` all the way down to each permission `name`. While the `with*` helpers are great for simple, shallow updates, a deep and conditional update like this requires composition.
 
 To ensure type-safety across different optic types, we convert each `Lens` and `Prism` in the chain to a `Traversal` using the `.asTraversal()` method.
 
@@ -138,7 +136,7 @@ import org.higherkindedj.optics.Traversal;
 
 // Get the individual generated optics
 Lens<Form, Principal> formPrincipalLens = FormLenses.principal();
-Prism<Principal, User> principalUserPrism = PrincipalPrisms.userLogin();
+Prism<Principal, User> principalUserPrism = PrincipalPrisms.user();
 Traversal<User, Permission> userPermissionsTraversal = UserTraversals.permissions();
 Lens<Permission, String> permissionNameLens = PermissionLenses.name();
 
@@ -164,16 +162,12 @@ This single `formToPermissionNameTraversal` object now encapsulates the entire c
 * **Error accumulation** - You want to collect all errors, not stop at the first failure
 
 ```java
-// Perfect for reusable, complex validation
-Traversal<Company, String> allEmployeeEmails = 
-    CompanyTraversals.departments()
-        .andThen(DepartmentTraversals.employees())
-        .andThen(EmployeePrisms.active().asTraversal())  // Only active employees
-        .andThen(EmployeeLenses.email().asTraversal());
+// Perfect for reusable, complex validation: the path below is built once and
+// reused for every rule that needs to reach a permission name.
+Traversal<Form, String> allPermissionNames = FORM_TO_PERMISSION_NAMES;
 
-// Use across multiple validation scenarios
-Validated<List<String>, Company> result1 = validateEmails(company1);
-Validated<List<String>, Company> result2 = validateEmails(company2);
+Validated<String, Form> checked = validatePermissions(form);
+Validated<String, Form> rechecked = validatePermissions(updatedForm);
 ```
 
 ### Use Direct Validation When:
@@ -185,11 +179,11 @@ Validated<List<String>, Company> result2 = validateEmails(company2);
 
 ```java
 // Simple validation doesn't need optics
-public Validated<String, User> validateUser(User userLogin) {
-    if (userLogin.username().length() < 3) {
+public Validated<String, User> validateUser(User user) {
+    if (user.username().length() < 3) {
         return Validated.invalid("Username too short");
     }
-    return Validated.valid(userLogin);
+    return Validated.valid(user);
 }
 ```
 
@@ -206,7 +200,7 @@ Map<String, Long> permissionCounts = forms.stream()
     .map(Form::principal)
     .filter(User.class::isInstance)
     .map(User.class::cast)
-    .flatMap(userLogin -> userLogin.permissions().stream())
+    .flatMap(user -> user.permissions().stream())
     .collect(groupingBy(Permission::name, counting()));
 ```
 
@@ -228,7 +222,7 @@ var badResult = traversal.modifyF(validatePermissionName, form, /* wrong applica
 
 // Creating complex compositions inline
 var inlineResult = FormLenses.principal().asTraversal()
-    .andThen(PrincipalPrisms.userLogin().asTraversal())
+    .andThen(PrincipalPrisms.user().asTraversal())
     .andThen(UserTraversals.permissions())
     .andThen(PermissionLenses.name().asTraversal())
     .modifyF(validatePermissionName, form, applicative); // Hard to read and reuse
@@ -252,7 +246,7 @@ Applicative<ValidatedKind.Witness<String>> validatedApplicative =
 // Create reusable, well-named compositions
 public static final Traversal<Form, String> FORM_TO_PERMISSION_NAMES =
     FormLenses.principal().asTraversal()
-        .andThen(PrincipalPrisms.userLogin().asTraversal())
+        .andThen(PrincipalPrisms.user().asTraversal())
         .andThen(UserTraversals.permissions())
         .andThen(PermissionLenses.name().asTraversal());
 
@@ -267,13 +261,12 @@ var result = FORM_TO_PERMISSION_NAMES.modifyF(validatePermissionName, form, vali
 
 ## Performance Notes
 
-Optic composition is designed for efficiency:
+Optic composition trades a little throughput for composability, and it is worth being precise about which:
 
-* **Lazy evaluation**: Only processes data when actually used
-* **Structural sharing**: Unchanged parts of data structures are reused
-* **Single-pass processing**: `modifyF` traverses the structure only once
-* **Memory efficient**: Only creates new objects for changed data
-* **JIT compiler optimisation**: Complex compositions are optimised by the JVM's just-in-time compiler through method inlining
+* **Element references are shared**: values a modification leaves alone are reused, not copied; the containers along the path are rebuilt
+* **No hidden laziness**: every focus the path reaches is visited, so cost is proportional to the number of foci
+* **Single pass**: one `modifyF` walks the structure once, whatever the effect
+* **A prism that does not match costs nothing further**: the rest of the chain is never entered for that element
 
 **Best Practice**: Create composed optics as constants for reuse:
 
@@ -283,17 +276,17 @@ public class ValidationOptics {
     // Reusable validation paths
     public static final Traversal<Form, String> USER_PERMISSION_NAMES =
         FormLenses.principal().asTraversal()
-            .andThen(PrincipalPrisms.userLogin().asTraversal())
+            .andThen(PrincipalPrisms.user().asTraversal())
             .andThen(UserTraversals.permissions())
             .andThen(PermissionLenses.name().asTraversal());
-  
-    public static final Traversal<Company, String> EMPLOYEE_EMAILS =
-        CompanyTraversals.employees()
-            .andThen(EmployeeLenses.contactInfo().asTraversal())
-            .andThen(ContactInfoLenses.email().asTraversal());
-  
+
+    public static final Traversal<Form, String> USERNAMES =
+        FormLenses.principal().asTraversal()
+            .andThen(PrincipalPrisms.user().asTraversal())
+            .andThen(UserLenses.username().asTraversal());
+
     // Helper methods for common validations
-    public static Validated<List<String>, Form> validatePermissions(Form form) {
+    public static Validated<String, Form> validatePermissions(Form form) {
         return VALIDATED.narrow(USER_PERMISSION_NAMES.modifyF(
             ValidationOptics::validatePermissionName,
             form,
@@ -311,11 +304,11 @@ public class ValidationOptics {
 
 
 ```java
-// Validate both userLogin data AND permissions in one pass
-public static Validated<List<String>, Form> validateFormCompletely(Form form) {
-    // First validate userLogin basic info
+// Validate both user data AND permissions in one pass
+public static Validated<String, Form> validateFormCompletely(Form form) {
+    // First validate the user's basic info
     var userValidation = FormLenses.principal().asTraversal()
-        .andThen(PrincipalPrisms.userLogin().asTraversal())
+        .andThen(PrincipalPrisms.user().asTraversal())
         .andThen(UserLenses.username().asTraversal())
         .modifyF(ValidationOptics::validateUsername, form, getValidatedApplicative());
   
@@ -336,41 +329,41 @@ public static Validated<List<String>, Form> validateFormCompletely(Form form) {
 
 
 ```java
-// Different validation rules for different userLogin types
-public static final Traversal<Form, String> ADMIN_USER_PERMISSIONS =
+// A prism can only branch where the model is actually sealed. `Principal` is,
+// so this pair is legal: one path for each variant.
+public static final Traversal<Form, String> USER_PERMISSIONS =
     FormLenses.principal().asTraversal()
-        .andThen(PrincipalPrisms.userLogin().asTraversal())
-        .andThen(UserPrisms.adminUser().asTraversal())  // Only admin users
-        .andThen(AdminUserTraversals.permissions())
+        .andThen(PrincipalPrisms.user().asTraversal())
+        .andThen(UserTraversals.permissions())
         .andThen(PermissionLenses.name().asTraversal());
 
-public static final Traversal<Form, String> REGULAR_USER_PERMISSIONS =
-    FormLenses.principal().asTraversal()
-        .andThen(PrincipalPrisms.userLogin().asTraversal())
-        .andThen(UserPrisms.regularUser().asTraversal())  // Only regular users
-        .andThen(RegularUserTraversals.permissions())
-        .andThen(PermissionLenses.name().asTraversal());
+// `User` is a record, so there is no `UserPrisms`: @GeneratePrisms applies to
+// sealed interfaces and enums only. To narrow further, filter on a field.
+public static final Traversal<Form, String> DESTRUCTIVE_PERMISSIONS =
+    USER_PERMISSIONS.filtered(name -> name.startsWith("PERM_DELETE"));
 ```
+
+If you genuinely need per-role paths, the split has to exist in the model: make `User` a sealed interface over `AdminUser` and `RegularUser`, and `@GeneratePrisms` will give you `UserPrisms.adminUser()`. A record cannot be narrowed by a prism, only filtered.
 
 ### 3. Cross-Field Validation
 
 
 ```java
-// Validate that permissions are appropriate for userLogin role
-public static Validated<List<String>, Form> validatePermissionsForRole(Form form) {
+// Validate that a user's permissions are appropriate for who they are
+public static Validated<String, Form> validatePermissionsForUser(Form form) {
     return FormLenses.principal().asTraversal()
-        .andThen(PrincipalPrisms.userLogin().asTraversal())
-        .modifyF(userLogin -> {
-            // Custom validation that checks both role and permissions
-            Set<String> allowedPerms = getAllowedPermissionsForRole(userLogin.role());
-            List<String> errors = userLogin.permissions().stream()
+        .andThen(PrincipalPrisms.user().asTraversal())
+        .modifyF(user -> {
+            // Cross-field: the username decides which permissions are allowed
+            Set<String> allowedPerms = allowedPermissionsFor(user.username());
+            List<String> errors = user.permissions().stream()
                 .map(Permission::name)
                 .filter(perm -> !allowedPerms.contains(perm))
-                .map(perm -> "Permission '" + perm + "' not allowed for role " + userLogin.role())
+                .map(perm -> "Permission '" + perm + "' not allowed for " + user.username())
                 .toList();
           
             return errors.isEmpty() 
-                ? VALIDATED.widen(Validated.valid(userLogin))
+                ? VALIDATED.widen(Validated.valid(user))
                 : VALIDATED.widen(Validated.invalid(String.join("; ", errors)));
         }, form, getValidatedApplicative());
 }
@@ -438,7 +431,7 @@ public class ValidatedTraversalExample {
     // --- Reusable Optic Compositions ---
     public static final Traversal<Form, String> FORM_TO_PERMISSION_NAMES =
             FormLenses.principal().asTraversal()
-                    .andThen(PrincipalPrisms.userLogin().asTraversal())
+                    .andThen(PrincipalPrisms.user().asTraversal())
                     .andThen(UserTraversals.permissions())
                     .andThen(PermissionLenses.name().asTraversal());
 
@@ -519,7 +512,6 @@ public class ValidatedTraversalExample {
             String status = result.isValid() ? "✓ VALID" : "✗ INVALID";
             System.out.println("  Form " + form.formId() + ": " + status);
             if (result.isInvalid()) {
-                // Fix: Use getError() instead of getInvalid()
                 System.out.println("    Errors: " + result.getError());
             }
         });
@@ -532,7 +524,6 @@ public class ValidatedTraversalExample {
         Applicative<ValidatedKind.Witness<List<String>>> listApplicative =
                 Instances.validated(Semigroups.list());
 
-        // Fix: Create a proper function for list validation
         java.util.function.Function<String, Kind<ValidatedKind.Witness<List<String>>, String>> listValidation =
                 name -> VALID_PERMISSIONS.contains(name)
                         ? VALIDATED.widen(Validated.valid(name))
@@ -616,7 +607,7 @@ By mastering optic composition, you gain a powerful tool for building robust, ma
 
 ---
 
-## Modern Simplification: Validation-Aware Methods
+## Without the Applicative: Validation-Aware Methods
 
 ~~~admonish tip title="Enhanced Validation Patterns"
 Higher-kinded-j provides specialised validation methods that simplify the patterns shown above. These methods eliminate the need for explicit `Applicative` setup whilst maintaining full type safety and error accumulation capabilities.
@@ -649,7 +640,11 @@ Whilst powerful and flexible, this approach requires:
 
 ### The Simplified Approach: Validation-Aware Methods
 
-The new validation-aware methods provide a more direct API for common validation patterns:
+These methods provide a more direct API for the common validation patterns:
+
+~~~admonish warning title="Two families, two argument orders"
+`OpticOps` takes the **source first**: `modifyAllValidated(form, path, validator)`. The `LensExtensions` and `TraversalExtensions` statics on [Optics Extensions](optics_extensions.md) take the **optic first**: `modifyAllValidated(path, validator, form)`. They do the same work; only the convention differs, and mixing them up is a compile error rather than a silent bug.
+~~~
 
 #### 1. **Error Accumulation with `modifyAllValidated`**
 
@@ -660,12 +655,11 @@ import static org.higherkindedj.optics.fluent.OpticOps.modifyAllValidated;
 
 // Simplified: direct Validated result, automatic error accumulation
 Validated<List<String>, Form> result = modifyAllValidated(
+    form,
     FORM_TO_PERMISSION_NAMES,
     name -> VALID_PERMISSIONS.contains(name)
         ? Validated.valid(name)
-        : Validated.invalid(List.of("Invalid permission: " + name)),
-    form
-);
+        : Validated.invalid("Invalid permission: " + name));
 ```
 
 **Benefits:**
@@ -674,28 +668,26 @@ Validated<List<String>, Form> result = modifyAllValidated(
 * Automatic error accumulation with `List<E>`
 * Clear intent: "validate all and collect errors"
 
-#### 2. **Short-Circuit Validation with `modifyAllEither`**
+#### 2. **First Error Only, with `modifyAllEither`**
 
-For performance-critical validation that stops at the first error:
+When the caller only needs to know that *something* failed, and which failure the traversal met first:
 
 ```java
 import static org.higherkindedj.optics.fluent.OpticOps.modifyAllEither;
 
-// Short-circuit: stops at first error
+// Every element is validated; the result keeps only the first error
 Either<String, Form> result = modifyAllEither(
+    form,
     FORM_TO_PERMISSION_NAMES,
     name -> VALID_PERMISSIONS.contains(name)
         ? Either.right(name)
-        : Either.left("Invalid permission: " + name),
-    form
-);
+        : Either.left("Invalid permission: " + name));
 ```
 
 **Benefits:**
-* Stops processing on first error (performance optimisation)
-* Direct `Either` result
-* Perfect for fail-fast validation
-* No unnecessary computation after failure
+* A direct `Either` result: no `Kind`, no narrowing
+* One error rather than a report, which is what a batch job or an internal caller usually wants
+* The traversal still evaluates every element; only the *result* keeps the first failure. Choose this for the shape of the answer, not to save work
 
 ### Comparison: Traditional vs Validation-Aware Methods
 
@@ -704,7 +696,7 @@ Either<String, Form> result = modifyAllEither(
 | **Applicative Setup** | Required (explicit) | Not required (automatic) |
 | **Type Complexity** | High (`Kind`, `Witness`) | Low (direct types) |
 | **Error Accumulation** | Yes (via Applicative) | Yes (`modifyAllValidated`) |
-| **Short-Circuiting** | Manual (via Either Applicative) | Built-in (`modifyAllEither`) |
+| **First-error result** | Manual (via Either Applicative) | Built-in (`modifyAllEither`) |
 | **Learning Curve** | Steep (HKT knowledge) | Gentle (familiar types) |
 | **Flexibility** | Maximum (any Applicative) | Focused (common patterns) |
 | **Boilerplate** | More (setup code) | Less (direct API) |
@@ -720,39 +712,31 @@ Either<String, Form> result = modifyAllEither(
 ```java
 // Perfect for form validation
 Validated<List<String>, OrderForm> validated = modifyAllValidated(
-    ORDER_TO_PRICES,
-    price -> validatePrice(price),
-    orderForm
-);
+    orderForm, ORDER_TO_PRICES, OrderRules::validatePrice);
 ```
 
 **Use `modifyAllEither` when:**
-* You want **fail-fast behaviour**
-* Working in **performance-critical** paths
-* First error is **sufficient feedback**
+* One error is **sufficient feedback**
+* The caller is a **batch job or internal service**, not a person filling in a form
+* You want the **`Either` shape** the rest of your pipeline already speaks
 
 ```java
-// Perfect for quick validation in high-throughput scenarios
+// Perfect when one message is all the caller will act on
 Either<String, OrderForm> validated = modifyAllEither(
-    ORDER_TO_PRICES,
-    price -> validatePrice(price),
-    orderForm
-);
+    orderForm, ORDER_TO_PRICES, OrderRules::validatePrice);
 ```
 
 **Use `modifyMaybe` when:**
-* Invalid items should be **silently filtered**
-* Building **data enrichment** pipelines
-* Failures are **expected and ignorable**
+* A **single** optional modification either lands or yields nothing
+* Building **data enrichment** pipelines where a miss means "leave the whole thing alone"
+* Failure needs **no detail**, only presence or absence
 
 ```java
-// Perfect for optional enrichment
-Maybe<OrderForm> enriched = modifyMaybe(
-    ORDER_TO_OPTIONAL_DISCOUNTS,
-    discount -> tryApplyDiscount(discount),
-    orderForm
-);
+// modifyMaybe focuses ONE field through a Lens: nothing() discards the whole update
+Maybe<OrderForm> enriched = modifyMaybe(orderForm, ORDER_DISCOUNT, OrderRules::tryApplyDiscount);
 ```
+
+It is all-or-nothing on that one focus, not a per-element filter. For "modify what you can and keep the rest", reach for `TraversalExtensions.modifyWherePossible`.
 
 **Use traditional `modifyF` when:**
 * Working with **custom Applicative** functors
@@ -782,30 +766,28 @@ public class SimplifiedValidation {
     // Same traversal as before
     public static final Traversal<Form, String> FORM_TO_PERMISSION_NAMES =
         FormLenses.principal().asTraversal()
-            .andThen(PrincipalPrisms.userLogin().asTraversal())
+            .andThen(PrincipalPrisms.user().asTraversal())
             .andThen(UserTraversals.permissions())
             .andThen(PermissionLenses.name().asTraversal());
 
     // Simplified validation - no Applicative setup needed
     public static Validated<List<String>, Form> validateFormPermissions(Form form) {
         return modifyAllValidated(
+            form,
             FORM_TO_PERMISSION_NAMES,
             name -> VALID_PERMISSIONS.contains(name)
                 ? Validated.valid(name)
-                : Validated.invalid(List.of("Invalid permission: " + name)),
-            form
-        );
+                : Validated.invalid("Invalid permission: " + name));
     }
 
-    // Alternative: fail-fast validation
-    public static Either<String, Form> validateFormPermissionsFast(Form form) {
+    // Alternative: keep only the first error
+    public static Either<String, Form> validateFormPermissionsFirstError(Form form) {
         return modifyAllEither(
+            form,
             FORM_TO_PERMISSION_NAMES,
             name -> VALID_PERMISSIONS.contains(name)
                 ? Either.right(name)
-                : Either.left("Invalid permission: " + name),
-            form
-        );
+                : Either.left("Invalid permission: " + name));
     }
 }
 ```
@@ -816,12 +798,22 @@ public class SimplifiedValidation {
 * **Easier to learn**: Uses familiar types (`Validated`, `Either`, `Maybe`)
 * **Equally powerful**: Same type safety, same error accumulation, same composition
 
-~~~admonish title="Complete Example"
+~~~admonish example title="Complete Example"
 See [FluentValidationExample.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/optics/fluent/FluentValidationExample.java) for comprehensive demonstrations of all validation-aware methods, including complex real-world scenarios like order validation and bulk data import.
 ~~~
 
+~~~admonish info title="Key Takeaways"
+* **Four optics, three kinds, one value.** `Lens >>> Prism >>> Traversal >>> Lens` collapses into a single `Traversal<Form, String>` that you name once and reuse for reads, writes and validations.
+* **`.asTraversal()` is the levelling step.** Composing mixed optic kinds means widening each to the weakest one in the chain, which is why the composed path is a `Traversal` rather than a `Lens`.
+* **The prism is the safety.** A `Form` holding a `Guest` puts nothing in focus, so the whole pipeline returns cleanly with no branch written for the absent case.
+* **`Validated` accumulates, `Either` keeps the first.** The optic never changes; only the `Applicative` handed to `modifyF` does, and that single choice is the whole difference between a full report and one message. Neither skips elements.
+* **The fluent methods remove the ceremony, not the power.** `OpticOps` gives the same accumulation without `widen`, `narrow` or an explicit `Applicative` at the call site.
+~~~
+
 ~~~admonish tip title="See Also"
-For the four validation strategies, the fluent builders, and when to drop to `modifyF`, see [Fluent API for Optics](fluent_api.md#part-2-validation-aware-modification).
+- [Fluent API for Optics](fluent_api.md#part-2-validation-aware-modification): the four validation strategies, the builders, and when to drop to `modifyF`
+- [Composition Rules](composition_rules.md): why a chain of mixed optics widens to a `Traversal`
+- [Core Type Integration](core_type_integration.md): the prisms that let a core type sit mid-path
 ~~~
 
 ~~~admonish info title="Hands-On Learning"

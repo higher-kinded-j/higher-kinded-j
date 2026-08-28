@@ -6,13 +6,37 @@
 
 ---
 
-Theory is useful; working code is better.
+Theory is useful; working code is better. Here is the chapter's capstone in miniature, before any of the reasoning behind it. One path runs from a form, through a sealed principal, across a list of permissions, down to each permission's name; one call validates every one of them and collects the failures. Every line compiles against the real library on every build:
+
+<!-- verify -->
+```java
+Traversal<Form, String> everyPermissionName =
+    FormLenses.principal().asTraversal()
+        .andThen(PrincipalPrisms.user().asTraversal())
+        .andThen(UserTraversals.permissions())
+        .andThen(PermissionLenses.name().asTraversal());
+
+Validated<String, Form> checked =
+    VALIDATED.narrow(
+        everyPermissionName.modifyF(
+            Fixture::validatePermission, Fixture.form, Instances.validated(Semigroups.string("; "))));
+// Invalid("Invalid permission: PERM_FLY")
+// A Guest principal would simply have no permissions in focus, and validate clean.
+```
+
+The sample `Form` holds a `User` with two permissions, `PERM_READ` and `PERM_FLY`, and only the first is on the allowed list. `Fixture` is the compiled example's own setup, not library API.
+
+~~~admonish tip title="Why this matters"
+Four optics of three different kinds compose into one value, and that value is reusable in both directions: run it with a plain function to update every permission, or with an `Applicative` to validate them and accumulate the failures. The prism in the middle is what makes it safe. A `Form` holding a `Guest` has nothing in focus, so the same expression returns a clean result rather than a `ClassCastException`, and no branch had to be written for that case.
+~~~
 
 This section brings together everything from the previous four into practical patterns you can apply directly. The capstone example demonstrates a complete validation workflow: composing Lens, Prism, and Traversal to validate permissions nested deep within a form structure. It's the sort of problem that would require dozens of lines of imperative code, handled in a few declarative compositions.
 
 The integration sections cover how optics work with higher-kinded-j's core types: extending Lenses and Traversals with additional capabilities, using Prisms for Optional, Either, and other standard containers. If you've wondered how to combine optics with the rest of the library, this is where you'll find answers.
 
-The cookbook provides ready-to-use recipes for common problems: updating nested optionals, modifying specific sum type variants, bulk collection operations with filtering, configuration management, and audit trail generation. Each recipe includes the problem statement, solution code, and explanation of why it works.
+Three pages then deal with the operations that fall between one edit and one query. **Multi-Edit** applies N independent edits at different paths in a single reusable operation, including the sparse REST `PATCH` that reports every bad field at once. **Optic-Driven Batching** attaches a batching strategy to a traversal, so N foci become one backend call, and **Plan Introspection and Guardrails** lets you see and bound that call before it leaves the JVM.
+
+The cookbook provides ready-to-use recipes for common problems: updating nested optionals, modifying specific sum type variants, bulk collection operations with filtering, and configuration management. Each recipe states the problem and gives the solution, with a note on why it works where the mechanism is not obvious. Audit trail generation gets a page of its own after it.
 
 Copy freely. That's what they're for.
 
@@ -21,7 +45,7 @@ The [Optics Tutorial Track](../tutorials/optics/ch_intro.md) groups all six jour
 ~~~
 
 ~~~admonish tip title="See Also"
-- [Annotations at a Glance](annotations_at_a_glance.md), every optic in the recipes below is annotation-generated.
+- [Annotations at a Glance](annotations_at_a_glance.md): every optic in the recipes below is annotation-generated
 ~~~
 
 ---
@@ -30,48 +54,28 @@ The [Optics Tutorial Track](../tutorials/optics/ch_intro.md) groups all six jour
 
 When facing a new problem, this flowchart helps:
 
+```mermaid
+flowchart TD
+    Q{"What are you doing<br/>to the focus?"}
+    Q -->|"reading only"| R{"How many<br/>targets?"}
+    Q -->|"reading and writing"| M{"How many<br/>targets?"}
+    Q -->|"converting between<br/>equivalent types"| I(["Iso"])
+
+    R -->|"exactly one"| G(["Getter"])
+    R -->|"zero or more"| F(["Fold"])
+
+    M -->|"exactly one"| L(["Lens"])
+    M -->|"zero or one:<br/>the field may be absent"| A(["Affine"])
+    M -->|"zero or one:<br/>the value may be another variant"| P(["Prism"])
+    M -->|"zero or more"| T(["Traversal"])
+
+    classDef decision fill:#e5c890,stroke:#df8e1d,color:#232634
+    classDef tier fill:#a6d189,stroke:#40a02b,color:#232634
+    class Q,R,M decision
+    class I,G,F,L,A,P,T tier
 ```
-                     ┌─────────────────────┐
-                     │ What are you doing? │
-                     └──────────┬──────────┘
-                                │
-           ┌────────────────────┼────────────────────┐
-           ▼                    ▼                    ▼
-    ┌─────────────┐     ┌─────────────┐     ┌─────────────┐
-    │   Reading   │     │  Modifying  │     │ Transforming│
-    │    only?    │     │   values?   │     │   types?    │
-    └──────┬──────┘     └──────┬──────┘     └──────┬──────┘
-           │                   │                   │
-           ▼                   │                   ▼
-    ┌─────────────┐            │            ┌─────────────┐
-    │How many     │            │            │    ISO      │
-    │targets?     │            │            └─────────────┘
-    └──────┬──────┘            │
-           │                   │
-    ┌──────┴──────┐            │
-    ▼             ▼            ▼
-┌───────┐   ┌──────────┐  ┌─────────────┐
-│ One   │   │Zero-more │  │How many     │
-│       │   │          │  │targets?     │
-└───┬───┘   └────┬─────┘  └──────┬──────┘
-    │            │               │
-    ▼            ▼        ┌──────┴──────┐
-┌───────┐   ┌────────┐    ▼             ▼
-│GETTER │   │ FOLD   │ ┌───────┐  ┌──────────┐
-└───────┘   └────────┘ │ One   │  │Zero-more │
-                       └───┬───┘  └────┬─────┘
-                           │           │
-                 ┌─────────┴───┐       │
-                 ▼             ▼       ▼
-           ┌──────────┐ ┌─────────┐ ┌──────────┐
-           │ Required │ │Optional │ │TRAVERSAL │
-           └────┬─────┘ └────┬────┘ └──────────┘
-                │            │
-                ▼            ▼
-           ┌────────┐   ┌─────────┐
-           │  LENS  │   │ PRISM   │
-           └────────┘   └─────────┘
-```
+
+The two zero-or-one branches are the ones worth reading twice. An `Affine` reaches a value that may not be there, such as an optional field. A `Prism` reaches a value that may be a *different variant*, and can build the structure back up from it. The capstone above uses a `Prism` for exactly that reason: a `Principal` is either a `User` or a `Guest`.
 
 ---
 
@@ -90,11 +94,7 @@ Optics compose to handle complex real-world scenarios:
      ▼
     User
      │
-     │ UserTraversals.permissions()  ← TRAVERSAL (list of perms)
-     ▼
-    List<Permission>
-     │
-     │ each                          ← focus on each
+     │ UserTraversals.permissions()  ← TRAVERSAL (each permission)
      ▼
     Permission
      │
@@ -104,10 +104,10 @@ Optics compose to handle complex real-world scenarios:
      │
      │ validate(name)                ← effectful modification
      ▼
-    Validated<Error, String>
+    Validated<String, String>
 
     ═══════════════════════════════════════════════════════════
-    Result: Validated<List<Error>, Form>
+    Result: Validated<String, Form>
 ```
 
 All permissions validated. All errors accumulated. Original structure preserved.

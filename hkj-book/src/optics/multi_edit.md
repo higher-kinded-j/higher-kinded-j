@@ -1,5 +1,7 @@
 # Multi-Edit and Sparse Updates
 
+## _N Edits in One Operation, and the REST PATCH Shape_
+
 ~~~admonish example title="See Example Code"
 **The code on this page is [MultiEditBook.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/book/optics/MultiEditBook.java)** - the page includes it directly, so it is compiled and run by the build.
 ~~~
@@ -161,10 +163,10 @@ Practice the whole model in [Tutorial 24: Multi-Edit and Sparse Updates](https:/
 ~~~
 
 ~~~admonish tip title="See Also"
-- [Semigroup and Monoid](../functional/semigroup_and_monoid.md) - The `Update` monoid that powers `combine`
-- [Accumulating Assembly](../monads/validated_assembly.md) - The same all-errors-at-once model for *constructing* values
-- [Coupled Fields](coupled_fields.md) - Atomic updates of interdependent fields
-- [Record Mapping, sparse PATCH (`UpdateSpec`)](../mapping/beans_patch.md#sparse-patch-write-back-updatespec) - Generate this `Edits.accumulate` fold when the DTO maps one-to-one
+- [Semigroup and Monoid](../functional/semigroup_and_monoid.md): the `Update` monoid that powers `combine`
+- [Accumulating Assembly](../monads/validated_assembly.md): the same all-errors-at-once model for *constructing* values
+- [Coupled Fields](coupled_fields.md): atomic updates of interdependent fields
+- [Record Mapping, sparse PATCH (`UpdateSpec`)](../mapping/beans_patch.md#sparse-patch-write-back-updatespec): generate this `Edits.accumulate` fold when the DTO maps one-to-one
 ~~~
 
 ---

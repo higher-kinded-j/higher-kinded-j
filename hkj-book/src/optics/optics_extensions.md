@@ -6,12 +6,12 @@
 - Safe field access with `getMaybe`, `getEither`, and `getValidated`
 - Validated modifications with `modifyEither`, `modifyMaybe`, and `modifyValidated`
 - Exception-safe operations with `modifyTry`
-- Bulk operations with fail-fast (`modifyAllEither`) or error accumulation (`modifyAllValidated`)
+- Bulk operations keeping only the first error (`modifyAllEither`) or accumulating every one (`modifyAllValidated`)
 - Selective updates with `modifyWherePossible`
 - Analysis methods: `countValid` and `collectErrors`
 ~~~
 
-~~~admonish title="Example Code"
+~~~admonish example title="See Example Code"
 - [LensExtensionsExample](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/optics/LensExtensionsExample.java)
 - [TraversalExtensionsExample](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/optics/TraversalExtensionsExample.java)
 ~~~
@@ -36,7 +36,7 @@ These extension methods are also available through the [Fluent API](fluent_api.m
 
 ### Safe Access Methods
 
-#### `getMaybe` – Null-Safe Field Access
+#### `getMaybe`: Null-Safe Field Access
 
 Returns `Maybe.just(value)` if the field is non-null, `Maybe.nothing()` otherwise.
 
@@ -53,7 +53,7 @@ Maybe<String> noBio = getMaybe(bioLens, withoutBio);  // Maybe.nothing()
 String displayBio = bio.orElse("No bio provided");
 ```
 
-#### `getEither` – Access with Default Error
+#### `getEither`: Access with Default Error
 
 Returns `Either.right(value)` if non-null, `Either.left(error)` if null.
 
@@ -69,7 +69,7 @@ String message = age.fold(
 );
 ```
 
-#### `getValidated` – Access with Validation Error
+#### `getValidated`: Access with Validation Error
 
 Like `getEither`, but returns `Validated` for consistency with validation workflows.
 
@@ -82,7 +82,7 @@ Validated<String, String> email = getValidated(emailLens, "Email is required", p
 
 ### Modification Methods
 
-#### `modifyMaybe` – Optional Modifications
+#### `modifyMaybe`: Optional Modifications
 
 Apply a modification that might not succeed. Returns `Maybe.just(updated)` if successful, `Maybe.nothing()` if it fails.
 
@@ -97,7 +97,7 @@ Maybe<UserProfile> updated = modifyMaybe(
 // Maybe.just(UserProfile with name "ALICE") or Maybe.nothing()
 ```
 
-#### `modifyEither` – Fail-Fast Validation
+#### `modifyEither`: Fail-Fast Validation
 
 Apply a modification with validation. Returns `Either.right(updated)` if valid, `Either.left(error)` if invalid.
 
@@ -115,7 +115,7 @@ Either<String, UserProfile> updated = modifyEither(
 );
 ```
 
-#### `modifyTry` – Exception-Safe Modifications
+#### `modifyTry`: Exception-Safe Modifications
 
 Apply a modification that might throw exceptions. Returns `Try.success(updated)` or `Try.failure(exception)`.
 
@@ -134,7 +134,7 @@ updated.match(
 );
 ```
 
-#### `setIfValid` – Conditional Updates
+#### `setIfValid`: Conditional Updates
 
 Set a new value **only if it passes validation**. Unlike `modifyEither`, you provide the new value directly.
 
@@ -184,7 +184,7 @@ import static org.higherkindedj.optics.extensions.TraversalExtensions.*;
 
 ### Extraction Methods
 
-#### `getAllMaybe` – Extract All Values
+#### `getAllMaybe`: Extract All Values
 
 Returns `Maybe.just(values)` if any elements exist, `Maybe.nothing()` for empty collections.
 
@@ -199,7 +199,7 @@ Maybe<List<BigDecimal>> prices = getAllMaybe(allPrices, items);
 
 ### Bulk Modification Methods
 
-#### `modifyAllMaybe` – All-or-Nothing Modifications
+#### `modifyAllMaybe`: All-or-Nothing Modifications
 
 Returns `Maybe.just(updated)` if **all** modifications succeed, `Maybe.nothing()` if **any** fail. Atomic operation.
 
@@ -218,9 +218,9 @@ Maybe<List<OrderItem>> updated = modifyAllMaybe(
 Use for **atomic updates** where all modifications must succeed or none should apply, for example, applying currency conversion where partial conversion would leave data inconsistent.
 ~~~
 
-#### `modifyAllEither` – Fail-Fast Validation
+#### `modifyAllEither`: First Error Only
 
-Returns `Either.right(updated)` if **all** validations pass, `Either.left(firstError)` if **any** fail. **Stops at first error**.
+Returns `Either.right(updated)` if **all** validations pass, `Either.left(firstError)` if **any** fail. The result keeps only the first error; the traversal still visits every element.
 
 ```java
 Either<String, List<OrderItem>> result = modifyAllEither(
@@ -233,14 +233,14 @@ Either<String, List<OrderItem>> result = modifyAllEither(
     },
     items
 );
-// Stops at first invalid price
+// Left("Price cannot be negative"): the first failure wins, though every price is checked
 ```
 
 ~~~admonish tip title="When to Use modifyAllEither"
-Use for **fail-fast validation** where you want to stop immediately at the first error, for example, API request validation where you reject immediately if any field is invalid.
+Use when **one error is all the caller will act on**, for example an API request you reject as soon as it is known to be invalid. Note this shapes the answer, not the work: every element is still validated before the `Either` collapses.
 ~~~
 
-#### `modifyAllValidated` – Error Accumulation
+#### `modifyAllValidated`: Error Accumulation
 
 Returns `Validated.valid(updated)` if **all** validations pass, `Validated.invalid(allErrors)` if **any** fail. **Collects all errors**.
 
@@ -257,20 +257,21 @@ Validated<List<String>, List<OrderItem>> result = modifyAllValidated(
 );
 // Checks ALL items and collects ALL errors
 
-result.match(
-    errors -> {
-        System.out.println("Validation failed with " + errors.size() + " errors:");
-        errors.forEach(err -> System.out.println("   - " + err));
-    },
-    updated -> System.out.println("All items valid")
-);
+// Validated exposes fold, not match
+if (result.isInvalid()) {
+    List<String> errors = result.getError();
+    System.out.println("Validation failed with " + errors.size() + " errors:");
+    errors.forEach(err -> System.out.println("   - " + err));
+} else {
+    System.out.println("All items valid");
+}
 ```
 
 ~~~admonish tip title="When to Use modifyAllValidated"
 Use for **error accumulation** where you want to collect all errors, for example, form validation where users need to see all problems at once rather than one at a time.
 ~~~
 
-#### `modifyWherePossible` – Selective Modification
+#### `modifyWherePossible`: Selective Modification
 
 Modifies elements where the function returns `Maybe.just(value)`, leaves others unchanged. Best-effort operation that always succeeds.
 
@@ -295,7 +296,7 @@ Use for **selective updates** where only some elements should be modified, for e
 
 ### Analysis Methods
 
-#### `countValid` – Count Passing Validation
+#### `countValid`: Count Passing Validation
 
 Count how many elements pass validation without modifying anything.
 
@@ -311,7 +312,7 @@ int validCount = countValid(
 System.out.println("Valid items: " + validCount + " out of " + items.size());
 ```
 
-#### `collectErrors` – Gather Validation Failures
+#### `collectErrors`: Gather Validation Failures
 
 Collect all validation errors without modifying anything. Returns empty list if all valid.
 
@@ -414,7 +415,7 @@ private Either<String, Integer> validateQuantity(Integer qty) {
 **Fail-fast (`modifyAllEither`):**
 - API requests (reject immediately)
 - Critical validations (stop on first error)
-- Performance-sensitive operations
+- Internal callers that act on the first problem
 
 **Error accumulation (`modifyAllValidated`):**
 - Form validation (show all errors)
@@ -467,12 +468,31 @@ Maybe<String> safeBio = maybeProfile.flatMap(p -> getMaybe(bioLens, p));
 | `modifyEither` | `Either<E, S>` | Fail-fast single field validation |
 | `modifyTry` | `Try<S>` | Exception-safe modifications |
 | `modifyAllMaybe` | `Maybe<S>` | All-or-nothing bulk modification |
-| `modifyAllEither` | `Either<E, S>` | Fail-fast bulk validation |
+| `modifyAllEither` | `Either<E, S>` | Bulk validation, first error only |
 | `modifyAllValidated` | `Validated<List<E>, S>` | Error accumulation |
 | `modifyWherePossible` | `S` | Selective modification |
 | `countValid` | `int` | Count valid elements |
 | `collectErrors` | `List<E>` | Gather all errors |
+| `getValidated` | `Validated<E, A>` | Access, accumulating the failure |
+| `modifyValidated` | `Validated<E, S>` | Single-field modification, accumulating |
+| `setIfValid` | `Either<String, S>` | Write only when the new value passes |
+| `getAllMaybe` | `Maybe<List<A>>` | Extract all, or nothing when empty |
+
+~~~admonish info title="Key Takeaways"
+* **The extensions are the error-handling half of an optic.** A `Lens` gets you to a field; `getEither`, `modifyEither` and `modifyTry` decide what happens when getting there, or changing it, can fail.
+* **The suffix names the failure shape, not the operation.** `Maybe` for "no detail", `Either` for "first error", `Try` for "it threw", `Validated` for "every error at once". Pick the suffix from what the caller needs to hear.
+* **`modifyAll*` is the bulk family.** All-or-nothing, first-error and accumulating are three different answers to one traversal, and the return type states which you chose. All three visit every element: the suffix shapes the answer, not the work.
+* **`modifyWherePossible` is deliberately total.** It never fails; elements that cannot be modified are left as they are, which makes it the right tool for best-effort passes and the wrong one for validation.
+* **`countValid` and `collectErrors` inspect without writing.** They answer "would this succeed, and why not" before you commit to a modification.
+~~~
+
+~~~admonish tip title="See Also"
+- [Core Type Integration](core_type_integration.md): the prisms and traversals for the `Maybe`/`Either`/`Validated`/`Try` these methods return
+- [Fluent API](fluent_api.md): the same validation strategies as `OpticOps` statics and builders
+- [Composing Optics](composing_optics.md): the capstone these operations shorten
+~~~
 
 ---
 
-[Previous: Multi-Edit and Sparse Updates](multi_edit.md) | [Next: Optic-Driven Batching](optic_batching.md)
+**Previous:** [Multi-Edit and Sparse Updates](multi_edit.md)
+**Next:** [Optic-Driven Batching](optic_batching.md)

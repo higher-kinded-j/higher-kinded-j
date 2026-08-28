@@ -19,7 +19,7 @@
 
 It's quarter to five. The on-call channel pings: "What did that endpoint *actually* do? It just hammered the user service with twelve thousand ids in one call and the SREs are unhappy." You look at the code. It's an optic traversal. It batched, just as designed. The optic did exactly what you asked it to do. The problem is that nobody asked beforehand whether that was a sensible thing to ask.
 
-That is what this chapter is about. Three things you want, once an optic run has any chance of producing a sizeable batch.
+That is what this page is about. Three things you want, once an optic run has any chance of producing a sizeable batch.
 
 | Question | When you ask it | Answer |
 |---|---|---|
@@ -33,9 +33,32 @@ Two small primitives, one familiar railway pattern, no surprises.
 
 ## "What Would Round 1 Be?"
 
-A `Fetch` program is a value. It hasn't run yet. You can pull its first round's pending-key set out without touching a backend, which is what `Plans.preflight` does:
+A `Fetch` program is a value. It hasn't run yet. `program` throughout this page is the one built on [Optic-Driven Batching](optic_batching.md): an optic over a team's member ids with `FetchApplicative` as the strategy, not yet handed to a runner. You can pull its first round's pending-key set out without touching a backend, which is what `Plans.preflight` does:
 
-![optic_batching_preflight.svg](../images/puml/optic_batching_preflight.svg)
+```mermaid
+sequenceDiagram
+    participant C as Caller
+    participant P as Fetch program
+    participant R as Runner
+    participant B as Backend
+
+    Note over C,B: Online: Fetch.runCached, real I/O
+    C->>R: runCached(program, resolver)
+    R->>P: pending()
+    P-->>R: { id_1 ... id_N }
+    R->>B: resolver({ id_1 ... id_N })
+    B-->>R: { id_1: v_1 ... id_N: v_N }
+    R-->>C: RunResult(value, rounds=1, fetchedBatches=[...])
+
+    Note over C,B: Offline: Plans.preflight, no I/O
+    C->>R: preflight(program)
+    R->>P: pending()
+    P-->>R: { id_1 ... id_N }
+    Note right of R: resume with stub nulls:<br/>no backend, no values, no side effects
+    R->>P: resume(stub map)
+    P-->>R: Done, or another Blocked
+    R-->>C: Plan(fetchedBatches=[...], truncated=?)
+```
 
 Top half: the real run, the one that bills your cloud account. Bottom half: the inspection, the one you can put inside an `assertThat`. Same keysets. Different boundary.
 
@@ -62,7 +85,29 @@ A traversal that collapses N foci to a single batched call is *one round*. Its k
 
 The other half of the chapter doesn't ask offline; it asks at the round boundary, during the real run, just before each dispatch. That's a `Guard`:
 
-![optic_batching_guard.svg](../images/puml/optic_batching_guard.svg)
+```mermaid
+sequenceDiagram
+    participant C as Caller
+    participant R as Runner
+    participant G as Guard
+    participant B as Resolver
+
+    C->>R: runCached(program, resolver, guard)
+    loop per round
+        R->>R: compute uncached keyset
+        R->>G: check(keys, roundIndex, backendCallsSoFar)
+        alt keys within budget
+            G-->>R: pass
+            R->>B: resolver(keys)
+            B-->>R: values
+        else budget exceeded
+            G-->>R: throw GuardViolationException
+            Note over R,B: resolver is never called
+            R-->>C: exception, or Either.left via SafeFetch
+        end
+    end
+    R-->>C: RunResult
+```
 
 ```java
 // Refuse a round that would dispatch more than 500 keys.
@@ -125,19 +170,27 @@ return outcome.fold(
 ## Limits, Stated Up Front
 
 - **Round 1 only is universally observable offline.** Past round 1, `Plans.preflight` walks programs whose combines accept `null`; the rest truncate. `Plan.truncated()` is the honest signal.
-- **Guards do not retry.** A refused round aborts the run; it does not "wait and try a smaller batch". Compose with `BatchLoaders.chunked` upstream of the guard if you want size capping with continuation.
+- **Guards do not retry.** A refused round aborts the run; it does not "wait and try a smaller batch". `BatchLoaders.chunked` does not soften that: the guard checks the round's uncached keyset *before* the loader is called, so `maxKeysPerRound(500)` refuses a 501-key round that `chunked` would otherwise have split. Chunking caps what one dispatch sends, not what one round may ask for.
 - **`maxBackendCalls` counts non-empty rounds only.** A round whose keys are all already cached costs no backend call and does not consume a budget slot.
 
 ---
+
+~~~admonish info title="Key Takeaways"
+* **A plan is inspectable before it runs.** `Plans.preflight` gives you round 1's keyset with no I/O, which is both a logging hook and a test assertion.
+* **Round 1 is the honest boundary.** Beyond it, preflight only walks programs whose combines tolerate `null`; the rest report `Plan.truncated()` rather than guessing.
+* **Guards refuse, they do not retry.** A violated bound aborts the run, and it is checked before the loader runs, so `BatchLoaders.chunked` cannot rescue an over-budget round. Chunking limits a single dispatch; the guard limits the round.
+* **Refusal can be a value.** `SafeFetch.runCachedWithGuard` puts the `GuardViolationException` on `Either.left`, so the run never throws and controllers keep the shape they already have.
+* **An all-cached round is free.** `maxBackendCalls` counts only rounds that reach the resolver, so caching does not silently consume the budget.
+~~~
 
 ~~~admonish info title="Hands-On Learning"
 Practice the five exercises (preflight, truncation, refusal, audit, railway) in [Tutorial 22: Plan Introspection and Guardrails](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/test/java/org/higherkindedj/tutorial/optics/Tutorial22_OpticBatchingGuardrails.java) (5 exercises, ~12 minutes).
 ~~~
 
 ~~~admonish tip title="See Also"
-- [Optic-Driven Batching](optic_batching.md): The substrate this chapter builds on.
-- [Optics Extensions](optics_extensions.md): Validated, per-element error handling on the value side.
-- [Core Type Integration](core_type_integration.md): `Either` as the railway type for guard refusal.
+- [Optic-Driven Batching](optic_batching.md): the substrate this page builds on
+- [Optics Extensions](optics_extensions.md): validated, per-element error handling on the value side
+- [Core Type Integration](core_type_integration.md): `Either` as the railway type for guard refusal
 ~~~
 
 ~~~admonish tip title="Further Reading"
@@ -146,4 +199,5 @@ Practice the five exercises (preflight, truncation, refusal, audit, railway) in 
 
 ---
 
-[Previous: Optic-Driven Batching](optic_batching.md) | [Next: Cookbook](cookbook.md)
+**Previous:** [Optic-Driven Batching](optic_batching.md)
+**Next:** [Cookbook](cookbook.md)

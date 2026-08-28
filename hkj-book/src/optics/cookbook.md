@@ -8,10 +8,6 @@
 - Best practices for production code
 ~~~
 
-~~~admonish title="Hands On Practice"
-[Tutorial08_RealWorldOptics.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/test/java/org/higherkindedj/tutorial/optics/Tutorial08_RealWorldOptics.java)
-~~~
-
 This cookbook provides practical recipes for common optics problems. Each recipe includes the problem statement, solution, and explanation.
 
 ---
@@ -61,9 +57,9 @@ You have a sealed interface and want to modify only one specific variant whilst 
 ### Solution
 
 ```java
-sealed interface ApiResponse permits Success, Error, Loading {}
+sealed interface ApiResponse permits Success, Failure, Loading {}
 record Success(Data data, String timestamp) implements ApiResponse {}
-record Error(String message, int code) implements ApiResponse {}
+record Failure(String message, int code) implements ApiResponse {}
 record Loading(int progress) implements ApiResponse {}
 
 // Create prism for the Success case
@@ -72,27 +68,25 @@ Prism<ApiResponse, Success> successPrism = Prism.of(
     s -> s
 );
 
-// Compose with lens to access data
-Traversal<ApiResponse, Data> successData =
+// Compose with lens to access data. Prism >>> Lens settles at Affine:
+// the focus may be absent, but there is at most one of it.
+Affine<ApiResponse, Data> successData =
     successPrism.andThen(SuccessLenses.data());
 
 // Usage: transform data only for Success responses
 ApiResponse response = new Success(new Data("original"), "2024-01-01");
-ApiResponse modified = Traversals.modify(
-    successData,
+ApiResponse modified = successData.modify(
     data -> new Data(data.value().toUpperCase()),
     response
 );
 // Result: Success[data=Data[value=ORIGINAL], timestamp=2024-01-01]
 
-// Error responses pass through unchanged
-ApiResponse error = new Error("Not found", 404);
-ApiResponse unchanged = Traversals.modify(
-    successData,
+// Failure responses pass through unchanged
+ApiResponse failure = new Failure("Not found", 404);
+ApiResponse unchanged = successData.modify(
     data -> new Data(data.value().toUpperCase()),
-    error
-);
-// Result: Error[message=Not found, code=404] (unchanged)
+    failure);
+// Result: Failure[message=Not found, code=404] (unchanged)
 ```
 
 ---
@@ -423,18 +417,23 @@ public final class OrderOptics {
             .andThen(Traversals.forList())
             .andThen(LineItemLenses.price().asTraversal());
 
+    // The prism narrows Customer to Verified, so the next hop is a lens on
+    // Verified, not on Customer.
     public static final Traversal<Order, String> CUSTOMER_EMAIL =
         OrderLenses.customer()
             .andThen(CustomerPrisms.verified())
-            .andThen(CustomerLenses.email().asTraversal());
+            .andThen(VerifiedLenses.email().asTraversal());
 }
 ```
 
 ### 2. Use Direct Composition Methods
 
 ```java
-// Preferred: type-safe, clearer intent
-Traversal<Config, Settings> direct = configLens.andThen(settingsPrism);
+// Direct composition: mixed kinds settle at the weakest, so Lens >>> Prism is an Affine
+Affine<Config, Settings> direct = configLens.andThen(settingsPrism);
+
+// Widen only where the call site actually needs a Traversal
+Traversal<Config, Settings> asTraversal = direct.asTraversal();
 
 // Fallback: when you need maximum flexibility
 Traversal<Config, Settings> manual =
@@ -452,7 +451,7 @@ Traversal<Config, Settings> manual =
 public static final Traversal<Order, String> ACTIVE_PROMO_CODES =
     OrderLenses.customer()
         .andThen(CustomerPrisms.loyaltyMember())
-        .andThen(LoyaltyLenses.promotions().asTraversal())
+        .andThen(LoyaltyMemberLenses.promotions().asTraversal())
         .andThen(Traversals.forList())
         .andThen(Traversals.filtered(Promotion::isActive))
         .andThen(PromotionLenses.code().asTraversal());
@@ -579,14 +578,18 @@ You have deeply nested records and want to update values without verbose composi
 #### Solution
 
 ```java
-record Company(String name, List<Department> departments) {}
-record Department(String name, List<Employee> employees) {}
-record Employee(String name, int salary) {}
+@GenerateLenses @GenerateFocus record Company(String name, List<Department> departments) {}
+@GenerateLenses @GenerateFocus record Department(String name, List<Employee> employees) {}
+@GenerateLenses @GenerateFocus record Employee(String name, int salary) {}
 
-// Using Focus DSL instead of manual lens composition
-FocusPath<Company, List<Department>> deptPath = FocusPath.of(companyDeptsLens);
-TraversalPath<Company, Employee> allEmployees = deptPath.each().via(deptEmployeesLens).each();
-TraversalPath<Company, Integer> allSalaries = allEmployees.via(employeeSalaryLens);
+// Starting from a lens, each hop is spelled out. Only the FINAL each() can infer
+// its element type from the target, so the intermediate one needs a witness.
+TraversalPath<Company, Integer> allSalaries =
+    FocusPath.of(CompanyLenses.departments())
+        .<Department>each()
+        .via(DepartmentLenses.employees())
+        .<Employee>each()
+        .via(EmployeeLenses.salary());
 
 // Give everyone a 5% raise
 Company updated = allSalaries.modifyAll(s -> (int) (s * 1.05), company);
@@ -776,16 +779,20 @@ You have a complex path composition and need to understand what values are being
 #### Solution
 
 ```java
-record System(List<Server> servers) {}
-record Server(String hostname, List<Service> services) {}
+@GenerateLenses record Estate(List<Server> servers) {}
+@GenerateLenses record Server(String hostname, List<Service> services) {}
 record Service(String name, Status status) {}
 
-TraversalPath<System, Service> allServices =
-    FocusPath.of(systemServersLens).each().via(serverServicesLens).each();
+// The intermediate each() needs a witness; the final one infers from the target.
+TraversalPath<Estate, Service> allServices =
+    FocusPath.of(EstateLenses.servers())
+        .<Server>each()
+        .via(ServerLenses.services())
+        .<Service>each();
 
 // Add tracing to observe navigation
-TraversalPath<System, Service> tracedServices = allServices.traced(
-    (system, services) -> {
+TraversalPath<Estate, Service> tracedServices = allServices.traced(
+    (estate, services) -> {
         System.out.println("Accessing " + services.size() + " services");
         for (Service s : services) {
             System.out.println("  - " + s.name() + ": " + s.status());
@@ -794,7 +801,7 @@ TraversalPath<System, Service> tracedServices = allServices.traced(
 );
 
 // Every getAll() now logs
-List<Service> services = tracedServices.getAll(system);
+List<Service> services = tracedServices.getAll(estate);
 // Output:
 // Accessing 5 services
 //   - api: RUNNING
@@ -802,7 +809,8 @@ List<Service> services = tracedServices.getAll(system);
 //   - cache: STOPPED
 //   - ...
 
-// Note: traced() only observes getAll(), not modifyAll()
+// Note: traced() only observes getAll(), not modifyAll(). Composing further with
+// .via(...) returns the underlying path, so the tracing is dropped: trace last.
 ```
 
 ---
@@ -837,6 +845,20 @@ Inventory cleared = allProducts.modifyWhen(
     inventory
 );
 ```
+
+~~~admonish info title="Key Takeaways"
+* **Every recipe is the same two steps, then a choice.** Name the path and choose the optic whose cardinality matches the target; the last step is whichever operation the answer needs, from `get` and `modify` through `foldMap`, `sorted` and an effectful `modifyF`.
+* **Reach for a prism the moment a shape is conditional.** Optional fields, sum-type variants and parse-or-fail boundaries are all "this may not be here", and a prism keeps the absent case from becoming a branch.
+* **Put the predicate in the path.** Whether you spell it `Traversals.filtered(...)` mid-composition or `modifyWhen` at the call site, the selection rule travels with the optic instead of living in an `if` around it: the structure is rebuilt once and the code reads as the business rule.
+* **Store the path, not the operation.** A composed optic in a `static final` field is reusable across reads, writes and validations; recomposing it per call site is where drift starts.
+* **Copy freely, then name it.** These recipes are starting points; the value appears when the composition gets a domain name and the rest of the code stops mentioning the shape.
+~~~
+
+~~~admonish tip title="See Also"
+- [Composing Optics](composing_optics.md): the capstone these recipes are miniatures of
+- [Optics Extensions](optics_extensions.md): the validated variants of the operations used here
+- [Focus DSL](focus_dsl.md): the fluent path syntax several recipes use
+~~~
 
 ~~~admonish info title="Hands-On Learning"
 Practice real-world optics patterns in [Tutorial 08: Real World Optics](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/test/java/org/higherkindedj/tutorial/optics/Tutorial08_RealWorldOptics.java) (6 exercises, ~10 minutes).

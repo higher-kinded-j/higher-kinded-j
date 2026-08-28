@@ -24,19 +24,64 @@ This is the N+1, and optics by themselves do not save you from it. A `Traversal`
 
 The `org.higherkindedj.optics.fetch` package changes the strategy and leaves the optic alone:
 
-![optic_batching_n_plus_one.svg](../images/puml/optic_batching_n_plus_one.svg)
+```mermaid
+sequenceDiagram
+    autonumber
+    participant C as Caller
+    participant T as Traversal over N ids
+    participant B as Backend
+
+    Note over C,B: Without batching: N+1
+    C->>T: modifyF(loadOne, ids)
+    loop N times, one per focus
+        T->>B: loadOne(id)
+        B-->>T: entity
+    end
+    T-->>C: List of entities
+
+    Note over C,B: With FetchApplicative: one round
+    C->>T: modifyF(Fetch.fetch, ids, FetchApplicative)
+    Note right of T: ap() merges pending request sets,<br/>so foci share a single round
+    T->>B: batchResolver({id_1 ... id_N})
+    B-->>T: Map of id to entity
+    T-->>C: List of entities
+```
 
 Top half: the loop you didn't mean to write. Bottom half: the same traversal, the same source, the same backend, plus one new piece, `FetchApplicative`. One round, one batched call, every focus resolved.
 
 ---
 
+~~~admonish tip title="Why this matters"
+The usual fix for an N+1 is a hand-written pre-fetch: collect the ids, load them in one query, build a map, then thread that map through the code that needed it. It works, and it decays, because nothing stops the next edit reintroducing a per-element load. Here the batching lives in the strategy attached to the traversal, and `RunResult.backendCalls()` makes the guarantee assertable in a unit test, so a regression fails the build instead of the pager.
+~~~
+
 ## The Pattern, Drawn
 
 The pipeline has three pieces. The optic owns the shape. The applicative is the strategy. The runner is the boundary that actually talks to the backend:
 
-![optic_batching_pipeline.svg](../images/puml/optic_batching_pipeline.svg)
+```mermaid
+flowchart LR
+    OP(["Traversal<br/>(or any Optic)"]) -->|"modifyF(f, s, applicative)"| FA(["FetchApplicative"])
+    FA -->|"produces"| F(["Fetch&lt;K, V, A&gt;<br/>a value, not an action"])
 
-Everything else in this chapter is a variation on those three pieces.
+    F -->|"sync"| RC(["Fetch.runCached"])
+    F -->|"async"| RA(["Fetch.runAsync"])
+    F -->|"railway (Either)"| SC(["SafeFetch.runCached"])
+
+    RC -->|"one keyset per round"| FN(["Function&lt;Set&lt;K&gt;, Map&lt;K, V&gt;&gt;"])
+    RA -->|"one keyset per round"| BL(["BatchLoader"])
+    RA -->|"fan out per source"| SR(["SourceRouter.routed"])
+    RA -->|"cap dispatch size"| BC(["BatchLoaders.chunked"])
+
+    classDef shape fill:#e5c890,stroke:#df8e1d,color:#232634
+    classDef wire fill:#8caaee,stroke:#1e66f5,color:#232634
+    classDef tier fill:#a6d189,stroke:#40a02b,color:#232634
+    class OP,FA shape
+    class F,RC,RA,SC wire
+    class FN,BL,SR,BC tier
+```
+
+Everything else on this page is a variation on those three pieces.
 
 ```java
 // 1. The optic describes the shape (a list-traversal here).
@@ -145,7 +190,29 @@ A backend that returns no entry for a requested key is surfaced as `MissingKeyEx
 
 Applicative composition collapses because the arguments are independent. `flatMap` cannot collapse, because the continuation's requests depend on the value the previous round produced. The library does not paper over this; it lays the boundary out where you can see it:
 
-![optic_batching_rounds.svg](../images/puml/optic_batching_rounds.svg)
+```mermaid
+sequenceDiagram
+    participant P as Program
+    participant R as Runner
+    participant B as Backend
+
+    Note over P,B: Pure applicative: N foci, 1 round
+    P->>R: ap(ap(ap(f, fetch a), fetch b), fetch c)
+    R->>B: { a, b, c }
+    B-->>R: { a:..., b:..., c:... }
+    R-->>P: value
+
+    Note over P,B: flatMap dependency chain: 3 rounds
+    P->>R: fetch(a).flatMap(x -> fetch(x.next))
+    R->>B: { a }
+    B-->>R: { a:... }
+    Note right of R: only now do we know<br/>what to ask for next
+    R->>B: { a.next }
+    B-->>R: { a.next:... }
+    R->>B: { a.next.next }
+    B-->>R: { ... }
+    R-->>P: value
+```
 
 The practical rule is one line: *anything you can express with `map2`, `ap`, or an optic traversal collapses to one round; every `flatMap` in a chain is another round.* Express data dependencies as `flatMap` when you have one; do not reach for it when you don't.
 
@@ -175,24 +242,33 @@ In tests, this is exactly what you want: `assertThat(result.backendCalls()).isEq
 
 - **Applicative-only batching.** A `flatMap` data dependency costs an extra round. This is the Haxl law (see further reading), not a defect.
 - **Per-run cache.** No distributed cache; concurrent `runAsync` calls must each be given their own cache map.
-- **Optics are post-fetch.** No predicate pushdown to the backend; the backend sees the keyset, not the optic's filter expression.
+- **No predicate pushdown.** The backend receives a keyset, never the optic's filter expression. A filter placed *before* the fetch still shrinks that keyset, because `filtered` hands non-matching foci to `applicative.of` and never runs the fetch for them; what it cannot do is let the backend evaluate the predicate.
 
 ---
+
+~~~admonish info title="Key Takeaways"
+* **The optic names the keys; the runtime batches them.** One traversal over a collection becomes one keyset and one backend call, instead of one call per element.
+* **Applicative collapses, `flatMap` does not.** Anything expressible with `map2`, `ap` or a traversal folds into a single round; every genuine data dependency costs another. That is the Haxl law, not a gap in the library.
+* **`RunResult` makes the win assertable.** `backendCalls()` is how you prove in a test that the N+1 is gone rather than merely hidden, and `cacheHits()` shows what the per-run cache absorbed.
+* **The cache is per invocation and in-JVM.** Two concurrent runs need two cache maps; nothing here is a distributed cache.
+* **Optics do not push predicates to the backend.** The backend sees a keyset, never a predicate expression. Narrowing the optic before the fetch still narrows the keyset; it just never becomes a `WHERE` clause.
+~~~
 
 ~~~admonish info title="Hands-On Learning"
 Practice the four pieces (batching, heterogeneous fetch, multi-source routing, railway errors) in [Tutorial 21: Optic-Driven Request Batching](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/test/java/org/higherkindedj/tutorial/optics/Tutorial21_OpticBatching.java) (5 exercises, ~15 minutes).
 ~~~
 
 ~~~admonish tip title="See Also"
-- [Traversals](traversals.md) - The optic shape this strategy attaches to.
-- [Optics Extensions](optics_extensions.md) - Validated, per-element error handling on the value side.
-- [Core Type Integration](core_type_integration.md) - `Either`, `Try`, `Validated` as railway types.
+- [Traversals](traversals.md): the optic shape this strategy attaches to
+- [Optics Extensions](optics_extensions.md): validated, per-element error handling on the value side
+- [Core Type Integration](core_type_integration.md): `Either`, `Try` and `Validated` as railway types
 ~~~
 
 ~~~admonish tip title="Further Reading"
-- **Apollo Tutorials**: [Data loaders under the hood](https://www.apollographql.com/tutorials/dataloaders-dgs/03-data-loaders-under-the-hood) - A diagrammed, language-agnostic walk through the same batching idea Haxl popularised (Java framing in the worked example, accessible without prior functional-programming background).
+- **Apollo Tutorials**: [Data loaders under the hood](https://www.apollographql.com/tutorials/dataloaders-dgs/03-data-loaders-under-the-hood): a diagrammed, language-agnostic walk through the same batching idea Haxl popularised (Java framing in the worked example, accessible without prior functional-programming background).
 ~~~
 
 ---
 
-[Previous: Optics Extensions](optics_extensions.md) | [Next: Plan Introspection and Guardrails](optic_batching_guardrails.md)
+**Previous:** [Optics Extensions](optics_extensions.md)
+**Next:** [Plan Introspection and Guardrails](optic_batching_guardrails.md)

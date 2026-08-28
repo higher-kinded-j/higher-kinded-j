@@ -1,5 +1,7 @@
 # Working with Core Types and Optics
 
+## _Prisms and Traversals for Maybe, Either, Validated and Try_
+
 ![Diagram illustrating optics integration with functional core types like Maybe, Either, and Validated](../images/optics.jpg)
 
 As you've learnt from the previous chapters, optics provide a powerful way to focus on and modify immutable data structures. But what happens when the data you're working with is wrapped in Higher-Kinded-J's core types (`Maybe`, `Either`, `Validated`, or `Try`)?
@@ -81,11 +83,15 @@ Clean separation of concerns:
 
 ---
 
+~~~admonish tip title="Why this matters"
+Without these, a `Maybe` or an `Either` in the middle of a path forces you out of the optic and into unwrap-check-rewrap by hand, which is exactly the ceremony optics exist to remove. With them, a core type is just another sum type: `Right` is a variant like any other, so a path can run straight through it and the absent case stays a no-op rather than becoming a branch.
+~~~
+
 ## Two Complementary Approaches
 
 Higher-Kinded-J provides two integrated solutions for working with core types and optics:
 
-### 1. Core Type Prisms – Pattern Matching on Functional Types
+### 1. Core Type Prisms: Pattern Matching on Functional Types
 
 Extract values from `Maybe`, `Either`, `Validated`, and `Try` using prisms, just as you would with sealed interfaces.
 
@@ -102,7 +108,7 @@ Optional<Order> order = successPrism.getOptional(tryOrder);
 
 **Best for:** Safe extraction and pattern matching on core types, composing with other optics.
 
-### 2. Optics Extensions – Safety Rails for Lens and Traversal
+### 2. Optics Extensions: Safety Rails for Lens and Traversal
 
 Augment lenses and traversals with built-in null safety, validation, and exception handling.
 
@@ -129,7 +135,7 @@ Validated<List<String>, List<Order>> result = modifyAllValidated(
 
 **Best for:** Individual field operations with validation, bulk operations, exception handling.
 
-[Learn more about Optics Extensions →](optics_extensions.md)
+Optics Extensions are covered on [their own page](optics_extensions.md).
 
 ---
 
@@ -335,17 +341,15 @@ dbResults.stream()
 - Accessing potentially null fields
 - Validating single field or bulk updates
 - Performing operations that might throw exceptions
-- Choosing between fail-fast and error accumulation strategies
+- Choosing between first-error and error-accumulation strategies
 
 ---
 
-## Example Code
-
-~~~admonish example title="Runnable Examples"
-- [CoreTypePrismsExample](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/optics/CoreTypePrismsExample.java) – API response processing
-- [LensExtensionsExample](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/optics/LensExtensionsExample.java) – User profile validation
-- [TraversalExtensionsExample](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/optics/TraversalExtensionsExample.java) – Bulk order processing
-- [IntegrationPatternsExample](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/optics/IntegrationPatternsExample.java) – Complete e-commerce workflow
+~~~admonish example title="See Example Code"
+- [CoreTypePrismsExample](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/optics/CoreTypePrismsExample.java): API response processing
+- [LensExtensionsExample](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/optics/LensExtensionsExample.java): user profile validation
+- [TraversalExtensionsExample](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/optics/TraversalExtensionsExample.java): bulk order processing
+- [IntegrationPatternsExample](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/optics/IntegrationPatternsExample.java): complete e-commerce workflow
 ~~~
 
 ---
@@ -395,17 +399,19 @@ Maybe<String> backToMaybe = value
 
 ## Summary
 
-Core Type Integration provides:
+~~~admonish info title="Key Takeaways"
+* **A core type is just another sum type.** `Maybe`, `Either`, `Validated` and `Try` each get prisms for their cases, so matching one is the same operation as matching any sealed hierarchy.
+* **Prisms answer, traversals act.** `matches()` and `getOptional()` interrogate a case; the matching traversal modifies the value inside it and leaves the other case untouched.
+* **They compose with the optics you already have.** A prism into a `Right` is a legal middle step in a longer path, which is what turns "unwrap, check, rewrap" into one expression.
+* **`getOptional()` speaks `Optional`, not `Maybe`.** The optics surface is uniform on the JDK type, so converting back is an explicit `map`/`orElse` step.
+* **Absence stays absent.** Modifying through the wrong case is a no-op rather than an error, so a `Left` survives a `Right`-targeted update unchanged.
+~~~
 
-**Safe Extraction** – Extract values from `Maybe`, `Either`, `Validated`, and `Try` without null checks or verbose pattern matching
-
-**Pattern Matching** – Use `matches()` to check cases, `getOptional()` to extract values
-
-**Composability** – Combine with lenses and traversals for deep navigation
-
-**Collection Processing** – Filter, extract, and count different cases in collections
-
-**Type Safety** – The compiler ensures you handle all cases correctly
+~~~admonish tip title="See Also"
+- [Prisms](prisms.md): the optic these instances are built from
+- [Optics Extensions](optics_extensions.md): the validated `Lens` and `Traversal` operations that pair with them
+- [Composing Optics](composing_optics.md): the capstone that puts a prism in the middle of a longer path
+~~~
 
 ---
 
