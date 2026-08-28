@@ -341,7 +341,7 @@ dbResults.stream()
 - Accessing potentially null fields
 - Validating single field or bulk updates
 - Performing operations that might throw exceptions
-- Choosing between fail-fast and error accumulation strategies
+- Choosing between first-error and error-accumulation strategies
 
 ---
 

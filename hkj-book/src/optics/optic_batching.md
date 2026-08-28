@@ -197,7 +197,7 @@ sequenceDiagram
     participant B as Backend
 
     Note over P,B: Pure applicative: N foci, 1 round
-    P->>R: ap(ap(f, fetch a), fetch b), fetch c)
+    P->>R: ap(ap(ap(f, fetch a), fetch b), fetch c)
     R->>B: { a, b, c }
     B-->>R: { a:..., b:..., c:... }
     R-->>P: value
@@ -242,7 +242,7 @@ In tests, this is exactly what you want: `assertThat(result.backendCalls()).isEq
 
 - **Applicative-only batching.** A `flatMap` data dependency costs an extra round. This is the Haxl law (see further reading), not a defect.
 - **Per-run cache.** No distributed cache; concurrent `runAsync` calls must each be given their own cache map.
-- **Optics are post-fetch.** No predicate pushdown to the backend; the backend sees the keyset, not the optic's filter expression.
+- **No predicate pushdown.** The backend receives a keyset, never the optic's filter expression. A filter placed *before* the fetch still shrinks that keyset, because `filtered` hands non-matching foci to `applicative.of` and never runs the fetch for them; what it cannot do is let the backend evaluate the predicate.
 
 ---
 
@@ -251,7 +251,7 @@ In tests, this is exactly what you want: `assertThat(result.backendCalls()).isEq
 * **Applicative collapses, `flatMap` does not.** Anything expressible with `map2`, `ap` or a traversal folds into a single round; every genuine data dependency costs another. That is the Haxl law, not a gap in the library.
 * **`RunResult` makes the win assertable.** `backendCalls()` is how you prove in a test that the N+1 is gone rather than merely hidden, and `cacheHits()` shows what the per-run cache absorbed.
 * **The cache is per invocation and in-JVM.** Two concurrent runs need two cache maps; nothing here is a distributed cache.
-* **Optics filter after the fetch.** The backend sees the keyset, never the predicate, so narrowing an optic does not narrow the query.
+* **Optics do not push predicates to the backend.** The backend sees a keyset, never a predicate expression. Narrowing the optic before the fetch still narrows the keyset; it just never becomes a `WHERE` clause.
 ~~~
 
 ~~~admonish info title="Hands-On Learning"

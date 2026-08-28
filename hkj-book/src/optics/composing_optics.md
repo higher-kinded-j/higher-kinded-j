@@ -675,7 +675,7 @@ When the caller only needs to know that *something* failed, and which failure th
 ```java
 import static org.higherkindedj.optics.fluent.OpticOps.modifyAllEither;
 
-// Short-circuit: stops at first error
+// Every element is validated; the result keeps only the first error
 Either<String, Form> result = modifyAllEither(
     form,
     FORM_TO_PERMISSION_NAMES,

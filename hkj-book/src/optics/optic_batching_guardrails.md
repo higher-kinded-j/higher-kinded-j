@@ -170,7 +170,7 @@ return outcome.fold(
 ## Limits, Stated Up Front
 
 - **Round 1 only is universally observable offline.** Past round 1, `Plans.preflight` walks programs whose combines accept `null`; the rest truncate. `Plan.truncated()` is the honest signal.
-- **Guards do not retry.** A refused round aborts the run; it does not "wait and try a smaller batch". Compose with `BatchLoaders.chunked` upstream of the guard if you want size capping with continuation.
+- **Guards do not retry.** A refused round aborts the run; it does not "wait and try a smaller batch". `BatchLoaders.chunked` does not soften that: the guard checks the round's uncached keyset *before* the loader is called, so `maxKeysPerRound(500)` refuses a 501-key round that `chunked` would otherwise have split. Chunking caps what one dispatch sends, not what one round may ask for.
 - **`maxBackendCalls` counts non-empty rounds only.** A round whose keys are all already cached costs no backend call and does not consume a budget slot.
 
 ---
@@ -178,7 +178,7 @@ return outcome.fold(
 ~~~admonish info title="Key Takeaways"
 * **A plan is inspectable before it runs.** `Plans.preflight` gives you round 1's keyset with no I/O, which is both a logging hook and a test assertion.
 * **Round 1 is the honest boundary.** Beyond it, preflight only walks programs whose combines tolerate `null`; the rest report `Plan.truncated()` rather than guessing.
-* **Guards refuse, they do not retry.** A violated bound aborts the run. Size capping with continuation is `BatchLoaders.chunked` upstream, a different tool.
+* **Guards refuse, they do not retry.** A violated bound aborts the run, and it is checked before the loader runs, so `BatchLoaders.chunked` cannot rescue an over-budget round. Chunking limits a single dispatch; the guard limits the round.
 * **Refusal can be a value.** `SafeFetch.runCachedWithGuard` puts the `GuardViolationException` on `Either.left`, so the run never throws and controllers keep the shape they already have.
 * **An all-cached round is free.** `maxBackendCalls` counts only rounds that reach the resolver, so caching does not silently consume the budget.
 ~~~

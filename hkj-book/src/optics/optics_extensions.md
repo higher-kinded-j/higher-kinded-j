@@ -6,7 +6,7 @@
 - Safe field access with `getMaybe`, `getEither`, and `getValidated`
 - Validated modifications with `modifyEither`, `modifyMaybe`, and `modifyValidated`
 - Exception-safe operations with `modifyTry`
-- Bulk operations with fail-fast (`modifyAllEither`) or error accumulation (`modifyAllValidated`)
+- Bulk operations keeping only the first error (`modifyAllEither`) or accumulating every one (`modifyAllValidated`)
 - Selective updates with `modifyWherePossible`
 - Analysis methods: `countValid` and `collectErrors`
 ~~~
@@ -468,20 +468,20 @@ Maybe<String> safeBio = maybeProfile.flatMap(p -> getMaybe(bioLens, p));
 | `modifyEither` | `Either<E, S>` | Fail-fast single field validation |
 | `modifyTry` | `Try<S>` | Exception-safe modifications |
 | `modifyAllMaybe` | `Maybe<S>` | All-or-nothing bulk modification |
-| `modifyAllEither` | `Either<E, S>` | Fail-fast bulk validation |
+| `modifyAllEither` | `Either<E, S>` | Bulk validation, first error only |
 | `modifyAllValidated` | `Validated<List<E>, S>` | Error accumulation |
 | `modifyWherePossible` | `S` | Selective modification |
 | `countValid` | `int` | Count valid elements |
 | `collectErrors` | `List<E>` | Gather all errors |
 | `getValidated` | `Validated<E, A>` | Access, accumulating the failure |
 | `modifyValidated` | `Validated<E, S>` | Single-field modification, accumulating |
-| `setIfValid` | `S` | Write only when the new value passes |
+| `setIfValid` | `Either<String, S>` | Write only when the new value passes |
 | `getAllMaybe` | `Maybe<List<A>>` | Extract all, or nothing when empty |
 
 ~~~admonish info title="Key Takeaways"
 * **The extensions are the error-handling half of an optic.** A `Lens` gets you to a field; `getEither`, `modifyEither` and `modifyTry` decide what happens when getting there, or changing it, can fail.
 * **The suffix names the failure shape, not the operation.** `Maybe` for "no detail", `Either` for "first error", `Try` for "it threw", `Validated` for "every error at once". Pick the suffix from what the caller needs to hear.
-* **`modifyAll*` is the bulk family.** All-or-nothing, fail-fast and accumulating are three different answers to one traversal, and the return type states which you chose.
+* **`modifyAll*` is the bulk family.** All-or-nothing, first-error and accumulating are three different answers to one traversal, and the return type states which you chose. All three visit every element: the suffix shapes the answer, not the work.
 * **`modifyWherePossible` is deliberately total.** It never fails; elements that cannot be modified are left as they are, which makes it the right tool for best-effort passes and the wrong one for validation.
 * **`countValid` and `collectErrors` inspect without writing.** They answer "would this succeed, and why not" before you commit to a modification.
 ~~~
