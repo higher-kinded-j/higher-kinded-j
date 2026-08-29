@@ -8,6 +8,7 @@ import java.util.Set;
 import org.higherkindedj.optics.processing.generator.apache.ApacheHashBagGenerator;
 import org.higherkindedj.optics.processing.generator.apache.ApacheUnmodifiableListGenerator;
 import org.higherkindedj.optics.processing.generator.basejdk.ArrayGenerator;
+import org.higherkindedj.optics.processing.generator.basejdk.CollectionGenerator;
 import org.higherkindedj.optics.processing.generator.basejdk.ListGenerator;
 import org.higherkindedj.optics.processing.generator.basejdk.MapValueGenerator;
 import org.higherkindedj.optics.processing.generator.basejdk.OptionalGenerator;
@@ -119,6 +120,15 @@ class GeneratorSpiMethodsTest {
       var gen = new SetGenerator();
       assertEquals(Cardinality.ZERO_OR_MORE, gen.getCardinality());
       assertEquals("EachInstances.setEach()", gen.generateOpticExpression());
+      assertEquals(Set.of("org.higherkindedj.optics.each.EachInstances"), gen.getRequiredImports());
+    }
+
+    @Test
+    @DisplayName("CollectionGenerator should return ZERO_OR_MORE cardinality")
+    void collectionCardinality() {
+      var gen = new CollectionGenerator();
+      assertEquals(Cardinality.ZERO_OR_MORE, gen.getCardinality());
+      assertEquals("EachInstances.collectionEach()", gen.generateOpticExpression());
       assertEquals(Set.of("org.higherkindedj.optics.each.EachInstances"), gen.getRequiredImports());
     }
 

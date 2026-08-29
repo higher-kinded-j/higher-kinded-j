@@ -27,6 +27,8 @@ public class TraversalCodeGenerator {
   // Standard traversal references - these must match actual method names in Traversals class
   private static final String LIST_TRAVERSAL = "org.higherkindedj.optics.util.Traversals.forList()";
   private static final String SET_TRAVERSAL = "org.higherkindedj.optics.util.Traversals.forSet()";
+  private static final String COLLECTION_TRAVERSAL =
+      "org.higherkindedj.optics.util.Traversals.forCollection()";
   private static final String OPTIONAL_TRAVERSAL =
       "org.higherkindedj.optics.util.Traversals.forOptional()";
   private static final String ARRAY_TRAVERSAL =
@@ -156,6 +158,7 @@ public class TraversalCodeGenerator {
     return switch (containerKind) {
       case LIST -> LIST_TRAVERSAL;
       case SET -> SET_TRAVERSAL;
+      case COLLECTION -> COLLECTION_TRAVERSAL;
       case OPTIONAL -> OPTIONAL_TRAVERSAL;
       case ARRAY -> ARRAY_TRAVERSAL;
       case MAP -> MAP_VALUES_TRAVERSAL;

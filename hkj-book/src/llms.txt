@@ -139,7 +139,7 @@ Annotation-driven boilerplate elimination:
 - `@GenerateFocus` - Generates FocusPath accessors
 - `@GenerateTraversals` - Generates TraversalPath for collections
 - **ForPath step classes** - Steps 2-12 auto-generated for all 10 Path types
-- **TraversableGenerator SPI** - 30 generator plugins across 7 library families (JDK, Apache Commons Collections4, Eclipse Collections, Google Guava, Vavr, PCollections, HKJ native) with cardinality-based path widening, priority system, and wildcard type resolution
+- **TraversableGenerator SPI** - 31 generator plugins across 7 library families (JDK, Apache Commons Collections4, Eclipse Collections, Google Guava, Vavr, PCollections, HKJ native) with cardinality-based path widening, priority system, and wildcard type resolution
 
 ## Compile-Time Safety
 

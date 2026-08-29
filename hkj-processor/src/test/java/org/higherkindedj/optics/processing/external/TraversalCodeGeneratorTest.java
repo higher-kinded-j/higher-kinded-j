@@ -271,6 +271,8 @@ class TraversalCodeGeneratorTest {
           .contains("Traversals.forList()");
       assertThat(generator.getStandardTraversal(ContainerType.Kind.SET))
           .contains("Traversals.forSet()");
+      assertThat(generator.getStandardTraversal(ContainerType.Kind.COLLECTION))
+          .contains("Traversals.forCollection()");
       assertThat(generator.getStandardTraversal(ContainerType.Kind.OPTIONAL))
           .contains("Traversals.forOptional()");
       assertThat(generator.getStandardTraversal(ContainerType.Kind.ARRAY))

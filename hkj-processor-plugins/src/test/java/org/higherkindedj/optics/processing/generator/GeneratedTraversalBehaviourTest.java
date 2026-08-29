@@ -9,9 +9,12 @@ import com.google.testing.compile.Compilation;
 import com.google.testing.compile.JavaFileObjects;
 import java.io.IOException;
 import java.io.InputStream;
+import java.util.Collection;
 import java.util.HashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import javax.tools.JavaFileObject;
 import javax.tools.StandardLocation;
 import org.higherkindedj.optics.Traversal;
@@ -54,6 +57,32 @@ class GeneratedTraversalBehaviourTest {
     Object updated = Traversals.modify(compiled.traversal("items"), compiled::shout, holder);
 
     assertThat(names((List<?>) compiled.component(updated, "items"))).containsExactly("A", "B");
+  }
+
+  @Test
+  @DisplayName("should rebuild a Collection<? extends Leaf> as the shape it was handed")
+  void shouldTraverseWildcardCollection() throws Exception {
+    // The generated source does not decide how a Collection is rebuilt; Traversals does, once,
+    // for every route to one. A set source comes back a set and a list source a list.
+    var compiled = compile("Collection<? extends Leaf> items");
+    Object fromAList =
+        compiled.holder(Collection.class, List.of(compiled.leaf("a"), compiled.leaf("b")));
+    Object fromASet =
+        compiled.holder(
+            Collection.class, new LinkedHashSet<>(List.of(compiled.leaf("a"), compiled.leaf("b"))));
+
+    assertThat(names(Traversals.getAll(compiled.traversal("items"), fromAList)))
+        .containsExactly("a", "b");
+
+    Object listUpdated = Traversals.modify(compiled.traversal("items"), compiled::shout, fromAList);
+    Object setUpdated = Traversals.modify(compiled.traversal("items"), compiled::shout, fromASet);
+
+    Object listItems = compiled.component(listUpdated, "items");
+    Object setItems = compiled.component(setUpdated, "items");
+    assertThat(listItems).isInstanceOf(List.class);
+    assertThat(names(List.copyOf((Collection<?>) listItems))).containsExactly("A", "B");
+    assertThat(setItems).isInstanceOf(Set.class);
+    assertThat(names(List.copyOf((Collection<?>) setItems))).containsExactly("A", "B");
   }
 
   @Test
@@ -164,6 +193,7 @@ class GeneratedTraversalBehaviourTest {
             package com.example;
 
             import org.higherkindedj.optics.annotations.GenerateTraversals;
+            import java.util.Collection;
             import java.util.List;
             import java.util.Map;
 

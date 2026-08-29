@@ -21,6 +21,7 @@ module org.higherkindedj.processor.plugins {
       org.higherkindedj.optics.processing.generator.apache.ApacheHashBagGenerator,
       org.higherkindedj.optics.processing.generator.apache.ApacheUnmodifiableListGenerator,
       org.higherkindedj.optics.processing.generator.basejdk.ArrayGenerator,
+      org.higherkindedj.optics.processing.generator.basejdk.CollectionGenerator,
       org.higherkindedj.optics.processing.generator.basejdk.ListGenerator,
       org.higherkindedj.optics.processing.generator.basejdk.MapValueGenerator,
       org.higherkindedj.optics.processing.generator.basejdk.OptionalGenerator,

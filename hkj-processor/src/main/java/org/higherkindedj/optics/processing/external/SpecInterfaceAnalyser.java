@@ -1213,7 +1213,7 @@ public class SpecInterfaceAnalyser {
               + "' of type '"
               + ProcessorUtils.simpleTypeName(fieldType)
               + "'. "
-              + "Supported types: List, Set, Optional, Map, arrays. "
+              + "Supported types: List, Set, Collection, Optional, Map, arrays. "
               + "Please specify traversal() explicitly, e.g.: "
               + "@ThroughField(field = \""
               + fieldName

@@ -241,6 +241,112 @@ class ThroughFieldAutoDetectTest {
   }
 
   @Nested
+  @DisplayName("Collection Field Auto-Detection")
+  class CollectionFieldAutoDetection {
+
+    @Test
+    @DisplayName("should auto-detect Collection<String> field")
+    void shouldAutoDetectCollectionField() {
+      var tags =
+          JavaFileObjects.forSourceString(
+              "com.external.Tags",
+              """
+              package com.external;
+              import java.util.Collection;
+              public record Tags(Collection<String> values) {
+                  public Tags.Builder toBuilder() { return new Builder(); }
+                  public static class Builder {
+                      private Collection<String> values;
+                      public Builder values(Collection<String> v) { this.values = v; return this; }
+                      public Tags build() { return new Tags(values); }
+                  }
+              }
+              """);
+
+      var spec =
+          JavaFileObjects.forSourceString(
+              "com.test.TagsSpec",
+              """
+              package com.test;
+              import org.higherkindedj.optics.Lens;
+              import org.higherkindedj.optics.Traversal;
+              import org.higherkindedj.optics.annotations.ImportOptics;
+              import org.higherkindedj.optics.annotations.OpticsSpec;
+              import org.higherkindedj.optics.annotations.ThroughField;
+              import org.higherkindedj.optics.annotations.ViaBuilder;
+              import com.external.Tags;
+              import java.util.Collection;
+
+              @ImportOptics
+              public interface TagsSpec extends OpticsSpec<Tags> {
+                  @ViaBuilder
+                  Lens<Tags, Collection<String>> values();
+
+                  @ThroughField(field = "values")
+                  Traversal<Tags, String> eachValue();
+              }
+              """);
+
+      Compilation compilation = compile(tags, spec);
+      assertThat(compilation).succeeded();
+      assertThat(compilation)
+          .generatedSourceFile("com.test.Tags")
+          .contentsAsUtf8String()
+          .contains("Traversals.forCollection()");
+    }
+
+    @Test
+    @DisplayName("should not auto-detect a Deque as a Collection")
+    void shouldNotAutoDetectDequeAsCollection() {
+      // forCollection() would hand a Deque field back a List, so the field is not matched: the
+      // author is asked for an explicit traversal instead.
+      var queue =
+          JavaFileObjects.forSourceString(
+              "com.external.Queue",
+              """
+              package com.external;
+              import java.util.Deque;
+              public record Queue(Deque<String> values) {
+                  public Queue.Builder toBuilder() { return new Builder(); }
+                  public static class Builder {
+                      private Deque<String> values;
+                      public Builder values(Deque<String> v) { this.values = v; return this; }
+                      public Queue build() { return new Queue(values); }
+                  }
+              }
+              """);
+
+      var spec =
+          JavaFileObjects.forSourceString(
+              "com.test.QueueSpec",
+              """
+              package com.test;
+              import org.higherkindedj.optics.Lens;
+              import org.higherkindedj.optics.Traversal;
+              import org.higherkindedj.optics.annotations.ImportOptics;
+              import org.higherkindedj.optics.annotations.OpticsSpec;
+              import org.higherkindedj.optics.annotations.ThroughField;
+              import org.higherkindedj.optics.annotations.ViaBuilder;
+              import com.external.Queue;
+              import java.util.Deque;
+
+              @ImportOptics
+              public interface QueueSpec extends OpticsSpec<Queue> {
+                  @ViaBuilder
+                  Lens<Queue, Deque<String>> values();
+
+                  @ThroughField(field = "values")
+                  Traversal<Queue, String> eachValue();
+              }
+              """);
+
+      Compilation compilation = compile(queue, spec);
+      assertThat(compilation).failed();
+      assertThat(compilation).hadErrorContaining("Cannot auto-detect traversal");
+    }
+  }
+
+  @Nested
   @DisplayName("Optional Field Auto-Detection")
   class OptionalFieldAutoDetection {
 
@@ -547,7 +653,8 @@ class ThroughFieldAutoDetectTest {
       Compilation compilation = compile(custom, spec);
       assertThat(compilation).failed();
       assertThat(compilation).hadErrorContaining("Cannot auto-detect traversal");
-      assertThat(compilation).hadErrorContaining("Supported types: List, Set, Optional, Map");
+      assertThat(compilation)
+          .hadErrorContaining("Supported types: List, Set, Collection, Optional, Map");
       // One problem, one error: a rejected hint must not also draw the missing-hint error.
       assertThat(compilation).hadErrorCount(1);
     }

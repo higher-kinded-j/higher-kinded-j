@@ -137,11 +137,12 @@ Order topUp =
 |------------|-------------------------|
 | `List<A>` (including `ArrayList`, `LinkedList`, ...) | `Traversals.forList()` |
 | `Set<A>` (including `HashSet`, `TreeSet`, ...) | `Traversals.forSet()` |
+| `Collection<A>` (the interface itself, not `Deque`, `Queue`, ...) | `Traversals.forCollection()` |
 | `Optional<A>` | `Traversals.forOptional()` |
 | `A[]` | `Traversals.forArray()` |
 | `Map<K, V>` (including `HashMap`, `TreeMap`, ...) | `Traversals.forMapValues()` |
 
-Subtypes are recognised, so a field declared `ArrayList<LineItem>` still detects as a list. For a container outside that set, name the traversal yourself:
+Subtypes are recognised, so a field declared `ArrayList<LineItem>` still detects as a list; `Collection` is the exception, matched only when the field is declared as the interface itself, because its traversal rebuilds a set as a set and anything else as a list, which a `Deque` or a `Queue` field could not take back. For a container outside that set, name the traversal yourself:
 
 ```java
 @ThroughField(field = "entries", traversal = "com.example.CustomTraversals.forMyContainer()")
@@ -300,7 +301,7 @@ Start with `@ViaBuilder`: it is the pattern most generated code uses. Fall back 
 ~~~admonish info title="Key Takeaways"
 * **`@ViaBuilder` is the default choice**, and covers JOOQ, Lombok, AutoValue and Protobuf between them. Immutables generates both a builder and withers, so either strategy works there.
 * **Every name is overridable.** Getter, builder accessor, setter and build method can each be spelled out when a library's conventions differ, and `@ViaCopyAndSet(copyConstructor = ...)` picks between overloaded copy constructors.
-* **`@ThroughField` reaches into collection fields**, auto-detecting the traversal for lists, sets, optionals, arrays and maps, subtypes included.
+* **`@ThroughField` reaches into collection fields**, auto-detecting the traversal for lists, sets, optionals, arrays and maps, subtypes included, and for a field declared as `Collection` itself.
 * **`Traversal` reads and writes through `Traversals`**, not through a plain instance `modify`; `andThen`, `filtered`, `filterBy`, `asFold`, `modifyF`, `modifyWhen` and `branch` do live on the optic.
 * **Not everything needs a strategy.** A type that already implements `List`, `Map` or `Optional` works with the standard traversals for reads, though rebuilding the exact container type needs `forIterableCollecting`.
 ~~~

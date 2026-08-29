@@ -59,7 +59,7 @@ flowchart TD
     C{"How many values<br/>can the container hold?"}
     C -->|"exactly one<br/>(a plain field)"| F(["FocusPath"])
     C -->|"zero or one<br/>Optional, Maybe, Either, Try, Validated"| A(["AffinePath"])
-    C -->|"zero or more<br/>List, Set, Map, arrays, third-party collections"| T(["TraversalPath"])
+    C -->|"zero or more<br/>List, Set, Collection, Map, arrays, third-party collections"| T(["TraversalPath"])
 
     classDef decision fill:#e5c890,stroke:#df8e1d,color:#232634
     classDef tier fill:#a6d189,stroke:#40a02b,color:#232634
