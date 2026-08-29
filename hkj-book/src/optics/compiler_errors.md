@@ -91,7 +91,7 @@ Note this is about what the *iso* names, not what the method declares: `<T> Iso<
 
 **Fix.** Keep the spec interface to annotated abstract methods. Composed optics belong in a `static` method on the interface, or in an ordinary utility class; either one calls the generated statics by name, for example `JsonNodeOptics.object().andThen(...)`.
 
-### "'XOpticsSpec' declares OpticsSpec<S>, which is a type variable"
+### "'XOpticsSpec' declares `OpticsSpec<S>`, which is a type variable"
 
 **Cause.** The spec interface is generic, and its own type parameter is the source type: `interface BoxOpticsSpec<S extends Box> extends OpticsSpec<S>`. Optics are generated against one named type, read for its members and rebuilt through its constructor, wither or setter, so a type parameter standing for whatever a caller picks has nothing to generate from. An array source type produces the same diagnostic with a different opening, `declares OpticsSpec<String[]>, which is an array type`, and the same remedy.
 
@@ -105,7 +105,7 @@ A source type that is itself generic is supported, and the spec names its own ty
 
 **Fix.** Verify that `SubType` extends or implements the spec's `<S>` parameter. If you are working with sum types that don't use a sealed hierarchy (such as Jackson's pre-3.x `JsonNode`), use `@MatchWhen` with predicate and getter method names instead.
 
-### "@InstanceOf: '...' declares its focus as 'Circle<T>', which the test cannot narrow to"
+### "@InstanceOf: '...' declares its focus as `Circle<T>`, which the test cannot narrow to"
 
 **Cause.** The prism promises a type argument the test cannot check. `@InstanceOf` takes a class constant, which is raw, and the generated `instanceof` runs after erasure, so the only arguments the narrowed value is known to have are the ones the source type pins down. `class Circle<X> extends Shape` reached from a `Shape` that declares no parameters pins none: every instantiation passes the same test, and a `Prism<Shape, Circle<T>>` would hand any of them back as the `T` the caller asked for, to fail on the first read.
 
