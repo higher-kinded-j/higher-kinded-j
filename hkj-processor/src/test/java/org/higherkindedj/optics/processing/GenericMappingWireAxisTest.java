@@ -211,6 +211,146 @@ class GenericMappingWireAxisTest {
   }
 
   @Test
+  @DisplayName(
+      "a sealed wire, whose variant spec reaches its vocabulary through a generic ancestor")
+  void sealedWireWithAGenericAncestor() {
+    // The sealed column reads members in two places at once: the variant spec is an ordinary
+    // record pair, and the sum spec reads the pairs to build its dispatch. A member left as
+    // declared in either would put a free variable into one of the two Impls.
+    var model =
+        JavaFileObjects.forSourceString(
+            "com.example.Sealed",
+            """
+            package com.example;
+
+            import org.higherkindedj.optics.validated.ValidatedPrism;
+
+            public final class Sealed {
+              public record Pan(String digits) {}
+
+              public sealed interface Pay permits Card {}
+
+              public record Card(Pan pan) implements Pay {}
+
+              public sealed interface PayDto permits CardDto {}
+
+              public record CardDto(String pan) implements PayDto {}
+
+              public interface BasePans<T> {
+                default ValidatedPrism<String, T> pan() {
+                  throw new UnsupportedOperationException();
+                }
+              }
+
+              public interface Pans extends BasePans<Pan> {}
+            }
+            """);
+
+    var variantSpec =
+        JavaFileObjects.forSourceString(
+            "com.example.CardMapping",
+            """
+            package com.example;
+
+            import org.higherkindedj.optics.annotations.GenerateMapping;
+            import org.higherkindedj.optics.annotations.MappingSpec;
+
+            @GenerateMapping
+            public interface CardMapping
+                extends MappingSpec<Sealed.Card, Sealed.CardDto>, Sealed.Pans {}
+            """);
+
+    var sumSpec =
+        JavaFileObjects.forSourceString(
+            "com.example.PayMapping",
+            """
+            package com.example;
+
+            import org.higherkindedj.optics.annotations.GenerateMapping;
+            import org.higherkindedj.optics.annotations.MappingSpec;
+
+            @GenerateMapping
+            public interface PayMapping extends MappingSpec<Sealed.Pay, Sealed.PayDto> {}
+            """);
+
+    var compilation = compile(model, variantSpec, sumSpec);
+
+    assertThat(compilation).succeeded();
+    // The variant's leaf arrives at Pan, the argument Pans gives BasePans, not at its T.
+    assertGeneratedCodeContains(
+        compilation,
+        "com.example.CardMappingImpl",
+        "return new Sealed.CardDto(pan().build(domain.pan()))");
+    // And the sum dispatches to it.
+    assertGeneratedCodeContains(
+        compilation,
+        "com.example.PayMappingImpl",
+        "case Sealed.Card v -> CardMappingImpl.INSTANCE.build(v)");
+  }
+
+  @Test
+  @DisplayName("a sealed wire whose sum type extends a generic interface")
+  void sealedWireWhoseSumExtendsAGenericInterface() {
+    // The sum itself is non-generic, but it inherits an accessor from a generic supertype. That
+    // is the sealed form of the bean's inherited column: nothing on the type names a parameter,
+    // and a member does.
+    var model =
+        JavaFileObjects.forSourceString(
+            "com.example.Tagged",
+            """
+            package com.example;
+
+            public final class Tagged {
+              public interface HasTag<T> {
+                T tag();
+              }
+
+              public sealed interface Pay extends HasTag<String> permits Card {}
+
+              public record Card(String number, String tag) implements Pay {}
+
+              public sealed interface PayDto permits CardDto {}
+
+              public record CardDto(String number, String tag) implements PayDto {}
+            }
+            """);
+
+    var variantSpec =
+        JavaFileObjects.forSourceString(
+            "com.example.TaggedCardMapping",
+            """
+            package com.example;
+
+            import org.higherkindedj.optics.annotations.GenerateMapping;
+            import org.higherkindedj.optics.annotations.MappingSpec;
+
+            @GenerateMapping
+            public interface TaggedCardMapping extends MappingSpec<Tagged.Card, Tagged.CardDto> {}
+            """);
+
+    var sumSpec =
+        JavaFileObjects.forSourceString(
+            "com.example.TaggedPayMapping",
+            """
+            package com.example;
+
+            import org.higherkindedj.optics.annotations.GenerateMapping;
+            import org.higherkindedj.optics.annotations.MappingSpec;
+
+            @GenerateMapping
+            public interface TaggedPayMapping extends MappingSpec<Tagged.Pay, Tagged.PayDto> {}
+            """);
+
+    var compilation = compile(model, variantSpec, sumSpec);
+
+    assertThat(compilation).succeeded();
+    assertGeneratedCodeContains(
+        compilation,
+        "com.example.TaggedPayMappingImpl",
+        "case Tagged.Card v -> TaggedCardMappingImpl.INSTANCE.build(v)");
+  }
+
+  @Test
   @DisplayName("a mix-in reached through a generic ancestor is read under the spec")
   void mixinWithAGenericAncestor() {
     var base =
