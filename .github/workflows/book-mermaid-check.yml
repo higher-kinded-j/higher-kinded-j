@@ -1,8 +1,12 @@
 name: Book Mermaid Parse Check
 
-# Parse-checks every ```mermaid fence in hkj-book/src against the pinned
-# browser-side mermaid library, so a diagram syntax error fails the PR
-# instead of reaching the published book as a render-time error box.
+# Two things the published book cannot tell you are broken until a reader sees
+# them, so they fail the PR instead:
+#   - every ```mermaid fence in hkj-book/src is parsed against the pinned
+#     browser-side mermaid library, catching a diagram syntax error before it
+#     reaches the book as a render-time error box;
+#   - every heading is checked for raw HTML, because a bare <S> in a heading is
+#     the <s> element and silently strikes through the rest of the page.
 # No branches filter on pull_request: stacked PRs are checked too.
 on:
   pull_request:
@@ -10,6 +14,7 @@ on:
       - 'hkj-book/src/**'
       - '.github/scripts/fetch_mermaid.sh'
       - '.github/scripts/mermaid-check/**'
+      - '.github/scripts/book-heading-html-check.cjs'
       - '.github/workflows/book-mermaid-check.yml'
   push:
     branches: [ "main" ]
@@ -17,6 +22,7 @@ on:
       - 'hkj-book/src/**'
       - '.github/scripts/fetch_mermaid.sh'
       - '.github/scripts/mermaid-check/**'
+      - '.github/scripts/book-heading-html-check.cjs'
       - '.github/workflows/book-mermaid-check.yml'
 
 permissions:
@@ -35,6 +41,9 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '22'
+
+      - name: Check headings for raw HTML
+        run: node .github/scripts/book-heading-html-check.cjs
 
       - name: Fetch pinned mermaid library
         run: .github/scripts/fetch_mermaid.sh
