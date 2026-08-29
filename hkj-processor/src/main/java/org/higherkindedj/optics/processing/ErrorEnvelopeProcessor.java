@@ -390,7 +390,7 @@ public class ErrorEnvelopeProcessor extends AbstractProcessor {
     CodeBlock.Builder args = CodeBlock.builder();
     boolean first = true;
     for (RecordComponentElement component : context.getRecordComponents()) {
-      args.add(first ? "($T) null" : ", ($T) null", TypeName.get(component.asType()));
+      args.add(first ? "($T) null" : ", ($T) null", ProcessorUtils.typeNameOf(component.asType()));
       first = false;
     }
     return FieldSpec.builder(
@@ -417,7 +417,7 @@ public class ErrorEnvelopeProcessor extends AbstractProcessor {
     CodeBlock.Builder args = CodeBlock.builder().add("$T.system()", TIME_SOURCE);
     for (RecordComponentElement component : domainComponents(variant)) {
       String name = component.getSimpleName().toString();
-      method.addParameter(TypeName.get(component.asType()), name);
+      method.addParameter(ProcessorUtils.typeNameOf(component.asType()), name);
       args.add(", $N", name);
     }
     return method.addStatement("return $L($L)", factoryName(variant), args.build()).build();
@@ -441,7 +441,8 @@ public class ErrorEnvelopeProcessor extends AbstractProcessor {
                 message)
             .addParameter(TIME_SOURCE, "time");
     for (RecordComponentElement component : domainComponents(variant)) {
-      method.addParameter(TypeName.get(component.asType()), component.getSimpleName().toString());
+      method.addParameter(
+          ProcessorUtils.typeNameOf(component.asType()), component.getSimpleName().toString());
     }
     method.addStatement("$T.requireNonNull(time, $S)", OBJECTS, "time must not be null");
 
@@ -522,7 +523,7 @@ public class ErrorEnvelopeProcessor extends AbstractProcessor {
     boolean first = true;
     for (RecordComponentElement component : context.getRecordComponents()) {
       String name = component.getSimpleName().toString();
-      TypeName type = TypeName.get(component.asType());
+      TypeName type = ProcessorUtils.typeNameOf(component.asType());
       builder.addField(FieldSpec.builder(type, name, Modifier.PRIVATE).build());
       ctor.addStatement("this.$1N = seed.$1N()", name);
       builder.addMethod(

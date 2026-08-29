@@ -596,6 +596,99 @@ class HkjHttpClientProcessorTest {
   }
 
   @Nested
+  @DisplayName("keeps the type-use annotations the author wrote")
+  class TypeUseAnnotations {
+
+    /**
+     * A client is generated into the annotated interface's own package, which the consumer is free
+     * to mark {@code @NullMarked}. Inside one an unannotated type means non-null, so a dropped
+     * {@code @Nullable} does not leave the facade's contract unstated - it states the opposite of
+     * the interface the facade exists to mirror.
+     */
+    private final Compilation compilation =
+        compile(
+            JavaFileObjects.forSourceLines(
+                "com.example.NullableApi",
+                "package com.example;",
+                "import org.higherkindedj.hkt.effect.EitherPath;",
+                "import org.higherkindedj.spring.client.HkjHttpClient;",
+                "import org.jspecify.annotations.Nullable;",
+                "import org.springframework.web.bind.annotation.PathVariable;",
+                "import org.springframework.web.service.annotation.GetExchange;",
+                "import org.springframework.web.service.annotation.HttpExchange;",
+                "@HttpExchange(\"/users\")",
+                "@HkjHttpClient",
+                "public interface NullableApi {",
+                "  @GetExchange(\"/{id}\")",
+                "  EitherPath<UserError, @Nullable UserDto> get(",
+                "      @PathVariable String id, @Nullable String trace);",
+                "}"),
+            USER_DTO,
+            USER_ERROR);
+
+    @Test
+    @DisplayName("the native interface keeps it in the success type it unwraps to")
+    void nativeInterfaceKeepsIt() {
+      assertThat(compilation).succeeded();
+      assertThat(compilation)
+          .generatedSourceFile("com.example.NullableApiHttpExchange")
+          .contentsAsUtf8String()
+          .contains("ResponseEntity<@Nullable UserDto> get(");
+    }
+
+    @Test
+    @DisplayName("the facade keeps it in the parameters and the return it mirrors")
+    void facadeKeepsIt() {
+      assertThat(compilation).succeeded();
+      assertThat(compilation)
+          .generatedSourceFile("com.example.NullableApiClient")
+          .contentsAsUtf8String()
+          .contains("EitherPath<UserError, @Nullable UserDto> get(");
+      // A facade that narrows a parameter below the interface's rejects a call the interface
+      // accepts, so it is not usable everywhere the thing it fronts is.
+      assertThat(compilation)
+          .generatedSourceFile("com.example.NullableApiClient")
+          .contentsAsUtf8String()
+          .contains("@Nullable String trace");
+    }
+
+    @Test
+    @DisplayName("a type parameter keeps the annotated Object bound javapoet would strip")
+    void typeParameterBoundKeepsIt() {
+      Compilation generic =
+          compile(
+              JavaFileObjects.forSourceLines(
+                  "com.example.NullRepo",
+                  "package com.example;",
+                  "import org.higherkindedj.hkt.effect.EitherPath;",
+                  "import org.higherkindedj.spring.client.HkjHttpClient;",
+                  "import org.jspecify.annotations.Nullable;",
+                  "import org.springframework.web.bind.annotation.PathVariable;",
+                  "import org.springframework.web.service.annotation.GetExchange;",
+                  "import org.springframework.web.service.annotation.HttpExchange;",
+                  "@HttpExchange(\"/items\")",
+                  "@HkjHttpClient",
+                  "public interface NullRepo<T extends @Nullable Object> {",
+                  "  @GetExchange(\"/{id}\")",
+                  "  EitherPath<UserError, T> get(@PathVariable String id);",
+                  "}"),
+              USER_ERROR);
+
+      assertThat(generic).succeeded();
+      // Stripped to `<T>`, the client no longer admits the `NullRepo<@Nullable UserDto>` the
+      // interface it implements permits.
+      assertThat(generic)
+          .generatedSourceFile("com.example.NullRepoHttpExchange")
+          .contentsAsUtf8String()
+          .contains("interface NullRepoHttpExchange<T extends @Nullable Object>");
+      assertThat(generic)
+          .generatedSourceFile("com.example.NullRepoClient")
+          .contentsAsUtf8String()
+          .containsMatch("class NullRepoClient<T extends @Nullable Object>");
+    }
+  }
+
+  @Nested
   @DisplayName("supports generic interfaces (codegen-only)")
   class Generics {
 

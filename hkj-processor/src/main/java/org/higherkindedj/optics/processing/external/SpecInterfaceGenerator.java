@@ -10,7 +10,6 @@ import com.palantir.javapoet.MethodSpec;
 import com.palantir.javapoet.ParameterizedTypeName;
 import com.palantir.javapoet.TypeName;
 import com.palantir.javapoet.TypeSpec;
-import com.palantir.javapoet.TypeVariableName;
 import java.io.IOException;
 import java.util.ArrayDeque;
 import java.util.Deque;
@@ -160,7 +159,7 @@ public class SpecInterfaceGenerator {
     // variables this signature actually names can be inferred at the call.
     for (TypeParameterElement typeParam :
         methodTypeParameters(specInterface, sourceType, focusType)) {
-      methodBuilder.addTypeVariable(TypeVariableName.get(typeParam));
+      methodBuilder.addTypeVariable(ProcessorUtils.typeVariableOf(typeParam));
     }
 
     // Generate method body based on optic kind
@@ -316,7 +315,7 @@ public class SpecInterfaceGenerator {
       OpticKind opticKind, TypeMirror sourceType, TypeMirror focusType) {
 
     TypeName sourceTypeName = getParameterisedTypeName(sourceType);
-    TypeName focusTypeName = TypeName.get(focusType).box();
+    TypeName focusTypeName = ProcessorUtils.typeNameOf(focusType).box();
     ClassName opticClass = getOpticClass(opticKind);
 
     return ParameterizedTypeName.get(opticClass, sourceTypeName, focusTypeName);
@@ -352,11 +351,12 @@ public class SpecInterfaceGenerator {
       List<? extends TypeMirror> typeArgs = declaredType.getTypeArguments();
       if (!typeArgs.isEmpty()) {
         TypeElement typeElement = (TypeElement) declaredType.asElement();
-        TypeName[] typeArgNames = typeArgs.stream().map(TypeName::get).toArray(TypeName[]::new);
+        TypeName[] typeArgNames =
+            typeArgs.stream().map(ProcessorUtils::typeNameOf).toArray(TypeName[]::new);
         return ParameterizedTypeName.get(ClassName.get(typeElement), typeArgNames);
       }
     }
-    return TypeName.get(typeMirror);
+    return ProcessorUtils.typeNameOf(typeMirror);
   }
 
   /**

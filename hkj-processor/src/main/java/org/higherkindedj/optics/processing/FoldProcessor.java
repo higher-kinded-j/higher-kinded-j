@@ -26,6 +26,7 @@ import javax.tools.Diagnostic;
 import org.higherkindedj.optics.Fold;
 import org.higherkindedj.optics.annotations.GenerateFolds;
 import org.higherkindedj.optics.processing.util.ExcludeFromJacocoGeneratedReport;
+import org.higherkindedj.optics.processing.util.ProcessorUtils;
 
 /** Annotation processor that generates Fold optics for record types. */
 @AutoService(Processor.class)
@@ -108,7 +109,8 @@ public class FoldProcessor extends AbstractProcessor {
     if (typeParameters.isEmpty()) {
       return ClassName.get(typeElement);
     } else {
-      List<TypeVariableName> typeVars = typeParameters.stream().map(TypeVariableName::get).toList();
+      List<TypeVariableName> typeVars =
+          typeParameters.stream().map(ProcessorUtils::typeVariableOf).toList();
       return ParameterizedTypeName.get(
           ClassName.get(typeElement), typeVars.toArray(new TypeName[0]));
     }
@@ -118,7 +120,7 @@ public class FoldProcessor extends AbstractProcessor {
       RecordComponentElement component, TypeElement recordElement, TypeName recordTypeName) {
 
     String componentName = component.getSimpleName().toString();
-    TypeName componentTypeName = TypeName.get(component.asType());
+    TypeName componentTypeName = ProcessorUtils.typeNameOf(component.asType());
 
     // Check if this is an Iterable type (List, Set, etc.)
     boolean isIterable = isIterableType(component.asType());
@@ -141,7 +143,7 @@ public class FoldProcessor extends AbstractProcessor {
             .returns(foldTypeName);
 
     for (TypeParameterElement typeParam : recordElement.getTypeParameters()) {
-      methodBuilder.addTypeVariable(TypeVariableName.get(typeParam));
+      methodBuilder.addTypeVariable(ProcessorUtils.typeVariableOf(typeParam));
     }
 
     // Create the foldMap implementation
@@ -209,7 +211,7 @@ public class FoldProcessor extends AbstractProcessor {
     // Only called for iterable components, and isIterableType requires a declared type.
     DeclaredType containerType = (DeclaredType) component.asType();
     if (!containerType.getTypeArguments().isEmpty()) {
-      return TypeName.get(containerType.getTypeArguments().getFirst()).box();
+      return ProcessorUtils.typeNameOf(containerType.getTypeArguments().getFirst()).box();
     }
     return ClassName.get(Object.class);
   }

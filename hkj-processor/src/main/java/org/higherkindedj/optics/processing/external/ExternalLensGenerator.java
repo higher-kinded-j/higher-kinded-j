@@ -176,7 +176,7 @@ public class ExternalLensGenerator {
       List<? extends RecordComponentElement> allComponents,
       TypeName recordTypeName) {
 
-    TypeName componentTypeName = TypeName.get(field.type());
+    TypeName componentTypeName = ProcessorUtils.typeNameOf(field.type());
 
     ParameterizedTypeName lensTypeName =
         ParameterizedTypeName.get(
@@ -196,7 +196,7 @@ public class ExternalLensGenerator {
             .returns(lensTypeName);
 
     for (TypeParameterElement typeParam : recordElement.getTypeParameters()) {
-      methodBuilder.addTypeVariable(TypeVariableName.get(typeParam));
+      methodBuilder.addTypeVariable(ProcessorUtils.typeVariableOf(typeParam));
     }
 
     String constructorArgs =
@@ -222,7 +222,7 @@ public class ExternalLensGenerator {
   private MethodSpec createWitherLensMethod(
       FieldInfo field, WitherInfo wither, TypeElement classElement, TypeName classTypeName) {
 
-    TypeName fieldTypeName = TypeName.get(field.type());
+    TypeName fieldTypeName = ProcessorUtils.typeNameOf(field.type());
 
     ParameterizedTypeName lensTypeName =
         ParameterizedTypeName.get(ClassName.get(Lens.class), classTypeName, fieldTypeName.box());
@@ -241,7 +241,7 @@ public class ExternalLensGenerator {
             .returns(lensTypeName);
 
     for (TypeParameterElement typeParam : classElement.getTypeParameters()) {
-      methodBuilder.addTypeVariable(TypeVariableName.get(typeParam));
+      methodBuilder.addTypeVariable(ProcessorUtils.typeVariableOf(typeParam));
     }
 
     // Use wither method for setting: source.withYear(newValue)
@@ -257,7 +257,7 @@ public class ExternalLensGenerator {
 
   private MethodSpec createWithMethod(FieldInfo field, TypeElement typeElement, TypeName typeName) {
 
-    TypeName fieldTypeName = TypeName.get(field.type());
+    TypeName fieldTypeName = ProcessorUtils.typeNameOf(field.type());
     String methodName = "with" + ProcessorUtils.capitalise(field.name());
     String parameterName = "new" + ProcessorUtils.capitalise(field.name());
     String lensesClassName = typeElement.getSimpleName().toString() + "Lenses";
@@ -284,7 +284,7 @@ public class ExternalLensGenerator {
 
     List<? extends TypeParameterElement> typeParameters = typeElement.getTypeParameters();
     for (TypeParameterElement typeParam : typeParameters) {
-      methodBuilder.addTypeVariable(TypeVariableName.get(typeParam));
+      methodBuilder.addTypeVariable(ProcessorUtils.typeVariableOf(typeParam));
     }
 
     String typeArguments =
@@ -410,7 +410,7 @@ public class ExternalLensGenerator {
 
     // The record's own parameters, as the lens methods beside this one already declare them.
     for (TypeParameterElement typeParameter : recordElement.getTypeParameters()) {
-      methodBuilder.addTypeVariable(TypeVariableName.get(typeParameter));
+      methodBuilder.addTypeVariable(ProcessorUtils.typeVariableOf(typeParameter));
     }
 
     return methodBuilder.addStatement("return $L", traversalImpl).build();
@@ -419,7 +419,7 @@ public class ExternalLensGenerator {
   // Package-private for tests.
   TypeName getFocusType(TypeMirror type, TraversableGenerator generator) {
     if (type instanceof ArrayType arrayType) {
-      return TypeName.get(arrayType.getComponentType()).box();
+      return ProcessorUtils.typeNameOf(arrayType.getComponentType()).box();
     } else if (type instanceof DeclaredType declaredType) {
       if (declaredType.getTypeArguments().isEmpty()) {
         return null; // Cannot traverse a raw type.
@@ -433,7 +433,8 @@ public class ExternalLensGenerator {
       if (declaredType.getTypeArguments().size() <= typeArgumentIndex) {
         return null; // Not enough type arguments for this generator.
       }
-      return TypeName.get(declaredType.getTypeArguments().get(typeArgumentIndex)).box();
+      return ProcessorUtils.typeNameOf(declaredType.getTypeArguments().get(typeArgumentIndex))
+          .box();
     }
     return null;
   }
@@ -443,7 +444,8 @@ public class ExternalLensGenerator {
     if (typeParameters.isEmpty()) {
       return ClassName.get(typeElement);
     } else {
-      List<TypeVariableName> typeVars = typeParameters.stream().map(TypeVariableName::get).toList();
+      List<TypeVariableName> typeVars =
+          typeParameters.stream().map(ProcessorUtils::typeVariableOf).toList();
       return ParameterizedTypeName.get(
           ClassName.get(typeElement), typeVars.toArray(new TypeName[0]));
     }

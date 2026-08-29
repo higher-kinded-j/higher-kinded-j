@@ -257,7 +257,8 @@ public class FocusProcessor extends AbstractProcessor {
     if (typeParameters.isEmpty()) {
       return ClassName.get(typeElement);
     } else {
-      List<TypeVariableName> typeVars = typeParameters.stream().map(TypeVariableName::get).toList();
+      List<TypeVariableName> typeVars =
+          typeParameters.stream().map(ProcessorUtils::typeVariableOf).toList();
       return ParameterizedTypeName.get(
           ClassName.get(typeElement), typeVars.toArray(new TypeName[0]));
     }
@@ -316,7 +317,7 @@ public class FocusProcessor extends AbstractProcessor {
 
     // Add type parameters if the record is generic
     for (TypeParameterElement typeParam : recordElement.getTypeParameters()) {
-      methodBuilder.addTypeVariable(TypeVariableName.get(typeParam));
+      methodBuilder.addTypeVariable(ProcessorUtils.typeVariableOf(typeParam));
     }
 
     // Build the constructor arguments for the setter lambda

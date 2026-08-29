@@ -147,7 +147,7 @@ public class PathProcessor extends AbstractProcessor {
     // interface declares. Naming it raw instead would leave every method that mentions one of
     // those parameters pointing at a variable the bridge never brings into scope.
     List<TypeVariableName> interfaceVariables =
-        interfaceElement.getTypeParameters().stream().map(TypeVariableName::get).toList();
+        interfaceElement.getTypeParameters().stream().map(ProcessorUtils::typeVariableOf).toList();
     TypeName delegateType =
         interfaceVariables.isEmpty()
             ? interfaceClassName
@@ -402,7 +402,7 @@ public class PathProcessor extends AbstractProcessor {
       typeVariables.add(
           TypeVariableName.get(
               variableName.toString(),
-              bounds.stream().map(TypeName::get).toArray(TypeName[]::new)));
+              bounds.stream().map(ProcessorUtils::typeNameOf).toArray(TypeName[]::new)));
     }
 
     TypeMirror returnType = asMember.getReturnType();
@@ -510,7 +510,9 @@ public class PathProcessor extends AbstractProcessor {
     PathVia pathVia = method.getAnnotation(PathVia.class);
 
     TypeName[] effectArguments =
-        bridgeable.effectArguments().stream().map(TypeName::get).toArray(TypeName[]::new);
+        bridgeable.effectArguments().stream()
+            .map(ProcessorUtils::typeNameOf)
+            .toArray(TypeName[]::new);
     MethodSpec.Builder methodBuilder =
         MethodSpec.methodBuilder(bridgeable.bridgeName())
             .addModifiers(Modifier.PUBLIC)
@@ -518,7 +520,9 @@ public class PathProcessor extends AbstractProcessor {
     bridgeable.typeVariables().forEach(methodBuilder::addTypeVariable);
     // The bridge only passes the call on, so whatever the delegate declares it can throw, the
     // bridge declares too. Dropping them left the caller with an unreported checked exception.
-    asMember.getThrownTypes().forEach(thrown -> methodBuilder.addException(TypeName.get(thrown)));
+    asMember
+        .getThrownTypes()
+        .forEach(thrown -> methodBuilder.addException(ProcessorUtils.typeNameOf(thrown)));
 
     // Description first, then the block tags in order. A tag written before the description takes
     // the description into itself, which is what javadoc does with any text following a tag.
@@ -551,7 +555,8 @@ public class PathProcessor extends AbstractProcessor {
     for (int index = 0; index < parameters.size(); index++) {
       String parameterName = parameters.get(index).getSimpleName().toString();
       argumentNames.add(parameterName);
-      methodBuilder.addParameter(TypeName.get(parameterTypes.get(index)), parameterName);
+      methodBuilder.addParameter(
+          ProcessorUtils.typeNameOf(parameterTypes.get(index)), parameterName);
     }
 
     methodBuilder.varargs(copiesVarargs(method, asMember, effect));

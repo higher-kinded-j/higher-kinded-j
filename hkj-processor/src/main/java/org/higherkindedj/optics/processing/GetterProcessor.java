@@ -110,7 +110,8 @@ public class GetterProcessor extends AbstractProcessor {
     if (typeParameters.isEmpty()) {
       return ClassName.get(typeElement);
     } else {
-      List<TypeVariableName> typeVars = typeParameters.stream().map(TypeVariableName::get).toList();
+      List<TypeVariableName> typeVars =
+          typeParameters.stream().map(ProcessorUtils::typeVariableOf).toList();
       return ParameterizedTypeName.get(
           ClassName.get(typeElement), typeVars.toArray(new TypeName[0]));
     }
@@ -120,7 +121,7 @@ public class GetterProcessor extends AbstractProcessor {
       RecordComponentElement component, TypeElement recordElement, TypeName recordTypeName) {
 
     String componentName = component.getSimpleName().toString();
-    TypeName componentTypeName = TypeName.get(component.asType());
+    TypeName componentTypeName = ProcessorUtils.typeNameOf(component.asType());
 
     ParameterizedTypeName getterTypeName =
         ParameterizedTypeName.get(
@@ -140,7 +141,7 @@ public class GetterProcessor extends AbstractProcessor {
             .returns(getterTypeName);
 
     for (TypeParameterElement typeParam : recordElement.getTypeParameters()) {
-      methodBuilder.addTypeVariable(TypeVariableName.get(typeParam));
+      methodBuilder.addTypeVariable(ProcessorUtils.typeVariableOf(typeParam));
     }
 
     methodBuilder.addStatement("return $T.of($T::$L)", Getter.class, recordTypeName, componentName);
@@ -152,7 +153,7 @@ public class GetterProcessor extends AbstractProcessor {
       RecordComponentElement component, TypeElement recordElement, TypeName recordTypeName) {
 
     String componentName = component.getSimpleName().toString();
-    TypeName componentTypeName = TypeName.get(component.asType());
+    TypeName componentTypeName = ProcessorUtils.typeNameOf(component.asType());
     String methodName = "get" + ProcessorUtils.capitalise(componentName);
     String gettersClassName = recordElement.getSimpleName().toString() + "Getters";
 
@@ -174,7 +175,7 @@ public class GetterProcessor extends AbstractProcessor {
 
     List<? extends TypeParameterElement> typeParameters = recordElement.getTypeParameters();
     for (TypeParameterElement typeParam : typeParameters) {
-      methodBuilder.addTypeVariable(TypeVariableName.get(typeParam));
+      methodBuilder.addTypeVariable(ProcessorUtils.typeVariableOf(typeParam));
     }
 
     String typeArguments =

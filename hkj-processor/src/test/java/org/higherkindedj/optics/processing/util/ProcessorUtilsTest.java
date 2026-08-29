@@ -4,8 +4,10 @@ package org.higherkindedj.optics.processing.util;
 
 import static com.google.testing.compile.Compiler.javac;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.catchThrowable;
 
 import com.google.testing.compile.JavaFileObjects;
+import com.palantir.javapoet.TypeVariableName;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -365,6 +367,283 @@ class ProcessorUtilsTest {
           .containsEntry("memberOfGenericOuter", true)
           // A static nested class has no enclosing instance type, so the outer cannot reach it.
           .containsEntry("staticallyNested", false);
+    }
+  }
+
+  /**
+   * Contract tests for {@link ProcessorUtils#typeNameOf} and {@link ProcessorUtils#typeVariableOf},
+   * driven through a real compilation so the mirrors carry the annotations javac attached. The
+   * subject declares one field per shape; each field's type is the type to name.
+   */
+  @Nested
+  @DisplayName("typeNameOf and typeVariableOf")
+  class TypeNames {
+
+    /** Renders each probe field's type, keyed by field name, plus the subject's type parameters. */
+    private static final class CapturingProcessor extends AbstractProcessor {
+      private final Map<String, String> names = new LinkedHashMap<>();
+      private final Map<String, String> variables = new LinkedHashMap<>();
+
+      @Override
+      public Set<String> getSupportedAnnotationTypes() {
+        return Set.of("*");
+      }
+
+      @Override
+      public SourceVersion getSupportedSourceVersion() {
+        return SourceVersion.latestSupported();
+      }
+
+      @Override
+      public boolean process(Set<? extends TypeElement> annotations, RoundEnvironment round) {
+        TypeElement subject = processingEnv.getElementUtils().getTypeElement("com.test.Subject");
+        if (subject == null) {
+          return false;
+        }
+        for (VariableElement field : ElementFilter.fieldsIn(subject.getEnclosedElements())) {
+          names.put(
+              field.getSimpleName().toString(),
+              ProcessorUtils.typeNameOf(field.asType()).toString());
+        }
+        for (TypeParameterElement parameter : subject.getTypeParameters()) {
+          variables.put(parameter.getSimpleName().toString(), render(parameter));
+        }
+        return false;
+      }
+
+      /** The declaration as the generated file would write it: annotations, name, then bounds. */
+      private static String render(TypeParameterElement parameter) {
+        TypeVariableName variable = ProcessorUtils.typeVariableOf(parameter);
+        StringBuilder out = new StringBuilder();
+        variable.annotations().forEach(annotation -> out.append(annotation).append(" "));
+        out.append(variable.name());
+        variable.bounds().forEach(bound -> out.append(" extends ").append(bound));
+        return out.toString();
+      }
+    }
+
+    /** Compiles the subject once and hands back the processor holding the rendered names. */
+    private CapturingProcessor probe() {
+      var outer =
+          JavaFileObjects.forSourceString(
+              "com.test.Outer",
+              """
+              package com.test;
+              public class Outer<X> {
+                  public class Inner {}
+                  public class Pair<Y> {}
+                  public static class Nested {}
+              }
+              """);
+      var subject =
+          JavaFileObjects.forSourceString(
+              "com.test.Subject",
+              """
+              package com.test;
+              import java.util.List;
+              import java.util.Map;
+              import org.jspecify.annotations.Nullable;
+              @SuppressWarnings("unused")
+              public class Subject<T extends @Nullable Object, U extends @Nullable Number, V> {
+                  String plain;
+                  @Nullable String annotated;
+                  List<@Nullable String> annotatedArgument;
+                  @Nullable List<String> annotatedWhole;
+                  Map<@Nullable String, List<@Nullable Integer>> annotatedDeeply;
+                  String @Nullable [] annotatedArray;
+                  @Nullable String[] annotatedComponent;
+                  int @Nullable [] annotatedPrimitiveArray;
+                  int primitive;
+                  List<? extends @Nullable Number> extendsWildcard;
+                  List<? super @Nullable String> superWildcard;
+                  List<?> unboundedWildcard;
+                  @Nullable T annotatedVariable;
+                  T plainVariable;
+                  Outer<@Nullable String>.Inner memberOfAnnotatedOuter;
+                  Outer<@Nullable String>.Pair<Integer> parameterisedMemberOfAnnotatedOuter;
+                  Outer.Nested staticallyNested;
+              }
+              """);
+      var processor = new CapturingProcessor();
+      javac().withProcessors(processor).compile(outer, subject);
+      return processor;
+    }
+
+    @Test
+    @DisplayName("keeps an annotation written on the type itself, and adds none where none was")
+    void keepsAnAnnotationWrittenOnTheTypeItself() {
+      assertThat(probe().names)
+          .containsEntry("plain", "java.lang.String")
+          .containsEntry("annotated", "java.lang. @org.jspecify.annotations.Nullable String")
+          .containsEntry("primitive", "int")
+          .containsEntry("staticallyNested", "com.test.Outer.Nested");
+    }
+
+    @Test
+    @DisplayName("keeps an annotation on a type argument at any depth")
+    void keepsAnAnnotationOnATypeArgument() {
+      assertThat(probe().names)
+          .containsEntry(
+              "annotatedArgument",
+              "java.util.List<java.lang. @org.jspecify.annotations.Nullable String>")
+          .containsEntry(
+              "annotatedWhole",
+              "java.util. @org.jspecify.annotations.Nullable List<java.lang.String>")
+          .containsEntry(
+              "annotatedDeeply",
+              "java.util.Map<java.lang. @org.jspecify.annotations.Nullable String,"
+                  + " java.util.List<java.lang. @org.jspecify.annotations.Nullable Integer>>");
+    }
+
+    @Test
+    @DisplayName("keeps the array and its component apart")
+    void keepsTheArrayAndItsComponentApart() {
+      // `String @Nullable []` is a nullable array of non-null elements; `@Nullable String[]` is a
+      // non-null array of nullable ones. Collapsing them would invert one of the two.
+      assertThat(probe().names)
+          .containsEntry("annotatedArray", "java.lang.String @org.jspecify.annotations.Nullable []")
+          .containsEntry(
+              "annotatedComponent", "java.lang. @org.jspecify.annotations.Nullable String[]")
+          .containsEntry("annotatedPrimitiveArray", "int @org.jspecify.annotations.Nullable []");
+    }
+
+    @Test
+    @DisplayName("keeps an annotation on either wildcard bound, and leaves an unbounded one alone")
+    void keepsAnAnnotationOnAWildcardBound() {
+      assertThat(probe().names)
+          .containsEntry(
+              "extendsWildcard",
+              "java.util.List<? extends java.lang. @org.jspecify.annotations.Nullable Number>")
+          .containsEntry(
+              "superWildcard",
+              "java.util.List<? super java.lang. @org.jspecify.annotations.Nullable String>")
+          .containsEntry("unboundedWildcard", "java.util.List<?>");
+    }
+
+    @Test
+    @DisplayName("keeps an annotation on a type variable's use")
+    void keepsAnAnnotationOnATypeVariableUse() {
+      assertThat(probe().names)
+          .containsEntry("annotatedVariable", "@org.jspecify.annotations.Nullable T")
+          .containsEntry("plainVariable", "T");
+    }
+
+    @Test
+    @DisplayName("keeps an annotation on an enclosing type's argument")
+    void keepsAnAnnotationOnAnEnclosingTypesArgument() {
+      assertThat(probe().names)
+          .containsEntry(
+              "memberOfAnnotatedOuter",
+              "com.test.Outer<java.lang. @org.jspecify.annotations.Nullable String>.Inner")
+          .containsEntry(
+              "parameterisedMemberOfAnnotatedOuter",
+              "com.test.Outer<java.lang. @org.jspecify.annotations.Nullable String>"
+                  + ".Pair<java.lang.Integer>");
+    }
+
+    @Test
+    @DisplayName("keeps an annotated Object bound that javapoet would otherwise strip")
+    void keepsAnAnnotatedObjectBound() {
+      // `<T extends @Nullable Object>` is the declaration that admits a nullable instantiation.
+      // Stripping the bound narrows the generated type below the type it wraps.
+      assertThat(probe().variables)
+          .containsEntry("T", "T extends java.lang. @org.jspecify.annotations.Nullable Object")
+          .containsEntry("U", "U extends java.lang. @org.jspecify.annotations.Nullable Number")
+          // A bare Object bound is still stripped: it is the implicit one, and writing it back
+          // would be noise.
+          .containsEntry("V", "V");
+    }
+
+    @Test
+    @DisplayName("keeps an annotation written on the type parameter itself")
+    void keepsAnAnnotationOnTheTypeParameterItself() {
+      var subject =
+          JavaFileObjects.forSourceString(
+              "com.test.Subject",
+              """
+              package com.test;
+              import java.lang.annotation.ElementType;
+              import java.lang.annotation.Target;
+              public class Subject<@Subject.Marked T> {
+                  @Target(ElementType.TYPE_PARAMETER)
+                  public @interface Marked {}
+              }
+              """);
+      var processor = new CapturingProcessor();
+      javac().withProcessors(processor).compile(subject);
+
+      assertThat(processor.variables).containsEntry("T", "@com.test.Subject.Marked T");
+    }
+
+    @Test
+    @DisplayName("leaves a type javapoet has no name for to javapoet")
+    void leavesATypeJavapoetHasNoNameForToJavapoet() {
+      // An intersection reaches here through a variable's upper bound. It implements DeclaredType,
+      // so dispatching on the interface rather than the kind would ask one for a class element it
+      // does not have instead of leaving javapoet to refuse it.
+      var subject =
+          JavaFileObjects.forSourceString(
+              "com.test.Subject",
+              """
+              package com.test;
+              import java.util.List;
+              public interface Subject<V extends Runnable & List<String>> {}
+              """);
+
+      var processor =
+          new AbstractProcessor() {
+            Throwable thrown;
+
+            @Override
+            public Set<String> getSupportedAnnotationTypes() {
+              return Set.of("*");
+            }
+
+            @Override
+            public SourceVersion getSupportedSourceVersion() {
+              return SourceVersion.latestSupported();
+            }
+
+            @Override
+            public boolean process(Set<? extends TypeElement> annotations, RoundEnvironment round) {
+              TypeElement type = processingEnv.getElementUtils().getTypeElement("com.test.Subject");
+              if (type == null) {
+                return false;
+              }
+              TypeMirror intersection =
+                  ((javax.lang.model.type.TypeVariable)
+                          type.getTypeParameters().getFirst().asType())
+                      .getUpperBound();
+              thrown = catchThrowable(() -> ProcessorUtils.typeNameOf(intersection));
+              return false;
+            }
+          };
+      javac().withProcessors(processor).compile(subject);
+
+      assertThat(processor.thrown).isInstanceOf(IllegalArgumentException.class);
+    }
+
+    @Test
+    @DisplayName("names a type javac could not resolve the way a resolved one is named")
+    void namesAnUnresolvedTypeTheWayAResolvedOneIsNamed() {
+      // A processor runs before every type is resolvable, so an ERROR type reaches the walk. It
+      // is a declared type that javac could not find, and naming it as one is what lets a
+      // generator emit the name the author wrote and let the next round settle it.
+      var subject =
+          JavaFileObjects.forSourceString(
+              "com.test.Subject",
+              """
+              package com.test;
+              @SuppressWarnings("unused")
+              public class Subject {
+                  Missing unresolved;
+              }
+              """);
+
+      var processor = new CapturingProcessor();
+      javac().withProcessors(processor).compile(subject);
+
+      assertThat(processor.names).containsEntry("unresolved", "Missing");
     }
   }
 }

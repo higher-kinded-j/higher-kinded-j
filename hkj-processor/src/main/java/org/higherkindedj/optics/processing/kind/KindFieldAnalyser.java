@@ -15,6 +15,7 @@ import javax.tools.Diagnostic;
 import org.higherkindedj.optics.annotations.TraverseField;
 import org.higherkindedj.optics.processing.kind.KindRegistry.KindMapping;
 import org.higherkindedj.optics.processing.util.ExcludeFromJacocoGeneratedReport;
+import org.higherkindedj.optics.processing.util.ProcessorUtils;
 
 /**
  * Analyses record fields to detect and extract information about {@code Kind<F, A>} types.
@@ -89,7 +90,7 @@ public class KindFieldAnalyser {
 
     TypeMirror witnessTypeMirror = typeArgs.get(0);
     TypeMirror elementTypeMirror = typeArgs.get(1);
-    TypeName elementType = TypeName.get(elementTypeMirror).box();
+    TypeName elementType = ProcessorUtils.typeNameOf(elementTypeMirror).box();
 
     // Check for explicit @TraverseField annotation first
     TraverseField traverseFieldAnnotation = component.getAnnotation(TraverseField.class);

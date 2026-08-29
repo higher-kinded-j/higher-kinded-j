@@ -21,6 +21,7 @@ import javax.lang.model.type.TypeVariable;
 import javax.tools.Diagnostic;
 import org.higherkindedj.hkt.effect.annotation.EffectAlgebra;
 import org.higherkindedj.optics.processing.util.ExcludeFromJacocoGeneratedReport;
+import org.higherkindedj.optics.processing.util.ProcessorUtils;
 
 /**
  * Annotation processor for {@link EffectAlgebra @EffectAlgebra} that generates HKT boilerplate for
@@ -706,7 +707,7 @@ public class EffectAlgebraProcessor extends AbstractProcessor {
    */
   private static TypeName componentTypeIn(
       RecordComponentElement component, TypeVariableName resultType) {
-    return substituted(TypeName.get(component.asType()), resultType);
+    return substituted(ProcessorUtils.typeNameOf(component.asType()), resultType);
   }
 
   /**
@@ -715,10 +716,16 @@ public class EffectAlgebraProcessor extends AbstractProcessor {
    * <p>A permitted record declares the algebra's result type parameter and may declare no other,
    * and a sealed interface is implicitly static so no enclosing class's parameter is in scope
    * either. Every type variable a component can mention is therefore that one.
+   *
+   * <p>Each rebuilt layer is re-annotated. The smart constructors this feeds are emitted into a
+   * {@code @NullMarked} class, where dropping a component's {@code @Nullable} would not merely lose
+   * it but assert the opposite: {@code write(null)} would be rejected for a component the record it
+   * wraps accepts null for. A parameterised type carries its annotations on its raw type, so
+   * rebuilding from that keeps them without help.
    */
   private static TypeName substituted(TypeName type, TypeVariableName resultType) {
     if (type instanceof TypeVariableName) {
-      return resultType;
+      return resultType.annotated(type.annotations());
     }
     if (type instanceof ParameterizedTypeName parameterized) {
       TypeName[] arguments =
@@ -728,14 +735,17 @@ public class EffectAlgebraProcessor extends AbstractProcessor {
       return ParameterizedTypeName.get(parameterized.rawType(), arguments);
     }
     if (type instanceof ArrayTypeName array) {
-      return ArrayTypeName.of(substituted(array.componentType(), resultType));
+      return ArrayTypeName.of(substituted(array.componentType(), resultType))
+          .annotated(type.annotations());
     }
     if (type instanceof WildcardTypeName wildcard) {
       if (!wildcard.lowerBounds().isEmpty()) {
         return WildcardTypeName.supertypeOf(
-            substituted(wildcard.lowerBounds().getFirst(), resultType));
+                substituted(wildcard.lowerBounds().getFirst(), resultType))
+            .annotated(type.annotations());
       }
-      return WildcardTypeName.subtypeOf(substituted(wildcard.upperBounds().getFirst(), resultType));
+      return WildcardTypeName.subtypeOf(substituted(wildcard.upperBounds().getFirst(), resultType))
+          .annotated(type.annotations());
     }
     return type;
   }

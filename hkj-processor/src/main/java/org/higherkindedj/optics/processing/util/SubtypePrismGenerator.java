@@ -6,7 +6,6 @@ import com.palantir.javapoet.ClassName;
 import com.palantir.javapoet.MethodSpec;
 import com.palantir.javapoet.ParameterizedTypeName;
 import com.palantir.javapoet.TypeName;
-import com.palantir.javapoet.TypeVariableName;
 import java.util.List;
 import java.util.Optional;
 import javax.annotation.processing.Messager;
@@ -58,7 +57,7 @@ public final class SubtypePrismGenerator {
             : ParameterizedTypeName.get(
                 ClassName.get(subtype),
                 subtype.getTypeParameters().stream()
-                    .map(TypeVariableName::get)
+                    .map(ProcessorUtils::typeVariableOf)
                     .toArray(TypeName[]::new));
 
     ParameterizedTypeName prismTypeName =
@@ -79,7 +78,7 @@ public final class SubtypePrismGenerator {
             .returns(prismTypeName);
 
     for (TypeParameterElement typeParameter : subtype.getTypeParameters()) {
-      methodBuilder.addTypeVariable(TypeVariableName.get(typeParameter));
+      methodBuilder.addTypeVariable(ProcessorUtils.typeVariableOf(typeParameter));
     }
 
     return methodBuilder

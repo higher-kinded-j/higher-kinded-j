@@ -26,8 +26,10 @@ module org.higherkindedj.processor {
       org.higherkindedj.optics.processing.AccumulatorProcessor,
       org.higherkindedj.optics.processing.AssemblyProcessor;
 
-  // It exports the SPI so the plugins module can implement it.
+  // It exports the SPI so the plugins module can implement it, and the shared processor
+  // helpers so that a plugin names a type the same way the generators that call it do.
   exports org.higherkindedj.optics.processing.spi;
+  exports org.higherkindedj.optics.processing.util;
 
   // Export Effect Path processor package
   exports org.higherkindedj.optics.processing.effect;

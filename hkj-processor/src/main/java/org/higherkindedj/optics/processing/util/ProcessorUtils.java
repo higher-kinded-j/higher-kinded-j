@@ -2,6 +2,13 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.optics.processing.util;
 
+import com.palantir.javapoet.AnnotationSpec;
+import com.palantir.javapoet.ArrayTypeName;
+import com.palantir.javapoet.ClassName;
+import com.palantir.javapoet.ParameterizedTypeName;
+import com.palantir.javapoet.TypeName;
+import com.palantir.javapoet.TypeVariableName;
+import com.palantir.javapoet.WildcardTypeName;
 import java.util.ArrayDeque;
 import java.util.Deque;
 import java.util.HashSet;
@@ -15,6 +22,7 @@ import javax.lang.model.element.ExecutableElement;
 import javax.lang.model.element.Modifier;
 import javax.lang.model.element.Name;
 import javax.lang.model.element.TypeElement;
+import javax.lang.model.element.TypeParameterElement;
 import javax.lang.model.type.ArrayType;
 import javax.lang.model.type.DeclaredType;
 import javax.lang.model.type.ExecutableType;
@@ -368,6 +376,99 @@ public final class ProcessorUtils {
                   && mentions(wildcard.getSuperBound(), parameter));
       default -> false;
     };
+  }
+
+  /**
+   * The name of a type as written, with its type-use annotations kept.
+   *
+   * <p>{@link TypeName#get(TypeMirror)} rebuilds a name from the element alone and never consults
+   * {@link TypeMirror#getAnnotationMirrors()} at any depth, so every type-use annotation on the
+   * declaration is dropped on the way into generated source. That is not merely a loss of
+   * information: inside a {@code @NullMarked} scope an unannotated type <em>means</em> non-null, so
+   * a dropped {@code @Nullable} asserts the opposite of what the author wrote. The scope is the
+   * consumer's to set - a {@code package-info} or {@code module-info} carrying {@code @NullMarked}
+   * covers generated files in that package as surely as an annotation the generator stamps itself -
+   * so a generator cannot know that its output is unconstrained.
+   *
+   * <p>The walk mirrors javapoet's own, re-attaching each mirror's annotations as it goes, so an
+   * annotation is kept wherever it was written: on the type itself, on a type argument at any
+   * depth, on an array's component or on the array, and on a wildcard bound.
+   *
+   * @param type the type to name; must not be null
+   * @return its name, annotated as the source annotated it (non-null)
+   * @since 0.4.10
+   */
+  public static TypeName typeNameOf(TypeMirror type) {
+    List<AnnotationSpec> annotations =
+        type.getAnnotationMirrors().stream().map(AnnotationSpec::get).toList();
+    // Dispatch on the kind, as javapoet's own visitor does, rather than on the interface: javac's
+    // intersection implements DeclaredType, so a pattern switch would send one down the declared
+    // arm and ask it for a class element it does not have. Everything this does not rebuild -
+    // a primitive, a type variable, void, and the kinds that have no name at all - javapoet names
+    // from the mirror alone, and it stays javapoet's call which of those it refuses.
+    TypeName name =
+        switch (type.getKind()) {
+          case ARRAY -> ArrayTypeName.of(typeNameOf(((ArrayType) type).getComponentType()));
+          case WILDCARD -> wildcardNameOf((WildcardType) type);
+          case DECLARED, ERROR -> declaredNameOf((DeclaredType) type);
+          default -> TypeName.get(type);
+        };
+    return annotations.isEmpty() ? name : name.annotated(annotations);
+  }
+
+  private static TypeName declaredNameOf(DeclaredType declared) {
+    ClassName rawType = ClassName.get((TypeElement) declared.asElement());
+    TypeMirror enclosingType = declared.getEnclosingType();
+    // A static member has no enclosing instance type, so javac reports NONE for it and the kind
+    // test alone settles both cases. The enclosing type is only ever read back below when it came
+    // out parameterised, and no member that could be static is written under one.
+    TypeName enclosing =
+        enclosingType.getKind() == TypeKind.NONE ? null : typeNameOf(enclosingType);
+    List<? extends TypeMirror> typeArguments = declared.getTypeArguments();
+    if (typeArguments.isEmpty() && !(enclosing instanceof ParameterizedTypeName)) {
+      return rawType;
+    }
+    List<TypeName> argumentNames = typeArguments.stream().map(ProcessorUtils::typeNameOf).toList();
+    return enclosing instanceof ParameterizedTypeName parameterised
+        ? parameterised.nestedClass(rawType.simpleName(), argumentNames)
+        : ParameterizedTypeName.get(rawType, argumentNames.toArray(new TypeName[0]));
+  }
+
+  private static TypeName wildcardNameOf(WildcardType wildcard) {
+    TypeMirror extendsBound = wildcard.getExtendsBound();
+    if (extendsBound != null) {
+      return WildcardTypeName.subtypeOf(typeNameOf(extendsBound));
+    }
+    TypeMirror superBound = wildcard.getSuperBound();
+    return superBound == null
+        ? WildcardTypeName.subtypeOf(ClassName.OBJECT)
+        : WildcardTypeName.supertypeOf(typeNameOf(superBound));
+  }
+
+  /**
+   * The declaration of a type parameter, with the annotations on its bounds kept.
+   *
+   * <p>{@link TypeVariableName#get(TypeParameterElement)} names each bound through {@link
+   * TypeName#get(TypeMirror)}, which drops the annotation, and then removes any bound that is bare
+   * {@code Object}. Between them {@code <T extends @Nullable Object>} becomes {@code <T>}, which is
+   * the narrower declaration: the generated type no longer admits an instantiation the type it
+   * wraps permits.
+   *
+   * <p>Naming the bounds through {@link #typeNameOf(TypeMirror)} is enough to fix both halves. An
+   * annotated {@code Object} is not equal to the bare one, so it survives the removal that the bare
+   * bound is still rightly subject to.
+   *
+   * @param parameter the type parameter to name; must not be null
+   * @return its name and bounds, annotated as the source annotated them (non-null)
+   * @since 0.4.10
+   */
+  public static TypeVariableName typeVariableOf(TypeParameterElement parameter) {
+    TypeName[] bounds =
+        parameter.getBounds().stream().map(ProcessorUtils::typeNameOf).toArray(TypeName[]::new);
+    TypeVariableName variable = TypeVariableName.get(parameter.getSimpleName().toString(), bounds);
+    List<AnnotationSpec> annotations =
+        parameter.getAnnotationMirrors().stream().map(AnnotationSpec::get).toList();
+    return annotations.isEmpty() ? variable : variable.annotated(annotations);
   }
 
   /**
