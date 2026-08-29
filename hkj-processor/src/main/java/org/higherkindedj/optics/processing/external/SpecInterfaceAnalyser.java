@@ -847,8 +847,9 @@ public class SpecInterfaceAnalyser {
    * <p>Unlike {@link #memberTypeOf} this does not guard on {@link
    * ProcessorUtils#carriesInstantiation}, and a raw source type does reach it: nothing refuses
    * {@code OpticsSpec<Box>} for a generic {@code Box}, so the parameter comes back erased. That gap
-   * is not this method's to close - the raw source type should not have been accepted - and adding
-   * a guard here would only hide it one level further in.
+   * is not this method's to close - the raw source type should not have been accepted, which is
+   * #771 - and a guard here would bury it one level in while every other reader, and the raw name
+   * in each generated signature, stayed wrong.
    *
    * @param sourceType the instantiated source type {@code S}
    * @param constructor a single-argument constructor, whose one parameter is read
