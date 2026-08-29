@@ -909,6 +909,11 @@ public class MappingProcessor extends AbstractProcessor {
    * A component's type as seen under the spec's instantiation of its record. The substitution runs
    * only for generic records, so concrete pairs stay on the exact pre-instantiation path (and never
    * rely on {@code asMemberOf} accepting record components).
+   *
+   * <p>Reading the declaration's parameters rather than the site's arguments is what makes that
+   * true, and it is safe only because a raw domain never gets here: {@code @GenerateMapping}
+   * refuses one at the declaration. See {@link ProcessorUtils#memberOf} for why this reader and the
+   * two in {@code SpecInterfaceAnalyser} answer a raw site differently on purpose.
    */
   private TypeMirror componentType(DeclaredType owner, RecordComponentElement component) {
     return ((TypeElement) owner.asElement()).getTypeParameters().isEmpty()
