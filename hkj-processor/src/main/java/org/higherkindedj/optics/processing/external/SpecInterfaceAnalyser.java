@@ -844,6 +844,13 @@ public class SpecInterfaceAnalyser {
    * <p>Only the class's own variables are substituted. A constructor that declares parameters of
    * its own keeps them, and is left to be rejected.
    *
+   * <p>Unlike {@link #memberTypeOf} this does not guard on {@link
+   * ProcessorUtils#carriesInstantiation}, and a raw source type does reach it: nothing refuses
+   * {@code OpticsSpec<Box>} for a generic {@code Box}, so the parameter comes back erased. That gap
+   * is not this method's to close - the raw source type should not have been accepted, which is
+   * #771 - and a guard here would bury it one level in while every other reader, and the raw name
+   * in each generated signature, stayed wrong.
+   *
    * @param sourceType the instantiated source type {@code S}
    * @param constructor a single-argument constructor, whose one parameter is read
    * @return the parameter type under {@code sourceType}'s instantiation
@@ -1229,6 +1236,11 @@ public class SpecInterfaceAnalyser {
    * it as {@code Holder<List<String>>}, so what the traversal has to be detected for is {@code
    * List<String>}. Reading the declaration instead both rejects a container it could have found and
    * names a variable the spec never wrote.
+   *
+   * <p>The guard is why this is not {@link ProcessorUtils#memberOf} outright: that helper lets a
+   * raw site erase, and erasing here rejected a container the spec had written (#738). The two
+   * raw-site answers differ on purpose - see {@link ProcessorUtils#memberOf} for the map of which
+   * reader wants which.
    *
    * @param sourceType the instantiated source type {@code S}
    * @param member the accessor to read

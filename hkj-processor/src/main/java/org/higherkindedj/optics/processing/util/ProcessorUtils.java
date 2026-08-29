@@ -311,6 +311,23 @@ public final class ProcessorUtils {
    * instead lets analysis pass and leaves the generator emitting a call the erased member cannot
    * take.
    *
+   * <p>That is this helper's policy, not the only one in the processor, and the difference is
+   * deliberate rather than drift. A caller that must not erase guards the call itself, because what
+   * a raw site should produce is the caller's question:
+   *
+   * <ul>
+   *   <li>{@code SpecInterfaceAnalyser.memberTypeOf} guards with {@link #carriesInstantiation} and
+   *       reads the declaration under a raw site. Erasing there rejected a container the spec had
+   *       written, which is the {@code @ThroughField} regression #738 caught.
+   *   <li>{@code MappingProcessor.componentType} asks whether the record <em>declares</em>
+   *       parameters rather than whether the site supplies them, so that a concrete pair never
+   *       relies on {@code asMemberOf} accepting a record component. A raw domain cannot reach it:
+   *       {@code @GenerateMapping} refuses one at the declaration.
+   * </ul>
+   *
+   * <p>Settled under #740: the three readers are not near-copies to be merged. Consolidating them
+   * would have to pick one raw-site answer, and they want different ones.
+   *
    * @param types the round's type utilities; must not be null
    * @param owner the instantiated type the member is read on; must not be null
    * @param member the member to read; must not be null
