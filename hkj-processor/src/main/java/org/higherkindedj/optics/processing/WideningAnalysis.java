@@ -2,6 +2,7 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.optics.processing;
 
+import com.palantir.javapoet.AnnotationSpec;
 import com.palantir.javapoet.ClassName;
 import com.palantir.javapoet.TypeName;
 import java.util.ArrayList;
@@ -351,18 +352,42 @@ public final class WideningAnalysis {
   /** The type the widened path focuses on: what the last layer peeled unwraps to. */
   private static TypeName focusType(TypeMirror componentType, List<Step> steps) {
     if (steps.isEmpty()) {
-      return TypeName.get(componentType).box();
+      return ProcessorUtils.typeNameOf(componentType).box();
     }
     Step last = steps.getLast();
     return switch (last.kind()) {
-      // .nullable() rules out the null rather than unwrapping, so the component stays in focus.
-      case NULLABLE -> TypeName.get(componentType).box();
+      // .nullable() rules out the null rather than unwrapping, so the component stays in focus -
+      // but without the annotation that put the step there. Affines.nullable() is
+      // Affine<@Nullable A, A>: the widening is what makes the focus non-null, and repeating
+      // @Nullable on it would describe a value the affine never yields.
+      case NULLABLE -> nullRuledOut(ProcessorUtils.typeNameOf(componentType).box());
       case KIND_EXACTLY_ONE, KIND_ZERO_OR_ONE, KIND_ZERO_OR_MORE -> last.kindInfo().elementType();
       case OPTIONAL, LIST, SET, COLLECTION, SPI_ZERO_OR_ONE, SPI_ZERO_OR_MORE ->
           last.innerType() == null
               ? ClassName.get(Object.class)
-              : TypeName.get(last.innerType()).box();
+              : ProcessorUtils.typeNameOf(last.innerType()).box();
     };
+  }
+
+  /**
+   * The component's name with a nullness annotation on the component itself dropped.
+   *
+   * <p>Only the outermost one goes: {@code @Nullable List<@Nullable String>} widened by {@code
+   * .nullable()} focuses a present {@code List<@Nullable String>}, whose elements are still as
+   * nullable as they were written. Anything else the author wrote at that position stays, because
+   * it is only the nullness the widening consumed.
+   */
+  private static TypeName nullRuledOut(TypeName name) {
+    List<AnnotationSpec> kept =
+        name.annotations().stream()
+            .filter(
+                annotation ->
+                    !NullableAnnotations.NULLABLE_ANNOTATION_NAMES.contains(
+                        annotation.type().toString()))
+            .toList();
+    return kept.size() == name.annotations().size()
+        ? name
+        : name.withoutAnnotations().annotated(kept);
   }
 
   /**
@@ -411,7 +436,7 @@ public final class WideningAnalysis {
     if (!witness) {
       return "." + method + "()";
     }
-    args.add(TypeName.get(step.innerType()));
+    args.add(ProcessorUtils.typeNameOf(step.innerType()));
     return ".<$T>" + method + "()";
   }
 

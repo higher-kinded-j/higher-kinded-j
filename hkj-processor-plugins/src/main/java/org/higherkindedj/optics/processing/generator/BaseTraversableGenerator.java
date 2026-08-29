@@ -10,6 +10,7 @@ import javax.lang.model.element.RecordComponentElement;
 import javax.lang.model.type.DeclaredType;
 import javax.lang.model.type.TypeMirror;
 import org.higherkindedj.optics.processing.spi.TraversableGenerator;
+import org.higherkindedj.optics.processing.util.ProcessorUtils;
 
 /**
  * An abstract base class for {@link TraversableGenerator} implementations that provides common
@@ -53,7 +54,7 @@ public abstract class BaseTraversableGenerator implements TraversableGenerator {
         && containerType.getTypeArguments().size() > index) {
       final TypeMirror resolved = resolveEffectiveType(containerType.getTypeArguments().get(index));
       if (resolved != null) {
-        return TypeName.get(resolved).box();
+        return ProcessorUtils.typeNameOf(resolved).box();
       }
     }
     return ClassName.get(Object.class); // Raw, absent, or a wildcard standing for anything at all.

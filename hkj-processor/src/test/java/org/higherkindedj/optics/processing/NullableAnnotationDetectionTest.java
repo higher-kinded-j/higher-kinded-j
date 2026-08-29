@@ -79,9 +79,10 @@ class NullableAnnotationDetectionTest {
 
       assertThat(compilation).succeeded();
       // The element annotation says nothing about the field, so the list widens as any other
-      // list does: by its elements, not by its nullability.
+      // list does: by its elements, not by its nullability. It does describe the element the
+      // traversal arrives at, which is why the focus keeps it.
       assertGeneratedCodeContains(
-          compilation, "com.example.TagsFocus", "TraversalPath<Tags, String> labels()");
+          compilation, "com.example.TagsFocus", "TraversalPath<Tags, @Nullable String> labels()");
       assertGeneratedCodeDoesNotContain(compilation, "com.example.TagsFocus", ".nullable()");
     }
 
@@ -106,7 +107,42 @@ class NullableAnnotationDetectionTest {
       assertGeneratedCodeContains(
           compilation, "com.example.ReadingsFocus", "AffinePath<Readings, String[]> samples()");
       assertGeneratedCodeContains(
-          compilation, "com.example.ReadingsFocus", "FocusPath<Readings, String[]> labels()");
+          compilation,
+          "com.example.ReadingsFocus",
+          "FocusPath<Readings, @Nullable String[]> labels()");
+    }
+
+    @Test
+    @DisplayName("the widening consumes the nullness and nothing else at that position")
+    void theWideningConsumesTheNullnessAndNothingElse() {
+      final JavaFileObject tag =
+          JavaFileObjects.forSourceString(
+              "com.example.Tag",
+              """
+              package com.example;
+              import java.lang.annotation.ElementType;
+              import java.lang.annotation.Target;
+              @Target(ElementType.TYPE_USE)
+              public @interface Tag {}
+              """);
+      final JavaFileObject source =
+          JavaFileObjects.forSourceString(
+              "com.example.Marked",
+              """
+              package com.example;
+              import org.higherkindedj.optics.annotations.GenerateFocus;
+              import org.jspecify.annotations.Nullable;
+              @GenerateFocus
+              public record Marked(@Tag @Nullable String note) {}
+              """);
+
+      Compilation compilation = javac().withProcessors(new FocusProcessor()).compile(tag, source);
+
+      assertThat(compilation).succeeded();
+      // .nullable() rules the null out, so @Nullable goes. It says nothing about @Tag, which
+      // describes the value the affine does yield and so stays on the focus.
+      assertGeneratedCodeContains(
+          compilation, "com.example.MarkedFocus", "AffinePath<Marked, @Tag String> note()");
     }
 
     @Test

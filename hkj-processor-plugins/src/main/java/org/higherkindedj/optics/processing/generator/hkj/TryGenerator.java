@@ -18,6 +18,7 @@ import org.higherkindedj.hkt.trymonad.Try;
 import org.higherkindedj.optics.processing.generator.BaseTraversableGenerator;
 import org.higherkindedj.optics.processing.spi.Cardinality;
 import org.higherkindedj.optics.processing.spi.TraversableGenerator;
+import org.higherkindedj.optics.processing.util.ProcessorUtils;
 
 /**
  * A {@link TraversableGenerator} that adds support for traversing fields of type {@link Try}. This
@@ -71,7 +72,9 @@ public class TryGenerator extends BaseTraversableGenerator {
 
     return CodeBlock.builder()
         .addStatement(
-            "final $T tryA = source.$L()", TypeName.get(component.asType()), componentName)
+            "final $T tryA = source.$L()",
+            ProcessorUtils.typeNameOf(component.asType()),
+            componentName)
         // Use the safe `foldFailureFirst` method to handle both cases without throwing exceptions.
         .addStatement(
             "return tryA.foldFailureFirst(\n"

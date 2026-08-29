@@ -18,6 +18,7 @@ import org.higherkindedj.hkt.either.Either;
 import org.higherkindedj.optics.processing.generator.BaseTraversableGenerator;
 import org.higherkindedj.optics.processing.spi.Cardinality;
 import org.higherkindedj.optics.processing.spi.TraversableGenerator;
+import org.higherkindedj.optics.processing.util.ProcessorUtils;
 
 /**
  * A {@link TraversableGenerator} that adds support for traversing fields of type {@link Either},
@@ -76,7 +77,9 @@ public class EitherGenerator extends BaseTraversableGenerator {
         // The local keeps the component's own type, wildcards and all, so that the accessor
         // assigns to it; every other mention names the type a wildcard resolves to.
         .addStatement(
-            "final $T either = source.$L()", TypeName.get(component.asType()), componentName)
+            "final $T either = source.$L()",
+            ProcessorUtils.typeNameOf(component.asType()),
+            componentName)
         .beginControlFlow("if (either.isRight())")
         .addStatement("final var g_of_b = f.apply(either.getRight())")
         .addStatement(

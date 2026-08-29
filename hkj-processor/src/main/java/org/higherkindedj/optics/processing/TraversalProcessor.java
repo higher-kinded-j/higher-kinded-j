@@ -134,7 +134,7 @@ public class TraversalProcessor extends AbstractProcessor {
     final TypeMirror componentType = component.asType();
 
     if (componentType instanceof ArrayType arrayType) {
-      focusType = TypeName.get(arrayType.getComponentType()).box();
+      focusType = ProcessorUtils.typeNameOf(arrayType.getComponentType()).box();
     } else if (componentType instanceof DeclaredType declaredType) {
       if (declaredType.getTypeArguments().isEmpty()) {
         return null; // Cannot traverse a raw type.
@@ -151,7 +151,9 @@ public class TraversalProcessor extends AbstractProcessor {
       TypeMirror focusArgument =
           ProcessorUtils.resolveWildcard(declaredType.getTypeArguments().get(typeArgumentIndex));
       focusType =
-          focusArgument == null ? ClassName.get(Object.class) : TypeName.get(focusArgument).box();
+          focusArgument == null
+              ? ClassName.get(Object.class)
+              : ProcessorUtils.typeNameOf(focusArgument).box();
 
     } else {
       return null; // Not a type we can handle.
@@ -198,7 +200,7 @@ public class TraversalProcessor extends AbstractProcessor {
 
     final MethodSpec.Builder methodBuilder = MethodSpec.methodBuilder(componentName);
     for (TypeParameterElement typeParameter : recordElement.getTypeParameters()) {
-      methodBuilder.addTypeVariable(TypeVariableName.get(typeParameter));
+      methodBuilder.addTypeVariable(ProcessorUtils.typeVariableOf(typeParameter));
     }
 
     return methodBuilder
@@ -235,7 +237,7 @@ public class TraversalProcessor extends AbstractProcessor {
     }
     return ParameterizedTypeName.get(
         recordClassName,
-        typeParameters.stream().map(TypeVariableName::get).toArray(TypeName[]::new));
+        typeParameters.stream().map(ProcessorUtils::typeVariableOf).toArray(TypeName[]::new));
   }
 
   private void error(String msg, Element e) {

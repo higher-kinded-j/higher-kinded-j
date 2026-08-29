@@ -10,7 +10,6 @@ import com.palantir.javapoet.MethodSpec;
 import com.palantir.javapoet.ParameterizedTypeName;
 import com.palantir.javapoet.TypeName;
 import com.palantir.javapoet.TypeSpec;
-import com.palantir.javapoet.TypeVariableName;
 import java.io.IOException;
 import java.util.ArrayDeque;
 import java.util.Deque;
@@ -23,7 +22,6 @@ import javax.lang.model.element.Element;
 import javax.lang.model.element.Modifier;
 import javax.lang.model.element.TypeElement;
 import javax.lang.model.element.TypeParameterElement;
-import javax.lang.model.type.DeclaredType;
 import javax.lang.model.type.TypeMirror;
 import javax.tools.Diagnostic;
 import org.higherkindedj.optics.Lens;
@@ -160,7 +158,7 @@ public class SpecInterfaceGenerator {
     // variables this signature actually names can be inferred at the call.
     for (TypeParameterElement typeParam :
         methodTypeParameters(specInterface, sourceType, focusType)) {
-      methodBuilder.addTypeVariable(TypeVariableName.get(typeParam));
+      methodBuilder.addTypeVariable(ProcessorUtils.typeVariableOf(typeParam));
     }
 
     // Generate method body based on optic kind
@@ -316,7 +314,7 @@ public class SpecInterfaceGenerator {
       OpticKind opticKind, TypeMirror sourceType, TypeMirror focusType) {
 
     TypeName sourceTypeName = getParameterisedTypeName(sourceType);
-    TypeName focusTypeName = TypeName.get(focusType).box();
+    TypeName focusTypeName = ProcessorUtils.typeNameOf(focusType).box();
     ClassName opticClass = getOpticClass(opticKind);
 
     return ParameterizedTypeName.get(opticClass, sourceTypeName, focusTypeName);
@@ -348,15 +346,10 @@ public class SpecInterfaceGenerator {
    */
   // Package-private for tests.
   TypeName getParameterisedTypeName(TypeMirror typeMirror) {
-    if (typeMirror instanceof DeclaredType declaredType) {
-      List<? extends TypeMirror> typeArgs = declaredType.getTypeArguments();
-      if (!typeArgs.isEmpty()) {
-        TypeElement typeElement = (TypeElement) declaredType.asElement();
-        TypeName[] typeArgNames = typeArgs.stream().map(TypeName::get).toArray(TypeName[]::new);
-        return ParameterizedTypeName.get(ClassName.get(typeElement), typeArgNames);
-      }
-    }
-    return TypeName.get(typeMirror);
+    // The whole walk, not a rebuild of the parameterised case: naming the arguments through
+    // typeNameOf but the head through ClassName.get(element) would keep an annotation on a type
+    // argument and drop one on the type itself.
+    return ProcessorUtils.typeNameOf(typeMirror);
   }
 
   /**

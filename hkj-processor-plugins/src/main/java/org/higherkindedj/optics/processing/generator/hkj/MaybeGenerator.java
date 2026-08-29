@@ -18,6 +18,7 @@ import org.higherkindedj.hkt.maybe.Maybe;
 import org.higherkindedj.optics.processing.generator.BaseTraversableGenerator;
 import org.higherkindedj.optics.processing.spi.Cardinality;
 import org.higherkindedj.optics.processing.spi.TraversableGenerator;
+import org.higherkindedj.optics.processing.util.ProcessorUtils;
 
 /**
  * A {@link TraversableGenerator} that adds support for traversing fields of type {@link Maybe}.
@@ -74,7 +75,9 @@ public class MaybeGenerator extends BaseTraversableGenerator {
     return CodeBlock.builder()
         // Directly use the concrete Maybe from the source record.
         .addStatement(
-            "final $T maybe = source.$L()", TypeName.get(component.asType()), componentName)
+            "final $T maybe = source.$L()",
+            ProcessorUtils.typeNameOf(component.asType()),
+            componentName)
         .beginControlFlow("if (maybe.isJust())")
         // If Just, apply the effectful function.
         .addStatement("final var g_of_b = f.apply(maybe.get())")

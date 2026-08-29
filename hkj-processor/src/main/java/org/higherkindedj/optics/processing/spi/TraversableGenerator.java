@@ -168,7 +168,7 @@ public interface TraversableGenerator {
     }
     return ParameterizedTypeName.get(
         recordClassName,
-        typeParameters.stream().map(TypeVariableName::get).toArray(TypeName[]::new));
+        typeParameters.stream().map(ProcessorUtils::typeVariableOf).toArray(TypeName[]::new));
   }
 
   /**

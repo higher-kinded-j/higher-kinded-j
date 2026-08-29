@@ -913,7 +913,7 @@ public class NavigatorClassGenerator {
 
     // Add type parameters if the record is generic
     for (TypeParameterElement typeParam : recordElement.getTypeParameters()) {
-      methodBuilder.addTypeVariable(TypeVariableName.get(typeParam));
+      methodBuilder.addTypeVariable(ProcessorUtils.typeVariableOf(typeParam));
     }
 
     // Build the constructor arguments for the setter lambda

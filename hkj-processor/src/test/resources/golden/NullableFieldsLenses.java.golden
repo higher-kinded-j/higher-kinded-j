@@ -6,6 +6,7 @@ import java.lang.Integer;
 import java.lang.String;
 import org.higherkindedj.optics.Lens;
 import org.higherkindedj.optics.annotations.Generated;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Generated optics for {@link NullableFields}. Do not edit.
@@ -27,18 +28,18 @@ public final class NullableFieldsLenses {
   /**
    * Creates a {@link Lens} for the {@code nickname} field of a {@link NullableFields}.
    *
-   * @return A non-null {@code Lens<NullableFields, String>}.
+   * @return A non-null {@code Lens<NullableFields, @Nullable String>}.
    */
-  public static Lens<NullableFields, String> nickname() {
+  public static Lens<NullableFields, @Nullable String> nickname() {
     return Lens.of(NullableFields::nickname, (source, newValue) -> new NullableFields(source.id(), newValue, source.bio(), source.score()));
   }
 
   /**
    * Creates a {@link Lens} for the {@code bio} field of a {@link NullableFields}.
    *
-   * @return A non-null {@code Lens<NullableFields, String>}.
+   * @return A non-null {@code Lens<NullableFields, @Nullable String>}.
    */
-  public static Lens<NullableFields, String> bio() {
+  public static Lens<NullableFields, @Nullable String> bio() {
     return Lens.of(NullableFields::bio, (source, newValue) -> new NullableFields(source.id(), source.nickname(), newValue, source.score()));
   }
 
@@ -71,7 +72,7 @@ public final class NullableFieldsLenses {
    * @param newNickname The new value for the {@code nickname} field.
    * @return A new, updated {@code NullableFields} instance.
    */
-  public static NullableFields withNickname(NullableFields source, String newNickname) {
+  public static NullableFields withNickname(NullableFields source, @Nullable String newNickname) {
     return nickname().set(newNickname, source);
   }
 
@@ -83,7 +84,7 @@ public final class NullableFieldsLenses {
    * @param newBio The new value for the {@code bio} field.
    * @return A new, updated {@code NullableFields} instance.
    */
-  public static NullableFields withBio(NullableFields source, String newBio) {
+  public static NullableFields withBio(NullableFields source, @Nullable String newBio) {
     return bio().set(newBio, source);
   }
 

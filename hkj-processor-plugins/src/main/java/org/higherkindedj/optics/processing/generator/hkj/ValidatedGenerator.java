@@ -18,6 +18,7 @@ import org.higherkindedj.hkt.validated.Validated;
 import org.higherkindedj.optics.processing.generator.BaseTraversableGenerator;
 import org.higherkindedj.optics.processing.spi.Cardinality;
 import org.higherkindedj.optics.processing.spi.TraversableGenerator;
+import org.higherkindedj.optics.processing.util.ProcessorUtils;
 
 /**
  * A {@link TraversableGenerator} that adds support for traversing fields of type {@link Validated}.
@@ -77,7 +78,9 @@ public class ValidatedGenerator extends BaseTraversableGenerator {
     return CodeBlock.builder()
         // Directly use the concrete Validated type from the source record.
         .addStatement(
-            "final $T validated = source.$L()", TypeName.get(component.asType()), componentName)
+            "final $T validated = source.$L()",
+            ProcessorUtils.typeNameOf(component.asType()),
+            componentName)
         .beginControlFlow("if (validated.isValid())")
         // If Valid, apply the effectful function.
         .addStatement("final var g_of_b = f.apply(validated.get())")

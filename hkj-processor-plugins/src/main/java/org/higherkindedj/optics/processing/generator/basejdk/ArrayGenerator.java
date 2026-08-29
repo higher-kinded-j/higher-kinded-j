@@ -16,6 +16,7 @@ import javax.lang.model.type.ArrayType;
 import javax.lang.model.type.TypeMirror;
 import org.higherkindedj.optics.processing.generator.BaseTraversableGenerator;
 import org.higherkindedj.optics.processing.spi.TraversableGenerator;
+import org.higherkindedj.optics.processing.util.ProcessorUtils;
 import org.higherkindedj.optics.util.Traversals;
 
 /**
@@ -165,7 +166,7 @@ public class ArrayGenerator extends BaseTraversableGenerator {
    */
   private TypeName elementType(final RecordComponentElement component) {
     if (component.asType() instanceof ArrayType arrayType) {
-      return TypeName.get(arrayType.getComponentType());
+      return ProcessorUtils.typeNameOf(arrayType.getComponentType());
     }
     return ClassName.get(Object.class); // Fallback
   }

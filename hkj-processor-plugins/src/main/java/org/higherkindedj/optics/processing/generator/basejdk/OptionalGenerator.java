@@ -17,6 +17,7 @@ import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.optics.processing.generator.BaseTraversableGenerator;
 import org.higherkindedj.optics.processing.spi.Cardinality;
 import org.higherkindedj.optics.processing.spi.TraversableGenerator;
+import org.higherkindedj.optics.processing.util.ProcessorUtils;
 
 /**
  * A {@link TraversableGenerator} that adds support for traversing fields of type {@link
@@ -73,7 +74,9 @@ public class OptionalGenerator extends BaseTraversableGenerator {
     return CodeBlock.builder()
         // Directly use the concrete Optional from the source record.
         .addStatement(
-            "final $T optional = source.$L()", TypeName.get(component.asType()), componentName)
+            "final $T optional = source.$L()",
+            ProcessorUtils.typeNameOf(component.asType()),
+            componentName)
         .beginControlFlow("if (optional.isPresent())")
         // If present, apply the effectful function.
         .addStatement("final var g_of_b = f.apply(optional.get())")

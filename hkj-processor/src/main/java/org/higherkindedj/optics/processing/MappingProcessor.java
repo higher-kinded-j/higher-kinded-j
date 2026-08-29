@@ -313,7 +313,8 @@ public class MappingProcessor extends AbstractProcessor {
         .map(
             leaf ->
                 new LeafField(
-                    leaf.getSimpleName().toString(), TypeName.get(memberTypeIn(spec, leaf))))
+                    leaf.getSimpleName().toString(),
+                    ProcessorUtils.typeNameOf(memberTypeIn(spec, leaf))))
         .toList();
   }
 
@@ -1864,7 +1865,9 @@ public class MappingProcessor extends AbstractProcessor {
       if (leaves.isEmpty()) {
         CodeBlock arguments =
             match.spec().getTypeParameters().stream()
-                .map(variable -> CodeBlock.of("$T", TypeName.get(bindings.get(variable))))
+                .map(
+                    variable ->
+                        CodeBlock.of("$T", ProcessorUtils.typeNameOf(bindings.get(variable))))
                 .collect(CodeBlock.joining(", "));
         return new PrismResolution(
             CodeBlock.of("$T.<$L>instance().asValidatedPrism()", match.impl(), arguments), false);
@@ -3082,8 +3085,8 @@ public class MappingProcessor extends AbstractProcessor {
       List<Correspondence> comps) {
     ClassName specName = ClassName.get(spec);
     ClassName implName = implClassName(spec);
-    TypeName domainName = TypeName.get(domainDeclared);
-    TypeName wireName = TypeName.get(wireUsed);
+    TypeName domainName = ProcessorUtils.typeNameOf(domainDeclared);
+    TypeName wireName = ProcessorUtils.typeNameOf(wireUsed);
     TypeName parseReturn =
         ParameterizedTypeName.get(
             VALIDATED, ParameterizedTypeName.get(NEL, FIELD_ERROR), domainName);
@@ -3294,8 +3297,8 @@ public class MappingProcessor extends AbstractProcessor {
       List<Correspondence> comps) {
     ClassName specName = ClassName.get(spec);
     ClassName implName = implClassName(spec);
-    TypeName domainName = TypeName.get(domainDeclared);
-    TypeName wireName = TypeName.get(wireUsed);
+    TypeName domainName = ProcessorUtils.typeNameOf(domainDeclared);
+    TypeName wireName = ProcessorUtils.typeNameOf(wireUsed);
     TypeName patchReturn =
         ParameterizedTypeName.get(
             VALIDATED, ParameterizedTypeName.get(NEL, FIELD_ERROR), domainName);
@@ -3455,8 +3458,8 @@ public class MappingProcessor extends AbstractProcessor {
       TypeMirror wireUsed,
       List<Correspondence> comps) {
     ClassName specName = ClassName.get(spec);
-    TypeName domainName = TypeName.get(domainDeclared);
-    TypeName wireName = TypeName.get(wireUsed);
+    TypeName domainName = ProcessorUtils.typeNameOf(domainDeclared);
+    TypeName wireName = ProcessorUtils.typeNameOf(wireUsed);
 
     if (!checkNoEmittedCollisions(
         spec,
@@ -3694,7 +3697,7 @@ public class MappingProcessor extends AbstractProcessor {
       String javadoc,
       List<LeafField> abstractLeaves) {
     List<TypeVariableName> variables =
-        spec.getTypeParameters().stream().map(TypeVariableName::get).toList();
+        spec.getTypeParameters().stream().map(ProcessorUtils::typeVariableOf).toList();
     TypeSpec.Builder builder =
         TypeSpec.classBuilder(implName)
             .addOriginatingElement(spec)
@@ -3839,7 +3842,7 @@ public class MappingProcessor extends AbstractProcessor {
           MethodSpec.methodBuilder(method.getSimpleName().toString())
               .addAnnotation(Override.class)
               .addModifiers(Modifier.PUBLIC)
-              .returns(TypeName.get(memberTypeIn(spec, method)))
+              .returns(ProcessorUtils.typeNameOf(memberTypeIn(spec, method)))
               .addJavadoc("Rename declaration only; not invocable.\n")
               .addStatement(
                   "throw new $T($S)",

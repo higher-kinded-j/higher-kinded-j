@@ -34,6 +34,7 @@ import javax.lang.model.util.ElementFilter;
 import org.higherkindedj.optics.annotations.ArityCeilings;
 import org.higherkindedj.optics.annotations.GenerateMerge;
 import org.higherkindedj.optics.processing.util.Diagnostics;
+import org.higherkindedj.optics.processing.util.ProcessorUtils;
 
 /**
  * Annotation processor for {@code @GenerateMerge}: forward-only assembly of one target record from
@@ -589,9 +590,10 @@ public class MergeProcessor extends AbstractProcessor {
         MethodSpec.methodBuilder(mergeMethod.getSimpleName().toString())
             .addAnnotation(Override.class)
             .addModifiers(Modifier.PUBLIC)
-            .returns(TypeName.get(mergeMethod.getReturnType()));
+            .returns(ProcessorUtils.typeNameOf(mergeMethod.getReturnType()));
     for (VariableElement source : mergeMethod.getParameters()) {
-      method.addParameter(TypeName.get(source.asType()), source.getSimpleName().toString());
+      method.addParameter(
+          ProcessorUtils.typeNameOf(source.asType()), source.getSimpleName().toString());
       method.addStatement(
           "$T.requireNonNull($L, $S)",
           OBJECTS,
