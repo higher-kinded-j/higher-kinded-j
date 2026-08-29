@@ -264,7 +264,7 @@ LIST.widen(listValue)
 2. Check annotation is on top-level or static class (not local class)
 3. Verify `@GenerateLenses` import is correct
 
-#### Error: "method mapN in interface Applicative<F> cannot be applied"
+#### Error: "method mapN in interface `Applicative<F>` cannot be applied"
 **Cause**: Wrong number of arguments or incorrect type parameters.
 
 **Fix**: Check you're using the right `map2`/`map3`/`map4`/`map5` for the number of values you're combining.
