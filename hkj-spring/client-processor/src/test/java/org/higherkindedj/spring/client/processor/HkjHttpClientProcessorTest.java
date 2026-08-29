@@ -653,6 +653,45 @@ class HkjHttpClientProcessorTest {
     }
 
     @Test
+    @DisplayName("a type-parameter annotation does not leak into a type-argument position")
+    void typeParameterAnnotationDoesNotLeak() {
+      // The same TypeVariableName declares the client's parameter and is written as the type
+      // argument of `NullRepo<T>` in `implements`. `NullRepo<@Marked T>` does not compile, so a
+      // declaration annotation has to stay behind.
+      Compilation marked =
+          compile(
+              JavaFileObjects.forSourceLines(
+                  "com.example.Marked",
+                  "package com.example;",
+                  "import java.lang.annotation.ElementType;",
+                  "import java.lang.annotation.Target;",
+                  "@Target(ElementType.TYPE_PARAMETER)",
+                  "public @interface Marked {}"),
+              JavaFileObjects.forSourceLines(
+                  "com.example.MarkedRepo",
+                  "package com.example;",
+                  "import org.higherkindedj.hkt.effect.EitherPath;",
+                  "import org.higherkindedj.spring.client.HkjHttpClient;",
+                  "import org.springframework.web.bind.annotation.PathVariable;",
+                  "import org.springframework.web.service.annotation.GetExchange;",
+                  "import org.springframework.web.service.annotation.HttpExchange;",
+                  "@HttpExchange(\"/items\")",
+                  "@HkjHttpClient",
+                  "public interface MarkedRepo<@Marked T> {",
+                  "  @GetExchange(\"/{id}\")",
+                  "  EitherPath<UserError, T> get(@PathVariable String id);",
+                  "}"),
+              USER_ERROR);
+
+      // The generated sources are compiled in this same run, so a leaked annotation fails here.
+      assertThat(marked).succeeded();
+      assertThat(marked)
+          .generatedSourceFile("com.example.MarkedRepoClient")
+          .contentsAsUtf8String()
+          .doesNotContain("@Marked");
+    }
+
+    @Test
     @DisplayName("a type parameter keeps the annotated Object bound javapoet would strip")
     void typeParameterBoundKeepsIt() {
       Compilation generic =

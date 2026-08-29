@@ -420,17 +420,23 @@ public final class ProcessorUtils {
     ClassName rawType = ClassName.get((TypeElement) declared.asElement());
     TypeMirror enclosingType = declared.getEnclosingType();
     // A static member has no enclosing instance type, so javac reports NONE for it and the kind
-    // test alone settles both cases. The enclosing type is only ever read back below when it came
-    // out parameterised, and no member that could be static is written under one.
+    // test alone settles both cases.
     TypeName enclosing =
         enclosingType.getKind() == TypeKind.NONE ? null : typeNameOf(enclosingType);
-    List<? extends TypeMirror> typeArguments = declared.getTypeArguments();
-    if (typeArguments.isEmpty() && !(enclosing instanceof ParameterizedTypeName)) {
-      return rawType;
+    List<TypeName> argumentNames =
+        declared.getTypeArguments().stream().map(ProcessorUtils::typeNameOf).toList();
+    if (enclosing instanceof ParameterizedTypeName parameterised) {
+      return parameterised.nestedClass(rawType.simpleName(), argumentNames);
     }
-    List<TypeName> argumentNames = typeArguments.stream().map(ProcessorUtils::typeNameOf).toList();
-    return enclosing instanceof ParameterizedTypeName parameterised
-        ? parameterised.nestedClass(rawType.simpleName(), argumentNames)
+    // An annotation on the enclosing type is written before it - `@Marker Outer.Inner` annotates
+    // Outer, not Inner - and ClassName.get(element) names the whole nesting from the element
+    // alone, so it carries none of it. Rebuilding the name under the enclosing keeps what was
+    // written there; for an unannotated enclosing it reproduces the same name.
+    if (enclosing instanceof ClassName enclosingName) {
+      rawType = enclosingName.nestedClass(rawType.simpleName());
+    }
+    return argumentNames.isEmpty()
+        ? rawType
         : ParameterizedTypeName.get(rawType, argumentNames.toArray(new TypeName[0]));
   }
 
@@ -458,17 +464,22 @@ public final class ProcessorUtils {
    * annotated {@code Object} is not equal to the bare one, so it survives the removal that the bare
    * bound is still rightly subject to.
    *
+   * <p>The bounds are all that is copied. An annotation written on the parameter itself, as in
+   * {@code <@Marker T>}, is left behind: one {@code TypeVariableName} both declares a parameter and
+   * is written wherever that parameter is named, and a generator reuses the same one for both. An
+   * annotation that is legal on the declaration need not be legal at a use - a {@code
+   * TYPE_PARAMETER} one is rejected outright as a type argument - so carrying it would emit source
+   * the consuming build cannot compile. Nothing is lost for nullness: JSpecify states a nullable
+   * parameter as {@code <T extends @Nullable Object>}, which is a bound.
+   *
    * @param parameter the type parameter to name; must not be null
-   * @return its name and bounds, annotated as the source annotated them (non-null)
+   * @return its name, with its bounds annotated as the source annotated them (non-null)
    * @since 0.4.10
    */
   public static TypeVariableName typeVariableOf(TypeParameterElement parameter) {
     TypeName[] bounds =
         parameter.getBounds().stream().map(ProcessorUtils::typeNameOf).toArray(TypeName[]::new);
-    TypeVariableName variable = TypeVariableName.get(parameter.getSimpleName().toString(), bounds);
-    List<AnnotationSpec> annotations =
-        parameter.getAnnotationMirrors().stream().map(AnnotationSpec::get).toList();
-    return annotations.isEmpty() ? variable : variable.annotated(annotations);
+    return TypeVariableName.get(parameter.getSimpleName().toString(), bounds);
   }
 
   /**

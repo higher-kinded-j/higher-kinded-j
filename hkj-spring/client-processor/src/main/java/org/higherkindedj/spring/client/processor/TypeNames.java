@@ -69,13 +69,19 @@ final class TypeNames {
     // test alone settles both cases.
     TypeName enclosing =
         enclosingType.getKind() == TypeKind.NONE ? null : typeNameOf(enclosingType);
-    List<? extends TypeMirror> typeArguments = declared.getTypeArguments();
-    if (typeArguments.isEmpty() && !(enclosing instanceof ParameterizedTypeName)) {
-      return rawType;
+    List<TypeName> argumentNames =
+        declared.getTypeArguments().stream().map(TypeNames::typeNameOf).toList();
+    if (enclosing instanceof ParameterizedTypeName parameterised) {
+      return parameterised.nestedClass(rawType.simpleName(), argumentNames);
     }
-    List<TypeName> argumentNames = typeArguments.stream().map(TypeNames::typeNameOf).toList();
-    return enclosing instanceof ParameterizedTypeName parameterised
-        ? parameterised.nestedClass(rawType.simpleName(), argumentNames)
+    // An annotation on the enclosing type is written before it - `@Marker Outer.Inner` annotates
+    // Outer, not Inner - and ClassName.get(element) carries none of it. Rebuilding the name under
+    // the enclosing keeps it; for an unannotated enclosing it reproduces the same name.
+    if (enclosing instanceof ClassName enclosingName) {
+      rawType = enclosingName.nestedClass(rawType.simpleName());
+    }
+    return argumentNames.isEmpty()
+        ? rawType
         : ParameterizedTypeName.get(rawType, argumentNames.toArray(new TypeName[0]));
   }
 
@@ -98,15 +104,17 @@ final class TypeNames {
    * {@code Object}. Between them {@code <T extends @Nullable Object>} becomes {@code <T>}, and the
    * generated client no longer admits an instantiation the interface it fronts permits.
    *
+   * <p>The bounds are all that is copied. An annotation written on the parameter itself, as in
+   * {@code <@Marker T>}, is left behind: the same {@code TypeVariableName} declares the parameter
+   * and is written wherever it is named, and an annotation legal on the declaration need not be
+   * legal at a use - a {@code TYPE_PARAMETER} one is rejected outright as a type argument.
+   *
    * @param parameter the type parameter to name; must not be null
-   * @return its name and bounds, annotated as the source annotated them (non-null)
+   * @return its name, with its bounds annotated as the source annotated them (non-null)
    */
   static TypeVariableName typeVariableOf(TypeParameterElement parameter) {
     TypeName[] bounds =
         parameter.getBounds().stream().map(TypeNames::typeNameOf).toArray(TypeName[]::new);
-    TypeVariableName variable = TypeVariableName.get(parameter.getSimpleName().toString(), bounds);
-    List<AnnotationSpec> annotations =
-        parameter.getAnnotationMirrors().stream().map(AnnotationSpec::get).toList();
-    return annotations.isEmpty() ? variable : variable.annotated(annotations);
+    return TypeVariableName.get(parameter.getSimpleName().toString(), bounds);
   }
 }

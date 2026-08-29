@@ -46,7 +46,7 @@ public final class SubtypePrismGenerator {
 
     String methodName = ProcessorUtils.toCamelCase(subtype.getSimpleName().toString());
     DeclaredType namedSumType = ProcessorUtils.sumTypeAsNamedBy(sumType, subtype);
-    TypeName sourceTypeName = TypeName.get(namedSumType);
+    TypeName sourceTypeName = ProcessorUtils.typeNameOf(namedSumType);
     if (rejectsUnboundParameter(messager, tag, sumType, subtype, namedSumType)) {
       return null;
     }

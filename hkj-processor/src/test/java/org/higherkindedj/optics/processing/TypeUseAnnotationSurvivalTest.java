@@ -5,6 +5,7 @@ package org.higherkindedj.optics.processing;
 import static com.google.testing.compile.CompilationSubject.assertThat;
 import static com.google.testing.compile.Compiler.javac;
 import static org.higherkindedj.optics.processing.GeneratorTestHelper.assertGeneratedCodeContains;
+import static org.higherkindedj.optics.processing.GeneratorTestHelper.assertGeneratedCodeDoesNotContain;
 
 import com.google.testing.compile.Compilation;
 import com.google.testing.compile.JavaFileObjects;
@@ -301,6 +302,36 @@ class TypeUseAnnotationSurvivalTest {
     }
 
     @Test
+    @DisplayName("@GeneratePrisms keeps it in the sum type as the subtype's own clause names it")
+    void generatePrismsKeepsIt() {
+      Compilation compilation =
+          javac()
+              .withProcessors(new PrismProcessor())
+              .compile(
+                  source(
+                      "com.example.Shape",
+                      """
+                      package com.example;
+
+                      import org.jspecify.annotations.Nullable;
+                      import org.higherkindedj.optics.annotations.GeneratePrisms;
+
+                      @GeneratePrisms
+                      public sealed interface Shape<T> {
+                        record Tagged(String label) implements Shape<@Nullable String> {}
+                      }
+                      """));
+
+      assertThat(compilation).succeeded();
+      // A prism is written against the sum type the *subtype* names, and an implements clause is
+      // a use: what is written there is part of the type the prism focuses from.
+      assertGeneratedCodeContains(
+          compilation,
+          "com.example.ShapePrisms",
+          "Prism<Shape<@Nullable String>, Shape.Tagged> tagged()");
+    }
+
+    @Test
     @DisplayName("@GenerateErrorEnvelope keeps it in the context builder it emits")
     void generateErrorEnvelopeKeepsIt() {
       Compilation compilation =
@@ -336,6 +367,55 @@ class TypeUseAnnotationSurvivalTest {
       assertThat(compilation).succeeded();
       assertGeneratedCodeContains(
           compilation, "com.example.FooErrors", "public ContextBuilder orderId(@Nullable String");
+    }
+  }
+
+  @Nested
+  @DisplayName("what must not be copied")
+  class NotCopied {
+
+    @Test
+    @DisplayName("a type-parameter annotation does not leak into a type-argument position")
+    void typeParameterAnnotationDoesNotLeak() {
+      // One TypeVariableName both declares the record's parameter and is written as the type
+      // argument of `Box<T>` in every generated signature. `Box<@Marked T>` does not compile -
+      // "annotation @Marked not applicable in this type context" - so the declaration annotation
+      // has to stay behind. The bound, where JSpecify states nullability, is kept.
+      Compilation compilation =
+          javac()
+              .withProcessors(new LensProcessor())
+              .compile(
+                  source(
+                      "com.example.Marked",
+                      """
+                      package com.example;
+
+                      import java.lang.annotation.ElementType;
+                      import java.lang.annotation.Target;
+
+                      @Target(ElementType.TYPE_PARAMETER)
+                      public @interface Marked {}
+                      """),
+                  source(
+                      "com.example.Box",
+                      """
+                      package com.example;
+
+                      import org.jspecify.annotations.Nullable;
+                      import org.higherkindedj.optics.annotations.GenerateLenses;
+
+                      @GenerateLenses
+                      public record Box<@Marked T extends @Nullable Object>(T value) {}
+                      """));
+
+      // succeeded(), not just "generated": the generated file is compiled in this same run, so a
+      // leaked annotation would fail here rather than in a consumer's build.
+      assertThat(compilation).succeeded();
+      assertGeneratedCodeContains(
+          compilation,
+          "com.example.BoxLenses",
+          "public static <T extends @Nullable Object> Lens<Box<T>, T> value()");
+      assertGeneratedCodeDoesNotContain(compilation, "com.example.BoxLenses", "Box<@Marked T>");
     }
   }
 

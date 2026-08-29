@@ -435,6 +435,16 @@ class ProcessorUtilsTest {
                   public static class Nested {}
               }
               """);
+      var plain =
+          JavaFileObjects.forSourceString(
+              "com.test.Plain",
+              """
+              package com.test;
+              public class Plain {
+                  public class Member {}
+                  public class Held<Y> {}
+              }
+              """);
       var subject =
           JavaFileObjects.forSourceString(
               "com.test.Subject",
@@ -462,10 +472,13 @@ class ProcessorUtilsTest {
                   Outer<@Nullable String>.Inner memberOfAnnotatedOuter;
                   Outer<@Nullable String>.Pair<Integer> parameterisedMemberOfAnnotatedOuter;
                   Outer.Nested staticallyNested;
+                  @Nullable Plain.Member annotatedEnclosing;
+                  @Nullable Plain.Held<String> annotatedEnclosingOfGeneric;
+                  Plain.Member plainEnclosing;
               }
               """);
       var processor = new CapturingProcessor();
-      javac().withProcessors(processor).compile(outer, subject);
+      javac().withProcessors(processor).compile(outer, plain, subject);
       return processor;
     }
 
@@ -542,6 +555,21 @@ class ProcessorUtilsTest {
     }
 
     @Test
+    @DisplayName("keeps an annotation on the enclosing type itself")
+    void keepsAnAnnotationOnTheEnclosingTypeItself() {
+      // `@Nullable Plain.Member` annotates Plain, not Member: javac hangs it on the enclosing
+      // type, and naming the nesting from the element alone carries none of it.
+      assertThat(probe().names)
+          .containsEntry(
+              "annotatedEnclosing", "com.test. @org.jspecify.annotations.Nullable Plain. Member")
+          .containsEntry(
+              "annotatedEnclosingOfGeneric",
+              "com.test. @org.jspecify.annotations.Nullable Plain. Held<java.lang.String>")
+          // An unannotated enclosing rebuilds to exactly the name it had.
+          .containsEntry("plainEnclosing", "com.test.Plain.Member");
+    }
+
+    @Test
     @DisplayName("keeps an annotated Object bound that javapoet would otherwise strip")
     void keepsAnAnnotatedObjectBound() {
       // `<T extends @Nullable Object>` is the declaration that admits a nullable instantiation.
@@ -555,8 +583,13 @@ class ProcessorUtilsTest {
     }
 
     @Test
-    @DisplayName("keeps an annotation written on the type parameter itself")
-    void keepsAnAnnotationOnTheTypeParameterItself() {
+    @DisplayName("leaves an annotation written on the type parameter itself behind")
+    void leavesAnAnnotationOnTheTypeParameterItselfBehind() {
+      // One TypeVariableName both declares a parameter and is written wherever that parameter is
+      // named, and generators reuse the same one for both. `Box<@Marked T>` is rejected outright
+      // - "annotation @Marked not applicable in this type context" - so carrying a declaration
+      // annotation would emit source the consuming build cannot compile. The bound, which is
+      // where JSpecify states nullability, is copied.
       var subject =
           JavaFileObjects.forSourceString(
               "com.test.Subject",
@@ -564,7 +597,8 @@ class ProcessorUtilsTest {
               package com.test;
               import java.lang.annotation.ElementType;
               import java.lang.annotation.Target;
-              public class Subject<@Subject.Marked T> {
+              import org.jspecify.annotations.Nullable;
+              public class Subject<@Subject.Marked T extends @Nullable Object> {
                   @Target(ElementType.TYPE_PARAMETER)
                   public @interface Marked {}
               }
@@ -572,7 +606,8 @@ class ProcessorUtilsTest {
       var processor = new CapturingProcessor();
       javac().withProcessors(processor).compile(subject);
 
-      assertThat(processor.variables).containsEntry("T", "@com.test.Subject.Marked T");
+      assertThat(processor.variables)
+          .containsEntry("T", "T extends java.lang. @org.jspecify.annotations.Nullable Object");
     }
 
     @Test
