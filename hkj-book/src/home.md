@@ -88,7 +88,7 @@ plugins {
 What makes Higher-Kinded-J unique is that **Effect Paths** and the **Focus DSL** speak the same language. Where Effect Paths navigate *computational effects*, Focus Paths navigate *data structures*. Both compose with `via`, and when you need to cross between them, the bridge connects the two worlds:
 
 ```mermaid
-flowchart LR
+flowchart TB
     subgraph effects["Effects: the Effect Paths, what the computation does"]
         direction TB
         E["MaybePath<br/>EitherPath<br/>TryPath<br/>ValidationPath<br/>EitherOrBothPath<br/>IOPath<br/>VTaskPath<br/>VStreamPath"]

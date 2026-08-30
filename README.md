@@ -133,7 +133,7 @@ What makes Higher-Kinded-J unique is that **Effect Paths** and the **Focus DSL**
 
 ```mermaid
 %%{init: {'theme': 'base', 'themeVariables': {'primaryColor': '#8caaee', 'primaryTextColor': '#232634', 'primaryBorderColor': '#1e66f5', 'lineColor': '#7c7f93', 'textColor': '#232634', 'titleColor': '#232634', 'edgeLabelBackground': '#eff1f5', 'clusterBkg': '#eff1f5', 'clusterBorder': '#9ca0b0', 'fontFamily': 'inherit'}}}%%
-flowchart LR
+flowchart TB
     subgraph effects["Effects: the Effect Paths, what the computation does"]
         direction TB
         E["MaybePath<br/>EitherPath<br/>TryPath<br/>ValidationPath<br/>EitherOrBothPath<br/>IOPath<br/>VTaskPath<br/>VStreamPath"]
