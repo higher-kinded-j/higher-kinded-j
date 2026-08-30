@@ -201,18 +201,23 @@ diagnosed, failures
 located through the composed path `entries.items.1`). All generic mappings are record-to-record
 only (bean wires and `UpdateSpec` stay concrete). Raw and wildcard shapes are diagnosed; array
 arguments are concrete and unify structurally. An abstract leaf on a concrete or sealed spec is
-diagnosed (nothing defers its parser).
+diagnosed (nothing defers its parser), and so is a leaf or rename declaring type parameters of
+its own: a constructor-supplied field and a stub have nowhere to declare them.
 
 ### Shared vocabulary: mix-in interfaces
 
 A spec may extend plain **mix-in interfaces** alongside `MappingSpec`/`UpdateSpec`; inherited
 renames, leaves and derived fields count as if declared on the spec, collected transitively with
 Java's own precedence (a local override hides the mix-in's member; a diamond counts once;
-unrelated mix-ins agreeing on an abstract rename fold into one, conflicting targets are diagnosed
-naming both interfaces). Interface statics are not inherited. Rejected with diagnostics naming the offender: a mix-in that is itself a mapping spec
-(directly or transitively extends `MappingSpec`/`UpdateSpec`), and a generic mix-in. Threaded
-generic specs may extend (non-generic) mix-ins; `@GenerateMerge` specs still declare everything
-directly. Diagnostics about inherited members name the declaring interface.
+unrelated mix-ins agreeing on an abstract rename fold into one stub returning the narrowest
+declared type, conflicting targets are diagnosed naming both interfaces, and a group with no
+narrowest return is refused naming every declaration). Interface statics are not inherited.
+Rejected with diagnostics naming the offender: a mix-in that is itself a mapping spec (directly
+or transitively extends `MappingSpec`/`UpdateSpec`), and a generic mix-in reached raw (a generic
+mix-in used with type arguments is read under the spec's instantiation and is fine). A member
+whose type the spec's package cannot see is refused: the Impl is generated there and writes the
+type out in full. `@GenerateMerge` specs still declare everything directly. Diagnostics about
+inherited members name the declaring interface.
 
 ### Injecting and faking (Spring)
 
