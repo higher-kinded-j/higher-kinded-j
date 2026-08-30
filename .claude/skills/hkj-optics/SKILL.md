@@ -25,7 +25,7 @@ You are helping a developer use HKJ's optics system for type-safe immutable data
 |------------|----------|-----------|
 | `@GenerateLenses` | `record` | `{Record}Lenses` class with `Lens<S, A>` for each field |
 | `@GenerateFocus` | `record` (requires `@GenerateLenses`) | `{Record}Focus` class with `FocusPath`/`AffinePath`/`TraversalPath` builders. Add `(generateNavigators = true)` for cross-type chaining |
-| `@GenerateTraversals` | `record` with collection fields | `{Record}Traversals` with `Traversal<S, A>` for collection fields; a component that holds elements but has no generator (`Deque`, `SortedMap`, a raw `List`) draws an unsuppressible processor warning |
+| `@GenerateTraversals` | `record` with collection fields | `{Record}Traversals` with `Traversal<S, A>` for collection fields; a component that holds elements but has no generator (`Deque`, `SortedMap`, a raw `List`) draws a processor note (a note, not a warning: there is no per-component opt-out) |
 | `@GeneratePrisms` | `sealed interface` | `{Interface}Prisms` class with `Prism<S, A>` for each permitted record |
 | `@GenerateIsos` | `record` with single field | `{Record}Isos` class with `Iso<S, A>` |
 | `@GenerateGetters` | `record` | `{Record}Getters` class with `Getter<S, A>` for each field |

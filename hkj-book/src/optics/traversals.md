@@ -70,7 +70,7 @@ This code is deeply nested and mixes the *what* (add 5 to a score) with the *how
 
 The library provides a rich set of tools for creating `Traversal` instances, found in the **`Traversals`** utility class and through annotations.
 
-* **`@GenerateTraversals`**: Annotating a record generates a `Traversal` for every component whose container a generator recognises: `List`, `Set`, `Collection`, `Map` (its values), `Optional` and arrays from the JDK; `Maybe`, `Either`, `Try` and `Validated` from HKJ; and the third-party collections the [generator plugins](../tooling/generator_plugins.md) cover. A component that holds elements but reaches no traversal — a `Deque`, a `SortedMap`, a raw `List` — is reported as a compile-time **warning** where it is declared, because the generated class compiles perfectly well without the method and the gap would otherwise be found at the call site. A component that is not a container at all is passed over silently.
+* **`@GenerateTraversals`**: Annotating a record generates a `Traversal` for every component whose container a generator recognises: `List`, `Set`, `Collection`, `Map` (its values), `Optional` and arrays from the JDK; `Maybe`, `Either`, `Try` and `Validated` from HKJ; and the third-party collections the [generator plugins](../tooling/generator_plugins.md) cover. A component that holds elements but reaches no traversal — a `Deque`, a `SortedMap`, a raw `List` — is reported as a compile-time **note** where it is declared, because the generated class compiles perfectly well without the method and the gap would otherwise be found at the call site. A component that is not a container at all is passed over silently.
 
 **Standard Container Traversals:**
 
@@ -163,7 +163,7 @@ A `Collection` names no more than "holds elements", so the generated traversal d
 
 Two limits follow from `Collection` being all the declaration says, and `Traversals.forCollection()` documents both: a `SortedSet` source keeps its elements but not its comparator, and a source that is neither a `List` nor a `Set` — an `ArrayDeque`, a `PriorityQueue` — comes back a `List`. Declare the component as the `List` or `Set` it really is if that matters.
 
-A component declared as some *other* `Collection` subtype — `Deque<Task>`, `SortedSet<Tag>`, `ArrayList<String>` — has no generator, and is not silently skipped: the processor reports a warning on the component, naming the type nothing supports and what to do about it. See [Compiler Errors](compiler_errors.md#generatetraversals-no-traversal-was-generated-for-component-xy-of-type-dequet-a-warning).
+A component declared as some *other* `Collection` subtype — `Deque<Task>`, `SortedSet<Tag>`, `ArrayList<String>` — has no generator, and is not silently skipped: the processor reports a note on the component, naming the type nothing supports and what to do about it. A note rather than a warning, because the annotation has no per-component opt-out and a processor warning would fail a `-Werror` build with no way to answer it. See [Compiler Errors](compiler_errors.md#generatetraversals-no-traversal-was-generated-for-component-xy-of-type-dequet-a-note).
 
 ### Step 2: Composing a Deep Traversal
 

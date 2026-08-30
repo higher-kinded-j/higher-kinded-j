@@ -715,7 +715,7 @@ public final class Traversals {
           final Function<? super A, ? extends Kind<F, ? extends B>> f,
           final Applicative<F> applicative) {
 
-    final boolean fromASet = collection instanceof Set<A>;
+    final boolean fromASet = collection instanceof Set<?>;
     if (collection.isEmpty()) {
       return applicative.of(fromASet ? Set.of() : List.of());
     }

@@ -63,6 +63,28 @@ public final class Diagnostics {
   }
 
   /**
+   * Reports a note in the what/why/fix format, attached to {@code element}.
+   *
+   * <p>A note is for a gap the author should know about but may be unable to close where it is
+   * reported — a generated method that is missing from a class that is otherwise sound. Unlike a
+   * warning, a note does not fail a {@code -Werror} build, which matters because a {@link Messager}
+   * warning cannot be suppressed.
+   *
+   * @param messager the processing-round messager; must not be null
+   * @param element the element the note is about; must not be null
+   * @param annotation the annotation tag; must not be null
+   * @param what one sentence naming the gap; must not be null
+   * @param why one sentence of context; must not be null
+   * @param fix one imperative sentence prescribing the remedy; must not be null
+   */
+  public static void note(
+      Messager messager, Element element, String annotation, String what, String why, String fix) {
+    Objects.requireNonNull(messager, "messager must not be null");
+    Objects.requireNonNull(element, "element must not be null");
+    messager.printMessage(Diagnostic.Kind.NOTE, format(annotation, what, why, fix), element);
+  }
+
+  /**
    * Joins the three parts after the annotation tag: {@code "@Tag: what why fix"}.
    *
    * @param annotation the annotation tag; must not be null

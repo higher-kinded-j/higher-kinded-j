@@ -174,7 +174,7 @@ public class TraversalProcessorIntegrationTest {
     assertThat(compilation).generatedSourceFile("com.example.BoxRecordTraversals").isNotNull();
     assertGeneratedCodeDoesNotContain(compilation, "com.example.BoxRecordTraversals", "boxed");
     assertThat(compilation)
-        .hadWarningContaining(
+        .hadNoteContaining(
             "@GenerateTraversals: no traversal was generated for component 'BoxRecord.boxed' of"
                 + " type Box<String>. The generator"
                 + " org.higherkindedj.optics.processing.testspi.TestMarkerGenerators.BoxIndexOneGenerator"
@@ -204,7 +204,7 @@ public class TraversalProcessorIntegrationTest {
     assertThat(compilation).generatedSourceFile("com.example.VarRecordTraversals").isNotNull();
     assertGeneratedCodeDoesNotContain(compilation, "com.example.VarRecordTraversals", "value");
     assertThat(compilation)
-        .hadWarningContaining(
+        .hadNoteContaining(
             "no traversal was generated for component 'VarRecord.value' of type TRAVMARKER. The"
                 + " generator"
                 + " org.higherkindedj.optics.processing.testspi.TestMarkerGenerators.TypeVariableGenerator"
@@ -232,6 +232,7 @@ public class TraversalProcessorIntegrationTest {
     var compilation = javac().withProcessors(new TraversalProcessor()).compile(sourceFile);
 
     assertThat(compilation).succeeded();
+    assertThat(compilation).hadNoteCount(0);
     assertThat(compilation).hadWarningCount(0);
     assertGeneratedCodeContains(
         compilation, "com.example.JobTraversals", "public static Traversal<Job, String> tags()");
@@ -248,7 +249,7 @@ public class TraversalProcessorIntegrationTest {
   @DisplayName("a Collection subtype no generator supports is reported where it is declared")
   void shouldWarnWhenNoGeneratorSupportsACollectionSubtype() {
     // A Deque holds elements as plainly as a List does, and no generator claims it. Generating
-    // nothing compiles, so the only signal the author gets is this warning.
+    // nothing compiles, so the only signal the author gets is this note.
     final var sourceFile =
         JavaFileObjects.forSourceString(
             "com.example.Job",
@@ -267,7 +268,7 @@ public class TraversalProcessorIntegrationTest {
 
     assertThat(compilation).succeeded();
     assertThat(compilation)
-        .hadWarningContaining(
+        .hadNoteContaining(
             "@GenerateTraversals: no traversal was generated for component 'Job.tasks' of type"
                 + " Deque<String>. No TraversableGenerator on the annotation processor path"
                 + " supports Deque. Declare the component as a supported container (List, Set,"
@@ -275,7 +276,8 @@ public class TraversalProcessorIntegrationTest {
                 + " type on the annotation processor path.")
         .inFile(sourceFile)
         .onLineContaining("Deque<String> tasks");
-    assertThat(compilation).hadWarningCount(1);
+    assertThat(compilation).hadNoteCount(1);
+    assertThat(compilation).hadWarningCount(0);
     assertGeneratedCodeDoesNotContain(
         compilation, "com.example.JobTraversals", "Traversal<Job, String> tasks()");
     assertGeneratedCodeContains(
@@ -302,18 +304,19 @@ public class TraversalProcessorIntegrationTest {
 
     assertThat(compilation).succeeded();
     assertThat(compilation)
-        .hadWarningContaining(
+        .hadNoteContaining(
             "no traversal was generated for component 'Ledger.balances' of type SortedMap<String,"
                 + " Integer>. No TraversableGenerator on the annotation processor path supports"
                 + " SortedMap.");
-    assertThat(compilation).hadWarningCount(1);
+    assertThat(compilation).hadNoteCount(1);
+    assertThat(compilation).hadWarningCount(0);
   }
 
   @Test
   @DisplayName("a component that holds no elements is passed over without comment")
   void shouldStaySilentForAComponentThatIsNotAContainer() {
     // Not generating for a String, an int or a Path is the expected outcome, not a gap, so the
-    // warning is reserved for a Collection or a Map. Path implements Iterable, which is why a
+    // note is reserved for a Collection or a Map. Path implements Iterable, which is why a
     // bare Iterable is not the bar.
     final var sourceFile =
         JavaFileObjects.forSourceString(
@@ -334,6 +337,7 @@ public class TraversalProcessorIntegrationTest {
     var compilation = javac().withProcessors(new TraversalProcessor()).compile(sourceFile);
 
     assertThat(compilation).succeeded();
+    assertThat(compilation).hadNoteCount(0);
     assertThat(compilation).hadWarningCount(0);
     assertGeneratedCodeContains(
         compilation,
@@ -362,7 +366,7 @@ public class TraversalProcessorIntegrationTest {
 
     assertThat(compilation).succeeded();
     assertThat(compilation)
-        .hadWarningContaining(
+        .hadNoteContaining(
             "@GenerateTraversals: no traversal was generated for component 'Bag.items' of type"
                 + " List. List is written without a type argument, so there is no element type to"
                 + " focus. Give the component its type arguments, as in List<E>.");
@@ -374,7 +378,7 @@ public class TraversalProcessorIntegrationTest {
   void shouldWarnWhenAClaimedTypeDeclaresNoTypeParameter() {
     // The test-scope SoloGenerator claims com.example.hkjtest.Solo, which has no type parameter,
     // so there is nothing the component could be given: the generator's supports() is what needs
-    // narrowing, and the warning says so.
+    // narrowing, and the note says so.
     final var markerSource =
         JavaFileObjects.forSourceString(
             "com.example.hkjtest.Solo",
@@ -402,7 +406,7 @@ public class TraversalProcessorIntegrationTest {
 
     assertThat(compilation).succeeded();
     assertThat(compilation)
-        .hadWarningContaining(
+        .hadNoteContaining(
             "no traversal was generated for component 'SoloRecord.value' of type Solo. Solo is"
                 + " written without a type argument, so there is no element type to focus. The"
                 + " generator"

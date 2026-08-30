@@ -47,10 +47,12 @@ import org.higherkindedj.optics.processing.util.ProcessorUtils;
  * generated for every component a generator claims. A component that holds elements but reaches no
  * method — a {@link java.util.Collection} or {@link java.util.Map} subtype no generator on the
  * annotation processor path supports, or a claimed container whose element type cannot be read — is
- * reported as a warning where it is declared, because the generated class compiles perfectly well
- * without it and the missing method would otherwise be found at the call site. A component that is
- * not a container at all, a {@code String} or an {@code int}, is passed over silently: not
- * generating for it is the expected outcome, not a gap.
+ * reported as a note where it is declared, because the generated class compiles perfectly well
+ * without it and the missing method would otherwise be found at the call site. A note rather than a
+ * warning: the annotation has no per-component opt-out and a processor warning cannot be
+ * suppressed, so a warning would fail a {@code -Werror} build with no remedy short of changing the
+ * record. A component that is not a container at all, a {@code String} or an {@code int}, is passed
+ * over silently: not generating for it is the expected outcome, not a gap.
  */
 @AutoService(Processor.class)
 @SupportedAnnotationTypes("org.higherkindedj.optics.annotations.GenerateTraversals")
@@ -126,7 +128,7 @@ public class TraversalProcessor extends AbstractProcessor {
       TraversableGenerator generator = generatorFor(component.asType());
       if (generator == null) {
         if (holdsElements(component.asType())) {
-          warnNoTraversal(
+          noteNoTraversal(
               component,
               "No TraversableGenerator on the annotation processor path supports "
                   + ProcessorUtils.simpleTypeName(
@@ -170,7 +172,7 @@ public class TraversalProcessor extends AbstractProcessor {
             container.getTypeParameters().stream()
                 .map(parameter -> parameter.getSimpleName().toString())
                 .collect(Collectors.joining(", "));
-        warnNoTraversal(
+        noteNoTraversal(
             component,
             ProcessorUtils.simpleTypeName(componentType)
                 + " is written without a type argument, so there is no element type to focus",
@@ -192,7 +194,7 @@ public class TraversalProcessor extends AbstractProcessor {
       int typeArgumentIndex = generator.getFocusTypeArgumentIndex();
 
       if (declaredType.getTypeArguments().size() <= typeArgumentIndex) {
-        warnNoTraversal(
+        noteNoTraversal(
             component,
             "The generator "
                 + generator.getClass().getCanonicalName()
@@ -214,7 +216,7 @@ public class TraversalProcessor extends AbstractProcessor {
               : ProcessorUtils.typeNameOf(focusArgument).box();
 
     } else {
-      warnNoTraversal(
+      noteNoTraversal(
           component,
           "The generator "
               + generator.getClass().getCanonicalName()
@@ -345,11 +347,12 @@ public class TraversalProcessor extends AbstractProcessor {
 
   /**
    * Reports that no traversal is generated for {@code component}, in the what/why/fix format. A
-   * warning rather than an error: the record and its generated class are sound without the method,
-   * and the author may have wanted traversals for the other components alone.
+   * note rather than a warning or an error: the record and its generated class are sound without
+   * the method, the author may have wanted traversals for the other components alone, and there is
+   * no per-component opt-out that would let a warning be answered under {@code -Werror}.
    */
-  private void warnNoTraversal(RecordComponentElement component, String why, String fix) {
-    Diagnostics.warning(
+  private void noteNoTraversal(RecordComponentElement component, String why, String fix) {
+    Diagnostics.note(
         processingEnv.getMessager(),
         component,
         TAG,

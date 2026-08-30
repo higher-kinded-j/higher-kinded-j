@@ -511,6 +511,26 @@ class TypeKindAnalyserTest {
     }
 
     @Test
+    @DisplayName("should not detect a raw Collection as a container")
+    void shouldNotDetectRawCollectionContainer() {
+      var source =
+          JavaFileObjects.forSourceString(
+              "com.test.WithRawCollection",
+              """
+              package com.test;
+
+              import java.util.Collection;
+
+              @SuppressWarnings("rawtypes")
+              public record WithRawCollection(Collection items) {}
+              """);
+
+      TypeAnalysis analysis = analyseType("com.test.WithRawCollection", source);
+
+      assertThat(analysis.fields().getFirst().containerType()).isEmpty();
+    }
+
+    @Test
     @DisplayName("should detect Optional container")
     void shouldDetectOptionalContainer() {
       var source =
@@ -1105,8 +1125,9 @@ class TypeKindAnalyserTest {
     @Test
     @DisplayName("should return empty when container type elements cannot be resolved")
     void shouldReturnEmptyWhenContainerElementsUnresolvable() {
-      // Exercises the defensive `getTypeElement(...) != null` arms for List, Set, Optional and
-      // Map, which never fail on a real JVM. A delegating Elements whose getTypeElement always
+      // Exercises the defensive `getTypeElement(...) != null` arms for List, Set, Collection,
+      // Optional and Map, which never fail on a real JVM. A delegating Elements whose
+      // getTypeElement always
       // returns null forces all four checks to fall through to the final empty return.
       var source =
           JavaFileObjects.forSourceString(
