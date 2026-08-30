@@ -5,6 +5,7 @@ package org.higherkindedj.architecture;
 import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.classes;
 import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.noClasses;
 
+import com.tngtech.archunit.core.domain.JavaAccess;
 import com.tngtech.archunit.core.domain.JavaClass;
 import com.tngtech.archunit.core.domain.JavaClasses;
 import com.tngtech.archunit.core.domain.JavaModifier;
@@ -14,6 +15,7 @@ import com.tngtech.archunit.lang.ArchCondition;
 import com.tngtech.archunit.lang.ConditionEvents;
 import com.tngtech.archunit.lang.SimpleConditionEvent;
 import java.util.Set;
+import java.util.stream.Stream;
 import javax.annotation.processing.AbstractProcessor;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.DisplayName;
@@ -233,6 +235,46 @@ class ProcessorArchitectureRules {
   }
 
   /**
+   * Every generator choice must come from the registry.
+   *
+   * <p>{@code GeneratorRegistry} is the one place that reads {@code supports()} and {@code
+   * priority()}, which is what makes priority mean the same thing on every route
+   * ({@code @GenerateFocus}, {@code @GenerateTraversals}, {@code @ImportOptics}). A site looping
+   * over generators itself would reintroduce first-match resolution, where a {@code
+   * PRIORITY_OVERRIDE} provider wins or loses by where its {@code META-INF/services} entry lands
+   * (#774).
+   */
+  @Test
+  @DisplayName("Generator selection should go through the registry")
+  void generator_selection_should_go_through_the_registry() {
+    classes()
+        .that()
+        .resideInAPackage("..processing..")
+        .should(chooseSpiGeneratorsOnlyFromTheRegistry())
+        .allowEmptyShould(true)
+        .check(classes);
+  }
+
+  /**
+   * The registry answers only the route lookups.
+   *
+   * <p>The widening guard (#718) keys on {@code findSpiGenerator}, which is now a delegate, so a
+   * site could otherwise read a generator straight from {@code GeneratorRegistry.generatorFor} and
+   * skip {@code wideningGenerator}'s turn-away of raw and wildcard-carrying containers. The
+   * delegate and the two non-widening route sites are the only permitted readers.
+   */
+  @Test
+  @DisplayName("Registry reads should stay behind the route lookups")
+  void registry_reads_should_stay_behind_the_route_lookups() {
+    classes()
+        .that()
+        .resideInAPackage("..processing..")
+        .should(readTheRegistryOnlyFrom(REGISTRY_READERS))
+        .allowEmptyShould(true)
+        .check(classes);
+  }
+
+  /**
    * Custom condition checking for final or static fields only.
    *
    * @return the arch condition
@@ -283,6 +325,76 @@ class ProcessorArchitectureRules {
                                 javaClass.getSimpleName(),
                                 call.getOrigin().getName(),
                                 SPI_LOOKUP))));
+      }
+    };
+  }
+
+  /** The interface whose choosing methods only the registry may consult. */
+  private static final String TRAVERSABLE_GENERATOR =
+      "org.higherkindedj.optics.processing.spi.TraversableGenerator";
+
+  /** The single home for generator selection. */
+  private static final String GENERATOR_REGISTRY =
+      "org.higherkindedj.optics.processing.GeneratorRegistry";
+
+  /** The methods that may read a choice from the registry: the delegate and the two route sites. */
+  private static final Set<String> REGISTRY_READERS =
+      Set.of("findSpiGenerator", "generateTraversalsFile", "createTraversalMethod");
+
+  /** Method calls and method references from {@code javaClass}, which decide targets alike. */
+  private static Stream<JavaAccess<?>> callsAndReferencesFrom(JavaClass javaClass) {
+    return Stream.concat(
+        javaClass.getMethodCallsFromSelf().stream(),
+        javaClass.getMethodReferencesFromSelf().stream());
+  }
+
+  private static ArchCondition<JavaClass> chooseSpiGeneratorsOnlyFromTheRegistry() {
+    return new ArchCondition<>(
+        "consult TraversableGenerator.supports/priority only from GeneratorRegistry") {
+      @Override
+      public void check(JavaClass javaClass, ConditionEvents events) {
+        if (javaClass.getName().equals(GENERATOR_REGISTRY)) {
+          return;
+        }
+        // Method references count (the deleted pre-sort was TraversableGenerator::priority), and
+        // the owner is matched by assignability: a call through a concrete generator's own type
+        // resolves to the subtype in bytecode.
+        callsAndReferencesFrom(javaClass)
+            .filter(access -> access.getTarget().getOwner().isAssignableTo(TRAVERSABLE_GENERATOR))
+            .filter(access -> Set.of("supports", "priority").contains(access.getTarget().getName()))
+            .forEach(
+                access ->
+                    events.add(
+                        SimpleConditionEvent.violated(
+                            javaClass,
+                            String.format(
+                                "%s.%s picks a generator itself. Read the choice from"
+                                    + " GeneratorRegistry.generatorFor, so that priority() keeps"
+                                    + " meaning the same thing on every route.",
+                                javaClass.getSimpleName(), access.getOrigin().getName()))));
+      }
+    };
+  }
+
+  private static ArchCondition<JavaClass> readTheRegistryOnlyFrom(Set<String> allowed) {
+    return new ArchCondition<>("read GeneratorRegistry.generatorFor only from " + allowed) {
+      @Override
+      public void check(JavaClass javaClass, ConditionEvents events) {
+        callsAndReferencesFrom(javaClass)
+            .filter(access -> access.getTarget().getOwner().isAssignableTo(GENERATOR_REGISTRY))
+            .filter(access -> access.getTarget().getName().equals("generatorFor"))
+            .filter(access -> !allowed.contains(access.getOrigin().getName()))
+            .forEach(
+                access ->
+                    events.add(
+                        SimpleConditionEvent.violated(
+                            javaClass,
+                            String.format(
+                                "%s.%s reads a generator straight from the registry. Go through"
+                                    + " wideningGenerator or the route's one lookup, so that a"
+                                    + " raw or wildcard-carrying container is turned away rather"
+                                    + " than widened into source that cannot compile.",
+                                javaClass.getSimpleName(), access.getOrigin().getName()))));
       }
     };
   }

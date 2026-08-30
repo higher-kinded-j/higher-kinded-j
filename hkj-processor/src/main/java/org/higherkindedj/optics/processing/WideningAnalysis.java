@@ -17,7 +17,6 @@ import javax.lang.model.element.TypeElement;
 import javax.lang.model.type.DeclaredType;
 import javax.lang.model.type.TypeKind;
 import javax.lang.model.type.TypeMirror;
-import javax.tools.Diagnostic;
 import org.higherkindedj.optics.processing.kind.KindFieldAnalyser;
 import org.higherkindedj.optics.processing.kind.KindFieldInfo;
 import org.higherkindedj.optics.processing.spi.Cardinality;
@@ -208,18 +207,19 @@ public final class WideningAnalysis {
   public record Widening(Tier tier, TypeName focusType, List<Step> steps) {}
 
   private final ProcessingEnvironment processingEnv;
-  private final List<TraversableGenerator> traversableGenerators;
+  private final GeneratorRegistry generatorRegistry;
 
   /**
    * Creates the analysis over a set of SPI generators.
    *
    * @param processingEnv the processing environment
-   * @param traversableGenerators the SPI generators, pre-sorted by priority descending
+   * @param traversableGenerators the SPI generators, in registration order
    */
   public WideningAnalysis(
       ProcessingEnvironment processingEnv, List<TraversableGenerator> traversableGenerators) {
     this.processingEnv = processingEnv;
-    this.traversableGenerators = List.copyOf(traversableGenerators);
+    this.generatorRegistry =
+        GeneratorRegistry.of(traversableGenerators, processingEnv.getMessager());
   }
 
   /**
@@ -543,7 +543,8 @@ public final class WideningAnalysis {
   }
 
   /**
-   * Finds the highest-priority SPI generator that supports the given type.
+   * Finds the highest-priority SPI generator that supports the given type, from the {@link
+   * GeneratorRegistry} every generator-choosing site reads.
    *
    * <p>Reached directly only by the diagnostic walks, which exist to report the container {@link
    * #wideningGenerator} turned away. Every widening site reads its generator from that guard.
@@ -553,42 +554,7 @@ public final class WideningAnalysis {
    * @return the matched generator, or null if none supports the type
    */
   public TraversableGenerator findSpiGenerator(TypeMirror type, Element component) {
-    TraversableGenerator matched = null;
-    for (TraversableGenerator generator : traversableGenerators) {
-      if (generator.supports(type)) {
-        if (matched != null && matched.priority() == generator.priority()) {
-          warnOfConflict(type, component, matched, generator);
-        } else if (matched == null) {
-          matched = generator;
-        }
-      }
-    }
-    return matched;
-  }
-
-  /** Warns that two generators of equal priority both claim a type, and which one won. */
-  private void warnOfConflict(
-      TypeMirror type,
-      Element component,
-      TraversableGenerator matched,
-      TraversableGenerator other) {
-    if (component == null) {
-      return;
-    }
-    processingEnv
-        .getMessager()
-        .printMessage(
-            Diagnostic.Kind.WARNING,
-            "Multiple TraversableGenerator SPI providers with equal priority ("
-                + other.priority()
-                + ") support type "
-                + type
-                + ": "
-                + matched.getClass().getName()
-                + " and "
-                + other.getClass().getName()
-                + ". Using the first match.",
-            component);
+    return generatorRegistry.generatorFor(type, component);
   }
 
   /**

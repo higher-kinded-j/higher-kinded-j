@@ -4,9 +4,7 @@ package org.higherkindedj.optics.processing.external;
 
 import com.palantir.javapoet.*;
 import java.io.IOException;
-import java.util.ArrayList;
 import java.util.List;
-import java.util.ServiceLoader;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import javax.annotation.processing.Filer;
@@ -26,6 +24,7 @@ import org.higherkindedj.hkt.TypeArity;
 import org.higherkindedj.hkt.WitnessArity;
 import org.higherkindedj.optics.Lens;
 import org.higherkindedj.optics.Traversal;
+import org.higherkindedj.optics.processing.GeneratorRegistry;
 import org.higherkindedj.optics.processing.spi.TraversableGenerator;
 import org.higherkindedj.optics.processing.util.ExcludeFromJacocoGeneratedReport;
 import org.higherkindedj.optics.processing.util.ProcessorUtils;
@@ -44,7 +43,7 @@ public class ExternalLensGenerator {
 
   private final Filer filer;
   private final Messager messager;
-  private final List<TraversableGenerator> traversalGenerators;
+  private final GeneratorRegistry generatorRegistry;
 
   /**
    * Creates a new ExternalLensGenerator.
@@ -55,11 +54,8 @@ public class ExternalLensGenerator {
   public ExternalLensGenerator(Filer filer, Messager messager) {
     this.filer = filer;
     this.messager = messager;
-
-    // Load traversal generators via SPI
-    this.traversalGenerators = new ArrayList<>();
-    ServiceLoader.load(TraversableGenerator.class, getClass().getClassLoader())
-        .forEach(traversalGenerators::add);
+    this.generatorRegistry =
+        GeneratorRegistry.fromServiceLoader(getClass().getClassLoader(), messager);
   }
 
   /**
@@ -75,7 +71,7 @@ public class ExternalLensGenerator {
       Filer filer, Messager messager, List<TraversableGenerator> traversalGenerators) {
     this.filer = filer;
     this.messager = messager;
-    this.traversalGenerators = List.copyOf(traversalGenerators);
+    this.generatorRegistry = GeneratorRegistry.of(traversalGenerators, messager);
   }
 
   /**
@@ -313,20 +309,7 @@ public class ExternalLensGenerator {
       List<? extends RecordComponentElement> allComponents,
       TypeName recordTypeName) {
 
-    // Find the appropriate traversal generator
-    TraversableGenerator generator = null;
-    for (TraversableGenerator g : traversalGenerators) {
-      if (g.supports(field.type())) {
-        generator = g;
-        break;
-      }
-    }
-
-    if (generator == null) {
-      return null; // No generator found for this container type
-    }
-
-    // Find the matching record component
+    // Find the matching record component first: it anchors any conflict warning
     RecordComponentElement component = null;
     for (RecordComponentElement c : allComponents) {
       if (c.getSimpleName().toString().equals(field.name())) {
@@ -337,6 +320,11 @@ public class ExternalLensGenerator {
 
     if (component == null) {
       return null;
+    }
+
+    final TraversableGenerator generator = generatorRegistry.generatorFor(field.type(), component);
+    if (generator == null) {
+      return null; // No generator found for this container type
     }
 
     final TypeName focusType = getFocusType(field.type(), generator);
