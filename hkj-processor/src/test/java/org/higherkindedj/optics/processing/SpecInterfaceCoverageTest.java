@@ -490,17 +490,22 @@ class SpecInterfaceCoverageTest {
               """
               package com.myapp;
 
+              import org.higherkindedj.optics.Lens;
               import org.higherkindedj.optics.Traversal;
               import org.higherkindedj.optics.annotations.ImportOptics;
               import org.higherkindedj.optics.annotations.OpticsSpec;
               import org.higherkindedj.optics.annotations.ThroughField;
+              import org.higherkindedj.optics.annotations.Wither;
               import com.external.Team;
 
               @ImportOptics
               public interface TeamOpticsSpec extends OpticsSpec<Team> {
 
+                  @Wither("withMembers")
+                  Lens<Team, java.util.List<String>> members();
+
                   @ThroughField(field = "members")
-                  Traversal<Team, String> members();
+                  Traversal<Team, String> eachMember();
               }
               """);
 
@@ -509,7 +514,9 @@ class SpecInterfaceCoverageTest {
 
       assertThat(compilation).succeeded();
       assertGeneratedCodeContains(
-          compilation, "com.myapp.TeamOptics", "public static Traversal<Team, String> members()");
+          compilation,
+          "com.myapp.TeamOptics",
+          "public static Traversal<Team, String> eachMember()");
     }
   }
 
@@ -849,17 +856,22 @@ class SpecInterfaceCoverageTest {
               """
               package com.myapp;
 
+              import org.higherkindedj.optics.Lens;
               import org.higherkindedj.optics.Traversal;
               import org.higherkindedj.optics.annotations.ImportOptics;
               import org.higherkindedj.optics.annotations.OpticsSpec;
               import org.higherkindedj.optics.annotations.ThroughField;
+              import org.higherkindedj.optics.annotations.Wither;
               import com.external.Catalog;
 
               @ImportOptics
               public interface CatalogOpticsSpec extends OpticsSpec<Catalog> {
 
+                  @Wither("withItems")
+                  Lens<Catalog, java.util.Set<String>> items();
+
                   @ThroughField(field = "items")
-                  Traversal<Catalog, String> items();
+                  Traversal<Catalog, String> eachItem();
               }
               """);
 
@@ -868,7 +880,7 @@ class SpecInterfaceCoverageTest {
 
       assertThat(compilation).succeeded();
       assertGeneratedCodeContains(
-          compilation, "com.myapp.CatalogOptics", "Traversal<Catalog, String> items()");
+          compilation, "com.myapp.CatalogOptics", "Traversal<Catalog, String> eachItem()");
       // Should auto-detect Set traversal
       assertGeneratedCodeContains(compilation, "com.myapp.CatalogOptics", "Traversals.forSet()");
     }

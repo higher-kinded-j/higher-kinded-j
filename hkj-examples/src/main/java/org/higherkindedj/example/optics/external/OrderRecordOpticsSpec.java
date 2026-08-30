@@ -21,14 +21,16 @@ import org.higherkindedj.optics.annotations.ViaBuilder;
  *
  * <h2>Auto-Detection Support</h2>
  *
- * The processor auto-detects traversals for these container types:
+ * The processor auto-detects traversals for a field declared as one of these container types,
+ * matched on the interface itself (a field declared as {@code ArrayList} names its own traversal):
  *
  * <ul>
- *   <li>{@code List<A>} (and subtypes like ArrayList, LinkedList) → {@code Traversals.forList()}
- *   <li>{@code Set<A>} (and subtypes like HashSet, TreeSet) → {@code Traversals.forSet()}
+ *   <li>{@code List<A>} → {@code Traversals.forList()}
+ *   <li>{@code Set<A>} → {@code Traversals.forSet()}
+ *   <li>{@code Collection<A>} → {@code Traversals.forCollection()}
  *   <li>{@code Optional<A>} → {@code Traversals.forOptional()}
  *   <li>{@code A[]} → {@code Traversals.forArray()}
- *   <li>{@code Map<K,V>} (and subtypes like HashMap, TreeMap) → {@code Traversals.forMapValues()}
+ *   <li>{@code Map<K,V>} → {@code Traversals.forMapValues()}
  * </ul>
  *
  * <h2>Generated Code</h2>

@@ -89,13 +89,19 @@ public class TraversalCodeGenerator {
    *
    * <p>Generated code: {@code SpecClass.fieldName().andThen((Traversal) Traversals.forList())}
    *
-   * <p>Note: The traversal is now auto-detected by {@code SpecInterfaceAnalyser} if not explicitly
-   * specified, so the traversal parameter should always be populated.
+   * <p>{@code SpecInterfaceAnalyser} supplies the traversal, auto-detected from the field's type
+   * where the annotation names none, so it is always populated here.
    *
-   * <p>The unchecked cast is necessary because the lens may focus on a container subtype (e.g.,
-   * ArrayList) while the traversal is typed for the supertype (e.g., List). Java's invariant
-   * generics require this cast, but it's safe at runtime because subtypes can be traversed using
-   * the supertype's traversal.
+   * <p>The raw cast exists because the field lens focuses the field's declared type while the
+   * traversal is typed for the interface it rebuilds, and javac cannot relate the two through the
+   * composition. It is only sound while the two agree at erasure: auto-detection therefore accepts
+   * the interface types alone, and arrays of a reference type (a field declared as {@code
+   * ArrayList} would receive the unmodifiable {@code List} the traversal hands back and throw
+   * {@code ClassCastException} on the write side, which a read reaches too, since {@code
+   * Traversals.getAll} rebuilds the source through {@code Id}), and an explicit {@code traversal}
+   * is the author's undertaking that theirs rebuilds the declared type. The traversal's focus is
+   * not checked against the container's element type here: a method declaring {@code Traversal<S,
+   * String>} over a {@code List<Integer>} field is not caught at the declaration.
    *
    * @param info the @ThroughField annotation values
    * @param specClassName the name of the spec class
@@ -115,7 +121,7 @@ public class TraversalCodeGenerator {
               + "This should have been auto-detected by SpecInterfaceAnalyser.");
     }
 
-    // Use unchecked cast for container subtypes (e.g., ArrayList for List)
+    // Raw: the explicit-traversal route hands the processor a string it cannot type-check.
     return CodeBlock.of(
         "$L.$L().andThen(($T) $L)",
         specClassName,

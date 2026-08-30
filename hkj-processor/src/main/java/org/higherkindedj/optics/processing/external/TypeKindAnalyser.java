@@ -16,7 +16,6 @@ import javax.lang.model.type.ArrayType;
 import javax.lang.model.type.DeclaredType;
 import javax.lang.model.type.TypeKind;
 import javax.lang.model.type.TypeMirror;
-import javax.lang.model.util.Elements;
 import javax.lang.model.util.Types;
 import org.higherkindedj.optics.processing.util.ProcessorUtils;
 
@@ -295,9 +294,13 @@ public class TypeKindAnalyser {
   /**
    * Detects if a type is a container type that can have a traversal generated.
    *
-   * <p>This method uses exact type matching (e.g., only {@code java.util.List}, not subtypes like
-   * {@code ArrayList}). For subtype-aware detection, use {@link
-   * #detectContainerTypeWithSubtypes(TypeMirror, javax.lang.model.util.Elements)}.
+   * <p>The match is exact: {@code java.util.List} is a container, {@code ArrayList} is not. The
+   * standard traversal for each container rebuilds a value of the interface type ({@code
+   * Traversals.forList()} hands back an unmodifiable {@code List}), and a field declared as a
+   * subtype could not take that value back: the write side of the composed optic would throw {@code
+   * ClassCastException} on first use. So a field of a concrete container type gets no traversal
+   * from {@code @ImportOptics}, and is refused by {@code @ThroughField}, which asks for an explicit
+   * one.
    *
    * @param type the type to check
    * @return the container type info if detected, empty otherwise
@@ -358,113 +361,6 @@ public class TypeKindAnalyser {
             ContainerType.forMap(
                 declaredType.getTypeArguments().get(0), declaredType.getTypeArguments().get(1)));
       }
-    }
-
-    return Optional.empty();
-  }
-
-  /**
-   * Detects if a type is a container type, including subtypes like {@code ArrayList} for {@code
-   * List}.
-   *
-   * <p>This method checks the type hierarchy to determine if a type implements or extends a known
-   * container type. For example, {@code ArrayList<String>} is detected as {@code List<String>}.
-   *
-   * <p>Supported container types:
-   *
-   * <ul>
-   *   <li>{@code List<A>} and subtypes (ArrayList, LinkedList, etc.)
-   *   <li>{@code Set<A>} and subtypes (HashSet, TreeSet, LinkedHashSet, etc.)
-   *   <li>{@code Collection<A>} (exact match only: its traversal rebuilds a set as a set and
-   *       anything else as a list, which a field declared as some other {@code Collection} subtype
-   *       could not take back)
-   *   <li>{@code Optional<A>} (exact match only, as Optional is final)
-   *   <li>{@code Map<K, V>} and subtypes (HashMap, TreeMap, etc.)
-   *   <li>{@code A[]} arrays
-   * </ul>
-   *
-   * @param type the type to check
-   * @param elementUtils the element utilities for looking up type elements
-   * @return the container type info if detected, empty otherwise
-   */
-  public Optional<ContainerType> detectContainerTypeWithSubtypes(
-      TypeMirror type, Elements elementUtils) {
-    // Check for array first
-    if (type.getKind() == TypeKind.ARRAY) {
-      ArrayType arrayType = (ArrayType) type;
-      return Optional.of(ContainerType.of(ContainerType.Kind.ARRAY, arrayType.getComponentType()));
-    }
-
-    // Check for declared types
-    if (type.getKind() != TypeKind.DECLARED) {
-      return Optional.empty();
-    }
-
-    DeclaredType declaredType = (DeclaredType) type;
-
-    // Get the erased type for subtype checking
-    TypeMirror erasedType = typeUtils.erasure(type);
-
-    // Check for List (and subtypes like ArrayList, LinkedList)
-    TypeElement listElement = elementUtils.getTypeElement("java.util.List");
-    if (listElement != null
-        && typeUtils.isSubtype(erasedType, typeUtils.erasure(listElement.asType()))) {
-      List<? extends TypeMirror> typeArgs = declaredType.getTypeArguments();
-      if (!typeArgs.isEmpty()) {
-        return Optional.of(ContainerType.of(ContainerType.Kind.LIST, typeArgs.get(0)));
-      }
-      // Raw type - cannot determine element type
-      return Optional.empty();
-    }
-
-    // Check for Set (and subtypes like HashSet, TreeSet)
-    TypeElement setElement = elementUtils.getTypeElement("java.util.Set");
-    if (setElement != null
-        && typeUtils.isSubtype(erasedType, typeUtils.erasure(setElement.asType()))) {
-      List<? extends TypeMirror> typeArgs = declaredType.getTypeArguments();
-      if (!typeArgs.isEmpty()) {
-        return Optional.of(ContainerType.of(ContainerType.Kind.SET, typeArgs.get(0)));
-      }
-      // Raw type - cannot determine element type
-      return Optional.empty();
-    }
-
-    // Check for Collection (exact match). Traversals.forCollection() hands back a set for a set
-    // source and a list for anything else, so a field declared as a Deque or a Queue would be
-    // rebuilt as a value it cannot hold; only a field declared as the interface itself can.
-    TypeElement collectionElement = elementUtils.getTypeElement("java.util.Collection");
-    if (collectionElement != null
-        && typeUtils.isSameType(erasedType, typeUtils.erasure(collectionElement.asType()))) {
-      List<? extends TypeMirror> typeArgs = declaredType.getTypeArguments();
-      if (!typeArgs.isEmpty()) {
-        return Optional.of(ContainerType.of(ContainerType.Kind.COLLECTION, typeArgs.get(0)));
-      }
-      // Raw type - cannot determine element type
-      return Optional.empty();
-    }
-
-    // Check for Optional (exact match, as Optional is final)
-    TypeElement optionalElement = elementUtils.getTypeElement("java.util.Optional");
-    if (optionalElement != null
-        && typeUtils.isSameType(erasedType, typeUtils.erasure(optionalElement.asType()))) {
-      List<? extends TypeMirror> typeArgs = declaredType.getTypeArguments();
-      if (!typeArgs.isEmpty()) {
-        return Optional.of(ContainerType.of(ContainerType.Kind.OPTIONAL, typeArgs.get(0)));
-      }
-      // Raw type - cannot determine element type
-      return Optional.empty();
-    }
-
-    // Check for Map (and subtypes like HashMap, TreeMap)
-    TypeElement mapElement = elementUtils.getTypeElement("java.util.Map");
-    if (mapElement != null
-        && typeUtils.isSubtype(erasedType, typeUtils.erasure(mapElement.asType()))) {
-      List<? extends TypeMirror> typeArgs = declaredType.getTypeArguments();
-      if (typeArgs.size() >= 2) {
-        return Optional.of(ContainerType.forMap(typeArgs.get(0), typeArgs.get(1)));
-      }
-      // Raw type - cannot determine element types
-      return Optional.empty();
     }
 
     return Optional.empty();

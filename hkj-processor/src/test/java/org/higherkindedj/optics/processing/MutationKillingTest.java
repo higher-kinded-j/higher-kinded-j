@@ -3875,12 +3875,12 @@ class MutationKillingTest {
   }
 
   // =============================================================================
-  // detectContainerTypeWithSubtypes Raw Type Tests
+  // detectContainerType Raw Type Tests
   // =============================================================================
 
   @Nested
-  @DisplayName("Container Type Subtype Detection - Raw Types")
-  class ContainerSubtypeRawTypeTests {
+  @DisplayName("Container Type Detection - Raw Types")
+  class ContainerRawTypeTests {
 
     @Test
     @DisplayName("raw ArrayList without type args should return empty")
@@ -3907,7 +3907,7 @@ class MutationKillingTest {
     @Test
     @DisplayName("TreeMap<K,V> should NOT be detected via exact match (analyseType uses exact)")
     void treeMapNotDetectedViaExactMatch() {
-      // analyseRecord uses detectContainerType (exact match), not detectContainerTypeWithSubtypes
+      // analyseRecord uses detectContainerType, whose match is exact
       var source =
           JavaFileObjects.forSourceString(
               "com.test.TreeMapHolder",
