@@ -5,6 +5,7 @@ package org.higherkindedj.optics.processing;
 import static com.google.testing.compile.CompilationSubject.assertThat;
 import static com.google.testing.compile.Compiler.javac;
 import static org.higherkindedj.optics.processing.GeneratorTestHelper.assertGeneratedCodeContains;
+import static org.higherkindedj.optics.processing.GeneratorTestHelper.assertGeneratedCodeDoesNotContain;
 
 import com.google.testing.compile.Compilation;
 import com.google.testing.compile.JavaFileObjects;
@@ -145,6 +146,62 @@ class GenericMappingWireAxisTest {
     assertGeneratedCodeContains(compilation, "com.example.ASpecImpl", "public String id()");
     assertGeneratedCodeContains(compilation, "com.example.BSpecImpl", "public String id()");
     assertGeneratedCodeContains(compilation, "com.example.CSubImpl", "public String id()");
+  }
+
+  @Test
+  @DisplayName("a name shared by a rename and a leaf gets the leaf accessor, not a second stub")
+  void mixedRenameAndLeafGroup() {
+    // The leaf accessor already implements the member, and the group guard has proven its
+    // return satisfies the rename declaration; emitting a stub as well would declare id()
+    // twice in the generated file. The rename's to-mapping still applies.
+    var ren =
+        JavaFileObjects.forSourceString(
+            "com.example.RenVocab",
+            """
+            package com.example;
+            import org.higherkindedj.optics.annotations.MapField;
+            public interface RenVocab { @MapField(to = "label") Object id(); }
+            """);
+    var leaf =
+        JavaFileObjects.forSourceString(
+            "com.example.LeafVocab",
+            """
+            package com.example;
+            import org.higherkindedj.optics.validated.ValidatedPrism;
+            public interface LeafVocab<TDto, T> { ValidatedPrism<TDto, T> id(); }
+            """);
+    var domain =
+        JavaFileObjects.forSourceString(
+            "com.example.MPage",
+            """
+            package com.example;
+            import java.util.List;
+            public record MPage<T>(List<T> id) {}
+            """);
+    var wire =
+        JavaFileObjects.forSourceString(
+            "com.example.MDto",
+            """
+            package com.example;
+            import java.util.List;
+            public record MDto<TDto>(List<TDto> label) {}
+            """);
+    var spec =
+        JavaFileObjects.forSourceString(
+            "com.example.MSpec",
+            """
+            package com.example;
+            import org.higherkindedj.optics.annotations.GenerateMapping;
+            import org.higherkindedj.optics.annotations.MappingSpec;
+            @GenerateMapping
+            public interface MSpec<T, TDto>
+                extends MappingSpec<MPage<T>, MDto<TDto>>, RenVocab, LeafVocab<TDto, T> {}
+            """);
+    var compilation = compile(ren, leaf, domain, wire, spec);
+    assertThat(compilation).succeeded();
+    assertGeneratedCodeContains(compilation, "com.example.MSpecImpl", "ValidatedPrism<TDto, T> id");
+    assertGeneratedCodeDoesNotContain(
+        compilation, "com.example.MSpecImpl", "Rename declaration only");
   }
 
   @Test

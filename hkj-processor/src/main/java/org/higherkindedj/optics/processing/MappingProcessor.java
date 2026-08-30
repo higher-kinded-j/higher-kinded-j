@@ -3988,10 +3988,18 @@ public class MappingProcessor extends AbstractProcessor {
     // Only abstract zero-parameter @MapField methods survive validateSpecMethods. Unrelated
     // mix-ins agreeing on a rename contribute one stub, whose return has to be
     // return-type-substitutable for every declaration (JLS 8.4.8.3): the subtype-narrowest of
-    // the group, which checkGroupsHaveNarrowestReturns has verified exists.
+    // the group, which checkGroupsHaveNarrowestReturns has verified exists. A name an abstract
+    // leaf shares gets no stub at all: the leaf accessor elementMappedSkeleton emits already
+    // implements the member, and the group guard has proven its return satisfies the rename
+    // declaration too; the rename's to-mapping is read from collectRenames either way.
+    Set<String> leafNames =
+        abstractLeaves(spec).stream()
+            .map(leaf -> leaf.getSimpleName().toString())
+            .collect(Collectors.toSet());
     Map<String, List<ExecutableElement>> renames = new LinkedHashMap<>();
     for (ExecutableElement method : specMembers(spec)) {
-      if (method.getAnnotation(MapField.class) != null) {
+      if (method.getAnnotation(MapField.class) != null
+          && !leafNames.contains(method.getSimpleName().toString())) {
         renames
             .computeIfAbsent(method.getSimpleName().toString(), name -> new ArrayList<>())
             .add(method);
