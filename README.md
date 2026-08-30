@@ -129,22 +129,24 @@ Then follow the **[Quickstart](https://higher-kinded-j.github.io/latest/quicksta
 
 ## The Bridge: Effects Meet Optics
 
-What makes Higher-Kinded-J unique is that **Effect Paths** and the **Focus DSL** speak the same language. Where Effect Paths navigate *computational effects*, Focus Paths navigate *data structures*. Both compose with `via`, and when you need to cross between them, the bridge connects the two worlds:
+What makes Higher-Kinded-J unique is that **Effect Paths** and the **Focus DSL** speak the same language. Effect Paths are the *effects*, what the computation does: fetch, fail, wait, accumulate. Focus Paths are the *optics*, where the data lives: a field, an optional field, every element of a list. Both compose with `via`, and when you need to cross between them, the bridge connects the two worlds:
 
 ```mermaid
 %%{init: {'theme': 'base', 'themeVariables': {'primaryColor': '#8caaee', 'primaryTextColor': '#232634', 'primaryBorderColor': '#1e66f5', 'lineColor': '#7c7f93', 'textColor': '#232634', 'titleColor': '#232634', 'edgeLabelBackground': '#eff1f5', 'clusterBkg': '#eff1f5', 'clusterBorder': '#9ca0b0', 'fontFamily': 'inherit'}}}%%
 flowchart TB
-    subgraph effects["Effects: the Effect Paths, what the computation does"]
+    subgraph effects["Effects: Effect Paths"]
         direction TB
-        E["MaybePath<br/>EitherPath<br/>TryPath<br/>ValidationPath<br/>EitherOrBothPath<br/>IOPath<br/>VTaskPath<br/>VStreamPath"]
+        E1["MaybePath"] ~~~ E2["EitherPath"] ~~~ E3["TryPath"] ~~~ E4["ValidationPath"]
+        E5["EitherOrBothPath"] ~~~ E6["IOPath"] ~~~ E7["VTaskPath"] ~~~ E8["VStreamPath"]
     end
-    subgraph optics["Optics: the Focus Paths, where the data lives"]
+    subgraph optics["Optics: Focus Paths"]
         direction TB
-        O["FocusPath<br/>AffinePath<br/>TraversalPath"]
+        O1["FocusPath"] ~~~ O2["AffinePath"]
+        O3["TraversalPath"]
     end
-    E -->|".focus(path)<br/>navigate the data inside the effect"| B["The bridge"]
-    O -->|".toEitherPath()<br/>.toMaybePath()<br/>lift the optic into an effect"| B
-    subgraph one["One composition, read top to bottom"]
+    effects -->|".focus(path)<br/>navigate the data inside the effect"| B["The bridge"]
+    optics -->|".toEitherPath()<br/>.toMaybePath()<br/>lift the optic into an effect"| B
+    subgraph one["One composition"]
         direction TB
         S1["userService.findById(id)<br/>effect: fetch"] --> S2[".focus(UserFocus.address())<br/>optics: navigate"]
         S2 --> S3[".via(validateAddress)<br/>effect: validate"]
@@ -156,8 +158,8 @@ flowchart TB
     classDef effect fill:#8caaee,stroke:#1e66f5,color:#232634
     classDef optic fill:#a6d189,stroke:#40a02b,color:#232634
     classDef bridge fill:#e5c890,stroke:#df8e1d,color:#232634
-    class E,S1,S3,S5 effect
-    class O,S2,S4 optic
+    class E1,E2,E3,E4,E5,E6,E7,E8,S1,S3,S5 effect
+    class O1,O2,O3,S2,S4 optic
     class B bridge
 ```
 
