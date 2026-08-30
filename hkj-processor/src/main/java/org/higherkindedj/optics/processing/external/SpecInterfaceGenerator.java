@@ -142,9 +142,9 @@ public class SpecInterfaceGenerator {
                 methodName,
                 TypeName.get(sourceType));
 
-    // Add @SuppressWarnings("unchecked") for THROUGH_FIELD traversals
-    // This is needed because container subtypes (e.g., ArrayList) are composed with
-    // supertype traversals (e.g., Traversal<List, A>) using an unchecked cast
+    // A THROUGH_FIELD traversal composes the field lens with a traversal reached through a raw
+    // cast (see TraversalCodeGenerator.generateThroughFieldCode), which makes the andThen call
+    // unchecked in the generated source.
     if (opticKind == OpticKind.TRAVERSAL
         && opticMethod.traversalHint() == SpecAnalysis.TraversalHintKind.THROUGH_FIELD) {
       methodBuilder.addAnnotation(

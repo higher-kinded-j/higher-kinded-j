@@ -84,7 +84,7 @@ The library provides a rich set of tools for creating `Traversal` instances, fou
 | `Traversals.forMapValues()` | `Map<K, V>` | Traverses all values in a map |
 | `Traversals.forMap(key)` | `Map<K, V>` | Traverses a specific key's value |
 
-These traversals also work with subtypes. For example, `forList()` works with `ArrayList`, `LinkedList`, and any other `List` implementation.
+These traversals accept any implementation as input: `forList()` reads an `ArrayList` or a `LinkedList` as readily as a `List.of(...)`. What each hands back is a value of the interface type (`forList()` rebuilds an unmodifiable `List`), which is why `@ThroughField` auto-detection matches the interface only and refuses a field declared as `ArrayList`; see [`@ThroughField` auto-detection](copy_strategies.md#throughfield-auto-detection). (`@GenerateTraversals` reports the same component with a note rather than an error: it has no per-component opt-out, where `@ThroughField` is an explicit request on one method.)
 
 ```java
 import org.higherkindedj.optics.annotations.GenerateTraversals;

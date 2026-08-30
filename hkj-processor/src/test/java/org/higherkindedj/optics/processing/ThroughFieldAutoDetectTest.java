@@ -7,7 +7,13 @@ import static com.google.testing.compile.Compiler.javac;
 
 import com.google.testing.compile.Compilation;
 import com.google.testing.compile.JavaFileObjects;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Locale;
 import javax.tools.JavaFileObject;
+import org.assertj.core.api.Assertions;
+import org.higherkindedj.optics.Traversal;
+import org.higherkindedj.optics.util.Traversals;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -82,8 +88,186 @@ class ThroughFieldAutoDetectTest {
     }
 
     @Test
-    @DisplayName("should auto-detect ArrayList<String> as List")
-    void shouldAutoDetectArrayListAsList() {
+    @DisplayName("should traverse a List<String> field at runtime, read and write")
+    void shouldTraverseListFieldAtRuntime() throws Exception {
+      // The composed optic casts the rebuilt List back into the field. With the field declared
+      // as the interface, the unmodifiable List the traversal hands back is accepted on the
+      // write side; a field declared as ArrayList would throw here, which is why auto-detection
+      // is exact.
+      var container =
+          JavaFileObjects.forSourceString(
+              "com.external.Bag",
+              """
+              package com.external;
+              import java.util.List;
+              public record Bag(List<String> items) {
+                  public Bag.Builder toBuilder() { return new Builder().items(items); }
+                  public static class Builder {
+                      private List<String> items;
+                      public Builder items(List<String> i) { this.items = i; return this; }
+                      public Bag build() { return new Bag(items); }
+                  }
+              }
+              """);
+      var spec =
+          JavaFileObjects.forSourceString(
+              "com.test.BagSpec",
+              """
+              package com.test;
+              import org.higherkindedj.optics.Lens;
+              import org.higherkindedj.optics.Traversal;
+              import org.higherkindedj.optics.annotations.ImportOptics;
+              import org.higherkindedj.optics.annotations.OpticsSpec;
+              import org.higherkindedj.optics.annotations.ThroughField;
+              import org.higherkindedj.optics.annotations.ViaBuilder;
+              import com.external.Bag;
+              import java.util.List;
+
+              @ImportOptics
+              public interface BagSpec extends OpticsSpec<Bag> {
+                  @ViaBuilder
+                  Lens<Bag, List<String>> items();
+
+                  @ThroughField(field = "items")
+                  Traversal<Bag, String> eachItem();
+              }
+              """);
+
+      var compiled = RuntimeCompilationHelper.compile(container, spec);
+      Object bag =
+          compiled
+              .loadClass("com.external.Bag")
+              .getConstructor(List.class)
+              .newInstance(List.of("a", "b"));
+      @SuppressWarnings("unchecked") // the generated optic is over types this test cannot name
+      Traversal<Object, Object> eachItem =
+          (Traversal<Object, Object>) compiled.invokeStatic("com.test.Bag", "eachItem");
+
+      Assertions.assertThat(Traversals.getAll(eachItem, bag)).containsExactly("a", "b");
+      Object shouted =
+          Traversals.modify(eachItem, item -> item.toString().toUpperCase(Locale.ROOT), bag);
+
+      Assertions.assertThat(Traversals.getAll(eachItem, shouted)).containsExactly("A", "B");
+      Assertions.assertThat(shouted).isNotSameAs(bag);
+      Assertions.assertThat(Traversals.getAll(eachItem, bag)).containsExactly("a", "b");
+      Object rebuilt = RuntimeCompilationHelper.invoke(shouted, "items");
+      Assertions.assertThat(rebuilt).isNotSameAs(RuntimeCompilationHelper.invoke(bag, "items"));
+      Assertions.assertThatThrownBy(() -> ((List<?>) rebuilt).remove(0))
+          .as("the traversal hands back an unmodifiable List, and the field took it")
+          .isInstanceOf(UnsupportedOperationException.class);
+    }
+
+    @Test
+    @DisplayName("should detect from the spec's lens focus, not the accessor's return type")
+    void shouldDetectFromTheDeclaredLensFocus() {
+      // The composition is typed against the lens the spec declares. An accessor that returns an
+      // ArrayList behind a Lens<WideBag, List<String>> is sound: the builder takes a List, and
+      // the rebuilt List is what it receives.
+      var bag =
+          JavaFileObjects.forSourceString(
+              "com.external.WideBag",
+              """
+              package com.external;
+              import java.util.ArrayList;
+              import java.util.List;
+              public record WideBag(ArrayList<String> items) {
+                  public WideBag.Builder toBuilder() { return new Builder().items(items); }
+                  public static class Builder {
+                      private List<String> items;
+                      public Builder items(List<String> i) { this.items = i; return this; }
+                      public WideBag build() { return new WideBag(new ArrayList<>(items)); }
+                  }
+              }
+              """);
+      var spec =
+          JavaFileObjects.forSourceString(
+              "com.test.WideBagSpec",
+              """
+              package com.test;
+              import org.higherkindedj.optics.Lens;
+              import org.higherkindedj.optics.Traversal;
+              import org.higherkindedj.optics.annotations.ImportOptics;
+              import org.higherkindedj.optics.annotations.OpticsSpec;
+              import org.higherkindedj.optics.annotations.ThroughField;
+              import org.higherkindedj.optics.annotations.ViaBuilder;
+              import com.external.WideBag;
+              import java.util.List;
+
+              @ImportOptics
+              public interface WideBagSpec extends OpticsSpec<WideBag> {
+                  @ViaBuilder
+                  Lens<WideBag, List<String>> items();
+
+                  @ThroughField(field = "items")
+                  Traversal<WideBag, String> eachItem();
+              }
+              """);
+
+      Compilation compilation = compile(bag, spec);
+      assertThat(compilation).succeeded();
+      assertThat(compilation)
+          .generatedSourceFile("com.test.WideBag")
+          .contentsAsUtf8String()
+          .contains("Traversals.forList()");
+    }
+
+    @Test
+    @DisplayName("should refuse a spec that declares no lens for the field it traverses through")
+    void shouldRefuseWhenTheSpecDeclaresNoLensForTheField() {
+      // The generated traversal calls Sack.items(), the lens; without one the generated file
+      // could only fail with "cannot find symbol". Same-named members that are not a lens (static
+      // helpers here) do not count as one.
+      var container =
+          JavaFileObjects.forSourceString(
+              "com.external.Sack",
+              """
+              package com.external;
+              import java.util.List;
+              public record Sack(List<String> items) {
+                  public Sack.Builder toBuilder() { return new Builder().items(items); }
+                  public static class Builder {
+                      private List<String> items;
+                      public Builder items(List<String> i) { this.items = i; return this; }
+                      public Sack build() { return new Sack(items); }
+                  }
+              }
+              """);
+      var spec =
+          JavaFileObjects.forSourceString(
+              "com.test.SackSpec",
+              """
+              package com.test;
+              import org.higherkindedj.optics.Traversal;
+              import org.higherkindedj.optics.annotations.ImportOptics;
+              import org.higherkindedj.optics.annotations.OpticsSpec;
+              import org.higherkindedj.optics.annotations.ThroughField;
+              import com.external.Sack;
+
+              @ImportOptics
+              public interface SackSpec extends OpticsSpec<Sack> {
+                  static int items(int scale) { return scale; }
+                  static String items(String label) { return label; }
+
+                  @ThroughField(field = "items")
+                  Traversal<Sack, String> eachItem();
+              }
+              """);
+
+      Compilation compilation = compile(container, spec);
+      assertThat(compilation).failed();
+      assertThat(compilation)
+          .hadErrorContaining(
+              "@ThroughField: 'SackSpec.eachItem' composes through a lens named 'items', which the"
+                  + " spec does not declare. The generated traversal calls the spec's own lens for"
+                  + " the field and composes the container traversal after it. Declare a Lens"
+                  + " method named 'items' on the spec, with its copy strategy, or use"
+                  + " @TraverseWith for a traversal that stands on its own.");
+      assertThat(compilation).hadErrorCount(1);
+    }
+
+    @Test
+    @DisplayName("should refuse an ArrayList<String> field, naming the List interface")
+    void shouldRefuseArrayListField() {
       var container =
           JavaFileObjects.forSourceString(
               "com.external.Container",
@@ -125,11 +309,124 @@ class ThroughFieldAutoDetectTest {
               """);
 
       Compilation compilation = compile(container, spec);
-      assertThat(compilation).succeeded();
+      assertThat(compilation).failed();
       assertThat(compilation)
-          .generatedSourceFile("com.test.Container")
-          .contentsAsUtf8String()
-          .contains("Traversals.forList()");
+          .hadErrorContaining(
+              "@ThroughField: 'ContainerSpec.eachItem' reaches field 'items', which is declared as"
+                  + " 'ArrayList<String>' rather than as the List interface. The standard List"
+                  + " traversal promises no more than a List, so what it rebuilds is not"
+                  + " guaranteed to be an ArrayList, and a field it cannot be handed back to would"
+                  + " throw ClassCastException on first use. Name a traversal that rebuilds it, for"
+                  + " example @ThroughField(field = \"items\", traversal ="
+                  + " \"com.example.MyTraversals.forArrayList()\") built with"
+                  + " Traversals.forIterableCollecting or Traversals.forMapValuesCollecting, or,"
+                  + " where the type is yours, declare the field as List.");
+      assertThat(compilation).hadErrorCount(1);
+    }
+
+    /** The ArrayList container and its builder the explicit-traversal tests share. */
+    private static final JavaFileObject ARRAY_LIST_CONTAINER =
+        JavaFileObjects.forSourceString(
+            "com.external.Crate",
+            """
+            package com.external;
+            import java.util.ArrayList;
+            public record Crate(ArrayList<String> items) {
+                public Crate.Builder toBuilder() { return new Builder().items(items); }
+                public static class Builder {
+                    private ArrayList<String> items;
+                    public Builder items(ArrayList<String> i) { this.items = i; return this; }
+                    public Crate build() { return new Crate(items); }
+                }
+            }
+            """);
+
+    private static JavaFileObject crateSpec(String traversal) {
+      return JavaFileObjects.forSourceString(
+          "com.test.CrateSpec",
+          """
+          package com.test;
+          import org.higherkindedj.optics.Lens;
+          import org.higherkindedj.optics.Traversal;
+          import org.higherkindedj.optics.annotations.ImportOptics;
+          import org.higherkindedj.optics.annotations.OpticsSpec;
+          import org.higherkindedj.optics.annotations.ThroughField;
+          import org.higherkindedj.optics.annotations.ViaBuilder;
+          import com.external.Crate;
+          import java.util.ArrayList;
+
+          @ImportOptics
+          public interface CrateSpec extends OpticsSpec<Crate> {
+              @ViaBuilder
+              Lens<Crate, ArrayList<String>> items();
+
+              @ThroughField(field = "items", traversal = "%s")
+              Traversal<Crate, String> eachItem();
+          }
+          """
+              .formatted(traversal));
+    }
+
+    @Test
+    @DisplayName("the interface traversal over an ArrayList field throws on first use")
+    void interfaceTraversalOverArrayListFieldThrowsAtRuntime() throws Exception {
+      // The premise of the refusal, pinned through the explicit route that bypasses it: the
+      // unmodifiable List forList() hands back cannot be handed to an ArrayList field, and the
+      // read reaches the setter too.
+      var compiled =
+          RuntimeCompilationHelper.compile(
+              ARRAY_LIST_CONTAINER,
+              crateSpec("org.higherkindedj.optics.util.Traversals.forList()"));
+      Object crate =
+          compiled
+              .loadClass("com.external.Crate")
+              .getConstructor(ArrayList.class)
+              .newInstance(new ArrayList<>(List.of("a")));
+      @SuppressWarnings("unchecked") // the generated optic is over types this test cannot name
+      Traversal<Object, Object> eachItem =
+          (Traversal<Object, Object>) compiled.invokeStatic("com.test.Crate", "eachItem");
+
+      Assertions.assertThatThrownBy(() -> Traversals.getAll(eachItem, crate))
+          .isInstanceOf(ClassCastException.class);
+    }
+
+    @Test
+    @DisplayName("a traversal that rebuilds the ArrayList, named explicitly, round-trips")
+    void explicitTraversalRebuildingArrayListRoundTrips() throws Exception {
+      // The remedy the refusal prescribes: forIterableCollecting rebuilds the declared type.
+      var helper =
+          JavaFileObjects.forSourceString(
+              "com.test.CrateTraversals",
+              """
+              package com.test;
+              import java.util.ArrayList;
+              import org.higherkindedj.optics.Traversal;
+              import org.higherkindedj.optics.util.Traversals;
+              public final class CrateTraversals {
+                  private CrateTraversals() {}
+                  public static Traversal<ArrayList<String>, String> forArrayList() {
+                      return Traversals.forIterableCollecting(ArrayList::new);
+                  }
+              }
+              """);
+      var compiled =
+          RuntimeCompilationHelper.compile(
+              ARRAY_LIST_CONTAINER, helper, crateSpec("com.test.CrateTraversals.forArrayList()"));
+      Object crate =
+          compiled
+              .loadClass("com.external.Crate")
+              .getConstructor(ArrayList.class)
+              .newInstance(new ArrayList<>(List.of("a", "b")));
+      @SuppressWarnings("unchecked") // the generated optic is over types this test cannot name
+      Traversal<Object, Object> eachItem =
+          (Traversal<Object, Object>) compiled.invokeStatic("com.test.Crate", "eachItem");
+
+      Assertions.assertThat(Traversals.getAll(eachItem, crate)).containsExactly("a", "b");
+      Object shouted =
+          Traversals.modify(eachItem, item -> item.toString().toUpperCase(Locale.ROOT), crate);
+      Assertions.assertThat(RuntimeCompilationHelper.invoke(shouted, "items"))
+          .isInstanceOf(ArrayList.class)
+          .isEqualTo(new ArrayList<>(List.of("A", "B")));
     }
   }
 
@@ -189,8 +486,8 @@ class ThroughFieldAutoDetectTest {
     }
 
     @Test
-    @DisplayName("should auto-detect HashSet<String> as Set")
-    void shouldAutoDetectHashSetAsSet() {
+    @DisplayName("should refuse a HashSet<String> field, naming the Set interface")
+    void shouldRefuseHashSetField() {
       var container =
           JavaFileObjects.forSourceString(
               "com.external.HashContainer",
@@ -232,11 +529,19 @@ class ThroughFieldAutoDetectTest {
               """);
 
       Compilation compilation = compile(container, spec);
-      assertThat(compilation).succeeded();
+      assertThat(compilation).failed();
       assertThat(compilation)
-          .generatedSourceFile("com.test.HashContainer")
-          .contentsAsUtf8String()
-          .contains("Traversals.forSet()");
+          .hadErrorContaining(
+              "@ThroughField: 'HashContainerSpec.eachItem' reaches field 'items', which is declared as"
+                  + " 'HashSet<String>' rather than as the Set interface. The standard Set"
+                  + " traversal promises no more than a Set, so what it rebuilds is not"
+                  + " guaranteed to be a HashSet, and a field it cannot be handed back to would"
+                  + " throw ClassCastException on first use. Name a traversal that rebuilds it, for"
+                  + " example @ThroughField(field = \"items\", traversal ="
+                  + " \"com.example.MyTraversals.forHashSet()\") built with"
+                  + " Traversals.forIterableCollecting or Traversals.forMapValuesCollecting, or,"
+                  + " where the type is yours, declare the field as Set.");
+      assertThat(compilation).hadErrorCount(1);
     }
   }
 
@@ -342,7 +647,18 @@ class ThroughFieldAutoDetectTest {
 
       Compilation compilation = compile(queue, spec);
       assertThat(compilation).failed();
-      assertThat(compilation).hadErrorContaining("Cannot auto-detect traversal");
+      assertThat(compilation)
+          .hadErrorContaining(
+              "@ThroughField: 'QueueSpec.eachValue' reaches field 'values', which is declared as"
+                  + " 'Deque<String>' rather than as the Collection interface. The standard"
+                  + " Collection traversal promises no more than a Collection, so what it rebuilds"
+                  + " is not guaranteed to be a Deque, and a field it cannot be handed back to"
+                  + " would throw ClassCastException on first use. Name a traversal that rebuilds"
+                  + " it, for example @ThroughField(field = \"values\", traversal ="
+                  + " \"com.example.MyTraversals.forDeque()\") built with"
+                  + " Traversals.forIterableCollecting or Traversals.forMapValuesCollecting, or,"
+                  + " where the type is yours, declare the field as Collection.");
+      assertThat(compilation).hadErrorCount(1);
     }
   }
 
@@ -458,8 +774,8 @@ class ThroughFieldAutoDetectTest {
     }
 
     @Test
-    @DisplayName("should auto-detect HashMap<String, Integer> as Map")
-    void shouldAutoDetectHashMapAsMap() {
+    @DisplayName("should refuse a HashMap<String, Integer> field, naming the Map interface")
+    void shouldRefuseHashMapField() {
       var hashScores =
           JavaFileObjects.forSourceString(
               "com.external.HashScores",
@@ -501,11 +817,19 @@ class ThroughFieldAutoDetectTest {
               """);
 
       Compilation compilation = compile(hashScores, spec);
-      assertThat(compilation).succeeded();
+      assertThat(compilation).failed();
       assertThat(compilation)
-          .generatedSourceFile("com.test.HashScores")
-          .contentsAsUtf8String()
-          .contains("Traversals.forMapValues()");
+          .hadErrorContaining(
+              "@ThroughField: 'HashScoresSpec.eachScore' reaches field 'values', which is declared as"
+                  + " 'HashMap<String, Integer>' rather than as the Map interface. The standard Map"
+                  + " traversal promises no more than a Map, so what it rebuilds is not"
+                  + " guaranteed to be a HashMap, and a field it cannot be handed back to would"
+                  + " throw ClassCastException on first use. Name a traversal that rebuilds it, for"
+                  + " example @ThroughField(field = \"values\", traversal ="
+                  + " \"com.example.MyTraversals.forHashMap()\") built with"
+                  + " Traversals.forIterableCollecting or Traversals.forMapValuesCollecting, or,"
+                  + " where the type is yours, declare the field as Map.");
+      assertThat(compilation).hadErrorCount(1);
     }
   }
 
@@ -656,6 +980,264 @@ class ThroughFieldAutoDetectTest {
       assertThat(compilation)
           .hadErrorContaining("Supported types: List, Set, Collection, Optional, Map");
       // One problem, one error: a rejected hint must not also draw the missing-hint error.
+      assertThat(compilation).hadErrorCount(1);
+    }
+
+    @Test
+    @DisplayName("should report the raw-container error for a raw ArrayList, not the subtype one")
+    void shouldReportRawErrorForRawArrayList() {
+      // "Declare the field as List" would only lead to the raw-List refusal next, so the generic
+      // message, which asks for an explicit traversal, is the one that names the whole remedy.
+      var raw =
+          JavaFileObjects.forSourceString(
+              "com.external.RawBag",
+              """
+              package com.external;
+              import java.util.ArrayList;
+              @SuppressWarnings("rawtypes")
+              public record RawBag(ArrayList items) {
+                  public RawBag.Builder toBuilder() { return new Builder(); }
+                  public static class Builder {
+                      private ArrayList items;
+                      public Builder items(ArrayList i) { this.items = i; return this; }
+                      public RawBag build() { return new RawBag(items); }
+                  }
+              }
+              """);
+
+      var spec =
+          JavaFileObjects.forSourceString(
+              "com.test.RawBagSpec",
+              """
+              package com.test;
+              import org.higherkindedj.optics.Lens;
+              import org.higherkindedj.optics.Traversal;
+              import org.higherkindedj.optics.annotations.ImportOptics;
+              import org.higherkindedj.optics.annotations.OpticsSpec;
+              import org.higherkindedj.optics.annotations.ThroughField;
+              import org.higherkindedj.optics.annotations.ViaBuilder;
+              import com.external.RawBag;
+              import java.util.ArrayList;
+
+              @ImportOptics
+              @SuppressWarnings("rawtypes")
+              public interface RawBagSpec extends OpticsSpec<RawBag> {
+                  @ViaBuilder
+                  Lens<RawBag, ArrayList> items();
+
+                  @ThroughField(field = "items")
+                  Traversal<RawBag, Object> eachItem();
+              }
+              """);
+
+      Compilation compilation = compile(raw, spec);
+      assertThat(compilation).failed();
+      assertThat(compilation).hadErrorContaining("Cannot auto-detect traversal for field 'items'");
+      assertThat(compilation).hadErrorCount(1);
+    }
+
+    @Test
+    @DisplayName("should refuse an int[] field, which the Object-array traversal cannot rebuild")
+    void shouldRefusePrimitiveArrayField() {
+      var counts =
+          JavaFileObjects.forSourceString(
+              "com.external.Counts",
+              """
+              package com.external;
+              public record Counts(int[] values) {
+                  public Counts.Builder toBuilder() { return new Builder(); }
+                  public static class Builder {
+                      private int[] values;
+                      public Builder values(int[] v) { this.values = v; return this; }
+                      public Counts build() { return new Counts(values); }
+                  }
+              }
+              """);
+
+      var spec =
+          JavaFileObjects.forSourceString(
+              "com.test.CountsSpec",
+              """
+              package com.test;
+              import org.higherkindedj.optics.Lens;
+              import org.higherkindedj.optics.Traversal;
+              import org.higherkindedj.optics.annotations.ImportOptics;
+              import org.higherkindedj.optics.annotations.OpticsSpec;
+              import org.higherkindedj.optics.annotations.ThroughField;
+              import org.higherkindedj.optics.annotations.ViaBuilder;
+              import com.external.Counts;
+
+              @ImportOptics
+              public interface CountsSpec extends OpticsSpec<Counts> {
+                  @ViaBuilder
+                  Lens<Counts, int[]> values();
+
+                  @ThroughField(field = "values")
+                  Traversal<Counts, Integer> eachValue();
+              }
+              """);
+
+      Compilation compilation = compile(counts, spec);
+      assertThat(compilation).failed();
+      assertThat(compilation)
+          .hadErrorContaining(
+              "@ThroughField: 'CountsSpec.eachValue' reaches field 'values', which is declared as"
+                  + " 'int[]', an array of a primitive. The standard array traversal traverses an"
+                  + " Object array, which an int[] is not, so the generated traversal would throw"
+                  + " ClassCastException on first use. Name a traversal that rebuilds an int[] with"
+                  + " @ThroughField(field = \"values\", traversal = \"...\"), or, where the type"
+                  + " is yours, declare the field as an array of the boxed type.");
+      assertThat(compilation).hadErrorCount(1);
+    }
+
+    @Test
+    @DisplayName("should name the interface for a non-generic implementation, which is not raw")
+    void shouldRefuseNonGenericImplementationNamingTheInterface() {
+      var tags =
+          JavaFileObjects.forSourceString(
+              "com.external.Tags",
+              """
+              package com.external;
+              import java.util.ArrayList;
+              public class Tags extends ArrayList<String> {}
+              """);
+      var holder =
+          JavaFileObjects.forSourceString(
+              "com.external.Tagged",
+              """
+              package com.external;
+              public record Tagged(Tags tags) {
+                  public Tagged.Builder toBuilder() { return new Builder(); }
+                  public static class Builder {
+                      private Tags tags;
+                      public Builder tags(Tags t) { this.tags = t; return this; }
+                      public Tagged build() { return new Tagged(tags); }
+                  }
+              }
+              """);
+
+      var spec =
+          JavaFileObjects.forSourceString(
+              "com.test.TaggedSpec",
+              """
+              package com.test;
+              import org.higherkindedj.optics.Lens;
+              import org.higherkindedj.optics.Traversal;
+              import org.higherkindedj.optics.annotations.ImportOptics;
+              import org.higherkindedj.optics.annotations.OpticsSpec;
+              import org.higherkindedj.optics.annotations.ThroughField;
+              import org.higherkindedj.optics.annotations.ViaBuilder;
+              import com.external.Tagged;
+              import com.external.Tags;
+
+              @ImportOptics
+              public interface TaggedSpec extends OpticsSpec<Tagged> {
+                  @ViaBuilder
+                  Lens<Tagged, Tags> tags();
+
+                  @ThroughField(field = "tags")
+                  Traversal<Tagged, String> eachTag();
+              }
+              """);
+
+      Compilation compilation = compile(tags, holder, spec);
+      assertThat(compilation).failed();
+      assertThat(compilation)
+          .hadErrorContaining(
+              "'TaggedSpec.eachTag' reaches field 'tags', which is declared as 'Tags' rather than"
+                  + " as the List interface.");
+      assertThat(compilation).hadErrorCount(1);
+    }
+
+    @Test
+    @DisplayName("should report error for a lens whose focus is a type variable")
+    void shouldReportErrorForTypeVariableFocus() {
+      // Detection reads the lens focus; a type variable names no container to detect.
+      var box =
+          JavaFileObjects.forSourceString(
+              "com.external.Box",
+              """
+              package com.external;
+              public final class Box<U> {
+                  private final U value;
+                  public Box(U value) { this.value = value; }
+                  public U value() { return value; }
+                  public Box<U> withValue(U value) { return new Box<>(value); }
+              }
+              """);
+      var spec =
+          JavaFileObjects.forSourceString(
+              "com.test.BoxSpec",
+              """
+              package com.test;
+              import org.higherkindedj.optics.Lens;
+              import org.higherkindedj.optics.Traversal;
+              import org.higherkindedj.optics.annotations.ImportOptics;
+              import org.higherkindedj.optics.annotations.OpticsSpec;
+              import org.higherkindedj.optics.annotations.ThroughField;
+              import org.higherkindedj.optics.annotations.Wither;
+              import com.external.Box;
+
+              @ImportOptics
+              public interface BoxSpec<U> extends OpticsSpec<Box<U>> {
+                  @Wither("withValue")
+                  Lens<Box<U>, U> value();
+
+                  @ThroughField(field = "value")
+                  Traversal<Box<U>, Object> eachValue();
+              }
+              """);
+
+      Compilation compilation = compile(box, spec);
+      assertThat(compilation).failed();
+      assertThat(compilation).hadErrorContaining("Cannot auto-detect traversal for field 'value'");
+      assertThat(compilation).hadErrorCount(1);
+    }
+
+    @Test
+    @DisplayName("should report error for a primitive field, which is no container at all")
+    void shouldReportErrorForPrimitiveField() {
+      var counter =
+          JavaFileObjects.forSourceString(
+              "com.external.Counter",
+              """
+              package com.external;
+              public record Counter(int count) {
+                  public Counter.Builder toBuilder() { return new Builder(); }
+                  public static class Builder {
+                      private int count;
+                      public Builder count(int c) { this.count = c; return this; }
+                      public Counter build() { return new Counter(count); }
+                  }
+              }
+              """);
+
+      var spec =
+          JavaFileObjects.forSourceString(
+              "com.test.CounterSpec",
+              """
+              package com.test;
+              import org.higherkindedj.optics.Lens;
+              import org.higherkindedj.optics.Traversal;
+              import org.higherkindedj.optics.annotations.ImportOptics;
+              import org.higherkindedj.optics.annotations.OpticsSpec;
+              import org.higherkindedj.optics.annotations.ThroughField;
+              import org.higherkindedj.optics.annotations.ViaBuilder;
+              import com.external.Counter;
+
+              @ImportOptics
+              public interface CounterSpec extends OpticsSpec<Counter> {
+                  @ViaBuilder
+                  Lens<Counter, Integer> count();
+
+                  @ThroughField(field = "count")
+                  Traversal<Counter, Integer> eachCount();
+              }
+              """);
+
+      Compilation compilation = compile(counter, spec);
+      assertThat(compilation).failed();
+      assertThat(compilation).hadErrorContaining("Cannot auto-detect traversal for field 'count'");
       assertThat(compilation).hadErrorCount(1);
     }
 

@@ -51,6 +51,10 @@ import org.higherkindedj.optics.processing.util.ProcessorUtils;
  */
 public class SpecInterfaceAnalyser {
 
+  /** The container interfaces auto-detection rebuilds, most specific first. */
+  private static final List<String> CONTAINER_INTERFACE_FQNS =
+      List.of("java.util.List", "java.util.Set", "java.util.Map", "java.util.Collection");
+
   private static final String OPTICS_SPEC_FQN = "org.higherkindedj.optics.annotations.OpticsSpec";
   private static final String OBJECT_FQN = "java.lang.Object";
   private static final String LENS_FQN = "org.higherkindedj.optics.Lens";
@@ -1153,7 +1157,8 @@ public class SpecInterfaceAnalyser {
 
       // Auto-detect traversal if not specified
       if (traversal.isEmpty()) {
-        Optional<String> autoDetected = autoDetectTraversalForField(fieldName, sourceType, method);
+        Optional<String> autoDetected =
+            autoDetectTraversalForField(fieldName, sourceType, method, specInterface);
         if (autoDetected.isEmpty()) {
           // Error already reported in autoDetectTraversalForField
           return Optional.empty();
@@ -1179,13 +1184,22 @@ public class SpecInterfaceAnalyser {
   /**
    * Auto-detects the appropriate traversal for a field based on its type.
    *
+   * <p>The type detected from is the one the generated composition is typed against: the focus of
+   * the spec's own lens for the field, which the composition calls. A getter may return {@code
+   * ArrayList} behind a {@code Lens<S, List<String>>}, and it is the lens the traversal composes
+   * with; a spec declaring no such lens is refused, since the generated file could only fail.
+   *
    * @param fieldName the name of the field to look up
    * @param sourceType the instantiated source type containing the field
    * @param method the method element (for error reporting)
+   * @param specInterface the spec interface, whose lens for the field the traversal composes with
    * @return the traversal reference string, or empty if detection failed
    */
   private Optional<String> autoDetectTraversalForField(
-      String fieldName, TypeMirror sourceType, ExecutableElement method) {
+      String fieldName,
+      TypeMirror sourceType,
+      ExecutableElement method,
+      TypeElement specInterface) {
 
     // Look up the field's type on the source type
     TypeMirror fieldType = findFieldType(sourceType, fieldName);
@@ -1201,12 +1215,74 @@ public class SpecInterfaceAnalyser {
       return Optional.empty();
     }
 
-    // Detect the container type using type hierarchy checking
+    // The generated traversal composes through the spec's own lens for the field, so the lens
+    // decides the type detected from: a getter may return ArrayList behind a Lens<S, List<String>>,
+    // and it is the lens the traversal composes with.
+    TypeMirror declaredFocus = declaredLensFocus(specInterface, fieldName);
+    if (declaredFocus == null) {
+      Diagnostics.error(
+          messager,
+          method,
+          "@ThroughField",
+          "'"
+              + method.getEnclosingElement().getSimpleName()
+              + "."
+              + method.getSimpleName()
+              + "' composes through a lens named '"
+              + fieldName
+              + "', which the spec does not declare",
+          "The generated traversal calls the spec's own lens for the field and composes the"
+              + " container traversal after it",
+          "Declare a Lens method named '"
+              + fieldName
+              + "' on the spec, with its copy strategy, or use @TraverseWith for a traversal that"
+              + " stands on its own");
+      return Optional.empty();
+    }
+    fieldType = declaredFocus;
+
+    // The match is exact: the standard traversal rebuilds the interface type, which a field
+    // declared as a concrete container could not take back.
     TypeKindAnalyser typeAnalyser = new TypeKindAnalyser(typeUtils);
-    Optional<ContainerType> containerType =
-        typeAnalyser.detectContainerTypeWithSubtypes(fieldType, elementUtils);
+    Optional<ContainerType> containerType = typeAnalyser.detectContainerType(fieldType);
 
     if (containerType.isEmpty()) {
+      String containerInterface = concreteContainerInterface(fieldType);
+      if (containerInterface != null) {
+        Diagnostics.error(
+            messager,
+            method,
+            "@ThroughField",
+            "'"
+                + method.getEnclosingElement().getSimpleName()
+                + "."
+                + method.getSimpleName()
+                + "' reaches field '"
+                + fieldName
+                + "', which is declared as '"
+                + ProcessorUtils.simpleTypeName(fieldType)
+                + "' rather than as the "
+                + containerInterface
+                + " interface",
+            "The standard "
+                + containerInterface
+                + " traversal promises no more than a "
+                + containerInterface
+                + ", so what it rebuilds is not guaranteed to be "
+                + withArticle(ProcessorUtils.simpleTypeName(typeUtils.erasure(fieldType)))
+                + ", and a field it cannot be handed back to would throw ClassCastException on"
+                + " first use",
+            "Name a traversal that rebuilds it, for example @ThroughField(field = \""
+                + fieldName
+                + "\", traversal = \"com.example.MyTraversals.for"
+                // A declared type: concreteContainerInterface answered, so asElement is not null.
+                + typeUtils.asElement(fieldType).getSimpleName()
+                + "()\") built with Traversals.forIterableCollecting or"
+                + " Traversals.forMapValuesCollecting, or, where the type is yours, declare the"
+                + " field as "
+                + containerInterface);
+        return Optional.empty();
+      }
       error(
           "Cannot auto-detect traversal for field '"
               + fieldName
@@ -1222,11 +1298,97 @@ public class SpecInterfaceAnalyser {
       return Optional.empty();
     }
 
+    // Traversals.forArray() traverses an Object[]; a primitive array is not one, and would throw
+    // on first use exactly as a narrower container would.
+    if (containerType.get().kind() == ContainerType.Kind.ARRAY
+        && containerType.get().elementType().getKind().isPrimitive()) {
+      Diagnostics.error(
+          messager,
+          method,
+          "@ThroughField",
+          "'"
+              + method.getEnclosingElement().getSimpleName()
+              + "."
+              + method.getSimpleName()
+              + "' reaches field '"
+              + fieldName
+              + "', which is declared as '"
+              + ProcessorUtils.simpleTypeName(fieldType)
+              + "', an array of a primitive",
+          "The standard array traversal traverses an Object array, which "
+              + withArticle(ProcessorUtils.simpleTypeName(fieldType))
+              + " is not, so the generated traversal would throw ClassCastException on first use",
+          "Name a traversal that rebuilds "
+              + withArticle(ProcessorUtils.simpleTypeName(fieldType))
+              + " with @ThroughField(field = \""
+              + fieldName
+              + "\", traversal = \"...\"), or, where the type is yours, declare the field as an"
+              + " array of the boxed type");
+      return Optional.empty();
+    }
+
     // Get the standard traversal reference for this container type
     TraversalCodeGenerator traversalGenerator = new TraversalCodeGenerator();
     String traversalRef = traversalGenerator.getStandardTraversal(containerType.get().kind());
 
     return Optional.of(traversalRef);
+  }
+
+  /**
+   * The focus the spec's own lens declares for {@code fieldName}, read under the spec's
+   * instantiation, or null when the spec declares no lens by that name (or a raw one).
+   */
+  private TypeMirror declaredLensFocus(TypeElement specInterface, String fieldName) {
+    DeclaredType specType = (DeclaredType) specInterface.asType();
+    for (ExecutableElement member :
+        ElementFilter.methodsIn(elementUtils.getAllMembers(specInterface))) {
+      if (!member.getSimpleName().contentEquals(fieldName)) {
+        continue;
+      }
+      TypeMirror returned =
+          ((ExecutableType) typeUtils.asMemberOf(specType, member)).getReturnType();
+      if (returned instanceof DeclaredType optic && determineOpticKind(optic) == OpticKind.LENS) {
+        return extractFocusType(optic);
+      }
+    }
+    return null;
+  }
+
+  /** A type name with its indefinite article, for a diagnostic that reads as a sentence. */
+  private static String withArticle(String typeName) {
+    return ("AEIOUaeiou".indexOf(typeName.charAt(0)) >= 0 ? "an " : "a ") + typeName;
+  }
+
+  /**
+   * The container interface a field of a narrower container type implements, in the order the
+   * standard traversals distinguish them, or null when the field is not a container at all or is
+   * raw (a raw container is refused for a different reason). A field declared as one of the
+   * interfaces itself never reaches here: auto-detection accepted it.
+   *
+   * <p>A {@code Deque} answers {@code Collection}: it is a container, and the reason it cannot be
+   * auto-detected is the same one an {@code ArrayList} has. A non-generic implementation ({@code
+   * class Tags extends ArrayList<String>}) is not raw and answers too. The candidates are the JDK's
+   * own types, which resolve in every round, so the lookups are not guarded.
+   */
+  private String concreteContainerInterface(TypeMirror fieldType) {
+    if (fieldType.getKind() != TypeKind.DECLARED) {
+      return null;
+    }
+    DeclaredType declared = (DeclaredType) fieldType;
+    if (declared.getTypeArguments().isEmpty()
+        && !((TypeElement) declared.asElement()).getTypeParameters().isEmpty()) {
+      // Raw: a raw ArrayList sent to "declare it as List" would only meet the raw-List refusal
+      // next, so the generic message names the whole remedy.
+      return null;
+    }
+    TypeMirror erased = typeUtils.erasure(fieldType);
+    for (String candidate : CONTAINER_INTERFACE_FQNS) {
+      TypeElement candidateElement = elementUtils.getTypeElement(candidate);
+      if (typeUtils.isSubtype(erased, typeUtils.erasure(candidateElement.asType()))) {
+        return candidateElement.getSimpleName().toString();
+      }
+    }
+    return null;
   }
 
   /**

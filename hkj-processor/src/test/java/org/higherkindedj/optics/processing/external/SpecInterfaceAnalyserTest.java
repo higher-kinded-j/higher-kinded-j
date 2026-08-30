@@ -943,6 +943,11 @@ class SpecInterfaceAnalyserTest {
               public class Squad {
                   public java.util.List<String> members;
                   public Squad() {}
+                  public Squad withMembers(java.util.List<String> members) {
+                      Squad copy = new Squad();
+                      copy.members = members;
+                      return copy;
+                  }
               }
               """);
 
@@ -951,13 +956,18 @@ class SpecInterfaceAnalyserTest {
               "com.test.SquadSpec",
               """
               package com.test;
+              import org.higherkindedj.optics.Lens;
               import org.higherkindedj.optics.Traversal;
               import org.higherkindedj.optics.annotations.OpticsSpec;
               import org.higherkindedj.optics.annotations.ThroughField;
+              import org.higherkindedj.optics.annotations.Wither;
 
               public interface SquadSpec extends OpticsSpec<Squad> {
                   @ThroughField(field = "members")
-                  Traversal<Squad, String> members();
+                  Traversal<Squad, String> eachMember();
+
+                  @Wither("withMembers")
+                  Lens<Squad, java.util.List<String>> members();
               }
               """);
 
@@ -979,6 +989,11 @@ class SpecInterfaceAnalyserTest {
               public class GenericSquad<T> {
                   public T members;
                   public GenericSquad() {}
+                  public GenericSquad<T> withMembers(T members) {
+                      GenericSquad<T> copy = new GenericSquad<>();
+                      copy.members = members;
+                      return copy;
+                  }
               }
               """);
 
@@ -988,13 +1003,18 @@ class SpecInterfaceAnalyserTest {
               """
               package com.test;
               import java.util.List;
+              import org.higherkindedj.optics.Lens;
               import org.higherkindedj.optics.Traversal;
               import org.higherkindedj.optics.annotations.OpticsSpec;
               import org.higherkindedj.optics.annotations.ThroughField;
+              import org.higherkindedj.optics.annotations.Wither;
 
               public interface GenericSquadSpec extends OpticsSpec<GenericSquad<List<String>>> {
                   @ThroughField(field = "members")
-                  Traversal<GenericSquad<List<String>>, String> members();
+                  Traversal<GenericSquad<List<String>>, String> eachMember();
+
+                  @Wither("withMembers")
+                  Lens<GenericSquad<List<String>>, List<String>> members();
               }
               """);
 

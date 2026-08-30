@@ -133,16 +133,16 @@ Order topUp =
 
 ### `@ThroughField` Auto-Detection
 
-| Field Type | Auto-detected traversal |
-|------------|-------------------------|
-| `List<A>` (including `ArrayList`, `LinkedList`, ...) | `Traversals.forList()` |
-| `Set<A>` (including `HashSet`, `TreeSet`, ...) | `Traversals.forSet()` |
-| `Collection<A>` (the interface itself, not `Deque`, `Queue`, ...) | `Traversals.forCollection()` |
+| Lens focus for the field | Auto-detected traversal |
+|--------------------------|-------------------------|
+| `List<A>` | `Traversals.forList()` |
+| `Set<A>` | `Traversals.forSet()` |
+| `Collection<A>` | `Traversals.forCollection()` |
 | `Optional<A>` | `Traversals.forOptional()` |
-| `A[]` | `Traversals.forArray()` |
-| `Map<K, V>` (including `HashMap`, `TreeMap`, ...) | `Traversals.forMapValues()` |
+| `A[]`, `A` a reference type | `Traversals.forArray()` |
+| `Map<K, V>` | `Traversals.forMapValues()` |
 
-Subtypes are recognised, so a field declared `ArrayList<LineItem>` still detects as a list; `Collection` is the exception, matched only when the field is declared as the interface itself, because its traversal rebuilds a set as a set and anything else as a list, which a `Deque` or a `Queue` field could not take back. For a container outside that set, name the traversal yourself:
+Detection reads the focus of the spec's own lens for the field, which is the lens the generated traversal composes with (a spec that declares no lens for the field is refused), and the match is on the interface itself. A lens focusing something narrower, a concrete container (`ArrayList<LineItem>`, `HashSet<Tag>`, `TreeMap<K, V>`) or another interface (`Deque`, `SortedSet`), is refused at the declaration, because each standard traversal promises no more than the interface type (`forList()` hands back an unmodifiable `List`) and the field could not take that value back: the generated traversal would throw `ClassCastException` on first use. (Under the subtype matching of earlier releases a `HashMap` field survived, because the map traversal rebuilds a `HashMap`; that was an implementation detail the promise does not cover, and `HashMap` is refused like any other concrete type.) An array of a primitive (`int[]`) is refused for the same reason, since the array traversal walks an `Object[]`. Name a traversal that rebuilds the declared type, built with `Traversals.forIterableCollecting(ArrayList::new)` for a list-shaped container or `Traversals.forMapValuesCollecting(TreeMap::new)` for a map and exposed as a static method, or, where the type is yours, declare the field as the interface:
 
 ```java
 @ThroughField(field = "entries", traversal = "com.example.CustomTraversals.forMyContainer()")
@@ -301,7 +301,7 @@ Start with `@ViaBuilder`: it is the pattern most generated code uses. Fall back 
 ~~~admonish info title="Key Takeaways"
 * **`@ViaBuilder` is the default choice**, and covers JOOQ, Lombok, AutoValue and Protobuf between them. Immutables generates both a builder and withers, so either strategy works there.
 * **Every name is overridable.** Getter, builder accessor, setter and build method can each be spelled out when a library's conventions differ, and `@ViaCopyAndSet(copyConstructor = ...)` picks between overloaded copy constructors.
-* **`@ThroughField` reaches into collection fields**, auto-detecting the traversal for lists, sets, optionals, arrays and maps, subtypes included, and for a field declared as `Collection` itself.
+* **`@ThroughField` reaches into collection fields**, auto-detecting the traversal for a field declared as `List`, `Set`, `Collection`, `Map`, `Optional` or an array; a concrete container type is refused with the remedy named, and an explicit `traversal` covers it.
 * **`Traversal` reads and writes through `Traversals`**, not through a plain instance `modify`; `andThen`, `filtered`, `filterBy`, `asFold`, `modifyF`, `modifyWhen` and `branch` do live on the optic.
 * **Not everything needs a strategy.** A type that already implements `List`, `Map` or `Optional` works with the standard traversals for reads, though rebuilding the exact container type needs `forIterableCollecting`.
 ~~~

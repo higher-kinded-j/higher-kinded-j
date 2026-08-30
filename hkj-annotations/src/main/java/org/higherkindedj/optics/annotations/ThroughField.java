@@ -22,22 +22,29 @@ import java.lang.annotation.Target;
  *
  * <h2>Auto-Detection</h2>
  *
- * <p>When the {@link #traversal()} parameter is omitted, the processor automatically detects the
- * appropriate traversal based on the field's container type. The following container types are
- * supported:
+ * <p>When the {@link #traversal()} parameter is omitted, the processor detects the traversal from
+ * the focus of the spec's own lens named after the field, which is the lens the generated traversal
+ * composes with (a spec that declares no such lens is refused). The match is on the interface
+ * itself:
  *
  * <ul>
- *   <li>{@code List<X>} and subtypes (ArrayList, LinkedList, etc.) &rarr; {@code
- *       Traversals.forList()}
- *   <li>{@code Set<X>} and subtypes (HashSet, TreeSet, etc.) &rarr; {@code Traversals.forSet()}
+ *   <li>{@code List<X>} &rarr; {@code Traversals.forList()}
+ *   <li>{@code Set<X>} &rarr; {@code Traversals.forSet()}
+ *   <li>{@code Collection<X>} &rarr; {@code Traversals.forCollection()}
  *   <li>{@code Optional<X>} &rarr; {@code Traversals.forOptional()}
- *   <li>{@code X[]} arrays &rarr; {@code Traversals.forArray()}
- *   <li>{@code Map<K, V>} and subtypes (HashMap, TreeMap, etc.) &rarr; {@code
- *       Traversals.forMapValues()}
+ *   <li>{@code X[]} arrays of a reference type &rarr; {@code Traversals.forArray()} (an array of a
+ *       primitive is refused, as the traversal walks an {@code Object[]})
+ *   <li>{@code Map<K, V>} &rarr; {@code Traversals.forMapValues()}
  * </ul>
  *
- * <p>If the field type is not a recognised container type, a compile-time error is reported
- * indicating that the {@link #traversal()} parameter must be specified explicitly.
+ * <p>A field declared as something narrower than the interface, a concrete container ({@code
+ * ArrayList<X>}, {@code HashSet<X>}, {@code TreeMap<K, V>}) or another interface ({@code Deque},
+ * {@code SortedSet}), is refused at the declaration: the standard traversal promises no more than
+ * the interface type, and the field could not take that value back. Name a {@link #traversal()}
+ * that rebuilds the declared type, for example one built with {@code
+ * Traversals.forIterableCollecting} or {@code Traversals.forMapValuesCollecting}, or, where the
+ * type is yours, declare the field as the interface. A field of any other type draws a compile-time
+ * error asking for {@link #traversal()} as well.
  *
  * <h2>Examples</h2>
  *
@@ -75,9 +82,11 @@ public @interface ThroughField {
    * <p>The field must exist on the source type with an accessor method (record-style {@code
    * fieldName()} or JavaBean-style {@code getFieldName()}) or as a public field.
    *
-   * <p>If the field has a recognised container type (List, Set, Optional, Map, array), the
-   * traversal is auto-detected. Otherwise, the {@link #traversal()} parameter must be specified
-   * explicitly.
+   * <p>If the spec's lens for the field focuses a recognised container interface (List, Set,
+   * Collection, Optional, Map) or an array of a reference type, the traversal is auto-detected.
+   * Otherwise, including an array of a primitive, the {@link #traversal()} parameter must be
+   * specified explicitly (or, for a primitive array, the field declared as an array of the boxed
+   * type).
    *
    * @return the field name
    */
