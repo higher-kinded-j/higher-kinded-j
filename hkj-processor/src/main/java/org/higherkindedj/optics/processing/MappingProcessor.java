@@ -28,6 +28,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.StringJoiner;
 import java.util.function.Function;
+import java.util.stream.Collectors;
 import javax.annotation.processing.AbstractProcessor;
 import javax.annotation.processing.FilerException;
 import javax.annotation.processing.ProcessingEnvironment;
@@ -244,19 +245,24 @@ public class MappingProcessor extends AbstractProcessor {
   }
 
   /**
-   * The spec's abstract leaves in declaration order (own members before inherited), deduplicated by
-   * name: unrelated mix-ins agreeing on a leaf declare one fact, and javac itself rejects
-   * override-equivalent abstracts whose prism types differ. Each becomes a constructor-supplied
-   * field of the generated Impl, surfaced through the {@code of(...)} factory.
+   * The spec's abstract leaves in declaration order (own members before inherited), one per name:
+   * unrelated mix-ins agreeing on a leaf declare one fact. Most disagreements are javac's error
+   * (two parameterisations of {@code ValidatedPrism} are never return-type-substitutable), but
+   * wildcard-differing declarations may legally coexist, so the member kept is the
+   * subtype-narrowest of its group, the same fold {@link #addRenameStubs} applies and {@link
+   * #checkGroupsHaveNarrowestReturns} has guarded. Each becomes a constructor-supplied field of the
+   * generated Impl, surfaced through the {@code of(...)} factory.
    */
   private List<ExecutableElement> abstractLeaves(TypeElement spec) {
-    Map<String, ExecutableElement> leaves = new LinkedHashMap<>();
+    Map<String, List<ExecutableElement>> leaves = new LinkedHashMap<>();
     for (ExecutableElement method : specMembers(spec)) {
       if (isAbstractLeaf(spec, method)) {
-        leaves.putIfAbsent(method.getSimpleName().toString(), method);
+        leaves
+            .computeIfAbsent(method.getSimpleName().toString(), name -> new ArrayList<>())
+            .add(method);
       }
     }
-    return List.copyOf(leaves.values());
+    return leaves.values().stream().map(group -> narrowestMember(spec, group)).toList();
   }
 
   /**
@@ -691,9 +697,12 @@ public class MappingProcessor extends AbstractProcessor {
   }
 
   /**
-   * A spec's abstract methods must all be zero-parameter {@code @MapField} renames — anything else
-   * would leave the generated Impl with an unimplemented member (or a meaningless rename on a
-   * sealed mapping, which has no components).
+   * A spec's abstract methods must be zero-parameter {@code @MapField} renames, or, on a generic
+   * pair, element-mapped leaves; anything else would leave the generated Impl with an unimplemented
+   * member. Each surviving member must also be one the Impl can hold: no type parameters of its own
+   * (a field and a stub have nowhere to declare them), a type reachable from the spec's package
+   * (the Impl writes it out in full), and, for a same-named group, a subtype-narrowest return for
+   * the one member the Impl emits.
    */
   private boolean validateSpecMethods(
       TypeElement spec, boolean sealedPair, TypeMirror domainArg, TypeMirror wireArg) {
@@ -717,6 +726,29 @@ public class MappingProcessor extends AbstractProcessor {
         }
         continue;
       }
+      if (!method.getTypeParameters().isEmpty()) {
+        Diagnostics.error(
+            processingEnv.getMessager(),
+            method,
+            TAG,
+            "abstract method '"
+                + method.getSimpleName()
+                + "'"
+                + inheritedNote(method, spec)
+                + " declares type parameters of its own.",
+            "The generated Impl carries a leaf as a constructor-supplied field and a rename as a"
+                + " stub, and neither has anywhere to declare the method's own type parameters, so"
+                + " the generated file would name a variable nothing brings into scope.",
+            mapField != null
+                ? "Give '"
+                    + method.getSimpleName()
+                    + "' a concrete return type; a rename is a marker method and the generated"
+                    + " stub only has to name one."
+                : "Declare the element types among the type parameters of '"
+                    + method.getEnclosingElement().getSimpleName()
+                    + "', where the spec can thread them, or give the method a body.");
+        return false;
+      }
       if (mapField == null) {
         if (isHandMapperShaped(spec, method, domainArg, wireArg)) {
           Diagnostics.error(
@@ -737,6 +769,9 @@ public class MappingProcessor extends AbstractProcessor {
         }
         if (isAbstractLeaf(spec, method)) {
           if (!sealedPair && !spec.getTypeParameters().isEmpty()) {
+            if (!checkMemberTypeReachable(spec, method, "abstract leaf")) {
+              return false;
+            }
             continue;
           }
           Diagnostics.error(
@@ -790,8 +825,123 @@ public class MappingProcessor extends AbstractProcessor {
             "Remove the parameters.");
         return false;
       }
+      if (!checkMemberTypeReachable(spec, method, "@MapField method")) {
+        return false;
+      }
+    }
+    return checkGroupsHaveNarrowestReturns(spec);
+  }
+
+  /**
+   * Unrelated mix-ins may declare a same-named rename or leaf with covariantly differing returns
+   * (override-equivalent abstracts may coexist, JLS 9.4.1.3), and the Impl emits one member for the
+   * group, which must be return-type-substitutable for every declaration (JLS 8.4.8.3). For the
+   * non-generic, identically-signatured members that survive validation, substitutability is
+   * subtyping, with one exception the language admits through unchecked conversion: a raw return
+   * beside incomparable parameterised ones has no subtype-narrowest, and is refused here rather
+   * than emitting a member javac rejects inside the generated file.
+   */
+  private boolean checkGroupsHaveNarrowestReturns(TypeElement spec) {
+    Map<String, List<ExecutableElement>> groups = new LinkedHashMap<>();
+    for (ExecutableElement method : specMembers(spec)) {
+      if (method.getAnnotation(MapField.class) != null || isAbstractLeaf(spec, method)) {
+        groups
+            .computeIfAbsent(method.getSimpleName().toString(), name -> new ArrayList<>())
+            .add(method);
+      }
+    }
+    Types types = processingEnv.getTypeUtils();
+    for (Map.Entry<String, List<ExecutableElement>> group : groups.entrySet()) {
+      TypeMirror narrowest = memberTypeIn(spec, narrowestMember(spec, group.getValue()));
+      for (ExecutableElement method : group.getValue()) {
+        if (!types.isSubtype(narrowest, memberTypeIn(spec, method))) {
+          Diagnostics.error(
+              processingEnv.getMessager(),
+              spec,
+              TAG,
+              "same-named members '"
+                  + group.getKey()
+                  + "' declare returns none of which satisfies the rest ("
+                  + describeGroup(spec, group.getValue())
+                  + ").",
+              "The generated Impl emits one member for the group, and its return type has to be a"
+                  + " subtype of every declaration.",
+              "Align the returns, or give the methods different names.");
+          return false;
+        }
+      }
     }
     return true;
+  }
+
+  /** The group's declarations for a diagnostic, sorted by interface name for a stable message. */
+  private String describeGroup(TypeElement spec, List<ExecutableElement> group) {
+    return group.stream()
+        .map(
+            method ->
+                "'"
+                    + ProcessorUtils.simpleTypeName(memberTypeIn(spec, method))
+                    + "' from '"
+                    + method.getEnclosingElement().getSimpleName()
+                    + "'")
+        .sorted()
+        .collect(Collectors.joining(", "));
+  }
+
+  /**
+   * The member of a same-named group whose return under the spec is a subtype of every other's: a
+   * running minimum over the subtype order, whose result {@link #checkGroupsHaveNarrowestReturns}
+   * has verified exists before anything emits.
+   */
+  private ExecutableElement narrowestMember(TypeElement spec, List<ExecutableElement> group) {
+    Types types = processingEnv.getTypeUtils();
+    ExecutableElement narrowest = null;
+    for (ExecutableElement method : group) {
+      if (narrowest == null
+          || types.isSubtype(memberTypeIn(spec, method), memberTypeIn(spec, narrowest))) {
+        narrowest = method;
+      }
+    }
+    return narrowest;
+  }
+
+  /**
+   * The generated Impl is a top-level class in the spec's package that writes this member's type
+   * out in full, so every type the member names has to be visible there. Two routes get one past
+   * the spec's own compile: a mix-in in another package hands over a package-private type the spec
+   * never names itself, and a nested spec's member names a private type of its enclosing class,
+   * which the flattened top-level Impl cannot see.
+   */
+  private boolean checkMemberTypeReachable(
+      TypeElement spec, ExecutableElement method, String kind) {
+    String implPackage = implClassName(spec).packageName();
+    TypeElement unreachable =
+        ProcessorUtils.firstUnreachableIn(
+            processingEnv.getElementUtils(), memberTypeIn(spec, method), implPackage);
+    if (unreachable == null) {
+      return true;
+    }
+    Diagnostics.error(
+        processingEnv.getMessager(),
+        method,
+        TAG,
+        kind
+            + " '"
+            + method.getSimpleName()
+            + "'"
+            + inheritedNote(method, spec)
+            + " names '"
+            + unreachable.getSimpleName()
+            + "', which cannot be reached from '"
+            + implPackage
+            + "'.",
+        "The generated Impl writes the member's type out in full, so every type named inside it"
+            + " has to be visible in the spec's package, where the Impl is declared.",
+        "Make '"
+            + unreachable.getSimpleName()
+            + "' and the types enclosing it public, or declare the spec in the package they are"
+            + " already visible from.");
+    return false;
   }
 
   /** Generic specs or mapped types would leave the Impl naming undeclared type variables. */
@@ -3835,19 +3985,33 @@ public class MappingProcessor extends AbstractProcessor {
   }
 
   private void addRenameStubs(TypeSpec.Builder implBuilder, TypeElement spec) {
-    Set<String> stubbed = new HashSet<>();
+    // Only abstract zero-parameter @MapField methods survive validateSpecMethods. Unrelated
+    // mix-ins agreeing on a rename contribute one stub, whose return has to be
+    // return-type-substitutable for every declaration (JLS 8.4.8.3): the subtype-narrowest of
+    // the group, which checkGroupsHaveNarrowestReturns has verified exists. A name an abstract
+    // leaf shares gets no stub at all: the leaf accessor elementMappedSkeleton emits already
+    // implements the member, and the group guard has proven its return satisfies the rename
+    // declaration too; the rename's to-mapping is read from collectRenames either way.
+    Set<String> leafNames =
+        abstractLeaves(spec).stream()
+            .map(leaf -> leaf.getSimpleName().toString())
+            .collect(Collectors.toSet());
+    Map<String, List<ExecutableElement>> renames = new LinkedHashMap<>();
     for (ExecutableElement method : specMembers(spec)) {
-      // Only abstract zero-parameter @MapField methods survive validateSpecMethods. Unrelated
-      // mix-ins agreeing on a rename contribute one stub, not two.
-      if (method.getAnnotation(MapField.class) == null
-          || !stubbed.add(method.getSimpleName().toString())) {
-        continue;
+      if (method.getAnnotation(MapField.class) != null
+          && !leafNames.contains(method.getSimpleName().toString())) {
+        renames
+            .computeIfAbsent(method.getSimpleName().toString(), name -> new ArrayList<>())
+            .add(method);
       }
+    }
+    for (Map.Entry<String, List<ExecutableElement>> rename : renames.entrySet()) {
+      TypeMirror narrowest = memberTypeIn(spec, narrowestMember(spec, rename.getValue()));
       implBuilder.addMethod(
-          MethodSpec.methodBuilder(method.getSimpleName().toString())
+          MethodSpec.methodBuilder(rename.getKey())
               .addAnnotation(Override.class)
               .addModifiers(Modifier.PUBLIC)
-              .returns(ProcessorUtils.typeNameOf(memberTypeIn(spec, method)))
+              .returns(ProcessorUtils.typeNameOf(narrowest))
               .addJavadoc("Rename declaration only; not invocable.\n")
               .addStatement(
                   "throw new $T($S)",

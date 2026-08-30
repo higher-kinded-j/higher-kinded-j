@@ -106,7 +106,7 @@ Element-mapped mappings nest as **compositions**. A use site whose pair unifies 
 and emits `CodecPageMappingImpl.of(entries()).asValidatedPrism()` in place. Failures locate through the whole composed path (`entries.items.1: not an email address`); an unresolvable element pair is a compile error naming the pair and both ways to supply it (a leaf on the using spec, or another registered mapping).
 
 ~~~admonish note title="Boundaries"
-Generic mappings are **record-to-record only** (bean-shaped wires and `UpdateSpec` mappings stay concrete); raw uses (including raw *nested* arguments) and wildcards are diagnosed, while array arguments (`Page<String[]>`) are concrete, map fine, and unify structurally at nested use sites. An abstract leaf belongs to a generic spec: on a concrete or sealed one it is diagnosed, since nothing defers its parser.
+Generic mappings are **record-to-record only** (bean-shaped wires and `UpdateSpec` mappings stay concrete); raw uses (including raw *nested* arguments) and wildcards are diagnosed, while array arguments (`Page<String[]>`) are concrete, map fine, and unify structurally at nested use sites. An abstract leaf belongs to a generic spec: on a concrete or sealed one it is diagnosed, since nothing defers its parser. A leaf or rename declaring type parameters of its own (`<R> ValidatedPrism<R, R> items()`) is diagnosed as well: the Impl carries a leaf as a constructor-supplied field and a rename as a stub, and neither has anywhere to declare `<R>`. A leaf's element types go on the spec's own type parameters; a rename simply declares a concrete return type, since the stub only names it.
 ~~~
 
 ---

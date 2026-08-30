@@ -63,6 +63,8 @@ Every rejection follows the processor's what/why/fix standard: the message state
 | A fallible projection emits the validated `patch`, never a fake `asLens()`; projections cannot carry derived fields | [The Emission Tiers](tiers.md#leaf-carrying-projections-the-validated-patch), [Derived wire fields](basics.md#derived-wire-fields) |
 | Generic mappings come in exactly three forms and stay record-to-record | [Generic Specs](generics.md) |
 | Sparse PATCH is bean-only, wrapper-typed, and never deep-merges | [Beans and Sparse PATCH](beans_patch.md#sparse-patch-write-back-updatespec) |
+| A leaf or rename must not declare type parameters of its own; the element types go on the spec | [Generic Specs](generics.md#element-mapped-specs) |
+| A rename's or leaf's type must be visible from the spec's package, where the Impl is generated | [Shared vocabulary](codecs.md#shared-vocabulary-mix-in-interfaces) |
 
 ---
 
