@@ -89,15 +89,30 @@ What makes Higher-Kinded-J unique is that **Effect Paths** and the **Focus DSL**
 
 ```mermaid
 flowchart LR
-    E["Effect Paths<br/>MaybePath · EitherPath · TryPath<br/>IOPath · VTaskPath · ValidationPath"] -->|".focus(path)"| B["The bridge"]
-    O["Focus Paths<br/>FocusPath · AffinePath · TraversalPath"] -->|".toEitherPath()<br/>.toMaybePath()"| B
-    B --> U["One composition<br/>fetch, navigate, validate,<br/>extract, transform"]
+    subgraph effects["Effects: the Effect Paths, what the computation does"]
+        direction TB
+        E["MaybePath<br/>EitherPath<br/>TryPath<br/>ValidationPath<br/>EitherOrBothPath<br/>IOPath<br/>VTaskPath<br/>VStreamPath"]
+    end
+    subgraph optics["Optics: the Focus Paths, where the data lives"]
+        direction TB
+        O["FocusPath<br/>AffinePath<br/>TraversalPath"]
+    end
+    E -->|".focus(path)<br/>navigate the data inside the effect"| B["The bridge"]
+    O -->|".toEitherPath()<br/>.toMaybePath()<br/>lift the optic into an effect"| B
+    subgraph one["One composition, read top to bottom"]
+        direction TB
+        S1["userService.findById(id)<br/>effect: fetch"] --> S2[".focus(UserFocus.address())<br/>optics: navigate"]
+        S2 --> S3[".via(validateAddress)<br/>effect: validate"]
+        S3 --> S4[".focus(AddressFocus.city())<br/>optics: extract"]
+        S4 --> S5[".map(String::toUpperCase)<br/>effect: transform"]
+    end
+    B --> S1
 
     classDef effect fill:#8caaee,stroke:#1e66f5,color:#232634
     classDef optic fill:#a6d189,stroke:#40a02b,color:#232634
     classDef bridge fill:#e5c890,stroke:#df8e1d,color:#232634
-    class E,U effect
-    class O optic
+    class E,S1,S3,S5 effect
+    class O,S2,S4 optic
     class B bridge
 ```
 
