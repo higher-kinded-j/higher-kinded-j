@@ -69,6 +69,7 @@ public class FreeEffectBenchmark {
   private Free<IdKind.Witness, Integer> programWithHandleError;
 
   @Setup
+  @SuppressWarnings("migration-nudge") // benchmarks the Free/Inject primitives directly
   public void setup() {
     idMonad = IdMonad.instance();
     idFunctor =
@@ -98,7 +99,7 @@ public class FreeEffectBenchmark {
     programWithHandleError = buildProgramWithHandleError(chainDepth);
   }
 
-  @SuppressWarnings("unchecked")
+  @SuppressWarnings({"unchecked", "migration-nudge"}) // benchmarks Free.liftF directly
   private Free<IdKind.Witness, Integer> buildSingleEffectProgram(int depth) {
     Free<IdKind.Witness, Integer> program = Free.liftF(new Id<>(0), idFunctor);
     for (int i = 0; i < depth; i++) {
