@@ -10,6 +10,7 @@ import java.util.List;
 import java.util.ServiceLoader;
 import java.util.Set;
 import java.util.function.Function;
+import java.util.stream.Collectors;
 import javax.annotation.processing.AbstractProcessor;
 import javax.annotation.processing.ProcessingEnvironment;
 import javax.annotation.processing.Processor;
@@ -24,7 +25,9 @@ import javax.lang.model.element.TypeElement;
 import javax.lang.model.element.TypeParameterElement;
 import javax.lang.model.type.ArrayType;
 import javax.lang.model.type.DeclaredType;
+import javax.lang.model.type.TypeKind;
 import javax.lang.model.type.TypeMirror;
+import javax.lang.model.util.Types;
 import javax.tools.Diagnostic;
 import org.higherkindedj.hkt.Applicative;
 import org.higherkindedj.hkt.Kind;
@@ -33,10 +36,24 @@ import org.higherkindedj.hkt.WitnessArity;
 import org.higherkindedj.optics.Traversal;
 import org.higherkindedj.optics.annotations.GenerateTraversals;
 import org.higherkindedj.optics.processing.spi.TraversableGenerator;
+import org.higherkindedj.optics.processing.util.Diagnostics;
 import org.higherkindedj.optics.processing.util.ExcludeFromJacocoGeneratedReport;
 import org.higherkindedj.optics.processing.util.ProcessorUtils;
 
-/** Annotation processor that generates Traversal optics for record types. */
+/**
+ * Annotation processor that generates Traversal optics for record types.
+ *
+ * <p>Each record component is offered to the {@link TraversableGenerator} SPI, and a method is
+ * generated for every component a generator claims. A component that holds elements but reaches no
+ * method — a {@link java.util.Collection} or {@link java.util.Map} subtype no generator on the
+ * annotation processor path supports, or a claimed container whose element type cannot be read — is
+ * reported as a note where it is declared, because the generated class compiles perfectly well
+ * without it and the missing method would otherwise be found at the call site. A note rather than a
+ * warning: the annotation has no per-component opt-out and a processor warning cannot be
+ * suppressed, so a warning would fail a {@code -Werror} build with no remedy short of changing the
+ * record. A component that is not a container at all, a {@code String} or an {@code int}, is passed
+ * over silently: not generating for it is the expected outcome, not a gap.
+ */
 @AutoService(Processor.class)
 @SupportedAnnotationTypes("org.higherkindedj.optics.annotations.GenerateTraversals")
 public class TraversalProcessor extends AbstractProcessor {
@@ -48,6 +65,8 @@ public class TraversalProcessor extends AbstractProcessor {
 
   /** Creates a new TraversalProcessor. */
   public TraversalProcessor() {}
+
+  private static final String TAG = "@GenerateTraversals";
 
   private final List<TraversableGenerator> generators = new ArrayList<>();
 
@@ -106,14 +125,23 @@ public class TraversalProcessor extends AbstractProcessor {
             .addMethod(MethodSpec.constructorBuilder().addModifiers(Modifier.PRIVATE).build());
 
     for (RecordComponentElement component : recordElement.getRecordComponents()) {
-      for (TraversableGenerator generator : generators) {
-        if (generator.supports(component.asType())) {
-          MethodSpec traversalMethod = createTraversalMethod(component, recordElement, generator);
-          if (traversalMethod != null) {
-            classBuilder.addMethod(traversalMethod);
-          }
-          break;
+      TraversableGenerator generator = generatorFor(component.asType());
+      if (generator == null) {
+        if (holdsElements(component.asType())) {
+          noteNoTraversal(
+              component,
+              "No TraversableGenerator on the annotation processor path supports "
+                  + ProcessorUtils.simpleTypeName(
+                      processingEnv.getTypeUtils().erasure(component.asType())),
+              "Declare the component as a supported container (List, Set, Collection, Map,"
+                  + " Optional or an array), or put a TraversableGenerator for its type on the"
+                  + " annotation processor path");
         }
+        continue;
+      }
+      MethodSpec traversalMethod = createTraversalMethod(component, recordElement, generator);
+      if (traversalMethod != null) {
+        classBuilder.addMethod(traversalMethod);
       }
     }
 
@@ -137,7 +165,27 @@ public class TraversalProcessor extends AbstractProcessor {
       focusType = ProcessorUtils.typeNameOf(arrayType.getComponentType()).box();
     } else if (componentType instanceof DeclaredType declaredType) {
       if (declaredType.getTypeArguments().isEmpty()) {
-        return null; // Cannot traverse a raw type.
+        // A raw List, or a type the generator claims that declares no type parameter at all: the
+        // remedy differs, the gap is the same.
+        TypeElement container = (TypeElement) declaredType.asElement();
+        String parameters =
+            container.getTypeParameters().stream()
+                .map(parameter -> parameter.getSimpleName().toString())
+                .collect(Collectors.joining(", "));
+        noteNoTraversal(
+            component,
+            ProcessorUtils.simpleTypeName(componentType)
+                + " is written without a type argument, so there is no element type to focus",
+            parameters.isEmpty()
+                ? "The generator "
+                    + generator.getClass().getCanonicalName()
+                    + " claims a type that declares no type parameter; narrow its supports()"
+                : "Give the component its type arguments, as in "
+                    + container.getSimpleName()
+                    + "<"
+                    + parameters
+                    + ">");
+        return null;
       }
 
       // Use the SPI's getFocusTypeArgumentIndex() so any generator can declare which type
@@ -146,7 +194,19 @@ public class TraversalProcessor extends AbstractProcessor {
       int typeArgumentIndex = generator.getFocusTypeArgumentIndex();
 
       if (declaredType.getTypeArguments().size() <= typeArgumentIndex) {
-        return null; // Not enough type arguments for this generator.
+        noteNoTraversal(
+            component,
+            "The generator "
+                + generator.getClass().getCanonicalName()
+                + " focuses type argument "
+                + typeArgumentIndex
+                + ", and "
+                + ProcessorUtils.simpleTypeName(componentType)
+                + " has only "
+                + declaredType.getTypeArguments().size(),
+            "Declare the component with a type that generator can focus, or correct the"
+                + " generator's getFocusTypeArgumentIndex()");
+        return null;
       }
       TypeMirror focusArgument =
           ProcessorUtils.resolveWildcard(declaredType.getTypeArguments().get(typeArgumentIndex));
@@ -156,7 +216,17 @@ public class TraversalProcessor extends AbstractProcessor {
               : ProcessorUtils.typeNameOf(focusArgument).box();
 
     } else {
-      return null; // Not a type we can handle.
+      noteNoTraversal(
+          component,
+          "The generator "
+              + generator.getClass().getCanonicalName()
+              + " claims the component, but a traversal can only be generated for a declared type"
+              + " or an array, and "
+              + ProcessorUtils.simpleTypeName(componentType)
+              + " is neither",
+          "Declare the component as a declared container type or an array, or narrow the"
+              + " generator's supports()");
+      return null;
     }
 
     final ParameterizedTypeName traversalTypeName =
@@ -238,6 +308,62 @@ public class TraversalProcessor extends AbstractProcessor {
     return ParameterizedTypeName.get(
         recordClassName,
         typeParameters.stream().map(ProcessorUtils::typeVariableOf).toArray(TypeName[]::new));
+  }
+
+  /** The first generator that claims {@code type}, in service-loader order, or null. */
+  private TraversableGenerator generatorFor(TypeMirror type) {
+    for (TraversableGenerator generator : generators) {
+      if (generator.supports(type)) {
+        return generator;
+      }
+    }
+    return null;
+  }
+
+  /**
+   * Whether {@code type} unmistakably holds elements: a declared type that is a {@link
+   * java.util.Collection} or a {@link java.util.Map} by erasure. A bare {@link Iterable} is not
+   * counted — {@code java.nio.file.Path} implements it — so a component of such a type is passed
+   * over as any other non-container is, and so is a type variable, even one bounded by a
+   * collection. An unresolved type is kept out on purpose: {@code isSubtype} answers true for an
+   * error type, and the author already has javac's error for it.
+   */
+  private boolean holdsElements(TypeMirror type) {
+    if (type.getKind() != TypeKind.DECLARED) {
+      return false;
+    }
+    Types types = processingEnv.getTypeUtils();
+    TypeMirror erased = types.erasure(type);
+    return isSubtypeOf(erased, "java.util.Collection") || isSubtypeOf(erased, "java.util.Map");
+  }
+
+  /** Only ever asked about the JDK's own types, which resolve in every round, so unguarded. */
+  private boolean isSubtypeOf(TypeMirror erased, String qualifiedName) {
+    Types types = processingEnv.getTypeUtils();
+    TypeMirror supertype =
+        types.erasure(processingEnv.getElementUtils().getTypeElement(qualifiedName).asType());
+    return types.isSubtype(erased, supertype);
+  }
+
+  /**
+   * Reports that no traversal is generated for {@code component}, in the what/why/fix format. A
+   * note rather than a warning or an error: the record and its generated class are sound without
+   * the method, the author may have wanted traversals for the other components alone, and there is
+   * no per-component opt-out that would let a warning be answered under {@code -Werror}.
+   */
+  private void noteNoTraversal(RecordComponentElement component, String why, String fix) {
+    Diagnostics.note(
+        processingEnv.getMessager(),
+        component,
+        TAG,
+        "no traversal was generated for component '"
+            + component.getEnclosingElement().getSimpleName()
+            + "."
+            + component.getSimpleName()
+            + "' of type "
+            + ProcessorUtils.simpleTypeName(component.asType()),
+        why,
+        fix);
   }
 
   private void error(String msg, Element e) {

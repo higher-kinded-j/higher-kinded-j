@@ -490,6 +490,47 @@ class TypeKindAnalyserTest {
     }
 
     @Test
+    @DisplayName("should detect Collection container")
+    void shouldDetectCollectionContainer() {
+      var source =
+          JavaFileObjects.forSourceString(
+              "com.test.WithCollection",
+              """
+              package com.test;
+
+              import java.util.Collection;
+
+              public record WithCollection(Collection<Integer> numbers) {}
+              """);
+
+      TypeAnalysis analysis = analyseType("com.test.WithCollection", source);
+
+      assertThat(analysis.fields().getFirst().containerType()).isPresent();
+      assertThat(analysis.fields().getFirst().containerType().get().kind())
+          .isEqualTo(ContainerType.Kind.COLLECTION);
+    }
+
+    @Test
+    @DisplayName("should not detect a raw Collection as a container")
+    void shouldNotDetectRawCollectionContainer() {
+      var source =
+          JavaFileObjects.forSourceString(
+              "com.test.WithRawCollection",
+              """
+              package com.test;
+
+              import java.util.Collection;
+
+              @SuppressWarnings("rawtypes")
+              public record WithRawCollection(Collection items) {}
+              """);
+
+      TypeAnalysis analysis = analyseType("com.test.WithRawCollection", source);
+
+      assertThat(analysis.fields().getFirst().containerType()).isEmpty();
+    }
+
+    @Test
     @DisplayName("should detect Optional container")
     void shouldDetectOptionalContainer() {
       var source =
@@ -687,6 +728,67 @@ class TypeKindAnalyserTest {
 
       assertThat(result).isPresent();
       assertThat(result.get().kind()).isEqualTo(ContainerType.Kind.SET);
+    }
+
+    @Test
+    @DisplayName("should detect Collection as Collection")
+    void shouldDetectCollectionAsCollection() {
+      var source =
+          JavaFileObjects.forSourceString(
+              "com.test.WithCollection",
+              """
+              package com.test;
+
+              import java.util.Collection;
+
+              public record WithCollection(Collection<String> items) {}
+              """);
+
+      var result = detectContainerType("com.test.WithCollection", "items", source);
+
+      assertThat(result).isPresent();
+      assertThat(result.get().kind()).isEqualTo(ContainerType.Kind.COLLECTION);
+    }
+
+    @Test
+    @DisplayName("should not detect a Collection subtype that is neither List nor Set")
+    void shouldNotDetectDequeAsCollection() {
+      // Traversals.forCollection() rebuilds a Deque as a List, which a Deque-typed field cannot
+      // take back, so only a field declared as Collection itself is matched.
+      var source =
+          JavaFileObjects.forSourceString(
+              "com.test.WithDeque",
+              """
+              package com.test;
+
+              import java.util.ArrayDeque;
+
+              public record WithDeque(ArrayDeque<String> items) {}
+              """);
+
+      var result = detectContainerType("com.test.WithDeque", "items", source);
+
+      assertThat(result).isEmpty();
+    }
+
+    @Test
+    @DisplayName("should not detect a raw Collection")
+    void shouldNotDetectRawCollection() {
+      var source =
+          JavaFileObjects.forSourceString(
+              "com.test.WithRawCollection",
+              """
+              package com.test;
+
+              import java.util.Collection;
+
+              @SuppressWarnings("rawtypes")
+              public record WithRawCollection(Collection items) {}
+              """);
+
+      var result = detectContainerType("com.test.WithRawCollection", "items", source);
+
+      assertThat(result).isEmpty();
     }
 
     @Test
@@ -1023,8 +1125,9 @@ class TypeKindAnalyserTest {
     @Test
     @DisplayName("should return empty when container type elements cannot be resolved")
     void shouldReturnEmptyWhenContainerElementsUnresolvable() {
-      // Exercises the defensive `getTypeElement(...) != null` arms for List, Set, Optional and
-      // Map, which never fail on a real JVM. A delegating Elements whose getTypeElement always
+      // Exercises the defensive `getTypeElement(...) != null` arms for List, Set, Collection,
+      // Optional and Map, which never fail on a real JVM. A delegating Elements whose
+      // getTypeElement always
       // returns null forces all four checks to fall through to the final empty return.
       var source =
           JavaFileObjects.forSourceString(

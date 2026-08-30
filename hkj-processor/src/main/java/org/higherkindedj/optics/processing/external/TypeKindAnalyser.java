@@ -309,7 +309,7 @@ public class TypeKindAnalyser {
       return Optional.of(ContainerType.of(ContainerType.Kind.ARRAY, arrayType.getComponentType()));
     }
 
-    // Check for declared types (List, Set, Optional, Map)
+    // Check for declared types (List, Set, Collection, Optional, Map)
     if (type.getKind() != TypeKind.DECLARED) {
       return Optional.empty();
     }
@@ -331,6 +331,15 @@ public class TypeKindAnalyser {
       if (!declaredType.getTypeArguments().isEmpty()) {
         return Optional.of(
             ContainerType.of(ContainerType.Kind.SET, declaredType.getTypeArguments().get(0)));
+      }
+    }
+
+    // Check for Collection
+    if (qualifiedName.equals("java.util.Collection")) {
+      if (!declaredType.getTypeArguments().isEmpty()) {
+        return Optional.of(
+            ContainerType.of(
+                ContainerType.Kind.COLLECTION, declaredType.getTypeArguments().get(0)));
       }
     }
 
@@ -366,6 +375,9 @@ public class TypeKindAnalyser {
    * <ul>
    *   <li>{@code List<A>} and subtypes (ArrayList, LinkedList, etc.)
    *   <li>{@code Set<A>} and subtypes (HashSet, TreeSet, LinkedHashSet, etc.)
+   *   <li>{@code Collection<A>} (exact match only: its traversal rebuilds a set as a set and
+   *       anything else as a list, which a field declared as some other {@code Collection} subtype
+   *       could not take back)
    *   <li>{@code Optional<A>} (exact match only, as Optional is final)
    *   <li>{@code Map<K, V>} and subtypes (HashMap, TreeMap, etc.)
    *   <li>{@code A[]} arrays
@@ -412,6 +424,20 @@ public class TypeKindAnalyser {
       List<? extends TypeMirror> typeArgs = declaredType.getTypeArguments();
       if (!typeArgs.isEmpty()) {
         return Optional.of(ContainerType.of(ContainerType.Kind.SET, typeArgs.get(0)));
+      }
+      // Raw type - cannot determine element type
+      return Optional.empty();
+    }
+
+    // Check for Collection (exact match). Traversals.forCollection() hands back a set for a set
+    // source and a list for anything else, so a field declared as a Deque or a Queue would be
+    // rebuilt as a value it cannot hold; only a field declared as the interface itself can.
+    TypeElement collectionElement = elementUtils.getTypeElement("java.util.Collection");
+    if (collectionElement != null
+        && typeUtils.isSameType(erasedType, typeUtils.erasure(collectionElement.asType()))) {
+      List<? extends TypeMirror> typeArgs = declaredType.getTypeArguments();
+      if (!typeArgs.isEmpty()) {
+        return Optional.of(ContainerType.of(ContainerType.Kind.COLLECTION, typeArgs.get(0)));
       }
       // Raw type - cannot determine element type
       return Optional.empty();

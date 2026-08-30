@@ -7,8 +7,8 @@ import javax.lang.model.type.TypeMirror;
 /**
  * Represents a detected container type for traversal generation.
  *
- * <p>This record captures information about container fields (List, Set, Optional, arrays, Map)
- * that can have traversals generated for them.
+ * <p>This record captures information about container fields (List, Set, Collection, Optional,
+ * arrays, Map) that can have traversals generated for them.
  *
  * @param kind the kind of container
  * @param elementType the type of elements in the container
@@ -23,6 +23,12 @@ public record ContainerType(Kind kind, TypeMirror elementType, TypeMirror keyTyp
 
     /** A {@code java.util.Set<E>} container. */
     SET,
+
+    /**
+     * A {@code java.util.Collection<E>} container. The traversal rebuilds a set source as a set and
+     * every other source as a list, as {@code Traversals.forCollection()} describes.
+     */
+    COLLECTION,
 
     /** A {@code java.util.Optional<E>} container. */
     OPTIONAL,

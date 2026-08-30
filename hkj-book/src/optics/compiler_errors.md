@@ -75,6 +75,16 @@ Note this is about what the *iso* names, not what the method declares: `<T> Iso<
 
 **Fix.** Name the type argument — `Set<Leaf>` rather than `Set<? extends Leaf>` — or drop `@GenerateFocus` from the record and keep `@GenerateLenses` and `@GenerateTraversals`, which compose no optic instance and take the component as written. See [Custom Containers](focus_containers.md#supported-container-types).
 
+### "@GenerateTraversals: no traversal was generated for component 'X.y' of type `Deque<T>`" (a note)
+
+**Cause.** `@GenerateTraversals` asks the `TraversableGenerator` SPI for each record component, and no generator on the annotation processor path claimed this one. The component unmistakably holds elements — it is a `java.util.Collection` or a `java.util.Map` by erasure — so not generating for it is a gap rather than the expected outcome, and the generated class would otherwise compile with the method silently missing. The second sentence names the unsupported type (`No TraversableGenerator on the annotation processor path supports Deque`). The same note is raised, with a different second sentence, for a container a generator *did* claim but cannot read: a raw `List` or `Set` "is written without a type argument, so there is no element type to focus", and a generator whose focused type argument the type does not have says which argument it wanted.
+
+A component that is not a container at all — a `String`, an `int`, a `java.nio.file.Path` (which implements `Iterable`, and is why a bare `Iterable` is not the bar) — is passed over without comment.
+
+It is a note rather than a warning on purpose. `@GenerateTraversals` has no per-component opt-out, and a processor warning cannot be suppressed, so a warning would have failed every `-Werror` build with no remedy short of changing the record. A note shows in the compiler output as `Note: ...` and fails nothing.
+
+**Fix.** Declare the component as a container a generator supports: `List`, `Set`, `Collection`, `Map`, `Optional`, an array, or a type one of the [generator plugins](../tooling/generator_plugins.md) covers. For a raw container, give it its element type. For a third-party type, put a `TraversableGenerator` for it on the annotation processor path. A mixed record — one supported container beside one unsupported — keeps the traversals it can have and carries the note for the one it cannot; the note is the reminder, not a gate. A record that wants no traversal for any of its components should not carry `@GenerateTraversals` at all; `@GenerateLenses` on its own still gives every component a lens.
+
 ---
 
 ## `@ImportOptics` and `OpticsSpec` interfaces

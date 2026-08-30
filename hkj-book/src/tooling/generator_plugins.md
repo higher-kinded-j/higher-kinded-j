@@ -15,7 +15,7 @@ When you annotate a record with `@GenerateTraversals`, the annotation processor 
 
 Each container type is handled by a **generator plugin**: a small class that implements the `TraversableGenerator` SPI (Service Provider Interface). The processor discovers these plugins at compile time via Java's `ServiceLoader` and delegates code generation to whichever plugin claims support for the field's type.
 
-Higher-Kinded-J ships 30 generator plugins covering JDK types, HKJ core types, and five popular third-party collection libraries.
+Higher-Kinded-J ships 31 generator plugins covering JDK types, HKJ core types, and five popular third-party collection libraries.
 
 ---
 
@@ -29,6 +29,7 @@ These generators are always active. No additional dependencies are required.
 |------|-------|-----------|
 | `List<A>` | Each element | Traverses all elements via `Traversals.traverseList()` |
 | `Set<A>` | Each element | Converts to list, traverses, converts back |
+| `Collection<A>` | Each element | Rebuilds a set source as a set and any other source as a list, via `Traversals.traverseCollection()` |
 | `Optional<A>` | 0 or 1 element | Applies function if present; returns unchanged if empty |
 | `Map<K, V>` | Each value | Traverses values whilst preserving keys |
 | `A[]` | Each element | Converts to list, traverses, converts back to array |
@@ -168,13 +169,16 @@ TraversalProcessor
 ServiceLoader.load(TraversableGenerator.class)
     │
     ├── ListGenerator         (supports List<A>)
+    ├── CollectionGenerator   (supports Collection<A>)
     ├── OptionalGenerator     (supports Optional<A>)
     ├── EitherGenerator       (supports Either<L, R>)
     ├── GuavaImmutableListGenerator  (supports ImmutableList<A>)
-    └── ... 18 more generators
+    └── ... 26 more generators
 ```
 
 For each record component, the processor iterates through all loaded generators and calls `supports(TypeMirror)`. The first generator that returns `true` handles code generation for that field.
+
+A component that holds elements but reaches no generator is not passed over silently. A `java.util.Collection` or `java.util.Map` subtype that no loaded generator supports — a `Deque`, a `SortedMap`, a Guava, Apache Commons or PCollections type whose plugin is not on the processor path — draws a compile-time **note** on the component, naming the unsupported type and the remedy: declare the component as a supported container, or put a `TraversableGenerator` for it on the annotation processor path. A container that is not a `java.util.Collection` or `Map` at all — Vavr's collections and Eclipse Collections' `Immutable*` types are `Iterable` only — is passed over silently, as is a `String` or an `int`, for the same reason a bare `Iterable` is not the bar: `java.nio.file.Path` implements it.
 
 ---
 
@@ -334,7 +338,7 @@ The `TraversalProcessor` will now discover your `NonEmptyListGenerator` via `Ser
 ---
 
 ~~~admonish info title="Key Takeaways"
-* **30 built-in generators** cover JDK types, HKJ core types, Eclipse Collections, Guava, Vavr, Apache Commons, and PCollections
+* **31 built-in generators** cover JDK types, HKJ core types, Eclipse Collections, Guava, Vavr, Apache Commons, and PCollections
 * **Third-party support activates automatically** when the library is on the classpath; no configuration required
 * **The SPI is extensible**: implement `TraversableGenerator`, register it with `@ServiceProvider`, and the processor discovers it at compile time
 * **Most generators follow a common pattern**: convert to `java.util.List`, traverse with `Traversals.traverseList()`, convert back to the original type; map-shaped ones traverse with `Traversals.traverseMapValues()` and rebuild from the JDK `Map` it returns

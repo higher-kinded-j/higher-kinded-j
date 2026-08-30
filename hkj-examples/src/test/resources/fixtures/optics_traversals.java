@@ -7,6 +7,7 @@
 // Spotless excludes src/test/resources so an "unused import" cleanup cannot
 // break fixtures (see build.gradle.kts).
 
+import java.util.Collection;
 import java.util.List;
 import org.higherkindedj.optics.Traversal;
 import org.higherkindedj.optics.annotations.GenerateTraversals;

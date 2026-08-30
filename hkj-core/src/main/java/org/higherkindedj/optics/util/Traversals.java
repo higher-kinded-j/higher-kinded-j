@@ -331,10 +331,7 @@ public final class Traversals {
           final Function<A, Kind<F, A>> f,
           final Collection<A> source,
           final Applicative<F> applicative) {
-        final boolean fromASet = source instanceof Set<A>;
-        final Kind<F, List<A>> traversed = traverseList(new ArrayList<>(source), f, applicative);
-        return applicative.map(
-            modified -> fromASet ? toUnmodifiableSet(modified) : modified, traversed);
+        return traverseCollection(source, f, applicative);
       }
     };
   }
@@ -542,6 +539,10 @@ public final class Traversals {
    * here as a static helper for convenience. It "flips" a {@code List<A>} and a function {@code A
    * -> F<B>} into a single {@code F<List<B>>}.
    *
+   * <p>The collected list is unmodifiable: an optic modify hands back a new structure, not a
+   * mutable view of one. {@link #traverseSet} and {@link #traverseCollection} build on this
+   * guarantee.
+   *
    * @param list The source list to traverse.
    * @param f The effectful function to apply to each element.
    * @param applicative The {@code Applicative} instance for the effect {@code F}.
@@ -684,6 +685,44 @@ public final class Traversals {
     // as traverseList's is: an optic modify hands back a new structure, not a mutable view of one.
     final Kind<F, List<B>> listResult = traverseList(new ArrayList<>(set), f, applicative);
     return applicative.map(Traversals::toUnmodifiableSet, listResult);
+  }
+
+  /**
+   * Applies an effectful function to each element of a {@link Collection} and collects the results
+   * in a single effect.
+   *
+   * <p>This is the {@code traverse} operation behind {@link #forCollection()}, and the one rebuild
+   * policy for a {@code Collection}: a {@link Set} source comes back an unmodifiable set in the
+   * source's iteration order, built as {@link #traverseSet} builds one, and every other source
+   * comes back the unmodifiable list {@link #traverseList} collects into. The limits {@link
+   * #forCollection()} describes — a sorted set loses its comparator, a source that is neither list
+   * nor set comes back a list — are this method's limits; generated traversals call it so that a
+   * {@code Collection} component rebuilds the same way whichever annotation reads it.
+   *
+   * @param collection The source collection to traverse.
+   * @param f The effectful function to apply to each element.
+   * @param applicative The {@code Applicative} instance for the effect {@code F}.
+   * @param <F> The higher-kinded type witness of the applicative effect.
+   * @param <A> The element type of the source collection.
+   * @param <B> The element type of the resulting collection.
+   * @return A {@code Kind<F, Collection<B>>}, representing the collected results within the
+   *     applicative context.
+   * @since 0.4.10
+   */
+  public static <F extends WitnessArity<TypeArity.Unary>, A, B>
+      Kind<F, Collection<B>> traverseCollection(
+          final Collection<A> collection,
+          final Function<? super A, ? extends Kind<F, ? extends B>> f,
+          final Applicative<F> applicative) {
+
+    final boolean fromASet = collection instanceof Set<?>;
+    if (collection.isEmpty()) {
+      return applicative.of(fromASet ? Set.of() : List.of());
+    }
+
+    final Kind<F, List<B>> listResult = traverseList(new ArrayList<>(collection), f, applicative);
+    return applicative.map(
+        modified -> fromASet ? toUnmodifiableSet(modified) : modified, listResult);
   }
 
   /**

@@ -78,6 +78,7 @@ class GeneratedTraversalSourceCompilesTest {
               "Map<String, Leaf>",
               "List<Leaf>",
               "Set<Leaf>",
+              "Collection<Leaf>",
               "Leaf[]"),
           shape(
               "wildcard in the focused type argument",
@@ -89,7 +90,8 @@ class GeneratedTraversalSourceCompilesTest {
               "Optional<? extends Leaf>",
               "Map<String, ? extends Leaf>",
               "List<? extends Leaf>",
-              "Set<? extends Leaf>"),
+              "Set<? extends Leaf>",
+              "Collection<? extends Leaf>"),
           shape(
               "wildcard in a type argument the generator does not focus on",
               "Leaf",
@@ -106,13 +108,15 @@ class GeneratedTraversalSourceCompilesTest {
               "Optional<?>",
               "Map<String, ?>",
               "List<?>",
-              "Set<?>"),
+              "Set<?>",
+              "Collection<?>"),
           shape(
               "super-bounded wildcard",
               "Object",
               "Either<String, ? super Leaf>",
               "Map<String, ? super Leaf>",
               "List<? super Leaf>",
+              "Collection<? super Leaf>",
               "Optional<? super Leaf>"),
           // A raw container has no type argument to focus, so the processor generates nothing.
           shape(
@@ -125,7 +129,8 @@ class GeneratedTraversalSourceCompilesTest {
               "Optional",
               "Map",
               "List",
-              "Set"),
+              "Set",
+              "Collection"),
           // The container itself is ground here; each of these focuses a different nested type, so
           // the shape asserts compilation alone.
           new Shape(
@@ -214,9 +219,11 @@ class GeneratedTraversalSourceCompilesTest {
             import org.higherkindedj.hkt.trymonad.Try;
             import org.higherkindedj.hkt.validated.Validated;
             import org.higherkindedj.optics.annotations.GenerateTraversals;
+            import java.util.Collection;
             import java.util.List;
             import java.util.Map;
             import java.util.Optional;
+            import java.util.Set;
 
             @GenerateTraversals
             public %s
@@ -241,6 +248,11 @@ class GeneratedTraversalSourceCompilesTest {
         Arguments.of(
             "record Holder<T>(T[] f0) {}", "public static <T> Traversal<Holder<T>, T> f0()"),
         Arguments.of(
+            "record Holder<T>(Set<T> f0) {}", "public static <T> Traversal<Holder<T>, T> f0()"),
+        Arguments.of(
+            "record Holder<T>(Collection<T> f0) {}",
+            "public static <T> Traversal<Holder<T>, T> f0()"),
+        Arguments.of(
             "record Holder<K, V>(Map<K, V> f0) {}",
             "public static <K, V> Traversal<Holder<K, V>, V> f0()"),
         Arguments.of(
@@ -251,6 +263,11 @@ class GeneratedTraversalSourceCompilesTest {
         // the effect into the body it generates has to read that name from the same place.
         Arguments.of(
             "record Holder<F>(List<F> f0) {}", "public static <F> Traversal<Holder<F>, F> f0()"),
+        Arguments.of(
+            "record Holder<F>(Set<F> f0) {}", "public static <F> Traversal<Holder<F>, F> f0()"),
+        Arguments.of(
+            "record Holder<F>(Collection<F> f0) {}",
+            "public static <F> Traversal<Holder<F>, F> f0()"),
         Arguments.of(
             "record Holder<F>(Optional<F> f0) {}",
             "public static <F> Traversal<Holder<F>, F> f0()"),
@@ -299,6 +316,7 @@ class GeneratedTraversalSourceCompilesTest {
         import org.pcollections.PMap;
         import org.pcollections.PSortedMap;
         import org.pcollections.PVector;
+        import java.util.Collection;
         import java.util.List;
         import java.util.Map;
         import java.util.Optional;

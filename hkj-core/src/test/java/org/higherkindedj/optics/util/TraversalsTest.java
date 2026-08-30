@@ -3480,6 +3480,102 @@ class TraversalsTest {
   }
 
   // =============================================================================
+  // traverseCollection Tests
+  // =============================================================================
+
+  @Nested
+  @DisplayName("traverseCollection Tests")
+  class TraverseCollectionTests {
+
+    @Test
+    @DisplayName("should traverse all collection elements with Id applicative")
+    void traverseCollection_withId() {
+      Collection<String> source = List.of("a", "b", "c");
+      Kind<IdKind.Witness, Collection<String>> result =
+          Traversals.traverseCollection(source, s -> Id.of(s.toUpperCase()), Instances.monad(id()));
+
+      Collection<String> modified = IdKindHelper.ID.narrow(result).value();
+      assertThat(modified).containsExactly("A", "B", "C");
+    }
+
+    @Test
+    @DisplayName("should return an empty collection of the source's shape when source is empty")
+    void traverseCollection_empty() {
+      Collection<String> emptyList = List.of();
+      Collection<String> emptySet = Set.of();
+      Kind<IdKind.Witness, Collection<String>> fromAList =
+          Traversals.traverseCollection(
+              emptyList, s -> Id.of(s.toUpperCase()), Instances.monad(id()));
+      Kind<IdKind.Witness, Collection<String>> fromASet =
+          Traversals.traverseCollection(
+              emptySet, s -> Id.of(s.toUpperCase()), Instances.monad(id()));
+
+      assertThat(IdKindHelper.ID.narrow(fromAList).value()).isInstanceOf(List.class).isEmpty();
+      assertThat(IdKindHelper.ID.narrow(fromASet).value()).isInstanceOf(Set.class).isEmpty();
+    }
+
+    @Test
+    @DisplayName("should rebuild a set source as a set and a list source as a list")
+    void traverseCollection_rebuildsTheShapeItWasHanded() {
+      // The one rebuild policy forCollection() describes lives here, so it is pinned here too.
+      Collection<Integer> fromASet = new LinkedHashSet<>(List.of(1, 2, 3));
+      Collection<Integer> fromAList = List.of(1, 2, 3);
+      Collection<Integer> fromADeque = new ArrayDeque<>(List.of(1, 2, 3));
+      Function<Integer, Kind<IdKind.Witness, Integer>> collapse = _ -> Id.of(1);
+
+      Collection<Integer> setResult =
+          IdKindHelper.ID
+              .narrow(Traversals.traverseCollection(fromASet, collapse, Instances.monad(id())))
+              .value();
+      Collection<Integer> listResult =
+          IdKindHelper.ID
+              .narrow(Traversals.traverseCollection(fromAList, collapse, Instances.monad(id())))
+              .value();
+      Collection<Integer> dequeResult =
+          IdKindHelper.ID
+              .narrow(Traversals.traverseCollection(fromADeque, collapse, Instances.monad(id())))
+              .value();
+
+      assertThat(setResult).isInstanceOf(Set.class).containsExactly(1);
+      assertThat(listResult).isInstanceOf(List.class).containsExactly(1, 1, 1);
+      assertThat(dequeResult).isInstanceOf(List.class).containsExactly(1, 1, 1);
+      assertThatThrownBy(() -> setResult.add(2)).isInstanceOf(UnsupportedOperationException.class);
+      assertThatThrownBy(() -> listResult.add(2)).isInstanceOf(UnsupportedOperationException.class);
+    }
+
+    @Test
+    @DisplayName("should propagate failure with Optional applicative")
+    void traverseCollection_failurePropagates() {
+      Collection<Integer> source = new LinkedHashSet<>(List.of(1, 2, 3));
+      Kind<OptionalKind.Witness, Collection<Integer>> result =
+          Traversals.traverseCollection(
+              source,
+              n ->
+                  OptionalKindHelper.OPTIONAL.widen(
+                      n == 2 ? Optional.empty() : Optional.of(n * 10)),
+              Instances.monadError(optional()));
+
+      Optional<Collection<Integer>> outer = OPTIONAL.narrow(result);
+      assertThat(outer).isEmpty();
+    }
+
+    @Test
+    @DisplayName("should succeed with Optional applicative when all elements succeed")
+    void traverseCollection_allSucceed() {
+      Collection<Integer> source = new LinkedHashSet<>(List.of(1, 2, 3));
+      Kind<OptionalKind.Witness, Collection<Integer>> result =
+          Traversals.traverseCollection(
+              source,
+              n -> OptionalKindHelper.OPTIONAL.widen(Optional.of(n * 10)),
+              Instances.monadError(optional()));
+
+      Optional<Collection<Integer>> outer = OPTIONAL.narrow(result);
+      assertThat(outer).isPresent();
+      assertThat(outer.get()).isInstanceOf(Set.class).containsExactly(10, 20, 30);
+    }
+  }
+
+  // =============================================================================
   // traverseMapValues Tests
   // =============================================================================
 
