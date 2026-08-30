@@ -76,7 +76,16 @@ subprojects {
             add("annotationProcessor", project(":hkj-checker"))
             add("testAnnotationProcessor", project(":hkj-checker"))
         }
+        // The JMH source set compiles against its own processor path, and only under
+        // releaseReadiness / benchmarkValidation, so a missing entry here is invisible to
+        // an ordinary build; the -Xplugin flag below is added to every JavaCompile.
+        plugins.withId("me.champeau.jmh") {
+            dependencies.add("jmhAnnotationProcessor", project(":hkj-checker"))
+        }
         tasks.withType<JavaCompile>().configureEach {
+            // JMH's generated benchmark wrappers are harness code compiled on their own
+            // processor path, with nothing of ours to check.
+            if (name == "jmhCompileGeneratedClasses") return@configureEach
             options.compilerArgs.add("-Xplugin:HKJChecker severity=warn")
             // The checker reads jdk.compiler internals, which the compiler JVM must export.
             options.isFork = true
