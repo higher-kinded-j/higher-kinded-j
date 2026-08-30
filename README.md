@@ -132,6 +132,7 @@ Then follow the **[Quickstart](https://higher-kinded-j.github.io/latest/quicksta
 What makes Higher-Kinded-J unique is that **Effect Paths** and the **Focus DSL** speak the same language. Where Effect Paths navigate *computational effects*, Focus Paths navigate *data structures*. Both compose with `via`, and when you need to cross between them, the bridge connects the two worlds:
 
 ```mermaid
+%%{init: {'theme': 'base', 'themeVariables': {'primaryColor': '#8caaee', 'primaryTextColor': '#232634', 'primaryBorderColor': '#1e66f5', 'lineColor': '#7c7f93', 'textColor': '#232634', 'edgeLabelBackground': '#eff1f5', 'fontFamily': 'inherit'}}}%%
 flowchart LR
     E["Effect Paths<br/>MaybePath · EitherPath · TryPath<br/>IOPath · VTaskPath · ValidationPath"] -->|".focus(path)"| B["The bridge"]
     O["Focus Paths<br/>FocusPath · AffinePath · TraversalPath"] -->|".toEitherPath()<br/>.toMaybePath()"| B
