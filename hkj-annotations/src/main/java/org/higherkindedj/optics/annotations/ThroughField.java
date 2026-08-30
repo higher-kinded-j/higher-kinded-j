@@ -23,7 +23,9 @@ import java.lang.annotation.Target;
  * <h2>Auto-Detection</h2>
  *
  * <p>When the {@link #traversal()} parameter is omitted, the processor detects the traversal from
- * the field's declared container type. The match is on the interface itself:
+ * the focus of the spec's own lens named after the field, which is the lens the generated traversal
+ * composes with (a spec that declares no such lens is refused). The match is on the interface
+ * itself:
  *
  * <ul>
  *   <li>{@code List<X>} &rarr; {@code Traversals.forList()}
@@ -80,9 +82,11 @@ public @interface ThroughField {
    * <p>The field must exist on the source type with an accessor method (record-style {@code
    * fieldName()} or JavaBean-style {@code getFieldName()}) or as a public field.
    *
-   * <p>If the field is declared as a recognised container interface (List, Set, Collection,
-   * Optional, Map) or an array, the traversal is auto-detected. Otherwise, the {@link #traversal()}
-   * parameter must be specified explicitly.
+   * <p>If the spec's lens for the field focuses a recognised container interface (List, Set,
+   * Collection, Optional, Map) or an array of a reference type, the traversal is auto-detected.
+   * Otherwise, including an array of a primitive, the {@link #traversal()} parameter must be
+   * specified explicitly (or, for a primitive array, the field declared as an array of the boxed
+   * type).
    *
    * @return the field name
    */

@@ -21,8 +21,10 @@ import org.higherkindedj.optics.annotations.ViaBuilder;
  *
  * <h2>Auto-Detection Support</h2>
  *
- * The processor auto-detects traversals for a field declared as one of these container types,
- * matched on the interface itself (a field declared as {@code ArrayList} names its own traversal):
+ * The processor auto-detects traversals for a field whose spec lens focuses one of these container
+ * types, matched on the interface itself (a field declared as {@code ArrayList} is refused: declare
+ * it as {@code List}, or name a traversal that rebuilds an {@code ArrayList} through
+ * {@code @ThroughField(traversal = ...)}):
  *
  * <ul>
  *   <li>{@code List<A>} → {@code Traversals.forList()}

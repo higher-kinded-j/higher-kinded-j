@@ -133,8 +133,8 @@ Order topUp =
 
 ### `@ThroughField` Auto-Detection
 
-| Field Type | Auto-detected traversal |
-|------------|-------------------------|
+| Lens focus for the field | Auto-detected traversal |
+|--------------------------|-------------------------|
 | `List<A>` | `Traversals.forList()` |
 | `Set<A>` | `Traversals.forSet()` |
 | `Collection<A>` | `Traversals.forCollection()` |
@@ -142,7 +142,7 @@ Order topUp =
 | `A[]`, `A` a reference type | `Traversals.forArray()` |
 | `Map<K, V>` | `Traversals.forMapValues()` |
 
-The match is on the interface itself. A field declared as something narrower, a concrete container (`ArrayList<LineItem>`, `HashSet<Tag>`, `TreeMap<K, V>`) or another interface (`Deque`, `SortedSet`), is refused at the declaration, because each standard traversal promises no more than the interface type (`forList()` hands back an unmodifiable `List`) and the field could not take that value back: the generated traversal would throw `ClassCastException` on first use (a `HashMap` field happens to survive today, because the map traversal rebuilds a `HashMap`, but that is an implementation detail the promise does not cover). An array of a primitive (`int[]`) is refused for the same reason, since the array traversal walks an `Object[]`. Name a traversal that rebuilds the declared type, built with `Traversals.forIterableCollecting(ArrayList::new)` for a list-shaped container or `Traversals.forMapValuesCollecting(TreeMap::new)` for a map and exposed as a static method, or, where the type is yours, declare the field as the interface:
+Detection reads the focus of the spec's own lens for the field, which is the lens the generated traversal composes with (a spec that declares no lens for the field is refused), and the match is on the interface itself. A lens focusing something narrower, a concrete container (`ArrayList<LineItem>`, `HashSet<Tag>`, `TreeMap<K, V>`) or another interface (`Deque`, `SortedSet`), is refused at the declaration, because each standard traversal promises no more than the interface type (`forList()` hands back an unmodifiable `List`) and the field could not take that value back: the generated traversal would throw `ClassCastException` on first use. (Under the subtype matching of earlier releases a `HashMap` field survived, because the map traversal rebuilds a `HashMap`; that was an implementation detail the promise does not cover, and `HashMap` is refused like any other concrete type.) An array of a primitive (`int[]`) is refused for the same reason, since the array traversal walks an `Object[]`. Name a traversal that rebuilds the declared type, built with `Traversals.forIterableCollecting(ArrayList::new)` for a list-shaped container or `Traversals.forMapValuesCollecting(TreeMap::new)` for a map and exposed as a static method, or, where the type is yours, declare the field as the interface:
 
 ```java
 @ThroughField(field = "entries", traversal = "com.example.CustomTraversals.forMyContainer()")

@@ -1335,17 +1335,6 @@ public class SpecInterfaceAnalyser {
   }
 
   /**
-   * The container interface a field of a narrower container type implements, in the order the
-   * standard traversals distinguish them, or null when the field is not a container at all or is
-   * raw (a raw container is refused for a different reason). A field declared as one of the
-   * interfaces itself never reaches here: auto-detection accepted it.
-   *
-   * <p>A {@code Deque} answers {@code Collection}: it is a container, and the reason it cannot be
-   * auto-detected is the same one an {@code ArrayList} has. A non-generic implementation ({@code
-   * class Tags extends ArrayList<String>}) is not raw and answers too. The candidates are the JDK's
-   * own types, which resolve in every round, so the lookups are not guarded.
-   */
-  /**
    * The focus the spec's own lens declares for {@code fieldName}, read under the spec's
    * instantiation, or null when the spec declares no lens by that name (or a raw one).
    */
@@ -1370,6 +1359,17 @@ public class SpecInterfaceAnalyser {
     return ("AEIOUaeiou".indexOf(typeName.charAt(0)) >= 0 ? "an " : "a ") + typeName;
   }
 
+  /**
+   * The container interface a field of a narrower container type implements, in the order the
+   * standard traversals distinguish them, or null when the field is not a container at all or is
+   * raw (a raw container is refused for a different reason). A field declared as one of the
+   * interfaces itself never reaches here: auto-detection accepted it.
+   *
+   * <p>A {@code Deque} answers {@code Collection}: it is a container, and the reason it cannot be
+   * auto-detected is the same one an {@code ArrayList} has. A non-generic implementation ({@code
+   * class Tags extends ArrayList<String>}) is not raw and answers too. The candidates are the JDK's
+   * own types, which resolve in every round, so the lookups are not guarded.
+   */
   private String concreteContainerInterface(TypeMirror fieldType) {
     if (fieldType.getKind() != TypeKind.DECLARED) {
       return null;
