@@ -1977,6 +1977,55 @@ class SpecInterfaceProcessingTest {
     }
 
     @Test
+    @DisplayName("should not suggest a raw bound as the source type")
+    void shouldNotSuggestARawBound() {
+      final var externalClass =
+          JavaFileObjects.forSourceString(
+              "com.external.Crate",
+              """
+              package com.external;
+
+              public class Crate<X> {
+                  private String v;
+                  public String getV() { return v; }
+                  public void setV(String v) { this.v = v; }
+              }
+              """);
+
+      final var specInterface =
+          JavaFileObjects.forSourceString(
+              "com.myapp.CrateOpticsSpec",
+              """
+              package com.myapp;
+
+              import org.higherkindedj.optics.Lens;
+              import org.higherkindedj.optics.annotations.ImportOptics;
+              import org.higherkindedj.optics.annotations.OpticsSpec;
+              import org.higherkindedj.optics.annotations.ViaCopyAndSet;
+              import com.external.Crate;
+
+              @ImportOptics
+              @SuppressWarnings("rawtypes")
+              public interface CrateOpticsSpec<S extends Crate> extends OpticsSpec<S> {
+
+                  @ViaCopyAndSet(setter = "setV")
+                  Lens<S, String> v();
+              }
+              """);
+
+      var compilation =
+          javac().withProcessors(new ImportOpticsProcessor()).compile(externalClass, specInterface);
+
+      assertThat(compilation).failed();
+      assertThat(compilation)
+          .hadErrorContaining(
+              "'CrateOpticsSpec' declares OpticsSpec<S>, which is a type variable.");
+      // A hint naming the raw Crate would steer straight into the raw-source refusal, so the fix
+      // sentence ends unanswered instead.
+      assertThat(compilation).hadErrorContainingMatch("type argument\\.$");
+    }
+
+    @Test
     @DisplayName("should reject an unbounded type variable without suggesting Object")
     void shouldRejectUnboundedTypeVariableSourceType() {
       final var specInterface =

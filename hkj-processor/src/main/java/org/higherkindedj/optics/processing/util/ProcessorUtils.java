@@ -209,6 +209,59 @@ public final class ProcessorUtils {
   }
 
   /**
+   * The first raw type named anywhere in {@code type}, or null when none is raw.
+   *
+   * <p>A generic type written without its arguments, at any depth: a bare {@code List} head, a
+   * {@code List} inside an argument or a wildcard bound, a {@code List[]} component. The enclosing
+   * link counts too: {@code Outer.Inner} is raw in {@code Outer} even where {@code Inner} declares
+   * nothing of its own (JLS 4.8); an absent or static enclosing type is a {@code NoType}, which
+   * ends the walk. A caller that copies the type verbatim into generated source asks this first,
+   * because every raw name it copies is a {@code [rawtypes]} warning in the file it lands in.
+   *
+   * @param type the type as it was written
+   * @return the element of the first raw type named, or null
+   * @since 0.4.11
+   */
+  public static TypeElement firstRawIn(TypeMirror type) {
+    switch (type.getKind()) {
+      case ARRAY -> {
+        return firstRawIn(((ArrayType) type).getComponentType());
+      }
+      case WILDCARD -> {
+        // A bound is written out with the wildcard that carries it, so `? extends List` puts a
+        // raw List in the generated file as surely as a bare one does.
+        WildcardType wildcard = (WildcardType) type;
+        for (TypeMirror bound :
+            new TypeMirror[] {wildcard.getExtendsBound(), wildcard.getSuperBound()}) {
+          if (bound != null) {
+            TypeElement raw = firstRawIn(bound);
+            if (raw != null) {
+              return raw;
+            }
+          }
+        }
+        return null;
+      }
+      case DECLARED -> {
+        DeclaredType declared = (DeclaredType) type;
+        if (isRaw(declared)) {
+          return (TypeElement) declared.asElement();
+        }
+        for (TypeMirror argument : declared.getTypeArguments()) {
+          TypeElement raw = firstRawIn(argument);
+          if (raw != null) {
+            return raw;
+          }
+        }
+        return firstRawIn(declared.getEnclosingType());
+      }
+      default -> {
+        return null;
+      }
+    }
+  }
+
+  /**
    * Whether a declared type carries an instantiation for {@code asMemberOf} to substitute.
    *
    * <p>Asked before reading a member under a type, because {@code asMemberOf} does the wrong thing
@@ -318,7 +371,9 @@ public final class ProcessorUtils {
    * <ul>
    *   <li>{@code SpecInterfaceAnalyser.memberTypeOf} guards with {@link #carriesInstantiation} and
    *       reads the declaration under a raw site. Erasing there rejected a container the spec had
-   *       written, which is the {@code @ThroughField} regression #738 caught.
+   *       written, which is the {@code @ThroughField} regression #738 caught. A raw source type is
+   *       now refused at the spec's declaration (#771), so the site the guard reads as declared
+   *       today is a non-generic one.
    *   <li>{@code MappingProcessor.componentType} asks whether the record <em>declares</em>
    *       parameters rather than whether the site supplies them, so that a concrete pair never
    *       relies on {@code asMemberOf} accepting a record component. A raw domain cannot reach it:

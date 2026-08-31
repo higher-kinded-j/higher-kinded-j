@@ -111,9 +111,15 @@ It is a note rather than a warning on purpose. `@GenerateTraversals` has no per-
 
 **Cause.** The spec interface is generic, and its own type parameter is the source type: `interface BoxOpticsSpec<S extends Box> extends OpticsSpec<S>`. Optics are generated against one named type, read for its members and rebuilt through its constructor, wither or setter, so a type parameter standing for whatever a caller picks has nothing to generate from. An array source type produces the same diagnostic with a different opening, `declares OpticsSpec<String[]>, which is an array type`, and the same remedy.
 
-**Fix.** Name the type the optics are for as the type argument: `OpticsSpec<Box>`. Where the bound names a single type, the message suggests it for you.
+**Fix.** Name the type the optics are for as the type argument, with its own type arguments where it has any: `OpticsSpec<Box>`. Where the bound names a single type that is not raw, the message suggests it for you.
 
 A source type that is itself generic is supported, and the spec names its own type parameters: `interface BoxOpticsSpec<U> extends OpticsSpec<Box<U>>` generates `static <U> Lens<Box<U>, String> label()`. See [Spec Interfaces](optics_spec_interfaces.md#generic-spec-interfaces) for which parameters a generated method declares. It is only a bare type variable, standing for the whole source type, that has no source to read.
+
+### "'XOpticsSpec' declares `OpticsSpec<Box>`, which names the raw type 'Box'"
+
+**Cause.** The source type names a generic type without its arguments. Every generated optic repeats the source type verbatim, so the generated file, which you cannot edit, would carry a `[rawtypes]` warning that the `@SuppressWarnings` on your own spec does not cover, and a `@ViaConstructor` rebuild read under a raw type erases its parameters into an `[unchecked]` call besides. Three shapes draw the error: the source type itself written bare (`OpticsSpec<Box>` for a `Box<X>`), a member type behind a generic outer written bare (`OpticsSpec<Outer.Holder>`, raw by JLS 4.8 even though `Holder` declares nothing of its own), and a raw type argument (`OpticsSpec<Box<List>>`). Raw is not the same as bare: a non-generic source type, or a static nested type of a generic outer, has no arguments to supply and is accepted as written.
+
+**Fix.** Name the raw type's arguments in the `OpticsSpec` clause: `OpticsSpec<Box<String>>`, `OpticsSpec<Outer<String>.Holder>`, `OpticsSpec<Box<List<String>>>`. A spec whose optics should stay generic declares its own type parameters and passes them on, `interface BoxOpticsSpec<U> extends OpticsSpec<Box<U>>`, as above. See [Spec Interfaces](optics_spec_interfaces.md#generic-spec-interfaces).
 
 ### "@ThroughField: '...' reaches field 'items', which is declared as `ArrayList<String>` rather than as the List interface"
 

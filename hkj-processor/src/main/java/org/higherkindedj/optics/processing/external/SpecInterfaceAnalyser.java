@@ -141,6 +141,19 @@ public class SpecInterfaceAnalyser {
       return Optional.empty();
     }
 
+    // A raw type anywhere in the source type passes the gate above - its element is still a
+    // TypeElement - whether the source type itself is raw, an enclosing level is (JLS 4.8 makes
+    // Outer.Holder raw in a generic Outer), or a type argument is. Every generated optic repeats
+    // the source type as written, so each shape is refused here in its own right rather than
+    // read for members javac would erase.
+    TypeElement rawNamed = ProcessorUtils.firstRawIn(sourceType);
+    if (rawNamed != null) {
+      // The element gate above proves the source is a declared type: nothing else resolves to
+      // a TypeElement.
+      reportRawSourceType(specInterface, (DeclaredType) sourceType, rawNamed);
+      return Optional.empty();
+    }
+
     List<ExecutableElement> methods = ElementFilter.methodsIn(specInterface.getEnclosedElements());
 
     // A default method has no home in the generated class: a body cannot be read during
@@ -201,6 +214,46 @@ public class SpecInterfaceAnalyser {
   }
 
   /**
+   * Reports a source type naming a raw type, which is a perfectly good source missing its
+   * arguments; the remedy is to supply them, not to change the type.
+   *
+   * @param specInterface the spec interface declaring the source type
+   * @param sourceType the offending type argument to {@code OpticsSpec}
+   * @param rawNamed the element of the first raw type named in the source type
+   */
+  private void reportRawSourceType(
+      TypeElement specInterface, DeclaredType sourceType, TypeElement rawNamed) {
+    String rawName = rawNamed.getSimpleName().toString();
+    // The generic-spec example only answers the source type itself being raw; a raw enclosing
+    // type or argument has its arguments named in place. Asked of the root type, not by element:
+    // OpticsSpec<Box<Box>> names the raw inner Box, whose element is the outer's too.
+    boolean sourceItself = ProcessorUtils.isRaw(sourceType);
+    Diagnostics.error(
+        messager,
+        specInterface,
+        "@ImportOptics",
+        "'"
+            + specInterface.getSimpleName()
+            + "' declares OpticsSpec<"
+            + ProcessorUtils.simpleTypeName(sourceType)
+            + ">, which names the raw type '"
+            + rawName
+            + "'.",
+        "Every generated optic repeats the source type verbatim, and a raw type in generated"
+            + " source is a [rawtypes] warning that the suppression on your own declaration does"
+            + " not cover; a constructor read under a raw type erases its parameters besides.",
+        "Name '"
+            + rawName
+            + "'s type arguments in the OpticsSpec clause"
+            + (sourceItself
+                ? "; a spec whose optics should stay generic declares its own type parameters"
+                    + " and passes them on (OpticsSpec<"
+                    + rawName
+                    + "<U>>)."
+                : "."));
+  }
+
+  /**
    * Reports a source type that no optic can be generated against, naming the kind it turned out to
    * be so that a bare {@code S} does not read as a class name.
    *
@@ -254,7 +307,9 @@ public class SpecInterfaceAnalyser {
         // isSameType, not a name comparison: it also answers true for an unresolvable bound, whose
         // own 'cannot find symbol' is the error worth reading.
         && !typeUtils.isSameType(bound, elementUtils.getTypeElement(OBJECT_FQN).asType())
-        && !ProcessorUtils.mentions(bound, typeVariable.asElement())) {
+        && !ProcessorUtils.mentions(bound, typeVariable.asElement())
+        // A hint naming a raw bound would steer straight into the raw-source refusal.
+        && ProcessorUtils.firstRawIn(bound) == null) {
       return ": 'OpticsSpec<" + ProcessorUtils.simpleTypeName(bound) + ">'";
     }
     return "";
@@ -849,11 +904,10 @@ public class SpecInterfaceAnalyser {
    * its own keeps them, and is left to be rejected.
    *
    * <p>Unlike {@link #memberTypeOf} this does not guard on {@link
-   * ProcessorUtils#carriesInstantiation}, and a raw source type does reach it: nothing refuses
-   * {@code OpticsSpec<Box>} for a generic {@code Box}, so the parameter comes back erased. That gap
-   * is not this method's to close - the raw source type should not have been accepted, which is
-   * #771 - and a guard here would bury it one level in while every other reader, and the raw name
-   * in each generated signature, stayed wrong.
+   * ProcessorUtils#carriesInstantiation}, and needs no guard: a source type naming a raw type is
+   * refused at the spec's declaration (#771) before any member is read, so every type reaching here
+   * supplies its arguments or has none to supply. A guard would bury a fault the gate already
+   * reports.
    *
    * @param sourceType the instantiated source type {@code S}
    * @param constructor a single-argument constructor, whose one parameter is read

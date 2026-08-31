@@ -519,8 +519,8 @@ class InstanceOfNarrowingTest {
     }
 
     @Test
-    @DisplayName("pins nothing from a raw source type")
-    void pinsNothingFromARawSource() {
+    @DisplayName("a raw source type is refused before narrowing runs")
+    void rawSourceTypeIsRefusedBeforeNarrowing() {
       var compilation =
           compile(
               """
@@ -531,7 +531,54 @@ class InstanceOfNarrowingTest {
               }""");
 
       assertThat(compilation).failed();
-      assertThat(compilation).hadErrorContaining("pins nothing to X");
+      assertThat(compilation)
+          .hadErrorContaining(
+              "'SubjectOpticsSpec' declares OpticsSpec<Node>, which names the raw type"
+                  + " 'Node'.");
+      assertThat(compilation).hadErrorCount(1);
+    }
+
+    @Test
+    @DisplayName("pins nothing through a raw extends clause on the way to the source")
+    void pinsNothingThroughARawExtendsClause() {
+      var rawLeaf =
+          JavaFileObjects.forSourceString(
+              "com.external.RawLeaf",
+              """
+              package com.external;
+
+              @SuppressWarnings("rawtypes")
+              public class RawLeaf<Y> extends Node {}
+              """);
+      var specInterface =
+          JavaFileObjects.forSourceString(
+              "com.myapp.SubjectOpticsSpec",
+              """
+              package com.myapp;
+
+              import com.external.Node;
+              import com.external.RawLeaf;
+              import org.higherkindedj.optics.Prism;
+              import org.higherkindedj.optics.annotations.ImportOptics;
+              import org.higherkindedj.optics.annotations.InstanceOf;
+              import org.higherkindedj.optics.annotations.OpticsSpec;
+
+              @ImportOptics
+              public interface SubjectOpticsSpec<U> extends OpticsSpec<Node<U>> {
+                  @InstanceOf(RawLeaf.class)
+                  Prism<Node<U>, RawLeaf<U>> leaf();
+              }""");
+
+      // RawLeaf reaches Node through a raw extends clause, so its view of the source names the
+      // class with no arguments to read against Node<U>'s one: nothing pins Y.
+      var compilation =
+          javac()
+              .withProcessors(new ImportOpticsProcessor())
+              .withOptions("-Xlint:unchecked,rawtypes", "-Werror")
+              .compile(NODE, rawLeaf, specInterface);
+
+      assertThat(compilation).failed();
+      assertThat(compilation).hadErrorContaining("'Node<U>' pins nothing to Y");
       assertThat(compilation).hadErrorCount(1);
     }
   }

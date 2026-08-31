@@ -177,7 +177,8 @@ final class InstanceOfNarrowing {
       case DeclaredType declared when actual instanceof DeclaredType actualDeclared -> {
         // Same class, argument for argument. Two different classes of the same arity line up
         // position by position and would pin every variable to a type it was never asked to be;
-        // a raw source is the same class with no arguments to read.
+        // a raw extends clause on the way to the source names the class with no arguments to
+        // read (a raw source type itself is refused at the spec's declaration).
         if (typeUtils.isSameType(typeUtils.erasure(declared), typeUtils.erasure(actualDeclared))
             && declared.getTypeArguments().size() == actualDeclared.getTypeArguments().size()) {
           for (int index = 0; index < declared.getTypeArguments().size(); index++) {
@@ -190,8 +191,8 @@ final class InstanceOfNarrowing {
       }
       case ArrayType array when actual instanceof ArrayType actualArray ->
           match(array.getComponentType(), actualArray.getComponentType(), matched);
-      // Anything else - a wildcard, a raw source, a hierarchy the target does not reach - pins
-      // nothing, which is the answer that leaves the parameter free.
+      // Anything else - a wildcard, or a hierarchy the target does not reach - pins nothing,
+      // which is the answer that leaves the parameter free.
       case null, default -> {}
     }
   }
