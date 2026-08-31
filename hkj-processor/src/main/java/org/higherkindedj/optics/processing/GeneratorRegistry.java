@@ -75,7 +75,7 @@ public final class GeneratorRegistry {
    *
    * @param type the container type to resolve
    * @param component the record component to report an equal-priority conflict against, or null for
-   *     a nested walk with no element of its own
+   *     a re-walk that stays silent because the analysis over the declaration reports the tie
    * @return the generator to use, or null
    */
   public TraversableGenerator generatorFor(TypeMirror type, Element component) {

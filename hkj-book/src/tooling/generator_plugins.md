@@ -158,12 +158,12 @@ The processor uses a three-layer mechanism to discover generators:
 
 1. **SPI Interface**: `TraversableGenerator` in `hkj-processor` defines the contract. Any class implementing this interface can be discovered.
 
-2. **ServiceLoader**: At compile time, each processor calls `ServiceLoader.load(TraversableGenerator.class)` to find all registered implementations.
+2. **ServiceLoader**: At compile time, the processors discover every registered implementation through `ServiceLoader.load(TraversableGenerator.class)`; `@GenerateTraversals` and `@GenerateFocus` load directly, and `@ImportOptics` loads through the shared registry.
 
 3. **Avaje SPI**: Each generator class is annotated with `@ServiceProvider(TraversableGenerator.class)`. The [Avaje SPI](https://avaje.io/spi/) annotation processor automatically generates the `META-INF/services` files and validates that the `module-info.java` `provides` clause is complete. A missing entry causes a compile error with a copy-pasteable fix.
 
-```
-Each processor
+```text
+Annotation processors
     │
     ▼
 ServiceLoader.load(TraversableGenerator.class)

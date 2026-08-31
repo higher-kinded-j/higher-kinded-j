@@ -280,9 +280,9 @@ public final class WideningAnalysis {
       }
     }
 
-    // The component rides along only at the outermost layer, so an equal-priority generator
-    // conflict is reported against the declaration once rather than once per nested layer.
-    TraversableGenerator generator = wideningGenerator(type, depth == 0 ? component : null);
+    // The component rides along at every layer, so an equal-priority conflict on a type reached
+    // only inside a container is still reported against the declaration that reaches it.
+    TraversableGenerator generator = wideningGenerator(type, component);
     if (generator == null) {
       return;
     }

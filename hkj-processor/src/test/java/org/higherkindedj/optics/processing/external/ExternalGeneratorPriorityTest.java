@@ -18,6 +18,8 @@ import javax.annotation.processing.RoundEnvironment;
 import javax.lang.model.SourceVersion;
 import javax.lang.model.element.RecordComponentElement;
 import javax.lang.model.element.TypeElement;
+import org.higherkindedj.optics.processing.GeneratorRegistry;
+import org.higherkindedj.optics.processing.spi.TraversableGenerator;
 import org.higherkindedj.optics.processing.testspi.TestMarkerGenerators.DupGeneratorAlpha;
 import org.higherkindedj.optics.processing.testspi.TestMarkerGenerators.DupGeneratorBeta;
 import org.higherkindedj.optics.processing.testspi.TestMarkerGenerators.FbDefaultGenerator;
@@ -46,6 +48,7 @@ class ExternalGeneratorPriorityTest {
     private MethodSpec priTraversal;
     private MethodSpec fbTraversal;
     private MethodSpec dupTraversal;
+    private TraversableGenerator nullAnchorWinner;
 
     @Override
     public Set<String> getSupportedAnnotationTypes() {
@@ -111,6 +114,14 @@ class ExternalGeneratorPriorityTest {
               components,
               bagTypeName);
 
+      // The same tie resolved with no component to anchor to: the choice is unchanged and no
+      // warning is printed, so the whole compilation carries exactly one tie warning.
+      nullAnchorWinner =
+          GeneratorRegistry.of(
+                  List.of(new DupGeneratorAlpha(), new DupGeneratorBeta()),
+                  processingEnv.getMessager())
+              .generatorFor(components.get(2).asType(), null);
+
       return false;
     }
   }
@@ -171,5 +182,12 @@ class ExternalGeneratorPriorityTest {
     assertThat(processor.dupTraversal.toString()).contains("DupGeneratorAlpha");
     assertThat(compilation)
         .hadWarningContaining("Multiple TraversableGenerator SPI providers with equal priority");
+
+    assertThat(processor.nullAnchorWinner).isInstanceOf(DupGeneratorAlpha.class);
+    assertThat(
+            compilation.warnings().stream()
+                .filter(d -> d.getMessage(null).contains("Multiple TraversableGenerator"))
+                .count())
+        .isEqualTo(1);
   }
 }

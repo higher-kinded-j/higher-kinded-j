@@ -78,8 +78,8 @@ class SpiGeneratorConflictTest {
           javac().withProcessors(new FocusProcessor()).compile(DUP_MARKER, source);
 
       assertThat(compilation).succeeded();
-      // Two equal-priority Dup generators: the direct field warns with its element context. The
-      // nested Optional<Dup<String>> walk passes no element, so it resolves the same tie silently.
+      // Two equal-priority Dup generators: the direct field warns, and the Dup nested inside
+      // the Optional warns too, anchored to the od component that reaches it.
       assertThat(compilation)
           .hadWarningContaining("Multiple TraversableGenerator SPI providers with equal priority");
       // Dup is ZERO_OR_MORE and widenCollections is off, so the field stays a FocusPath.

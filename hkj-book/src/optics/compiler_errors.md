@@ -85,7 +85,7 @@ It is a note rather than a warning on purpose. `@GenerateTraversals` has no per-
 
 **Fix.** Declare the component as a container a generator supports: `List`, `Set`, `Collection`, `Map`, `Optional`, an array, or a type one of the [generator plugins](../tooling/generator_plugins.md) covers. For a raw container, give it its element type. For a third-party type, put a `TraversableGenerator` for it on the annotation processor path. A mixed record — one supported container beside one unsupported — keeps the traversals it can have and carries the note for the one it cannot; the note is the reminder, not a gate. A record that wants no traversal for any of its components should not carry `@GenerateTraversals` at all; `@GenerateLenses` on its own still gives every component a lens.
 
-### "Multiple TraversableGenerator SPI providers with equal priority (0) support type X" (a warning)
+### "Multiple TraversableGenerator SPI providers with equal priority (N) support type X" (a warning)
 
 **Cause.** Two generators on the annotation processor path both claim the type, and neither outranks the other: `supports()` answers true from both at the same `priority()`. Selection is still deterministic, the first registered wins, but which one that is depends on registration order alone, which is what the warning points out. The same warning is raised whichever annotation asks: `@GenerateTraversals`, `@GenerateFocus` widening or `@ImportOptics`.
 
