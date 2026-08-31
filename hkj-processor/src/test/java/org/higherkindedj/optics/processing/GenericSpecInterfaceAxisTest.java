@@ -475,6 +475,28 @@ class GenericSpecInterfaceAxisTest {
   }
 
   @Test
+  @DisplayName("a raw argument of the source's own class completes the argument, not the spec")
+  void rawArgumentOfTheSourceClassItselfRefused() {
+    // The raw inner Box's element is the outer's too, so the hint must ask the root type: the
+    // remedy is completing the inner argument, not reshaping the source to OpticsSpec<Box<U>>.
+    var compilation =
+        compile(
+            """
+            @SuppressWarnings("rawtypes")
+            public interface SubjectOpticsSpec extends OpticsSpec<Box<Box>> {
+                @Wither("withLabel")
+                Lens<Box<Box>, String> label();
+            }""");
+
+    assertThat(compilation).failed();
+    assertThat(compilation)
+        .hadErrorContaining("declares OpticsSpec<Box<Box>>, which names the raw type 'Box'.");
+    assertThat(compilation)
+        .hadErrorContaining("Name 'Box's type arguments in the OpticsSpec clause.");
+    assertThat(compilation).hadErrorCount(1);
+  }
+
+  @Test
   @DisplayName("a raw source type is refused once, not once per @ViaConstructor member it erases")
   void rawSourceTypeRefusedWithViaConstructor() {
     var compilation =

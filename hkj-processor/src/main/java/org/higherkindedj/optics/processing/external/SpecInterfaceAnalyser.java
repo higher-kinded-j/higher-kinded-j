@@ -148,7 +148,9 @@ public class SpecInterfaceAnalyser {
     // read for members javac would erase.
     TypeElement rawNamed = ProcessorUtils.firstRawIn(sourceType);
     if (rawNamed != null) {
-      reportRawSourceType(specInterface, sourceType, sourceTypeElement, rawNamed);
+      // The element gate above proves the source is a declared type: nothing else resolves to
+      // a TypeElement.
+      reportRawSourceType(specInterface, (DeclaredType) sourceType, rawNamed);
       return Optional.empty();
     }
 
@@ -217,19 +219,15 @@ public class SpecInterfaceAnalyser {
    *
    * @param specInterface the spec interface declaring the source type
    * @param sourceType the offending type argument to {@code OpticsSpec}
-   * @param sourceTypeElement the source type's element
    * @param rawNamed the element of the first raw type named in the source type
    */
   private void reportRawSourceType(
-      TypeElement specInterface,
-      TypeMirror sourceType,
-      TypeElement sourceTypeElement,
-      TypeElement rawNamed) {
+      TypeElement specInterface, DeclaredType sourceType, TypeElement rawNamed) {
     String rawName = rawNamed.getSimpleName().toString();
     // The generic-spec example only answers the source type itself being raw; a raw enclosing
-    // type or argument has its arguments named in place.
-    boolean sourceItself =
-        rawNamed.getQualifiedName().contentEquals(sourceTypeElement.getQualifiedName());
+    // type or argument has its arguments named in place. Asked of the root type, not by element:
+    // OpticsSpec<Box<Box>> names the raw inner Box, whose element is the outer's too.
+    boolean sourceItself = ProcessorUtils.isRaw(sourceType);
     Diagnostics.error(
         messager,
         specInterface,
