@@ -28,6 +28,10 @@ _In development. Release notes will be added here as changes land on `main`._
 
   _Behaviour change:_ selection previously followed registration order on some routes, so an override could win or lose by where its services entry landed, and only the Focus DSL's widening reported a tie. Two equal-priority providers claiming one type now draw the warning on every route, which a consuming build running javac with `-Werror` turns into an error; rank one of them, or drop one from the processor path.
 
+- **`@ImportOptics` asks a raw source type for its arguments** ([#771](https://github.com/higher-kinded-j/higher-kinded-j/issues/771)): a spec interface whose source type names a raw type anywhere, the type itself (`OpticsSpec<Box>` for a `Box<X>`), a member type behind a generic outer written bare (`OpticsSpec<Outer.Holder>`), or a raw type argument (`OpticsSpec<Box<List>>`), is refused at the declaration, pointing at the type to complete and at the generic-spec form (`OpticsSpec<Box<U>>`) for optics that should stay generic. See the entry in [Compiler Errors](optics/compiler_errors.md#xopticsspec-declares-opticsspecbox-which-names-the-raw-type-box).
+
+  _Behaviour change, moving a javac failure to the declaration:_ the shape previously generated a file naming the type raw throughout, which failed the consuming build under `-Xlint:rawtypes -Werror` in a file the spec author cannot edit; the spec now hears about it at its own declaration.
+
 ### [v0.4.10](https://github.com/higher-kinded-j/higher-kinded-j/releases/tag/v0.4.10) (30 August 2026)
 
 This release gives the mapper a stock vocabulary and takes every generating annotation through a generics pass: each one now emits source the consuming build compiles under `-Werror`, or explains at the declaration what it needs instead. The book gains a **Mapping at the Boundary** chapter with a law-checked capstone, and the house style it introduced now runs through the Optics and Resilience chapters.

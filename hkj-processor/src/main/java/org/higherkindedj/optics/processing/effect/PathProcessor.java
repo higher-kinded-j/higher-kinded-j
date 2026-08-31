@@ -20,7 +20,6 @@ import javax.lang.model.type.ExecutableType;
 import javax.lang.model.type.TypeKind;
 import javax.lang.model.type.TypeMirror;
 import javax.lang.model.type.TypeVariable;
-import javax.lang.model.type.WildcardType;
 import javax.lang.model.util.ElementFilter;
 import javax.lang.model.util.Elements;
 import javax.lang.model.util.Types;
@@ -780,54 +779,12 @@ public class PathProcessor extends AbstractProcessor {
    */
   private static TypeElement firstRawIn(List<? extends TypeMirror> written) {
     for (TypeMirror type : written) {
-      TypeElement raw = firstRawIn(type);
+      TypeElement raw = ProcessorUtils.firstRawIn(type);
       if (raw != null) {
         return raw;
       }
     }
     return null;
-  }
-
-  private static TypeElement firstRawIn(TypeMirror type) {
-    switch (type.getKind()) {
-      case ARRAY -> {
-        return firstRawIn(((ArrayType) type).getComponentType());
-      }
-      case WILDCARD -> {
-        // A bound is written out with the wildcard that carries it, so `? extends List` puts a
-        // raw List in the generated file as surely as a bare one does.
-        WildcardType wildcard = (WildcardType) type;
-        for (TypeMirror bound :
-            new TypeMirror[] {wildcard.getExtendsBound(), wildcard.getSuperBound()}) {
-          if (bound != null) {
-            TypeElement raw = firstRawIn(bound);
-            if (raw != null) {
-              return raw;
-            }
-          }
-        }
-        return null;
-      }
-      case DECLARED -> {
-        DeclaredType declared = (DeclaredType) type;
-        TypeElement element = (TypeElement) declared.asElement();
-        if (!element.getTypeParameters().isEmpty() && declared.getTypeArguments().isEmpty()) {
-          return element;
-        }
-        for (TypeMirror argument : declared.getTypeArguments()) {
-          TypeElement raw = firstRawIn(argument);
-          if (raw != null) {
-            return raw;
-          }
-        }
-        // The enclosing link too: `Outer.Inner` is raw in `Outer` even where `Inner` declares
-        // nothing of its own. An absent or static enclosing type is a NoType, which ends the walk.
-        return firstRawIn(declared.getEnclosingType());
-      }
-      default -> {
-        return null;
-      }
-    }
   }
 
   /**

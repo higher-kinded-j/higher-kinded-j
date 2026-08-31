@@ -1832,8 +1832,8 @@ class ThroughFieldAutoDetectTest {
   }
 
   @Test
-  @DisplayName("auto-detects on a raw source type, whose members are not substituted")
-  void autoDetectsOnARawSourceType() {
+  @DisplayName("a raw source type is refused before auto-detection runs")
+  void rawSourceTypeIsRefusedBeforeAutoDetection() {
     final var holder =
         JavaFileObjects.forSourceString(
             "com.external.RawHolder",
@@ -1879,10 +1879,15 @@ class ThroughFieldAutoDetectTest {
             }
             """);
 
-    // Under a raw site javac erases every member, so asking it to substitute would turn a field
-    // typed List<String> into a raw List and match no container. There is nothing to substitute.
+    // Every optic generated from a raw source names it raw, so the spec is refused at its own
+    // declaration (#771) rather than auto-detection reading members javac would erase.
     Compilation compilation = compile(holder, specInterface);
 
-    assertThat(compilation).succeeded();
+    assertThat(compilation).failed();
+    assertThat(compilation)
+        .hadErrorContaining(
+            "'RawOpticsSpec' declares OpticsSpec<RawHolder>, which names the raw type"
+                + " 'RawHolder'.");
+    assertThat(compilation).hadErrorCount(1);
   }
 }
