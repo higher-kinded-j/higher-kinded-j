@@ -124,8 +124,10 @@ public class TraversalProcessor extends AbstractProcessor {
             .addModifiers(Modifier.PUBLIC, Modifier.FINAL)
             .addMethod(MethodSpec.constructorBuilder().addModifiers(Modifier.PRIVATE).build());
 
+    final GeneratorRegistry registry =
+        GeneratorRegistry.of(generators, processingEnv.getMessager());
     for (RecordComponentElement component : recordElement.getRecordComponents()) {
-      TraversableGenerator generator = generatorFor(component.asType());
+      TraversableGenerator generator = registry.generatorFor(component.asType(), component);
       if (generator == null) {
         if (holdsElements(component.asType())) {
           noteNoTraversal(
@@ -308,16 +310,6 @@ public class TraversalProcessor extends AbstractProcessor {
     return ParameterizedTypeName.get(
         recordClassName,
         typeParameters.stream().map(ProcessorUtils::typeVariableOf).toArray(TypeName[]::new));
-  }
-
-  /** The first generator that claims {@code type}, in service-loader order, or null. */
-  private TraversableGenerator generatorFor(TypeMirror type) {
-    for (TraversableGenerator generator : generators) {
-      if (generator.supports(type)) {
-        return generator;
-      }
-    }
-    return null;
   }
 
   /**

@@ -19,7 +19,7 @@ import org.junit.jupiter.api.Test;
  * {@code org.higherkindedj.optics.processing.testspi.TestMarkerGenerators}).
  *
  * <p>The {@code Dup} marker is supported by two equal-priority generators plus one lower-priority
- * generator, so resolving it warns about the conflict, picks the first match, and skips the
+ * generator, so resolving it warns about the conflict, picks the first registered, and skips the
  * lower-priority one. Neither {@code Dup} nor {@code Solo} generators provide an optic expression,
  * so navigator widening falls back to the plain {@code .each()}/{@code .nullable()} forms.
  */
@@ -58,7 +58,7 @@ class SpiGeneratorConflictTest {
   class FocusConflictWarning {
 
     @Test
-    @DisplayName("should warn about equal-priority SPI providers and use the first match")
+    @DisplayName("should warn about equal-priority SPI providers and use the first registered")
     void shouldWarnAboutEqualPrioritySpiProviders() {
       final JavaFileObject source =
           JavaFileObjects.forSourceString(
@@ -78,8 +78,8 @@ class SpiGeneratorConflictTest {
           javac().withProcessors(new FocusProcessor()).compile(DUP_MARKER, source);
 
       assertThat(compilation).succeeded();
-      // Two equal-priority Dup generators: warned for the direct field (with element context)
-      // and again for the nested Optional<Dup<String>> analysis (without element context).
+      // Two equal-priority Dup generators: the direct field warns, and the Dup nested inside
+      // the Optional warns too, anchored to the od component that reaches it.
       assertThat(compilation)
           .hadWarningContaining("Multiple TraversableGenerator SPI providers with equal priority");
       // Dup is ZERO_OR_MORE and widenCollections is off, so the field stays a FocusPath.

@@ -108,6 +108,7 @@ tasks.jacocoTestCoverageVerification {
                 "org.higherkindedj.optics.processing.WireShape*",
                 "org.higherkindedj.optics.processing.NavigatorClassGenerator*",
                 "org.higherkindedj.optics.processing.WideningAnalysis*",
+                "org.higherkindedj.optics.processing.GeneratorRegistry*",
                 "org.higherkindedj.optics.processing.effect.EffectAlgebraProcessor*",
                 "org.higherkindedj.optics.processing.effect.PathProcessor*",
                 "org.higherkindedj.optics.processing.external.InstanceOfNarrowing*",

@@ -158,12 +158,12 @@ The processor uses a three-layer mechanism to discover generators:
 
 1. **SPI Interface**: `TraversableGenerator` in `hkj-processor` defines the contract. Any class implementing this interface can be discovered.
 
-2. **ServiceLoader**: At compile time, the `TraversalProcessor` calls `ServiceLoader.load(TraversableGenerator.class)` to find all registered implementations.
+2. **ServiceLoader**: At compile time, the processors discover every registered implementation through `ServiceLoader.load(TraversableGenerator.class)`; `@GenerateTraversals` and `@GenerateFocus` load directly, and `@ImportOptics` loads through the shared registry.
 
 3. **Avaje SPI**: Each generator class is annotated with `@ServiceProvider(TraversableGenerator.class)`. The [Avaje SPI](https://avaje.io/spi/) annotation processor automatically generates the `META-INF/services` files and validates that the `module-info.java` `provides` clause is complete. A missing entry causes a compile error with a copy-pasteable fix.
 
-```
-TraversalProcessor
+```text
+Annotation processors
     │
     ▼
 ServiceLoader.load(TraversableGenerator.class)
@@ -176,7 +176,7 @@ ServiceLoader.load(TraversableGenerator.class)
     └── ... 26 more generators
 ```
 
-For each record component, the processor iterates through all loaded generators and calls `supports(TypeMirror)`. The first generator that returns `true` handles code generation for that field.
+For each record component, the processor asks every loaded generator `supports(TypeMirror)`, and the highest-priority generator that answers `true` handles code generation for that field, wherever its registration entry lands. Generators rank themselves through `priority()`: `PRIORITY_OVERRIDE` (100) beats `PRIORITY_DEFAULT` (0) beats `PRIORITY_FALLBACK` (-100). Two generators claiming the same type at the same priority draw a compile-time warning naming both, and the first registered wins. The same resolution serves `@GenerateTraversals`, the Focus DSL's widening and `@ImportOptics`, so the three annotations always agree about which generator claims a type.
 
 A component that holds elements but reaches no generator is not passed over silently. A `java.util.Collection` or `java.util.Map` subtype that no loaded generator supports — a `Deque`, a `SortedMap`, a Guava, Apache Commons or PCollections type whose plugin is not on the processor path — draws a compile-time **note** on the component, naming the unsupported type and the remedy: declare the component as a supported container, or put a `TraversableGenerator` for it on the annotation processor path. A container that is not a `java.util.Collection` or `Map` at all — Vavr's collections and Eclipse Collections' `Immutable*` types are `Iterable` only — is passed over silently, as is a `String` or an `int`, for the same reason a bare `Iterable` is not the bar: `java.nio.file.Path` implements it.
 
@@ -217,6 +217,15 @@ public interface TraversableGenerator {
     }
 
     /**
+     * Rank among generators claiming the same type: the highest priority wins.
+     * PRIORITY_OVERRIDE (100) replaces a built-in generator; PRIORITY_FALLBACK
+     * (-100) yields to any default. Default is PRIORITY_DEFAULT (0).
+     */
+    default int priority() {
+        return PRIORITY_DEFAULT;
+    }
+
+    /**
      * Generate the body of the modifyF method.
      * Returns a Palantir JavaPoet CodeBlock.
      */
@@ -229,6 +238,10 @@ public interface TraversableGenerator {
 
 ~~~admonish note title="Cardinality and Navigator Generation"
 The `getCardinality()` method influences both `@GenerateTraversals` and `@GenerateFocus(generateNavigators = true)`. When the Focus processor generates navigator classes, it consults each SPI generator's cardinality to determine whether a field should produce an `AffinePath` (zero or one element) or a `TraversalPath` (zero or more elements). Without this, SPI-registered types would default to `FocusPath`, losing the correct widening semantics.
+~~~
+
+~~~admonish tip title="Replacing a Built-in Generator"
+To take over a type a built-in generator already claims, implement `supports()` for that type and return `PRIORITY_OVERRIDE` from `priority()`. Registration order does not matter: the higher priority wins on every route that chooses a generator, so no fork of the built-in plugin is needed.
 ~~~
 
 ### Step-by-Step Example

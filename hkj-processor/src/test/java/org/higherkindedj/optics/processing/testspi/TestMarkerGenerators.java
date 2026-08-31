@@ -19,9 +19,18 @@ import org.higherkindedj.optics.processing.spi.TraversableGenerator;
  * production fixture or golden file uses, so their registration is additive and inert for all
  * existing tests.
  *
+ * <p>Every generator's {@code generateModifyF} body throws naming the generator's simple name, so a
+ * generated traversal compiles and the source names which generator won the resolution.
+ *
  * <ul>
  *   <li>{@code com.example.hkjtest.Dup}: supported by three generators (two of equal priority, one
  *       lower) to exercise the equal-priority conflict warning and the lower-priority skip arm.
+ *   <li>{@code com.example.hkjtest.Pri}: supported by a default-priority generator registered first
+ *       and a {@code PRIORITY_OVERRIDE} generator registered last, exercising priority beating
+ *       registration order.
+ *   <li>{@code com.example.hkjtest.Fb}: supported by a {@code PRIORITY_FALLBACK} generator
+ *       registered first and a default-priority generator registered later, exercising a fallback
+ *       losing to a later default.
  *   <li>{@code com.example.hkjtest.Solo}: a ZERO_OR_ONE generator with an empty optic expression,
  *       exercising the simple-widening fallback.
  *   <li>{@code com.example.hkjtest.Box}: a generator whose focus type argument index (1) exceeds
@@ -56,7 +65,9 @@ public final class TestMarkerGenerators {
         RecordComponentElement component,
         ClassName recordClassName,
         List<? extends RecordComponentElement> allComponents) {
-      return CodeBlock.of("");
+      // Compiles in any modifyF and names the winning generator in the generated source.
+      return CodeBlock.of(
+          "throw new $T($S);", UnsupportedOperationException.class, getClass().getSimpleName());
     }
   }
 
@@ -86,6 +97,58 @@ public final class TestMarkerGenerators {
     @Override
     public int priority() {
       return -50;
+    }
+  }
+
+  /** Default-priority generator for the {@code Pri} marker, registered first. */
+  public static final class PriDefaultGenerator extends MarkerGeneratorBase {
+    /** Creates the generator. */
+    public PriDefaultGenerator() {
+      super("com.example.hkjtest.Pri");
+    }
+  }
+
+  /** {@code PRIORITY_OVERRIDE} generator for the {@code Pri} marker, registered last. */
+  public static final class PriOverrideGenerator extends MarkerGeneratorBase {
+    /** Creates the generator. */
+    public PriOverrideGenerator() {
+      super("com.example.hkjtest.Pri");
+    }
+
+    @Override
+    public int priority() {
+      return PRIORITY_OVERRIDE;
+    }
+
+    @Override
+    public Cardinality getCardinality() {
+      return Cardinality.ZERO_OR_ONE;
+    }
+  }
+
+  /** {@code PRIORITY_FALLBACK} generator for the {@code Fb} marker, registered first. */
+  public static final class FbFallbackGenerator extends MarkerGeneratorBase {
+    /** Creates the generator. */
+    public FbFallbackGenerator() {
+      super("com.example.hkjtest.Fb");
+    }
+
+    @Override
+    public int priority() {
+      return PRIORITY_FALLBACK;
+    }
+
+    @Override
+    public Cardinality getCardinality() {
+      return Cardinality.ZERO_OR_ONE;
+    }
+  }
+
+  /** Default-priority generator for the {@code Fb} marker, registered after the fallback. */
+  public static final class FbDefaultGenerator extends MarkerGeneratorBase {
+    /** Creates the generator. */
+    public FbDefaultGenerator() {
+      super("com.example.hkjtest.Fb");
     }
   }
 

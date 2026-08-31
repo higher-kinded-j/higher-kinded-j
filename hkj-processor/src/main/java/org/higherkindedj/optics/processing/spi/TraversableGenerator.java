@@ -40,8 +40,10 @@ public interface TraversableGenerator {
 
   /**
    * Returns the priority of this generator. Higher values indicate higher priority. When multiple
-   * generators support the same type, the highest-priority one wins. Equal-priority conflicts emit
-   * a compile-time warning.
+   * generators support the same type, the highest-priority one wins, wherever its {@code
+   * META-INF/services} entry lands. Equal-priority conflicts emit a compile-time warning and the
+   * first registered wins. Every route that chooses a generator ({@code @GenerateTraversals}, the
+   * Focus DSL's widening and {@code @ImportOptics}) reads the same shared resolution.
    *
    * <p>Recommended constants:
    *

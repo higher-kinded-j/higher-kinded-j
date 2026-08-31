@@ -6,7 +6,6 @@ import com.google.auto.service.AutoService;
 import com.palantir.javapoet.*;
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.Comparator;
 import java.util.HashSet;
 import java.util.List;
 import java.util.ServiceLoader;
@@ -105,8 +104,6 @@ public class FocusProcessor extends AbstractProcessor {
     super.init(processingEnv);
     ServiceLoader.load(TraversableGenerator.class, getClass().getClassLoader())
         .forEach(traversableGenerators::add);
-    // Sort by priority descending so highest-priority generators are checked first
-    traversableGenerators.sort(Comparator.comparingInt(TraversableGenerator::priority).reversed());
   }
 
   /** ClassName for FocusPath, the path every generated method is built from. */
