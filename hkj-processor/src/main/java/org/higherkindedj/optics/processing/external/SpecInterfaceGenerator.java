@@ -142,11 +142,13 @@ public class SpecInterfaceGenerator {
                 methodName,
                 TypeName.get(sourceType));
 
-    // A THROUGH_FIELD traversal composes the field lens with a traversal reached through a raw
-    // cast (see TraversalCodeGenerator.generateThroughFieldCode), which makes the andThen call
-    // unchecked in the generated source.
+    // A THROUGH_FIELD traversal composed through the raw cast (an explicit traversal string, or
+    // a lens focus the checked body could not write; see checkedLensReturnType) makes the andThen
+    // call unchecked in the generated source. The checked composition needs neither the cast nor
+    // the suppression.
     if (opticKind == OpticKind.TRAVERSAL
-        && opticMethod.traversalHint() == SpecAnalysis.TraversalHintKind.THROUGH_FIELD) {
+        && opticMethod.traversalHint() == SpecAnalysis.TraversalHintKind.THROUGH_FIELD
+        && checkedLensReturnType(opticMethod, specInterface, sourceType, focusType) == null) {
       methodBuilder.addAnnotation(
           AnnotationSpec.builder(SuppressWarnings.class)
               .addMember("value", "$S", "unchecked")
@@ -162,7 +164,8 @@ public class SpecInterfaceGenerator {
     }
 
     // Generate method body based on optic kind
-    CodeBlock body = generateOpticBody(opticMethod, sourceType, focusType, className);
+    CodeBlock body =
+        generateOpticBody(opticMethod, specInterface, sourceType, focusType, className);
     methodBuilder.addCode(body);
 
     return methodBuilder.build();
@@ -222,12 +225,17 @@ public class SpecInterfaceGenerator {
    * @return the code block for the method body
    */
   private CodeBlock generateOpticBody(
-      OpticMethodInfo opticMethod, TypeMirror sourceType, TypeMirror focusType, String className) {
+      OpticMethodInfo opticMethod,
+      TypeElement specInterface,
+      TypeMirror sourceType,
+      TypeMirror focusType,
+      String className) {
 
     return switch (opticMethod.opticKind()) {
       case LENS -> generateLensBody(opticMethod, sourceType, focusType);
       case PRISM -> generatePrismBody(opticMethod, sourceType, focusType);
-      case TRAVERSAL -> generateTraversalBody(opticMethod, sourceType, focusType, className);
+      case TRAVERSAL ->
+          generateTraversalBody(opticMethod, specInterface, sourceType, focusType, className);
       case AFFINE, ISO, GETTER, FOLD ->
           // These would need additional implementation
           CodeBlock.of(
@@ -292,14 +300,53 @@ public class SpecInterfaceGenerator {
    * @return the code block
    */
   private CodeBlock generateTraversalBody(
-      OpticMethodInfo opticMethod, TypeMirror sourceType, TypeMirror focusType, String className) {
+      OpticMethodInfo opticMethod,
+      TypeElement specInterface,
+      TypeMirror sourceType,
+      TypeMirror focusType,
+      String className) {
 
     return traversalGenerator.generateTraversalReturnStatement(
         opticMethod.traversalHint(),
         opticMethod.traversalHintInfo(),
-        sourceType,
-        focusType,
-        className);
+        className,
+        checkedLensReturnType(opticMethod, specInterface, sourceType, focusType));
+  }
+
+  /**
+   * The type of the local the checked composition declares, or null where the composition keeps the
+   * raw cast.
+   *
+   * <p>Non-null only for an auto-detected traversal over a denotable lens focus whose every spec
+   * variable this method's own signature declares: the local writes the focus out in full, so a
+   * variable only the lens names, a {@code Map} key under a source that never mentions it, has
+   * nowhere to come from and keeps the cast instead. The declared-parameter list is the one {@link
+   * #methodTypeParameters} chooses, so the two cannot diverge. The type itself is built by the same
+   * {@link #buildOpticReturnType} the sibling lens method's signature uses.
+   *
+   * @param opticMethod the traversal method under generation
+   * @param specInterface the spec interface declaring the parameters
+   * @param sourceType the source type
+   * @param focusType the traversal method's declared focus
+   * @return the checked local's type, or null for the cast path
+   */
+  private TypeName checkedLensReturnType(
+      OpticMethodInfo opticMethod,
+      TypeElement specInterface,
+      TypeMirror sourceType,
+      TypeMirror focusType) {
+    SpecAnalysis.TraversalHintInfo info = opticMethod.traversalHintInfo();
+    if (!info.checkedComposition()) {
+      return null;
+    }
+    List<? extends TypeParameterElement> declared =
+        methodTypeParameters(specInterface, sourceType, focusType);
+    for (TypeParameterElement parameter : specInterface.getTypeParameters()) {
+      if (ProcessorUtils.mentions(info.lensFocus(), parameter) && !declared.contains(parameter)) {
+        return null;
+      }
+    }
+    return buildOpticReturnType(OpticKind.LENS, sourceType, info.lensFocus());
   }
 
   /**

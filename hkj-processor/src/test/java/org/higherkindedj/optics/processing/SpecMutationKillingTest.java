@@ -9,7 +9,9 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.google.testing.compile.Compilation;
 import com.google.testing.compile.JavaFileObjects;
+import com.palantir.javapoet.ClassName;
 import com.palantir.javapoet.CodeBlock;
+import com.palantir.javapoet.ParameterizedTypeName;
 import java.util.Set;
 import javax.annotation.processing.AbstractProcessor;
 import javax.annotation.processing.RoundEnvironment;
@@ -429,7 +431,7 @@ class SpecMutationKillingTest {
 
       CodeBlock result =
           generator.generateTraversalReturnStatement(
-              TraversalHintKind.TRAVERSE_WITH, info, null, null, "com.test.Spec");
+              TraversalHintKind.TRAVERSE_WITH, info, "com.test.Spec", null);
 
       assertThat(result.toString()).contains("org.example.Traversals.list()");
     }
@@ -444,10 +446,36 @@ class SpecMutationKillingTest {
       assertThatThrownBy(
               () ->
                   generator.generateTraversalReturnStatement(
-                      TraversalHintKind.THROUGH_FIELD, info, null, null, "com.test.ContainerSpec"))
+                      TraversalHintKind.THROUGH_FIELD, info, "com.test.ContainerSpec", null))
           .isInstanceOf(IllegalStateException.class)
           .hasMessageContaining("Traversal not specified")
           .hasMessageContaining("auto-detected");
+    }
+
+    @Test
+    @DisplayName("THROUGH_FIELD checked composition declares the lens in a local, uncast")
+    void throughFieldCheckedCompositionSkipsTheCast() {
+      TraversalHintInfo info =
+          TraversalHintInfo.forCheckedThroughField(
+              "items", "org.higherkindedj.optics.util.Traversals.forList()", null);
+      ParameterizedTypeName lensReturnType =
+          ParameterizedTypeName.get(
+              ClassName.get("org.higherkindedj.optics", "Lens"),
+              ClassName.get("com.test", "Bag"),
+              ParameterizedTypeName.get(
+                  ClassName.get("java.util", "List"), ClassName.get("java.lang", "String")));
+
+      CodeBlock result =
+          generator.generateTraversalReturnStatement(
+              TraversalHintKind.THROUGH_FIELD, info, "com.test.Spec", lensReturnType);
+
+      // A bare CodeBlock renders fully qualified; JavaFile emission is what abbreviates.
+      assertThat(result.toString())
+          .contains(
+              "org.higherkindedj.optics.Lens<com.test.Bag, java.util.List<java.lang.String>> lens"
+                  + " = com.test.Spec.items()")
+          .contains("return lens.andThen(org.higherkindedj.optics.util.Traversals.forList())")
+          .doesNotContain("(Traversal)");
     }
 
     @Test
@@ -458,7 +486,7 @@ class SpecMutationKillingTest {
 
       CodeBlock result =
           generator.generateTraversalReturnStatement(
-              TraversalHintKind.THROUGH_FIELD, info, null, null, "com.test.Spec");
+              TraversalHintKind.THROUGH_FIELD, info, "com.test.Spec", null);
 
       assertThat(result.toString()).contains("org.example.CustomTraversal.INSTANCE");
     }
@@ -469,11 +497,7 @@ class SpecMutationKillingTest {
       assertThatThrownBy(
               () ->
                   generator.generateTraversalReturnStatement(
-                      TraversalHintKind.NONE,
-                      TraversalHintInfo.empty(),
-                      null,
-                      null,
-                      "com.test.Spec"))
+                      TraversalHintKind.NONE, TraversalHintInfo.empty(), "com.test.Spec", null))
           .isInstanceOf(IllegalArgumentException.class);
     }
   }
@@ -870,8 +894,7 @@ class SpecMutationKillingTest {
     void traverseWithMethodCallStyle() {
       TraversalHintInfo info = TraversalHintInfo.forTraverseWith("com.example.Traversals.list()");
       CodeBlock result =
-          generator.generateTraversalCode(
-              TraversalHintKind.TRAVERSE_WITH, info, null, null, "Spec");
+          generator.generateTraversalCode(TraversalHintKind.TRAVERSE_WITH, info, "Spec");
       assertThat(result.toString()).contains("com.example.Traversals.list()");
     }
 
@@ -880,8 +903,7 @@ class SpecMutationKillingTest {
     void traverseWithFieldReferenceStyle() {
       TraversalHintInfo info = TraversalHintInfo.forTraverseWith("com.example.Traversals.INSTANCE");
       CodeBlock result =
-          generator.generateTraversalCode(
-              TraversalHintKind.TRAVERSE_WITH, info, null, null, "Spec");
+          generator.generateTraversalCode(TraversalHintKind.TRAVERSE_WITH, info, "Spec");
       assertThat(result.toString()).contains("com.example.Traversals.INSTANCE");
       // Should NOT contain "()" at the end
       assertThat(result.toString().trim()).doesNotEndWith("()");

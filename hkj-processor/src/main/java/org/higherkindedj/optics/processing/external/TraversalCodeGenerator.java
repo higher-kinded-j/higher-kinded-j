@@ -4,7 +4,7 @@ package org.higherkindedj.optics.processing.external;
 
 import com.palantir.javapoet.ClassName;
 import com.palantir.javapoet.CodeBlock;
-import javax.lang.model.type.TypeMirror;
+import com.palantir.javapoet.TypeName;
 import org.higherkindedj.optics.processing.external.SpecAnalysis.TraversalHintInfo;
 import org.higherkindedj.optics.processing.external.SpecAnalysis.TraversalHintKind;
 
@@ -47,11 +47,7 @@ public class TraversalCodeGenerator {
    * @return the generated code block for creating the traversal
    */
   public CodeBlock generateTraversalCode(
-      TraversalHintKind hintKind,
-      TraversalHintInfo info,
-      TypeMirror sourceType,
-      TypeMirror focusType,
-      String specClassName) {
+      TraversalHintKind hintKind, TraversalHintInfo info, String specClassName) {
 
     return switch (hintKind) {
       case TRAVERSE_WITH -> generateTraverseWithCode(info);
@@ -92,16 +88,17 @@ public class TraversalCodeGenerator {
    * <p>{@code SpecInterfaceAnalyser} supplies the traversal, auto-detected from the field's type
    * where the annotation names none, so it is always populated here.
    *
-   * <p>The raw cast exists because the field lens focuses the field's declared type while the
-   * traversal is typed for the interface it rebuilds, and javac cannot relate the two through the
-   * composition. It is only sound while the two agree at erasure: auto-detection therefore accepts
-   * the interface types alone, and arrays of a reference type (a field declared as {@code
-   * ArrayList} would receive the unmodifiable {@code List} the traversal hands back and throw
-   * {@code ClassCastException} on the write side, which a read reaches too, since {@code
-   * Traversals.getAll} rebuilds the source through {@code Id}), and an explicit {@code traversal}
-   * is the author's undertaking that theirs rebuilds the declared type. The traversal's focus is
-   * not checked against the container's element type here: a method declaring {@code Traversal<S,
-   * String>} over a {@code List<Integer>} field is not caught at the declaration.
+   * <p>An auto-detected traversal over a denotable lens focus composes without a cast: the lens
+   * focus is exactly the container interface the standard traversal rebuilds, so {@code
+   * Lens.andThen(Traversal)} infers unaided and javac checks both halves, the lens focus against
+   * the traversal's source and the container's element against the method's declared focus.
+   *
+   * <p>The raw cast remains for what the processor cannot type-check: an explicit {@code traversal}
+   * string, which is the author's undertaking that theirs rebuilds the declared type, and an
+   * auto-detected traversal over a wildcard-carrying lens focus, whose instantiation the
+   * composition cannot name. Both agree with the lens at erasure, auto-detection having accepted
+   * the interface types alone (#773); the element-against-focus half is checked at the declaration
+   * by {@code SpecInterfaceAnalyser} in either case.
    *
    * @param info the @ThroughField annotation values
    * @param specClassName the name of the spec class
@@ -121,7 +118,8 @@ public class TraversalCodeGenerator {
               + "This should have been auto-detected by SpecInterfaceAnalyser.");
     }
 
-    // Raw: the explicit-traversal route hands the processor a string it cannot type-check.
+    // Raw: this composition hands the processor something it cannot type-check. The checked
+    // composition never reaches here; generateTraversalReturnStatement emits its body.
     return CodeBlock.of(
         "$L.$L().andThen(($T) $L)",
         specClassName,
@@ -143,13 +141,24 @@ public class TraversalCodeGenerator {
   public CodeBlock generateTraversalReturnStatement(
       TraversalHintKind hintKind,
       TraversalHintInfo info,
-      TypeMirror sourceType,
-      TypeMirror focusType,
-      String specClassName) {
+      String specClassName,
+      TypeName lensReturnType) {
+
+    // The checked composition holds the lens in a local declared with the sibling lens method's
+    // own return type: the generated lens is a generic method, and called bare as a receiver it
+    // would infer against nothing. The assignment target-types the call, and the return
+    // statement hands javac both halves of the composition to check. One value drives both the
+    // shape and the suppression: a null lensReturnType is the cast path.
+    if (hintKind == TraversalHintKind.THROUGH_FIELD && lensReturnType != null) {
+      return CodeBlock.builder()
+          .addStatement("$T lens = $L.$L()", lensReturnType, specClassName, info.fieldName())
+          .addStatement("return lens.andThen($L)", info.fieldTraversal())
+          .build();
+    }
 
     return CodeBlock.builder()
         .add("return ")
-        .add(generateTraversalCode(hintKind, info, sourceType, focusType, specClassName))
+        .add(generateTraversalCode(hintKind, info, specClassName))
         .add(";")
         .build();
   }

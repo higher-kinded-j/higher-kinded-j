@@ -90,10 +90,10 @@ class ThroughFieldAutoDetectTest {
     @Test
     @DisplayName("should traverse a List<String> field at runtime, read and write")
     void shouldTraverseListFieldAtRuntime() throws Exception {
-      // The composed optic casts the rebuilt List back into the field. With the field declared
-      // as the interface, the unmodifiable List the traversal hands back is accepted on the
-      // write side; a field declared as ArrayList would throw here, which is why auto-detection
-      // is exact.
+      // The composed optic writes the rebuilt List back into the field, uncast since #779 (see
+      // the CheckedComposition tests). With the field declared as the interface, the
+      // unmodifiable List the traversal hands back is accepted on the write side; a field
+      // declared as ArrayList would throw here, which is why auto-detection is exact.
       var container =
           JavaFileObjects.forSourceString(
               "com.external.Bag",
@@ -1889,5 +1889,725 @@ class ThroughFieldAutoDetectTest {
             "'RawOpticsSpec' declares OpticsSpec<RawHolder>, which names the raw type"
                 + " 'RawHolder'.");
     assertThat(compilation).hadErrorCount(1);
+  }
+
+  @Nested
+  @DisplayName("Checked composition: the auto-detected path composes without the raw cast")
+  class CheckedComposition {
+
+    private JavaFileObject bag() {
+      return JavaFileObjects.forSourceString(
+          "com.external.Bag",
+          """
+          package com.external;
+          import java.util.List;
+          public record Bag(List<String> items) {
+              public Bag.Builder toBuilder() { return new Builder().items(items); }
+              public static class Builder {
+                  private List<String> items;
+                  public Builder items(List<String> i) { this.items = i; return this; }
+                  public Bag build() { return new Bag(items); }
+              }
+          }
+          """);
+    }
+
+    private JavaFileObject bagSpec(String traversalMethod) {
+      return JavaFileObjects.forSourceString(
+          "com.test.BagSpec",
+          """
+          package com.test;
+          import java.util.List;
+          import org.higherkindedj.optics.Lens;
+          import org.higherkindedj.optics.Traversal;
+          import org.higherkindedj.optics.annotations.ImportOptics;
+          import org.higherkindedj.optics.annotations.OpticsSpec;
+          import org.higherkindedj.optics.annotations.ThroughField;
+          import org.higherkindedj.optics.annotations.ViaBuilder;
+          import com.external.Bag;
+
+          @ImportOptics
+          public interface BagSpec extends OpticsSpec<Bag> {
+              @ViaBuilder
+              Lens<Bag, List<String>> items();
+
+          %s
+          }
+          """
+              .formatted(traversalMethod));
+    }
+
+    @Test
+    @DisplayName("emits no cast and no suppression; the flags run as the ratchet that keeps it so")
+    void uncastCompositionHoldsUnderConsumerFlags() {
+      Compilation compilation =
+          javac()
+              .withProcessors(new ImportOpticsProcessor())
+              .withOptions("-Xlint:unchecked,rawtypes", "-Werror")
+              .compile(
+                  bag(),
+                  bagSpec(
+                      """
+                          @ThroughField(field = "items")
+                          Traversal<Bag, String> eachItem();
+                      """));
+
+      assertThat(compilation).succeeded();
+      assertThat(compilation)
+          .generatedSourceFile("com.test.Bag")
+          .contentsAsUtf8String()
+          .contains("lens.andThen(org.higherkindedj.optics.util.Traversals.forList())");
+      assertThat(compilation)
+          .generatedSourceFile("com.test.Bag")
+          .contentsAsUtf8String()
+          .doesNotContain("(Traversal)");
+      assertThat(compilation)
+          .generatedSourceFile("com.test.Bag")
+          .contentsAsUtf8String()
+          .doesNotContain("@SuppressWarnings");
+    }
+
+    @Test
+    @DisplayName("an explicit traversal keeps the cast and the suppression")
+    void explicitTraversalKeepsTheCast() {
+      Compilation compilation =
+          compile(
+              bag(),
+              bagSpec(
+                  """
+                      @ThroughField(
+                          field = "items",
+                          traversal = "org.higherkindedj.optics.util.Traversals.forList()")
+                      Traversal<Bag, String> eachItem();
+                  """));
+
+      assertThat(compilation).succeeded();
+      assertThat(compilation)
+          .generatedSourceFile("com.test.Bag")
+          .contentsAsUtf8String()
+          .contains("andThen((Traversal)");
+      assertThat(compilation)
+          .generatedSourceFile("com.test.Bag")
+          .contentsAsUtf8String()
+          .contains("@SuppressWarnings(\"unchecked\")");
+    }
+
+    @Test
+    @DisplayName("a focus that is not the container's element is refused at the declaration")
+    void focusMismatchIsRefusedAtTheDeclaration() {
+      Compilation compilation =
+          compile(
+              bag(),
+              bagSpec(
+                  """
+                      @ThroughField(field = "items")
+                      Traversal<Bag, Integer> eachItem();
+                  """));
+
+      assertThat(compilation).failed();
+      assertThat(compilation)
+          .hadErrorContaining(
+              "@ThroughField: 'BagSpec.eachItem' declares focus 'Integer' over field 'items' of"
+                  + " type 'List<String>', whose elements the standard traversal hands back as"
+                  + " 'String'. A focus that does not contain that type could only compile"
+                  + " through a cast, throwing ClassCastException on first use where it narrows"
+                  + " and letting ill-typed writes through where it widens. Declare the focus as"
+                  + " 'String', or name a traversal of your own with @ThroughField(field ="
+                  + " \"items\", traversal = \"...\").");
+      assertThat(compilation).hadErrorCount(1);
+    }
+
+    @Test
+    @DisplayName("a Map focus is held to the value type")
+    void mapFocusHeldToTheValueType() {
+      var box =
+          JavaFileObjects.forSourceString(
+              "com.external.Box",
+              """
+              package com.external;
+              import java.util.Map;
+              public record Box(Map<String, Integer> scores) {
+                  public Box.Builder toBuilder() { return new Builder().scores(scores); }
+                  public static class Builder {
+                      private Map<String, Integer> scores;
+                      public Builder scores(Map<String, Integer> s) { this.scores = s; return this; }
+                      public Box build() { return new Box(scores); }
+                  }
+              }
+              """);
+      var spec =
+          JavaFileObjects.forSourceString(
+              "com.test.BoxSpec",
+              """
+              package com.test;
+              import java.util.Map;
+              import org.higherkindedj.optics.Lens;
+              import org.higherkindedj.optics.Traversal;
+              import org.higherkindedj.optics.annotations.ImportOptics;
+              import org.higherkindedj.optics.annotations.OpticsSpec;
+              import org.higherkindedj.optics.annotations.ThroughField;
+              import org.higherkindedj.optics.annotations.ViaBuilder;
+              import com.external.Box;
+
+              @ImportOptics
+              public interface BoxSpec extends OpticsSpec<Box> {
+                  @ViaBuilder
+                  Lens<Box, Map<String, Integer>> scores();
+
+                  @ThroughField(field = "scores")
+                  Traversal<Box, String> eachScore();
+              }
+              """);
+
+      Compilation compilation = compile(box, spec);
+
+      assertThat(compilation).failed();
+      assertThat(compilation)
+          .hadErrorContaining("whose values the standard traversal hands back as 'Integer'");
+      assertThat(compilation).hadErrorCount(1);
+    }
+
+    @Test
+    @DisplayName("an extends-wildcard focus keeps the cast, held to the bound")
+    void extendsWildcardKeepsTheCastAndTheBound() {
+      var crate =
+          JavaFileObjects.forSourceString(
+              "com.external.Crate",
+              """
+              package com.external;
+              import java.util.List;
+              public record Crate(List<? extends CharSequence> items) {
+                  public Crate.Builder toBuilder() { return new Builder().items(items); }
+                  public static class Builder {
+                      private List<? extends CharSequence> items;
+                      public Builder items(List<? extends CharSequence> i) { this.items = i; return this; }
+                      public Crate build() { return new Crate(items); }
+                  }
+              }
+              """);
+      var accepted =
+          JavaFileObjects.forSourceString(
+              "com.test.CrateSpec",
+              """
+              package com.test;
+              import java.util.List;
+              import org.higherkindedj.optics.Lens;
+              import org.higherkindedj.optics.Traversal;
+              import org.higherkindedj.optics.annotations.ImportOptics;
+              import org.higherkindedj.optics.annotations.OpticsSpec;
+              import org.higherkindedj.optics.annotations.ThroughField;
+              import org.higherkindedj.optics.annotations.ViaBuilder;
+              import com.external.Crate;
+
+              @ImportOptics
+              public interface CrateSpec extends OpticsSpec<Crate> {
+                  @ViaBuilder
+                  Lens<Crate, List<? extends CharSequence>> items();
+
+                  @ThroughField(field = "items")
+                  Traversal<Crate, CharSequence> eachItem();
+              }
+              """);
+
+      Compilation compilation = compile(crate, accepted);
+
+      assertThat(compilation).succeeded();
+      assertThat(compilation)
+          .generatedSourceFile("com.test.Crate")
+          .contentsAsUtf8String()
+          .contains("andThen((Traversal)");
+
+      var mismatched =
+          JavaFileObjects.forSourceString(
+              "com.test.CrateSpec",
+              """
+              package com.test;
+              import java.util.List;
+              import org.higherkindedj.optics.Lens;
+              import org.higherkindedj.optics.Traversal;
+              import org.higherkindedj.optics.annotations.ImportOptics;
+              import org.higherkindedj.optics.annotations.OpticsSpec;
+              import org.higherkindedj.optics.annotations.ThroughField;
+              import org.higherkindedj.optics.annotations.ViaBuilder;
+              import com.external.Crate;
+
+              @ImportOptics
+              public interface CrateSpec extends OpticsSpec<Crate> {
+                  @ViaBuilder
+                  Lens<Crate, List<? extends CharSequence>> items();
+
+                  @ThroughField(field = "items")
+                  Traversal<Crate, String> eachItem();
+              }
+              """);
+
+      Compilation rejected = compile(crate, mismatched);
+
+      assertThat(rejected).failed();
+      assertThat(rejected)
+          .hadErrorContaining("whose elements the standard traversal hands back as 'CharSequence'");
+      assertThat(rejected).hadErrorCount(1);
+    }
+
+    @Test
+    @DisplayName("a wildcard focus containing the element stays accepted, uncast")
+    void wildcardFocusContainingTheElementStaysAccepted() {
+      // '? extends CharSequence' contains String, and the uncast composition's
+      // Traversal<Bag, String> is a subtype of the declared return by the same containment, so
+      // the shape that always compiled keeps compiling, now without the cast.
+      Compilation compilation =
+          compile(
+              bag(),
+              bagSpec(
+                  """
+                      @ThroughField(field = "items")
+                      Traversal<Bag, ? extends CharSequence> eachItem();
+                  """));
+
+      assertThat(compilation).succeeded();
+      assertThat(compilation)
+          .generatedSourceFile("com.test.Bag")
+          .contentsAsUtf8String()
+          .doesNotContain("(Traversal)");
+    }
+
+    @Test
+    @DisplayName("a wildcard focus that does not contain the element is refused")
+    void wildcardFocusMismatchRefused() {
+      Compilation compilation =
+          compile(
+              bag(),
+              bagSpec(
+                  """
+                      @ThroughField(field = "items")
+                      Traversal<Bag, ? extends Number> eachItem();
+                  """));
+
+      assertThat(compilation).failed();
+      assertThat(compilation).hadErrorContaining("declares focus '? extends Number'");
+      assertThat(compilation).hadErrorCount(1);
+    }
+
+    @Test
+    @DisplayName("a widening focus is refused: containment, not assignability")
+    void wideningFocusRefused() {
+      // Traversal<Bag, CharSequence> over List<String> compiled in 0.4.10; its modify could then
+      // write any CharSequence into a List<String>. Containment refuses it where a supertype
+      // check would not.
+      Compilation compilation =
+          compile(
+              bag(),
+              bagSpec(
+                  """
+                      @ThroughField(field = "items")
+                      Traversal<Bag, CharSequence> eachItem();
+                  """));
+
+      assertThat(compilation).failed();
+      assertThat(compilation).hadErrorContaining("declares focus 'CharSequence'");
+      assertThat(compilation)
+          .hadErrorContaining("whose elements the standard traversal hands back as 'String'");
+      assertThat(compilation).hadErrorCount(1);
+    }
+
+    @Test
+    @DisplayName("an explicit traversal is the escape hatch: the focus is the author's to choose")
+    void explicitTraversalIsTheEscapeHatch() {
+      // The diagnostic's own remedy: the same mismatched focus the auto-detected path refuses is
+      // accepted with an explicit traversal, which is the author's undertaking.
+      Compilation compilation =
+          compile(
+              bag(),
+              bagSpec(
+                  """
+                      @ThroughField(
+                          field = "items",
+                          traversal = "org.higherkindedj.optics.util.Traversals.forList()")
+                      Traversal<Bag, Integer> eachItem();
+                  """));
+
+      assertThat(compilation).succeeded();
+    }
+
+    @Test
+    @DisplayName("a super-wildcard element hands back Object, and the focus is held to that")
+    void superWildcardElementHoldsTheFocusToObject() {
+      var crate =
+          JavaFileObjects.forSourceString(
+              "com.external.SCrate",
+              """
+              package com.external;
+              import java.util.List;
+              public record SCrate(List<? super String> items) {
+                  public SCrate.Builder toBuilder() { return new Builder().items(items); }
+                  public static class Builder {
+                      private List<? super String> items;
+                      public Builder items(List<? super String> i) { this.items = i; return this; }
+                      public SCrate build() { return new SCrate(items); }
+                  }
+              }
+              """);
+      var spec =
+          JavaFileObjects.forSourceString(
+              "com.test.SCrateSpec",
+              """
+              package com.test;
+              import java.util.List;
+              import org.higherkindedj.optics.Lens;
+              import org.higherkindedj.optics.Traversal;
+              import org.higherkindedj.optics.annotations.ImportOptics;
+              import org.higherkindedj.optics.annotations.OpticsSpec;
+              import org.higherkindedj.optics.annotations.ThroughField;
+              import org.higherkindedj.optics.annotations.ViaBuilder;
+              import com.external.SCrate;
+
+              @ImportOptics
+              public interface SCrateSpec extends OpticsSpec<SCrate> {
+                  @ViaBuilder
+                  Lens<SCrate, List<? super String>> items();
+
+                  @ThroughField(field = "items")
+                  Traversal<SCrate, Integer> eachItem();
+              }
+              """);
+
+      Compilation compilation = compile(crate, spec);
+
+      assertThat(compilation).failed();
+      assertThat(compilation)
+          .hadErrorContaining("whose elements the standard traversal hands back as 'Object'");
+      assertThat(compilation).hadErrorCount(1);
+    }
+
+    @Test
+    @DisplayName("an Optional focus is held to its element")
+    void optionalFocusHeldToItsElement() {
+      var holder =
+          JavaFileObjects.forSourceString(
+              "com.external.NameHolder",
+              """
+              package com.external;
+              import java.util.Optional;
+              public record NameHolder(Optional<String> name) {
+                  public NameHolder.Builder toBuilder() { return new Builder().name(name); }
+                  public static class Builder {
+                      private Optional<String> name;
+                      public Builder name(Optional<String> n) { this.name = n; return this; }
+                      public NameHolder build() { return new NameHolder(name); }
+                  }
+              }
+              """);
+      var spec =
+          JavaFileObjects.forSourceString(
+              "com.test.NameHolderSpec",
+              """
+              package com.test;
+              import java.util.Optional;
+              import org.higherkindedj.optics.Lens;
+              import org.higherkindedj.optics.Traversal;
+              import org.higherkindedj.optics.annotations.ImportOptics;
+              import org.higherkindedj.optics.annotations.OpticsSpec;
+              import org.higherkindedj.optics.annotations.ThroughField;
+              import org.higherkindedj.optics.annotations.ViaBuilder;
+              import com.external.NameHolder;
+
+              @ImportOptics
+              public interface NameHolderSpec extends OpticsSpec<NameHolder> {
+                  @ViaBuilder
+                  Lens<NameHolder, Optional<String>> name();
+
+                  @ThroughField(field = "name")
+                  Traversal<NameHolder, Integer> theName();
+              }
+              """);
+
+      Compilation compilation = compile(holder, spec);
+
+      assertThat(compilation).failed();
+      assertThat(compilation)
+          .hadErrorContaining("whose element the standard traversal hands back as 'String'");
+      assertThat(compilation).hadErrorCount(1);
+    }
+
+    @Test
+    @DisplayName("a Map focus of the value type composes uncast")
+    void mapValueFocusComposesUncast() {
+      var box =
+          JavaFileObjects.forSourceString(
+              "com.external.ScoreBox",
+              """
+              package com.external;
+              import java.util.Map;
+              public record ScoreBox(Map<String, Integer> scores) {
+                  public ScoreBox.Builder toBuilder() { return new Builder().scores(scores); }
+                  public static class Builder {
+                      private Map<String, Integer> scores;
+                      public Builder scores(Map<String, Integer> s) { this.scores = s; return this; }
+                      public ScoreBox build() { return new ScoreBox(scores); }
+                  }
+              }
+              """);
+      var spec =
+          JavaFileObjects.forSourceString(
+              "com.test.ScoreBoxSpec",
+              """
+              package com.test;
+              import java.util.Map;
+              import org.higherkindedj.optics.Lens;
+              import org.higherkindedj.optics.Traversal;
+              import org.higherkindedj.optics.annotations.ImportOptics;
+              import org.higherkindedj.optics.annotations.OpticsSpec;
+              import org.higherkindedj.optics.annotations.ThroughField;
+              import org.higherkindedj.optics.annotations.ViaBuilder;
+              import com.external.ScoreBox;
+
+              @ImportOptics
+              public interface ScoreBoxSpec extends OpticsSpec<ScoreBox> {
+                  @ViaBuilder
+                  Lens<ScoreBox, Map<String, Integer>> scores();
+
+                  @ThroughField(field = "scores")
+                  Traversal<ScoreBox, Integer> eachScore();
+              }
+              """);
+
+      Compilation compilation = compile(box, spec);
+
+      assertThat(compilation).succeeded();
+      assertThat(compilation)
+          .generatedSourceFile("com.test.ScoreBox")
+          .contentsAsUtf8String()
+          .doesNotContain("(Traversal)");
+    }
+
+    @Test
+    @DisplayName("a super-wildcard focus stays on the cast path, with nothing to hold it to")
+    void superWildcardStaysOnTheCastPath() {
+      var crate =
+          JavaFileObjects.forSourceString(
+              "com.external.Crate",
+              """
+              package com.external;
+              import java.util.List;
+              public record Crate(List<? super String> items) {
+                  public Crate.Builder toBuilder() { return new Builder().items(items); }
+                  public static class Builder {
+                      private List<? super String> items;
+                      public Builder items(List<? super String> i) { this.items = i; return this; }
+                      public Crate build() { return new Crate(items); }
+                  }
+              }
+              """);
+      var spec =
+          JavaFileObjects.forSourceString(
+              "com.test.CrateSpec",
+              """
+              package com.test;
+              import java.util.List;
+              import org.higherkindedj.optics.Lens;
+              import org.higherkindedj.optics.Traversal;
+              import org.higherkindedj.optics.annotations.ImportOptics;
+              import org.higherkindedj.optics.annotations.OpticsSpec;
+              import org.higherkindedj.optics.annotations.ThroughField;
+              import org.higherkindedj.optics.annotations.ViaBuilder;
+              import com.external.Crate;
+
+              @ImportOptics
+              public interface CrateSpec extends OpticsSpec<Crate> {
+                  @ViaBuilder
+                  Lens<Crate, List<? super String>> items();
+
+                  @ThroughField(field = "items")
+                  Traversal<Crate, Object> eachItem();
+              }
+              """);
+
+      Compilation compilation = compile(crate, spec);
+
+      assertThat(compilation).succeeded();
+      assertThat(compilation)
+          .generatedSourceFile("com.test.Crate")
+          .contentsAsUtf8String()
+          .contains("andThen((Traversal)");
+    }
+
+    @Test
+    @DisplayName("a spec variable outside the lens focus leaves the composition checked")
+    void unrelatedSpecVariableLeavesTheCompositionChecked() {
+      var pair =
+          JavaFileObjects.forSourceString(
+              "com.external.Pair",
+              """
+              package com.external;
+              import java.util.List;
+              public record Pair<U, W>(List<U> items, W tag) {
+                  public Pair.Builder<U, W> toBuilder() {
+                      return new Builder<U, W>().items(items).tag(tag);
+                  }
+                  public static class Builder<U, W> {
+                      private List<U> items;
+                      private W tag;
+                      public Builder<U, W> items(List<U> i) { this.items = i; return this; }
+                      public Builder<U, W> tag(W t) { this.tag = t; return this; }
+                      public Pair<U, W> build() { return new Pair<>(items, tag); }
+                  }
+              }
+              """);
+      var spec =
+          JavaFileObjects.forSourceString(
+              "com.test.PairSpec",
+              """
+              package com.test;
+              import java.util.List;
+              import org.higherkindedj.optics.Lens;
+              import org.higherkindedj.optics.Traversal;
+              import org.higherkindedj.optics.annotations.ImportOptics;
+              import org.higherkindedj.optics.annotations.OpticsSpec;
+              import org.higherkindedj.optics.annotations.ThroughField;
+              import org.higherkindedj.optics.annotations.ViaBuilder;
+              import com.external.Pair;
+
+              @ImportOptics
+              public interface PairSpec<U, W> extends OpticsSpec<Pair<U, W>> {
+                  @ViaBuilder
+                  Lens<Pair<U, W>, List<U>> items();
+
+                  @ThroughField(field = "items")
+                  Traversal<Pair<U, W>, U> eachItem();
+              }
+              """);
+
+      Compilation compilation =
+          javac()
+              .withProcessors(new ImportOpticsProcessor())
+              .withOptions("-Xlint:unchecked,rawtypes", "-Werror")
+              .compile(pair, spec);
+
+      assertThat(compilation).succeeded();
+      assertThat(compilation)
+          .generatedSourceFile("com.test.Pair")
+          .contentsAsUtf8String()
+          .doesNotContain("(Traversal)");
+    }
+
+    @Test
+    @DisplayName("a variable outside the source but in the focus keeps the composition checked")
+    void focusVariableOutsideTheSourceKeepsTheCompositionChecked() {
+      // K reaches the lens focus and the traversal's own focus, so the generated method declares
+      // it and the checked local can name it, even though the source type never mentions K. The
+      // raw accessor is what lets such a lens generate at all (its body is an unchecked Lens.of
+      // invocation, which is why this row compiles without -Werror); the row is about the
+      // traversal's path.
+      var bagged =
+          JavaFileObjects.forSourceString(
+              "com.external.Bagged",
+              """
+              package com.external;
+              import java.util.List;
+              @SuppressWarnings({"rawtypes", "unchecked"})
+              public class Bagged {
+                  private final List items;
+                  public Bagged(List items) { this.items = items; }
+                  public List items() { return items; }
+                  public Builder toBuilder() { return new Builder().items(items); }
+                  public static class Builder {
+                      private List items;
+                      public Builder items(List i) { this.items = i; return this; }
+                      public Bagged build() { return new Bagged(items); }
+                  }
+              }
+              """);
+      var spec =
+          JavaFileObjects.forSourceString(
+              "com.test.BaggedSpec",
+              """
+              package com.test;
+              import java.util.List;
+              import org.higherkindedj.optics.Lens;
+              import org.higherkindedj.optics.Traversal;
+              import org.higherkindedj.optics.annotations.ImportOptics;
+              import org.higherkindedj.optics.annotations.OpticsSpec;
+              import org.higherkindedj.optics.annotations.ThroughField;
+              import org.higherkindedj.optics.annotations.ViaBuilder;
+              import com.external.Bagged;
+
+              @ImportOptics
+              public interface BaggedSpec<K> extends OpticsSpec<Bagged> {
+                  @ViaBuilder
+                  Lens<Bagged, List<K>> items();
+
+                  @ThroughField(field = "items")
+                  Traversal<Bagged, K> eachItem();
+              }
+              """);
+
+      Compilation compilation = compile(bagged, spec);
+
+      assertThat(compilation).succeeded();
+      assertThat(compilation)
+          .generatedSourceFile("com.test.Bagged")
+          .contentsAsUtf8String()
+          .doesNotContain("(Traversal)");
+    }
+
+    @Test
+    @DisplayName("a variable only the lens focus names falls back to the cast path")
+    void lensOnlyVariableFallsBackToTheCastPath() {
+      // The spec's lens declares a focus naming K, which neither the source nor the traversal's
+      // own focus mentions, so the checked body could not declare K. The traversal analysis keeps
+      // the cast. The fixture's raw accessor and builder are what let such a lens generate at
+      // all (its body is an unchecked Lens.of invocation, which is why this row compiles without
+      // -Werror); the row is about which path the traversal takes beside it.
+      var tagged =
+          JavaFileObjects.forSourceString(
+              "com.external.Tagged",
+              """
+              package com.external;
+              import java.util.Map;
+              @SuppressWarnings({"rawtypes", "unchecked"})
+              public class Tagged<V> {
+                  private final Map tags;
+                  public Tagged(Map tags) { this.tags = tags; }
+                  public Map tags() { return tags; }
+                  public Builder<V> toBuilder() { return new Builder<V>().tags(tags); }
+                  public static class Builder<V> {
+                      private Map tags;
+                      public Builder<V> tags(Map t) { this.tags = t; return this; }
+                      public Tagged<V> build() { return new Tagged<>(tags); }
+                  }
+              }
+              """);
+      var spec =
+          JavaFileObjects.forSourceString(
+              "com.test.TaggedSpec",
+              """
+              package com.test;
+              import java.util.Map;
+              import org.higherkindedj.optics.Lens;
+              import org.higherkindedj.optics.Traversal;
+              import org.higherkindedj.optics.annotations.ImportOptics;
+              import org.higherkindedj.optics.annotations.OpticsSpec;
+              import org.higherkindedj.optics.annotations.ThroughField;
+              import org.higherkindedj.optics.annotations.ViaBuilder;
+              import com.external.Tagged;
+
+              @ImportOptics
+              public interface TaggedSpec<K, V> extends OpticsSpec<Tagged<V>> {
+                  @ViaBuilder
+                  Lens<Tagged<V>, Map<K, V>> tags();
+
+                  @ThroughField(field = "tags")
+                  Traversal<Tagged<V>, V> eachTag();
+              }
+              """);
+
+      Compilation compilation = compile(tagged, spec);
+
+      assertThat(compilation).succeeded();
+      assertThat(compilation)
+          .generatedSourceFile("com.test.Tagged")
+          .contentsAsUtf8String()
+          .contains("andThen((Traversal)");
+    }
   }
 }

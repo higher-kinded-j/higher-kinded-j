@@ -133,6 +133,12 @@ A source type that is itself generic is supported, and the spec names its own ty
 
 **Fix.** Declare the lens method for the field on the spec, or use `@TraverseWith` to name a traversal over the source type that stands on its own.
 
+### "@ThroughField: '...' declares focus 'Integer' over field 'items' of type `List<String>`, whose elements the standard traversal hands back as 'String'"
+
+**Cause.** The method's declared focus must contain what the auto-detected traversal hands back: the container's elements, a `Map`'s values, an `Optional`'s element, or `Object` where the element sits behind a super- or unbounded wildcard. A focus that does not contain that type could only compile through a cast, throwing `ClassCastException` on the caller's first `getAll` or `modify` where it narrows, and letting ill-typed writes into the container where it widens. Containment, not sameness: a wildcard focus over the element (`? extends CharSequence` over `CharSequence` elements, or its element's supertype bound) stays accepted, and an extends-wildcard element is held to its bound (`List<? extends CharSequence>` hands back `CharSequence`).
+
+**Fix.** Declare the focus as the type the message names, or name a traversal of your own with `@ThroughField(field = "items", traversal = "...")`, which is the author's undertaking that it rebuilds the declared shape.
+
 ### "@InstanceOf target 'com.example.Foo' is not a subtype of source type 'com.example.Base'"
 
 **Cause.** The class passed to `@InstanceOf(SubType.class)` is not a subclass of the optic's source type.

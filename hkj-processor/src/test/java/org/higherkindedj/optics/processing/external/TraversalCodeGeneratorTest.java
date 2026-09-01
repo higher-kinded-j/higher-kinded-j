@@ -84,8 +84,7 @@ class TraversalCodeGeneratorTest {
         TraversalCodeGenerator generator = new TraversalCodeGenerator();
 
         CodeBlock traversal =
-            generator.generateTraversalReturnStatement(
-                hintKind, hintInfo, sourceType, elementType, specClassName);
+            generator.generateTraversalReturnStatement(hintKind, hintInfo, specClassName, null);
         traversalResult = traversal.toString();
       }
 
