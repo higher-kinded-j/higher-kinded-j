@@ -4140,20 +4140,20 @@ public class MappingProcessor extends AbstractProcessor {
   private String methodSignature(TypeElement spec, ExecutableElement method) {
     StringJoiner params = new StringJoiner(", ", "(", ")");
     for (TypeMirror parameter : memberSignatureIn(spec, method).getParameterTypes()) {
-      params.add(simpleTypeName(parameter));
+      params.add(parameterTypeName(parameter));
     }
     return method.getSimpleName() + params.toString();
   }
 
   /**
    * The compact display name of a parameter type: the element's simple name for declared types, so
-   * packages, type arguments and type-use annotations never clutter the diagnostic; a type variable
-   * renders as its own name.
+   * packages, type arguments and type-use annotations never clutter the diagnostic; any other shape
+   * renders as the shared diagnostic name, which keeps annotations out the same way.
    */
-  private static String simpleTypeName(TypeMirror type) {
+  private static String parameterTypeName(TypeMirror type) {
     return type instanceof DeclaredType declared
         ? declared.asElement().getSimpleName().toString()
-        : type.toString();
+        : ProcessorUtils.simpleTypeName(type);
   }
 
   void writeFile(TypeElement spec, String packageName, TypeSpec impl) {

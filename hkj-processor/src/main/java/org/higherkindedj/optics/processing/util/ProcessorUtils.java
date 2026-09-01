@@ -562,12 +562,92 @@ public final class ProcessorUtils {
    * diagnostic that offers a corrected declaration needs both: a rendering that drops either one
    * suggests source that does not compile.
    *
+   * <p>A declared type, array, wildcard, type variable or primitive is built from its element,
+   * resolved arguments or kind rather than {@code toString()}, so a type-use annotation never
+   * enters: {@code @Nullable Set<?>} reads as {@code Set<?>}, the same way the corrected
+   * declaration beside it is rendered. The annotation is not what a diagnostic about the type is
+   * about, and a message that prints it in one half and drops it in the other reads as advice to
+   * remove it (#759). The remaining kinds, an unresolvable type or an intersection, render from
+   * {@code toString()} with annotations stripped. Generated source is the opposite decision: {@link
+   * #typeNameOf} keeps type-use annotations, because there the annotation is part of the source
+   * being emitted (#750).
+   *
    * @param type the type to render; must not be null
    * @return the rendered name (non-null)
    * @since 0.4.10
    */
   public static String simpleTypeName(TypeMirror type) {
-    return type.toString().replaceAll("\\b(?:[a-z][\\p{Alnum}_]*\\.)+", "").replace(",", ", ");
+    return switch (type.getKind()) {
+      case DECLARED -> declaredName((DeclaredType) type);
+      case ARRAY -> simpleTypeName(((ArrayType) type).getComponentType()) + "[]";
+      case WILDCARD -> wildcardName((WildcardType) type);
+      case TYPEVAR -> ((TypeVariable) type).asElement().getSimpleName().toString();
+      // The kind names the type on its own; toString would carry any type-use annotation.
+      case BOOLEAN, BYTE, SHORT, INT, LONG, CHAR, FLOAT, DOUBLE ->
+          type.getKind().name().toLowerCase(Locale.ROOT);
+      // The lossy pre-#759 renderer, for what remains: an unresolvable type, whose element walk
+      // loses the qualifier on a nested name that the string keeps, and an intersection, which a
+      // structural arm would have to render bound by bound. Annotations are stripped, argument
+      // lists and all.
+      default ->
+          type.toString()
+              // The optional leading dot is javac's own: an annotated type prints as
+              // enclosing.@Anno Simple, with the dot kept even where the enclosing is empty.
+              .replaceAll("\\.?+@[\\w.]*+(?:\\([^)]*+\\))?+\\s*+", "")
+              .replaceAll("\\b(?:[a-z][\\p{Alnum}_]*\\.)+", "")
+              .replace(",", ", ");
+    };
+  }
+
+  /** The declared type's name: enclosing chain, simple name, and resolved arguments. */
+  private static String declaredName(DeclaredType declared) {
+    String arguments =
+        declared.getTypeArguments().isEmpty()
+            ? ""
+            : declared.getTypeArguments().stream()
+                .map(ProcessorUtils::simpleTypeName)
+                .collect(Collectors.joining(", ", "<", ">"));
+    return declaredHead(declared) + arguments;
+  }
+
+  /**
+   * The declared type's name without its arguments: the enclosing chain and the simple name.
+   *
+   * <p>For a diagnostic that rebuilds the argument list itself, the way {@code @GenerateFocus}
+   * suggests a concrete alternative to a wildcard: the head has to keep the nesting the full
+   * rendering keeps, or the suggestion names a type that does not compile.
+   *
+   * @param declared the type whose head to render; must not be null
+   * @return the enclosing chain and simple name, without arguments (non-null)
+   * @since 0.4.11
+   */
+  public static String declaredHead(DeclaredType declared) {
+    String prefix = "";
+    if (declared.getEnclosingType().getKind() == TypeKind.DECLARED) {
+      // A member reached through an instance carries the enclosing type, arguments and all:
+      // Outer<String>.Holder, or Outer.Holder where the outer level is written raw.
+      prefix = simpleTypeName(declared.getEnclosingType()) + ".";
+    } else {
+      // A static or top-level nesting has a NoType enclosing type, but the enclosing classes
+      // still print: Registry.Tag, as the declaration site would write it.
+      for (Element outer = declared.asElement().getEnclosingElement();
+          outer instanceof TypeElement typeElement;
+          outer = typeElement.getEnclosingElement()) {
+        prefix = typeElement.getSimpleName() + "." + prefix;
+      }
+    }
+    return prefix + declared.asElement().getSimpleName();
+  }
+
+  /** The wildcard as written: bare, extends-bounded or super-bounded. */
+  private static String wildcardName(WildcardType wildcard) {
+    if (wildcard.getExtendsBound() != null) {
+      return "? extends " + simpleTypeName(wildcard.getExtendsBound());
+    }
+    if (wildcard.getSuperBound() != null) {
+      return "? super " + simpleTypeName(wildcard.getSuperBound());
+    }
+    return "?";
   }
 
   /**
