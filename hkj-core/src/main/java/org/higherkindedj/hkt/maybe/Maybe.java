@@ -9,6 +9,7 @@ import java.util.NoSuchElementException;
 import java.util.Optional;
 import java.util.function.Function;
 import java.util.function.Supplier;
+import java.util.stream.Stream;
 import org.higherkindedj.hkt.either.Either;
 import org.higherkindedj.hkt.util.validation.Validation;
 import org.jspecify.annotations.Nullable;
@@ -214,7 +215,7 @@ public sealed interface Maybe<T> extends MaybeKind<T> permits Just, Nothing {
   default <L> Either<L, T> toEither(L leftValue) {
     return switch (this) {
       case Just<T>(var value) -> Either.right(value);
-      case Nothing<T> n -> Either.left(leftValue);
+      case Nothing<T> _ -> Either.left(leftValue);
     };
   }
 
@@ -249,10 +250,66 @@ public sealed interface Maybe<T> extends MaybeKind<T> permits Just, Nothing {
   default <L> Either<L, T> toEither(Supplier<? extends L> leftSupplier) {
     return switch (this) {
       case Just<T>(var value) -> Either.right(value);
-      case Nothing<T> n -> {
+      case Nothing<T> _ -> {
         Validation.function().require(leftSupplier, "leftSupplier", TO_EITHER);
         yield Either.left(leftSupplier.get());
       }
+    };
+  }
+
+  /**
+   * Converts this {@code Maybe} to an {@link Optional}, the inverse of {@link
+   * #fromOptional(Optional)}.
+   *
+   * <p>This is the general bridge to APIs that speak {@code Optional}. The conversion is total in
+   * both directions: a {@link Just} can never hold {@code null}, so nothing is lost on the way
+   * over, and {@code Maybe.fromOptional(maybe.toOptional())} gives back an equal {@code Maybe}.
+   *
+   * <p>Example:
+   *
+   * <pre>{@code
+   * Maybe.just(42).toOptional();           // Optional[42]
+   * Maybe.<Integer>nothing().toOptional(); // Optional.empty
+   * }</pre>
+   *
+   * @return An {@code Optional} containing this {@code Maybe}'s value if this is {@link Just}, or
+   *     {@link Optional#empty()} if this is {@link Nothing}. Never {@code null}.
+   */
+  default Optional<T> toOptional() {
+    return switch (this) {
+      case Just<T>(var value) -> Optional.of(value);
+      case Nothing<T> _ -> Optional.empty();
+    };
+  }
+
+  /**
+   * Renders this {@code Maybe} as a {@link Stream} of zero or one element, with the same contract
+   * as {@link Optional#stream()}.
+   *
+   * <p>This is the bridge into {@code java.util.stream} pipelines, where a stream of {@code Maybe}s
+   * flattens to its present values:
+   *
+   * <pre>{@code
+   * List<Order> found = ids.stream()
+   *     .map(repository::findOrder)   // Stream<Maybe<Order>>
+   *     .flatMap(Maybe::stream)
+   *     .toList();
+   * }</pre>
+   *
+   * <p>{@code Maybe} carries this method deliberately alone among the optional-shaped types: an
+   * empty stream renders absence faithfully, while the same conversion on an error-carrying type
+   * such as {@code Either} or {@code Try} would silently discard the error it holds. Those types
+   * fold both cases instead ({@code Either.fold}, {@code Try.foldFailureFirst}), and where a
+   * discarding conversion exists it is named for what it drops, the way {@code
+   * EitherPath.toOptionalPath()} is.
+   *
+   * @return A one-element {@code Stream} of the value if this is {@link Just}, or an empty {@code
+   *     Stream} if this is {@link Nothing}. Never {@code null}.
+   */
+  default Stream<T> stream() {
+    return switch (this) {
+      case Just<T>(var value) -> Stream.of(value);
+      case Nothing<T> _ -> Stream.empty();
     };
   }
 }

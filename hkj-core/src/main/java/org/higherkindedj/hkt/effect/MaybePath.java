@@ -3,7 +3,6 @@
 package org.higherkindedj.hkt.effect;
 
 import java.util.Objects;
-import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.BiFunction;
 import java.util.function.Consumer;
@@ -183,9 +182,7 @@ public final class MaybePath<A> implements Recoverable<Unit, A> {
    * @return an OptionalPath containing the value if present, or empty otherwise
    */
   public OptionalPath<A> toOptionalPath() {
-    return value.isJust()
-        ? new OptionalPath<>(Optional.of(value.get()))
-        : new OptionalPath<>(Optional.empty());
+    return new OptionalPath<>(value.toOptional());
   }
 
   /**

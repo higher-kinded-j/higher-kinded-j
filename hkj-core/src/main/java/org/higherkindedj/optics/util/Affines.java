@@ -119,9 +119,7 @@ public final class Affines {
    * @return An affine focusing on {@code Just} values in a {@code Maybe}.
    */
   public static <A> Affine<Maybe<A>, A> just() {
-    return Affine.of(
-        maybe -> maybe.isJust() ? Optional.of(maybe.get()) : Optional.empty(),
-        (maybe, value) -> Maybe.just(value));
+    return Affine.of(Maybe::toOptional, (maybe, value) -> Maybe.just(value));
   }
 
   /**

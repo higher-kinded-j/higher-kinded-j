@@ -10,9 +10,11 @@ import static org.junit.jupiter.api.Assertions.assertTimeoutPreemptively;
 
 import java.time.Duration;
 import java.util.List;
+import java.util.Optional;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Function;
 import java.util.function.Supplier;
+import java.util.stream.Stream;
 import org.higherkindedj.hkt.either.Either;
 import org.higherkindedj.hkt.exception.KindUnwrapException;
 import org.higherkindedj.hkt.test.assertions.ValidationTestBuilder;
@@ -469,6 +471,42 @@ class MaybeTest extends MaybeTestBase {
 
       assertThat(nothingResult.isLeft()).isTrue();
       assertThat(nothingResult.getLeft()).isEqualTo("ERROR: " + errorMessage);
+    }
+  }
+
+  @Nested
+  @DisplayName("JDK Bridges - toOptional and stream")
+  class JdkBridgeTests {
+
+    @Test
+    @DisplayName("toOptional() carries the value across and round-trips with fromOptional()")
+    void toOptionalRoundTripsWithFromOptional() {
+      assertThat(justInstance.toOptional()).contains(justValue);
+      assertThat(nothingInstance.toOptional()).isEmpty();
+
+      assertThatMaybe(Maybe.fromOptional(justInstance.toOptional())).isJust().hasValue(justValue);
+      assertThatMaybe(Maybe.fromOptional(nothingInstance.toOptional())).isNothing();
+      assertThat(Maybe.fromOptional(Optional.of("back")).toOptional())
+          .isEqualTo(Optional.of("back"));
+      assertThat(Maybe.fromOptional(Optional.<String>empty()).toOptional()).isEmpty();
+    }
+
+    @Test
+    @DisplayName("stream() renders Just as one element and Nothing as empty")
+    void streamRendersPresenceAsLength() {
+      assertThat(justInstance.stream()).containsExactly(justValue);
+      assertThat(nothingInstance.stream()).isEmpty();
+    }
+
+    @Test
+    @DisplayName("a stream of Maybes flattens to its present values")
+    void streamOfMaybesFlattensToPresentValues() {
+      List<String> present =
+          Stream.of(Maybe.just("a"), Maybe.<String>nothing(), Maybe.just("b"))
+              .flatMap(Maybe::stream)
+              .toList();
+
+      assertThat(present).containsExactly("a", "b");
     }
   }
 

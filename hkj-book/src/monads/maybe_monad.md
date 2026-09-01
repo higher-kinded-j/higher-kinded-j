@@ -73,6 +73,13 @@ For working with Java's standard `Optional` type in the HKT system, see [Optiona
   Maybe<String> fromNull = Maybe.fromNullable(null);     // Nothing
   ```
   ~~~
+  ~~~admonish  title="_Maybe.fromOptional(Optional<T> optional)_"
+ Bridges in from the JDK: a present `Optional` becomes `Just`, an empty one `Nothing`. The inverse of `toOptional()`.
+  ```java
+  Maybe<String> fromPresent = Maybe.fromOptional(Optional.of("Present")); // Just("Present")
+  Maybe<String> fromEmpty = Maybe.fromOptional(Optional.empty());         // Nothing
+  ```
+  ~~~
 
 **`MaybeKindHelper` (for HKT wrapping):**
 ~~~admonish  title="_MaybeKindHelper.widen(Maybe<A> maybe)_"
@@ -135,6 +142,8 @@ The `Maybe` interface itself provides useful methods:
 * `orElseGet(@NonNull Supplier<? extends @NonNull T> other)`: Returns the value if `Just`, otherwise invokes `other.get()`.
 * `toEither(L leftValue)`: Converts to `Either<L, T>`. `Just(t)` becomes `Right(t)`, `Nothing` becomes `Left(leftValue)`.
 * `toEither(Supplier<L> leftSupplier)`: Lazy variant that only evaluates the supplier for `Nothing`.
+* `toOptional()`: The inverse of `Maybe.fromOptional`. `Just(t)` becomes `Optional.of(t)`, `Nothing` becomes `Optional.empty()`. Total in both directions, because a `Just` never holds null.
+* `stream()`: Renders the `Maybe` as a `Stream` of zero or one element, with the same contract as `Optional.stream()`.
 * The `Maybe` interface also has its own `map` and `flatMap` methods, which are similar in behaviour to those on `MaybeMonad` but operate directly on `Maybe` instances.
 
 ~~~admonish example title="Converting Maybe to Either"
@@ -154,6 +163,19 @@ Either<UserError, User> result2 = maybeUser.toEither(
 // Just(user) -> Right(user)
 // Nothing    -> Left("User not found")
 ```
+~~~
+
+~~~admonish example title="Bridging to the JDK"
+`toOptional()` and `stream()` hand a `Maybe` to code that speaks `Optional` or `java.util.stream`. The stream form is the one to reach for when a pipeline of lookups should keep only its hits:
+
+```java
+List<Order> found = ids.stream()
+    .map(repository::findOrder)   // Stream<Maybe<Order>>
+    .flatMap(Maybe::stream)
+    .toList();
+```
+
+`Maybe` carries `stream()` deliberately alone among the optional-shaped types: an empty stream renders absence faithfully, while the same conversion on `Either` or `Try` would silently discard the error the value carries. Those types convert through `toEither` and `fold` instead.
 ~~~
 
 ### Key Operations (via `MaybeMonad`)
@@ -362,7 +384,7 @@ See [One Line, Six Layers](../hkts/one_line_six_layers.md) for the wider picture
 | Scenario | Use |
 |----------|-----|
 | Green-field code representing optional values | `Maybe`: strict non-null guarantee in `Just` |
-| JDK interop (APIs returning `java.util.Optional`) | Prefer [Optional](./optional_monad.md) to avoid conversion overhead |
+| JDK interop (APIs returning `java.util.Optional`) | Prefer [Optional](./optional_monad.md), or bridge at the edge with `fromOptional`/`toOptional` |
 | Optional values with typed error context | Convert with `maybeUser.toEither("not found")` → use [Either](./either_monad.md) |
 | Generic monadic code that works across any `Kind<F, A>` | `MaybeMonad`: implements `MonadError<MaybeKind.Witness, Unit>` |
 | Application-level pipelines with fluent API | Prefer [MaybePath](../effect/path_maybe.md) |

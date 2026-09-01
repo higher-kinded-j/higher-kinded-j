@@ -206,7 +206,7 @@ See [One Line, Six Layers](../hkts/one_line_six_layers.md) for the wider picture
 | You control the data model and want non-null guarantees | Use [MaybeMonad](maybe_monad.md): `Just` rejects null at construction |
 | Writing generic code that must accept `Optional` from callers | Use `OptionalMonad`: wrap with `OPTIONAL.widen()` |
 | Green-field code with no `Optional` dependency | Prefer [MaybeMonad](maybe_monad.md): stricter and more predictable |
-| Need to convert between the two | `Optional` to `Maybe`: `Maybe.fromNullable(opt.orElse(null))`; `Maybe` to `Optional`: `Optional.ofNullable(maybe.orElse(null))` |
+| Need to convert between the two | `Optional` to `Maybe`: `Maybe.fromOptional(opt)`; `Maybe` to `Optional`: `maybe.toOptional()` |
 | Application-level fluent composition | Prefer [OptionalPath](../effect/path_optional.md) or [MaybePath](../effect/path_maybe.md) |
 
 ~~~admonish important title="Key Points"

@@ -121,6 +121,7 @@ Getting back to standard Java from any Path:
 |------|----|-----|
 | `MaybePath<A>` | `Maybe<A>` | `.run()` |
 | `MaybePath<A>` | `Optional<A>` | `.run().toOptional()` |
+| `MaybePath<A>` | `Stream<A>` | `.run().stream()` |
 | `MaybePath<A>` | `A` (or default) | `.getOrElse(defaultValue)` |
 | `EitherPath<E, A>` | `Either<E, A>` | `.run()` |
 | `EitherPath<E, A>` | `A` (or default) | `.getOrElse(defaultValue)` |
