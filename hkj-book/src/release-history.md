@@ -32,6 +32,8 @@ _In development. Release notes will be added here as changes land on `main`._
 
   _Behaviour change, moving a javac failure to the declaration:_ the shape previously generated a file naming the type raw throughout, which failed the consuming build under `-Xlint:rawtypes -Werror` in a file the spec author cannot edit; the spec now hears about it at its own declaration.
 
+- **Diagnostics render a type without its type-use annotations** ([#759](https://github.com/higher-kinded-j/higher-kinded-j/issues/759)): a type named in a compile-time message is now built from its element and resolved arguments rather than the mirror's string form, so a component declared `@Nullable Set<?>` is reported as `Set<?>`, the same rendering as the corrected declaration suggested beside it. A message no longer reads as advice to drop a nullness contract it never meant to touch.
+
 ### [v0.4.10](https://github.com/higher-kinded-j/higher-kinded-j/releases/tag/v0.4.10) (30 August 2026)
 
 This release gives the mapper a stock vocabulary and takes every generating annotation through a generics pass: each one now emits source the consuming build compiles under `-Werror`, or explains at the declaration what it needs instead. The book gains a **Mapping at the Boundary** chapter with a law-checked capstone, and the house style it introduced now runs through the Optics and Resilience chapters.

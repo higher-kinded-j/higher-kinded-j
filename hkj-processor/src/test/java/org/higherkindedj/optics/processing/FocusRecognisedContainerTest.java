@@ -277,6 +277,47 @@ class FocusRecognisedContainerTest {
               "record component 'Holder.f' has a wildcard type argument in " + component + ".");
     }
 
+    @Test
+    @DisplayName("a type-use annotation stays out of the reported type name")
+    void aTypeUseAnnotationStaysOutOfTheReportedTypeName() {
+      // Both halves of the message must render the type the same way: naming '@Nully Set<?>' and
+      // then suggesting 'Set<Object>' reads as advice to drop the annotation (#759).
+      var annotation =
+          JavaFileObjects.forSourceString(
+              "com.example.Nully",
+              """
+              package com.example;
+
+              import java.lang.annotation.ElementType;
+              import java.lang.annotation.Target;
+
+              @Target(ElementType.TYPE_USE)
+              public @interface Nully {}
+              """);
+      var holder =
+          JavaFileObjects.forSourceString(
+              "com.example.Holder",
+              """
+              package com.example;
+
+              import java.util.Set;
+              import org.higherkindedj.optics.annotations.GenerateFocus;
+
+              @GenerateFocus
+              public record Holder(@Nully Set<?> f) {}
+              """);
+
+      Compilation compilation =
+          javac().withProcessors(new FocusProcessor()).compile(annotation, holder);
+
+      assertThat(compilation)
+          .hadErrorContaining(
+              "record component 'Holder.f' has a wildcard type argument in Set<?>.");
+      assertThat(compilation)
+          .hadErrorContaining(
+              "Declare the component with concrete type arguments, such as Set<Object>,");
+    }
+
     @ParameterizedTest(name = "{0}")
     @ValueSource(strings = {"Set", "Collection"})
     @DisplayName("a raw container is reported against the declaration")

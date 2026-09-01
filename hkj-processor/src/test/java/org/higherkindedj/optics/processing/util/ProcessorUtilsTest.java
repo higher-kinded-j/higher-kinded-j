@@ -2,10 +2,12 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.optics.processing.util;
 
+import static com.google.testing.compile.CompilationSubject.assertThat;
 import static com.google.testing.compile.Compiler.javac;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.catchThrowable;
 
+import com.google.testing.compile.Compilation;
 import com.google.testing.compile.JavaFileObjects;
 import com.palantir.javapoet.TypeVariableName;
 import java.util.LinkedHashMap;
@@ -21,7 +23,9 @@ import javax.lang.model.element.TypeElement;
 import javax.lang.model.element.TypeParameterElement;
 import javax.lang.model.element.VariableElement;
 import javax.lang.model.type.DeclaredType;
+import javax.lang.model.type.TypeKind;
 import javax.lang.model.type.TypeMirror;
+import javax.lang.model.type.TypeVariable;
 import javax.lang.model.util.ElementFilter;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -43,6 +47,205 @@ class ProcessorUtilsTest {
   void capitalisePassesDegenerateInputsThrough() {
     assertThat(ProcessorUtils.capitalise(null)).isNull();
     assertThat(ProcessorUtils.capitalise("")).isEmpty();
+  }
+
+  /**
+   * Contract tests for {@link ProcessorUtils#simpleTypeName}, driven through a real compilation so
+   * the type mirrors are javac's own. The subject declares one probe method per shape; each
+   * method's single parameter type is rendered and captured under the method's name.
+   */
+  @Nested
+  @DisplayName("simpleTypeName")
+  class SimpleTypeName {
+
+    /** Renders each probe method's parameter type, keyed by method name. */
+    private static final class CapturingProcessor extends AbstractProcessor {
+      private final Map<String, String> rendered = new LinkedHashMap<>();
+      private final Map<String, TypeKind> kinds = new LinkedHashMap<>();
+
+      @Override
+      public Set<String> getSupportedAnnotationTypes() {
+        return Set.of("*");
+      }
+
+      @Override
+      public SourceVersion getSupportedSourceVersion() {
+        return SourceVersion.latestSupported();
+      }
+
+      @Override
+      public boolean process(Set<? extends TypeElement> annotations, RoundEnvironment round) {
+        TypeElement subject = processingEnv.getElementUtils().getTypeElement("com.test.Named");
+        if (subject == null) {
+          return false;
+        }
+        for (ExecutableElement method : ElementFilter.methodsIn(subject.getEnclosedElements())) {
+          VariableElement parameter = method.getParameters().getFirst();
+          rendered.put(
+              method.getSimpleName().toString(), ProcessorUtils.simpleTypeName(parameter.asType()));
+          kinds.put(method.getSimpleName().toString(), parameter.asType().getKind());
+        }
+        for (TypeKind kind :
+            List.of(
+                TypeKind.BOOLEAN,
+                TypeKind.BYTE,
+                TypeKind.SHORT,
+                TypeKind.INT,
+                TypeKind.LONG,
+                TypeKind.CHAR,
+                TypeKind.FLOAT,
+                TypeKind.DOUBLE)) {
+          rendered.put(
+              "primitive:" + kind,
+              ProcessorUtils.simpleTypeName(processingEnv.getTypeUtils().getPrimitiveType(kind)));
+        }
+        if (!subject.getTypeParameters().isEmpty()) {
+          TypeVariable variable = (TypeVariable) subject.getTypeParameters().getFirst().asType();
+          rendered.put(
+              "intersectionBound", ProcessorUtils.simpleTypeName(variable.getUpperBound()));
+        }
+        return false;
+      }
+    }
+
+    @Test
+    @DisplayName("renders by element and arguments: annotations out, packages off, nesting kept")
+    void rendersByElementAndArguments() {
+      var subject =
+          JavaFileObjects.forSourceString(
+              "com.test.Named",
+              """
+              package com.test;
+
+              import java.lang.annotation.ElementType;
+              import java.lang.annotation.Target;
+              import java.util.List;
+              import java.util.Map;
+              import java.util.Set;
+
+              @SuppressWarnings("rawtypes")
+              abstract class Named<T extends CharSequence & Runnable> {
+                  @Target(ElementType.TYPE_USE)
+                  @interface Nully {}
+
+                  @Target(ElementType.TYPE_USE)
+                  @interface Ranged { int from(); }
+
+                  static class Registry<X> {
+                      static class Tag {}
+                  }
+
+                  class Holder {}
+
+                  abstract void plain(List<String> p);
+                  abstract void spacedArguments(Map<String, Integer> p);
+                  abstract void annotatedTop(@Nully Set<?> p);
+                  abstract void annotatedArgument(List<@Nully String> p);
+                  abstract void wildcardExtends(List<? extends Number> p);
+                  abstract void wildcardSuper(List<? super Number> p);
+                  abstract void typeVariable(T p);
+                  abstract void primitive(int p);
+                  abstract void annotatedPrimitive(@Nully int p);
+                  abstract void annotatedWithArguments(@Ranged(from = 0) int p);
+                  abstract void primitiveArray(int[] p);
+                  abstract void annotatedArrayComponent(@Nully String[] p);
+                  abstract void staticNested(Registry.Tag p);
+                  abstract void innerOfGeneric(Named<String>.Holder p);
+                  abstract void rawSite(List p);
+              }
+              """);
+
+      CapturingProcessor processor = new CapturingProcessor();
+      javac().withProcessors(processor).compile(subject);
+
+      // The annotated rows pin #759; the rest characterise the rendering the old string form
+      // already produced, so a change to any of them is a message change across the module.
+      assertThat(processor.rendered)
+          .containsEntry("plain", "List<String>")
+          .containsEntry("spacedArguments", "Map<String, Integer>")
+          .containsEntry("annotatedTop", "Set<?>")
+          .containsEntry("annotatedArgument", "List<String>")
+          .containsEntry("wildcardExtends", "List<? extends Number>")
+          .containsEntry("wildcardSuper", "List<? super Number>")
+          .containsEntry("typeVariable", "T")
+          .containsEntry("primitive", "int")
+          .containsEntry("annotatedPrimitive", "int")
+          .containsEntry("annotatedWithArguments", "int")
+          .containsEntry("primitiveArray", "int[]")
+          .containsEntry("annotatedArrayComponent", "String[]")
+          .containsEntry("staticNested", "Named.Registry.Tag")
+          .containsEntry("innerOfGeneric", "Named<String>.Holder")
+          .containsEntry("rawSite", "List")
+          .containsEntry("primitive:BOOLEAN", "boolean")
+          .containsEntry("primitive:BYTE", "byte")
+          .containsEntry("primitive:SHORT", "short")
+          .containsEntry("primitive:INT", "int")
+          .containsEntry("primitive:LONG", "long")
+          .containsEntry("primitive:CHAR", "char")
+          .containsEntry("primitive:FLOAT", "float")
+          .containsEntry("primitive:DOUBLE", "double")
+          .containsEntry("intersectionBound", "Object&CharSequence&Runnable");
+    }
+
+    @Test
+    @DisplayName("the annotation scan survives quotes, escapes and nesting a pattern cannot")
+    void annotationScanSurvivesQuotesAndNesting() {
+      assertThat(ProcessorUtils.stripAnnotations("List<String>")).isEqualTo("List<String>");
+      assertThat(ProcessorUtils.stripAnnotations("@A X")).isEqualTo("X");
+      assertThat(ProcessorUtils.stripAnnotations(".@a.b.A X")).isEqualTo("X");
+      assertThat(ProcessorUtils.stripAnnotations("@A() X")).isEqualTo("X");
+      assertThat(ProcessorUtils.stripAnnotations("@A(\")\") X")).isEqualTo("X");
+      assertThat(ProcessorUtils.stripAnnotations("@A(')') X")).isEqualTo("X");
+      assertThat(ProcessorUtils.stripAnnotations("@A(\"\\\"\") X")).isEqualTo("X");
+      assertThat(ProcessorUtils.stripAnnotations("@Outer(@Inner(1)) X")).isEqualTo("X");
+      assertThat(ProcessorUtils.stripAnnotations("Pair<@A X, @B_1 Y>")).isEqualTo("Pair<X, Y>");
+      assertThat(ProcessorUtils.stripAnnotations("@A")).isEmpty();
+      assertThat(ProcessorUtils.stripAnnotations("@A(")).isEmpty();
+      assertThat(ProcessorUtils.stripAnnotations("@A(1)X")).isEqualTo("X");
+    }
+
+    @Test
+    @DisplayName("renders an unresolvable type by the name it was written under")
+    void rendersAnUnresolvableType() {
+      var subject =
+          JavaFileObjects.forSourceString(
+              "com.test.Named",
+              """
+              package com.test;
+
+              import java.lang.annotation.ElementType;
+              import java.lang.annotation.Target;
+
+              abstract class Named {
+                  @Target(ElementType.TYPE_USE)
+                  @interface Ranged { int from(); }
+
+                  @Target(ElementType.TYPE_USE)
+                  @interface Labelled { String value(); }
+
+                  abstract void unresolved(Missing p);
+                  abstract void unresolvedNested(Missing.Inner p);
+                  abstract void unresolvedArguments(Missing<String, Integer> p);
+                  abstract void annotatedUnresolved(@Ranged(from = 0) Missing p);
+                  abstract void quotedUnresolved(@Labelled(")") Missing p);
+              }
+              """);
+
+      CapturingProcessor processor = new CapturingProcessor();
+      // The round still runs on the failed compilation, and the mirrors really are ErrorTypes:
+      // the string form keeps the qualifier on a nested name that an element walk would lose, so
+      // these render through the fallback arm, annotations and their arguments stripped.
+      Compilation compilation = javac().withProcessors(processor).compile(subject);
+
+      assertThat(compilation).failed();
+      assertThat(processor.kinds).containsEntry("unresolved", TypeKind.ERROR);
+      assertThat(processor.rendered)
+          .containsEntry("unresolved", "Missing")
+          .containsEntry("unresolvedNested", "Missing.Inner")
+          .containsEntry("unresolvedArguments", "Missing<String, Integer>")
+          .containsEntry("annotatedUnresolved", "Missing")
+          .containsEntry("quotedUnresolved", "Missing");
+    }
   }
 
   /**

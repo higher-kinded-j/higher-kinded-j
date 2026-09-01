@@ -475,6 +475,9 @@ public class FocusProcessor extends AbstractProcessor {
                 .map(
                     resolved ->
                         resolved == null ? "Object" : ProcessorUtils.simpleTypeName(resolved));
-    return element.getSimpleName() + "<" + arguments.collect(Collectors.joining(", ")) + ">";
+    return ProcessorUtils.declaredHead(declaredType)
+        + "<"
+        + arguments.collect(Collectors.joining(", "))
+        + ">";
   }
 }

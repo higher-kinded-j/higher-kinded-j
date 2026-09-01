@@ -562,12 +562,157 @@ public final class ProcessorUtils {
    * diagnostic that offers a corrected declaration needs both: a rendering that drops either one
    * suggests source that does not compile.
    *
+   * <p>A declared type, array, wildcard, type variable or primitive is built from its element,
+   * resolved arguments or kind rather than {@code toString()}, so a type-use annotation never
+   * enters: {@code @Nullable Set<?>} reads as {@code Set<?>}, the same way the corrected
+   * declaration beside it is rendered. The annotation is not what a diagnostic about the type is
+   * about, and a message that prints it in one half and drops it in the other reads as advice to
+   * remove it (#759). The remaining kinds, an unresolvable type or an intersection, render from
+   * {@code toString()} with annotations stripped. Generated source is the opposite decision: {@link
+   * #typeNameOf} keeps type-use annotations, because there the annotation is part of the source
+   * being emitted (#750).
+   *
    * @param type the type to render; must not be null
    * @return the rendered name (non-null)
    * @since 0.4.10
    */
   public static String simpleTypeName(TypeMirror type) {
-    return type.toString().replaceAll("\\b(?:[a-z][\\p{Alnum}_]*\\.)+", "").replace(",", ", ");
+    return switch (type.getKind()) {
+      case DECLARED -> declaredName((DeclaredType) type);
+      case ARRAY -> simpleTypeName(((ArrayType) type).getComponentType()) + "[]";
+      case WILDCARD -> wildcardName((WildcardType) type);
+      case TYPEVAR -> ((TypeVariable) type).asElement().getSimpleName().toString();
+      // The kind names the type on its own; toString would carry any type-use annotation.
+      case BOOLEAN, BYTE, SHORT, INT, LONG, CHAR, FLOAT, DOUBLE ->
+          type.getKind().name().toLowerCase(Locale.ROOT);
+      // The lossy pre-#759 renderer, for what remains: an unresolvable type, whose element walk
+      // loses the qualifier on a nested name that the string keeps, and an intersection, which a
+      // structural arm would have to render bound by bound. Annotations are stripped, argument
+      // lists and all.
+      default ->
+          stripAnnotations(type.toString())
+              .replaceAll("\\b(?:[a-z][\\p{Alnum}_]*\\.)+", "")
+              .replace(",", ", ");
+    };
+  }
+
+  /**
+   * Strips annotation tokens from a type's string form, for the shapes that render through {@code
+   * toString()}.
+   *
+   * <p>A scan rather than a pattern, because an annotation argument may contain the very characters
+   * a pattern would stop at: a bracket or a quote inside a string ({@code @Marker(")")}) or a
+   * nested annotation ({@code @Outer(@Inner(1))}). The scan tracks parenthesis depth and string and
+   * character literals, escapes included. A dot directly before the annotation goes with it: javac
+   * prints an annotated type as {@code enclosing.@Anno Simple}, and keeps the dot even where the
+   * enclosing is empty.
+   *
+   * @param rendered the type's string form; must not be null
+   * @return the string with annotation tokens and their trailing spaces removed (non-null)
+   */
+  static String stripAnnotations(String rendered) {
+    StringBuilder out = new StringBuilder();
+    int i = 0;
+    while (i < rendered.length()) {
+      char c = rendered.charAt(i);
+      if (c == '@') {
+        if (!out.isEmpty() && out.charAt(out.length() - 1) == '.') {
+          out.setLength(out.length() - 1);
+        }
+        i = skipAnnotation(rendered, i);
+      } else {
+        out.append(c);
+        i++;
+      }
+    }
+    return out.toString();
+  }
+
+  /** Consumes one annotation token starting at the {@code '@'}, returning the next index. */
+  private static int skipAnnotation(String rendered, int at) {
+    int i = at + 1;
+    while (i < rendered.length()
+        && (Character.isLetterOrDigit(rendered.charAt(i))
+            || rendered.charAt(i) == '_'
+            || rendered.charAt(i) == '.')) {
+      i++;
+    }
+    if (i < rendered.length() && rendered.charAt(i) == '(') {
+      int depth = 0;
+      char quote = 0;
+      do {
+        char c = rendered.charAt(i);
+        if (quote != 0) {
+          if (c == '\\') {
+            i++;
+          } else if (c == quote) {
+            quote = 0;
+          }
+        } else if (c == '"' || c == '\'') {
+          quote = c;
+        } else if (c == '(') {
+          depth++;
+        } else if (c == ')') {
+          depth--;
+        }
+        i++;
+      } while (i < rendered.length() && depth > 0);
+    }
+    while (i < rendered.length() && rendered.charAt(i) == ' ') {
+      i++;
+    }
+    return i;
+  }
+
+  /** The declared type's name: enclosing chain, simple name, and resolved arguments. */
+  private static String declaredName(DeclaredType declared) {
+    String arguments =
+        declared.getTypeArguments().isEmpty()
+            ? ""
+            : declared.getTypeArguments().stream()
+                .map(ProcessorUtils::simpleTypeName)
+                .collect(Collectors.joining(", ", "<", ">"));
+    return declaredHead(declared) + arguments;
+  }
+
+  /**
+   * The declared type's name without its arguments: the enclosing chain and the simple name.
+   *
+   * <p>For a diagnostic that rebuilds the argument list itself, the way {@code @GenerateFocus}
+   * suggests a concrete alternative to a wildcard: the head has to keep the nesting the full
+   * rendering keeps, or the suggestion names a type that does not compile.
+   *
+   * @param declared the type whose head to render; must not be null
+   * @return the enclosing chain and simple name, without arguments (non-null)
+   * @since 0.4.11
+   */
+  public static String declaredHead(DeclaredType declared) {
+    String prefix = "";
+    if (declared.getEnclosingType().getKind() == TypeKind.DECLARED) {
+      // A member reached through an instance carries the enclosing type, arguments and all:
+      // Outer<String>.Holder, or Outer.Holder where the outer level is written raw.
+      prefix = simpleTypeName(declared.getEnclosingType()) + ".";
+    } else {
+      // A static or top-level nesting has a NoType enclosing type, but the enclosing classes
+      // still print: Registry.Tag, as the declaration site would write it.
+      for (Element outer = declared.asElement().getEnclosingElement();
+          outer instanceof TypeElement typeElement;
+          outer = typeElement.getEnclosingElement()) {
+        prefix = typeElement.getSimpleName() + "." + prefix;
+      }
+    }
+    return prefix + declared.asElement().getSimpleName();
+  }
+
+  /** The wildcard as written: bare, extends-bounded or super-bounded. */
+  private static String wildcardName(WildcardType wildcard) {
+    if (wildcard.getExtendsBound() != null) {
+      return "? extends " + simpleTypeName(wildcard.getExtendsBound());
+    }
+    if (wildcard.getSuperBound() != null) {
+      return "? super " + simpleTypeName(wildcard.getSuperBound());
+    }
+    return "?";
   }
 
   /**

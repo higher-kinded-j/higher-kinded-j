@@ -11,6 +11,7 @@ import javax.lang.model.element.Element;
 import javax.lang.model.type.TypeMirror;
 import javax.tools.Diagnostic;
 import org.higherkindedj.optics.processing.spi.TraversableGenerator;
+import org.higherkindedj.optics.processing.util.ProcessorUtils;
 
 /**
  * Resolves which {@link TraversableGenerator} handles a container type.
@@ -106,7 +107,7 @@ public final class GeneratorRegistry {
         "Multiple TraversableGenerator SPI providers with equal priority ("
             + other.priority()
             + ") support type "
-            + type
+            + ProcessorUtils.simpleTypeName(type)
             + ": "
             + matched.getClass().getName()
             + " and "
