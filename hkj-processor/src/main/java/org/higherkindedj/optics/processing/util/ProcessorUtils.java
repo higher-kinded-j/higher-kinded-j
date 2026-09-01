@@ -590,13 +590,78 @@ public final class ProcessorUtils {
       // structural arm would have to render bound by bound. Annotations are stripped, argument
       // lists and all.
       default ->
-          type.toString()
-              // The optional leading dot is javac's own: an annotated type prints as
-              // enclosing.@Anno Simple, with the dot kept even where the enclosing is empty.
-              .replaceAll("\\.?+@[\\w.]*+(?:\\([^)]*+\\))?+\\s*+", "")
+          stripAnnotations(type.toString())
               .replaceAll("\\b(?:[a-z][\\p{Alnum}_]*\\.)+", "")
               .replace(",", ", ");
     };
+  }
+
+  /**
+   * Strips annotation tokens from a type's string form, for the shapes that render through {@code
+   * toString()}.
+   *
+   * <p>A scan rather than a pattern, because an annotation argument may contain the very characters
+   * a pattern would stop at: a bracket or a quote inside a string ({@code @Marker(")")}) or a
+   * nested annotation ({@code @Outer(@Inner(1))}). The scan tracks parenthesis depth and string and
+   * character literals, escapes included. A dot directly before the annotation goes with it: javac
+   * prints an annotated type as {@code enclosing.@Anno Simple}, and keeps the dot even where the
+   * enclosing is empty.
+   *
+   * @param rendered the type's string form; must not be null
+   * @return the string with annotation tokens and their trailing spaces removed (non-null)
+   */
+  static String stripAnnotations(String rendered) {
+    StringBuilder out = new StringBuilder();
+    int i = 0;
+    while (i < rendered.length()) {
+      char c = rendered.charAt(i);
+      if (c == '@') {
+        if (!out.isEmpty() && out.charAt(out.length() - 1) == '.') {
+          out.setLength(out.length() - 1);
+        }
+        i = skipAnnotation(rendered, i);
+      } else {
+        out.append(c);
+        i++;
+      }
+    }
+    return out.toString();
+  }
+
+  /** Consumes one annotation token starting at the {@code '@'}, returning the next index. */
+  private static int skipAnnotation(String rendered, int at) {
+    int i = at + 1;
+    while (i < rendered.length()
+        && (Character.isLetterOrDigit(rendered.charAt(i))
+            || rendered.charAt(i) == '_'
+            || rendered.charAt(i) == '.')) {
+      i++;
+    }
+    if (i < rendered.length() && rendered.charAt(i) == '(') {
+      int depth = 0;
+      char quote = 0;
+      do {
+        char c = rendered.charAt(i);
+        if (quote != 0) {
+          if (c == '\\') {
+            i++;
+          } else if (c == quote) {
+            quote = 0;
+          }
+        } else if (c == '"' || c == '\'') {
+          quote = c;
+        } else if (c == '(') {
+          depth++;
+        } else if (c == ')') {
+          depth--;
+        }
+        i++;
+      } while (i < rendered.length() && depth > 0);
+    }
+    while (i < rendered.length() && rendered.charAt(i) == ' ') {
+      i++;
+    }
+    return i;
   }
 
   /** The declared type's name: enclosing chain, simple name, and resolved arguments. */

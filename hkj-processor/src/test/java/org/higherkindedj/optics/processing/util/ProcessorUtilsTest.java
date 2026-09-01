@@ -188,6 +188,23 @@ class ProcessorUtilsTest {
     }
 
     @Test
+    @DisplayName("the annotation scan survives quotes, escapes and nesting a pattern cannot")
+    void annotationScanSurvivesQuotesAndNesting() {
+      assertThat(ProcessorUtils.stripAnnotations("List<String>")).isEqualTo("List<String>");
+      assertThat(ProcessorUtils.stripAnnotations("@A X")).isEqualTo("X");
+      assertThat(ProcessorUtils.stripAnnotations(".@a.b.A X")).isEqualTo("X");
+      assertThat(ProcessorUtils.stripAnnotations("@A() X")).isEqualTo("X");
+      assertThat(ProcessorUtils.stripAnnotations("@A(\")\") X")).isEqualTo("X");
+      assertThat(ProcessorUtils.stripAnnotations("@A(')') X")).isEqualTo("X");
+      assertThat(ProcessorUtils.stripAnnotations("@A(\"\\\"\") X")).isEqualTo("X");
+      assertThat(ProcessorUtils.stripAnnotations("@Outer(@Inner(1)) X")).isEqualTo("X");
+      assertThat(ProcessorUtils.stripAnnotations("Pair<@A X, @B_1 Y>")).isEqualTo("Pair<X, Y>");
+      assertThat(ProcessorUtils.stripAnnotations("@A")).isEmpty();
+      assertThat(ProcessorUtils.stripAnnotations("@A(")).isEmpty();
+      assertThat(ProcessorUtils.stripAnnotations("@A(1)X")).isEqualTo("X");
+    }
+
+    @Test
     @DisplayName("renders an unresolvable type by the name it was written under")
     void rendersAnUnresolvableType() {
       var subject =
@@ -203,10 +220,14 @@ class ProcessorUtilsTest {
                   @Target(ElementType.TYPE_USE)
                   @interface Ranged { int from(); }
 
+                  @Target(ElementType.TYPE_USE)
+                  @interface Labelled { String value(); }
+
                   abstract void unresolved(Missing p);
                   abstract void unresolvedNested(Missing.Inner p);
                   abstract void unresolvedArguments(Missing<String, Integer> p);
                   abstract void annotatedUnresolved(@Ranged(from = 0) Missing p);
+                  abstract void quotedUnresolved(@Labelled(")") Missing p);
               }
               """);
 
@@ -222,7 +243,8 @@ class ProcessorUtilsTest {
           .containsEntry("unresolved", "Missing")
           .containsEntry("unresolvedNested", "Missing.Inner")
           .containsEntry("unresolvedArguments", "Missing<String, Integer>")
-          .containsEntry("annotatedUnresolved", "Missing");
+          .containsEntry("annotatedUnresolved", "Missing")
+          .containsEntry("quotedUnresolved", "Missing");
     }
   }
 
