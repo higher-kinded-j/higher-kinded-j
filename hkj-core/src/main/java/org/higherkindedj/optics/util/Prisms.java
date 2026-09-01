@@ -170,8 +170,7 @@ public final class Prisms {
    * @return A prism focusing on the {@code Just} case of a {@code Maybe}.
    */
   public static <A> Prism<Maybe<A>, A> just() {
-    return Prism.of(
-        maybe -> maybe.isJust() ? Optional.of(maybe.get()) : Optional.empty(), Maybe::just);
+    return Prism.of(Maybe::toOptional, Maybe::just);
   }
 
   /**

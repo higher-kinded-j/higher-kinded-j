@@ -85,7 +85,7 @@ class NaturalTransformationPropertyTest {
             @Override
             public <A> Kind<OptionalKind.Witness, A> apply(Kind<MaybeKind.Witness, A> fa) {
               Maybe<A> maybe = MAYBE.narrow(fa);
-              return OPTIONAL.widen(maybe.isJust() ? Optional.of(maybe.get()) : Optional.empty());
+              return OPTIONAL.widen(maybe.toOptional());
             }
           };
 
