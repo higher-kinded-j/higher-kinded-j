@@ -273,9 +273,18 @@ public record SpecAnalysis(
    * @param traversalReference the traversal reference (for @TraverseWith)
    * @param fieldName the field name (for @ThroughField)
    * @param fieldTraversal the explicit traversal for the field (for @ThroughField)
+   * @param checkedComposition whether the composition can be emitted without the raw cast, so javac
+   *     checks it: true only for an auto-detected traversal over a denotable lens focus
+   * @param lensFocus the focus the spec's lens for the field declares, which the checked
+   *     composition names in a local so the generic lens call is target-typed; null on the cast
+   *     path
    */
   public record TraversalHintInfo(
-      String traversalReference, String fieldName, String fieldTraversal) {
+      String traversalReference,
+      String fieldName,
+      String fieldTraversal,
+      boolean checkedComposition,
+      TypeMirror lensFocus) {
 
     /**
      * Creates an empty traversal hint info.
@@ -283,7 +292,7 @@ public record SpecAnalysis(
      * @return an empty TraversalHintInfo
      */
     public static TraversalHintInfo empty() {
-      return new TraversalHintInfo("", "", "");
+      return new TraversalHintInfo("", "", "", false, null);
     }
 
     /**
@@ -293,18 +302,36 @@ public record SpecAnalysis(
      * @return a TraversalHintInfo for explicit traversal
      */
     public static TraversalHintInfo forTraverseWith(String traversalReference) {
-      return new TraversalHintInfo(traversalReference, "", "");
+      return new TraversalHintInfo(traversalReference, "", "", false, null);
     }
 
     /**
-     * Creates info for {@code @ThroughField} annotation.
+     * Creates info for {@code @ThroughField} with a traversal the processor cannot type-check: an
+     * explicit {@code traversal} string, or an auto-detected one over a lens focus whose own type
+     * arguments carry a wildcard (a nested {@code List<List<?>>} is denotable and stays checked).
+     * The composition keeps the raw cast and the {@code @SuppressWarnings}.
      *
      * @param fieldName the field name to traverse through
      * @param traversal the traversal expression for the field
      * @return a TraversalHintInfo for field-based traversal
      */
     public static TraversalHintInfo forThroughField(String fieldName, String traversal) {
-      return new TraversalHintInfo("", fieldName, traversal);
+      return new TraversalHintInfo("", fieldName, traversal, false, null);
+    }
+
+    /**
+     * Creates info for {@code @ThroughField} with an auto-detected traversal over a denotable lens
+     * focus. The composition is emitted without the cast, so javac checks the lens focus against
+     * the traversal's source and the container's element against the declared focus.
+     *
+     * @param fieldName the field name to traverse through
+     * @param traversal the standard traversal for the field's container interface
+     * @param lensFocus the focus the spec's lens for the field declares
+     * @return a TraversalHintInfo whose composition javac checks
+     */
+    public static TraversalHintInfo forCheckedThroughField(
+        String fieldName, String traversal, TypeMirror lensFocus) {
+      return new TraversalHintInfo("", fieldName, traversal, true, lensFocus);
     }
   }
 }

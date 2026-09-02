@@ -459,7 +459,7 @@ public class SpecInterfaceAnalyser {
         prismHintInfo = prismResult.get().info();
       }
       case TRAVERSAL -> {
-        var traversalResult = parseTraversalHint(method, sourceType, specInterface);
+        var traversalResult = parseTraversalHint(method, sourceType, specInterface, focusType);
         if (traversalResult.isEmpty()) {
           // parseTraversalHint has reported why.
           return Optional.empty();
@@ -1192,7 +1192,10 @@ public class SpecInterfaceAnalyser {
   private record TraversalHintResult(TraversalHintKind kind, TraversalHintInfo info) {}
 
   private Optional<TraversalHintResult> parseTraversalHint(
-      ExecutableElement method, TypeMirror sourceType, TypeElement specInterface) {
+      ExecutableElement method,
+      TypeMirror sourceType,
+      TypeElement specInterface,
+      TypeMirror focusType) {
     // Check for @TraverseWith
     AnnotationMirror traverseWith = findAnnotation(method, TRAVERSE_WITH_FQN);
     if (traverseWith != null) {
@@ -1211,13 +1214,20 @@ public class SpecInterfaceAnalyser {
 
       // Auto-detect traversal if not specified
       if (traversal.isEmpty()) {
-        Optional<String> autoDetected =
-            autoDetectTraversalForField(fieldName, sourceType, method, specInterface);
+        Optional<AutoDetectedTraversal> autoDetected =
+            autoDetectTraversalForField(fieldName, sourceType, method, specInterface, focusType);
         if (autoDetected.isEmpty()) {
           // Error already reported in autoDetectTraversalForField
           return Optional.empty();
         }
-        traversal = autoDetected.get();
+        return Optional.of(
+            new TraversalHintResult(
+                TraversalHintKind.THROUGH_FIELD,
+                autoDetected.get().checkedComposition()
+                    ? TraversalHintInfo.forCheckedThroughField(
+                        fieldName, autoDetected.get().reference(), autoDetected.get().lensFocus())
+                    : TraversalHintInfo.forThroughField(
+                        fieldName, autoDetected.get().reference())));
       }
 
       return Optional.of(
@@ -1247,13 +1257,16 @@ public class SpecInterfaceAnalyser {
    * @param sourceType the instantiated source type containing the field
    * @param method the method element (for error reporting)
    * @param specInterface the spec interface, whose lens for the field the traversal composes with
-   * @return the traversal reference string, or empty if detection failed
+   * @param focusType the focus the traversal method declares, held to the container's element
+   * @return the traversal and whether its composition is javac-checked, or empty if detection
+   *     failed
    */
-  private Optional<String> autoDetectTraversalForField(
+  private Optional<AutoDetectedTraversal> autoDetectTraversalForField(
       String fieldName,
       TypeMirror sourceType,
       ExecutableElement method,
-      TypeElement specInterface) {
+      TypeElement specInterface,
+      TypeMirror focusType) {
 
     // Look up the field's type on the source type
     TypeMirror fieldType = findFieldType(sourceType, fieldName);
@@ -1381,12 +1394,80 @@ public class SpecInterfaceAnalyser {
       return Optional.empty();
     }
 
+    // What the standard traversal hands back is what the method's focus must contain: any other
+    // declaration compiles only through the raw cast, throwing ClassCastException on first use
+    // where it narrows and letting ill-typed writes through where it widens. The element is read
+    // through an extends-wildcard, since that bound is what the traversal focuses; a super or
+    // unbounded wildcard reads back as Object, and the focus is held to that. Containment rather
+    // than sameness, so a focus declared as a wildcard over the element ('? extends
+    // CharSequence' over CharSequence elements) stays accepted, as it always compiled.
+    TypeMirror element = ProcessorUtils.resolveWildcard(containerType.get().elementType());
+    TypeMirror handedBack =
+        element != null ? element : elementUtils.getTypeElement("java.lang.Object").asType();
+    if (!typeUtils.contains(focusType, handedBack)) {
+      Diagnostics.error(
+          messager,
+          method,
+          "@ThroughField",
+          "'"
+              + method.getEnclosingElement().getSimpleName()
+              + "."
+              + method.getSimpleName()
+              + "' declares focus '"
+              + ProcessorUtils.simpleTypeName(focusType)
+              + "' over field '"
+              + fieldName
+              + "' of type '"
+              + ProcessorUtils.simpleTypeName(fieldType)
+              + "', whose "
+              + handedBackNoun(containerType.get().kind())
+              + " the standard traversal hands back as '"
+              + ProcessorUtils.simpleTypeName(handedBack)
+              + "'",
+          "A focus that does not contain that type could only compile through a cast, throwing"
+              + " ClassCastException on first use where it narrows and letting ill-typed writes"
+              + " through where it widens",
+          "Declare the focus as '"
+              + ProcessorUtils.simpleTypeName(handedBack)
+              + "', or name a traversal of your own with @ThroughField(field = \""
+              + fieldName
+              + "\", traversal = \"...\")");
+      return Optional.empty();
+    }
+
     // Get the standard traversal reference for this container type
     TraversalCodeGenerator traversalGenerator = new TraversalCodeGenerator();
     String traversalRef = traversalGenerator.getStandardTraversal(containerType.get().kind());
 
-    return Optional.of(traversalRef);
+    // A denotable lens focus is a candidate for the uncast composition, so javac checks what
+    // the cast used to hide; one whose own type arguments carry a wildcard cannot name its
+    // instantiation and keeps the cast (a nested List<List<?>> is denotable and stays checked).
+    // Whether the candidate is taken is the generator's decision, made against the type
+    // parameters it declares on the method.
+    boolean checked = !ProcessorUtils.hasUndenotableTypeArguments(fieldType);
+
+    return Optional.of(new AutoDetectedTraversal(traversalRef, checked, fieldType));
   }
+
+  /** The word the mismatch diagnostic uses for what a container's traversal hands back. */
+  private static String handedBackNoun(ContainerType.Kind kind) {
+    return switch (kind) {
+      case MAP -> "values";
+      case OPTIONAL -> "element";
+      default -> "elements";
+    };
+  }
+
+  /**
+   * An auto-detected traversal and whether its composition may be emitted without the raw cast.
+   *
+   * @param reference the standard traversal for the field's container interface
+   * @param checkedComposition true when the lens focus is denotable, making the method a candidate
+   *     for the uncast composition
+   * @param lensFocus the focus the spec's lens for the field declares
+   */
+  private record AutoDetectedTraversal(
+      String reference, boolean checkedComposition, TypeMirror lensFocus) {}
 
   /**
    * The focus the spec's own lens declares for {@code fieldName}, read under the spec's
