@@ -307,8 +307,9 @@ public record SpecAnalysis(
 
     /**
      * Creates info for {@code @ThroughField} with a traversal the processor cannot type-check: an
-     * explicit {@code traversal} string, or an auto-detected one over a wildcard-carrying lens
-     * focus. The composition keeps the raw cast and the {@code @SuppressWarnings}.
+     * explicit {@code traversal} string, or an auto-detected one over a lens focus whose own type
+     * arguments carry a wildcard (a nested {@code List<List<?>>} is denotable and stays checked).
+     * The composition keeps the raw cast and the {@code @SuppressWarnings}.
      *
      * @param fieldName the field name to traverse through
      * @param traversal the traversal expression for the field

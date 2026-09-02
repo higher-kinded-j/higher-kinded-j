@@ -90,10 +90,10 @@ public @interface ThroughField {
    *
    * <p>The method's declared focus must contain what the auto-detected traversal hands back: the
    * element type ({@code Map}'s value type; {@code Object} under a super- or unbounded wildcard).
-   * Anything else is refused at the declaration. Over a lens focus that carries no wildcard, the
-   * composition is generated without a cast, so javac verifies it as well; an explicit {@link
-   * #traversal()} keeps the cast, as the author's undertaking that theirs rebuilds the declared
-   * type.
+   * Anything else is refused at the declaration. Over a lens focus whose own type arguments carry
+   * no wildcard, the composition is generated without a cast, so javac verifies it as well; an
+   * explicit {@link #traversal()} keeps the cast, as the author's undertaking that theirs rebuilds
+   * the declared type.
    *
    * @return the field name
    */

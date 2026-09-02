@@ -41,8 +41,6 @@ public class TraversalCodeGenerator {
    *
    * @param hintKind the traversal hint kind
    * @param info the parsed annotation values
-   * @param sourceType the source type S
-   * @param focusType the focus type A
    * @param specClassName the name of the spec class (for field lens references)
    * @return the generated code block for creating the traversal
    */
@@ -95,10 +93,11 @@ public class TraversalCodeGenerator {
    *
    * <p>The raw cast remains for what the processor cannot type-check: an explicit {@code traversal}
    * string, which is the author's undertaking that theirs rebuilds the declared type, and an
-   * auto-detected traversal over a wildcard-carrying lens focus, whose instantiation the
-   * composition cannot name. Both agree with the lens at erasure, auto-detection having accepted
-   * the interface types alone (#773); the element-against-focus half is checked at the declaration
-   * by {@code SpecInterfaceAnalyser} in either case.
+   * auto-detected traversal over a lens focus whose own type arguments carry a wildcard, an
+   * instantiation the composition cannot name (a nested wildcard, {@code List<List<?>>}, is
+   * denotable and stays checked). Both agree with the lens at erasure, auto-detection having
+   * accepted the interface types alone (#773); the element-against-focus half is checked at the
+   * declaration by {@code SpecInterfaceAnalyser} in either case.
    *
    * @param info the @ThroughField annotation values
    * @param specClassName the name of the spec class
@@ -133,9 +132,8 @@ public class TraversalCodeGenerator {
    *
    * @param hintKind the traversal hint kind
    * @param info the parsed annotation values
-   * @param sourceType the source type S
-   * @param focusType the focus type A
    * @param specClassName the name of the spec class
+   * @param lensReturnType the checked local's type, or null for the cast path
    * @return the code block for the return statement
    */
   public CodeBlock generateTraversalReturnStatement(

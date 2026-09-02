@@ -1440,8 +1440,9 @@ public class SpecInterfaceAnalyser {
     String traversalRef = traversalGenerator.getStandardTraversal(containerType.get().kind());
 
     // A denotable lens focus is a candidate for the uncast composition, so javac checks what
-    // the cast used to hide; a wildcard-carrying one cannot name its instantiation and keeps the
-    // cast. Whether the candidate is taken is the generator's decision, made against the type
+    // the cast used to hide; one whose own type arguments carry a wildcard cannot name its
+    // instantiation and keeps the cast (a nested List<List<?>> is denotable and stays checked).
+    // Whether the candidate is taken is the generator's decision, made against the type
     // parameters it declares on the method.
     boolean checked = !ProcessorUtils.hasUndenotableTypeArguments(fieldType);
 
