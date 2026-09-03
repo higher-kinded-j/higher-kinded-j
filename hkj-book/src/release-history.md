@@ -40,6 +40,10 @@ _In development. Release notes will be added here as changes land on `main`._
 
   _Behaviour change, moving a runtime failure to the declaration:_ a focus that did not contain the container's element compiled in 0.4.10 and misbehaved at runtime, throwing where it narrowed and polluting the container where it widened; it is now refused. The generated shape changes for auto-detected methods over such a lens focus (a target-typed local in place of the cast), with the same behaviour.
 
+- **`@GenerateFocus` leaves a wildcard container alone when nothing would widen it** ([#758](https://github.com/higher-kinded-j/higher-kinded-j/issues/758)): a `ZERO_OR_MORE` container whose element is a generic navigable record, such as `Map<String, ? extends Box<String>>` under `generateNavigators = true`, gets no navigator whatever its arguments, so its wildcard is no longer reported and the component stays a plain `FocusPath`, as its concrete twin `Map<String, Box<String>>` already did. The check that refuses a raw or wildcard-carrying container now reads the same result the generated method is built from, so the two cannot disagree. See [Custom Containers](optics/focus_containers.md#supported-container-types).
+
+  _Behaviour change, in that one corner:_ the shape was refused in 0.4.10 although nothing widened it; it now compiles as written. Every container that was rejected because something did widen it is rejected still, with the same message.
+
 ### [v0.4.10](https://github.com/higher-kinded-j/higher-kinded-j/releases/tag/v0.4.10) (30 August 2026)
 
 This release gives the mapper a stock vocabulary and takes every generating annotation through a generics pass: each one now emits source the consuming build compiles under `-Werror`, or explains at the declaration what it needs instead. The book gains a **Mapping at the Boundary** chapter with a law-checked capstone, and the house style it introduced now runs through the Optics and Resilience chapters.

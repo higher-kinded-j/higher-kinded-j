@@ -29,6 +29,8 @@ import org.higherkindedj.optics.processing.util.ProcessorUtils;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 
 /**
  * Tests for the SPI widening enhancements:
@@ -621,6 +623,37 @@ public class FocusProcessorSpiEnhancementsTest {
               "Map<String, ? extends Leaf> values");
 
       assertThat(compilation).succeeded();
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @ValueSource(strings = {"Map<String, Box<String>>", "Map<String, ? extends Box<String>>"})
+    @DisplayName("should leave a container alone whose navigable element is generic")
+    void shouldLeaveContainerOfGenericNavigableElementAlone(String component) {
+      // A generic element gets no navigator, so the container is never stepped into to reach it
+      // and stays a plain FocusPath; a wildcard it carries is then never asked for an optic, any
+      // more than its concrete twin's arguments are.
+      JavaFileObject box =
+          JavaFileObjects.forSourceString(
+              "com.example.Box",
+              """
+              package com.example;
+
+              import org.higherkindedj.optics.annotations.GenerateFocus;
+
+              @GenerateFocus
+              public record Box<T>(T value) {}
+              """);
+
+      Compilation compilation =
+          javac()
+              .withProcessors(new FocusProcessor())
+              .compile(holder("generateNavigators = true", component + " boxes"), box);
+
+      assertThat(compilation).succeeded();
+      assertGeneratedCodeContains(
+          compilation,
+          "com.example.HolderFocus",
+          "public static FocusPath<Holder, " + component + "> boxes()");
     }
 
     @Test

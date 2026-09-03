@@ -17,6 +17,7 @@ import javax.lang.model.type.TypeMirror;
 import javax.tools.Diagnostic;
 import org.higherkindedj.optics.Lens;
 import org.higherkindedj.optics.annotations.GenerateFocus;
+import org.higherkindedj.optics.processing.WideningAnalysis.SpiLookup;
 import org.higherkindedj.optics.processing.WideningAnalysis.Tier;
 import org.higherkindedj.optics.processing.WideningAnalysis.Widening;
 import org.higherkindedj.optics.processing.spi.Cardinality;
@@ -768,7 +769,11 @@ public class NavigatorClassGenerator {
     if (fieldType.getKind() != TypeKind.DECLARED || analysis.recognisedContainer(fieldType)) {
       return null;
     }
-    return spiNavigableUnder(fieldType, analysis.wideningGenerator(fieldType, null));
+    // A container the analysis turns away gets no navigator: the static method it would compose
+    // leaves the container itself in focus, so there is no element to navigate to.
+    return analysis.spiLookup(fieldType, null) instanceof SpiLookup.Admitted admitted
+        ? spiNavigableUnder(fieldType, admitted.generator())
+        : null;
   }
 
   /**
@@ -776,14 +781,9 @@ public class NavigatorClassGenerator {
    * or {@code null} when there is none.
    *
    * <p>Split from {@link #spiNavigable} so that {@link #widensUndenotableSpiContainer} can ask the
-   * same question of a generator the widening guard has already turned away.
+   * same question of a generator the lookup refused.
    */
   private SpiNavigable spiNavigableUnder(TypeMirror fieldType, TraversableGenerator generator) {
-    if (generator == null) {
-      // A Collection subtype such as ArrayList is widened by the interface walk rather than by a
-      // generator, so there is no focus type argument to read.
-      return null;
-    }
     List<? extends TypeMirror> typeArgs = ((DeclaredType) fieldType).getTypeArguments();
     int focusIdx = generator.getFocusTypeArgumentIndex();
     if (focusIdx >= typeArgs.size()) {
@@ -833,11 +833,13 @@ public class NavigatorClassGenerator {
   }
 
   /**
-   * Whether a navigator for {@code component} would widen through an SPI container whose type
+   * Whether a navigator for {@code component} would have stepped into an SPI container whose type
    * arguments leave the optic instance undenotable.
    *
-   * <p>Answered here because the navigator generator decides which fields get a navigator; the
-   * diagnostic is reported by {@code FocusProcessor}, which sees each component once.
+   * <p>Answered here because the navigator generator decides which fields get a navigator. Such a
+   * field is handed back to the static method, and {@code FocusProcessor} asks the analysis to step
+   * into the container on the navigator's behalf, so that it is met and turned away, and the
+   * declaration is rejected from the same result that method is built from.
    *
    * @param component the record component to inspect
    * @return true when only the type arguments stand between this component and a navigator
@@ -854,10 +856,13 @@ public class NavigatorClassGenerator {
         || analysis.recognisedContainer(fieldType)) {
       return false;
     }
-    TraversableGenerator generator = analysis.findSpiGenerator(fieldType, null);
-    return generator != null
-        && WideningAnalysis.widensUndenotably(generator, fieldType)
-        && spiNavigableUnder(fieldType, generator) != null;
+    if (!(analysis.spiLookup(fieldType, null) instanceof SpiLookup.Refused refused)) {
+      return false;
+    }
+    // The element must be one a navigator is offered for. A generic element gets none whatever
+    // the container's arguments, so that container is left alone as it would have been anyway.
+    SpiNavigable navigable = spiNavigableUnder(fieldType, refused.generator());
+    return navigable != null && !declaresTypeParameters(navigable.element());
   }
 
   /**

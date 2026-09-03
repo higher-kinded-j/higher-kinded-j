@@ -4,6 +4,7 @@ package org.higherkindedj.architecture;
 
 import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.classes;
 import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.noClasses;
+import static org.assertj.core.api.Assertions.assertThat;
 
 import com.tngtech.archunit.core.domain.JavaAccess;
 import com.tngtech.archunit.core.domain.JavaClass;
@@ -15,7 +16,9 @@ import com.tngtech.archunit.lang.ArchCondition;
 import com.tngtech.archunit.lang.ConditionEvents;
 import com.tngtech.archunit.lang.SimpleConditionEvent;
 import java.util.Set;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
+import java.util.stream.StreamSupport;
 import javax.annotation.processing.AbstractProcessor;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.DisplayName;
@@ -38,12 +41,18 @@ class ProcessorArchitectureRules {
 
   private static final String BASE_PACKAGE = "org.higherkindedj";
 
-  /** The SPI generator lookup that every widening site must reach through the guard. */
-  private static final String SPI_LOOKUP = "findSpiGenerator";
+  /** The lookup arm that carries a generator whose widening cannot be written. */
+  private static final String REFUSED_LOOKUP =
+      "org.higherkindedj.optics.processing.WideningAnalysis$SpiLookup$Refused";
 
-  /** The methods that may reach the lookup directly: the guard itself, and the diagnostic walk. */
-  private static final Set<String> SPI_LOOKUP_CALLERS =
-      Set.of("wideningGenerator", "reportUndenotableWidening", "widensUndenotableSpiContainer");
+  /**
+   * The methods that may read a refused generator, both to ask what it would have done rather than
+   * to widen with it: the analysis's walk reads its cardinality, to tell a container it would have
+   * stepped into from one it leaves alone, and the navigator's turned-away check reads its focus
+   * argument, to say what the navigator would have reached.
+   */
+  private static final Set<String> REFUSED_GENERATOR_READERS =
+      Set.of("collectSpi", "widensUndenotableSpiContainer");
 
   private static JavaClasses classes;
 
@@ -215,23 +224,45 @@ class ProcessorArchitectureRules {
   }
 
   /**
-   * Every widening site must read its SPI generator through the guard.
+   * A refused generator widens nothing.
    *
    * <p>A generator widens by handing the path an optic instance whose type arguments javac infers
    * from the field type, which a raw or wildcard-carrying container gives it no way to do (#718).
-   * {@code wideningGenerator} is the one place such a container is turned away, so a site that
-   * looks a generator up itself would widen it anyway and emit source that cannot compile. The
-   * diagnostic walk is exempt: it exists to report the container the guard turned away.
+   * The SPI lookup classifies such a container as refused instead of handing out the bare
+   * generator, so no site widens it by accident; what is left to guard is a site reaching into the
+   * refused arm for the generator anyway. The two that may read it ask what the generator would
+   * have done, never what it would emit.
    */
   @Test
-  @DisplayName("SPI generator lookups should go through the widening guard")
-  void spi_generator_lookups_should_go_through_the_widening_guard() {
+  @DisplayName("A refused generator should widen nothing")
+  void a_refused_generator_should_widen_nothing() {
     classes()
         .that()
         .resideInAPackage("..processing..")
-        .should(lookUpSpiGeneratorsOnlyFrom(SPI_LOOKUP_CALLERS))
+        .should(readRefusedGeneratorsOnlyFrom(REFUSED_GENERATOR_READERS))
         .allowEmptyShould(true)
         .check(classes);
+  }
+
+  /**
+   * The refused-generator rule sees the readers it exempts.
+   *
+   * <p>That rule is keyed on a nested type's name and an accessor's, so renaming either would let
+   * it pass with nothing to check. The two readers it allows are known, and it must find exactly
+   * them.
+   */
+  @Test
+  @DisplayName("The refused-generator rule should see its readers")
+  void the_refused_generator_rule_should_see_its_readers() {
+    Set<String> readers =
+        StreamSupport.stream(classes.spliterator(), false)
+            .flatMap(ProcessorArchitectureRules::callsAndReferencesFrom)
+            .filter(access -> access.getTarget().getOwner().getName().equals(REFUSED_LOOKUP))
+            .filter(access -> access.getTarget().getName().equals("generator"))
+            .map(access -> access.getOrigin().getName())
+            .collect(Collectors.toSet());
+
+    assertThat(readers).isEqualTo(REFUSED_GENERATOR_READERS);
   }
 
   /**
@@ -258,10 +289,10 @@ class ProcessorArchitectureRules {
   /**
    * The registry answers only the route lookups.
    *
-   * <p>The widening guard (#718) keys on {@code findSpiGenerator}, which is now a delegate, so a
-   * site could otherwise read a generator straight from {@code GeneratorRegistry.generatorFor} and
-   * skip {@code wideningGenerator}'s turn-away of raw and wildcard-carrying containers. The
-   * delegate and the two non-widening route sites are the only permitted readers.
+   * <p>The Focus route's lookup classifies what it finds (#718), so a site reading a generator
+   * straight from {@code GeneratorRegistry.generatorFor} would hold a bare one for a raw or
+   * wildcard-carrying container and could widen it into source that cannot compile. That lookup and
+   * the two non-widening route sites are the only permitted readers.
    */
   @Test
   @DisplayName("Registry reads should stay behind the route lookups")
@@ -305,26 +336,25 @@ class ProcessorArchitectureRules {
    * @param allowed the names of the methods that may call the lookup
    * @return the arch condition
    */
-  private static ArchCondition<JavaClass> lookUpSpiGeneratorsOnlyFrom(Set<String> allowed) {
-    return new ArchCondition<>("look SPI generators up only from " + allowed) {
+  private static ArchCondition<JavaClass> readRefusedGeneratorsOnlyFrom(Set<String> allowed) {
+    return new ArchCondition<>("read a refused generator only from " + allowed) {
       @Override
       public void check(JavaClass javaClass, ConditionEvents events) {
-        javaClass.getMethodCallsFromSelf().stream()
-            .filter(call -> call.getTarget().getName().equals(SPI_LOOKUP))
-            .filter(call -> !allowed.contains(call.getOrigin().getName()))
+        callsAndReferencesFrom(javaClass)
+            .filter(access -> access.getTarget().getOwner().getName().equals(REFUSED_LOOKUP))
+            .filter(access -> access.getTarget().getName().equals("generator"))
+            .filter(access -> !allowed.contains(access.getOrigin().getName()))
             .forEach(
-                call ->
+                access ->
                     events.add(
                         SimpleConditionEvent.violated(
                             javaClass,
                             String.format(
-                                "%s.%s calls %s directly. Read the generator from"
-                                    + " wideningGenerator instead, so that a raw or"
-                                    + " wildcard-carrying container is turned away rather than"
-                                    + " widened into source that cannot compile.",
-                                javaClass.getSimpleName(),
-                                call.getOrigin().getName(),
-                                SPI_LOOKUP))));
+                                "%s.%s reads the generator of a refused SPI lookup. Its widening"
+                                    + " cannot be written, so match the admitted arm instead;"
+                                    + " a refused generator is read only to say what it would"
+                                    + " have done, never to widen with.",
+                                javaClass.getSimpleName(), access.getOrigin().getName()))));
       }
     };
   }
@@ -339,7 +369,7 @@ class ProcessorArchitectureRules {
 
   /** The methods that may read a choice from the registry: the delegate and the two route sites. */
   private static final Set<String> REGISTRY_READERS =
-      Set.of("findSpiGenerator", "generateTraversalsFile", "createTraversalMethod");
+      Set.of("spiLookup", "generateTraversalsFile", "createTraversalMethod");
 
   /** Method calls and method references from {@code javaClass}, which decide targets alike. */
   private static Stream<JavaAccess<?>> callsAndReferencesFrom(JavaClass javaClass) {
@@ -391,9 +421,9 @@ class ProcessorArchitectureRules {
                             javaClass,
                             String.format(
                                 "%s.%s reads a generator straight from the registry. Go through"
-                                    + " wideningGenerator or the route's one lookup, so that a"
-                                    + " raw or wildcard-carrying container is turned away rather"
-                                    + " than widened into source that cannot compile.",
+                                    + " the route's one lookup, so that a raw or"
+                                    + " wildcard-carrying container is turned away rather than"
+                                    + " widened into source that cannot compile.",
                                 javaClass.getSimpleName(), access.getOrigin().getName()))));
       }
     };
