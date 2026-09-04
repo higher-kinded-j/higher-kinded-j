@@ -72,6 +72,8 @@ class GeneratedFocusSourceCompilesTest {
                   "List<Leaf>",
                   "Set<Leaf>",
                   "Collection<Leaf>",
+                  "Kind<ListKind.Witness, Leaf>",
+                  "Kind<EitherKind.Witness<String>, Leaf>",
                   "Leaf[]")),
           new Shape(
               "wildcard in the focused type argument",
@@ -84,10 +86,17 @@ class GeneratedFocusSourceCompilesTest {
                   "Map<String, ? extends Leaf>",
                   "List<? extends Leaf>",
                   "Set<? extends Leaf>",
-                  "Collection<? extends Leaf>")),
+                  "Collection<? extends Leaf>",
+                  "Kind<ListKind.Witness, ? extends Leaf>")),
           new Shape(
               "wildcard in a type argument the generator does not focus on",
-              List.of("Either<?, Leaf>", "Validated<?, Leaf>", "Map<?, Leaf>")),
+              List.of(
+                  "Either<?, Leaf>",
+                  "Validated<?, Leaf>",
+                  "Map<?, Leaf>",
+                  "Kind<?, Leaf>",
+                  "Kind<? extends ListKind.Witness, Leaf>",
+                  "Kind<? super ListKind.Witness, Leaf>")),
           new Shape(
               "unbounded wildcard",
               List.of(
@@ -99,7 +108,8 @@ class GeneratedFocusSourceCompilesTest {
                   "Map<String, ?>",
                   "List<?>",
                   "Set<?>",
-                  "Collection<?>")),
+                  "Collection<?>",
+                  "Kind<ListKind.Witness, ?>")),
           new Shape(
               "super-bounded wildcard",
               List.of(
@@ -108,7 +118,8 @@ class GeneratedFocusSourceCompilesTest {
                   "List<? super Leaf>",
                   "Set<? super Leaf>",
                   "Collection<? super Leaf>",
-                  "Optional<? super Leaf>")),
+                  "Optional<? super Leaf>",
+                  "Kind<ListKind.Witness, ? super Leaf>")),
           new Shape(
               "raw container",
               List.of(
@@ -120,7 +131,8 @@ class GeneratedFocusSourceCompilesTest {
                   "Map",
                   "List",
                   "Set",
-                  "Collection")),
+                  "Collection",
+                  "Kind")),
           new Shape(
               "wildcard nested inside a type argument",
               List.of(
@@ -128,7 +140,12 @@ class GeneratedFocusSourceCompilesTest {
                   "Optional<Map<String, ? extends Leaf>>",
                   "Map<String, List<? extends Leaf>>",
                   "List<Optional<? extends Leaf>>",
-                  "Set<Optional<? extends Leaf>>")));
+                  "Set<Optional<? extends Leaf>>",
+                  "Kind<ListKind.Witness, List<? extends Leaf>>",
+                  "Optional<Kind<ListKind.Witness, ? extends Leaf>>",
+                  "Kind<EitherKind.Witness<?>, Leaf>",
+                  "Kind<EitherKind.Witness<? extends CharSequence>, Leaf>",
+                  "Kind<? extends EitherKind.Witness<?>, Leaf>")));
 
   /** The widening settings a container can be read under. */
   private static final List<String> SETTINGS =
@@ -331,7 +348,10 @@ class GeneratedFocusSourceCompilesTest {
         """
         package com.example;
 
+        import org.higherkindedj.hkt.Kind;
         import org.higherkindedj.hkt.either.Either;
+        import org.higherkindedj.hkt.either.EitherKind;
+        import org.higherkindedj.hkt.list.ListKind;
         import org.higherkindedj.hkt.maybe.Maybe;
         import org.higherkindedj.hkt.trymonad.Try;
         import org.higherkindedj.hkt.validated.Validated;
