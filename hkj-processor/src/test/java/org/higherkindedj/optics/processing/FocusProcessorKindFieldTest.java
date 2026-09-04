@@ -4,12 +4,25 @@ package org.higherkindedj.optics.processing;
 
 import static com.google.testing.compile.CompilationSubject.assertThat;
 import static com.google.testing.compile.Compiler.javac;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.higherkindedj.hkt.list.ListKindHelper.LIST;
 import static org.higherkindedj.optics.processing.GeneratorTestHelper.assertGeneratedCodeContainsRaw;
+import static org.higherkindedj.optics.processing.RuntimeCompilationHelper.invoke;
 
+import com.google.testing.compile.Compilation;
 import com.google.testing.compile.JavaFileObjects;
+import java.lang.reflect.Constructor;
+import java.util.List;
+import java.util.Locale;
+import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.list.ListKind;
+import org.higherkindedj.optics.focus.TraversalPath;
+import org.higherkindedj.optics.processing.RuntimeCompilationHelper.CompiledResult;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 
 /**
  * Integration tests for {@link FocusProcessor} Kind field support.
@@ -484,6 +497,203 @@ public class FocusProcessorKindFieldTest {
       var compilation = javac().withProcessors(new FocusProcessor()).compile(sourceFile);
 
       assertThat(compilation).hadErrorContaining("not within bounds");
+    }
+  }
+
+  @Nested
+  @DisplayName("Wildcard Type Arguments")
+  class WildcardTypeArguments {
+
+    private static final String TRAVERSE_LIST =
+        "@TraverseField(traverse = \"org.higherkindedj.hkt.list.ListTraverse.INSTANCE\","
+            + " semantics = KindSemantics.ZERO_OR_MORE) ";
+
+    /** A record declaring the given type parameters, with one component of the given type. */
+    private Compilation compile(String typeParameters, String component) {
+      return javac()
+          .withProcessors(new FocusProcessor())
+          .compile(
+              JavaFileObjects.forSourceString(
+                  "com.example.Holder",
+                  """
+                  package com.example;
+
+                  import org.higherkindedj.hkt.Kind;
+                  import org.higherkindedj.hkt.WitnessArity;
+                  import org.higherkindedj.hkt.either.EitherKind;
+                  import org.higherkindedj.hkt.list.ListKind;
+                  import org.higherkindedj.hkt.maybe.MaybeKind;
+                  import org.higherkindedj.optics.annotations.GenerateFocus;
+                  import org.higherkindedj.optics.annotations.KindSemantics;
+                  import org.higherkindedj.optics.annotations.TraverseField;
+
+                  @GenerateFocus
+                  public record Holder%s(%s members) {}
+                  """
+                      .formatted(typeParameters, component)));
+    }
+
+    private Compilation compile(String component) {
+      return compile("", component);
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @CsvSource(
+        delimiterString = " -> ",
+        value = {
+          "Kind<ListKind.Witness, ? extends CharSequence> -> TraversalPath<Holder, CharSequence>"
+              + " -> .<org.higherkindedj.hkt.list.ListKind.Witness, java.lang.CharSequence>"
+              + "traverseOver(org.higherkindedj.hkt.list.ListTraverse.INSTANCE)",
+          "Kind<ListKind.Witness, ?> -> TraversalPath<Holder, Object>"
+              + " -> .<org.higherkindedj.hkt.list.ListKind.Witness, java.lang.Object>traverseOver(",
+          "Kind<ListKind.Witness, ? super String> -> TraversalPath<Holder, Object>"
+              + " -> .<org.higherkindedj.hkt.list.ListKind.Witness, java.lang.Object>traverseOver(",
+          "Kind<MaybeKind.Witness, ? extends CharSequence> -> AffinePath<Holder, CharSequence>"
+              + " -> java.lang.CharSequence>traverseOver("
+              + "org.higherkindedj.hkt.maybe.MaybeTraverse.INSTANCE).headOption()",
+          "Kind<? extends ListKind.Witness, String> -> TraversalPath<Holder, String>"
+              + " -> .<org.higherkindedj.hkt.list.ListKind.Witness, java.lang.String>traverseOver(",
+          "Kind<EitherKind.Witness<?>, String> -> AffinePath<Holder, String>"
+              + " -> .<org.higherkindedj.hkt.either.EitherKind.Witness<java.lang.Object>,"
+              + " java.lang.String>traverseOver("
+              + "org.higherkindedj.hkt.either.EitherTraverse.<java.lang.Object>instance())",
+          "Kind<EitherKind.Witness<? extends CharSequence>, String> -> AffinePath<Holder, String>"
+              + " -> org.higherkindedj.hkt.either.EitherTraverse.<java.lang.CharSequence>instance()",
+        })
+    @DisplayName("a wildcard resolves to the type it stands for")
+    void aWildcardResolvesToTheTypeItStandsFor(
+        String component, String pathType, String traverseCall) {
+      // The traversal rebuilds the container rather than writing into it, so a component
+      // declared with the wildcard comes back holding the resolved type, which it admits.
+      Compilation compilation = compile(component);
+
+      assertThat(compilation).succeeded();
+      assertGeneratedCodeContainsRaw(
+          compilation, "com.example.HolderFocus", pathType + " members()");
+      assertGeneratedCodeContainsRaw(compilation, "com.example.HolderFocus", traverseCall);
+    }
+
+    @Test
+    @DisplayName("a wildcard bounded by a record type variable resolves to that variable")
+    void aWildcardBoundedByARecordTypeVariableResolvesToThatVariable() {
+      Compilation compilation = compile("<T>", "Kind<ListKind.Witness, ? extends T>");
+
+      assertThat(compilation).succeeded();
+      assertGeneratedCodeContainsRaw(
+          compilation, "com.example.HolderFocus", "TraversalPath<Holder<T>, T> members()");
+    }
+
+    @Test
+    @DisplayName("a wildcard witness names no Traverse, so the field keeps its plain path")
+    void aWildcardWitnessKeepsThePlainPath() {
+      Compilation compilation = compile("Kind<?, String>");
+
+      assertThat(compilation).succeeded();
+      assertGeneratedCodeContainsRaw(
+          compilation, "com.example.HolderFocus", "FocusPath<Holder, Kind<?, String>> members()");
+    }
+
+    @Test
+    @DisplayName("a type variable witness names no Traverse either")
+    void aTypeVariableWitnessNamesNoTraverseEither() {
+      Compilation compilation = compile("<F extends WitnessArity<?>>", "Kind<F, String>");
+
+      assertThat(compilation).succeeded();
+      assertGeneratedCodeContainsRaw(
+          compilation,
+          "com.example.HolderFocus",
+          "FocusPath<Holder<F>, Kind<F, String>> members()");
+    }
+
+    @Test
+    @DisplayName("@TraverseField resolves a wildcard in either position the same way")
+    void traverseFieldResolvesAWildcardInEitherPosition() {
+      Compilation compilation =
+          compile(TRAVERSE_LIST + "Kind<? extends ListKind.Witness, ? extends CharSequence>");
+
+      assertThat(compilation).succeeded();
+      assertGeneratedCodeContainsRaw(
+          compilation, "com.example.HolderFocus", "TraversalPath<Holder, CharSequence> members()");
+      assertGeneratedCodeContainsRaw(
+          compilation,
+          "com.example.HolderFocus",
+          ".<org.higherkindedj.hkt.list.ListKind.Witness, java.lang.CharSequence>traverseOver(");
+    }
+
+    @Test
+    @DisplayName("@TraverseField on a wildcard witness leaves the field alone")
+    void traverseFieldOnAWildcardWitnessLeavesTheFieldAlone() {
+      // The same as @TraverseField on a component that is not a Kind field: no Traverse can be
+      // named, so the annotation is not acted on.
+      Compilation compilation = compile(TRAVERSE_LIST + "Kind<?, String>");
+
+      assertThat(compilation).succeeded();
+      assertGeneratedCodeContainsRaw(
+          compilation, "com.example.HolderFocus", "FocusPath<Holder, Kind<?, String>> members()");
+    }
+  }
+
+  @Nested
+  @DisplayName("Modifying Through a Wildcard Element")
+  class ModifyingThroughAWildcardElement {
+
+    /** Compiled once for the class: the fixture is immutable and every test builds its own. */
+    private static final CompiledResult RESULT =
+        RuntimeCompilationHelper.compileWith(
+            new FocusProcessor(),
+            JavaFileObjects.forSourceString(
+                "com.example.Holder",
+                """
+                package com.example;
+
+                import org.higherkindedj.hkt.Kind;
+                import org.higherkindedj.hkt.list.ListKind;
+                import org.higherkindedj.optics.annotations.GenerateFocus;
+
+                @GenerateFocus
+                public record Holder(Kind<ListKind.Witness, ? extends CharSequence> members) {}
+                """));
+
+    private Object holder(List<String> members) {
+      try {
+        Constructor<?> constructor =
+            RESULT.loadClass("com.example.Holder").getDeclaredConstructors()[0];
+        constructor.setAccessible(true);
+        return constructor.newInstance(LIST.widen(members));
+      } catch (ReflectiveOperationException e) {
+        throw new AssertionError("could not build com.example.Holder", e);
+      }
+    }
+
+    @SuppressWarnings("unchecked") // the generated method's type arguments erase to these
+    private TraversalPath<Object, CharSequence> members() {
+      try {
+        return (TraversalPath<Object, CharSequence>)
+            RESULT.invokeStatic("com.example.HolderFocus", "members");
+      } catch (ReflectiveOperationException e) {
+        throw new AssertionError("could not read com.example.HolderFocus.members", e);
+      }
+    }
+
+    @Test
+    @DisplayName("reads the elements the wildcard stands for")
+    void readsTheElementsTheWildcardStandsFor() {
+      assertThat(members().getAll(holder(List.of("alice", "bob")))).containsExactly("alice", "bob");
+    }
+
+    @Test
+    @DisplayName("rebuilds the container with the modified elements")
+    void rebuildsTheContainerWithTheModifiedElements() {
+      Object modified =
+          members()
+              .modifyAll(
+                  name -> name.toString().toUpperCase(Locale.ROOT),
+                  holder(List.of("alice", "bob")));
+
+      @SuppressWarnings("unchecked") // the component erases to the Kind the helper narrows
+      Kind<ListKind.Witness, CharSequence> rebuilt =
+          (Kind<ListKind.Witness, CharSequence>) invoke(modified, "members");
+      assertThat(LIST.narrow(rebuilt)).containsExactly("ALICE", "BOB");
     }
   }
 }

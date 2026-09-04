@@ -74,6 +74,23 @@ public final class ProcessorUtils {
   }
 
   /**
+   * The type a type argument stands for, boxed: the argument itself, the bound of an {@code ?
+   * extends} wildcard, or {@code Object} for an unbounded or super-bounded wildcard, which stands
+   * for no type of its own.
+   *
+   * <p>A generated method focuses on this type, and writes it out wherever an explicit type
+   * argument is needed, because the wildcard the declaration wrote can be neither.
+   *
+   * @param typeArgument a type argument as written
+   * @return the type it stands for, boxed
+   * @since 0.4.11
+   */
+  public static TypeName resolvedTypeNameOf(TypeMirror typeArgument) {
+    TypeMirror resolved = resolveWildcard(typeArgument);
+    return resolved == null ? ClassName.get(Object.class) : typeNameOf(resolved).box();
+  }
+
+  /**
    * The supertype of {@code type} declared by {@code target}, instantiated with the type arguments
    * it is reached by.
    *

@@ -2,6 +2,8 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.optics.processing.kind;
 
+import com.palantir.javapoet.ClassName;
+import com.palantir.javapoet.ParameterizedTypeName;
 import com.palantir.javapoet.TypeName;
 import java.util.List;
 import java.util.Optional;
@@ -27,6 +29,9 @@ import org.higherkindedj.optics.processing.util.ProcessorUtils;
  *
  * <ol>
  *   <li>Check if the field type is {@code Kind<F, A>}
+ *   <li>Resolve a wildcard in either type argument, and in a parameterised witness's own type
+ *       arguments, to the type it stands for; a witness that resolves to no type at all leaves the
+ *       field alone
  *   <li>If annotated with {@code @TraverseField}, use the explicit configuration
  *   <li>Otherwise, look up the witness type in {@link KindRegistry}
  *   <li>If not found, return empty (field will use standard FocusPath generation)
@@ -68,6 +73,17 @@ public class KindFieldAnalyser {
    *
    * <p>then a {@link KindFieldInfo} is returned with the necessary information for code generation.
    *
+   * <p>Both type arguments are written out as explicit type arguments of the generated {@code
+   * traverseOver} call, and a parameterised witness's own arguments as those of its {@code
+   * Traverse} factory; an explicit type argument cannot be a wildcard, so each is resolved to the
+   * type it stands for first. That is sound because a lawful {@code Traverse} rebuilds the
+   * container rather than writing into it, so a component declared {@code Kind<F, ? extends A>}
+   * comes back holding a {@code Kind<F, A>}, which its declaration admits; and a witness bound
+   * names the witness exactly, since every witness the registry knows is a final class. A witness
+   * that resolves to no type, an unbounded or super-bounded wildcard, names no {@code Traverse}
+   * instance, and the field keeps its plain path whether or not it carries {@code @TraverseField},
+   * as any component that is not a Kind field does.
+   *
    * @param component the record component to analyse
    * @return an Optional containing the analysis result, or empty if not a recognised Kind field
    */
@@ -88,19 +104,49 @@ public class KindFieldAnalyser {
       return Optional.empty();
     }
 
-    TypeMirror witnessTypeMirror = typeArgs.get(0);
-    TypeMirror elementTypeMirror = typeArgs.get(1);
-    TypeName elementType = ProcessorUtils.typeNameOf(elementTypeMirror).box();
+    TypeMirror witnessTypeMirror = ProcessorUtils.resolveWildcard(typeArgs.get(0));
+    if (witnessTypeMirror == null) {
+      return Optional.empty();
+    }
+    String witnessType = witnessNameOf(witnessTypeMirror);
+    TypeName elementType = ProcessorUtils.resolvedTypeNameOf(typeArgs.get(1));
 
     // Check for explicit @TraverseField annotation first
     TraverseField traverseFieldAnnotation = component.getAnnotation(TraverseField.class);
     if (traverseFieldAnnotation != null) {
-      return Optional.of(
-          createFromAnnotation(traverseFieldAnnotation, witnessTypeMirror, elementType));
+      return Optional.of(createFromAnnotation(traverseFieldAnnotation, witnessType, elementType));
     }
 
     // Try to look up in registry
-    return createFromRegistry(witnessTypeMirror, elementType, component);
+    return createFromRegistry(witnessType, elementType, component);
+  }
+
+  /**
+   * The witness as the generated code names it.
+   *
+   * <p>A parameterised witness has its type arguments written out again, as explicit type arguments
+   * of the {@code Traverse} factory, so each is resolved to the type it stands for first: {@code
+   * EitherKind.Witness<? extends CharSequence>} names {@code
+   * EitherTraverse.<CharSequence>instance()}. A witness that is not a declared type, one of the
+   * record's own type variables, is named as written.
+   *
+   * @param witness the witness type argument, with a wildcard of its own already resolved
+   * @return the witness as the generated code names it
+   */
+  private static String witnessNameOf(TypeMirror witness) {
+    if (witness.getKind() != TypeKind.DECLARED) {
+      return witness.toString();
+    }
+    DeclaredType declared = (DeclaredType) witness;
+    ClassName raw = ClassName.get((TypeElement) declared.asElement());
+    List<? extends TypeMirror> arguments = declared.getTypeArguments();
+    if (arguments.isEmpty()) {
+      return raw.toString();
+    }
+    return ParameterizedTypeName.get(
+            raw,
+            arguments.stream().map(ProcessorUtils::resolvedTypeNameOf).toArray(TypeName[]::new))
+        .toString();
   }
 
   /**
@@ -125,14 +171,13 @@ public class KindFieldAnalyser {
    * Creates KindFieldInfo from an explicit @TraverseField annotation.
    *
    * @param annotation the TraverseField annotation
-   * @param witnessTypeMirror the witness type from the Kind
+   * @param witnessType the witness as the generated code names it
    * @param elementType the element type
    * @return the KindFieldInfo
    */
   private KindFieldInfo createFromAnnotation(
-      TraverseField annotation, TypeMirror witnessTypeMirror, TypeName elementType) {
+      TraverseField annotation, String witnessType, TypeName elementType) {
 
-    String witnessType = witnessTypeMirror.toString();
     String baseWitness = KindRegistry.extractBaseWitnessType(witnessType);
     String typeArgs = KindRegistry.extractWitnessTypeArgs(witnessType);
     boolean isParameterised = !typeArgs.isEmpty();
@@ -149,15 +194,14 @@ public class KindFieldAnalyser {
   /**
    * Creates KindFieldInfo from registry lookup.
    *
-   * @param witnessTypeMirror the witness type
+   * @param witnessType the witness as the generated code names it
    * @param elementType the element type
    * @param component the component (for error reporting)
    * @return Optional containing the KindFieldInfo, or empty if not registered
    */
   private Optional<KindFieldInfo> createFromRegistry(
-      TypeMirror witnessTypeMirror, TypeName elementType, RecordComponentElement component) {
+      String witnessType, TypeName elementType, RecordComponentElement component) {
 
-    String witnessType = witnessTypeMirror.toString();
     String baseWitness = KindRegistry.extractBaseWitnessType(witnessType);
     String typeArgs = KindRegistry.extractWitnessTypeArgs(witnessType);
 

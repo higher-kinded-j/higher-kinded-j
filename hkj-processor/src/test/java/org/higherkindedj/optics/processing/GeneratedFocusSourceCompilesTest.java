@@ -72,6 +72,8 @@ class GeneratedFocusSourceCompilesTest {
                   "List<Leaf>",
                   "Set<Leaf>",
                   "Collection<Leaf>",
+                  "Kind<ListKind.Witness, Leaf>",
+                  "Kind<EitherKind.Witness<String>, Leaf>",
                   "Leaf[]")),
           new Shape(
               "wildcard in the focused type argument",
@@ -84,10 +86,17 @@ class GeneratedFocusSourceCompilesTest {
                   "Map<String, ? extends Leaf>",
                   "List<? extends Leaf>",
                   "Set<? extends Leaf>",
-                  "Collection<? extends Leaf>")),
+                  "Collection<? extends Leaf>",
+                  "Kind<ListKind.Witness, ? extends Leaf>")),
           new Shape(
               "wildcard in a type argument the generator does not focus on",
-              List.of("Either<?, Leaf>", "Validated<?, Leaf>", "Map<?, Leaf>")),
+              List.of(
+                  "Either<?, Leaf>",
+                  "Validated<?, Leaf>",
+                  "Map<?, Leaf>",
+                  "Kind<?, Leaf>",
+                  "Kind<? extends ListKind.Witness, Leaf>",
+                  "Kind<? super ListKind.Witness, Leaf>")),
           new Shape(
               "unbounded wildcard",
               List.of(
@@ -99,7 +108,8 @@ class GeneratedFocusSourceCompilesTest {
                   "Map<String, ?>",
                   "List<?>",
                   "Set<?>",
-                  "Collection<?>")),
+                  "Collection<?>",
+                  "Kind<ListKind.Witness, ?>")),
           new Shape(
               "super-bounded wildcard",
               List.of(
@@ -108,7 +118,8 @@ class GeneratedFocusSourceCompilesTest {
                   "List<? super Leaf>",
                   "Set<? super Leaf>",
                   "Collection<? super Leaf>",
-                  "Optional<? super Leaf>")),
+                  "Optional<? super Leaf>",
+                  "Kind<ListKind.Witness, ? super Leaf>")),
           new Shape(
               "raw container",
               List.of(
@@ -120,7 +131,8 @@ class GeneratedFocusSourceCompilesTest {
                   "Map",
                   "List",
                   "Set",
-                  "Collection")),
+                  "Collection",
+                  "Kind")),
           new Shape(
               "wildcard nested inside a type argument",
               List.of(
@@ -128,7 +140,12 @@ class GeneratedFocusSourceCompilesTest {
                   "Optional<Map<String, ? extends Leaf>>",
                   "Map<String, List<? extends Leaf>>",
                   "List<Optional<? extends Leaf>>",
-                  "Set<Optional<? extends Leaf>>")));
+                  "Set<Optional<? extends Leaf>>",
+                  "Kind<ListKind.Witness, List<? extends Leaf>>",
+                  "Optional<Kind<ListKind.Witness, ? extends Leaf>>",
+                  "Kind<EitherKind.Witness<?>, Leaf>",
+                  "Kind<EitherKind.Witness<? extends CharSequence>, Leaf>",
+                  "Kind<? extends EitherKind.Witness<?>, Leaf>")));
 
   /** The widening settings a container can be read under. */
   private static final List<String> SETTINGS =
@@ -177,8 +194,20 @@ class GeneratedFocusSourceCompilesTest {
    * the rule must leave alone. A container the analysis never widens is the subtle half: it stays a
    * plain {@code FocusPath}, nothing beneath it is ever asked for an optic, and an undenotable type
    * argument down there costs it nothing.
+   *
+   * <p>The {@code Kind} components join under every setting. The shape sweep would accept their
+   * rejection, since a rejection carries the tag it checks for, so this is where they are pinned as
+   * widened rather than turned away.
    */
   private record StillCompiles(String component, String setting) {}
+
+  /**
+   * The {@code Kind} components that must compile under every setting: a plain witness, a
+   * parameterised one, and a wildcard element the analysis resolves to the type it stands for.
+   */
+  private static final String KIND_COMPONENTS =
+      "Kind<ListKind.Witness, Leaf> f, Kind<EitherKind.Witness<String>, Leaf> g,"
+          + " Kind<ListKind.Witness, ? extends Leaf> h";
 
   private static final List<StillCompiles> CORPUS =
       List.of(
@@ -210,7 +239,9 @@ class GeneratedFocusSourceCompilesTest {
           new StillCompiles("Map<String, Leaf> f", "generateNavigators = true"));
 
   static Stream<Arguments> corpus() {
-    return CORPUS.stream()
+    return Stream.concat(
+            CORPUS.stream(),
+            SETTINGS.stream().map(setting -> new StillCompiles(KIND_COMPONENTS, setting)))
         .map(
             entry ->
                 Arguments.of(
@@ -222,7 +253,7 @@ class GeneratedFocusSourceCompilesTest {
 
   @ParameterizedTest(name = "{0}")
   @MethodSource("corpus")
-  @DisplayName("should leave a record the analysis never widens alone")
+  @DisplayName("should keep compiling every record that compiles today")
   void shouldKeepCompilingWhatAlreadyCompiled(String label, StillCompiles entry) {
     Compilation compilation =
         javac()
@@ -231,9 +262,7 @@ class GeneratedFocusSourceCompilesTest {
 
     assertThat(
             compilation.errors().stream().map(GeneratedFocusSourceCompilesTest::describe).toList())
-        .as(
-            "%s compiles without the undenotable-container rule, so the rule must leave it alone",
-            label)
+        .as("%s compiles today, so nothing in it may be turned away", label)
         .isEmpty();
   }
 
@@ -331,7 +360,10 @@ class GeneratedFocusSourceCompilesTest {
         """
         package com.example;
 
+        import org.higherkindedj.hkt.Kind;
         import org.higherkindedj.hkt.either.Either;
+        import org.higherkindedj.hkt.either.EitherKind;
+        import org.higherkindedj.hkt.list.ListKind;
         import org.higherkindedj.hkt.maybe.Maybe;
         import org.higherkindedj.hkt.trymonad.Try;
         import org.higherkindedj.hkt.validated.Validated;

@@ -210,12 +210,8 @@ public class TraversalProcessor extends AbstractProcessor {
                 + " generator's getFocusTypeArgumentIndex()");
         return null;
       }
-      TypeMirror focusArgument =
-          ProcessorUtils.resolveWildcard(declaredType.getTypeArguments().get(typeArgumentIndex));
       focusType =
-          focusArgument == null
-              ? ClassName.get(Object.class)
-              : ProcessorUtils.typeNameOf(focusArgument).box();
+          ProcessorUtils.resolvedTypeNameOf(declaredType.getTypeArguments().get(typeArgumentIndex));
 
     } else {
       noteNoTraversal(
