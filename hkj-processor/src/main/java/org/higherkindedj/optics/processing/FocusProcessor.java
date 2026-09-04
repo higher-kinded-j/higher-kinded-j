@@ -21,11 +21,8 @@ import javax.lang.model.element.RecordComponentElement;
 import javax.lang.model.element.TypeElement;
 import javax.lang.model.element.TypeParameterElement;
 import javax.lang.model.type.DeclaredType;
-import javax.lang.model.type.TypeKind;
-import javax.lang.model.type.TypeMirror;
 import org.higherkindedj.optics.Lens;
 import org.higherkindedj.optics.annotations.GenerateFocus;
-import org.higherkindedj.optics.processing.spi.Cardinality;
 import org.higherkindedj.optics.processing.spi.TraversableGenerator;
 import org.higherkindedj.optics.processing.util.Diagnostics;
 import org.higherkindedj.optics.processing.util.ExcludeFromJacocoGeneratedReport;
@@ -216,7 +213,6 @@ public class FocusProcessor extends AbstractProcessor {
 
     // Generate FocusPath methods for each component
     for (RecordComponentElement component : components) {
-      reportUndenotableWidening(component, widenCollections, navigatorGenerator, analysis);
       MethodSpec method = null;
 
       // Try to create a navigator method if navigators are enabled
@@ -226,11 +222,20 @@ public class FocusProcessor extends AbstractProcessor {
                 component, recordElement, components, recordTypeName);
       }
 
-      // Fall back to standard FocusPath method if no navigator method was created
+      // Fall back to the static FocusPath method when no navigator took the field. The one
+      // analysis says what that method widens to, and a container it turned away is rejected from
+      // the same result, so the method's shape and the diagnostic cannot disagree. A field a
+      // navigator did take reaches its element through a container the navigator's guard already
+      // admitted, so there is nothing to report for it.
       if (method == null) {
+        WideningAnalysis.Widening widening =
+            analysis.analyse(
+                component, stepsIntoContainers(component, widenCollections, navigatorGenerator));
+        if (widening.declined() != null) {
+          reportUndenotableContainer(component, widening.declined());
+        }
         method =
-            createFocusPathMethod(
-                component, recordElement, components, recordTypeName, widenCollections, analysis);
+            createFocusPathMethod(component, recordElement, components, recordTypeName, widening);
       }
 
       focusClassBuilder.addMethod(method);
@@ -266,13 +271,9 @@ public class FocusProcessor extends AbstractProcessor {
       TypeElement recordElement,
       List<? extends RecordComponentElement> allComponents,
       TypeName recordTypeName,
-      boolean widenCollections,
-      WideningAnalysis analysis) {
+      WideningAnalysis.Widening widening) {
 
     String componentName = component.getSimpleName().toString();
-
-    // Detect path type widening based on field type and annotations
-    WideningAnalysis.Widening widening = analysis.analyse(component, widenCollections);
 
     ClassName pathClass = widening.tier().pathClass();
     TypeName innerTypeName = widening.focusType();
@@ -345,85 +346,28 @@ public class FocusProcessor extends AbstractProcessor {
   }
 
   /**
-   * Rejects a component whose container is raw or carries a wildcard type argument, where the
-   * widening it would otherwise receive names an optic instance and so cannot be written.
+   * The {@code widenCollections} the analysis reads for a component no navigator took: whether it
+   * steps into a {@code ZERO_OR_MORE} container, or meets one it will turn away.
    *
-   * <p>The walk mirrors the one {@link WideningAnalysis} makes, so it reaches the same containers
-   * and stops where that one stops. A layer the current settings do not widen ends it: a {@code
-   * ZERO_OR_MORE} SPI field is left a plain {@code FocusPath} unless collections are widened or a
-   * navigator takes it, and the analysis then neither widens it nor looks inside it, so neither
-   * that layer nor anything under it can be reported.
+   * <p>The record's {@code widenCollections} decides, with one addition: a container a navigator
+   * would have stepped into to reach the navigable element inside it, had its widening been
+   * writable. The navigator hands such a field back to the static method, which leaves the
+   * container alone just as it would have without the flag, so nothing the method emits changes,
+   * since neither case records a step for it. What the flag does is let the analysis meet the
+   * container and turn it away, so that the declaration is rejected rather than left silently
+   * un-navigated.
    *
-   * @param component the record component to inspect
-   * @param widenCollections whether ZERO_OR_MORE SPI types widen
+   * @param component the record component
+   * @param widenCollections whether the record widens ZERO_OR_MORE containers
    * @param navigatorGenerator the navigator generator, or null when navigators are off
-   * @param analysis the widening analysis whose walk this one mirrors
    */
-  private void reportUndenotableWidening(
+  private static boolean stepsIntoContainers(
       RecordComponentElement component,
       boolean widenCollections,
-      NavigatorClassGenerator navigatorGenerator,
-      WideningAnalysis analysis) {
-
-    // A navigator only ever reads the component's own type, and the walk reaches a nested
-    // container only when that type denotes its own arguments, so this answer belongs to the
-    // first layer alone.
-    boolean navigatorWidens =
-        navigatorGenerator != null && navigatorGenerator.widensUndenotableSpiContainer(component);
-
-    TypeMirror current = component.asType();
-    for (int depth = 0; depth < WideningAnalysis.MAX_NESTING_DEPTH; depth++) {
-      if (current.getKind() != TypeKind.DECLARED) {
-        return;
-      }
-      DeclaredType declaredType = (DeclaredType) current;
-      boolean recognised = analysis.recognisedContainer(current);
-
-      // Optional, Maybe and List widen through .some()/.each(), whose free type variable takes an
-      // undenotable argument without complaint. Every other container -- a generator's, and the
-      // Set and Collection that name a stock Each -- widens through an inferred optic instance,
-      // and is at risk.
-      TraversableGenerator generator = recognised ? null : analysis.findSpiGenerator(current, null);
-      if (!recognised && generator == null) {
-        return;
-      }
-      if (!widensHere(generator, widenCollections, navigatorWidens)) {
-        return;
-      }
-      boolean undenotable =
-          recognised
-              ? analysis.recognisedWidensUndenotably(declaredType)
-              : WideningAnalysis.widensUndenotably(generator, declaredType);
-      if (undenotable) {
-        reportUndenotableContainer(component, declaredType);
-        return;
-      }
-      int typeArgIndex = generator == null ? 0 : generator.getFocusTypeArgumentIndex();
-      current = analysis.typeArgumentAt(declaredType, typeArgIndex);
-      if (current == null) {
-        return;
-      }
-    }
-  }
-
-  /**
-   * Whether the analysis widens this layer, and so goes on to look inside it.
-   *
-   * <p>Optional and the collections always do, and so does a {@code ZERO_OR_ONE} generator. A
-   * {@code ZERO_OR_MORE} generator only does when collections are widened or a navigator takes the
-   * field; left alone it stays a plain {@code FocusPath}, and the type arguments of everything
-   * beneath it are never asked for an optic.
-   *
-   * @param generator the generator for this layer, or null when Optional or a collection widens it
-   * @param widenCollections whether ZERO_OR_MORE SPI types widen
-   * @param navigatorWidens whether a navigator widens the component's own type
-   */
-  private static boolean widensHere(
-      TraversableGenerator generator, boolean widenCollections, boolean navigatorWidens) {
-    return generator == null
-        || generator.getCardinality() == Cardinality.ZERO_OR_ONE
-        || widenCollections
-        || navigatorWidens;
+      NavigatorClassGenerator navigatorGenerator) {
+    return widenCollections
+        || (navigatorGenerator != null
+            && navigatorGenerator.widensUndenotableSpiContainer(component));
   }
 
   /**
@@ -432,7 +376,7 @@ public class FocusProcessor extends AbstractProcessor {
    */
   private void reportUndenotableContainer(
       RecordComponentElement component, DeclaredType declaredType) {
-    boolean raw = declaredType.getTypeArguments().isEmpty();
+    boolean raw = ProcessorUtils.isRaw(declaredType);
     String qualifiedComponent =
         component.getEnclosingElement().getSimpleName() + "." + component.getSimpleName();
     Diagnostics.error(

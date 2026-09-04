@@ -48,8 +48,10 @@ import org.higherkindedj.optics.processing.util.ProcessorUtils;
  *   <li>Every other container arrives through the SPI. A {@code ZERO_OR_ONE} generator always
  *       widens; a {@code ZERO_OR_MORE} one waits for {@code widenCollections}.
  *   <li>A widening that names an optic instance cannot be written for a raw or wildcard-carrying
- *       container, so that declaration is rejected (issue #718). {@code Set} and {@code Collection}
- *       fall under that rule; {@code List} deliberately does not, and keeps the no-argument {@code
+ *       container. The walk turns such a container away and the widening {@linkplain
+ *       Widening#declined() names it}, so that the declaration is rejected where it is written
+ *       rather than inside generated source (issue #718). {@code Set} and {@code Collection} fall
+ *       under that rule; {@code List} deliberately does not, and keeps the no-argument {@code
  *       .each()} whose free type variable takes either without complaint. Routing {@code List}
  *       through an instance too would drag {@code List<?>} and raw {@code List} into the rejection
  *       for no runtime gain, since that traversal is the one they already work with.
@@ -200,11 +202,19 @@ public final class WideningAnalysis {
   /**
    * What a component's declared type widens to.
    *
+   * <p>A walk that turns a container away stops there, so the steps still describe a method that
+   * can be written: the widening as far as it goes, with the declined container left in focus. The
+   * declaration is rejected from the same result, so what the method emits and what the diagnostic
+   * names cannot disagree.
+   *
    * @param tier the path type the widened method returns
    * @param focusType the type the widened path focuses on
    * @param steps the layers peeled to get there, empty when nothing widens
+   * @param declined the container the walk would have widened but turned away, because the optic
+   *     instance that widens it cannot be instantiated from the container's type arguments; null
+   *     when every layer reached was widened or left alone
    */
-  public record Widening(Tier tier, TypeName focusType, List<Step> steps) {}
+  public record Widening(Tier tier, TypeName focusType, List<Step> steps, DeclaredType declined) {}
 
   private final ProcessingEnvironment processingEnv;
   private final GeneratorRegistry generatorRegistry;
@@ -232,15 +242,27 @@ public final class WideningAnalysis {
   public Widening analyse(RecordComponentElement component, boolean widenCollections) {
     TypeMirror componentType = component.asType();
     List<Step> steps = new ArrayList<>();
-    collect(component, componentType, widenCollections, 0, steps);
+    DeclaredType declined = collect(component, componentType, widenCollections, 0, steps);
+    // A container turned away at the outermost layer leaves no step behind, so a @Nullable one
+    // still widens through .nullable(): the method that yields compiles, and the declaration is
+    // rejected all the same.
     if (steps.isEmpty() && NullableAnnotations.hasNullableAnnotation(component)) {
       steps.add(new Step(StepKind.NULLABLE, null, null, null));
     }
-    return new Widening(tier(steps), focusType(componentType, steps), List.copyOf(steps));
+    return new Widening(tier(steps), focusType(componentType, steps), List.copyOf(steps), declined);
   }
 
-  /** Peels the container layers off a type, appending one step for each. */
-  private void collect(
+  /**
+   * Peels the container layers off a type, appending one step for each.
+   *
+   * <p>Two kinds of container end the walk short of the leaf. A layer the current settings do not
+   * widen is left alone, and a layer whose widening cannot be written is turned away and handed
+   * back, so that the declaration can be rejected from the result the method is built from. Nothing
+   * beneath either is looked at, because nothing beneath either is ever asked for an optic.
+   *
+   * @return the container turned away, or null when every layer reached was widened or left alone
+   */
+  private DeclaredType collect(
       RecordComponentElement component,
       TypeMirror type,
       boolean widenCollections,
@@ -248,26 +270,24 @@ public final class WideningAnalysis {
       List<Step> steps) {
 
     if (depth >= MAX_NESTING_DEPTH || type.getKind() != TypeKind.DECLARED) {
-      return;
+      return null;
     }
     DeclaredType declaredType = (DeclaredType) type;
     TypeElement typeElement = (TypeElement) declaredType.asElement();
     String qualifiedName = typeElement.getQualifiedName().toString();
 
     if (OPTIONAL_TYPES.contains(qualifiedName)) {
-      descend(component, declaredType, StepKind.OPTIONAL, null, 0, widenCollections, depth, steps);
-      return;
+      return descend(
+          component, declaredType, StepKind.OPTIONAL, null, 0, widenCollections, depth, steps);
     }
     StepKind collectionStep = COLLECTION_TYPES.get(qualifiedName);
     if (collectionStep != null) {
       // A Set or a Collection names an Each whose type arguments come from the field type, so a
-      // raw or wildcard-carrying one has no widening that can be written; it is left alone here
-      // and its declaration rejected where it is written (issues #718, #725).
-      if (!namesOpticInstance(collectionStep)
-          || !ProcessorUtils.hasUndenotableTypeArguments(type)) {
-        descend(component, declaredType, collectionStep, null, 0, widenCollections, depth, steps);
-      }
-      return;
+      // raw or wildcard-carrying one has no widening that can be written (issues #718, #725).
+      return namesOpticInstance(collectionStep) && ProcessorUtils.hasUndenotableTypeArguments(type)
+          ? declaredType
+          : descend(
+              component, declaredType, collectionStep, null, 0, widenCollections, depth, steps);
     }
 
     // A Kind field is read from the component's own declaration, so only the outermost layer of a
@@ -276,45 +296,73 @@ public final class WideningAnalysis {
       Optional<KindFieldInfo> kindInfo = new KindFieldAnalyser(processingEnv).analyse(component);
       if (kindInfo.isPresent()) {
         steps.add(new Step(kindStep(kindInfo.get()), kindInfo.get(), null, null));
-        return;
+        return null;
       }
     }
+    return collectSpi(component, declaredType, widenCollections, depth, steps);
+  }
+
+  /**
+   * Widens a layer through the SPI generator that supports it, leaves it alone, or turns it away.
+   *
+   * <p>A container the walk never steps into is never asked for an optic, so it is left alone
+   * whether or not its widening could be written; only a container the walk would have stepped into
+   * is turned away.
+   *
+   * @return the container turned away, or null when it was widened or left alone
+   */
+  private DeclaredType collectSpi(
+      RecordComponentElement component,
+      DeclaredType declaredType,
+      boolean widenCollections,
+      int depth,
+      List<Step> steps) {
 
     // The component rides along at every layer, so an equal-priority conflict on a type reached
     // only inside a container is still reported against the declaration that reaches it.
-    TraversableGenerator generator = wideningGenerator(type, component);
-    if (generator == null) {
-      return;
-    }
-    if (generator.getCardinality() == Cardinality.ZERO_OR_ONE) {
-      descend(
-          component,
-          declaredType,
-          StepKind.SPI_ZERO_OR_ONE,
-          generator,
-          generator.getFocusTypeArgumentIndex(),
-          widenCollections,
-          depth,
-          steps);
-      return;
-    }
-    // A ZERO_OR_MORE container is left un-widened by default, for backwards compatibility: the
-    // method keeps the container itself in focus until widenCollections says otherwise.
-    if (widenCollections) {
-      descend(
-          component,
-          declaredType,
-          StepKind.SPI_ZERO_OR_MORE,
-          generator,
-          generator.getFocusTypeArgumentIndex(),
-          widenCollections,
-          depth,
-          steps);
-    }
+    return switch (spiLookup(declaredType, component)) {
+      case SpiLookup.None _ -> null;
+      case SpiLookup.Refused refused ->
+          stepsInto(refused.generator(), widenCollections) ? declaredType : null;
+      case SpiLookup.Admitted admitted ->
+          stepsInto(admitted.generator(), widenCollections)
+              ? descend(
+                  component,
+                  declaredType,
+                  spiStep(admitted.generator()),
+                  admitted.generator(),
+                  admitted.generator().getFocusTypeArgumentIndex(),
+                  widenCollections,
+                  depth,
+                  steps)
+              : null;
+    };
   }
 
-  /** Records one layer and continues into the type argument it unwraps to. */
-  private void descend(
+  /**
+   * Whether the walk steps into a container this generator widens.
+   *
+   * <p>A {@code ZERO_OR_ONE} container is always stepped into. A {@code ZERO_OR_MORE} one is left
+   * un-widened by default, for backwards compatibility: the method keeps the container itself in
+   * focus until {@code widenCollections} says otherwise.
+   */
+  private static boolean stepsInto(TraversableGenerator generator, boolean widenCollections) {
+    return generator.getCardinality() == Cardinality.ZERO_OR_ONE || widenCollections;
+  }
+
+  /** The step a generator's cardinality calls for. */
+  private static StepKind spiStep(TraversableGenerator generator) {
+    return generator.getCardinality() == Cardinality.ZERO_OR_ONE
+        ? StepKind.SPI_ZERO_OR_ONE
+        : StepKind.SPI_ZERO_OR_MORE;
+  }
+
+  /**
+   * Records one layer and continues into the type argument it unwraps to.
+   *
+   * @return what the walk beneath this layer turned away, or null
+   */
+  private DeclaredType descend(
       RecordComponentElement component,
       DeclaredType declaredType,
       StepKind kind,
@@ -326,9 +374,9 @@ public final class WideningAnalysis {
 
     TypeMirror innerType = typeArgumentAt(declaredType, typeArgumentIndex);
     steps.add(new Step(kind, null, generator, innerType));
-    if (innerType != null) {
-      collect(component, innerType, widenCollections, depth + 1, steps);
-    }
+    return innerType == null
+        ? null
+        : collect(component, innerType, widenCollections, depth + 1, steps);
   }
 
   /** The step a Kind field's cardinality semantics call for. */
@@ -500,27 +548,6 @@ public final class WideningAnalysis {
     return OPTIONAL_TYPES.contains(qualifiedName) || COLLECTION_TYPES.containsKey(qualifiedName);
   }
 
-  /**
-   * Whether the widening a {@linkplain #recognisedContainer recognised container} would receive
-   * cannot be written, because it names an {@code Each} the container's own type arguments give
-   * javac no way to instantiate.
-   *
-   * <p>{@code Optional}, {@code Maybe} and {@code List} widen through a no-argument call whose free
-   * type variable takes a raw or wildcard-carrying container without complaint, so only {@code Set}
-   * and {@code Collection} answer true here.
-   *
-   * @param type a declared type
-   * @return true when the container is a {@code Set} or a {@code Collection} that is raw or carries
-   *     a wildcard type argument
-   * @since 0.4.10
-   */
-  public boolean recognisedWidensUndenotably(TypeMirror type) {
-    StepKind step = COLLECTION_TYPES.get(qualifiedNameOf(type));
-    return step != null
-        && namesOpticInstance(step)
-        && ProcessorUtils.hasUndenotableTypeArguments(type);
-  }
-
   /** The qualified name of a declared type's element. */
   private static String qualifiedNameOf(TypeMirror type) {
     return ((TypeElement) ((DeclaredType) type).asElement()).getQualifiedName().toString();
@@ -534,7 +561,7 @@ public final class WideningAnalysis {
    * @return the resolved argument, or null when the container is raw or the wildcard resolves to no
    *     type at all
    */
-  public TypeMirror typeArgumentAt(DeclaredType declaredType, int index) {
+  private static TypeMirror typeArgumentAt(DeclaredType declaredType, int index) {
     List<? extends TypeMirror> args = declaredType.getTypeArguments();
     if (index >= args.size()) {
       return null;
@@ -543,54 +570,58 @@ public final class WideningAnalysis {
   }
 
   /**
-   * Finds the highest-priority SPI generator that supports the given type, from the {@link
-   * GeneratorRegistry} every generator-choosing site reads.
+   * What the SPI has to say about a container.
    *
-   * <p>Reached directly only by the diagnostic walks, which exist to report the container {@link
-   * #wideningGenerator} turned away. Every widening site reads its generator from that guard.
-   *
-   * @param type the type to check
-   * @param component the record component to report an equal-priority conflict against, or null
-   * @return the matched generator, or null if none supports the type
+   * <p>Classified once, here, so that no site ever holds a bare generator for a container whose
+   * widening cannot be written. Each site chooses what to do with a refused one: the walk turns it
+   * away and {@linkplain Widening#declined() records it}, the navigator declines to step into it,
+   * and the navigator's turned-away check asks what it would have reached.
    */
-  public TraversableGenerator findSpiGenerator(TypeMirror type, Element component) {
-    return generatorRegistry.generatorFor(type, component);
+  public sealed interface SpiLookup {
+
+    /** No generator on the annotation processor path supports the type. */
+    record None() implements SpiLookup {}
+
+    /**
+     * A generator supports the type, but the widening it would emit cannot be written.
+     *
+     * <p>A generator that names an optic instance — {@code .some(Affines.eitherRight())}, {@code
+     * .each(EachInstances.mapValuesEach())} — has that instance's type arguments inferred from the
+     * field type, which a raw or wildcard-carrying container gives javac no way to do. A generator
+     * with no optic expression widens through {@code .nullable()} or {@code .each()} instead, whose
+     * free type variable takes either without complaint, and is admitted.
+     *
+     * <p>Such a container is left un-widened, and its declaration is rejected where it is written
+     * rather than inside generated source (issue #718).
+     *
+     * @param generator the generator that supports the type
+     */
+    record Refused(TraversableGenerator generator) implements SpiLookup {}
+
+    /**
+     * A generator supports the type and its widening can be written.
+     *
+     * @param generator the generator to widen with
+     */
+    record Admitted(TraversableGenerator generator) implements SpiLookup {}
   }
 
   /**
-   * The generator that widens {@code type}, or null when none matches or the widening it would emit
-   * cannot be written.
+   * Classifies what the SPI has to say about {@code type}, reading the highest-priority generator
+   * from the {@link GeneratorRegistry} every generator-choosing site reads.
    *
-   * <p>Every widening site reads its generator from here, so the tier, the navigator class and the
-   * composition call cannot disagree about which containers widen.
-   *
-   * @param type the type to widen
+   * @param type the type to look up
    * @param component the record component to report an equal-priority conflict against, or null
-   * @return the generator to widen with, or null
+   * @return none, a refused generator, or an admitted one
    */
-  public TraversableGenerator wideningGenerator(TypeMirror type, Element component) {
-    TraversableGenerator matched = findSpiGenerator(type, component);
-    return matched != null && widensUndenotably(matched, type) ? null : matched;
-  }
-
-  /**
-   * Whether {@code generator} cannot write the widening it would emit for {@code type}.
-   *
-   * <p>A generator that names an optic instance — {@code .some(Affines.eitherRight())}, {@code
-   * .each(EachInstances.mapValuesEach())} — has that instance's type arguments inferred from the
-   * field type, which a raw or wildcard-carrying container gives javac no way to do. A generator
-   * with no optic expression widens through {@code .nullable()} or {@code .each()} instead, whose
-   * free type variable takes either without complaint.
-   *
-   * <p>Such a container is left un-widened, and its declaration is rejected where it is written
-   * rather than inside generated source (issue #718).
-   *
-   * @param generator the generator that would widen the type
-   * @param type the container type
-   * @return true when the widening cannot be written
-   */
-  public static boolean widensUndenotably(TraversableGenerator generator, TypeMirror type) {
-    return !generator.generateOpticExpression().isEmpty()
-        && ProcessorUtils.hasUndenotableTypeArguments(type);
+  public SpiLookup spiLookup(TypeMirror type, Element component) {
+    TraversableGenerator generator = generatorRegistry.generatorFor(type, component);
+    if (generator == null) {
+      return new SpiLookup.None();
+    }
+    boolean writable =
+        generator.generateOpticExpression().isEmpty()
+            || !ProcessorUtils.hasUndenotableTypeArguments(type);
+    return writable ? new SpiLookup.Admitted(generator) : new SpiLookup.Refused(generator);
   }
 }

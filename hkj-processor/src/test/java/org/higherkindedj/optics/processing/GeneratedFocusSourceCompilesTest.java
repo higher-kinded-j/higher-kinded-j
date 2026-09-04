@@ -32,7 +32,9 @@ import org.junit.jupiter.params.provider.MethodSource;
  * having to predict the mechanism first.
  *
  * <p>Rejecting everything would satisfy that on its own, so the corpus below pins the other half:
- * every record in it compiles today, and a guard that grows too eager fails on it.
+ * every record in it compiles today, and a guard that grows too eager fails on it. A third corpus
+ * pins what neither sweep can see: a container the analysis turns away must reach the declaration
+ * as a diagnostic, because a missing error is not one the shape sweep can locate.
  */
 @DisplayName("Generated Focus source always compiles")
 class GeneratedFocusSourceCompilesTest {
@@ -235,6 +237,82 @@ class GeneratedFocusSourceCompilesTest {
         .isEmpty();
   }
 
+  /**
+   * A component the analysis turns away, the settings it is read under, and the container it names.
+   *
+   * <p>Each entry pins that the container turned away reaches the declaration, named as written,
+   * and that nothing else goes wrong: the method built from the same result still compiles.
+   */
+  private record Rejected(String component, String setting, String container) {}
+
+  private static final List<Rejected> REJECTED =
+      List.of(
+          // A Set or a Collection names its own Each, so a wildcard or raw one has none to write.
+          new Rejected("Set<?> f", "", "Set<?>"),
+          new Rejected("Collection<? extends Leaf> f", "", "Collection<? extends Leaf>"),
+          new Rejected("Set f", "", "Set"),
+          // A ZERO_OR_ONE generator always widens, so its container is met under every setting.
+          new Rejected("Either<String, ? extends Leaf> f", "", "Either<String, ? extends Leaf>"),
+          new Rejected("Try<?> f", "generateNavigators = true", "Try<?>"),
+          new Rejected("Either f", "", "Either"),
+          // A ZERO_OR_MORE generator's container is met once something steps into it: the
+          // record's own flag, or a navigator reaching for the navigable element inside.
+          new Rejected(
+              "Map<String, ? extends Leaf> f",
+              "widenCollections = true",
+              "Map<String, ? extends Leaf>"),
+          new Rejected(
+              "Map<String, ? extends Leaf> f",
+              "generateNavigators = true",
+              "Map<String, ? extends Leaf>"),
+          new Rejected("Map f", "widenCollections = true", "Map"),
+          // The walk carries on beneath a layer it widened, and names the first it turns away.
+          new Rejected(
+              "Optional<Either<String, ? extends Leaf>> f", "", "Either<String, ? extends Leaf>"),
+          new Rejected("List<Set<?>> f", "", "Set<?>"),
+          new Rejected(
+              "Either<String, Map<String, ?>> f", "widenCollections = true", "Map<String, ?>"),
+          new Rejected("Optional<Optional<Either<String, ?>>> f", "", "Either<String, ?>"),
+          // A @Nullable component turned away at its outermost layer still widens through
+          // .nullable(), and is rejected all the same.
+          new Rejected("@Nullable Set<?> f", "", "Set<?>"));
+
+  static Stream<Arguments> rejected() {
+    return REJECTED.stream()
+        .map(
+            entry ->
+                Arguments.of(
+                    entry.component()
+                        + " / "
+                        + (entry.setting().isEmpty() ? "defaults" : entry.setting()),
+                    entry));
+  }
+
+  @ParameterizedTest(name = "{0}")
+  @MethodSource("rejected")
+  @DisplayName("should reject at the declaration every container the analysis turns away")
+  void shouldRejectWhatTheAnalysisTurnsAway(String label, Rejected entry) {
+    Compilation compilation =
+        javac()
+            .withProcessors(new FocusProcessor())
+            .compile(holder(new Shape(label, List.of()), entry.setting(), entry.component()), LEAF);
+
+    String expected =
+        entry.container().contains("<")
+            ? "record component 'Holder.f' has a wildcard type argument in "
+                + entry.container()
+                + "."
+            : "record component 'Holder.f' has a raw " + entry.container() + ".";
+    assertThat(errorsFrom(compilation, "Holder.java"))
+        .as(
+            "%s: the analysis turns %s away, so the declaration must say so",
+            label, entry.container())
+        .anySatisfy(error -> assertThat(error).contains(expected));
+    assertThat(errorsFrom(compilation, GENERATED_OUTPUT))
+        .as("%s: the method built from the declined widening must still compile", label)
+        .isEmpty();
+  }
+
   /** A record carrying one component per type in the shape, read under the given settings. */
   private static JavaFileObject holder(Shape shape, String setting) {
     return holder(
@@ -258,6 +336,7 @@ class GeneratedFocusSourceCompilesTest {
         import org.higherkindedj.hkt.trymonad.Try;
         import org.higherkindedj.hkt.validated.Validated;
         import org.higherkindedj.optics.annotations.GenerateFocus;
+        import org.jspecify.annotations.Nullable;
         import java.util.Collection;
         import java.util.List;
         import java.util.Map;
