@@ -49,6 +49,7 @@ The mutation is scattered. Testing requires mutable fixtures. Parallelisation be
 
 `MutableContext` makes state threading explicit and composable:
 
+<!-- verify -->
 ```java
 record Stats(int processed, int errors, long totalBytes) {
     Stats incrementProcessed() { return new Stats(processed + 1, errors, totalBytes); }
@@ -89,6 +90,7 @@ State changes are explicit. Each operation declares how it modifies state. The f
 
 The core factory creates a context from a function `S -> StateTuple<S, A>`:
 
+<!-- verify -->
 ```java
 record Counter(int value) {
     Counter increment() { return new Counter(value + 1); }
@@ -105,6 +107,7 @@ MutableContext<IOKind.Witness, Counter, String> getAndIncrement =
 
 `get()` yields the current state as the value without modifying it:
 
+<!-- verify -->
 ```java
 MutableContext<IOKind.Witness, Counter, Counter> current = MutableContext.get();
 
@@ -118,6 +121,7 @@ MutableContext<IOKind.Witness, Counter, Integer> currentValue =
 
 `put()` sets a new state, returning `Unit`:
 
+<!-- verify -->
 ```java
 MutableContext<IOKind.Witness, Counter, Unit> reset =
     MutableContext.put(new Counter(0));
@@ -127,6 +131,7 @@ MutableContext<IOKind.Witness, Counter, Unit> reset =
 
 `modify()` applies a transformation to the current state:
 
+<!-- verify -->
 ```java
 MutableContext<IOKind.Witness, Counter, Unit> increment =
     MutableContext.modify(Counter::increment);
@@ -139,6 +144,7 @@ MutableContext<IOKind.Witness, Counter, Unit> addFive =
 
 For values that don't affect state:
 
+<!-- verify -->
 ```java
 MutableContext<IOKind.Witness, AnyState, String> constant =
     MutableContext.pure("Hello");
@@ -150,6 +156,7 @@ MutableContext<IOKind.Witness, AnyState, String> constant =
 
 ### map: Transform the Result
 
+<!-- verify -->
 ```java
 MutableContext<IOKind.Witness, Counter, Integer> count =
     MutableContext.<Counter>get()
@@ -169,11 +176,12 @@ MutableContext<IOKind.Witness, Counter, String> countStr =
 
 Each operation sees the state left by previous operations:
 
+<!-- verify -->
 ```java
 MutableContext<IOKind.Witness, Counter, String> workflow =
     MutableContext.<Counter>get()                              // Read initial state
         .map(c -> "Started at " + c.value())
-        .flatMap(msg -> MutableContext.<Counter, Unit>modify(Counter::increment)
+        .flatMap(msg -> MutableContext.<Counter>modify(Counter::increment)
             .map(u -> msg))                                     // State now incremented
         .flatMap(msg -> MutableContext.<Counter>get()
             .map(c -> msg + ", now at " + c.value()));          // See updated state
@@ -183,15 +191,17 @@ MutableContext<IOKind.Witness, Counter, String> workflow =
 
 When you only care about the state effects:
 
+<!-- verify -->
 ```java
 MutableContext<IOKind.Witness, Counter, Unit> incrementThrice =
-    MutableContext.<Counter, Unit>modify(Counter::increment)
+    MutableContext.<Counter>modify(Counter::increment)
         .then(() -> MutableContext.modify(Counter::increment))
         .then(() -> MutableContext.modify(Counter::increment));
 ```
 
 ### Pattern: Accumulator
 
+<!-- verify -->
 ```java
 record Accumulator(List<String> items) {
     Accumulator add(String item) {
@@ -239,6 +249,7 @@ String value = result.value();          // The produced value
 
 When you don't need the final state:
 
+<!-- verify -->
 ```java
 IOPath<String> valueIO = workflow.evalWith(new Counter(0));
 String value = valueIO.unsafeRun();
@@ -248,6 +259,7 @@ String value = valueIO.unsafeRun();
 
 When you only care about the accumulated state:
 
+<!-- verify -->
 ```java
 IOPath<Counter> stateIO = workflow.execWith(new Counter(0));
 Counter finalState = stateIO.unsafeRun();
@@ -259,6 +271,7 @@ Counter finalState = stateIO.unsafeRun();
 
 ### Request ID Generation
 
+<!-- verify -->
 ```java
 record IdState(long nextId) {
     IdState advance() { return new IdState(nextId + 1); }
@@ -280,12 +293,18 @@ MutableContext<IOKind.Witness, IdState, List<Request>> tagAll(List<Request> requ
     return requests.stream()
         .map(this::tagRequest)
         .reduce(
-            MutableContext.pure(List.<Request>of()),
+            MutableContext.<IdState, List<Request>>pure(List.of()),
             (accCtx, reqCtx) -> accCtx.flatMap(list ->
                 reqCtx.map(req -> {
                     var newList = new java.util.ArrayList<>(list);
                     newList.add(req);
                     return List.copyOf(newList);
+                })),
+            (leftCtx, rightCtx) -> leftCtx.flatMap(left ->
+                rightCtx.map(right -> {
+                    var merged = new java.util.ArrayList<>(left);
+                    merged.addAll(right);
+                    return List.copyOf(merged);
                 }))
         );
 }
