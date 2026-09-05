@@ -40,6 +40,7 @@ Dependency injection frameworks solve this with containers and annotations, but 
 
 `ConfigContext` threads configuration implicitly:
 
+<!-- verify -->
 ```java
 public ConfigContext<IOKind.Witness, ReportConfig, Report> generate(UserId userId) {
     return ConfigContext.<ReportConfig>ask()
@@ -62,6 +63,7 @@ Configuration is declared once. Every computation in the chain can access it. No
 
 `ask()` yields the configuration itself:
 
+<!-- verify -->
 ```java
 ConfigContext<IOKind.Witness, AppConfig, AppConfig> config = ConfigContext.ask();
 
@@ -75,14 +77,24 @@ ConfigContext<IOKind.Witness, AppConfig, String> apiUrl =
 
 When your computation depends on config:
 
+<!-- verify -->
 ```java
 ConfigContext<IOKind.Witness, DbConfig, Connection> connection =
-    ConfigContext.io(config -> DriverManager.getConnection(
-        config.url(),
-        config.username(),
-        config.password()
-    ));
+    ConfigContext.io(config -> {
+        try {
+            return DriverManager.getConnection(
+                config.url(),
+                config.username(),
+                config.password());
+        } catch (SQLException e) {
+            throw new IllegalStateException("Could not connect", e);
+        }
+    });
 ```
+
+~~~admonish note title="`ConfigContext.io` does not accept a throwing computation"
+It takes a plain `Function<R, A>`, so a checked exception has to be dealt with inside the lambda, as above. That is a real asymmetry with [`ErrorContext.io`](effect_contexts_error.md), which takes a `ThrowableSupplier` and maps whatever it throws onto the error channel. When the computation can fail *and* needs configuration, reach for `ErrorContext` and project the configuration into it rather than wrapping the failure by hand here.
+~~~
 
 The function receives the configuration and returns a value. Execution is immediate when the context runs.
 
@@ -90,6 +102,7 @@ The function receives the configuration and returns a value. Execution is immedi
 
 When you want the IO aspect to be truly deferred:
 
+<!-- verify -->
 ```java
 ConfigContext<IOKind.Witness, ApiConfig, Response> response =
     ConfigContext.ioDeferred(config -> () -> {
@@ -102,6 +115,7 @@ ConfigContext<IOKind.Witness, ApiConfig, Response> response =
 
 For values that don't need the config:
 
+<!-- verify -->
 ```java
 ConfigContext<IOKind.Witness, AnyConfig, Integer> fortyTwo =
     ConfigContext.pure(42);
@@ -113,6 +127,7 @@ ConfigContext<IOKind.Witness, AnyConfig, Integer> fortyTwo =
 
 ### map: Transform the Result
 
+<!-- verify -->
 ```java
 ConfigContext<IOKind.Witness, ServiceConfig, String> endpoint =
     ConfigContext.<ServiceConfig>ask()
@@ -128,6 +143,7 @@ ConfigContext<IOKind.Witness, ServiceConfig, URI> uri =
 
 ### via: Chain Dependent Operations
 
+<!-- verify -->
 ```java
 record AppConfig(String userServiceUrl, String orderServiceUrl, Duration timeout) {}
 
@@ -150,6 +166,7 @@ Each step has access to the same configuration. The config flows through without
 
 ### flatMap: Type-Preserving Chain
 
+<!-- verify -->
 ```java
 ConfigContext<IOKind.Witness, AppConfig, Report> report =
     getUser()
@@ -159,6 +176,7 @@ ConfigContext<IOKind.Witness, AppConfig, Report> report =
 
 ### then: Sequence Ignoring Values
 
+<!-- verify -->
 ```java
 ConfigContext<IOKind.Witness, Config, String> workflow =
     logStart()
@@ -175,6 +193,7 @@ ConfigContext<IOKind.Witness, Config, String> workflow =
 
 Sometimes a sub-computation needs modified settings:
 
+<!-- verify -->
 ```java
 ConfigContext<IOKind.Witness, ApiConfig, Data> withLongerTimeout =
     fetchData()
@@ -185,6 +204,7 @@ The modified config applies only to this computation. Other computations in the 
 
 ### Pattern: Feature Flags
 
+<!-- verify -->
 ```java
 record AppConfig(boolean debugMode, int maxRetries) {}
 
