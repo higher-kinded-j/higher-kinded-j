@@ -14,6 +14,7 @@ and never fails. This sounds useless until you need it.
 
 ## Creation
 
+<!-- verify -->
 ```java
 IdPath<String> id = Path.id("hello");
 IdPath<User> fromId = Path.idPath(idUser);
@@ -23,6 +24,7 @@ IdPath<User> fromId = Path.idPath(idUser);
 
 ## Core Operations
 
+<!-- verify -->
 ```java
 IdPath<String> name = Path.id("Alice");
 
@@ -35,10 +37,11 @@ IdPath<String> combined = name.zipWith(Path.id(25), (n, a) -> n + " is " + a);
 
 ## Extraction
 
+<!-- verify -->
 ```java
 IdPath<String> path = Path.id("hello");
 String value = path.run().value();  // "hello"
-String value = path.get();          // "hello"
+String direct = path.get();         // "hello"
 ```
 
 ---
