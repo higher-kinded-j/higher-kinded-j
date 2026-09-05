@@ -89,6 +89,7 @@ surrounding structure.
 
 **The analogy:** A translator. The message changes; the envelope stays sealed.
 
+<!-- verify -->
 ```java
 public interface Composable<A> {
     <B> Composable<B> map(Function<? super A, ? extends B> f);
@@ -98,6 +99,7 @@ public interface Composable<A> {
 
 Every Path type is Composable. It's the minimum viable capability.
 
+<!-- verify -->
 ```java
 MaybePath<String> name = Path.just("alice");
 MaybePath<Integer> length = name.map(String::length);  // Just(5)
@@ -130,24 +132,24 @@ guidelines; they're guarantees the implementation must honour.
 **The analogy:** A meeting coordinator. Everyone works separately, then results
 are combined at the end. If someone fails to deliver, there's nothing to combine.
 
+<!-- verify -->
 ```java
 public interface Combinable<A> extends Composable<A> {
     <B, C> Combinable<C> zipWith(
         Combinable<B> other,
         BiFunction<? super A, ? super B, ? extends C> f
     );
-
-    <B, C, D> Combinable<D> zipWith3(
-        Combinable<B> second,
-        Combinable<C> third,
-        TriFunction<? super A, ? super B, ? super C, ? extends D> f
-    );
 }
 ```
+
+~~~admonish note title="`zipWith3` is not on the capability"
+The capability declares the two-way combine only. `zipWith3` and `zipWith4` are declared on each concrete path type, over `Function3` and `Function4`, because their return type is that path type rather than `Combinable`. That is why the example below calls `zipWith3` on an `EitherPath` and not through the interface.
+~~~
 
 The key property is **independence**. Neither computation depends on the
 other's result:
 
+<!-- verify -->
 ```java
 // These validations don't affect each other
 EitherPath<String, String> name = validateName(input.name());
@@ -185,6 +187,7 @@ the previous result.
 **The analogy:** A relay race. Each runner receives the baton from the previous
 and decides what to do next. If someone drops the baton, the race ends there.
 
+<!-- verify -->
 ```java
 public interface Chainable<A> extends Combinable<A> {
     <B> Chainable<B> via(Function<? super A, ? extends Chainable<B>> f);
@@ -195,6 +198,7 @@ public interface Chainable<A> extends Combinable<A> {
 
 The `via` method is the workhorse:
 
+<!-- verify -->
 ```java
 EitherPath<Error, Invoice> invoice =
     Path.either(findUser(userId))
@@ -211,6 +215,7 @@ whichever reads better in context.
 
 `then` is for sequencing when you don't need the previous value:
 
+<!-- verify -->
 ```java
 IOPath<Unit> workflow =
     Path.io(() -> log.info("Starting"))
@@ -237,6 +242,7 @@ success track.
 **The analogy:** A safety net. If you fall, something catches you. You might
 climb back up, or you might stay down, but the fall doesn't have to be fatal.
 
+<!-- verify -->
 ```java
 public interface Recoverable<E, A> extends Chainable<A> {
     Recoverable<E, A> recover(Function<? super E, ? extends A> handler);
@@ -250,18 +256,19 @@ public interface Recoverable<E, A> extends Chainable<A> {
 
 Different Path types have different notions of "error":
 
+<!-- verify -->
 ```java
 // MaybePath: "error" is absence
-MaybePath<User> user = Path.maybe(findUser(id))
+MaybePath<User> user = Path.maybe(lookupUser(id))
     .orElse(() -> Path.just(User.guest()));
 
 // EitherPath: "error" is a typed value
-EitherPath<Error, Config> config = Path.either(loadConfig())
+EitherPath<ConfigError, Config> config = Path.either(loadConfig())
     .recover(error -> Config.defaults())
     .mapError(e -> new ConfigError("Load failed", e));
 
 // TryPath: "error" is an exception
-TryPath<Integer> parsed = Path.tryOf(() -> Integer.parseInt(input))
+TryPath<Integer> parsed = Path.tryOf(() -> Integer.parseInt(rawAge))
     .recover(ex -> 0);
 ```
 

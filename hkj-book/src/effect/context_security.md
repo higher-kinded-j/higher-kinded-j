@@ -33,6 +33,7 @@ Yesterday's unvalidated request is today's security incident. Yesterday's missin
 
 `SecurityContext` provides pre-defined `ScopedValue` instances for authentication and authorisation:
 
+<!-- verify -->
 ```java
 public final class SecurityContext {
     private SecurityContext() {}  // Utility class -- no instantiation
@@ -88,6 +89,7 @@ The `PRINCIPAL` represents the authenticated user. It can be:
 
 ### Defining a Principal
 
+<!-- verify -->
 ```java
 /**
  * Simple principal implementation.
