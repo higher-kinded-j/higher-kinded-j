@@ -31,7 +31,7 @@ import org.higherkindedj.optics.processing.util.ProcessorUtils;
  *   <li>Check if the field type is {@code Kind<F, A>}
  *   <li>Resolve a wildcard in either type argument, and in a parameterised witness's own type
  *       arguments, to the type it stands for; a witness that resolves to no type at all leaves the
- *       field alone
+ *       field alone, as does one that is a type variable of the record
  *   <li>If annotated with {@code @TraverseField}, use the explicit configuration
  *   <li>Otherwise, look up the witness type in {@link KindRegistry}
  *   <li>If not found, return empty (field will use standard FocusPath generation)
@@ -84,10 +84,10 @@ public class KindFieldAnalyser {
    * container rather than writing into it, so a component declared {@code Kind<F, ? extends A>}
    * comes back holding a {@code Kind<F, A>}, which its declaration admits; and a witness bound
    * names the witness exactly, since every witness the registry knows is a final class. A witness
-   * that resolves to no type, an unbounded or super-bounded wildcard, names no {@code Traverse}
-   * instance, and the field keeps its plain path whether or not it carries {@code @TraverseField},
-   * as any component that is not a Kind field does; {@link #reportPassedOver} is where the author
-   * hears about it.
+   * that resolves to no type, an unbounded or super-bounded wildcard, or that is one of the
+   * record's own type variables, names no {@code Traverse} instance, and the field keeps its plain
+   * path whether or not it carries {@code @TraverseField}, as any component that is not a Kind
+   * field does; {@link #reportPassedOver} is where the author hears about it.
    *
    * @param component the record component to analyse
    * @return an Optional containing the analysis result, or empty if not a recognised Kind field
@@ -110,7 +110,9 @@ public class KindFieldAnalyser {
 
   /**
    * Says, once, what the analysis passed over on this component without acting on it: a
-   * {@code @TraverseField} it could not apply, or a library witness it does not know.
+   * {@code @TraverseField} it could not apply, because the component is not declared as a {@code
+   * Kind}, the {@code Kind} is raw, or its witness is a wildcard or one of the record's own type
+   * variables; or a library witness it does not know.
    *
    * <p>Either way the component is handed to the ordinary path, which compiles and is correct as
    * far as it goes, so the author hears about it as a note rather than an error: nothing is broken,
@@ -153,8 +155,7 @@ public class KindFieldAnalyser {
               component,
               "Kind is written raw, so it names neither a witness to find a Traverse for nor an"
                   + " element to focus.",
-              "Declare both type arguments, such as Kind<TreeKind.Witness, Tree> for a"
-                  + " Traverse<TreeKind.Witness>.");
+              "Declare both type arguments, such as " + example("Tree") + ".");
       case Shape.WildcardWitness witness ->
           noteNotApplied(
               component,
@@ -162,14 +163,37 @@ public class KindFieldAnalyser {
                   + ProcessorUtils.simpleTypeName(fieldType)
                   + " is a wildcard that stands for no type, so no Traverse instance can be named"
                   + " for it.",
-              "Declare the witness the Traverse is written for in place of the wildcard, such as"
-                  + " Kind<TreeKind.Witness, "
-                  + witness.element()
-                  + "> for a Traverse<TreeKind.Witness>.");
+              "Declare the witness the Traverse is written for in place of the wildcard, such as "
+                  + example(witness.element())
+                  + ".");
+      case Shape.TypeVariableWitness witness ->
+          noteNotApplied(
+              component,
+              "The witness of "
+                  + ProcessorUtils.simpleTypeName(fieldType)
+                  + " names the record's type variable "
+                  + witness.variable()
+                  + ", which stands for any witness, while a Traverse is written for one witness"
+                  + " in particular, so no Traverse instance can be named for it.",
+              "Declare the witness the Traverse is written for in place of "
+                  + witness.variable()
+                  + ", such as "
+                  + example(witness.element())
+                  + ", or drop the annotation and apply traverseOver to the path yourself, with a"
+                  + " Traverse<"
+                  + witness.variable()
+                  + "> in hand where "
+                  + witness.variable()
+                  + " is known.");
       case Shape.KindOf _ -> {
         // Applied: analyse() reads the annotation for this shape.
       }
     }
+  }
+
+  /** The declaration a remedy points at, with the annotation's own {@code TreeKind} example. */
+  private static String example(String element) {
+    return "Kind<TreeKind.Witness, " + element + "> for a Traverse<TreeKind.Witness>";
   }
 
   /** Writes the note that a {@code @TraverseField} on {@code component} is not applied. */
@@ -241,6 +265,18 @@ public class KindFieldAnalyser {
     record WildcardWitness(String element) implements Shape {}
 
     /**
+     * A {@code Kind} whose witness is one of the record's own type variables.
+     *
+     * <p>A {@code Traverse} is written for one witness, and a type variable stands for any, so no
+     * {@code Traverse} instance exists for it; without the annotation the field keeps its plain
+     * path, and with it the annotation is not applied.
+     *
+     * @param variable the type variable as the declaration wrote it
+     * @param element the element type argument as the declaration wrote it, for the note's remedy
+     */
+    record TypeVariableWitness(String variable, String element) implements Shape {}
+
+    /**
      * A {@code Kind} whose witness and element are named, with any wildcard resolved to the type it
      * stands for.
      *
@@ -264,6 +300,10 @@ public class KindFieldAnalyser {
     if (witness == null) {
       return new Shape.WildcardWitness(ProcessorUtils.simpleTypeName(typeArgs.get(1)));
     }
+    if (witness.getKind() == TypeKind.TYPEVAR) {
+      return new Shape.TypeVariableWitness(
+          ProcessorUtils.simpleTypeName(witness), ProcessorUtils.simpleTypeName(typeArgs.get(1)));
+    }
     return new Shape.KindOf(
         witnessNameOf(witness), ProcessorUtils.resolvedTypeNameOf(typeArgs.get(1)));
   }
@@ -274,8 +314,9 @@ public class KindFieldAnalyser {
    * <p>A parameterised witness has its type arguments written out again, as explicit type arguments
    * of the {@code Traverse} factory, so each is resolved to the type it stands for first: {@code
    * EitherKind.Witness<? extends CharSequence>} names {@code
-   * EitherTraverse.<CharSequence>instance()}. A witness that is not a declared type, one of the
-   * record's own type variables, is named as written.
+   * EitherTraverse.<CharSequence>instance()}. A witness that is not a declared type reaches this
+   * only as one javac could not resolve, or one outside {@code Kind}'s bound that javac is about to
+   * reject, and is named as written; that compilation is already failing on javac's own report.
    *
    * @param witness the witness type argument, with a wildcard of its own already resolved
    * @return the witness as the generated code names it
