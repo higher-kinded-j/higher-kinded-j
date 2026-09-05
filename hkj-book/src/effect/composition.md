@@ -32,6 +32,7 @@ vocabulary used throughout.
 The `via` method chains computations where each step depends on the previous
 result. It's the workhorse of effect composition.
 
+<!-- verify -->
 ```java
 EitherPath<Error, Invoice> pipeline =
     Path.either(findUser(userId))
@@ -48,12 +49,13 @@ skip to the end.
 
 When a step fails, subsequent steps don't execute:
 
+<!-- verify -->
 ```java
 EitherPath<String, String> result =
-    Path.right("start")
-        .via(s -> Path.left("failed here"))     // Fails
-        .via(s -> Path.right(s + " never"))     // Skipped
-        .via(s -> Path.right(s + " reached"));  // Skipped
+    Path.<String, String>right("start")
+        .via(s -> Path.<String, String>left("failed here"))  // Fails
+        .via(s -> Path.<String, String>right(s + " never"))  // Skipped
+        .via(s -> Path.<String, String>right(s + " reached")); // Skipped
 
 // result.run() → Left("failed here")
 ```
@@ -83,12 +85,13 @@ side effects that must happen in order but don't pass data forward.
 `zipWith` combines computations that don't depend on each other. Neither
 needs the other's result to proceed.
 
+<!-- verify -->
 ```java
-EitherPath<String, String> name = validateName(input.name());
-EitherPath<String, String> email = validateEmail(input.email());
-EitherPath<String, Integer> age = validateAge(input.age());
+EitherPath<Error, String> name = validateName(orderInput.name());
+EitherPath<Error, String> email = validateEmail(orderInput.email());
+EitherPath<Error, Address> address = validateAddress(orderInput.address());
 
-EitherPath<String, User> user = name.zipWith3(email, age, User::new);
+EitherPath<Error, CustomerInfo> customer = name.zipWith3(email, address, CustomerInfo::new);
 ```
 
 If all three succeed, `User::new` receives the values. If any fails, the
@@ -103,18 +106,21 @@ This distinction trips people up, so let's be explicit:
 | `via` | "Do this, **then** use the result to decide what's next" |
 | `zipWith` | "Do these **independently**, then combine the results" |
 
+<!-- verify -->
 ```java
 // WRONG: using via when computations are independent
-Path.right(validateName(input))
-    .via(name -> Path.right(validateEmail(input)))  // Doesn't use name!
-    .via(email -> Path.right(validateAge(input)));  // Doesn't use email!
+EitherPath<Error, Address> chained =
+    validateName(orderInput.name())
+        .via(name -> validateEmail(orderInput.email()))      // Doesn't use name!
+        .via(email -> validateAddress(orderInput.address())); // Doesn't use email!
 
 // RIGHT: using zipWith for independent computations
-validateName(input).zipWith3(
-    validateEmail(input),
-    validateAge(input),
-    User::new
-);
+EitherPath<Error, CustomerInfo> combined =
+    validateName(orderInput.name())
+        .zipWith3(
+            validateEmail(orderInput.email()),
+            validateAddress(orderInput.address()),
+            CustomerInfo::new);
 ```
 
 The first version works but misleads readers into thinking there's a
@@ -144,6 +150,7 @@ Production code rarely uses just one pattern. You validate independently,
 then sequence dependent operations, then combine more independent work.
 The key is clarity about which pattern you're using where.
 
+<!-- verify -->
 ```java
 EitherPath<Error, Order> createOrder(OrderInput input) {
     // Phase 1: Independent validation
@@ -155,10 +162,10 @@ EitherPath<Error, Order> createOrder(OrderInput input) {
         name.zipWith3(email, address, CustomerInfo::new);
 
     // Phase 2: Sequential operations that depend on customer
-    return customer
-        .via(info -> Path.either(checkInventory(input.items())))
-        .via(inventory -> Path.either(calculatePricing(inventory)))
-        .via(pricing -> Path.either(createOrder(customer, pricing)));
+    return customer.via(info ->
+        Path.either(checkInventory(input.items()))
+            .via(inventory -> Path.either(calculatePricing(inventory)))
+            .via(pricing -> Path.either(createOrder(info, pricing))));
 }
 ```
 
@@ -272,8 +279,9 @@ would break the chain. Debugger breakpoints are awkward with lambdas.
 
 `peek` solves this by letting you observe values without disrupting the flow:
 
+<!-- verify -->
 ```java
-EitherPath<Error, User> result =
+EitherPath<Error, String> result =
     Path.either(validateInput(input))
         .peek(valid -> log.debug("Validated: {}", valid))
         .via(valid -> Path.either(createUser(valid)))
@@ -289,6 +297,7 @@ which is usually what you want when tracing the happy path.
 
 For detailed tracing, wrap the pattern:
 
+<!-- verify -->
 ```java
 <A> EitherPath<Error, A> traced(EitherPath<Error, A> path, String step) {
     return path.peek(v -> log.debug("[{}] → {}", step, v));
@@ -314,6 +323,7 @@ Sometimes you want to try several approaches before giving up.
 
 The operation might fail, but you have a reasonable fallback:
 
+<!-- verify -->
 ```java
 MaybePath<Config> config = Path.maybe(loadConfig())
     .orElse(() -> Path.just(Config.defaults()));
@@ -330,6 +340,7 @@ papering over problems you should be handling properly.
 Low-level errors leak implementation details. Transform them at layer
 boundaries:
 
+<!-- verify -->
 ```java
 EitherPath<ServiceError, Data> result =
     Path.either(externalApi.fetch())
@@ -343,6 +354,7 @@ type.
 
 Multiple sources for the same data, each with trade-offs:
 
+<!-- verify -->
 ```java
 EitherPath<Error, Config> config =
     Path.either(loadFromFile())
@@ -381,6 +393,7 @@ See [ValidationPath](path_validation.md) for the full API.
 
 Add context as errors propagate:
 
+<!-- verify -->
 ```java
 EitherPath<DetailedError, Data> enriched =
     path.mapError(error -> new DetailedError(
@@ -403,8 +416,9 @@ As requirements evolve, you may need to switch Path types:
 
 Absence becomes a typed error:
 
+<!-- verify -->
 ```java
-MaybePath<User> maybe = Path.maybe(findUser(id));
+MaybePath<User> maybe = Path.maybe(lookupUser(id));
 EitherPath<String, User> either = maybe.toEitherPath("User not found");
 ```
 
@@ -412,6 +426,7 @@ EitherPath<String, User> either = maybe.toEitherPath("User not found");
 
 Exception becomes a typed error:
 
+<!-- verify -->
 ```java
 TryPath<Config> tried = Path.tryOf(() -> loadConfig());
 EitherPath<String, Config> either = tried.toEitherPath(Throwable::getMessage);
@@ -421,6 +436,7 @@ EitherPath<String, Config> either = tried.toEitherPath(Throwable::getMessage);
 
 Execute the deferred effect and capture the result:
 
+<!-- verify -->
 ```java
 IOPath<Data> io = Path.io(() -> fetchData());
 TryPath<Data> tried = io.toTryPath();  // Executes immediately!
@@ -455,7 +471,7 @@ public class OrderService {
 
             // Get user (convert Maybe → Either)
             .from(valid -> Path.maybe(users.findById(valid.userId()))
-                .toEitherPath(() -> new OrderError.UserNotFound(valid.userId()))
+                .<OrderError>toEitherPath(new OrderError.UserNotFound(valid.userId()))
                 .peek(user -> log.debug("Found user: {}", user.getId())))
 
             // Check inventory
