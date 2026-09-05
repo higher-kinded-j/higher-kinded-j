@@ -66,6 +66,7 @@ model) or `Recoverable` (error handling is on the underlying VStream).
 
 ## Creation
 
+<!-- verify -->
 ```java
 // From an existing VStream
 VStreamPath<String> fromStream = Path.vstream(myVStream);
@@ -110,6 +111,7 @@ describes the pipeline.
 
 Transform each element lazily:
 
+<!-- verify -->
 ```java
 VStreamPath<String> tags = Path.vstreamOf(1, 2, 3)
     .map(n -> "#" + n);
@@ -121,6 +123,7 @@ VStreamPath<String> tags = Path.vstreamOf(1, 2, 3)
 Replace each element with a sub-stream and flatten. This is the monadic bind,
 and the mapper must return a `VStreamPath`:
 
+<!-- verify -->
 ```java
 VStreamPath<Integer> expanded = Path.vstreamOf(1, 2, 3)
     .via(n -> Path.vstreamOf(n, n * 10));
@@ -131,6 +134,7 @@ VStreamPath<Integer> expanded = Path.vstreamOf(1, 2, 3)
 
 Sequence two streams, discarding the first result:
 
+<!-- verify -->
 ```java
 VStreamPath<String> withSetup = Path.vstreamOf("setup")
     .then(() -> Path.vstreamOf("a", "b", "c"));
@@ -141,6 +145,7 @@ VStreamPath<String> withSetup = Path.vstreamOf("setup")
 
 Observe elements without modifying them:
 
+<!-- verify -->
 ```java
 VStreamPath<Integer> logged = Path.vstreamOf(1, 2, 3)
     .peek(n -> System.out.println("Processing: " + n));
@@ -150,6 +155,7 @@ VStreamPath<Integer> logged = Path.vstreamOf(1, 2, 3)
 
 Pair elements positionally from two streams. Stops at the shorter stream:
 
+<!-- verify -->
 ```java
 VStreamPath<String> zipped = Path.vstreamOf("a", "b", "c")
     .zipWith(Path.vstreamOf(1, 2, 3), (s, n) -> s + n);
@@ -163,6 +169,7 @@ VStreamPath<String> zipped = Path.vstreamOf("a", "b", "c")
 These operations are unique to VStreamPath and have no equivalent on VTaskPath or
 MaybePath.
 
+<!-- verify -->
 ```java
 VStreamPath<Integer> pipeline = Path.vstreamRange(1, 100)
     .filter(n -> n % 2 == 0)     // keep evens
@@ -201,6 +208,7 @@ continue composing with VTaskPath operations after collecting results.
    lazy)                                     deferred)
 ```
 
+<!-- verify -->
 ```java
 VStreamPath<Integer> stream = Path.vstreamOf(1, 2, 3, 4, 5);
 
