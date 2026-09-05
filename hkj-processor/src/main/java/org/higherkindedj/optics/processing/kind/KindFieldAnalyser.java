@@ -13,9 +13,9 @@ import javax.lang.model.element.TypeElement;
 import javax.lang.model.type.DeclaredType;
 import javax.lang.model.type.TypeKind;
 import javax.lang.model.type.TypeMirror;
-import javax.tools.Diagnostic;
 import org.higherkindedj.optics.annotations.TraverseField;
 import org.higherkindedj.optics.processing.kind.KindRegistry.KindMapping;
+import org.higherkindedj.optics.processing.util.Diagnostics;
 import org.higherkindedj.optics.processing.util.ExcludeFromJacocoGeneratedReport;
 import org.higherkindedj.optics.processing.util.ProcessorUtils;
 
@@ -36,6 +36,10 @@ import org.higherkindedj.optics.processing.util.ProcessorUtils;
  *   <li>Otherwise, look up the witness type in {@link KindRegistry}
  *   <li>If not found, return empty (field will use standard FocusPath generation)
  * </ol>
+ *
+ * <p>What the analysis passes over without acting on, a {@code @TraverseField} it cannot apply or a
+ * library witness it does not know, is said in a note by {@link #reportPassedOver}, which the
+ * processor calls once per component.
  *
  * <h2>Design for Nested Kind Support</h2>
  *
@@ -82,43 +86,186 @@ public class KindFieldAnalyser {
    * names the witness exactly, since every witness the registry knows is a final class. A witness
    * that resolves to no type, an unbounded or super-bounded wildcard, names no {@code Traverse}
    * instance, and the field keeps its plain path whether or not it carries {@code @TraverseField},
-   * as any component that is not a Kind field does.
+   * as any component that is not a Kind field does; {@link #reportPassedOver} is where the author
+   * hears about it.
    *
    * @param component the record component to analyse
    * @return an Optional containing the analysis result, or empty if not a recognised Kind field
    */
   public Optional<KindFieldInfo> analyse(RecordComponentElement component) {
-    TypeMirror fieldType = component.asType();
-
-    // Check if this is a Kind<F, A> type
-    if (!isKindType(fieldType)) {
+    if (!(shapeOf(component.asType()) instanceof Shape.KindOf kind)) {
       return Optional.empty();
     }
-
-    // Extract Kind type arguments: Kind<WitnessType, ElementType>
-    DeclaredType kindType = (DeclaredType) fieldType;
-    List<? extends TypeMirror> typeArgs = kindType.getTypeArguments();
-
-    if (typeArgs.size() != 2) {
-      // Malformed Kind type
-      return Optional.empty();
-    }
-
-    TypeMirror witnessTypeMirror = ProcessorUtils.resolveWildcard(typeArgs.get(0));
-    if (witnessTypeMirror == null) {
-      return Optional.empty();
-    }
-    String witnessType = witnessNameOf(witnessTypeMirror);
-    TypeName elementType = ProcessorUtils.resolvedTypeNameOf(typeArgs.get(1));
 
     // Check for explicit @TraverseField annotation first
     TraverseField traverseFieldAnnotation = component.getAnnotation(TraverseField.class);
     if (traverseFieldAnnotation != null) {
-      return Optional.of(createFromAnnotation(traverseFieldAnnotation, witnessType, elementType));
+      return Optional.of(
+          createFromAnnotation(traverseFieldAnnotation, kind.witnessType(), kind.elementType()));
     }
 
     // Try to look up in registry
-    return createFromRegistry(witnessType, elementType, component);
+    return createFromRegistry(kind.witnessType(), kind.elementType());
+  }
+
+  /**
+   * Says, once, what the analysis passed over on this component without acting on it: a
+   * {@code @TraverseField} it could not apply, or a library witness it does not know.
+   *
+   * <p>Either way the component is handed to the ordinary path, which compiles and is correct as
+   * far as it goes, so the author hears about it as a note rather than an error: nothing is broken,
+   * and nothing was applied. It is reported from here rather than from {@link #analyse}, which the
+   * processor runs again for every navigator that reaches the component, and which never reaches
+   * this analyser for a recognised container or a primitive. A type javac could not resolve is
+   * passed over in silence, since javac has already reported it.
+   *
+   * @param component the record component to inspect
+   */
+  public void reportPassedOver(RecordComponentElement component) {
+    TypeMirror fieldType = component.asType();
+    if (fieldType.getKind() == TypeKind.ERROR) {
+      return;
+    }
+    Shape shape = shapeOf(fieldType);
+    if (component.getAnnotation(TraverseField.class) != null) {
+      reportUnappliedTraverseField(component, fieldType, shape);
+    } else if (shape instanceof Shape.KindOf kind) {
+      reportUnregisteredLibraryWitness(component, kind.witnessType());
+    }
+  }
+
+  /**
+   * Says why a {@code @TraverseField} on the component is not applied, when its shape is not one.
+   */
+  private void reportUnappliedTraverseField(
+      RecordComponentElement component, TypeMirror fieldType, Shape shape) {
+    switch (shape) {
+      case Shape.NotAKind _ ->
+          noteNotApplied(
+              component,
+              ProcessorUtils.simpleTypeName(fieldType)
+                  + " is not declared as a Kind<F, A> component, and the annotation names a"
+                  + " Traverse for one.",
+              "Drop the annotation, or declare the component as the Kind<F, A> the Traverse is"
+                  + " written for.");
+      case Shape.RawKind _ ->
+          noteNotApplied(
+              component,
+              "Kind is written raw, so it names neither a witness to find a Traverse for nor an"
+                  + " element to focus.",
+              "Declare both type arguments, such as Kind<TreeKind.Witness, Tree> for a"
+                  + " Traverse<TreeKind.Witness>.");
+      case Shape.WildcardWitness witness ->
+          noteNotApplied(
+              component,
+              "The witness of "
+                  + ProcessorUtils.simpleTypeName(fieldType)
+                  + " is a wildcard that stands for no type, so no Traverse instance can be named"
+                  + " for it.",
+              "Declare the witness the Traverse is written for in place of the wildcard, such as"
+                  + " Kind<TreeKind.Witness, "
+                  + witness.element()
+                  + "> for a Traverse<TreeKind.Witness>.");
+      case Shape.KindOf _ -> {
+        // Applied: analyse() reads the annotation for this shape.
+      }
+    }
+  }
+
+  /** Writes the note that a {@code @TraverseField} on {@code component} is not applied. */
+  private void noteNotApplied(RecordComponentElement component, String why, String fix) {
+    Diagnostics.note(
+        processingEnv.getMessager(),
+        component,
+        "@TraverseField",
+        "the annotation on record component '" + qualifiedName(component) + "' is not applied.",
+        why,
+        fix);
+  }
+
+  /**
+   * Says that a {@code Kind} component names one of Higher-Kinded-J's own witnesses that the
+   * registry does not know, so nothing widens it.
+   *
+   * <p>Only a library witness draws the note. A witness of the author's own without
+   * {@code @TraverseField} is an ordinary component they chose not to traverse; a library witness
+   * with no registered {@code Traverse} is a gap they would want to hear about.
+   */
+  private void reportUnregisteredLibraryWitness(
+      RecordComponentElement component, String witnessType) {
+    String baseWitness = KindRegistry.extractBaseWitnessType(witnessType);
+    if (KindRegistry.lookup(baseWitness).isPresent()
+        || !KindRegistry.isLibraryWitness(baseWitness)) {
+      return;
+    }
+    Diagnostics.note(
+        processingEnv.getMessager(),
+        component,
+        "@GenerateFocus",
+        "record component '"
+            + qualifiedName(component)
+            + "' names a witness the processor does not recognise.",
+        baseWitness
+            + " is a Higher-Kinded-J witness with no registered Traverse, so the component keeps a"
+            + " plain FocusPath focusing the Kind.",
+        "Add @TraverseField naming the Traverse for it, or apply traverseOver to the path"
+            + " yourself.");
+  }
+
+  /** The component as a diagnostic names it: {@code Record.component}. */
+  private static String qualifiedName(RecordComponentElement component) {
+    return component.getEnclosingElement().getSimpleName() + "." + component.getSimpleName();
+  }
+
+  /**
+   * What the analyser makes of a component's declared type, before any annotation or registry is
+   * consulted.
+   *
+   * <p>One classification serves both {@link #analyse}, which acts on a {@link KindOf}, and {@link
+   * #reportPassedOver}, which explains every other shape, so the two cannot disagree about which
+   * components a {@code @TraverseField} applies to.
+   */
+  private sealed interface Shape {
+
+    /** Not declared as a {@code Kind} at all. */
+    record NotAKind() implements Shape {}
+
+    /** A raw {@code Kind}, naming neither a witness nor an element. */
+    record RawKind() implements Shape {}
+
+    /**
+     * A {@code Kind} whose witness is a wildcard that stands for no type.
+     *
+     * @param element the element type argument as the declaration wrote it, for the note's remedy
+     */
+    record WildcardWitness(String element) implements Shape {}
+
+    /**
+     * A {@code Kind} whose witness and element are named, with any wildcard resolved to the type it
+     * stands for.
+     *
+     * @param witnessType the witness as the generated code names it
+     * @param elementType the element the traversal focuses on, boxed
+     */
+    record KindOf(String witnessType, TypeName elementType) implements Shape {}
+  }
+
+  /** Classifies a component's declared type. */
+  private static Shape shapeOf(TypeMirror fieldType) {
+    if (!isKindType(fieldType)) {
+      return new Shape.NotAKind();
+    }
+    List<? extends TypeMirror> typeArgs = ((DeclaredType) fieldType).getTypeArguments();
+    // The interface has exactly two type parameters, so only a raw Kind arrives without them.
+    if (typeArgs.size() != 2) {
+      return new Shape.RawKind();
+    }
+    TypeMirror witness = ProcessorUtils.resolveWildcard(typeArgs.get(0));
+    if (witness == null) {
+      return new Shape.WildcardWitness(ProcessorUtils.simpleTypeName(typeArgs.get(1)));
+    }
+    return new Shape.KindOf(
+        witnessNameOf(witness), ProcessorUtils.resolvedTypeNameOf(typeArgs.get(1)));
   }
 
   /**
@@ -155,7 +302,7 @@ public class KindFieldAnalyser {
    * @param type the type to check
    * @return true if this is a Kind type
    */
-  private boolean isKindType(TypeMirror type) {
+  private static boolean isKindType(TypeMirror type) {
     if (type.getKind() != TypeKind.DECLARED) {
       return false;
     }
@@ -194,29 +341,20 @@ public class KindFieldAnalyser {
   /**
    * Creates KindFieldInfo from registry lookup.
    *
+   * <p>A witness the registry does not know yields empty, and the field keeps its plain path;
+   * {@link #reportPassedOver} says so when the witness is one of the library's own.
+   *
    * @param witnessType the witness as the generated code names it
    * @param elementType the element type
-   * @param component the component (for error reporting)
    * @return Optional containing the KindFieldInfo, or empty if not registered
    */
-  private Optional<KindFieldInfo> createFromRegistry(
-      String witnessType, TypeName elementType, RecordComponentElement component) {
+  private Optional<KindFieldInfo> createFromRegistry(String witnessType, TypeName elementType) {
 
     String baseWitness = KindRegistry.extractBaseWitnessType(witnessType);
     String typeArgs = KindRegistry.extractWitnessTypeArgs(witnessType);
 
     Optional<KindMapping> mapping = KindRegistry.lookup(baseWitness);
-
     if (mapping.isEmpty()) {
-      // Not a known type - emit a note if it looks like a library type
-      if (KindRegistry.isLibraryWitness(baseWitness)) {
-        note(
-            "Kind field with witness type '"
-                + baseWitness
-                + "' is not registered. "
-                + "Consider adding @TraverseField annotation for explicit configuration.",
-            component);
-      }
       return Optional.empty();
     }
 
@@ -277,15 +415,5 @@ public class KindFieldAnalyser {
         + typeArgs
         + ">"
         + expression.substring(lastDot + 1);
-  }
-
-  /**
-   * Emits a note diagnostic.
-   *
-   * @param message the message
-   * @param element the element
-   */
-  private void note(String message, RecordComponentElement element) {
-    processingEnv.getMessager().printMessage(Diagnostic.Kind.NOTE, message, element);
   }
 }

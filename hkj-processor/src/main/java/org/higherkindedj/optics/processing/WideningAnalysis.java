@@ -216,7 +216,7 @@ public final class WideningAnalysis {
    */
   public record Widening(Tier tier, TypeName focusType, List<Step> steps, DeclaredType declined) {}
 
-  private final ProcessingEnvironment processingEnv;
+  private final KindFieldAnalyser kindAnalyser;
   private final GeneratorRegistry generatorRegistry;
 
   /**
@@ -227,7 +227,7 @@ public final class WideningAnalysis {
    */
   public WideningAnalysis(
       ProcessingEnvironment processingEnv, List<TraversableGenerator> traversableGenerators) {
-    this.processingEnv = processingEnv;
+    this.kindAnalyser = new KindFieldAnalyser(processingEnv);
     this.generatorRegistry =
         GeneratorRegistry.of(traversableGenerators, processingEnv.getMessager());
   }
@@ -250,6 +250,20 @@ public final class WideningAnalysis {
       steps.add(new Step(StepKind.NULLABLE, null, null, null));
     }
     return new Widening(tier(steps), focusType(componentType, steps), List.copyOf(steps), declined);
+  }
+
+  /**
+   * Says, once, what the Kind analysis passed over on the component without acting on it: a
+   * {@code @TraverseField} it could not apply, or a library witness it does not know.
+   *
+   * <p>Reported from the processor's one pass over a record's components rather than from {@link
+   * #analyse}, which a navigator runs again for every route into the component and which never
+   * reaches the Kind analyser for a recognised container or a primitive.
+   *
+   * @param component the record component to inspect
+   */
+  public void reportPassedOver(RecordComponentElement component) {
+    kindAnalyser.reportPassedOver(component);
   }
 
   /**
@@ -293,7 +307,7 @@ public final class WideningAnalysis {
     // A Kind field is read from the component's own declaration, so only the outermost layer of a
     // component can be one; a Kind nested inside a container is left to the container's element.
     if (depth == 0) {
-      Optional<KindFieldInfo> kindInfo = new KindFieldAnalyser(processingEnv).analyse(component);
+      Optional<KindFieldInfo> kindInfo = kindAnalyser.analyse(component);
       if (kindInfo.isPresent()) {
         steps.add(new Step(kindStep(kindInfo.get()), kindInfo.get(), null, null));
         return null;

@@ -14,6 +14,7 @@ import com.google.testing.compile.JavaFileObjects;
 import java.lang.reflect.Constructor;
 import java.util.List;
 import java.util.Locale;
+import javax.tools.JavaFileObject;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.list.ListKind;
 import org.higherkindedj.optics.focus.TraversalPath;
@@ -621,16 +622,295 @@ public class FocusProcessorKindFieldTest {
     }
 
     @Test
-    @DisplayName("@TraverseField on a wildcard witness leaves the field alone")
-    void traverseFieldOnAWildcardWitnessLeavesTheFieldAlone() {
-      // The same as @TraverseField on a component that is not a Kind field: no Traverse can be
-      // named, so the annotation is not acted on.
+    @DisplayName("@TraverseField on a wildcard witness leaves the field alone, and says so")
+    void traverseFieldOnAWildcardWitnessLeavesTheFieldAloneAndSaysSo() {
       Compilation compilation = compile(TRAVERSE_LIST + "Kind<?, String>");
 
       assertThat(compilation).succeeded();
       assertGeneratedCodeContainsRaw(
           compilation, "com.example.HolderFocus", "FocusPath<Holder, Kind<?, String>> members()");
+      assertThat(compilation)
+          .hadNoteContaining(
+              "@TraverseField: the annotation on record component 'Holder.members' is not"
+                  + " applied. The witness of Kind<?, String> is a wildcard that stands for no"
+                  + " type, so no Traverse instance can be named for it. Declare the witness the"
+                  + " Traverse is written for in place of the wildcard, such as"
+                  + " Kind<TreeKind.Witness, String> for a Traverse<TreeKind.Witness>.");
     }
+  }
+
+  @Nested
+  @DisplayName("@TraverseField Not Applied")
+  class TraverseFieldNotApplied {
+
+    private static final String TRAVERSE_LIST =
+        "@TraverseField(traverse = \"org.higherkindedj.hkt.list.ListTraverse.INSTANCE\","
+            + " semantics = KindSemantics.ZERO_OR_MORE) ";
+
+    private static final String NOT_APPLIED =
+        "@TraverseField: the annotation on record component 'Holder.f' is not applied. ";
+
+    /** A record with the given components, each written out with its name. */
+    private Compilation compile(String components) {
+      return javac()
+          .withProcessors(new FocusProcessor())
+          .compile(
+              JavaFileObjects.forSourceString(
+                  "com.example.Holder",
+                  """
+                  package com.example;
+
+                  import java.util.List;
+                  import org.higherkindedj.hkt.Kind;
+                  import org.higherkindedj.hkt.list.ListKind;
+                  import org.higherkindedj.optics.annotations.GenerateFocus;
+                  import org.higherkindedj.optics.annotations.KindSemantics;
+                  import org.higherkindedj.optics.annotations.TraverseField;
+
+                  @GenerateFocus
+                  @SuppressWarnings("rawtypes")
+                  public record Holder(%s) {}
+                  """
+                      .formatted(components)));
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @CsvSource(
+        delimiterString = " -> ",
+        value = {
+          "List<String> f -> List<String> is not declared as a Kind<F, A> component, and the"
+              + " annotation names a Traverse for one. Drop the annotation, or declare the"
+              + " component as the Kind<F, A> the Traverse is written for.",
+          "int f -> int is not declared as a Kind<F, A> component, and the annotation names a"
+              + " Traverse for one.",
+          "Kind f -> Kind is written raw, so it names neither a witness to find a Traverse for nor"
+              + " an element to focus. Declare both type arguments, such as"
+              + " Kind<TreeKind.Witness, Tree> for a Traverse<TreeKind.Witness>.",
+          "Kind<? super ListKind.Witness, String> f -> The witness of"
+              + " Kind<? super ListKind.Witness, String> is a wildcard that stands for no type, so"
+              + " no Traverse instance can be named for it. Declare the witness the Traverse is"
+              + " written for in place of the wildcard, such as Kind<TreeKind.Witness, String> for"
+              + " a Traverse<TreeKind.Witness>.",
+        })
+    @DisplayName("a component the annotation cannot act on draws one note saying why")
+    void aComponentTheAnnotationCannotActOnDrawsOneNote(String component, String reason) {
+      // The component keeps the path it would have had without the annotation, which compiles
+      // and is correct as far as it goes; the note is the only sign the annotation was there.
+      Compilation compilation = compile(TRAVERSE_LIST + component);
+
+      assertThat(compilation).succeeded();
+      assertThat(compilation).hadNoteContaining(NOT_APPLIED + reason);
+      assertThat(traverseFieldNotes(compilation)).hasSize(1);
+    }
+
+    @Test
+    @DisplayName("the component keeps the path it would have had without the annotation")
+    void theComponentKeepsThePathItWouldHaveHad() {
+      Compilation compilation = compile(TRAVERSE_LIST + "List<String> f");
+
+      assertThat(compilation).succeeded();
+      assertGeneratedCodeContainsRaw(
+          compilation, "com.example.HolderFocus", "TraversalPath<Holder, String> f()");
+    }
+
+    @Test
+    @DisplayName("the note is written once however many navigators reach the component")
+    void theNoteIsWrittenOnceHoweverManyNavigatorsReachTheComponent() {
+      // Root navigates into Holder through two components, so the analysis runs for Holder.f
+      // once per route as well as for its own static method; the note must not follow suit.
+      JavaFileObject holder =
+          JavaFileObjects.forSourceString(
+              "com.example.Holder",
+              """
+              package com.example;
+
+              import java.util.List;
+              import org.higherkindedj.optics.annotations.GenerateFocus;
+              import org.higherkindedj.optics.annotations.KindSemantics;
+              import org.higherkindedj.optics.annotations.TraverseField;
+
+              @GenerateFocus(generateNavigators = true)
+              public record Holder(
+                  @TraverseField(
+                      traverse = "org.higherkindedj.hkt.list.ListTraverse.INSTANCE",
+                      semantics = KindSemantics.ZERO_OR_MORE)
+                  List<String> f) {}
+              """);
+      JavaFileObject root =
+          JavaFileObjects.forSourceString(
+              "com.example.Root",
+              """
+              package com.example;
+
+              import org.higherkindedj.optics.annotations.GenerateFocus;
+
+              @GenerateFocus(generateNavigators = true)
+              public record Root(Holder holder, Holder again) {}
+              """);
+
+      Compilation compilation = javac().withProcessors(new FocusProcessor()).compile(holder, root);
+
+      assertThat(compilation).succeeded();
+      assertThat(traverseFieldNotes(compilation)).hasSize(1);
+    }
+
+    @Test
+    @DisplayName("without the annotation the same components draw no note")
+    void withoutTheAnnotationTheSameComponentsDrawNoNote() {
+      Compilation compilation = compile("List<String> a, int b, Kind c, Kind<?, String> d");
+
+      assertThat(compilation).succeeded();
+      assertThat(traverseFieldNotes(compilation)).isEmpty();
+    }
+
+    @Test
+    @DisplayName("an annotation that is applied draws no note")
+    void anAnnotationThatIsAppliedDrawsNoNote() {
+      Compilation compilation = compile(TRAVERSE_LIST + "Kind<ListKind.Witness, String> f");
+
+      assertThat(compilation).succeeded();
+      assertGeneratedCodeContainsRaw(
+          compilation, "com.example.HolderFocus", "TraversalPath<Holder, String> f()");
+      assertThat(traverseFieldNotes(compilation)).isEmpty();
+    }
+
+    @Test
+    @DisplayName("a type javac could not resolve is left to javac")
+    void aTypeJavacCouldNotResolveIsLeftToJavac() {
+      // javac reports the missing type itself; a note calling it "not a Kind" beside that would
+      // only mislead.
+      Compilation compilation = compile(TRAVERSE_LIST + "Missing f");
+
+      assertThat(compilation).failed();
+      assertThat(compilation).hadErrorContaining("cannot find symbol");
+      assertThat(traverseFieldNotes(compilation)).isEmpty();
+    }
+  }
+
+  @Nested
+  @DisplayName("Unrecognised Library Witness")
+  class UnrecognisedLibraryWitness {
+
+    private static final String NOT_RECOGNISED =
+        "@GenerateFocus: record component 'Holder.f' names a witness the processor does not"
+            + " recognise. org.higherkindedj.hkt.nonemptylist.NonEmptyListKind.Witness is a Higher-Kinded-J witness"
+            + " with no registered Traverse, so the component keeps a plain FocusPath focusing the"
+            + " Kind. Add @TraverseField naming the Traverse for it, or apply traverseOver to the"
+            + " path yourself.";
+
+    private JavaFileObject holder(String settings, String component) {
+      return JavaFileObjects.forSourceString(
+          "com.example.Holder",
+          """
+          package com.example;
+
+          import org.higherkindedj.hkt.Kind;
+          import org.higherkindedj.hkt.TypeArity;
+          import org.higherkindedj.hkt.WitnessArity;
+          import org.higherkindedj.hkt.nonemptylist.NonEmptyListKind;
+          import org.higherkindedj.optics.annotations.GenerateFocus;
+          import org.higherkindedj.optics.annotations.KindSemantics;
+          import org.higherkindedj.optics.annotations.TraverseField;
+
+          interface OwnWitness extends WitnessArity<TypeArity.Unary> {}
+
+          @GenerateFocus(%s)
+          public record Holder(%s f) {}
+          """
+              .formatted(settings, component));
+    }
+
+    @Test
+    @DisplayName("a library witness with no registered Traverse draws one note")
+    void aLibraryWitnessWithNoRegisteredTraverseDrawsOneNote() {
+      Compilation compilation =
+          javac()
+              .withProcessors(new FocusProcessor())
+              .compile(holder("", "Kind<NonEmptyListKind.Witness, String>"));
+
+      assertThat(compilation).succeeded();
+      assertGeneratedCodeContainsRaw(
+          compilation,
+          "com.example.HolderFocus",
+          "FocusPath<Holder, Kind<NonEmptyListKind.Witness, String>> f()");
+      assertThat(compilation).hadNoteContaining(NOT_RECOGNISED);
+      assertThat(unrecognisedWitnessNotes(compilation)).hasSize(1);
+    }
+
+    @Test
+    @DisplayName("the note is written once however many navigators reach the component")
+    void theNoteIsWrittenOnceHoweverManyNavigatorsReachTheComponent() {
+      JavaFileObject root =
+          JavaFileObjects.forSourceString(
+              "com.example.Root",
+              """
+              package com.example;
+
+              import org.higherkindedj.optics.annotations.GenerateFocus;
+
+              @GenerateFocus(generateNavigators = true)
+              public record Root(Holder holder, Holder again) {}
+              """);
+
+      Compilation compilation =
+          javac()
+              .withProcessors(new FocusProcessor())
+              .compile(
+                  holder("generateNavigators = true", "Kind<NonEmptyListKind.Witness, String>"),
+                  root);
+
+      assertThat(compilation).succeeded();
+      assertThat(unrecognisedWitnessNotes(compilation)).hasSize(1);
+    }
+
+    @Test
+    @DisplayName("a witness of your own draws no note")
+    void aWitnessOfYourOwnDrawsNoNote() {
+      Compilation compilation =
+          javac()
+              .withProcessors(new FocusProcessor())
+              .compile(holder("", "Kind<OwnWitness, String>"));
+
+      assertThat(compilation).succeeded();
+      assertThat(unrecognisedWitnessNotes(compilation)).isEmpty();
+    }
+
+    @Test
+    @DisplayName("@TraverseField on the same component is applied, and draws no note")
+    void traverseFieldOnTheSameComponentIsApplied() {
+      Compilation compilation =
+          javac()
+              .withProcessors(new FocusProcessor())
+              .compile(
+                  holder(
+                      "",
+                      "@TraverseField(traverse ="
+                          + " \"org.higherkindedj.hkt.nonemptylist.NonEmptyListTraverse.INSTANCE\", semantics ="
+                          + " KindSemantics.ZERO_OR_MORE) Kind<NonEmptyListKind.Witness, String>"));
+
+      assertThat(compilation).succeeded();
+      assertGeneratedCodeContainsRaw(
+          compilation, "com.example.HolderFocus", "TraversalPath<Holder, String> f()");
+      assertThat(unrecognisedWitnessNotes(compilation)).isEmpty();
+      assertThat(traverseFieldNotes(compilation)).isEmpty();
+    }
+  }
+
+  /** The notes the Focus processor wrote for a {@code @TraverseField} it did not apply. */
+  private static List<String> traverseFieldNotes(Compilation compilation) {
+    return notesStartingWith(compilation, "@TraverseField:");
+  }
+
+  /** The notes the Focus processor wrote for a library witness it does not recognise. */
+  private static List<String> unrecognisedWitnessNotes(Compilation compilation) {
+    return notesStartingWith(compilation, "@GenerateFocus: record component");
+  }
+
+  private static List<String> notesStartingWith(Compilation compilation, String prefix) {
+    return compilation.notes().stream()
+        .map(note -> note.getMessage(null))
+        .filter(message -> message.startsWith(prefix))
+        .toList();
   }
 
   @Nested

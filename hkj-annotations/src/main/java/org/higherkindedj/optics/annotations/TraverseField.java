@@ -57,6 +57,13 @@ import java.lang.annotation.Target;
  * <p>For standard Higher-Kinded-J types (ListKind, MaybeKind, etc.), this annotation is not
  * required. The processor automatically recognises these types and generates appropriate code.
  *
+ * <h2>Where It Applies</h2>
+ *
+ * <p>The annotation applies to a {@code Kind<F, A>} component with a declared witness. On any other
+ * component, one that is not declared as a {@code Kind}, a raw {@code Kind}, or a {@code Kind}
+ * whose witness is an unbounded or {@code ? super} wildcard, the processor gives the component the
+ * path it would have had without the annotation and reports a note saying so.
+ *
  * @see KindSemantics
  * @see GenerateFocus
  */
