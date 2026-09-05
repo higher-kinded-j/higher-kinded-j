@@ -61,6 +61,7 @@ The business logic (fetch a user, then fetch their profile) is drowning in cerem
 
 The same logic with `ErrorContext`:
 
+<!-- verify -->
 ```java
 // Effect Context: same power, readable syntax
 ErrorContext<IOKind.Witness, ApiError, Profile> profile = ErrorContext
@@ -190,6 +191,7 @@ Each Effect Context wraps a specific transformer, exposing its capabilities thro
 
 ### The Error-Handling Pipeline
 
+<!-- verify -->
 ```java
 ErrorContext<IOKind.Witness, ApiError, Order> orderPipeline =
     ErrorContext.<ApiError, User>io(
@@ -206,6 +208,7 @@ ErrorContext<IOKind.Witness, ApiError, Order> orderPipeline =
 
 ### The Optional Lookup Chain
 
+<!-- verify -->
 ```java
 OptionalContext<IOKind.Witness, Config> config =
     OptionalContext.<Config>io(() -> cache.get("config"))
@@ -215,6 +218,7 @@ OptionalContext<IOKind.Witness, Config> config =
 
 ### Dependency Injection
 
+<!-- verify -->
 ```java
 ConfigContext<IOKind.Witness, ServiceConfig, Report> report =
     ConfigContext.io(config ->
