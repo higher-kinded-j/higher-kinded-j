@@ -46,6 +46,7 @@ Composing across these styles requires constant translation. Each boundary deman
 
 `ErrorContext` unifies error handling for IO-based operations. Exceptions become typed errors. Optionality can be converted to errors. All computations compose through the same operations:
 
+<!-- verify -->
 ```java
 ErrorContext<IOKind.Witness, OrderError, Order> orderPipeline =
     ErrorContext.<OrderError, User>io(
@@ -70,10 +71,11 @@ One unified API. One error type. The compiler tracks what can fail.
 
 The most common factory method catches exceptions and maps them to your error type:
 
+<!-- verify -->
 ```java
 ErrorContext<IOKind.Witness, ApiError, User> user = ErrorContext.io(
-    () -> httpClient.get("/users/" + id),   // May throw
-    ApiError::fromException                   // Throwable → ApiError
+    () -> parseUser(httpClient.get("/users/" + id).body()),  // May throw
+    ApiError::fromException                                  // Throwable → ApiError
 );
 ```
 
@@ -83,6 +85,7 @@ The computation is *deferred*; nothing executes until you call `runIO()`. Except
 
 When your code already returns `Either`:
 
+<!-- verify -->
 ```java
 ErrorContext<IOKind.Witness, ValidationError, Order> validated = ErrorContext.ioEither(
     () -> validator.validate(request)   // Returns Either<ValidationError, Order>
@@ -93,6 +96,7 @@ ErrorContext<IOKind.Witness, ValidationError, Order> validated = ErrorContext.io
 
 For successful or failed values you already have:
 
+<!-- verify -->
 ```java
 // Known success
 ErrorContext<IOKind.Witness, String, Integer> success = ErrorContext.success(42);
@@ -113,6 +117,7 @@ ErrorContext<IOKind.Witness, ApiError, User> ctx = ErrorContext.fromEither(eithe
 
 `map` transforms the value inside a successful context:
 
+<!-- verify -->
 ```java
 ErrorContext<IOKind.Witness, String, String> greeting = ErrorContext.success("world");
 
@@ -134,6 +139,7 @@ The function only executes if the context is successful. Failures pass through u
 
 `via` is the workhorse for sequencing operations where each step depends on the previous:
 
+<!-- verify -->
 ```java
 ErrorContext<IOKind.Witness, DbError, Invoice> invoice =
     ErrorContext.<DbError, Customer>io(
@@ -153,6 +159,7 @@ Each step receives the previous result. If any step fails, subsequent steps are 
 
 `flatMap` is equivalent to `via` but with a more explicit type signature:
 
+<!-- verify -->
 ```java
 // Using flatMap instead of via
 ErrorContext<IOKind.Witness, ApiError, Profile> profile =
@@ -167,6 +174,7 @@ Choose based on readability. Both short-circuit on failure.
 
 When you need to sequence but don't care about the previous value:
 
+<!-- verify -->
 ```java
 ErrorContext<IOKind.Witness, String, Unit> workflow =
     ErrorContext.<String, Unit>success(Unit.INSTANCE)
@@ -183,6 +191,7 @@ ErrorContext<IOKind.Witness, String, Unit> workflow =
 
 `recover` catches errors and produces a fallback value:
 
+<!-- verify -->
 ```java
 ErrorContext<IOKind.Witness, String, Config> config =
     ErrorContext.<String, Config>io(
@@ -200,6 +209,7 @@ If the original computation fails, the recovery function runs. If it succeeds, r
 
 When recovery itself might fail:
 
+<!-- verify -->
 ```java
 ErrorContext<IOKind.Witness, ApiError, Data> data =
     ErrorContext.<ApiError, Data>io(
@@ -216,6 +226,7 @@ The fallback is another `ErrorContext`. This enables fallback chains that can th
 
 When you don't need the error details:
 
+<!-- verify -->
 ```java
 ErrorContext<IOKind.Witness, String, User> user =
     fetchFromCache(userId)
@@ -231,6 +242,7 @@ ErrorContext<IOKind.Witness, String, User> user =
 
 `mapError` transforms the error without affecting success values:
 
+<!-- verify -->
 ```java
 ErrorContext<IOKind.Witness, String, User> lowLevel = ErrorContext.failure("connection refused");
 
@@ -275,6 +287,7 @@ try {
 
 For cases where failure should use a default:
 
+<!-- verify -->
 ```java
 User user = userContext.runIOOrElse(User.guest());
 ```
@@ -283,6 +296,7 @@ User user = userContext.runIOOrElse(User.guest());
 
 When the default depends on the error:
 
+<!-- verify -->
 ```java
 User user = userContext.runIOOrElseGet(error -> {
     log.error("Failed with: {}", error);
@@ -346,6 +360,7 @@ public ErrorContext<IOKind.Witness, OrderError, Order> processOrder(OrderRequest
 
 ### Layered Error Types
 
+<!-- verify -->
 ```java
 // Low-level: database errors
 ErrorContext<IOKind.Witness, DbError, User> dbUser =
