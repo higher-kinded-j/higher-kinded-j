@@ -64,7 +64,7 @@ A *witness* is the marker type that stands in for the higher-kinded `F` (see [Hi
 
 Parameterised witnesses are handled too: an `EitherKind.Witness<String>` field generates a call to `EitherTraverse.<String>instance()` with the type argument carried through.
 
-A wildcard resolves to the type it stands for, as it does for `List<? extends Member>` through `.each()`: `Kind<ListKind.Witness, ? extends Member>` widens to `TraversalPath<Team, Member>`, and an unbounded or super-bounded wildcard focuses `Object`. A wildcard inside a parameterised witness resolves the same way, so `Kind<EitherKind.Witness<? extends CharSequence>, Member>` reads `EitherTraverse.<CharSequence>instance()`. The traversal rebuilds the container rather than writing into it, so a component declared with the wildcard comes back holding a `Kind<ListKind.Witness, Member>`, which its declaration admits. A wildcard in the witness position itself, `Kind<?, Member>`, names no `Traverse` instance, and the field keeps its plain `FocusPath`, with or without `@TraverseField`.
+A wildcard resolves to the type it stands for, as it does for `List<? extends Member>` through `.each()`: `Kind<ListKind.Witness, ? extends Member>` widens to `TraversalPath<Team, Member>`, and an unbounded or super-bounded wildcard focuses `Object`. A wildcard inside a parameterised witness resolves the same way, so `Kind<EitherKind.Witness<? extends CharSequence>, Member>` reads `EitherTraverse.<CharSequence>instance()`. The traversal rebuilds the container rather than writing into it, so a component declared with the wildcard comes back holding a `Kind<ListKind.Witness, Member>`, which its declaration admits. A wildcard in the witness position itself, `Kind<?, Member>`, names no `Traverse` instance, and the field keeps its plain `FocusPath`, with or without `@TraverseField`, and with the annotation a note says so.
 
 <!-- verify -->
 ```java
@@ -122,9 +122,9 @@ The expression is emitted verbatim, so any of these forms works:
 @TraverseField(traverse = "com.example.TreeTraverse.TRAVERSE")     // static field
 ```
 
-A `Kind<F, A>` field with an unrecognised witness and no `@TraverseField` is not an error: the processor falls back to a plain `FocusPath` focusing the raw `Kind`, and you apply `traverseOver` yourself.
+A `Kind<F, A>` field with an unrecognised witness and no `@TraverseField` is not an error: the processor falls back to a plain `FocusPath` focusing the raw `Kind`, and you apply `traverseOver` yourself. For one of the library's own witnesses it says so with a note, since a Higher-Kinded-J witness with no registered `Traverse` is a gap rather than a choice.
 
-The same fallback applies to a witness that names no `Traverse` instance at all, a wildcard or one of the record's own type variables, whether or not `@TraverseField` is present: the field keeps its plain `FocusPath`.
+The same fallback applies to a witness that names no `Traverse` instance: a bare or `? super` wildcard, whether or not `@TraverseField` is present, or one of the record's own type variables without the annotation (with it, the expression you name is applied as written, and must be a `Traverse` for that variable). With `@TraverseField` on a `Kind` whose witness is such a wildcard, on a raw `Kind`, or on a component that is not declared as a `Kind` at all, the processor says so with a note naming the component and what would make the annotation apply, so an annotation that asked for a traversal is never dropped in silence. See the two notes' entries in [Compiler Errors](compiler_errors.md#traversefield-the-annotation-on-record-component-xy-is-not-applied-a-note).
 
 ---
 

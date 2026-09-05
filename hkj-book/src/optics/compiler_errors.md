@@ -91,6 +91,20 @@ It is a note rather than a warning on purpose. `@GenerateTraversals` has no per-
 
 **Fix.** Rank one of the providers: return `PRIORITY_OVERRIDE` from the one that should win, or `PRIORITY_FALLBACK` from the one that should yield, or drop one from the annotation processor path. The message names both provider classes. A consuming build running javac with `-Werror` turns the warning into an error, so the ranking is the remedy, not optional tidiness. See [How Plugin Discovery Works](../tooling/generator_plugins.md#how-plugin-discovery-works).
 
+### "@TraverseField: the annotation on record component 'X.y' is not applied" (a note)
+
+**Cause.** `@TraverseField` names a `Traverse` for a `Kind<F, A>` component with a declared witness, and this component is not one. The second sentence says which way: the component is not declared as a `Kind` at all (`List<String> is not declared as a Kind<F, A> component`), the `Kind` is written raw and so names neither a witness nor an element, or its witness is a bare or `? super` wildcard (`Kind<?, String>`) that stands for no type and so names no `Traverse` instance. The component keeps the path it would have had without the annotation, a plain `FocusPath`, or `.each()` for a `List`, which compiles and is correct as far as it goes; what is missing is the traversal the annotation asked for.
+
+It is a note rather than an error because nothing is broken: the generated class is sound, and the same declaration without the annotation passes without comment. A warning cannot be suppressed and would fail a `-Werror` build with no remedy short of editing the record.
+
+**Fix.** Declare the component as the `Kind<F, A>` the `Traverse` is written for, `Kind<TreeKind.Witness, Tree>` for a `Traverse<TreeKind.Witness>`, with both type arguments given and a witness that is a type rather than a bare or `? super` wildcard; or drop the annotation and take the path the component gets on its own. See [Custom `Kind` Types with `@TraverseField`](kind_field_support.md#custom-kind-types-with-traversefield).
+
+### "@GenerateFocus: record component 'X.y' names a witness the processor does not recognise" (a note)
+
+**Cause.** The component is a `Kind<F, A>` whose witness is one of Higher-Kinded-J's own, but not one the Focus processor has a `Traverse` registered for, so nothing widens it: the generated method is a plain `FocusPath` focusing the `Kind`. A witness of your own draws no note, since not traversing it is an ordinary choice; a library witness with no registered `Traverse` is a gap you would want to hear about. The note is written once for the component, however many navigators reach the record.
+
+**Fix.** Add `@TraverseField` naming the `Traverse` instance for the witness, or keep the plain path and apply `traverseOver` yourself. See [Kind Field Support](kind_field_support.md#convention-based-detection).
+
 ---
 
 ## `@ImportOptics` and `OpticsSpec` interfaces

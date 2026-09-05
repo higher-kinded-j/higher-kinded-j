@@ -213,6 +213,10 @@ public class FocusProcessor extends AbstractProcessor {
 
     // Generate FocusPath methods for each component
     for (RecordComponentElement component : components) {
+      // What the Kind analysis passes over, a @TraverseField it cannot apply or a library witness
+      // it does not know, is reported here, where each component is seen once, rather than from
+      // the analysis, which a navigator may run more than once.
+      analysis.reportPassedOver(component);
       MethodSpec method = null;
 
       // Try to create a navigator method if navigators are enabled

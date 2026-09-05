@@ -114,7 +114,7 @@ class KindFieldAnalyserCoverageTest {
   }
 
   @Nested
-  @DisplayName("Non-Kind field types (L112 - isKindType returns false for non-declared types)")
+  @DisplayName("Non-Kind field types")
   class NonKindFieldTypes {
 
     @Test
@@ -138,7 +138,7 @@ class KindFieldAnalyserCoverageTest {
   }
 
   @Nested
-  @DisplayName("Malformed Kind type arguments (L86 - Kind without 2 type args)")
+  @DisplayName("Malformed Kind type arguments")
   class MalformedKindTypeArgs {
 
     @Test
@@ -146,7 +146,7 @@ class KindFieldAnalyserCoverageTest {
     void shouldReturnEmptyForKindWithOneTypeArg() {
       // Use a separate Kind1<W> interface to simulate Kind with only 1 type arg.
       // We register it under the same qualified name so isKindType returns true,
-      // but it only has 1 type argument, triggering the L86 branch.
+      // but it only has 1 type argument, which the analyser treats as a raw Kind.
       var kindSingleParam =
           JavaFileObjects.forSourceString(
               "org.higherkindedj.hkt.Kind",
@@ -265,8 +265,6 @@ class KindFieldAnalyserCoverageTest {
     void shouldEmitNoteForUnregisteredLibraryWitness() {
       // Witness under org.higherkindedj.hkt.* matches isLibraryWitness() === true,
       // but is not in the KindRegistry known kinds map.
-      // This covers L166-167 (isLibraryWitness true-branch + note() call)
-      // and L234-236 (the note() method body).
       var fakeKind =
           JavaFileObjects.forSourceString(
               "org.higherkindedj.hkt.fake.FakeKind",
@@ -291,7 +289,8 @@ class KindFieldAnalyserCoverageTest {
       List<Optional<KindFieldInfo>> results =
           analyseRecord("com.test.FakeKindRecord", KIND_INTERFACE, fakeKind, record);
 
-      // Library-looking but unregistered witness returns empty and emits a NOTE.
+      // A library-looking but unregistered witness returns empty; the note for it is written by
+      // reportPassedOver, pinned in FocusProcessorKindFieldTest.
       assertThat(results).hasSize(1);
       assertThat(results.get(0)).isEmpty();
     }
