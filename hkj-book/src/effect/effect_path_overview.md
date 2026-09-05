@@ -245,11 +245,14 @@ field is absent, the data switches to the failure track.
 
 Here's that order processing code rewritten with Effect Paths:
 
+<!-- verify -->
 ```java
 public EitherPath<OrderError, Order> processOrder(String userId, OrderRequest request) {
+    User user = userRepository.findById(userId).orElse(User.anonymous());
+
     return Path.maybe(userRepository.findById(userId))
-        .toEitherPath(() -> new OrderError.UserNotFound(userId))
-        .via(user -> Path.either(validator.validate(request))
+        .<OrderError>toEitherPath(new OrderError.UserNotFound(userId))
+        .via(found -> Path.either(validator.validate(request))
             .mapError(OrderError.ValidationFailed::new))
         .via(validated -> Path.either(inventoryService.check(request.getItems()))
             .mapError(OrderError.InventoryError::new))
@@ -307,6 +310,7 @@ Each Path type wraps its underlying effect and provides:
 
 The `Path` class provides factory methods for all Path types. A small sampler:
 
+<!-- verify -->
 ```java
 // MaybePath: optional values
 MaybePath<String> greeting = Path.just("Hello");
@@ -321,8 +325,10 @@ EitherPath<String, Integer> failure = Path.left("Something went wrong");
 TryPath<Config> config = Path.tryOf(() -> loadConfig());
 
 // IOPath: deferred side effects
-IOPath<String> readFile = Path.io(() -> Files.readString(path));
+IOPath<Instant> timestamp = Path.io(Instant::now);
 ```
+
+`Path.io` takes a plain `Supplier`, so a thunk that throws a *checked* exception - `Files.readString`, `Class.forName`, JDBC - belongs on [`Try.attempt(CheckedSupplier)`](../monads/try_monad.md) instead, which declares `throws X` on the lambda and captures whatever it throws.
 
 ---
 
@@ -330,6 +336,7 @@ IOPath<String> readFile = Path.io(() -> Files.readString(path));
 
 All Path types support `map` for transforming the success value:
 
+<!-- verify -->
 ```java
 MaybePath<String> greeting = Path.just("hello");
 MaybePath<String> upper = greeting.map(String::toUpperCase);
@@ -350,6 +357,7 @@ Failures pass through unchanged. No defensive checks required.
 The `via` method chains computations where each step depends on the previous
 result:
 
+<!-- verify -->
 ```java
 EitherPath<Error, Invoice> invoice =
     Path.either(findUser(userId))
@@ -371,14 +379,15 @@ effects. Different territory, same verb.
 
 Eventually you need to leave the railway and extract a result:
 
+<!-- verify -->
 ```java
 // MaybePath
-Maybe<String> maybe = path.run();
-String value = path.getOrElse("default");
-String value = path.getOrThrow(() -> new NoSuchElementException());
+Maybe<String> maybe = maybePathOfString.run();
+String value = maybePathOfString.getOrElse("default");
+String computed = maybePathOfString.getOrElseGet(() -> expensiveDefault());
 
 // EitherPath
-Either<Error, User> either = path.run();
+Either<Error, User> either = eitherPath.run();
 String result = either.fold(
     error -> "Failed: " + error,
     user -> "Found: " + user.name()
@@ -396,6 +405,7 @@ Try<String> safe = ioPath.runSafe();      // captures exceptions
 When a pipeline misbehaves, `peek` lets you observe values mid-flow without
 disrupting the computation:
 
+<!-- verify -->
 ```java
 EitherPath<Error, User> result =
     Path.either(validateInput(input))
@@ -435,6 +445,7 @@ using optics.
 
 ### Basic Usage
 
+<!-- verify -->
 ```java
 // Given a FocusPath from the optics domain
 FocusPath<User, String> namePath = UserFocus.name();
@@ -451,9 +462,11 @@ Only `Right` values are navigated.
 
 When using `AffinePath` (for optional fields), provide an error for the absent case:
 
+<!-- verify -->
 ```java
 // AffinePath for Optional<String> email
 AffinePath<User, String> emailPath = UserFocus.email();
+EitherPath<Error, User> userResult = fetchUser(userId);
 
 // Must provide error if email is absent
 EitherPath<Error, String> emailResult =
@@ -481,12 +494,13 @@ Each effect type handles absent focuses differently:
 
 Focus composes naturally with other path operations:
 
+<!-- verify -->
 ```java
 // Complex pipeline: fetch → navigate → validate → transform
 EitherPath<Error, String> result =
     fetchUser(userId)                              // → EitherPath<Error, User>
         .focus(UserFocus.address())                // → EitherPath<Error, Address>
-        .focus(AddressFocus.postcode(), noPostcodeError)  // → EitherPath<Error, String>
+        .focus(AddressFocus.postcode())            // → EitherPath<Error, String>
         .via(code -> validatePostcode(code))       // → EitherPath<Error, ValidPostcode>
         .map(ValidPostcode::formatted);            // → EitherPath<Error, String>
 ```
@@ -499,15 +513,16 @@ EitherPath<Error, String> result =
 | `via(f)` | Chaining to another effect computation |
 | `map(f)` | Transforming the value without changing effect type |
 
+<!-- verify -->
 ```java
 // focus: structural navigation (optics)
-path.focus(UserFocus.name())
+EitherPath<Error, String> name = userPath.focus(UserFocus.name());
 
 // via: effect sequencing (monadic bind)
-path.via(user -> validateUser(user))
+EitherPath<Error, User> validated = userPath.via(user -> Path.either(findUser(user.name())));
 
 // map: value transformation (functor)
-path.map(name -> name.toUpperCase())
+EitherPath<Error, String> shouted = name.map(value -> value.toUpperCase());
 ```
 
 ~~~admonish tip title="See Also"
@@ -522,10 +537,11 @@ path.map(name -> name.toUpperCase())
 
 You are never locked in. Every Path type unwraps to a standard Java value with `.run()`, and `.fold()` gives you full control over both tracks:
 
+<!-- verify -->
 ```java
 // Extract the underlying type
 Maybe<User> maybe = maybePath.run();
-Either<AppError, User> either = eitherPath.run();
+Either<Error, User> either = eitherPath.run();
 Try<Config> tried = tryPath.run();
 
 // Convert to java.util.Optional
@@ -537,12 +553,13 @@ User user = eitherPath.getOrElse(User.anonymous());
 // Handle both tracks explicitly
 String message = eitherPath.run().fold(
     error -> "Failed: " + error.message(),
-    user  -> "Found: " + user.name()
+    found -> "Found: " + found.name()
 );
 ```
 
 For deferred effects (`IOPath`, `VTaskPath`), `.unsafeRun()` executes immediately and `.runSafe()` captures exceptions as `Try`:
 
+<!-- verify -->
 ```java
 String content = ioPath.unsafeRun();    // execute, may throw
 Try<String> safe = ioPath.runSafe();    // execute, exceptions captured
