@@ -24,7 +24,10 @@ import java.util.regex.Pattern;
  * }</pre>
  *
  * <p>The comment is invisible in the rendered book. Opting in per snippet lets the gate be adopted
- * page by page rather than all at once.
+ * page by page rather than all at once. A marker may also quote a diagnostic instead of asking for
+ * a compile - {@code <!-- verify:rejects "..." -->} and {@code <!-- verify:reports "..." -->} - so
+ * that a page documenting what the processor refuses is held to what it actually says. See {@link
+ * Expectation}.
  *
  * <p>Each snippet is compiled <em>independently</em>, because the snippets on a page are
  * illustrations rather than one program: two of them may legitimately show different {@code User}
@@ -34,8 +37,24 @@ import java.util.regex.Pattern;
  */
 final class SnippetExtractor {
 
-  /** Opt-in marker. Must sit on its own line immediately before the fence. */
-  private static final Pattern MARKER = Pattern.compile("^\\s*<!--\\s*verify\\s*-->\\s*$");
+  /**
+   * Opt-in marker. Must sit on its own line immediately before the fence.
+   *
+   * <p>Bare, it asks for the snippet to compile. With a tail it asks for a diagnostic instead:
+   * {@code :rejects "fragment"} or {@code :reports "fragment"}. Everything after {@code verify} is
+   * captured so a marker that is misspelt fails loudly rather than being read as the bare form.
+   */
+  private static final Pattern MARKER = Pattern.compile("^\\s*<!--\\s*verify\\b(.*?)\\s*-->\\s*$");
+
+  /** The tail of a marker that quotes a diagnostic. */
+  private static final Pattern DIAGNOSTIC_TAIL =
+      Pattern.compile("^:(rejects|reports)\\s+\"(.+)\"$");
+
+  /**
+   * How short a quoted fragment may be. A fragment is the whole assertion, so one short enough to
+   * match any message at all would leave the marker in place and the check gone.
+   */
+  private static final int MINIMUM_FRAGMENT_LENGTH = 10;
 
   /** mdbook writes both "```java" and "``` java". */
   private static final Pattern FENCE_OPEN = Pattern.compile("^\\s*```+\\s*java\\b.*$");
@@ -81,6 +100,25 @@ final class SnippetExtractor {
               + "(<[^=;{]+>\\s*)?"
               + "[\\w.$]+(<[^=;]*>)?(\\[])?\\s+\\w+\\s*\\([^;]*\\)\\s*(throws\\s+[\\w.,\\s]+)?\\{\\s*$");
 
+  /**
+   * A body-less signature, which a page writes when it is quoting a shape rather than showing an
+   * implementation. It becomes a member of an interface wrapper, where that is legal and still
+   * type-checked; a class wrapper would reject it as a method with no body.
+   *
+   * <p>The look-ahead excludes the statement keywords, because {@code new Order(id, total);} has
+   * the same shape as a signature once the modifiers are optional. Type arguments exclude brackets
+   * and {@code -} for the same reason: a fluent call chain ending in {@code ;} would otherwise let
+   * {@code Path.<E, A>right(order).via(x -> f(x));} pass as one, reading everything from {@code <}
+   * to the {@code >} of a lambda arrow as the return type's arguments.
+   */
+  private static final Pattern ABSTRACT_METHOD =
+      Pattern.compile(
+          "^\\s*(?!(new|return|throw|assert|yield|case)\\b)"
+              + "(public\\s+|protected\\s+|abstract\\s+|static\\s+)*"
+              + "(<[^=;{()\\-]+>\\s*)?"
+              + "[\\w.$]+(<[^=;{()\\-]*>)?(\\[])?"
+              + "\\s+\\w+\\s*\\([^;{]*\\)\\s*(throws\\s+[\\w.,\\s]+)?;$");
+
   /** How many lines a wrapped signature may span before we stop looking. */
   private static final int MAX_SIGNATURE_LINES = 6;
 
@@ -90,8 +128,38 @@ final class SnippetExtractor {
 
   private SnippetExtractor() {}
 
-  /** One verified snippet: its source, and where it came from (for the failure message). */
-  record Snippet(int index, int lineNumber, String body) {}
+  /**
+   * What the gate must observe when it compiles a snippet.
+   *
+   * <p>The two diagnostic forms exist because the pages most likely to be invalidated by a
+   * processor change are the ones documenting what the processor <em>refuses</em>, and a marker
+   * meaning "this compiles" cannot express those at all. The quoted fragment is the valuable half:
+   * it is what rots when a message is reworded.
+   */
+  sealed interface Expectation {
+
+    /** The bare {@code <!-- verify -->}: the snippet compiles, with no error and no warning. */
+    Expectation COMPILES = new Compiles();
+
+    /** {@code <!-- verify -->}. */
+    record Compiles() implements Expectation {}
+
+    /**
+     * {@code <!-- verify:rejects "fragment" -->}: the snippet does not compile, and one of the
+     * errors quotes {@code fragment}.
+     */
+    record Rejects(String fragment) implements Expectation {}
+
+    /**
+     * {@code <!-- verify:reports "fragment" -->}: the snippet compiles, and a note or a warning
+     * quotes {@code fragment}. A processor note is how the library reports a gap it cannot fail the
+     * build over, so the page documents one exactly as it documents an error.
+     */
+    record Reports(String fragment) implements Expectation {}
+  }
+
+  /** One verified snippet: its source, what it asserts, and where it came from. */
+  record Snippet(int index, int lineNumber, String body, Expectation expectation) {}
 
   /** Every verified snippet on one page. */
   record Page(Path file, String slug, List<Snippet> snippets) {
@@ -109,9 +177,11 @@ final class SnippetExtractor {
     List<Snippet> snippets = new ArrayList<>();
 
     for (int i = 0; i < lines.size(); i++) {
-      if (!MARKER.matcher(lines.get(i)).matches()) {
+      var marker = MARKER.matcher(lines.get(i));
+      if (!marker.matches()) {
         continue;
       }
+      Expectation expectation = expectationOf(marker.group(1), page, i + 1);
       // The fence must follow the marker, allowing for a blank line between them.
       int fence = i + 1;
       while (fence < lines.size() && lines.get(fence).isBlank()) {
@@ -127,10 +197,39 @@ final class SnippetExtractor {
       for (; line < lines.size() && !FENCE_CLOSE.matcher(lines.get(line)).matches(); line++) {
         body.append(lines.get(line)).append('\n');
       }
-      snippets.add(new Snippet(snippets.size(), fence + 2, body.toString()));
+      snippets.add(new Snippet(snippets.size(), fence + 2, body.toString(), expectation));
       i = line;
     }
     return new Page(page, slugOf(page, bookRoot), snippets);
+  }
+
+  /**
+   * Reads the marker's tail. Empty asks for a compile; {@code :rejects "..."} or {@code :reports
+   * "..."} asks for a diagnostic. Anything else is a typo, and a typo read as the bare form would
+   * quietly turn a rejection check into a compile check the snippet cannot pass.
+   */
+  private static Expectation expectationOf(String tail, Path page, int lineNumber) {
+    if (tail.isBlank()) {
+      return Expectation.COMPILES;
+    }
+    var diagnostic = DIAGNOSTIC_TAIL.matcher(tail.strip());
+    if (!diagnostic.matches()) {
+      throw new IllegalStateException(
+          ("%s:%d: `<!-- verify%s -->` is not a marker. Write `<!-- verify -->`, "
+                  + "`<!-- verify:rejects \"quoted diagnostic\" -->` or "
+                  + "`<!-- verify:reports \"quoted diagnostic\" -->`.")
+              .formatted(page.getFileName(), lineNumber, tail));
+    }
+    String fragment = diagnostic.group(2);
+    if (fragment.strip().length() < MINIMUM_FRAGMENT_LENGTH) {
+      throw new IllegalStateException(
+          ("%s:%d: the quoted diagnostic \"%s\" is too short to assert anything. Quote at least"
+                  + " %d characters of the message the page claims.")
+              .formatted(page.getFileName(), lineNumber, fragment, MINIMUM_FRAGMENT_LENGTH));
+    }
+    return "rejects".equals(diagnostic.group(1))
+        ? new Expectation.Rejects(fragment)
+        : new Expectation.Reports(fragment);
   }
 
   /** "effect/path_vresult.md" -> "effect_path_vresult". A legal Java identifier, and unique. */
@@ -153,11 +252,13 @@ final class SnippetExtractor {
     List<String> snippetTypes = new ArrayList<>();
     List<String> members = new ArrayList<>();
     List<String> statements = new ArrayList<>();
-    partition(snippet.body(), imports, snippetTypes, members, statements);
+    List<String> signatures = new ArrayList<>();
+    partition(snippet.body(), imports, snippetTypes, members, statements, signatures);
 
     List<String> fixtureTypes = new ArrayList<>();
     if (!fixture.isBlank()) {
-      partition(fixture, imports, fixtureTypes, new ArrayList<>(), new ArrayList<>());
+      partition(
+          fixture, imports, fixtureTypes, new ArrayList<>(), new ArrayList<>(), new ArrayList<>());
     }
     // Drop any fixture type the snippet declares for itself.
     List<String> declared = snippetTypes.stream().map(SnippetExtractor::typeNameOf).toList();
@@ -172,16 +273,25 @@ final class SnippetExtractor {
     String name = page.slug() + "_" + snippet.index();
     StringBuilder unit = new StringBuilder("package bookverify;\n\n");
     imports.stream().distinct().sorted().forEach(i -> unit.append(i).append('\n'));
+    // A snippet that is nothing but body-less signatures is a page quoting shapes, so it is
+    // wrapped in an interface. Anything else becomes a class, which is what can hold a method body
+    // and inherit the fixture's helpers.
+    boolean quotesSignatures = !signatures.isEmpty() && members.isEmpty() && statements.isEmpty();
+
     // Only `unused`: a snippet legitimately declares locals it never reads. `unchecked`/`rawtypes`
     // are deliberately NOT suppressed. The real build compiles with -Xlint:unchecked,rawtypes
     // -Werror, so suppressing them here would green-light a page showing code a reader cannot
     // build.
     unit.append("\n@SuppressWarnings(\"unused\")\n");
-    unit.append("final class ").append(name);
+    unit.append(quotesSignatures ? "interface " : "final class ").append(name);
     if (fixtureParams != null) {
-      unit.append(fixtureParams).append(" extends Fixture").append(fixtureParams);
+      unit.append(fixtureParams);
+      if (!quotesSignatures) {
+        unit.append(" extends Fixture").append(fixtureParams);
+      }
     }
     unit.append(" {\n");
+    signatures.forEach(m -> unit.append('\n').append(m).append('\n'));
     members.forEach(m -> unit.append('\n').append(m).append('\n'));
     if (!statements.isEmpty()) {
       unit.append("\n  void snippet() throws Exception {\n");
@@ -263,6 +373,41 @@ final class SnippetExtractor {
     return -1;
   }
 
+  /**
+   * The last line of a body-less signature starting at {@code start}, or -1 if that is not one.
+   *
+   * <p>A quoted signature wraps over several lines as readily as a declaration does, so the lines
+   * are joined until one ends in {@code ;}. A brace on the way means this has a body, and belongs
+   * to {@link #endOfSignature} instead.
+   */
+  private static int endOfAbstractSignature(List<String> lines, int start) {
+    String first = lines.get(start).strip();
+    if (first.isBlank() || first.startsWith("//") || !first.contains("(")) {
+      return -1;
+    }
+    StringBuilder joined = new StringBuilder();
+    int limit = Math.min(lines.size(), start + MAX_SIGNATURE_LINES);
+    for (int i = start; i < limit; i++) {
+      if (i > start) {
+        joined.append(' ');
+      }
+      joined.append(stripLiterals(lines.get(i)).strip());
+      String candidate = joined.toString().strip();
+      // A brace means this has a body; an arrow or an assignment means it is a statement. None of
+      // the three can appear in a signature the page is merely quoting.
+      if (candidate.contains("{")
+          || candidate.contains("}")
+          || candidate.contains("->")
+          || candidate.contains("=")) {
+        return -1;
+      }
+      if (candidate.endsWith(";")) {
+        return ABSTRACT_METHOD.matcher(candidate).matches() ? i : -1;
+      }
+    }
+    return -1;
+  }
+
   /** The declared name, so a snippet's own type can shadow the fixture's. */
   private static String typeNameOf(String declaration) {
     var matcher =
@@ -270,13 +415,17 @@ final class SnippetExtractor {
     return matcher.find() ? matcher.group(2) : declaration;
   }
 
-  /** Splits a block into imports, top-level types, class members, and loose statements. */
+  /**
+   * Splits a block into imports, top-level types, class members, body-less signatures, and loose
+   * statements.
+   */
   private static void partition(
       String source,
       List<String> imports,
       List<String> declarations,
       List<String> members,
-      List<String> loose) {
+      List<String> loose,
+      List<String> signatures) {
     List<String> lines = List.of(source.split("\n", -1));
     int i = 0;
     while (i < lines.size()) {
@@ -305,6 +454,11 @@ final class SnippetExtractor {
           int end = endOfDeclaration(lines, endOfSignature(lines, subject));
           members.add("  " + String.join("\n  ", lines.subList(i, end + 1)));
           i = end + 1;
+        } else if (subject < lines.size() && endOfAbstractSignature(lines, subject) >= 0) {
+          // An annotated signature quotation: `@InstanceOf(..) Prism<JsonNode, ObjectNode> o();`.
+          int end = endOfAbstractSignature(lines, subject);
+          signatures.add("  " + String.join("\n  ", lines.subList(i, end + 1)));
+          i = end + 1;
         } else {
           // An annotation on something we do not model (a field, a parameter): leave it in place.
           loose.add("    " + line + "\n");
@@ -327,6 +481,12 @@ final class SnippetExtractor {
         // method. The signature may wrap, so brace-walk from where it actually closes.
         int end = endOfDeclaration(lines, endOfSignature(lines, i));
         members.add("  " + String.join("\n  ", lines.subList(i, end + 1)));
+        i = end + 1;
+      } else if (endOfAbstractSignature(lines, i) >= 0) {
+        // The page is quoting a signature. It becomes a member of the interface wrapper, which is
+        // the one place a method with no body type-checks.
+        int end = endOfAbstractSignature(lines, i);
+        signatures.add("  " + String.join("\n  ", lines.subList(i, end + 1)));
         i = end + 1;
       } else if (line.isBlank() || line.strip().startsWith("//")) {
         i++;

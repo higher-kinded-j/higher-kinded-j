@@ -23,6 +23,7 @@ import javax.tools.JavaFileObject;
 import javax.tools.SimpleJavaFileObject;
 import javax.tools.StandardJavaFileManager;
 import javax.tools.ToolProvider;
+import org.higherkindedj.book.SnippetExtractor.Expectation;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -39,21 +40,36 @@ import org.junit.jupiter.params.provider.MethodSource;
  *
  * <p>Snippets opt in individually, so pages can be brought under the gate one at a time. {@link
  * #theGateDoesNotShrink()} stops a marker being quietly deleted to silence a failure.
+ *
+ * <p>A page documenting what the processor <em>refuses</em> cannot be gated by compiling its
+ * snippets, and those are the pages a processor change is most likely to invalidate. Two further
+ * markers cover them: {@code <!-- verify:rejects "fragment" -->} asserts the snippet does not
+ * compile and that an error quotes the fragment, and {@code <!-- verify:reports "fragment" -->}
+ * asserts it compiles and a note or warning quotes it. The fragment is the half that rots when a
+ * diagnostic is reworded.
  */
-@DisplayName("hkj-book snippets compile against the real library")
+@DisplayName("hkj-book snippets are held to the real library")
 class BookSnippetVerificationTest {
 
   /**
-   * The number of verified snippets must never fall below this. Raise it as pages are brought under
-   * the gate; a drop means a marker was removed, which is exactly the move this gate exists to
-   * catch.
+   * The number of marked snippets must never fall below this, whichever marker they carry. Raise it
+   * as pages are brought under the gate; a drop means a marker was removed, which is exactly the
+   * move this gate exists to catch.
    *
    * <p>It went 49 -> 38 when record_mapping's eleven snippets moved to {@code {{#include}}}: the
    * page now renders the compiled example directly, which is a stronger guarantee than compiling a
    * copy of it, so those snippets no longer need a marker. That is the only reason this number may
    * fall.
    */
-  private static final int MINIMUM_VERIFIED_SNIPPETS = 316;
+  private static final int MINIMUM_VERIFIED_SNIPPETS = 369;
+
+  /**
+   * How many of those snippets must quote a diagnostic, under {@code verify:rejects} or {@code
+   * verify:reports}. It has its own floor because the total cannot protect it: swapping a rejection
+   * check for an easy positive snippet elsewhere leaves the total untouched, and those checks are
+   * the only thing holding the pages that document refusals to what the processor actually says.
+   */
+  private static final int MINIMUM_DIAGNOSTIC_SNIPPETS = 41;
 
   /**
    * Every documentation root whose code is verified. The book was the first; the skills are the
@@ -78,11 +94,50 @@ class BookSnippetVerificationTest {
     }
   }
 
+  /** One snippet whose marker quotes a diagnostic, beside the fragment it quotes. */
+  record Quoted(Case testCase, String fragment) {
+    @Override
+    public String toString() {
+      return testCase.toString();
+    }
+  }
+
   static Stream<Case> verifiedSnippets() throws IOException {
     return verifiedPages()
         .flatMap(page -> page.snippets().stream().map(s -> new Case(page, s)))
         .toList()
         .stream();
+  }
+
+  static Stream<Case> compilingSnippets() throws IOException {
+    return verifiedSnippets()
+        .filter(c -> c.snippet().expectation() instanceof Expectation.Compiles)
+        .toList()
+        .stream();
+  }
+
+  static Stream<Quoted> rejectedSnippets() throws IOException {
+    return quoting(Expectation.Rejects.class);
+  }
+
+  static Stream<Quoted> reportedSnippets() throws IOException {
+    return quoting(Expectation.Reports.class);
+  }
+
+  private static Stream<Quoted> quoting(Class<? extends Expectation> marker) throws IOException {
+    return verifiedSnippets()
+        .filter(c -> marker.isInstance(c.snippet().expectation()))
+        .map(c -> new Quoted(c, fragmentOf(c.snippet().expectation())))
+        .toList()
+        .stream();
+  }
+
+  private static String fragmentOf(Expectation expectation) {
+    return switch (expectation) {
+      case Expectation.Rejects(String fragment) -> fragment;
+      case Expectation.Reports(String fragment) -> fragment;
+      case Expectation.Compiles _ -> "";
+    };
   }
 
   private static Stream<SnippetExtractor.Page> verifiedPages() throws IOException {
@@ -118,27 +173,77 @@ class BookSnippetVerificationTest {
   }
 
   @ParameterizedTest(name = "{0}")
-  @MethodSource("verifiedSnippets")
+  @MethodSource("compilingSnippets")
   @DisplayName("snippet compiles")
   void snippetCompiles(Case testCase) throws IOException {
-    SnippetExtractor.Page page = testCase.page();
-    String unit = SnippetExtractor.toCompilationUnit(page, testCase.snippet(), fixtureFor(page));
-
-    DiagnosticCollector<JavaFileObject> diagnostics =
-        compile(page.slug() + "_" + testCase.snippet().index(), unit);
+    Compiled compiled = compile(testCase);
     List<Diagnostic<? extends JavaFileObject>> errors =
-        diagnostics.getDiagnostics().stream()
-            .filter(
-                d ->
-                    d.getKind() == Diagnostic.Kind.ERROR
-                        // The real build is -Werror on these, so a warning here is a page defect.
-                        || d.getKind() == Diagnostic.Kind.WARNING
-                        || d.getKind() == Diagnostic.Kind.MANDATORY_WARNING)
-            .filter(d -> !String.valueOf(d.getMessage(Locale.ROOT)).contains("preview"))
+        compiled
+            // The real build is -Werror on these, so a warning here is a page defect.
+            .ofKind(
+                Diagnostic.Kind.ERROR, Diagnostic.Kind.WARNING, Diagnostic.Kind.MANDATORY_WARNING)
+            .stream()
+            .filter(d -> !message(d).contains("preview"))
             .toList();
 
     if (!errors.isEmpty()) {
-      fail(report(testCase, unit, errors));
+      fail(
+          header(testCase, "does not compile against the library")
+              + "Fix the page (or the code it documents); do not remove the marker.\n\n"
+              + listing(errors)
+              + assembled(compiled.unit()));
+    }
+  }
+
+  @ParameterizedTest(name = "{0}", allowZeroInvocations = true)
+  @MethodSource("rejectedSnippets")
+  @DisplayName("snippet is refused, in the words the page quotes")
+  void snippetIsRejected(Quoted quoted) throws IOException {
+    Compiled compiled = compile(quoted.testCase());
+    List<Diagnostic<? extends JavaFileObject>> errors = compiled.ofKind(Diagnostic.Kind.ERROR);
+
+    if (errors.isEmpty()) {
+      fail(
+          header(quoted.testCase(), "compiles, but the page documents it as refused")
+              + """
+              Either the rule was relaxed and the page is now wrong, or the snippet no longer \
+              shows the shape it is meant to. Do not weaken the marker to make this pass.
+
+              """
+              + assembled(compiled.unit()));
+    }
+    if (errors.stream().noneMatch(e -> message(e).contains(quoted.fragment()))) {
+      fail(
+          header(quoted.testCase(), "is refused, but not in the words the page quotes")
+              + "The page quotes: \"%s\"%n%nThe processor said:%n%n".formatted(quoted.fragment())
+              + listing(errors)
+              + assembled(compiled.unit()));
+    }
+  }
+
+  @ParameterizedTest(name = "{0}", allowZeroInvocations = true)
+  @MethodSource("reportedSnippets")
+  @DisplayName("snippet compiles, and is reported in the words the page quotes")
+  void snippetIsReported(Quoted quoted) throws IOException {
+    Compiled compiled = compile(quoted.testCase());
+    List<Diagnostic<? extends JavaFileObject>> errors = compiled.ofKind(Diagnostic.Kind.ERROR);
+
+    if (!errors.isEmpty()) {
+      fail(
+          header(quoted.testCase(), "does not compile, and the page documents it as compiling")
+              + "A note or a warning is raised about code that builds; this does not build.\n\n"
+              + listing(errors)
+              + assembled(compiled.unit()));
+    }
+    List<Diagnostic<? extends JavaFileObject>> reports =
+        compiled.ofKind(
+            Diagnostic.Kind.NOTE, Diagnostic.Kind.WARNING, Diagnostic.Kind.MANDATORY_WARNING);
+    if (reports.stream().noneMatch(r -> message(r).contains(quoted.fragment()))) {
+      fail(
+          header(quoted.testCase(), "draws no diagnostic quoting what the page says it draws")
+              + "The page quotes: \"%s\"%n%nThe compiler said:%n%n".formatted(quoted.fragment())
+              + listing(reports)
+              + assembled(compiled.unit()));
     }
   }
 
@@ -149,12 +254,30 @@ class BookSnippetVerificationTest {
     assertThat(verified)
         .as(
             """
-            The number of `<!-- verify -->` snippets dropped below the floor.
+            The number of marked snippets dropped below the floor.
 
             A snippet was un-marked rather than fixed, which defeats the gate. If a \
             snippet genuinely cannot be verified any more, lower MINIMUM_VERIFIED_SNIPPETS \
             deliberately and say why in the commit message.""")
         .isGreaterThanOrEqualTo(MINIMUM_VERIFIED_SNIPPETS);
+  }
+
+  @Test
+  @DisplayName("the diagnostic gate does not shrink")
+  void theDiagnosticGateDoesNotShrink() throws IOException {
+    long quotingSnippets =
+        verifiedSnippets()
+            .filter(c -> !(c.snippet().expectation() instanceof Expectation.Compiles))
+            .count();
+    assertThat(quotingSnippets)
+        .as(
+            """
+            The number of snippets quoting a diagnostic dropped below the floor.
+
+            A `verify:rejects` or `verify:reports` marker was removed rather than the page \
+            being brought back into line with the processor. These are the only checks holding \
+            the pages that document refusals to what the processor actually says.""")
+        .isGreaterThanOrEqualTo(MINIMUM_DIAGNOSTIC_SNIPPETS);
   }
 
   /** A bare NPE from a static initialiser is a miserable way to learn you skipped Gradle. */
@@ -171,6 +294,26 @@ class BookSnippetVerificationTest {
   private static String fixtureFor(SnippetExtractor.Page page) throws IOException {
     Path fixture = FIXTURES.resolve(page.slug() + ".java");
     return Files.exists(fixture) ? Files.readString(fixture) : "";
+  }
+
+  /** The assembled unit, and everything javac and the processor said about it. */
+  private record Compiled(String unit, List<Diagnostic<? extends JavaFileObject>> diagnostics) {
+
+    List<Diagnostic<? extends JavaFileObject>> ofKind(Diagnostic.Kind... kinds) {
+      List<Diagnostic.Kind> wanted = List.of(kinds);
+      return diagnostics.stream().filter(d -> wanted.contains(d.getKind())).toList();
+    }
+  }
+
+  private static Compiled compile(Case testCase) throws IOException {
+    SnippetExtractor.Page page = testCase.page();
+    String unit = SnippetExtractor.toCompilationUnit(page, testCase.snippet(), fixtureFor(page));
+    return new Compiled(
+        unit, compile(page.slug() + "_" + testCase.snippet().index(), unit).getDiagnostics());
+  }
+
+  private static String message(Diagnostic<? extends JavaFileObject> diagnostic) {
+    return String.valueOf(diagnostic.getMessage(Locale.ROOT));
   }
 
   private static DiagnosticCollector<JavaFileObject> compile(String slug, String source) {
@@ -246,27 +389,26 @@ class BookSnippetVerificationTest {
     }
   }
 
-  /** A javac error tells you nothing without the line it fired on, so print the assembled unit. */
-  private static String report(
-      Case testCase, String unit, List<Diagnostic<? extends JavaFileObject>> errors) {
+  private static String header(Case testCase, String verdict) {
+    return "%nThe code in %s %s.%n%n".formatted(testCase, verdict);
+  }
 
+  private static String listing(List<Diagnostic<? extends JavaFileObject>> diagnostics) {
     StringBuilder message = new StringBuilder();
-    message
-        .append("\nThe code in ")
-        .append(testCase)
-        .append(" does not compile against the library.\n")
-        .append("Fix the page (or the code it documents); do not remove the marker.\n\n");
-
-    errors.forEach(
-        e ->
+    diagnostics.forEach(
+        d ->
             message
-                .append("  error: ")
-                .append(e.getMessage(Locale.ROOT))
-                .append("\n    at assembled line ")
-                .append(e.getLineNumber())
-                .append('\n'));
+                .append("  ")
+                .append(d.getKind().toString().toLowerCase(Locale.ROOT).replace('_', ' '))
+                .append(": ")
+                .append(message(d))
+                .append("%n    at assembled line %d%n".formatted(d.getLineNumber())));
+    return message.toString();
+  }
 
-    message.append("\n--- assembled from the page's `<!-- verify -->` snippets ---\n");
+  /** A javac error tells you nothing without the line it fired on, so print the assembled unit. */
+  private static String assembled(String unit) {
+    StringBuilder message = new StringBuilder("\n--- assembled from the page's snippet ---\n");
     String[] lines = unit.split("\n", -1);
     for (int i = 0; i < lines.length; i++) {
       message.append("%4d | %s%n".formatted(i + 1, lines[i]));
