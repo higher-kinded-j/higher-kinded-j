@@ -59,6 +59,7 @@ Four null checks. Three nested lookups. The actual logic (try cache, then databa
 
 With `OptionalContext`:
 
+<!-- verify -->
 ```java
 OptionalContext<IOKind.Witness, User> user =
     OptionalContext.<User>io(() -> cache.get(userId))
@@ -80,13 +81,14 @@ The lookup chain reads top-to-bottom. Fallbacks are explicit. The point where ab
 
 The `io()` factory handles null gracefully: null becomes empty:
 
+<!-- verify -->
 ```java
 // If findById returns null, the context is empty
 OptionalContext<IOKind.Witness, User> user =
     OptionalContext.io(() -> repository.findById(userId));
 
 // Same pattern with JavaOptionalContext
-JavaOptionalContext<IOKind.Witness, User> user =
+JavaOptionalContext<IOKind.Witness, User> javaUser =
     JavaOptionalContext.io(() -> repository.findById(userId));
 ```
 
@@ -94,20 +96,22 @@ JavaOptionalContext<IOKind.Witness, User> user =
 
 When your code already returns the optional type:
 
+<!-- verify -->
 ```java
 // Maybe-returning supplier
 OptionalContext<IOKind.Witness, Config> config =
-    OptionalContext.ioMaybe(() -> configLoader.load("app.properties"));
+    OptionalContext.ioMaybe(() -> configLoader.loadMaybe("app.properties"));
 
 // Optional-returning supplier
-JavaOptionalContext<IOKind.Witness, Config> config =
-    JavaOptionalContext.ioOptional(() -> configLoader.load("app.properties"));
+JavaOptionalContext<IOKind.Witness, Config> javaConfig =
+    JavaOptionalContext.ioOptional(() -> configLoader.loadOptional("app.properties"));
 ```
 
 ### Pure Values
 
 For known values:
 
+<!-- verify -->
 ```java
 // Present value
 OptionalContext<IOKind.Witness, Integer> some = OptionalContext.some(42);
@@ -131,6 +135,7 @@ JavaOptionalContext<IOKind.Witness, User> fromOpt = JavaOptionalContext.fromOpti
 
 ### map: Transform Present Values
 
+<!-- verify -->
 ```java
 OptionalContext<IOKind.Witness, String> name = OptionalContext.some("Alice");
 
@@ -148,6 +153,7 @@ OptionalContext<IOKind.Witness, String> stillEmpty = empty.map(String::toUpperCa
 
 ### via: Chain Dependent Lookups
 
+<!-- verify -->
 ```java
 OptionalContext<IOKind.Witness, Address> address =
     OptionalContext.<User>io(() -> userRepo.findById(userId))
@@ -158,15 +164,17 @@ If the user isn't found, the address lookup never runs. If the user exists but h
 
 ### flatMap: Type-Preserving Chain
 
+<!-- verify -->
 ```java
 OptionalContext<IOKind.Witness, Profile> profile =
     lookupUser(userId)
         .flatMap(user -> lookupProfile(user.profileId()))
-        .flatMap(profile -> enrichProfile(profile));
+        .flatMap(found -> enrichProfile(found));
 ```
 
 ### then: Sequence Ignoring Values
 
+<!-- verify -->
 ```java
 OptionalContext<IOKind.Witness, String> result =
     validateExists()
@@ -182,6 +190,7 @@ OptionalContext<IOKind.Witness, String> result =
 
 The primary pattern for lookup chains:
 
+<!-- verify -->
 ```java
 OptionalContext<IOKind.Witness, Config> config =
     OptionalContext.<Config>io(() -> loadFromEnvironment())
@@ -196,6 +205,7 @@ Each fallback runs only if all previous attempts returned empty.
 
 When the fallback is known:
 
+<!-- verify -->
 ```java
 OptionalContext<IOKind.Witness, Integer> count =
     OptionalContext.<Integer>io(() -> cache.getCount())
