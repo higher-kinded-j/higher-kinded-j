@@ -34,6 +34,7 @@ composable pipelines where each rule is small, testable, and reusable.
 
 Each field gets its own validation function returning a Path:
 
+<!-- verify -->
 ```java
 private EitherPath<String, String> validateEmail(String email) {
     if (email == null || email.isBlank()) {
@@ -51,6 +52,7 @@ private EitherPath<String, String> validateEmail(String email) {
 
 Or with modern pattern matching:
 
+<!-- verify -->
 ```java
 private EitherPath<String, String> validateEmail(String email) {
     return switch (email) {
@@ -90,6 +92,7 @@ abrupt; see the next pattern.
 
 When users deserve to see all problems at once:
 
+<!-- verify -->
 ```java
 ValidationPath<List<String>, User> validateUser(UserInput input) {
     return validateNameV(input.name())
@@ -163,17 +166,25 @@ public class UserRepository {
     }
 }
 
+```
+
+<!-- verify -->
+```java
 public class UserService {
     private final UserRepository repository;
 
+    public UserService(UserRepository repository) {
+        this.repository = repository;
+    }
+
     public EitherPath<UserError, User> getById(String id) {
         return Path.maybe(repository.findById(id))
-            .toEitherPath(() -> new UserError.NotFound(id));
+            .toEitherPath(new UserError.NotFound(id));
     }
 
     public EitherPath<UserError, User> getByEmail(String email) {
         return Path.maybe(repository.findByEmail(email))
-            .toEitherPath(() -> new UserError.NotFound(email));
+            .toEitherPath(new UserError.NotFound(email));
     }
 }
 ```
@@ -292,6 +303,7 @@ Report report = pipeline.generateReport(request).unsafeRun();
 While `IOPath` doesn't parallelise automatically, `zipWith` expresses
 independence:
 
+<!-- verify -->
 ```java
 IOPath<CombinedData> fetchAll() {
     IOPath<UserData> users = Path.io(() -> fetchUsers());
@@ -313,6 +325,7 @@ in sequence, but the structure is clear.
 
 Add context as errors propagate through layers:
 
+<!-- verify -->
 ```java
 public <A> EitherPath<DetailedError, A> withContext(
         EitherPath<Error, A> path,
@@ -327,7 +340,7 @@ public <A> EitherPath<DetailedError, A> withContext(
 }
 
 // Usage
-return withContext(
+EitherPath<DetailedError, User> detailed = withContext(
     userService.getUser(id),
     "getUser",
     Map.of("userId", id, "requestId", requestId)
@@ -340,6 +353,7 @@ When the error surfaces, you know what was happening and with what parameters.
 
 Log the failure, provide a fallback:
 
+<!-- verify -->
 ```java
 public <A> EitherPath<Error, A> withRecoveryLogging(
         EitherPath<Error, A> path,
@@ -398,6 +412,7 @@ provides configurable backoff strategies.
 
 ### Creating Retry Policies
 
+<!-- verify -->
 ```java
 // Fixed delay: 100ms between each of 3 attempts
 RetryPolicy fixed = RetryPolicy.fixed(3, Duration.ofMillis(100));
@@ -606,9 +621,14 @@ or uses patterns that predate functional error handling.
 
 ### Wrapping Exception-Throwing APIs
 
+<!-- verify -->
 ```java
 public class LegacyWrapper {
     private final LegacyService legacy;
+
+    public LegacyWrapper(LegacyService legacy) {
+        this.legacy = legacy;
+    }
 
     public TryPath<Data> fetchData(String id) {
         return Path.tryOf(() -> legacy.fetchData(id));
@@ -623,9 +643,14 @@ public class LegacyWrapper {
 
 ### Wrapping Optional-Returning APIs
 
+<!-- verify -->
 ```java
 public class ModernWrapper {
     private final ModernService modern;
+
+    public ModernWrapper(ModernService modern) {
+        this.modern = modern;
+    }
 
     public MaybePath<User> findUser(String id) {
         return Path.maybe(Maybe.fromOptional(modern.findUser(id)));
@@ -637,9 +662,14 @@ public class ModernWrapper {
 
 When callers expect traditional patterns:
 
+<!-- verify -->
 ```java
 public class ServiceAdapter {
     private final PathBasedService service;
+
+    public ServiceAdapter(PathBasedService service) {
+        this.service = service;
+    }
 
     // For consumers expecting Optional
     public Optional<User> findUser(String id) {
