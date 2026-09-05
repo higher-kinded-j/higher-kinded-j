@@ -35,6 +35,7 @@ Virtual threads offer a different bargain. Rather than perfecting the abstractio
 
 ## Creation
 
+<!-- verify -->
 ```java
 // From a computation (the primary pattern)
 VTaskPath<String> fetchData = Path.vtask(() -> httpClient.get(url));
@@ -83,6 +84,7 @@ so you can spawn millions without exhausting resources.
 
 ## Core Operations
 
+<!-- verify -->
 ```java
 VTaskPath<String> greeting = Path.vtaskPure("Hello");
 
@@ -112,6 +114,7 @@ VTaskPath<Integer> debugged = Path.vtaskPure(42)
 
 VTaskPath provides three execution methods:
 
+<!-- verify -->
 ```java
 VTaskPath<Integer> task = Path.vtask(() -> compute());
 
@@ -129,9 +132,9 @@ try {
 
 // 2. runSafe() - Returns Try<A> for functional error handling
 Try<Integer> tryResult = task.runSafe();
-tryResult.foldFailureFirst(
-    error -> System.err.println("Failure: " + error.getMessage()),
-    value -> System.out.println("Success: " + value)
+tryResult.match(
+    value -> System.out.println("Success: " + value),
+    error -> System.err.println("Failure: " + error.getMessage())
 );
 
 // 3. runAsync() - Returns CompletableFuture<A> for async composition
@@ -149,6 +152,7 @@ at system boundaries where you need to interact with exception-based APIs.
 
 ## Error Handling
 
+<!-- verify -->
 ```java
 VTaskPath<Config> loadConfig = Path.vtask(() -> configService.load());
 
