@@ -119,6 +119,14 @@ final class SnippetExtractor {
               + "[\\w.$]+(<[^=;{()\\-]*>)?(\\[])?"
               + "\\s+\\w+\\s*\\([^;{]*\\)\\s*(throws\\s+[\\w.,\\s]+)?;$");
 
+  /**
+   * A {@code static} field, which a page writes when it is showing a constant rather than a step: a
+   * {@code ScopedValue} key, a shared {@code RetryPolicy}. It becomes a member of the wrapper,
+   * because {@code static} is not a modifier a local variable may carry.
+   */
+  private static final Pattern STATIC_FIELD =
+      Pattern.compile("^\\s*(public\\s+|private\\s+|protected\\s+)?static\\s+.*");
+
   /** How many lines a wrapped signature may span before we stop looking. */
   private static final int MAX_SIGNATURE_LINES = 6;
 
@@ -487,6 +495,11 @@ final class SnippetExtractor {
         // the one place a method with no body type-checks.
         int end = endOfAbstractSignature(lines, i);
         signatures.add("  " + String.join("\n  ", lines.subList(i, end + 1)));
+        i = end + 1;
+      } else if (STATIC_FIELD.matcher(line).matches()) {
+        // A static field is a member, not a statement: `static` cannot modify a local.
+        int end = endOfDeclaration(lines, i);
+        members.add("  " + String.join("\n  ", lines.subList(i, end + 1)));
         i = end + 1;
       } else if (line.isBlank() || line.strip().startsWith("//")) {
         i++;

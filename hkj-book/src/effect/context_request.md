@@ -33,6 +33,7 @@ That small fire is the context you propagate: trace IDs, correlation identifiers
 
 `RequestContext` is a utility class providing pre-defined `ScopedValue` instances for common request metadata:
 
+<!-- verify -->
 ```java
 public final class RequestContext {
     private RequestContext() {}  // Utility class -- no instantiation
@@ -94,6 +95,7 @@ The trace ID is the most critical piece of request context. It's a unique identi
 
 ### Generating Trace IDs
 
+<!-- verify -->
 ```java
 public final class TraceIdGenerator {
     private TraceIdGenerator() {}

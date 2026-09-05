@@ -28,6 +28,7 @@ The choice between them isn't about which is "better"; it's about where your sto
 
 `ConfigContext<F, R, A>` wraps `ReaderT<F, R, A>`: a monad transformer that threads an environment `R` through a computation. The environment is provided explicitly when you run the computation.
 
+<!-- verify -->
 ```java
 // Define a computation that needs configuration
 ConfigContext<IOKind.Witness, DatabaseConfig, User> fetchUser =
@@ -44,6 +45,7 @@ User user = fetchUser.runWithSync(productionConfig);
 
 `Context<R, A>` reads from a `ScopedValue<R>`: Java's thread-scoped value container. The value is bound to a scope and automatically available to all code in that scope, including forked virtual threads.
 
+<!-- verify -->
 ```java
 // Define a scoped value
 static final ScopedValue<DatabaseConfig> DB_CONFIG = ScopedValue.newInstance();
@@ -75,30 +77,33 @@ ConfigContext<IOKind.Witness, RequestInfo, Result> process =
         // requestInfo is available here...
 
         return Scope.<PartialResult>allSucceed()
-            .fork(() -> {
+            .fork(VTask.delay(() -> {
                 // ❌ requestInfo is NOT available here!
                 // Forked virtual threads don't inherit ConfigContext
                 return fetchData();
-            })
-            .fork(() -> {
+            }))
+            .fork(VTask.delay(() -> {
                 // ❌ Also not available here
                 return fetchMoreData();
-            })
-            .join(Result::combine)
+            }))
+            .join()
+            .map(parts -> Result.combine(parts.get(0), parts.get(1)))
             .run();
     });
 ```
 
 To propagate `ConfigContext` values to forked tasks, you must pass them explicitly:
 
+<!-- verify -->
 ```java
 ConfigContext<IOKind.Witness, RequestInfo, Result> process =
     ConfigContext.io(requestInfo -> {
         // Must capture and pass explicitly
         return Scope.<PartialResult>allSucceed()
-            .fork(() -> fetchData(requestInfo))      // Pass explicitly
-            .fork(() -> fetchMoreData(requestInfo))  // Pass explicitly
-            .join(Result::combine)
+            .fork(VTask.delay(() -> fetchData(requestInfo)))      // Pass explicitly
+            .fork(VTask.delay(() -> fetchMoreData(requestInfo)))  // Pass explicitly
+            .join()
+            .map(parts -> Result.combine(parts.get(0), parts.get(1)))
             .run();
     });
 ```
@@ -110,11 +115,11 @@ ScopedValue<RequestInfo> REQUEST = ScopedValue.newInstance();
 
 VTask<Result> process = VTask.delay(() -> {
     return Scope.<PartialResult>allSucceed()
-        .fork(() -> {
+        .fork(VTask.delay(() -> {
             // ✓ REQUEST is automatically available!
             RequestInfo info = REQUEST.get();
             return fetchData(info);
-        })
+        }))
         .fork(() -> {
             // ✓ Also available here
             RequestInfo info = REQUEST.get();
