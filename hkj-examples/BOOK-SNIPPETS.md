@@ -1,19 +1,23 @@
 # Documentation verification
 
-The book's code is kept honest in two ways. **Prefer the first.**
+The book's code is kept honest in three ways. **Prefer the first.**
 
 | | How | Guarantee |
 |---|---|---|
 | **1. Include** (preferred) | The page `{{#include}}`s an anchored region of a compiled example in this module | Drift is **impossible**: the page renders the code the build compiles and runs |
 | **2. Verify marker** | The page marks a fence `<!-- verify -->`; the gate compiles a copy of it | Drift is **caught**: the build fails if the code stops compiling |
+| **3. Diagnostic marker** | The page marks a fence `<!-- verify:rejects "…" -->` or `<!-- verify:reports "…" -->`; the gate compiles it and holds the compiler to what the page quotes | Drift is **caught** for code the page shows in order to say it is *refused*, which neither of the others can express |
 
 Use (1) whenever the snippet can be real, runnable code. It is strictly stronger, and a runnable
 example can also prove the *output* comments a page asserts, which the compile gate cannot. Fall back
 to (2) when a page needs a shape that cannot be a runnable example (an abstract signature, a
 `VResultPath<E, A>` written against type variables).
 
-The exact counts live in the two ratchets (`MINIMUM_INCLUDES`, `MINIMUM_VERIFIED_SNIPPETS`) rather
-than here, so they cannot go stale. Markers today cover `path_vresult`'s catalogue of shapes written against abstract type variables (the one thing an include cannot express) and short teaser snippets such as the optics Fundamentals payoff, whose fixture-backed domain would be noise in a runnable example
+(3) is for the opposite kind of snippet: the shape a page shows to say the processor rejects it. See
+[Marking a snippet the processor refuses](#marking-a-snippet-the-processor-refuses).
+
+The exact counts live in the three ratchets (`MINIMUM_INCLUDES`, `MINIMUM_VERIFIED_SNIPPETS`,
+`MINIMUM_DIAGNOSTIC_SNIPPETS`) rather than here, so they cannot go stale. Markers today cover `path_vresult`'s catalogue of shapes written against abstract type variables (the one thing an include cannot express) and short teaser snippets such as the optics Fundamentals payoff, whose fixture-backed domain would be noise in a runnable example
 
 The book-facing examples live under `org.higherkindedj.example.book.*`, **one package per page**: the
 types must be top-level (so the processor generates the names the book teaches), and two pages that
@@ -70,15 +74,15 @@ The gate closes that hole. It runs with `hkj-examples`' tests, as part of `gradl
 Put `<!-- verify -->` on the line before the fence. It is an HTML comment, so it is invisible in the
 rendered book.
 
-```markdown
+````markdown
 <!-- verify -->
-``` java
+```java
 Validated<NonEmptyList<FieldError>, User> user =
     Validated.fields()
         .field("name", parseName(dto.name()))
         .apply(User::new);
 ```
-```
+````
 
 Each marked snippet is compiled **independently**, with the real HKJ classpath and the real
 annotation processor, so a `@GenerateMapping` or `@GenerateAssembly` snippet is checked against
@@ -86,6 +90,54 @@ genuinely generated code, not a stand-in.
 
 Snippets are compiled separately rather than a whole page at once because a page's snippets are
 illustrations, not one program: two of them may legitimately show different `User` records.
+
+## Marking a snippet the processor refuses
+
+The pages documenting what the processor *rejects* are the ones a processor change is most likely to
+invalidate, and a marker meaning "this compiles" cannot express them at all. That is how three
+`@MatchWhen` examples came to recommend a shape that has never compiled (#755), on a page whose
+seven `{{#include}}`s were correct throughout.
+
+Two further markers close the hole. Both quote the diagnostic the page claims, and the quote is the
+half that matters: "still refused" says nothing about the wording, and the wording is what rots when
+a message is reworded.
+
+````markdown
+<!-- verify:rejects "which the test cannot narrow to" -->
+```java
+@ImportOptics
+interface ShapeOpticsSpec<T> extends OpticsSpec<Shape> {
+
+    @InstanceOf(Circle.class)
+    Prism<Shape, Circle<T>> circle();
+}
+```
+````
+
+| Marker | What it asserts |
+|---|---|
+| `<!-- verify -->` | the snippet compiles, with no error and no warning |
+| `<!-- verify:rejects "…" -->` | the snippet does **not** compile, and one of the errors quotes the fragment |
+| `<!-- verify:reports "…" -->` | the snippet compiles, and a note or a warning quotes the fragment |
+
+`verify:reports` is for the diagnostics that do not stop a build: `@GenerateTraversals` raises a
+**note** for a container no generator claims, and `@GeneratePathBridge` a **warning** when no
+`@PathVia` method survives. Both are documented behaviour, and a compile check sees neither.
+
+A fragment must be at least ten characters, so it cannot be whittled down until it matches any
+message at all. Quote the distinctive middle of the message rather than the `@Annotation:` prefix,
+and prefer the concrete names your reproducer produces (`narrows to 'Card', which is not a 'Cash'`)
+over the `'...'` placeholders a page's heading uses: the snippet is yours, so the message is
+predictable.
+
+Not every documented diagnostic can be reproduced by one snippet, and the exceptions fall into three
+recognisable classes. Two entries on `compiler_errors.md` are not processor behaviour at all (a
+"cannot find symbol" that means the processor never ran, and a sealed interface declared in a method
+body, which plain Java forbids). Two need something a single compilation unit cannot set up: two SPI
+providers on the annotation processor path, and a `@ViaCopyAndSet` supertype that has to be
+package-private in a package the reproducer cannot name without writing `bookverify` onto the page.
+One states a symptom rather than a shape. Those stay prose; everything else on the page carries a
+reproducer.
 
 ## Fixtures: what a page elides
 
@@ -125,6 +177,8 @@ how a page can show `VResultPath<E, A>` as a *shape* without inventing a domain 
 
 ## When a snippet cannot compile
 
+A block that is *meant* not to compile is not one of these: it goes under `verify:rejects`, above.
+
 A block is left unmarked only when it cannot be a compilation unit at all, and today none are. The
 two that once were (`record_mapping`'s `@GenerateErrorEnvelope` hierarchy and its `editContext`
 interface `default` method) are now `{{#include}}`d from a real example, where they compile
@@ -141,6 +195,11 @@ The gate is opt-in so that prose *can* stay prose, not so that awkward code can 
 
 `MINIMUM_VERIFIED_SNIPPETS` is a floor on the number of marked snippets. Deleting a marker to silence
 a failure drops the count and fails the build. Raise the floor as pages are brought under the gate.
+
+`MINIMUM_DIAGNOSTIC_SNIPPETS` is a second floor, on the `verify:rejects` and `verify:reports`
+snippets alone. The total cannot protect those: swapping a rejection check for an easy positive
+snippet elsewhere leaves it untouched, and they are the only thing holding the pages that document
+refusals to what the processor actually says.
 
 If a snippet genuinely can no longer be verified, lower the floor deliberately and say why in the
 commit message. That should be rare, and it should be visible in review.

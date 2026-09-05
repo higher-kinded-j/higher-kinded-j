@@ -384,8 +384,13 @@ code that does not build. Prefer, in this order:
 2. **Mark the fence `<!-- verify -->`.** The gate compiles a copy of it against the real library and
    the real annotation processor. Use this only when the snippet cannot be runnable code (a shape
    written against abstract type variables, for instance).
-3. A plain fence, verified by nothing, is a last resort. Two ratchets fail the build if the number of
-   includes or verified snippets falls, so it cannot become the default by accident.
+3. **Mark a refused shape `<!-- verify:rejects "quoted diagnostic" -->`**, or `verify:reports` where
+   the code builds and the processor raises a note or a warning about it. A page that says "the
+   processor rejects this" is making a claim, and this is what holds it to one; the quoted fragment
+   is what rots when a diagnostic is reworded.
+4. A plain fence, verified by nothing, is a last resort. Three ratchets fail the build if the number
+   of includes, verified snippets or quoted diagnostics falls, so it cannot become the default by
+   accident.
 
 See `hkj-examples/BOOK-SNIPPETS.md`, and run `gradle :hkj-examples:bookVerify`.
 
