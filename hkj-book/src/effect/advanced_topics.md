@@ -73,6 +73,7 @@ doesn't.
 
 Consider calculating factorial recursively:
 
+<!-- verify -->
 ```java
 // This will overflow around n = 10,000
 long factorial(long n) {
@@ -88,6 +89,7 @@ before reaching the base case.
 
 `TrampolinePath` separates describing the recursion from executing it:
 
+<!-- verify -->
 ```java
 TrampolinePath<BigInteger> factorial(BigInteger n, BigInteger acc) {
     if (n.compareTo(BigInteger.ONE) <= 0) {
@@ -122,6 +124,7 @@ regardless of recursion depth.
 Trampolining handles mutual recursion (functions that call each other) with the
 same elegance:
 
+<!-- verify -->
 ```java
 TrampolinePath<Boolean> isEven(int n) {
     if (n == 0) return TrampolinePath.done(true);
@@ -144,6 +147,7 @@ calls. With trampolining, it completes in milliseconds.
 
 The classic fibonacci benefits from trampolining when using accumulator style:
 
+<!-- verify -->
 ```java
 TrampolinePath<BigInteger> fibonacci(int n) {
     return fibHelper(n, BigInteger.ZERO, BigInteger.ONE);
