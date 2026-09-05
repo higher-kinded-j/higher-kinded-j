@@ -35,13 +35,18 @@ if (user != null) {
         } catch (PaymentException e) { ... }
     }
 }
+```
 
+<!-- verify -->
+```java
 // Effect Path API: flat, composable railway
-return Path.maybe(findUser(userId))
-    .toEitherPath(() -> new UserNotFound(userId))
-    .via(user -> Path.either(validator.validate(request)))
-    .via(valid -> Path.tryOf(() -> paymentService.charge(user, amount)))
-    .map(OrderResult::success);
+EitherPath<Error, OrderResult> result =
+    Path.maybe(findUser(userId))
+        .<Error>toEitherPath(new UserNotFound(userId))
+        .via(user -> Path.either(validator.validate(request, user)))
+        .via(valid -> Path.tryOf(() -> paymentService.charge(valid))
+            .toEitherPath(PaymentFailed::new))
+        .map(OrderResult::success);
 ```
 
 The nesting is gone. Each step follows the same pattern. Failures propagate automatically.
@@ -118,6 +123,7 @@ flowchart TB
     class B bridge
 ```
 
+<!-- verify -->
 ```java
 // Fetch user (effect) → navigate to address (optics) →
 // extract postcode (optics) → validate (effect)
@@ -192,6 +198,7 @@ Each capability has a chapter that opens with the problem it solves and closes w
 A railway model for computation: `map`, `via` and `recover` work identically whether you are handling optional values, typed errors, accumulated validations, exceptions or deferred side effects. `ForPath` comprehensions sequence steps by name, `VTaskPath` and `VStreamPath` put structured concurrency on virtual threads behind the same vocabulary, and the lazy carriers chain **[path-native resilience](resilience/ch_intro.md)** that treats a business `Left` as a value, never as a failure to retry.
 
 ~~~admonish example title="Quick example" collapsible=true
+<!-- verify -->
 ```java
 VResultPath<OrderError, Reservation> guarded =
     reserveInventory(order)
@@ -211,14 +218,15 @@ Only a `SystemError` is retried; a business `Left` such as an out-of-stock decis
 The most comprehensive optics implementation available for Java: lenses, prisms, isos, affines, traversals, folds and setters, all composable, generated from annotations on records, sealed interfaces, collections and [types you don't own](optics/importing_optics.md) (Jackson, JOOQ, Immutables, Lombok, AutoValue, Protocol Buffers). Filtered and indexed traversals, and [31 container types](optics/focus_containers.md) across the JDK and five third-party collection libraries widening to the right path type automatically.
 
 ~~~admonish example title="Quick example" collapsible=true
+<!-- verify -->
 ```java
-@GenerateLenses @GenerateFocus
+@GenerateLenses @GenerateFocus(generateNavigators = true)
 public record Street(String name, int number) {}
 
-@GenerateLenses @GenerateFocus
-public record Address(Street street, String city) {}
+@GenerateLenses @GenerateFocus(generateNavigators = true)
+public record Address(Street street, String postcode) {}
 
-@GenerateLenses @GenerateFocus
+@GenerateLenses @GenerateFocus(generateNavigators = true)
 public record User(String name, Address address) {}
 
 User updated = UserFocus.address().street().name().set("New Street", user);
@@ -234,6 +242,7 @@ Write the records, add the annotations, and the processor writes `StreetLenses`,
 One spec interface and one annotation replace the hand-written mapper. `@GenerateMapping` derives both directions at compile time for record, bean-shaped and generic wires of any width: a total `build` out, an accumulating `parse` back that locates every bad field, and both PATCH styles as write-backs. A [stock codec vocabulary](mapping/codecs.md#standard-codecs) covers the standard conversions, so a typical boundary needs no hand-written leaves, and every tier is law-checked and pinned by golden files.
 
 ~~~admonish example title="Quick example" collapsible=true
+<!-- verify -->
 ```java
 @GenerateMapping
 interface OrderMapping extends MappingSpec<Order, OrderDto> {
@@ -261,6 +270,7 @@ Four leaves from `StandardCodecs`, no other code, and every failure located and 
 Algebraic-effect-style programming via Free monads and interpreters. Define domain operations as a sealed interface with record variants, compose several algebras with `@ComposeEffects`, then write one interpreter per mode (production, test, dry-run, audit) and run the same program unchanged through each. Testing is mock-free through `Id` interpreters, and `ProgramAnalyser` inspects a program before any side effect executes.
 
 ~~~admonish example title="Quick example" collapsible=true
+<!-- verify -->
 ```java
 @EffectAlgebra
 public sealed interface PaymentGatewayOp<A>
@@ -329,6 +339,7 @@ Auto-configuration handles the conversions; `Right` is a 200 and a typed `Left` 
 Fluent AssertJ assertions for every type in the library, the optic laws (`LensLaws`, `PrismLaws`, `TraversalLaws`, `ValidatedPrismLaws`) and the `MappingLaws` every generated mapping is checked against, and a `SteppableClock` for deterministic time. Tests read in the same vocabulary as the code under test.
 
 ~~~admonish example title="Quick example" collapsible=true
+<!-- verify -->
 ```java
 import static org.higherkindedj.hkt.assertions.EitherAssert.assertThatEither;
 import static org.higherkindedj.hkt.assertions.MaybeAssert.assertThatMaybe;
