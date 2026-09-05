@@ -61,8 +61,10 @@ import java.lang.annotation.Target;
  *
  * <p>The annotation applies to a {@code Kind<F, A>} component with a declared witness. On any other
  * component, one that is not declared as a {@code Kind}, a raw {@code Kind}, or a {@code Kind}
- * whose witness is an unbounded or {@code ? super} wildcard, the processor gives the component the
- * path it would have had without the annotation and reports a note saying so.
+ * whose witness is an unbounded or {@code ? super} wildcard or one of the record's own type
+ * variables, the processor gives the component the path it would have had without the annotation
+ * and reports a note saying so. A {@code Traverse} is written for one witness, and a type variable
+ * stands for any, so no {@code Traverse} instance exists for it.
  *
  * @see KindSemantics
  * @see GenerateFocus
