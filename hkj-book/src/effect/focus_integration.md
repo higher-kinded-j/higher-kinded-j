@@ -76,13 +76,14 @@ on Focus paths.
 
 `FocusPath` always has a value, so these methods always produce successful effects:
 
+<!-- verify -->
 ```java
 FocusPath<User, String> namePath = UserFocus.name();
 User alice = new User("Alice", Optional.of("alice@example.com"));
 
 // Lift into different effect types
 MaybePath<String> maybeName = namePath.toMaybePath(alice);     // → Just("Alice")
-EitherPath<E, String> eitherName = namePath.toEitherPath(alice); // → Right("Alice")
+EitherPath<Error, String> eitherName = namePath.toEitherPath(alice); // → Right("Alice")
 TryPath<String> tryName = namePath.toTryPath(alice);           // → Success("Alice")
 IdPath<String> idName = namePath.toIdPath(alice);              // → Id("Alice")
 ```
@@ -91,6 +92,7 @@ IdPath<String> idName = namePath.toIdPath(alice);              // → Id("Alice"
 
 `AffinePath` may not have a value, so these methods require error handling:
 
+<!-- verify -->
 ```java
 AffinePath<User, String> emailPath = UserFocus.email(); // Optional<String> → String
 
@@ -114,6 +116,7 @@ emailPath.toTryPath(withoutEmail, () -> new MissingEmailException()); // → Fai
 
 `TraversalPath` focuses on multiple values:
 
+<!-- verify -->
 ```java
 TraversalPath<Company, User> employeesPath = CompanyFocus.employees();
 Company company = new Company("TechCorp", List.of(alice, bob, charlie));
@@ -153,6 +156,7 @@ the `focus()` method.
 
 ### Basic focus() Usage
 
+<!-- verify -->
 ```java
 // Start with an effect containing structured data
 EitherPath<Error, User> userResult = fetchUser(userId);
@@ -170,6 +174,7 @@ EitherPath<Error, String> nameResult = userResult.focus(namePath);
 
 When the navigation might fail (AffinePath), you must provide an error for the absent case:
 
+<!-- verify -->
 ```java
 AffinePath<User, String> emailPath = UserFocus.email();
 
