@@ -16,6 +16,7 @@ composition.
 
 ## Creation
 
+<!-- verify -->
 ```java
 // Successful value
 TryPath<Integer> success = Path.success(42);
@@ -53,6 +54,7 @@ TryPath<String> combined = file1.zipWith(file2, (a, b) -> a + "\n" + b);
 
 ## Error Handling
 
+<!-- verify -->
 ```java
 TryPath<Integer> parsed = Path.tryOf(() -> Integer.parseInt(input))
     // Recover with value
@@ -74,17 +76,16 @@ TryPath<Integer> parsed = Path.tryOf(() -> Integer.parseInt(input))
 
 ## Extraction
 
+<!-- verify -->
 ```java
 TryPath<Integer> path = Path.success(42);
 Try<Integer> tryValue = path.run();
 
 Integer value = path.getOrElse(-1);
 
-if (tryValue.isSuccess()) {
-    System.out.println("Value: " + tryValue.get());
-} else {
-    System.out.println("Error: " + tryValue.getCause().getMessage());
-}
+String message = tryValue.foldFailureFirst(
+    cause -> "Error: " + cause.getMessage(),
+    ok    -> "Value: " + ok);
 ```
 
 ---

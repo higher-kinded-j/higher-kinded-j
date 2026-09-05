@@ -24,6 +24,7 @@ right, as the mnemonic goes.)
 
 ## Creation
 
+<!-- verify -->
 ```java
 // Success
 EitherPath<Error, Integer> success = Path.right(42);
@@ -39,6 +40,7 @@ EitherPath<Error, User> user = Path.either(validateUser(input));
 
 ## Core Operations
 
+<!-- verify -->
 ```java
 EitherPath<String, Integer> number = Path.right(42);
 
@@ -80,6 +82,7 @@ EitherPath<String, Config> config = Path.either(loadConfig())
 
 Transform both the error and the success values simultaneously with `bimap`:
 
+<!-- verify -->
 ```java
 EitherPath<String, Integer> original = Path.right(42);
 
@@ -96,9 +99,10 @@ success mapper untouched.
 
 Use the single-sided variants when only one side needs changing:
 
+<!-- verify -->
 ```java
 // Transform only the error
-EitherPath<DomainError, User> mapped = path.mapError(ApiError::toDomain);
+EitherPath<DomainError, User> mapped = apiPath.mapError(ApiError::toDomain);
 
 // Transform only the success
 EitherPath<Error, String> named = path.map(User::name);
@@ -108,6 +112,7 @@ EitherPath<Error, String> named = path.map(User::name);
 
 ## Extraction
 
+<!-- verify -->
 ```java
 EitherPath<String, Integer> path = Path.right(42);
 Either<String, Integer> either = path.run();
