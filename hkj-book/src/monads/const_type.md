@@ -25,6 +25,7 @@ New to phantom types? See the [Glossary](../glossary/type-system.md#phantom-type
 
 A `Const<C, A>` is a container that holds a single value of type `C`. The type parameter `A` is phantom: it influences the type signature for composition and type safety but doesn't correspond to any stored data. This asymmetry is the key to Const's utility.
 
+<!-- verify -->
 ```java
 // Create a Const holding a String, with Integer as the phantom type
 Const<String, Integer> stringConst = new Const<>("Hello");
@@ -82,6 +83,7 @@ The defining characteristic of `Const` is that mapping over the second type para
 
 [ConstExample.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/basic/constant/ConstExample.java)
 
+<!-- verify -->
 ```java
 import static org.higherkindedj.hkt.constant.ConstKindHelper.CONST;
 
@@ -118,6 +120,7 @@ System.out.println("After second(): " + result.value());
 
 The `first` operation transforms the **constant value** from type `C` to type `D`, leaving the phantom type unchanged.
 
+<!-- verify -->
 ```java
 Const<String, Integer> stringConst = new Const<>("hello");
 
@@ -133,6 +136,7 @@ System.out.println(result.value()); // Output: 5
 
 The `second` operation changes the **phantom type** from `A` to `B` without affecting the constant value.
 
+<!-- verify -->
 ```java
 Const<String, Integer> stringConst = new Const<>("constant");
 
@@ -148,6 +152,7 @@ System.out.println(result.value()); // Output: "constant" (unchanged)
 
 The `bimap` operation combines both transformations, but remember: only the first function affects the constant value.
 
+<!-- verify -->
 ```java
 Const<String, Integer> original = new Const<>("hello");
 
@@ -171,6 +176,7 @@ One of the most practical applications of `Const` is implementing folds that acc
 
 [ConstExample.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/basic/constant/ConstExample.java)
 
+<!-- verify -->
 ```java
 // Count elements in a list using Const
 List<String> items = List.of("apple", "banana", "cherry", "date");
@@ -212,6 +218,7 @@ A getter extracts a field from a structure without transforming it. Using `Const
 
 [ConstExample.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/basic/constant/ConstExample.java)
 
+<!-- verify -->
 ```java
 record Person(String name, int age, String city) {}
 record Company(String name, Person ceo) {}
@@ -255,6 +262,7 @@ When traversing validation results, you often want to extract accumulated errors
 
 [ConstExample.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/basic/constant/ConstExample.java)
 
+<!-- verify -->
 ```java
 record ValidationResult(boolean isValid, List<String> errors, Object data) {}
 
@@ -324,6 +332,7 @@ Understanding how `Const` relates to similar types clarifies its unique role:
 
 Although `mapSecond` doesn't transform the constant value, the mapper function is still applied to `null` to ensure exception propagation. This maintains consistency with bifunctor semantics.
 
+<!-- verify -->
 ```java
 Const<String, Integer> const_ = new Const<>("value");
 
@@ -336,6 +345,7 @@ Const<String, Double> result = const_.mapSecond(i -> {
 
 This behaviour ensures that invalid mappers are detected, even though the mapper's result isn't used. For null-safe mappers, simply avoid dereferencing the parameter:
 
+<!-- verify -->
 ```java
 // Null-safe phantom type transformation
 Const<String, Double> safe = const_.mapSecond(i -> 3.14);

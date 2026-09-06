@@ -34,20 +34,14 @@ import org.jspecify.annotations.NullMarked;
  *     );
  * }</pre>
  *
- * <p><b>2. Stack-Safe Applicative Combinations:</b>
+ * <p><b>2. Stack-Safe Sequencing:</b>
  *
  * <pre>{@code
- * // Chain many map2 operations safely
- * Kind<F, Integer> result = initial;
- * for (int i = 0; i < 10000; i++) {
- *     final int value = i;
- *     result = TrampolineUtils.map2StackSafe(
- *         result,
- *         applicative.of(value),
- *         (acc, v) -> acc + v,
- *         applicative
- *     );
- * }
+ * // Collapse many effects into one, without growing the stack
+ * List<Kind<MyApplicative.Witness, Integer>> effects = ...;
+ *
+ * Kind<MyApplicative.Witness, List<Integer>> result =
+ *     TrampolineUtils.sequenceStackSafe(effects, myApplicative);
  * }</pre>
  *
  * <h2>When to Use</h2>
