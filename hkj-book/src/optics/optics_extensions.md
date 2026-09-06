@@ -26,6 +26,7 @@ Think of optics extensions as **safety rails**: they catch null values, validate
 
 ### Importing Lens Extensions
 
+<!-- verify -->
 ```java
 import static org.higherkindedj.optics.extensions.LensExtensions.*;
 ```
@@ -40,6 +41,7 @@ These extension methods are also available through the [Fluent API](fluent_api.m
 
 Returns `Maybe.just(value)` if the field is non-null, `Maybe.nothing()` otherwise.
 
+<!-- verify -->
 ```java
 Lens<UserProfile, String> bioLens = UserProfileLenses.bio();
 
@@ -57,6 +59,7 @@ String displayBio = bio.orElse("No bio provided");
 
 Returns `Either.right(value)` if non-null, `Either.left(error)` if null.
 
+<!-- verify -->
 ```java
 Lens<UserProfile, Integer> ageLens = UserProfileLenses.age();
 
@@ -73,6 +76,7 @@ String message = age.fold(
 
 Like `getEither`, but returns `Validated` for consistency with validation workflows.
 
+<!-- verify -->
 ```java
 Lens<UserProfile, String> emailLens = UserProfileLenses.email();
 
@@ -86,6 +90,7 @@ Validated<String, String> email = getValidated(emailLens, "Email is required", p
 
 Apply a modification that might not succeed. Returns `Maybe.just(updated)` if successful, `Maybe.nothing()` if it fails.
 
+<!-- verify -->
 ```java
 Lens<UserProfile, String> nameLens = UserProfileLenses.name();
 
@@ -101,6 +106,7 @@ Maybe<UserProfile> updated = modifyMaybe(
 
 Apply a modification with validation. Returns `Either.right(updated)` if valid, `Either.left(error)` if invalid.
 
+<!-- verify -->
 ```java
 Lens<UserProfile, Integer> ageLens = UserProfileLenses.age();
 
@@ -119,6 +125,7 @@ Either<String, UserProfile> updated = modifyEither(
 
 Apply a modification that might throw exceptions. Returns `Try.success(updated)` or `Try.failure(exception)`.
 
+<!-- verify -->
 ```java
 Lens<UserProfile, String> emailLens = UserProfileLenses.email();
 
@@ -138,6 +145,7 @@ updated.match(
 
 Set a new value **only if it passes validation**. Unlike `modifyEither`, you provide the new value directly.
 
+<!-- verify -->
 ```java
 Lens<UserProfile, String> nameLens = UserProfileLenses.name();
 
@@ -155,15 +163,18 @@ Either<String, UserProfile> updated = setIfValid(
 
 ### Chaining Multiple Lens Updates
 
+<!-- verify -->
 ```java
 Lens<UserProfile, String> nameLens = UserProfileLenses.name();
 Lens<UserProfile, String> emailLens = UserProfileLenses.email();
 
-Either<String, UserProfile> result = modifyEither(
+Either<String, UserProfile> capitalised = modifyEither(
     nameLens,
     name -> Either.right(capitalize(name)),
     original
-).flatMap(user ->
+);
+
+Either<String, UserProfile> result = capitalised.flatMap(user ->
     modifyEither(
         emailLens,
         email -> Either.right(email.toLowerCase()),
@@ -178,6 +189,7 @@ Either<String, UserProfile> result = modifyEither(
 
 ### Importing Traversal Extensions
 
+<!-- verify -->
 ```java
 import static org.higherkindedj.optics.extensions.TraversalExtensions.*;
 ```
@@ -188,6 +200,7 @@ import static org.higherkindedj.optics.extensions.TraversalExtensions.*;
 
 Returns `Maybe.just(values)` if any elements exist, `Maybe.nothing()` for empty collections.
 
+<!-- verify -->
 ```java
 Lens<OrderItem, BigDecimal> priceLens = OrderItemLenses.price();
 Traversal<List<OrderItem>, BigDecimal> allPrices =
@@ -203,6 +216,7 @@ Maybe<List<BigDecimal>> prices = getAllMaybe(allPrices, items);
 
 Returns `Maybe.just(updated)` if **all** modifications succeed, `Maybe.nothing()` if **any** fail. Atomic operation.
 
+<!-- verify -->
 ```java
 Maybe<List<OrderItem>> updated = modifyAllMaybe(
     allPrices,
@@ -222,6 +236,7 @@ Use for **atomic updates** where all modifications must succeed or none should a
 
 Returns `Either.right(updated)` if **all** validations pass, `Either.left(firstError)` if **any** fail. The result keeps only the first error; the traversal still visits every element.
 
+<!-- verify -->
 ```java
 Either<String, List<OrderItem>> result = modifyAllEither(
     allPrices,
@@ -244,6 +259,7 @@ Use when **one error is all the caller will act on**, for example an API request
 
 Returns `Validated.valid(updated)` if **all** validations pass, `Validated.invalid(allErrors)` if **any** fail. **Collects all errors**.
 
+<!-- verify -->
 ```java
 Validated<List<String>, List<OrderItem>> result = modifyAllValidated(
     allPrices,
@@ -275,6 +291,7 @@ Use for **error accumulation** where you want to collect all errors, for example
 
 Modifies elements where the function returns `Maybe.just(value)`, leaves others unchanged. Best-effort operation that always succeeds.
 
+<!-- verify -->
 ```java
 Lens<OrderItem, String> statusLens = OrderItemLenses.status();
 Traversal<List<OrderItem>, String> allStatuses =
@@ -300,6 +317,7 @@ Use for **selective updates** where only some elements should be modified, for e
 
 Count how many elements pass validation without modifying anything.
 
+<!-- verify -->
 ```java
 int validCount = countValid(
     allPrices,
@@ -316,6 +334,7 @@ System.out.println("Valid items: " + validCount + " out of " + items.size());
 
 Collect all validation errors without modifying anything. Returns empty list if all valid.
 
+<!-- verify -->
 ```java
 List<String> errors = collectErrors(
     allPrices,
@@ -337,6 +356,7 @@ if (errors.isEmpty()) {
 
 ## Complete Example: Order Validation Pipeline
 
+<!-- verify -->
 ```java
 public sealed interface ValidationResult permits OrderApproved, OrderRejected {}
 record OrderApproved(Order order) implements ValidationResult {}
@@ -446,6 +466,7 @@ Pure functions are easier to test, reason about, and compose.
 ~~~admonish warning title="Lens Extensions Don't Handle Null Sources"
 Lens extensions handle `null` **field values**, but not `null` **source objects**:
 
+<!-- verify -->
 ```java
 UserProfile profile = null;
 Maybe<String> bio = getMaybe(bioLens, profile);  // NullPointerException!
