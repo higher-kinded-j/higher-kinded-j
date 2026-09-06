@@ -698,9 +698,9 @@ public EitherPath<Error, User> getUser(String id) {
 // Avoid: Converting back and forth
 public EitherPath<Error, User> getUser(String id) {
     return Path.maybe(repository.findById(id))
-        .toEitherPath(() -> Error.notFound(id))
+        .toEitherPath(Error.notFound(id))
         .toMaybePath()  // Why convert back?
-        .toEitherPath(() -> Error.notFound(id)); // And forth again?
+        .toEitherPath(Error.notFound(id)); // And forth again?
 }
 ```
 
@@ -715,7 +715,7 @@ public Maybe<User> findById(String id) { ... }
 // Service: Either with domain errors
 public EitherPath<UserError, User> getUserById(String id) {
     return Path.maybe(repository.findById(id))
-        .toEitherPath(() -> UserError.NOT_FOUND);
+        .toEitherPath(UserError.NOT_FOUND);
 }
 
 // Controller: Either with HTTP-friendly errors

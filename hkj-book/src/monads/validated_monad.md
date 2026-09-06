@@ -301,7 +301,7 @@ Validated<List<Error>, User> user = validateUser(input);
 Validated<List<Error>, Order> order = user.flatMap(u -> createOrder(u));
 
 // Use ValidationPath for cleaner composition:
-ValidationPath<List<Error>, Order> order = Path.validation(validateUser(input))
+ValidationPath<List<Error>, Order> order = Path.validated(validateUser(input), errors)
     .via(u -> createOrder(u));
 ```
 
