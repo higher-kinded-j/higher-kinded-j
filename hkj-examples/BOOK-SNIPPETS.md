@@ -319,6 +319,10 @@ Some shapes recur across the book and are left unmarked deliberately:
   every worked use of `Affine.of` and of each composition below is gated.
   `optics/each_typeclass.md`'s two `Each.fromTraversal` entries are the same shape again: an
   optic over a container the reader brings, written `= ...` over a free `A`.
+  `core_type_integration.md` writes `Maybe<Either<String, User>> confusing = ...;` to say which
+  pairing NOT to reach for, and `optics_intro.md`'s traversal teaser elides its record's other
+  components as `(..., List<String> promoCodes)`; every optic each page introduces is gated where
+  it is introduced.
 - **Legacy null-checking beside the Optional model.** `optics/affine.md`'s anti-pattern block ends
   with `user.address() != null && user.address().postcode() != null`, which reads through a
   nullable model the page never declares - its `Address` is reached through an `Optional`. The
