@@ -29,6 +29,7 @@ Consider a user management system where you need to perform various modification
 
 **The Data Model:**
 
+<!-- verify -->
 ```java
 @GenerateSetters
 public record User(String username, String email, int loginCount, UserSettings settings) {}
@@ -89,6 +90,7 @@ A `Setter` makes these modifications type-safe, composable, and expressive.
 
 Annotating a record with **`@GenerateSetters`** creates a companion class (e.g., `UserSetters`) containing a `Setter` for each field:
 
+<!-- verify -->
 ```java
 import org.higherkindedj.optics.annotations.GenerateSetters;
 
@@ -113,6 +115,7 @@ As with every generator in this chapter, a `targetPackage` attribute relocates t
 
 Create Setters programmatically:
 
+<!-- verify -->
 ```java
 // Using fromGetSet for single-element focus
 Setter<User, String> usernameSetter = Setter.fromGetSet(
@@ -134,6 +137,7 @@ Setter<Map<String, Double>, Double> mapValuesSetter = Setter.forMapValues();
 
 Applies a function to modify the focused element:
 
+<!-- verify -->
 ```java
 Setter<User, String> usernameSetter = Setter.fromGetSet(
     User::username,
@@ -154,6 +158,7 @@ User suffixed = usernameSetter.modify(name -> name + "_admin", user);
 
 Sets all focused elements to a specific value:
 
+<!-- verify -->
 ```java
 Setter<User, Integer> loginCountSetter = Setter.fromGetSet(
     User::loginCount,
@@ -168,6 +173,7 @@ User reset = loginCountSetter.set(0, user);
 
 Chain Setters together for deep modifications:
 
+<!-- verify -->
 ```java
 Setter<User, UserSettings> settingsSetter = Setter.fromGetSet(
     User::settings,
@@ -189,10 +195,9 @@ User darkModeUser = userThemeSetter.set("dark", user);
 
 #### Deep Composition Chain
 
+<!-- verify -->
 ```java
-Setter<User, UserSettings> settingsSetter = /* ... */;
-Setter<UserSettings, Integer> fontSizeSetter = /* ... */;
-
+// settingsSetter and fontSizeSetter, built with fromGetSet as above
 Setter<User, Integer> userFontSizeSetter = settingsSetter.andThen(fontSizeSetter);
 
 User largerFont = userFontSizeSetter.modify(size -> size + 2, user);
@@ -205,6 +210,7 @@ Higher-Kinded-J provides built-in Setters for collections:
 
 #### **`forList()`**: Modify All List Elements
 
+<!-- verify -->
 ```java
 Setter<List<Integer>, Integer> listSetter = Setter.forList();
 
@@ -221,6 +227,7 @@ List<Integer> allZeros = listSetter.set(0, numbers);
 
 #### **`forMapValues()`**: Modify All Map Values
 
+<!-- verify -->
 ```java
 Setter<Map<String, Integer>, Integer> mapSetter = Setter.forMapValues();
 
@@ -239,6 +246,7 @@ Map<String, Integer> reset = mapSetter.set(0, scores);
 
 Compose Setters for complex nested modifications:
 
+<!-- verify -->
 ```java
 Setter<Inventory, List<Product>> productsSetter = Setter.fromGetSet(
     Inventory::products,
@@ -281,6 +289,7 @@ Inventory restocked = allProductsSetter.modify(
 
 Setters support effectful modifications via `modifyF`, allowing you to compose modifications that might fail or have side effects:
 
+<!-- verify -->
 ```java
 Setter<User, String> usernameSetter = Setter.fromGetSet(
     User::username,
@@ -312,6 +321,7 @@ Optional<User> invalidValidated = OptionalKindHelper.OPTIONAL.narrow(invalidResu
 
 #### Sequencing Effects in Collections
 
+<!-- verify -->
 ```java
 Setter<List<Integer>, Integer> listSetter = Setter.forList();
 
@@ -344,6 +354,7 @@ Optional<List<Integer>> failed = OptionalKindHelper.OPTIONAL.narrow(failedResult
 
 Setters can be viewed as Traversals, enabling integration with other optics:
 
+<!-- verify -->
 ```java
 Setter<User, String> nameSetter = Setter.fromGetSet(
     User::username,
@@ -365,6 +376,7 @@ Kind<OptionalKind.Witness, User> result =
 
 ### **`identity()`**: Modifies the Source Itself
 
+<!-- verify -->
 ```java
 Setter<String, String> identitySetter = Setter.identity();
 
@@ -389,6 +401,7 @@ Useful as a base case in composition or for direct value transformation.
 * You need **effectful modifications** with validation
 * You're performing **data normalisation** across structures
 
+<!-- verify -->
 ```java
 // Good: Batch normalisation
 Setter<List<String>, String> listSetter = Setter.forList();
@@ -405,6 +418,7 @@ Setter<Company, String> employeeNamesSetter = companySetter
 * You need **both reading and writing**
 * You want to **get and set** the same field
 
+<!-- verify -->
 ```java
 // Use Lens when you need to read
 Lens<User, String> usernameLens = Lens.of(
@@ -420,9 +434,9 @@ User updated = usernameLens.set("new_name", user); // Write
 * You need **read operations** (`getAll`) on collections
 * You're working with **optional** or multiple focuses
 
+<!-- verify -->
 ```java
 // Use Traversal when you need to extract values too
-Traversal<Order, Product> productTraversal = /* ... */;
 List<Product> all = Traversals.getAll(productTraversal, order); // Read
 ```
 
@@ -442,6 +456,7 @@ user.setUsername("new_name"); // Avoid in functional programming
 
 ### Data Normalisation Pipeline
 
+<!-- verify -->
 ```java
 Setter<List<Product>, Product> productSetter = Setter.forList();
 Setter<Product, String> nameSetter = Setter.fromGetSet(
@@ -467,8 +482,9 @@ List<Product> normalised = productSetter.modify(
 
 ### Currency Conversion
 
+<!-- verify -->
 ```java
-Setter<Product, Double> priceSetter = /* ... */;
+// priceSetter, built with fromGetSet as above
 double exchangeRate = 0.92; // USD to EUR
 
 List<Product> euroProducts = productSetter.modify(
@@ -478,9 +494,10 @@ List<Product> euroProducts = productSetter.modify(
 
 ### Batch User Updates
 
+<!-- verify -->
 ```java
 Setter<List<User>, User> usersSetter = Setter.forList();
-Setter<User, Integer> loginCountSetter = /* ... */;
+// loginCountSetter, built with fromGetSet as above
 
 // Reset all login counts
 List<User> resetUsers = usersSetter.modify(
@@ -495,6 +512,7 @@ List<User> incremented = usersSetter.modify(
 
 ### Theme Migration
 
+<!-- verify -->
 ```java
 Setter<User, String> userThemeSetter = settingsSetter.andThen(themeSetter);
 
@@ -510,6 +528,7 @@ List<User> darkModeUsers = usersSetter.modify(
 
 ### Don't Use `Setter.of()` for Effectful Operations
 
+<!-- verify -->
 ```java
 // Warning: Setter.of() doesn't support modifyF properly
 Setter<Person, String> nameSetter = Setter.of(
@@ -521,6 +540,7 @@ nameSetter.modifyF(validateFn, person, applicative);
 
 ### Use `fromGetSet()` for Effectful Support
 
+<!-- verify -->
 ```java
 // Correct: fromGetSet supports modifyF
 Setter<Person, String> nameSetter = Setter.fromGetSet(
@@ -540,6 +560,7 @@ setter.modify(obj -> { obj.setValue(newValue); return obj; }, source);
 
 ### Always Return New Instances
 
+<!-- verify -->
 ```java
 // Correct: Return new immutable instance
 Setter<Product, Double> priceSetter = Setter.fromGetSet(
@@ -569,10 +590,11 @@ The `modifyF` implementations in `forList()` and `forMapValues()` use efficient 
 
 This means you can safely use effectful modifications on large collections without performance concerns:
 
+<!-- verify -->
 ```java
 // Efficient even for large lists
 Setter<List<Integer>, Integer> listSetter = Setter.forList();
-List<Integer> largeList = /* thousands of elements */;
+// largeList holds thousands of elements
 
 // O(n) time complexity, not O(n²)
 Kind<OptionalKind.Witness, List<Integer>> result =
@@ -581,20 +603,22 @@ Kind<OptionalKind.Witness, List<Integer>> result =
 
 **Best Practice**: Compose Setters at initialisation time, then reuse:
 
+<!-- verify -->
 ```java
 // Define once
-private static final Setter<Company, Double> ALL_PRODUCT_PRICES =
-    companySetter.andThen(productsSetter).andThen(priceSetter);
+final Setter<Company, Double> allProductPrices =
+    companyProductsSetter.andThen(productsSetter).andThen(priceSetter);
 
 // Reuse many times
-Company discounted = ALL_PRODUCT_PRICES.modify(p -> p * 0.9, company);
-Company inflated = ALL_PRODUCT_PRICES.modify(p -> p * 1.05, company);
+Company discounted = allProductPrices.modify(p -> p * 0.9, company);
+Company inflated = allProductPrices.modify(p -> p * 1.05, company);
 ```
 
 ---
 
 ## Complete, Runnable Example
 
+<!-- verify -->
 ```java
 import static org.higherkindedj.hkt.instances.Witnesses.optional;
 
