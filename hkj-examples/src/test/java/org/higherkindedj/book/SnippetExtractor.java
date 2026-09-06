@@ -495,7 +495,7 @@ final class SnippetExtractor {
         while (subject < lines.size()
             && ANNOTATION.matcher(lines.get(subject)).matches()
             && !INLINE_DECLARATION.matcher(lines.get(subject)).find()) {
-          subject++;
+          subject = endOfAnnotation(lines, subject) + 1;
         }
         if (subject < lines.size() && DECLARATION.matcher(lines.get(subject)).find()) {
           int end = endOfDeclaration(lines, subject);
@@ -564,6 +564,28 @@ final class SnippetExtractor {
     String code = stripLiterals(line);
     return (int) code.chars().filter(c -> c == '<').count()
         - (int) code.chars().filter(c -> c == '>').count();
+  }
+
+  /**
+   * The last line of the annotation that starts at {@code start}.
+   *
+   * <p>An annotation's arguments wrap as readily as anything else - {@code @JsonSubTypes({...})}
+   * lists a type per line - so the look-ahead past a run of annotations has to step over the whole
+   * of one. Stepping a line at a time stops at the closing {@code })}, which is neither another
+   * annotation nor a declaration, and the type below is then treated as a loose statement.
+   */
+  private static int endOfAnnotation(List<String> lines, int start) {
+    int depth = 0;
+    for (int i = start; i < lines.size(); i++) {
+      String code = stripLiterals(lines.get(i));
+      depth +=
+          (int) code.chars().filter(c -> c == '(' || c == '{').count()
+              - (int) code.chars().filter(c -> c == ')' || c == '}').count();
+      if (depth <= 0) {
+        return i;
+      }
+    }
+    return start;
   }
 
   /** How many braces a line opens, net of the ones it closes, ignoring literals and comments. */

@@ -50,6 +50,10 @@ dependencies {
     testImplementation(libs.spring.boot.starter.test)
     testImplementation(libs.spring.boot.webmvc.test)
 
+    // The effect-boundary page's transaction section writes @Transactional, which spring-web does
+    // not bring in. Versioned by the Boot BOM above.
+    testImplementation("org.springframework:spring-tx")
+
     // JUnit declares apiguardian as compileOnly, so it is absent from the test runtime classpath.
     // The book gate hands that classpath to javac, and a snippet using @Test then trips
     // "unknown enum constant API.Status.STABLE" -- a warning, which the gate treats as fatal.
