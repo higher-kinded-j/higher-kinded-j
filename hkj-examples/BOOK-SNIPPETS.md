@@ -203,6 +203,10 @@ Some shapes recur in the monads chapter and are left unmarked deliberately:
   sealed type that permits the library's own classes cannot be declared beside them, and the page
   needs the real type in every other fence, so it cannot shadow it either. `trampoline_monad.md`
   quotes the shape a blog post published, which is the same case.
+- **A `@SafeVarargs` factory quoted as a signature.** `stream_monad.md`'s creation reference
+  quotes `fromArray(T... elements)`. A signature-only snippet is wrapped in an interface, where
+  the annotation the real declaration carries is not legal, and without it javac raises a
+  mandatory heap-pollution warning. The other four reference tables on that page are gated.
 - **Laws written as equations.** `coyoneda.md` states the functor laws as
   `coyo.map(x -> x) == coyo`. The `==` is the law's notation, not a reference comparison, and
   rewriting it as an assertion would obscure what it says.

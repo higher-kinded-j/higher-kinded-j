@@ -43,6 +43,7 @@ Java Streams have **single-use semantics**. Once a terminal operation has been p
 
 Converts a standard `java.util.stream.Stream<A>` into a `Kind<StreamKind.Witness, A>`.
 
+<!-- verify -->
 ```java
 Stream<String> stringStream = Stream.of("a", "b", "c");
 Kind<StreamKind.Witness, String> streamKind1 = STREAM.widen(stringStream);
@@ -60,6 +61,7 @@ Kind<StreamKind.Witness, Object> streamKindEmpty = STREAM.widen(emptyStream);
 
 Lifts a single value into the `StreamKind` context, creating a singleton stream. A `null` input value results in an empty `StreamKind`.
 
+<!-- verify -->
 ```java
 MonadZero<StreamKind.Witness> streamMonad = Instances.monadZero(stream());
 
@@ -73,6 +75,7 @@ Kind<StreamKind.Witness, Object> streamKindFromNull = streamMonad.of(null); // C
 
 Creates an empty `StreamKind`, useful for filtering operations or providing a "nothing" value in monadic computations.
 
+<!-- verify -->
 ```java
 MonadZero<StreamKind.Witness> streamMonad = Instances.monadZero(stream());
 
@@ -84,6 +87,7 @@ Kind<StreamKind.Witness, String> emptyStreamKind = streamMonad.zero(); // Empty 
 
 To get the underlying `java.util.stream.Stream<A>` from a `Kind<StreamKind.Witness, A>`, use `STREAM.narrow()`:
 
+<!-- verify -->
 ```java
 Kind<StreamKind.Witness, String> streamKind = STREAM.widen(Stream.of("example"));
 Stream<String> unwrappedStream = STREAM.narrow(streamKind); // Returns Stream containing "example"
@@ -98,6 +102,7 @@ System.out.println(result); // [example]
 
 The `StreamOps` utility class provides convenient factory methods for creating `StreamKind` instances:
 
+<!-- verify -->
 ```java
 // Create from varargs
 Kind<StreamKind.Witness, Integer> numbers = fromArray(1, 2, 3, 4, 5);
@@ -109,8 +114,8 @@ Kind<StreamKind.Witness, Integer> range = range(1, 11); // 1 through 10
 List<String> names = Arrays.asList("Alice", "Bob", "Charlie");
 Kind<StreamKind.Witness, String> nameStream = fromIterable(names);
 
-// Create empty stream
-Kind<StreamKind.Witness, String> empty = empty();
+// The empty stream is the MonadZero's zero
+Kind<StreamKind.Witness, String> empty = Instances.monadZero(stream()).zero();
 ```
 ~~~
 
@@ -123,6 +128,7 @@ The `StreamMonad` provides standard monadic operations, all maintaining lazy eva
 
 Applies a function `f` to each element of the stream within `fa`, returning a new `StreamKind` containing the transformed elements. The transformation is **lazy** and won't execute until a terminal operation is performed.
 
+<!-- verify -->
 ```java
 MonadZero<StreamKind.Witness> streamMonad = Instances.monadZero(stream());
 Kind<StreamKind.Witness, Integer> numbers = STREAM.widen(Stream.of(1, 2, 3));
@@ -143,6 +149,7 @@ System.out.println(result);
 
 Applies a function `f` to each element of the stream within `ma`. The function `f` itself returns a `StreamKind<B>`. `flatMap` then flattens all these resulting streams into a single `StreamKind<B>`. Evaluation remains lazy.
 
+<!-- verify -->
 ```java
 MonadZero<StreamKind.Witness> streamMonad = Instances.monadZero(stream());
 Kind<StreamKind.Witness, Integer> initialValues = STREAM.widen(Stream.of(1, 2, 3));
@@ -176,6 +183,7 @@ System.out.println(words);
 
 Applies a stream of functions `ff` to a stream of values `fa`. This results in a new stream where each function from `ff` is applied to each value in `fa` (Cartesian product style). Evaluation remains lazy.
 
+<!-- verify -->
 ```java
 MonadZero<StreamKind.Witness> streamMonad = Instances.monadZero(stream());
 
@@ -203,42 +211,48 @@ The `StreamOps` class provides a rich set of static utility methods for working 
 
 ~~~admonish title="Factory Methods"
 ```java
-// Create from varargs
-Kind<StreamKind.Witness, T> fromArray(T... elements)
+// Create from varargs (@SafeVarargs on the real declaration)
+Kind<StreamKind.Witness, T> fromArray(T... elements);
 
 // Create from Iterable
-Kind<StreamKind.Witness, T> fromIterable(Iterable<T> iterable)
+Kind<StreamKind.Witness, T> fromIterable(Iterable<T> iterable);
 
 // Create a range [start, end)
-Kind<StreamKind.Witness, Integer> range(int start, int end)
+Kind<StreamKind.Witness, Integer> range(int start, int end);
 
-// Create empty stream
-Kind<StreamKind.Witness, T> empty()
+// Create a range [start, end]
+Kind<StreamKind.Witness, Integer> rangeClosed(int start, int end);
 ```
 
+There is no `empty()` here: the empty stream is `MonadZero.zero()`.
+
+
 **Examples:**
+<!-- verify -->
 ```java
 Kind<StreamKind.Witness, String> names = fromArray("Alice", "Bob", "Charlie");
 Kind<StreamKind.Witness, Integer> numbers = range(1, 101); // 1 to 100
-Kind<StreamKind.Witness, String> emptyStream = empty();
+Kind<StreamKind.Witness, String> emptyStream = Instances.monadZero(stream()).zero();
 ```
 ~~~
 
 ### Filtering and Selection
 
 ~~~admonish title="Filtering Operations"
+<!-- verify -->
 ```java
 // Keep only elements matching predicate
-Kind<StreamKind.Witness, A> filter(Predicate<A> predicate, Kind<StreamKind.Witness, A> stream)
+Kind<StreamKind.Witness, A> filter(Predicate<A> predicate, Kind<StreamKind.Witness, A> stream);
 
 // Take first n elements
-Kind<StreamKind.Witness, A> take(long n, Kind<StreamKind.Witness, A> stream)
+Kind<StreamKind.Witness, A> take(long n, Kind<StreamKind.Witness, A> stream);
 
 // Skip first n elements
-Kind<StreamKind.Witness, A> drop(long n, Kind<StreamKind.Witness, A> stream)
+Kind<StreamKind.Witness, A> drop(long n, Kind<StreamKind.Witness, A> stream);
 ```
 
 **Examples:**
+<!-- verify -->
 ```java
 Kind<StreamKind.Witness, Integer> numbers = range(1, 101);
 
@@ -256,18 +270,20 @@ Kind<StreamKind.Witness, Integer> afterFirst5 = drop(5, range(1, 20));
 ### Combination Operations
 
 ~~~admonish title="Combining Streams"
+<!-- verify -->
 ```java
 // Concatenate two streams sequentially
-Kind<StreamKind.Witness, A> concat(Kind<StreamKind.Witness, A> stream1, Kind<StreamKind.Witness, A> stream2)
+Kind<StreamKind.Witness, A> concat(Kind<StreamKind.Witness, A> stream1, Kind<StreamKind.Witness, A> stream2);
 
 // Zip two streams element-wise with combiner function
-Kind<StreamKind.Witness, C> zip(Kind<StreamKind.Witness, A> stream1, Kind<StreamKind.Witness, B> stream2, BiFunction<A, B, C> combiner)
+Kind<StreamKind.Witness, C> zip(Kind<StreamKind.Witness, A> stream1, Kind<StreamKind.Witness, B> stream2, BiFunction<A, B, C> combiner);
 
 // Pair each element with its index (starting from 0)
-Kind<StreamKind.Witness, Tuple2<Integer, A>> zipWithIndex(Kind<StreamKind.Witness, A> stream)
+Kind<StreamKind.Witness, Tuple2<Integer, A>> zipWithIndex(Kind<StreamKind.Witness, A> stream);
 ```
 
 **Examples:**
+<!-- verify -->
 ```java
 Kind<StreamKind.Witness, Integer> first = range(1, 4);   // 1, 2, 3
 Kind<StreamKind.Witness, Integer> second = range(10, 13); // 10, 11, 12
@@ -293,18 +309,20 @@ Kind<StreamKind.Witness, Tuple2<Integer, String>> indexed = zipWithIndex(items);
 ### Terminal Operations
 
 ~~~admonish title="Consuming Streams"
+<!-- verify -->
 ```java
 // Collect to List
-List<A> toList(Kind<StreamKind.Witness, A> stream)
+List<A> toList(Kind<StreamKind.Witness, A> stream);
 
 // Collect to Set
-Set<A> toSet(Kind<StreamKind.Witness, A> stream)
+Set<A> toSet(Kind<StreamKind.Witness, A> stream);
 
 // Execute side effect for each element
-void forEach(Consumer<A> action, Kind<StreamKind.Witness, A> stream)
+void forEach(Consumer<A> action, Kind<StreamKind.Witness, A> stream);
 ```
 
 **Examples:**
+<!-- verify -->
 ```java
 Kind<StreamKind.Witness, Integer> numbers = range(1, 6);
 
@@ -327,12 +345,14 @@ forEach(System.out::println, messages);
 ### Side Effects and Debugging
 
 ~~~admonish title="Observation Operations"
+<!-- verify -->
 ```java
 // Execute side effect for each element while passing through
-Kind<StreamKind.Witness, A> tap(Consumer<A> action, Kind<StreamKind.Witness, A> stream)
+Kind<StreamKind.Witness, A> tap(Consumer<A> action, Kind<StreamKind.Witness, A> stream);
 ```
 
 **Example:**
+<!-- verify -->
 ```java
 List<String> log = new ArrayList<>();
 
@@ -363,6 +383,7 @@ Unlike `List` or `Optional`, Java Streams can only be consumed **once**. This is
 - Each `Kind<StreamKind.Witness, A>` instance can only flow through one pipeline to completion
 
 **Correct Approach:**
+<!-- verify -->
 ```java
 // Create fresh stream for each independent operation
 Kind<StreamKind.Witness, Integer> stream1 = range(1, 4);
@@ -373,6 +394,7 @@ List<Integer> result2 = toList(stream2); // ✓ Second use with fresh stream
 ```
 
 **Incorrect Approach:**
+<!-- verify -->
 ```java
 // DON'T DO THIS - Will throw IllegalStateException
 Kind<StreamKind.Witness, Integer> stream = range(1, 4);
@@ -392,10 +414,13 @@ List<Integer> result2 = toList(stream);  // ✗ ERROR: stream already consumed!
 ~~~admonish example title="Comprehensive Stream Example"
 Here's a complete example demonstrating various Stream operations:
 
+<!-- verify -->
 ```java
 import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.MonadZero;
+import org.higherkindedj.hkt.instances.Instances;
 import org.higherkindedj.hkt.stream.StreamKind;
-import org.higherkindedj.hkt.stream.StreamMonad;
+import static org.higherkindedj.hkt.instances.Witnesses.stream;
 import static org.higherkindedj.hkt.stream.StreamKindHelper.STREAM;
 import static org.higherkindedj.hkt.stream.StreamOps.*;
 
