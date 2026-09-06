@@ -56,6 +56,7 @@ Your service method can fail in multiple, domain-specific ways: insufficient fun
 
 ### The solution
 
+<!-- verify -->
 ```java
 // Domain error hierarchy
 sealed interface PaymentError {
@@ -63,6 +64,16 @@ sealed interface PaymentError {
     record AccountNotFound(String accountId) implements PaymentError {}
     record AccountSuspended(String accountId) implements PaymentError {}
     record GatewayTimeout(String provider) implements PaymentError {}
+}
+
+EitherPath<PaymentError, Account> validateBalance(Account account, double amount) {
+    return account.balance() >= amount
+        ? Path.right(account)
+        : Path.left(new PaymentError.InsufficientFunds(account.id(), amount - account.balance()));
+}
+
+EitherPath<PaymentError, Charge> chargeAccount(Account account, double amount) {
+    return Path.right(new Charge("txn-" + account.id()));
 }
 
 // Service method returning a typed error channel
@@ -89,18 +100,22 @@ This is the default archetype. Most service-layer methods that can fail with dom
 
 ### The imperative alternative
 
+<!-- verify -->
 ```java
 // Without EitherPath: scattered try/catch, invisible error modes
-try {
-    Account account = lookupAccount(request.accountId());
-    if (account.balance() < request.amount()) {
-        throw new InsufficientFundsException(account.id(), ...);
+PaymentConfirmation processPayment(PaymentRequest request) {
+    try {
+        Account account = lookupAccount(request.accountId());
+        if (account.balance() < request.amount()) {
+            throw new InsufficientFundsException(
+                account.id(), request.amount() - account.balance());
+        }
+        Charge charge = chargeDirectly(account, request.amount());
+        return new PaymentConfirmation(charge.transactionId());
+    } catch (GatewayTimeoutException e) {
+        // Retry logic mixed with business logic
+        return processPayment(request);  // but what about the other exceptions?
     }
-    Charge charge = chargeAccount(account, request.amount());
-    return new PaymentConfirmation(charge.transactionId());
-} catch (GatewayTimeoutException e) {
-    // Retry logic mixed with business logic
-    return processPayment(request);  // but what about the other exceptions?
 }
 ```
 
@@ -137,6 +152,7 @@ You need to resolve a value from multiple sources with a defined priority: first
 
 ### The solution
 
+<!-- verify -->
 ```java
 MaybePath<Config> resolveConfig(String key) {
     return lookupFromDatabase(key)                          // MaybePath<Config>
@@ -148,6 +164,10 @@ MaybePath<Config> resolveConfig(String key) {
 MaybePath<Config> lookupFromDatabase(String key) {
     return Path.maybe(database.find(key));   // Nothing if absent
 }
+
+MaybePath<Config> resolve(String key) {
+    return resolveConfig(key);
+}
 ```
 
 ### When to use
@@ -156,9 +176,10 @@ Whenever absence is normal and expected, not an error. Cache lookups, configurat
 
 ### The imperative alternative
 
+<!-- verify -->
 ```java
 // Without MaybePath: null-check chains
-Config config = database.find(key);
+Config config = database.find(key).orElse(null);
 if (config == null) {
     config = System.getenv(key) != null ? Config.parse(System.getenv(key)) : null;
 }
@@ -201,6 +222,7 @@ A REST API receives a request body with multiple fields. Each field has its own 
 
 ### The solution
 
+<!-- verify -->
 ```java
 Semigroup<List<String>> errors = Semigroups.list();
 
@@ -258,6 +280,7 @@ In a multi-tenant SaaS application, every service call needs access to tenant co
 
 ### The solution
 
+<!-- verify -->
 ```java
 record TenantContext(String tenantId, Set<String> featureFlags) {}
 
@@ -290,10 +313,15 @@ Multi-tenant systems, distributed tracing (threading trace IDs), security contex
 
 ### The imperative alternative
 
+<!-- verify -->
 ```java
 // Without ReaderPath: context pollutes every signature
-PricingPlan resolvePricing(TenantContext ctx) { ... }
-List<Product> listProducts(TenantContext ctx) { ... }
+PricingPlan resolvePricing(TenantContext ctx) {
+    return ctx.featureFlags().contains("premium") ? PricingPlan.PREMIUM : PricingPlan.STANDARD;
+}
+List<Product> listProducts(TenantContext ctx) {
+    return catalog.findByTenant(ctx.tenantId());
+}
 ProductPage buildProductPage(TenantContext ctx) {
     return new ProductPage(resolvePricing(ctx), listProducts(ctx));
 }
@@ -323,6 +351,7 @@ Financial regulations require every step in a transaction to produce an audit en
 
 ### The solution
 
+<!-- verify -->
 ```java
 Monoid<List<AuditEntry>> auditMonoid = Monoids.list();
 
@@ -353,9 +382,10 @@ Compliance-sensitive operations (financial transactions, healthcare record acces
 
 ### The imperative alternative
 
+<!-- verify -->
 ```java
 // Without WriterPath: side-effecting logger calls, easy to forget
-Account debitAccount(Account account, double amount) {
+Account debitAccountImperatively(Account account, double amount) {
     logger.info("DEBIT {} from {}", amount, account.id());  // easy to forget this line
     return account.withBalance(account.balance() - amount);
 }
@@ -376,6 +406,7 @@ An order fulfilment pipeline must track its current state as it progresses throu
 
 ### The solution
 
+<!-- verify -->
 ```java
 enum OrderStage { PENDING, VALIDATED, PAID, SHIPPED }
 
@@ -399,6 +430,12 @@ WithStatePath<OrderState, Unit> processPayment() {
     );
 }
 
+WithStatePath<OrderState, Unit> shipOrder() {
+    return WithStatePath.<OrderState>modify(
+        s -> s.advance(OrderStage.SHIPPED, "Order shipped")
+    );
+}
+
 // Compose steps; state threads through automatically
 WithStatePath<OrderState, OrderState> fulfil() {
     return validateOrder()
@@ -419,6 +456,7 @@ Order processing pipelines, approval workflows, multi-step wizards, game state, 
 
 ### The imperative alternative
 
+<!-- verify -->
 ```java
 // Without WithStatePath: mutable state, implicit transitions
 class OrderProcessor {
@@ -445,10 +483,11 @@ You are aggregating data from a paginated external API. Each page returns a "nex
 
 ### The solution
 
+<!-- verify -->
 ```java
-TrampolinePath<List<Record>> fetchAllPages(String cursor, List<Record> accumulated) {
+TrampolinePath<List<PageRecord>> fetchAllPages(String cursor, List<PageRecord> accumulated) {
     Page page = api.fetch(cursor);
-    List<Record> all = new ArrayList<>(accumulated);
+    List<PageRecord> all = new ArrayList<>(accumulated);
     all.addAll(page.records());
 
     if (page.nextCursor() == null) {
@@ -460,7 +499,7 @@ TrampolinePath<List<Record>> fetchAllPages(String cursor, List<Record> accumulat
 }
 
 // Safe even for millions of pages
-List<Record> allRecords = fetchAllPages(initialCursor, List.of()).run();
+List<PageRecord> allRecords = fetchAllPages(initialCursor, List.of()).run();
 ```
 
 ### When to use
@@ -469,9 +508,10 @@ Paginated API aggregation, tree traversals, graph algorithms, recursive data tra
 
 ### The imperative alternative
 
+<!-- verify -->
 ```java
 // Without TrampolinePath: manual loop (works, but less composable)
-List<Record> all = new ArrayList<>();
+List<PageRecord> all = new ArrayList<>();
 String cursor = initialCursor;
 while (cursor != null) {
     Page page = api.fetch(cursor);
@@ -493,6 +533,7 @@ Real applications rarely use a single archetype in isolation. The Order Processi
 
 The Path API's conversion methods (`toEitherPath`, `toMaybePath`, `toValidationPath`) make it straightforward to transition between archetypes at natural boundaries in your pipeline.
 
+<!-- verify -->
 ```java
 // Validate first (accumulate all errors), then switch to service stack (short-circuit)
 EitherPath<OrderError, ValidatedOrder> validated =
