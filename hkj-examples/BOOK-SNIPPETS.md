@@ -244,7 +244,8 @@ Some shapes recur across the book and are left unmarked deliberately:
   (`LoggerFactory`, `MDC`) and `vstream_performance.md`'s JMH configuration name libraries that
   are not on the gate's classpath, and putting them there to compile two snippets would be the
   tail wagging the dog. `common_data_structure_traversals.md`'s Vavr `HashMap` is the same case;
-  its pcollections neighbour, which the gate does carry, is gated.
+  its pcollections neighbour, which the gate does carry, is gated. So is
+  `auditing_complex_data_example.md`'s `@Benchmark` pair, which is JMH again.
 - **A stack the page invents to make a point.** `transformer_capstone.md` builds its
   three-layer `TestStack` through a `buildTestStack` helper that no module provides; it stands for
   the boundary wiring a reader would write, not for an API.
