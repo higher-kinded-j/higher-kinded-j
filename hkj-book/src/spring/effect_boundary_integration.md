@@ -65,12 +65,23 @@ The simplest adoption path. Create an `EffectBoundary` bean manually and use it 
 
 ### Step 1: Define the Boundary Bean
 
+`EffectBoundary<F>` is parameterised by the effect **witness**, not by the `@ComposeEffects`
+record. `Interpreters.combine` nests `EitherF` to the right, and Java has no type alias, so a
+four-algebra composition spells its witness out. With one algebra it is simply
+`PaymentGatewayOpKind.Witness`.
+
+<!-- verify -->
 ```java
 @Configuration
 public class PaymentConfig {
 
     @Bean
-    public EffectBoundary<PaymentEffects> paymentBoundary() {
+    public EffectBoundary<EitherFKind.Witness<
+                PaymentGatewayOpKind.Witness,
+                EitherFKind.Witness<
+                    FraudCheckOpKind.Witness,
+                    EitherFKind.Witness<LedgerOpKind.Witness, NotificationOpKind.Witness>>>>
+        paymentBoundary() {
         return EffectBoundary.of(Interpreters.combine(
             new ProductionGatewayInterpreter(),
             new ProductionFraudInterpreter(),
@@ -83,17 +94,34 @@ public class PaymentConfig {
 
 ### Step 2: Use It in a Controller
 
+<!-- verify -->
 ```java
 @RestController
 @RequestMapping("/api/payments")
 public class PaymentController {
 
-    private final EffectBoundary<PaymentEffects> boundary;
-    private final PaymentService<PaymentEffects> service;
+    private final EffectBoundary<EitherFKind.Witness<
+                PaymentGatewayOpKind.Witness,
+                EitherFKind.Witness<
+                    FraudCheckOpKind.Witness,
+                    EitherFKind.Witness<LedgerOpKind.Witness, NotificationOpKind.Witness>>>> boundary;
+    private final PaymentService<EitherFKind.Witness<
+                PaymentGatewayOpKind.Witness,
+                EitherFKind.Witness<
+                    FraudCheckOpKind.Witness,
+                    EitherFKind.Witness<LedgerOpKind.Witness, NotificationOpKind.Witness>>>> service;
 
     public PaymentController(
-            EffectBoundary<PaymentEffects> boundary,
-            PaymentService<PaymentEffects> service) {
+            EffectBoundary<EitherFKind.Witness<
+                PaymentGatewayOpKind.Witness,
+                EitherFKind.Witness<
+                    FraudCheckOpKind.Witness,
+                    EitherFKind.Witness<LedgerOpKind.Witness, NotificationOpKind.Witness>>>> boundary,
+            PaymentService<EitherFKind.Witness<
+                PaymentGatewayOpKind.Witness,
+                EitherFKind.Witness<
+                    FraudCheckOpKind.Witness,
+                    EitherFKind.Witness<LedgerOpKind.Witness, NotificationOpKind.Witness>>>> service) {
         this.boundary = boundary;
         this.service = service;
     }
@@ -115,7 +143,7 @@ The controller returns `IOPath<PaymentResult>`, which the **existing** `IOPathRe
 | Wiring | 284 lines in PaymentEffectsWiring.java | One `@Bean` definition |
 | Execution | `program.foldMap(interp, monad)` then `narrow().unsafeRunSync()` | `boundary.runIO(program)` |
 | Controller return | Manual conversion to HTTP response | Return `IOPath`, handler does the rest |
-| Type signatures | `EitherFKind.Witness<F, EitherFKind.Witness<G, ...>>` | Hidden inside the boundary |
+| Type signatures | Spelled at every call site of the wiring | Spelled once, on the boundary bean |
 
 ---
 
@@ -123,10 +151,18 @@ The controller returns `IOPath<PaymentResult>`, which the **existing** `IOPathRe
 
 Once the `FreePathReturnValueHandler` is registered (auto-configured by the starter), controllers can return `FreePath` directly:
 
+<!-- verify -->
 ```java
-@GetMapping("/{id}/status")
-public FreePath<PaymentEffects, PaymentStatus> getStatus(@PathVariable String id) {
-    return service.getPaymentStatus(id);
+@PostMapping
+public FreePath<EitherFKind.Witness<
+                PaymentGatewayOpKind.Witness,
+                EitherFKind.Witness<
+                    FraudCheckOpKind.Witness,
+                    EitherFKind.Witness<LedgerOpKind.Witness, NotificationOpKind.Witness>>>, PaymentResult>
+    pay(@RequestBody PaymentRequest req) {
+    return Path.free(
+        service.processPayment(req.customer(), req.amount(), req.method()),
+        PaymentEffectsWiring.functor());
     // The handler interprets the program and serialises the result
 }
 ```
@@ -149,6 +185,7 @@ hkj:
 
 Mark interpreter classes with `@Interpreter` to make them Spring-managed beans:
 
+<!-- verify -->
 ```java
 @Interpreter(PaymentGatewayOp.class)
 public class StripeGatewayInterpreter
@@ -161,24 +198,50 @@ public class StripeGatewayInterpreter
     }
 
     @Override
-    protected <A> Kind<IOKind.Witness, A> onCharge(Money amount, PaymentMethod method,
-                                                    Function<ChargeResult, A> k) {
-        return IO.of(() -> k.apply(client.charge(amount, method)));
+    protected <A> Kind<IOKind.Witness, A> handleCharge(PaymentGatewayOp.Charge<A> op) {
+        return IO_OP.widen(IO.delay(() -> op.k().apply(client.charge(op.amount(), op.method()))));
+    }
+
+    @Override
+    protected <A> Kind<IOKind.Witness, A> handleAuthorise(PaymentGatewayOp.Authorise<A> op) {
+        return IO_OP.widen(
+            IO.delay(() -> op.k().apply(client.authorise(op.amount(), op.method()))));
+    }
+
+    @Override
+    protected <A> Kind<IOKind.Witness, A> handleRefund(PaymentGatewayOp.Refund<A> op) {
+        return IO_OP.widen(
+            IO.delay(() -> op.k().apply(client.refund(op.transactionId(), op.amount()))));
     }
 }
 ```
 
 **Profile-based switching** replaces interpreters for different environments:
 
+<!-- verify -->
 ```java
 @Interpreter(value = PaymentGatewayOp.class, profile = "test")
 public class StubGatewayInterpreter
         extends PaymentGatewayOpInterpreter<IOKind.Witness> {
 
+    private static final TransactionId STUB = new TransactionId("STUB-TXN-001");
+
     @Override
-    protected <A> Kind<IOKind.Witness, A> onCharge(Money amount, PaymentMethod method,
-                                                    Function<ChargeResult, A> k) {
-        return IO.of(() -> k.apply(ChargeResult.approved("STUB-TXN-001")));
+    protected <A> Kind<IOKind.Witness, A> handleCharge(PaymentGatewayOp.Charge<A> op) {
+        return IO_OP.widen(
+            IO.delay(() -> op.k().apply(ChargeResult.success(STUB, op.amount()))));
+    }
+
+    @Override
+    protected <A> Kind<IOKind.Witness, A> handleAuthorise(PaymentGatewayOp.Authorise<A> op) {
+        return IO_OP.widen(
+            IO.delay(() -> op.k().apply(new AuthorisationToken("STUB-AUTH", op.amount()))));
+    }
+
+    @Override
+    protected <A> Kind<IOKind.Witness, A> handleRefund(PaymentGatewayOp.Refund<A> op) {
+        return IO_OP.widen(
+            IO.delay(() -> op.k().apply(ChargeResult.success(op.transactionId(), op.amount()))));
     }
 }
 ```
@@ -191,6 +254,7 @@ An interpreter with a `profile` attribute is only **eligible** when that profile
 
 One annotation on your application class replaces all manual wiring:
 
+<!-- verify -->
 ```java
 @SpringBootApplication
 @EnableEffectBoundary({PaymentGatewayOp.class, FraudCheckOp.class,
@@ -225,6 +289,7 @@ This replaces `PaymentEffectsWiring.java` (284 lines) with **one annotation**.
 
 A stub interpreter targets `IdKind.Witness` and records what it was asked to do. This mirrors `OrderServicePureTest` in the effect-example module:
 
+<!-- verify -->
 ```java
 @DisplayName("OrderService Pure Tests (No Spring Context)")
 class OrderServicePureTest {
@@ -273,6 +338,7 @@ These tests run in milliseconds. The same `OrderService` program that runs again
 
 For integration tests that need Spring auto-configuration but not the web layer, `@EffectTest(effects={...})` auto-discovers `@Interpreter` beans, combines them, and registers an `EffectBoundary` in the test context:
 
+<!-- verify -->
 ```java
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.NONE)
 @EffectTest(effects = {OrderOp.class})
@@ -360,15 +426,22 @@ Setting `hkj.effect-boundary.enabled: false` prevents the registrar from creatin
 
 `EffectBoundary.run()` is a synchronous call, so it participates naturally in Spring's transaction lifecycle:
 
+<!-- verify -->
 ```java
 @Service
-public class OrderService {
+public class TransactionalOrders {
 
-    private final EffectBoundary<OrderEffects> boundary;
+    private final EffectBoundary<OrderOpKind.Witness> boundary;
+    private final OrderService service;
+
+    TransactionalOrders(EffectBoundary<OrderOpKind.Witness> boundary, OrderService service) {
+        this.boundary = boundary;
+        this.service = service;
+    }
 
     @Transactional
     public OrderResult placeOrder(OrderRequest request) {
-        return boundary.run(orderProgram(request));
+        return boundary.run(service.placeOrder(request));
         // Transaction commits only if all effects succeed
         // Rolls back on any interpreter failure
     }
@@ -383,10 +456,11 @@ No special integration needed. This works with the basic `EffectBoundary`.
 
 `ObservableEffectBoundary` wraps an `EffectBoundary` with Micrometer metrics. When actuator is on the classpath, every boundary execution records success/error counters and execution duration:
 
+<!-- verify -->
 ```java
 @Bean
-public ObservableEffectBoundary<OrderEffects> observableBoundary(
-        EffectBoundary<OrderEffects> boundary,
+public ObservableEffectBoundary<OrderOpKind.Witness> observableBoundary(
+        EffectBoundary<OrderOpKind.Witness> boundary,
         @Nullable HkjMetricsService metricsService) {
     if (metricsService == null) {
         return null;

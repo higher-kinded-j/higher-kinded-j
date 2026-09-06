@@ -33,16 +33,19 @@ This completes the loop. Both sides of a service-to-service call now speak the s
 
 You built a service that speaks typed errors. Now a second service calls it. With a plain Spring HTTP client, B's carefully typed `Left(UserNotFoundError)` arrives as an exception, and A is back to reading status codes:
 
+<!-- verify -->
 ```java
 // Service A, calling service B with a raw RestClient
-try {
-    UserDto user = restClient.get().uri("/users/{id}", id).retrieve().body(UserDto.class);
-    return Either.right(user);
-} catch (RestClientResponseException ex) {
-    // The typed error is gone. Reconstruct it from the status code.
-    if (ex.getStatusCode().value() == 404) return Either.left(new UserNotFoundError(id));
-    if (ex.getStatusCode().value() == 409) return Either.left(new ConflictError(id));
-    throw ex; // ...and hope you covered every case
+Either<DomainError, UserDto> getUser(String id) {
+    try {
+        UserDto user = restClient.get().uri("/users/{id}", id).retrieve().body(UserDto.class);
+        return Either.right(user);
+    } catch (RestClientResponseException ex) {
+        // The typed error is gone. Reconstruct it from the status code.
+        if (ex.getStatusCode().value() == 404) return Either.left(new UserNotFoundError(id));
+        if (ex.getStatusCode().value() == 409) return Either.left(new ConflictError(id));
+        throw ex; // ...and hope you covered every case
+    }
 }
 ```
 
@@ -54,6 +57,7 @@ The typed error channel that the whole library is built around stops at the boun
 
 Declare a single interface. Annotate it with `@HkjHttpClient` alongside the standard Spring `@HttpExchange` declarative-client annotations, and return an Effect Path:
 
+<!-- verify -->
 ```java
 @HttpExchange("/users")
 @HkjHttpClient
@@ -69,12 +73,15 @@ public interface UserClientApi {
 
 Here `UserDto` is your own response record and `ApiError` your own error type. The caller then stays on the rails, on the success or failure track rather than a thrown status code:
 
+<!-- verify -->
 ```java
-EitherPath<ApiError, UserDto> path = userClientApi.getUser("42");
+Profile show(String id) {
+    EitherPath<ApiError, UserDto> path = userClientApi.getUser(id);
 
-// .run() performs the call and yields Either<ApiError, UserDto>;
-// .fold collapses the two arms into one value: Left -> handleError, Right -> renderUser.
-return path.run().fold(this::handleError, this::renderUser);
+    // .run() performs the call and yields Either<ApiError, UserDto>;
+    // .fold collapses the two arms into one value: Left -> handleError, Right -> renderUser.
+    return path.run().fold(this::handleError, this::renderUser);
+}
 ```
 
 ---
@@ -125,12 +132,24 @@ spring:
 
 That is all the wiring. The generated `…ClientConfiguration` (see [What Gets Generated](#what-gets-generated)) declares the `@ImportHttpServices` group and is component-scanned along with the rest of your application, because it sits in the same package as your interface. Only if your client interfaces live outside your `@SpringBootApplication`'s scanned packages do you add an explicit `@ImportHttpServices(basePackages = "...")`.
 
-### Step 3: Autowire by Interface
+### Step 3: Inject by Interface
 
+<!-- verify -->
 ```java
-@Autowired UserClientApi userClientApi;   // the generated UserClientApiClient is injected
+@Service
+public class UserProfiles {
 
-EitherPath<ApiError, UserDto> path = userClientApi.getUser("42");
+  // The generated UserClientApiClient is the only implementation, so it injects by interface.
+  private final UserClientApi userClientApi;
+
+  UserProfiles(UserClientApi userClientApi) {
+    this.userClientApi = userClientApi;
+  }
+
+  EitherPath<ApiError, UserDto> lookup(String id) {
+    return userClientApi.getUser(id);
+  }
+}
 ```
 
 That is the whole happy path: annotate, configure, autowire.
@@ -187,13 +206,16 @@ The default decoder reads the server's `{"success":false,"error":…}` envelope 
 
 A **concrete** error type binds with no extra annotations. A **sealed** `DomainError` hierarchy needs Jackson polymorphic type information so the decoder can pick the subtype:
 
+<!-- verify -->
 ```java
 @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
 @JsonSubTypes({
     @JsonSubTypes.Type(value = UserNotFoundError.class, name = "not-found"),
+    @JsonSubTypes.Type(value = ConflictError.class, name = "conflict"),
     @JsonSubTypes.Type(value = ValidationError.class, name = "validation")
 })
-public sealed interface DomainError permits UserNotFoundError, ValidationError { }
+public sealed interface DomainError
+    permits UserNotFoundError, ConflictError, ValidationError { }
 ```
 
 ~~~admonish warning title="Use a closed discriminator"
@@ -218,6 +240,7 @@ There are three ways to override how a status maps to an error type. They apply 
 
 **The solution:** annotate the method. Each `error()` must be assignable to the method's declared error type (the processor checks this at compile time):
 
+<!-- verify -->
 ```java
 @GetExchange("/{id}")
 @OnStatus(value = 404, error = UserNotFoundError.class)
@@ -253,6 +276,7 @@ For each method, a configured status whose type is **assignable** to that method
 
 Because the `VTaskPath` variant defers the call onto a virtual thread, the standard resilience combinators compose directly on the result:
 
+<!-- verify -->
 ```java
 Either<ApiError, UserDto> result =
     userClientApi.create(body)                 // VTaskPath<Either<ApiError, UserDto>>
@@ -274,6 +298,7 @@ The runnable [end-to-end test](https://github.com/higher-kinded-j/higher-kinded-
 
 A streaming endpoint that the server renders with a `VStreamPath` ([SSE on virtual threads](spring_boot_integration.md#vstreampath-sse-streaming)) is consumed with the runtime translator, which decodes each SSE `data:` frame, ends on `event: complete`, and is deferred and resource-safe:
 
+<!-- verify -->
 ```java
 VStreamPath<Tick> ticks =
     HkjClientExchange.vstream(
