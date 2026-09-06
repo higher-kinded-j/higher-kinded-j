@@ -278,6 +278,9 @@ Some shapes recur across the book and are left unmarked deliberately:
   factories one per line - `Path.maybe(nullableValue)`, `Path.right(value)` - as a table, not as
   code. A bare expression is not a statement, and binding fifteen of them to names would bury the
   table it is.
+- **A validator shown twice, pure and impure.** `optics/optics_extensions.md` puts a clean
+  `validateEmail` beside one that logs from inside, under the same name and with the impure half
+  left unfinished. Two methods of one signature cannot share a class, and the point is the pair.
 - **A wrong-then-right pair a troubleshooting page shows together.**
   `tutorials/troubleshooting.md` is built out of them: a X half that does not compile *because that
   is the point* ("won't work - local class", "NPE here"), and a tick half beside it, usually binding
