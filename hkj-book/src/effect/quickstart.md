@@ -17,6 +17,7 @@ You do not need to understand higher-kinded types, typeclasses, or the Kind enco
 
 Some values just might not exist: a lookup that returns nothing, a nullable field. `MaybePath` lets you transform the value if it's present and skip the work if it isn't, without ever writing a null check.
 
+<!-- verify -->
 ```java
 import org.higherkindedj.hkt.effect.Path;
 
@@ -36,6 +37,7 @@ String shown = greeting.run().orElse("Hello, stranger");
 
 When an operation can fail with a specific error type, `EitherPath` carries the error on the left and the value on the right. Successful steps chain with `.via()` (the HKJ name for monadic bind); a failure short-circuits the rest of the chain.
 
+<!-- verify -->
 ```java
 import org.higherkindedj.hkt.effect.Path;
 
@@ -46,7 +48,7 @@ sealed interface AppError {
 
 EitherPath<AppError, Receipt> workflow =
     Path.maybe(userRepository.findById(userId))
-        .toEitherPath(new AppError.UserNotFound(userId))   // Nothing → Left
+        .<AppError>toEitherPath(new AppError.UserNotFound(userId))  // Nothing → Left
         .via(user -> Path.either(orderService.create(user))) // chained step
         .map(Receipt::of);                                   // transform on success
 
@@ -61,13 +63,14 @@ The whole pipeline has one shape, one failure mode, and one obvious place where 
 
 `ForPath` is a for-comprehension designed specifically for Path types. Use it when your workflow reads better as a sequence of named bindings than as a chain of lambdas.
 
+<!-- verify -->
 ```java
-import org.higherkindedj.hkt.effect.ForPath;
+import org.higherkindedj.hkt.expression.ForPath;
 
 MaybePath<Summary> summary = ForPath
     .from(Path.maybe(userRepository.findById(userId)))
     .from(user -> Path.maybe(profileService.loadProfile(user)))
-    .let((user, profile) -> profile.displayName())
+    .let(t -> t._2().displayName())      // bindings so far arrive as a tuple
     .yield((user, profile, name) -> new Summary(user.id(), name, profile.email()));
 ```
 
