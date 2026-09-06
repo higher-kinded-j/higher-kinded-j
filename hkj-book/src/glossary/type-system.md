@@ -12,11 +12,12 @@
 **Java Analogy:** Think of `? super T` in Java generics: this is contravariant. Also, function parameters are contravariant.
 
 **Example:**
+<!-- verify -->
 ```java
 // Contravariant behaviour in Java (function parameters)
-// A function accepting Object can be used where one accepting String is expected
+// A comparator of Object stands in wherever one of `? super String` is wanted
 Comparator<Object> objectComparator = (a, b) -> a.toString().compareTo(b.toString());
-Comparator<String> stringComparator = objectComparator; // ✅ Valid - contravariance in action
+Comparator<? super String> stringComparator = objectComparator; // ✅ use-site contravariance
 
 // Note: Java's Consumer<T> is invariant, so Consumer<Object> ≠ Consumer<String>
 // But function *parameters* are naturally contravariant
@@ -49,13 +50,14 @@ Kind2<FunctionKind.Witness, Integer, Integer> intLength =
 **Java Analogy:** Think of `? extends T` in Java generics: this is covariant.
 
 **Example:**
+<!-- verify -->
 ```java
 // Covariant behaviour in Java collections (read-only)
 List<? extends Number> numbers = new ArrayList<Integer>();
 Number n = numbers.get(0); // ✅ Safe to read out as Number
 
 // In Higher-Kinded-J: Functor is covariant in its type parameter
-Functor<ListKind.Witness> functor = ListFunctor.INSTANCE;
+Functor<ListKind.Witness> functor = Instances.functor(list());
 Kind<ListKind.Witness, Integer> ints = LIST.widen(List.of(1, 2, 3));
 Kind<ListKind.Witness, String> strings = functor.map(Object::toString, ints);
 // Integer -> String transformation (output direction)
@@ -105,18 +107,23 @@ public <F, A, B> Kind<F, B> map(Function<A, B> f, Kind<F, A> fa) { ... }
 **Java Analogy:** Regular generics let you abstract over types (`<T>`). Higher-kinded types let you abstract over type constructors (`<F<_>>`).
 
 **Example:**
+<!-- verify -->
 ```java
 // Regular generics (abstracting over types):
-public <T> T identity(T value) { return value; }
+public <T> T identity(T value) {
+    return value;
+}
 
-// Higher-kinded types (abstracting over type constructors):
-public <F> Kind<F, Integer> increment(Functor<F> functor, Kind<F, Integer> fa) {
+// Higher-kinded types (abstracting over type constructors). Every witness is arity-bounded,
+// so the method says which shape of constructor it takes:
+public <F extends WitnessArity<TypeArity.Unary>> Kind<F, Integer> increment(
+        Functor<F> functor, Kind<F, Integer> fa) {
     return functor.map(x -> x + 1, fa);
 }
 
 // Works with any Functor:
-increment(OptionalFunctor.INSTANCE, OPTIONAL.widen(Optional.of(5)));  // Optional[6]
-increment(ListFunctor.INSTANCE, LIST.widen(List.of(1, 2, 3)));        // [2, 3, 4]
+increment(Instances.functor(optional()), OPTIONAL.widen(Optional.of(5)));  // Optional[6]
+increment(Instances.functor(list()), LIST.widen(List.of(1, 2, 3)));        // [2, 3, 4]
 ```
 
 **Why It Matters:** Enables writing truly generic, reusable functional code that works across different container types.
@@ -132,17 +139,18 @@ increment(ListFunctor.INSTANCE, LIST.widen(List.of(1, 2, 3)));        // [2, 3, 
 **Java Analogy:** Most mutable collections in Java are invariant: `List<Integer>` is not a subtype of `List<Number>`.
 
 **Example:**
+<!-- verify -->
 ```java
 // Invariant behaviour in Java
 List<Integer> ints = new ArrayList<>();
-List<Number> nums = ints; // ❌ Compilation error!
+// List<Number> nums = ints; // ❌ Compilation error!
 // Not allowed because:
 // - You could read Number (covariant)
 // - You could write Number (contravariant)
 // Both directions would violate type safety with mutable collections
 
 // In Higher-Kinded-J: MonadError's error type is typically invariant
-MonadError<EitherKind.Witness<String>, String> monadError = EitherMonadError.instance();
+MonadError<EitherKind.Witness<String>, String> monadError = Instances.monadError(either());
 // The String error type is fixed; you can't substitute it with Object or CharSequence
 ```
 
@@ -198,6 +206,7 @@ Optional<String> backToOpt = OPTIONAL.narrow(kindOpt);
 - Enables compile-time guarantees whilst maintaining efficiency
 
 **Example:**
+<!-- verify -->
 ```java
 // Const<C, A> uses A as a phantom type
 Const<String, Integer> stringConst = new Const<>("hello");
@@ -217,13 +226,16 @@ System.out.println(doubleConst.value()); // Still "hello" (unchanged!)
 - **Type-safe builders**: Ensuring build steps are called in the correct order
 
 **Real-World Example:**
+<!-- verify -->
 ```java
 // State machine with phantom types
 class FileHandle<State> {
     private File file;
 
     // Only available when Closed
-    FileHandle<Open> open() { ... }
+    FileHandle<Open> open() {
+        return new FileHandle<>();
+    }
 }
 
 class Open {}
@@ -359,11 +371,12 @@ public interface EitherKind2<L, R> extends Kind2<EitherKind2.Witness, L, R> {
 ```
 
 **Usage:**
+<!-- verify -->
 ```java
 // The Witness type is used as the F parameter:
-Functor<ListKind.Witness> listFunctor = ListFunctor.INSTANCE;
-Functor<OptionalKind.Witness> optionalFunctor = OptionalFunctor.INSTANCE;
-MonadError<EitherKind.Witness<String>, String> eitherMonad = EitherMonadError.instance();
+Functor<ListKind.Witness> listFunctor = Instances.functor(list());
+Functor<OptionalKind.Witness> optionalFunctor = Instances.functor(optional());
+MonadError<EitherKind.Witness<String>, String> eitherMonad = Instances.monadError(either());
 
 // Binary witnesses for Bifunctor/Profunctor:
 Bifunctor<EitherKind2.Witness> eitherBifunctor = EitherBifunctor.INSTANCE;
@@ -408,9 +421,10 @@ public interface Bifunctor<F extends WitnessArity<TypeArity.Binary>> {}
 ```
 
 **Example:**
+<!-- verify -->
 ```java
 // This compiles: ListKind.Witness implements WitnessArity<Unary>
-Functor<ListKind.Witness> listFunctor = ListFunctor.INSTANCE;
+Functor<ListKind.Witness> listFunctor = Instances.functor(list());
 
 // This would NOT compile: EitherKind2.Witness implements WitnessArity<Binary>
 // Functor<EitherKind2.Witness> invalid;  // Error: Binary not compatible with Unary
