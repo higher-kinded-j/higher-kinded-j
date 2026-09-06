@@ -21,6 +21,7 @@ This page is the engine-room tour. Nothing new is introduced; everything below i
 
 ## The Expression We Are Tracing
 
+<!-- verify -->
 ```java
 import static org.higherkindedj.hkt.either.EitherKindHelper.EITHER;
 

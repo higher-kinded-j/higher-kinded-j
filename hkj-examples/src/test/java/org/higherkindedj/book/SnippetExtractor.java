@@ -60,8 +60,17 @@ final class SnippetExtractor {
 
   private static final Pattern FENCE_CLOSE = Pattern.compile("^\\s*```+\\s*$");
 
+  /** An import, with the trailing note a page sometimes hangs off it. */
   private static final Pattern IMPORT =
-      Pattern.compile("^\\s*import\\s+(static\\s+)?[\\w.*]+\\s*;\\s*$");
+      Pattern.compile("^\\s*import\\s+(static\\s+)?[\\w.*]+\\s*;\\s*(//.*)?$");
+
+  /**
+   * The package a page says its file belongs in. It is dropped: the assembled unit has a package of
+   * its own, and a second declaration does not parse. Saying where the file goes is worth showing,
+   * so the page keeps the line and the gate ignores it.
+   */
+  private static final Pattern PACKAGE =
+      Pattern.compile("^\\s*package\\s+[\\w.]+\\s*;\\s*(//.*)?$");
 
   /**
    * A top-level type declaration. Anything else is treated as loose statements and wrapped in a
@@ -487,8 +496,11 @@ final class SnippetExtractor {
         loose.add("    " + line + "\n");
         open = Math.max(0, open + netBraces(line));
         i++;
+      } else if (PACKAGE.matcher(line).matches()) {
+        i++;
       } else if (IMPORT.matcher(line).matches()) {
-        imports.add(line.strip());
+        // Drop any trailing note, so two spellings of the same import still deduplicate.
+        imports.add(line.strip().replaceAll("\\s*//.*$", ""));
         i++;
       } else if (ANNOTATION.matcher(line).matches()) {
         // Look past the annotations to see what they annotate, and keep them attached to it.

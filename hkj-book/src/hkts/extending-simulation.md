@@ -44,6 +44,7 @@ Since we cannot modify `java.util.Set` to directly implement our `Kind` structur
     * Define a marker interface that extends `Kind<SetKind.Witness, A>`.
     * Inside this interface, define a `static final class Witness implements WitnessArity<TypeArity.Unary>` which will serve as the phantom type `F` for `Set`. The `WitnessArity` bound ensures this witness can be used with unary type classes like `Functor` and `Monad`.
 
+<!-- verify -->
     ```java
     package org.higherkindedj.hkt.set; // Example package
 
@@ -72,6 +73,7 @@ Since we cannot modify `java.util.Set` to directly implement our `Kind` structur
 2.  **Create the `ConverterOps` Interface (`SetConverterOps.java`)**: 
     *   Define an interface specifying the `widen` and `narrow` methods for `Set`.
 
+<!-- verify -->
     ``` java
     package org.higherkindedj.hkt.set;
 
@@ -94,6 +96,7 @@ Since we cannot modify `java.util.Set` to directly implement our `Kind` structur
     * **`widen` method**: Takes the Java type (e.g., `Set<A>`), performs null checks, and returns a new `SetHolder<>(set)` cast to `Kind<SetKind.Witness, A>`.
     * **`narrow` method**: Takes `Kind<SetKind.Witness, A> kind`, performs null checks, verifies `kind instanceof SetHolder`, extracts the underlying `Set<A>`, and returns it. It throws `KindUnwrapException` for any structural invalidity.
 
+<!-- verify -->
     ```java
     package org.higherkindedj.hkt.set;
 
@@ -122,6 +125,7 @@ Since we cannot modify `java.util.Set` to directly implement our `Kind` structur
         }
 
         @Override
+        @SuppressWarnings("unchecked") // SetHolder's component is the Set this Kind stands for
         public <A> @NonNull Set<A> narrow(@Nullable Kind<SetKind.Witness, A> kind) {
             if (kind == null) {
                 throw new KindUnwrapException(ERR_INVALID_KIND_NULL);
@@ -150,6 +154,7 @@ If you are defining a new type *within your library* (e.g., a custom `MyType<A>`
     * Your custom type (e.g., `MyType<A>`) directly implements its corresponding `MyTypeKind<A>` interface.
     * `MyTypeKind<A>` extends `Kind<MyType.Witness, A>` and defines the nested `Witness` class that implements `WitnessArity<TypeArity.Unary>`.
 
+<!-- verify -->
     ```java
     package org.example.mytype;
 
@@ -160,7 +165,7 @@ If you are defining a new type *within your library* (e.g., a custom `MyType<A>`
 
     // 1. The Kind Interface with Witness
     @NullMarked
-    public interface MyTypeKind<A> extends Kind<MyType.Witness, A> {
+    public interface MyTypeKind<A> extends Kind<MyTypeKind.Witness, A> {
       /** Witness type for MyType - implements WitnessArity to declare arity. */
       final class Witness implements WitnessArity<TypeArity.Unary> {
         private Witness() {}
@@ -176,6 +181,7 @@ If you are defining a new type *within your library* (e.g., a custom `MyType<A>`
 2.  **Create the `ConverterOps` Interface (`MyTypeConverterOps.java`)**:
     * Define an interface specifying the `widen` and `narrow` methods for `MyType`.
 
+<!-- verify -->
     ```java
     package org.example.mytype;
 
@@ -185,8 +191,9 @@ If you are defining a new type *within your library* (e.g., a custom `MyType<A>`
     import org.jspecify.annotations.Nullable;
 
     public interface MyTypeConverterOps {
-        <A> @NonNull Kind<MyType.Witness, A> widen(@NonNull MyType<A> myTypeValue);
-        <A> @NonNull MyType<A> narrow(@Nullable Kind<MyType.Witness, A> kind) throws KindUnwrapException;
+        <A> @NonNull Kind<MyTypeKind.Witness, A> widen(@NonNull MyType<A> myTypeValue);
+        <A> @NonNull MyType<A> narrow(@Nullable Kind<MyTypeKind.Witness, A> kind)
+            throws KindUnwrapException;
     }
     ```
 
@@ -196,6 +203,7 @@ If you are defining a new type *within your library* (e.g., a custom `MyType<A>`
     * **`widen(MyType<A> myTypeValue)`**: Since `MyType<A>` *is* already a `MyTypeKind<A>` (and thus a `Kind`), this method performs a null check and then a direct cast.
     * **`narrow(Kind<MyType.Witness, A> kind)`**: This method checks `if (kind instanceof MyType<?> myTypeInstance)` and then casts and returns `myTypeInstance`.
 
+<!-- verify -->
     ```java
     package org.example.mytype;
 
@@ -213,14 +221,14 @@ If you are defining a new type *within your library* (e.g., a custom `MyType<A>`
 
         @Override
         @SuppressWarnings("unchecked") // MyType<A> is MyTypeKind<A> is Kind<MyType.Witness, A>
-        public <A> @NonNull Kind<MyType.Witness, A> widen(@NonNull MyType<A> myTypeValue) {
+        public <A> @NonNull Kind<MyTypeKind.Witness, A> widen(@NonNull MyType<A> myTypeValue) {
             Objects.requireNonNull(myTypeValue, "Input MyType cannot be null for widen");
             return (MyTypeKind<A>) myTypeValue; // Direct cast
         }
 
         @Override
         @SuppressWarnings("unchecked")
-        public <A> @NonNull MyType<A> narrow(@Nullable Kind<MyType.Witness, A> kind) {
+        public <A> @NonNull MyType<A> narrow(@Nullable Kind<MyTypeKind.Witness, A> kind) {
             if (kind == null) {
                 throw new KindUnwrapException(ERR_INVALID_KIND_NULL);
             }
@@ -235,7 +243,7 @@ If you are defining a new type *within your library* (e.g., a custom `MyType<A>`
     ```
 
 4.  **Implement Type Class Instances**:
-    * These will be similar to the external type scenario (e.g., `MyTypeMonad implements Monad<MyType.Witness>`), using `MyTypeKindHelper.MY_TYPE.widen(...)` and `MyTypeKindHelper.MY_TYPE.narrow(...)` (or with static import `MY_TYPE.widen(...)`).
+    * These will be similar to the external type scenario (e.g., `MyTypeMonad implements Monad<MyTypeKind.Witness>`), using `MyTypeKindHelper.MY_TYPE.widen(...)` and `MyTypeKindHelper.MY_TYPE.narrow(...)` (or with static import `MY_TYPE.widen(...)`).
 ~~~
 
 ~~~admonish
