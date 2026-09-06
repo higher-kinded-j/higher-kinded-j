@@ -78,7 +78,8 @@ final class SnippetExtractor {
    */
   private static final Pattern DECLARATION =
       Pattern.compile(
-          "^\\s*(public\\s+|final\\s+|abstract\\s+|sealed\\s+|non-sealed\\s+|static\\s+)*"
+          "^\\s*(public\\s+|private\\s+|protected\\s+|final\\s+|abstract\\s+|sealed\\s+"
+              + "|non-sealed\\s+|static\\s+)*"
               + "(class|record|interface|enum|@interface)\\s+\\w+");
 
   /**
@@ -515,7 +516,8 @@ final class SnippetExtractor {
           String declaration = String.join("\n", lines.subList(i, end + 1));
           declarations.add(
               declaration.replaceAll(
-                  "\\bpublic\\s+(?=(final\\s+|abstract\\s+|sealed\\s+|non-sealed\\s+|static\\s+)*"
+                  "\\b(public|private|protected)\\s+"
+                      + "(?=(final\\s+|abstract\\s+|sealed\\s+|non-sealed\\s+|static\\s+)*"
                       + "(class|record|interface|enum)\\b)",
                   ""));
           i = end + 1;
@@ -536,12 +538,13 @@ final class SnippetExtractor {
       } else if (DECLARATION.matcher(line).find()) {
         int end = endOfDeclaration(lines, i);
         String declaration = String.join("\n", lines.subList(i, end + 1));
-        // Several top-level types share one file, so none of them may be public. The modifier is
-        // not
-        // always at the start of a line: a page may write `@GenerateMapping public interface X {}`.
+        // Several top-level types share one file, so none of them may be public - and none may be
+        // private or protected either, which a page writes for a nested helper record. The modifier
+        // is not always at the start of a line: `@GenerateMapping public interface X {}`.
         declarations.add(
             declaration.replaceAll(
-                "\\bpublic\\s+(?=(final\\s+|abstract\\s+|sealed\\s+|non-sealed\\s+|static\\s+)*"
+                "\\b(public|private|protected)\\s+"
+                      + "(?=(final\\s+|abstract\\s+|sealed\\s+|non-sealed\\s+|static\\s+)*"
                     + "(class|record|interface|enum)\\b)",
                 ""));
         i = end + 1;

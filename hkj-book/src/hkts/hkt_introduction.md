@@ -26,6 +26,7 @@ They both represent a powerful form of abstraction, just at different levels.
 
 - **First-Order (Regular) Function:** This kind of function operates on simple values. It takes a value(s) like a `int` and returns a value.
 
+<!-- verify -->
 ```java
 // Take a value and return a value
 int square(int num) {
@@ -35,12 +36,11 @@ int square(int num) {
 
 - **Higher-Order Function:** This kind of function operates on _other functions_.  It can take functions as arguments and or return a new function as the result.  It abstracts over the **behaviour**.
 
+<!-- verify -->
 ```java
 // Takes a Set of type A and a function fn that maps types of A to B,
-//  returns a new Set of type B
-<A, B> Set<B> mapper(Set<A> list, Function<A, B> fn) {
-    // ... applies fn to each element of the set
-}
+//  returns a new Set of type B; the body applies fn to each element
+<A, B> Set<B> mapper(Set<A> set, Function<A, B> fn);
 ```
 `mapper` is a higher-order function because it takes the function `fn` as an argument.
 
@@ -63,6 +63,7 @@ _Without Higher-Order Functions:_
 
 To apply different operations to a list, we would need to write separate loops for each one.
 
+<!-- verify -->
 ```java
 List<String> results = new ArrayList<>();
 for (int i : numbers) {
@@ -74,6 +75,7 @@ _With Higher-Order Functions:_
 
 We abstract the behaviour into a function and pass it in. This is much more flexible.
 
+<!-- verify -->
 ```java
 
 // A map for List
@@ -93,10 +95,11 @@ _With Higher-Kinded Types:_
 
 With Higher-Kinded-J we can abstract over the container `F` itself. This allows us to write one single, generic map function that works for any container structure or computational context that can be mapped over (i.e., any `Functor`). This is precisely what the `GenericExample.java` demonstrates.
 
+<!-- verify -->
 ```java
 // F is a "type variable" that stands for List, Optional, etc.
 // This is a function generic over the container F.
-public static <F, A, B> Kind<F, B> map(
+public static <F extends WitnessArity<TypeArity.Unary>, A, B> Kind<F, B> map(
     Functor<F> functorInstance, // The implementation for F
     Kind<F, A> kindBox,         // The container with a value
     Function<A, B> f) {         // The behaviour to apply
@@ -125,12 +128,14 @@ The problem is that you can't write a single method in Java that accepts any of 
 
 ### Level 1: Concrete Types (like values)
 A normal, complete type is like a value. It's a "thing".
+<!-- verify -->
 ```java
 String myString;          // A concrete type
 List<Integer> myIntList;  // Also a concrete type (a List of Integers)
 ```
 ### Level 2: Generic Types (like functions)
 A generic type definition like `List<T>` is not a complete type. It's a type constructor. It's like a function at the type level: you give it a type (e.g., `String`), and it produces a concrete type (`List<String>`).
+<!-- verify -->
 ```java
 // List<T> is a "type function" that takes one parameter, T.
 // We can call it a type of kind: * -> *

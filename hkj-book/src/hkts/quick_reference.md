@@ -33,6 +33,7 @@ All type classes require `F extends WitnessArity<?>`. Most work with unary types
 **Common Instances:** List, Optional, Maybe, Either, IO, CompletableFuture
 
 **Example:**
+<!-- verify -->
 ```java
 // Transform string to length, preserving Optional context
 Kind<OptionalKind.Witness, Integer> lengths = 
@@ -65,6 +66,7 @@ Kind<OptionalKind.Witness, Integer> lengths =
 - Parallel computations
 
 **Example:**
+<!-- verify -->
 ```java
 // Combine two independent validations
 Kind<ValidatedKind.Witness<List<String>>, User> userLogin = 
@@ -102,6 +104,7 @@ Kind<ValidatedKind.Witness<List<String>>, User> userLogin =
 - `flatMap2/3/4/5(...)` - combine multiple monadic values where the combining function itself returns a monadic value (useful for dependent validations or operations)
 
 **Example:**
+<!-- verify -->
 ```java
 // Chain database operations where each depends on the previous
 Kind<OptionalKind.Witness, Account> account =
@@ -151,6 +154,7 @@ Kind<OptionalKind.Witness, Order> order =
 > `recover`/`recoverWith` are shorthands for `handleError`/`handleErrorWith` with an error-ignoring handler. `recoverWith` evaluates its fallback eagerly, so prefer `handleErrorWith` when the fallback is expensive. `recoverWith` rejects a `null` fallback; `recover` rejects a `null` source but accepts a `null` value (lifted via `of`).
 
 **Example:**
+<!-- verify -->
 ```java
 // Handle division by zero gracefully
 Kind<EitherKind.Witness<String>, Double> result = 
@@ -191,6 +195,7 @@ Kind<EitherKind.Witness<String>, Double> shorter =
 - Conditional validation
 
 **Example:**
+<!-- verify -->
 ```java
 // Only log if debug flag is enabled
 Selective<IOKind.Witness> selective = IOSelective.INSTANCE;
@@ -229,6 +234,7 @@ Kind<IOKind.Witness, Unit> conditionalLog = selective.whenS(debugEnabled, logEff
 - Set union: `{1,2} ∪ {2,3} ∪ {3,4}`
 
 **Example:**
+<!-- verify -->
 ```java
 // Combine error messages
 Semigroup<String> stringConcat = Semigroups.string("; ");
@@ -264,6 +270,7 @@ String combined = stringConcat.combine("Error 1", "Error 2");
 - Boolean AND: empty = `true`, combine = `&&`
 
 **Example:**
+<!-- verify -->
 ```java
 // Sum a list using integer addition monoid
 Integer sum = listFoldable.foldMap(
@@ -298,20 +305,21 @@ Integer sum = listFoldable.foldMap(
 - Count elements: map to 1, use integer addition monoid
 
 **Example:**
+<!-- verify -->
 ```java
 // Multiple aggregations of the same list
-List<Integer> numbers = List.of(1, 2, 3, 4, 5);
+Kind<ListKind.Witness, Integer> numbers = LIST.widen(List.of(1, 2, 3, 4, 5));
 
 // Sum
-Integer sum = foldable.foldMap(Monoids.integerAddition(), 
+Integer sum = foldable.foldMap(Monoids.integerAddition(),
     Function.identity(), numbers); // 15
 
-// Concatenate as strings  
-String concat = foldable.foldMap(Monoids.string(), 
+// Concatenate as strings
+String concat = foldable.foldMap(Monoids.string(),
     String::valueOf, numbers); // "12345"
 
 // Check all positive
-Boolean allPositive = foldable.foldMap(Monoids.booleanAnd(), 
+Boolean allPositive = foldable.foldMap(Monoids.booleanAnd(),
     n -> n > 0, numbers); // true
 ```
 
@@ -339,6 +347,7 @@ Boolean allPositive = foldable.foldMap(Monoids.booleanAnd(),
 - Parse/process each item, collecting all failures
 
 **Example:**
+<!-- verify -->
 ```java
 // Validate every string in a list, collect all errors
 List<String> inputs = List.of("123", "abc", "456");
@@ -381,6 +390,7 @@ Kind<ValidatedKind.Witness<List<String>>, Kind<ListKind.Witness, Integer>> resul
 **Common Instance:** `Function<A,B>` is the canonical Profunctor
 
 **Example:**
+<!-- verify -->
 ```java
 // Adapt a string length function to work with integers and return formatted strings
 Function<String, Integer> stringLength = String::length;
@@ -493,6 +503,7 @@ Bifunctor
 - `Monoids.list()` - concatenate lists (empty = [])
 
 **Custom:**
+<!-- verify -->
 ```java
 // Define a custom monoid
 Monoid<MyType> myMonoid = new Monoid<MyType>() {
@@ -518,12 +529,14 @@ Monoid<MyType> myMonoid = new Monoid<MyType>() {
 - Working with a single, known container type
 
 **Examples:**
+<!-- verify -->
 ```java
 // Hot path - use direct method
 Optional<String> result = optional.map(String::toUpperCase);
 
 // Generic reusable code - use HKT
-public static <F> Kind<F, String> normalise(Functor<F> functor, Kind<F, String> input) {
+public static <F extends WitnessArity<TypeArity.Unary>> Kind<F, String> normalise(
+        Functor<F> functor, Kind<F, String> input) {
     return functor.map(String::toUpperCase, input);
 }
 ```
