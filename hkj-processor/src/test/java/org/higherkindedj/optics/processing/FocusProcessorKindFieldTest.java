@@ -24,6 +24,7 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
+import org.junit.jupiter.params.provider.ValueSource;
 
 /**
  * Integration tests for {@link FocusProcessor} Kind field support.
@@ -604,6 +605,7 @@ public class FocusProcessorKindFieldTest {
           compilation,
           "com.example.HolderFocus",
           "FocusPath<Holder<F>, Kind<F, String>> members()");
+      assertThat(traverseFieldNotes(compilation)).isEmpty();
     }
 
     @Test
@@ -652,6 +654,11 @@ public class FocusProcessorKindFieldTest {
 
     /** A record with the given components, each written out with its name. */
     private Compilation compile(String components) {
+      return compile("", components);
+    }
+
+    /** A record declaring the given type parameters, with the given named components. */
+    private Compilation compile(String typeParameters, String components) {
       return javac()
           .withProcessors(new FocusProcessor())
           .compile(
@@ -662,6 +669,8 @@ public class FocusProcessorKindFieldTest {
 
                   import java.util.List;
                   import org.higherkindedj.hkt.Kind;
+                  import org.higherkindedj.hkt.TypeArity;
+                  import org.higherkindedj.hkt.WitnessArity;
                   import org.higherkindedj.hkt.list.ListKind;
                   import org.higherkindedj.optics.annotations.GenerateFocus;
                   import org.higherkindedj.optics.annotations.KindSemantics;
@@ -669,9 +678,54 @@ public class FocusProcessorKindFieldTest {
 
                   @GenerateFocus
                   @SuppressWarnings("rawtypes")
-                  public record Holder(%s) {}
+                  public record Holder%s(%s) {}
                   """
-                      .formatted(components)));
+                      .formatted(typeParameters, components)));
+    }
+
+    @Test
+    @DisplayName(
+        "a witness that is the record's own type variable draws the note and keeps the path")
+    void aTypeVariableWitnessDrawsTheNoteAndKeepsThePath() {
+      // A Traverse is written for one witness and a type variable stands for any, so no expression
+      // the author could name would be a Traverse for it; the generated class stays sound.
+      Compilation compilation =
+          compile("<F extends WitnessArity<TypeArity.Unary>>", TRAVERSE_LIST + "Kind<F, String> f");
+
+      assertThat(compilation).succeeded();
+      assertGeneratedCodeContainsRaw(
+          compilation, "com.example.HolderFocus", "FocusPath<Holder<F>, Kind<F, String>>");
+      assertThat(compilation)
+          .hadNoteContaining(
+              NOT_APPLIED
+                  + "The witness of Kind<F, String> names the record's type variable F, which"
+                  + " stands for any witness, while a Traverse is written for one witness in"
+                  + " particular, so no Traverse instance can be named for it. Declare the witness"
+                  + " the Traverse is written for in place of F, such as"
+                  + " Kind<TreeKind.Witness, String> for a Traverse<TreeKind.Witness>, or drop the"
+                  + " annotation and apply traverseOver to the path yourself, with a Traverse<F> in"
+                  + " hand where F is known.");
+      assertThat(traverseFieldNotes(compilation)).hasSize(1);
+    }
+
+    @Test
+    @DisplayName("a wildcard bounded by the record's type variable is treated the same way")
+    void aWildcardBoundedByTheTypeVariableIsTreatedTheSameWay() {
+      Compilation compilation =
+          compile(
+              "<F extends WitnessArity<TypeArity.Unary>>",
+              TRAVERSE_LIST + "Kind<? extends F, String> f");
+
+      assertThat(compilation).succeeded();
+      assertGeneratedCodeContainsRaw(
+          compilation,
+          "com.example.HolderFocus",
+          "FocusPath<Holder<F>, Kind<? extends F, String>>");
+      assertThat(compilation)
+          .hadNoteContaining(
+              NOT_APPLIED
+                  + "The witness of Kind<? extends F, String> names the record's type variable F,");
+      assertThat(traverseFieldNotes(compilation)).hasSize(1);
     }
 
     @ParameterizedTest(name = "{0}")
@@ -861,6 +915,26 @@ public class FocusProcessorKindFieldTest {
 
       assertThat(compilation).succeeded();
       assertThat(unrecognisedWitnessNotes(compilation)).hasSize(1);
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @ValueSource(
+        strings = {
+          "Kind<Missing, String>",
+          "@TraverseField(traverse = \"org.higherkindedj.hkt.list.ListTraverse.INSTANCE\")"
+              + " Kind<Missing, String>"
+        })
+    @DisplayName("a witness javac could not resolve is left to javac")
+    void aWitnessJavacCouldNotResolveIsLeftToJavac(String component) {
+      // javac reports the missing type itself; the analyser names the witness as written and
+      // says nothing more, with or without the annotation.
+      Compilation compilation =
+          javac().withProcessors(new FocusProcessor()).compile(holder("", component));
+
+      assertThat(compilation).failed();
+      assertThat(compilation).hadErrorContaining("cannot find symbol");
+      assertThat(unrecognisedWitnessNotes(compilation)).isEmpty();
+      assertThat(traverseFieldNotes(compilation)).isEmpty();
     }
 
     @Test

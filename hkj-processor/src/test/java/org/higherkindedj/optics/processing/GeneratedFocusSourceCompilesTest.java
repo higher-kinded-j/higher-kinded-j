@@ -188,6 +188,38 @@ class GeneratedFocusSourceCompilesTest {
   }
 
   /**
+   * The components of a generic record whose own type variables reach a {@code Kind} witness and a
+   * wildcard bound. The record-level sweep above cannot write these, since its holder declares no
+   * type parameters.
+   */
+  private static final String GENERIC_KIND_COMPONENTS =
+      "Kind<F, Leaf> plain,"
+          + " @TraverseField(traverse = \"org.higherkindedj.hkt.list.ListTraverse.INSTANCE\")"
+          + " Kind<F, Leaf> annotated,"
+          + " Kind<? extends F, Leaf> viaBound,"
+          + " Kind<ListKind.Witness, ? extends T> bounded";
+
+  static Stream<Arguments> settings() {
+    return SETTINGS.stream()
+        .map(setting -> Arguments.of(setting.isEmpty() ? "defaults" : setting, setting));
+  }
+
+  @ParameterizedTest(name = "{0}")
+  @MethodSource("settings")
+  @DisplayName("should keep compiling a generic record whose type variables reach a Kind witness")
+  void shouldKeepCompilingAGenericRecord(String label, String setting) {
+    // Every component here is one the analysis widens or leaves alone, never turns away, so the
+    // record must compile outright: a rejection would carry the tag the shape sweep accepts.
+    Compilation compilation =
+        javac().withProcessors(new FocusProcessor()).compile(genericHolder(setting), LEAF);
+
+    assertThat(
+            compilation.errors().stream().map(GeneratedFocusSourceCompilesTest::describe).toList())
+        .as("%s: a generic record compiles today, so nothing in it may be turned away", label)
+        .isEmpty();
+  }
+
+  /**
    * A component and the settings it is read under, which together must keep compiling.
    *
    * <p>Every entry compiles before the undenotable-container rule exists, so each one is a record
@@ -351,6 +383,26 @@ class GeneratedFocusSourceCompilesTest {
             .mapToObj(index -> shape.types().get(index) + " f" + index)
             .reduce((left, right) -> left + ", " + right)
             .orElseThrow());
+  }
+
+  /** A generic record carrying {@link #GENERIC_KIND_COMPONENTS}, read under the given settings. */
+  private static JavaFileObject genericHolder(String setting) {
+    return JavaFileObjects.forSourceString(
+        "com.example.Holder",
+        """
+        package com.example;
+
+        import org.higherkindedj.hkt.Kind;
+        import org.higherkindedj.hkt.TypeArity;
+        import org.higherkindedj.hkt.WitnessArity;
+        import org.higherkindedj.hkt.list.ListKind;
+        import org.higherkindedj.optics.annotations.GenerateFocus;
+        import org.higherkindedj.optics.annotations.TraverseField;
+
+        @GenerateFocus(%s)
+        public record Holder<F extends WitnessArity<TypeArity.Unary>, T>(%s) {}
+        """
+            .formatted(setting, GENERIC_KIND_COMPONENTS));
   }
 
   /** A record carrying the given components, read under the given settings. */
