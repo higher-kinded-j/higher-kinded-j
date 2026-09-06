@@ -48,6 +48,7 @@ stateDiagram-v2
 
 ## Configuration
 
+<!-- verify -->
 ```java
 CircuitBreakerConfig config = CircuitBreakerConfig.builder()
     .failureThreshold(5)                      // 5 failures before opening
@@ -71,18 +72,20 @@ The `recordFailure` predicate is important: not every exception means the servic
 
 ## Creating a Circuit Breaker
 
+<!-- verify -->
 ```java
 // With custom configuration
-CircuitBreaker breaker = CircuitBreaker.create(config);
+CircuitBreaker configured = CircuitBreaker.create(config);
 
 // With sensible defaults
-CircuitBreaker breaker = CircuitBreaker.withDefaults();
+CircuitBreaker defaults = CircuitBreaker.withDefaults();
 ```
 
 ## Protecting VTask Operations
 
 The `protect()` method is generic. A single circuit breaker instance can protect calls that return different types:
 
+<!-- verify -->
 ```java
 CircuitBreaker paymentBreaker = CircuitBreaker.create(
     CircuitBreakerConfig.builder()
@@ -107,6 +110,7 @@ This is the correct design. A circuit breaker protects a *service endpoint*, not
 
 When the circuit is open, `protect()` throws `CircuitOpenException`. Use `protectWithFallback()` to provide a default value instead:
 
+<!-- verify -->
 ```java
 VTask<String> withFallback = paymentBreaker.protectWithFallback(
     VTask.of(() -> paymentService.getStatus(orderId)),
@@ -115,6 +119,7 @@ VTask<String> withFallback = paymentBreaker.protectWithFallback(
 
 Or compose with `recover()` for more control:
 
+<!-- verify -->
 ```java
 VTask<String> resilient = paymentBreaker.protect(
         VTask.of(() -> paymentService.getStatus(orderId)))
@@ -131,6 +136,7 @@ VTask<String> resilient = paymentBreaker.protect(
 
 The lazy Path carriers chain breaker protection directly, with the same shareable breaker:
 
+<!-- verify -->
 ```java
 IOPath<String> guarded = Path.io(() -> paymentService.getStatus(orderId))
     .withCircuitBreaker(paymentBreaker);
@@ -147,10 +153,11 @@ A circuit breaker measures *service health*, not business outcomes. A breaker th
 
 The typed overloads keep an open-circuit rejection on the typed channel instead of surfacing `CircuitOpenException`:
 
+<!-- verify -->
 ```java
 // VResultPath: instance combinator, rejection lands as a Left
 VResultPath<OrderError, Reservation> guarded =
-    reserveInventory(order)
+    reserveInventoryAsync(order)
         .withCircuitBreaker(
             inventoryBreaker,
             open -> OrderError.SystemError.circuitBreakerOpen("inventory"));
@@ -166,6 +173,7 @@ Without the `onOpen` argument, the rejection propagates as-is: a thrown `Circuit
 
 ## Metrics
 
+<!-- verify -->
 ```java
 CircuitBreakerMetrics m = breaker.metrics();
 
@@ -185,6 +193,7 @@ log.info("Circuit breaker: total={}, success={}, failed={}, rejected={}, transit
 
 ## Manual Control
 
+<!-- verify -->
 ```java
 // Reset to CLOSED with zeroed counters
 breaker.reset();
@@ -200,6 +209,7 @@ CircuitBreaker.Status status = breaker.currentStatus();
 
 A common pattern is to combine circuit breaker with retry. The order matters:
 
+<!-- verify -->
 ```java
 // Circuit breaker inside retry: each retry attempt checks the circuit
 VTask<String> resilient = Retry.retryTask(
