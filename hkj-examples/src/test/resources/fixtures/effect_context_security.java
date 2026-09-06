@@ -31,11 +31,25 @@ import org.higherkindedj.hkt.maybe.Maybe;
 import org.higherkindedj.hkt.vtask.Scope;
 import org.higherkindedj.hkt.vtask.VTask;
 import org.slf4j.Logger;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+
+import org.junit.jupiter.api.Test;
 import org.slf4j.LoggerFactory;
 
 record HttpRequest(String traceId, Locale locale, String path, String method) {}
 
 record Request(String path) {}
+
+/** The principal the testing section builds. */
+record UserPrincipal(String id, String name, String email, Instant createdAt)
+    implements Principal {
+
+  @Override
+  public String getName() {
+    return name;
+  }
+}
 
 record Response(int status) {
 
