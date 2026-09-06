@@ -241,7 +241,8 @@ Some shapes recur across the book and are left unmarked deliberately:
 - **Snippets against a dependency the gate does not have.** `context_scoped.md`'s SLF4J bridge
   (`LoggerFactory`, `MDC`) and `vstream_performance.md`'s JMH configuration name libraries that
   are not on the gate's classpath, and putting them there to compile two snippets would be the
-  tail wagging the dog.
+  tail wagging the dog. `common_data_structure_traversals.md`'s Vavr `HashMap` is the same case;
+  its pcollections neighbour, which the gate does carry, is gated.
 - **A stack the page invents to make a point.** `transformer_capstone.md` builds its
   three-layer `TestStack` through a `buildTestStack` helper that no module provides; it stands for
   the boundary wiring a reader would write, not for an API.
