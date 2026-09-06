@@ -174,7 +174,8 @@ Signature quotations are exactly the lines that drift, so they are compiled rath
 
 A statement that opens a brace keeps everything until it closes, so an anonymous class written
 inside one (an interpreter, a comparator) stays where the page put it rather than being hoisted out
-as a member of its own.
+as a member of its own. A method signature may wrap before its parameter list, which a generic
+return type routinely does.
 
 A **generic** fixture (`class Fixture<E, A, B>`) lends its type parameters to the snippet, which is
 how a page can show `VResultPath<E, A>` as a *shape* without inventing a domain for it.

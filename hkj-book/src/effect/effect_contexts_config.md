@@ -20,13 +20,12 @@ Hoban's aphorism hints at a paradox: sometimes the most powerful abstractions ar
 
 Consider a service that needs configuration:
 
+<!-- verify -->
 ```java
-public class ReportService {
-    public Report generate(ReportConfig config, UserId userId) {
-        User user = userService.fetch(config.userServiceUrl(), config.timeout(), userId);
-        List<Order> orders = orderService.fetch(config.orderServiceUrl(), config.timeout(), user);
-        return buildReport(config.format(), user, orders);
-    }
+Report generate(ReportConfig config, UserId userId) {
+    User user = userService.fetch(config.userServiceUrl(), config.timeout(), userId);
+    List<Order> orders = orderService.fetch(config.orderServiceUrl(), config.timeout(), user);
+    return buildReport(config.format(), user, orders);
 }
 ```
 
@@ -215,6 +214,7 @@ ConfigContext<IOKind.Witness, AppConfig, Result> withDebugMode =
 
 ### Pattern: Environment-Specific Settings
 
+<!-- verify -->
 ```java
 ConfigContext<IOKind.Witness, ServiceConfig, Response> callService =
     ConfigContext.io(config -> httpClient.call(config.endpoint()));
@@ -232,11 +232,13 @@ ConfigContext<IOKind.Witness, ServiceConfig, Response> testCall =
 
 When composing code with different config types:
 
+<!-- verify -->
 ```java
 record GlobalConfig(DatabaseConfig db, ApiConfig api) {}
 
 // This needs DatabaseConfig
-ConfigContext<IOKind.Witness, DatabaseConfig, Connection> dbConnection = ...;
+ConfigContext<IOKind.Witness, DatabaseConfig, Connection> dbConnection =
+    ConfigContext.io(config -> openConnection(config.url()));
 
 // Adapt to work with GlobalConfig
 ConfigContext<IOKind.Witness, GlobalConfig, Connection> adapted =
@@ -247,12 +249,15 @@ ConfigContext<IOKind.Witness, GlobalConfig, Connection> adapted =
 
 ### Pattern: Modular Configuration
 
+<!-- verify -->
 ```java
 // User module expects UserConfig
-ConfigContext<IOKind.Witness, UserConfig, User> fetchUser = ...;
+ConfigContext<IOKind.Witness, UserConfig, User> fetchUser =
+    ConfigContext.io(config -> new User(userId, config.endpoint()));
 
 // Order module expects OrderConfig
-ConfigContext<IOKind.Witness, OrderConfig, Order> fetchOrder = ...;
+ConfigContext<IOKind.Witness, OrderConfig, Order> fetchOrder =
+    ConfigContext.io(config -> new Order(config.endpoint()));
 
 // Application config combines both
 record AppConfig(UserConfig userConfig, OrderConfig orderConfig) {}
@@ -275,12 +280,13 @@ ConfigContext<IOKind.Witness, AppConfig, Invoice> invoice =
 
 ### runWith: Get an IOPath
 
+<!-- verify -->
 ```java
 ConfigContext<IOKind.Witness, AppConfig, Report> reportCtx = generateReport();
 
 // Provide config, get IOPath
-AppConfig config = loadConfig();
-IOPath<Report> ioPath = reportCtx.runWith(config);
+AppConfig appConfig = loadConfig();
+IOPath<Report> ioPath = reportCtx.runWith(appConfig);
 
 // Execute when ready
 Report report = ioPath.unsafeRun();
@@ -290,8 +296,9 @@ Report report = ioPath.unsafeRun();
 
 For synchronous code:
 
+<!-- verify -->
 ```java
-Report report = reportCtx.runWithSync(config);
+Report report = generateReport().runWithSync(appConfig);
 ```
 
 This is equivalent to `runWith(config).unsafeRun()`.
@@ -302,57 +309,62 @@ This is equivalent to `runWith(config).unsafeRun()`.
 
 ### Service Layer with Configuration
 
+<!-- verify -->
 ```java
-public class OrderService {
-    public ConfigContext<IOKind.Witness, ServiceConfig, Order> createOrder(OrderRequest request) {
-        return validateRequest(request)
-            .via(valid -> checkInventory(valid))
-            .via(checked -> processPayment(checked))
-            .via(paid -> saveOrder(paid));
-    }
-
-    private ConfigContext<IOKind.Witness, ServiceConfig, ValidatedRequest> validateRequest(
-            OrderRequest request) {
-        return ConfigContext.io(config ->
-            validator.validate(request, config.validationRules()));
-    }
-
-    private ConfigContext<IOKind.Witness, ServiceConfig, CheckedRequest> checkInventory(
-            ValidatedRequest request) {
-        return ConfigContext.io(config ->
-            inventoryClient.check(config.inventoryServiceUrl(), request.items()));
-    }
-
-    // ... similar for other methods
+ConfigContext<IOKind.Witness, ServiceConfig, Order> createOrder(OrderRequest request) {
+    return validateRequest(request)
+        .via(valid -> checkInventory(valid))
+        .via(checked -> processPayment(checked))
+        .via(paid -> saveOrder(paid));
 }
 
+ConfigContext<IOKind.Witness, ServiceConfig, ValidatedRequest> validateRequest(
+        OrderRequest request) {
+    return ConfigContext.io(config ->
+        validator.validate(request, config.validationRules()));
+}
+
+ConfigContext<IOKind.Witness, ServiceConfig, CheckedRequest> checkInventory(
+        ValidatedRequest request) {
+    return ConfigContext.io(config ->
+        inventoryClient.check(config.inventoryServiceUrl(), request.items()));
+}
+
+// ... similar for processPayment and saveOrder
+
 // At the application edge
-ServiceConfig config = loadConfig();
-Order order = orderService.createOrder(request).runWithSync(config);
+Order order = createOrder(request).runWithSync(serviceConfig);
 ```
 
 ### Database Access
 
+<!-- verify -->
 ```java
-record DbConfig(String url, String user, String password, int poolSize) {}
+record DbConfig(String url, String username, String password, int poolSize) {}
 
 public class UserRepository {
     public ConfigContext<IOKind.Witness, DbConfig, User> findById(UserId id) {
+        // `io` takes a plain Function, which cannot throw a checked exception, so
+        // JDBC's SQLException is wrapped here rather than declared.
         return ConfigContext.io(config -> {
             try (Connection conn = getConnection(config)) {
-                return queryUser(conn, id);
+                return Fixture.queryUser(conn, id);
+            } catch (SQLException e) {
+                throw new IllegalStateException("Lookup failed for " + id, e);
             }
         });
     }
 
-    private Connection getConnection(DbConfig config) {
-        return DriverManager.getConnection(config.url(), config.user(), config.password());
+    private Connection getConnection(DbConfig config) throws SQLException {
+        return DriverManager.getConnection(
+            config.url(), config.username(), config.password());
     }
 }
 ```
 
 ### Testability
 
+<!-- verify -->
 ```java
 // Production config
 DbConfig prodConfig = new DbConfig(
@@ -377,12 +389,13 @@ User testUser = repository.findById(id).runWithSync(testConfig);
 
 ### Combining with ErrorContext
 
+<!-- verify -->
 ```java
-public ConfigContext<IOKind.Witness, ApiConfig, ErrorContext<IOKind.Witness, ApiError, User>>
-        fetchUser(UserId id) {
+public ConfigContext<IOKind.Witness, ApiConfig,
+        ErrorContext<IOKind.Witness, ApiError, User>> fetchUserWithErrors(UserId id) {
     return ConfigContext.io(config -> {
         return ErrorContext.<ApiError, User>io(
-            () -> httpClient.get(config.userEndpoint() + "/" + id),
+            () -> httpClient.getUser(config.userEndpoint() + "/" + id),
             ApiError::fromException);
     });
 }
@@ -394,8 +407,10 @@ public ConfigContext<IOKind.Witness, ApiConfig, ErrorContext<IOKind.Witness, Api
 
 When you need the raw transformer:
 
+<!-- verify -->
 ```java
-ConfigContext<IOKind.Witness, AppConfig, String> ctx = ConfigContext.ask().map(AppConfig::name);
+ConfigContext<IOKind.Witness, AppConfig, String> ctx =
+    ConfigContext.<AppConfig>ask().map(AppConfig::name);
 
 ReaderT<IOKind.Witness, AppConfig, String> transformer = ctx.toReaderT();
 ```
