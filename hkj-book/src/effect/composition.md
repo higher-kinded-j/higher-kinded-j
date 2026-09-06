@@ -67,12 +67,13 @@ need defensive checks at every step. The Path handles it structurally.
 
 Sometimes you need sequencing but don't care about the previous result:
 
+<!-- verify -->
 ```java
 IOPath<Result> workflow =
-    Path.io(() -> log.info("Starting"))
-        .then(() -> Path.io(() -> initialise()))
+    Path.ioRunnable(() -> log.info("Starting"))
+        .then(() -> Path.ioRunnable(() -> initialise()))
         .then(() -> Path.io(() -> process()))
-        .then(() -> Path.io(() -> log.info("Done")));
+        .peek(result -> log.info("Done"));
 ```
 
 `then` discards the previous value and runs the next computation. Use it for
@@ -128,16 +129,21 @@ dependency. The second says what it means.
 
 ### Variants
 
+<!-- verify -->
 ```java
 // Two values
-pathA.zipWith(pathB, (a, b) -> combine(a, b))
+EitherPath<Error, Result> two =
+    pathA.zipWith(pathB, (a, b) -> combine(a, b));
 
 // Three values
-pathA.zipWith3(pathB, pathC, (a, b, c) -> combine(a, b, c))
-
-// Four values
-pathA.zipWith4(pathB, pathC, pathD, (a, b, c, d) -> combine(a, b, c, d))
+EitherPath<Error, Result> three =
+    pathA.zipWith3(pathB, pathC, (a, b, c) -> combine(a, b, c));
 ```
+
+Three is where the concrete Path types stop. Beyond that, reach for
+[`ForPath`](forpath_comprehension.md), which carries up to twelve bindings, or
+[`Path.accumulate()`](../monads/validated_assembly.md) when the values are
+independent and every error matters.
 
 Beyond four, consider whether your design is asking too much of a single
 expression.
@@ -191,9 +197,10 @@ in parallel can dramatically reduce total execution time.
 
 `parZipWith` is `zipWith` with explicit parallel execution:
 
+<!-- verify -->
 ```java
 IOPath<User> fetchUser = Path.io(() -> userService.get(id));
-IOPath<Preferences> fetchPrefs = Path.io(() -> prefService.get(id));
+IOPath<Preferences> fetchPrefs = Path.io(() -> prefService.get(userId));
 
 // Sequential: ~200ms (100ms + 100ms)
 IOPath<Profile> sequential = fetchUser.zipWith(fetchPrefs, Profile::new);
@@ -209,6 +216,7 @@ when you want to make the parallel intent explicit.
 
 For three or four independent paths, use `PathOps` utilities:
 
+<!-- verify -->
 ```java
 IOPath<Dashboard> dashboard = PathOps.parZip3(
     fetchMetrics(),
@@ -230,6 +238,7 @@ IOPath<Report> report = PathOps.parZip4(
 
 When you have a dynamic number of independent operations:
 
+<!-- verify -->
 ```java
 List<IOPath<Product>> fetches = productIds.stream()
     .map(id -> Path.io(() -> productService.get(id)))
@@ -243,6 +252,7 @@ IOPath<List<Product>> products = PathOps.parSequenceIO(fetches);
 
 Sometimes you want whichever completes first:
 
+<!-- verify -->
 ```java
 IOPath<Config> primary = Path.io(() -> fetchFromPrimary());
 IOPath<Config> backup = Path.io(() -> fetchFromBackup());
@@ -375,13 +385,14 @@ success short-circuits the chain.
 
 For validation where users should see everything wrong at once:
 
+<!-- verify -->
 ```java
 ValidationPath<List<String>, User> user =
-    validateName(input.name())
+    checkName(signup.name())
         .zipWith3Accum(
-            validateEmail(input.email()),
-            validateAge(input.age()),
-            User::new
+            checkEmail(signup.email()),
+            checkAge(signup.age()),
+            Fixture::buildUser
         );
 
 // All three validations run; all errors collected
@@ -459,11 +470,21 @@ conversion paths.
 Bringing the patterns together with a `ForPath` comprehension, where every
 intermediate value stays in scope through the accumulated tuple:
 
+<!-- verify -->
 ```java
 public class OrderService {
+    private static final Logger log = new Logger();
+
     private final UserRepository users;
     private final InventoryService inventory;
     private final PaymentService payments;
+
+    public OrderService(UserRepository users, InventoryService inventory,
+            PaymentService payments) {
+        this.users = users;
+        this.inventory = inventory;
+        this.payments = payments;
+    }
 
     public EitherPath<OrderError, Order> placeOrder(OrderRequest request) {
         return ForPath.from(validateRequest(request)
@@ -481,7 +502,7 @@ public class OrderService {
             // Process payment (user = t._2(), available = t._3())
             .from(t -> Path.tryOf(() ->
                     payments.charge(t._2(), t._3().total()))
-                .toEitherPath(OrderError.PaymentFailed::new)
+                .<OrderError>toEitherPath(OrderError.PaymentFailed::new)
                 .peek(payment -> log.info("Payment processed: {}", payment.getId())))
 
             // Create order
@@ -494,7 +515,11 @@ public class OrderService {
         if (request.items().isEmpty()) {
             return Path.left(new OrderError.EmptyCart());
         }
-        return Path.right(new ValidatedRequest(request));
+        return Path.right(new ValidatedRequest(request.userId(), request.items()));
+    }
+
+    private Order createOrder(User user, List<Item> items, Payment payment) {
+        return new Order(payment.getId());
     }
 }
 ```
@@ -510,29 +535,33 @@ happens at a deliberate boundary.
 
 ### Mistake 1: _Using `via` for Independent Operations_
 
+<!-- verify -->
 ```java
 // Misleading: suggests email validation depends on name
-validateName(input)
-    .via(name -> validateEmail(input))  // Doesn't use name!
+EitherPath<Error, String> misleading =
+    validateName(input)
+        .via(name -> validateEmail(input));  // Doesn't use name!
 
 // Clearer: shows independence
-validateName(input).zipWith(validateEmail(input), (n, e) -> ...)
+EitherPath<Error, Result> clearer =
+    validateName(input).zipWith(validateEmail(input), (n, e) -> combine(n, e));
 ```
 
 ### Mistake 2: _Side Effects in `map`_
 
+<!-- verify -->
 ```java
 // Wrong: side effect hidden in map
-path.map(user -> {
+userPath.map(user -> {
     database.save(user);  // Side effect!
     return user;
 });
 
 // Right: use peek for side effects
-path.peek(user -> database.save(user));
+userPath.peek(user -> database.save(user));
 
 // Or be explicit with IOPath
-path.via(user -> Path.io(() -> {
+userPath.via(user -> Path.io(() -> {
     database.save(user);
     return user;
 }));
@@ -540,16 +569,17 @@ path.via(user -> Path.io(() -> {
 
 ### Mistake 3: _Forgetting to Run_
 
+<!-- verify -->
 ```java
 // Bug: nothing happens
 void processUser(String id) {
-    Path.maybe(findUser(id))
+    Path.maybe(lookupUser(id))
         .map(this::process);  // Result discarded!
 }
 
 // Fixed: extract the result
-void processUser(String id) {
-    Path.maybe(findUser(id))
+Maybe<User> processUserAndKeepIt(String id) {
+    return Path.maybe(lookupUser(id))
         .map(this::process)
         .run();
 }
@@ -557,6 +587,7 @@ void processUser(String id) {
 
 ### Mistake 4: _Converting Back and Forth_
 
+<!-- verify -->
 ```java
 // Wasteful: converting repeatedly
 Path.maybe(lookupUser(id))

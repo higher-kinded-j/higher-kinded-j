@@ -143,7 +143,7 @@ public interface Combinable<A> extends Composable<A> {
 ```
 
 ~~~admonish note title="`zipWith3` is not on the capability"
-The capability declares the two-way combine only. `zipWith3` and `zipWith4` are declared on each concrete path type, over `Function3` and `Function4`, because their return type is that path type rather than `Combinable`. That is why the example below calls `zipWith3` on an `EitherPath` and not through the interface.
+The capability declares the two-way combine only. `zipWith3` is declared on each concrete path type, over `Function3`, because its return type is that path type rather than `Combinable`. That is why the example below calls `zipWith3` on an `EitherPath` and not through the interface. Three is where the arity stops; past it, use `ForPath` or `Path.accumulate()`.
 ~~~
 
 The key property is **independence**. Neither computation depends on the
