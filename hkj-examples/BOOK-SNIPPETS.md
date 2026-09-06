@@ -211,6 +211,9 @@ Some shapes recur in the monads chapter and are left unmarked deliberately:
   (`LoggerFactory`, `MDC`) and `vstream_performance.md`'s JMH configuration name libraries that
   are not on the gate's classpath, and putting them there to compile two snippets would be the
   tail wagging the dog.
+- **A stack the page invents to make a point.** `transformer_capstone.md` builds its
+  three-layer `TestStack` through a `buildTestStack` helper that no module provides; it stands for
+  the boundary wiring a reader would write, not for an API.
 - **Laws written as equations.** `coyoneda.md` states the functor laws as
   `coyo.map(x -> x) == coyo`. The `==` is the law's notation, not a reference comparison, and
   rewriting it as an assertion would obscure what it says.

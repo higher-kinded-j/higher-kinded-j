@@ -29,6 +29,7 @@ The first three are *in-flight* transformations: you change one parameter of the
 
 `map` and `flatMap` change the value an effectful step produces. They do not touch `F`, the carrier, or the algebra. Reach for them by default; only consider the other axes when the value-level move does not fit.
 
+<!-- verify -->
 ```java
 ReaderPath<AppEnv, User> user = userRepo.loadUser(id);
 ReaderPath<AppEnv, String> greeting = user.map(u -> "Hello, " + u.name());
@@ -42,14 +43,16 @@ ReaderPath<AppEnv, String> greeting = user.map(u -> "Hello, " + u.name());
 
 Every monad transformer in the library exposes a `mapT` method that transforms the inner monad `F` into a different monad `G` via a natural transformation. The carrier (state, environment, log) is unchanged.
 
+<!-- verify -->
 ```java
-// Transformer over IO, before:
-StateT<AppState, IOKind.Witness, Result> ioWorkflow = ...;
+// Transformer over IO, and a transformation into a virtual-thread task:
+//   StateT<AppState, IOKind.Witness, Result> ioWorkflow
+//   Natural<IOKind.Witness, VTaskKind.Witness> ioToVTask
 
-// The same workflow, now over a virtual-thread task:
-Natural<IOKind.Witness, VTaskKind.Witness> ioToVTask = ...;
+// The same workflow, now over a virtual-thread task. StateT.mapT is the one mapT
+// that needs the target monad as well as the transformation.
 StateT<AppState, VTaskKind.Witness, Result> vTaskWorkflow =
-    ioWorkflow.mapT(ioToVTask);
+    ioWorkflow.mapT(vtaskMonad, ioToVTask::apply);
 ```
 
 Use `mapT` when the *outer* effect is what does not fit. If you are in a `ReaderT<F, R, A>` and need a `ReaderT<G, R, A>` because a downstream collaborator is in `G`, `mapT` is the right tool. The state, environment, or log carrier is untouched. See the per-transformer pages ([ReaderT](readert_transformer.md), [StateT](statet_transformer.md), [WriterT](writert_transformer.md)) for the exact `mapT` shapes.
@@ -64,9 +67,11 @@ When the workflow is fine but the *carrier* needs to change, reach for `zoom` (s
 
 `ForState.zoom` narrows a state-threaded comprehension to a sub-record. Inside the zoom block, all operations run against the sub-state; on `endZoom`, the outer state is reconstructed automatically.
 
+<!-- verify -->
 ```java
-record Address(String street, String city, String zip) {}
-record Customer(String name, Address address, int loyaltyPoints) {}
+// Address and Customer carry @GenerateFocus:
+//   @GenerateFocus record Address(String street, String city, String zip) {}
+//   @GenerateFocus record Customer(String name, Address address, int loyaltyPoints) {}
 
 // The zoom accepts the FocusPath that @GenerateFocus already produces.
 FocusPath<Customer, Address> addressPath = CustomerFocus.address();
@@ -92,11 +97,13 @@ Kind<IdKind.Witness, Customer> updated =
 
 `ReaderPath.magnify` lifts a computation that reads a sub-environment into a larger environment, using a `Getter` or a `FocusPath`. The bare-`Function` form remains available as `local` for environment adaptations that are not naturally expressed as optics.
 
+<!-- verify -->
 ```java
-record AppEnv(DbConfig db, AuthConfig auth, String tenant) {}
+// AppEnv carries @GenerateFocus:
+//   @GenerateFocus record AppEnv(DbConfig db, AuthConfig auth, String tenant) {}
 
 // Sub-service that only knows about DbConfig:
-ReaderPath<DbConfig, User> loadUser = ...;
+//   ReaderPath<DbConfig, User> loadUser
 
 // Lift it into an AppEnv-shaped request via the FocusPath @GenerateFocus emits:
 FocusPath<AppEnv, DbConfig> dbConfig = AppEnvFocus.db();
@@ -131,12 +138,14 @@ sealed interface Db<A> {
 }
 
 // Compose into one program; interpret at the boundary:
-@ComposeEffects({ConsoleAlgebra.class, DbAlgebra.class})
-record AppEffects() {}
+@ComposeEffects
+record AppEffects(Class<Console<?>> console, Class<Db<?>> db) {}
 
-// In the shell:
-EffectBoundary boundary = EffectBoundary.of(consoleToIO, dbToIO);
-User u = boundary.run(myProgram).unsafeRunSync();
+// In the shell. `of` takes one interpreter, so the two are combined first, and
+// `run` interprets and executes: there is nothing left to unwrap.
+EffectBoundary<Composed> boundary =
+    EffectBoundary.of(Interpreters.combine(consoleToIO, dbToIO));
+User u = boundary.run(myProgram);
 ```
 
 Use boundary composition when:
@@ -155,9 +164,10 @@ A common service-layer shape: a sub-service is written against a typed sub-envir
 
 The first axis we need is `magnify` (lift the sub-environment into the application environment). The second is `mapT` (run the resulting reader on a different inner effect at a chosen seam). Each axis stays focused on one concern.
 
+<!-- verify -->
 ```java
 // 1. Sub-service: knows only DbConfig.
-ReaderPath<DbConfig, User> loadUser = ...;
+//    ReaderPath<DbConfig, User> loadUser
 
 // 2. Lift it into the application environment via a generated FocusPath.
 FocusPath<AppEnv, DbConfig> db = AppEnvFocus.db();
