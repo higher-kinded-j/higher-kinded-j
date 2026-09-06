@@ -992,15 +992,11 @@ public class AsyncOrderService {
             .via(user -> inventoryService.checkAvailabilityAsync(request.items()))
             .via(availability -> {
                 if (!availability.allAvailable()) {
-                    return Path.completableFuture(
-                        CompletableFuture.failedFuture(
-                            new OutOfStockException(availability.unavailableItems())
-                        )
+                    return Path.futureFailed(
+                        new OutOfStockException(availability.unavailableItems())
                     );
                 }
-                return Path.completableFuture(
-                    CompletableFuture.completedFuture(availability)
-                );
+                return Path.futureCompleted(availability);
             })
             .via(availability -> paymentService.processPaymentAsync(request.payment()))
             .map(payment -> createOrderRecord(request, payment));

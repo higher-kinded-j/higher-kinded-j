@@ -208,7 +208,7 @@ IOPath<Data> io = Path.io(() -> fetchData());
 Try<Data> result = io.runSafe();
 
 // Then convert to path if needed
-TryPath<Data> tryPath = Path.of(result);
+TryPath<Data> tryPath = Path.tryPath(result);
 ```
 
 ---
