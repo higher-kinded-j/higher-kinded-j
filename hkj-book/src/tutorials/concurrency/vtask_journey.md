@@ -193,6 +193,7 @@ Navigate to `hkj-examples/src/test/java/org/higherkindedj/tutorial/concurrency/`
 ### 1. Forgetting VTask is Lazy
 **Problem**: Assuming a VTask runs when created.
 
+<!-- verify -->
 ```java
 // WRONG: This doesn't print anything yet!
 VTask<Unit> task = VTask.exec(() -> System.out.println("Hello"));
@@ -204,13 +205,14 @@ task.run(); // Now it prints
 ### 2. Using run() Instead of runSafe()
 **Problem**: Using `run()` and letting exceptions propagate.
 
+<!-- verify -->
 ```java
 // RISKY: Throws on failure
-Integer result = VTask.of(() -> dangerousOperation()).run();
+Integer thrown = VTask.of(() -> dangerousOperation()).run();
 
 // BETTER: Captures failure in Try
-Try<Integer> result = VTask.of(() -> dangerousOperation()).runSafe();
-result.foldFailureFirst(
+Try<Integer> captured = VTask.of(() -> dangerousOperation()).runSafe();
+captured.foldFailureFirst(
     error -> handleError(error),
     value -> handleSuccess(value)
 );
@@ -219,18 +221,20 @@ result.foldFailureFirst(
 ### 3. Sequential When Parallel Would Work
 **Problem**: Using `flatMap` for independent computations.
 
+<!-- verify -->
 ```java
 // SEQUENTIAL: fetchB waits for fetchA to complete
-VTask<Pair> result = fetchA.flatMap(a ->
+VTask<Pair> sequential = fetchA.flatMap(a ->
     fetchB.map(b -> new Pair(a, b)));
 
 // PARALLEL: Both execute simultaneously
-VTask<Pair> result = Par.map2(fetchA, fetchB, Pair::new);
+VTask<Pair> parallel = Par.map2(fetchA, fetchB, Pair::new);
 ```
 
 ### 4. Ignoring Timeouts in Production
 **Problem**: Letting slow operations block indefinitely.
 
+<!-- verify -->
 ```java
 // RISKY: No timeout, could hang forever
 VTaskPath<Data> path = Path.vtask(() -> fetchFromSlowService());

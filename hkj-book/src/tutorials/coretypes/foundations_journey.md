@@ -184,6 +184,7 @@ In an IDE, right-click on any tutorial file and select "Run".
 
 **Solution**: Always widen before passing to generic code.
 
+<!-- verify -->
 ```java
 Either<String, Integer> either = Either.right(42);
 Kind<EitherKind.Witness<String>, Integer> kind = EITHER.widen(either);
@@ -194,6 +195,7 @@ Kind<EitherKind.Witness<String>, Integer> kind = EITHER.widen(either);
 
 **Solution**: Combinators across multiple inputs live on the `Applicative` typeclass instance. Get the instance, widen the inputs, call the combinator, narrow the result.
 
+<!-- verify -->
 ```java
 MonadError<EitherKind.Witness<String>, String> app = Instances.monadError(either());
 Either<String, Integer> sum =

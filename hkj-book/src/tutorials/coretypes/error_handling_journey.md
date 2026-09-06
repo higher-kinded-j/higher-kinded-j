@@ -144,19 +144,21 @@ Learn the staged assembly builder: build a record from N validated fields with e
 **Problem**: Validation stops at the first error when you want to show all errors.
 
 **Solution**: Use `Validated` with Applicative (`map2`, etc.) to accumulate errors:
+<!-- verify -->
 ```java
-Validated<List<String>, User> result = ValidatedApplicative.instance().map3(
-    validateName(name),
-    validateEmail(email),
-    validateAge(age),
-    User::new
-);
+Validated<List<String>, User> result = VALIDATED.narrow(
+    ValidatedMonad.<List<String>>instance(Semigroups.list()).map3(
+        VALIDATED.widen(validateName(name)),
+        VALIDATED.widen(validateEmail(email)),
+        VALIDATED.widen(validateAge(age)),
+        User::new));
 ```
 
 ### 3. Throwing Exceptions Instead of Returning Errors
 **Problem**: Old habits die hard. You throw instead of returning `Either.left()`.
 
 **Solution**: Wrap exception-throwing code with `Try`:
+<!-- verify -->
 ```java
 Try<Integer> result = Try.of(() -> Integer.parseInt(input));
 ```
