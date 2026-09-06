@@ -227,7 +227,8 @@ Some shapes recur across the book and are left unmarked deliberately:
   quotes the shape a blog post published, which is the same case. Every page in the type-class
   chapter opens the same way, quoting `Functor`, `Applicative`, `Monad`, `Selective`,
   `Alternative`, `MonadZero`, `Bifunctor`, `Profunctor`, `Foldable`, `Traverse`, `Natural`,
-  `Semigroup` or `Monoid`; the worked examples below each quotation are gated.
+  `Semigroup` or `Monoid`; the worked examples below each quotation are gated. `optics/folds.md`
+  quotes `Foldable` for the same reason, to say what the optic mirrors.
 - **A `static` extension method quoted as a signature.** `getters.md` quotes
   `public static <S, A> Maybe<A> getMaybe(Getter<S, A> getter, S source)`. A signature-only
   snippet is wrapped in an interface, where `static` demands a body, so the one shape that would
@@ -257,7 +258,8 @@ Some shapes recur across the book and are left unmarked deliberately:
   write `Kind<F, Choice<Error, Data>>` and `Natural<F, G>` with nothing binding `F` or `G`: the
   point is the shape the operation has for *any* effect. A fixture can lend its type parameters to
   a snippet, but only one set, and the same fixture serves the concrete `IO` and `Maybe` examples
-  on the same page.
+  on the same page. `optics/folds.md`'s table of standard monoids is the same case: `Monoids.list()`
+  and its neighbours are listed as `Monoid<List<A>>` for the `A` the caller brings.
 - **A name the page binds to two different records.**
   `forstate_comprehension.md` names the same `userLens`, `addressLens` and `initialWorkflow` for
   its order workflow and its offer workflow. Snippets compile independently against one shared
@@ -285,7 +287,10 @@ Some shapes recur across the book and are left unmarked deliberately:
 - **A complete runnable file repeated at the end of a page.** `optics/lenses.md` closes by
   putting the whole worked example back together, model included. Every part of it is gated above;
   compiling the repeat would need a second copy of the same records in one unit, and two
-  `@GenerateLenses` records of the same simple name cannot both emit their companion. The same
+  `@GenerateLenses` records of the same simple name cannot both emit their companion.
+  `optics/folds.md` closes the same way, and the collision there is worth spelling out: its final
+  file nests its records inside `FoldUsageExample`, but a companion is generated *top-level* by
+  simple name, so a nested `Order` and the page's own `Order` both ask for `OrderFolds`. The same
   page's `targetPackage` entry is unmarked for a related reason: a companion generated into another
   package needs its source type to be `public`, and a snippet's types share one file, where only
   one may be.
