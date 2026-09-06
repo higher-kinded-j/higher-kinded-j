@@ -24,20 +24,22 @@ Most readers should migrate to the [Effect Path API](../effect/ch_intro.md) firs
 
 **Before:**
 
+<!-- verify -->
 ```java
 CompletableFuture<Either<DomainError, Receipt>> processOrder(OrderData data) {
-    return validateOrder(data).thenCompose(eitherValidated ->
+    return validateOrderFuture(data).thenCompose(eitherValidated ->
         eitherValidated.fold(
             error -> CompletableFuture.completedFuture(Either.left(error)),
-            validated -> checkInventory(validated).thenCompose(eitherInventory ->
+            validated -> checkInventoryFuture(validated).thenCompose(eitherInventory ->
                 eitherInventory.fold(
                     error -> CompletableFuture.completedFuture(Either.left(error)),
-                    inventory -> processPayment(inventory)))));
+                    inventory -> processPaymentFuture(inventory)))));
 }
 ```
 
 **After (Effect Path API):**
 
+<!-- verify -->
 ```java
 EitherPath<DomainError, Receipt> processOrder(OrderData data) {
     return Path.either(validateOrder(data))
@@ -48,12 +50,15 @@ EitherPath<DomainError, Receipt> processOrder(OrderData data) {
 
 **After (raw `EitherT`, when you must keep `CompletableFuture` as the outer monad):**
 
+<!-- verify -->
 ```java
-var eitherTMonad = Instances.eitherT(futureMonad);
+var eitherTMonad =
+    Instances.<CompletableFutureKind.Witness, DomainError>eitherT(futureMonad);
 
-var workflow = For.from(eitherTMonad, EitherT.fromKind(validateOrder(data)))
-    .from(validated -> EitherT.fromKind(checkInventory(validated)))
-    .from(inventory -> EitherT.fromKind(processPayment(inventory)))
+var workflow = For.from(eitherTMonad, EitherT.fromKind(validateOrderAsync(data)))
+    .from(validated -> EitherT.fromKind(checkInventoryAsync(validated)))
+    // past the first binding, `from` sees the accumulated tuple; only `yield` unpacks it
+    .from(t -> EitherT.fromKind(processPaymentAsync(t._2())))
     .yield((v, i, r) -> r);
 ```
 
@@ -67,13 +72,14 @@ var workflow = For.from(eitherTMonad, EitherT.fromKind(validateOrder(data)))
 
 **Before:**
 
+<!-- verify -->
 ```java
 CompletableFuture<Optional<UserPreferences>> getPreferences(String userId) {
-    return fetchUserAsync(userId).thenCompose(optUser ->
+    return fetchUserFuture(userId).thenCompose(optUser ->
         optUser.map(user ->
-            fetchProfileAsync(user.id()).thenCompose(optProfile ->
+            fetchProfileFuture(user.id()).thenCompose(optProfile ->
                 optProfile.map(profile ->
-                    fetchPrefsAsync(profile.userId())
+                    fetchPrefsFuture(profile.userId())
                 ).orElse(CompletableFuture.completedFuture(Optional.empty()))
             )
         ).orElse(CompletableFuture.completedFuture(Optional.empty())));
@@ -82,22 +88,24 @@ CompletableFuture<Optional<UserPreferences>> getPreferences(String userId) {
 
 **After (Effect Path API):**
 
+<!-- verify -->
 ```java
 OptionalPath<UserPreferences> getPreferences(String userId) {
-    return Path.optional(fetchUserAsync(userId))
-        .via(user -> Path.optional(fetchProfileAsync(user.id())))
-        .via(profile -> Path.optional(fetchPrefsAsync(profile.userId())));
+    return Path.optional(lookupUser(userId))
+        .via(user -> Path.optional(lookupProfile(user.id())))
+        .via(profile -> Path.optional(lookupPrefs(profile.userId())));
 }
 ```
 
 **After (raw `OptionalT`):**
 
+<!-- verify -->
 ```java
 var optionalTMonad = Instances.optionalT(futureMonad);
 
 var prefsLookup = For.from(optionalTMonad, OptionalT.fromKind(fetchUserAsync(userId)))
-    .from(user    -> OptionalT.fromKind(fetchProfileAsync(user.id())))
-    .from(profile -> OptionalT.fromKind(fetchPrefsAsync(profile.userId())))
+    .from(user -> OptionalT.fromKind(fetchProfileAsync(user.id())))
+    .from(t -> OptionalT.fromKind(fetchPrefsAsync(t._2().userId())))
     .yield((user, profile, prefs) -> prefs);
 ```
 
@@ -111,9 +119,14 @@ var prefsLookup = For.from(optionalTMonad, OptionalT.fromKind(fetchUserAsync(use
 
 **Before:**
 
+<!-- verify -->
 ```java
-CompletableFuture<ServiceData> fetchData(AppConfig config, String itemId) { ... }
-CompletableFuture<ProcessedData> processData(AppConfig config, ServiceData data) { ... }
+CompletableFuture<ServiceData> fetchData(AppConfig config, String itemId) {
+    return CompletableFuture.supplyAsync(() -> callApi(config.apiKey(), itemId));
+}
+CompletableFuture<ProcessedData> processData(AppConfig config, ServiceData data) {
+    return CompletableFuture.supplyAsync(() -> transform(data, config));
+}
 
 CompletableFuture<ProcessedData> workflow(AppConfig config) {
     return fetchData(config, "item-123")
@@ -123,18 +136,20 @@ CompletableFuture<ProcessedData> workflow(AppConfig config) {
 
 **After (Effect Path API):**
 
+<!-- verify -->
 ```java
 ReaderPath<AppConfig, ProcessedData> workflow() {
-    return Path.<AppConfig>ask()
-        .via(config -> Path.right(fetchData(config, "item-123")))
-        .via(data   -> Path.<AppConfig>ask().map(config -> processData(config, data)));
+    return Path.<AppConfig, ServiceData>asks(config -> callApi(config.apiKey(), "item-123"))
+        .via(data -> Path.<AppConfig, ProcessedData>asks(config -> transform(data, config)));
 }
 ```
 
 **After (raw `ReaderT`, when you must combine the environment with `CompletableFuture`):**
 
+<!-- verify -->
 ```java
-var readerT = Instances.readerT(futureMonad);
+var readerT =
+    Instances.<CompletableFutureKind.Witness, AppConfig>readerT(futureMonad);
 
 ReaderT<CompletableFutureKind.Witness, AppConfig, ServiceData>
     fetchDataRT(String itemId) {
@@ -158,6 +173,7 @@ ReaderT<CompletableFutureKind.Witness, AppConfig, ProcessedData>
 
 **Before:**
 
+<!-- verify -->
 ```java
 Pair<BigDecimal, List<String>> applyDiscount(BigDecimal price, List<String> log) {
     var newLog = new ArrayList<>(log);
@@ -174,6 +190,7 @@ Pair<BigDecimal, List<String>> addShipping(BigDecimal price, List<String> log) {
 
 **After (Effect Path API):**
 
+<!-- verify -->
 ```java
 WriterPath<List<AuditEntry>, BigDecimal> workflow(BigDecimal price) {
     return WriterPath.<List<AuditEntry>, BigDecimal>writer(
@@ -189,6 +206,7 @@ WriterPath<List<AuditEntry>, BigDecimal> workflow(BigDecimal price) {
 
 **After (raw `WriterT`):**
 
+<!-- verify -->
 ```java
 var listMonoid  = Monoids.list();
 var writerMonad = Instances.writerT(Instances.monad(id()), listMonoid);
@@ -209,6 +227,7 @@ var workflow = For.from(writerMonad, writerMonad.tell(List.of("Applied 10% disco
 
 **Before:**
 
+<!-- verify -->
 ```java
 Optional<StateTuple<List<Integer>, Integer>> workflow(List<Integer> initial) {
     var afterPush1 = push(initial, 10);
@@ -224,10 +243,11 @@ Optional<StateTuple<List<Integer>, Integer>> workflow(List<Integer> initial) {
 
 **After (Effect Path API, when no other effect is required):**
 
+<!-- verify -->
 ```java
 WithStatePath<List<Integer>, Integer> workflow() {
     return WithStatePath.<List<Integer>>modify(s -> prepend(s, 10))
-        .then(() -> WithStatePath.modify(s -> prepend(s, 20)))
+        .then(() -> WithStatePath.<List<Integer>>modify(s -> prepend(s, 20)))
         .then(() -> WithStatePath.<List<Integer>>get())
         .map(state -> state.get(0) + state.get(1));
 }
@@ -235,8 +255,10 @@ WithStatePath<List<Integer>, Integer> workflow() {
 
 **After (raw `StateT`, when state must combine with another effect):**
 
+<!-- verify -->
 ```java
-var stateTMonad = Instances.stateT(Instances.monadError(optional()));
+var stateTMonad =
+    Instances.<List<Integer>, OptionalKind.Witness>stateT(Instances.monadError(optional()));
 
 var workflow = For.from(stateTMonad, push(10))
     .from(_ -> push(20))
