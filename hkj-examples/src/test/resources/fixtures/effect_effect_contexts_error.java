@@ -11,7 +11,10 @@ import org.higherkindedj.hkt.Unit;
 import org.higherkindedj.hkt.effect.IOPath;
 import org.higherkindedj.hkt.effect.context.ErrorContext;
 import org.higherkindedj.hkt.either.Either;
+import java.util.Optional;
 import org.higherkindedj.hkt.io.IOKind;
+import org.higherkindedj.hkt.either_t.EitherT;
+import org.jspecify.annotations.Nullable;
 
 record User(String id, String profileId) {
 
@@ -102,6 +105,28 @@ record RepoError(String message) {
   }
 }
 
+final class HttpClient {
+
+  HttpResponse get(String path) {
+    return new HttpResponse(200, "{}");
+  }
+}
+
+final class UserNotFoundException extends RuntimeException {
+
+  UserNotFoundException(String message) {
+    super(message);
+  }
+}
+
+/** The hand-rolled result type the "four styles" section contrasts with. */
+record Result<E, A>(@Nullable E error, @Nullable A value) {
+
+  static <E, A> Result<E, A> ok(A value) {
+    return new Result<>(null, value);
+  }
+}
+
 final class NotFoundException extends RuntimeException {
 
   NotFoundException(String message) {
@@ -178,6 +203,33 @@ class Fixture {
     return ErrorContext.success(Unit.INSTANCE);
   }
 
+  // The order pipeline the compensating-action example sequences. These are instance methods
+  // because the page reaches them through `this::`.
+
+  ErrorContext<IOKind.Witness, OrderError, OrderRequest> validateRequest(OrderRequest request) {
+    return ErrorContext.success(request);
+  }
+
+  ErrorContext<IOKind.Witness, OrderError, OrderRequest> checkInventory(OrderRequest request) {
+    return ErrorContext.success(request);
+  }
+
+  ErrorContext<IOKind.Witness, OrderError, OrderRequest> reserveItems(OrderRequest request) {
+    return ErrorContext.success(request);
+  }
+
+  ErrorContext<IOKind.Witness, OrderError, OrderRequest> chargePayment(OrderRequest request) {
+    return ErrorContext.success(request);
+  }
+
+  ErrorContext<IOKind.Witness, OrderError, Order> createOrder(OrderRequest request) {
+    return ErrorContext.success(new Order("o-1"));
+  }
+
+  ErrorContext<IOKind.Witness, OrderError, Unit> rollbackReservations() {
+    return ErrorContext.success(Unit.INSTANCE);
+  }
+
   static Config loadConfigFromServer() {
     return new Config("server");
   }
@@ -188,13 +240,6 @@ class Fixture {
 
   static Profile parseProfile(String body) {
     return new Profile("p-1");
-  }
-
-  static final class HttpClient {
-
-    HttpResponse get(String path) {
-      return new HttpResponse(200, "{}");
-    }
   }
 
   static final class Validator {

@@ -28,9 +28,11 @@ They're a middle layer between the simple Path types you've already learned and 
 
 Consider a typical API call. It might fail. It uses IO. You want typed errors. The raw transformer approach looks like this:
 
+<!-- verify -->
 ```java
 // Raw transformer: correct but noisy
-MonadError<EitherTKind.Witness<IOKind.Witness, ApiError>, ApiError> monad = Instances.eitherT(Instances.monad(io()));
+MonadError<EitherTKind.Witness<IOKind.Witness, ApiError>, ApiError> monad =
+    new EitherTMonad<>(Instances.monad(io()));
 
 Kind<EitherTKind.Witness<IOKind.Witness, ApiError>, User> userKind =
     EitherT.fromKind(IO_OP.widen(IO.delay(() -> {
@@ -229,11 +231,12 @@ Report result = report.runWithSync(new ServiceConfig("PDF", 30));
 
 ### Stateful Computation
 
+<!-- verify -->
 ```java
 MutableContext<IOKind.Witness, Counter, String> workflow =
     MutableContext.<Counter>get()
         .map(c -> "Started at: " + c.value())
-        .flatMap(msg -> MutableContext.<Counter, Unit>modify(Counter::increment)
+        .flatMap(msg -> MutableContext.<Counter>modify(Counter::increment)
             .map(u -> msg));
 
 StateTuple<Counter, String> result = workflow.runWith(new Counter(0)).unsafeRun();
@@ -243,6 +246,7 @@ StateTuple<Counter, String> result = workflow.runWith(new Counter(0)).unsafeRun(
 
 ### Virtual Thread Concurrency
 
+<!-- verify -->
 ```java
 Try<Profile> result = VTaskContext
     .<User>of(() -> userService.fetch(userId))
@@ -265,6 +269,7 @@ Try<Config> config = VTaskContext
 
 Every Effect Context provides access to its underlying transformer via an escape hatch method. When you need capabilities beyond what the Context API exposes, you can drop to Layer 3:
 
+<!-- verify -->
 ```java
 ErrorContext<IOKind.Witness, ApiError, User> ctx = ErrorContext.success(user);
 
