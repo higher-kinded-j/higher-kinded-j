@@ -293,7 +293,8 @@ Some shapes recur across the book and are left unmarked deliberately:
   simple name, so a nested `Order` and the page's own `Order` both ask for `OrderFolds`. The same
   page's `targetPackage` entry is unmarked for a related reason: a companion generated into another
   package needs its source type to be `public`, and a snippet's types share one file, where only
-  one may be.
+  one may be. `optics/traversals.md` closes and annotates the same way, and its `TraversalUsageExample`
+  nests its records, which is the `folds.md` collision below.
 - **Laws written as equations.** `coyoneda.md` states the functor laws as
   `coyo.map(x -> x) == coyo`. The `==` is the law's notation, not a reference comparison, and
   rewriting it as an assertion would obscure what it says.
