@@ -17,6 +17,7 @@
 
 Imagine a dashboard that assembles a user summary from three data sources:
 
+<!-- verify -->
 ```java
 String buildDashboard(String userId) {
     var profile         = fetchUserProfile(userId);      // 200ms
@@ -45,6 +46,7 @@ This is not a niche optimization. Any time your code builds a data structure wit
 
 `Lazy<A>` stores a computation without executing it. Call `defer()` to wrap the work; call `force()` when you actually need the result. After the first `force()`, the result is cached; subsequent calls return instantly with zero recomputation.
 
+<!-- verify -->
 ```java
 Kind<LazyKind.Witness, String> profile = LAZY.defer(() -> fetchUserProfile(userId));
 // Nothing has executed yet.
@@ -103,6 +105,7 @@ This makes `Lazy` ideal for values that are expensive to produce but read freque
 ~~~admonish example title="Example 1: Deferred Computation"
 Creating lazy values does no work. Forcing them does, exactly once.
 
+<!-- verify -->
 ```java
 AtomicInteger counter = new AtomicInteger(0);
 
@@ -134,6 +137,7 @@ Exceptions follow the same rule: if the computation throws on the first `force()
 ~~~admonish example title="Example 2: Composing with map and flatMap"
 `LazyMonad` lets you chain transformations without triggering evaluation. Only the final `force()` runs the entire pipeline.
 
+<!-- verify -->
 ```java
 Monad<LazyKind.Witness> lazyMonad = Instances.monad(lazy());
 AtomicInteger counter = new AtomicInteger(0);

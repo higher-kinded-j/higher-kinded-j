@@ -57,6 +57,7 @@ Once we are on the left rail, every downstream `map` and `flatMap` is a no-op. T
 
 ## Creating Instances
 
+<!-- verify -->
 ```java
 Either<String, Integer> success = Either.right(123);
 Either<String, Integer> failure = Either.left("File not found");
@@ -75,6 +76,7 @@ If null-safety on the success side matters, lift through [`Maybe`](./maybe_monad
 
 ### Checking State
 
+<!-- verify -->
 ```java
 if (success.isRight()) {
     System.out.println("It's Right!");
@@ -88,6 +90,7 @@ if (failure.isLeft()) {
 
 `getLeft` and `getRight` exist for the rare case where we already know the rail:
 
+<!-- verify -->
 ```java
 try {
     Integer value = success.getRight(); // 123
@@ -102,6 +105,7 @@ In application code, prefer `fold` or pattern matching. The throwing accessors a
 
 ### Folding Both Rails at Once
 
+<!-- verify -->
 ```java
 String resultMessage = failure.fold(
     leftValue  -> "Operation failed with: "    + leftValue,
@@ -120,6 +124,7 @@ String successMessage = success.fold(
 
 `map` only touches the right rail.
 
+<!-- verify -->
 ```java
 Function<Integer, String> intToString = Object::toString;
 
@@ -133,6 +138,7 @@ This is what "right-biased" means: `Either` treats success as the default flow, 
 
 `flatMap` is the reason we keep coming back to `Either`. It chains operations where each step might fail, and the moment a step returns `Left`, the rest of the chain stops.
 
+<!-- verify -->
 ```java
 Function<String, Either<String, Integer>> parse = s -> {
     try { return Either.right(Integer.parseInt(s.trim())); }
@@ -163,6 +169,7 @@ Three different errors, one chain, no `if`, no `try`. The `Left` reaches the end
 
 When we want to write code that is generic over the container, we go through `EitherMonad`. It implements `MonadError<EitherKind.Witness<L>, L>` for any chosen left type `L`.
 
+<!-- verify -->
 ```java
 MonadError<EitherKind.Witness<String>, String> eitherMonad = Instances.monadError(either());
 
@@ -247,14 +254,15 @@ For most application code, prefer **[EitherPath](../effect/path_either.md)**, wh
 - Direct integration with the [Focus DSL](../optics/focus_dsl.md)
 - A consistent API shared across every effect type
 
+<!-- verify -->
 ```java
 // Manual Either chaining
 Either<Error, User>  user  = findUser(id);
 Either<Error, Order> order = user.flatMap(u -> createOrder(u));
 
 // EitherPath, same logic, less ceremony
-EitherPath<Error, Order> order = Path.either(findUser(id))
-    .via(u -> createOrder(u));
+EitherPath<Error, Order> orderPath = Path.either(findUser(id))
+    .via(u -> createOrderPath(u));
 ```
 
 See [Effect Path Overview](../effect/effect_path_overview.md) for the complete guide.

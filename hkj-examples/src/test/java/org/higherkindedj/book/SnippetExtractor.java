@@ -302,7 +302,7 @@ final class SnippetExtractor {
     signatures.forEach(m -> unit.append('\n').append(m).append('\n'));
     members.forEach(m -> unit.append('\n').append(m).append('\n'));
     if (!statements.isEmpty()) {
-      unit.append("\n  void snippet() throws Exception {\n");
+      unit.append("\n  void snippet() throws Throwable {\n");
       statements.forEach(unit::append);
       unit.append("  }\n");
     }
