@@ -129,6 +129,7 @@ First, we define a record to represent the state of our bank account.
 - [AccountState.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/basic/state/AccountState.java)
 
 
+<!-- verify -->
 ```java
 public record AccountState(BigDecimal balance, List<Transaction> history) {
   public AccountState {
@@ -175,6 +176,7 @@ We'll also need a way to represent transactions.
 - [Transaction.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/basic/state/Transaction.java)
 
 
+<!-- verify -->
 ```java
 public enum TransactionType {
   INITIAL_BALANCE,
@@ -191,9 +193,10 @@ public record Transaction(
     requireNonNull(amount, "Transaction amount cannot be null");
     requireNonNull(timestamp, "Transaction timestamp cannot be null");
     requireNonNull(description, "Transaction description cannot be null");
-    if (type != INITIAL_BALANCE && amount.compareTo(BigDecimal.ZERO) <= 0) {
-      if (!(type == REJECTED_DEPOSIT && amount.compareTo(BigDecimal.ZERO) <= 0)
-              && !(type == REJECTED_WITHDRAWAL && amount.compareTo(BigDecimal.ZERO) <= 0)) {
+    if (type != TransactionType.INITIAL_BALANCE && amount.compareTo(BigDecimal.ZERO) <= 0) {
+      if (!(type == TransactionType.REJECTED_DEPOSIT && amount.compareTo(BigDecimal.ZERO) <= 0)
+              && !(type == TransactionType.REJECTED_WITHDRAWAL
+                  && amount.compareTo(BigDecimal.ZERO) <= 0)) {
         throw new IllegalArgumentException(
                 "Transaction amount must be positive for actual operations.");
       }
@@ -211,10 +214,11 @@ We'll put these in a `BankAccountWorkflow.java class`.
 
 - [BankAccountWorkflow.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/basic/state/BankAccountWorkflow.java)
 
+<!-- verify -->
 ```java
 public class BankAccountWorkflow {
 
-  private static final StateMonad<AccountState> accountStateMonad = new StateMonad<>();
+  private static final StateMonad<AccountState> accountStateMonad = StateMonad.instance();
 
   public static Function<BigDecimal, Kind<StateKind.Witness<AccountState>, Unit>> deposit(
           String description) {
@@ -299,18 +303,21 @@ public class BankAccountWorkflow {
 
 We use `flatMap` and `map` from  `accountStateMonad` to sequence these actions. The state is threaded automatically.
 
+<!-- verify -->
 ```java
 public class BankAccountWorkflow {
-  // ... (monad instance and previous actions)
+  // ... (monad instance and previous actions declared above)
+  private static final StateMonad<AccountState> accountStateMonad = StateMonad.instance();
+
   public static void main(String[] args) {
     // Initial state: Account with £100 balance.
     AccountState initialState = AccountState.initial(new BigDecimal("100.00"));
    var workflow =
-           For.from(accountStateMonad, deposit("Salary").apply(new BigDecimal("20.00")))
-               .from(a -> withdraw("Bill Payment").apply(new BigDecimal("50.00")))
-               .from(b -> withdraw("Groceries").apply(new BigDecimal("70.00")))
-               .from(c -> getBalance())
-               .from(t -> getHistory())
+           For.from(accountStateMonad, Fixture.deposit("Salary").apply(new BigDecimal("20.00")))
+               .from(a -> Fixture.withdraw("Bill Payment").apply(new BigDecimal("50.00")))
+               .from(b -> Fixture.withdraw("Groceries").apply(new BigDecimal("70.00")))
+               .from(c -> Fixture.getBalance())
+               .from(t -> Fixture.getHistory())
                .yield((deposit, w1, w2, bal, history) -> {
                  var report = new StringBuilder();
                  history.forEach(tx -> report.append("  - %s\n".formatted(tx)));
@@ -318,7 +325,7 @@ public class BankAccountWorkflow {
                });
 
     StateTuple<AccountState, String> finalResultTuple =
-        StateKindHelper.runState(workflow, initialState);
+        STATE.runState(workflow, initialState);
 
     System.out.println(finalResultTuple.value());
 
