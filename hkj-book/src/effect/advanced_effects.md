@@ -53,6 +53,7 @@ it once at the edge of your system.
 
 Consider a typical service method:
 
+<!-- verify -->
 ```java
 // Without Reader: environment threaded explicitly
 public User getUser(String id, DbConnection db, Config config, Logger log) {
@@ -67,10 +68,11 @@ become cluttered; the actual logic is buried.
 
 With Reader:
 
+<!-- verify -->
 ```java
 // With Reader: environment is implicit
 public ReaderPath<AppEnv, User> getUser(String id) {
-    return ReaderPath.ask()
+    return ReaderPath.<AppEnv>ask()
         .via(env -> {
             env.logger().debug("Fetching user: " + id);
             return ReaderPath.pure(
@@ -85,6 +87,7 @@ method signature shows what it *computes*, not what it *requires*.
 
 ### Creation
 
+<!-- verify -->
 ```java
 // Pure value (ignores environment)
 ReaderPath<Config, String> pure = ReaderPath.pure("hello");
@@ -96,11 +99,12 @@ ReaderPath<Config, Config> askAll = ReaderPath.ask();
 ReaderPath<Config, String> dbUrl = ReaderPath.asks(Config::databaseUrl);
 
 // From a Reader function
-ReaderPath<Config, Integer> timeout = ReaderPath.of(config -> config.timeout());
+ReaderPath<Config, Integer> timeout = ReaderPath.asks(config -> config.timeout());
 ```
 
 ### Core Operations
 
+<!-- verify -->
 ```java
 ReaderPath<Config, String> dbUrl = ReaderPath.asks(Config::databaseUrl);
 
@@ -109,20 +113,25 @@ ReaderPath<Config, Integer> urlLength = dbUrl.map(String::length);
 
 // Chain dependent computations
 ReaderPath<Config, Connection> connection =
-    dbUrl.via(url -> ReaderPath.of(config ->
-        DriverManager.getConnection(url, config.username(), config.password())
-    ));
+    dbUrl.via(url -> ReaderPath.<Config, Connection>asks(config -> {
+        try {
+            return DriverManager.getConnection(url, config.username(), config.password());
+        } catch (SQLException e) {
+            throw new IllegalStateException("Could not connect", e);
+        }
+    }));
 ```
 
 ### Running a Reader
 
 Eventually you must provide the environment:
 
+<!-- verify -->
 ```java
-Config config = loadConfig();
+AppEnv env = loadEnv();
 
-ReaderPath<Config, User> userPath = getUser("123");
-User user = userPath.run(config);  // Provide environment here
+ReaderPath<AppEnv, User> userPath = getUser("123");
+User user = userPath.run(env);  // Provide environment here
 ```
 
 The Reader executes with the given environment. All `ask` and `asks` calls
@@ -132,6 +141,7 @@ within the computation receive this environment.
 
 Sometimes a sub-computation needs a modified environment:
 
+<!-- verify -->
 ```java
 ReaderPath<Config, Result> withTestMode =
     computation.local(config -> config.withTestMode(true));
