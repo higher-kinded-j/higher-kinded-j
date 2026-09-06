@@ -9,6 +9,7 @@
 
 import java.time.Instant;
 import java.util.List;
+import org.jspecify.annotations.Nullable;
 import java.util.NoSuchElementException;
 import java.util.Optional;
 import org.higherkindedj.hkt.effect.EitherPath;
@@ -76,12 +77,92 @@ record Total(long pence) {}
 
 record InventoryCheck(Total total) {
 
+  boolean isAvailable() {
+    return true;
+  }
+
   Total getTotal() {
     return total;
   }
 }
 
-record PaymentResult(String reference) {}
+record PaymentResult(String reference) {
+
+  boolean isFailed() {
+    return false;
+  }
+
+  String getFailureReason() {
+    return "";
+  }
+}
+
+record ValidationResult(List<String> errors) {
+
+  boolean isValid() {
+    return errors.isEmpty();
+  }
+
+  List<String> getErrors() {
+    return errors;
+  }
+}
+
+record OrderResult(String detail) {
+
+  static OrderResult error(String detail) {
+    return new OrderResult(detail);
+  }
+
+  static OrderResult success(Order order) {
+    return new OrderResult(order.id());
+  }
+}
+
+final class ValidationException extends RuntimeException {
+
+  ValidationException(String message) {
+    super(message);
+  }
+}
+
+final class PaymentException extends RuntimeException {
+
+  PaymentException(String message) {
+    super(message);
+  }
+}
+
+// The collaborators as they were *before* the Path types: absence is null, failure is an
+// exception. The functional half of the page uses the fixture's own services, which answer with
+// Maybe and Either instead - that difference is the section's whole point.
+final class UserLookup {
+
+  @Nullable User findById(String id) {
+    return User.anonymous();
+  }
+}
+
+final class RequestValidator {
+
+  ValidationResult validate(OrderRequest request) {
+    return new ValidationResult(List.of());
+  }
+}
+
+final class StockCheck {
+
+  InventoryCheck check(List<String> items) {
+    return new InventoryCheck(new Total(0));
+  }
+}
+
+final class CardPayments {
+
+  PaymentResult charge(User user, Total total) {
+    return new PaymentResult("p-1");
+  }
+}
 
 record Config(String name) {}
 

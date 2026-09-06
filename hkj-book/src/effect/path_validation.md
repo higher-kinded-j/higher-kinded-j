@@ -122,6 +122,7 @@ See [Accumulating Assembly](../monads/validated_assembly.md) for the full story,
 
 ## Combining Validations
 
+<!-- verify -->
 ```java
 // andAlso runs both, accumulating errors, keeping first value if both valid
 ValidationPath<List<String>, String> thorough =
@@ -135,6 +136,7 @@ ValidationPath<List<String>, String> thorough =
 
 ## Extraction
 
+<!-- verify -->
 ```java
 ValidationPath<List<String>, User> path = validateUser(input);
 Validated<List<String>, User> validated = path.run();
