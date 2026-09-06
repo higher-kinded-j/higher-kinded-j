@@ -67,6 +67,7 @@ Imagine building an order fulfilment system where position information drives bu
 
 **The Data Model:**
 
+<!-- verify -->
 ```java
 @GenerateLenses
 public record LineItem(String productName, int quantity, double price) {}
@@ -88,6 +89,7 @@ public record Customer(String name, String email) {}
 
 **The Traditional Approach:**
 
+<!-- verify -->
 ```java
 // Verbose: Manual index tracking
 List<String> packingSlip = new ArrayList<>();
@@ -151,6 +153,7 @@ The `IndexedTraversals` utility class provides factory methods for common cases.
 
 #### For Lists: Integer Indices
 
+<!-- verify -->
 ```java
 import org.higherkindedj.optics.indexed.IndexedTraversal;
 import org.higherkindedj.optics.util.IndexedTraversals;
@@ -164,6 +167,7 @@ The `forList()` factory creates a reusable traversal where each element is paire
 
 #### For Maps: Key-Based Indices
 
+<!-- verify -->
 ```java
 // Create an indexed traversal for Map values
 IndexedTraversal<String, Map<String, String>, String> metadataWithKeys =
@@ -175,6 +179,7 @@ The `forMap()` factory creates a traversal where each value is paired with its k
 ~~~admonish tip title="Alternative: EachIndexed.indexedTraversal()"
 You can also obtain indexed traversals through the [Each typeclass](each_typeclass.md). If a container's `Each` instance supports indexed access it is an `EachIndexed`, whose `indexedTraversal()` returns the `IndexedTraversal` directly; the index type is fixed at compile time, with no `Optional` to unwrap:
 
+<!-- verify -->
 ```java
 EachIndexed<Integer, List<String>, String> listEach = EachInstances.listEach();
 IndexedTraversal<Integer, List<String>, String> indexed = listEach.indexedTraversal();
@@ -194,6 +199,7 @@ Indexed optics provide specialised methods that give you access to both the inde
 
 #### Extracting All Index-Value Pairs
 
+<!-- verify -->
 ```java
 import org.higherkindedj.optics.indexed.Pair;
 
@@ -220,6 +226,7 @@ for (Pair<Integer, LineItem> pair : indexedItems) {
 
 #### Using IndexedFold for Queries
 
+<!-- verify -->
 ```java
 import org.higherkindedj.optics.indexed.IndexedFold;
 
@@ -251,6 +258,7 @@ The real power emerges when you modify elements based on their position.
 
 #### Numbering Items in a Packing Slip
 
+<!-- verify -->
 ```java
 // Modify product names to include position numbers
 List<LineItem> numbered = IndexedTraversals.imodify(
@@ -274,6 +282,7 @@ for (LineItem item : numbered) {
 
 #### Position-Based Discount Logic
 
+<!-- verify -->
 ```java
 // Apply 10% discount to items at even positions (0, 2, 4...)
 List<LineItem> discounted = IndexedTraversals.imodify(
@@ -294,6 +303,7 @@ List<LineItem> discounted = IndexedTraversals.imodify(
 
 #### Map Processing with Key Awareness
 
+<!-- verify -->
 ```java
 IndexedTraversal<String, Map<String, String>, String> metadataTraversal =
     IndexedTraversals.forMap();
@@ -327,6 +337,7 @@ Indexed traversals support filtering, allowing you to focus on specific position
 
 #### Filter by Index
 
+<!-- verify -->
 ```java
 // Focus only on even-positioned items
 IndexedTraversal<Integer, List<LineItem>, LineItem> evenPositions =
@@ -351,6 +362,7 @@ List<LineItem> result = IndexedTraversals.imodify(
 
 #### Filter by Value with Index Available
 
+<!-- verify -->
 ```java
 // Focus on expensive items, but still track their original positions
 IndexedTraversal<Integer, List<LineItem>, LineItem> expensiveItems =
@@ -364,6 +376,7 @@ List<Pair<Integer, LineItem>> expensive =
 
 #### Filter Map by Key Pattern
 
+<!-- verify -->
 ```java
 // Focus on metadata keys starting with "delivery"
 IndexedTraversal<String, Map<String, String>, String> deliveryMetadata =
@@ -380,6 +393,7 @@ List<Pair<String, String>> deliveryEntries =
 
 An `IndexedLens` focuses on exactly one field whilst providing its name or identifier.
 
+<!-- verify -->
 ```java
 import org.higherkindedj.optics.indexed.IndexedLens;
 
@@ -416,6 +430,7 @@ Customer updated = emailLens.imodify(
 
 Every indexed optic can be converted to its standard (non-indexed) counterpart.
 
+<!-- verify -->
 ```java
 import org.higherkindedj.optics.Traversal;
 
@@ -454,6 +469,7 @@ Understanding when indexed optics add value is crucial for writing clear, mainta
 * **Debugging complex updates** - Tracking the path to each change
 * **Index-based filtering** - Operating on specific positions or key patterns
 
+<!-- verify -->
 ```java
 // Perfect: Position drives the logic
 IndexedTraversal<Integer, List<Product>, Product> productsIndexed =
@@ -477,6 +493,7 @@ List<Product> prioritised = IndexedTraversals.imodify(
 * **Performance critical** - Minimal overhead needed (though indexed optics are optimised)
 * **No positional logic** - All elements treated identically
 
+<!-- verify -->
 ```java
 // Better with standard optics: Index not needed
 Traversal<List<Product>, Double> prices =
@@ -493,6 +510,7 @@ List<Product> inflated = Traversals.modify(prices, price -> price * 1.1, product
 
 #### Pattern 1: Adding Sequence Numbers
 
+<!-- verify -->
 ```java
 // Generate a numbered list for display
 IndexedTraversal<Integer, List<String>, String> indexed = IndexedTraversals.forList();
@@ -509,6 +527,7 @@ List<String> numbered = IndexedTraversals.imodify(
 
 #### Pattern 2: First/Last Element Special Handling
 
+<!-- verify -->
 ```java
 IndexedTraversal<Integer, List<LineItem>, LineItem> itemsIndexed =
     IndexedTraversals.forList();
@@ -534,6 +553,7 @@ List<LineItem> marked = IndexedTraversals.imodify(
 
 #### Pattern 3: Map Key-Value Transformations
 
+<!-- verify -->
 ```java
 IndexedTraversal<String, Map<String, Integer>, Integer> mapIndexed =
     IndexedTraversals.forMap();
@@ -553,6 +573,7 @@ List<String> results = IndexedTraversals.toIndexedList(mapIndexed, scores).strea
 
 #### Pattern 4: Position-Based Filtering
 
+<!-- verify -->
 ```java
 IndexedTraversal<Integer, List<String>, String> indexed = IndexedTraversals.forList();
 
@@ -572,6 +593,7 @@ List<String> odd = IndexedTraversals.getAll(oddPositions, values);
 
 #### Don't Do This:
 
+<!-- verify -->
 ```java
 // Inefficient: Recreating indexed traversals in loops
 for (Order order : orders) {
@@ -586,7 +608,7 @@ List<String> upper = IndexedTraversals.imodify(indexed, (i, s) -> s.toUpperCase(
 
 // Confusing: Manual index tracking alongside indexed optics
 AtomicInteger counter = new AtomicInteger(0);
-IndexedTraversals.imodify(indexed, (i, item) -> {
+IndexedTraversals.imodify(itemsWithIndex, (i, item) -> {
     int myIndex = counter.getAndIncrement(); // Redundant!
     return process(myIndex, item);
 }, items);
@@ -600,6 +622,7 @@ List<Pair<Integer, String>> pairs = IndexedTraversals.toIndexedList(evenOnly, li
 
 #### Do This Instead:
 
+<!-- verify -->
 ```java
 // Efficient: Create indexed traversal once, reuse many times
 IndexedTraversal<Integer, List<LineItem>, LineItem> itemsIndexed =
@@ -614,7 +637,7 @@ Traversal<List<String>, String> standard = Traversals.forList();
 List<String> upper = Traversals.modify(standard, String::toUpperCase, list);
 
 // Clear: Trust the indexed optic to provide correct indices
-IndexedTraversals.imodify(indexed, (providedIndex, item) -> {
+IndexedTraversals.imodify(itemsWithIndex, (providedIndex, item) -> {
     // Use providedIndex directly, it's correct
     return process(providedIndex, item);
 }, items);
@@ -641,6 +664,7 @@ Indexed optics are designed to be efficient:
 
 **Best Practice**: Create indexed optics once and store as constants:
 
+<!-- verify -->
 ```java
 public class OrderOptics {
     public static final IndexedTraversal<Integer, List<LineItem>, LineItem>
