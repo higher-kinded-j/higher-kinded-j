@@ -31,13 +31,14 @@ Reach for raw `OptionalT` only when you need to combine optionality with a speci
 
 Consider fetching a user, then their profile, then their preferences. Each step is async and might return empty:
 
+<!-- verify -->
 ```java
 CompletableFuture<Optional<UserPreferences>> getPreferences(String userId) {
-    return fetchUserAsync(userId).thenCompose(optUser ->
+    return fetchUserFuture(userId).thenCompose(optUser ->
         optUser.map(user ->
-            fetchProfileAsync(user.id()).thenCompose(optProfile ->
+            fetchProfileFuture(user.id()).thenCompose(optProfile ->
                 optProfile.map(profile ->
-                    fetchPrefsAsync(profile.userId())
+                    fetchPrefsFuture(profile.userId())
                 ).orElse(CompletableFuture.completedFuture(Optional.empty()))
             )
         ).orElse(CompletableFuture.completedFuture(Optional.empty()))
@@ -53,11 +54,14 @@ Each step requires checking the `Optional`, providing a fallback `CompletableFut
 
 ### With the Effect Path API
 
+`OptionalPath` carries no outer monad, so it composes lookups that have already resolved:
+
+<!-- verify -->
 ```java
 OptionalPath<UserPreferences> getPreferences(String userId) {
-    return Path.optional(fetchUserAsync(userId))
-        .via(user    -> Path.optional(fetchProfileAsync(user.id())))
-        .via(profile -> Path.optional(fetchPrefsAsync(profile.userId())));
+    return Path.optional(lookupUser(userId))
+        .via(user    -> Path.optional(lookupProfile(user.id())))
+        .via(profile -> Path.optional(lookupPrefs(profile.userId())));
 }
 ```
 
@@ -67,14 +71,17 @@ Use this whenever the outer monad is one Path already wraps.
 
 When you need a specific outer monad, use `OptionalT` with a `For` comprehension:
 
+<!-- verify -->
 ```java
 var futureMonad    = Instances.monadError(completableFuture());
 var optionalTMonad = Instances.optionalT(futureMonad);
 
-var prefsLookup = For.from(optionalTMonad, OptionalT.fromKind(fetchUserAsync(userId)))
-    .from(user    -> OptionalT.fromKind(fetchProfileAsync(user.id())))
-    .from(profile -> OptionalT.fromKind(fetchPrefsAsync(profile.userId())))
-    .yield((user, profile, prefs) -> prefs);
+var prefsLookup =
+    For.from(optionalTMonad, OptionalT.fromKind(fetchUserAsync(userId)))
+        .from(user    -> OptionalT.fromKind(fetchProfileAsync(user.id())))
+        // past the first binding, `from` sees the accumulated tuple
+        .from(t -> OptionalT.fromKind(fetchPrefsAsync(t._2().userId())))
+        .yield((user, profile, prefs) -> prefs);
 ```
 
 If any step returns empty, subsequent steps are skipped. No manual `orElse` fallbacks, no repeated `Optional.empty()` wrapping.
@@ -141,6 +148,7 @@ public record OptionalT<F, A>(@NonNull Kind<F, Optional<A>> value)
 
 The `OptionalTMonad<F>` class implements `MonadError<OptionalTKind.Witness<F>, Unit>`. The error type is `Unit`, signifying that an "error" is the `Optional.empty()` state (absence carries no information beyond its occurrence).
 
+<!-- verify -->
 ```java
 var futureMonad    = Instances.monadError(completableFuture());
 var optionalTMonad = Instances.optionalT(futureMonad);
@@ -173,6 +181,7 @@ OptionalT<F, A> concrete                = OPTIONAL_T.narrow(kind);
 
 ## Creating OptionalT Instances
 
+<!-- verify -->
 ```java
 var futureMonad = Instances.monadError(completableFuture());
 
@@ -210,6 +219,7 @@ var ot5 = OptionalT.liftF(futureMonad, fValue);
 
 **The solution:**
 
+<!-- verify -->
 ```java
 var futureMonad    = Instances.monadError(completableFuture());
 var optionalTMonad = Instances.optionalT(futureMonad);
@@ -222,10 +232,12 @@ Kind<CompletableFutureKind.Witness, Optional<User>> fetchUserAsync(String userId
 }
 
 // Workflow: user -> profile -> preferences
-var workflow = For.from(optionalTMonad, OptionalT.fromKind(fetchUserAsync(userId)))
-    .from(user    -> OptionalT.fromKind(fetchProfileAsync(user.id())))
-    .from(profile -> OptionalT.fromKind(fetchPrefsAsync(profile.userId())))
-    .yield((user, profile, prefs) -> prefs);
+var workflow =
+    For.from(optionalTMonad, OptionalT.fromKind(fetchUserAsync(userId)))
+        .from(user    -> OptionalT.fromKind(fetchProfileAsync(user.id())))
+        // past the first binding, `from` sees the accumulated tuple
+        .from(t -> OptionalT.fromKind(fetchPrefsAsync(t._2().userId())))
+        .yield((user, profile, prefs) -> prefs);
 ```
 
 **Why this works:** each `from` only executes its lambda if the previous step produced a present value. If `fetchUserAsync` returns empty, neither `fetchProfileAsync` nor `fetchPrefsAsync` is called.
@@ -241,6 +253,7 @@ var workflow = For.from(optionalTMonad, OptionalT.fromKind(fetchUserAsync(userId
 
 **The solution:**
 
+<!-- verify -->
 ```java
 Kind<OptionalTKind.Witness<CompletableFutureKind.Witness>, UserPreferences>
     getPrefsWithDefault(String userId) {
@@ -275,9 +288,9 @@ Sometimes you need to change the *outer monad* of an `OptionalT` without touchin
   └─────────┘                           └─────────┘
 ```
 
+<!-- verify -->
 ```java
-OptionalT<CompletableFutureKind.Witness, String> asyncOt = ...;
-
+// asyncOt is an OptionalT<CompletableFutureKind.Witness, String>
 var syncOt = asyncOt.mapT(futureKind -> {
   Optional<String> awaited = FUTURE.narrow(futureKind).join();
   return OPTIONAL.widen(Optional.of(awaited));

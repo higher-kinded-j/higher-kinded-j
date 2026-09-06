@@ -32,21 +32,17 @@ Reach for raw `MaybeT` only when you need to combine absence with a specific out
 
 When an async lookup returns `Maybe` rather than `Optional`, you face the same nesting problem:
 
+<!-- verify -->
 ```java
 CompletableFuture<Maybe<UserPreferences>> getPreferences(String userId) {
-    return fetchUserAsync(userId).thenCompose(maybeUser ->
-        maybeUser.fold(
-            () -> CompletableFuture.completedFuture(Maybe.nothing()),
-            user -> fetchPreferencesAsync(user.id()).thenCompose(maybePrefs ->
-                maybePrefs.fold(
-                    () -> CompletableFuture.completedFuture(Maybe.nothing()),
-                    prefs -> CompletableFuture.completedFuture(Maybe.just(prefs))
-                ))
-        ));
+    return fetchUserFuture(userId).thenCompose(maybeUser ->
+        maybeUser
+            .map(user -> fetchPreferencesFuture(user.id()))
+            .orElseGet(() -> CompletableFuture.completedFuture(Maybe.nothing())));
 }
 ```
 
-Each step requires folding over the `Maybe`, providing a `Nothing` fallback wrapped in a completed future, and nesting deeper. The pattern is identical to the `Optional` case but uses `Maybe`'s API.
+Each step has to unwrap the `Maybe`, supply a `Nothing` fallback wrapped in a completed future, and hand the result back into `thenCompose`. Every further lookup adds another layer. The pattern is identical to the `Optional` case but uses `Maybe`'s API.
 
 ---
 
@@ -54,22 +50,26 @@ Each step requires folding over the `Maybe`, providing a `Nothing` fallback wrap
 
 ### With the Effect Path API
 
+`MaybePath` carries no outer monad, so it composes lookups that have already resolved:
+
+<!-- verify -->
 ```java
 MaybePath<UserPreferences> getPreferences(String userId) {
-    return Path.maybe(fetchUserAsync(userId))
-        .via(user -> Path.maybe(fetchPreferencesAsync(user.id())));
+    return Path.maybe(lookupUser(userId))
+        .via(user -> Path.maybe(lookupPreferences(user.id())));
 }
 ```
 
 ### With raw `MaybeT`
 
+<!-- verify -->
 ```java
 var futureMonad = Instances.monadError(completableFuture());
 var maybeTMonad = Instances.maybeT(futureMonad);
 
 var prefs = For.from(maybeTMonad, MaybeT.fromKind(fetchUserAsync(userId)))
     .from(user -> MaybeT.fromKind(fetchPreferencesAsync(user.id())))
-    .yield((user, prefs) -> prefs);
+    .yield((user, preferences) -> preferences);
 ```
 
 If `fetchUserAsync` returns `Nothing`, the preferences lookup is skipped entirely. No manual folding, no fallback wrapping.
@@ -136,6 +136,7 @@ public record MaybeT<F, A>(@NonNull Kind<F, Maybe<A>> value) {
 
 The `MaybeTMonad<F>` class implements `MonadError<MaybeTKind.Witness<F>, Unit>`. Like `OptionalTMonad`, the error type is `Unit`, signifying that `Nothing` carries no information beyond its occurrence.
 
+<!-- verify -->
 ```java
 var futureMonad = Instances.monadError(completableFuture());
 var maybeTMonad = Instances.maybeT(futureMonad);
@@ -168,6 +169,7 @@ MaybeT<F, A> concrete                = MAYBE_T.narrow(kind);
 
 ## Creating MaybeT Instances
 
+<!-- verify -->
 ```java
 var optMonad = Instances.monadError(optional());
 
@@ -202,6 +204,7 @@ var mtFromKind = MaybeT.fromKind(nestedKind);
 
 **The solution:**
 
+<!-- verify -->
 ```java
 var futureMonad = Instances.monadError(completableFuture());
 var maybeTMonad = Instances.maybeT(futureMonad);
@@ -242,6 +245,7 @@ Sometimes you need to change the *outer monad* of a `MaybeT` without touching th
   └─────────┘                        └─────────┘
 ```
 
+<!-- verify -->
 ```java
 MaybeT<OptionalKind.Witness, String> optMt = MaybeT.just(optMonad, "Hello");
 
