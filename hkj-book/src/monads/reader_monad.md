@@ -69,10 +69,10 @@ To integrate `Reader` with Higher-Kinded-J:
 * **`ReaderKindHelper`:** The utility class with static methods:
   * `widen(Reader<R, A>)`: Converts a `Reader` to `ReaderKind<R, A>`.
   * `narrow(Kind<ReaderKind.Witness<R>, A>)`: Converts `ReaderKind` back to `Reader`. Throws `KindUnwrapException` if the input is invalid.
-  * `reader(Function<R, A>)`: Factory method to create a `ReaderKind` from a function.
+  * `READER.reader(Function<R, A>)`: Factory method to create a `ReaderKind` from a function.
   * `constant(A value)`: Factory method for a `ReaderKind` returning a constant value.
   * `ask()`: Factory method for a `ReaderKind` that returns the environment.
-  * `runReader(Kind<ReaderKind.Witness<R>, A> kind, R environment)`: The primary way to execute a `ReaderKind` computation by providing the environment.
+  * `READER.runReader(Kind<ReaderKind.Witness<R>, A> kind, R environment)`: The primary way to execute a `ReaderKind` computation by providing the environment.
 
 ## Type Class Instances (`ReaderFunctor`, `ReaderApplicative`, `ReaderMonad`)
 
@@ -90,6 +90,7 @@ You typically instantiate `ReaderMonad<R>` for the specific environment type `R`
 
 ### 1. Define Your Environment
 
+<!-- verify -->
 ```java
 // Example Environment: Application Configuration
 record AppConfig(String databaseUrl, int timeoutMillis, String apiKey) {}
@@ -99,40 +100,43 @@ record AppConfig(String databaseUrl, int timeoutMillis, String apiKey) {}
 
 Use `ReaderKindHelper` factory methods:
 
+<!-- verify -->
 ```java
-import static org.higherkindedj.hkt.reader.ReaderKindHelper.*;
+import static org.higherkindedj.hkt.reader.ReaderKindHelper.READER;
 
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.reader.ReaderKind;
 
 // Reader that retrieves the database URL from the config
-Kind<ReaderKind.Witness<AppConfig>, String> getDbUrl = reader(AppConfig::databaseUrl);
+Kind<ReaderKind.Witness<AppConfig>, String> getDbUrl = READER.reader(AppConfig::databaseUrl);
 
 // Reader that retrieves the timeout
-Kind<ReaderKind.Witness<AppConfig>, Integer> getTimeout = reader(AppConfig::timeoutMillis);
+Kind<ReaderKind.Witness<AppConfig>, Integer> getTimeout = READER.reader(AppConfig::timeoutMillis);
 
 // Reader that returns a constant value, ignoring the environment
-Kind<ReaderKind.Witness<AppConfig>, String> getDefaultUser = constant("guest");
+Kind<ReaderKind.Witness<AppConfig>, String> getDefaultUser = READER.constant("guest");
 
 // Reader that returns the entire configuration environment
-Kind<ReaderKind.Witness<AppConfig>, AppConfig> getConfig = ask();
+Kind<ReaderKind.Witness<AppConfig>, AppConfig> getConfig = READER.ask();
 ```
 
 ### 3. Get the `ReaderMonad` Instance
 
 Instantiate the monad for your specific environment type `R`.
 
+<!-- verify -->
 ```java
 import org.higherkindedj.hkt.reader.ReaderMonad;
 
 // Monad instance for computations depending on AppConfig
-ReaderMonad<AppConfig> readerMonad = new ReaderMonad<>();
+ReaderMonad<AppConfig> readerMonad = ReaderMonad.instance();
 ```
 
 ### 4. Compose Computations using `map` and `flatMap`
 
 Use the methods on the `readerMonad` instance.
 
+<!-- verify -->
 ```java
 // Example 1: Map the timeout value
 Kind<ReaderKind.Witness<AppConfig>, String> timeoutMessage = readerMonad.map(
@@ -142,7 +146,7 @@ Kind<ReaderKind.Witness<AppConfig>, String> timeoutMessage = readerMonad.map(
 
 // Example 2: Use flatMap to get DB URL and then construct a connection string (depends on URL)
 Function<String, Kind<ReaderKind.Witness<AppConfig>, String>> buildConnectionString =
-    dbUrl -> reader( // <- We return a new Reader computation
+    dbUrl -> READER.reader( // <- We return a new Reader computation
         config -> dbUrl + "?apiKey=" + config.apiKey() // Access apiKey via the 'config' env
     );
 
@@ -163,22 +167,23 @@ Kind<ReaderKind.Witness<AppConfig>, String> dbInfo = readerMonad.map2(
 
 Provide the actual environment using `ReaderKindHelper.runReader`:
 
+<!-- verify -->
 ```java
 AppConfig productionConfig = new AppConfig("prod-db.example.com", 5000, "prod-key-123");
 AppConfig stagingConfig = new AppConfig("stage-db.example.com", 10000, "stage-key-456");
 
 // Run the composed computations with different environments
-String prodTimeoutMsg = runReader(timeoutMessage, productionConfig);
-String stageTimeoutMsg = runReader(timeoutMessage, stagingConfig);
+String prodTimeoutMsg = READER.runReader(timeoutMessage, productionConfig);
+String stageTimeoutMsg = READER.runReader(timeoutMessage, stagingConfig);
 
-String prodConnectionString = runReader(connectionStringReader, productionConfig);
-String stageConnectionString = runReader(connectionStringReader, stagingConfig);
+String prodConnectionString = READER.runReader(connectionStringReader, productionConfig);
+String stageConnectionString = READER.runReader(connectionStringReader, stagingConfig);
 
-String prodDbInfo = runReader(dbInfo, productionConfig);
-String stageDbInfo = runReader(dbInfo, stagingConfig);
+String prodDbInfo = READER.runReader(dbInfo, productionConfig);
+String stageDbInfo = READER.runReader(dbInfo, stagingConfig);
 
 // Get the raw config using ask()
-AppConfig retrievedProdConfig = runReader(getConfig, productionConfig);
+AppConfig retrievedProdConfig = READER.runReader(getConfig, productionConfig);
 
 
 System.out.println("Prod Timeout: " + prodTimeoutMsg);           // Output: Timeout is: 5000ms
@@ -190,7 +195,7 @@ System.out.println("Stage DB Info: " + stageDbInfo);             // Output: DB: 
 System.out.println("Retrieved Prod Config: " + retrievedProdConfig); // Output: AppConfig[databaseUrl=prod-db.example.com, timeoutMillis=5000, apiKey=prod-key-123]
 ```
 
-Notice how the functions (`buildConnectionString`, the lambda in `map2`) don't need `AppConfig` as a parameter, but they can access it when needed within the `reader(...)` factory or implicitly via `flatMap` composition. The configuration is only provided once at the end when `runReader` is called.
+Notice how the functions (`buildConnectionString`, the lambda in `map2`) don't need `AppConfig` as a parameter, but they can access it when needed within the `READER.reader(...)` factory or implicitly via `flatMap` composition. The configuration is only provided once at the end when `runReader` is called.
 ~~~
 
 
@@ -199,7 +204,7 @@ Notice how the functions (`buildConnectionString`, the lambda in `map2`) don't n
 Sometimes, a computation depending on an environment `R` might perform an action (like logging or initialising a component based on `R`) but doesn't produce a specific value other than signalling its completion. In such cases, the result type `A` of the `Reader<R, A>` can be `org.higherkindedj.hkt.Unit`.
 
 ```java
-import static org.higherkindedj.hkt.reader.ReaderKindHelper.*;
+import static org.higherkindedj.hkt.reader.ReaderKindHelper.READER;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.reader.ReaderKind;
 import org.higherkindedj.hkt.reader.ReaderMonad;
@@ -209,11 +214,11 @@ import org.higherkindedj.hkt.Unit; // Import Unit
 // record AppConfig(String databaseUrl, int timeoutMillis, String apiKey) {}
 
 // ReaderMonad instance (can be the same as before)
-// ReaderMonad<AppConfig> readerMonad = new ReaderMonad<>();
+// ReaderMonad<AppConfig> readerMonad = ReaderMonad.instance();
 
 // A Reader computation that performs a side-effect (printing to console)
 // using the config and returns Unit.
-Kind<ReaderKind.Witness<AppConfig>, Unit> logApiKey = reader(
+Kind<ReaderKind.Witness<AppConfig>, Unit> logApiKey = READER.reader(
     config -> {
         System.out.println("Accessed API Key: " + config.apiKey().substring(0, Math.min(config.apiKey().length(), 4)) + "...");
         return Unit.INSTANCE; // Explicitly return Unit.INSTANCE
@@ -234,10 +239,10 @@ Kind<ReaderKind.Witness<AppConfig>, Unit> getUrlAndLogKey = readerMonad.flatMap(
 
 // To run it:
 // AppConfig currentConfig = new AppConfig("prod-db.example.com", 5000, "prod-key-123");
-// Unit result = runReader(logApiKey, currentConfig);
+// Unit result = READER.runReader(logApiKey, currentConfig);
 // System.out.println("Log API Key result: " + result); // Output: Log API Key result: ()
 
-// Unit resultChained = runReader(getUrlAndLogKey, currentConfig);
+// Unit resultChained = READER.runReader(getUrlAndLogKey, currentConfig);
 // System.out.println("Get URL and Log Key result: " + resultChained);
 // Output:
 // Database URL for logging context: prod-db.example.com
@@ -266,7 +271,7 @@ In this example:
 
 flatMap chains pass the SAME environment to each step:
 
-runReader(program, config)
+READER.runReader(program, config)
     │
     ├──► getDbUrl(config)        → "prod-db"
     ├──► buildConn(url, config)  → "prod-db?key=key-123"
@@ -290,7 +295,7 @@ Each step in a `flatMap` chain receives the same environment `R`. The environmen
 
 ~~~admonish important title="Key Points"
 - `Reader<R, A>` wraps a function `R → A`: it describes a computation that depends on environment `R`.
-- Nothing executes until `runReader(reader, environment)` is called with a concrete environment.
+- Nothing executes until `READER.runReader(reader, environment)` is called with a concrete environment.
 - `flatMap` chains pass the **same** environment to each step, no manual threading.
 - `ask()` returns the environment itself, useful when a step needs the full config.
 - `constant(value)` ignores the environment, useful for lifting pure values into Reader context.
