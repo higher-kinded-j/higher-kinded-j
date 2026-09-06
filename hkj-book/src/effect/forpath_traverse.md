@@ -4,20 +4,21 @@ A common pattern in effectful programming is having a collection of items where 
 
 ## Traverse: Apply an Effect to Every Element
 
-`traverse()` takes a collection from the current tuple, applies a Path-producing function to each element, and collects the results. If any element's effect fails, the entire computation short-circuits according to the Path type's semantics.
+`traverse()` takes a collection from the accumulated value, applies an effectful function to each element, and collects the results. The function hands back a `Kind` rather than a `Path`, which is why these snippets reach for `MAYBE.just` and `EITHER.widen` where the rest of the chapter reaches for `Path`. If any element's effect fails, the entire computation short-circuits according to the Path type's semantics.
 
 ### MaybePath with Traverse
 
 Here every positive number is scaled by 10. If any element were non-positive, the whole result would be `Nothing`:
 
+<!-- verify -->
 ```java
 var listTraverse = ListTraverse.INSTANCE;
 
 MaybePath<Kind<ListKind.Witness, Integer>> result =
     ForPath.from(Path.just(LIST.widen(List.of(1, 2, 3))))
         .traverse(listTraverse,
-            t -> t._1(),
-            n -> n > 0 ? Path.just(n * 10) : Path.<Integer>nothing())
+            numbers -> numbers,        // the accumulated value is not a tuple yet
+            n -> n > 0 ? MAYBE.just(n * 10) : MAYBE.<Integer>nothing())
         .yield((original, transformed) -> transformed);
 
 // Result: Just([10, 20, 30])
@@ -28,15 +29,16 @@ MaybePath<Kind<ListKind.Witness, Integer>> result =
 
 The same all-or-nothing pattern works with `EitherPath`, where failure carries a descriptive error message:
 
+<!-- verify -->
 ```java
 EitherPath<String, Kind<ListKind.Witness, String>> result =
-    ForPath.from(Path.<String, List<String>>right(
+    ForPath.from(Path.<String, Kind<ListKind.Witness, String>>right(
             LIST.widen(List.of("alice", "bob"))))
         .traverse(listTraverse,
-            t -> t._1(),
+            names -> names,
             name -> name.length() > 2
-                ? Path.<String, String>right(name.toUpperCase())
-                : Path.<String, String>left("Name too short: " + name))
+                ? EITHER.<String, String>widen(Either.right(name.toUpperCase()))
+                : EITHER.<String, String>widen(Either.left("Name too short: " + name)))
         .yield((original, uppercased) -> uppercased);
 
 // Result: Right(["ALICE", "BOB"])
@@ -50,20 +52,21 @@ Sometimes you already have a collection of effectful values (e.g., a `List<Maybe
 
 When the mapping function itself returns a nested collection (e.g., each element produces a list), `flatTraverse()` traverses *and* flattens in one step, avoiding an intermediate nested structure.
 
+<!-- verify -->
 ```java
 // sequence: flip Structure<Effect<A>> to Effect<Structure<A>>
 MaybePath<Kind<ListKind.Witness, Integer>> sequenced =
     ForPath.from(Path.just(LIST.widen(
             List.of(MAYBE.just(1), MAYBE.just(2), MAYBE.just(3)))))
-        .sequence(listTraverse, t -> t._1())
+        .sequence(listTraverse, maybes -> maybes)
         .yield((original, collected) -> collected);
 
 // flatTraverse: traverse then flatten
 MaybePath<Kind<ListKind.Witness, Integer>> flat =
     ForPath.from(Path.just(LIST.widen(List.of(1, 2, 3))))
         .flatTraverse(listTraverse, Instances.monadZero(list()),
-            t -> t._1(),
-            n -> Path.just(LIST.widen(List.of(n, n * 10))))
+            numbers -> numbers,
+            n -> MAYBE.just(LIST.widen(List.of(n, n * 10))))
         .yield((original, flattened) -> flattened);
 
 // Result: Just([1, 10, 2, 20, 3, 30])

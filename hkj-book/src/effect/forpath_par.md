@@ -6,6 +6,7 @@ Sequential comprehensions with `.from()` force each step to wait for the previou
 
 `ForPath.par()` accepts two or three independent Path values and combines them using applicative semantics. The key difference from `.from()` is that `par()` does not thread values sequentially; it evaluates all branches and merges the results:
 
+<!-- verify -->
 ```java
 // Two independent MaybePaths
 MaybePath<String> result =
@@ -25,6 +26,7 @@ EitherPath<String, String> profile =
 
 Short-circuiting works as expected for types with failure semantics; if any branch fails, the whole computation fails:
 
+<!-- verify -->
 ```java
 MaybePath<String> result =
     ForPath.par(Path.just("Bob"), Path.<Integer>nothing())
@@ -36,11 +38,12 @@ MaybePath<String> result =
 
 This is where `par()` really shines. For `VTaskPath`, it uses `Par.map2`/`Par.map3` under the hood, which spawns virtual threads via `StructuredTaskScope`. Independent computations genuinely execute concurrently, so the total time is the *maximum* of the individual times rather than the *sum*:
 
+<!-- verify -->
 ```java
 VTaskPath<String> result =
     ForPath.par(
-            Path.vtaskPath(() -> fetchUserData(userId)),    // virtual thread 1
-            Path.vtaskPath(() -> fetchConfigData()))        // virtual thread 2
+            Path.vtask(() -> fetchUserData(userId)),    // virtual thread 1
+            Path.vtask(() -> fetchConfigData()))        // virtual thread 2
         .yield((user, config) -> buildResponse(user, config));
 
 // Both fetches run concurrently; total time ≈ max(fetch1, fetch2)
@@ -53,6 +56,7 @@ For two 50ms API calls, this means ~50ms total instead of ~100ms sequential.
 
 IO computations can also be combined with `par()`. Execution is currently sequential, but the code documents the independence for future parallel IO support:
 
+<!-- verify -->
 ```java
 IOPath<String> result =
     ForPath.par(Path.io(() -> "hello"), Path.io(() -> "world"))
@@ -63,6 +67,7 @@ String value = result.unsafeRun();  // "hello world"
 
 IdPath uses `Id.of()` to wrap pure values; there is no effect to parallelise, but `par()` still expresses structural independence:
 
+<!-- verify -->
 ```java
 IdPath<Integer> sum =
     ForPath.par(Path.idPath(Id.of(10)), Path.idPath(Id.of(20)), Path.idPath(Id.of(30)))
@@ -74,6 +79,7 @@ IdPath<Integer> sum =
 
 The result of `par()` is a regular step, so you can continue the comprehension with `.from()`, `.let()`, `.when()`, or another `.par()`:
 
+<!-- verify -->
 ```java
 MaybePath<String> result =
     ForPath.par(Path.just("Alice"), Path.just(5))
