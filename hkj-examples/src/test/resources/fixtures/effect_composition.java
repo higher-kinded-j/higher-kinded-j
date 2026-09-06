@@ -16,7 +16,9 @@ import org.higherkindedj.hkt.effect.MaybePath;
 import org.higherkindedj.hkt.effect.Path;
 import org.higherkindedj.hkt.effect.TryPath;
 import org.higherkindedj.hkt.effect.ValidationPath;
+import org.higherkindedj.hkt.effect.PathOps;
 import org.higherkindedj.hkt.either.Either;
+import org.higherkindedj.hkt.expression.ForPath;
 import org.higherkindedj.hkt.maybe.Maybe;
 import org.jspecify.annotations.Nullable;
 
@@ -70,6 +72,85 @@ record DetailedError(Error cause, String where, Map<String, Object> context) {}
 
 record Result(String value) {}
 
+record Product(String sku) {}
+
+record Metrics(int count) {}
+
+record Alerts(int count) {}
+
+record Dashboard(Metrics metrics, Alerts alerts, List<User> users) {}
+
+record Sales(long pence) {}
+
+record Customers(int count) {}
+
+record Trends(String summary) {}
+
+record Report(Sales sales, Inventory inventory, Customers customers, Trends trends) {}
+
+record Item(String sku) {}
+
+record OrderRequest(String userId, List<Item> items) {}
+
+record ValidatedRequest(String userId, List<Item> items) {}
+
+record Available(Total total) {}
+
+record Payment(String id) {
+
+  String getId() {
+    return id;
+  }
+}
+
+record Signup(String name, String email, int age) {}
+
+sealed interface OrderError {
+  record EmptyCart() implements OrderError {}
+
+  record UserNotFound(String userId) implements OrderError {}
+
+  record InventoryError(Error cause) implements OrderError {}
+
+  record PaymentFailed(Throwable cause) implements OrderError {}
+}
+
+/** Stands in for whatever logger the reader has. */
+final class Logger {
+
+  void debug(String format, Object... arguments) {}
+
+  void info(String format, Object... arguments) {}
+
+  void warn(String format, Object... arguments) {}
+}
+
+final class UserRepository {
+
+  Maybe<User> findById(String id) {
+    return Maybe.just(new User("Ada"));
+  }
+}
+
+final class InventoryService {
+
+  Either<Error, Available> check(List<Item> items) {
+    return Either.right(new Available(new Total(0)));
+  }
+}
+
+final class PaymentService {
+
+  Payment charge(User user, Total total) {
+    return new Payment("p-1");
+  }
+}
+
+final class Database {
+
+  void save(User user) {}
+}
+
 class Fixture {
 
   static final String id = "u-1";
@@ -89,7 +170,25 @@ class Fixture {
 
   static final Service userService = new Service();
 
-  static final Service prefService = new Service();
+  static final PrefService prefService = new PrefService();
+
+  static final Database database = new Database();
+
+  static final Error error = new Error("boom");
+
+  static final EitherPath<Error, User> userPath = Path.right(new User("Ada"));
+
+  static final Signup signup = new Signup("Ada", "ada@example.com", 36);
+
+  static final List<String> productIds = List.of("sku-1", "sku-2");
+
+  static final ProductService productService = new ProductService();
+
+  static final EitherPath<Error, String> pathA = Path.right("a");
+
+  static final EitherPath<Error, String> pathB = Path.right("b");
+
+  static final EitherPath<Error, String> pathC = Path.right("c");
 
   // ---- sequential pipeline ------------------------------------------------------------------
 
@@ -174,6 +273,84 @@ class Fixture {
     return new Data("data");
   }
 
+  // ---- deferred pipeline ----------------------------------------------------------------------
+
+  static void initialise() {}
+
+  static Result process() {
+    return new Result("processed");
+  }
+
+  static Result combine(String a, String b) {
+    return new Result(a + b);
+  }
+
+  static Result combine(String a, String b, String c) {
+    return new Result(a + b + c);
+  }
+
+  // ---- parallel composition -------------------------------------------------------------------
+
+  static IOPath<Metrics> fetchMetrics() {
+    return Path.io(() -> new Metrics(1));
+  }
+
+  static IOPath<Alerts> fetchAlerts() {
+    return Path.io(() -> new Alerts(0));
+  }
+
+  static IOPath<List<User>> fetchUsers() {
+    return Path.io(List::of);
+  }
+
+  static IOPath<Sales> fetchSales() {
+    return Path.io(() -> new Sales(0));
+  }
+
+  static IOPath<Inventory> fetchInventory() {
+    return Path.io(() -> new Inventory(List.of()));
+  }
+
+  static IOPath<Customers> fetchCustomers() {
+    return Path.io(() -> new Customers(0));
+  }
+
+  static IOPath<Trends> fetchTrends() {
+    return Path.io(() -> new Trends("flat"));
+  }
+
+  static Config fetchFromPrimary() {
+    return new Config("primary");
+  }
+
+  static Config fetchFromBackup() {
+    return new Config("backup");
+  }
+
+  // ---- accumulating validation ----------------------------------------------------------------
+
+  static ValidationPath<List<String>, String> checkName(String name) {
+    return Path.valid(name, Semigroups.list());
+  }
+
+  static ValidationPath<List<String>, String> checkEmail(String email) {
+    return Path.valid(email, Semigroups.list());
+  }
+
+  static ValidationPath<List<String>, Integer> checkAge(int age) {
+    return Path.valid(age, Semigroups.list());
+  }
+
+  static User buildUser(String name, String email, Integer age) {
+    return new User(name);
+  }
+
+  // ---- common mistakes ------------------------------------------------------------------------
+
+  User process(User user) {
+    return user;
+  }
+
   static final class ExternalApi {
 
     Either<Error, Data> fetch() {
@@ -188,13 +365,17 @@ class Fixture {
     }
   }
 
-  /** Stands in for whatever logger the reader has. */
-  static final class Logger {
+  static final class PrefService {
 
-    void debug(String format, Object... arguments) {}
+    Preferences get(String id) {
+      return new Preferences("dark");
+    }
+  }
 
-    void info(String format, Object... arguments) {}
+  static final class ProductService {
 
-    void warn(String format, Object... arguments) {}
+    Product get(String id) {
+      return new Product(id);
+    }
   }
 }
