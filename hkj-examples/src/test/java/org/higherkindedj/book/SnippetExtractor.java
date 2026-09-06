@@ -74,11 +74,13 @@ final class SnippetExtractor {
 
   /**
    * A top-level type declaration. Anything else is treated as loose statements and wrapped in a
-   * method body.
+   * method body. The leading annotations are optional because a page routinely writes them on the
+   * declaration's own line: {@code @GenerateLenses record Player(String name, int score) {}}.
    */
   private static final Pattern DECLARATION =
       Pattern.compile(
-          "^\\s*(public\\s+|private\\s+|protected\\s+|final\\s+|abstract\\s+|sealed\\s+"
+          "^\\s*(@\\w+(\\([^)]*\\))?\\s+)*"
+              + "(public\\s+|private\\s+|protected\\s+|final\\s+|abstract\\s+|sealed\\s+"
               + "|non-sealed\\s+|static\\s+)*"
               + "(class|record|interface|enum|@interface)\\s+\\w+");
 
