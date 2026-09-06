@@ -47,9 +47,10 @@ Each arrow represents "extends": Monad is an Applicative with additional power.
 
 The practical benefit is polymorphism over *behaviour*, not just data:
 
+<!-- verify -->
 ```java
 // This method works with ANY Monad: Optional, Either, List, IO, Future...
-public static <F, A, B> Kind<F, B> transform(
+public static <F extends WitnessArity<TypeArity.Unary>, A, B> Kind<F, B> transform(
     Monad<F> monad,
     Kind<F, A> value,
     Function<A, Kind<F, B>> operation) {

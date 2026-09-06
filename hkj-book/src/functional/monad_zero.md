@@ -13,6 +13,7 @@
 
 You're building a for-comprehension that iterates over combinations of values, but you need to discard certain results mid-chain. With a plain `Monad`, there is no way to say "skip this iteration":
 
+<!-- verify -->
 ```java
 // Without MonadZero: you must push filtering to the end and wrap in a conditional
 var result = For.from(monad, list1)
@@ -76,6 +77,7 @@ The most powerful application of `MonadZero` is the `.when()` clause in the `For
 
 When the predicate evaluates to `false`, the builder internally calls `monad.zero()` to terminate that specific computational path.
 
+<!-- verify -->
 ```java
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.expression.For;
@@ -122,6 +124,7 @@ For different types, `zero()` has the natural "empty" semantics:
 
 `MonadZero` also exposes `filter(predicate, ma)` so you don't need a for-comprehension just to drop unwanted elements. The argument order matches `Monad.flatMap` (predicate first, then the monadic value), not the instance-method style of `Stream.filter` / `Optional.filter`:
 
+<!-- verify -->
 ```java
 // List: keep positives
 MonadZero<ListKind.Witness> lz = Instances.monadZero(list());
@@ -129,7 +132,7 @@ Kind<ListKind.Witness, Integer> positives =
     lz.filter(x -> x > 0, LIST.widen(List.of(-1, 2, -3, 4)));   // [2, 4]
 
 // Maybe: keep even values
-MonadZero<MaybeKind.Witness> mz = Instances.monadError(maybe());
+MonadZero<MaybeKind.Witness> mz = Instances.monadZero(maybe());
 mz.filter(x -> x % 2 == 0, mz.of(4));   // Just(4)
 mz.filter(x -> x % 2 == 0, mz.of(3));   // Nothing
 ```
@@ -148,8 +151,10 @@ filter(p, ma)  ≡  flatMap(a -> p.test(a) ? of(a) : zero(), ma)
 
 `MonadZero` lets you write generic functions that work over any monad with a concept of "emptiness". Since `filter` is now part of the interface, generic filtering is just a method call:
 
+<!-- verify -->
 ```java
-public static <F, A extends Number> Kind<F, A> keepPositive(MonadZero<F> mz, Kind<F, A> fa) {
+public static <F extends WitnessArity<TypeArity.Unary>, A extends Number>
+    Kind<F, A> keepPositive(MonadZero<F> mz, Kind<F, A> fa) {
     return mz.filter(a -> a.doubleValue() > 0, fa);
 }
 ```

@@ -70,6 +70,7 @@ public interface Applicative<F extends WitnessArity<TypeArity.Unary>> extends Fu
 
 `Applicative` does not short-circuit. Every input runs, and the results combine through whatever rule the container defines. For `Validated` paired with a `Semigroup`, that rule is "concatenate the errors".
 
+<!-- verify -->
 ```java
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.validated.Validated;

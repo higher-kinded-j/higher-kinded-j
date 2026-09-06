@@ -6,6 +6,7 @@ The `traverse()`, `sequence()`, and `flatTraverse()` methods allow bulk operatio
 
 Apply an effectful function to each element of a traversable structure. The `traverse()` method extracts a `Kind<T, C>` from the current tuple, applies `f: C -> Kind<M, B>` to each element, and collects the results as `Kind<T, B>`, all within the enclosing monad.
 
+<!-- verify -->
 ```java
 var maybeMonad = Instances.monadError(maybe());
 var listTraverse = ListTraverse.INSTANCE;
@@ -13,7 +14,7 @@ var listTraverse = ListTraverse.INSTANCE;
 Kind<MaybeKind.Witness, Kind<ListKind.Witness, Integer>> result =
     For.from(maybeMonad, MAYBE.just(LIST.widen(List.of(1, 2, 3))))
         .traverse(listTraverse,
-            t -> t._1(),                              // extract the list
+            list -> list,                             // the value IS the list at the first step
             n -> n > 0 ? MAYBE.just(n * 10) : MAYBE.nothing())  // effectful function
         .yield((original, transformed) -> transformed);
 
@@ -25,13 +26,14 @@ Kind<MaybeKind.Witness, Kind<ListKind.Witness, Integer>> result =
 
 Flip a `Structure<Effect<A>>` into an `Effect<Structure<A>>`. This is equivalent to `traverse` with the identity function and is useful when you already have a collection of monadic values that need to be "turned inside-out".
 
+<!-- verify -->
 ```java
 List<Kind<MaybeKind.Witness, Integer>> items = List.of(
     MAYBE.just(1), MAYBE.just(2), MAYBE.just(3));
 
 Kind<MaybeKind.Witness, Kind<ListKind.Witness, Integer>> result =
     For.from(maybeMonad, MAYBE.just(LIST.widen(items)))
-        .sequence(listTraverse, t -> t._1())
+        .sequence(listTraverse, list -> list)
         .yield((original, collected) -> collected);
 
 // Result: Just([1, 2, 3])
@@ -41,11 +43,12 @@ Kind<MaybeKind.Witness, Kind<ListKind.Witness, Integer>> result =
 
 Like `traverse`, but flattens nested structures using an inner monad. This is useful when the effectful function itself returns a nested structure (e.g., `A -> Kind<M, Kind<T, B>>` where `T` is also monadic), and you want the inner layer flattened.
 
+<!-- verify -->
 ```java
 Kind<MaybeKind.Witness, Kind<ListKind.Witness, Integer>> result =
     For.from(maybeMonad, MAYBE.just(LIST.widen(List.of(1, 2, 3))))
         .flatTraverse(listTraverse, Instances.monadZero(list()),
-            t -> t._1(),
+            list -> list,
             n -> MAYBE.just(LIST.widen(List.of(n, n * 10))))
         .yield((original, flattened) -> flattened);
 
