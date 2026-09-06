@@ -8,6 +8,8 @@
 
 import static org.higherkindedj.hkt.instances.Witnesses.list;
 import static org.higherkindedj.hkt.instances.Witnesses.maybe;
+import static org.higherkindedj.hkt.list.ListKindHelper.LIST;
+import static org.higherkindedj.hkt.maybe.MaybeKindHelper.MAYBE;
 
 import java.util.List;
 import java.util.NoSuchElementException;
@@ -37,6 +39,15 @@ record User(String name) {}
 
 record Order(String id) {}
 
+record UserDto(String name) {
+
+  static UserDto from(User user) {
+    return new UserDto(user.name());
+  }
+}
+
+record HttpError(int status) {}
+
 record OrderInput(String sku) {}
 
 record ValidatedOrder(String sku) {}
@@ -47,7 +58,10 @@ record ConfigError(String message) {}
 
 record Data(String value) {}
 
-record UserError(String message) {}
+record UserError(String message) {
+
+  static final UserError NOT_FOUND = new UserError("not found");
+}
 
 /** The page's typed error. It is constructed directly and through a factory. */
 record Error(String message) {
@@ -76,11 +90,20 @@ class Fixture {
 
   static final Maybe<String> maybeValue = Maybe.just("hello");
 
+  static final GenericPath<MaybeKind.Witness, String> generic =
+      Path.generic(MAYBE.widen(maybeValue), Instances.monadError(maybe()));
+
   static final Repository repository = new Repository();
 
   static final Repository userRepository = new Repository();
 
   static final Configuration config = new Configuration();
+
+  static final UserService userService = new UserService();
+
+  HttpError toHttpError(UserError error) {
+    return new HttpError(404);
+  }
 
   static Maybe<User> findUser(String id) {
     return Maybe.just(new User("Ada"));
@@ -147,6 +170,13 @@ class Fixture {
 
     Maybe<User> findById(String id) {
       return Maybe.just(new User("Ada"));
+    }
+  }
+
+  static final class UserService {
+
+    EitherPath<UserError, User> getUserById(String id) {
+      return Path.right(new User("Ada"));
     }
   }
 
