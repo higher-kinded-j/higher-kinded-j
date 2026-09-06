@@ -17,18 +17,22 @@
 
 Consider a method that loads configuration, connects to a database, and logs the result:
 
+<!-- verify -->
 ```java
 // Every call executes immediately - untestable, unrepeatable, order-dependent
-Config config = loadConfig();                     // reads disk
-Connection conn = connectToDb(config);            // opens network socket
-logger.info("Connected to " + conn.endpoint());   // writes to stdout
-return conn;
+Connection connect() {
+    Config config = loadConfig();                     // reads disk
+    Connection conn = connectToDb(config);            // opens network socket
+    logger.info("Connected to " + conn.endpoint());   // writes to stdout
+    return conn;
+}
 ```
 
 Each line performs a side effect the instant it runs. You can't test `connectToDb` without a real database. You can't reorder or retry steps without re-executing earlier effects. And if you want to compose this with other workflows, you're stuck; the effects have already happened.
 
 The `IO` monad solves this by separating **description** from **execution**. An `IO<A>` value is a *recipe* for a computation that will produce an `A` when run, but nothing happens until you explicitly say "go." This means you can build, compose, and inspect entire programs as pure values, then execute them once at the application boundary.
 
+<!-- verify -->
 ```java
 // Describe effects - nothing executes yet
 Kind<IOKind.Witness, Config>     loadCfg  = IO_OP.delay(() -> loadConfig());
@@ -80,6 +84,7 @@ The following examples build a small program step by step: creating IO actions, 
 
 Use `IO_OP.delay` to capture side effects. Use `ioMonad.of` for pure values within IO.
 
+<!-- verify -->
 ```java
 Monad<IOKind.Witness> ioMonad = Instances.monad(io());
 java.util.Scanner scanner = new java.util.Scanner(System.in);
@@ -112,6 +117,7 @@ None of these execute when created. The `Supplier` inside `delay` is stored, not
 
 Use `IO_OP.unsafeRunSync` to run the computation. This is the "end of the world"; call it at application boundaries, not deep inside your logic.
 
+<!-- verify -->
 ```java
 // Execute printHello - now the effect happens
 IO_OP.unsafeRunSync(printHello); // prints "Hello from IO!"
@@ -142,6 +148,7 @@ try {
 
 `map` transforms the result of an IO action *without executing it*. `flatMap` sequences two IO actions; the second can depend on the first's result.
 
+<!-- verify -->
 ```java
 Monad<IOKind.Witness> ioMonad = Instances.monad(io());
 
@@ -185,6 +192,7 @@ IO_OP.unsafeRunSync(combinedAction);
 
 Beyond `map` and `flatMap`, `IOMonad` provides utility methods for common patterns.
 
+<!-- verify -->
 ```java
 Kind<IOKind.Witness, String> getAliceName = ioMonad.of("Alice");
 
@@ -226,6 +234,7 @@ IO_OP.unsafeRunSync(finalProgram);
 
 The most common side effect after console/file I/O is reading the time, and `Instant.now()` scattered through your code makes every timestamp untestable. `TimeSource` lifts `java.time.Clock` into `IO` so time is a lazy, composable effect:
 
+<!-- verify -->
 ``` java
 import org.higherkindedj.hkt.time.TimeSource;
 
@@ -281,6 +290,7 @@ For most use cases, prefer **[IOPath](../effect/path_io.md)** which wraps `IO` a
 - Seamless integration with the [Focus DSL](../optics/focus_dsl.md) for structural navigation
 - A consistent API shared across all effect types
 
+<!-- verify -->
 ```java
 // Instead of manual IO chaining:
 Kind<IOKind.Witness, Config> config = IO_OP.delay(() -> loadConfig());
@@ -288,7 +298,7 @@ Kind<IOKind.Witness, String> value = ioMonad.flatMap(
     c -> IO_OP.delay(() -> c.getValue("key")), config);
 
 // Use IOPath for cleaner composition:
-IOPath<String> value = Path.io(() -> loadConfig())
+IOPath<String> path = Path.io(() -> loadConfig())
     .via(c -> Path.io(() -> c.getValue("key")));
 ```
 
