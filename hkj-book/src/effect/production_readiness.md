@@ -18,6 +18,7 @@ Path chains produce deeper stack traces than their imperative equivalents. Each 
 
 Consider a simple service pipeline:
 
+<!-- verify -->
 ```java
 EitherPath<AppError, Invoice> result =
     Path.<AppError, String>right(orderId)
@@ -54,6 +55,7 @@ The pattern is consistent:
 
 When you need to inspect intermediate values without breaking the chain, `peek` provides observation points:
 
+<!-- verify -->
 ```java
 EitherPath<AppError, Invoice> result =
     Path.<AppError, String>right(orderId)
@@ -69,12 +71,17 @@ EitherPath<AppError, Invoice> result =
 ~~~admonish tip title="Naming Your Lambdas"
 For clearer stack traces, extract lambdas into named methods:
 
+<!-- verify -->
 ```java
 // Anonymous lambda: shows as lambda$process$1 in traces
-.via(id -> lookupOrder(id))
+EitherPath<AppError, Order> viaLambda =
+    Path.<AppError, String>right(orderId)
+        .via(id -> lookupOrder(id));
 
 // Method reference: shows as OrderService.lookupOrder in traces
-.via(this::lookupOrder)
+EitherPath<AppError, Order> viaReference =
+    Path.<AppError, String>right(orderId)
+        .via(this::lookupOrder);
 ```
 
 Method references produce more readable stack frames than anonymous lambdas.
@@ -141,12 +148,14 @@ The JVM does not perform Tail Call Optimisation (TCO). Every method call, includ
 
 Most Path usage is inherently stack-safe. A chain like this:
 
+<!-- verify -->
 ```java
-Path.right(value)
-    .via(this::step1)
-    .via(this::step2)
-    .map(this::step3)
-    .recover(this::handleError)
+EitherPath<AppError, String> chain =
+    Path.<AppError, String>right(value)
+        .via(this::step1)
+        .via(this::step2)
+        .map(this::step3)
+        .recover(this::handleError);
 ```
 
 Each step executes and returns immediately. The chain does not recurse. Even a chain with 50 steps uses only a handful of stack frames at any point; the depth is constant, not proportional to chain length.
@@ -155,6 +164,7 @@ Each step executes and returns immediately. The chain does not recurse. Even a c
 
 The risk arises when a Path chain calls itself recursively:
 
+<!-- verify -->
 ```java
 // DANGER: recursive Path chain, will overflow for large n
 EitherPath<Error, Integer> countdown(int n) {
@@ -172,6 +182,7 @@ Each call to `countdown` adds a frame. For large inputs, this exhausts the stack
 
 `TrampolinePath` converts recursive calls into a loop that uses constant stack space:
 
+<!-- verify -->
 ```java
 // SAFE: trampolined recursion, works for any depth
 TrampolinePath<Integer> countdown(int n) {
