@@ -31,9 +31,10 @@ The **Free Applicative** (`FreeAp`) is the applicative counterpart to the [Free 
 Consider fetching a user and their posts:
 
 **With Free Monad (sequential, dependent):**
+<!-- verify -->
 ```java
 // Each step depends on the previous result
-Free<DbOp, UserProfile> program =
+Free<DbOpKind.Witness, UserProfile> program =
     getUser(userId)
         .flatMap(user ->              // Must wait for user
             getPosts(user.id())       // Uses user.id() from previous step
@@ -42,12 +43,13 @@ Free<DbOp, UserProfile> program =
 ```
 
 **With Free Applicative (independent):**
+<!-- verify -->
 ```java
 // Both fetches are independent - neither needs the other's result
-FreeAp<DbOp, UserProfile> program =
-    FreeAp.lift(getUser(userId))
+FreeAp<DbOpKind.Witness, UserProfile> program =
+    FreeAp.lift(DB_OP.widen(new DbOp.GetUser(userId)))
         .map2(
-            FreeAp.lift(getPosts(userId)),  // Doesn't depend on getUser result
+            FreeAp.lift(DB_OP.widen(new DbOp.GetPosts(userId))),  // Independent of GetUser
             UserProfile::new
         );
 ```
@@ -98,27 +100,31 @@ The crucial insight is in `Ap`: both `ff` and `fa` are **independent**. Neither 
 
 ### Creating FreeAp Values
 
+<!-- verify -->
 ```java
 // Pure value (no effects)
-FreeAp<MyOp, Integer> pure = FreeAp.pure(42);
+FreeAp<DbOpKind.Witness, Integer> pure = FreeAp.pure(42);
 
-// Lift a single instruction
-FreeAp<MyOp, User> userFetch = FreeAp.lift(new GetUser(userId));
+// Lift a single instruction: widen it into the Kind first
+FreeAp<DbOpKind.Witness, User> userFetch =
+    FreeAp.lift(DB_OP.widen(new DbOp.GetUser(userId)));
 
 // Map over a FreeAp
-FreeAp<MyOp, String> userName = userFetch.map(User::name);
+FreeAp<DbOpKind.Witness, String> userName = userFetch.map(User::name);
 ```
 
 ### Combining Independent Computations
 
 The `map2` method combines two independent computations:
 
+<!-- verify -->
 ```java
-FreeAp<DbOp, User> userFetch = FreeAp.lift(new GetUser(1));
-FreeAp<DbOp, List<Post>> postsFetch = FreeAp.lift(new GetPosts(1));
+FreeAp<DbOpKind.Witness, User> userFetch = FreeAp.lift(DB_OP.widen(new DbOp.GetUser(1)));
+FreeAp<DbOpKind.Witness, List<Post>> postsFetch =
+    FreeAp.lift(DB_OP.widen(new DbOp.GetPosts(1)));
 
 // Combine them - these are INDEPENDENT
-FreeAp<DbOp, UserProfile> profile = userFetch.map2(
+FreeAp<DbOpKind.Witness, UserProfile> profile = userFetch.map2(
     postsFetch,
     (user, posts) -> new UserProfile(user, posts)
 );
@@ -126,35 +132,47 @@ FreeAp<DbOp, UserProfile> profile = userFetch.map2(
 
 For more values, chain `map2` or use the applicative instance:
 
+<!-- verify -->
 ```java
-FreeApApplicative<DbOp> applicative = new FreeApApplicative<>();
+FreeApApplicative<DbOpKind.Witness> applicative = FreeApApplicative.instance();
 
-// Combine three independent fetches
-FreeAp<DbOp, Dashboard> dashboard = applicative.map3(
-    FreeAp.lift(new GetUser(1)),
-    FreeAp.lift(new GetPosts(1)),
-    FreeAp.lift(new GetNotifications(1)),
+// The applicative works on the Kind, so widen each FreeAp on the way in
+Kind<FreeApKind.Witness<DbOpKind.Witness>, Dashboard> combined = applicative.map3(
+    FREE_AP.widen(FreeAp.lift(DB_OP.widen(new DbOp.GetUser(1)))),
+    FREE_AP.widen(FreeAp.lift(DB_OP.widen(new DbOp.GetPosts(1)))),
+    FREE_AP.widen(FreeAp.lift(DB_OP.widen(new DbOp.GetNotifications(1)))),
     Dashboard::new
 );
+
+FreeAp<DbOpKind.Witness, Dashboard> dashboard = FREE_AP.narrow(combined);
 ```
 
 ### Interpreting with foldMap
 
 To execute a `FreeAp` program, provide a natural transformation and an `Applicative` instance:
 
+<!-- verify -->
 ```java
-// Natural transformation: DbOp ~> IO
-Natural<DbOpKind.Witness, IOKind.Witness> interpreter = fa -> {
-    DbOp<?> op = DB_OP.narrow(fa);
-    return switch (op) {
-        case GetUser g -> IO_OP.widen(IO.delay(() -> database.findUser(g.id())));
-        case GetPosts g -> IO_OP.widen(IO.delay(() -> database.findPosts(g.userId())));
-        case GetNotifications g -> IO_OP.widen(IO.delay(() -> database.findNotifications(g.userId())));
+// Natural transformation: DbOp ~> IO. `Natural`'s method is generic, so it takes an
+// anonymous class rather than a lambda.
+Natural<DbOpKind.Witness, IOKind.Witness> interpreter =
+    new Natural<>() {
+        @Override
+        @SuppressWarnings("unchecked") // the operation fixes A; the switch cannot say so
+        public <A> Kind<IOKind.Witness, A> apply(Kind<DbOpKind.Witness, A> fa) {
+            DbOp<A> op = DB_OP.narrow(fa);
+            IO<Object> io = switch (op) {
+                case DbOp.GetUser g -> IO.delay(() -> database.findUser(g.id()));
+                case DbOp.GetPosts g -> IO.delay(() -> database.findPosts(g.userId()));
+                case DbOp.GetNotifications g ->
+                    IO.delay(() -> database.findNotifications(g.userId()));
+            };
+            return (Kind<IOKind.Witness, A>) IO_OP.widen(io);
+        }
     };
-};
 
 // Interpret the program
-FreeAp<DbOp, Dashboard> program = ...;
+FreeAp<DbOpKind.Witness, Dashboard> program = dashboardProgram(1);
 Kind<IOKind.Witness, Dashboard> result = program.foldMap(interpreter, ioApplicative);
 ```
 
@@ -162,40 +180,53 @@ Kind<IOKind.Witness, Dashboard> result = program.foldMap(interpreter, ioApplicat
 
 The power of Free Applicative emerges when the target `Applicative` supports parallelism. Consider using `CompletableFuture`:
 
+<!-- verify -->
 ```java
 // Interpreter to CompletableFuture (can run in parallel)
-Natural<DbOpKind.Witness, CompletableFutureKind.Witness> parallelInterpreter = fa -> {
-    DbOp<?> op = DB_OP.narrow(fa);
-    return switch (op) {
-        case GetUser g -> FUTURE.widen(
-            CompletableFuture.supplyAsync(() -> database.findUser(g.id()))
-        );
-        case GetPosts g -> FUTURE.widen(
-            CompletableFuture.supplyAsync(() -> database.findPosts(g.userId()))
-        );
+Natural<DbOpKind.Witness, CompletableFutureKind.Witness> parallelInterpreter =
+    new Natural<>() {
+        @Override
+        @SuppressWarnings("unchecked") // the operation fixes A; the switch cannot say so
+        public <A> Kind<CompletableFutureKind.Witness, A> apply(Kind<DbOpKind.Witness, A> fa) {
+            DbOp<A> op = DB_OP.narrow(fa);
+            CompletableFuture<Object> future = switch (op) {
+                case DbOp.GetUser g ->
+                    CompletableFuture.supplyAsync(() -> database.findUser(g.id()));
+                case DbOp.GetPosts g ->
+                    CompletableFuture.supplyAsync(() -> database.findPosts(g.userId()));
+                case DbOp.GetNotifications g ->
+                    CompletableFuture.supplyAsync(() -> database.findNotifications(g.userId()));
+            };
+            return (Kind<CompletableFutureKind.Witness, A>) FUTURE.widen(future);
+        }
     };
-};
 
 // When interpreted, GetUser and GetPosts can run in parallel!
-FreeAp<DbOp, UserProfile> program = userFetch.map2(postsFetch, UserProfile::new);
-Kind<CompletableFutureKind.Witness, UserProfile> future = program.foldMap(parallelInterpreter, cfApplicative);
+FreeAp<DbOpKind.Witness, UserProfile> program = userFetch.map2(postsFetch, UserProfile::new);
+Kind<CompletableFutureKind.Witness, UserProfile> future =
+    program.foldMap(parallelInterpreter, cfApplicative);
 ```
 
 Because the Free Applicative structure makes independence explicit, the `CompletableFuture` applicative can start both operations immediately rather than waiting for one to complete.
 
 ## Static Analysis
 
-Unlike Free Monad, Free Applicative programs can be analysed before execution. The `analyze` method (an alias for `foldMap`) emphasises this capability:
+Unlike Free Monad, Free Applicative programs can be analysed before execution. The `analyse` method (an alias for `foldMap`) emphasises this capability:
 
+<!-- verify -->
 ```java
 // Count operations before executing
-Natural<DbOpKind.Witness, ConstKind.Witness<Integer>> counter = fa -> {
-    return CONST.widen(Const.of(1));  // Each operation counts as 1
-};
+Natural<DbOpKind.Witness, ConstKind.Witness<Integer>> counter =
+    new Natural<>() {
+        @Override
+        public <A> Kind<ConstKind.Witness<Integer>, A> apply(Kind<DbOpKind.Witness, A> fa) {
+            return CONST.widen(new Const<>(1));  // Each operation counts as 1
+        }
+    };
 
-FreeAp<DbOp, Dashboard> program = ...;
+FreeAp<DbOpKind.Witness, Dashboard> program = dashboardProgram(1);
 Kind<ConstKind.Witness<Integer>, Dashboard> analysis =
-    program.analyze(counter, constApplicative);
+    program.analyse(counter, constApplicative);
 
 int operationCount = CONST.narrow(analysis).value();
 System.out.println("Program will execute " + operationCount + " operations");
@@ -211,6 +242,7 @@ This is useful for:
 
 Free Applicative is excellent for validation that should report **all** errors, not just the first:
 
+<!-- verify -->
 ```java
 // Define validation operations
 sealed interface ValidationOp<A> {
@@ -219,60 +251,81 @@ sealed interface ValidationOp<A> {
     record ValidateName(String name) implements ValidationOp<String> {}
 }
 
+record Pair<A, B>(A first, B second) {}
+
+record ValidatedUser(String name, String email, int age) {}
+```
+
+Each operation is lifted independently, so nothing short-circuits:
+
+<!-- verify -->
+```java
 // Build validation program
-FreeAp<ValidationOp, User> validateUser(String name, String email, int age) {
-    return FreeAp.lift(new ValidateName(name)).map2(
-        FreeAp.lift(new ValidateEmail(email)).map2(
-            FreeAp.lift(new ValidateAge(age)),
+FreeAp<ValidationOpKind.Witness, ValidatedUser> validateUser(
+        String name, String email, int age) {
+    return FreeAp.lift(VALIDATION_OP.widen(new ValidationOp.ValidateName(name))).map2(
+        FreeAp.lift(VALIDATION_OP.widen(new ValidationOp.ValidateEmail(email))).map2(
+            FreeAp.lift(VALIDATION_OP.widen(new ValidationOp.ValidateAge(age))),
             (e, a) -> new Pair<>(e, a)
         ),
-        (n, pair) -> new User(n, pair.first(), pair.second())
+        (n, pair) -> new ValidatedUser(n, pair.first(), pair.second())
     );
 }
+```
 
+The interpreter turns each operation into a `Validated`, and the `Validated` applicative
+accumulates every failure it meets:
+
+<!-- verify -->
+```java
 // Interpreter to Validated (accumulates all errors)
-Natural<ValidationOpKind.Witness, ValidatedKind.Witness<List<String>>> interpreter = fa -> {
-    ValidationOp<?> op = VALIDATION_OP.narrow(fa);
-    return switch (op) {
-        case ValidateName v -> VALIDATED.widen(
-            v.name().length() >= 2
-                ? Validated.valid(v.name())
-                : Validated.invalid(List.of("Name must be at least 2 characters"))
-        );
-        case ValidateEmail v -> VALIDATED.widen(
-            v.email().contains("@")
-                ? Validated.valid(v.email())
-                : Validated.invalid(List.of("Invalid email format"))
-        );
-        case ValidateAge v -> VALIDATED.widen(
-            v.age() >= 0 && v.age() <= 150
-                ? Validated.valid(v.age())
-                : Validated.invalid(List.of("Age must be between 0 and 150"))
-        );
+Natural<ValidationOpKind.Witness, ValidatedKind.Witness<List<String>>> interpreter =
+    new Natural<>() {
+        @Override
+        @SuppressWarnings("unchecked") // the operation fixes A; the switch cannot say so
+        public <A> Kind<ValidatedKind.Witness<List<String>>, A> apply(
+                Kind<ValidationOpKind.Witness, A> fa) {
+            ValidationOp<A> op = VALIDATION_OP.narrow(fa);
+            Validated<List<String>, Object> validated = switch (op) {
+                case ValidationOp.ValidateName v ->
+                    v.name().length() >= 2
+                        ? Validated.valid(v.name())
+                        : Validated.invalid(List.of("Name must be at least 2 characters"));
+                case ValidationOp.ValidateEmail v ->
+                    v.email().contains("@")
+                        ? Validated.valid(v.email())
+                        : Validated.invalid(List.of("Invalid email format"));
+                case ValidationOp.ValidateAge v ->
+                    v.age() >= 0 && v.age() <= 150
+                        ? Validated.valid(v.age())
+                        : Validated.invalid(List.of("Age must be between 0 and 150"));
+            };
+            return (Kind<ValidatedKind.Witness<List<String>>, A>) VALIDATED.widen(validated);
+        }
     };
-}
 
 // Execute validation
-FreeAp<ValidationOp, User> program = validateUser("X", "invalid", -5);
-Kind<ValidatedKind.Witness<List<String>>, User> result =
+FreeAp<ValidationOpKind.Witness, ValidatedUser> program = validateUser("X", "invalid", -5);
+Kind<ValidatedKind.Witness<List<String>>, ValidatedUser> result =
     program.foldMap(interpreter, validatedApplicative);
 
-// Result: Invalid(["Name must be at least 2 characters", "Invalid email format", "Age must be between 0 and 150"])
-// All three errors are reported!
+// Result: Invalid(["Name must be at least 2 characters", "Invalid email format",
+//                  "Age must be between 0 and 150"]) - all three errors are reported.
 ```
 
 ## Retracting to the Original Applicative
 
 If your instruction type `F` is already an `Applicative`, you can "retract" back to it:
 
+<!-- verify -->
 ```java
-FreeAp<IOKind.Witness, String> program = ...;
+FreeAp<IOKind.Witness, String> program = FreeAp.lift(IO_OP.widen(IO.delay(() -> "done")));
 
 // Retract: FreeAp[IO, A] -> IO[A]
 Kind<IOKind.Witness, String> io = program.retract(ioApplicative);
 
 // Equivalent to:
-Kind<IOKind.Witness, String> io = program.foldMap(Natural.identity(), ioApplicative);
+Kind<IOKind.Witness, String> sameThing = program.foldMap(Natural.identity(), ioApplicative);
 ```
 
 ## Applicative Laws
@@ -306,17 +359,18 @@ These laws ensure that combining computations behaves predictably.
 
 In practice, you might use both. Free Applicative for independent parts, Free Monad for the sequential orchestration:
 
+<!-- verify -->
 ```java
 // Free Applicative: independent fetches
-FreeAp<DbOp, UserData> fetchUserData = userFetch.map2(postsFetch, UserData::new);
+FreeAp<DbOpKind.Witness, UserProfile> fetchProfile =
+    userFetch.map2(postsFetch, UserProfile::new);
 
-// Free Monad: sequential workflow that uses the fetched data
-Free<WorkflowOp, Result> workflow =
-    liftFreeAp(fetchUserData)               // Run independent fetches
-        .flatMap(userData ->                 // Then use the result
-            processUser(userData)            // This depends on fetchUserData
-                .flatMap(processed ->
-                    saveResult(processed))); // This depends on processUser
+// Free Monad: `Free.Ap` holds a FreeAp as one step of a sequential workflow
+Free<DbOpKind.Witness, UserProfile> workflow =
+    new Free.Ap<>(fetchProfile)                 // Run the independent fetches
+        .flatMap(profile ->                     // Then use the result
+            getPosts(profile.user().id())       // This depends on fetchProfile
+                .map(posts -> new UserProfile(profile.user(), posts)));
 ```
 
 ## Summary
