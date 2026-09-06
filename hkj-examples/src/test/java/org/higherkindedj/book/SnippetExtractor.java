@@ -132,10 +132,11 @@ final class SnippetExtractor {
   /**
    * A fixture may be generic, so a page can show `VResultPath<E, A>` without naming a domain. The
    * parameter list runs to the last `>` before the body, so a bounded parameter whose bound is
-   * itself generic (`G extends WitnessArity<TypeArity.Unary>`) is captured whole.
+   * itself generic (`G extends WitnessArity<TypeArity.Unary>`) is captured whole; it excludes
+   * braces rather than newlines, so a list wrapped over several lines is captured too.
    */
   private static final Pattern FIXTURE_DECL =
-      Pattern.compile("\\bclass\\s+Fixture\\s*(<([^\\n]*?)>)?\\s*\\{");
+      Pattern.compile("\\bclass\\s+Fixture\\s*(<([^{}]*?)>)?\\s*\\{");
 
   private SnippetExtractor() {}
 

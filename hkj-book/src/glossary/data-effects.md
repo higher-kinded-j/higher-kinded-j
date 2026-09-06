@@ -33,6 +33,7 @@ Kind<F, Integer> result = selective.select(input, parser);
 **Structure:** A list `[a, b, c, d, e]` is decomposed as `Pair.of(a, [b, c, d, e])`.
 
 **Example:**
+<!-- verify -->
 ```java
 import org.higherkindedj.optics.util.ListPrisms;
 
@@ -71,6 +72,7 @@ List<String> built = cons.build(Pair.of("New", List.of("List")));
 **Structure:** `Const<C, A>` where `C` is the concrete value type and `A` is phantom.
 
 **Example:**
+<!-- verify -->
 ```java
 // Store a String, phantom type is Integer
 Const<String, Integer> stringConst = new Const<>("hello");
@@ -108,6 +110,7 @@ System.out.println(intConst.value()); // 5
 **Structure:** `Either<L, R>` where `L` is the left type (often error) and `R` is the right type (often success).
 
 **Example:**
+<!-- verify -->
 ```java
 // Creating Either values
 Either<String, Integer> success = Either.right(42);
@@ -124,9 +127,8 @@ Either<String, String> result = success
     .map(n -> n * 2)           // Right(84)
     .map(Object::toString);    // Right("84")
 
-// Error recovery
-Either<String, Integer> recovered = failure
-    .orElse(Either.right(0));  // Right(0)
+// Error recovery: fold both arms into one value
+Integer recovered = failure.fold(error -> 0, value -> value);  // 0
 ```
 
 **When To Use:**
@@ -144,6 +146,7 @@ Either<String, Integer> recovered = failure
 
 **Definition:** An *inclusive*-or (known elsewhere as `Ior` or `These`): a sealed type that is a `Left<L>`, a `Right<R>`, or `Both<L, R>` at once. Unlike `Either` and `Validated` (which are exclusive), it models a success that also carries accumulated, non-fatal warnings.
 
+<!-- verify -->
 ```java
 EitherOrBoth<String, Integer> ok      = EitherOrBoth.right(42);
 EitherOrBoth<String, Integer> warned  = EitherOrBoth.both("deprecated key", 42);
@@ -163,6 +166,7 @@ EitherOrBoth<String, Integer> failed  = EitherOrBoth.left("fatal");
 **Structure:** `IO<A>` wraps a `Supplier<A>` that produces the side effect when executed.
 
 **Example:**
+<!-- verify -->
 ```java
 // Describing side effects (nothing executes yet)
 IO<String> readLine = IO.delay(() -> scanner.nextLine());
@@ -174,12 +178,11 @@ IO<String> program = printHello
     .map(String::toUpperCase);
 
 // Nothing has happened yet! Execute when ready:
-String result = program.run();  // NOW side effects occur
+String result = program.unsafeRunSync();  // NOW side effects occur
 
 // Sequencing multiple effects
-IO<List<String>> readThreeLines = IO.sequence(List.of(
-    readLine, readLine, readLine
-));
+IO<List<String>> readThreeLines =
+    readLine.flatMap(a -> readLine.flatMap(b -> readLine.map(c -> List.of(a, b, c))));
 ```
 
 **When To Use:**
@@ -201,6 +204,7 @@ IO<List<String>> readThreeLines = IO.sequence(List.of(
 **Structure:** `Maybe<A>` is either `Just<A>` (contains a value) or `Nothing` (empty).
 
 **Example:**
+<!-- verify -->
 ```java
 // Creating Maybe values
 Maybe<String> present = Maybe.just("hello");
@@ -221,11 +225,10 @@ Maybe<Integer> result = Maybe.just("42")
         }
     });  // Just(42)
 
-// Pattern matching
-String output = absent.fold(
-    () -> "Nothing here",
-    value -> "Found: " + value
-);  // "Nothing here"
+// Pattern matching: map the present case, default the absent one
+String output = absent
+    .map(value -> "Found: " + value)
+    .orElse("Nothing here");  // "Nothing here"
 ```
 
 **When To Use:**
@@ -244,6 +247,7 @@ String output = absent.fold(
 **Definition:** An immutable list guaranteed by its type to contain at least one element: a `head` plus a (possibly empty) `tail`. Because non-emptiness is encoded in the type, `head`, `last`, `reduce`, `min`, and `max` are **total** (they never throw and return no `Optional`). It is the natural carrier for an accumulating validation error channel, where an *invalid* result always has one or more errors.
 
 **Example:**
+<!-- verify -->
 ```java
 NonEmptyList<Integer> nel = NonEmptyList.of(1, 2, 3);
 int head = nel.head();                       // 1 (total, never throws)
@@ -269,6 +273,7 @@ Validated<NonEmptyList<String>, Integer> bad = Validated.invalidNel("must be pos
 **Structure:** A list `[a, b, c, d, e]` is decomposed as `Pair.of([a, b, c, d], e)`.
 
 **Example:**
+<!-- verify -->
 ```java
 import org.higherkindedj.optics.util.ListPrisms;
 
@@ -305,6 +310,7 @@ List<Integer> built = snoc.build(Pair.of(List.of(1, 2, 3), 4));
 **Definition:** `java.time.Clock` lifted into the effect world, so reading the time is a lazy, composable effect rather than a scattered `Instant.now()` that makes every timestamp untestable. `TimeSource.now()` returns an `IO<Instant>` (with `nowAsync()` for the deferred variant); nothing is read until the effect runs, and each run reads afresh. It is deliberately named `TimeSource`, not `Clock`, so it never clashes with `java.time.Clock`.
 
 **Example:**
+<!-- verify -->
 ```java
 import org.higherkindedj.hkt.time.TimeSource;
 
@@ -328,6 +334,7 @@ IO<Reservation> reserve =
 **Structure:** `Try<A>` is either `Success<A>` (computation succeeded) or `Failure` (exception was thrown).
 
 **Example:**
+<!-- verify -->
 ```java
 // Wrapping exception-throwing code
 Try<Integer> parsed = Try.of(() -> Integer.parseInt("42"));     // Success(42)
@@ -373,6 +380,7 @@ Try<Integer> recovered = failed.recoverWith(ex -> {
 **Structure:** Each tuple is a Java `record` with typed accessors `_1()` through `_N()`.
 
 **Example:**
+<!-- verify -->
 ```java
 // Create tuples using the factory method
 Tuple2<String, Integer> pair = Tuple.of("Alice", 30);
@@ -411,10 +419,11 @@ Tuple3<Integer, String, String> transformed = triple.map(
 **Definition:** A type with exactly one value (`Unit.INSTANCE`), representing the completion of an operation that doesn't produce a meaningful result. The functional equivalent of `void`, but usable as a type parameter.
 
 **Example:**
+<!-- verify -->
 ```java
 // IO action that performs a side effect
 Kind<IOKind.Witness, Unit> printAction =
-    IO_KIND.widen(IO.fromRunnable(() -> System.out.println("Hello")));
+    IO_OP.widen(IO.fromRunnable(() -> System.out.println("Hello")));
 
 // Optional as MonadError<..., Unit>
 MonadError<OptionalKind.Witness, Unit> optionalMonad = Instances.monadError(optional());
@@ -437,6 +446,7 @@ Kind<OptionalKind.Witness, String> empty =
 **Structure:** `Validated<E, A>` is either `Valid<A>` (success) or `Invalid<E>` (accumulated errors).
 
 **Example:**
+<!-- verify -->
 ```java
 // Individual validations
 Validated<List<String>, String> validName = Validated.valid("Alice");
@@ -445,19 +455,20 @@ Validated<List<String>, String> invalidEmail = Validated.invalid(List.of("Invali
 
 // Combine with Applicative - ALL errors accumulated
 Semigroup<List<String>> listSemigroup = Semigroups.list();
-Applicative<Validated.Witness<List<String>>> app = ValidatedApplicative.instance(listSemigroup);
+Applicative<ValidatedKind.Witness<List<String>>> app = ValidatedMonad.instance(listSemigroup);
 
-Validated<List<String>, User> result = app.map3(
-    validName,
-    invalidAge,
-    invalidEmail,
+Validated<List<String>, User> result = VALIDATED.narrow(app.map3(
+    VALIDATED.widen(validName),
+    VALIDATED.widen(invalidAge),
+    VALIDATED.widen(invalidEmail),
     User::new
-);
+));
 // Invalid(["Age must be positive", "Invalid email format"])
 
 // Convert from Either for fail-fast then accumulate pattern
 Either<String, Integer> eitherResult = Either.left("First error");
-Validated<String, Integer> validated = Validated.fromEither(eitherResult);
+Validated<String, Integer> validated =
+    eitherResult.fold(Validated::invalid, Validated::valid);
 ```
 
 **Modern accumulating idiom:** the canonical error channel is now [NonEmptyList](#nonemptylist), so `Validated.invalidNel("...")` and `Validated.validNel(value)` bake in the `Semigroup` and drop the manual `Semigroups.list()` argument. To build a record from several validated fields with every error located, use [Validated Assembly](optics.md#validated-assembly) (`Validated.fields()`), which reports each failure as a [FieldError](optics.md#fielderror).
