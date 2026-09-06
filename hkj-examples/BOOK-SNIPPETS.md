@@ -331,6 +331,14 @@ Some shapes recur across the book and are left unmarked deliberately:
   with `user.address() != null && user.address().postcode() != null`, which reads through a
   nullable model the page never declares - its `Address` is reached through an `Optional`. The
   clean version beside it is gated.
+- **A class that continues the one above it.** `optics/advanced_prism_patterns.md` builds each
+  pattern across two or three blocks: a class declares its prisms `private static final`, and the
+  next block is a *different* class reading them by their bare names. A snippet's top-level class
+  is a sibling of the fixture, not a subclass, and a private member is not visible across classes
+  either, so those continuations only compile as part of a file the page never shows in one piece.
+  The block that introduces each pattern - the model, its prisms and the first class over them - is
+  gated, and so is the imperative version beside it wherever that version is a method rather than a
+  bare `return`.
 - **Laws written as equations.** `coyoneda.md` states the functor laws as
   `coyo.map(x -> x) == coyo`. The `==` is the law's notation, not a reference comparison, and
   rewriting it as an assertion would obscure what it says.
