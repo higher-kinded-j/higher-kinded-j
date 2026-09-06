@@ -468,8 +468,12 @@ final class SnippetExtractor {
 
   /** The declared name, so a snippet's own type can shadow the fixture's. */
   private static String typeNameOf(String declaration) {
+    // Comments first: a note above the declaration ("Generates Prisms for each case of the sealed
+    // interface") ends in the same keyword, and the next word read as the type's name is the
+    // modifier on the line below - so the type never matches the fixture's and both are emitted.
     var matcher =
-        Pattern.compile("\\b(class|record|interface|enum)\\s+(\\w+)").matcher(declaration);
+        Pattern.compile("\\b(class|record|interface|enum)\\s+(\\w+)")
+            .matcher(stripLiterals(declaration));
     return matcher.find() ? matcher.group(2) : declaration;
   }
 
