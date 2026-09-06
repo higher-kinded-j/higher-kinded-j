@@ -172,6 +172,10 @@ The extractor works out what each block is, so a page can be written naturally:
 
 Signature quotations are exactly the lines that drift, so they are compiled rather than skipped.
 
+A statement that opens a brace keeps everything until it closes, so an anonymous class written
+inside one (an interpreter, a comparator) stays where the page put it rather than being hoisted out
+as a member of its own.
+
 A **generic** fixture (`class Fixture<E, A, B>`) lends its type parameters to the snippet, which is
 how a page can show `VResultPath<E, A>` as a *shape* without inventing a domain for it.
 
