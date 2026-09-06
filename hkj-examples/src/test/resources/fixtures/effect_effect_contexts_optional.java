@@ -11,12 +11,24 @@ import java.util.Optional;
 import org.higherkindedj.hkt.Unit;
 import org.higherkindedj.hkt.effect.context.ErrorContext;
 import org.higherkindedj.hkt.effect.context.JavaOptionalContext;
+import org.higherkindedj.hkt.effect.IOPath;
+import org.higherkindedj.hkt.effect.context.ErrorContext;
+import org.higherkindedj.hkt.effect.context.JavaOptionalContext;
 import org.higherkindedj.hkt.effect.context.OptionalContext;
+import org.higherkindedj.hkt.either.Either;
+import org.higherkindedj.hkt.maybe.Maybe;
+import org.higherkindedj.hkt.maybe_t.MaybeT;
+import org.higherkindedj.hkt.optional_t.OptionalT;
 import org.higherkindedj.hkt.io.IOKind;
 import org.higherkindedj.hkt.maybe.Maybe;
 import org.jspecify.annotations.Nullable;
 
-record User(String id, String profileId) {}
+record User(String id, String profileId) {
+
+  static User guest() {
+    return new User("guest", "guest");
+  }
+}
 
 record Address(String line) {}
 
@@ -24,12 +36,29 @@ record Profile(String id) {}
 
 record Config(String name) {
 
+  static Config defaults() {
+    return new Config("defaults");
+  }
+
   static Config hardcodedDefaults() {
     return new Config("hardcoded");
   }
 }
 
 record UserError(String message) {}
+
+record UserNotFound(String id) {}
+
+record Data(String value) {}
+
+record Product(String id) {}
+
+record DashboardData(String body) {
+
+  static DashboardData empty() {
+    return new DashboardData("");
+  }
+}
 
 final class UserNotFoundException extends RuntimeException {
 
@@ -59,6 +88,34 @@ class Fixture {
   static final AddressRepository addressRepo = new AddressRepository();
 
   static final ConfigLoader configLoader = new ConfigLoader();
+
+  static final String id = "u-1";
+
+  static final Repository repo = new Repository();
+
+  static final ProductCache productCache = new ProductCache();
+
+  static final ProductDatabase productDatabase = new ProductDatabase();
+
+  static final Settings configFile = new Settings();
+
+  static final Settings defaults = new Settings();
+
+  static final DashboardService fullDashboardService = new DashboardService();
+
+  static final OptionalContext<IOKind.Witness, User> userContext = OptionalContext.some(user);
+
+  static OptionalContext<IOKind.Witness, Data> fetchFromPrimary() {
+    return OptionalContext.some(new Data("primary"));
+  }
+
+  static OptionalContext<IOKind.Witness, Data> fetchFromBackup() {
+    return OptionalContext.some(new Data("backup"));
+  }
+
+  static @Nullable DashboardData simplifiedDashboard(String userId) {
+    return new DashboardData("simple");
+  }
 
   static OptionalContext<IOKind.Witness, User> lookupUser(String id) {
     return OptionalContext.some(new User(id, "p-1"));
@@ -100,6 +157,36 @@ class Fixture {
     return new Config("defaults");
   }
 
+  static final class ProductCache {
+
+    @Nullable Product get(String id) {
+      return new Product(id);
+    }
+
+    void put(String id, Product product) {}
+  }
+
+  static final class ProductDatabase {
+
+    @Nullable Product find(String id) {
+      return new Product(id);
+    }
+  }
+
+  static final class Settings {
+
+    @Nullable String get(String key) {
+      return "value";
+    }
+  }
+
+  static final class DashboardService {
+
+    @Nullable DashboardData load(String userId) {
+      return new DashboardData("full");
+    }
+  }
+
   static final class Cache {
 
     @Nullable User get(String id) {
@@ -126,6 +213,10 @@ class Fixture {
   }
 
   static final class Repository {
+
+    @Nullable User find(String id) {
+      return new User(id, "p-1");
+    }
 
     @Nullable User findById(String id) {
       return new User(id, "p-1");
