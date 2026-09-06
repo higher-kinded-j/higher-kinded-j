@@ -357,9 +357,10 @@ final class SnippetExtractor {
     // A signature starts with code and opens a parameter list. Without this guard the join runs on
     // from a blank line through several complete declarations until the concatenation happens to
     // end in `{`, and swallows them whole. A generic return type may wrap before the parameter
-    // list is reached, so a first line whose angle brackets are still open joins on anyway; the
-    // `;`/`}` bail-outs below and MAX_SIGNATURE_LINES still bound it.
-    if (!first.contains("(") && openAngles(first) <= 0) {
+    // list is reached, so a first line that is still inside a type argument list, or has just
+    // closed one, joins on anyway; the `;`/`}` bail-outs below and MAX_SIGNATURE_LINES still
+    // bound it.
+    if (!first.contains("(") && openAngles(first) <= 0 && !first.endsWith(">")) {
       return -1;
     }
     StringBuilder joined = new StringBuilder();
@@ -397,7 +398,7 @@ final class SnippetExtractor {
     if (first.isBlank() || first.startsWith("//")) {
       return -1;
     }
-    if (!first.contains("(") && openAngles(first) <= 0) {
+    if (!first.contains("(") && openAngles(first) <= 0 && !first.endsWith(">")) {
       return -1;
     }
     StringBuilder joined = new StringBuilder();

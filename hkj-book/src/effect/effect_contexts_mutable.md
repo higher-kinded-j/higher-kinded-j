@@ -19,6 +19,7 @@ State transforms as you work with it. The counter you started with isn't the cou
 
 Consider tracking statistics through a processing pipeline:
 
+<!-- verify -->
 ```java
 // Mutable approach: threading state manually
 class Stats {
@@ -235,9 +236,8 @@ List<String> items = collectAll.evalWith(new Accumulator(List.of())).unsafeRun()
 
 Returns `IOPath<StateTuple<S, A>>`:
 
+<!-- verify -->
 ```java
-MutableContext<IOKind.Witness, Counter, String> workflow = ...;
-
 IOPath<StateTuple<Counter, String>> ioPath = workflow.runWith(new Counter(0));
 StateTuple<Counter, String> result = ioPath.unsafeRun();
 
@@ -314,6 +314,7 @@ List<Request> tagged = tagAll(requests).evalWith(new IdState(1000)).unsafeRun();
 
 ### Processing Statistics
 
+<!-- verify -->
 ```java
 record ProcessingStats(int success, int failure, Duration totalTime) {
     ProcessingStats recordSuccess(Duration d) {
@@ -340,6 +341,7 @@ MutableContext<IOKind.Witness, ProcessingStats, Result> processWithStats(Item it
 
 ### State Machine
 
+<!-- verify -->
 ```java
 sealed interface GameState {
     record WaitingForPlayers(int count) implements GameState {}
@@ -377,11 +379,12 @@ MutableContext<IOKind.Witness, GameState, Unit> advanceRound() {
 
 ### Combining with Other Contexts
 
+<!-- verify -->
 ```java
 // Stateful computation that might fail
 MutableContext<IOKind.Witness, Counter, ErrorContext<IOKind.Witness, String, Data>>
     fetchWithCounter() {
-    return MutableContext.<Counter, Unit>modify(Counter::increment)
+    return MutableContext.<Counter>modify(Counter::increment)
         .map(u -> ErrorContext.<String, Data>io(
             () -> dataService.fetch(),
             Throwable::getMessage));
@@ -394,6 +397,7 @@ MutableContext<IOKind.Witness, Counter, ErrorContext<IOKind.Witness, String, Dat
 
 When you need the raw transformer:
 
+<!-- verify -->
 ```java
 MutableContext<IOKind.Witness, Counter, Integer> ctx =
     MutableContext.<Counter>get().map(Counter::value);
