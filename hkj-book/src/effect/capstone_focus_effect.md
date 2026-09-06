@@ -17,6 +17,7 @@
 
 You maintain an internal company directory. The domain model is a set of nested immutable records:
 
+<!-- verify -->
 ```java
 @GenerateLenses @GenerateFocus
 record Company(String name, List<Department> departments) {}
@@ -53,6 +54,7 @@ The generated Focus classes give you:
 
 Here is the standard Java solution. It works, but notice how the business logic (validate and update an email) drowns in defensive checks:
 
+<!-- verify -->
 ```java
 sealed interface DirectoryError {
     record DepartmentNotFound(String name) implements DirectoryError {}
@@ -108,6 +110,7 @@ Either<DirectoryError, Company> updateManagerEmail(
 
 The same operation, using Effect paths for error handling and Focus paths for structural navigation:
 
+<!-- verify -->
 ```java
 EitherPath<DirectoryError, Company> updateManagerEmail(
         Company company, String deptName, String newEmail) {
@@ -134,6 +137,7 @@ EitherPath<DirectoryError, Company> updateManagerEmail(
 
 The helper methods are equally clean:
 
+<!-- verify -->
 ```java
 EitherPath<DirectoryError, Department> findDepartment(Company company, String name) {
     return company.departments().stream()
@@ -156,6 +160,7 @@ EitherPath<DirectoryError, String> validateEmail(String email) {
 The `findDepartment` helper uses a plain Java stream to search by name. You could also express
 this with a filtered traversal:
 
+<!-- verify -->
 ```java
 EitherPath<DirectoryError, Department> findDepartment(Company company, String name) {
     return CompanyFocus.departments()
@@ -212,16 +217,21 @@ This capstone uses both bridging directions described in [Focus-Effect Integrati
 
 **Effects → Optics** (the `focus()` calls): You are already in an `EitherPath` pipeline and need to navigate into the contained value's structure. The `focus()` method applies an optic to the success track value.
 
+<!-- verify -->
 ```java
 // Already in an effect; drill into the contained Department
-eitherPath.focus(DepartmentFocus.manager(), errorIfAbsent)
+EitherPath<DirectoryError, Employee> manager =
+    findDepartment(company, deptName)
+        .focus(DepartmentFocus.manager(), new DirectoryError.NoManager(deptName));
 ```
 
 **Optics → Effects** (the entry point): You start with concrete data and need to enter the effect domain. The `findDepartment` helper uses `Path.right(...)` and `Path.left(...)` to lift values into `EitherPath`.
 
+<!-- verify -->
 ```java
 // Start with a raw value; lift into the effect domain
-Path.<DirectoryError, Department>right(department)
+EitherPath<DirectoryError, Department> lifted =
+    Path.<DirectoryError, Department>right(department);
 ```
 
 ---
