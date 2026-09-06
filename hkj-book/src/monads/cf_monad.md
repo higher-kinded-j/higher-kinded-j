@@ -17,6 +17,7 @@
 
 Java's `CompletableFuture` is powerful, but composing multiple async operations quickly becomes unwieldy. Consider a typical microservice scenario (fetching a user, looking up their subscription, then calculating a discount):
 
+<!-- verify -->
 ```java
 // Traditional CompletableFuture chaining
 CompletableFuture<Discount> result =
@@ -66,6 +67,7 @@ The following examples build on a running scenario: an async service that fetche
 
 - [CompletableFutureExample.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/basic/future/CompletableFutureExample.java)
 
+<!-- verify -->
 ```java
 public void createExample() {
    // Get the MonadError instance
@@ -104,6 +106,7 @@ public void createExample() {
 
 These examples show how the type class instance composes async operations: the same `map`/`flatMap` vocabulary you use with `Either`, `IO`, or any other monad.
 
+<!-- verify -->
 ```java
 public void monadExample() {
    MonadError<CompletableFutureKind.Witness, Throwable> futureMonad = Instances.monadError(completableFuture());
@@ -154,6 +157,7 @@ public void monadExample() {
 
 This is where `CompletableFutureMonad` shines. Unlike `exceptionally` which returns a plain value, `handleErrorWith` returns a *new* `Kind`, so recovery itself can be asynchronous.
 
+<!-- verify -->
 ```java
  public void errorHandlingExample(){
    MonadError<CompletableFutureKind.Witness, Throwable> futureMonad = Instances.monadError(completableFuture());
@@ -237,6 +241,7 @@ For most application-level use cases, prefer **CompletableFuturePath** which wra
 - Seamless integration with the [Focus DSL](../optics/focus_dsl.md) for structural navigation
 - A consistent API shared across all effect types
 
+<!-- verify -->
 ```java
 // Instead of manual Kind chaining:
 Kind<CompletableFutureKind.Witness, User> user = FUTURE.widen(findUser(id));
@@ -244,7 +249,7 @@ Kind<CompletableFutureKind.Witness, Order> order = futureMonad.flatMap(
     u -> FUTURE.widen(createOrder(u)), user);
 
 // Use CompletableFuturePath for cleaner composition:
-CompletableFuturePath<Order> order = CompletableFuturePath.fromFuture(findUser(id))
+CompletableFuturePath<Order> orderPath = CompletableFuturePath.fromFuture(findUser(id))
     .via(u -> CompletableFuturePath.fromFuture(createOrder(u)));
 ```
 
