@@ -48,6 +48,7 @@ The critical difference from [MonadState](mtl_state.md): writer output is **appe
 
 `tell(w)` is the fundamental operation. It appends `w` to the accumulated output and returns `Unit` (the functional `void`). Successive `tell` calls combine their output via a `Monoid`:
 
+<!-- verify -->
 ```java
 <F extends WitnessArity<TypeArity.Unary>> Kind<F, String>
     processOrder(MonadWriter<F, List<String>> audit, String orderId) {
@@ -98,6 +99,7 @@ Without a `Monoid`, there would be no way to combine outputs from successive ste
 
 `listen(ma)` runs a computation and returns a `Pair` containing the result and the output that computation produced. The output is still accumulated normally; `listen` simply lets you peek at it:
 
+<!-- verify -->
 ```java
 var computation = For.from(audit, audit.tell(List.of("computed value")))
     .yield(_ -> 42);
@@ -114,6 +116,7 @@ This is useful when you need to make decisions based on what was logged. For exa
 
 `censor(f, ma)` runs `ma` and applies function `f` to its accumulated output. The result is unchanged; only the output is transformed:
 
+<!-- verify -->
 ```java
 var withSensitiveData = For.from(audit, audit.tell(List.of("API key: sk_live_abc123")))
     .yield(_ -> "done");
@@ -133,6 +136,7 @@ This is particularly useful for sanitising logs before they leave a security bou
 
 `pass(ma)` is the most powerful (and least commonly needed) operation. The computation `ma` returns a `Pair<A, Function<W, W>>`: a result and a function to apply to its own output. `pass` extracts the function and applies it:
 
+<!-- verify -->
 ```java
 var computation = For.from(audit, audit.tell(List.of("hello")))
     .yield(_ -> Pair.of(42, (Function<List<String>, List<String>>)
@@ -149,6 +153,7 @@ var result = audit.pass(computation);
 
 `listens(f, ma)` is like `listen`, but applies a function to the output in the returned pair. The accumulated output is still preserved unchanged:
 
+<!-- verify -->
 ```java
 var computation = For.from(audit, audit.tell(List.of("step1", "step2")))
     .yield(_ -> 42);
@@ -221,8 +226,9 @@ This guarantees that `listen` faithfully reports what was accumulated. It does n
 
 `WriterTMonad<F, W>` is the standard implementation of `MonadWriter` for the `WriterT` transformer. Unlike `ReaderTMonadReader` and `StateTMonadState` (which extend separate classes), `WriterTMonad` implements `MonadWriter` directly:
 
+<!-- verify -->
 ```java
-WriterTMonad<IdKind.Witness, List<String>> writerInstance =
+MonadWriter<WriterTKind.Witness<IdKind.Witness, List<String>>, List<String>> writerInstance =
     Instances.writerT(idMonad, listMonoid);
 
 // Now use it as a MonadWriter:

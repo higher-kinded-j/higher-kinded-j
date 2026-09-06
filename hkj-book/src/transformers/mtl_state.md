@@ -45,6 +45,7 @@ This is different from `MonadReader` in a crucial way: the value *changes* as th
 
 `get()` returns the current state as a value inside the monad. `put(s)` replaces the state entirely and returns `Unit` (the functional equivalent of `void`). Every other operation is built on top of these two.
 
+<!-- verify -->
 ```java
 record Counter(int count, int total) {}
 
@@ -65,6 +66,7 @@ record Counter(int count, int total) {}
 
 `modify(f)` applies a function to the current state and stores the result. It is equivalent to reading the state, applying `f`, and writing it back, but expressed as a single operation:
 
+<!-- verify -->
 ```java
 // Increment the count by 1
 <F extends WitnessArity<TypeArity.Unary>> Kind<F, Unit>
@@ -79,6 +81,7 @@ This is the workhorse operation. Most stateful steps are "read the state, comput
 
 `gets(f)` reads the current state and applies a function to extract a value from it. This is equivalent to `map(f, get())` but reads more clearly:
 
+<!-- verify -->
 ```java
 // Extract just the total from the counter
 <F extends WitnessArity<TypeArity.Unary>> Kind<F, Integer>
@@ -116,6 +119,7 @@ The key insight of `MonadState` is that each step in a chain sees the state left
 
 In Java, this chain looks like:
 
+<!-- verify -->
 ```java
 <F extends WitnessArity<TypeArity.Unary>> Kind<F, Integer>
     addTwoValues(MonadState<F, Counter> state) {
@@ -135,6 +139,7 @@ Each `from` step is a monadic operation whose effect (modifying state, reading s
 
 Here is a polymorphic function that models a simple shopping cart:
 
+<!-- verify -->
 ```java
 record Cart(List<String> items, BigDecimal total) {
   Cart addItem(String item, BigDecimal price) {
@@ -249,6 +254,7 @@ This means `modify` is not a separate primitive; it is a convenience that compos
 
 `StateTMonadState<S, F>` is the standard implementation of `MonadState` for the `StateT` transformer. It extends `StateTMonad<S, F>` and adds the state-access operations:
 
+<!-- verify -->
 ```java
 StateTMonadState<Counter, IdKind.Witness> stateInstance =
     new StateTMonadState<>(idMonad);

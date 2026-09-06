@@ -26,6 +26,7 @@ That is what MTL-style capability interfaces do. They separate the declaration o
 
 Consider a function that reads a URL from configuration and fetches a user profile:
 
+<!-- verify -->
 ```java
 // Locked to ReaderT over CompletableFuture; cannot be reused with IO, Id, or VTask
 ReaderT<CompletableFutureKind.Witness, AppConfig, UserProfile>
@@ -42,6 +43,7 @@ The same problem arises with `StateT` and `WriterT`. Any function that names a s
 
 ## The Solution: Declare Capabilities, Not Stacks
 
+<!-- verify -->
 ```java
 // Works with ANY monad that provides environment access
 <F extends WitnessArity<TypeArity.Unary>> Kind<F, UserProfile>
