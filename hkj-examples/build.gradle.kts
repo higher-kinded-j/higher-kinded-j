@@ -54,6 +54,11 @@ dependencies {
     // not bring in. Versioned by the Boot BOM above.
     testImplementation("org.springframework:spring-tx")
 
+    // The Spring chapter's security section wires a UserDetailsService and a JWT converter, both of
+    // which hkj-spring declares against Spring Security (compileOnly, since the integration is
+    // optional). The gate needs them on the compile classpath to check those two snippets.
+    testImplementation(libs.bundles.spring.security)
+
     // JUnit declares apiguardian as compileOnly, so it is absent from the test runtime classpath.
     // The book gate hands that classpath to javac, and a snippet using @Test then trips
     // "unknown enum constant API.Status.STABLE" -- a warning, which the gate treats as fatal.

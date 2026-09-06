@@ -258,6 +258,15 @@ Some shapes recur across the book and are left unmarked deliberately:
   its order workflow and its offer workflow. Snippets compile independently against one shared
   fixture, so a name can mean one thing per page; the offer workflow is gated and the order
   workflow, which the page elides the lenses of in a comment anyway, is not.
+- **The exception-based version a migration page is leaving behind.**
+  `migrating_to_functional_errors.md` shows each step twice: the throwing code first, the
+  functional code after. Both halves are gated wherever they can be, because the "before" is
+  ordinary Spring; four are not, because they call a `findById` that throws where the page's own
+  service returns `Either`, or reach for `@Valid`/`BindingResult`, which the gate does not carry.
+  The functional half of every one of them is gated.
+- **The library's own auto-configuration, quoted.** `spring_boot_integration.md` shows
+  `HkjWebMvcAutoConfiguration` with its `properties` field elided. It is the same case as a quoted
+  sealed type: the real class cannot be declared beside itself.
 - **Laws written as equations.** `coyoneda.md` states the functor laws as
   `coyo.map(x -> x) == coyo`. The `==` is the law's notation, not a reference comparison, and
   rewriting it as an assertion would obscure what it says.
