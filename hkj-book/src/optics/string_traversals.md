@@ -27,6 +27,7 @@ Consider these common scenarios from enterprise Java applications:
 
 The traditional approach mixes parsing logic with transformation logic, making code difficult to test and reuse:
 
+<!-- verify -->
 ```java
 // Traditional: Mixed concerns, hard to compose
 String normaliseEmail(String email) {
@@ -75,6 +76,7 @@ Each returns a `Traversal<String, ?>` that can be composed with other optics and
 
 The `chars()` traversal breaks a string into individual characters, allowing transformations at the finest granularity.
 
+<!-- verify -->
 ```java
 import org.higherkindedj.optics.util.StringTraversals;
 import org.higherkindedj.optics.util.Traversals;
@@ -113,6 +115,7 @@ The `worded()` traversal splits by whitespace (`\s+`), focusing on each word ind
 - Leading and trailing whitespace is removed
 - Empty strings or whitespace-only strings produce no words
 
+<!-- verify -->
 ```java
 Traversal<String, String> wordTraversal = StringTraversals.worded();
 
@@ -150,6 +153,7 @@ The `lined()` traversal splits by line separators (`\n`, `\r\n`, or `\r`), treat
 - Empty strings produce no lines
 - Trailing newlines are dropped: `split` discards trailing empty segments, and the lines are rejoined with `\n`
 
+<!-- verify -->
 ```java
 Traversal<String, String> lineTraversal = StringTraversals.lined();
 
@@ -186,6 +190,7 @@ String errors = Traversals.getAll(errorLines, logContent).stream()
 
 A common requirement in enterprise systems: normalise email addresses from various sources before storage.
 
+<!-- verify -->
 ```java
 import org.higherkindedj.optics.util.StringTraversals;
 import org.higherkindedj.optics.util.Traversals;
@@ -232,6 +237,7 @@ The power emerges when combining string traversals with other optics:
 
 ### With Filtered Traversals: Pattern Matching
 
+<!-- verify -->
 ```java
 // Find and transform lines starting with a prefix
 Traversal<String, String> commentLines =
@@ -246,6 +252,7 @@ String commentsBlanked = Traversals.modify(
 
 ### With Nested Structures: Bulk Text Processing
 
+<!-- verify -->
 ```java
 @GenerateLenses
 public record Document(String title, List<String> paragraphs) {}
@@ -265,6 +272,7 @@ Document formatted = Traversals.modify(
 
 ### With Effectful Operations: Validation
 
+<!-- verify -->
 ```java
 import org.higherkindedj.hkt.optional.OptionalMonad;
 
@@ -290,6 +298,7 @@ Optional<String> validated = OptionalKindHelper.OPTIONAL.narrow(
 
 ### Log File Processing
 
+<!-- verify -->
 ```java
 // Extract ERROR lines from application logs
 Traversal<String, String> errorLines =
@@ -308,6 +317,7 @@ String timestamped = Traversals.modify(
 
 ### CSV Processing
 
+<!-- verify -->
 ```java
 // Process CSV by splitting into lines, then cells
 Traversal<String, String> rows = StringTraversals.lined();
@@ -331,6 +341,7 @@ String processedCsv = Traversals.modify(
 
 ### Configuration File Normalisation
 
+<!-- verify -->
 ```java
 // Trim all property values in .properties format
 Traversal<String, String> propertyLines = StringTraversals.lined();
@@ -360,6 +371,7 @@ String normalised = Traversals.modify(
 * **Immutable updates** - Transforming text whilst keeping data immutable
 * **Declarative intent** - Express "what" without "how" (no manual indexing)
 
+<!-- verify -->
 ```java
 // Perfect: Reusable, composable, declarative
 Traversal<Config, String> allPropertyValues =
@@ -377,6 +389,7 @@ Config trimmed = Traversals.modify(allPropertyValues, String::trim, config);
 * **No structural preservation needed** - Extracting data, not updating in place
 * **One-time operations** - Not reused across different contexts
 
+<!-- verify -->
 ```java
 // Better with streams: Complex aggregation
 long wordCount = text.lines()
@@ -391,6 +404,7 @@ long wordCount = text.lines()
 * **Search and replace** - Simple find-and-replace operations
 * **Validation** - Checking format compliance (phone numbers, postal codes)
 
+<!-- verify -->
 ```java
 // Sometimes regex is clearest
 Pattern emailPattern = Pattern.compile("[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}");
@@ -406,6 +420,7 @@ while (matcher.find()) {
 
 ### Don't Do This:
 
+<!-- verify -->
 ```java
 // Inefficient: Creating traversals in loops
 for (String paragraph : document.paragraphs()) {
@@ -419,14 +434,15 @@ String upper = Traversals.modify(chars, Character::toUpperCase, "hello");
 // Just use: "hello".toUpperCase()
 
 // Wrong expectation: Thinking it changes string length
-Traversal<String, Character> chars = StringTraversals.chars();
-String result = Traversals.modify(chars.filtered(c -> c != 'a'), c -> c, "banana");
+Traversal<String, Character> allChars = StringTraversals.chars();
+String result = Traversals.modify(allChars.filtered(c -> c != 'a'), c -> c, "banana");
 // Result: "banana" (still 6 chars, 'a' positions unchanged)
 // Filtered traversals preserve structure!
 ```
 
 ### Do This Instead:
 
+<!-- verify -->
 ```java
 // Efficient: Create traversal once, reuse
 Traversal<String, String> words = StringTraversals.worded();
@@ -455,6 +471,7 @@ String traversals are optimised for immutability:
 
 **Best Practice**: For frequently used string transformations, create traversals as constants:
 
+<!-- verify -->
 ```java
 public class TextProcessing {
     // Reusable string traversals
@@ -479,6 +496,7 @@ public class TextProcessing {
 
 Like every traversal, string traversals accept effects through `modifyF`. Validating each word and accumulating every failure:
 
+<!-- verify -->
 ```java
 import static org.higherkindedj.hkt.validated.ValidatedKindHelper.VALIDATED;
 
