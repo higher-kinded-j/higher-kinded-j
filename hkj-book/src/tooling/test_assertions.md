@@ -54,6 +54,7 @@ Every public HKJ type a user is likely to assert on has a dedicated assertion cl
 
 Each entry point follows the AssertJ convention `assertThatXxx(actual)`:
 
+<!-- verify -->
 ```java
 assertThatEither(result);
 assertThatMaybe(value);
@@ -68,6 +69,7 @@ The discriminated-union and value-bearing types share a common shape: a state pr
 
 ### `EitherAssert`
 
+<!-- verify -->
 ```java
 import static org.higherkindedj.hkt.assertions.EitherAssert.assertThatEither;
 
@@ -80,11 +82,12 @@ assertThatEither(result)
 assertThatEither(failure)
     .isLeft()
     .hasLeftSatisfying(error ->
-        assertThat(error).isInstanceOf(ValidationFailure.class));
+        assertThat(error).isInstanceOf(DomainError.ValidationFailure.class));
 ```
 
 ### `MaybeAssert` and `ValidatedAssert`
 
+<!-- verify -->
 ```java
 assertThatMaybe(lookup).isJust().hasValue("alice");
 assertThatMaybe(lookup).isNothing();
@@ -98,6 +101,7 @@ assertThatValidated(form)
 
 `Lazy` carries its own evaluation lifecycle, so the assertions track it explicitly:
 
+<!-- verify -->
 ```java
 Lazy<Integer> deferred = Lazy.defer(() -> compute());
 
@@ -110,12 +114,13 @@ assertThatLazy(failing).whenForcedThrows(IllegalStateException.class);
 
 These cover both halves of the wrapped pair:
 
+<!-- verify -->
 ```java
 assertThatWriter(writer)
     .hasValue(42)
     .hasLog("computed: ");
 
-assertThatStateTuple(result)
+assertThatStateTuple(tuple)
     .hasValue("processed")
     .hasState(5);
 ```
@@ -128,6 +133,7 @@ Effect types are lazy, so the assertions take care of running them. `IOAssert` a
 
 ### `IOAssert`
 
+<!-- verify -->
 ```java
 import static org.higherkindedj.hkt.assertions.IOAssert.assertThatIO;
 
@@ -146,6 +152,7 @@ assertThatIO(failing)
 
 ### `VTaskAssert`
 
+<!-- verify -->
 ```java
 VTask<Integer> task = VTask.delay(() -> heavyComputation());
 
@@ -160,15 +167,16 @@ assertThatVTask(task)
 
 A `VResultPath<E, A>` run has three possible outcomes, and the assertion covers all of them: a typed success (`Right`), a typed domain error (`Left`), or a defect (an exception outside the typed channel). The path is executed once and the outcome cached for the rest of the chain:
 
+<!-- verify -->
 ```java
 VResultPath<DomainError, Order> path = Path.vresultDefer(() -> service.load(orderId));
 
 assertThatVResultPath(path).isRight().hasRight(expectedOrder);
 
-assertThatVResultPath(failing)
+assertThatVResultPath(failingPath)
     .isLeft()
     .hasLeftSatisfying(error ->
-        assertThat(error).isInstanceOf(NotFound.class));
+        assertThat(error).isInstanceOf(DomainError.NotFound.class));
 
 assertThatVResultPath(defective)
     .hasDefect()
@@ -177,6 +185,7 @@ assertThatVResultPath(defective)
 
 ### `VStreamAssert`
 
+<!-- verify -->
 ```java
 VStream<Integer> stream = VStream.fromList(List.of(1, 2, 3));
 
@@ -218,6 +227,7 @@ assertThatErrorEnvelope(error.envelope())
 
 Transformer assertions take an extra argument: an `unwrapper` function that pulls the transformer's outer monad back into a plain `Optional` so the assertion can introspect it. The pattern mirrors how transformer code typically composes outer and inner monads.
 
+<!-- verify -->
 ```java
 import static org.higherkindedj.hkt.assertions.EitherTAssert.assertThatEitherT;
 import static org.higherkindedj.hkt.either_t.EitherTKindHelper.EITHER_T;
@@ -296,6 +306,7 @@ Coverage is enforced at 100% line and 100% instruction on the `hkj-test` bundle.
 
 `org.higherkindedj.optics.laws` publishes law-verification helpers for every optic family (the properties that *define* a lawful `Iso`, `Lens`, `Prism`, `Affine`, or `Traversal`) in the same flat `assert…` style as the `hkt.laws` type-class helpers:
 
+<!-- verify -->
 ``` java
 import org.higherkindedj.optics.laws.LensLaws;
 import org.higherkindedj.optics.laws.PrismLaws;

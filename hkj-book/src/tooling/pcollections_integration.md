@@ -57,6 +57,7 @@ If you also use the Java module system, add `requires org.pcollections;` to your
 Because `PVector` and `PStack` are `java.util.List` instances, the existing `ListKindHelper.LIST`
 helper widens them with no special API:
 
+<!-- verify -->
 ```java
 import static org.higherkindedj.hkt.list.ListKindHelper.LIST;
 
@@ -84,8 +85,9 @@ widen/narrow boundary is structural rather than nominal.
 instances internally, typically `Collections.singletonList` or a fresh `ArrayList`. That means a
 pipeline of the form:
 
+<!-- verify -->
 ```java
-PVector<Integer> in = TreePVector.from(...);
+PVector<Integer> in = TreePVector.from(List.of(1, 2, 3));
 Kind<ListKind.Witness, Integer> out = Instances.monadZero(list()).map(x -> x + 1, LIST.widen(in));
 List<Integer> narrowed = LIST.narrow(out); // not a PVector anymore
 ```

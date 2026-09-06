@@ -214,6 +214,11 @@ Some shapes recur in the monads chapter and are left unmarked deliberately:
 - **A stack the page invents to make a point.** `transformer_capstone.md` builds its
   three-layer `TestStack` through a `buildTestStack` helper that no module provides; it stands for
   the boundary wiring a reader would write, not for an API.
+- **Code whose only diagnostic comes from the HKJ checker.** `compile_checks.md` opens with a
+  `via` that mixes two Path types and a discarded `IOPath`. Both compile; what refuses them is the
+  checker, and the checker is a *javac plugin*, which the gate does not ask for. Turning it on is
+  worth doing - it fires correctly on both, and on a dozen other pages - but it is a change to what
+  every gated snippet must satisfy, so it belongs in its own change rather than this sweep.
 - **Laws written as equations.** `coyoneda.md` states the functor laws as
   `coyo.map(x -> x) == coyo`. The `==` is the law's notation, not a reference comparison, and
   rewriting it as an assertion would obscure what it says.
