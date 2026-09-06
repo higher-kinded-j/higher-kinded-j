@@ -228,6 +228,11 @@ Some shapes recur across the book and are left unmarked deliberately:
   chapter opens the same way, quoting `Functor`, `Applicative`, `Monad`, `Selective`,
   `Alternative`, `MonadZero`, `Bifunctor`, `Profunctor`, `Foldable`, `Traverse`, `Natural`,
   `Semigroup` or `Monoid`; the worked examples below each quotation are gated.
+- **A `static` extension method quoted as a signature.** `getters.md` quotes
+  `public static <S, A> Maybe<A> getMaybe(Getter<S, A> getter, S source)`. A signature-only
+  snippet is wrapped in an interface, where `static` demands a body, so the one shape that would
+  make a body-less method legal is the one this signature cannot take. Every worked example of
+  `getMaybe` below the quotation is gated.
 - **A `@SafeVarargs` factory quoted as a signature.** `stream_monad.md`'s creation reference
   quotes `fromArray(T... elements)`. A signature-only snippet is wrapped in an interface, where
   the annotation the real declaration carries is not legal, and without it javac raises a

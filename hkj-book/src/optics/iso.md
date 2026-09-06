@@ -63,6 +63,7 @@ Unlike Lenses and Prisms, which are often generated from annotations, Isos are a
 
 You create an `Iso` using the static `Iso.of(get, reverseGet)` constructor.
 
+<!-- verify -->
 ```java
 import org.higherkindedj.optics.Iso;
 import org.higherkindedj.hkt.tuple.Tuple;
@@ -112,6 +113,7 @@ An `Iso` provides two fundamental, lossless operations:
 
 Furthermore, every `Iso` is trivially reversible using the **`.reverse()`** method, which returns a new `Iso` with the "get" and "reverseGet" functions swapped.
 
+<!-- verify -->
 ```java
 var pointToTupleIso = Converters.pointToTuple();
 var myPoint = new Point(10, 20);
@@ -137,9 +139,11 @@ The most powerful feature of an `Iso` is its ability to act as an adapter or "gl
 
 This second rule is incredibly useful. We can compose our `Iso<Point, Tuple2>` with a `Lens` that operates on a `Tuple2` to create a brand new `Lens` that operates directly on our `Point`:
 
+<!-- verify -->
 ```java
 // A standard Lens that gets the first element of any Tuple2
-Lens<Tuple2<Integer, Integer>, Integer> tupleFirstElementLens = ...;
+Lens<Tuple2<Integer, Integer>, Integer> tupleFirstElementLens =
+    Lens.of(Tuple2::_1, (t, v) -> Tuple.of(v, t._2()));
 
 // The composition: Iso<Point, Tuple2> + Lens<Tuple2, Integer> = Lens<Point, Integer>
 Lens<Point, Integer> pointToX = pointToTupleIso.andThen(tupleFirstElementLens);
@@ -156,6 +160,7 @@ Composition with individual lenses is useful, but Isos truly come into their own
 
 The `For` comprehension's `through()` method does exactly this. It converts the currently bound value via an Iso and accumulates both the original and the converted value, so you can reason in whichever representation suits each step:
 
+<!-- verify -->
 ```java
 Iso<Integer, Double> centsToDollars =
     Iso.of(cents -> cents / 100.0, dollars -> (int) (dollars * 100));
@@ -170,6 +175,7 @@ Kind<IdKind.Witness, String> result =
 
 Both values are available in `yield()` without any manual conversion. When used with a `MonadZero` such as `Maybe` or `List`, `through()` preserves the ability to apply `when()` guards on the converted values:
 
+<!-- verify -->
 ```java
 Kind<ListKind.Witness, String> result =
     For.from(listMonad, LIST.widen(temperatures))
@@ -180,6 +186,7 @@ Kind<ListKind.Witness, String> result =
 
 Within a [ForState](../functional/forstate_comprehension.md) workflow, two additional operations let you modify or set a field through an Iso without ever touching the internal representation directly:
 
+<!-- verify -->
 ```java
 // Increase budget by 10%, reasoning in dollars, storing in cents
 ForState.withState(idMonad, Id.of(department))
@@ -209,6 +216,7 @@ For the full range of optics operations within comprehensions (including travers
 * **Library interoperability** - Adapting your types to work with external libraries
 * **Composable adapters** - Building reusable conversion components
 
+<!-- verify -->
 ```java
 // Perfect for format conversion
 Iso<LocalDate, String> dateStringIso = Iso.of(
@@ -227,6 +235,7 @@ Lens<Person, String> birthDateStringLens =
 * **Non-lossless conversion** - Information is lost in the conversion
 * **Performance critical paths** - Minimal abstraction overhead needed
 
+<!-- verify -->
 ```java
 // Simple one-way conversion
 String pointDescription = point.x() + "," + point.y();
@@ -238,6 +247,7 @@ String pointDescription = point.x() + "," + point.y();
 * **Validation required** - Conversion might fail
 * **Side effects needed** - Logging, caching, etc.
 
+<!-- verify -->
 ```java
 // Complex conversion that might fail
 public Optional<Point> parsePoint(String input) {
@@ -259,6 +269,7 @@ public Optional<Point> parsePoint(String input) {
 
 ### Do Not Do This:
 
+<!-- verify -->
 ```java
 // Lossy conversion - not a true isomorphism
 Iso<Double, Integer> lossyIso = Iso.of(
@@ -280,6 +291,7 @@ var iso3 = Iso.of(Point::x, x -> new Point(x, 0));
 
 ### Do This Instead:
 
+<!-- verify -->
 ```java
 // True isomorphism - perfect round-trip
 Iso<Point, String> goodPointIso = Iso.of(
