@@ -436,9 +436,18 @@ final class SnippetExtractor {
       List<String> signatures) {
     List<String> lines = List.of(source.split("\n", -1));
     int i = 0;
+    // How deep the statement being accumulated is. A page routinely writes an anonymous class
+    // inside a statement, and its members look exactly like top-level ones; hoisting them out of
+    // the statement leaves an empty `new Functor<>() {}` behind. So while a loose statement is
+    // still open, every line belongs to it.
+    int open = 0;
     while (i < lines.size()) {
       String line = lines.get(i);
-      if (IMPORT.matcher(line).matches()) {
+      if (open > 0) {
+        loose.add("    " + line + "\n");
+        open = Math.max(0, open + netBraces(line));
+        i++;
+      } else if (IMPORT.matcher(line).matches()) {
         imports.add(line.strip());
         i++;
       } else if (ANNOTATION.matcher(line).matches()) {
@@ -505,9 +514,17 @@ final class SnippetExtractor {
         i++;
       } else {
         loose.add("    " + line + "\n");
+        open = Math.max(0, netBraces(line));
         i++;
       }
     }
+  }
+
+  /** How many braces a line opens, net of the ones it closes, ignoring literals and comments. */
+  private static int netBraces(String line) {
+    String code = stripLiterals(line);
+    return (int) code.chars().filter(c -> c == '{').count()
+        - (int) code.chars().filter(c -> c == '}').count();
   }
 
   /**

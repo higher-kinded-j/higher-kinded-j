@@ -61,7 +61,7 @@ class BookSnippetVerificationTest {
    * copy of it, so those snippets no longer need a marker. That is the only reason this number may
    * fall.
    */
-  private static final int MINIMUM_VERIFIED_SNIPPETS = 592;
+  private static final int MINIMUM_VERIFIED_SNIPPETS = 600;
 
   /**
    * How many of those snippets must quote a diagnostic, under {@code verify:rejects} or {@code
