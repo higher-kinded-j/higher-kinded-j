@@ -30,7 +30,10 @@ a fundamental challenge in pull-based streaming.
 `VStream.bracket(acquire, use, release)` solves this by tying resource lifecycle to stream
 lifecycle:
 
+<!-- verify -->
 ```java
+import java.nio.file.Path;
+
 Path path = Path.of("data.txt"); // the file to stream
 
 VStream<String> lines = VStream.bracket(
@@ -46,8 +49,12 @@ VStream<String> lines = VStream.bracket(
                 : Optional.of(new Seed<>(line, r));
         })),
 
-    // Release: close the resource (guaranteed)
-    reader -> VTask.exec(() -> reader.close())
+    // Release: close the resource (guaranteed). `close()` is checked, so this is
+    // VTask.of rather than VTask.exec, whose Runnable cannot throw.
+    reader -> VTask.of(() -> {
+        reader.close();
+        return Unit.INSTANCE;
+    })
 );
 ```
 
@@ -69,6 +76,7 @@ Three key properties make this safe:
 One of the most important properties of `bracket` is that partial consumption still triggers
 release:
 
+<!-- verify -->
 ```java
 // Only read first 10 lines, then close the file
 List<String> firstTen = lines.take(10).toList().run();
@@ -83,6 +91,7 @@ elements, and `Done` triggers the release.
 Multiple bracket regions can be nested via composition. Inner resources are released before
 outer resources:
 
+<!-- verify -->
 ```java
 // Assuming: Connection openConnection(), Cursor openCursor(Connection),
 //           VStream<String> streamFromCursor(Cursor)
@@ -103,6 +112,7 @@ VStream<String> pipeline = VStream.bracket(
 For cases where you do not need a full acquire-use-release cycle, `onFinalize` attaches a
 cleanup action to any existing stream:
 
+<!-- verify -->
 ```java
 VStream<String> stream = VStream.of("a", "b", "c")
     .onFinalize(VTask.exec(() -> System.out.println("Stream completed")));
@@ -111,6 +121,7 @@ VStream<String> stream = VStream.of("a", "b", "c")
 The finaliser runs when the stream completes or encounters an error. Multiple finalisers
 can be chained; they execute in the order they were attached:
 
+<!-- verify -->
 ```java
 VStream<Integer> stream = VStream.of(1, 2, 3)
     .onFinalize(VTask.exec(() -> System.out.println("first finaliser")))
@@ -122,6 +133,7 @@ VStream<Integer> stream = VStream.of(1, 2, 3)
 If the finaliser itself throws an exception and the stream also failed, the original error
 is preserved and the finaliser error is added as a suppressed exception:
 
+<!-- verify -->
 ```java
 // Original error preserved; finaliser error becomes suppressed
 try {
@@ -136,13 +148,19 @@ try {
 
 The Path API provides fluent access to resource management:
 
+<!-- verify -->
 ```java
+import org.higherkindedj.hkt.effect.Path;
+
 // Assuming: BufferedReader openReader(), VStream<String> streamLines(BufferedReader)
 // bracket via Path factory
 VStreamPath<String> lines = Path.vstreamBracket(
     VTask.of(() -> openReader()),
     reader -> streamLines(reader),
-    reader -> VTask.exec(() -> reader.close())
+    reader -> VTask.of(() -> {
+        reader.close();
+        return Unit.INSTANCE;
+    })
 );
 
 // onFinalize on existing path

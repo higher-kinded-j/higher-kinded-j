@@ -32,6 +32,7 @@ protocols, scheduler configuration, and error handling that is easy to get wrong
 - Preserve input order (or emit in completion order for maximum throughput)
 - Fail fast if any element's computation fails, cancelling remaining tasks
 
+<!-- verify -->
 ```java
 VStream<String> userIds = VStream.fromList(List.of("u1", "u2", "u3", "u4"));
 
@@ -87,6 +88,7 @@ bounded concurrency, preserving input order.
   ... repeats until source is exhausted, then Done.
 ```
 
+<!-- verify -->
 ```java
 VStream<Integer> doubled = VStreamPar.parEvalMap(
     numbers, 8,
@@ -115,6 +117,7 @@ ones:
   (input order - 120ms to first result)
 ```
 
+<!-- verify -->
 ```java
 VStream<Integer> processed = VStreamPar.parEvalMapUnordered(
     numbers, 8,
@@ -130,6 +133,7 @@ Applies a stream-producing function to each element with bounded concurrency. Up
 sub-streams are then concatenated lazily via `flatMap`; sub-stream contents are never
 materialised into intermediate lists:
 
+<!-- verify -->
 ```java
 VStream<Order> orders = VStreamPar.parEvalFlatMap(
     customerIds, 4,
@@ -144,6 +148,7 @@ virtual thread within a `StructuredTaskScope`. Elements are pushed to a shared q
 as they are produced, so the first element is available as soon as any source produces
 one, without waiting for all sources to finish:
 
+<!-- verify -->
 ```java
 VStream<Event> allEvents = VStreamPar.merge(List.of(
     fetchEventsFromServiceA(),
@@ -159,6 +164,7 @@ Terminal operation that collects all elements using parallel batch processing.
 Delegates to `parEvalMap` with an identity function, pulling elements in batches of
 `batchSize` that are processed concurrently:
 
+<!-- verify -->
 ```java
 VTask<List<Integer>> result = VStreamPar.parCollect(stream, 10);
 List<Integer> collected = result.run();
@@ -175,6 +181,7 @@ inserts or batch API calls.
 
 Groups elements into lists of at most `size` elements. The last chunk may have fewer:
 
+<!-- verify -->
 ```java
 VStream<List<Integer>> chunks = VStream.range(1, 11).chunk(3);
 // [[1,2,3], [4,5,6], [7,8,9], [10]]
@@ -185,6 +192,7 @@ VStream<List<Integer>> chunks = VStream.range(1, 11).chunk(3);
 Groups consecutive elements while a predicate holds between adjacent pairs. Useful for
 grouping sorted data:
 
+<!-- verify -->
 ```java
 VStream<List<Integer>> groups = VStream.of(1, 1, 2, 2, 2, 3)
     .chunkWhile(Integer::equals);
@@ -195,8 +203,9 @@ VStream<List<Integer>> groups = VStream.of(1, 1, 2, 2, 2, 3)
 
 Combines chunking, batch transformation, and flattening into a single operation:
 
+<!-- verify -->
 ```java
-VStream<String> results = recordStream.mapChunked(100, batch -> {
+VStream<InsertResult> results = recordStream.mapChunked(100, batch -> {
     return db.batchInsert(batch); // Process 100 records at a time
 });
 ```
@@ -226,8 +235,10 @@ bulk I/O operations:
                        └─────────────────┘          next 4 pulled when done
 ```
 
+<!-- verify -->
 ```java
-VStream<InsertResult> results = VStreamPar.parEvalMap(
+// One element per batch, each holding that batch's results
+VStream<List<InsertResult>> results = VStreamPar.parEvalMap(
     recordStream.chunk(100), // Group into batches of 100
     4,                       // Process 4 batches concurrently
     batch -> VTask.of(() -> db.batchInsert(batch))
@@ -239,6 +250,7 @@ VStream<InsertResult> results = VStreamPar.parEvalMap(
 Different pipeline stages can use different concurrency limits to match their
 throughput characteristics:
 
+<!-- verify -->
 ```java
 VStreamPath<UploadResult> pipeline =
     Path.vstream(imageUrls)
@@ -315,6 +327,7 @@ All parallel operations use **fail-fast** semantics:
 - Other in-flight tasks are cancelled via `StructuredTaskScope`
 - The original error is preserved and propagated
 
+<!-- verify -->
 ```java
 VStream<Integer> result = VStreamPar.parEvalMap(
     stream, 4,
