@@ -192,16 +192,21 @@ One in the effect chapter still is: `effect_handlers.md`'s `boundSet()` snippet 
 class the reader writes for their own composition, and the page has none of its own to call. The
 algebras and the generated support around it are gated; that one line is not.
 
-Two shapes recur in the monads chapter and are left unmarked deliberately:
+Some shapes recur in the monads chapter and are left unmarked deliberately:
 
 - **The Foundations one-liner.** `repo.find(id).toEitherPath().focus().attributes().at(key)...`
   appears on about fifteen pages as the book's running motif. `.focus()` takes an optic and there
   is no `at(key)` for a map (that is `FocusPaths.mapAt`), so it is a mnemonic for the layers, not
   code. Correcting it is an editorial decision about the motif, not a sweep.
-- **Declarations of the library's own sealed types.** `Maybe`, `Either` and friends are quoted
-  with `{ ... }` bodies to show their shape. A sealed type that permits the library's own classes
-  cannot be declared beside them, and the page needs the real type in every other fence, so it
-  cannot shadow it either.
+- **Declarations of the library's own types.** `Maybe`, `Either`, `EitherF`, `Inject` and `Const`
+  are quoted with `{ ... }` bodies, or with their methods left body-less, to show their shape. A
+  sealed type that permits the library's own classes cannot be declared beside them, and the page
+  needs the real type in every other fence, so it cannot shadow it either. `trampoline_monad.md`
+  quotes the shape a blog post published, which is the same case.
+- **Aliases a page invents for a type Java cannot abbreviate.** `eitherf.md` writes
+  `Free<Composed, RiskScore>`, where `Composed` stands for a four-deep `EitherF` nesting, and
+  `Free.translate(program, inject::inject, functorG)` over free `G` and `A`. Both are there to
+  show a shape; the gated fence beside each shows the same call with `var`.
 
 Prefer fixing a snippet over excluding it. Three blocks looked like prose at first and turned out to
 be worth rescuing: a pseudo-code placeholder (`EmailAddress addr = /* a valid domain value */;`), two
