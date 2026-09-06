@@ -6,6 +6,7 @@ The `For` builder composes naturally with [MTL capability interfaces](../transfo
 
 ### Reading Configuration with MonadReader
 
+<!-- verify -->
 ```java
 <F extends WitnessArity<TypeArity.Unary>> Kind<F, String>
     buildConnectionString(MonadReader<F, AppConfig> env) {
@@ -18,6 +19,7 @@ The function declares a capability (`MonadReader`) rather than a concrete type. 
 
 ### Threading State with MonadState
 
+<!-- verify -->
 ```java
 <F extends WitnessArity<TypeArity.Unary>> Kind<F, Integer>
     addTwoValues(MonadState<F, Counter> state) {
@@ -32,6 +34,7 @@ Each `from()` step sees the state left by the previous step. The `For` comprehen
 
 ### Accumulating Output with MonadWriter
 
+<!-- verify -->
 ```java
 <F extends WitnessArity<TypeArity.Unary>> Kind<F, String>
     auditedProcess(MonadWriter<F, List<String>> audit, String item) {
@@ -55,6 +58,7 @@ Each `tell()` appends to the accumulated output. The entries combine via the `Mo
 
 When a workflow starts with a few monadic steps (fetching data, computing values) and then needs to thread named state through a series of updates, `toState()` lets you transition seamlessly from `For` into `ForState` mid-comprehension. The accumulated values become the constructor arguments for your state record, and from that point on you work with named fields and lenses instead of tuple positions.
 
+<!-- verify -->
 ```java
 record Dashboard(String user, int count, boolean ready) {}
 
@@ -88,6 +92,7 @@ The `toState()` method is available at every arity (1 through 12) in both **spre
 
 When the comprehension uses a `MonadZero` (like `Maybe` or `List`), the returned builder is a `ForState.FilterableSteps`, preserving access to `when()` and `matchThen()` guards:
 
+<!-- verify -->
 ```java
 Kind<MaybeKind.Witness, Dashboard> result =
     For.from(maybeMonad, MAYBE.just("Alice"))

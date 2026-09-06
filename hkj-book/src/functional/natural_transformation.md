@@ -73,6 +73,7 @@ Three things to notice:
 
 ### `Maybe ~> List`
 
+<!-- verify -->
 ```java
 import static org.higherkindedj.hkt.maybe.MaybeKindHelper.MAYBE;
 import static org.higherkindedj.hkt.list.ListKindHelper.LIST;
@@ -81,9 +82,7 @@ Natural<MaybeKind.Witness, ListKind.Witness> maybeToList = new Natural<>() {
     @Override
     public <A> Kind<ListKind.Witness, A> apply(Kind<MaybeKind.Witness, A> fa) {
         Maybe<A> maybe = MAYBE.narrow(fa);
-        List<A> list = maybe.fold(
-            () -> List.of(),
-            value -> List.of(value));
+        List<A> list = maybe.isJust() ? List.of(maybe.get()) : List.of();
         return LIST.widen(list);
     }
 };
@@ -95,6 +94,7 @@ Kind<ListKind.Witness, String>  asList  = maybeToList.apply(hello);
 
 ### `Either ~> Maybe` (discarding the error)
 
+<!-- verify -->
 ```java
 Natural<EitherKind.Witness<String>, MaybeKind.Witness> eitherToMaybe = new Natural<>() {
     @Override
@@ -108,6 +108,7 @@ Natural<EitherKind.Witness<String>, MaybeKind.Witness> eitherToMaybe = new Natur
 
 ### `List ~> Maybe` (head)
 
+<!-- verify -->
 ```java
 Natural<ListKind.Witness, MaybeKind.Witness> listHead = new Natural<>() {
     @Override
@@ -185,6 +186,7 @@ These laws are the same laws categories obey. We do not need the category-theory
 
 The most common use is interpreting Free monads. A Free program is built from an instruction set `F`. To run it, we provide a natural transformation `F ~> M`, where `M` is the target effect (often `IO`).
 
+<!-- verify -->
 ```java
 sealed interface ConsoleOp<A> {
     record PrintLine(String text) implements ConsoleOp<Unit> {}
@@ -193,6 +195,7 @@ sealed interface ConsoleOp<A> {
 
 Natural<ConsoleOpKind.Witness, IOKind.Witness> interpreter = new Natural<>() {
     @Override
+    @SuppressWarnings("unchecked")   // the operation fixes A; the switch cannot say so
     public <A> Kind<IOKind.Witness, A> apply(Kind<ConsoleOpKind.Witness, A> fa) {
         ConsoleOp<A> op = CONSOLE_OP.narrow(fa);
         return switch (op) {
@@ -205,7 +208,7 @@ Natural<ConsoleOpKind.Witness, IOKind.Witness> interpreter = new Natural<>() {
     }
 };
 
-Free<ConsoleOpKind.Witness, String> program = ...;
+// program is a Free<ConsoleOpKind.Witness, String>
 Kind<IOKind.Witness, String> executable = program.foldMap(interpreter, ioMonad);
 ```
 
