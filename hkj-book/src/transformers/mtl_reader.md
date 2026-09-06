@@ -43,6 +43,7 @@ The interface provides four operations:
 
 `ask()` is the simplest operation: it returns the entire environment as a value inside the monad. If your environment is an `AppConfig` record, `ask()` gives you the whole `AppConfig`.
 
+<!-- verify -->
 ```java
 record AppConfig(String dbUrl, int maxRetries, boolean debugMode) {}
 
@@ -56,6 +57,7 @@ record AppConfig(String dbUrl, int maxRetries, boolean debugMode) {}
 
 Usually you don't need the whole environment; you need one field from it. `reader(f)` applies a function to the environment and returns the result. It is equivalent to `map(f, ask())`, but reads more clearly:
 
+<!-- verify -->
 ```java
 <F extends WitnessArity<TypeArity.Unary>> Kind<F, String>
     connectionString(MonadReader<F, AppConfig> env) {
@@ -72,6 +74,7 @@ Usually you don't need the whole environment; you need one field from it. `reade
 
 This is useful when a sub-system needs slightly different configuration. For example, you might force debug mode on for a diagnostic sub-query while the rest of the pipeline runs in production mode:
 
+<!-- verify -->
 ```java
 <F extends WitnessArity<TypeArity.Unary>> Kind<F, String>
     debugQuery(MonadReader<F, AppConfig> env) {
@@ -105,6 +108,7 @@ The original `AppConfig` is not affected. After `local` completes, subsequent op
 
 Here is a polymorphic function that builds a database connection string from configuration, with an optional debug suffix:
 
+<!-- verify -->
 ```java
 record AppConfig(String dbUrl, int maxRetries, boolean debugMode) {}
 
@@ -214,6 +218,7 @@ This is the "do nothing" baseline. If `local` with identity changed behaviour, s
 
 `ReaderTMonadReader<F, R>` is the standard implementation of `MonadReader` for the `ReaderT` transformer. It extends `ReaderTMonad<F, R>` (inheriting `of`, `map`, `flatMap`, `ap`) and adds the environment-access operations:
 
+<!-- verify -->
 ```java
 ReaderTMonadReader<IdKind.Witness, AppConfig> readerInstance =
     new ReaderTMonadReader<>(idMonad);
