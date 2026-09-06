@@ -25,6 +25,7 @@ This is where **Core Type Integration** comes in.
 Consider a typical scenario: updating a user profile where some fields are optional, validation might fail, and the database operation might throw an exception.
 
 ~~~admonish failure title="The Traditional Approach"
+<!-- verify -->
 ```java
 public User updateUserProfile(User user, String newEmail) {
     // Null checking
@@ -54,6 +55,7 @@ This code is a mess of concerns: null handling, validation logic, exception mana
 ~~~
 
 ~~~admonish success title="The Functional Approach"
+<!-- verify -->
 ```java
 public Either<String, User> updateUserProfile(User user, String newEmail) {
     Lens<User, Profile> profileLens = UserLenses.profile();
@@ -95,6 +97,7 @@ Higher-Kinded-J provides two integrated solutions for working with core types an
 
 Extract values from `Maybe`, `Either`, `Validated`, and `Try` using prisms, just as you would with sealed interfaces.
 
+<!-- verify -->
 ```java
 Prism<Maybe<User>, User> justPrism = Prisms.just();
 Prism<Try<Order>, Order> successPrism = Prisms.success();
@@ -112,6 +115,7 @@ Optional<Order> order = successPrism.getOptional(tryOrder);
 
 Augment lenses and traversals with built-in null safety, validation, and exception handling.
 
+<!-- verify -->
 ```java
 Lens<User, String> emailLens = UserLenses.email();
 
@@ -121,7 +125,9 @@ Maybe<String> email = getMaybe(emailLens, user);
 // Validated modification
 Either<String, User> updated = modifyEither(
     emailLens,
-    email -> validateEmail(email),
+    address -> address.contains("@")
+        ? Either.right(address.toLowerCase())
+        : Either.left("Invalid email format"),
     user
 );
 
@@ -145,9 +151,10 @@ Prisms focus on **one case** of a sum type. They're perfect for safely extractin
 
 ### Maybe Prisms
 
+<!-- verify -->
 ```java
 // Extract value from Just, returns empty Optional for Nothing
-Prism<Maybe<A>, A> justPrism = Prisms.just();
+Prism<Maybe<String>, String> justPrism = Prisms.just();
 
 Maybe<String> present = Maybe.just("Hello");
 Maybe<String> absent = Maybe.nothing();
@@ -164,10 +171,11 @@ boolean isJust = justPrism.matches(present);  // true
 
 ### Either Prisms
 
+<!-- verify -->
 ```java
 // Extract from Left and Right cases
-Prism<Either<L, R>, L> leftPrism = Prisms.left();
-Prism<Either<L, R>, R> rightPrism = Prisms.right();
+Prism<Either<String, Integer>, String> leftPrism = Prisms.left();
+Prism<Either<String, Integer>, Integer> rightPrism = Prisms.right();
 
 Either<String, Integer> success = Either.right(42);
 Either<String, Integer> failure = Either.left("Error");
@@ -185,10 +193,11 @@ Either<String, Integer> newSuccess = rightPrism.build(100);  // Either.right(100
 
 ### Validated Prisms
 
+<!-- verify -->
 ```java
 // Extract from Valid and Invalid cases
-Prism<Validated<E, A>, A> validPrism = Prisms.valid();
-Prism<Validated<E, A>, E> invalidPrism = Prisms.invalid();
+Prism<Validated<String, Integer>, Integer> validPrism = Prisms.valid();
+Prism<Validated<String, Integer>, String> invalidPrism = Prisms.invalid();
 
 Validated<String, Integer> valid = Validated.valid(30);
 Validated<String, Integer> invalid = Validated.invalid("Age must be positive");
@@ -202,10 +211,11 @@ Optional<String> error = invalidPrism.getOptional(invalid);  // Optional["Age mu
 
 ### Try Prisms
 
+<!-- verify -->
 ```java
 // Extract from Success and Failure cases
-Prism<Try<A>, A> successPrism = Prisms.success();
-Prism<Try<A>, Throwable> failurePrism = Prisms.failure();
+Prism<Try<Integer>, Integer> successPrism = Prisms.success();
+Prism<Try<Integer>, Throwable> failurePrism = Prisms.failure();
 
 Try<Integer> success = Try.success(42);
 Try<Integer> failure = Try.failure(new RuntimeException("Database error"));
@@ -225,6 +235,7 @@ Whilst prisms *extract* values, traversals *modify* values inside core types:
 
 ### Maybe Traversals
 
+<!-- verify -->
 ```java
 import org.higherkindedj.optics.util.MaybeTraversals;
 
@@ -243,6 +254,7 @@ Maybe<String> unchanged = Traversals.modify(justTraversal, String::toUpperCase, 
 
 ### Either Traversals
 
+<!-- verify -->
 ```java
 import org.higherkindedj.optics.util.EitherTraversals;
 
@@ -274,6 +286,7 @@ The `EitherTraversals.left()` traversal is excellent for adding context to error
 
 Prisms compose seamlessly with lenses and other optics to navigate deeply nested structures:
 
+<!-- verify -->
 ```java
 @GenerateLenses
 record ApiResponse(int statusCode, Maybe<Order> data, List<String> warnings) {}
@@ -305,6 +318,7 @@ List<String> emails = Traversals.getAll(emailPath, response);
 
 Prisms excel at filtering and extracting from collections:
 
+<!-- verify -->
 ```java
 List<Try<User>> dbResults = loadUsersFromDatabase(userIds);
 
@@ -381,6 +395,7 @@ You can always switch to `Validated` for error accumulation or `Try` for excepti
 ~~~admonish warning title="Prisms Return Optional"
 Remember that `prism.getOptional()` returns Java's `Optional`, not `Maybe`:
 
+<!-- verify -->
 ```java
 Prism<Maybe<String>, String> justPrism = Prisms.just();
 Maybe<String> maybeValue = Maybe.just("Hello");
