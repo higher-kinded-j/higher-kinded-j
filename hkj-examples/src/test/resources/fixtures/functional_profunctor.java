@@ -9,6 +9,7 @@
 import static org.higherkindedj.hkt.func.FunctionKindHelper.FUNCTION;
 
 import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
 import java.util.function.Function;
 import org.higherkindedj.hkt.Kind2;
 import org.higherkindedj.hkt.func.FunctionKind;
@@ -25,4 +26,10 @@ record ApiResponse<T>(T body, String status, int code) {}
 class Fixture {
 
   static final FunctionProfunctor profunctor = FunctionProfunctor.INSTANCE;
+
+  static final Function<String, User> csvParser =
+      csv -> new User("Alice", "alice@example.com", LocalDate.of(1990, 1, 1));
+
+  static final Function<UserDto, String> dtoToJson =
+      dto -> "{name:" + dto.fullName() + "}";
 }

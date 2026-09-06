@@ -35,6 +35,7 @@ Kind<MaybeKind.Witness, String> result =
 
 When a prior value is needed before branching, use the instance `par()` method on `Steps1`. This performs a sequential `flatMap` to obtain the first value, then fans out the branches with `map2`/`map3`:
 
+<!-- verify -->
 ```java
 Kind<IdKind.Witness, String> result =
     For.from(idMonad, Id.of("Alice"))
@@ -49,6 +50,7 @@ Kind<IdKind.Witness, String> result =
 
 The result of `par()` is a regular step, so you can chain `.from()`, `.let()`, `.when()`, or another `.par()` after it:
 
+<!-- verify -->
 ```java
 Kind<IdKind.Witness, String> result =
     For.par(idMonad, Id.of("Alice"), Id.of(5))

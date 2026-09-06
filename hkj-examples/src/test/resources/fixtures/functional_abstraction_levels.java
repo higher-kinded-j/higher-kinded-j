@@ -13,6 +13,7 @@ import static org.higherkindedj.hkt.maybe.MaybeKindHelper.MAYBE;
 import static org.higherkindedj.hkt.validated.ValidatedKindHelper.VALIDATED;
 
 import java.util.List;
+import java.util.Set;
 import java.util.function.Function;
 import org.higherkindedj.hkt.Applicative;
 import org.higherkindedj.hkt.Kind;
@@ -24,6 +25,7 @@ import org.higherkindedj.hkt.Unit;
 import org.higherkindedj.hkt.WitnessArity;
 import org.higherkindedj.hkt.free_ap.FreeAp;
 import org.higherkindedj.hkt.free_ap.FreeApAnalyzer;
+import org.higherkindedj.hkt.free_ap.SelectiveAnalyzer;
 import org.higherkindedj.hkt.instances.Instances;
 import org.higherkindedj.hkt.io.IO;
 import org.higherkindedj.hkt.io.IOKind;
@@ -119,6 +121,8 @@ class Fixture {
   static FreeAp<DbOpKind.Witness, Dashboard> buildDashboard(String userId) {
     return fetchUser(userId).map2(fetchPosts(userId), Dashboard::new);
   }
+
+  static final FreeAp<DbOpKind.Witness, Dashboard> program = buildDashboard("u-1");
 
   static Kind<MaybeKind.Witness, User> getUser(String userId) {
     return MAYBE.just(new User("u-1", "ADMIN", true));

@@ -173,6 +173,7 @@ System.out.println(validator.apply("-10"));   // "✗ Not a positive number"
 
 Chain multiple adaptations to build complex data processing pipelines:
 
+<!-- verify -->
 ```java
 // Core transformation: User -> UserDto  
 Function<User, UserDto> userToDto = userLogin ->

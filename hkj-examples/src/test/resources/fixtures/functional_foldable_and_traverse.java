@@ -21,6 +21,7 @@ import org.higherkindedj.hkt.Monoids;
 import org.higherkindedj.hkt.Semigroups;
 import org.higherkindedj.hkt.Traverse;
 import org.higherkindedj.hkt.Unit;
+import org.higherkindedj.hkt.effect.ListPath;
 import org.higherkindedj.hkt.expression.For;
 import org.higherkindedj.hkt.instances.Instances;
 import org.higherkindedj.hkt.list.ListKind;

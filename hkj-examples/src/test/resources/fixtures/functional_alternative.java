@@ -19,6 +19,7 @@ import org.higherkindedj.hkt.TypeArity;
 import org.higherkindedj.hkt.Unit;
 import org.higherkindedj.hkt.WitnessArity;
 import org.higherkindedj.hkt.instances.Instances;
+import java.util.Arrays;
 import org.higherkindedj.hkt.list.ListKind;
 import org.higherkindedj.hkt.maybe.Maybe;
 import org.higherkindedj.hkt.maybe.MaybeKind;

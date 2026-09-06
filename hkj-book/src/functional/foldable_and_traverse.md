@@ -167,6 +167,7 @@ For.from(maybeMonad, MAYBE.just(LIST.widen(List.of(1, 2, 3))))
 
 The collection-style Effect Paths expose this fold directly as a terminal operation: `ListPath` and `StreamPath` both provide `fold(identity, op)` for a same-type reduction and `foldMap(monoid, fn)` for the `Monoid`-driven summary, keeping the reduction inside the path chain instead of unwrapping the collection first.
 
+<!-- verify -->
 ```java
 String joined = ListPath.of(1, 2, 3).foldMap(Monoids.string(), i -> i + ",");
 // "1,2,3,"
