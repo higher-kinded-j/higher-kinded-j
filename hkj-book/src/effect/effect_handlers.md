@@ -47,6 +47,7 @@ Each record carries a `Function` that transforms the operation's result, just li
 See the [terminology bridge](effect_handlers_intro.md#terminology-bridge-fp-concepts-in-java-terms) for more.
 ~~~
 
+<!-- verify -->
 ```java
 @EffectAlgebra
 public sealed interface ConsoleOp<A>
@@ -91,6 +92,7 @@ The `@EffectAlgebra` processor generates:
 For programs using multiple effects, `@ComposeEffects` generates composition infrastructure —
 inject instances, a composed functor, and a `BoundSet`:
 
+<!-- verify -->
 ```java
 @ComposeEffects
 public record AppEffects(
@@ -101,11 +103,11 @@ public record AppEffects(
 Each field must be a `Class<XOp<?>>` naming an `@EffectAlgebra`. That is what lets the generated
 `AppEffectsSupport` spell the composed witness, so its factories carry it:
 
+<!-- verify -->
 ```java
-public static Inject<
-        ConsoleOpKind.Witness,
+Inject<ConsoleOpKind.Witness,
         EitherFKind.Witness<ConsoleOpKind.Witness, DbOpKind.Witness>>
-    injectConsole() { ... }
+    injectConsole = AppEffectsSupport.injectConsole();
 ```
 
 The composition fixes the witness, so `BoundSet` takes no type parameter and each of its
@@ -132,22 +134,35 @@ Each interpreter is a *natural transformation*: a function that converts DSL ins
 actions in a target monad. Interpreters extend the generated abstract skeleton and apply the
 operation's continuation `op.k()` to the computed result:
 
+<!-- verify -->
 ```java
 public class IOConsoleInterpreter extends ConsoleOpInterpreter<IOKind.Witness> {
+  private final Scanner scanner = new Scanner(System.in);
+
   @Override
   protected <A> Kind<IOKind.Witness, A> handleReadLine(ConsoleOp.ReadLine<A> op) {
     return IOKindHelper.IO_OP.widen(
         IO.delay(() -> op.k().apply(scanner.nextLine())));
+  }
+
+  @Override
+  protected <A> Kind<IOKind.Witness, A> handlePrintLine(ConsoleOp.PrintLine<A> op) {
+    return IOKindHelper.IO_OP.widen(
+        IO.delay(() -> {
+          System.out.println(op.message());
+          return op.k().apply(Unit.INSTANCE);
+        }));
   }
 }
 ```
 
 Interpreters are combined and used with `foldMap`:
 
+<!-- verify -->
 ```java
 var interpreter = Interpreters.combine(consoleInterp, dbInterp);
 IO<String> result = IOKindHelper.IO_OP.narrow(
-    program.foldMap(interpreter, Instances.monad(io())));
+    program.foldMap(consoleInterp, Instances.monad(io())));
 ```
 
 ~~~admonish warning title="Monad Transformer Limitation"
@@ -162,8 +177,9 @@ chapter for details and workarounds.
 
 `Free.HandleError` wraps sub-programs with recovery strategies:
 
+<!-- verify -->
 ```java
-Free<G, A> safe = riskyOperation
+Free<ConsoleOpKind.Witness, String> safe = riskyOperation
     .handleError(Throwable.class, e -> Free.pure(defaultValue));
 ```
 
@@ -179,6 +195,7 @@ When testing with an `Id` interpreter (which is not a `MonadError`), error recov
 
 `ProgramAnalyser` traverses the program tree without executing it:
 
+<!-- verify -->
 ```java
 ProgramAnalysis analysis = ProgramAnalyser.analyse(program);
 
