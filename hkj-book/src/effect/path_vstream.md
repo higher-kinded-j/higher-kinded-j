@@ -248,6 +248,7 @@ VTaskPath<Boolean> hasEven = stream.exists(n -> n % 2 == 0);
 
 Because terminal operations return VTaskPath, you can chain further:
 
+<!-- verify -->
 ```java
 String summary = Path.vstreamRange(1, 1001)
     .filter(n -> n % 7 == 0)
@@ -269,15 +270,12 @@ optics. This bridges the streaming and optics worlds.
 
 Extract a field from every element using a lens:
 
+<!-- verify -->
 ```java
-record User(String name, int age) {}
-
-FocusPath<User, String> nameLens = ...;
-
 VStreamPath<String> names = Path.vstreamOf(
-    new User("Alice", 30),
-    new User("Bob", 25)
-).focus(nameLens);
+    new User("Alice", 30, "alice@example.test", true),
+    new User("Bob", 25, "bob@example.test", true)
+).focus(userNameLens);
 // ["Alice", "Bob"]
 ```
 
@@ -286,16 +284,21 @@ VStreamPath<String> names = Path.vstreamOf(
 Extract a field that may not exist. Elements where the affine does not match are
 silently excluded from the stream:
 
+<!-- verify -->
 ```java
-AffinePath<Object, String> stringPrism = ...;
+AffinePath<Object, String> stringPrism =
+    AffinePath.of(Affine.of(
+        o -> o instanceof String s ? Optional.of(s) : Optional.empty(),
+        (o, s) -> s));
 
-VStreamPath<String> strings = Path.vstreamOf("hello", 42, "world")
+VStreamPath<String> strings = Path.<Object>vstreamOf("hello", 42, "world")
     .focus(stringPrism);
 // ["hello", "world"]  (42 is excluded)
 ```
 
 ### Composing Focus with Stream Operations
 
+<!-- verify -->
 ```java
 VStreamPath<String> activeUserNames = Path.vstream(userStream)
     .filter(user -> user.isActive())
@@ -312,6 +315,7 @@ VStreamPath can be converted to other path types. Conversions that produce a
 single value return a VTaskPath. Conversions that produce a collection materialise
 the stream.
 
+<!-- verify -->
 ```java
 VStreamPath<Integer> stream = Path.vstreamOf(1, 2, 3);
 
@@ -338,8 +342,8 @@ For infinite streams, bound the stream with `take()` or `takeWhile()` first.
 VStreamPath can be created from an `Each` traversal, turning any traversable
 structure into a lazy stream of its elements:
 
+<!-- verify -->
 ```java
-Each<List<String>, String> listEach = ...;
 List<String> data = List.of("alpha", "beta", "gamma");
 
 VStreamPath<String> elements = VStreamPath.fromEach(data, listEach);
@@ -379,11 +383,12 @@ VStreamPath<String> elements = VStreamPath.fromEach(data, listEach);
 
 ## Real-World Example
 
+<!-- verify -->
 ```java
 // Paginated API with fluent composition, focus, and terminal bridging
 VStreamPath<String> userEmails = Path.vstreamUnfold(1, page ->
         VTask.of(() -> {
-            Page<User> result = userService.listUsers(page);
+            UserPage result = userService.listUsers(page);
             if (result.isEmpty()) return Optional.empty();
             return Optional.of(new VStream.Seed<>(result, page + 1));
         }))
