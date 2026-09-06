@@ -179,9 +179,8 @@ BigInteger result = fibonacci(10000).run();
 
 `TrampolinePath` integrates with other Path types:
 
+<!-- verify -->
 ```java
-TrampolinePath<Integer> computation = /* ... */;
-
 // Convert to IOPath for deferred execution
 IOPath<Integer> io = computation.toIOPath();
 
@@ -223,18 +222,24 @@ use `via` to sequence operations where later steps depend on earlier results.
 
 First, define your DSL operations as a sealed interface:
 
+<!-- verify -->
 ```java
-// A simple Console DSL
-sealed interface ConsoleOp<A> {
-    record PrintLine<A>(String message, A next) implements ConsoleOp<A> {}
-    record ReadLine<A>(Function<String, A> cont) implements ConsoleOp<A> {}
+// A simple Console DSL. Extending Kind gives the algebra the witness
+// FreePath is parameterised by.
+sealed interface ConsoleOp<A> extends Kind<ConsoleOp.Witness, A>
+        permits PrintLine, ReadLine {
+    interface Witness extends WitnessArity<TypeArity.Unary> {}
 }
+
+record PrintLine<A>(String message, A next) implements ConsoleOp<A> {}
+record ReadLine<A>(Function<String, A> cont) implements ConsoleOp<A> {}
 ```
 
 #### Building Programs
 
 Lift operations into `FreePath` and compose them:
 
+<!-- verify -->
 ```java
 FreePath<ConsoleOp.Witness, Unit> print(String msg) {
     return FreePath.liftF(new PrintLine<>(msg, Unit.INSTANCE), consoleFunctor);
@@ -258,14 +263,14 @@ what should happen.
 
 Interpret the program by providing a natural transformation to a target monad:
 
+<!-- verify -->
 ```java
 // Real interpreter: performs actual I/O
 NaturalTransformation<ConsoleOp.Witness, IOKind.Witness> realInterpreter =
     new NaturalTransformation<>() {
         @Override
         public <A> Kind<IOKind.Witness, A> apply(Kind<ConsoleOp.Witness, A> fa) {
-            ConsoleOp<A> op = ConsoleOp.narrow(fa);
-            return switch (op) {
+            return switch ((ConsoleOp<A>) fa) {
                 case PrintLine(var msg, var next) ->
                     IO.delay(() -> { System.out.println(msg); return next; });
                 case ReadLine(var cont) ->
@@ -275,22 +280,31 @@ NaturalTransformation<ConsoleOp.Witness, IOKind.Witness> realInterpreter =
     };
 
 // Execute with real I/O
-GenericPath<IOKind.Witness, String> result = greet.foldMap(realInterpreter, ioMonad);
-String name = result.run().unsafeRun();
+GenericPath<IOKind.Witness, String> result = greet.foldMapWith(realInterpreter, ioMonad);
+String name = IOKindHelper.IO_OP.narrow(result.runKind()).unsafeRunSync();
 ```
 
 #### Testing with Mock Interpreters
 
 The same program can be tested without real I/O:
 
+<!-- verify -->
 ```java
-// Test interpreter with canned responses
-NaturalTransformation<ConsoleOp.Witness, StateKind.Witness> testInterpreter =
-    /* returns canned values, records outputs */;
+// Test interpreter: the same algebra, answered from canned input
+NaturalTransformation<ConsoleOp.Witness, IOKind.Witness> testInterpreter =
+    new NaturalTransformation<>() {
+        @Override
+        public <A> Kind<IOKind.Witness, A> apply(Kind<ConsoleOp.Witness, A> fa) {
+            return switch ((ConsoleOp<A>) fa) {
+                case PrintLine<A>(var msg, var next) -> IO.delay(() -> next);
+                case ReadLine<A>(var cont) -> IO.delay(() -> cont.apply("Alice"));
+            };
+        }
+    };
 
 // Same program, different execution
-GenericPath<StateKind.Witness, String> testResult =
-    greet.foldMap(testInterpreter, stateMonad);
+GenericPath<IOKind.Witness, String> testResult =
+    greet.foldMapWith(testInterpreter, ioMonad);
 ```
 
 ### FreeApPath: The Free Applicative
@@ -305,12 +319,16 @@ before running anything.
 
 #### Validation Example
 
+<!-- verify -->
 ```java
-// Validation operations
-sealed interface ValidationOp<A> {
-    record ValidateField<A>(String field, Predicate<String> check, A onSuccess)
-        implements ValidationOp<A> {}
+// Validation operations, as a Kind so FreeApPath can carry them
+sealed interface ValidationOp<A> extends Kind<ValidationOp.Witness, A>
+        permits ValidateField {
+    interface Witness extends WitnessArity<TypeArity.Unary> {}
 }
+
+record ValidateField<A>(String field, Predicate<String> check, A onSuccess)
+    implements ValidationOp<A> {}
 
 // Build validation program
 FreeApPath<ValidationOp.Witness, User> validateUser =
@@ -365,11 +383,12 @@ absolutely certain the release happens even when something goes wrong.
 `bracket` is the fundamental resource pattern: acquire, use, release. The release
 *always* runs, regardless of whether the use succeeds or fails:
 
+<!-- verify -->
 ```java
 IOPath<String> readFile = IOPath.bracket(
-    () -> new FileInputStream("data.txt"),      // acquire
-    stream -> new String(stream.readAllBytes()), // use
-    stream -> stream.close()                     // release (always runs)
+    () -> openStream("data.txt"),   // acquire
+    stream -> readAll(stream),      // use
+    stream -> closeQuietly(stream)  // release (always runs)
 );
 ```
 
@@ -380,11 +399,12 @@ after cleanup completes.
 
 When the use phase itself returns an `IOPath`:
 
+<!-- verify -->
 ```java
 IOPath<List<String>> processFile = IOPath.bracketIO(
-    () -> Files.newBufferedReader(path),
+    () -> openReader(path),
     reader -> Path.io(() -> reader.lines().toList()),
-    reader -> { try { reader.close(); } catch (Exception e) { /* log */ } }
+    reader -> closeQuietly(reader)
 );
 ```
 
@@ -393,9 +413,10 @@ IOPath<List<String>> processFile = IOPath.bracketIO(
 When your resource implements `AutoCloseable`, `withResource` provides a
 cleaner syntax:
 
+<!-- verify -->
 ```java
 IOPath<List<String>> lines = IOPath.withResource(
-    () -> Files.newBufferedReader(path),
+    () -> openReader(path),
     reader -> reader.lines().toList()
 );
 ```
@@ -404,11 +425,16 @@ The reader is automatically closed after use, with proper exception handling.
 
 #### withResourceIO Variant
 
+<!-- verify -->
 ```java
 IOPath<Config> config = IOPath.withResourceIO(
-    () -> new FileInputStream("config.json"),
+    () -> openStream("config.json"),
     stream -> Path.io(() -> parseConfig(stream))
 );
+
+// `bracket` and friends take a plain Supplier, Function and Consumer, so a
+// checked exception in any of the three is wrapped where it is raised. See
+// [IOPath](path_io.md) for the shape of that wrap.
 ```
 
 ### guarantee for Cleanup Actions
@@ -416,6 +442,7 @@ IOPath<Config> config = IOPath.withResourceIO(
 Sometimes you don't need acquire/release semantics; you just need to ensure
 something runs after a computation completes:
 
+<!-- verify -->
 ```java
 IOPath<Result> computation = fetchData()
     .guarantee(() -> log.info("Fetch completed"));
@@ -425,20 +452,19 @@ The guarantee runs whether `fetchData()` succeeds or fails.
 
 #### guaranteeIO for Effectful Cleanup
 
+<!-- verify -->
 ```java
 IOPath<Result> withCleanup = process()
-    .guaranteeIO(() -> Path.io(() -> {
-        cleanup();
-        return Unit.INSTANCE;
-    }));
+    .guaranteeIO(Path.ioRunnable(() -> cleanup()));
 ```
 
 ### Nested Resources
 
 Resources often nest. `bracket` composes cleanly:
 
+<!-- verify -->
 ```java
-IOPath<Result> nested = IOPath.bracketIO(
+IOPath<List<Row>> nested = IOPath.bracketIO(
     () -> acquireConnection(),
     connection -> IOPath.bracketIO(
         () -> connection.prepareStatement(sql),
@@ -486,16 +512,17 @@ don't depend on each other; why wait for one to finish before starting the other
 `parZipWith` runs two `IOPath` computations concurrently and combines their
 results:
 
+<!-- verify -->
 ```java
-IOPath<String> fetchUser = Path.io(() -> {
-    Thread.sleep(100);
+IOPath<String> fetchUser = Path.vtask(() -> {
+    Thread.sleep(100);           // a Callable may throw; a Supplier may not
     return "User123";
-});
+}).toIOPath();
 
-IOPath<String> fetchPrefs = Path.io(() -> {
+IOPath<String> fetchPrefs = Path.vtask(() -> {
     Thread.sleep(100);
     return "DarkMode";
-});
+}).toIOPath();
 
 // Sequential: ~200ms (100ms + 100ms)
 IOPath<String> sequential = fetchUser.zipWith(fetchPrefs, (u, p) -> u + "/" + p);
@@ -510,6 +537,7 @@ The operations are the same; the execution strategy differs.
 
 For three or four independent computations, use `PathOps` utilities:
 
+<!-- verify -->
 ```java
 IOPath<Dashboard> dashboard = PathOps.parZip3(
     fetchMetrics(),
@@ -534,14 +562,15 @@ when all complete.
 
 When you have a dynamic number of independent operations:
 
+<!-- verify -->
 ```java
 List<IOPath<User>> fetches = userIds.stream()
     .map(id -> Path.io(() -> userService.fetch(id)))
     .toList();
 
-// Sequential: N * fetchTime
-IOPath<List<User>> sequential = PathOps.sequenceIO(fetches);
-
+// There is no sequential `sequenceIO`: an IOPath is a description, so running a
+// list of them one after another is a fold over `via`. What PathOps offers is
+// the parallel form.
 // Parallel: ~1 * fetchTime (with enough threads)
 IOPath<List<User>> parallel = PathOps.parSequenceIO(fetches);
 ```
@@ -550,8 +579,8 @@ IOPath<List<User>> parallel = PathOps.parSequenceIO(fetches);
 
 The same pattern works with `CompletableFuturePath`:
 
+<!-- verify -->
 ```java
-List<CompletableFuturePath<Data>> futures = /* ... */;
 CompletableFuturePath<List<Data>> all = PathOps.parSequenceFuture(futures);
 ```
 
@@ -559,6 +588,7 @@ CompletableFuturePath<List<Data>> all = PathOps.parSequenceFuture(futures);
 
 Sometimes you want whichever completes first:
 
+<!-- verify -->
 ```java
 IOPath<Config> primary = Path.io(() -> fetchFromPrimary());
 IOPath<Config> backup = Path.io(() -> fetchFromBackup());
@@ -575,6 +605,7 @@ completing the loser is acceptable.
 
 ### raceIO for Multiple Competitors
 
+<!-- verify -->
 ```java
 List<IOPath<Response>> sources = List.of(
     fetchFromRegionA(),
@@ -590,6 +621,7 @@ guard is avoidable. Pass a [`NonEmptyList`](../monads/nonemptylist_monad.md)
 instead and the call is total: there is no empty case to throw on, so no
 `IllegalArgumentException` to catch.
 
+<!-- verify -->
 ```java
 NonEmptyList<IOPath<Response>> sources =
     NonEmptyList.of(fetchFromRegionA(), List.of(fetchFromRegionB(), fetchFromRegionC()));
@@ -634,6 +666,7 @@ assume success; it plans for failure and recovers gracefully.
 `RetryPolicy` encapsulates retry strategy: how many attempts, how long between
 them, which failures to retry:
 
+<!-- verify -->
 ```java
 // Fixed delay: 100ms between each of 3 attempts
 RetryPolicy fixed = RetryPolicy.fixed(3, Duration.ofMillis(100));
@@ -660,6 +693,7 @@ clients retry at exactly the same moment, overwhelming a recovering service.
 
 Policies are immutable but configurable through builder-style methods:
 
+<!-- verify -->
 ```java
 RetryPolicy policy = RetryPolicy.exponentialBackoff(5, Duration.ofMillis(100))
     .withMaxDelay(Duration.ofSeconds(30))   // Cap maximum wait
@@ -668,6 +702,7 @@ RetryPolicy policy = RetryPolicy.exponentialBackoff(5, Duration.ofMillis(100))
 
 #### Custom Retry Predicates
 
+<!-- verify -->
 ```java
 RetryPolicy selective = RetryPolicy.fixed(3, Duration.ofMillis(100))
     .retryIf(ex ->
@@ -680,6 +715,7 @@ RetryPolicy selective = RetryPolicy.fixed(3, Duration.ofMillis(100))
 
 `IOPath` and `CompletableFuturePath` integrate directly with retry policies:
 
+<!-- verify -->
 ```java
 IOPath<Response> resilient = Path.io(() -> httpClient.get(url))
     .withRetry(RetryPolicy.exponentialBackoff(3, Duration.ofSeconds(1)));
@@ -689,9 +725,10 @@ IOPath<Response> resilient = Path.io(() -> httpClient.get(url))
 
 For simple cases with default exponential backoff:
 
+<!-- verify -->
 ```java
 IOPath<Response> simple = Path.io(() -> httpClient.get(url))
-    .retry(3);  // 3 attempts with default backoff
+    .retry(3, Duration.ofSeconds(1));  // 3 attempts, backing off from a second
 ```
 
 ### Handling Exhausted Retries
@@ -699,13 +736,16 @@ IOPath<Response> simple = Path.io(() -> httpClient.get(url))
 When all attempts fail, `RetryExhaustedException` is thrown with the last
 failure as its cause:
 
+<!-- verify -->
 ```java
-try {
-    resilient.unsafeRun();
-} catch (RetryExhaustedException e) {
-    log.error("All {} retries failed", e.getMessage());
-    Throwable lastFailure = e.getCause();
-    return fallbackValue;
+Data runOrFallBack(IOPath<Data> resilient) {
+    try {
+        return resilient.unsafeRun();
+    } catch (RetryExhaustedException e) {
+        log.error("All retries failed: {}", e.getMessage());
+        Throwable lastFailure = e.getCause();
+        return fallbackValue;
+    }
 }
 ```
 
@@ -713,6 +753,7 @@ try {
 
 Retry composes with other Path operations:
 
+<!-- verify -->
 ```java
 IOPath<Data> robust = Path.io(() -> primarySource.fetch())
     .withRetry(RetryPolicy.exponentialBackoff(3, Duration.ofSeconds(1)))
@@ -729,9 +770,10 @@ IOPath<Data> robust = Path.io(() -> primarySource.fetch())
 
 ### Retry with Resource Management
 
+<!-- verify -->
 ```java
 IOPath<Result> resilientWithResource = IOPath.withResourceIO(
-    () -> acquireConnection(),
+    Fixture::acquireConnection,
     conn -> Path.io(() -> conn.execute(query))
         .withRetry(RetryPolicy.fixed(3, Duration.ofMillis(50)))
 );
