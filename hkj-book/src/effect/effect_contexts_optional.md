@@ -37,6 +37,7 @@ They're functionally equivalent. Choose based on what your codebase already uses
 
 Consider a lookup chain:
 
+<!-- verify -->
 ```java
 // Each might return null or Optional.empty()
 User user = cache.get(userId);
@@ -216,6 +217,7 @@ OptionalContext<IOKind.Witness, Integer> count =
 
 When you need to compute the fallback:
 
+<!-- verify -->
 ```java
 OptionalContext<IOKind.Witness, Config> config =
     loadConfig()
@@ -229,6 +231,7 @@ The `unit` parameter is always `Unit.INSTANCE`; it's the "error" type for option
 
 ### recoverWith: Fallback to Another Computation
 
+<!-- verify -->
 ```java
 OptionalContext<IOKind.Witness, Data> data =
     fetchFromPrimary()
@@ -241,6 +244,7 @@ OptionalContext<IOKind.Witness, Data> data =
 
 Often, absence at some point becomes an error. The boundary is explicit:
 
+<!-- verify -->
 ```java
 OptionalContext<IOKind.Witness, User> optionalUser =
     OptionalContext.<User>io(() -> userRepo.findById(userId));
@@ -261,6 +265,7 @@ This runs the underlying computation and converts the result. For deferred conve
 
 `JavaOptionalContext` can convert to `OptionalContext`:
 
+<!-- verify -->
 ```java
 JavaOptionalContext<IOKind.Witness, User> javaOptional =
     JavaOptionalContext.io(() -> repo.find(id));
@@ -275,6 +280,7 @@ OptionalContext<IOKind.Witness, User> maybeContext =
 
 ### runIO: Get an IOPath
 
+<!-- verify -->
 ```java
 // For OptionalContext
 OptionalContext<IOKind.Witness, User> optionalCtx = OptionalContext.some(user);
@@ -291,12 +297,14 @@ Optional<User> optionalResult = optionalIO.unsafeRun();
 
 ### runIOOrElse: Value or Default
 
+<!-- verify -->
 ```java
 User user = userContext.runIOOrElse(User.guest());
 ```
 
 ### runIOOrThrow: Value or Exception
 
+<!-- verify -->
 ```java
 User user = userContext.runIOOrThrow();  // Throws NoSuchElementException if empty
 ```
@@ -307,13 +315,14 @@ User user = userContext.runIOOrThrow();  // Throws NoSuchElementException if emp
 
 ### Cache-Through Pattern
 
+<!-- verify -->
 ```java
 public OptionalContext<IOKind.Witness, Product> getProduct(String id) {
-    return OptionalContext.<Product>io(() -> cache.get(id))
+    return OptionalContext.<Product>io(() -> productCache.get(id))
         .orElse(() -> {
-            Product product = database.find(id);
+            Product product = productDatabase.find(id);
             if (product != null) {
-                cache.put(id, product);  // Populate cache
+                productCache.put(id, product);  // Populate cache
             }
             return product == null
                 ? OptionalContext.none()
@@ -324,6 +333,7 @@ public OptionalContext<IOKind.Witness, Product> getProduct(String id) {
 
 ### Configuration Layering
 
+<!-- verify -->
 ```java
 public OptionalContext<IOKind.Witness, String> getSetting(String key) {
     return OptionalContext.<String>io(() -> System.getenv(key))          // Environment first
@@ -335,6 +345,7 @@ public OptionalContext<IOKind.Witness, String> getSetting(String key) {
 
 ### Validation with Optional Fields
 
+<!-- verify -->
 ```java
 record UserInput(String name, String email, String phone) {}
 
@@ -351,6 +362,7 @@ private String nullIfBlank(String s) {
 
 ### Graceful Degradation
 
+<!-- verify -->
 ```java
 public OptionalContext<IOKind.Witness, DashboardData> loadDashboard(String userId) {
     return OptionalContext.<DashboardData>io(() -> fullDashboardService.load(userId))
@@ -365,12 +377,13 @@ public OptionalContext<IOKind.Witness, DashboardData> loadDashboard(String userI
 
 When you need the raw transformer:
 
+<!-- verify -->
 ```java
 OptionalContext<IOKind.Witness, User> ctx = OptionalContext.some(user);
-MaybeT<IOKind.Witness, User> transformer = ctx.toMaybeT();
+MaybeT<IOKind.Witness, User> maybeTransformer = ctx.toMaybeT();
 
 JavaOptionalContext<IOKind.Witness, User> jCtx = JavaOptionalContext.some(user);
-OptionalT<IOKind.Witness, User> transformer = jCtx.toOptionalT();
+OptionalT<IOKind.Witness, User> optionalTransformer = jCtx.toOptionalT();
 ```
 
 ---
