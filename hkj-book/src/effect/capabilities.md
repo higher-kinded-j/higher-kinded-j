@@ -284,10 +284,13 @@ which tells you something about the general state of affairs in software.
 **The analogy:** A written contract. It describes what will happen, but nothing
 happens until someone signs and executes it.
 
+<!-- verify -->
 ```java
-public sealed interface Effectful<A> extends Chainable<A> permits IOPath, VTaskPath {
+public interface Effectful<A> extends Chainable<A> {  // sealed, permits IOPath, VTaskPath
     A unsafeRun();
-    default Try<A> runSafe() { return Try.of(this::unsafeRun); }
+    default Try<A> runSafe() {
+        return Try.of(this::unsafeRun);
+    }
 
     Effectful<A> handleError(Function<? super Throwable, ? extends A> recovery);
     Effectful<A> handleErrorWith(
@@ -300,10 +303,11 @@ public sealed interface Effectful<A> extends Chainable<A> permits IOPath, VTaskP
 immediately when you call `map` or `via`. With `IOPath`, nothing happens until
 you call `unsafeRun()` or `runSafe()`:
 
+<!-- verify -->
 ```java
 IOPath<String> readFile = Path.io(() -> {
     System.out.println("Reading file...");  // Not printed yet
-    return Files.readString(path);
+    return contentsOf(path);
 });
 
 // Still nothing happens
@@ -317,6 +321,7 @@ All five methods are defined at the capability level, so code written against
 `Effectful<A>` can recover from errors and run cleanup regardless of which
 concrete implementation it holds:
 
+<!-- verify -->
 ```java
 // Works whether `effect` is an IOPath or a VTaskPath
 public static <A> Effectful<A> safeOrDefault(Effectful<A> effect, A fallback) {
@@ -349,6 +354,7 @@ not scattered throughout.
 back the full list. They don't stop at the first issue and declare the review
 complete.
 
+<!-- verify -->
 ```java
 public interface Accumulating<E, A> extends Composable<A> {
     <B, C> Accumulating<E, C> zipWithAccum(
@@ -356,7 +362,15 @@ public interface Accumulating<E, A> extends Composable<A> {
         BiFunction<? super A, ? super B, ? extends C> combiner
     );
 
+    <B, C, D> Accumulating<E, D> zipWith3Accum(
+        Accumulating<E, B> second,
+        Accumulating<E, C> third,
+        Function3<? super A, ? super B, ? super C, ? extends D> combiner
+    );
+
     Accumulating<E, A> andAlso(Accumulating<E, ?> other);
+
+    <B> Accumulating<E, B> andThen(Accumulating<E, B> other);
 }
 ```
 
@@ -368,6 +382,7 @@ Only `ValidationPath` implements `Accumulating`. The key difference from
 | `zipWith` | Returns first error (short-circuits) |
 | `zipWithAccum` | Combines all errors using Semigroup |
 
+<!-- verify -->
 ```java
 ValidationPath<List<String>, String> name = validateName(input);
 ValidationPath<List<String>, String> email = validateEmail(input);

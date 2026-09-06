@@ -6,7 +6,23 @@
 // NOTE: imports in a fixture serve the snippets it is spliced into. Spotless excludes
 // src/test/resources so an "unused import" cleanup cannot break fixtures (see build.gradle.kts).
 
+import static org.higherkindedj.hkt.instances.Witnesses.io;
+import static org.higherkindedj.hkt.io.IOKindHelper.IO_OP;
+
+import java.time.Duration;
+import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.MonadError;
+import org.higherkindedj.hkt.Unit;
 import org.higherkindedj.hkt.effect.context.ConfigContext;
+import org.higherkindedj.hkt.effect.context.MutableContext;
+import org.higherkindedj.hkt.effect.context.VTaskContext;
+import org.higherkindedj.hkt.either_t.EitherT;
+import org.higherkindedj.hkt.either_t.EitherTKind;
+import org.higherkindedj.hkt.either_t.EitherTMonad;
+import org.higherkindedj.hkt.instances.Instances;
+import org.higherkindedj.hkt.io.IO;
+import org.higherkindedj.hkt.state.StateTuple;
+import org.higherkindedj.hkt.trymonad.Try;
 import org.higherkindedj.hkt.effect.context.ErrorContext;
 import org.higherkindedj.hkt.effect.context.OptionalContext;
 import org.higherkindedj.hkt.either.Either;
@@ -15,7 +31,19 @@ import org.jspecify.annotations.Nullable;
 
 record User(String id, String profileId) {}
 
-record Profile(String id) {}
+record Profile(String id) {
+
+  static Profile defaultProfile() {
+    return new Profile("default");
+  }
+}
+
+record Counter(int value) {
+
+  Counter increment() {
+    return new Counter(value + 1);
+  }
+}
 
 record Cart(String id) {}
 
@@ -47,6 +75,16 @@ record ApiError(String message) {
 class Fixture {
 
   static final String userId = "u-1";
+
+  static final User user = new User("u-1", "p-1");
+
+  static Config loadFromPrimary() {
+    return new Config("primary");
+  }
+
+  static Config loadFromSecondary() {
+    return new Config("secondary");
+  }
 
   static final UserService userService = new UserService();
 

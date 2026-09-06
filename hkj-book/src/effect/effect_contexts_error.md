@@ -24,18 +24,27 @@ This `ErrorContext` is an effect type: a deferred IO computation with typed-erro
 
 Traditional Java error handling fragments across styles:
 
+<!-- verify -->
 ```java
 // Style 1: Checked exceptions
-public User fetchUser(String id) throws UserNotFoundException { ... }
+public User loadUser(String id) throws UserNotFoundException {
+    return userService.fetch(id);
+}
 
 // Style 2: Unchecked exceptions
-public Order createOrder(Cart cart) { /* might throw RuntimeException */ }
+public Order placeOrder(Cart cart) {
+    return new Order(cart.id());  // might throw RuntimeException
+}
 
 // Style 3: Optional returns
-public Optional<Profile> getProfile(User user) { ... }
+public Optional<Profile> getProfile(User user) {
+    return Optional.of(new Profile(user.profileId()));
+}
 
 // Style 4: Custom result types
-public Result<ValidationError, Order> validateOrder(OrderRequest req) { ... }
+public Result<ValidationError, Order> validateOrder(OrderRequest req) {
+    return Result.ok(new Order("o-1"));
+}
 ```
 
 Composing across these styles requires constant translation. Each boundary demands explicit handling, cluttering your code with conversion logic.
@@ -260,8 +269,9 @@ This is essential when composing code from different modules that use different 
 
 `runIO()` extracts an `IOPath<Either<E, A>>` for deferred execution:
 
+<!-- verify -->
 ```java
-ErrorContext<IOKind.Witness, ApiError, User> ctx = ...;
+ErrorContext<IOKind.Witness, ApiError, User> ctx = userContext;
 
 // Get the IOPath (nothing runs yet)
 IOPath<Either<ApiError, User>> ioPath = ctx.runIO();
@@ -274,6 +284,7 @@ Either<ApiError, User> result = ioPath.unsafeRun();
 
 For cases where failure should throw:
 
+<!-- verify -->
 ```java
 try {
     User user = userContext.runIOOrThrow();
@@ -310,8 +321,11 @@ User user = userContext.runIOOrElseGet(error -> {
 
 ### API Client with Error Handling
 
+<!-- verify -->
 ```java
 public class UserClient {
+    private final HttpClient httpClient = new HttpClient();
+
     public ErrorContext<IOKind.Witness, ApiError, User> fetchUser(String id) {
         return ErrorContext.<ApiError, User>io(
             () -> {
@@ -322,6 +336,14 @@ public class UserClient {
                 return parseUser(response.body());
             },
             ApiError::fromException);
+    }
+
+    private User parseUser(String body) {
+        return new User("u-1", "p-1");
+    }
+
+    private Profile parseProfile(String body) {
+        return new Profile("p-1");
     }
 
     public ErrorContext<IOKind.Witness, ApiError, Profile> fetchProfile(User user) {
@@ -343,6 +365,7 @@ ErrorContext<IOKind.Witness, ApiError, Profile> profile =
 
 ### Multi-Step Transaction
 
+<!-- verify -->
 ```java
 public ErrorContext<IOKind.Witness, OrderError, Order> processOrder(OrderRequest request) {
     return validateRequest(request)
@@ -381,6 +404,7 @@ ErrorContext<IOKind.Witness, ApiError, User> apiUser =
 
 When you need the raw transformer:
 
+<!-- verify -->
 ```java
 ErrorContext<IOKind.Witness, String, Integer> ctx = ErrorContext.success(42);
 

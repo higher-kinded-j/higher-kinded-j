@@ -18,7 +18,12 @@ import org.higherkindedj.hkt.effect.MaybePath;
 import org.higherkindedj.hkt.effect.Path;
 import org.higherkindedj.hkt.effect.TryPath;
 import org.higherkindedj.hkt.either.Either;
+import java.util.List;
+import org.higherkindedj.hkt.function.Function3;
+import org.higherkindedj.hkt.Semigroups;
+import org.higherkindedj.hkt.effect.ValidationPath;
 import org.higherkindedj.hkt.maybe.Maybe;
+import org.higherkindedj.hkt.trymonad.Try;
 
 record User(String name, String email, Integer age) {
 
@@ -73,7 +78,54 @@ interface Chainable<A> extends Combinable<A> {
   <B> Chainable<B> then(Supplier<? extends Chainable<B>> next);
 }
 
+interface Effectful<A> extends Chainable<A> {
+
+  A unsafeRun();
+
+  default Try<A> runSafe() {
+    return Try.of(this::unsafeRun);
+  }
+
+  Effectful<A> handleError(Function<? super Throwable, ? extends A> recovery);
+
+  Effectful<A> handleErrorWith(Function<? super Throwable, ? extends Effectful<A>> recovery);
+
+  Effectful<A> guarantee(Runnable finalizer);
+}
+
+record Data(String value) {}
+
+record Resource(String name) {}
+
 class Fixture {
+
+  static final java.nio.file.Path path = java.nio.file.Path.of("data.txt");
+
+  static String contentsOf(java.nio.file.Path path) {
+    return "contents";
+  }
+
+  static Resource acquireResource() {
+    return new Resource("r");
+  }
+
+  static Data useResource(Resource resource) {
+    return new Data(resource.name());
+  }
+
+  static void releaseResource() {}
+
+  static ValidationPath<List<String>, String> validateName(UserInput input) {
+    return Path.valid(input.name(), Semigroups.list());
+  }
+
+  static ValidationPath<List<String>, String> validateEmail(UserInput input) {
+    return Path.valid(input.email(), Semigroups.list());
+  }
+
+  static ValidationPath<List<String>, Integer> validateAge(UserInput input) {
+    return Path.valid(input.age(), Semigroups.list());
+  }
 
   static final String rawAge = "36";
 
