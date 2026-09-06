@@ -202,44 +202,49 @@ Both fetches run concurrently; the result is available when both complete.
 
 ### Before
 
+<!-- verify -->
 ```java
-List<String> errors = new ArrayList<>();
+ResponseEntity<?> register(String name, String email, int age) {
+    List<String> errors = new ArrayList<>();
 
-if (name == null || name.length() < 2) {
-    errors.add("Name must be at least 2 characters");
-}
-if (email == null || !email.contains("@")) {
-    errors.add("Invalid email format");
-}
-if (age < 0 || age > 150) {
-    errors.add("Age must be between 0 and 150");
-}
+    if (name == null || name.length() < 2) {
+        errors.add("Name must be at least 2 characters");
+    }
+    if (email == null || !email.contains("@")) {
+        errors.add("Invalid email format");
+    }
+    if (age < 0 || age > 150) {
+        errors.add("Age must be between 0 and 150");
+    }
 
-if (!errors.isEmpty()) {
-    return ResponseEntity.badRequest().body(errors);
+    if (!errors.isEmpty()) {
+        return ResponseEntity.badRequest().body(errors);
+    }
+    // proceed with validated data (but the types don't prove it's valid)
+    Registration reg = new Registration(name, email, age);
+    return ResponseEntity.ok(reg);
 }
-// proceed with validated data (but the types don't prove it's valid)
-Registration reg = new Registration(name, email, age);
 ```
 
 ### After
 
+<!-- verify -->
 ```java
-Semigroup<List<String>> errors = Semigroups.list();
+static final Semigroup<List<String>> errors = Semigroups.list();
 
-ValidationPath<List<String>, String> validateName(String name) {
+ValidationPath<List<String>, String> checkName(String name) {
     return name != null && name.length() >= 2
         ? Path.valid(name, errors)
         : Path.invalid(List.of("Name must be at least 2 characters"), errors);
 }
 
-ValidationPath<List<String>, String> validateEmail(String email) {
+ValidationPath<List<String>, String> checkEmail(String email) {
     return email != null && email.contains("@")
         ? Path.valid(email, errors)
         : Path.invalid(List.of("Invalid email format"), errors);
 }
 
-ValidationPath<List<String>, Integer> validateAge(int age) {
+ValidationPath<List<String>, Integer> checkAge(int age) {
     return age >= 0 && age <= 150
         ? Path.valid(age, errors)
         : Path.invalid(List.of("Age must be between 0 and 150"), errors);
@@ -247,10 +252,10 @@ ValidationPath<List<String>, Integer> validateAge(int age) {
 
 // All three run; errors accumulate
 ValidationPath<List<String>, Registration> result =
-    validateName(name)
+    checkName(name)
         .zipWith3Accum(
-            validateEmail(email),
-            validateAge(age),
+            checkEmail(email),
+            checkAge(age),
             Registration::new);
 ```
 
@@ -260,6 +265,7 @@ ValidationPath<List<String>, Registration> result =
 
 Once validation passes, switch to `EitherPath` for sequential processing:
 
+<!-- verify -->
 ```java
 EitherPath<List<String>, Confirmation> pipeline =
     result
@@ -275,6 +281,7 @@ EitherPath<List<String>, Confirmation> pipeline =
 
 ### Before
 
+<!-- verify -->
 ```java
 // Update the postcode of the shipping address of an order
 Order updatePostcode(Order order, String newPostcode) {
@@ -303,13 +310,14 @@ Every intermediate record must be reconstructed. Adding a field to any record me
 
 ### After
 
+<!-- verify -->
 ```java
 // With generated lenses (via @GenerateLenses annotation)
 Order updatePostcode(Order order, String newPostcode) {
     return OrderLenses.customer()
         .andThen(CustomerLenses.shippingAddress())
         .andThen(AddressLenses.postcode())
-        .set(order, newPostcode);
+        .set(newPostcode, order);
 }
 ```
 
@@ -319,6 +327,7 @@ Order updatePostcode(Order order, String newPostcode) {
 
 When the update is part of an effectful pipeline, `focus()` integrates lenses directly:
 
+<!-- verify -->
 ```java
 var postcodeLens = OrderLenses.customer()
     .andThen(CustomerLenses.shippingAddress())
@@ -328,8 +337,8 @@ EitherPath<AppError, Order> result =
     Path.<AppError, Order>right(order)
         .via(currentOrder -> {
             String postcode = postcodeLens.get(currentOrder);
-            return validatePostcode(postcode)
-                .map(valid -> postcodeLens.set(currentOrder, valid));
+            return validatePostcodeE(postcode)
+                .map(valid -> postcodeLens.set(valid, currentOrder));
         });
 ```
 

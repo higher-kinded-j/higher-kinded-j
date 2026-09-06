@@ -17,6 +17,9 @@ import org.higherkindedj.hkt.Unit;
 import org.higherkindedj.hkt.effect.IOPath;
 import org.higherkindedj.hkt.effect.context.MutableContext;
 import org.higherkindedj.hkt.io.IOKind;
+import java.time.Instant;
+import org.higherkindedj.hkt.effect.context.ErrorContext;
+import org.higherkindedj.hkt.state_t.StateT;
 import org.higherkindedj.hkt.state.StateTuple;
 
 record Counter(int value) {
@@ -27,6 +30,17 @@ record Counter(int value) {
 }
 
 record AnyState(String value) {}
+
+record Item(String sku) {}
+
+record Result(String value) {
+
+  static Result failed(Exception cause) {
+    return new Result(cause.getMessage());
+  }
+}
+
+record Data(String value) {}
 
 record Request(String body, long id) {
 
@@ -46,4 +60,22 @@ class Fixture {
       MutableContext.<Counter>get().map(counter -> "Count: " + counter.value());
 
   static void process(byte[] content) {}
+
+  static final Processor processor = new Processor();
+
+  static final DataService dataService = new DataService();
+
+  static final class Processor {
+
+    Result process(Item item) {
+      return new Result(item.sku());
+    }
+  }
+
+  static final class DataService {
+
+    Data fetch() {
+      return new Data("data");
+    }
+  }
 }
