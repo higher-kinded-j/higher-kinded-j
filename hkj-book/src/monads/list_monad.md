@@ -18,6 +18,7 @@ Some computations don't have a single answer; they have many. Consider finding a
 
 With plain Java, this means nested loops, manual concatenation, and tangled control flow:
 
+<!-- verify -->
 ```java
 // Find all paths of length 2 from a starting node
 List<List<String>> paths = new ArrayList<>();
@@ -32,6 +33,7 @@ Each level of nesting adds another loop. If the number of steps is dynamic, you 
 
 The `ListMonad` captures this pattern directly. A `List` represents multiple possible values, `flatMap` explores all combinations by applying a function to each element and concatenating the results, and `ap` produces Cartesian products. The nested-loop problem above becomes:
 
+<!-- verify -->
 ```java
 MonadZero<ListKind.Witness> listMonad = Instances.monadZero(list());
 Kind<ListKind.Witness, String> starts = listMonad.of(start);
@@ -87,6 +89,7 @@ The following examples demonstrate creating list contexts, composing operations,
 
 - [ListMonadExample.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/basic/list/ListMonadExample.java)
 
+<!-- verify -->
 ```java
 MonadZero<ListKind.Witness> listMonad = Instances.monadZero(list());
 
@@ -113,6 +116,7 @@ Kind<ListKind.Witness, String> decorated = listMonad.map(
 
 `flatMap` is where the non-deterministic power lives. Each element branches into multiple results, and all branches are collected.
 
+<!-- verify -->
 ```java
 MonadZero<ListKind.Witness> listMonad = Instances.monadZero(list());
 Kind<ListKind.Witness, Integer> values = LIST.widen(Arrays.asList(1, 2, 3));
@@ -141,6 +145,7 @@ Kind<ListKind.Witness, String> filtered = listMonad.flatMap(evenOnly, values);
 
 `ap` applies a list of functions to a list of values, producing every combination.
 
+<!-- verify -->
 ```java
 MonadZero<ListKind.Witness> listMonad = Instances.monadZero(list());
 
