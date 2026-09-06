@@ -61,7 +61,7 @@ class BookSnippetVerificationTest {
    * copy of it, so those snippets no longer need a marker. That is the only reason this number may
    * fall.
    */
-  private static final int MINIMUM_VERIFIED_SNIPPETS = 998;
+  private static final int MINIMUM_VERIFIED_SNIPPETS = 1010;
 
   /**
    * How many of those snippets must quote a diagnostic, under {@code verify:rejects} or {@code
@@ -69,7 +69,7 @@ class BookSnippetVerificationTest {
    * check for an easy positive snippet elsewhere leaves the total untouched, and those checks are
    * the only thing holding the pages that document refusals to what the processor actually says.
    */
-  private static final int MINIMUM_DIAGNOSTIC_SNIPPETS = 43;
+  private static final int MINIMUM_DIAGNOSTIC_SNIPPETS = 44;
 
   /**
    * Every documentation root whose code is verified. The book was the first; the skills are the
