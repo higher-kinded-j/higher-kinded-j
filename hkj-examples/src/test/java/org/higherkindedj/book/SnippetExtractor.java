@@ -351,11 +351,15 @@ final class SnippetExtractor {
    */
   private static int endOfSignature(List<String> lines, int start) {
     String first = lines.get(start).strip();
+    if (first.isBlank() || first.startsWith("//")) {
+      return -1;
+    }
     // A signature starts with code and opens a parameter list. Without this guard the join runs on
     // from a blank line through several complete declarations until the concatenation happens to
-    // end
-    // in `{`, and swallows them whole.
-    if (first.isBlank() || first.startsWith("//") || !first.contains("(")) {
+    // end in `{`, and swallows them whole. A generic return type may wrap before the parameter
+    // list is reached, so a first line whose angle brackets are still open joins on anyway; the
+    // `;`/`}` bail-outs below and MAX_SIGNATURE_LINES still bound it.
+    if (!first.contains("(") && openAngles(first) <= 0) {
       return -1;
     }
     StringBuilder joined = new StringBuilder();
@@ -390,7 +394,10 @@ final class SnippetExtractor {
    */
   private static int endOfAbstractSignature(List<String> lines, int start) {
     String first = lines.get(start).strip();
-    if (first.isBlank() || first.startsWith("//") || !first.contains("(")) {
+    if (first.isBlank() || first.startsWith("//")) {
+      return -1;
+    }
+    if (!first.contains("(") && openAngles(first) <= 0) {
       return -1;
     }
     StringBuilder joined = new StringBuilder();
@@ -518,6 +525,13 @@ final class SnippetExtractor {
         i++;
       }
     }
+  }
+
+  /** How many type-argument brackets a line leaves open, ignoring literals and comments. */
+  private static int openAngles(String line) {
+    String code = stripLiterals(line);
+    return (int) code.chars().filter(c -> c == '<').count()
+        - (int) code.chars().filter(c -> c == '>').count();
   }
 
   /** How many braces a line opens, net of the ones it closes, ignoring literals and comments. */
