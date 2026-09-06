@@ -461,8 +461,8 @@ These effect types compose with each other and with the core Path types.
 // A computation that needs config and might fail
 ReaderPath<Config, EitherPath<Error, User>> getUser(String id) {
     return ReaderPath.asks(Config::database)
-        .map(db -> Path.either(db.findUser(id))
-            .toEitherPath(() -> new Error.NotFound(id)));
+        .map(db -> Path.maybe(db.findUser(id))
+            .toEitherPath(new Error.NotFound(id)));
 }
 ```
 

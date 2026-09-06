@@ -696,13 +696,13 @@ public class ServiceAdapter {
 ```java
 // Wasteful
 Path.maybe(findUser(id))
-    .toEitherPath(() -> error)
+    .toEitherPath(error)
     .toMaybePath()
-    .toEitherPath(() -> error);
+    .toEitherPath(error);
 
 // Clean
 Path.maybe(findUser(id))
-    .toEitherPath(() -> error);
+    .toEitherPath(error);
 ```
 
 ### Pitfall 2: Side Effects in Pure Operations

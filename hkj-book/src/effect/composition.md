@@ -559,14 +559,14 @@ void processUser(String id) {
 
 ```java
 // Wasteful: converting repeatedly
-Path.maybe(findUser(id))
-    .toEitherPath(() -> error)
+Path.maybe(lookupUser(id))
+    .toEitherPath(error)
     .toMaybePath()
-    .toEitherPath(() -> error);  // Why?
+    .toEitherPath(error);  // Why?
 
 // Clean: convert once
-Path.maybe(findUser(id))
-    .toEitherPath(() -> error);
+Path.maybe(lookupUser(id))
+    .toEitherPath(error);
 ```
 
 ---

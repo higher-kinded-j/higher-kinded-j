@@ -426,7 +426,7 @@ Path.invalid(error)                 // Invalid with error
 // Building a complete workflow using Path factory
 public EitherPath<OrderError, Receipt> processOrder(OrderRequest request) {
     return Path.maybe(customerRepository.find(request.customerId()))
-        .toEitherPath(() -> new OrderError.CustomerNotFound())
+        .<OrderError>toEitherPath(new OrderError.CustomerNotFound())
         .via(customer -> Path.either(validateOrder(request, customer)))
         .via(validated -> Path.tryOf(() -> paymentService.charge(validated))
             .toEitherPath(OrderError.PaymentFailed::new))
