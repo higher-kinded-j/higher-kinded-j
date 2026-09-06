@@ -27,6 +27,7 @@ Three round-trips. Three frustrations. Three errors that were all knowable from 
 
 This is fail-fast validation. With a monadic chain (`flatMap`), each step depends on the previous one succeeding, so the first failure stops everything:
 
+<!-- verify -->
 ```java
 // flatMap chain: validation stops at the FIRST error
 validateName("")         // Invalid(["Name is required"])   <-- STOPS HERE
@@ -94,6 +95,7 @@ The examples below use `Validated<List<String>, T>`, but an *invalid* result alw
 
 Each validator is an independent function that returns `Validated<List<String>, T>`:
 
+<!-- verify -->
 ```java
 MonadError<ValidatedKind.Witness<List<String>>, List<String>> validatedMonad =
     Instances.validated(Semigroups.list());
@@ -124,6 +126,7 @@ Each validator works independently. None depends on another's result. This is th
 
 When validations **depend** on each other, use `flatMap`. The chain stops at the first failure:
 
+<!-- verify -->
 ```java
 // Dependent validation: email domain must match company based on user's role
 Kind<ValidatedKind.Witness<List<String>>, String> result =
@@ -153,6 +156,7 @@ Kind<ValidatedKind.Witness<List<String>>, String> failed =
 
 When validations are **independent**, use `ap` with a `Semigroup`. All validators run, and errors combine:
 
+<!-- verify -->
 ```java
 // All three validators run regardless of individual failures
 Validated<List<String>, String>  name  = validateName("");           // Invalid
@@ -178,6 +182,7 @@ Validated<List<String>, String> finalResult = VALIDATED.narrow(result);
 ~~~admonish tip title="The ergonomic front door: the assembly builder"
 For the everyday case (assembling a record from N validated fields) the staged builder on `Validated` itself is the recommended entry point: open arity up to 16, no `Semigroup` argument, no `Kind`, and located errors.
 
+<!-- verify -->
 ```java
 Validated<NonEmptyList<FieldError>, User> user =
     Validated.fields()
@@ -195,6 +200,7 @@ The `mapN` family remains the right tool inside `Kind`-generic code. See [Accumu
 
 `ValidatedMonad<E>` implements `MonadError`, so you get structured recovery:
 
+<!-- verify -->
 ```java
 Kind<ValidatedKind.Witness<List<String>>, Integer> failed =
     validatedMonad.raiseError(List.of("Something went wrong"));
@@ -295,14 +301,16 @@ For most use cases, prefer **[ValidationPath](../effect/path_validation.md)** wh
 - A consistent API shared across all effect types
 - Error accumulation when combined with applicative operations
 
+<!-- verify -->
 ```java
 // Instead of manual Validated chaining:
 Validated<List<Error>, User> user = validateUser(input);
 Validated<List<Error>, Order> order = user.flatMap(u -> createOrder(u));
 
 // Use ValidationPath for cleaner composition:
-ValidationPath<List<Error>, Order> order = Path.validated(validateUser(input), errors)
-    .via(u -> createOrder(u));
+ValidationPath<List<Error>, Order> orderPath =
+    Path.validated(validateUser(input), Semigroups.list())
+        .via(u -> createOrderPath(u));
 ```
 
 See [Effect Path Overview](../effect/effect_path_overview.md) for the complete guide.
