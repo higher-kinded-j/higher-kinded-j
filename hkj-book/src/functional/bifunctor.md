@@ -262,6 +262,7 @@ System.out.println(VALIDATED.narrow2(userFriendly));
 
 `Writer<W, A>` is a product type that holds *both* a log value *and* a computation result.
 
+<!-- verify -->
 ```java
 import static org.higherkindedj.hkt.writer.WriterKindHelper.WRITER;
 import org.higherkindedj.hkt.Bifunctor;
