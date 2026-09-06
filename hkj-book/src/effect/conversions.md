@@ -465,16 +465,18 @@ IOPath<String> deferred = Path.io(() -> readFile());
 
 ### Lifting to ValidationPath
 
+<!-- verify -->
 ```java
 // Valid value
-ValidationPath<String, Integer> valid = Path.valid(42);
+ValidationPath<String, Integer> valid = Path.valid(42, Semigroups.first());
 
 // Invalid value
-ValidationPath<String, Integer> invalid = Path.invalid("Must be positive");
+ValidationPath<String, Integer> invalid =
+    Path.invalid("Must be positive", Semigroups.first());
 
 // From existing Validated
 Validated<String, User> validated = validatedUser(input);
-ValidationPath<String, User> path = Path.validation(validated);
+ValidationPath<String, User> path = Path.validated(validated, Semigroups.first());
 ```
 
 ### Lifting to IdPath
