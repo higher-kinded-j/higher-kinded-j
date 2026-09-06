@@ -35,6 +35,7 @@ public interface Foldable<F extends WitnessArity<TypeArity.Unary>> {
 
 ### Same Data, Three Summaries
 
+<!-- verify -->
 ```java
 List<Integer> numbers = List.of(1, 2, 3, 4, 5);
 Kind<ListKind.Witness, Integer> numbersKind = LIST.widen(numbers);
@@ -115,6 +116,7 @@ public interface Traverse<T extends WitnessArity<TypeArity.Unary>>
 
 **The solution.**
 
+<!-- verify -->
 ```java
 public Kind<ValidatedKind.Witness<String>, String> validateCode(String code) {
     if (code.startsWith("VALID")) {
@@ -152,10 +154,11 @@ We reach for `traverse` when we are turning each element into an effect. We reac
 
 `traverse`, `sequence`, and `flatTraverse` are not just standalone operations; they fit inside a `For` chain so we can blend collection iteration with the rest of a monadic workflow without breaking out.
 
+<!-- verify -->
 ```java
 For.from(maybeMonad, MAYBE.just(LIST.widen(List.of(1, 2, 3))))
     .traverse(ListTraverse.INSTANCE,
-        t -> t._1(),
+        list -> list,
         n -> n > 0 ? MAYBE.just(n * 10) : MAYBE.nothing())
     .yield((original, transformed) -> transformed);
 ```
