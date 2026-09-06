@@ -810,6 +810,7 @@ public class SecureRequestHandler {
 
 ### Testing Role Checks
 
+<!-- verify -->
 ```java
 @Test
 void shouldAllowAdminAccess() {
@@ -850,6 +851,7 @@ void shouldThrowWhenRoleRequired() {
 
 ### Testing Anonymous Access
 
+<!-- verify -->
 ```java
 @Test
 void shouldHandleAnonymousUser() {
