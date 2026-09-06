@@ -103,6 +103,7 @@ The VTask ecosystem consists of:
 
 VTask provides several factory methods for creating computations:
 
+<!-- verify -->
 ```java
 import org.higherkindedj.hkt.vtask.VTask;
 
@@ -132,6 +133,7 @@ VTask<byte[]> readFile = VTask.blocking(() -> Files.readAllBytes(path));
 
 VTask offers three execution methods:
 
+<!-- verify -->
 ```java
 VTask<Integer> computation = VTask.of(() -> 42);
 
@@ -150,9 +152,9 @@ try {
 
 // 2. runSafe() - returns Try<A> for safe error handling
 Try<Integer> tryResult = computation.runSafe();
-tryResult.foldFailureFirst(
-    error -> System.err.println("Failure: " + error.getMessage()),
-    value -> System.out.println("Success: " + value)
+tryResult.match(
+    value -> System.out.println("Success: " + value),
+    error -> System.err.println("Failure: " + error.getMessage())
 );
 
 // 3. runAsync() - returns CompletableFuture<A> for async composition
@@ -167,6 +169,7 @@ The `runSafe()` method is preferred for most use cases as it captures failures i
 
 Use `map` to transform the result without changing the effect structure:
 
+<!-- verify -->
 ```java
 VTask<String> greeting = VTask.succeed("world");
 VTask<String> message = greeting.map(name -> "Hello, " + name + "!");
@@ -183,6 +186,7 @@ If the mapping function throws, the VTask fails with that exception.
 
 Use `flatMap` to sequence dependent computations:
 
+<!-- verify -->
 ```java
 VTask<User> fetchUser = VTask.of(() -> userService.getById(userId));
 VTask<Profile> fetchProfile = fetchUser.flatMap(user ->
@@ -196,6 +200,7 @@ String name = displayName.run();
 
 The `via` method is an alias for `flatMap`:
 
+<!-- verify -->
 ```java
 VTask<String> result = fetchUser
     .via(user -> VTask.of(() -> profileService.getForUser(user)))
@@ -211,6 +216,7 @@ VTask<String> result = fetchUser
 
 Handle failures gracefully with recovery functions:
 
+<!-- verify -->
 ```java
 VTask<Config> loadConfig = VTask.of(() -> configService.load());
 
@@ -231,6 +237,7 @@ VTask<Config> withBetterError = loadConfig.mapError(error ->
 
 For HKT-compatible error handling:
 
+<!-- verify -->
 ```java
 MonadError<VTaskKind.Witness, Throwable> monad = Instances.monadError(vtask());
 
@@ -255,6 +262,7 @@ This handler ignores the error and returns a constant, so the type-class [`recov
 
 Fail fast when operations take too long:
 
+<!-- verify -->
 ```java
 VTask<Data> slowOperation = VTask.of(() -> {
     Thread.sleep(5000);
@@ -265,9 +273,9 @@ VTask<Data> withTimeout = slowOperation.timeout(Duration.ofSeconds(2));
 
 // Option 1: Use runSafe() for functional error handling (preferred)
 Try<Data> result = withTimeout.runSafe();
-result.foldFailureFirst(
-    error -> System.err.println("Operation timed out: " + error.getMessage()),
-    data -> System.out.println("Got data: " + data)
+result.match(
+    data -> System.out.println("Got data: " + data),
+    error -> System.err.println("Operation timed out: " + error.getMessage())
 );
 
 // Option 2: Use run() - TimeoutException is wrapped in VTaskExecutionException
@@ -302,15 +310,16 @@ The `Par` utility class provides combinators for executing VTasks concurrently:
 
 ~~~admonish example title="Parallel Execution Examples"
 
+<!-- verify -->
 ```java
 import org.higherkindedj.hkt.vtask.Par;
 
 // zip: combine two tasks into a tuple
-VTask<String> userTask = VTask.of(() -> fetchUser(id));
-VTask<String> profileTask = VTask.of(() -> fetchProfile(id));
+VTask<User> userTask = VTask.of(() -> fetchUser(id));
+VTask<Profile> profileTask = VTask.of(() -> fetchProfile(id));
 
-VTask<Par.Tuple2<String, String>> both = Par.zip(userTask, profileTask);
-Par.Tuple2<String, String> result = both.run();
+VTask<Par.Tuple2<User, Profile>> both = Par.zip(userTask, profileTask);
+Par.Tuple2<User, Profile> result = both.run();
 // Both execute in parallel!
 
 // map2: combine two tasks with a function
