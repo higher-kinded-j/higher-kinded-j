@@ -544,7 +544,7 @@ final class SnippetExtractor {
         declarations.add(
             declaration.replaceAll(
                 "\\b(public|private|protected)\\s+"
-                      + "(?=(final\\s+|abstract\\s+|sealed\\s+|non-sealed\\s+|static\\s+)*"
+                    + "(?=(final\\s+|abstract\\s+|sealed\\s+|non-sealed\\s+|static\\s+)*"
                     + "(class|record|interface|enum)\\b)",
                 ""));
         i = end + 1;
