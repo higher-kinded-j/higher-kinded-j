@@ -60,6 +60,7 @@ Examples:
 
 Convert our standard Java object (e.g., a `List<Integer>`, an `Optional<String>`, an `IO<String>`) into Higher-Kinded-J's `Kind` representation using the `widen` instance method from the corresponding `XxxKindHelper` enum's singleton instance. We will typically use a static import for the singleton instance for brevity.
 
+<!-- verify -->
    ```java
     import static org.higherkindedj.hkt.optional.OptionalKindHelper.OPTIONAL; 
     // ...
@@ -79,6 +80,7 @@ Convert our standard Java object (e.g., a `List<Integer>`, an `Optional<String>`
 
 Use the methods defined by the type class interface (`map`, `flatMap`, `of`, `ap`, `raiseError`, `handleErrorWith`, etc.) by calling them on the **type class instance** obtained in *Step 2*, passing our `Kind` value(s) as arguments. **Do not call `map`/`flatMap` directly on the `Kind` object itself if it's just the `Kind` interface.** (Some concrete `Kind` implementations like `Id` or `Maybe` might offer direct methods, but for generic programming, use the type class instance).
 
+<!-- verify -->
    ```java
     import static org.higherkindedj.hkt.optional.OptionalKindHelper.OPTIONAL;
     // ...
@@ -115,14 +117,13 @@ Use the methods defined by the type class interface (`map`, `flatMap`, `of`, `ap
 
 When we need the underlying Java value back (e.g., to return from a method boundary, perform side effects like printing or running `IO`), use the `narrow` instance method from the corresponding `XxxKindHelper` enum's singleton instance.
  
+<!-- verify -->
     ```java
     import static org.higherkindedj.hkt.optional.OptionalKindHelper.OPTIONAL; 
     import static org.higherkindedj.hkt.io.IOKindHelper.IO_OP; 
  
     // ...
-    // Continuing the Optional example:
-     Kind<OptionalKind.Witness, String> checkedKind = /* from previous step */;
-     Kind<OptionalKind.Witness, String> handledKind = /* from previous step */;
+    // Continuing the Optional example, with checkedKind and handledKind from the step above:
  
      Optional<String> finalOptional = OPTIONAL.narrow(checkedKind);
      System.out.println("Final Optional: " + finalOptional); 
@@ -153,6 +154,7 @@ The `narrow` instance methods in all `KindHelper` enums are designed to be robus
 * **What it means**: This exception signals a problem with how we are using Higher-Kinded-J itself, usually a programming error in creating or passing `Kind` objects.
 * **How to handle**: We generally **should not** need to catch `KindUnwrapException` in typical application logic. Its occurrence points to a bug that needs fixing in the code using Higher-Kinded-J.
 
+<!-- verify -->
 ```java
   // import static org.higherkindedj.hkt.optional.OptionalKindHelper.OPTIONAL;
   public void handlingUnwrapExceptions() {
@@ -179,6 +181,7 @@ The `narrow` instance methods in all `KindHelper` enums are designed to be robus
 
 Higher-Kinded-J allows writing functions generic over the simulated type constructor (represented by its witness `F_WITNESS`).
 
+<!-- verify -->
 ```java
 // import static org.higherkindedj.hkt.list.ListKindHelper.LIST;
 // import static org.higherkindedj.hkt.optional.OptionalKindHelper.OPTIONAL;
@@ -186,7 +189,8 @@ Higher-Kinded-J allows writing functions generic over the simulated type constru
 
 // Generic function: Applies a function within any Functor context F_WITNESS.
 // Requires the specific Functor<F_WITNESS> instance to be passed in.
-public static <F_WITNESS, A, B> Kind<F_WITNESS, B> mapWithFunctor(
+public static <F_WITNESS extends WitnessArity<TypeArity.Unary>, A, B>
+    Kind<F_WITNESS, B> mapWithFunctor(
     Functor<F_WITNESS> functorInstance, // Pass the type class instance for F_WITNESS
     Function<A, B> fn,
     Kind<F_WITNESS, A> kindABox) { 

@@ -58,6 +58,7 @@ Consider a typical e-commerce order flow:
 
 Each step can fail for specific, typed reasons. Traditional Java handles this with a patchwork of approaches:
 
+<!-- verify -->
 ```java
 // The pyramid of doom
 public OrderResult processOrder(OrderRequest request) {
@@ -74,7 +75,7 @@ public OrderResult processOrder(OrderRequest request) {
             return OrderResult.error("Customer not found");
         }
         try {
-            var inventory = inventoryService.reserve(request.items());
+            var inventory = legacyInventoryService.reserve(request.items());
             if (!inventory.isSuccess()) {
                 return OrderResult.error(inventory.getReason());
             }
@@ -85,6 +86,7 @@ public OrderResult processOrder(OrderRequest request) {
     } catch (ValidationException e) {
         return OrderResult.error("Validation error: " + e.getMessage());
     }
+    return OrderResult.error("Unreachable, once every branch above has returned");
 }
 ```
 
@@ -103,6 +105,7 @@ The problems multiply:
 
 The `For` comprehension combined with `toState()` and `ForState` provides a unified approach. The workflow proceeds in two phases: a *gather phase* where initial values are accumulated via `For`, and an *enrich phase* where named state is threaded via `ForState` with lenses:
 
+<!-- verify -->
 ```java
 public EitherPath<OrderError, OrderResult> process(OrderRequest request) {
     var orderId = OrderId.generate();
@@ -120,7 +123,8 @@ public EitherPath<OrderError, OrderResult> process(OrderRequest request) {
                 ProcessingState.initial(address, customer, order))
 
             // Enrich phase: named field access via ForState + lenses
-            .fromThen(s -> lift(reserveInventory(s.order())),        ProcessingStateLenses.reservation())
+            .fromThen(s -> lift(reserveInventory(s.order().orderId(), s.order().lines())),
+                ProcessingStateLenses.reservation())
             .fromThen(s -> lift(applyDiscounts(s.order(), s.customer())), ProcessingStateLenses.discount())
             .fromThen(s -> lift(processPayment(s.order(), s.discount())), ProcessingStateLenses.payment())
             .fromThen(s -> lift(createShipment(s.order(), s.address())), ProcessingStateLenses.shipment())
@@ -156,13 +160,15 @@ Step back and consider what this example builds. An order workflow with eight di
 
 Instead, the core workflow fits in a `For` → `toState()` → `ForState` comprehension (eight steps, flat and readable, with named field access throughout):
 
+<!-- verify -->
 ```java
-For.from(monad, lift(validateShippingAddress(request.shippingAddress())))
+var workflow = For.from(monad, lift(validateShippingAddress(request.shippingAddress())))
     .from(addr -> lift(lookupAndValidateCustomer(customerId)))
     .from(t -> lift(buildValidatedOrder(orderId, request, t._2(), t._1())))
     .toState((address, customer, order) ->
         ProcessingState.initial(address, customer, order))
-    .fromThen(s -> lift(reserveInventory(s.order())),        ProcessingStateLenses.reservation())
+    .fromThen(s -> lift(reserveInventory(s.order().orderId(), s.order().lines())),
+        ProcessingStateLenses.reservation())
     .fromThen(s -> lift(applyDiscounts(s.order(), s.customer())), ProcessingStateLenses.discount())
     .fromThen(s -> lift(processPayment(s.order(), s.discount())), ProcessingStateLenses.payment())
     .fromThen(s -> lift(createShipment(s.order(), s.address())), ProcessingStateLenses.shipment())
@@ -189,11 +195,13 @@ This is not magic. It is the result of combining a small number of simple, compo
 ~~~admonish note title="Why not par() in the gather phase?"
 The gather phase uses sequential `.from()` rather than `par()` because **step 3 depends on the results of steps 1 and 2**: `buildValidatedOrder` needs both the validated address and the customer. However, steps 1 and 2 *are* independent: `validateShippingAddress` and `lookupAndValidateCustomer` do not depend on each other. If these were expensive operations, you could use `For.par()` for them and chain step 3 with `.from()`:
 
+<!-- verify -->
 ```java
-For.par(monad, lift(validateShippingAddress(address)), lift(lookupAndValidateCustomer(id)))
-    .from(t -> lift(buildValidatedOrder(orderId, request, t._2(), t._1())))
-    .toState((address, customer, order) -> ProcessingState.initial(address, customer, order))
-    // ... enrich phase continues
+var gathered =
+    For.par(monad, lift(validateShippingAddress(address)), lift(lookupAndValidateCustomer(id)))
+        .from(t -> lift(buildValidatedOrder(orderId, request, t._2(), t._1())))
+        .toState((address, customer, order) -> ProcessingState.initial(address, customer, order));
+// ... enrich phase continues from `gathered`
 ```
 
 For `EitherPath`, `par()` is sequential, so the benefit is purely documentation of intent. For a `VTaskPath` version of this workflow, `par()` would provide true concurrent execution. See [Parallel Composition](../functional/for_par.md) for details.

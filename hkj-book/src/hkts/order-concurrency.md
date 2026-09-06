@@ -22,6 +22,7 @@ This page covers patterns for scaling the order workflow: context propagation wi
 
 Cross-cutting concerns like trace IDs, tenant isolation, and deadlines can be propagated automatically using `Context`:
 
+<!-- verify -->
 ```java
 // Define scoped values for order context
 public final class OrderContext {
@@ -47,24 +48,27 @@ The key benefit: context values automatically propagate to child virtual threads
 
 Operations can check remaining time and fail fast when the deadline is exceeded:
 
+<!-- verify -->
 ```java
 public static Duration remainingTime() {
-    if (!DEADLINE.isBound()) {
+    if (!OrderContext.DEADLINE.isBound()) {
         return Duration.ofDays(365); // No deadline, effectively infinite
     }
-    Duration remaining = Duration.between(Instant.now(), DEADLINE.get());
+    Duration remaining = Duration.between(Instant.now(), OrderContext.DEADLINE.get());
     return remaining.isNegative() ? Duration.ZERO : remaining;
 }
 
 public static boolean isDeadlineExceeded() {
-    return DEADLINE.isBound() && Instant.now().isAfter(DEADLINE.get());
+    return OrderContext.DEADLINE.isBound()
+        && Instant.now().isAfter(OrderContext.DEADLINE.get());
 }
 ```
 
 On the typed railway, "fail fast" means a typed `Left`, not a thrown exception. The workflow checks the deadline as an ordinary step, and a `Left` here short-circuits everything after it:
 
+<!-- verify -->
 ```java
-private VResultPath<OrderError, Unit> checkDeadline(String operation) {
+VResultPath<OrderError, Unit> checkDeadline(String operation) {
     return Path.vresultDefer(() -> {
         if (OrderContext.isDeadlineExceeded()) {
             return Either.left(SystemError.timeout(operation));
@@ -80,6 +84,7 @@ private VResultPath<OrderError, Unit> checkDeadline(String operation) {
 
 Parallel operations with proper cancellation, timeout handling, and typed failures kept in the value channel:
 
+<!-- verify -->
 ```java
 // Race inventory reservations across multiple warehouses
 VResultPath<OrderError, InventoryReservation> result =
@@ -101,6 +106,7 @@ Context values propagate to all forked tasks automatically. Each racing candidat
 
 ### Example: Parallel Inventory Check
 
+<!-- verify -->
 ```java
 public VResultPath<OrderError, InventoryReservation> reserveInventoryParallel(
     OrderId orderId, List<ValidatedOrderLine> lines) {
@@ -120,7 +126,7 @@ public VResultPath<OrderError, InventoryReservation> reserveInventoryParallel(
             getRemainingTimeout(), () -> SystemError.timeout("parallel inventory reservation"));
 }
 
-private VResultPath<OrderError, InventoryReservation> warehouseReservation(
+VResultPath<OrderError, InventoryReservation> warehouseReservation(
     int warehouse, Duration latency, OrderId orderId, List<ValidatedOrderLine> lines) {
     return Path.vresult(
         VTask.of(() -> {
@@ -144,8 +150,9 @@ Three moves on the error channel do all the work:
 
 The bracket pattern ensures cleanup even when operations fail. `VResultPath.bracketOutcome` goes further: the release action *sees* the `Either` outcome of the use phase, so confirm-versus-release is decided from the result rather than a mutable flag:
 
+<!-- verify -->
 ```java
-private VResultPath<OrderError, OrderResult> processWithReservation(
+VResultPath<OrderError, OrderResult> processWithReservation(
     ValidatedOrder order, Customer customer) {
 
     return VResultPath.bracketOutcome(
@@ -172,6 +179,7 @@ Release *always* runs and receives the `Either` outcome: a `Right` confirms the 
 
 For AutoCloseable-style acquisition where the release does not depend on the outcome, the generic `Resource` bracket remains available, and multiple resources combine with guaranteed cleanup ordering:
 
+<!-- verify -->
 ```java
 Resource<Connection> dbResource = Resource.fromAutoCloseable(
     () -> connectionPool.getConnection()
@@ -195,6 +203,7 @@ Resources are released in reverse order of acquisition (LIFO), and cleanup runs 
 
 Scale to millions of concurrent orders using virtual threads. The workflow's shape is `VTask<Either<OrderError, A>>` (async work that can fail with a typed domain error), and `VResultPath` is that stack as a first-class railway, with no `Kind` widening, transformer, or hand-carried `Either`:
 
+<!-- verify -->
 ```java
 // VResultPath operations are lazy - they describe computation
 VResultPath<OrderError, OrderResult> workflow =
@@ -215,6 +224,7 @@ Try<Either<OrderError, OrderResult>> result = workflow.run().runSafe();
 
 `VResultPath` integrates with the rest of the Effect Path API:
 
+<!-- verify -->
 ```java
 // Defer a computation that decides the Either itself
 VResultPath<OrderError, ValidatedShippingAddress> step =
@@ -231,8 +241,9 @@ VResultPath<OrderError, Unit> failed = Path.vresultLeft(SystemError.timeout("ord
 
 VTask-native resilience composes on the `VTaskPath` layer and lifts into the typed railway:
 
+<!-- verify -->
 ```java
-private VResultPath<OrderError, Customer> lookupAndValidateCustomer(CustomerId customerId) {
+VResultPath<OrderError, Customer> lookupAndValidateCustomer(CustomerId customerId) {
     return Path.vresult(
         Path.vtask(() ->
                 customerService.findById(customerId)
@@ -253,12 +264,21 @@ Retry engages only when the lookup *throws* (a transient infrastructure failure)
 
 Start with a sealed interface for your domain errors:
 
+<!-- verify -->
 ```java
-public sealed interface MyDomainError
-    permits ValidationError, NotFoundError, ConflictError, SystemError {
+public sealed interface MyDomainError {
 
     String code();
     String message();
+
+    record ValidationError(String code, String message) implements MyDomainError {}
+    record NotFoundError(String code, String message) implements MyDomainError {
+        static NotFoundError user(String id) {
+            return new NotFoundError("USER_NOT_FOUND", "No user " + id);
+        }
+    }
+    record ConflictError(String code, String message) implements MyDomainError {}
+    record SystemError(String code, String message) implements MyDomainError {}
 }
 ```
 
@@ -266,16 +286,17 @@ public sealed interface MyDomainError
 
 Convert existing services to return `Either`:
 
+<!-- verify -->
 ```java
-// Before
-public User findUser(String id) throws UserNotFoundException { ... }
+// Before: the failure is in the throws clause, not the type
+//   public User findUser(String id) throws UserNotFoundException
 
 // After
 public Either<MyDomainError, User> findUser(String id) {
     try {
         return Either.right(legacyService.findUser(id));
     } catch (UserNotFoundException e) {
-        return Either.left(NotFoundError.user(id));
+        return Either.left(MyDomainError.NotFoundError.user(id));
     }
 }
 ```
@@ -284,11 +305,12 @@ public Either<MyDomainError, User> findUser(String id) {
 
 Build your workflows using `via()`:
 
+<!-- verify -->
 ```java
 public EitherPath<MyDomainError, Result> process(Request request) {
     return Path.either(validateRequest(request))
-        .via(valid -> Path.either(findUser(valid.userId())))
-        .via(user -> Path.either(performAction(user, valid)))
+        .via(valid -> Path.either(findUser(valid.userId()))
+            .via(user -> Path.either(performAction(user, valid))))
         .map(this::buildResult);
 }
 ```

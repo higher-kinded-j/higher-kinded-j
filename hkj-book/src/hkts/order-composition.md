@@ -21,6 +21,7 @@ This page covers the core composition patterns used in the order workflow: typed
 
 The foundation of type-safe error handling is a sealed interface:
 
+<!-- verify -->
 ```java
 @GeneratePrisms
 public sealed interface OrderError
@@ -37,6 +38,7 @@ public sealed interface OrderError
 
 Each variant carries domain-specific information:
 
+<!-- verify -->
 ```java
 record CustomerError(
     String code,
@@ -72,6 +74,7 @@ The `@GeneratePrisms` annotation creates optics for each variant, enabling type-
 
 ### Why Sealed Interfaces Matter
 
+<!-- verify -->
 ```java
 // Exhaustive matching - compiler ensures all cases handled
 public String getUserFriendlyMessage(OrderError error) {
@@ -98,6 +101,7 @@ The order workflow uses a two-phase composition pattern. The `For` comprehension
 
 ### The Full Workflow
 
+<!-- verify -->
 ```java
 public EitherPath<OrderError, OrderResult> process(OrderRequest request) {
     var orderId = OrderId.generate();
@@ -149,10 +153,14 @@ This split is what makes the pattern powerful. The gather phase uses `For` for c
 ~~~admonish tip title="Optimising the gather phase with par()"
 In this workflow, steps 1 and 2 (address validation and customer lookup) are independent: neither uses the other's result. You could use `For.par()` to express this:
 
+<!-- verify -->
 ```java
-For.par(monad, lift(validateShippingAddress(...)), lift(lookupAndValidateCustomer(...)))
+var gathered = For.par(monad,
+        lift(validateShippingAddress(request.shippingAddress())),
+        lift(lookupAndValidateCustomer(customerId)))
     .from(t -> lift(buildValidatedOrder(orderId, request, t._2(), t._1())))
-    .toState(...)
+    .toState((address, customer, order) ->
+        ProcessingState.initial(address, customer, order));
 ```
 
 With `EitherPath`, the benefit is documentation of intent; execution remains sequential. With `VTaskPath`, the two operations would run concurrently on virtual threads. See [Parallel Composition](../functional/for_par.md) for the full API.
@@ -162,6 +170,7 @@ With `EitherPath`, the benefit is documentation of intent; execution remains seq
 
 The `ProcessingState` record gives every intermediate value a name:
 
+<!-- verify -->
 ```java
 @GenerateLenses
 public record ProcessingState(
@@ -191,6 +200,7 @@ Because `ProcessingState` is annotated `@GenerateLenses`, the processor generate
 above never hand-writes a lens. Each generated lens is just a getter/setter pair;
 `ProcessingStateLenses.discount()` is equivalent to:
 
+<!-- verify -->
 ```java
 Lens.of(
     ProcessingState::discount,
@@ -209,21 +219,23 @@ does. The example workflow calls `ProcessingStateLenses.discount()` and friends 
 
 Service methods return `Either<OrderError, T>`. The `For`/`ForState` comprehension works with `Kind<EitherKind.Witness<OrderError>, T>`. A simple `lift()` helper bridges the two:
 
+<!-- verify -->
 ```java
-private static <A> Kind<EitherKind.Witness<OrderError>, A> lift(Either<OrderError, A> either) {
+static <A> Kind<EitherKind.Witness<OrderError>, A> lift(Either<OrderError, A> either) {
     return EITHER.widen(either);
 }
 ```
 
 ### Individual Steps Are Simple
 
+<!-- verify -->
 ```java
-private Either<OrderError, InventoryReservation> reserveInventory(
+Either<OrderError, InventoryReservation> reserveInventory(
     OrderId orderId, List<ValidatedOrderLine> lines) {
     return inventoryService.reserve(orderId, lines);
 }
 
-private Either<OrderError, PaymentConfirmation> processPayment(
+Either<OrderError, PaymentConfirmation> processPayment(
     ValidatedOrder order, DiscountResult discount) {
     return paymentService.processPayment(
         order.orderId(), discount.finalTotal(), order.paymentMethod());
@@ -238,8 +250,9 @@ Service methods return `Either` directly. The `lift()` helper in the comprehensi
 
 Smaller groups of related steps can use their own `For` comprehension and be called as a single step from the main workflow:
 
+<!-- verify -->
 ```java
-private EitherPath<OrderError, Customer> lookupAndValidateCustomer(CustomerId customerId) {
+EitherPath<OrderError, Customer> lookupAndValidateCustomer(CustomerId customerId) {
     MonadError<EitherKind.Witness<OrderError>, OrderError> monad = Instances.monadError(either());
     Kind<EitherKind.Witness<OrderError>, Customer> result =
         For.from(monad, lift(lookupCustomer(customerId)))
@@ -270,8 +283,9 @@ This keeps the main comprehension readable while encapsulating sub-workflows.
 
 Not all errors are fatal. Notifications, for instance, should not fail the entire order:
 
+<!-- verify -->
 ```java
-private Either<OrderError, NotificationResult> sendNotifications(
+Either<OrderError, NotificationResult> sendNotifications(
     ValidatedOrder order, Customer customer, DiscountResult discount) {
 
     return notificationService
