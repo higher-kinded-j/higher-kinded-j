@@ -262,7 +262,10 @@ Some shapes recur across the book and are left unmarked deliberately:
   point is the shape the operation has for *any* effect. A fixture can lend its type parameters to
   a snippet, but only one set, and the same fixture serves the concrete `IO` and `Maybe` examples
   on the same page. `optics/folds.md`'s table of standard monoids is the same case: `Monoids.list()`
-  and its neighbours are listed as `Monoid<List<A>>` for the `A` the caller brings.
+  and its neighbours are listed as `Monoid<List<A>>` for the `A` the caller brings, and
+  `optics/composition_rules.md`'s two summary tables state every composition as
+  `Lens<A, C> result = lensAB.andThen(lensBC);` - one `result` per line, over free `A`, `B` and
+  `C`. Every rule in them is worked concretely elsewhere on that page, and gated there.
 - **A name the page binds to two different lenses.** `optics/coupled_fields.md` closes by
   putting the two `coupled3` constructor forms side by side, and its simple half names
   `loLens`/`hiLens`, which the page has already bound to the `Range` example. Both forms are gated
