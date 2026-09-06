@@ -207,6 +207,10 @@ Some shapes recur in the monads chapter and are left unmarked deliberately:
   quotes `fromArray(T... elements)`. A signature-only snippet is wrapped in an interface, where
   the annotation the real declaration carries is not legal, and without it javac raises a
   mandatory heap-pollution warning. The other four reference tables on that page are gated.
+- **Snippets against a dependency the gate does not have.** `context_scoped.md`'s SLF4J bridge
+  (`LoggerFactory`, `MDC`) and `vstream_performance.md`'s JMH configuration name libraries that
+  are not on the gate's classpath, and putting them there to compile two snippets would be the
+  tail wagging the dog.
 - **Laws written as equations.** `coyoneda.md` states the functor laws as
   `coyo.map(x -> x) == coyo`. The `==` is the law's notation, not a reference comparison, and
   rewriting it as an assertion would obscure what it says.
