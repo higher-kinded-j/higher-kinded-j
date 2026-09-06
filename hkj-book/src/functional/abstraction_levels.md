@@ -53,9 +53,10 @@ The crucial insight is that **monadic bind (`flatMap`) allows dynamic selection 
 
 With `Applicative`, all computations are independent. Neither can affect which effects the other produces:
 
+<!-- verify -->
 ```java
 // Two independent fetches - neither depends on the other's result
-FreeAp<DbOp, UserProfile> program = userFetch.map2(
+FreeAp<DbOpKind.Witness, UserProfile> program = userFetch.map2(
     postsFetch,
     (user, posts) -> new UserProfile(user, posts)
 );
@@ -75,9 +76,10 @@ FreeAp<DbOp, UserProfile> program = userFetch.map2(
 
 `Selective` sits between Applicative and Monad. It allows conditional execution, but **all branches must be provided upfront**:
 
+<!-- verify -->
 ```java
 // Both branches visible at construction time
-Kind<F, Config> config = selective.ifS(
+Kind<IOKind.Witness, Config> config = selective.ifS(
     isProd,
     prodConfig,   // Known upfront
     devConfig     // Known upfront
@@ -94,9 +96,10 @@ Kind<F, Config> config = selective.ifS(
 
 With `Monad`, each step can decide what to do based on the previous result:
 
+<!-- verify -->
 ```java
 // The function inside flatMap is opaque until runtime
-Kind<F, Result> program = monad.flatMap(user -> {
+Kind<MaybeKind.Witness, Result> program = monad.flatMap(user -> {
     if (user.isAdmin()) {
         return fetchAdminDashboard(user.id());  // Not known until runtime
     } else {
@@ -139,39 +142,42 @@ Does step B need the RESULT of step A?
 ### Practical Examples
 
 **Use Applicative when:**
+<!-- verify -->
 ```java
 // Fetching user AND posts - independent operations
-FreeAp<Op, Dashboard> dashboard = fetchUser(id).map2(fetchPosts(id), Dashboard::new);
+FreeAp<DbOpKind.Witness, Dashboard> dashboard =
+    fetchUser(id).map2(fetchPosts(id), Dashboard::new);
 
 // Validating multiple fields - accumulate ALL errors
-Validated<Errors, User> user = applicative.map3(
-    validateName(name),
-    validateEmail(email),
-    validateAge(age),
-    User::new
-);
+Kind<ValidatedKind.Witness<List<String>>, User> user = applicative.map3(
+    VALIDATED.widen(validateName(name)),
+    VALIDATED.widen(validateEmail(email)),
+    VALIDATED.widen(validateAge(age)),
+    (n, e, a) -> new User(n, e, true));
 ```
 
 **Use Selective when:**
+<!-- verify -->
 ```java
 // Feature flag - both branches known, but only one executes
-Kind<IO, Unit> maybeTrack = selective.whenS(
+Kind<IOKind.Witness, Unit> maybeTrack = selective.whenS(
     featureFlagEnabled("analytics"),
     trackEvent("page_view")
 );
 
 // Environment-based config - both configs defined upfront
-Kind<IO, Config> config = selective.ifS(isProd, prodConfig, devConfig);
+Kind<IOKind.Witness, Config> config = selective.ifS(isProd, prodConfig, devConfig);
 ```
 
 **Use Monad when:**
+<!-- verify -->
 ```java
 // User type determines next action - genuinely dynamic
-Kind<IO, Dashboard> dashboard = monad.flatMap(user -> {
+Kind<MaybeKind.Witness, Result> dashboard = monad.flatMap(user -> {
     return switch (user.role()) {
-        case ADMIN -> fetchAdminDashboard(user);
-        case MANAGER -> fetchManagerDashboard(user);
-        case USER -> fetchUserDashboard(user);
+        case "ADMIN" -> fetchAdminDashboard(user.id());
+        case "MANAGER" -> fetchManagerDashboard(user.id());
+        default -> fetchUserDashboard(user.id());
         // New roles can be added; branches not fixed at construction
     };
 }, getUser(userId));
@@ -185,9 +191,10 @@ Kind<IO, Dashboard> dashboard = monad.flatMap(user -> {
 
 `FreeAp` captures the structure of applicative computations, enabling analysis before execution:
 
+<!-- verify -->
 ```java
 // Build a program
-FreeAp<DbOp, Dashboard> program = buildDashboard(userId);
+FreeAp<DbOpKind.Witness, Dashboard> program = buildDashboard(userId);
 
 // Count operations before running
 int opCount = FreeApAnalyzer.countOperations(program);
@@ -196,16 +203,11 @@ System.out.println("Program will execute " + opCount + " database operations");
 // Check for dangerous operations
 boolean hasDeletions = FreeApAnalyzer.containsOperation(
     program,
-    op -> DeleteOp.class.isInstance(DbOpHelper.narrow(op))
+    op -> DbOpHelper.DB_OP.narrow(op) instanceof DbOp.DeleteOp
 );
 
-if (hasDeletions) {
-    boolean approved = promptUser("Program contains delete operations. Continue?");
-    if (!approved) return;
-}
-
-// Safe to execute
-program.foldMap(interpreter, ioApplicative);
+boolean approved =
+    !hasDeletions || promptUser("Program contains delete operations. Continue?");
 ```
 
 ### Analysing Selective Programs

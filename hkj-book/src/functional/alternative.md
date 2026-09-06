@@ -142,6 +142,7 @@ wrap each candidate in a `Supplier`.
 
 Represent all possible outcomes:
 
+<!-- verify -->
 ```java
 import org.higherkindedj.hkt.Alternative;
 import org.higherkindedj.hkt.Kind;
@@ -154,7 +155,7 @@ import java.util.List;
 import static org.higherkindedj.hkt.list.ListKindHelper.LIST;
 
 // Get the Alternative instance for List
-final Alternative<ListKind.Witness> alt = Instances.monadZero(list());
+final Alternative<ListKind.Witness> alt = Instances.alternative(list());
 
 // Possible actions
 Kind<ListKind.Witness, String> actions1 = LIST.widen(Arrays.asList("move_left", "move_right"));
@@ -172,6 +173,7 @@ System.out.println("All actions: " + result);
 
 Filter based on conditions:
 
+<!-- verify -->
 ```java
 import org.higherkindedj.hkt.Alternative;
 import org.higherkindedj.hkt.Kind;
