@@ -40,6 +40,7 @@ Learn to work with multiple targets simultaneously using Traversals.
 **Key insight**: A Traversal is like a Lens that can focus on zero, one, or many targets at once.
 
 **Example**:
+<!-- verify -->
 ```java
 // Update all player scores in a league
 Traversal<League, Integer> allScores = leagueToTeams
@@ -107,6 +108,7 @@ Learn to leverage annotation-driven code generation for zero-boilerplate optics.
 **Key insight**: The annotation processor eliminates 90% of the boilerplate. You write the data model, the processor writes the optics.
 
 **Example**:
+<!-- verify -->
 ```java
 @GenerateLenses
 public record User(String name, String email, Address address) {}
@@ -174,6 +176,7 @@ Apply optics to realistic scenarios that mirror production code.
 **Problem**: Using `get()` on a Traversal expecting a single value.
 
 **Solution**: Traversals can have multiple targets. Use `getAll()` for a List:
+<!-- verify -->
 ```java
 List<Integer> allScores = Traversals.getAll(scoresTraversal, team);
 ```
@@ -182,10 +185,11 @@ List<Integer> allScores = Traversals.getAll(scoresTraversal, team);
 **Problem**: Filtering after traversal gives unexpected results.
 
 **Solution**: Apply filters at the right point in composition:
+<!-- verify -->
 ```java
 // Filter THEN traverse
 var activeUserEmails = usersTraversal
-    .filter(User::isActive)
+    .filtered(User::isActive)
     .andThen(emailLens);
 ```
 

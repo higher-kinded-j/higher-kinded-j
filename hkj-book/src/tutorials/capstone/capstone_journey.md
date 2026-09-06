@@ -3,8 +3,9 @@
 ~~~admonish info title="What We'll Build"
 Tutorial 00 introduced the chapter anchor expression, one line of Higher-Kinded-J that touched every layer of the library. By the time we reach this capstone we have learned each layer in depth: the Effect Path API, optics, expression comprehensions, structured concurrency, resilience patterns. The capstone is the same expression, grown up to handle a realistic order workflow:
 
+<!-- verify -->
 ```java
-findOrder(id)
+var outcome = findOrder(id)
     .toEitherPath(OrderError.NOT_FOUND)
     .map(o -> itemsLens.modify(this::recompute, o))
     .via(this::reserveInventory)
