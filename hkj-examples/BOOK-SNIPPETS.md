@@ -271,6 +271,12 @@ Some shapes recur across the book and are left unmarked deliberately:
   factories one per line - `Path.maybe(nullableValue)`, `Path.right(value)` - as a table, not as
   code. A bare expression is not a statement, and binding fifteen of them to names would bury the
   table it is.
+- **A wrong-then-right pair a troubleshooting page shows together.**
+  `tutorials/troubleshooting.md` is built out of them: a X half that does not compile *because that
+  is the point* ("won't work - local class", "NPE here"), and a tick half beside it, usually binding
+  the same name. Splitting each into its own block would lose the juxtaposition that makes the page
+  readable. Elsewhere in the book, where both halves are ordinary code, they ARE split and both are
+  gated - see `migrating_to_functional_errors.md`.
 - **Laws written as equations.** `coyoneda.md` states the functor laws as
   `coyo.map(x -> x) == coyo`. The `==` is the law's notation, not a reference comparison, and
   rewriting it as an assertion would obscure what it says.
