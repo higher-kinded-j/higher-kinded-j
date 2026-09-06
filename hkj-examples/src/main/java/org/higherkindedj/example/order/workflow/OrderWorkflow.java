@@ -88,7 +88,9 @@ import org.jspecify.annotations.Nullable;
  *     .from(t -> lift(buildValidatedOrder(..., t._2(), t._1())))
  *     .toState((address, customer, order) ->                   // bridge to ForState
  *         ProcessingState.initial(address, customer, order))
- *     .fromThen(s -> lift(reserveInventory(s.order())), ProcessingStateLenses.reservation())
+ *     .fromThen(
+ *         s -> lift(reserveInventory(s.order().orderId(), s.order().lines())),
+ *         ProcessingStateLenses.reservation())
  *     .fromThen(s -> lift(applyDiscounts(s.order(), s.customer())), ProcessingStateLenses.discount())
  *     .fromThen(s -> lift(processPayment(s.order(), s.discount())), ProcessingStateLenses.payment())
  *     .fromThen(s -> lift(createShipment(s.order(), s.address())), ProcessingStateLenses.shipment())

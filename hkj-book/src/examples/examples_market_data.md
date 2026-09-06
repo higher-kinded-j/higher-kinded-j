@@ -48,6 +48,7 @@ You've been asked to rebuild it.
 
 Here's what the new pipeline looks like with HKJ:
 
+<!-- verify -->
 ```java
 List<Alert> alerts = pipeline.fullPipeline().toList().run();
 ```

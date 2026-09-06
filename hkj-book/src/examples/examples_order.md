@@ -36,13 +36,26 @@ The Order Processing Workflow is a comprehensive e-commerce example that process
 
 Domain errors modelled as a sealed interface hierarchy for exhaustive pattern matching:
 
+<!-- verify -->
 ```java
 public sealed interface OrderError {
-    record ValidationError(String field, String message) implements OrderError {}
-    record CustomerNotFound(CustomerId id) implements OrderError {}
-    record InsufficientInventory(ProductId id, int requested, int available) implements OrderError {}
-    record PaymentDeclined(String reason) implements OrderError {}
-    record ShipmentFailed(String carrier, String reason) implements OrderError {}
+    record ValidationError(List<FieldError> fieldErrors, ErrorEnvelope<OrderErrorContext> envelope)
+        implements OrderError {}
+    record CustomerError(String customerId, ErrorEnvelope<OrderErrorContext> envelope)
+        implements OrderError {}
+    record InventoryError(List<String> unavailableProducts,
+        ErrorEnvelope<OrderErrorContext> envelope) implements OrderError {}
+    record DiscountError(Optional<String> promoCode, ErrorEnvelope<OrderErrorContext> envelope)
+        implements OrderError {}
+    record PaymentError(Optional<String> transactionId, ErrorEnvelope<OrderErrorContext> envelope)
+        implements OrderError {}
+    record ShippingError(boolean recoverable, ErrorEnvelope<OrderErrorContext> envelope)
+        implements OrderError {}
+    record NotificationError(ErrorEnvelope<OrderErrorContext> envelope) implements OrderError {}
+    record SystemError(Optional<Throwable> cause, ErrorEnvelope<OrderErrorContext> envelope)
+        implements OrderError {}
+
+    record FieldError(String field, String message, @Nullable Object rejectedValue) {}
 }
 ```
 
@@ -54,6 +67,7 @@ A hierarchy like this tends to grow the same `code`/`message`/`timestamp`/`conte
 
 The workflow uses `For` to gather initial values, then bridges to `ForState` via `toState()` for named field access through the remaining steps:
 
+<!-- verify -->
 ```java
 public EitherPath<OrderError, OrderResult> process(OrderRequest request) {
     var orderId = OrderId.generate();
@@ -71,7 +85,8 @@ public EitherPath<OrderError, OrderResult> process(OrderRequest request) {
                 ProcessingState.initial(address, customer, order))
 
             // Phase 2 (Enrich): named field access via ForState + lenses
-            .fromThen(s -> lift(reserveInventory(s.order())),        ProcessingStateLenses.reservation())
+            .fromThen(s -> lift(reserveInventory(s.order().orderId(), s.order().lines())),
+                ProcessingStateLenses.reservation())
             .fromThen(s -> lift(applyDiscounts(s.order(), s.customer())), ProcessingStateLenses.discount())
             .fromThen(s -> lift(processPayment(s.order(), s.discount())), ProcessingStateLenses.payment())
             .fromThen(s -> lift(createShipment(s.order(), s.address())), ProcessingStateLenses.shipment())
@@ -87,31 +102,34 @@ After `toState()`, every value is accessed by name (`s.order()`, `s.customer()`,
 
 ### Resilience Patterns
 
-Built-in retry policies and timeouts for external service calls:
+Retry and timeout combinators chain onto the path itself. The committing half of the workflow is never retried, because a payment that already went through is not safe to repeat:
 
+<!-- verify -->
 ```java
-private EitherPath<OrderError, PaymentConfirmation> processPaymentWithRetry(
-        Customer customer, Money amount) {
-    return Path.io(() -> paymentService.charge(customer, amount))
-        .retry(RetryPolicy.exponentialBackoff(3, Duration.ofMillis(100)))
-        .timeout(Duration.ofSeconds(5))
-        .mapError(e -> new PaymentDeclined(e.getMessage()));
-}
+// Retry only the idempotent pre-flight reads; one timeout bounds the whole retry loop.
+EitherPath<OrderError, Unit> preflight =
+    EitherPath.withTimeout(
+        () -> toEitherPath(
+            Path.io(() -> runPreflight(request)).withRetry(retryPolicy),
+            "ConfigurableOrderWorkflow.preflight"),
+        preflightTimeout,
+        () -> OrderError.SystemError.timeout(
+            "ConfigurableOrderWorkflow.preflight", preflightTimeout));
 ```
 
 ### Focus DSL Integration
 
 Immutable state updates using generated lenses:
 
+<!-- verify -->
 ```java
-// Update nested order status
-Order updated = OrderFocus.status().set(order, OrderStatus.CONFIRMED);
+// Replace a validated order's payment method
+ValidatedOrder updated = ValidatedOrderFocus.paymentMethod().set(newMethod, order);
 
-// Modify all line item quantities
-Order adjusted = OrderFocus.lines()
-    .traverseEach()
-    .compose(OrderLineFocus.quantity())
-    .modify(order, qty -> qty + 1);
+// Add one to every line's quantity
+ValidatedOrder adjusted = ValidatedOrderFocus.lines()
+    .via(ValidatedOrderLineFocus.quantity())
+    .modifyAll(qty -> qty + 1, order);
 ```
 
 ---
