@@ -548,9 +548,14 @@ Employee normalised = employeeCompanyName.modify(String::toLowerCase, employee);
 **Definition:** The stock [ValidatedPrism](#validatedprism) vocabulary for the common wire-to-domain conversion families: one static factory per family (`uuid()`, `uri()`, `localDate()`, `instant()`, `offsetDateTime()`, `enumByName(Class)`, `bigDecimal()`, `intFromString()`, `booleanStrict()`, `currency()`, `locale()`, and friends). Each codec is lawful by construction (built on `ValidatedPrism.canonical`, accepting exactly the canonical form it renders) and every failure is a located [FieldError](#fielderror) with a copy-worthy message. Codecs are ordinary leaves: a spec declares them as `default` methods, and nothing is ever applied implicitly.
 
 **Example:**
+<!-- verify -->
 ```java
+public record Shipment(UUID id, LocalDate placed) {}
+
+public record ShipmentDto(String id, String placed) {}
+
 @GenerateMapping
-public interface OrderMapping extends MappingSpec<Order, OrderDto> {
+public interface ShipmentMapping extends MappingSpec<Shipment, ShipmentDto> {
   default ValidatedPrism<String, UUID> id() { return StandardCodecs.uuid(); }
   default ValidatedPrism<String, LocalDate> placed() { return StandardCodecs.localDate(); }
 }
@@ -569,17 +574,18 @@ public interface OrderMapping extends MappingSpec<Order, OrderDto> {
 - `toList(S source)` - Extract all focused values as a list
 
 **Example:**
+<!-- verify -->
 ```java
-@GenerateLenses
-public record Order(String id, List<LineItem> items) {}
+@GenerateTraversals
+public record Basket(String id, List<LineItem> items) {}
 
-Traversal<Order, LineItem> orderItems =
-    OrderLenses.items().asTraversal();
+Traversal<Basket, LineItem> basketItems = BasketTraversals.items();
 
 // Apply bulk update
-Order discounted = orderItems.modify(
-    item -> item.withPrice(item.price() * 0.9),
-    order
+Basket discounted = Traversals.modify(
+    basketItems,
+    item -> new LineItem(item.sku(), item.price().multiply(new BigDecimal("0.9"))),
+    basket
 );
 ```
 
@@ -592,12 +598,23 @@ Order discounted = orderItems.modify(
 **Definition:** The sparse-PATCH sibling of [MappingSpec](#mappingspec). Annotate an interface extending `UpdateSpec<Domain, Wire>` (with `@GenerateMapping`) to opt into the null-as-absent contract: a null bean property means *not provided, leave unchanged* rather than broken data. The processor generates a single method, `updateFrom(Wire) : Edits.Accumulated<Domain>` (no `build`, `parse`, or `as*` tier), folding the present (non-null) properties into an [Update](#edits) and skipping the absent ones. The wire must be bean-shaped, and a primitive property is rejected (it can never be absent); a leafless domain `Optional` is patchable only from an `Optional`-typed property (a present empty Optional encodes "set to empty"). A present container parses through the element leaf lifted over it (the same vocabulary the dense tiers lift, each failing element located: `phones.1`), with a whole-container leaf winning as the more specific declaration. Present-but-invalid fields still fail, located and accumulating.
 
 **Example:**
+<!-- verify -->
 ```java
-@GenerateMapping
-public interface UserPatchMapping extends UpdateSpec<User, UserPatchDto> {}
+// The wire is a bean, not a record: null means "not provided"
+public class UserPatchDto {
+  private String name;
 
-Edits.Accumulated<User> patch = UserPatchMappingImpl.INSTANCE.updateFrom(dto);
-Validated<NonEmptyList<FieldError>, User> updated = patch.apply(current); // absent fields survive
+  public String getName() { return name; }
+
+  public void setName(String name) { this.name = name; }
+}
+
+@GenerateMapping
+public interface UserPatchMapping extends UpdateSpec<PatchableUser, UserPatchDto> {}
+
+Edits.Accumulated<PatchableUser> patch = UserPatchMappingImpl.INSTANCE.updateFrom(patchDto);
+Validated<NonEmptyList<FieldError>, PatchableUser> updated =
+    patch.apply(current);                                    // absent fields survive
 ```
 
 **Related:** [Record Mapping](../mapping/beans_patch.md#sparse-patch-write-back-updatespec), [@GenerateMapping](#generatemapping), [Edits](#edits)
@@ -609,12 +626,15 @@ Validated<NonEmptyList<FieldError>, User> updated = patch.apply(current); // abs
 **Definition:** Open-arity assembly of a record from N independently validated fields, with every error collected and no `Semigroup` argument, no arity wall, and no `Kind` ceremony. `Validated.fields()` opens a labelled assembly over `NonEmptyList<FieldError>`; each `field(label, value)` adds one validated field, and `apply(...)` completes it with a constructor reference of exactly the accumulated arity. The same shape exists across three carriers: `Validated` (strict), `ValidationPath` (railway, via `Path.fields()`), and `EitherOrBoth` (tolerant).
 
 **Example:**
+<!-- verify -->
 ```java
-Validated<NonEmptyList<FieldError>, User> user =
+record Profile(Name name, Email email) {}
+
+Validated<NonEmptyList<FieldError>, Profile> profile =
     Validated.fields()
         .field("name",  parseName(dto.name()))
         .field("email", parseEmail(dto.email()))
-        .apply(User::new);
+        .apply(Profile::new);
 // Invalid(NonEmptyList[email: not an email address]), or Valid(user)
 ```
 
@@ -627,9 +647,10 @@ Validated<NonEmptyList<FieldError>, User> user =
 **Definition:** The smart-constructor optic for *parse, don't validate* boundaries. Its `parse` returns `Validated<NonEmptyList<FieldError>, A>`, so every failure is located rather than only the first, whilst `build` is total and always succeeds. It is the accumulating counterpart to a [Prism](#prism), whose `preview` reports only presence or absence.
 
 **Example:**
+<!-- verify -->
 ```java
 ValidatedPrism<String, EmailAddress> email = ValidatedPrism.of(
-    raw -> parseEmail(raw),        // String -> Validated<NonEmptyList<FieldError>, EmailAddress>
+    raw -> parseEmailAddress(raw), // String -> Validated<NonEmptyList<FieldError>, EmailAddress>
     EmailAddress::toString);       // total build
 
 Validated<NonEmptyList<FieldError>, EmailAddress> parsed = email.parse("  NOPE ");

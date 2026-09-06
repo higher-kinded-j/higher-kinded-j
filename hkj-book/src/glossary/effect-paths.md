@@ -171,7 +171,7 @@ public sealed interface ConsoleOp<A>
 ```java
 // Create paths using the Path factory
 EitherPath<Error, User> userPath = Path.either(findUser(id));
-MaybePath<Config> configPath = Path.maybe(loadConfig());
+MaybePath<Config> configPath = Path.maybe(findConfig());
 TryPath<Data> dataPath = Path.tryOf(() -> parseJson(input));
 IOPath<String> ioPath = Path.io(() -> readFile(path));
 
@@ -435,6 +435,7 @@ Path.invalidNel(error)              // Invalid, accumulating into a NonEmptyList
 ```
 
 **Example:**
+<!-- verify -->
 ```java
 // Building a complete workflow using Path factory
 public EitherPath<OrderError, Receipt> processOrder(OrderRequest request) {
@@ -456,6 +457,7 @@ public EitherPath<OrderError, Receipt> processOrder(OrderRequest request) {
 **Definition:** A utility that traverses a Free monad program tree without executing it, counting instructions, error recovery points, and parallel scopes. All counts are lower bounds because `FlatMapped` continuations are opaque functions that cannot be inspected without a value.
 
 **Example:**
+<!-- verify -->
 ```java
 ProgramAnalysis analysis = ProgramAnalyser.analyse(program);
 
@@ -487,14 +489,17 @@ FAILURE TRACK  ───────╨───────╨─────�
 When a step succeeds, the value continues on the success track. When a step fails, execution switches to the failure track and subsequent steps are bypassed.
 
 **Example:**
+<!-- verify -->
 ```java
 // Traditional approach: manual error checking at each step
-User user = findUser(id);
-if (user == null) return error("User not found");
-Account account = getAccount(user);
-if (account == null) return error("Account not found");
-if (!account.isActive()) return error("Account inactive");
-return success(account.getBalance());
+BigDecimal balanceOrThrow(String id) {
+    User user = findUserOrNull(id);
+    if (user == null) throw new IllegalStateException("User not found");
+    Account account = getAccountOrNull(user);
+    if (account == null) throw new IllegalStateException("Account not found");
+    if (!account.isActive()) throw new IllegalStateException("Account inactive");
+    return account.getBalance();
+}
 
 // Railway-oriented: automatic track switching (lookupUser returns Either<Error, User>)
 EitherPath<Error, BigDecimal> balance =
@@ -527,6 +532,7 @@ EitherPath<Error, BigDecimal> balance =
 **Signature:** `Path<E, A>.recover(Function<E, A> handler) → Path<E, A>`
 
 **Example:**
+<!-- verify -->
 ```java
 // Simple recovery with default value
 EitherPath<Error, Config> config = loadConfig()
@@ -535,9 +541,10 @@ EitherPath<Error, Config> config = loadConfig()
 // Recovery that inspects the error
 EitherPath<ApiError, User> user = fetchUser(id)
     .recover(error -> switch (error) {
-        case NotFound _ -> User.guest();
-        case RateLimited _ -> User.cached(id);
-        default -> throw new RuntimeException(error);  // Re-throw unrecoverable
+        case ApiError.NotFound _ -> User.guest();
+        case ApiError.RateLimited _ -> User.cached(id);
+        // Every variant is handled, so the switch needs no default
+        case ApiError.Unavailable _ -> User.guest();
     });
 
 // Recovery with a new Path (recoverWith)
@@ -545,13 +552,11 @@ EitherPath<Error, Data> data = primarySource()
     .recoverWith(error -> fallbackSource());  // Try alternative on failure
 
 // Partial recovery - only handle specific errors
-EitherPath<Error, Value> result = operation()
-    .recover(error -> {
-        if (error instanceof Retryable) {
-            return retryOperation();
-        }
-        throw error;  // Propagate non-retryable errors
-    });
+EitherPath<ApiError, User> partial = fetchUser(id)
+    .recoverWith(error ->
+        error instanceof ApiError.RateLimited
+            ? fetchUser(id)                 // one retry
+            : Path.left(error));            // stay on the failure track
 ```
 
 **When To Use:**
@@ -571,11 +576,12 @@ EitherPath<Error, Value> result = operation()
 **Signature:** `Path<E, A>.via(Function<A, Path<E, B>> f) → Path<E, B>`
 
 **Example:**
+<!-- verify -->
 ```java
 // Each step depends on the previous result
 EitherPath<Error, Order> orderPath =
     Path.<Error, String>right(userId)
-        .via(id -> findUser(id))           // Returns EitherPath<Error, User>
+        .via(id -> loadUser(id))           // Returns EitherPath<Error, User>
         .via(user -> getCart(user))        // Returns EitherPath<Error, Cart>
         .via(cart -> validateCart(cart))   // Returns EitherPath<Error, ValidatedCart>
         .via(valid -> createOrder(valid)); // Returns EitherPath<Error, Order>
@@ -604,11 +610,12 @@ EitherPath<Error, String> mapped = userPath.map(user -> user.name());
 **Definition:** A first-class railway for `VTask<Either<E, A>>`: asynchronous work, run on a virtual thread, that can fail with a typed domain error `E`. It composes `VTaskPath` (async) and `EitherPath` (typed error) into one path, so neither `Kind` ceremony nor a hand-rolled `EitherT` bridge ever surfaces. It speaks the full family vocabulary (`map`/`via`/`then`, `mapError`/`recover`/`recoverWith`/`bimap`).
 
 **Example:**
+<!-- verify -->
 ```java
 VResultPath<OrderError, OrderResult> process(OrderRequest request) {
-    return Path.vresultDefer(() -> validateAddress(request.address()))  // VResultPath<OrderError, Address>
-        .via(address -> reserveStock(address))                          // chain a fallible async step
-        .recover(err -> OrderResult.rejected(err));                     // handle the typed Left
+    return validateAddress(request.address())      // VResultPath<OrderError, Address>
+        .via(address -> reserveStock(address))    // chain a fallible async step
+        .recover(err -> OrderResult.rejected(err));  // handle the typed Left
 }
 
 VTask<Either<OrderError, OrderResult>> carrier = process(req).run();    // execute on a virtual thread

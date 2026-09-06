@@ -267,6 +267,10 @@ Some shapes recur across the book and are left unmarked deliberately:
 - **The library's own auto-configuration, quoted.** `spring_boot_integration.md` shows
   `HkjWebMvcAutoConfiguration` with its `properties` field elided. It is the same case as a quoted
   sealed type: the real class cannot be declared beside itself.
+- **A reference table written as bare calls.** `glossary/effect-paths.md` lists the `Path`
+  factories one per line - `Path.maybe(nullableValue)`, `Path.right(value)` - as a table, not as
+  code. A bare expression is not a statement, and binding fifteen of them to names would bury the
+  table it is.
 - **Laws written as equations.** `coyoneda.md` states the functor laws as
   `coyo.map(x -> x) == coyo`. The `==` is the law's notation, not a reference comparison, and
   rewriting it as an assertion would obscure what it says.

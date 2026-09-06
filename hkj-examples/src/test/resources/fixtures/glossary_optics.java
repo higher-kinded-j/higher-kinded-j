@@ -47,6 +47,14 @@ import org.higherkindedj.optics.annotations.GeneratePrisms;
 import org.higherkindedj.optics.annotations.GenerateSetters;
 import org.higherkindedj.optics.annotations.MappingSpec;
 import org.higherkindedj.optics.at.AtInstances;
+import org.higherkindedj.optics.util.Traversals;
+import org.higherkindedj.optics.Traversal;
+import org.higherkindedj.optics.annotations.GenerateTraversals;
+import org.higherkindedj.optics.annotations.UpdateSpec;
+import org.higherkindedj.optics.validated.StandardCodecs;
+import org.higherkindedj.optics.validated.ValidatedPrism;
+import java.time.LocalDate;
+import java.util.UUID;
 import org.higherkindedj.optics.edit.Edits;
 import org.higherkindedj.optics.focus.FocusPath;
 import org.higherkindedj.optics.focus.TraversalPath;
@@ -102,6 +110,9 @@ record Order(
     int quantity,
     List<LineItem> items) {}
 
+@GenerateTraversals
+record Basket(String id, List<LineItem> items) {}
+
 record Player(String name, int score, boolean active) {
 
   boolean isActive() {
@@ -120,6 +131,32 @@ sealed interface PaymentMethod {
   record CreditCard(String number) implements PaymentMethod {}
 
   record BankTransfer(String iban) implements PaymentMethod {}
+}
+
+record EmailAddress(String value) {
+
+  @Override
+  public String toString() {
+    return value;
+  }
+}
+
+record OrderDto(String id, String placed) {}
+
+record PatchableUser(String name) {}
+
+/** A sparse PATCH wire is bean-shaped: null means "not provided". */
+class UserPatchDto {
+
+  private String name;
+
+  public String getName() {
+    return name;
+  }
+
+  public void setName(String name) {
+    this.name = name;
+  }
 }
 
 record Person(String name, String email) {}
@@ -189,6 +226,8 @@ class Fixture {
 
   static final LineItem lineItem = new LineItem("SKU-1", BigDecimal.ONE);
 
+  static final Basket basket = new Basket("b-1", List.of(lineItem));
+
   static final UserDto dto = sample();
 
   static final UserService userService = sample();
@@ -220,6 +259,18 @@ class Fixture {
   static final PersonDto validDto = new PersonDto("Alice", "a@b.test");
 
   static final PersonDto invalidDto = new PersonDto(null, "nope");
+
+  static final EmailAddress addr = new EmailAddress("a@b.test");
+
+  static final PatchableUser current = sample();
+
+  static final UserPatchDto patchDto = sample();
+
+  static Validated<NonEmptyList<FieldError>, EmailAddress> parseEmailAddress(String raw) {
+    return raw != null && raw.contains("@")
+        ? Validated.validNel(new EmailAddress(raw.strip()))
+        : Validated.invalidNel(FieldError.of("not an email address"));
+  }
 
   static final Account account = new Account("acc-1");
 
