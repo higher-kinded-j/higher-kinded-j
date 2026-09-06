@@ -214,6 +214,7 @@ boolean approved =
 
 For Selective, you can determine bounds on possible effects:
 
+<!-- verify -->
 ```java
 // Collect all effects that might possibly run (Over semantics)
 Set<DbOp<?>> possibleEffects = SelectiveAnalyzer.collectPossibleEffects(
@@ -229,7 +230,7 @@ System.out.println("Effects: min=" + bounds.minimum() + ", max=" + bounds.maximu
 boolean hasDangerous = SelectiveAnalyzer.containsDangerousEffect(
     program,
     DbOpHelper.DB_OP::narrow,
-    op -> DbOp.Delete.class.isInstance(op)
+    op -> op instanceof DbOp.DeleteOp
 );
 ```
 
