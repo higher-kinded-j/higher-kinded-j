@@ -171,12 +171,13 @@ public interface Profunctor<F extends WitnessArity<TypeArity.Binary>> { ... }
 
 This creates a compile-time guarantee:
 
+<!-- verify -->
 ```java
 // ✓ Compiles: ListKind.Witness is Unary
-Functor<ListKind.Witness> listFunctor = ListFunctor.INSTANCE;
+Functor<ListKind.Witness> listFunctor = Instances.functor(list());
 
 // ✗ Does not compile: EitherKind2.Witness is Binary, not Unary
-Functor<EitherKind2.Witness> invalid;  // Compilation error!
+// Functor<EitherKind2.Witness> invalid;
 ```
 
 ---
@@ -241,6 +242,7 @@ Use binary witnesses when you need to transform both type parameters:
 
 ### Defining a New Unary Type
 
+<!-- verify -->
 ```java
 // 1. Define the Kind interface with witness
 public interface MyTypeKind<A> extends Kind<MyTypeKind.Witness, A> {
@@ -256,25 +258,26 @@ public record MyType<A>(A value) implements MyTypeKind<A> {}
 public class MyTypeFunctor implements Functor<MyTypeKind.Witness> {
     @Override
     public <A, B> Kind<MyTypeKind.Witness, B> map(
-            Function<A, B> f, Kind<MyTypeKind.Witness, A> fa) {
+            Function<? super A, ? extends B> f, Kind<MyTypeKind.Witness, A> fa) {
         MyType<A> myType = (MyType<A>) fa;
-        return new MyType<>(f.apply(myType.value()));
+        return new MyType<B>(f.apply(myType.value()));
     }
 }
 ```
 
 ### Using Either with Different Arities
 
+<!-- verify -->
 ```java
 // As Monad (unary, right-biased)
-Monad<EitherKind.Witness<String>> eitherMonad = EitherMonadError.instance();
+Monad<EitherKind.Witness<String>> eitherMonad = Instances.monadError(either());
 Kind<EitherKind.Witness<String>, Integer> result =
     eitherMonad.flatMap(x -> eitherMonad.of(x + 1), eitherMonad.of(42));
 
 // As Bifunctor (binary, transform both sides)
 Bifunctor<EitherKind2.Witness> bifunctor = EitherBifunctor.INSTANCE;
 Kind2<EitherKind2.Witness, Integer, String> mapped =
-    bifunctor.bimap(String::length, Object::toString, EITHER2.widen(either));
+    bifunctor.bimap(String::length, Object::toString, EITHER.widen2(either));
 ```
 
 ---
