@@ -24,16 +24,18 @@ Flagged at compile time by the `transformer-missing-monad` check
 **The error:**
 
 ```
-error: constructor EitherTMonad in class EitherTMonad<F, L> cannot be applied to given types;
+error: method eitherT in class Instances cannot be applied to given types;
     var eitherTMonad = Instances.eitherT();
-                       ^
+                                 ^
   required: Monad<F>
   found:    no arguments
-  reason:   actual and formal argument lists differ in length
+  reason:   cannot infer type-variable(s) F,L
+    (actual and formal argument lists differ in length)
 ```
 
 **The trigger:**
 
+<!-- verify:rejects "method eitherT in class org.higherkindedj.hkt.instances.Instances cannot be applied" -->
 ```java
 var eitherTMonad =
     Instances.eitherT();   // missing argument
@@ -43,6 +45,7 @@ Every transformer monad needs a `Monad<F>` instance for the *outer* effect. The 
 
 **The fix:** pass the outer monad to the constructor.
 
+<!-- verify -->
 ```java
 var futureMonad  = Instances.monadError(completableFuture());
 var eitherTMonad =
@@ -58,19 +61,21 @@ The same rule applies to `OptionalTMonad`, `MaybeTMonad`, `ReaderTMonad`, `State
 **The error:**
 
 ```
-error: incompatible types: Kind<EitherTKind.Witness<F,String>,User> cannot be converted to
-    Kind<EitherTKind.Witness<F,DomainError>,User>
+error: incompatible types: cannot infer type-variable(s) B
+    (argument mismatch; bad return type in lambda expression
+      EitherT<F,String,User> cannot be converted to Kind<EitherTKind.Witness<F,DomainError>,B>)
 ```
 
 **The trigger:**
 
+<!-- verify:rejects "bad return type in lambda expression" -->
 ```java
-var eitherTMonad =
-    Instances.eitherT(futureMonad);
-
 // lookupUser returns EitherT<F, String, User>: error type is String, not DomainError
-EitherT<CompletableFutureKind.Witness, String, User> lookupUser(String id) { ... }
+EitherT<CompletableFutureKind.Witness, String, User> lookupUser(String id) {
+    return EitherT.fromEither(futureMonad, Either.<String, User>right(new User(id)));
+}
 
+// eitherTMonad is a MonadError<EitherTKind.Witness<F, DomainError>, DomainError>
 For.from(eitherTMonad, validatedET)
     .from(id -> lookupUser(id));   // String vs DomainError mismatch
 ```
@@ -89,11 +94,21 @@ Every step in an `EitherT` comprehension shares the same error type `L`. Mixing 
 
 **The fix:** unify the error type, either by changing the function or by mapping at the boundary.
 
+<!-- verify -->
 ```java
 // Option 1: change lookupUser to use DomainError
-EitherT<CompletableFutureKind.Witness, DomainError, User> lookupUser(String id) { ... }
+EitherT<CompletableFutureKind.Witness, DomainError, User> lookupUser(String id) {
+    return EitherT.fromEither(futureMonad, Either.<DomainError, User>right(new User(id)));
+}
+```
 
+<!-- verify -->
+```java
 // Option 2: lift the foreign error type at the call site
+EitherT<CompletableFutureKind.Witness, String, User> lookupUser(String id) {
+    return EitherT.fromEither(futureMonad, Either.<String, User>right(new User(id)));
+}
+
 EitherT<CompletableFutureKind.Witness, DomainError, User> liftLookup(String id) {
     var raw = lookupUser(id);                                            // EitherT<F, String, User>
     return EitherT.fromKind(
@@ -119,28 +134,31 @@ leading `Monad<G>`. See
 **The error:**
 
 ```
-error: method mapT in class StateT<S,F,A> cannot be applied to given types;
+error: method mapT in record StateT<S,F,A> cannot be applied to given types;
     stateT.mapT(f);
            ^
   required: Monad<G>, Function<Kind<F,StateTuple<S,A>>,Kind<G,StateTuple<S,A>>>
-  found:    Function<Kind<F,StateTuple<S,A>>,Kind<G,StateTuple<S,A>>>
+  found:    (idKind)->[...]
+  reason:   cannot infer type-variable(s) G
+    (actual and formal argument lists differ in length)
 ```
 
 **The trigger:**
 
+<!-- verify:rejects "method mapT in record org.higherkindedj.hkt.state_t.StateT<S,F,A> cannot be applied" -->
 ```java
-StateT<Counter, IdKind.Witness, Integer> idState = ...;
-
-var taskState = idState.mapT(idKind -> ioToTask.apply(idKind));   // missing first argument
+// idState is a StateT<Counter, IdKind.Witness, Integer>
+var optionalState = idState.mapT(idKind -> idToOptional.apply(idKind));   // missing first argument
 ```
 
 Most transformers' `mapT` takes a single function. `StateT.mapT` is the exception: because the state-threading function `S -> Kind<G, (S, A)>` must close over the new monad, the call requires an explicit `Monad<G>` instance as the first argument.
 
 **The fix:** pass the target monad alongside the function.
 
+<!-- verify -->
 ```java
-var taskMonad = TaskMonad.INSTANCE;
-var taskState = idState.mapT(taskMonad, idKind -> ioToTask.apply(idKind));
+var optionalMonad = Instances.monadError(optional());
+var optionalState = idState.mapT(optionalMonad, idKind -> idToOptional.apply(idKind));
 ```
 
 `EitherT.mapT`, `OptionalT.mapT`, `MaybeT.mapT`, `ReaderT.mapT`, and `WriterT.mapT` do not take this extra argument. Only `StateT` does.
@@ -167,20 +185,22 @@ modern `javac` resolves it to `java.lang.Object` and the code
 
 **The trigger:**
 
+<!-- verify -->
 ```java
 // L bound to DomainError from the typed variable -- fine:
-EitherT<CompletableFutureKind.Witness, DomainError, Validated> step =
+EitherT<CompletableFutureKind.Witness, DomainError, ValidatedOrder> step =
     EitherT.fromEither(futureMonad, Either.right(validated));
 
 // nothing constrains L -> L = Object, compiles silently:
-var step = EitherT.fromEither(futureMonad, Either.right(validated));
+var untypedStep = EitherT.fromEither(futureMonad, Either.right(validated));
 ```
 
 **The fix:** pin `L` with an explicit type witness on the `Either` so
 `Object` never leaks in:
 
+<!-- verify -->
 ```java
-EitherT.fromEither(futureMonad, Either.<DomainError, Validated>right(validated));
+EitherT.fromEither(futureMonad, Either.<DomainError, ValidatedOrder>right(validated));
 ```
 
 The witness costs nothing at runtime and keeps the error type honest.
@@ -216,30 +236,36 @@ error: cannot find symbol
 
 **The trigger:**
 
+<!-- verify:rejects "method value()" -->
 ```java
 Kind<EitherTKind.Witness<CompletableFutureKind.Witness, DomainError>, Result> workflow =
-    eitherTMonad.flatMap(...);
+    eitherTMonad.flatMap(id -> fetchEither(id), validatedET);
 
-var future = workflow.value();   // Kind has no value() method
+var result = workflow.value();   // Kind has no value() method
 ```
 
 `.value()` is defined on the concrete `EitherT<F, L, R>` (and equivalently on `OptionalT`, `MaybeT`, `ReaderT`, `StateT`, `WriterT`). It is not part of the `Kind` interface. When you have a `Kind` value, you must narrow it back to the concrete transformer first.
 
 **The fix:** call the matching narrow helper before extracting the underlying value.
 
+<!-- verify -->
 ```java
 import static org.higherkindedj.hkt.either_t.EitherTKindHelper.EITHER_T;
 
-var future = EITHER_T.narrow(workflow).value();
+Kind<EitherTKind.Witness<CompletableFutureKind.Witness, DomainError>, Result> workflow =
+    eitherTMonad.flatMap(id -> fetchEither(id), validatedET);
+
+var result = EITHER_T.narrow(workflow).value();
 ```
 
 This boundary conversion is unavoidable when a method is typed in `Kind` but you need a concrete operation. If you control the call site, declaring the variable as the concrete `EitherT<...>` removes the need:
 
+<!-- verify -->
 ```java
 EitherT<CompletableFutureKind.Witness, DomainError, Result> workflow =
-    EITHER_T.narrow(eitherTMonad.flatMap(...));    // narrow once at the assignment
+    EITHER_T.narrow(eitherTMonad.flatMap(id -> fetchEither(id), validatedET));
 
-var future = workflow.value();
+var result = workflow.value();
 ```
 
 ---
@@ -249,40 +275,40 @@ var future = workflow.value();
 **The error:**
 
 ```
-error: method from in class For cannot be applied to given types;
-    For.from(eitherTMonad, OptionalT.fromKind(future));
-        ^
-  required: Monad<M>, Kind<M,A>
-  found:    EitherTMonad<...>, OptionalT<...>
-  reason:   inference variable M has incompatible bounds
+error: no suitable method found for from(MonadError<EitherTKind.Witness<F,DomainError>,DomainError>,
+    OptionalT<F,User>)
+    method For.<M,A>from(Monad<M>,Kind<M,A>) is not applicable
+      (inference variable M has incompatible equality constraints
+        OptionalTKind.Witness<F>, EitherTKind.Witness<F,DomainError>)
 ```
 
 **The trigger:**
 
+<!-- verify:rejects "inference variable M has incompatible equality constraints" -->
 ```java
-var eitherTMonad =
-    Instances.eitherT(futureMonad);
-
+// eitherTMonad is a MonadError<EitherTKind.Witness<F, DomainError>, DomainError>
 For.from(eitherTMonad, OptionalT.fromKind(future))    // mismatched witness types
-    .from(...)
-    .yield(...);
+    .yield(user -> user);
 ```
 
 `For.from(monad, source)` requires the source's witness type to match the monad's witness type. Passing an `EitherTMonad` and an `OptionalT` mixes two different transformer stacks.
 
 **The fix:** make sure the monad you pass to `For.from` matches the witness of every step.
 
+<!-- verify -->
 ```java
 // Either use EitherT throughout:
-For.from(eitherTMonad, EitherT.fromKind(fetchEither(...)))
-    .from(...)
-    .yield(...);
+For.from(eitherTMonad, validatedET)
+    .from(id -> fetchEither(id))
+    .yield((id, result) -> result);
+```
 
+<!-- verify -->
+```java
 // Or build the matching OptionalTMonad and use OptionalT throughout:
 var optionalTMonad = Instances.optionalT(futureMonad);
 For.from(optionalTMonad, OptionalT.fromKind(future))
-    .from(...)
-    .yield(...);
+    .yield(user -> user.id());
 ```
 
 If you genuinely need to combine two effect layers (typed errors *and* absence in the same workflow), you are in stacking territory. See [Tutorial 03: Stacking Transformers](../tutorials/transformers/transformers_journey.md) and [Stack Archetypes](archetypes.md).
