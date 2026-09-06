@@ -192,8 +192,8 @@ in parallel can dramatically reduce total execution time.
 `parZipWith` is `zipWith` with explicit parallel execution:
 
 ```java
-IOPath<User> fetchUser = IOPath.delay(() -> userService.get(id));
-IOPath<Preferences> fetchPrefs = IOPath.delay(() -> prefService.get(id));
+IOPath<User> fetchUser = Path.io(() -> userService.get(id));
+IOPath<Preferences> fetchPrefs = Path.io(() -> prefService.get(id));
 
 // Sequential: ~200ms (100ms + 100ms)
 IOPath<Profile> sequential = fetchUser.zipWith(fetchPrefs, Profile::new);
@@ -232,7 +232,7 @@ When you have a dynamic number of independent operations:
 
 ```java
 List<IOPath<Product>> fetches = productIds.stream()
-    .map(id -> IOPath.delay(() -> productService.get(id)))
+    .map(id -> Path.io(() -> productService.get(id)))
     .toList();
 
 // All fetches run concurrently
@@ -244,8 +244,8 @@ IOPath<List<Product>> products = PathOps.parSequenceIO(fetches);
 Sometimes you want whichever completes first:
 
 ```java
-IOPath<Config> primary = IOPath.delay(() -> fetchFromPrimary());
-IOPath<Config> backup = IOPath.delay(() -> fetchFromBackup());
+IOPath<Config> primary = Path.io(() -> fetchFromPrimary());
+IOPath<Config> backup = Path.io(() -> fetchFromBackup());
 
 // Returns whichever config arrives first
 IOPath<Config> fastest = primary.race(backup);

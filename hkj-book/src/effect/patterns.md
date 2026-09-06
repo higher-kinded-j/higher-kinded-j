@@ -427,11 +427,11 @@ RetryPolicy jittered = RetryPolicy.exponentialBackoffWithJitter(5, Duration.ofSe
 ### Applying Retry to Paths
 
 ```java
-IOPath<Response> resilient = IOPath.delay(() -> httpClient.get(url))
+IOPath<Response> resilient = Path.io(() -> httpClient.get(url))
     .withRetry(RetryPolicy.exponentialBackoff(3, Duration.ofSeconds(1)));
 
 // Convenience method for simple cases
-IOPath<Response> simple = IOPath.delay(() -> httpClient.get(url))
+IOPath<Response> simple = Path.io(() -> httpClient.get(url))
     .retry(3);  // Uses default exponential backoff
 ```
 

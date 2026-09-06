@@ -383,7 +383,7 @@ When the use phase itself returns an `IOPath`:
 ```java
 IOPath<List<String>> processFile = IOPath.bracketIO(
     () -> Files.newBufferedReader(path),
-    reader -> IOPath.delay(() -> reader.lines().toList()),
+    reader -> Path.io(() -> reader.lines().toList()),
     reader -> { try { reader.close(); } catch (Exception e) { /* log */ } }
 );
 ```
@@ -407,7 +407,7 @@ The reader is automatically closed after use, with proper exception handling.
 ```java
 IOPath<Config> config = IOPath.withResourceIO(
     () -> new FileInputStream("config.json"),
-    stream -> IOPath.delay(() -> parseConfig(stream))
+    stream -> Path.io(() -> parseConfig(stream))
 );
 ```
 
@@ -427,7 +427,7 @@ The guarantee runs whether `fetchData()` succeeds or fails.
 
 ```java
 IOPath<Result> withCleanup = process()
-    .guaranteeIO(() -> IOPath.delay(() -> {
+    .guaranteeIO(() -> Path.io(() -> {
         cleanup();
         return Unit.INSTANCE;
     }));
@@ -487,12 +487,12 @@ don't depend on each other; why wait for one to finish before starting the other
 results:
 
 ```java
-IOPath<String> fetchUser = IOPath.delay(() -> {
+IOPath<String> fetchUser = Path.io(() -> {
     Thread.sleep(100);
     return "User123";
 });
 
-IOPath<String> fetchPrefs = IOPath.delay(() -> {
+IOPath<String> fetchPrefs = Path.io(() -> {
     Thread.sleep(100);
     return "DarkMode";
 });
@@ -536,7 +536,7 @@ When you have a dynamic number of independent operations:
 
 ```java
 List<IOPath<User>> fetches = userIds.stream()
-    .map(id -> IOPath.delay(() -> userService.fetch(id)))
+    .map(id -> Path.io(() -> userService.fetch(id)))
     .toList();
 
 // Sequential: N * fetchTime
@@ -560,8 +560,8 @@ CompletableFuturePath<List<Data>> all = PathOps.parSequenceFuture(futures);
 Sometimes you want whichever completes first:
 
 ```java
-IOPath<Config> primary = IOPath.delay(() -> fetchFromPrimary());
-IOPath<Config> backup = IOPath.delay(() -> fetchFromBackup());
+IOPath<Config> primary = Path.io(() -> fetchFromPrimary());
+IOPath<Config> backup = Path.io(() -> fetchFromBackup());
 
 // Returns whichever config arrives first
 IOPath<Config> fastest = primary.race(backup);
@@ -681,7 +681,7 @@ RetryPolicy selective = RetryPolicy.fixed(3, Duration.ofMillis(100))
 `IOPath` and `CompletableFuturePath` integrate directly with retry policies:
 
 ```java
-IOPath<Response> resilient = IOPath.delay(() -> httpClient.get(url))
+IOPath<Response> resilient = Path.io(() -> httpClient.get(url))
     .withRetry(RetryPolicy.exponentialBackoff(3, Duration.ofSeconds(1)));
 ```
 
@@ -690,7 +690,7 @@ IOPath<Response> resilient = IOPath.delay(() -> httpClient.get(url))
 For simple cases with default exponential backoff:
 
 ```java
-IOPath<Response> simple = IOPath.delay(() -> httpClient.get(url))
+IOPath<Response> simple = Path.io(() -> httpClient.get(url))
     .retry(3);  // 3 attempts with default backoff
 ```
 
@@ -714,11 +714,11 @@ try {
 Retry composes with other Path operations:
 
 ```java
-IOPath<Data> robust = IOPath.delay(() -> primarySource.fetch())
+IOPath<Data> robust = Path.io(() -> primarySource.fetch())
     .withRetry(RetryPolicy.exponentialBackoff(3, Duration.ofSeconds(1)))
     .handleErrorWith(e -> {
         log.warn("Primary exhausted, trying backup", e);
-        return IOPath.delay(() -> backupSource.fetch())
+        return Path.io(() -> backupSource.fetch())
             .withRetry(RetryPolicy.fixed(2, Duration.ofMillis(100)));
     })
     .recover(e -> {
@@ -732,7 +732,7 @@ IOPath<Data> robust = IOPath.delay(() -> primarySource.fetch())
 ```java
 IOPath<Result> resilientWithResource = IOPath.withResourceIO(
     () -> acquireConnection(),
-    conn -> IOPath.delay(() -> conn.execute(query))
+    conn -> Path.io(() -> conn.execute(query))
         .withRetry(RetryPolicy.fixed(3, Duration.ofMillis(50)))
 );
 ```
