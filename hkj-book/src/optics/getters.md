@@ -614,6 +614,7 @@ Useful for providing default values in pipelines.
 
 ### **`first()`** and **`second()`**: Pair Element Extractors
 
+<!-- verify -->
 ```java
 Map.Entry<Person, Address> pair = new AbstractMap.SimpleEntry<>(ceo, hqAddress);
 
@@ -639,6 +640,7 @@ Address address = secondGetter.get(pair);
 * You need **type-safe accessors** that compose with other optics
 * You want **clear read-only intent** in your code
 
+<!-- verify -->
 ```java
 // Good: Computed value without storage overhead
 Getter<Person, String> email = Getter.of(p ->
@@ -656,6 +658,7 @@ Getter<Company, String> ceoCityUppercase = ceoGetter
 * You need **both reading and writing**
 * You're working with **mutable state** (functionally)
 
+<!-- verify -->
 ```java
 // Use Lens when you need to modify
 Lens<Person, String> firstName = Lens.of(
@@ -670,6 +673,7 @@ Person updated = firstName.set("Janet", person);
 * You're querying **zero or more elements**
 * You need to **aggregate or search** collections
 
+<!-- verify -->
 ```java
 // Use Fold for collections
 Fold<Order, Product> itemsFold = Fold.of(Order::items);
@@ -681,6 +685,7 @@ List<Product> all = itemsFold.getAll(order);
 * You need **maximum performance** with no abstraction overhead
 * You're not composing with other optics
 
+<!-- verify -->
 ```java
 // Direct access when composition isn't needed
 String name = person.firstName();
@@ -692,6 +697,7 @@ String name = person.firstName();
 
 ### Data Transformation Pipelines
 
+<!-- verify -->
 ```java
 Getter<Person, String> email = Getter.of(p ->
     p.firstName().toLowerCase() + "." + p.lastName().toLowerCase() + "@techcorp.com");
@@ -710,6 +716,7 @@ for (Person emp : company.employees()) {
 
 ### Analytics and Reporting
 
+<!-- verify -->
 ```java
 Fold<Company, Person> allEmployees = Fold.of(Company::employees);
 Getter<Person, Integer> age = Getter.of(Person::age);
@@ -729,6 +736,7 @@ boolean allFromUK = allEmployees.andThen(addressGetter.asFold())
 
 ### API Response Mapping
 
+<!-- verify -->
 ```java
 // Extract specific fields from nested API responses
 Getter<ApiResponse, User> userGetter = Getter.of(ApiResponse::user);
@@ -748,6 +756,7 @@ String name = userName.get(response);
 
 ### Don't Use Getter When You Need to Modify
 
+<!-- verify -->
 ```java
 // Wrong: Getter can't modify
 Getter<Person, String> nameGetter = Getter.of(Person::firstName);
@@ -756,6 +765,7 @@ Getter<Person, String> nameGetter = Getter.of(Person::firstName);
 
 ### Use Lens When Modification Is Required
 
+<!-- verify -->
 ```java
 // Correct: Use Lens for read-write access
 Lens<Person, String> nameLens = Lens.of(Person::firstName, (p, n) ->
@@ -766,6 +776,7 @@ Person updated = nameLens.set("Jane", person);
 
 ### Don't Overlook Null Safety
 
+<!-- verify -->
 ```java
 // Risky: Getter doesn't handle null values specially
 Getter<NullableRecord, String> getter = Getter.of(NullableRecord::value);
@@ -774,6 +785,7 @@ String result = getter.get(new NullableRecord(null)); // Returns null
 
 ### Handle Nulls Explicitly
 
+<!-- verify -->
 ```java
 // Safe: Handle nulls in the getter function
 Getter<NullableRecord, String> safeGetter = Getter.of(r ->
@@ -793,6 +805,7 @@ Getters are **extremely lightweight**:
 
 **Best Practice**: Use Getters freely; they add minimal runtime cost whilst providing excellent composability and type safety.
 
+<!-- verify -->
 ```java
 // Efficient: Computed on demand
 Getter<Person, String> fullName = Getter.of(p -> p.firstName() + " " + p.lastName());
@@ -806,6 +819,7 @@ String name2 = fullName.get(person2);
 
 ## Complete, Runnable Example
 
+<!-- verify -->
 ```java
 import org.higherkindedj.optics.Getter;
 import org.higherkindedj.optics.Fold;
