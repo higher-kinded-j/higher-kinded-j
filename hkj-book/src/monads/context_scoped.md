@@ -46,9 +46,10 @@ Ensure your project targets Java 25 or later to use these features.
 
 Consider a typical web application:
 
+<!-- verify -->
 ```java
 // Traditional ThreadLocal pattern
-public class RequestContext {
+public class TraceContext {
     private static final ThreadLocal<String> TRACE_ID = new ThreadLocal<>();
 
     public static void setTraceId(String id) { TRACE_ID.set(id); }
@@ -57,11 +58,11 @@ public class RequestContext {
 
 // In a request handler
 public Response handleRequest(Request request) {
-    RequestContext.setTraceId(request.traceId());
+    TraceContext.setTraceId(request.traceId());
     try {
         return processRequest(request);  // Deep call stack reads TRACE_ID
     } finally {
-        RequestContext.setTraceId(null);  // Must clean up!
+        TraceContext.setTraceId(null);  // Must clean up!
     }
 }
 ```
@@ -86,16 +87,17 @@ Forgetting to clear a `ThreadLocal` causes memory leaks and context pollution. V
 
 Java 25's `ScopedValue` addresses these problems through different semantics:
 
+<!-- verify -->
 ```java
 // ScopedValue pattern
-public class RequestContext {
+public class TraceContext {
     public static final ScopedValue<String> TRACE_ID = ScopedValue.newInstance();
 }
 
 // In a request handler
 public Response handleRequest(Request request) {
     return ScopedValue
-        .where(RequestContext.TRACE_ID, request.traceId())
+        .where(TraceContext.TRACE_ID, request.traceId())
         .call(() -> processRequest(request));  // TRACE_ID visible in entire scope
     // No cleanup needed -- scope ends, binding disappears
 }
@@ -205,6 +207,7 @@ public Response handleRequest(Request request) {
 
 First, define your scoped values as static finals:
 
+<!-- verify -->
 ```java
 public final class AppContext {
     private AppContext() {}  // Utility class
@@ -228,6 +231,7 @@ Define `ScopedValue` instances as `public static final` fields in a dedicated ut
 
 The simplest way to read a scoped value:
 
+<!-- verify -->
 ```java
 // Read the LOCALE value
 Context<Locale, Locale> getLocale = Context.ask(AppContext.LOCALE);
@@ -242,6 +246,7 @@ Context<String, String> getTraceId = Context.ask(AppContext.TRACE_ID);
 
 Often you want to read and immediately transform:
 
+<!-- verify -->
 ```java
 // Read locale and get the language tag
 Context<Locale, String> getLanguage =
@@ -261,8 +266,9 @@ Context<String, String> getConnectionString =
 
 Transform the output of a context computation:
 
+<!-- verify -->
 ```java
-Context<Locale, String> getLocale = Context.ask(AppContext.LOCALE);
+Context<Locale, Locale> getLocale = Context.ask(AppContext.LOCALE);
 
 // Transform to language tag
 Context<Locale, String> getLanguageTag = getLocale.map(Locale::toLanguageTag);
@@ -280,6 +286,7 @@ Context<Locale, String> getUpperCaseLanguage = getLocale
 
 Compose contexts that depend on previous results:
 
+<!-- verify -->
 ```java
 // First context: get the tenant ID
 Context<String, String> getTenant = Context.ask(AppContext.TENANT_ID);
@@ -299,6 +306,7 @@ Context<String, DatabaseConnection> getConnection = getTenant
 
 Since `Context<R, A>` is parameterised by the scoped value type `R`, you cannot directly chain contexts with different `R` types using `flatMap`. Instead, convert to `VTask` first:
 
+<!-- verify -->
 ```java
 // Convert each Context to VTask, then combine
 VTask<RequestInfo> gatherRequestInfo =
@@ -327,6 +335,7 @@ Context<String, String> combined = Context.map2(
 
 Bind a value and execute within the scope:
 
+<!-- verify -->
 ```java
 ScopedValue<String> TRACE_ID = ScopedValue.newInstance();
 
@@ -345,6 +354,7 @@ System.out.println(result);  // [trace-abc-123] Processing request
 
 Chain multiple bindings for several scoped values:
 
+<!-- verify -->
 ```java
 String result = ScopedValue
     .where(AppContext.TRACE_ID, "trace-123")
@@ -360,6 +370,7 @@ String result = ScopedValue
 
 For integration with the VTask ecosystem:
 
+<!-- verify -->
 ```java
 Context<String, ProcessedData> processWithTrace =
     Context.ask(AppContext.TRACE_ID)
@@ -382,6 +393,7 @@ Try<ProcessedData> result = ScopedValue
 
 Combine Context with VTask for effectful computations:
 
+<!-- verify -->
 ```java
 public VTask<Response> handleRequest(Request request) {
     // Build the computation
@@ -411,17 +423,18 @@ private VTask<ProcessedData> processRequest(ValidatedRequest request) {
 
 Virtual threads forked within a scope inherit scoped values:
 
+<!-- verify -->
 ```java
 public VTask<AggregatedResult> fetchAllData(String userId) {
     return ScopedValue
-        .where(RequestContext.TRACE_ID, generateTraceId())
+        .where(RequestContext.TRACE_ID, RequestContext.generateTraceId())
         .call(() ->
-            Scope.<PartialResult>allSucceed()
-                .fork(fetchUserProfile(userId))   // Inherits TRACE_ID
-                .fork(fetchUserOrders(userId))    // Inherits TRACE_ID
-                .fork(fetchUserPreferences(userId)) // Inherits TRACE_ID
-                .join((profile, orders, prefs) ->
-                    new AggregatedResult(profile, orders, prefs))
+            // Scope joins one result type; three different ones combine through Par
+            Par.map3(
+                fetchUserProfile(userId),       // Inherits TRACE_ID
+                fetchUserOrders(userId),        // Inherits TRACE_ID
+                fetchUserPreferences(userId),   // Inherits TRACE_ID
+                AggregatedResult::new)
         );
 }
 
@@ -464,13 +477,18 @@ private VTask<UserProfile> fetchUserProfile(String userId) {
 
 You can override context for specific forked tasks:
 
+<!-- verify -->
 ```java
-Scope.<Result>allSucceed()
-    .fork(normalTask())  // Uses parent TRACE_ID
-    .fork(() -> ScopedValue
-        .where(RequestContext.TRACE_ID, "override-456")
-        .call(() -> specialTask().run()))  // Uses overridden TRACE_ID
-    .join((normal, special) -> combine(normal, special));
+// The rebinding belongs inside the task: the task runs when it is joined, not when
+// it is built, and by then the outer binding is gone.
+VTask<Result> overridden = VTask.of(() -> ScopedValue
+    .where(RequestContext.TRACE_ID, "override-456")
+    .call(() -> specialTask().run()));
+
+VTask<Result> combined = Par.map2(
+    normalTask(),  // Uses parent TRACE_ID
+    overridden,    // Uses overridden TRACE_ID
+    (normal, special) -> combine(normal, special));
 ```
 
 ---
@@ -481,8 +499,9 @@ Both `Context<R, A>` and `Reader<R, A>` represent computations that read from an
 
 ### Reader: Explicit Parameter Passing
 
+<!-- verify -->
 ```java
-Reader<Config, String> getHost = Reader.asks(Config::hostname);
+Reader<Config, String> getHost = Reader.of(Config::hostname);
 
 // Must explicitly provide Config at run time
 String host = getHost.run(productionConfig);
@@ -496,6 +515,7 @@ String host = getHost.run(productionConfig);
 
 ### Context: Implicit Thread-Scoped Propagation
 
+<!-- verify -->
 ```java
 Context<Config, String> getHost = Context.asks(CONFIG, Config::hostname);
 
@@ -530,6 +550,7 @@ A common use case for scoped context is structured logging. Traditional MDC (Map
 
 ### Defining Logging Context
 
+<!-- verify -->
 ```java
 public final class LogContext {
     private LogContext() {}
@@ -596,17 +617,18 @@ public class OrderService {
 
 When using `Scope`, all forked tasks inherit the logging context:
 
+<!-- verify -->
 ```java
 public VTask<OrderResult> processOrderConcurrently(OrderRequest request) {
     return ScopedValue
         .where(LogContext.TRACE_ID, request.traceId())
         .where(LogContext.USER_ID, request.userId())
         .call(() ->
-            Scope.<PartialResult>allSucceed()
-                .fork(validateInventory(request))   // Logs with same trace/user
-                .fork(calculateShipping(request))   // Logs with same trace/user
-                .fork(processPayment(request))      // Logs with same trace/user
-                .join(OrderResult::new)
+            Par.map3(
+                validateInventory(request),   // Logs with same trace/user
+                calculateShipping(request),   // Logs with same trace/user
+                processPayment(request),      // Logs with same trace/user
+                OrderResult::new)
         );
 }
 ```
@@ -653,6 +675,7 @@ What happens when code tries to read a `ScopedValue` that hasn't been bound?
 
 ### Default Behaviour: Exception
 
+<!-- verify -->
 ```java
 Context<String, String> getTraceId = Context.ask(TRACE_ID);
 
@@ -664,6 +687,7 @@ This fail-fast behaviour is intentional; it surfaces configuration errors immedi
 
 ### Checking Binding Status
 
+<!-- verify -->
 ```java
 // Check if bound before reading
 if (TRACE_ID.isBound()) {
@@ -682,6 +706,7 @@ Context<String, Maybe<String>> safeGetTraceId =
 
 ### Providing Defaults
 
+<!-- verify -->
 ```java
 // Get value or use default
 Context<String, String> getTraceIdOrDefault =
@@ -743,6 +768,7 @@ See [SecurityContext Patterns](../effect/context_security.md) for detailed docum
 
 Bind test values directly:
 
+<!-- verify -->
 ```java
 @Test
 void shouldReadTraceId() {
@@ -760,6 +786,7 @@ void shouldReadTraceId() {
 
 When combining contexts with different scoped value types, use `toVTask()`:
 
+<!-- verify -->
 ```java
 @Test
 void shouldComposeMultipleContexts() throws Exception {
@@ -781,6 +808,7 @@ void shouldComposeMultipleContexts() throws Exception {
 
 ### Testing Unbound Behaviour
 
+<!-- verify -->
 ```java
 @Test
 void shouldThrowWhenUnbound() {
