@@ -34,6 +34,7 @@ concurrently (log, email, webhook), and all channels must succeed.
 
 ### Detection with `flatMap`
 
+<!-- verify -->
 ```java
 public VStream<Alert> detect(VStream<AggregatedView> views) {
     return views.flatMap(view -> {
@@ -92,6 +93,7 @@ The anomaly rules:
 
 ### Dispatch with `mapTask` + `Scope.allSucceed`
 
+<!-- verify -->
 ```java
 public VStream<Alert> dispatch(VStream<Alert> alerts) {
     return alerts.mapTask(alert -> dispatchOne(alert).map(u -> alert));
@@ -128,6 +130,7 @@ remaining channels are cancelled.
 ~~~admonish tip title="The Imperative Alternative"
 The manual version requires careful coordination:
 
+<!-- verify -->
 ```java
 // Imperative: manual fan-out, manual error collection
 ExecutorService pool = Executors.newVirtualThreadPerTaskExecutor();
@@ -172,6 +175,7 @@ overwhelming them.
 **HKJ feature:** `VStreamThrottle.throttle(stream, maxElements, window)`: bounds the
 emission rate of a stream.
 
+<!-- verify -->
 ```java
 VStream<PriceTick> throttled =
     VStreamThrottle.throttle(feed.ticks(), 3, Duration.ofMillis(100));
@@ -207,6 +211,7 @@ it should fail over to a backup feed.
   chain the `with*` combinators directly - see
   [Path-Native Resilience](../resilience/combined.md#path-native-resilience-per-step-protection)
 
+<!-- verify -->
 ```java
 VStream<PriceTick> resilientFeed = primaryFeed.recoverWith(error -> fallbackFeed);
 ```
@@ -258,31 +263,30 @@ threshold.
 All nine stages compose into a single lazy pipeline. Each method returns a `VStream` that
 describes the transformation. Nothing executes until `.toList().run()`.
 
+<!-- verify -->
 ```java
-public class MarketDataPipeline {
-    public VStream<PriceTick> mergedTicks() {
-        return FeedMerger.merge(feeds).take(config.maxTicks());
-    }
+public VStream<PriceTick> mergedTicks() {
+    return FeedMerger.merge(feeds).take(config.maxTicks());
+}
 
-    public VStream<EnrichedTick> enrichedTicks() {
-        return enricher.enrich(mergedTicks());
-    }
+public VStream<EnrichedTick> enrichedTicks() {
+    return enricher.enrich(mergedTicks());
+}
 
-    public VStream<RiskAssessment> assessedTicks() {
-        return riskPipeline.assess(enrichedTicks());
-    }
+public VStream<RiskAssessment> assessedTicks() {
+    return riskPipeline.assess(enrichedTicks());
+}
 
-    public VStream<AggregatedView> aggregatedViews() {
-        return WindowAggregator.aggregate(assessedTicks(), config.windowSize());
-    }
+public VStream<AggregatedView> aggregatedViews() {
+    return WindowAggregator.aggregate(assessedTicks(), config.windowSize());
+}
 
-    public VStream<Alert> alerts() {
-        return anomalyDetector.detect(aggregatedViews());
-    }
+public VStream<Alert> alerts() {
+    return anomalyDetector.detect(aggregatedViews());
+}
 
-    public VStream<Alert> fullPipeline() {
-        return alertDispatcher.dispatch(alerts());
-    }
+public VStream<Alert> fullPipeline() {
+    return alertDispatcher.dispatch(alerts());
 }
 ```
 
@@ -324,6 +328,7 @@ public class MarketDataPipeline {
 
 Usage:
 
+<!-- verify -->
 ```java
 PipelineConfig config = new PipelineConfig(
     8,   // enrichment concurrency

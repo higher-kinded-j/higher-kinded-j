@@ -54,7 +54,7 @@ public record ProcessingState(
    * @param order the validated order
    * @return a ProcessingState with only the gather-phase fields populated
    */
-  static ProcessingState initial(
+  public static ProcessingState initial(
       ValidatedShippingAddress address, Customer customer, ValidatedOrder order) {
     return new ProcessingState(address, customer, order, null, null, null, null, null);
   }
