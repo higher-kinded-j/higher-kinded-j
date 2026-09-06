@@ -24,6 +24,7 @@ import org.higherkindedj.example.payment.model.PaymentResult;
 import org.higherkindedj.example.payment.service.PaymentService;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Unit;
+import org.higherkindedj.hkt.effect.annotation.ComposeEffects;
 import org.higherkindedj.hkt.effect.annotation.EffectAlgebra;
 import org.higherkindedj.hkt.eitherf.Interpreters;
 import org.higherkindedj.hkt.free.Free;

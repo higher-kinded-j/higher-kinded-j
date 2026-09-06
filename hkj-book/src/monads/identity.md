@@ -19,7 +19,7 @@ But that's exactly the point. Id is to monads what 1 is to multiplication: multi
 
 1. **Transformer base case**: Monad transformers like `StateT`, `ReaderT`, and `MaybeT` are parameterised by an inner monad `F`. When you don't need that inner effect, plug in `Id`:
 
-   ```java
+   ```
    // StateT with Id as the inner monad = plain State
    StateT<S, IdKind.Witness, A>  ≡  State<S, A>
    ```
