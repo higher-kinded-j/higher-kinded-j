@@ -91,15 +91,24 @@ All I/O is captured in `IOPath`:
 
 ```java
 // Console I/O is deferred and composable
-IOPath<String> readLine = IOPath.delay(() -> scanner.nextLine());
-IOPath<Unit> printBoard = IOPath.delay(() -> renderer.display(state));
+IOPath<String> readLine = Path.io(() -> scanner.nextLine());
+IOPath<Unit> printBoard = Path.ioRunnable(() -> renderer.display(state));
 
-// Game loop composes pure logic with I/O
-IOPath<Unit> gameLoop = ForPath.forPath(printBoard)
-    .bind(_ -> readLine)
-    .bind(input -> validateAndApply(input))
-    .bind(result -> announceResult(result))
-    .repeatWhile(result -> !result.gameOver());
+// A turn is the board, then the move that follows it
+IOPath<GameState> processTurn(GameState state) {
+    return ForPath.from(displayBoard(state))
+        .from(shown -> readMoveCommand())
+        .yield((shown, command) -> command)
+        .via(command -> applyMove(command, state));
+}
+
+// The loop recurses rather than looping, and stays stack-safe because
+// nothing runs until the whole description is executed
+IOPath<Unit> gameLoop(GameState state) {
+    return state.isGameOver()
+        ? Path.ioRunnable(() -> renderer.announce(state))
+        : processTurn(state).via(this::gameLoop);
+}
 ```
 
 ### Focus DSL for Game State
