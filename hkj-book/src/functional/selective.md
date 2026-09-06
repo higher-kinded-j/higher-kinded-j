@@ -281,6 +281,7 @@ Kind<F, Choice<Error, Data>> finalResult = selective.apS(initialData, validation
 
 **Scenario:** Execute analytics tracking only if the feature flag is enabled.
 
+<!-- verify -->
 ```java
 import org.higherkindedj.hkt.io.IOSelective;
 import org.higherkindedj.hkt.io.IO;
@@ -288,6 +289,9 @@ import static org.higherkindedj.hkt.io.IOKindHelper.IO_OP;
 
 public class AnalyticsService {
     private final Selective<IOKind.Witness> selective = IOSelective.INSTANCE;
+    private final FeatureFlags featureFlags = new FeatureFlags();
+    private final Analytics analytics = new Analytics();
+    private final SimpleLogger log = new SimpleLogger();
 
     public Kind<IOKind.Witness, Unit> trackEvent(String eventName, User user) {
         // Check feature flag (effectful)

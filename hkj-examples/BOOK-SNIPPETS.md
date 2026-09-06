@@ -192,7 +192,7 @@ One in the effect chapter still is: `effect_handlers.md`'s `boundSet()` snippet 
 class the reader writes for their own composition, and the page has none of its own to call. The
 algebras and the generated support around it are gated; that one line is not.
 
-Some shapes recur in the monads chapter and are left unmarked deliberately:
+Some shapes recur across the book and are left unmarked deliberately:
 
 - **The Foundations one-liner.** `repo.find(id).toEitherPath().focus().attributes().at(key)...`
   appears on about fifteen pages as the book's running motif. `.focus()` takes an optic and there
@@ -202,7 +202,10 @@ Some shapes recur in the monads chapter and are left unmarked deliberately:
   are quoted with `{ ... }` bodies, or with their methods left body-less, to show their shape. A
   sealed type that permits the library's own classes cannot be declared beside them, and the page
   needs the real type in every other fence, so it cannot shadow it either. `trampoline_monad.md`
-  quotes the shape a blog post published, which is the same case.
+  quotes the shape a blog post published, which is the same case. Every page in the type-class
+  chapter opens the same way, quoting `Functor`, `Applicative`, `Monad`, `Selective`,
+  `Alternative`, `MonadZero`, `Bifunctor`, `Profunctor`, `Foldable`, `Traverse`, `Natural`,
+  `Semigroup` or `Monoid`; the worked examples below each quotation are gated.
 - **A `@SafeVarargs` factory quoted as a signature.** `stream_monad.md`'s creation reference
   quotes `fromArray(T... elements)`. A signature-only snippet is wrapped in an interface, where
   the annotation the real declaration carries is not legal, and without it javac raises a
@@ -223,6 +226,16 @@ Some shapes recur in the monads chapter and are left unmarked deliberately:
   `orElseAll(first, () -> second, () -> third, ...)`. `Alternative.orElseAll` is a `default`
   method, so it cannot carry `@SafeVarargs`, and every call with three or more alternatives raises
   a mandatory heap-pollution warning. The page's `Iterable` overload is gated beside it.
+- **A shape written over free type variables.** `selective.md` and `natural_transformation.md`
+  write `Kind<F, Choice<Error, Data>>` and `Natural<F, G>` with nothing binding `F` or `G`: the
+  point is the shape the operation has for *any* effect. A fixture can lend its type parameters to
+  a snippet, but only one set, and the same fixture serves the concrete `IO` and `Maybe` examples
+  on the same page.
+- **A name the page binds to two different records.**
+  `forstate_comprehension.md` names the same `userLens`, `addressLens` and `initialWorkflow` for
+  its order workflow and its offer workflow. Snippets compile independently against one shared
+  fixture, so a name can mean one thing per page; the offer workflow is gated and the order
+  workflow, which the page elides the lenses of in a comment anyway, is not.
 - **Laws written as equations.** `coyoneda.md` states the functor laws as
   `coyo.map(x -> x) == coyo`. The `==` is the law's notation, not a reference comparison, and
   rewriting it as an assertion would obscure what it says.

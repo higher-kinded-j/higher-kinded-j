@@ -81,6 +81,8 @@ class Fixture {
 
   static final String data = "payload";
 
+  static final User currentUser = new User("u-1", Map.of());
+
   static Config defaultConfig() {
     return new Config("default", 8080, false);
   }

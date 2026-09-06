@@ -112,6 +112,7 @@ Use `toState()` when your workflow has a natural two-phase shape: **gather** val
 
 For workflows with more than a few steps, tuple-based access becomes fragile. `ForState` solves this by threading a **named record** through each step, with [lenses](../optics/lenses.md) providing type-safe field access. Every intermediate value has a name, not a position.
 
+<!-- verify -->
 ```java
 // ForState: named fields instead of tuple positions
 ForState.withState(monad, monad.of(initialContext))
