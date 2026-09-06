@@ -41,6 +41,7 @@ A `Bulkhead` prevents this by limiting how many concurrent callers can access a 
 
 ## Creating a Bulkhead
 
+<!-- verify -->
 ```java
 // Simple: just a concurrency limit
 Bulkhead dbBulkhead = Bulkhead.withMaxConcurrent(10);
@@ -63,6 +64,7 @@ Bulkhead apiBulkhead = Bulkhead.create(BulkheadConfig.builder()
 
 ## Protecting VTask Operations
 
+<!-- verify -->
 ```java
 Bulkhead dbBulkhead = Bulkhead.withMaxConcurrent(10);
 
@@ -80,6 +82,7 @@ Like `CircuitBreaker.protect()`, the method is generic: one bulkhead can protect
 
 When the bulkhead cannot accept a caller, it throws `BulkheadFullException`:
 
+<!-- verify -->
 ```java
 VTask<Result> resilient = dbBulkhead.protect(
         VTask.of(() -> database.query(sql)))
@@ -96,6 +99,7 @@ VTask<Result> resilient = dbBulkhead.protect(
 
 The lazy Path carriers chain bulkhead protection directly:
 
+<!-- verify -->
 ```java
 IOPath<Result> guarded = Path.io(() -> database.query(sql))
     .withBulkhead(dbBulkhead);
@@ -106,10 +110,11 @@ VTaskPath<Result> guardedAsync = Path.vtask(() -> database.query(sql))
 
 On the typed-error carriers, the typed overload keeps a rejected execution on the typed channel: `BulkheadFullException` becomes a `Left` instead of a thrown exception or defect.
 
+<!-- verify -->
 ```java
 // VResultPath: instance combinator, rejection lands as a Left
 VResultPath<OrderError, Reservation> guarded =
-    reserveInventory(order)
+    reserveInventoryAsync(order)
         .withBulkhead(
             inventoryBulkhead,
             full -> OrderError.SystemError.fromException("Inventory service busy", full));
@@ -136,6 +141,7 @@ Both limit concurrency, but at different scopes (`VStreamPar` is the stream `par
 
 They compose naturally. A stream can use VStreamPar for pipeline parallelism and have each element's processing protected by a shared bulkhead:
 
+<!-- verify -->
 ```java
 Bulkhead serviceBulkhead = Bulkhead.withMaxConcurrent(10);
 
@@ -144,13 +150,14 @@ Path.vstreamFromList(userIds)
         serviceBulkhead.protect(
             VTask.of(() -> userService.fetch(id))))
     .toList()
-    .run();
+    .unsafeRun();
 ```
 
 Here, `parEvalMap(4, ...)` limits the stream to 4 in-flight elements, whilst `serviceBulkhead` ensures that across all streams in the application, no more than 10 concurrent calls reach the user service.
 
 ## Inspecting State
 
+<!-- verify -->
 ```java
 int available = dbBulkhead.availablePermits();  // How many more callers can enter
 int active = dbBulkhead.activeCount();           // How many callers are currently executing
