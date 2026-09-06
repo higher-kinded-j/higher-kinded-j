@@ -568,7 +568,7 @@ final class SnippetExtractor {
         i = end + 1;
       } else if (STATIC_FIELD.matcher(line).matches()) {
         // A static field is a member, not a statement: `static` cannot modify a local.
-        int end = endOfDeclaration(lines, i);
+        int end = endOfField(lines, i);
         members.add("  " + String.join("\n  ", lines.subList(i, end + 1)));
         i = end + 1;
       } else if (line.isBlank() || line.strip().startsWith("//")) {
@@ -620,6 +620,32 @@ final class SnippetExtractor {
   /**
    * Walks braces to find where a declaration ends. Handles the one-line `record X(...) {}` form.
    */
+  /**
+   * The last line of a field declaration starting at {@code start}.
+   *
+   * <p>A field ends at its {@code ;}, which is not where its braces first balance: an initialiser
+   * that passes a lambda with a body - {@code ValidatedPrism.of(s -> { ... }, b -> ...);} - closes
+   * that body several lines before the declaration itself ends, and stopping there would cut the
+   * remaining arguments loose.
+   */
+  private static int endOfField(List<String> lines, int start) {
+    int depth = 0;
+    for (int i = start; i < lines.size(); i++) {
+      String line = stripLiterals(lines.get(i));
+      for (char c : line.toCharArray()) {
+        if (c == '{' || c == '(') {
+          depth++;
+        } else if (c == '}' || c == ')') {
+          depth--;
+        }
+      }
+      if (depth <= 0 && line.strip().endsWith(";")) {
+        return i;
+      }
+    }
+    return lines.size() - 1;
+  }
+
   private static int endOfDeclaration(List<String> lines, int start) {
     int depth = 0;
     boolean opened = false;
