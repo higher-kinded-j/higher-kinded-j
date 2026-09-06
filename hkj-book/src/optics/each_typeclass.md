@@ -30,6 +30,7 @@ Rather than writing traversal logic repeatedly for each container, `Each` gives 
 
 When working with different container types, you often need similar traversal operations:
 
+<!-- verify -->
 ```java
 // List: traverse all elements
 Traversal<List<String>, String> listTraversal = Traversals.forList();
@@ -45,6 +46,7 @@ Traversal<Optional<String>, String> optTraversal = Traversals.forOptional();
 
 With `Each`, the pattern becomes uniform:
 
+<!-- verify -->
 ```java
 // Get the canonical traversal for any container
 Traversal<List<String>, String> listTrav = EachInstances.<String>listEach().each();
@@ -115,6 +117,7 @@ Earlier releases exposed `Each.eachWithIndex()`, which returned an `Optional<Ind
 | `VStream<A>` | ✓ |   |   | `vstreamEach()` |
 | `String` | ✓ | ✓ | `Integer` | `stringCharsEach()`, focusing `Character` |
 
+<!-- verify -->
 ```java
 import org.higherkindedj.optics.each.EachInstances;
 
@@ -157,6 +160,7 @@ For Higher-Kinded-J core types, use `EachExtensions`:
 | `Try<A>` | ✓ |   | `trySuccessEach()` | the success only |
 | `Validated<E, A>` | ✓ |   | `validatedEach()` | the valid side only |
 
+<!-- verify -->
 ```java
 import org.higherkindedj.optics.extensions.EachExtensions;
 
@@ -179,6 +183,7 @@ Each<Validated<List<Error>, Value>, Value> validatedEach = EachExtensions.valida
 
 ### Traversing All Elements
 
+<!-- verify -->
 ```java
 Each<List<String>, String> listEach = EachInstances.listEach();
 Traversal<List<String>, String> traversal = listEach.each();
@@ -202,6 +207,7 @@ List<String> same = Traversals.modify(traversal, _ -> "anonymous", names);
 
 When position matters, type the instance as `EachIndexed` and call `indexedTraversal()`. The index type (`Integer` for lists) is fixed at compile time:
 
+<!-- verify -->
 ```java
 EachIndexed<Integer, List<String>, String> listEach = EachInstances.listEach();
 IndexedTraversal<Integer, List<String>, String> indexed = listEach.indexedTraversal();
@@ -221,6 +227,7 @@ List<String> numbered = IndexedTraversals.imodify(
 
 For maps, the index is the key, so the `EachIndexed` index type is `K`:
 
+<!-- verify -->
 ```java
 EachIndexed<String, Map<String, Integer>, Integer> mapEach = EachInstances.mapValuesEach();
 IndexedTraversal<String, Map<String, Integer>, Integer> indexed = mapEach.indexedTraversal();
@@ -250,6 +257,7 @@ The Focus DSL is covered properly in [Java-Friendly APIs](ch4_intro.md); this se
 
 The Focus DSL provides an `.each(Each)` method on `FocusPath`, `AffinePath`, and `TraversalPath`. This enables fluent navigation through custom container types:
 
+<!-- verify -->
 ```java
 record User(String name, List<Order> orders) {}
 record Order(String id, Map<String, Integer> items) {}
@@ -284,6 +292,7 @@ A custom instance implements `each()` by writing the traversal's `modifyF` direc
 
 For custom container types, implement the `Each` interface:
 
+<!-- verify -->
 ```java
 // A simple tree structure
 public sealed interface Tree<A> {
@@ -362,6 +371,7 @@ You might wonder how `Each` relates to the `Traverse` type class from HKT. Here'
 
 ### Bulk Validation
 
+<!-- verify -->
 ```java
 Each<List<Order>, Order> orderEach = EachInstances.listEach();
 Traversal<List<Order>, Order> allOrders = orderEach.each();
@@ -376,6 +386,7 @@ Validated<List<String>, List<Order>> result = VALIDATED.narrow(allOrders.modifyF
 
 ### Conditional Modification with Index
 
+<!-- verify -->
 ```java
 EachIndexed<Integer, List<Product>, Product> productEach = EachInstances.listEach();
 IndexedTraversal<Integer, List<Product>, Product> indexed = productEach.indexedTraversal();
@@ -392,6 +403,7 @@ List<Product> discounted = IndexedTraversals.imodify(
 
 ### Nested Container Navigation
 
+<!-- verify -->
 ```java
 // User -> List<Project> -> Map<String, Task>
 Each<List<Project>, Project> projectEach = EachInstances.listEach();

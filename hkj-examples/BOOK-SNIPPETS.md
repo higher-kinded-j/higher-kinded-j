@@ -228,7 +228,8 @@ Some shapes recur across the book and are left unmarked deliberately:
   chapter opens the same way, quoting `Functor`, `Applicative`, `Monad`, `Selective`,
   `Alternative`, `MonadZero`, `Bifunctor`, `Profunctor`, `Foldable`, `Traverse`, `Natural`,
   `Semigroup` or `Monoid`; the worked examples below each quotation are gated. `optics/folds.md`
-  quotes `Foldable` for the same reason, to say what the optic mirrors.
+  quotes `Foldable` for the same reason, to say what the optic mirrors, and
+  `optics/each_typeclass.md` quotes `Each` and `EachIndexed` with one member elided.
 - **A `static` extension method quoted as a signature.** `getters.md` quotes
   `public static <S, A> Maybe<A> getMaybe(Getter<S, A> getter, S source)`, and
   `coupled_fields.md` quotes both overloads of `Lens.paired` the same way. A signature-only
@@ -316,6 +317,8 @@ Some shapes recur across the book and are left unmarked deliberately:
   and the right version beside it is gated. Both
   are the same case as the free-type-variable shapes above: the page is showing a signature, and
   every worked use of `Affine.of` and of each composition below is gated.
+  `optics/each_typeclass.md`'s two `Each.fromTraversal` entries are the same shape again: an
+  optic over a container the reader brings, written `= ...` over a free `A`.
 - **Legacy null-checking beside the Optional model.** `optics/affine.md`'s anti-pattern block ends
   with `user.address() != null && user.address().postcode() != null`, which reads through a
   nullable model the page never declares - its `Address` is reached through an `Optional`. The
