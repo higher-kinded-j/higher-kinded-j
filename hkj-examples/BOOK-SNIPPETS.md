@@ -301,7 +301,10 @@ Some shapes recur across the book and are left unmarked deliberately:
   document a shape the library does not have. The correct half of each pair is gated.
 - **A shape stated in place of an optic.** `optics/affine.md` writes `Prism<Shape, Circle>
   circlePrism = ...;` where the point is what the optic can *do* next, not where it came from, and
-  gives its composition table and its two `Affine.of` overloads over free `S`, `A` and `B`. Both
+  gives its composition table and its two `Affine.of` overloads over free `S`, `A` and `B`.
+  `optics/composing_optics.md`'s anti-pattern block is the same case from the other side: it passes
+  `/* wrong applicative */` and `/* any string traversal */` to say what NOT to hand a `modifyF`,
+  and the right version beside it is gated. Both
   are the same case as the free-type-variable shapes above: the page is showing a signature, and
   every worked use of `Affine.of` and of each composition below is gated.
 - **Legacy null-checking beside the Optional model.** `optics/affine.md`'s anti-pattern block ends
