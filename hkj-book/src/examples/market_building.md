@@ -244,6 +244,7 @@ The enrichment also creates two levels of concurrency that compose naturally:
 ~~~admonish tip title="The Imperative Alternative"
 Without HKJ, the equivalent code typically looks like this:
 
+<!-- verify -->
 ```java
 // Imperative: manual thread management, manual error propagation
 ExecutorService pool = Executors.newFixedThreadPool(16);
@@ -254,8 +255,10 @@ for (PriceTick tick : mergedTicks) {
     semaphore.acquire();
     pool.submit(() -> {
         try {
-            Future<Instrument> instrFuture = pool.submit(() -> refData.lookup(tick.symbol()));
-            Future<BigDecimal> fxFuture = pool.submit(() -> fxService.rateToUsd(...));
+            Future<Instrument> instrFuture =
+                pool.submit(() -> refData.lookup(tick.symbol()).run());
+            Future<BigDecimal> fxFuture =
+                pool.submit(() -> fxService.rateToUsd(tick.exchange().currency()).run());
             Instrument instrument = instrFuture.get();   // blocks platform thread
             BigDecimal fxRate = fxFuture.get();
             synchronized (results) {

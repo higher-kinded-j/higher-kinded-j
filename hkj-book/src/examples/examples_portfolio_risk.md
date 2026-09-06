@@ -60,6 +60,7 @@ every asset class, but only the ones that actually succeeded."*
 
 The imperative version looks like this:
 
+<!-- verify -->
 ```java
 List<MarketPrice> prices = new ArrayList<>();
 for (AssetClass ac : portfolio.holdings()) {
@@ -81,6 +82,7 @@ prices, balloons to 30+ lines of nested conditionals.
 
 Annotate each record with `@GenerateFocus(generateNavigators = true)`:
 
+<!-- verify -->
 ```java
 @GenerateFocus(generateNavigators = true)
 public record Position(
@@ -95,7 +97,7 @@ public record AssetClass(
     String className,
     ImmutableList<Position> positions,              // Eclipse Collections → TraversalPath
     Try<ValuationResult> latestValuation,           // HKJ Try            → AffinePath
-    Map<String, Double> exposures                   // JDK Map            → TraversalPath
+    Map<String, Double> exposures                   // JDK Map            → FocusPath
 ) {}
 
 @GenerateFocus(generateNavigators = true)
@@ -114,6 +116,7 @@ that return the correctly widened path type.
 
 Now the same query becomes:
 
+<!-- verify -->
 ```java
 List<MarketPrice> prices = Traversals.getAll(
     PortfolioFocus.holdings().positions().livePrice().toTraversal(), portfolio);
@@ -200,6 +203,7 @@ The example demonstrates five progressively more complex queries.
 
 **The solution:** The SPI determines the path type from the container's cardinality:
 
+<!-- verify -->
 ```java
 // Plain String → FocusPath (no widening)
 FocusPath<Portfolio, String> idPath = PortfolioFocus.portfolioId();
@@ -221,6 +225,7 @@ riskPath.getOptional(portfolio)
 
 **The solution:** Navigator chains cross two Eclipse Collections `ImmutableList` boundaries automatically:
 
+<!-- verify -->
 ```java
 // Path: Eclipse ImmutableList (TRAVERSAL) → Eclipse ImmutableList (TRAVERSAL)
 TraversalPath<Portfolio, String> allTickers =
@@ -238,6 +243,7 @@ Compare with the imperative equivalent: two nested loops and a mutable list.
 
 **The solution:** Affine paths silently skip absent values, collecting only the successes:
 
+<!-- verify -->
 ```java
 // Try<ValuationResult>: only successful valuations are collected
 var valuations = PortfolioFocus.holdings().latestValuation();
@@ -258,6 +264,7 @@ List<MarketPrice> prices =
 
 **The solution:** The navigator chain handles ecosystem boundaries transparently:
 
+<!-- verify -->
 ```java
 // Path: FOCUS → TRAVERSAL (EC) → TRAVERSAL (EC) → AFFINE (Optional) = TRAVERSAL
 var stopLosses = PortfolioFocus.holdings().positions().stopLoss();
@@ -273,6 +280,7 @@ Three ecosystems, four container types, one expression.
 
 **The solution:** Each concern becomes a named path expression:
 
+<!-- verify -->
 ```java
 // Check compliance (Either → AffinePath)
 var approval = PortfolioFocus.status().getOptional(portfolio);

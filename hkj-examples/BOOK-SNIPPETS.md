@@ -153,7 +153,26 @@ A fixture may declare:
   snippet can call `parseName(dto.name())` bare, exactly as the page writes it
 
 A type the snippet declares for itself shadows the fixture's, so a page may show its own `User`
-without colliding.
+without colliding. A fixture's *imports*, though, are hoisted into every unit, so a fixture must
+never single-type-import a name a snippet declares - that is a duplicate declaration, not a
+shadow. Import that package **on demand** instead (`import org.higherkindedj.example.order.error.*;`):
+an on-demand import is shadowed by the declaration, and still resolves the name for every other
+snippet on the page.
+
+Where building a value would mean assembling half a domain to say nothing about the code on the
+page, a generic stand-in says so:
+
+```java
+static final ValidatedOrder order = sample();
+
+static <A> A sample() {
+  throw new UnsupportedOperationException("a fixture value: snippets are compiled, not run");
+}
+```
+
+Snippets that quote a *real* example are the best case: `hkj-examples`' own main sources are on the
+gate's classpath, so a page about `hkj-examples/src/main/java/.../market` can name those types
+directly and drift from the example is a compile error.
 
 The fixtures are `.java` for IDE support but are **resources, not sources**: their imports exist for
 the snippet they are spliced into, so Spotless excludes them (an "unused import" cleanup would
@@ -178,7 +197,10 @@ as a member of its own. A method signature may wrap before its parameter list, w
 return type routinely does.
 
 A **generic** fixture (`class Fixture<E, A, B>`) lends its type parameters to the snippet, which is
-how a page can show `VResultPath<E, A>` as a *shape* without inventing a domain for it.
+how a page can show `VResultPath<E, A>` as a *shape* without inventing a domain for it. The
+parameters may be bounded (`class Fixture<G extends WitnessArity<TypeArity.Unary>>`), which is what
+a page about a Free program written against an unknown witness needs; the wrapper declares the
+bound and passes the parameter on by name.
 
 ## When a snippet cannot compile
 

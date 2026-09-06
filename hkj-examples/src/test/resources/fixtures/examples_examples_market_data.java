@@ -1,12 +1,19 @@
 // Fixture for hkj-book/src/examples/examples_market_data.md
 //
-// The page opens with the one line that runs the whole pipeline. The pipeline and its stages live
-// in this module's main sources, which are on the gate's classpath, so the fixture only assembles
-// them.
+// The page opens with the one line that runs the whole pipeline, then quotes the domain the
+// pipeline carries. Both live in this module's main sources, which are on the gate's classpath,
+// so the fixture only assembles the pipeline.
+//
+// The model package is imported on demand, because the snippet quoting the domain declares those
+// records for itself, and a single-type import of a name a snippet declares is a duplicate
+// declaration.
 //
 // NOTE: imports in a fixture serve the snippets it is spliced into. Spotless excludes
 // src/test/resources so an "unused import" cleanup cannot break fixtures (see build.gradle.kts).
 
+import java.math.BigDecimal;
+import java.math.RoundingMode;
+import java.time.Instant;
 import java.util.List;
 import org.higherkindedj.example.market.alert.AlertDispatcher;
 import org.higherkindedj.example.market.alert.AlertDispatcher.AlertChannel;
@@ -16,9 +23,10 @@ import org.higherkindedj.example.market.enrichment.InMemoryReferenceDataService;
 import org.higherkindedj.example.market.enrichment.TickEnricher;
 import org.higherkindedj.example.market.feed.ExchangeFeed;
 import org.higherkindedj.example.market.feed.SimulatedExchangeFeed;
-import org.higherkindedj.example.market.model.Alert;
-import org.higherkindedj.example.market.model.Exchange;
+import org.higherkindedj.example.market.model.*;
+import org.higherkindedj.example.market.model.value.Price;
 import org.higherkindedj.example.market.model.value.Symbol;
+import org.higherkindedj.example.market.model.value.Volume;
 import org.higherkindedj.example.market.pipeline.MarketDataPipeline;
 import org.higherkindedj.example.market.pipeline.PipelineConfig;
 import org.higherkindedj.example.market.risk.RiskCalculator;

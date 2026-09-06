@@ -11,10 +11,16 @@
 
 import java.math.BigDecimal;
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
 import java.util.Random;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.Semaphore;
+import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 import org.higherkindedj.example.market.enrichment.FxRateService;
 import org.higherkindedj.example.market.enrichment.InMemoryFxRateService;
@@ -63,6 +69,8 @@ class Fixture {
   static final FxRateService fxService = new InMemoryFxRateService();
 
   static final int concurrency = 8;
+
+  static final List<PriceTick> mergedTicks = List.of();
 
   static final Consumer<MarketError> onEnrichmentError = _ -> {};
 

@@ -6,7 +6,6 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 import java.util.regex.Pattern;
 
@@ -130,9 +129,13 @@ final class SnippetExtractor {
   /** How many lines a wrapped signature may span before we stop looking. */
   private static final int MAX_SIGNATURE_LINES = 6;
 
-  /** A fixture may be generic, so a page can show `VResultPath<E, A>` without naming a domain. */
+  /**
+   * A fixture may be generic, so a page can show `VResultPath<E, A>` without naming a domain. The
+   * parameter list runs to the last `>` before the body, so a bounded parameter whose bound is
+   * itself generic (`G extends WitnessArity<TypeArity.Unary>`) is captured whole.
+   */
   private static final Pattern FIXTURE_DECL =
-      Pattern.compile("\\bclass\\s+Fixture\\s*(<([^>]*)>)?");
+      Pattern.compile("\\bclass\\s+Fixture\\s*(<([^\\n]*?)>)?\\s*\\{");
 
   private SnippetExtractor() {}
 
@@ -293,9 +296,11 @@ final class SnippetExtractor {
     unit.append("\n@SuppressWarnings(\"unused\")\n");
     unit.append(quotesSignatures ? "interface " : "final class ").append(name);
     if (fixtureParams != null) {
+      // The wrapper declares the parameters with their bounds and passes them on by name: a bound
+      // is written once. Passing the bounds on as well would make `G` an argument to itself.
       unit.append(fixtureParams);
       if (!quotesSignatures) {
-        unit.append(" extends Fixture").append(fixtureParams);
+        unit.append(" extends Fixture").append(typeParameterNames(fixtureParams));
       }
     }
     unit.append(" {\n");
@@ -313,8 +318,9 @@ final class SnippetExtractor {
   }
 
   /**
-   * The type-parameter list to mirror from the fixture: {@code ""} for a plain {@code Fixture},
-   * {@code "<E, A>"} for a generic one, or {@code null} when the page has no fixture at all.
+   * The type-parameter list to mirror from the fixture, bounds and all: {@code ""} for a plain
+   * {@code Fixture}, {@code "<E extends Throwable>"} for a generic one, or {@code null} when the
+   * page has no fixture at all.
    */
   private static String fixtureTypeParameters(List<String> types) {
     for (String type : types) {
@@ -323,17 +329,42 @@ final class SnippetExtractor {
       }
       var matcher = FIXTURE_DECL.matcher(type);
       if (matcher.find() && matcher.group(2) != null) {
-        // Strip any bounds: `<E extends Throwable>` is declared once, referenced as `<E>`.
-        String names =
-            Arrays.stream(matcher.group(2).split(","))
-                .map(p -> p.strip().split("\\s+")[0])
-                .reduce((a, b) -> a + ", " + b)
-                .orElse("");
-        return "<" + names + ">";
+        return "<" + matcher.group(2).strip() + ">";
       }
       return "";
     }
     return null;
+  }
+
+  /**
+   * The same list with the bounds dropped: {@code "<E extends Throwable>"} becomes {@code "<E>"},
+   * which is how a declared parameter is passed on.
+   *
+   * <p>The split is depth-aware, because a bound carries commas of its own: {@code <K, V extends
+   * Map<K, V>>} is two parameters, not three.
+   */
+  private static String typeParameterNames(String parameters) {
+    if (parameters.isEmpty()) {
+      return parameters;
+    }
+    List<String> names = new ArrayList<>();
+    StringBuilder current = new StringBuilder();
+    int depth = 0;
+    for (char c : parameters.substring(1, parameters.length() - 1).toCharArray()) {
+      if (c == '<') {
+        depth++;
+      } else if (c == '>') {
+        depth--;
+      }
+      if (c == ',' && depth == 0) {
+        names.add(current.toString().strip().split("\\s+")[0]);
+        current.setLength(0);
+      } else {
+        current.append(c);
+      }
+    }
+    names.add(current.toString().strip().split("\\s+")[0]);
+    return "<" + String.join(", ", names) + ">";
   }
 
   /**
