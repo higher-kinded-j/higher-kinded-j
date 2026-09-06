@@ -299,6 +299,15 @@ Some shapes recur across the book and are left unmarked deliberately:
   `obj -> { obj.setValue(newValue); return obj; }` beside the functional versions. Both need a
   mutable type the page models as a record, and declaring one to compile the counter-example would
   document a shape the library does not have. The correct half of each pair is gated.
+- **A shape stated in place of an optic.** `optics/affine.md` writes `Prism<Shape, Circle>
+  circlePrism = ...;` where the point is what the optic can *do* next, not where it came from, and
+  gives its composition table and its two `Affine.of` overloads over free `S`, `A` and `B`. Both
+  are the same case as the free-type-variable shapes above: the page is showing a signature, and
+  every worked use of `Affine.of` and of each composition below is gated.
+- **Legacy null-checking beside the Optional model.** `optics/affine.md`'s anti-pattern block ends
+  with `user.address() != null && user.address().postcode() != null`, which reads through a
+  nullable model the page never declares - its `Address` is reached through an `Optional`. The
+  clean version beside it is gated.
 - **Laws written as equations.** `coyoneda.md` states the functor laws as
   `coyo.map(x -> x) == coyo`. The `==` is the law's notation, not a reference comparison, and
   rewriting it as an assertion would obscure what it says.
