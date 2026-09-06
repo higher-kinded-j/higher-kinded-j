@@ -71,6 +71,7 @@ The critical difference emerges with virtual threads and structured concurrency.
 
 ### ConfigContext: Must Pass Explicitly to Forked Tasks
 
+<!-- verify -->
 ```java
 ConfigContext<IOKind.Witness, RequestInfo, Result> process =
     ConfigContext.io(requestInfo -> {
@@ -110,6 +111,7 @@ ConfigContext<IOKind.Witness, RequestInfo, Result> process =
 
 ### Context: Automatic Inheritance in Forked Tasks
 
+<!-- verify -->
 ```java
 ScopedValue<RequestInfo> REQUEST = ScopedValue.newInstance();
 
@@ -125,7 +127,8 @@ VTask<Result> process = VTask.delay(() -> {
             RequestInfo info = REQUEST.get();
             return fetchMoreData(info);
         })
-        .join(Result::combine)
+        .join()
+        .map(Result::combine)
         .run();
 });
 
@@ -245,6 +248,7 @@ If **no** → Use `ConfigContext` (or plain parameter passing)
 
 ### Pattern 1: Application Config with ConfigContext
 
+<!-- verify -->
 ```java
 // Define configuration record
 record AppConfig(
@@ -255,22 +259,21 @@ record AppConfig(
 ) {}
 
 // Use ConfigContext for app-level config
-public class UserService {
-    public ConfigContext<IOKind.Witness, AppConfig, User> getUser(String id) {
-        return ConfigContext.io(config -> {
-            var connection = connect(config.databaseUrl());
-            return connection.query("SELECT * FROM users WHERE id = ?", id);
-        });
-    }
+ConfigContext<IOKind.Witness, AppConfig, User> getUser(String id) {
+    return ConfigContext.io(config -> {
+        var connection = connect(config.databaseUrl());
+        return connection.query("SELECT * FROM users WHERE id = ?", id);
+    });
 }
 
 // At application startup
-AppConfig config = loadConfig();
-User user = userService.getUser("123").runWithSync(config);
+AppConfig appConfig = loadConfig();
+User user = getUser("123").runWithSync(appConfig);
 ```
 
 ### Pattern 2: Request Context with Context
 
+<!-- verify -->
 ```java
 // Define scoped values for request data
 public final class RequestContext {
@@ -279,7 +282,11 @@ public final class RequestContext {
 }
 
 // Use Context for request-scoped data
-public class OrderService {
+public class OrderProcessor {
+    private static final Logger log = new Logger();
+
+    private final OrderRepository orderRepository = new OrderRepository();
+
     public VTask<Order> createOrder(OrderRequest request) {
         return VTask.delay(() -> {
             String traceId = RequestContext.TRACE_ID.get();
@@ -292,11 +299,11 @@ public class OrderService {
 }
 
 // At request handling
-public Response handleRequest(HttpRequest request) {
+public Try<Order> handleRequest(HttpRequest request) {
     return ScopedValue
         .where(RequestContext.TRACE_ID, request.traceId())
         .where(RequestContext.USER_ID, request.userId())
-        .call(() -> orderService.createOrder(parseBody(request)).runSafe());
+        .call(() -> orderService.createOrder(new OrderRequest("sku-1")).runSafe());
 }
 ```
 
@@ -304,8 +311,20 @@ public Response handleRequest(HttpRequest request) {
 
 Most applications need both: application-level configuration and request-scoped context.
 
+<!-- verify -->
 ```java
 public class OrderController {
+    private String extractUserId(HttpRequest request) {
+        return request.userId();
+    }
+
+    private String authenticate(HttpRequest request) {
+        return request.userId();
+    }
+
+    private OrderRequest parseBody(HttpRequest request) {
+        return new OrderRequest("sku-1");
+    }
 
     // App config via ConfigContext
     private final ConfigContext<IOKind.Witness, AppConfig, OrderService> serviceFactory =
@@ -367,6 +386,7 @@ public class OrderController {
 
 If you find yourself manually passing context to every forked task, consider migrating to `Context`:
 
+<!-- verify -->
 ```java
 // Before: Manual propagation
 ConfigContext<IOKind.Witness, RequestInfo, Result> process =
@@ -375,14 +395,15 @@ ConfigContext<IOKind.Witness, RequestInfo, Result> process =
             .fork(() -> fetch1(info))  // Must pass
             .fork(() -> fetch2(info))  // Must pass
             .fork(() -> fetch3(info))  // Must pass
-            .join(Result::combine)
+            .join()
+            .map(Result::fromData)
             .run();
     });
 
 // After: Automatic propagation
 static final ScopedValue<RequestInfo> REQUEST_INFO = ScopedValue.newInstance();
 
-VTask<Result> process = Scope.<Data>allSucceed()
+VTask<Result> inherited = Scope.<Data>allSucceed()
     .fork(() -> {
         RequestInfo info = REQUEST_INFO.get();  // Available automatically
         return fetch1(info);
@@ -395,18 +416,20 @@ VTask<Result> process = Scope.<Data>allSucceed()
         RequestInfo info = REQUEST_INFO.get();  // Available automatically
         return fetch3(info);
     })
-    .join(Result::combine);
+    .join()
+    .map(Result::fromData);
 
 // Usage
 Result result = ScopedValue
     .where(REQUEST_INFO, requestInfo)
-    .call(() -> process.run());
+    .call(() -> inherited.run());
 ```
 
 ### From Context to ConfigContext
 
 If you're using `Context` for static configuration that doesn't need thread propagation, `ConfigContext` may be simpler:
 
+<!-- verify -->
 ```java
 // Before: ScopedValue for static config (overkill)
 static final ScopedValue<DatabaseConfig> DB_CONFIG = ScopedValue.newInstance();
@@ -419,12 +442,14 @@ VTask<User> getUser = VTask.delay(() -> {
 // Must bind everywhere
 ScopedValue.where(DB_CONFIG, config).call(() -> getUser.run());
 
-// After: ConfigContext for static config (appropriate)
-ConfigContext<IOKind.Witness, DatabaseConfig, User> getUser =
+// After: ConfigContext for static config (appropriate). No binding at the call site;
+// the configuration arrives when the computation is run.
+
+ConfigContext<IOKind.Witness, DatabaseConfig, User> getUserFromConfig =
     ConfigContext.io(config -> userRepo.find(config));
 
 // Pass once
-User user = getUser.runWithSync(config);
+User user = getUserFromConfig.runWithSync(config);
 ```
 
 ---
@@ -433,9 +458,11 @@ User user = getUser.runWithSync(config);
 
 ### Anti-Pattern 1: Using ConfigContext for Request Data
 
+<!-- verify -->
 ```java
 // ❌ Bad: Request data via ConfigContext
-ConfigContext<IOKind.Witness, RequestInfo, Response> handler = ...;
+ConfigContext<IOKind.Witness, RequestInfo, Response> handler =
+    ConfigContext.io(info -> new Response(200));
 
 // Problem: Every forked task needs explicit passing
 // Problem: Easy to forget, causing bugs
@@ -443,6 +470,7 @@ ConfigContext<IOKind.Witness, RequestInfo, Response> handler = ...;
 
 ### Anti-Pattern 2: Using Context for Static Config
 
+<!-- verify -->
 ```java
 // ❌ Bad: Static config via ScopedValue
 static final ScopedValue<DatabaseUrl> DB_URL = ScopedValue.newInstance();
@@ -454,6 +482,7 @@ static final ScopedValue<DatabaseUrl> DB_URL = ScopedValue.newInstance();
 
 ### Anti-Pattern 3: Mixing Indiscriminately
 
+<!-- verify -->
 ```java
 // ❌ Bad: Some request data in ConfigContext, some in Context
 // Inconsistent, confusing, easy to make mistakes
