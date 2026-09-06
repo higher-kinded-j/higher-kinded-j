@@ -26,21 +26,35 @@ an `IOPath` is just a description: a plan you haven't committed to yet.
 
 ## Creation
 
+<!-- verify -->
 ```java
 // Pure value (no effects)
 IOPath<Integer> pure = Path.ioPure(42);
 
-// Deferred effect
-IOPath<String> readFile = Path.io(() -> Files.readString(Paths.get("data.txt")));
+// Deferred effect. `Path.io` takes a `Supplier`, which cannot throw a checked
+// exception, so a throwing call is wrapped where it is made.
+IOPath<String> readFile = Path.io(() -> {
+    try {
+        return Files.readString(Paths.get("data.txt"));
+    } catch (IOException e) {
+        throw new UncheckedIOException(e);
+    }
+});
 
 // From existing IO
 IOPath<Connection> conn = Path.ioPath(databaseIO);
 ```
 
+~~~admonish tip title="A computation that throws"
+`Path.vtask` takes a `Callable`, so a throwing computation goes in as it stands:
+`Path.vtask(() -> Files.readString(path))`. See [VTaskPath](path_vtask.md).
+~~~
+
 ---
 
 ## Core Operations (All Deferred)
 
+<!-- verify -->
 ```java
 IOPath<String> content = Path.io(() -> fetchFromApi(url));
 
@@ -64,14 +78,15 @@ IOPath<Data> withSetup = setup.then(() -> Path.io(() -> loadData()));
 
 ## Execution: Buying the Ticket
 
+<!-- verify -->
 ```java
 IOPath<String> io = Path.io(() -> fetchData());
 
 // Execute (may throw)
-String result = io.unsafeRun();
+String value = io.unsafeRun();
 
 // Execute safely (captures exceptions)
-Try<String> result = io.runSafe();
+Try<String> captured = io.runSafe();
 
 // Convert to TryPath (executes immediately)
 TryPath<String> tryPath = io.toTryPath();
@@ -86,6 +101,7 @@ not scattered throughout your business logic.
 
 ## Error Handling
 
+<!-- verify -->
 ```java
 IOPath<Config> config = Path.io(() -> loadConfig())
     // Handle any exception
@@ -106,11 +122,12 @@ IOPath<Config> config = Path.io(() -> loadConfig())
 
 The `bracket` pattern ensures resources are properly released:
 
+<!-- verify -->
 ```java
-IOPath<String> content = IOPath.bracket(
-    () -> Files.newInputStream(path),      // acquire
-    in -> new String(in.readAllBytes()),   // use
-    in -> in.close()                       // release (always runs)
+IOPath<Report> report = IOPath.bracket(
+    () -> pool.borrow(),           // acquire
+    conn -> conn.query(sql),       // use
+    conn -> pool.release(conn)     // release (always runs)
 );
 ```
 
@@ -118,18 +135,25 @@ IOPath<String> content = IOPath.bracket(
 
 For `AutoCloseable` resources:
 
+<!-- verify -->
 ```java
 IOPath<String> content = IOPath.withResource(
-    () -> Files.newBufferedReader(path),
-    reader -> reader.lines().collect(Collectors.joining("\n"))
+    () -> new Scanner(source),
+    scanner -> scanner.useDelimiter("\\A").next()
 );
-// reader.close() is called automatically
+// scanner.close() is called automatically
 ```
+
+All three arguments to `bracket` are plain `Supplier`, `Function` and `Consumer`, so a
+resource whose acquisition, use or release throws a checked exception needs the same wrap
+the creation section shows. `bracketIO` and `withResourceIO` take a use function that
+returns an `IOPath`, for when the body is itself an effect.
 
 ---
 
 ## Parallel Execution
 
+<!-- verify -->
 ```java
 IOPath<String> fetchA = Path.io(() -> callServiceA());
 IOPath<String> fetchB = Path.io(() -> callServiceB());
@@ -151,6 +175,7 @@ IOPath<List<String>> all = PathOps.parSequenceIO(ios);
 
 The full `with*` vocabulary chains directly on the path (retry, time budget, circuit breaker, and bulkhead), all lazy until `unsafeRun()`:
 
+<!-- verify -->
 ```java
 IOPath<String> resilient = Path.io(() -> callFlakyService())
     .retry(5, Duration.ofMillis(100))                        // exponential backoff convenience
@@ -168,6 +193,7 @@ See [Resilience Patterns](../resilience/ch_intro.md) for the per-carrier availab
 
 ## Lazy Evaluation in Action
 
+<!-- verify -->
 ```java
 IOPath<String> effect = Path.io(() -> {
     System.out.println("Side effect!");  // Not printed yet
