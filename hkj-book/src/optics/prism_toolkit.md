@@ -33,6 +33,7 @@ Whilst `getOptional()` and `build()` are the core operations, the `Prism` interf
 
 The `matches()` method provides a clean alternative to `getOptional(source).isPresent()`:
 
+<!-- verify -->
 ```java
 Prism<JsonValue, JsonString> stringPrism = JsonValuePrisms.jsonString();
 
@@ -49,9 +50,10 @@ List<JsonValue> onlyStrings = values.stream()
 
 **Real-World Example**: Filtering polymorphic domain events:
 
+<!-- verify -->
 ```java
 @GeneratePrisms
-sealed interface DomainEvent permits UserEvent, OrderEvent, PaymentEvent {}
+sealed interface DomainEvent permits UserEvent, OrderEvent, PaymentEvent, OrderCompleted {}
 
 // Business logic: process only payment events
 public void processPayments(List<DomainEvent> events) {
@@ -76,6 +78,7 @@ public void processPayments(List<DomainEvent> events) {
 
 When you need fallback values, `getOrElse()` is more concise than `getOptional().orElse()`:
 
+<!-- verify -->
 ```java
 Prism<ApiResponse, SuccessResponse> successPrism =
     ApiResponsePrisms.successResponse();
@@ -87,12 +90,13 @@ String data = successPrism.getOrElse(
 ).data();
 
 // Particularly useful for configuration
-Config config = Prisms.some()
+Config config = Prisms.<Config>some()
     .getOrElse(Config.DEFAULT, optionalConfig);
 ```
 
 **Real-World Example**: Parsing user input with graceful degradation:
 
+<!-- verify -->
 ```java
 @GeneratePrisms
 sealed interface ParsedValue permits IntValue, StringValue, InvalidValue {}
@@ -125,6 +129,7 @@ public DatabaseConfig getDatabaseConfig(ApplicationConfig config) {
 
 The `mapOptional()` method transforms matched values without building them back into the source type:
 
+<!-- verify -->
 ```java
 Prism<JsonValue, JsonNumber> numberPrism = JsonValuePrisms.jsonNumber();
 
@@ -143,6 +148,7 @@ Optional<Boolean> isLarge = numberPrism.mapOptional(
 
 **Real-World Example**: ETL data transformation pipeline:
 
+<!-- verify -->
 ```java
 @GeneratePrisms
 sealed interface SourceData permits CsvRow, JsonObject, XmlNode {}
@@ -181,6 +187,7 @@ public Optional<BigDecimal> extractRevenue(DomainEvent event) {
 
 Instead of manually calling `getOptional().map(f).map(build)`, use `modify()`:
 
+<!-- verify -->
 ```java
 Prism<JsonValue, JsonString> stringPrism = JsonValuePrisms.jsonString();
 
@@ -203,6 +210,7 @@ If the prism doesn't match, `modify()` safely returns the original structure unc
 
 These methods combine matching with predicate-based filtering:
 
+<!-- verify -->
 ```java
 Prism<ConfigValue, StringConfig> stringConfig =
     ConfigValuePrisms.stringConfig();
@@ -224,25 +232,29 @@ ConfigValue validated = stringConfig.setWhen(
 
 **Real-World Example**: Business rule enforcement in order processing:
 
+<!-- verify -->
 ```java
 @GeneratePrisms
 sealed interface OrderStatus permits Draft, Submitted, Approved, Rejected {}
 
 public class OrderProcessor {
+    private static final BigDecimal VIP_THRESHOLD = new BigDecimal("1000");
+    private static final double VIP_DISCOUNT_RATE = 0.1;
+
     private static final Prism<OrderStatus, Submitted> SUBMITTED =
         OrderStatusPrisms.submitted();
 
-    // Only approve orders above minimum value
+    // Only approve orders above minimum value. `setWhen` replaces the focus with
+    // another value of the SAME variant, so a move to a different one asks the
+    // prism whether it matches and builds the new status itself.
     public OrderStatus approveIfEligible(
         OrderStatus status,
         BigDecimal orderValue,
         BigDecimal minValue
     ) {
-        return SUBMITTED.setWhen(
-            submitted -> orderValue.compareTo(minValue) >= 0,
-            new Approved(Instant.now(), "AUTO_APPROVED"),
-            status
-        );
+        return SUBMITTED.matches(status) && orderValue.compareTo(minValue) >= 0
+            ? new Approved(Instant.now(), "AUTO_APPROVED")
+            : status;
     }
 
     // Apply discount only to high-value draft orders
@@ -270,6 +282,7 @@ The `orElse()` method chains prisms to try multiple matches:
 
 Both prisms must share the same target type:
 
+<!-- verify -->
 ```java
 // Accept two spellings of the same flag
 Prism<String, Unit> affirmative = Prisms.only("yes").orElse(Prisms.only("y"));
@@ -284,6 +297,7 @@ String built = affirmative.build(Unit.INSTANCE); // "yes"
 
 When the variants hold *different* target types, `orElse` cannot chain them (and a Prism-then-Lens composition is an `Affine`, which has no `orElse`); extract per prism and fall through on the `Optional`s instead:
 
+<!-- verify -->
 ```java
 Optional<String> message =
     ApiResponsePrisms.validationError()
@@ -326,6 +340,7 @@ The `Prisms` utility class (in `org.higherkindedj.optics.util`) provides factory
 
 ### Working with Optional: `Prisms.some()`
 
+<!-- verify -->
 ```java
 import org.higherkindedj.optics.util.Prisms;
 
@@ -337,14 +352,15 @@ Optional<String> value = somePrism.getOptional(present); // Optional.of("hello")
 Optional<String> empty = Optional.empty();
 Optional<String> noMatch = somePrism.getOptional(empty); // Optional.empty()
 
-// Useful for nested Optionals
+// Useful for nested Optionals - the witness names the layer being unwrapped
 Optional<Optional<Config>> nestedConfig = loadConfig();
-Optional<Config> flattened = somePrism.getOptional(nestedConfig)
+Optional<Config> flattened = Prisms.<Optional<Config>>some().getOptional(nestedConfig)
     .flatMap(Function.identity());
 ```
 
 ### Either Case Handling: `Prisms.left()` and `Prisms.right()`
 
+<!-- verify -->
 ```java
 Prism<Either<String, Integer>, String> leftPrism = Prisms.left();
 Prism<Either<String, Integer>, Integer> rightPrism = Prisms.right();
@@ -354,8 +370,6 @@ Optional<String> errorMsg = leftPrism.getOptional(error); // Optional.of("Failed
 Optional<Integer> noValue = rightPrism.getOptional(error); // Optional.empty()
 
 // Compose with lenses for deep access (Prism >>> Lens = Affine)
-@GenerateLenses
-record ValidationError(String code, String message) {}
 Lens<ValidationError, String> messageLens = ValidationErrorLenses.message();
 
 Affine<Either<ValidationError, Data>, String> errorMessage =
@@ -370,6 +384,7 @@ Optional<String> msg = errorMessage.getOptional(result);
 
 Perfect for matching specific constant values:
 
+<!-- verify -->
 ```java
 Prism<String, Unit> httpOkPrism = Prisms.only("200 OK");
 
@@ -385,11 +400,12 @@ List<String> onlyErrors = statusCodes.stream()
 
 // Null sentinel handling
 Prism<String, Unit> nullPrism = Prisms.only(null);
-boolean isNull = nullPrism.matches(value);
+boolean isNull = nullPrism.matches(statusCode);
 ```
 
 ### Null Safety: `Prisms.notNull()`
 
+<!-- verify -->
 ```java
 Prism<String, String> notNullPrism = Prisms.notNull();
 
@@ -411,9 +427,10 @@ List<String> filtered = Traversals.getAll(nonNullStrings, mixedList);
 
 Elegant alternative to `instanceof` checks in type hierarchies:
 
+<!-- verify -->
 ```java
 sealed interface Animal permits Dog, Cat, Bird {}
-record Dog(String name, String breed) implements Animal {}
+@GenerateLenses record Dog(String name, String breed) implements Animal {}
 record Cat(String name, int lives) implements Animal {}
 record Bird(String name, boolean canFly) implements Animal {}
 
@@ -442,6 +459,7 @@ List<String> breeds = Traversals.getAll(
 
 ### Collection Element Access
 
+<!-- verify -->
 ```java
 // First element (if list is non-empty)
 Prism<List<String>, String> headPrism = Prisms.listHead();
@@ -470,6 +488,7 @@ The `listHead()` and `listLast()` prisms have limited `build()` operations: they
 - Query operations (with `getOptional()`)
 
 **For list modification**, use `Traversal` or `Lens` instead:
+<!-- verify -->
 ```java
 // ✅ For modifications, use proper traversals
 Lens<List<String>, String> firstLens = listFirstElementLens();
@@ -480,6 +499,7 @@ List<String> updated = firstLens.modify(String::toUpperCase, names);
 ~~~admonish tip title="Advanced List Decomposition"
 For more comprehensive list manipulation, including cons/snoc patterns, head/tail and init/last decomposition, and stack-safe operations for large lists, see **[List Decomposition](list_decomposition.md)** and the `ListPrisms` utility class.
 
+<!-- verify -->
 ```java
 import org.higherkindedj.optics.util.ListPrisms;
 
@@ -497,9 +517,10 @@ Prism<List<String>, Pair<List<String>, String>> snoc = ListPrisms.snoc();
 
 The real power emerges when composing these utility prisms with your domain optics:
 
+<!-- verify -->
 ```java
-record Config(Optional<Either<String, DatabaseSettings>> database) {}
-record DatabaseSettings(String host, int port) {}
+@GenerateLenses record Config(Optional<Either<String, DatabaseSettings>> database) {}
+@GenerateLenses record DatabaseSettings(String host, int port) {}
 
 // Build a path through Optional -> Either -> Settings -> host
 // (a chain through asTraversal is a Traversal, not a Prism)
@@ -511,7 +532,7 @@ Traversal<Config, String> databaseHost =
         .andThen(Prisms.<String, DatabaseSettings>right().asTraversal())
         .andThen(DatabaseSettingsLenses.host().asTraversal()); // -> String
 
-Config config = loadConfig();
+Config config = new Config(Optional.of(Either.right(new DatabaseSettings("localhost", 5432))));
 Optional<String> host = Traversals.getAll(databaseHost, config)
     .stream().findFirst();
 ```
@@ -519,10 +540,11 @@ Optional<String> host = Traversals.getAll(databaseHost, config)
 ~~~admonish tip title="Performance Considerations"
 Utility prisms are lightweight and stateless; they're safe to create on-demand or cache as constants:
 
+<!-- verify -->
 ```java
 public class AppPrisms {
     public static final Prism<Optional<User>, User> SOME_USER = Prisms.some();
-    public static final Prism<Response, SuccessResponse> SUCCESS =
+    public static final Prism<ApiResponse, SuccessResponse> SUCCESS =
         Prisms.instanceOf(SuccessResponse.class);
 }
 ```
