@@ -27,6 +27,7 @@ Let's use a common business scenario involving a deeply nested data structure. O
 
 **The Data Model:**
 
+<!-- verify -->
 ```java
 public record Address(String street, String city) {}
 public record Company(String name, Address address) {}
@@ -48,6 +49,7 @@ This process creates a companion class for each record (e.g., `EmployeeLenses`, 
 1. **Lens Factories**: Static methods that create a `Lens` for each field (e.g., `EmployeeLenses.company()`).
 2. **`with*` Helpers**: Static convenience methods for easy, shallow updates (e.g., `EmployeeLenses.withCompany(...)`).
 
+<!-- verify -->
 ```java
 import org.higherkindedj.optics.annotations.GenerateLenses;
 
@@ -82,6 +84,7 @@ With the lenses generated, we can now compose them using the **`andThen`** metho
 
 The result is a new, powerful, and reusable `Lens<Employee, String>`.
 
+<!-- verify -->
 ```java
 // Get the generated lenses
 Lens<Employee, Company> employeeToCompany = EmployeeLenses.company();
@@ -103,9 +106,10 @@ With our optics generated, we have two primary ways to perform updates.
 
 For simple updates to a top-level field, the generated `with*` methods are the most convenient and readable option.
 
+<!-- verify -->
 ```java
 // Create an employee instance
-var employee = new Employee("Alice", ...);
+var employee = new Employee("Alice", new Company("Initech Inc.", initialAddress));
 
 // Use the generated helper to create an updated copy
 var updatedEmployee = EmployeeLenses.withName(employee, "Bob");
@@ -122,6 +126,7 @@ For deep updates into nested structures, the composed lens is the perfect tool. 
 
 Both methods handle the "copy-and-update" cascade for you, returning a completely new top-level object.
 
+<!-- verify -->
 ```java
 // Use the composed lens from Step 2
 Employee updatedEmployee = employeeToStreet.set("456 Main St", initialEmployee);
@@ -140,6 +145,7 @@ Understanding when to use each approach will help you write cleaner, more mainta
 * **API clarity** - You want the most discoverable, IDE-friendly approach
 
 
+<!-- verify -->
 ```java
 // Perfect for simple updates
 var promotedEmployee = EmployeeLenses.withName(employee, "Senior " + employee.name());
@@ -153,6 +159,7 @@ var promotedEmployee = EmployeeLenses.withName(employee, "Senior " + employee.na
 * **Conditional updates** - Part of larger optic compositions
 
 
+<!-- verify -->
 ```java
 // Ideal for reusable deep updates
 Lens<Employee, String> streetLens = employeeToCompany
@@ -167,8 +174,10 @@ Employee uppercased = streetLens.modify(String::toUpperCase, employee);
 ~~~admonish tip title="Cross-Optic Composition"
 Lenses can also compose with other optic types. When you compose a `Lens` with a `Prism`, you get an `Affine` (the prism may not match, so the focus becomes zero-or-one):
 
+<!-- verify -->
 ```java
 // Lens >>> Prism = Affine
+@GenerateLenses
 record User(Optional<Settings> settings) {}
 Lens<User, Optional<Settings>> settingsLens = UserLenses.settings();
 Prism<Optional<Settings>, Settings> somePrism = Prisms.some();
@@ -186,6 +195,7 @@ See [Composition Rules](composition_rules.md) for the complete reference on how 
 * **Legacy integration** - Working with existing APIs
 
 
+<!-- verify -->
 ```java
 // For computed or derived properties
 Lens<Employee, String> fullAddressLens = Lens.of(
@@ -205,6 +215,7 @@ Lens<Employee, String> fullAddressLens = Lens.of(
 ### Don't Do This:
 
 
+<!-- verify -->
 ```java
 // Inefficient: Calling get() multiple times
 var currentStreet = employeeToStreet.get(employee);
@@ -223,6 +234,7 @@ var finalEmployee = EmployeeLenses.withCompany(employee, updatedCompany);
 ### Do This Instead:
 
 
+<!-- verify -->
 ```java
 // Efficient: Use modify() for transformations
 var newEmployee = employeeToStreet.modify(String::toUpperCase, employee);
@@ -251,6 +263,7 @@ Lenses are optimised for immutable updates:
 
 **Best Practice**: For frequently used paths, create the composed lens once and store it as a static field:
 
+<!-- verify -->
 ```java
 public class EmployeeOptics {
     public static final Lens<Employee, String> STREET = 
@@ -273,10 +286,8 @@ The following standalone example puts all these steps together. You can run it t
 ```java
 package org.higherkindedj.example.lens;
 
-// Imports for the generated classes would be automatically resolved by your IDE
-import org.higherkindedj.example.lens.LensUsageExampleLenses.AddressLenses;
-import org.higherkindedj.example.lens.LensUsageExampleLenses.CompanyLenses;
-import org.higherkindedj.example.lens.LensUsageExampleLenses.EmployeeLenses;
+// The generated AddressLenses / CompanyLenses / EmployeeLenses are top-level classes in this
+// same package, so they need no import.
 import org.higherkindedj.optics.Lens;
 import org.higherkindedj.optics.annotations.GenerateLenses;
 import java.util.List;

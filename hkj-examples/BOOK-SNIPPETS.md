@@ -277,6 +277,13 @@ Some shapes recur across the book and are left unmarked deliberately:
   the same name. Splitting each into its own block would lose the juxtaposition that makes the page
   readable. Elsewhere in the book, where both halves are ordinary code, they ARE split and both are
   gated - see `migrating_to_functional_errors.md`.
+- **A complete runnable file repeated at the end of a page.** `optics/lenses.md` closes by
+  putting the whole worked example back together, model included. Every part of it is gated above;
+  compiling the repeat would need a second copy of the same records in one unit, and two
+  `@GenerateLenses` records of the same simple name cannot both emit their companion. The same
+  page's `targetPackage` entry is unmarked for a related reason: a companion generated into another
+  package needs its source type to be `public`, and a snippet's types share one file, where only
+  one may be.
 - **Laws written as equations.** `coyoneda.md` states the functor laws as
   `coyo.map(x -> x) == coyo`. The `==` is the law's notation, not a reference comparison, and
   rewriting it as an assertion would obscure what it says.
