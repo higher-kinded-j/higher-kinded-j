@@ -37,7 +37,10 @@ public interface StreamTraversal<S, A> {
 
 ### Built-in Instances
 
+<!-- verify -->
 ```java
+import org.higherkindedj.optics.extensions.StreamTraversal;
+
 // For VStream elements (identity traversal, fully lazy)
 StreamTraversal<VStream<Integer>, Integer> vstreamST =
     StreamTraversal.forVStream();
@@ -51,7 +54,10 @@ StreamTraversal<List<String>, String> listST =
 
 StreamTraversal composes with other StreamTraversals and with Lens:
 
+<!-- verify -->
 ```java
+import org.higherkindedj.optics.extensions.StreamTraversal;
+
 // Compose two StreamTraversals: list of lists -> all inner elements
 StreamTraversal<List<List<Integer>>, List<Integer>> outer =
     StreamTraversal.forList();
@@ -63,10 +69,10 @@ StreamTraversal<List<List<Integer>>, Integer> composed =
 // Compose with Lens: list of records -> focused field
 record Person(String name, int age) {}
 Lens<Person, String> nameLens =
-    Lens.of(Person::name, (n, p) -> new Person(n, p.age()));
+    Lens.of(Person::name, (p, n) -> new Person(n, p.age()));
 
 StreamTraversal<List<Person>, String> namesST =
-    StreamTraversal.forList().andThen(nameLens);
+    StreamTraversal.<Person>forList().andThen(nameLens);
 
 // Stream all names lazily
 List<Person> people = List.of(new Person("Alice", 30), new Person("Bob", 25));
@@ -75,12 +81,17 @@ VStream<String> names = namesST.stream(people);
 
 ### Conversion to Standard Traversal
 
+<!-- verify -->
 ```java
+import org.higherkindedj.optics.extensions.StreamTraversal;
+
 // Convert to standard Traversal (materialising)
+StreamTraversal<List<Integer>, Integer> listST = StreamTraversal.forList();
 Traversal<List<Integer>, Integer> traversal = listST.toTraversal();
 
 // Convert from standard Traversal
-Traversal<VStream<String>, String> existingTraversal = /* ... */;
+Traversal<VStream<String>, String> existingTraversal =
+    StreamTraversal.<String>forVStream().toTraversal();
 StreamTraversal<VStream<String>, String> fromExisting =
     StreamTraversal.fromTraversal(existingTraversal);
 ```
@@ -101,6 +112,7 @@ push-based reactive model. This enables integration with reactive frameworks and
 
 ### VStream to Publisher
 
+<!-- verify -->
 ```java
 VStream<String> stream = VStream.of("a", "b", "c");
 Flow.Publisher<String> publisher = VStreamReactive.toPublisher(stream);
@@ -111,6 +123,7 @@ subscriber has outstanding demand via `request(n)`. Each subscriber receives all
 
 ### Publisher to VStream
 
+<!-- verify -->
 ```java
 Flow.Publisher<Event> eventPublisher = getEventSource(); // your push-based source
 VStream<Event> events = VStreamReactive.fromPublisher(eventPublisher, 64);
@@ -122,6 +135,7 @@ push-based delivery to pull-based consumption.
 
 ### Round-Trip
 
+<!-- verify -->
 ```java
 // VStream -> Publisher -> VStream preserves elements
 VStream<Integer> original = VStream.of(1, 2, 3);
@@ -133,6 +147,7 @@ List<Integer> result = roundTripped.toList().run();
 
 ### Path Integration
 
+<!-- verify -->
 ```java
 Flow.Publisher<Event> eventPublisher = getEventSource(); // your push-based source
 
@@ -149,6 +164,7 @@ Flow.Publisher<Event> pub = eventPath.toPublisher();
 `VStreamTransformations` provides natural transformations between VStream and other
 collection types:
 
+<!-- verify -->
 ```java
 // List -> VStream (lazy)
 NaturalTransformation<ListKind.Witness, VStreamKind.Witness> listToVStream =
@@ -169,6 +185,7 @@ NaturalTransformation<VStreamKind.Witness, StreamKind.Witness> vstreamToStream =
 
 These compose via `andThen`:
 
+<!-- verify -->
 ```java
 // Stream -> VStream -> List in one step
 NaturalTransformation<StreamKind.Witness, ListKind.Witness> streamToList =
@@ -185,6 +202,7 @@ use `take()` first.
 `VStreamPathProvider` registers VStream with the PathProvider SPI, enabling dynamic path
 creation via `Path.from()`:
 
+<!-- verify -->
 ```java
 // Discover VStreamPathProvider automatically via ServiceLoader
 Kind<VStreamKind.Witness, String> kind =
@@ -205,6 +223,7 @@ internally and exposes simple operations with blocking terminal semantics, consi
 
 ### Creating Contexts
 
+<!-- verify -->
 ```java
 VStreamContext<Integer> ctx = VStreamContext.fromList(List.of(1, 2, 3));
 VStreamContext<String> single = VStreamContext.pure("hello");
@@ -214,6 +233,7 @@ VStreamContext<Integer> empty = VStreamContext.empty();
 
 ### Building Pipelines
 
+<!-- verify -->
 ```java
 List<String> result = VStreamContext.range(1, 20)
     .filter(n -> n % 2 == 0)
@@ -227,6 +247,7 @@ List<String> result = VStreamContext.range(1, 20)
 
 Terminal operations block until the result is available:
 
+<!-- verify -->
 ```java
 long count = ctx.count();
 boolean hasEven = ctx.exists(n -> n % 2 == 0);
@@ -238,6 +259,7 @@ Optional<Integer> found = ctx.find(n -> n > 10);
 
 ### Monadic Composition
 
+<!-- verify -->
 ```java
 List<Integer> result = VStreamContext.fromList(List.of(1, 2, 3))
     .via(x -> VStreamContext.fromList(List.of(x, x * 10)))
@@ -249,6 +271,7 @@ List<Integer> result = VStreamContext.fromList(List.of(1, 2, 3))
 
 When you need access to the underlying types:
 
+<!-- verify -->
 ```java
 VStream<Integer> stream = ctx.toVStream();
 VStreamPath<Integer> path = ctx.toPath();

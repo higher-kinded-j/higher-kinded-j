@@ -186,12 +186,13 @@ Larger chunk sizes reduce overhead but increase latency for the first result.
 Each combinator adds a layer of indirection. For hot paths, consider combining
 operations:
 
+<!-- verify -->
 ```java
 // Prefer: single map with combined logic
-stream.map(x -> (x + 1) * 2)
+stream.map(x -> (x + 1) * 2);
 
 // Over: multiple chained maps
-stream.map(x -> x + 1).map(x -> x * 2)
+stream.map(x -> x + 1).map(x -> x * 2);
 ```
 
 ### Use Appropriate Chunk Sizes
