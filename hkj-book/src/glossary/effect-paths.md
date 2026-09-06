@@ -220,7 +220,7 @@ EitherPath<Error, User> updated = userService.findById(userId)
 
 // Combine multiple effect sources with optic navigation
 EitherPath<Error, Report> report =
-    Path.of(loadCompany(id))
+    Path.either(loadCompany(id))
         .focus(CompanyFocus.departments())     // Traverse to departments
         .via(dept -> loadMetrics(dept.id()))   // Effect for each
         .map(metrics -> generateReport(metrics));
@@ -405,7 +405,6 @@ Path.nothing()                      // Empty MaybePath
 Path.either(eitherValue)            // Wrap existing Either
 Path.right(value)                   // Success EitherPath
 Path.left(error)                    // Failure EitherPath
-Path.of(nullableValue)              // Wrap nullable as EitherPath
 
 // Try paths
 Path.tryOf(() -> riskyOperation())  // Wrap exception-throwing code
@@ -414,11 +413,13 @@ Path.failure(exception)             // Failed TryPath
 
 // IO paths
 Path.io(() -> sideEffect())         // Wrap side-effecting code
-Path.ioOf(value)                    // Pure value in IO context
+Path.ioPure(value)                  // Pure value in IO context
 
 // Validation paths
-Path.valid(value)                   // Valid result
-Path.invalid(error)                 // Invalid with error
+Path.valid(value, semigroup)        // Valid result
+Path.invalid(error, semigroup)      // Invalid with error
+Path.validNel(value)                // Valid, accumulating into a NonEmptyList
+Path.invalidNel(error)              // Invalid, accumulating into a NonEmptyList
 ```
 
 **Example:**
@@ -483,9 +484,9 @@ if (account == null) return error("Account not found");
 if (!account.isActive()) return error("Account inactive");
 return success(account.getBalance());
 
-// Railway-oriented: automatic track switching
+// Railway-oriented: automatic track switching (lookupUser returns Either<Error, User>)
 EitherPath<Error, BigDecimal> balance =
-    Path.of(findUser(id))
+    Path.either(lookupUser(id))
         .via(user -> getAccount(user))
         .via(account -> validateActive(account))
         .map(account -> account.getBalance());
@@ -561,7 +562,7 @@ EitherPath<Error, Value> result = operation()
 ```java
 // Each step depends on the previous result
 EitherPath<Error, Order> orderPath =
-    Path.of(userId)
+    Path.<Error, String>right(userId)
         .via(id -> findUser(id))           // Returns EitherPath<Error, User>
         .via(user -> getCart(user))        // Returns EitherPath<Error, Cart>
         .via(cart -> validateCart(cart))   // Returns EitherPath<Error, ValidatedCart>
