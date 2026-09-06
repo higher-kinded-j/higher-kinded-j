@@ -9,7 +9,9 @@
 
 import java.util.List;
 import java.util.Optional;
+import java.util.stream.Stream;
 import org.higherkindedj.hkt.effect.EitherPath;
+import org.higherkindedj.hkt.effect.PathOps;
 import org.higherkindedj.hkt.effect.IdPath;
 import org.higherkindedj.hkt.effect.ListPath;
 import org.higherkindedj.hkt.effect.MaybePath;
@@ -19,7 +21,11 @@ import org.higherkindedj.hkt.effect.TryPath;
 import org.higherkindedj.hkt.either.Either;
 import org.higherkindedj.optics.annotations.GenerateFocus;
 import org.higherkindedj.optics.annotations.GenerateLenses;
+import org.higherkindedj.hkt.Semigroups;
+import org.higherkindedj.hkt.effect.ValidationPath;
 import org.higherkindedj.optics.focus.AffinePath;
+import org.higherkindedj.optics.Lens;
+import org.higherkindedj.optics.focus.FocusPaths;
 import org.higherkindedj.optics.focus.FocusPath;
 import org.higherkindedj.optics.focus.TraversalPath;
 
@@ -31,7 +37,52 @@ record User(String name, Optional<String> email) {}
 @GenerateFocus
 record Company(String name, List<User> employees) {}
 
-record Error(String message) {}
+@GenerateLenses
+@GenerateFocus
+record Org(String name, List<Department> departments) {}
+
+record Error(String message) {
+
+  static Error missingEmail() {
+    return new Error("missing email");
+  }
+}
+
+record UserId(String value) {}
+
+record OrderId(String value) {}
+
+record UpdateRequest(String email) {}
+
+record SaveResult(String id) {}
+
+@GenerateLenses
+@GenerateFocus
+record Address(String city, String postcode) {}
+
+@GenerateLenses
+@GenerateFocus
+record Customer(String name, Address address) {}
+
+@GenerateLenses
+@GenerateFocus
+record Order(String id, Customer customer) {}
+
+@GenerateLenses
+@GenerateFocus
+record Employee(String name, Optional<String> email) {}
+
+@GenerateLenses
+@GenerateFocus
+record Department(String name, Optional<Employee> manager) {}
+
+@GenerateLenses
+@GenerateFocus
+record Profile(String handle, Optional<String> email) {}
+
+@GenerateLenses
+@GenerateFocus
+record Account(String id, Profile profile) {}
 
 final class MissingEmailException extends RuntimeException {
 
@@ -43,6 +94,36 @@ final class MissingEmailException extends RuntimeException {
 class Fixture {
 
   static final String userId = "u-1";
+
+  static final OrderService orderService = new OrderService();
+
+  static final AccountService userService = new AccountService();
+
+  static EitherPath<Error, String> validateEmail(String email) {
+    return Path.right(email);
+  }
+
+  static EitherPath<Error, Account> applyUpdate(UpdateRequest request, String email) {
+    return Path.right(new Account("a-1", new Profile("ada", Optional.of(email))));
+  }
+
+  static final class OrderService {
+
+    EitherPath<Error, Order> findById(OrderId id) {
+      return Path.right(new Order(id.value(), new Customer("Ada", new Address("London", "N1"))));
+    }
+  }
+
+  static final class AccountService {
+
+    EitherPath<Error, Account> findById(UserId id) {
+      return Path.right(new Account(id.value(), new Profile("ada", Optional.of("a@b.test"))));
+    }
+
+    EitherPath<Error, SaveResult> save(Account account) {
+      return Path.right(new SaveResult(account.id()));
+    }
+  }
 
   static final User alice = new User("Alice", Optional.of("alice@example.com"));
 

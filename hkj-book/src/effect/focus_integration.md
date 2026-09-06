@@ -211,6 +211,7 @@ MaybePath<String> emailMaybe = userMaybePath.focus(emailPath);
 
 **The solution:**
 
+<!-- verify -->
 ```java
 EitherPath<List<String>, User> validateUser(User user) {
     FocusPath<User, String> namePath = UserFocus.name();
@@ -241,12 +242,13 @@ EitherPath<List<String>, User> validateUser(User user) {
 
 **The solution:**
 
+<!-- verify -->
 ```java
 EitherPath<Error, String> getOrderCustomerCity(OrderId orderId) {
-    return orderService.findById(orderId)           // → EitherPath<Error, Order>
-        .focus(OrderFocus.customer())               // → EitherPath<Error, Customer>
-        .focus(CustomerFocus.address())             // → EitherPath<Error, Address>
-        .focus(AddressFocus.city());                // → EitherPath<Error, String>
+    return orderService.findById(orderId)           // -> EitherPath<Error, Order>
+        .focus(OrderFocus.customer())               // -> EitherPath<Error, Customer>
+        .focus(CustomerFocus.address())             // -> EitherPath<Error, Address>
+        .focus(AddressFocus.city());                // -> EitherPath<Error, String>
 }
 ```
 
@@ -256,24 +258,28 @@ EitherPath<Error, String> getOrderCustomerCity(OrderId orderId) {
 
 **The solution:**
 
+<!-- verify -->
 ```java
 // Traditional approach (pyramid of doom)
-String getManagerEmail(Company company) {
-    Department dept = company.getDepartment(0);
-    if (dept == null) return "unknown";
-    Employee manager = dept.getManager();
-    if (manager == null) return "unknown";
-    String email = manager.getEmail();
-    return email != null ? email : "unknown";
+String managerEmailByHand(Org org) {
+    List<Department> departments = org.departments();
+    if (departments.isEmpty()) return "unknown";
+    Department dept = departments.get(0);
+    Optional<Employee> manager = dept.manager();
+    if (manager.isEmpty()) return "unknown";
+    return manager.get().email().orElse("unknown");
 }
 
-// Focus-Effect approach
-String getManagerEmail(Company company) {
-    return CompanyFocus.department(0)
-        .toMaybePath(company)                       // → MaybePath<Department>
-        .focus(DepartmentFocus.manager())           // → MaybePath<Employee>
-        .focus(EmployeeFocus.email())               // → MaybePath<String>
-        .getOrElse("unknown");
+// Focus-Effect approach. `departments()` traverses every one of them, so the
+// first is reached with the affine index rather than a generated accessor.
+String managerEmail(Org org) {
+    return FocusPath.of(OrgLenses.departments())
+        .via(AffinePath.of(FocusPaths.<Department>listAt(0)))
+        .toMaybePath(org)                           // -> MaybePath<Department>
+        .focus(DepartmentFocus.manager())           // -> MaybePath<Employee>
+        .focus(EmployeeFocus.email())               // -> MaybePath<String>
+        .run()
+        .orElse("unknown");
 }
 ```
 
@@ -283,19 +289,18 @@ String getManagerEmail(Company company) {
 
 **The solution:**
 
+<!-- verify -->
 ```java
-// Validate all employee emails
-ValidationPath<List<String>, Company> validateAllEmails(Company company) {
-    return CompanyFocus.employees()
-        .toListPath(company)
-        .via(employees -> {
-            // Validate each employee's email
-            var results = employees.stream()
-                .map(e -> EmployeeFocus.email()
-                    .toEitherPath(e, List.of("Missing email for " + e.name())))
-                .toList();
-            // Combine results...
-        });
+// Every employee that is missing an email, all of them, not just the first
+ValidationPath<List<String>, List<User>> validateAllEmails(Company company) {
+    List<ValidationPath<List<String>, User>> checks =
+        CompanyFocus.employees().getAll(company).stream()
+            .map(e -> e.email().isPresent()
+                ? Path.<List<String>, User>valid(e, Semigroups.list())
+                : Path.<List<String>, User>invalid(
+                    List.of("Missing email for " + e.name()), Semigroups.list()))
+            .toList();
+    return PathOps.sequenceValidated(checks, Semigroups.list());
 }
 ```
 
@@ -341,11 +346,12 @@ Start with...
 
 The most powerful patterns combine both directions fluently:
 
+<!-- verify -->
 ```java
 // Complete workflow: fetch → navigate → validate → transform → save
 EitherPath<Error, SaveResult> processUserUpdate(UserId userId, UpdateRequest request) {
-    return userService.findById(userId)                    // Effect: fetch user
-        .focus(UserFocus.profile())                        // Optics: navigate to profile
+    return userService.findById(userId)                    // Effect: fetch account
+        .focus(AccountFocus.profile())                     // Optics: navigate to profile
         .via(profile -> {                                  // Effect: validate
             return ProfileFocus.email()
                 .toEitherPath(profile, Error.missingEmail())
