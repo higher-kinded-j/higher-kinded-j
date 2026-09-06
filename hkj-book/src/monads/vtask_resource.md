@@ -39,6 +39,7 @@ The `Resource` type provides safe resource management for VTask computations, im
 
 ~~~admonish example title="Basic Resource Creation"
 
+<!-- verify -->
 ```java
 import org.higherkindedj.hkt.vtask.Resource;
 import org.higherkindedj.hkt.vtask.VTask;
@@ -84,6 +85,7 @@ Resource<Config> configResource = Resource.pure(loadedConfig);
 
 The `use` method runs a computation with the acquired resource and guarantees release:
 
+<!-- verify -->
 ```java
 Resource<Connection> connResource = Resource.fromAutoCloseable(
     () -> dataSource.getConnection()
@@ -110,6 +112,7 @@ int userCount = count.run();
 
 If the use function throws, the resource is still released:
 
+<!-- verify -->
 ```java
 VTask<String> riskyOperation = connResource.use(conn ->
     VTask.of(() -> {
@@ -132,13 +135,11 @@ Try<String> result = riskyOperation.runSafe();
 
 Resources compose naturally, acquiring in order and releasing in reverse (LIFO):
 
+<!-- verify -->
 ```java
 // Chain resource acquisition with flatMap
 Resource<PreparedStatement> stmtResource = connResource.flatMap(conn ->
-    Resource.make(
-        () -> conn.prepareStatement(sql),
-        PreparedStatement::close
-    )
+    Resource.fromAutoCloseable(() -> conn.prepareStatement(sql))
 );
 
 // Combine two independent resources with and()
@@ -153,13 +154,18 @@ combined.use(tuple -> {
 // fileResource released first, then connResource
 
 // Combine three resources
-Resource<Par.Tuple3<Connection, Statement, ResultSet>> triple =
+Resource<Par.Tuple3<Connection, PreparedStatement, ResultSet>> triple =
     connResource.and(stmtResource, resultSetResource);
 
-// Transform resource value with map
-Resource<String> connectionInfo = connResource.map(conn ->
-    conn.getMetaData().getURL()
-);
+// Transform resource value with map. `map` takes a plain Function, so a checked
+// exception has to be dealt with here rather than propagated.
+Resource<String> connectionInfo = connResource.map(conn -> {
+    try {
+        return conn.getMetaData().getURL();
+    } catch (SQLException e) {
+        throw new IllegalStateException("Cannot read connection metadata", e);
+    }
+});
 ```
 
 ### Composition Methods
@@ -175,6 +181,7 @@ Resource<String> connectionInfo = connResource.map(conn ->
 
 When composing resources, release order is the reverse of acquisition (LIFO):
 
+<!-- verify -->
 ```java
 Resource<A> ra = Resource.make(acquireA, releaseA);
 Resource<B> rb = Resource.make(acquireB, releaseB);
@@ -193,6 +200,7 @@ This ensures that resources depending on other resources are released first.
 
 Add cleanup actions that run after the primary release:
 
+<!-- verify -->
 ```java
 Resource<Connection> withLogging = connResource
     .withFinalizer(() -> logger.info("Connection released"));
@@ -212,6 +220,7 @@ Resource<Lock> lockResource = Resource.make(
 - If a finalizer throws, subsequent finalizers still run
 - All exceptions are collected and suppressed on the original exception
 
+<!-- verify -->
 ```java
 Resource<Handle> robust = Resource.make(acquire, release)
     .withFinalizer(() -> cleanupStep1())
@@ -231,6 +240,7 @@ Resource<Handle> robust = Resource.make(acquire, release)
 
 Resources work seamlessly with Scope for structured concurrent resource management:
 
+<!-- verify -->
 ```java
 Resource<Connection> conn1 = Resource.fromAutoCloseable(() -> pool.getConnection());
 Resource<Connection> conn2 = Resource.fromAutoCloseable(() -> pool.getConnection());
@@ -249,6 +259,7 @@ List<String> results = parallelQueries.run();
 
 ### Real-World Example: Transaction with Multiple Resources
 
+<!-- verify -->
 ```java
 Resource<Connection> connResource = Resource.make(
     () -> {
@@ -289,6 +300,7 @@ Try<OrderResult> result = processOrder.runSafe();
 
 Execute a callback when the use computation fails:
 
+<!-- verify -->
 ```java
 Resource<Connection> connWithCleanup = connResource
     .onFailure(conn -> {
@@ -299,6 +311,7 @@ Resource<Connection> connWithCleanup = connResource
 
 ### Combining with VTask Error Handling
 
+<!-- verify -->
 ```java
 VTask<Data> robust = connResource.use(conn ->
     VTask.of(() -> fetchData(conn))
