@@ -172,6 +172,7 @@ This is how `Bound` instances work internally: when you call `console.readLine(F
 
 For most users, `EitherF` is an implementation detail. The [`@ComposeEffects`](../effect/effect_handlers.md#composing-effects) annotation generates the entire composition infrastructure:
 
+<!-- verify -->
 ```java
 @ComposeEffects
 public record AppEffects(
