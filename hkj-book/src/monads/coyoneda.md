@@ -32,6 +32,7 @@ Coyoneda solves two practical problems:
 
 When building Free monads, each instruction type needs a Functor instance. This can be tedious:
 
+<!-- verify -->
 ```java
 // Without Coyoneda: must implement Functor for every DSL
 sealed interface DatabaseOp<A> {
@@ -45,10 +46,13 @@ sealed interface DatabaseOp<A> {
 
 With Coyoneda, you can skip the Functor implementation entirely:
 
+<!-- verify -->
 ```java
 // With Coyoneda: wrap your DSL and get Functor for free
-Coyoneda<DatabaseOp, ResultSet> coyo = Coyoneda.lift(new Query("SELECT * FROM users"));
-// Now you can map over it without implementing Functor<DatabaseOp>!
+Kind<DatabaseOpKind.Witness, ResultSet> query =
+    DATABASE_OP.widen(new DatabaseOp.Query("SELECT * FROM users"));
+Coyoneda<DatabaseOpKind.Witness, ResultSet> coyo = Coyoneda.lift(query);
+// Now you can map over it without implementing Functor<DatabaseOpKind.Witness>!
 ```
 
 ## How Coyoneda Works
@@ -114,6 +118,7 @@ public sealed interface Coyoneda<F, A> {
 
 ### Lifting and Mapping
 
+<!-- verify -->
 ```java
 import static org.higherkindedj.hkt.maybe.MaybeKindHelper.MAYBE;
 
@@ -133,6 +138,7 @@ Coyoneda<MaybeKind.Witness, String> mapped = coyo
 
 ### Lowering with a Functor
 
+<!-- verify -->
 ```java
 // When ready, lower back using a Functor instance
 MaybeFunctor functor = MaybeFunctor.INSTANCE;
@@ -147,8 +153,9 @@ Maybe<String> finalResult = MAYBE.narrow(result);
 
 The `CoyonedaFunctor<F>` class provides a Functor instance for any `Coyoneda<F, _>`:
 
+<!-- verify -->
 ```java
-CoyonedaFunctor<MaybeKind.Witness> coyoFunctor = new CoyonedaFunctor<>();
+CoyonedaFunctor<MaybeKind.Witness> coyoFunctor = CoyonedaFunctor.instance();
 
 Kind<CoyonedaKind.Witness<MaybeKind.Witness>, Integer> kindCoyo =
     COYONEDA.widen(Coyoneda.lift(maybe));
@@ -161,6 +168,7 @@ Kind<CoyonedaKind.Witness<MaybeKind.Witness>, String> mapped =
 
 Map fusion is the key performance benefit. Consider:
 
+<!-- verify -->
 ```java
 // Without Coyoneda: three separate traversals
 List<String> result = list.stream()
@@ -171,6 +179,7 @@ List<String> result = list.stream()
 // Each map creates intermediate results
 ```
 
+<!-- verify -->
 ```java
 // With Coyoneda: functions are composed, single traversal
 Coyoneda<ListKind.Witness, Integer> coyo = Coyoneda.lift(LIST.widen(list));
@@ -193,6 +202,7 @@ The benefit is most noticeable when:
 
 Coyoneda is particularly useful with Free monads. Without Coyoneda, your instruction set must be a Functor:
 
+<!-- verify -->
 ```java
 // Without Coyoneda: must implement Functor<ConsoleOp>
 Free<ConsoleOpKind.Witness, String> program = Free.liftF(readLine, consoleOpFunctor);
@@ -200,6 +210,7 @@ Free<ConsoleOpKind.Witness, String> program = Free.liftF(readLine, consoleOpFunc
 
 With Coyoneda, you can wrap any instruction set:
 
+<!-- verify -->
 ```java
 // With Coyoneda: no Functor needed for ConsoleOp
 // The Free monad operates on Coyoneda<ConsoleOp, _> instead

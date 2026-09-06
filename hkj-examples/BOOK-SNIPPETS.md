@@ -203,6 +203,9 @@ Some shapes recur in the monads chapter and are left unmarked deliberately:
   sealed type that permits the library's own classes cannot be declared beside them, and the page
   needs the real type in every other fence, so it cannot shadow it either. `trampoline_monad.md`
   quotes the shape a blog post published, which is the same case.
+- **Laws written as equations.** `coyoneda.md` states the functor laws as
+  `coyo.map(x -> x) == coyo`. The `==` is the law's notation, not a reference comparison, and
+  rewriting it as an assertion would obscure what it says.
 - **Aliases a page invents for a type Java cannot abbreviate.** `eitherf.md` writes
   `Free<Composed, RiskScore>`, where `Composed` stands for a four-deep `EitherF` nesting, and
   `Free.translate(program, inject::inject, functorG)` over free `G` and `A`. Both are there to
