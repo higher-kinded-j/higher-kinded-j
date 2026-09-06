@@ -219,6 +219,10 @@ Some shapes recur in the monads chapter and are left unmarked deliberately:
   checker, and the checker is a *javac plugin*, which the gate does not ask for. Turning it on is
   worth doing - it fires correctly on both, and on a dozen other pages - but it is a change to what
   every gated snippet must satisfy, so it belongs in its own change rather than this sweep.
+- **A generic varargs call the caller cannot make quietly.** `alternative.md` shows
+  `orElseAll(first, () -> second, () -> third, ...)`. `Alternative.orElseAll` is a `default`
+  method, so it cannot carry `@SafeVarargs`, and every call with three or more alternatives raises
+  a mandatory heap-pollution warning. The page's `Iterable` overload is gated beside it.
 - **Laws written as equations.** `coyoneda.md` states the functor laws as
   `coyo.map(x -> x) == coyo`. The `==` is the law's notation, not a reference comparison, and
   rewriting it as an assertion would obscure what it says.

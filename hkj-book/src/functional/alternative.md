@@ -69,6 +69,7 @@ For different types, Alternative has different semantics:
 
 Try multiple sources, using the first successful one:
 
+<!-- verify -->
 ```java
 import org.higherkindedj.hkt.Alternative;
 import org.higherkindedj.hkt.Kind;
@@ -79,7 +80,7 @@ import org.higherkindedj.hkt.maybe.Maybe;
 import static org.higherkindedj.hkt.maybe.MaybeKindHelper.MAYBE;
 
 // Get the Alternative instance for Maybe
-final Alternative<MaybeKind.Witness> alt = Instances.monadError(maybe());
+final Alternative<MaybeKind.Witness> alt = Instances.alternative(maybe());
 
 // Simulate trying multiple configuration sources
 Kind<MaybeKind.Witness, String> fromEnv = MAYBE.nothing();      // Not found
@@ -114,6 +115,7 @@ Kind<MaybeKind.Witness, String> config = alt.orElseAll(
 When the number of alternatives is only known at runtime, pass them as an
 `Iterable`. This is the analogue of Haskell's `asum`/`msum`:
 
+<!-- verify -->
 ```java
 // Try each registered search strategy and return the first non-empty result.
 List<Kind<MaybeKind.Witness, Result>> candidates = searchStrategies.stream()
@@ -180,7 +182,7 @@ import org.higherkindedj.hkt.maybe.Maybe;
 
 import static org.higherkindedj.hkt.maybe.MaybeKindHelper.MAYBE;
 
-final Alternative<MaybeKind.Witness> alt = Instances.monadError(maybe());
+final Alternative<MaybeKind.Witness> alt = Instances.alternative(maybe());
 
 // Check authentication
 boolean isAuthenticated = true;
@@ -198,8 +200,9 @@ System.out.println("Failed: " + MAYBE.narrow(failedCheck).isNothing()); // true
 
 The second argument to `orElse()` is provided via `Supplier`, enabling lazy evaluation:
 
+<!-- verify -->
 ```java
-final Alternative<MaybeKind.Witness> alt = Instances.monadError(maybe());
+final Alternative<MaybeKind.Witness> alt = Instances.alternative(maybe());
 
 Kind<MaybeKind.Witness, String> primary = MAYBE.just("found");
 
@@ -252,7 +255,7 @@ import org.higherkindedj.hkt.maybe.Maybe;
 import static org.higherkindedj.hkt.maybe.MaybeKindHelper.MAYBE;
 
 public class ConfigLoader {
-    private final Alternative<MaybeKind.Witness> alt = Instances.monadError(maybe());
+    private final Alternative<MaybeKind.Witness> alt = Instances.alternative(maybe());
 
     public Kind<MaybeKind.Witness, String> loadConfig(String key) {
         return alt.orElseAll(
