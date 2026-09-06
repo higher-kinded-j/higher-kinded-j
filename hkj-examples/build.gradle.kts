@@ -30,6 +30,10 @@ dependencies {
     testImplementation(libs.awaitility)
     testImplementation(project(":hkj-test"))
 
+    // Test-only: the effect chapter's testing recipes include property-based tests, and without
+    // jqwik on the gate's classpath those snippets could not be compiled at all.
+    testImplementation(libs.bundles.jqwik)
+
     // The TraversableGenerator SPI (BaseTraversableGenerator, Cardinality) that hkj-optics'
     // container-types page documents. It is wired above as `annotationProcessor`, which puts it on
     // the PROCESSOR path, not the compile classpath, so the gate could not compile a snippet that

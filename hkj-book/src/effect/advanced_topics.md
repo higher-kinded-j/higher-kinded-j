@@ -721,7 +721,7 @@ IOPath<Data> robust = Path.io(() -> primarySource.fetch())
         return Path.io(() -> backupSource.fetch())
             .withRetry(RetryPolicy.fixed(2, Duration.ofMillis(100)));
     })
-    .recover(e -> {
+    .handleError(e -> {
         log.error("All sources failed", e);
         return Data.empty();
     });

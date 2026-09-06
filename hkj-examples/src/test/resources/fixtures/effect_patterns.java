@@ -11,7 +11,18 @@
 // NOTE: imports in a fixture serve the snippets it is spliced into. Spotless excludes
 // src/test/resources so an "unused import" cleanup cannot break fixtures (see build.gradle.kts).
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+
+import java.io.BufferedReader;
+import java.io.File;
+import java.io.StringReader;
 import java.io.IOException;
+import java.sql.Connection;
+import java.sql.SQLException;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
@@ -32,7 +43,13 @@ import org.higherkindedj.hkt.effect.ValidationPath;
 import org.higherkindedj.hkt.either.Either;
 import org.higherkindedj.hkt.maybe.Maybe;
 import org.higherkindedj.hkt.resilience.RetryPolicy;
+import org.higherkindedj.hkt.expression.ForPath;
+import org.higherkindedj.hkt.resilience.RetryExhaustedException;
 import org.higherkindedj.hkt.trymonad.Try;
+import net.jqwik.api.ForAll;
+import net.jqwik.api.Property;
+import net.jqwik.api.constraints.StringLength;
+import org.junit.jupiter.api.Test;
 
 record User(String name, String email, int age) {}
 
@@ -83,7 +100,132 @@ record CombinedData(UserData users, ProductData products, OrderData orders) {}
 
 record DetailedError(Error cause, String operation, Map<String, Object> context, Instant at) {}
 
-record Error(String message) {}
+record Error(String message) {
+
+  String code() {
+    return "E1";
+  }
+}
+
+record DomainError(String code, String message, Error cause) {}
+
+record Response(int status) {}
+
+record ProcessResult(int lines) {}
+
+record Result(String value) {}
+
+record Availability(boolean inStock) {}
+
+record PaymentError(String reason) {}
+
+record OrderRequest(String userId, List<Item> items) {}
+
+final class HttpException extends RuntimeException {
+
+  private final int statusCode;
+
+  HttpException(int statusCode) {
+    super("HTTP " + statusCode);
+    this.statusCode = statusCode;
+  }
+
+  int statusCode() {
+    return statusCode;
+  }
+}
+
+/** Stands in for whatever logger the reader has; the page only ever calls these. */
+final class Logger {
+
+  void debug(String format, Object... arguments) {}
+
+  void info(String format, Object... arguments) {}
+
+  void warn(String format, Object... arguments) {}
+
+  void error(String format, Object... arguments) {}
+}
+
+final class JdbcTemplate {
+
+  Optional<User> queryForOptional(String sql, String argument) {
+    return Optional.of(new User("Ada", "ada@example.com", 36));
+  }
+}
+
+final class InventoryService {
+
+  EitherPath<String, Reservation> reserve(List<Item> items) {
+    return Path.right(new Reservation("r-1", new Total(0)));
+  }
+
+  EitherPath<OrderError, Availability> check(List<Item> items) {
+    return Path.right(new Availability(true));
+  }
+}
+
+final class PaymentService {
+
+  EitherPath<PaymentError, Payment> charge(User user, Total total) {
+    return Path.right(new Payment("p-1"));
+  }
+}
+
+/** The service the testing recipes place an order through. */
+final class OrderPlacer {
+
+  EitherPath<OrderError, Order> placeOrder(OrderRequest request) {
+    return Path.right(new Order("o-1"));
+  }
+}
+
+final class OrderRepository {
+
+  Order save(Order order) {
+    return order;
+  }
+}
+
+final class UserService {
+
+  EitherPath<UserError, User> getById(String id) {
+    return Path.right(new User("Ada", "ada@example.com", 36));
+  }
+}
+
+final class UserFacade {
+
+  EitherPath<Error, User> getUser(String id) {
+    return Path.right(new User("Ada", "ada@example.com", 36));
+  }
+}
+
+final class PipelineService {
+
+  IOPath<Report> generateReport(ReportRequest request) {
+    return Path.io(() -> new Report(0));
+  }
+}
+
+final class AuditLog {
+
+  void record(User user) {}
+}
+
+final class HttpClient {
+
+  Response get(String url) {
+    return new Response(200);
+  }
+}
+
+final class DataSource {
+
+  Connection getConnection() {
+    return null;
+  }
+}
 
 sealed interface UserError {
 
@@ -110,8 +252,8 @@ sealed interface OrderError {
     return new InventoryFailed(error);
   }
 
-  static OrderError fromPaymentError(String error) {
-    return new PaymentFailed(error);
+  static OrderError fromPaymentError(PaymentError error) {
+    return new PaymentFailed(error.reason());
   }
 }
 
@@ -183,7 +325,43 @@ class Fixture {
 
   static final Logger log = new Logger();
 
-  static final UserService userService = new UserService();
+  static final Error error = new Error("boom");
+
+  static final String url = "https://example.test/api";
+
+  static final User testUser = new User("Ada", "ada@example.com", 36);
+
+  static final Availability availability = new Availability(true);
+
+  static final OrderRequest request = new OrderRequest("u-1", List.of());
+
+  static final ReportRequest reportRequest = new ReportRequest("r-1");
+
+  static final AuditLog auditLog = new AuditLog();
+
+  static final HttpClient httpClient = new HttpClient();
+
+  static final DataSource dataSource = new DataSource();
+
+  static final JdbcTemplate jdbcTemplate = new JdbcTemplate();
+
+  static final EitherPath<Error, User> path = Path.right(testUser);
+
+  static final IOPath<Response> resilient = Path.io(() -> new Response(200));
+
+  static final UserRepository repository = new UserRepository();
+
+  static final PathBasedService service = new PathBasedService();
+
+  static final OrderRepository orderRepository = new OrderRepository();
+
+  static final InventoryService inventory = new InventoryService();
+
+  static final PaymentService payments = new PaymentService();
+
+  static final OrderPlacer orderService = new OrderPlacer();
+
+  static final UserFacade userService = new UserFacade();
 
   static final PipelineService pipeline = new PipelineService();
 
@@ -191,6 +369,46 @@ class Fixture {
 
   static EitherPath<String, String> validateName(String name) {
     return Path.right(name);
+  }
+
+  EitherPath<String, String> validateEmail(String email) {
+    return Path.right(email);
+  }
+
+  EitherPath<String, User> validateUser(UserInput input) {
+    return Path.right(new User(input.name(), input.email(), input.age()));
+  }
+
+  static Maybe<User> findUser(String id) {
+    return Maybe.just(new User("Ada", "ada@example.com", 36));
+  }
+
+  static EitherPath<OrderError, Order> validateAndProcess(OrderRequest request) {
+    return Path.right(new Order("o-1"));
+  }
+
+  static BufferedReader openReader(File file) {
+    return new BufferedReader(new StringReader(""));
+  }
+
+  static ProcessResult processContent(BufferedReader reader) {
+    return new ProcessResult(0);
+  }
+
+  static Data transform(Data data) {
+    return data;
+  }
+
+  static Data aggregate(Data data) {
+    return data;
+  }
+
+  static Report format(Data data) {
+    return new Report(0);
+  }
+
+  static Data fetchData(ReportRequest request) {
+    return new Data("data");
   }
 
   static EitherPath<String, Integer> validateAge(int age) {
@@ -267,33 +485,5 @@ class Fixture {
     return new Order("o-1");
   }
 
-  static final class UserService {
 
-    EitherPath<Error, User> getUser(String id) {
-      return Path.right(new User("Ada", "ada@example.com", 36));
-    }
-
-    EitherPath<UserError, User> getById(String id) {
-      return Path.right(new User("Ada", "ada@example.com", 36));
-    }
-  }
-
-  static final class PipelineService {
-
-    IOPath<Report> generateReport(ReportRequest request) {
-      return Path.io(() -> new Report(0));
-    }
-  }
-
-  /** Stands in for whatever logger the reader has; the page only ever calls these. */
-  static final class Logger {
-
-    void debug(String format, Object... arguments) {}
-
-    void info(String format, Object... arguments) {}
-
-    void warn(String format, Object... arguments) {}
-
-    void error(String format, Object... arguments) {}
-  }
 }
