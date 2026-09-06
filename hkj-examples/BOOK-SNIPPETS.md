@@ -184,10 +184,13 @@ how a page can show `VResultPath<E, A>` as a *shape* without inventing a domain 
 
 A block that is *meant* not to compile is not one of these: it goes under `verify:rejects`, above.
 
-A block is left unmarked only when it cannot be a compilation unit at all, and today none are. The
-two that once were (`record_mapping`'s `@GenerateErrorEnvelope` hierarchy and its `editContext`
-interface `default` method) are now `{{#include}}`d from a real example, where they compile
-naturally.
+A block is left unmarked only when it cannot be a compilation unit at all. The two that once were
+(`record_mapping`'s `@GenerateErrorEnvelope` hierarchy and its `editContext` interface `default`
+method) are now `{{#include}}`d from a real example, where they compile naturally.
+
+One in the effect chapter still is: `effect_handlers.md`'s `boundSet()` snippet calls a wiring
+class the reader writes for their own composition, and the page has none of its own to call. The
+algebras and the generated support around it are gated; that one line is not.
 
 Prefer fixing a snippet over excluding it. Three blocks looked like prose at first and turned out to
 be worth rescuing: a pseudo-code placeholder (`EmailAddress addr = /* a valid domain value */;`), two
