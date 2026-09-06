@@ -23,6 +23,7 @@ You are writing the order-processing layer of an e-commerce service. Every order
 
 Each step appends an audit entry to a running log so the operations team can reconstruct what happened to any order.
 
+<!-- verify -->
 ```java
 record AppConfig(String inventoryUrl, String paymentUrl, String apiKey) {}
 
@@ -52,6 +53,7 @@ The pipeline must:
 
 The straightforward Java solution threads three concerns through every signature:
 
+<!-- verify -->
 ```java
 CompletableFuture<Either<DomainError, Receipt>> processOrder(
         Order order, AppConfig config, List<AuditEntry> log) {
@@ -96,6 +98,7 @@ The business logic ("validate, then reserve, then charge") is buried under expli
 
 When the same logic must run against different concrete stacks (production async, synchronous tests, audit-only interpreter), write it once against capability interfaces:
 
+<!-- verify -->
 ```java
 import org.higherkindedj.hkt.MonadError;
 import org.higherkindedj.hkt.MonadReader;
@@ -110,8 +113,9 @@ import org.higherkindedj.hkt.expression.For;
 
     return For.from(env, validate(order, errors, audit))
         .from(_ -> env.ask())
-        .from((_, config) -> reserve(order, config.inventoryUrl(), errors, audit))
-        .from((_, config, _) -> charge(order, config, errors, audit))
+        // past the first binding, `from` sees the accumulated tuple; only `yield` unpacks it
+        .from(t -> reserve(order, t._2().inventoryUrl(), errors, audit))
+        .from(t -> charge(order, t._2(), errors, audit))
         .yield((_, _, _, code) -> new Receipt(order.id(), code));
 }
 ```
@@ -120,6 +124,7 @@ The function declares exactly the capabilities it needs: read-only `AppConfig`, 
 
 The helper steps follow the same shape:
 
+<!-- verify -->
 ```java
 <F extends WitnessArity<TypeArity.Unary>> Kind<F, Unit> validate(
         Order order,
@@ -127,7 +132,9 @@ The helper steps follow the same shape:
         MonadWriter<F, List<AuditEntry>> audit) {
     if (order.quantity() <= 0) {
         return For.from(audit, audit.tell(List.of(new AuditEntry("validate", "rejected"))))
-            .from(_ -> errors.raiseError(new DomainError.InvalidOrder("quantity must be positive")))
+            // raiseError's result type is free, so it is named here
+            .from(_ -> errors.<Unit>raiseError(
+                new DomainError.InvalidOrder("quantity must be positive")))
             .yield((_, e) -> e);
     }
     return audit.tell(List.of(new AuditEntry("validate", "ok: " + order.id())));
@@ -161,6 +168,7 @@ The full mechanics of stacking three transformers live in [Combining Capabilitie
 
 For workflows where you do not need stack polymorphism (most application code), the Effect Path API expresses the same pipeline more directly. Each capability has its own Path type, and a `ForPath` comprehension threads them together:
 
+<!-- verify -->
 ```java
 import org.higherkindedj.hkt.effect.EitherPath;
 import org.higherkindedj.hkt.effect.Path;
