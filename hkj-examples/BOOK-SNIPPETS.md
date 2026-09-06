@@ -230,7 +230,8 @@ Some shapes recur across the book and are left unmarked deliberately:
   `Semigroup` or `Monoid`; the worked examples below each quotation are gated. `optics/folds.md`
   quotes `Foldable` for the same reason, to say what the optic mirrors.
 - **A `static` extension method quoted as a signature.** `getters.md` quotes
-  `public static <S, A> Maybe<A> getMaybe(Getter<S, A> getter, S source)`. A signature-only
+  `public static <S, A> Maybe<A> getMaybe(Getter<S, A> getter, S source)`, and
+  `coupled_fields.md` quotes both overloads of `Lens.paired` the same way. A signature-only
   snippet is wrapped in an interface, where `static` demands a body, so the one shape that would
   make a body-less method legal is the one this signature cannot take. Every worked example of
   `getMaybe` below the quotation is gated.
@@ -261,6 +262,10 @@ Some shapes recur across the book and are left unmarked deliberately:
   a snippet, but only one set, and the same fixture serves the concrete `IO` and `Maybe` examples
   on the same page. `optics/folds.md`'s table of standard monoids is the same case: `Monoids.list()`
   and its neighbours are listed as `Monoid<List<A>>` for the `A` the caller brings.
+- **A name the page binds to two different lenses.** `optics/coupled_fields.md` closes by
+  putting the two `coupled3` constructor forms side by side, and its simple half names
+  `loLens`/`hiLens`, which the page has already bound to the `Range` example. Both forms are gated
+  where the page introduces them - the preserving one on `Transaction`, the simple one on `Triple`.
 - **A name the page binds to two different records.**
   `forstate_comprehension.md` names the same `userLens`, `addressLens` and `initialWorkflow` for
   its order workflow and its offer workflow. Snippets compile independently against one shared
