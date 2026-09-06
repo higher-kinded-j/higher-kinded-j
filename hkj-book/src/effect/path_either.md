@@ -61,19 +61,23 @@ EitherPath<String, Person> person = name.zipWith(age, Person::new);
 
 ## Error Handling
 
+<!-- verify -->
 ```java
-EitherPath<String, Config> config = Path.either(loadConfig())
-    // Provide fallback value
-    .recover(error -> Config.defaults())
+EitherPath<String, Config> loaded = Path.either(loadConfig());
 
-    // Transform error type
-    .mapError(e -> new ConfigError(e))
+// Provide fallback value
+EitherPath<String, Config> withDefault = loaded.recover(error -> Config.defaults());
 
-    // Recover with another computation
-    .recoverWith(error -> Path.either(loadBackupConfig()))
+// Transform error type. Note this changes E for everything downstream,
+// which is why these are shown one at a time rather than as one chain.
+EitherPath<ConfigError, Config> typed = loaded.mapError(ConfigError::new);
 
-    // Provide alternative path
-    .orElse(() -> Path.right(Config.defaults()));
+// Recover with another computation
+EitherPath<String, Config> withBackup =
+    loaded.recoverWith(error -> Path.either(loadBackupConfig()));
+
+// Provide alternative path
+EitherPath<String, Config> orDefault = loaded.orElse(() -> Path.right(Config.defaults()));
 ```
 
 ---
@@ -135,6 +139,7 @@ if (either.isRight()) {
 
 `EitherPath` is an *eager* carrier: by the time an instance exists, the computation has already run, so an instance-chained retry would have nothing left to protect. Resilience wraps a **computation**, so on `EitherPath` the `with*` vocabulary is static, taking the step as a `Supplier` (the same combinators the lazy paths chain, applied at the point where the computation still exists):
 
+<!-- verify -->
 ```java
 // Railway-aware retry: thrown exceptions retry per the policy; a Left retries
 // only when the predicate selects it. A business Left ("card declined") is a
@@ -163,6 +168,7 @@ EitherPath<OrderError, Result> queried = EitherPath.withBulkhead(
 
 In a pipeline these sit naturally inside `via`:
 
+<!-- verify -->
 ```java
 pipeline.via(order ->
     EitherPath.withRetry(() -> reserveInventory(order), isTransient, policy));

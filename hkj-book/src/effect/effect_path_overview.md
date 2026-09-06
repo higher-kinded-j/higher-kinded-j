@@ -29,9 +29,16 @@ Start with the [Migration Cookbook](migration_cookbook.md): side-by-side transla
 
 You've seen this shape before. You may have even written it, promising yourself to refactor it later:
 
+<!-- verify -->
 ```java
-public OrderResult processOrder(String userId, OrderRequest request) {
-    User user = userRepository.findById(userId);
+public class OrderService {
+    private final UserLookup userRepository = new UserLookup();
+    private final RequestValidator validator = new RequestValidator();
+    private final StockCheck inventoryService = new StockCheck();
+    private final CardPayments paymentService = new CardPayments();
+
+    public OrderResult processOrder(String userId, OrderRequest request) {
+        User user = userRepository.findById(userId);
     if (user == null) {
         return OrderResult.error("User not found");
     }
@@ -57,8 +64,13 @@ public OrderResult processOrder(String userId, OrderRequest request) {
         } catch (PaymentException e) {
             return OrderResult.error("Payment failed: " + e.getMessage());
         }
-    } catch (ValidationException e) {
-        return OrderResult.error("Validation error: " + e.getMessage());
+        } catch (ValidationException e) {
+            return OrderResult.error("Validation error: " + e.getMessage());
+        }
+    }
+
+    private Order createOrder(User user, OrderRequest request, PaymentResult payment) {
+        return new Order(payment.reference());
     }
 }
 ```

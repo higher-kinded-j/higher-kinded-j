@@ -58,15 +58,16 @@ String direct = path.get();         // "hello"
 - Failure is possible → you need one of the other types
 
 ~~~admonish example title="Generic Code Example"
+<!-- verify -->
 ```java
-// Works with any Path type
-<P extends Path<P, A>, A> P process(P path) {
-    return path.map(this::transform);
+// Works with any Path type: every one of them is a Composable
+Composable<String> shout(Composable<String> path) {
+    return path.map(String::toUpperCase);
 }
 
 // Test with IdPath (no failures to worry about)
 IdPath<String> testPath = Path.id("test");
-IdPath<String> result = process(testPath);
+Composable<String> result = shout(testPath);
 ```
 ~~~
 

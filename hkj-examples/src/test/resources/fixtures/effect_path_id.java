@@ -4,6 +4,7 @@
 // src/test/resources so an "unused import" cleanup cannot break fixtures (see build.gradle.kts).
 
 import org.higherkindedj.hkt.effect.IdPath;
+import org.higherkindedj.hkt.effect.capability.Composable;
 import org.higherkindedj.hkt.effect.Path;
 import org.higherkindedj.hkt.id.Id;
 

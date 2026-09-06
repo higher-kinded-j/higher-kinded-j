@@ -35,8 +35,11 @@ TryPath<Config> config = Path.tryPath(loadConfigTry());
 
 ## Core Operations
 
+<!-- verify -->
 ```java
-TryPath<String> content = Path.tryOf(() -> Files.readString(path));
+// `Path.tryOf` takes a Supplier, which may not throw a checked exception.
+// `Try.attempt` takes one that may, which is the route for a call like this.
+TryPath<String> content = Path.tryPath(Try.attempt(() -> Files.readString(path)));
 
 // Transform
 TryPath<Integer> lineCount = content.map(s -> s.split("\n").length);
@@ -45,8 +48,8 @@ TryPath<Integer> lineCount = content.map(s -> s.split("\n").length);
 TryPath<Data> data = content.via(c -> Path.tryOf(() -> parseJson(c)));
 
 // Combine
-TryPath<String> file1 = Path.tryOf(() -> readFile("a.txt"));
-TryPath<String> file2 = Path.tryOf(() -> readFile("b.txt"));
+TryPath<String> file1 = Path.tryPath(Try.attempt(() -> readFile("a.txt")));
+TryPath<String> file2 = Path.tryPath(Try.attempt(() -> readFile("b.txt")));
 TryPath<String> combined = file1.zipWith(file2, (a, b) -> a + "\n" + b);
 ```
 

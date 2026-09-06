@@ -24,6 +24,24 @@ class Fixture {
 
   static final Signup input = new Signup("Ada", "ada@example.com", 36);
 
+  static final String name = "Ada";
+
+  static ValidationPath<List<String>, String> checkNotEmpty(String value) {
+    return Path.valid(value, Semigroups.list());
+  }
+
+  static ValidationPath<List<String>, String> checkMaxLength(String value, int max) {
+    return Path.valid(value, Semigroups.list());
+  }
+
+  static ValidationPath<List<String>, String> checkNoSpecialChars(String value) {
+    return Path.valid(value, Semigroups.list());
+  }
+
+  static ValidationPath<List<String>, User> validateUser(Signup input) {
+    return Path.valid(new User(input.name(), input.email(), input.age()), Semigroups.list());
+  }
+
   static final Validated<String, User> validatedUser =
       Validated.valid(new User("Ada", "ada@example.com", 36));
 

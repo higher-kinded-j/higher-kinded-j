@@ -3,6 +3,7 @@
 // NOTE: imports in a fixture serve the snippets it is spliced into. Spotless excludes
 // src/test/resources so an "unused import" cleanup cannot break fixtures (see build.gradle.kts).
 
+import java.nio.file.Files;
 import org.higherkindedj.hkt.effect.Path;
 import org.higherkindedj.hkt.effect.TryPath;
 import org.higherkindedj.hkt.trymonad.Try;
@@ -12,6 +13,9 @@ record Config(String name) {}
 record Data(String value) {}
 
 class Fixture {
+
+  static final java.nio.file.Path path = java.nio.file.Path.of("data.txt");
+
 
   static final String input = "42";
 
