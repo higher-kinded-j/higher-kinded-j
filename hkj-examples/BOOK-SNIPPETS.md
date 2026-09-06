@@ -295,6 +295,10 @@ Some shapes recur across the book and are left unmarked deliberately:
   package needs its source type to be `public`, and a snippet's types share one file, where only
   one may be. `optics/traversals.md` closes and annotates the same way, and its `TraversalUsageExample`
   nests its records, which is the `folds.md` collision below.
+- **Mutation shown as the thing not to do.** `optics/setters.md` puts `user.setUsername(...)` and
+  `obj -> { obj.setValue(newValue); return obj; }` beside the functional versions. Both need a
+  mutable type the page models as a record, and declaring one to compile the counter-example would
+  document a shape the library does not have. The correct half of each pair is gated.
 - **Laws written as equations.** `coyoneda.md` states the functor laws as
   `coyo.map(x -> x) == coyo`. The `==` is the law's notation, not a reference comparison, and
   rewriting it as an assertion would obscure what it says.
