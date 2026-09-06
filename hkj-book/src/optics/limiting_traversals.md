@@ -42,6 +42,7 @@ Imagine you're building an e-commerce platform where you need to:
 
 **The Data Model:**
 
+<!-- verify -->
 ```java
 @GenerateLenses
 public record Product(String sku, String name, double price, int stock) {
@@ -65,6 +66,7 @@ public record SalesMetric(LocalDate date, double revenue, int transactions) {}
 
 **The Traditional Approach:**
 
+<!-- verify -->
 ```java
 // Verbose: Manual slicing breaks optic composition
 List<Product> firstTen = catalogue.products().subList(0, Math.min(10, catalogue.products().size()));
@@ -118,6 +120,7 @@ Each serves different needs, and they can be combined with other optics for powe
 
 The most intuitive method: focus on at most the first `n` elements.
 
+<!-- verify -->
 ```java
 import org.higherkindedj.optics.util.ListTraversals;
 import org.higherkindedj.optics.util.Traversals;
@@ -148,6 +151,7 @@ List<Product> firstThree = Traversals.getAll(first3, products);
 
 Focus on all elements *after* skipping the first `n`:
 
+<!-- verify -->
 ```java
 // Skip first 2, focus on the rest
 Traversal<List<Product>, Product> afterFirst2 = ListTraversals.dropping(2);
@@ -163,6 +167,7 @@ List<Product> skipped = Traversals.getAll(afterFirst2, products);
 
 Focus on the last `n` elements, perfect for "most recent" scenarios:
 
+<!-- verify -->
 ```java
 // Focus on last 2 products
 Traversal<List<Product>, Product> last2 = ListTraversals.takingLast(2);
@@ -178,6 +183,7 @@ List<Product> lastTwo = Traversals.getAll(last2, products);
 
 Focus on all elements *except* the last `n`:
 
+<!-- verify -->
 ```java
 // Focus on all except last 2
 Traversal<List<Product>, Product> exceptLast2 = ListTraversals.droppingLast(2);
@@ -193,6 +199,7 @@ List<Product> allButLastTwo = Traversals.getAll(exceptLast2, products);
 
 Focus on elements within a half-open range `[from, to)`, exactly like `List.subList()`:
 
+<!-- verify -->
 ```java
 // Focus on indices 1, 2, 3 (0-indexed, exclusive end)
 Traversal<List<Product>, Product> slice = ListTraversals.slicing(1, 4);
@@ -222,6 +229,7 @@ These methods enable **runtime-determined focusing**: the number of elements in 
 
 The `takingWhile()` method focuses on the **longest prefix** of elements satisfying a predicate. Once an element fails the test, traversal stops, even if later elements would pass.
 
+<!-- verify -->
 ```java
 // Focus on products whilst price < 20
 Traversal<List<Product>, Product> affordablePrefix =
@@ -255,6 +263,7 @@ List<Product> affordable = Traversals.getAll(affordablePrefix, products);
 - **Log processing**: Capture startup messages before first error
 - **Priority queues**: Handle high-priority items before switching logic
 
+<!-- verify -->
 ```java
 // Time-series: Process transactions before cutoff
 LocalDateTime cutoff = LocalDateTime.of(2025, 1, 1, 0, 0);
@@ -272,6 +281,7 @@ List<Transaction> processed = Traversals.modify(
 
 The `droppingWhile()` method is the complement to `takingWhile()`: it **skips the prefix** whilst the predicate holds, then focuses on all remaining elements.
 
+<!-- verify -->
 ```java
 // Skip low-stock products, focus on well-stocked ones
 Traversal<List<Product>, Product> wellStocked =
@@ -302,6 +312,7 @@ List<Product> focused = Traversals.getAll(wellStocked, products);
 - **Pagination**: Skip already-processed records in batch jobs
 - **Protocol parsing**: Discard handshake, process payload
 
+<!-- verify -->
 ```java
 // Skip the leading configuration block in a log
 Traversal<List<String>, String> runtimeLogs =
@@ -322,6 +333,7 @@ List<String> result = Traversals.modify(runtimeLogs, String::toUpperCase, logs);
 
 The `element()` method creates an **affine traversal** (0-1 cardinality) focusing on a single element at the given index. Unlike direct array access, it never throws `IndexOutOfBoundsException`.
 
+<!-- verify -->
 ```java
 // Focus on element at index 2
 Traversal<List<Product>, Product> thirdProduct = ListTraversals.element(2);
@@ -356,6 +368,7 @@ List<Product> outOfBounds = Traversals.getAll(
 - **`element()`**: For composition with other traversals, when index is known at construction time
 - **`Ixed`**: For dynamic indexed access, more general type class approach
 
+<!-- verify -->
 ```java
 // Compose element() with nested structures (the explicit witness pins the element type)
 Traversal<List<List<Product>>, Product> secondListThirdProduct =
@@ -371,6 +384,7 @@ Optional<Product> chosen =
 
 One thing `andThen` cannot do: chain two list-level slices. `ListTraversals.taking(10).andThen(ListTraversals.takingWhile(...))` does not compile, because `andThen` continues from the *element* type, and a second slice needs the *list*. Apply slices in sequence instead:
 
+<!-- verify -->
 ```java
 // Take the first 10 products, then the leading in-stock run of those
 List<Product> firstTen =
@@ -397,6 +411,7 @@ All limiting traversal methods handle edge cases gracefully and consistently:
 | **`from >= to` in slicing** | Empty traversal (no focus) | Empty range semantics |
 | **Negative `from` in slicing** | Clamped to 0 | Start from beginning |
 
+<!-- verify -->
 ```java
 // Examples of edge case handling
 List<Integer> numbers = List.of(1, 2, 3);
@@ -429,6 +444,7 @@ The real power emerges when you compose limiting traversals with other optics:
 
 ### With Lenses – Deep Updates
 
+<!-- verify -->
 ```java
 Traversal<List<Product>, Product> first5 = ListTraversals.taking(5);
 Lens<Product, Double> priceLens = ProductLenses.price();
@@ -443,10 +459,11 @@ List<Product> result = Traversals.modify(first5Prices, price -> price * 1.1, pro
 
 ### With Filtered Traversals – Conditional Slicing
 
+<!-- verify -->
 ```java
 // First 10 products that are also low stock
 Traversal<List<Product>, Product> first10LowStock =
-    ListTraversals.taking(10).filtered(p -> p.stock() < 50);
+    ListTraversals.<Product>taking(10).filtered(p -> p.stock() < 50);
 
 // Restock only first 10 low-stock products
 List<Product> restocked = Traversals.modify(
@@ -458,6 +475,7 @@ List<Product> restocked = Traversals.modify(
 
 ### With Nested Structures – Batch Processing
 
+<!-- verify -->
 ```java
 // Focus on first 50 orders
 Traversal<List<Order>, Order> first50Orders = ListTraversals.taking(50);
@@ -486,6 +504,7 @@ List<Order> processed = Traversals.modify(
 * **Immutable updates** - Transforming portions whilst keeping data immutable
 * **Reusable logic** - Define once, compose everywhere
 
+<!-- verify -->
 ```java
 // Perfect: Declarative, composable, reusable
 Traversal<Catalogue, Double> first10Prices =
@@ -503,6 +522,7 @@ Catalogue updated = Traversals.modify(first10Prices, p -> p * 0.9, catalogue);
 * **No structural preservation needed** - You're extracting data, not updating in place
 * **Performance-critical paths** - Minimal abstraction overhead
 
+<!-- verify -->
 ```java
 // Better with streams: Complex aggregation
 int totalStock = products.stream()
@@ -517,6 +537,7 @@ int totalStock = products.stream()
 * **Index-dependent logic** - Processing depends on knowing the exact index
 * **Imperative control flow** - Complex branching based on position
 
+<!-- verify -->
 ```java
 // Sometimes explicit indexing is clearest
 for (int i = 0; i < Math.min(10, products.size()); i++) {
@@ -533,15 +554,16 @@ for (int i = 0; i < Math.min(10, products.size()); i++) {
 
 ### Don't Do This:
 
+<!-- verify -->
 ```java
 // Inefficient: Recreating traversals in loops
 for (int page = 0; page < totalPages; page++) {
-    var slice = ListTraversals.slicing(page * 10, (page + 1) * 10);
+    var slice = ListTraversals.<Product>slicing(page * 10, (page + 1) * 10);
     processPage(Traversals.getAll(slice, products));
 }
 
 // Confusing: Mixing with Stream operations unnecessarily
-List<Product> result = Traversals.getAll(ListTraversals.taking(5), products)
+List<Product> result = Traversals.getAll(ListTraversals.<Product>taking(5), products)
     .stream()
     .limit(3)  // Why limit again? Already took 5!
     .collect(toList());
@@ -558,6 +580,7 @@ Traversal<List<Product>, Product> atIndex5 = ListTraversals.slicing(5, 6);
 
 ### Do This Instead:
 
+<!-- verify -->
 ```java
 // Efficient: Create traversal once, vary parameters
 Traversal<List<Product>, Product> takeN(int n) {
@@ -575,7 +598,7 @@ List<Product> onlyFirst5 = Traversals.getAll(first5, products);  // Extracts sub
 List<Product> allWithFirst5Updated = Traversals.modify(first5, p -> p.applyDiscount(0.1), products);  // Updates in place
 
 // Right tool: Use Ixed for single indexed access
-Optional<Product> fifth = IxedInstances.listIxed().ix(4).getOptional(products);
+Optional<Product> fifth = IxedInstances.get(IxedInstances.listIx(), 4, products);
 ```
 
 ---
@@ -592,6 +615,7 @@ Limiting traversals are optimised for efficiency:
 
 **Best Practice**: Store frequently-used limiting traversals as constants:
 
+<!-- verify -->
 ```java
 public class CatalogueOptics {
     // Pagination constants
@@ -624,6 +648,7 @@ public class CatalogueOptics {
 
 Here's a comprehensive example demonstrating limiting traversals in a business context:
 
+<!-- verify -->
 ```java
 package org.higherkindedj.example.optics;
 
