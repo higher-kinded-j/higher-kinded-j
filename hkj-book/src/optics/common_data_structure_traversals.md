@@ -56,6 +56,7 @@ Higher-Kinded-J provides factory methods in `Traversals` and dedicated utility c
 
 Traditional Optional handling becomes verbose when working with nested structures:
 
+<!-- verify -->
 ```java
 @GenerateLenses
 public record ServerConfig(
@@ -86,6 +87,7 @@ This pattern doesn't compose with other optics and mixes traversal logic with tr
 
 The `forOptional()` method creates an **affine traversal**, focusing on 0 or 1 element.
 
+<!-- verify -->
 ```java
 import org.higherkindedj.optics.util.Traversals;
 
@@ -109,6 +111,7 @@ List<Integer> values = Traversals.getAll(optTraversal, maybePort);
 
 ### Composing with Lenses for Nested Optionals
 
+<!-- verify -->
 ```java
 // Compose Optional traversal with lens traversal
 Traversal<ApplicationConfig, Integer> serverPorts =
@@ -124,6 +127,7 @@ ApplicationConfig updated = Traversals.modify(serverPorts, p -> p + 1000, config
 
 ### Real-World Example: Feature Flag Management
 
+<!-- verify -->
 ```java
 @GenerateLenses
 public record FeatureFlags(Map<String, Optional<Boolean>> flags) {}
@@ -157,6 +161,7 @@ public class FeatureFlagService {
 
 Transforming Map values whilst preserving keys requires ceremony:
 
+<!-- verify -->
 ```java
 Map<String, Double> prices = Map.of(
     "widget", 10.0,
@@ -178,6 +183,7 @@ This pattern doesn't compose and requires reconstructing the entire map.
 
 The `forMapValues()` method creates a traversal focusing on **all values** whilst preserving key structure.
 
+<!-- verify -->
 ```java
 // Create a Map values traversal
 Traversal<Map<String, Double>, Double> priceTraversal = Traversals.forMapValues();
@@ -205,6 +211,7 @@ Map<String, Double> discounted = Traversals.modify(
 
 ### Real-World Example: Configuration Value Normalisation
 
+<!-- verify -->
 ```java
 @GenerateLenses
 public record DatabaseConfig(
@@ -251,6 +258,7 @@ public class ConfigNormaliser {
 
 ### Composing Map Traversals with Nested Structures
 
+<!-- verify -->
 ```java
 @GenerateLenses
 public record ServiceRegistry(
@@ -277,6 +285,7 @@ ServiceRegistry updated = Traversals.modify(
 
 For any map type that *implements* `java.util.Map` (PCollections maps, Guava `ImmutableMap`, Apache Commons map decorators, …), pass a single rebuild function:
 
+<!-- verify -->
 ```java
 import org.pcollections.PMap;
 import org.pcollections.HashTreePMap;
@@ -311,6 +320,7 @@ The same two overloads exist on `EachInstances` for use in the Focus DSL (`EachI
 
 Applying the same operation to both elements of a tuple requires duplication:
 
+<!-- verify -->
 ```java
 Tuple2<Integer, Integer> range = new Tuple2<>(10, 20);
 
@@ -327,6 +337,7 @@ When tuples represent related data (coordinates, ranges, min/max pairs), we want
 
 The `both()` method creates a traversal that focuses on **both elements** when they share a type.
 
+<!-- verify -->
 ```java
 import org.higherkindedj.optics.util.TupleTraversals;
 import org.higherkindedj.hkt.tuple.Tuple2;
@@ -356,6 +367,7 @@ Tuple2<String, String> capitalised = Traversals.modify(
 
 ### Real-World Example: Geographic Coordinate Transformations
 
+<!-- verify -->
 ```java
 @GenerateLenses
 public record Location(
@@ -396,6 +408,7 @@ public class CoordinateTransforms {
 
 ### Composing with Nested Structures
 
+<!-- verify -->
 ```java
 @GenerateLenses
 public record BoundingBox(
@@ -426,6 +439,7 @@ BoundingBox scaled = Traversals.modify(topLeftCoords, coord -> coord * 2, box);
 * **Parallel tuple operations** - Same transformation to both elements
 * **Immutable updates** - Structure preserved, only focused elements transformed
 
+<!-- verify -->
 ```java
 // Perfect: Declarative, composable, reusable
 Traversal<ServiceConfig, Integer> allTimeouts =
@@ -434,7 +448,7 @@ Traversal<ServiceConfig, Integer> allTimeouts =
         .andThen(EndpointLenses.timeout().asTraversal())
         .andThen(Traversals.forOptional());
 
-ServiceConfig increased = Traversals.modify(allTimeouts, t -> t + 1000, config);
+ServiceConfig increased = Traversals.modify(allTimeouts, t -> t + 1000, serviceConfig);
 ```
 
 ### Use Direct Access When:
@@ -443,9 +457,10 @@ ServiceConfig increased = Traversals.modify(allTimeouts, t -> t + 1000, config);
 * **Specific Map key** - `map.get(key)` is more direct
 * **Type-specific logic** - Different transformations per tuple element
 
+<!-- verify -->
 ```java
 // Better with direct access: Single Optional
-Optional<Integer> port = config.port().map(p -> p + 1000);
+Optional<Integer> port = serverConfig.port().map(p -> p + 1000);
 
 // Better with get: Specific key
 Double price = prices.getOrDefault("widget", 0.0) * 1.1;
@@ -463,6 +478,7 @@ Tuple2<Integer, String> result = new Tuple2<>(
 * **Aggregations** - Collecting to new structures
 * **No structural preservation** - Extracting or transforming to different shape
 
+<!-- verify -->
 ```java
 // Better with streams: Complex filtering
 List<Integer> values = map.values().stream()
@@ -477,6 +493,7 @@ List<Integer> values = map.values().stream()
 
 ### Don't Do This:
 
+<!-- verify -->
 ```java
 // Inefficient: Creating traversals in loops
 for (Map.Entry<String, Double> entry : prices.entrySet()) {
@@ -496,6 +513,7 @@ Tuple2<Integer, String> mixed = new Tuple2<>(42, "hello");
 
 ### Do This Instead:
 
+<!-- verify -->
 ```java
 // Efficient: Create traversal once, apply to entire structure
 Traversal<Map<String, Double>, Double> priceTraversal = Traversals.forMapValues();
@@ -507,7 +525,7 @@ String result = optional.map(String::toUpperCase).orElse("default");
 // Correct types: Use separate lenses for mixed tuples
 Lens<Tuple2<Integer, String>, Integer> first = Tuple2Lenses._1();
 Lens<Tuple2<Integer, String>, String> second = Tuple2Lenses._2();
-Tuple2<Integer, String> updated = new Tuple2<>(
+Tuple2<Integer, String> updatedPair = new Tuple2<>(
     first.get(mixed) * 2,
     second.get(mixed).toUpperCase()
 );
@@ -526,6 +544,7 @@ Structure traversals are optimised for immutability, not for raw throughput:
 
 **Best Practice**: Store commonly-used structure traversals as constants:
 
+<!-- verify -->
 ```java
 public class ConfigOptics {
     // Reusable structure traversals
@@ -539,8 +558,8 @@ public class ConfigOptics {
         TupleTraversals.both();
 
     // Domain-specific compositions
-    public static final Traversal<ServerConfig, Integer> ALL_PORTS =
-        ServerConfigLenses.endpoints().asTraversal()
+    public static final Traversal<ServiceConfig, Integer> ALL_PORTS =
+        ServiceConfigLenses.ports().asTraversal()
             .andThen(MAP_INT_VALUES);
 }
 ```
