@@ -98,6 +98,7 @@ When to reach for ForPath: three or more dependent steps, or when intermediate v
 
 All three carry the same `map` / `via` / `recover` surface as the Path API; the suffix differs only in how we run the workflow at the boundary:
 
+<!-- verify -->
 ```java
 errorCtx.runIO().unsafeRun();         // -> Either<E, A>
 configCtx.runWithSync(config);        // -> A
@@ -109,6 +110,7 @@ mutableCtx.runWith(initial)           // -> StateTuple<S, A>
 
 ## Service integration
 
+<!-- verify -->
 ```java
 @GeneratePathBridge
 public interface UserService {

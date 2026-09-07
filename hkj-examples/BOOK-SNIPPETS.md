@@ -355,6 +355,13 @@ Some shapes recur across the book and are left unmarked deliberately:
   the ambiguous-constructor types it is describing, and `optics/profunctor_optics.md` sketches the
   two conversion methods its integration class delegates to. Each is there to show a *shape* the
   reader already has; every optic built over one is gated.
+- **A cheatsheet's notation.** `tutorials/effect/effect_cheatsheet.md` and
+  `tutorials/solutions_guide.md` are written to be skimmed: a `yield((a, b, c) -> ...)` that names
+  the shape of a comprehension, a `EitherPath<Error, User>` followed by the calls that would chain
+  off it, a `HELPER.narrow(monad.operationName(HELPER.widen(input), ...))` template with the
+  operation left blank, and generated classes shown with `{ ... }` bodies. The blocks on both pages
+  that are real code - running a context to its answer, the service the path bridge generates from,
+  the widen/narrow round trip, the composed optic paths - are gated.
 - **Laws written as equations.** `coyoneda.md` states the functor laws as
   `coyo.map(x -> x) == coyo`. The `==` is the law's notation, not a reference comparison, and
   rewriting it as an assertion would obscure what it says.
