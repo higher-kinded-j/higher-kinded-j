@@ -192,6 +192,7 @@ TraversalPath<Company, Employee> allEmployees =
 
 Set `generateNavigators = true` and the processor emits a small wrapper class per navigable field, so the next hop is a method call rather than a `.via()`:
 
+<!-- verify -->
 ```java
 @GenerateFocus(generateNavigators = true)
 record Address(String street, String city) {}
@@ -200,6 +201,7 @@ record Address(String street, String city) {}
 record Company(String name, Address headquarters) {}
 ```
 
+<!-- verify -->
 ```java
 // With navigators
 String city = CompanyFocus.headquarters().city().get(company);
@@ -269,6 +271,7 @@ Company relocated =
 
 **Depth limiting** stops the processor generating navigator classes all the way down a deep graph:
 
+<!-- verify -->
 ```java
 @GenerateFocus(generateNavigators = true, maxNavigatorDepth = 2)
 record Root(Level1 child) {}
@@ -280,6 +283,7 @@ record Root(Level1 child) {}
 
 **Field filtering** picks which fields are worth a navigator:
 
+<!-- verify -->
 ```java
 // Only these fields get one
 @GenerateFocus(generateNavigators = true, includeFields = {"primary"})

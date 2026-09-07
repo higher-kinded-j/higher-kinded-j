@@ -17,6 +17,7 @@ You do **not** need to understand higher-kinded types, profunctors, or `Applicat
 
 The conventional Java approach to updating a field three layers deep:
 
+<!-- verify -->
 ```java
 public User updateStreetName(User user, String newStreetName) {
     var address = user.address();
@@ -29,6 +30,7 @@ public User updateStreetName(User user, String newStreetName) {
 
 With `@GenerateLenses` and `@GenerateFocus` on each record, the same operation becomes one line:
 
+<!-- verify -->
 ```java
 import org.higherkindedj.optics.annotations.GenerateLenses;
 import org.higherkindedj.optics.annotations.GenerateFocus;
@@ -43,6 +45,7 @@ public record Address(Street street, String city) {}
 public record User(String name, Address address) {}
 ```
 
+<!-- verify -->
 ```java
 User updated = UserFocus.address().street().name().set("New Street", user);
 ```
@@ -59,6 +62,7 @@ The annotation processor runs at compile time and produces `StreetLenses`, `Stre
 
 Sealed interfaces and collection fields use the same annotation-driven pattern.
 
+<!-- verify -->
 ```java
 import java.math.BigDecimal;
 import java.time.Instant;
@@ -66,7 +70,7 @@ import java.util.List;
 import org.higherkindedj.optics.annotations.*;
 
 @GeneratePrisms
-public sealed interface Status permits Pending, Shipped, Cancelled {
+public sealed interface Status permits Status.Pending, Status.Shipped, Status.Cancelled {
     record Pending() implements Status {}
     record Shipped(Instant at) implements Status {}
     record Cancelled(String reason) implements Status {}
@@ -126,6 +130,7 @@ External types like JDK classes, Jackson nodes, JOOQ records, and Protobuf messa
 
 Here's a real example for Jackson 3.x's `JsonNode`:
 
+<!-- verify -->
 ```java
 import org.higherkindedj.optics.Prism;
 import org.higherkindedj.optics.annotations.ImportOptics;
@@ -147,6 +152,7 @@ public interface JsonNodeOpticsSpec extends OpticsSpec<JsonNode> {
 
 The processor reads the spec and generates a `JsonNodeOptics` class (the `Spec` suffix is dropped) with three prisms backed by `instanceof` pattern matching:
 
+<!-- verify -->
 ```java
 import java.util.Optional;
 
