@@ -45,6 +45,7 @@ A Free monad is a way to build a **program as data**. Instead of executing opera
 
 Think of it like this:
 
+<!-- verify -->
 ```java
 // Direct execution (happens immediately)
 Person updated = PersonLenses.age().set(30, person);
@@ -83,6 +84,7 @@ For optics specifically, this means you can build complex data transformation wo
 
 Let's start with the basics:
 
+<!-- verify -->
 ```java
 @GenerateLenses
 public record Person(String name, int age, String status) {}
@@ -104,6 +106,7 @@ Free<OpticOpKind.Witness, Person> modifyProgram =
 
 At this point, **nothing has executed**. We've just built descriptions of operations. To actually run them:
 
+<!-- verify -->
 ```java
 // Execute with direct interpreter
 DirectOpticInterpreter interpreter = OpticInterpreters.direct();
@@ -119,6 +122,7 @@ Person modified = interpreter.run(modifyProgram);     // age is now 26
 
 The real power emerges when you compose multiple operations. The `flatMap` method lets you sequence operations where each step can depend on previous results:
 
+<!-- verify -->
 ```java
 // Program: Get the age, then if they're an adult, increment it
 Free<OpticOpKind.Witness, Person> adultBirthdayProgram =
@@ -154,6 +158,7 @@ Let's break down what's happening:
 
 You can chain multiple `flatMap` calls to build sophisticated workflows:
 
+<!-- verify -->
 ```java
 @GenerateLenses
 public record Employee(String name, int salary, EmployeeStatus status) {}
@@ -199,6 +204,7 @@ Employee promoted = OpticInterpreters.direct().run(program);
 
 The DSL supports batch operations through traversals:
 
+<!-- verify -->
 ```java
 @GenerateLenses
 @GenerateTraversals
@@ -236,6 +242,7 @@ Boolean allPass = OpticInterpreters.direct().run(scoreUpdateProgram);
 
 ### Querying with programs
 
+<!-- verify -->
 ```java
 // Program: Find all high scorers
 Free<OpticOpKind.Witness, List<Player>> findHighScorers =
@@ -257,6 +264,7 @@ List<Player> topPlayers = OpticInterpreters.direct().run(findHighScorers);
 
 ### Scenario 1: Data Migration with Validation
 
+<!-- verify -->
 ```java
 @GenerateLenses
 public record UserV1(String username, String email) {}
@@ -307,6 +315,7 @@ By building the migration as a program, you can:
 
 ### Scenario 2: Audit Trail for Financial Transactions
 
+<!-- verify -->
 ```java
 @GenerateLenses
 public record Account(String accountId, BigDecimal balance) {}
@@ -361,6 +370,7 @@ MODIFY: TransactionLenses.to().andThen(AccountLenses.balance()) from 500.00 to 6
 
 ### Scenario 3: Checked Run Before Committing the Result
 
+<!-- verify -->
 ```java
 @GenerateLenses
 @GenerateTraversals
@@ -417,6 +427,7 @@ if (validation.isValid()) {
 
 You can build libraries of reusable program fragments:
 
+<!-- verify -->
 ```java
 // Library of common operations
 public class PersonPrograms {
@@ -466,6 +477,7 @@ Person updated = OpticInterpreters.direct().run(program);
 
 ### Pattern 2: Conditional Branching
 
+<!-- verify -->
 ```java
 enum PerformanceRating { EXCELLENT, GOOD, SATISFACTORY, POOR }
 
@@ -504,6 +516,7 @@ Free<OpticOpKind.Witness, Employee> processPerformanceReview(
 
 ### Pattern 3: Accumulating Results
 
+<!-- verify -->
 ```java
 // Note: Tuple and Tuple2 are from higher-kinded-j (org.higherkindedj.hkt.tuple.Tuple, Tuple2)
 // Tuple.of() creates a Tuple2 instance to pair two values together
@@ -568,6 +581,7 @@ Free<OpticOpKind.Witness, Tuple2<Team, ProcessingStats>> processTeamWithStats(
 
 ### Side-by-Side Comparison
 
+<!-- verify -->
 ```java
 // Direct execution (immediate)
 Person result = OpticOps.modify(
@@ -584,11 +598,12 @@ Free<OpticOpKind.Witness, Person> program =
         age -> age + 1
     );
 
-Person result = OpticInterpreters.direct().run(program);
+Person interpreted = OpticInterpreters.direct().run(program);
 ```
 
 The Free monad version requires more code, but gives you the power to:
 
+<!-- verify -->
 ```java
 // Log it
 LoggingOpticInterpreter logger = OpticInterpreters.logging();
@@ -597,7 +612,7 @@ logger.getLog().forEach(System.out::println);
 
 // Validate it
 ValidationOpticInterpreter validator = OpticInterpreters.validating();
-ValidationResult validation = validator.validate(program);
+ValidationOpticInterpreter.ValidationResult validation = validator.validate(program);
 
 // Test it with mocks. A stub per operation, because `modify` yields the source type
 // while a `get` would yield the focus type; see Interpreters for the class itself.
@@ -625,6 +640,7 @@ program.flatMap(age -> ...);  // This returns a NEW program!
 
 ### Do: Assign the result of `flatMap`
 
+<!-- verify -->
 ```java
 // Correct - capture the new program
 Free<OpticOpKind.Witness, Person> program =
@@ -636,6 +652,7 @@ Free<OpticOpKind.Witness, Person> program =
 
 ### Don't: Mix side effects in program construction
 
+<!-- verify -->
 ```java
 // Wrong - side effect during construction
 Free<OpticOpKind.Witness, Person> program =
@@ -648,6 +665,7 @@ Free<OpticOpKind.Witness, Person> program =
 
 ### Do: Keep program construction pure
 
+<!-- verify -->
 ```java
 // Correct - side effects only in interpreters
 Free<OpticOpKind.Witness, Person> program =
