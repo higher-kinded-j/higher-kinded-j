@@ -60,7 +60,7 @@ class BookSnippetVerificationTest {
    * compiled source directly and is a stronger guarantee than compiling a copy of it. Lower the
    * floor deliberately then, and say so in the commit message.
    */
-  private static final int MINIMUM_VERIFIED_SNIPPETS = 2449;
+  private static final int MINIMUM_VERIFIED_SNIPPETS = 2435;
 
   /**
    * How many of those snippets must quote a diagnostic, under {@code verify:rejects} or {@code
@@ -69,6 +69,14 @@ class BookSnippetVerificationTest {
    * the only thing holding the pages that document refusals to what the processor actually says.
    */
   private static final int MINIMUM_DIAGNOSTIC_SNIPPETS = 50;
+
+  /**
+   * How many of those snippets must come from the skills root, for the same reason the diagnostic
+   * floor exists: the combined total cannot protect a root. Gating one more book snippet would
+   * offset deleting a skill's marker and leave the total untouched, and a skill is read by an
+   * assistant that generates code from it.
+   */
+  private static final int MINIMUM_SKILLS_SNIPPETS = 214;
 
   /**
    * Every documentation root whose code is verified. The book was the first; the skills are the
@@ -277,6 +285,22 @@ class BookSnippetVerificationTest {
             being brought back into line with the processor. These are the only checks holding \
             the pages that document refusals to what the processor actually says.""")
         .isGreaterThanOrEqualTo(MINIMUM_DIAGNOSTIC_SNIPPETS);
+  }
+
+  @Test
+  @DisplayName("the skills gate does not shrink")
+  void theSkillsGateDoesNotShrink() throws IOException {
+    Path skills = ROOTS.get(1);
+    long skillSnippets = verifiedSnippets().filter(c -> c.page().file().startsWith(skills)).count();
+    assertThat(skillSnippets)
+        .as(
+            """
+            The number of marked snippets in the skills root dropped below the floor.
+
+            The combined total cannot catch this: gating one more book snippet offsets \
+            deleting a skill's marker. A skill is read by an assistant that generates code \
+            from it, so its snippets carry the most weight per line in the repository.""")
+        .isGreaterThanOrEqualTo(MINIMUM_SKILLS_SNIPPETS);
   }
 
   /** A bare NPE from a static initialiser is a miserable way to learn you skipped Gradle. */

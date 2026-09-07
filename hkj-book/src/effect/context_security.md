@@ -33,7 +33,6 @@ Yesterday's unvalidated request is today's security incident. Yesterday's missin
 
 `SecurityContext` provides pre-defined `ScopedValue` instances for authentication and authorisation:
 
-<!-- verify -->
 ```java
 public final class SecurityContext {
     private SecurityContext() {}  // Utility class -- no instantiation
@@ -163,7 +162,6 @@ record AuthResult(
 
 ### isAuthenticated: Query Authentication State
 
-<!-- verify -->
 ```java
 public final class SecurityContext {
     public static final ScopedValue<Principal> PRINCIPAL = ScopedValue.newInstance();
@@ -197,7 +195,6 @@ public VTask<Response> handleRequest(Request request) {
 
 ### requireAuthenticated: Enforce Authentication
 
-<!-- verify -->
 ```java
 public final class SecurityContext {
     public static final ScopedValue<Principal> PRINCIPAL = ScopedValue.newInstance();
@@ -225,7 +222,6 @@ public VTask<UserProfile> getMyProfile() {
 
 ### principalIfPresent: Optional Access
 
-<!-- verify -->
 ```java
 public final class SecurityContext {
     public static final ScopedValue<Principal> PRINCIPAL = ScopedValue.newInstance();
@@ -258,7 +254,6 @@ public VTask<String> getGreeting() {
 
 ### hasRole: Query Role Membership
 
-<!-- verify -->
 ```java
 public final class SecurityContext {
     public static final ScopedValue<Set<String>> ROLES = ScopedValue.newInstance();
@@ -334,7 +329,6 @@ VTask<List<MenuItem>> getMenuItems() {
 
 ### requireRole: Enforce Role Membership
 
-<!-- verify -->
 ```java
 public final class SecurityContext {
     public static final ScopedValue<Set<String>> ROLES = ScopedValue.newInstance();
@@ -431,7 +425,6 @@ VTask<AuditLog> viewAuditLog(String resourceId) {
 
 For systems needing finer granularity than roles:
 
-<!-- verify -->
 ```java
 public final class SecurityContext {
     public static final ScopedValue<Set<String>> PERMISSIONS = ScopedValue.newInstance();

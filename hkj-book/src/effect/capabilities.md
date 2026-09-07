@@ -89,7 +89,6 @@ surrounding structure.
 
 **The analogy:** A translator. The message changes; the envelope stays sealed.
 
-<!-- verify -->
 ```java
 public interface Composable<A> {
     <B> Composable<B> map(Function<? super A, ? extends B> f);
@@ -132,7 +131,6 @@ guidelines; they're guarantees the implementation must honour.
 **The analogy:** A meeting coordinator. Everyone works separately, then results
 are combined at the end. If someone fails to deliver, there's nothing to combine.
 
-<!-- verify -->
 ```java
 public interface Combinable<A> extends Composable<A> {
     <B, C> Combinable<C> zipWith(
@@ -187,7 +185,6 @@ the previous result.
 **The analogy:** A relay race. Each runner receives the baton from the previous
 and decides what to do next. If someone drops the baton, the race ends there.
 
-<!-- verify -->
 ```java
 public interface Chainable<A> extends Combinable<A> {
     <B> Chainable<B> via(Function<? super A, ? extends Chainable<B>> f);
@@ -242,7 +239,6 @@ success track.
 **The analogy:** A safety net. If you fall, something catches you. You might
 climb back up, or you might stay down, but the fall doesn't have to be fatal.
 
-<!-- verify -->
 ```java
 public interface Recoverable<E, A> extends Chainable<A> {
     Recoverable<E, A> recover(Function<? super E, ? extends A> handler);
@@ -284,7 +280,6 @@ which tells you something about the general state of affairs in software.
 **The analogy:** A written contract. It describes what will happen, but nothing
 happens until someone signs and executes it.
 
-<!-- verify -->
 ```java
 public interface Effectful<A> extends Chainable<A> {  // sealed, permits IOPath, VTaskPath
     A unsafeRun();
@@ -354,7 +349,6 @@ not scattered throughout.
 back the full list. They don't stop at the first issue and declare the review
 complete.
 
-<!-- verify -->
 ```java
 public interface Accumulating<E, A> extends Composable<A> {
     <B, C> Accumulating<E, C> zipWithAccum(

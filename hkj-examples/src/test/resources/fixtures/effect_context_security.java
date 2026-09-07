@@ -27,6 +27,8 @@ import java.util.Objects;
 import java.util.Set;
 import org.higherkindedj.hkt.Unit;
 import org.higherkindedj.hkt.context.Context;
+import org.higherkindedj.hkt.context.RequestContext;
+import org.higherkindedj.hkt.context.SecurityContext;
 import org.higherkindedj.hkt.maybe.Maybe;
 import org.higherkindedj.hkt.vtask.Scope;
 import org.higherkindedj.hkt.vtask.VTask;
@@ -150,90 +152,6 @@ final class ForbiddenException extends SecurityException {
 
   ForbiddenException(String message) {
     super(message);
-  }
-}
-
-final class RequestContext {
-
-  static final ScopedValue<String> TRACE_ID = ScopedValue.newInstance();
-
-  static final ScopedValue<Locale> LOCALE = ScopedValue.newInstance();
-
-  static final ScopedValue<Instant> REQUEST_TIME = ScopedValue.newInstance();
-}
-
-final class SecurityContext {
-
-  static final ScopedValue<Principal> PRINCIPAL = ScopedValue.newInstance();
-
-  static final ScopedValue<Set<String>> ROLES = ScopedValue.newInstance();
-
-  static final ScopedValue<Set<String>> PERMISSIONS = ScopedValue.newInstance();
-
-  static final ScopedValue<String> AUTH_TOKEN = ScopedValue.newInstance();
-
-  static final ScopedValue<String> SESSION_ID = ScopedValue.newInstance();
-
-  static Context<Principal, Boolean> isAuthenticated() {
-    return Context.asks(PRINCIPAL, principal -> principal != null);
-  }
-
-  static Context<Principal, Principal> requireAuthenticated() {
-    return Context.<Principal>ask(PRINCIPAL)
-        .flatMap(
-            principal ->
-                principal != null
-                    ? Context.<Principal, Principal>succeed(principal)
-                    : Context.<Principal, Principal>fail(
-                        new UnauthenticatedException("Authentication required")));
-  }
-
-  static Context<Principal, Maybe<Principal>> principalIfPresent() {
-    return Context.asks(
-        PRINCIPAL, principal -> principal != null ? Maybe.just(principal) : Maybe.nothing());
-  }
-
-  static Context<Set<String>, Boolean> hasRole(String role) {
-    return Context.asks(ROLES, roles -> roles.contains(role));
-  }
-
-  static Context<Set<String>, Boolean> hasAnyRole(String... roles) {
-    Set<String> required = Set.of(roles);
-    return Context.asks(ROLES, userRoles -> userRoles.stream().anyMatch(required::contains));
-  }
-
-  static Context<Set<String>, Unit> requireRole(String role) {
-    return hasRole(role)
-        .flatMap(
-            has ->
-                has
-                    ? Context.<Set<String>, Unit>succeed(Unit.INSTANCE)
-                    : Context.<Set<String>, Unit>fail(
-                        new UnauthorisedException("Role required: " + role)));
-  }
-
-  static Context<Set<String>, Unit> requireAnyRole(String... roles) {
-    return hasAnyRole(roles)
-        .flatMap(
-            has ->
-                has
-                    ? Context.<Set<String>, Unit>succeed(Unit.INSTANCE)
-                    : Context.<Set<String>, Unit>fail(
-                        new UnauthorisedException("One of these roles required")));
-  }
-
-  static Context<Set<String>, Boolean> hasPermission(String permission) {
-    return Context.asks(PERMISSIONS, perms -> perms.contains(permission));
-  }
-
-  static Context<Set<String>, Unit> requirePermission(String permission) {
-    return hasPermission(permission)
-        .flatMap(
-            has ->
-                has
-                    ? Context.<Set<String>, Unit>succeed(Unit.INSTANCE)
-                    : Context.<Set<String>, Unit>fail(
-                        new UnauthorisedException("Permission required: " + permission)));
   }
 }
 

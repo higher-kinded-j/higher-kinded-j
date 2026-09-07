@@ -16,8 +16,11 @@ to (2) when a page needs a shape that cannot be a runnable example (an abstract 
 (3) is for the opposite kind of snippet: the shape a page shows to say the processor rejects it. See
 [Marking a snippet the processor refuses](#marking-a-snippet-the-processor-refuses).
 
-The exact counts live in the three ratchets (`MINIMUM_INCLUDES`, `MINIMUM_VERIFIED_SNIPPETS`,
-`MINIMUM_DIAGNOSTIC_SNIPPETS`) rather than here, so they cannot go stale. Markers today cover `path_vresult`'s catalogue of shapes written against abstract type variables (the one thing an include cannot express) and short teaser snippets such as the optics Fundamentals payoff, whose fixture-backed domain would be noise in a runnable example
+The exact counts live in the ratchets (`MINIMUM_INCLUDES`, `MINIMUM_VERIFIED_SNIPPETS`,
+`MINIMUM_DIAGNOSTIC_SNIPPETS`, `MINIMUM_SKILLS_SNIPPETS`) rather than here, so they cannot go
+stale. Markers cover the whole book: every chapter has been swept, and what a marker reaches that
+an include cannot is a shape written against abstract type variables, a teaser whose domain would
+be noise in a runnable example, and a snippet the processor is supposed to refuse.
 
 The book-facing examples live under `org.higherkindedj.example.book.*`, **one package per page**: the
 types must be top-level (so the processor generates the names the book teaches), and two pages that
@@ -214,7 +217,13 @@ One in the effect chapter still is: `effect_handlers.md`'s `boundSet()` snippet 
 class the reader writes for their own composition, and the page has none of its own to call. The
 algebras and the generated support around it are gated; that one line is not.
 
-Some shapes recur across the book and are left unmarked deliberately:
+Some shapes recur across the book and are left unmarked deliberately. The list below records
+the ones met so far and the page that prompted each; it is **not** a closed set, and an unmarked
+fence that matches none of it is a page not yet reached rather than a decision. Roughly eighty
+such fences remain, concentrated in deliberate pseudo-code (`hkts/draughts.md`,
+`hkts/hkt_introduction.md`, `glossary/type-system.md`), equivalence pairs that show two spellings
+of one result (the three `transformers/mtl_*.md` pages), and fences using a literal `...` as
+syntax:
 
 - **The Foundations one-liner.** `repo.find(id).toEitherPath().focus().attributes().at(key)...`
   appears on about fifteen pages as the book's running motif. `.focus()` takes an optic and there
@@ -241,7 +250,8 @@ Some shapes recur across the book and are left unmarked deliberately:
   the annotation the real declaration carries is not legal, and without it javac raises a
   mandatory heap-pollution warning. The other four reference tables on that page are gated.
 - **Snippets against a dependency the gate does not have.** `context_scoped.md`'s SLF4J bridge
-  (`LoggerFactory`, `MDC`) and `vstream_performance.md`'s JMH configuration name libraries that
+  (`LoggerFactory`, `MDC`) - its two `ScopedValue` holder quotations are a separate case, covered by
+  the library-types bullet above - and `vstream_performance.md`'s JMH configuration name libraries that
   are not on the gate's classpath, and putting them there to compile two snippets would be the
   tail wagging the dog. `common_data_structure_traversals.md`'s Vavr `HashMap` is the same case;
   its pcollections neighbour, which the gate does carry, is gated. So is
@@ -253,7 +263,9 @@ Some shapes recur across the book and are left unmarked deliberately:
   `via` that mixes two Path types and a discarded `IOPath`. Both compile; what refuses them is the
   checker, and the checker is a *javac plugin*, which the gate does not ask for. Turning it on is
   worth doing - it fires correctly on both, and on a dozen other pages - but it is a change to what
-  every gated snippet must satisfy, so it belongs in its own change rather than this sweep.
+  every gated snippet must satisfy, so it belongs in its own change rather than this sweep. The
+  page's third unmarked fence is unrelated: a `StateOps` class over an undefined `op` and
+  `functor()`, which is the undeclared-helper shape rather than a checker case.
 - **A generic varargs call the caller cannot make quietly.** `alternative.md` shows
   `orElseAll(first, () -> second, () -> third, ...)`. `Alternative.orElseAll` is a `default`
   method, so it cannot carry `@SafeVarargs`, and every call with three or more alternatives raises
@@ -306,11 +318,12 @@ Some shapes recur across the book and are left unmarked deliberately:
   `@GenerateLenses` records of the same simple name cannot both emit their companion.
   `optics/folds.md` closes the same way, and the collision there is worth spelling out: its final
   file nests its records inside `FoldUsageExample`, but a companion is generated *top-level* by
-  simple name, so a nested `Order` and the page's own `Order` both ask for `OrderFolds`. The same
-  page's `targetPackage` entry is unmarked for a related reason: a companion generated into another
-  package needs its source type to be `public`, and a snippet's types share one file, where only
-  one may be. `optics/traversals.md` closes and annotates the same way, and its `TraversalUsageExample`
-  nests its records, which is the `folds.md` collision below.
+  simple name, so a nested `Order` and the page's own `Order` both ask for `OrderFolds`. `optics/traversals.md` closes the same way, and its
+  `TraversalUsageExample` nests its records for the same collision.
+- **A `targetPackage` attribute.** `optics/traversals.md`, `optics/lenses.md`, `optics/prisms.md`
+  and `optics/iso.md` each show one, and none is marked: a companion generated into another package
+  needs its source type to be `public`, and a snippet's types share one file, where only one may
+  be.
 - **Mutation shown as the thing not to do.** `optics/setters.md` puts `user.setUsername(...)` and
   `obj -> { obj.setValue(newValue); return obj; }` beside the functional versions. Both need a
   mutable type the page models as a record, and declaring one to compile the counter-example would
@@ -362,6 +375,20 @@ Some shapes recur across the book and are left unmarked deliberately:
   operation left blank, and generated classes shown with `{ ... }` bodies. The blocks on both pages
   that are real code - running a context to its answer, the service the path bridge generates from,
   the widen/narrow round trip, the composed optic paths - are gated.
+- **A quotation of the library's own capability hierarchy.** `effect/capabilities.md` quotes
+  `Composable`, `Combinable`, `Chainable`, `Recoverable`, `Effectful` and `Accumulating`, each
+  extending the one above. They were briefly gated against fixture copies declared *without*
+  `sealed`, which is the one thing a reader must not take from them: the real interfaces permit a
+  fixed list, so `implements Chainable<A>` does not compile outside it. The quotations are now
+  unmarked and every worked use below them is gated against the real types.
+- **A page whose subject is a class the gate must not clone.** `effect/context_security.md` and
+  `effect/context_request.md` document `SecurityContext` and `RequestContext`. Gating their
+  quotations meant supplying a copy, and a copy is exactly what stops the gate noticing that the
+  real class has moved. The quotations are unmarked; the fixtures import the real classes, so every
+  snippet that *uses* them is held to the library.
+- **A literal `...` used as syntax.** Around two dozen fences write `permits A, B, ... { }`,
+  `map(f, ...)` or `yield((a, b, c) -> ...)` to elide a part the sentence beside them is not about.
+  It is not an expression, and expanding it would bury the line the page is making.
 - **Laws written as equations.** `coyoneda.md` states the functor laws as
   `coyo.map(x -> x) == coyo`. The `==` is the law's notation, not a reference comparison, and
   rewriting it as an assertion would obscure what it says.

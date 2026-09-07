@@ -1,4 +1,4 @@
-// Fixture for hkj-book/src/monads/vstream_resources.java
+// Fixture for hkj-book/src/monads/vstream_resources.md
 //
 // The page streams a file, then a database cursor, and shows what runs when each finishes. The
 // resources the snippets say they assume ("Assuming: Connection openConnection() ...") are

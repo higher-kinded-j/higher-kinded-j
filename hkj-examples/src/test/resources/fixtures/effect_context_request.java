@@ -9,6 +9,7 @@
 // NOTE: imports in a fixture serve the snippets it is spliced into. Spotless excludes
 // src/test/resources so an "unused import" cleanup cannot break fixtures (see build.gradle.kts).
 
+import org.higherkindedj.hkt.context.RequestContext;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.math.BigDecimal;
 import java.net.URI;
@@ -92,22 +93,6 @@ final class DeadlineExceededException extends RuntimeException {
   DeadlineExceededException(String message) {
     super(message);
   }
-}
-
-/** The scoped values the page binds at the edge. */
-final class RequestContext {
-
-  static final ScopedValue<String> TRACE_ID = ScopedValue.newInstance();
-
-  static final ScopedValue<String> CORRELATION_ID = ScopedValue.newInstance();
-
-  static final ScopedValue<Locale> LOCALE = ScopedValue.newInstance();
-
-  static final ScopedValue<String> TENANT_ID = ScopedValue.newInstance();
-
-  static final ScopedValue<Instant> REQUEST_TIME = ScopedValue.newInstance();
-
-  static final ScopedValue<Instant> DEADLINE = ScopedValue.newInstance();
 }
 
 final class TraceIdGenerator {

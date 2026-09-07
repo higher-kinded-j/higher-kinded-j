@@ -23,6 +23,7 @@ import org.higherkindedj.hkt.function.Function3;
 import org.higherkindedj.hkt.Semigroups;
 import org.higherkindedj.hkt.effect.ValidationPath;
 import org.higherkindedj.hkt.maybe.Maybe;
+import org.higherkindedj.hkt.effect.capability.Effectful;
 import org.higherkindedj.hkt.trymonad.Try;
 
 record User(String name, String email, Integer age) {
@@ -49,48 +50,6 @@ record Config(String name) {
   static Config defaults() {
     return new Config("defaults");
   }
-}
-
-/**
- * The capability hierarchy, as the page quotes it. Each quotation declares one interface and
- * extends the one above, so every snippet but the first needs its parents from here; the snippet
- * that declares a given interface shadows the copy below.
- */
-interface Composable<A> {
-
-  <B> Composable<B> map(Function<? super A, ? extends B> f);
-
-  Composable<A> peek(Consumer<? super A> action);
-}
-
-interface Combinable<A> extends Composable<A> {
-
-  <B, C> Combinable<C> zipWith(
-      Combinable<B> other, BiFunction<? super A, ? super B, ? extends C> f);
-}
-
-interface Chainable<A> extends Combinable<A> {
-
-  <B> Chainable<B> via(Function<? super A, ? extends Chainable<B>> f);
-
-  <B> Chainable<B> flatMap(Function<? super A, ? extends Chainable<B>> f);
-
-  <B> Chainable<B> then(Supplier<? extends Chainable<B>> next);
-}
-
-interface Effectful<A> extends Chainable<A> {
-
-  A unsafeRun();
-
-  default Try<A> runSafe() {
-    return Try.of(this::unsafeRun);
-  }
-
-  Effectful<A> handleError(Function<? super Throwable, ? extends A> recovery);
-
-  Effectful<A> handleErrorWith(Function<? super Throwable, ? extends Effectful<A>> recovery);
-
-  Effectful<A> guarantee(Runnable finalizer);
 }
 
 record Data(String value) {}

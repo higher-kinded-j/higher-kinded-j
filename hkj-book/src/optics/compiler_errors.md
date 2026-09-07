@@ -650,7 +650,7 @@ interface PaymentOpticsSpec extends OpticsSpec<Payment> {
 **Fix.** Check the names against the source type's API. Both methods must take no arguments; the predicate returns `boolean` and the getter returns the prism's target type.
 
 ~~~admonish example title="A declaration that produces it" collapsible=true
-<!-- verify:rejects "cannot find symbol" -->
+<!-- verify:rejects "method isCrad()" -->
 ```java
 sealed interface Payment permits Card, Cash {}
 
