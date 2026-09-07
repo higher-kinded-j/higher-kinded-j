@@ -62,6 +62,7 @@ sequenceDiagram
 
 Top half: the real run, the one that bills your cloud account. Bottom half: the inspection, the one you can put inside an `assertThat`. Same keysets. Different boundary.
 
+<!-- verify -->
 ```java
 Plan<UserId> plan = Plans.preflight(program);
 plan.rounds();           // how many rounds it observed
@@ -109,6 +110,7 @@ sequenceDiagram
     R-->>C: RunResult
 ```
 
+<!-- verify -->
 ```java
 // Refuse a round that would dispatch more than 500 keys.
 Guard<UserId> ceiling = Guards.maxKeysPerRound(500);
@@ -140,13 +142,16 @@ A guard inspects, then either passes (the runner dispatches) or throws `GuardVio
 
 For callers that compose with `Either`, the railway wrappers move guard refusal onto the value channel:
 
+<!-- verify -->
 ```java
-Either<Throwable, Fetch.RunResult<UserId, Team>> outcome =
-    SafeFetch.runCachedWithGuard(program, backend::loadAll, composed);
+public Response handleTeamRequest() {
+    Either<Throwable, Fetch.RunResult<UserId, Team>> outcome =
+        SafeFetch.runCachedWithGuard(program, backend::loadAll, composed);
 
-return outcome.fold(
-    failure -> badRequest(failure.getMessage()),
-    success -> ok(success.value()));
+    return outcome.fold(
+        failure -> badRequest(failure.getMessage()),
+        success -> ok(success.value()));
+}
 ```
 
 `Either.left` carries the `GuardViolationException` (or any other failure the run produced). `Either.right` carries the `RunResult`. The run never throws; the safe-async future never completes exceptionally. Same shape every controller already knows.
