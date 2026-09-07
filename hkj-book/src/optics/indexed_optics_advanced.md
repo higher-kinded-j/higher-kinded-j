@@ -41,6 +41,7 @@ Each item arrives carrying the whole path that reached it, outer index first:
 | `(1, 1)` | `Monitor` |
 | `(1, 2)` | `Cable` |
 
+<!-- verify -->
 ```java
 import org.higherkindedj.optics.indexed.Pair;
 
@@ -101,6 +102,7 @@ for (Pair<Pair<Integer, Integer>, LineItem> entry : all) {
 
 There is no separate re-indexing combinator; transform the index inside the `imodify` function. Converting zero-based positions to one-based display numbers looks like this:
 
+<!-- verify -->
 ```java
 IndexedTraversal<Integer, List<LineItem>, LineItem> zeroIndexed =
     IndexedTraversals.forList();
@@ -119,6 +121,7 @@ List<LineItem> numbered = IndexedTraversals.imodify(zeroIndexed, (zeroBasedIndex
 
 You can layer multiple filters for precise control.
 
+<!-- verify -->
 ```java
 IndexedTraversal<Integer, List<LineItem>, LineItem> itemsIndexed =
     IndexedTraversals.forList();
@@ -149,6 +152,7 @@ List<Pair<Integer, LineItem>> results =
 
 A powerful real-world pattern is tracking *which* fields change in your domain objects.
 
+<!-- verify -->
 ```java
 // Generic field audit logger
 public class AuditLog {
@@ -217,6 +221,7 @@ for (AuditLog.FieldChange<?> change : audit) {
 
 When debugging complex nested updates, indexed optics reveal the complete path to each modification.
 
+<!-- verify -->
 ```java
 // Nested structure with multiple levels
 record Item(String name, double price) {}
@@ -282,6 +287,7 @@ List<Buyer> updated = IndexedTraversals.imodify(fullPath,
 
 The `Pair<A, B>` type provides utility methods for manipulation.
 
+<!-- verify -->
 ```java
 import org.higherkindedj.optics.indexed.Pair;
 
@@ -308,6 +314,7 @@ Pair<String, Integer> created = Pair.of("Key", 42);
 
 For converting to/from `Tuple2` (when working with hkj-core utilities):
 
+<!-- verify -->
 ```java
 import org.higherkindedj.hkt.tuple.Tuple2;
 import org.higherkindedj.optics.util.IndexedTraversals;
@@ -327,6 +334,7 @@ Pair<String, Integer> converted = IndexedTraversals.tuple2ToPair(tuple);
 
 Here's a comprehensive example demonstrating indexed optics in a business context.
 
+<!-- verify -->
 ```java
 package org.higherkindedj.example.optics;
 
