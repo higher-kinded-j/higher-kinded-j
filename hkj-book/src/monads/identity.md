@@ -29,7 +29,7 @@ But that's exactly the point. Id is to monads what 1 is to multiplication: multi
 2. **Generic code**: When writing functions generic over any `Monad<F>`, Id serves as the "no-effect" instance for testing and for cases where pure computation suffices:
 
    <!-- verify -->
-```java
+   ```java
    // This works with IO, CompletableFuture, Maybe, or... Id
    <F extends WitnessArity<TypeArity.Unary>> Kind<F, String> greet(
            Monad<F> monad, Kind<F, String> name) {

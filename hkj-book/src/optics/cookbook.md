@@ -424,6 +424,22 @@ Scoreboard reversed = Traversals.reversed(scores, board);
 
 ## Best Practices
 
+The recipes below reach the customer on an order, so they read this model rather than the
+reduced one the earlier recipes declare:
+
+<!-- verify -->
+```java
+@GenerateLenses record Money(double amount) {}
+@GenerateLenses record LineItem(String productId, int quantity, Money price) {}
+@GenerateLenses record Promotion(String code, boolean isActive) {}
+
+@GeneratePrisms sealed interface Customer permits Verified, LoyaltyMember {}
+@GenerateLenses record Verified(String email) implements Customer {}
+@GenerateLenses record LoyaltyMember(String id, List<Promotion> promotions) implements Customer {}
+
+@GenerateLenses record Order(String id, List<LineItem> items, Customer customer) {}
+```
+
 ### 1. Create Reusable Optic Constants
 
 <!-- verify -->

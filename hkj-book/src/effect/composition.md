@@ -34,7 +34,7 @@ result. It's the workhorse of effect composition.
 
 <!-- verify -->
 ```java
-EitherPath<Error, Invoice> pipeline =
+EitherPath<AppError, Invoice> pipeline =
     Path.either(findUser(userId))
         .via(user -> Path.either(getCart(user)))
         .via(cart -> Path.either(calculateTotal(cart)))
@@ -88,11 +88,11 @@ needs the other's result to proceed.
 
 <!-- verify -->
 ```java
-EitherPath<Error, String> name = validateName(orderInput.name());
-EitherPath<Error, String> email = validateEmail(orderInput.email());
-EitherPath<Error, Address> address = validateAddress(orderInput.address());
+EitherPath<AppError, String> name = validateName(orderInput.name());
+EitherPath<AppError, String> email = validateEmail(orderInput.email());
+EitherPath<AppError, Address> address = validateAddress(orderInput.address());
 
-EitherPath<Error, CustomerInfo> customer = name.zipWith3(email, address, CustomerInfo::new);
+EitherPath<AppError, CustomerInfo> customer = name.zipWith3(email, address, CustomerInfo::new);
 ```
 
 If all three succeed, `User::new` receives the values. If any fails, the
@@ -110,13 +110,13 @@ This distinction trips people up, so let's be explicit:
 <!-- verify -->
 ```java
 // WRONG: using via when computations are independent
-EitherPath<Error, Address> chained =
+EitherPath<AppError, Address> chained =
     validateName(orderInput.name())
         .via(name -> validateEmail(orderInput.email()))      // Doesn't use name!
         .via(email -> validateAddress(orderInput.address())); // Doesn't use email!
 
 // RIGHT: using zipWith for independent computations
-EitherPath<Error, CustomerInfo> combined =
+EitherPath<AppError, CustomerInfo> combined =
     validateName(orderInput.name())
         .zipWith3(
             validateEmail(orderInput.email()),
@@ -132,11 +132,11 @@ dependency. The second says what it means.
 <!-- verify -->
 ```java
 // Two values
-EitherPath<Error, Result> two =
+EitherPath<AppError, Result> two =
     pathA.zipWith(pathB, (a, b) -> combine(a, b));
 
 // Three values
-EitherPath<Error, Result> three =
+EitherPath<AppError, Result> three =
     pathA.zipWith3(pathB, pathC, (a, b, c) -> combine(a, b, c));
 ```
 
@@ -158,13 +158,13 @@ The key is clarity about which pattern you're using where.
 
 <!-- verify -->
 ```java
-EitherPath<Error, Order> createOrder(OrderInput input) {
+EitherPath<AppError, Order> createOrder(OrderInput input) {
     // Phase 1: Independent validation
-    EitherPath<Error, String> name = validateName(input.name());
-    EitherPath<Error, String> email = validateEmail(input.email());
-    EitherPath<Error, Address> address = validateAddress(input.address());
+    EitherPath<AppError, String> name = validateName(input.name());
+    EitherPath<AppError, String> email = validateEmail(input.email());
+    EitherPath<AppError, Address> address = validateAddress(input.address());
 
-    EitherPath<Error, CustomerInfo> customer =
+    EitherPath<AppError, CustomerInfo> customer =
         name.zipWith3(email, address, CustomerInfo::new);
 
     // Phase 2: Sequential operations that depend on customer
@@ -291,7 +291,7 @@ would break the chain. Debugger breakpoints are awkward with lambdas.
 
 <!-- verify -->
 ```java
-EitherPath<Error, String> result =
+EitherPath<AppError, String> result =
     Path.either(validateInput(input))
         .peek(valid -> log.debug("Validated: {}", valid))
         .via(valid -> Path.either(createUser(valid)))
@@ -309,11 +309,11 @@ For detailed tracing, wrap the pattern:
 
 <!-- verify -->
 ```java
-<A> EitherPath<Error, A> traced(EitherPath<Error, A> path, String step) {
+<A> EitherPath<AppError, A> traced(EitherPath<AppError, A> path, String step) {
     return path.peek(v -> log.debug("[{}] → {}", step, v));
 }
 
-EitherPath<Error, Invoice> pipeline =
+EitherPath<AppError, Invoice> pipeline =
     traced(Path.either(findUser(id)), "findUser")
         .via(user -> traced(Path.either(getCart(user)), "getCart"))
         .via(cart -> traced(Path.either(checkout(cart)), "checkout"));
@@ -338,7 +338,7 @@ The operation might fail, but you have a reasonable fallback:
 MaybePath<Config> config = Path.maybe(loadConfig())
     .orElse(() -> Path.just(Config.defaults()));
 
-EitherPath<Error, User> user = Path.either(findUser(id))
+EitherPath<AppError, User> user = Path.either(findUser(id))
     .recover(error -> User.guest());
 ```
 
@@ -366,7 +366,7 @@ Multiple sources for the same data, each with trade-offs:
 
 <!-- verify -->
 ```java
-EitherPath<Error, Config> config =
+EitherPath<AppError, Config> config =
     Path.either(loadFromFile())
         .recoverWith(e1 -> {
             log.warn("File config failed: {}", e1);
@@ -538,12 +538,12 @@ happens at a deliberate boundary.
 <!-- verify -->
 ```java
 // Misleading: suggests email validation depends on name
-EitherPath<Error, String> misleading =
+EitherPath<AppError, String> misleading =
     validateName(input)
         .via(name -> validateEmail(input));  // Doesn't use name!
 
 // Clearer: shows independence
-EitherPath<Error, Result> clearer =
+EitherPath<AppError, Result> clearer =
     validateName(input).zipWith(validateEmail(input), (n, e) -> combine(n, e));
 ```
 

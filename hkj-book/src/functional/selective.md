@@ -245,10 +245,10 @@ For more complex branching, `branch` handles both sides of a `Choice` with diffe
 Kind<F, Choice<ErrorA, ErrorB>> input = ...; // Could be either error type
 
 Kind<F, Function<ErrorA, String>> handleA =
-    selective.of(a -> "Error type A: " + a);
+    selective.of(a -> "AppError type A: " + a);
 
 Kind<F, Function<ErrorB, String>> handleB =
-    selective.of(b -> "Error type B: " + b);
+    selective.of(b -> "AppError type B: " + b);
 
 Kind<F, String> result = selective.branch(input, handleA, handleB);
 // Applies the appropriate handler based on which error type
@@ -261,16 +261,16 @@ For chaining multiple conditional functions, `apS` applies a list of functions s
 **Example: Multi-Step Validation**
 
 ```java
-Kind<F, Choice<Error, Data>> initialData = ...;
+Kind<F, Choice<AppError, Data>> initialData = ...;
 
-List<Kind<F, Function<Data, Choice<Error, Data>>>> validationSteps = List.of(
+List<Kind<F, Function<Data, Choice<AppError, Data>>>> validationSteps = List.of(
     validateStep1,
     validateStep2,
     validateStep3
 );
 
 // Applies each validation step in order, short-circuiting on the first error.
-Kind<F, Choice<Error, Data>> finalResult = selective.apS(initialData, validationSteps);
+Kind<F, Choice<AppError, Data>> finalResult = selective.apS(initialData, validationSteps);
 ```
 
 ---

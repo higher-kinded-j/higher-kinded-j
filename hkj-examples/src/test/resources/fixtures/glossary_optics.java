@@ -184,14 +184,14 @@ record User(String name, String email, Address address) {}
 record UserDto(String name, String email, Address address) {}
 
 interface UserService {
-  EitherPath<Error, User> findById(String id);
+  EitherPath<AppError, User> findById(String id);
 }
 
 interface EmployeeService {
-  EitherPath<Error, Employee> findById(String id);
+  EitherPath<AppError, Employee> findById(String id);
 }
 
-record Error(String message) {}
+record AppError(String message) {}
 
 record OrderErrorContext(@Nullable OrderId orderId, @Nullable TraceId traceId) {}
 
@@ -286,7 +286,7 @@ class Fixture {
     throw new UnsupportedOperationException("a fixture value: snippets are compiled, not run");
   }
 
-  static EitherPath<Error, User> loadUser(String id) {
+  static EitherPath<AppError, User> loadUser(String id) {
     return userService.findById(id);
   }
 

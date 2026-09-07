@@ -357,7 +357,7 @@ Add context as errors propagate through layers:
 <!-- verify -->
 ```java
 public <A> EitherPath<DetailedError, A> withContext(
-        EitherPath<Error, A> path,
+        EitherPath<AppError, A> path,
         String operation,
         Map<String, Object> context) {
     return path.mapError(error -> new DetailedError(
@@ -384,8 +384,8 @@ Log the failure, provide a fallback:
 
 <!-- verify -->
 ```java
-public <A> EitherPath<Error, A> withRecoveryLogging(
-        EitherPath<Error, A> path,
+public <A> EitherPath<AppError, A> withRecoveryLogging(
+        EitherPath<AppError, A> path,
         A fallback,
         String operation) {
     return path.recover(error -> {

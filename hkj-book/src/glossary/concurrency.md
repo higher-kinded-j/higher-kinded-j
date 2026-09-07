@@ -211,8 +211,8 @@ import org.higherkindedj.hkt.vtask.ScopeJoiner;
 
 // Create joiners directly
 ScopeJoiner<String, List<String>> allSucceed = ScopeJoiner.allSucceed();
-ScopeJoiner<String, Validated<List<Error>, List<String>>> accum =
-    ScopeJoiner.accumulating(Error::from);
+ScopeJoiner<String, Validated<List<AppError>, List<String>>> accum =
+    ScopeJoiner.accumulating(AppError::from);
 
 // Use with Scope
 VTask<List<String>> result = Scope.withJoiner(allSucceed)
@@ -256,7 +256,7 @@ VTask<List<UserData>> results = Scope.<UserData>allSucceed()
 // If any task fails or times out:
 // - Other tasks are cancelled
 // - Resources are cleaned up
-// - Error propagates to caller
+// - AppError propagates to caller
 ```
 
 **Contrast with Unstructured Concurrency:**

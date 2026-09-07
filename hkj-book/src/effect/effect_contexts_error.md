@@ -290,7 +290,7 @@ try {
     User user = userContext.runIOOrThrow();
     // Use the user
 } catch (RuntimeException e) {
-    // Error was wrapped: e.getMessage() contains error.toString()
+    // AppError was wrapped: e.getMessage() contains error.toString()
 }
 ```
 

@@ -618,15 +618,16 @@ final class SnippetExtractor {
   }
 
   /**
-   * Walks braces to find where a declaration ends. Handles the one-line `record X(...) {}` form.
-   */
-  /**
-   * The last line of a field declaration starting at {@code start}.
+   * The last line of a {@code static} member starting at {@code start}.
    *
    * <p>A field ends at its {@code ;}, which is not where its braces first balance: an initialiser
    * that passes a lambda with a body - {@code ValidatedPrism.of(s -> { ... }, b -> ...);} - closes
    * that body several lines before the declaration itself ends, and stopping there would cut the
-   * remaining arguments loose.
+   * remaining arguments loose. Parentheses are counted alongside braces for that reason.
+   *
+   * <p>The {@code static} keyword also introduces a one-line method and an initialiser block, and
+   * those end at a {@code }} with no {@code ;} after it. Both endings are accepted, or a page that
+   * writes {@code static int one() { return 1; }} swallows every line up to the next statement.
    */
   private static int endOfField(List<String> lines, int start) {
     int depth = 0;
@@ -639,13 +640,17 @@ final class SnippetExtractor {
           depth--;
         }
       }
-      if (depth <= 0 && line.strip().endsWith(";")) {
+      String code = line.strip();
+      if (depth == 0 && (code.endsWith(";") || code.endsWith("}"))) {
         return i;
       }
     }
     return lines.size() - 1;
   }
 
+  /**
+   * Walks braces to find where a declaration ends. Handles the one-line `record X(...) {}` form.
+   */
   private static int endOfDeclaration(List<String> lines, int start) {
     int depth = 0;
     boolean opened = false;

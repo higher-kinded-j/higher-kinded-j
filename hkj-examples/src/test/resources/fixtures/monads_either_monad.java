@@ -22,7 +22,7 @@ record User(String id) {}
 
 record Order(String id) {}
 
-record Error(String message) {}
+record AppError(String message) {}
 
 class Fixture {
 
@@ -32,15 +32,15 @@ class Fixture {
 
   static final Either<String, Integer> failure = Either.left("File not found");
 
-  static Either<Error, User> findUser(String id) {
+  static Either<AppError, User> findUser(String id) {
     return Either.right(new User(id));
   }
 
-  static Either<Error, Order> createOrder(User user) {
+  static Either<AppError, Order> createOrder(User user) {
     return Either.right(new Order("o-1"));
   }
 
-  static EitherPath<Error, Order> createOrderPath(User user) {
+  static EitherPath<AppError, Order> createOrderPath(User user) {
     return Path.right(new Order("o-1"));
   }
 }

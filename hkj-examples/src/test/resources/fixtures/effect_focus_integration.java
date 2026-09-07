@@ -41,10 +41,10 @@ record Company(String name, List<User> employees) {}
 @GenerateFocus
 record Org(String name, List<Department> departments) {}
 
-record Error(String message) {
+record AppError(String message) {
 
-  static Error missingEmail() {
-    return new Error("missing email");
+  static AppError missingEmail() {
+    return new AppError("missing email");
   }
 }
 
@@ -99,28 +99,28 @@ class Fixture {
 
   static final AccountService userService = new AccountService();
 
-  static EitherPath<Error, String> validateEmail(String email) {
+  static EitherPath<AppError, String> validateEmail(String email) {
     return Path.right(email);
   }
 
-  static EitherPath<Error, Account> applyUpdate(UpdateRequest request, String email) {
+  static EitherPath<AppError, Account> applyUpdate(UpdateRequest request, String email) {
     return Path.right(new Account("a-1", new Profile("ada", Optional.of(email))));
   }
 
   static final class OrderService {
 
-    EitherPath<Error, Order> findById(OrderId id) {
+    EitherPath<AppError, Order> findById(OrderId id) {
       return Path.right(new Order(id.value(), new Customer("Ada", new Address("London", "N1"))));
     }
   }
 
   static final class AccountService {
 
-    EitherPath<Error, Account> findById(UserId id) {
+    EitherPath<AppError, Account> findById(UserId id) {
       return Path.right(new Account(id.value(), new Profile("ada", Optional.of("a@b.test"))));
     }
 
-    EitherPath<Error, SaveResult> save(Account account) {
+    EitherPath<AppError, SaveResult> save(Account account) {
       return Path.right(new SaveResult(account.id()));
     }
   }
@@ -131,13 +131,13 @@ class Fixture {
 
   static final User charlie = new User("Charlie", Optional.of("charlie@example.com"));
 
-  static final EitherPath<Error, User> userResult = Path.either(Either.right(alice));
+  static final EitherPath<AppError, User> userResult = Path.either(Either.right(alice));
 
   static final TryPath<User> userTryPath = Path.success(alice);
 
   static final MaybePath<User> userMaybePath = Path.just(alice);
 
-  static EitherPath<Error, User> fetchUser(String id) {
+  static EitherPath<AppError, User> fetchUser(String id) {
     return Path.either(Either.right(alice));
   }
 }

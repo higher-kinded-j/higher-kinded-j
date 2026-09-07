@@ -98,16 +98,16 @@ record OrderData(String value) {}
 
 record CombinedData(UserData users, ProductData products, OrderData orders) {}
 
-record DetailedError(Error cause, String operation, Map<String, Object> context, Instant at) {}
+record DetailedError(AppError cause, String operation, Map<String, Object> context, Instant at) {}
 
-record Error(String message) {
+record AppError(String message) {
 
   String code() {
     return "E1";
   }
 }
 
-record DomainError(String code, String message, Error cause) {}
+record DomainError(String code, String message, AppError cause) {}
 
 record Response(int status) {}
 
@@ -196,7 +196,7 @@ final class UserService {
 
 final class UserFacade {
 
-  EitherPath<Error, User> getUser(String id) {
+  EitherPath<AppError, User> getUser(String id) {
     return Path.right(new User("Ada", "ada@example.com", 36));
   }
 }
@@ -325,7 +325,7 @@ class Fixture {
 
   static final Logger log = new Logger();
 
-  static final Error error = new Error("boom");
+  static final AppError error = new AppError("boom");
 
   static final String url = "https://example.test/api";
 
@@ -345,7 +345,7 @@ class Fixture {
 
   static final JdbcTemplate jdbcTemplate = new JdbcTemplate();
 
-  static final EitherPath<Error, User> path = Path.right(testUser);
+  static final EitherPath<AppError, User> path = Path.right(testUser);
 
   static final IOPath<Response> resilient = Path.io(() -> new Response(200));
 

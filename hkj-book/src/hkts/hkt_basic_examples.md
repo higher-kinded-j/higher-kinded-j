@@ -79,7 +79,7 @@ This example covers the **CompletableFuture monad**. It shows how to use `Comple
 Function<Throwable, Kind<CompletableFutureKind.Witness, String>> recoveryHandler =
     error -> {
       System.out.println("Handling error: " + error.getMessage());
-      return futureMonad.of("Recovered from Error");
+      return futureMonad.of("Recovered from AppError");
     };
 
 Kind<CompletableFutureKind.Witness, String> recoveredFuture =

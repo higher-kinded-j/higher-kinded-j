@@ -101,7 +101,7 @@ public class PrismTestPatterns {
         Prism<ApiResponse, Success> success = ApiResponsePrisms.success();
 
         ApiResponse successResponse = new Success(jsonData, 200);
-        ApiResponse errorResponse = new ServerError("Error", "trace123");
+        ApiResponse errorResponse = new ServerError("AppError", "trace123");
 
         // Verify matching behaviour
         assertTrue(success.matches(successResponse));

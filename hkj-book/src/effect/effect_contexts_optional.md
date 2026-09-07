@@ -249,7 +249,7 @@ Often, absence at some point becomes an error. The boundary is explicit:
 OptionalContext<IOKind.Witness, User> optionalUser =
     OptionalContext.<User>io(() -> userRepo.findById(userId));
 
-// Absence → Typed Error
+// Absence → Typed AppError
 ErrorContext<IOKind.Witness, UserNotFound, User> requiredUser =
     optionalUser.toErrorContext(new UserNotFound(userId));
 

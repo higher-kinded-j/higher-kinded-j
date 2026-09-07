@@ -150,7 +150,7 @@ Report r = pipeline.generateReport(req).unsafeRun(); // executes here
 <!-- verify -->
 ```java
 public <A> EitherPath<DetailedError, A> withContext(
-        EitherPath<Error, A> path, String op, Map<String, Object> ctx) {
+        EitherPath<AppError, A> path, String op, Map<String, Object> ctx) {
     return path.mapError(e -> new DetailedError(e, op, ctx, Instant.now()));
 }
 ```

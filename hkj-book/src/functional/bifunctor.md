@@ -149,15 +149,15 @@ Kind2<EitherKind2.Witness, String, String> formatted =
 System.out.println(EITHER.narrow2(formatted));
 // Output: Right(Success: 42)
 
-// Error case: transform the Left channel
+// AppError case: transform the Left channel
 Either<String, Integer> error = Either.left("FILE_NOT_FOUND");
 Kind2<EitherKind2.Witness, String, Integer> enhanced =
     bifunctor.first(
-        err -> "Error Code: " + err,
+        err -> "AppError Code: " + err,
         EITHER.widen2(error));
 
 System.out.println(EITHER.narrow2(enhanced));
-// Output: Left(Error Code: FILE_NOT_FOUND)
+// Output: Left(AppError Code: FILE_NOT_FOUND)
 
 // Transform both channels with bimap
 Either<String, Integer> either = Either.right(100);
@@ -358,7 +358,7 @@ Either<String, UserData> internalResult = Either.left("USER_NOT_FOUND");
 
 // External API requires structured error objects and formatted responses
 Function<String, ApiError> toApiError =
-    code -> new ApiError(code, "Error occurred", 404);
+    code -> new ApiError(code, "AppError occurred", 404);
 
 Function<UserData, ApiResponse> toApiResponse =
     user -> new ApiResponse(user.name(), user.email(), 200);
@@ -371,7 +371,7 @@ Kind2<EitherKind2.Witness, ApiError, ApiResponse> apiResult =
         toApiResponse,  // Transform internal data to API response format
         EITHER.widen2(internalResult));
 
-// Result: Left(ApiError(USER_NOT_FOUND, Error occurred, 404))
+// Result: Left(ApiError(USER_NOT_FOUND, AppError occurred, 404))
 ```
 
 This approach keeps your domain logic clean whilst providing flexible adaptation to external requirements.

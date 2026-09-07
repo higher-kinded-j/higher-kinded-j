@@ -170,13 +170,13 @@ public sealed interface ConsoleOp<A>
 <!-- verify -->
 ```java
 // Create paths using the Path factory
-EitherPath<Error, User> userPath = Path.either(findUser(id));
+EitherPath<AppError, User> userPath = Path.either(findUser(id));
 MaybePath<Config> configPath = Path.maybe(findConfig());
 TryPath<Data> dataPath = Path.tryOf(() -> parseJson(input));
 IOPath<String> ioPath = Path.io(() -> readFile(path));
 
 // All paths share the same fluent API
-EitherPath<Error, String> result = userPath
+EitherPath<AppError, String> result = userPath
     .map(User::name)                    // Transform success value
     .via(name -> validateName(name))    // Chain dependent operation
     .recover(err -> "Anonymous");       // Handle errors
@@ -212,19 +212,19 @@ IOPath<Data>         ──┘    └──  Traversal<Data, Item>
 <!-- verify -->
 ```java
 // Fetch user (effect) then navigate to nested data (optics)
-EitherPath<Error, String> city = userService.findById(userId)  // Effect: fetch
+EitherPath<AppError, String> city = userService.findById(userId)  // Effect: fetch
     .focus(UserFocus.address())                                 // Optics: navigate
     .focus(AddressFocus.city())                                 // Optics: deeper
     .map(String::toUpperCase);                                  // Transform
 
 // Modify nested data within an effectful context
-EitherPath<Error, User> updated = userService.findById(userId)
+EitherPath<AppError, User> updated = userService.findById(userId)
     .map(user -> UserFocus.address().then(AddressFocus.postcode())
         .modify(String::toUpperCase, user));
 
 // Combine multiple effect sources with optic navigation. `focus` narrows through a single-target
 // optic; a traversal reads its targets out, and the effect runs over them.
-EitherPath<Error, Report> report =
+EitherPath<AppError, Report> report =
     Path.either(loadCompany(id))
         .map(company -> CompanyFocus.departments().getAll(company))  // Optics: every department
         .via(departments -> loadMetrics(departments))                // Effect over them
@@ -501,8 +501,8 @@ BigDecimal balanceOrThrow(String id) {
     return account.getBalance();
 }
 
-// Railway-oriented: automatic track switching (lookupUser returns Either<Error, User>)
-EitherPath<Error, BigDecimal> balance =
+// Railway-oriented: automatic track switching (lookupUser returns Either<AppError, User>)
+EitherPath<AppError, BigDecimal> balance =
     Path.either(lookupUser(id))
         .via(user -> getAccount(user))
         .via(account -> validateActive(account))
@@ -535,7 +535,7 @@ EitherPath<Error, BigDecimal> balance =
 <!-- verify -->
 ```java
 // Simple recovery with default value
-EitherPath<Error, Config> config = loadConfig()
+EitherPath<AppError, Config> config = loadConfig()
     .recover(error -> Config.defaults());
 
 // Recovery that inspects the error
@@ -548,7 +548,7 @@ EitherPath<ApiError, User> user = fetchUser(id)
     });
 
 // Recovery with a new Path (recoverWith)
-EitherPath<Error, Data> data = primarySource()
+EitherPath<AppError, Data> data = primarySource()
     .recoverWith(error -> fallbackSource());  // Try alternative on failure
 
 // Partial recovery - only handle specific errors
@@ -579,15 +579,15 @@ EitherPath<ApiError, User> partial = fetchUser(id)
 <!-- verify -->
 ```java
 // Each step depends on the previous result
-EitherPath<Error, Order> orderPath =
-    Path.<Error, String>right(userId)
-        .via(id -> loadUser(id))           // Returns EitherPath<Error, User>
-        .via(user -> getCart(user))        // Returns EitherPath<Error, Cart>
-        .via(cart -> validateCart(cart))   // Returns EitherPath<Error, ValidatedCart>
-        .via(valid -> createOrder(valid)); // Returns EitherPath<Error, Order>
+EitherPath<AppError, Order> orderPath =
+    Path.<AppError, String>right(userId)
+        .via(id -> loadUser(id))           // Returns EitherPath<AppError, User>
+        .via(user -> getCart(user))        // Returns EitherPath<AppError, Cart>
+        .via(cart -> validateCart(cart))   // Returns EitherPath<AppError, ValidatedCart>
+        .via(valid -> createOrder(valid)); // Returns EitherPath<AppError, Order>
 
 // Compare to map (which doesn't chain Paths):
-EitherPath<Error, String> mapped = userPath.map(user -> user.name());
+EitherPath<AppError, String> mapped = userPath.map(user -> user.name());
 // map: A -> B (simple transformation)
 // via: A -> Path<E, B> (operation that may fail)
 ```

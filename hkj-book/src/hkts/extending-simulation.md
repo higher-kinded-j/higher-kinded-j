@@ -110,7 +110,7 @@ Since we cannot modify `java.util.Set` to directly implement our `Kind` structur
     public enum SetKindHelper implements SetConverterOps {
         SET; // Singleton instance
 
-        // Error messages can be static final within the enum
+        // AppError messages can be static final within the enum
         private static final String ERR_INVALID_KIND_NULL = "Cannot narrow null Kind for Set";
         private static final String ERR_INVALID_KIND_TYPE = "Kind instance is not a SetHolder: ";
         private static final String ERR_INVALID_KIND_TYPE_NULL = "Input Set cannot be null for widen";

@@ -205,12 +205,12 @@ record UserInput(String name) {}
 
 record ValidatedInput(String name) {}
 
-sealed interface Error {
-  record NotFound(String id) implements Error {}
+sealed interface AppError {
+  record NotFound(String id) implements AppError {}
 
-  record ServiceDisabled() implements Error {}
+  record ServiceDisabled() implements AppError {}
 
-  record ProcessingFailed(Throwable cause) implements Error {}
+  record ProcessingFailed(Throwable cause) implements AppError {}
 }
 
 sealed interface AuditEvent {
@@ -218,7 +218,7 @@ sealed interface AuditEvent {
 
   record SaveSucceeded(String id) implements AuditEvent {}
 
-  record SaveFailed(String id, Error error) implements AuditEvent {}
+  record SaveFailed(String id, AppError error) implements AuditEvent {}
 }
 
 // `save` is overloaded because the page writes both halves of a repository: the one that takes a
@@ -229,7 +229,7 @@ final class UserRepository {
     return new User(validated.name());
   }
 
-  Either<Error, User> save(User user) {
+  Either<AppError, User> save(User user) {
     return Either.right(user);
   }
 }

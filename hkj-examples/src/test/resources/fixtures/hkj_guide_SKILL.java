@@ -69,7 +69,7 @@ record User(String name, String email, int age) {
 record UserDto(String name, String email, String age) {}
 
 /** The reader's own error type, as the ForPath and mapError examples write it. */
-record Error(String message) {}
+record AppError(String message) {}
 
 /** The reader's own sealed failure hierarchy. */
 sealed interface OrderError {
@@ -169,15 +169,15 @@ class Fixture {
 
   // ----- the ForPath comprehension -----
 
-  static EitherPath<Error, User> fetchUser(String id) {
+  static EitherPath<AppError, User> fetchUser(String id) {
     return Path.right(new User("Ada", "ada@example.com", 36));
   }
 
-  static EitherPath<Error, ValidatedUser> validateUser(User user) {
+  static EitherPath<AppError, ValidatedUser> validateUser(User user) {
     return Path.right(new ValidatedUser(user.email()));
   }
 
-  static EitherPath<Error, Inventory> checkInventory(List<Item> items) {
+  static EitherPath<AppError, Inventory> checkInventory(List<Item> items) {
     return Path.right(new Inventory(items));
   }
 

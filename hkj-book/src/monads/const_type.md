@@ -268,9 +268,9 @@ record ValidationResult(boolean isValid, List<String> errors, Object data) {}
 
 List<ValidationResult> results = List.of(
     new ValidationResult(true, List.of(), "Valid data 1"),
-    new ValidationResult(false, List.of("Error A", "Error B"), null),
+    new ValidationResult(false, List.of("AppError A", "AppError B"), null),
     new ValidationResult(true, List.of(), "Valid data 2"),
-    new ValidationResult(false, List.of("Error C"), null)
+    new ValidationResult(false, List.of("AppError C"), null)
 );
 
 // Extract all errors using Const
@@ -283,7 +283,7 @@ for (ValidationResult result : results) {
 }
 
 System.out.println("All errors: " + allErrors);
-// Output: [Error A, Error B, Error C]
+// Output: [AppError A, AppError B, AppError C]
 
 // Count valid results
 Const<Integer, ValidationResult> validCount = results.stream()

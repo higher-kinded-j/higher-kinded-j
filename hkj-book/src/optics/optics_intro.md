@@ -184,12 +184,12 @@ A **Traversal** is an optic that can focus on multiple targets at once, typicall
   @GenerateTraversals
   public record OrderData(..., List<String> promoCodes) {}
   var codesTraversal = OrderDataTraversals.promoCodes();
-  // returns Validated<Error, Code>
+  // returns Validated<AppError, Code>
   var validationFunction = (String code) -> validate(code); 
 
   // Use the traversal to apply the function to every code.
   // The Applicative for Validated handles the error accumulation automatically.
-  Validated<Error, OrderData> result = codesTraversal.modifyF(
+  Validated<AppError, OrderData> result = codesTraversal.modifyF(
       validationFunction, orderData, validatedApplicative
   );
   ```

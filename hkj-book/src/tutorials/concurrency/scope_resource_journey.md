@@ -273,8 +273,8 @@ VTask<List<String>> validation = Scope.<String>allSucceed()
     .join();
 
 // RIGHT: Use accumulating for validation
-VTask<Validated<List<Error>, List<String>>> accumulated =
-    Scope.<Error, String>accumulating(Error::from)
+VTask<Validated<List<AppError>, List<String>>> accumulated =
+    Scope.<AppError, String>accumulating(AppError::from)
         .fork(validateField1())
         .fork(validateField2())
         .join();

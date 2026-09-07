@@ -427,7 +427,7 @@ public interface Bifunctor<F extends WitnessArity<TypeArity.Binary>> {}
 Functor<ListKind.Witness> listFunctor = Instances.functor(list());
 
 // This would NOT compile: EitherKind2.Witness implements WitnessArity<Binary>
-// Functor<EitherKind2.Witness> invalid;  // Error: Binary not compatible with Unary
+// Functor<EitherKind2.Witness> invalid;  // AppError: Binary not compatible with Unary
 ```
 
 **Why It Matters:** WitnessArity provides compile-time guarantees that witness types are used with compatible type classes. You cannot accidentally use a binary witness with a unary type class.

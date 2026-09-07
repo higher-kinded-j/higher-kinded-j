@@ -178,14 +178,14 @@ Prism<Either<String, Integer>, String> leftPrism = Prisms.left();
 Prism<Either<String, Integer>, Integer> rightPrism = Prisms.right();
 
 Either<String, Integer> success = Either.right(42);
-Either<String, Integer> failure = Either.left("Error");
+Either<String, Integer> failure = Either.left("AppError");
 
 // Extract success value
 Optional<Integer> value = rightPrism.getOptional(success);   // Optional[42]
 Optional<Integer> noValue = rightPrism.getOptional(failure); // Optional.empty()
 
 // Extract error value
-Optional<String> error = leftPrism.getOptional(failure);     // Optional["Error"]
+Optional<String> error = leftPrism.getOptional(failure);     // Optional["AppError"]
 
 // Construct Either values
 Either<String, Integer> newSuccess = rightPrism.build(100);  // Either.right(100)
@@ -266,7 +266,7 @@ Either<String, Integer> success = Either.right(100);
 Either<String, Integer> doubled = Traversals.modify(rightTraversal, n -> n * 2, success);
 // Result: Either.right(200)
 
-// Error enrichment with Left traversal
+// AppError enrichment with Left traversal
 Either<String, Integer> error = Either.left("Connection failed");
 Either<String, Integer> enriched = Traversals.modify(
     leftTraversal,

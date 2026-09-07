@@ -64,10 +64,10 @@ record UserError(String message) {
 }
 
 /** The page's typed error. It is constructed directly and through a factory. */
-record Error(String message) {
+record AppError(String message) {
 
-  static Error notFound(String id) {
-    return new Error("User " + id + " not found");
+  static AppError notFound(String id) {
+    return new AppError("User " + id + " not found");
   }
 }
 

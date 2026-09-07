@@ -139,7 +139,7 @@ VTask<Integer> computation = VTask.of(() -> 42);
 
 // 1. run() - throws on failure
 //    Checked exceptions are wrapped in VTaskExecutionException;
-//    RuntimeException and Error are thrown directly.
+//    RuntimeException and AppError are thrown directly.
 try {
     Integer result = computation.run();
     System.out.println("Result: " + result);

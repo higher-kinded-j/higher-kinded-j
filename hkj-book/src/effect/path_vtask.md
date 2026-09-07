@@ -120,7 +120,7 @@ VTaskPath<Integer> task = Path.vtask(() -> compute());
 
 // 1. unsafeRun() - Blocks, may throw
 //    Checked exceptions are wrapped in VTaskExecutionException;
-//    RuntimeException and Error are thrown directly.
+//    RuntimeException and AppError are thrown directly.
 try {
     Integer result = task.unsafeRun();
 } catch (VTaskExecutionException e) {
@@ -285,9 +285,9 @@ VTask<List<String>> results = Scope.<String>allSucceed()
     .timeout(Duration.ofSeconds(5))
     .join();
 
-// Error accumulation with Validated
-VTask<Validated<List<Error>, List<String>>> validation =
-    Scope.<Error, String>accumulating(Error::from)
+// AppError accumulation with Validated
+VTask<Validated<List<AppError>, List<String>>> validation =
+    Scope.<AppError, String>accumulating(AppError::from)
         .fork(validateField1())
         .fork(validateField2())
         .join();

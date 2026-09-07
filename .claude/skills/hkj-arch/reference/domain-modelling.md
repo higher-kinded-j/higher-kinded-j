@@ -67,7 +67,7 @@ public int toHttpStatus(AppError error) {
 
 <!-- verify -->
 ```java
-// Just use Either<Error, Success>
+// Just use Either<AppError, Success>
 Either<OrderError, Order> result = orderService.processOrder(request);
 ```
 

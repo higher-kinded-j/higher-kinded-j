@@ -30,7 +30,7 @@ import org.higherkindedj.optics.focus.AffinePath;
 import org.higherkindedj.optics.focus.FocusPath;
 import org.higherkindedj.optics.focus.TraversalPath;
 
-record Error(String message) {}
+record AppError(String message) {}
 
 record Manager(String name, String email, int salary) {}
 
@@ -89,7 +89,7 @@ class Fixture {
 
   static final Position position = sample();
 
-  static Kind<EitherKind.Witness<Error>, String> validateAndTransform(String value) {
+  static Kind<EitherKind.Witness<AppError>, String> validateAndTransform(String value) {
     throw new UnsupportedOperationException("a fixture value: snippets are compiled, not run");
   }
 

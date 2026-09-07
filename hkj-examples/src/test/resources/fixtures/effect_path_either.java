@@ -27,11 +27,11 @@ record Config(String name) {
 }
 
 /** The page's untyped error, and the one variant its constructor example names. */
-sealed interface Error permits ValidationError, ApiError {}
+sealed interface AppError permits ValidationError, ApiError {}
 
-record ValidationError(String message) implements Error {}
+record ValidationError(String message) implements AppError {}
 
-record ApiError(String message) implements Error {
+record ApiError(String message) implements AppError {
 
   static DomainError toDomain(ApiError error) {
     return new DomainError(error.message());
@@ -113,9 +113,9 @@ class Fixture {
   static final EitherPath<ApiError, User> apiPath =
       Path.either(Either.right(new User("Ada")));
 
-  static final EitherPath<Error, User> path = Path.either(Either.right(new User("Ada")));
+  static final EitherPath<AppError, User> path = Path.either(Either.right(new User("Ada")));
 
-  static Either<Error, User> validateUser(String input) {
+  static Either<AppError, User> validateUser(String input) {
     return Either.right(new User("Ada"));
   }
 

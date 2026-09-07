@@ -155,11 +155,15 @@ AssetClass rebalanced =
 ~~~admonish warning title="Raw and wildcard container type arguments"
 An SPI container widens by receiving an optic **instance** — `.some(Affines.eitherRight())`, `.each(EachInstances.mapValuesEach())` — whose own type arguments javac infers from the field type. A raw container offers none to infer from, and a wildcard has no ground instantiation, so `@GenerateFocus` rejects the component rather than emitting a call that cannot compile:
 
+<!-- verify:rejects "has a wildcard type argument" -->
 ```java
 // Rejected: no Affine can be denoted for a wildcard type argument
 @GenerateFocus
 public record Holder(Either<String, ? extends Leaf> boundedEither) {}
+```
 
+<!-- verify -->
+```java
 // Accepted
 @GenerateFocus
 public record Holder(Either<String, Leaf> either) {}

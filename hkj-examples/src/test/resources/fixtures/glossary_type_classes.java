@@ -64,8 +64,8 @@ import org.higherkindedj.hkt.optional.OptionalKind;
 import org.higherkindedj.hkt.validated.Validated;
 import org.higherkindedj.hkt.validated.ValidatedKind;
 
-/** The page's own error, which shadows `java.lang.Error`. */
-record Error(String message) {}
+/** The page's own error. */
+record AppError(String message) {}
 
 record User(String id, String name) {}
 
@@ -162,11 +162,11 @@ class Fixture<
     return sample();
   }
 
-  static CompletableFuture<Either<Error, User>> fetchUser(String id) {
+  static CompletableFuture<Either<AppError, User>> fetchUser(String id) {
     return sample();
   }
 
-  static CompletableFuture<Either<Error, Profile>> fetchProfile(User user) {
+  static CompletableFuture<Either<AppError, Profile>> fetchProfile(User user) {
     return sample();
   }
 }

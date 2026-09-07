@@ -19,7 +19,7 @@ record User(Long id, String name) {}
 
 record CreateUserRequest(String name) {}
 
-record Error(String message) {}
+record AppError(String message) {}
 
 record Config(String env) {}
 
@@ -29,7 +29,7 @@ class Fixture {
     throw new UnsupportedOperationException("a fixture value: snippets are compiled, not run");
   }
 
-  static final ErrorContext<?, Error, User> errorCtx = sample();
+  static final ErrorContext<?, AppError, User> errorCtx = sample();
 
   static final ConfigContext<?, Config, User> configCtx = sample();
 

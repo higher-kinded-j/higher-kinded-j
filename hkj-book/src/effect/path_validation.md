@@ -24,7 +24,7 @@ ValidationPath<List<String>, Integer> valid =
 
 // Invalid value with errors
 ValidationPath<List<String>, Integer> invalid =
-    Path.invalid(List.of("Error 1", "Error 2"), Semigroups.list());
+    Path.invalid(List.of("AppError 1", "AppError 2"), Semigroups.list());
 
 // From existing Validated
 ValidationPath<String, User> user =

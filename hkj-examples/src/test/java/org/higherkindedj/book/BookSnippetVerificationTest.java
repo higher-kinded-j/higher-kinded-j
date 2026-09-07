@@ -56,12 +56,11 @@ class BookSnippetVerificationTest {
    * as pages are brought under the gate; a drop means a marker was removed, which is exactly the
    * move this gate exists to catch.
    *
-   * <p>It went 49 -> 38 when record_mapping's eleven snippets moved to {@code {{#include}}}: the
-   * page now renders the compiled example directly, which is a stronger guarantee than compiling a
-   * copy of it, so those snippets no longer need a marker. That is the only reason this number may
-   * fall.
+   * <p>One move may lower it: a snippet replaced by {@code {{#include}}}, which renders the
+   * compiled source directly and is a stronger guarantee than compiling a copy of it. Lower the
+   * floor deliberately then, and say so in the commit message.
    */
-  private static final int MINIMUM_VERIFIED_SNIPPETS = 2446;
+  private static final int MINIMUM_VERIFIED_SNIPPETS = 2449;
 
   /**
    * How many of those snippets must quote a diagnostic, under {@code verify:rejects} or {@code
@@ -69,7 +68,7 @@ class BookSnippetVerificationTest {
    * check for an easy positive snippet elsewhere leaves the total untouched, and those checks are
    * the only thing holding the pages that document refusals to what the processor actually says.
    */
-  private static final int MINIMUM_DIAGNOSTIC_SNIPPETS = 49;
+  private static final int MINIMUM_DIAGNOSTIC_SNIPPETS = 50;
 
   /**
    * Every documentation root whose code is verified. The book was the first; the skills are the

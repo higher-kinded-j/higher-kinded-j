@@ -56,16 +56,16 @@ record User(String name, Address address) {}
 
 /**
  * The error channel the payment railway runs on. The variants are top-level because the page
- * writes `new UserNotFound(userId)` unqualified, and shadowing `java.lang.Error` is deliberate:
- * `Error` is the name the front page uses.
+ * writes `new UserNotFound(userId)` unqualified, and shadowing `java.lang.AppError` is deliberate:
+ * `AppError` is the name the front page uses.
  */
-sealed interface Error permits UserNotFound, PaymentFailed, BadPostcode {}
+sealed interface AppError permits UserNotFound, PaymentFailed, BadPostcode {}
 
-record UserNotFound(String userId) implements Error {}
+record UserNotFound(String userId) implements AppError {}
 
-record PaymentFailed(Throwable cause) implements Error {}
+record PaymentFailed(Throwable cause) implements AppError {}
 
-record BadPostcode(String postcode) implements Error {}
+record BadPostcode(String postcode) implements AppError {}
 
 record OrderResult(Charge charge) {
 
@@ -119,7 +119,7 @@ class Fixture {
 
   static final UserService userService = new UserService();
 
-  static final Either<Error, Integer> result = Either.right(42);
+  static final Either<AppError, Integer> result = Either.right(42);
 
   static final Maybe<String> value = Maybe.just("hello");
 
@@ -129,7 +129,7 @@ class Fixture {
     return Maybe.just(user);
   }
 
-  static EitherPath<Error, String> validatePostcode(String postcode) {
+  static EitherPath<AppError, String> validatePostcode(String postcode) {
     return Path.either(Either.right(postcode));
   }
 
@@ -139,7 +139,7 @@ class Fixture {
 
   static final class Validator {
 
-    Either<Error, PaymentRequest> validate(PaymentRequest request, User user) {
+    Either<AppError, PaymentRequest> validate(PaymentRequest request, User user) {
       return Either.right(request);
     }
 
@@ -165,7 +165,7 @@ class Fixture {
 
   static final class UserService {
 
-    EitherPath<Error, User> findById(String id) {
+    EitherPath<AppError, User> findById(String id) {
       return Path.either(Either.right(user));
     }
   }

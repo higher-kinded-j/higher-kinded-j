@@ -52,10 +52,10 @@ record Dashboard(User user, List<Order> orders, Analytics analytics) {
   }
 }
 
-record Error(String message) {
+record AppError(String message) {
 
-  static Error from(Throwable cause) {
-    return new Error(cause.getMessage());
+  static AppError from(Throwable cause) {
+    return new AppError(cause.getMessage());
   }
 }
 

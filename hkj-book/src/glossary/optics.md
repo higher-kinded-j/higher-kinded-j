@@ -146,7 +146,7 @@ FieldError located = bare.at("zip").at("address");      // pathString() == "addr
 
 **Definition:** A domain-specific language for fluent, type-safe navigation and manipulation of immutable data structures. The Focus DSL provides a composable way to build paths through nested records without manual lens composition.
 
-**Core Concept:** Instead of composing optics manually, the Focus DSL lets you chain `.focus()` calls to navigate through data structures, with the optic types inferred automatically.
+**Core Concept:** Instead of composing optics manually, the Focus DSL lets you chain `.then(...)` hops off a generated navigator, with the optic types inferred automatically.
 
 **Example:**
 <!-- verify -->
@@ -171,7 +171,7 @@ Employee updated = EmployeeFocus.company()
     .modify(String::toUpperCase, employee);
 
 // Mix with Effect Paths for effectful navigation
-EitherPath<Error, String> effectfulCity = employeeService.findById(id)
+EitherPath<AppError, String> effectfulCity = employeeService.findById(id)
     .focus(EmployeeFocus.company())
     .focus(CompanyFocus.address())
     .focus(AddressFocus.city());
@@ -180,7 +180,7 @@ EitherPath<Error, String> effectfulCity = employeeService.findById(id)
 **Key Features:**
 - Type-safe: Compiler catches invalid paths
 - Composable: Chain any optic types together
-- Generated: `@GenerateLenses` creates Focus helpers automatically
+- Generated: `@GenerateFocus` creates Focus helpers automatically
 - Effect integration: Seamlessly works with Effect Paths
 
 **Related:** [FocusPath](#focuspath), [Lens](#lens), [Effect-Optics Bridge](effect-paths.md#effect-optics-bridge), [Focus DSL Documentation](../optics/focus_dsl.md)
@@ -217,7 +217,7 @@ FocusPath<User, String> userCity = UserFocus.address()
     .then(AddressFocus.city());
 
 // Use with Effect Paths
-EitherPath<Error, String> cityPath = loadUser(id)
+EitherPath<AppError, String> cityPath = loadUser(id)
     .focus(UserFocus.address())
     .focus(AddressFocus.city());
 ```

@@ -40,9 +40,9 @@ if (user != null) {
 <!-- verify -->
 ```java
 // Effect Path API: flat, composable railway
-EitherPath<Error, OrderResult> result =
+EitherPath<AppError, OrderResult> result =
     Path.maybe(findUser(userId))
-        .<Error>toEitherPath(new UserNotFound(userId))
+        .<AppError>toEitherPath(new UserNotFound(userId))
         .via(user -> Path.either(validator.validate(request, user)))
         .via(valid -> Path.tryOf(() -> paymentService.charge(valid))
             .toEitherPath(PaymentFailed::new))
@@ -127,10 +127,10 @@ flowchart TB
 ```java
 // Fetch user (effect) → navigate to address (optics) →
 // extract postcode (optics) → validate (effect)
-EitherPath<Error, String> result =
-    userService.findById(userId)           // EitherPath<Error, User>
-        .focus(UserFocus.address())        // EitherPath<Error, Address>
-        .focus(AddressFocus.postcode())    // EitherPath<Error, String>
+EitherPath<AppError, String> result =
+    userService.findById(userId)           // EitherPath<AppError, User>
+        .focus(UserFocus.address())        // EitherPath<AppError, Address>
+        .focus(AddressFocus.postcode())    // EitherPath<AppError, String>
         .via(code -> validatePostcode(code));
 ```
 

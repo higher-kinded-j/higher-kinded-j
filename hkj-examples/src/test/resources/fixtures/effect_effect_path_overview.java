@@ -46,8 +46,8 @@ record User(String name, Optional<String> email, Address address) {
   }
 }
 
-/** The page's untyped error, carried by the `EitherPath<Error, …>` catalogue examples. */
-record Error(String message) {}
+/** The page's untyped error, carried by the `EitherPath<AppError, …>` catalogue examples. */
+record AppError(String message) {}
 
 sealed interface OrderError {
 
@@ -183,15 +183,15 @@ class Fixture {
 
   static final java.nio.file.Path configFile = java.nio.file.Path.of("application.conf");
 
-  static final Error noPostcodeError = new Error("No postcode");
+  static final AppError noPostcodeError = new AppError("No postcode");
 
   static final MaybePath<String> maybePathOfString = Path.just("hello");
 
   static final MaybePath<User> maybePath = Path.maybe(User.anonymous());
 
-  static final EitherPath<Error, User> eitherPath = Path.either(Either.right(User.anonymous()));
+  static final EitherPath<AppError, User> eitherPath = Path.either(Either.right(User.anonymous()));
 
-  static final EitherPath<Error, User> userPath = eitherPath;
+  static final EitherPath<AppError, User> userPath = eitherPath;
 
   static final IOPath<String> ioPath = Path.io(() -> "contents");
 
@@ -209,35 +209,35 @@ class Fixture {
 
   static final Logger log = new Logger();
 
-  static Either<Error, User> findUser(String userId) {
+  static Either<AppError, User> findUser(String userId) {
     return Either.right(User.anonymous());
   }
 
-  static Either<Error, Cart> getCart(User user) {
+  static Either<AppError, Cart> getCart(User user) {
     return Either.right(new Cart(List.of()));
   }
 
-  static Either<Error, Total> calculateTotal(Cart cart) {
+  static Either<AppError, Total> calculateTotal(Cart cart) {
     return Either.right(new Total(0));
   }
 
-  static Either<Error, Invoice> createInvoice(Total total) {
+  static Either<AppError, Invoice> createInvoice(Total total) {
     return Either.right(new Invoice("i-1"));
   }
 
-  static EitherPath<Error, User> fetchUser(String userId) {
+  static EitherPath<AppError, User> fetchUser(String userId) {
     return Path.either(Either.right(User.anonymous()));
   }
 
-  static EitherPath<Error, ValidPostcode> validatePostcode(String code) {
+  static EitherPath<AppError, ValidPostcode> validatePostcode(String code) {
     return Path.either(Either.right(new ValidPostcode(code)));
   }
 
-  static Either<Error, String> validateInput(String input) {
+  static Either<AppError, String> validateInput(String input) {
     return Either.right(input);
   }
 
-  static Either<Error, User> createUser(String valid) {
+  static Either<AppError, User> createUser(String valid) {
     return Either.right(User.anonymous());
   }
 

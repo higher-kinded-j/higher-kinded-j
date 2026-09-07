@@ -75,11 +75,11 @@ final class UserLenses {
 
 record Data(String value) {}
 
-sealed interface ApiResponse permits Success, Error, Loading {}
+sealed interface ApiResponse permits Success, AppError, Loading {}
 
 record Success(Data data, String timestamp) implements ApiResponse {}
 
-record Error(String message, int code) implements ApiResponse {}
+record AppError(String message, int code) implements ApiResponse {}
 
 record Loading() implements ApiResponse {}
 

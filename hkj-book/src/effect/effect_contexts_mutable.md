@@ -427,7 +427,7 @@ StateT<Counter, IOKind.Witness, Integer> transformer = ctx.toStateT();
 ~~~admonish tip title="See Also"
 - [StateT Transformer](../transformers/statet_transformer.md) - The underlying transformer
 - [State Monad](../monads/state_monad.md) - The State type
-- [Advanced Effects](advanced_effects.md) - StatePath for simpler State usage
+- [Advanced Effects](advanced_effects.md) - WithStatePath for simpler State usage
 ~~~
 
 ---

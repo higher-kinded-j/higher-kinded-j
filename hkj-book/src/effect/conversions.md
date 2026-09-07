@@ -103,9 +103,9 @@ This is useful when:
 <!-- verify -->
 ```java
 // Service that returns Maybe internally but Either externally
-public EitherPath<Error, User> getUserOrError(String id) {
+public EitherPath<AppError, User> getUserOrError(String id) {
     return Path.maybe(userRepository.findById(id))
-        .toEitherPath(Error.notFound(id));
+        .toEitherPath(AppError.notFound(id));
 }
 ```
 
@@ -436,10 +436,10 @@ MaybePath<Integer> validated = value > 0
 <!-- verify -->
 ```java
 // Success
-EitherPath<Error, Integer> success = Path.right(42);
+EitherPath<AppError, Integer> success = Path.right(42);
 
 // Failure
-EitherPath<Error, Integer> failure = Path.left(new Error("failed"));
+EitherPath<AppError, Integer> failure = Path.left(new AppError("failed"));
 
 // Conditional lifting
 EitherPath<String, Integer> validated = value > 0
@@ -555,7 +555,7 @@ Either<String, Integer> either = path.run();
 
 // Pattern match with fold
 String result = either.fold(
-    error -> "Error: " + error,
+    error -> "AppError: " + error,
     value -> "Value: " + value
 );
 
@@ -589,7 +589,7 @@ boolean succeeded = tryValue.isSuccess();
 
 // Handle both sides, failure first
 String message = tryValue.foldFailureFirst(
-    cause -> "Error: " + cause.getMessage(),
+    cause -> "AppError: " + cause.getMessage(),
     ok -> "Value: " + ok);
 ```
 
@@ -703,17 +703,17 @@ Convert at service boundaries, not throughout:
 <!-- verify -->
 ```java
 // Good: Convert once at the boundary
-public EitherPath<Error, User> getUser(String id) {
+public EitherPath<AppError, User> getUser(String id) {
     return Path.maybe(repository.findById(id))  // Internal Maybe
-        .toEitherPath(Error.notFound(id));      // Convert at boundary
+        .toEitherPath(AppError.notFound(id));      // Convert at boundary
 }
 
 // Avoid: Converting back and forth
-public EitherPath<Error, User> getUserTheLongWayRound(String id) {
+public EitherPath<AppError, User> getUserTheLongWayRound(String id) {
     return Path.maybe(repository.findById(id))
-        .toEitherPath(Error.notFound(id))
+        .toEitherPath(AppError.notFound(id))
         .toMaybePath()  // Why convert back?
-        .toEitherPath(Error.notFound(id)); // And forth again?
+        .toEitherPath(AppError.notFound(id)); // And forth again?
 }
 ```
 

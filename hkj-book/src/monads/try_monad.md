@@ -49,7 +49,7 @@ You can create `Try` instances in several ways:
 1. **`Try.of(Supplier)`:** Executes a `Supplier` and wraps the result in `Success`, or catches any `Exception` thrown by the supplier and wraps it in `Failure`. In practice this means `RuntimeException`: a standard `Supplier<T>` cannot declare checked exceptions in its lambda body. `Error` and other non-`Exception` `Throwable`s are **not** caught; they propagate out of `Try.of`. Use `Try.of` when your lambda either produces a pure value or may throw a runtime exception; use `Try.attempt` (below) when interoperating with Java APIs that declare checked exceptions.
 
    <!-- verify -->
-```java
+   ```java
    import org.higherkindedj.hkt.trymonad.Try;
 
    // Success case
@@ -62,7 +62,7 @@ You can create `Try` instances in several ways:
 2. **`Try.attempt(CheckedSupplier)`:** The preferred entry point when working with Java APIs that throw checked exceptions (`Files.readString`, `Class.forName`, JDBC, reflection, and similar). `CheckedSupplier<T, X extends Exception>` is a `Supplier`-like functional interface whose `get()` declares `throws X`, so the lambda body can throw checked exceptions directly. Any thrown `Exception` (checked or unchecked) is caught and wrapped in `Failure`; `Error`s propagate.
 
    <!-- verify -->
-```java
+   ```java
    import org.higherkindedj.hkt.trymonad.Try;
    import java.nio.file.Files;
    import java.nio.file.Paths;
@@ -80,14 +80,14 @@ You can create `Try` instances in several ways:
 3. **`Try.success(value)`:** Directly creates a `Success` instance holding the given value (which can be null).
 
    <!-- verify -->
-```java
+   ```java
    Try<String> directSuccess = Try.success("Known value");
    Try<String> successNull = Try.success(null);
    ```
 4. **`Try.failure(throwable)`:** Directly creates a `Failure` instance holding the given non-null `Throwable`.
 
    <!-- verify -->
-```java
+   ```java
    Try<String> directFailure = Try.failure(new RuntimeException("Something went wrong"));
    ```
 ~~~

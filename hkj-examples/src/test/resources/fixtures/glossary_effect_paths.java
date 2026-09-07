@@ -44,7 +44,7 @@ import org.higherkindedj.hkt.maybe.Maybe;
 import org.higherkindedj.hkt.vtask.VTask;
 import org.higherkindedj.optics.annotations.GenerateFocus;
 
-record Error(String message) {}
+record AppError(String message) {}
 
 record UserError(String message) {}
 
@@ -138,7 +138,7 @@ interface PaymentService {
 }
 
 interface UserService {
-  EitherPath<Error, User> findById(String id);
+  EitherPath<AppError, User> findById(String id);
 }
 
 /** The reader's own algebras, declared for real so the processor generates their support. */
@@ -209,15 +209,15 @@ class Fixture {
     throw new UnsupportedOperationException("a fixture value: snippets are compiled, not run");
   }
 
-  static Either<Error, User> findUser(String id) {
-    return Either.left(new Error("not found"));
+  static Either<AppError, User> findUser(String id) {
+    return Either.left(new AppError("not found"));
   }
 
   static Maybe<Config> findConfig() {
     return Maybe.just(new Config("app"));
   }
 
-  static EitherPath<Error, Config> loadConfig() {
+  static EitherPath<AppError, Config> loadConfig() {
     return Path.right(new Config("app"));
   }
 
@@ -229,7 +229,7 @@ class Fixture {
     return "";
   }
 
-  static EitherPath<Error, String> validateName(String name) {
+  static EitherPath<AppError, String> validateName(String name) {
     return Path.right(name);
   }
 
@@ -239,51 +239,51 @@ class Fixture {
 
   static final OrderRequest req = new OrderRequest("c-1", "221B Baker Street");
 
-  static Either<Error, Order> validateOrder(OrderRequest request, Customer customer) {
-    return Either.left(new Error("invalid"));
+  static Either<AppError, Order> validateOrder(OrderRequest request, Customer customer) {
+    return Either.left(new AppError("invalid"));
   }
 
   static Receipt createReceipt(OrderRequest request, Payment payment) {
     return new Receipt(payment.id());
   }
 
-  static Either<Error, User> lookupUser(String id) {
+  static Either<AppError, User> lookupUser(String id) {
     return findUser(id);
   }
 
-  static EitherPath<Error, Account> getAccount(User user) {
-    return Path.left(new Error("no account"));
+  static EitherPath<AppError, Account> getAccount(User user) {
+    return Path.left(new AppError("no account"));
   }
 
-  static EitherPath<Error, Account> validateActive(Account account) {
-    return Path.left(new Error("inactive"));
+  static EitherPath<AppError, Account> validateActive(Account account) {
+    return Path.left(new AppError("inactive"));
   }
 
   static EitherPath<ApiError, User> fetchUser(String id) {
     return Path.left(new ApiError.NotFound());
   }
 
-  static EitherPath<Error, Data> primarySource() {
-    return Path.left(new Error("down"));
+  static EitherPath<AppError, Data> primarySource() {
+    return Path.left(new AppError("down"));
   }
 
-  static EitherPath<Error, Data> fallbackSource() {
+  static EitherPath<AppError, Data> fallbackSource() {
     return Path.right(new Data("cached"));
   }
 
-  static EitherPath<Error, Cart> getCart(User user) {
-    return Path.left(new Error("no cart"));
+  static EitherPath<AppError, Cart> getCart(User user) {
+    return Path.left(new AppError("no cart"));
   }
 
-  static EitherPath<Error, ValidatedCart> validateCart(Cart cart) {
-    return Path.left(new Error("invalid cart"));
+  static EitherPath<AppError, ValidatedCart> validateCart(Cart cart) {
+    return Path.left(new AppError("invalid cart"));
   }
 
-  static EitherPath<Error, Order> createOrder(ValidatedCart cart) {
-    return Path.left(new Error("not created"));
+  static EitherPath<AppError, Order> createOrder(ValidatedCart cart) {
+    return Path.left(new AppError("not created"));
   }
 
-  static final EitherPath<Error, User> userPath = sample();
+  static final EitherPath<AppError, User> userPath = sample();
 
   static User findUserOrNull(String id) {
     return null;
@@ -303,19 +303,19 @@ class Fixture {
     return sample();
   }
 
-  static Either<Error, Company> loadCompany(String id) {
-    return Either.left(new Error("not found"));
+  static Either<AppError, Company> loadCompany(String id) {
+    return Either.left(new AppError("not found"));
   }
 
-  static EitherPath<Error, List<Metrics>> loadMetrics(List<Department> departments) {
-    return Path.left(new Error("not found"));
+  static EitherPath<AppError, List<Metrics>> loadMetrics(List<Department> departments) {
+    return Path.left(new AppError("not found"));
   }
 
   static Report generateReport(List<Metrics> metrics) {
     return new Report(metrics);
   }
 
-  static EitherPath<Error, User> loadUser(String id) {
+  static EitherPath<AppError, User> loadUser(String id) {
     return userService.findById(id);
   }
 }

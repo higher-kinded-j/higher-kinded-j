@@ -304,11 +304,11 @@ For most use cases, prefer **[ValidationPath](../effect/path_validation.md)** wh
 <!-- verify -->
 ```java
 // Instead of manual Validated chaining:
-Validated<List<Error>, User> user = validateUser(input);
-Validated<List<Error>, Order> order = user.flatMap(u -> createOrder(u));
+Validated<List<AppError>, User> user = validateUser(input);
+Validated<List<AppError>, Order> order = user.flatMap(u -> createOrder(u));
 
 // Use ValidationPath for cleaner composition:
-ValidationPath<List<Error>, Order> orderPath =
+ValidationPath<List<AppError>, Order> orderPath =
     Path.validated(validateUser(input), Semigroups.list())
         .via(u -> createOrderPath(u));
 ```

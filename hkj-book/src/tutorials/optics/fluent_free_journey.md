@@ -31,9 +31,9 @@ Fluent API (ergonomics) → Advanced Prisms → Free Monad DSL (programs as data
 Learn the ergonomic fluent API for Java-friendly optic operations.
 
 **What you'll learn**:
-- Source-first static methods: `Lenses.get(lens, source)`
-- Collection operations: `Traversals.getAll`, `Traversals.modifyAll`, `Traversals.setAll`
-- Query operations: `Traversals.exists`, `Traversals.count`, `Traversals.find`
+- Source-first static methods: `OpticOps.get(source, lens)`
+- Collection operations: `OpticOps.getAll`, `OpticOps.modifyAll`, `OpticOps.setAll`
+- Query operations: `OpticOps.exists`, `OpticOps.count`, `OpticOps.find`
 - Integration with `Either`, `Maybe`, `Validated` for effectful operations
 - Real-world form validation with optics + Either
 
@@ -49,7 +49,7 @@ String name = lens.get(user);
 String fluentName = OpticOps.get(user, lens);
 
 // Query a collection
-boolean hasAdmin = rolesTraversal.asFold().exists(Role::isAdmin, user);
+boolean hasAdmin = OpticOps.exists(user, rolesTraversal, Role::isAdmin);
 ```
 
 **Real-world application**: Form validation, data querying, conditional updates, batch processing.

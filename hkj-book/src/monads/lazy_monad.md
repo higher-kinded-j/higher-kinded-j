@@ -188,7 +188,7 @@ Neither `map` nor `flatMap` triggers evaluation; they build a new `Lazy` that wi
 `Lazy` is what we wrap around any *expensive* step in a Foundations-style chain that we are not sure we will need:
 
 ```java
-Lazy<EitherPath<Error, Node>> defer =
+Lazy<EitherPath<AppError, Node>> defer =
     Lazy.defer(() ->
         repo.find(id)
             .toEitherPath()
@@ -196,7 +196,7 @@ Lazy<EitherPath<Error, Node>> defer =
             .modify(spec::validateAndCoerce));
 
 // Only runs the chain (and only once) if and when the value is actually requested
-EitherPath<Error, Node> result = defer.force().flatMap(repo::save);
+EitherPath<AppError, Node> result = defer.force().flatMap(repo::save);
 ```
 
 `LazyMonad` lets us compose these deferred values without forcing them, then trigger one evaluation at the edge. The memoisation guarantee means repeated `force()` calls return the same answer without re-running the chain. Useful when the work is heavy and conditional on a downstream branch.

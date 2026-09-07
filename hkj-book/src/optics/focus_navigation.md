@@ -198,7 +198,7 @@ Set `generateNavigators = true` and the processor emits a small wrapper class pe
 record Address(String street, String city) {}
 
 @GenerateFocus(generateNavigators = true)
-record Company(String name, Address headquarters) {}
+record Company(String name, Address headquarters, List<Department> departments) {}
 ```
 
 <!-- verify -->

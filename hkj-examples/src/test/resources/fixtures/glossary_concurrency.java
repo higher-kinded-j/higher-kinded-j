@@ -3,8 +3,8 @@
 // The glossary defines a term and then shows it in use, so each entry's snippet elides the domain
 // it is acting on. The tasks, the resources and the services are declared here.
 //
-// `Error` is the page's own accumulation error, not `java.lang.Error`; declaring it top-level here
-// is what shadows the JDK's, exactly as a reader's own `Error` would.
+// `AppError` is the page's own accumulation error, named so that it cannot be read as a JDK type; declaring it top-level here
+// is what shadows the JDK's, exactly as a reader's own `AppError` would.
 //
 // NOTE: imports in a fixture serve the snippets it is spliced into. Spotless excludes
 // src/test/resources so an "unused import" cleanup cannot break fixtures (see build.gradle.kts).
@@ -39,11 +39,11 @@ record Package(String name) {}
 
 record Result(String value) {}
 
-/** The page's own accumulation error, which shadows `java.lang.Error`. */
-record Error(String message) {
+/** The page's own accumulation error. */
+record AppError(String message) {
 
-  static Error from(Throwable cause) {
-    return new Error(String.valueOf(cause.getMessage()));
+  static AppError from(Throwable cause) {
+    return new AppError(String.valueOf(cause.getMessage()));
   }
 }
 

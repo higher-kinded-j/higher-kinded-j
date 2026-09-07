@@ -276,11 +276,11 @@ Kind<OptionalKind.Witness, Order> order =
 <!-- verify -->
 ```java
 // Problem: combining async + error handling manually is verbose. Two APIs:
-//   CompletableFuture<Either<Error, User>> fetchUser(String id)
-//   CompletableFuture<Either<Error, Profile>> fetchProfile(User user)
+//   CompletableFuture<Either<AppError, User>> fetchUser(String id)
+//   CompletableFuture<Either<AppError, Profile>> fetchProfile(User user)
 
 // Without transformer: nested flatMaps
-CompletableFuture<Either<Error, Profile>> result =
+CompletableFuture<Either<AppError, Profile>> result =
     fetchUser(id).thenCompose(eitherUser ->
         eitherUser.fold(
             error -> CompletableFuture.completedFuture(Either.left(error)),
@@ -290,7 +290,7 @@ CompletableFuture<Either<Error, Profile>> result =
 
 // With EitherT: flat composition through the transformer's own monad. Name L: nothing else
 // constrains it, and it would otherwise infer to Object.
-var eitherTMonad = Instances.<CompletableFutureKind.Witness, Error>eitherT(cfMonad);
+var eitherTMonad = Instances.<CompletableFutureKind.Witness, AppError>eitherT(cfMonad);
 
 var transformed =
     eitherTMonad.flatMap(
@@ -298,7 +298,7 @@ var transformed =
         EitherT.fromKind(FUTURE.widen(fetchUser(id))));
 
 // Run to get the nested type back
-CompletableFuture<Either<Error, Profile>> unwrapped =
+CompletableFuture<Either<AppError, Profile>> unwrapped =
     FUTURE.narrow(EITHER_T.narrow(transformed).value());
 ```
 
@@ -312,11 +312,11 @@ CompletableFuture<Either<Error, Profile>> unwrapped =
 <!-- verify -->
 ```java
 // Lift the outer monad into the transformer
-EitherT<IOKind.Witness, Error, String> lifted =
+EitherT<IOKind.Witness, AppError, String> lifted =
     EitherT.liftF(ioMonad, IO_OP.widen(IO.delay(() -> "hello")));
 
 // Lift an Either into the transformer
-EitherT<IOKind.Witness, Error, Integer> fromEither =
+EitherT<IOKind.Witness, AppError, Integer> fromEither =
     EitherT.fromEither(ioMonad, Either.right(42));
 ```
 

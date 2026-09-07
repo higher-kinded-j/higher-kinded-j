@@ -162,9 +162,9 @@ The `narrow` instance methods in all `KindHelper` enums are designed to be robus
       // ERROR: Attempting to narrow null
       Optional<String> result = OPTIONAL.narrow(null);
     } catch(KindUnwrapException e) {
-      System.err.println("Higher-Kinded-J Usage Error: " + e.getMessage());
+      System.err.println("Higher-Kinded-J Usage AppError: " + e.getMessage());
       // Example Output (message from OptionalKindHelper.INVALID_KIND_NULL_MSG):
-      // Usage Error: Cannot narrow null Kind for Optional
+      // Usage AppError: Cannot narrow null Kind for Optional
     }
   }
 ```

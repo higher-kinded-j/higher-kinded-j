@@ -200,7 +200,7 @@ The `via` method is the workhorse:
 
 <!-- verify -->
 ```java
-EitherPath<Error, Invoice> invoice =
+EitherPath<AppError, Invoice> invoice =
     Path.either(findUser(userId))
         .via(user -> Path.either(getCart(user)))      // needs user
         .via(cart -> Path.either(calculateTotal(cart))) // needs cart

@@ -64,11 +64,11 @@ record Config(String name) {
   }
 }
 
-record Error(String message) {}
+record AppError(String message) {}
 
-record ServiceError(String message, Error cause) {}
+record ServiceError(String message, AppError cause) {}
 
-record DetailedError(Error cause, String where, Map<String, Object> context) {}
+record DetailedError(AppError cause, String where, Map<String, Object> context) {}
 
 record Result(String value) {}
 
@@ -110,7 +110,7 @@ sealed interface OrderError {
 
   record UserNotFound(String userId) implements OrderError {}
 
-  record InventoryError(Error cause) implements OrderError {}
+  record InventoryError(AppError cause) implements OrderError {}
 
   record PaymentFailed(Throwable cause) implements OrderError {}
 }
@@ -134,7 +134,7 @@ final class UserRepository {
 
 final class InventoryService {
 
-  Either<Error, Available> check(List<Item> items) {
+  Either<AppError, Available> check(List<Item> items) {
     return Either.right(new Available(new Total(0)));
   }
 }
@@ -162,7 +162,7 @@ class Fixture {
   static final OrderInput orderInput =
       new OrderInput("Ada", "ada@example.com", new Address("1 Old Street"), List.of("sku-1"));
 
-  static final EitherPath<Error, Data> path = Path.either(Either.right(new Data("d")));
+  static final EitherPath<AppError, Data> path = Path.either(Either.right(new Data("d")));
 
   static final Logger log = new Logger();
 
@@ -174,9 +174,9 @@ class Fixture {
 
   static final Database database = new Database();
 
-  static final Error error = new Error("boom");
+  static final AppError error = new AppError("boom");
 
-  static final EitherPath<Error, User> userPath = Path.right(new User("Ada"));
+  static final EitherPath<AppError, User> userPath = Path.right(new User("Ada"));
 
   static final Signup signup = new Signup("Ada", "ada@example.com", 36);
 
@@ -184,71 +184,71 @@ class Fixture {
 
   static final ProductService productService = new ProductService();
 
-  static final EitherPath<Error, String> pathA = Path.right("a");
+  static final EitherPath<AppError, String> pathA = Path.right("a");
 
-  static final EitherPath<Error, String> pathB = Path.right("b");
+  static final EitherPath<AppError, String> pathB = Path.right("b");
 
-  static final EitherPath<Error, String> pathC = Path.right("c");
+  static final EitherPath<AppError, String> pathC = Path.right("c");
 
   // ---- sequential pipeline ------------------------------------------------------------------
 
-  static Either<Error, User> findUser(String userId) {
+  static Either<AppError, User> findUser(String userId) {
     return Either.right(new User("Ada"));
   }
 
-  static Either<Error, Cart> getCart(User user) {
+  static Either<AppError, Cart> getCart(User user) {
     return Either.right(new Cart(List.of()));
   }
 
-  static Either<Error, Total> calculateTotal(Cart cart) {
+  static Either<AppError, Total> calculateTotal(Cart cart) {
     return Either.right(new Total(0));
   }
 
-  static Either<Error, Invoice> createInvoice(Total total) {
+  static Either<AppError, Invoice> createInvoice(Total total) {
     return Either.right(new Invoice("i-1"));
   }
 
-  static Either<Error, Invoice> checkout(Cart cart) {
+  static Either<AppError, Invoice> checkout(Cart cart) {
     return Either.right(new Invoice("i-1"));
   }
 
   // ---- independent validation ----------------------------------------------------------------
 
-  static EitherPath<Error, String> validateName(String name) {
+  static EitherPath<AppError, String> validateName(String name) {
     return Path.right(name);
   }
 
-  static EitherPath<Error, String> validateEmail(String email) {
+  static EitherPath<AppError, String> validateEmail(String email) {
     return Path.right(email);
   }
 
-  static EitherPath<Error, Address> validateAddress(Address address) {
+  static EitherPath<AppError, Address> validateAddress(Address address) {
     return Path.right(address);
   }
 
-  static Either<Error, Inventory> checkInventory(List<String> items) {
+  static Either<AppError, Inventory> checkInventory(List<String> items) {
     return Either.right(new Inventory(items));
   }
 
-  static Either<Error, Pricing> calculatePricing(Inventory inventory) {
+  static Either<AppError, Pricing> calculatePricing(Inventory inventory) {
     return Either.right(new Pricing(0));
   }
 
-  static Either<Error, Order> createOrder(CustomerInfo customer, Pricing pricing) {
+  static Either<AppError, Order> createOrder(CustomerInfo customer, Pricing pricing) {
     return Either.right(new Order("o-1"));
   }
 
   // ---- observation and recovery ---------------------------------------------------------------
 
-  static Either<Error, String> validateInput(String input) {
+  static Either<AppError, String> validateInput(String input) {
     return Either.right(input);
   }
 
-  static Either<Error, User> createUser(String valid) {
+  static Either<AppError, User> createUser(String valid) {
     return Either.right(new User("Ada"));
   }
 
-  static Either<Error, String> sendWelcomeEmail(User user) {
+  static Either<AppError, String> sendWelcomeEmail(User user) {
     return Either.right(user.name());
   }
 
@@ -261,11 +261,11 @@ class Fixture {
     return Maybe.just(new User("Ada"));
   }
 
-  static Either<Error, Config> loadFromFile() {
+  static Either<AppError, Config> loadFromFile() {
     return Either.right(new Config("file"));
   }
 
-  static Either<Error, Config> loadFromEnvironment() {
+  static Either<AppError, Config> loadFromEnvironment() {
     return Either.right(new Config("env"));
   }
 
@@ -353,7 +353,7 @@ class Fixture {
 
   static final class ExternalApi {
 
-    Either<Error, Data> fetch() {
+    Either<AppError, Data> fetch() {
       return Either.right(new Data("api"));
     }
   }

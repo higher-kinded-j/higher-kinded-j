@@ -543,7 +543,7 @@ public class ValidatedTraversalExample {
         System.out.println();
 
         // --- SCENARIO 6: Alternative validation with different error accumulation ---
-        System.out.println("--- Scenario 6: Different Error Accumulation Strategy ---");
+        System.out.println("--- Scenario 6: Different AppError Accumulation Strategy ---");
 
         // Use list-based error accumulation instead of string concatenation
         Applicative<ValidatedKind.Witness<List<String>>> listApplicative =

@@ -41,8 +41,8 @@ import org.higherkindedj.optics.util.IndexedTraversals;
 import org.higherkindedj.optics.util.Traversals;
 
 // The page's stand-ins for "whatever the left and right of an Either are here". Declared so the
-// catalogue snippet reads as it is written; `Error` shadows java.lang.Error inside this unit.
-record Error(String message) {}
+// catalogue snippet reads as it is written.
+record AppError(String message) {}
 
 record Value(String value) {}
 

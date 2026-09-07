@@ -56,7 +56,7 @@ For working with Java's standard `Optional` type in the HKT system, see [Optiona
  ~~~admonish  title="_Maybe.just(@NonNull T value)_"
  Creates a `Just` holding a **non-null** value. Throws `NullPointerException` if `value` is null.
   <!-- verify -->
-```java
+  ```java
   Maybe<String> justHello = Maybe.just("Hello"); // Just("Hello")
   Maybe<String> illegalJust = Maybe.just(null); // Throws NullPointerException
   ```
@@ -64,14 +64,14 @@ For working with Java's standard `Optional` type in the HKT system, see [Optiona
   ~~~admonish  title="_Maybe.nothing()_"
  Returns a singleton `Nothing` instance.
   <!-- verify -->
-```java
+  ```java
   Maybe<Integer> noInt = Maybe.nothing(); // Nothing
   ```
   ~~~
   ~~~admonish  title="_Maybe.fromNullable(@Nullable T value)_"
  Creates `Just(value)` if `value` is non-null, otherwise `Nothing`.
   <!-- verify -->
-```java
+  ```java
   Maybe<String> fromPresent = Maybe.fromNullable("Present"); // Just("Present")
   Maybe<String> fromNull = Maybe.fromNullable(null);     // Nothing
   ```
@@ -79,7 +79,7 @@ For working with Java's standard `Optional` type in the HKT system, see [Optiona
   ~~~admonish  title="_Maybe.fromOptional(Optional<T> optional)_"
  Bridges in from the JDK: a present `Optional` becomes `Just`, an empty one `Nothing`. The inverse of `toOptional()`.
   <!-- verify -->
-```java
+  ```java
   Maybe<String> fromPresent = Maybe.fromOptional(Optional.of("Present")); // Just("Present")
   Maybe<String> fromEmpty = Maybe.fromOptional(Optional.empty());         // Nothing
   ```
@@ -90,7 +90,7 @@ For working with Java's standard `Optional` type in the HKT system, see [Optiona
 
 Converts a `Maybe<A>` to `Kind<MaybeKind.Witness, A>`. Since `Just` and `Nothing` directly implement `MaybeKind`, this performs a null check and type-safe cast (zero overhead, no wrapper object allocation).
   <!-- verify -->
-```java
+  ```java
   Kind<MaybeKind.Witness, String> kindJust = MAYBE.widen(Maybe.just("Wrapped"));
   Kind<MaybeKind.Witness,Integer> kindNothing = MAYBE.widen(Maybe.nothing());
   ```
@@ -109,7 +109,7 @@ Convenience for `widen(Maybe.nothing())`.
 
 Lifts a value into `Kind<MaybeKind.Witness, A>`. Uses `Maybe.fromNullable()` internally.
   <!-- verify -->
-```java
+  ```java
   MonadError<MaybeKind.Witness, Unit> maybeMonad = Instances.monadError(maybe());
   Kind<MaybeKind.Witness, String> kindFromMonad = maybeMonad.of("Monadic"); // Just("Monadic")
   Kind<MaybeKind.Witness, String> kindNullFromMonad = maybeMonad.of(null);   // Nothing
@@ -119,7 +119,7 @@ Lifts a value into `Kind<MaybeKind.Witness, A>`. Uses `Maybe.fromNullable()` int
 
 Creates a `Kind<MaybeKind.Witness, E>` representing `Nothing`. The `error` (Unit) argument is ignored.
   <!-- verify -->
-```java
+  ```java
   Kind<MaybeKind.Witness, Double> errorKind = maybeMonad.raiseError(Unit.INSTANCE); // Nothing
   ``` 
  ~~~

@@ -168,13 +168,13 @@ import org.higherkindedj.optics.extensions.EachExtensions;
 Each<Maybe<String>, String> maybeEach = EachExtensions.maybeEach();
 
 // Either right value traversal
-Each<Either<Error, Value>, Value> eitherEach = EachExtensions.eitherRightEach();
+Each<Either<AppError, Value>, Value> eitherEach = EachExtensions.eitherRightEach();
 
 // Try success value traversal
 Each<Try<String>, String> tryEach = EachExtensions.trySuccessEach();
 
 // Validated valid value traversal
-Each<Validated<List<Error>, Value>, Value> validatedEach = EachExtensions.validatedEach();
+Each<Validated<List<AppError>, Value>, Value> validatedEach = EachExtensions.validatedEach();
 ```
 
 ---

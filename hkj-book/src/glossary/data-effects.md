@@ -118,7 +118,7 @@ Either<String, Integer> failure = Either.left("Not found");
 
 // Pattern matching with fold
 String message = success.fold(
-    error -> "Error: " + error,
+    error -> "AppError: " + error,
     value -> "Got: " + value
 );  // "Got: 42"
 
@@ -127,7 +127,7 @@ Either<String, String> result = success
     .map(n -> n * 2)           // Right(84)
     .map(Object::toString);    // Right("84")
 
-// Error recovery: fold both arms into one value
+// AppError recovery: fold both arms into one value
 Integer recovered = failure.fold(error -> 0, value -> value);  // 0
 ```
 

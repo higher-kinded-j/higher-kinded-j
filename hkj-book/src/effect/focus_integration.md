@@ -83,7 +83,7 @@ User alice = new User("Alice", Optional.of("alice@example.com"));
 
 // Lift into different effect types
 MaybePath<String> maybeName = namePath.toMaybePath(alice);     // → Just("Alice")
-EitherPath<Error, String> eitherName = namePath.toEitherPath(alice); // → Right("Alice")
+EitherPath<AppError, String> eitherName = namePath.toEitherPath(alice); // → Right("Alice")
 TryPath<String> tryName = namePath.toTryPath(alice);           // → Success("Alice")
 IdPath<String> idName = namePath.toIdPath(alice);              // → Id("Alice")
 ```
@@ -159,11 +159,11 @@ the `focus()` method.
 <!-- verify -->
 ```java
 // Start with an effect containing structured data
-EitherPath<Error, User> userResult = fetchUser(userId);
+EitherPath<AppError, User> userResult = fetchUser(userId);
 
 // Navigate into the structure
 FocusPath<User, String> namePath = UserFocus.name();
-EitherPath<Error, String> nameResult = userResult.focus(namePath);
+EitherPath<AppError, String> nameResult = userResult.focus(namePath);
 
 // The effect semantics are preserved
 // If userResult was Left(error), nameResult is also Left(error)
@@ -179,8 +179,8 @@ When the navigation might fail (AffinePath), you must provide an error for the a
 AffinePath<User, String> emailPath = UserFocus.email();
 
 // EitherPath requires an error value
-EitherPath<Error, String> emailResult =
-    userResult.focus(emailPath, new Error("Email not configured"));
+EitherPath<AppError, String> emailResult =
+    userResult.focus(emailPath, new AppError("Email not configured"));
 
 // TryPath requires an exception supplier
 TryPath<String> emailTry =
@@ -244,11 +244,11 @@ EitherPath<List<String>, User> validateUser(User user) {
 
 <!-- verify -->
 ```java
-EitherPath<Error, String> getOrderCustomerCity(OrderId orderId) {
-    return orderService.findById(orderId)           // -> EitherPath<Error, Order>
-        .focus(OrderFocus.customer())               // -> EitherPath<Error, Customer>
-        .focus(CustomerFocus.address())             // -> EitherPath<Error, Address>
-        .focus(AddressFocus.city());                // -> EitherPath<Error, String>
+EitherPath<AppError, String> getOrderCustomerCity(OrderId orderId) {
+    return orderService.findById(orderId)           // -> EitherPath<AppError, Order>
+        .focus(OrderFocus.customer())               // -> EitherPath<AppError, Customer>
+        .focus(CustomerFocus.address())             // -> EitherPath<AppError, Address>
+        .focus(AddressFocus.city());                // -> EitherPath<AppError, String>
 }
 ```
 
@@ -278,8 +278,7 @@ String managerEmail(Org org) {
         .toMaybePath(org)                           // -> MaybePath<Department>
         .focus(DepartmentFocus.manager())           // -> MaybePath<Employee>
         .focus(EmployeeFocus.email())               // -> MaybePath<String>
-        .run()
-        .orElse("unknown");
+        .getOrElse("unknown");
 }
 ```
 
@@ -349,12 +348,12 @@ The most powerful patterns combine both directions fluently:
 <!-- verify -->
 ```java
 // Complete workflow: fetch → navigate → validate → transform → save
-EitherPath<Error, SaveResult> processUserUpdate(UserId userId, UpdateRequest request) {
+EitherPath<AppError, SaveResult> processUserUpdate(UserId userId, UpdateRequest request) {
     return userService.findById(userId)                    // Effect: fetch account
         .focus(AccountFocus.profile())                     // Optics: navigate to profile
         .via(profile -> {                                  // Effect: validate
             return ProfileFocus.email()
-                .toEitherPath(profile, Error.missingEmail())
+                .toEitherPath(profile, AppError.missingEmail())
                 .via(email -> validateEmail(email));
         })
         .via(validEmail -> {                               // Effect: apply update

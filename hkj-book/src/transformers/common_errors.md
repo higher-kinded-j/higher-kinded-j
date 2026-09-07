@@ -12,7 +12,7 @@ Transformer code is generic-heavy by nature: a typical signature like `Kind<Eith
 
 ---
 
-## 1. "Cannot resolve constructor `EitherTMonad`"
+## 1. "Method `eitherT` cannot be applied to given types"
 
 ~~~admonish tip title="The HKJ checker catches this"
 Flagged at compile time by the `transformer-missing-monad` check
@@ -41,9 +41,9 @@ var eitherTMonad =
     Instances.eitherT();   // missing argument
 ```
 
-Every transformer monad needs a `Monad<F>` instance for the *outer* effect. The constructor cannot infer it from thin air.
+Every transformer monad needs a `Monad<F>` instance for the *outer* effect. The factory cannot infer it from thin air.
 
-**The fix:** pass the outer monad to the constructor.
+**The fix:** pass the outer monad to the factory.
 
 <!-- verify -->
 ```java
@@ -319,7 +319,7 @@ If you genuinely need to combine two effect layers (typed errors *and* absence i
 
 | Symptom | Likely cause | Fix |
 |---------|-------------|-----|
-| "constructor cannot be applied", expects `Monad<F>` | Forgot to pass the outer monad | `Instances.eitherT(futureMonad)` |
+| "method `eitherT` cannot be applied", expects `Monad<F>` | Forgot to pass the outer monad | `Instances.eitherT(futureMonad)` |
 | "incompatible types" with two `EitherTKind.Witness` shapes | Different error types `L` in the chain | Unify the error type or `mapLeft` at the boundary |
 | `mapT` "cannot be applied" on `StateT` | Missing `Monad<G>` first argument | `stateT.mapT(targetMonad, f)` |
 | "cannot infer type-variable" on `Either.right` / `EitherT.fromEither` | No `Left` value to infer `L` from | Add `Either.<E, A>right(...)` |

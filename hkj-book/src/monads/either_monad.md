@@ -113,7 +113,7 @@ String resultMessage = failure.fold(
 // "Operation failed with: File not found"
 
 String successMessage = success.fold(
-    leftValue  -> "Error: "   + leftValue,
+    leftValue  -> "AppError: "   + leftValue,
     rightValue -> "Success: " + rightValue);
 // "Success: 123"
 ```
@@ -257,11 +257,11 @@ For most application code, prefer **[EitherPath](../effect/path_either.md)**, wh
 <!-- verify -->
 ```java
 // Manual Either chaining
-Either<Error, User>  user  = findUser(id);
-Either<Error, Order> order = user.flatMap(u -> createOrder(u));
+Either<AppError, User>  user  = findUser(id);
+Either<AppError, Order> order = user.flatMap(u -> createOrder(u));
 
 // EitherPath, same logic, less ceremony
-EitherPath<Error, Order> orderPath = Path.either(findUser(id))
+EitherPath<AppError, Order> orderPath = Path.either(findUser(id))
     .via(u -> createOrderPath(u));
 ```
 

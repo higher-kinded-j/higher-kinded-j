@@ -67,7 +67,7 @@ Either<String, Integer> age = getEither(ageLens, "Age not provided", profile);
 // Either.right(30) or Either.left("Age not provided")
 
 String message = age.fold(
-    error -> "Error: " + error,
+    error -> "AppError: " + error,
     a -> "Age: " + a
 );
 ```

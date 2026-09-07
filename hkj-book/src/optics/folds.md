@@ -309,8 +309,8 @@ Monoid<List<A>> listConcat = Monoids.list();
 Monoid<Set<A>> setUnion = Monoids.set();
 Monoid<Optional<A>> firstWins = Monoids.firstOptional();
 Monoid<Optional<A>> lastWins = Monoids.lastOptional();
-Monoid<Optional<A>> maxValue = Monoids.maximum(comparator);
-Monoid<Optional<A>> minValue = Monoids.minimum(comparator);
+Monoid<Optional<A>> maxValue = Monoids.maximum();
+Monoid<Optional<A>> minValue = Monoids.minimum();
 ```
 
 **Sum (Adding Numbers)**
@@ -374,7 +374,7 @@ boolean hasExpensive = itemsFold.foldMap(orMonoid,
 <!-- verify -->
 ```java
 // Use Optional-based maximum from Monoids
-Monoid<Optional<Double>> maxMonoid = Monoids.maximum(Comparator.<Double>naturalOrder());
+Monoid<Optional<Double>> maxMonoid = Monoids.maximum();
 
 // Find highest price (returns Optional to handle empty collections)
 Optional<Double> maxPrice = itemsFold.foldMap(maxMonoid,

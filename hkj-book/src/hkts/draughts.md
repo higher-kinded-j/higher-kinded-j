@@ -449,7 +449,7 @@ public class Draughts {
         command -> applyMove(command, state));
   }
 
-  // ===== Error Handling =====
+  // ===== AppError Handling =====
 
   /**
    * Handles an error using a pure predicate to distinguish quit from other errors.
@@ -476,7 +476,7 @@ public class Draughts {
   /** Displays an error message and returns the unchanged state. */
   static IOPath<GameState> displayErrorAndContinue(GameError error, GameState state) {
     return Path.io(() -> {
-      System.out.println("Error: " + GameErrorFocus.description().get(error));
+      System.out.println("AppError: " + GameErrorFocus.description().get(error));
       return state;
     });
   }

@@ -238,8 +238,8 @@ Kind<IOKind.Witness, Unit> conditionalLog = selective.whenS(debugEnabled, logEff
 ```java
 // Combine error messages
 Semigroup<String> stringConcat = Semigroups.string("; ");
-String combined = stringConcat.combine("Error 1", "Error 2");
-// Result: "Error 1; Error 2"
+String combined = stringConcat.combine("AppError 1", "AppError 2");
+// Result: "AppError 1; AppError 2"
 ```
 
 **Think Of It As:** The `+` operator generalised to any type

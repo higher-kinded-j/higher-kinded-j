@@ -27,13 +27,13 @@ right, as the mnemonic goes.)
 <!-- verify -->
 ```java
 // Success
-EitherPath<Error, Integer> success = Path.right(42);
+EitherPath<AppError, Integer> success = Path.right(42);
 
 // Failure
-EitherPath<Error, Integer> failure = Path.left(new ValidationError("invalid"));
+EitherPath<AppError, Integer> failure = Path.left(new ValidationError("invalid"));
 
 // From existing Either
-EitherPath<Error, User> user = Path.either(validateUser(input));
+EitherPath<AppError, User> user = Path.either(validateUser(input));
 ```
 
 ---
@@ -109,7 +109,7 @@ Use the single-sided variants when only one side needs changing:
 EitherPath<DomainError, User> mapped = apiPath.mapError(ApiError::toDomain);
 
 // Transform only the success
-EitherPath<Error, String> named = path.map(User::name);
+EitherPath<AppError, String> named = path.map(User::name);
 ```
 
 ---
@@ -123,7 +123,7 @@ Either<String, Integer> either = path.run();
 
 // Pattern match
 String result = either.fold(
-    error -> "Error: " + error,
+    error -> "AppError: " + error,
     value -> "Value: " + value
 );
 

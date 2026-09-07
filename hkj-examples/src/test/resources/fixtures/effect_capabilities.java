@@ -40,9 +40,9 @@ record Total(long pence) {}
 
 record Invoice(String id) {}
 
-record Error(String message) {}
+record AppError(String message) {}
 
-record ConfigError(String message, Error cause) {}
+record ConfigError(String message, AppError cause) {}
 
 record Config(String name) {
 
@@ -150,7 +150,7 @@ class Fixture {
     return Path.right(age);
   }
 
-  static Either<Error, User> findUser(String userId) {
+  static Either<AppError, User> findUser(String userId) {
     return Either.right(User.guest());
   }
 
@@ -159,19 +159,19 @@ class Fixture {
     return Maybe.just(User.guest());
   }
 
-  static Either<Error, Cart> getCart(User user) {
+  static Either<AppError, Cart> getCart(User user) {
     return Either.right(new Cart("c-1"));
   }
 
-  static Either<Error, Total> calculateTotal(Cart cart) {
+  static Either<AppError, Total> calculateTotal(Cart cart) {
     return Either.right(new Total(0));
   }
 
-  static Either<Error, Invoice> createInvoice(Total total) {
+  static Either<AppError, Invoice> createInvoice(Total total) {
     return Either.right(new Invoice("i-1"));
   }
 
-  static Either<Error, Config> loadConfig() {
+  static Either<AppError, Config> loadConfig() {
     return Either.right(new Config("app"));
   }
 

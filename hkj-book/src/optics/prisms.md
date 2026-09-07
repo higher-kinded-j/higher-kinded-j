@@ -327,7 +327,7 @@ public class ApiHandler {
         return SUCCESS.getOptional(response)
             .map(success -> "Success: " + success.data())
             .or(() -> ERROR.getOptional(response)
-                .map(error -> "Error " + error.errorCode() + ": " + error.message()))
+                .map(error -> "AppError " + error.errorCode() + ": " + error.message()))
             .or(() -> TIMEOUT.getOptional(response)
                 .map(timeout -> "Request timed out after " + timeout.timeoutMs() + "ms"))
             .orElse("Unknown response type");
@@ -437,7 +437,7 @@ public class PrismUsageExample {
         System.out.println("------------------------------------------");
     
         // 8. Demonstrate error-resistant operations
-        System.out.println("--- Error-Resistant Operations ---");
+        System.out.println("--- AppError-Resistant Operations ---");
     
         // Get all string values safely
         List<String> allStrings = List.of(

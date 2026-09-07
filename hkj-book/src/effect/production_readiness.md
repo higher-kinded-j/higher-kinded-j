@@ -167,9 +167,9 @@ The risk arises when a Path chain calls itself recursively:
 <!-- verify -->
 ```java
 // DANGER: recursive Path chain, will overflow for large n
-EitherPath<Error, Integer> countdown(int n) {
+EitherPath<AppError, Integer> countdown(int n) {
     if (n <= 0) return Path.right(0);
-    return Path.<Error, Integer>right(n)
+    return Path.<AppError, Integer>right(n)
         .via(x -> countdown(x - 1));  // recursive call adds a stack frame
 }
 

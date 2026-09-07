@@ -118,7 +118,7 @@ public interface UserService {
     Optional<User> findById(Long id);
 
     @PathVia
-    Either<Error, User> createUser(CreateUserRequest req);
+    Either<AppError, User> createUser(CreateUserRequest req);
 }
 ```
 
@@ -161,7 +161,7 @@ The bridge is a file you never wrote and cannot edit, so a handful of shapes the
 ## Focus-Effect bridge
 
 ```java
-EitherPath<Error, User>
+EitherPath<AppError, User>
   .focus(addressPath)        // narrow to the Address inside the User
   .focus(cityPath)            // narrow further to the city String
   .map(String::toUpperCase);  // transform the focused field

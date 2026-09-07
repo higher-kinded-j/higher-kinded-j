@@ -371,7 +371,7 @@ result:
 
 <!-- verify -->
 ```java
-EitherPath<Error, Invoice> invoice =
+EitherPath<AppError, Invoice> invoice =
     Path.either(findUser(userId))
         .via(user -> Path.either(getCart(user)))
         .via(cart -> Path.either(calculateTotal(cart)))
@@ -399,7 +399,7 @@ String value = maybePathOfString.getOrElse("default");
 String computed = maybePathOfString.getOrElseGet(() -> expensiveDefault());
 
 // EitherPath
-Either<Error, User> either = eitherPath.run();
+Either<AppError, User> either = eitherPath.run();
 String result = either.fold(
     error -> "Failed: " + error,
     user -> "Found: " + user.name()
@@ -419,7 +419,7 @@ disrupting the computation:
 
 <!-- verify -->
 ```java
-EitherPath<Error, User> result =
+EitherPath<AppError, User> result =
     Path.either(validateInput(input))
         .peek(valid -> log.debug("Input validated: {}", valid))
         .via(valid -> Path.either(createUser(valid)))
@@ -463,8 +463,8 @@ using optics.
 FocusPath<User, String> namePath = UserFocus.name();
 
 // Apply within an effect
-EitherPath<Error, User> userResult = fetchUser(userId);
-EitherPath<Error, String> nameResult = userResult.focus(namePath);
+EitherPath<AppError, User> userResult = fetchUser(userId);
+EitherPath<AppError, String> nameResult = userResult.focus(namePath);
 ```
 
 The focus preserves the effect's semantics: if `userResult` is `Left`, `nameResult` is also `Left`.
@@ -478,11 +478,11 @@ When using `AffinePath` (for optional fields), provide an error for the absent c
 ```java
 // AffinePath for Optional<String> email
 AffinePath<User, String> emailPath = UserFocus.email();
-EitherPath<Error, User> userResult = fetchUser(userId);
+EitherPath<AppError, User> userResult = fetchUser(userId);
 
 // Must provide error if email is absent
-EitherPath<Error, String> emailResult =
-    userResult.focus(emailPath, new Error("Email not configured"));
+EitherPath<AppError, String> emailResult =
+    userResult.focus(emailPath, new AppError("Email not configured"));
 ```
 
 | FocusPath | AffinePath |
@@ -509,12 +509,12 @@ Focus composes naturally with other path operations:
 <!-- verify -->
 ```java
 // Complex pipeline: fetch → navigate → validate → transform
-EitherPath<Error, String> result =
-    fetchUser(userId)                              // → EitherPath<Error, User>
-        .focus(UserFocus.address())                // → EitherPath<Error, Address>
-        .focus(AddressFocus.postcode())            // → EitherPath<Error, String>
-        .via(code -> validatePostcode(code))       // → EitherPath<Error, ValidPostcode>
-        .map(ValidPostcode::formatted);            // → EitherPath<Error, String>
+EitherPath<AppError, String> result =
+    fetchUser(userId)                              // → EitherPath<AppError, User>
+        .focus(UserFocus.address())                // → EitherPath<AppError, Address>
+        .focus(AddressFocus.postcode())            // → EitherPath<AppError, String>
+        .via(code -> validatePostcode(code))       // → EitherPath<AppError, ValidPostcode>
+        .map(ValidPostcode::formatted);            // → EitherPath<AppError, String>
 ```
 
 ### When to Use focus vs via
@@ -528,13 +528,13 @@ EitherPath<Error, String> result =
 <!-- verify -->
 ```java
 // focus: structural navigation (optics)
-EitherPath<Error, String> name = userPath.focus(UserFocus.name());
+EitherPath<AppError, String> name = userPath.focus(UserFocus.name());
 
 // via: effect sequencing (monadic bind)
-EitherPath<Error, User> validated = userPath.via(user -> Path.either(findUser(user.name())));
+EitherPath<AppError, User> validated = userPath.via(user -> Path.either(findUser(user.name())));
 
 // map: value transformation (functor)
-EitherPath<Error, String> shouted = name.map(value -> value.toUpperCase());
+EitherPath<AppError, String> shouted = name.map(value -> value.toUpperCase());
 ```
 
 ~~~admonish tip title="See Also"
@@ -553,7 +553,7 @@ You are never locked in. Every Path type unwraps to a standard Java value with `
 ```java
 // Extract the underlying type
 Maybe<User> maybe = maybePath.run();
-Either<Error, User> either = eitherPath.run();
+Either<AppError, User> either = eitherPath.run();
 Try<Config> tried = tryPath.run();
 
 // Convert to java.util.Optional

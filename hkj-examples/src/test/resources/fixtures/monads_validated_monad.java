@@ -31,7 +31,7 @@ record SignupInput(String name, String email, String password) {}
 
 record Order(String id) {}
 
-record Error(String message) {}
+record AppError(String message) {}
 
 class Fixture {
 
@@ -44,7 +44,7 @@ class Fixture {
 
   static final SignupInput input = new SignupInput("Ada", "ada@example.com", "hunter2");
 
-  static final List<Error> errors = List.of();
+  static final List<AppError> errors = List.of();
 
   static Validated<List<String>, String> validateName(String name) {
     return (name == null || name.isBlank())
@@ -64,15 +64,15 @@ class Fixture {
     return Validated.valid(password);
   }
 
-  static Validated<List<Error>, User> validateUser(SignupInput input) {
+  static Validated<List<AppError>, User> validateUser(SignupInput input) {
     return Validated.valid(new User(input.name(), input.email(), 36));
   }
 
-  static Validated<List<Error>, Order> createOrder(User user) {
+  static Validated<List<AppError>, Order> createOrder(User user) {
     return Validated.valid(new Order("o-1"));
   }
 
-  static ValidationPath<List<Error>, Order> createOrderPath(User user) {
+  static ValidationPath<List<AppError>, Order> createOrderPath(User user) {
     return Path.valid(new Order("o-1"), Semigroups.list());
   }
 

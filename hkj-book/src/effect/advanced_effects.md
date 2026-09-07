@@ -159,7 +159,7 @@ is unaffected.
 - You're building a DSL where environment is implicit
 
 `ReaderPath` is wrong when:
-- The environment changes during computation: use `StatePath`
+- The environment changes during computation: use `WithStatePath`
 - You need to accumulate results: use `WriterPath`
 - The environment is only needed in one place: just pass it directly
 
@@ -473,10 +473,10 @@ These effect types compose with each other and with the core Path types.
 <!-- verify -->
 ```java
 // A computation that needs config and might fail
-ReaderPath<Config, EitherPath<Error, User>> getUserOrError(String id) {
+ReaderPath<Config, EitherPath<AppError, User>> getUserOrError(String id) {
     return ReaderPath.asks(Config::database)
         .map(db -> Path.maybe(db.findUser(id))
-            .toEitherPath(new Error.NotFound(id)));
+            .toEitherPath(new AppError.NotFound(id)));
 }
 ```
 
@@ -505,16 +505,16 @@ public WithStatePath<GameState, WriterPath<List<Event>, Move>> makeMove(Position
 <!-- verify -->
 ```java
 public class ConfigurableService {
-    public ReaderPath<ServiceConfig, EitherPath<Error, Result>> process(Request req) {
+    public ReaderPath<ServiceConfig, EitherPath<AppError, Result>> process(Request req) {
         return ReaderPath.<ServiceConfig>ask()
             .via(config -> {
                 if (!config.isEnabled()) {
-                    return ReaderPath.<ServiceConfig, EitherPath<Error, Result>>pure(
-                        Path.left(new Error.ServiceDisabled()));
+                    return ReaderPath.<ServiceConfig, EitherPath<AppError, Result>>pure(
+                        Path.left(new AppError.ServiceDisabled()));
                 }
-                return ReaderPath.<ServiceConfig, EitherPath<Error, Result>>pure(
+                return ReaderPath.<ServiceConfig, EitherPath<AppError, Result>>pure(
                     Path.tryOf(() -> doProcess(req, config))
-                        .toEitherPath(Error.ProcessingFailed::new)
+                        .toEitherPath(AppError.ProcessingFailed::new)
                 );
             });
     }
@@ -532,20 +532,20 @@ public class ConfigurableService {
 public class AuditedRepository {
     private final UserRepository repository = new UserRepository();
 
-    public WriterPath<List<AuditEvent>, EitherPath<Error, User>> saveUser(User user) {
+    public WriterPath<List<AuditEvent>, EitherPath<AppError, User>> saveUser(User user) {
         Monoid<List<AuditEvent>> log = Monoids.list();
         return WriterPath.tell(List.<AuditEvent>of(new AuditEvent.AttemptSave(user.id())), log)
             .then(() -> {
-                Either<Error, User> result = repository.save(user);
+                Either<AppError, User> result = repository.save(user);
                 if (result.isRight()) {
                     return WriterPath.writer(
-                        Path.<Error, User>right(result.getRight()),
+                        Path.<AppError, User>right(result.getRight()),
                         List.<AuditEvent>of(new AuditEvent.SaveSucceeded(user.id())),
                         log
                     );
                 } else {
                     return WriterPath.writer(
-                        Path.<Error, User>left(result.getLeft()),
+                        Path.<AppError, User>left(result.getLeft()),
                         List.<AuditEvent>of(
                             new AuditEvent.SaveFailed(user.id(), result.getLeft())),
                         log
