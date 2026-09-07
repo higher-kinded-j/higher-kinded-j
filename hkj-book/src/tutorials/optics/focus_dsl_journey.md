@@ -68,11 +68,12 @@ TraversalPath (0 to many)
 ```
 
 **Example**:
+<!-- verify -->
 ```java
 // Build a path through nested structure
 var path = FocusPath.of(companyLens)       // FocusPath<Root, Company>
     .via(departmentsLens)                   // FocusPath<Root, List<Dept>>
-    .each()                                 // TraversalPath<Root, Dept>
+    .<Dept>each()                           // TraversalPath<Root, Dept>
     .via(managerLens)                       // TraversalPath<Root, Manager>
     .via(emailLens);                        // TraversalPath<Root, String>
 
@@ -80,7 +81,7 @@ var path = FocusPath.of(companyLens)       // FocusPath<Root, Company>
 List<String> emails = path.getAll(root);
 
 // Update all manager emails
-Root updated = path.modify(String::toLowerCase, root);
+Root updated = path.modifyAll(String::toLowerCase, root);
 ```
 
 **Links to documentation**: [Focus DSL](../../optics/focus_dsl.md)
@@ -105,40 +106,43 @@ Master advanced Focus DSL features including type class integration, monoid aggr
 **Key insight**: `traverseOver()` bridges the HKT Traverse type class with optics, letting you navigate into `Kind<F, A>` wrapped collections. This is the foundation for automatic Kind field support in `@GenerateFocus`.
 
 **Effectful modifications**:
+<!-- verify -->
 ```java
 // Validate while modifying
-Either<Error, User> result = path.modifyF(
-    Instances.monadError(either()),
+Kind<EitherKind.Witness<Error>, User> result = path.modifyF(
     value -> validateAndTransform(value),
-    user
+    user,
+    Instances.monadError(either())
 );
 
 // Async modification
-CompletableFuture<User> futureUser = path.modifyF(
-    CFMonad.INSTANCE,
+Kind<CompletableFutureKind.Witness, User> futureUser = path.modifyF(
     value -> fetchAndUpdate(value),
-    user
+    user,
+    Instances.monad(completableFuture())
 );
 ```
 
 **Aggregation with Monoid**:
+<!-- verify -->
 ```java
 // Sum all salaries
 Integer total = salaryPath.foldMap(
-    IntSumMonoid.INSTANCE,
+    Monoids.integerAddition(),
     salary -> salary,
     company
 );
 
 // Collect all names
 String allNames = namePath.foldMap(
-    StringMonoid.INSTANCE,
+    Monoids.string(),
     name -> name + ", ",
     team
 );
 ```
 
 **Kind field support**:
+<!-- verify -->
 ```java
 // Manual traverseOver for Kind<ListKind.Witness, Role> field
 FocusPath<User, Kind<ListKind.Witness, Role>> rolesKindPath = FocusPath.of(userRolesLens);
@@ -179,6 +183,7 @@ TRAVERSAL + anything = TRAVERSAL
 ```
 
 **Example**:
+<!-- verify -->
 ```java
 @GenerateFocus(generateNavigators = true)
 record Company(String name, Either<String, Address> backup) {}
@@ -186,8 +191,8 @@ record Company(String name, Either<String, Address> backup) {}
 @GenerateFocus(generateNavigators = true)
 record Address(String street, Map<String, String> metadata) {}
 
-// Either (AFFINE via SPI) + Map (TRAVERSAL via SPI) = TRAVERSAL
-TraversalPath<Company, String> values = CompanyFocus.backup().metadata();
+// Either (AFFINE via SPI) reaches the Address; the Map field is one more hop
+TraversalPath<Company, String> values = CompanyFocus.backup().metadata().each();
 ```
 
 Note the container: `Optional`, `Maybe`, `List`, `Set` and `Collection` are widened
@@ -214,6 +219,7 @@ Navigate container types discovered via the `TraversableGenerator` SPI, includin
 **Key insight**: Container navigation paths are generated automatically when `@GenerateFocus(generateNavigators = true)` is used. The `TraversableGenerator` SPI determines the cardinality, so `Either`, `Try`, and `Validated` all produce `AffinePath` navigators without any manual optic composition.
 
 **Example**:
+<!-- verify -->
 ```java
 @GenerateFocus(generateNavigators = true)
 record Position(
@@ -285,6 +291,7 @@ Optional<MarketPrice> price = pricePath.getOptional(position);
 **Problem**: Calling `get()` on an AffinePath when you need `getOptional()`.
 
 **Solution**: AffinePath might have zero elements. Use `getOptional()`:
+<!-- verify -->
 ```java
 Optional<String> value = affinePath.getOptional(source);
 ```
