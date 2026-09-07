@@ -8,7 +8,8 @@
 // read a field off `AppConfig` would stop compiling underneath whichever snippet shadowed it.
 //
 // NOTE: imports in a fixture serve the snippets it is spliced into. Spotless excludes
-// src/test/resources so an "unused import" cleanup cannot break fixtures (see build.gradle.kts).
+// src/test/resources/fixtures so an "unused import" cleanup cannot break fixtures
+// (see build.gradle.kts).
 
 import java.net.URI;
 import java.sql.Connection;

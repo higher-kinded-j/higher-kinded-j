@@ -4,7 +4,8 @@
 // monads. The two monads are declared here; the config is declared by the snippets themselves.
 //
 // NOTE: imports in a fixture serve the snippets it is spliced into. Spotless excludes
-// src/test/resources so an "unused import" cleanup cannot break fixtures (see build.gradle.kts).
+// src/test/resources/fixtures so an "unused import" cleanup cannot break fixtures
+// (see build.gradle.kts).
 
 import static org.higherkindedj.hkt.instances.Witnesses.completableFuture;
 import static org.higherkindedj.hkt.instances.Witnesses.id;

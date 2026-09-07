@@ -8,7 +8,8 @@
 // `addressLens` and so on, which is what a reader binds `@GenerateLenses`' output to.
 //
 // NOTE: imports in a fixture serve the snippets it is spliced into. Spotless excludes
-// src/test/resources so an "unused import" cleanup cannot break fixtures (see build.gradle.kts).
+// src/test/resources/fixtures so an "unused import" cleanup cannot break fixtures
+// (see build.gradle.kts).
 
 import static org.higherkindedj.hkt.id.IdKindHelper.ID;
 import static org.higherkindedj.hkt.instances.Witnesses.id;

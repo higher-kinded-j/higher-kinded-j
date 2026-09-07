@@ -4,7 +4,8 @@
 // examples reach for - a config loader, an order pipeline, a log source - is declared here.
 //
 // NOTE: imports in a fixture serve the snippets it is spliced into. Spotless excludes
-// src/test/resources so an "unused import" cleanup cannot break fixtures (see build.gradle.kts).
+// src/test/resources/fixtures so an "unused import" cleanup cannot break fixtures
+// (see build.gradle.kts).
 
 import static org.higherkindedj.hkt.list.ListKindHelper.LIST;
 import static org.higherkindedj.hkt.validated.ValidatedKindHelper.VALIDATED;

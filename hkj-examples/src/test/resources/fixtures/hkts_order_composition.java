@@ -6,7 +6,8 @@
 // itself and shadows this copy.
 //
 // NOTE: imports in a fixture serve the snippets it is spliced into. Spotless excludes
-// src/test/resources so an "unused import" cleanup cannot break fixtures (see build.gradle.kts).
+// src/test/resources/fixtures so an "unused import" cleanup cannot break fixtures
+// (see build.gradle.kts).
 
 import static org.higherkindedj.hkt.either.EitherKindHelper.EITHER;
 import static org.higherkindedj.hkt.instances.Witnesses.either;
@@ -187,6 +188,11 @@ class Fixture {
   static final MonadError<EitherKind.Witness<OrderError>, OrderError> monad =
       Instances.monadError(either());
 
+  /**
+   * A value the page names but does not build. Snippets are compiled, never run, and a snippet
+   * that shows a model shadows the one above, so naming a constructor here would tie the fixture
+   * to one shape of it.
+   */
   static <A> A sample() {
     throw new UnsupportedOperationException("a fixture value: snippets are compiled, not run");
   }

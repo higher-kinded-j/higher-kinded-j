@@ -4,7 +4,8 @@
 // services the IO examples call and the three config sources are declared here.
 //
 // NOTE: imports in a fixture serve the snippets it is spliced into. Spotless excludes
-// src/test/resources so an "unused import" cleanup cannot break fixtures (see build.gradle.kts).
+// src/test/resources/fixtures so an "unused import" cleanup cannot break fixtures
+// (see build.gradle.kts).
 
 import static org.higherkindedj.hkt.io.IOKindHelper.IO_OP;
 import static org.higherkindedj.hkt.optional.OptionalKindHelper.OPTIONAL;

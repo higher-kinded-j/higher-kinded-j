@@ -3,7 +3,8 @@
 // The page builds one dashboard out of three slow lookups, and measures when each of them runs.
 //
 // NOTE: imports in a fixture serve the snippets it is spliced into. Spotless excludes
-// src/test/resources so an "unused import" cleanup cannot break fixtures (see build.gradle.kts).
+// src/test/resources/fixtures so an "unused import" cleanup cannot break fixtures
+// (see build.gradle.kts).
 
 import static org.higherkindedj.hkt.instances.Witnesses.lazy;
 import static org.higherkindedj.hkt.lazy.LazyKindHelper.LAZY;

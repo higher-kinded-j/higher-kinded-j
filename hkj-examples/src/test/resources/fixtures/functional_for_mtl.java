@@ -4,7 +4,8 @@
 // state records, the monads and the lenses are declared here.
 //
 // NOTE: imports in a fixture serve the snippets it is spliced into. Spotless excludes
-// src/test/resources so an "unused import" cleanup cannot break fixtures (see build.gradle.kts).
+// src/test/resources/fixtures so an "unused import" cleanup cannot break fixtures
+// (see build.gradle.kts).
 
 import static org.higherkindedj.hkt.instances.Witnesses.id;
 import static org.higherkindedj.hkt.instances.Witnesses.maybe;

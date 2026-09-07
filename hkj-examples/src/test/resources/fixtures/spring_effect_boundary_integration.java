@@ -10,7 +10,8 @@
 // (`Interpreters.combine` nests EitherF to the right). The page says so, and spells it too.
 //
 // NOTE: imports in a fixture serve the snippets it is spliced into. Spotless excludes
-// src/test/resources so an "unused import" cleanup cannot break fixtures (see build.gradle.kts).
+// src/test/resources/fixtures so an "unused import" cleanup cannot break fixtures
+// (see build.gradle.kts).
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.higherkindedj.hkt.io.IOKindHelper.IO_OP;
@@ -160,7 +161,11 @@ class Fixture {
 
   static final OrderRequest orderRequest = new OrderRequest("C001", "ITEM-42", 2);
 
-  // The gate compiles snippets; it never runs them.
+  /**
+   * A value the page names but does not build. Snippets are compiled, never run, and a snippet
+   * that shows a model shadows the one above, so naming a constructor here would tie the fixture
+   * to one shape of it.
+   */
   static <A> A sample() {
     throw new UnsupportedOperationException("a fixture value: snippets are compiled, not run");
   }

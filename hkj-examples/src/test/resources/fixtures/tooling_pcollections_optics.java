@@ -3,7 +3,8 @@
 // The portfolio record the page annotates holds positions; the position type is declared here.
 //
 // NOTE: imports in a fixture serve the snippets it is spliced into. Spotless excludes
-// src/test/resources so an "unused import" cleanup cannot break fixtures (see build.gradle.kts).
+// src/test/resources/fixtures so an "unused import" cleanup cannot break fixtures
+// (see build.gradle.kts).
 
 import org.higherkindedj.optics.Each;
 import org.higherkindedj.optics.each.EachInstances;

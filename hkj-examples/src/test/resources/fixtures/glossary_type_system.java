@@ -5,7 +5,8 @@
 // What is gated is each entry's worked half, and this supplies what it elides.
 //
 // NOTE: imports in a fixture serve the snippets it is spliced into. Spotless excludes
-// src/test/resources so an "unused import" cleanup cannot break fixtures (see build.gradle.kts).
+// src/test/resources/fixtures so an "unused import" cleanup cannot break fixtures
+// (see build.gradle.kts).
 
 import static org.higherkindedj.hkt.func.FunctionKindHelper.FUNCTION;
 import static org.higherkindedj.hkt.instances.Witnesses.either;

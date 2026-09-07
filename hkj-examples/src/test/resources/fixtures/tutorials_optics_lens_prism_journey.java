@@ -4,7 +4,8 @@
 // records and the generated optics come from here.
 //
 // NOTE: imports in a fixture serve the snippets it is spliced into. Spotless excludes
-// src/test/resources so an "unused import" cleanup cannot break fixtures (see build.gradle.kts).
+// src/test/resources/fixtures so an "unused import" cleanup cannot break fixtures
+// (see build.gradle.kts).
 
 import java.util.Optional;
 import org.higherkindedj.optics.Affine;

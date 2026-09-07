@@ -3,7 +3,8 @@
 // The page loads a config, opens a connection and logs, first eagerly and then as a description.
 //
 // NOTE: imports in a fixture serve the snippets it is spliced into. Spotless excludes
-// src/test/resources so an "unused import" cleanup cannot break fixtures (see build.gradle.kts).
+// src/test/resources/fixtures so an "unused import" cleanup cannot break fixtures
+// (see build.gradle.kts).
 
 import static org.higherkindedj.hkt.instances.Witnesses.io;
 import static org.higherkindedj.hkt.io.IOKindHelper.IO_OP;

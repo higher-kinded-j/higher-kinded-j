@@ -4,7 +4,8 @@
 // names has to be in scope.
 //
 // NOTE: imports in a fixture serve the snippets it is spliced into. Spotless excludes
-// src/test/resources so an "unused import" cleanup cannot break fixtures (see build.gradle.kts).
+// src/test/resources/fixtures so an "unused import" cleanup cannot break fixtures
+// (see build.gradle.kts).
 
 import static org.higherkindedj.hkt.either.EitherKindHelper.EITHER;
 import static org.higherkindedj.hkt.instances.Witnesses.list;

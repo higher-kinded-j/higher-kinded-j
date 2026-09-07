@@ -8,7 +8,8 @@
 // each of those shadows this copy for its own compilation unit.
 //
 // NOTE: imports in a fixture serve the snippets it is spliced into. Spotless excludes
-// src/test/resources so an "unused import" cleanup cannot break fixtures (see build.gradle.kts).
+// src/test/resources/fixtures so an "unused import" cleanup cannot break fixtures
+// (see build.gradle.kts).
 
 import jakarta.servlet.Filter;
 import jakarta.servlet.FilterChain;
