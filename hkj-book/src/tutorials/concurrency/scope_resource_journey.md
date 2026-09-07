@@ -58,6 +58,7 @@ Master task coordination with different joining strategies.
 
 **Key insight**: `Scope` is a fluent builder for structured concurrency. Each factory method creates a scope with a specific joining strategy that determines how task results are collected.
 
+<!-- verify -->
 ```java
 // All tasks must succeed - returns List<String>
 VTask<List<String>> all = Scope.<String>allSucceed()
@@ -106,6 +107,7 @@ VTask<String> any = Scope.<String>anySucceed()
 
 **Key insight**: Unlike other joiners that fail fast, `accumulating` runs all tasks to completion and collects all failures. This is perfect for form validation where you want to report all errors at once.
 
+<!-- verify -->
 ```java
 VTask<Validated<List<String>, List<String>>> validation =
     Scope.<String, String>accumulating(Throwable::getMessage)
@@ -139,6 +141,7 @@ Master the bracket pattern for safe resource handling.
 
 **Key insight**: `Resource` wraps acquire-use-release into a single abstraction. The resource is acquired lazily when you call `use()`, and release is guaranteed even if the use function throws.
 
+<!-- verify -->
 ```java
 // From AutoCloseable (most common)
 Resource<Connection> conn = Resource.fromAutoCloseable(
@@ -169,6 +172,7 @@ Resource<Config> config = Resource.pure(loadedConfig);
 
 **Key insight**: The `use()` method takes a function from the resource to a `VTask`. No matter what happens in that function - success, failure, or cancellation - the resource is released.
 
+<!-- verify -->
 ```java
 Resource<Connection> conn = Resource.fromAutoCloseable(
     () -> dataSource.getConnection()
@@ -197,6 +201,7 @@ Try<List<User>> result = users.runSafe();
 
 **Key insight**: When you compose resources, they are acquired in order and released in reverse order (LIFO). This ensures dependent resources are released before the resources they depend on.
 
+<!-- verify -->
 ```java
 Resource<Connection> conn = Resource.fromAutoCloseable(getConnection);
 Resource<Statement> stmt = conn.flatMap(c ->
@@ -204,7 +209,7 @@ Resource<Statement> stmt = conn.flatMap(c ->
 );
 
 // Combine independent resources
-Resource<Tuple2<FileReader, FileWriter>> both =
+Resource<Par.Tuple2<FileReader, FileWriter>> both =
     readerResource.and(writerResource);
 
 // Release order: writer first, then reader
@@ -240,6 +245,7 @@ Navigate to `hkj-examples/src/test/java/org/higherkindedj/tutorial/concurrency/`
 ### 1. Forgetting Scope is Lazy
 **Problem**: Assuming forking tasks starts execution immediately.
 
+<!-- verify -->
 ```java
 // WRONG: Nothing is running yet
 Scope.<String>allSucceed()
@@ -258,6 +264,7 @@ results.run(); // Now they execute
 ### 2. Using Wrong Joiner for Validation
 **Problem**: Using `allSucceed` when you want all errors.
 
+<!-- verify -->
 ```java
 // WRONG: Fails fast on first error
 VTask<List<String>> validation = Scope.<String>allSucceed()
@@ -266,7 +273,7 @@ VTask<List<String>> validation = Scope.<String>allSucceed()
     .join();
 
 // RIGHT: Use accumulating for validation
-VTask<Validated<List<Error>, List<String>>> validation =
+VTask<Validated<List<Error>, List<String>>> accumulated =
     Scope.<Error, String>accumulating(Error::from)
         .fork(validateField1())
         .fork(validateField2())
@@ -277,15 +284,18 @@ VTask<Validated<List<Error>, List<String>>> validation =
 ### 3. Not Using Resource for Cleanup
 **Problem**: Manual try-finally for resource management.
 
+<!-- verify -->
 ```java
 // RISKY: Complex error handling, easy to get wrong
-Connection conn = null;
-try {
-    conn = dataSource.getConnection();
-    return doWork(conn);
-} finally {
-    if (conn != null) {
-        try { conn.close(); } catch (Exception e) { /* log */ }
+public List<User> loadRisky() throws Exception {
+    Connection conn = null;
+    try {
+        conn = dataSource.getConnection();
+        return doWork(conn);
+    } finally {
+        if (conn != null) {
+            try { conn.close(); } catch (Exception e) { /* log */ }
+        }
     }
 }
 
