@@ -10,7 +10,9 @@ import static org.higherkindedj.hkt.instances.Witnesses.id;
 import static org.higherkindedj.hkt.instances.Witnesses.list;
 import static org.higherkindedj.hkt.list.ListKindHelper.LIST;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.util.UUID;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.Optional;
@@ -25,12 +27,21 @@ import org.higherkindedj.hkt.instances.Instances;
 import org.higherkindedj.hkt.list.ListKind;
 import org.higherkindedj.hkt.tuple.Tuple;
 import org.higherkindedj.hkt.tuple.Tuple2;
+import org.higherkindedj.hkt.tuple.Tuple2Lenses;
 import org.higherkindedj.optics.Iso;
 import org.higherkindedj.optics.Lens;
 import org.higherkindedj.optics.annotations.GenerateIsos;
 import org.higherkindedj.optics.annotations.GenerateLenses;
 
 record Point(int x, int y) {}
+
+record UserId(Long value) {}
+
+record Money(BigDecimal amount) {}
+
+record ProductId(UUID value) {}
+
+record CategoryId(UUID value) {}
 
 @GenerateLenses
 record Person(String name, LocalDate birthDate) {}

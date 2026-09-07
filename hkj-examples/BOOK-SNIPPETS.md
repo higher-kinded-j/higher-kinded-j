@@ -288,7 +288,9 @@ Some shapes recur across the book and are left unmarked deliberately:
 - **A reference table written as bare calls.** `glossary/effect-paths.md` lists the `Path`
   factories one per line - `Path.maybe(nullableValue)`, `Path.right(value)` - as a table, not as
   code. A bare expression is not a statement, and binding fifteen of them to names would bury the
-  table it is.
+  table it is. `optics/importing_optics.md`'s four "you get" tables (`CoordinateLenses.lat()   //
+  Lens<Coordinate, Double>`) and `optics/copy_strategies.md`'s summary of every strategy's
+  attributes are the same shape; both pages gate the worked import beside them.
 - **A validator shown twice, pure and impure.** `optics/optics_extensions.md` puts a clean
   `validateEmail` beside one that logs from inside, under the same name and with the impure half
   left unfinished. Two methods of one signature cannot share a class, and the point is the pair.
@@ -339,6 +341,20 @@ Some shapes recur across the book and are left unmarked deliberately:
   The block that introduces each pattern - the model, its prisms and the first class over them - is
   gated, and so is the imperative version beside it wherever that version is a method rather than a
   bare `return`.
+- **A package declaration carrying an annotation.** `optics/importing_optics.md` shows
+  `@ImportOptics(java.time.LocalDate.class)` above `package com.myapp.optics;`, which is a
+  `package-info.java`, not a snippet: a compilation unit assembled from several pages cannot carry
+  one. The record the page imports optics *for* is gated, and the same annotation is exercised on a
+  holder class throughout `copy_strategies.md`.
+- **An external library the gate does not carry.** `optics/focus_external_bridging.md` shows the
+  Immutables, Lombok, AutoValue and protobuf spellings of the same bridge; only the Immutables one
+  is real code in this repo, and the page includes it from the module rather than quoting it. Its
+  `CompanyBridge` sections, which are the point, are gated. `copy_strategies.md`'s jOOQ `Result`
+  read is the same case.
+- **A skeleton whose members are `{ ... }`.** `optics/copy_strategies.md` sketches the builder and
+  the ambiguous-constructor types it is describing, and `optics/profunctor_optics.md` sketches the
+  two conversion methods its integration class delegates to. Each is there to show a *shape* the
+  reader already has; every optic built over one is gated.
 - **Laws written as equations.** `coyoneda.md` states the functor laws as
   `coyo.map(x -> x) == coyo`. The `==` is the law's notation, not a reference comparison, and
   rewriting it as an assertion would obscure what it says.
