@@ -17,6 +17,7 @@ This page is a recipe shelf for the production-shaped problems that optic adapta
 
 **The Challenge**: You want to use string manipulation functions on wrapper types:
 
+<!-- verify -->
 ```java
 // Strongly-typed wrappers
 public record UserId(String value) {}
@@ -29,6 +30,7 @@ public record User(UserId id, UserName name, Email email, LocalDate createdAt) {
 
 **The Solution**: A single-field wrapper and its raw value are the textbook lossless pair, so give each wrapper an `Iso` and compose. `Lens >>> Iso = Lens`, so the full API survives:
 
+<!-- verify -->
 ```java
 public class WrapperAdapters {
 
@@ -78,6 +80,7 @@ Schema migrations are where adaptation earns its keep, but honesty about informa
 
 Version bridges are usually **lossy** (V1's `age` cannot reproduce V2's `birthDate`), so they are not Isos. The honest recipe is to build the V1-shaped view directly on V2 with `Lens.of`:
 
+<!-- verify -->
 ```java
 public record PersonV1(String name, int age) {}
 
@@ -108,6 +111,7 @@ Code written against "a person's name" keeps working during the migration, and n
 
 The same recipe scales to entity migrations. The V1-shaped views live in one adapter class, so when the migration completes you delete one file:
 
+<!-- verify -->
 ```java
 // Old database entity
 public record CustomerEntityV1(Long id, String name, String email) {}
