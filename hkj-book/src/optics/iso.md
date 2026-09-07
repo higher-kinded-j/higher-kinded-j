@@ -330,6 +330,7 @@ Isos are designed for efficient, lossless conversion:
 
 **Best Practice**: For frequently used conversions, create Isos as constants and test them:
 
+<!-- verify -->
 ```java
 public class DataIsos {
     public static final Iso<UserId, Long> USER_ID_LONG =
@@ -358,6 +359,7 @@ public class DataIsos {
 
 ## Real-World Example: Wrapper Type Integration
 
+<!-- verify -->
 ```java
 // Strongly-typed wrappers
 public record ProductId(UUID value) {}
@@ -387,6 +389,7 @@ A tempting use of an Iso is a bridge between a domain record and its wire DTO (`
 
 This example puts all the steps together to show both direct conversion and composition.
 
+<!-- verify -->
 ```java
 public class IsoUsageExample {
 

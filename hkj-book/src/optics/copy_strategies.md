@@ -73,6 +73,7 @@ Four annotated lines replaced a copy method per field, and what you get back is 
 
 Conventions vary, so every part of the interaction is nameable:
 
+<!-- verify -->
 ```java
 // Lombok: @Builder(toBuilder = true, setterPrefix = "with"), JavaBean getters
 @ViaBuilder(getter = "getOrderId", setter = "withOrderId")
@@ -144,6 +145,7 @@ Order topUp =
 
 Detection reads the focus of the spec's own lens for the field, which is the lens the generated traversal composes with (a spec that declares no lens for the field is refused), and the match is on the interface itself. A lens focusing something narrower, a concrete container (`ArrayList<LineItem>`, `HashSet<Tag>`, `TreeMap<K, V>`) or another interface (`Deque`, `SortedSet`), is refused at the declaration, because each standard traversal promises no more than the interface type (`forList()` hands back an unmodifiable `List`) and the field could not take that value back: the generated traversal would throw `ClassCastException` on first use. (Under the subtype matching of earlier releases a `HashMap` field survived, because the map traversal rebuilds a `HashMap`; that was an implementation detail the promise does not cover, and `HashMap` is refused like any other concrete type.) An array of a primitive (`int[]`) is refused for the same reason, since the array traversal walks an `Object[]`. Name a traversal that rebuilds the declared type, built with `Traversals.forIterableCollecting(ArrayList::new)` for a list-shaped container or `Traversals.forMapValuesCollecting(TreeMap::new)` for a map and exposed as a static method, or, where the type is yours, declare the field as the interface:
 
+<!-- verify -->
 ```java
 @ThroughField(field = "entries", traversal = "com.example.CustomTraversals.forMyContainer()")
 Traversal<MyType, Entry> eachEntry();
