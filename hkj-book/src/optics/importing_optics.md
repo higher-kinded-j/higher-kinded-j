@@ -23,6 +23,7 @@ The landscape (JDK classes, database libraries, JSON parsers) already exists. Wh
 
 Optics work beautifully across your own records. Then you hit a type you do not own:
 
+<!-- verify -->
 ```java
 @GenerateLenses
 record Order(String id, LocalDate orderDate, List<String> lines) {}

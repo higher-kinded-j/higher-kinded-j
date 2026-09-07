@@ -150,6 +150,7 @@ public final class StateOps {
 A local variable takes the token too, which is the narrowest scope
 available:
 
+<!-- verify -->
 ```java
 @SuppressWarnings("path-type-mismatch") // deliberate: converted downstream
 var mixed = Path.just(1).via(_ -> Path.io(() -> 2));

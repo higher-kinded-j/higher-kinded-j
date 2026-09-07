@@ -19,7 +19,7 @@ But that's exactly the point. Id is to monads what 1 is to multiplication: multi
 
 1. **Transformer base case**: Monad transformers like `StateT`, `ReaderT`, and `MaybeT` are parameterised by an inner monad `F`. When you don't need that inner effect, plug in `Id`:
 
-   ```java
+   ```
    // StateT with Id as the inner monad = plain State
    StateT<S, IdKind.Witness, A>  ≡  State<S, A>
    ```
@@ -28,9 +28,11 @@ But that's exactly the point. Id is to monads what 1 is to multiplication: multi
 
 2. **Generic code**: When writing functions generic over any `Monad<F>`, Id serves as the "no-effect" instance for testing and for cases where pure computation suffices:
 
-   ```java
+   <!-- verify -->
+```java
    // This works with IO, CompletableFuture, Maybe, or... Id
-   <F extends Kind<F, ?>> Kind<F, String> greet(Monad<F> monad, Kind<F, String> name) {
+   <F extends WitnessArity<TypeArity.Unary>> Kind<F, String> greet(
+           Monad<F> monad, Kind<F, String> name) {
        return monad.map(n -> "Hello, " + n + "!", name);
    }
 
@@ -66,6 +68,7 @@ Every operation on Id simply applies to the wrapped value; there's no additional
 
 - [IdExample.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/basic/id/IdExample.java)
 
+<!-- verify -->
 ```java
 // Direct creation and access
 Id<String> idString = Id.of("Hello, Identity!");
@@ -80,6 +83,7 @@ Id<String> idNull = Id.of(null); // Id can wrap null
 
 - [IdExample.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/basic/id/IdExample.java)
 
+<!-- verify -->
 ```java
 Monad<IdKind.Witness> idMonad = Instances.monad(id());
 
@@ -114,6 +118,7 @@ ID.narrow(applied).value(); // "Applied: 42"
 
 This is where Id earns its keep. `StateT<S, IdKind.Witness, A>` behaves exactly like a plain `State<S, A>`: the Id inner monad contributes no additional effect.
 
+<!-- verify -->
 ```java
 // Create a StateT monad with Id as the inner monad
 Monad<StateTKind.Witness<Integer, IdKind.Witness>> stateMonadOverId =
@@ -165,10 +170,11 @@ For most use cases, prefer **[IdPath](../effect/path_id.md)** which wraps `Id` a
 - Seamless integration with the [Focus DSL](../optics/focus_dsl.md) for structural navigation
 - A consistent API shared across all effect types
 
+<!-- verify -->
 ```java
 // Instead of manual Id chaining:
 Kind<IdKind.Witness, String> name = idMonad.of("Alice");
-Kind<IdKind.Witness, Integer> len = idMonad.map(String::length, name);
+Kind<IdKind.Witness, Integer> length = idMonad.map(String::length, name);
 
 // Use IdPath for cleaner composition:
 IdPath<Integer> len = Path.id("Alice").map(String::length);

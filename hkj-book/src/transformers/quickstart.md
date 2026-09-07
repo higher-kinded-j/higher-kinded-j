@@ -21,12 +21,14 @@ The transformer machinery on this page is for the cases where Path types do not 
 
 The most common transformer use case: an asynchronous workflow whose steps can fail with typed domain errors. Without `EitherT` you end up nesting `thenCompose` inside `Either.fold` calls; with it the whole chain reads as a sequence.
 
+<!-- verify -->
 ```java
-import org.higherkindedj.hkt.future.CompletableFutureKind;
-import org.higherkindedj.hkt.future.CompletableFutureMonad;
+import static org.higherkindedj.hkt.instances.Witnesses.completableFuture;
+
 import org.higherkindedj.hkt.either_t.EitherT;
-import org.higherkindedj.hkt.either_t.EitherTMonad;
 import org.higherkindedj.hkt.expression.For;
+import org.higherkindedj.hkt.future.CompletableFutureKind;
+import org.higherkindedj.hkt.instances.Instances;
 
 sealed interface OrderError {
     record InvalidOrder(String reason) implements OrderError {}
@@ -34,11 +36,14 @@ sealed interface OrderError {
 }
 
 var futureMonad  = Instances.monadError(completableFuture());
-var eitherTMonad = Instances.eitherT(futureMonad);
+// Name the error type: nothing else constrains L, and it would otherwise infer to Object.
+var eitherTMonad =
+    Instances.<CompletableFutureKind.Witness, OrderError>eitherT(futureMonad);
 
 var workflow = For.from(eitherTMonad, EitherT.fromKind(validateOrder(order)))
     .from(validated -> EitherT.fromKind(checkInventory(validated)))
-    .from(reserved  -> EitherT.fromKind(processPayment(reserved)))
+    // past the first binding, `from` sees the accumulated tuple; only `yield` unpacks it
+    .from(t -> EitherT.fromKind(processPayment(t._2())))
     .yield((validated, reserved, receipt) -> receipt);
 ```
 
@@ -50,19 +55,20 @@ If any step yields `Left`, the rest are skipped and the error propagates through
 
 Multi-step lookups where any step might return nothing are the bread and butter of `OptionalT`. The same `For` shape works with the change of monad.
 
+<!-- verify -->
 ```java
-import org.higherkindedj.hkt.future.CompletableFutureKind;
-import org.higherkindedj.hkt.future.CompletableFutureMonad;
+import static org.higherkindedj.hkt.instances.Witnesses.completableFuture;
+
 import org.higherkindedj.hkt.expression.For;
+import org.higherkindedj.hkt.instances.Instances;
 import org.higherkindedj.hkt.optional_t.OptionalT;
-import org.higherkindedj.hkt.optional_t.OptionalTMonad;
 
 var futureMonad    = Instances.monadError(completableFuture());
 var optionalTMonad = Instances.optionalT(futureMonad);
 
 var prefsLookup = For.from(optionalTMonad, OptionalT.fromKind(fetchUserAsync(userId)))
-    .from(user    -> OptionalT.fromKind(fetchProfileAsync(user.id())))
-    .from(profile -> OptionalT.fromKind(fetchPrefsAsync(profile.userId())))
+    .from(user -> OptionalT.fromKind(fetchProfileAsync(user.id())))
+    .from(t -> OptionalT.fromKind(fetchPrefsAsync(t._2().userId())))
     .yield((user, profile, prefs) -> prefs);
 ```
 
@@ -74,6 +80,7 @@ If `fetchUserAsync` returns `Optional.empty()`, neither `fetchProfileAsync` nor 
 
 When the same business logic must run against different stacks (production async, synchronous tests, audit interpreter) write it once against an MTL capability. Here a function reads configuration without naming a concrete transformer:
 
+<!-- verify -->
 ```java
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.MonadReader;

@@ -17,9 +17,10 @@
 
 Java's `Optional<T>` is everywhere: repositories return it, configuration lookups return it, and dozens of JDK and third-party APIs produce it. But when you try to write *generic* monadic code that programs against `Kind<F, A>`, `Optional` cannot participate directly. It is a concrete JDK class, not part of any higher-kinded type hierarchy.
 
+<!-- verify -->
 ```java
 // You want to write generic code like this...
-<F extends WitnessArity<?>> Kind<F, String> lookupAndFormat(
+<F extends WitnessArity<TypeArity.Unary>> Kind<F, String> lookupAndFormat(
     Kind<F, User> userKind, Monad<F> monad) {
   return monad.map(u -> u.name().toUpperCase(), userKind);
 }
@@ -30,6 +31,7 @@ Optional<User> user = repository.findById(id); // can't pass to lookupAndFormat
 
 `OptionalMonad` bridges this gap. It wraps `Optional` into the HKT system via `OptionalKind`, giving you `map`, `flatMap`, `ap`, `raiseError`, and `handleErrorWith`, all working through the `Kind` abstraction. Your generic algorithms now work with `Optional` alongside `Maybe`, `Either`, `IO`, and every other type in the library, without duplicating logic.
 
+<!-- verify -->
 ```java
 // Wrap the Optional into the HKT world
 Kind<OptionalKind.Witness, User> userKind = OPTIONAL.widen(repository.findById(id));
@@ -83,12 +85,13 @@ The following examples demonstrate the three main workflows: creating optional v
 
 Use `OPTIONAL.widen` to wrap existing `Optional` values. Use `optionalMonad.of` to lift raw values (null-safe). Use `raiseError` to explicitly represent absence.
 
+<!-- verify -->
 ```java
 MonadError<OptionalKind.Witness, Unit> optionalMonad = Instances.monadError(optional());
 
 // Wrap an existing Optional from a JDK API
 Optional<String> fromDb = Optional.of("Alice");
-OptionalKind<String> wrapped = OPTIONAL.widen(fromDb);
+Kind<OptionalKind.Witness, String> wrapped = OPTIONAL.widen(fromDb);
 
 // Lift a raw value - null becomes empty automatically
 Kind<OptionalKind.Witness, String> present = optionalMonad.of("Hello");   // Optional.of("Hello")
@@ -108,11 +111,12 @@ Optional<String> result = OPTIONAL.narrow(present);  // Optional.of("Hello")
 
 `map` transforms the value if present. `flatMap` chains operations that themselves may produce empty. `ap` applies a function-in-Optional to a value-in-Optional. In all cases, empty propagates automatically.
 
+<!-- verify -->
 ```java
 MonadError<OptionalKind.Witness, Unit> optionalMonad = Instances.monadError(optional());
 
 // --- map: transform a present value ---
-OptionalKind<Integer> num = OPTIONAL.widen(Optional.of(42));
+Kind<OptionalKind.Witness, Integer> num = OPTIONAL.widen(Optional.of(42));
 Kind<OptionalKind.Witness, String> formatted = optionalMonad.map(
     n -> "Answer: " + n, num);
 // OPTIONAL.narrow(formatted) => Optional.of("Answer: 42")
@@ -152,6 +156,7 @@ Kind<OptionalKind.Witness, String> noFunc = optionalMonad.ap(
 
 When an `OptionalKind` is empty, `handleErrorWith` invokes a recovery function. Present values pass through untouched.
 
+<!-- verify -->
 ```java
 MonadError<OptionalKind.Witness, Unit> optionalMonad = Instances.monadError(optional());
 
@@ -174,6 +179,7 @@ Kind<OptionalKind.Witness, String> handledAbsent =
 
 The recovery here ignores `Unit` and yields a constant, so it is exactly what the [`recover`/`recoverWith` shortcuts](../functional/monad_error.md#constant-fallbacks-recover-and-recoverwith) express:
 
+<!-- verify -->
 ```java
 optionalMonad.recover(absent, "Default Value");                                    // constant value
 optionalMonad.recoverWith(absent, OPTIONAL.widen(Optional.of("Default Value")));   // constant Kind
@@ -226,13 +232,14 @@ For most use cases, prefer **[OptionalPath](../effect/path_optional.md)** which 
 - Seamless integration with the [Focus DSL](../optics/focus_dsl.md) for structural navigation
 - A consistent API shared across all effect types
 
+<!-- verify -->
 ```java
 // Instead of manual OptionalKind chaining:
 Kind<OptionalKind.Witness, User> userKind = OPTIONAL.widen(findUser(id));
 Kind<OptionalKind.Witness, String> name = optionalMonad.map(User::name, userKind);
 
 // Use OptionalPath for cleaner composition:
-OptionalPath<String> name = Path.optional(findUser(id))
+OptionalPath<String> path = Path.optional(findUser(id))
     .map(User::name);
 ```
 

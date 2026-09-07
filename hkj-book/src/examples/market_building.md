@@ -25,6 +25,7 @@ Each tick depends on the previous price (random walk), so generation is inherent
 **HKJ feature:** `VStream.unfold(seed, f)`: creates an infinite stream from a seed state
 and a function that produces the next element plus the next state.
 
+<!-- verify -->
 ```java
 public VStream<PriceTick> ticks() {
     double[] initialPrices = new double[symbols.size()];
@@ -78,6 +79,7 @@ Key points:
 - The `VTask` wrapper means each tick generation runs on a virtual thread
 - Deterministic with a fixed seed, useful for reproducible tests
 
+<!-- verify -->
 ```java
 List<PriceTick> ticks = feed.ticks().take(5).toList().run();
 ```
@@ -103,6 +105,7 @@ interleaves ticks as they arrive, not round-robin but in true arrival order.
 **HKJ feature:** `VStreamPar.merge(streams)`: merges multiple streams concurrently, each
 consumed on its own virtual thread. Elements are emitted as soon as any source produces one.
 
+<!-- verify -->
 ```java
 public static VStream<PriceTick> merge(List<ExchangeFeed> feeds) {
     List<VStream<PriceTick>> tickStreams = feeds.stream()
@@ -148,6 +151,7 @@ How it works internally:
 4. If any source fails, the error propagates immediately and other sources are cancelled
 5. When the consumer is done (e.g. via `take()`), producers are cancelled via `close()`
 
+<!-- verify -->
 ```java
 SimulatedExchangeFeed nyse = new SimulatedExchangeFeed(
     Exchange.NYSE, symbols, 150.0, 0.002, 42L);
@@ -190,30 +194,31 @@ stream, we want bounded concurrency (don't open 10,000 connections at once).
 - `VStreamPar.parEvalMap(stream, concurrency, f)`: applies an effectful function to each
   element with bounded concurrency, preserving input order
 
+<!-- verify -->
 ```java
-public class TickEnricher {
-    // Per-tick: fetch instrument + FX rate in parallel; a failed lookup becomes a typed error.
-    public VTask<Either<MarketError, EnrichedTick>> enrichOne(PriceTick tick) {
-        VTask<Instrument> instrumentTask = refData.lookup(tick.symbol());
-        VTask<BigDecimal> fxTask = fxService.rateToUsd(tick.exchange().currency());
+// Per-tick: fetch instrument + FX rate in parallel; a failed lookup becomes a typed error.
+public VTask<Either<MarketError, EnrichedTick>> enrichOne(PriceTick tick) {
+    VTask<Instrument> instrumentTask = refData.lookup(tick.symbol());
+    VTask<BigDecimal> fxTask = fxService.rateToUsd(tick.exchange().currency());
 
-        return Par.map2(instrumentTask, fxTask,
-                (instrument, fxRate) ->
-                    Either.<MarketError, EnrichedTick>right(
-                        new EnrichedTick(tick, instrument, fxRate)))
-            // An unknown instrument/currency is recovered into a typed EnrichmentFailed (carrying
-            // the tick's symbol) instead of propagating as an exception.
-            .recover(error ->
-                Either.left(new MarketError.EnrichmentFailed(tick.symbol(), error.getMessage())));
-    }
+    return Par.map2(instrumentTask, fxTask,
+            (instrument, fxRate) ->
+                Either.<MarketError, EnrichedTick>right(
+                    new EnrichedTick(tick, instrument, fxRate)))
+        // An unknown instrument/currency is recovered into a typed EnrichmentFailed (carrying
+        // the tick's symbol) instead of propagating as an exception.
+        .recover(error ->
+            Either.left(
+                MarketError.EnrichmentFailed.of(
+                    tick.symbol(), String.valueOf(error.getMessage()))));
+}
 
-    // Across the stream: bounded concurrent enrichment. Failed ticks are reported through the
-    // typed-error channel and dropped, so one bad symbol can't abort the feed.
-    public VStream<EnrichedTick> enrich(VStream<PriceTick> ticks) {
-        return VStreamPar.parEvalMap(ticks, concurrency, this::enrichOne)
-            .peek(result -> result.ifLeft(onEnrichmentError))
-            .flatMap(result -> result.fold(_ -> VStream.empty(), VStream::of));
-    }
+// Across the stream: bounded concurrent enrichment. Failed ticks are reported through the
+// typed-error channel and dropped, so one bad symbol can't abort the feed.
+public VStream<EnrichedTick> enrich(VStream<PriceTick> ticks) {
+    return VStreamPar.parEvalMap(ticks, concurrency, this::enrichOne)
+        .peek(result -> result.ifLeft(onEnrichmentError))
+        .flatMap(result -> result.fold(_ -> VStream.empty(), VStream::of));
 }
 ```
 
@@ -239,6 +244,7 @@ The enrichment also creates two levels of concurrency that compose naturally:
 ~~~admonish tip title="The Imperative Alternative"
 Without HKJ, the equivalent code typically looks like this:
 
+<!-- verify -->
 ```java
 // Imperative: manual thread management, manual error propagation
 ExecutorService pool = Executors.newFixedThreadPool(16);
@@ -249,8 +255,10 @@ for (PriceTick tick : mergedTicks) {
     semaphore.acquire();
     pool.submit(() -> {
         try {
-            Future<Instrument> instrFuture = pool.submit(() -> refData.lookup(tick.symbol()));
-            Future<BigDecimal> fxFuture = pool.submit(() -> fxService.rateToUsd(...));
+            Future<Instrument> instrFuture =
+                pool.submit(() -> refData.lookup(tick.symbol()).run());
+            Future<BigDecimal> fxFuture =
+                pool.submit(() -> fxService.rateToUsd(tick.exchange().currency()).run());
             Instrument instrument = instrFuture.get();   // blocks platform thread
             BigDecimal fxRate = fxFuture.get();
             synchronized (results) {
@@ -294,12 +302,11 @@ order must match arrival order; otherwise ticks would land in the wrong window.
 **HKJ feature:** `VStreamPar.parEvalMap(stream, concurrency, f)`: applies an effectful
 function to each element with bounded concurrency while **preserving input order**.
 
+<!-- verify -->
 ```java
-public class RiskPipeline {
-    public VStream<RiskAssessment> assess(VStream<EnrichedTick> enrichedTicks) {
-        return VStreamPar.parEvalMap(
-            enrichedTicks, concurrency, calculator::assess);
-    }
+public VStream<RiskAssessment> assess(VStream<EnrichedTick> enrichedTicks) {
+    return VStreamPar.parEvalMap(
+        enrichedTicks, concurrency, calculator::assess);
 }
 ```
 
@@ -342,6 +349,7 @@ Average Price).
 - `VStream.chunk(size)`: groups consecutive elements into `List<A>` batches
 - `VStream.flatMap(f)`: expands per-symbol groups into individual views
 
+<!-- verify -->
 ```java
 public static VStream<AggregatedView> aggregate(
         VStream<RiskAssessment> assessed, int windowSize) {

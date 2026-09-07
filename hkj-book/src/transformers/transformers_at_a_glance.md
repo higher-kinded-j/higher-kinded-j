@@ -109,6 +109,7 @@ Each example below is the shortest snippet that exercises the transformer's prim
 
 ### EitherT
 
+<!-- verify -->
 ```java
 var monad   = Instances.eitherT(Instances.monadError(completableFuture()));
 var success = EitherT.right(Instances.monadError(completableFuture()), 42);
@@ -117,6 +118,7 @@ var failed  = EitherT.left(Instances.monadError(completableFuture()), "oops");
 
 ### OptionalT
 
+<!-- verify -->
 ```java
 var monad   = Instances.optionalT(Instances.monadError(completableFuture()));
 var present = OptionalT.some(Instances.monadError(completableFuture()), 42);
@@ -125,6 +127,7 @@ var absent  = OptionalT.none(Instances.monadError(completableFuture()));
 
 ### MaybeT
 
+<!-- verify -->
 ```java
 var monad = Instances.maybeT(Instances.monadError(completableFuture()));
 var just  = MaybeT.just(Instances.monadError(completableFuture()), 42);
@@ -133,6 +136,7 @@ var none  = MaybeT.nothing(Instances.monadError(completableFuture()));
 
 ### ReaderT
 
+<!-- verify -->
 ```java
 var monad  = Instances.readerT(Instances.monadError(completableFuture()));
 var reader = ReaderT.<CompletableFutureKind.Witness, AppConfig, String>reader(
@@ -142,6 +146,7 @@ var reader = ReaderT.<CompletableFutureKind.Witness, AppConfig, String>reader(
 
 ### StateT
 
+<!-- verify -->
 ```java
 var optMonad = Instances.monadError(optional());
 var stMonad  = Instances.stateT(optMonad);
@@ -152,6 +157,7 @@ var counter  = StateT.create(
 
 ### WriterT
 
+<!-- verify -->
 ```java
 var listMonoid = Monoids.list();
 var monad      = Instances.writerT(Instances.monad(id()), listMonoid);

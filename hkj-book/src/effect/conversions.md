@@ -79,6 +79,7 @@ The Path API supports rich conversions between all path types. Some conversions 
 
 Convert absence to a typed error:
 
+<!-- verify -->
 ```java
 MaybePath<User> maybeUser = Path.maybe(findUser(id));
 
@@ -86,20 +87,25 @@ MaybePath<User> maybeUser = Path.maybe(findUser(id));
 EitherPath<String, User> withError =
     maybeUser.toEitherPath("User not found");
 
-// With lazy error
-EitherPath<UserError, User> withLazyError =
-    maybeUser.toEitherPath(() -> new UserError("User " + id + " not found"));
+// The error is built whichever way the Maybe went
+EitherPath<UserError, User> withTypedError =
+    maybeUser.toEitherPath(new UserError("User " + id + " not found"));
 ```
+
+~~~admonish note title="The error is eager"
+`toEitherPath` takes the error *value*, so it is constructed even when the `Maybe` is a `Just` and it is thrown away. For a record that costs nothing; for an error that formats a message or captures a stack trace, hoist it or accept the cost. `Maybe.toEither` has a `Supplier` overload for exactly this, and the Path layer does not: [#794](https://github.com/higher-kinded-j/higher-kinded-j/issues/794).
+~~~
 
 This is useful when:
 - An optional value becomes a required value
 - You need to propagate error information downstream
 
+<!-- verify -->
 ```java
 // Service that returns Maybe internally but Either externally
 public EitherPath<Error, User> getUserOrError(String id) {
     return Path.maybe(userRepository.findById(id))
-        .toEitherPath(() -> new Error.UserNotFound(id));
+        .toEitherPath(Error.notFound(id));
 }
 ```
 
@@ -107,6 +113,7 @@ public EitherPath<Error, User> getUserOrError(String id) {
 
 Discard error information:
 
+<!-- verify -->
 ```java
 EitherPath<String, User> eitherUser = Path.either(validateUser(input));
 
@@ -126,6 +133,7 @@ This is useful when:
 
 Convert exceptions to typed errors:
 
+<!-- verify -->
 ```java
 TryPath<Config> tryConfig = Path.tryOf(() -> loadConfig());
 
@@ -146,6 +154,7 @@ EitherPath<String, Config> withMessage =
 
 Failures become Nothing:
 
+<!-- verify -->
 ```java
 TryPath<Integer> parsed = Path.tryOf(() -> Integer.parseInt(input));
 
@@ -162,11 +171,12 @@ MaybePath<Integer> port = Path.tryOf(() -> Integer.parseInt(config.get("port")))
 
 Wrap error as exception:
 
+<!-- verify -->
 ```java
-EitherPath<String, User> eitherUser = validateUser(input);
+EitherPath<String, User> eitherUser = Path.either(validateUser(input));
 
-// Error becomes RuntimeException
-TryPath<User> tryUser = eitherUser.toTryPath();
+// The error becomes whatever exception you name for it
+TryPath<User> tryUser = eitherUser.toTryPath(RuntimeException::new);
 ```
 
 ---
@@ -177,6 +187,7 @@ TryPath<User> tryUser = eitherUser.toTryPath();
 
 Execute the IO and capture the result:
 
+<!-- verify -->
 ```java
 IOPath<Data> ioData = Path.io(() -> fetchFromNetwork());
 
@@ -193,6 +204,7 @@ TryPath<Data> tryData = ioData.toTryPath();
 
 For explicit control over execution:
 
+<!-- verify -->
 ```java
 IOPath<Data> io = Path.io(() -> fetchData());
 
@@ -200,7 +212,7 @@ IOPath<Data> io = Path.io(() -> fetchData());
 Try<Data> result = io.runSafe();
 
 // Then convert to path if needed
-TryPath<Data> tryPath = Path.of(result);
+TryPath<Data> tryPath = Path.tryPath(result);
 ```
 
 ---
@@ -211,46 +223,48 @@ TryPath<Data> tryPath = Path.of(result);
 
 Convert to accumulating validation mode:
 
+<!-- verify -->
 ```java
 EitherPath<String, Integer> eitherValue = Path.right(42);
 
-// Convert to ValidationPath (preserves success/failure)
-ValidationPath<String, Integer> validationValue = eitherValue.toValidationPath();
+// Convert to ValidationPath. The Semigroup says how errors combine.
+ValidationPath<String, Integer> validationValue =
+    eitherValue.toValidationPath(Semigroups.string("; "));
 
 // Now can use accumulating operations
-ValidationPath<String, Integer> other = Path.valid(10);
-ValidationPath<String, Integer> combined = validationValue.zipWithAccum(
-    other,
-    Integer::sum,
-    (e1, e2) -> e1 + "; " + e2
-);
+ValidationPath<String, Integer> other = Path.valid(10, Semigroups.string("; "));
+ValidationPath<String, Integer> combined =
+    validationValue.zipWithAccum(other, Integer::sum);
 ```
 
 ### ValidationPath → EitherPath
 
 Convert back to short-circuiting mode:
 
+<!-- verify -->
 ```java
-ValidationPath<List<String>, User> validated = validateUser(input);
+ValidationPath<List<String>, User> validated = validateUserPath(input);
 
 // Convert to EitherPath for chaining
 EitherPath<List<String>, User> either = validated.toEitherPath();
 
 // Now can use via() for dependent operations
 EitherPath<List<String>, Order> order = either
-    .via(user -> createOrder(user));
+    .via(user -> Path.<List<String>, Order>right(createOrder(user)));
 ```
 
 ### TryPath → ValidationPath
 
 Convert exceptions to validation errors:
 
+<!-- verify -->
 ```java
 TryPath<Config> tryConfig = Path.tryOf(() -> loadConfig());
 
 // Transform exception to error type
 ValidationPath<String, Config> validConfig =
-    tryConfig.toValidationPath(ex -> "Config error: " + ex.getMessage());
+    tryConfig.toValidationPath(
+        ex -> "Config error: " + ex.getMessage(), Semigroups.string("; "));
 ```
 
 ### When to Convert
@@ -273,6 +287,7 @@ Convert `ValidationPath` to `EitherPath` when:
 
 ### IdPath → MaybePath
 
+<!-- verify -->
 ```java
 IdPath<String> idValue = Path.id("hello");
 
@@ -283,17 +298,18 @@ MaybePath<String> maybe = idValue.toMaybePath();
 
 ### MaybePath → IdPath
 
+<!-- verify -->
 ```java
 MaybePath<String> maybe = Path.just("hello");
 
-// Requires a default for Nothing case
-IdPath<String> id = maybe.toIdPath("default");
+// An IdPath always holds a value, so absence has to go somewhere: it throws
+IdPath<String> id = maybe.toIdPath(() -> new NoSuchElementException("no user"));
 // → Id("hello")
-
-MaybePath<String> nothing = Path.nothing();
-IdPath<String> idDefault = nothing.toIdPath("default");
-// → Id("default")
 ```
+
+~~~admonish warning title="This is not a defaulting conversion"
+`toIdPath` takes a `Supplier<? extends RuntimeException>`, not a fallback value. `IdPath` is the identity path and cannot represent absence, so a `Nothing` cannot be carried across and the supplier's exception is thrown instead. To *default* rather than throw, extract first: `Path.id(maybe.getOrElse("default"))`.
+~~~
 
 ### IdPath Use Cases
 
@@ -311,6 +327,7 @@ IdPath<String> idDefault = nothing.toIdPath("default");
 
 ### OptionalPath ↔ MaybePath
 
+<!-- verify -->
 ```java
 // From Optional
 Optional<String> javaOpt = Optional.of("hello");
@@ -329,8 +346,9 @@ Optional<String> javaOpt2 = optPath2.run();
 
 ### OptionalPath → EitherPath
 
+<!-- verify -->
 ```java
-OptionalPath<User> optUser = Path.optional(findUser(id));
+OptionalPath<User> optUser = Path.optional(findUserOptional(id));
 
 // Provide error for empty case
 EitherPath<String, User> either = optUser.toEitherPath("User not found");
@@ -352,9 +370,10 @@ Use `OptionalPath` when:
 
 ### Creating GenericPath
 
+<!-- verify -->
 ```java
 // Wrap any Kind with its Monad instance
-Kind<MaybeKind.Witness, String> maybeKind = MaybeKind.widen(Maybe.just("hello"));
+Kind<MaybeKind.Witness, String> maybeKind = MAYBE.widen(Maybe.just("hello"));
 GenericPath<MaybeKind.Witness, String> generic = Path.generic(
     maybeKind,
     Instances.monadError(maybe())
@@ -363,12 +382,13 @@ GenericPath<MaybeKind.Witness, String> generic = Path.generic(
 
 ### Using GenericPath
 
+<!-- verify -->
 ```java
 // All standard path operations work
 GenericPath<MaybeKind.Witness, Integer> mapped = generic.map(String::length);
 
 GenericPath<MaybeKind.Witness, String> chained = generic.via(s ->
-    Path.generic(MaybeKind.widen(Maybe.just(s.toUpperCase())), Instances.monadError(maybe()))
+    Path.generic(MAYBE.widen(Maybe.just(s.toUpperCase())), Instances.monadError(maybe()))
 );
 
 // Extract the underlying Kind
@@ -393,6 +413,7 @@ Use `GenericPath` when:
 
 ### Lifting to MaybePath
 
+<!-- verify -->
 ```java
 // From a value
 MaybePath<String> just = Path.just("hello");
@@ -412,6 +433,7 @@ MaybePath<Integer> validated = value > 0
 
 ### Lifting to EitherPath
 
+<!-- verify -->
 ```java
 // Success
 EitherPath<Error, Integer> success = Path.right(42);
@@ -427,6 +449,7 @@ EitherPath<String, Integer> validated = value > 0
 
 ### Lifting to TryPath
 
+<!-- verify -->
 ```java
 // Success
 TryPath<Integer> success = Path.success(42);
@@ -440,6 +463,7 @@ TryPath<Config> config = Path.tryOf(() -> loadConfig());
 
 ### Lifting to IOPath
 
+<!-- verify -->
 ```java
 // Pure value (no side effects)
 IOPath<Integer> pure = Path.ioPure(42);
@@ -450,45 +474,50 @@ IOPath<String> deferred = Path.io(() -> readFile());
 
 ### Lifting to ValidationPath
 
+<!-- verify -->
 ```java
 // Valid value
-ValidationPath<String, Integer> valid = Path.valid(42);
+ValidationPath<String, Integer> valid = Path.valid(42, Semigroups.first());
 
 // Invalid value
-ValidationPath<String, Integer> invalid = Path.invalid("Must be positive");
+ValidationPath<String, Integer> invalid =
+    Path.invalid("Must be positive", Semigroups.first());
 
 // From existing Validated
-Validated<String, User> validated = validateUser(input);
-ValidationPath<String, User> path = Path.validation(validated);
+Validated<String, User> validated = validatedUser(input);
+ValidationPath<String, User> path = Path.validated(validated, Semigroups.first());
 ```
 
 ### Lifting to IdPath
 
+<!-- verify -->
 ```java
 // Wrap a pure value
 IdPath<String> id = Path.id("hello");
 
 // From existing Id
 Id<Integer> idValue = Id.of(42);
-IdPath<Integer> idPath = Path.idOf(idValue);
+IdPath<Integer> idPath = Path.idPath(idValue);
 ```
 
 ### Lifting to OptionalPath
 
+<!-- verify -->
 ```java
 // From Optional
 OptionalPath<String> present = Path.optional(Optional.of("hello"));
 OptionalPath<String> empty = Path.optional(Optional.empty());
 
 // From nullable value
-OptionalPath<String> fromNullable = Path.optionalOfNullable(possiblyNull);
+OptionalPath<String> fromNullable = Path.optional(Optional.ofNullable(possiblyNull));
 ```
 
 ### Lifting to GenericPath
 
+<!-- verify -->
 ```java
 // Wrap any Kind with its Monad
-Kind<ListKind.Witness, Integer> listKind = ListKind.widen(List.of(1, 2, 3));
+Kind<ListKind.Witness, Integer> listKind = LIST.widen(List.of(1, 2, 3));
 GenericPath<ListKind.Witness, Integer> genericList = Path.generic(listKind, Instances.monadZero(list()));
 ```
 
@@ -498,6 +527,7 @@ GenericPath<ListKind.Witness, Integer> genericList = Path.generic(listKind, Inst
 
 ### MaybePath Extraction
 
+<!-- verify -->
 ```java
 MaybePath<String> path = Path.just("hello");
 
@@ -508,10 +538,7 @@ Maybe<String> maybe = path.run();
 String value = path.getOrElse("default");
 
 // Get or compute default
-String value = path.getOrElse(() -> computeDefault());
-
-// Get or throw
-String value = path.getOrThrow(() -> new NoSuchElementException());
+String computed = path.getOrElseGet(() -> computeDefault());
 
 // Check presence
 boolean hasValue = path.run().isJust();
@@ -519,6 +546,7 @@ boolean hasValue = path.run().isJust();
 
 ### EitherPath Extraction
 
+<!-- verify -->
 ```java
 EitherPath<String, Integer> path = Path.right(42);
 
@@ -543,6 +571,7 @@ boolean isSuccess = either.isRight();
 
 ### TryPath Extraction
 
+<!-- verify -->
 ```java
 TryPath<Integer> path = Path.success(42);
 
@@ -553,20 +582,20 @@ Try<Integer> tryValue = path.run();
 Integer value = path.getOrElse(-1);
 
 // Get or compute
-Integer value = path.getOrElse(() -> computeDefault());
-
-// Get (may throw)
-Integer value = tryValue.get();
+Integer computed = path.getOrElseGet(() -> computeIntDefault());
 
 // Check state
 boolean succeeded = tryValue.isSuccess();
 
-// Get exception (if failure)
-Throwable cause = tryValue.getCause();
+// Handle both sides, failure first
+String message = tryValue.foldFailureFirst(
+    cause -> "Error: " + cause.getMessage(),
+    ok -> "Value: " + ok);
 ```
 
 ### IOPath Extraction
 
+<!-- verify -->
 ```java
 IOPath<String> path = Path.io(() -> readFile());
 
@@ -574,7 +603,7 @@ IOPath<String> path = Path.io(() -> readFile());
 String result = path.unsafeRun();
 
 // Execute safely
-Try<String> result = path.runSafe();
+Try<String> captured = path.runSafe();
 
 // Convert to Try for further composition
 TryPath<String> tryPath = path.toTryPath();
@@ -582,8 +611,9 @@ TryPath<String> tryPath = path.toTryPath();
 
 ### ValidationPath Extraction
 
+<!-- verify -->
 ```java
-ValidationPath<List<String>, User> path = validateUser(input);
+ValidationPath<List<String>, User> path = validateUserPath(input);
 
 // Get underlying Validated
 Validated<List<String>, User> validated = path.run();
@@ -601,6 +631,7 @@ boolean isInvalid = validated.isInvalid();
 
 ### IdPath Extraction
 
+<!-- verify -->
 ```java
 IdPath<String> path = Path.id("hello");
 
@@ -610,11 +641,12 @@ Id<String> id = path.run();
 // Get the value (always succeeds)
 String value = id.value();
 // or
-String value = path.get();
+String direct = path.get();
 ```
 
 ### OptionalPath Extraction
 
+<!-- verify -->
 ```java
 OptionalPath<String> path = Path.optional(Optional.of("hello"));
 
@@ -625,20 +657,21 @@ Optional<String> opt = path.run();
 String value = opt.orElse("default");
 
 // Get or throw
-String value = opt.orElseThrow(() -> new NoSuchElementException());
+String required = opt.orElseThrow(() -> new NoSuchElementException());
 ```
 
 ### GenericPath Extraction
 
+<!-- verify -->
 ```java
 GenericPath<MaybeKind.Witness, String> path = Path.generic(
-    MaybeKind.widen(maybe), Instances.monadError(maybe()));
+    MAYBE.widen(maybeValue), Instances.monadError(maybe()));
 
 // Get underlying Kind
 Kind<MaybeKind.Witness, String> kind = path.runKind();
 
 // Narrow to concrete type
-Maybe<String> maybe = MaybeKind.narrow(kind);
+Maybe<String> narrowed = MAYBE.narrow(kind);
 ```
 
 ---
@@ -647,14 +680,15 @@ Maybe<String> maybe = MaybeKind.narrow(kind);
 
 Real code often chains multiple conversions:
 
+<!-- verify -->
 ```java
 // Start with Maybe, end with Either with error handling
 EitherPath<ServiceError, Order> processOrder(String userId, OrderInput input) {
     return Path.maybe(userRepository.findById(userId))         // MaybePath<User>
-        .toEitherPath(() -> new ServiceError.UserNotFound())   // EitherPath<ServiceError, User>
+        .<ServiceError>toEitherPath(new ServiceError.UserNotFound())
         .via(user -> Path.tryOf(() -> validateOrder(input))    // Chain TryPath
-            .toEitherPath(ServiceError.ValidationFailed::new)) // Convert to EitherPath
-        .via(validated -> Path.either(createOrder(user, validated)));
+            .<ServiceError>toEitherPath(ServiceError.ValidationFailed::new)
+            .via(validated -> Path.either(createOrder(user, validated))));
 }
 ```
 
@@ -666,19 +700,20 @@ EitherPath<ServiceError, Order> processOrder(String userId, OrderInput input) {
 
 Convert at service boundaries, not throughout:
 
+<!-- verify -->
 ```java
 // Good: Convert once at the boundary
 public EitherPath<Error, User> getUser(String id) {
     return Path.maybe(repository.findById(id))  // Internal Maybe
-        .toEitherPath(() -> Error.notFound(id)); // Convert at boundary
+        .toEitherPath(Error.notFound(id));      // Convert at boundary
 }
 
 // Avoid: Converting back and forth
-public EitherPath<Error, User> getUser(String id) {
+public EitherPath<Error, User> getUserTheLongWayRound(String id) {
     return Path.maybe(repository.findById(id))
-        .toEitherPath(() -> Error.notFound(id))
+        .toEitherPath(Error.notFound(id))
         .toMaybePath()  // Why convert back?
-        .toEitherPath(() -> Error.notFound(id)); // And forth again?
+        .toEitherPath(Error.notFound(id)); // And forth again?
 }
 ```
 
@@ -686,14 +721,17 @@ public EitherPath<Error, User> getUser(String id) {
 
 Choose the right error type for the layer:
 
+<!-- verify -->
 ```java
 // Repository: Maybe (absence is normal)
-public Maybe<User> findById(String id) { ... }
+public Maybe<User> findById(String id) {
+    return repository.findById(id);
+}
 
 // Service: Either with domain errors
 public EitherPath<UserError, User> getUserById(String id) {
     return Path.maybe(repository.findById(id))
-        .toEitherPath(() -> UserError.NOT_FOUND);
+        .toEitherPath(UserError.NOT_FOUND);
 }
 
 // Controller: Either with HTTP-friendly errors

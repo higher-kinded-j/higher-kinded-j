@@ -59,6 +59,7 @@ Demystify the four core Path operations on the four core Path types.
 
 [Hands On Practice](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/test/java/org/higherkindedj/tutorial/effect/Tutorial01_EffectPathBasics.java)
 
+<!-- verify -->
 ```java
 // Exercise 5: Chaining with via
 EitherPath<String, Double> result = Path.<String, String>right("25")
@@ -86,6 +87,7 @@ ForPath comprehensions, Effect Contexts, service integration, and the Focus-Effe
 
 [Hands On Practice](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/test/java/org/higherkindedj/tutorial/effect/Tutorial02_EffectPathAdvanced.java)
 
+<!-- verify -->
 ```java
 // Exercise 1: ForPath comprehensions
 MaybePath<Integer> result = ForPath.from(Path.just(10))
@@ -96,7 +98,8 @@ assertThat(result.getOrElse(0)).isEqualTo(30);
 // Exercise 4: ConfigContext for dependency injection
 ConfigContext<?, AppConfig, String> workflow = ConfigContext.<AppConfig>ask()
     .via(cfg -> ConfigContext.pure(cfg.apiUrl() + "/users"))
-    .via(endpoint -> ConfigContext.io(cfg -> endpoint + "?timeout=" + cfg.timeout()));
+    .via(endpoint ->
+        ConfigContext.<AppConfig, String>io(cfg -> endpoint + "?timeout=" + cfg.timeout()));
 String url = workflow.runWithSync(config);
 ```
 

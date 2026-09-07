@@ -18,6 +18,7 @@ As Java developers, we appreciate the safety and predictability of immutable obj
 
 Consider a simple nested record structure:
 
+<!-- verify -->
 ```java
 record Street(String name, int number) {}
 record Address(Street street, String city) {}
@@ -26,6 +27,7 @@ record User(String name, Address address) {}
 
 How do you update the user's street name? In standard Java, you're forced into a "copy-and-update" cascade:
 
+<!-- verify -->
 ```java
 // What most Java developers actually write
 public User updateStreetName(User user, String newStreetName) {
@@ -82,6 +84,7 @@ A **Lens** is the most common optic. It focuses on a single, required piece of d
 
   * To solve our initial problem of updating the user's street name (the same path the chapter opened with), we compose lenses:
 
+<!-- verify -->
 ```java
     // Compose lenses to create a direct path to the nested data
     var userToStreetName = UserLenses.address()
@@ -96,12 +99,13 @@ A **Lens** is the most common optic. It focuses on a single, required piece of d
 
   * For simple, top-level updates, the `with*` methods are more direct and discoverable.
 
+<!-- verify -->
 ```java
 // Before: Using the lens directly
 User userWithNewName = UserLenses.name().set("Bob", user);
 
 // After: Using the generated helper method
-User userWithNewName = UserLenses.withName(user, "Bob");
+User renamedUser = UserLenses.withName(user, "Bob");
 ```
 
 ### 2. Iso: For "Is-Equivalent-To" Relationships
@@ -111,12 +115,14 @@ An **Iso** (Isomorphism) is a special, reversible optic. It represents a lossles
 * **Problem it solves**: Swapping between different representations of the same data, such as a wrapper class and its raw value, or between two structurally different but informationally equivalent records.
 * **Example**: Suppose you have a `Point` record and a `Tuple2<Integer, Integer>`, which are structurally different but hold the same data.
 
+<!-- verify -->
   ```java
   public record Point(int x, int y) {}
   ```
 
   You can define an `Iso` to convert between them:
 
+<!-- verify -->
   ```java
   @GenerateIsos
   public static Iso<Point, Tuple2<Integer, Integer>> pointToTuple() {
@@ -136,6 +142,7 @@ A **Prism** is like a Lens, but for "sum types" (`sealed interface` or `enum`). 
 * **Problem it solves**: Safely operating on one variant of a sealed interface.
 * **Example**: Instead of using an `if-instanceof` chain to handle a specific `DomainError`:
 
+<!-- verify -->
 ```java
 // Using a generated Prism for a sealed interface
 DomainErrorPrisms.shippingError()
@@ -151,6 +158,7 @@ An **Affine** focuses on **zero or one** value: an optional field, a nullable pr
 * **Problem it solves**: Safely reading and updating a value inside an `Optional` field without unwrapping it by hand.
 * **Example**: To reach a phone number stored as `Optional<String>`:
 
+<!-- verify -->
 ```java
 @GenerateLenses
 record ContactInfo(String email, Optional<String> phone) {}
@@ -196,6 +204,7 @@ A **Fold** is a read-only optic designed specifically for querying and extractin
 
   * To find all products in an order that cost more than £50:
 
+<!-- verify -->
 ```java
     // Get the generated fold
     Fold<Order, Product> orderToProducts = OrderFolds.items();
@@ -259,6 +268,7 @@ The [decision flow at the chapter opening](ch1_intro.md#which-optic-do-you-need)
 
 **Don't do this:**
 
+<!-- verify -->
 ```java
 // Get-then-set traverses the path twice
 var street = userToStreetName.get(user);
@@ -267,6 +277,7 @@ var updatedUser = userToStreetName.set(street.toUpperCase(), user);
 
 **Do this instead:**
 
+<!-- verify -->
 ```java
 // Use modify() for transformations
 var updatedUser = userToStreetName.modify(String::toUpperCase, user);

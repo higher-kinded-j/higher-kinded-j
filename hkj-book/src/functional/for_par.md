@@ -6,6 +6,7 @@ Sometimes two or more computations within a comprehension are **independent** of
 
 `For.par()` combines two to five independent computations using applicative semantics (`map2`/`map3`/`map4`/`map5`) rather than monadic `flatMap`:
 
+<!-- verify -->
 ```java
 // Two independent values combined in parallel
 Kind<IdKind.Witness, String> result =
@@ -22,6 +23,7 @@ Kind<IdKind.Witness, Integer> sum =
 
 For `MonadZero` types like `Maybe`, short-circuiting works as expected:
 
+<!-- verify -->
 ```java
 Kind<MaybeKind.Witness, String> result =
     For.par(maybeMonad, MAYBE.just("Alice"), MAYBE.<Integer>nothing())
@@ -33,6 +35,7 @@ Kind<MaybeKind.Witness, String> result =
 
 When a prior value is needed before branching, use the instance `par()` method on `Steps1`. This performs a sequential `flatMap` to obtain the first value, then fans out the branches with `map2`/`map3`:
 
+<!-- verify -->
 ```java
 Kind<IdKind.Witness, String> result =
     For.from(idMonad, Id.of("Alice"))
@@ -47,6 +50,7 @@ Kind<IdKind.Witness, String> result =
 
 The result of `par()` is a regular step, so you can chain `.from()`, `.let()`, `.when()`, or another `.par()` after it:
 
+<!-- verify -->
 ```java
 Kind<IdKind.Witness, String> result =
     For.par(idMonad, Id.of("Alice"), Id.of(5))

@@ -56,6 +56,7 @@ The tutorials are located in `hkj-examples/src/test/java/org/higherkindedj/tutor
 
 **File**: `Tutorial01_WhenPathIsNotEnough.java`
 
+<!-- verify -->
 ```java
 // Bridge an existing Future<Either> into the transformer
 var london = fetchWeather("London");
@@ -72,6 +73,7 @@ var workflow = For.from(eitherTMonad, EitherT.fromKind(fetchWeather("Berlin")))
 
 **File**: `Tutorial02_AsyncWithAbsence.java`
 
+<!-- verify -->
 ```java
 // Chain two async lookups
 var workflow = For.from(optionalTMonad, OptionalT.fromKind(fetchUser("alice")))
@@ -83,6 +85,7 @@ var workflow = For.from(optionalTMonad, OptionalT.fromKind(fetchUser("alice")))
 
 **File**: `Tutorial03_StackingTransformers.java`
 
+<!-- verify -->
 ```java
 // EitherT layered over Optional: a value that may be absent AND may have failed validation
 var sum = For.from(eitherTOverOptional,
@@ -95,6 +98,7 @@ var sum = For.from(eitherTOverOptional,
 
 **File**: `Tutorial04_PolymorphicCapabilities.java`
 
+<!-- verify -->
 ```java
 // A function that declares "I need to read an AppConfig" and nothing else
 static <F extends WitnessArity<TypeArity.Unary>> Kind<F, String> buildUrl(

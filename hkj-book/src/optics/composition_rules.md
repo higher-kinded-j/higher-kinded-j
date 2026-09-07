@@ -91,6 +91,7 @@ Result: **zero-or-one** focuses, which is an **Affine** optic.
 
 ### Example
 
+<!-- verify -->
 ```java
 // Domain model
 record Config(Optional<DatabaseSettings> database) {}
@@ -135,6 +136,7 @@ Result: **zero-or-one** focuses, depending on whether the Prism matched.
 
 ### Example
 
+<!-- verify -->
 ```java
 // Domain model with sealed interface
 sealed interface Shape permits Circle, Rectangle {}
@@ -222,6 +224,7 @@ This approach always works but loses type information (you get a Traversal even 
 
 ### 1. Use Direct Composition When Possible
 
+<!-- verify -->
 ```java
 // Preferred: uses direct andThen for correct return type
 Traversal<Config, String> hostTraversal =
@@ -230,6 +233,7 @@ Traversal<Config, String> hostTraversal =
 
 ### 2. Chain Multiple Compositions
 
+<!-- verify -->
 ```java
 // Multiple compositions
 Traversal<Order, String> customerEmail =
@@ -240,13 +244,14 @@ Traversal<Order, String> customerEmail =
 
 ### 3. Store Complex Compositions as Constants
 
+<!-- verify -->
 ```java
 public final class OrderOptics {
     // Reusable compositions
     public static final Traversal<Order, String> CUSTOMER_EMAIL =
         OrderLenses.customer()
             .andThen(CustomerPrisms.activeCustomer())
-            .andThen(CustomerLenses.email().asTraversal());
+            .andThen(ActiveCustomerLenses.email().asTraversal());
 
     public static final Traversal<Order, Money> LINE_ITEM_PRICES =
         OrderTraversals.lineItems()
@@ -265,6 +270,7 @@ The composition rules above describe **sequential** composition (`andThen`): nav
 | `andThen` | Sequential | Navigate deeper: `A -> B -> C` |
 | `plus` | Parallel | Combine results: `A -> B` and `A -> C` into `A -> (B + C)` |
 
+<!-- verify -->
 ```java
 // Sequential: navigate deeper into the structure
 Fold<Customer, Item> items = ordersFold.andThen(itemsFold);
@@ -289,9 +295,10 @@ Fold<Team, String> allEmails = Fold.sum(
 
 Navigate to an optional field that may not exist:
 
+<!-- verify -->
 ```java
-record User(String name, Optional<Address> address) {}
-record Address(String street, String city) {}
+@GenerateLenses record User(String name, Optional<Address> address) {}
+@GenerateLenses record Address(String street, String city) {}
 
 // Lens to Optional, Prism to extract, Lens to field
 Traversal<User, String> userCity =
@@ -304,13 +311,14 @@ Traversal<User, String> userCity =
 
 Navigate into a specific case of a sealed interface:
 
+<!-- verify -->
 ```java
-sealed interface Payment permits CreditCard, BankTransfer {}
-record CreditCard(String number, String expiry) implements Payment {}
+@GeneratePrisms sealed interface Payment permits CreditCard, BankTransfer {}
+@GenerateLenses record CreditCard(String number, String expiry) implements Payment {}
 record BankTransfer(String iban, String bic) implements Payment {}
 
 // Prism to case, Lens to field
-Traversal<Payment, String> creditCardNumber =
+Affine<Payment, String> creditCardNumber =
     PaymentPrisms.creditCard()     // Prism<Payment, CreditCard>
         .andThen(CreditCardLenses.number()); // Lens<CreditCard, String>
 ```
@@ -319,6 +327,7 @@ Traversal<Payment, String> creditCardNumber =
 
 Navigate into items that match a condition:
 
+<!-- verify -->
 ```java
 // Traversal over list, filter by predicate
 Traversal<List<Order>, Order> activeOrders =

@@ -35,6 +35,7 @@ Virtual threads offer a different bargain. Rather than perfecting the abstractio
 
 ## Creation
 
+<!-- verify -->
 ```java
 // From a computation (the primary pattern)
 VTaskPath<String> fetchData = Path.vtask(() -> httpClient.get(url));
@@ -83,6 +84,7 @@ so you can spawn millions without exhausting resources.
 
 ## Core Operations
 
+<!-- verify -->
 ```java
 VTaskPath<String> greeting = Path.vtaskPure("Hello");
 
@@ -112,6 +114,7 @@ VTaskPath<Integer> debugged = Path.vtaskPure(42)
 
 VTaskPath provides three execution methods:
 
+<!-- verify -->
 ```java
 VTaskPath<Integer> task = Path.vtask(() -> compute());
 
@@ -129,9 +132,9 @@ try {
 
 // 2. runSafe() - Returns Try<A> for functional error handling
 Try<Integer> tryResult = task.runSafe();
-tryResult.foldFailureFirst(
-    error -> System.err.println("Failure: " + error.getMessage()),
-    value -> System.out.println("Success: " + value)
+tryResult.match(
+    value -> System.out.println("Success: " + value),
+    error -> System.err.println("Failure: " + error.getMessage())
 );
 
 // 3. runAsync() - Returns CompletableFuture<A> for async composition
@@ -149,6 +152,7 @@ at system boundaries where you need to interact with exception-based APIs.
 
 ## Error Handling
 
+<!-- verify -->
 ```java
 VTaskPath<Config> loadConfig = Path.vtask(() -> configService.load());
 
@@ -165,6 +169,7 @@ VTaskPath<Config> withFallback = loadConfig
 
 Build resilient services with cascading fallbacks:
 
+<!-- verify -->
 ```java
 VTaskPath<Config> resilientConfig =
     Path.vtask(() -> loadFromPrimarySource())
@@ -179,6 +184,7 @@ VTaskPath<Config> resilientConfig =
 
 Prevent runaway operations with timeouts:
 
+<!-- verify -->
 ```java
 VTaskPath<Data> slowOperation = Path.vtask(() -> {
     Thread.sleep(5000);
@@ -193,6 +199,7 @@ Try<Data> result = withTimeout.runSafe();
 
 `withTimeout(duration)` is the same operation under the family-wide `with*` name, so resilience chains read uniformly across `IOPath`, `VTaskPath`, and `VResultPath`:
 
+<!-- verify -->
 ```java
 VTaskPath<Data> guarded = Path.vtask(() -> fetchData())
     .withRetry(RetryPolicy.exponentialBackoffWithJitter(3, Duration.ofMillis(200)))
@@ -222,6 +229,7 @@ The `Par` utility provides combinators for running VTasks concurrently:
 └───────────────────────────────────────────────────────────────┘
 ```
 
+<!-- verify -->
 ```java
 import org.higherkindedj.hkt.vtask.Par;
 
@@ -265,6 +273,7 @@ leaks and ensures clean shutdown semantics.
 
 For advanced structured concurrency patterns, use `Scope` and `Resource` directly with VTask:
 
+<!-- verify -->
 ```java
 import org.higherkindedj.hkt.vtask.Scope;
 import org.higherkindedj.hkt.vtask.Resource;
@@ -278,7 +287,7 @@ VTask<List<String>> results = Scope.<String>allSucceed()
 
 // Error accumulation with Validated
 VTask<Validated<List<Error>, List<String>>> validation =
-    Scope.<String>accumulating(Error::from)
+    Scope.<Error, String>accumulating(Error::from)
         .fork(validateField1())
         .fork(validateField2())
         .join();
@@ -303,16 +312,17 @@ For comprehensive documentation on Scope, ScopeJoiner, and Resource, see:
 
 ## Converting Between Path Types
 
+<!-- verify -->
 ```java
 // VTaskPath to TryPath (executes immediately)
-VTaskPath<String> vtask = Path.vtask(() -> fetchData());
-TryPath<String> tryResult = vtask.toTryPath();
+VTaskPath<Data> vtask = Path.vtask(() -> fetchData());
+TryPath<Data> tryResult = vtask.toTryPath();
 
 // VTaskPath to IOPath (preserves laziness)
-IOPath<String> io = vtask.toIOPath();
+IOPath<Data> io = vtask.toIOPath();
 
 // From underlying VTask
-VTask<String> underlying = vtask.run();
+VTask<Data> underlying = vtask.run();
 VTaskPath<String> backToPath = Path.vtaskPath(VTask.succeed("restored"));
 ```
 
@@ -343,6 +353,7 @@ VTaskPath<String> backToPath = Path.vtaskPath(VTask.succeed("restored"));
 
 ## Real-World Example
 
+<!-- verify -->
 ```java
 // Parallel service aggregation with timeout and fallback
 VTaskPath<Dashboard> loadDashboard(UserId userId) {

@@ -27,6 +27,7 @@ This example demonstrates the **Either monad**. `Either` is used to represent a 
   * Using `flatMap` to chain operations that return an `Either`, short-circuiting on failure.
   * Using `fold` to handle both the `Left` and `Right` cases.
 
+<!-- verify -->
 ```java
 // Chain operations that can fail
 Either<String, Integer> result = input.flatMap(parse).flatMap(checkPositive);
@@ -50,6 +51,7 @@ This example demonstrates how to use the `For` comprehension, a feature that pro
   * Introducing intermediate values with `.let()`.
   * Producing a final result with `.yield()`.
 
+<!-- verify -->
 ```java
 // A for-comprehension with List
 final Kind<ListKind.Witness, String> result =
@@ -71,6 +73,7 @@ This example covers the **CompletableFuture monad**. It shows how to use `Comple
   * Using `flatMap` (which corresponds to `thenCompose`) to chain dependent asynchronous steps.
   * Using `handleErrorWith` to recover from exceptions that occur within the future.
 
+<!-- verify -->
 ```java
 // Using handleErrorWith to recover from a failed future
 Function<Throwable, Kind<CompletableFutureKind.Witness, String>> recoveryHandler =
@@ -93,9 +96,10 @@ This example introduces the **Identity (Id) monad**. The `Id` monad is the simpl
   * Using `map` and `flatMap` on an `Id` value.
   * Its use as the underlying monad in a monad transformer stack, effectively turning `StateT<S, IdKind.Witness, A>` into `State<S, A>`.
 
+<!-- verify -->
 ```java
 // flatMap on Id simply applies the function to the wrapped value.
-Id<String> idFromOf = Id.of(42);
+Id<Integer> idFromOf = Id.of(42);
 Id<String> directFlatMap = idFromOf.flatMap(i -> Id.of("Direct FlatMap: " + i));
 // directFlatMap.value() is "Direct FlatMap: 42"
 ```
@@ -110,6 +114,7 @@ This example introduces the **IO monad**, which is used to encapsulate side effe
   * Composing `IO` actions using `map` and `flatMap` to create more complex programs.
   * Executing `IO` actions to produce a result using `unsafeRunSync`.
 
+<!-- verify -->
 ```java
 // Create an IO action to read a line from the console
 Kind<IOKind.Witness, String> readLine = IO_OP.delay(() -> {
@@ -134,6 +139,7 @@ This example covers the **Lazy monad**. It's used to defer a computation until i
   * How results are memoized, preventing re-computation.
   * Using `map` and `flatMap` to build chains of lazy operations.
 
+<!-- verify -->
 ```java
 // Defer a computation
 java.util.concurrent.atomic.AtomicInteger counter = new java.util.concurrent.atomic.AtomicInteger(0);
@@ -157,6 +163,7 @@ This example demonstrates the **List monad**. It shows how to perform monadic op
   * Using `map` to transform every element in the list.
   * Using `flatMap` to apply a function that returns a list to each element, and then flattening the result.
 
+<!-- verify -->
 ```java
 // A function that returns multiple results for even numbers
 Function<Integer, Kind<ListKind.Witness, Integer>> duplicateIfEven =
@@ -183,6 +190,7 @@ This example covers the **Maybe monad**. `Maybe` is a type that represents an op
   * Using `flatMap` to chain operations that return a `Maybe`.
   * Handling the `Nothing` case using `handleErrorWith`.
 
+<!-- verify -->
 ```java
 // flatMap to parse a string, which can result in Nothing
 Function<String, Kind<MaybeKind.Witness, Integer>> parseString =
@@ -206,6 +214,7 @@ This example introduces the **Optional monad**. It demonstrates how to wrap Java
   * Using `flatMap` to chain operations that return `Optional`.
   * Using `handleErrorWith` to provide a default value when the `Optional` is empty.
 
+<!-- verify -->
 ```java
 // Using flatMap to parse a string to an integer, which may fail
 Function<String, Kind<OptionalKind.Witness, Integer>> parseToIntKind =
@@ -231,6 +240,7 @@ This example introduces the **Reader monad**. The `Reader` monad is a pattern us
   * Using `flatMap` to chain computations where one step depends on the result of a previous step and the shared configuration.
   * Running the final `Reader` computation by providing a concrete configuration object.
 
+<!-- verify -->
 ```java
 // A Reader that depends on the AppConfig environment
 Kind<ReaderKind.Witness<AppConfig>, String> connectionStringReader =
@@ -254,17 +264,19 @@ These examples demonstrate the **State monad**. The `State` monad is used to man
   * Composing these actions into a larger workflow using a `For` comprehension.
   * Running the final computation with an initial state to get the final state and result.
 
+<!-- verify -->
 ```java
 // A stateful action to withdraw money, returning a boolean success flag
 public static Function<BigDecimal, Kind<StateKind.Witness<AccountState>, Boolean>> withdraw(String description) {
     return amount -> STATE.widen(
         State.of(currentState -> {
             if (currentState.balance().compareTo(amount) >= 0) {
-                // ... update state and return success
+                var updatedState = currentState.withBalance(
+                    currentState.balance().subtract(amount));
                 return new StateTuple<>(true, updatedState);
             } else {
-                // ... update state with rejection and return failure
-                return new StateTuple<>(false, updatedState);
+                // Rejected: the balance is unchanged, and the caller sees false
+                return new StateTuple<>(false, currentState);
             }
         })
     );
@@ -281,6 +293,7 @@ This example introduces the **Try monad**. It's designed to encapsulate computat
   * Using `map` and `flatMap` to chain operations, where exceptions are caught and wrapped in a `Failure`.
   * Using `recover` and `recoverWith` to handle failures and provide alternative values or computations.
 
+<!-- verify -->
 ```java
 // A function that returns a Try, succeeding or failing based on the input
 Function<Integer, Try<Double>> safeDivide =
@@ -290,7 +303,7 @@ Function<Integer, Try<Double>> safeDivide =
             : Try.success(10.0 / value);
 
 // flatMap chains the operation, propagating failure
-Try<Double> result = input.flatMap(safeDivide);
+Try<Double> divided = tryInput.flatMap(safeDivide);
 ```
 
 ### [ValidatedMonadExample.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/basic/validated/ValidatedMonadExample.java)
@@ -303,6 +316,7 @@ This example showcases the **Validated applicative functor**. While it has a `Mo
   * Using `flatMap` to chain validation steps, where the first `Invalid` result short-circuits the computation.
   * Using `handleErrorWith` to recover from a validation failure.
 
+<!-- verify -->
 ```java
 // A validation function that returns a Kind-wrapped Validated
 Function<String, Kind<ValidatedKind.Witness<List<String>>, Integer>> parseToIntKind =
@@ -325,6 +339,7 @@ This example introduces the **Writer monad**. The `Writer` monad is used for com
   * Using `flatMap` to sequence computations, where both the results and logs are combined automatically.
   * Running the final `Writer` to extract both the final value and the fully accumulated log.
 
+<!-- verify -->
 ```java
 // An action that performs a calculation and logs what it did
 Function<Integer, Kind<WriterKind.Witness<String>, Integer>> addAndLog =
@@ -350,9 +365,10 @@ This example showcases how to write **generic functions** that can operate on an
   * Writing a generic `mapWithFunctor` function that takes a `Functor<F>` instance and a `Kind<F, A>`.
   * Calling this generic function with different monad instances (`ListMonad`, `OptionalMonad`) and their corresponding `Kind`-wrapped types.
 
+<!-- verify -->
 ```java
 // A generic function that works for any Functor F
-public static <F, A, B> Kind<F, B> mapWithFunctor(
+public static <F extends WitnessArity<TypeArity.Unary>, A, B> Kind<F, B> mapWithFunctor(
     Functor<F> functorInstance, // The type class instance
     Function<A, B> fn,
     Kind<F, A> kindBox) { // The value in its context
@@ -377,6 +393,7 @@ This example demonstrates the **Profunctor** type class using `FunctionProfuncto
     * Building real-world API adapters and validation pipelines
     * Creating reusable transformation chains
 
+<!-- verify -->
 ```java
 // Original function: String length calculator
 Function<String, Integer> stringLength = String::length;

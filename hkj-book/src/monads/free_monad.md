@@ -49,6 +49,7 @@ One program. Three interpreters. Zero code changes between them.
 
 Before diving into infrastructure, here is the punchline. Given this program:
 
+<!-- verify -->
 ```java
 Free<ConsoleOpKind.Witness, Unit> program =
     printLine("What is your name?")
@@ -58,6 +59,7 @@ Free<ConsoleOpKind.Witness, Unit> program =
 
 Run it with a **real** interpreter (it talks to the console):
 
+<!-- verify -->
 ```java
 ioInterpreter.run(program);
 // Console: What is your name?
@@ -67,6 +69,7 @@ ioInterpreter.run(program);
 
 Run the **same program** with a **test** interpreter (no console, pure assertions):
 
+<!-- verify -->
 ```java
 TestInterpreter test = new TestInterpreter(List.of("Alice"));
 test.run(program);
@@ -114,6 +117,7 @@ through the same `Natural`-based interpreter.
 
 Create a sealed interface for every operation in your domain:
 
+<!-- verify -->
 ```java
 public sealed interface ConsoleOp<A> {
     record PrintLine(String text) implements ConsoleOp<Unit> {}
@@ -128,10 +132,13 @@ This is your vocabulary. `PrintLine` returns `Unit` (like void). `ReadLine` retu
 ~~~admonish tip title="HKT Bridge (expand to see boilerplate)"
 Every instruction set needs an HKT bridge and a Functor. This is mechanical:
 
+<!-- verify -->
 ```java
 // HKT marker
 public interface ConsoleOpKind<A> extends Kind<ConsoleOpKind.Witness, A> {
-    final class Witness { private Witness() {} }
+    final class Witness implements WitnessArity<TypeArity.Unary> {
+        private Witness() {}
+    }
 }
 
 // Widen/narrow helper
@@ -141,6 +148,7 @@ public enum ConsoleOpKindHelper {
     public <A> Kind<ConsoleOpKind.Witness, A> widen(ConsoleOp<A> op) {
         return new ConsoleOpHolder<>(op);
     }
+    @SuppressWarnings("unchecked") // the holder is the only implementation
     public <A> ConsoleOp<A> narrow(Kind<ConsoleOpKind.Witness, A> kind) {
         return ((ConsoleOpHolder<A>) kind).op();
     }
@@ -149,6 +157,7 @@ public enum ConsoleOpKindHelper {
 // Functor instance
 public class ConsoleOpFunctor implements Functor<ConsoleOpKind.Witness> {
     @Override
+    @SuppressWarnings("unchecked") // simplified DSL: map returns the operation unchanged
     public <A, B> Kind<ConsoleOpKind.Witness, B> map(
             Function<? super A, ? extends B> f,
             Kind<ConsoleOpKind.Witness, A> fa) {
@@ -162,6 +171,7 @@ public class ConsoleOpFunctor implements Functor<ConsoleOpKind.Witness> {
 
 Wrap `liftF` calls in friendly methods:
 
+<!-- verify -->
 ```java
 public class ConsoleOps {
     private static final ConsoleOpFunctor FUNCTOR = new ConsoleOpFunctor();
@@ -182,9 +192,9 @@ public class ConsoleOps {
 
 Now build programs using familiar `flatMap` chains:
 
+<!-- verify -->
 ```java
-import static ConsoleOps.*;
-
+// with ConsoleOps.printLine and ConsoleOps.readLine statically imported
 Free<ConsoleOpKind.Witness, Unit> greetingProgram =
     printLine("What is your name?")
         .flatMap(ignored -> readLine()
@@ -196,6 +206,7 @@ Free<ConsoleOpKind.Witness, Unit> greetingProgram =
 ## Multiple Interpreters: The Payoff
 
 ~~~admonish example title="IO Interpreter: Real Execution"
+<!-- verify -->
 ```java
 public class IOInterpreter {
     private static final Scanner scanner = new Scanner(System.in);
@@ -218,6 +229,7 @@ public class IOInterpreter {
 ~~~
 
 ~~~admonish example title="Test Interpreter: Pure Assertions"
+<!-- verify -->
 ```java
 public class TestInterpreter {
     private final List<String> input;
@@ -244,7 +256,8 @@ public class TestInterpreter {
 }
 
 // Pure test: no console, no I/O, no flakiness
-@Test void testGreeting() {
+@Test
+void testGreeting() {
     var test = new TestInterpreter(List.of("Alice"));
     test.run(greetingProgram);
     assertEquals(List.of("What is your name?", "Hello, Alice!"), test.getOutput());
@@ -256,6 +269,7 @@ public class TestInterpreter {
 
 Free programs compose like Lego. Build small pieces, snap them together:
 
+<!-- verify -->
 ```java
 // Reusable building blocks
 Free<ConsoleOpKind.Witness, String> askQuestion(String question) {
@@ -284,14 +298,19 @@ Each building block is independently testable and reusable.
 
 Java struggles to infer the functor type `F` when chaining operations on `Free.pure()`:
 
+<!-- verify:rejects "no instance(s) of type variable(s) B exist" -->
 ```java
 // Fails to compile: Java can't infer F
-Free<IdKind.Witness, Integer> result = Free.pure(2).map(x -> x * 2); // ERROR
+Free<IdKind.Witness, Integer> result = Free.pure(2).map(x -> x * 2);
+```
 
-// FreeFactory captures F once, then inference works everywhere
+Capture `F` once in a `FreeFactory` and inference works for the whole chain:
+
+<!-- verify -->
+```java
 FreeFactory<IdKind.Witness> FREE = FreeFactory.of();
 
-Free<IdKind.Witness, Integer> result = FREE.pure(2).map(x -> x * 2); // Works!
+Free<IdKind.Witness, Integer> result = FREE.pure(2).map(x -> x * 2);
 
 Free<IdKind.Witness, Integer> program = FREE.pure(10)
     .map(x -> x + 1)

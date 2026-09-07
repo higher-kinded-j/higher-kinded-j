@@ -25,6 +25,7 @@ But what about fields that are *sometimes* there? Optional fields in records, nu
 
 Modern Java applications frequently use `Optional<T>` to represent values that may be absent. Consider a user profile with optional contact information:
 
+<!-- verify -->
 ```java
 record UserProfile(String username, Optional<ContactInfo> contact) {}
 record ContactInfo(String email, Optional<String> phone) {}
@@ -77,6 +78,7 @@ An Affine is defined by two operations:
 * **`getOptional(source)`**: Returns `Optional<A>` containing the focus if present
 * **`set(value, source)`**: Returns a new source with the focus updated
 
+<!-- verify -->
 ```java
 import org.higherkindedj.optics.Affine;
 import java.util.Optional;
@@ -102,6 +104,7 @@ Optional<String> updated = someAffine.set("world", empty);  // Optional.of("worl
 
 The `Affines` utility class provides ready-made affines for common patterns:
 
+<!-- verify -->
 ```java
 import org.higherkindedj.optics.util.Affines;
 
@@ -124,6 +127,7 @@ Affine<List<String>, String> thirdAffine = Affines.listAt(2);
 
 The most common way to obtain an Affine is through composition:
 
+<!-- verify -->
 ```java
 import org.higherkindedj.optics.Lens;
 import org.higherkindedj.optics.Prism;
@@ -217,6 +221,7 @@ The `Affine` interface provides several convenience methods for common operation
 
 ### Checking for Presence
 
+<!-- verify -->
 ```java
 Affine<Optional<String>, String> someAffine = Affines.some();
 
@@ -247,6 +252,7 @@ long presentCount = values.stream()
 
 ### Default Values
 
+<!-- verify -->
 ```java
 Affine<Optional<Config>, Config> configAffine = Affines.some();
 
@@ -258,6 +264,7 @@ Config config = configAffine.getOrElse(Config.DEFAULT, maybeConfig);
 
 ### Conditional Modification
 
+<!-- verify -->
 ```java
 Affine<Optional<String>, String> someAffine = Affines.some();
 
@@ -284,6 +291,7 @@ Optional<String> guarded = someAffine.setWhen(
 
 Some affines support the `remove` operation to clear the focused element:
 
+<!-- verify -->
 ```java
 // Create an affine that supports removal
 Affine<Optional<String>, String> removableAffine = Affines.someWithRemove();
@@ -322,6 +330,7 @@ Traversal<A, C> result = affineAB.andThen(traversalBC);
 
 ### Deep Optional Access Example
 
+<!-- verify -->
 ```java
 record User(String name, Optional<Address> address) {}
 record Address(String street, Optional<String> postcode) {}
@@ -410,14 +419,16 @@ Affine<S, B> affine = Affine.fromPrismAndLens(
 * **Conditional field access** that may or may not exist
 * **Lens + Prism compositions** where you need the precise type
 
+<!-- verify -->
 ```java
 // Perfect for optional record fields
-record Config(Optional<String> apiKey) {}
+@GenerateLenses
+record ApiConfig(Optional<String> apiKey) {}
 
-Affine<Config, String> apiKeyAffine =
-    ConfigLenses.apiKey().andThen(Prisms.some());
+Affine<ApiConfig, String> apiKeyAffine =
+    ApiConfigLenses.apiKey().andThen(Prisms.some());
 
-Optional<String> key = apiKeyAffine.getOptional(config);
+Optional<String> key = apiKeyAffine.getOptional(new ApiConfig(Optional.of("secret")));
 ```
 
 ### Use Lens When:
@@ -425,6 +436,7 @@ Optional<String> key = apiKeyAffine.getOptional(config);
 * The field is **always present** (guaranteed to exist)
 * You're working with **product types** (records, classes)
 
+<!-- verify -->
 ```java
 // Field always exists
 record Point(int x, int y) {}
@@ -449,6 +461,7 @@ Shape circle = circlePrism.build(new Circle(5.0));  // Can construct!
 * Focusing on **multiple elements** (lists, sets)
 * You need to work with **collections**
 
+<!-- verify -->
 ```java
 // Multiple elements
 Traversal<List<String>, String> listTraversal = Traversals.forList();
@@ -481,9 +494,10 @@ if (user.address() != null && user.address().postcode() != null) {
 
 ### Do This Instead:
 
+<!-- verify -->
 ```java
 // Clean: compose affines for deep access
-Affine<Config, String> timeoutAffine =
+Affine<Config, Integer> timeoutAffine =
     databaseAffine
         .andThen(connectionAffine)
         .andThen(timeoutLens)
@@ -495,7 +509,7 @@ Optional<String> timeout = timeoutAffine.mapOptional(Object::toString, config);
 String value = databaseAffine.getOrElse(defaultSettings, config).host();
 
 // Composable: build reusable optics
-Affine<User, String> postcodeAffine = UserOptics.postcode();
+Affine<User, String> postcodeAffine = UserOptics.POSTCODE;
 Optional<String> postcode = postcodeAffine.getOptional(user);
 ```
 
@@ -529,6 +543,7 @@ affine.getOptional(affine.set(a, s)) == Optional.of(a)
 
 ## Real-World Example: Configuration Management
 
+<!-- verify -->
 ```java
 import org.higherkindedj.optics.Affine;
 import org.higherkindedj.optics.Lens;
@@ -641,11 +656,21 @@ Affines are designed for both safety and efficiency:
 
 **Best Practice**: Create composed affines once and reuse them:
 
+<!-- verify -->
 ```java
 public class UserOptics {
+    private static final Lens<User, Optional<Address>> addressLens =
+        Lens.of(User::address, (u, a) -> new User(u.name(), a));
+    private static final Prism<Optional<Address>, Address> addressPrism = Prisms.some();
+    private static final Lens<Address, String> streetLens =
+        Lens.of(Address::street, (a, s) -> new Address(s, a.postcode()));
+    private static final Lens<Address, Optional<String>> postcodeLens =
+        Lens.of(Address::postcode, (a, p) -> new Address(a.street(), p));
+    private static final Prism<Optional<String>, String> postcodePrism = Prisms.some();
+
     // Create once, use everywhere
-    public static final Affine<User, String> EMAIL =
-        addressLens.andThen(addressPrism).andThen(emailLens);
+    public static final Affine<User, String> STREET =
+        addressLens.andThen(addressPrism).andThen(streetLens);
 
     public static final Affine<User, String> POSTCODE =
         addressLens.andThen(addressPrism).andThen(postcodeLens).andThen(postcodePrism);

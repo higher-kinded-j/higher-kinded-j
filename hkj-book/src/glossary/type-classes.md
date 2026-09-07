@@ -15,8 +15,9 @@
 - `map2`, `map3`, etc. - Combine multiple wrapped values
 
 **Example:**
+<!-- verify -->
 ```java
-Applicative<OptionalKind.Witness> app = OptionalApplicative.INSTANCE;
+Applicative<OptionalKind.Witness> app = Instances.applicative(optional());
 
 // Lift pure values
 Kind<OptionalKind.Witness, Integer> five = app.of(5);  // Optional[5]
@@ -45,14 +46,15 @@ Kind<OptionalKind.Witness, String> result = app.map2(
 - `second(Function<B,D> g, Kind2<F,A,B> fab)` - Transform only the second parameter
 
 **Example:**
+<!-- verify -->
 ```java
-Bifunctor<EitherKind.Witness> bifunctor = EitherBifunctor.INSTANCE;
+Bifunctor<EitherKind2.Witness> bifunctor = EitherBifunctor.INSTANCE;
 
 Either<String, Integer> either = Either.right(42);
-Kind2<EitherKind.Witness, String, Integer> kindEither = EITHER.widen(either);
+Kind2<EitherKind2.Witness, String, Integer> kindEither = EITHER.widen2(either);
 
 // Transform both sides
-Kind2<EitherKind.Witness, Integer, String> transformed =
+Kind2<EitherKind2.Witness, Integer, String> transformed =
     bifunctor.bimap(String::length, Object::toString, kindEither);
 // Right("42")
 ```
@@ -73,6 +75,7 @@ Kind2<EitherKind.Witness, Integer, String> transformed =
 - `lower(Functor<F> functor)` - Apply accumulated function using provided Functor
 
 **Example:**
+<!-- verify -->
 ```java
 // Lift into Coyoneda - no Functor required for mapping!
 Coyoneda<MyDSL, Integer> coyo = Coyoneda.lift(myInstruction);
@@ -136,8 +139,9 @@ Kind<CompletableFutureKind.Witness, UserProfile> result =
 - `map(Function<A,B> f, Kind<F,A> fa)` - Apply a function to the wrapped value
 
 **Example:**
+<!-- verify -->
 ```java
-Functor<ListKind.Witness> functor = ListFunctor.INSTANCE;
+Functor<ListKind.Witness> functor = Instances.functor(list());
 
 Kind<ListKind.Witness, String> strings = LIST.widen(List.of("one", "two"));
 Kind<ListKind.Witness, Integer> lengths = functor.map(String::length, strings);
@@ -164,12 +168,14 @@ Kind<ListKind.Witness, Integer> lengths = functor.map(String::length, strings);
 - `Instances.validated(semigroup)` / `writer(monoid)` / `eitherT(outer)` / `maybeT` / `optionalT` / `readerT` / `stateT` / `writerT(outer, monoid)` - argument-carrying re-exports whose required dependency is in the signature
 
 **Example:**
+<!-- verify -->
 ```java
 import static org.higherkindedj.hkt.instances.Witnesses.*;
 
 Monad<MaybeKind.Witness>               m = Instances.monad(maybe());
 MonadError<EitherKind.Witness<String>, String> e = Instances.monadError(either()); // String inferred
-MonadError<ValidatedKind.Witness<E>, E> v = Instances.validated(Semigroups.list());
+MonadError<ValidatedKind.Witness<List<String>>, List<String>> v =
+    Instances.validated(Semigroups.list());
 ```
 
 **Why It Matters:** Discoverable by capability via autocomplete; phantom types still infer from the assignment target; compile-time safe (a thin static re-export, not registry/`ServiceLoader`-backed).
@@ -183,11 +189,14 @@ MonadError<ValidatedKind.Witness<E>, E> v = Instances.validated(Semigroups.list(
 **Definition:** An optimisation where multiple consecutive `map` operations are combined into a single function composition, reducing the number of traversals over a data structure.
 
 **Example:**
+<!-- verify -->
 ```java
 // Without fusion: three separate traversals
-list.map(x -> x * 2)      // Traversal 1
-    .map(x -> x + 1)      // Traversal 2
-    .map(Object::toString); // Traversal 3
+numbers.stream()
+    .map(x -> x * 2)       // Traversal 1
+    .map(x -> x + 1)       // Traversal 2
+    .map(Object::toString) // Traversal 3
+    .toList();
 
 // With Coyoneda: one traversal
 Coyoneda.lift(list)
@@ -218,6 +227,7 @@ Coyoneda.lift(list)
 - `peek(Consumer<A> action, Kind<F,A> ma)` - Perform side effect without changing the value
 
 **Example:**
+<!-- verify -->
 ```java
 Monad<OptionalKind.Witness> monad = Instances.monadError(optional());
 
@@ -263,10 +273,11 @@ Kind<OptionalKind.Witness, Order> order =
 | `StateT<F, S, A>` | State threading | `StateT<Either, State, A>` - stateful with errors |
 
 **Example:**
+<!-- verify -->
 ```java
-// Problem: combining async + error handling manually is verbose
-CompletableFuture<Either<Error, User>> fetchUser(String id);
-CompletableFuture<Either<Error, Profile>> fetchProfile(User user);
+// Problem: combining async + error handling manually is verbose. Two APIs:
+//   CompletableFuture<Either<Error, User>> fetchUser(String id)
+//   CompletableFuture<Either<Error, Profile>> fetchProfile(User user)
 
 // Without transformer: nested flatMaps
 CompletableFuture<Either<Error, Profile>> result =
@@ -277,14 +288,18 @@ CompletableFuture<Either<Error, Profile>> result =
         )
     );
 
-// With EitherT: flat composition
-EitherT<CompletableFutureKind.Witness, Error, Profile> result =
-    EitherT.fromKind(CF.widen(fetchUser(id)), cfMonad)
-        .flatMap(user -> EitherT.fromKind(CF.widen(fetchProfile(user)), cfMonad));
+// With EitherT: flat composition through the transformer's own monad. Name L: nothing else
+// constrains it, and it would otherwise infer to Object.
+var eitherTMonad = Instances.<CompletableFutureKind.Witness, Error>eitherT(cfMonad);
+
+var transformed =
+    eitherTMonad.flatMap(
+        user -> EitherT.fromKind(FUTURE.widen(fetchProfile(user))),
+        EitherT.fromKind(FUTURE.widen(fetchUser(id))));
 
 // Run to get the nested type back
 CompletableFuture<Either<Error, Profile>> unwrapped =
-    CF.narrow(result.value());
+    FUTURE.narrow(EITHER_T.narrow(transformed).value());
 ```
 
 **How It Works:**
@@ -294,14 +309,15 @@ CompletableFuture<Either<Error, Profile>> unwrapped =
 4. Unwrap when done using `.value()` or `.run()`
 
 **Lift Operations:**
+<!-- verify -->
 ```java
 // Lift the outer monad into the transformer
 EitherT<IOKind.Witness, Error, String> lifted =
-    EitherT.liftF(IO.delay(() -> "hello"), ioMonad);
+    EitherT.liftF(ioMonad, IO_OP.widen(IO.delay(() -> "hello")));
 
 // Lift an Either into the transformer
 EitherT<IOKind.Witness, Error, Integer> fromEither =
-    EitherT.fromEither(Either.right(42), ioMonad);
+    EitherT.fromEither(ioMonad, Either.right(42));
 ```
 
 **When To Use:**
@@ -328,8 +344,9 @@ EitherT<IOKind.Witness, Error, Integer> fromEither =
 - `handleErrorWith(Kind<F,A> ma, Function<E, Kind<F,A>> handler)` - Recover from errors
 
 **Example:**
+<!-- verify -->
 ```java
-MonadError<EitherKind.Witness<String>, String> monadError = EitherMonadError.instance();
+MonadError<EitherKind.Witness<String>, String> monadError = Instances.monadError(either());
 
 Kind<EitherKind.Witness<String>, Double> result =
     monadError.handleErrorWith(
@@ -356,6 +373,7 @@ Kind<EitherKind.Witness<String>, Double> result =
 - `isEmpty(A value)` - Test if a value equals the empty element
 
 **Example:**
+<!-- verify -->
 ```java
 Monoid<Integer> intAddition = Monoids.integerAddition();
 
@@ -406,6 +424,7 @@ Optional<Integer> max = maxMonoid.combineAll(
 - `apply(Kind<F, A> fa)` - Transform from context F to context G
 
 **Example:**
+<!-- verify -->
 ```java
 // Natural transformation from Maybe to List
 Natural<MaybeKind.Witness, ListKind.Witness> maybeToList = new Natural<>() {
@@ -417,9 +436,8 @@ Natural<MaybeKind.Witness, ListKind.Witness> maybeToList = new Natural<>() {
     }
 };
 
-// Use with Free monad interpretation
-Free<ConsoleOpKind.Witness, String> program = ...;
-Kind<IOKind.Witness, String> executable = program.foldMap(interpreter, ioMonad);
+// The same shape is what a Free interpreter is: `program.foldMap(nat, monad)` takes one of
+// these to run a program written in one algebra against another.
 ```
 
 **The Naturality Law:** For any function `f: A -> B`:
@@ -443,6 +461,7 @@ nat.apply(functor.map(f, fa)) == functor.map(f, nat.apply(fa))
 - `dimap(Function<C,A> f, Function<B,D> g, Kind2<P,A,B> pab)` - Transform both simultaneously
 
 **Example:**
+<!-- verify -->
 ```java
 Profunctor<FunctionKind.Witness> prof = FunctionProfunctor.INSTANCE;
 
@@ -470,14 +489,15 @@ Kind2<FunctionKind.Witness, Integer, Integer> intLength =
 - `ifS(Kind<F, Boolean> cond, Kind<F, A> then, Kind<F, A> else)` - If-then-else with visible branches
 
 **Example:**
+<!-- verify -->
 ```java
 Selective<IOKind.Witness> selective = IOSelective.INSTANCE;
 
 // Only log if debug is enabled
 Kind<IOKind.Witness, Boolean> debugEnabled =
-    IO_KIND.widen(IO.delay(() -> config.isDebug()));
+    IO_OP.widen(IO.delay(() -> config.isDebug()));
 Kind<IOKind.Witness, Unit> logEffect =
-    IO_KIND.widen(IO.fromRunnable(() -> log.debug("Debug info")));
+    IO_OP.widen(IO.fromRunnable(() -> log.debug("Debug info")));
 
 Kind<IOKind.Witness, Unit> conditionalLog = selective.whenS(debugEnabled, logEffect);
 ```
@@ -496,6 +516,7 @@ Kind<IOKind.Witness, Unit> conditionalLog = selective.whenS(debugEnabled, logEff
 - `combine(A a1, A a2)` - Associative binary operation
 
 **Example:**
+<!-- verify -->
 ```java
 Semigroup<String> stringConcat = Semigroups.string();
 String result = stringConcat.combine("Hello", " World");  // "Hello World"
@@ -506,7 +527,7 @@ String csv = csvConcat.combine("apple", "banana");  // "apple, banana"
 
 // For error accumulation in Validated
 Semigroup<String> errorAccumulator = Semigroups.string("; ");
-Applicative<Validated.Witness<String>> validator =
+Applicative<ValidatedKind.Witness<String>> validator =
     Instances.validated(errorAccumulator);
 // Errors are combined: "Field A is invalid; Field B is required"
 ```
@@ -533,6 +554,7 @@ Applicative<Validated.Witness<String>> validator =
 **Definition:** A named, reusable transformation of a value (`S -> S`). `Update<S>` extends `UnaryOperator<S>`, so it drops straight into `Stream.map`, `Optional.map`, and any `Function`-shaped API, whilst its `andThen` stays in the `Update` type so compositions chain fluently. In functional-programming literature this is the `Endo` monoid (from *endomorphism*, a function from a type to itself); Higher-Kinded-J names it `Update` for clarity.
 
 **Example:**
+<!-- verify -->
 ```java
 Update<Order> normalise     = order -> order.withEmail(order.email().toLowerCase());
 Update<Order> applyDiscount = order -> order.withTotal(order.total().multiply(DISCOUNT));

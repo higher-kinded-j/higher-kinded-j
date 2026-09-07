@@ -53,33 +53,35 @@ Key points:
 
 ### Direct Construction
 
+<!-- verify -->
 ```java
 Saga<String> orderSaga = Saga.of(
         VTask.of(() -> paymentService.charge(order)),
-        paymentId -> paymentService.refund(paymentId))
+        paymentService::refund)
     .andThen(paymentId -> Saga.of(
         VTask.of(() -> inventoryService.reserve(order)),
-        reservationId -> inventoryService.release(reservationId)))
+        inventoryService::release))
     .andThen(reservationId -> Saga.of(
         VTask.of(() -> shippingService.schedule(order)),
-        trackingId -> shippingService.cancel(trackingId)));
+        shippingService::cancel));
 ```
 
 ### Using SagaBuilder
 
 For larger sagas, the builder provides a more readable structure:
 
+<!-- verify -->
 ```java
 Saga<String> orderSaga = SagaBuilder.<Unit>start()
     .step("charge-payment",
         VTask.of(() -> paymentService.charge(order)),
-        paymentId -> paymentService.refund(paymentId))
+        paymentService::refund)
     .step("reserve-inventory",
         paymentId -> VTask.of(() -> inventoryService.reserve(order, paymentId)),
-        reservationId -> inventoryService.release(reservationId))
+        inventoryService::release)
     .step("schedule-shipping",
         reservationId -> VTask.of(() -> shippingService.schedule(order, reservationId)),
-        trackingId -> shippingService.cancel(trackingId))
+        shippingService::cancel)
     .build();
 ```
 
@@ -89,6 +91,7 @@ Step names appear in error reporting, making it clear which step failed and whic
 
 When compensation itself requires an asynchronous operation, use `stepAsync`:
 
+<!-- verify -->
 ```java
 SagaBuilder.<Unit>start()
     .stepAsync("charge-payment",
@@ -104,11 +107,12 @@ SagaBuilder.<Unit>start()
 
 Some steps are idempotent or represent final actions that do not need undoing:
 
+<!-- verify -->
 ```java
 SagaBuilder.<Unit>start()
     .step("charge-payment",
         VTask.of(() -> paymentService.charge(order)),
-        paymentId -> paymentService.refund(paymentId))
+        paymentService::refund)
     .stepNoCompensation("send-confirmation",
         paymentId -> VTask.of(() -> emailService.sendConfirmation(order, paymentId)))
     .build();
@@ -118,6 +122,7 @@ SagaBuilder.<Unit>start()
 
 ### run(): Throws on Failure
 
+<!-- verify -->
 ```java
 VTask<String> execution = orderSaga.run();
 
@@ -140,6 +145,7 @@ The saga's own `runSafe()` (distinct from `VTask.runSafe()`, which returns a `Tr
 
 ### runSafe(): Either with Full Details
 
+<!-- verify -->
 ```java
 VTask<Either<SagaError, String>> safeExecution = orderSaga.runSafe();
 
@@ -167,8 +173,9 @@ result.fold(
 
 Sometimes compensation itself fails (e.g., the refund service is down). The saga records all compensation results:
 
+<!-- verify -->
 ```java
-SagaError error = ...;
+// `error` is the SagaError a failed run produced
 
 // Did all compensations succeed?
 if (error.allCompensationsSucceeded()) {

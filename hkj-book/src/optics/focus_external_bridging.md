@@ -69,6 +69,7 @@ public interface Address {
 
 Ordinary records, annotated as usual, with fields whose types come from the external library:
 
+<!-- verify -->
 ```java
 @GenerateFocus
 @GenerateLenses
@@ -93,6 +94,7 @@ public record Employee(String id, String name, ContactInfo contact, BigDecimal s
 
 Using them looks like nothing in particular, which is the point. These values come from running [FocusBridgingExample](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/optics/bridge/FocusBridgingExample.java) against a sample `Acme Corp` whose headquarters is in New York and whose two departments sit in Boston and Chicago:
 
+<!-- verify -->
 ```java
 String city = CompanyBridge.HEADQUARTERS_CITY.get(acme);
 // "New York": read straight through the Immutables Address
@@ -121,6 +123,7 @@ Nothing in that chain knows it crosses a library boundary. `DepartmentFocus.staf
 
 The service layer sees one vocabulary:
 
+<!-- verify -->
 ```java
 public final class CompanyService {
 
@@ -216,6 +219,7 @@ Three habits keep the layer honest:
 
 **Test the round trip.** The external type is the part you do not control, so a lens-law check at the boundary is worth more than it is anywhere else:
 
+<!-- verify -->
 ```java
 @Test
 void headquartersCityBridgeIsLawful() {

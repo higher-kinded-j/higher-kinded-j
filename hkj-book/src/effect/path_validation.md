@@ -16,6 +16,7 @@
 
 ## Creation
 
+<!-- verify -->
 ```java
 // Valid value
 ValidationPath<List<String>, Integer> valid =
@@ -27,7 +28,7 @@ ValidationPath<List<String>, Integer> invalid =
 
 // From existing Validated
 ValidationPath<String, User> user =
-    Path.validation(validatedUser, Semigroups.first());
+    Path.validated(validatedUser, Semigroups.first());
 ```
 
 The `Semigroup<E>` parameter defines how errors combine when multiple
@@ -38,6 +39,7 @@ validations fail. Common choices:
 ~~~admonish tip title="Prefer the NonEmptyList channel"
 An *invalid* result always has at least one error, so [`NonEmptyList`](../monads/nonemptylist_monad.md) is a better fit than `List`: it proves non-emptiness in the type (`getError().head()` is **total**) and drops the ceremony. The `validNel` / `invalidNel` factories bake in `NonEmptyList.semigroup()`, so there is **no `Semigroup` argument** and **no `List.of(...)` wrapping**:
 
+<!-- verify -->
 ```java
 ValidationPath<NonEmptyList<String>, Integer> valid   = Path.validNel(42);
 ValidationPath<NonEmptyList<String>, Integer> invalid = Path.invalidNel("must be positive");
@@ -52,6 +54,7 @@ The `Semigroups.list()` form below keeps working unchanged; `NonEmptyList` is th
 
 ## Core Operations
 
+<!-- verify -->
 ```java
 ValidationPath<List<String>, String> name =
     Path.valid("Alice", Semigroups.list());
@@ -70,6 +73,7 @@ ValidationPath<List<String>, String> upper =
 
 The key operation is `zipWithAccum`, which collects **all** errors:
 
+<!-- verify -->
 ```java
 ValidationPath<List<String>, String> nameV = validateName(input.name());
 ValidationPath<List<String>, String> emailV = validateEmail(input.email());
@@ -89,10 +93,12 @@ ValidationPath<List<String>, User> userV = nameV.zipWith3Accum(
 
 Compare with `zipWith`, which short-circuits:
 
+<!-- verify -->
 ```java
 // Short-circuits: only first error returned
 ValidationPath<List<String>, User> shortCircuit =
-    nameV.zipWith(emailV, ageV, User::new);
+    validateName(input.name())
+        .zipWith3(validateEmail(input.email()), validateAge(input.age()), User::new);
 ```
 
 ---
@@ -101,12 +107,13 @@ ValidationPath<List<String>, User> shortCircuit =
 
 `zipWithAccum` is binary. For assembling a value from N independent validations, `Path.fields()` and `Path.accumulate()` open the staged assembly builder: open arity up to 16, located errors, declaration order, and still a `ValidationPath` at the end.
 
+<!-- verify -->
 ```java
 ValidationPath<NonEmptyList<FieldError>, User> user =
     Path.fields()
-        .field("name", validateName(input.name()))
-        .field("email", validateEmail(input.email()))
-        .field("age", validateAge(input.age()))
+        .field("name", parseName(input.name()))
+        .field("email", parseEmail(input.email()))
+        .field("age", parseAge(input.age()))
         .apply(User::new);
 // Invalid(NonEmptyList[email: not an email address, age: must be positive])
 ```
@@ -115,6 +122,7 @@ See [Accumulating Assembly](../monads/validated_assembly.md) for the full story,
 
 ## Combining Validations
 
+<!-- verify -->
 ```java
 // andAlso runs both, accumulating errors, keeping first value if both valid
 ValidationPath<List<String>, String> thorough =
@@ -128,6 +136,7 @@ ValidationPath<List<String>, String> thorough =
 
 ## Extraction
 
+<!-- verify -->
 ```java
 ValidationPath<List<String>, User> path = validateUser(input);
 Validated<List<String>, User> validated = path.run();

@@ -52,6 +52,7 @@ The fundamental operation is `select`, which takes a `Choice<A, B>` (similar to 
 
 **Example: Conditional Validation**
 
+<!-- verify -->
 ```java
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Selective;
@@ -88,6 +89,7 @@ The `whenS` operation is the primary way to conditionally execute effects. It ta
 
 **Example: Conditional Logging**
 
+<!-- verify -->
 ```java
 import org.higherkindedj.hkt.io.IOSelective;
 import org.higherkindedj.hkt.io.IO;
@@ -116,6 +118,7 @@ IO_OP.narrow(maybeLog).unsafeRunSync();
 
 When you have an effect that returns a value but you want to treat it as a `Unit`-returning operation, use `whenS_`:
 
+<!-- verify -->
 ```java
 // Database write returns row count, but we don't care about the value
 Kind<IOKind.Witness, Integer> writeEffect =
@@ -136,6 +139,7 @@ The `ifS` operation provides if-then-else semantics for selective functors. Unli
 
 **Example: Configuration-Based Behaviour**
 
+<!-- verify -->
 ```java
 import org.higherkindedj.hkt.either.EitherSelective;
 import org.higherkindedj.hkt.either.Either;
@@ -171,6 +175,7 @@ The `orElse` operation tries multiple alternatives in sequence, returning the fi
 
 **Example: Fallback Configuration Sources**
 
+<!-- verify -->
 ```java
 import java.util.List;
 
@@ -276,6 +281,7 @@ Kind<F, Choice<Error, Data>> finalResult = selective.apS(initialData, validation
 
 **Scenario:** Execute analytics tracking only if the feature flag is enabled.
 
+<!-- verify -->
 ```java
 import org.higherkindedj.hkt.io.IOSelective;
 import org.higherkindedj.hkt.io.IO;
@@ -283,6 +289,9 @@ import static org.higherkindedj.hkt.io.IOKindHelper.IO_OP;
 
 public class AnalyticsService {
     private final Selective<IOKind.Witness> selective = IOSelective.INSTANCE;
+    private final FeatureFlags featureFlags = new FeatureFlags();
+    private final Analytics analytics = new Analytics();
+    private final SimpleLogger log = new SimpleLogger();
 
     public Kind<IOKind.Witness, Unit> trackEvent(String eventName, User user) {
         // Check feature flag (effectful)

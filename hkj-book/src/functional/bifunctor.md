@@ -129,6 +129,7 @@ Bifunctors provide a uniform interface for transforming dual-parameter types, wh
 
 `Either<L, R>` is the quintessential sum type. It holds *either* a `Left` (conventionally an error) *or* a `Right` (conventionally a success).
 
+<!-- verify -->
 ```java
 import static org.higherkindedj.hkt.either.EitherKindHelper.EITHER;
 import org.higherkindedj.hkt.Bifunctor;
@@ -178,6 +179,7 @@ System.out.println(EITHER.narrow2(both));
 
 `Tuple2<A, B>` is a product type that holds *both* a first value *and* a second value simultaneously.
 
+<!-- verify -->
 ```java
 import static org.higherkindedj.hkt.tuple.Tuple2KindHelper.TUPLE2;
 import org.higherkindedj.hkt.Bifunctor;
@@ -222,6 +224,7 @@ System.out.println(TUPLE2.narrow2(formatted));
 
 `Validated<E, A>` is a sum type designed for validation scenarios where you need to accumulate errors.
 
+<!-- verify -->
 ```java
 import static org.higherkindedj.hkt.validated.ValidatedKindHelper.VALIDATED;
 import org.higherkindedj.hkt.Bifunctor;
@@ -259,6 +262,7 @@ System.out.println(VALIDATED.narrow2(userFriendly));
 
 `Writer<W, A>` is a product type that holds *both* a log value *and* a computation result.
 
+<!-- verify -->
 ```java
 import static org.higherkindedj.hkt.writer.WriterKindHelper.WRITER;
 import org.higherkindedj.hkt.Bifunctor;
@@ -294,6 +298,7 @@ System.out.println(WRITER.narrow2(structured));
 
 `Const<C, A>` is a unique bifunctor where the second type parameter is **phantom** (not stored at runtime), making it perfect for fold operations, getters in lens libraries, and data extraction patterns.
 
+<!-- verify -->
 ```java
 import static org.higherkindedj.hkt.constant.ConstKindHelper.CONST;
 import org.higherkindedj.hkt.Bifunctor;
@@ -346,6 +351,7 @@ For more on `Const` and its applications in folds and lens patterns, see the [Co
 
 One of the most common uses of bifunctors is transforming internal data representations to external API formats.
 
+<!-- verify -->
 ```java
 // Internal representation uses simple error codes and domain objects
 Either<String, UserData> internalResult = Either.left("USER_NOT_FOUND");

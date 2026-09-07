@@ -11,6 +11,7 @@ Every service has the same three files. A DTO the framework binds. A domain reco
 
 Here is the version most codebases carry, in one form or another:
 
+<!-- verify -->
 ```java
 public static User toDomain(UserDto dto) {
     Objects.requireNonNull(dto.email(), "email required");   // throws on the FIRST problem

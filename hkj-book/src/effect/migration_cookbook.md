@@ -21,6 +21,7 @@ Each recipe shows the imperative code you have today, the Effect Path code you c
 
 ### Before
 
+<!-- verify -->
 ```java
 String result;
 try {
@@ -30,13 +31,13 @@ try {
     log.warn("File read failed, using default", e);
     result = DEFAULT_VALUE;
 }
-return result;
 ```
 
 ### After
 
+<!-- verify -->
 ```java
-String result = Path.tryOf(() -> readFile(path))
+String result = Path.tryPath(Try.attempt(() -> readFile(path)))
     .map(this::transform)
     .recover(e -> {
         log.warn("File read failed, using default", e);
@@ -44,6 +45,10 @@ String result = Path.tryOf(() -> readFile(path))
     })
     .getOrElse(DEFAULT_VALUE);
 ```
+
+~~~admonish note title="Checked exceptions need `Try.attempt`"
+`Path.tryOf` takes a plain `Supplier`, so a call that throws a *checked* exception - which is most of what a `try/catch` exists for - cannot be passed to it directly. [`Try.attempt(CheckedSupplier)`](../monads/try_monad.md) declares `throws X` on the lambda and captures whatever it throws, and `Path.tryPath` lifts the result into the path.
+~~~
 
 **What you gain:** the happy path reads top-to-bottom without interruption. Recovery logic is clearly separated from business logic. The `TryPath` chain is composable; you can insert additional `map` or `via` steps without restructuring the error handling.
 
@@ -55,6 +60,7 @@ String result = Path.tryOf(() -> readFile(path))
 
 ### Before
 
+<!-- verify -->
 ```java
 String city = findUser(id)
     .flatMap(user -> findAddress(user))
@@ -64,9 +70,10 @@ String city = findUser(id)
 
 ### After
 
+<!-- verify -->
 ```java
-String city = Path.maybe(findUser(id))
-    .via(user -> Path.maybe(findAddress(user)))
+String city = Path.maybe(Maybe.fromOptional(findUser(id)))
+    .via(user -> Path.maybe(Maybe.fromOptional(findAddress(user))))
     .map(Address::city)
     .run()
     .orElse("Unknown");
@@ -76,13 +83,14 @@ String city = Path.maybe(findUser(id))
 
 ### When the chain needs a typed error
 
+<!-- verify -->
 ```java
 // Seamless transition from MaybePath to EitherPath
 Either<AppError, String> city =
-    Path.maybe(findUser(id))
-        .toEitherPath(new AppError.UserNotFound(id))
-        .via(user -> Path.maybe(findAddress(user))
-            .toEitherPath(new AppError.NoAddress(user.id())))
+    Path.maybe(Maybe.fromOptional(findUser(id)))
+        .<AppError>toEitherPath(new AppError.UserNotFound(id))
+        .via(user -> Path.maybe(Maybe.fromOptional(findAddress(user)))
+            .<AppError>toEitherPath(new AppError.NoAddress(user.id())))
         .map(Address::city)
         .run();
 ```
@@ -97,6 +105,7 @@ With `Optional`, this transition requires restructuring the entire chain.
 
 ### Before
 
+<!-- verify -->
 ```java
 String postcode = null;
 Order order = findOrder(id);
@@ -109,11 +118,12 @@ if (order != null) {
         }
     }
 }
-return postcode != null ? postcode : "N/A";
+String city = postcode != null ? postcode : "N/A";
 ```
 
 ### After
 
+<!-- verify -->
 ```java
 String postcode = Path.maybe(findOrder(id))
     .map(Order::customer)
@@ -139,6 +149,7 @@ If the *initial* value might be `null`, use `Path.maybe(value)` which wraps `nul
 
 ### Before
 
+<!-- verify -->
 ```java
 CompletableFuture<OrderConfirmation> result =
     userService.findUser(userId)
@@ -154,6 +165,7 @@ Error handling requires a separate `exceptionally` or `handle` call, often chain
 
 ### After
 
+<!-- verify -->
 ```java
 CompletableFuturePath<OrderConfirmation> result =
     CompletableFuturePath.fromFuture(userService.findUser(userId))
@@ -171,6 +183,7 @@ CompletableFuturePath<OrderConfirmation> result =
 
 When fetches are independent, use `parZipWith` instead of nested `via`:
 
+<!-- verify -->
 ```java
 CompletableFuturePath<Dashboard> dashboard =
     CompletableFuturePath.fromFuture(fetchMetrics())
@@ -189,44 +202,49 @@ Both fetches run concurrently; the result is available when both complete.
 
 ### Before
 
+<!-- verify -->
 ```java
-List<String> errors = new ArrayList<>();
+ResponseEntity<?> register(String name, String email, int age) {
+    List<String> errors = new ArrayList<>();
 
-if (name == null || name.length() < 2) {
-    errors.add("Name must be at least 2 characters");
-}
-if (email == null || !email.contains("@")) {
-    errors.add("Invalid email format");
-}
-if (age < 0 || age > 150) {
-    errors.add("Age must be between 0 and 150");
-}
+    if (name == null || name.length() < 2) {
+        errors.add("Name must be at least 2 characters");
+    }
+    if (email == null || !email.contains("@")) {
+        errors.add("Invalid email format");
+    }
+    if (age < 0 || age > 150) {
+        errors.add("Age must be between 0 and 150");
+    }
 
-if (!errors.isEmpty()) {
-    return ResponseEntity.badRequest().body(errors);
+    if (!errors.isEmpty()) {
+        return ResponseEntity.badRequest().body(errors);
+    }
+    // proceed with validated data (but the types don't prove it's valid)
+    Registration reg = new Registration(name, email, age);
+    return ResponseEntity.ok(reg);
 }
-// proceed with validated data (but the types don't prove it's valid)
-Registration reg = new Registration(name, email, age);
 ```
 
 ### After
 
+<!-- verify -->
 ```java
-Semigroup<List<String>> errors = Semigroups.list();
+static final Semigroup<List<String>> errors = Semigroups.list();
 
-ValidationPath<List<String>, String> validateName(String name) {
+ValidationPath<List<String>, String> checkName(String name) {
     return name != null && name.length() >= 2
         ? Path.valid(name, errors)
         : Path.invalid(List.of("Name must be at least 2 characters"), errors);
 }
 
-ValidationPath<List<String>, String> validateEmail(String email) {
+ValidationPath<List<String>, String> checkEmail(String email) {
     return email != null && email.contains("@")
         ? Path.valid(email, errors)
         : Path.invalid(List.of("Invalid email format"), errors);
 }
 
-ValidationPath<List<String>, Integer> validateAge(int age) {
+ValidationPath<List<String>, Integer> checkAge(int age) {
     return age >= 0 && age <= 150
         ? Path.valid(age, errors)
         : Path.invalid(List.of("Age must be between 0 and 150"), errors);
@@ -234,10 +252,10 @@ ValidationPath<List<String>, Integer> validateAge(int age) {
 
 // All three run; errors accumulate
 ValidationPath<List<String>, Registration> result =
-    validateName(name)
+    checkName(name)
         .zipWith3Accum(
-            validateEmail(email),
-            validateAge(age),
+            checkEmail(email),
+            checkAge(age),
             Registration::new);
 ```
 
@@ -247,6 +265,7 @@ ValidationPath<List<String>, Registration> result =
 
 Once validation passes, switch to `EitherPath` for sequential processing:
 
+<!-- verify -->
 ```java
 EitherPath<List<String>, Confirmation> pipeline =
     result
@@ -262,6 +281,7 @@ EitherPath<List<String>, Confirmation> pipeline =
 
 ### Before
 
+<!-- verify -->
 ```java
 // Update the postcode of the shipping address of an order
 Order updatePostcode(Order order, String newPostcode) {
@@ -290,13 +310,14 @@ Every intermediate record must be reconstructed. Adding a field to any record me
 
 ### After
 
+<!-- verify -->
 ```java
 // With generated lenses (via @GenerateLenses annotation)
 Order updatePostcode(Order order, String newPostcode) {
     return OrderLenses.customer()
         .andThen(CustomerLenses.shippingAddress())
         .andThen(AddressLenses.postcode())
-        .set(order, newPostcode);
+        .set(newPostcode, order);
 }
 ```
 
@@ -306,6 +327,7 @@ Order updatePostcode(Order order, String newPostcode) {
 
 When the update is part of an effectful pipeline, `focus()` integrates lenses directly:
 
+<!-- verify -->
 ```java
 var postcodeLens = OrderLenses.customer()
     .andThen(CustomerLenses.shippingAddress())
@@ -315,8 +337,8 @@ EitherPath<AppError, Order> result =
     Path.<AppError, Order>right(order)
         .via(currentOrder -> {
             String postcode = postcodeLens.get(currentOrder);
-            return validatePostcode(postcode)
-                .map(valid -> postcodeLens.set(currentOrder, valid));
+            return validatePostcodeE(postcode)
+                .map(valid -> postcodeLens.set(valid, currentOrder));
         });
 ```
 

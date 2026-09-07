@@ -1,19 +1,23 @@
 # Documentation verification
 
-The book's code is kept honest in two ways. **Prefer the first.**
+The book's code is kept honest in three ways. **Prefer the first.**
 
 | | How | Guarantee |
 |---|---|---|
 | **1. Include** (preferred) | The page `{{#include}}`s an anchored region of a compiled example in this module | Drift is **impossible**: the page renders the code the build compiles and runs |
 | **2. Verify marker** | The page marks a fence `<!-- verify -->`; the gate compiles a copy of it | Drift is **caught**: the build fails if the code stops compiling |
+| **3. Diagnostic marker** | The page marks a fence `<!-- verify:rejects "…" -->` or `<!-- verify:reports "…" -->`; the gate compiles it and holds the compiler to what the page quotes | Drift is **caught** for code the page shows in order to say it is *refused*, which neither of the others can express |
 
 Use (1) whenever the snippet can be real, runnable code. It is strictly stronger, and a runnable
 example can also prove the *output* comments a page asserts, which the compile gate cannot. Fall back
 to (2) when a page needs a shape that cannot be a runnable example (an abstract signature, a
 `VResultPath<E, A>` written against type variables).
 
-The exact counts live in the two ratchets (`MINIMUM_INCLUDES`, `MINIMUM_VERIFIED_SNIPPETS`) rather
-than here, so they cannot go stale. Markers today cover `path_vresult`'s catalogue of shapes written against abstract type variables (the one thing an include cannot express) and short teaser snippets such as the optics Fundamentals payoff, whose fixture-backed domain would be noise in a runnable example
+(3) is for the opposite kind of snippet: the shape a page shows to say the processor rejects it. See
+[Marking a snippet the processor refuses](#marking-a-snippet-the-processor-refuses).
+
+The exact counts live in the three ratchets (`MINIMUM_INCLUDES`, `MINIMUM_VERIFIED_SNIPPETS`,
+`MINIMUM_DIAGNOSTIC_SNIPPETS`) rather than here, so they cannot go stale. Markers today cover `path_vresult`'s catalogue of shapes written against abstract type variables (the one thing an include cannot express) and short teaser snippets such as the optics Fundamentals payoff, whose fixture-backed domain would be noise in a runnable example
 
 The book-facing examples live under `org.higherkindedj.example.book.*`, **one package per page**: the
 types must be top-level (so the processor generates the names the book teaches), and two pages that
@@ -70,15 +74,15 @@ The gate closes that hole. It runs with `hkj-examples`' tests, as part of `gradl
 Put `<!-- verify -->` on the line before the fence. It is an HTML comment, so it is invisible in the
 rendered book.
 
-```markdown
+````markdown
 <!-- verify -->
-``` java
+```java
 Validated<NonEmptyList<FieldError>, User> user =
     Validated.fields()
         .field("name", parseName(dto.name()))
         .apply(User::new);
 ```
-```
+````
 
 Each marked snippet is compiled **independently**, with the real HKJ classpath and the real
 annotation processor, so a `@GenerateMapping` or `@GenerateAssembly` snippet is checked against
@@ -86,6 +90,54 @@ genuinely generated code, not a stand-in.
 
 Snippets are compiled separately rather than a whole page at once because a page's snippets are
 illustrations, not one program: two of them may legitimately show different `User` records.
+
+## Marking a snippet the processor refuses
+
+The pages documenting what the processor *rejects* are the ones a processor change is most likely to
+invalidate, and a marker meaning "this compiles" cannot express them at all. That is how three
+`@MatchWhen` examples came to recommend a shape that has never compiled (#755), on a page whose
+seven `{{#include}}`s were correct throughout.
+
+Two further markers close the hole. Both quote the diagnostic the page claims, and the quote is the
+half that matters: "still refused" says nothing about the wording, and the wording is what rots when
+a message is reworded.
+
+````markdown
+<!-- verify:rejects "which the test cannot narrow to" -->
+```java
+@ImportOptics
+interface ShapeOpticsSpec<T> extends OpticsSpec<Shape> {
+
+    @InstanceOf(Circle.class)
+    Prism<Shape, Circle<T>> circle();
+}
+```
+````
+
+| Marker | What it asserts |
+|---|---|
+| `<!-- verify -->` | the snippet compiles, with no error and no warning |
+| `<!-- verify:rejects "…" -->` | the snippet does **not** compile, and one of the errors quotes the fragment |
+| `<!-- verify:reports "…" -->` | the snippet compiles, and a note or a warning quotes the fragment |
+
+`verify:reports` is for the diagnostics that do not stop a build: `@GenerateTraversals` raises a
+**note** for a container no generator claims, and `@GeneratePathBridge` a **warning** when no
+`@PathVia` method survives. Both are documented behaviour, and a compile check sees neither.
+
+A fragment must be at least ten characters, so it cannot be whittled down until it matches any
+message at all. Quote the distinctive middle of the message rather than the `@Annotation:` prefix,
+and prefer the concrete names your reproducer produces (`narrows to 'Card', which is not a 'Cash'`)
+over the `'...'` placeholders a page's heading uses: the snippet is yours, so the message is
+predictable.
+
+Not every documented diagnostic can be reproduced by one snippet, and the exceptions fall into three
+recognisable classes. Two entries on `compiler_errors.md` are not processor behaviour at all (a
+"cannot find symbol" that means the processor never ran, and a sealed interface declared in a method
+body, which plain Java forbids). Two need something a single compilation unit cannot set up: two SPI
+providers on the annotation processor path, and a `@ViaCopyAndSet` supertype that has to be
+package-private in a package the reproducer cannot name without writing `bookverify` onto the page.
+One states a symptom rather than a shape. Those stay prose; everything else on the page carries a
+reproducer.
 
 ## Fixtures: what a page elides
 
@@ -101,7 +153,26 @@ A fixture may declare:
   snippet can call `parseName(dto.name())` bare, exactly as the page writes it
 
 A type the snippet declares for itself shadows the fixture's, so a page may show its own `User`
-without colliding.
+without colliding. A fixture's *imports*, though, are hoisted into every unit, so a fixture must
+never single-type-import a name a snippet declares - that is a duplicate declaration, not a
+shadow. Import that package **on demand** instead (`import org.higherkindedj.example.order.error.*;`):
+an on-demand import is shadowed by the declaration, and still resolves the name for every other
+snippet on the page.
+
+Where building a value would mean assembling half a domain to say nothing about the code on the
+page, a generic stand-in says so:
+
+```java
+static final ValidatedOrder order = sample();
+
+static <A> A sample() {
+  throw new UnsupportedOperationException("a fixture value: snippets are compiled, not run");
+}
+```
+
+Snippets that quote a *real* example are the best case: `hkj-examples`' own main sources are on the
+gate's classpath, so a page about `hkj-examples/src/main/java/.../market` can name those types
+directly and drift from the example is a compile error.
 
 The fixtures are `.java` for IDE support but are **resources, not sources**: their imports exist for
 the snippet they are spliced into, so Spotless excludes them (an "unused import" cleanup would
@@ -120,15 +191,177 @@ The extractor works out what each block is, so a page can be written naturally:
 
 Signature quotations are exactly the lines that drift, so they are compiled rather than skipped.
 
+A statement that opens a brace keeps everything until it closes, so an anonymous class written
+inside one (an interpreter, a comparator) stays where the page put it rather than being hoisted out
+as a member of its own. A method signature may wrap before its parameter list, which a generic
+return type routinely does.
+
 A **generic** fixture (`class Fixture<E, A, B>`) lends its type parameters to the snippet, which is
-how a page can show `VResultPath<E, A>` as a *shape* without inventing a domain for it.
+how a page can show `VResultPath<E, A>` as a *shape* without inventing a domain for it. The
+parameters may be bounded (`class Fixture<G extends WitnessArity<TypeArity.Unary>>`), which is what
+a page about a Free program written against an unknown witness needs; the wrapper declares the
+bound and passes the parameter on by name.
 
 ## When a snippet cannot compile
 
-A block is left unmarked only when it cannot be a compilation unit at all, and today none are. The
-two that once were (`record_mapping`'s `@GenerateErrorEnvelope` hierarchy and its `editContext`
-interface `default` method) are now `{{#include}}`d from a real example, where they compile
-naturally.
+A block that is *meant* not to compile is not one of these: it goes under `verify:rejects`, above.
+
+A block is left unmarked only when it cannot be a compilation unit at all. The two that once were
+(`record_mapping`'s `@GenerateErrorEnvelope` hierarchy and its `editContext` interface `default`
+method) are now `{{#include}}`d from a real example, where they compile naturally.
+
+One in the effect chapter still is: `effect_handlers.md`'s `boundSet()` snippet calls a wiring
+class the reader writes for their own composition, and the page has none of its own to call. The
+algebras and the generated support around it are gated; that one line is not.
+
+Some shapes recur across the book and are left unmarked deliberately:
+
+- **The Foundations one-liner.** `repo.find(id).toEitherPath().focus().attributes().at(key)...`
+  appears on about fifteen pages as the book's running motif. `.focus()` takes an optic and there
+  is no `at(key)` for a map (that is `FocusPaths.mapAt`), so it is a mnemonic for the layers, not
+  code. Correcting it is an editorial decision about the motif, not a sweep.
+- **Declarations of the library's own types.** `Maybe`, `Either`, `EitherF`, `Inject` and `Const`
+  are quoted with `{ ... }` bodies, or with their methods left body-less, to show their shape. A
+  sealed type that permits the library's own classes cannot be declared beside them, and the page
+  needs the real type in every other fence, so it cannot shadow it either. `trampoline_monad.md`
+  quotes the shape a blog post published, which is the same case. Every page in the type-class
+  chapter opens the same way, quoting `Functor`, `Applicative`, `Monad`, `Selective`,
+  `Alternative`, `MonadZero`, `Bifunctor`, `Profunctor`, `Foldable`, `Traverse`, `Natural`,
+  `Semigroup` or `Monoid`; the worked examples below each quotation are gated. `optics/folds.md`
+  quotes `Foldable` for the same reason, to say what the optic mirrors, and
+  `optics/each_typeclass.md` quotes `Each` and `EachIndexed` with one member elided.
+- **A `static` extension method quoted as a signature.** `getters.md` quotes
+  `public static <S, A> Maybe<A> getMaybe(Getter<S, A> getter, S source)`, and
+  `coupled_fields.md` quotes both overloads of `Lens.paired` the same way. A signature-only
+  snippet is wrapped in an interface, where `static` demands a body, so the one shape that would
+  make a body-less method legal is the one this signature cannot take. Every worked example of
+  `getMaybe` below the quotation is gated.
+- **A `@SafeVarargs` factory quoted as a signature.** `stream_monad.md`'s creation reference
+  quotes `fromArray(T... elements)`. A signature-only snippet is wrapped in an interface, where
+  the annotation the real declaration carries is not legal, and without it javac raises a
+  mandatory heap-pollution warning. The other four reference tables on that page are gated.
+- **Snippets against a dependency the gate does not have.** `context_scoped.md`'s SLF4J bridge
+  (`LoggerFactory`, `MDC`) and `vstream_performance.md`'s JMH configuration name libraries that
+  are not on the gate's classpath, and putting them there to compile two snippets would be the
+  tail wagging the dog. `common_data_structure_traversals.md`'s Vavr `HashMap` is the same case;
+  its pcollections neighbour, which the gate does carry, is gated. So is
+  `auditing_complex_data_example.md`'s `@Benchmark` pair, which is JMH again.
+- **A stack the page invents to make a point.** `transformer_capstone.md` builds its
+  three-layer `TestStack` through a `buildTestStack` helper that no module provides; it stands for
+  the boundary wiring a reader would write, not for an API.
+- **Code whose only diagnostic comes from the HKJ checker.** `compile_checks.md` opens with a
+  `via` that mixes two Path types and a discarded `IOPath`. Both compile; what refuses them is the
+  checker, and the checker is a *javac plugin*, which the gate does not ask for. Turning it on is
+  worth doing - it fires correctly on both, and on a dozen other pages - but it is a change to what
+  every gated snippet must satisfy, so it belongs in its own change rather than this sweep.
+- **A generic varargs call the caller cannot make quietly.** `alternative.md` shows
+  `orElseAll(first, () -> second, () -> third, ...)`. `Alternative.orElseAll` is a `default`
+  method, so it cannot carry `@SafeVarargs`, and every call with three or more alternatives raises
+  a mandatory heap-pollution warning. The page's `Iterable` overload is gated beside it.
+- **A shape written over free type variables.** `selective.md` and `natural_transformation.md`
+  write `Kind<F, Choice<Error, Data>>` and `Natural<F, G>` with nothing binding `F` or `G`: the
+  point is the shape the operation has for *any* effect. A fixture can lend its type parameters to
+  a snippet, but only one set, and the same fixture serves the concrete `IO` and `Maybe` examples
+  on the same page. `optics/folds.md`'s table of standard monoids is the same case: `Monoids.list()`
+  and its neighbours are listed as `Monoid<List<A>>` for the `A` the caller brings, and
+  `optics/composition_rules.md`'s two summary tables state every composition as
+  `Lens<A, C> result = lensAB.andThen(lensBC);` - one `result` per line, over free `A`, `B` and
+  `C`. Every rule in them is worked concretely elsewhere on that page, and gated there.
+- **A name the page binds to two different lenses.** `optics/coupled_fields.md` closes by
+  putting the two `coupled3` constructor forms side by side, and its simple half names
+  `loLens`/`hiLens`, which the page has already bound to the `Range` example. Both forms are gated
+  where the page introduces them - the preserving one on `Transaction`, the simple one on `Triple`.
+- **A name the page binds to two different records.**
+  `forstate_comprehension.md` names the same `userLens`, `addressLens` and `initialWorkflow` for
+  its order workflow and its offer workflow. Snippets compile independently against one shared
+  fixture, so a name can mean one thing per page; the offer workflow is gated and the order
+  workflow, which the page elides the lenses of in a comment anyway, is not.
+- **The exception-based version a migration page is leaving behind.**
+  `migrating_to_functional_errors.md` shows each step twice: the throwing code first, the
+  functional code after. Both halves are gated wherever they can be, because the "before" is
+  ordinary Spring; four are not, because they call a `findById` that throws where the page's own
+  service returns `Either`, or reach for `@Valid`/`BindingResult`, which the gate does not carry.
+  The functional half of every one of them is gated.
+- **The library's own auto-configuration, quoted.** `spring_boot_integration.md` shows
+  `HkjWebMvcAutoConfiguration` with its `properties` field elided. It is the same case as a quoted
+  sealed type: the real class cannot be declared beside itself.
+- **A reference table written as bare calls.** `glossary/effect-paths.md` lists the `Path`
+  factories one per line - `Path.maybe(nullableValue)`, `Path.right(value)` - as a table, not as
+  code. A bare expression is not a statement, and binding fifteen of them to names would bury the
+  table it is. `optics/importing_optics.md`'s four "you get" tables (`CoordinateLenses.lat()   //
+  Lens<Coordinate, Double>`) and `optics/copy_strategies.md`'s summary of every strategy's
+  attributes are the same shape; both pages gate the worked import beside them.
+- **A validator shown twice, pure and impure.** `optics/optics_extensions.md` puts a clean
+  `validateEmail` beside one that logs from inside, under the same name and with the impure half
+  left unfinished. Two methods of one signature cannot share a class, and the point is the pair.
+- **A wrong-then-right pair a troubleshooting page shows together.**
+  `tutorials/troubleshooting.md` is built out of them: a X half that does not compile *because that
+  is the point* ("won't work - local class", "NPE here"), and a tick half beside it, usually binding
+  the same name. Splitting each into its own block would lose the juxtaposition that makes the page
+  readable. Elsewhere in the book, where both halves are ordinary code, they ARE split and both are
+  gated - see `migrating_to_functional_errors.md`.
+- **A complete runnable file repeated at the end of a page.** `optics/lenses.md` closes by
+  putting the whole worked example back together, model included. Every part of it is gated above;
+  compiling the repeat would need a second copy of the same records in one unit, and two
+  `@GenerateLenses` records of the same simple name cannot both emit their companion.
+  `optics/folds.md` closes the same way, and the collision there is worth spelling out: its final
+  file nests its records inside `FoldUsageExample`, but a companion is generated *top-level* by
+  simple name, so a nested `Order` and the page's own `Order` both ask for `OrderFolds`. The same
+  page's `targetPackage` entry is unmarked for a related reason: a companion generated into another
+  package needs its source type to be `public`, and a snippet's types share one file, where only
+  one may be. `optics/traversals.md` closes and annotates the same way, and its `TraversalUsageExample`
+  nests its records, which is the `folds.md` collision below.
+- **Mutation shown as the thing not to do.** `optics/setters.md` puts `user.setUsername(...)` and
+  `obj -> { obj.setValue(newValue); return obj; }` beside the functional versions. Both need a
+  mutable type the page models as a record, and declaring one to compile the counter-example would
+  document a shape the library does not have. The correct half of each pair is gated.
+- **A shape stated in place of an optic.** `optics/affine.md` writes `Prism<Shape, Circle>
+  circlePrism = ...;` where the point is what the optic can *do* next, not where it came from, and
+  gives its composition table and its two `Affine.of` overloads over free `S`, `A` and `B`.
+  `optics/composing_optics.md`'s anti-pattern block is the same case from the other side: it passes
+  `/* wrong applicative */` and `/* any string traversal */` to say what NOT to hand a `modifyF`,
+  and the right version beside it is gated. Both
+  are the same case as the free-type-variable shapes above: the page is showing a signature, and
+  every worked use of `Affine.of` and of each composition below is gated.
+  `optics/each_typeclass.md`'s two `Each.fromTraversal` entries are the same shape again: an
+  optic over a container the reader brings, written `= ...` over a free `A`.
+  `core_type_integration.md` writes `Maybe<Either<String, User>> confusing = ...;` to say which
+  pairing NOT to reach for, and `optics_intro.md`'s traversal teaser elides its record's other
+  components as `(..., List<String> promoCodes)`; every optic each page introduces is gated where
+  it is introduced.
+- **Legacy null-checking beside the Optional model.** `optics/affine.md`'s anti-pattern block ends
+  with `user.address() != null && user.address().postcode() != null`, which reads through a
+  nullable model the page never declares - its `Address` is reached through an `Optional`. The
+  clean version beside it is gated.
+- **A class that continues the one above it.** `optics/advanced_prism_patterns.md` builds each
+  pattern across two or three blocks: a class declares its prisms `private static final`, and the
+  next block is a *different* class reading them by their bare names. A snippet's top-level class
+  is a sibling of the fixture, not a subclass, and a private member is not visible across classes
+  either, so those continuations only compile as part of a file the page never shows in one piece.
+  The block that introduces each pattern - the model, its prisms and the first class over them - is
+  gated, and so is the imperative version beside it wherever that version is a method rather than a
+  bare `return`.
+- **A package declaration carrying an annotation.** `optics/importing_optics.md` shows
+  `@ImportOptics(java.time.LocalDate.class)` above `package com.myapp.optics;`, which is a
+  `package-info.java`, not a snippet: a compilation unit assembled from several pages cannot carry
+  one. The record the page imports optics *for* is gated, and the same annotation is exercised on a
+  holder class throughout `copy_strategies.md`.
+- **An external library the gate does not carry.** `optics/focus_external_bridging.md` shows the
+  Immutables, Lombok, AutoValue and protobuf spellings of the same bridge; only the Immutables one
+  is real code in this repo, and the page includes it from the module rather than quoting it. Its
+  `CompanyBridge` sections, which are the point, are gated. `copy_strategies.md`'s jOOQ `Result`
+  read is the same case.
+- **A skeleton whose members are `{ ... }`.** `optics/copy_strategies.md` sketches the builder and
+  the ambiguous-constructor types it is describing, and `optics/profunctor_optics.md` sketches the
+  two conversion methods its integration class delegates to. Each is there to show a *shape* the
+  reader already has; every optic built over one is gated.
+- **Laws written as equations.** `coyoneda.md` states the functor laws as
+  `coyo.map(x -> x) == coyo`. The `==` is the law's notation, not a reference comparison, and
+  rewriting it as an assertion would obscure what it says.
+- **Aliases a page invents for a type Java cannot abbreviate.** `eitherf.md` writes
+  `Free<Composed, RiskScore>`, where `Composed` stands for a four-deep `EitherF` nesting, and
+  `Free.translate(program, inject::inject, functorG)` over free `G` and `A`. Both are there to
+  show a shape; the gated fence beside each shows the same call with `var`.
 
 Prefer fixing a snippet over excluding it. Three blocks looked like prose at first and turned out to
 be worth rescuing: a pseudo-code placeholder (`EmailAddress addr = /* a valid domain value */;`), two
@@ -141,6 +374,11 @@ The gate is opt-in so that prose *can* stay prose, not so that awkward code can 
 
 `MINIMUM_VERIFIED_SNIPPETS` is a floor on the number of marked snippets. Deleting a marker to silence
 a failure drops the count and fails the build. Raise the floor as pages are brought under the gate.
+
+`MINIMUM_DIAGNOSTIC_SNIPPETS` is a second floor, on the `verify:rejects` and `verify:reports`
+snippets alone. The total cannot protect those: swapping a rejection check for an easy positive
+snippet elsewhere leaves it untouched, and they are the only thing holding the pages that document
+refusals to what the processor actually says.
 
 If a snippet genuinely can no longer be verified, lower the floor deliberately and say why in the
 commit message. That should be rare, and it should be visible in review.

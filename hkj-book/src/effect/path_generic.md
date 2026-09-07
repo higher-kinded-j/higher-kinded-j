@@ -14,6 +14,7 @@ a `Monad` instance, letting you use Path operations on custom types.
 
 ## Creation
 
+<!-- verify -->
 ```java
 Monad<ListKind.Witness> listMonad = Instances.monadZero(list());
 Kind<ListKind.Witness, Integer> listKind =
@@ -27,6 +28,7 @@ GenericPath<ListKind.Witness, Integer> listPath =
 
 ## Core Operations
 
+<!-- verify -->
 ```java
 GenericPath<ListKind.Witness, Integer> numbers = Path.generic(listKind, listMonad);
 
@@ -40,6 +42,7 @@ GenericPath<ListKind.Witness, Integer> doubled = numbers.via(n ->
 
 ## Extraction
 
+<!-- verify -->
 ```java
 Kind<ListKind.Witness, Integer> kind = path.runKind();
 List<Integer> list = ListKindHelper.LIST.narrow(kind);

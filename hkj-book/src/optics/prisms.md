@@ -35,6 +35,7 @@ Consider a common scenario: modelling a JSON structure. A value can be a string,
 
 **The Data Model:** We can represent this with a `sealed interface`.
 
+<!-- verify -->
 ```java
 import org.higherkindedj.optics.annotations.GeneratePrisms;
 import org.higherkindedj.optics.annotations.GenerateLenses;
@@ -70,6 +71,7 @@ public record JsonObject(Map<String, JsonValue> fields) implements JsonValue {}
 
 Just as with lenses, we annotate our `sealed interface` with **`@GeneratePrisms`**. This automatically creates a companion class (e.g., `JsonValuePrisms`) with a `Prism` for each permitted subtype.
 
+<!-- verify -->
 ```java
 // Generated automatically:
 // JsonValuePrisms.jsonString() -> Prism<JsonValue, JsonString>
@@ -97,6 +99,7 @@ A `Prism` is defined by two unique, failable operations:
 * **`getOptional(source)`**: Attempts to focus on the target. It returns an `Optional` which is non-empty only if the `source` matches the Prism's specific case. This is the safe alternative to an `instanceof` check and cast.
 * **`build(value)`**: Constructs the top-level type from a part. This is the reverse operation, used to wrap a value back into its specific case (e.g., taking a `String` and building a `JsonString`).
 
+<!-- verify -->
 ```java
 Prism<JsonValue, JsonString> jsonStringPrism = JsonValuePrisms.jsonString();
 
@@ -126,6 +129,7 @@ higher-kinded-j provides direct composition methods that automatically return th
 See [Composition Rules](composition_rules.md) for the complete reference.
 ~~~
 
+<!-- verify -->
 ```java
 // Create all the optics we need
 Prism<JsonValue, JsonObject> jsonObjectPrism = JsonValuePrisms.jsonObject();
@@ -160,6 +164,7 @@ This composed `Traversal` now represents a safe, deep path that will only succee
 * **Composable type checking** - Building reusable type-safe paths
 * **Functional pattern matching** - Avoiding `instanceof` chains
 
+<!-- verify -->
 ```java
 // Perfect for safe type extraction
 Optional<String> errorMessage = DomainErrorPrisms.validationError()
@@ -173,10 +178,14 @@ Optional<String> errorMessage = DomainErrorPrisms.validationError()
 * **Imperative control flow** - You need if/else branching
 * **Performance critical paths** - Minimal abstraction overhead needed
 
+<!-- verify -->
 ```java
 // Sometimes instanceof is clearer for simple cases
-if (jsonValue instanceof JsonString jsonStr) {
-    return jsonStr.value().toUpperCase();
+String shout(JsonValue jsonValue) {
+    if (jsonValue instanceof JsonString jsonStr) {
+        return jsonStr.value().toUpperCase();
+    }
+    return "";
 }
 ```
 
@@ -186,14 +195,17 @@ if (jsonValue instanceof JsonString jsonStr) {
 * **Complex extraction logic** - Multiple levels of pattern matching
 * **Modern codebases** - Using recent Java features
 
+<!-- verify -->
 ```java
 // Pattern matching for comprehensive handling
-return switch (jsonValue) {
-    case JsonString(var str) -> str.toUpperCase();
-    case JsonNumber(var num) -> String.valueOf(num);
-    case JsonBoolean(var bool) -> String.valueOf(bool);
-    case JsonObject(var fields) -> "Object with " + fields.size() + " fields";
-};
+String describe(JsonValue jsonValue) {
+    return switch (jsonValue) {
+        case JsonString(var str) -> str.toUpperCase();
+        case JsonNumber(var num) -> String.valueOf(num);
+        case JsonBoolean(var bool) -> String.valueOf(bool);
+        case JsonObject(var fields) -> "Object with " + fields.size() + " fields";
+    };
+}
 ```
 
 ---
@@ -203,19 +215,23 @@ return switch (jsonValue) {
 ### Don't Do This:
 
 
+<!-- verify -->
 ```java
 // Unsafe: Assuming the cast will succeed
 JsonString jsonStr = (JsonString) jsonValue; // Can throw ClassCastException!
 
 // Verbose: Repeated instanceof checks
-if (jsonValue instanceof JsonObject obj1) {
-    var userValue = obj1.fields().get("userLogin");
-    if (userValue instanceof JsonObject obj2) {
-        var nameValue = obj2.fields().get("name");
-        if (nameValue instanceof JsonString str) {
-            return str.value().toUpperCase();
+String nested(JsonValue jsonValue) {
+    if (jsonValue instanceof JsonObject obj1) {
+        var userValue = obj1.fields().get("userLogin");
+        if (userValue instanceof JsonObject obj2) {
+            var nameValue = obj2.fields().get("name");
+            if (nameValue instanceof JsonString str) {
+                return str.value().toUpperCase();
+            }
         }
     }
+    return "";
 }
 
 // Inefficient: Creating prisms repeatedly
@@ -227,16 +243,18 @@ var name3 = JsonValuePrisms.jsonString().getOptional(value3);
 ### Do This Instead:
 
 
+<!-- verify -->
 ```java
 // Safe: Use prism's getOptional
 Optional<JsonString> maybeJsonStr = JsonValuePrisms.jsonString().getOptional(jsonValue);
 
-// Composable: Build reusable safe paths
+// Composable: Build reusable safe paths, one step at a time
 var userNamePath = JsonValuePrisms.jsonObject()
     .andThen(JsonObjectLenses.fields())
-    .andThen(mapValue("userLogin"))
-    .andThen(JsonValuePrisms.jsonObject())
-    // ... continue composition
+    .asTraversal()
+    .andThen(Traversals.forMap("userLogin"))
+    .andThen(JsonValuePrisms.jsonObject().asTraversal());
+    // ... and on through "name" to the string value
 
 // Efficient: Reuse prisms and composed paths
 var stringPrism = JsonValuePrisms.jsonString();
@@ -259,6 +277,7 @@ Prisms are optimised for type safety and composability:
 **Best Practice**: For frequently used prism combinations, create them once and store as constants:
 
 
+<!-- verify -->
 ```java
 public class JsonOptics {
     private static final Lens<JsonObject, Map<String, JsonValue>> fieldsLens =
@@ -267,7 +286,7 @@ public class JsonOptics {
     public static final Prism<JsonValue, JsonString> STRING = 
         JsonValuePrisms.jsonString();
   
-    public static final Traversal<JsonValue, String> STRING_VALUE = 
+    public static final Affine<JsonValue, String> STRING_VALUE =
         STRING.andThen(JsonStringLenses.value());
   
     public static final Traversal<JsonObject, String> USER_NAME = 
@@ -286,6 +305,7 @@ public class JsonOptics {
 Here's a practical example of using prisms to handle different API response types safely:
 
 
+<!-- verify -->
 ```java
 @GeneratePrisms
 public sealed interface ApiResponse {}

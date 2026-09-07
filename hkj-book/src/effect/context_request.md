@@ -33,6 +33,7 @@ That small fire is the context you propagate: trace IDs, correlation identifiers
 
 `RequestContext` is a utility class providing pre-defined `ScopedValue` instances for common request metadata:
 
+<!-- verify -->
 ```java
 public final class RequestContext {
     private RequestContext() {}  // Utility class -- no instantiation
@@ -94,6 +95,7 @@ The trace ID is the most critical piece of request context. It's a unique identi
 
 ### Generating Trace IDs
 
+<!-- verify -->
 ```java
 public final class TraceIdGenerator {
     private TraceIdGenerator() {}
@@ -133,8 +135,10 @@ public final class TraceIdGenerator {
 
 At your application's entry point (HTTP handler, message consumer, scheduled job), establish the trace context:
 
+<!-- verify -->
 ```java
 public class RequestHandler {
+    private final Router router = new Router();
 
     public Response handle(HttpRequest request) {
         // Extract or generate trace ID
@@ -169,16 +173,19 @@ public class RequestHandler {
 
 Anywhere in your call stack, read the trace ID without parameter passing:
 
+<!-- verify -->
 ```java
-public class OrderService {
-    private static final ContextLogger log = new ContextLogger(OrderService.class);
+public class OrderCreator {
+    private static final ContextLogger log = new ContextLogger(OrderCreator.class);
+
+    private final OrderRepository orderRepository = new OrderRepository();
 
     public Order createOrder(OrderRequest request) {
         // Trace ID is available implicitly
         String traceId = RequestContext.TRACE_ID.get();
         log.info("Creating order for customer: {}", request.customerId());
 
-        Order order = buildOrder(request);
+        Order order = Fixture.buildOrder(request);
         orderRepository.save(order);
 
         log.info("Order created: {}", order.id());
@@ -191,11 +198,14 @@ public class OrderService {
 
 When calling external services, include the trace ID in headers:
 
+<!-- verify -->
 ```java
 public class ExternalServiceClient {
+    private final java.net.http.HttpClient httpClient = java.net.http.HttpClient.newHttpClient();
 
-    public <T> T call(String url, Class<T> responseType) {
-        HttpRequest.Builder builder = HttpRequest.newBuilder()
+    public <T> T call(String url, Class<T> responseType) throws Exception {
+        // The JDK's HttpRequest, not the inbound one this page reads context out of.
+        java.net.http.HttpRequest.Builder builder = java.net.http.HttpRequest.newBuilder()
             .uri(URI.create(url))
             .GET();
 
@@ -207,11 +217,11 @@ public class ExternalServiceClient {
             builder.header("X-Correlation-ID", RequestContext.CORRELATION_ID.get());
         }
 
-        HttpResponse<String> response = httpClient.send(
+        java.net.http.HttpResponse<String> response = httpClient.send(
             builder.build(),
-            HttpResponse.BodyHandlers.ofString());
+            java.net.http.HttpResponse.BodyHandlers.ofString());
 
-        return parseResponse(response, responseType);
+        return Fixture.parseResponse(response, responseType);
     }
 }
 ```
@@ -257,6 +267,7 @@ While trace ID identifies a single request, correlation ID groups related reques
 
 ### Use Cases for Correlation ID
 
+<!-- verify -->
 ```java
 // Scenario: User clicks "Submit Order" which triggers multiple API calls
 // All share the same correlation ID but have different trace IDs
@@ -281,8 +292,10 @@ createOrder(orderDetails);
 
 ### Correlation in Async Workflows
 
+<!-- verify -->
 ```java
 public class OrderWorkflow {
+    private final EventPublisher eventPublisher = new EventPublisher();
 
     public void submitOrder(OrderRequest request, String correlationId) {
         ScopedValue
@@ -306,7 +319,7 @@ public class OrderWorkflow {
             .where(RequestContext.TRACE_ID, TraceIdGenerator.compact())  // New trace
             .run(() -> {
                 // New trace ID, but same correlation links it to original action
-                processOrder(event.orderRequest());
+                Fixture.processOrder(event.orderRequest());
             });
     }
 }
@@ -320,6 +333,7 @@ The locale determines how dates, numbers, and messages are formatted in response
 
 ### Reading Locale for Formatting
 
+<!-- verify -->
 ```java
 public class ResponseFormatter {
 
@@ -348,6 +362,7 @@ public class ResponseFormatter {
 
 ### Locale-Aware Response Building
 
+<!-- verify -->
 ```java
 public class OrderResponseBuilder {
 
@@ -372,8 +387,10 @@ public class OrderResponseBuilder {
 
 Track when the request was received for latency measurement and audit:
 
+<!-- verify -->
 ```java
 public class LatencyTracker {
+    private static final ContextLogger log = new ContextLogger(LatencyTracker.class);
 
     public void logOperationLatency(String operation) {
         if (RequestContext.REQUEST_TIME.isBound()) {
@@ -397,6 +414,7 @@ public class LatencyTracker {
 
 Propagate deadlines to ensure operations fail fast when time runs out:
 
+<!-- verify -->
 ```java
 public class DeadlineAwareService {
 
@@ -425,7 +443,7 @@ public class DeadlineAwareService {
 }
 
 // Usage at edge
-public Response handle(HttpRequest request) {
+Response handleWithDeadline(HttpRequest request) {
     Instant deadline = Instant.now().plus(Duration.ofSeconds(30));
 
     return ScopedValue
@@ -443,6 +461,7 @@ For SaaS applications serving multiple tenants from a single deployment:
 
 ### Tenant Resolution
 
+<!-- verify -->
 ```java
 public class TenantResolver {
 
@@ -482,10 +501,11 @@ public class TenantResolver {
 
 ### Tenant-Aware Data Access
 
+<!-- verify -->
 ```java
 public class TenantAwareRepository<T> {
 
-    private final DataSource dataSource;
+    private final JdbcTemplate jdbcTemplate = new JdbcTemplate();
 
     public T findById(String id) {
         String tenantId = RequestContext.TENANT_ID.get();
@@ -501,15 +521,26 @@ public class TenantAwareRepository<T> {
         setTenantId(entity, tenantId);
         jdbcTemplate.save(entity);
     }
+
+    private String tableName() {
+        return "orders";
+    }
+
+    private RowMapper rowMapper() {
+        return row -> row;
+    }
+
+    private void setTenantId(T entity, String tenantId) {}
 }
 ```
 
 ### Tenant-Specific Configuration
 
+<!-- verify -->
 ```java
 public class TenantConfigService {
 
-    private final Map<String, TenantConfig> configCache;
+    private final Map<String, TenantConfig> configCache = new HashMap<>();
 
     public TenantConfig currentConfig() {
         String tenantId = RequestContext.TENANT_ID.get();
@@ -525,6 +556,10 @@ public class TenantConfigService {
         TenantConfig config = currentConfig();
         return config.featureFlags();
     }
+
+    private TenantConfig loadConfig(String tenantId) {
+        return new TenantConfig("jdbc:h2:mem:" + tenantId, Set.of());
+    }
 }
 ```
 
@@ -536,6 +571,7 @@ public class TenantConfigService {
 
 Build a logger that automatically includes request context:
 
+<!-- verify -->
 ```java
 public class ContextLogger {
     private final Logger delegate;
@@ -579,10 +615,12 @@ public class ContextLogger {
 
 For log aggregation systems (ELK, Splunk, CloudWatch):
 
+<!-- verify -->
 ```java
 public class StructuredLogger {
-    private final Logger delegate;
-    private final ObjectMapper mapper;
+    private final Logger delegate = LoggerFactory.getLogger(StructuredLogger.class);
+
+    private final ObjectMapper mapper = new ObjectMapper();
 
     public void info(String message, Object... args) {
         LogEntry entry = buildEntry("INFO", message, args);
@@ -619,6 +657,14 @@ public class StructuredLogger {
         return context;
     }
 
+    private String toJson(LogEntry entry) {
+        try {
+            return mapper.writeValueAsString(entry);
+        } catch (Exception e) {
+            return entry.message();
+        }
+    }
+
     record LogEntry(
         String level,
         String message,
@@ -647,6 +693,7 @@ Sample output:
 
 If you have existing code using SLF4J MDC, bridge at scope boundaries:
 
+<!-- verify -->
 ```java
 public class MdcBridge {
 
@@ -675,10 +722,10 @@ public class MdcBridge {
 }
 
 // Usage with legacy logging code
-public void callLegacyService() {
+void callLegacyService() throws Exception {
     MdcBridge.withMdc(() -> {
         // Legacy code that uses MDC.get("traceId") will work here
-        legacyService.process();
+        Fixture.legacyService.process();
         return null;
     });
 }
@@ -694,12 +741,14 @@ The MDC bridge only works within the thread where it's called. Virtual threads f
 
 Putting it all together:
 
+<!-- verify -->
 ```java
 public class OrderController {
     private static final ContextLogger log = new ContextLogger(OrderController.class);
 
-    private final OrderService orderService;
-    private final TenantResolver tenantResolver;
+    private final OrderService orderService = new OrderService();
+
+    private final TenantResolver tenantResolver = new TenantResolver();
 
     public Response createOrder(HttpRequest request) {
         // Resolve all context values
@@ -726,7 +775,7 @@ public class OrderController {
                 log.info("Processing order request");
 
                 try {
-                    OrderRequest orderRequest = parseBody(request, OrderRequest.class);
+                    OrderRequest orderRequest = Fixture.parseBody(request, OrderRequest.class);
                     Order order = orderService.create(orderRequest);
 
                     log.info("Order created successfully: {}", order.id());
@@ -755,9 +804,10 @@ public class OrderController {
 
 Request context propagates automatically to forked virtual threads:
 
+<!-- verify -->
 ```java
-public class OrderService {
-    private static final ContextLogger log = new ContextLogger(OrderService.class);
+public class ForkingOrderService {
+    private static final ContextLogger log = new ContextLogger(ForkingOrderService.class);
 
     public Order create(OrderRequest request) {
         log.info("Starting order creation");
@@ -766,19 +816,20 @@ public class OrderService {
         return Scope.<OrderComponent>allSucceed()
             .fork(() -> {
                 log.info("Validating inventory");  // Has trace ID
-                return validateInventory(request);
+                return Fixture.validateInventory(request);
             })
             .fork(() -> {
                 log.info("Calculating pricing");   // Has trace ID
-                return calculatePricing(request);
+                return Fixture.calculatePricing(request);
             })
             .fork(() -> {
                 log.info("Checking fraud score");  // Has trace ID
-                return checkFraudScore(request);
+                return Fixture.checkFraudScore(request);
             })
-            .join((inventory, pricing, fraud) -> {
+            .join()
+            .map(parts -> {
                 log.info("Assembling order");      // Has trace ID
-                return assembleOrder(request, inventory, pricing, fraud);
+                return Fixture.assembleOrder(request, parts);
             })
             .run();
     }

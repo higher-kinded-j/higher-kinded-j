@@ -33,6 +33,7 @@ Consider an e-commerce system where you need to analyse orders:
 
 **The Data Model:**
 
+<!-- verify -->
 ```java
 @GenerateLenses
 public record Product(String name, double price, String category, boolean inStock) {}
@@ -92,6 +93,7 @@ Before we dive deeper, it's crucial to understand how `Fold` relates to `Travers
 
 Just like with other optics, we use annotations to trigger automatic code generation. Annotating a record with **`@GenerateFolds`** creates a companion class (e.g., `OrderFolds`) containing a `Fold` for each field.
 
+<!-- verify -->
 ```java
 import org.higherkindedj.optics.annotations.GenerateFolds;
 import org.higherkindedj.optics.annotations.GenerateLenses;
@@ -121,6 +123,7 @@ A `Fold<S, A>` provides these essential query operations:
 
 Returns a `List<A>` containing all the values the Fold focuses on.
 
+<!-- verify -->
 ```java
 Fold<Order, Product> itemsFold = OrderFolds.items();
 Order order = new Order("ORD-123", List.of(
@@ -137,6 +140,7 @@ List<Product> allProducts = itemsFold.getAll(order);
 
 Returns an `Optional<A>` containing the first focused value, or `Optional.empty()` if none exist.
 
+<!-- verify -->
 ```java
 Optional<Product> firstProduct = itemsFold.preview(order);
 // Result: Optional[Product[Laptop, 999.99, ...]]
@@ -150,6 +154,7 @@ Optional<Product> noProduct = itemsFold.preview(emptyOrder);
 
 Returns an `Optional<A>` containing the first value that matches the predicate.
 
+<!-- verify -->
 ```java
 Optional<Product> expensiveProduct = itemsFold.find(
     product -> product.price() > 500.00,
@@ -162,6 +167,7 @@ Optional<Product> expensiveProduct = itemsFold.find(
 
 Returns `true` if at least one focused value matches the predicate.
 
+<!-- verify -->
 ```java
 boolean hasOutOfStock = itemsFold.exists(
     product -> !product.inStock(),
@@ -174,6 +180,7 @@ boolean hasOutOfStock = itemsFold.exists(
 
 Returns `true` if all focused values match the predicate (returns `true` for empty collections).
 
+<!-- verify -->
 ```java
 boolean allInStock = itemsFold.all(
     product -> product.inStock(),
@@ -186,6 +193,7 @@ boolean allInStock = itemsFold.all(
 
 Returns `true` if there are zero focused values.
 
+<!-- verify -->
 ```java
 boolean hasItems = !itemsFold.isEmpty(order);
 // Result: true
@@ -195,6 +203,7 @@ boolean hasItems = !itemsFold.isEmpty(order);
 
 Returns the number of focused values as an `int`.
 
+<!-- verify -->
 ```java
 int itemCount = itemsFold.length(order);
 // Result: 3
@@ -206,6 +215,7 @@ Of the operations above, only `preview` and `find` speak `Optional`; the rest ha
 
 Folds can be composed with other optics to create deep query paths. When composing with `Lens`, `Prism`, or other `Fold` instances, use `andThen()`.
 
+<!-- verify -->
 ```java
 // Get all product names from all orders in history
 Fold<OrderHistory, Order> historyToOrders = OrderHistoryFolds.orders();
@@ -251,6 +261,7 @@ The `foldMap` method lets you:
 
 **Example: Calculate Total Price**
 
+<!-- verify -->
 ```java
 import org.higherkindedj.hkt.Monoid;
 
@@ -298,11 +309,12 @@ Monoid<List<A>> listConcat = Monoids.list();
 Monoid<Set<A>> setUnion = Monoids.set();
 Monoid<Optional<A>> firstWins = Monoids.firstOptional();
 Monoid<Optional<A>> lastWins = Monoids.lastOptional();
-Monoid<Optional<A>> maxValue = Monoids.maximum();
-Monoid<Optional<A>> minValue = Monoids.minimum();
+Monoid<Optional<A>> maxValue = Monoids.maximum(comparator);
+Monoid<Optional<A>> minValue = Monoids.minimum(comparator);
 ```
 
 **Sum (Adding Numbers)**
+<!-- verify -->
 ```java
 // Use standard monoid from Monoids class
 Monoid<Double> sumMonoid = Monoids.doubleAddition();
@@ -312,6 +324,7 @@ double revenue = itemsFold.foldMap(sumMonoid, Product::price, order);
 ```
 
 **Product (Multiplying Numbers)**
+<!-- verify -->
 ```java
 Monoid<Double> productMonoid = Monoids.doubleMultiplication();
 
@@ -320,6 +333,7 @@ double finalMultiplier = discountsFold.foldMap(productMonoid, d -> d, discounts)
 ```
 
 **String Concatenation**
+<!-- verify -->
 ```java
 Monoid<String> stringMonoid = Monoids.string();
 
@@ -328,6 +342,7 @@ String allNames = itemsFold.foldMap(stringMonoid, Product::name, order);
 ```
 
 **List Accumulation**
+<!-- verify -->
 ```java
 Monoid<List<String>> listMonoid = Monoids.list();
 
@@ -337,6 +352,7 @@ List<String> categories = itemsFold.foldMap(listMonoid,
 ```
 
 **Boolean AND (All Must Be True)**
+<!-- verify -->
 ```java
 Monoid<Boolean> andMonoid = Monoids.booleanAnd();
 
@@ -345,6 +361,7 @@ boolean allInStock = itemsFold.foldMap(andMonoid, Product::inStock, order);
 ```
 
 **Boolean OR (Any Can Be True)**
+<!-- verify -->
 ```java
 Monoid<Boolean> orMonoid = Monoids.booleanOr();
 
@@ -354,9 +371,10 @@ boolean hasExpensive = itemsFold.foldMap(orMonoid,
 ```
 
 **Maximum Value**
+<!-- verify -->
 ```java
 // Use Optional-based maximum from Monoids
-Monoid<Optional<Double>> maxMonoid = Monoids.maximum();
+Monoid<Optional<Double>> maxMonoid = Monoids.maximum(Comparator.<Double>naturalOrder());
 
 // Find highest price (returns Optional to handle empty collections)
 Optional<Double> maxPrice = itemsFold.foldMap(maxMonoid,
@@ -411,6 +429,7 @@ Think of `Maybe` as `Optional`'s more functional cousin; they both represent "a 
 
 All three methods are static imports from `org.higherkindedj.optics.extensions.FoldExtensions`:
 
+<!-- verify -->
 ```java
 import static org.higherkindedj.optics.extensions.FoldExtensions.*;
 ```
@@ -419,6 +438,7 @@ import static org.higherkindedj.optics.extensions.FoldExtensions.*;
 
 The `previewMaybe` method is the `Maybe`-based equivalent of `preview()`. It returns the first focused value wrapped in `Maybe`, or `Maybe.nothing()` if none exist.
 
+<!-- verify -->
 ```java
 import org.higherkindedj.hkt.maybe.Maybe;
 import static org.higherkindedj.optics.extensions.FoldExtensions.previewMaybe;
@@ -447,6 +467,7 @@ Maybe<Product> noProduct = previewMaybe(itemsFold, emptyOrder);
 
 The `findMaybe` method is the `Maybe`-based equivalent of `find()`. It returns the first focused value matching the predicate, or `Maybe.nothing()` if no match is found.
 
+<!-- verify -->
 ```java
 import static org.higherkindedj.optics.extensions.FoldExtensions.findMaybe;
 
@@ -480,6 +501,7 @@ The `getAllMaybe` method returns all focused values as `Maybe<List<A>>`. If the 
 
 This is particularly useful when you want to distinguish between "found an empty collection" and "found no results".
 
+<!-- verify -->
 ```java
 import static org.higherkindedj.optics.extensions.FoldExtensions.getAllMaybe;
 
@@ -506,6 +528,7 @@ Maybe<List<Product>> noProducts = getAllMaybe(itemsFold, emptyOrder);
 
 Here's a practical example showing how Maybe-based extensions simplify null-safe querying:
 
+<!-- verify -->
 ```java
 import org.higherkindedj.optics.Fold;
 import org.higherkindedj.optics.annotations.GenerateFolds;
@@ -590,6 +613,7 @@ Here's a decision matrix to help you choose the right method:
 * You want to chain operations (`map`, `flatMap`, `fold`) on the result
 * You need HKT compatibility
 
+<!-- verify -->
 ```java
 // Example: Get first expensive product and calculate discount
 Maybe<Double> discountedPrice = previewMaybe(itemsFold, order)
@@ -602,6 +626,7 @@ Maybe<Double> discountedPrice = previewMaybe(itemsFold, order)
 * You're building search functionality
 * You want the first match delivered as a `Maybe` rather than an `Optional`
 
+<!-- verify -->
 ```java
 // Example: Find first out-of-stock item
 Maybe<Product> outOfStock = findMaybe(
@@ -617,6 +642,7 @@ Maybe<Product> outOfStock = findMaybe(
 * You're building batch processing pipelines
 * You need to propagate "nothing found" through your computation
 
+<!-- verify -->
 ```java
 // Example: Process all products or provide default behaviour
 String report = getAllMaybe(itemsFold, order)
@@ -628,6 +654,7 @@ String report = getAllMaybe(itemsFold, order)
 
 Maybe-based extensions work seamlessly alongside standard Fold operations. You can mix and match based on your needs:
 
+<!-- verify -->
 ```java
 Fold<Order, Product> itemsFold = OrderFolds.items();
 
@@ -638,12 +665,13 @@ int count = itemsFold.length(order);                        // Primitive int
 
 // Maybe-based extensions
 Maybe<Product> firstMaybe = previewMaybe(itemsFold, order);     // Maybe-based
-Maybe<Product> matchMaybe = findMaybe(itemsFold, p -> ..., order);  // Maybe-based
+Maybe<Product> matchMaybe = findMaybe(itemsFold, p -> p.price() > 500, order);  // Maybe-based
 Maybe<List<Product>> allMaybe = getAllMaybe(itemsFold, order);      // Maybe-wrapped list
 ```
 
 **Conversion Between Optional and Maybe:**
 
+<!-- verify -->
 ```java
 // Convert Optional to Maybe
 Optional<Product> firstOptional = itemsFold.preview(order);
@@ -668,6 +696,7 @@ Maybe-based extensions have minimal overhead:
 
 Combining `getAllMaybe` with composed folds creates powerful null-safe query pipelines:
 
+<!-- verify -->
 ```java
 import org.higherkindedj.optics.Fold;
 import org.higherkindedj.hkt.maybe.Maybe;
@@ -728,6 +757,7 @@ See [FoldExtensionsExample.java](https://github.com/higher-kinded-j/higher-kinde
 
 Consider a data structure with values scattered across different fields or branches. Without fold combination, you would need to call `getAll` on each fold separately and concatenate the results manually:
 
+<!-- verify -->
 ```java
 record Team(String name, Employee lead, List<Employee> members) {}
 record Employee(String name, String email) {}
@@ -755,6 +785,7 @@ allEmails.addAll(memberEmails.getAll(team));
 
 `Fold.plus()` combines two folds into one that returns results from both:
 
+<!-- verify -->
 ```java
 // Clean, composable combination
 Fold<Team, String> allEmails = leadEmail.plus(memberEmails);
@@ -777,6 +808,7 @@ Folds under `plus` form a monoid, meaning they satisfy three laws:
 
 `Fold.empty()` is the identity element, a fold that focuses on nothing:
 
+<!-- verify -->
 ```java
 Fold<Team, String> nothing = Fold.empty();
 nothing.getAll(team);    // Returns: []
@@ -786,6 +818,7 @@ nothing.isEmpty(team);   // Returns: true
 
 For combining three or more folds, use `Fold.sum()`:
 
+<!-- verify -->
 ```java
 Fold<Team, String> allText = Fold.sum(
     teamNameFold,
@@ -799,6 +832,7 @@ Fold<Team, String> allText = Fold.sum(
 
 Any optic can participate in fold combination via its `asFold()` method:
 
+<!-- verify -->
 ```java
 // Lens-derived fold (exactly one element)
 Fold<Config, String> hostFold = hostLens.asFold();
@@ -819,6 +853,7 @@ Fold<Config, String> allConfigStrings = Fold.sum(
 
 Elements from the first fold always appear before elements from the second:
 
+<!-- verify -->
 ```java
 Fold<Employee, String> nameFirst = nameLens.asFold().plus(emailLens.asFold());
 nameFirst.getAll(employee);
@@ -845,6 +880,7 @@ Each constituent fold in a `plus` combination performs its own pass over the sou
 * **Aggregations** - Using monoids for custom combining logic
 * **CQRS patterns** - Separating queries from commands
 
+<!-- verify -->
 ```java
 // Perfect for read-only analysis
 Fold<OrderHistory, Product> allProducts =
@@ -863,6 +899,7 @@ boolean hasElectronics = allProducts.exists(
 * **Effectful updates** - Using `modifyF` for validation or async operations
 * **Bulk transformations** - Changing multiple values at once
 
+<!-- verify -->
 ```java
 // Use Traversal for modifications
 Traversal<Order, Product> productTraversal = OrderTraversals.items();
@@ -880,6 +917,7 @@ Order discountedOrder = Traversals.modify(
 * **Standard Java collections** - Working with flat collections
 * **Stateful operations** - Operations that require maintaining state
 
+<!-- verify -->
 ```java
 // Better with streams for complex pipelines
 List<String> topExpensiveItems = order.items().stream()
@@ -887,7 +925,7 @@ List<String> topExpensiveItems = order.items().stream()
     .sorted(Comparator.comparing(Product::price).reversed())
     .limit(5)
     .map(Product::name)
-    .collect(toList());
+    .toList();
 ```
 
 ### Use Direct Field Access When:
@@ -896,6 +934,7 @@ List<String> topExpensiveItems = order.items().stream()
 * **Performance critical** - Minimal abstraction overhead
 * **One-off operations** - Not building reusable logic
 
+<!-- verify -->
 ```java
 // Just use direct access for simple cases
 String customerName = order.customerName();
@@ -907,6 +946,7 @@ String customerName = order.customerName();
 
 ### Don't Do This:
 
+<!-- verify -->
 ```java
 // Inefficient: Creating folds repeatedly in loops
 for (Order order : orders) {
@@ -932,6 +972,7 @@ List<Product> products = fold.getAll(order); // Just use Traversals.getAll() dir
 
 ### Do This Instead:
 
+<!-- verify -->
 ```java
 // Efficient: Create fold once, reuse many times
 Fold<Order, Product> itemsFold = OrderFolds.items();
@@ -945,7 +986,10 @@ String name = order.customerName();
 
 // Clear intent: Use Traversal when you need modifications
 Traversal<Order, Product> itemsTraversal = OrderTraversals.items();
-Order updated = Traversals.modify(itemsTraversal, this::applyDiscount, order);
+Order updated = Traversals.modify(
+    itemsTraversal,
+    p -> new Product(p.name(), p.price() * 0.9, p.category(), p.inStock()),
+    order);
 
 // Clear purpose: Use Fold when expressing query intent
 Fold<Order, Product> queryItems = OrderFolds.items();
@@ -971,6 +1015,7 @@ Folds are optimised for query operations:
 
 **Best Practice**: For frequently used query paths, create them once and store as constants:
 
+<!-- verify -->
 ```java
 public class OrderQueries {
     public static final Fold<OrderHistory, Product> ALL_PRODUCTS =
@@ -991,13 +1036,13 @@ public class OrderQueries {
 
 Here's a practical example showing comprehensive use of Fold for business analytics:
 
+<!-- verify -->
 ```java
 import org.higherkindedj.optics.Fold;
 import org.higherkindedj.optics.Lens;
 import org.higherkindedj.optics.annotations.GenerateFolds;
 import org.higherkindedj.optics.annotations.GenerateLenses;
 import org.higherkindedj.hkt.Monoid;
-import java.time.LocalDate;
 import java.util.*;
 
 @GenerateLenses
@@ -1006,7 +1051,7 @@ public record Product(String name, double price, String category, boolean inStoc
 
 @GenerateLenses
 @GenerateFolds
-public record Order(String orderId, List<Product> items, String customerName, LocalDate orderDate) {}
+public record Order(String orderId, List<Product> items, String customerName) {}
 
 @GenerateLenses
 @GenerateFolds
@@ -1118,16 +1163,18 @@ A `Fold<S, A>` can be thought of as a **first-class, composable lens into a Fold
 
 **Example Comparison**:
 
+<!-- verify -->
 ```java
 // Using Foldable directly on a List
 Foldable<ListKind.Witness> listFoldable = ListTraverse.INSTANCE;
 List<Integer> numbers = List.of(1, 2, 3, 4, 5);
-int sum = listFoldable.foldMap(sumMonoid, Function.identity(), LIST.widen(numbers));
+int sum = listFoldable.foldMap(
+    Monoids.integerAddition(), Function.identity(), LIST.widen(numbers));
 
 // Using a Fold optic to query nested structure
-Fold<Order, Integer> quantities = OrderFolds.items()
-    .andThen(ProductLenses.quantity().asFold());
-int totalQuantity = quantities.foldMap(sumMonoid, Function.identity(), order);
+Fold<Order, Double> prices = OrderFolds.items()
+    .andThen(ProductLenses.price().asFold());
+double orderTotal = prices.foldMap(Monoids.doubleAddition(), Function.identity(), order);
 ```
 
 The `Fold` optic gives you the power of `Foldable`, but for **arbitrary access paths** through your domain model, not just direct containers.
@@ -1224,7 +1271,7 @@ public class FoldUsageExample {
         boolean hasOutOfStock = itemsFold.exists(p -> !p.inStock(), order1);
         System.out.println("Has out of stock items: " + hasOutOfStock);
 
-        boolean allInStock = itemsFold.all(Product::inStock, order1);
+        boolean allInStock = itemsFold.all(ProductItem::inStock, order1);
         System.out.println("All items in stock: " + allInStock);
 
         Optional<ProductItem> expensiveItem = itemsFold.find(p -> p.price() > 500, order1);
@@ -1251,7 +1298,7 @@ public class FoldUsageExample {
         // Use standard monoids from Monoids utility class
         Monoid<Double> sumMonoid = Monoids.doubleAddition();
 
-        double orderTotal = itemsFold.foldMap(sumMonoid, Product::price, order1);
+        double orderTotal = itemsFold.foldMap(sumMonoid, ProductItem::price, order1);
         System.out.println("Order 1 total: £" + String.format("%.2f", orderTotal));
 
         double historyTotal = allProducts.foldMap(sumMonoid, ProductItem::price, history);

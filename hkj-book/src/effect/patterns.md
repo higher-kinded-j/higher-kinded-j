@@ -34,8 +34,9 @@ composable pipelines where each rule is small, testable, and reusable.
 
 Each field gets its own validation function returning a Path:
 
+<!-- verify -->
 ```java
-private EitherPath<String, String> validateEmail(String email) {
+EitherPath<String, String> validateEmail(String email) {
     if (email == null || email.isBlank()) {
         return Path.left("Email is required");
     }
@@ -51,8 +52,9 @@ private EitherPath<String, String> validateEmail(String email) {
 
 Or with modern pattern matching:
 
+<!-- verify -->
 ```java
-private EitherPath<String, String> validateEmail(String email) {
+EitherPath<String, String> validateEmail(String email) {
     return switch (email) {
         case null -> Path.left("Email is required");
         case String e when e.isBlank() -> Path.left("Email is required");
@@ -70,6 +72,7 @@ carries the clean version forward.
 
 When all fields must be valid to proceed:
 
+<!-- verify -->
 ```java
 record User(String name, String email, int age) {}
 
@@ -90,8 +93,9 @@ abrupt; see the next pattern.
 
 When users deserve to see all problems at once:
 
+<!-- verify -->
 ```java
-ValidationPath<List<String>, User> validateUser(UserInput input) {
+ValidationPath<List<String>, User> validateUserAccumulating(UserInput input) {
     return validateNameV(input.name())
         .zipWith3Accum(
             validateEmailV(input.email()),
@@ -101,7 +105,7 @@ ValidationPath<List<String>, User> validateUser(UserInput input) {
 }
 
 // Usage
-validateUser(input).run().fold(
+validateUserAccumulating(input).run().fold(
     errors -> showAllErrors(errors),  // ["Name too short", "Invalid email"]
     user -> proceed(user)
 );
@@ -113,6 +117,7 @@ The difference is respect for the user's time.
 
 Complex objects with nested structures:
 
+<!-- verify -->
 ```java
 record Registration(User user, Address address, List<Preference> prefs) {}
 
@@ -148,8 +153,11 @@ make the orchestration explicit.
 Repositories return `Maybe` (absence is expected). Services convert to
 `Either` (absence becomes an error in context):
 
+<!-- verify -->
 ```java
 public class UserRepository {
+    private final JdbcTemplate jdbcTemplate = new JdbcTemplate();
+
     public Maybe<User> findById(String id) {
         return Maybe.fromOptional(
             jdbcTemplate.queryForOptional("SELECT...", id)
@@ -163,17 +171,25 @@ public class UserRepository {
     }
 }
 
+```
+
+<!-- verify -->
+```java
 public class UserService {
     private final UserRepository repository;
 
+    public UserService(UserRepository repository) {
+        this.repository = repository;
+    }
+
     public EitherPath<UserError, User> getById(String id) {
         return Path.maybe(repository.findById(id))
-            .toEitherPath(() -> new UserError.NotFound(id));
+            .toEitherPath(new UserError.NotFound(id));
     }
 
     public EitherPath<UserError, User> getByEmail(String email) {
         return Path.maybe(repository.findByEmail(email))
-            .toEitherPath(() -> new UserError.NotFound(email));
+            .toEitherPath(new UserError.NotFound(email));
     }
 }
 ```
@@ -186,11 +202,19 @@ service callers get `Either` with meaningful errors.
 When each step depends on previous results, use `ForPath` to keep all
 intermediate values in scope via the accumulated tuple:
 
+<!-- verify -->
 ```java
 public class OrderService {
     private final UserService users;
     private final InventoryService inventory;
     private final PaymentService payments;
+
+    public OrderService(UserService users, InventoryService inventory,
+            PaymentService payments) {
+        this.users = users;
+        this.inventory = inventory;
+        this.payments = payments;
+    }
 
     public EitherPath<OrderError, Order> placeOrder(
             String userId, List<Item> items) {
@@ -203,6 +227,10 @@ public class OrderService {
             .yield((user, reservation, payment) ->
                 createOrder(user, items, payment));
     }
+
+    private Order createOrder(User user, List<Item> items, Payment payment) {
+        return new Order(payment.reference());
+    }
 }
 ```
 
@@ -214,8 +242,11 @@ created only if all steps succeed.
 
 When multiple sources can satisfy a request:
 
+<!-- verify -->
 ```java
 public class ConfigService {
+    private static final Logger log = new Logger();
+
     public EitherPath<ConfigError, Config> loadConfig() {
         return Path.either(loadFromFile())
             .recoverWith(e -> {
@@ -226,6 +257,14 @@ public class ConfigService {
                 log.warn("Env config unavailable: {}", e.getMessage());
                 return Path.right(Config.defaults());
             });
+    }
+
+    private Either<ConfigError, Config> loadFromFile() {
+        return Either.right(new Config("file"));
+    }
+
+    private Either<ConfigError, Config> loadFromEnvironment() {
+        return Either.right(new Config("env"));
     }
 }
 ```
@@ -241,21 +280,23 @@ failure.
 
 Acquire, use, release, regardless of success or failure:
 
+<!-- verify -->
 ```java
-public class FileProcessor {
-    public IOPath<ProcessResult> process(Path path) {
-        return Path.io(() -> new BufferedReader(new FileReader(path.toFile())))
-            .via(reader -> Path.io(() -> processContent(reader)))
-            .guarantee(() -> {
-                // Cleanup runs regardless of outcome
-                log.debug("Processing complete: {}", path);
-            });
-    }
+// The parameter is a File, not a java.nio.file.Path: that name is taken here by the
+// effect Path this very snippet calls.
+IOPath<ProcessResult> process(File file) {
+    return Path.io(() -> openReader(file))
+        .via(reader -> Path.io(() -> processContent(reader)))
+        .guarantee(() -> {
+            // Cleanup runs regardless of outcome
+            log.debug("Processing complete: {}", file);
+        });
 }
 ```
 
 For true resource safety with acquisition and release:
 
+<!-- verify -->
 ```java
 public IOPath<Result> withConnection(Function<Connection, Result> action) {
     return Path.io(() -> dataSource.getConnection())
@@ -271,20 +312,19 @@ public IOPath<Result> withConnection(Function<Connection, Result> action) {
 
 Build complex pipelines that execute later:
 
+<!-- verify -->
 ```java
-public class DataPipeline {
-    public IOPath<Report> generateReport(ReportRequest request) {
-        return Path.io(() -> log.info("Starting report: {}", request.id()))
-            .then(() -> Path.io(() -> fetchData(request)))
-            .via(data -> Path.io(() -> transform(data)))
-            .via(transformed -> Path.io(() -> aggregate(transformed)))
-            .via(aggregated -> Path.io(() -> format(aggregated)))
-            .peek(report -> log.info("Report ready: {} rows", report.rowCount()));
-    }
+IOPath<Report> generateReport(ReportRequest request) {
+    return Path.ioRunnable(() -> log.info("Starting report: {}", request.id()))
+        .then(() -> Path.io(() -> fetchData(request)))
+        .via(data -> Path.io(() -> transform(data)))
+        .via(transformed -> Path.io(() -> aggregate(transformed)))
+        .via(aggregated -> Path.io(() -> format(aggregated)))
+        .peek(report -> log.info("Report ready: {} rows", report.rowCount()));
 }
 
 // Nothing happens until:
-Report report = pipeline.generateReport(request).unsafeRun();
+Report report = pipeline.generateReport(reportRequest).unsafeRun();
 ```
 
 ### Expressing Parallel Intent
@@ -292,6 +332,7 @@ Report report = pipeline.generateReport(request).unsafeRun();
 While `IOPath` doesn't parallelise automatically, `zipWith` expresses
 independence:
 
+<!-- verify -->
 ```java
 IOPath<CombinedData> fetchAll() {
     IOPath<UserData> users = Path.io(() -> fetchUsers());
@@ -313,6 +354,7 @@ in sequence, but the structure is clear.
 
 Add context as errors propagate through layers:
 
+<!-- verify -->
 ```java
 public <A> EitherPath<DetailedError, A> withContext(
         EitherPath<Error, A> path,
@@ -327,7 +369,7 @@ public <A> EitherPath<DetailedError, A> withContext(
 }
 
 // Usage
-return withContext(
+EitherPath<DetailedError, User> detailed = withContext(
     userService.getUser(id),
     "getUser",
     Map.of("userId", id, "requestId", requestId)
@@ -340,6 +382,7 @@ When the error surfaces, you know what was happening and with what parameters.
 
 Log the failure, provide a fallback:
 
+<!-- verify -->
 ```java
 public <A> EitherPath<Error, A> withRecoveryLogging(
         EitherPath<Error, A> path,
@@ -357,11 +400,19 @@ public <A> EitherPath<Error, A> withRecoveryLogging(
 
 Stop calling a failing service:
 
+<!-- verify -->
 ```java
 public class CircuitBreaker<E, A> {
+    private static final Logger log = new Logger();
+
     private final AtomicInteger failures = new AtomicInteger(0);
     private final int threshold;
     private final Supplier<EitherPath<E, A>> fallback;
+
+    public CircuitBreaker(int threshold, Supplier<EitherPath<E, A>> fallback) {
+        this.threshold = threshold;
+        this.fallback = fallback;
+    }
 
     public EitherPath<E, A> execute(Supplier<EitherPath<E, A>> operation) {
         if (failures.get() >= threshold) {
@@ -398,6 +449,7 @@ provides configurable backoff strategies.
 
 ### Creating Retry Policies
 
+<!-- verify -->
 ```java
 // Fixed delay: 100ms between each of 3 attempts
 RetryPolicy fixed = RetryPolicy.fixed(3, Duration.ofMillis(100));
@@ -411,19 +463,21 @@ RetryPolicy jittered = RetryPolicy.exponentialBackoffWithJitter(5, Duration.ofSe
 
 ### Applying Retry to Paths
 
+<!-- verify -->
 ```java
-IOPath<Response> resilient = IOPath.delay(() -> httpClient.get(url))
+IOPath<Response> resilient = Path.io(() -> httpClient.get(url))
     .withRetry(RetryPolicy.exponentialBackoff(3, Duration.ofSeconds(1)));
 
 // Convenience method for simple cases
-IOPath<Response> simple = IOPath.delay(() -> httpClient.get(url))
-    .retry(3);  // Uses default exponential backoff
+IOPath<Response> simple = Path.io(() -> httpClient.get(url))
+    .retry(3, Duration.ofSeconds(1));  // Exponential backoff from that delay
 ```
 
 ### Configuring Retry Behaviour
 
 Policies are immutable but configurable:
 
+<!-- verify -->
 ```java
 RetryPolicy policy = RetryPolicy.exponentialBackoff(5, Duration.ofMillis(100))
     .withMaxDelay(Duration.ofSeconds(30))   // Cap maximum wait
@@ -434,6 +488,7 @@ RetryPolicy policy = RetryPolicy.exponentialBackoff(5, Duration.ofMillis(100))
 
 Not all errors should trigger retry:
 
+<!-- verify -->
 ```java
 RetryPolicy selective = RetryPolicy.fixed(3, Duration.ofMillis(100))
     .retryIf(ex ->
@@ -444,6 +499,7 @@ RetryPolicy selective = RetryPolicy.fixed(3, Duration.ofMillis(100))
 
 ### Combining Retry with Fallback
 
+<!-- verify -->
 ```java
 IOPath<Data> robust = fetchFromPrimary()
     .withRetry(RetryPolicy.exponentialBackoff(3, Duration.ofSeconds(1)))
@@ -452,7 +508,7 @@ IOPath<Data> robust = fetchFromPrimary()
         return fetchFromBackup()
             .withRetry(RetryPolicy.fixed(2, Duration.ofMillis(100)));
     })
-    .recover(e -> {
+    .handleError(e -> {
         log.error("All sources failed", e);
         return Data.empty();
     });
@@ -462,13 +518,17 @@ IOPath<Data> robust = fetchFromPrimary()
 
 When all attempts fail, `RetryExhaustedException` is thrown:
 
+<!-- verify -->
 ```java
-try {
-    resilient.unsafeRun();
-} catch (RetryExhaustedException e) {
-    log.error("All retries failed: {}", e.getMessage());
-    Throwable lastFailure = e.getCause();
-    return fallbackValue;
+Data runOrFallBack() {
+    try {
+        resilient.unsafeRun();
+        return new Data("ok");
+    } catch (RetryExhaustedException e) {
+        log.error("All retries failed: {}", e.getMessage());
+        Throwable lastFailure = e.getCause();
+        return fallbackValue;
+    }
 }
 ```
 
@@ -496,6 +556,7 @@ encoding means you can verify both paths without exception handling gymnastics.
 
 ### Testing Success and Failure
 
+<!-- verify -->
 ```java
 @Test
 void shouldReturnUserWhenFound() {
@@ -522,6 +583,7 @@ void shouldReturnErrorWhenNotFound() {
 
 Verify that errors from nested operations surface correctly:
 
+<!-- verify -->
 ```java
 @Test
 void shouldPropagatePaymentError() {
@@ -545,6 +607,7 @@ void shouldPropagatePaymentError() {
 
 Use jqwik or similar to verify laws across many inputs:
 
+<!-- verify -->
 ```java
 @Property
 void functorIdentityLaw(@ForAll @StringLength(min = 1, max = 100) String value) {
@@ -570,6 +633,7 @@ void recoverAlwaysSucceeds(
 
 Verify that `IOPath` defers execution:
 
+<!-- verify -->
 ```java
 @Test
 void shouldDeferExecution() {
@@ -593,7 +657,8 @@ void shouldCaptureExceptionInRunSafe() {
     Try<String> result = failing.runSafe();
 
     assertThat(result.isFailure()).isTrue();
-    assertThat(result.getCause().getMessage()).isEqualTo("test error");
+    assertThat(result.foldFailureFirst(Throwable::getMessage, value -> value))
+        .isEqualTo("test error");
 }
 ```
 
@@ -606,9 +671,14 @@ or uses patterns that predate functional error handling.
 
 ### Wrapping Exception-Throwing APIs
 
+<!-- verify -->
 ```java
 public class LegacyWrapper {
     private final LegacyService legacy;
+
+    public LegacyWrapper(LegacyService legacy) {
+        this.legacy = legacy;
+    }
 
     public TryPath<Data> fetchData(String id) {
         return Path.tryOf(() -> legacy.fetchData(id));
@@ -623,9 +693,14 @@ public class LegacyWrapper {
 
 ### Wrapping Optional-Returning APIs
 
+<!-- verify -->
 ```java
 public class ModernWrapper {
     private final ModernService modern;
+
+    public ModernWrapper(ModernService modern) {
+        this.modern = modern;
+    }
 
     public MaybePath<User> findUser(String id) {
         return Path.maybe(Maybe.fromOptional(modern.findUser(id)));
@@ -637,9 +712,14 @@ public class ModernWrapper {
 
 When callers expect traditional patterns:
 
+<!-- verify -->
 ```java
 public class ServiceAdapter {
     private final PathBasedService service;
+
+    public ServiceAdapter(PathBasedService service) {
+        this.service = service;
+    }
 
     // For consumers expecting Optional
     public Optional<User> findUser(String id) {
@@ -663,20 +743,22 @@ public class ServiceAdapter {
 
 ### Pitfall 1: Excessive Conversion
 
+<!-- verify -->
 ```java
 // Wasteful
 Path.maybe(findUser(id))
-    .toEitherPath(() -> error)
+    .toEitherPath(error)
     .toMaybePath()
-    .toEitherPath(() -> error);
+    .toEitherPath(error);
 
 // Clean
 Path.maybe(findUser(id))
-    .toEitherPath(() -> error);
+    .toEitherPath(error);
 ```
 
 ### Pitfall 2: Side Effects in Pure Operations
 
+<!-- verify -->
 ```java
 // Wrong
 path.map(user -> {
@@ -690,6 +772,7 @@ path.peek(user -> auditLog.record(user));
 
 ### Pitfall 3: Ignoring the Result
 
+<!-- verify -->
 ```java
 // Bug: result discarded, nothing happens
 void processOrder(OrderRequest request) {
@@ -697,19 +780,22 @@ void processOrder(OrderRequest request) {
 }
 
 // Fixed
-void processOrder(OrderRequest request) {
-    validateAndProcess(request).run();  // Actually execute
+Either<OrderError, Order> processOrderAndKeepIt(OrderRequest request) {
+    return validateAndProcess(request).run();  // Actually execute
 }
 ```
 
 ### Pitfall 4: Treating All Errors the Same
 
+<!-- verify -->
 ```java
 // Loses information
-.mapError(e -> "An error occurred")
+EitherPath<String, User> flattened =
+    path.mapError(e -> "An error occurred");
 
 // Preserves structure
-.mapError(e -> new DomainError(e.code(), e.message(), e))
+EitherPath<DomainError, User> preserved =
+    path.mapError(e -> new DomainError(e.code(), e.message(), e));
 ```
 
 ---

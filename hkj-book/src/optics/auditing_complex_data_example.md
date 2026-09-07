@@ -89,13 +89,15 @@ A `Traversal` lets us operate on zero or more targets within a larger structure.
 - **Type-safe data extraction** - Ensuring compile-time safety for complex transformations
 - **Declarative data processing** - Building self-documenting processing pipelines
 
+<!-- verify -->
 ```java
 // Perfect for reusable, conditional audit logic
 Traversal<ServerConfig, byte[]> sensitiveDataAuditor =
     ServerConfigTraversals.environments()
         .andThen(EnvironmentPrisms.production().asTraversal())
-        .andThen(EnvironmentTraversals.credentials())
-        .andThen(CredentialPrisms.encrypted().asTraversal())
+        .andThen(ProductionTraversals.credentials())
+        .andThen(CredentialPrisms.encryptedCredential().asTraversal())
+        .andThen(EncryptedCredentialLenses.base64Secret().asTraversal())
         .andThen(EncryptedCredentialIsos.base64ToBytes.asTraversal());
 ```
 
@@ -105,6 +107,7 @@ Traversal<ServerConfig, byte[]> sensitiveDataAuditor =
 - **Performance critical paths** - Minimal abstraction overhead needed
 - **Aggregation logic** - Computing statistics or summaries
 
+<!-- verify -->
 ```java
 // Better with streams for simple collection processing
 List<String> allConfigNames = configs.stream()
@@ -119,6 +122,7 @@ List<String> allConfigNames = configs.stream()
 - **Complex business logic** - Multiple conditions and branches that don't map cleanly
 - **Legacy integration** - Working with existing imperative codebases
 
+<!-- verify -->
 ```java
 // Sometimes manual loops are clearest for complex logic
 for (AppConfig config : configs) {
@@ -135,13 +139,14 @@ for (AppConfig config : configs) {
 
 ### Don't Do This:
 
+<!-- verify -->
 ```java
 // Over-engineering simple cases
-Traversal<String, String> stringIdentity = Iso.of(s -> s, s -> s).asTraversal();
+Traversal<String, String> stringIdentity = Iso.<String, String>of(s -> s, s -> s).asTraversal();
 // Just use the string directly
 
 // Creating complex compositions inline
-var passwords = AppConfigLenses.settings().asTraversal()
+var passwords = AppConfigTraversals.settings()
     .andThen(SettingLenses.value().asTraversal())
     .andThen(SettingValuePrisms.encryptedValue().asTraversal())
     // ... ten more lines of composition
@@ -160,6 +165,7 @@ Iso<String, byte[]> unsafeBase64 = Iso.of(
 
 ### Do This Instead:
 
+<!-- verify -->
 ```java
 // Use appropriate tools for simple cases
 String configName = config.name();   // direct access is fine
@@ -241,6 +247,7 @@ Here's how we chain these optics together. To create the most robust and general
 
 The final composed optic has the type `Traversal<AppConfig, byte[]>` and reads like a declarative path: **`AppConfig -> (Filter for GCP/Live) -> each Setting -> its Value -> (Filter for Encrypted) -> the inner String -> the raw bytes`**
 
+<!-- verify -->
 ```java
 // Inside ConfigAuditExample.java
 
@@ -291,6 +298,7 @@ This example is just the beginning. Here are some ideas for extending this solut
 
 `Base64.getDecoder().decode()` can throw an `IllegalArgumentException`. A plain `Prism` can make the decode safe, but its match is an `Optional`: it **throws the reason away**, forcing the call site to reconstruct it. This is exactly the boundary [`ValidatedPrism`](validated_prism.md) names: the parse carries its reasons, and the build (Base64 encode) is genuinely total and faithful, so both round-trip laws hold:
 
+<!-- verify -->
 ```java
 public static final ValidatedPrism<String, byte[]> SAFE_BASE64 = ValidatedPrism.of(
     encoded -> {
@@ -318,6 +326,7 @@ To audit a whole config and report **every** bad entry at once, parse each strin
 What if you need to re-encrypt all passwords with a new algorithm? The same `finalAuditor` optic can be used with a modify function from the `Traversals` utility class. You'd write a function `byte[] -> byte[]` and apply it:
 
 
+<!-- verify -->
 ```java
 // A function that re-encrypts the raw password bytes
 Function<byte[], byte[]> reEncryptFunction = oldBytes -> newCipher.encrypt(oldBytes);
@@ -332,6 +341,7 @@ Suppose your audit service expects a different data format: perhaps it works wit
 
 If the DTO and the domain config hold the same information, the conversion pair is an [Iso](iso.md), and composing through it keeps the full `Traversal` API:
 
+<!-- verify -->
 ```java
 // A lossless pair: ConfigDto <-> AppConfig
 Iso<ConfigDto, AppConfig> dtoIso = Iso.of(Auditing::toAppConfig, Auditing::toConfigDto);
@@ -345,6 +355,7 @@ List<byte[]> passwords = Traversals.getAll(legacyAuditor, someDto);
 
 When the conversion is one-way or lossy, use the `Optic`-level `dimap` bridge instead, and drive it through `modifyF`:
 
+<!-- verify -->
 ```java
 // dimap adapts the SOURCE (ConfigDto -> AppConfig) and the STRUCTURE the update
 // produces (AppConfig -> ConfigDto); the focus stays byte[] throughout.
@@ -359,9 +370,10 @@ Either way your core business logic (the auditing path) remains unchanged whilst
 Create an optic that filters for deployments on *either*`gcp` or `aws` but *only* in the `live` environment. The composable nature of optics makes building up these complex predicate queries straightforward.
 
 
+<!-- verify -->
 ```java
 // Multi-cloud live environment filter
-Prism<AppConfig, AppConfig> cloudLiveOnlyPrism = Prism.of(
+public static final Prism<AppConfig, AppConfig> cloudLiveOnlyPrism = Prism.of(
     config -> {
         String rawTarget = DeploymentTarget.toRawString().get(config.target());
         boolean isLiveCloud = rawTarget.equals("gcp|live") || 
@@ -392,6 +404,7 @@ public static List<byte[]> auditForEnvironment(String environment, AppConfig con
 Use the same optics to validate your configuration. You could compose a traversal that finds all `IntValue` settings with the key `"server.port"` and use `.getAll()` to check if their values are within a valid range (e.g., > 1024).
 
 
+<!-- verify -->
 ```java
 // Narrowing by key is a filter, not a generated optic; and IntValue needs
 // @GenerateLenses on the record before IntValueLenses exists.
@@ -415,6 +428,7 @@ public static List<String> validatePorts(AppConfig config) {
 Extend the auditor to generate comprehensive audit trails:
 
 
+<!-- verify -->
 ```java
 public record AuditEntry(String configName, String settingKey, String encryptedValue, 
                         Instant auditTime, String auditorId) {}

@@ -53,6 +53,7 @@ it once at the edge of your system.
 
 Consider a typical service method:
 
+<!-- verify -->
 ```java
 // Without Reader: environment threaded explicitly
 public User getUser(String id, DbConnection db, Config config, Logger log) {
@@ -67,10 +68,11 @@ become cluttered; the actual logic is buried.
 
 With Reader:
 
+<!-- verify -->
 ```java
 // With Reader: environment is implicit
 public ReaderPath<AppEnv, User> getUser(String id) {
-    return ReaderPath.ask()
+    return ReaderPath.<AppEnv>ask()
         .via(env -> {
             env.logger().debug("Fetching user: " + id);
             return ReaderPath.pure(
@@ -85,6 +87,7 @@ method signature shows what it *computes*, not what it *requires*.
 
 ### Creation
 
+<!-- verify -->
 ```java
 // Pure value (ignores environment)
 ReaderPath<Config, String> pure = ReaderPath.pure("hello");
@@ -96,11 +99,12 @@ ReaderPath<Config, Config> askAll = ReaderPath.ask();
 ReaderPath<Config, String> dbUrl = ReaderPath.asks(Config::databaseUrl);
 
 // From a Reader function
-ReaderPath<Config, Integer> timeout = ReaderPath.of(config -> config.timeout());
+ReaderPath<Config, Integer> timeout = ReaderPath.asks(config -> config.timeout());
 ```
 
 ### Core Operations
 
+<!-- verify -->
 ```java
 ReaderPath<Config, String> dbUrl = ReaderPath.asks(Config::databaseUrl);
 
@@ -109,20 +113,25 @@ ReaderPath<Config, Integer> urlLength = dbUrl.map(String::length);
 
 // Chain dependent computations
 ReaderPath<Config, Connection> connection =
-    dbUrl.via(url -> ReaderPath.of(config ->
-        DriverManager.getConnection(url, config.username(), config.password())
-    ));
+    dbUrl.via(url -> ReaderPath.<Config, Connection>asks(config -> {
+        try {
+            return DriverManager.getConnection(url, config.username(), config.password());
+        } catch (SQLException e) {
+            throw new IllegalStateException("Could not connect", e);
+        }
+    }));
 ```
 
 ### Running a Reader
 
 Eventually you must provide the environment:
 
+<!-- verify -->
 ```java
-Config config = loadConfig();
+AppEnv env = loadEnv();
 
-ReaderPath<Config, User> userPath = getUser("123");
-User user = userPath.run(config);  // Provide environment here
+ReaderPath<AppEnv, User> userPath = getUser("123");
+User user = userPath.run(env);  // Provide environment here
 ```
 
 The Reader executes with the given environment. All `ask` and `asks` calls
@@ -132,6 +141,7 @@ within the computation receive this environment.
 
 Sometimes a sub-computation needs a modified environment:
 
+<!-- verify -->
 ```java
 ReaderPath<Config, Result> withTestMode =
     computation.local(config -> config.withTestMode(true));
@@ -188,6 +198,7 @@ With Spring DI alone, per-request context typically requires a
 `@RequestScope` bean or `ThreadLocal`. With `ReaderPath`, the context
 flows through the computation explicitly:
 
+<!-- verify -->
 ```java
 // Define the request-scoped environment
 record RequestEnv(String tenantId, String correlationId, DataSource ds) {}
@@ -220,23 +231,24 @@ at the boundary.
 
 ---
 
-## StatePath: Computation with Memory
+## WithStatePath: Computation with Memory
 
-`StatePath<S, A>` wraps `State<S, A>`, representing a computation that
+`WithStatePath<S, A>` wraps `State<S, A>`, representing a computation that
 threads state through a sequence of operations. Each step can read the
 current state, produce a value, and update the state for subsequent steps.
 
-Unlike mutable state, `StatePath` keeps everything pure: the "mutation"
+Unlike mutable state, `WithStatePath` keeps everything pure: the "mutation"
 is actually a transformation that produces new state values.
 
 ### Why State?
 
 Consider tracking statistics through a pipeline:
 
+<!-- verify -->
 ```java
 // Without State: manual state threading
 Stats stats1 = new Stats();
-ResultA a = processA(input, stats1);
+ResultA a = processA(batch, stats1);
 Stats stats2 = stats1.incrementProcessed();
 ResultB b = processB(a, stats2);
 Stats stats3 = stats2.incrementProcessed();
@@ -245,16 +257,17 @@ Stats stats3 = stats2.incrementProcessed();
 
 With State:
 
+<!-- verify -->
 ```java
 // With State: automatic threading
-StatePath<Stats, ResultC> pipeline =
-    StatePath.of(processA(input))
-        .via(a -> StatePath.modify(Stats::incrementProcessed)
-            .then(() -> StatePath.of(processB(a))))
-        .via(b -> StatePath.modify(Stats::incrementProcessed)
-            .then(() -> StatePath.of(processC(b))));
+WithStatePath<Stats, ResultC> pipeline =
+    WithStatePath.<Stats, ResultA>pure(processA(batch))
+        .via(a -> WithStatePath.<Stats>modify(Stats::incrementProcessed)
+            .then(() -> WithStatePath.<Stats, ResultB>pure(processB(a))))
+        .via(b -> WithStatePath.<Stats>modify(Stats::incrementProcessed)
+            .then(() -> WithStatePath.<Stats, ResultC>pure(processC(b))));
 
-Tuple2<Stats, ResultC> result = pipeline.run(Stats.initial());
+StateTuple<Stats, ResultC> result = pipeline.run(Stats.initial());
 ```
 
 The state threads through automatically. Each step can read it, modify it,
@@ -262,69 +275,72 @@ or ignore it.
 
 ### Creation
 
+<!-- verify -->
 ```java
 // Pure value (state unchanged)
-StatePath<Counter, String> pure = StatePath.pure("hello");
+WithStatePath<Counter, String> pure = WithStatePath.pure("hello");
 
 // Get current state
-StatePath<Counter, Counter> current = StatePath.get();
+WithStatePath<Counter, Counter> current = WithStatePath.get();
 
 // Set new state (discards old)
-StatePath<Counter, Unit> reset = StatePath.set(Counter.zero());
+WithStatePath<Counter, Unit> reset = WithStatePath.set(Counter.zero());
 
 // Modify state
-StatePath<Counter, Unit> increment = StatePath.modify(Counter::increment);
+WithStatePath<Counter, Unit> increment = WithStatePath.modify(Counter::increment);
 
-// Get and modify in one step
-StatePath<Counter, Integer> getAndIncrement =
-    StatePath.getAndModify(counter -> {
-        int value = counter.value();
-        return Tuple.of(counter.increment(), value);
-    });
+// Read a projection of the state, leaving it alone
+WithStatePath<Counter, Integer> value = WithStatePath.inspect(Counter::value);
 ```
 
 ### Core Operations
 
+<!-- verify -->
 ```java
-StatePath<Counter, Integer> current = StatePath.get().map(Counter::value);
+WithStatePath<Counter, Integer> current =
+    WithStatePath.<Counter>get().map(Counter::value);
 
 // Chain with state threading
-StatePath<Counter, String> counted =
-    StatePath.modify(Counter::increment)
-        .then(() -> StatePath.get())
+WithStatePath<Counter, String> counted =
+    WithStatePath.<Counter>modify(Counter::increment)
+        .then(WithStatePath::<Counter>get)
         .map(c -> "Count: " + c.value());
 
 // Combine independent state operations
-StatePath<Counter, Result> combined =
-    operationA.zipWith(operationB, Result::new);
+WithStatePath<Counter, String> combined =
+    operationA.zipWith(operationB, (a, b) -> a + b);
 ```
 
 ### Running State
 
+<!-- verify -->
 ```java
 Counter initial = Counter.zero();
 
-StatePath<Counter, String> computation = ...;
+WithStatePath<Counter, String> computation =
+    WithStatePath.<Counter>modify(Counter::increment)
+        .then(WithStatePath::<Counter>get)
+        .map(c -> "Count: " + c.value());
 
 // Get both final state and result
-Tuple2<Counter, String> both = computation.run(initial);
+StateTuple<Counter, String> both = computation.run(initial);
 
 // Get just the result
-String result = computation.eval(initial);
+String result = computation.evalState(initial);
 
 // Get just the final state
-Counter finalState = computation.exec(initial);
+Counter finalState = computation.execState(initial);
 ```
 
-### When to Use StatePath
+### When to Use WithStatePath
 
-`StatePath` is right when:
+`WithStatePath` is right when:
 - You need to accumulate or track information through a computation
 - Multiple operations must coordinate through shared state
 - You're implementing state machines or interpreters
 - You want mutable-like semantics with immutable guarantees
 
-`StatePath` is wrong when:
+`WithStatePath` is wrong when:
 - State never changes: use `ReaderPath`
 - You're accumulating a log rather than replacing state: use `WriterPath`
 - The state is external (database, file): use `IOPath`
@@ -342,11 +358,12 @@ or any combinable data.
 
 Consider building an audit trail:
 
+<!-- verify -->
 ```java
 // Without Writer: manual log passing
 public Tuple2<List<String>, User> createUser(UserInput input, List<String> log) {
     List<String> log2 = append(log, "Validating input");
-    Validated validated = validate(input);
+    ValidatedInput validated = validate(input);
     List<String> log3 = append(log2, "Creating user record");
     User user = repository.save(validated);
     List<String> log4 = append(log3, "User created: " + user.id());
@@ -356,15 +373,17 @@ public Tuple2<List<String>, User> createUser(UserInput input, List<String> log) 
 
 With Writer:
 
+<!-- verify -->
 ```java
 // With Writer: automatic log accumulation
 public WriterPath<List<String>, User> createUser(UserInput input) {
-    return WriterPath.tell(List.of("Validating input"))
-        .then(() -> WriterPath.pure(validate(input)))
-        .via(validated -> WriterPath.tell(List.of("Creating user record"))
-            .then(() -> WriterPath.pure(repository.save(validated))))
-        .via(user -> WriterPath.tell(List.of("User created: " + user.id()))
-            .map(unit -> user));
+    Monoid<List<String>> log = Monoids.list();
+    return WriterPath.tell(List.of("Validating input"), log)
+        .then(() -> WriterPath.pure(validate(input), log))
+        .via(validated -> WriterPath.tell(List.of("Creating user record"), log)
+            .then(() -> WriterPath.pure(repository.save(validated), log)))
+        .via(created -> WriterPath.tell(List.of("User created: " + created.id()), log)
+            .map(unit -> created));
 }
 ```
 
@@ -372,6 +391,7 @@ The log accumulates automatically. No explicit threading required.
 
 ### Creation
 
+<!-- verify -->
 ```java
 // Pure value (empty log)
 WriterPath<List<String>, Integer> pure = WriterPath.pure(42, Monoids.list());
@@ -382,7 +402,7 @@ WriterPath<List<String>, Unit> logged =
 
 // Create with both value and log
 WriterPath<List<String>, User> withLog =
-    WriterPath.of(user, List.of("Created user"), Monoids.list());
+    WriterPath.writer(user, List.of("Created user"), Monoids.list());
 ```
 
 The `Monoid<W>` parameter defines how log entries combine:
@@ -392,15 +412,17 @@ The `Monoid<W>` parameter defines how log entries combine:
 
 ### Core Operations
 
+<!-- verify -->
 ```java
-WriterPath<List<String>, Integer> computation = ...;
+WriterPath<List<String>, Integer> computation =
+    WriterPath.pure(42, Monoids.list());
 
 // Transform value (log unchanged)
 WriterPath<List<String>, String> formatted = computation.map(n -> "Value: " + n);
 
 // Add to log
 WriterPath<List<String>, Integer> withExtra =
-    computation.tell(List.of("Extra info"));
+    computation.listen(List.of("Extra info"));
 
 // Chain with log accumulation
 WriterPath<List<String>, Result> pipeline =
@@ -412,11 +434,12 @@ WriterPath<List<String>, Result> pipeline =
 
 ### Running Writer
 
+<!-- verify -->
 ```java
 WriterPath<List<String>, User> computation = createUser(input);
 
 // Get both log and result
-Tuple2<List<String>, User> both = computation.run();
+Writer<List<String>, User> both = computation.run();
 
 // Get just the result
 User user = computation.value();
@@ -434,8 +457,8 @@ List<String> log = computation.written();
 - Any scenario where output should aggregate, not replace
 
 `WriterPath` is wrong when:
-- Output should replace previous output: use `StatePath`
-- You need to read accumulated output mid-computation: use `StatePath`
+- Output should replace previous output: use `WithStatePath`
+- You need to read accumulated output mid-computation: use `WithStatePath`
 - Output goes to external systems: use `IOPath`
 - The computation can also fail and the warnings share that failure channel: use [`EitherOrBothPath`](path_either_or_both.md) (a `WriterPath` always succeeds; an `EitherOrBoth` can be `Left`, `Right`, or `Both`)
 
@@ -447,29 +470,31 @@ These effect types compose with each other and with the core Path types.
 
 ### Reader + Either: Environment with Errors
 
+<!-- verify -->
 ```java
 // A computation that needs config and might fail
-ReaderPath<Config, EitherPath<Error, User>> getUser(String id) {
+ReaderPath<Config, EitherPath<Error, User>> getUserOrError(String id) {
     return ReaderPath.asks(Config::database)
-        .map(db -> Path.either(db.findUser(id))
-            .toEitherPath(() -> new Error.NotFound(id)));
+        .map(db -> Path.maybe(db.findUser(id))
+            .toEitherPath(new Error.NotFound(id)));
 }
 ```
 
 ### State + Writer: State with Logging
 
+<!-- verify -->
 ```java
 // Track state and log what happens
-public StatePath<GameState, WriterPath<List<Event>, Move>> makeMove(Position pos) {
-    return StatePath.get()
+public WithStatePath<GameState, WriterPath<List<Event>, Move>> makeMove(Position pos) {
+    return WithStatePath.<GameState>get()
         .via(state -> {
             Move move = calculateMove(state, pos);
             GameState newState = state.apply(move);
-            return StatePath.set(newState)
-                .map(unit -> WriterPath.of(
+            return WithStatePath.<GameState>set(newState)
+                .map(unit -> WriterPath.writer(
                     move,
-                    List.of(new Event.MoveMade(pos, move)),
-                    Monoids.list()
+                    List.<Event>of(new Event.MoveMade(pos, move)),
+                    Monoids.<Event>list()
                 ));
         });
 }
@@ -477,46 +502,53 @@ public StatePath<GameState, WriterPath<List<Event>, Move>> makeMove(Position pos
 
 ### Patterns: Configuration Service
 
+<!-- verify -->
 ```java
 public class ConfigurableService {
     public ReaderPath<ServiceConfig, EitherPath<Error, Result>> process(Request req) {
-        return ReaderPath.ask()
+        return ReaderPath.<ServiceConfig>ask()
             .via(config -> {
                 if (!config.isEnabled()) {
-                    return ReaderPath.pure(Path.left(new Error.ServiceDisabled()));
+                    return ReaderPath.<ServiceConfig, EitherPath<Error, Result>>pure(
+                        Path.left(new Error.ServiceDisabled()));
                 }
-                return ReaderPath.pure(
+                return ReaderPath.<ServiceConfig, EitherPath<Error, Result>>pure(
                     Path.tryOf(() -> doProcess(req, config))
                         .toEitherPath(Error.ProcessingFailed::new)
                 );
             });
     }
-}
 
-// Usage
-ServiceConfig config = loadConfig();
-EitherPath<Error, Result> result = service.process(request).run(config);
+    private Result doProcess(Request req, ServiceConfig config) {
+        return new Result(req.id());
+    }
+}
 ```
 
 ### Patterns: Audit Trail
 
+<!-- verify -->
 ```java
 public class AuditedRepository {
+    private final UserRepository repository = new UserRepository();
+
     public WriterPath<List<AuditEvent>, EitherPath<Error, User>> saveUser(User user) {
-        return WriterPath.tell(List.of(new AuditEvent.AttemptSave(user.id())))
+        Monoid<List<AuditEvent>> log = Monoids.list();
+        return WriterPath.tell(List.<AuditEvent>of(new AuditEvent.AttemptSave(user.id())), log)
             .then(() -> {
                 Either<Error, User> result = repository.save(user);
                 if (result.isRight()) {
-                    return WriterPath.of(
-                        Path.right(result.getRight()),
-                        List.of(new AuditEvent.SaveSucceeded(user.id())),
-                        Monoids.list()
+                    return WriterPath.writer(
+                        Path.<Error, User>right(result.getRight()),
+                        List.<AuditEvent>of(new AuditEvent.SaveSucceeded(user.id())),
+                        log
                     );
                 } else {
-                    return WriterPath.of(
-                        Path.left(result.getLeft()),
-                        List.of(new AuditEvent.SaveFailed(user.id(), result.getLeft())),
-                        Monoids.list()
+                    return WriterPath.writer(
+                        Path.<Error, User>left(result.getLeft()),
+                        List.<AuditEvent>of(
+                            new AuditEvent.SaveFailed(user.id(), result.getLeft())),
+                        log
                     );
                 }
             });
@@ -531,7 +563,7 @@ public class AuditedRepository {
 | Effect Type | Models | Key Operations | Use Case |
 |-------------|--------|----------------|----------|
 | `ReaderPath<R, A>` | Environment access | `ask`, `asks`, `local` | Config, DI |
-| `StatePath<S, A>` | Threaded state | `get`, `set`, `modify` | Counters, state machines |
+| `WithStatePath<S, A>` | Threaded state | `get`, `set`, `modify` | Counters, state machines |
 | `WriterPath<W, A>` | Accumulated output | `tell`, `written` | Logging, audit trails |
 
 These effects handle the "invisible institutions" of software: the
@@ -544,7 +576,7 @@ The systems remain subtle and pervasive, but no longer tyrannical.
 
 ~~~admonish tip title="See Also"
 - [Reader Monad](../monads/reader_monad.md) - The underlying type for ReaderPath
-- [State Monad](../monads/state_monad.md) - The underlying type for StatePath
+- [State Monad](../monads/state_monad.md) - The underlying type for WithStatePath
 - [Writer Monad](../monads/writer_monad.md) - The underlying type for WriterPath
 - [Monad Transformers](../transformers/transformers.md) - Combining multiple effects
 ~~~

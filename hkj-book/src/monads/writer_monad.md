@@ -17,11 +17,12 @@
 
 Imagine a pricing function that computes a final price through several steps: add tax, apply a discount, add shipping. You need a complete audit log of every step. You cannot use `System.out.println` (not composable, not testable). So you reach for a shared mutable list:
 
+<!-- verify -->
 ```java
 // The ugly way: threading a mutable log through every function
 List<String> log = new ArrayList<>();
-double price = addTax(subtotal, log);          // log.add("Tax added: ...")
-double total  = applyDiscount(price, log);     // log.add("Discount applied: ...")
+double taxed  = addTax(subtotal, log);         // log.add("Tax added: ...")
+double total  = applyDiscount(taxed, log);     // log.add("Discount applied: ...")
 double finalP = addShipping(total, log);       // log.add("Shipping added: ...")
 // Every function needs a log parameter. Leaky. Messy. Untestable.
 ```
@@ -64,6 +65,7 @@ A Monoid needs two things: an `empty()` value (the starting point) and a `combin
 
 In Java, a String monoid looks like this:
 
+<!-- verify -->
 ```java
 class StringMonoid implements Monoid<String> {
     @Override public String empty() { return ""; }
@@ -105,6 +107,7 @@ A pricing calculation that produces both a final price and a step-by-step receip
 
 **Step 1: Set up the Monoid and Monad**
 
+<!-- verify -->
 ```java
 import static org.higherkindedj.hkt.writer.WriterKindHelper.*;
 
@@ -121,6 +124,7 @@ var monad = Instances.writer(logMonoid);
 
 Each step returns a Writer: the result *and* a log entry. No log parameter needed.
 
+<!-- verify -->
 ```java
 // Each function: takes a price, returns Writer(log, newPrice)
 Function<Double, Kind<WriterKind.Witness<String>, Double>> addTax = price -> {
@@ -146,6 +150,7 @@ Function<Double, Kind<WriterKind.Witness<String>, Double>> addShipping = price -
 
 `flatMap` threads the value forward and accumulates the log at each step.
 
+<!-- verify -->
 ```java
 // Start with subtotal $100, log the starting point
 var start = monad.flatMap(
@@ -161,6 +166,7 @@ var finalPrice    = monad.flatMap(addShipping, afterDiscount);
 
 **Step 4: Extract the results**
 
+<!-- verify -->
 ```java
 // Get just the final price
 Double price = WRITER.run(finalPrice);
@@ -204,6 +210,7 @@ These three operations serve distinct roles. Understanding when to use each is k
 
 **`tell`** is for inserting a log entry without affecting the computation:
 
+<!-- verify -->
 ```java
 var logged = WRITER.tell("Checkpoint reached; ");
 // Writer(log: "Checkpoint reached; ", value: Unit)
@@ -211,6 +218,7 @@ var logged = WRITER.tell("Checkpoint reached; ");
 
 **`map`** is for transforming the value while leaving the log untouched:
 
+<!-- verify -->
 ```java
 var doubled = monad.map(x -> x * 2, WRITER.value(logMonoid, 50.0));
 // Writer(log: "", value: 100.0)  -- log unchanged
@@ -218,6 +226,7 @@ var doubled = monad.map(x -> x * 2, WRITER.value(logMonoid, 50.0));
 
 **`flatMap`** is for chaining steps that each produce their own log:
 
+<!-- verify -->
 ```java
 var chained = monad.flatMap(addTax, WRITER.value(logMonoid, 100.0));
 // Writer(log: "Tax 8%: $100.00 -> $108.00; ", value: 108.0)  -- logs merged

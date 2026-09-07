@@ -48,7 +48,8 @@ You can create `Try` instances in several ways:
 
 1. **`Try.of(Supplier)`:** Executes a `Supplier` and wraps the result in `Success`, or catches any `Exception` thrown by the supplier and wraps it in `Failure`. In practice this means `RuntimeException`: a standard `Supplier<T>` cannot declare checked exceptions in its lambda body. `Error` and other non-`Exception` `Throwable`s are **not** caught; they propagate out of `Try.of`. Use `Try.of` when your lambda either produces a pure value or may throw a runtime exception; use `Try.attempt` (below) when interoperating with Java APIs that declare checked exceptions.
 
-   ```java
+   <!-- verify -->
+```java
    import org.higherkindedj.hkt.trymonad.Try;
 
    // Success case
@@ -60,13 +61,15 @@ You can create `Try` instances in several ways:
 
 2. **`Try.attempt(CheckedSupplier)`:** The preferred entry point when working with Java APIs that throw checked exceptions (`Files.readString`, `Class.forName`, JDBC, reflection, and similar). `CheckedSupplier<T, X extends Exception>` is a `Supplier`-like functional interface whose `get()` declares `throws X`, so the lambda body can throw checked exceptions directly. Any thrown `Exception` (checked or unchecked) is caught and wrapped in `Failure`; `Error`s propagate.
 
-   ```java
+   <!-- verify -->
+```java
    import org.higherkindedj.hkt.trymonad.Try;
    import java.nio.file.Files;
-   import java.nio.file.Path;
+   import java.nio.file.Paths;
 
    // Interop with a checked-throwing API - no manual wrapping needed
-   Try<String> contents = Try.attempt(() -> Files.readString(Path.of("data.txt")));
+   // (Paths.get, not Path.of: `Path` here would be the effect Path this chapter uses.)
+   Try<String> contents = Try.attempt(() -> Files.readString(Paths.get("data.txt")));
    // Success("...contents...") or Failure(NoSuchFileException)
 
    // Interop with reflection (also checked)
@@ -76,13 +79,15 @@ You can create `Try` instances in several ways:
 
 3. **`Try.success(value)`:** Directly creates a `Success` instance holding the given value (which can be null).
 
-   ```java
+   <!-- verify -->
+```java
    Try<String> directSuccess = Try.success("Known value");
    Try<String> successNull = Try.success(null);
    ```
 4. **`Try.failure(throwable)`:** Directly creates a `Failure` instance holding the given non-null `Throwable`.
 
-   ```java
+   <!-- verify -->
+```java
    Try<String> directFailure = Try.failure(new RuntimeException("Something went wrong"));
    ```
 ~~~
@@ -106,6 +111,7 @@ You can create `Try` instances in several ways:
 
 Applies a function to the value inside a `Success`. If the function throws an exception, the result becomes a `Failure`. If the original `Try` was a `Failure`, `map` does nothing and returns the original `Failure`.
 
+<!-- verify -->
 ```java
 Try<Integer> initialSuccess = Try.success(5);
 Try<String> mappedSuccess = initialSuccess.map(value -> "Value: " + value); // Success("Value: 5")
@@ -123,6 +129,7 @@ Try<Integer> mapThrows = initialSuccess.map(value -> { throw new NullPointerExce
 
 Applies a function that returns another `Try` to the value inside a `Success`. This is used to sequence operations where each step might fail. Failures are propagated.
 
+<!-- verify -->
 ```java
 Function<Integer, Try<Double>> safeDivide =
 value -> (value == 0) ? Try.failure(new ArithmeticException("Div by zero")) : Try.success(10.0 / value);
@@ -147,6 +154,7 @@ Try<Double> result3 = inputFailure.flatMap(safeDivide); // Failure(RuntimeExcept
 
 Safely handles both cases by applying one of two functions. The failure mapper is supplied first, matching the error-first ordering of `Either.fold`, `Validated.fold`, and `EitherF.fold`.
 
+<!-- verify -->
 ```java
 String message = result2.foldFailureFirst(
     failureThrowable -> "Failed with " + failureThrowable.getMessage(),
@@ -167,6 +175,7 @@ The legacy `Try.fold(successMapper, failureMapper)` and `TryPath.fold(successMap
 
 If `Failure`, applies a function `Throwable -> T` to produce a new `Success` value. If the recovery function throws, the result is a `Failure` containing that new exception.
 
+<!-- verify -->
 ```java
 Function<Throwable, Double> recoverHandler = throwable -> -1.0;
 Try<Double> recovered1 = result2.recover(recoverHandler); // Success(-1.0)
@@ -180,6 +189,7 @@ Try<Double> recovered2 = result1.recover(recoverHandler); // Stays Success(5.0)
 
 Similar to `recover`, but the recovery function `Throwable -> Try<T>` must return a `Try`. This allows recovery to potentially result in another `Failure`.
 
+<!-- verify -->
 ```java
 Function<Throwable, Try<Double>> recoverWithHandler = throwable ->
     (throwable instanceof ArithmeticException) ? Try.success(Double.POSITIVE_INFINITY) : Try.failure(throwable);
@@ -202,6 +212,7 @@ To use `Try` with generic code expecting `Kind<F, A>`:
 3. **Operate:** Use `tryMonad.map(...)`, `tryMonad.flatMap(...)`, `tryMonad.handleErrorWith(...)` etc.
 4. **Unwrap(Narrow):** Use `TRY.narrow(tryKind)` to get the `Try<T>` back.
 
+<!-- verify -->
 ```java
 
 MonadError<TryKind.Witness, Throwable> tryMonad = Instances.monadError(try_());
@@ -261,13 +272,14 @@ For most use cases, prefer **[TryPath](../effect/path_try.md)** which wraps `Try
 - Seamless integration with the [Focus DSL](../optics/focus_dsl.md) for structural navigation
 - A consistent API shared across all effect types
 
+<!-- verify -->
 ```java
 // Instead of manual Try chaining:
 Try<Config> config = Try.of(() -> loadConfig());
 Try<String> value = config.flatMap(c -> Try.of(() -> c.getValue("key")));
 
 // Use TryPath for cleaner composition:
-TryPath<String> value = Path.tryOf(() -> loadConfig())
+TryPath<String> path = Path.tryOf(() -> loadConfig())
     .via(c -> Path.tryOf(() -> c.getValue("key")));
 ```
 

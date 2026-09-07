@@ -14,6 +14,7 @@ and never fails. This sounds useless until you need it.
 
 ## Creation
 
+<!-- verify -->
 ```java
 IdPath<String> id = Path.id("hello");
 IdPath<User> fromId = Path.idPath(idUser);
@@ -23,6 +24,7 @@ IdPath<User> fromId = Path.idPath(idUser);
 
 ## Core Operations
 
+<!-- verify -->
 ```java
 IdPath<String> name = Path.id("Alice");
 
@@ -35,10 +37,11 @@ IdPath<String> combined = name.zipWith(Path.id(25), (n, a) -> n + " is " + a);
 
 ## Extraction
 
+<!-- verify -->
 ```java
 IdPath<String> path = Path.id("hello");
 String value = path.run().value();  // "hello"
-String value = path.get();          // "hello"
+String direct = path.get();         // "hello"
 ```
 
 ---
@@ -55,15 +58,16 @@ String value = path.get();          // "hello"
 - Failure is possible → you need one of the other types
 
 ~~~admonish example title="Generic Code Example"
+<!-- verify -->
 ```java
-// Works with any Path type
-<P extends Path<P, A>, A> P process(P path) {
-    return path.map(this::transform);
+// Works with any Path type: every one of them is a Composable
+Composable<String> shout(Composable<String> path) {
+    return path.map(String::toUpperCase);
 }
 
 // Test with IdPath (no failures to worry about)
 IdPath<String> testPath = Path.id("test");
-IdPath<String> result = process(testPath);
+Composable<String> result = shout(testPath);
 ```
 ~~~
 

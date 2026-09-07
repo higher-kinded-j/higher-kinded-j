@@ -22,22 +22,25 @@ A resilient workflow holds two paths in mind simultaneously: the path where ever
 
 A configuration loader parses a file, validates the parsed settings, then opens a database connection. Each step can fail with a meaningful error, and we want different recovery for each. In imperative Java, we end up with nested try/catch:
 
+<!-- verify -->
 ```java
-try {
-    Config config = parseConfigFile(path);
+DbConnection loadConnection(String path) {
     try {
-        Settings settings = validateSettings(config);
+        Config config = parseConfigFile(path);
         try {
-            return connectToDatabase(settings);
-        } catch (DbException e) {
-            return connectToFallbackDb(settings);
+            Settings settings = validateSettings(config);
+            try {
+                return connectToDatabase(settings);
+            } catch (DbException e) {
+                return connectToFallbackDb(settings);
+            }
+        } catch (ValidationException e) {
+            log.error("Bad config: " + e.getMessage());
+            throw e;
         }
-    } catch (ValidationException e) {
-        log.error("Bad config: " + e.getMessage());
-        throw e;
+    } catch (ParseException e) {
+        return loadDefaultConfig();
     }
-} catch (ParseException e) {
-    return loadDefaultConfig();
 }
 ```
 
@@ -65,6 +68,7 @@ Three levels of nesting, three different recovery rules, and the business logic 
 
 The same workflow, rebuilt with `MonadError` over `Either<String, A>`:
 
+<!-- verify -->
 ```java
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.either.Either;
@@ -149,6 +153,7 @@ public interface MonadError<F extends WitnessArity<TypeArity.Unary>, E> extends 
 
 **The solution.** `handleError` takes a function `E -> A` and lifts the result back into the monad for us.
 
+<!-- verify -->
 ```java
 MonadError<EitherKind.Witness<String>, String> me = Instances.monadError(either());
 
@@ -170,6 +175,7 @@ Kind<EitherKind.Witness<String>, Integer> result = me.handleError(
 
 **The solution.** `handleErrorWith` takes `E -> Kind<F, A>`. The recovery function can return a success, another failure, or whatever the type allows.
 
+<!-- verify -->
 ```java
 Kind<EitherKind.Witness<String>, Integer> result = me.handleErrorWith(
     safeDivide(10, 0),
@@ -186,6 +192,7 @@ Kind<EitherKind.Witness<String>, Integer> result = me.handleErrorWith(
 
 **The solution.** Stack `handleErrorWith` calls. Each layer only triggers when the previous one is still failing.
 
+<!-- verify -->
 ```java
 Kind<EitherKind.Witness<String>, Config> config =
     me.handleErrorWith(
@@ -209,6 +216,7 @@ When a fallback **ignores the error** and simply substitutes a constant, two sho
 
 In the chained example above, only the innermost layer is a constant, so just that layer collapses:
 
+<!-- verify -->
 ```java
 // defaults is a plain value → recover; env is a computation we only want on failure → keep handleErrorWith
 Kind<EitherKind.Witness<String>, Config> config =

@@ -60,6 +60,7 @@ return DEFAULT_POOL_SIZE;
 
 ### The Prism Solution
 
+<!-- verify -->
 ```java
 @GeneratePrisms
 sealed interface ConfigValue permits StringValue, IntValue, BoolValue, NestedConfig {}
@@ -71,6 +72,8 @@ record BoolValue(boolean value) implements ConfigValue {}
 record NestedConfig(Map<String, ConfigValue> values) implements ConfigValue {}
 
 public class ConfigResolver {
+    private static final int DEFAULT_POOL_SIZE = 10;
+
     private static final Prism<ConfigValue, IntValue> INT =
         ConfigValuePrisms.intValue();
     private static final Prism<ConfigValue, StringValue> STRING =
@@ -98,6 +101,7 @@ public class ConfigResolver {
 
 ### Nested Configuration Access
 
+<!-- verify -->
 ```java
 // Build a type-safe path through nested configuration
 Prism<ConfigValue, NestedConfig> nested = ConfigValuePrisms.nestedConfig();
@@ -151,6 +155,7 @@ if (response.status() == 200) {
 
 ### The Prism Solution
 
+<!-- verify -->
 ```java
 @GeneratePrisms
 sealed interface ApiResponse permits Success, ValidationError, ServerError,
@@ -249,6 +254,7 @@ Validation often requires checking different data types and applying conditional
 
 ETL pipelines process heterogeneous data where validation rules depend on data types:
 
+<!-- verify -->
 ```java
 // Traditional approach: imperative branching
 List<ValidationError> errors = new ArrayList<>();
@@ -268,6 +274,7 @@ for (Object value : row.values()) {
 
 ### The Prism Solution
 
+<!-- verify -->
 ```java
 @GeneratePrisms
 sealed interface DataValue permits StringData, IntData, DoubleData, NullData {}
@@ -278,6 +285,8 @@ record DoubleData(double value) implements DataValue {}
 record NullData() implements DataValue {}
 
 public class ValidationPipeline {
+    private static final int MAX_STRING_LENGTH = 255;
+
     // Validation rules as prism transformations
     private static final Prism<DataValue, StringData> STRING =
         DataValuePrisms.stringData();
@@ -386,9 +395,10 @@ Event-driven systems receive heterogeneous event types that require different pr
 
 ### The Challenge
 
+<!-- verify -->
 ```java
 // Traditional approach: brittle event dispatching
-public void handleEvent(Event event) {
+public void handleEvent(DomainEvent event) {
     if (event instanceof UserCreated uc) {
         sendWelcomeEmail(uc.userId(), uc.email());
         provisionResources(uc.userId());
@@ -530,13 +540,16 @@ State machines with complex transition rules benefit from prisms' ability to saf
 
 ### The Challenge
 
+<!-- verify -->
 ```java
 // Traditional approach: verbose state management
 public Order transition(Order order, OrderEvent event) {
     if (order.state() instanceof Pending && event instanceof PaymentReceived) {
-        return order.withState(new Processing(((PaymentReceived) event).transactionId()));
+        return order.withState(
+            new Processing(((PaymentReceived) event).transactionId(), Instant.now()));
     } else if (order.state() instanceof Processing && event instanceof ShippingCompleted) {
-        return order.withState(new Shipped(((ShippingCompleted) event).trackingNumber()));
+        return order.withState(
+            new Shipped(((ShippingCompleted) event).trackingNumber(), Instant.now()));
     }
     // Many more transitions...
     throw new IllegalStateException("Invalid transition");
@@ -545,6 +558,7 @@ public Order transition(Order order, OrderEvent event) {
 
 ### The Prism Solution
 
+<!-- verify -->
 ```java
 @GeneratePrisms
 sealed interface OrderState permits Pending, Processing, Shipped, Delivered, Cancelled {}
@@ -674,6 +688,7 @@ Plugin architectures require dynamic dispatch to various plugin types whilst mai
 
 ### The Challenge
 
+<!-- verify -->
 ```java
 // Traditional approach: reflection and casting
 public void executePlugin(Plugin plugin, Object context) {
@@ -688,6 +703,7 @@ public void executePlugin(Plugin plugin, Object context) {
 
 ### The Prism Solution
 
+<!-- verify -->
 ```java
 @GeneratePrisms
 sealed interface Plugin permits DatabasePlugin, FileSystemPlugin,

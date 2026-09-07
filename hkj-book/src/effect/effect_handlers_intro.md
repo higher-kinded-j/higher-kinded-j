@@ -21,9 +21,12 @@ Billy Pilgrim experiences every moment of his life simultaneously; nothing is ex
 
 Consider a familiar Spring service. A `PaymentService` depends on four external systems: a payment gateway, a fraud detector, an accounting ledger, and a notification sender.
 
+<!-- verify -->
 ```java
 @Service
 public class PaymentService {
+
+    private static final int THRESHOLD = 80;
 
     @Autowired private PaymentGateway gateway;
     @Autowired private FraudDetector fraud;
@@ -112,6 +115,7 @@ If you have used sealed interfaces and records in Java 21+, you already know the
 
 An *effect algebra* is a sealed interface where each permitted record represents an operation. This is standard Data Oriented Programming:
 
+<!-- verify -->
 ```java
 @EffectAlgebra
 public sealed interface PaymentGatewayOp<A>
@@ -168,13 +172,14 @@ Java's evolution toward Data Oriented Programming provides exactly the building 
 
 This is not exotic functional programming imported from Haskell. It is standard Java 25+ patterns applied to domain workflows. A `switch` expression over a sealed interface is how you write an interpreter:
 
+<!-- verify -->
 ```java
 // This is just pattern matching, standard Java DOP
 public <A> Kind<IOKind.Witness, A> apply(PaymentGatewayOp<A> op) {
     return switch (op) {
-        case Authorise<A> auth -> handleAuthorise(auth);
-        case Charge<A> charge -> handleCharge(charge);
-        case Refund<A> refund -> handleRefund(refund);
+        case PaymentGatewayOp.Authorise<A> auth -> handleAuthorise(auth);
+        case PaymentGatewayOp.Charge<A> charge -> handleCharge(charge);
+        case PaymentGatewayOp.Refund<A> refund -> handleRefund(refund);
     };
 }
 ```

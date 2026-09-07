@@ -48,6 +48,7 @@ You've been asked to rebuild it.
 
 Here's what the new pipeline looks like with HKJ:
 
+<!-- verify -->
 ```java
 List<Alert> alerts = pipeline.fullPipeline().toList().run();
 ```
@@ -186,17 +187,23 @@ information:
   </div>
 </div>
 
+<!-- verify -->
 ```java
 // Raw tick from an exchange
 record PriceTick(Symbol symbol, Price bid, Price ask, Volume volume,
                  Exchange exchange, Instant timestamp) {
-    Price mid()    { ... }  // (bid + ask) / 2
-    Price spread() { ... }  // ask - bid
+    // Averaged in BigDecimal rather than through double, so the mid is exact
+    Price mid() {
+        return new Price(
+            bid.value().add(ask.value()).divide(BigDecimal.valueOf(2), 4, RoundingMode.HALF_UP));
+    }
+
+    Price spread() { return ask.subtract(bid); }
 }
 
 // Tick enriched with instrument metadata and FX rate
 record EnrichedTick(PriceTick tick, Instrument instrument, BigDecimal fxRate) {
-    Price midInUsd() { ... }  // mid * fxRate
+    Price midInUsd() { return tick.mid().multiply(fxRate); }
 }
 
 // Tick with risk assessment attached
@@ -207,7 +214,7 @@ record RiskAssessment(EnrichedTick tick, double riskScore, List<String> flags) {
 // Aggregate view over a window of ticks
 record AggregatedView(Symbol symbol, Price vwap, Price bestBid, Price bestAsk,
                       Volume totalVolume, int tickCount, double maxRiskScore) {
-    Price spread() { return bestAsk.minus(bestBid); }
+    Price spread() { return bestAsk.subtract(bestBid); }
 }
 
 // Alert raised when an anomaly is detected

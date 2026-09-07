@@ -21,6 +21,7 @@ This page covers production-grade patterns for the order workflow: resilience wi
 
 The `ConfigurableOrderWorkflow` composes the core path-native combinators (`IOPath.withRetry` for the retry loop, the static `EitherPath.withTimeout` for a typed time budget) and applies them **per step**, not around the whole flow:
 
+<!-- verify -->
 ```java
 public EitherPath<OrderError, OrderResult> process(OrderRequest request) {
     var retryPolicy = createRetryPolicy();
@@ -62,8 +63,9 @@ Note the eager/lazy split: `EitherPath.withTimeout` is *static* and takes the st
 
 The retry policy is the core `RetryPolicy`, translated from workflow configuration. Only transient infrastructure failures are selected; the business `WorkflowException` never matches, so a business failure is never retried:
 
+<!-- verify -->
 ```java
-private RetryPolicy createRetryPolicy() {
+RetryPolicy createRetryPolicy() {
     var retryConfig = config.retryConfig();
     return RetryPolicy.builder()
         .maxAttempts(retryConfig.maxRetries() + 1) // maxAttempts includes the initial try
@@ -81,6 +83,7 @@ private RetryPolicy createRetryPolicy() {
 
 Timeouts ensure deadlines do not just whoosh by indefinitely, and with the typed overload they arrive as a `Left` that flows down the same railway as every other domain error, not as a thrown `TimeoutException`:
 
+<!-- verify -->
 ```java
 EitherPath<OrderError, Receipt> charged =
     EitherPath.withTimeout(
@@ -99,6 +102,7 @@ The Focus DSL complements Effect Path for immutable state updates. Where Effect 
 
 ### Immutable State Updates
 
+<!-- verify -->
 ```java
 public static OrderWorkflowState applyDiscount(
     OrderWorkflowState state, DiscountResult discount) {
@@ -116,6 +120,7 @@ public static OrderWorkflowState applyDiscount(
 
 ### Pattern Matching with Sealed Types
 
+<!-- verify -->
 ```java
 public static EitherPath<OrderError, PaymentMethod> validatePaymentMethod(
     PaymentMethod method) {
@@ -137,7 +142,7 @@ public static EitherPath<OrderError, PaymentMethod> validatePaymentMethod(
             }
             yield Path.right(method);
         }
-        // ... other cases
+        case PaymentMethod.DebitCard _, PaymentMethod.DigitalWallet _ -> Path.right(method);
     };
 }
 ```
@@ -150,6 +155,7 @@ The sealed `PaymentMethod` type enables exhaustive validation with Effect Path i
 
 The `ConfigurableOrderWorkflow` uses feature flags to control optional behaviours:
 
+<!-- verify -->
 ```java
 public record FeatureFlags(
     boolean enablePartialFulfilment,
@@ -168,8 +174,9 @@ public record FeatureFlags(
 
 These flags control workflow branching:
 
+<!-- verify -->
 ```java
-private EitherPath<OrderError, DiscountResult> applyDiscounts(
+EitherPath<OrderError, DiscountResult> applyDiscounts(
     ValidatedOrder order, Customer customer) {
 
     return order.promoCode()
@@ -216,15 +223,16 @@ public record OrderWorkflowState(
 
 The annotation processor generates `OrderWorkflowStateLenses` with a lens for each field, plus `OrderWorkflowStateFocus` with `FocusPath` accessors. These enable immutable updates without manual `with*` methods:
 
+<!-- verify -->
 ```java
-// Generated lens usage
+// Generated lens usage: the value first, then the source
 var updated = OrderWorkflowStateLenses.validatedOrder()
-    .set(state, Optional.of(newOrder));
+    .set(Optional.of(newOrder), state);
 
-// Generated focus usage
+// Generated focus usage: an Optional component focuses to an AffinePath, which may miss
 var subtotal = OrderWorkflowStateFocus.validatedOrder()
-    .andThen(ValidatedOrderFocus.subtotal())
-    .get(state);
+    .then(ValidatedOrderFocus.subtotal())
+    .getOptional(state);
 ```
 
 ### Prisms for Sealed Hierarchies
@@ -237,20 +245,20 @@ public sealed interface OrderError
 
 This generates `OrderErrorPrisms` with a prism for each permitted variant:
 
+<!-- verify -->
 ```java
 // Extract specific error type if present
-Optional<PaymentError> paymentError =
+Optional<OrderError.PaymentError> paymentError =
     OrderErrorPrisms.paymentError().getOptional(error);
 
-// Pattern-match in functional style
-var recovery = OrderErrorPrisms.shippingError()
-    .modifyOptional(error, e -> e.recoverable()
-        ? recoverShipping(e)
-        : e);
+// Pattern-match in functional style: modify only touches the variant that matches
+OrderError rethought = OrderErrorPrisms.shippingError()
+    .modify(e -> e.recoverable() ? recoverShipping(e) : e, error);
 ```
 
 ### Path Bridges for Services
 
+<!-- verify -->
 ```java
 @GeneratePathBridge
 public interface CustomerService {
@@ -265,10 +273,15 @@ public interface CustomerService {
 
 This generates `CustomerServicePaths`:
 
+<!-- verify -->
 ```java
 // Generated bridge class
 public class CustomerServicePaths {
     private final CustomerService delegate;
+
+    public CustomerServicePaths(CustomerService delegate) {
+        this.delegate = delegate;
+    }
 
     public EitherPath<OrderError, Customer> findById(CustomerId id) {
         return Path.either(delegate.findById(id));
@@ -282,10 +295,10 @@ public class CustomerServicePaths {
 
 Now your workflow can use the generated bridges directly:
 
+<!-- verify -->
 ```java
-private final CustomerServicePaths customers;
-
-private EitherPath<OrderError, Customer> lookupAndValidateCustomer(CustomerId id) {
+// The workflow holds the generated bridge (`private final CustomerServicePaths customers`)
+EitherPath<OrderError, Customer> lookupAndValidateCustomer(CustomerId id) {
     return customers.findById(id)
         .via(customers::validateEligibility);
 }

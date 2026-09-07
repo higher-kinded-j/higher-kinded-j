@@ -30,6 +30,10 @@ dependencies {
     testImplementation(libs.awaitility)
     testImplementation(project(":hkj-test"))
 
+    // Test-only: the effect chapter's testing recipes include property-based tests, and without
+    // jqwik on the gate's classpath those snippets could not be compiled at all.
+    testImplementation(libs.bundles.jqwik)
+
     // The TraversableGenerator SPI (BaseTraversableGenerator, Cardinality) that hkj-optics'
     // container-types page documents. It is wired above as `annotationProcessor`, which puts it on
     // the PROCESSOR path, not the compile classpath, so the gate could not compile a snippet that
@@ -45,6 +49,15 @@ dependencies {
     testImplementation(libs.spring.boot.starter.web)
     testImplementation(libs.spring.boot.starter.test)
     testImplementation(libs.spring.boot.webmvc.test)
+
+    // The effect-boundary page's transaction section writes @Transactional, which spring-web does
+    // not bring in. Versioned by the Boot BOM above.
+    testImplementation("org.springframework:spring-tx")
+
+    // The Spring chapter's security section wires a UserDetailsService and a JWT converter, both of
+    // which hkj-spring declares against Spring Security (compileOnly, since the integration is
+    // optional). The gate needs them on the compile classpath to check those two snippets.
+    testImplementation(libs.bundles.spring.security)
 
     // JUnit declares apiguardian as compileOnly, so it is absent from the test runtime classpath.
     // The book gate hands that classpath to javac, and a snippet using @Test then trips

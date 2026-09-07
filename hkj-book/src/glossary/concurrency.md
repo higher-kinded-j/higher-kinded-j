@@ -26,15 +26,18 @@
 ```
 
 **Example:**
+<!-- verify -->
 ```java
 // Without bracket pattern: manual cleanup is error-prone
-Connection conn = null;
-try {
-    conn = dataSource.getConnection();
-    return processData(conn);
-} finally {
-    if (conn != null) {
-        try { conn.close(); } catch (Exception e) { /* swallowed */ }
+Result readManually() throws Exception {
+    Connection conn = null;
+    try {
+        conn = dataSource.getConnection();
+        return processData(conn);
+    } finally {
+        if (conn != null) {
+            try { conn.close(); } catch (Exception e) { /* swallowed */ }
+        }
     }
 }
 
@@ -111,6 +114,7 @@ VTask<Result> result = connResource.use(conn ->
 | `withFinalizer(action)` | Add cleanup that runs after release |
 
 **Example:**
+<!-- verify -->
 ```java
 import org.higherkindedj.hkt.vtask.Resource;
 
@@ -125,11 +129,9 @@ VTask<List<User>> users = conn.use(c ->
 );
 
 // Compose multiple resources
+// A PreparedStatement is AutoCloseable, and its close() throws, which a Consumer cannot
 Resource<PreparedStatement> stmt = conn.flatMap(c ->
-    Resource.make(
-        () -> c.prepareStatement(sql),
-        PreparedStatement::close
-    )
+    Resource.fromAutoCloseable(() -> c.prepareStatement(sql))
 );
 
 // Combine independent resources (LIFO release order)
@@ -162,6 +164,7 @@ Resource<Lock> lock = Resource.make(
 | `withJoiner(joiner)` | Use custom `ScopeJoiner` |
 
 **Example:**
+<!-- verify -->
 ```java
 import org.higherkindedj.hkt.vtask.Scope;
 
@@ -202,6 +205,7 @@ VTask<Try<List<String>>> safe = Scope.<String>allSucceed()
 | `accumulating(mapper)` | `Validated<List<E>, List<T>>` | Collect all errors and successes |
 
 **Example:**
+<!-- verify -->
 ```java
 import org.higherkindedj.hkt.vtask.ScopeJoiner;
 
@@ -239,9 +243,10 @@ Either<Throwable, List<String>> eitherResult = allSucceed.resultEither();
 4. **Clean shutdown:** Resources are released in reverse order of acquisition
 
 **Example:**
+<!-- verify -->
 ```java
 // All three fetches are bounded by this scope
-VTask<List<String>> results = Scope.<String>allSucceed()
+VTask<List<UserData>> results = Scope.<UserData>allSucceed()
     .fork(VTask.of(() -> fetchUser(id)))
     .fork(VTask.of(() -> fetchProfile(id)))
     .fork(VTask.of(() -> fetchPreferences(id)))
@@ -255,11 +260,12 @@ VTask<List<String>> results = Scope.<String>allSucceed()
 ```
 
 **Contrast with Unstructured Concurrency:**
+<!-- verify -->
 ```java
 // Unstructured: tasks can outlive their creator
 ExecutorService executor = Executors.newVirtualThreadPerTaskExecutor();
-Future<A> futureA = executor.submit(taskA);
-Future<B> futureB = executor.submit(taskB);
+Future<Result> futureA = executor.submit(taskA::run);
+Future<Result> futureB = executor.submit(taskB::run);
 // If we return early, tasks may still be running!
 
 // Structured: tasks are bounded by scope
@@ -288,6 +294,7 @@ Scope.<Result>allSucceed()
 - Write simple blocking code that scales
 
 **Example:**
+<!-- verify -->
 ```java
 // VTask executes on virtual threads
 VTask<String> task = VTask.of(() -> {

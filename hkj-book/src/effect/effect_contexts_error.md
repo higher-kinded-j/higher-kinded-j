@@ -24,18 +24,27 @@ This `ErrorContext` is an effect type: a deferred IO computation with typed-erro
 
 Traditional Java error handling fragments across styles:
 
+<!-- verify -->
 ```java
 // Style 1: Checked exceptions
-public User fetchUser(String id) throws UserNotFoundException { ... }
+public User loadUser(String id) throws UserNotFoundException {
+    return userService.fetch(id);
+}
 
 // Style 2: Unchecked exceptions
-public Order createOrder(Cart cart) { /* might throw RuntimeException */ }
+public Order placeOrder(Cart cart) {
+    return new Order(cart.id());  // might throw RuntimeException
+}
 
 // Style 3: Optional returns
-public Optional<Profile> getProfile(User user) { ... }
+public Optional<Profile> getProfile(User user) {
+    return Optional.of(new Profile(user.profileId()));
+}
 
 // Style 4: Custom result types
-public Result<ValidationError, Order> validateOrder(OrderRequest req) { ... }
+public Result<ValidationError, Order> validateOrder(OrderRequest req) {
+    return Result.ok(new Order("o-1"));
+}
 ```
 
 Composing across these styles requires constant translation. Each boundary demands explicit handling, cluttering your code with conversion logic.
@@ -46,6 +55,7 @@ Composing across these styles requires constant translation. Each boundary deman
 
 `ErrorContext` unifies error handling for IO-based operations. Exceptions become typed errors. Optionality can be converted to errors. All computations compose through the same operations:
 
+<!-- verify -->
 ```java
 ErrorContext<IOKind.Witness, OrderError, Order> orderPipeline =
     ErrorContext.<OrderError, User>io(
@@ -70,10 +80,11 @@ One unified API. One error type. The compiler tracks what can fail.
 
 The most common factory method catches exceptions and maps them to your error type:
 
+<!-- verify -->
 ```java
 ErrorContext<IOKind.Witness, ApiError, User> user = ErrorContext.io(
-    () -> httpClient.get("/users/" + id),   // May throw
-    ApiError::fromException                   // Throwable → ApiError
+    () -> parseUser(httpClient.get("/users/" + id).body()),  // May throw
+    ApiError::fromException                                  // Throwable → ApiError
 );
 ```
 
@@ -83,6 +94,7 @@ The computation is *deferred*; nothing executes until you call `runIO()`. Except
 
 When your code already returns `Either`:
 
+<!-- verify -->
 ```java
 ErrorContext<IOKind.Witness, ValidationError, Order> validated = ErrorContext.ioEither(
     () -> validator.validate(request)   // Returns Either<ValidationError, Order>
@@ -93,6 +105,7 @@ ErrorContext<IOKind.Witness, ValidationError, Order> validated = ErrorContext.io
 
 For successful or failed values you already have:
 
+<!-- verify -->
 ```java
 // Known success
 ErrorContext<IOKind.Witness, String, Integer> success = ErrorContext.success(42);
@@ -113,6 +126,7 @@ ErrorContext<IOKind.Witness, ApiError, User> ctx = ErrorContext.fromEither(eithe
 
 `map` transforms the value inside a successful context:
 
+<!-- verify -->
 ```java
 ErrorContext<IOKind.Witness, String, String> greeting = ErrorContext.success("world");
 
@@ -134,6 +148,7 @@ The function only executes if the context is successful. Failures pass through u
 
 `via` is the workhorse for sequencing operations where each step depends on the previous:
 
+<!-- verify -->
 ```java
 ErrorContext<IOKind.Witness, DbError, Invoice> invoice =
     ErrorContext.<DbError, Customer>io(
@@ -153,6 +168,7 @@ Each step receives the previous result. If any step fails, subsequent steps are 
 
 `flatMap` is equivalent to `via` but with a more explicit type signature:
 
+<!-- verify -->
 ```java
 // Using flatMap instead of via
 ErrorContext<IOKind.Witness, ApiError, Profile> profile =
@@ -167,6 +183,7 @@ Choose based on readability. Both short-circuit on failure.
 
 When you need to sequence but don't care about the previous value:
 
+<!-- verify -->
 ```java
 ErrorContext<IOKind.Witness, String, Unit> workflow =
     ErrorContext.<String, Unit>success(Unit.INSTANCE)
@@ -183,6 +200,7 @@ ErrorContext<IOKind.Witness, String, Unit> workflow =
 
 `recover` catches errors and produces a fallback value:
 
+<!-- verify -->
 ```java
 ErrorContext<IOKind.Witness, String, Config> config =
     ErrorContext.<String, Config>io(
@@ -200,6 +218,7 @@ If the original computation fails, the recovery function runs. If it succeeds, r
 
 When recovery itself might fail:
 
+<!-- verify -->
 ```java
 ErrorContext<IOKind.Witness, ApiError, Data> data =
     ErrorContext.<ApiError, Data>io(
@@ -216,6 +235,7 @@ The fallback is another `ErrorContext`. This enables fallback chains that can th
 
 When you don't need the error details:
 
+<!-- verify -->
 ```java
 ErrorContext<IOKind.Witness, String, User> user =
     fetchFromCache(userId)
@@ -231,6 +251,7 @@ ErrorContext<IOKind.Witness, String, User> user =
 
 `mapError` transforms the error without affecting success values:
 
+<!-- verify -->
 ```java
 ErrorContext<IOKind.Witness, String, User> lowLevel = ErrorContext.failure("connection refused");
 
@@ -248,8 +269,9 @@ This is essential when composing code from different modules that use different 
 
 `runIO()` extracts an `IOPath<Either<E, A>>` for deferred execution:
 
+<!-- verify -->
 ```java
-ErrorContext<IOKind.Witness, ApiError, User> ctx = ...;
+ErrorContext<IOKind.Witness, ApiError, User> ctx = userContext;
 
 // Get the IOPath (nothing runs yet)
 IOPath<Either<ApiError, User>> ioPath = ctx.runIO();
@@ -262,6 +284,7 @@ Either<ApiError, User> result = ioPath.unsafeRun();
 
 For cases where failure should throw:
 
+<!-- verify -->
 ```java
 try {
     User user = userContext.runIOOrThrow();
@@ -275,6 +298,7 @@ try {
 
 For cases where failure should use a default:
 
+<!-- verify -->
 ```java
 User user = userContext.runIOOrElse(User.guest());
 ```
@@ -283,6 +307,7 @@ User user = userContext.runIOOrElse(User.guest());
 
 When the default depends on the error:
 
+<!-- verify -->
 ```java
 User user = userContext.runIOOrElseGet(error -> {
     log.error("Failed with: {}", error);
@@ -296,8 +321,11 @@ User user = userContext.runIOOrElseGet(error -> {
 
 ### API Client with Error Handling
 
+<!-- verify -->
 ```java
 public class UserClient {
+    private final HttpClient httpClient = new HttpClient();
+
     public ErrorContext<IOKind.Witness, ApiError, User> fetchUser(String id) {
         return ErrorContext.<ApiError, User>io(
             () -> {
@@ -308,6 +336,14 @@ public class UserClient {
                 return parseUser(response.body());
             },
             ApiError::fromException);
+    }
+
+    private User parseUser(String body) {
+        return new User("u-1", "p-1");
+    }
+
+    private Profile parseProfile(String body) {
+        return new Profile("p-1");
     }
 
     public ErrorContext<IOKind.Witness, ApiError, Profile> fetchProfile(User user) {
@@ -329,6 +365,7 @@ ErrorContext<IOKind.Witness, ApiError, Profile> profile =
 
 ### Multi-Step Transaction
 
+<!-- verify -->
 ```java
 public ErrorContext<IOKind.Witness, OrderError, Order> processOrder(OrderRequest request) {
     return validateRequest(request)
@@ -346,6 +383,7 @@ public ErrorContext<IOKind.Witness, OrderError, Order> processOrder(OrderRequest
 
 ### Layered Error Types
 
+<!-- verify -->
 ```java
 // Low-level: database errors
 ErrorContext<IOKind.Witness, DbError, User> dbUser =
@@ -366,6 +404,7 @@ ErrorContext<IOKind.Witness, ApiError, User> apiUser =
 
 When you need the raw transformer:
 
+<!-- verify -->
 ```java
 ErrorContext<IOKind.Witness, String, Integer> ctx = ErrorContext.success(42);
 

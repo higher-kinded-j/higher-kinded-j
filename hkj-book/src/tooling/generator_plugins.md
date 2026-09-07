@@ -131,9 +131,10 @@ dependencies {
 
 Once the library is on your classpath, usage is identical to JDK types:
 
+<!-- verify -->
 ```java
 import org.eclipse.collections.api.list.ImmutableList;
-import org.higherkindedj.optics.annotation.GenerateTraversals;
+import org.higherkindedj.optics.annotations.GenerateTraversals;
 
 @GenerateTraversals
 public record Warehouse(
@@ -143,6 +144,7 @@ public record Warehouse(
 
 // The processor generates a traversal for the 'products' field automatically.
 // Use it exactly like a List traversal:
+Warehouse warehouse = new Warehouse("Depot", Lists.immutable.of("bolt", "nut"));
 Warehouse updated = Traversals.modify(
     WarehouseTraversals.products(),
     String::toUpperCase,

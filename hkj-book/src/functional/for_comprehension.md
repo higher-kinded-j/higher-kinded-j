@@ -25,6 +25,7 @@ In functional programming, monads are a powerful tool for sequencing operations,
 
 Consider combining three `Maybe` values:
 
+<!-- verify -->
 ```java
 // The "nested" way
 Kind<MaybeKind.Witness, Integer> result = maybeMonad.flatMap(a ->
@@ -42,6 +43,7 @@ The `For` comprehension builder provides a much more intuitive way to write the 
 
 Here's the same example rewritten with the `For` builder:
 
+<!-- verify -->
 ```java
 import static org.higherkindedj.hkt.maybe.MaybeKindHelper.MAYBE;
 import org.higherkindedj.hkt.expression.For;
@@ -71,6 +73,7 @@ The `For` builder supports up to **12 chained bindings** (generators, value bind
 
 The generated `Steps2`-`Steps12` classes provide the same fluent API seamlessly:
 
+<!-- verify -->
 ```java
 var idMonad = Instances.monad(id());
 
@@ -107,6 +110,7 @@ A generator is the workhorse of the comprehension. It takes a value from a previ
 
 Each `.from()` adds a new variable to the scope of the comprehension.
 
+<!-- verify -->
 ```java
 // Generates all combinations of userLogin IDs and roles
 var userRoles = For.from(listMonad, LIST.widen(List.of("userLogin-1", "userLogin-2"))) // a: "userLogin-1", "userLogin-2"
@@ -121,6 +125,7 @@ var userRoles = For.from(listMonad, LIST.widen(List.of("userLogin-1", "userLogin
 
 A `.let()` binding allows you to compute a pure, simple value from the results you've gathered so far and add it to the scope. It does *not* involve a monad. This is equivalent to a **`map`** operation that carries the new value forward.
 
+<!-- verify -->
 ```java
 var idMonad = Instances.monad(id());
 
@@ -129,7 +134,7 @@ var result = For.from(idMonad, Id.of(10))        // a = 10
     .yield((a, b) -> "Value: " + a + ", Doubled: " + b);
 
 // Result: "Value: 10, Doubled: 20"
-System.out.println(ID.unwrap(result));
+System.out.println(ID.narrow(result).value());
 ```
 
 
@@ -140,6 +145,7 @@ For monads that can represent failure or emptiness (like `List`, `Maybe`, or `Op
 > This feature requires a `MonadZero` instance. See the `MonadZero` documentation for more details.
 >
 
+<!-- verify -->
 ```java
 var evens = For.from(listMonad, LIST.widen(List.of(1, 2, 3, 4, 5, 6)))
     .when(i -> i % 2 == 0) // Guard: only keep even numbers
@@ -160,6 +166,7 @@ Every comprehension ends with `.yield()`. This is the final **`map`** operation 
 
 The true power of for-comprehensions becomes apparent when working with complex structures like monad transformers. A `StateT` over `Optional` represents a **stateful computation that can fail**. Writing this with nested `flatMap` calls would be extremely complex. With the `For` builder, it becomes a simple, readable script.
 
+<!-- verify -->
 ```java
 import static org.higherkindedj.hkt.optional.OptionalKindHelper.OPTIONAL;
 import static org.higherkindedj.hkt.state_t.StateTKindHelper.STATE_T;
@@ -167,7 +174,8 @@ import static org.higherkindedj.hkt.state_t.StateTKindHelper.STATE_T;
 
 private static void stateTExample() {
     final var optionalMonad = Instances.monadError(optional());
-    final var stateTMonad = Instances.stateT(optionalMonad);
+    final var stateTMonad =
+        Instances.<Integer, OptionalKind.Witness>stateT(optionalMonad);
 
     // Helper: adds a value to the state (an integer)
     final Function<Integer, Kind<StateTKind.Witness<Integer, OptionalKind.Witness>, Unit>> add =

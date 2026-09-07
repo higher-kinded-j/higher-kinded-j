@@ -34,18 +34,20 @@ The first challenge in any data pipeline is getting at the values you need. In a
 
 Suppose you have a list of employees, each with a nested department. You want to produce a summary that includes both the employee's name and their department:
 
+<!-- verify -->
 ```java
+record Department(String name, int budgetInCents, List<Employee> staff) {}
 record Employee(String name, int salaryInCents, Department department) {}
-record Department(String name, int budgetInCents) {}
 
+var engineering = new Department("Engineering", 500000, List.of());
 var employees = List.of(
-    new Employee("Alice", 80000, new Department("Engineering", 500000)),
-    new Employee("Bob", 90000, new Department("Engineering", 500000))
+    new Employee("Alice", 80000, engineering),
+    new Employee("Bob", 90000, engineering)
 );
 
 Kind<ListKind.Witness, String> result =
     For.from(listMonad, LIST.widen(employees))
-        .focus(emp -> emp.department().name())
+        .focus(departmentNameOfEmployee)
         .yield((emp, deptName) -> emp.name() + " works in " + deptName);
 
 // Result: ["Alice works in Engineering", "Bob works in Engineering"]
@@ -57,6 +59,7 @@ The `focus()` call does not introduce a new monadic binding; it simply extracts 
 
 Not all data fits neatly into a single type. When you need to work with sum types (sealed interfaces, variants, or optional shapes), `match()` provides prism-like pattern matching directly within the comprehension. Elements that do not match are filtered out (with `List`) or short-circuit the computation (with `Maybe`):
 
+<!-- verify -->
 ```java
 sealed interface PayrollResult permits Paid, Skipped {}
 record Paid(String employeeName, int amount) implements PayrollResult {}
@@ -83,6 +86,7 @@ Kind<ListKind.Witness, String> receipts =
 
 With `Maybe`, a failed match short-circuits to `Nothing`:
 
+<!-- verify -->
 ```java
 Kind<MaybeKind.Witness, String> result =
     For.from(maybeMonad, MAYBE.just((PayrollResult) new Skipped("on leave")))
@@ -95,10 +99,11 @@ Kind<MaybeKind.Witness, String> result =
 ~~~admonish tip title="Chaining focus() and match()"
 Both operations compose naturally. Extract a nested value, match on its shape, then guard on the result:
 
+<!-- verify -->
 ```java
 For.from(listMonad, LIST.widen(items))
-    .focus(item -> item.category())
-    .match(premiumCategoryPrism)
+    .focus(itemCategoryLens)
+    .match(t -> premiumCategoryPrism.getOptional(t._2()))
     .when(t -> t._3().discount() > 0.1)
     .yield((item, category, premium) -> item.name());
 ```
@@ -118,6 +123,7 @@ A salary stored as `int` cents and a budget reasoned about in dollars are the sa
 
 The `through()` method converts the currently bound value via an Iso and keeps both representations in scope. This is available on `MonadicSteps1` and `FilterableSteps1`:
 
+<!-- verify -->
 ```java
 Iso<Integer, Double> centsToDollars =
     Iso.of(cents -> cents / 100.0, dollars -> (int) (dollars * 100));
@@ -135,6 +141,7 @@ Both the original value and the Iso-converted value are available in subsequent 
 
 When used with a `MonadZero`, `through()` returns a `FilterableSteps2`, preserving the ability to apply `when()` guards on the converted values:
 
+<!-- verify -->
 ```java
 Kind<ListKind.Witness, String> result =
     For.from(listMonad, LIST.widen(temperatures))
@@ -151,6 +158,7 @@ Use `through()` when you need both the original and converted values in scope. I
 
 Within a `ForState` workflow, `modifyVia(lens, iso, modifier)` lets you modify a field in a different representation. It extracts the field via the lens, converts through the Iso, applies your modifier in the converted type, and converts back:
 
+<!-- verify -->
 ```java
 Iso<Integer, Double> centsToDollars =
     Iso.of(cents -> cents / 100.0, dollars -> (int) (dollars * 100));
@@ -168,6 +176,7 @@ The flow is: `lens.get` &#8594; `iso.get` &#8594; `modifier` &#8594; `iso.revers
 
 When you want to set a field to a specific value in the converted representation, use `updateVia(lens, iso, value)`:
 
+<!-- verify -->
 ```java
 // Set budget to exactly $750.00 (stored internally as 75000 cents)
 ForState.withState(idMonad, Id.of(department))
@@ -192,6 +201,7 @@ With extraction, filtering, and conversion covered, the remaining challenge is b
 
 `traverseOver(traversal, function)` applies an effectful function to each element focused by the traversal. The monad governs how effects compose; with `Maybe`, a single failure short-circuits the entire operation:
 
+<!-- verify -->
 ```java
 Traversal<List<Employee>, Employee> empTraversal = Traversals.forList();
 
@@ -210,17 +220,20 @@ The key difference from `traverse(lens, traversal, function)` is that `traverseO
 
 When your transformation is pure (no validation, no effects, no possibility of failure), use `modifyThrough(traversal, modifier)`. It uses the Identity monad internally, so there is no monadic overhead:
 
+<!-- verify -->
 ```java
 // Uppercase all employee names (pure operation, no effect needed)
 Kind<IdKind.Witness, List<Employee>> result =
     ForState.withState(idMonad, Id.of(employees))
         .modifyThrough(empTraversal,
-            emp -> new Employee(emp.name().toUpperCase(), emp.salaryInCents()))
+            emp -> new Employee(
+                emp.name().toUpperCase(), emp.salaryInCents(), emp.department()))
         .yield();
 ```
 
 The three-argument form `modifyThrough(traversal, lens, modifier)` composes a traversal with a lens to modify a nested field within each element:
 
+<!-- verify -->
 ```java
 // Increase every employee's salary by 500
 ForState.withState(idMonad, Id.of(employees))
@@ -261,6 +274,7 @@ The rule of thumb: if your function returns `Kind<M, A>`, use `traverseOver`. If
 
 For operations over multiple elements within a structure, `ForTraversal` provides a standalone fluent API built around a [Traversal](../optics/traversals.md). This is useful when you want to apply a sequence of modifications and filters without threading state through a `ForState` workflow:
 
+<!-- verify -->
 ```java
 record Player(String name, int score) {}
 
@@ -281,7 +295,7 @@ Kind<IdKind.Witness, List<Player>> result =
         .modify(scoreLens, score -> score + 50)
         .run();
 
-List<Player> updated = IdKindHelper.ID.unwrap(result);
+List<Player> updated = ID.narrow(result).value();
 // Result: [Player("Alice", 150), Player("Bob", 250)]
 ```
 
@@ -289,6 +303,7 @@ List<Player> updated = IdKindHelper.ID.unwrap(result);
 
 The `filter()` method preserves non-matching elements unchanged whilst applying transformations only to matching elements:
 
+<!-- verify -->
 ```java
 Kind<IdKind.Witness, List<Player>> result =
     ForTraversal.over(playersTraversal, players, Instances.monad(id()))
@@ -303,6 +318,7 @@ Kind<IdKind.Witness, List<Player>> result =
 
 Use `toList()` to collect all focused elements:
 
+<!-- verify -->
 ```java
 Kind<IdKind.Witness, List<Player>> allPlayers =
     ForTraversal.over(playersTraversal, players, Instances.monad(id()))
@@ -315,6 +331,7 @@ Kind<IdKind.Witness, List<Player>> allPlayers =
 
 Sometimes the transformation depends on *where* an element sits, not just *what* it is. `ForIndexed` extends traversal comprehensions with index awareness:
 
+<!-- verify -->
 ```java
 IndexedTraversal<Integer, List<Player>, Player> indexedPlayers =
     IndexedTraversals.forList();
@@ -340,6 +357,7 @@ Kind<IdKind.Witness, List<Player>> result =
 
 Use `filterIndex()` to focus only on specific positions:
 
+<!-- verify -->
 ```java
 // Only modify top 3 players
 ForIndexed.overIndexed(indexedPlayers, players, idApplicative)
@@ -352,6 +370,7 @@ ForIndexed.overIndexed(indexedPlayers, players, idApplicative)
 
 Use `filter()` with a `BiPredicate` to filter on both position and value:
 
+<!-- verify -->
 ```java
 ForIndexed.overIndexed(indexedPlayers, players, idApplicative)
     .filter((index, player) -> index < 5 && player.score() > 100)
@@ -363,6 +382,7 @@ ForIndexed.overIndexed(indexedPlayers, players, idApplicative)
 
 Use `toIndexedList()` to collect elements along with their indices:
 
+<!-- verify -->
 ```java
 Kind<IdKind.Witness, List<Pair<Integer, Player>>> indexed =
     ForIndexed.overIndexed(indexedPlayers, players, idApplicative)
@@ -381,8 +401,9 @@ For more details on indexed optics, see [Indexed Optics](../optics/indexed_optic
 
 The real power of optics integration emerges when you combine these operations in a single pipeline. Here is a payroll workflow that validates employees, normalises their names, gives everyone a raise, and increases the department budget, all in one composable chain:
 
+<!-- verify -->
 ```java
-MonadError<MaybeKind.Witness, Unit> maybeMonad = Instances.monadError(maybe());
+MonadZero<MaybeKind.Witness> maybeMonad = Instances.monadZero(maybe());
 Iso<Integer, Double> centsToDollars =
     Iso.of(cents -> cents / 100.0, dollars -> (int) (dollars * 100));
 
@@ -392,7 +413,8 @@ Kind<MaybeKind.Witness, Department> result =
         .traverse(staffLens, Traversals.forList(),
             emp -> emp.salaryInCents() > 0 ? MAYBE.just(emp) : MAYBE.nothing())
         // Normalise: uppercase all names (pure, no effects)
-        .modifyThrough(Traversals.forList(), empNameLens, String::toUpperCase)
+        .modifyThrough(staffLens.asTraversal().andThen(Traversals.forList()),
+            empNameLens, String::toUpperCase)
         // Raise: increase budget by 10%, reasoning in dollars
         .modifyVia(budgetLens, centsToDollars, dollars -> dollars * 1.1)
         .yield();

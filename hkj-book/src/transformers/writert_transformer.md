@@ -32,6 +32,7 @@ Reach for raw `WriterT` only when you need to combine accumulation with a specif
 
 Consider an async pipeline that needs an audit trail:
 
+<!-- verify -->
 ```java
 CompletableFuture<Pair<BigDecimal, List<String>>> applyDiscount(
         BigDecimal price, List<String> logSoFar) {
@@ -64,6 +65,7 @@ Every function must accept a log, copy it, append to it, and return it alongside
 
 If accumulation is the only effect, `WriterPath` is the simplest expression:
 
+<!-- verify -->
 ```java
 WriterPath<List<String>, BigDecimal> workflow(BigDecimal price) {
     return WriterPath.<List<String>, BigDecimal>writer(
@@ -81,6 +83,7 @@ WriterPath<List<String>, BigDecimal> workflow(BigDecimal price) {
 
 When accumulation must combine with another monad (here `Id` for a pure example, but the same shape works over `CompletableFuture`):
 
+<!-- verify -->
 ```java
 var idMonad     = Instances.monad(id());
 var listMonoid  = Monoids.list();
@@ -153,6 +156,7 @@ public record WriterT<F, W, A>(Kind<F, Pair<A, W>> run)
 
 The `WriterTMonad<F, W>` class implements both `Monad` and `MonadWriter`, providing monadic operations and output accumulation. It requires a `Monad<F>` for the outer monad and a `Monoid<W>` for combining outputs:
 
+<!-- verify -->
 ```java
 Monoid<String> stringMonoid = new Monoid<>() {
     public String empty()                      { return ""; }
@@ -208,9 +212,13 @@ Without a `Monoid`, `WriterT` cannot combine the output from `flatMap` chains. T
 
 ## Creating WriterT Instances
 
+<!-- verify -->
 ```java
-var idMonad      = Instances.monad(id());
-Monoid<String> stringMonoid = /* as above */;
+var idMonad = Instances.monad(id());
+Monoid<String> stringMonoid = new Monoid<>() {
+    public String empty()                     { return ""; }
+    public String combine(String a, String b) { return a + b; }
+};
 
 // 1. Pure value with empty output
 var pure = WriterT.of(idMonad, stringMonoid, 42);
@@ -221,7 +229,7 @@ var logged = WriterT.tell(idMonad, "initialised; ");
 // → Pair(Unit.INSTANCE, "initialised; ")
 
 // 3. Lift an outer-monad value with empty output
-Kind<IdKind.Witness, Integer> idValue = IdKindHelper.ID.widen(new Id<>(42));
+Kind<IdKind.Witness, Integer> idValue = IdKindHelper.ID.widen(Id.of(42));
 var lifted = WriterT.liftF(idMonad, stringMonoid, idValue);
 // → Pair(42, "")
 
@@ -244,6 +252,7 @@ var fromKind = WriterT.fromKind(idMonad.of(Pair.of(42, "restored; ")));
 
 **The solution:**
 
+<!-- verify -->
 ```java
 var idMonad    = Instances.monad(id());
 var listMonoid = Monoids.list();
@@ -251,9 +260,10 @@ var audit      = Instances.writerT(idMonad, listMonoid);
 
 var workflow = For.from(audit, audit.tell(List.of("Validated order")))
     .from(_ -> audit.of("order-123"))
-    .from(orderId -> audit.tell(List.of("Applied 10% discount to " + orderId)))
-    .from((_, _, _) -> audit.of(new BigDecimal("90.00")))
-    .from(amount   -> audit.tell(List.of("Charged " + amount)))
+    // past the first binding, `from` sees the accumulated tuple; only `yield` unpacks it
+    .from(t -> audit.tell(List.of("Applied 10% discount to " + t._2())))
+    .from(_ -> audit.of(new BigDecimal("90.00")))
+    .from(t -> audit.tell(List.of("Charged " + t._4())))
     .yield((_, _, _, _, _) -> "receipt-456");
 
 var concrete = WRITER_T.narrow(workflow);
@@ -276,6 +286,7 @@ pair.second();  // → ["Validated order",
 
 `listen` runs a computation and returns the result paired with the output that computation produced:
 
+<!-- verify -->
 ```java
 var computation = For.from(audit, audit.tell(List.of("computed value")))
     .yield(_ -> 42);
@@ -291,6 +302,7 @@ This is useful for conditional logic based on what was logged.
 
 `censor` applies a function to the output without seeing the result:
 
+<!-- verify -->
 ```java
 var withSensitiveData = For.from(audit, audit.tell(List.of("API key: sk_live_abc123")))
     .yield(_ -> "done");
@@ -323,11 +335,12 @@ Sometimes you need to change the *outer monad* of a `WriterT` without touching t
   └─────────┘                            └─────────┘
 ```
 
+<!-- verify -->
 ```java
 var idWriter = WriterT.writer(idMonad, "result", List.of("step 1", "step 2"));
 
 var optWriter = idWriter.mapT(idKind -> {
-  Pair<String, List<String>> pair = ID.unwrap(idKind);
+  Pair<String, List<String>> pair = ID.narrow(idKind).value();
   return OPTIONAL.widen(Optional.of(pair));
 });
 ```

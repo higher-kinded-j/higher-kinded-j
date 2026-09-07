@@ -35,6 +35,7 @@ public interface Foldable<F extends WitnessArity<TypeArity.Unary>> {
 
 ### Same Data, Three Summaries
 
+<!-- verify -->
 ```java
 List<Integer> numbers = List.of(1, 2, 3, 4, 5);
 Kind<ListKind.Witness, Integer> numbersKind = LIST.widen(numbers);
@@ -115,6 +116,7 @@ public interface Traverse<T extends WitnessArity<TypeArity.Unary>>
 
 **The solution.**
 
+<!-- verify -->
 ```java
 public Kind<ValidatedKind.Witness<String>, String> validateCode(String code) {
     if (code.startsWith("VALID")) {
@@ -152,10 +154,11 @@ We reach for `traverse` when we are turning each element into an effect. We reac
 
 `traverse`, `sequence`, and `flatTraverse` are not just standalone operations; they fit inside a `For` chain so we can blend collection iteration with the rest of a monadic workflow without breaking out.
 
+<!-- verify -->
 ```java
 For.from(maybeMonad, MAYBE.just(LIST.widen(List.of(1, 2, 3))))
     .traverse(ListTraverse.INSTANCE,
-        t -> t._1(),
+        list -> list,
         n -> n > 0 ? MAYBE.just(n * 10) : MAYBE.nothing())
     .yield((original, transformed) -> transformed);
 ```
@@ -164,6 +167,7 @@ For.from(maybeMonad, MAYBE.just(LIST.widen(List.of(1, 2, 3))))
 
 The collection-style Effect Paths expose this fold directly as a terminal operation: `ListPath` and `StreamPath` both provide `fold(identity, op)` for a same-type reduction and `foldMap(monoid, fn)` for the `Monoid`-driven summary, keeping the reduction inside the path chain instead of unwrapping the collection first.
 
+<!-- verify -->
 ```java
 String joined = ListPath.of(1, 2, 3).foldMap(Monoids.string(), i -> i + ",");
 // "1,2,3,"

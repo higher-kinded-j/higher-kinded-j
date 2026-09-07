@@ -33,6 +33,7 @@ Apply these to your own records and sealed types. The generated class is placed 
 ~~~admonish tip title="Annotations stack"
 You almost always want at least `@GenerateLenses` and `@GenerateFocus` together. Add `@GenerateTraversals` if the record contains a collection field and `@GenerateFolds` if you also need read-only queries.
 
+<!-- verify -->
 ```java
 @GenerateLenses
 @GenerateFocus

@@ -93,6 +93,7 @@ Each effect algebra is a sealed interface annotated with `@EffectAlgebra`. Opera
 continuation-passing style (CPS): a `Function` parameter maps the natural result type to `A`,
 giving the compiler enough information to infer types at every call site.
 
+<!-- verify -->
 ```java
 @EffectAlgebra
 public sealed interface PaymentGatewayOp<A>
@@ -117,7 +118,14 @@ public sealed interface PaymentGatewayOp<A>
       return new Charge<>(amount, method, k.andThen(f));
     }
   }
-  // Refund follows the same pattern
+
+  record Refund<A>(TransactionId transactionId, Money amount,
+      Function<ChargeResult, A> k) implements PaymentGatewayOp<A> {
+    @Override
+    public <B> PaymentGatewayOp<B> mapK(Function<? super A, ? extends B> f) {
+      return new Refund<>(transactionId, amount, k.andThen(f));
+    }
+  }
 }
 ```
 
@@ -176,6 +184,7 @@ The four effect algebras are composed via `@ComposeEffects`. The composition use
 
 `@ComposeEffects` generates `PaymentEffectsSupport` with the inject instances, the composed functor and the `BoundSet`, each typed to the composed witness. `PaymentEffectsWiring` is a thin facade over it, adding a `boundSet()` wired to each algebra's Functor and an `interpret()` that spells the witness once:
 
+<!-- verify -->
 ```java
 @ComposeEffects
 public record PaymentEffects(
@@ -192,32 +201,28 @@ public record PaymentEffects(
 The `PaymentService` uses constructor-injected `Bound` instances, exactly like Spring bean
 injection:
 
+<!-- verify -->
 ```java
-public final class PaymentService<G extends WitnessArity<TypeArity.Unary>> {
+// The service holds one bound handle per algebra, all four over the same witness G:
+//   PaymentGatewayOpOps.Bound<G>, FraudCheckOpOps.Bound<G>,
+//   LedgerOpOps.Bound<G>, NotificationOpOps.Bound<G>
+public Free<G, PaymentResult> processPayment(
+    Customer customer, Money amount, PaymentMethod method) {
+  // Pure program description, no side effects here
+  Free<G, RiskScore> checkRisk =
+      fraud.checkTransaction(amount, customer, Function.identity());
 
-  private final PaymentGatewayOpOps.Bound<G> gateway;
-  private final FraudCheckOpOps.Bound<G> fraud;
-  private final LedgerOpOps.Bound<G> ledger;
-  private final NotificationOpOps.Bound<G> notification;
-
-  public Free<G, PaymentResult> processPayment(
-      Customer customer, Money amount, PaymentMethod method) {
-    // Pure program description, no side effects here
-    Free<G, RiskScore> checkRisk =
-        fraud.checkTransaction(amount, customer, Function.identity());
-
-    return checkRisk.flatMap(risk -> {
-      Free<G, Money> getBalance =
-          ledger.getBalance(customer.accountId(), Function.identity());
-      return getBalance.flatMap(balance -> {
-        if (risk.exceeds(RISK_THRESHOLD))
-          return alertAndDecline(customer, risk);
-        if (balance.lessThan(amount))
-          return Free.pure(PaymentResult.declined("Insufficient funds"));
-        return chargeAndRecord(customer, amount, method, risk);
-      });
+  return checkRisk.flatMap(risk -> {
+    Free<G, Money> getBalance =
+        ledger.getBalance(customer.accountId(), Function.identity());
+    return getBalance.flatMap(balance -> {
+      if (risk.exceeds(RISK_THRESHOLD))
+        return alertAndDecline(customer, risk);
+      if (balance.lessThan(amount))
+        return Free.pure(PaymentResult.declined("Insufficient funds"));
+      return chargeAndRecord(customer, amount, method, risk);
     });
-  }
+  });
 }
 ```
 
@@ -232,9 +237,17 @@ what to do without executing anything.
 Production interpreters target the `IO` monad and perform real (simulated) side effects.
 Each handler applies the operation's continuation `op.k()` to the computed result:
 
+<!-- verify -->
 ```java
 public final class ProductionGatewayInterpreter
     extends PaymentGatewayOpInterpreter<IOKind.Witness> {
+
+  @Override
+  protected <A> Kind<IOKind.Witness, A> handleAuthorise(PaymentGatewayOp.Authorise<A> op) {
+    return IOKindHelper.IO_OP.widen(
+        IO.delay(() -> op.k().apply(
+            new AuthorisationToken("auth-" + System.nanoTime(), op.amount()))));
+  }
 
   @Override
   protected <A> Kind<IOKind.Witness, A> handleCharge(PaymentGatewayOp.Charge<A> op) {
@@ -242,11 +255,19 @@ public final class ProductionGatewayInterpreter
         IO.delay(() -> op.k().apply(
             ChargeResult.success(TransactionId.generate(), op.amount()))));
   }
+
+  @Override
+  protected <A> Kind<IOKind.Witness, A> handleRefund(PaymentGatewayOp.Refund<A> op) {
+    return IOKindHelper.IO_OP.widen(
+        IO.delay(() -> op.k().apply(
+            ChargeResult.success(op.transactionId(), op.amount()))));
+  }
 }
 ```
 
 Interpreters are combined and the program is interpreted:
 
+<!-- verify -->
 ```java
 var interpreter = Interpreters.combine(
     new ProductionGatewayInterpreter(),
@@ -265,6 +286,7 @@ PaymentResult result = io.unsafeRunSync();
 
 Test interpreters target the `Id` monad for pure, synchronous execution without mock frameworks:
 
+<!-- verify -->
 ```java
 @Test
 void processPayment_highRisk_declines() {
@@ -293,9 +315,18 @@ No mocks. No reflection. No side effects. Pure functional testing.
 
 The `QuoteGatewayInterpreter` calculates processing fees without contacting any payment gateway:
 
+<!-- verify -->
 ```java
 public final class QuoteGatewayInterpreter
     extends PaymentGatewayOpInterpreter<IdKind.Witness> {
+
+  private static final BigDecimal FEE_RATE = new BigDecimal("0.029");
+  private static final BigDecimal FIXED_FEE = new BigDecimal("0.30");
+
+  @Override
+  protected <A> Kind<IdKind.Witness, A> handleAuthorise(PaymentGatewayOp.Authorise<A> op) {
+    return new Id<>(op.k().apply(new AuthorisationToken("quote-auth", op.amount())));
+  }
 
   @Override
   protected <A> Kind<IdKind.Witness, A> handleCharge(PaymentGatewayOp.Charge<A> op) {
@@ -303,6 +334,11 @@ public final class QuoteGatewayInterpreter
     Money totalWithFee = new Money(op.amount().amount().add(fee), op.amount().currency());
     return new Id<>(op.k().apply(
         ChargeResult.success(new TransactionId("quote-txn"), totalWithFee)));
+  }
+
+  @Override
+  protected <A> Kind<IdKind.Witness, A> handleRefund(PaymentGatewayOp.Refund<A> op) {
+    return new Id<>(op.k().apply(ChargeResult.success(op.transactionId(), op.amount())));
   }
 }
 ```
@@ -315,6 +351,7 @@ The **same program** now estimates costs instead of charging. No code change req
 
 Recovery is built into the program using `handleError`:
 
+<!-- verify -->
 ```java
 // Send receipt (non-critical, recovered on failure)
 Free<G, Unit> safeReceipt = receipt.handleError(
@@ -329,6 +366,7 @@ while a production interpreter with real network calls will.
 
 ## Inspecting Programs Before Execution
 
+<!-- verify -->
 ```java
 ProgramAnalysis analysis = ProgramAnalyser.analyse(program);
 

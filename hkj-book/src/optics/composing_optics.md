@@ -51,6 +51,7 @@ This single task requires us to:
 
 Here is the nested data structure, annotated to generate all the optics we will need.
 
+<!-- verify -->
 ```java
 import org.higherkindedj.optics.annotations.GenerateLenses;
 import org.higherkindedj.optics.annotations.GeneratePrisms;
@@ -77,6 +78,7 @@ public record Form(int formId, Principal principal) {}
 
 Our validation function will take a permission name (`String`) and return a `Validated<String, String>`. The `Validated` applicative functor will automatically handle accumulating any errors found.
 
+<!-- verify -->
 ```java
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.validated.Validated;
@@ -129,6 +131,7 @@ Now for the main event. We will compose our generated optics to create a single 
 
 To ensure type-safety across different optic types, we convert each `Lens` and `Prism` in the chain to a `Traversal` using the `.asTraversal()` method.
 
+<!-- verify -->
 ```java
 import org.higherkindedj.optics.Lens;
 import org.higherkindedj.optics.Prism;
@@ -161,6 +164,7 @@ This single `formToPermissionNameTraversal` object now encapsulates the entire c
 * **Type-safe bulk operations** - You need to ensure compile-time safety for collection operations
 * **Error accumulation** - You want to collect all errors, not stop at the first failure
 
+<!-- verify -->
 ```java
 // Perfect for reusable, complex validation: the path below is built once and
 // reused for every rule that needs to reach a permission name.
@@ -177,6 +181,7 @@ Validated<String, Form> rechecked = validatePermissions(updatedForm);
 * **Performance critical** - Minimal abstraction overhead required
 
 
+<!-- verify -->
 ```java
 // Simple validation doesn't need optics
 public Validated<String, User> validateUser(User user) {
@@ -194,6 +199,7 @@ public Validated<String, User> validateUser(User user) {
 * **Filtering and collecting** - Changing the structure of collections
 
 
+<!-- verify -->
 ```java
 // Better with streams for aggregation
 Map<String, Long> permissionCounts = forms.stream()
@@ -235,6 +241,7 @@ Traversal<Form, String> badTraversal = /* any string traversal */;
 ### Do This Instead:
 
 
+<!-- verify -->
 ```java
 // Use direct access for simple cases
 int formId = form.formId(); // Clear and direct
@@ -251,7 +258,8 @@ public static final Traversal<Form, String> FORM_TO_PERMISSION_NAMES =
         .andThen(PermissionLenses.name().asTraversal());
 
 // Use the well-named traversal
-var result = FORM_TO_PERMISSION_NAMES.modifyF(validatePermissionName, form, validatedApplicative);
+var result = FORM_TO_PERMISSION_NAMES.modifyF(
+    ValidationOptics::validatePermissionName, form, validatedApplicative);
 
 // Be specific about what you're validating
 // This traversal has clear semantics: Form -> User permissions -> permission names
@@ -271,8 +279,22 @@ Optic composition trades a little throughput for composability, and it is worth 
 **Best Practice**: Create composed optics as constants for reuse:
 
 
+<!-- verify -->
 ```java
 public class ValidationOptics {
+    private static final Set<String> VALID_PERMISSIONS =
+        Set.of("PERM_READ", "PERM_WRITE", "PERM_DELETE");
+
+    private static Applicative<ValidatedKind.Witness<String>> getValidatedApplicative() {
+        return Instances.validated(Semigroups.string("; "));
+    }
+
+    public static Kind<ValidatedKind.Witness<String>, String> validatePermissionName(String name) {
+        return VALID_PERMISSIONS.contains(name)
+            ? VALIDATED.widen(Validated.valid(name))
+            : VALIDATED.widen(Validated.invalid("Invalid permission: " + name));
+    }
+
     // Reusable validation paths
     public static final Traversal<Form, String> USER_PERMISSION_NAMES =
         FormLenses.principal().asTraversal()
@@ -303,6 +325,7 @@ public class ValidationOptics {
 ### 1. Multi-Level Validation
 
 
+<!-- verify -->
 ```java
 // Validate both user data AND permissions in one pass
 public static Validated<String, Form> validateFormCompletely(Form form) {
@@ -328,6 +351,7 @@ public static Validated<String, Form> validateFormCompletely(Form form) {
 ### 2. Conditional Validation Paths
 
 
+<!-- verify -->
 ```java
 // A prism can only branch where the model is actually sealed. `Principal` is,
 // so this pair is legal: one path for each variant.
@@ -348,10 +372,11 @@ If you genuinely need per-role paths, the split has to exist in the model: make 
 ### 3. Cross-Field Validation
 
 
+<!-- verify -->
 ```java
 // Validate that a user's permissions are appropriate for who they are
 public static Validated<String, Form> validatePermissionsForUser(Form form) {
-    return FormLenses.principal().asTraversal()
+    return VALIDATED.narrow(FormLenses.principal().asTraversal()
         .andThen(PrincipalPrisms.user().asTraversal())
         .modifyF(user -> {
             // Cross-field: the username decides which permissions are allowed
@@ -365,7 +390,7 @@ public static Validated<String, Form> validatePermissionsForUser(Form form) {
             return errors.isEmpty() 
                 ? VALIDATED.widen(Validated.valid(user))
                 : VALIDATED.widen(Validated.invalid(String.join("; ", errors)));
-        }, form, getValidatedApplicative());
+        }, form, getValidatedApplicative()));
 }
 ```
 
@@ -617,6 +642,7 @@ Higher-kinded-j provides specialised validation methods that simplify the patter
 
 In the examples above, we used the general `modifyF` method with explicit `Applicative` configuration:
 
+<!-- verify -->
 ```java
 // Traditional approach: requires explicit Applicative setup
 Applicative<ValidatedKind.Witness<String>> applicative =
@@ -650,6 +676,7 @@ These methods provide a more direct API for the common validation patterns:
 
 Simplifies the most common case: validating multiple fields and accumulating all errors.
 
+<!-- verify -->
 ```java
 import static org.higherkindedj.optics.fluent.OpticOps.modifyAllValidated;
 
@@ -672,6 +699,7 @@ Validated<List<String>, Form> result = modifyAllValidated(
 
 When the caller only needs to know that *something* failed, and which failure the traversal met first:
 
+<!-- verify -->
 ```java
 import static org.higherkindedj.optics.fluent.OpticOps.modifyAllEither;
 
@@ -709,6 +737,7 @@ Either<String, Form> result = modifyAllEither(
 * Building **form validation** or **data quality checks**
 * Users need **comprehensive error reports**
 
+<!-- verify -->
 ```java
 // Perfect for form validation
 Validated<List<String>, OrderForm> validated = modifyAllValidated(
@@ -720,10 +749,11 @@ Validated<List<String>, OrderForm> validated = modifyAllValidated(
 * The caller is a **batch job or internal service**, not a person filling in a form
 * You want the **`Either` shape** the rest of your pipeline already speaks
 
+<!-- verify -->
 ```java
 // Perfect when one message is all the caller will act on
 Either<String, OrderForm> validated = modifyAllEither(
-    orderForm, ORDER_TO_PRICES, OrderRules::validatePrice);
+    orderForm, ORDER_TO_PRICES, OrderRules::checkPrice);
 ```
 
 **Use `modifyMaybe` when:**
@@ -731,6 +761,7 @@ Either<String, OrderForm> validated = modifyAllEither(
 * Building **data enrichment** pipelines where a miss means "leave the whole thing alone"
 * Failure needs **no detail**, only presence or absence
 
+<!-- verify -->
 ```java
 // modifyMaybe focuses ONE field through a Lens: nothing() discards the whole update
 Maybe<OrderForm> enriched = modifyMaybe(orderForm, ORDER_DISCOUNT, OrderRules::tryApplyDiscount);
@@ -757,12 +788,16 @@ Kind<F, Form> result = FORM_TO_PERMISSION_NAMES.modifyF(
 
 Here's how the original example can be simplified using the new methods:
 
+<!-- verify -->
 ```java
 import static org.higherkindedj.optics.fluent.OpticOps.modifyAllValidated;
 import org.higherkindedj.hkt.validated.Validated;
 import java.util.List;
 
 public class SimplifiedValidation {
+    private static final Set<String> VALID_PERMISSIONS =
+        Set.of("PERM_READ", "PERM_WRITE", "PERM_DELETE");
+
     // Same traversal as before
     public static final Traversal<Form, String> FORM_TO_PERMISSION_NAMES =
         FormLenses.principal().asTraversal()

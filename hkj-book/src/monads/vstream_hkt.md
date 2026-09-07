@@ -22,6 +22,7 @@ implementation. HKT encoding solves this by letting VStream present itself as
 `Kind<VStreamKind.Witness, A>`, the same shape that Maybe, Either, VTask, and every
 other Higher-Kinded-J type uses. One generic function handles them all.
 
+<!-- verify -->
 ```java
 // Generic: works with VStream, Maybe, Either, VTask, List, ...
 <F extends WitnessArity<TypeArity.Unary>> Kind<F, Integer> doubleAll(
@@ -81,6 +82,7 @@ tells the type class machinery "this is VStream".
 `VStreamKindHelper` provides safe conversions between the concrete and HKT
 representations:
 
+<!-- verify -->
 ```java
 import static org.higherkindedj.hkt.vstream.VStreamKindHelper.VSTREAM;
 
@@ -147,10 +149,11 @@ object.
 `VStreamFunctor` delegates to `VStream.map()`, preserving laziness. No elements are
 produced until a terminal operation runs.
 
+<!-- verify -->
 ```java
 Functor<VStreamKind.Witness> functor = VStreamFunctor.INSTANCE;
 
-Kind<VStreamKind.Witness, String> stream = VSTREAM.widen(VStream.of(1, 2, 3));
+Kind<VStreamKind.Witness, Integer> stream = VSTREAM.widen(VStream.of(1, 2, 3));
 Kind<VStreamKind.Witness, String> mapped = functor.map(n -> "#" + n, stream);
 
 List<String> result = VSTREAM.narrow(mapped).toList().run();
@@ -170,6 +173,7 @@ stream of functions to a stream of values, every function is applied to every va
 This is the standard choice for list-like monads, consistent with StreamMonad and
 NonDetPath.
 
+<!-- verify -->
 ```java
 Applicative<VStreamKind.Witness> applicative = VStreamApplicative.INSTANCE;
 
@@ -179,7 +183,8 @@ Kind<VStreamKind.Witness, String> single = applicative.of("hello");
 
 // Cartesian product: 2 functions x 3 values = 6 results
 Kind<VStreamKind.Witness, Function<Integer, String>> fns =
-    VSTREAM.widen(VStream.of(n -> "x" + n, n -> "y" + n));
+    VSTREAM.widen(VStream.fromList(
+        List.<Function<Integer, String>>of(n -> "x" + n, n -> "y" + n)));
 
 Kind<VStreamKind.Witness, Integer> vals =
     VSTREAM.widen(VStream.of(1, 2, 3));
@@ -198,6 +203,7 @@ List<String> result = VSTREAM.narrow(applied).toList().run();
 and flattens the results. This is the monadic bind for VStream, and it preserves
 lazy evaluation throughout.
 
+<!-- verify -->
 ```java
 Monad<VStreamKind.Witness> monad = Instances.monad(vstream());
 
@@ -226,6 +232,7 @@ empty stream (the identity element), and `orElse` concatenates two streams. This
 is consistent with list-like Alternative instances: "try all of stream A, then try
 all of stream B".
 
+<!-- verify -->
 ```java
 Alternative<VStreamKind.Witness> alt = VStreamAlternative.INSTANCE;
 
@@ -263,18 +270,19 @@ Use `take()` or `takeWhile()` to bound the stream before folding or traversing.
 results using a monoid. Because VStream elements are produced via VTask, this is a
 terminal operation that executes the stream.
 
+<!-- verify -->
 ```java
 VStreamTraverse traverse = VStreamTraverse.INSTANCE;
 
 Kind<VStreamKind.Witness, Integer> stream = VSTREAM.widen(VStream.of(1, 2, 3, 4, 5));
 
 // Sum using the integer addition monoid
-int sum = traverse.foldMap(Monoid.intSum(), n -> n, stream);
+int sum = traverse.foldMap(Monoids.integerAddition(), n -> n, stream);
 // 15
 
 // String concatenation
 String csv = traverse.foldMap(
-    Monoid.string(),
+    Monoids.string(),
     n -> String.valueOf(n),
     stream
 );
@@ -287,6 +295,7 @@ String csv = traverse.foldMap(
 inside an outer applicative context. For VStream, this materialises the stream to a
 list first, traverses the list, and reconstructs the result as a VStream.
 
+<!-- verify -->
 ```java
 // Traverse with Maybe: if any element maps to Nothing, the whole result is Nothing
 Applicative<MaybeKind.Witness> maybeApp = Instances.monadError(maybe());
@@ -312,6 +321,7 @@ Kind<MaybeKind.Witness, Kind<VStreamKind.Witness, String>> result =
 The real power of HKT encoding is writing functions that work with any monadic type.
 Here is a function that triples every element in any Functor:
 
+<!-- verify -->
 ```java
 static <F extends WitnessArity<TypeArity.Unary>>
 Kind<F, Integer> tripleAll(Functor<F> functor, Kind<F, Integer> fa) {
@@ -335,6 +345,7 @@ Kind<MaybeKind.Witness, Integer> tripledMaybe = tripleAll(
 
 And a function that uses Monad to compose sequential operations:
 
+<!-- verify -->
 ```java
 static <F extends WitnessArity<TypeArity.Unary>>
 Kind<F, String> fetchAndFormat(

@@ -33,6 +33,7 @@ Reach for raw `ReaderT` only when you need to combine an environment with a spec
 
 Consider a service that needs API keys and URLs for every operation:
 
+<!-- verify -->
 ```java
 CompletableFuture<ServiceData> fetchData(AppConfig config, String itemId) {
     return CompletableFuture.supplyAsync(() ->
@@ -60,12 +61,13 @@ The `config` parameter threads through every function signature, every call site
 
 If the environment is the only effect, `ReaderPath` is the simplest expression:
 
+<!-- verify -->
 ```java
 ReaderPath<AppConfig, ProcessedData> workflow() {
-    return Path.<AppConfig>ask()
-        .via(config -> Path.right(callApi(config.apiKey(), "item123")))
-        .via(data   -> Path.<AppConfig>ask()
-            .map(config -> transform(data, config.apiKey())));
+    return Path.<AppConfig, ServiceData>asks(
+            config -> callApi(config.apiKey(), "item123"))
+        .via(data -> Path.<AppConfig, ProcessedData>asks(
+            config -> transform(data, config.apiKey())));
 }
 ```
 
@@ -73,9 +75,12 @@ ReaderPath<AppConfig, ProcessedData> workflow() {
 
 When the environment must combine with another monad (here `CompletableFuture`):
 
+<!-- verify -->
 ```java
 var futureMonad  = Instances.monadError(completableFuture());
-var readerTMonad = Instances.readerT(futureMonad);
+// Name the environment: nothing else constrains R, and it would otherwise infer to Object.
+var readerTMonad =
+    Instances.<CompletableFutureKind.Witness, AppConfig>readerT(futureMonad);
 
 ReaderT<CompletableFutureKind.Witness, AppConfig, ServiceData> fetchDataRT(String itemId) {
   return ReaderT.of(config ->
@@ -166,10 +171,10 @@ public record ReaderT<F, R, A>(@NonNull Function<R, Kind<F, A>> run)
 
 The `ReaderTMonad<F, R>` class implements `Monad<ReaderTKind.Witness<F, R>>`, providing standard monadic operations. It requires a `Monad<F>` instance for the outer monad:
 
+<!-- verify -->
 ```java
-record AppConfig(String apiKey) {}
-
-var readerTOptionalMonad = Instances.readerT(Instances.monadError(optional()));
+var readerTOptionalMonad =
+    Instances.<OptionalKind.Witness, AppConfig>readerT(Instances.monadError(optional()));
 ```
 
 ~~~admonish note title="Working with Kind"
@@ -199,6 +204,7 @@ The `MonadReader` capability adds `ask()`, `reader(f)`, and `local(f, ma)` on to
 
 ## Creating ReaderT Instances
 
+<!-- verify -->
 ```java
 var optMonad   = Instances.monadError(optional());
 record Config(String setting) {}
@@ -209,7 +215,7 @@ var rt1 = ReaderT.<OptionalKind.Witness, Config, String>of(
 
 // 2. Lifting an existing F<A> (environment ignored)
 Kind<OptionalKind.Witness, Integer> optionalValue = OPTIONAL.widen(Optional.of(123));
-var rt2 = ReaderT.<OptionalKind.Witness, Config, Integer>lift(optMonad, optionalValue);
+var rt2 = ReaderT.<OptionalKind.Witness, Config, Integer>liftF(optMonad, optionalValue);
 
 // 3. From R -> A function (result lifted into F)
 var rt3 = ReaderT.<OptionalKind.Witness, Config, String>reader(
@@ -231,13 +237,15 @@ var rt4 = ReaderT.<OptionalKind.Witness, Config>ask(optMonad);
 
 **The solution:**
 
+<!-- verify -->
 ```java
 record AppConfig(String apiKey, String serviceUrl, ExecutorService executor) {}
 record ServiceData(String rawData) {}
 record ProcessedData(String info) {}
 
 var futureMonad  = Instances.monadError(completableFuture());
-var readerTMonad = Instances.readerT(futureMonad);
+var readerTMonad =
+    Instances.<CompletableFutureKind.Witness, AppConfig>readerT(futureMonad);
 
 ReaderT<CompletableFutureKind.Witness, AppConfig, ServiceData> fetchServiceDataRT(String itemId) {
   return ReaderT.of(config -> FUTURE.widen(
@@ -277,6 +285,7 @@ var stagingResult = FUTURE.join(READER_T.narrow(workflowRT).run().apply(stagingC
 
 **The solution:**
 
+<!-- verify -->
 ```java
 var getConfigRT  = ReaderT.<CompletableFutureKind.Witness, AppConfig>ask(futureMonad);
 var serviceUrlRT = readerTMonad.map(
@@ -302,6 +311,7 @@ var stagingUrl = FUTURE.join(READER_T.narrow(serviceUrlRT).run().apply(stagingCo
 
 **The solution:** use `Unit` as the value type:
 
+<!-- verify -->
 ```java
 ReaderT<CompletableFutureKind.Witness, AppConfig, Unit> initialiseComponentRT() {
     return ReaderT.of(config -> FUTURE.widen(
@@ -329,9 +339,9 @@ Because `ReaderT` wraps a function rather than a value, `mapT` composes the tran
    └──── combined into new ReaderT<G, R, A> ──┘
 ```
 
+<!-- verify -->
 ```java
-ReaderT<OptionalKind.Witness, Config, String> optReader = ...;
-
+// optReader is a ReaderT<OptionalKind.Witness, Config, String>
 var idReader = optReader.mapT(optKind -> {
   Optional<String> opt = OPTIONAL.narrow(optKind);
   return ID.widen(Id.of(opt.orElse("default")));

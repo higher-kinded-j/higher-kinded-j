@@ -26,10 +26,11 @@ The standard [For](../functional/for_comprehension.md) class provides powerful f
 syntax, but it operates on raw `Kind<M, A>` values and requires explicit `Monad` instances.
 When working with the Effect Path API, this creates friction:
 
+<!-- verify -->
 ```java
 // Using standard For with Path types requires extraction and rewrapping
-Kind<MaybeKind.Witness, Integer> kindResult = For.from(maybeMonad, path1.run().kind())
-    .from(a -> path2.run().kind())
+Kind<MaybeKind.Witness, Integer> kindResult = For.from(maybeMonad, MAYBE.widen(path1.run()))
+    .from(a -> MAYBE.widen(path2.run()))
     .yield((a, b) -> a + b);
 
 MaybePath<Integer> result = Path.maybe(MAYBE.narrow(kindResult));
@@ -37,6 +38,7 @@ MaybePath<Integer> result = Path.maybe(MAYBE.narrow(kindResult));
 
 The intent is clear, but the ceremony obscures it. `ForPath` eliminates this friction:
 
+<!-- verify -->
 ```java
 // ForPath works directly with Path types
 MaybePath<Integer> result = ForPath.from(path1)
@@ -78,6 +80,7 @@ or failure.
 The `.from()` operation extracts a value from the current step and chains to a new
 Path-producing computation. This is the monadic bind (`flatMap`) in disguise.
 
+<!-- verify -->
 ```java
 MaybePath<String> result = ForPath.from(Path.just("Alice"))
     .from(name -> Path.just(name.length()))         // a = "Alice", b = 5
@@ -93,6 +96,7 @@ values available to subsequent steps.
 The `.let()` operation computes a pure value from accumulated results without
 introducing a new effect. It's equivalent to `map` that carries the value forward.
 
+<!-- verify -->
 ```java
 MaybePath<String> result = ForPath.from(Path.just(10))
     .let(a -> a * 2)                    // b = 20 (pure calculation)
@@ -106,6 +110,7 @@ For Path types with [`MonadZero`](../functional/monad_zero.md) (MaybePath, Optio
 operation filters results. When the predicate returns false, the computation
 short-circuits to the monad's zero value (Nothing, empty, etc.).
 
+<!-- verify -->
 ```java
 MaybePath<Integer> evenOnly = ForPath.from(Path.just(4))
     .when(n -> n % 2 == 0)              // passes: 4 is even
@@ -121,12 +126,19 @@ MaybePath<Integer> filtered = ForPath.from(Path.just(3))
 Every comprehension ends with `.yield()`, which maps the accumulated values to a
 final result. You can access values individually or as a tuple:
 
+<!-- verify -->
 ```java
 // Individual parameters
-.yield((a, b, c) -> a + b + c)
+MaybePath<Integer> byParameter = ForPath.from(Path.just(1))
+    .let(a -> a + 1)
+    .let(t -> t._1() + t._2())
+    .yield((a, b, c) -> a + b + c);
 
 // Or as a tuple for many values
-.yield(t -> t._1() + t._2() + t._3())
+MaybePath<Integer> byTuple = ForPath.from(Path.just(1))
+    .let(a -> a + 1)
+    .let(t -> t._1() + t._2())
+    .yield(t -> t._1() + t._2() + t._3());
 ```
 
 ---
@@ -140,6 +152,7 @@ navigation within comprehensions.
 
 The `.focus()` operation uses a `FocusPath` to extract a nested value:
 
+<!-- verify -->
 ```java
 record User(String name, Address address) {}
 record Address(String city, String postcode) {}
@@ -161,6 +174,7 @@ MaybePath<String> result = ForPath.from(Path.just(user))
 
 Alternatively, chain focus operations where the second takes a function:
 
+<!-- verify -->
 ```java
 FocusPath<User, Address> addressPath = FocusPath.of(addressLens);
 
@@ -175,6 +189,7 @@ MaybePath<String> result = ForPath.from(Path.just(user))
 The `.match()` operation uses an `AffinePath` for optional extraction. When the
 focus is absent, the comprehension short-circuits for `MonadZero` types:
 
+<!-- verify -->
 ```java
 sealed interface Result permits Success, Failure {}
 record Success(String value) implements Result {}

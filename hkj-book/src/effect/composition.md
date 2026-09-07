@@ -32,6 +32,7 @@ vocabulary used throughout.
 The `via` method chains computations where each step depends on the previous
 result. It's the workhorse of effect composition.
 
+<!-- verify -->
 ```java
 EitherPath<Error, Invoice> pipeline =
     Path.either(findUser(userId))
@@ -48,12 +49,13 @@ skip to the end.
 
 When a step fails, subsequent steps don't execute:
 
+<!-- verify -->
 ```java
 EitherPath<String, String> result =
-    Path.right("start")
-        .via(s -> Path.left("failed here"))     // Fails
-        .via(s -> Path.right(s + " never"))     // Skipped
-        .via(s -> Path.right(s + " reached"));  // Skipped
+    Path.<String, String>right("start")
+        .via(s -> Path.<String, String>left("failed here"))  // Fails
+        .via(s -> Path.<String, String>right(s + " never"))  // Skipped
+        .via(s -> Path.<String, String>right(s + " reached")); // Skipped
 
 // result.run() → Left("failed here")
 ```
@@ -65,12 +67,13 @@ need defensive checks at every step. The Path handles it structurally.
 
 Sometimes you need sequencing but don't care about the previous result:
 
+<!-- verify -->
 ```java
 IOPath<Result> workflow =
-    Path.io(() -> log.info("Starting"))
-        .then(() -> Path.io(() -> initialise()))
+    Path.ioRunnable(() -> log.info("Starting"))
+        .then(() -> Path.ioRunnable(() -> initialise()))
         .then(() -> Path.io(() -> process()))
-        .then(() -> Path.io(() -> log.info("Done")));
+        .peek(result -> log.info("Done"));
 ```
 
 `then` discards the previous value and runs the next computation. Use it for
@@ -83,12 +86,13 @@ side effects that must happen in order but don't pass data forward.
 `zipWith` combines computations that don't depend on each other. Neither
 needs the other's result to proceed.
 
+<!-- verify -->
 ```java
-EitherPath<String, String> name = validateName(input.name());
-EitherPath<String, String> email = validateEmail(input.email());
-EitherPath<String, Integer> age = validateAge(input.age());
+EitherPath<Error, String> name = validateName(orderInput.name());
+EitherPath<Error, String> email = validateEmail(orderInput.email());
+EitherPath<Error, Address> address = validateAddress(orderInput.address());
 
-EitherPath<String, User> user = name.zipWith3(email, age, User::new);
+EitherPath<Error, CustomerInfo> customer = name.zipWith3(email, address, CustomerInfo::new);
 ```
 
 If all three succeed, `User::new` receives the values. If any fails, the
@@ -103,18 +107,21 @@ This distinction trips people up, so let's be explicit:
 | `via` | "Do this, **then** use the result to decide what's next" |
 | `zipWith` | "Do these **independently**, then combine the results" |
 
+<!-- verify -->
 ```java
 // WRONG: using via when computations are independent
-Path.right(validateName(input))
-    .via(name -> Path.right(validateEmail(input)))  // Doesn't use name!
-    .via(email -> Path.right(validateAge(input)));  // Doesn't use email!
+EitherPath<Error, Address> chained =
+    validateName(orderInput.name())
+        .via(name -> validateEmail(orderInput.email()))      // Doesn't use name!
+        .via(email -> validateAddress(orderInput.address())); // Doesn't use email!
 
 // RIGHT: using zipWith for independent computations
-validateName(input).zipWith3(
-    validateEmail(input),
-    validateAge(input),
-    User::new
-);
+EitherPath<Error, CustomerInfo> combined =
+    validateName(orderInput.name())
+        .zipWith3(
+            validateEmail(orderInput.email()),
+            validateAddress(orderInput.address()),
+            CustomerInfo::new);
 ```
 
 The first version works but misleads readers into thinking there's a
@@ -122,16 +129,21 @@ dependency. The second says what it means.
 
 ### Variants
 
+<!-- verify -->
 ```java
 // Two values
-pathA.zipWith(pathB, (a, b) -> combine(a, b))
+EitherPath<Error, Result> two =
+    pathA.zipWith(pathB, (a, b) -> combine(a, b));
 
 // Three values
-pathA.zipWith3(pathB, pathC, (a, b, c) -> combine(a, b, c))
-
-// Four values
-pathA.zipWith4(pathB, pathC, pathD, (a, b, c, d) -> combine(a, b, c, d))
+EitherPath<Error, Result> three =
+    pathA.zipWith3(pathB, pathC, (a, b, c) -> combine(a, b, c));
 ```
+
+Three is where the concrete Path types stop. Beyond that, reach for
+[`ForPath`](forpath_comprehension.md), which carries up to twelve bindings, or
+[`Path.accumulate()`](../monads/validated_assembly.md) when the values are
+independent and every error matters.
 
 Beyond four, consider whether your design is asking too much of a single
 expression.
@@ -144,6 +156,7 @@ Production code rarely uses just one pattern. You validate independently,
 then sequence dependent operations, then combine more independent work.
 The key is clarity about which pattern you're using where.
 
+<!-- verify -->
 ```java
 EitherPath<Error, Order> createOrder(OrderInput input) {
     // Phase 1: Independent validation
@@ -155,10 +168,10 @@ EitherPath<Error, Order> createOrder(OrderInput input) {
         name.zipWith3(email, address, CustomerInfo::new);
 
     // Phase 2: Sequential operations that depend on customer
-    return customer
-        .via(info -> Path.either(checkInventory(input.items())))
-        .via(inventory -> Path.either(calculatePricing(inventory)))
-        .via(pricing -> Path.either(createOrder(customer, pricing)));
+    return customer.via(info ->
+        Path.either(checkInventory(input.items()))
+            .via(inventory -> Path.either(calculatePricing(inventory)))
+            .via(pricing -> Path.either(createOrder(info, pricing))));
 }
 ```
 
@@ -184,9 +197,10 @@ in parallel can dramatically reduce total execution time.
 
 `parZipWith` is `zipWith` with explicit parallel execution:
 
+<!-- verify -->
 ```java
-IOPath<User> fetchUser = IOPath.delay(() -> userService.get(id));
-IOPath<Preferences> fetchPrefs = IOPath.delay(() -> prefService.get(id));
+IOPath<User> fetchUser = Path.io(() -> userService.get(id));
+IOPath<Preferences> fetchPrefs = Path.io(() -> prefService.get(userId));
 
 // Sequential: ~200ms (100ms + 100ms)
 IOPath<Profile> sequential = fetchUser.zipWith(fetchPrefs, Profile::new);
@@ -202,6 +216,7 @@ when you want to make the parallel intent explicit.
 
 For three or four independent paths, use `PathOps` utilities:
 
+<!-- verify -->
 ```java
 IOPath<Dashboard> dashboard = PathOps.parZip3(
     fetchMetrics(),
@@ -223,9 +238,10 @@ IOPath<Report> report = PathOps.parZip4(
 
 When you have a dynamic number of independent operations:
 
+<!-- verify -->
 ```java
 List<IOPath<Product>> fetches = productIds.stream()
-    .map(id -> IOPath.delay(() -> productService.get(id)))
+    .map(id -> Path.io(() -> productService.get(id)))
     .toList();
 
 // All fetches run concurrently
@@ -236,9 +252,10 @@ IOPath<List<Product>> products = PathOps.parSequenceIO(fetches);
 
 Sometimes you want whichever completes first:
 
+<!-- verify -->
 ```java
-IOPath<Config> primary = IOPath.delay(() -> fetchFromPrimary());
-IOPath<Config> backup = IOPath.delay(() -> fetchFromBackup());
+IOPath<Config> primary = Path.io(() -> fetchFromPrimary());
+IOPath<Config> backup = Path.io(() -> fetchFromBackup());
 
 // Returns whichever config arrives first
 IOPath<Config> fastest = primary.race(backup);
@@ -272,8 +289,9 @@ would break the chain. Debugger breakpoints are awkward with lambdas.
 
 `peek` solves this by letting you observe values without disrupting the flow:
 
+<!-- verify -->
 ```java
-EitherPath<Error, User> result =
+EitherPath<Error, String> result =
     Path.either(validateInput(input))
         .peek(valid -> log.debug("Validated: {}", valid))
         .via(valid -> Path.either(createUser(valid)))
@@ -289,6 +307,7 @@ which is usually what you want when tracing the happy path.
 
 For detailed tracing, wrap the pattern:
 
+<!-- verify -->
 ```java
 <A> EitherPath<Error, A> traced(EitherPath<Error, A> path, String step) {
     return path.peek(v -> log.debug("[{}] → {}", step, v));
@@ -314,6 +333,7 @@ Sometimes you want to try several approaches before giving up.
 
 The operation might fail, but you have a reasonable fallback:
 
+<!-- verify -->
 ```java
 MaybePath<Config> config = Path.maybe(loadConfig())
     .orElse(() -> Path.just(Config.defaults()));
@@ -330,6 +350,7 @@ papering over problems you should be handling properly.
 Low-level errors leak implementation details. Transform them at layer
 boundaries:
 
+<!-- verify -->
 ```java
 EitherPath<ServiceError, Data> result =
     Path.either(externalApi.fetch())
@@ -343,6 +364,7 @@ type.
 
 Multiple sources for the same data, each with trade-offs:
 
+<!-- verify -->
 ```java
 EitherPath<Error, Config> config =
     Path.either(loadFromFile())
@@ -363,13 +385,14 @@ success short-circuits the chain.
 
 For validation where users should see everything wrong at once:
 
+<!-- verify -->
 ```java
 ValidationPath<List<String>, User> user =
-    validateName(input.name())
+    checkName(signup.name())
         .zipWith3Accum(
-            validateEmail(input.email()),
-            validateAge(input.age()),
-            User::new
+            checkEmail(signup.email()),
+            checkAge(signup.age()),
+            Fixture::buildUser
         );
 
 // All three validations run; all errors collected
@@ -381,6 +404,7 @@ See [ValidationPath](path_validation.md) for the full API.
 
 Add context as errors propagate:
 
+<!-- verify -->
 ```java
 EitherPath<DetailedError, Data> enriched =
     path.mapError(error -> new DetailedError(
@@ -403,8 +427,9 @@ As requirements evolve, you may need to switch Path types:
 
 Absence becomes a typed error:
 
+<!-- verify -->
 ```java
-MaybePath<User> maybe = Path.maybe(findUser(id));
+MaybePath<User> maybe = Path.maybe(lookupUser(id));
 EitherPath<String, User> either = maybe.toEitherPath("User not found");
 ```
 
@@ -412,6 +437,7 @@ EitherPath<String, User> either = maybe.toEitherPath("User not found");
 
 Exception becomes a typed error:
 
+<!-- verify -->
 ```java
 TryPath<Config> tried = Path.tryOf(() -> loadConfig());
 EitherPath<String, Config> either = tried.toEitherPath(Throwable::getMessage);
@@ -421,6 +447,7 @@ EitherPath<String, Config> either = tried.toEitherPath(Throwable::getMessage);
 
 Execute the deferred effect and capture the result:
 
+<!-- verify -->
 ```java
 IOPath<Data> io = Path.io(() -> fetchData());
 TryPath<Data> tried = io.toTryPath();  // Executes immediately!
@@ -443,11 +470,21 @@ conversion paths.
 Bringing the patterns together with a `ForPath` comprehension, where every
 intermediate value stays in scope through the accumulated tuple:
 
+<!-- verify -->
 ```java
 public class OrderService {
+    private static final Logger log = new Logger();
+
     private final UserRepository users;
     private final InventoryService inventory;
     private final PaymentService payments;
+
+    public OrderService(UserRepository users, InventoryService inventory,
+            PaymentService payments) {
+        this.users = users;
+        this.inventory = inventory;
+        this.payments = payments;
+    }
 
     public EitherPath<OrderError, Order> placeOrder(OrderRequest request) {
         return ForPath.from(validateRequest(request)
@@ -455,7 +492,7 @@ public class OrderService {
 
             // Get user (convert Maybe → Either)
             .from(valid -> Path.maybe(users.findById(valid.userId()))
-                .toEitherPath(() -> new OrderError.UserNotFound(valid.userId()))
+                .<OrderError>toEitherPath(new OrderError.UserNotFound(valid.userId()))
                 .peek(user -> log.debug("Found user: {}", user.getId())))
 
             // Check inventory
@@ -465,7 +502,7 @@ public class OrderService {
             // Process payment (user = t._2(), available = t._3())
             .from(t -> Path.tryOf(() ->
                     payments.charge(t._2(), t._3().total()))
-                .toEitherPath(OrderError.PaymentFailed::new)
+                .<OrderError>toEitherPath(OrderError.PaymentFailed::new)
                 .peek(payment -> log.info("Payment processed: {}", payment.getId())))
 
             // Create order
@@ -478,7 +515,11 @@ public class OrderService {
         if (request.items().isEmpty()) {
             return Path.left(new OrderError.EmptyCart());
         }
-        return Path.right(new ValidatedRequest(request));
+        return Path.right(new ValidatedRequest(request.userId(), request.items()));
+    }
+
+    private Order createOrder(User user, List<Item> items, Payment payment) {
+        return new Order(payment.getId());
     }
 }
 ```
@@ -494,29 +535,33 @@ happens at a deliberate boundary.
 
 ### Mistake 1: _Using `via` for Independent Operations_
 
+<!-- verify -->
 ```java
 // Misleading: suggests email validation depends on name
-validateName(input)
-    .via(name -> validateEmail(input))  // Doesn't use name!
+EitherPath<Error, String> misleading =
+    validateName(input)
+        .via(name -> validateEmail(input));  // Doesn't use name!
 
 // Clearer: shows independence
-validateName(input).zipWith(validateEmail(input), (n, e) -> ...)
+EitherPath<Error, Result> clearer =
+    validateName(input).zipWith(validateEmail(input), (n, e) -> combine(n, e));
 ```
 
 ### Mistake 2: _Side Effects in `map`_
 
+<!-- verify -->
 ```java
 // Wrong: side effect hidden in map
-path.map(user -> {
+userPath.map(user -> {
     database.save(user);  // Side effect!
     return user;
 });
 
 // Right: use peek for side effects
-path.peek(user -> database.save(user));
+userPath.peek(user -> database.save(user));
 
 // Or be explicit with IOPath
-path.via(user -> Path.io(() -> {
+userPath.via(user -> Path.io(() -> {
     database.save(user);
     return user;
 }));
@@ -524,16 +569,17 @@ path.via(user -> Path.io(() -> {
 
 ### Mistake 3: _Forgetting to Run_
 
+<!-- verify -->
 ```java
 // Bug: nothing happens
 void processUser(String id) {
-    Path.maybe(findUser(id))
+    Path.maybe(lookupUser(id))
         .map(this::process);  // Result discarded!
 }
 
 // Fixed: extract the result
-void processUser(String id) {
-    Path.maybe(findUser(id))
+Maybe<User> processUserAndKeepIt(String id) {
+    return Path.maybe(lookupUser(id))
         .map(this::process)
         .run();
 }
@@ -541,16 +587,17 @@ void processUser(String id) {
 
 ### Mistake 4: _Converting Back and Forth_
 
+<!-- verify -->
 ```java
 // Wasteful: converting repeatedly
-Path.maybe(findUser(id))
-    .toEitherPath(() -> error)
+Path.maybe(lookupUser(id))
+    .toEitherPath(error)
     .toMaybePath()
-    .toEitherPath(() -> error);  // Why?
+    .toEitherPath(error);  // Why?
 
 // Clean: convert once
-Path.maybe(findUser(id))
-    .toEitherPath(() -> error);
+Path.maybe(lookupUser(id))
+    .toEitherPath(error);
 ```
 
 ---

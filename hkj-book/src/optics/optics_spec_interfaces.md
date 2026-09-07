@@ -59,12 +59,13 @@ An interface extending `OpticsSpec<S>`, with one annotated abstract method per o
 
 `@InstanceOf` tells the processor to generate a prism that matches when the node is an instance of the given class, rebuilding through identity. From this declaration you get a class of static prisms:
 
+<!-- verify -->
 ```java
-JsonNodeOptics.object()   // Prism<JsonNode, ObjectNode>
-JsonNodeOptics.array()    // Prism<JsonNode, ArrayNode>
-JsonNodeOptics.text()     // Prism<JsonNode, StringNode>
-JsonNodeOptics.numeric()  // Prism<JsonNode, NumericNode>
-JsonNodeOptics.bool()     // Prism<JsonNode, BooleanNode>
+Prism<JsonNode, ObjectNode>  object  = JsonNodeOptics.object();
+Prism<JsonNode, ArrayNode>   array   = JsonNodeOptics.array();
+Prism<JsonNode, StringNode>  text    = JsonNodeOptics.text();
+Prism<JsonNode, NumericNode> numeric = JsonNodeOptics.numeric();
+Prism<JsonNode, BooleanNode> bool    = JsonNodeOptics.bool();
 ```
 
 ~~~admonish note title="The generated class name"
@@ -137,6 +138,7 @@ The JSON structure is now stated in one place. When the API moves `users` under 
 
 **`@InstanceOf`** is for hierarchies whose variants are real Java subtypes:
 
+<!-- verify -->
 ```java
 @InstanceOf(ObjectNode.class)
 Prism<JsonNode, ObjectNode> object();
@@ -145,6 +147,7 @@ Prism<JsonNode, ObjectNode> object();
 
 **`@MatchWhen`** is for libraries that expose a check-then-extract pair instead of subtypes:
 
+<!-- verify -->
 ```java
 @MatchWhen(predicate = "isObject", getter = "asObject")
 Prism<Value, ObjectValue> object();
@@ -156,9 +159,14 @@ Both produce a `Prism`, so both compose the same way afterwards. Pick by what th
 ~~~admonish warning title="The focus has to be a variant, not the value it carries"
 A prism runs both ways. The generated one builds back with identity — it returns the value it narrowed — so the focus must be a type the source accepts:
 
+<!-- verify:rejects "focuses 'String', which is not a 'Value'" -->
 ```java
-@MatchWhen(predicate = "isString", getter = "asString")
-Prism<Value, String> string();   // rejected: a String is not a Value
+@ImportOptics
+interface ValueOpticsSpec extends OpticsSpec<Value> {
+
+    @MatchWhen(predicate = "isString", getter = "asString")
+    Prism<Value, String> string();   // rejected: a String is not a Value
+}
 ```
 
 There is nothing the processor could rebuild a `Value` from a bare `String` with. Focus the variant that carries it — `StringValue`, `TextNode` — and read the payload with a lens or a further optic. Where the value type really is the point, write that prism by hand with `Prism.of` and a build side that constructs the source, such as `TextNode::valueOf`.
@@ -185,6 +193,7 @@ flowchart TD
 
 A generic hierarchy pins its own argument, so the prism can promise it. `T` is the spec's own type parameter, and `Circle<X> implements Shape<X>` is what lets the test check it:
 
+<!-- verify -->
 ```java
 sealed interface Shape<X> permits Circle {}
 record Circle<X>(X tag) implements Shape<X> {}
@@ -200,6 +209,7 @@ interface ShapeOpticsSpec<T> extends OpticsSpec<Shape<T>> {
 
 A base that says nothing about the argument pins nothing. Every instantiation passes the same test, so the same declaration is rejected:
 
+<!-- verify:rejects "which the test cannot narrow to" -->
 ```java
 class Shape {}
 class Circle<X> extends Shape {}
@@ -214,6 +224,7 @@ interface ShapeOpticsSpec<T> extends OpticsSpec<Shape> {
 
 Widened to the wildcard, which is what the test earns, it is accepted — and the spec needs no type parameter of its own once the prism stops promising one:
 
+<!-- verify -->
 ```java
 @ImportOptics
 interface ShapeOpticsSpec extends OpticsSpec<Shape> {
@@ -235,17 +246,10 @@ Widening to `Circle<?>` keeps the prism, at the cost of the argument. Where you 
 The paths above are still shaped like the JSON. One more layer names them in the language of the domain, so the rest of the code never mentions `field("data")` at all:
 
 ```java
-public final class UserJson {
-
-  public static Traversal<JsonNode, String> emails() { return JsonApiBook.USER_EMAILS; }
-
-  public static Traversal<JsonNode, Double> ages() { return JsonApiBook.USER_AGES; }
-
-  public static Affine<JsonNode, Double> page() { return JsonApiBook.PAGE; }
-}
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/optics/UserJson.java:facade}}
 ```
 
-Now a service reads `UserJson.emails()`, and the wire format is an implementation detail of one class. (`USER_EMAILS`, `USER_AGES` and `PAGE` are package-private in the compiled example, so this facade sits in the same package as them; in your own code make them `public` or put the facade alongside.)
+Now a service reads `UserJson.emails()`, and the wire format is an implementation detail of one class. (`USER_EMAILS`, `USER_AGES` and `PAGE` are package-private, so this facade sits in the same package as them; in your own code make them `public` or put the facade alongside.)
 
 ---
 
@@ -253,6 +257,7 @@ Now a service reads `UserJson.emails()`, and the wire format is an implementatio
 
 A spec interface can carry type parameters of its own, and the source type can name them:
 
+<!-- verify -->
 ```java
 @ImportOptics
 public interface BoxOpticsSpec<U> extends OpticsSpec<Box<U>> {
@@ -276,7 +281,17 @@ The third row is worth noting: the source type need not be generic at all. A pri
 
 One parameter is carried without being reached directly — one that a kept parameter's bound names, since the bound has to resolve. `interface SubjectOpticsSpec<T, V extends List<T>> extends OpticsSpec<Box<V>>` focused through `V` generates `static <T, V extends List<T>> Lens<Box<V>, String> label()`: `T` appears nowhere in the signature's source or focus, and is declared anyway so that `V`'s bound means something.
 
-An optic method cannot declare parameters of its own. The source type is fixed by `OpticsSpec<S>`, so nothing could ever bind them, and `<X> Lens<Box<String>, X> content()` is rejected at the declaration rather than generating a method no call could resolve.
+An optic method cannot declare parameters of its own. The source type is fixed by `OpticsSpec<S>`, so nothing could ever bind them, and the declaration is rejected rather than generating a method no call could resolve:
+
+<!-- verify:rejects "declares its own type parameters" -->
+```java
+@ImportOptics
+interface BoxOpticsSpec extends OpticsSpec<Box<String>> {
+
+    @Wither("withContent")
+    <X> Lens<Box<String>, X> content();
+}
+```
 
 ---
 
@@ -309,6 +324,7 @@ The same pattern fits any external type that resists auto-detection: Protocol Bu
 ~~~admonish example title="Testing a spec interface's optics"
 The generated prisms are ordinary optics, so the law harness applies:
 
+<!-- verify -->
 ```java
 PrismLaws.assertPrismLaws(JsonNodeOptics.object(), anObjectNode, aStringNode);
 ```

@@ -20,17 +20,18 @@ You have a deeply nested structure with optional fields and need to update a val
 
 ### Solution
 
+<!-- verify -->
 ```java
-record User(String name, Optional<Profile> profile) {}
-record Profile(String bio, Optional<Settings> settings) {}
-record Settings(boolean darkMode, int fontSize) {}
+@GenerateLenses record User(String name, Optional<Profile> profile) {}
+@GenerateLenses record Profile(String bio, Optional<Settings> settings) {}
+@GenerateLenses record Settings(boolean darkMode, int fontSize) {}
 
 // Build the traversal path
 Traversal<User, Integer> userFontSize =
     UserLenses.profile()              // Lens<User, Optional<Profile>>
         .andThen(Prisms.some())       // Prism<Optional<Profile>, Profile>
         .andThen(ProfileLenses.settings().asTraversal())  // Lens<Profile, Optional<Settings>>
-        .andThen(Prisms.some().asTraversal())             // Prism<Optional<Settings>, Settings>
+        .andThen(Prisms.<Settings>some().asTraversal())    // Prism<Optional<Settings>, Settings>
         .andThen(SettingsLenses.fontSize().asTraversal()); // Lens<Settings, Integer>
 
 // Usage
@@ -56,9 +57,12 @@ You have a sealed interface and want to modify only one specific variant whilst 
 
 ### Solution
 
+<!-- verify -->
 ```java
+record Data(String value) {}
+
 sealed interface ApiResponse permits Success, Failure, Loading {}
-record Success(Data data, String timestamp) implements ApiResponse {}
+@GenerateLenses record Success(Data data, String timestamp) implements ApiResponse {}
 record Failure(String message, int code) implements ApiResponse {}
 record Loading(int progress) implements ApiResponse {}
 
@@ -99,8 +103,9 @@ You need to update all items in a collection that match certain criteria.
 
 ### Solution
 
+<!-- verify -->
 ```java
-record Order(String id, List<LineItem> items) {}
+@GenerateLenses record Order(String id, List<LineItem> items) {}
 record LineItem(String productId, int quantity, Money price) {}
 
 // Traversal to all line items
@@ -141,9 +146,10 @@ You have a list of mixed types and need to extract values from specific types on
 
 ### Solution
 
+<!-- verify -->
 ```java
 sealed interface Event permits UserEvent, SystemEvent {}
-record UserEvent(String userId, String action) implements Event {}
+@GenerateLenses record UserEvent(String userId, String action) implements Event {}
 record SystemEvent(String level, String message) implements Event {}
 
 // Prism to focus on UserEvents
@@ -180,8 +186,9 @@ You need to access a value in a Map that may not exist, with a sensible default.
 
 ### Solution
 
+<!-- verify -->
 ```java
-record Config(Map<String, String> settings) {}
+@GenerateLenses record Config(Map<String, String> settings) {}
 
 // Traversal to a specific key
 Traversal<Config, String> databaseUrl =
@@ -210,27 +217,31 @@ You need to validate multiple fields and accumulate all errors.
 
 Use the `Edits` builder: each field becomes a fallible edit, every incoming value is validated independently, and **all** failures are reported at once, located by field:
 
+<!-- verify -->
 ```java
 import static org.higherkindedj.optics.edit.Edit.parseIfPresent;
 
-record Registration(String email, String password, int age) {}
+@GenerateLenses record Registration(String email, String password, int age) {}
 
-FocusPath<Registration, String> emailPath = FocusPath.of(RegistrationLenses.email());
-FocusPath<Registration, String> passwordPath = FocusPath.of(RegistrationLenses.password());
-FocusPath<Registration, Integer> agePath = FocusPath.of(RegistrationLenses.age());
+static final FocusPath<Registration, String> emailPath =
+    FocusPath.of(RegistrationLenses.email());
+static final FocusPath<Registration, String> passwordPath =
+    FocusPath.of(RegistrationLenses.password());
+static final FocusPath<Registration, Integer> agePath = FocusPath.of(RegistrationLenses.age());
 
 // Leaf validators stay plain - no path parameter, no error-list plumbing
-Function<String, Validated<NonEmptyList<FieldError>, String>> validateEmail = email ->
+static final Function<String, Validated<NonEmptyList<FieldError>, String>> validateEmail = email ->
     email.contains("@")
         ? Validated.validNel(email)
         : Validated.invalidNel(FieldError.of("invalid email format"));
 
-Function<String, Validated<NonEmptyList<FieldError>, String>> validatePassword = password ->
-    password.length() >= 8
-        ? Validated.validNel(password)
-        : Validated.invalidNel(FieldError.of("must be at least 8 characters"));
+static final Function<String, Validated<NonEmptyList<FieldError>, String>> validatePassword =
+    password ->
+        password.length() >= 8
+            ? Validated.validNel(password)
+            : Validated.invalidNel(FieldError.of("must be at least 8 characters"));
 
-Function<Integer, Validated<NonEmptyList<FieldError>, Integer>> validateAge = age ->
+static final Function<Integer, Validated<NonEmptyList<FieldError>, Integer>> validateAge = age ->
     age >= 18
         ? Validated.validNel(age)
         : Validated.invalidNel(FieldError.of("must be 18 or older"));
@@ -260,10 +271,11 @@ You have nested collections and need to transform items at the innermost level.
 
 ### Solution
 
+<!-- verify -->
 ```java
-record Company(List<Department> departments) {}
-record Department(String name, List<Employee> employees) {}
-record Employee(String name, int salary) {}
+@GenerateLenses record Company(List<Department> departments) {}
+@GenerateLenses record Department(String name, List<Employee> employees) {}
+@GenerateLenses record Employee(String name, int salary) {}
 
 // Traversal to all employee salaries across all departments
 Traversal<Company, Integer> allSalaries =
@@ -274,7 +286,8 @@ Traversal<Company, Integer> allSalaries =
         .andThen(EmployeeLenses.salary().asTraversal());
 
 // Give everyone a 5% raise
-Company company = /* ... */;
+Company company = new Company(List.of(
+    new Department("Engineering", List.of(new Employee("Alice", 50_000)))));
 Company afterRaise = Traversals.modify(
     allSalaries,
     salary -> (int) (salary * 1.05),
@@ -296,11 +309,12 @@ You need to update a field based on the value of another field in the same struc
 
 ### Solution
 
+<!-- verify -->
 ```java
-record Product(String name, Money price, boolean onSale) {}
+@GenerateLenses record Product(String name, Money price, boolean onSale) {}
 
 // Create a lens for the price
-Lens<Product, Money> priceLens = ProductLenses.price();
+static final Lens<Product, Money> priceLens = ProductLenses.price();
 
 // Conditional discount based on onSale flag
 public Product applyDiscount(Product product, double discountRate) {
@@ -319,7 +333,7 @@ Traversal<List<Product>, Money> salePrices =
         .andThen(Traversals.filtered(Product::onSale))
         .andThen(priceLens.asTraversal());
 
-List<Product> products = /* ... */;
+List<Product> products = List.of(new Product("Widget", new Money(100), true));
 List<Product> discounted = Traversals.modify(
     salePrices,
     price -> price.multiply(0.8),
@@ -337,6 +351,7 @@ You have an `Either<Error, Success>` and need to transform the success case whil
 
 ### Solution
 
+<!-- verify -->
 ```java
 record ValidationError(String field, String message) {}
 record UserData(String name, String email) {}
@@ -375,9 +390,10 @@ You need to sort or reorder the elements focused by a Traversal.
 
 ### Solution
 
+<!-- verify -->
 ```java
-record Scoreboard(List<Player> players) {}
-record Player(String name, int score) {}
+@GenerateLenses record Scoreboard(List<Player> players) {}
+@GenerateLenses record Player(String name, int score) {}
 
 // Traversal to all scores
 Traversal<Scoreboard, Integer> scores =
@@ -410,6 +426,7 @@ Scoreboard reversed = Traversals.reversed(scores, board);
 
 ### 1. Create Reusable Optic Constants
 
+<!-- verify -->
 ```java
 public final class OrderOptics {
     public static final Traversal<Order, Money> ALL_PRICES =
@@ -428,6 +445,7 @@ public final class OrderOptics {
 
 ### 2. Use Direct Composition Methods
 
+<!-- verify -->
 ```java
 // Direct composition: mixed kinds settle at the weakest, so Lens >>> Prism is an Affine
 Affine<Config, Settings> direct = configLens.andThen(settingsPrism);
@@ -442,6 +460,7 @@ Traversal<Config, Settings> manual =
 
 ### 3. Document Complex Compositions
 
+<!-- verify -->
 ```java
 /**
  * Traverses from an Order to all active promotion codes.
@@ -459,13 +478,17 @@ public static final Traversal<Order, String> ACTIVE_PROMO_CODES =
 
 ### 4. Prefer Specific Types When Available
 
+<!-- verify -->
 ```java
 // If you know it's always present, use Lens directly
 Lens<User, String> name = UserLenses.name();
 String userName = name.get(user);
 
-// Only use Traversal when you need the flexibility
-Traversal<User, String> optionalNickname = /* ... */;
+// Only use Traversal when you need the flexibility, such as a nickname that may be absent
+Traversal<User, String> optionalNickname =
+    UserLenses.profile().asTraversal()
+        .andThen(Prisms.<Profile>some().asTraversal())
+        .andThen(ProfileLenses.bio().asTraversal());
 List<String> nicknames = Traversals.getAll(optionalNickname, user);
 ```
 
@@ -479,6 +502,7 @@ You have values scattered across different fields or branches of a data structur
 
 ### Solution
 
+<!-- verify -->
 ```java
 record Team(String name, Employee lead, List<Employee> members) {}
 record Employee(String name, String email) {}
@@ -525,9 +549,10 @@ You have a `Traversal` built for modifications, but now need to perform read-onl
 
 ### Solution
 
+<!-- verify -->
 ```java
-record Order(String id, List<LineItem> items) {}
-record LineItem(String product, int quantity, double price) {}
+@GenerateLenses record Order(String id, List<LineItem> items) {}
+@GenerateLenses record LineItem(String product, int quantity, double price) {}
 
 // Existing traversal for modifications
 Traversal<Order, Double> allPrices =
@@ -577,6 +602,7 @@ You have deeply nested records and want to update values without verbose composi
 
 #### Solution
 
+<!-- verify -->
 ```java
 @GenerateLenses @GenerateFocus record Company(String name, List<Department> departments) {}
 @GenerateLenses @GenerateFocus record Department(String name, List<Employee> employees) {}
@@ -616,6 +642,7 @@ You have a sealed interface and want to work with specific variants using the Fo
 
 #### Solution
 
+<!-- verify -->
 ```java
 sealed interface Notification permits Email, SMS, Push {}
 record Email(String address, String subject, String body) implements Notification {}
@@ -652,6 +679,7 @@ Your data contains Kind-wrapped collections (e.g., `Kind<ListKind.Witness, T>`) 
 
 #### Solution
 
+<!-- verify -->
 ```java
 record Team(String name, Kind<ListKind.Witness, Member> members) {}
 record Member(String name, Kind<ListKind.Witness, Role> roles) {}
@@ -688,6 +716,7 @@ You need to validate and transform data, accumulating errors or short-circuiting
 
 #### Solution
 
+<!-- verify -->
 ```java
 record Config(String apiKey, String dbUrl, int timeout) {}
 
@@ -725,6 +754,7 @@ You need to aggregate values across a traversal (sum, max, concatenate, etc.).
 
 #### Solution
 
+<!-- verify -->
 ```java
 record Order(List<LineItem> items) {}
 record LineItem(String name, int quantity, BigDecimal price) {}
@@ -778,6 +808,7 @@ You have a complex path composition and need to understand what values are being
 
 #### Solution
 
+<!-- verify -->
 ```java
 @GenerateLenses record Estate(List<Server> servers) {}
 @GenerateLenses record Server(String hostname, List<Service> services) {}
@@ -823,6 +854,7 @@ You need to update only elements that match a predicate, leaving others unchange
 
 #### Solution
 
+<!-- verify -->
 ```java
 record Inventory(List<Product> products) {}
 record Product(String name, int stock, BigDecimal price, Category category) {}

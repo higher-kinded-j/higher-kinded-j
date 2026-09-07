@@ -10,6 +10,7 @@
 **Definition:** A generated container holding `Bound` instances for each effect algebra in a composition. Each `Bound` provides smart constructors that automatically inject operations into the correct position in the composed `EitherF` chain. Obtained by constructing the generated `*Support.BoundSet`, whose components are each algebra's `Bound` at the composed witness.
 
 **Example:**
+<!-- verify -->
 ```java
 var functor = AppEffectsSupport.functor(
     ConsoleOpFunctor.instance(), DbOpFunctor.instance());
@@ -17,10 +18,11 @@ var bounds = new AppEffectsSupport.BoundSet(
     ConsoleOpOps.boundTo(AppEffectsSupport.injectConsole(), functor),
     DbOpOps.boundTo(AppEffectsSupport.injectDb(), functor));
 
-var console = bounds.console();  // Bound<ComposedType> for ConsoleOp
-var db = bounds.db();            // Bound<ComposedType> for DbOp
+var console = bounds.console();  // ConsoleOp, bound to the composed witness
+var db = bounds.db();            // DbOp, bound to the same one
 
-Free<ComposedType, String> program =
+// Java has no alias for that witness, so the program is a `var`
+var program =
     console.readLine(Function.identity())
         .flatMap(name -> db.save(name, Function.identity()));
 ```
@@ -34,6 +36,7 @@ Free<ComposedType, String> program =
 **Definition:** An annotation processor that generates composition infrastructure for multiple effect algebras: `Inject` instances, a composed `Functor`, and a `BoundSet` for program construction. Annotate a record whose fields are declared `Class<XOp<?>>`, each naming an `@EffectAlgebra`.
 
 **Example:**
+<!-- verify -->
 ```java
 @ComposeEffects
 public record AppEffects(
@@ -118,6 +121,7 @@ IO<User> loadUser(String id) {
 **Definition:** A sealed interface annotated with `@EffectAlgebra` where each permitted record represents a domain operation. The Java equivalent of "algebraic effects" from functional programming. Each operation carries its parameters and a continuation function that transforms the operation's natural result type.
 
 **Example:**
+<!-- verify -->
 ```java
 @EffectAlgebra
 public sealed interface ConsoleOp<A>
@@ -163,10 +167,11 @@ public sealed interface ConsoleOp<A>
 | `CompletableFuturePath<A>` | `CompletableFuture<A>` | Async operations |
 
 **Example:**
+<!-- verify -->
 ```java
 // Create paths using the Path factory
 EitherPath<Error, User> userPath = Path.either(findUser(id));
-MaybePath<Config> configPath = Path.maybe(loadConfig());
+MaybePath<Config> configPath = Path.maybe(findConfig());
 TryPath<Data> dataPath = Path.tryOf(() -> parseJson(input));
 IOPath<String> ioPath = Path.io(() -> readFile(path));
 
@@ -177,7 +182,7 @@ EitherPath<Error, String> result = userPath
     .recover(err -> "Anonymous");       // Handle errors
 
 // Execute and get result
-String name = result.run().orElse("Unknown");
+String name = result.run().fold(err -> "Unknown", value -> value);
 ```
 
 **Related:** [Path](#path), [via](#via), [recover](#recover), [Effect Path Documentation](../effect/ch_intro.md)
@@ -204,6 +209,7 @@ IOPath<Data>         ──┘    └──  Traversal<Data, Item>
 ```
 
 **Example:**
+<!-- verify -->
 ```java
 // Fetch user (effect) then navigate to nested data (optics)
 EitherPath<Error, String> city = userService.findById(userId)  // Effect: fetch
@@ -213,16 +219,15 @@ EitherPath<Error, String> city = userService.findById(userId)  // Effect: fetch
 
 // Modify nested data within an effectful context
 EitherPath<Error, User> updated = userService.findById(userId)
-    .focusAndModify(
-        UserFocus.address().andThen(AddressFocus.postcode()),
-        postcode -> postcode.toUpperCase()
-    );
+    .map(user -> UserFocus.address().then(AddressFocus.postcode())
+        .modify(String::toUpperCase, user));
 
-// Combine multiple effect sources with optic navigation
+// Combine multiple effect sources with optic navigation. `focus` narrows through a single-target
+// optic; a traversal reads its targets out, and the effect runs over them.
 EitherPath<Error, Report> report =
-    Path.of(loadCompany(id))
-        .focus(CompanyFocus.departments())     // Traverse to departments
-        .via(dept -> loadMetrics(dept.id()))   // Effect for each
+    Path.either(loadCompany(id))
+        .map(company -> CompanyFocus.departments().getAll(company))  // Optics: every department
+        .via(departments -> loadMetrics(departments))                // Effect over them
         .map(metrics -> generateReport(metrics));
 ```
 
@@ -259,6 +264,7 @@ EitherPath<Error, Report> report =
 **Definition:** A sum type lifted to the type constructor level. Used to compose multiple effect algebras into a single combined type via right-nesting. The `@ComposeEffects` annotation generates this composition automatically.
 
 **Example:**
+<!-- verify -->
 ```java
 // Right-nested composition of four effect algebras:
 // EitherF<PaymentGatewayOp,
@@ -284,6 +290,7 @@ public record PaymentEffects(
 **Definition:** The method that interprets a Free monad program by traversing its instruction tree, applying a natural transformation (interpreter) to each `Suspend` node, and combining results using the target monad's `flatMap`. Stack-safe via internal trampolining.
 
 **Example:**
+<!-- verify -->
 ```java
 var interpreter = Interpreters.combine(consoleInterp, dbInterp);
 IO<String> result = IOKindHelper.IO_OP.narrow(
@@ -304,9 +311,10 @@ IO<String> result = IOKindHelper.IO_OP.narrow(
 **Definition:** A data structure (`Free<F, A>`) that represents a program as a tree of instructions. There are five main node types: `Pure` (return a value), `Suspend` (an instruction to execute), `FlatMapped` (sequence two programs), `HandleError` (error recovery), and `Ap` (applicative sub-expression). Because the program is data, it can be inspected, transformed, and interpreted in different ways.
 
 **Example:**
+<!-- verify -->
 ```java
 // Building a Free program from effect algebra operations
-Free<G, String> program =
+var program =
     console.readLine(Function.identity())
         .flatMap(name -> console.printLine("Hello, " + name, Function.identity())
         .flatMap(_ -> Free.pure("Done")));
@@ -340,8 +348,12 @@ Free<G, String> program =
 **Definition:** A natural transformation that converts effect algebra instructions into a target monad (e.g., `IO` for production, `Id` for testing). Extends the abstract skeleton generated by `@EffectAlgebra`. Multiple interpreters are combined using `Interpreters.combine()`.
 
 **Example:**
+<!-- verify -->
 ```java
 public class IOConsoleInterpreter extends ConsoleOpInterpreter<IOKind.Witness> {
+
+  private final Scanner scanner = new Scanner(System.in);
+
   @Override
   protected <A> Kind<IOKind.Witness, A> handleReadLine(ConsoleOp.ReadLine<A> op) {
     return IOKindHelper.IO_OP.widen(
@@ -405,7 +417,6 @@ Path.nothing()                      // Empty MaybePath
 Path.either(eitherValue)            // Wrap existing Either
 Path.right(value)                   // Success EitherPath
 Path.left(error)                    // Failure EitherPath
-Path.of(nullableValue)              // Wrap nullable as EitherPath
 
 // Try paths
 Path.tryOf(() -> riskyOperation())  // Wrap exception-throwing code
@@ -414,19 +425,22 @@ Path.failure(exception)             // Failed TryPath
 
 // IO paths
 Path.io(() -> sideEffect())         // Wrap side-effecting code
-Path.ioOf(value)                    // Pure value in IO context
+Path.ioPure(value)                  // Pure value in IO context
 
 // Validation paths
-Path.valid(value)                   // Valid result
-Path.invalid(error)                 // Invalid with error
+Path.valid(value, semigroup)        // Valid result
+Path.invalid(error, semigroup)      // Invalid with error
+Path.validNel(value)                // Valid, accumulating into a NonEmptyList
+Path.invalidNel(error)              // Invalid, accumulating into a NonEmptyList
 ```
 
 **Example:**
+<!-- verify -->
 ```java
 // Building a complete workflow using Path factory
 public EitherPath<OrderError, Receipt> processOrder(OrderRequest request) {
     return Path.maybe(customerRepository.find(request.customerId()))
-        .toEitherPath(() -> new OrderError.CustomerNotFound())
+        .<OrderError>toEitherPath(new OrderError.CustomerNotFound())
         .via(customer -> Path.either(validateOrder(request, customer)))
         .via(validated -> Path.tryOf(() -> paymentService.charge(validated))
             .toEitherPath(OrderError.PaymentFailed::new))
@@ -443,6 +457,7 @@ public EitherPath<OrderError, Receipt> processOrder(OrderRequest request) {
 **Definition:** A utility that traverses a Free monad program tree without executing it, counting instructions, error recovery points, and parallel scopes. All counts are lower bounds because `FlatMapped` continuations are opaque functions that cannot be inspected without a value.
 
 **Example:**
+<!-- verify -->
 ```java
 ProgramAnalysis analysis = ProgramAnalyser.analyse(program);
 
@@ -474,18 +489,21 @@ FAILURE TRACK  ───────╨───────╨─────�
 When a step succeeds, the value continues on the success track. When a step fails, execution switches to the failure track and subsequent steps are bypassed.
 
 **Example:**
+<!-- verify -->
 ```java
 // Traditional approach: manual error checking at each step
-User user = findUser(id);
-if (user == null) return error("User not found");
-Account account = getAccount(user);
-if (account == null) return error("Account not found");
-if (!account.isActive()) return error("Account inactive");
-return success(account.getBalance());
+BigDecimal balanceOrThrow(String id) {
+    User user = findUserOrNull(id);
+    if (user == null) throw new IllegalStateException("User not found");
+    Account account = getAccountOrNull(user);
+    if (account == null) throw new IllegalStateException("Account not found");
+    if (!account.isActive()) throw new IllegalStateException("Account inactive");
+    return account.getBalance();
+}
 
-// Railway-oriented: automatic track switching
+// Railway-oriented: automatic track switching (lookupUser returns Either<Error, User>)
 EitherPath<Error, BigDecimal> balance =
-    Path.of(findUser(id))
+    Path.either(lookupUser(id))
         .via(user -> getAccount(user))
         .via(account -> validateActive(account))
         .map(account -> account.getBalance());
@@ -514,6 +532,7 @@ EitherPath<Error, BigDecimal> balance =
 **Signature:** `Path<E, A>.recover(Function<E, A> handler) → Path<E, A>`
 
 **Example:**
+<!-- verify -->
 ```java
 // Simple recovery with default value
 EitherPath<Error, Config> config = loadConfig()
@@ -522,9 +541,10 @@ EitherPath<Error, Config> config = loadConfig()
 // Recovery that inspects the error
 EitherPath<ApiError, User> user = fetchUser(id)
     .recover(error -> switch (error) {
-        case NotFound _ -> User.guest();
-        case RateLimited _ -> User.cached(id);
-        default -> throw new RuntimeException(error);  // Re-throw unrecoverable
+        case ApiError.NotFound _ -> User.guest();
+        case ApiError.RateLimited _ -> User.cached(id);
+        // Every variant is handled, so the switch needs no default
+        case ApiError.Unavailable _ -> User.guest();
     });
 
 // Recovery with a new Path (recoverWith)
@@ -532,13 +552,11 @@ EitherPath<Error, Data> data = primarySource()
     .recoverWith(error -> fallbackSource());  // Try alternative on failure
 
 // Partial recovery - only handle specific errors
-EitherPath<Error, Value> result = operation()
-    .recover(error -> {
-        if (error instanceof Retryable) {
-            return retryOperation();
-        }
-        throw error;  // Propagate non-retryable errors
-    });
+EitherPath<ApiError, User> partial = fetchUser(id)
+    .recoverWith(error ->
+        error instanceof ApiError.RateLimited
+            ? fetchUser(id)                 // one retry
+            : Path.left(error));            // stay on the failure track
 ```
 
 **When To Use:**
@@ -558,11 +576,12 @@ EitherPath<Error, Value> result = operation()
 **Signature:** `Path<E, A>.via(Function<A, Path<E, B>> f) → Path<E, B>`
 
 **Example:**
+<!-- verify -->
 ```java
 // Each step depends on the previous result
 EitherPath<Error, Order> orderPath =
-    Path.of(userId)
-        .via(id -> findUser(id))           // Returns EitherPath<Error, User>
+    Path.<Error, String>right(userId)
+        .via(id -> loadUser(id))           // Returns EitherPath<Error, User>
         .via(user -> getCart(user))        // Returns EitherPath<Error, Cart>
         .via(cart -> validateCart(cart))   // Returns EitherPath<Error, ValidatedCart>
         .via(valid -> createOrder(valid)); // Returns EitherPath<Error, Order>
@@ -591,11 +610,12 @@ EitherPath<Error, String> mapped = userPath.map(user -> user.name());
 **Definition:** A first-class railway for `VTask<Either<E, A>>`: asynchronous work, run on a virtual thread, that can fail with a typed domain error `E`. It composes `VTaskPath` (async) and `EitherPath` (typed error) into one path, so neither `Kind` ceremony nor a hand-rolled `EitherT` bridge ever surfaces. It speaks the full family vocabulary (`map`/`via`/`then`, `mapError`/`recover`/`recoverWith`/`bimap`).
 
 **Example:**
+<!-- verify -->
 ```java
 VResultPath<OrderError, OrderResult> process(OrderRequest request) {
-    return Path.vresultDefer(() -> validateAddress(request.address()))  // VResultPath<OrderError, Address>
-        .via(address -> reserveStock(address))                          // chain a fallible async step
-        .recover(err -> OrderResult.rejected(err));                     // handle the typed Left
+    return validateAddress(request.address())      // VResultPath<OrderError, Address>
+        .via(address -> reserveStock(address))    // chain a fallible async step
+        .recover(err -> OrderResult.rejected(err));  // handle the typed Left
 }
 
 VTask<Either<OrderError, OrderResult>> carrier = process(req).run();    // execute on a virtual thread

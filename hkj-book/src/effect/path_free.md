@@ -29,13 +29,41 @@ reasoning about programs as data.
 
 First, define your operations as a sum type (algebra):
 
+<!-- verify -->
 ```java
-// Console operations
-sealed interface ConsoleOp<A> permits Ask, Tell {}
+// Console operations. Extending Kind gives the algebra a witness, which is what
+// FreePath is parameterised by.
+sealed interface ConsoleOp<A> extends Kind<ConsoleOp.Witness, A> permits Ask, Tell {
+    interface Witness extends WitnessArity<TypeArity.Unary> {}
+}
 
 record Ask<A>(String prompt, Function<String, A> next) implements ConsoleOp<A> {}
 record Tell<A>(String message, A next) implements ConsoleOp<A> {}
 ```
+
+Every algebra also needs a `Functor`, so `FreePath` can map over whatever an
+operation carries next:
+
+<!-- verify -->
+```java
+Functor<ConsoleOp.Witness> consoleFunctor = new Functor<>() {
+    @Override
+    public <A, B> Kind<ConsoleOp.Witness, B> map(
+            Function<? super A, ? extends B> f, Kind<ConsoleOp.Witness, A> fa) {
+        return switch ((ConsoleOp<A>) fa) {
+            case Ask<A>(String prompt, Function<String, A> next) ->
+                new Ask<B>(prompt, s -> f.apply(next.apply(s)));
+            case Tell<A>(String message, A next) ->
+                new Tell<B>(message, f.apply(next));
+        };
+    }
+};
+```
+
+~~~admonish tip title="Don't want to write one?"
+The [Coyoneda](../monads/coyoneda.md) lemma derives a `Functor` for any
+instruction set, at the cost of an extra wrapper.
+~~~
 
 ---
 
@@ -43,18 +71,20 @@ record Tell<A>(String message, A next) implements ConsoleOp<A> {}
 
 Lift operations into `FreePath`:
 
+<!-- verify -->
 ```java
 FreePath<ConsoleOp.Witness, String> ask(String prompt) {
-    return Path.freeLiftF(new Ask<>(prompt, Function.identity()));
+    return Path.freeLift(new Ask<>(prompt, Function.identity()), consoleFunctor);
 }
 
 FreePath<ConsoleOp.Witness, Void> tell(String message) {
-    return Path.freeLiftF(new Tell<>(message, null));
+    return Path.freeLift(new Tell<>(message, null), consoleFunctor);
 }
 ```
 
 Compose into programs:
 
+<!-- verify -->
 ```java
 FreePath<ConsoleOp.Witness, String> greetUser =
     ask("What is your name?").via(name ->
@@ -65,9 +95,10 @@ FreePath<ConsoleOp.Witness, String> greetUser =
 
 ## Core Operations
 
+<!-- verify -->
 ```java
 // Pure value (no operations)
-FreePath<ConsoleOp.Witness, Integer> pure = Path.freePure(42);
+FreePath<ConsoleOp.Witness, Integer> pure = Path.freePure(42, consoleFunctor);
 
 // Transform results
 FreePath<ConsoleOp.Witness, String> asString = pure.map(n -> "Value: " + n);
@@ -83,18 +114,19 @@ FreePath<ConsoleOp.Witness, Integer> chained = pure.via(n ->
 
 An interpreter is a natural transformation from your algebra to a target monad:
 
+<!-- verify -->
 ```java
 // Real console interpreter
 NaturalTransformation<ConsoleOp.Witness, IO.Witness> realInterpreter =
     new NaturalTransformation<>() {
+        @Override
         public <A> Kind<IO.Witness, A> apply(Kind<ConsoleOp.Witness, A> fa) {
-            ConsoleOp<A> op = ConsoleOpHelper.narrow(fa);
-            return switch (op) {
-                case Ask<A> a -> IO.of(() -> {
+            return switch ((ConsoleOp<A>) fa) {
+                case Ask<A> a -> IO.delay(() -> {
                     System.out.print(a.prompt() + " ");
                     return a.next().apply(scanner.nextLine());
                 });
-                case Tell<A> t -> IO.of(() -> {
+                case Tell<A> t -> IO.delay(() -> {
                     System.out.println(t.message());
                     return t.next();
                 });
@@ -102,25 +134,36 @@ NaturalTransformation<ConsoleOp.Witness, IO.Witness> realInterpreter =
         }
     };
 
-// Test interpreter (uses predefined responses)
-NaturalTransformation<ConsoleOp.Witness, State.Witness> testInterpreter = ...;
+// Test interpreter: the same algebra, answered from canned input
+NaturalTransformation<ConsoleOp.Witness, IO.Witness> testInterpreter =
+    new NaturalTransformation<>() {
+        @Override
+        public <A> Kind<IO.Witness, A> apply(Kind<ConsoleOp.Witness, A> fa) {
+            return switch ((ConsoleOp<A>) fa) {
+                case Ask<A> a -> IO.delay(() -> a.next().apply("Alice"));
+                case Tell<A> t -> IO.delay(t::next);
+            };
+        }
+    };
 ```
 
 ---
 
 ## Running Programs
 
+<!-- verify -->
 ```java
 FreePath<ConsoleOp.Witness, String> program = greetUser;
 
-// Get the Free structure
-Free<ConsoleOp.Witness, String> free = program.run();
-
-// Interpret to IO
-Kind<IO.Witness, String> io = free.foldMap(realInterpreter, ioMonad);
+// Interpret the whole path in one step
+GenericPath<IO.Witness, String> interpreted =
+    program.foldMapWith(realInterpreter, ioMonad);
 
 // Execute
-String result = IOKindHelper.narrow(io).unsafeRunSync();
+String result = IOKindHelper.IO_OP.narrow(interpreted.runKind()).unsafeRunSync();
+
+// Or take the Free structure out first, if you want to fold it yourself
+Free<ConsoleOp.Witness, String> free = program.toFree();
 ```
 
 ---
@@ -140,17 +183,13 @@ String result = IOKindHelper.narrow(io).unsafeRunSync();
 - Operations can be parallelised → consider [FreeApPath](path_freeap.md)
 
 ~~~admonish example title="Testing with Mock Interpreter"
+<!-- verify -->
 ```java
-// Production: real database
-NaturalTransformation<DbOp.Witness, IO.Witness> prodInterpreter = ...;
+// One program, two interpreters. Nothing about `greetUser` changes.
+GenericPath<IO.Witness, String> live = greetUser.foldMapWith(realInterpreter, ioMonad);
+GenericPath<IO.Witness, String> underTest = greetUser.foldMapWith(testInterpreter, ioMonad);
 
-// Test: in-memory map
-NaturalTransformation<DbOp.Witness, State.Witness> testInterpreter = ...;
-
-// Same program, different interpreters
-FreePath<DbOp.Witness, User> program = findUser(userId);
-Kind<IO.Witness, User> prod = program.run().foldMap(prodInterpreter, ioMonad);
-Kind<State.Witness, User> test = program.run().foldMap(testInterpreter, stateMonad);
+String answered = IOKindHelper.IO_OP.narrow(underTest.runKind()).unsafeRunSync();
 ```
 ~~~
 

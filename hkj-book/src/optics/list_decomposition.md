@@ -57,6 +57,7 @@ The `ListPrisms` class provides prisms and affines for list decomposition. It of
 
 The `cons()` prism views a non-empty list as a pair: its first element and the remaining elements.
 
+<!-- verify -->
 ```java
 import org.higherkindedj.optics.Prism;
 import org.higherkindedj.optics.util.ListPrisms;
@@ -79,6 +80,7 @@ Optional<Pair<String, List<String>>> empty = cons.getOptional(List.of());
 
 The prism works in both directions. Use `build` to construct a list from a head and tail:
 
+<!-- verify -->
 ```java
 // Prepend an element
 List<String> built = cons.build(Pair.of("New", List.of("List", "Here")));
@@ -92,6 +94,7 @@ List<String> built = cons.build(Pair.of("New", List.of("List", "Here")));
 
 Since cons is a prism, you can use `modify` to transform the first element:
 
+<!-- verify -->
 ```java
 List<String> modified = cons.modify(
     pair -> Pair.of(pair.first().toUpperCase(), pair.second()),
@@ -106,6 +109,7 @@ List<String> modified = cons.modify(
 
 The `snoc()` prism (cons spelled backwards) views a non-empty list from the other end: all elements except the last, paired with the last element.
 
+<!-- verify -->
 ```java
 Prism<List<Integer>, Pair<List<Integer>, Integer>> snoc = ListPrisms.snoc();
 
@@ -118,6 +122,7 @@ Optional<Pair<List<Integer>, Integer>> result = snoc.getOptional(numbers);
 
 Use `build` to append an element to a list:
 
+<!-- verify -->
 ```java
 List<Integer> appended = snoc.build(Pair.of(List.of(1, 2, 3), 4));
 // appended = [1, 2, 3, 4]
@@ -125,6 +130,7 @@ List<Integer> appended = snoc.build(Pair.of(List.of(1, 2, 3), 4));
 
 ### Modifying the Last Element
 
+<!-- verify -->
 ```java
 List<Integer> modified = snoc.modify(
     pair -> Pair.of(pair.first(), pair.second() * 10),
@@ -141,6 +147,7 @@ When you need direct access to just one part of the decomposition, the convenien
 
 ### Accessing the First Element
 
+<!-- verify -->
 ```java
 Affine<List<String>, String> head = ListPrisms.head();
 
@@ -162,6 +169,7 @@ The convention [Affines](affine.md) taught is that `set` on an absent focus is a
 
 ### Accessing the Last Element
 
+<!-- verify -->
 ```java
 Affine<List<Integer>, Integer> last = ListPrisms.last();
 
@@ -174,6 +182,7 @@ List<Integer> modified = last.modify(x -> x * 10, List.of(1, 2, 3));
 
 ### Accessing the Tail and Init
 
+<!-- verify -->
 ```java
 Affine<List<String>, List<String>> tail = ListPrisms.tail();
 Optional<List<String>> t = tail.getOptional(List.of("a", "b", "c"));
@@ -190,6 +199,7 @@ Optional<List<Integer>> i = init.getOptional(List.of(1, 2, 3, 4, 5));
 
 The `empty()` prism complements cons and snoc by matching only empty lists:
 
+<!-- verify -->
 ```java
 Prism<List<String>, Unit> empty = ListPrisms.empty();
 
@@ -199,6 +209,7 @@ boolean isNotEmpty = empty.matches(List.of("a")); // false
 
 This enables complete pattern matching on list structure:
 
+<!-- verify -->
 ```java
 public <A> String describeList(List<A> list) {
     if (ListPrisms.<A>empty().matches(list)) {
@@ -237,6 +248,7 @@ For processing very large lists, `ListPrisms` provides trampoline-based operatio
 
 ### Example: Processing a Million Elements
 
+<!-- verify -->
 ```java
 // These operations are safe for arbitrarily large lists
 List<Integer> largeList = IntStream.range(0, 1_000_000).boxed().toList();
@@ -257,6 +269,7 @@ List<Integer> evens = ListPrisms.filterTrampoline(largeList, n -> n % 2 == 0);
 
 The list decomposition prisms compose with the Focus DSL using `.via()`:
 
+<!-- verify -->
 ```java
 // Given a record with a list field
 @GenerateLenses
@@ -318,6 +331,7 @@ These are list-level optics: reach them from a path to the list (`FocusPath.of(C
 
 List prisms compose naturally with other optics for deep list manipulation:
 
+<!-- verify -->
 ```java
 // Focus on the name of the first player in a team
 // (Lens >>> Affine and Affine >>> Lens both compose to Affine)

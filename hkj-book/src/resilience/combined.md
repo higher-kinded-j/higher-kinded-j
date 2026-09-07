@@ -88,6 +88,7 @@ This ordering ensures:
 
 ## Using ResilienceBuilder
 
+<!-- verify -->
 ```java
 CircuitBreaker serviceBreaker = CircuitBreaker.create(
     CircuitBreakerConfig.builder()
@@ -124,6 +125,7 @@ The ordering bug is silent: hand-wired resilience with retry accidentally inside
 
 For simpler combinations, the `Resilience` utility class provides direct methods:
 
+<!-- verify -->
 ```java
 // Circuit breaker + retry
 VTask<String> protected1 = Resilience.withCircuitBreakerAndRetry(
@@ -172,6 +174,7 @@ On `IOPath` and `VTaskPath` there is no typed channel, so `withTimeout(duration)
 
 Resilience granularity matters more than resilience coverage. The worked example: an order pipeline where reserving inventory is idempotent (a reservation can safely be re-issued) but charging the card is not.
 
+<!-- verify -->
 ```java
 // Shared infrastructure: one breaker per dependency, not per call
 CircuitBreaker inventoryBreaker = CircuitBreaker.withDefaults();
@@ -223,6 +226,7 @@ The same shape works on the async railway: `VResultPath` carries these combinato
 
 Resilience patterns compose with `VStream` through per-element VTask composition:
 
+<!-- verify -->
 ```java
 // Per-element retry and circuit breaker protection
 List<UserProfile> profiles = Path.vstreamFromList(userIds)
@@ -233,11 +237,12 @@ List<UserProfile> profiles = Path.vstreamFromList(userIds)
                 retryPolicy)))
     .recover(ex -> UserProfile.unknown())
     .toList()
-    .run();
+    .unsafeRun();
 ```
 
 The `Resilience` utility provides convenience functions for this pattern:
 
+<!-- verify -->
 ```java
 // Equivalent, using helper functions
 Function<String, VTask<UserProfile>> resilientFetch =
@@ -251,7 +256,7 @@ List<UserProfile> profiles = Path.vstreamFromList(userIds)
     .parEvalMap(4, resilientFetch)
     .recover(ex -> UserProfile.unknown())
     .toList()
-    .run();
+    .unsafeRun();
 ```
 
 ## Pattern Selection Guide
@@ -268,6 +273,7 @@ Not every service needs every pattern. The [chapter introduction's decision flow
 
 ## Complete Example
 
+<!-- verify -->
 ```java
 // Shared infrastructure
 CircuitBreaker paymentBreaker = CircuitBreaker.create(

@@ -83,6 +83,7 @@ flowchart LR
 
 Everything else on this page is a variation on those three pieces.
 
+<!-- verify -->
 ```java
 // 1. The optic describes the shape (a list-traversal here).
 Traversal<List<Integer>, Integer> ids = FocusPaths.listElements();
@@ -115,6 +116,7 @@ The codegen produces type-preserving optics: a `Traversal<Team, UserId>` is `Use
 
 `FetchOptics.fetchEach` builds the type-changing list-traversal the codegen does not produce:
 
+<!-- verify -->
 ```java
 record Team(String name, List<UserId> memberIds) {}
 record EnrichedTeam(String name, List<User> members) {}
@@ -164,6 +166,7 @@ Fetch.RunResult<String, List<String>> result =
 
 Exceptions are great when nobody else needs to know about them. The moment a failure has to flow through composition (partition successes and failures, retry only the failures, present the failures to the caller as data) they become a problem. `SafeFetch` wraps a run so that resolver exceptions, missing-key reports, loader failures, and deadlines become `Either.left` values instead of thrown exceptions. The run never throws, and the safe-async future never completes exceptionally:
 
+<!-- verify -->
 ```java
 Either<Throwable, Fetch.RunResult<UserId, User>> outcome =
     SafeFetch.runCached(program, failingResolver);
