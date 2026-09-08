@@ -509,8 +509,10 @@ public class ErrorEnvelopeProcessor extends AbstractProcessor {
   /** The fluent builder over the context record's components. */
   private TypeSpec contextBuilderType(
       TypeElement context, ClassName contextName, ClassName builderName) {
+    // A nested type is its own class file, and a coverage tool reads the marker there.
     TypeSpec.Builder builder =
         TypeSpec.classBuilder(builderName.simpleName())
+            .addAnnotation(GENERATED)
             .addModifiers(Modifier.PUBLIC, Modifier.STATIC, Modifier.FINAL)
             .addJavadoc(
                 "Fluent builder over {@link $T}'s components; components not set stay as seeded.\n",

@@ -27,6 +27,7 @@ public final class Wide13Assembly {
   /**
    * Stage 0 of 13: expects {@code f1} next.
    */
+  @Generated
   public static final class Stage0 {
     private static final Stage0 INSTANCE = new Stage0();
 
@@ -45,6 +46,7 @@ public final class Wide13Assembly {
   /**
    * Stage 1 of 13: expects {@code f2} next.
    */
+  @Generated
   public static final class Stage1 {
     private final Validated<NonEmptyList<FieldError>, String> f1;
 
@@ -64,6 +66,7 @@ public final class Wide13Assembly {
   /**
    * Stage 2 of 13: expects {@code f3} next.
    */
+  @Generated
   public static final class Stage2 {
     private final Validated<NonEmptyList<FieldError>, String> f1;
 
@@ -87,6 +90,7 @@ public final class Wide13Assembly {
   /**
    * Stage 3 of 13: expects {@code f4} next.
    */
+  @Generated
   public static final class Stage3 {
     private final Validated<NonEmptyList<FieldError>, String> f1;
 
@@ -114,6 +118,7 @@ public final class Wide13Assembly {
   /**
    * Stage 4 of 13: expects {@code f5} next.
    */
+  @Generated
   public static final class Stage4 {
     private final Validated<NonEmptyList<FieldError>, String> f1;
 
@@ -145,6 +150,7 @@ public final class Wide13Assembly {
   /**
    * Stage 5 of 13: expects {@code f6} next.
    */
+  @Generated
   public static final class Stage5 {
     private final Validated<NonEmptyList<FieldError>, String> f1;
 
@@ -180,6 +186,7 @@ public final class Wide13Assembly {
   /**
    * Stage 6 of 13: expects {@code f7} next.
    */
+  @Generated
   public static final class Stage6 {
     private final Validated<NonEmptyList<FieldError>, String> f1;
 
@@ -219,6 +226,7 @@ public final class Wide13Assembly {
   /**
    * Stage 7 of 13: expects {@code f8} next.
    */
+  @Generated
   public static final class Stage7 {
     private final Validated<NonEmptyList<FieldError>, String> f1;
 
@@ -262,6 +270,7 @@ public final class Wide13Assembly {
   /**
    * Stage 8 of 13: expects {@code f9} next.
    */
+  @Generated
   public static final class Stage8 {
     private final Validated<NonEmptyList<FieldError>, String> f1;
 
@@ -309,6 +318,7 @@ public final class Wide13Assembly {
   /**
    * Stage 9 of 13: expects {@code f10} next.
    */
+  @Generated
   public static final class Stage9 {
     private final Validated<NonEmptyList<FieldError>, String> f1;
 
@@ -360,6 +370,7 @@ public final class Wide13Assembly {
   /**
    * Stage 10 of 13: expects {@code f11} next.
    */
+  @Generated
   public static final class Stage10 {
     private final Validated<NonEmptyList<FieldError>, String> f1;
 
@@ -415,6 +426,7 @@ public final class Wide13Assembly {
   /**
    * Stage 11 of 13: expects {@code f12} next.
    */
+  @Generated
   public static final class Stage11 {
     private final Validated<NonEmptyList<FieldError>, String> f1;
 
@@ -474,6 +486,7 @@ public final class Wide13Assembly {
   /**
    * Stage 12 of 13: expects {@code f13} next.
    */
+  @Generated
   public static final class Stage12 {
     private final Validated<NonEmptyList<FieldError>, String> f1;
 
@@ -537,6 +550,7 @@ public final class Wide13Assembly {
   /**
    * Terminal stage: every component supplied; {@code assemble()} only.
    */
+  @Generated
   public static final class Stage13 {
     private final Validated<NonEmptyList<FieldError>, String> f1;
 

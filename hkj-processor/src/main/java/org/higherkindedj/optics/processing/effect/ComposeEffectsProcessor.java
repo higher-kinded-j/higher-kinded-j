@@ -499,8 +499,10 @@ public class ComposeEffectsProcessor extends AbstractProcessor {
     // The composition fixes the witness, so BoundSet needs no type parameter of its own:
     // each component is that algebra's Bound at the composed type.
     MethodSpec.Builder ctorBuilder = MethodSpec.constructorBuilder();
+    // A nested type is its own class file, and a coverage tool reads the marker there.
     TypeSpec.Builder record =
         TypeSpec.recordBuilder("BoundSet")
+            .addAnnotation(GENERATED)
             .addModifiers(Modifier.PUBLIC, Modifier.STATIC)
             .addJavadoc("Convenience record holding Bound instances for all composed effects.\n\n");
 

@@ -62,6 +62,9 @@ import org.higherkindedj.optics.processing.util.ProcessorUtils;
  */
 public class NavigatorClassGenerator {
 
+  private static final ClassName GENERATED =
+      ClassName.get("org.higherkindedj.optics.annotations", "Generated");
+
   private final ProcessingEnvironment processingEnv;
   private final Set<String> navigableTypes;
   private final int maxDepth;
@@ -330,8 +333,10 @@ public class NavigatorClassGenerator {
           case TRAVERSAL -> "TraversalPath (collection navigation)";
         };
 
+    // A nested type is its own class file, and a coverage tool reads the marker there.
     TypeSpec.Builder navigatorBuilder =
         TypeSpec.classBuilder(navigatorClassName)
+            .addAnnotation(GENERATED)
             .addModifiers(Modifier.PUBLIC, Modifier.STATIC, Modifier.FINAL)
             .addTypeVariable(sourceTypeVar)
             .addJavadoc(
