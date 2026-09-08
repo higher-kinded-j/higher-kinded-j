@@ -140,14 +140,14 @@ EitherPath<AppError, String> result =
         .map(User::name);
 ```
 
-**The fix:** convert at the boundary with `toEitherPath`, which turns `Nothing` into a `Left` carrying the error you provide.
+**The fix:** convert at the boundary with `toEitherPath`, which turns `Nothing` into a `Left`. A lambda selects the deferred overload, so the error is built only on the branch that uses it, and the `<AppError>` witness names the error type, since nothing downstream settles it here.
 
 <!-- verify -->
 ```java
 EitherPath<AppError, String> result =
     Path.<AppError, String>right(userId)
         .via(id -> Path.maybe(loadUser(id))
-            .<AppError>toEitherPath(new AppError.UserNotFound(id)))  // MaybePath -> EitherPath
+            .<AppError>toEitherPath(() -> new AppError.UserNotFound(id)))  // MaybePath -> EitherPath
         .map(User::name);
 ```
 
