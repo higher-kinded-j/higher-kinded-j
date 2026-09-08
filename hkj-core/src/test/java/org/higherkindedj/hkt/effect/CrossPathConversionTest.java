@@ -3,10 +3,13 @@
 package org.higherkindedj.hkt.effect;
 
 import static org.assertj.core.api.Assertions.*;
+import static org.higherkindedj.hkt.assertions.EitherAssert.assertThatEither;
 import static org.higherkindedj.hkt.instances.Witnesses.*;
 import static org.higherkindedj.hkt.maybe.MaybeKindHelper.MAYBE;
 
 import java.util.NoSuchElementException;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.Supplier;
 import org.higherkindedj.hkt.MonadError;
 import org.higherkindedj.hkt.Semigroup;
 import org.higherkindedj.hkt.Unit;
@@ -30,6 +33,10 @@ class CrossPathConversionTest {
   private static final String TEST_VALUE = "test";
   private static final String TEST_ERROR = "error";
   private static final Semigroup<String> STRING_SEMIGROUP = (a, b) -> a + ", " + b;
+
+  private static String buildError() {
+    return TEST_ERROR;
+  }
 
   // ===== MaybePath Conversions =====
 
@@ -491,6 +498,126 @@ class CrossPathConversionTest {
 
       assertThat(result.run().isInvalid()).isTrue();
       assertThat(result.run().getError()).isEqualTo(TEST_ERROR);
+    }
+  }
+
+  // ===== Deferred Error Conversions =====
+
+  @Nested
+  @DisplayName("Deferred Error Conversions")
+  class DeferredErrorConversions {
+
+    @Test
+    @DisplayName("MaybePath(Just) → EitherPath(Right) without calling the supplier")
+    void maybeJustToEitherRightLeavesSupplierUncalled() {
+      MaybePath<String> source = Path.just(TEST_VALUE);
+      AtomicInteger calls = new AtomicInteger();
+
+      EitherPath<String, String> result =
+          source.toEitherPath(
+              () -> {
+                calls.incrementAndGet();
+                return TEST_ERROR;
+              });
+
+      assertThatEither(result.run()).isRight().hasRight(TEST_VALUE);
+      assertThat(calls).hasValue(0);
+    }
+
+    @Test
+    @DisplayName("MaybePath(Nothing) → EitherPath(Left) calling the supplier once")
+    void maybeNothingToEitherLeftCallsSupplierOnce() {
+      MaybePath<String> source = Path.nothing();
+      AtomicInteger calls = new AtomicInteger();
+
+      EitherPath<String, String> result =
+          source.toEitherPath(
+              () -> {
+                calls.incrementAndGet();
+                return TEST_ERROR;
+              });
+
+      assertThatEither(result.run()).isLeft().hasLeft(TEST_ERROR);
+      assertThat(calls).hasValue(1);
+    }
+
+    @Test
+    @DisplayName("OptionalPath(Present) → EitherPath(Right) without calling the supplier")
+    void optionalPresentToEitherRightLeavesSupplierUncalled() {
+      OptionalPath<String> source = Path.present(TEST_VALUE);
+      AtomicInteger calls = new AtomicInteger();
+
+      EitherPath<String, String> result =
+          source.toEitherPath(
+              () -> {
+                calls.incrementAndGet();
+                return TEST_ERROR;
+              });
+
+      assertThatEither(result.run()).isRight().hasRight(TEST_VALUE);
+      assertThat(calls).hasValue(0);
+    }
+
+    @Test
+    @DisplayName("OptionalPath(Empty) → EitherPath(Left) calling the supplier once")
+    void optionalEmptyToEitherLeftCallsSupplierOnce() {
+      OptionalPath<String> source = Path.absent();
+      AtomicInteger calls = new AtomicInteger();
+
+      EitherPath<String, String> result =
+          source.toEitherPath(
+              () -> {
+                calls.incrementAndGet();
+                return TEST_ERROR;
+              });
+
+      assertThatEither(result.run()).isLeft().hasLeft(TEST_ERROR);
+      assertThat(calls).hasValue(1);
+    }
+
+    @Test
+    @DisplayName("A method reference selects the deferred overload")
+    void methodReferenceSelectsTheDeferredOverload() {
+      EitherPath<String, String> either =
+          Path.<String>nothing().toEitherPath(CrossPathConversionTest::buildError);
+
+      assertThatEither(either.run()).isLeft().hasLeft(TEST_ERROR);
+    }
+
+    @Test
+    @DisplayName("A supplier variable selects the deferred overload")
+    void supplierVariableSelectsTheDeferredOverload() {
+      Supplier<String> errorSupplier = () -> TEST_ERROR;
+
+      EitherPath<String, String> fromMaybe = Path.<String>nothing().toEitherPath(errorSupplier);
+      EitherPath<String, String> fromOptional = Path.<String>absent().toEitherPath(errorSupplier);
+
+      assertThatEither(fromMaybe.run()).isLeft().hasLeft(TEST_ERROR);
+      assertThatEither(fromOptional.run()).isLeft().hasLeft(TEST_ERROR);
+    }
+
+    @Test
+    @DisplayName("A plain error value still selects the eager overload")
+    void plainErrorValueSelectsTheEagerOverload() {
+      EitherPath<String, String> fromMaybe = Path.<String>nothing().toEitherPath(TEST_ERROR);
+      EitherPath<String, String> fromOptional = Path.<String>absent().toEitherPath(TEST_ERROR);
+
+      assertThatEither(fromMaybe.run()).isLeft().hasLeft(TEST_ERROR);
+      assertThatEither(fromOptional.run()).isLeft().hasLeft(TEST_ERROR);
+    }
+
+    @Test
+    @DisplayName("A null supplier is rejected even when there is a value to return")
+    void nullSupplierIsRejectedEagerly() {
+      MaybePath<String> just = Path.just(TEST_VALUE);
+      OptionalPath<String> present = Path.present(TEST_VALUE);
+
+      assertThatNullPointerException()
+          .isThrownBy(() -> just.toEitherPath((Supplier<String>) null))
+          .withMessageContaining("errorSupplier");
+      assertThatNullPointerException()
+          .isThrownBy(() -> present.toEitherPath((Supplier<String>) null))
+          .withMessageContaining("errorSupplier");
     }
   }
 

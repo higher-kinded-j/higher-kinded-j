@@ -473,8 +473,10 @@ public EitherPath<OrderError, Order> processOrder(String userId, OrderRequest re
 }
 ```
 
-`toEitherPath` takes the error **value**, not a supplier. The `<OrderError>` witness widens it from
-the concrete `UserNotFound` to the sealed parent, which is what the rest of the chain is typed on.
+`toEitherPath` takes the error **value** here; a `Supplier` overload defers building it to the
+`Nothing` branch, for an error that is not free to construct. The `<OrderError>` witness widens the
+error from the concrete `UserNotFound` to the sealed parent, which is what the rest of the chain is
+typed on.
 A step that needs an earlier binding (`user`, here) nests inside the `via` that bound it; when the
 nesting gets deep, reach for `ForPath`, which keeps every binding in scope and stays flat.
 

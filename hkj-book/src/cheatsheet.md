@@ -165,10 +165,11 @@ import static org.higherkindedj.hkt.instances.Witnesses.*;
 
 | From | To | Method |
 |------|----|--------|
-| `MaybePath<A>` | `EitherPath<E, A>` | `.toEitherPath(error)` |
+| `MaybePath<A>` | `EitherPath<E, A>` | `.toEitherPath(error)`, `.toEitherPath(errorSupplier)` |
 | `MaybePath<A>` | `TryPath<A>` | `.toTryPath(exceptionSupplier)` |
 | `MaybePath<A>` | `ValidationPath<E, A>` | `.toValidationPath(error, semigroup)` |
 | `MaybePath<A>` | `OptionalPath<A>` | `.toOptionalPath()` |
+| `OptionalPath<A>` | `EitherPath<E, A>` | `.toEitherPath(error)`, `.toEitherPath(errorSupplier)` |
 | `EitherPath<E, A>` | `MaybePath<A>` | `.toMaybePath()` |
 | `EitherPath<E, A>` | `TryPath<A>` | `.toTryPath(errorToException)` |
 | `EitherPath<E, A>` | `ValidationPath<E, A>` | `.toValidationPath(semigroup)` |

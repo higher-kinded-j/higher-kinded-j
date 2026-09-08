@@ -87,13 +87,15 @@ MaybePath<User> maybeUser = Path.maybe(findUser(id));
 EitherPath<String, User> withError =
     maybeUser.toEitherPath("User not found");
 
-// The error is built whichever way the Maybe went
-EitherPath<UserError, User> withTypedError =
-    maybeUser.toEitherPath(new UserError("User " + id + " not found"));
+// With lazy error: the supplier runs only on the Nothing branch
+EitherPath<UserError, User> withLazyError =
+    maybeUser.toEitherPath(() -> new UserError("User " + id + " not found"));
 ```
 
-~~~admonish note title="The error is eager"
-`toEitherPath` takes the error *value*, so it is constructed even when the `Maybe` is a `Just` and it is thrown away. For a record that costs nothing; for an error that formats a message or captures a stack trace, hoist it or accept the cost. `Maybe.toEither` has a `Supplier` overload for exactly this, and the Path layer does not: [#794](https://github.com/higher-kinded-j/higher-kinded-j/issues/794).
+~~~admonish tip title="Which of the two overloads runs"
+A lambda, a method reference, or a variable of a `Supplier` type picks the deferred overload; any other argument picks the eager one. Reach for the deferred form when building the error is not free - it formats a message, reads a `MessageSource`, or captures a stack trace - because on the `Just` branch the supplier is never called. For a plain record the eager form reads better and costs nothing.
+
+An error type that is *itself* a functional interface would be read as a supplier, so name the eager overload for it: `maybeUser.<MyError>toEitherPath(myError)`.
 ~~~
 
 This is useful when:
@@ -105,7 +107,7 @@ This is useful when:
 // Service that returns Maybe internally but Either externally
 public EitherPath<AppError, User> getUserOrError(String id) {
     return Path.maybe(userRepository.findById(id))
-        .toEitherPath(AppError.notFound(id));
+        .toEitherPath(() -> AppError.notFound(id));
 }
 ```
 
@@ -352,6 +354,9 @@ OptionalPath<User> optUser = Path.optional(findUserOptional(id));
 
 // Provide error for empty case
 EitherPath<String, User> either = optUser.toEitherPath("User not found");
+
+// Or defer building it to the empty branch
+EitherPath<AppError, User> lazy = optUser.toEitherPath(() -> AppError.notFound(id));
 ```
 
 ### When to Use OptionalPath

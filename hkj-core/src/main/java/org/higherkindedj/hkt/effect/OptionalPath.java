@@ -173,6 +173,32 @@ public final class OptionalPath<A> implements Chainable<A> {
   }
 
   /**
+   * Converts this OptionalPath to an EitherPath, deferring construction of the error.
+   *
+   * <p>If this path contains a value, returns a Right and the supplier is never called. If this
+   * path is empty, the supplier is called once and its result becomes the Left value. Prefer this
+   * over {@link #toEitherPath(Object)} when building the error is not free - it formats a message,
+   * reads a resource bundle, or captures a stack trace.
+   *
+   * <p>A lambda, a method reference, or a variable of a {@link Supplier} type selects this
+   * overload; anything else selects {@link #toEitherPath(Object)}. An error type that is itself a
+   * functional interface would therefore be read as a supplier, so name the eager overload
+   * explicitly ({@code path.<MyError>toEitherPath(myError)}) in that case. This mirrors {@link
+   * org.higherkindedj.hkt.maybe.Maybe#toEither(Supplier)}.
+   *
+   * @param errorSupplier supplies the error if this path is empty; must not be null
+   * @param <E> the error type
+   * @return an EitherPath with Right if present, Left with the supplied error if empty
+   * @throws NullPointerException if errorSupplier is null
+   */
+  public <E> EitherPath<E, A> toEitherPath(Supplier<? extends E> errorSupplier) {
+    Objects.requireNonNull(errorSupplier, "errorSupplier must not be null");
+    return value
+        .<EitherPath<E, A>>map(a -> new EitherPath<>(Either.right(a)))
+        .orElseGet(() -> new EitherPath<>(Either.left(errorSupplier.get())));
+  }
+
+  /**
    * Converts this OptionalPath to a ValidationPath.
    *
    * @param errorIfEmpty the error to use if this path is empty; must not be null

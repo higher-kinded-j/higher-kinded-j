@@ -71,6 +71,13 @@ public class CrossPathConversionsExample {
     EitherPath<String, Integer> eitherFromNothing = nothingPath.toEitherPath("Value was absent");
     System.out.println("Nothing -> Either: " + eitherFromNothing.run()); // Left[Value was absent]
 
+    // The supplier overload builds the error only on the branch that uses it
+    EitherPath<String, Integer> eitherFromDeferredError =
+        nothingPath.toEitherPath(() -> "Value was absent, computed only here");
+    System.out.println(
+        "Nothing -> Either (deferred): "
+            + eitherFromDeferredError.run()); // Left[Value was absent, computed only here]
+
     System.out.println();
   }
 
@@ -206,6 +213,11 @@ public class CrossPathConversionsExample {
 
     EitherPath<String, Integer> eitherFromAbsent = absentPath.toEitherPath("Value is required");
     System.out.println("Absent -> Either: " + eitherFromAbsent.run()); // Left[Value is required]
+
+    EitherPath<String, Integer> eitherFromDeferredAbsent =
+        absentPath.toEitherPath(() -> "Value is required");
+    System.out.println(
+        "Absent -> Either (deferred): " + eitherFromDeferredAbsent.run()); // Left[Value is required]
 
     System.out.println();
   }
