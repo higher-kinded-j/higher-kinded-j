@@ -140,6 +140,35 @@ public final class MaybePath<A> implements Recoverable<Unit, A> {
   }
 
   /**
+   * Converts this MaybePath to an EitherPath, deferring construction of the error.
+   *
+   * <p>If this path contains a value, returns an EitherPath with a Right value and the supplier is
+   * never called. If this path is empty, the supplier is called once and its result becomes the
+   * Left value. Prefer this over {@link #toEitherPath(Object)} when building the error is not free
+   * - it formats a message, reads a resource bundle, or captures a stack trace.
+   *
+   * <p>A lambda, a method reference, or a variable whose type is a {@link Supplier} selects this
+   * overload; every other argument selects {@link #toEitherPath(Object)}, an error whose own type
+   * is a functional interface included. The one shape to watch is an error type that is a
+   * functional interface written as a lambda, which reads as a supplier and fails to infer: name
+   * the error type to select the eager overload, {@code path.<MyError>toEitherPath(() -> "boom")}.
+   * A bare {@code null} likewise selects this overload and is rejected; cast it to the error type,
+   * {@code path.toEitherPath((MyError) null)}, to pass a null error to the eager one. This mirrors
+   * {@link org.higherkindedj.hkt.maybe.Maybe#toEither(Supplier)}.
+   *
+   * @param errorSupplier supplies the error if this path is empty; must not be null
+   * @param <E> the error type
+   * @return an EitherPath representing this path's value or the supplied error
+   * @throws NullPointerException if errorSupplier is null
+   */
+  public <E> EitherPath<E, A> toEitherPath(Supplier<? extends E> errorSupplier) {
+    Objects.requireNonNull(errorSupplier, "errorSupplier must not be null");
+    return value.isJust()
+        ? new EitherPath<>(Either.right(value.get()))
+        : new EitherPath<>(Either.left(errorSupplier.get()));
+  }
+
+  /**
    * Converts this MaybePath to a TryPath.
    *
    * <p>If this path contains a value, returns a TryPath with a Success. If this path is empty,

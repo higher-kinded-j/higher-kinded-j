@@ -3,8 +3,12 @@
 package org.higherkindedj.optics.focus;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatNullPointerException;
+import static org.higherkindedj.hkt.assertions.EitherAssert.assertThatEither;
 
 import java.util.Optional;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.Supplier;
 import org.higherkindedj.hkt.effect.EitherPath;
 import org.higherkindedj.hkt.effect.MaybePath;
 import org.higherkindedj.hkt.effect.OptionalPath;
@@ -134,6 +138,55 @@ class AffinePathBridgeTest {
 
       assertThat(result.run().isLeft()).isTrue();
       assertThat(result.run().getLeft()).isEqualTo("API key required");
+    }
+
+    @Test
+    @DisplayName("returns Right without calling the supplier when the affine matches")
+    void returnsRightWithoutCallingTheSupplier() {
+      AffinePath<Config, String> path = FocusPath.of(apiKeyLens).via(optionalSome);
+      Config config = new Config(Optional.of("secret"), "app");
+      AtomicInteger calls = new AtomicInteger();
+
+      EitherPath<String, String> result =
+          path.toEitherPath(
+              config,
+              () -> {
+                calls.incrementAndGet();
+                return "API key required";
+              });
+
+      assertThatEither(result.run()).isRight().hasRight("secret");
+      assertThat(calls).hasValue(0);
+    }
+
+    @Test
+    @DisplayName("calls the supplier once when the affine doesn't match")
+    void callsTheSupplierOnceWhenAffineDoesntMatch() {
+      AffinePath<Config, String> path = FocusPath.of(apiKeyLens).via(optionalSome);
+      Config config = new Config(Optional.empty(), "app");
+      AtomicInteger calls = new AtomicInteger();
+
+      EitherPath<String, String> result =
+          path.toEitherPath(
+              config,
+              () -> {
+                calls.incrementAndGet();
+                return "API key required";
+              });
+
+      assertThatEither(result.run()).isLeft().hasLeft("API key required");
+      assertThat(calls).hasValue(1);
+    }
+
+    @Test
+    @DisplayName("rejects a null supplier even when the affine matches")
+    void rejectsANullSupplier() {
+      AffinePath<Config, String> path = FocusPath.of(apiKeyLens).via(optionalSome);
+      Config config = new Config(Optional.of("secret"), "app");
+
+      assertThatNullPointerException()
+          .isThrownBy(() -> path.toEitherPath(config, (Supplier<String>) null))
+          .withMessageContaining("errorSupplier");
     }
 
     @Test

@@ -274,7 +274,7 @@ When migrating incrementally, convert between Path types at boundaries:
 
 | From | To | Method |
 |------|----|--------|
-| `MaybePath` | `EitherPath` | `.toEitherPath(error)` |
+| `MaybePath` | `EitherPath` | `.toEitherPath(error)`, `.toEitherPath(errorSupplier)` |
 | `MaybePath` | `TryPath` | `.toTryPath(exceptionSupplier)` |
 | `EitherPath` | `MaybePath` | `.toMaybePath()` |
 | `EitherPath` | `TryPath` | `.toTryPath(errorToException)` |
