@@ -95,20 +95,7 @@ public final class NestedLenses {
    * @return A non-null {@code Traversal<Nested, String>}.
    */
   public static Traversal<Nested, String> descriptionTraversal() {
-    return new Traversal<Nested, String>() {
-      @Override
-      public <F extends WitnessArity<TypeArity.Unary>> Kind<F, Nested> modifyF(
-          Function<String, Kind<F, String>> f, Nested source, Applicative<F> applicative) {
-        final Optional<String> optional = source.description();
-        if (optional.isPresent()) {
-          final var g_of_b = f.apply(optional.get());
-          @SuppressWarnings("unchecked") final var g_of_b_casted = (Kind<F, String>) g_of_b;
-          return applicative.map(newValue -> new Nested(source.name(), Optional.of(newValue), source.tags()), g_of_b_casted);
-        } else {
-          return applicative.of(source);
-        }
-      }
-    };
+    return new DescriptionTraversal();
   }
 
   /**
@@ -119,13 +106,32 @@ public final class NestedLenses {
    * @return A non-null {@code Traversal<Nested, String>}.
    */
   public static Traversal<Nested, String> tagsTraversal() {
-    return new Traversal<Nested, String>() {
-      @Override
-      public <F extends WitnessArity<TypeArity.Unary>> Kind<F, Nested> modifyF(
-          Function<String, Kind<F, String>> f, Nested source, Applicative<F> applicative) {
-        final var effectOfList = Traversals.traverseList(source.tags(), f, applicative);
-        return applicative.map(newList -> new Nested(source.name(), source.description(), newList), effectOfList);
+    return new TagsTraversal();
+  }
+
+  @Generated
+  private static final class DescriptionTraversal implements Traversal<Nested, String> {
+    @Override
+    public <F extends WitnessArity<TypeArity.Unary>> Kind<F, Nested> modifyF(
+        Function<String, Kind<F, String>> f, Nested source, Applicative<F> applicative) {
+      final Optional<String> optional = source.description();
+      if (optional.isPresent()) {
+        final var g_of_b = f.apply(optional.get());
+        @SuppressWarnings("unchecked") final var g_of_b_casted = (Kind<F, String>) g_of_b;
+        return applicative.map(newValue -> new Nested(source.name(), Optional.of(newValue), source.tags()), g_of_b_casted);
+      } else {
+        return applicative.of(source);
       }
-    };
+    }
+  }
+
+  @Generated
+  private static final class TagsTraversal implements Traversal<Nested, String> {
+    @Override
+    public <F extends WitnessArity<TypeArity.Unary>> Kind<F, Nested> modifyF(
+        Function<String, Kind<F, String>> f, Nested source, Applicative<F> applicative) {
+      final var effectOfList = Traversals.traverseList(source.tags(), f, applicative);
+      return applicative.map(newList -> new Nested(source.name(), source.description(), newList), effectOfList);
+    }
   }
 }

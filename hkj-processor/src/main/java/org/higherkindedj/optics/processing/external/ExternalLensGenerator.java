@@ -27,6 +27,8 @@ import org.higherkindedj.optics.Traversal;
 import org.higherkindedj.optics.processing.GeneratorRegistry;
 import org.higherkindedj.optics.processing.spi.TraversableGenerator;
 import org.higherkindedj.optics.processing.util.ExcludeFromJacocoGeneratedReport;
+import org.higherkindedj.optics.processing.util.NestedOptic;
+import org.higherkindedj.optics.processing.util.NestedTypeNames;
 import org.higherkindedj.optics.processing.util.ProcessorUtils;
 
 /**
@@ -112,12 +114,13 @@ public class ExternalLensGenerator {
     }
 
     // Generate traversal methods for container fields
+    final NestedTypeNames names = new NestedTypeNames(lensesClassName);
     for (FieldInfo field : analysis.fields()) {
       if (field.hasTraversal()) {
-        MethodSpec traversalMethod =
-            createTraversalMethod(field, recordElement, components, recordTypeName);
-        if (traversalMethod != null) {
-          lensesClassBuilder.addMethod(traversalMethod);
+        NestedOptic traversal =
+            createTraversal(field, recordElement, components, recordTypeName, names);
+        if (traversal != null) {
+          traversal.addTo(lensesClassBuilder);
         }
       }
     }
@@ -303,11 +306,12 @@ public class ExternalLensGenerator {
   }
 
   // Package-private for tests.
-  MethodSpec createTraversalMethod(
+  NestedOptic createTraversal(
       FieldInfo field,
       TypeElement recordElement,
       List<? extends RecordComponentElement> allComponents,
-      TypeName recordTypeName) {
+      TypeName recordTypeName,
+      NestedTypeNames names) {
 
     // Find the matching record component first: it anchors any conflict warning
     RecordComponentElement component = null;
@@ -351,8 +355,11 @@ public class ExternalLensGenerator {
     final TypeVariableName effect =
         TypeVariableName.get(ProcessorUtils.effectVariableName(recordElement), witnessArityBound);
 
-    final TypeSpec traversalImpl =
-        TypeSpec.anonymousClassBuilder("")
+    final String implementationName = names.claim(field.name(), "Traversal");
+    final TypeSpec.Builder implementation =
+        TypeSpec.classBuilder(implementationName)
+            .addAnnotation(GENERATED_ANNOTATION)
+            .addModifiers(Modifier.PRIVATE, Modifier.STATIC, Modifier.FINAL)
             .addSuperinterface(traversalTypeName)
             .addMethod(
                 MethodSpec.methodBuilder("modifyF")
@@ -374,8 +381,7 @@ public class ExternalLensGenerator {
                         ParameterizedTypeName.get(
                             ClassName.get(Kind.class), effect, recordTypeName))
                     .addCode(modifyFBody)
-                    .build())
-            .build();
+                    .build());
 
     String methodName = field.name() + "Traversal";
 
@@ -396,12 +402,18 @@ public class ExternalLensGenerator {
                 focusType.box())
             .returns(traversalTypeName);
 
-    // The record's own parameters, as the lens methods beside this one already declare them.
+    // The record's own parameters, as the lens methods beside this one already declare them, and
+    // on the implementation too, which is declared beside the factory rather than inside it.
     for (TypeParameterElement typeParameter : recordElement.getTypeParameters()) {
-      methodBuilder.addTypeVariable(ProcessorUtils.typeVariableOf(typeParameter));
+      TypeVariableName typeVariable = ProcessorUtils.typeVariableOf(typeParameter);
+      methodBuilder.addTypeVariable(typeVariable);
+      implementation.addTypeVariable(typeVariable);
     }
+    final String typeArguments = recordElement.getTypeParameters().isEmpty() ? "" : "<>";
 
-    return methodBuilder.addStatement("return $L", traversalImpl).build();
+    return new NestedOptic(
+        implementation.build(),
+        methodBuilder.addStatement("return new $L$L()", implementationName, typeArguments).build());
   }
 
   // Package-private for tests.

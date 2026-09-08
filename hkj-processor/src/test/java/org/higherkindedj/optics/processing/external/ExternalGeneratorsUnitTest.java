@@ -10,7 +10,6 @@ import com.google.testing.compile.Compilation;
 import com.google.testing.compile.JavaFileObjects;
 import com.palantir.javapoet.ClassName;
 import com.palantir.javapoet.CodeBlock;
-import com.palantir.javapoet.MethodSpec;
 import com.palantir.javapoet.TypeName;
 import java.util.List;
 import java.util.Set;
@@ -22,6 +21,8 @@ import javax.lang.model.element.TypeElement;
 import javax.lang.model.type.TypeKind;
 import javax.lang.model.type.TypeMirror;
 import org.higherkindedj.optics.processing.spi.TraversableGenerator;
+import org.higherkindedj.optics.processing.util.NestedOptic;
+import org.higherkindedj.optics.processing.util.NestedTypeNames;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
@@ -71,8 +72,8 @@ class ExternalGeneratorsUnitTest {
   private static class GeneratorUnitTestProcessor extends AbstractProcessor {
     private boolean invoked = false;
 
-    private MethodSpec traversalForUnknownField;
-    private MethodSpec traversalForRawContainerField;
+    private NestedOptic traversalForUnknownField;
+    private NestedOptic traversalForRawContainerField;
     private TypeName focusTypeForRawContainer;
     private TypeName focusTypeForOutOfRangeIndex;
     private TypeName focusTypeForPrimitive;
@@ -102,7 +103,7 @@ class ExternalGeneratorsUnitTest {
       invoked = true;
 
       // 1. No generator available at all: the generator-search loop exits without a match and
-      // createTraversalMethod returns null, so generateForRecord skips the traversal method.
+      // createTraversal returns null, so generateForRecord skips the traversal method.
       ExternalLensGenerator withoutGenerators =
           new ExternalLensGenerator(
               processingEnv.getFiler(), processingEnv.getMessager(), List.of());
@@ -121,16 +122,21 @@ class ExternalGeneratorsUnitTest {
 
       // 2. Field name matching no record component: the component loop exits without a match.
       traversalForUnknownField =
-          withStub.createTraversalMethod(
-              FieldInfo.forRecordComponent("phantom", itemsType), mixed, components, mixedTypeName);
+          withStub.createTraversal(
+              FieldInfo.forRecordComponent("phantom", itemsType),
+              mixed,
+              components,
+              mixedTypeName,
+              new NestedTypeNames("MixedLenses"));
 
       // 3. Raw container field: getFocusType returns null, so the method is skipped.
       traversalForRawContainerField =
-          withStub.createTraversalMethod(
+          withStub.createTraversal(
               FieldInfo.forRecordComponent("rawItems", rawItemsType),
               mixed,
               components,
-              mixedTypeName);
+              mixedTypeName,
+              new NestedTypeNames("MixedLenses"));
 
       // 4. getFocusType guard arms.
       focusTypeForRawContainer = withStub.getFocusType(rawItemsType, new StubGenerator(0));

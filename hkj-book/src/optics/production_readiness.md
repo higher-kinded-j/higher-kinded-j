@@ -62,6 +62,8 @@ Generated sources land under `build/generated/sources/annotationProcessor/java/m
 
 Incremental compilation is supported, conservatively: every processor is registered with Gradle as *aggregating*, so a change to any annotated type re-runs generation across the source set rather than regenerating one companion class. That is deliberate, an isolating claim that turned out wrong would produce silently stale output, and consuming source sets stay incremental regardless.
 
+Every class file the processors write carries `@Generated`: the companion class, the navigator and stage classes nested inside it, and the classes that implement each traversal and fold. The marker has class retention, which is what JaCoCo's generated-code filter reads, so a coverage floor needs no exclude patterns for `XLenses`, `XFocus`, `XTraversals` or anything nested in them, and a build that carried such patterns can drop them. The same marker is what the [compile-time checks](../tooling/compile_checks.md#what-the-checker-detects) gate on.
+
 ---
 
 ## When to extract optics

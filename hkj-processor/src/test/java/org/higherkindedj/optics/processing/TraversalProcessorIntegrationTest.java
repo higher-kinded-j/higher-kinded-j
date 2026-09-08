@@ -28,20 +28,25 @@ public class TraversalProcessorIntegrationTest {
             public record Playlist(String name, List<String> songTitles) {}
             """);
 
-    final String expectedTraversal =
+    final String expectedFactory =
         """
         public static Traversal<Playlist, String> songTitles() {
-            return new Traversal<Playlist, String>() {
-                @Override
-                public <F extends WitnessArity<TypeArity.Unary>> Kind<F, Playlist> modifyF(
-                    Function<String, Kind<F, String>> f,
-                    Playlist source,
-                    Applicative<F> applicative
-                ) {
-                    final var effectOfList = Traversals.traverseList(source.songTitles(), f, applicative);
-                    return applicative.map(newList -> new Playlist(source.name(), newList), effectOfList);
-                }
-            };
+            return new SongTitlesTraversal();
+        }
+        """;
+    final String expectedImplementation =
+        """
+        @Generated
+        private static final class SongTitlesTraversal implements Traversal<Playlist, String> {
+            @Override
+            public <F extends WitnessArity<TypeArity.Unary>> Kind<F, Playlist> modifyF(
+                Function<String, Kind<F, String>> f,
+                Playlist source,
+                Applicative<F> applicative
+            ) {
+                final var effectOfList = Traversals.traverseList(source.songTitles(), f, applicative);
+                return applicative.map(newList -> new Playlist(source.name(), newList), effectOfList);
+            }
         }
         """;
 
@@ -50,7 +55,44 @@ public class TraversalProcessorIntegrationTest {
     assertThat(compilation).succeeded();
 
     final String generatedClassName = "com.example.PlaylistTraversals";
-    assertGeneratedCodeContains(compilation, generatedClassName, expectedTraversal);
+    assertGeneratedCodeContains(compilation, generatedClassName, expectedFactory);
+    assertGeneratedCodeContains(compilation, generatedClassName, expectedImplementation);
+  }
+
+  @Test
+  @DisplayName("two components that capitalise to the same word get distinct implementations")
+  void shouldSuffixAnImplementationNameAlreadyClaimed() {
+    // items and Items are distinct identifiers, so both are traversed. The nested classes that
+    // implement them cannot share a name, so the second takes the first free suffix.
+    final var sourceFile =
+        JavaFileObjects.forSourceString(
+            "com.example.Odd",
+            """
+            package com.example;
+
+            import org.higherkindedj.optics.annotations.GenerateTraversals;
+            import java.util.List;
+
+            @GenerateTraversals
+            public record Odd(List<String> items, List<String> Items) {}
+            """);
+
+    var compilation = javac().withProcessors(new TraversalProcessor()).compile(sourceFile);
+
+    assertThat(compilation).succeeded();
+    final String generatedClassName = "com.example.OddTraversals";
+    assertGeneratedCodeContains(
+        compilation,
+        generatedClassName,
+        "public static Traversal<Odd, String> items() { return new ItemsTraversal(); }");
+    assertGeneratedCodeContains(
+        compilation,
+        generatedClassName,
+        "public static Traversal<Odd, String> Items() { return new ItemsTraversal2(); }");
+    assertGeneratedCodeContains(
+        compilation,
+        generatedClassName,
+        "private static final class ItemsTraversal2 implements Traversal<Odd, String>");
   }
 
   @Test
@@ -185,7 +227,7 @@ public class TraversalProcessorIntegrationTest {
   @DisplayName("a component that is neither an array nor a declared type is skipped")
   void shouldSkipComponentThatIsNeitherArrayNorDeclared() {
     // The test-scope TypeVariableGenerator supports type variables named TRAVMARKER, steering a
-    // type-variable component into createTraversalMethod, which cannot handle it and skips it.
+    // type-variable component into createTraversal, which cannot handle it and skips it.
     final var sourceFile =
         JavaFileObjects.forSourceString(
             "com.example.VarRecord",
