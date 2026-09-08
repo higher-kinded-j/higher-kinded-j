@@ -36,6 +36,9 @@ import org.junit.jupiter.params.provider.MethodSource;
  * so this test reads what the coverage tool reads: the {@code RuntimeInvisibleAnnotations} of each
  * generated class file, and asks for the marker on every one.
  *
+ * <p>A traversal or fold is written as a named nested class for the same reason: an anonymous class
+ * is a class file of its own that no annotation can reach (#817).
+ *
  * <p>Each row compiles one generator's fixture and names the nested classes that fixture must
  * produce, so a fixture that stops exercising the shape fails rather than passing vacuously.
  */
@@ -145,6 +148,53 @@ class GeneratedMarkerReachesNestedTypesTest {
           public record Address(String street, String city) {}
           """);
 
+  private static final JavaFileObject PLAYLIST =
+      JavaFileObjects.forSourceString(
+          "com.example.Playlist",
+          """
+          package com.example;
+
+          import java.util.List;
+          import org.higherkindedj.optics.annotations.GenerateTraversals;
+
+          @GenerateTraversals
+          public record Playlist(String name, List<String> songTitles) {}
+          """);
+
+  private static final JavaFileObject BAG =
+      JavaFileObjects.forSourceString(
+          "com.external.Bag",
+          """
+          package com.external;
+
+          import java.util.List;
+
+          public record Bag<T>(String name, List<T> items) {}
+          """);
+
+  private static final JavaFileObject IMPORTED_BAG =
+      JavaFileObjects.forSourceString(
+          "com.myapp.optics.package-info",
+          """
+          @ImportOptics({com.external.Bag.class})
+          package com.myapp.optics;
+
+          import org.higherkindedj.optics.annotations.ImportOptics;
+          """);
+
+  private static final JavaFileObject ORDER =
+      JavaFileObjects.forSourceString(
+          "com.example.Order",
+          """
+          package com.example;
+
+          import java.util.List;
+          import org.higherkindedj.optics.annotations.GenerateFolds;
+
+          @GenerateFolds
+          public record Order(String id, List<String> items) {}
+          """);
+
   /** One row per generator that writes a nested type: its processors, fixture and nested output. */
   static Stream<Arguments> generators() {
     return Stream.of(
@@ -175,7 +225,22 @@ class GeneratedMarkerReachesNestedTypesTest {
             "@GenerateFocus navigators",
             List.of(new FocusProcessor()),
             List.of(COMPANY, ADDRESS),
-            Set.of("CompanyFocus$HeadquartersNavigator")));
+            Set.of("CompanyFocus$HeadquartersNavigator")),
+        Arguments.of(
+            "@GenerateTraversals",
+            List.of(new TraversalProcessor()),
+            List.of(PLAYLIST),
+            Set.of("PlaylistTraversals$SongTitlesTraversal")),
+        Arguments.of(
+            "@ImportOptics traversals",
+            List.of(new ImportOpticsProcessor()),
+            List.of(BAG, IMPORTED_BAG),
+            Set.of("BagLenses$ItemsTraversal")),
+        Arguments.of(
+            "@GenerateFolds",
+            List.of(new FoldProcessor()),
+            List.of(ORDER),
+            Set.of("OrderFolds$IdFold", "OrderFolds$ItemsFold")));
   }
 
   @ParameterizedTest(name = "{0}")

@@ -369,7 +369,7 @@ class ProcessorArchitectureRules {
 
   /** The methods that may read a choice from the registry: the delegate and the two route sites. */
   private static final Set<String> REGISTRY_READERS =
-      Set.of("spiLookup", "generateTraversalsFile", "createTraversalMethod");
+      Set.of("spiLookup", "generateTraversalsFile", "createTraversal");
 
   /** Method calls and method references from {@code javaClass}, which decide targets alike. */
   private static Stream<JavaAccess<?>> callsAndReferencesFrom(JavaClass javaClass) {

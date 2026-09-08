@@ -38,6 +38,8 @@ import org.higherkindedj.optics.annotations.GenerateTraversals;
 import org.higherkindedj.optics.processing.spi.TraversableGenerator;
 import org.higherkindedj.optics.processing.util.Diagnostics;
 import org.higherkindedj.optics.processing.util.ExcludeFromJacocoGeneratedReport;
+import org.higherkindedj.optics.processing.util.NestedOptic;
+import org.higherkindedj.optics.processing.util.NestedTypeNames;
 import org.higherkindedj.optics.processing.util.ProcessorUtils;
 
 /**
@@ -67,6 +69,9 @@ public class TraversalProcessor extends AbstractProcessor {
   public TraversalProcessor() {}
 
   private static final String TAG = "@GenerateTraversals";
+
+  private static final ClassName GENERATED =
+      ClassName.get("org.higherkindedj.optics.annotations", "Generated");
 
   private final List<TraversableGenerator> generators = new ArrayList<>();
 
@@ -110,15 +115,10 @@ public class TraversalProcessor extends AbstractProcessor {
 
     String traversalsClassName = recordName + "Traversals";
 
-    // Define the ClassName for your custom @Generated annotation
-    final ClassName generatedAnnotation =
-        ClassName.get("org.higherkindedj.optics.annotations", "Generated");
-
     TypeSpec.Builder classBuilder =
         TypeSpec.classBuilder(traversalsClassName)
             .addOriginatingElement(recordElement)
-            // Add the @Generated annotation to the class
-            .addAnnotation(generatedAnnotation)
+            .addAnnotation(GENERATED)
             .addJavadoc(
                 "Generated optics for {@link $T}. Do not edit.", ClassName.get(recordElement))
             .addModifiers(Modifier.PUBLIC, Modifier.FINAL)
@@ -126,6 +126,7 @@ public class TraversalProcessor extends AbstractProcessor {
 
     final GeneratorRegistry registry =
         GeneratorRegistry.of(generators, processingEnv.getMessager());
+    final NestedTypeNames names = new NestedTypeNames(traversalsClassName);
     for (RecordComponentElement component : recordElement.getRecordComponents()) {
       TraversableGenerator generator = registry.generatorFor(component.asType(), component);
       if (generator == null) {
@@ -141,9 +142,9 @@ public class TraversalProcessor extends AbstractProcessor {
         }
         continue;
       }
-      MethodSpec traversalMethod = createTraversalMethod(component, recordElement, generator);
-      if (traversalMethod != null) {
-        classBuilder.addMethod(traversalMethod);
+      NestedOptic traversal = createTraversal(component, recordElement, generator, names);
+      if (traversal != null) {
+        traversal.addTo(classBuilder);
       }
     }
 
@@ -153,8 +154,11 @@ public class TraversalProcessor extends AbstractProcessor {
         .writeTo(processingEnv.getFiler());
   }
 
-  private MethodSpec createTraversalMethod(
-      RecordComponentElement component, TypeElement recordElement, TraversableGenerator generator) {
+  private NestedOptic createTraversal(
+      RecordComponentElement component,
+      TypeElement recordElement,
+      TraversableGenerator generator,
+      NestedTypeNames names) {
 
     final String componentName = component.getSimpleName().toString();
     final ClassName recordClassName = ClassName.get(recordElement);
@@ -240,8 +244,11 @@ public class TraversalProcessor extends AbstractProcessor {
     final TypeVariableName effect =
         TypeVariableName.get(ProcessorUtils.effectVariableName(recordElement), witnessArityBound);
 
-    final TypeSpec traversalImpl =
-        TypeSpec.anonymousClassBuilder("")
+    final String implementationName = names.claim(componentName, "Traversal");
+    final TypeSpec.Builder implementation =
+        TypeSpec.classBuilder(implementationName)
+            .addAnnotation(GENERATED)
+            .addModifiers(Modifier.PRIVATE, Modifier.STATIC, Modifier.FINAL)
             .addSuperinterface(traversalTypeName)
             .addMethod(
                 MethodSpec.methodBuilder("modifyF")
@@ -263,31 +270,37 @@ public class TraversalProcessor extends AbstractProcessor {
                         ParameterizedTypeName.get(
                             ClassName.get(Kind.class), effect, recordTypeName))
                     .addCode(modifyFBody)
-                    .build())
-            .build();
+                    .build());
 
+    // The implementation is declared beside the factory, not inside it, so it declares the
+    // record's type variables for itself.
     final MethodSpec.Builder methodBuilder = MethodSpec.methodBuilder(componentName);
     for (TypeParameterElement typeParameter : recordElement.getTypeParameters()) {
-      methodBuilder.addTypeVariable(ProcessorUtils.typeVariableOf(typeParameter));
+      TypeVariableName typeVariable = ProcessorUtils.typeVariableOf(typeParameter);
+      methodBuilder.addTypeVariable(typeVariable);
+      implementation.addTypeVariable(typeVariable);
     }
+    final String typeArguments = recordElement.getTypeParameters().isEmpty() ? "" : "<>";
 
-    return methodBuilder
-        .addModifiers(Modifier.PUBLIC, Modifier.STATIC)
-        .addJavadoc(
-            "Creates a {@link $T} for the {@code $L} field of a {@link $T}.\n"
-                + "<p>This traversal focuses on all items within the {@code $L} collection,"
-                + " allowing an effectful function\n"
-                + "to be applied to each one.\n\n"
-                + "@return A non-null {@code Traversal<$T, $T>}.",
-            ClassName.get(Traversal.class),
-            component.getSimpleName(),
-            recordClassName,
-            component.getSimpleName(),
-            recordTypeName,
-            focusType.box())
-        .returns(traversalTypeName)
-        .addStatement("return $L", traversalImpl)
-        .build();
+    final MethodSpec factory =
+        methodBuilder
+            .addModifiers(Modifier.PUBLIC, Modifier.STATIC)
+            .addJavadoc(
+                "Creates a {@link $T} for the {@code $L} field of a {@link $T}.\n"
+                    + "<p>This traversal focuses on all items within the {@code $L} collection,"
+                    + " allowing an effectful function\n"
+                    + "to be applied to each one.\n\n"
+                    + "@return A non-null {@code Traversal<$T, $T>}.",
+                ClassName.get(Traversal.class),
+                component.getSimpleName(),
+                recordClassName,
+                component.getSimpleName(),
+                recordTypeName,
+                focusType.box())
+            .returns(traversalTypeName)
+            .addStatement("return new $L$L()", implementationName, typeArguments)
+            .build();
+    return new NestedOptic(implementation.build(), factory);
   }
 
   /**

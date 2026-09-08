@@ -747,13 +747,27 @@ public final class ProcessorUtils {
    * @since 0.4.10
    */
   public static String effectVariableName(TypeElement recordElement) {
+    return freeTypeVariableName("F", recordElement);
+  }
+
+  /**
+   * A type-variable name a method generated inside the record's own type variables can declare
+   * without shadowing one of them.
+   *
+   * @param preferred the name to use when the record has not taken it
+   * @param recordElement the annotated record
+   * @return {@code preferred}, or {@code preferred} followed by the first number the record leaves
+   *     free
+   * @since 0.4.11
+   */
+  public static String freeTypeVariableName(String preferred, TypeElement recordElement) {
     Set<String> taken =
         recordElement.getTypeParameters().stream()
             .map(parameter -> parameter.getSimpleName().toString())
             .collect(Collectors.toSet());
-    String name = "F";
+    String name = preferred;
     for (int suffix = 1; taken.contains(name); suffix++) {
-      name = "F" + suffix;
+      name = preferred + suffix;
     }
     return name;
   }

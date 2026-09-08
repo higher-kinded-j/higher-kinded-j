@@ -101,15 +101,7 @@ public final class NestedGenericsLenses {
    * @return A non-null {@code Traversal<NestedGenerics, List<Integer>>}.
    */
   public static Traversal<NestedGenerics, List<Integer>> indexTraversal() {
-    return new Traversal<NestedGenerics, List<Integer>>() {
-      @Override
-      public <F extends WitnessArity<TypeArity.Unary>> Kind<F, NestedGenerics> modifyF(
-          Function<List<Integer>, Kind<F, List<Integer>>> f, NestedGenerics source,
-          Applicative<F> applicative) {
-        final var effectOfMap = Traversals.traverseMapValues(source.index(), f, applicative);
-        return applicative.map(newMap -> new NestedGenerics(newMap, source.optionalTags(), source.entries()), effectOfMap);
-      }
-    };
+    return new IndexTraversal();
   }
 
   /**
@@ -120,21 +112,7 @@ public final class NestedGenericsLenses {
    * @return A non-null {@code Traversal<NestedGenerics, List<String>>}.
    */
   public static Traversal<NestedGenerics, List<String>> optionalTagsTraversal() {
-    return new Traversal<NestedGenerics, List<String>>() {
-      @Override
-      public <F extends WitnessArity<TypeArity.Unary>> Kind<F, NestedGenerics> modifyF(
-          Function<List<String>, Kind<F, List<String>>> f, NestedGenerics source,
-          Applicative<F> applicative) {
-        final Optional<List<String>> optional = source.optionalTags();
-        if (optional.isPresent()) {
-          final var g_of_b = f.apply(optional.get());
-          @SuppressWarnings("unchecked") final var g_of_b_casted = (Kind<F, List<String>>) g_of_b;
-          return applicative.map(newValue -> new NestedGenerics(source.index(), Optional.of(newValue), source.entries()), g_of_b_casted);
-        } else {
-          return applicative.of(source);
-        }
-      }
-    };
+    return new OptionalTagsTraversal();
   }
 
   /**
@@ -145,14 +123,45 @@ public final class NestedGenericsLenses {
    * @return A non-null {@code Traversal<NestedGenerics, Map<String, Object>>}.
    */
   public static Traversal<NestedGenerics, Map<String, Object>> entriesTraversal() {
-    return new Traversal<NestedGenerics, Map<String, Object>>() {
-      @Override
-      public <F extends WitnessArity<TypeArity.Unary>> Kind<F, NestedGenerics> modifyF(
-          Function<Map<String, Object>, Kind<F, Map<String, Object>>> f, NestedGenerics source,
-          Applicative<F> applicative) {
-        final var effectOfList = Traversals.traverseList(source.entries(), f, applicative);
-        return applicative.map(newList -> new NestedGenerics(source.index(), source.optionalTags(), newList), effectOfList);
+    return new EntriesTraversal();
+  }
+
+  @Generated
+  private static final class IndexTraversal implements Traversal<NestedGenerics, List<Integer>> {
+    @Override
+    public <F extends WitnessArity<TypeArity.Unary>> Kind<F, NestedGenerics> modifyF(
+        Function<List<Integer>, Kind<F, List<Integer>>> f, NestedGenerics source,
+        Applicative<F> applicative) {
+      final var effectOfMap = Traversals.traverseMapValues(source.index(), f, applicative);
+      return applicative.map(newMap -> new NestedGenerics(newMap, source.optionalTags(), source.entries()), effectOfMap);
+    }
+  }
+
+  @Generated
+  private static final class OptionalTagsTraversal implements Traversal<NestedGenerics, List<String>> {
+    @Override
+    public <F extends WitnessArity<TypeArity.Unary>> Kind<F, NestedGenerics> modifyF(
+        Function<List<String>, Kind<F, List<String>>> f, NestedGenerics source,
+        Applicative<F> applicative) {
+      final Optional<List<String>> optional = source.optionalTags();
+      if (optional.isPresent()) {
+        final var g_of_b = f.apply(optional.get());
+        @SuppressWarnings("unchecked") final var g_of_b_casted = (Kind<F, List<String>>) g_of_b;
+        return applicative.map(newValue -> new NestedGenerics(source.index(), Optional.of(newValue), source.entries()), g_of_b_casted);
+      } else {
+        return applicative.of(source);
       }
-    };
+    }
+  }
+
+  @Generated
+  private static final class EntriesTraversal implements Traversal<NestedGenerics, Map<String, Object>> {
+    @Override
+    public <F extends WitnessArity<TypeArity.Unary>> Kind<F, NestedGenerics> modifyF(
+        Function<Map<String, Object>, Kind<F, Map<String, Object>>> f, NestedGenerics source,
+        Applicative<F> applicative) {
+      final var effectOfList = Traversals.traverseList(source.entries(), f, applicative);
+      return applicative.map(newList -> new NestedGenerics(source.index(), source.optionalTags(), newList), effectOfList);
+    }
   }
 }

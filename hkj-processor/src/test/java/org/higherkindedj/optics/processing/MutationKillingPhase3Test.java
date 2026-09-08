@@ -29,7 +29,7 @@ import org.junit.jupiter.api.Test;
  * <ul>
  *   <li>NavigatorClassGenerator - composed path widening, depth limiting, capitalise
  *   <li>FocusProcessor - generateFocusFile conditionals, buildTraverseOverCall
- *   <li>TraversalProcessor - createTraversalMethod type argument handling
+ *   <li>TraversalProcessor - createTraversal type argument handling
  *   <li>ForComprehensionProcessor - process boundary conditions
  *   <li>ImportOpticsProcessor - processSpecInterface, processTypeAnnotation
  *   <li>PathSourceProcessor - isRecoverable, isChainable, generatePathClass conditionals
@@ -548,7 +548,7 @@ class MutationKillingPhase3Test {
   }
 
   // =============================================================================
-  // TraversalProcessor - createTraversalMethod conditionals
+  // TraversalProcessor - createTraversal conditionals
   // Targets: lines 119-136 - ArrayType check, DeclaredType empty type args,
   //   generator name equality, type argument boundary
   // =============================================================================

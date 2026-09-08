@@ -29,25 +29,23 @@ public class FoldProcessorIntegrationTest {
 
     final String expectedNameFold =
         """
-        public static Fold<User, String> name() {
-            return new Fold<>() {
-              @Override
-              public <M> M foldMap(Monoid<M> monoid, Function<? super String, ? extends M> f, User source) {
-                return f.apply(source.name());
-              }
-            };
+        @Generated
+        private static final class NameFold implements Fold<User, String> {
+          @Override
+          public <M> M foldMap(Monoid<M> monoid, Function<? super String, ? extends M> f, User source) {
+            return f.apply(source.name());
+          }
         }
         """;
 
     final String expectedAgeFold =
         """
-        public static Fold<User, Integer> age() {
-            return new Fold<>() {
-              @Override
-              public <M> M foldMap(Monoid<M> monoid, Function<? super Integer, ? extends M> f, User source) {
-                return f.apply(source.age());
-              }
-            };
+        @Generated
+        private static final class AgeFold implements Fold<User, Integer> {
+          @Override
+          public <M> M foldMap(Monoid<M> monoid, Function<? super Integer, ? extends M> f, User source) {
+            return f.apply(source.age());
+          }
         }
         """;
 
@@ -56,7 +54,17 @@ public class FoldProcessorIntegrationTest {
     assertThat(compilation).succeeded();
 
     final String generatedClassName = "com.example.UserFolds";
+    assertGeneratedCodeContains(
+        compilation,
+        generatedClassName,
+        "public static Fold<User, String> name() { return new NameFold(); }");
+
     assertGeneratedCodeContains(compilation, generatedClassName, expectedNameFold);
+    assertGeneratedCodeContains(
+        compilation,
+        generatedClassName,
+        "public static Fold<User, Integer> age() { return new AgeFold(); }");
+
     assertGeneratedCodeContains(compilation, generatedClassName, expectedAgeFold);
   }
 
@@ -78,29 +86,27 @@ public class FoldProcessorIntegrationTest {
 
     final String expectedIdFold =
         """
-        public static Fold<Order, String> id() {
-            return new Fold<>() {
-              @Override
-              public <M> M foldMap(Monoid<M> monoid, Function<? super String, ? extends M> f, Order source) {
-                return f.apply(source.id());
-              }
-            };
+        @Generated
+        private static final class IdFold implements Fold<Order, String> {
+          @Override
+          public <M> M foldMap(Monoid<M> monoid, Function<? super String, ? extends M> f, Order source) {
+            return f.apply(source.id());
+          }
         }
         """;
 
     final String expectedItemsFold =
         """
-        public static Fold<Order, String> items() {
-            return new Fold<>() {
-              @Override
-              public <M> M foldMap(Monoid<M> monoid, Function<? super String, ? extends M> f, Order source) {
-                M result = monoid.empty();
-                for (var element : source.items()) {
-                  result = monoid.combine(result, f.apply(element));
-                }
-                return result;
-              }
-            };
+        @Generated
+        private static final class ItemsFold implements Fold<Order, String> {
+          @Override
+          public <M> M foldMap(Monoid<M> monoid, Function<? super String, ? extends M> f, Order source) {
+            M result = monoid.empty();
+            for (var element : source.items()) {
+              result = monoid.combine(result, f.apply(element));
+            }
+            return result;
+          }
         }
         """;
 
@@ -109,7 +115,17 @@ public class FoldProcessorIntegrationTest {
     assertThat(compilation).succeeded();
 
     final String generatedClassName = "com.example.OrderFolds";
+    assertGeneratedCodeContains(
+        compilation,
+        generatedClassName,
+        "public static Fold<Order, String> id() { return new IdFold(); }");
+
     assertGeneratedCodeContains(compilation, generatedClassName, expectedIdFold);
+    assertGeneratedCodeContains(
+        compilation,
+        generatedClassName,
+        "public static Fold<Order, String> items() { return new ItemsFold(); }");
+
     assertGeneratedCodeContains(compilation, generatedClassName, expectedItemsFold);
   }
 
@@ -130,25 +146,23 @@ public class FoldProcessorIntegrationTest {
 
     final String expectedValueFold =
         """
-        public static <T> Fold<Container<T>, T> value() {
-            return new Fold<>() {
-              @Override
-              public <M> M foldMap(Monoid<M> monoid, Function<? super T, ? extends M> f, Container<T> source) {
-                return f.apply(source.value());
-              }
-            };
+        @Generated
+        private static final class ValueFold<T> implements Fold<Container<T>, T> {
+          @Override
+          public <M> M foldMap(Monoid<M> monoid, Function<? super T, ? extends M> f, Container<T> source) {
+            return f.apply(source.value());
+          }
         }
         """;
 
     final String expectedLabelFold =
         """
-        public static <T> Fold<Container<T>, String> label() {
-            return new Fold<>() {
-              @Override
-              public <M> M foldMap(Monoid<M> monoid, Function<? super String, ? extends M> f, Container<T> source) {
-                return f.apply(source.label());
-              }
-            };
+        @Generated
+        private static final class LabelFold<T> implements Fold<Container<T>, String> {
+          @Override
+          public <M> M foldMap(Monoid<M> monoid, Function<? super String, ? extends M> f, Container<T> source) {
+            return f.apply(source.label());
+          }
         }
         """;
 
@@ -157,8 +171,84 @@ public class FoldProcessorIntegrationTest {
     assertThat(compilation).succeeded();
 
     final String generatedClassName = "com.example.ContainerFolds";
+    assertGeneratedCodeContains(
+        compilation,
+        generatedClassName,
+        "public static <T> Fold<Container<T>, T> value() { return new ValueFold<>(); }");
+
     assertGeneratedCodeContains(compilation, generatedClassName, expectedValueFold);
+    assertGeneratedCodeContains(
+        compilation,
+        generatedClassName,
+        "public static <T> Fold<Container<T>, String> label() { return new LabelFold<>(); }");
+
     assertGeneratedCodeContains(compilation, generatedClassName, expectedLabelFold);
+  }
+
+  @Test
+  @DisplayName("a record whose own type parameter is named M keeps the monoid's variable apart")
+  void shouldNameTheMonoidVariablePastOneTheRecordClaimed() {
+    // foldMap declares the monoid's type variable inside the record's own, so a record that took
+    // M for itself would have the monoid shadow its element type; the variable takes the first
+    // free name instead, as a traversal's effect variable does when the record has claimed F.
+    final var sourceFile =
+        JavaFileObjects.forSourceString(
+            "com.example.Box",
+            """
+            package com.example;
+
+            import org.higherkindedj.optics.annotations.GenerateFolds;
+            import java.util.List;
+
+            @GenerateFolds
+            public record Box<M>(List<M> items, M single) {}
+            """);
+
+    var compilation = javac().withProcessors(new FoldProcessor()).compile(sourceFile);
+
+    assertThat(compilation).succeeded();
+    final String generatedClassName = "com.example.BoxFolds";
+    assertGeneratedCodeContains(
+        compilation, generatedClassName, "public static <M> Fold<Box<M>, M> items()");
+    assertGeneratedCodeContains(
+        compilation,
+        generatedClassName,
+        "public <M1> M1 foldMap(Monoid<M1> monoid, Function<? super M, ? extends M1> f, Box<M> source)");
+    assertGeneratedCodeContains(compilation, generatedClassName, "M1 result = monoid.empty();");
+  }
+
+  @Test
+  @DisplayName("a wildcard element is folded as the type it stands for")
+  void shouldFoldTheTypeAWildcardStandsFor() {
+    // A wildcard cannot be written into the generated fold's signature, so the element type named
+    // is the one it resolves to: an upper bound where there is one, and Object where the wildcard
+    // stands for anything at all, as the traversal over the same component already does.
+    final var sourceFile =
+        JavaFileObjects.forSourceString(
+            "com.example.Ranked",
+            """
+            package com.example;
+
+            import org.higherkindedj.optics.annotations.GenerateFolds;
+            import java.util.List;
+
+            @GenerateFolds
+            public record Ranked(
+                List<? extends CharSequence> bounded,
+                List<?> unbounded,
+                List<? super String> superBounded) {}
+            """);
+
+    var compilation = javac().withProcessors(new FoldProcessor()).compile(sourceFile);
+
+    assertThat(compilation).succeeded();
+    final String generatedClassName = "com.example.RankedFolds";
+    assertGeneratedCodeContains(
+        compilation, generatedClassName, "public static Fold<Ranked, CharSequence> bounded()");
+    assertGeneratedCodeContains(
+        compilation, generatedClassName, "public static Fold<Ranked, Object> unbounded()");
+    assertGeneratedCodeContains(
+        compilation, generatedClassName, "public static Fold<Ranked, Object> superBounded()");
   }
 
   @Test

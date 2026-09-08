@@ -9,7 +9,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 import com.google.testing.compile.Compilation;
 import com.google.testing.compile.JavaFileObjects;
 import com.palantir.javapoet.ClassName;
-import com.palantir.javapoet.MethodSpec;
 import com.palantir.javapoet.TypeName;
 import java.util.List;
 import java.util.Set;
@@ -26,6 +25,8 @@ import org.higherkindedj.optics.processing.testspi.TestMarkerGenerators.FbDefaul
 import org.higherkindedj.optics.processing.testspi.TestMarkerGenerators.FbFallbackGenerator;
 import org.higherkindedj.optics.processing.testspi.TestMarkerGenerators.PriDefaultGenerator;
 import org.higherkindedj.optics.processing.testspi.TestMarkerGenerators.PriOverrideGenerator;
+import org.higherkindedj.optics.processing.util.NestedOptic;
+import org.higherkindedj.optics.processing.util.NestedTypeNames;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
@@ -45,9 +46,9 @@ class ExternalGeneratorPriorityTest {
   private static class PriorityUnitTestProcessor extends AbstractProcessor {
     private boolean invoked = false;
 
-    private MethodSpec priTraversal;
-    private MethodSpec fbTraversal;
-    private MethodSpec dupTraversal;
+    private NestedOptic priTraversal;
+    private NestedOptic fbTraversal;
+    private NestedOptic dupTraversal;
     private TraversableGenerator nullAnchorWinner;
 
     @Override
@@ -82,11 +83,12 @@ class ExternalGeneratorPriorityTest {
               processingEnv.getMessager(),
               List.of(new PriDefaultGenerator(), new PriOverrideGenerator()));
       priTraversal =
-          priGenerator.createTraversalMethod(
+          priGenerator.createTraversal(
               FieldInfo.forRecordComponent("pri", components.get(0).asType()),
               bag,
               components,
-              bagTypeName);
+              bagTypeName,
+              new NestedTypeNames("MarkerBagLenses"));
 
       // The fallback generator sits before the default that outranks it.
       ExternalLensGenerator fbGenerator =
@@ -95,11 +97,12 @@ class ExternalGeneratorPriorityTest {
               processingEnv.getMessager(),
               List.of(new FbFallbackGenerator(), new FbDefaultGenerator()));
       fbTraversal =
-          fbGenerator.createTraversalMethod(
+          fbGenerator.createTraversal(
               FieldInfo.forRecordComponent("fb", components.get(1).asType()),
               bag,
               components,
-              bagTypeName);
+              bagTypeName,
+              new NestedTypeNames("MarkerBagLenses"));
 
       // Two generators of equal priority: the first registered wins, with a warning.
       ExternalLensGenerator dupGenerator =
@@ -108,11 +111,12 @@ class ExternalGeneratorPriorityTest {
               processingEnv.getMessager(),
               List.of(new DupGeneratorAlpha(), new DupGeneratorBeta()));
       dupTraversal =
-          dupGenerator.createTraversalMethod(
+          dupGenerator.createTraversal(
               FieldInfo.forRecordComponent("dup", components.get(2).asType()),
               bag,
               components,
-              bagTypeName);
+              bagTypeName,
+              new NestedTypeNames("MarkerBagLenses"));
 
       // The same tie resolved with no component to anchor to: the choice is unchanged and no
       // warning is printed, so the whole compilation carries exactly one tie warning.
@@ -172,14 +176,14 @@ class ExternalGeneratorPriorityTest {
     assertThat(compilation).succeeded();
     assertThat(processor.invoked).isTrue();
 
-    assertThat(processor.priTraversal.toString())
+    assertThat(processor.priTraversal.implementation().toString())
         .contains("PriOverrideGenerator")
         .doesNotContain("PriDefaultGenerator");
-    assertThat(processor.fbTraversal.toString())
+    assertThat(processor.fbTraversal.implementation().toString())
         .contains("FbDefaultGenerator")
         .doesNotContain("FbFallbackGenerator");
 
-    assertThat(processor.dupTraversal.toString()).contains("DupGeneratorAlpha");
+    assertThat(processor.dupTraversal.implementation().toString()).contains("DupGeneratorAlpha");
     assertThat(compilation)
         .hadWarningContaining("Multiple TraversableGenerator SPI providers with equal priority");
 

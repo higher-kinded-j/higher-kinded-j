@@ -26,12 +26,19 @@ import javax.tools.Diagnostic;
 import org.higherkindedj.optics.Fold;
 import org.higherkindedj.optics.annotations.GenerateFolds;
 import org.higherkindedj.optics.processing.util.ExcludeFromJacocoGeneratedReport;
+import org.higherkindedj.optics.processing.util.NestedOptic;
+import org.higherkindedj.optics.processing.util.NestedTypeNames;
 import org.higherkindedj.optics.processing.util.ProcessorUtils;
 
 /** Annotation processor that generates Fold optics for record types. */
 @AutoService(Processor.class)
 @SupportedAnnotationTypes("org.higherkindedj.optics.annotations.GenerateFolds")
 public class FoldProcessor extends AbstractProcessor {
+
+  private static final ClassName GENERATED =
+      ClassName.get("org.higherkindedj.optics.annotations", "Generated");
+  private static final ClassName MONOID = ClassName.get("org.higherkindedj.hkt", "Monoid");
+  private static final ClassName FUNCTION = ClassName.get("java.util.function", "Function");
 
   @Override
   public SourceVersion getSupportedSourceVersion() {
@@ -77,13 +84,10 @@ public class FoldProcessor extends AbstractProcessor {
 
     String foldsClassName = recordName + "Folds";
 
-    final ClassName generatedAnnotation =
-        ClassName.get("org.higherkindedj.optics.annotations", "Generated");
-
     TypeSpec.Builder foldsClassBuilder =
         TypeSpec.classBuilder(foldsClassName)
             .addOriginatingElement(recordElement)
-            .addAnnotation(generatedAnnotation)
+            .addAnnotation(GENERATED)
             .addJavadoc(
                 "Generated optics for {@link $T}. Do not edit.", ClassName.get(recordElement))
             .addModifiers(Modifier.PUBLIC, Modifier.FINAL)
@@ -92,8 +96,9 @@ public class FoldProcessor extends AbstractProcessor {
     List<? extends RecordComponentElement> components = recordElement.getRecordComponents();
     TypeName recordTypeName = getParameterizedTypeName(recordElement);
 
+    final NestedTypeNames names = new NestedTypeNames(foldsClassName);
     for (RecordComponentElement component : components) {
-      foldsClassBuilder.addMethod(createFoldMethod(component, recordElement, recordTypeName));
+      createFold(component, recordElement, recordTypeName, names).addTo(foldsClassBuilder);
     }
 
     JavaFile javaFile =
@@ -116,8 +121,11 @@ public class FoldProcessor extends AbstractProcessor {
     }
   }
 
-  private MethodSpec createFoldMethod(
-      RecordComponentElement component, TypeElement recordElement, TypeName recordTypeName) {
+  private NestedOptic createFold(
+      RecordComponentElement component,
+      TypeElement recordElement,
+      TypeName recordTypeName,
+      NestedTypeNames names) {
 
     String componentName = component.getSimpleName().toString();
     TypeName componentTypeName = ProcessorUtils.typeNameOf(component.asType());
@@ -129,7 +137,46 @@ public class FoldProcessor extends AbstractProcessor {
     ParameterizedTypeName foldTypeName =
         ParameterizedTypeName.get(ClassName.get(Fold.class), recordTypeName, targetType);
 
-    MethodSpec.Builder methodBuilder =
+    // The monoid's type variable is declared beside the record's own, so it takes a name the
+    // record has not.
+    TypeVariableName monoidType =
+        TypeVariableName.get(ProcessorUtils.freeTypeVariableName("M", recordElement));
+    MethodSpec.Builder foldMap =
+        MethodSpec.methodBuilder("foldMap")
+            .addAnnotation(Override.class)
+            .addModifiers(Modifier.PUBLIC)
+            .addTypeVariable(monoidType)
+            .returns(monoidType)
+            .addParameter(ParameterizedTypeName.get(MONOID, monoidType), "monoid")
+            .addParameter(
+                ParameterizedTypeName.get(
+                    FUNCTION,
+                    WildcardTypeName.supertypeOf(targetType),
+                    WildcardTypeName.subtypeOf(monoidType)),
+                "f")
+            .addParameter(recordTypeName, "source");
+    if (isIterable) {
+      // For Iterable types, fold over each element
+      foldMap
+          .addStatement("$T result = monoid.empty()", monoidType)
+          .beginControlFlow("for (var element : source.$L())", componentName)
+          .addStatement("result = monoid.combine(result, f.apply(element))")
+          .endControlFlow()
+          .addStatement("return result");
+    } else {
+      // For non-Iterable types, just apply function to the single value
+      foldMap.addStatement("return f.apply(source.$L())", componentName);
+    }
+
+    String implementationName = names.claim(componentName, "Fold");
+    TypeSpec.Builder implementation =
+        TypeSpec.classBuilder(implementationName)
+            .addAnnotation(GENERATED)
+            .addModifiers(Modifier.PRIVATE, Modifier.STATIC, Modifier.FINAL)
+            .addSuperinterface(foldTypeName)
+            .addMethod(foldMap.build());
+
+    MethodSpec.Builder factory =
         MethodSpec.methodBuilder(componentName)
             .addJavadoc(
                 "Creates a {@link $T} for the {@code $L} field of a {@link $T}.\n\n"
@@ -142,48 +189,18 @@ public class FoldProcessor extends AbstractProcessor {
             .addModifiers(Modifier.PUBLIC, Modifier.STATIC)
             .returns(foldTypeName);
 
-    for (TypeParameterElement typeParam : recordElement.getTypeParameters()) {
-      methodBuilder.addTypeVariable(ProcessorUtils.typeVariableOf(typeParam));
+    // The implementation is declared beside the factory, not inside it, so it declares the
+    // record's type variables for itself.
+    for (TypeParameterElement typeParameter : recordElement.getTypeParameters()) {
+      TypeVariableName typeVariable = ProcessorUtils.typeVariableOf(typeParameter);
+      factory.addTypeVariable(typeVariable);
+      implementation.addTypeVariable(typeVariable);
     }
+    String typeArguments = recordElement.getTypeParameters().isEmpty() ? "" : "<>";
 
-    // Create the foldMap implementation
-    if (isIterable) {
-      // For Iterable types, fold over each element
-      methodBuilder.addStatement(
-          "return new $T<>() {\n"
-              + "  @Override\n"
-              + "  public <M> M foldMap($T<M> monoid, $T<? super $T, ? extends M> f, $T source) {\n"
-              + "    M result = monoid.empty();\n"
-              + "    for (var element : source.$L()) {\n"
-              + "      result = monoid.combine(result, f.apply(element));\n"
-              + "    }\n"
-              + "    return result;\n"
-              + "  }\n"
-              + "}",
-          Fold.class,
-          ClassName.get("org.higherkindedj.hkt", "Monoid"),
-          ClassName.get("java.util.function", "Function"),
-          targetType,
-          recordTypeName,
-          componentName);
-    } else {
-      // For non-Iterable types, just apply function to the single value
-      methodBuilder.addStatement(
-          "return new $T<>() {\n"
-              + "  @Override\n"
-              + "  public <M> M foldMap($T<M> monoid, $T<? super $T, ? extends M> f, $T source) {\n"
-              + "    return f.apply(source.$L());\n"
-              + "  }\n"
-              + "}",
-          Fold.class,
-          ClassName.get("org.higherkindedj.hkt", "Monoid"),
-          ClassName.get("java.util.function", "Function"),
-          targetType,
-          recordTypeName,
-          componentName);
-    }
-
-    return methodBuilder.build();
+    return new NestedOptic(
+        implementation.build(),
+        factory.addStatement("return new $L$L()", implementationName, typeArguments).build());
   }
 
   private boolean isIterableType(TypeMirror type) {
@@ -208,10 +225,12 @@ public class FoldProcessor extends AbstractProcessor {
   }
 
   private TypeName getElementType(RecordComponentElement component) {
-    // Only called for iterable components, and isIterableType requires a declared type.
+    // Only called for iterable components, and isIterableType requires a declared type. A wildcard
+    // element is named as the type it stands for, since a wildcard cannot be written into the
+    // fold's signature.
     DeclaredType containerType = (DeclaredType) component.asType();
     if (!containerType.getTypeArguments().isEmpty()) {
-      return ProcessorUtils.typeNameOf(containerType.getTypeArguments().getFirst()).box();
+      return ProcessorUtils.resolvedTypeNameOf(containerType.getTypeArguments().getFirst()).box();
     }
     return ClassName.get(Object.class);
   }
