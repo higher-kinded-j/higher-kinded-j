@@ -90,7 +90,7 @@ TraversalPath<WidenedEmployee, Integer> widened = WidenedEmployeeFocus.scores();
 
 There is one exception, and it is the one navigators need: a container whose *element* is itself a `@GenerateFocus` record is always stepped into, because the navigator that record's field hands back has to reach it. So `Map<String, Address>` on a navigator-enabled record gives you an `AddressNavigator` over the values without the flag, while `Map<String, String>` waits for it.
 
-Whichever way you reach a field — the static method, or a navigator on a record that holds this one — you get the same path type. The setting that decides it belongs to the record that *declares* the component, not to the one navigating to it.
+Whichever way you reach a field, by the static method or by a navigator on a record that holds this one, you get the same path type. The setting that decides it belongs to the record that *declares* the component, not to the one navigating to it.
 
 ---
 
@@ -134,7 +134,7 @@ TraversalPath<Team, String> teamTags = TeamFocus.tags();
 Team promoted = teamSkills.via(SkillFocus.level()).modifyAll(level -> level + 1, team);
 ```
 
-A `Collection` names no ordering and no uniqueness, so `collectionEach()` rebuilds whichever it was given: a set-valued `Collection` comes back a set — a `LinkedHashSet`, so a `TreeSet` or other `SortedSet` source keeps its elements but not its ordering contract — and anything else comes back a `List`. A `Collection` that is neither, such as an `ArrayDeque`, also comes back a `List`; those types inherit identity `equals`, so no rebuild could return a collection equal to the one it was handed.
+A `Collection` names no ordering and no uniqueness, so `collectionEach()` rebuilds whichever it was given. A set-valued `Collection` comes back a set, specifically a `LinkedHashSet`, so a `TreeSet` or other `SortedSet` source keeps its elements but not its ordering contract. Anything else comes back a `List`. A `Collection` that is neither, such as an `ArrayDeque`, also comes back a `List`; those types inherit identity `equals`, so no rebuild could return a collection equal to the one it was handed.
 
 Every third-party *collection* generator goes through `EachInstances.fromIterableCollecting(collector)`, a generic factory that iterates the container, traverses the elements with the applicative, and rebuilds the container through the collector it is given; the map-shaped ones go through `mapValuesEachCollecting` instead. No extra HKJ module is needed: the library itself you supply, and a project that names one of these types in a record already has it on the classpath.
 
@@ -153,11 +153,11 @@ AssetClass rebalanced =
 ```
 
 ~~~admonish warning title="Raw and wildcard container type arguments"
-An SPI container widens by receiving an optic **instance** — `.some(Affines.eitherRight())`, `.each(EachInstances.mapValuesEach())` — whose own type arguments javac infers from the field type. A raw container offers none to infer from, and a wildcard has no ground instantiation, so `@GenerateFocus` rejects the component rather than emitting a call that cannot compile:
+Most containers widen by naming an optic **instance**: `.some(Affines.eitherRight())`, `.each(EachInstances.mapValuesEach())`. Javac works out that instance's own type arguments from the field's type. A raw container gives it nothing to work from, and a wildcard stands for no one type, so there is nothing to name. Rather than write a call that cannot compile, `@GenerateFocus` rejects the component:
 
 <!-- verify:rejects "has a wildcard type argument" -->
 ```java
-// Rejected: no Affine can be denoted for a wildcard type argument
+// Rejected: no Affine can be named for a wildcard type argument
 @GenerateFocus
 public record Holder(Either<String, ? extends Leaf> boundedEither) {}
 ```
@@ -169,17 +169,24 @@ public record Holder(Either<String, ? extends Leaf> boundedEither) {}
 public record Holder(Either<String, Leaf> either) {}
 ```
 
-Both of the container's own type arguments count, focused or not, so `Either<?, Leaf>` is rejected too. A wildcard nested *inside* an argument is fine: `Either<String, List<? extends Leaf>>` still has a ground instantiation and widens to `.some(Affines.eitherRight()).each()`.
+Which fields the rule reaches follows from how each one widens:
 
-The recognised `Optional`, `Maybe` and `List` widenings take a wildcard without complaint, because `.some()` and the no-argument `.each()` are methods with a free type variable and no optic argument to unify. `List<? extends Leaf>` widens to `TraversalPath<Holder, Leaf>` as usual. A `Kind` field reaches the same result by a different route: its `Traverse` is named by the witness rather than inferred from the element, so `Kind<ListKind.Witness, ? extends Leaf>` widens to `TraversalPath<Holder, Leaf>` with the wildcard resolved to its bound before it is written out as `traverseOver`'s type argument, whereas `Kind<?, Leaf>` names no `Traverse` and stays a plain `FocusPath` (see [Kind Field Support](kind_field_support.md#convention-based-detection)).
+| Field | Widens by | Raw or wildcard argument |
+|-------|-----------|--------------------------|
+| `Optional`, `Maybe`, `List` | `.some()` and `.each()`, which take no argument | ✅ Accepted. `List<? extends Leaf>` widens to `TraversalPath<Holder, Leaf>` |
+| `Set`, `Collection` | naming an `Each` instance | ❌ Rejected, the same as an SPI container |
+| `Either`, `Try`, `Validated`, `Map`, arrays, third-party collections | naming the optic its SPI generator supplies | ❌ Rejected, but only when the field is actually widened |
+| `Kind<W, A>` | the `Traverse` registered for the witness `W` | ✅ Accepted. A wildcard element resolves to its bound, so `Kind<ListKind.Witness, ? extends Leaf>` widens to `TraversalPath<Holder, Leaf>`; a wildcard *witness* names no `Traverse` at all, so `Kind<?, Leaf>` stays a plain `FocusPath` (see [Kind Field Support](kind_field_support.md#convention-based-detection)) |
 
-`Set` and `Collection` are recognised directly too, but each widens by naming an `Each` instance, so the rule above applies to them exactly as it does to an SPI container: `Set<?>`, `Set<? extends Leaf>` and a raw `Set` are rejected at the declaration.
+Three things narrow the rule further.
 
-A `ZERO_OR_MORE` SPI container is rejected only when something actually widens it — `widenCollections = true`, or a navigator taking it. At the default settings it stays a `FocusPath`, and the wildcard costs it nothing. Nor does one beneath it: `Map<String, Either<String, ? extends Leaf>>` compiles at the default settings, because the `Map` is never widened and so the `Either` inside it is never asked for an optic.
+**Only the container's own type arguments count**, focused or not. `Either<?, Leaf>` is rejected even though the wildcard sits on the side the path never looks at. One level down is fine, because the container itself is still fully named: `Either<String, List<? extends Leaf>>` widens to `.some(Affines.eitherRight()).each()`.
 
-A generator that names no optic expression is exempt: it widens through `.nullable()` or `.each()`, whose free type variable takes a raw or wildcard argument without complaint. Every generator shipped with HKJ names one.
+**A `ZERO_OR_MORE` SPI container is only rejected when something widens it**, which means `widenCollections = true` or a navigator stepping into it. At the default settings the path stops at the container, no optic is named, and the wildcard costs nothing. That covers wildcards below it too: `Map<String, Either<String, ? extends Leaf>>` compiles at the default settings, because the `Map` is never widened and so the `Either` inside it is never asked for an optic.
 
-This is a rule about **composing an optic instance**, so it is `@GenerateFocus`'s alone. `@GenerateTraversals` reads the same component and emits a `Traversal` over the type the wildcard stands for: nothing is inferred, so there is nothing to fail. Where a path does widen — the recognised `Optional`, `Maybe` and `List` above — it reaches that same element type. See [Wildcard Element Types](traversals.md#wildcard-element-types).
+**A generator that names no optic expression is exempt.** It widens through `.nullable()` or `.each()`, whose element type is free to be whatever the field says, so a raw or wildcard argument costs it nothing. Every generator shipped with HKJ names an optic, so this only applies to one of your own.
+
+The rule follows the optic instance, so it is `@GenerateFocus`'s alone. `@GenerateTraversals` reads the same component and writes a `Traversal` over the type the wildcard stands for. Nothing is inferred there, so nothing can fail. See [Wildcard Element Types](traversals.md#wildcard-element-types).
 ~~~
 
 ### Cross-Ecosystem Navigation
