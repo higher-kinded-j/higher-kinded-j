@@ -22,12 +22,14 @@ Forster's imperative applies to effect algebras. A payment service speaks four s
 
 The [Free monad](free_monad.md) lets you build a program as a data structure and interpret it in different ways. But a Free program is parameterised by a single instruction type:
 
+<!-- verify -->
 ```java
-Free<ConsoleOpKind.Witness, String> program = ...
+Free<ConsoleOpKind.Witness, String> program = readLine();
 ```
 
 This program can only contain console instructions. What if your workflow also needs database operations?
 
+<!-- verify -->
 ```java
 // Console operations
 Free<ConsoleOpKind.Witness, Unit> greeting = printLine("Hello");
@@ -102,15 +104,19 @@ Each instruction is routed to exactly one interpreter based on its position in t
 Without `Inject`, every instruction would need manual wrapping:
 
 ```java
-// Without Inject: verbose and error-prone
-Free<Composed, RiskScore> checkFraud = Free.liftF(
-    EitherFKindHelper.widen(
-        EitherF.right(EitherFKindHelper.widen(
-            EitherF.left(fraudOp)))),
-    composedFunctor);
+// Without Inject: every instruction is wrapped by hand, once per nesting level
+// (`Composed` abbreviates the four-way EitherF nesting shown above)
+Free<Composed, RiskScore> checkFraud =
+    Free.liftF(
+        EITHERF.widen(EitherF.right(EITHERF.widen(EitherF.left(fraudOp)))),
+        composedFunctor);
+```
 
-// With Inject: clean and type-safe
-Free<Composed, RiskScore> checkFraud = fraud.checkTransaction(amount, customer, Function.identity());
+<!-- verify -->
+```java
+// With Inject: clean and type-safe. `var` keeps the composed witness off the page.
+var fraud = PaymentEffectsWiring.boundSet().fraud();
+var checkFraud = fraud.checkTransaction(amount, customer, Function.identity());
 ```
 
 `Inject<F, G>` witnesses that effect type `F` can be embedded into a larger composed type `G`:
@@ -136,6 +142,7 @@ Standard instances (provided by `InjectInstances`):
 
 Individual interpreters each handle one effect algebra. `Interpreters.combine` merges them into a single natural transformation that dispatches to the right handler:
 
+<!-- verify -->
 ```java
 var interpreter = Interpreters.combine(
     gatewayInterpreter,
@@ -144,8 +151,9 @@ var interpreter = Interpreters.combine(
     notificationInterpreter);
 
 // One call interprets the entire composed program
+var program = PaymentService.create().processPayment(customer, amount, method);
 IO<PaymentResult> result = IOKindHelper.IO_OP.narrow(
-    program.foldMap(interpreter, Instances.monad(io())));
+    PaymentEffectsWiring.interpret(program, interpreter, Instances.monad(io())));
 ```
 
 Overloads support 2, 3, and 4 effects. Internally, `combine` pattern-matches on `Left`/`Right` at each nesting level and delegates to the corresponding interpreter.
@@ -164,6 +172,7 @@ This is how `Bound` instances work internally: when you call `console.readLine(F
 
 For most users, `EitherF` is an implementation detail. The [`@ComposeEffects`](../effect/effect_handlers.md#composing-effects) annotation generates the entire composition infrastructure:
 
+<!-- verify -->
 ```java
 @ComposeEffects
 public record AppEffects(

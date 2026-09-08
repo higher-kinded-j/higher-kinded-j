@@ -31,24 +31,25 @@ Fluent API (ergonomics) → Advanced Prisms → Free Monad DSL (programs as data
 Learn the ergonomic fluent API for Java-friendly optic operations.
 
 **What you'll learn**:
-- Source-first static methods: `Lenses.get(lens, source)`
-- Collection operations: `Traversals.getAll`, `Traversals.modifyAll`, `Traversals.setAll`
-- Query operations: `Traversals.exists`, `Traversals.count`, `Traversals.find`
+- Source-first static methods: `OpticOps.get(source, lens)`
+- Collection operations: `OpticOps.getAll`, `OpticOps.modifyAll`, `OpticOps.setAll`
+- Query operations: `OpticOps.exists`, `OpticOps.count`, `OpticOps.find`
 - Integration with `Either`, `Maybe`, `Validated` for effectful operations
 - Real-world form validation with optics + Either
 
 **Key insight**: The fluent API provides discoverable, readable syntax without sacrificing the power of optics.
 
 **Before and After**:
+<!-- verify -->
 ```java
 // Traditional style
 String name = lens.get(user);
 
-// Fluent style (more discoverable in IDE)
-String name = Lenses.get(lens, user);
+// Fluent style: source first, more discoverable in an IDE
+String fluentName = OpticOps.get(user, lens);
 
 // Query a collection
-boolean hasAdmin = Traversals.exists(rolesTraversal, role -> role.isAdmin(), user);
+boolean hasAdmin = OpticOps.exists(user, rolesTraversal, Role::isAdmin);
 ```
 
 **Real-world application**: Form validation, data querying, conditional updates, batch processing.
@@ -87,10 +88,11 @@ Affine<Response, Data> dataAffine = successPrism.andThen(dataLens);
 ```
 
 **The `nearly` prism**:
+<!-- verify -->
 ```java
 // Match values that satisfy a predicate
-Prism<Integer, Integer> positive = Prisms.nearly(0, n -> n > 0);
-positive.getOptional(5);   // Optional.of(5)
+Prism<Integer, Unit> positive = Prisms.nearly(0, n -> n > 0);
+positive.getOptional(5);   // Optional.of(Unit.INSTANCE)
 positive.getOptional(-3);  // Optional.empty()
 ```
 
@@ -119,6 +121,7 @@ Master the Free Monad DSL for building composable optic programs as data structu
 **Key insight**: The Free Monad DSL separates "what to do" (the program) from "how to do it" (the interpreter). Build the program once, run it many ways.
 
 **Example**:
+<!-- verify -->
 ```java
 // Build a program
 Free<OpticOpKind.Witness, Config> program = OpticPrograms
@@ -131,8 +134,13 @@ Free<OpticOpKind.Witness, Config> program = OpticPrograms
 
 // Run with different interpreters
 Config result = OpticInterpreters.direct().run(program);
-LoggingOpticInterpreter.Log log = OpticInterpreters.logging().run(program);
-ValidationResult validation = OpticInterpreters.validating().validate(program);
+
+LoggingOpticInterpreter logger = OpticInterpreters.logging();
+Config logged = logger.run(program);
+List<String> log = logger.getLog();
+
+ValidationOpticInterpreter.ValidationResult validation =
+    OpticInterpreters.validating().validate(program);
 ```
 
 **Interpreters available**:

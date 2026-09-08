@@ -91,6 +91,7 @@ If your project cannot apply the HKJ Maven plugin, see [Manual Gradle and Maven 
 
 Java 23+ supports module import declarations ([JEP 511](https://openjdk.org/jeps/511)), which let you import all exported types from a module in a single line. Instead of importing individual packages:
 
+<!-- verify -->
 ```java
 import org.higherkindedj.hkt.effect.Path;
 import org.higherkindedj.hkt.effect.EitherPath;
@@ -119,6 +120,7 @@ Module imports require `--enable-preview` on Java 23–24. On Java 25+, the feat
 
 When a value might not exist, use `MaybePath`:
 
+<!-- verify -->
 ```java
 import org.higherkindedj.hkt.effect.Path;
 
@@ -133,6 +135,7 @@ var result = name.run().orElse("Anonymous");       // extract to standard Java
 
 When an operation can fail with a typed error, use `EitherPath`:
 
+<!-- verify -->
 ```java
 import org.higherkindedj.hkt.effect.Path;
 
@@ -152,6 +155,7 @@ var result = order.run();                             // Either<AppError, Order>
 
 When you need *all* errors, not just the first, use `ValidationPath`:
 
+<!-- verify -->
 ```java
 import org.higherkindedj.hkt.effect.Path;
 import org.higherkindedj.hkt.Semigroup;
@@ -173,12 +177,13 @@ var result = user.run();                                // Validated<List<String
 
 Combine absence, errors, and transformation in a single pipeline:
 
+<!-- verify -->
 ```java
 import org.higherkindedj.hkt.effect.Path;
 
 public EitherPath<AppError, Receipt> processPayment(String userId, BigDecimal amount) {
     return Path.maybe(userRepository.findById(userId))
-        .toEitherPath(new AppError.UserNotFound(userId))
+        .<AppError>toEitherPath(new AppError.UserNotFound(userId))
         .via(user -> Path.either(validateAmount(user, amount)))
         .via(validated -> Path.tryOf(() -> gateway.charge(validated))
             .toEitherPath(AppError.PaymentFailed::new))
@@ -186,17 +191,22 @@ public EitherPath<AppError, Receipt> processPayment(String userId, BigDecimal am
 }
 ```
 
+~~~admonish note title="Why the explicit `<AppError>`"
+`toEitherPath(error)` infers its error type from the argument it is given. At the *end* of a chain the assignment target supplies it, but in the middle of one there is nothing downstream to infer from, so a `new AppError.UserNotFound(...)` would pin the whole railway to `UserNotFound` and the method's declared `EitherPath<AppError, Receipt>` would not match. Naming the type once at the point the error channel opens widens it for every step after. See [Effect compiler errors](effect/compiler_errors.md) for the rest of this family.
+~~~
+
 ---
 
 ## Getting Back to Standard Java
 
 Every Path type unwraps to a standard Java value. You are never locked in:
 
+<!-- verify -->
 ```java
 Maybe<User> maybe = maybePath.run();                         // → Maybe
 Either<AppError, User> either = eitherPath.run();            // → Either
 Optional<User> opt = maybePath.run().toOptional();           // → java.util.Optional
-User user = eitherPath.run().getOrElse(User.anonymous());    // → raw value
+User user = eitherPath.getOrElse(User.anonymous());          // → raw value
 String msg = eitherPath.run().fold(
     error -> "Failed: " + error,                             // handle error
     value -> "Success: " + value                             // handle success

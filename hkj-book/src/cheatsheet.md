@@ -141,6 +141,7 @@ Getting back to standard Java from any Path:
 
 One entry point, `Instances.x(...)`, for every type-class instance. See [Obtaining Instances](functional/instances_facade.md).
 
+<!-- verify -->
 ```java
 import org.higherkindedj.hkt.instances.Instances;
 import static org.higherkindedj.hkt.instances.Witnesses.*;

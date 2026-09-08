@@ -31,18 +31,19 @@ Reach for raw `EitherT` only when you need to combine typed errors with a specif
 
 Consider a typical order processing flow. Each step is asynchronous and can fail with a domain error:
 
+<!-- verify -->
 ```java
 CompletableFuture<Either<DomainError, Receipt>> processOrder(OrderData data) {
-    return validateOrder(data).thenCompose(eitherValidated ->
+    return validateOrderFuture(data).thenCompose(eitherValidated ->
         eitherValidated.fold(
             error -> CompletableFuture.completedFuture(Either.left(error)),
-            validated -> checkInventory(validated).thenCompose(eitherInventory ->
+            validated -> checkInventoryFuture(validated).thenCompose(eitherInventory ->
                 eitherInventory.fold(
                     error -> CompletableFuture.completedFuture(Either.left(error)),
-                    inventory -> processPayment(inventory).thenCompose(eitherPayment ->
+                    inventory -> processPaymentFuture(inventory).thenCompose(eitherPayment ->
                         eitherPayment.fold(
                             error -> CompletableFuture.completedFuture(Either.left(error)),
-                            payment -> createReceipt(payment)
+                            payment -> createReceiptFuture(payment)
                         ))
                 ))
         ));
@@ -57,8 +58,9 @@ Four steps, four levels of nesting, identical error-propagation boilerplate at e
 
 ### With the Effect Path API
 
-The simplest fix is to switch to `EitherPath`. It composes the same way as a transformer but with no witness types in your code:
+The simplest fix is to switch to `EitherPath`. It carries no outer monad, so it composes steps that have already resolved, with no witness types in your code:
 
+<!-- verify -->
 ```java
 EitherPath<DomainError, Receipt> processOrder(OrderData data) {
     return Path.either(validateOrder(data))
@@ -74,14 +76,19 @@ Use this whenever the outer monad is one Path already wraps.
 
 When you need a specific outer monad (here `CompletableFuture`), use `EitherT` with a `For` comprehension:
 
+<!-- verify -->
 ```java
 var futureMonad  = Instances.monadError(completableFuture());
-var eitherTMonad = Instances.eitherT(futureMonad);
+// Name L: nothing else in `Instances.eitherT(futureMonad)` constrains it, and it would
+// otherwise infer to Object (see Common Compiler Errors, section 4).
+var eitherTMonad =
+    Instances.<CompletableFutureKind.Witness, DomainError>eitherT(futureMonad);
 
-var workflow = For.from(eitherTMonad, EitherT.fromKind(validateOrder(data)))
-    .from(validated -> EitherT.fromKind(checkInventory(validated)))
-    .from(inventory -> EitherT.fromKind(processPayment(inventory)))
-    .from(payment   -> EitherT.fromKind(createReceipt(payment)))
+var workflow = For.from(eitherTMonad, EitherT.fromKind(validateOrderAsync(data)))
+    .from(validated -> EitherT.fromKind(checkInventoryAsync(validated)))
+    // past the first binding, `from` sees the accumulated tuple; only `yield` unpacks it
+    .from(t -> EitherT.fromKind(processPaymentAsync(t._2())))
+    .from(t -> EitherT.fromKind(createReceiptAsync(t._3())))
     .yield((v, i, p, r) -> r);
 ```
 
@@ -150,9 +157,13 @@ public record EitherT<F, L, R>(@NonNull Kind<F, Either<L, R>> value) {
 
 The `EitherTMonad<F, L>` class implements `MonadError<EitherTKind.Witness<F, L>, L>`, providing the standard monadic operations for the combined structure. It requires a `Monad<F>` instance for the outer monad:
 
+<!-- verify -->
 ```java
 var futureMonad  = Instances.monadError(completableFuture());
-var eitherTMonad = Instances.eitherT(futureMonad);
+// Name L: nothing else in `Instances.eitherT(futureMonad)` constrains it, and it would
+// otherwise infer to Object (see Common Compiler Errors, section 4).
+var eitherTMonad =
+    Instances.<CompletableFutureKind.Witness, DomainError>eitherT(futureMonad);
 ```
 
 ~~~admonish note title="Working with Kind"
@@ -184,6 +195,7 @@ EitherT<F, L, R> concrete                = EITHER_T.narrow(kind);
 
 `EitherT` provides several factory methods for different starting points:
 
+<!-- verify -->
 ```java
 var optMonad = Instances.monadError(optional());
 
@@ -221,13 +233,17 @@ var etFromKind = EitherT.fromKind(nestedKind);
 
 **The solution:**
 
+<!-- verify -->
 ```java
 record DomainError(String message) {}
 record ValidatedData(String data) {}
 record ProcessedData(String data) {}
 
 var futureMonad  = Instances.monadError(completableFuture());
-var eitherTMonad = Instances.eitherT(futureMonad);
+// Name L: nothing else in `Instances.eitherT(futureMonad)` constrains it, and it would
+// otherwise infer to Object (see Common Compiler Errors, section 4).
+var eitherTMonad =
+    Instances.<CompletableFutureKind.Witness, DomainError>eitherT(futureMonad);
 
 // Sync validation returning Either
 Either<DomainError, ValidatedData> validateSync(String input) {
@@ -267,6 +283,7 @@ var workflow = For.from(eitherTMonad, EitherT.fromEither(futureMonad, validateSy
 
 **The solution:**
 
+<!-- verify -->
 ```java
 var shipmentAttempt = EitherT.fromKind(steps.createShipmentAsync(orderId, address));
 
@@ -300,11 +317,11 @@ Sometimes you need to change the *outer monad* of an `EitherT` without touching 
   └─────────┘                            └─────────┘
 ```
 
+<!-- verify -->
 ```java
-EitherT<CompletableFutureKind.Witness, Error, Data> futureET = ...;
-
+// futureET is an EitherT<CompletableFutureKind.Witness, DomainError, Receipt>
 var optionalET = futureET.mapT(futureKind -> {
-  Either<Error, Data> awaited = FUTURE.join(futureKind);
+  Either<DomainError, Receipt> awaited = FUTURE.join(futureKind);
   return OPTIONAL.widen(Optional.of(awaited));
 });
 ```

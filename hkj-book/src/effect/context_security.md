@@ -88,6 +88,7 @@ The `PRINCIPAL` represents the authenticated user. It can be:
 
 ### Defining a Principal
 
+<!-- verify -->
 ```java
 /**
  * Simple principal implementation.
@@ -111,10 +112,11 @@ public record UserPrincipal(
 
 At your authentication boundary (filter, interceptor):
 
+<!-- verify -->
 ```java
 public class SecurityFilter implements Filter {
 
-    private final AuthenticationService authService;
+    private final AuthenticationService authService = new AuthenticationService();
 
     @Override
     public void doFilter(ServletRequest req, ServletResponse res, FilterChain chain)
@@ -162,7 +164,8 @@ record AuthResult(
 
 ```java
 public final class SecurityContext {
-    // ... ScopedValue declarations ...
+    public static final ScopedValue<Principal> PRINCIPAL = ScopedValue.newInstance();
+    // ... the other ScopedValue declarations ...
 
     /**
      * Check if the current context has an authenticated principal.
@@ -180,7 +183,7 @@ public VTask<Response> handleRequest(Request request) {
     boolean authenticated = SecurityContext.isAuthenticated()
         .toVTask()
         .runSafe()
-        .getOrElse(false);
+        .foldFailureFirst(e -> false, value -> value);
 
     if (authenticated) {
         return handleAuthenticatedRequest(request);
@@ -194,7 +197,7 @@ public VTask<Response> handleRequest(Request request) {
 
 ```java
 public final class SecurityContext {
-    // ... other methods ...
+    public static final ScopedValue<Principal> PRINCIPAL = ScopedValue.newInstance();
 
     /**
      * Require authentication, failing if the user is anonymous.
@@ -221,7 +224,7 @@ public VTask<UserProfile> getMyProfile() {
 
 ```java
 public final class SecurityContext {
-    // ... other methods ...
+    public static final ScopedValue<Principal> PRINCIPAL = ScopedValue.newInstance();
 
     /**
      * Get the principal if authenticated, or empty Maybe if anonymous.
@@ -253,7 +256,7 @@ public VTask<String> getGreeting() {
 
 ```java
 public final class SecurityContext {
-    // ... other methods ...
+    public static final ScopedValue<Set<String>> ROLES = ScopedValue.newInstance();
 
     /**
      * Check if the current user has a specific role.
@@ -296,16 +299,17 @@ public final class SecurityContext {
 
 ### Using Role Checks for Conditional Logic
 
+<!-- verify -->
 ```java
-public VTask<DashboardData> getDashboard() {
+VTask<DashboardData> getDashboard() {
     return SecurityContext.hasRole("ADMIN")
         .flatMap(isAdmin -> isAdmin
-            ? Context.succeed(getAdminDashboard())
-            : Context.succeed(getUserDashboard()))
+            ? Context.<Set<String>, DashboardData>succeed(getAdminDashboard())
+            : Context.<Set<String>, DashboardData>succeed(getUserDashboard()))
         .toVTask();
 }
 
-public VTask<List<MenuItem>> getMenuItems() {
+VTask<List<MenuItem>> getMenuItems() {
     return SecurityContext.hasAnyRole("ADMIN", "MANAGER")
         .map(canManage -> {
             List<MenuItem> items = new ArrayList<>();
@@ -327,7 +331,22 @@ public VTask<List<MenuItem>> getMenuItems() {
 
 ```java
 public final class SecurityContext {
-    // ... other methods ...
+    public static final ScopedValue<Set<String>> ROLES = ScopedValue.newInstance();
+
+    private static Context<Set<String>, Boolean> hasRole(String role) {
+        return Context.asks(ROLES, roles -> roles.contains(role));
+    }
+
+    private static Context<Set<String>, Boolean> hasAnyRole(String... roles) {
+        Set<String> required = Set.of(roles);
+        return Context.asks(ROLES, userRoles ->
+            userRoles.stream().anyMatch(required::contains));
+    }
+
+    private static Context<Set<String>, Boolean> hasAllRoles(String... roles) {
+        Set<String> required = Set.of(roles);
+        return Context.asks(ROLES, userRoles -> userRoles.containsAll(required));
+    }
 
     /**
      * Require a specific role, failing if the user doesn't have it.
@@ -374,28 +393,28 @@ public final class SecurityContext {
 
 ### Using requireRole as a Guard
 
+<!-- verify -->
 ```java
 // Pattern: Guard clause at the start of a method
-public VTask<Report> generateFinancialReport(ReportRequest request) {
+VTask<Report> generateFinancialReport(ReportRequest request) {
     return SecurityContext.requireRole("FINANCE")
-        .flatMap(_ -> Context.succeed(reportService.generate(request)))
+        .flatMap(_ -> Context.<Set<String>, Report>succeed(reportService.generate(request)))
         .toVTask();
 }
 
 // Pattern: Guard with detailed error
-public VTask<Void> deleteUser(String userId) {
+VTask<Void> deleteUser(String userId) {
     return SecurityContext.requireRole("ADMIN")
-        .mapError(e -> new SecurityException(
+        .mapError(e -> new ForbiddenException(
             "Cannot delete user: " + e.getMessage()))
-        .flatMap(_ -> Context.succeed(userService.delete(userId)))
+        .flatMap(_ -> Context.<Set<String>, Void>succeed(userService.delete(userId)))
         .toVTask();
 }
 
 // Pattern: Multiple guards combined
-public VTask<AuditLog> viewAuditLog(String resourceId) {
-    return SecurityContext.requireAuthenticated()
-        .flatMap(_ -> SecurityContext.requireAnyRole("ADMIN", "AUDITOR"))
-        .flatMap(_ -> Context.succeed(auditService.getLog(resourceId)))
+VTask<AuditLog> viewAuditLog(String resourceId) {
+    return SecurityContext.requireAnyRole("ADMIN", "AUDITOR")
+        .flatMap(_ -> Context.<Set<String>, AuditLog>succeed(auditService.getLog(resourceId)))
         .toVTask();
 }
 ```
@@ -408,7 +427,7 @@ For systems needing finer granularity than roles:
 
 ```java
 public final class SecurityContext {
-    // ... other methods ...
+    public static final ScopedValue<Set<String>> PERMISSIONS = ScopedValue.newInstance();
 
     /**
      * Check if the current user has a specific permission.
@@ -431,15 +450,16 @@ public final class SecurityContext {
 }
 
 // Usage with fine-grained permissions
-public VTask<Document> readDocument(String documentId) {
+VTask<Document> readDocument(String documentId) {
     return SecurityContext.requirePermission("document:read")
-        .flatMap(_ -> Context.succeed(documentService.get(documentId)))
+        .flatMap(_ -> Context.<Set<String>, Document>succeed(documentService.get(documentId)))
         .toVTask();
 }
 
-public VTask<Void> updateDocument(String documentId, DocumentUpdate update) {
+VTask<Void> updateDocument(String documentId, DocumentUpdate update) {
     return SecurityContext.requirePermission("document:write")
-        .flatMap(_ -> Context.succeed(documentService.update(documentId, update)))
+        .flatMap(_ ->
+            Context.<Set<String>, Void>succeed(documentService.update(documentId, update)))
         .toVTask();
 }
 
@@ -456,6 +476,7 @@ public VTask<Void> deleteDocument(String documentId) {
 
 Beyond role/permission checks, you often need to verify access to specific resources:
 
+<!-- verify -->
 ```java
 public class DocumentAuthorisation {
 
@@ -498,17 +519,20 @@ public VTask<Document> getDocument(String documentId) {
 
 When calling external services, propagate authentication tokens:
 
+<!-- verify -->
 ```java
 public class AuthenticatedHttpClient {
-    private final HttpClient httpClient;
+    // The JDK's client, not the inbound request this page reads context out of.
+    private final java.net.http.HttpClient httpClient =
+        java.net.http.HttpClient.newHttpClient();
 
     /**
      * Make an authenticated HTTP request.
      * Automatically includes the auth token from security context.
      */
     public <T> VTask<T> get(String url, Class<T> responseType) {
-        return VTask.delay(() -> {
-            HttpRequest.Builder builder = HttpRequest.newBuilder()
+        return VTask.of(() -> {
+            java.net.http.HttpRequest.Builder builder = java.net.http.HttpRequest.newBuilder()
                 .uri(URI.create(url))
                 .GET();
 
@@ -525,11 +549,11 @@ public class AuthenticatedHttpClient {
                 builder.header("X-Trace-ID", RequestContext.TRACE_ID.get());
             }
 
-            HttpResponse<String> response = httpClient.send(
+            java.net.http.HttpResponse<String> response = httpClient.send(
                 builder.build(),
-                HttpResponse.BodyHandlers.ofString());
+                java.net.http.HttpResponse.BodyHandlers.ofString());
 
-            return parseResponse(response, responseType);
+            return Fixture.parseResponse(response, responseType);
         });
     }
 
@@ -538,9 +562,10 @@ public class AuthenticatedHttpClient {
      * Useful for service-to-service calls with different credentials.
      */
     public <T> VTask<T> getWithToken(String url, String token, Class<T> responseType) {
-        return ScopedValue
+        T value = ScopedValue
             .where(SecurityContext.AUTH_TOKEN, token)
             .call(() -> get(url, responseType).run());
+        return VTask.succeed(value);
     }
 }
 ```
@@ -551,27 +576,22 @@ public class AuthenticatedHttpClient {
 
 Security context propagates to forked virtual threads:
 
+<!-- verify -->
 ```java
-public VTask<OrderValidation> validateOrder(Order order) {
+VTask<OrderValidation> validateOrder(Order order) {
     // All forked tasks inherit security context
     return Scope.<ValidationResult>allSucceed()
-        .fork(() -> {
-            // Has access to PRINCIPAL, ROLES, etc.
-            return validateInventory(order);
-        })
-        .fork(() -> {
-            // Also has security context
-            return validatePaymentMethod(order);
-        })
-        .fork(() -> {
-            // Security context available here too
-            return validateShippingAddress(order);
-        })
-        .join(OrderValidation::combine)
-        .run();
+        // Has access to PRINCIPAL, ROLES, etc.
+        .fork(validateInventory(order))
+        // Also has security context
+        .fork(validatePaymentMethod(order))
+        // Security context available here too
+        .fork(validateShippingAddress(order))
+        .join()
+        .map(OrderValidation::combine);
 }
 
-private VTask<ValidationResult> validatePaymentMethod(Order order) {
+VTask<ValidationResult> validatePaymentMethod(Order order) {
     return VTask.delay(() -> {
         // Can check permissions for payment validation
         Principal principal = SecurityContext.PRINCIPAL.get();
@@ -628,6 +648,7 @@ private VTask<ValidationResult> validatePaymentMethod(Order order) {
 
 Log security-relevant events with full context:
 
+<!-- verify -->
 ```java
 public class SecurityAuditLogger {
     private static final ContextLogger log = new ContextLogger(SecurityAuditLogger.class);
@@ -675,11 +696,12 @@ public class SecurityAuditLogger {
 
 Define clear exception types for security failures:
 
+<!-- verify -->
 ```java
 /**
  * Base exception for all security-related failures.
  */
-public sealed class SecurityException extends RuntimeException
+public abstract sealed class SecurityException extends RuntimeException
     permits UnauthenticatedException, UnauthorisedException, ForbiddenException {
 
     public SecurityException(String message) {
@@ -728,6 +750,7 @@ public final class ForbiddenException extends SecurityException {
 
 Security context works alongside request context:
 
+<!-- verify -->
 ```java
 public class SecureRequestHandler {
     private static final ContextLogger log = new ContextLogger(SecureRequestHandler.class);
@@ -735,7 +758,7 @@ public class SecureRequestHandler {
 
     public Response handle(HttpRequest request) {
         // Establish both contexts together
-        AuthResult auth = authenticate(request);
+        AuthResult auth = Fixture.authenticate(request);
 
         return ScopedValue
             // Request context
@@ -760,9 +783,13 @@ public class SecureRequestHandler {
             });
     }
 
+    private Response processRequest(HttpRequest request) {
+        return Response.ok(request.path());
+    }
+
     private Response mapSecurityException(SecurityException e) {
         return switch (e) {
-            case UnauthenticatedException _ -> Response.unauthorized();
+            case UnauthenticatedException _ -> Response.unauthorized("Authentication required");
             case UnauthorisedException _ -> Response.forbidden(e.getMessage());
             case ForbiddenException _ -> Response.forbidden(e.getMessage());
         };
@@ -776,6 +803,7 @@ public class SecureRequestHandler {
 
 ### Testing Role Checks
 
+<!-- verify -->
 ```java
 @Test
 void shouldAllowAdminAccess() {
@@ -816,6 +844,7 @@ void shouldThrowWhenRoleRequired() {
 
 ### Testing Anonymous Access
 
+<!-- verify -->
 ```java
 @Test
 void shouldHandleAnonymousUser() {

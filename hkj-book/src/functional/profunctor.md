@@ -69,6 +69,7 @@ The most intuitive example of a profunctor is the humble `Function<A, B>`. Funct
 
 Let's see this in action with `FunctionProfunctor`:
 
+<!-- verify -->
 ```java
 import static org.higherkindedj.hkt.func.FunctionKindHelper.FUNCTION;
 import org.higherkindedj.hkt.func.FunctionProfunctor;
@@ -115,6 +116,7 @@ Profunctors excel at creating **adaptable data transformation pipelines**. They'
 When you need to integrate with external systems that expect different data formats:
 
 
+<!-- verify -->
 ```java
 // Core business logic: validate a userLogin
 Function<User, ValidationResult> validateUser = userLogin -> {
@@ -141,6 +143,7 @@ Function<UserDto, ApiResponse<ValidationResult>> apiFunc = FUNCTION.getFunction(
 Build reusable validation logic that adapts to different input and output formats:
 
 
+<!-- verify -->
 ```java
 // Core validation: check if a number is positive
 Function<Double, Boolean> isPositive = x -> x > 0;
@@ -170,6 +173,7 @@ System.out.println(validator.apply("-10"));   // "✗ Not a positive number"
 
 Chain multiple adaptations to build complex data processing pipelines:
 
+<!-- verify -->
 ```java
 // Core transformation: User -> UserDto  
 Function<User, UserDto> userToDto = userLogin ->

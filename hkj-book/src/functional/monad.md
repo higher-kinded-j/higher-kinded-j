@@ -18,12 +18,13 @@
 
 Consider the classic three-step lookup: fetch a user, then their account, then the balance on it. Without `flatMap`, the imperative version drowns in pyramids:
 
+<!-- verify -->
 ```java
-Optional<User> user = findUser(1);
+Optional<User> user = findUserPlain(1);
 if (user.isPresent()) {
-    Optional<Account> account = findAccount(user.get());
+    Optional<Account> account = findAccountPlain(user.get());
     if (account.isPresent()) {
-        Optional<Double> balance = getBalance(account.get());
+        Optional<Double> balance = getBalancePlain(account.get());
         if (balance.isPresent()) {
             System.out.println("Balance: " + balance.get());
         }
@@ -39,6 +40,7 @@ Three steps, three checks, and the meaningful code is hiding in the bottom-right
 
 A `Monad` builds on `Applicative` by adding one operation. Whereas `map` takes `A -> B`, `flatMap` takes `A -> Kind<F, B>`: a function that *itself* produces a new container, which `flatMap` then quietly flattens for us.
 
+<!-- verify -->
 ```java
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Monad;
@@ -50,9 +52,7 @@ import static org.higherkindedj.hkt.optional.OptionalKindHelper.OPTIONAL;
 record User(int id, String name) {}
 record Account(int userId, String accountId) {}
 
-public Kind<OptionalKind.Witness, User> findUser(int id) { /* ... */ }
-public Kind<OptionalKind.Witness, Account> findAccount(User user) { /* ... */ }
-public Kind<OptionalKind.Witness, Double> getBalance(Account account) { /* ... */ }
+// findUser, findAccount and getBalance each return a Kind<OptionalKind.Witness, ...>
 
 Monad<OptionalKind.Witness> monad = Instances.monadError(optional());
 
@@ -152,6 +152,7 @@ A useful rule of thumb: if we find ourselves writing `applicative.map3(a, b, c, 
 
 **The solution.**
 
+<!-- verify -->
 ```java
 Monad<OptionalKind.Witness> monad = Instances.monadError(optional());
 
@@ -179,6 +180,7 @@ Kind<OptionalKind.Witness, Account> empty = monad.flatMapIfOrElse(
 
 **The solution.**
 
+<!-- verify -->
 ```java
 Kind<OptionalKind.Witness, String> message = monad.as("User found successfully", findUser(1));
 // Optional["User found successfully"]
@@ -193,6 +195,7 @@ Kind<OptionalKind.Witness, String> missing = monad.as("User found successfully",
 
 **The solution.**
 
+<!-- verify -->
 ```java
 Kind<OptionalKind.Witness, User> logged = monad.peek(
     user -> System.out.println("LOG: Found user -> " + user.name()),
@@ -221,13 +224,13 @@ The unspoken pleasure here is that `peek` only runs on the success rail. We do n
 
 **The solution.**
 
+<!-- verify -->
 ```java
 record User(int id, String name) {}
 record Order(int userId, String item) {}
 record UserOrder(User user, Order order) {}
 
-public Kind<OptionalKind.Witness, User>  findUser(int id) { /* ... */ }
-public Kind<OptionalKind.Witness, Order> findOrder(int orderId) { /* ... */ }
+// findUser and findOrder each return a Kind<OptionalKind.Witness, ...>
 
 public Kind<OptionalKind.Witness, UserOrder> validateAndCombine(User user, Order order) {
     if (order.userId() != user.id()) {
@@ -249,12 +252,12 @@ Kind<OptionalKind.Witness, UserOrder> result = monad.flatMap2(
 
 For richer scenarios, three, four, or five inputs are equally well behaved.
 
+<!-- verify -->
 ```java
 record Product(int id, String name, double price) {}
 record Inventory(int productId, int quantity) {}
 
-public Kind<OptionalKind.Witness, Product>   findProduct(int id) { /* ... */ }
-public Kind<OptionalKind.Witness, Inventory> checkInventory(int productId) { /* ... */ }
+// findProduct and checkInventory each return a Kind<OptionalKind.Witness, ...>
 
 Kind<OptionalKind.Witness, String> orderResult = monad.flatMap3(
     findUser(1),
@@ -278,6 +281,7 @@ Kind<OptionalKind.Witness, String> orderResult = monad.flatMap3(
 | `mapN` | Applicative | Pure value `(A, B) -> C` | Combination is guaranteed to succeed |
 | `flatMapN` | Monad | Monadic value `(A, B) -> Kind<M, C>` | Combination itself may fail or produce effects |
 
+<!-- verify -->
 ```java
 // Pure combination, cannot fail
 Kind<OptionalKind.Witness, String> pure = monad.map2(

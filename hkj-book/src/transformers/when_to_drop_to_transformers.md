@@ -48,9 +48,13 @@ Path types fix both the inner and outer effect at the call site. That is exactly
 
 If you are publishing a function that other teams will compose with their own effect choices, MTL capabilities are usually a better fit than a concrete Path. A function that declares "I need to read an `AppConfig`" with the signature
 
+<!-- verify -->
 ```java
 <F extends WitnessArity<TypeArity.Unary>> Kind<F, ConnectionString>
-    buildConnectionString(MonadReader<F, AppConfig> env) { ... }
+    buildConnectionString(MonadReader<F, AppConfig> env) {
+  return env.reader(config ->
+      new ConnectionString(config.dbUrl() + "?retries=" + config.maxRetries()));
+}
 ```
 
 works against any stack the caller assembles, including stacks that wrap effects you have never heard of. The same function written against `ReaderPath<AppConfig, ConnectionString>` would force every caller into the Path's outer effect.

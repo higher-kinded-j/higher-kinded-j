@@ -1,7 +1,7 @@
 # FreeApPath
 
 `FreeApPath<F, A>` wraps `FreeAp<F, A>` for building **applicative DSLs**.
-Unlike `FreePath`, operations in `FreeApPath` can be analyzed and potentially
+Unlike `FreePath`, operations in `FreeApPath` can be analysed and potentially
 executed in parallel because they don't depend on each other's results.
 
 ~~~admonish info title="What You'll Learn"
@@ -19,36 +19,43 @@ executed in parallel because they don't depend on each other's results.
 `FreePath` (monadic): Each operation can depend on previous results.
 `FreeApPath` (applicative): Operations are independent; results combine at the end.
 
+<!-- verify -->
 ```java
-// FreePath: second operation depends on first
-FreePath<F, String> monadic = getUser(id).via(user ->
-    getOrders(user.id()));  // Sequential: must wait for user
+// FreePath: the second operation depends on the first
+FreePath<ConfigOp.Witness, String> monadic =
+    readConfig("config.location").via(location ->
+        readConfig(location));  // Sequential: must wait for the location
 
-// FreeApPath: operations are independent
-FreeApPath<F, Summary> applicative =
-    getUser(id).zipWith(getOrders(id), Summary::new);  // Parallel-safe!
+// FreeApPath: the operations are independent
+FreeApPath<ConfigOp.Witness, DbConfig> applicative =
+    getConfig("db.host").zipWith(
+        getConfig("db.port").map(Integer::parseInt),
+        DbConfig::new);  // Parallel-safe!
 ```
 
 ---
 
 ## Creation
 
+<!-- verify -->
 ```java
 // Pure value
-FreeApPath<ConfigOp.Witness, String> pure = Path.freeApPure("default");
+FreeApPath<ConfigOp.Witness, String> pure =
+    Path.freeApPure("default", configFunctor);
 
 // Lift an operation
 FreeApPath<ConfigOp.Witness, String> dbUrl =
-    Path.freeApLift(new GetConfig("database.url"));
+    Path.freeApLift(new GetConfig<>("database.url", Function.identity()), configFunctor);
 ```
 
 ---
 
 ## Core Operations
 
+<!-- verify -->
 ```java
 FreeApPath<ConfigOp.Witness, String> host = getConfig("host");
-FreeApPath<ConfigOp.Witness, Integer> port = getConfig("port").map(Integer::parseInt);
+FreeApPath<ConfigOp.Witness, Integer> port = getConfig("db.port").map(Integer::parseInt);
 
 // Combine independent operations
 FreeApPath<ConfigOp.Witness, String> url =
@@ -64,26 +71,26 @@ FreeApPath<ConfigOp.Witness, String> upper = host.map(String::toUpperCase);
 
 Because operations are independent, you can analyse programs before running them:
 
+<!-- verify -->
 ```java
-// Collect all config keys that will be requested
+// Every key the program will request, without running any of it
 Set<String> getRequestedKeys(FreeAp<ConfigOp.Witness, ?> program) {
-    return program.analyze(op -> {
-        GetConfig config = ConfigOpHelper.narrow(op);
-        return Set.of(config.key());
-    }, Monoids.set());
+    return FreeApAnalyzer.collectOperations(program).stream()
+        .map(op -> ((GetConfig<?>) op).key())
+        .collect(Collectors.toSet());
 }
 
 FreeApPath<ConfigOp.Witness, DbConfig> program =
     getConfig("db.host")
-        .zipWith(getConfig("db.port"), DbConfig::new);
+        .zipWith(getConfig("db.port").map(Integer::parseInt), DbConfig::new);
 
-Set<String> keys = getRequestedKeys(program.run());
+Set<String> keys = getRequestedKeys(program.toFreeAp());
 // Set.of("db.host", "db.port")
 ```
 
 This enables:
 - Validation before execution
-- Optimization (batching, caching)
+- Optimisation (batching, caching)
 - Documentation generation
 - Dependency analysis
 
@@ -93,13 +100,26 @@ This enables:
 
 Interpreters can exploit independence for parallelism:
 
+<!-- verify -->
 ```java
-// Sequential interpreter
-NaturalTransformation<ConfigOp.Witness, IO.Witness> sequential =
-    op -> IO.of(() -> loadConfig(op.key()));
+// Sequential interpreter. `apply` is generic over the operation's result type,
+// so an interpreter is an anonymous class rather than a lambda.
+Natural<ConfigOp.Witness, IO.Witness> sequential =
+    new Natural<>() {
+        @Override
+        public <A> Kind<IO.Witness, A> apply(Kind<ConfigOp.Witness, A> fa) {
+            return switch ((ConfigOp<A>) fa) {
+                case GetConfig<A>(String key, Function<String, A> next) ->
+                    IO.delay(() -> next.apply(loadConfig(key)));
+            };
+        }
+    };
 
 // Parallel interpreter (batch all requests)
-Kind<IO.Witness, Config> parallel = program.run().foldMap(
+FreeApPath<ConfigOp.Witness, DbConfig> program =
+    getConfig("db.host").zipWith(getConfig("db.port").map(Integer::parseInt), DbConfig::new);
+
+Kind<IO.Witness, DbConfig> parallel = program.toFreeAp().foldMap(
     batchingInterpreter,
     ioApplicative
 );
@@ -109,18 +129,19 @@ Kind<IO.Witness, Config> parallel = program.run().foldMap(
 
 ## Running Programs
 
+<!-- verify -->
 ```java
 FreeApPath<ConfigOp.Witness, DbConfig> program =
-    getConfig("host").zipWith(getConfig("port"), DbConfig::new);
+    getConfig("host").zipWith(getConfig("db.port").map(Integer::parseInt), DbConfig::new);
 
 // Get the FreeAp structure
-FreeAp<ConfigOp.Witness, DbConfig> freeAp = program.run();
+FreeAp<ConfigOp.Witness, DbConfig> freeAp = program.toFreeAp();
 
 // Interpret
 Kind<IO.Witness, DbConfig> io = freeAp.foldMap(interpreter, ioApplicative);
 
 // Execute
-DbConfig config = IOKindHelper.narrow(io).unsafeRunSync();
+DbConfig config = IOKindHelper.IO_OP.narrow(io).unsafeRunSync();
 ```
 
 ---
@@ -139,21 +160,27 @@ DbConfig config = IOKindHelper.narrow(io).unsafeRunSync();
 - Simpler direct effects suffice → use [IOPath](path_io.md)
 
 ~~~admonish example title="Configuration Loading"
+<!-- verify -->
 ```java
 // Define config operations
 FreeApPath<ConfigOp.Witness, String> dbHost = getConfig("db.host");
 FreeApPath<ConfigOp.Witness, Integer> dbPort = getConfig("db.port").map(Integer::parseInt);
 FreeApPath<ConfigOp.Witness, String> dbName = getConfig("db.name");
 
-// Combine into complete config (all three fetched independently)
-FreeApPath<ConfigOp.Witness, DbConfig> dbConfig =
-    dbHost.zipWith3(dbPort, dbName, DbConfig::new);
+// Combine into complete settings (all three fetched independently)
+FreeApPath<ConfigOp.Witness, DbSettings> settings =
+    dbHost.zipWith3(dbPort, dbName, DbSettings::new);
 
-// Analyse: what keys are needed?
-Set<String> keys = analyze(dbConfig);  // {db.host, db.port, db.name}
+// Analyse: what keys are needed?  {db.host, db.port, db.name}
+Set<String> keys =
+    FreeApAnalyzer.collectOperations(settings.toFreeAp()).stream()
+        .map(op -> ((GetConfig<?>) op).key())
+        .collect(Collectors.toSet());
 
 // Execute: fetch all in parallel/batch
-DbConfig config = run(dbConfig, parallelInterpreter);
+Kind<IO.Witness, DbSettings> loaded =
+    settings.toFreeAp().foldMap(batchingInterpreter, ioApplicative);
+DbSettings config = IOKindHelper.IO_OP.narrow(loaded).unsafeRunSync();
 ```
 ~~~
 

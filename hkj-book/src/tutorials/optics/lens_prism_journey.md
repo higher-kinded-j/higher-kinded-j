@@ -53,9 +53,10 @@ Learn immutable field access and modification with Lenses, the foundation of the
 **Key insight**: A Lens is a first-class getter/setter. You can pass it around, compose it, and reuse it across your codebase.
 
 **Before and After**:
+<!-- verify -->
 ```java
 // Without lenses (verbose, error-prone)
-var updated = new User(user.name(), newEmail, user.address());
+var copied = new User(user.name(), newEmail, user.address());
 
 // With lenses (clear, composable)
 var updated = UserLenses.email().set(newEmail, user);
@@ -83,6 +84,7 @@ Learn to access deeply nested structures by composing simple lenses into powerfu
 **Key insight**: Composition is the superpower of optics. Combine small, reusable pieces into complex transformations.
 
 **Before and After**:
+<!-- verify -->
 ```java
 // Without lenses (nightmare)
 var newUser = new User(
@@ -95,7 +97,7 @@ var newUser = new User(
 );
 
 // With lenses (one line)
-var newUser = userToStreetName.set("New St", user);
+var withLens = userToStreetName.set("New St", user);
 ```
 
 **Real-world application**: Updating deeply nested JSON, modifying complex domain models, configuration tree manipulation.
@@ -123,6 +125,7 @@ Learn to work with sum types (sealed interfaces) safely using Prisms.
 
 **Example scenario**: An `OrderStatus` can be `Pending`, `Processing`, or `Shipped`. A Prism lets you safely operate on just the `Shipped` variant.
 
+<!-- verify -->
 ```java
 // Safely extract tracking number only if Shipped
 Optional<String> tracking = shippedPrism
@@ -186,6 +189,7 @@ Learn to work with optional fields and nullable properties using Affines.
 **Problem**: Trying to access nested fields without composing lenses.
 
 **Solution**: Chain lenses with `andThen`:
+<!-- verify -->
 ```java
 var userToStreetName = UserLenses.address()
     .andThen(AddressLenses.street())
@@ -196,8 +200,9 @@ var userToStreetName = UserLenses.address()
 **Problem**: Expecting `get()` on a Prism when the variant doesn't match.
 
 **Solution**: Prisms return `Optional`. Always use `getOptional()`:
+<!-- verify -->
 ```java
-Optional<Shipped> shipped = shippedPrism.getOptional(orderStatus);
+Optional<OrderStatus.Shipped> shipped = shippedPrism.getOptional(orderStatus);
 ```
 
 ### 3. Expecting Traversal When You Get Affine

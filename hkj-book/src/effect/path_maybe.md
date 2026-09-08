@@ -21,6 +21,7 @@ It's the simplest failure mode: either you have a value, or you don't.
 
 ## Creation
 
+<!-- verify -->
 ```java
 // From a value
 MaybePath<String> greeting = Path.just("hello");
@@ -39,6 +40,7 @@ MaybePath<String> fromNullable = Path.maybe(possiblyNull);
 
 ## Core Operations
 
+<!-- verify -->
 ```java
 MaybePath<String> name = Path.just("Alice");
 
@@ -58,6 +60,7 @@ MaybePath<String> summary = name.zipWith(age, (n, a) -> n + " is " + a);
 
 ## Recovery
 
+<!-- verify -->
 ```java
 MaybePath<User> user = Path.maybe(findUser(id))
     .orElse(() -> Path.just(User.guest()));
@@ -71,12 +74,13 @@ MaybePath<Integer> rejected = Path.just(-1).filter(n -> n > 0);  // Nothing
 
 ## Extraction
 
+<!-- verify -->
 ```java
 MaybePath<String> path = Path.just("hello");
 
 Maybe<String> maybe = path.run();
 String value = path.getOrElse("default");
-String value = path.getOrThrow(() -> new NoSuchElementException());
+String computed = path.getOrElseGet(() -> expensiveDefault());
 ```
 
 ---

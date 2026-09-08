@@ -19,6 +19,7 @@ A function that can read configuration is useful. A function that can also accum
 
 A function that needs several effects simply takes multiple MTL parameters:
 
+<!-- verify -->
 ```java
 // A function that reads config AND accumulates audit output
 <F extends WitnessArity<TypeArity.Unary>> Kind<F, String>
@@ -78,6 +79,7 @@ Each instance extends (or implements) the existing monad class for its transform
 
 ### Creating Instances
 
+<!-- verify -->
 ```java
 Monad<IdKind.Witness> idMonad = Instances.monad(id());
 
@@ -90,7 +92,7 @@ StateTMonadState<Counter, IdKind.Witness> stateInstance =
     new StateTMonadState<>(idMonad);
 
 // MonadWriter instance backed by WriterT over Id
-WriterTMonad<IdKind.Witness, List<String>> writerInstance =
+MonadWriter<WriterTKind.Witness<IdKind.Witness, List<String>>, List<String>> writerInstance =
     Instances.writerT(idMonad, listMonoid);
 ```
 
@@ -125,6 +127,7 @@ This means you can mix MTL operations freely within stateful workflows without a
 
 Write your service logic against MTL interfaces, then provide different instances for production and testing:
 
+<!-- verify -->
 ```java
 // Service logic: stack-independent
 <F extends WitnessArity<TypeArity.Unary>> Kind<F, UserProfile>
@@ -148,6 +151,7 @@ var syncResult = getProfile(testEnv, "user-123");
 
 Combine `MonadState` and `MonadWriter` to track state changes with an audit trail:
 
+<!-- verify -->
 ```java
 <F extends WitnessArity<TypeArity.Unary>> Kind<F, Unit>
     deposit(
@@ -165,6 +169,7 @@ Combine `MonadState` and `MonadWriter` to track state changes with an audit trai
 
 Combine `MonadReader` and `MonadWriter` to control log verbosity based on configuration:
 
+<!-- verify -->
 ```java
 record LogConfig(boolean verbose) {}
 

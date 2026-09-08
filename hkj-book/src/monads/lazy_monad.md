@@ -17,6 +17,7 @@
 
 Imagine a dashboard that assembles a user summary from three data sources:
 
+<!-- verify -->
 ```java
 String buildDashboard(String userId) {
     var profile         = fetchUserProfile(userId);      // 200ms
@@ -45,6 +46,7 @@ This is not a niche optimization. Any time your code builds a data structure wit
 
 `Lazy<A>` stores a computation without executing it. Call `defer()` to wrap the work; call `force()` when you actually need the result. After the first `force()`, the result is cached; subsequent calls return instantly with zero recomputation.
 
+<!-- verify -->
 ```java
 Kind<LazyKind.Witness, String> profile = LAZY.defer(() -> fetchUserProfile(userId));
 // Nothing has executed yet.
@@ -103,6 +105,7 @@ This makes `Lazy` ideal for values that are expensive to produce but read freque
 ~~~admonish example title="Example 1: Deferred Computation"
 Creating lazy values does no work. Forcing them does, exactly once.
 
+<!-- verify -->
 ```java
 AtomicInteger counter = new AtomicInteger(0);
 
@@ -134,6 +137,7 @@ Exceptions follow the same rule: if the computation throws on the first `force()
 ~~~admonish example title="Example 2: Composing with map and flatMap"
 `LazyMonad` lets you chain transformations without triggering evaluation. Only the final `force()` runs the entire pipeline.
 
+<!-- verify -->
 ```java
 Monad<LazyKind.Witness> lazyMonad = Instances.monad(lazy());
 AtomicInteger counter = new AtomicInteger(0);
@@ -184,7 +188,7 @@ Neither `map` nor `flatMap` triggers evaluation; they build a new `Lazy` that wi
 `Lazy` is what we wrap around any *expensive* step in a Foundations-style chain that we are not sure we will need:
 
 ```java
-Lazy<EitherPath<Error, Node>> defer =
+Lazy<EitherPath<AppError, Node>> defer =
     Lazy.defer(() ->
         repo.find(id)
             .toEitherPath()
@@ -192,7 +196,7 @@ Lazy<EitherPath<Error, Node>> defer =
             .modify(spec::validateAndCoerce));
 
 // Only runs the chain (and only once) if and when the value is actually requested
-EitherPath<Error, Node> result = defer.force().flatMap(repo::save);
+EitherPath<AppError, Node> result = defer.force().flatMap(repo::save);
 ```
 
 `LazyMonad` lets us compose these deferred values without forcing them, then trigger one evaluation at the edge. The memoisation guarantee means repeated `force()` calls return the same answer without re-running the chain. Useful when the work is heavy and conditional on a downstream branch.

@@ -44,28 +44,30 @@ The Draughts game is a complete, playable implementation of checkers that demons
 
 Game state is immutable and managed through `WithStatePath`:
 
+<!-- verify -->
 ```java
 @GenerateFocus
 record GameState(
     Map<Square, Piece> board,
     Player currentPlayer,
-    List<Move> moveHistory,
-    boolean gameOver
+    String message,
+    boolean isGameOver
 ) {}
 
-// State transitions are pure functions
-WithStatePath<GameState, MoveResult> applyMove(Move move) {
-    return WithStatePath.modify(state -> {
-        var newBoard = movePiece(state.board(), move);
-        var captured = checkCaptures(newBoard, move);
-        var promoted = checkPromotion(newBoard, move);
-        return new GameState(
-            promoted,
-            state.currentPlayer().opponent(),
-            state.moveHistory().append(move),
-            isGameOver(promoted)
-        );
-    }).map(_ -> new MoveResult(move, captured));
+// A move is a pure state transition: the validations either produce the next state and its
+// result, or fold back to the state they started from carrying the reason.
+static WithStatePath<GameState, MoveResult> applyMove(MoveCommand command) {
+    Square from = MoveCommandFocus.from().get(command);
+    Square to = MoveCommandFocus.to().get(command);
+
+    return Path.state(
+        State.of(
+            (GameState state) ->
+                getPieceAt(from, state)
+                    .via(piece -> validateOwnership(piece, state))
+                    .via(piece -> validateDestinationEmpty(to, state).map(unit -> piece))
+                    .via(piece -> validateAndApply(state, command, piece, from, to))
+                    .fold(error -> invalidMove(error, state), result -> result)));
 }
 ```
 
@@ -73,15 +75,17 @@ WithStatePath<GameState, MoveResult> applyMove(Move move) {
 
 Move validation uses `EitherPath` for clear error handling:
 
+<!-- verify -->
 ```java
-EitherPath<GameError, Move> validateMove(String input, GameState state) {
-    return parseInput(input)                           // Parse "a3-b4"
-        .via(cmd -> validateSquareOnBoard(cmd))        // Check bounds
-        .via(cmd -> validatePieceExists(cmd, state))   // Piece at source?
-        .via(cmd -> validatePieceOwnership(cmd, state)) // Player's piece?
-        .via(cmd -> validateDestinationEmpty(cmd, state)) // Dest free?
-        .via(cmd -> validateMoveDirection(cmd, state)) // Legal direction?
-        .via(cmd -> validateJumpOrSlide(cmd, state));  // Jump/slide rules
+static EitherPath<String, StateTuple<GameState, MoveResult>> validateMove(
+        MoveCommand command, GameState state) {
+    Square from = MoveCommandFocus.from().get(command);
+    Square to = MoveCommandFocus.to().get(command);
+
+    return getPieceAt(from, state)                                        // Piece at source?
+        .via(piece -> validateOwnership(piece, state))                    // Player's piece?
+        .via(piece -> validateDestinationEmpty(to, state).map(u -> piece))  // Dest free?
+        .via(piece -> validateAndApply(state, command, piece, from, to)); // Slide or jump?
 }
 ```
 
@@ -89,52 +93,68 @@ EitherPath<GameError, Move> validateMove(String input, GameState state) {
 
 All I/O is captured in `IOPath`:
 
+<!-- verify -->
 ```java
 // Console I/O is deferred and composable
-IOPath<String> readLine = IOPath.delay(() -> scanner.nextLine());
-IOPath<Unit> printBoard = IOPath.delay(() -> renderer.display(state));
+IOPath<String> readLine = Path.io(() -> scanner.nextLine());
+IOPath<Unit> printBoard = displayBoard(state);
 
-// Game loop composes pure logic with I/O
-IOPath<Unit> gameLoop = ForPath.forPath(printBoard)
-    .bind(_ -> readLine)
-    .bind(input -> validateAndApply(input))
-    .bind(result -> announceResult(result))
-    .repeatWhile(result -> !result.gameOver());
+// A turn is the board, then the move that follows it. Reading returns an Either, so a bad
+// command is a value the next step handles rather than an exception.
+IOPath<GameState> processTurn(GameState currentState) {
+    return ForPath.from(displayBoard(currentState))
+        .from(shown -> readMoveCommand())
+        .yield((shown, result) -> result)
+        .via(result -> handleTurnResult(result, currentState));
+}
+
+// The loop recurses rather than looping, and stays stack-safe because
+// nothing runs until the whole description is executed
+IOPath<Unit> gameLoop(GameState currentState) {
+    return currentState.isGameOver()
+        ? displayBoard(currentState)
+        : processTurn(currentState).via(this::gameLoop);
+}
 ```
 
 ### Focus DSL for Game State
 
 Type-safe navigation through nested game structures:
 
+<!-- verify -->
 ```java
-// Access the piece at a specific square
-var pieceAtSquare = GameStateFocus.board()
-    .at(square)
-    .getOptional(state);
+// Read a component through the generated focus
+Player current = GameStateFocus.currentPlayer().get(state);
 
-// Modify all pieces of a player
-var promoted = GameStateFocus.board()
-    .values()
-    .filter(piece -> piece.owner() == player)
-    .filter(piece -> shouldPromote(piece))
-    .modify(state, piece -> piece.withType(PieceType.KING));
+// Replace the board, leaving every other component alone
+GameState moved = GameStateFocus.board().set(newBoard, state);
+
+// End the game, and say why
+GameState finished = GameStateFocus.message()
+    .set("RED wins.", GameStateFocus.isGameOver().set(true, state));
 ```
 
 ### Stream-Based Iteration
 
-Declarative patterns for board operations:
+The initial board is generated rather than written out:
 
+<!-- verify -->
 ```java
-// Find all valid moves for current player
-List<Move> validMoves = IntStream.range(0, 8)
-    .boxed()
-    .flatMap(row -> IntStream.range(0, 8)
-        .mapToObj(col -> new Square(row, col)))
-    .filter(sq -> hasPiece(state, sq, state.currentPlayer()))
-    .flatMap(from -> possibleDestinations(from).stream()
-        .map(to -> new Move(from, to)))
-    .filter(move -> isValidMove(move, state))
-    .toList();
+// The starting board: every dark square in a player's rows carries one of their men
+static Stream<Map.Entry<Square, Piece>> placePieces(Player owner, int startRow, int endRow) {
+    Piece piece = new Piece(owner, PieceType.MAN);
+
+    return IntStream.range(startRow, endRow)
+        .boxed()
+        .flatMap(row ->
+            darkSquaresInRow(row).mapToObj(col -> Map.entry(new Square(row, col), piece)));
+}
+
+// Dark squares alternate, starting at column 0 in odd rows and column 1 in even ones
+static IntStream darkSquaresInRow(int row) {
+    int startCol = (row % 2 != 0) ? 0 : 1;
+    return IntStream.iterate(startCol, col -> col < 8, col -> col + 2);
+}
 ```
 
 ---

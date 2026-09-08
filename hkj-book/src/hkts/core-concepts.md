@@ -199,13 +199,14 @@ Higher-Kinded-J provides the `org.higherkindedj.hkt.Unit` type to address this.
     * When a monadic action `Kind<F, A>` completes successfully but has no specific value to return (e.g., an `IO` action that prints to the console), `A` can be `Unit`. The action would then be `Kind<F, Unit>`, and its successful result would conceptually be `Unit.INSTANCE`. For example, `IO<Unit>` for a print operation.
     * In `MonadError<F, E>`, if the error state `E` simply represents an absence or a failure without specific details (like `Optional.empty()` or `Maybe.Nothing()`), `Unit` can be used as the type for `E`. The `raiseError` method would then be called with `Unit.INSTANCE`. For instance, `OptionalMonad` implements `MonadError<OptionalKind.Witness, Unit>`, and `MaybeMonad` implements `MonadError<MaybeKind.Witness, Unit>`.
 * **Example:**
+<!-- verify -->
     ```java
     // An IO action that just performs a side effect (printing)
-    Kind<IOKind.Witness, Unit> printAction = IOKindHelper.delay(() -> {
+    Kind<IOKind.Witness, Unit> printAction = IO_OP.delay(() -> {
         System.out.println("Effect executed!");
         return Unit.INSTANCE; // Explicitly return Unit.INSTANCE
     });
-    IOKindHelper.unsafeRunSync(printAction); // Executes the print
+    IO_OP.unsafeRunSync(printAction); // Executes the print
 
     // Optional treated as MonadError<..., Unit>
     MonadError<OptionalKind.Witness, Unit> optionalMonad = Instances.monadError(optional());

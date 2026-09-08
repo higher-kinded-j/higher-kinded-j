@@ -13,6 +13,7 @@
 
 We have all written this code:
 
+<!-- verify -->
 ```java
 optional.map(String::length);
 list.stream().map(String::length).toList();
@@ -71,14 +72,15 @@ Together, these rules say *map only transforms the values; it never tampers with
 
 The reason `Functor` earns its keep in Higher-Kinded-J is that we can write code once and dispatch to whichever container the caller hands us.
 
+<!-- verify -->
 ```java
 import static org.higherkindedj.hkt.list.ListKindHelper.LIST;
 import static org.higherkindedj.hkt.optional.OptionalKindHelper.OPTIONAL;
 
 Function<String, Integer> stringLength = String::length;
 
-Functor<OptionalKind.Witness> optFunctor = OptionalFunctor.INSTANCE;
-Functor<ListKind.Witness>     listFunctor = ListFunctor.INSTANCE;
+Functor<OptionalKind.Witness> optFunctor  = Instances.functor(optional());
+Functor<ListKind.Witness>     listFunctor = Instances.functor(list());
 
 Kind<OptionalKind.Witness, String> presentName = OPTIONAL.widen(Optional.of("Hello"));
 Kind<OptionalKind.Witness, String> absentName  = OPTIONAL.widen(Optional.empty());
@@ -101,6 +103,7 @@ Same function, three different `Kind` flows, and not a single conditional. The c
 
 Once we accept `Functor<F>` as currency, we can write helpers that work for any container at all.
 
+<!-- verify -->
 ```java
 public static <F extends WitnessArity<TypeArity.Unary>, A>
     Kind<F, String> describe(Functor<F> functor, Kind<F, A> fa) {

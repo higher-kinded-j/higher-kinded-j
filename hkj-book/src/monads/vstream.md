@@ -113,6 +113,7 @@ VStream provides factory methods that cover the most common sources. All of them
 
 ### From Values You Already Have
 
+<!-- verify -->
 ```java
 // Single element
 VStream<String> single = VStream.of("hello");
@@ -134,6 +135,7 @@ VStream<Integer> empty = VStream.empty();
 
 The pull model means infinite sources are perfectly safe. The consumer decides when to stop.
 
+<!-- verify -->
 ```java
 // Infinite sequence from seed and step function
 VStream<Integer> powersOf2 = VStream.iterate(1, n -> n * 2);
@@ -161,6 +163,7 @@ elements until `Optional.empty()` signals the end. Each step runs inside a `VTas
 network calls, database queries, and file reads all happen on virtual threads without
 blocking the caller.
 
+<!-- verify -->
 ```java
 // Paginated API: fetch pages until the server says "no more"
 VStream<String> pages = VStream.unfold(1, page ->
@@ -198,6 +201,7 @@ All transformation operations are lazy. They describe a new pipeline without pro
 
 Transform each element:
 
+<!-- verify -->
 ```java
 List<String> result = VStream.of(1, 2, 3)
     .map(n -> "#" + n)
@@ -209,6 +213,7 @@ List<String> result = VStream.of(1, 2, 3)
 
 Keep only elements matching a predicate. Rejected elements produce a `Skip` step internally, avoiding unnecessary allocation:
 
+<!-- verify -->
 ```java
 List<Integer> evens = VStream.range(1, 11)
     .filter(n -> n % 2 == 0)
@@ -221,6 +226,7 @@ List<Integer> evens = VStream.range(1, 11)
 Replace each element with a sub-stream and flatten the results. This is the monadic
 bind operation for VStream:
 
+<!-- verify -->
 ```java
 List<Integer> result = VStream.of(1, 2, 3)
     .flatMap(n -> VStream.of(n, n * 10))
@@ -234,6 +240,7 @@ The `via()` method is an alias for `flatMap`, consistent with the FocusDSL vocab
 
 These operations give the consumer explicit control over how much data to pull. They are the safety valve for infinite streams.
 
+<!-- verify -->
 ```java
 // First 5 elements of an infinite stream
 List<Integer> first5 = VStream.iterate(1, n -> n + 1)
@@ -265,6 +272,7 @@ Operations chain naturally into lazy pipelines. Each stage pulls from the previo
   [6, 12, 18, 24, 30]
 ```
 
+<!-- verify -->
 ```java
 List<Integer> result = VStream.range(1, 100)
     .filter(n -> n % 2 == 0)   // keep evens
@@ -299,6 +307,7 @@ execute. All terminal operations use iterative loops for stack safety.
 
 ### Fold Example
 
+<!-- verify -->
 ```java
 Integer sum = VStream.of(1, 2, 3, 4, 5)
     .fold(0, Integer::sum).run();
@@ -311,6 +320,7 @@ Integer sum = VStream.of(1, 2, 3, 4, 5)
 them safe even on infinite streams, because the pull model means the producer never runs
 ahead of the consumer:
 
+<!-- verify -->
 ```java
 // Safe: stops as soon as 42 is found
 Boolean found = VStream.iterate(0, n -> n + 1)
@@ -326,6 +336,7 @@ Boolean found = VStream.iterate(0, n -> n + 1)
 
 Append one stream after another. The second stream is not touched until the first is exhausted:
 
+<!-- verify -->
 ```java
 VStream<Integer> combined = VStream.of(1, 2).concat(VStream.of(3, 4));
 // [1, 2, 3, 4]
@@ -335,6 +346,7 @@ VStream<Integer> combined = VStream.of(1, 2).concat(VStream.of(3, 4));
 
 Pair elements positionally. Stops at the shorter stream, so it is safe to zip a finite stream with an infinite one:
 
+<!-- verify -->
 ```java
 List<String> zipped = VStream.of("a", "b", "c")
     .zipWith(VStream.of(1, 2, 3), (s, n) -> s + n)
@@ -346,6 +358,7 @@ List<String> zipped = VStream.of("a", "b", "c")
 
 Alternate elements from two streams:
 
+<!-- verify -->
 ```java
 List<Integer> interleaved = VStream.of(1, 3, 5)
     .interleave(VStream.of(2, 4, 6))
@@ -379,6 +392,7 @@ Real-world streams encounter failures: a network timeout on page 47, a malformed
 
 Replace a failed pull with a recovery value:
 
+<!-- verify -->
 ```java
 List<String> result = VStream.<String>fail(new RuntimeException("oops"))
     .recover(e -> "recovered: " + e.getMessage())
@@ -390,6 +404,7 @@ List<String> result = VStream.<String>fail(new RuntimeException("oops"))
 
 Replace a failed pull with a fallback stream:
 
+<!-- verify -->
 ```java
 List<String> result = VStream.<String>fail(new RuntimeException("primary failed"))
     .recoverWith(e -> VStream.of("fallback-1", "fallback-2"))
@@ -401,6 +416,7 @@ List<String> result = VStream.<String>fail(new RuntimeException("primary failed"
 
 Transform errors without recovering, useful for wrapping low-level exceptions into domain-specific ones:
 
+<!-- verify -->
 ```java
 VStream<String> mapped = VStream.<String>fail(new RuntimeException("original"))
     .mapError(e -> new IllegalStateException("wrapped: " + e.getMessage()));
@@ -418,6 +434,7 @@ recover. After recovery, the stream continues from the recovery point.
 If you are sceptical about lazy evaluation, here is the proof. Building a pipeline does
 zero work. Only the terminal operation triggers element production:
 
+<!-- verify -->
 ```java
 AtomicInteger evaluations = new AtomicInteger(0);
 

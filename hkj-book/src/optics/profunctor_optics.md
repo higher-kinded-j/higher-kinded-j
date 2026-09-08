@@ -112,6 +112,7 @@ Account renamed = accountUserRaw.modify(String::toUpperCase, account);
 
 When neither composition nor an Iso fits (the conversion is lopsided, or you only need one field bridged), build the adapted lens directly. This is the "profunctor-style" adaptation the runnable example demonstrates:
 
+<!-- verify -->
 ```java
 Lens<Employee, String> employeeFirstNameLens =
     Lens.of(
@@ -147,6 +148,7 @@ flowchart TD
 
 ### Don't Do This:
 
+<!-- verify -->
 ```java
 // Rebuilding the same adapter inline repeatedly
 var lens1 = EmployeeLenses.personalInfo().andThen(PersonLenses.firstName());
@@ -164,6 +166,7 @@ Iso<PersonDto, Person> lossy = Iso.of(
 
 ### Do This Instead:
 
+<!-- verify -->
 ```java
 // Create adapters once, reuse everywhere
 public static final Lens<Employee, String> EMPLOYEE_FIRST_NAME =

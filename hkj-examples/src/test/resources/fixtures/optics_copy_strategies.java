@@ -139,6 +139,10 @@ final class Order {
     this.customers = customers;
   }
 
+  public String getOrderId() {
+    return "ORD-1";
+  }
+
   public List<Customer> customers() {
     return customers;
   }
@@ -155,11 +159,51 @@ final class Order {
       return this;
     }
 
+    public Builder withOrderId(String orderId) {
+      return this;
+    }
+
     public Order build() {
       return new Order(customers);
     }
   }
 }
+
+/** Stands in for a type that spells all four builder steps differently. */
+final class LegacyType {
+
+  private final String name;
+
+  LegacyType(String name) {
+    this.name = name;
+  }
+
+  public String getName() {
+    return name;
+  }
+
+  public static Builder newBuilder() {
+    return new Builder();
+  }
+
+  static final class Builder {
+
+    private String name;
+
+    public Builder setName(String name) {
+      this.name = name;
+      return this;
+    }
+
+    public LegacyType create() {
+      return new LegacyType(name);
+    }
+  }
+}
+
+record Entry(String key, String value) {}
+
+record MyType(List<Entry> entries) {}
 
 @ImportOptics
 interface CustomerOpticsSpec extends OpticsSpec<Customer> {

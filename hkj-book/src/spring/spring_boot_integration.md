@@ -113,6 +113,7 @@ projects that wire HKJ in by hand.
 
 ### Step 2: Return Functional Types from Controllers
 
+<!-- verify -->
 ```java
 @RestController
 @RequestMapping("/api/users")
@@ -160,10 +161,11 @@ That's it! The starter auto-configures everything:
 
 Traditional Spring Boot error handling relies on exceptions and `@ExceptionHandler` methods:
 
+<!-- verify -->
 ```java
 @GetMapping("/{id}")
 public User getUser(@PathVariable String id) {
-    return userService.findById(id);  // What errors can this throw?
+    return throwingUserService.findById(id);  // What errors can this throw?
 }
 
 @ExceptionHandler(UserNotFoundException.class)
@@ -188,6 +190,7 @@ public ResponseEntity<ErrorResponse> handleValidation(ValidationException ex) {
 
 With functional error handling, errors become explicit and composable:
 
+<!-- verify -->
 ```java
 @GetMapping("/{id}")
 public Either<DomainError, User> getUser(@PathVariable String id) {
@@ -218,10 +221,17 @@ public Either<DomainError, List<Order>> getUserOrders(@PathVariable String id) {
 
 #### Basic Usage
 
+<!-- verify -->
 ```java
 @RestController
 @RequestMapping("/api/users")
 public class UserController {
+
+    private final UserService userService;
+
+    UserController(UserService userService) {
+        this.userService = userService;
+    }
 
     @GetMapping("/{id}")
     public Either<DomainError, User> getUser(@PathVariable String id) {
@@ -254,12 +264,15 @@ Heuristic table:
 | `authentication` or `unauthorized`        | 401 |
 | (no match)                                | configured default |
 
+<!-- verify -->
 ```java
 public sealed interface DomainError permits
     UserNotFoundError,      // -> 404 via heuristic
     ValidationError,        // -> 400 via heuristic
     AuthorizationError,     // -> 403 via heuristic
-    AuthenticationError {}  // -> 401 via heuristic
+    AuthenticationError,    // -> 401 via heuristic
+    PatchValidationError,   // -> 400: `Validation` is a token the heuristic reads
+    MfaThrottledError {}    // -> 429 or 503, from the custom strategy below
 ```
 
 For status codes outside the heuristic table (409 Conflict, 422 Unprocessable Content, 429 Too Many Requests, 503 Service Unavailable), add explicit entries to `hkj.web.error-status-mappings`:
@@ -278,6 +291,7 @@ When the status depends on the error's field values (for example, `MfaThrottledE
 
 #### Composing Operations
 
+<!-- verify -->
 ```java
 @GetMapping("/{userId}/orders/{orderId}")
 public Either<DomainError, Order> getUserOrder(
@@ -302,6 +316,7 @@ See the [Either Monad documentation](../monads/either_monad.md) for comprehensiv
 
 #### Basic Usage
 
+<!-- verify -->
 ```java
 @PostMapping
 public Validated<List<ValidationError>, User> createUser(@RequestBody UserRequest request) {
@@ -318,6 +333,7 @@ public Validated<List<ValidationError>, User> createUser(@RequestBody UserReques
 
 Individual field checks each return a `Validated`; the applicative for `Validated` (with a list semigroup for the error channel) combines them so that **every** failing check is reported:
 
+<!-- verify -->
 ```java
 @Service
 public class UserService {
@@ -357,6 +373,7 @@ This mirrors `UserService.validateAndCreate` in the example module. (`VALIDATED`
 ~~~admonish tip title="Prefer the Path builders for new code"
 The `ValidationPath` accumulating builders avoid the widen/narrow ceremony entirely: controllers can return `ValidationPath` directly and the same handler applies. Each field validator returns `ValidationPath<NonEmptyList<ValidationError>, String>` (built with `Path.validNel` / `Path.invalidNel`):
 
+<!-- verify -->
 ```java
 public ValidationPath<NonEmptyList<ValidationError>, User> validateAndCreate(UserRequest request) {
     return Path.accumulate()
@@ -377,6 +394,7 @@ A *leg* is one of the routes a value returned from a controller can travel to be
 
 A [`@GenerateMapping`](../mapping/ch_intro.md) spec's `parse` returns `Validated<NonEmptyList<FieldError>, Domain>`: every bad field reported at once, each located by a structured path. (`FieldError` here is HKJ's `org.higherkindedj.hkt.validated.FieldError`, not Spring's `org.springframework.validation.FieldError`.) A controller returns it directly, with no service call and no error wrapping:
 
+<!-- verify -->
 ```java
 @PostMapping("/parse")
 public Validated<NonEmptyList<FieldError>, User> parseUser(@RequestBody UserDto dto) {
@@ -441,6 +459,7 @@ A PATCH body is the parse boundary's mirror image. The client sends only the fie
 
 A PATCH endpoint has two failure kinds, though, not one: the resource may not exist, *and* a present field may be invalid. The example app folds both into one `Either<DomainError, User>` channel (this mirrors `UserController.patchUser` and `UserService.patch` in the example module):
 
+<!-- verify -->
 ```java
 @PatchMapping("/{id}")
 public Either<DomainError, User> patchUser(
@@ -451,6 +470,7 @@ public Either<DomainError, User> patchUser(
 }
 ```
 
+<!-- verify -->
 ```java
 // In the service: apply the pre-validated patch to the stored value
 patch.apply(current)                 // Validated<NonEmptyList<FieldError>, User>
@@ -480,6 +500,7 @@ The example app demonstrates the whole shape end to end: `PATCH /api/users/{id}`
 
 #### Basic Usage
 
+<!-- verify -->
 ```java
 @GetMapping("/{id}/async")
 public CompletableFuturePath<User> getUserAsync(@PathVariable String id) {
@@ -490,9 +511,23 @@ public CompletableFuturePath<User> getUserAsync(@PathVariable String id) {
 
 #### Async Composition
 
+<!-- verify -->
 ```java
 @Service
 public class AsyncOrderService {
+
+    private final AsyncUserService asyncUserService;
+    private final AsyncInventoryService asyncInventoryService;
+    private final AsyncPaymentService asyncPaymentService;
+
+    AsyncOrderService(
+            AsyncUserService asyncUserService,
+            AsyncInventoryService asyncInventoryService,
+            AsyncPaymentService asyncPaymentService) {
+        this.asyncUserService = asyncUserService;
+        this.asyncInventoryService = asyncInventoryService;
+        this.asyncPaymentService = asyncPaymentService;
+    }
 
     public CompletableFuturePath<OrderSummary> processOrderAsync(
             String userId, OrderRequest request) {
@@ -525,6 +560,7 @@ See the [Effect Path API documentation](../effect/path_types.md) for comprehensi
 
 #### Basic Usage
 
+<!-- verify -->
 ```java
 @GetMapping("/users/{id}")
 public VTaskPath<User> getUser(@PathVariable String id) {
@@ -546,6 +582,7 @@ The framework uses Spring's `DeferredResult`:
 
 Use `Scope` for parallel fan-out with automatic cancellation:
 
+<!-- verify -->
 ```java
 @GetMapping("/users/{id}/enriched")
 public VTaskPath<EnrichedUser> getEnrichedUser(@PathVariable String id) {
@@ -580,6 +617,7 @@ public VTaskPath<EnrichedUser> getEnrichedUser(@PathVariable String id) {
 
 #### Basic Usage
 
+<!-- verify -->
 ```java
 @GetMapping(value = "/users/stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
 public VStreamPath<User> streamUsers() {
@@ -597,6 +635,7 @@ public VStreamPath<User> streamUsers() {
 
 #### Parameterised Streams
 
+<!-- verify -->
 ```java
 @GetMapping(value = "/ticks", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
 public VStreamPath<TickEvent> streamTicks(@RequestParam(defaultValue = "10") int count) {
@@ -618,6 +657,7 @@ public VStreamPath<TickEvent> streamTicks(@RequestParam(defaultValue = "10") int
 
 #### Basic Usage
 
+<!-- verify -->
 ```java
 @PostMapping("/imports")
 public EitherOrBothPath<NonEmptyList<ImportWarning>, ImportSummary> importBatch(
@@ -663,10 +703,17 @@ Handlers delegate to `SuccessStatusResolver` to pick the success status, in this
 3. Meta-annotations (e.g. custom `@Created`, `@NoContent`)
 4. The handler's default (typically `200`)
 
+<!-- verify -->
 ```java
 @RestController
 @RequestMapping("/api/orders")
 public class OrderController {
+
+    private final OrderService orderService;
+
+    OrderController(OrderService orderService) {
+        this.orderService = orderService;
+    }
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
@@ -716,11 +763,12 @@ hkj:
 
 When the status depends on the error's field values, register an `ErrorStatusCodeStrategy` bean. The default is annotated `@ConditionalOnMissingBean`, so a user-defined bean replaces it without further wiring:
 
+<!-- verify -->
 ```java
 @Bean
 ErrorStatusCodeStrategy errorStatusCodeStrategy() {
     return (error, defaultStatus) -> switch (error) {
-        case MfaThrottledError t when t.retryAfter() > 60 -> 503;
+        case MfaThrottledError t when t.retryAfterSeconds() > 60 -> 503;
         case MfaThrottledError ignored                   -> 429;
         // Fall through to property mappings + heuristics for everything else
         default -> ErrorStatusCodeMapper.determineStatusCode(error, defaultStatus);
@@ -734,6 +782,7 @@ The strategy runs once per error response on the request thread (or the async co
 
 Error payloads can surface response headers (`Retry-After`, `WWW-Authenticate`, and similar) by implementing `HttpHeaderCarrier`:
 
+<!-- verify -->
 ```java
 public record MfaThrottledError(int retryAfterSeconds)
         implements DomainError, HttpHeaderCarrier {
@@ -839,6 +888,7 @@ The canonical key for the EitherPath default error status is `hkj.web.either.def
 
 The starter does **not** create or configure a thread pool for `CompletableFuturePath` operations; your application defines its own executor bean and passes it to `CompletableFuture.supplyAsync(...)` in the service layer. The example module's `AsyncConfig` shows the pattern:
 
+<!-- verify -->
 ```java
 @Configuration
 @EnableAsync
@@ -880,6 +930,7 @@ For complete configuration options, see [hkj-spring/CONFIGURATION.md](https://gi
 
 A typical CRUD API with validation and error handling:
 
+<!-- verify -->
 ```java
 @RestController
 @RequestMapping("/api/users")
@@ -948,6 +999,7 @@ public class UserController {
 
 Processing orders asynchronously with multiple external services:
 
+<!-- verify -->
 ```java
 @RestController
 @RequestMapping("/api/orders")
@@ -987,20 +1039,24 @@ public class AsyncOrderService {
     @Autowired
     private OrderRepository orderRepository;
 
+    public CompletableFuturePath<Order> findByIdAsync(String id) {
+        return Path.futureCompleted(new Order(id, "C001"));
+    }
+
+    private Order createOrderRecord(OrderRequest request, Payment payment) {
+        return orderRepository.save(new Order(payment.id(), request.userId()));
+    }
+
     public CompletableFuturePath<Order> processOrder(OrderRequest request) {
         return userService.findByIdAsync(request.userId())
             .via(user -> inventoryService.checkAvailabilityAsync(request.items()))
             .via(availability -> {
                 if (!availability.allAvailable()) {
-                    return Path.completableFuture(
-                        CompletableFuture.failedFuture(
-                            new OutOfStockException(availability.unavailableItems())
-                        )
+                    return Path.futureFailed(
+                        new OutOfStockException(availability.unavailableItems())
                     );
                 }
-                return Path.completableFuture(
-                    CompletableFuture.completedFuture(availability)
-                );
+                return Path.futureCompleted(availability);
             })
             .via(availability -> paymentService.processPaymentAsync(request.payment()))
             .map(payment -> createOrderRecord(request, payment));
@@ -1034,11 +1090,13 @@ hkj:
 
 `ValidatedUserDetailsService` validates the username with `Validated`, accumulating **all** format errors (too short *and* illegal characters, not just the first) before looking the user up. It starts **empty**; register accounts explicitly:
 
+<!-- verify -->
 ```java
 @Bean
 public UserDetailsService userDetailsService(PasswordEncoder encoder) {
     var service = new ValidatedUserDetailsService();
-    service.addUser(User.builder()
+    // Spring Security's own User, qualified because this chapter's User is the domain record.
+    service.addUser(org.springframework.security.core.userdetails.User.builder()
         .username("alice")
         .password(encoder.encode(secret))
         .roles("USER")
@@ -1055,6 +1113,7 @@ public UserDetailsService userDetailsService(PasswordEncoder encoder) {
 
 `EitherAuthenticationConverter` converts JWTs to `Authentication` using `Either` internally. A **malformed** authorities claim (wrong type, or a collection with a non-string element) always folds the `Left` into a thrown `BadCredentialsException`, so such a token is **rejected** (HTTP 401); it never produces an authenticated token. A **missing** claim is rejected the same way only while `hkj.security.reject-missing-authorities-claim` stays `true` (the default); set it to `false` to allow legitimately role-less tokens (e.g. client-credentials) to authenticate with empty authorities:
 
+<!-- verify -->
 ```java
 @Bean
 public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
@@ -1206,6 +1265,7 @@ Testing functional controllers is straightforward with MockMvc.
 
 ### Testing Either Responses
 
+<!-- verify -->
 ```java
 @SpringBootTest
 @AutoConfigureMockMvc
@@ -1236,6 +1296,7 @@ class UserControllerTest {
 
 ### Testing Validated Responses
 
+<!-- verify -->
 ```java
 @Test
 void shouldAccumulateValidationErrors() throws Exception {
@@ -1259,6 +1320,7 @@ void shouldAccumulateValidationErrors() throws Exception {
 
 ### Testing CompletableFuturePath Async Responses
 
+<!-- verify -->
 ```java
 @Test
 void shouldHandleAsyncCompletableFuturePathResponse() throws Exception {
@@ -1276,6 +1338,7 @@ void shouldHandleAsyncCompletableFuturePathResponse() throws Exception {
 
 For fast controller-only tests without the full application context, use Spring's `@WebMvcTest` slice. The slice excludes auto-configurations by default, so the HKJ auto-configurations must be imported explicitly:
 
+<!-- verify -->
 ```java
 @WebMvcTest(UserController.class)
 @ImportAutoConfiguration({
@@ -1315,6 +1378,7 @@ The three imports activate EitherPath/ValidationPath/Maybe/Try/IO/CompletableFut
 
 Services returning functional types are easy to test without mocking frameworks:
 
+<!-- verify -->
 ```java
 class UserServiceTest {
 
@@ -1346,7 +1410,7 @@ class UserServiceTest {
             service.validateAndCreate(invalid);
 
         assertThat(result.isInvalid()).isTrue();
-        List<ValidationError> errors = result.getErrors();
+        List<ValidationError> errors = result.getError();
         assertThat(errors).hasSize(3);
     }
 }
@@ -1457,6 +1521,7 @@ Functional error handling is generally faster than exception-throwing for expect
 
 Yes. Wrap repository calls in your service layer:
 
+<!-- verify -->
 ```java
 @Service
 public class UserService {

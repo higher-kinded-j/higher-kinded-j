@@ -34,6 +34,7 @@ This makes it the perfect optic for working with collections. Consider this data
 
 **The Data Model:**
 
+<!-- verify -->
 ```java
 public record Player(String name, int score) {}
 public record Team(String name, List<Player> players) {}
@@ -42,6 +43,7 @@ public record League(String name, List<Team> teams) {}
 
 **Our Goal:** We need to give every single player in the entire league 5 bonus points. The traditional approach involves nested loops or streams, forcing us to manually reconstruct each immutable object along the way.
 
+<!-- verify -->
 ```java
 // Manual, verbose bulk update
 List<Team> newTeams = league.teams().stream()
@@ -86,6 +88,7 @@ The library provides a rich set of tools for creating `Traversal` instances, fou
 
 These traversals accept any implementation as input: `forList()` reads an `ArrayList` or a `LinkedList` as readily as a `List.of(...)`. What each hands back is a value of the interface type (`forList()` rebuilds an unmodifiable `List`), which is why `@ThroughField` auto-detection matches the interface only and refuses a field declared as `ArrayList`; see [`@ThroughField` auto-detection](copy_strategies.md#throughfield-auto-detection). (`@GenerateTraversals` reports the same component with a note rather than an error: it has no per-component opt-out, where `@ThroughField` is an explicit request on one method.)
 
+<!-- verify -->
 ```java
 import org.higherkindedj.optics.annotations.GenerateTraversals;
 import java.util.List;
@@ -169,6 +172,7 @@ A component declared as some *other* `Collection` subtype — `Deque<Task>`, `So
 
 Just like other optics, `Traversal`s can be composed with `andThen`. We can chain them together to create a single, deep traversal from the `League` all the way down to each player's `score`.
 
+<!-- verify -->
 ```java
 // Get generated optics
 Traversal<League, Team> leagueToTeams = LeagueTraversals.teams();
@@ -190,6 +194,7 @@ The `Traversals` utility class provides convenient helper methods to perform the
 
 * **`Traversals.modify(traversal, function, source)`**: Applies a pure function to all targets of a traversal.
 
+<!-- verify -->
 ```java
   // Use the composed traversal to add 5 bonus points to every score.
   League updatedLeague = Traversals.modify(leagueToAllPlayerScores, score -> score + 5, league);
@@ -197,6 +202,7 @@ The `Traversals` utility class provides convenient helper methods to perform the
 
 * **`Traversals.getAll(traversal, source)`**: Extracts all targets of a traversal into a `List`.
 
+<!-- verify -->
 ```java
   // Get a flat list of all player scores in the league.
   List<Integer> allScores = Traversals.getAll(leagueToAllPlayerScores, league);
@@ -225,6 +231,7 @@ flowchart TD
 * **Reusable bulk logic** - Creating operations that can be applied across different instances
 * **Effectful operations** - Using `modifyF` for operations that might fail or have side effects
 
+<!-- verify -->
 ```java
 // Perfect for bulk updates with type safety
 Traversal<Company, String> allEmails = CompanyTraversals.employees()
@@ -240,6 +247,7 @@ Company withNormalisedEmails = Traversals.modify(allEmails, String::toLowerCase,
 * **Filtering and collecting** - You need to change the collection structure
 * **Performance critical paths** - Minimal abstraction overhead needed
 
+<!-- verify -->
 ```java
 // Better with streams for complex logic
 List<String> activePlayerNames = league.teams().stream()
@@ -257,6 +265,7 @@ List<String> activePlayerNames = league.teams().stream()
 * **Imperative mindset** - The operation is inherently procedural
 
 
+<!-- verify -->
 ```java
 // Sometimes a loop is clearest
 for (Team team : league.teams()) {
@@ -275,6 +284,7 @@ for (Team team : league.teams()) {
 ### Don't Do This:
 
 
+<!-- verify -->
 ```java
 // Inefficient: Creating traversals repeatedly
 teams.forEach(team -> {
@@ -294,6 +304,7 @@ List<Integer> scores = Traversals.getAll(leagueToAllPlayerScores, emptyLeague); 
 ### Do This Instead:
 
 
+<!-- verify -->
 ```java
 // Efficient: Create traversals once, use many times
 var scoreTraversal = LeagueTraversals.teams()
@@ -323,6 +334,7 @@ Traversals are optimised for immutable updates:
 
 **Best Practice**: For frequently used traversal combinations, create them once and store as constants:
 
+<!-- verify -->
 ```java
 public class LeagueOptics {
     public static final Traversal<League, Integer> ALL_PLAYER_SCORES = 
@@ -344,6 +356,7 @@ public class LeagueOptics {
 ### Validation with Error Accumulation
 
 
+<!-- verify -->
 ```java
 // Validate every email address in the company
 Traversal<Company, String> allEmails = CompanyTraversals.employees()
@@ -367,6 +380,7 @@ This is the pattern streams cannot express cleanly: one composed path, one pass,
 ### Conditional Updates
 
 
+<!-- verify -->
 ```java
 // Give bonus points only to high-performing players
 Function<Integer, Integer> conditionalBonus = score -> 
@@ -382,6 +396,7 @@ League bonusLeague = Traversals.modify(
 ### Data Transformation
 
 
+<!-- verify -->
 ```java
 // Normalise all player names to title case
 Function<String, String> titleCase = name -> 
@@ -398,6 +413,7 @@ League normalisedLeague = Traversals.modify(
 
 ### Asynchronous Operations
 
+<!-- verify -->
 ```java
 // Recalculate every score asynchronously (FUTURE is CompletableFutureKindHelper.FUTURE)
 Function<Integer, CompletableFuture<Integer>> recalculateScore =
@@ -418,6 +434,7 @@ CompletableFuture<League> enrichedLeague = FUTURE.narrow(
 
 The same `modifyF` pattern scales from one composed path to a whole configuration model:
 
+<!-- verify -->
 ```java
 // Configuration model
 @GenerateLenses
@@ -480,6 +497,7 @@ This is where `partsOf` becomes invaluable. It bridges the gap between element-w
 
 Consider this scenario: you have a catalogue of products across multiple categories, and you want to sort all prices from lowest to highest. With standard traversal operations, you're stuck:
 
+<!-- verify -->
 ```java
 // This doesn't work - modify operates on each element independently
 Traversal<Catalogue, Double> allPrices = CatalogueTraversals.categories()
@@ -501,6 +519,7 @@ The `partsOf` combinator transforms a `Traversal<S, A>` into a `Lens<S, List<A>>
 2. **Manipulate**: Apply any list operation (sort, reverse, filter, etc.)
 3. **Set**: Distribute the modified elements back to their original positions
 
+<!-- verify -->
 ```java
 // Convert traversal to a lens on the list of all prices
 Lens<Catalogue, List<Double>> pricesLens = Traversals.partsOf(allPrices);
@@ -526,6 +545,7 @@ The `Traversals` utility class provides convenience methods that combine `partsO
 
 #### `sorted` - Natural Ordering
 
+<!-- verify -->
 ```java
 Traversal<List<Product>, Double> priceTraversal =
     Traversals.<Product>forList().andThen(ProductLenses.price().asTraversal());
@@ -536,6 +556,7 @@ List<Product> sortedProducts = Traversals.sorted(priceTraversal, products);
 
 #### `sorted` - Custom Comparator
 
+<!-- verify -->
 ```java
 Traversal<List<Product>, String> nameTraversal =
     Traversals.<Product>forList().andThen(ProductLenses.name().asTraversal());
@@ -557,6 +578,7 @@ List<Product> sortedByLength = Traversals.sorted(
 
 #### `reversed` - Invert Order
 
+<!-- verify -->
 ```java
 Traversal<Project, Integer> priorityTraversal =
     ProjectTraversals.tasks().andThen(TaskLenses.priority().asTraversal());
@@ -569,6 +591,7 @@ Project reversedProject = Traversals.reversed(priorityTraversal, project);
 
 #### `distinct` - Remove Duplicates
 
+<!-- verify -->
 ```java
 Traversal<List<Product>, String> tagTraversal =
     Traversals.<Product>forList().andThen(ProductLenses.tag().asTraversal());
@@ -583,6 +606,7 @@ A crucial aspect of `partsOf` is how it handles size mismatches between the new 
 
 **Fewer elements than positions**: Original values are preserved in remaining positions.
 
+<!-- verify -->
 ```java
 Lens<List<Product>, List<Double>> productPrices = Traversals.partsOf(priceTraversal);
 
@@ -596,6 +620,7 @@ List<Product> result = productPrices.set(partialPrices, products);
 
 **More elements than positions**: Extra elements are ignored.
 
+<!-- verify -->
 ```java
 // A three-product source, prices [100, 200, 300]
 List<Product> threeProducts = products.subList(0, 3);
@@ -624,6 +649,7 @@ When sizes don't match, the laws still hold for the elements that *are* provided
 
 Filtered optics are covered properly in [Filtered Optics](filtered_optics.md); here it is enough that `filtered` narrows a traversal to the elements a predicate accepts:
 
+<!-- verify -->
 ```java
 // Sort only in-stock product prices
 Traversal<List<Product>, Double> inStockPrices =
@@ -637,6 +663,7 @@ List<Product> result = Traversals.sorted(inStockPrices, products);
 
 #### Custom List Algorithms
 
+<!-- verify -->
 ```java
 Lens<Catalogue, List<Double>> pricesLens = Traversals.partsOf(allPrices);
 List<Double> prices = new ArrayList<>(pricesLens.get(catalogue));
@@ -663,6 +690,7 @@ For very large structures with thousands of focuses, consider:
 
 **Best Practice**: Create the `partsOf` lens once and reuse it:
 
+<!-- verify -->
 ```java
 public class CatalogueOptics {
     private static final Traversal<Catalogue, Double> ALL_PRICES =
@@ -679,12 +707,13 @@ public class CatalogueOptics {
 
 #### Don't Do This:
 
+<!-- verify -->
 ```java
 // Expecting distinct to reduce structure size
 List<Product> products = List.of(
-    new Product("Widget", 25.99),
-    new Product("Gadget", 49.99),
-    new Product("Widget", 30.00)  // Duplicate name
+    new Product("Widget", 25.99, "tools", 5),
+    new Product("Gadget", 49.99, "tools", 3),
+    new Product("Widget", 30.00, "toys", 1)  // Duplicate name
 );
 
 // This doesn't remove the third product!
@@ -699,6 +728,7 @@ prices.forEach(p -> System.out.println(p)); // Just use Traversals.getAll()!
 
 #### Do This Instead:
 
+<!-- verify -->
 ```java
 // Understand that structure is preserved, only values redistribute
 List<Product> result = Traversals.distinct(nameTraversal, products);
@@ -917,6 +947,7 @@ A `Traversal` already provides `getAll` (via `Traversals.getAll()`), but convert
 
 ### Basic Usage
 
+<!-- verify -->
 ```java
 // Build a traversal to all player scores
 Traversal<League, Integer> allScores =

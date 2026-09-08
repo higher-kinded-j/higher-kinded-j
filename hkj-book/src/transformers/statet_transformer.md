@@ -32,6 +32,7 @@ Reach for raw `StateT` only when you need to combine state with a specific outer
 
 Imagine a stack data structure where `pop` might fail on an empty stack. Without `StateT`, you end up managing both the state transitions and the optionality by hand:
 
+<!-- verify -->
 ```java
 Optional<StateTuple<List<Integer>, Integer>> pop(List<Integer> stack) {
     if (stack.isEmpty()) return Optional.empty();
@@ -62,10 +63,11 @@ Each operation returns both a new state and a value; the optionality adds anothe
 
 If state is the only effect, `WithStatePath` is the simplest expression:
 
+<!-- verify -->
 ```java
 WithStatePath<List<Integer>, Integer> workflow() {
     return WithStatePath.<List<Integer>>modify(s -> prepend(s, 10))
-        .then(() -> WithStatePath.modify(s -> prepend(s, 20)))
+        .then(() -> WithStatePath.<List<Integer>>modify(s -> prepend(s, 20)))
         .then(() -> WithStatePath.<List<Integer>>get())
         .map(state -> state.get(0) + state.get(1));
 }
@@ -75,9 +77,12 @@ WithStatePath<List<Integer>, Integer> workflow() {
 
 When state must combine with another effect (here `Optional`):
 
+<!-- verify -->
 ```java
-var optMonad    = Instances.monadError(optional());
-var stateTMonad = Instances.stateT(optMonad);
+var optMonad = Instances.monadError(optional());
+// Name the state: nothing else constrains S, and it would otherwise infer to Object.
+var stateTMonad =
+    Instances.<List<Integer>, OptionalKind.Witness>stateT(optMonad);
 
 var computation = For.from(stateTMonad, push(10))
     .from(_ -> push(20))
@@ -85,7 +90,7 @@ var computation = For.from(stateTMonad, push(10))
     .from(_ -> pop())
     .yield((a, b, p1, p2) -> p1 + p2);
 
-var result = OPTIONAL.narrow(StateTKindHelper.runStateT(computation, Collections.emptyList()));
+var result = OPTIONAL.narrow(STATE_T.runStateT(computation, Collections.emptyList()));
 // → Optional.of(StateTuple([], 30))
 ```
 
@@ -144,6 +149,7 @@ Both tracks advance in lockstep: each `flatMap` produces a new `(value, state)` 
 
 The fundamental structure is a function `S -> F<StateTuple<S, A>>`:
 
+<!-- verify -->
 ```java
 StateT<Integer, OptionalKind.Witness, String> computation = StateT.create(
     currentState -> currentState < 0
@@ -158,9 +164,11 @@ StateT<Integer, OptionalKind.Witness, String> computation = StateT.create(
 
 The `StateTMonad<S, F>` class implements `Monad<StateTKind.Witness<S, F>>`. It requires a `Monad<F>` instance for the underlying monad:
 
+<!-- verify -->
 ```java
 var optionalMonad = Instances.monadError(optional());
-var stateTMonad   = Instances.stateT(optionalMonad);
+var stateTMonad   =
+    Instances.<Integer, OptionalKind.Witness>stateT(optionalMonad);
 ```
 
 ~~~admonish note title="Working with Kind"
@@ -176,17 +184,18 @@ var stateTMonad   = Instances.stateT(optionalMonad);
 
 ## Running StateT Computations
 
+<!-- verify -->
 ```java
 // Run: returns F<StateTuple<S, A>>
-var result    = StateTKindHelper.runStateT(computation, 10);
+var result    = STATE_T.runStateT(computation, 10);
 // → Optional.of(StateTuple(11, "Value: 10"))
 
 // Eval: returns F<A> (discards state)
-var valueOnly = StateTKindHelper.evalStateT(computation, 10, optionalMonad);
+var valueOnly = STATE_T.evalStateT(computation, 10, optionalMonad);
 // → Optional.of("Value: 10")
 
 // Exec: returns F<S> (discards value)
-var stateOnly = StateTKindHelper.execStateT(computation, 10, optionalMonad);
+var stateOnly = STATE_T.execStateT(computation, 10, optionalMonad);
 // → Optional.of(11)
 ```
 
@@ -213,6 +222,7 @@ The `MonadState` capability adds `get()`, `put(s)`, `modify(f)`, `gets(f)`, and 
 Like any monad, `StateT` computations compose with `map` and `flatMap`. Most pages in this chapter show this through `For` comprehensions; the explicit forms are equivalent:
 
 ~~~admonish example title="map: transforming the value"
+<!-- verify -->
 ```java
 var initial = StateT.<Integer, OptionalKind.Witness, Integer>create(
     s -> OPTIONAL.widen(Optional.of(StateTuple.of(s + 1, s * 2))),
@@ -226,6 +236,7 @@ var mapped = stateTMonad.map(val -> "Computed: " + val, initial);
 ~~~
 
 ~~~admonish example title="flatMap: sequencing state operations"
+<!-- verify -->
 ```java
 var firstStep = StateT.<Integer, OptionalKind.Witness, Integer>create(
     s -> OPTIONAL.widen(Optional.of(StateTuple.of(s + 1, s * 10))),
@@ -250,25 +261,30 @@ var combined = stateTMonad.flatMap(secondStepFn, firstStep);
 
 Common state operations can be constructed using `StateT.create`:
 
+<!-- verify -->
 ```java
 // get: retrieve the current state as the value
-static <S, F> Kind<StateTKind.Witness<S, F>, S> get(Monad<F> monadF) {
-    return StateT.create(s -> monadF.of(StateTuple.of(s, s)), monadF);
+static <S, F extends WitnessArity<TypeArity.Unary>>
+    Kind<StateTKind.Witness<S, F>, S> get(Monad<F> monadF) {
+  return StateT.create(s -> monadF.of(StateTuple.of(s, s)), monadF);
 }
 
 // set: replace the state, return Unit
-static <S, F> Kind<StateTKind.Witness<S, F>, Unit> set(S newState, Monad<F> monadF) {
-    return StateT.create(s -> monadF.of(StateTuple.of(newState, Unit.INSTANCE)), monadF);
+static <S, F extends WitnessArity<TypeArity.Unary>>
+    Kind<StateTKind.Witness<S, F>, Unit> set(S newState, Monad<F> monadF) {
+  return StateT.create(s -> monadF.of(StateTuple.of(newState, Unit.INSTANCE)), monadF);
 }
 
 // modify: update the state with a function, return Unit
-static <S, F> Kind<StateTKind.Witness<S, F>, Unit> modify(Function<S, S> f, Monad<F> monadF) {
-    return StateT.create(s -> monadF.of(StateTuple.of(f.apply(s), Unit.INSTANCE)), monadF);
+static <S, F extends WitnessArity<TypeArity.Unary>>
+    Kind<StateTKind.Witness<S, F>, Unit> modify(Function<S, S> f, Monad<F> monadF) {
+  return StateT.create(s -> monadF.of(StateTuple.of(f.apply(s), Unit.INSTANCE)), monadF);
 }
 
 // gets: extract a value derived from the state
-static <S, F, A> Kind<StateTKind.Witness<S, F>, A> gets(Function<S, A> f, Monad<F> monadF) {
-    return StateT.create(s -> monadF.of(StateTuple.of(s, f.apply(s))), monadF);
+static <S, F extends WitnessArity<TypeArity.Unary>, A>
+    Kind<StateTKind.Witness<S, F>, A> gets(Function<S, A> f, Monad<F> monadF) {
+  return StateT.create(s -> monadF.of(StateTuple.of(s, f.apply(s))), monadF);
 }
 ```
 
@@ -284,13 +300,15 @@ static <S, F, A> Kind<StateTKind.Witness<S, F>, A> gets(Function<S, A> f, Monad<
 
 **The solution:**
 
+<!-- verify -->
 ```java
-private static final MonadError<OptionalKind.Witness, Unit> OPT_MONAD = Instances.monadError(optional());
-private static final StateTMonad<List<Integer>, OptionalKind.Witness> ST_OPT_MONAD =
+private static final MonadError<OptionalKind.Witness, Unit> OPT_MONAD =
+    Instances.monadError(optional());
+private static final Monad<StateTKind.Witness<List<Integer>, OptionalKind.Witness>> ST_OPT_MONAD =
     Instances.stateT(OPT_MONAD);
 
 static Kind<StateTKind.Witness<List<Integer>, OptionalKind.Witness>, Unit> push(Integer value) {
-  return StateTKindHelper.stateT(stack -> {
+  return STATE_T.stateT(stack -> {
       var newStack = new LinkedList<>(stack);
       newStack.add(0, value);
       return OPTIONAL.widen(Optional.of(StateTuple.of(newStack, Unit.INSTANCE)));
@@ -298,7 +316,7 @@ static Kind<StateTKind.Witness<List<Integer>, OptionalKind.Witness>, Unit> push(
 }
 
 static Kind<StateTKind.Witness<List<Integer>, OptionalKind.Witness>, Integer> pop() {
-  return StateTKindHelper.stateT(stack -> {
+  return STATE_T.stateT(stack -> {
       if (stack.isEmpty()) return OPTIONAL.widen(Optional.empty());
       var newStack = new LinkedList<>(stack);
       Integer popped = newStack.remove(0);
@@ -313,10 +331,10 @@ var computation = For.from(ST_OPT_MONAD, push(10))
     .from(_ -> pop())
     .yield((a, b, p1, p2) -> p1 + p2);
 
-var result = OPTIONAL.narrow(StateTKindHelper.runStateT(computation, Collections.emptyList()));
+var result = OPTIONAL.narrow(STATE_T.runStateT(computation, Collections.emptyList()));
 // → Optional.of(StateTuple([], 30))
 
-var emptyPop = OPTIONAL.narrow(StateTKindHelper.runStateT(pop(), Collections.emptyList()));
+var emptyPop = OPTIONAL.narrow(STATE_T.runStateT(pop(), Collections.emptyList()));
 // → Optional.empty()
 ```
 
@@ -337,8 +355,9 @@ Because `StateT` stores its `Monad<F>` instance internally, switching from `F` t
     └──── combined into new StateT<S, G, A> with monadG ────────────────────┘
 ```
 
+<!-- verify -->
 ```java
-StateT<Integer, OptionalKind.Witness, String> optStateT = ...;
+// optStateT is a StateT<Integer, OptionalKind.Witness, String>
 var idMonad = Instances.monad(id());
 
 var idStateT = optStateT.mapT(idMonad, optKind -> {

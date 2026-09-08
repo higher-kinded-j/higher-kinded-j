@@ -50,6 +50,7 @@ Use **Ixed** when you want safe read/update that never accidentally modifies str
 
 ### Creating At Instances
 
+<!-- verify -->
 ```java
 import org.higherkindedj.optics.At;
 import org.higherkindedj.optics.at.AtInstances;
@@ -68,6 +69,7 @@ At<List<String>, Integer, String> paddedListAt = AtInstances.listAtWithPadding(n
 
 #### Create / Insert
 
+<!-- verify -->
 ```java
 Map<String, Integer> scores = new HashMap<>();
 scores.put("alice", 100);
@@ -84,6 +86,7 @@ System.out.println(scores); // {alice=100}
 
 #### Read / Query
 
+<!-- verify -->
 ```java
 Optional<Integer> aliceScore = mapAt.get("alice", withBob);
 // Result: Optional[100]
@@ -97,6 +100,7 @@ boolean hasAlice = mapAt.contains("alice", withBob);
 
 #### Update / Modify
 
+<!-- verify -->
 ```java
 // Update existing value
 Map<String, Integer> updatedScores = mapAt.insertOrUpdate("alice", 110, withBob);
@@ -113,6 +117,7 @@ Map<String, Integer> unchanged = mapAt.modify("charlie", x -> x + 10, bonusScore
 
 #### Delete / Remove
 
+<!-- verify -->
 ```java
 Map<String, Integer> afterRemove = mapAt.remove("alice", bonusScores);
 // Result: {bob=95}
@@ -126,6 +131,7 @@ Map<String, Integer> stillSame = mapAt.remove("charlie", afterRemove);
 
 The core of At is its `at(index)` method, which returns a `Lens<S, Optional<A>>`:
 
+<!-- verify -->
 ```java
 Lens<Map<String, Integer>, Optional<Integer>> aliceLens = mapAt.at("alice");
 
@@ -146,17 +152,18 @@ Map<String, Integer> deleted = aliceLens.set(Optional.empty(), scores);
 
 ### Deep Composition with At
 
+<!-- verify -->
 ```java
 record Config(Map<String, String> settings) {}
 
 Lens<Config, Map<String, String>> settingsLens =
     Lens.of(Config::settings, (c, s) -> new Config(s));
 
-At<Map<String, String>, String, String> mapAt = AtInstances.mapAt();
+At<Map<String, String>, String, String> settingsAt = AtInstances.mapAt();
 
 // Compose: Config → Map<String, String> → Optional<String>
 Lens<Config, Optional<String>> debugSettingLens =
-    settingsLens.andThen(mapAt.at("debug"));
+    settingsLens.andThen(settingsAt.at("debug"));
 
 Config config = new Config(new HashMap<>());
 
@@ -175,6 +182,7 @@ Config withoutDebug = debugSettingLens.set(Optional.empty(), withDebug);
 
 ### Creating Ixed Instances
 
+<!-- verify -->
 ```java
 import org.higherkindedj.optics.At;
 import org.higherkindedj.optics.Ixed;
@@ -194,6 +202,7 @@ Ixed<Map<String, String>, String, String> customIx = IxedInstances.fromAt(custom
 
 ### Safe Read Operations
 
+<!-- verify -->
 ```java
 Map<String, Integer> ports = new HashMap<>();
 ports.put("http", 8080);
@@ -214,6 +223,7 @@ Optional<Integer> ftpPort = IxedInstances.get(mapIx, "ftp", ports);
 
 The crucial difference from At: `update` only modifies *existing* entries:
 
+<!-- verify -->
 ```java
 // Update existing key - works as expected
 Map<String, Integer> updatedPorts = IxedInstances.update(mapIx, "http", 9000, ports);
@@ -232,6 +242,7 @@ Map<String, Integer> samePorts = IxedInstances.update(mapIx, "ftp", 21, ports);
 
 ### Safe List Access
 
+<!-- verify -->
 ```java
 Ixed<List<String>, Integer, String> listIx = IxedInstances.listIx();
 List<String> items = new ArrayList<>(List.of("apple", "banana", "cherry"));
@@ -251,6 +262,7 @@ List<String> unchanged = IxedInstances.update(listIx, 10, "grape", items);
 
 ### Composition with Ixed
 
+<!-- verify -->
 ```java
 record Config(Map<String, Integer> settings) {}
 
@@ -286,6 +298,7 @@ Config unchanged = Traversals.modify(missingTraversal, x -> x + 1, config);
 ~~~admonish warning title="Index Shifting"
 When using `At.remove()` on a list, subsequent indices shift:
 
+<!-- verify -->
 ```java
 At<List<String>, Integer, String> at = AtInstances.listAt();
 List<String> items = new ArrayList<>(List.of("a", "b", "c", "d"));
@@ -302,6 +315,7 @@ When removing multiple elements, iterate backwards to preserve indices.
 
 ### Bounds Checking
 
+<!-- verify -->
 ```java
 At<List<String>, Integer, String> listAt = AtInstances.listAt();
 
@@ -322,6 +336,7 @@ List<String> expanded = paddedAt.insertOrUpdate(4, "e", sparse);
 ## Common Pitfalls
 
 ~~~admonish failure title="Avoid: Null values in maps"
+<!-- verify -->
 ```java
 Map<String, Integer> map = new HashMap<>();
 map.put("nullKey", null);
@@ -335,6 +350,7 @@ Optional<Integer> result = at.get("nullKey", map);
 ~~~
 
 ~~~admonish failure title="Avoid: Expecting Ixed to insert"
+<!-- verify -->
 ```java
 Ixed<Map<String, Integer>, String, Integer> mapIx = IxedInstances.mapIx();
 Map<String, Integer> empty = new HashMap<>();
@@ -347,9 +363,10 @@ Map<String, Integer> result = IxedInstances.update(mapIx, "key", 100, empty);
 ~~~
 
 ~~~admonish success title="Do: Use Prisms.some() for value-level operations with At"
+<!-- verify -->
 ```java
 Lens<Config, Optional<String>> settingLens =
-    settingsLens.andThen(mapAt.at("theme"));
+    settingsLens.andThen(settingsAt.at("theme"));
 
 Prism<Optional<String>, String> some = Prisms.some();
 Traversal<Config, String> valueTraversal =
@@ -366,6 +383,7 @@ Config result = Traversals.modify(valueTraversal, String::trim, config);
 
 Both At and Ixed create new collection instances on every modification:
 
+<!-- verify -->
 ```java
 // Each operation copies the entire map - O(n)
 Map<String, Integer> step1 = at.insertOrUpdate("a", 1, map);   // Copy
@@ -376,6 +394,7 @@ Map<String, Integer> step3 = at.remove("c", step2);            // Copy
 ~~~admonish tip title="Batch Modifications"
 For multiple updates, consider direct bulk construction then switch to optics for subsequent immutable operations:
 
+<!-- verify -->
 ```java
 Map<String, Integer> result = new HashMap<>(original);
 result.put("a", 1);

@@ -31,9 +31,9 @@ Each `Prisms.some()` safely handles Optional: if any is empty, modification is s
 
 <!-- verify -->
 ```java
-sealed interface ApiResponse permits Success, Error, Loading {}
+sealed interface ApiResponse permits Success, AppError, Loading {}
 record Success(Data data, String timestamp) implements ApiResponse {}
-record Error(String message, int code) implements ApiResponse {}
+record AppError(String message, int code) implements ApiResponse {}
 
 Prism<ApiResponse, Success> successPrism = Prism.of(
     resp -> resp instanceof Success s ? Optional.of(s) : Optional.empty(),
@@ -43,7 +43,7 @@ Prism<ApiResponse, Success> successPrism = Prism.of(
 Traversal<ApiResponse, Data> successData =
     successPrism.andThen(SuccessLenses.data().asTraversal());
 
-// Transform data only for Success responses; Error/Loading pass through unchanged
+// Transform data only for Success responses; AppError/Loading pass through unchanged
 ApiResponse modified = Traversals.modify(
     successData, data -> new Data(data.value().toUpperCase()), response);
 ```

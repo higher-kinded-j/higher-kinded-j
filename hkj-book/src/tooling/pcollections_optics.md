@@ -37,6 +37,7 @@ All seven generators run at the default priority and activate automatically once
 
 Annotate a record whose components include PCollections types:
 
+<!-- verify -->
 ```java
 import org.higherkindedj.optics.annotations.GenerateFocus;
 import org.higherkindedj.optics.annotations.GenerateTraversals;
@@ -94,9 +95,10 @@ For the common case where elements implement `Comparable` and the natural orderi
 
 If you need an optic outside `@GenerateTraversals` (for instance, on a third-party type you cannot annotate), the same building blocks are available:
 
+<!-- verify -->
 ```java
 import org.higherkindedj.optics.each.EachInstances;
-import org.higherkindedj.optics.each.Each;
+import org.higherkindedj.optics.Each;
 import org.pcollections.PVector;
 import org.pcollections.TreePVector;
 import org.pcollections.PMap;

@@ -67,9 +67,9 @@ record Data(List<String> rows) {
 }
 
 /** The reader's own error type, as the enrichment example writes it. */
-record Error(String message) {}
+record AppError(String message) {}
 
-record DetailedError(Error cause, String operation, Map<String, Object> context, Instant at) {}
+record DetailedError(AppError cause, String operation, Map<String, Object> context, Instant at) {}
 
 record ConfigError(String message) {}
 
@@ -191,7 +191,7 @@ class Fixture {
   static final ReportRequest req = new ReportRequest("2026-01-01");
 
   /** The failing path the recovery-with-logging example recovers. */
-  static final EitherPath<Error, String> path = Path.left(new Error("boom"));
+  static final EitherPath<AppError, String> path = Path.left(new AppError("boom"));
 
   static final String fallback = "fallback";
 

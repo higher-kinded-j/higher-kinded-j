@@ -60,7 +60,7 @@ AffinePath<User, String> emailPath = UserFocus.email();
 emailPath.toMaybePath(user);                                  // Just("a@b.com") or Nothing
 
 // EitherPath: provide error for absent case
-emailPath.toEitherPath(user, new Error("No email"));          // Right("a@b.com") or Left(error)
+emailPath.toEitherPath(user, new AppError("No email"));          // Right("a@b.com") or Left(error)
 
 // TryPath: provide exception supplier
 emailPath.toTryPath(user, () -> new MissingEmailException()); // Success or Failure
@@ -103,11 +103,11 @@ Use `.focus()` on effect paths to navigate into the contained value's structure.
 
 <!-- verify -->
 ```java
-EitherPath<Error, User> userResult = fetchUser(userId);
+EitherPath<AppError, User> userResult = fetchUser(userId);
 FocusPath<User, String> namePath = UserFocus.name();
 
 // Navigate into the user's name
-EitherPath<Error, String> nameResult = userResult.focus(namePath);
+EitherPath<AppError, String> nameResult = userResult.focus(namePath);
 // Left(error) stays Left(error), Right(user) becomes Right(user.name())
 ```
 
@@ -117,8 +117,8 @@ EitherPath<Error, String> nameResult = userResult.focus(namePath);
 AffinePath<User, String> emailPath = UserFocus.email();
 
 // EitherPath: provide error for absent case
-EitherPath<Error, String> email =
-    userResult.focus(emailPath, new Error("Email not configured"));
+EitherPath<AppError, String> email =
+    userResult.focus(emailPath, new AppError("Email not configured"));
 
 // MaybePath: absence just becomes Nothing
 MaybePath<String> email = userMaybe.focus(emailPath);
@@ -287,11 +287,11 @@ overloads produce an unlabelled `FieldError`. Re-label a fallible leaf explicitl
 
 <!-- verify -->
 ```java
-EitherPath<Error, String> validatedPostcode =
-    fetchUser(userId)                              // EitherPath<Error, User>
-        .focus(UserFocus.address())                // EitherPath<Error, Address>
-        .focus(AddressFocus.postcode())            // EitherPath<Error, String>
-        .via(code -> validatePostcode(code));      // EitherPath<Error, String>
+EitherPath<AppError, String> validatedPostcode =
+    fetchUser(userId)                              // EitherPath<AppError, User>
+        .focus(UserFocus.address())                // EitherPath<AppError, Address>
+        .focus(AddressFocus.postcode())            // EitherPath<AppError, String>
+        .via(code -> validatePostcode(code));      // EitherPath<AppError, String>
 ```
 
 ### Pattern 2: Safe Deep Access
@@ -319,8 +319,8 @@ ListPath<String> allEmails =
 
 <!-- verify -->
 ```java
-EitherPath<Error, Order> result =
-    fetchUser(userId)                              // EitherPath<Error, User>
+EitherPath<AppError, Order> result =
+    fetchUser(userId)                              // EitherPath<AppError, User>
         .focus(UserFocus.address())                // navigate to address
         .via(addr -> validateAddress(addr))        // validate
         .via(addr -> geocodeAddress(addr))         // enrich
@@ -335,7 +335,7 @@ Focus paths integrate with ForPath comprehensions via `.focus()`:
 
 <!-- verify -->
 ```java
-EitherPath<Error, OrderResult> result = ForPath.from(fetchUser(id))
+EitherPath<AppError, OrderResult> result = ForPath.from(fetchUser(id))
     .focus(UserFocus.address())                    // navigate within comprehension
     .from(t -> validateAddress(t._2()))            // steps take the tuple so far: _2 is the address
     .yield((user, address, validated) -> createOrder(user, validated));

@@ -46,6 +46,8 @@ record Team(String name, Set<Skill> skills, Collection<String> tags) {}
 @GenerateFocus(widenCollections = true)
 record WidenedEmployee(String name, Map<String, Integer> scores) {}
 
+record Leaf(String name) {}
+
 @GenerateLenses
 @GenerateFocus
 record Position(String ticker, double weight) {}

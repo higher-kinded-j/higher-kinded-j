@@ -42,6 +42,7 @@ Write your business logic once as a program. Execute it in multiple ways: valida
 
 The Interpreter pattern, described in the Gang of Four's *Design Patterns*, suggests representing operations as objects in an abstract syntax tree (AST), then traversing that tree to execute them. The Free monad is essentially a functional programming implementation of this pattern.
 
+<!-- verify -->
 ```java
 // Our "AST" - a program built from operations
 Free<OpticOpKind.Witness, Person> program =
@@ -76,6 +77,7 @@ The `DirectOpticInterpreter` is the simplest interpreter: it executes optic oper
 
 ### Basic Usage
 
+<!-- verify -->
 ```java
 @GenerateLenses
 public record Person(String name, int age) {}
@@ -106,6 +108,7 @@ System.out.println(result);  // Person[name=Alice, age=26]
 - **No side effects of its own**: the interpreter adds none, though your modifiers may have their own
 
 ~~~admonish example title="Production Workflow"
+<!-- verify -->
 ```java
 @GenerateLenses
 record Employee(String name, int salary, String status) {}
@@ -138,6 +141,7 @@ The `LoggingOpticInterpreter` executes operations whilst recording detailed logs
 
 ### Basic Usage
 
+<!-- verify -->
 ```java
 @GenerateLenses
 public record Account(String accountId, BigDecimal balance) {}
@@ -166,6 +170,7 @@ MODIFY: Lens$7 from 1000.00 to 900.00
 
 ### Comprehensive Example: Financial Transaction Audit
 
+<!-- verify -->
 ```java
 @GenerateLenses
 public record Transaction(
@@ -229,6 +234,7 @@ MODIFY: Lens$3 from 500.00 to 750.00
 
 ### Managing Logs
 
+<!-- verify -->
 ```java
 LoggingOpticInterpreter logger = OpticInterpreters.logging();
 
@@ -270,6 +276,7 @@ It suits:
 
 ### Basic Usage
 
+<!-- verify -->
 ```java
 @GenerateLenses
 public record Person(String name, int age) {}
@@ -315,6 +322,7 @@ is `final`, so there is nothing to subclass; see [Creating Custom Interpreters](
 
 ### Real-World Example: Data Migration Validation
 
+<!-- verify -->
 ```java
 @GenerateLenses
 public record UserV1(String username, String email, Integer age) {}
@@ -350,13 +358,13 @@ Free<OpticOpKind.Witness, UserV2> migrateUser(UserV1 oldUser) {
 
 // Validate migration for each user
 List<UserV1> oldUsers = loadOldUsers();
-List<ValidationResult> validations = new ArrayList<>();
+List<ValidationOpticInterpreter.ValidationResult> validations = new ArrayList<>();
 
 for (UserV1 user : oldUsers) {
     Free<OpticOpKind.Witness, UserV2> program = migrateUser(user);
 
     ValidationOpticInterpreter validator = OpticInterpreters.validating();
-    ValidationResult validation = validator.validate(program);
+    ValidationOpticInterpreter.ValidationResult validation = validator.validate(program);
 
     validations.add(validation);
 
@@ -367,7 +375,8 @@ for (UserV1 user : oldUsers) {
 }
 
 // Only proceed if all valid
-if (validations.stream().allMatch(ValidationResult::isValid)) {
+if (validations.stream()
+        .allMatch(ValidationOpticInterpreter.ValidationResult::isValid)) {
     // Execute migrations with direct interpreter
     oldUsers.forEach(user -> {
         Free<OpticOpKind.Witness, UserV2> program = migrateUser(user);
@@ -379,6 +388,7 @@ if (validations.stream().allMatch(ValidationResult::isValid)) {
 
 ### Validation Result API
 
+<!-- verify -->
 ```java
 // Simple exception for validation failures
 class ValidationException extends RuntimeException {
@@ -397,23 +407,18 @@ class BusinessException extends RuntimeException {
     }
 }
 
-public record ValidationResult(
-    List<String> errors,    // Blocking issues
-    List<String> warnings   // Non-blocking concerns
-) {
-    public boolean isValid() {
-        return errors.isEmpty();
-    }
-
-    public boolean hasWarnings() {
-        return !warnings.isEmpty();
-    }
-}
+// The shape `ValidationOpticInterpreter.validate` hands back:
+//
+//   record ValidationResult(List<String> errors, List<String> warnings) {
+//       boolean isValid()     { return errors.isEmpty(); }
+//       boolean hasWarnings() { return !warnings.isEmpty(); }
+//   }
 ```
 
 ~~~admonish tip title="Testing Tip"
 Use the validation interpreter in unit tests to assert that a program's operations all succeed against given data:
 
+<!-- verify -->
 ```java
 @Test
 void testProgramLogic() {
@@ -421,7 +426,7 @@ void testProgramLogic() {
         buildComplexProgram(testData);
 
     ValidationOpticInterpreter validator = OpticInterpreters.validating();
-    ValidationResult result = validator.validate(program);
+    ValidationOpticInterpreter.ValidationResult result = validator.validate(program);
 
     // Verify no errors in logic
     assertTrue(result.isValid());
@@ -457,11 +462,13 @@ anything from the library.
 
 ### Example 1: Performance Profiling Interpreter
 
+<!-- verify -->
 ```java
 public final class ProfilingOpticInterpreter {
     private final Map<String, Long> executionTimes = new HashMap<>();
     private final Map<String, Integer> executionCounts = new HashMap<>();
 
+    @SuppressWarnings("unchecked")
     public <A> A run(Free<OpticOpKind.Witness, A> program) {
         Function<Kind<OpticOpKind.Witness, ?>, Kind<IdKind.Witness, ?>> transform =
             kind -> {
@@ -537,6 +544,7 @@ public final class ProfilingOpticInterpreter {
 
 **Usage:**
 
+<!-- verify -->
 ```java
 Free<OpticOpKind.Witness, Team> program = buildComplexTeamUpdate(team);
 
@@ -554,6 +562,7 @@ avgTimes.forEach((op, time) ->
 
 ### Example 2: Mock Interpreter for Testing
 
+<!-- verify -->
 ```java
 // The stubs are the caller's, because no single canned value can be type-correct for a
 // whole program: `get` through a Lens<Person, String> must yield a String, while `set`
@@ -589,6 +598,7 @@ public final class MockOpticInterpreter {
 
 **Usage in tests:**
 
+<!-- verify -->
 ```java
 @Test
 void testBusinessLogic() {
@@ -600,7 +610,7 @@ void testBusinessLogic() {
         buildComplexBusinessLogic(mockPerson);
 
     // Execute with mock interpreter (no real data needed!)
-    MockOpticInterpreter<Person> mock = new MockOpticInterpreter<>(mockPerson);
+    MockOpticInterpreter mock = new MockOpticInterpreter(op -> mockPerson);
     Person result = mock.run(program);
 
     // Verify result
@@ -616,12 +626,13 @@ You can run the same program through multiple interpreters for powerful workflow
 
 ### Pattern 1: Validate-Then-Execute
 
+<!-- verify -->
 ```java
 Free<OpticOpKind.Witness, Order> orderProcessing = buildOrderProgram(order);
 
 // Step 1: Validate
 ValidationOpticInterpreter validator = OpticInterpreters.validating();
-ValidationResult validation = validator.validate(orderProcessing);
+ValidationOpticInterpreter.ValidationResult validation = validator.validate(orderProcessing);
 
 if (!validation.isValid()) {
     validation.errors().forEach(System.err::println);
@@ -640,6 +651,7 @@ logger.getLog().forEach(entry -> auditRepository.save(order.id(), entry));
 
 ### Pattern 2: Profile-Optimise-Execute
 
+<!-- verify -->
 ```java
 Free<OpticOpKind.Witness, Dataset> dataProcessing = buildDataPipeline(dataset);
 
@@ -669,19 +681,21 @@ Dataset result = OpticInterpreters.direct().run(optimised);
 
 ### Pattern 3: Test-Validate-Execute Pipeline
 
+<!-- verify -->
 ```java
 // Development: Mock interpreter
-MockOpticInterpreter<Order> mockInterp = new MockOpticInterpreter<>(mockOrder);
-Order mockResult = mockInterp.run(program);
+MockOpticInterpreter mockInterp = new MockOpticInterpreter(op -> mockOrder);
+Order mockResult = mockInterp.run(orderProcessing);
 assert mockResult.status() == OrderStatus.COMPLETED;
 
 // Staging: Validation interpreter
-ValidationResult validation = OpticInterpreters.validating().validate(program);
+ValidationOpticInterpreter.ValidationResult validation =
+    OpticInterpreters.validating().validate(orderProcessing);
 assert validation.isValid();
 
 // Production: Logging interpreter
 LoggingOpticInterpreter logger = OpticInterpreters.logging();
-Order prodResult = logger.run(program);
+Order prodResult = logger.run(orderProcessing);
 logger.getLog().forEach(auditService::record);
 ```
 
@@ -704,6 +718,7 @@ logger.getLog().forEach(auditService::record);
 
 ### Interpreter Lifecycle
 
+<!-- verify -->
 ```java
 // Good: Reuse interpreter for multiple programs
 LoggingOpticInterpreter logger = OpticInterpreters.logging();
@@ -718,8 +733,8 @@ List<String> fullAuditTrail = logger.getLog();
 
 // Bad: Creating new interpreter each time loses history
 for (Transaction txn : transactions) {
-    LoggingOpticInterpreter logger = OpticInterpreters.logging();  // New each time!
-    Transaction result = logger.run(buildTransfer(txn));
+    LoggingOpticInterpreter freshLogger = OpticInterpreters.logging();  // New each time!
+    Transaction result = freshLogger.run(buildTransfer(txn));
     // Can only see this program's log
 }
 ```
@@ -728,36 +743,40 @@ for (Transaction txn : transactions) {
 
 ### Error Handling
 
+<!-- verify -->
 ```java
-Free<OpticOpKind.Witness, Order> program = buildOrderProcessing(order);
+public Order processOrder(Order order) {
+    Free<OpticOpKind.Witness, Order> program = buildOrderProcessing(order);
 
-// Wrap interpreter execution in try-catch
-try {
+    // Wrap interpreter execution in try-catch
+    try {
     // Validate first
-    ValidationResult validation = OpticInterpreters.validating().validate(program);
+        ValidationOpticInterpreter.ValidationResult validation =
+            OpticInterpreters.validating().validate(program);
 
-    if (!validation.isValid()) {
-        throw new ValidationException(validation.errors());
+        if (!validation.isValid()) {
+            throw new ValidationException(validation.errors());
+        }
+
+        // Execute with logging
+        LoggingOpticInterpreter logger = OpticInterpreters.logging();
+        Order result = logger.run(program);
+
+        // Success - persist log
+        auditRepository.saveAll(logger.getLog());
+
+        return result;
+
+    } catch (ValidationException e) {
+        // Handle validation errors
+        log.error("Validation failed", e);
+        throw new BusinessException("Order processing failed validation", e);
+
+    } catch (Exception e) {
+        // Handle execution errors
+        log.error("Execution failed", e);
+        throw new BusinessException("Order processing failed", e);
     }
-
-    // Execute with logging
-    LoggingOpticInterpreter logger = OpticInterpreters.logging();
-    Order result = logger.run(program);
-
-    // Success - persist log
-    auditRepository.saveAll(logger.getLog());
-
-    return result;
-
-} catch (ValidationException e) {
-    // Handle validation errors
-    logger.error("Validation failed", e);
-    throw new BusinessException("Order processing failed validation", e);
-
-} catch (Exception e) {
-    // Handle execution errors
-    logger.error("Execution failed", e);
-    throw new BusinessException("Order processing failed", e);
 }
 ```
 

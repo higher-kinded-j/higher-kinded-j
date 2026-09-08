@@ -14,12 +14,13 @@ safe with trampolining.
 
 ## Creation
 
+<!-- verify -->
 ```java
 // Immediate value (already computed)
 TrampolinePath<Integer> done = Path.trampolineDone(42);
 
 // Suspended computation (thunked)
-TrampolinePath<Integer> suspended = Path.trampolineSuspend(() -> 42);
+TrampolinePath<Integer> suspended = Path.trampolineDefer(() -> Path.trampolineDone(42));
 
 // From existing Trampoline
 TrampolinePath<Integer> path = Path.trampoline(trampoline);
@@ -29,6 +30,7 @@ TrampolinePath<Integer> path = Path.trampoline(trampoline);
 
 ## Core Operations
 
+<!-- verify -->
 ```java
 TrampolinePath<Integer> start = Path.trampolineDone(10);
 
@@ -44,6 +46,7 @@ TrampolinePath<Integer> chained = start.via(n ->
 
 The real power is in recursive algorithms. Here's factorial without stack overflow:
 
+<!-- verify -->
 ```java
 TrampolinePath<Long> factorial(long n) {
     return factorialHelper(n, 1L);
@@ -54,16 +57,17 @@ TrampolinePath<Long> factorialHelper(long n, long acc) {
         return Path.trampolineDone(acc);
     }
     // Suspend to avoid stack growth
-    return Path.trampolineSuspend(() ->
-        factorialHelper(n - 1, n * acc).run());
+    return Path.trampolineDefer(() ->
+        factorialHelper(n - 1, n * acc));
 }
 
 // Compute factorial of 10000 - no stack overflow!
-Long result = factorial(10000L).run().run();
+Long result = factorial(10000L).run();
 ```
 
 Compare with naive recursion:
 
+<!-- verify -->
 ```java
 // This WILL overflow the stack for large n
 long naiveFactorial(long n) {
@@ -78,35 +82,36 @@ long naiveFactorial(long n) {
 
 Trampolining also handles mutual recursion:
 
+<!-- verify -->
 ```java
 TrampolinePath<Boolean> isEven(int n) {
     if (n == 0) return Path.trampolineDone(true);
-    return Path.trampolineSuspend(() -> isOdd(n - 1).run());
+    return Path.trampolineDefer(() -> isOdd(n - 1));
 }
 
 TrampolinePath<Boolean> isOdd(int n) {
     if (n == 0) return Path.trampolineDone(false);
-    return Path.trampolineSuspend(() -> isEven(n - 1).run());
+    return Path.trampolineDefer(() -> isEven(n - 1));
 }
 
 // Works for any depth
-Boolean result = isEven(1_000_000).run().run();  // true
+Boolean result = isEven(1_000_000).run();  // true
 ```
 
 ---
 
 ## Extraction
 
+<!-- verify -->
 ```java
 TrampolinePath<Integer> path = Path.trampolineDone(42);
 
-// Get the Trampoline
-Trampoline<Integer> trampoline = path.run();
+// Run it to completion
+Integer value = path.run();
 
-// Execute (runs the trampoline to completion)
-Integer value = trampoline.run();
-
-// Or chain: path.run().run()
+// Or take the underlying Trampoline and run that
+Trampoline<Integer> trampoline = path.toTrampoline();
+Integer same = trampoline.run();
 ```
 
 ---

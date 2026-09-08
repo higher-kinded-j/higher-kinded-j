@@ -15,10 +15,32 @@
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.List;
+import java.util.Optional;
+import org.higherkindedj.optics.Prism;
 import org.higherkindedj.optics.annotations.GenerateFocus;
 import org.higherkindedj.optics.annotations.GenerateLenses;
 import org.higherkindedj.optics.annotations.GeneratePrisms;
 import org.higherkindedj.optics.annotations.GenerateTraversals;
+import org.higherkindedj.optics.annotations.ImportOptics;
+import org.higherkindedj.optics.annotations.InstanceOf;
+import org.higherkindedj.optics.annotations.OpticsSpec;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.ObjectMapper;
+import tools.jackson.databind.node.ArrayNode;
+import tools.jackson.databind.node.ObjectNode;
+import tools.jackson.databind.node.StringNode;
+
+@GenerateLenses
+@GenerateFocus(generateNavigators = true)
+record Street(String name, int number) {}
+
+@GenerateLenses
+@GenerateFocus(generateNavigators = true)
+record Address(Street street, String city) {}
+
+@GenerateLenses
+@GenerateFocus(generateNavigators = true)
+record User(String name, Address address) {}
 
 @GeneratePrisms
 sealed interface Status permits Status.Pending, Status.Shipped, Status.Cancelled {
@@ -39,6 +61,26 @@ record LineItem(String sku, BigDecimal price) {}
 record Order(String id, Status status, List<LineItem> items) {}
 
 /** The snippet class extends this, which is what puts {@code order} in scope. */
+@ImportOptics
+interface JsonNodeOpticsSpec extends OpticsSpec<JsonNode> {
+
+  @InstanceOf(ObjectNode.class)
+  Prism<JsonNode, ObjectNode> object();
+
+  @InstanceOf(ArrayNode.class)
+  Prism<JsonNode, ArrayNode> array();
+
+  @InstanceOf(StringNode.class)
+  Prism<JsonNode, StringNode> text();
+}
+
 class Fixture {
   static final Order order = new Order("A-1", new Status.Pending(), List.of());
+
+  static final User user =
+      new User("Alice", new Address(new Street("Fake St", 123), "Anytown"));
+
+  static final ObjectMapper mapper = new ObjectMapper();
+
+  static final String json = "{}";
 }

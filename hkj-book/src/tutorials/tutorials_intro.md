@@ -68,6 +68,7 @@ After completing **Core: Foundations** the **Effect API journey** is the recomme
 
 Each tutorial contains multiple exercises following this pattern:
 
+<!-- verify -->
 ```java
 @Test
 void exercise1_yourFirstChallenge() {
@@ -89,6 +90,7 @@ We replace `answerRequired()` with working code. The test fails with a clear err
 
 Newer exercise files use a three-tier hint structure so we can read just enough to get unstuck without seeing the answer:
 
+<!-- verify -->
 ```java
 // Nudge:    What concept applies here?
 // Strategy: Which method on Either turns A into B?

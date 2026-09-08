@@ -42,6 +42,7 @@ While `Par` combinators provide simple parallel execution, `Scope` offers a more
 
 ~~~admonish example title="Basic Scope Patterns"
 
+<!-- verify -->
 ```java
 import org.higherkindedj.hkt.vtask.Scope;
 import org.higherkindedj.hkt.vtask.VTask;
@@ -100,6 +101,7 @@ VTask<List<Integer>> all = Scope.<Integer>allSucceed()
 
 **allSucceed** is the default choice when you need results from multiple independent operations:
 
+<!-- verify -->
 ```java
 // Fetch user data from three services - need all of them
 VTask<List<UserData>> userData = Scope.<UserData>allSucceed()
@@ -111,6 +113,7 @@ VTask<List<UserData>> userData = Scope.<UserData>allSucceed()
 
 **anySucceed** is ideal for redundant requests where any response will do:
 
+<!-- verify -->
 ```java
 // Try multiple mirrors - first success wins
 VTask<Package> download = Scope.<Package>anySucceed()
@@ -122,6 +125,7 @@ VTask<Package> download = Scope.<Package>anySucceed()
 
 **firstComplete** captures the first result regardless of success or failure:
 
+<!-- verify -->
 ```java
 // Race a fast but unreliable path against a slow but reliable one
 VTask<Result> result = Scope.<Result>firstComplete()
@@ -136,6 +140,7 @@ VTask<Result> result = Scope.<Result>firstComplete()
 
 Scope provides functional result wrappers that capture failures instead of throwing:
 
+<!-- verify -->
 ```java
 // Get result as Try
 VTask<Try<List<String>>> trySafe = Scope.<String>allSucceed()
@@ -166,6 +171,7 @@ The `accumulating` joiner is particularly powerful for validation scenarios wher
 
 ~~~admonish example title="Accumulating Errors"
 
+<!-- verify -->
 ```java
 import org.higherkindedj.hkt.vtask.Scope;
 import org.higherkindedj.hkt.validated.Validated;
@@ -179,7 +185,7 @@ record ValidationError(String field, String message) {
 
 // Validate multiple fields in parallel, collecting all errors
 VTask<Validated<List<ValidationError>, List<String>>> validation =
-    Scope.<String>accumulating(ValidationError::from)
+    Scope.<ValidationError, String>accumulating(ValidationError::from)
         .fork(VTask.of(() -> validateUsername(input.username())))
         .fork(VTask.of(() -> validateEmail(input.email())))
         .fork(VTask.of(() -> validatePassword(input.password())))
@@ -207,7 +213,7 @@ result.fold(
 
 Traditional fail-fast behaviour returns only the first error encountered. This frustrates users who must fix one error, resubmit, discover another error, fix it, resubmit again, and so on. Error accumulation runs all validations in parallel and collects every failure, enabling you to report all problems at once:
 
-```java
+```
 // User submits a form with multiple invalid fields
 // Instead of: "Username is too short" (fix, resubmit)
 //             "Email is invalid" (fix, resubmit)
@@ -222,6 +228,7 @@ Traditional fail-fast behaviour returns only the first error encountered. This f
 
 `ScopeJoiner` wraps Java 25's `StructuredTaskScope.Joiner` with HKJ-friendly accessors:
 
+<!-- verify -->
 ```java
 import org.higherkindedj.hkt.vtask.ScopeJoiner;
 
@@ -229,8 +236,8 @@ import org.higherkindedj.hkt.vtask.ScopeJoiner;
 ScopeJoiner<String, List<String>> allSucceed = ScopeJoiner.allSucceed();
 ScopeJoiner<String, String> anySucceed = ScopeJoiner.anySucceed();
 ScopeJoiner<String, String> firstComplete = ScopeJoiner.firstComplete();
-ScopeJoiner<String, Validated<List<Error>, List<String>>> accum =
-    ScopeJoiner.accumulating(Error::from);
+ScopeJoiner<String, Validated<List<ValidationError>, List<String>>> accum =
+    ScopeJoiner.accumulating(ValidationError::from);
 
 // Use with custom Scope
 VTask<List<String>> result = Scope.withJoiner(allSucceed)

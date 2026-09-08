@@ -98,6 +98,7 @@ When to reach for ForPath: three or more dependent steps, or when intermediate v
 
 All three carry the same `map` / `via` / `recover` surface as the Path API; the suffix differs only in how we run the workflow at the boundary:
 
+<!-- verify -->
 ```java
 errorCtx.runIO().unsafeRun();         // -> Either<E, A>
 configCtx.runWithSync(config);        // -> A
@@ -109,6 +110,7 @@ mutableCtx.runWith(initial)           // -> StateTuple<S, A>
 
 ## Service integration
 
+<!-- verify -->
 ```java
 @GeneratePathBridge
 public interface UserService {
@@ -116,7 +118,7 @@ public interface UserService {
     Optional<User> findById(Long id);
 
     @PathVia
-    Either<Error, User> createUser(CreateUserRequest req);
+    Either<AppError, User> createUser(CreateUserRequest req);
 }
 ```
 
@@ -159,7 +161,7 @@ The bridge is a file you never wrote and cannot edit, so a handful of shapes the
 ## Focus-Effect bridge
 
 ```java
-EitherPath<Error, User>
+EitherPath<AppError, User>
   .focus(addressPath)        // narrow to the Address inside the User
   .focus(cityPath)            // narrow further to the city String
   .map(String::toUpperCase);  // transform the focused field

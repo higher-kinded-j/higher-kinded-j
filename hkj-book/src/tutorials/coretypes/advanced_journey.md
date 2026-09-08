@@ -62,9 +62,10 @@ Learn how Coyoneda gives you a free Functor and enables map fusion.
 **Key insight**: Coyoneda stores the value and accumulated function separately, executing only when you lower. Multiple maps become a single traversal.
 
 **Example**:
+<!-- verify -->
 ```java
 // Without Coyoneda: 3 separate traversals
-list.map(f).map(g).map(h);
+numbers.stream().map(f).map(g).map(h).toList();
 
 // With Coyoneda: functions compose, single traversal on lower
 Coyoneda.lift(list)
@@ -97,12 +98,13 @@ Learn to model independent computations that can potentially run in parallel.
 **Key insight**: With Free Applicative, neither computation in `map2` depends on the other's result. This structural independence enables parallel execution.
 
 **Comparison**:
+<!-- verify -->
 ```java
 // Free Monad (sequential - B depends on A)
-freeA.flatMap(a -> computeB(a))
+var sequential = freeA.flatMap(a -> computeB(a));
 
 // Free Applicative (parallel - independent)
-FreeAp.map2(freeA, freeB, (a, b) -> combine(a, b))
+var parallel = freeApA.map2(freeApB, (a, b) -> combine(a, b));
 ```
 
 **Real-world application**: Parallel data fetching, form validation, batch API calls, request deduplication.
@@ -130,15 +132,16 @@ Learn to analyse Free Applicative programs before execution.
 **Key insight**: Because Free Applicative captures program structure as data, you can inspect it before running. This enables permission checking, cost estimation, and optimisation.
 
 **Example**:
+<!-- verify -->
 ```java
 // Build a program
-FreeAp<DbOp, Dashboard> program = buildDashboard(userId);
+FreeAp<DbOpKind.Witness, Dashboard> program = buildDashboard(userId);
 
 // Analyse before running
 int opCount = FreeApAnalyzer.countOperations(program);
 boolean hasDeletions = FreeApAnalyzer.containsOperation(
     program,
-    op -> DbOp.Delete.class.isInstance(DbOpHelper.DB_OP.narrow(op))
+    op -> DB_OP.narrow(op) instanceof DbOp.DeleteUser
 );
 
 if (hasDeletions && !userHasPermission("delete")) {

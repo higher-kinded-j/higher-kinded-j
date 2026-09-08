@@ -2,6 +2,7 @@
 
 Every type class in Higher-Kinded-J has a canonical instance for each data type. Historically, reaching that instance required knowing three independent things per type: the **instance class name**, its **package**, and **which access idiom** that class uses. The idiom was not uniform:
 
+<!-- verify -->
 ```java
 // The old idioms: four spellings of one concept
 Semigroup<String>            semi  = Semigroups.string();   // for Validated error accumulation
@@ -30,6 +31,7 @@ The `org.higherkindedj.hkt.instances.Instances` facade collapses all of these in
 
 For the stateless-singleton and phantom-typed families, pass a typed token from `Witnesses`:
 
+<!-- verify -->
 ```java
 import static org.higherkindedj.hkt.instances.Witnesses.*;
 import org.higherkindedj.hkt.instances.Instances;
@@ -43,6 +45,7 @@ Because the canonical instance implements the whole `Functor → Applicative →
 
 For canonical instances that also implement a richer capability, three further lookups are available (`monadError`, `monadZero` and `alternative`):
 
+<!-- verify -->
 ```java
 MonadError<MaybeKind.Witness, Unit> me  = Instances.monadError(maybe());   // E inferred
 MonadZero<ListKind.Witness>         mz  = Instances.monadZero(list());
@@ -55,6 +58,7 @@ Unlike `monad`/`applicative`/`functor`, these three are **not total**: they are 
 
 The tokens are **generic**, not `Class`-keyed. This matters: Java has no generic class literals, so a `Class`-keyed facade would erase the phantom type of `Either`, `Reader`, `State`, etc. The token form keeps inference working exactly as `EitherMonad.<L>instance()` does today:
 
+<!-- verify -->
 ```java
 // <DomainError> flows from the assignment target
 Monad<EitherKind.Witness<DomainError>> m = Instances.monad(either());

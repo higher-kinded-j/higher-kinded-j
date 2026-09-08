@@ -18,6 +18,7 @@
 
 Here is an innocent function. Five lines, no tricks:
 
+<!-- verify -->
 ```java
 static long sum(long n) {
     if (n <= 0) return 0;
@@ -97,6 +98,7 @@ That is it. No restructuring, no cleverness. Follow these three steps and your f
 ~~~admonish example title="Example 1: Stack-Safe Factorial"
 **Before** (naive recursion that blows the stack):
 
+<!-- verify -->
 ```java
 static BigInteger factorialNaive(BigInteger n) {
     if (n.compareTo(BigInteger.ZERO) <= 0) return BigInteger.ONE;
@@ -107,6 +109,7 @@ static BigInteger factorialNaive(BigInteger n) {
 
 **After** (apply the 3-step recipe):
 
+<!-- verify -->
 ```java
 import org.higherkindedj.hkt.trampoline.Trampoline;
 import java.math.BigInteger;
@@ -128,6 +131,7 @@ System.out.println("Result has " + result.toString().length() + " digits");
 
 Since `Trampoline` is a monad, you can use `map` and `flatMap` to compose results:
 
+<!-- verify -->
 ```java
 // Transform the result after computation
 Trampoline<String> described = factorial(BigInteger.valueOf(10_000), BigInteger.ONE)
@@ -149,6 +153,7 @@ Mutual recursion is where Trampoline really shines. Two functions calling each o
 
 **Before:**
 
+<!-- verify -->
 ```java
 static boolean isEvenNaive(int n) {
     if (n == 0) return true;
@@ -163,6 +168,7 @@ static boolean isOddNaive(int n) {
 
 **After:**
 
+<!-- verify -->
 ```java
 import org.higherkindedj.hkt.trampoline.Trampoline;
 
@@ -187,10 +193,13 @@ Each call to `isEven` defers to `isOdd` and vice versa. The `run()` loop handles
 ~~~admonish example title="Example 3: TrampolineUtils for Large Collections"
 When traversing large collections with custom applicatives, standard recursive `traverse` can overflow. `TrampolineUtils` provides drop-in stack-safe replacements:
 
+<!-- verify -->
 ```java
 import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.instances.Instances;
 import org.higherkindedj.hkt.trampoline.TrampolineUtils;
 import org.higherkindedj.hkt.id.*;
+import static org.higherkindedj.hkt.instances.Witnesses.id;
 import java.util.List;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
@@ -210,7 +219,7 @@ List<String> items = IdKindHelper.ID.narrow(result).value();
 System.out.println("Traversed " + items.size() + " elements safely");
 ```
 
-Key utilities: `traverseListStackSafe`, `map2StackSafe`, `sequenceStackSafe`. Use these when your collection might exceed 10,000 elements.
+Key utilities: `traverseListStackSafe` and `sequenceStackSafe`. Use these when your collection might exceed 10,000 elements.
 ~~~
 
 ## When to Use Trampoline

@@ -14,6 +14,7 @@ standard library and the Path API.
 
 ## Creation
 
+<!-- verify -->
 ```java
 OptionalPath<String> present = Path.present("hello");
 OptionalPath<String> absent = Path.absent();
@@ -24,6 +25,7 @@ OptionalPath<User> user = Path.optional(repository.findById(id));
 
 ## Core Operations
 
+<!-- verify -->
 ```java
 OptionalPath<String> name = Path.present("Alice");
 
@@ -35,6 +37,7 @@ OptionalPath<String> upper = name.via(s -> Path.present(s.toUpperCase()));
 
 ## Extraction and Conversion
 
+<!-- verify -->
 ```java
 OptionalPath<String> path = Path.present("hello");
 

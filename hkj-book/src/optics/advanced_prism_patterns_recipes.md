@@ -16,6 +16,7 @@ This page collects copy-paste-ready recipes for the production concerns that com
 
 ### Caching Composed Prisms
 
+<!-- verify -->
 ```java
 public class OptimisedPrismCache {
     // Cache expensive optic compositions
@@ -46,6 +47,7 @@ public class OptimisedPrismCache {
 
 ### Bulk Operations with Prisms
 
+<!-- verify -->
 ```java
 public class BulkProcessor {
     // Process multiple items efficiently
@@ -75,14 +77,31 @@ public class BulkProcessor {
 
 ### Testing Prism-Based Logic
 
+<!-- verify -->
 ```java
 public class PrismTestPatterns {
+    private static final JsonValue jsonData = new JsonValue("{}");
+
+    private static Prism<Config, String> buildHostPrism() {
+        return Prism.of(
+            config -> config.host().isBlank() ? Optional.empty() : Optional.of(config.host()),
+            host -> new Config(host, 8080));
+    }
+
+    private static Config createValidConfig() {
+        return new Config("localhost", 8080);
+    }
+
+    private static Config createInvalidConfig() {
+        return new Config("", 8080);
+    }
+
     @Test
     void testPrismMatching() {
         Prism<ApiResponse, Success> success = ApiResponsePrisms.success();
 
         ApiResponse successResponse = new Success(jsonData, 200);
-        ApiResponse errorResponse = new ServerError("Error", "trace123");
+        ApiResponse errorResponse = new ServerError("AppError", "trace123");
 
         // Verify matching behaviour
         assertTrue(success.matches(successResponse));

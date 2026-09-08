@@ -106,6 +106,7 @@ ConcreteType<ErrorType, ValueType> result = HELPER.narrow(
 ```
 
 **Pattern: Optic Composition**
+<!-- verify -->
 ```java
 // Pattern: Build paths from small pieces
 var outerToInner = OuterLenses.middle()
@@ -117,6 +118,7 @@ var outerToInner = OuterLenses.middle()
 
 When studying a solution, add your own comments explaining what each part does:
 
+<!-- verify -->
 ```java
 // Create the Applicative instance for Either with String errors
 MonadError<EitherKind.Witness<String>, String> applicative = Instances.monadError(either());
@@ -139,6 +141,7 @@ Either<String, Integer> result = EITHER.narrow(
 
 **Why**: Generic operations work on `Kind<F, A>`, not concrete types.
 
+<!-- verify -->
 ```java
 // 1. Start with concrete type
 Either<String, Integer> either = Either.right(42);
@@ -173,6 +176,7 @@ monad.flatMap(...);
 
 **Why**: Small, focused optics compose into powerful transformations.
 
+<!-- verify -->
 ```java
 // Build a path through nested structures
 var leagueToPlayerScores = LeagueTraversals.teams()      // League → Teams
@@ -240,6 +244,7 @@ public static Traversal<Order, LineItem> items() {
 **Cause**: You haven't imported or defined the helper method.
 
 **Fix**: Ensure this exists at the top of the file:
+<!-- verify -->
 ```java
 private static <T> T answerRequired() {
     throw new RuntimeException("Answer required");
@@ -397,6 +402,7 @@ Each solution file:
 Once you understand a solution, try variations:
 
 **Original solution**:
+<!-- verify -->
 ```java
 Either<String, Integer> result = EITHER.narrow(
     applicative.map2(EITHER.widen(value1), EITHER.widen(value2), (a, b) -> a + b)

@@ -330,7 +330,7 @@ deliberately **not** monadic. Do not assume the monad accumulates.
 
 <!-- verify -->
 ```java
-EitherPath<Error, Result> result = ForPath.from(fetchUser(id))
+EitherPath<AppError, Result> result = ForPath.from(fetchUser(id))
     .from(user -> validateUser(user))
     .from(t -> checkInventory(items))
     .yield((user, validated, inventory) -> createOrder(user, validated, inventory));

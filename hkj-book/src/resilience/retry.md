@@ -19,6 +19,7 @@ Networks are unreliable. Services restart. Databases hiccup during failover. Mos
 
 ### Factory Methods
 
+<!-- verify -->
 ```java
 // Fixed delay: same wait between every attempt
 RetryPolicy fixed = RetryPolicy.fixed(3, Duration.ofMillis(100));
@@ -66,6 +67,7 @@ RetryPolicy none = RetryPolicy.noRetry();
 
 Policies are immutable. Configuration methods return new instances:
 
+<!-- verify -->
 ```java
 RetryPolicy policy = RetryPolicy.exponentialBackoff(5, Duration.ofMillis(100))
     .withMaxDelay(Duration.ofSeconds(30))   // Cap the maximum wait
@@ -74,6 +76,7 @@ RetryPolicy policy = RetryPolicy.exponentialBackoff(5, Duration.ofMillis(100))
 
 #### Custom Retry Predicates
 
+<!-- verify -->
 ```java
 RetryPolicy selective = RetryPolicy.fixed(3, Duration.ofMillis(100))
     .retryIf(ex ->
@@ -86,6 +89,7 @@ RetryPolicy selective = RetryPolicy.fixed(3, Duration.ofMillis(100))
 
 For complex policies, the builder offers full control:
 
+<!-- verify -->
 ```java
 RetryPolicy policy = RetryPolicy.builder()
     .maxAttempts(5)
@@ -107,6 +111,7 @@ RetryPolicy policy = RetryPolicy.builder()
 
 The `Retry` utility class executes an operation immediately with retry:
 
+<!-- verify -->
 ```java
 String response = Retry.execute(policy, () -> httpClient.get(url));
 
@@ -122,6 +127,7 @@ String fixed = Retry.withFixedDelay(3, Duration.ofMillis(100),
 
 For lazy, composable retry, use `Retry.retryTask()`:
 
+<!-- verify -->
 ```java
 // Wrap any VTask with retry
 VTask<String> resilient = Retry.retryTask(
@@ -139,6 +145,7 @@ Both forms return a lazy `VTask`. Nothing executes until you call `run()`, `runS
 
 ### Retry with Fallback
 
+<!-- verify -->
 ```java
 VTask<String> withFallback = Retry.retryTaskWithFallback(
     VTask.of(() -> httpClient.get(url)),
@@ -148,6 +155,7 @@ VTask<String> withFallback = Retry.retryTaskWithFallback(
 
 ### Retry with Recovery Task
 
+<!-- verify -->
 ```java
 VTask<String> withRecovery = Retry.retryTaskWithRecovery(
     VTask.of(() -> primaryService.get(url)),
@@ -159,29 +167,31 @@ VTask<String> withRecovery = Retry.retryTaskWithRecovery(
 
 Retry wraps a **computation**. On the lazy Path carriers (where the computation has not yet run), `withRetry` chains as an instance method:
 
+<!-- verify -->
 ```java
 // IOPath
-IOPath<Response> resilient = Path.io(() -> httpClient.get(url))
+IOPath<String> resilientIo = Path.io(() -> httpClient.get(url))
     .withRetry(RetryPolicy.exponentialBackoff(3, Duration.ofSeconds(1)));
 
 // VTaskPath
-VTaskPath<Response> resilient = Path.vtask(() -> httpClient.get(url))
+VTaskPath<String> resilientTask = Path.vtask(() -> httpClient.get(url))
     .withRetry(RetryPolicy.exponentialBackoff(3, Duration.ofSeconds(1)));
 
 // VResultPath: async with a typed error channel
-VResultPath<OrderError, Reservation> resilient =
+VResultPath<OrderError, Reservation> resilientReservation =
     Path.vresultDefer(() -> inventoryService.reserve(order))
         .withRetry(RetryPolicy.exponentialBackoffWithJitter(3, Duration.ofMillis(200)));
 ```
 
 `EitherPath` is an *eager* carrier: by the time an instance exists, the computation has already run, so an instance-chained retry would have nothing left to protect. On `EitherPath` the same `with*` vocabulary is therefore **static**, taking the step as a `Supplier`, applied at the point where the computation still exists:
 
+<!-- verify -->
 ```java
 EitherPath<OrderError, Reservation> reserved =
     EitherPath.withRetry(() -> reserveInventory(order), policy);
 
 // Typically inline, inside a chain:
-pipeline.via(order -> EitherPath.withRetry(() -> reserveInventory(order), policy));
+pipeline().via(order -> EitherPath.withRetry(() -> reserveInventory(order), policy));
 ```
 
 ### Railway-Aware Retry on Typed Carriers
@@ -190,10 +200,11 @@ On the typed-error carriers (`EitherPath` and `VResultPath`) retry understands t
 
 Some typed errors *are* transient, though (a `SystemError` wrapping a connection reset, say). The typed overload lets a predicate opt those in:
 
+<!-- verify -->
 ```java
 // Instance form on VResultPath
 VResultPath<OrderError, Reservation> resilient =
-    reserveInventory(order)
+    reserveInventoryAsync(order)
         .withRetry(error -> error instanceof OrderError.SystemError, policy);
 
 // Static form on the eager EitherPath
@@ -248,6 +259,7 @@ Retry re-invokes the whole step. Wrapping a step with side effects that must hap
 
 When all attempts fail, `RetryExhaustedException` is thrown with the last failure as its cause:
 
+<!-- verify -->
 ```java
 try {
     resilient.run();
@@ -264,6 +276,7 @@ try {
 
 The `onRetry` listener receives a `RetryEvent` before each retry attempt:
 
+<!-- verify -->
 ```java
 RetryPolicy monitored = RetryPolicy.exponentialBackoff(5, Duration.ofSeconds(1))
     .onRetry(event -> {
@@ -290,6 +303,7 @@ RetryPolicy monitored = RetryPolicy.exponentialBackoff(5, Duration.ofSeconds(1))
 
 Retry composes naturally with other resilience patterns and effect combinators:
 
+<!-- verify -->
 ```java
 VTask<Data> robust = Retry.retryTask(
         VTask.of(() -> primarySource.fetch()),

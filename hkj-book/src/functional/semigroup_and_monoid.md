@@ -43,6 +43,7 @@ public interface Semigroup<A> {
 To make working with `Semigroup` easier, `higher-kinded-j` provides a `Semigroups` utility interface with static factory methods for common instances.
 
 
+<!-- verify -->
 ``` java
 // Get a Semigroup for concatenating Strings
 Semigroup<String> stringConcat = Semigroups.string();
@@ -57,6 +58,7 @@ Semigroup<List<Integer>> listConcat = Semigroups.list();
 ~~~admonish tip title="The non-empty alternative: `NonEmptyList.semigroup()`"
 For an accumulating error channel, prefer [`NonEmptyList`](../monads/nonemptylist_monad.md) over a plain `List`: an *invalid* result always has at least one error, and `NonEmptyList` proves that in the type (making `head`/`reduce` total). Its concatenating combine lives on the type itself:
 
+<!-- verify -->
 ```java
 // Concatenates two NonEmptyLists, left-to-right (associative, not commutative).
 Semigroup<NonEmptyList<String>> nelConcat = NonEmptyList.semigroup();
@@ -74,6 +76,7 @@ When you use the `Applicative` instance for `Validated`, you must provide a `Sem
 **Example: Accumulating Validation Errors**
 
 
+<!-- verify -->
 ``` java
 // Create an applicative for Validated that accumulates String errors by joining them.
 Applicative<ValidatedKind.Witness<String>> applicative =
@@ -125,6 +128,7 @@ public interface Monoid<A> extends Semigroup<A> {
 Similar to `Semigroups`, the library provides a `Monoids` utility interface for creating common instances.
 
 
+<!-- verify -->
 ``` java
 // Get a Monoid for integer addition (empty = 0)
 Monoid<Integer> intAddition = Monoids.integerAddition();
@@ -145,6 +149,7 @@ This is formalised in the **`Foldable`** type class, which has a `foldMap` metho
 **Example: Using `foldMap` with different Monoids**
 
 
+<!-- verify -->
 ``` java 
 List<Integer> numbers = List.of(1, 2, 3, 4, 5);
 Kind<ListKind.Witness, Integer> numbersKind = LIST.widen(numbers);
@@ -175,6 +180,7 @@ The `Monoid` interface provides several powerful default methods that build upon
 The `combineAll` method takes an iterable collection and combines all its elements using the monoid's operation. If the collection is empty, it returns the identity element.
 
 
+<!-- verify -->
 ``` java
 Monoid<Integer> sum = Monoids.integerAddition();
 List<Integer> salesData = List.of(120, 450, 380, 290);
@@ -190,6 +196,7 @@ Integer emptyTotal = sum.combineAll(Collections.emptyList());
 This is particularly useful for batch processing scenarios where you need to aggregate data from multiple sources:
 
 
+<!-- verify -->
 ``` java
 // Combining log messages
 Monoid<String> logMonoid = Monoids.string();
@@ -212,6 +219,7 @@ Set<String> allFlags = configMonoid.combineAll(featureFlags);
 The `combineN` method combines a value with itself `n` times. This is useful for scenarios where you need to apply the same value repeatedly:
 
 
+<!-- verify -->
 ``` java
 Monoid<Integer> product = Monoids.integerMultiplication();
 
@@ -240,6 +248,7 @@ List<String> repeated = listMonoid.combineN(List.of("item"), 3);
 The `isEmpty` method tests whether a given value equals the identity element of the monoid:
 
 
+<!-- verify -->
 ``` java
 Monoid<Integer> sum = Monoids.integerAddition();
 Monoid<Integer> product = Monoids.integerMultiplication();
@@ -258,6 +267,7 @@ stringMonoid.isEmpty("text"); // false
 This is particularly useful for optimisation and conditional logic:
 
 
+<!-- verify -->
 ``` java
 public void processIfNotEmpty(Monoid<String> monoid, String value) {
     if (!monoid.isEmpty(value)) {
@@ -278,6 +288,7 @@ The `Monoids` utility provides comprehensive support for numeric operations beyo
 For working with large numeric values or high-precision calculations:
 
 
+<!-- verify -->
 ``` java
 // Long addition for counting large quantities
 Monoid<Long> longSum = Monoids.longAddition();
@@ -296,6 +307,7 @@ Long compound = longProduct.combineN(2L, 20);
 For floating-point arithmetic and statistical computations:
 
 
+<!-- verify -->
 ``` java
 // Double addition for financial calculations
 Monoid<Double> dollarSum = Monoids.doubleAddition();
@@ -313,6 +325,7 @@ Double compoundGrowth = growth.combineN(interestRate, 10);
 **Practical Example: Statistical Calculations**
 
 
+<!-- verify -->
 ``` java
 public class Statistics {
 
@@ -349,6 +362,7 @@ One of the most powerful features of the `Monoids` utility is its support for `O
 These monoids select the first or last non-empty optional value, making them perfect for fallback chains and priority-based selection:
 
 
+<!-- verify -->
 ``` java
 Monoid<Optional<String>> first = Monoids.firstOptional();
 Monoid<Optional<String>> last = Monoids.lastOptional();
@@ -406,6 +420,7 @@ public class ConfigLoader {
 These monoids find the maximum or minimum value from a collection of optional values. They work with any `Comparable` type or accept a custom `Comparator`:
 
 
+<!-- verify -->
 ``` java
 Monoid<Optional<Integer>> max = Monoids.maximum();
 Monoid<Optional<Integer>> min = Monoids.minimum();
@@ -430,6 +445,7 @@ Optional<Integer> lowestScore = min.combineAll(scores);
 For more complex types, you can provide a custom comparator:
 
 
+<!-- verify -->
 ``` java
 public record Product(String name, double price) {}
 
@@ -458,7 +474,10 @@ Optional<Product> shortest = shortestName.combineAll(products);
 **Practical Example: Finding Best Offers**
 
 
+<!-- verify -->
 ``` java
+import java.util.stream.Collectors;
+
 public class PriceComparison {
 
     public record Offer(String vendor, BigDecimal price, boolean inStock)
@@ -482,8 +501,8 @@ public class PriceComparison {
     }
 
     private Optional<Offer> fetchOffer(String vendor, String productId) {
-        // API call to get offer from vendor
-        // Returns Optional.empty() if unavailable
+        // API call to get offer from vendor; Optional.empty() if unavailable
+        return Optional.of(new Offer(vendor, new BigDecimal("19.99"), true));
     }
 }
 ```
@@ -493,6 +512,7 @@ public class PriceComparison {
 It's worth noting that these monoids handle empty collections gracefully:
 
 
+<!-- verify -->
 ``` java
 Monoid<Optional<Integer>> max = Monoids.maximum();
 
@@ -519,6 +539,7 @@ Every monoid so far combines *data*. `Monoids.update()` combines *behaviour*: an
 
 `Update<S>` extends `UnaryOperator<S>`, so it drops straight into `Stream.map`, `Optional.map`, and any other `Function`-shaped API. Its `andThen` stays in the type, so composition chains fluently:
 
+<!-- verify -->
 ``` java
 Update<Order> normalise     = order -> order.withEmail(order.email().toLowerCase());
 Update<Order> applyDiscount = order -> order.withTotal(order.total().multiply(DISCOUNT));
@@ -530,6 +551,7 @@ Order b = normalise.andThen(applyDiscount).apply(orderB);
 
 The monoid's identity is the do-nothing update (`Update.identity()`), and `combine(f, g)` applies `f` first, then `g`, so folding a list of updates applies them left to right:
 
+<!-- verify -->
 ``` java
 Monoid<Update<Order>> m = Monoids.update();
 

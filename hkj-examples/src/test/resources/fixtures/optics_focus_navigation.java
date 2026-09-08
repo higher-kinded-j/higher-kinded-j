@@ -81,7 +81,22 @@ record WidenedConfig(Either<String, Map<String, Integer>> meta) {}
 
 record Wrapper(Maybe<Setting> setting) {}
 
+@GenerateFocus(generateNavigators = true)
+record Level2(String value) {}
+
+@GenerateFocus(generateNavigators = true)
+record Level1(Level2 nested) {}
+
 class Fixture {
+  /**
+   * A value the page names but does not build. Snippets are compiled, never run, and a snippet
+   * that shows a model shadows the one above, so naming a constructor here would tie the fixture
+   * to one shape of it.
+   */
+  static <A> A sample() {
+    throw new UnsupportedOperationException("a fixture value: snippets are compiled, not run");
+  }
+
   static final Item laptop = new Item("LAP-1", 999.0);
 
   static final Container container = new Container(List.of(laptop, new Item("MOU-1", 25.0)));
@@ -90,11 +105,9 @@ class Fixture {
 
   static final Address london = new Address("1 Long Street", "London");
 
-  static final Company company =
-      new Company(
-          "Acme",
-          london,
-          List.of(new Department("Engineering", List.of(new Employee("Alice", london)))));
+  // A `sample()` stand-in rather than a constructor call: the navigator section shows a smaller
+  // Company of its own, which shadows the one above.
+  static final Company company = sample();
 
   static final Warehouse warehouse =
       new Warehouse("North", Map.of("widget", 12), Either.right("North"));

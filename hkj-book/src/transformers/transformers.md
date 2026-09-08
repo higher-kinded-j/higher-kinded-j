@@ -42,11 +42,18 @@ Each of these effects has a clean monadic representation in isolation. The troub
 
 Consider a service that fetches a user asynchronously and might fail:
 
+<!-- verify -->
 ```java
 // The nested type: async + typed error
-CompletableFuture<Either<DomainError, User>> fetchUser(String userId) { ... }
-CompletableFuture<Either<DomainError, Order>> createOrder(User user) { ... }
-CompletableFuture<Either<DomainError, Receipt>> processPayment(Order order) { ... }
+CompletableFuture<Either<DomainError, User>> fetchUser(String userId) {
+    return CompletableFuture.completedFuture(Either.right(new User(userId)));
+}
+CompletableFuture<Either<DomainError, Order>> createOrder(User user) {
+    return CompletableFuture.completedFuture(Either.right(new Order(user.id())));
+}
+CompletableFuture<Either<DomainError, Receipt>> processPayment(Order order) {
+    return CompletableFuture.completedFuture(Either.right(new Receipt(order.id())));
+}
 
 // Composing them manually:
 CompletableFuture<Either<DomainError, Receipt>> workflow =
@@ -92,14 +99,16 @@ A monad transformer `T` takes an outer monad `F` and produces a **new monad** `T
 
 The same workflow with `EitherT`:
 
+<!-- verify -->
 ```java
 MonadError<EitherTKind.Witness<CompletableFutureKind.Witness, DomainError>, DomainError> eitherTMonad =
     Instances.eitherT(Instances.monadError(completableFuture()));
 
 Kind<EitherTKind.Witness<CompletableFutureKind.Witness, DomainError>, Receipt> workflow =
-    For.from(eitherTMonad, EitherT.fromKind(fetchUser("user-42")))
-        .from(user -> EitherT.fromKind(createOrder(user)))
-        .from(order -> EitherT.fromKind(processPayment(order)))
+    For.from(eitherTMonad, EitherT.fromKind(FUTURE.widen(fetchUser("user-42"))))
+        .from(user -> EitherT.fromKind(FUTURE.widen(createOrder(user))))
+        // past the first binding, `from` sees the accumulated tuple; only `yield` unpacks it
+        .from(t -> EitherT.fromKind(FUTURE.widen(processPayment(t._2()))))
         .yield((user, order, receipt) -> receipt);
 ```
 

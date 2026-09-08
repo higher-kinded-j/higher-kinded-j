@@ -11,8 +11,9 @@
 // The records are TOP-LEVEL: the processor joins enclosing names, so a nested `User` would generate
 // `FixtureUserFocus`, not the `UserFocus` the skill teaches.
 //
-// `Error` in the snippets is java.lang.Error, which is a perfectly good (if unusual) left type; the
-// page uses it as a stand-in for the reader's own error, and nothing here needs to change that.
+// `AppError` stands in for the reader's own error type. It is named rather than left as `Error`,
+// because that name binds to java.lang.Error, whose `Error(String)` constructor lets
+// `Path.left(new Error("..."))` compile while putting a Throwable in the left channel.
 //
 // NOTE: the imports below look unused *here*. They are for the snippet this file is spliced into.
 // That is why spotless excludes src/test/resources/fixtures (see build.gradle.kts).
@@ -43,6 +44,8 @@ import org.higherkindedj.optics.focus.TraversalPath;
 import org.higherkindedj.optics.validated.ValidatedPrism;
 
 /** The reader's own domain. */
+record AppError(String message) {}
+
 @GenerateLenses
 @GenerateFocus
 record Address(String street, String postcode) {}
@@ -115,7 +118,7 @@ class Fixture {
 
   static MaybePath<User> userMaybe = Path.nothing();
   static TryPath<User> userTry = Path.failure(new MissingEmailException());
-  static EitherPath<Error, User> userResult = Path.left(new Error("not found"));
+  static EitherPath<AppError, User> userResult = Path.left(new AppError("not found"));
 
   static ValidatedPrism<String, String> namePrism =
       ValidatedPrism.of(
@@ -141,19 +144,19 @@ class Fixture {
                   : Validated.validNel(raw),
           postcode -> postcode);
 
-  EitherPath<Error, User> fetchUser(String id) {
+  EitherPath<AppError, User> fetchUser(String id) {
     return Path.right(user);
   }
 
-  EitherPath<Error, String> validatePostcode(String postcode) {
+  EitherPath<AppError, String> validatePostcode(String postcode) {
     return Path.right(postcode);
   }
 
-  EitherPath<Error, Address> validateAddress(Address address) {
+  EitherPath<AppError, Address> validateAddress(Address address) {
     return Path.right(address);
   }
 
-  EitherPath<Error, GeoLocation> geocodeAddress(Address address) {
+  EitherPath<AppError, GeoLocation> geocodeAddress(Address address) {
     return Path.right(new GeoLocation(0, 0));
   }
 

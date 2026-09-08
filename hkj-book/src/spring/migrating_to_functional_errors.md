@@ -42,6 +42,7 @@ Gradually migrate remaining endpoints as you touch them for other reasons (featu
 
 ### Before: Exception-Throwing Method
 
+<!-- verify -->
 ```java
 @Service
 public class UserService {
@@ -83,6 +84,7 @@ public class UserController {
 
 ### After: Either-Returning Method
 
+<!-- verify -->
 ```java
 @Service
 public class UserService {
@@ -130,6 +132,7 @@ public class UserController {
 
 **Step 1:** Define your error types as a sealed interface hierarchy
 
+<!-- verify -->
 ```java
 public sealed interface DomainError permits
     UserNotFoundError,
@@ -139,10 +142,14 @@ public sealed interface DomainError permits
 
 public record UserNotFoundError(String userId) implements DomainError {
 }
+
+public record AuthorizationError(String action) implements DomainError {
+}
 ```
 
 **Step 2:** Convert service methods one at a time
 
+<!-- verify -->
 ```java
 // Keep old method temporarily for backwards compatibility
 @Deprecated
@@ -161,6 +168,7 @@ public Either<DomainError, User> findById(String id) {
 
 **Step 3:** Update controller methods
 
+<!-- verify -->
 ```java
 @GetMapping("/{id}")
 public Either<DomainError, User> getUser(@PathVariable String id) {
@@ -170,6 +178,7 @@ public Either<DomainError, User> getUser(@PathVariable String id) {
 
 **Step 4:** Remove `@ExceptionHandler` methods once all callers are migrated
 
+<!-- verify -->
 ```java
 // DELETE THIS - no longer needed!
 // @ExceptionHandler(UserNotFoundException.class)
@@ -226,6 +235,7 @@ public class OrderController {
 
 ### After: Either with Discriminated Errors
 
+<!-- verify -->
 ```java
 public sealed interface OrderError permits
     UserNotFoundError,
@@ -235,6 +245,13 @@ public sealed interface OrderError permits
 
 @Service
 public class OrderService {
+
+    @Autowired
+    private UserService userService;
+    @Autowired
+    private Inventory inventory;
+    @Autowired
+    private Payments payments;
 
     public Either<OrderError, Order> processOrder(OrderRequest request) {
         return userService.findById(request.userId())
@@ -247,25 +264,36 @@ public class OrderService {
         // All error types explicit in OrderError sealed interface
     }
 
-    private Either<OrderError, Stock> checkStock(List<Item> items) {
-        // Check stock logic
-        if (/* out of stock */) {
-            return Either.left(new OutOfStockError(unavailableItems));
+    private Either<OrderError, Stock> checkStock(List<String> items) {
+        Stock stock = inventory.check(items);
+        if (!stock.isAvailable()) {
+            return Either.left(new OutOfStockError(stock.unavailableItems()));
         }
         return Either.right(stock);
     }
 
-    private Either<OrderError, Payment> processPayment(PaymentRequest payment) {
-        // Payment logic
-        if (/* payment failed */) {
-            return Either.left(new PaymentFailedError(reason));
+    private Either<OrderError, Payment> processPayment(String payment) {
+        Payment taken = payments.take(payment);
+        if (taken == null) {
+            return Either.left(new PaymentFailedError("declined"));
         }
-        return Either.right(payment);
+        return Either.right(taken);
+    }
+
+    private OrderError toDomainError(DomainError error) {
+        return new PaymentFailedError(error.toString());
+    }
+
+    private Order createOrder(OrderRequest request, Payment payment) {
+        return new Order(payment.id(), request.userId());
     }
 }
 
 @RestController
 public class OrderController {
+
+    @Autowired
+    private OrderService orderService;
 
     @PostMapping("/orders")
     public Either<OrderError, Order> createOrder(@RequestBody OrderRequest request) {
@@ -322,12 +350,16 @@ public ResponseEntity<?> handleValidation(ValidationException ex) {
 
 ### After: Validated with Error Accumulation
 
+<!-- verify -->
 ```java
 public record ValidationError(String field, String message) {
 }
 
 @Service
 public class UserService {
+
+    @Autowired
+    private UserRepository userRepository;
 
     public ValidationPath<NonEmptyList<ValidationError>, User> validateAndCreate(
             UserRequest request) {
@@ -338,6 +370,10 @@ public class UserService {
             .and(validateUniqueEmail(request.email()))
             .apply((email, firstName, lastName, uniqueEmail) ->
                 createUser(email, firstName, lastName));
+    }
+
+    private User createUser(String email, String firstName, String lastName) {
+        return new User(UUID.randomUUID().toString(), email, firstName + " " + lastName);
     }
 
     private ValidationPath<NonEmptyList<ValidationError>, String> validateEmail(String email) {
@@ -384,6 +420,9 @@ public class UserService {
 @RequestMapping("/api/users")
 public class UserController {
 
+    @Autowired
+    private UserService userService;
+
     @PostMapping
     public ValidationPath<NonEmptyList<ValidationError>, User> createUser(
             @RequestBody UserRequest request) {
@@ -410,14 +449,18 @@ public class UserController {
 
 **Step 1:** Extract validation logic into individual single-field validators
 
+<!-- verify -->
 ```java
-private ValidationPath<NonEmptyList<ValidationError>, String> validateEmail(String email) {
-    // validation logic: Path.validNel(email) or Path.invalidNel(error)
+ValidationPath<NonEmptyList<ValidationError>, String> validateEmail(String email) {
+    return email != null && email.contains("@")
+        ? Path.validNel(email)
+        : Path.invalidNel(new ValidationError("email", "Invalid email format"));
 }
 ```
 
 **Step 2:** Compose validations with `Path.accumulate()`
 
+<!-- verify -->
 ```java
 public ValidationPath<NonEmptyList<ValidationError>, User> validateAndCreate(UserRequest request) {
     return Path.accumulate()
@@ -430,6 +473,7 @@ public ValidationPath<NonEmptyList<ValidationError>, User> validateAndCreate(Use
 
 **Step 3:** Return the `ValidationPath` from the controller
 
+<!-- verify -->
 ```java
 @PostMapping
 public ValidationPath<NonEmptyList<ValidationError>, User> createUser(
@@ -501,9 +545,17 @@ public class OrderController {
 
 `CompletableFuturePath` wraps the future in the Effect Path API, so the chain reads linearly with `via` (async bind) and `map`, and the return-value handler takes care of Spring's async request processing:
 
+<!-- verify -->
 ```java
 @Service
 public class AsyncOrderService {
+
+    @Autowired
+    private AsyncUserService asyncUserService;
+    @Autowired
+    private AsyncInventoryService asyncInventoryService;
+    @Autowired
+    private AsyncPaymentService asyncPaymentService;
 
     public CompletableFuturePath<Order> processOrderAsync(OrderRequest request) {
         return asyncUserService.findByIdAsync(request.userId())
@@ -519,10 +571,17 @@ public class AsyncOrderService {
 
         // Linear composition: the failure short-circuits the chain
     }
+
+    private Order createOrder(OrderRequest request, Payment payment) {
+        return new Order(payment.id(), request.userId());
+    }
 }
 
 @RestController
 public class OrderController {
+
+    @Autowired
+    private AsyncOrderService asyncOrderService;
 
     @PostMapping("/orders")
     public CompletableFuturePath<Order> createOrder(@RequestBody OrderRequest request) {
@@ -545,6 +604,7 @@ public class OrderController {
 
 **Step 1:** Convert async methods to return `CompletableFuturePath` with `Path.future`
 
+<!-- verify -->
 ```java
 public CompletableFuturePath<User> findByIdAsync(String id) {
     CompletableFuture<User> future = CompletableFuture.supplyAsync(
@@ -558,6 +618,7 @@ public CompletableFuturePath<User> findByIdAsync(String id) {
 
 **Step 2:** Compose operations with `via` and `map`
 
+<!-- verify -->
 ```java
 public CompletableFuturePath<Order> processOrderAsync(OrderRequest request) {
     return findByIdAsync(request.userId())
@@ -569,6 +630,7 @@ public CompletableFuturePath<Order> processOrderAsync(OrderRequest request) {
 
 **Step 3:** Return `CompletableFuturePath` from the controller
 
+<!-- verify -->
 ```java
 @GetMapping("/{id}/async")
 public CompletableFuturePath<Order> getOrder(@PathVariable String id) {
@@ -580,6 +642,7 @@ public CompletableFuturePath<Order> getOrder(@PathVariable String id) {
 
 If you are on virtual threads, `VTaskPath` gives the same handler integration with no executor bean at all; the computation is deferred and runs on a virtual thread when the handler invokes it:
 
+<!-- verify -->
 ```java
 public VTaskPath<User> findById(String id) {
     return Path.vtask(() -> {
@@ -634,6 +697,7 @@ public OrderItem getOrderItem(
 
 ### After: flatMap Composition
 
+<!-- verify -->
 ```java
 @GetMapping("/{userId}/orders/{orderId}/items/{itemId}")
 public Either<DomainError, OrderItem> getOrderItem(
@@ -663,10 +727,14 @@ During migration, you may need to support both old and new clients. Here are str
 
 Expose both old and new versions:
 
+<!-- verify -->
 ```java
 @RestController
 @RequestMapping("/api/users")
 public class UserController {
+
+    @Autowired
+    private UserService userService;
 
     // Old endpoint (deprecated)
     @GetMapping("/{id}")
@@ -692,6 +760,7 @@ public class UserController {
 
 Use different response format based on `Accept` header:
 
+<!-- verify -->
 ```java
 @GetMapping("/{id}")
 public ResponseEntity<?> getUser(@PathVariable String id,
@@ -716,9 +785,13 @@ public ResponseEntity<?> getUser(@PathVariable String id,
 
 If you must maintain existing exception-based behaviour:
 
+<!-- verify -->
 ```java
 @Service
 public class UserService {
+
+    @Autowired
+    private UserRepository repository;
 
     // New internal method
     public Either<DomainError, User> findById(String id) {
@@ -746,6 +819,7 @@ public class UserService {
 
 ### Pitfall 1: Forgetting to Handle Both Cases
 
+<!-- verify -->
 ```java
 // ❌ BAD: Only handles Right case
 @GetMapping("/{id}/email")
@@ -754,7 +828,10 @@ public String getUserEmail(@PathVariable String id) {
         .map(User::email)
         .getRight();  // Throws NoSuchElementException if Left!
 }
+```
 
+<!-- verify -->
+```java
 // ✅ GOOD: Return Either, let framework handle it
 @GetMapping("/{id}/email")
 public Either<DomainError, String> getUserEmail(@PathVariable String id) {
@@ -765,6 +842,7 @@ public Either<DomainError, String> getUserEmail(@PathVariable String id) {
 
 ### Pitfall 2: Mixing Exceptions and Either
 
+<!-- verify -->
 ```java
 // ❌ BAD: Throwing exception inside Either
 public Either<DomainError, User> findById(String id) {
@@ -775,7 +853,10 @@ public Either<DomainError, User> findById(String id) {
         .map(Either::<DomainError, User>right)
         .orElseGet(() -> Either.left(new UserNotFoundError(id)));
 }
+```
 
+<!-- verify -->
+```java
 // ✅ GOOD: Return Left for all errors
 public Either<DomainError, User> findById(String id) {
     if (id == null) {
@@ -789,16 +870,21 @@ public Either<DomainError, User> findById(String id) {
 
 ### Pitfall 3: Not Using Validated for Multiple Errors
 
+<!-- verify -->
 ```java
 // ❌ BAD: Using Either for validation (only returns first error)
 public Either<ValidationError, User> validateUser(UserRequest request) {
-    return validateEmail(request.email())
-        .flatMap(email -> validateName(request.name()))
-        .flatMap(name -> validateAge(request.age()))
-        .map(age -> createUser(...));
+    return validateEmail(request.email()).run().toEither()
+        .mapLeft(NonEmptyList::head)
+        .flatMap(email -> validateName(request.name()).run().toEither()
+            .mapLeft(NonEmptyList::head))
+        .map(name -> createUser(request.email(), name));
     // Stops at first error!
 }
+```
 
+<!-- verify -->
+```java
 // ✅ GOOD: Accumulate all errors with Path.accumulate()
 public ValidationPath<NonEmptyList<ValidationError>, User> validateUser(UserRequest request) {
     return Path.accumulate()
@@ -832,6 +918,7 @@ When migrating an endpoint:
 
 ### Before: Testing Exception-Throwing Code
 
+<!-- verify -->
 ```java
 @Test
 void shouldThrowWhenUserNotFound() {
@@ -843,6 +930,7 @@ void shouldThrowWhenUserNotFound() {
 
 ### After: Testing Either
 
+<!-- verify -->
 ```java
 @Test
 void shouldReturnLeftWhenUserNotFound() {
