@@ -186,7 +186,7 @@ import static org.higherkindedj.hkt.instances.Witnesses.*;
 | `FocusPath<S, A>` | `MaybePath<A>` | `.toMaybePath()` |
 | `FocusPath<S, A>` | `EitherPath<E, A>` | `.toEitherPath(errorFn)` |
 | `AffinePath<S, A>` | `MaybePath<A>` | `.toMaybePath()` |
-| `AffinePath<S, A>` | `EitherPath<E, A>` | `.toEitherPath(errorFn)` |
+| `AffinePath<S, A>` | `EitherPath<E, A>` | `.toEitherPath(source, error)`, `.toEitherPath(source, errorSupplier)` |
 
 ---
 

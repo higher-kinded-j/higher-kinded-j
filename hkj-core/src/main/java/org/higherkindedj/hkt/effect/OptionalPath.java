@@ -180,22 +180,31 @@ public final class OptionalPath<A> implements Chainable<A> {
    * over {@link #toEitherPath(Object)} when building the error is not free - it formats a message,
    * reads a resource bundle, or captures a stack trace.
    *
-   * <p>A lambda, a method reference, or a variable of a {@link Supplier} type selects this
-   * overload; anything else selects {@link #toEitherPath(Object)}. An error type that is itself a
-   * functional interface would therefore be read as a supplier, so name the eager overload
-   * explicitly ({@code path.<MyError>toEitherPath(myError)}) in that case. This mirrors {@link
-   * org.higherkindedj.hkt.maybe.Maybe#toEither(Supplier)}.
+   * <p>A lambda, a method reference, or a variable whose type is a {@link Supplier} selects this
+   * overload; every other argument selects {@link #toEitherPath(Object)}, an error whose own type
+   * is a functional interface included. The one shape to watch is an error type that is a
+   * functional interface written as a lambda, which reads as a supplier and fails to infer: name
+   * the error type to select the eager overload, {@code path.<MyError>toEitherPath(() -> "boom")}.
+   * This mirrors {@link org.higherkindedj.hkt.maybe.Maybe#toEither(Supplier)}.
    *
-   * @param errorSupplier supplies the error if this path is empty; must not be null
+   * @param errorSupplier supplies the error if this path is empty; must not be null, and must not
+   *     return null
    * @param <E> the error type
    * @return an EitherPath with Right if present, Left with the supplied error if empty
-   * @throws NullPointerException if errorSupplier is null
+   * @throws NullPointerException if errorSupplier is null, or returns null when this path is empty
    */
   public <E> EitherPath<E, A> toEitherPath(Supplier<? extends E> errorSupplier) {
     Objects.requireNonNull(errorSupplier, "errorSupplier must not be null");
     return value
         .<EitherPath<E, A>>map(a -> new EitherPath<>(Either.right(a)))
-        .orElseGet(() -> new EitherPath<>(Either.left(errorSupplier.get())));
+        .orElseGet(() -> new EitherPath<>(Either.left(suppliedError(errorSupplier))));
+  }
+
+  /**
+   * Holds a supplied error to the same non-null contract {@link #toEitherPath(Object)} enforces.
+   */
+  private static <E> E suppliedError(Supplier<? extends E> errorSupplier) {
+    return Objects.requireNonNull(errorSupplier.get(), "errorSupplier must not return null");
   }
 
   /**

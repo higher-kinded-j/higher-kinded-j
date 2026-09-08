@@ -3,6 +3,7 @@
 package org.higherkindedj.optics.focus;
 
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.function.BiConsumer;
 import java.util.function.BiFunction;
@@ -799,6 +800,41 @@ public sealed interface AffinePath<S, A> permits AffineFocusPath {
     return getOptional(source)
         .<EitherPath<E, A>>map(Path::right)
         .orElseGet(() -> Path.left(errorIfAbsent));
+  }
+
+  /**
+   * Extracts the optionally focused value and wraps it in an {@link EitherPath}, deferring
+   * construction of the error.
+   *
+   * <p>If the affine matches, the result is a Right and the supplier is never called. If it does
+   * not, the supplier is called once and its result becomes the Left value. Prefer this over {@link
+   * #toEitherPath(Object, Object)} when building the error is not free - it formats a message,
+   * reads a resource bundle, or captures a stack trace.
+   *
+   * <p>A lambda, a method reference, or a variable whose type is a {@link Supplier} selects this
+   * overload; every other argument selects {@link #toEitherPath(Object, Object)}, an error whose
+   * own type is a functional interface included.
+   *
+   * <h2>Example Usage</h2>
+   *
+   * <pre>{@code
+   * AffinePath<User, String> emailPath = UserFocus.optionalEmail();
+   *
+   * EitherPath<UserError, String> result =
+   *     emailPath.toEitherPath(user, () -> UserError.missingEmail(user.id()));
+   * }</pre>
+   *
+   * @param source the source structure
+   * @param errorSupplier supplies the error if the affine doesn't match; must not be null
+   * @param <E> the error type
+   * @return an EitherPath containing Right if matched, Left with the supplied error otherwise
+   * @throws NullPointerException if errorSupplier is null
+   */
+  default <E> EitherPath<E, A> toEitherPath(S source, Supplier<? extends E> errorSupplier) {
+    Objects.requireNonNull(errorSupplier, "errorSupplier must not be null");
+    return getOptional(source)
+        .<EitherPath<E, A>>map(Path::right)
+        .orElseGet(() -> Path.left(errorSupplier.get()));
   }
 
   /**

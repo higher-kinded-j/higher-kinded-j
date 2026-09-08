@@ -217,7 +217,8 @@ public class CrossPathConversionsExample {
     EitherPath<String, Integer> eitherFromDeferredAbsent =
         absentPath.toEitherPath(() -> "Value is required");
     System.out.println(
-        "Absent -> Either (deferred): " + eitherFromDeferredAbsent.run()); // Left[Value is required]
+        "Absent -> Either (deferred): "
+            + eitherFromDeferredAbsent.run()); // Left[Value is required]
 
     System.out.println();
   }

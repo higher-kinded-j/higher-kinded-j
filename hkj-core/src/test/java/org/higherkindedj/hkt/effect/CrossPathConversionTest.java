@@ -607,6 +607,16 @@ class CrossPathConversionTest {
     }
 
     @Test
+    @DisplayName("OptionalPath holds a supplied error to the same non-null contract as the value")
+    void optionalRejectsASuppliedNullError() {
+      OptionalPath<String> absent = Path.absent();
+
+      assertThatNullPointerException()
+          .isThrownBy(() -> absent.toEitherPath(() -> null))
+          .withMessageContaining("errorSupplier must not return null");
+    }
+
+    @Test
     @DisplayName("A null supplier is rejected even when there is a value to return")
     void nullSupplierIsRejectedEagerly() {
       MaybePath<String> just = Path.just(TEST_VALUE);

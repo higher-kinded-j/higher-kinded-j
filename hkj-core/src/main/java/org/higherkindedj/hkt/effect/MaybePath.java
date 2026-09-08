@@ -147,11 +147,12 @@ public final class MaybePath<A> implements Recoverable<Unit, A> {
    * Left value. Prefer this over {@link #toEitherPath(Object)} when building the error is not free
    * - it formats a message, reads a resource bundle, or captures a stack trace.
    *
-   * <p>A lambda, a method reference, or a variable of a {@link Supplier} type selects this
-   * overload; anything else selects {@link #toEitherPath(Object)}. An error type that is itself a
-   * functional interface would therefore be read as a supplier, so name the eager overload
-   * explicitly ({@code path.<MyError>toEitherPath(myError)}) in that case. This mirrors {@link
-   * org.higherkindedj.hkt.maybe.Maybe#toEither(Supplier)}.
+   * <p>A lambda, a method reference, or a variable whose type is a {@link Supplier} selects this
+   * overload; every other argument selects {@link #toEitherPath(Object)}, an error whose own type
+   * is a functional interface included. The one shape to watch is an error type that is a
+   * functional interface written as a lambda, which reads as a supplier and fails to infer: name
+   * the error type to select the eager overload, {@code path.<MyError>toEitherPath(() -> "boom")}.
+   * This mirrors {@link org.higherkindedj.hkt.maybe.Maybe#toEither(Supplier)}.
    *
    * @param errorSupplier supplies the error if this path is empty; must not be null
    * @param <E> the error type

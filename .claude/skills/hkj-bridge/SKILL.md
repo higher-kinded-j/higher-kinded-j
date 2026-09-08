@@ -87,6 +87,7 @@ MaybePath<User> first = employees.toMaybePath(company);   // First value or Noth
 | `FocusPath<S, A>` | `.toIdPath(S)` | Always `Id(a)` |
 | `AffinePath<S, A>` | `.toMaybePath(S)` | `Just(a)` or `Nothing` |
 | `AffinePath<S, A>` | `.toEitherPath(S, E)` | `Right(a)` or `Left(e)` |
+| `AffinePath<S, A>` | `.toEitherPath(S, Supplier)` | `Right(a)` or `Left(e)`, error built only when absent |
 | `AffinePath<S, A>` | `.toTryPath(S, Supplier)` | `Success(a)` or `Failure` |
 | `AffinePath<S, A>` | `.toOptionalPath(S)` | `Optional.of(a)` or empty |
 | `TraversalPath<S, A>` | `.toListPath(S)` | All values as list |
