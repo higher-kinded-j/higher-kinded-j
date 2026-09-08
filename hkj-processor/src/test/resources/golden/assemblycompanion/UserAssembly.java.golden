@@ -28,6 +28,7 @@ public final class UserAssembly {
   /**
    * Stage 0 of 3: expects {@code name} next.
    */
+  @Generated
   public static final class Stage0 {
     private static final Stage0 INSTANCE = new Stage0();
 
@@ -46,6 +47,7 @@ public final class UserAssembly {
   /**
    * Stage 1 of 3: expects {@code email} next.
    */
+  @Generated
   public static final class Stage1 {
     private final Validated<NonEmptyList<FieldError>, String> name;
 
@@ -65,6 +67,7 @@ public final class UserAssembly {
   /**
    * Stage 2 of 3: expects {@code age} next.
    */
+  @Generated
   public static final class Stage2 {
     private final Validated<NonEmptyList<FieldError>, String> name;
 
@@ -88,6 +91,7 @@ public final class UserAssembly {
   /**
    * Terminal stage: every component supplied; {@code assemble()} only.
    */
+  @Generated
   public static final class Stage3 {
     private final Validated<NonEmptyList<FieldError>, String> name;
 

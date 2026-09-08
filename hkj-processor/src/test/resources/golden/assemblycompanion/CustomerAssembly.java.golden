@@ -27,6 +27,7 @@ public final class CustomerAssembly {
   /**
    * Stage 0 of 2: expects {@code name} next.
    */
+  @Generated
   public static final class Stage0 {
     private static final Stage0 INSTANCE = new Stage0();
 
@@ -45,6 +46,7 @@ public final class CustomerAssembly {
   /**
    * Stage 1 of 2: expects {@code address} next.
    */
+  @Generated
   public static final class Stage1 {
     private final Validated<NonEmptyList<FieldError>, String> name;
 
@@ -64,6 +66,7 @@ public final class CustomerAssembly {
   /**
    * Terminal stage: every component supplied; {@code assemble()} only.
    */
+  @Generated
   public static final class Stage2 {
     private final Validated<NonEmptyList<FieldError>, String> name;
 

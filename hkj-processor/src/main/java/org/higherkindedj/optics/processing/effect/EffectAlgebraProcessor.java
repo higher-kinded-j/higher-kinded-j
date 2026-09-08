@@ -261,8 +261,10 @@ public class EffectAlgebraProcessor extends AbstractProcessor {
     TypeVariableName typeA = TypeVariableName.get("A");
     ParameterizedTypeName kindSuper = ParameterizedTypeName.get(KIND, witnessClass, typeA);
 
+    // A nested type is its own class file, and a coverage tool reads the marker there.
     TypeSpec witnessType =
         TypeSpec.classBuilder("Witness")
+            .addAnnotation(GENERATED)
             .addModifiers(Modifier.PUBLIC, Modifier.STATIC, Modifier.FINAL)
             .addSuperinterface(
                 ParameterizedTypeName.get(
@@ -319,6 +321,7 @@ public class EffectAlgebraProcessor extends AbstractProcessor {
     // Holder record: record FooHolder<A>(Foo<A> value) implements FooKind<A> {}
     TypeSpec holderType =
         TypeSpec.recordBuilder(holderName)
+            .addAnnotation(GENERATED)
             .recordConstructor(
                 MethodSpec.constructorBuilder()
                     .addParameter(ParameterizedTypeName.get(sourceClass, typeA), "value")
@@ -653,6 +656,7 @@ public class EffectAlgebraProcessor extends AbstractProcessor {
 
     TypeSpec.Builder boundBuilder =
         TypeSpec.classBuilder("Bound")
+            .addAnnotation(GENERATED)
             .addModifiers(Modifier.PUBLIC, Modifier.STATIC, Modifier.FINAL)
             .addTypeVariable(typeG)
             .addField(

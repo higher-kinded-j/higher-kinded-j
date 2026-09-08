@@ -193,8 +193,10 @@ public class AssemblyProcessor extends AbstractProcessor {
       int stage) {
     int arity = components.size();
     ClassName self = companion.nestedClass("Stage" + stage);
+    // A nested type is its own class file, and a coverage tool reads the marker there.
     TypeSpec.Builder builder =
         TypeSpec.classBuilder(self.simpleName())
+            .addAnnotation(GENERATED)
             .addModifiers(Modifier.PUBLIC, Modifier.STATIC, Modifier.FINAL);
     if (stage == arity) {
       builder.addJavadoc("Terminal stage: every component supplied; {@code assemble()} only.\n");
