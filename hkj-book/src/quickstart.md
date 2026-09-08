@@ -192,7 +192,9 @@ public EitherPath<AppError, Receipt> processPayment(String userId, BigDecimal am
 ```
 
 ~~~admonish note title="Why the explicit `<AppError>`"
-`toEitherPath(error)` infers its error type from the argument it is given. At the *end* of a chain the assignment target supplies it, but in the middle of one there is nothing downstream to infer from, so a `new AppError.UserNotFound(...)` would pin the whole railway to `UserNotFound` and the method's declared `EitherPath<AppError, Receipt>` would not match. Naming the type once at the point the error channel opens widens it for every step after. See [Effect compiler errors](effect/compiler_errors.md) for the rest of this family.
+`toEitherPath` infers its error type from the argument it is given. At the *end* of a chain the assignment target supplies it, but in the middle of one there is nothing downstream to infer from, so a `new AppError.UserNotFound(...)` would pin the whole railway to `UserNotFound` and the method's declared `EitherPath<AppError, Receipt>` would not match. Naming the type once at the point the error channel opens widens it for every step after.
+
+The deferred overload needs the witness for the same reason and in the same place: `.<AppError>toEitherPath(() -> new AppError.UserNotFound(userId))`. `Supplier<? extends E>` looks as though its wildcard would widen the error on its own, but `E` is settled where the conversion is written, before anything downstream is read. See [Effect compiler errors](effect/compiler_errors.md) for the rest of this family.
 ~~~
 
 ---

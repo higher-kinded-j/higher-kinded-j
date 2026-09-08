@@ -148,7 +148,7 @@ The `toEitherPath` method converts `Nothing` to a `Left` with the error you prov
 
 | From | To | Method |
 |------|----|--------|
-| `MaybePath<A>` | `EitherPath<E, A>` | `.toEitherPath(errorValue)` |
+| `MaybePath<A>` | `EitherPath<E, A>` | `.toEitherPath(errorValue)`, `.toEitherPath(errorSupplier)` |
 | `TryPath<A>` | `EitherPath<E, A>` | `.toEitherPath(exceptionMapper)` |
 | `EitherPath<E, A>` | `MaybePath<A>` | `.toMaybePath()` |
 | `ValidationPath<E, A>` | `EitherPath<E, A>` | `.toEitherPath()` |

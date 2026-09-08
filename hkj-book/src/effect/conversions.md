@@ -90,6 +90,10 @@ EitherPath<String, User> withError =
 // With lazy error: the supplier runs only on the Nothing branch
 EitherPath<UserError, User> withLazyError =
     maybeUser.toEitherPath(() -> new UserError("User " + id + " not found"));
+
+// Mid-chain nothing downstream settles E, so the witness names it here
+EitherPath<UserError, String> named =
+    maybeUser.<UserError>toEitherPath(() -> new UserError("not found")).map(User::name);
 ```
 
 ~~~admonish tip title="Which of the two overloads runs"
