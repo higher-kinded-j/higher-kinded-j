@@ -99,7 +99,7 @@ EitherPath<UserError, String> named =
 ~~~admonish tip title="Which of the two overloads runs"
 A lambda, a method reference, or a variable whose type is a `Supplier` picks the deferred overload; every other argument picks the eager one. Reach for the deferred form when building the error is not free - it formats a message, reads a `MessageSource`, or captures a stack trace - because on the `Just` branch the supplier is never called. For a plain record the eager form reads better and costs nothing.
 
-An error whose own type is a functional interface is unaffected, since it is not a `Supplier`. The one shape to watch is such an error written *as a lambda*, which reads as a supplier and fails to infer; name the error type to pick the eager overload: `maybeUser.<MyError>toEitherPath(() -> "boom")`.
+An error whose own type is a functional interface is unaffected, since it is not a `Supplier`. Two shapes do need a hand, and both name the error type to reach the eager overload: such an error written *as a lambda*, which reads as a supplier and fails to infer (`maybeUser.<MyError>toEitherPath(() -> "boom")`); and a bare `null`, which selects the deferred overload and is rejected as a null supplier (`maybeUser.toEitherPath((MyError) null)` if a null left was meant - note the **cast**, since a type witness still picks the deferred overload here).
 ~~~
 
 This is useful when:

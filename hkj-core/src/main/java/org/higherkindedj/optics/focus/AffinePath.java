@@ -813,7 +813,9 @@ public sealed interface AffinePath<S, A> permits AffineFocusPath {
    *
    * <p>A lambda, a method reference, or a variable whose type is a {@link Supplier} selects this
    * overload; every other argument selects {@link #toEitherPath(Object, Object)}, an error whose
-   * own type is a functional interface included.
+   * own type is a functional interface included. A bare {@code null} selects this overload and is
+   * rejected; cast it to the error type, {@code path.toEitherPath(source, (MyError) null)}, to pass
+   * a null error to the eager one.
    *
    * <h2>Example Usage</h2>
    *

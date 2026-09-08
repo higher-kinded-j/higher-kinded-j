@@ -152,7 +152,9 @@ public final class MaybePath<A> implements Recoverable<Unit, A> {
    * is a functional interface included. The one shape to watch is an error type that is a
    * functional interface written as a lambda, which reads as a supplier and fails to infer: name
    * the error type to select the eager overload, {@code path.<MyError>toEitherPath(() -> "boom")}.
-   * This mirrors {@link org.higherkindedj.hkt.maybe.Maybe#toEither(Supplier)}.
+   * A bare {@code null} likewise selects this overload and is rejected; cast it to the error type,
+   * {@code path.toEitherPath((MyError) null)}, to pass a null error to the eager one. This mirrors
+   * {@link org.higherkindedj.hkt.maybe.Maybe#toEither(Supplier)}.
    *
    * @param errorSupplier supplies the error if this path is empty; must not be null
    * @param <E> the error type
