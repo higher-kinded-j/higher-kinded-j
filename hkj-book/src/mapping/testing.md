@@ -65,6 +65,7 @@ Every rejection follows the processor's what/why/fix standard: the message state
 | Sparse PATCH is bean-only, wrapper-typed, and never deep-merges | [Beans and Sparse PATCH](beans_patch.md#sparse-patch-write-back-updatespec) |
 | A leaf or rename must not declare type parameters of its own; the element types go on the spec | [Generic Specs](generics.md#element-mapped-specs) |
 | A rename's or leaf's type must be visible from the spec's package, where the Impl is generated | [Shared vocabulary](codecs.md#shared-vocabulary-mix-in-interfaces) |
+| `@OptionalBridge` binds an `Optional` domain component to a nullable, non-primitive wire component; it is redundant on a bean wire and meaningless on a sealed or sparse spec | [Optional fields](basics.md#optional-bridge) |
 
 ---
 

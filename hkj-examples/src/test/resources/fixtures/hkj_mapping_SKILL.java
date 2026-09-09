@@ -35,6 +35,7 @@ import org.higherkindedj.optics.annotations.GenerateMapping;
 import org.higherkindedj.optics.annotations.GenerateMerge;
 import org.higherkindedj.optics.annotations.MapField;
 import org.higherkindedj.optics.annotations.MappingSpec;
+import org.higherkindedj.optics.annotations.OptionalBridge;
 import org.higherkindedj.optics.annotations.UpdateSpec;
 import org.higherkindedj.optics.edit.Edits;
 import org.higherkindedj.optics.validated.ValidatedPrism;

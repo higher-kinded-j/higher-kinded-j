@@ -157,7 +157,7 @@ Two pages are enough to ship. [Record Mapping Basics](basics.md) declares a mapp
 - The whole lane on one worked boundary: [the Capstone](capstone.md)
 
 ~~~admonish info title="In This Chapter"
-- **Record Mapping Basics** – Declare a mapping as one empty interface and get both directions: a `build` that cannot fail and a `parse` that reports every bad field at once. Then add conversions, renames, and computed fields.
+- **Record Mapping Basics** – Declare a mapping as one empty interface and get both directions: a `build` that cannot fail and a `parse` that reports every bad field at once. Then add conversions, renames, computed fields, and the one field whose `null` means *absent*.
 - **Standard Codecs and Shared Vocabulary** – The stock conversions (UUIDs, dates, enums, money) as one factory call each, and the mix-in pattern that shares your conversions across every spec in an API.
 - **Nesting, Containers, and Sealed Hierarchies** – Specs nest automatically and failures compose into dotted paths; `List`/`Optional`/`Map` map their elements; sealed pairs dispatch exhaustively in both directions.
 - **The Emission Tiers** – Which spec shapes earn `asIso()`, `asLens()`, the validated `patch`, or `asValidatedPrism()`, and the one-call law check that proves each in your own tests.
@@ -176,7 +176,7 @@ Practise the whole lane in the [Boundary Mapping Journey](../tutorials/optics/bo
 
 ## Chapter Contents
 
-1. [Record Mapping Basics](basics.md) - Your first mapping, leaves, renames, derived fields
+1. [Record Mapping Basics](basics.md) - Your first mapping, leaves, renames, derived fields, optional fields
 2. [Standard Codecs and Shared Vocabulary](codecs.md) - Stock lawful codecs and mix-in sharing
 3. [Nesting, Containers, and Sealed Hierarchies](structure.md) - Composition and dotted error paths
 4. [The Emission Tiers](tiers.md) - Truthful types, projections, the validated patch, laws

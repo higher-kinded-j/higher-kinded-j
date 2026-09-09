@@ -186,7 +186,8 @@ accumulating. Three construction shapes are detected: a no-args constructor with
 immutable bean with a static `builder()`/`newBuilder()` (Lombok, Immutables, AutoValue, protobuf),
 where `build` goes through the builder; and the JAXB convention, where a getter-only `List` (its
 getter returns a live mutable list, no setter) is filled with `getItems().addAll(...)`. A domain
-`Optional<T>` bridges to a nullable bean property `T` (empty maps to absent).
+`Optional<T>` bridges to a nullable bean property `T` (empty maps to absent), with no declaration;
+a record wire opts into the same bridge per component with `@OptionalBridge`.
 
 ## Prove the Round-Trip
 

@@ -55,6 +55,7 @@ import javax.lang.model.util.Types;
 import org.higherkindedj.optics.annotations.ArityCeilings;
 import org.higherkindedj.optics.annotations.GenerateMapping;
 import org.higherkindedj.optics.annotations.MapField;
+import org.higherkindedj.optics.annotations.OptionalBridge;
 import org.higherkindedj.optics.processing.util.Diagnostics;
 import org.higherkindedj.optics.processing.util.ProcessorUtils;
 
@@ -99,6 +100,13 @@ import org.higherkindedj.optics.processing.util.ProcessorUtils;
  * fills it through setters or a builder and {@code parse} reads it through getters; a domain {@code
  * Optional<T>} bridges to a nullable bean property {@code T}. A reference-typed bean projection is
  * deferred (the validated-patch tier); an all-primitive one keeps the {@code asLens()} projection.
+ *
+ * <p>The same bridge reaches a <em>record</em> wire by opt-in ({@link OptionalBridge}), never
+ * implicitly: a record component is null-is-an-error by default and that stays the default, so a
+ * domain {@code Optional<T>} against a nullable record component {@code T} bridges only where the
+ * spec marks the component — on a bare abstract marker when the element copies, or on the
+ * component's {@code default} leaf when it converts. Either way the correspondence is the bean
+ * bridge's, so the two wire shapes share one emission and one law.
  *
  * <p>A spec extending {@code UpdateSpec<Domain, Wire>} ({@link
  * org.higherkindedj.optics.annotations.UpdateSpec}) opts into the opposite null contract: a null
@@ -234,6 +242,34 @@ public class MappingProcessor extends AbstractProcessor {
     return specMembers(processingEnv.getElementUtils(), spec);
   }
 
+  /**
+   * A bare {@code @OptionalBridge} marker: the abstract placement, named after the domain component
+   * whose {@code Optional} bridges by identity, and the one placement the Impl owes a stub. The
+   * other is the component's own leaf, which stays leaf-shaped and is matched as one — the two can
+   * never coexist, since a marker and a same-named leaf declare one method with incompatible return
+   * types. Asked only after {@link #validateSpecMethods}, which has already refused a parameterised
+   * bridge, so the zero-parameter half of the shape is a precondition rather than a test.
+   */
+  private boolean isBridgeMarker(TypeElement owner, ExecutableElement method) {
+    return method.getAnnotation(OptionalBridge.class) != null
+        && method.getModifiers().contains(Modifier.ABSTRACT)
+        && !isAbstractLeaf(owner, method);
+  }
+
+  /**
+   * Whether the spec asks for the {@link Kind#OPTIONAL_BRIDGE} correspondence on this domain
+   * component, under either placement. Read on demand from the spec's members, like {@link
+   * #findLeaf}, so classification needs no separate vocabulary to thread. Every surviving member
+   * carrying the annotation is zero-parameter by then, so the name and the annotation identify it.
+   */
+  private boolean bridgeRequested(TypeElement spec, String name) {
+    return specMembers(spec).stream()
+        .anyMatch(
+            method ->
+                method.getSimpleName().contentEquals(name)
+                    && method.getAnnotation(OptionalBridge.class) != null);
+  }
+
   /** Zero-parameter, {@code ValidatedPrism}-returning and bodiless: an element-mapped leaf. */
   private boolean isAbstractLeaf(TypeElement owner, ExecutableElement method) {
     return method.getModifiers().contains(Modifier.ABSTRACT)
@@ -249,7 +285,7 @@ public class MappingProcessor extends AbstractProcessor {
    * unrelated mix-ins agreeing on a leaf declare one fact. Most disagreements are javac's error
    * (two parameterisations of {@code ValidatedPrism} are never return-type-substitutable), but
    * wildcard-differing declarations may legally coexist, so the member kept is the
-   * subtype-narrowest of its group, the same fold {@link #addRenameStubs} applies and {@link
+   * subtype-narrowest of its group, the same fold {@link #addMarkerStubs} applies and {@link
    * #checkGroupsHaveNarrowestReturns} has guarded. Each becomes a constructor-supplied field of the
    * generated Impl, surfaced through the {@code of(...)} factory.
    */
@@ -531,7 +567,8 @@ public class MappingProcessor extends AbstractProcessor {
    * marker extending a raw JDK interface is accepted for exactly that reason.
    *
    * @param mixin the inherited interface
-   * @return true when it declares a default method, a {@code @MapField} rename, or an abstract leaf
+   * @return true when it declares a default method, a {@code @MapField} rename, an
+   *     {@code @OptionalBridge} marker, or an abstract leaf
    */
   private boolean carriesVocabulary(TypeElement mixin) {
     return ElementFilter.methodsIn(mixin.getEnclosedElements()).stream()
@@ -539,6 +576,7 @@ public class MappingProcessor extends AbstractProcessor {
             method ->
                 method.isDefault()
                     || method.getAnnotation(MapField.class) != null
+                    || method.getAnnotation(OptionalBridge.class) != null
                     || isAbstractLeaf(mixin, method));
   }
 
@@ -635,8 +673,191 @@ public class MappingProcessor extends AbstractProcessor {
   }
 
   /**
-   * A sealed dispatch has no components, so locally declared leaves and derived fields have nothing
-   * to bind to; inherited ones stay inert, so a shared mix-in vocabulary still fits.
+   * Validates every {@code @OptionalBridge} the spec carries, under either placement, before
+   * classification consults it.
+   *
+   * <p>An unmatched <em>local</em> bridge is refused for the typo'd-leaf reason: it would silently
+   * leave the component null-is-an-error, which is the whole thing the annotation was written to
+   * change. An unmatched <em>inherited</em> one stays inert, so a shared mix-in vocabulary may
+   * carry bridges for components only some extending specs have. A bound bridge is checked either
+   * way: inheriting one does not make it mean something else.
+   *
+   * <p>On a bean wire the bridge is automatic, so a locally declared annotation is redundant rather
+   * than wrong: a note, not an error, and silence for an inherited one — a mix-in serving a record
+   * spec and a bean spec is exactly the shared vocabulary the book recommends.
+   */
+  private boolean checkBridges(
+      TypeElement spec,
+      TypeElement domain,
+      DeclaredType domainDeclared,
+      WireShape wire,
+      Map<String, String> renames) {
+    List<String> components =
+        domain.getRecordComponents().stream().map(c -> c.getSimpleName().toString()).toList();
+    for (ExecutableElement method : specMembers(spec)) {
+      if (method.getAnnotation(OptionalBridge.class) == null) {
+        continue;
+      }
+      String name = method.getSimpleName().toString();
+      boolean local = method.getEnclosingElement().equals(spec);
+      RecordComponentElement component =
+          domain.getRecordComponents().stream()
+              .filter(c -> c.getSimpleName().contentEquals(name))
+              .findFirst()
+              .orElse(null);
+      if (component == null) {
+        if (!local) {
+          continue;
+        }
+        Diagnostics.error(
+            processingEnv.getMessager(),
+            method,
+            TAG,
+            "@OptionalBridge on '" + name + "' names no component of " + domain.getSimpleName(),
+            "A bridge is named after the DOMAIN component whose Optional bridges to a nullable"
+                + " wire component; an unmatched one would leave that component null-is-an-error,"
+                + " which is what the annotation exists to change."
+                + didYouMean(name, components)
+                + " Found on "
+                + domain.getSimpleName()
+                + ": "
+                + components
+                + ".",
+            "Rename the method to the component it bridges, or remove the annotation.");
+        return false;
+      }
+      TypeMirror domainType = componentType(domainDeclared, component);
+      if (containerElement(domainType, "java.util.Optional") == null) {
+        Diagnostics.error(
+            processingEnv.getMessager(),
+            method,
+            TAG,
+            "@OptionalBridge on '"
+                + name
+                + "'"
+                + inheritedNote(method, spec)
+                + " names a component that is not Optional.",
+            "The bridge maps an empty Optional to a null wire component and back; '"
+                + domain.getSimpleName()
+                + "."
+                + name
+                + "' is "
+                + domainType
+                + ", which has no absent state to bridge.",
+            "Declare the domain component as Optional<"
+                + domainType
+                + ">, or remove the annotation.");
+        return false;
+      }
+      // The marker's return type is the component's own type, so a spec that drifts from its
+      // domain says so here rather than bridging whatever the component has become. A leaf
+      // placement declares the ELEMENT mapping instead, and is checked as a leaf.
+      TypeMirror declared = memberTypeIn(spec, method);
+      if (isBridgeMarker(spec, method)
+          && !processingEnv.getTypeUtils().isSameType(declared, domainType)) {
+        Diagnostics.error(
+            processingEnv.getMessager(),
+            method,
+            TAG,
+            "@OptionalBridge marker '"
+                + name
+                + "'"
+                + inheritedNote(method, spec)
+                + " returns "
+                + declared
+                + ", not the component's own type.",
+            "A marker restates the domain component it bridges, so the spec fails to compile"
+                + " rather than bridging a component that has since changed shape; '"
+                + domain.getSimpleName()
+                + "."
+                + name
+                + "' is "
+                + domainType
+                + ".",
+            "Declare the marker as '" + domainType + " " + name + "()'.");
+        return false;
+      }
+      // A projection leaves some domain components unmapped; a bridge on one of those has no wire
+      // side to check, and classification reports the shapes that are genuinely wrong.
+      WireShape.WireComponent wireComponent =
+          wire.componentNamed(renames.getOrDefault(name, name)).orElse(null);
+      if (wireComponent == null) {
+        continue;
+      }
+      if (!checkBridgeWireSide(spec, method, name, wire, wireComponent, local)) {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  /**
+   * The wire half of {@link #checkBridges}: the component the bridge writes must be able to hold
+   * the {@code null} that encodes absence, and must need the bridge at all.
+   */
+  private boolean checkBridgeWireSide(
+      TypeElement spec,
+      ExecutableElement method,
+      String name,
+      WireShape wire,
+      WireShape.WireComponent wireComponent,
+      boolean local) {
+    if (wireComponent.type().getKind().isPrimitive()) {
+      Diagnostics.error(
+          processingEnv.getMessager(),
+          method,
+          TAG,
+          "@OptionalBridge on '"
+              + name
+              + "'"
+              + inheritedNote(method, spec)
+              + " bridges to the primitive "
+              + wireMemberTerm(wire)
+              + " '"
+              + wireComponent.name()
+              + "'.",
+          "The bridge encodes an empty Optional as null, and a "
+              + wireComponent.type()
+              + " can never be null.",
+          "Declare it as the boxed type, or remove the annotation.");
+      return false;
+    }
+    if (containerElement(wireComponent.type(), "java.util.Optional") != null) {
+      Diagnostics.error(
+          processingEnv.getMessager(),
+          method,
+          TAG,
+          "@OptionalBridge on '"
+              + name
+              + "'"
+              + inheritedNote(method, spec)
+              + " bridges to a "
+              + wireMemberTerm(wire)
+              + " that is already Optional.",
+          "The bridge exists to give a plain nullable member an absent state; '"
+              + wireComponent.name()
+              + "' declares one already, and maps by identity or through its element leaf.",
+          "Remove the annotation; the Optional pair maps without it.");
+      return false;
+    }
+    if (local && wire instanceof WireShape.BeanShape) {
+      Diagnostics.note(
+          processingEnv.getMessager(),
+          method,
+          TAG,
+          "@OptionalBridge on '" + name + "' is redundant on a bean wire.",
+          "A bean wire bridges a domain Optional to its nullable property automatically, because"
+              + " bean conventions leave Optional off property types; the annotation opts a RECORD"
+              + " wire into the same correspondence.",
+          "Remove the annotation, or keep it if the vocabulary is shared with a record-wire spec.");
+    }
+    return true;
+  }
+
+  /**
+   * A sealed dispatch has no components, so locally declared leaves, derived fields and
+   * {@code @OptionalBridge} markers have nothing to bind to; inherited ones stay inert, so a shared
+   * mix-in vocabulary still fits.
    */
   private boolean checkNoSealedVocabulary(TypeElement spec) {
     for (ExecutableElement method : specMembers(spec)) {
@@ -644,18 +865,19 @@ public class MappingProcessor extends AbstractProcessor {
         continue;
       }
       boolean leaf = isLeafShaped(spec, method);
-      if (!leaf && !isDerivedCandidate(processingEnv.getTypeUtils(), spec, method)) {
+      boolean bridge = method.getAnnotation(OptionalBridge.class) != null;
+      if (!leaf && !bridge && !isDerivedCandidate(processingEnv.getTypeUtils(), spec, method)) {
         continue;
       }
       Diagnostics.error(
           processingEnv.getMessager(),
           method,
           TAG,
-          (leaf ? "leaf '" : "derived field '")
+          (bridge ? "@OptionalBridge on '" : leaf ? "leaf '" : "derived field '")
               + method.getSimpleName()
               + "' has no meaning on a sealed mapping.",
-          "Leaves and derived fields bind to record components; a sealed mapping dispatches over"
-              + " its permitted subtypes and has no components.",
+          "Leaves, derived fields and bridges bind to record components; a sealed mapping"
+              + " dispatches over its permitted subtypes and has no components.",
           "Move the method onto the subtype pair's own spec.");
       return false;
     }
@@ -697,18 +919,35 @@ public class MappingProcessor extends AbstractProcessor {
   }
 
   /**
-   * A spec's abstract methods must be zero-parameter {@code @MapField} renames, or, on a generic
-   * pair, element-mapped leaves; anything else would leave the generated Impl with an unimplemented
-   * member. Each surviving member must also be one the Impl can hold: no type parameters of its own
-   * (a field and a stub have nowhere to declare them), a type reachable from the spec's package
-   * (the Impl writes it out in full), and, for a same-named group, a subtype-narrowest return for
-   * the one member the Impl emits.
+   * A spec's abstract methods must be zero-parameter {@code @MapField} renames or
+   * {@code @OptionalBridge} markers, or, on a generic pair, element-mapped leaves; anything else
+   * would leave the generated Impl with an unimplemented member. Each surviving member must also be
+   * one the Impl can hold: no type parameters of its own (a field and a stub have nowhere to
+   * declare them), a type reachable from the spec's package (the Impl writes it out in full), and,
+   * for a same-named group, a subtype-narrowest return for the one member the Impl emits.
    */
   private boolean validateSpecMethods(
       TypeElement spec, boolean sealedPair, TypeMirror domainArg, TypeMirror wireArg) {
     for (ExecutableElement method : specMembers(spec)) {
       MapField mapField = method.getAnnotation(MapField.class);
+      OptionalBridge bridge = method.getAnnotation(OptionalBridge.class);
       if (!method.getModifiers().contains(Modifier.ABSTRACT)) {
+        if (bridge != null && !isLeafShaped(spec, method)) {
+          Diagnostics.error(
+              processingEnv.getMessager(),
+              method,
+              TAG,
+              "@OptionalBridge method '"
+                  + method.getSimpleName()
+                  + "'"
+                  + inheritedNote(method, spec)
+                  + " is neither a marker nor a leaf.",
+              "A bridge is declared on an abstract marker method named after the domain component,"
+                  + " or on that component's 'default' leaf returning ValidatedPrism<WireComponent,"
+                  + " OptionalElement>; a body of any other shape is neither.",
+              "Remove the body to make it a marker, or give the method the leaf's return type.");
+          return false;
+        }
         if (mapField != null) {
           Diagnostics.error(
               processingEnv.getMessager(),
@@ -750,6 +989,21 @@ public class MappingProcessor extends AbstractProcessor {
         return false;
       }
       if (mapField == null) {
+        if (bridge != null && !method.getParameters().isEmpty()) {
+          Diagnostics.error(
+              processingEnv.getMessager(),
+              method,
+              TAG,
+              "@OptionalBridge method '"
+                  + method.getSimpleName()
+                  + "'"
+                  + inheritedNote(method, spec)
+                  + " must not declare parameters.",
+              "A bridge marker is named after the domain component whose Optional bridges; the"
+                  + " generated stub implements it without parameters.",
+              "Remove the parameters.");
+          return false;
+        }
         if (isHandMapperShaped(spec, method, domainArg, wireArg)) {
           Diagnostics.error(
               processingEnv.getMessager(),
@@ -788,6 +1042,14 @@ public class MappingProcessor extends AbstractProcessor {
               "Give the method a body ('default'), or make the spec generic in the element"
                   + " types.");
           return false;
+        }
+        // A bare @OptionalBridge marker: implementable as a stub, exactly like a rename, so the
+        // Impl can hold it and the neither-rename-nor-leaf refusal below does not apply.
+        if (bridge != null) {
+          if (!checkMemberTypeReachable(spec, method, "@OptionalBridge marker")) {
+            return false;
+          }
+          continue;
         }
         Diagnostics.error(
             processingEnv.getMessager(),
@@ -844,7 +1106,9 @@ public class MappingProcessor extends AbstractProcessor {
   private boolean checkGroupsHaveNarrowestReturns(TypeElement spec) {
     Map<String, List<ExecutableElement>> groups = new LinkedHashMap<>();
     for (ExecutableElement method : specMembers(spec)) {
-      if (method.getAnnotation(MapField.class) != null || isAbstractLeaf(spec, method)) {
+      if (method.getAnnotation(MapField.class) != null
+          || isBridgeMarker(spec, method)
+          || isAbstractLeaf(spec, method)) {
         groups
             .computeIfAbsent(method.getSimpleName().toString(), name -> new ArrayList<>())
             .add(method);
@@ -1178,6 +1442,10 @@ public class MappingProcessor extends AbstractProcessor {
       return;
     }
 
+    if (!checkBridges(spec, domain, domainDeclared, wireShape, renames)) {
+      return;
+    }
+
     List<DerivedField> derived = collectDerived(spec, domain, domainDeclared, wireShape, renames);
     if (derived == null) {
       return;
@@ -1266,6 +1534,9 @@ public class MappingProcessor extends AbstractProcessor {
       return;
     }
     if (!checkNoDerivedFields(spec)) {
+      return;
+    }
+    if (!checkNoBridges(spec)) {
       return;
     }
 
@@ -1477,6 +1748,36 @@ public class MappingProcessor extends AbstractProcessor {
             "Remove the method, or use a full MappingSpec if you need a total build().");
         return false;
       }
+    }
+    return true;
+  }
+
+  /**
+   * An {@code @OptionalBridge} has no sparse meaning: the bridge maps a {@code null} to {@code
+   * Optional.empty()}, and a sparse update has already given {@code null} the opposite reading -
+   * absent, leave unchanged. The two contracts cannot both hold on one property, and the sparse one
+   * is what the spec opted into by extending {@code UpdateSpec}.
+   */
+  private boolean checkNoBridges(TypeElement spec) {
+    for (ExecutableElement method : specMembers(spec)) {
+      if (method.getAnnotation(OptionalBridge.class) == null) {
+        continue;
+      }
+      Diagnostics.error(
+          processingEnv.getMessager(),
+          method,
+          TAG,
+          "@OptionalBridge on '"
+              + method.getSimpleName()
+              + "'"
+              + inheritedNote(method, spec)
+              + " has no meaning on a sparse UpdateSpec.",
+          "The bridge reads a null wire value as Optional.empty(); a sparse update already reads"
+              + " it as absent - leave unchanged - so 'set to empty' has no encoding through a"
+              + " plain property.",
+          "Remove the annotation, and declare the PATCH property as Optional<T> if the client"
+              + " needs to set the field empty.");
+      return false;
     }
     return true;
   }
@@ -1822,7 +2123,7 @@ public class MappingProcessor extends AbstractProcessor {
                     + " an {@code Edits.Accumulated<Domain>}.\n",
                 List.of())
             .addMethod(updateFrom);
-    addRenameStubs(implBuilder, spec);
+    addMarkerStubs(implBuilder, spec);
     if (edits.stream().anyMatch(e -> e.kind() == Kind.IDENTITY_LIST)) {
       implBuilder.addMethod(allPresentHelper());
     }
@@ -2620,11 +2921,15 @@ public class MappingProcessor extends AbstractProcessor {
         return new Correspondence(name, wireName, Kind.OPTIONAL, lifted.accessor());
       }
     }
-    // Optional bridge: a domain Optional<DE> maps to a nullable bean property PE, since
-    // beans never declare Optional. Empty <-> null/absent; the element is copied (identity) or
-    // mapped through a leaf, exactly as an Optional element would be. (An Optional bridge through
-    // a nested spec is a follow-up.)
-    if (wire instanceof WireShape.BeanShape && domainElement != null && wireElement == null) {
+    // Optional bridge: a domain Optional<DE> maps to a nullable wire component PE. Empty <->
+    // null/absent; the element is copied (identity) or mapped through a leaf, exactly as an
+    // Optional element would be. (An Optional bridge through a nested spec is a follow-up.)
+    //
+    // A bean wire takes it automatically, since bean conventions leave Optional off property
+    // types. A record wire takes it only where the spec asked, by @OptionalBridge: on a record,
+    // null is a defect by default and that stays the default.
+    boolean bridging = wire instanceof WireShape.BeanShape || bridgeRequested(spec, name);
+    if (bridging && domainElement != null && wireElement == null) {
       if (processingEnv.getTypeUtils().isSameType(wireType, domainElement)) {
         return new Correspondence(name, wireName, Kind.OPTIONAL_BRIDGE, null);
       }
@@ -2633,9 +2938,10 @@ public class MappingProcessor extends AbstractProcessor {
         return new Correspondence(
             name, wireName, Kind.OPTIONAL_BRIDGE, CodeBlock.of("$L()", bridgeLeaf.getSimpleName()));
       }
-      // A bridge is the only way to map a domain Optional to a plain bean property, so a failed
-      // one is a dedicated diagnostic that names the ELEMENT types (not the whole Optional) — a
-      // leaf over Optional<DE> would be matched as a plain leaf and bypass the bridge.
+      // A bridge is the only way to map a domain Optional to a plain nullable component, so a
+      // failed one is a dedicated diagnostic that names the ELEMENT types (not the whole
+      // Optional) — a leaf over Optional<DE> would be matched as a plain leaf and bypass the
+      // bridge.
       Diagnostics.error(
           processingEnv.getMessager(),
           spec,
@@ -2646,12 +2952,16 @@ public class MappingProcessor extends AbstractProcessor {
               + name
               + "' is Optional<"
               + domainElement
-              + ">, bridged to the nullable bean property '"
+              + ">, bridged to the nullable "
+              + wireMemberTerm(wire)
+              + " '"
               + wireName
               + "' of type "
               + wireType
               + ", but the element types differ and no leaf converts them.",
-          "A domain Optional bridges to a nullable bean property (empty maps to absent); the"
+          "A domain Optional bridges to a nullable "
+              + wireMemberTerm(wire)
+              + " (empty maps to absent); the"
               + " present element is copied when the types match, or mapped through a leaf named"
               + " after the domain component returning ValidatedPrism<"
               + wireType
@@ -2764,7 +3074,8 @@ public class MappingProcessor extends AbstractProcessor {
                   + name
                   + "' a wrapper type (a ValidatedPrism cannot focus a primitive component), or"
                   + " align the component types."
-              : "Add 'default ValidatedPrism<"
+              : bridgeOffer(name, wireType, domainType)
+                  + "Add 'default ValidatedPrism<"
                   + wireType
                   + ", "
                   + domainType
@@ -2981,6 +3292,39 @@ public class MappingProcessor extends AbstractProcessor {
     return "";
   }
 
+  /** How a diagnostic names one wire member: a bean has properties, a record has components. */
+  private static String wireMemberTerm(WireShape wire) {
+    return wire instanceof WireShape.BeanShape ? "bean property" : "record component";
+  }
+
+  /**
+   * The {@link OptionalBridge} half of the no-usable-source fix, offered first when the pair has
+   * the bridge's shape: a domain {@code Optional<E>} against a wire component that can hold the
+   * {@code null} encoding absence. Without it the generic fix reads "add a {@code
+   * ValidatedPrism<String, Optional<String>>} leaf", which is a lossless-looking answer to a
+   * question about absence — the gap #673 opened with. Empty when the shape cannot bridge, so
+   * nothing else changes.
+   */
+  private String bridgeOffer(String name, TypeMirror wireType, TypeMirror domainType) {
+    TypeMirror domainElement = containerElement(domainType, "java.util.Optional");
+    if (domainElement == null
+        || wireType.getKind().isPrimitive()
+        || containerElement(wireType, "java.util.Optional") != null) {
+      return "";
+    }
+    String marker = "Mark '" + name + "' @OptionalBridge, so an absent value reads as a null ";
+    return processingEnv.getTypeUtils().isSameType(wireType, domainElement)
+        ? marker + "wire component and back. "
+        : marker
+            + "wire component, adding a 'default ValidatedPrism<"
+            + wireType
+            + ", "
+            + domainElement
+            + "> "
+            + name
+            + "()' leaf over the ELEMENT types to convert a present one. ";
+  }
+
   private String projectionSpecHint(
       List<RegisteredSpec> registry, TypeMirror wireType, TypeMirror domainType) {
     return registry.stream()
@@ -2998,24 +3342,44 @@ public class MappingProcessor extends AbstractProcessor {
         .orElse("");
   }
 
-  /** The expression {@code build} fills a wire component with, from its correspondence. */
-  private static CodeBlock buildValue(WireShape.WireComponent wc, List<Correspondence> comps) {
+  /**
+   * The expression {@code build} fills a wire component with, from its correspondence.
+   *
+   * <p>Only the {@code Optional} bridge reads the wire shape, because only its write differs: a
+   * bean property is written conditionally by {@link #beanBuildBody} (an empty Optional leaves it
+   * unset, protecting null-hostile setters), while a record component is positional and must be
+   * given the {@code null} itself.
+   */
+  private static CodeBlock buildValue(
+      WireShape wire, WireShape.WireComponent wc, List<Correspondence> comps) {
     Correspondence c =
         comps.stream().filter(x -> x.wireName().equals(wc.name())).findFirst().orElseThrow();
     return switch (c.kind()) {
       case LEAF -> CodeBlock.of("$L.build(domain.$L())", c.prism(), c.name());
       case LIST -> CodeBlock.of("$L.buildAll(domain.$L())", c.prism(), c.name());
       case OPTIONAL -> CodeBlock.of("domain.$L().map($L::build)", c.name(), c.prism());
-      // The domain Optional is carried as-is (identity) or its element built through the leaf; the
-      // conditional ifPresent write lives in beanBuildBody, so an empty Optional skips the write.
-      case OPTIONAL_BRIDGE ->
-          c.prism() == null
-              ? CodeBlock.of("domain.$L()", c.name())
-              : CodeBlock.of("domain.$L().map($L::build)", c.name(), c.prism());
+      // The domain Optional is carried as-is (identity) or its element built through the leaf.
+      case OPTIONAL_BRIDGE -> bridgeBuildValue(wire, c);
       case MAP -> CodeBlock.of("$L.buildValues(domain.$L())", c.prism(), c.name());
       case IDENTITY, IDENTITY_LIST, IDENTITY_MAP -> CodeBlock.of("domain.$L()", c.name());
       case DERIVED -> CodeBlock.of("$L.get(domain)", c.prism());
     };
+  }
+
+  /**
+   * The bridged build value: the domain {@code Optional}, its element built through the leaf when
+   * one converts it. On a record wire the component is positional, so the Optional is unwrapped to
+   * the {@code null} that encodes absence; on a bean wire it stays an {@code Optional}, which
+   * {@link #beanBuildBody} writes conditionally.
+   */
+  private static CodeBlock bridgeBuildValue(WireShape wire, Correspondence c) {
+    CodeBlock present =
+        c.prism() == null
+            ? CodeBlock.of("domain.$L()", c.name())
+            : CodeBlock.of("domain.$L().map($L::build)", c.name(), c.prism());
+    return wire instanceof WireShape.RecordShape
+        ? CodeBlock.of("$L.orElse(null)", present)
+        : present;
   }
 
   /**
@@ -3034,7 +3398,7 @@ public class MappingProcessor extends AbstractProcessor {
               .filter(x -> x.wireName().equals(property.name()))
               .findFirst()
               .orElseThrow();
-      CodeBlock value = buildValue(property.asWireComponent(), comps);
+      CodeBlock value = buildValue(bean, property.asWireComponent(), comps);
       if (c.kind() == Kind.OPTIONAL_BRIDGE) {
         body.addStatement(
             "$L.ifPresent(v -> $L)", value, property.write().write(receiver, CodeBlock.of("v")));
@@ -3269,7 +3633,8 @@ public class MappingProcessor extends AbstractProcessor {
 
     CodeBlock buildBody =
         switch (wire) {
-          case WireShape.RecordShape r -> r.buildStatements(wireName, wc -> buildValue(wc, comps));
+          case WireShape.RecordShape r ->
+              r.buildStatements(wireName, wc -> buildValue(r, wc, comps));
           case WireShape.BeanShape b -> beanBuildBody(b, wireName, comps);
         };
 
@@ -3329,7 +3694,7 @@ public class MappingProcessor extends AbstractProcessor {
                     .build())
             .addMethod(asValidatedPrismMethod(wireName, domainName));
 
-    addRenameStubs(implBuilder, spec);
+    addMarkerStubs(implBuilder, spec);
 
     if (needsGuardHelper) {
       implBuilder.addMethod(ifPresentHelper());
@@ -3469,7 +3834,7 @@ public class MappingProcessor extends AbstractProcessor {
       return;
     }
 
-    CodeBlock buildBody = wire.buildStatements(wireName, wc -> buildValue(wc, comps));
+    CodeBlock buildBody = wire.buildStatements(wireName, wc -> buildValue(wire, wc, comps));
 
     List<CodeBlock> patchLegs = new ArrayList<>();
     for (Correspondence c : comps) {
@@ -3572,7 +3937,7 @@ public class MappingProcessor extends AbstractProcessor {
                     .addStatement("$T.requireNonNull(wire, $S)", OBJECTS, "wire must not be null")
                     .addCode(patchBody)
                     .build());
-    addRenameStubs(implBuilder, spec);
+    addMarkerStubs(implBuilder, spec);
     // A patch tier always carries at least one fallible correspondence, which is always a
     // reference read, so the guard helper is always needed.
     implBuilder.addMethod(ifPresentHelper());
@@ -3627,7 +3992,8 @@ public class MappingProcessor extends AbstractProcessor {
 
     CodeBlock buildBody =
         switch (wire) {
-          case WireShape.RecordShape r -> r.buildStatements(wireName, wc -> buildValue(wc, comps));
+          case WireShape.RecordShape r ->
+              r.buildStatements(wireName, wc -> buildValue(r, wc, comps));
           case WireShape.BeanShape b -> beanBuildBody(b, wireName, comps);
         };
 
@@ -3673,7 +4039,7 @@ public class MappingProcessor extends AbstractProcessor {
                         domainName,
                         setArgs.build())
                     .build());
-    addRenameStubs(implBuilder, spec);
+    addMarkerStubs(implBuilder, spec);
     writeFile(spec, specName.packageName(), implBuilder.build());
   }
 
@@ -3984,39 +4350,45 @@ public class MappingProcessor extends AbstractProcessor {
         .build();
   }
 
-  private void addRenameStubs(TypeSpec.Builder implBuilder, TypeElement spec) {
-    // Only abstract zero-parameter @MapField methods survive validateSpecMethods. Unrelated
-    // mix-ins agreeing on a rename contribute one stub, whose return has to be
-    // return-type-substitutable for every declaration (JLS 8.4.8.3): the subtype-narrowest of
-    // the group, which checkGroupsHaveNarrowestReturns has verified exists. A name an abstract
-    // leaf shares gets no stub at all: the leaf accessor elementMappedSkeleton emits already
-    // implements the member, and the group guard has proven its return satisfies the rename
-    // declaration too; the rename's to-mapping is read from collectRenames either way.
+  private void addMarkerStubs(TypeSpec.Builder implBuilder, TypeElement spec) {
+    // Only abstract zero-parameter @MapField and @OptionalBridge methods survive
+    // validateSpecMethods. Unrelated mix-ins agreeing on a marker contribute one stub, whose
+    // return has to be return-type-substitutable for every declaration (JLS 8.4.8.3): the
+    // subtype-narrowest of the group, which checkGroupsHaveNarrowestReturns has verified exists. A
+    // name an abstract leaf shares gets no stub at all: the leaf accessor elementMappedSkeleton
+    // emits already implements the member, and the group guard has proven its return satisfies the
+    // marker declaration too; the rename's to-mapping is read from collectRenames and the bridge
+    // from bridgeRequested either way. One method carrying both annotations is one stub, named
+    // for the rename it also declares.
     Set<String> leafNames =
         abstractLeaves(spec).stream()
             .map(leaf -> leaf.getSimpleName().toString())
             .collect(Collectors.toSet());
-    Map<String, List<ExecutableElement>> renames = new LinkedHashMap<>();
+    Map<String, List<ExecutableElement>> markers = new LinkedHashMap<>();
     for (ExecutableElement method : specMembers(spec)) {
-      if (method.getAnnotation(MapField.class) != null
-          && !leafNames.contains(method.getSimpleName().toString())) {
-        renames
+      boolean marker = method.getAnnotation(MapField.class) != null || isBridgeMarker(spec, method);
+      if (marker && !leafNames.contains(method.getSimpleName().toString())) {
+        markers
             .computeIfAbsent(method.getSimpleName().toString(), name -> new ArrayList<>())
             .add(method);
       }
     }
-    for (Map.Entry<String, List<ExecutableElement>> rename : renames.entrySet()) {
-      TypeMirror narrowest = memberTypeIn(spec, narrowestMember(spec, rename.getValue()));
+    for (Map.Entry<String, List<ExecutableElement>> marker : markers.entrySet()) {
+      List<ExecutableElement> group = marker.getValue();
+      TypeMirror narrowest = memberTypeIn(spec, narrowestMember(spec, group));
+      boolean rename = group.stream().anyMatch(m -> m.getAnnotation(MapField.class) != null);
+      String vocabulary = rename ? "Rename" : "Bridge";
+      String message =
+          rename
+              ? "@MapField methods declare renames and are not invocable"
+              : "@OptionalBridge markers declare bridges and are not invocable";
       implBuilder.addMethod(
-          MethodSpec.methodBuilder(rename.getKey())
+          MethodSpec.methodBuilder(marker.getKey())
               .addAnnotation(Override.class)
               .addModifiers(Modifier.PUBLIC)
               .returns(ProcessorUtils.typeNameOf(narrowest))
-              .addJavadoc("Rename declaration only; not invocable.\n")
-              .addStatement(
-                  "throw new $T($S)",
-                  UnsupportedOperationException.class,
-                  "@MapField methods declare renames and are not invocable")
+              .addJavadoc(vocabulary + " declaration only; not invocable.\n")
+              .addStatement("throw new $T($S)", UnsupportedOperationException.class, message)
               .build());
     }
   }

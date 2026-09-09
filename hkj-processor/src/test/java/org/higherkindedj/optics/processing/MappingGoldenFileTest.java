@@ -67,6 +67,10 @@ class MappingGoldenFileTest {
             "com.example.bean.UserMappingImpl",
             "BeanUserMappingImpl.java.golden"),
         new GoldenTestCase(
+            "record wire with the opt-in Optional bridge (marker and leaf placements)",
+            "com.example.bridge.CustomerMappingImpl",
+            "BridgedCustomerMappingImpl.java.golden"),
+        new GoldenTestCase(
             "identity projection (asLens)",
             "com.example.projection.EmployeeCardMappingImpl",
             "EmployeeCardMappingImpl.java.golden"),
@@ -145,6 +149,7 @@ class MappingGoldenFileTest {
             lossless(),
             fallible(),
             beanWire(),
+            optionalBridge(),
             projection(),
             leafProjection(),
             update(),
@@ -309,6 +314,45 @@ class MappingGoldenFileTest {
                         ? Validated.validNel(new EmailAddress(raw))
                         : Validated.invalidNel(FieldError.of("not an email address")),
                 EmailAddress::value);
+          }
+        }
+        """);
+  }
+
+  // ---- record wire, opted into the Optional bridge: a marker component and a leaf one ----
+  private static JavaFileObject optionalBridge() {
+    return JavaFileObjects.forSourceString(
+        "com.example.bridge.Fixtures",
+        """
+        package com.example.bridge;
+
+        import java.util.Optional;
+        import org.higherkindedj.hkt.validated.FieldError;
+        import org.higherkindedj.hkt.validated.Validated;
+        import org.higherkindedj.optics.annotations.GenerateMapping;
+        import org.higherkindedj.optics.annotations.MappingSpec;
+        import org.higherkindedj.optics.annotations.OptionalBridge;
+        import org.higherkindedj.optics.validated.ValidatedPrism;
+
+        record Nickname(String value) {}
+
+        record Customer(String name, Optional<String> alias, Optional<Nickname> nickname) {}
+
+        record CustomerDto(String name, String alias, String nickname) {}
+
+        @GenerateMapping
+        interface CustomerMapping extends MappingSpec<Customer, CustomerDto> {
+          @OptionalBridge
+          Optional<String> alias();
+
+          @OptionalBridge
+          default ValidatedPrism<String, Nickname> nickname() {
+            return ValidatedPrism.of(
+                raw ->
+                    raw.isBlank()
+                        ? Validated.invalidNel(FieldError.of("must not be blank"))
+                        : Validated.validNel(new Nickname(raw)),
+                Nickname::value);
           }
         }
         """);
