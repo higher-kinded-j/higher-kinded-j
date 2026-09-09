@@ -10739,6 +10739,54 @@ class MappingProcessorTest {
           .contains("updateFrom");
     }
 
+    @Test
+    @DisplayName("a projection whose only fallible leg is a bridge emits no guard helper")
+    void aBridgeOnlyProjectionEmitsNoGuard() {
+      JavaFileObject domain =
+          JavaFileObjects.forSourceString(
+              "com.example.Customer",
+              """
+              package com.example;
+
+              import java.util.Optional;
+
+              public record Customer(String id, String name, Optional<String> nickname) {}
+              """);
+      JavaFileObject dto =
+          JavaFileObjects.forSourceString(
+              "com.example.CustomerAliasDto",
+              """
+              package com.example;
+
+              public record CustomerAliasDto(String nickname) {}
+              """);
+      JavaFileObject spec =
+          JavaFileObjects.forSourceString(
+              "com.example.CustomerAliasMapping",
+              """
+              package com.example;
+
+              import java.util.Optional;
+              import org.higherkindedj.optics.annotations.GenerateMapping;
+              import org.higherkindedj.optics.annotations.MappingSpec;
+              import org.higherkindedj.optics.annotations.OptionalBridge;
+
+              @GenerateMapping
+              public interface CustomerAliasMapping
+                  extends MappingSpec<Customer, CustomerAliasDto> {
+                @OptionalBridge
+                Optional<String> nickname();
+              }
+              """);
+      Compilation compilation = compile(domain, dto, spec);
+      assertThat(compilation).succeeded();
+      // the bridge is fallible for tier selection, but reads its own null as absence, so the
+      // patch tier it selects carries no guarded read to emit a helper for
+      Assertions.assertThat(generatedSource(compilation, "com.example.CustomerAliasMappingImpl"))
+          .contains("public Validated<NonEmptyList<FieldError>, Customer> patch(")
+          .doesNotContain("hkj$ifPresent");
+    }
+
     private static JavaFileObject plainUser() {
       return JavaFileObjects.forSourceString(
           "com.example.User",

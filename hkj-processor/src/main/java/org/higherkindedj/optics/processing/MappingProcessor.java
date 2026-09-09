@@ -4058,9 +4058,12 @@ public class MappingProcessor extends AbstractProcessor {
                     .addCode(patchBody)
                     .build());
     addMarkerStubs(implBuilder, spec);
-    // A patch tier always carries at least one fallible correspondence, which is always a
-    // reference read, so the guard helper is always needed.
-    implBuilder.addMethod(ifPresentHelper());
+    // A patch tier carries at least one fallible correspondence, but not necessarily a guarded
+    // read: a bridged component is fallible for tier selection and reads its own null as absence,
+    // so a projection whose only fallible leg is a bridge needs no guard emitted.
+    if (comps.stream().anyMatch(c -> usesIfPresent(c, wire))) {
+      implBuilder.addMethod(ifPresentHelper());
+    }
     if (comps.stream().anyMatch(c -> scansList(c, wire))) {
       implBuilder.addMethod(allPresentHelper());
     }
