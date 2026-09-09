@@ -775,11 +775,13 @@ public class MappingProcessor extends AbstractProcessor {
       }
       // A leaf placement maps the ELEMENT the bridge found, so one declared over the whole
       // Optional is not a bridged leaf at all: it wins as a plain whole-component leaf and leaves
-      // the component null-is-an-error, silently defeating the annotation beside it.
-      // isLeafShaped has already established a two-argument ValidatedPrism return, so the
-      // declared domain side is the second argument.
+      // the component null-is-an-error, silently defeating the annotation beside it. Both leaf
+      // placements are checked - a concrete spec's 'default' body and a generic spec's abstract,
+      // of()-supplied declaration - since findLeaf matches either. Both shapes have already
+      // established a two-argument ValidatedPrism return, so the declared domain side is the
+      // second argument.
       TypeMirror leafDomain =
-          isLeafShaped(spec, method)
+          isLeafShaped(spec, method) || isAbstractLeaf(spec, method)
               ? ((DeclaredType) memberTypeIn(spec, method)).getTypeArguments().get(1)
               : null;
       if (leafDomain != null && containerElement(leafDomain, "java.util.Optional") != null) {

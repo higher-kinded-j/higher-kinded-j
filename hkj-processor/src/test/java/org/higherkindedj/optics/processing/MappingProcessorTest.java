@@ -10787,6 +10787,52 @@ class MappingProcessorTest {
           .doesNotContain("hkj$ifPresent");
     }
 
+    @Test
+    @DisplayName("an abstract bridged leaf over the whole Optional is refused too")
+    void anAbstractBridgedLeafOverTheWholeOptionalIsRejected() {
+      JavaFileObject box =
+          JavaFileObjects.forSourceString(
+              "com.example.Box",
+              """
+              package com.example;
+
+              import java.util.Optional;
+
+              public record Box<T>(String tag, Optional<T> item) {}
+              """);
+      JavaFileObject boxDto =
+          JavaFileObjects.forSourceString(
+              "com.example.BoxDto",
+              """
+              package com.example;
+
+              public record BoxDto<D>(String tag, D item) {}
+              """);
+      JavaFileObject spec =
+          JavaFileObjects.forSourceString(
+              "com.example.BoxMapping",
+              """
+              package com.example;
+
+              import java.util.Optional;
+              import org.higherkindedj.optics.annotations.GenerateMapping;
+              import org.higherkindedj.optics.annotations.MappingSpec;
+              import org.higherkindedj.optics.annotations.OptionalBridge;
+              import org.higherkindedj.optics.validated.ValidatedPrism;
+
+              @GenerateMapping
+              public interface BoxMapping<T, D> extends MappingSpec<Box<T>, BoxDto<D>> {
+                // an element-mapped leaf, but declared over the Optional rather than its element
+                @OptionalBridge
+                ValidatedPrism<D, Optional<T>> item();
+              }
+              """);
+      Compilation compilation = compile(box, boxDto, spec);
+      assertThat(compilation).failed();
+      assertThat(compilation)
+          .hadErrorContaining("@OptionalBridge leaf 'item' is declared over the whole Optional");
+    }
+
     private static JavaFileObject plainUser() {
       return JavaFileObjects.forSourceString(
           "com.example.User",
