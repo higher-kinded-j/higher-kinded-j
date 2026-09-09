@@ -60,7 +60,7 @@ class BookSnippetVerificationTest {
    * compiled source directly and is a stronger guarantee than compiling a copy of it. Lower the
    * floor deliberately then, and say so in the commit message.
    */
-  private static final int MINIMUM_VERIFIED_SNIPPETS = 2436;
+  private static final int MINIMUM_VERIFIED_SNIPPETS = 2439;
 
   /**
    * How many of those snippets must quote a diagnostic, under {@code verify:rejects} or {@code
@@ -68,7 +68,7 @@ class BookSnippetVerificationTest {
    * check for an easy positive snippet elsewhere leaves the total untouched, and those checks are
    * the only thing holding the pages that document refusals to what the processor actually says.
    */
-  private static final int MINIMUM_DIAGNOSTIC_SNIPPETS = 50;
+  private static final int MINIMUM_DIAGNOSTIC_SNIPPETS = 52;
 
   /**
    * How many of those snippets must come from the skills root, for the same reason the diagnostic
@@ -76,7 +76,7 @@ class BookSnippetVerificationTest {
    * offset deleting a skill's marker and leave the total untouched, and a skill is read by an
    * assistant that generates code from it.
    */
-  private static final int MINIMUM_SKILLS_SNIPPETS = 215;
+  private static final int MINIMUM_SKILLS_SNIPPETS = 216;
 
   /**
    * Every documentation root whose code is verified. The book was the first; the skills are the

@@ -24,10 +24,10 @@ flowchart TD
     U -->|no| W{"wire has fewer components?<br/>(derived fields don't count)"}
     W -->|yes| B{"bean-shaped wire with<br/>any reference property?"}
     B -->|yes| BX(["rejected: the bean projection<br/>flavour is not supported yet"])
-    B -->|no| F{"any fallible correspondence<br/>on a projected component?<br/>(leaf, nested spec, container)"}
+    B -->|no| F{"any fallible correspondence<br/>on a projected component?<br/>(leaf, nested spec, container, bridge)"}
     F -->|no| LT(["build + asLens():<br/>lawful write-back, no parse"])
     F -->|yes| PT(["build + validated patch():<br/>a write-back that can fail"])
-    W -->|no| D{"any fallible leaf, nested spec,<br/>derived field, or guarded<br/>bean property read?"}
+    W -->|no| D{"any fallible leaf, nested spec,<br/>derived field, bridged Optional,<br/>or guarded bean property read?"}
     D -->|no| IT(["build + guarded parse<br/>+ lawful asIso()"])
     D -->|yes| VT(["build + accumulating parse,<br/>no asIso()"])
     IT --> VP(["asValidatedPrism():<br/>the whole mapping as a leaf,<br/>so it nests and lifts"])
@@ -43,14 +43,14 @@ flowchart TD
     class BX error
 ```
 
-(The bean-read leg of that last decision: on a bean wire an unset reference property is an ordinary state, so its guarded reads count as fallible and a lossless-*looking* bean mapping still lands on the accumulating branch, withholding `asIso()`; see [Beans and Sparse PATCH](beans_patch.md#bean-shaped-wire-targets). The rejected bean projection is [#702](https://github.com/higher-kinded-j/higher-kinded-j/issues/702); an all-primitive bean projection, whose reads can never be null, takes the `asLens()` branch. And a projection that also declares a [derived field](basics.md#derived-wire-fields) is rejected outright, which is why derived fields do not count towards the wire tally.)
+(The bean-read leg of that last decision: on a bean wire an unset reference property is an ordinary state, so its guarded reads count as fallible and a lossless-*looking* bean mapping still lands on the accumulating branch, withholding `asIso()`; see [Beans and Sparse PATCH](beans_patch.md#bean-shaped-wire-targets). The rejected bean projection is [#702](https://github.com/higher-kinded-j/higher-kinded-j/issues/702); an all-primitive bean projection, whose reads can never be null, takes the `asLens()` branch. And a projection that also declares a [derived field](basics.md#derived-wire-fields) is rejected outright, which is why derived fields do not count towards the wire tally. An [`@OptionalBridge`](basics.md#optional-bridge) component counts as fallible on both branches, on either wire shape: absence is a real correspondence, not a copy, so a mapping carrying one withholds `asIso()` and a projection carrying one takes `patch`.)
 
 And as the reference table:
 
 | Spec shape | Generated surface |
 |---|---|
 | All components identity-matched (lossless) | `build`, guarded `parse`, **`asIso()`** |
-| Any fallible leaf, nested spec or derived field | `build`, accumulating `parse`, no `asIso` |
+| Any fallible leaf, nested spec, derived field or bridged `Optional` | `build`, accumulating `parse`, no `asIso` |
 | Wire record with *fewer* components, all identity (lossy projection) | `build` + **`asLens()`** whose `set` writes the projected components back, **no `parse`** (the dropped components cannot be reconstructed) |
 | Wire record with fewer components **and** any fallible correspondence | `build` + a validated **`patch(domain, wire)`** write-back, no `asLens` and no `parse`, [below](#leaf-carrying-projections-the-validated-patch) |
 | Every parse-capable mapping | **`asValidatedPrism()`**: the mapping as a leaf, so it nests and lifts |

@@ -69,6 +69,7 @@ says what is *not* obvious.
 | Rename a field on the wire | an **abstract** method named after the domain component, annotated `@MapField(to = "fullName")` |
 | A component that must be **parsed** (`String` -> `EmailAddress`) | a zero-arg `default` method named after the domain component, returning `ValidatedPrism<Wire, Domain>` |
 | A wire-only field **derived** from the domain | a zero-arg `default` method returning `Getter<Domain, WireType>` |
+| A domain `Optional<T>` against a **nullable record** wire component `T` | `@OptionalBridge` on an abstract marker named after the domain component, or on that component's leaf |
 
 <!-- verify -->
 ```java
@@ -144,6 +145,54 @@ public interface ProfileMapping extends MappingSpec<Profile, ProfileDto> {
   }
 }
 ```
+
+### `Optional` against a nullable wire component: `@OptionalBridge`
+
+On a **record** wire a `null` is an error by default, and that default stays. Where a wire component
+genuinely encodes *absence* as `null` (Jackson's default for an optional field), mark the domain
+`Optional` component and the pair maps both ways:
+
+<!-- verify -->
+```java
+public record Member(String name, Optional<String> nickname, Optional<EmailAddress> altEmail) {}
+public record MemberDto(String name, String nickname, String altEmail) {}   // nullable, by convention
+
+@GenerateMapping
+public interface MemberMapping extends MappingSpec<Member, MemberDto> {
+
+  // Element copies: a bare abstract marker, whose return type restates the component.
+  @OptionalBridge
+  Optional<String> nickname();
+
+  // Element converts: the SAME annotation on that component's leaf, over the ELEMENT types.
+  @OptionalBridge
+  default ValidatedPrism<String, EmailAddress> altEmail() {
+    return ValidatedPrism.of(
+        raw -> raw.contains("@")
+            ? Validated.validNel(new EmailAddress(raw))
+            : Validated.invalidNel(FieldError.of("not an email address")),
+        EmailAddress::value);
+  }
+}
+// build: empty -> null, present -> the value.  parse: null -> Optional.empty(), value -> through the leaf.
+```
+
+- The two placements **cannot be combined**: a marker and a same-named leaf are one method with
+  incompatible return types, which javac rejects.
+- **Never inferred.** Without the annotation the component is `must not be null`, as usual.
+- A **bean** wire bridges automatically (bean conventions leave `Optional` off property types), so
+  the annotation is redundant there and draws a note, not an error — one mix-in can serve both
+  wire shapes.
+- Rejected where it cannot mean anything: a non-`Optional` (or raw `Optional`) domain component,
+  a primitive wire component, a leaf declared over the whole `Optional` rather than the element, a
+  sealed mapping, and a locally declared one on an `UpdateSpec` (whose `null` already means *leave
+  unchanged*). An already-`Optional` wire component needs no bridge, so that one is a note.
+- **Inherited bridges stay inert** wherever they cannot apply, so one mix-in serves a record spec,
+  a bean spec and a PATCH sibling.
+- A present **container** is still scanned for null elements (`tags.1: must not be null`): the
+  bridge excuses absence, not a null inside a value that was sent.
+- A bridged component is a non-identity correspondence, so the mapping withholds `asIso()` and a
+  bridged projection takes the validated `patch` rather than `asLens()`.
 
 ### Nesting and collections come free
 
@@ -290,7 +339,8 @@ rejected outright: the projection's `asLens()` write-back could never honour a c
   (Lombok, Immutables, AutoValue, protobuf); or the JAXB convention, where a getter-only `List` is
   filled with `getItems().addAll(...)`. `build` fills through setters or the builder, `parse` reads
   through getters under the same null guard as a record wire, and a domain `Optional<T>` bridges to
-  a nullable bean property `T`. See `reference/mapping-example.md`.
+  a nullable bean property `T` with no declaration (a record wire opts in per component with
+  `@OptionalBridge`). See `reference/mapping-example.md`.
 - **No component ceiling** on `parse`, the validated `patch`, or `@GenerateMerge`'s fallible
   merge: each is assembled via `Validated.fields()` ladders, chunked and combined applicatively
   past 16 legs, so a flat 20-30 field DTO maps without nesting. Error semantics are identical to
@@ -328,7 +378,8 @@ Validated<NonEmptyList<FieldError>, User> updated = update.apply(user);  // or a
 - **Present + valid** -> set (or parsed through its leaf), folded in. **Present + invalid** -> a
   located `FieldError`, accumulating. **Absent (null)** -> skipped.
 - A **primitive** wire property is rejected (it can never be absent); use a wrapper type. A domain
-  `Optional<T>` bridged from a plain property is rejected too ("set to empty" has no encoding) —
+  `Optional<T>` bridged from a plain property is rejected too, `@OptionalBridge` on a sparse spec
+  included ("set to empty" has no encoding, and `null` is already spoken for) —
   an `Optional`-typed wire property expresses it instead: present-empty sets empty, absent (null)
   leaves unchanged. Caveats: Jackson binds an explicit JSON `null` to `Optional.empty()` (sent-null
   clears on this property shape), and the bean field must default to `null`, NOT `Optional.empty()`,

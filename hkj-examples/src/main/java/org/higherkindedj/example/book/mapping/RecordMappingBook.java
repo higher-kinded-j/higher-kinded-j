@@ -3,6 +3,7 @@
 package org.higherkindedj.example.book.mapping;
 
 import java.util.List;
+import java.util.Optional;
 import org.higherkindedj.hkt.nonemptylist.NonEmptyList;
 import org.higherkindedj.hkt.validated.FieldError;
 import org.higherkindedj.hkt.validated.Validated;
@@ -12,6 +13,7 @@ import org.higherkindedj.optics.annotations.GenerateMapping;
 import org.higherkindedj.optics.annotations.GenerateMerge;
 import org.higherkindedj.optics.annotations.MapField;
 import org.higherkindedj.optics.annotations.MappingSpec;
+import org.higherkindedj.optics.annotations.OptionalBridge;
 import org.higherkindedj.optics.annotations.UpdateSpec;
 import org.higherkindedj.optics.edit.Edits;
 import org.higherkindedj.optics.validated.ValidatedPrism;
@@ -55,6 +57,23 @@ public final class RecordMappingBook {
     // ProfileDto[first=Ada, last=Lovelace, displayName=Ada Lovelace]
     // ANCHOR_END: derived_usage
     System.out.println(ProfileMappingImpl.INSTANCE.build(new Profile("Ada", "Lovelace")));
+
+    // ANCHOR: bridge_usage
+    // Absence travels as null in both directions; a present value still validates.
+    MemberMappingImpl.INSTANCE.build(new Member("Ada", Optional.empty(), Optional.empty()));
+    // MemberDto[name=Ada, nickname=null, altEmail=null]
+
+    MemberMappingImpl.INSTANCE.parse(new MemberDto("Ada", null, null));
+    // Valid(Member[name=Ada, nickname=Optional.empty, altEmail=Optional.empty])
+
+    MemberMappingImpl.INSTANCE.parse(new MemberDto("Ada", "countess", "not-an-email"));
+    // Invalid(NonEmptyList[altEmail: not an email address])
+    // ANCHOR_END: bridge_usage
+    System.out.println(
+        MemberMappingImpl.INSTANCE.build(new Member("Ada", Optional.empty(), Optional.empty())));
+    System.out.println(MemberMappingImpl.INSTANCE.parse(new MemberDto("Ada", null, null)));
+    System.out.println(
+        MemberMappingImpl.INSTANCE.parse(new MemberDto("Ada", "countess", "not-an-email")));
 
     // ANCHOR: mixin_usage
     // One vocabulary, two mappings - the inherited rename and leaf apply to both:
@@ -247,6 +266,27 @@ interface ProfileMapping extends MappingSpec<Profile, ProfileDto> {
 }
 
 // ANCHOR_END: derived_spec
+
+// ANCHOR: bridge_spec
+record Member(String name, Optional<String> nickname, Optional<EmailAddress> altEmail) {}
+
+// The wire carries optional data the way a JSON binder does: a nullable component.
+record MemberDto(String name, String nickname, String altEmail) {}
+
+@GenerateMapping
+interface MemberMapping extends MappingSpec<Member, MemberDto> {
+  // No conversion: the marker restates the component and the value is copied.
+  @OptionalBridge
+  Optional<String> nickname();
+
+  // A conversion: the same annotation on the component's leaf, declared over the ELEMENT types.
+  @OptionalBridge
+  default ValidatedPrism<String, EmailAddress> altEmail() {
+    return EmailCodecs.EMAIL;
+  }
+}
+
+// ANCHOR_END: bridge_spec
 
 // ANCHOR: mixin_spec
 // Plain vocabulary - not a spec itself. Any spec whose records share these

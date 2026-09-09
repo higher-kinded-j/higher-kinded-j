@@ -55,6 +55,11 @@ import java.lang.annotation.Target;
  *       leaf wins even over a same-typed match, so it can validate or normalise a copied field.
  *   <li>Record components mapped by another spec in the same compilation nest automatically, and
  *       {@code List}/{@code Optional} components lift through the element's leaf or spec.
+ *   <li>A domain {@code Optional<T>} against a nullable wire component {@code T} bridges through
+ *       {@code null} (empty maps to absent): automatically on a bean wire, and on a record wire
+ *       wherever the spec marks the component with {@link OptionalBridge} — on a bare abstract
+ *       marker when the element copies, or on that component's leaf when it converts. It is never
+ *       inferred on a record wire, where {@code null} stays an error by default.
  *   <li>Sealed interface pairs dispatch over their permitted subtype pairs, one spec per pair.
  *   <li>Generic records map three ways. As concrete instantiations: {@code MappingSpec<Page<User>,
  *       PageDto<UserDto>>} classifies every component under the substitution. As threaded specs:
@@ -79,8 +84,9 @@ import java.lang.annotation.Target;
  *   <li>The wire may be a bean-shaped class instead of a record: a mutable class with a no-args
  *       constructor and getters/setters, or an immutable one with a builder. {@code build} fills it
  *       through setters or a builder and {@code parse} reads it through getters. A domain {@code
- *       Optional<T>} bridges to a nullable bean property {@code T} (empty maps to absent). The
- *       domain stays a record.
+ *       Optional<T>} bridges to a nullable bean property {@code T} (empty maps to absent), with no
+ *       declaration; on a record wire the same bridge is opted into per component with {@link
+ *       OptionalBridge}. The domain stays a record.
  *   <li>A lossless mapping additionally gets {@code asIso()}; a wire record with fewer components
  *       maps as a projection with {@code asLens()} and no {@code parse} (truthful types); a
  *       projection carrying a fallible leaf swaps the lens for a validated {@code patch(Domain,

@@ -533,8 +533,8 @@ class GenericMappingWireAxisTest {
                 + " a leaf as a constructor-supplied field and a rename as a stub, and neither has"
                 + " anywhere to declare the method's own type parameters, so the generated file"
                 + " would name a variable nothing brings into scope. Give 'id' a concrete return"
-                + " type; a rename is a marker method and the generated stub only has to name"
-                + " one.");
+                + " type; a marker method declares a correspondence and the generated stub only"
+                + " has to name one.");
     assertThat(compilation).hadErrorCount(1);
   }
 

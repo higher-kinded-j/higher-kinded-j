@@ -1016,6 +1016,90 @@ class GeneratedMappingLawsTest {
         result.newInstance("com.example.AccountPatchDto", "not-an-email", 36));
   }
 
+  @Test
+  @DisplayName(
+      "bridged record-wire tier: empty maps to a null component and back, and the present value"
+          + " still validates")
+  void bridgedRecordWireTierIsLawful() throws ReflectiveOperationException {
+    JavaFileObject domain =
+        JavaFileObjects.forSourceString(
+            "com.example.Customer",
+            """
+            package com.example;
+
+            import java.util.Optional;
+
+            public record Customer(String name, Optional<String> alias,
+                Optional<EmailAddress> email) {}
+            """);
+    JavaFileObject wire =
+        JavaFileObjects.forSourceString(
+            "com.example.CustomerDto",
+            """
+            package com.example;
+
+            public record CustomerDto(String name, String alias, String email) {}
+            """);
+    JavaFileObject spec =
+        JavaFileObjects.forSourceString(
+            "com.example.CustomerMapping",
+            """
+            package com.example;
+
+            import java.util.Optional;
+            import org.higherkindedj.hkt.validated.FieldError;
+            import org.higherkindedj.hkt.validated.Validated;
+            import org.higherkindedj.optics.annotations.GenerateMapping;
+            import org.higherkindedj.optics.annotations.MappingSpec;
+            import org.higherkindedj.optics.annotations.OptionalBridge;
+            import org.higherkindedj.optics.validated.ValidatedPrism;
+
+            @GenerateMapping
+            public interface CustomerMapping extends MappingSpec<Customer, CustomerDto> {
+              @OptionalBridge
+              Optional<String> alias();
+
+              @OptionalBridge
+              default ValidatedPrism<String, EmailAddress> email() {
+                return emailPrism();
+              }
+
+            """
+                + EMAIL_PRISM
+                + """
+            }
+            """);
+
+    var result = compileMapping(EMAIL, domain, wire, spec);
+    Object impl = result.instance("com.example.CustomerMappingImpl");
+    // A null component is exactly the shape under test, so the wires are built through the
+    // declared constructor rather than by inferring it from the argument classes.
+    var dto =
+        result
+            .loadClass("com.example.CustomerDto")
+            .getDeclaredConstructor(String.class, String.class, String.class);
+
+    // Both round trips over the absent and the present shape: the bridge is only lawful if
+    // Optional.empty() survives the null it is encoded as, in both directions.
+    MappingLaws.assertMappingLaws(
+        asValidatedPrism(impl),
+        dto.newInstance("Ada", null, null),
+        dto.newInstance("Ada", "countess", "not-an-email"));
+    MappingLaws.assertMappingLaws(
+        asValidatedPrism(impl),
+        dto.newInstance("Ada", "countess", "ada@example.org"),
+        dto.newInstance("Ada", null, "not-an-email"));
+
+    // The wire the bridge builds for an absent component really is null, not a placeholder.
+    Object built =
+        invoke(
+            impl,
+            "build",
+            result.newInstance("com.example.Customer", "Ada", Optional.empty(), Optional.empty()));
+    Assertions.assertThat(invoke(built, "alias")).isNull();
+    Assertions.assertThat(invoke(built, "email")).isNull();
+  }
+
   @SuppressWarnings("unchecked")
   private static Validated<NonEmptyList<FieldError>, Object> asValidated(Object validated) {
     return (Validated<NonEmptyList<FieldError>, Object>) validated;
