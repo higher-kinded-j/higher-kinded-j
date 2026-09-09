@@ -4,6 +4,7 @@ package org.higherkindedj.optics.processing;
 
 import static com.google.testing.compile.CompilationSubject.assertThat;
 import static com.google.testing.compile.Compiler.javac;
+import static org.higherkindedj.hkt.assertions.ValidatedAssert.assertThatValidated;
 import static org.higherkindedj.optics.processing.RuntimeCompilationHelper.invoke;
 
 import com.google.testing.compile.Compilation;
@@ -131,10 +132,7 @@ class GeneratedMappingLawsTest {
               .getDeclaredConstructor(String.class, int.class)
               .newInstance(null, 41);
       Validated<NonEmptyList<FieldError>, Object> parsed = asValidatedPrism(impl).parse(nullWire);
-      Assertions.assertThat(parsed.isInvalid()).isTrue();
-      Assertions.assertThat(
-              parsed.getError().toJavaList().stream().map(FieldError::toString).toList())
-          .containsExactly("name: must not be null");
+      assertThatValidated(parsed).isInvalid().hasFieldErrors("name: must not be null");
     } catch (ReflectiveOperationException e) {
       throw new AssertionError(e);
     }

@@ -5,7 +5,6 @@ package org.higherkindedj.tutorial.solutions.optics;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.higherkindedj.hkt.assertions.ValidatedAssert.assertThatValidated;
 
-import java.util.List;
 import org.higherkindedj.hkt.Update;
 import org.higherkindedj.hkt.nonemptylist.NonEmptyList;
 import org.higherkindedj.hkt.validated.FieldError;
@@ -57,10 +56,6 @@ public class Tutorial24_MultiEdit_Solution {
     } catch (NumberFormatException e) {
       return Validated.invalidNel(FieldError.of("must be a whole number"));
     }
-  }
-
-  private static List<String> errorStrings(Validated<NonEmptyList<FieldError>, ?> validated) {
-    return validated.getError().toJavaList().stream().map(FieldError::toString).toList();
   }
 
   @Nested
@@ -162,9 +157,9 @@ public class Tutorial24_MultiEdit_Solution {
                   Edit.parseIfPresent(AGE, "not-a-number", Tutorial24_MultiEdit_Solution::parseAge))
               .apply(eve);
 
-      assertThatValidated(patched).isInvalid();
-      assertThat(errorStrings(patched))
-          .containsExactly("email: not an email address", "age: must be a whole number");
+      assertThatValidated(patched)
+          .isInvalid()
+          .hasFieldErrors("email: not an email address", "age: must be a whole number");
     }
   }
 }

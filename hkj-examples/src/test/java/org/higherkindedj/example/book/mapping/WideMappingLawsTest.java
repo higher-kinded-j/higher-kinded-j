@@ -5,7 +5,6 @@ package org.higherkindedj.example.book.mapping;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.higherkindedj.hkt.assertions.ValidatedAssert.assertThatValidated;
 
-import java.util.List;
 import org.higherkindedj.hkt.nonemptylist.NonEmptyList;
 import org.higherkindedj.hkt.validated.FieldError;
 import org.higherkindedj.hkt.validated.Validated;
@@ -62,9 +61,9 @@ class WideMappingLawsTest {
     Validated<NonEmptyList<FieldError>, WideAccount> parsed =
         WideAccountMappingImpl.INSTANCE.parse(wire);
 
-    assertThatValidated(parsed).isInvalid();
-    assertThat(rendered(parsed))
-        .containsExactly(
+    assertThatValidated(parsed)
+        .isInvalid()
+        .hasFieldErrors(
             "f1: must not be null", "f17: must not be null", "email: not an email address");
     // ANCHOR_END: wide_laws
   }
@@ -85,9 +84,5 @@ class WideMappingLawsTest {
     return new WideAccountDto(
         "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8", "v9", "v10", "v11", "v12", "v13", "v14",
         "v15", "v16", "v17", "v18", "v19", email);
-  }
-
-  private static List<String> rendered(Validated<NonEmptyList<FieldError>, ?> result) {
-    return result.fold(nel -> nel.map(FieldError::toString).toJavaList(), _ -> List.of());
   }
 }

@@ -136,7 +136,7 @@ FieldError bare    = FieldError.of("not a postcode");   // unlocated leaf
 FieldError located = bare.at("zip").at("address");      // pathString() == "address.zip"
 ```
 
-**Located automatically:** `Validated.fields()` and the `parseIfPresent` edits prepend the field label onto each error's path, so a leaf validator creates unlocated `FieldError.of(...)`s and the assembly attaches the location. `hkj-test` ships `assertThatFieldError`.
+**Located automatically:** `Validated.fields()` and the `parseIfPresent` edits prepend the field label onto each error's path, so a leaf validator creates unlocated `FieldError.of(...)`s and the assembly attaches the location. `hkj-test` asserts the whole accumulation with `assertThatValidated(result).hasFieldErrors(...)`, and a single error's path with `assertThatFieldError`.
 
 **Related:** [Open-Arity Assembly](../monads/validated_assembly.md), [NonEmptyList](data-effects.md#nonemptylist), [Validated Assembly](#validated-assembly), [ValidatedPrism](#validatedprism)
 

@@ -6,7 +6,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.higherkindedj.hkt.assertions.FieldErrorAssert.assertThatFieldError;
 import static org.higherkindedj.hkt.assertions.ValidatedAssert.assertThatValidated;
 
-import java.util.List;
 import org.higherkindedj.hkt.nonemptylist.NonEmptyList;
 import org.higherkindedj.hkt.validated.FieldError;
 import org.higherkindedj.hkt.validated.Validated;
@@ -19,10 +18,6 @@ import org.junit.jupiter.api.Test;
  */
 @DisplayName("@GenerateAssembly end-to-end")
 class GeneratedAssemblyTest {
-
-  private static List<String> rendered(Validated<NonEmptyList<FieldError>, ?> result) {
-    return result.fold(nel -> nel.map(FieldError::toString).toJavaList(), _ -> List.<String>of());
-  }
 
   @Test
   @DisplayName("All components valid: assemble() invokes the canonical constructor")
@@ -47,8 +42,9 @@ class GeneratedAssemblyTest {
             .age(Validated.invalidNel(FieldError.of("not a number")))
             .assemble();
 
-    assertThatValidated(user).isInvalid();
-    assertThat(rendered(user)).containsExactly("name: must not be blank", "age: not a number");
+    assertThatValidated(user)
+        .isInvalid()
+        .hasFieldErrors("name: must not be blank", "age: not a number");
   }
 
   @Test

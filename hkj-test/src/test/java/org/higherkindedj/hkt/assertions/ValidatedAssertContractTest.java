@@ -2,8 +2,14 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.hkt.assertions;
 
+import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
+import static org.higherkindedj.hkt.assertions.ValidatedAssert.assertThatValidated;
+
+import java.util.List;
 import java.util.function.Function;
 import java.util.stream.Stream;
+import org.higherkindedj.hkt.nonemptylist.NonEmptyList;
+import org.higherkindedj.hkt.validated.FieldError;
 import org.higherkindedj.hkt.validated.Validated;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -18,6 +24,10 @@ class ValidatedAssertContractTest
   private static final Validated<String, Integer> INVALID_ERR = Validated.invalid("err");
   private static final Validated<String, Integer> INVALID_OTHER = Validated.invalid("other");
 
+  private static final Validated<NonEmptyList<FieldError>, Integer> LOCATED =
+      Validated.invalid(
+          NonEmptyList.of(FieldError.of("not a UUID").at("id"), FieldError.of("must be positive")));
+
   @Override
   protected Function<Validated<String, Integer>, ValidatedAssert<String, Integer>> entry() {
     return ValidatedAssert::assertThatValidated;
@@ -26,6 +36,46 @@ class ValidatedAssertContractTest
   @Test
   void described_factory_is_callable() {
     ValidatedAssert.assertThatValidated(VALID_42, "described").isValid();
+  }
+
+  @Test
+  void hasFieldErrors_renders_each_located_error_in_accumulation_order() {
+    assertThatValidated(LOCATED).hasFieldErrors("id: not a UUID", "must be positive");
+  }
+
+  @Test
+  void hasFieldErrors_rejects_a_different_rendering() {
+    assertThatExceptionOfType(AssertionError.class)
+        .isThrownBy(() -> assertThatValidated(LOCATED).hasFieldErrors("id: not a UUID"));
+  }
+
+  @Test
+  void hasFieldErrors_rejects_a_valid_subject() {
+    assertThatExceptionOfType(AssertionError.class)
+        .isThrownBy(() -> assertThatValidated(VALID_42).hasFieldErrors("anything"));
+  }
+
+  @Test
+  void hasFieldErrors_rejects_an_error_channel_that_is_not_a_collection() {
+    assertThatExceptionOfType(AssertionError.class)
+        .isThrownBy(() -> assertThatValidated(INVALID_ERR).hasFieldErrors("err"))
+        .withMessageContaining("hasFieldErrors() applies to the located-error channel");
+  }
+
+  @Test
+  void hasFieldErrors_rejects_a_collection_of_something_other_than_FieldError() {
+    Validated<List<String>, Integer> plainLines = Validated.invalid(List.of("e1"));
+
+    assertThatExceptionOfType(AssertionError.class)
+        .isThrownBy(() -> assertThatValidated(plainLines).hasFieldErrors("e1"))
+        .withMessageContaining("element 0 was a <String>");
+  }
+
+  @Test
+  void hasFieldErrors_accepts_an_empty_located_channel() {
+    Validated<List<FieldError>, Integer> none = Validated.invalid(List.of());
+
+    assertThatValidated(none).hasFieldErrors();
   }
 
   @Override

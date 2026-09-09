@@ -6,7 +6,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.higherkindedj.hkt.assertions.ValidatedAssert.assertThatValidated;
 
 import java.time.LocalDate;
-import java.util.List;
 import java.util.UUID;
 import org.higherkindedj.example.tutorials.mapping.Booking;
 import org.higherkindedj.example.tutorials.mapping.BookingDto;
@@ -89,10 +88,10 @@ public class Tutorial26_RecordMapping_Solution {
 
       Validated<NonEmptyList<FieldError>, Booking> parsed =
           BookingMappingImpl.INSTANCE.parse(hostile);
-      List<String> errors = parsed.getError().map(FieldError::toString).toJavaList();
 
-      assertThat(errors)
-          .containsExactly(
+      assertThatValidated(parsed)
+          .isInvalid()
+          .hasFieldErrors(
               "id: not a UUID (expected e.g. 123e4567-e89b-12d3-a456-426614174000)",
               "guest.email: not an email address",
               "arrival: not an ISO-8601 date (expected e.g. 2026-07-28)");

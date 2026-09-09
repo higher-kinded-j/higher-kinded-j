@@ -7,7 +7,6 @@ import static org.higherkindedj.hkt.assertions.ValidatedAssert.assertThatValidat
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
-import java.util.List;
 import java.util.UUID;
 import org.higherkindedj.hkt.nonemptylist.NonEmptyList;
 import org.higherkindedj.hkt.validated.FieldError;
@@ -38,9 +37,9 @@ class StandardCodecsBookTest {
     Validated<NonEmptyList<FieldError>, Order> parsed =
         OrderMappingImpl.INSTANCE.parse(new OrderDto("NOPE", "28/07/2026", "SHIPPED", "1E+3"));
 
-    assertThatValidated(parsed).isInvalid();
-    assertThat(rendered(parsed))
-        .containsExactly(
+    assertThatValidated(parsed)
+        .isInvalid()
+        .hasFieldErrors(
             "id: not a UUID (expected e.g. 123e4567-e89b-12d3-a456-426614174000)",
             "placedOn: not an ISO-8601 date (expected e.g. 2026-07-28)",
             "status: unknown OrderStatus (expected one of NEW, PAID, CANCELLED)",
@@ -90,9 +89,5 @@ class StandardCodecsBookTest {
             AssetMappingImpl.INSTANCE.parse(
                 new AssetDto(upper.toLowerCase(java.util.Locale.ROOT), "rack")))
         .isInvalid();
-  }
-
-  private static List<String> rendered(Validated<NonEmptyList<FieldError>, ?> result) {
-    return result.fold(nel -> nel.map(FieldError::toString).toJavaList(), _ -> List.of());
   }
 }

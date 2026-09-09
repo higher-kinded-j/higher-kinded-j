@@ -5,7 +5,6 @@ package org.higherkindedj.tutorial.optics;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.higherkindedj.hkt.assertions.ValidatedAssert.assertThatValidated;
 
-import java.util.List;
 import org.higherkindedj.hkt.nonemptylist.NonEmptyList;
 import org.higherkindedj.hkt.validated.FieldError;
 import org.higherkindedj.hkt.validated.Validated;
@@ -169,9 +168,9 @@ public class Tutorial25_ValidatedPrism {
       // (label "percent") so both failures surface together.
       Validated<NonEmptyList<FieldError>, Discount> result = answerRequired();
 
-      assertThatValidated(result).isInvalid();
-      assertThat(result.getError().toJavaList().stream().map(FieldError::toString).toList())
-          .isEqualTo(List.of("name: blank", "percent: must be between 0 and 100"));
+      assertThatValidated(result)
+          .isInvalid()
+          .hasFieldErrors("name: blank", "percent: must be between 0 and 100");
     }
   }
 

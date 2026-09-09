@@ -37,9 +37,11 @@ import org.higherkindedj.hkt.instances.Instances;
 import org.higherkindedj.hkt.io.IO;
 import org.higherkindedj.hkt.lazy.Lazy;
 import org.higherkindedj.hkt.maybe.Maybe;
+import org.higherkindedj.hkt.nonemptylist.NonEmptyList;
 import org.higherkindedj.hkt.optional.OptionalKind;
 import org.higherkindedj.hkt.state.StateTuple;
 import org.higherkindedj.hkt.trymonad.Try;
+import org.higherkindedj.hkt.validated.FieldError;
 import org.higherkindedj.hkt.validated.Validated;
 import org.higherkindedj.hkt.vstream.VStream;
 import org.higherkindedj.hkt.vtask.VTask;
@@ -107,6 +109,13 @@ class Fixture {
 
   static final Validated<List<String>, String> form =
       Validated.invalid(List.of("name required", "email invalid"));
+
+  static final Validated<NonEmptyList<FieldError>, Order> parsed =
+      Validated.invalid(
+          NonEmptyList.of(
+              FieldError.of("not a UUID (expected e.g. 123e4567-e89b-12d3-a456-426614174000)")
+                  .at("id"),
+              FieldError.of("not an ISO-8601 date (expected e.g. 2026-07-28)").at("placedOn")));
 
   static final Lazy<Integer> failing =
       Lazy.defer(

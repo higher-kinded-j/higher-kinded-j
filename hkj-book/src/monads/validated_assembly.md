@@ -123,7 +123,7 @@ A component whose type is itself annotated accepts its sub-companion's result di
 | Steps where later ones depend on earlier results | `flatMap` / `via` (short-circuiting, by design) |
 
 ~~~admonish tip title="Testing located errors"
-`hkj-test` ships `assertThatFieldError` alongside `assertThatValidated`:
+`hkj-test` asserts a whole accumulation as rendered `"path: message"` lines with `assertThatValidated(result).hasFieldErrors(...)`, and takes a single error apart with `assertThatFieldError`:
 
 ```java
 {{#include ../../../hkj-examples/src/test/java/org/higherkindedj/example/book/monads/assembly/ValidatedAssemblyBookTest.java:field_error}}

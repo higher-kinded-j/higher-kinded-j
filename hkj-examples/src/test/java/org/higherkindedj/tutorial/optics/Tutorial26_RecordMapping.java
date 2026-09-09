@@ -6,7 +6,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.higherkindedj.hkt.assertions.ValidatedAssert.assertThatValidated;
 
 import java.time.LocalDate;
-import java.util.List;
 import java.util.UUID;
 import org.higherkindedj.example.tutorials.mapping.Booking;
 import org.higherkindedj.example.tutorials.mapping.BookingDto;
@@ -131,13 +130,11 @@ public class Tutorial26_RecordMapping {
     /**
      * Exercise 3: the payoff.
      *
-     * <p>Task: parse this three-defect wire and collect the rendered errors: a bad id, a bad email
-     * inside the <em>nested</em> guest, and a bad date. All three must surface at once, in
-     * declaration order, each located.
+     * <p>Task: parse this three-defect wire: a bad id, a bad email inside the <em>nested</em>
+     * guest, and a bad date. All three must surface at once, in declaration order, each located.
      *
      * <pre>
-     *   // Hint 1: parse it, then render with
-     *   //         {@code parsed.getError().map(FieldError::toString).toJavaList()}.
+     *   // Hint 1: parse it; {@code hasFieldErrors} renders each error as "path: message".
      *   // Hint 2: the nested guest's failure locates as {@code guest.email}.
      * </pre>
      */
@@ -147,11 +144,12 @@ public class Tutorial26_RecordMapping {
       BookingDto hostile =
           new BookingDto("NOPE", new GuestDto("Ada Lovelace", "not-an-email"), "28/07/2026", 3);
 
-      // TODO: parse the hostile wire and render its errors as strings.
-      List<String> errors = answerRequired();
+      // TODO: parse the hostile wire.
+      Validated<NonEmptyList<FieldError>, Booking> parsed = answerRequired();
 
-      assertThat(errors)
-          .containsExactly(
+      assertThatValidated(parsed)
+          .isInvalid()
+          .hasFieldErrors(
               "id: not a UUID (expected e.g. 123e4567-e89b-12d3-a456-426614174000)",
               "guest.email: not an email address",
               "arrival: not an ISO-8601 date (expected e.g. 2026-07-28)");

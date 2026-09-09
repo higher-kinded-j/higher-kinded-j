@@ -97,6 +97,22 @@ assertThatValidated(form)
     .hasErrorSatisfying(errors -> errors.size() == 2, "two errors collected");
 ```
 
+When the error channel is the located one - `NonEmptyList<FieldError>`, what every codec parse,
+mapping `parse`/`patch`, fallible merge and assembly companion returns - `hasFieldErrors` asserts
+the whole accumulation as rendered `"path: message"` lines, in declaration order:
+
+<!-- verify -->
+```java
+assertThatValidated(parsed)
+    .isInvalid()
+    .hasFieldErrors(
+        "id: not a UUID (expected e.g. 123e4567-e89b-12d3-a456-426614174000)",
+        "placedOn: not an ISO-8601 date (expected e.g. 2026-07-28)");
+```
+
+Order is asserted because declaration order *is* the accumulation contract. A reworded message
+fails as a one-line diff against the full rendered list.
+
 ### `LazyAssert`
 
 `Lazy` carries its own evaluation lifecycle, so the assertions track it explicitly:
@@ -345,7 +361,7 @@ void personMappingIsLawful() {
 }
 ```
 
-For asserting on the located failures themselves, `assertThatFieldError` pairs with `assertThatValidated`: it matches a `FieldError`'s path (`hasPath("address.zip")`) and message (`hasMessage`, `hasMessageContaining`) alongside the usual `Validated` assertions.
+For asserting on the located failures themselves, `assertThatValidated(...).hasFieldErrors(...)` takes the whole accumulation as rendered lines; `assertThatFieldError` takes one error apart, matching its path (`hasPath("address.zip")`) and message (`hasMessage`, `hasMessageContaining`).
 
 ~~~admonish tip title="See Also"
 - [Manual Gradle and Maven Setup](manual_setup.md) - Adding hkj-test to projects that do not use the HKJ build plugin

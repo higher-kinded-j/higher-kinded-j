@@ -49,9 +49,9 @@ class BoundaryCapstoneBookLawsTest {
 
     Validated<NonEmptyList<FieldError>, Order> parsed = OrderMappingImpl.INSTANCE.parse(hostile);
 
-    assertThatValidated(parsed).isInvalid();
-    assertThat(rendered(parsed))
-        .containsExactly(
+    assertThatValidated(parsed)
+        .isInvalid()
+        .hasFieldErrors(
             "id: not a UUID (expected e.g. 123e4567-e89b-12d3-a456-426614174000)",
             "customer.email: not an email address",
             "lines.1.price: not a number in plain notation (expected e.g. 123.45)",
@@ -119,9 +119,5 @@ class BoundaryCapstoneBookLawsTest {
     bean.setName(name);
     bean.setEmail(email);
     return bean;
-  }
-
-  private static List<String> rendered(Validated<NonEmptyList<FieldError>, ?> result) {
-    return result.fold(nel -> nel.map(FieldError::toString).toJavaList(), _ -> List.of());
   }
 }

@@ -42,10 +42,6 @@ public class Tutorial12_AccumulatingAssembly_Solution {
     }
   }
 
-  private static List<String> errorStrings(Validated<NonEmptyList<FieldError>, ?> result) {
-    return result.fold(nel -> nel.map(FieldError::toString).toJavaList(), _ -> List.<String>of());
-  }
-
   // ─── Exercise 1 ────────────────────────────────────────────────────────────
 
   /**
@@ -110,8 +106,7 @@ public class Tutorial12_AccumulatingAssembly_Solution {
             .apply(User::new);
     List<String> expected = List.of("name: must not be blank", "age: not a number");
 
-    assertThatValidated(result).isInvalid();
-    assertThat(errorStrings(result)).isEqualTo(expected);
+    assertThatValidated(result).isInvalid().hasFieldErrors(expected.toArray(String[]::new));
     assertThat(expected).hasSize(2);
   }
 
@@ -177,8 +172,7 @@ public class Tutorial12_AccumulatingAssembly_Solution {
             .field("address", address)
             .apply(Customer::new);
 
-    assertThatValidated(result).isInvalid();
-    assertThat(errorStrings(result)).containsExactly("address.zip: not a postcode");
+    assertThatValidated(result).isInvalid().hasFieldErrors("address.zip: not a postcode");
   }
 
   // ─── Exercise 5 ────────────────────────────────────────────────────────────
@@ -242,7 +236,6 @@ public class Tutorial12_AccumulatingAssembly_Solution {
             .field("email", parseEmail("oops"))
             .apply(Pair::new);
 
-    assertThatValidated(corrected).isInvalid();
-    assertThat(errorStrings(corrected)).containsExactly("email: not an address");
+    assertThatValidated(corrected).isInvalid().hasFieldErrors("email: not an address");
   }
 }
